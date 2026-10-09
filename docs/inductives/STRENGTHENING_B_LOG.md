@@ -92,3 +92,22 @@ passes through an opaque constant or a self-loop; they enter the problem only th
 `TypeFrontN`/`TermEq` separation, not through exposure.
 
 Build clean; axiom audit of all 57 declarations: no `sorryAx`.
+
+### 2.3 Fragments that close (step 2(c)) and the eliminator closure (part 3)
+
+* `SortSkeleton` (sorts, `Π` over skeletons): closed and context-free. `SortSkeleton.hasType_of`
+  (sort typing transfers between any two well-formed contexts), `typeFrontN_skeleton` (type
+  front between skeletons, by induction with `sort_inv`, `sort_forallE_inv`, `forallE_inv`).
+* `typingFrontN_skeletonFragment`: typing front, no hypothesis on `env`, for `bvar`, `sort`,
+  `const`, skeletons, and `λ` over fragment bodies with skeleton domains. Attempted extensions and
+  the blocking rule: `λ`/`Π` with a non-skeleton domain `A` (the induction hypothesis types `A`
+  at some `T` below; `T↑ ≡ sort u` above must descend: `TypeFrontN.sort`); `Π` with a
+  non-skeleton body (same, for the body's type); `app` (`AppFrontN`); `proj` (`ProjFrontN`);
+  `elim` (`ElimFrontN`). "Environments with no definitional unfolding" was not pursued: the
+  blocking rule in every case is a conversion between lifts or an exposure, not an unfolding.
+* `GenericTypesTyped env` (generic eliminator types typed at a sort in `[]`) discharges
+  `ElimFrontN` (`ElimFrontN.of_genericTyped`, through `elim_inv`, `elimDF` and `weak0`). The
+  library lacks this environment lemma (it has `WF.eliminator_genericType_closed` only); it is
+  plausibly provable from `RegistrationCertificate` and is recorded as a side obligation.
+
+Build clean; axiom audit of all 63 declarations: no `sorryAx`.

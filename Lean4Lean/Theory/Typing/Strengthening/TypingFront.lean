@@ -663,4 +663,147 @@ theorem loop_not_pi {env env₁ env' : VEnv} {L₁ L₂ : Name} (henv : env.WF)
     ⟨_, H.toAxioms hne D⟩
 
 
+/-! ## Part 3: fragments that close, and the eliminator closure
+
+`SortSkeleton` (sorts and `Π` over skeletons) is closed and context-free: `SortSkeleton.hasType_of`
+moves its sort typing between any two well-formed contexts, and `typeFrontN_skeleton` is the type
+front between skeletons (sort and `Π` heads descend; the only inversions used are `sort_inv`,
+`sort_forallE_inv`, `forallE_inv`). `typingFrontN_skeletonFragment`: the typing front holds, with
+no hypothesis on the environment, for variables, sorts, constants, skeletons and `λ` over such
+bodies with skeleton domains. Every extension is blocked by exactly one closure: a non-skeleton
+domain by `TypeFrontN.sort`, an application by `AppFrontN`, a projection by `ProjFrontN`, an
+eliminator constant by `ElimFrontN`. `ElimFrontN.of_genericTyped` discharges the last one from
+`GenericTypesTyped`, an environment-level statement (generic eliminator types are typed in `[]`)
+that the library does not currently provide. -/
+
+variable {Γ' : List VExpr}
+
+/-! ## Fragments that close -/
+
+/-- Closed type skeletons: sorts and `Π` over skeletons. -/
+inductive SortSkeleton : VExpr → Prop
+  | sort (u : VLevel) : SortSkeleton (.sort u)
+  | forallE {A B : VExpr} : SortSkeleton A → SortSkeleton B → SortSkeleton (.forallE A B)
+
+theorem SortSkeleton.liftN_eq {A : VExpr} (h : SortSkeleton A) (n k : Nat) : A.liftN n k = A := by
+  induction h generalizing k with
+  | sort => rfl
+  | forallE _ _ ih1 ih2 => simp only [liftN, ih1, ih2]
+
+/-- A skeleton typed at a sort in one well-formed context is typed at that sort in every
+well-formed context. -/
+theorem SortSkeleton.hasType_of (henv : env.WF) {A : VExpr} (hs : SortSkeleton A)
+    (hΓ : OnCtx Γ (env.IsType U)) (hΓ' : OnCtx Γ' (env.IsType U))
+    (h : env.HasType U Γ' A (.sort u)) : env.HasType U Γ A (.sort u) := by
+  induction hs generalizing Γ Γ' u with
+  | sort w =>
+    have hw := h.sort_inv henv.ordered
+    have hu := h.sort_r henv.ordered hΓ'
+    have he := (HasType.sort (Γ := Γ') hw).uniqU henv hΓ' h
+    exact (IsDefEq.sortDF (l := .succ w) hw hu (he.sort_inv henv hΓ')).defeq (.sort hw)
+  | @forallE A B _ _ ih1 ih2 =>
+    obtain ⟨⟨a, hA⟩, b, hB⟩ := h.forallE_inv henv.ordered
+    have hA' := ih1 hΓ hΓ' hA
+    have hΓA : OnCtx (A :: Γ) (env.IsType U) := ⟨hΓ, _, hA'⟩
+    have hΓA' : OnCtx (A :: Γ') (env.IsType U) := ⟨hΓ', _, hA⟩
+    have hB' := ih2 hΓA hΓA' hB
+    have hu := h.sort_r henv.ordered hΓ'
+    have he := (HasType.forallE hA hB).uniqU henv hΓ' h
+    exact (IsDefEq.sortDF ((HasType.forallE hA' hB').sort_r henv.ordered hΓ) hu
+      (he.sort_inv henv hΓ')).defeq (.forallE hA' hB')
+
+/-- The type front holds between skeletons (sort and `Π` heads descend). -/
+theorem typeFrontN_skeleton (henv : env.WF) {A B : VExpr} (hA : SortSkeleton A)
+    (hB : SortSkeleton B) (hΓ : OnCtx Γ (env.IsType U)) (hΓ' : OnCtx Γ' (env.IsType U))
+    (htA : env.HasType U Γ A (.sort u)) (htB : env.HasType U Γ B (.sort v))
+    (H : env.IsDefEqU U Γ' A B) : env.IsDefEqU U Γ A B := by
+  induction hA generalizing B Γ Γ' u v with
+  | sort w =>
+    cases hB with
+    | sort w' =>
+      exact ⟨_, .sortDF (htA.sort_inv henv.ordered) (htB.sort_inv henv.ordered)
+        (H.sort_inv henv hΓ')⟩
+    | forallE => exact (IsDefEqU.sort_forallE_inv henv hΓ' H).elim
+  | @forallE A₁ A₂ hA₁ hA₂ ih1 ih2 =>
+    cases hB with
+    | sort => exact (IsDefEqU.sort_forallE_inv henv hΓ' H.symm).elim
+    | @forallE B₁ B₂ hB₁ hB₂ =>
+      obtain ⟨⟨_, h1⟩, _, h2⟩ := H.forallE_inv henv hΓ'
+      obtain ⟨⟨a, htA₁⟩, a', htA₂⟩ := htA.forallE_inv henv.ordered
+      obtain ⟨⟨b, htB₁⟩, b', htB₂⟩ := htB.forallE_inv henv.ordered
+      have hΓA : OnCtx (A₁ :: Γ) (env.IsType U) := ⟨hΓ, _, htA₁⟩
+      have hΓA' : OnCtx (A₁ :: Γ') (env.IsType U) := ⟨hΓ', _, (h1.hasType.1)⟩
+      have e1 := ih1 hB₁ hΓ hΓ' htA₁ htB₁ ⟨_, h1⟩
+      have hΓB : OnCtx (B₁ :: Γ) (env.IsType U) := ⟨hΓ, _, htB₁⟩
+      have htB₂' := hB₂.hasType_of henv hΓA hΓB htB₂
+      have e2 := ih2 hB₂ hΓA hΓA' htA₂ htB₂' ⟨_, h2⟩
+      exact ⟨_, .forallEDF (e1.of_l henv hΓ htA₁) (e2.of_l henv hΓA htA₂)⟩
+
+/-- Terms whose binder domains are skeletons and whose `Π`s are skeletons: variables, sorts,
+constants, `λ` over such bodies with skeleton domains, and skeletons. -/
+inductive SkeletonFragment : VExpr → Prop
+  | bvar (i : Nat) : SkeletonFragment (.bvar i)
+  | sort (u : VLevel) : SkeletonFragment (.sort u)
+  | const (c : Name) (ls : List VLevel) : SkeletonFragment (.const c ls)
+  | lam {A b : VExpr} : SortSkeleton A → SkeletonFragment b → SkeletonFragment (.lam A b)
+  | skeleton {A : VExpr} : SortSkeleton A → SkeletonFragment A
+
+/-- The typing front holds on the skeleton fragment with no hypothesis on the environment. -/
+theorem typingFrontN_skeletonFragment (henv : env.WF) {e : VExpr} (he : SkeletonFragment e)
+    {k : Nat} {T : VExpr} (W : Ctx.LiftN 1 k Γ Γ') (hΓ : OnCtx Γ (env.IsType U))
+    (hΓ' : OnCtx Γ' (env.IsType U)) (h : env.HasType U Γ' (e.liftN 1 k) T) :
+    ∃ T₀, env.HasType U Γ e T₀ := by
+  induction he generalizing k Γ Γ' T with
+  | bvar i =>
+    obtain ⟨A', hA'⟩ := h.bvar_inv henv.ordered hΓ'
+    obtain ⟨A, hA⟩ := Lookup.of_liftN W hA'
+    exact ⟨_, .bvar hA⟩
+  | sort u => exact ⟨_, .sort (h.sort_inv henv.ordered)⟩
+  | const c ls =>
+    obtain ⟨ci, h1, h2, h3⟩ := h.const_inv henv.ordered hΓ'
+    exact ⟨_, .const h1 h2 h3⟩
+  | @lam A b hA _ ih =>
+    obtain ⟨⟨u, hA'⟩, _, hb'⟩ := h.lam_inv henv.ordered hΓ'
+    rw [hA.liftN_eq] at hA' hb'
+    have hA₀ := hA.hasType_of henv hΓ hΓ' hA'
+    have W' : Ctx.LiftN 1 (k+1) (A :: Γ) (A :: Γ') := by
+      have := W.succ (A := A)
+      rwa [hA.liftN_eq] at this
+    have hΓA : OnCtx (A :: Γ) (env.IsType U) := ⟨hΓ, u, hA₀⟩
+    have hΓA' : OnCtx (A :: Γ') (env.IsType U) := ⟨hΓ', u, hA'⟩
+    obtain ⟨Tb, hTb⟩ := ih W' hΓA hΓA' hb'
+    exact ⟨_, .lam hA₀ hTb⟩
+  | skeleton hs =>
+    rw [hs.liftN_eq] at h
+    cases hs with
+    | sort w => exact ⟨_, .sort (h.sort_inv henv.ordered)⟩
+    | forallE h1 h2 =>
+      obtain ⟨⟨a, hA⟩, b, hB⟩ := h.forallE_inv henv.ordered
+      exact ⟨_, (SortSkeleton.forallE h1 h2).hasType_of henv hΓ hΓ' (.forallE hA hB)⟩
+
+/-! ## The eliminator closure from typed generic types -/
+
+/-- Every registered eliminator schema has its generic type typed at a sort in the empty
+context, at every permitted universe specialization. Not a library theorem (the library has
+`WF.eliminator_genericType_closed` only); stated as the hypothesis that discharges
+`ElimFrontN`. -/
+def GenericTypesTyped (env : VEnv) : Prop :=
+  ∀ ⦃U block schema owner type target levels⦄, env.eliminators block schema →
+    schema.genericType owner = some type → schema.Permission U owner levels target →
+    ∃ l, env.HasType U [] (type.instL (target :: levels)) (.sort l)
+
+theorem ElimFrontN.of_genericTyped (henv : env.WF) (H : GenericTypesTyped env) :
+    ElimFrontN env := by
+  intro U k Γ Γ' block slot packed T W hΓ hΓ' he
+  obtain ⟨schema, owner, type, target, levels, typeLevel, rfl, rfl, hl, ht, hc, hp, _, _⟩ :=
+    he.elim_inv henv.ordered hΓ'
+  obtain ⟨l, hgen⟩ := H hl ht hp
+  have hrefl : ∀ ls : List VLevel, List.Forall₂ (· ≈ ·) ls ls := by
+    intro ls
+    induction ls with
+    | nil => exact .nil
+    | cons l ls ih => exact .cons rfl ih
+  exact ⟨_, .elimDF hl ht hc hp hp.packedWF (hrefl _) (hgen.weak0 henv.ordered)⟩
+
+
 end Lean4Lean.VEnv.StrengtheningTypingFront
