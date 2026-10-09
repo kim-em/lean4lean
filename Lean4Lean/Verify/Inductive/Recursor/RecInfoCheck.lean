@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Constructor.Check
+import Lean4Lean.Verify.Inductive.SourceAlignment
 
 namespace Lean4Lean
 
@@ -29,11 +30,10 @@ def ConstructorCheck.motivePassHeaderAt
     (hlparams : c.lparams.Nodup) :
     mkRecInfos.loopArgs1.MotivePassHeaderAt R.context stats decl depth
       indTypes[familyIdx] familyIdx := by
-  have htarget : familyIdx < decl.types.length := by
-    rw [← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core]
-    simpa using hfamily
-  have Htype := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt R.core
-    familyIdx (by simpa using hfamily) htarget
+  have family := Lean4Lean.VerifyInductive.TrInductDeclCore.familyAlignmentFromSource
+    R.core familyIdx hfamily
+  have htarget := family.target_lt
+  have Htype := family.translation
   have hsourceLE : sourceEnv <= R.context.venv :=
     R.installation.headerLE.trans (R.installation.constructorLE.trans R.ctorLE)
   have Hsource := Htype.header.mono hsourceLE

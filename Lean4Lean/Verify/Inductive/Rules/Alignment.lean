@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Install.Lookups
+import Lean4Lean.Verify.Inductive.SourceAlignment
 
 /-! Rule alignment, the entry point of the typing of the iota rules (`Rules/`,
 section 3.2 of `docs/inductives/DESIGN.md`). For each rule emitted by the recursor construction,
@@ -198,22 +199,12 @@ theorem RecursorCheck.ruleAlignment
     simpa [H.generated.length] using howner
   have habstractOwner : owner < decl.types.length := by
     simpa [H.cardinality.records] using hrecInfo
-  have hsourceOwner : owner < indTypes.size := by
-    have htypes : indTypes.size = decl.types.length := by
-      simpa using
-        Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core
-    omega
+  have family := Lean4Lean.VerifyInductive.TrInductDeclCore.familyAlignmentFromTarget
+    R.core owner habstractOwner
+  have hsourceOwner := family.source_lt
   have hsourceCtor : i < indTypes[owner].ctors.length := by
     simpa [Array.getElem!_eq_getD, Array.getD, hsourceOwner] using hctor
-  have Howner := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt R.core
-    owner (by simpa using hsourceOwner) habstractOwner
-  rw [Array.getElem_toList] at Howner
-  have habstractCtor : i < decl.types[owner].ctors.length := by
-    rw [← Lean4Lean.VerifyInductive.TrInductiveType.ctors_length Howner]
-    exact hsourceCtor
-  let Hctor := Lean4Lean.VerifyInductive.TrInductiveType.ctorAt Howner i
-    hsourceCtor
-    habstractCtor
+  have constructor := family.constructorAt i hsourceCtor
   let E := H.generated.entry owner howner
   have hsourceRule : i < E.info.rules.length := by
     rw [E.rules.length]
@@ -226,9 +217,9 @@ theorem RecursorCheck.ruleAlignment
     sourceOwner_lt := hsourceOwner
     sourceCtor_lt := hsourceCtor
     abstractOwner_lt := habstractOwner
-    abstractCtor_lt := habstractCtor
-    ownerTranslation := Howner
-    ctorTranslation := Hctor
+    abstractCtor_lt := constructor.target_lt
+    ownerTranslation := family.translation
+    ctorTranslation := constructor.translation
     sourceRule_lt := hsourceRule
     rule := Hrule
     typing := Hsemantic
