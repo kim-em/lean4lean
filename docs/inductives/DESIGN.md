@@ -88,13 +88,12 @@ the source constant. Which constants make up the dependency cone of `d` is not c
 ### 1.3 The hypotheses
 
 - `wf : ves.WF env` is the invariant being preserved. `VEnvs.WF`
-  (`Lean4Lean/Verify/TypeChecker.lean`) gains fields in this pull
-  request: closure of mutual inductives, presence of constructor owners that list their
-  constructors, agreement of the
-  installed constructors with the abstract model, and the record of installed inductive
-  families (which carries projection-registry coherence). It holds for the empty environment the executable replays
-  from (`VEnvs.WF.empty`, `Lean4Lean/Verify/Environment.lean`): every field is vacuous there
-  except the translation. There is no invariant about the type-annotation wrappers:
+  (`Lean4Lean/Verify/Environment/Model.lean`) is one abstract environment per safety level,
+  related to the kernel environment by the translation `TrEnv`, with the primitives, and with
+  every inductive constant accounted for by an installed block (`InstalledBlocks`, section
+  3.4). It holds for the empty environment the executable replays from (`VEnvs.WF.empty`,
+  `Lean4Lean/Verify/Environment.lean`): there are no blocks, and only the translation is not
+  vacuous. There is no invariant about the type-annotation wrappers:
   the inductive checker strips `optParam`, `autoParam`, `outParam` and `semiOutParam` from
   binder domains only when the environment at that point declares the name as the prelude's
   definition (`Kernel.Environment.isTypeAnnotationWrapper`), and each strip is justified from
@@ -106,7 +105,7 @@ the source constant. Which constants make up the dependency cone of `d` is not c
   It is used only in the quotient case (section 6); `addDecl.WF_quotReadyAt` assumes quotient
   readiness only for `quotDecl`.
 - There is no hypothesis about the constructor telescopes walked by projection inference:
-  the constructor certificates of `VEnvs.WF` cover them (section 5.3).
+  the installed blocks of `VEnvs.WF` carry a certificate for every constructor (section 5.3).
 
 A replay from the empty environment is covered by `AddDeclChain.WF_empty`
 (`Lean4Lean/Verify/Replay.lean`): every environment reached by adding a list
@@ -517,6 +516,43 @@ declaration the checker accepts these checks succeed; they turn a generic genera
 correctness theorem, which would need strengthening and uniqueness at arbitrary generated
 syntax, into a type check of a closed term.
 
+What an installation leaves behind is recorded once, as a descriptor of the installed block
+(`InstalledBlock`, `Lean4Lean/Verify/Environment/Blocks.lean`): its kernel headers,
+constructors and recursors, the abstract declaration with the abstract family and
+constructor of each kernel header and constructor, the case eliminators and projections it
+registers, the telescope certificate of each constructor, and the stage reached. The stages
+follow the executable: at `.headers` the headers are installed and the constructors they list
+are absent, which is how their types are checked; at `.constructors` the constructors are
+installed and the block's case eliminators and projections registered (the
+recursor-checking environment, and the side environments of nested restoration, where the
+recursors may already be present); at `.complete` the abstract block is installed
+(`VEnv.InstalledBelow`) and every constructor agrees with its family on the common
+parameters. A descriptor has a kernel side, which every observer sees, and an abstract side
+for the observers that see the block; recursor alignment is required for the recursors the
+observer sees.
+
+The environment invariant `InstalledBlocks safety env venv stage` says that every inductive
+header, constructor and recursor of `env` belongs to a well-formed descriptor of at least
+`stage`, and that every projection entry registered in `venv` was registered by a visible
+descriptor. `VEnvs.WF` and `VEnvAt` carry it at `.complete`; the checking invariant
+`CheckingEnv.Valid`, and the checker context `VContext`, at `.headers`, since a staged
+environment carries partial descriptors. Every lookup the checker reads is a projection of it:
+mutual closure, constructor owners, listed constructors (and their presence when every block
+has its constructors), the projection registry in both directions
+(`InstalledBlocks.projectionRegistryCoherent`, and `InstalledBlocks.projectionHeader`: a
+structure with a registry entry is a visible header listing exactly the registered
+constructor), recursor alignment (`InstalledBlocks.recursorEnvCoherent`), the presence of the
+constructors of every recursor's major inductive (`InstalledBlocks.recursorMajorCtors`), the
+constructor telescopes, constructor parameter agreement and the installed families. Each
+installation step extends the invariant once: an unrelated constant keeps every descriptor
+(`InstalledBlocks.addFresh`, `addDefinitions`), a header installed on its own is its own
+descriptor at `.headers` (`addFreshListed`), and the installation of a declaration up to the
+constructor stage or completely adds the descriptor read off it (`addCtorStage`,
+`addInduct`, both instances of `addBlock`), on the ordinary, primitive, prelude and nested
+paths alike. A primitive batch installs atomically and has no checking invariant between its
+header and its constructors (`AtomicAddConstants`, `LocalContextWF`); the invariant is
+re-established at the end of the batch.
+
 ## 4. Metatheory
 
 ### 4.1 Head inversion
@@ -685,7 +721,10 @@ Every binder of the checker saves and restores the context-relative state
 binder; the name generator stays advanced and the `unfold` cache, which depends only on the
 environment, is kept. `isDefEqLambda` and `isDefEqForall` always compare bodies under a binder.
 With this, the cache invariant is simply "every entry is derivable in the current context"
-(`State.WF`, `State.WF.leaveScope` in `Lean4Lean/Verify/TypeChecker/Basic.lean`).
+(`State.WF`, `State.WF.leaveScope` in `Lean4Lean/Verify/TypeChecker/Basic.lean`). The
+environment part of the checker context does not change under a binder: `VContext` carries
+the translation, the installed blocks (section 3.4), the stored-equation heads and the
+quotient facts, and the lookup facts it supplies are projections of them.
 
 Without scoping no invariant of that form holds. `Lean4Lean/Tests/CacheScope.lean`
 builds the countermodel environment above (no `Eq`) and a closed definition of type `SJ` with
@@ -789,11 +828,11 @@ wrapper name. The other changes cannot change a decision except through checker 
   the type of the major premise's type does not reduce to a sort. `expandEtaStruct` also
   returns it unchanged where the C++ kernel throws on an absent constructor, a branch that is
   unreachable: the major inductive of every present recursor has its constructors present
-  (`VContext.expandEtaStruct_ctor`). The checking context carries the
-  constructor listing in both directions: every present constructor is listed by its present
-  owner with the owner's `isUnsafe` (`ConstructorOwnersPresent`), and every name a present
-  header lists is, if present, a constructor of that header with its `isUnsafe`
-  (`ListedConstructorsCoherent`). With it, `inferProj`, `tryEtaStructCore`,
+  (`VContext.expandEtaStruct_ctor`). The checking context carries, as
+  projections of its installed blocks (section 3.4), the constructor listing in both
+  directions: every present constructor is listed by its present owner with the owner's
+  `isUnsafe` (`ConstructorOwnersPresent`), and every name a present header lists is, if
+  present, a constructor of that header with its `isUnsafe` (`ListedConstructorsCoherent`). With it, `inferProj`, `tryEtaStructCore`,
   `isDefEqUnitLike` and `expandEtaStruct` read structures and constructors as the C++ kernel
   does. The listing holds in the staged environments of an inductive declaration because
   the declaration's constructor names are absent from the environment in which their types
@@ -891,7 +930,8 @@ constructor, recursor or inductive type is rejected by the corresponding check.
 Suggested order, with sizes.
 
 1. The statements: `Lean4Lean/Verify/Environment.lean` (440 lines), `Lean4Lean/Theory/CanonicalEq.lean`,
-   `VEnvs.WF` in `Lean4Lean/Verify/TypeChecker.lean`.
+   `VEnvs.WF` in `Lean4Lean/Verify/Environment/Model.lean`, and `InstalledBlocks` in
+   `Lean4Lean/Verify/Environment/Blocks.lean`.
 2. The calculus: `Lean4Lean/Theory/VExpr.lean`, `Lean4Lean/Theory/Typing/Basic.lean` (150),
    `Lean4Lean/Theory/VEnv.lean`, `Lean4Lean/Theory/Typing/Env.lean` (`VEnv.WF'`).
 3. The specification: `Lean4Lean/Theory/DeclarationData.lean`, `Lean4Lean/Theory/InductBlock.lean`,
