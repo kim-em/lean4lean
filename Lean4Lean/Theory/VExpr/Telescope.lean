@@ -126,6 +126,26 @@ theorem VExpr.liftN_wrapForalls_sort (domains : List VExpr) (level : VLevel) (n 
     exact ⟨domain.liftN n k :: domains', congrArg (VExpr.forallE (domain.liftN n k)) hd⟩
 
 
+private theorem VExpr.getAppFnArgs.go_append
+    (e : VExpr) (pre suffix : List VExpr) :
+    getAppFnArgs.go e (pre ++ suffix) =
+      let (fn, args) := getAppFnArgs.go e pre
+      (fn, args ++ suffix) := by
+  induction e generalizing pre with
+  | app fn arg ihFn _ =>
+    simpa only [getAppFnArgs.go, List.cons_append] using
+      ihFn (arg :: pre)
+  | _ => simp [getAppFnArgs.go]
+
+@[simp] theorem VExpr.getAppFnArgs_app :
+    getAppFnArgs (.app fn arg) =
+      let (head, args) := fn.getAppFnArgs
+      (head, args ++ [arg]) := by
+  change getAppFnArgs.go fn [arg] =
+    let (head, args) := getAppFnArgs.go fn []
+    (head, args ++ [arg])
+  simpa using getAppFnArgs.go_append fn [] [arg]
+
 theorem VExpr.mkApps_getAppFnArgs (e : VExpr) :
     VExpr.mkApps e.getAppFnArgs.1 e.getAppFnArgs.2 = e := by
   suffices ∀ args, VExpr.mkApps (VExpr.getAppFnArgs.go e args).1
@@ -139,4 +159,31 @@ theorem VExpr.stripLams_wrapLams (ds : List VExpr) (e : VExpr) :
   induction ds with
   | nil => rfl
   | cons d ds ih => exact ih
+@[simp] theorem VExpr.wrapForalls_append
+    (left right : List VExpr) (body : VExpr) :
+    VExpr.wrapForalls (left ++ right) body =
+      VExpr.wrapForalls left (VExpr.wrapForalls right body) := by
+  simp [wrapForalls, List.foldr_append]
+
+@[simp] theorem VExpr.takeForalls_wrapForalls_append
+    (pre suff : List VExpr) (body : VExpr) :
+    (VExpr.wrapForalls (pre ++ suff) body).takeForalls pre.length =
+      some (pre, VExpr.wrapForalls suff body) := by
+  induction pre with
+  | nil => rfl
+  | cons dom pre ih =>
+    change (do
+      let (domains, result) ←
+        (VExpr.wrapForalls (pre ++ suff) body).takeForalls pre.length
+      return (dom :: domains, result)) = _
+    rw [ih]
+    rfl
+
+@[simp] theorem VExpr.takeForalls_wrapForalls
+    (domains : List VExpr) (body : VExpr) :
+    (VExpr.wrapForalls domains body).takeForalls domains.length =
+      some (domains, body) := by
+  simpa [wrapForalls] using
+    VExpr.takeForalls_wrapForalls_append domains [] body
+
 end Lean4Lean
