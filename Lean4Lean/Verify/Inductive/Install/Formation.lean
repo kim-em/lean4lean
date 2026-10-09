@@ -1,6 +1,6 @@
 import Lean4Lean.Verify.Inductive.Install.Headers
 import Lean4Lean.Verify.Inductive.Install.LiteralNames
-import Lean4Lean.Verify.Inductive.Nested.Restoration.Translations
+import Lean4Lean.Verify.Inductive.Install.Metadata
 
 /-! Skeleton-free formation: the header installation, the constructor check and
 the constructor installation, composed for the declaration that these

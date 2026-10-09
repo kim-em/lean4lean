@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Recursor.RecInfoCheck
-import Lean4Lean.Verify.Inductive.Nested.Restoration.Translations
+import Lean4Lean.Verify.Inductive.Install.Metadata
 import Lean4Lean.Verify.Inductive.Recursor.Binders.FieldOpening
 import Lean4Lean.Verify.Inductive.TypeAnnotations
 
