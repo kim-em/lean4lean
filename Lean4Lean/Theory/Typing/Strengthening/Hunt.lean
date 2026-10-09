@@ -36,6 +36,22 @@ records what the gap can and cannot be:
   (`RigidCancel.prop_to_pi`): the rigid case contains the derived-proof mechanism of the Prop
   case and is not a simpler problem. The derived-proof route is harmless exactly when `P` is
   inhabited below (`transfer_inhabited`).
+* **The gap at an application node.** If the function and the argument are typed below, with
+  the function's type a `Π` below, typing the application above forces the exposed domain and
+  the argument type to agree above, and agreement below types the application below
+  (`app_gap`): a minimal gap at an application is a type-level `Cancel` instance between types
+  typed below. (Exposure of the function's type as a `Π` below from its exposure above is
+  Astra's open `UninhabitedPiExposure`.) At a rigid type the gap descends to the arguments
+  (`rigid_type_gap_args`), which covers the subjects of `structEta` and `unitLike` typed at a
+  structure type only above.
+* **The derived proof as a singleton field.** The proof-major join of the Eq-free countermodel
+  with the field `f' q` is derived above, and derived below from any inhabitant `h₀ : P` of the
+  field type typed below (`derived_field_join`, with the iota rules in generic form); the
+  canonical-`Eq` extractor supplies `h₀` from a major typed below
+  (`singleton_cast_extractor_exists`), whatever the other indices of the family are, since the
+  extractor is quantified over all index values. A derived proof as a middle between `q`-free
+  terms typed below forces their types to align with `P` above and is proof irrelevance below
+  when they align below (`derived_proof_middle`).
 * **Fresh axiom types** give rigid binders in every well-formed environment with canonical
   `Eq`: `AxiomEnv` adds `I : Type` as an axiom (`axiomEnv_exists`, `AxiomEnv.wf`,
   `AxiomEnv.canonicalEq`, `AxiomEnv.rigid`). -/
@@ -44,7 +60,8 @@ namespace Lean4Lean
 namespace VEnv.StrengtheningHunt
 open VEnv VExpr StrengtheningKripke
 
-variable {env : VEnv} {U : Nat} {Γ : List VExpr} {Q A T P M a b t m e f : VExpr}
+variable {env : VEnv} {U : Nat} {Γ : List VExpr} {Q A T P M K a b t m e f : VExpr}
+open StrengtheningCandidates (S0)
 
 /-! ## 1. The typing gap at a fixed lifted type -/
 
@@ -311,6 +328,124 @@ theorem no_projections (hn : ∀ info, ¬ env.projections I info) :
   rw [H.projections']; exact hn
 
 end AxiomEnv
+
+/-! ## 5. The gap at an application node, and at a rigid type -/
+
+/-- The only non-binder node of a `q`-free term whose typing above can use a conversion is an
+application. If the function and the argument are typed below, with the function's type
+already a `Π` below, then typing the application above forces the domain and the argument
+type to agree above, and agreement below types the application below. So a minimal gap at an
+application node is a type-level `Cancel` instance between the exposed domain and the
+argument type, both typed below. -/
+theorem app_gap (henv : env.WF) (hΓQ : OnCtx (Q :: Γ) (env.IsType U))
+    (hg : env.HasType U Γ g (.forallE A₀ B₀)) (hx : env.HasType U Γ x X)
+    (ht : env.HasType U (Q :: Γ) (VExpr.app g x).lift V) :
+    env.IsDefEqU U (Q :: Γ) A₀.lift X.lift ∧
+      (env.IsDefEqU U Γ A₀ X → env.HasType U Γ (.app g x) (B₀.inst x)) := by
+  obtain ⟨A', B', hg', hx'⟩ := ht.app_inv henv.ordered hΓQ
+  have h1 : env.IsDefEqU U (Q :: Γ) (.forallE A₀.lift (B₀.liftN 1 1)) (.forallE A' B') :=
+    (hg.weak henv.ordered).uniqU henv hΓQ hg'
+  obtain ⟨_, hA⟩ := (h1.forallE_inv henv hΓQ).1
+  have h2 : env.IsDefEqU U (Q :: Γ) X.lift A' := (hx.weak henv.ordered).uniqU henv hΓQ hx'
+  refine ⟨IsDefEqU.trans henv hΓQ ⟨_, hA⟩ h2.symm, fun h => ?_⟩
+  exact hg.app (HasType.defeqU_r henv hΓQ.1 h.symm hx)
+
+/-- At a rigid type the gap descends to the arguments: a `q`-free term typed below at
+`S ps'` and above at `(S ps)↑` has pairwise equal arguments above. -/
+theorem rigid_type_gap_args (henv : env.WF) (hΓQ : OnCtx (Q :: Γ) (env.IsType U))
+    (hS : env.Rigid S)
+    (hT : env.HasType U Γ (mkApps (.const S ls') ps') (.sort u))
+    (ht : env.HasType U Γ t (mkApps (.const S ls') ps'))
+    (ht' : env.HasType U (Q :: Γ) t.lift (mkApps (.const S ls) ps).lift) :
+    List.Forall₂ (· ≈ ·) ls' ls ∧
+      List.Forall₂ (env.IsDefEqU U (Q :: Γ))
+        (ps'.map fun p => p.liftN 1) (ps.map fun p => p.liftN 1) := by
+  have h := retyping_gap henv hΓQ ht ht'
+  have hT' := hT.weak henv.ordered (B := Q)
+  simp only [lift, liftN_mkApps, liftN] at h hT'
+  exact IsDefEqU.rigidApp_inv henv hΓQ hS h hT'
+
+/-! ## 6. The derived proof as a singleton field -/
+
+theorem lift_liftN_one_inst (x e₀ : VExpr) : ((x.lift).liftN 1 1).inst e₀ 0 = x.lift := by
+  rw [liftN'_liftN' (e := x) (n1 := 1) (n2 := 1) (k1 := 0) (k2 := 1) (Nat.zero_le _) (by decide),
+    inst_liftN']
+
+/-- The proof-major join of the Eq-free countermodel with the field supplied by a derived
+proof `f' q`, `f' : Q → P`. The iota rules are taken in their generic form, with the field a
+variable of the context `P :: Γ`. Above, the join goes through the constructor applied to
+`f' q`; below, it goes through the constructor applied to any inhabitant `h₀ : P` typed
+below, which the canonical-`Eq` extractor supplies from a major typed below
+(`singleton_cast_extractor_exists`). The two halves use the same rules; the only
+difference is the inhabitant of the field type `P`, not of `Q`. -/
+theorem derived_field_join (henv : env.Ordered)
+    (hI : env.HasType U Γ I S0) (hJ : env.HasType U Γ J S0)
+    (hp : env.HasType U Γ p I) (hr : env.HasType U Γ r J)
+    (hmkI : env.HasType U Γ mkI (.forallE P I.lift))
+    (hmkJ : env.HasType U Γ mkJ (.forallE P J.lift))
+    (hf : env.HasType U Γ f (.forallE I T.lift)) (hg : env.HasType U Γ g (.forallE J T.lift))
+    (hiotaI : env.IsDefEq U (P :: Γ) (.app f.lift (.app mkI.lift (.bvar 0)))
+      (.app K.lift (.bvar 0)) T.lift)
+    (hiotaJ : env.IsDefEq U (P :: Γ) (.app g.lift (.app mkJ.lift (.bvar 0)))
+      (.app K.lift (.bvar 0)) T.lift)
+    (hf' : env.HasType U Γ f' (.forallE Q P.lift)) :
+    env.IsDefEq U (Q :: Γ) (.app f.lift p.lift) (.app g.lift r.lift) T.lift ∧
+    (∀ h₀, env.HasType U Γ h₀ P → env.IsDefEq U Γ (.app f p) (.app g r) T) := by
+  constructor
+  · -- the derived proof as the field
+    have hq : env.HasType U (Q :: Γ) (.app f'.lift (.bvar 0)) P.lift := by
+      simpa only [lift, liftN, inst_liftN_bvar] using
+        HasType.app (hf'.weak henv (B := Q)) (HasType.bvar (Lookup.zero (ty := Q)))
+    have W : Ctx.LiftN 1 1 (P :: Γ) (P.lift :: Q :: Γ) := .succ .one
+    have iI := (hiotaI.weakN henv W).instN henv hq Ctx.InstN.zero
+    have iJ := (hiotaJ.weakN henv W).instN henv hq Ctx.InstN.zero
+    simp only [liftN, inst, lift_liftN_one_inst, instVar, liftVar, Nat.lt_irrefl, ite_false,
+      liftN_zero] at iI iJ
+    have hcI : env.HasType U (Q :: Γ) (.app mkI.lift (.app f'.lift (.bvar 0))) I.lift := by
+      have := HasType.app_of_eq (hmkI.weak henv (B := Q))
+        (show (VExpr.forallE P I.lift).lift = .forallE P.lift (I.lift.liftN 1 1) from rfl) hq
+      rwa [lift_liftN_one_inst] at this
+    have hcJ : env.HasType U (Q :: Γ) (.app mkJ.lift (.app f'.lift (.bvar 0))) J.lift := by
+      have := HasType.app_of_eq (hmkJ.weak henv (B := Q))
+        (show (VExpr.forallE P J.lift).lift = .forallE P.lift (J.lift.liftN 1 1) from rfl) hq
+      rwa [lift_liftN_one_inst] at this
+    have eT : T.lift.liftN 1 1 = T.lift.lift := by
+      rw [liftN'_liftN' (e := T) (n1 := 1) (n2 := 1) (k1 := 0) (k2 := 1) (Nat.zero_le _)
+        (by decide)]
+      simp only [lift, liftN_liftN]
+    have hf₁ : env.HasType U (Q :: Γ) f.lift (.forallE I.lift (T.lift.liftN 1 1)) :=
+      hf.weak henv (B := Q)
+    have hg₁ : env.HasType U (Q :: Γ) g.lift (.forallE J.lift (T.lift.liftN 1 1)) :=
+      hg.weak henv (B := Q)
+    rw [eT] at hf₁ hg₁
+    exact StrengtheningCandidates.proof_major_join (hI.weak henv) (hJ.weak henv) (hp.weak henv)
+      (hr.weak henv) hcI hcJ hf₁ hg₁ iI iJ
+  · intro h₀ hh
+    have iI := hiotaI.instN henv hh Ctx.InstN.zero
+    have iJ := hiotaJ.instN henv hh Ctx.InstN.zero
+    simp only [inst, inst_lift, instVar, Nat.lt_irrefl, ite_false, ite_true, liftN_zero] at iI iJ
+    have hcI : env.HasType U Γ (.app mkI h₀) I := by simpa only [inst_lift] using hmkI.app hh
+    have hcJ : env.HasType U Γ (.app mkJ h₀) J := by simpa only [inst_lift] using hmkJ.app hh
+    exact StrengtheningCandidates.proof_major_join hI hJ hp hr hcI hcJ hf hg iI iJ
+
+/-- A derived proof `f' q` as the middle of a conversion between `q`-free terms `a`, `b` typed
+below: it forces the types of `a` and `b` to align with `P` above, and when they align below
+the conversion is proof irrelevance below. So a derived proof connects nothing new unless the
+alignment of a `q`-free type with the proposition `P` is itself available only above, a
+type-level instance of `Cancel` at `Prop`. -/
+theorem derived_proof_middle (henv : env.WF) (hΓQ : OnCtx (Q :: Γ) (env.IsType U))
+    (hP : env.HasType U Γ P S0) (ha : env.HasType U Γ a A) (hb : env.HasType U Γ b B)
+    (hf' : env.HasType U Γ f' (.forallE Q P.lift))
+    (H1 : env.IsDefEqU U (Q :: Γ) a.lift (.app f'.lift (.bvar 0)))
+    (H2 : env.IsDefEqU U (Q :: Γ) b.lift (.app f'.lift (.bvar 0))) :
+    env.IsDefEqU U (Q :: Γ) A.lift P.lift ∧ env.IsDefEqU U (Q :: Γ) B.lift P.lift ∧
+      (env.IsDefEqU U Γ A P → env.IsDefEqU U Γ B P → env.IsDefEqU U Γ a b) := by
+  have hq : env.HasType U (Q :: Γ) (.app f'.lift (.bvar 0)) P.lift := by
+    simpa only [lift, liftN, inst_liftN_bvar] using
+      HasType.app (hf'.weak henv.ordered (B := Q)) (HasType.bvar (Lookup.zero (ty := Q)))
+  refine ⟨(ha.weak henv.ordered).uniqU henv hΓQ (H1.of_r henv hΓQ hq),
+    (hb.weak henv.ordered).uniqU henv hΓQ (H2.of_r henv hΓQ hq), fun hA hB => ?_⟩
+  exact ⟨_, .proofIrrel hP (HasType.defeqU_r henv hΓQ.1 hA ha) (HasType.defeqU_r henv hΓQ.1 hB hb)⟩
 
 end VEnv.StrengtheningHunt
 end Lean4Lean

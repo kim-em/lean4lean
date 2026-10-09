@@ -37,12 +37,18 @@ Organising statement (Astra, round 8, `not_cancel_iff_typing_gap`): `Cancel` fai
 | rigid binder, bare `q` | `rigid_binder_not_proof`, `rigid_binder_not_function`, `rigid_binder_not_struct` | never a proof, a function, or a structure inhabitant |
 | rigid binder, derived proof `f q` | `derived_proof_irrel` (Astra), `derived_proof_typed`, `prop_binder_transfer` | every Prop-binder instance `P :: Γ ⊢ a↑ ≡ b↑` is a `Q`-binder instance over `(Q → P) :: Γ`, for any `Q` |
 | `RigidCancel` as a partial result | `RigidCancel.prop_to_pi`, `Cancel.rigidCancel` | `RigidCancel` turns every Prop-binder instance into a `Π`-binder instance in the same context; the rigid case contains the derived-proof mechanism of the Prop case; harmless exactly when `P` is inhabited below (`transfer_inhabited`) |
+| gap at an application node | `app_gap` | with function and argument typed below and the function type a `Π` below, the exposed domain and the argument type agree above; agreement below types the application below; the open piece is `Π`-exposure below (Astra's `UninhabitedPiExposure`) |
+| gap at a rigid type (`structEta`, `unitLike` subjects typed only above) | `rigid_type_gap_args` | descends to pairwise argument conversions above |
+| derived proof `f' q` as a singleton field (the extra-index variant of the 5.1 countermodel) | `derived_field_join` | the join above through `mk (f' q)` has the twin below through `mk h₀` for any `h₀ : P` typed below, which `singleton_cast_extractor_exists` supplies from a major typed below for any index values; the inhabitant that matters is of the field type `P`, not of `Q` |
+| derived proof as a middle between `q`-free terms typed below | `derived_proof_middle` | forces type alignment with `P` above; proof irrelevance below when aligned below |
 | fresh axiom types | `axiomEnv_exists`, `AxiomEnv.wf`, `AxiomEnv.canonicalEq`, `AxiomEnv.rigid`, `AxiomEnv.no_projections` | rigid non-proposition binders exist in every extension |
 
 ## 3. Log
 
 * 2026-10-09: worktree read; `Candidates.lean` created from the round 7 ledger, built, axioms
   checked.
+* 2026-10-09: `app_gap`, `rigid_type_gap_args`, `derived_field_join`, `derived_proof_middle`
+  added (sections 5 and 6 of `Hunt.lean`).
 * 2026-10-09: designer's course correction (Astra review 6, round 8): the search target is the
   typing gap at any type, not at `Q↑`; derived proofs `f q` are a third base of `q`-dependence;
   `¬ u ≈ 0` versus `IsNeverZero`. `Hunt.lean` written: typing-gap reduction, binder sort,
