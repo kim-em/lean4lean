@@ -177,6 +177,7 @@ it is read off `VInductDecl.WF` at the declaring step (`rec_shape`, `rules_ctor`
 never change afterwards, and rigidity of `T` is preserved by every later well-formed step
 (`Rigid.step`, `History.lean`). -/
 structure ShapeAt (env : VEnv) (D : IotaRuleData) (T : Name) : Prop where
+  former_find : ∃ tc, env.constants T = some tc
   rec_find : ∃ recC, env.constants D.recName = some recC ∧
     recC.type.RecShape D.np D.nm D.nmin D.nind ∧
     recC.type.majorFormer? (D.np + D.nm + D.nmin + D.nind) = some T
@@ -206,6 +207,11 @@ structure Stage (env : VEnv) : Prop where
   generic instance, and has its constants in shape. -/
   rules : ∀ {p : Pattern} {r : p.RHS × p.Check}, env.pats p r →
     ∃ D : IotaRuleData, ∃ e : p = D.pattern, e ▸ r = D.rhsR ∧ D.GenericStrong env ∧ D.Shape env
+  /-- Every definitional axiom is headed by a constant of `env` (a δ rule by its definition,
+  the quotient rule by `Quot.lift`): what keeps type formers rigid when later rules are
+  added, since those are headed by constants fresh at their declaration. -/
+  defeq_heads : ∀ {df : VDefEq}, env.defeqs df →
+    ∃ c us, df.lhs.getAppFn = .const c us ∧ env.constants c ≠ none
 
 /-- **The wave-1C obligation, as the history induction consumes it**: head inversion with
 strong conclusions in every `Stage` environment, from the `Stage` data alone — without
