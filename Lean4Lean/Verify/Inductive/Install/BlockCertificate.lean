@@ -656,7 +656,7 @@ theorem BlockCertificate.replaySafeConstructorTyping
     have hsafeVisible : DefinitionSafety.safe ≤
         (if familyInfo.isUnsafe then DefinitionSafety.unsafe
           else DefinitionSafety.safe) := by
-      simp [hfamilySafe, DefinitionSafety.le_rfl]
+      simp [hfamilySafe]
     rcases Hcompleted familyName familyInfo hfamily hsafeVisible i hi with ⟨C⟩
     exact ⟨C.mono hreplay⟩
 

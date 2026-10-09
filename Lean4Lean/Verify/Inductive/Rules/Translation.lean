@@ -23,22 +23,6 @@ namespace Lean4Lean
 open Lean hiding Environment Exception
 open VerifyInductive
 
-/-- The syntactic translation `TrSyn` under its former name, kept for
-`Inductive/Prelude/EqSyntax.lean`, whose tactic names the constructors. -/
-abbrev TrExprSyn := TrSyn
-
-alias TrExprSyn.bvar := TrSyn.bvar
-alias TrExprSyn.fvar := TrSyn.fvar
-alias TrExprSyn.sort := TrSyn.sort
-alias TrExprSyn.const := TrSyn.const
-alias TrExprSyn.app := TrSyn.app
-alias TrExprSyn.lam := TrSyn.lam
-alias TrExprSyn.forallE := TrSyn.forallE
-alias TrExprSyn.letE := TrSyn.letE
-alias TrExprSyn.lit := TrSyn.lit
-alias TrExprSyn.mdata := TrSyn.mdata
-alias TrExprSyn.proj := TrSyn.proj
-
 theorem TrExprS.toSyn {env : VEnv} {Us : List Name} {Δ : VLCtx} {e : Expr} {e' : VExpr}
     (H : TrExprS env Us Δ e e') : TrSyn Us Δ e e' := H.toTrSyn
 

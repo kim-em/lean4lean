@@ -6,7 +6,7 @@ import Lean4Lean.Theory.Inductive.CanonicalEqSignature
 The declaration of `Eq` submitted by `Init.Prelude`, and the type and iota rule
 of the recursor `Eq.rec` that the kernel generates for it, stated literally
 (generic only in binder and universe-parameter names).  The three types
-translate (`TrExprSyn`, hence every `TrExprS` derivation) to the corresponding
+translate (`TrSyn`, hence every `TrExprS` derivation) to the corresponding
 stored terms of `VEnv.HasCanonicalEq`; the iota-rule expressions are checked
 against the stored rule by `Lean4Lean/Tests/PreludeEq.lean`. -/
 
@@ -143,34 +143,34 @@ private theorem mapM_two (huv : u ≠ v) :
 
 end
 
-/-- Build a `TrExprSyn` derivation whose target is given. -/
+/-- Build a `TrSyn` derivation whose target is given. -/
 syntax "canonical_eq_tr_syn" : tactic
 macro_rules | `(tactic| canonical_eq_tr_syn) => `(tactic|
   repeat' (first
-    | apply TrExprSyn.forallE
-    | apply TrExprSyn.lam
-    | apply TrExprSyn.app
-    | (apply TrExprSyn.bvar; rfl)
-    | (apply TrExprSyn.sort; first
+    | apply TrSyn.forallE
+    | apply TrSyn.lam
+    | apply TrSyn.app
+    | (apply TrSyn.bvar; rfl)
+    | (apply TrSyn.sort; first
         | exact ofLevel_two_left | exact ofLevel_two_right ‹_› | exact ofLevel_one
         | rfl)
-    | (apply TrExprSyn.const; first
+    | (apply TrSyn.const; first
         | exact mapM_one | exact mapM_two_right ‹_› | exact mapM_two ‹_›)))
 
 theorem preludeEqType_syn (u alphaName lhsName rhsName : Name) :
-    TrExprSyn [u] [] (preludeEqType u alphaName lhsName rhsName)
+    TrSyn [u] [] (preludeEqType u alphaName lhsName rhsName)
       canonicalEqType := by
   unfold preludeEqType canonicalEqType
   canonical_eq_tr_syn
 
 theorem preludeEqReflType_syn (u alphaName valueName : Name) :
-    TrExprSyn [u] [] (preludeEqReflType u alphaName valueName)
+    TrSyn [u] [] (preludeEqReflType u alphaName valueName)
       canonicalEqReflType := by
   unfold preludeEqReflType canonicalEqReflType
   canonical_eq_tr_syn
 
 theorem eqRecTypeExpr_syn {u v : Name} (huv : u ≠ v) (n : EqRecBinderNames) :
-    TrExprSyn [u, v] [] (eqRecTypeExpr u v n) canonicalEqRecType := by
+    TrSyn [u, v] [] (eqRecTypeExpr u v n) canonicalEqRecType := by
   unfold eqRecTypeExpr eqRecMotiveExprU eqRecMinorExpr canonicalEqRecType
     canonicalEqRecMotive canonicalEqRecMinor
   canonical_eq_tr_syn

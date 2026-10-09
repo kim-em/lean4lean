@@ -919,7 +919,7 @@ theorem OccurrenceReplacement.resolvedMapping
     simp
 
 def NodeReplacementHasResolvedMapping
-    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
+    (env : Environment) (params As : Array Expr)
     (input : Expr) (state : Lean4Lean.ElimNestedInductive.State)
     (lowered : Expr) (finalResult : Lean4Lean.ElimNestedInductive.Result) : Prop :=
     ∃ value targetName levels auxName auxLevels nested,
@@ -957,7 +957,7 @@ final `aux2nested` map. -/
 theorem NodeReplacementResolved.mapping
     (H : NodeReplacementResolved env lctx params As input state lowered
       nextState finalResult finalState) :
-    NodeReplacementHasResolvedMapping env lctx params As input state lowered
+    NodeReplacementHasResolvedMapping env params As input state lowered
       finalResult := by
   rcases H with
     ⟨value, targetName, levels, Hcandidate, hhead, Hrecognized, Hlater, Hmap⟩
@@ -971,7 +971,7 @@ theorem NodeReplacementResolved.mapping
 /-- A mapped replacement introduces only its selected parameter variables;
 all trailing arguments are inherited from the source application. -/
 theorem NodeReplacementHasResolvedMapping.outputFVarsIn
-    (H : NodeReplacementHasResolvedMapping env lctx params As input state
+    (H : NodeReplacementHasResolvedMapping env params As input state
       lowered finalResult)
     (Hselection : CDeclArray lctx As)
     (Hinput : input.FVarIdsIn (· ∈ Hselection.fvars)) :
@@ -1008,7 +1008,7 @@ theorem NodeReplacementResolved.outputFVarsIn
 /-- A mapped lowering leaf after reopening its cached source application with
 the parameter array chosen by restoration. -/
 def NodeReplacementReopens
-    (env : Environment) (lctx : LocalContext) (params As : Array Expr)
+    (env : Environment) (As : Array Expr)
     (input : Expr) (state : Lean4Lean.ElimNestedInductive.State)
     (lowered : Expr) (finalResult : Lean4Lean.ElimNestedInductive.Result)
     (restoreAs : Array Expr) : Prop :=
@@ -1030,7 +1030,7 @@ expression equivalence.  The statement is at an arbitrary binder depth `k`
 because the occurrence may sit below binders of the constructor body; only the
 closed parameter prefix is compared with the depth-zero array operation. -/
 theorem NodeReplacementReopens.restoreNode
-    (H : NodeReplacementReopens env lctx params As input state lowered
+    (H : NodeReplacementReopens env As input state lowered
       finalResult restoreAs)
     (restoreEnv : Environment)
     (Hselection : CDeclArray lctx As)
@@ -1127,7 +1127,7 @@ scoping premise is that abstracting the constructor-opening parameters has
 removed all free variables; constructor lowering establishes that fact from
 its closed source type. -/
 theorem NodeReplacementHasResolvedMapping.reopens
-    (H : NodeReplacementHasResolvedMapping env lctx params As input state
+    (H : NodeReplacementHasResolvedMapping env params As input state
       lowered finalResult)
     (hresultParams : finalResult.params = params)
     (fvars : List FVarId)
@@ -1141,7 +1141,7 @@ theorem NodeReplacementHasResolvedMapping.reopens
       FVarsIn (fun _ => False)
         ((mkAppRange (.const targetName levels) 0 value.numParams
           input.getAppArgs).abstract As)) :
-    NodeReplacementReopens env lctx params As input state lowered
+    NodeReplacementReopens env As input state lowered
       finalResult restoreAs := by
   rcases H with
     ⟨value, targetName, levels, auxName, auxLevels, nested,
@@ -1204,7 +1204,7 @@ theorem NestedOccurrence.abstractedPrefixClosed
 /-- Constructor-scoped specialization of `reopens`; the closedness premise
 is derived from the source body's free-variable invariant. -/
 theorem NodeReplacementHasResolvedMapping.reopensOfFVars
-    (H : NodeReplacementHasResolvedMapping env lctx params As input state
+    (H : NodeReplacementHasResolvedMapping env params As input state
       lowered finalResult)
     (hresultParams : finalResult.params = params)
     (fvars : List FVarId)
@@ -1213,7 +1213,7 @@ theorem NodeReplacementHasResolvedMapping.reopensOfFVars
     (Hselection : CDeclArray lctx As)
     (hAs : Hselection.fvars.length ≤ fvars.length)
     (Hinput : FVarsIn (· ∈ Hselection.fvars) input) :
-    NodeReplacementReopens env lctx params As input state lowered
+    NodeReplacementReopens env As input state lowered
       finalResult restoreAs := by
   apply H.reopens hresultParams fvars hparams hnodup Hselection hAs
   intro value targetName levels Hcandidate hhead
@@ -1229,7 +1229,7 @@ theorem NodeReplacementResolved.reopensOfFVars
     (Hselection : CDeclArray lctx As)
     (hAs : Hselection.fvars.length ≤ fvars.length)
     (Hinput : FVarsIn (· ∈ Hselection.fvars) input) :
-    NodeReplacementReopens env lctx params As input state lowered
+    NodeReplacementReopens env As input state lowered
       finalResult restoreAs :=
   H.mapping.reopensOfFVars hresultParams fvars hparams hnodup Hselection hAs
     Hinput
@@ -1417,7 +1417,7 @@ inductive ExprLowering.Reopened
     (restoreAs : Array Expr) :
     Expr → Lean4Lean.ElimNestedInductive.State →
       Expr × Lean4Lean.ElimNestedInductive.State → Prop
-  | occurrence : NodeReplacementReopens env lctx params As input state output
+  | occurrence : NodeReplacementReopens env As input state output
       finalResult restoreAs →
       ExprLowering.Reopened env lctx params As finalResult restoreAs input state
         (output, nextState)

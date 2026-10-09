@@ -29,9 +29,9 @@ theorem validateSourceConstructorTypes.telTr_of_run
     (henv : TypeChecker.EnvGhostFree (fun _ => True) env)
     (Hsources : SourceSyntaxChecks types)
     (hrun : Lean4Lean.validateSourceConstructorTypes.run env lparams
-      safety fuel types result = .ok ())
+      safety fuel types = .ok ())
     (htype : indType ∈ types) (hctor : ctor ∈ indType.ctors) :
-    ∃ T, TelTr venv lparams [] ctor.type T := by
+    ∃ T, TelTrN venv lparams (AddInductive.constructorArity ctor.type) [] ctor.type T := by
   rcases validateSourceConstructorTypes.typeCheck_eq_ok_of_run
       hrun htype hctor with ⟨checked, hcheck⟩
   have hclosed := Hsources.constructorsClosed htype ctor hctor
@@ -43,7 +43,7 @@ theorem validateSourceConstructorTypes.telTr_of_run
       let type ← TypeChecker.checkType ctor.type
       TypeChecker.ensureSort type ctor.type).WF
       (TypeChecker.VContext.mkCheckingValid hvalid lparams fuel) {}
-      fun _ _ => ∃ T, TelTr venv lparams [] ctor.type T := by
+      fun _ _ => ∃ T, TelTrN venv lparams (AddInductive.constructorArity ctor.type) [] ctor.type T := by
     refine ((TypeChecker.checkType.WF (e := ctor.type) hfvars).and
       (TypeChecker.checkType.WF_telTr henv (by intro k r h; simp at h) hfvars
         (by simp))).bind fun _ _ _ ⟨⟨_, _, _, _, hsort, _⟩, htel⟩ => ?_
@@ -95,7 +95,7 @@ theorem NestedRun.restoredCtorOrigin
       rcases Hlower.sourceResolvedMappingAtFreshAligned hempty hfamily with
         ⟨_, _, loweredTarget, _, _, _, _, Hmapping, htarget⟩
       obtain ⟨hresultFamily, htargetEq⟩ := _root_.getElem?_eq_some_iff.mp htarget
-      rcases Hprod.findSourceHeaderAt Hc familyIdx (by simpa using hresultFamily) with
+      rcases Hprod.findSourceHeaderAt familyIdx (by simpa using hresultFamily) with
         ⟨info, hinfoLookup, -, hinfoType, -⟩
       have hinfoLookup' : E.loweredEnv.find? sourceTypes[familyIdx].name =
           some (.inductInfo info) := by
@@ -122,7 +122,8 @@ theorem NestedRun.restoredCtorOrigin
       exact (Hsources.typeClosed hmem).mono fun _ h => h.elim
   -- every source constructor type is certified by the validation run
   have hsrc : ∀ type ∈ sourceTypes, ∀ source ∈ type.ctors,
-      ∃ T, TelTr E.sourceCore.envTypes lparams [] source.type T :=
+      ∃ T, TelTrN E.sourceCore.envTypes lparams (AddInductive.constructorArity source.type) []
+        source.type T :=
     fun _ htype _ hsource => validateSourceConstructorTypes.telTr_of_run
       E.sourceCore.headerValidationValid hgf Hsources E.parameterValidation htype hsource
   rcases E.installedConstructorSource Hsources Howners hfind with
@@ -130,8 +131,10 @@ theorem NestedRun.restoredCtorOrigin
   · exact .inl hold
   · obtain ⟨T, hT⟩ := hsrc type htype source hsource
     refine .inr ⟨hu, ?_⟩
-    rw [CtorTelescopeAt, hlp]
-    exact ⟨T, hT.eqv_toTelTrN (BEq.symm heqv)⟩
+    have hord := E.sourceCore.headerValidationValid.tr.wf.ordered
+    have := CtorTelescopeAt.of_telTrN (venv := E.sourceCore.envTypes) (ci := ci)
+      (T := T) (by rw [hlp]; exact hT.eqv_arity hord (BEq.symm heqv))
+    exact this
 
 /-- Every constructor visible after a successful validated nested run, and every constructor of
 its constructor-validation environment, is certified in the source header environment. -/

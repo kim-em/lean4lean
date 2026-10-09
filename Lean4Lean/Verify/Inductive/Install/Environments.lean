@@ -221,7 +221,7 @@ theorem AddInductive.checkConstructors.telescopesWF
   refine Hloops.mono fun _ h owner howner ctor hctor => ?_
   obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem howner
   obtain ⟨T, hT⟩ := h i (Nat.zero_le _) (by simpa using hi) ctor (by simpa using hctor)
-  exact ⟨T, hT.toTelTrN (Nat.le_refl _)⟩
+  exact ⟨T, hT⟩
 
 /-- Constructor checking consumes only the raw constructor translations
 retained by header installation and returns both formation and pointwise

@@ -466,7 +466,7 @@ theorem VInductDeclSkeleton.withMetadata_toSkeleton
         types metadata = types := by
     intro types metadata hlength
     induction types generalizing metadata with
-    | nil => simpa using hlength
+    | nil => simp at hlength; simp
     | cons type types ih =>
       cases metadata with
       | nil => simp at hlength

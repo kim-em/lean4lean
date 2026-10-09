@@ -99,7 +99,7 @@ theorem TrInductDeclHeaders.preludeEqConstant
   refine ⟨target, hdecl, Htarget.header.name, ?_⟩
   apply vconstant_eq_of_fields
   · simpa [eqConst] using Htarget.header.uvars
-  · apply TrExprS.unique (by trivial) Htarget.header.type
+  · apply TrExprS.unique Htarget.header.type
     exact preludeEqType_translation env u alphaName lhsName rhsName
 
 /-- The header environment of the exact prelude `Eq` declaration contains one installed
@@ -553,7 +553,7 @@ source `AddInduct`. -/
 theorem OrdinaryRunResult.extendPreludeEq
     {ves : VEnvs}
     (Hrun : OrdinaryRunResult source sourceEnv
-      nparams types numNested outEnv)
+      nparams types outEnv)
     (wf : ves.WF source.env)
     (hAbsent : source.env.constants.find? ``Eq = none)
     (hsafety : source.safety = .safe)

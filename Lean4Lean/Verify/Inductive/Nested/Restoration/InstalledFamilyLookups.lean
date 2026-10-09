@@ -483,7 +483,7 @@ theorem RecursorCheck.findSourceHeaderAt
     {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
-    (Hc : ContextWF c) (H : RecursorCheck R.toConstructorCheck outEnv)
+    (H : RecursorCheck R.toConstructorCheck outEnv)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size) :
     ∃ info : InductiveVal,
       outEnv.find? indTypes[familyIdx].name = some (.inductInfo info) ∧
@@ -601,7 +601,7 @@ theorem RestoredInductiveStep.restoredConstructorOwnerUnsafeAt
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     {stepSource stepTarget : Environment}
@@ -624,7 +624,7 @@ theorem RestoredInductiveStep.restoredConstructorOwnerUnsafeAt
     simpa using hresultFamily
   have htargetArrayEq : result.types.toArray[familyIdx] = target := by
     simpa using htargetEq
-  rcases Hprod.findSourceHeaderAt Hc familyIdx hresultArray with
+  rcases Hprod.findSourceHeaderAt familyIdx hresultArray with
     ⟨installedInfo, hinstalledLookup, hinstalledName, _hinstalledType,
       hinstalledCtors, _hinstalledAll, _hinstalledLevels,
       _hinstalledParams, _hinstalledUnsafe⟩
@@ -727,7 +727,7 @@ theorem RestoredInductiveStep.restoredConstructorOwnerAt
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     {stepSource stepTarget : Environment}
@@ -739,7 +739,7 @@ theorem RestoredInductiveStep.restoredConstructorOwnerAt
     (Hctor : RestoredConstructorStep result loweredEnv
       Hstep.oldInfo.ctors[ctorIdx] ctorSource ctorTarget) :
     Hctor.restored.newInfo.induct = Hstep.restored.header.newInfo.name :=
-  (Hstep.restoredConstructorOwnerUnsafeAt Hlower Hc Hprod hempty familyIdx hfamily
+  (Hstep.restoredConstructorOwnerUnsafeAt Hlower Hprod hempty familyIdx hfamily
     ctorIdx hctor Hctor).1
 
 /-- Restoring one source family preserves constructor-owner presence.  Old
@@ -756,7 +756,7 @@ theorem RestoredInductiveStep.constructorOwnersPresent
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     {stepSource stepTarget : Environment}
@@ -803,7 +803,7 @@ theorem RestoredInductiveStep.constructorOwnersPresent
     · rcases hrestored with
         ⟨ctorIdx, hidx, ctorSource, ctorTarget, Hctor, hname, hinfo⟩
       subst info
-      have ⟨howner, hunsafe, hctorName⟩ := Hstep.restoredConstructorOwnerUnsafeAt Hlower Hc
+      have ⟨howner, hunsafe, hctorName⟩ := Hstep.restoredConstructorOwnerUnsafeAt Hlower
         Hprod hempty familyIdx hfamily ctorIdx hidx Hctor
       refine ⟨Hstep.restored.header.newInfo, ?_, ?_, hunsafe⟩
       · rw [howner]
@@ -852,7 +852,7 @@ theorem RestoredInductiveStep.inductInfoAlignmentAt
   have htargetMem : target ∈ result.types.toArray.toList := by
     rw [← htargetArrayEq]
     simp
-  rcases Hprod.findSourceHeaderAt Hc familyIdx hresultArray with
+  rcases Hprod.findSourceHeaderAt familyIdx hresultArray with
     ⟨installedInfo, hinstalledLookup, hinstalledName, hinstalledType,
       hinstalledCtors, hinstalledAll, hinstalledLevels, hinstalledParams,
       hinstalledUnsafe⟩
@@ -1308,7 +1308,7 @@ theorem FoldSteps.sourceFamiliesConstructorOwnersPresent
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (Htrace : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec
@@ -1331,7 +1331,7 @@ theorem FoldSteps.sourceFamiliesConstructorOwnersPresent
           (sourceTypes.map (fun type => type.name)) sourceTypes[familyIdx]
           stepSource middle := by
         simpa [hfamilyEq] using Hstep
-      have Hnext := Hstep'.constructorOwnersPresent Hlower Hc Hprod hempty
+      have Hnext := Hstep'.constructorOwnersPresent Hlower Hprod hempty
         familyIdx hfamily hsourceWF Howners
       obtain ⟨entries, Hfresh⟩ := Hstep'.restored.freshExtension hsourceWF
       have hmiddleWF : middle.constants.WF := Hfresh.targetWF hsourceWF
@@ -1361,7 +1361,7 @@ theorem NestedRestorationFolds.constructorOwnersPresent
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
   have Hprimary : ConstructorOwnersPresent Hrestored.sourceFamiliesEnv := by
     apply Hrestored.inductives.sourceFamiliesConstructorOwnersPresent
-      Hlower Hc Hprod hempty [] (by simp) hsourceWF Howners
+      Hlower Hprod hempty [] (by simp) hsourceWF Howners
   obtain ⟨primaryEntries, HprimaryFresh⟩ :=
     Hrestored.inductives.inductiveFreshExtension hsourceWF
   have hprimaryWF : Hrestored.sourceFamiliesEnv.constants.WF :=

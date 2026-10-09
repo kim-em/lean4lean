@@ -880,7 +880,7 @@ theorem RecursorContextWF.priorBase
     rfl
   refine ⟨j + 1, hj, ty', ?_, htype ▸ htr, hty, k, htake.symm, hk⟩
   rw [loopUArgsCheckLCtx, hprior, htake]
-  exact ((R.check.below (j + 1) hj).restrictTo_eq R.lctxWF).symm
+  exact ((R.check.below (j + 1) hj).restrictTo_eq).symm
 
 theorem LoopUArgsInput.checkBase
     {root : AddInductive.Context} {fv : FVarId}

@@ -1421,7 +1421,7 @@ def RecursorParameterContextSuffix.fieldBase
     (H : RecursorParameterContextSuffix R stats depth) :
     R.Base (ctorFieldCheck c stats #[]) :=
   (R.baseMain depth H.depth_le).cast
-    (((R.baseMain depth H.depth_le).restrictTo_eq R.lctxWF).symm.trans
+    (((R.baseMain depth H.depth_le).restrictTo_eq).symm.trans
       (congrArg c.lctx.restrictTo H.fieldFVars))
 
 theorem RecursorParameterContextSuffix.fieldBase_fvarList
@@ -1462,7 +1462,7 @@ def RecursorContextWF.fieldBaseNext
           name ty bi } stats (bu.push (.fvar ⟨c.ngen.curr⟩))) :=
   let R' := R.withCheckedLocalDeclOn (name := name) (bi := bi) _ B
     htr hty htr₀ hty₀
-  R'.check.cast ((R'.check.restrictTo_eq R'.lctxWF).symm.trans
+  R'.check.cast ((R'.check.restrictTo_eq).symm.trans
     (congrArg (c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi).restrictTo (by
       change B.m.fvarList ++ [⟨c.ngen.curr⟩] = _
       rw [hB]

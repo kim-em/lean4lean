@@ -61,7 +61,7 @@ theorem NestedLoweringOutputClosed.restoredSourceTelescopeAtFreshOfValidation
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hvalid : CheckingEnv.Valid validationSafety validationEnv envCtors)
     (Hrun : Lean4Lean.validateRestoredRecursorTypes.run validationEnv
-      loweredEnv validationLparams validationSafety validationFuel result
+      loweredEnv validationSafety validationFuel result
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
       (sourceTypes.map (·.name)) sourceTypes auxRecNames = .ok ())
     (hempty : initialState.nestedAux = #[])
@@ -107,7 +107,7 @@ theorem AuxiliaryRecursorGeneratedAlignment.recursorStepOfValidation
     (A : AuxiliaryRecursorGeneratedAlignment Hprod Hstep)
     (Hvalid : CheckingEnv.Valid c.safety validationEnv envCtors)
     (Hrun : Lean4Lean.validateRestoredRecursorTypes.run validationEnv
-      loweredEnv validationLparams c.safety validationFuel result auxRec
+      loweredEnv c.safety validationFuel result auxRec
       allIndNames validationTypes auxRecNames = .ok ())
     (hrec : oldRecName ∈ auxRecNames) :
     Nonempty (AuxiliaryRecursorTranslation c.safety envCtors envCtors
@@ -142,7 +142,7 @@ theorem AuxiliaryRecursorGeneratedAlignments.recursorTraceOfValidation
     (H : AuxiliaryRecursorGeneratedAlignments Hprod Htrace)
     (Hvalid : CheckingEnv.Valid c.safety validationEnv envCtors)
     (Hrun : Lean4Lean.validateRestoredRecursorTypes.run validationEnv
-      loweredEnv validationLparams c.safety validationFuel result auxRec
+      loweredEnv c.safety validationFuel result auxRec
       allIndNames validationTypes auxRecNames = .ok ())
     (Hnames : ∀ name ∈ names, name ∈ auxRecNames)
     (priorRecursors : List VConstVal) :
@@ -217,7 +217,7 @@ theorem NestedLoweringOutputClosed.existsValidatedExactRestoration
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors : VEnv}
-    {headerEnv ctorEnv validationEnv primaryProdEnv outProdEnv : Environment}
+    {headerEnv ctorEnv validationEnv outProdEnv : Environment}
     {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
@@ -239,8 +239,7 @@ theorem NestedLoweringOutputClosed.existsValidatedExactRestoration
     (HvalidationValid : CheckingEnv.Valid c.safety validationEnv
       ((envCtors.addEliminators es).addProjections decl.projectionEntries))
     (HrecursorValidation :
-      Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv
-        validationLparams c.safety validationFuel result
+      Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv c.safety validationFuel result
         (Lean4Lean.mkAuxRecNameMap loweredEnv (main :: rest)).2
         ((main :: rest).map (·.name)) (main :: rest)
         (Lean4Lean.mkAuxRecNameMap loweredEnv (main :: rest)).1 = .ok ())
@@ -805,7 +804,7 @@ private theorem NestedRun.assemblyBaseOfFormation
       hempty Hrestored hvalidCore HbaseValid hcasesWF hprojectedWF
       (hcornerAt (VEnv.addConstVals_le Hcore.ctorsAdded)).2
   have HtypeRun : Lean4Lean.validateRestoredRecursorTypes.run
-      E.validationEnv E.loweredEnv P.c.lparams P.c.safety
+      E.validationEnv E.loweredEnv P.c.safety
       E.validationFuel result
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).2
       ((main :: rest).map (fun type => type.name)) (main :: rest)
@@ -827,7 +826,7 @@ private theorem NestedRun.assemblyBaseOfFormation
       (if P.isUnsafe then DefinitionSafety.unsafe else .safe) := by
     simpa only [hsafety, hisUnsafe] using hvisible
   rcases Hlower.existsValidatedExactRestoration
-      (primaryProdEnv := Hrestored.sourceFamiliesEnv) HcP Hprod Hcore
+      HcP Hprod Hcore
       Hrestored Hsource HtypeValid HtypeRun Hparams hempty hvisibleP Hprimitive HcasesP
       with
     ⟨auxiliaryRecursors, HauxiliaryRecursors, replay, canonicalProdEnv,

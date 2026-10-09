@@ -297,10 +297,8 @@ which returns the field's declared type (`getTypeFVarRun.WF`). -/
 structure WhnfPreservesParamUniform (heads : List Name) (params : List Expr) (ls : List Level)
     (env : Environment) : Prop where
   whnf : ∀ {c : AddInductive.Context} {recLparams : List Name}
-      (Hc : RecursorContextWF c recLparams) {P : FVarId → Prop} {e e' : Expr}
-      {target : VExpr},
+      (Hc : RecursorContextWF c recLparams) {P : FVarId → Prop} {e e' : Expr},
     c.env = env →
-    TrExprS Hc.venv recLparams Hc.mlctx.vlctx e target →
     (∃ target₀, TrExprS Hc.venv recLparams Hc.chk.vlctx e target₀) →
     Hc.ParamUniformScope env heads params ls P →
     e.FVarsIn P → e.ParamUniformIn env heads params ls →
@@ -410,7 +408,7 @@ theorem LoopUArgsRun.paramUniform
       normalization
     have hscopeRun := hdualRun.1
     have hnormH : normalized.ParamUniformIn env heads params ls :=
-      W.whnf R' hcenv hopened ⟨_, hopened₀⟩ hsc' hinstP hinstH normalization
+      W.whnf R' hcenv ⟨_, hopened₀⟩ hsc' hinstP hinstH normalization
     have hbodyEq' := Hdom.bodyDefEqUnannotated R hbodyEq
     have hsourceBodyType : R'.venv.IsType recLparams.length
         R'.mlctx.vlctx.toCtx sourceBody := by
@@ -505,7 +503,7 @@ theorem InductionHypothesisType.paramUniform
   obtain ⟨⟨hnormalizedBelow, hnormalizedTr⟩, _, hnormalized₀⟩ :=
     whnfInRecursorContext.dualWF RF hinferredTr hinferred₀ _ hnormalization
   have hnormalizedH : O.loopInput.normalizedType.ParamUniformIn env heads params ls :=
-    W.whnf RF henv hinferredTr ⟨_, hinferred₀⟩ hscope hinferredP hinferredH
+    W.whnf RF henv ⟨_, hinferred₀⟩ hscope hinferredP hinferredH
       hnormalization
   have hnormalizedP : O.loopInput.normalizedType.FVarsIn P :=
     hnormalizedBelow P hscope.1 hinferredP
@@ -556,7 +554,7 @@ theorem WhnfRunAt.paramUniform
     (hin : input.ParamUniformIn env heads params ls) :
     output.ParamUniformIn env heads params ls := by
   obtain ⟨ctx, recLparams, Rc, P, target, hle, htr, hup, hP, hinP, hrun, htr₀⟩ := H
-  refine W.whnf Rc (hle.env_eq.symm.trans henv) htr htr₀
+  refine W.whnf Rc (hle.env_eq.symm.trans henv) htr₀
     ⟨hup, fun fv decl hPfv hfind => ?_⟩ hinP hin hrun
   rw [Rc.lctx_eq] at hfind
   obtain ⟨hQfv, hmem⟩ := hP fv hPfv
