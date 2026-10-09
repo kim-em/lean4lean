@@ -759,4 +759,53 @@ theorem DeltaPar.descend (hTF : TypedFrontN Params.env) (hunfold : UnfoldingChec
 
 end Descent
 
+/-! ### The alignment guards of the unfolding check are `TypedFront` instances -/
+
+
+/-- The spine alignment guard of a prefix unfolding (`UnfoldingCheck.recursor_lhs`, a
+`ConstSpineDefEq`: pairwise conversions between the arguments of two constant spines, the
+K-alignment of the actual indices with the reconstructed constructor's indices) descends from
+lifted spines whenever every argument of both spines is typed below: each pair is a
+`TypedFrontN.independent` instance. Level data are context-free. -/
+theorem ConstSpineDefEq.descend (henv : env.WF) (hTF : TypedFrontN env)
+    (W : Ctx.LiftN 1 k Γ Γ') (hΓ : OnCtx Γ (env.IsType U)) (hΓ' : OnCtx Γ' (env.IsType U))
+    {c : Name} {ls ls' : List VLevel} {as as' : List VExpr}
+    (has : ∀ a ∈ as, VExpr.WF env U Γ a) (has' : ∀ a ∈ as', VExpr.WF env U Γ a)
+    (H : ConstSpineDefEq env U Γ' (mkApps (.const c ls) (as.map (·.liftN 1 k)))
+      (mkApps (.const c ls') (as'.map (·.liftN 1 k)))) :
+    ConstSpineDefEq env U Γ (mkApps (.const c ls) as) (mkApps (.const c ls') as') := by
+  obtain ⟨name, levels, levels', args, args', h1, h2, hw, hw', hl, hargs⟩ := H
+  obtain ⟨rfl, rfl, rfl⟩ := VExpr.mkApps_const_inj h1
+  obtain ⟨-, rfl, rfl⟩ := VExpr.mkApps_const_inj h2
+  refine ⟨c, ls, ls', as, as', rfl, rfl, hw, hw', hl, ?_⟩
+  rw [List.forall₂_map_left_iff, List.forall₂_map_right_iff] at hargs
+  have hlen := Lean4Lean.List.Forall₂.length_eq hargs
+  refine List.forall₂_of_getElem hlen fun i hi hi' => ?_
+  obtain ⟨_, ha⟩ := has _ (List.getElem_mem hi)
+  obtain ⟨_, ha'⟩ := has' _ (List.getElem_mem hi')
+  exact hTF.independent henv W hΓ hΓ' ha ha' (List.forall₂_getElem hargs i hi hi')
+
+/-- The major-proposition guard of a prefix unfolding (`UnfoldingCheck.major_prop`) descends:
+the major variable's type is a type below, its `Prop`-sort is context-free (`sort_inv`), and
+the reconstructed constructor is retyped at it by `TypedFrontN.retype` once it is typed below
+at some type. -/
+theorem majorProp_descend (henv : env.WF) (hTF : TypedFrontN env)
+    (W : Ctx.LiftN 1 k Γ Γ') (hΓ : OnCtx Γ (env.IsType U)) (hΓ' : OnCtx Γ' (env.IsType U))
+    {D c C : VExpr} (hD : env.HasType U Γ D (.sort u)) (hc : env.HasType U Γ c C)
+    (hvar : env.HasType U Γ (.bvar 0) D)
+    (H : ∃ majorType, env.HasType U Γ' majorType (.sort .zero) ∧
+      env.HasType U Γ' (.bvar 0) majorType ∧ env.HasType U Γ' (c.liftN 1 k) majorType)
+    (hvar' : env.HasType U Γ' (.bvar 0) (D.liftN 1 k)) :
+    ∃ majorType, env.HasType U Γ majorType (.sort .zero) ∧
+      env.HasType U Γ (.bvar 0) majorType ∧ env.HasType U Γ c majorType := by
+  obtain ⟨M, hM, hv, hc'⟩ := H
+  have hMD : env.IsDefEqU U Γ' M (D.liftN 1 k) := hv.uniqU henv hΓ' hvar'
+  have hD' : env.HasType U Γ' (D.liftN 1 k) (.sort .zero) := (hMD.of_l henv hΓ' hM).hasType.2
+  have hu : u ≈ .zero :=
+    ((hD.weakN henv.ordered W).uniqU henv hΓ' hD').sort_inv henv hΓ'
+  have hD0 : env.HasType U Γ D (.sort .zero) :=
+    (IsDefEq.sortDF (l' := .zero) (hD.sort_r henv.ordered hΓ) trivial hu).defeq hD
+  refine ⟨D, hD0, hvar, hTF.retype henv W hΓ hΓ' hc hD ?_⟩
+  exact hc'.defeqU_r henv hΓ' hMD
+
 end Lean4Lean.VEnv.StrengtheningReplay

@@ -184,3 +184,23 @@ posts to GitHub or Zulip.
   the guards of a replayed step are conversions between subterms typed below, i.e.
   `TypedFront` instances, so `TypedFront → PiExposureN` and hence `Cancel ↔ TypedFront` is
   the next target (direction B2).
+* 2026-10-09: direction B2 (`agent/verify-inductives-strengthening3-B2`,
+  `docs/inductives/STRENGTHENING_B2_LOG.md`): `Strengthening/Replay.lean` (Astra's round 9
+  lemmas, then the descent of eta-free parallel steps) and `Strengthening/Exposure.lean`. Every
+  `FullStep` rule except the two eta rules has an output syntactic in the lifted input, so a
+  parallel core or delta step above on a lift is the lift of a step below iff its guards hold
+  below: `ParRed.descend`, `DeltaPar.descend` (checked), with the stored-rule check discharged by
+  `TypedFront` (every concrete check compares captured subterms, `CheckVars`), projection iota
+  by retyping, the spine alignment and major proposition of the unfolding check by `TypedFront`
+  (`ConstSpineDefEq.descend`, `majorProp_descend`), and the case guard and the unfolding check
+  isolated as `CaseRedexDescends`, `UnfoldingCheckDescends`. Eta steps are the only source of
+  non-lift reducts; the invariant that admits a path measure is "the reduct is an eta chain
+  (`ReflTransGen EtaPar`) of a lift", under which the induction is on the above `UpStep` path
+  with no size component, an eta chain into a `Π` forces the lift to be a `Π`, and the exact
+  remaining obligation is `EtaReplay` (push one eta-free step through an eta chain of a lift,
+  simulating it below; on the empty chain it is the descent). Checked:
+  `cancel_iff_typedFront_of : Cancel ↔ TypedFront` given `∀ U, EtaReplay`, `ProjFrontN`,
+  `ElimFrontN`. Struct-eta at a firing major is essential and replayable (the enclosing typed
+  application forces the major's structure type below and iota discards the parameters);
+  fun-eta and struct-eta elsewhere must be postponed, which is the content of `EtaReplay`.
+
