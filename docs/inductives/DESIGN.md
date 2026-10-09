@@ -789,8 +789,7 @@ environment whose type-annotation wrappers are the prelude's: they reject a term
 acceptance needs a conversion fact outside its scope. The wrapper stripping below can change a decision only on an environment that redefines a
 wrapper name. The other changes cannot change a decision except through checker fuel, as follows.
 
-- **Redundant guards**, each listed in `divergences.md`: `reduceProjCore` requires the
-  constructor to be the structure's unique constructor; `tryEtaStructCore` applies
+- **Redundant guards**, each listed in `divergences.md`: `tryEtaStructCore` applies
   structure eta only at never-zero sorts; `toCtorWhenStruct` and `expandEtaStruct` return
   the term unchanged where the C++ kernel throws on an absent constructor, and when the type
   of the major premise's type does not reduce to a sort. The checking context carries the
@@ -803,9 +802,10 @@ wrapper name. The other changes cannot change a decision except through checker 
   the declaration's constructor names are absent from the environment in which their types
   are checked; the executable checks that only when it declares the constructors, and the
   proof takes it from the success of that later step (`declareConstructors.namesAbsent`).
-  What remains for `reduceProjCore` is the converse of projection-registry coherence: that a
-  structure with an abstract registry entry is a concrete header listing exactly the
-  registered constructor. All the guards are redundant on well-formed environments and
+  The registry is read in both directions too: a structure with an abstract projection
+  registry entry is a visible header listing exactly the registered constructor
+  (`InstalledBlocks.projectionHeader`), so `reduceProjCore` checks, like `reduce_proj_core`,
+  only that the head constructor belongs to the structure. All the guards are redundant on well-formed environments and
   well-typed terms with one exception: structure eta is not applied to a structure whose
   universe is neither always nor never zero (`Sort u`), so a conversion that needs it there
   is rejected.
@@ -887,13 +887,9 @@ constructor, recursor or inductive type is rejected by the corresponding check.
   The ported files (`SExpr`, `NormalEq`, `ParallelReduction`, `Stratified`,
   `StratifiedUntyped`, the shape logical relation) build against the extended `VExpr`; the
   global axiom `Params.extra_pat` of `SExpr.lean` is now a hypothesis class.
-- **Projection registry reflection.** `reduceProjCore` keeps its check that the constructor
-  is the structure's unique constructor (section 7.2). Removing it needs an invariant of the
-  checking context that a structure with an abstract projection registry entry is a concrete
-  header listing exactly the registered constructor, maintained wherever projection entries
-  are added. Likewise `expandEtaStruct` keeps its fallback for an absent constructor, which
-  would need every recursor of a checking environment to have the constructors of its major
-  inductive present.
+- **Absent constructor in structure eta.** `expandEtaStruct` keeps its fallback for an absent
+  constructor, which would need every recursor of a checking environment to have the
+  constructors of its major inductive present.
 - **Executable cost.** Replay performance relative to `master` has not been profiled.
 
 ## 10. Reading guide
