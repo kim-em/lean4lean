@@ -11,33 +11,6 @@ and expanded declarations still install. The nested path uses it to keep the cer
 a source block's case eliminator valid over larger environments (`VInductDecl.CaseEliminators`,
 section 3.2 of `docs/inductives/DESIGN.md`). -/
 
-private theorem sourceWF_mono {decl : VInductDecl} {env env' envTypes envCtors : VEnv}
-    (H : decl.SourceWF env) (hle : env ≤ env')
-    (htypes : env'.addConstVals decl.typeConstants = some envTypes)
-    (hctors : envTypes.addConstVals decl.constructorConstants = some envCtors) :
-    decl.SourceWF env' := by
-  rcases H with ⟨hnonempty, hnames, htypeUvars, hctorUvars, sourceTypes, sourceCtors,
-    hsourceTypes, _, hsourceTypesWF, hsourceCtorsWF⟩
-  have hsourceTypesLE : sourceTypes ≤ envTypes :=
-    VEnv.addConstVals_mono hle hsourceTypes htypes
-  exact ⟨hnonempty, hnames, htypeUvars, hctorUvars, envTypes, envCtors, htypes, hctors,
-    fun type htype => (hsourceTypesWF type htype).mono hle,
-    fun ctor hctor => (hsourceCtorsWF ctor hctor).mono hsourceTypesLE⟩
-
-private theorem formationWF_mono {decl : VInductDecl} {env env' envTypes : VEnv}
-    (H : decl.OrdinaryFormationWF env) (hle : env ≤ env')
-    (htypes : env'.addConstVals decl.typeConstants = some envTypes) :
-    decl.OrdinaryFormationWF env' := by
-  rcases H with ⟨params, resultLevel, formationTypes, hformationTypes, htypeShapes,
-    hctorShapes, hraw⟩
-  have hformationTypesLE : formationTypes ≤ envTypes :=
-    VEnv.addConstVals_mono hle hformationTypes htypes
-  exact ⟨params, resultLevel, envTypes, htypes,
-    fun type htype => ⟨(htypeShapes type htype).1, (htypeShapes type htype).2.mono hle⟩,
-    fun type htype ctor hctor =>
-      let Hctor := hctorShapes type htype ctor hctor
-      ⟨Hctor.1.mono hformationTypesLE, Hctor.2.mono hformationTypesLE⟩, hraw⟩
-
 theorem ContainerSpecialization.WellFormed.mono {a : ContainerSpecialization}
     {envTypes envTypes' : VEnv} {source : VInductDecl} {params : List VExpr}
     (H : a.WellFormed envTypes source params) (hle : envTypes ≤ envTypes') :
@@ -71,11 +44,11 @@ theorem CaseCompilationData.mono {env env' : VEnv} {source expanded : VInductDec
     (hexpandedCtors : expandedTypes'.addConstVals expanded.constructorConstants =
       some expandedCtors') :
     CaseCompilationData env' source expanded s auxiliaries block where
-  sourceWF := sourceWF_mono H.sourceWF hle hsourceTypes hsourceCtors
+  sourceWF := H.sourceWF.mono_of_addConstVals hle hsourceTypes hsourceCtors
   sourceParameters := H.sourceParameters.mono_of_addConstVals hle hsourceTypes
-  expandedWF := sourceWF_mono H.expandedWF hle hexpandedTypes hexpandedCtors
+  expandedWF := H.expandedWF.mono_of_addConstVals hle hexpandedTypes hexpandedCtors
   headerPrefix := H.headerPrefix
-  expandedFormation := formationWF_mono H.expandedFormation hle hexpandedTypes
+  expandedFormation := H.expandedFormation.mono_of_addConstVals hle hexpandedTypes
   model := H.model.mono hle hexpandedTypes
   uvars := H.uvars
   nparams := H.nparams
