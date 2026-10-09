@@ -2,7 +2,21 @@ import Lean4Lean.Theory.Typing.Strengthening.Exposure
 
 /-! # Typing strengthening: spine exposure and the projection closure
 
-The projection analogue of `Exposure.lean` (`docs/inductives/STRENGTHENING_E_LOG.md`). -/
+The projection analogue of `Exposure.lean` (`docs/inductives/STRENGTHENING_E_LOG.md`).
+
+* An eta chain above from the lift of a type into a constant spine starts at a constant spine with
+  the same head and levels (`EtaChain.const_spine_inv`), so the replay obligation `EtaReplay`
+  gives reduction-form spine exposure (`SpineExposureRedN`, `spineExposureRed_of_etaReplay`).
+* Above, a type convertible to a rigid type-former spine reduces to a spine with the same head
+  (`spine_exposure_reduces`): through Church-Rosser, the reduct of the spine is an `EtaSpine`
+  (head, applications, lambdas), preserved by `FullStep` because no node of a type former's spine
+  is structure-typed, and a sort-typed eta spine beta-reduces back to a syntactic spine;
+  `NormalEqN.spine_expose` transfers the exposure across the join.
+* `ProjFrontN.of_spineExposure`: the projection closure from spine exposure and the field-type
+  closure `ProjFieldFrontN`; `ProjFrontN.of_etaReplay`.
+* `projField_of_neverZero`: outside `Prop` every projection of a typed major is typable, so the
+  field-type closure reduces to its instances at structures whose sort at the given levels is not
+  never-zero (`ProjFieldFrontPropN`, `ProjFieldFrontN.of_notNeverZero`). -/
 
 namespace Lean4Lean.VEnv.StrengtheningSpineExposure
 open VExpr VEnv.StrengtheningTypingFront VEnv.StrengtheningReplay VEnv.StrengtheningExposure
