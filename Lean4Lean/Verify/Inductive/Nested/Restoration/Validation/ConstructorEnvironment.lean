@@ -37,7 +37,7 @@ theorem RestoredInductiveStep.constructorInductFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     {stepSource stepTarget : Environment}
@@ -83,7 +83,7 @@ theorem RestoredInductiveStep.constructorInductFresh
     · rcases hrestored with
         ⟨ctorIdx, hidx, ctorSource, ctorTarget, Hctor, _hname, hinfo⟩
       right
-      rw [hinfo, Hstep.restoredConstructorOwnerAt Hlower Hc Hprod hempty
+      rw [hinfo, Hstep.restoredConstructorOwnerAt Hlower Hprod hempty
         familyIdx hfamily ctorIdx hidx Hctor]
       simpa [header, ConstantInfo.name, ConstantInfo.toConstantVal] using
         hheaderFresh
@@ -98,7 +98,7 @@ theorem FoldSteps.sourceFamiliesConstructorInductFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (Htrace : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec
@@ -128,7 +128,7 @@ theorem FoldSteps.sourceFamiliesConstructorInductFresh
       rcases ih (processed := processed ++ [head])
           (hsplit := by simpa [List.append_assoc] using hsplit)
           hmiddleWF name info hfind with hmid | hnone
-      · exact Hstep'.constructorInductFresh Hlower Hc Hprod hempty familyIdx
+      · exact Hstep'.constructorInductFresh Hlower Hprod hempty familyIdx
           hfamily hsourceWF name info hmid
       · right
         cases hsrc : stepSource.find? info.induct with
@@ -188,7 +188,7 @@ theorem NestedRestorationFolds.constructorInductFresh
     Hrestored.inductives.inductiveFreshExtension hsourceWF
   have hprimaryWF : Hrestored.sourceFamiliesEnv.constants.WF :=
     HprimaryFresh.targetWF hsourceWF
-  exact Hrestored.inductives.sourceFamiliesConstructorInductFresh Hlower Hc Hprod
+  exact Hrestored.inductives.sourceFamiliesConstructorInductFresh Hlower Hprod
     hempty [] (by simp) hsourceWF name info
     (Hrestored.auxiliaries.recursorConstructorFind hprimaryWF hfind)
 
@@ -705,10 +705,10 @@ theorem ValidationEnvironment.validProjected
       Hprod Hsource Hmetadata Hsources Harity Howners hempty [] (by simp)
       hsourceWF Hinitial
   have HprimaryOwners : ConstructorOwnersPresent Hrestored.sourceFamiliesEnv :=
-    Hrestored.inductives.sourceFamiliesConstructorOwnersPresent Hlower Hc Hprod
+    Hrestored.inductives.sourceFamiliesConstructorOwnersPresent Hlower Hprod
       hempty [] (by simp) hsourceWF Howners
   have HprimaryInduct :=
-    Hrestored.inductives.sourceFamiliesConstructorInductFresh Hlower Hc Hprod
+    Hrestored.inductives.sourceFamiliesConstructorInductFresh Hlower Hprod
       hempty [] (by simp) hsourceWF
   obtain ⟨primaryEntries, HprimaryFresh⟩ :=
     Hrestored.inductives.inductiveFreshExtension hsourceWF
@@ -912,8 +912,6 @@ theorem NestedRestorationFolds.localValidOfInstallation
     (canonical : BlockInstallation c.safety c.env sourceVEnv types ctors recursors
       sourceDecl.projectionEntries canonicalProdEnv installedVEnv)
     (hperm : actualEntries ~ (types ++ ctors ++ recursors).map Prod.fst)
-    (htypeValues : types.map Prod.snd = sourceDecl.typeConstants)
-    (hctorValues : ctors.map Prod.snd = sourceDecl.constructorConstants)
     (hvalidSource : CheckingEnv.Valid c.safety c.env sourceVEnv) :
     CheckingEnv.ValidCore c.safety outEnv installedVEnv ∧
       ConstructorOwnersPresent outEnv ∧

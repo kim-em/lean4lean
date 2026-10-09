@@ -648,29 +648,25 @@ theorem MotivePassHeaderAt.indexCount
     List.getElem?_map, H.targetAt, Option.map_some] at hentry
   exact hentry
 
-def MotivePassHeaderAt.abstractLevels
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx) :
-    List VLevel :=
-  c.lparams.map fun name => .param (c.lparams.idxOf name)
+def MotivePassHeaderAt.abstractLevels (lparams : List Name) : List VLevel :=
+  lparams.map fun name => .param (lparams.idxOf name)
 
 theorem MotivePassHeaderAt.abstractLevels_eq_params
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx) :
-    H.abstractLevels = VLevel.params c.lparams.length := by
+    (hnodup : lparams.Nodup) :
+    MotivePassHeaderAt.abstractLevels lparams = VLevel.params lparams.length := by
   apply List.ext_getElem
   · simp [MotivePassHeaderAt.abstractLevels, VLevel.params]
   · intro i hleft hright
-    have hi : i < c.lparams.length := by
+    have hi : i < lparams.length := by
       simpa [VLevel.params] using hright
     simp [MotivePassHeaderAt.abstractLevels, VLevel.params,
-      H.lparamsNodup.idxOf_getElem i hi]
+      hnodup.idxOf_getElem i hi]
 
 theorem MotivePassHeaderAt.targetType_inst_abstractLevels
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : MotivePassHeaderAt Hc stats decl depth source familyIdx) :
-    H.target.type.instL H.abstractLevels = H.target.type := by
-  rw [H.abstractLevels_eq_params, ← H.sourceTranslation.uvars]
+    H.target.type.instL (MotivePassHeaderAt.abstractLevels c.lparams) = H.target.type := by
+  rw [MotivePassHeaderAt.abstractLevels_eq_params H.lparamsNodup, ← H.sourceTranslation.uvars]
   have htyped := Classical.choose_spec H.sourceTranslation.wf
   exact (htyped.levelWF (by trivial)).1.instL_id
 
@@ -678,28 +674,27 @@ theorem MotivePassHeaderAt.targetType_inst_abstractLevels
 generated recursor.  Large elimination inserts one fresh leading universe,
 so every declaration universe argument is shifted by one slot. -/
 def MotivePassHeaderAt.recursorAbstractLevels
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
-    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
+    (lparams : List Name)
+    (Helim : AddInductive.AdmissibleElimLevel lparams elimLevel) :
     List VLevel :=
   match elimLevel with
-  | .zero => H.abstractLevels
-  | .param _ => H.abstractLevels.map
-      (VLevel.inst (VLevel.prependShift c.lparams.length))
+  | .zero => (MotivePassHeaderAt.abstractLevels lparams)
+  | .param _ => (MotivePassHeaderAt.abstractLevels lparams).map
+      (VLevel.inst (VLevel.prependShift lparams.length))
   | .succ _ | .max _ _ | .imax _ _ | .mvar _ => False.elim Helim
 
 theorem MotivePassHeaderAt.recursorAbstractLevels_length
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
-    (H.recursorAbstractLevels Helim).length = H.target.uvars := by
+    (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim).length = H.target.uvars := by
   cases elimLevel with
   | zero =>
     simp [MotivePassHeaderAt.recursorAbstractLevels,
-      H.abstractLevels_eq_params, H.sourceTranslation.uvars]
+      MotivePassHeaderAt.abstractLevels_eq_params H.lparamsNodup, H.sourceTranslation.uvars]
   | param fresh =>
     simp [MotivePassHeaderAt.recursorAbstractLevels,
-      H.abstractLevels_eq_params, H.sourceTranslation.uvars]
+      MotivePassHeaderAt.abstractLevels_eq_params H.lparamsNodup, H.sourceTranslation.uvars]
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
@@ -707,14 +702,14 @@ theorem MotivePassHeaderAt.recursorAbstractLevels_wf
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
-    ∀ level ∈ H.recursorAbstractLevels Helim,
+    ∀ level ∈ MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim,
       level.WF
         (AddInductive.getRecLevelParams elimLevel c.lparams).length := by
   cases elimLevel with
   | zero =>
     intro level hlevel
     rw [MotivePassHeaderAt.recursorAbstractLevels,
-      H.abstractLevels_eq_params] at hlevel
+      MotivePassHeaderAt.abstractLevels_eq_params H.lparamsNodup] at hlevel
     exact VLevel.params_wf hlevel
   | param fresh =>
     let shift := VLevel.prependShift c.lparams.length
@@ -736,13 +731,13 @@ theorem MotivePassHeaderAt.constHasType
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : MotivePassHeaderAt Hc stats decl depth source familyIdx) :
     Hc.venv.HasType c.lparams.length []
-      (.const H.target.name H.abstractLevels) H.target.type := by
-  have hlevels : ∀ level ∈ H.abstractLevels,
+      (.const H.target.name (MotivePassHeaderAt.abstractLevels c.lparams)) H.target.type := by
+  have hlevels : ∀ level ∈ (MotivePassHeaderAt.abstractLevels c.lparams),
       level.WF c.lparams.length := by
-    rw [H.abstractLevels_eq_params]
+    rw [MotivePassHeaderAt.abstractLevels_eq_params H.lparamsNodup]
     exact VLevel.params_wf
-  have hlength : H.abstractLevels.length = H.target.uvars := by
-    rw [H.abstractLevels_eq_params, VLevel.params_length,
+  have hlength : (MotivePassHeaderAt.abstractLevels c.lparams).length = H.target.uvars := by
+    rw [MotivePassHeaderAt.abstractLevels_eq_params H.lparamsNodup, VLevel.params_length,
       H.sourceTranslation.uvars]
   have hconst := VEnv.HasType.const (Γ := []) H.targetLookup hlevels hlength
   simpa [H.targetType_inst_abstractLevels] using hconst
@@ -760,7 +755,7 @@ theorem MotivePassHeaderAt.recursorConstHasType
     (henv : R.venv = Hc.venv) :
     R.venv.HasType
       (AddInductive.getRecLevelParams elimLevel c.lparams).length []
-      (.const H.target.name (H.recursorAbstractLevels Helim))
+      (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
       (H.recursorTargetSkeleton Helim).type := by
   cases elimLevel with
   | zero =>
@@ -800,7 +795,7 @@ theorem MotivePassHeaderAt.recursorIndConstTranslation
     TrExprS R.venv
       (AddInductive.getRecLevelParams elimLevel c.lparams) scope
       stats.indConsts[familyIdx]!
-      (.const H.target.name (H.recursorAbstractLevels Helim)) := by
+      (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim)) := by
   have hbound : familyIdx < decl.types.length :=
     List.getElem?_eq_some_iff.mp H.targetAt |>.1
   have htarget : decl.types[familyIdx] = H.target := by
@@ -818,7 +813,7 @@ theorem MotivePassHeaderAt.recursorIndConstTranslation
   have hlevels : stats.levels.mapM
       (VLevel.ofLevel
         (AddInductive.getRecLevelParams elimLevel c.lparams)) =
-      some (H.recursorAbstractLevels Helim) := by
+      some (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim) := by
     cases elimLevel with
     | zero =>
       simpa [MotivePassHeaderAt.recursorAbstractLevels,
@@ -844,7 +839,6 @@ interpreted under the recursor universe list. -/
 theorem MotivePassHeaderAt.recursorScopedArguments
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : MotivePassHeaderAt Hc stats decl depth source familyIdx)
-    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     {current : AddInductive.Context}
     (R : RecursorContextWF current
       (AddInductive.getRecLevelParams elimLevel c.lparams))
@@ -895,14 +889,14 @@ theorem MotivePassHeaderAt.recursorCanonicalFamilyPrefix
       (AddInductive.getRecLevelParams elimLevel c.lparams).length
       Hsynthesis.params.reverse
       (VExpr.mkApps
-        ((VExpr.const H.target.name (H.recursorAbstractLevels Helim)).liftN
+        ((VExpr.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim)).liftN
           Hsynthesis.params.length 0)
         (bvarSpine Hsynthesis.params.length))
       (VExpr.wrapForalls Hsynthesis.indices narrowTarget) := by
   have hhead := H.recursorConstHasType Helim R henv
   have hheadTelescope : R.venv.HasType
       (AddInductive.getRecLevelParams elimLevel c.lparams).length []
-      (.const H.target.name (H.recursorAbstractLevels Helim))
+      (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
       (VExpr.wrapForalls (Hsynthesis.params ++ Hsynthesis.indices)
         narrowTarget) := by
     apply hhead.defeqU_r R.checking.tr.wf (by trivial)
@@ -931,7 +925,7 @@ theorem MotivePassHeaderAt.recursorCanonicalFamilyPrefixAtScope
     R.venv.HasType
       (AddInductive.getRecLevelParams elimLevel c.lparams).length scope.toCtx
       ((VExpr.mkApps
-        ((VExpr.const H.target.name (H.recursorAbstractLevels Helim)).liftN
+        ((VExpr.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim)).liftN
           Hsynthesis.params.length 0)
         (bvarSpine Hsynthesis.params.length)).liftN
           Hsynthesis.indices.length 0)
@@ -964,7 +958,7 @@ theorem MotivePassHeaderAt.recursorScopedFamilyPrefixTranslation
       scope stats decl nindices)
     (henv : R.venv = Hc.venv) :
     let family := VExpr.mkApps
-      (.const H.target.name (H.recursorAbstractLevels Helim))
+      (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
       (decl.paramVars nindices)
     TrExprS R.venv
         (AddInductive.getRecLevelParams elimLevel c.lparams) scope
@@ -984,7 +978,7 @@ theorem MotivePassHeaderAt.recursorScopedFamilyPrefixTranslation
   have hfamilyType : R.venv.HasType
       (AddInductive.getRecLevelParams elimLevel c.lparams).length scope.toCtx
       (VExpr.mkApps
-        (.const H.target.name (H.recursorAbstractLevels Helim))
+        (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
         (decl.paramVars nindices))
       ((VExpr.wrapForalls Hsynthesis.indices narrowTarget).liftN
         nindices 0) := by
@@ -998,7 +992,7 @@ theorem MotivePassHeaderAt.recursorScopedFamilyPrefixTranslation
         (AddInductive.getRecLevelParams elimLevel c.lparams).length
         scope.toCtx
         (VExpr.mkApps
-          (.const H.target.name (H.recursorAbstractLevels Helim))
+          (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
           (decl.paramVars nindices)) from ⟨_, hfamilyType⟩)
   exact ⟨by
     simpa [Expr.mkAppN_eq_mkAppList] using htranslated, hfamilyType⟩
@@ -1043,7 +1037,7 @@ theorem MotivePassHeaderAt.recursorFamilyPrefixTyping
       Hruntime.expanded
       (mkAppN stats.indConsts[familyIdx]! stats.params)
       ((VExpr.mkApps
-        (.const H.target.name (H.recursorAbstractLevels Helim))
+        (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
         (decl.paramVars nindices)).lift' Hruntime.shift) := by
     simpa using Hfamily.weakFV' R.checking.tr.wf.ordered Hruntime.lift
       Hruntime.context.wf
@@ -1055,7 +1049,7 @@ theorem MotivePassHeaderAt.recursorFamilyPrefixTyping
       (AddInductive.getRecLevelParams elimLevel c.lparams).length
       R.mlctx.vlctx.toCtx
       ((VExpr.mkApps
-        (.const H.target.name (H.recursorAbstractLevels Helim))
+        (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
         (decl.paramVars nindices)).lift' (Hruntime.shift.consN 0))
       Hframe.familyTarget := by
     have Heq := HfamilyWeak.uniq R.checking.tr.wf
@@ -1091,7 +1085,7 @@ theorem MotivePassHeaderAt.recursorFamilyPrefixEq
     (henv : R.venv = Hc.venv)
     (Hframe : RecursorMotiveFrameWF R stats familyIdx indices elimLevel) :
     (VExpr.mkApps
-        (.const H.target.name (H.recursorAbstractLevels Helim))
+        (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
         (decl.paramVars nindices)).lift' Hruntime.shift =
       Hframe.familyTarget := by
   rcases H.recursorScopedFamilyPrefixTranslation Helim R Hsynthesis Hstats
@@ -1101,7 +1095,7 @@ theorem MotivePassHeaderAt.recursorFamilyPrefixEq
       Hruntime.expanded
       (mkAppN stats.indConsts[familyIdx]! stats.params)
       ((VExpr.mkApps
-        (.const H.target.name (H.recursorAbstractLevels Helim))
+        (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
         (decl.paramVars nindices)).lift' Hruntime.shift) := by
     simpa using Hfamily.weakFV' R.checking.tr.wf.ordered Hruntime.lift
       Hruntime.context.wf
@@ -1189,14 +1183,14 @@ theorem MotivePassHeaderAt.recursorCanonicalMotiveFrame
           (.forallE
             (VExpr.mkApps
               ((VExpr.mkApps
-                (.const H.target.name (H.recursorAbstractLevels Helim))
+                (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
                 (bvarSpine Hsynthesis.params.length)).liftN
                   Hsynthesis.indices.length 0)
               (bvarSpine Hsynthesis.indices.length))
             (.sort Hframe.resultLevel))).liftN nindices 0).lift'
               Hruntime.shift := by
   let familyBase := VExpr.mkApps
-    (.const H.target.name (H.recursorAbstractLevels Helim))
+    (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
     (bvarSpine Hsynthesis.params.length)
   let Hbase := RecursorMotiveTelescope.wrapForalls Hsynthesis.indices
     familyBase narrowTarget Hframe.resultLevel
@@ -1206,7 +1200,7 @@ theorem MotivePassHeaderAt.recursorCanonicalMotiveFrame
     rw [Hsynthesis.parameterCount, H.parameterCount]
   have hfamilyScope : familyBase.liftN nindices 0 =
       VExpr.mkApps
-        (.const H.target.name (H.recursorAbstractLevels Helim))
+        (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
         (decl.paramVars nindices) := by
     simp [familyBase, bvarSpine, VInductDecl.paramVars, VExpr.liftN,
       hparameterCount, Function.comp_def, Nat.add_comm]
@@ -1306,7 +1300,7 @@ theorem MotivePassHeaderAt.recursorMotiveTypeDefEq
             (.forallE Hframe.majorSourceTarget
               (.sort Hframe.resultLevel))).liftN indices.size 0 ∧
         (let familyBase := VExpr.mkApps
-            (.const H.target.name (H.recursorAbstractLevels Helim))
+            (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
             (bvarSpine Hsynthesis.params.length)
          let canonicalMajor := VExpr.mkApps
             (familyBase.liftN Hsynthesis.indices.length 0)
@@ -1320,7 +1314,7 @@ theorem MotivePassHeaderAt.recursorMotiveTypeDefEq
       Hruntime henv hindices Hframe with
     ⟨Hcanonical, _hfamilyType, hmotiveType⟩
   let familyBase := VExpr.mkApps
-    (.const H.target.name (H.recursorAbstractLevels Helim))
+    (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
     (bvarSpine Hsynthesis.params.length)
   let canonicalMajor := VExpr.mkApps
     (familyBase.liftN Hsynthesis.indices.length 0)
@@ -1331,7 +1325,7 @@ theorem MotivePassHeaderAt.recursorMotiveTypeDefEq
     rw [Hsynthesis.parameterCount, H.parameterCount]
   have hfamilyScope : familyBase.liftN nindices 0 =
       VExpr.mkApps
-        (.const H.target.name (H.recursorAbstractLevels Helim))
+        (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
         (decl.paramVars nindices) := by
     simp [familyBase, bvarSpine, VInductDecl.paramVars, VExpr.liftN,
       hparameterCount, Function.comp_def, Nat.add_comm]
@@ -1453,13 +1447,13 @@ theorem MotivePassHeaderAt.recursorCanonicalFamilyApplication
     R.venv.HasType
       (AddInductive.getRecLevelParams elimLevel c.lparams).length scope.toCtx
       (VExpr.mkApps
-        (.const H.target.name (H.recursorAbstractLevels Helim))
+        (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
         (indexBVarSpine (decl.nparams + H.target.numIndices)))
       narrowTarget := by
   have hhead := H.recursorConstHasType Helim R henv
   have hheadTelescope : R.venv.HasType
       (AddInductive.getRecLevelParams elimLevel c.lparams).length []
-      (.const H.target.name (H.recursorAbstractLevels Helim))
+      (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
       (VExpr.wrapForalls (Hsynthesis.params ++ Hsynthesis.indices)
         narrowTarget) := by
     apply hhead.defeqU_r R.checking.tr.wf (by trivial)
@@ -1502,17 +1496,17 @@ theorem MotivePassHeaderAt.recursorScopedFamilyApplication
       (AddInductive.getRecLevelParams elimLevel c.lparams) scope
       (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params) indices)
       (VExpr.mkApps
-        (.const H.target.name (H.recursorAbstractLevels Helim))
+        (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
         (indexBVarSpine (decl.nparams + H.target.numIndices))) ∧
     R.venv.HasType
       (AddInductive.getRecLevelParams elimLevel c.lparams).length scope.toCtx
       (VExpr.mkApps
-        (.const H.target.name (H.recursorAbstractLevels Helim))
+        (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
         (indexBVarSpine (decl.nparams + H.target.numIndices))) type ∧
     R.venv.IsType
       (AddInductive.getRecLevelParams elimLevel c.lparams).length scope.toCtx
       (VExpr.mkApps
-        (.const H.target.name (H.recursorAbstractLevels Helim))
+        (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
         (indexBVarSpine (decl.nparams + H.target.numIndices))) := by
   have htranslated : indices.size = indexTargets.length := by
     simpa using List.Forall₂.length_eq Hindices
@@ -1521,7 +1515,7 @@ theorem MotivePassHeaderAt.recursorScopedFamilyApplication
   have hfamily : stats.nindices[familyIdx]! = H.target.numIndices := by
     simp [Array.getElem!_eq_getD, H.indexCount]
   have hnindices : nindices = H.target.numIndices := by omega
-  have hargs := H.recursorScopedArguments Helim R Hstats Hindices
+  have hargs := H.recursorScopedArguments R Hstats Hindices
     hreplay hcanonical harity
   have hhead := H.recursorIndConstTranslation Helim R Hstats henv
   have happ := H.recursorCanonicalFamilyApplication Helim R Hsynthesis henv
@@ -1547,31 +1541,31 @@ theorem MotivePassHeaderAt.recursorScopedFamilyApplication
     (Γ := scope.toCtx) hlookup hlevelsWF hlevelsLength
   have hconstType : R.venv.HasType
       (AddInductive.getRecLevelParams elimLevel c.lparams).length scope.toCtx
-      (.const H.target.name (H.recursorAbstractLevels Helim))
-      (functionType.instL (H.recursorAbstractLevels Helim)) := by
+      (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
+      (functionType.instL (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim)) := by
     have hfunctionTypeInst' : R.venv.IsDefEq
         (AddInductive.getRecLevelParams elimLevel c.lparams).length []
-        (H.target.type.instL (H.recursorAbstractLevels Helim))
-        (functionType.instL (H.recursorAbstractLevels Helim))
-        (.sort (typeLevel.inst (H.recursorAbstractLevels Helim))) := by
+        (H.target.type.instL (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
+        (functionType.instL (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
+        (.sort (typeLevel.inst (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))) := by
       simpa [henv, VExpr.instL] using hfunctionTypeInst
     exact (hfunctionTypeInst'.weak0 R.checking.tr.wf.ordered).defeq hconstBase
   have happType : R.venv.IsType
       (AddInductive.getRecLevelParams elimLevel c.lparams).length scope.toCtx
       (VExpr.mkApps
-        (.const H.target.name (H.recursorAbstractLevels Helim))
+        (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
         (indexBVarSpine (decl.nparams + H.target.numIndices))) := by
     apply VEnv.HasType.mkApps_isType R.checking.tr.wf
       Hsynthesis.scopeWF.toCtx hconstType
     · simpa [indexBVarSpine] using
-        hfunctionShape.instL (H.recursorAbstractLevels Helim)
+        hfunctionShape.instL (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim)
     · exact ⟨type, happ⟩
   have htr : TrExprS R.venv
       (AddInductive.getRecLevelParams elimLevel c.lparams) scope
       (Expr.mkAppList stats.indConsts[familyIdx]!
         (stats.params.toList ++ indices.toList))
       (VExpr.mkApps
-        (.const H.target.name (H.recursorAbstractLevels Helim))
+        (.const H.target.name (MotivePassHeaderAt.recursorAbstractLevels c.lparams Helim))
         (indexBVarSpine (decl.nparams + H.target.numIndices))) :=
     checkPositivityStep.TrExprS.mkAppList R.checking.tr.wf.ordered
       Hsynthesis.scopeWF.toCtx hhead hargs ⟨_, happ⟩
@@ -1971,9 +1965,9 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
     (Hk : ∀ {current : AddInductive.Context} {runtimeDepth : Nat}
       (R : RecursorContextWF current
         (AddInductive.getRecLevelParams elimLevel base.lparams))
-      (henv : R.venv = Hbase.venv)
+      (_henv : R.venv = Hbase.venv)
       (Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth)
-      (hparameterDecls :
+      (_hparameterDecls :
         Hsuffix.parameterDecls = rootParameterDecls)
       {type : Expr} {fullTarget narrowTarget : VExpr} {scope : VLCtx}
       {nindices : Nat} {indices originTypes : Array Expr}
@@ -2027,9 +2021,9 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
     ∀ {current : AddInductive.Context} {runtimeDepth : Nat}
       (R : RecursorContextWF current
         (AddInductive.getRecLevelParams elimLevel base.lparams))
-      (henv : R.venv = Hbase.venv)
+      (_henv : R.venv = Hbase.venv)
       (Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth)
-      (hparameterDecls : Hsuffix.parameterDecls = rootParameterDecls)
+      (_hparameterDecls : Hsuffix.parameterDecls = rootParameterDecls)
       type fullTarget narrowTarget scope nindices indices originTypes
         indexTargets fuel,
       (Hsynthesis :
@@ -2865,9 +2859,9 @@ theorem MotivePassHeaderAt.startRecursorTyping
     (Hk : ∀ {next : AddInductive.Context} {nextDepth : Nat}
       (Rnext : RecursorContextWF next
         (AddInductive.getRecLevelParams elimLevel base.lparams))
-      (henvNext : Rnext.venv = Hbase.venv)
+      (_henvNext : Rnext.venv = Hbase.venv)
       (HsuffixNext : RecursorParameterContextSuffix Rnext stats nextDepth)
-      (hparameterDecls :
+      (_hparameterDecls :
         HsuffixNext.parameterDecls = Hsuffix.parameterDecls)
       {type : Expr} {fullTarget narrowTarget : VExpr} {scope : VLCtx}
       {nindices : Nat} {indices originTypes : Array Expr}

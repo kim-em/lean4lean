@@ -225,7 +225,7 @@ def ContextWF.baseParams (Hc : ContextWF c) (stats : AddInductive.InductiveStats
     (n : Nat) (j : Nat) (hj : j ≤ Hc.mlctx.length)
     (hfv : paramCheckFVars stats n = (Hc.mlctx.dropN j hj).fvarList) :
     Hc.Base (c.lctx.restrictTo (paramCheckFVars stats n)) :=
-  (Hc.baseMain j hj).cast (by rw [hfv]; exact ((Hc.baseMain j hj).restrictTo_eq Hc.lctxWF).symm)
+  (Hc.baseMain j hj).cast (by rw [hfv]; exact ((Hc.baseMain j hj).restrictTo_eq).symm)
 
 /-- The context of a run under the parameter snapshot `n`. -/
 def ContextWF.paramCheck (Hc : ContextWF c) (stats : AddInductive.InductiveStats)
@@ -544,7 +544,7 @@ def RecursorContextWF.baseParams (Hc : RecursorContextWF c recLparams)
     (stats : AddInductive.InductiveStats) (n : Nat) (j : Nat) (hj : j ≤ Hc.mlctx.length)
     (hfv : paramCheckFVars stats n = (Hc.mlctx.dropN j hj).fvarList) :
     Hc.Base (c.lctx.restrictTo (paramCheckFVars stats n)) :=
-  (Hc.baseMain j hj).cast (by rw [hfv]; exact ((Hc.baseMain j hj).restrictTo_eq Hc.lctxWF).symm)
+  (Hc.baseMain j hj).cast (by rw [hfv]; exact ((Hc.baseMain j hj).restrictTo_eq).symm)
 
 def RecursorContextWF.paramCheck (Hc : RecursorContextWF c recLparams)
     (stats : AddInductive.InductiveStats) (n : Nat) (j : Nat) (hj : j ≤ Hc.mlctx.length)

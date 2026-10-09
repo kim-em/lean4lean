@@ -421,8 +421,7 @@ same common-parameter count supplied to that batch. -/
 theorem inductiveTypeInfos_uniformNumParams
     (stats : AddInductive.InductiveStats) (numParams : Nat)
     (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool)
-    (lparams : List Name)
-    (hsize : stats.nindices.size = indTypes.size) :
+    (lparams : List Name) :
     ∀ info ∈ (AddInductive.inductiveTypeInfos stats numParams indTypes
       numNested isUnsafe lparams).toList,
       info.numParams = numParams := by

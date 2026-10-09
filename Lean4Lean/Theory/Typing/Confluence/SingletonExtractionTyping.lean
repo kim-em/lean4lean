@@ -397,10 +397,10 @@ theorem TelInst.ident (Γ : List VExpr) (hcl : ∀ j (h : j < doms.length), (dom
   rw [bvarRange_getElem _ _ _ hj, bvarRange_take _ _ _ (Nat.le_of_lt hj),
     VExpr.instOuter_range_bvar' _ _ _ (hcl j hj') (Nat.le_of_lt hj)]
   exact .bvar (Lookup.reverse_append doms Γ j hj')
-theorem HasType.mkApps_of_tel (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+theorem HasType.mkApps_of_tel
     (hf : env.HasType U Γ f (VExpr.wrapForalls doms B)) (H : TelInst env U Γ doms args) :
     env.HasType U Γ (VExpr.mkApps f args) (B.instOuter args) :=
-  IsDefEq.mkApps_congr henv hΓ hf H.1 rfl fun j hj hj' _ => H.2 j hj hj'
+  IsDefEq.mkApps_congr hf H.1 rfl fun j hj hj' _ => H.2 j hj hj'
 /-- A telescope over the parameters, lifted past `r` binders and instantiated at its own
 arguments, is the telescope instantiated at the lifted parameters. -/
 theorem TelInst.unlift {D : List VExpr} (hcl : ∀ j (h : j < D.length), (D[j]).ClosedN (P + j))
@@ -1242,7 +1242,7 @@ theorem value_typed (henv : env.WF) (heq : env.HasCanonicalEq) {S : SingletonLay
   have hmotW := hmot.weakN henv.ordered (Ctx.LiftN.zero S.fields.reverse)
   simp only [List.length_reverse, motiveType, liftN_wrapForalls] at hmotW
   rw [← List.reverse_append] at hmotW
-  have hT' := HasType.mkApps_of_tel henv hΔb (by simpa [VExpr.liftN] using hmotW) hD
+  have hT' := HasType.mkApps_of_tel (by simpa [VExpr.liftN] using hmotW) hD
   simp only [VExpr.instOuter_sort] at hT'
   have hBcl : (VExpr.wrapForalls (S.tel (genericPa S params) (genericIa S) j).1
       (S.target (genericPa S params) (genericIa S) j)).ClosedN
@@ -1529,7 +1529,7 @@ theorem occ_typed (henv : env.WF) (heq : env.HasCanonicalEq) {S : SingletonLayou
             List.getElem_mapIdx]
         rw [hd]
         exact hj'
-      have hci := HasType.mkApps_of_tel henv hΓ hvalΓ hargsT
+      have hci := HasType.mkApps_of_tel hvalΓ hargsT
       rw [instOuter_append_split, htl, target_subst hscope hgia, hpaτ, hiaτ,
         target_instOuter (T.scope.mono_pa hpsl) hidxl i t htl] at hci
       generalize hcid : VExpr.mkApps (value S params E i) (ps ++ idx ++ [m] ++ t) = ci at hci
@@ -1569,7 +1569,7 @@ theorem occ_typed (henv : env.WF) (heq : env.HasCanonicalEq) {S : SingletonLayou
           unfold valHat
           rw [hs]
           exact hcic
-theorem mkApps_instOuter_heads {head : VExpr} (hc : head.ClosedN 0) (a b args : List VExpr)
+theorem mkApps_instOuter_heads {head : VExpr} (hc : head.ClosedN 0) (a b : List VExpr)
     (P n : Nat) (ha : a.length = P) (hb : b.length = n) :
     (VExpr.mkApps head (bvarRange P (P + n) ++ bvarRange n n)).instOuter (a ++ b) =
       VExpr.mkApps head (a ++ b) := by
@@ -1613,7 +1613,7 @@ theorem singleton_eta (henv : env.WF) (heq : env.HasCanonicalEq) {S : SingletonL
   have hctorEq : (ctorApp S params E).instOuter (ps ++ c) = VExpr.mkApps E.ctor (ps ++ c) := by
     unfold ctorApp
     rw [bvarRange_split]
-    exact mkApps_instOuter_heads W.ctor_closed ps c [] params.length S.fields.length hpsl hcl
+    exact mkApps_instOuter_heads W.ctor_closed ps c params.length S.fields.length hpsl hcl
   have hfamEq : ∀ a : List VExpr, a.length = S.fields.length →
       (VExpr.mkApps E.family (branchPa S params ++ E.ctorIndices)).instOuter (ps ++ a) =
         VExpr.mkApps E.family (ps ++ E.ctorIndices.map (·.instOuter (ps ++ a))) := by
@@ -1664,7 +1664,7 @@ theorem singleton_eta (henv : env.WF) (heq : env.HasCanonicalEq) {S : SingletonL
         rw [e]
         exact hidx _ hm)
   rw [VExpr.instOuter_sort, majorTy, mkApps_instOuter_heads W.family_closed ps
-    (E.ctorIndices.map (·.instOuter (ps ++ f))) [] params.length S.indices.length hpsl
+    (E.ctorIndices.map (·.instOuter (ps ++ f))) params.length S.indices.length hpsl
     (by simp [W.ctorIndices_length])] at hmc
   -- proof irrelevance
   have hm : env.HasType U Γ m ((majorTy S params E).instOuter (ps ++ idx)) := by

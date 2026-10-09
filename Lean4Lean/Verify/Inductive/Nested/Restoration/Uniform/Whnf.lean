@@ -1161,8 +1161,7 @@ This is `TypeChecker.whnf.paramUniform` transported along the same lift as
 `whnfInRecursorContext.levelsWF`. -/
 theorem whnfInRecursorContext.paramUniformIn
     {c : AddInductive.Context} {recLparams : List Name}
-    (Hc : RecursorContextWF c recLparams) {e : Expr} {e' : VExpr}
-    (he : TrExprS Hc.venv recLparams Hc.mlctx.vlctx e e')
+    (Hc : RecursorContextWF c recLparams) {e : Expr}
     {e₀ : VExpr} (hn : TrExprS Hc.venv recLparams Hc.chk.vlctx e e₀)
     {heads : List Name} {As : List Expr} {ls : List Level} {P : FVarId → Prop}
     (henv : EnvParamUniform c.env heads As.length ls)
@@ -1216,10 +1215,10 @@ theorem WhnfPreservesParamUniform.of_env {heads : List Name} {params : List Expr
     {env : Environment} (henv : EnvParamUniform env heads params.length ls)
     (hparams : TypeChecker.UngeneratedParams `_kernel_fresh params) :
     WhnfPreservesParamUniform heads params ls env where
-  whnf Hc _ _ _ _ hc he hn hscope hP hin hrun := by
+  whnf Hc _ _ _ hc hn hscope hP hin hrun := by
     subst hc
     obtain ⟨_, hn⟩ := hn
-    exact whnfInRecursorContext.paramUniformIn Hc he hn henv hparams hscope hin hP _ hrun
+    exact whnfInRecursorContext.paramUniformIn Hc hn henv hparams hscope hin hP _ hrun
 
 section Run
 

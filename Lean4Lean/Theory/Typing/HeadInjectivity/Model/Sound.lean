@@ -188,6 +188,7 @@ theorem keys_transfer_symm {K : List Ob} (ih : SoundAt env U Δ Γ A A' T) (W : 
   have h2 := (ih σ' σ' S W' tv' tv').2.1
   exact ⟨fun k hk => (hK k hk).mono_le h1, fun k hk => (hK k hk).mono_le h2⟩
 
+omit henv hΔ in
 theorem sound_bvar (hL : Lookup Γ i A) : SoundAt env U Δ Γ (.bvar i) (.bvar i) A := by
   intro σ σ' S W tv tv'
   exact ⟨.of_imp fun o h => .bvar (Obs.bvar_iff.1 h), .of_imp fun o h => .bvar (Obs.bvar_iff.1 h),
@@ -349,12 +350,12 @@ theorem RuleValid.delta (henv : env.Ordered) (hdr : env.DeltaRules)
     have heq : env.IsDefEq U Γ (.const n ls) (df.rhs.instL ls) (df.type.instL ls) := by
       have := IsDefEq.extra (Γ := Γ) hdf hlw hlen; rwa [elhs] at this
     rw [← vcls_defeq henv hΔ (SubstEq.right henv hΔ W) heq,
-      vcls_closed henv hΔ (e := .const _ _) trivial htcl] at hty
+      vcls_closed (e := .const _ _) trivial htcl] at hty
     exact ⟨o, .delta hdf (by rw [hlhs]) hci (ci := ⟨df.uvars, df.type⟩)
       (fun τ hτ' => (Obs.closed_iff_id htcl).1 (hτ τ hτ')) hty
       ((Obs.closed_iff_id hrcl).1 h), .refl⟩
   · obtain ⟨τs, hτ, hty⟩ := h.const_typed hci
-    rw [vcls_closed henv hΔ (e := .const _ _) trivial htcl]
+    rw [vcls_closed (e := .const _ _) trivial htcl]
     exact ⟨τs, fun τ hτ' => (Obs.closed_iff_id htcl).2 (hτ τ hτ'), hty⟩
 
 /-- The quotient rule is valid, in an environment whose rules are delta rules or the quotient
@@ -452,7 +453,7 @@ theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → Rul
   induction H with
   | bvar hL _ hA ihA =>
     replace hA := hA.mono hle
-    exact ⟨sound_bvar henv hΔ hL, .bvar hL ⟨hA, ihA.1⟩, .bvar hL ⟨hA, ihA.1⟩⟩
+    exact ⟨sound_bvar hL, .bvar hL ⟨hA, ihA.1⟩, .bvar hL ⟨hA, ihA.1⟩⟩
   | symm _ ih => exact ⟨ih.1.symm henv hΔ, ih.2.2, ih.2.1⟩
   | trans _ _ ih1 ih2 => exact ⟨ih1.1.trans henv hΔ ih2.1, ih1.2.1, ih2.2.2⟩
   | @sortDF l l' _ _ _ h3 =>
@@ -485,10 +486,10 @@ theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → Rul
       fun o h => ⟨o, h.const_levels hT' hlw' hlw (forall₂_equiv_symm hls), .refl⟩,
       fun o h => ?_, fun o h => ?_⟩
     · obtain ⟨τs, h1, h2⟩ := h.const_typed hci
-      rw [vcls_closed henv hΔ (e := .const _ _) trivial (hcl ls)]
+      rw [vcls_closed (e := .const _ _) trivial (hcl ls)]
       exact ⟨τs, fun τ hτ' => (Obs.closed_iff_id (hcl ls)).2 (h1 τ hτ'), h2⟩
     · obtain ⟨τs, h1, h2⟩ := (h.const_typed hci).mono_le IH0.2.1
-      rw [vcls_closed henv hΔ (e := .const _ _) trivial (hcl ls),
+      rw [vcls_closed (e := .const _ _) trivial (hcl ls),
         TyCls.eq_of_lvEq (LvEq.instL ci.type hlw hlw' hls)]
       exact ⟨τs, fun τ hτ' => (Obs.closed_iff_id (hcl ls)).2 (h1 τ hτ'), h2⟩
   | elimDF hb htype hcl hperm hlw' hls _ h8 ih8 =>
@@ -504,10 +505,10 @@ theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → Rul
       fun o h => ⟨o, Obs.elim_indep.1 (h.lvEq (.elim hlw' hlw (forall₂_equiv_symm hls))), .refl⟩,
       fun o h => ?_, fun o h => ?_⟩
     · obtain ⟨τs, h1, h2⟩ := h.elim_typed hEV.uniq hb htype
-      rw [vcls_closed henv hΔ (e := .elim _ _ _) trivial hcl.instL]
+      rw [vcls_closed (e := .elim _ _ _) trivial hcl.instL]
       exact ⟨τs, fun τ hτ' => (Obs.closed_iff_id hcl.instL).2 (h1 τ hτ'), h2⟩
     · obtain ⟨τs, h1, h2⟩ := h.elim_typed hEV.uniq hb htype
-      rw [vcls_closed henv hΔ (e := .elim _ _ _) trivial hcl.instL,
+      rw [vcls_closed (e := .elim _ _ _) trivial hcl.instL,
         TyCls.eq_of_lvEq (LvEq.instL _ hlw hlw' hls)]
       obtain ⟨τs', h3, h4⟩ := TypedAt.mono_le (σ' := σ') (S' := S)
         ⟨τs, fun τ hτ' => (Obs.closed_iff_id hcl.instL).2 (h1 τ hτ'), h2⟩ (fun x hx => by
@@ -693,14 +694,14 @@ theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → Rul
     have hb0 : env.IsDefEqStrong U (A :: Γ) (.bvar 0) (.bvar 0) A.lift := .bvar .zero h1 hA'
     have hbody : HTS env U Δ (A :: Γ) (.app e.lift (.bvar 0)) B := by
       have := HTS.app ⟨hA', ihA'.1⟩ ⟨hB', ihB'.1⟩ ihe'.2.1 he'.defeq.hasType.1
-        (.bvar .zero ⟨hA', ihA'.1⟩) ⟨hb0, sound_bvar henv hΔ .zero⟩
+        (.bvar .zero ⟨hA', ihA'.1⟩) ⟨hb0, sound_bvar .zero⟩
       rwa [e0] at this
     have hBB : env.IsDefEqStrong U (A :: Γ) ((B.liftN 1 1).inst (.bvar 0))
         ((B.liftN 1 1).inst (.bvar 0)) (.sort v) := by rw [e0]; exact hB
     have sbody : SD env U Δ (A :: Γ) (.app e.lift (.bvar 0)) (.app e.lift (.bvar 0)) B := by
       have d := IsDefEqStrong.appDF h1 h2 hA' hB' he' hb0 hBB
       have sd := sound_appDF henv hΔ hA' hB' he' hBB hb0 ihB'.1 ihe'.1
-        (sound_bvar henv hΔ .zero) (by rw [e0]; exact ihB.1)
+        (sound_bvar .zero) (by rw [e0]; exact ihB.1)
       rw [e0] at d sd
       exact ⟨d, sd⟩
     refine ⟨?_, .lam ihA.2.1 ⟨hA, ihA.1⟩ hbody sbody ⟨hB, ihB.1⟩, ihe.2.1⟩

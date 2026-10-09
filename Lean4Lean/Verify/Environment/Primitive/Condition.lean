@@ -520,14 +520,14 @@ theorem TrExprS.app1_nil_inv {env : VEnv} {Us : List Name} {Δ : VLCtx} {hd A : 
   exact ⟨_, hA, rfl⟩
 
 /-- The predicate of a condition, at the two arguments every use of one applies it to. -/
-theorem Condition.WF.prop_app2_inv (w : Condition.WF c cnd) [hOK : cnd.OK]
+theorem Condition.WF.prop_app2_inv (w : Condition.WF c cnd)
     (H : TrExprS c.venv c.lparams Δ (mkAppN cnd.prop #[A, B]) P) :
     ∃ a' b', TrExprS c.venv c.lparams Δ A a' ∧ TrExprS c.venv c.lparams Δ B b' ∧
       P = (w.prop'.app a').app b' :=
   TrExprS.app2_nil_inv c.Ewf w.hprop0 H
 
 /-- The decision procedure, likewise. -/
-theorem Condition.WF.dec_app2_inv (w : Condition.WF c cnd) [hOK : cnd.OK]
+theorem Condition.WF.dec_app2_inv (w : Condition.WF c cnd)
     (H : TrExprS c.venv c.lparams Δ (mkAppN cnd.dec #[A, B]) D) :
     ∃ a' b', TrExprS c.venv c.lparams Δ A a' ∧ TrExprS c.venv c.lparams Δ B b' ∧
       D = (w.dec'.app a').app b' :=
@@ -736,7 +736,7 @@ decision. Everything `checkITE` says is about applications of this term, so this
 `VExpr` it denotes is pinned down -- including that the `type` and `toDec` occurring under its
 binders are the very ones `Reflection.WF` names, which is `of_nil_unique`'s job. -/
 theorem Reflection.ite_tr {c : VContext} {r : Reflection} (w : Reflection.WF c r)
-    (hnil : c.vlctx = []) (htypeOK : CondOK r.type) (htoDecOK : CondOK r.toDec)
+    (hnil : c.vlctx = [])
     {toDec' : VExpr} (htoDec : c.TrExprS r.toDec toDec')
     {ite₀ : VExpr} (H : TrExprS c.venv c.lparams [] r.ite ite₀) :
     ite₀ = VExpr.lams
@@ -847,7 +847,7 @@ theorem VEnv.IsDefEqU.polyProj {env : VEnv} {U Γ} (henv : env.WF)
 against. The third domain is where the reflection's own relation enters, and `of_nil_any` is what
 puts the `type'` of `Reflection.WF` there rather than some other translation of `r.type`. -/
 theorem TrExprS.reflIteType (w : Reflection.WF c r)
-    (hnil : c.vlctx = []) (hbool : c.venv.contains ``Bool) (htypeOK : CondOK r.type)
+    (hnil : c.vlctx = []) (hbool : c.venv.contains ``Bool)
     (hΔ : OnCtx Δ.toCtx (c.venv.IsType c.lparams.length)) :
     TrExprS c.venv c.lparams Δ
       (.arrow q(Prop) (.arrow q(Bool)
@@ -892,7 +892,7 @@ theorem TrExprS.propProp {env : VEnv} {Us : List Name} {Δ : VLCtx} {n bi} :
 `ofFalse` against; `C` is the proposition itself for `ofTrue` and its negation for `ofFalse`, so
 it is taken as a parameter with its translation. -/
 theorem TrExprS.reflOfType (w : Reflection.WF c r)
-    (hnil : c.vlctx = []) (hbool : c.venv.contains ``Bool) (htypeOK : CondOK r.type)
+    (hnil : c.vlctx = []) (hbool : c.venv.contains ``Bool)
     {Δ : VLCtx} (b : Bool)
     (hcod : TrExprS c.venv c.lparams
       ((none, .vlam ((w.type'.app (.bvar 0)).app (.boolLit b))) ::
@@ -927,7 +927,6 @@ theorem TrExprS.reflOfType (w : Reflection.WF c r)
 the constant is a `Prop → Prop`, and nothing else about it is known. -/
 theorem TrExprS.reflDiteType (w : Reflection.WF c r)
     (hnil : c.vlctx = []) (hbool : c.venv.contains ``Bool) (hnat : c.venv.contains ``Nat)
-    (htypeOK : CondOK r.type)
     {Not' : VExpr} (hNotTr : ∀ {Δ}, TrExprS c.venv c.lparams Δ (.const ``Not []) Not')
     (hNotT : ∀ {Γ : List VExpr}, c.venv.HasType c.lparams.length Γ Not' vexpr(Prop → Prop))
     (hΔ : OnCtx Δ.toCtx (c.venv.IsType c.lparams.length)) :
@@ -993,7 +992,7 @@ theorem TrExprS.reflDiteType (w : Reflection.WF c r)
 /-- The shape of `Reflection.natDITE`'s translation: three lambdas over `dite` at `Nat` and the
 reflection's own decision. The `checkITE` counterpart is `ite_tr`. -/
 theorem Reflection.natDITE_tr {c : VContext} {r : Reflection} (w : Reflection.WF c r)
-    (hnil : c.vlctx = []) (htypeOK : CondOK r.type) (htoDecOK : CondOK r.toDec)
+    (hnil : c.vlctx = [])
     {toDec' : VExpr} (htoDec : c.TrExprS r.toDec toDec')
     {d₀ : VExpr} (H : TrExprS c.venv c.lparams [] r.natDITE d₀) :
     d₀ = VExpr.lams [.sort .zero, .bool, (w.type'.app (.bvar 1)).app (.bvar 0)]
@@ -1203,7 +1202,7 @@ it, and `ite_tr` is what makes the term it moves recognizable as `iteApp`. -/
 theorem Reflection.checkITE.WF {fail : ∀ {α}, M α}
     (w : Reflection.WF c r) (hnil : c.vlctx = []) (hbool : c.venv.contains ``Bool)
     {toDec' : VExpr} (htoDec : c.TrExprS r.toDec toDec') (htoDecC : toDec'.ClosedN)
-    (htypeOK : CondOK r.type) (htoDecOK : CondOK r.toDec) (hiteOK : CondOK r.ite)
+    (hiteOK : CondOK r.ite)
     (hfail : ∀ {α c s Q}, (@fail α).WF c s Q) :
     (r.checkITE fail).WF c s fun _ _ => w.WF_ite toDec' ∧ w.ITE_T toDec' := by
   have hfailb : ∀ {α β} {k : α → M β} {c s Q}, (fail >>= k).WF c s Q :=
@@ -1215,11 +1214,11 @@ theorem Reflection.checkITE.WF {fail : ∀ {α}, M α}
   unfold Reflection.checkITE
   refine .bind (checkType.WF (CondOK.fvarsIn hiteOK))
     fun _ _ _ ⟨ite₀, iteTy', _, hiteTr, hiteTyTr, hiteT⟩ => ?_
-  refine .bind (isDefEq.WF hiteTyTr (TrExprS.reflIteType w hnil hbool htypeOK c.Δwf.toCtx))
+  refine .bind (isDefEq.WF hiteTyTr (TrExprS.reflIteType w hnil hbool c.Δwf.toCtx))
     fun _ _ _ harr => ?_
   split <;> [rename_i h1; exact hfailb]
   -- the conditional's shape, and its type on the nose
-  have hshape := Reflection.ite_tr w hnil htypeOK htoDecOK htoDec (by rw [← hnil]; exact hiteTr)
+  have hshape := Reflection.ite_tr w hnil htoDec (by rw [← hnil]; exact hiteTr)
   have hiteT' := VEnv.HasType.defeqU_r c.Ewf c.Δwf.toCtx (harr h1) hiteT
   rw [hnil'] at hiteT'
   have hiteC := (hiteT'.closedN' c.Ewf.ordered.closed trivial).1
@@ -1439,7 +1438,6 @@ theorem Reflection.checkNatDITE.WF {c : VContext} {s : State} {r : Reflection}
     {fail : ∀ {α}, M α} (w : Reflection.WF c r) (hnil : c.vlctx = [])
     (hbool : c.venv.contains ``Bool) (hnat : c.venv.contains ``Nat)
     {toDec' : VExpr} (htoDec : c.TrExprS r.toDec toDec') (htoDecC : toDec'.ClosedN)
-    (htypeOK : CondOK r.type) (htoDecOK : CondOK r.toDec)
     (hditeOK : CondOK r.natDITE) (hofTrueOK : CondOK r.ofTrue) (hofFalseOK : CondOK r.ofFalse)
     (hfail : ∀ {α c s Q}, (@fail α).WF c s Q) :
     (r.checkNatDITE fail).WF c s fun _ _ => w.WF_dite toDec' ∧ w.DITE_T toDec' ∧
@@ -1467,20 +1465,20 @@ theorem Reflection.checkNatDITE.WF {c : VContext} {s : State} {r : Reflection}
   refine .bind (checkType.WF (CondOK.fvarsIn hditeOK))
     fun _ _ _ ⟨d₀, dTy', _, hdTr, hdTyTr, hdT⟩ => ?_
   refine .bind (isDefEq.WF hdTyTr
-      (TrExprS.reflDiteType w hnil hbool hnat htypeOK hNotTr' hNotT' c.Δwf.toCtx))
+      (TrExprS.reflDiteType w hnil hbool hnat hNotTr' hNotT' c.Δwf.toCtx))
     fun _ _ _ hdarr => ?_
   split <;> [rename_i h2; exact hfailb]
   -- `ofTrue : ∀ p, type p true → p` and `ofFalse : ∀ p, type p false → ¬p`
   refine .bind (checkType.WF (CondOK.fvarsIn hofTrueOK))
     fun _ _ _ ⟨oT, oTty, _, hoTTr, hoTtyTr, hoTT⟩ => ?_
   refine .bind (isDefEq.WF hoTtyTr
-      (TrExprS.reflOfType w hnil hbool htypeOK true .bvar1 (.bvar (.succ .zero))))
+      (TrExprS.reflOfType w hnil hbool true .bvar1 (.bvar (.succ .zero))))
     fun _ _ _ hoTarr => ?_
   split <;> [rename_i h3; exact hfailb]
   refine .bind (checkType.WF (CondOK.fvarsIn hofFalseOK))
     fun _ _ _ ⟨oF, oFty, _, hoFTr, hoFtyTr, hoFT⟩ => ?_
   refine .bind (isDefEq.WF hoFtyTr
-      (TrExprS.reflOfType w hnil hbool htypeOK false
+      (TrExprS.reflOfType w hnil hbool false
         (.app hNotT' (.bvar (.succ .zero)) hNotTr' .bvar1) (.app hNotT' (.bvar (.succ .zero)))))
     fun _ _ _ hoFarr => ?_
   split <;> [rename_i h4; exact hfailb]
@@ -1536,7 +1534,7 @@ theorem Reflection.checkNatDITE.WF {c : VContext} {s : State} {r : Reflection}
           (.forallE (.forallE (.bvar 2) .nat)
             (.forallE (.forallE (vexpr(Not).app (.bvar 3)) .nat) .nat))))) := by
     rw [← hnil']; exact VEnv.HasType.defeqU_r c.Ewf c.Δwf.toCtx (hdarr h2) hdT
-  have hshape := Reflection.natDITE_tr w hnil htypeOK htoDecOK htoDec
+  have hshape := Reflection.natDITE_tr w hnil htoDec
     (by rw [← hnil]; exact hdTr)
   have hdC : d₀.ClosedN := (hdT'.closedN' c.Ewf.ordered.closed trivial).1
   have hoT' : c.venv.HasType c.lparams.length [] oT
@@ -2883,7 +2881,7 @@ theorem Condition.check.WF {c : VContext} {s : State} {cond : Condition}
     let +generalize P _ := _
     suffices ∀ {s}, (ite → w.WF_ite toDec' ∧ w.ITE_T toDec') → M.WF c s (F1 ()) P by
       unfold F2; split <;> [skip; exact this (Not.elim ‹_›)]
-      exact (Reflection.checkITE.WF w hnil hbool htoDecTr' htoDecC htypeOK htoDecOK hiteOK
+      exact (Reflection.checkITE.WF w hnil hbool htoDecTr' htoDecC hiteOK
         hfail).bind fun _ _ _ h => this fun _ => h
     intro s hI; unfold F1
     suffices ∀ {s}, (dite → w.WF_dite toDec' ∧ w.DITE_T toDec' ∧
@@ -2891,7 +2889,7 @@ theorem Condition.check.WF {c : VContext} {s : State} {cond : Condition}
         (∀ {Γ : List VExpr}, c.venv.HasType c.lparams.length Γ (.const ``Not [])
           (.forallE (.sort .zero) (.sort .zero)))) → P () s by
       split <;> [skip; exact .pure <| this (s := s) (Not.elim ‹_›)]
-      exact (Reflection.checkNatDITE.WF w hnil hbool hnat htoDecTr' htoDecC htypeOK htoDecOK
+      exact (Reflection.checkNatDITE.WF w hnil hbool hnat htoDecTr' htoDecC
         hditeOK hofTrueOK hofFalseOK hfail).mono fun _ s _ h => this (s := s) fun _ => h
     have htypeTΓ (E : c.Ext) {Γ : List VExpr} : E.venv.HasType c.lparams.length Γ w.type'
         vexpr(Prop → Bool → Prop) :=

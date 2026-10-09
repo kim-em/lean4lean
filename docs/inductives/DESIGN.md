@@ -450,10 +450,14 @@ ordinary path (`Install/OrdinaryExtension.lean`), otherwise the nested path
   and the environment with the constructors); `checkRecursiveFields` requires, for a safe
   declaration, that the fields given induction hypotheses are exactly those the positivity
   check classified as recursive. The two classifications are `whnf` runs on the same field
-  types in different environments, universe parameters and free variables, and no theorem
-  relates two such runs, so the agreement is checked rather than proved
-  (`RecursorConstruction.recursiveFieldsChecked`). With it the classification of the generation
-  signature is that of the checked formation (`SignatureSpec.classified`, `sourceClasses`), and
+  types in different environments and universe parameters, and with the fields opened as
+  different free variables. That renaming is what prevents a proof: `whnf` asks `isDefEq`
+  for K-like iota, and `isDefEq` decides through the equivalence manager's hash test and
+  pointer-equality tests, which are not invariant under renaming in the model
+  (`Tests/FVarRenamingEquivManager.lean`), while a definitional argument cannot recover the
+  syntactic parameter test of `isValidIndApp?`. So the agreement is checked rather than proved
+  (`RecursorConstruction.recursiveFieldsChecked`; `divergences.md` gives the details). With
+  it the classification of the generation signature is that of the checked formation (`SignatureSpec.classified`, `sourceClasses`), and
   its fields inherit the classified normal forms of the source fields. On the primitive path the
   classifications are computed from the run (`PrimitiveHeaderEnvironment.checkedClasses`), using
   that `whnf` returns an inductive constant unchanged
@@ -589,9 +593,9 @@ re-established at the end of the batch.
 ### 3.5 Shared proof infrastructure
 
 The phase certificates remain in the inductive checker, while generic expression, context and
-abstract typing facts live below it. The original qualified declaration names and theorem
-contracts are retained, including the older `VerifyInductive` names of abstract calculus facts.
-Importing the old adapter modules still exposes those declarations.
+abstract typing facts live below it. Adapters import these shared facts and connect them to
+the phase certificates. Theorem interfaces carry the hypotheses needed by their conclusions;
+redundant arguments are removed together with their caller arguments.
 
 | Responsibility | Modules |
 | --- | --- |
@@ -606,8 +610,9 @@ Importing the old adapter modules still exposes those declarations.
 | Semantics shared by ordinary and recursor frames | `Verify/Inductive/Context/Semantics.lean` |
 | Installation lookup effects and matched family/constructor indices | `Verify/Inductive/Install/Metadata.lean`, `Verify/Inductive/SourceAlignment.lean` |
 
-`ContextWF` and `RecursorContextWF` keep their original public record layouts. Their operations
-use `ContextSemantics c Us` for the shared context proofs. Ordinary frames retain
+`ContextWF` and `RecursorContextWF` separately certify the ordinary and recursor universe
+contracts. Their operations use `ContextSemantics c Us` for the shared context proofs.
+Ordinary frames retain
 `typeCheckerLParams = none`; recursor frames retain `some recLparams` and the explicit
 `RecursorLParams` origin certificate. `BindingContextWF` remains the separate operational
 certificate. The existing projection equalities still hold by reduction.
@@ -622,7 +627,7 @@ The selected induction-hypothesis comparison in `Rules/RecursiveResults.lean` se
 provenance (`HypothesisSource`), exact replay equations (`HypothesisReplay`), translation and
 closed typing (`HypothesisTyping`), and the opened residual comparison (`HypothesisResidual`).
 `HypothesisFrame` and `HypothesisDomainFrame` carry these obligations to the RHS proof through
-named fields. The original existential theorems remain compatibility views. Translation and
+named fields, which consumers use directly. Translation and
 typing after inserting earlier hypotheses use one shared proof, so the domain comparison and
 RHS consumer no longer reconstruct that context transport independently.
 
@@ -973,7 +978,9 @@ wrapper name. The other changes cannot change a decision except through checker 
   with total fresh-name searches, narrow checker contexts (section 3.2), unreachable arity
   and result-type guards in recursor construction (kept: the verification cannot show that
   two `whnf` runs agree), the comparison of the minor pass's field classification with the
-  positivity check's (`checkRecursiveFields`, for the same reason), and recursor rules built from
+  positivity check's (`checkRecursiveFields`: the two runs differ by a renaming of free
+  variables, under which the decisions of `isDefEq` are not provably invariant), and recursor
+  rules built from
   the first constructor traversal. Each generated recursor type is type-checked (`checkRecursorTypes`); the kernel
   of the pinned toolchain does not do this, upstream does since leanprover/lean4#14808, which
   also checks rule type preservation, which lean4lean proves instead. Nested auxiliary types
@@ -1018,7 +1025,10 @@ wrapper name. The other changes cannot change a decision except through checker 
 - negative tests: `SortEquationRejection.lean`, `CorruptRecursorMetadata.lean`,
   `CorruptRestoredRecursorMetadata.lean` (corrupted metadata admits no certificate),
   `RecursiveFieldClassification.lean` (a signature marking a recursive field `external` does
-  not model its declaration).
+  not model its declaration);
+- name dependence of the checker: `FVarRenamingEquivManager.lean` (the equivalence manager's
+  hash test answers differently on a renaming of two free variables, which is why the two
+  field classifications are compared rather than proved equal).
 - nested indexed families: `NestedIndexedFamily.lean` (nested occurrences of indexed families,
   and indexed families with parameters inside nested blocks; the generated types,
   constructors and recursors are compared with the kernel's).

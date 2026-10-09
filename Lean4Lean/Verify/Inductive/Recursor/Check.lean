@@ -194,7 +194,7 @@ theorem ConstructorCheck.recursorPhasesWF
     {hsourceSafety : isUnsafe = (c.safety != .safe)}
     (hnotPartial : c.safety ≠ .partial)
     (hnprim : c.allowPrimitive = true ->
-      forall owner (howner : owner < indTypes.size),
+      forall owner (_howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
         (Lean.mkRecName indTypes[owner]!.name))
     (hpositivity : positivity = R.classes) :
@@ -307,7 +307,7 @@ theorem ConstructorCheck.recursorPhasesWF
     recursiveFieldsChecked := hchecked
   }
   have Hrecursors := AddInductive.declareRecursors.bindingWFOfTargets
-    (elimLevel := elimLevel) kTarget hkTarget Hvalid Rlocal.toBindingContextWF Rlocal
+    (elimLevel := elimLevel) kTarget hkTarget Hvalid Rlocal
     HstatsLocal Lean4Lean.recursorConsumeTypeAnnotationsCompat
     (by simpa only [henvLocal] using hlit) hctxLocal Hcard Hcore Hbindings
     Horigins Hblueprints HblueprintSemantics HminorSources HminorSemantics

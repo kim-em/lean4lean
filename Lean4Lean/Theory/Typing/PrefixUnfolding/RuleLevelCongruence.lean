@@ -16,7 +16,7 @@ theorem PrefixUnfold.congr_levels {name : Name} {levels levels' : List VLevel}
     ∃ rhs', PrefixUnfold env U registry Γ name levels' args' rhs' ∧ EqUpToLevels U rhs rhs' := by
   cases H with
   | @intro data program hlookup hregistered hname hlarge hw hz hg replay =>
-    obtain ⟨program', hg', hp⟩ := singletonUnfolding_levels hregistered hw hw' he ha hg
+    obtain ⟨program', hg', hp⟩ := singletonUnfolding_levels hw hw' he ha hg
     have hs := EqUpToLevels.mkApps_args (EqUpToLevels.const (c := name) hw hw' he) ha
     have replay' := replay.congr_levels henv hΓ hp hs
     have hz' : data.sourceLevel levels' ≈ .zero :=

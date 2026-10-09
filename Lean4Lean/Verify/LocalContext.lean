@@ -706,7 +706,7 @@ closure leaves the selected forall expression unchanged. -/
 theorem _root_.Lean.LocalContext.mkForall_skip_fresh
     {lctx : LocalContext} {selected : List FVarId} {fv : FVarId}
     {name : Name} {type body : Expr} {bi : BinderInfo}
-    (hwf : lctx.WF) (hfind : lctx.find? fv = none)
+    (hwf : lctx.WF)
     (hselected : fv ∉ selected) :
     let next := lctx.mkLocalDecl fv name type bi
     next.mkForall (selected.map Expr.fvar).toArray body =

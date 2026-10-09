@@ -154,7 +154,7 @@ theorem RecursorCheck.RuleAlignment.typeTranslation
       hfields, hhypotheses, hminorType,
       HsourceResidual, _HsourceResidualType⟩
   have hfieldClosure := A.alignedMotiveAppFieldClosure S traversal
-    hconstructor htraversalFields hfieldFVars hclosedTargets hvalid
+    hconstructor hclosedTargets hvalid
       hmotiveApp hsourceFields
   have hsourceAligned := A.alignedPositiveResidualSource S HS traversal
     hmotiveApp hfieldClosure hsourceFields hsourceHypotheses

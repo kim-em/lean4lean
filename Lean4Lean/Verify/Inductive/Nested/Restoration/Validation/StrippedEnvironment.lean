@@ -554,7 +554,7 @@ theorem NestedRestorationFolds.validOfInstallation_of_shapes
       installedVEnv := by
   obtain ⟨hcore, howners, horigins⟩ :=
     Hrestored.localValidOfInstallation Hlower Hc Hprod Hsource Hmetadata Hsources
-      Harity hempty Hactual canonical hperm htypeValues hctorValues hvalidSource
+      Harity hempty Hactual canonical hperm hvalidSource
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
   have houtWF : outEnv.constants.WF := hcore.tr.map_wf
   generalize hnames : Lean4Lean.restoredRecursorNames auxRec sourceTypes auxRecNames = names

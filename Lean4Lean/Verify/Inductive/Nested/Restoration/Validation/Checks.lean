@@ -50,7 +50,7 @@ private theorem forallExists_to_forall₂
 
 private theorem validateSourceConstructorTypes.constructorStep_eq_ok_of_run
     (hrun : Lean4Lean.validateSourceConstructorTypes.run env lparams
-      safety fuel types result = .ok ())
+      safety fuel types = .ok ())
     (htype : indType ∈ types) (hctor : ctor ∈ indType.ctors) :
     (do
       _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
@@ -78,7 +78,7 @@ private theorem validateSourceConstructorTypes.constructorStep_eq_ok_of_run
 successful whole-block validation run. -/
 theorem validateSourceConstructorTypes.typeCheck_eq_ok_of_run
     (hrun : Lean4Lean.validateSourceConstructorTypes.run env lparams
-      safety fuel types result = .ok ())
+      safety fuel types = .ok ())
     (htype : indType ∈ types) (hctor : ctor ∈ indType.ctors) :
     ∃ checked, TypeChecker.M.run env (safety := safety) (lctx := {})
       (lparams := lparams) (fuel := fuel) (do
@@ -105,7 +105,7 @@ theorem validateSourceConstructorTypes.sourceConst_of_run
     (hmode : fuel.cacheMode.Sound venv)
     (Hsources : SourceSyntaxChecks types)
     (hrun : Lean4Lean.validateSourceConstructorTypes.run env lparams
-      safety fuel types result = .ok ())
+      safety fuel types = .ok ())
     (htype : indType ∈ types) (hctor : ctor ∈ indType.ctors) :
     ∃ constructor : VConstVal,
       TrSourceConst venv lparams ctor.name ctor.type constructor := by
@@ -146,7 +146,7 @@ theorem validateSourceConstructorTypes.sourceConsts_of_run
     (hmode : fuel.cacheMode.Sound venv)
     (Hsources : SourceSyntaxChecks types)
     (hrun : Lean4Lean.validateSourceConstructorTypes.run env lparams
-      safety fuel types result = .ok ())
+      safety fuel types = .ok ())
     (htype : indType ∈ types) :
     ∃ constructors : List VConstVal,
       List.Forall₂ (fun source constructor =>
@@ -158,15 +158,15 @@ theorem validateSourceConstructorTypes.sourceConsts_of_run
     hmode Hsources hrun htype hctor
 
 private theorem validateRestoredRecursorTypes.sourceCheck_eq_ok_of_run
-    (hrun : Lean4Lean.validateRestoredRecursorTypes.run env loweredEnv lparams
+    (hrun : Lean4Lean.validateRestoredRecursorTypes.run env loweredEnv
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
     (htype : indType ∈ types) :
-    Lean4Lean.validateRestoredRecursorTypes.check env loweredEnv lparams
+    Lean4Lean.validateRestoredRecursorTypes.check env loweredEnv
       safety fuel result recNameMap allIndNames (Lean.mkRecName indType.name) =
         .ok () := by
   unfold Lean4Lean.validateRestoredRecursorTypes.run at hrun
   cases hprimary : types.forM fun type =>
-      Lean4Lean.validateRestoredRecursorTypes.check env loweredEnv lparams
+      Lean4Lean.validateRestoredRecursorTypes.check env loweredEnv
         safety fuel result recNameMap allIndNames
           (Lean.mkRecName type.name) with
   | error err =>
@@ -177,14 +177,14 @@ private theorem validateRestoredRecursorTypes.sourceCheck_eq_ok_of_run
       rcases done with ⟨⟩
       exact listForM_eq_ok_of_mem
         (fun type : InductiveType =>
-          Lean4Lean.validateRestoredRecursorTypes.check env loweredEnv lparams
+          Lean4Lean.validateRestoredRecursorTypes.check env loweredEnv
             safety fuel result recNameMap allIndNames
               (Lean.mkRecName type.name)) hprimary htype
 
 /-- The successful type check of one restored source recursor, selected from
 the successful whole-block validation run. -/
 theorem validateRestoredRecursorTypes.typeCheck_eq_ok_of_run
-    (hrun : Lean4Lean.validateRestoredRecursorTypes.run env loweredEnv lparams
+    (hrun : Lean4Lean.validateRestoredRecursorTypes.run env loweredEnv
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
     (htype : indType ∈ types)
     (hlookup : loweredEnv.find? (Lean.mkRecName indType.name) =
@@ -247,7 +247,7 @@ source recursor type, which is a type. -/
 theorem validateRestoredRecursorTypes.translation_of_run
     (hvalid : CheckingEnv.Valid safety env venv)
     (hmode : fuel.cacheMode.Sound venv)
-    (hrun : Lean4Lean.validateRestoredRecursorTypes.run env loweredEnv lparams
+    (hrun : Lean4Lean.validateRestoredRecursorTypes.run env loweredEnv
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
     (htype : indType ∈ types)
     (hlookup : loweredEnv.find? (Lean.mkRecName indType.name) =
@@ -295,14 +295,14 @@ theorem validateRestoredRecursorTypes.translation_of_run
   exact Hrun checked hcheck
 
 private theorem validateRestoredRecursorTypes.auxiliaryCheck_eq_ok_of_run
-    (hrun : Lean4Lean.validateRestoredRecursorTypes.run env loweredEnv lparams
+    (hrun : Lean4Lean.validateRestoredRecursorTypes.run env loweredEnv
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
     (hrec : recName ∈ auxRecNames) :
-    Lean4Lean.validateRestoredRecursorTypes.check env loweredEnv lparams
+    Lean4Lean.validateRestoredRecursorTypes.check env loweredEnv
       safety fuel result recNameMap allIndNames recName = .ok () := by
   unfold Lean4Lean.validateRestoredRecursorTypes.run at hrun
   cases hprimary : types.forM fun type =>
-      Lean4Lean.validateRestoredRecursorTypes.check env loweredEnv lparams
+      Lean4Lean.validateRestoredRecursorTypes.check env loweredEnv
         safety fuel result recNameMap allIndNames
           (Lean.mkRecName type.name) with
   | error err =>
@@ -314,7 +314,7 @@ private theorem validateRestoredRecursorTypes.auxiliaryCheck_eq_ok_of_run
       rw [hprimary] at hrun
       simp only [bind, Except.bind] at hrun
       exact listForM_eq_ok_of_mem
-        (Lean4Lean.validateRestoredRecursorTypes.check env loweredEnv lparams
+        (Lean4Lean.validateRestoredRecursorTypes.check env loweredEnv
           safety fuel result recNameMap allIndNames) hrun hrec
 
 /-- A successful check of any restored recursor (source or auxiliary)
@@ -322,8 +322,7 @@ gives a translation of the type produced by `restoreRecursor`, which is a type. 
 theorem validateRestoredRecursorTypes.translation_of_check
     (hvalid : CheckingEnv.Valid safety env venv)
     (hmode : fuel.cacheMode.Sound venv)
-    (hstep : Lean4Lean.validateRestoredRecursorTypes.check env loweredEnv
-      lparams safety fuel result recNameMap allIndNames recName = .ok ())
+    (hstep : Lean4Lean.validateRestoredRecursorTypes.check env loweredEnv safety fuel result recNameMap allIndNames recName = .ok ())
     (hlookup : loweredEnv.find? recName = some (.recInfo oldInfo)) :
     let newRecName := recNameMap.getD recName recName
     let restored := result.restoreRecursor loweredEnv recNameMap allIndNames
@@ -385,7 +384,7 @@ successful whole-block validation run. -/
 theorem validateRestoredRecursorTypes.auxiliaryTranslation_of_run
     (hvalid : CheckingEnv.Valid safety env venv)
     (hmode : fuel.cacheMode.Sound venv)
-    (hrun : Lean4Lean.validateRestoredRecursorTypes.run env loweredEnv lparams
+    (hrun : Lean4Lean.validateRestoredRecursorTypes.run env loweredEnv
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
     (hrec : recName ∈ auxRecNames)
     (hlookup : loweredEnv.find? recName = some (.recInfo oldInfo)) :
@@ -399,16 +398,16 @@ theorem validateRestoredRecursorTypes.auxiliaryTranslation_of_run
       hlookup
 
 private theorem validateRestoredRecursorRules.sourceCheck_eq_ok_of_run
-    (hrun : Lean4Lean.validateRestoredRecursorRules.run env loweredEnv lparams
+    (hrun : Lean4Lean.validateRestoredRecursorRules.run env loweredEnv
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
     (htype : indType ∈ types) :
-    Lean4Lean.validateRestoredRecursorRules.check env loweredEnv lparams
-      safety fuel result recNameMap allIndNames auxRecNames
+    Lean4Lean.validateRestoredRecursorRules.check env loweredEnv
+      safety fuel result recNameMap allIndNames
         (Lean.mkRecName indType.name) = .ok () := by
   unfold Lean4Lean.validateRestoredRecursorRules.run at hrun
   cases hprimary : types.forM fun type =>
-      Lean4Lean.validateRestoredRecursorRules.check env loweredEnv lparams
-        safety fuel result recNameMap allIndNames auxRecNames
+      Lean4Lean.validateRestoredRecursorRules.check env loweredEnv
+        safety fuel result recNameMap allIndNames
           (Lean.mkRecName type.name) with
   | error err =>
       rw [hprimary] at hrun
@@ -418,20 +417,20 @@ private theorem validateRestoredRecursorRules.sourceCheck_eq_ok_of_run
       rcases done with ⟨⟩
       exact listForM_eq_ok_of_mem
         (fun type : InductiveType =>
-          Lean4Lean.validateRestoredRecursorRules.check env loweredEnv lparams
-            safety fuel result recNameMap allIndNames auxRecNames
+          Lean4Lean.validateRestoredRecursorRules.check env loweredEnv
+            safety fuel result recNameMap allIndNames
               (Lean.mkRecName type.name)) hprimary htype
 
 private theorem validateRestoredRecursorRules.auxiliaryCheck_eq_ok_of_run
-    (hrun : Lean4Lean.validateRestoredRecursorRules.run env loweredEnv lparams
+    (hrun : Lean4Lean.validateRestoredRecursorRules.run env loweredEnv
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
     (hrec : recName ∈ auxRecNames) :
-    Lean4Lean.validateRestoredRecursorRules.check env loweredEnv lparams
-      safety fuel result recNameMap allIndNames auxRecNames recName = .ok () := by
+    Lean4Lean.validateRestoredRecursorRules.check env loweredEnv
+      safety fuel result recNameMap allIndNames recName = .ok () := by
   unfold Lean4Lean.validateRestoredRecursorRules.run at hrun
   cases hprimary : types.forM fun type =>
-      Lean4Lean.validateRestoredRecursorRules.check env loweredEnv lparams
-        safety fuel result recNameMap allIndNames auxRecNames
+      Lean4Lean.validateRestoredRecursorRules.check env loweredEnv
+        safety fuel result recNameMap allIndNames
           (Lean.mkRecName type.name) with
   | error err =>
       rw [hprimary] at hrun
@@ -442,8 +441,8 @@ private theorem validateRestoredRecursorRules.auxiliaryCheck_eq_ok_of_run
       rw [hprimary] at hrun
       simp only [bind, Except.bind] at hrun
       exact listForM_eq_ok_of_mem
-        (Lean4Lean.validateRestoredRecursorRules.check env loweredEnv lparams
-          safety fuel result recNameMap allIndNames auxRecNames) hrun hrec
+        (Lean4Lean.validateRestoredRecursorRules.check env loweredEnv
+          safety fuel result recNameMap allIndNames) hrun hrec
 
 /-- A successful restored-rule check gives a translated typing (`TrTyping`) of
 the right-hand side of every rule of the restored recursor, read off the
@@ -451,8 +450,7 @@ executable's validation of the restored rules. -/
 theorem validateRestoredRecursorRules.translation_of_check
     (hvalid : CheckingEnv.Valid safety env venv)
     (hmode : fuel.cacheMode.Sound venv)
-    (hstep : Lean4Lean.validateRestoredRecursorRules.check env loweredEnv
-      lparams safety fuel result recNameMap allIndNames auxRecNames recName =
+    (hstep : Lean4Lean.validateRestoredRecursorRules.check env loweredEnv safety fuel result recNameMap allIndNames recName =
         .ok ())
     (hlookup : loweredEnv.find? recName = some (.recInfo oldInfo))
     (hrule : rule ∈
@@ -516,7 +514,7 @@ successful whole-block rule-validation run. -/
 theorem validateRestoredRecursorRules.sourceTranslation_of_run
     (hvalid : CheckingEnv.Valid safety env venv)
     (hmode : fuel.cacheMode.Sound venv)
-    (hrun : Lean4Lean.validateRestoredRecursorRules.run env loweredEnv lparams
+    (hrun : Lean4Lean.validateRestoredRecursorRules.run env loweredEnv
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
     (htype : indType ∈ types)
     (hlookup : loweredEnv.find? (Lean.mkRecName indType.name) =
@@ -542,7 +540,7 @@ successful whole-block rule-validation run. -/
 theorem validateRestoredRecursorRules.auxiliaryTranslation_of_run
     (hvalid : CheckingEnv.Valid safety env venv)
     (hmode : fuel.cacheMode.Sound venv)
-    (hrun : Lean4Lean.validateRestoredRecursorRules.run env loweredEnv lparams
+    (hrun : Lean4Lean.validateRestoredRecursorRules.run env loweredEnv
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
     (hrec : recName ∈ auxRecNames)
     (hlookup : loweredEnv.find? recName = some (.recInfo oldInfo))

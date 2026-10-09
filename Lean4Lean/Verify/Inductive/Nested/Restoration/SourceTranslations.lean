@@ -696,7 +696,7 @@ theorem NestedLoweringOutputClosed.sourceConstructorTypingAtFreshOfValidation
     (hmode : validationFuel.cacheMode.Sound sourceTypesVEnv)
     (HparameterRun :
       Lean4Lean.validateSourceConstructorTypes.run validationEnv
-        c.lparams c.safety validationFuel sourceTypes result = .ok ())
+        c.lparams c.safety validationFuel sourceTypes = .ok ())
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
@@ -1269,9 +1269,8 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringWF
       Nonempty (ValidationHeaderEnvironment loweredEnv sourceProdEnv
         (sourceTypes.map (·.name)) sourceTypes auxiliaryHeaderEnv) →
       Lean4Lean.validateSourceConstructorTypes.run auxiliaryHeaderEnv
-        lparams safety fuel sourceTypes res = .ok () →
-      Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv
-        lparams safety fuel res
+        lparams safety fuel sourceTypes = .ok () →
+      Lean4Lean.validateRestoredRecursorTypes.run validationEnv loweredEnv safety fuel res
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
           (sourceTypes.map (·.name)) sourceTypes
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1 = .ok () →
@@ -1280,7 +1279,7 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringWF
           (Lean4Lean.restoredRecursorNames
             (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 sourceTypes
             (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1))
-        loweredEnv lparams safety fuel res
+        loweredEnv safety fuel res
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
           (sourceTypes.map (·.name)) sourceTypes
           (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1 = .ok () →

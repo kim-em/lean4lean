@@ -29,7 +29,7 @@ theorem WF.caseCtor_const (H : env.WF) (h : Model.IsCaseCtor env c) :
   obtain ⟨base, source, block, _, hle, hcert, _, hconsts⟩ := H.eliminator_installed hreg
   have hcert' := hcert
   obtain ⟨expanded, aux, hdata, hprior, hr, -, hfresh⟩ := hcert'
-  obtain ⟨j, -, e, _, hrestore⟩ := EnvTables.Certified.generic_major hcert hrules hmem hm
+  obtain ⟨j, -, e, _, hrestore⟩ := EnvTables.generic_major hrules hmem hm
   rw [hr] at hrestore
   rcases EnvTables.CaseCompilationData.ctorApp_cases hdata hfresh j hrestore with
     ⟨F, hF, _, c', hc', _, hmaj⟩ | ⟨a, ha, _, _, c', hc', _, hmaj⟩
@@ -113,7 +113,7 @@ theorem WF.container_entry {base : VEnv} {aux : List ContainerSpecialization} (h
   exact henv.ordered.projections_unique hp ((hle'.trans hle).projections hin)
 
 /-- The major of a generic case equation, at the view constructor `index` of its registered schema: the
-restoration of the case form of a signature constructor. (`EnvTables.Certified.generic_major` at
+restoration of the case form of a signature constructor. (`EnvTables.generic_major` at
 a given equation index.) -/
 theorem generic_major_at {schema : CaseSchema} {owner : Fin schema.signature.families.size}
     {index : Fin (schema.view owner).constructors.size} {key : Name} {df : VDefEq}

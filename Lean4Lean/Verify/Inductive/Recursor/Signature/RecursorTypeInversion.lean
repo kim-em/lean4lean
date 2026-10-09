@@ -1153,13 +1153,13 @@ theorem RecursorConstruction.hypothesisResidualSource
     ∀ (j : Nat)
       (origins : MinorInductionHypothesisTypes S.sourceFullContext S.recursiveFields
         S.hypotheses)
-      (hmotives : origins.recInfos.map (·.motive) = H.recInfos.map (·.motive))
+      (_hmotives : origins.recInfos.map (·.motive) = H.recInfos.map (·.motive))
       {root : AddInductive.Context} {sourceType : Expr}
       (O : InductionHypothesisType origins.stats origins.recInfos root
         (S.recursiveFields[j]!) sourceType)
-      (howner : O.ownerIdx < H.recInfos.size)
+      (_howner : O.ownerIdx < H.recInfos.size)
       (pos : Nat) (hpos : pos < S.fields_bound.fvars.length)
-      (hfield : S.recursiveFields[j]! = .fvar (S.fields_bound.fvars[pos]'hpos)),
+      (_hfield : S.recursiveFields[j]! = .fvar (S.fields_bound.fvars[pos]'hpos)),
       ((((Expr.app
           (mkAppN origins.recInfos[O.ownerIdx]!.motive
             (O.exposedType.getAppArgs[origins.stats.params.size:] : Array Expr))
@@ -1321,15 +1321,15 @@ theorem RecursorConstruction.recursorTelescope_hypothesisShape
       ∀ (j : Nat)
         (origins : MinorInductionHypothesisTypes S.sourceFullContext S.recursiveFields
           S.hypotheses)
-        (hmotives : origins.recInfos.map (·.motive) = H.recInfos.map (·.motive))
+        (_hmotives : origins.recInfos.map (·.motive) = H.recInfos.map (·.motive))
         {root : AddInductive.Context} {sourceType : Expr}
         (O : InductionHypothesisType origins.stats origins.recInfos root
           (S.recursiveFields[j]!) sourceType)
         (D : FVarDeclAt S.sourceFullContext S.hypotheses j)
-        (hDtype : D.type = (sourceType.consumeTypeAnnotationsVerified S.sourceFullContext.env.isTypeAnnotationWrapper))
-        (howner' : O.ownerIdx < H.recInfos.size)
+        (_hDtype : D.type = (sourceType.consumeTypeAnnotationsVerified S.sourceFullContext.env.isTypeAnnotationWrapper))
+        (_howner' : O.ownerIdx < H.recInfos.size)
         (pos : Nat) (hpos : pos < S.fields_bound.fvars.length)
-        (hfield : S.recursiveFields[j]! = .fvar (S.fields_bound.fvars[pos]'hpos)),
+        (_hfield : S.recursiveFields[j]! = .fvar (S.fields_bound.fvars[pos]'hpos)),
       ∃ A I : List VExpr, A.length = O.args.size ∧
         hyps[j]'(by rw [hhyps]; exact D.inBounds) =
           VExpr.wrapForalls A
@@ -1836,15 +1836,15 @@ theorem RecursorConstruction.recursorTelescope_hypothesisDomains
       ∀ (j : Nat)
         (origins : MinorInductionHypothesisTypes S.sourceFullContext S.recursiveFields
           S.hypotheses)
-        (hmotives : origins.recInfos.map (·.motive) = H.recInfos.map (·.motive))
+        (_hmotives : origins.recInfos.map (·.motive) = H.recInfos.map (·.motive))
         {root : AddInductive.Context} {sourceType : Expr}
         (O : InductionHypothesisType origins.stats origins.recInfos root
           (S.recursiveFields[j]!) sourceType)
         (D : FVarDeclAt S.sourceFullContext S.hypotheses j)
-        (hDtype : D.type = (sourceType.consumeTypeAnnotationsVerified S.sourceFullContext.env.isTypeAnnotationWrapper))
-        (howner' : O.ownerIdx < H.recInfos.size)
+        (_hDtype : D.type = (sourceType.consumeTypeAnnotationsVerified S.sourceFullContext.env.isTypeAnnotationWrapper))
+        (_howner' : O.ownerIdx < H.recInfos.size)
         (pos : Nat) (hpos : pos < S.fields_bound.fvars.length)
-        (hfield : S.recursiveFields[j]! = .fvar (S.fields_bound.fvars[pos]'hpos)),
+        (_hfield : S.recursiveFields[j]! = .fvar (S.fields_bound.fvars[pos]'hpos)),
       ∃ A I : List VExpr, A.length = O.args.size ∧
         hyps[j]'(by rw [hhyps]; exact D.inBounds) =
           VExpr.wrapForalls A

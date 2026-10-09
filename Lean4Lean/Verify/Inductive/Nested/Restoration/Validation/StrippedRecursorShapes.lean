@@ -445,7 +445,7 @@ theorem NestedRun.loweredSourceKeyed
   have Hc : ContextWF E.lowered.c := by
     rw [E.lowered_c]; exact E.contextWF
   obtain ⟨info', hfind', hname', -⟩ :=
-    E.lowered.recursors.findSourceHeaderAt Hc i hi'
+    E.lowered.recursors.findSourceHeaderAt i hi'
   simp only [Array.getElem_toList] at hun
   rw [hun] at hfind'
   rw [hfind] at hfind'
@@ -1089,7 +1089,7 @@ theorem NestedRun.validOfInstallation_of_paramUniform
   -- the stripped lookups
   obtain ⟨hcore, -, -⟩ :=
     Hrestored.localValidOfInstallation Hlower Hc Hprod Hsource Hmetadata Hsources
-      Harity hempty Hactual canonical hperm htypeValues hctorValues hvalidSource
+      Harity hempty Hactual canonical hperm hvalidSource
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
   have houtWF : outEnv.constants.WF := hcore.tr.map_wf
   have hfresh : ∀ x ∈ Lean4Lean.restoredRecursorNames

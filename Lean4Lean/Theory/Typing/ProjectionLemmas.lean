@@ -569,7 +569,7 @@ theorem _root_.Lean4Lean.List.forall₂_append_split {R : α → β → Prop} :
     exact ⟨.cons h h1, h2⟩
 
 /-- Universe-level congruence for a closed type. -/
-theorem IsType.instL_defeq (henv : Ordered env) (hΓ : OnCtx Γ (env.IsType U))
+theorem IsType.instL_defeq (henv : Ordered env)
     (H : env.IsType U' [] e)
     (hls : ∀ l ∈ ls, l.WF U) (hls' : ∀ l ∈ ls', l.WF U) (heq : List.Forall₂ (· ≈ ·) ls ls') :
     env.IsDefEqU U Γ (e.instL ls) (e.instL ls') := by
@@ -822,7 +822,7 @@ theorem VProjectionInfo.field_walk {info : VProjectionInfo} {decl : VInductDecl}
   have hmidR := HwR.wrapForalls_eq (by simp; omega)
   rw [VExpr.instOuter_forallE] at hmidR
   -- the other side: rebuild the walk over the pointwise equal arguments
-  have hTeq' := IsType.instL_defeq henv.ordered hΓ hwf hlsA hls' hlsE
+  have hTeq' := IsType.instL_defeq (Γ := Γ) henv.ordered hwf hlsA hls' hlsE
   rw [hshape, VExpr.instL_wrapForalls, VExpr.instL_wrapForalls, hsplit₀, hsplit'] at hTeq'
   have hbs : List.Forall₂ (env.IsDefEqU U Γ) (PA ++ ps') (args'.take (info.nparams + index)) := by
     rw [List.take_add]
@@ -1098,7 +1098,7 @@ theorem VProjectionInfo.field_typing_of_ctorApp {decl : VInductDecl}
     index).1 hΓ
 
 /-- Congruence along an application spine typed against a wrapped telescope. -/
-theorem IsDefEq.mkApps_congr (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U)) :
+theorem IsDefEq.mkApps_congr :
     ∀ {args args' : List VExpr} {f f' : VExpr} {doms : List VExpr} {body : VExpr},
       env.IsDefEq U Γ f f' (VExpr.wrapForalls doms body) → args.length = doms.length →
       args.length = args'.length →

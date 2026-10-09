@@ -54,7 +54,7 @@ theorem HasType.etaOpen_defeq (henv : env.WF)
     exact heta.symm.trans (.lamDF hd heq)
 
 /-- Close an equality proved under the remaining telescope. -/
-theorem IsDefEq.etaOpen_wrapLams (henv : env.WF)
+theorem IsDefEq.etaOpen_wrapLams
     (hΓ : OnCtx Γ (env.IsType U))
     (hdomains : OnCtx (domains.reverse ++ Γ) (env.IsType U))
     (H : IsDefEq env U (domains.reverse ++ Γ) lhs rhs result) :

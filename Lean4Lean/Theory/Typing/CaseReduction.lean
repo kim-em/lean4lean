@@ -491,7 +491,7 @@ theorem CaseStep.defeq
     have hlength : arguments.length =
         (rule.body.domains.map (VExpr.instL (target :: levels))).length := by
       simpa using hargs.1
-    have happ := IsDefEq.mkApps_congr henv hΓ (args := arguments) (args' := arguments)
+    have happ := IsDefEq.mkApps_congr (args := arguments) (args' := arguments)
       heq hlength rfl fun j hj hd _ => hty j hj hd
     have hbetaL := IsDefEq.mkApps_wrapLams henv hΓ heq.hasType.1 hlength hty
     have hbetaR := IsDefEq.mkApps_wrapLams henv hΓ heq.hasType.2 hlength hty
@@ -613,7 +613,7 @@ theorem CaseStep.rhs_congr (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
       simpa only [instantiateParams_eq_instOuter] using ha.2 i hi (by simpa using hd)
     have hlen : arguments.length = (rule.body.domains.map (VExpr.instL (target :: levels))).length := by
       simpa using ha.1
-    have happ := IsDefEq.mkApps_congr henv hΓ hr hlen hlength.symm fun i hi hd hi' =>
+    have happ := IsDefEq.mkApps_congr hr hlen hlength.symm fun i hi hd hi' =>
       (heq i hi hi').of_l henv hΓ (hty i hi hd)
     have hnew := HasType.mkApps_wrapForalls henv hΓ hr ⟨_, happ.hasType.2⟩
       (hlength.trans hlen)
@@ -641,7 +641,7 @@ theorem CaseStep.lhs_congr (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
       simpa only [instantiateParams_eq_instOuter] using ha.2 i hi (by simpa using hd)
     have hlen : arguments.length = (rule.body.domains.map (VExpr.instL (target :: levels))).length := by
       simpa using ha.1
-    have happ := IsDefEq.mkApps_congr henv hΓ hr hlen hlength.symm fun i hi hd hi' =>
+    have happ := IsDefEq.mkApps_congr hr hlen hlength.symm fun i hi hd hi' =>
       (heq i hi hi').of_l henv hΓ (hty i hi hd)
     have hnew := HasType.mkApps_wrapForalls henv hΓ hr ⟨_, happ.hasType.2⟩
       (hlength.trans hlen)
@@ -669,7 +669,7 @@ theorem CaseStep.congr (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
       simpa only [instantiateParams_eq_instOuter] using ha.2 i hi (by simpa using hd)
     have hlen : arguments.length = (rule.body.domains.map (VExpr.instL (target :: levels))).length := by
       simpa using ha.1
-    have happ := IsDefEq.mkApps_congr henv hΓ hr hlen hlength.symm fun i hi hd hi' =>
+    have happ := IsDefEq.mkApps_congr hr hlen hlength.symm fun i hi hd hi' =>
       (heq i hi hi').of_l henv hΓ (hty i hi hd)
     have hnew := HasType.mkApps_wrapForalls henv hΓ hr ⟨_, happ.hasType.2⟩
       (hlength.trans hlen)
@@ -984,7 +984,7 @@ theorem CaseStep.congr_levels (henv : env.WF)
       rw [← htypeShape, instL_wrapForalls] at hrightEq hright'
       have hlen : arguments.length =
           (rule.body.domains.map (instL (target :: levels))).length := by simpa using ha.1
-      have happ := IsDefEq.mkApps_congr henv hΓ (args := arguments) (args' := arguments) hrightEq hlen rfl
+      have happ := IsDefEq.mkApps_congr (args := arguments) (args' := arguments) hrightEq hlen rfl
         (fun i hi hd _ => by
           rw [List.getElem_map]
           simpa only [instantiateParams_eq_instOuter, HasType] using ha.2 i hi (by simpa using hd))

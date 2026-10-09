@@ -94,7 +94,7 @@ theorem HasType.unitLike_constructor (henv : env.WF) (hΓ : OnCtx Γ (env.IsType
         rw [← List.reverse_append, List.take_append_drop]
       rw [he] at hΓtel
       exact hΓtel.of_append
-    have hconv := IsDefEqU.closed_telescope_instOuter henv hΓ hΔ₀ ⟨_, hdk⟩ hlsw
+    have hconv := IsDefEqU.closed_telescope_instOuter henv hΔ₀ ⟨_, hdk⟩ hlsw
       (args := params.take k) (by simp; omega) (by
         intro j hj hj'
         simp only [List.length_take] at hj
@@ -107,7 +107,7 @@ theorem HasType.unitLike_constructor (henv : env.WF) (hΓ : OnCtx Γ (env.IsType
     exact harg.defeqU_r henv hΓ hconv
   have hctor := HasType.const (Γ := Γ) (henv.ordered.projectionConstructor hinfo) hlsw hlevels
   rw [← hctorType, hshape, instL_wrapForalls] at hctor
-  have hvalue := HasType.mkApps_of_telescope henv hΓ (args := params) hctor
+  have hvalue := HasType.mkApps_of_telescope (args := params) hctor
     (by simp only [List.length_map]; omega) (by simpa only [List.getElem_map, List.length_map] using hparams)
   have hhead' : (result.instL levels).getAppFnArgs.1 = .const name levels := by
     rw [VExpr.getAppFnArgs_instL]

@@ -123,7 +123,7 @@ namespace Lean4Lean.InductiveSignature.RecursorData
 open VEnv VExpr CaseSchema
 
 theorem singletonUnfolding_levels {data : RecursorData} {levels levels' : List VLevel}
-    {env : VEnv} (hr : RecursorRegistered env data)
+    {env : VEnv}
     (hl : ∀ level ∈ levels, level.WF U) (hl' : ∀ level ∈ levels', level.WF U)
     (he : List.Forall₂ (· ≈ ·) levels levels')
     (ha : List.Forall₂ (EqUpToLevels U) args args')

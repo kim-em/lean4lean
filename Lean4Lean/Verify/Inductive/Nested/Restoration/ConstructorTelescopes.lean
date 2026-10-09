@@ -30,7 +30,7 @@ theorem validateSourceConstructorTypes.telTr_of_run
     (henv : TypeChecker.EnvGhostFree (fun _ => True) env)
     (Hsources : SourceSyntaxChecks types)
     (hrun : Lean4Lean.validateSourceConstructorTypes.run env lparams
-      safety fuel types result = .ok ())
+      safety fuel types = .ok ())
     (htype : indType ∈ types) (hctor : ctor ∈ indType.ctors) :
     ∃ T, TelTrN venv lparams (AddInductive.constructorArity ctor.type) [] ctor.type T := by
   rcases validateSourceConstructorTypes.typeCheck_eq_ok_of_run
@@ -115,7 +115,7 @@ theorem NestedRun.restoredCtorOrigin
       rcases Hlower.sourceResolvedMappingAtFreshAligned hempty hfamily with
         ⟨_, _, loweredTarget, _, _, _, _, Hmapping, htarget⟩
       obtain ⟨hresultFamily, htargetEq⟩ := _root_.getElem?_eq_some_iff.mp htarget
-      rcases Hprod.findSourceHeaderAt Hc familyIdx (by simpa using hresultFamily) with
+      rcases Hprod.findSourceHeaderAt familyIdx (by simpa using hresultFamily) with
         ⟨info, hinfoLookup, -, hinfoType, -⟩
       have hinfoLookup' : E.loweredEnv.find? sourceTypes[familyIdx].name =
           some (.inductInfo info) := by

@@ -833,7 +833,7 @@ theorem InductionHypothesisType.templateFacts
   obtain ⟨⟨hnormalizedBelow, hnormalizedTr⟩, _, hnormalized₀⟩ :=
     whnfInRecursorContext.dualWF RF hinferredTr hinferred₀ _ hnormalization
   have hnormalizedH : O.loopInput.normalizedType.ParamUniformIn env heads params ls :=
-    W.whnf RF henv hinferredTr ⟨_, hinferred₀⟩ hscope hinferredP hinferredH
+    W.whnf RF henv ⟨_, hinferred₀⟩ hscope hinferredP hinferredH
       hnormalization
   have hnormalizedP : O.loopInput.normalizedType.FVarsIn P :=
     hnormalizedBelow P hscope.1 hinferredP

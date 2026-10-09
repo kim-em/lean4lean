@@ -393,7 +393,7 @@ theorem RecursorRegistered.equation_parRedS {data : RecursorData}
 /-- Coverage of a recursor equation at a guarded universe specialization. -/
 theorem RecursorRegistered.equation_join {data : RecursorData}
     {index : Fin data.schema.signature.constructors.size} {equation : VDefEq}
-    {levels : List VLevel} (hΓ : OnCtx Γ (env.IsType univs))
+    {levels : List VLevel}
     (hpat : ∀ {p r}, GeneratedIotaPattern env recursorData p r → Pat p r)
     (hlookup : recursorData data.name = some data) (H : RecursorRegistered env data)
     (howner : data.schema.signature.constructors[index].owner = data.owner)

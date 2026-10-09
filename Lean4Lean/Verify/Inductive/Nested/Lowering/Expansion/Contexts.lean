@@ -328,8 +328,7 @@ theorem VExpr.NestedExprExpansion.liftAbove
 theorem NestedExpansionLookupCtx.vlamAbove
     {leaf : Nat → VExpr → VExpr → Prop} (Hlift : NestedExpansionLeafLiftAbove np leaf)
     (Hctx : NestedExpansionLookupCtx leaf depth sourceCtx targetCtx)
-    (Hbase : np ≤ depth)
-    (Htype : VExpr.NestedExprExpansion leaf depth sourceType targetType) :
+    (Hbase : np ≤ depth) :
     NestedExpansionLookupCtx leaf
       (depth + 1) ((ofv, .vlam sourceType) :: sourceCtx)
         ((ofv, .vlam targetType) :: targetCtx) := by
@@ -595,13 +594,13 @@ theorem TrExprS.abstractExpansionAbove
     | lam _ HtargetDomain HtargetBody =>
       have Hdomain := ihDomain Hctx Hbase HtargetDomain
       exact .lam Hdomain
-        (ihBody (Hctx.vlamAbove Hlift Hbase Hdomain) (by omega) HtargetBody)
+        (ihBody (Hctx.vlamAbove Hlift Hbase) (by omega) HtargetBody)
   | forallE _ _ HsourceDomain HsourceBody ihDomain ihBody =>
     cases Htarget with
     | forallE _ _ HtargetDomain HtargetBody =>
       have Hdomain := ihDomain Hctx Hbase HtargetDomain
       exact .forallE Hdomain
-        (ihBody (Hctx.vlamAbove Hlift Hbase Hdomain) (by omega) HtargetBody)
+        (ihBody (Hctx.vlamAbove Hlift Hbase) (by omega) HtargetBody)
   | letE _ HsourceType HsourceValue HsourceBody ihType ihValue ihBody =>
     cases Htarget with
     | letE _ HtargetType HtargetValue HtargetBody =>
@@ -1446,7 +1445,7 @@ theorem ExprLowering.Resolved.abstractExpansionAbove
         have HdomExpansion := ihDom hlvls Hctx Hbase Hdepth HsourceParams Hparams
           Hscope.1 HsourceDom HtargetDom
         exact .lam HdomExpansion
-          (ihBody (Hdom.lvls.trans hlvls) (Hctx.vlamAbove Hlift Hbase HdomExpansion)
+          (ihBody (Hdom.lvls.trans hlvls) (Hctx.vlamAbove Hlift Hbase)
             (by omega) (by omega)
             HsourceParams.vlam Hparams.vlam Hscope.2 HsourceBody HtargetBody)
   | @forallE name dom body bi state dom' domState body' outState Hnode Hdom
@@ -1462,7 +1461,7 @@ theorem ExprLowering.Resolved.abstractExpansionAbove
         have HdomExpansion := ihDom hlvls Hctx Hbase Hdepth HsourceParams Hparams
           Hscope.1 HsourceDom HtargetDom
         exact .forallE HdomExpansion
-          (ihBody (Hdom.lvls.trans hlvls) (Hctx.vlamAbove Hlift Hbase HdomExpansion)
+          (ihBody (Hdom.lvls.trans hlvls) (Hctx.vlamAbove Hlift Hbase)
             (by omega) (by omega)
             HsourceParams.vlam Hparams.vlam Hscope.2 HsourceBody HtargetBody)
   | @letE name type value body nondep state type' typeState value'

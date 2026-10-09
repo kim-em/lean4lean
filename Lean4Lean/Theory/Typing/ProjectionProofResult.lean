@@ -51,7 +51,7 @@ theorem HasType.projectionFamily_sort (henv : env.WF)
       (.sort familyType.resultLevel) := by
     simpa only [List.reverse_append] using (show env.IsDefEqU decl.uvars
       (indices.reverse ++ ownParams.reverse) result (.sort familyType.resultLevel) from ⟨_, hresult⟩)
-  have hres' := IsDefEqU.closed_telescope_instOuter henv hΓ hctx hres hlevels
+  have hres' := IsDefEqU.closed_telescope_instOuter henv hctx hres hlevels
     (args := params ++ indexArgs) (by simpa only [List.length_reverse, List.length_map] using hlen)
     (by simpa only [List.reverse_reverse] using hargs)
   simp only [VExpr.instL, instOuter_sort, hlevel] at hres'

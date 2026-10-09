@@ -339,7 +339,7 @@ private theorem RestoredRecursorStep.unsafeFreshExtension
     ∃ entries, FreshExtension sourceProdEnv entries targetProdEnv ∧
       ∀ entry ∈ entries, entry.safety = .unsafe := by
   rcases List.mem_map.mp hgenerated with ⟨value, hvalue, hvalueName⟩
-  rcases Hprod.installed.existsEntryOfValue hvalue with ⟨info, hentry⟩
+  rcases AddConstants.existsEntryOfValue hvalue with ⟨info, hentry⟩
   have hlookup := Hprod.findRecursorOfMem hentry
   have hentryName := Hprod.installed.entryNames hentry
   have holdInfo : info = .recInfo Hstep.oldInfo := by

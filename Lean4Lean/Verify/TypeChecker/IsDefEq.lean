@@ -407,7 +407,7 @@ theorem tryEtaStructCore.WF {c : VContext} {s : State}
   have hinv := H hb
   -- congruence along the constructor spine: the arguments are the projections of `t`
   have hnumF : info.numFields = args'.length - info.nparams := by rw [hnf', hnf, hlenArgs]
-  have hcongr := VEnv.IsDefEq.mkApps_congr c.Ewf c.Δwf.toCtx (args := args')
+  have hcongr := VEnv.IsDefEq.mkApps_congr (args := args')
     (args' := args'.take info.nparams ++
       (List.range info.numFields).map fun j => VExpr.proj fInfo.induct j e₁') hf'
     (by simp [hlenArgs]) (by simp [hnumF]; omega) fun j hj hj' hj'' => by

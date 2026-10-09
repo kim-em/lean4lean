@@ -1010,7 +1010,6 @@ theorem RecursorBinderGroups.majorBinderAt
 constant is well formed. -/
 theorem RecursorBinderGroups.recursorWF_of_recInfo
     (H : RecursorBinderGroups c stats recInfos ownerIdx)
-    (howner : ownerIdx < recInfos.size)
     (info : RecursorVal) (recursor : VConstVal)
     (Hinfo : TrConstVal safety env (.recInfo info) recursor)
     (htype : info.type =
@@ -1506,7 +1505,7 @@ theorem GeneratedRecursors.recursorsWF
   have howner : i < recInfos.size := by simpa [H.length] using hentry
   let Hlocal := Hbindings.toRecursorBinderGroups Hc Hparams i howner
   let E := H.entry i hentry
-  have hwf := Hlocal.recursorWF_of_recInfo howner E.info entries[i].2
+  have hwf := Hlocal.recursorWF_of_recInfo E.info entries[i].2
     E.translated E.type
   simpa using hwf
 

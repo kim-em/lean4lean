@@ -285,17 +285,14 @@ theorem RestoredBlockCertificate.cover
 /-- The restoration folds, reindexed to the context of the lowered run
 retained by the restored block certificate, preserve the constructor owner
 invariant. -/
-theorem RestoredBlockCertificate.constructorOwnersPresent
+theorem NestedRestorationFolds.constructorOwnersPresentOfContext
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
     {auxRecNames : List Name} {outEnv : Environment}
-    {H : NestedRestorationFolds result loweredEnv sourceProdEnv
-      auxRec allIndNames sourceTypes auxRecNames ((), outEnv)}
-    {sourceEnv : VEnv} {decl : VInductDecl} {lparams : List Name}
-    {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
-    (_C : RestoredBlockCertificate H sourceEnv decl lparams nparams
-      isUnsafe safety)
+    (H : NestedRestorationFolds result loweredEnv sourceProdEnv
+      auxRec allIndNames sourceTypes auxRecNames ((), outEnv))
+    {sourceEnv : VEnv} {nparams : Nat} {isUnsafe : Bool}
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat}
     {headerEnv ctorEnv : Environment}
@@ -387,8 +384,9 @@ private theorem RestoredBlockCertificate.extendSafe
           C.installedEnv replayBase,
         Breplay.projections = decl.projectionEntries ∧
         AddInduct observer sourceProdEnv.constants (ves.venv observer) decl
-          outEnv.constants Breplay.installedVEnv ∧
-        B.installedVEnv ≤ Breplay.installedVEnv ∧
+          outEnv.constants (replayBase.addDefEqRules (C.sourceRules ++ C.auxiliaryRules)) ∧
+        (C.recursorVEnv.addDefEqRules (C.sourceRules ++ C.auxiliaryRules)) ≤
+          (replayBase.addDefEqRules (C.sourceRules ++ C.auxiliaryRules)) ∧
         Breplay.installation.eliminators = B.installation.eliminators := by
     have hB : B.block = _ := C.block_eq_restoredBlock
     have Hreplay : VInductBlock.EliminatorsReplay (ves.venv observer) decl B.block :=
@@ -410,9 +408,9 @@ private theorem RestoredBlockCertificate.extendSafe
       CheckingEnv.mapExt HcheckingCanonical
         (actual.property.targetWF Hvalid.tr.map_wf)
         (fun name => (hlookup name).symm)
-    have HcheckingRules : CheckingEnv observer outEnv Breplay.installedVEnv := {
+    have HcheckingRules : CheckingEnv observer outEnv
+        (replayBase.addDefEqRules (C.sourceRules ++ C.auxiliaryRules)) := {
       aligned := by
-        rw [BlockCertificate.installedVEnv]
         exact aligned_addDefEqs Hchecking.aligned
           (C.sourceRules ++ C.auxiliaryRules)
       wf := by
@@ -426,7 +424,7 @@ private theorem RestoredBlockCertificate.extendSafe
     }
     have Hprovenance : NewRecursorsAligned observer
         sourceProdEnv.constants (ves.venv observer) outEnv.constants
-        Breplay.installedVEnv :=
+        (replayBase.addDefEqRules (C.sourceRules ++ C.auxiliaryRules)) :=
       (C.recursorsAligned.rebaseBlock (wf.mono DefinitionSafety.le_safe) hout
         B.install Breplay.install rfl).ofUnsafe
     have Hadd := H.addInductConcrete Habstract HcheckingRules Hprovenance
@@ -444,7 +442,7 @@ private theorem RestoredBlockCertificate.extendSafe
   let adds (observer : DefinitionSafety) := (certSpec observer).2.1
   let outputLE (observer : DefinitionSafety) := (certSpec observer).2.2.1
   let next (observer : DefinitionSafety) :=
-    (cert observer).installedVEnv
+    (pre observer).addDefEqRules (C.sourceRules ++ C.auxiliaryRules)
   have hcompletedCanonical :
       ConstructorParameterAlignment .safe C.installedEnv
         (C.recursorVEnv.addDefEqRules
@@ -618,7 +616,7 @@ theorem RestoredBlockCertificate.safeInductiveExtensionOfKernel
     (C.inductInfosFromDecl Hlower Hc Hprod Hmetadata Hsources Harity
       Howners hempty henv hlparams hnames)
     hclosed
-    (C.constructorOwnersPresent Hlower Hc Hprod Howners hempty henv hnames)
+    (H.constructorOwnersPresentOfContext Hlower Hc Hprod Howners hempty henv hnames)
     hconstructorSemantics
     (C.cover Hlower Hc Hprod Hmetadata Hsources Harity Howners hempty henv hlparams hnames)
     htypesH hctorOrigin
@@ -890,7 +888,7 @@ theorem RestoredBlockCertificate.unsafeInductiveExtensionOfKernel
     (C.inductInfosFromDecl Hlower Hc Hprod Hmetadata Hsources Harity
       Howners hempty henv hlparams hnames)
     hentriesUnsafe hclosed
-    (C.constructorOwnersPresent Hlower Hc Hprod Howners hempty henv hnames)
+    (H.constructorOwnersPresentOfContext Hlower Hc Hprod Howners hempty henv hnames)
     hconstructorSemantics
     (C.cover Hlower Hc Hprod Hmetadata Hsources Harity Howners hempty henv hlparams hnames)
     htypesH hctorOrigin

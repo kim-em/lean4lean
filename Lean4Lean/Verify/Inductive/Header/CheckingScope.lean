@@ -1123,7 +1123,7 @@ theorem MLCtxOnlyLams.scopedFVarsSourceOracle
           exact hskip (heq' ▸ hother)
       · intro body
         have Hskip := LocalContext.mkForall_skip_fresh
-          HtailWF.tr.1 hfresh
+          HtailWF.tr.1
           (selected := tailScope.fvars.reverse) (body := body)
           (name := name) (type := type) (bi := bi)
           (by simpa using hskip)
