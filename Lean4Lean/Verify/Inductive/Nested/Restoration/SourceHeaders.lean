@@ -164,7 +164,7 @@ private theorem restoredHeaderValidationValidAux
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
@@ -210,7 +210,7 @@ private theorem restoredHeaderValidationValidAux
             _root_.getElem?_eq_some_iff.mp htarget
           have hresultArray : familyIdx < result.types.toArray.size := by
             simpa using hresultFamily
-          rcases Hprod.findSourceHeaderAt Hc familyIdx hresultArray with
+          rcases Hprod.findSourceHeaderAt familyIdx hresultArray with
             ⟨installedInfo, hinstalledLookup, hinstalledName, hinstalledType,
               _hinstalledCtors, _hinstalledAll, hinstalledLevels,
               _hinstalledParams, hinstalledUnsafe⟩
@@ -374,7 +374,7 @@ theorem ValidationHeaderEnvironment.validOfLowering
   rcases Hlower.sourceHeaderPrefix R.core hempty with
     ⟨sourceEnvTypes, Hadded, Htranslations⟩
   refine ⟨sourceEnvTypes, Hadded, ?_⟩
-  apply restoredHeaderValidationValidAux Hlower Hc Hprod hempty hvisible
+  apply restoredHeaderValidationValidAux Hlower Hprod hempty hvisible
     Hvalidation.headers Htranslations
   · intro source hsource
     exact hsource

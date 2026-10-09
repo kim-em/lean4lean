@@ -235,7 +235,7 @@ theorem RestoredInductiveStep.restoredHeaderTranslationAtFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     {stepSource stepTarget : Environment}
@@ -257,7 +257,7 @@ theorem RestoredInductiveStep.restoredHeaderTranslationAtFresh
     simpa using hresultFamily
   have htargetArrayEq : result.types.toArray[familyIdx] = target := by
     simpa using htargetEq
-  rcases Hprod.findSourceHeaderAt Hc familyIdx hresultArray with
+  rcases Hprod.findSourceHeaderAt familyIdx hresultArray with
     ⟨installedInfo, hinstalledLookup, hinstalledName, hinstalledType,
       _hinstalledCtors, _hinstalledAll, hinstalledLevels,
       _hinstalledParams, hinstalledUnsafe⟩
@@ -564,7 +564,7 @@ theorem SourceFamilyTranslations.existsExactCanonicalSourceReplay
       sourceVEnv envTypes envCtors Htrace owners primaryRecursors)
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
@@ -576,7 +576,7 @@ theorem SourceFamilyTranslations.existsExactCanonicalSourceReplay
   · intro indType stepSource stepTarget owner Hstep hmem Hheader
     rcases List.mem_iff_getElem.mp hmem with ⟨familyIdx, hfamily, heq⟩
     subst indType
-    exact Hstep.restoredHeaderTranslationAtFresh Hlower Hc Hprod hempty
+    exact Hstep.restoredHeaderTranslationAtFresh Hlower Hprod hempty
       familyIdx hfamily Hheader hvisible
   · exact hsourceWF
 
@@ -1213,7 +1213,7 @@ theorem SourceFamilyTranslations.existsExactRestoration
             decl.projectionEntries canonicalProdEnv installedVEnv // S.eliminators = es } ∧
         ∀ name, outProdEnv.constants.find? name =
           canonicalProdEnv.constants.find? name := by
-  rcases Hsource.existsExactCanonicalSourceReplay Hlower Hc Hprod hempty
+  rcases Hsource.existsExactCanonicalSourceReplay Hlower Hprod hempty
       hvisible Hc.checking.tr.map_wf with
       ⟨typeEntries, constructorEntries, primaryRecursorEntries,
         primaryActualEntries, Hprimary⟩

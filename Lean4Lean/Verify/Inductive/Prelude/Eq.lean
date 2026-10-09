@@ -553,7 +553,7 @@ source `AddInduct`. -/
 theorem OrdinaryRunResult.extendPreludeEq
     {ves : VEnvs}
     (Hrun : OrdinaryRunResult source sourceEnv
-      nparams types numNested outEnv)
+      nparams types outEnv)
     (wf : ves.WF source.env)
     (hAbsent : source.env.constants.find? ``Eq = none)
     (hsafety : source.safety = .safe)

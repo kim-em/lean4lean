@@ -217,7 +217,7 @@ theorem NestedLoweringOutputClosed.existsValidatedExactRestoration
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors : VEnv}
-    {headerEnv ctorEnv validationEnv primaryProdEnv outProdEnv : Environment}
+    {headerEnv ctorEnv validationEnv outProdEnv : Environment}
     {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
@@ -826,7 +826,7 @@ private theorem NestedRun.assemblyBaseOfFormation
       (if P.isUnsafe then DefinitionSafety.unsafe else .safe) := by
     simpa only [hsafety, hisUnsafe] using hvisible
   rcases Hlower.existsValidatedExactRestoration
-      (primaryProdEnv := Hrestored.sourceFamiliesEnv) HcP Hprod Hcore
+      HcP Hprod Hcore
       Hrestored Hsource HtypeValid HtypeRun Hparams hempty hvisibleP Hprimitive HcasesP
       with
     ⟨auxiliaryRecursors, HauxiliaryRecursors, replay, canonicalProdEnv,

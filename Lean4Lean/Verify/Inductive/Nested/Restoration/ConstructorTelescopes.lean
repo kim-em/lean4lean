@@ -95,7 +95,7 @@ theorem NestedRun.restoredCtorOrigin
       rcases Hlower.sourceResolvedMappingAtFreshAligned hempty hfamily with
         ⟨_, _, loweredTarget, _, _, _, _, Hmapping, htarget⟩
       obtain ⟨hresultFamily, htargetEq⟩ := _root_.getElem?_eq_some_iff.mp htarget
-      rcases Hprod.findSourceHeaderAt Hc familyIdx (by simpa using hresultFamily) with
+      rcases Hprod.findSourceHeaderAt familyIdx (by simpa using hresultFamily) with
         ⟨info, hinfoLookup, -, hinfoType, -⟩
       have hinfoLookup' : E.loweredEnv.find? sourceTypes[familyIdx].name =
           some (.inductInfo info) := by

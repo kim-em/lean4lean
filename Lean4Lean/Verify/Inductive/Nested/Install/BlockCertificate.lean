@@ -285,17 +285,14 @@ theorem RestoredBlockCertificate.cover
 /-- The restoration folds, reindexed to the context of the lowered run
 retained by the restored block certificate, preserve the constructor owner
 invariant. -/
-theorem RestoredBlockCertificate.constructorOwnersPresent
+theorem NestedRestorationFolds.constructorOwnersPresentOfContext
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
     {auxRecNames : List Name} {outEnv : Environment}
-    {H : NestedRestorationFolds result loweredEnv sourceProdEnv
-      auxRec allIndNames sourceTypes auxRecNames ((), outEnv)}
-    {sourceEnv : VEnv} {decl : VInductDecl} {lparams : List Name}
-    {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
-    (_C : RestoredBlockCertificate H sourceEnv decl lparams nparams
-      isUnsafe safety)
+    (H : NestedRestorationFolds result loweredEnv sourceProdEnv
+      auxRec allIndNames sourceTypes auxRecNames ((), outEnv))
+    {sourceEnv : VEnv} {nparams : Nat} {isUnsafe : Bool}
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat}
     {headerEnv ctorEnv : Environment}
@@ -618,7 +615,7 @@ theorem RestoredBlockCertificate.safeInductiveExtensionOfKernel
     (C.inductInfosFromDecl Hlower Hc Hprod Hmetadata Hsources Harity
       Howners hempty henv hlparams hnames)
     hclosed
-    (C.constructorOwnersPresent Hlower Hc Hprod Howners hempty henv hnames)
+    (H.constructorOwnersPresentOfContext Hlower Hc Hprod Howners hempty henv hnames)
     hconstructorSemantics
     (C.cover Hlower Hc Hprod Hmetadata Hsources Harity Howners hempty henv hlparams hnames)
     htypesH hctorOrigin
@@ -890,7 +887,7 @@ theorem RestoredBlockCertificate.unsafeInductiveExtensionOfKernel
     (C.inductInfosFromDecl Hlower Hc Hprod Hmetadata Hsources Harity
       Howners hempty henv hlparams hnames)
     hentriesUnsafe hclosed
-    (C.constructorOwnersPresent Hlower Hc Hprod Howners hempty henv hnames)
+    (H.constructorOwnersPresentOfContext Hlower Hc Hprod Howners hempty henv hnames)
     hconstructorSemantics
     (C.cover Hlower Hc Hprod Hmetadata Hsources Harity Howners hempty henv hlparams hnames)
     htypesH hctorOrigin

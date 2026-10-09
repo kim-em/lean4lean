@@ -240,7 +240,7 @@ the source environment has canonical `Eq`. -/
 theorem OrdinaryRunResult.extendWithSpecification
     {ves : VEnvs}
     (Hrun : OrdinaryRunResult source sourceEnv
-      nparams types numNested outEnv)
+      nparams types outEnv)
     (wf : ves.WF source.env)
     (hsource : sourceEnv = ves.venv source.safety)
     (hnotPartial : source.safety ≠ .partial)

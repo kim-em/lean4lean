@@ -213,7 +213,7 @@ theorem AddInductive.runWithStats.primitiveWF
 which the executable header traversal began. -/
 def PrimitiveRunResult
     (source : AddInductive.Context) (sourceEnv : VEnv) (nparams : Nat)
-    (types : List InductiveType) (numNested : Nat)
+    (types : List InductiveType)
     (outEnv : Environment) : Prop :=
   ∃ c' stats depth commonParams commonLevel,
     ∃ Hc' : ContextWF c',
@@ -246,7 +246,7 @@ theorem AddInductive.run.primitiveSourceAlignedWF
     (HnotPartial : c.safety ≠ .partial) :
     (AddInductive.run nparams types numNested c).WF
       (PrimitiveRunResult c Hc.venv
-        nparams types numNested) := by
+        nparams types) := by
   have Hduplicates :
       (Kernel.Environment.checkDuplicatedUnivParams c.lparams).WF
         fun _ => c.lparams.Nodup :=
@@ -257,7 +257,7 @@ theorem AddInductive.run.primitiveSourceAlignedWF
         (fun stats => AddInductive.runWithStats stats nparams
           types.toArray numNested (c.safety != .safe))
         (PrimitiveRunResult c Hc.venv
-          nparams types numNested)
+          nparams types)
         Hc hctx hnonempty Lean4Lean.consumeTypeAnnotationsCompat
     intro c' stats depth commonParams commonLevel Hc' henv hsafety
       hlparams hallowPrimitive hfuel hvenv Hsemantic

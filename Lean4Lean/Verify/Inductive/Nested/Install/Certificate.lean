@@ -561,7 +561,7 @@ noncomputable def RestoredBlockCertificate.extension
     checking := HrestoredValid.tr
     valid := HrestoredValid
     addInduct := ?_ }
-  exact H.addInductOfInstallation
+  exact addInductOfRestoredInstallation
     C.install.venvTypes C.install.venvCtors
     C.sourceRecursors C.auxiliaryRecursors
     C.sourceRules C.auxiliaryRules C.install.eliminators
