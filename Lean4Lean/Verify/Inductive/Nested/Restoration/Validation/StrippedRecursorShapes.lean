@@ -218,7 +218,7 @@ theorem NestedRun.restoredMajorHead {ves : VEnvs}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {r : Restoration} {auxRec : NameMap Name} {targetEnv : VEnv} {Us : List Name}
     {auxLevels : List Level}
     (A : RestorationMapAgreement r result E.loweredEnv auxRec targetEnv Us auxLevels)
@@ -366,13 +366,13 @@ type of the source kernel environment. -/
 theorem NestedRun.auxNestedHead {ves : VEnvs}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {name : Name} {nested : Expr} (hfind : result.aux2nested.find? name = some nested) :
     ∃ I ls info, nested.getAppFn = .const I ls ∧
       sourceProdEnv.find? I = some (.inductInfo info) := by
   rcases E.lowering with ⟨finalState, Hrun, _Hcache, _Hparams⟩
   rcases Hrun.cachedAuxiliaryFamilyOfLookup
-      (VEnvs.WFCore.environmentTypesClosed wf) wf.inductivesClosed Hsources rfl rfl hfind with
+      (VEnvs.WF.environmentTypesClosed wf) wf.inductivesClosed Hsources rfl rfl hfind with
     ⟨O⟩
   have hhead := O.origin.generated.built.nested_getAppFn O.origin.generated.selection
     O.origin.generated.argsArity
@@ -688,7 +688,7 @@ theorem NestedRun.restoredRecursorEntries_of_steps
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
@@ -763,7 +763,7 @@ theorem NestedRun.strippedRecursorOfStep
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
@@ -991,7 +991,7 @@ theorem NestedRun.validOfInstallation_of_paramUniform
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (hnested : result.aux2nested.size ≠ 0)
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {nparams' depth : Nat} {isUnsafe' : Bool}

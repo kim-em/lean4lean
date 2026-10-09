@@ -11,7 +11,9 @@ open Kernel
 structure VEnvs where
   venv : DefinitionSafety → VEnv
 
-structure VEnvs.WFCore (env : Environment) (ves : VEnvs) where
+/-- The well-formedness invariant of the checker's environment model. Every checked declaration
+preserves it (`addDecl.WF_of_canonicalEq`). -/
+structure VEnvs.WF (env : Environment) (ves : VEnvs) where
   tr : TrEnv safety env (ves.venv safety)
   hasPrimitives : VEnv.HasPrimitives (ves.venv safety)
   safePrimitives : env.find? n = some ci →
@@ -21,95 +23,43 @@ structure VEnvs.WFCore (env : Environment) (ves : VEnvs) where
   blocks : InstalledBlocks safety env (ves.venv safety) .complete
   mono : safety ≤ safety' → ves.venv safety' ≤ ves.venv safety
 
-namespace VEnvs.WFCore
+namespace VEnvs.WF
 variable {env : Environment} {ves : VEnvs}
 
-theorem inductivesClosed (wf : ves.WFCore env) : VerifyInductive.MutualInductivesClosed env :=
+theorem inductivesClosed (wf : ves.WF env) : VerifyInductive.MutualInductivesClosed env :=
   (wf.blocks (safety := .unsafe)).mutualInductivesClosed (by decide)
 
-theorem constructorOwners (wf : ves.WFCore env) :
+theorem constructorOwners (wf : ves.WF env) :
     VerifyInductive.ConstructorOwnersPresent env :=
   (wf.blocks (safety := .unsafe)).constructorOwnersPresent
 
-theorem constructorParameterAlignment (wf : ves.WFCore env) {safety : DefinitionSafety} :
+theorem constructorParameterAlignment (wf : ves.WF env) {safety : DefinitionSafety} :
     VerifyInductive.ConstructorParameterAlignment safety env (ves.venv safety) :=
   wf.blocks.constructorParameterAlignment
 
-theorem inductiveConstructorsCoherent (wf : ves.WFCore env) :
+theorem inductiveConstructorsCoherent (wf : ves.WF env) :
     VerifyInductive.InductiveConstructorsCoherent env :=
   (wf.blocks (safety := .unsafe)).inductiveConstructorsCoherent (by decide)
 
-theorem projectionRegistryCoherent (wf : ves.WFCore env) {safety : DefinitionSafety} :
+theorem projectionRegistryCoherent (wf : ves.WF env) {safety : DefinitionSafety} :
     ProjectionRegistryCoherent safety env.constants (ves.venv safety) :=
   wf.blocks.projectionRegistryCoherent (wf.tr (safety := safety)).map_wf
 
 /-- Every visible kernel family is a family of an installed declaration. -/
-theorem inductFamiliesInstalled (wf : ves.WFCore env) {safety : DefinitionSafety}
+theorem inductFamiliesInstalled (wf : ves.WF env) {safety : DefinitionSafety}
     (hfind : env.find? familyName = some (.inductInfo familyInfo))
     (hvisible : safety ≤ (ConstantInfo.inductInfo familyInfo).safety) :
     familyName = familyInfo.name ∧
       Nonempty (InductFamilyInstalledAt (ves.venv safety) familyInfo) :=
   wf.blocks.familyInstalled hfind hvisible
 
-end VEnvs.WFCore
+/-- Every visible constructor carries a telescope certificate at every safety level
+(`CtorTelescopes`). This is what makes the non-dependent field walk of `inferProj` sound
+(section 5.3 of `docs/inductives/DESIGN.md`). -/
+theorem ctorTelescopes (wf : ves.WF env) (safety) : CtorTelescopes safety env (ves.venv safety) :=
+  wf.blocks.ctorTelescopes
 
-/-- Every visible constructor of `env` carries a telescope certificate at every safety level
-(`CtorTelescopes`). This is the environment invariant that makes the non-dependent field walk
-of `inferProj` sound (section 5.3 of `docs/inductives/DESIGN.md`). -/
-def VEnvs.AllCtorTelescopes (env : Environment) (ves : VEnvs) : Prop :=
-  ∀ safety, CtorTelescopes safety env (ves.venv safety)
-
-/-- The well-formedness invariant of the checker's environment model: the core invariant
-(`VEnvs.WFCore`) together with the constructor certificates (`VEnvs.AllCtorTelescopes`). Any core-valid
-environment without constructors satisfies it (`VEnvs.WF.ofNoCtors`), and every checked
-declaration preserves it (`addDecl.WF_of_canonicalEq`). -/
-structure VEnvs.WF (env : Environment) (ves : VEnvs) : Prop extends VEnvs.WFCore env ves where
-  ctorTelescopes : ves.AllCtorTelescopes env
-
-/-- Certificate preservation from `env, ves` to `env', ves'`: the conclusion every declaration
-check provides alongside `VEnvs.WFCore`. -/
-def VEnvs.CtorTelescopesPreserved (env env' : Environment) (ves ves' : VEnvs) : Prop :=
-  ves.AllCtorTelescopes env → ves'.AllCtorTelescopes env'
-
-/-- An environment without constructors carries the constructor certificates vacuously. -/
-theorem VEnvs.AllCtorTelescopes.ofNoCtors {env : Environment} {ves : VEnvs}
-    (h : ∀ name ci, env.find? name ≠ some (.ctorInfo ci)) : ves.AllCtorTelescopes env :=
-  fun _ name ci hfind _ => absurd hfind (h name ci)
-
-/-- A core-valid environment without constructors satisfies the full invariant. -/
-theorem VEnvs.WF.ofNoCtors {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
-    (h : ∀ name ci, env.find? name ≠ some (.ctorInfo ci)) : ves.WF env :=
-  ⟨wf, .ofNoCtors h⟩
-
-open private Lean.Kernel.Environment.add from Lean.Environment in
-/-- A fresh non-constructor constant needs no certificate. -/
-theorem VEnvs.CtorTelescopesPreserved.addNonCtor {env : Environment} {ves ves' : VEnvs} {ci : ConstantInfo}
-    (wf : ves.WFCore env) (hn : env.find? ci.name = none)
-    (hle : ∀ safety, ves.venv safety ≤ ves'.venv safety)
-    (hnot : ∀ info, ci ≠ .ctorInfo info) : VEnvs.CtorTelescopesPreserved env (env.add ci) ves ves' :=
-  fun H safety => CtorTelescopes.addNonCtor (H safety) (wf.tr (safety := safety)).map_wf hn
-    (hle safety) hnot
-
-/-- Certificate preservation for an inductive installation: every constructor of the output is
-a base constructor, or a new constructor of the declaration (with its safety flag) certified in an abstract
-environment below the output model at the declaration's safety. Base constructors keep their
-certificates by monotonicity; a new one is visible only to observers at most as strict as the
-declaration's safety, whose models extend the declaration's. -/
-theorem VEnvs.CtorTelescopesPreserved.ofOrigin {env env' : Environment} {ves ves' : VEnvs} {isUnsafe : Bool}
-    {venvH : VEnv}
-    (hle : ∀ safety, ves.venv safety ≤ ves'.venv safety)
-    (hmono : ∀ {safety safety'}, safety ≤ safety' → ves'.venv safety' ≤ ves'.venv safety)
-    (hH : venvH ≤ ves'.venv (if isUnsafe then .unsafe else .safe))
-    (horigin : ∀ {name ci}, env'.find? name = some (.ctorInfo ci) →
-      env.find? name = some (.ctorInfo ci) ∨
-        (ci.isUnsafe = isUnsafe ∧ CtorTelescopeAt venvH ci)) :
-    VEnvs.CtorTelescopesPreserved env env' ves ves' := by
-  intro hold safety name ci hfind hvis
-  rcases horigin hfind with h | ⟨hu, hc⟩
-  · exact (hold safety h hvis).mono (hle safety)
-  · have hs : safety ≤ (if isUnsafe then .unsafe else .safe) := by
-      simpa [ConstantInfo.safety, ConstantInfo.isUnsafe, ConstantInfo.isPartial, hu] using hvis
-    exact hc.mono (hH.trans (hmono hs))
+end VEnvs.WF
 
 /-- Assemble a `VEnvs` from a pointwise existential by case analysis on the
 three safety levels. -/
@@ -143,7 +93,7 @@ theorem VEnvAt.toCheckingValid (wf : VEnvAt env safety venv) :
     CheckingEnv.Valid safety env venv :=
   wf.tr.toCheckingValid wf.hasPrimitives wf.safePrimitives wf.blocks
 
-theorem VEnvs.WFCore.toVEnvAt {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
+theorem VEnvs.WF.toVEnvAt {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (safety : DefinitionSafety) : VEnvAt env safety (ves.venv safety) where
   tr := wf.tr
   hasPrimitives := wf.hasPrimitives
@@ -151,7 +101,7 @@ theorem VEnvs.WFCore.toVEnvAt {env : Environment} {ves : VEnvs} (wf : ves.WFCore
   blocks := wf.blocks
 
 /-- The checking invariant at one safety level of a well-formed model. -/
-theorem VEnvs.WFCore.toCheckingValid {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
+theorem VEnvs.WF.toCheckingValid {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (safety : DefinitionSafety) : CheckingEnv.Valid safety env (ves.venv safety) :=
   (wf.toVEnvAt safety).toCheckingValid
 
@@ -238,19 +188,18 @@ def VContext.mkCheckingValidMLC {env : Environment} {venv : VEnv}
   lctx_eq := rfl
 
 def VContext.mk1 {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
-    (wf : VEnvAt env safety venv) (_htels : CtorTelescopes safety env venv)
+    (wf : VEnvAt env safety venv)
     (lparams : List Name := []) (fuel : FuelConfig := {}) : VContext :=
   .mkCheckingValid wf.toCheckingValid lparams fuel
 
-def VContext.mk' {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
-    (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+def VContext.mk' {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (safety : DefinitionSafety := .safe) (lparams : List Name := [])
-    (fuel : FuelConfig := {}) : VContext := .mk1 (wf.toVEnvAt safety) (htels _) lparams fuel
+    (fuel : FuelConfig := {}) : VContext := .mk1 (wf.toVEnvAt safety) lparams fuel
 
 theorem State.WF.empty1 {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
-    {wf : VEnvAt env safety venv} {htels : CtorTelescopes safety env venv} {lparams : List Name}
+    {wf : VEnvAt env safety venv} {lparams : List Name}
     {fuel : FuelConfig} :
-    State.WF (.mk1 wf htels lparams fuel) {} where
+    State.WF (.mk1 wf lparams fuel) {} where
   trctx := .nil
   ngen_wf := nofun
   ectx := .empty
@@ -316,15 +265,13 @@ theorem State.WF.emptyCheckingValidMLC {env : Environment} {venv : VEnv}
   whnf_paramUniform := .empty
   inferTypeI_paramUniform := .empty
 
-theorem State.WF.empty {env : Environment} {ves : VEnvs} {wf : ves.WFCore env}
-    {safety : DefinitionSafety} {lparams : List Name} {fuel : FuelConfig}
-    {htels : ∀ safety, CtorTelescopes safety env (ves.venv safety)} :
-    State.WF (.mk' wf htels safety lparams fuel) {} := by
+theorem State.WF.empty {env : Environment} {ves : VEnvs} {wf : ves.WF env}
+    {safety : DefinitionSafety} {lparams : List Name} {fuel : FuelConfig} :
+    State.WF (.mk' wf safety lparams fuel) {} := by
   unfold VContext.mk'; exact .empty1
 
 theorem M.WF.run1 {env : Environment} {venv : VEnv} (wf : VEnvAt env safety venv)
-    {htels : CtorTelescopes safety env venv}
-    {x : M α} {Q} (H : x.WF (.mk1 wf htels lparams fuel) {} fun a _ => Q a) :
+    {x : M α} {Q} (H : x.WF (.mk1 wf lparams fuel) {} fun a _ => Q a) :
     (M.run env safety {} lparams fuel x).WF Q := by
   intro a eq
   simp [M.run, Functor.map, Except.map] at eq
@@ -372,9 +319,8 @@ theorem M.WF.runCheckingValidMLC {env : Environment} {venv : VEnv}
   let ⟨_, _, _, _, hQ⟩ := H (.emptyCheckingValidMLC hfresh) _ _ eq
   exact hQ
 
-theorem M.WF.run {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
-    {htels : ∀ safety, CtorTelescopes safety env (ves.venv safety)}
-    {x : M α} {Q} (H : x.WF (.mk' wf htels safety lparams fuel) {} fun a _ => Q a) :
+theorem M.WF.run {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+    {x : M α} {Q} (H : x.WF (.mk' wf safety lparams fuel) {} fun a _ => Q a) :
     (M.run env safety {} lparams fuel x).WF Q := by
   unfold VContext.mk' at H; exact M.WF.run1 _ H
 

@@ -206,12 +206,12 @@ theorem OrdinaryInstallation.extendSafePreludeEq
     {ves : VEnvs}
     (Hrun : OrdinaryInstallation c stats nparams depth indTypes
       isUnsafe sourceEnv outEnv)
-    (wf : ves.WFCore c.env) (htels : ∀ safety, CtorTelescopes safety c.env (ves.venv safety))
+    (wf : ves.WF c.env)
     (_hAbsent : c.env.constants.find? ``Eq = none)
     (hsafety : c.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)
     (Hshape : PreludeEqShape c.lparams nparams indTypes.toList isUnsafe) :
-    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ QuotReadyEnvs ves' ∧
+    ∃ ves' : VEnvs, ves'.WF outEnv ∧ QuotReadyEnvs ves' ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       Nonempty (SourceAddInduct (ves.venv .safe) c.lparams
         nparams indTypes.toList isUnsafe (ves'.venv .safe)) ∧
@@ -267,7 +267,7 @@ theorem OrdinaryInstallation.extendSafePreludeEq
   have htypesH : (ves.venv .safe).addConstVals (Hheaders.entries.map Prod.snd) =
       some Hheaders.context.venv := by
     rw [Hheaders.values]; exact Hheaders.translation.typesAdded
-  rcases B.extendSafeExact wf htels hdecl hcompile horigins T.newRecursorsAligned Hrecursors.closed
+  rcases B.extendSafeExact wf hdecl hcompile horigins T.newRecursorsAligned Hrecursors.closed
       (Hrecursors.constructorOwnersPresent wf.constructorOwners)
       hconstructors
       (fun safety => Hrecursors.blockEliminatorsReplay T.rules T.rulesWF
@@ -554,13 +554,13 @@ theorem OrdinaryRunResult.extendPreludeEq
     {ves : VEnvs}
     (Hrun : OrdinaryRunResult source sourceEnv
       nparams types numNested outEnv)
-    (wf : ves.WFCore source.env) (htels : ∀ safety, CtorTelescopes safety source.env (ves.venv safety))
+    (wf : ves.WF source.env)
     (hAbsent : source.env.constants.find? ``Eq = none)
     (hsafety : source.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)
     (Hshape : PreludeEqShape source.lparams nparams types
       (source.safety != .safe)) :
-    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ QuotReadyEnvs ves' ∧
+    ∃ ves' : VEnvs, ves'.WF outEnv ∧ QuotReadyEnvs ves' ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       Nonempty (SourceAddInduct sourceEnv source.lparams
         nparams types (source.safety != .safe) (ves'.venv .safe)) ∧
@@ -575,11 +575,9 @@ theorem OrdinaryRunResult.extendPreludeEq
   rcases Hrun with
     ⟨c', stats, depth, commonParams, commonLevel, Hc', henv, hcSafety,
       hlparams, _hallowPrimitive, _hfuel, hvenv, _Hsemantic, Hphases⟩
-  have wf' : ves.WFCore c'.env := by
+  have wf' : ves.WF c'.env := by
     rw [henv]
     exact wf
-  have hcorner' : ∀ safety, CtorTelescopes safety c'.env (ves.venv safety) := by
-    rw [henv]; exact htels
   have hAbsent' : c'.env.constants.find? ``Eq = none := by
     rwa [henv]
   have hcSafety' : c'.safety = .safe := hcSafety.trans hsafety
@@ -587,7 +585,7 @@ theorem OrdinaryRunResult.extendPreludeEq
   have Hshape' : PreludeEqShape c'.lparams nparams
       types.toArray.toList (source.safety != .safe) := by
     simpa [hlparams] using Hshape
-  rcases Hphases.extendSafePreludeEq wf' hcorner' hAbsent' hcSafety' hcVEnv
+  rcases Hphases.extendSafePreludeEq wf' hAbsent' hcSafety' hcVEnv
       Hshape' with ⟨ves', wf', hEq', hle, Hspec, hcanonical⟩
   refine ⟨ves', wf', hEq', hle, ?_, hcanonical⟩
   simpa only [hlparams, hsource] using Hspec
@@ -598,7 +596,7 @@ theorem AddInductive.run.preludeEqInstalledWF
     {ves : VEnvs}
     (nparams numNested : Nat)
     (Hc : ContextWF c)
-    (wf : ves.WFCore c.env) (htels : ∀ safety, CtorTelescopes safety c.env (ves.venv safety))
+    (wf : ves.WF c.env)
     (hAbsent : c.env.constants.find? ``Eq = none)
     (hsafety : c.safety = .safe)
     (hsource : Hc.venv = ves.venv .safe)
@@ -619,7 +617,7 @@ theorem AddInductive.run.preludeEqInstalledWF
       PrimitiveNamesFresh c' stats nparams depth numNested
         types.toArray (c.safety != .safe) Hc') :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
-      ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ QuotReadyEnvs ves' ∧
+      ∃ ves' : VEnvs, ves'.WF outEnv ∧ QuotReadyEnvs ves' ∧
         (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         Nonempty (SourceAddInduct Hc.venv c.lparams
           nparams types (c.safety != .safe) (ves'.venv .safe)) ∧
@@ -634,7 +632,7 @@ theorem AddInductive.run.preludeEqInstalledWF
     decide
   exact (AddInductive.run.sourceAlignedWF nparams numNested Hc
     Hclosed wf.envGhostFree wf.inductiveConstructorsCoherent.present hctx hsize (by simp [hsafety]) Hinputs).mono fun _ Hrun =>
-      Hrun.extendPreludeEq wf htels hAbsent hsafety hsource Hshape
+      Hrun.extendPreludeEq wf hAbsent hsafety hsource Hshape
 
 /-- `addInductiveAfterLowering` on the exact prelude `Eq` declaration, after a lowering
 that produced no auxiliary families, yields well-formed models of the output that extend
@@ -644,14 +642,14 @@ theorem Environment.addInductiveAfterLowering.preludeEqExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
-    (ves : VEnvs) (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+    (ves : VEnvs) (wf : ves.WF env)
     (hAbsent : env.constants.find? ``Eq = none)
     (Hshape : PreludeEqShape lparams nparams types isUnsafe)
     (htypes : res.types = types)
     (haux : res.aux2nested.size = 0) :
     (Environment.addInductiveAfterLowering env lparams nparams types isUnsafe
       false fuel res).WF fun outEnv =>
-      ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ QuotReadyOrEqAbsent outEnv ves' ∧
+      ∃ ves' : VEnvs, ves'.WF outEnv ∧ QuotReadyOrEqAbsent outEnv ves' ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (SourceAddInduct (ves.venv .safe) lparams
             nparams types false (ves'.venv .safe)) ∧
@@ -666,7 +664,7 @@ theorem Environment.addInductiveAfterLowering.preludeEqExtensionWF
   let c := initialContext env lparams .safe false fuel
   let Hc : ContextWF c := by
     simpa [c, initialContext] using
-      ContextWF.initial wf .safe lparams false fuel htels
+      ContextWF.initial wf .safe lparams false fuel
   have hsource : Hc.venv = ves.venv .safe := rfl
   have Hshape' : PreludeEqShape c.lparams nparams res.types
       (c.safety != .safe) := by
@@ -687,7 +685,7 @@ theorem Environment.addInductiveAfterLowering.preludeEqExtensionWF
     exact PrimitiveNamesFresh.ofAllowPrimitiveFalse
       (by simpa [c, initialContext] using hallow)
   have Hrun := AddInductive.run.preludeEqInstalledWF
-    (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf htels hAbsent
+    (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf hAbsent
     (by rfl) hsource wf.inductivesClosed (by rfl) Hshape' Hinputs
   unfold Environment.addInductiveAfterLowering
   rw [haux]
@@ -705,12 +703,12 @@ with the ordinary run that installs canonical abstract equality. -/
 theorem Environment.addInductive.preludeEqExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
-    (ves : VEnvs) (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+    (ves : VEnvs) (wf : ves.WF env)
     (hAbsent : env.constants.find? ``Eq = none)
     (Hshape : PreludeEqShape lparams nparams types isUnsafe) :
     (Environment.addInductive env lparams nparams types isUnsafe false fuel).WF
       fun outEnv =>
-        ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ QuotReadyOrEqAbsent outEnv ves' ∧
+        ∃ ves' : VEnvs, ves'.WF outEnv ∧ QuotReadyOrEqAbsent outEnv ves' ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (SourceAddInduct (ves.venv .safe) lparams
             nparams types false (ves'.venv .safe)) ∧
@@ -728,7 +726,7 @@ theorem Environment.addInductive.preludeEqExtensionWF
   have Hcombined := Hsources.bind fun _ _ =>
     Hlowering.bind fun res Hres =>
       Environment.addInductiveAfterLowering.preludeEqExtensionWF env
-        lparams nparams types isUnsafe fuel res ves wf htels hAbsent Hshape
+        lparams nparams types isUnsafe fuel res ves wf hAbsent Hshape
         Hres.1 Hres.2
   simpa [Environment.addInductive] using Hcombined
 
@@ -738,19 +736,19 @@ the theorem follows the ordinary branch rather than assuming it. -/
 theorem addInductiveDeclaration.preludeEqExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
-    (ves : VEnvs) (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+    (ves : VEnvs) (wf : ves.WF env)
     (hAbsent : env.constants.find? ``Eq = none)
     (Hshape : PreludeEqShape lparams nparams types isUnsafe) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
-        ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ QuotReadyOrEqAbsent outEnv ves' ∧
+        ∃ ves' : VEnvs, ves'.WF outEnv ∧ QuotReadyOrEqAbsent outEnv ves' ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (SourceAddInduct (ves.venv .safe) lparams
             nparams types false (ves'.venv .safe)) ∧
       (∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
         ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
   have Hrun := Environment.addInductive.preludeEqExtensionWF env
-    lparams nparams types isUnsafe fuel ves wf htels hAbsent Hshape
+    lparams nparams types isUnsafe fuel ves wf hAbsent Hshape
   have hcheck := checkPrimitiveInductive_eq_false_of_preludeEqShape env Hshape
   simpa [Lean4Lean.addDecl, hcheck, bind, Except.bind] using Hrun
 

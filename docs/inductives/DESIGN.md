@@ -29,19 +29,16 @@ declarations and quotient initialization. The dependency cone has no `sorry`. Th
 a thin wrapper around
 
 ```lean
-theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
-    (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (hq : ∀ safety, (ves.venv safety).QuotReady)
     (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
-      ∃ ves' : VEnvs, ves'.WFCore env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-        VEnvs.CtorTelescopesPreserved env env' ves ves'
+      ∃ ves' : VEnvs, ves'.WF env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety)
 ```
 
-`VEnvs.WF` is the core invariant `VEnvs.WFCore` together with the constructor-telescope
-certificates `VEnvs.AllCtorTelescopes` (section 5.3); the wrapper discharges `htels` from the
-certificates, derives `hq` from `heq` (`VEnv.HasCanonicalEq.quotReady`), and carries the
-certificates to the output through `CtorTelescopesPreserved`. The iterable form `addDecl.WFHasCanonicalEq`
+The wrapper derives `hq` from `heq` (`VEnv.HasCanonicalEq.quotReady`). The constructor-telescope
+certificates (section 5.3) are not a separate hypothesis: they follow from the installed blocks
+recorded in `VEnvs.WF` (`VEnvs.WF.ctorTelescopes`). The iterable form `addDecl.WFHasCanonicalEq`
 also returns `HasCanonicalEq` for `ves'` (monotone along `≤`), so the theorem applies again
 to the next declaration of a replay.
 
@@ -91,15 +88,13 @@ the source constant. Which constants make up the dependency cone of `d` is not c
 ### 1.3 The hypotheses
 
 - `wf : ves.WF env` is the invariant being preserved. `VEnvs.WF`
-  (`Lean4Lean/Verify/TypeChecker.lean`) is the core invariant `VEnvs.WFCore` together with
-  the constructor telescope certificates (`VEnvs.AllCtorTelescopes`). The core gains fields in this pull
+  (`Lean4Lean/Verify/TypeChecker.lean`) gains fields in this pull
   request: closure of mutual inductives, presence of constructor owners that list their
   constructors, agreement of the
   installed constructors with the abstract model, and the record of installed inductive
   families (which carries projection-registry coherence). It holds for the empty environment the executable replays
   from (`VEnvs.WF.empty`, `Lean4Lean/Verify/Environment.lean`): every field is vacuous there
-  except the translation, and an environment without constructors carries the certificates
-  vacuously (`VEnvs.WF.ofNoCtors`). There is no invariant about the type-annotation wrappers:
+  except the translation. There is no invariant about the type-annotation wrappers:
   the inductive checker strips `optParam`, `autoParam`, `outParam` and `semiOutParam` from
   binder domains only when the environment at that point declares the name as the prelude's
   definition (`Kernel.Environment.isTypeAnnotationWrapper`), and each strip is justified from
@@ -730,9 +725,9 @@ them) and a ghost-telescope verification (`Verify/TypeChecker/GhostTelescope.lea
 when a constructor type is checked, every unused binder of its telescope can be deleted from
 the translation. The result is recorded as a depth-bounded certificate `TelTrN`
 (`Verify/Typing/TelescopeTranslation.lean`), one per visible constructor at every safety
-level (`VEnvs.AllCtorTelescopes`); the bound is the constructor's own arity, which is what the walk
-consumes. The certificates hold vacuously for an environment without constructors, are
-preserved by every declaration (`VEnvs.CtorTelescopesPreserved`), and the walk uses the delete branch of the
+level (`CtorTelescopes`, derived from the installed blocks of `VEnvs.WF` by
+`VEnvs.WF.ctorTelescopes`); the bound is the constructor's own arity, which is what the walk
+consumes. The walk uses the delete branch of the
 certificate at each non-dependent field. Nested declarations need the stored constructor type
 to agree with the checked source type up to binder names
 (`Verify/Inductive/Nested/Restoration/InstalledConstructorTypes.lean`), because reusing an auxiliary

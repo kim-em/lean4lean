@@ -704,7 +704,7 @@ theorem RestoredBlockCertificate.safeInductiveExtensionOfKernelClosed
       (ves.venv .safe) result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (wf : ves.WFCore sourceProdEnv) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WF sourceProdEnv)
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
@@ -730,7 +730,7 @@ theorem RestoredBlockCertificate.safeInductiveExtensionOfKernelClosed
     exact wf.constructorOwners
   have hclosed := C.mutualInductivesClosed Hlower Hc Hprod Hmetadata Hsources
     Harity Howners hempty henv hlparams hnames wf.inductivesClosed
-  exact C.safeInductiveExtensionOfKernel wf htels Hlower Hc Hprod
+  exact C.safeInductiveExtensionOfKernel wf Hlower Hc Hprod
     Hmetadata Hsources Harity hempty henv hlparams hnames hclosed
       hconstructorSemantics htypesH hctorOrigin
 
@@ -755,7 +755,7 @@ theorem RestoredBlockCertificate.unsafeInductiveExtensionOfKernelClosed
       (ves.venv .unsafe) result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (wf : ves.WFCore sourceProdEnv) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WF sourceProdEnv)
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
@@ -788,7 +788,7 @@ theorem RestoredBlockCertificate.unsafeInductiveExtensionOfKernelClosed
     Howners hempty henv hlparams hnames hauxRec hauxNames hsafety
   have hclosed := C.mutualInductivesClosed Hlower Hc Hprod Hmetadata Hsources
     Harity Howners hempty henv hlparams hnames wf.inductivesClosed
-  exact C.unsafeInductiveExtensionOfKernel wf htels Hlower Hc Hprod
+  exact C.unsafeInductiveExtensionOfKernel wf Hlower Hc Hprod
     Hmetadata Hsources Harity hempty henv hlparams hnames hentries hclosed
       hconstructorSemantics htypesH hctorOrigin
 
@@ -816,7 +816,7 @@ private theorem LoweredRun.reindex
 theorem NestedInstalledRun.safeInductiveExtension
     (E : NestedInstalledRun result sourceProdEnv sourceTypes
       (ves.venv .safe) decl lparams nparams false .safe outEnv)
-    (wf : ves.WFCore sourceProdEnv) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WF sourceProdEnv)
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed E.context.env fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result)
@@ -844,7 +844,7 @@ theorem NestedInstalledRun.safeInductiveExtension
     have h := E.assembly.constructorArityPrefix
     rw [E.lowered_eq] at h
     exact h
-  exact E.assembly.safeInductiveExtensionOfKernelClosed wf htels Hlower
+  exact E.assembly.safeInductiveExtensionOfKernelClosed wf Hlower
     E.contextWF Hproduction Hmetadata Hsources Harity hempty
     E.context_env E.context_lparams rfl
       hconstructorSemantics htypesH hctorOrigin
@@ -855,7 +855,7 @@ folds. -/
 theorem NestedInstalledRun.unsafeInductiveExtension
     (E : NestedInstalledRun result sourceProdEnv sourceTypes
       (ves.venv .unsafe) decl lparams nparams true .unsafe outEnv)
-    (wf : ves.WFCore sourceProdEnv) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WF sourceProdEnv)
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed E.context.env fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result)
@@ -883,7 +883,7 @@ theorem NestedInstalledRun.unsafeInductiveExtension
     have h := E.assembly.constructorArityPrefix
     rw [E.lowered_eq] at h
     exact h
-  exact E.assembly.unsafeInductiveExtensionOfKernelClosed wf htels Hlower
+  exact E.assembly.unsafeInductiveExtensionOfKernelClosed wf Hlower
     E.contextWF Hproduction Hmetadata Hsources Harity hempty
     E.context_env E.context_lparams rfl rfl rfl
       E.context_safety hconstructorSemantics htypesH hctorOrigin
@@ -1075,7 +1075,7 @@ theorem RestoredBlockCertificate.constructorTypingOfParameterDomains
     {ves : VEnvs}
     (C : RestoredBlockCertificate H (ves.venv safety) decl lparams
       nparams isUnsafe safety)
-    (wf : ves.WFCore sourceProdEnv)
+    (wf : ves.WF sourceProdEnv)
     (Horigins : InductInfosFromDecl sourceProdEnv.constants
       outEnv.constants decl)
     (Hparams : NestedConstructorParameterDomainsDefEq C) :
@@ -1201,7 +1201,7 @@ theorem NestedInstalledRun.safeConstructorTypingOfParameterDomains
     {ves : VEnvs}
     (E : NestedInstalledRun result sourceProdEnv sourceTypes
       (ves.venv .safe) decl lparams nparams false .safe outEnv)
-    (wf : ves.WFCore sourceProdEnv)
+    (wf : ves.WF sourceProdEnv)
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed E.context.env fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result)
@@ -1235,7 +1235,7 @@ theorem NestedInstalledRun.unsafeConstructorTypingOfParameterDomains
     {ves : VEnvs}
     (E : NestedInstalledRun result sourceProdEnv sourceTypes
       (ves.venv .unsafe) decl lparams nparams true .unsafe outEnv)
-    (wf : ves.WFCore sourceProdEnv)
+    (wf : ves.WF sourceProdEnv)
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed E.context.env fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result)

@@ -83,7 +83,7 @@ not an additional safety premise. -/
 theorem AuxiliaryFamilySpecialization.installedContainerOfAbstractLookup
     {ves : VEnvs}
     (H : AuxiliaryFamilySpecialization prodEnv params nestedAux family)
-    (wf : ves.WFCore prodEnv) (safety : DefinitionSafety)
+    (wf : ves.WF prodEnv) (safety : DefinitionSafety)
     (abstractFamily : VConstant)
     (habstract : (ves.venv safety).constants H.sourceName =
       some abstractFamily) :

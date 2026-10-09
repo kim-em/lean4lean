@@ -36,7 +36,7 @@ open Kernel
 
 /-- `Eq` is a safe constant of `env` with one universe parameter `u`, and every translation of
 its type is the canonical type of `Eq`. This is what the abstract model of `quotDecl` consumes
-(`VEnvs.WFCore.quotReady_of_eqType`). -/
+(`VEnvs.WF.quotReady_of_eqType`). -/
 def HasCanonicalEqType (env : Environment) : Prop :=
   ∃ ci, env.find? ``Eq = some ci ∧ ci.safety = .safe ∧ ∃ u, ci.levelParams = [u] ∧
     ∀ {venv : VEnv} {e : VExpr}, TrExprS venv [u] [] ci.type e → e = canonicalEqType
@@ -62,10 +62,9 @@ theorem AddDeclChain.WF {env env' : Environment} {ds : List Declaration}
   | @cons env env₁ env₂ d ds hadd hquot _ ih =>
     have hq : d = .quotDecl → ∀ safety, (ves.venv safety).QuotReady := fun hd safety => by
       obtain ⟨_, hEq, hsafe, _, hlps, htype⟩ := hquot hd
-      exact wf.toWFCore.quotReady_of_eqType hEq hsafe hlps htype safety
-    obtain ⟨ves₁, wf₁, hle₁, hcert⟩ :=
-      addDecl.WF_quotReadyAt wf.toWFCore wf.ctorTelescopes d hq _ hadd
-    obtain ⟨ves₂, wf₂, hle₂⟩ := ih ⟨wf₁, hcert wf.ctorTelescopes⟩
+      exact wf.quotReady_of_eqType hEq hsafe hlps htype safety
+    obtain ⟨ves₁, wf₁, hle₁⟩ := addDecl.WF_quotReadyAt wf d hq _ hadd
+    obtain ⟨ves₂, wf₂, hle₂⟩ := ih wf₁
     exact ⟨ves₂, wf₂, fun safety => (hle₁ safety).trans (hle₂ safety)⟩
 
 /-- **Replay from the empty environment.** Every environment reached by a replay from the

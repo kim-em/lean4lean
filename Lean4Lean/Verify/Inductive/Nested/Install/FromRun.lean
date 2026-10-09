@@ -509,7 +509,7 @@ theorem NestedRun.sourceCoreParameterWF
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (Hraw : ∀ type ∈ sourceDecl.types, ∀ ctor ∈ type.ctors,
       sourceDecl.RawCtorShape type ctor) :
     sourceDecl.SourceParameterWF (ves.venv (if isUnsafe then .unsafe else .safe)) := by
@@ -670,7 +670,7 @@ private theorem NestedRun.assemblyBaseOfFormation
     {ves : VEnvs} {sourceVEnv : VEnv} {safety : DefinitionSafety}
     (E : NestedRun result sourceProdEnv sourceTypes sourceVEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
-    (wf : ves.WFCore sourceProdEnv)
+    (wf : ves.WF sourceProdEnv)
     (hsourceVEnv : sourceVEnv = ves.venv (if isUnsafe then .unsafe else .safe))
     (hsafetyEq : safety = if isUnsafe then .unsafe else .safe)
     (hnested : result.aux2nested.size ≠ 0)
@@ -928,7 +928,7 @@ theorem NestedRun.assemblyBaseValid
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (hnested : result.aux2nested.size ≠ 0) :
     Nonempty { B : RestoredBlockBase E.restoration
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
@@ -973,7 +973,7 @@ theorem NestedRun.assemblyBaseValid
     exact R.core
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
     simpa only [E.sourceCoreDecl_eq] using E.sourceCore.checked
-  have wfP : ves.WFCore P.c.env := by
+  have wfP : ves.WF P.c.env := by
     simpa only [henv] using wf
   have HsourceHeaders : List.Forall₂
       (fun source target => TrSourceConst P.initialEnv P.c.lparams source.name
@@ -999,7 +999,7 @@ theorem NestedRun.assemblyBaseValid
       hempty E.auxiliarySelection Htranslations Htarget with ⟨N⟩
   have Htypes := Hrun.allExpansionsOfSources Hcache Hparams Hsource
     Htarget Hmetadata Hsources
-      (VEnvs.WFCore.environmentTypesClosed wfP) wfP.inductivesClosed
+      (VEnvs.WF.environmentTypesClosed wfP) wfP.inductivesClosed
       (by simpa only [hinitial, safety] using (wf.tr (safety := safety)).wf)
       hempty N E.auxiliarySelection
   have hnonempty : result.types ≠ [] := by

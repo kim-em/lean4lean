@@ -513,7 +513,7 @@ theorem AuxiliaryFamilyContainer.auxiliaryConstructorTranslation
     {ves : VEnvs}
     (C : AuxiliaryFamilyContainer prodEnv (ves.venv safety)
       params nestedAux concrete H)
-    (wf : ves.WFCore prodEnv)
+    (wf : ves.WF prodEnv)
     (i : Nat) (hi : i < H.sourceInfo.ctors.length) :
     Nonempty (C.AuxiliaryConstructorTranslation i hi) := by
   rcases H.built.constructorAt i hi with ⟨htarget, Hbuilt⟩

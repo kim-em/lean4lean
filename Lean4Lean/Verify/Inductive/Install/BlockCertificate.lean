@@ -589,7 +589,7 @@ theorem BlockCertificate.extendUnsafeExact
     {ves : VEnvs}
     (H : BlockCertificate .unsafe prodEnv (ves.venv .unsafe) types ctors
       recursors rules outEnv outVEnv)
-    (wf : ves.WFCore prodEnv)
+    (wf : ves.WF prodEnv)
     (htrUnsafe : TrEnv' .unsafe outEnv.constants outEnv.quotInit
       H.installedVEnv)
     (htrPartial : TrEnv' .partial outEnv.constants outEnv.quotInit
@@ -604,10 +604,10 @@ theorem BlockCertificate.extendUnsafeExact
         | .unsafe => H.installedVEnv
         | .partial => ves.venv .partial
         | .safe => ves.venv .safe) .complete) :
-    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
+    ∃ ves' : VEnvs, ves'.WF outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       ves'.venv .unsafe = H.installedVEnv := by
-  apply Lean4Lean.VEnvs.WFCore.extendUnsafeExact wf
+  apply Lean4Lean.VEnvs.WF.extendUnsafeExact wf
     H.installedVEnv
     htrUnsafe htrPartial htrSafe
   · exact H.hasPrimitives wf.hasPrimitives
@@ -674,7 +674,7 @@ theorem BlockCertificate.extendSafeExact
     {ves : VEnvs} {decl : VInductDecl}
     (H : BlockCertificate .safe prodEnv (ves.venv .safe) types ctors
       recursors rules outEnv outBase)
-    (wf : ves.WFCore prodEnv) (htels : ∀ safety, CtorTelescopes safety prodEnv (ves.venv safety))
+    (wf : ves.WF prodEnv)
     (hdecl : decl.WF (ves.venv .safe))
     (hcompile : decl.CompilesTo (ves.venv .safe) H.block)
     (horigins : InductInfosFromDecl prodEnv.constants outEnv.constants
@@ -694,7 +694,7 @@ theorem BlockCertificate.extendSafeExact
       prodEnv.find? name = some (.ctorInfo ci) ∨
         (ci.isUnsafe = isUnsafe ∧ CtorTelescopeAt venvH ci))
     (hH : venvH ≤ H.installedVEnv) :
-    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
+    ∃ ves' : VEnvs, ves'.WF outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       VEnv.AddInduct (ves.venv .safe) decl (ves'.venv .safe) ∧
       H.installedVEnv ≤ ves'.venv .safe := by
@@ -830,7 +830,7 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
     {ves : VEnvs} {decl : VInductDecl}
     (H : BlockCertificate .unsafe prodEnv (ves.venv .unsafe) types ctors
       recursors rules outEnv outVEnv)
-    (wf : ves.WFCore prodEnv) (htels : ∀ safety, CtorTelescopes safety prodEnv (ves.venv safety))
+    (wf : ves.WF prodEnv)
     (hdecl : decl.WF (ves.venv .unsafe))
     (hcompile : decl.CompilesTo (ves.venv .unsafe) H.block)
     (horigins : InductInfosFromDecl prodEnv.constants outEnv.constants
@@ -852,7 +852,7 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
       prodEnv.find? name = some (.ctorInfo ci) ∨
         (ci.isUnsafe = isUnsafe ∧ CtorTelescopeAt venvH ci))
     (hH : venvH ≤ H.installedVEnv) :
-    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
+    ∃ ves' : VEnvs, ves'.WF outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       VEnv.AddInduct (ves.venv .unsafe) decl (ves'.venv .unsafe) ∧
       H.installedVEnv ≤ ves'.venv .unsafe := by

@@ -333,7 +333,7 @@ private theorem RestoredBlockCertificate.extendSafe
     {isUnsafe : Bool}
     (C : RestoredBlockCertificate H (ves.venv .safe) decl lparams
       nparams isUnsafe .safe)
-    (wf : ves.WFCore sourceProdEnv) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WF sourceProdEnv)
     (Horigins : InductInfosFromDecl sourceProdEnv.constants
       outEnv.constants decl)
     (hclosed : MutualInductivesClosed outEnv)
@@ -349,7 +349,7 @@ private theorem RestoredBlockCertificate.extendSafe
     (hctorOrigin : ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
       sourceProdEnv.find? name = some (.ctorInfo ci) ∨
         (ci.isUnsafe = isUnsafe ∧ CtorTelescopeAt venvH ci)) :
-    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
+    ∃ ves' : VEnvs, ves'.WF outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       Nonempty (NestedInstallResult (ves.venv .safe) decl lparams
         nparams sourceTypes isUnsafe .safe outEnv) ∧
@@ -458,7 +458,7 @@ private theorem RestoredBlockCertificate.extendSafe
     · rw [← hlookupEnv]
       exact hfind
     · exact hprimitive
-  have Hmodels : ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
+  have Hmodels : ∃ ves' : VEnvs, ves'.WF outEnv ∧
       (∀ observer, ves.venv observer ≤ ves'.venv observer) ∧
       ∀ observer, ves'.venv observer = next observer := by
     apply wf.extendInductExact decl next adds actual.property.quotInit_eq
@@ -542,7 +542,7 @@ private theorem RestoredBlockCertificate.safeInductiveExtension
     {decl : VInductDecl} {lparams : List Name} {nparams : Nat}
     (C : RestoredBlockCertificate H (ves.venv .safe) decl lparams
       nparams false .safe)
-    (wf : ves.WFCore sourceProdEnv) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WF sourceProdEnv)
     (Horigins : InductInfosFromDecl sourceProdEnv.constants
       outEnv.constants decl)
     (hclosed : MutualInductivesClosed outEnv)
@@ -560,17 +560,15 @@ private theorem RestoredBlockCertificate.safeInductiveExtension
         (ci.isUnsafe = false ∧ CtorTelescopeAt venvH ci)) :
     Nonempty (InductiveExtension sourceProdEnv outEnv ves lparams nparams sourceTypes
       false) := by
-  rcases C.extendSafe wf htels Horigins hclosed
+  rcases C.extendSafe wf Horigins hclosed
       hconstructorOwners hconstructorSemantics hcover htypesH hctorOrigin with
-    ⟨ves', wf', hle, ⟨Hfinal⟩, hadd, htypesLe⟩
+    ⟨ves', wf', hle, ⟨Hfinal⟩, hadd, -⟩
   exact ⟨InductiveExtension.ofModel ves' wf' hle
     { decl := decl
       envTypes := Hfinal.envTypes
       envCtors := Hfinal.envCtors
       source := Hfinal.sourceCore
-      extension := hadd }
-    (VEnvs.CtorTelescopesPreserved.ofOrigin (isUnsafe := false) hle wf'.mono
-      (htypesLe venvH htypesH) hctorOrigin)⟩
+      extension := hadd }⟩
 
 /-- Safe installed-model assembly with the kernel family lookups discharged
 from the closed lowering, the lowered run, and the restoration folds. -/
@@ -591,7 +589,7 @@ theorem RestoredBlockCertificate.safeInductiveExtensionOfKernel
       (ves.venv .safe) result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {fuel : Nat} {initialState : Lean4Lean.ElimNestedInductive.State}
-    (wf : ves.WFCore sourceProdEnv) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WF sourceProdEnv)
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
@@ -616,7 +614,7 @@ theorem RestoredBlockCertificate.safeInductiveExtensionOfKernel
   have Howners : ConstructorOwnersPresent c.env := by
     rw [henv]
     exact wf.constructorOwners
-  exact C.safeInductiveExtension wf htels
+  exact C.safeInductiveExtension wf
     (C.inductInfosFromDecl Hlower Hc Hprod Hmetadata Hsources Harity
       Howners hempty henv hlparams hnames)
     hclosed
@@ -639,7 +637,7 @@ private theorem RestoredBlockCertificate.unsafeInductiveExtension
     {decl : VInductDecl} {lparams : List Name} {nparams : Nat}
     (C : RestoredBlockCertificate H (ves.venv .unsafe) decl lparams
       nparams true .unsafe)
-    (wf : ves.WFCore sourceProdEnv) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WF sourceProdEnv)
     (Horigins : InductInfosFromDecl sourceProdEnv.constants
       outEnv.constants decl)
     (hentriesUnsafe : ∀ entries
@@ -824,7 +822,7 @@ private theorem RestoredBlockCertificate.unsafeInductiveExtension
     · rw [← hlookupEnv]
       exact hfind
     · exact hprimitive
-  rcases VEnvs.WFCore.extendUnsafeExact wf
+  rcases VEnvs.WF.extendUnsafeExact wf
       (C.recursorVEnv.addDefEqRules
         (C.sourceRules ++ C.auxiliaryRules))
       htrUnsafe htrPartial htrSafe
@@ -835,18 +833,12 @@ private theorem RestoredBlockCertificate.unsafeInductiveExtension
       (ves'.venv .unsafe) := by
     rw [hexact]
     exact Hadd.toVEnv
-  have hH : venvH ≤ ves'.venv (if true then .unsafe else .safe) := by
-    show venvH ≤ ves'.venv .unsafe
-    rw [hexact]
-    rw [← C.typeValues] at htypesH
-    exact B.typesLe htypesH
   exact ⟨InductiveExtension.ofModel ves' wf' hle
     { decl := decl
       envTypes := F.envTypes
       envCtors := F.envCtors
       source := F.sourceCore
-      extension := haddExact }
-    (VEnvs.CtorTelescopesPreserved.ofOrigin (isUnsafe := true) hle wf'.mono hH hctorOrigin)⟩
+      extension := haddExact }⟩
 
 /-- Unsafe installed-model assembly with the kernel family lookups discharged
 from the closed lowering, the lowered run, and the restoration folds. -/
@@ -867,7 +859,7 @@ theorem RestoredBlockCertificate.unsafeInductiveExtensionOfKernel
       (ves.venv .unsafe) result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {fuel : Nat} {initialState : Lean4Lean.ElimNestedInductive.State}
-    (wf : ves.WFCore sourceProdEnv) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WF sourceProdEnv)
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
@@ -895,7 +887,7 @@ theorem RestoredBlockCertificate.unsafeInductiveExtensionOfKernel
   have Howners : ConstructorOwnersPresent c.env := by
     rw [henv]
     exact wf.constructorOwners
-  exact C.unsafeInductiveExtension wf htels
+  exact C.unsafeInductiveExtension wf
     (C.inductInfosFromDecl Hlower Hc Hprod Hmetadata Hsources Harity
       Howners hempty henv hlparams hnames)
     hentriesUnsafe hclosed
