@@ -25,3 +25,4 @@ import Lean4Lean.Tests.RecursiveFieldClassification
 import Lean4Lean.Tests.DeclFVar
 import Lean4Lean.Tests.Level
 import Lean4Lean.Tests.StructEtaIota
+import Lean4Lean.Tests.CacheScope
