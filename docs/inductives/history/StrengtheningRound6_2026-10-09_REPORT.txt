@@ -1,0 +1,505 @@
+ROUND 6 — CUT-TYPE RANK AND CHECKED OBSTRUCTIONS
+
+The requested subformula theorem is FALSE for the pilot. Cert.trans and Cancel
+are not proved. The literal lower-bound alternative in task (5) is proved, with
+the important limitation that it is a >= bound, not a > bound or a failure of
+transitivity. The displayed pair actually has a composition.
+
+REPRODUCTION
+Run from /home/kim/worktrees/lean4lean/lean4lean-agent-verify-inductives:
+  lake env lean /home/kim/worktrees/lean4lean/strengthening-context/round6/Round6.lean
+
+The source imports the actual Pilot.lean. It does not import, modify, or replace
+round 5. All round-6 source and report artifacts are under this directory.
+
+VALIDATION
+
+lake env lean completed with exit status 0. All 59 #print axioms reports are
+in check.log and axioms.txt. There are no warnings, errors, or sorryAx dependencies.
+All reported axioms lie in {propext, Classical.choice, Quot.sound}; some theorems
+use no axioms. No repository source file was changed.
+
+STATUS AGAINST THE FIVE REQUESTS
+
+(1) Defined: complexity is (evaluated universe of the common type, nodes of that
+common type). The universe assignment rho is explicit; every concrete result is
+uniform in rho. DCert is a Type-valued copy of all 28 pilot constructors, with
+CutAt metadata at conv_mk and step_beta. DCert.erase proves that erasing metadata
+produces an actual pilot certificate. cuts visits EVERY recursive certificate
+premise, including those below binders and those in synthesis. Each conv_mk and
+each step_beta contributes its own common-type label. size counts every DCert
+constructor once, including ty/red/norm constructors. rank is (maximum label,
+multiset of all labels, certificate size). MultiLT is strict multiset replacement,
+represented by lists modulo permutation.
+
+Limitations: this is an annotated presentation, not a function extracting size
+from a proof of Cert (which is Prop and proof-irrelevant). The annotations include
+checked declarative typings to identify each cut's common type; these metadata
+are not additional pilot inference rules, and are not themselves reified typing
+derivations. No theorem says that every untyped raw Cert admits such annotations.
+Potential beta redexes in syntax are not counted unless they occur as step_beta
+in the derivation. This is a derivation profile, not the round-5 syntactic profile.
+complexity_wf is proved. Well-foundedness of MultiLT or RankLT is NOT asserted or
+proved here; it would not fix the failed decreases below.
+
+(2) Refuted: proofIrrel_subformula_false constructs proof variables h0,h1:P with
+P:Prop, in proofCtx = [bvar 2,bvar 1,bvar 0,Prop]. The enclosing conversion h0~h1
+has common type P, universe 0, nodes 1: label (0,1). Its actual hidden conversion
+P~P has common type Prop, universe 1, nodes 1: label (1,1). Hence the hidden label
+is NOT <= the enclosing label. This is a well-formed context in every environment.
+Taking the maximum over the whole certificate instead does not repair the strict
+principal-premise condition: proofIrrel_principal_not_strict proves that both
+maxima are (1,1).
+
+The assertion that instances preserve the proposed subformula complexity also
+fails: instance_subformula_false instantiates a variable type X at universe 1 by
+Pi _:Prop, Prop, also at universe 1, changing nodes from 1 to 3. Its typing
+certificate instanceTy has no cuts.
+
+The synthesis correction from round 5 is not smaller under this convention.
+synthesis_correction_higher certifies Sort(imax 1 1) ~ Sort 1 AT Sort 2.
+Sort 2 itself has universe 3, so the correction's label is (3,1), whereas the
+substitution variable type Q=Sort 1 has label (2,1).
+
+(3) Mixed, with the SAME definitions for all tests:
+  twice_tower_decreases: proved for every N. The source typing profile is [(3,1)]
+    and the contractum typing profile is empty; the first rank component falls.
+  nested_decreases: proved for every N. N+1 equal labels become N equal labels;
+    for N>0 the strict multiset component falls (for N=0 the maximum falls).
+  duplication_equal_rank: for nested 1, both natural fully annotated typing
+    certificates have rank ((3,1),[(3,1),(3,1)],25).
+  duplication_more_cuts / duplication_not_decreasing: for nested 2, the source
+    has ((3,1),[(3,1),(3,1),(3,1)],35), and the contractum has
+    ((3,1),[(3,1),(3,1),(3,1),(3,1)],45). This is NOT a decrease. All these labels
+    are the common types of actual hidden application-check conversions.
+  duplication_beta, twice_tower_beta, nested_beta give actual pilot steps.
+
+The duplication results compare the displayed annotated typing certificates;
+they do not claim that every possible contractum certificate has the same rank.
+They do refute automatic decrease for this direct certificate transformation.
+Strict multiset extension permits arbitrary duplication of STRICTLY LOWER labels,
+not arbitrary duplication of labels equal to those removed.
+
+(4) DCert.weakN_rank proves weakening for EVERY constructor, preserving the full
+profile and size; DCert.weakN_rank_eq consequently preserves the entire rank.
+No general certified-substitution theorem with a rank bound is proved.
+BelowBudget states the proposed strict bound on all replacement-certificate cuts.
+budget_does_not_imply_rank_nonincrease gives an ACTUAL Ctx.InstN at depth 1:
+  [X, Q] --> [Pi _:Prop, Prop], where Q=Sort(imax 1 1).
+The replacement synthesizes exactly Q and has an EMPTY cut profile, so it satisfies
+the strict budget. A reflexive variable comparison whose common type is X has
+rank ((1,1),[(1,1)],4); its displayed substituted common type gives rank
+((1,3),[(1,3)],4). substitution_metadata checks the common type is exactly the
+instance of the input common type. This refutes nonincrease from this budget,
+not the existence of a larger bound depending on instantiated types.
+
+(5) The exact pair is proofCompare h0_lookup h1_lookup and
+proofCompare h1_lookup h2_lookup in the EMPTY, well-formed environment. Each has
+profile [(0,1),(1,1)] and maximum (1,1).
+exact_pair_composition_lower_bound proves that EVERY DCert composition h0~h2,
+with arbitrary reduction witnesses and arbitrary common-type annotations, contains
+a cut >= (1,1), hence >= both input maxima. It does not assume that the output
+uses the displayed proof-irrelevance derivation.
+
+The proof first shows that these variables cannot reduce in the empty environment
+(atomic_claim). A normal comparison of the distinct proof variables must use
+norm_proofIrrel; etaBoth is impossible because the synthesized type cannot expose
+a Pi. The hidden comparison is necessarily P~P. propCut_level shows that even an
+alternative choice of its common type has universe 1, using existing unique
+typing and sort injectivity. Its node count is at least 1.
+
+This meets the literal >= alternative, but its force must not be overstated:
+proof_pair supplies the composition, and proofCompare h0_lookup h2_lookup has the
+SAME rank as either input. The lower bound does not rule out induction comparing
+the output with the COMBINED input profiles/sizes. It is NOT a counterexample to
+Cert.trans. The independent obstruction to the proposed argument is (2), together
+with the failed automatic decreases in (3) and (4).
+
+FULL CALCULUS
+There is no successful transitivity proof to extend. Neither canonical-Eq
+strengthening nor its negation follows from these results. An extension would
+still need a corrected admissibility proof for the pilot; annotated context
+transport and substitution; and certificates for the premises of prefix unfolding
+with UnfoldingCheck (source_typed, captures_typed, major_prop, recursor_lhs,
+including generated telescopes), projection rules, structure parameters and
+structure/unit eta, and quotient unfolding. Each added rule would require its
+own soundness, transport, overlap/composition and decrease arguments. None of
+those full-calculus obligations is claimed discharged here.
+
+VERBATIM DEFINITIONS
+The following declarations are extracted unchanged from Round6.lean. The source
+also contains all proofs and all #print axioms commands.
+
+def nodes : VExpr → Nat
+  | .app a b | .lam a b | .forallE a b => nodes a + nodes b + 1
+  | .proj _ _ e => nodes e + 1
+  | _ => 1
+
+abbrev Complexity := Nat × Nat
+
+def ComplexityLT : Complexity → Complexity → Prop := Prod.Lex (· < ·) (· < ·)
+
+def ComplexityLE (a b : Complexity) : Prop := a = b ∨ ComplexityLT a b
+
+def complexity (ρ : List Nat) (u : VLevel) (T : VExpr) : Complexity :=
+  (u.eval ρ, nodes T)
+
+structure CutAt (env : VEnv) (U : Nat) (Γ : List VExpr) (a b : VExpr) where
+  type : VExpr
+  level : VLevel
+  left : env.HasType U Γ a type
+  right : env.HasType U Γ b type
+  sort : env.HasType U Γ type (.sort level)
+
+def CutAt.label (ρ : List Nat) (c : CutAt env U Γ a b) : Complexity :=
+  complexity ρ c.level c.type
+
+inductive DCert : CKind → List VExpr → VExpr → VExpr → Type
+  -- synthesis
+  | ty_bvar : Lookup Γ i A → DCert .ty Γ (.bvar i) A
+  | ty_sort : l.WF U → DCert .ty Γ (.sort l) (.sort (.succ l))
+  | ty_const : env.constants c = some ci → (∀ l ∈ ls, l.WF U) → ls.length = ci.uvars →
+      DCert .ty Γ (.const c ls) (ci.type.instL ls)
+  | ty_app : DCert .ty Γ f F → DCert .red Γ F (.forallE A B) → DCert .ty Γ a A' →
+      DCert .conv Γ A' A → DCert .ty Γ (.app f a) (B.inst a)
+  | ty_lam : DCert .ty Γ A S → DCert .red Γ S (.sort u) → DCert .ty (A::Γ) b B →
+      DCert .ty Γ (.lam A b) (.forallE A B)
+  | ty_forallE : DCert .ty Γ A S → DCert .red Γ S (.sort u) → DCert .ty (A::Γ) B S' →
+      DCert .red (A::Γ) S' (.sort v) → DCert .ty Γ (.forallE A B) (.sort (.imax u v))
+  -- parallel step
+  | step_bvar : DCert .step Γ (.bvar i) (.bvar i)
+  | step_sort : DCert .step Γ (.sort l) (.sort l)
+  | step_const : DCert .step Γ (.const c ls) (.const c ls)
+  | step_app : DCert .step Γ f f' → DCert .step Γ a a' → DCert .step Γ (.app f a) (.app f' a')
+  | step_lam : DCert .step Γ A A' → DCert .step (A::Γ) b b' →
+      DCert .step Γ (.lam A b) (.lam A' b')
+  | step_forallE : DCert .step Γ A A' → DCert .step (A::Γ) B B' →
+      DCert .step Γ (.forallE A B) (.forallE A' B')
+  | step_beta : CutAt env U Γ (.app (.lam A b) a) (b'.inst a') → DCert .step (A::Γ) b b' → DCert .step Γ a a' →
+      DCert .step Γ (.app (.lam A b) a) (b'.inst a')
+  | step_extra : env.defeqs df → (∀ l ∈ ls, l.WF U) → ls.length = df.uvars →
+      DCert .step Γ (df.lhs.instL ls) (df.rhs.instL ls)
+  | step_eta : DCert .ty Γ e F → DCert .red Γ F (.forallE A B) →
+      DCert .step Γ e (.lam A (.app e.lift (.bvar 0)))
+  -- reduction
+  | red_refl : DCert .red Γ e e
+  | red_step : DCert .step Γ a b → DCert .red Γ b c → DCert .red Γ a c
+  -- normal equality
+  | norm_bvar : DCert .norm Γ (.bvar i) (.bvar i)
+  | norm_sort : l₁.WF U → l₂.WF U → l₁ ≈ l₂ → DCert .norm Γ (.sort l₁) (.sort l₂)
+  | norm_const : env.constants c = some ci → (∀ l ∈ ls, l.WF U) → (∀ l ∈ ls', l.WF U) →
+      ls.length = ci.uvars → List.Forall₂ (· ≈ ·) ls ls' →
+      DCert .norm Γ (.const c ls) (.const c ls')
+  | norm_app : DCert .norm Γ f f' → DCert .norm Γ a a' → DCert .norm Γ (.app f a) (.app f' a')
+  | norm_lam : DCert .conv Γ A A' → DCert .norm (A::Γ) b b' →
+      DCert .norm Γ (.lam A b) (.lam A' b')
+  | norm_forallE : DCert .conv Γ A A' → DCert .norm (A::Γ) B B' →
+      DCert .norm Γ (.forallE A B) (.forallE A' B')
+  | norm_etaL : DCert .ty Γ e' F → DCert .red Γ F (.forallE A' B) → DCert .conv Γ A A' →
+      DCert .norm (A::Γ) e (.app e'.lift (.bvar 0)) → DCert .norm Γ (.lam A e) e'
+  | norm_etaR : DCert .ty Γ e F → DCert .red Γ F (.forallE A' B) → DCert .conv Γ A A' →
+      DCert .norm (A::Γ) (.app e.lift (.bvar 0)) e' → DCert .norm Γ e (.lam A e')
+  | norm_etaBoth : DCert .ty Γ e F → DCert .red Γ F (.forallE A B) → DCert .ty Γ e' F' →
+      DCert .red Γ F' (.forallE A' B') → DCert .conv Γ A A' →
+      DCert .norm (A::Γ) (.app e.lift (.bvar 0)) (.app e'.lift (.bvar 0)) →
+      DCert .norm Γ e e'
+  | norm_proofIrrel : DCert .ty Γ h p → DCert .ty Γ h' p' → DCert .conv Γ p p' →
+      DCert .ty Γ p S → DCert .red Γ S (.sort .zero) → DCert .norm Γ h h'
+  -- conversion
+  | conv_mk : CutAt env U Γ a b → DCert .red Γ a a' → DCert .red Γ b b' → DCert .norm Γ a' b' → DCert .conv Γ a b
+
+def DCert.size : DCert env U j Γ a b → Nat
+  | .ty_bvar _ => 1
+  | .ty_sort _ => 1
+  | .ty_const _ _ _ => 1
+  | .ty_app h0 h1 h2 h3 => 1 + h0.size + h1.size + h2.size + h3.size
+  | .ty_lam h0 h1 h2 => 1 + h0.size + h1.size + h2.size
+  | .ty_forallE h0 h1 h2 h3 => 1 + h0.size + h1.size + h2.size + h3.size
+  | .step_bvar  => 1
+  | .step_sort  => 1
+  | .step_const  => 1
+  | .step_app h0 h1 => 1 + h0.size + h1.size
+  | .step_lam h0 h1 => 1 + h0.size + h1.size
+  | .step_forallE h0 h1 => 1 + h0.size + h1.size
+  | .step_beta _ h1 h2 => 1 + h1.size + h2.size
+  | .step_extra _ _ _ => 1
+  | .step_eta h0 h1 => 1 + h0.size + h1.size
+  | .red_refl  => 1
+  | .red_step h0 h1 => 1 + h0.size + h1.size
+  | .norm_bvar  => 1
+  | .norm_sort _ _ _ => 1
+  | .norm_const _ _ _ _ _ => 1
+  | .norm_app h0 h1 => 1 + h0.size + h1.size
+  | .norm_lam h0 h1 => 1 + h0.size + h1.size
+  | .norm_forallE h0 h1 => 1 + h0.size + h1.size
+  | .norm_etaL h0 h1 h2 h3 => 1 + h0.size + h1.size + h2.size + h3.size
+  | .norm_etaR h0 h1 h2 h3 => 1 + h0.size + h1.size + h2.size + h3.size
+  | .norm_etaBoth h0 h1 h2 h3 h4 h5 => 1 + h0.size + h1.size + h2.size + h3.size + h4.size + h5.size
+  | .norm_proofIrrel h0 h1 h2 h3 h4 => 1 + h0.size + h1.size + h2.size + h3.size + h4.size
+  | .conv_mk _ h1 h2 h3 => 1 + h1.size + h2.size + h3.size
+
+def DCert.cuts (ρ : List Nat) : DCert env U j Γ a b → List Complexity
+  | .ty_bvar _ => []
+  | .ty_sort _ => []
+  | .ty_const _ _ _ => []
+  | .ty_app h0 h1 h2 h3 => h0.cuts ρ ++ h1.cuts ρ ++ h2.cuts ρ ++ h3.cuts ρ
+  | .ty_lam h0 h1 h2 => h0.cuts ρ ++ h1.cuts ρ ++ h2.cuts ρ
+  | .ty_forallE h0 h1 h2 h3 => h0.cuts ρ ++ h1.cuts ρ ++ h2.cuts ρ ++ h3.cuts ρ
+  | .step_bvar  => []
+  | .step_sort  => []
+  | .step_const  => []
+  | .step_app h0 h1 => h0.cuts ρ ++ h1.cuts ρ
+  | .step_lam h0 h1 => h0.cuts ρ ++ h1.cuts ρ
+  | .step_forallE h0 h1 => h0.cuts ρ ++ h1.cuts ρ
+  | .step_beta h0 h1 h2 => [h0.label ρ] ++ h1.cuts ρ ++ h2.cuts ρ
+  | .step_extra _ _ _ => []
+  | .step_eta h0 h1 => h0.cuts ρ ++ h1.cuts ρ
+  | .red_refl  => []
+  | .red_step h0 h1 => h0.cuts ρ ++ h1.cuts ρ
+  | .norm_bvar  => []
+  | .norm_sort _ _ _ => []
+  | .norm_const _ _ _ _ _ => []
+  | .norm_app h0 h1 => h0.cuts ρ ++ h1.cuts ρ
+  | .norm_lam h0 h1 => h0.cuts ρ ++ h1.cuts ρ
+  | .norm_forallE h0 h1 => h0.cuts ρ ++ h1.cuts ρ
+  | .norm_etaL h0 h1 h2 h3 => h0.cuts ρ ++ h1.cuts ρ ++ h2.cuts ρ ++ h3.cuts ρ
+  | .norm_etaR h0 h1 h2 h3 => h0.cuts ρ ++ h1.cuts ρ ++ h2.cuts ρ ++ h3.cuts ρ
+  | .norm_etaBoth h0 h1 h2 h3 h4 h5 => h0.cuts ρ ++ h1.cuts ρ ++ h2.cuts ρ ++ h3.cuts ρ ++ h4.cuts ρ ++ h5.cuts ρ
+  | .norm_proofIrrel h0 h1 h2 h3 h4 => h0.cuts ρ ++ h1.cuts ρ ++ h2.cuts ρ ++ h3.cuts ρ ++ h4.cuts ρ
+  | .conv_mk h0 h1 h2 h3 => [h0.label ρ] ++ h1.cuts ρ ++ h2.cuts ρ ++ h3.cuts ρ
+
+def MultiLT (xs ys : List Complexity) : Prop :=
+  ∃ keep removed added, ys.Perm (keep ++ removed) ∧ xs.Perm (keep ++ added) ∧
+    removed ≠ [] ∧ ∀ x ∈ added, ∃ y ∈ removed, ComplexityLT x y
+
+def maxComplexity (xs : List Complexity) : Complexity :=
+  xs.foldr (fun a b => if a.1 < b.1 then b else
+    if b.1 < a.1 then a else (a.1, max a.2 b.2)) (0,0)
+
+abbrev Rank := Complexity × (List Complexity × Nat)
+
+def RankLT (a b : Rank) : Prop :=
+  ComplexityLT a.1 b.1 ∨ (a.1 = b.1 ∧
+    (MultiLT a.2.1 b.2.1 ∨ (a.2.1.Perm b.2.1 ∧ a.2.2 < b.2.2)))
+
+def DCert.rank (ρ : List Nat) (h : DCert env U j Γ a b) : Rank :=
+  (maxComplexity (h.cuts ρ), h.cuts ρ, h.size)
+
+def proofCtx : List VExpr := [.bvar 2, .bvar 1, .bvar 0, .sort .zero]
+
+def P : VExpr := .bvar 3
+
+def propCut : CutAt env U proofCtx P P :=
+  ⟨.sort .zero, .succ .zero, .bvar p_lookup, .bvar p_lookup, .sort trivial⟩
+
+def proofCut (hi : Lookup proofCtx i P) (hj : Lookup proofCtx j P) :
+    CutAt env U proofCtx (.bvar i) (.bvar j) :=
+  ⟨P, .zero, .bvar hi, .bvar hj, .bvar p_lookup⟩
+
+def propRefl : DCert env U .conv proofCtx P P :=
+  .conv_mk propCut .red_refl .red_refl .norm_bvar
+
+def proofCompare (hi : Lookup proofCtx i P) (hj : Lookup proofCtx j P) :
+    DCert env U .conv proofCtx (.bvar i) (.bvar j) :=
+  .conv_mk (proofCut hi hj) .red_refl .red_refl
+    (.norm_proofIrrel (.ty_bvar hi) (.ty_bvar hj) propRefl
+      (.ty_bvar p_lookup) .red_refl)
+
+def S0 : VExpr := .sort .zero
+
+def S1 : VExpr := .sort (.succ .zero)
+
+def S2 : VExpr := .sort (.succ (.succ .zero))
+
+def piLevel : VLevel := .imax (.succ .zero) (.succ .zero)
+
+def piSort : VExpr := .sort piLevel
+
+def sort1Cut : CutAt env U Γ S1 S1 :=
+  ⟨S2, .succ (.succ (.succ .zero)), .sort trivial, .sort trivial, .sort trivial⟩
+
+def sort1Refl : DCert env U .conv Γ S1 S1 :=
+  .conv_mk sort1Cut .red_refl .red_refl (.norm_sort trivial trivial rfl)
+
+def nested : Nat → VExpr
+  | 0 => S0
+  | n+1 => .app (.lam S1 (.bvar 0)) (nested n)
+
+def nestedTy (n : Nat) : DCert env U .ty Γ (nested n) S1 :=
+  match n with
+  | 0 => .ty_sort trivial
+  | n+1 => .ty_app (.ty_lam (.ty_sort (l := .succ .zero) trivial) .red_refl (.ty_bvar .zero))
+      .red_refl (nestedTy n) sort1Refl
+
+def twice : VExpr := .forallE (.bvar 0) (.bvar 1)
+
+def twiceTy : DCert env U .ty (S1 :: Γ) twice piSort :=
+  .ty_forallE (.ty_bvar .zero) .red_refl (.ty_bvar (.succ .zero)) .red_refl
+
+def dupSource (n : Nat) : VExpr := .app (.lam S1 twice) (nested n)
+
+def dupTarget (n : Nat) : VExpr := .forallE (nested n) (nested n)
+
+def dupSourceTy (n : Nat) : DCert env U .ty Γ (dupSource n) piSort :=
+  .ty_app (.ty_lam (.ty_sort (l := .succ .zero) trivial) .red_refl twiceTy) .red_refl
+    (nestedTy n) sort1Refl
+
+def dupTargetTy (n : Nat) : DCert env U .ty Γ (dupTarget n) piSort :=
+  .ty_forallE (nestedTy n) .red_refl (nestedTy n) .red_refl
+
+def instanceType : VExpr := .forallE S0 S0
+
+def instanceTy : DCert env U .ty [] instanceType piSort :=
+  .ty_forallE (.ty_sort trivial) .red_refl (.ty_sort trivial) .red_refl
+
+def synthesisCorrection : CutAt env U [] piSort S1 :=
+  ⟨S2, .succ (.succ (.succ .zero)),
+    .defeqDF (A := .sort (.succ piLevel))
+      (.sortDF ⟨trivial,trivial⟩ trivial rfl)
+      (show env.HasType U [] piSort (.sort (.succ piLevel)) from .sort ⟨trivial,trivial⟩),
+    .sort trivial, .sort trivial⟩
+
+def synthesisCorrectionCert : DCert env U .conv [] piSort S1 :=
+  .conv_mk synthesisCorrection .red_refl .red_refl
+    (.norm_sort ⟨trivial,trivial⟩ trivial rfl)
+
+def Atomic : VExpr → Prop
+  | .bvar _ | .sort _ => True
+  | _ => False
+
+def AtomicCtx (Γ : List VExpr) : Prop := ∀ i A, Lookup Γ i A → Atomic A
+
+def AtomicClaim : CKind → List VExpr → VExpr → VExpr → Prop
+  | .ty, Γ, a, b => AtomicCtx Γ → Atomic a → Atomic b
+  | .step, Γ, a, b | .red, Γ, a, b => AtomicCtx Γ → Atomic a → b = a
+  | _, _, _, _ => True
+
+def CutAt.weakN (henv : env.WF) (c : CutAt env U Γ a b)
+    (W : Ctx.LiftN n k Γ Δ) : CutAt env U Δ (a.liftN n k) (b.liftN n k) :=
+  ⟨c.type.liftN n k, c.level, c.left.weakN henv.ordered W,
+    c.right.weakN henv.ordered W, c.sort.weakN henv.ordered W⟩
+
+def DCert.cast (h : DCert env U j Γ a b) (ha : a = a') (hb : b = b') :
+    DCert env U j Γ a' b' := ha ▸ hb ▸ h
+
+def CutAt.cast (c : CutAt env U Γ a b) (ha : a = a') (hb : b = b') :
+    CutAt env U Γ a' b' := ha ▸ hb ▸ c
+
+def BelowBudget (ρ : List Nat) (q : Complexity) (h : DCert env U j Γ a b) : Prop :=
+  ∀ c ∈ h.cuts ρ, ComplexityLT c q
+
+def beforeSubCut : CutAt env U [.bvar 0, piSort] (.bvar 0) (.bvar 0) :=
+  ⟨.bvar 1, piLevel, .bvar .zero, .bvar .zero, .bvar (.succ .zero)⟩
+
+def afterSubCut : CutAt env U [instanceType] (.bvar 0) (.bvar 0) :=
+  ⟨instanceType, piLevel, .bvar .zero, .bvar .zero,
+    .forallE (.sort trivial) (.sort trivial)⟩
+
+def beforeSub : DCert env U .conv [.bvar 0, piSort] (.bvar 0) (.bvar 0) :=
+  .conv_mk beforeSubCut .red_refl .red_refl .norm_bvar
+
+def afterSub : DCert env U .conv [instanceType] (.bvar 0) (.bvar 0) :=
+  .conv_mk afterSubCut .red_refl .red_refl .norm_bvar
+
+def tower : Nat → VExpr
+  | 0 => S0
+  | n+1 => .forallE S0 (tower n)
+
+def towerLevel : Nat → VLevel
+  | 0 => .succ .zero
+  | n+1 => .imax (.succ .zero) (towerLevel n)
+
+def towerTy (n : Nat) : DCert env U .ty Γ (tower n) (.sort (towerLevel n)) :=
+  match n with
+  | 0 => .ty_sort trivial
+  | n+1 => .ty_forallE (.ty_sort trivial) .red_refl (towerTy n) .red_refl
+
+def towerAlignment (n : Nat) : CutAt env U Γ (.sort (towerLevel n)) S1 :=
+  ⟨S2, .succ (.succ (.succ .zero)),
+    .defeqDF (A := .sort (.succ (towerLevel n)))
+      (.sortDF (towerLevel_wf n) trivial
+        (by funext ρ; simp [VLevel.eval, towerLevel_eval]))
+      (show env.HasType U Γ (.sort (towerLevel n)) (.sort (.succ (towerLevel n))) from
+        .sort (towerLevel_wf n)), .sort trivial, .sort trivial⟩
+
+def towerConv (n : Nat) : DCert env U .conv Γ (.sort (towerLevel n)) S1 :=
+  .conv_mk (towerAlignment n) .red_refl .red_refl
+    (.norm_sort (towerLevel_wf n) trivial (funext (fun ρ => towerLevel_eval ρ n)))
+
+def towerSourceTy (n : Nat) :
+    DCert env U .ty Γ (.app (.lam S1 twice) (tower n)) piSort :=
+  .ty_app (.ty_lam (.ty_sort (l := .succ .zero) trivial) .red_refl twiceTy)
+    .red_refl (towerTy n) (towerConv n)
+
+def towerTargetTy (n : Nat) :
+    DCert env U .ty Γ (.forallE (tower n) (tower n))
+      (.sort (.imax (towerLevel n) (towerLevel n))) :=
+  .ty_forallE (towerTy n) .red_refl (towerTy n) .red_refl
+
+def hiddenSourceTy (n : Nat) :
+    DCert env U .ty Γ (.app (.lam S1 (nested n)) S0) S1 :=
+  .ty_app (.ty_lam (.ty_sort (l := .succ .zero) trivial) .red_refl (nestedTy n))
+    .red_refl (.ty_sort trivial) sort1Refl
+
+AXIOM REPORT
+Verbatim compiler output follows.
+
+'Lean4Lean.Round6.DCert.erase' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.complexity_wf' does not depend on any axioms
+'Lean4Lean.Round6.nodes_lift' depends on axioms: [propext]
+'Lean4Lean.Round6.complexity_lift' depends on axioms: [propext]
+'Lean4Lean.Round6.proofCtx_wf' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.p_lookup' does not depend on any axioms
+'Lean4Lean.Round6.h0_lookup' does not depend on any axioms
+'Lean4Lean.Round6.h1_lookup' does not depend on any axioms
+'Lean4Lean.Round6.h2_lookup' does not depend on any axioms
+'Lean4Lean.Round6.proofIrrel_subformula_false' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.proofCompare_profile' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.proofCompare_rank' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.proof_pair' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.raw_certificates_equal' depends on axioms: [propext]
+'Lean4Lean.Round6.duplication_equal_rank' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.duplication_more_cuts' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.complexity_irrefl' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.multilt_replicate_length' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Lean4Lean.Round6.duplication_not_decreasing' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Lean4Lean.Round6.nestedRefl' depends on axioms: [propext]
+'Lean4Lean.Round6.duplication_beta' depends on axioms: [propext]
+'Lean4Lean.Round6.instance_subformula_false' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.synthesis_correction_higher' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.atomic_claim' depends on axioms: [propext]
+'Lean4Lean.Round6.atomic_lift' depends on axioms: [propext]
+'Lean4Lean.Round6.lookup_atomic' depends on axioms: [propext]
+'Lean4Lean.Round6.proofCtx_atomic' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.propCut_level' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Lean4Lean.Round6.nodes_pos' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.propCut_at_least' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Lean4Lean.Round6.proof0_synthesis' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.proof2_synthesis' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.norm_boundary_requires_cut' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Lean4Lean.Round6.composition_requires_cut' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Lean4Lean.Round6.exact_pair_composition_lower_bound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Lean4Lean.Round6.CutAt.weakN_label' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.DCert.cast_cuts' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.DCert.cast_size' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.CutAt.cast_label' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.DCert.transport' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.CutAt.transport' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.DCert.weakN_rank' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.budget_does_not_imply_rank_nonincrease' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.substitution_metadata' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.towerLevel_wf' does not depend on any axioms
+'Lean4Lean.Round6.towerLevel_eval' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.towerTy_cuts' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.twice_tower_decreases' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.nestedTy_cuts' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.max_replicate' does not depend on any axioms
+'Lean4Lean.Round6.hiddenSourceTy_cuts' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.nested_decreases' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.DCert.weakN_rank_eq' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.proofIrrel_principal_not_strict' depends on axioms: [propext, Quot.sound]
+'Lean4Lean.Round6.tower_closed' does not depend on any axioms
+'Lean4Lean.Round6.nested_closed' does not depend on any axioms
+'Lean4Lean.Round6.towerRefl' depends on axioms: [propext]
+'Lean4Lean.Round6.twice_tower_beta' depends on axioms: [propext]
+'Lean4Lean.Round6.nested_beta' depends on axioms: [propext]

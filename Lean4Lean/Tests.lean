@@ -23,6 +23,7 @@ import Lean4Lean.Tests.CorruptRestoredRecursorMetadata
 import Lean4Lean.Tests.KernelHardening
 import Lean4Lean.Tests.LevelStd
 import Lean4Lean.Tests.RecursorOracle
+import Lean4Lean.Tests.RecursiveFieldClassification
 import Lean4Lean.Tests.PreludeEq
 import Lean4Lean.Tests.DeclFVar
 import Lean4Lean.Tests.Level
