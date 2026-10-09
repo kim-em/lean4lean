@@ -29,7 +29,7 @@ theorem validateSourceConstructorTypes.telTr_of_run
     (henv : TypeChecker.EnvGhostFree (fun _ => True) env)
     (Hsources : SourceSyntaxChecks types)
     (hrun : Lean4Lean.validateSourceConstructorTypes.run env lparams
-      safety fuel types result = .ok ())
+      safety fuel types = .ok ())
     (htype : indType ∈ types) (hctor : ctor ∈ indType.ctors) :
     ∃ T, TelTrN venv lparams (AddInductive.constructorArity ctor.type) [] ctor.type T := by
   rcases validateSourceConstructorTypes.typeCheck_eq_ok_of_run
