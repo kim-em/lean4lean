@@ -427,7 +427,8 @@ def rhs2 : VExpr := .lam CT (.lam M1T (.lam M2T (.bvar 0)))
 def t1V : VConstVal := { name := t1n, uvars := 0, type := Pc }
 def t2V : VConstVal := { name := t2n, uvars := 0, type := Pc }
 def PT : VInductiveType :=
-  { name := Pn, uvars := 0, type := .sort .zero, ctors := [t1V, t2V] }
+  { name := Pn, uvars := 0, type := .sort .zero, numIndices := 0, resultLevel := .zero,
+    ctors := [t1V, t2V] }
 def ru1 : VRecRule := { ctor := t1n, ctorParams := 0, nfields := 0, rhs := rhs1 }
 def ru2 : VRecRule := { ctor := t2n, ctorParams := 0, nfields := 0, rhs := rhs2 }
 def RV : VRecursor :=
@@ -439,6 +440,7 @@ def declB : VInductDecl where
   uvars := 0
   nparams := 0
   types := [PT]
+  isUnsafe := false
   recs := [RV]
 
 /-- The recursor asks for large elimination. -/
