@@ -157,4 +157,54 @@ theorem etaReplay_empty_chain (henv : env.WF) (heq : env.HasCanonicalEq)
   exact etaReplay_of_descent ((typedFrontN_iff_typedFront henv heq).mpr hTF) hcase hunfold
     (fun hp => Params.checkVars henv U hp) W hΓ hΓ' he hY
 
+/-! ## The regression path satisfies the eta-chain invariant
+
+Astra's `headSource` path (`TypingFront.lean`): one eta step inside the argument (output not a
+lift, `headType_bad_reduct`), then a beta at the root. It defeats the invariant "the reduct is a
+lift" (`headSource_path_not_descending`) but not the eta-chain invariant: the reduct after the eta
+step is an eta chain of the lift, the beta step above is simulated by the beta step below, and
+the final reduct `headTypeBad Q` is an eta chain of the lift of the exposed `Π` below. -/
+
+section
+open VEnv.Params
+variable [VEnv.Params]
+
+/-- The eta step of the regression path as a parallel eta expansion of the lift. -/
+theorem etaPar_headType_bad {Q : VExpr} :
+    EtaPar (Q :: Γ) headType.lift (headTypeBad Q) := by
+  have hd : Params.env.IsDefEq univs (Q :: Γ) (badDomain Q) (.sort .zero) (.sort (.succ .zero)) :=
+    .beta (HasType.sort (l := .zero) trivial) (.bvar .zero)
+  have hf : Params.env.HasType univs (Q :: Γ) StrengtheningObstructions.idProp
+      (.forallE (.sort .zero) (.sort .zero)) := .lamDF (HasType.sort (l := .zero) trivial) (.bvar .zero)
+  have hp := IsDefEq.forallEDF hd.symm (HasType.sort (env := Params.env) (U := univs)
+    (Γ := .sort .zero :: Q :: Γ) (l := .zero) trivial)
+  have hEta : EtaPar (Q :: Γ) StrengtheningObstructions.idProp (badEta Q) := by
+    simpa [badEta, StrengtheningObstructions.idProp, lift, liftN, liftVar] using
+      EtaPar.funEta (e' := StrengtheningObstructions.idProp) (A' := badDomain Q) .rfl .rfl
+        (IsDefEq.defeqDF hp hf)
+  simpa [headType, headTypeBad, StrengtheningObstructions.idProp, lift, liftN, liftVar] using
+    EtaPar.forallE (EtaPar.app .rfl hEta) .rfl
+
+/-- The regression path: an eta chain from the lift, one beta step above, the beta step below,
+and the eta-chain invariant at the end. -/
+theorem headSource_etaReplay_instance {Q : VExpr} :
+    EtaChain (Q :: Γ) headSource.lift (.app (.lam (.sort (.succ .zero)) (.bvar 0)) (headTypeBad Q)) ∧
+    ParRed (Q :: Γ) (.app (.lam (.sort (.succ .zero)) (.bvar 0)) (headTypeBad Q)) (headTypeBad Q) ∧
+    FullReduction Γ headSource headType ∧
+    EtaChain (Q :: Γ) headType.lift (headTypeBad Q) := by
+  refine ⟨?_, ?_, ?_, .tail .rfl etaPar_headType_bad⟩
+  · refine .tail .rfl ?_
+    simpa [headSource, lift, liftN, liftVar] using
+      EtaPar.app (.rfl (e := VExpr.lam (.sort (.succ .zero)) (.bvar 0))) etaPar_headType_bad
+  · simpa [inst, instVar] using
+      (ParRed.beta (Γ := Q :: Γ) (A := .sort (.succ .zero)) (e₁ := .bvar 0)
+        (e₂ := headTypeBad Q) .rfl .rfl)
+  · refine .tail .rfl ?_
+    simpa [headSource, inst, instVar] using
+      (FullStep.core (ParRed.beta (Γ := Γ) (A := .sort (.succ .zero)) (e₁ := .bvar 0)
+        (e₂ := headType) .rfl .rfl))
+
+end
+
 end Lean4Lean.VEnv.StrengtheningExposure
+

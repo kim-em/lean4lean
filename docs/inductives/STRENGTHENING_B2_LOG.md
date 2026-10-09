@@ -156,3 +156,19 @@ rule takes the generic type's sort typing as a premise in every context and the 
 `inductEliminators` records only a `RegistrationCertificate`, so both `GenericTypesTyped` and
 the closed case-rule typings inside `CaseRedexDescends` are environment lemmas to be derived
 from the certificate).
+
+## Step 5: the regression path under the eta-chain invariant (checked)
+
+`headSource_etaReplay_instance` (`Exposure.lean`): Astra's `headSource` path, which defeats the
+lift invariant (`headSource_path_not_descending`), satisfies the eta-chain invariant: the reduct
+after the eta step is an eta chain of `headSource.lift` (`etaPar_headType_bad`: the eta step is
+`EtaPar.funEta` at the domain `badDomain Q` inside the argument), the beta step above is simulated
+by the beta step `headSource → headType` below, and `headTypeBad Q` is an eta chain of
+`headType.lift`. So the `EtaReplay` instance for this path holds with `e' = headType`.
+
+Final state. Files: `Lean4Lean/Theory/Typing/Strengthening/Replay.lean` (round 9 lemmas; part 2:
+`TypedFrontN`, descent of `ParRed` and `DeltaPar`, alignment guards), `Exposure.lean` (eta-chain
+invariant, `EtaReplay`, assembly, regression instance). Both build at zero `sorry`; axiom audits
+(`scratch/ReplayAxioms.lean`, `scratch/ExposureAxioms.lean`): only `propext`, `Classical.choice`,
+`Quot.sound`. Nothing outside `Strengthening/` and `docs/inductives/` was changed; no existing
+statement was changed; no test was deleted.
