@@ -793,12 +793,12 @@ cache mode, which does, takes strengthening as the content of its license (secti
 
 The second attempt (`STRENGTHENING_ATTEMPT_2026-10-09b.md`, `Theory/Typing/Strengthening/`)
 reduces the statement, with every step checked, to `TypedFront` (strengthening for endpoints
-typed below at a common type) plus a short list of named obligations, each a `def` with its
-implication checked (descent of the case and unfolding guards, descent of the composite
-structure-eta-then-iota step, and two environment lemmas that are themselves closed-telescope
-strengthenings); the eta-chain closure under all eta-free steps is proved, every guard of every
-non-eta reduction rule descends under `TypedFront`, and the certificate route is closed for
-syntactic ranks. Still no proof and no counterexample.
+typed below at a common type) given two environment typings (`GenericTypesTyped₀`,
+`GenericRulesTyped₀`) and one `Prop`-structure field closure (`ProjFieldFrontPropN`), each
+itself a closed-telescope strengthening (`Strengthening/Final.lean`,
+`cancel_iff_typedFront_final`); every guard of every reduction rule descends under
+`TypedFront`, eta reducts are handled by the eta-chain closure, and the certificate route is
+closed for syntactic ranks. Still no proof and no counterexample.
 
 ### 5.2 Cache modes
 

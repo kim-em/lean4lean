@@ -132,43 +132,73 @@ a major or an eta subject).
   composite step; with an arbitrary `ParRed` after the expansion it is false, so the composite
   ends in a `RootFire`), `ProjFrontN`, `ElimFrontN`.
 
-## 6. Status after directions A, B, B2, B3, C, E
+* 2026-10-09: direction F finished (a0da8c4d, fast-forwarded): `Descents.lean`,
+  `Unfolding.lean`, `SpineClosure.lean`, `MajorEta.lean`, `Final.lean`. `UnfoldingCheckDescends`
+  as literally stated is not a `TypedFront` instance (its `source_typed` field for an arbitrary
+  telescope is a typing front), and is not needed: for the generated singleton and quotient
+  programs the descent is proved outright (`singleton_captures_typed`, `quot_captures_typed`,
+  `DeltaPar.descend'`); `caseRedexDescends` from `TypedFrontN ∧ GenericRulesTyped₀`;
+  `majorEtaDescends` (the major's family type below is read from the head of the typed
+  application, `RecursorRegistered.major_type`/`QuotRegistered.major_type`, and identified
+  with the structure by `rigid_rigid`, so there is no `numFields = 0` special case; the
+  expansion typed below needs `ProjFieldFrontN`); spine exposure restated over `EtaNE`.
+  Converses: `Cancel → ElimFrontN` proved; `Cancel` does not imply `GenericTypesTyped₀` or
+  `GenericRulesTyped₀` (premises of `elimDF`/`CaseStep.iota`, where they fail nothing is
+  typable and `Cancel` is vacuous); `Cancel → ProjFieldFrontPropN` believed true, not proved.
+  Final theorems in `Final.lean`: `cancel_iff_typedFront_final`,
+  `strengthening_iff_typedFront_final`, `cancel_iff_typedFront_and_elim`.
+* 2026-10-09: mainline (42 commits, `ed66abfd` removed unused theory hypotheses) merged as
+  8f0f2206; one call site fixed (`SpineExposure.lean`); `lake build Lean4Lean.Theory` green,
+  `scripts/check-inductive-audit.py`: no sorry dependencies, all axioms listed.
 
-**No proof, no counterexample; the open statement is reduced, with every step checked, to
-`TypedFront` plus a finite list of named obligations, each a `def` with its implication
-checked.** Under `env.WF` and `env.HasCanonicalEq`:
+## 6. Status after directions A, B, B2, B3, C, E, F (final for this attempt)
+
+**No proof, no counterexample. The open statement is reduced, with every step checked and
+zero `sorry`, to `TypedFront` given two environment typings and one `Prop`-structure field
+closure** (`Strengthening/Final.lean`):
+
+```lean
+theorem cancel_iff_typedFront_final (henv : env.WF) (heq : env.HasCanonicalEq)
+    (hGen : GenericTypesTyped₀ env) (hRules : GenericRulesTyped₀ env)
+    (hField : ProjFieldFrontPropN env) :
+    Cancel env ↔ StrengtheningKripke.TypedFront env
+theorem strengthening_iff_typedFront_final ... : env.Strengthening ↔ TypedFront env
+theorem cancel_iff_typedFront_and_elim (henv) (heq) (hRules) (hField) :
+    Cancel env ↔ TypedFront env ∧ ElimFrontN env
+```
+
+The chain (all under `env.WF` and `env.HasCanonicalEq`):
 
 ```text
 Strengthening ⇔ Front ⇔ Cancel ⇔ UninhabitedCancel ⇔ Reflection (TermEq)
               ⇔ UninhabitedTypingFront ⇔ TypingFrontN
               ⇔ TypedFront ∧ AppFrontN ∧ ProjFrontN ∧ ElimFrontN           (Replay.lean)
-TypedFront ⇔ TypeFront ⇔ TypeFrontN ⇔ KeyFaithful
-EtaNE closure (proved) ∧ CaseRedexDescends ∧ UnfoldingCheckDescends ∧ MajorEtaDescends
-   ∧ ProjFrontN ∧ ElimFrontN ⇒ (Cancel ⇔ TypedFront)                      (EtaClosure.lean)
-ProjFrontN ⇐ spine exposure (EtaReplay form; to be restated over EtaNE) ∧ ProjFieldFrontN
-ProjFieldFrontN ⇐ ProjFieldFrontPropN (free when the result level IsNeverZero)
-ElimFrontN ⇐ GenericTypesTyped₀                                           (Closures.lean)
+TypedFront ⇔ TypeFront ⇔ TypeFrontN ⇔ KeyFaithful                           (Replay, Kripke)
+EtaNE closure under every eta-free step: proved                           (EtaClosure.lean)
+guards: Check.OK.descend, caseRedexDescends (TypedFrontN ∧ GenericRulesTyped₀),
+        DeltaPar.descend' (TypedFrontN), majorEtaDescends (TypedFrontN ∧ ProjFieldFrontN)
+AppFrontN, ProjFrontN ⇐ exposure over EtaNE + the guard descents           (Final.lean)
+ElimFrontN ⇐ GenericTypesTyped₀;  Cancel ⇒ ElimFrontN
 ```
 
-Of the remaining names, `UnfoldingCheckDescends` and the capture half of `CaseRedexDescends`
-are `TypedFront` instances (B2's table), `MajorEtaDescends` is descent of one composite step
-(B3 log, steps 6 and 7), and the two environment lemmas `GenericTypesTyped₀` and
-`ProjFieldFrontPropN` are closed-telescope strengthenings with an uninhabited removed binder,
-i.e. instances of the problem itself on closed terms. So the irreducible core is
-`TypedFront`: strengthening for endpoints typed below at a common type whose lift is the type
-above, equivalently `KeyFaithful`. Every guard of every non-eta reduction rule descends under
-it (`ParRed.descend`, `DeltaPar.descend`); eta is handled by `EtaNE`.
+The three remaining hypotheses: `GenericTypesTyped₀` (every registered case schema's generic
+type is typed at a sort in `[]`) and `GenericRulesTyped₀` (its generic equations are typed in
+`[]`) are premises of `elimDF` and `CaseStep.iota` that the registration certificate does not
+record, and deriving them from the installed recursor is a closed-telescope strengthening;
+`ProjFieldFrontPropN` (field types of `Prop` structures typed below when the major is) is a
+closed-telescope strengthening with an uninhabited removed binder. So the irreducible core is
+`TypedFront`: `Q :: Γ ⊢ a↑ ≡ b↑ : T↑` with `Γ ⊢ a, b : T` implies `Γ ⊢ a ≡ b`, equivalently
+`KeyFaithful`; the two obstacles that defeated every earlier organisation (guards of reduction
+steps, eta reducts that are not lifts) are both discharged relative to it.
 
-The certificate route (direction A) is closed for syntactic ranks: the pilot strip lemma
-`CConv.trans_of` is proved from three obligations whose transport case duplicates the argument
-comparison per occurrence of the bound variable (`transport_output_exceeds_inputs`,
-`no_monotone_size_rank`), while the fragment is normalising, so the obligations are true but
-not provable by any monotone size rank.
-
-The counterexample route (direction C) is closed for every mechanism tried: a typing gap at a
-fixed type is a type-level `Cancel` failure between types typed below, casts into `Q` inhabit
-`Q`, derived proofs `f q` make rigidity of `Q` irrelevant (`RigidCancel.prop_to_pi`), and the
-exact target is `not_cancel_iff_typing_gap`.
+What was refuted on the way, all checked: `EtaReplay` (`not_etaReplay`: exact eta
+postponement above fails at converted domains); endpoint-preserving head exposure
+(`headType_bad_reduct`); rigidity of `Q` as a simplification (`RigidCancel.prop_to_pi`);
+every syntactic rank for the certificate route (`transport_output_exceeds_inputs`,
+`no_monotone_size_rank`, with the pilot strip lemma `CConv.trans_of` proved from its three
+obligations); the two-phase type/proof stratification and untyped proof erasure; and every
+counterexample mechanism tried (`Candidates.lean`, `Hunt.lean`; exact target
+`not_cancel_iff_typing_gap`).
 
 ## 4. Rules in force
 
