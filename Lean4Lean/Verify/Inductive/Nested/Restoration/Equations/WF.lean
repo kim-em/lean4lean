@@ -3,7 +3,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.RestoredRules
 import Lean4Lean.Verify.Inductive.Nested.Restoration.RecursorAlignment
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AuxiliaryConstructors
 import Lean4Lean.Verify.Inductive.Rules.RuleTranslations
-import Lean4Lean.Theory.Inductive.RestorationRenamingOnCtx
+import Lean4Lean.Theory.Inductive.RestorationInterpretation
 import Lean4Lean.Theory.Inductive.BetaSubjectReduction
 import Lean4Lean.Verify.Inductive.Nested.CaseEliminators.Restored
 
@@ -12,33 +12,31 @@ import Lean4Lean.Verify.Inductive.Nested.CaseEliminators.Restored
 
 Route. Every generated equation of the lowered run is well formed in
 the lowered recursor environment (`loweredEquationWF`, from
-`RecursorCheck.equationsWF` and `ruleRhsTranslations`). A
-context-carrying renaming restoration substitution
-(`Theory/Inductive/RestorationRenamingOnCtx.lean`) from that environment into
-the recursor environment `B.recursorVEnv` of a restored block base transports
-the typing of both sides to the restored equation
-(`Restoration.equation_wf_onCtx`), using beta subject reduction of that
-well-formed environment. The substitution
-transports the projection rules only in well-formed image contexts
-(`VEnv.ProjectionRulesRenamedOnCtx`); the equations are stated in the empty
-context, so every transported derivation starts in a well-formed context. The substitution
-replaces each restoration head (auxiliary family or constructor) by its
-restoration lambda `λ params, target levels args`
-(`Restoration.lambdaReplacement`) and renames every other constant and every
-projection type name by `Restoration.renaming` (auxiliary recursors to their
-restored names, auxiliary families in projection position to their
-containers). It is built in stages:
+`RecursorCheck.equationsWF` and `ruleRhsTranslations`). The restoration
+interpretation (`Restoration.interpretation`, `Theory/Inductive/RestorationInterpretation.lean`)
+is a restoration substitution from that environment into the recursor environment
+`B.recursorVEnv` of a restored block base; it transports the typing of both sides to the
+restored equation (`Restoration.equation_wf`), using beta subject reduction of that well-formed
+environment. Its clauses are proved for the context invariant `VEnv.TypedCtx`: the projection
+rules of auxiliary structure-like families and the rules of the restored eliminator
+(`VEnv.RestoredEliminator.clause`) are transported up to beta, which needs a well-formed
+context; the equations are stated in the empty context, so every transported derivation starts
+in a well-formed context. The interpretation replaces each restoration head (auxiliary family or
+constructor) by its restoration lambda `λ params, target levels args`
+(`Restoration.lambdaReplacement`) and renames every other constant and every projection owner
+by `Restoration.renaming` (auxiliary recursors to their restored names, auxiliary families in
+projection position to their containers). Its soundness is built in stages:
 
-* `headerRenamingReplacement`: the lowered header environment (base
-  constants and source headers kept, auxiliary headers replaced);
-* `constructorRenamingReplacement`: the lowered constructors (source
+* `headerInterpretationSound`: the lowered header environment (base
+  constants and source headers kept, auxiliary headers replaced), in every context;
+* `constructorInterpretationSound`: the lowered constructors (source
   constructors kept under their own name with the source constructor type,
-  which is definitionally equal to the replaced lowered type by restoration
-  at the header stage; auxiliary constructors replaced) and the lowered
-  projections;
-* `RenamingReplacement.ofAddConstants_recursors`: the lowered recursors,
+  which is definitionally equal to the interpreted lowered type by restoration
+  at the header stage; auxiliary constructors replaced), the lowered eliminator and the
+  lowered projections;
+* `Restoration.interpretation_ofAddConstants_recursors`: the lowered recursors,
   kept under their restored names with the restored recursor types, which are
-  definitionally equal to the replaced lowered types by restoration at the
+  definitionally equal to the interpreted lowered types by restoration at the
   previous stage.
 
 `RestorationSubstitutionPremises` collects the facts the substitution is built
@@ -87,12 +85,12 @@ theorem NestedRun.loweredEquationWF
       true_and]
     exact ⟨k, rfl⟩)
 
-/-- **The constructor stage**: the context-carrying renaming replacement from
-the lowered constructor environment with its projections into the recursor
-environment of the restored block base, modulo the typing of the restoration lambdas of the auxiliary
-constructors (`HauxCtor`), the transport of the lowered projections
-(`Hproj`), and projection-name avoidance (`HprojNamesCtor`, `Helim`). -/
-theorem NestedRun.constructorRenamingReplacement
+/-- **The constructor stage**: the restoration interpretation is sound, in well-formed
+contexts, from the lowered constructor environment with its eliminator and projections into the
+recursor environment of the restored block base, modulo the typing of the restoration lambdas of
+the auxiliary constructors (`HauxCtor`), the transport of the lowered projections (`Hproj`), the
+restored eliminators (`Hes`), and projection-name avoidance (`HprojNamesCtor`, `Helim`). -/
+theorem NestedRun.constructorInterpretationSound
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
@@ -145,30 +143,25 @@ theorem NestedRun.constructorRenamingReplacement
             (VExpr.wrapLams E.lowered.signature.params
               (VExpr.mkApps (.const h.target h.levels) h.arguments)) restored)
     (Hproj : ∀ entry ∈ E.lowered.loweredDecl.projectionEntries,
-      VEnv.ProjectionRulesRenamedOnCtx envS
-        ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
-          fun _ => E.lowered.signature.params)
-        (compilationRestoration sourceDecl auxiliaries).renaming
+      ((compilationRestoration sourceDecl auxiliaries).interpretation
+        E.lowered.signature.params).ProjectionClause envS envS.TypedCtx
         entry.typeName entry.info)
     (Hes : ∀ e ∈ E.lowered.constructors.declared.eliminators, ∃ families r,
       VEnv.RestoredEliminator envS
-        ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
-          fun _ => E.lowered.signature.params)
-        (compilationRestoration sourceDecl auxiliaries).renaming e.1 e.2 families r) :
-    VEnv.RenamingReplacementOnCtx envS
+        ((compilationRestoration sourceDecl auxiliaries).interpretation
+          E.lowered.signature.params) e.1 e.2 families r) :
+    ((compilationRestoration sourceDecl auxiliaries).interpretation
+      E.lowered.signature.params).Sound envS
       ((E.lowered.constructors.declared.venvCtors.addEliminators
           E.lowered.constructors.declared.eliminators).addProjections
-        E.lowered.loweredDecl.projectionEntries)
-      ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
-        fun _ => E.lowered.signature.params)
-      (compilationRestoration sourceDecl auxiliaries).renaming := by
+        E.lowered.loweredDecl.projectionEntries) envS.TypedCtx := by
   obtain ⟨hsplit, hheadNames, hnp, hargs, hPclosed, hscoped, hrepl⟩ :=
     E.headerSetup wf hadded henvTypes Haux Hexpansion hnodup
-  have ShS := E.headerRenamingReplacement wf hadded henvTypes Haux Hexpansion hnodup
+  have ShS := E.headerInterpretationSound wf hadded henvTypes Haux Hexpansion hnodup
     hSwf.ordered hle Helim
-  have ShT := E.headerRenamingReplacement wf hadded henvTypes Haux Hexpansion hnodup
+  have ShT := E.headerInterpretationSound wf hadded henvTypes Haux Hexpansion hnodup
     henvTypes.ordered VEnv.LE.rfl Helim
-  have SubT := RenamingRestorationSubstitution.of_lambda ShT hnp
+  have A := Restoration.interpretation_agrees (P := E.lowered.signature.params) hnp
   have hβT : envTypes.BetaSubjectReduction sourceDecl.uvars := henvTypes.betaSubjectReduction
   have hcore := E.lowered.constructors.core
   -- the lowered constructor constants are well formed in the lowered header environment
@@ -188,17 +181,21 @@ theorem NestedRun.constructorRenamingReplacement
   have hsim : ∀ lc ∈ E.lowered.loweredDecl.constructorConstants, ∀ restored,
       (compilationRestoration sourceDecl auxiliaries).expr lc.type = some restored →
       ∃ u, envTypes.IsDefEq sourceDecl.uvars []
-        (lc.type.replaceRen ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
-          fun _ => E.lowered.signature.params)
-          (compilationRestoration sourceDecl auxiliaries).renaming) restored (.sort u) := by
+        (((compilationRestoration sourceDecl auxiliaries).interpretation
+          E.lowered.signature.params).expr lc.type) restored (.sort u) := by
     intro lc hlc restored hr
     obtain ⟨hu, u, hwf⟩ := hlcWF lc hlc
-    have H := ShT.isDefEq hwf
+    have H := ShT.isDefEq .any hwf trivial
     simp only [List.map_nil] at H
     rw [hu] at H
-    exact ⟨_, SubT.expr_simAt hβT (Γ := []) trivial
+    exact ⟨_, A.expr_simAt henvTypes.ordered hβT (Γ := []) trivial
       (Restoration.projNamesFixed_of_avoid (HprojNamesCtor lc hlc)) hr _ H⟩
-  refine ((ShS.addConstVals hcore.ctorsAdded ?_).toOnCtx.addEliminators Hes).addProjections Hproj
+  have Hes' : ∀ e ∈ E.lowered.constructors.declared.eliminators,
+      ((compilationRestoration sourceDecl auxiliaries).interpretation
+        E.lowered.signature.params).EliminatorClause envS envS.TypedCtx e.1 e.2 :=
+    fun e he => let ⟨_, _, R⟩ := Hes e he; R.clause hSwf.ordered
+  refine (((ShS.addConstVals hcore.ctorsAdded ?_).weaken fun _ => trivial).addEliminators
+    Hes').addProjections Hproj
   intro lc hlc
   obtain ⟨t, ht, hlct⟩ := List.mem_flatMap.mp hlc
   rw [← List.take_append_drop sourceDecl.types.length E.lowered.loweredDecl.types] at ht
@@ -227,7 +224,8 @@ theorem NestedRun.constructorRenamingReplacement
         (mem_familyNames.mpr ⟨t, hprim, .inr ⟨lc, hlct, rfl⟩⟩)
     have hρ := Restoration.lambdaReplacement_eq_none_of_not_restorable
       (domains := fun _ => E.lowered.signature.params) hn
-    refine ⟨fun t' ht' => (by rw [hρ] at ht'; cases ht'), fun _ => ?_⟩
+    refine ⟨fun t' ht' => (by rw [Restoration.interpretation_consts, hρ] at ht'; cases ht'),
+      fun _ => ?_⟩
     have hscUvars : sc.uvars = lc.uvars := by
       rw [(hlcWF lc hlc).1]
       have Hsource := E.sourceCore.core
@@ -239,7 +237,7 @@ theorem NestedRun.constructorRenamingReplacement
     have hdef' := hsimS _ hdef.hasType.2
     have hchain : envTypes.IsDefEq sourceDecl.uvars [] _ sc.type (.sort u) := hdef.trans hdef'
     refine ⟨sc.toVConstant, ?_, hscUvars, u, ?_⟩
-    · rw [Restoration.renaming_eq_self hn, hscName]
+    · rw [Restoration.interpretation_rename, Restoration.renaming_eq_self hn, hscName]
       exact hctorsS sc (List.mem_flatMap.mpr ⟨st, hst, hsc⟩)
     · rw [(hlcWF lc hlc).1]
       exact (hchain.symm).mono hle
@@ -250,8 +248,8 @@ theorem NestedRun.constructorRenamingReplacement
       exact mem_familyNames.mpr ⟨t, hauxT, .inr ⟨lc, hlct, rfl⟩⟩
     obtain ⟨hd, hf, hdmem, hdaux⟩ := Restoration.find?_of_mem_heads hmem
     refine ⟨fun t' ht' => ?_, fun hnone => ?_⟩
-    · simp only [Restoration.lambdaReplacement, hf, Option.map_some,
-        Option.some.injEq] at ht'
+    · simp only [Restoration.interpretation_consts, Restoration.lambdaReplacement, hf,
+        Option.map_some, Option.some.injEq] at ht'
       subst ht'
       obtain ⟨restored, hr, htyped⟩ := HauxCtor t hauxT lc hlct hd hdmem hdaux
       obtain ⟨u, hdef⟩ := hsim lc hlc restored hr
@@ -259,22 +257,21 @@ theorem NestedRun.constructorRenamingReplacement
       exact (VEnv.IsDefEq.defeqDF hdef.symm htyped).mono hle
     · simp [Restoration.lambdaReplacement, hf] at hnone
 
-/-- **The recursor stage**: extending a renaming replacement along an
-installation of recursors, each kept under its restored name with its
-restored type, which is installed in `envS`. -/
-theorem RenamingReplacement.ofAddConstants_recursors
+/-- **The recursor stage**: extending the soundness of the restoration interpretation along an
+installation of recursors, each kept under its restored name with its restored type, which is
+installed in `envS`. -/
+theorem Restoration.interpretation_ofAddConstants_recursors
     {r : Restoration} {P : List VExpr} {envS : VEnv} (hSwf : envS.WF)
     (hnp : ∀ h ∈ r.heads, h.nparams = P.length)
     {safety : DefinitionSafety} {env : Environment} {venv : VEnv}
     {entries : List (ConstantInfo × VConstVal)} {outEnv : Environment} {outVEnv : VEnv}
     (H : AddConstants safety env venv entries outEnv outVEnv)
-    (S : VEnv.RenamingReplacementOnCtx envS venv (r.lambdaReplacement fun _ => P) r.renaming)
+    (S : (r.interpretation P).Sound envS venv envS.TypedCtx)
     (hrecs : ∀ v ∈ entries.map Prod.snd,
       r.heads.find? (fun h => h.auxiliary == v.name) = none ∧
       v.type.projNamesAvoid r.restorableNames = true ∧
       ∃ w, r.recursor v = some w ∧ envS.constants w.name = some w.toVConstant) :
-    VEnv.RenamingReplacementOnCtx envS outVEnv (r.lambdaReplacement fun _ => P)
-      r.renaming := by
+    (r.interpretation P).Sound envS outVEnv envS.TypedCtx := by
   induction H with
   | nil => exact S
   | cons hn hnprim htr hwf hadd hdelta _ ih =>
@@ -284,20 +281,20 @@ theorem RenamingReplacement.ofAddConstants_recursors
       · obtain ⟨hfind, -, -⟩ := hrecs value (by simp)
         intro t ht
         rw [htr.2] at ht
-        simp [Restoration.lambdaReplacement, hfind] at ht
+        simp [Restoration.interpretation_consts, Restoration.lambdaReplacement, hfind] at ht
       · intro _
         obtain ⟨hfind, hproj, w, hw, hwS⟩ := hrecs value (by simp)
         simp only [Restoration.recursor, Option.bind_eq_bind, Option.bind_eq_some_iff,
           Option.pure_def, Option.some.injEq] at hw
         obtain ⟨rt, hrt, rfl⟩ := hw
         obtain ⟨u, hu⟩ := hwf
-        have H1 := S.isDefEq hu trivial
-        simp only [List.map_nil, VExpr.replaceRen] at H1
-        have SubS := RenamingRestorationSubstitutionOnCtx.of_lambda S hnp
-        have H2 := SubS.expr_simAt hSwf.betaSubjectReduction (Γ := []) trivial
+        have H1 := S.isDefEq (.typed S.ordered) hu trivial
+        simp only [List.map_nil, VEnv.Interpretation.expr] at H1
+        have H2 := (Restoration.interpretation_agrees hnp).expr_simAt S.ordered
+          hSwf.betaSubjectReduction (Γ := []) trivial
           (Restoration.projNamesFixed_of_avoid hproj) hrt _ H1
         refine ⟨{ uvars := value.uvars, type := rt }, ?_, rfl, u, H2.symm⟩
-        rw [htr.2, Restoration.renaming_of_find_none hfind]
+        rw [htr.2, Restoration.interpretation_rename, Restoration.renaming_of_find_none hfind]
         exact hwS
     · exact fun v hv => hrecs v (by simp only [List.map_cons, List.mem_cons]; exact .inr hv)
 
@@ -356,18 +353,16 @@ structure RestorationSubstitutionPremises
             (VExpr.wrapLams E.lowered.signature.params
               (VExpr.mkApps (.const h.target h.levels) h.arguments)) restored
   /-- The projection rules of the lowered declaration's projections
-  are renamed into `B.recursorVEnv`. -/
+  hold after interpretation in `B.recursorVEnv`, in well-formed contexts. -/
   projections : ∀ entry ∈ E.lowered.loweredDecl.projectionEntries,
-    VEnv.ProjectionRulesRenamedOnCtx B.recursorVEnv
-      ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
-        fun _ => E.lowered.signature.params)
-      (compilationRestoration sourceDecl auxiliaries).renaming
+    ((compilationRestoration sourceDecl auxiliaries).interpretation
+      E.lowered.signature.params).ProjectionClause B.recursorVEnv B.recursorVEnv.TypedCtx
       entry.typeName entry.info
 
 /-- **The case eliminator of the lowered recursor-checking environment is matched by the
 restored schema of a restored block base** (`VEnv.RestoredEliminator`): the base registers
 the schema with the same key and signature, restored by a specialisation list whose restoration tables are those of the run,
-so its restoration agrees with the lambda replacement and renaming of every restoration table of
+so its restoration agrees with the restoration interpretation of every restoration table of
 the run (`RestorationTablesAgree.find_eq`). The lowered schema projects only out of base
 structures (its certificate `EliminatorsWF`), which are not restorable, and the
 restoration succeeds on its generic equations because it succeeds on its generic case type, the
@@ -406,9 +401,8 @@ theorem NestedRun.restoredEliminators
     (hB : B.lowered = E.lowered) (hSwf : B.recursorVEnv.WF) :
     ∀ e ∈ E.lowered.constructors.declared.eliminators, ∃ families r,
       VEnv.RestoredEliminator B.recursorVEnv
-        ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
-          fun _ => E.lowered.signature.params)
-        (compilationRestoration sourceDecl auxiliaries).renaming e.1 e.2 families r := by
+        ((compilationRestoration sourceDecl auxiliaries).interpretation
+          E.lowered.signature.params) e.1 e.2 families r := by
   obtain ⟨key, sL, auxC, hcompEl, hesEq, DC⟩ := B.eliminatorsRestored
   rw [hB] at hcompEl
   intro e he
@@ -454,8 +448,9 @@ theorem NestedRun.restoredEliminators
     refine hle.eliminators ?_
     rw [VEnv.addProjections_eliminators, hesEq]
     exact VEnv.addEliminators_iff.mpr (.inl (List.mem_singleton_self _))
-  have A := (RenamingRestorationAgreement.of_lambda hnp).congr (D.find_eq DC)
+  have A := (Restoration.interpretation_agrees hnp).congr (D.find_eq DC)
     (fun n => (D.recursorName n).trans (DC.recursorName n).symm)
+    (fun n hn => Restoration.renaming_eq_self fun h => hn (DC.restorable_transfer D h))
   refine ⟨sourceDecl.types.map fun t : VInductiveType => t.name,
     compilationRestoration sourceDecl auxC,
     VEnv.RestoredEliminator.of_wf hSwf rfl hreg A
@@ -475,7 +470,7 @@ theorem NestedRun.restoredEliminators
   rw [← this]
   rfl
 
-/-- **The renaming restoration substitution of a nested run**, from the
+/-- **The restoration substitution of a nested run**, from the
 lowered recursor environment into the recursor environment of a restored
 block base, for the restoration table of
 `restorationTablesRestoringAll`, modulo `RestorationSubstitutionPremises`. -/
@@ -521,12 +516,10 @@ theorem NestedRun.restoredEquationSubstitution
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.recursorVEnv)
     (G : RestorationSubstitutionPremises E B auxiliaries) :
-    RenamingRestorationSubstitutionOnCtx B.recursorVEnv
+    (compilationRestoration sourceDecl auxiliaries).Substitution B.recursorVEnv
       E.lowered.recursors.outVEnv
-      (compilationRestoration sourceDecl auxiliaries)
-      ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
-        fun _ => E.lowered.signature.params)
-      (compilationRestoration sourceDecl auxiliaries).renaming := by
+      ((compilationRestoration sourceDecl auxiliaries).interpretation
+        E.lowered.signature.params) := by
   have hnodup :
       (familyNames E.lowered.loweredDecl.types ++
         E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
@@ -571,7 +564,7 @@ theorem NestedRun.restoredEquationSubstitution
   have hlevels := E.loweredConstructorLevels_heads wf Hsources hheadNames'
   have Hlowered := E.loweredConstructors_of_lowering hadded henvTypes hfreshAll Hrestoring
     hlevels
-  have S₁ := E.constructorRenamingReplacement wf hadded henvTypes Haux Hexpansion hnodup
+  have S₁ := E.constructorInterpretationSound wf hadded henvTypes Haux Hexpansion hnodup
     hauxNames hSwf hle G.eliminatorProjNames hctorsS hnames Hlowered G.constructorProjNames
     (G.auxiliaryConstructors envTypes hadded) G.projections
     (E.restoredEliminators wf hadded Haux Hexpansion hnodup D hnp B hB hSwf)
@@ -599,9 +592,9 @@ theorem NestedRun.restoredEquationSubstitution
     refine ⟨E.recursorName_not_head Haux Hexpansion hnodup owner,
       G.recursorProjNames owner, w, hrw.1, VEnv.addConstVals_get hrecAdded hw⟩
   rw [← E.lowered.constructors.declared.contextVEnv] at S₁
-  have S₂ := RenamingReplacement.ofAddConstants_recursors hSwf hnp
+  have S₂ := Restoration.interpretation_ofAddConstants_recursors hSwf hnp
     E.lowered.recursors.installed S₁ hrecs
-  exact RenamingRestorationSubstitutionOnCtx.of_lambda S₂ hnp
+  exact ⟨S₂, Restoration.interpretation_agrees hnp⟩
 
 /-- **`HrestoredWF` of `NestedRun.hruleShape_of_base`**: every
 restored generated equation is well formed in the recursor environment
@@ -611,7 +604,7 @@ modulo `RestorationSubstitutionPremises` (the hypothesis-free form is
 `Nested/Restoration/AuxiliaryProjections.lean`).
 
 The generated equation is well formed in the lowered recursor environment
-(`loweredEquationWF`); the context-carrying renaming restoration substitution
+(`loweredEquationWF`); the restoration substitution
 of the run
 (`restoredEquationSubstitution`, for the table of
 `restorationTablesRestoringAll`, whose restoration agrees with that of every
@@ -669,7 +662,7 @@ theorem NestedRun.restoredEquationsWF_of_substitutionPremises
     simp only [Restoration.equation, D.expr_eq D'] at hrule ⊢
     exact hrule
   obtain ⟨hl, hr, ht⟩ := G'.equationProjNames k
-  exact Restoration.equation_wf_onCtx S hV.tr.wf.betaSubjectReduction (E.loweredEquationWF k)
+  exact Restoration.equation_wf S hV.tr.wf.betaSubjectReduction (E.loweredEquationWF k)
     (Restoration.projNamesFixed_of_avoid hl) (Restoration.projNamesFixed_of_avoid hr)
     (Restoration.projNamesFixed_of_avoid ht) hrule'
 

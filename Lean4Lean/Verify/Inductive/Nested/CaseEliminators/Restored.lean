@@ -1,15 +1,11 @@
-import Lean4Lean.Theory.Inductive.RestorationRenamingOnCtx
+import Lean4Lean.Theory.Inductive.RestorationInterpretation
 import Lean4Lean.Theory.Inductive.CaseTypeClosed
 
 /-! Generic facts used to match the case eliminator of a nested declaration's lowered
 recursor-checking environment with the restored schema registered by the source block
-(`VEnv.RestoredEliminator`):
-
-* restoration succeeds on the generic case equations of a restoration-free schema whenever it
-  succeeds on its generic case type (`CaseSchema.genericEquations_restorable`): the equations
-  are built from the pieces of the case type;
-* the agreement of a restoration with a renaming replacement only reads the head lookup and
-  the recursor renaming of the restoration (`RenamingRestorationAgreement.congr`). -/
+(`VEnv.RestoredEliminator`): restoration succeeds on the generic case equations of a restoration-free schema whenever it
+succeeds on its generic case type (`CaseSchema.genericEquations_restorable`): the equations
+are built from the pieces of the case type. -/
 
 namespace Lean4Lean
 
@@ -181,23 +177,5 @@ theorem genericEquations_restorable {schema : CaseSchema} (h0 : schema.restorati
   simp [Restoration.equation, Restoration.expr, hl'', hr'', ht'']
 
 end InductiveSignature.CaseSchema
-
-namespace InductiveSignature
-
-/-- The agreement of a restoration with a renaming replacement only reads its head lookup and
-its recursor renaming. -/
-theorem RenamingRestorationAgreement.congr {r r' : Restoration} {ρ : Name → Option VExpr}
-    {σ : Name → Name} (A : RenamingRestorationAgreement r ρ σ)
-    (hfind : ∀ n, r.heads.find? (fun h => h.auxiliary == n) =
-      r'.heads.find? (fun h => h.auxiliary == n))
-    (hrec : ∀ n, r.recursorName n = r'.recursorName n) :
-    RenamingRestorationAgreement r' ρ σ where
-  shape c t hρ := by
-    obtain ⟨h, doms, hf, hlen, ht⟩ := A.shape c t hρ
-    exact ⟨h, doms, (hfind c).symm.trans hf, hlen, ht⟩
-  headsReplaced c h hf := A.headsReplaced c h ((hfind c).trans hf)
-  renamed c hf := (A.renamed c ((hfind c).trans hf)).trans (hrec c)
-
-end InductiveSignature
 
 end Lean4Lean
