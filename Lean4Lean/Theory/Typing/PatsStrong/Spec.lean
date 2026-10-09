@@ -118,10 +118,10 @@ structure IotaRuleData where
 namespace IotaRuleData
 
 /-- The parameters/motives/minors prefix of the recursor spine. -/
-def k (D : IotaRuleData) : Nat := D.np + D.nm + D.nmin
+@[reducible] def k (D : IotaRuleData) : Nat := D.np + D.nm + D.nmin
 
 /-- The pattern `addRecRule` registers. -/
-def pattern (D : IotaRuleData) : Pattern :=
+@[reducible] def pattern (D : IotaRuleData) : Pattern :=
   (SimplePattern.iota D.recName (D.np + D.nm + D.nmin + D.nind) D.ctorName (D.np + D.nf)).toPattern
 
 /-- The reduct and check `addRecRule` registers. -/
