@@ -441,13 +441,13 @@ theorem LoopEnv.wf' (henv : env.WF) (H : LoopEnv env L₁ L₂ env₁ env') (hne
   obtain ⟨ds, hds⟩ := henv
   refine ⟨_, H.eq ▸ VEnv.WF'.decl (VDecl.WF.mutualDef ?_ H.add ?_) hds⟩
   · intro ci hci
-    simp only [List.mem_cons, List.mem_singleton] at hci
+    simp only [List.mem_cons] at hci
     rcases hci with rfl | rfl | h
     · exact sortOne_isType
     · exact sortOne_isType
     · cases h
   · intro ci hci
-    simp only [List.mem_cons, List.mem_singleton] at hci
+    simp only [List.mem_cons] at hci
     rcases hci with rfl | rfl | h
     · exact H.typed₁ hne rfl
     · exact H.typed₂ rfl
