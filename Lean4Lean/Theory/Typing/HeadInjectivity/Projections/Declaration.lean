@@ -12,9 +12,10 @@ projections and eliminators of `base`, so soundness of `base`'s derivations appl
 
 namespace Lean4Lean
 
-/-- The facts recorded at the installation of a projection entry. -/
-def VEnv.ProjDecl (env : VEnv) (S : Name) (info : VProjectionInfo) : Prop :=
-  ∃ (base envTypes : VEnv) (dsb : List VDecl) (decl : VInductDecl) (type : VInductiveType)
+/-- The facts recorded at the installation of a projection entry, at the header environment
+`envTypes` in which its family and constructor were checked. -/
+def VEnv.ProjDeclAt (env envTypes : VEnv) (S : Name) (info : VProjectionInfo) : Prop :=
+  ∃ (base : VEnv) (dsb : List VDecl) (decl : VInductDecl) (type : VInductiveType)
     (ctor : VConstVal),
     base.WF' dsb ∧ base.addConstVals decl.typeConstants = some envTypes ∧ envTypes ≤ env ∧
     envTypes.Ordered ∧ type ∈ decl.types ∧ type.ctors = [ctor] ∧ type.name = S ∧
@@ -22,6 +23,14 @@ def VEnv.ProjDecl (env : VEnv) (S : Name) (info : VProjectionInfo) : Prop :=
     info.resultLevel = type.resultLevel ∧ info.ctorName = ctor.name ∧ info.ctorType = ctor.type ∧
     ctor.uvars = decl.uvars ∧ envTypes.IsType decl.uvars [] ctor.type ∧
     decl.RawCtorShape type ctor ∧ decl.sourceNames.Nodup ∧ decl.SourceParameterWF base
+
+/-- The facts recorded at the installation of a projection entry, at some header
+environment (`VEnv.ProjDeclAt`). -/
+def VEnv.ProjDecl (env : VEnv) (S : Name) (info : VProjectionInfo) : Prop :=
+  ∃ envTypes, env.ProjDeclAt envTypes S info
+
+theorem VEnv.ProjDeclAt.origin {env envTypes : VEnv} {S : Name} {info : VProjectionInfo}
+    (h : env.ProjDeclAt envTypes S info) : env.ProjDecl S info := ⟨_, h⟩
 
 end Lean4Lean
 

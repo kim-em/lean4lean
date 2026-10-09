@@ -7,7 +7,7 @@ family constant `S` is installed at the projection's universe arity, and its dec
 definitionally a telescope over the header's own parameter domains and the index domains,
 ending in the recorded result sort. The header's parameter domains and the constructor's raw
 parameter domains are both context-convertible to the declaration's common parameter
-telescope (`VEnv.ProjDecl.familyTele_data`).
+telescope (`VEnv.ProjDeclAt.familyTele_data`).
 
 Composing the header conversion and the two parameter conversions into a single
 definitional equality at a sort needs uniqueness of types: `TypeShape` types the header

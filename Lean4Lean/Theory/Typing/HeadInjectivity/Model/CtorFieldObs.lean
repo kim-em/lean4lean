@@ -284,8 +284,8 @@ theorem ArgsTyped.of_substEq {D : List VExpr} {R0 : VExpr} :
 
 /-! ## The family header at a given declaration -/
 
-/-- `VEnv.ProjDecl.familyTele_data` at the header environment of a given declaration
-(`VEnv.ProjDeclAt`). -/
+/-- The family header data of a projection entry, at the header environment `envTypes` of its
+declaration (`VEnv.ProjDeclAt`). -/
 theorem _root_.Lean4Lean.VEnv.ProjDeclAt.familyTele_data {envTypes : VEnv} {S : Name}
     {info : VProjectionInfo} (h : env.ProjDeclAt envTypes S info) :
     ∃ (famType : VExpr) (params ownParams pdoms fdoms idoms idx : List VExpr)
