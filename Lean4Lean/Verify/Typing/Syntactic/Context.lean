@@ -680,6 +680,13 @@ theorem InstN.fvars_eq (W : InstN Δ₀ e₀ A₀ dk k Δ₁ Δ) :
   | zero => exact ⟨rfl, rfl⟩
   | succ _ ih => exact ih
 
+/-- The context after a substitution extends the context of the substituted term by the
+binders below the substituted one. -/
+theorem InstN.toBVLift (W : InstN Δ₀ e₀ A₀ dk k Δ₁ Δ) : BVLift Δ₀ Δ dk 0 k 0 := by
+  induction W with
+  | zero => exact .refl
+  | @succ _ _ _ _ d _ ih => cases d <;> exact .skip _ ih
+
 variable (Δ₀ : VLCtx) (e₀ A₀ : VExpr) in
 inductive InstLet : Nat → Nat → VLCtx → VLCtx → Prop where
   | zero : InstLet 0 0 ((none, .vlet A₀ e₀) :: Δ₀) Δ₀
@@ -703,6 +710,11 @@ theorem InstLet.fvars_eq (W : InstLet Δ₀ e₀ A₀ dk k Δ₁ Δ) :
   induction W with
   | zero => exact ⟨rfl, rfl⟩
   | succ _ ih => exact ih
+
+theorem InstLet.toBVLift (W : InstLet Δ₀ e₀ A₀ dk k Δ₁ Δ) : BVLift Δ₀ Δ dk 0 k 0 := by
+  induction W with
+  | zero => exact .refl
+  | succ _ ih => exact .skip _ ih
 
 variable (Δ₀ : VLCtx) (v₀ : FVarId) (d₀ : VLocalDecl) in
 inductive Abstract : Nat → Nat → VLCtx → VLCtx → Prop where

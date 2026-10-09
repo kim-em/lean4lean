@@ -8,7 +8,7 @@ import Lean4Lean.Theory.Typing.Strong
 import Lean4Lean.Theory.Typing.ConstructorCaptureTransport
 import Lean4Lean.Theory.Typing.Injectivity
 import Lean4Lean.Instantiate
-import Lean4Lean.Verify.Typing.Syntactic.Transport
+import Lean4Lean.Verify.Typing.Syntactic.Typed
 
 namespace Lean4Lean
 open Lean4Lean VEnv Lean
@@ -102,11 +102,6 @@ theorem VExpr.WF.proj_defeqDFC (henv : VEnv.WF env) (hΓ : env.IsDefEqCtx U [] �
   have hsourceMajor₂ := hsource₂.trans_l henv hΓ₂ he₂'
   exact ⟨fieldType, .projDF hinfo hlevels huvars hparams hindices
     hfield hfieldTyping₂ hsourceMajor₂ hsourceMajor₂ hclosed hguard⟩
-
-variable! {env env' : VEnv} (henv : env ≤ env') in
-nonrec theorem VEnv.ContainsLits.mono : ∀ {l}, env.ContainsLits l → env'.ContainsLits l
-  | .natVal _, ⟨_, H⟩ => ⟨_, henv.1 H⟩
-  | .strVal _, ⟨⟨_, H1⟩, ⟨_, H2⟩⟩ => ⟨⟨_, henv.1 H1⟩, ⟨_, henv.1 H2⟩⟩
 
 variable! {env env' : VEnv} (henv : env ≤ env') in
 theorem TrExprS.mono (H : TrExprS env Us Δ e e') : TrExprS env' Us Δ e e' := by
@@ -261,23 +256,6 @@ theorem TrExpr.fvarsList (H : TrExpr env Us Δ e e') : e.fvarsList ⊆ Δ.fvars 
 
 theorem TrExpr.wf (H : TrExpr env Us Δ e e') : VExpr.WF env Us.length Δ.toCtx e' :=
   let ⟨_, _, _, H⟩ := H; ⟨_, H.hasType.2⟩
-
-variable! (henv : Ordered env) {Us : List Name} (hΔ : VLCtx.WF env Us.length Δ) in
-theorem TrExprS.wf (H : TrExprS env Us Δ e e') : VExpr.WF env Us.length Δ.toCtx e' := by
-  induction H with
-  | bvar h1 | fvar h1 => exact ⟨_, hΔ.find?_wf henv h1⟩
-  | sort h1 => exact ⟨_, HasType.sort (.of_ofLevel h1)⟩
-  | const h1 h2 h3 => exact ⟨_,
-    HasType.const h1 (.of_mapM_ofLevel h2) ((List.mapM_eq_some.1 h2).length_eq.symm.trans h3)⟩
-  | app h1 h2 => exact ⟨_, h1.app h2⟩
-  | lam h1 _ _ _ ih2 =>
-    have ⟨_, h1'⟩ := h1
-    have ⟨_, h2'⟩ := ih2 ⟨hΔ, nofun, h1⟩
-    refine ⟨_, h1'.lam h2'⟩
-  | forallE h1 h2 => have ⟨_, h1'⟩ := h1; have ⟨_, h2'⟩ := h2; exact ⟨_, h1'.forallE h2'⟩
-  | letE h1 _ _ _ _ _ ih3 => exact ih3 ⟨hΔ, nofun, h1⟩
-  | lit _ _ ih | mdata _ ih => exact ih hΔ
-  | proj _ h2 => exact h2
 
 variable! (henv : Ordered env) {Us : List Name} (hΔ : VLCtx.WF env Us.length Δ) in
 theorem TrExprS.trExpr (H : TrExprS env Us Δ e e') : TrExpr env Us Δ e e' :=
@@ -674,39 +652,11 @@ theorem TrExprS.prependLevelParam
     (H : TrExprS env Us Δ e e') :
     TrExprS env (fresh :: Us)
       (Δ.instL (VLevel.prependShift Us.length)) e
-      (e'.instL (VLevel.prependShift Us.length)) := by
-  let shift := VLevel.prependShift Us.length
-  have hshift : ∀ level ∈ shift, level.WF (fresh :: Us).length := by
-    simpa [shift] using VLevel.prependShift_wf (n := Us.length)
-  induction H with
-  | bvar hfind => exact .bvar (VLCtx.find?_instL hfind)
-  | fvar hfind => exact .fvar (VLCtx.find?_instL hfind)
-  | sort hlevel => exact .sort (VLevel.ofLevel_fresh_cons hfresh hlevel)
-  | const hlookup hlevels harity =>
-    exact .const hlookup
-      (VLevel.mapM_ofLevel_fresh_cons hfresh hlevels) harity
-  | app hfn harg _ _ ihFn ihArg =>
-    exact .app
-      (VLCtx.instL_toCtx _ ▸ hfn.instL hshift)
-      (VLCtx.instL_toCtx _ ▸ harg.instL hshift)
-      (ihFn hΔ) (ihArg hΔ)
-  | lam hdom _ _ ihDom ihBody =>
-    exact .lam
-      (VLCtx.instL_toCtx _ ▸ hdom.instL hshift)
-      (ihDom hΔ) (ihBody ⟨hΔ, nofun, hdom⟩)
-  | forallE hdom hbody _ _ ihDom ihBody =>
-    exact .forallE
-      (VLCtx.instL_toCtx _ ▸ hdom.instL hshift)
-      (VLCtx.instL_toCtx _ ▸ hbody.instL hshift)
-      (ihDom hΔ) (ihBody ⟨hΔ, nofun, hdom⟩)
-  | letE hval _ _ _ ihTy ihVal ihBody =>
-    exact .letE
-      (VLCtx.instL_toCtx _ ▸ hval.instL hshift)
-      (ihTy hΔ) (ihVal hΔ) (ihBody ⟨hΔ, nofun, hval⟩)
-  | lit hlit _ ih => exact .lit hlit (ih hΔ)
-  | mdata _ ih => exact .mdata (ih hΔ)
-  | proj _ hproj ih =>
-    exact .proj (ih hΔ) (VLCtx.instL_toCtx _ ▸ hproj.instL hshift)
+      (e'.instL (VLevel.prependShift Us.length)) :=
+  have hshift : ∀ level ∈ VLevel.prependShift Us.length, level.WF (fresh :: Us).length := by
+    simpa using VLevel.prependShift_wf (n := Us.length)
+  (iff_typed henv.ordered (VLCtx.WF.instL hshift (by simpa using hΔ))).2
+    (((iff_typed henv.ordered hΔ).1 H).prependLevelParam hfresh)
 
 section
 
@@ -1370,20 +1320,10 @@ theorem TrExpr.uninstantiate
 theorem TrExprS.inst_fvar {Δ : VLCtx} (henv : Ordered env)
     (hΔ : VLCtx.WF env Us.length ((some (a, deps), d) :: Δ))
     (H : TrExprS env Us ((none, d) :: Δ) e e') :
-    TrExprS env Us ((some (a, deps), d) :: Δ) (e.instantiate1' (.fvar a)) e' := by
-  refine
-    have W := .skip_fvar (a, deps) d .refl
-    have := H.weakFV henv (.cons_bvar _ W) ⟨hΔ, nofun, hΔ.2.2.weakN henv W.toCtx⟩
-    ?_
-  have hf := TrExprS.fvar (env := env) (Us := Us) (fv := a) (Δ := (some (a, deps), d) :: Δ) <| by
-    simp [VLCtx.find?, VLCtx.next]; exact ⟨rfl, rfl⟩
-  match d with
-  | .vlam A₀ =>
-    have := this.inst henv (.bvar .zero) (Δ := (some (a, deps), .vlam _) :: Δ) hf
-    rwa [VLocalDecl.depth, VExpr.inst_liftN_bvar] at this
-  | .vlet A₀ e₀ =>
-    simp [VLocalDecl.depth, VLocalDecl.liftN] at this
-    exact this.inst_let henv hf
+    TrExprS env Us ((some (a, deps), d) :: Δ) (e.instantiate1' (.fvar a)) e' :=
+  (iff_typed henv hΔ).2 <|
+    ((iff_typed (Δ := (none, d) :: Δ) henv ⟨hΔ.1, nofun, hΔ.2.2⟩).1 H).inst_fvar henv
+      hΔ.fvars_nodup
 
 theorem TrExpr.rebuild_mkAppRevList (henv : env.WF) (hΔ : Δ.WF env Us.length)
     (he : TrExprS env Us Δ e e') (h1 : TrExprS env Us Δ (e.mkAppRevList as) ea')

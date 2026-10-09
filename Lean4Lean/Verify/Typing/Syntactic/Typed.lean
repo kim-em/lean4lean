@@ -1,5 +1,4 @@
 import Lean4Lean.Verify.Typing.Syntactic.Transport
-import Lean4Lean.Verify.Typing.Lemmas
 
 /-!
 # Typed translation as syntactic translation plus typing
@@ -56,6 +55,23 @@ def TrTyped (env : VEnv) (Us : List Name) (Δ : VLCtx) (e : Expr) (e' : VExpr) :
   TrSyn Us Δ e e' ∧ VExpr.WF env Us.length Δ.toCtx e' ∧ TrResidual env Us Δ e
 
 /-! ### From `TrExprS` -/
+
+variable! (henv : Ordered env) {Us : List Name} (hΔ : VLCtx.WF env Us.length Δ) in
+theorem TrExprS.wf (H : TrExprS env Us Δ e e') : VExpr.WF env Us.length Δ.toCtx e' := by
+  induction H with
+  | bvar h1 | fvar h1 => exact ⟨_, hΔ.find?_wf henv h1⟩
+  | sort h1 => exact ⟨_, HasType.sort (.of_ofLevel h1)⟩
+  | const h1 h2 h3 => exact ⟨_,
+    HasType.const h1 (.of_mapM_ofLevel h2) ((List.mapM_eq_some.1 h2).length_eq.symm.trans h3)⟩
+  | app h1 h2 => exact ⟨_, h1.app h2⟩
+  | lam h1 _ _ _ ih2 =>
+    have ⟨_, h1'⟩ := h1
+    have ⟨_, h2'⟩ := ih2 ⟨hΔ, nofun, h1⟩
+    refine ⟨_, h1'.lam h2'⟩
+  | forallE h1 h2 => have ⟨_, h1'⟩ := h1; have ⟨_, h2'⟩ := h2; exact ⟨_, h1'.forallE h2'⟩
+  | letE h1 _ _ _ _ _ ih3 => exact ih3 ⟨hΔ, nofun, h1⟩
+  | lit _ _ ih | mdata _ ih => exact ih hΔ
+  | proj _ h2 => exact h2
 
 theorem TrExprS.residual (H : TrExprS env Us Δ e e') : TrResidual env Us Δ e := by
   induction H with
@@ -190,5 +206,229 @@ theorem TrTyped.weakBV (henv : env.Ordered) (W : VLCtx.BVLift Δ Δ' dn dk n k)
     TrTyped env Us Δ' (e.liftLooseBVars' dk dn) (e'.liftN n k) :=
   let ⟨s, ⟨_, h⟩, r⟩ := H
   ⟨s.weakBV W, ⟨_, h.weakN henv W.toCtx⟩, r.weakBV henv W⟩
+
+theorem TrResidual.weakFV' (henv : env.Ordered) (W : VLCtx.FVLift' Δ Δ' dk n k)
+    (hnd : Δ'.fvars.Nodup) (H : TrResidual env Us Δ e) : TrResidual env Us Δ' e := by
+  induction H generalizing Δ' dk k with
+  | bvar | fvar | sort | const => constructor
+  | app _ _ ih1 ih2 => exact .app (ih1 W hnd) (ih2 W hnd)
+  | lam s _ _ ih1 ih2 => exact .lam (s.weakFV' W hnd) (ih1 W hnd) (ih2 (W.cons_bvar _) hnd)
+  | forallE s _ _ ih1 ih2 =>
+    exact .forallE (s.weakFV' W hnd) (ih1 W hnd) (ih2 (W.cons_bvar _) hnd)
+  | letE s1 s2 hv _ _ _ ih1 ih2 ih3 =>
+    exact .letE (s1.weakFV' W hnd) (s2.weakFV' W hnd) (hv.weak' henv W.toCtx) (ih1 W hnd)
+      (ih2 W hnd) (ih3 (W.cons_bvar _) hnd)
+  | lit hl _ ih => exact .lit hl (ih W hnd)
+  | mdata _ ih => exact .mdata (ih W hnd)
+  | proj _ ih => exact .proj (ih W hnd)
+
+theorem TrResidual.weakFV (henv : env.Ordered) (W : VLCtx.FVLift Δ Δ' dk n k)
+    (hnd : Δ'.fvars.Nodup) (H : TrResidual env Us Δ e) : TrResidual env Us Δ' e :=
+  H.weakFV' henv W.toFVLift' hnd
+
+theorem TrResidual.instN_bvar (henv : env.Ordered) (r₀ : TrResidual env Us Δ₀ e₀)
+    (W : VLCtx.InstN Δ₀ e₀' A₀ dk k Δ₁ Δ) (i : Nat) :
+    TrResidual env Us Δ (Expr.instantiate1' (.bvar i) e₀ dk) := by
+  simp only [Expr.instantiate1']
+  split; · exact .bvar
+  split; · exact r₀.weakBV henv W.toBVLift
+  exact .bvar
+
+theorem TrResidual.instN {Δ₀ : VLCtx} (h₀ : TrSyn Us Δ₀ e₀ e₀')
+    (r₀ : TrResidual env Us Δ₀ e₀) (henv : env.Ordered)
+    (t₀ : env.HasType Us.length Δ₀.toCtx e₀' A₀)
+    (W : VLCtx.InstN Δ₀ e₀' A₀ dk k Δ₁ Δ) (H : TrResidual env Us Δ₁ e) :
+    TrResidual env Us Δ (Expr.instantiate1' e e₀ dk) := by
+  induction H generalizing Δ dk k with
+  | bvar => exact .instN_bvar henv r₀ W _
+  | fvar | sort | const => constructor
+  | app _ _ ih1 ih2 => exact .app (ih1 W) (ih2 W)
+  | lam s _ _ ih1 ih2 =>
+    exact .lam (h₀.instN W s) (ih1 W) (ih2 (W.succ (d := .vlam _)))
+  | forallE s _ _ ih1 ih2 =>
+    exact .forallE (h₀.instN W s) (ih1 W) (ih2 (W.succ (d := .vlam _)))
+  | letE s1 s2 hv _ _ _ ih1 ih2 ih3 =>
+    exact .letE (h₀.instN W s1) (h₀.instN W s2) (hv.instN henv W.toCtx t₀) (ih1 W) (ih2 W)
+      (ih3 (W.succ (d := .vlet ..)))
+  | lit hl _ ih =>
+    refine .lit hl (Expr.instantiate1'_eq_self ?_ ▸ ih W :)
+    exact Closed.toConstructor.looseBVarRange_le
+  | mdata _ ih => exact .mdata (ih W)
+  | proj _ ih => exact .proj (ih W)
+
+theorem TrResidual.instN_let_bvar (henv : env.Ordered) (r₀ : TrResidual env Us Δ₀ e₀)
+    (W : VLCtx.InstLet Δ₀ e₀' A₀ dk k Δ₁ Δ) (i : Nat) :
+    TrResidual env Us Δ (Expr.instantiate1' (.bvar i) e₀ dk) := by
+  simp only [Expr.instantiate1']
+  split; · exact .bvar
+  split; · exact r₀.weakBV henv W.toBVLift
+  exact .bvar
+
+theorem TrResidual.instN_let {Δ₀ : VLCtx} (h₀ : TrSyn Us Δ₀ e₀ e₀')
+    (r₀ : TrResidual env Us Δ₀ e₀) (henv : env.Ordered) (W : VLCtx.InstLet Δ₀ e₀' A₀ dk k Δ₁ Δ)
+    (H : TrResidual env Us Δ₁ e) : TrResidual env Us Δ (Expr.instantiate1' e e₀ dk) := by
+  induction H generalizing Δ dk k with
+  | bvar => exact .instN_let_bvar henv r₀ W _
+  | fvar | sort | const => constructor
+  | app _ _ ih1 ih2 => exact .app (ih1 W) (ih2 W)
+  | lam s _ _ ih1 ih2 =>
+    exact .lam (h₀.instN_let W s) (ih1 W) (ih2 (W.succ (d := .vlam _)))
+  | forallE s _ _ ih1 ih2 =>
+    exact .forallE (h₀.instN_let W s) (ih1 W) (ih2 (W.succ (d := .vlam _)))
+  | letE s1 s2 hv _ _ _ ih1 ih2 ih3 =>
+    exact .letE (h₀.instN_let W s1) (h₀.instN_let W s2) (W.toCtx ▸ hv) (ih1 W) (ih2 W)
+      (ih3 (W.succ (d := .vlet ..)))
+  | lit hl _ ih =>
+    refine .lit hl (Expr.instantiate1'_eq_self ?_ ▸ ih W :)
+    exact Closed.toConstructor.looseBVarRange_le
+  | mdata _ ih => exact .mdata (ih W)
+  | proj _ ih => exact .proj (ih W)
+
+theorem TrResidual.abstract (W : VLCtx.Abstract Δ₀ v₀ d₀ dk k Δ₁ Δ)
+    (H : TrResidual env Us Δ₁ e) : TrResidual env Us Δ (e.abstract1 v₀ dk) := by
+  induction H generalizing dk k Δ with
+  | bvar | sort | const => constructor
+  | fvar => unfold Expr.abstract1; split <;> constructor
+  | app _ _ ih1 ih2 => exact .app (ih1 W) (ih2 W)
+  | lam s _ _ ih1 ih2 => exact .lam (s.abstract W) (ih1 W) (ih2 W.succ)
+  | forallE s _ _ ih1 ih2 => exact .forallE (s.abstract W) (ih1 W) (ih2 W.succ)
+  | letE s1 s2 hv _ _ _ ih1 ih2 ih3 =>
+    exact .letE (s1.abstract W) (s2.abstract W) (W.toCtx ▸ hv) (ih1 W) (ih2 W) (ih3 W.succ)
+  | lit hl _ ih =>
+    exact .lit hl (FVarsIn.toConstructor.abstract_eq_self .toConstructor ▸ ih W)
+  | mdata _ ih => exact .mdata (ih W)
+  | proj _ ih => exact .proj (ih W)
+
+theorem TrResidual.uninstantiateN (W : VLCtx.Abstract Δ₀ v₀ d₀ dk k Δ₁ Δ)
+    (H : TrResidual env Us Δ₁ (Expr.instantiate1' e (.fvar v₀) dk))
+    (sc : FVarsIn (· ≠ v₀) e) : TrResidual env Us Δ e := by
+  have := H.abstract W
+  rwa [sc.abstract_instantiate1] at this
+
+theorem TrResidual.inst_fvar (henv : env.Ordered)
+    (hnd : (VLCtx.fvars ((some (a, deps), d) :: Δ)).Nodup)
+    (H : TrResidual env Us ((none, d) :: Δ) e) :
+    TrResidual env Us ((some (a, deps), d) :: Δ) (e.instantiate1' (.fvar a)) := by
+  have W := VLCtx.FVLift.skip_fvar (a, deps) d (Δ := Δ) .refl
+  have := H.weakFV henv (.cons_bvar _ W) hnd
+  have hf : TrSyn Us ((some (a, deps), d) :: Δ) (.fvar a) d.value := .fvar (A := d.type) <| by
+    simp [VLCtx.find?, VLCtx.next]
+  match d with
+  | .vlam A₀ => exact TrResidual.instN hf .fvar henv (.bvar .zero) .zero this
+  | .vlet A₀ e₀ =>
+    simp [VLocalDecl.depth, VLocalDecl.liftN] at this
+    exact TrResidual.instN_let hf .fvar henv .zero this
+
+theorem TrResidual.prependLevelParam (hfresh : fresh ∉ Us) (H : TrResidual env Us Δ e) :
+    TrResidual env (fresh :: Us) (Δ.instL (VLevel.prependShift Us.length)) e := by
+  have hshift : ∀ level ∈ VLevel.prependShift Us.length, level.WF (fresh :: Us).length := by
+    simpa using VLevel.prependShift_wf (n := Us.length)
+  induction H with
+  | bvar | fvar | sort | const => constructor
+  | app _ _ ih1 ih2 => exact .app ih1 ih2
+  | lam s _ _ ih1 ih2 => exact .lam (s.prependLevelParam hfresh) ih1 ih2
+  | forallE s _ _ ih1 ih2 => exact .forallE (s.prependLevelParam hfresh) ih1 ih2
+  | letE s1 s2 hv _ _ _ ih1 ih2 ih3 =>
+    exact .letE (s1.prependLevelParam hfresh) (s2.prependLevelParam hfresh)
+      (VLCtx.instL_toCtx _ ▸ hv.instL hshift) ih1 ih2 ih3
+  | lit hl _ ih => exact .lit hl ih
+  | mdata _ ih => exact .mdata ih
+  | proj _ ih => exact .proj ih
+
+variable! {env env' : VEnv} (henv : env ≤ env') in
+nonrec theorem VEnv.ContainsLits.mono : ∀ {l}, env.ContainsLits l → env'.ContainsLits l
+  | .natVal _, ⟨_, H⟩ => ⟨_, henv.1 H⟩
+  | .strVal _, ⟨⟨_, H1⟩, ⟨_, H2⟩⟩ => ⟨⟨_, henv.1 H1⟩, ⟨_, henv.1 H2⟩⟩
+
+theorem TrResidual.mono {env env' : VEnv} (henv : env ≤ env') (H : TrResidual env Us Δ e) :
+    TrResidual env' Us Δ e := by
+  induction H with
+  | bvar | fvar | sort | const => constructor
+  | app _ _ ih1 ih2 => exact .app ih1 ih2
+  | lam s _ _ ih1 ih2 => exact .lam s ih1 ih2
+  | forallE s _ _ ih1 ih2 => exact .forallE s ih1 ih2
+  | letE s1 s2 hv _ _ _ ih1 ih2 ih3 => exact .letE s1 s2 (hv.mono henv) ih1 ih2 ih3
+  | lit hl _ ih => exact .lit (hl.mono henv) ih
+  | mdata _ ih => exact .mdata ih
+  | proj _ ih => exact .proj ih
+
+/-! ### Transport of `TrTyped`
+
+Each is the `TrSyn` lemma, the typing lemma for the result, and the residual lemma. None needs a
+well-formed context. -/
+
+theorem TrTyped.weakFV' (henv : env.Ordered) (W : VLCtx.FVLift' Δ Δ' dk n k)
+    (hnd : Δ'.fvars.Nodup) (H : TrTyped env Us Δ e e') :
+    TrTyped env Us Δ' e (e'.lift' (n.consN k)) :=
+  let ⟨s, ⟨_, h⟩, r⟩ := H
+  ⟨s.weakFV' W hnd, ⟨_, HasType.weak' henv W.toCtx h⟩, r.weakFV' henv W hnd⟩
+
+theorem TrTyped.weakFV (henv : env.Ordered) (W : VLCtx.FVLift Δ Δ' dk n k)
+    (hnd : Δ'.fvars.Nodup) (H : TrTyped env Us Δ e e') :
+    TrTyped env Us Δ' e (e'.liftN n k) :=
+  let ⟨s, ⟨_, h⟩, r⟩ := H
+  ⟨s.weakFV W hnd, ⟨_, HasType.weakN henv W.toCtx h⟩, r.weakFV henv W hnd⟩
+
+theorem TrTyped.instN {Δ₀ : VLCtx} (henv : env.Ordered) (h₀ : TrTyped env Us Δ₀ e₀ e₀')
+    (t₀ : env.HasType Us.length Δ₀.toCtx e₀' A₀)
+    (W : VLCtx.InstN Δ₀ e₀' A₀ dk k Δ₁ Δ) (H : TrTyped env Us Δ₁ e e') :
+    TrTyped env Us Δ (Expr.instantiate1' e e₀ dk) (e'.inst e₀' k) :=
+  let ⟨s₀, _, r₀⟩ := h₀
+  let ⟨s, ⟨_, h⟩, r⟩ := H
+  ⟨s₀.instN W s, ⟨_, HasType.instN henv W.toCtx h t₀⟩, TrResidual.instN s₀ r₀ henv t₀ W r⟩
+
+theorem TrTyped.inst {Δ : VLCtx} (henv : env.Ordered) (t₀ : env.HasType Us.length Δ.toCtx e₀' A₀)
+    (H : TrTyped env Us ((none, .vlam A₀) :: Δ) e e') (h₀ : TrTyped env Us Δ e₀ e₀') :
+    TrTyped env Us Δ (e.instantiate1' e₀) (e'.inst e₀') :=
+  h₀.instN henv t₀ .zero H
+
+theorem TrTyped.instN_let {Δ₀ : VLCtx} (henv : env.Ordered) (h₀ : TrTyped env Us Δ₀ e₀ e₀')
+    (W : VLCtx.InstLet Δ₀ e₀' A₀ dk k Δ₁ Δ) (H : TrTyped env Us Δ₁ e e') :
+    TrTyped env Us Δ (Expr.instantiate1' e e₀ dk) e' :=
+  let ⟨s₀, _, r₀⟩ := h₀
+  let ⟨s, h, r⟩ := H
+  ⟨s₀.instN_let W s, W.toCtx ▸ h, TrResidual.instN_let s₀ r₀ henv W r⟩
+
+theorem TrTyped.inst_let {Δ : VLCtx} (henv : env.Ordered)
+    (H : TrTyped env Us ((none, .vlet A₀ e₀') :: Δ) e e') (h₀ : TrTyped env Us Δ e₀ e₀') :
+    TrTyped env Us Δ (e.instantiate1' e₀) e' :=
+  h₀.instN_let henv .zero H
+
+theorem TrTyped.abstract (W : VLCtx.Abstract Δ₀ v₀ d₀ dk k Δ₁ Δ)
+    (H : TrTyped env Us Δ₁ e e') : TrTyped env Us Δ (e.abstract1 v₀ dk) e' :=
+  let ⟨s, h, r⟩ := H
+  ⟨s.abstract W, W.toCtx ▸ h, r.abstract W⟩
+
+theorem TrTyped.uninstantiateN (W : VLCtx.Abstract Δ₀ v₀ d₀ dk k Δ₁ Δ)
+    (H : TrTyped env Us Δ₁ (Expr.instantiate1' e (.fvar v₀) dk) e')
+    (sc : FVarsIn (· ≠ v₀) e) : TrTyped env Us Δ e e' := by
+  have := H.abstract W
+  rwa [sc.abstract_instantiate1] at this
+
+theorem TrTyped.uninstantiate
+    (H : TrTyped env Us ((some (v, deps), d) :: Δ) (e.instantiate1' (.fvar v)) e')
+    (sc : FVarsIn (· ≠ v) e) : TrTyped env Us ((none, d) :: Δ) e e' :=
+  H.uninstantiateN .zero sc
+
+theorem TrTyped.inst_fvar (henv : env.Ordered)
+    (hnd : (VLCtx.fvars ((some (a, deps), d) :: Δ)).Nodup)
+    (H : TrTyped env Us ((none, d) :: Δ) e e') :
+    TrTyped env Us ((some (a, deps), d) :: Δ) (e.instantiate1' (.fvar a)) e' :=
+  let ⟨s, h, r⟩ := H
+  ⟨s.inst_fvar hnd, by cases d <;> exact h, r.inst_fvar henv hnd⟩
+
+theorem TrTyped.prependLevelParam (hfresh : fresh ∉ Us) (H : TrTyped env Us Δ e e') :
+    TrTyped env (fresh :: Us) (Δ.instL (VLevel.prependShift Us.length)) e
+      (e'.instL (VLevel.prependShift Us.length)) :=
+  have hshift : ∀ level ∈ VLevel.prependShift Us.length, level.WF (fresh :: Us).length := by
+    simpa using VLevel.prependShift_wf (n := Us.length)
+  let ⟨s, ⟨_, h⟩, r⟩ := H
+  ⟨s.prependLevelParam hfresh, ⟨_, VLCtx.instL_toCtx _ ▸ HasType.instL hshift h⟩,
+    r.prependLevelParam hfresh⟩
+
+theorem TrTyped.mono {env env' : VEnv} (henv : env ≤ env') (H : TrTyped env Us Δ e e') :
+    TrTyped env' Us Δ e e' :=
+  let ⟨s, h, r⟩ := H
+  ⟨s, h.mono henv, r.mono henv⟩
 
 end Lean4Lean
