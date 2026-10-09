@@ -61,7 +61,89 @@ confluence (`PStep.diamond`, `PRed.confluent`, with `PStep.inst` as the substitu
 eta-free steps), the shape lemmas `CRed.sort_inv`, `CRed.forallE_inv`, `CRed.lam_inv`,
 `CRed.trans`, O11, `Cancel.of_cComplete`, and the strip lemma `CConv.trans_of`.
 
-## 3. Log
+## 3. Outcome: obstruction (ii), with the proved parts in the library
+
+### 3.1 The attempt and where it stops
+
+The strip lemma `CConv.trans_of` reduces O1 to O2, O3, O4. O2 is proved exactly for the
+eta-free steps (`PStep.diamond`, `PRed.confluent`); with `step_eta` every eta/beta and
+eta/congruence overlap re-synthesises the expanded domain (O9), so O2 for the full pilot is
+confluence *modulo* `N` and already needs O3 to tile. O3 (transport of `N` along a certified
+reduction) was written out case by case. Its beta case under `norm_app` with `norm_lam` on the
+left is:
+
+```
+N (app (lam A m) u) (app (lam A' m') u')   along   app (lam A' m') u' → m''[u'']
+```
+
+The induction hypotheses transport `N m m'` along `m' → m''` and `N u u'` along `u' → u''`,
+giving `N m₁ m''` and `N u₁ u''`; the result `N (m₁[u₁]) (m''[u''])` is the heterogeneous
+substitution `N.subst` of the second into the first. `N.subst` is exact when the two
+substituends have the *same exact* synthesised type (`Cert.instN` is the homogeneous case);
+in general `u₁ : X` with only a guard `C X A`, and at every `T` leaf of `N m₁ m''`
+(`norm_proofIrrel`, `norm_eta*`) it needs `T.subst` with a guard, whose `ty_app` case must
+expose the substituted function type through the guard (`C F' F[u]` composed with
+`R F[u] (Π ..)`): O2 and O3 again, and then O1 on the composed argument guard. So O3,
+`N.subst`, `T.subst` and O1 form one mutual block, and a rank must decrease along the call
+O3 → `N.subst`.
+
+### 3.2 The failing call, formally (`PilotRank.lean`)
+
+Rank used: the total size of the input certificates, made meaningful by the size-indexed copy
+`CertN` (`Cert.toN`, `CertN.erase`). The instance is `Duplication`: `u = (λ X:Prop. n) w`,
+`u' = (λ X:Prop. n) w'` where `n` mentions `X` five times and `w`, `w'` are closed
+irreducible propositions whose comparison `C w w'` costs at least 21 because it contains a
+comparison of two `Π`-towers of sorts differing by equivalent level expressions. Checked:
+
+* `transport_output_exceeds_inputs`: `N u u'` has size 53, the step `u' → Π w'. Π w'. Π w'.
+  Π w'. w'` has size 21, both endpoints are typed, and *every* certificate `N u₁ (Π w' ...)`,
+  for every `u₁`, has size at least 98 (`norm_tower_ge`, a lower bound by cases on the right
+  side only: at every level the certificate is a `norm_forallE` with a guard against `w'` or a
+  `norm_proofIrrel` whose typing of the `Π` is at least as large; eta is excluded because a
+  `Π` synthesises a sort).
+* `substitution_call_not_decreasing`: wrapping once more, `a = (λ X. X) u`, `b = (λ X. X) u'`
+  (sizes 60 and 23), the `N.subst` call of the beta case receives the body certificate (size 1)
+  and the transported argument certificate (at least 98): total at least 99 > 83.
+* `no_monotone_size_rank`: hence no rank that is a monotone function of the total input size
+  decreases on this call.
+
+The lower bound is independent of the reduct chosen on the left, so it does not depend on
+how the transport is organised; it is the duplication of the argument comparison by
+substitution, which Astra's `no_additive_size_decrease` showed for typing certificates of a
+contractum and which here lands on the transport obligation itself.
+
+### 3.3 Reorganisations tried, and why none removes the call
+
+1. **Chains (zigzags of joins) as guards.** Every "O1 at types" call becomes concatenation and
+   `T.subst`, `N.subst`, O3 are structural. But a chain guard admits arbitrary intermediates,
+   and the exposure of a function type by a chain (instead of by reduction) makes the
+   synthesised type of an application depend on a free choice of `Π`; both break `Cert.descend`
+   (a `q`-dependent intermediate or domain is reachable by one beta step from a lift). The
+   intermediates produced by the strip lemma *are* lifts, but that is a property of the
+   proof, not of the calculus, so it would have to be a reified `Supported` predicate on
+   derivations, with completeness producing supported derivations: the same recursion with a
+   bookkeeping layer added.
+2. **Dropping `step_eta`.** Steps become untyped (`PStep`), O2 is exact and `R.subst` exact.
+   The eta leaves of `N` still expose the synthesised type of their subject by reduction, so
+   `N.subst` at an eta leaf has the same exposure-through-a-guard problem as `T.subst`.
+3. **Typing premises on `norm_app`** (as `NormalEqN.appDF` has them). Supplies the certified
+   typings `N.subst` needs for its substituends, but not the exact types: the guard remains.
+4. **Exactly typed substituends only.** `Cert.instN` is proved; it is the inhabited-binder
+   case, and the uninhabited case is exactly the guarded one.
+5. **Ranks other than size.** Guard nesting depth: `N.subst` inserts the argument comparison
+   inside the guards of the body (`C (G x) (G' x')` with `x` the substituted variable), so the
+   depth of the output is the sum of the depths of the inputs (same example, with a
+   `norm_lam` guard inside `w`). Universe of the compared type: `no_layer_universe_rank`.
+   Term size or context position: the recursion enters the types of subterms, which are
+   context entries or substitution instances of them, unbounded in the terms.
+
+No universal pair (a statement whose required call is the same statement) exists in a
+normalising fragment, so the obstruction is to syntactic ranks, not to the truth of O1..O4.
+
+## 4. Log
 
 * Step 1 (015c7811): `ProofAware.lean`, all of Astra's round 7(A) at zero sorry.
-* Step 2a: `PilotTrans.lean` first increment (this commit); obligations list above.
+* Step 2a (b6b37b40): `PilotTrans.lean` first increment; obligations list above.
+* Step 2b (391a07e6): `Cert.instN`, exact substitution for every kind.
+* Step 2c: `PilotRank.lean`, the size-indexed calculus and the duplication obstruction
+  (section 3); outcome (ii) recorded.
