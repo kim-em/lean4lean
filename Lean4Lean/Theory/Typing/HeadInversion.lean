@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.HeadInversionDefs
 import Lean4Lean.Theory.Typing.HeadInjectivity.Fields
-import Lean4Lean.Theory.Typing.HeadInjectivity.ChainInjectivity
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Separation
 
 /-! # Head inversion for types: the base obligation of the inversion layer
 
@@ -17,19 +17,6 @@ the design notes). -/
 
 namespace Lean4Lean
 namespace VEnv
-
-/-! ### Layer stub: the two theorems of the head-inversion model
-
-LAYER STUB. The glued observation model (`Theory/Typing/HeadInjectivity/{Model,Rules,
-Projections}/`) is the next layer of this branch. Until then its two exported theorems are stated
-here with `sorry`; the head-inversion layer deletes this block and imports
-`HeadInjectivity.Model.Separation`, which proves them under the same names. -/
-
-theorem WF.chainHeadInjectivity {env : VEnv} (henv : env.WF) : env.ChainHeadInjectivity :=
-  sorry -- LAYER STUB: proved by `Model/EnvValid.lean` in the head-inversion layer
-
-theorem WF.headSeparationModel {env : VEnv} (henv : env.WF) : env.HeadSeparation :=
-  sorry -- LAYER STUB: proved by `Model/Separation.lean` in the head-inversion layer
 
 /-- Separation for every well-formed environment, from the glued observation model. -/
 theorem _root_.Lean4Lean.VEnv.WF.headSeparation {env : VEnv} (henv : env.WF) :
