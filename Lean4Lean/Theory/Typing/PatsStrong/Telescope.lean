@@ -5,8 +5,8 @@ import Lean4Lean.Theory.Typing.Strong
 Step (iii) of the `patsStrong` argument (PORT_PLAN §4.3): the generic typing of an ι rule
 lives in the telescope context of the rule's holes (parameters, motives, minors, fields) and
 has to be instantiated by the actual arguments of a redex. #43 does simultaneous substitution
-in the strong system through `IsDefEqStrong.substEq'`, which takes `OrderedStrong env` — i.e.
-`PatsStrongOn env`, the obligation itself — only because `Ctx.SubstEq` types the substituted
+in the strong system through `IsDefEqStrong.substEq'`, which takes `OrderedStrong env`, i.e.
+`PatsStrongOn env`, the obligation itself, only because `Ctx.SubstEq` types the substituted
 terms in the weak system and strengthens them with `IsDefEq.strong`. Single-variable
 instantiation (`IsDefEqStrong.instN`) needs `Ordered env` alone, so a telescope is
 instantiated one outermost variable at a time (`VExpr.instOuter`, as on the

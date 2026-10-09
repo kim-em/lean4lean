@@ -8,7 +8,7 @@ This file states, with no proofs of its own, the facts the history induction
 (`PatsStrong/History.lean`) and the per-rule argument (`PatsStrong/Rule.lean`) consume:
 
 * `StrongHeadInversion env`: head inversion **on strong derivations with strong
-  conclusions** — the wave-1C target. Its three clauses are the strong forms of the branch's
+  conclusions**, the wave-1C target. Its three clauses are the strong forms of the branch's
   `HeadInversion.sort_sort`, `forallE_forallE` and `former_args`
   (`Theory/Typing/HeadInversionDefs.lean`). The branch's model proves these with *weak*
   conclusions (`ElCls.collapse` returns an `IsDefEq`); the `patsStrong` argument needs the
@@ -21,8 +21,8 @@ This file states, with no proofs of its own, the facts the history induction
   generic instance strongly typed in the telescope context of its holes (recursor parameters,
   motives, minors, then constructor fields). This is the form in which the rule's typing must
   be carried along the history (`Stage.rules`): it is established at the stage-2 environment
-  `envR` of the declaring `addInduct` — a constant-only extension of a *strict* prefix, where
-  `PatsStrongOn envR` is available from the induction — and moved to later environments by
+  `envR` of the declaring `addInduct`, a constant-only extension of a *strict* prefix, where
+  `PatsStrongOn envR` is available from the induction, and moved to later environments by
   `IsDefEqStrong.mono`. This is the cut of the circle.
 * `Stage env`: the per-environment invariant: `Ordered`, `EnvStrong`, every registered rule
   carries `GenericStrong` and its syntactic shape, and the type formers it eliminates are
@@ -222,7 +222,7 @@ structure Stage (env : VEnv) : Prop where
     ∀ c us, df.lhs.getAppFn = .const c us → env.constants c ≠ none
 
 /-- **The wave-1C obligation, as the history induction consumes it**: head inversion with
-strong conclusions in every `Stage` environment, from the `Stage` data alone — without
+strong conclusions in every `Stage` environment, from the `Stage` data alone, without
 `PatsStrongOn env` and hence without `IsDefEq.strong` at `env`. The branch's model consumes
 strong derivations (`Model.SoundEnv`) and emits weak conclusions; the upgrade to strong
 conclusions (strong observation classes or an equivalent) is the open research item of this

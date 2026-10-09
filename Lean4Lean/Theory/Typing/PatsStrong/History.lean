@@ -7,13 +7,13 @@ import Lean4Lean.Theory.Typing.QuotLemmas
 `OnTypes.addConst` with `PatsStrongOn` of the *previous* environment (derived from its `Stage`
 and `Wave1C`), through definitional axioms by `OnTypes.addDefEq`, and through the ι rules of an
 inductive block by strengthening the installer's generic typing at the stage-2 environment
-`envR` — where `PatsStrongOn envR` is available because `envR` is a constant-only extension of
-the environment *before* the block — and moving it forward by `IsDefEqStrong.mono`.
+`envR`, where `PatsStrongOn envR` is available because `envR` is a constant-only extension of
+the environment *before* the block, and moving it forward by `IsDefEqStrong.mono`.
 
 The results: `Stage env` for every well-formed `env` (`WF'.stage`), `PatsStrongOn env₀` for
 every constant-only extension `env₀` of a well-formed environment (`patsStrongWF`), #43's
 `VEnv.PatsStrong` with `env₁.WF` in place of `env.WFPrefix env₁` (`WF.patsStrong'`), and
-`OrderedStrong env` for every well-formed `env` (`WF.orderedStrong'`) — all conditional on the
+`OrderedStrong env` for every well-formed `env` (`WF.orderedStrong'`), all conditional on the
 two named hypotheses `Wave1C` and `RulesGenericTyped` and on the two stubs of `Rule.lean`. -/
 
 namespace Lean4Lean
@@ -178,9 +178,9 @@ theorem Stage.addQuot (h1C : Wave1C) (hst : Stage env) (hq : QuotReady env)
     absurd h (quotDefEq_lhs_not_const c us)
 
 /-- An inductive block: three constant stages, then the rules. Each new rule's generic typing
-is strengthened at the stage-2 environment `envR` with `PatsStrongOn envR` — `envR` is a
+is strengthened at the stage-2 environment `envR` with `PatsStrongOn envR`, `envR` is a
 constant-only extension of `env`, the environment *before* the block, whose `Stage` is the
-induction hypothesis — and moved to the final environment by monotonicity. Rigidity: the new
+induction hypothesis, and moved to the final environment by monotonicity. Rigidity: the new
 patterns are headed by the recursors, fresh in `envC`, while every type former (old or new) is a
 constant of `envC`; the definitional axioms are unchanged and headed by constants of `env`,
 while the new type formers are fresh in `env`. -/
