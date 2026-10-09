@@ -1,6 +1,7 @@
 import Lean4Lean.Verify.Inductive.Install.OrdinaryExtension
 import Lean4Lean.Verify.Inductive.Primitive.Extension
 import Lean4Lean.Verify.Inductive.Install.Result
+import Lean4Lean.Verify.Inductive.Nested.Install.Result
 
 /-! # Dispatch of inductive declarations
 
@@ -15,26 +16,6 @@ open Lean hiding Environment Exception
 open Kernel
 
 namespace VerifyInductive
-
-set_option linter.unusedVariables false in
-/-- LAYER HYPOTHESIS. The nested branch of the dispatch: the statement of
-`Environment.addInductiveAfterLowering.nestedInductiveExtensionWF`, which the nested layer of this
-branch proves (`Verify/Inductive/Nested/Install/Result.lean`) and then removes this hypothesis. -/
-def NestedInductivePreserves : Prop :=
-  ∀ (env : Environment) (lparams : List Name) (nparams : Nat)
-    (sourceTypes : List InductiveType) (isUnsafe : Bool)
-    (fuel : FuelConfig) (res : Lean4Lean.ElimNestedInductive.Result)
-    (ves : VEnvs) (wf : ves.WF env)
-    (hmode : ∀ safety, fuel.cacheMode.Sound (ves.venv safety))
-    (Hsources : SourceSyntaxChecks sourceTypes)
-    (Hlower : NestedLoweringOutputClosed env fuel.inductiveFuel nparams
-      sourceTypes
-      { lvls := lparams.map .param, newTypes := sourceTypes.toArray } res)
-    (hnested : res.aux2nested.size ≠ 0),
-    (Environment.addInductiveAfterLowering env lparams nparams sourceTypes
-      isUnsafe false fuel res).WF fun outEnv =>
-        Nonempty (InductiveExtension env outEnv ves lparams nparams sourceTypes
-          isUnsafe)
 
 /-- `InductiveExtension` for the ordinary branch after lowering (no auxiliary families). -/
 theorem Environment.addInductiveAfterLowering.ordinaryInductiveExtensionWF
@@ -114,7 +95,6 @@ block is literally the source only under that hypothesis.  The case without auxi
 families is the ordinary branch; otherwise the nested branch receives the checked lowering
 output selected by execution. -/
 theorem Environment.addInductive.inductiveExtensionWF
-    (hnested : NestedInductivePreserves)
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env)
@@ -135,14 +115,13 @@ theorem Environment.addInductive.inductiveExtensionWF
       env lparams nparams types isUnsafe fuel res ves wf hmode Hsources HsourcesB
       Hlower.toResult haux
   · exact
-      hnested
+      Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
         env lparams nparams types isUnsafe fuel res ves wf hmode Hsources Hlower haux
 
 /-- Checked `addDecl` for the non-primitive branch, given that the executable's primitive
 recognizer returns `false`; the choice between the ordinary and nested branches is made
 inside, by `Environment.addInductive.inductiveExtensionWF`. -/
 theorem addInductiveDeclaration.inductiveExtensionWF
-    (hnested : NestedInductivePreserves)
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env)
@@ -154,7 +133,7 @@ theorem addInductiveDeclaration.inductiveExtensionWF
       (check := true) (fuel := fuel)).WF fun outEnv =>
         Nonempty (InductiveExtension env outEnv ves lparams nparams types
           isUnsafe) := by
-  have Hrun := Environment.addInductive.inductiveExtensionWF hnested env lparams
+  have Hrun := Environment.addInductive.inductiveExtensionWF env lparams
     nparams types isUnsafe fuel ves wf hmode HsourcesB
   simpa [Lean4Lean.addDecl, hcheck, bind, Except.bind] using Hrun
 

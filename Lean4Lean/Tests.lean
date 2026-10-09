@@ -19,6 +19,7 @@ import Lean4Lean.Tests.SpecializedRecursorShape
 import Lean4Lean.Tests.KNormalization
 import Lean4Lean.Tests.UnitLikeK
 import Lean4Lean.Tests.CorruptRecursorMetadata
+import Lean4Lean.Tests.CorruptRestoredRecursorMetadata
 import Lean4Lean.Tests.KernelHardening
 import Lean4Lean.Tests.LevelStd
 import Lean4Lean.Tests.RecursorOracle
@@ -29,4 +30,5 @@ import Lean4Lean.Tests.Level
 import Lean4Lean.Tests.TypeAnnotationWrappers
 import Lean4Lean.Tests.StructEtaIota
 import Lean4Lean.Tests.CacheScope
+import Lean4Lean.Tests.CacheMode
 import Lean4Lean.Tests.SyntacticTranslation

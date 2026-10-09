@@ -1,11 +1,18 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceTranslations
+import Lean4Lean.Verify.Inductive.Nested.Install.AddInduct
+import Lean4Lean.Verify.Inductive.Nested.Install.Certificate
+import Lean4Lean.Verify.Inductive.Nested.Restoration.FreshExtensions
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Expression
+import Lean4Lean.Verify.Inductive.Nested.Lowering.Expansion.Formation
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ParameterOpening
 import Lean4Lean.Verify.Inductive.Recursor.Context.ForallTelescope
 import Lean4Lean.Verify.Typing.EnvironmentRestriction
 import Lean4Lean.Verify.Inductive.Install.BlockCertificate
 import Lean4Lean.Verify.Inductive.Recursor.Binders.FieldOpening
 import Lean4Lean.Verify.Inductive.Recursor.Binders.MinorAlignment
+import Lean4Lean.Verify.Inductive.Nested.Lowering.Expansion.AuxiliaryHeads
+import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.SourceIota
+import Lean4Lean.Verify.Inductive.Nested.Restoration.InstalledFamilyLookups
 import Lean4Lean.Theory.Inductive
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ExprReplace
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Steps
@@ -24,6 +31,7 @@ import Lean4Lean.Verify.Inductive.Primitive.Run
 import Lean4Lean.Verify.Inductive.Rules.RuleTranslations
 import Lean4Lean.Verify.Inductive.Primitive.Extension
 import Lean4Lean.Verify.Inductive.Prelude.Eq
+import Lean4Lean.Verify.Inductive.Nested.Install.BlockCertificate
 import Lean4Lean.Verify.Inductive.Dispatch
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 
