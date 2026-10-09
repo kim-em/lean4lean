@@ -242,7 +242,7 @@ theorem MajorEtaIota.defeqDFC {Γ₀ Γ₁ Γ₂ : List VExpr} {s c A : VExpr}
     hexp.defeqDFC henv.ordered W, RootFire.defeqDFC W hstep⟩
 
 theorem MajorEtaIota.instN {Γ₀ Γ₁ Γ : List VExpr} {a₁ A₀ s c T : VExpr} {k : Nat}
-    (W : Ctx.InstN Γ₀ a₁ A₀ k Γ₁ Γ) (hΓ₁ : OnCtx Γ₁ (Params.env.IsType univs))
+    (W : Ctx.InstN Γ₀ a₁ A₀ k Γ₁ Γ) (_hΓ₁ : OnCtx Γ₁ (Params.env.IsType univs))
     (h₀ : Γ₀ ⊢ a₁ : A₀) (h : MajorEtaIota Γ₁ s c) (hs : Γ₁ ⊢ s : T) :
     MajorEtaIota Γ (s.inst a₁ k) (c.inst a₁ k) := by
   obtain ⟨f, m, family, info, levels, params, rfl, hl, hp, hi, hm, hexp, hstep⟩ := h
