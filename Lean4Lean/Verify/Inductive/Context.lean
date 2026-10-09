@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Compilation
-import Lean4Lean.Verify.TypeChecker.CheckingContext
+import Lean4Lean.Verify.Inductive.Context.Semantics
 
 namespace Lean4Lean
 
@@ -38,6 +38,35 @@ structure ContextWF (c : AddInductive.Context) where
   /-- The semantic checker context, embedded in the main one. -/
   check : CheckBase venv c.lparams mlctx c.lctx c.checkLCtx
 
+/-- The shared semantic view, preserving the concrete frame data by reduction. -/
+def ContextWF.toSemantics (H : ContextWF c) : ContextSemantics c c.lparams where
+  venv := H.venv
+  checking := H.checking
+  mlctx := H.mlctx
+  mlctx_wf := H.mlctx_wf
+  onlyLams := H.onlyLams
+  lctx_eq := H.lctx_eq
+  ngen_prefix := H.ngen_prefix
+  indFresh := H.indFresh
+  kernelFresh := H.kernelFresh
+  check := H.check
+
+/-- Restore the public frame with its explicit universe contract. -/
+def ContextWF.ofSemantics (H : ContextSemantics c c.lparams)
+    (hparams : c.typeCheckerLParams = none) :
+    ContextWF c where
+  venv := H.venv
+  checking := H.checking
+  mlctx := H.mlctx
+  mlctx_wf := H.mlctx_wf
+  onlyLams := H.onlyLams
+  lctx_eq := H.lctx_eq
+  ngen_prefix := H.ngen_prefix
+  indFresh := H.indFresh
+  kernelFresh := H.kernelFresh
+  check := H.check
+  typeCheckerLParams_eq := hparams
+
 def initialContext (env : Environment) (lparams : List Name)
     (safety : DefinitionSafety) (allowPrimitive : Bool) (fuel : FuelConfig) :
     AddInductive.Context where
@@ -68,36 +97,25 @@ environment pair known to represent the same extension. -/
 def ContextWF.withEnv (H : ContextWF c)
     (hchecking : CheckingEnv.Valid c.safety env' venv')
     (hle : H.venv ≤ venv') :
-    ContextWF { c with env := env' } where
-  venv := venv'
-  checking := hchecking
-  mlctx := H.mlctx
-  mlctx_wf := H.mlctx_wf.mono hle
-  typeCheckerLParams_eq := H.typeCheckerLParams_eq
-  onlyLams := H.onlyLams
-  lctx_eq := H.lctx_eq
-  ngen_prefix := H.ngen_prefix
-  indFresh := H.indFresh
-  kernelFresh := H.kernelFresh
-  check := H.check.mono hle
+    ContextWF { c with env := env' } :=
+  .ofSemantics (H.toSemantics.withEnv hchecking hle) H.typeCheckerLParams_eq
 
 theorem ContextWF.current_not_mem (H : ContextWF c) :
-    ⟨c.ngen.curr⟩ ∉ H.mlctx.vlctx.fvars := fun hmem =>
-  c.ngen.not_reserves_self (H.indFresh _ hmem)
+    ⟨c.ngen.curr⟩ ∉ H.mlctx.vlctx.fvars :=
+  H.toSemantics.current_not_mem
 
 theorem ContextWF.kernel_reserves_current (H : ContextWF c) :
-    ({} : TypeChecker.State).ngen.Reserves ⟨c.ngen.curr⟩ := by
-  apply NameGenerator.Reserves.num_of_prefix_ne
-  simp [H.ngen_prefix]
+    ({} : TypeChecker.State).ngen.Reserves ⟨c.ngen.curr⟩ :=
+  H.toSemantics.kernel_reserves_current
 
 theorem ContextWF.lctxWF (H : ContextWF c) : c.lctx.WF :=
-  H.lctx_eq ▸ H.mlctx_wf.tr.1
+  H.toSemantics.lctxWF
 
 /-- The semantic checker context. -/
 abbrev ContextWF.chk (H : ContextWF c) : TypeChecker.MLCtx := H.check.m
 
 theorem ContextWF.checkSub (H : ContextWF c) : c.checkLCtx.SubContextOf c.lctx :=
-  H.check.sub
+  H.toSemantics.checkSub
 
 /-- A candidate checker context beneath the main context of `H`. -/
 abbrev ContextWF.Base (H : ContextWF c) (l : LocalContext) : Type :=
@@ -105,28 +123,18 @@ abbrev ContextWF.Base (H : ContextWF c) (l : LocalContext) : Type :=
 
 /-- The empty checker context. -/
 def ContextWF.baseNil (H : ContextWF c) : H.Base {} :=
-  .nil H.checking.tr.wf.ordered H.mlctx_wf
+  H.toSemantics.baseNil
 
 /-- A bottom part of the main context as checker context. -/
 def ContextWF.baseMain (H : ContextWF c) (j : Nat) (hj : j ≤ H.mlctx.length) :
     H.Base (H.mlctx.dropN j hj).lctx :=
-  .ofMain H.checking.tr.wf.ordered H.mlctx_wf H.onlyLams H.lctx_eq j hj
+  H.toSemantics.baseMain j hj
 
 /-- Replace the checker context by a described sub-context of the main
 context. -/
 def ContextWF.withCheckLCtx (H : ContextWF c) (l : LocalContext) (B : H.Base l) :
-    ContextWF { c with checkLCtx := l } where
-  venv := H.venv
-  checking := H.checking
-  mlctx := H.mlctx
-  mlctx_wf := H.mlctx_wf
-  typeCheckerLParams_eq := H.typeCheckerLParams_eq
-  onlyLams := H.onlyLams
-  lctx_eq := H.lctx_eq
-  ngen_prefix := H.ngen_prefix
-  indFresh := H.indFresh
-  kernelFresh := H.kernelFresh
-  check := B
+    ContextWF { c with checkLCtx := l } :=
+  .ofSemantics (H.toSemantics.withCheckLCtx l B) H.typeCheckerLParams_eq
 
 @[simp] theorem ContextWF.withCheckLCtx_venv (H : ContextWF c) (l B) :
     (H.withCheckLCtx l B).venv = H.venv := rfl
@@ -141,21 +149,8 @@ def ContextWF.withCheckLCtx (H : ContextWF c) (l : LocalContext) (B : H.Base l) 
 the main context of the context whose local context is `checkLCtx`.
 Every embedded checker run reads only the checking context, so this view
 verifies the same runs, with facts about the checking context. -/
-abbrev ContextWF.atCheckLCtx (H : ContextWF c) : ContextWF { c with lctx := c.checkLCtx } where
-  venv := H.venv
-  checking := H.checking
-  mlctx := H.chk
-  mlctx_wf := H.check.wf
-  typeCheckerLParams_eq := H.typeCheckerLParams_eq
-  onlyLams := H.check.onlyLams
-  lctx_eq := H.check.lctx_eq
-  ngen_prefix := H.ngen_prefix
-  indFresh := fun fv h => H.indFresh fv (H.check.embed.fvars_subset h)
-  kernelFresh := fun fv h => H.kernelFresh fv (H.check.embed.fvars_subset h)
-  check := { m := H.chk, wf := H.check.wf, onlyLams := H.check.onlyLams,
-             lctx_eq := H.check.lctx_eq,
-             embed := .refl H.checking.tr.wf.ordered H.check.wf.tr.wf,
-             sub := .refl _ }
+abbrev ContextWF.atCheckLCtx (H : ContextWF c) : ContextWF { c with lctx := c.checkLCtx } :=
+  .ofSemantics (H.toSemantics.atCheckLCtx) H.typeCheckerLParams_eq
 
 @[simp] theorem ContextWF.atCheckLCtx_venv (H : ContextWF c) : H.atCheckLCtx.venv = H.venv := rfl
 @[simp] theorem ContextWF.atCheckLCtx_mlctx (H : ContextWF c) : H.atCheckLCtx.mlctx = H.chk := rfl
@@ -166,38 +161,9 @@ def ContextWF.withLocalDecl (H : ContextWF c)
     (hty : H.venv.IsType c.lparams.length H.mlctx.vlctx.toCtx ty') :
     ContextWF { c with
       ngen := c.ngen.next
-      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } where
-  venv := H.venv
-  checking := H.checking
-  mlctx := .vlam ⟨c.ngen.curr⟩ name ty ty' bi H.mlctx
-  mlctx_wf := ⟨H.mlctx_wf,
-    H.mlctx_wf.tr.find?_eq_none.2 H.current_not_mem, htr, hty⟩
-  typeCheckerLParams_eq := H.typeCheckerLParams_eq
-  onlyLams := H.onlyLams.vlam
-  lctx_eq := by
-    change H.mlctx.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi =
-      c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
-    rw [H.lctx_eq]
-  ngen_prefix := by
-    change c.ngen.namePrefix = `_ind_fresh
-    exact H.ngen_prefix
-  indFresh := by
-    intro fv hmem
-    simp only [TypeChecker.MLCtx.vlctx, VLCtx.fvars_cons_some,
-      List.mem_cons] at hmem
-    rcases hmem with rfl | hmem
-    · exact c.ngen.next_reserves_self
-    · exact (H.indFresh _ hmem).mono NameGenerator.LE.next
-  kernelFresh := by
-    intro fv hmem
-    simp only [TypeChecker.MLCtx.vlctx, VLCtx.fvars_cons_some,
-      List.mem_cons] at hmem
-    rcases hmem with rfl | hmem
-    · exact H.kernel_reserves_current
-    · exact H.kernelFresh _ hmem
-  check := H.check.skip H.checking.tr.wf.ordered H.mlctx_wf H.lctx_eq
-    (⟨H.mlctx_wf, H.mlctx_wf.tr.find?_eq_none.2 H.current_not_mem, htr, hty⟩ :
-      (TypeChecker.MLCtx.vlam ⟨c.ngen.curr⟩ name ty ty' bi H.mlctx).WF H.venv c.lparams)
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } :=
+  .ofSemantics (H.toSemantics.withLocalDecl (name := name) (bi := bi) htr hty)
+    H.typeCheckerLParams_eq
 
 /-- Bind at the reader level of the inductive-checker monad. -/
 theorem AddInductive.M.WF_bind {x : AddInductive.M α} {f : α → AddInductive.M β}
@@ -276,19 +242,9 @@ def ContextWF.withCheckedLocalDecl (H : ContextWF c)
     ContextWF { c with
       ngen := c.ngen.next
       lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
-      checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } where
-  venv := H.venv
-  checking := H.checking
-  mlctx := .vlam ⟨c.ngen.curr⟩ name ty ty' bi H.mlctx
-  mlctx_wf := (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx_wf
-  typeCheckerLParams_eq := H.typeCheckerLParams_eq
-  onlyLams := H.onlyLams.vlam
-  lctx_eq := (H.withLocalDecl (name := name) (bi := bi) htr hty).lctx_eq
-  ngen_prefix := H.ngen_prefix
-  indFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).indFresh
-  kernelFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).kernelFresh
-  check := H.check.cons H.checking.tr.wf H.lctx_eq
-    (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx_wf htr₀ hty₀
+      checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } :=
+  .ofSemantics (H.toSemantics.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀)
+    H.typeCheckerLParams_eq
 
 /-- Open a binder in the main context and on top of `base` in the checker
 context. -/
@@ -301,19 +257,10 @@ def ContextWF.withCheckedLocalDeclOn (H : ContextWF c) (base : LocalContext)
     ContextWF { c with
       ngen := c.ngen.next
       lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
-      checkLCtx := base.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } where
-  venv := H.venv
-  checking := H.checking
-  mlctx := .vlam ⟨c.ngen.curr⟩ name ty ty' bi H.mlctx
-  mlctx_wf := (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx_wf
-  typeCheckerLParams_eq := H.typeCheckerLParams_eq
-  onlyLams := H.onlyLams.vlam
-  lctx_eq := (H.withLocalDecl (name := name) (bi := bi) htr hty).lctx_eq
-  ngen_prefix := H.ngen_prefix
-  indFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).indFresh
-  kernelFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).kernelFresh
-  check := B.cons H.checking.tr.wf H.lctx_eq
-    (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx_wf htr₀ hty₀
+      checkLCtx := base.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } :=
+  .ofSemantics
+    (H.toSemantics.withCheckedLocalDeclOn (name := name) (bi := bi) base B htr hty htr₀ hty₀)
+    H.typeCheckerLParams_eq
 
 theorem ContextWF.withCheckedLocalDecl_venv (H : ContextWF c)
     (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
@@ -393,6 +340,38 @@ structure RecursorContextWF (c : AddInductive.Context)
   /-- The semantic checker context, embedded in the main one. -/
   check : CheckBase venv recLparams mlctx c.lctx c.checkLCtx
 
+/-- The shared semantic view, preserving the concrete frame data by reduction. -/
+def RecursorContextWF.toSemantics (H : RecursorContextWF c recLparams) :
+    ContextSemantics c recLparams where
+  venv := H.venv
+  checking := H.checking
+  mlctx := H.mlctx
+  mlctx_wf := H.mlctx_wf
+  onlyLams := H.onlyLams
+  lctx_eq := H.lctx_eq
+  ngen_prefix := H.ngen_prefix
+  indFresh := H.indFresh
+  kernelFresh := H.kernelFresh
+  check := H.check
+
+/-- Restore the public frame with its explicit universe contract. -/
+def RecursorContextWF.ofSemantics (H : ContextSemantics c recLparams)
+    (hparams : c.typeCheckerLParams = some recLparams)
+    (horigin : RecursorLParams c.lparams recLparams) :
+    RecursorContextWF c recLparams where
+  venv := H.venv
+  checking := H.checking
+  mlctx := H.mlctx
+  mlctx_wf := H.mlctx_wf
+  onlyLams := H.onlyLams
+  lctx_eq := H.lctx_eq
+  ngen_prefix := H.ngen_prefix
+  indFresh := H.indFresh
+  kernelFresh := H.kernelFresh
+  check := H.check
+  typeCheckerLParams_eq := hparams
+  lparams_origin := horigin
+
 /-- An ordinary verified context is already a recursor context when no
 universe rebasing is required. -/
 def ContextWF.toRecursorContextWF (H : ContextWF c) :
@@ -456,18 +435,17 @@ def ContextWF.prependRecursorLevelParam
 
 theorem RecursorContextWF.current_not_mem
     (H : RecursorContextWF c recLparams) :
-    ⟨c.ngen.curr⟩ ∉ H.mlctx.vlctx.fvars := fun hmem =>
-  c.ngen.not_reserves_self (H.indFresh _ hmem)
+    ⟨c.ngen.curr⟩ ∉ H.mlctx.vlctx.fvars :=
+  H.toSemantics.current_not_mem
 
 theorem RecursorContextWF.kernel_reserves_current
     (H : RecursorContextWF c recLparams) :
-    ({} : TypeChecker.State).ngen.Reserves ⟨c.ngen.curr⟩ := by
-  apply NameGenerator.Reserves.num_of_prefix_ne
-  simp [H.ngen_prefix]
+    ({} : TypeChecker.State).ngen.Reserves ⟨c.ngen.curr⟩ :=
+  H.toSemantics.kernel_reserves_current
 
 theorem RecursorContextWF.lctxWF (H : RecursorContextWF c recLparams) :
     c.lctx.WF :=
-  H.lctx_eq ▸ H.mlctx_wf.tr.1
+  H.toSemantics.lctxWF
 
 /-- The semantic checker context of a recursor frame. -/
 abbrev RecursorContextWF.chk (H : RecursorContextWF c recLparams) : TypeChecker.MLCtx :=
@@ -475,7 +453,7 @@ abbrev RecursorContextWF.chk (H : RecursorContextWF c recLparams) : TypeChecker.
 
 theorem RecursorContextWF.checkSub (H : RecursorContextWF c recLparams) :
     c.checkLCtx.SubContextOf c.lctx :=
-  H.check.sub
+  H.toSemantics.checkSub
 
 /-- A candidate checker context beneath the main context of a recursor frame. -/
 abbrev RecursorContextWF.Base (H : RecursorContextWF c recLparams) (l : LocalContext) :
@@ -483,27 +461,16 @@ abbrev RecursorContextWF.Base (H : RecursorContextWF c recLparams) (l : LocalCon
   CheckBase H.venv recLparams H.mlctx c.lctx l
 
 def RecursorContextWF.baseNil (H : RecursorContextWF c recLparams) : H.Base {} :=
-  .nil H.checking.tr.wf.ordered H.mlctx_wf
+  H.toSemantics.baseNil
 
 def RecursorContextWF.baseMain (H : RecursorContextWF c recLparams) (j : Nat)
     (hj : j ≤ H.mlctx.length) : H.Base (H.mlctx.dropN j hj).lctx :=
-  .ofMain H.checking.tr.wf.ordered H.mlctx_wf H.onlyLams H.lctx_eq j hj
+  H.toSemantics.baseMain j hj
 
 def RecursorContextWF.withCheckLCtx (H : RecursorContextWF c recLparams)
     (l : LocalContext) (B : H.Base l) :
-    RecursorContextWF { c with checkLCtx := l } recLparams where
-  venv := H.venv
-  checking := H.checking
-  mlctx := H.mlctx
-  mlctx_wf := H.mlctx_wf
-  typeCheckerLParams_eq := H.typeCheckerLParams_eq
-  lparams_origin := H.lparams_origin
-  onlyLams := H.onlyLams
-  lctx_eq := H.lctx_eq
-  ngen_prefix := H.ngen_prefix
-  indFresh := H.indFresh
-  kernelFresh := H.kernelFresh
-  check := B
+    RecursorContextWF { c with checkLCtx := l } recLparams :=
+  .ofSemantics (H.toSemantics.withCheckLCtx l B) H.typeCheckerLParams_eq H.lparams_origin
 
 @[simp] theorem RecursorContextWF.withCheckLCtx_venv
     (H : RecursorContextWF c recLparams) (l B) :
@@ -519,22 +486,8 @@ def RecursorContextWF.withCheckLCtx (H : RecursorContextWF c recLparams)
 
 /-- The view of a recursor frame at its checking context: `checkLCtx` as main context. -/
 abbrev RecursorContextWF.atCheckLCtx (H : RecursorContextWF c recLparams) :
-    RecursorContextWF { c with lctx := c.checkLCtx } recLparams where
-  venv := H.venv
-  checking := H.checking
-  mlctx := H.chk
-  mlctx_wf := H.check.wf
-  typeCheckerLParams_eq := H.typeCheckerLParams_eq
-  lparams_origin := H.lparams_origin
-  onlyLams := H.check.onlyLams
-  lctx_eq := H.check.lctx_eq
-  ngen_prefix := H.ngen_prefix
-  indFresh := fun fv h => H.indFresh fv (H.check.embed.fvars_subset h)
-  kernelFresh := fun fv h => H.kernelFresh fv (H.check.embed.fvars_subset h)
-  check := { m := H.chk, wf := H.check.wf, onlyLams := H.check.onlyLams,
-             lctx_eq := H.check.lctx_eq,
-             embed := .refl H.checking.tr.wf.ordered H.check.wf.tr.wf,
-             sub := .refl _ }
+    RecursorContextWF { c with lctx := c.checkLCtx } recLparams :=
+  .ofSemantics (H.toSemantics.atCheckLCtx) H.typeCheckerLParams_eq H.lparams_origin
 
 @[simp] theorem RecursorContextWF.atCheckLCtx_venv (H : RecursorContextWF c recLparams) :
     H.atCheckLCtx.venv = H.venv := rfl
@@ -549,39 +502,9 @@ def RecursorContextWF.withLocalDecl
     (hty : H.venv.IsType recLparams.length H.mlctx.vlctx.toCtx ty') :
     RecursorContextWF { c with
       ngen := c.ngen.next
-      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } recLparams where
-  venv := H.venv
-  checking := H.checking
-  mlctx := .vlam ⟨c.ngen.curr⟩ name ty ty' bi H.mlctx
-  mlctx_wf := ⟨H.mlctx_wf,
-    H.mlctx_wf.tr.find?_eq_none.2 H.current_not_mem, htr, hty⟩
-  typeCheckerLParams_eq := H.typeCheckerLParams_eq
-  lparams_origin := H.lparams_origin
-  onlyLams := H.onlyLams.vlam
-  lctx_eq := by
-    change H.mlctx.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi =
-      c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
-    rw [H.lctx_eq]
-  ngen_prefix := by
-    change c.ngen.namePrefix = `_ind_fresh
-    exact H.ngen_prefix
-  indFresh := by
-    intro fv hmem
-    simp only [TypeChecker.MLCtx.vlctx, VLCtx.fvars_cons_some,
-      List.mem_cons] at hmem
-    rcases hmem with rfl | hmem
-    · exact c.ngen.next_reserves_self
-    · exact (H.indFresh _ hmem).mono NameGenerator.LE.next
-  kernelFresh := by
-    intro fv hmem
-    simp only [TypeChecker.MLCtx.vlctx, VLCtx.fvars_cons_some,
-      List.mem_cons] at hmem
-    rcases hmem with rfl | hmem
-    · exact H.kernel_reserves_current
-    · exact H.kernelFresh _ hmem
-  check := H.check.skip H.checking.tr.wf.ordered H.mlctx_wf H.lctx_eq
-    (⟨H.mlctx_wf, H.mlctx_wf.tr.find?_eq_none.2 H.current_not_mem, htr, hty⟩ :
-      (TypeChecker.MLCtx.vlam ⟨c.ngen.curr⟩ name ty ty' bi H.mlctx).WF H.venv recLparams)
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } recLparams :=
+  .ofSemantics (H.toSemantics.withLocalDecl (name := name) (bi := bi) htr hty)
+    H.typeCheckerLParams_eq H.lparams_origin
 
 /-- `ContextWF` for `headerCheckContext`. -/
 def ContextWF.headerCheck (Hc : ContextWF c) (stats : AddInductive.InductiveStats)
@@ -638,20 +561,9 @@ def RecursorContextWF.withCheckedLocalDecl
       ngen := c.ngen.next
       lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
       checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }
-      recLparams where
-  venv := H.venv
-  checking := H.checking
-  mlctx := .vlam ⟨c.ngen.curr⟩ name ty ty' bi H.mlctx
-  mlctx_wf := (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx_wf
-  typeCheckerLParams_eq := H.typeCheckerLParams_eq
-  lparams_origin := H.lparams_origin
-  onlyLams := H.onlyLams.vlam
-  lctx_eq := (H.withLocalDecl (name := name) (bi := bi) htr hty).lctx_eq
-  ngen_prefix := H.ngen_prefix
-  indFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).indFresh
-  kernelFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).kernelFresh
-  check := H.check.cons H.checking.tr.wf H.lctx_eq
-    (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx_wf htr₀ hty₀
+      recLparams :=
+  .ofSemantics (H.toSemantics.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀)
+    H.typeCheckerLParams_eq H.lparams_origin
 
 def RecursorContextWF.withCheckedLocalDeclOn
     (H : RecursorContextWF c recLparams) (base : LocalContext)
@@ -664,20 +576,10 @@ def RecursorContextWF.withCheckedLocalDeclOn
       ngen := c.ngen.next
       lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
       checkLCtx := base.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }
-      recLparams where
-  venv := H.venv
-  checking := H.checking
-  mlctx := .vlam ⟨c.ngen.curr⟩ name ty ty' bi H.mlctx
-  mlctx_wf := (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx_wf
-  typeCheckerLParams_eq := H.typeCheckerLParams_eq
-  lparams_origin := H.lparams_origin
-  onlyLams := H.onlyLams.vlam
-  lctx_eq := (H.withLocalDecl (name := name) (bi := bi) htr hty).lctx_eq
-  ngen_prefix := H.ngen_prefix
-  indFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).indFresh
-  kernelFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).kernelFresh
-  check := B.cons H.checking.tr.wf H.lctx_eq
-    (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx_wf htr₀ hty₀
+      recLparams :=
+  .ofSemantics
+    (H.toSemantics.withCheckedLocalDeclOn (name := name) (bi := bi) base B htr hty htr₀ hty₀)
+    H.typeCheckerLParams_eq H.lparams_origin
 
 @[simp] theorem RecursorContextWF.withCheckedLocalDecl_venv
     (H : RecursorContextWF c recLparams)
