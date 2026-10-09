@@ -444,6 +444,32 @@ constants, i.e. a term model, whose "equality is an equivalence" is the complete
 of section 3. (The same construction shows that no model built as a least fixed point of
 finite observations can be complete for the theory with `VDecl.WF.mutualDef`.)
 
+### 9.1 Astra's fourth round (same conclusion, stronger construction)
+
+`docs/inductives/history/StrengtheningOpaqueExtension_2026-10-09.lean` and
+`StrengtheningRound4_2026-10-09.lean` (checked standalone, not yet adapted into the library):
+
+* `extension_not_freshReflection`: three fresh *axioms* `I : Type`, `a b : I` added to any
+  well-formed canonical-`Eq` environment keep it well formed with canonical `Eq`, `a` and `b`
+  have no observation in any target or assignment (`opaque_no_observations`: a rigid constant's
+  observations need a sort or `Π`-domain observation of its type, which the rigid type `I`
+  lacks), so `KEq` identifies them at the common type `I`, while confluence proves `a ≢ b`
+  (`opaque_constants_not_defeq`: both are stationary under `FullReduction`, and `NormalEq`'s
+  constant branch needs equal names). No non-termination is involved: the model loses the
+  identity of opaque value constants. Together with section 9, any reflecting model must
+  observe rigid-constant identity and distinguish stuck definitions.
+* Partial head results that hold: `fresh_sort_reflection` (sort heads descend),
+  `KEq_sort_pi_false`, `KEq_pi_domain_typed` (`Π`-domain equality extracted declaratively in
+  the current context), `common_proofs_below`.
+* The exposed-cut-first rank for the certificate route is refuted:
+  `hidden_crossings_no_smaller_certificate`: `(λ S1. (nested N)↑) Prop →β nested N` goes from
+  rank `(1, 2N+3)` to `(N, 2N+1)`, the first component being determined by the expression, so
+  cuts hidden under binders defeat a rank that counts crossings outside binders; a rank
+  accounting for nesting depth is not refuted.
+* `function_no_terminal_reduct`: no function-typed term has an irreducible reduct (eta
+  always applies), so `church_rosser` gives normally equal reducts, not normal forms;
+  `confluence_join_can_be_unsupported`.
+
 ## 10. Status and the precise obstruction
 
 **Outcome: obstruction, precisely documented and partly formalised; no proof, no
@@ -479,6 +505,6 @@ full theory can be built in Lean (`COUNTERMODEL_STATUS.md`).
 
 ## 11. Log
 
-* 2026-10-09: sections 1 to 5; `Strengthening/Cancel.lean` (fe0c738f); review 5 requested and
+* 2026-10-09: sections 1 to 5; Astra's rounds 2 to 4 integrated or recorded; `Strengthening/Cancel.lean` (fe0c738f); review 5 requested and
   received; `JoinRepair.lean`, `Obstructions.lean` (73efe826); `Pilot.lean` (ff6f9068);
   `Kripke.lean` with `freshReflection_false` (33aebf92); sections 6 to 10.
