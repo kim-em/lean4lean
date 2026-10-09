@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Install.LiteralNames
+import Lean4Lean.Verify.Inductive.Install.Environments
 
 /-! Exact lookup and mutual-block metadata effects of ordinary installations.
 
