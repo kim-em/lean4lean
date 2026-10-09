@@ -32,7 +32,7 @@ or state the exact missing environment lemma as a `def` with checked implication
   equal to a rigid spine either is a proof, reduces to a spine with an equivalent head, or reduces
   to a lambda), `ParRed.rigid_const_spine`, `DeltaPar.rigid_spine`, `PrefixUnfold.not_rigid`,
   `QuotPrefixUnfold.not_rigid`, `NormalEq.fullReduction` (transport of normal equality along a
-  reduction on the right), `WF.church_rosser`, `constHeadRigid_iff` (`Rigid ↔ ConstHeadRigid`).
+  reduction on the right), `WF.church_rosser`.
   Field types: `projDF` takes `fieldType : sort fieldLevel` as a premise; the field-typing lemmas
   (`field_typing_aux`, `field_typing_of_ctorApp`, `field_walk`) are for constructor-application
   majors only, and `HeadInversionDefs.lean` records why the general field-type comparison went
@@ -56,10 +56,10 @@ constant spine in place of a `Π`:
   Through `WF.church_rosser`, both sides reduce to normally equal reducts. The reduct of the spine
   is not a spine in general (inner `funEta`: `S a b →* (λ x. S a x) b`), so the `Π`-stability
   argument of `exposure_reduces` does not transfer. Instead `EtaSpine S ls n` (head, applications,
-  lambdas; `n` counts nodes) is preserved by `FullStep` when `S` is rigid (`ConstHeadRigid`, from
-  `Rigid` by `constHeadRigid_iff`; stored rules, case rules and prefix unfolding are excluded by
-  `ParRed.rigid_const_spine`, `Params.not_rigid_match`, `PrefixUnfold.not_rigid`,
-  `QuotPrefixUnfold.not_rigid` and the head shape `EtaSpine.head_cases`) and a type former
+  lambdas; `n` counts nodes) is preserved by `FullStep` when `S` is rigid (`Rigid`; stored rules,
+  case rules and prefix unfolding are excluded by `ParRed.rigid_const_spine`,
+  `Params.not_rigid_match`, `PrefixUnfold.not_rigid`, `QuotPrefixUnfold.not_rigid` and the head shape
+  `EtaSpine.head_cases`) and a type former
   (`TypeFormerHead`: every node is typed at a `Π`-telescope ending in a sort,
   `EtaSpine.typeFormer`, so `structEta` applies to none, `EtaSpine.not_struct`); a sort-typed eta
   spine beta-reduces back to a syntactic spine (`EtaSpine.reduces_to_spine`, induction on `n`

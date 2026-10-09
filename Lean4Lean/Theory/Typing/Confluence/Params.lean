@@ -101,7 +101,7 @@ open InductiveSignature HeadRegistry
   pat_const_not_unfolding h := ConcretePattern.const_not_unfolding henv contract h
   recursorData_quot hq := ConcretePattern.recursor_quot henv contract hq
   pat_ctor_rigid h := ConcretePattern.ctor_rigid henv contract h
-  projection_ctor_rigid hl := constHeadRigid_iff.mpr (henv.projectionCtorRigid hl)
+  projection_ctor_rigid hl := henv.projectionCtorRigid hl
   pat_struct_major h hΓ hl hs hlen := structMajor h hΓ hl hs hlen
   pat_iota_params h hl hcc hm hm' hps hps' := iotaParams h hl hcc hm hm' hps hps'
   schema_struct_major hm hΓ hl hs := schemaStruct hm hΓ hl hs

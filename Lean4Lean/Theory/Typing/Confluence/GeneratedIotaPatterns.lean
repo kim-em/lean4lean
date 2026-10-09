@@ -166,7 +166,7 @@ theorem app_uniq (H : GeneratedIotaPattern env registry p rhs)
       intro hn
       have hrigid := henv.installed_constructor_rigid (hr'.equation_present hg') (hr'.equation_major hg')
       apply hrigid equation (hr.equation_present hg) (VLevel.params data.uvars)
-      exact ((VExpr.equationHead_eq _).trans (hr.equation_head ho hg)).trans (by rw [hn]; rfl)
+      exact (hr.equation_head ho hg).trans (by rw [hn]; rfl)
 
 end GeneratedIotaPattern
 end Lean4Lean.VEnv

@@ -830,7 +830,7 @@ theorem EtaNE.unfold_r {Γ : List VExpr} (hΓ : OnCtx Γ (Params.env.IsType univ
         IsDefEqU Params.env univs Γ (VExpr.wrapForalls ds res) (VExpr.wrapForalls ds' res') ∧
         EtaNE (ds.reverse ++ Γ) body body')
     (hstep : ∀ {a r}, U a r → DeltaPar Γ (mkApps (.const name ls) a) r)
-    (hrig : ∀ {a r}, U a r → ¬ Params.env.ConstHeadRigid name)
+    (hrig : ∀ {a r}, U a r → ¬ Params.env.Rigid name)
     {s T : VExpr} {args' : List VExpr} {rhs : VExpr}
     (H : EtaNE Γ s (mkApps (.const name ls) args')) (hs : Γ ⊢ s : T) (hr : U args' rhs) :
     EtaNE Γ s rhs := by

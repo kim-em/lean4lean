@@ -8,6 +8,12 @@ def VExpr.equationHead : VExpr → VExpr
   | .lam _ body => body.equationHead
   | e => e.getAppFnArgs.1
 
+theorem VExpr.equationHead_eq (e : VExpr) :
+    e.equationHead = e.stripLams.getAppFnArgs.1 := by
+  induction e with
+  | lam _ _ _ ih => exact ih
+  | _ => rfl
+
 /-- The fixed constant head of a pattern (none for an eliminator head). -/
 def Pattern.constHead : Pattern → Option Name
   | .const name => some name
@@ -20,10 +26,5 @@ eta rules at constructor heads, which are not executable equations. -/
 def VEnv.PatternHeadsStoredRule (env : VEnv) (pattern : Pattern) : Prop :=
   ∃ equation name levels, env.defeqs equation ∧ pattern.constHead = some name ∧
     equation.lhs.equationHead = .const name levels
-
-/-- No stored equation computes at this constant's head. -/
-def VEnv.ConstHeadRigid (env : VEnv) (name : Name) : Prop :=
-  ∀ equation, env.defeqs equation → ∀ levels,
-    equation.lhs.equationHead ≠ .const name levels
 
 end Lean4Lean
