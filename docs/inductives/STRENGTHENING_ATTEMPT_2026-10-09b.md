@@ -262,3 +262,15 @@ posts to GitHub or Zulip.
   Verify agent in its unpushed 9c15b5c4); no module outside `Strengthening/` imports the new
   files, so the audit cone is unchanged. Directions B3 (`EtaReplay`) and E (`ProjFrontN`,
   `ElimFrontN`) spawned.
+* 2026-10-09: direction E finished (67f95be3, merged as 9eba0feb): `SpineExposure.lean` and
+  `Closures.lean`. `ProjFrontN` follows from `EtaReplay` (spine exposure by `path_replay`
+  with `EtaChain.const_spine_inv`; `spine_exposure_reduces` needs the new `EtaSpine`
+  invariant because inner `funEta` breaks syntactic spines) plus `ProjFieldFrontN`, which is
+  free for structures whose result level `IsNeverZero` (`projField_of_neverZero`) and remains
+  for `Prop` structures (`ProjFieldFrontPropN`: thinning an unprojectable data field out of
+  the closed constructor telescope, a closed-telescope strengthening). `ElimFrontN` follows
+  from `GenericTypesTyped₀` (generic case types typed at a sort in `[]`), which the
+  registration certificate does not record: it stores formation data and closedness, and
+  deriving the case type from the installed recursor is itself a closed-telescope
+  strengthening. Assembled: `cancel_iff_typedFront_of_etaReplay₀ : Cancel ↔ TypedFront`
+  given `∀ U, EtaReplay`, `GenericTypesTyped₀`, `ProjFieldFrontPropN`.
