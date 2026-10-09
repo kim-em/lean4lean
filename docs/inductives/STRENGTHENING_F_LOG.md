@@ -129,3 +129,44 @@ agreement between the recursor telescope and the singleton layout), obtainable b
 (`telInst_descend`) from the typing above of the first proof field, and then the cast arguments
 and the proof fields descend by the same spine descent at the closed telescopes `valueType i`.
 This is the remaining mechanisation (see the steps below).
+
+## Step 1 (mechanised): the unfolding guard descends for generated programs (`Unfolding.lean`)
+
+`DeltaPar.descend' : HasCanonicalEq → TypedFrontN env → Γ ⊢ e : T → DeltaPar Γ' (e↑) out →
+∃ e', out = e'↑ ∧ DeltaPar Γ e e'` (checked; axioms `propext`, `Classical.choice`,
+`Quot.sound`), i.e. B2's `DeltaPar.descend` with `UnfoldingCheckDescends` discharged for the
+generated programs, together with `PrefixUnfold.descend'`, `QuotPrefixUnfold.descend'` and the
+chain descents `LStep.chain_descend'`, `EtaNE.forallE_inv_lift'`, `EtaNE.const_spine_inv_lift'`.
+
+* `UnfoldingCheck.descend_of_typed`: the descent of every field once each capture is typed below
+  at some type and the instantiated left-hand side is `.app X constructor`. `captures_typed` by
+  strong induction on the position (`TypedFrontN.retype`; the specialized domain is a type below
+  by `IsType.closed_telescope_instOuter` over the closed telescope of the installed equation,
+  `extract_sound`, `IsType.wrapForalls_inv` in `[]`); the constructor is then typed below as the
+  last argument of the instantiated left-hand side (`IsDefEq.extra_instOuter`, `app_inv`);
+  `major_prop` by `majorProp_descend` (the major's domain is the last opened binder); the left
+  spine `.app (etaOpen (n-1) source).lift constructor` is typed below (`etaOpen_wf`) so its
+  arguments are well formed, and `recursor_lhs` descends by `ConstSpineDefEq.descend` (its two
+  heads coincide, read off the alignment above). Context-free fields are rename-invariant.
+* `singleton_captures_typed`: captures of the generated singleton program typed below. Opened
+  arguments by weakening and lookup. Fields by strong induction on the field index with the
+  shape lemmas `occ_getD_data` (library), `occ_getD_proof`, `occ_fst_getD_data`,
+  `occ_fst_getD_proof`: a data field is an index slot or `default`; a proof field is
+  `PropElim.value l` applied to `ps ++ idx ++ [bvar 0] ++ hats`, typed above as a capture, and
+  `value l` is closed and typed at the closed telescope `valueType l` (`value_typed`), so the
+  prefix descent `telInst_descend_prefix` gives `TelInst Δ (P ++ S.indices ++ [majorTy])
+  (ps ++ idx ++ [bvar 0])` below *without* relating the recursor telescope to the layout; the
+  cast arguments `Eq.refl (Sort s) ((S.indices[k]).instOuter (ps ++ idx.take k))` are then typed
+  below (`T.slotSort`, `T.scope.slot_lt`, `HasType.closed_instOuter`, `HasType.eqReflApp`), the
+  proof-field casts by the induction hypothesis, and the full spine descends (`telInst_descend`,
+  `HasType.mkApps_of_tel`). The left-hand side shape comes from `singleton_equation_syntax`
+  (`map_instOuter_vars`, `instOuter_closed0`). `propElim_wf` needs the owner's constructor index,
+  read from `singletonLayout` (`singletonLayout_ctor`, `singletonCtor_owner`).
+* `quot_captures_typed`: the quotient captures are the five opened arguments and the
+  `propInhabitant` proof; `etaOpen_mkApps_const` types the six-argument `Quot.lift` spine in the
+  opened context, `quotient_walk` types its arguments, `propInhabitant_app` the proof; the
+  left-hand side is the concrete `quotDefEq` body, computed by `simp`.
+
+So the only content of B2's `UnfoldingCheckDescends` beyond `TypedFront` is the typing of the
+reconstructed fields below, which follows from the typing above by spine descent at closed
+telescopes; and the obligation as stated (for arbitrary programs) is not needed.
