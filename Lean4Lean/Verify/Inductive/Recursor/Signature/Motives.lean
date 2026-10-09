@@ -36,7 +36,7 @@ theorem TrExprS.forallPrefixContextEq
               ih (by simpa using hlen₁) (by simpa using hlen₂) Hbody₁ Hbody₂ Hnext
 
 theorem TrExprS.forallTelescope_residual_typed
-    (henv : env.WF) (Htel : Expr.ForallTelescope source n residual)
+    (Htel : Expr.ForallTelescope source n residual)
     (hlen : domains.length = n)
     (Htr : TrExprS env Us Δ source (VExpr.wrapForalls domains result))
     (Htype : env.IsType Us.length Δ.toCtx (VExpr.wrapForalls domains result)) :
@@ -140,7 +140,7 @@ theorem RecursorConstruction.replayMotiveWithIndexDomains
       (abstractForallContext H.parameterSuffix.parameterDecls.toCtx.reverse []).toCtx
       (VExpr.wrapForalls oldIndices (.forallE oldMajor (.sort oldLevel))) := by
     simpa [VLCtx.toCtx] using Htype
-  obtain ⟨Hres, HresType⟩ := TrExprS.forallTelescope_residual_typed henv Htel holdIndices Htr Htype'
+  obtain ⟨Hres, HresType⟩ := TrExprS.forallTelescope_residual_typed Htel holdIndices Htr Htype'
   obtain ⟨newResult, HnewRes⟩ := Hres.defeqDFC henv Hcontexts
   have HresEq := Hres.uniq henv Hcontexts HnewRes
   have HnewType := (HresType.defeqU_l henv Hcontexts.wf.toCtx HresEq).defeqDFC

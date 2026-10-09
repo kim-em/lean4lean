@@ -799,31 +799,6 @@ theorem RecursorCheck.installedRecursorHeadTranslationAt
   rw [hname]
   exact TrExprS.const hlookup hlevels hlength
 
-/-- The concrete recursor constant at the head of the generated equation
-translates directly to the installed owner recursor at its identity universe
-instantiation.  This is context-polymorphic because constants do not inspect
-the local telescope. -/
-theorem
-    RecursorCheck.RuleAlignment.installedRecursorHeadTranslation
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorCheck R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.RuleAlignment owner howner i hctor)
-    (Delta : VLCtx) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    let recursor := H.entries[owner].2
-    TrExprS H.outVEnv Us Delta
-      (.const (Lean.mkRecName indTypes[owner]!.name)
-        (AddInductive.getRecLevels H.elimLevel stats.levels))
-      (.const recursor.name (VLevel.params Us.length)) := by
-  exact H.installedRecursorHeadTranslationAt owner howner Delta
-
 /-- The recursor head selected by a validated recursive call translates to
 the installed recursor for that call's target family.  In a mutual block this
 family need not be the owner of the equation currently being generated. -/
@@ -1467,9 +1442,6 @@ theorem
         (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
         (frontDomains.reverse ++ selectedOuter.reverse)
         (frontDomains.reverse ++ cachedBase))
-    (HcachedCtx : OnCtx (frontDomains.reverse ++ cachedBase)
-      (H.outVEnv.IsType
-        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length))
     (HprefixSelected :
       let selectedOuter := F.telescope.params ++ F.telescope.motives ++
         F.telescope.minors

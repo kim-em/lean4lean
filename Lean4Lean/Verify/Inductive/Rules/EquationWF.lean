@@ -312,7 +312,7 @@ theorem
       (expected.abstractList A.rule.binders) lhsType := by
     simpa [equationDomains, equationFields, inserted, H.parameterDecls,
       expected] using HexpectedTranslation
-  rcases A.installedSelectedMinorPositiveAlignedResidual hpositive with
+  rcases A.installedSelectedMinorAlignedResidual with
     ⟨Tsource, S, traversal, HS, _hypothesisOrigins,
       sourceFieldDomains, sourceHypothesisDomains, sourceResidual,
       _hhypothesisStats, _hhypothesisRecInfos, hconstructor,
@@ -345,7 +345,7 @@ theorem
     rw [← hsourceMinorType, ← hminorType]
   subst sourceResidual
   have hfieldClosure := A.alignedMotiveAppFieldClosure S traversal
-    hconstructor htraversalFields hfieldFVars hclosedTargets hvalid
+    hconstructor hclosedTargets hvalid
       hmotiveApp hsourceFields
   have hsourceAligned := A.alignedPositiveResidualSource S HS traversal
     hmotiveApp hfieldClosure hsourceFields hsourceHypotheses
@@ -660,7 +660,7 @@ theorem
       hsourceMinorType.symm.trans hminorType
   subst sourceResidual
   have hfieldClosure := A.alignedMotiveAppFieldClosure S traversal
-    hconstructor htraversalFields hfieldFVars hclosedTargets hvalid
+    hconstructor hclosedTargets hvalid
       hmotiveApp hsourceFields
   have hsourceAligned := A.alignedPositiveResidualSource S HS traversal
     hmotiveApp hfieldClosure hsourceFields hsourceHypotheses

@@ -552,7 +552,7 @@ theorem NestedRun.loweredRecursorNames_fresh
     E.lowered.recursors.recursors
   rw [← hrecursorValues] at hmem
   have Hinst := E.lowered.recursors.installed
-  obtain ⟨info, hentry⟩ := Hinst.existsEntryOfValue hmem
+  obtain ⟨info, hentry⟩ := AddConstants.existsEntryOfValue hmem
   have hlocal : E.lowered.recursors.localContext.env = E.lowered.ctorEnv :=
     E.lowered.recursors.localExtends.env_eq
   have hwfLocal : E.lowered.recursors.localContext.env.constants.WF := by

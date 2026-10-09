@@ -865,7 +865,7 @@ theorem AddConstants.abstract
     exact ih
 
 theorem AddConstants.existsEntryOfValue
-    (H : AddConstants safety env venv entries outEnv outVEnv)
+    {entries : List (ConstantInfo × VConstVal)}
     (hvalue : value ∈ entries.map Prod.snd) :
     ∃ info, (info, value) ∈ entries := by
   rcases List.mem_map.mp hvalue with ⟨⟨info, entryValue⟩, hentry, heq⟩
@@ -1342,7 +1342,7 @@ theorem AddInductive.declareRecursors.loop.typingWF
     (HminorSemantics : TypedMinors R Horigins
       parameterDecls)
     (Hparams : FVarArrayIn c stats.params)
-    (hnoalias : Hbindings.NoAlias Hparams)
+    (hnoalias : RecInfoBindings.NoAlias stats.params recInfos)
     (hcounts : ∀ i, i < recInfos.size →
       recInfos[i]!.minors.size = indTypes[i]!.ctors.length)
     (hparameterUp : IsFVarUpSet
@@ -1600,7 +1600,6 @@ theorem AddInductive.declareRecursors.bindingWFOfTargets
     (k : Bool)
     (hk : KEligible stats indTypes k)
     (Hvalid : CheckingEnv.Valid c.safety c.env currentVEnv)
-    (Hcontext : BindingContextWF c)
     (R : RecursorContextWF c recLparams)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams R.mlctx.vlctx
       stats decl depth)
@@ -1619,7 +1618,7 @@ theorem AddInductive.declareRecursors.bindingWFOfTargets
     (HminorSemantics : TypedMinors R Horigins
       parameterDecls)
     (Hparams : FVarArrayIn c stats.params)
-    (hnoalias : Hbindings.NoAlias Hparams)
+    (hnoalias : RecInfoBindings.NoAlias stats.params recInfos)
     (hcounts : ∀ i, i < recInfos.size →
       recInfos[i]!.minors.size = indTypes[i]!.ctors.length)
     (hparameterUp : IsFVarUpSet
@@ -1641,7 +1640,7 @@ theorem AddInductive.declareRecursors.bindingWFOfTargets
     (targets : TrRecursorTypes currentVEnv c.lparams elimLevel c
       stats indTypes recInfos → Nat → VExpr)
     (Hcanonical : ∀ (T : TrRecursorTypes currentVEnv c.lparams elimLevel c
-      stats indTypes recInfos) owner (howner : owner < indTypes.size),
+      stats indTypes recInfos) owner (_howner : owner < indTypes.size),
       TrExprS currentVEnv (AddInductive.getRecLevelParams elimLevel c.lparams) []
         (AddInductive.declareRecursors.recursorType stats recInfos c.lctx owner)
         (targets T owner))

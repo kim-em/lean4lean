@@ -106,13 +106,13 @@ theorem canonicalFamilyApp_split
     {indices : Array Expr} (hindicesSize : indices.size = nindices)
     (harity : (indices.size == stats.nindices[dIdx]!) = true) :
     VExpr.mkApps
-      (.const Hheader.target.name (Hheader.recursorAbstractLevels Helim))
+      (.const Hheader.target.name (mkRecInfos.loopArgs1.MotivePassHeaderAt.recursorAbstractLevels base.lparams Helim))
       (mkRecInfos.loopArgs1.indexBVarSpine
         (decl.nparams + Hheader.target.numIndices)) =
       VExpr.mkApps
         ((VExpr.mkApps
           ((VExpr.const Hheader.target.name
-            (Hheader.recursorAbstractLevels Helim)).liftN
+            (mkRecInfos.loopArgs1.MotivePassHeaderAt.recursorAbstractLevels base.lparams Helim)).liftN
               Hsynthesis.params.length 0)
           (bvarSpine Hsynthesis.params.length)).liftN
             Hsynthesis.indices.length 0)
@@ -130,7 +130,7 @@ theorem canonicalFamilyApp_split
     omega
   have hsplit := VExpr.mkApps_bvarSpine_add
     (.const Hheader.target.name
-      (Hheader.recursorAbstractLevels Helim))
+      (mkRecInfos.loopArgs1.MotivePassHeaderAt.recursorAbstractLevels base.lparams Helim))
     Hsynthesis.params.length Hsynthesis.indices.length
   have hcv : mkRecInfos.loopArgs1.indexBVarSpine
       (decl.nparams + Hheader.target.numIndices) =
@@ -212,7 +212,7 @@ theorem motiveSourceReplay
             (VExpr.mkApps
               ((VExpr.mkApps
                 ((VExpr.const Hheader.target.name
-                  (Hheader.recursorAbstractLevels Helim)).liftN
+                  (mkRecInfos.loopArgs1.MotivePassHeaderAt.recursorAbstractLevels base.lparams Helim)).liftN
                     Hsynthesis.params.length 0)
                 (bvarSpine Hsynthesis.params.length)).liftN
                   Hsynthesis.indices.length 0)
@@ -326,7 +326,7 @@ theorem motiveSourceReplay
           (VExpr.mkApps
             ((VExpr.mkApps
               ((VExpr.const Hheader.target.name
-                (Hheader.recursorAbstractLevels Helim)).liftN
+                (mkRecInfos.loopArgs1.MotivePassHeaderAt.recursorAbstractLevels base.lparams Helim)).liftN
                   Hsynthesis.params.length 0)
               (bvarSpine Hsynthesis.params.length)).liftN
                 Hsynthesis.indices.length 0)
@@ -529,7 +529,7 @@ theorem canonicalMotiveTelescope
           (VExpr.mkApps
             ((VExpr.mkApps
               ((VExpr.const Hheader.target.name
-                (Hheader.recursorAbstractLevels Helim)).liftN
+                (mkRecInfos.loopArgs1.MotivePassHeaderAt.recursorAbstractLevels base.lparams Helim)).liftN
                   Hsynthesis.params.length 0)
               (bvarSpine Hsynthesis.params.length)).liftN
                 Hsynthesis.indices.length 0)
@@ -549,7 +549,7 @@ theorem canonicalMotiveTelescope
   have hcanonicalLevelTranslation : stats.levels.mapM
       (VLevel.ofLevel
         (AddInductive.getRecLevelParams elimLevel base.lparams)) =
-      some (Hheader.recursorAbstractLevels Helim) := by
+      some (mkRecInfos.loopArgs1.MotivePassHeaderAt.recursorAbstractLevels base.lparams Helim) := by
     cases elimLevel with
     | zero =>
       simpa [mkRecInfos.loopArgs1.MotivePassHeaderAt.recursorAbstractLevels,
@@ -568,10 +568,10 @@ theorem canonicalMotiveTelescope
     target_lt := htargetLt
     params := Hsynthesis.params
     indices := Hsynthesis.indices
-    levels := Hheader.recursorAbstractLevels Helim
+    levels := mkRecInfos.loopArgs1.MotivePassHeaderAt.recursorAbstractLevels base.lparams Helim
     family := VExpr.mkApps
       ((VExpr.const Hheader.target.name
-        (Hheader.recursorAbstractLevels Helim)).liftN
+        (mkRecInfos.loopArgs1.MotivePassHeaderAt.recursorAbstractLevels base.lparams Helim)).liftN
           Hsynthesis.params.length 0)
       (bvarSpine Hsynthesis.params.length)
     familyResult := narrowTarget
@@ -580,7 +580,7 @@ theorem canonicalMotiveTelescope
         (VExpr.mkApps
           ((VExpr.mkApps
             ((VExpr.const Hheader.target.name
-              (Hheader.recursorAbstractLevels Helim)).liftN
+              (mkRecInfos.loopArgs1.MotivePassHeaderAt.recursorAbstractLevels base.lparams Helim)).liftN
                 Hsynthesis.params.length 0)
             (bvarSpine Hsynthesis.params.length)).liftN
               Hsynthesis.indices.length 0)
@@ -611,7 +611,7 @@ theorem canonicalMotiveTelescope
       RecursorMotiveTelescope.wrapForalls Hsynthesis.indices
         (VExpr.mkApps
           ((VExpr.const Hheader.target.name
-            (Hheader.recursorAbstractLevels Helim)).liftN
+            (mkRecInfos.loopArgs1.MotivePassHeaderAt.recursorAbstractLevels base.lparams Helim)).liftN
               Hsynthesis.params.length 0)
           (bvarSpine Hsynthesis.params.length))
         narrowTarget resultLevel }, rfl, rfl⟩
@@ -1083,7 +1083,7 @@ theorem motiveDecl
         (VExpr.mkApps
           ((VExpr.mkApps
             (.const Hheader.target.name
-              (Hheader.recursorAbstractLevels Helim))
+              (mkRecInfos.loopArgs1.MotivePassHeaderAt.recursorAbstractLevels base.lparams Helim))
             (bvarSpine Hsynthesis.params.length)).liftN
               Hsynthesis.indices.length 0)
           (bvarSpine Hsynthesis.indices.length))
@@ -1180,7 +1180,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
     (HindexTypeRows :
       TrBinderTypesPerFamily R Horigins.indexTypes)
     (Hparams : FVarArrayIn current stats.params)
-    (HnoAlias : Hbindings.NoAlias Hparams)
+    (HnoAlias : RecInfoBindings.NoAlias stats.params recInfos)
     (Horder : RecInfoOuterOrder R Hparams Hbindings)
     (Hroot : BindingContextLE base current)
     (hprogress : recInfos.size = dIdx)
@@ -1193,11 +1193,11 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx
         (AddInductive.getRecLevelParams elimLevel base.lparams))
-      (henvOut : Rout.venv = Hbase.venv)
+      (_henvOut : Rout.venv = Hbase.venv)
       (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth)
-      (hparameterDeclsOut :
+      (_hparameterDeclsOut :
         HsuffixOut.parameterDecls = Hsuffix.parameterDecls)
-      (HstatsOut : RecursorValidAppStatsWF Rout.venv
+      (_HstatsOut : RecursorValidAppStatsWF Rout.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         Rout.mlctx.vlctx stats decl outDepth)
       (HbindingsOut : RecInfoBindings outCtx out)
@@ -1211,7 +1211,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
         HsuffixOut.parameterDecls.toCtx out elimLevel →
       TrBinderTypesPerFamily Rout HoriginsOut.indexTypes →
       (HparamsOut : FVarArrayIn outCtx stats.params) →
-      HbindingsOut.NoAlias HparamsOut →
+      RecInfoBindings.NoAlias stats.params out →
       RecInfoOuterOrder Rout HparamsOut HbindingsOut →
       RecInfoArities stats out →
       RecInfoMinorsEmpty out →
@@ -1355,12 +1355,13 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
           `t majorTy .default motiveName
           (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
         let Hparams' := Hparams.mono hAllFrames
-        have HnoAlias' : Hbindings'.NoAlias Hparams' := by
+        have HnoAlias' : RecInfoBindings.NoAlias stats.params (recInfos.push {
+            motive := .fvar ⟨cIndices.ngen.next.curr⟩, minors := #[], indices,
+            major := .fvar ⟨cIndices.ngen.curr⟩ }) := by
           exact Hbindings.pushFrame_noAlias Hparams HnoAlias hIndices
             Rindices.toBindingContextWF
             Hrecent.toFVarArrayAfter
-            `t majorTy .default motiveName
-            (motiveTy.consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper) .default
+            `t majorTy .default
         have holdMinors : Hbindings.flatMinors.fvars = [] :=
           Hempty.flatMinors_fvars Hbindings
         have hnewMinors : Hbindings'.flatMinors.fvars = [] :=
@@ -2843,7 +2844,7 @@ theorem RecursiveCall.outerAbstractedFVar_eq_lift_of_fresh
     (H : RecursiveCall indTypes stats motives minors lvls
       root field value)
     (hfresh : fv ∉ H.arguments_bound.fvars)
-    (hbinders : binders.Nodup) (hfv : fv ∈ binders) :
+    (hbinders : binders.Nodup) :
     ((Expr.fvar fv).abstractList H.arguments_bound.fvars).abstractList
         binders H.localArgs.size =
       ((Expr.fvar fv).abstractList binders).liftLooseBVars'
@@ -2857,7 +2858,7 @@ theorem RecursiveCall.outerAbstractedRootFVar_eq_lift
     (H : RecursiveCall indTypes stats motives minors lvls
       root field value)
     (hroot : fv ∈ root.lctx.fvars)
-    (hbinders : binders.Nodup) (hfv : fv ∈ binders) :
+    (hbinders : binders.Nodup) :
     ((Expr.fvar fv).abstractList H.arguments_bound.fvars).abstractList
         binders H.localArgs.size =
       ((Expr.fvar fv).abstractList binders).liftLooseBVars'
@@ -2865,7 +2866,7 @@ theorem RecursiveCall.outerAbstractedRootFVar_eq_lift
   have hfresh : fv ∉ H.arguments_bound.fvars := by
     intro hmem
     exact H.arguments_bound.fresh fv hmem hroot
-  exact H.outerAbstractedFVar_eq_lift_of_fresh hfresh hbinders hfv
+  exact H.outerAbstractedFVar_eq_lift_of_fresh hfresh hbinders
 
 /-- Array form for binders declared in a context other than the call root.
 The traversal supplies disjointness from the temporary call-local arguments. -/
@@ -2874,8 +2875,7 @@ theorem RecursiveCall.outerAbstractedBoundArray_eq_lift_of_fresh
       root field value)
     (B : FVarArrayIn c xs)
     (hfresh : ∀ fv ∈ B.fvars, fv ∉ H.arguments_bound.fvars)
-    (hbinders : binders.Nodup)
-    (hselected : ∀ fv ∈ B.fvars, fv ∈ binders) :
+    (hbinders : binders.Nodup) :
     xs.map (fun arg =>
         (arg.abstractList H.arguments_bound.fvars).abstractList
           binders H.localArgs.size) =
@@ -2890,7 +2890,6 @@ theorem RecursiveCall.outerAbstractedBoundArray_eq_lift_of_fresh
     rw [harg]
     exact H.outerAbstractedFVar_eq_lift_of_fresh
       (hfresh B.fvars[j] (List.getElem_mem hjFvars)) hbinders
-      (hselected B.fvars[j] (List.getElem_mem hjFvars))
 
 def RecursiveCall.localIndices
     (H : RecursiveCall indTypes stats motives minors lvls

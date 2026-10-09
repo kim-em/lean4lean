@@ -322,8 +322,8 @@ structure RecursorConstruction.SignatureSpec
       s.constructors[k].indices = H.declConstructorIndices owner howner localIndex hlocal
   /-- For a safe declaration, the fields marked recursive are those the constructor phase's
   positivity check classified as recursive. -/
-  classified : decl.isUnsafe ≠ true → ∀ owner (howner : owner < H.recInfos.size) localIndex
-      (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
+  classified : decl.isUnsafe ≠ true → ∀ owner (_howner : owner < H.recInfos.size) localIndex
+      (_hlocal : localIndex < H.origins.minorTypes[owner]!.size)
       (hk : recursorMinorOffset indTypes owner + localIndex < s.constructors.size),
     s.constructors[recursorMinorOffset indTypes owner + localIndex].fields.map
       InductiveSignature.Field.isRecursive = R.classes[owner]![localIndex]!

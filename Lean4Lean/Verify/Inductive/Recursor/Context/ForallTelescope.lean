@@ -934,11 +934,9 @@ theorem Expr.abstractList_eq_const
     simp only [Expr.abstractList] at H
     exact Expr.abstract1_eq_const (ih H)
 
-/-- If the target variable is not the one being closed, a resulting free
-variable was already that exact free variable in the source. -/
-theorem Expr.abstract1_eq_fvar_of_ne
+/-- A resulting free variable was already that exact free variable in the source. -/
+theorem Expr.abstract1_eq_fvar
     {e : Expr} {target fv : FVarId} {k : Nat}
-    (hne : target ≠ fv)
     (H : e.abstract1 fv k = .fvar target) :
     e = .fvar target := by
   induction e generalizing k with
@@ -953,21 +951,18 @@ theorem Expr.abstract1_eq_fvar_of_ne
   | app | lam | forallE | letE | mdata | proj =>
     simp [Expr.abstract1] at H
 
-/-- Reflection of a free variable through a list abstraction disjoint from
-that variable. -/
-theorem Expr.abstractList_eq_fvar_of_not_mem
+/-- Reflection of a free variable through a list abstraction. -/
+theorem Expr.abstractList_eq_fvar
     {e : Expr} {target : FVarId} {fvars : List FVarId} {k : Nat}
-    (hnot : target ∉ fvars)
     (H : e.abstractList fvars k = .fvar target) :
     e = .fvar target := by
   induction fvars generalizing e with
   | nil => exact H
   | cons fv fvars ih =>
-    simp only [List.mem_cons, not_or] at hnot
     simp only [Expr.abstractList] at H
-    have Hinter : e.abstract1 fv k = .fvar target := ih hnot.2 H
-    exact Expr.abstract1_eq_fvar_of_ne (target := target) (fv := fv)
-      hnot.1 Hinter
+    have Hinter : e.abstract1 fv k = .fvar target := ih H
+    exact Expr.abstract1_eq_fvar (target := target) (fv := fv)
+      Hinter
 
 /-- A valid concrete inductive application remains valid after closing a
 set of fresh field variables.  The disjointness premise says precisely that
@@ -1076,8 +1071,7 @@ theorem checkPositivityStep.isValidIndAppIdx.of_abstractList
     (hvalid : AddInductive.isValidIndAppIdx stats
       (type.abstractList binders k) i = true)
     (hconst : stats.indConsts[i]? = some (.const name levels))
-    (hparams : stats.params = (paramFvars.map Expr.fvar).toArray)
-    (hdisjoint : ∀ fv, fv ∈ paramFvars → fv ∉ binders) :
+    (hparams : stats.params = (paramFvars.map Expr.fvar).toArray) :
     AddInductive.isValidIndAppIdx stats type i = true := by
   have hconstGet : stats.indConsts[i]! = .const name levels := by
     simp [Array.getElem!_eq_getD, hconst]
@@ -1131,8 +1125,7 @@ theorem checkPositivityStep.isValidIndAppIdx.of_abstractList
       exact hpointwise.symm.trans hclosedArg
     have hsourceArg : type.getAppArgs[j]'hjSource =
         .fvar paramFvars[j] :=
-      Expr.abstractList_eq_fvar_of_not_mem
-        (hdisjoint paramFvars[j] (List.getElem_mem hjFvars)) habstractArg
+      Expr.abstractList_eq_fvar habstractArg
     exact hparamAt.trans hsourceArg.symm
   have hindicesSource : ∀ j (hlower : stats.params.size ≤ j)
       (hupper : j < type.getAppArgs.size),
@@ -1395,7 +1388,7 @@ theorem checkInductiveTypes.loopType.SourceTelescope.closeSource_telescope
 over the scope's abstract domains, in oldest-first order. -/
 theorem checkInductiveTypes.loopType.SourceTelescope.closeTranslation
     (H : checkInductiveTypes.loopType.SourceTelescope env Us scope)
-    (henv : env.WF) (Hscope : scope.WF env Us.length)
+    (Hscope : scope.WF env Us.length)
     (Hbody : TrExprS env Us scope body target)
     (HbodyType : env.IsType Us.length scope.toCtx target) :
     TrExprS env Us [] (H.closeSource body)
@@ -1433,13 +1426,13 @@ theorem checkInductiveTypes.loopType.SourceTelescope.closeTranslation
 /-- Binder-by-binder form of `closeTranslation`. -/
 theorem checkInductiveTypes.loopType.SourceTelescope.closeTypedTelescope
     (H : checkInductiveTypes.loopType.SourceTelescope env Us scope)
-    (henv : env.WF) (Hscope : scope.WF env Us.length)
+    (Hscope : scope.WF env Us.length)
     (Hbody : TrExprS env Us scope body target)
     (HbodyType : env.IsType Us.length scope.toCtx target) :
     Expr.ForallTelescopeTypeTranslation env Us []
       (H.closeSource body) scope.length
       (VExpr.wrapForalls scope.toCtx.reverse target) := by
-  have Htranslation := H.closeTranslation henv Hscope Hbody HbodyType
+  have Htranslation := H.closeTranslation Hscope Hbody HbodyType
   have Htelescope := H.closeSource_telescope Hscope.fvars_nodup body
   have HtargetType : env.IsType Us.length []
       (VExpr.wrapForalls scope.toCtx.reverse target) := by
@@ -1461,7 +1454,7 @@ theorem checkInductiveTypes.loopType.ScopeEmbedding.closeTypedTelescope
     Expr.ForallTelescopeTypeTranslation env Us []
       (H.sourceTelescope.closeSource body) scope.length
       (VExpr.wrapForalls scope.toCtx.reverse target) := by
-  exact H.sourceTelescope.closeTypedTelescope henv (H.scopeWF henv)
+  exact H.sourceTelescope.closeTypedTelescope (H.scopeWF henv)
     Hbody HbodyType
 
 /-- Close the source declarations of a scope embedding around `Sort 0`. This is a
@@ -1486,7 +1479,7 @@ theorem checkInductiveTypes.loopType.ScopeEmbedding.closedSortTranslation
   have HsortType : env.IsType Us.length scope.toCtx
       (.sort (.zero : VLevel)) :=
     ⟨.succ .zero, VEnv.HasType.sort (.of_ofLevel hzero)⟩
-  have Hclosed := H.sourceTelescope.closeTranslation henv HscopeWF
+  have Hclosed := H.sourceTelescope.closeTranslation HscopeWF
     Hsort HsortType
   have HtargetType : env.IsType Us.length []
       (VExpr.wrapForalls scope.toCtx.reverse

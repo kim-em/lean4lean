@@ -28,7 +28,7 @@ theorem TrExprS.retargetForallPrefix
   have Hprefix := (TrExprS.forallDomainsOnly Htel hlen Hfull).1
   have Hcontexts := TrExprS.forallPrefixContextEq henv Htel.domainsOnly hlen hdomains
     Hprefix Htemplate (.refl henv hΔ)
-  obtain ⟨Hres, HresType⟩ := TrExprS.forallTelescope_residual_typed henv Htel hlen Hfull Htype
+  obtain ⟨Hres, HresType⟩ := TrExprS.forallTelescope_residual_typed Htel hlen Hfull Htype
   obtain ⟨result, HnewRes⟩ := Hres.defeqDFC henv Hcontexts
   have HresEq := Hres.uniq henv Hcontexts HnewRes
   have HnewType := (HresType.defeqU_l henv Hcontexts.wf.toCtx HresEq).defeqDFC

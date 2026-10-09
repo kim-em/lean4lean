@@ -117,12 +117,11 @@ def RecInfoBindings.flatIndices
 
 /-- All binder identities recorded for recursor generation, in the category
 order used by the generated telescope. Keeping this global list distinct is
-stronger than the per-owner fact needed by any one recursor. -/
-def RecInfoBindings.allFvars
-    {stats : AddInductive.InductiveStats}
-    (H : RecInfoBindings c recInfos)
-    (Hparams : FVarArrayIn c stats.params) : List FVarId :=
-  ExprArrayFVarIds stats.params ++
+stronger than the per-owner fact needed by any one recursor.
+The selection depends only on the executable arrays. -/
+def RecInfoBindings.allFvars (params : Array Expr)
+    (recInfos : Array AddInductive.RecInfo) : List FVarId :=
+  ExprArrayFVarIds params ++
     (ExprArrayFVarIds (recInfos.map (·.motive)) ++
       (ExprArrayFVarIds (recInfos.flatMap (·.minors)) ++
         (ExprArrayFVarIds (recInfos.flatMap (·.indices)) ++
@@ -132,7 +131,7 @@ theorem RecInfoBindings.allFvars_eq
     {stats : AddInductive.InductiveStats}
     (H : RecInfoBindings c recInfos)
     (Hparams : FVarArrayIn c stats.params) :
-    H.allFvars Hparams =
+    RecInfoBindings.allFvars stats.params recInfos =
       Hparams.fvars ++
         (H.motives.fvars ++
           (H.flatMinors.fvars ++ (H.flatIndices.fvars ++ H.majors.fvars))) := by
@@ -141,17 +140,15 @@ theorem RecInfoBindings.allFvars_eq
     H.flatMinors.exprArrayFVarIds, H.flatIndices.exprArrayFVarIds,
     H.majors.exprArrayFVarIds]
 
-def RecInfoBindings.NoAlias
-    {stats : AddInductive.InductiveStats}
-    (H : RecInfoBindings c recInfos)
-    (Hparams : FVarArrayIn c stats.params) : Prop :=
-  (H.allFvars Hparams).Nodup
+def RecInfoBindings.NoAlias (params : Array Expr)
+    (recInfos : Array AddInductive.RecInfo) : Prop :=
+  (RecInfoBindings.allFvars params recInfos).Nodup
 
 theorem RecInfoBindings.allFvars_members
     {stats : AddInductive.InductiveStats}
     (H : RecInfoBindings c recInfos)
     (Hparams : FVarArrayIn c stats.params) :
-    ∀ fv ∈ H.allFvars Hparams, fv ∈ c.lctx.fvars := by
+    ∀ fv ∈ RecInfoBindings.allFvars stats.params recInfos, fv ∈ c.lctx.fvars := by
   intro fv hfv
   rw [H.allFvars_eq Hparams] at hfv
   simp only [List.mem_append] at hfv
@@ -166,11 +163,11 @@ theorem RecInfoBindings.outerNodup
     {stats : AddInductive.InductiveStats}
     (H : RecInfoBindings c recInfos)
     (Hparams : FVarArrayIn c stats.params)
-    (hnoalias : H.NoAlias Hparams) :
+    (hnoalias : RecInfoBindings.NoAlias stats.params recInfos) :
     ((Hparams.fvars ++ H.motives.fvars) ++
       H.flatMinors.fvars).Nodup := by
   have hsub : ((Hparams.fvars ++ H.motives.fvars) ++
-      H.flatMinors.fvars) <+ H.allFvars Hparams := by
+      H.flatMinors.fvars) <+ RecInfoBindings.allFvars stats.params recInfos := by
     rw [H.allFvars_eq Hparams]
     simp [List.append_assoc]
   exact hnoalias.sublist hsub
@@ -344,7 +341,7 @@ theorem RecInfoBindings.selectionNoAlias
     {stats : AddInductive.InductiveStats}
     (H : RecInfoBindings c recInfos) (Hc : BindingContextWF c)
     (Hparams : FVarArrayIn c stats.params)
-    (hnoalias : H.NoAlias Hparams)
+    (hnoalias : RecInfoBindings.NoAlias stats.params recInfos)
     (ownerIdx : Nat) (howner : ownerIdx < recInfos.size) :
     (H.toRecursorBinderGroups Hc Hparams ownerIdx howner).NoAlias := by
   let rows := List.ofFn fun i : Fin recInfos.size =>
@@ -370,7 +367,7 @@ theorem RecInfoBindings.selectionNoAlias
           (H.flatMinors.fvars ++
             ((H.indices ownerIdx howner).fvars ++
               (H.major ownerIdx howner).fvars))) <+
-      H.allFvars Hparams :=
+      RecInfoBindings.allFvars stats.params recInfos :=
     H.allFvars_eq Hparams ▸
       ((List.Sublist.refl Hparams.fvars).append <|
         (List.Sublist.refl H.motives.fvars).append <|
@@ -788,25 +785,10 @@ theorem RecInfoBindings.empty_noAlias
     {stats : AddInductive.InductiveStats}
     (c : AddInductive.Context) (Hparams : FVarArrayIn c stats.params)
     (hparams : Hparams.fvars.Nodup) :
-    (RecInfoBindings.empty c).NoAlias Hparams := by
-  have hm : (RecInfoBindings.empty c).motives.fvars = [] := by
-    exact FVarArrayIn.fvars_eq (RecInfoBindings.empty c).motives
-      (FVarArrayIn.empty c) (by simp)
-  have hma : (RecInfoBindings.empty c).majors.fvars = [] := by
-    exact FVarArrayIn.fvars_eq (RecInfoBindings.empty c).majors
-      (FVarArrayIn.empty c) (by simp)
+    RecInfoBindings.NoAlias stats.params #[] := by
   unfold RecInfoBindings.NoAlias RecInfoBindings.allFvars
   rw [Hparams.exprArrayFVarIds]
   simpa [ExprArrayFVarIds] using hparams
-
-theorem RecInfoBindings.mono_noAlias
-    {stats : AddInductive.InductiveStats}
-    (H : RecInfoBindings c recInfos) (Hparams : FVarArrayIn c stats.params)
-    (hle : BindingContextLE c c') (hnoalias : H.NoAlias Hparams) :
-    (H.mono hle).NoAlias (Hparams.mono hle) := by
-  simpa [RecInfoBindings.NoAlias, RecInfoBindings.allFvars,
-    RecInfoBindings.mono, FVarArrayIn.mono,
-    RecInfoBindings.flatMinors, RecInfoBindings.flatIndices] using hnoalias
 
 def RecInfoBindings.pushFrame
     {indices : Array Expr}
@@ -1043,35 +1025,13 @@ def RecInfoBinderTypes.pushFrame
       rw [horigin] at hj
       exact H.minorShapes i hiOld j hj
 theorem RecInfoBindings.pushFrame_allFvars_perm
-    {stats : AddInductive.InductiveStats} {indices : Array Expr}
-    (H : RecInfoBindings c recInfos)
-    (Hparams : FVarArrayIn c stats.params)
-    (hle : BindingContextLE c cIndices)
-    (HcIndices : BindingContextWF cIndices)
-    (Hindices : FVarArrayIn cIndices indices)
-    (majorName : Name) (majorTy : Expr) (majorBi : BinderInfo)
-    (motiveName : Name) (motiveTy : Expr) (motiveBi : BinderInfo) :
-    let cMajor : AddInductive.Context := { cIndices with
-      ngen := cIndices.ngen.next
-      lctx := cIndices.lctx.mkLocalDecl ⟨cIndices.ngen.curr⟩
-        majorName majorTy majorBi }
-    let cMotive : AddInductive.Context := { cMajor with
-      ngen := cMajor.ngen.next
-      lctx := cMajor.lctx.mkLocalDecl ⟨cMajor.ngen.curr⟩
-        motiveName motiveTy motiveBi }
-    let hall : BindingContextLE c cMotive := hle.trans <|
-      (BindingContextLE.withLocalDecl cIndices HcIndices
-        majorName majorTy majorBi).trans <|
-        BindingContextLE.withLocalDecl cMajor
-          (HcIndices.withLocalDecl majorName majorTy majorBi)
-          motiveName motiveTy motiveBi
-    ((H.pushFrame hle HcIndices Hindices majorName majorTy majorBi
-      motiveName motiveTy motiveBi).allFvars (Hparams.mono hall)).Perm
-      (H.allFvars Hparams ++ Hindices.fvars ++
-        [(⟨cIndices.ngen.curr⟩ : FVarId),
-          (⟨cMajor.ngen.curr⟩ : FVarId)]) := by
-  dsimp only
-  rw [← Hindices.exprArrayFVarIds]
+    (params : Array Expr) (recInfos : Array AddInductive.RecInfo)
+    (indices : Array Expr) (major motive : FVarId) :
+    (RecInfoBindings.allFvars params (recInfos.push {
+      motive := .fvar motive, minors := #[], indices,
+      major := .fvar major })).Perm
+      (RecInfoBindings.allFvars params recInfos ++ ExprArrayFVarIds indices ++
+        [major, motive]) := by
   simp only [RecInfoBindings.allFvars, Array.map_push, Array.flatMap_push,
     ExprArrayFVarIds, Array.toList_push,
     Array.toList_append, List.map_append, List.map_cons, List.map_nil,
@@ -1102,37 +1062,21 @@ theorem RecInfoBindings.pushFrame_allFvars_perm
     ((Array.flatMap (fun x => x.indices) recInfos).toList.map recursorFVarId)
     (indices.toList.map recursorFVarId)
     ((Array.map (fun x => x.major) recInfos).toList.map recursorFVarId)
-    ⟨cIndices.ngen.curr⟩ ⟨cIndices.ngen.next.curr⟩
+    major motive
 
 theorem RecInfoBindings.pushFrame_noAlias
     {stats : AddInductive.InductiveStats} {indices : Array Expr}
     (H : RecInfoBindings c recInfos)
     (Hparams : FVarArrayIn c stats.params)
-    (hnoalias : H.NoAlias Hparams)
+    (hnoalias : RecInfoBindings.NoAlias stats.params recInfos)
     (hle : BindingContextLE c cIndices)
     (HcIndices : BindingContextWF cIndices)
     (Hindices : FVarArrayAfter c cIndices indices)
-    (majorName : Name) (majorTy : Expr) (majorBi : BinderInfo)
-    (motiveName : Name) (motiveTy : Expr) (motiveBi : BinderInfo) :
-    let cMajor : AddInductive.Context := { cIndices with
-      ngen := cIndices.ngen.next
-      lctx := cIndices.lctx.mkLocalDecl ⟨cIndices.ngen.curr⟩
-        majorName majorTy majorBi }
-    let cMotive : AddInductive.Context := { cMajor with
-      ngen := cMajor.ngen.next
-      lctx := cMajor.lctx.mkLocalDecl ⟨cMajor.ngen.curr⟩
-        motiveName motiveTy motiveBi }
-    let hall : BindingContextLE c cMotive := hle.trans <|
-      (BindingContextLE.withLocalDecl cIndices HcIndices
-        majorName majorTy majorBi).trans <|
-        BindingContextLE.withLocalDecl cMajor
-          (HcIndices.withLocalDecl majorName majorTy majorBi)
-          motiveName motiveTy motiveBi
-    (H.pushFrame hle HcIndices Hindices.toFVarArrayIn
-      majorName majorTy majorBi
-      motiveName motiveTy motiveBi).NoAlias (Hparams.mono hall) := by
-  dsimp only
-  let old := H.allFvars Hparams
+    (majorName : Name) (majorTy : Expr) (majorBi : BinderInfo) :
+    RecInfoBindings.NoAlias stats.params (recInfos.push {
+      motive := .fvar ⟨cIndices.ngen.next.curr⟩, minors := #[], indices,
+      major := .fvar ⟨cIndices.ngen.curr⟩ }) := by
+  let old := RecInfoBindings.allFvars stats.params recInfos
   let indexFVars := Hindices.toFVarArrayIn.fvars
   let major : FVarId := ⟨cIndices.ngen.curr⟩
   let motive : FVarId := ⟨cIndices.ngen.next.curr⟩
@@ -1180,10 +1124,10 @@ theorem RecInfoBindings.pushFrame_noAlias
       simp only [List.mem_singleton] at hfv'
       subst fv'
       exact fun heq => hMotiveFresh (heq ▸ hfv)⟩
-  apply (H.pushFrame_allFvars_perm Hparams hle HcIndices
-    Hindices.toFVarArrayIn majorName majorTy majorBi
-    motiveName motiveTy motiveBi).symm.nodup
-  simpa [old, indexFVars, major, motive, List.append_assoc] using hCombined
+  apply (RecInfoBindings.pushFrame_allFvars_perm stats.params recInfos indices
+    ⟨cIndices.ngen.curr⟩ ⟨cIndices.ngen.next.curr⟩).symm.nodup
+  simpa [old, indexFVars, major, motive, List.append_assoc,
+    Hindices.toFVarArrayIn.exprArrayFVarIds] using hCombined
 
 def RecInfoBindings.addMinor
     (H : RecInfoBindings c recInfos) (dIdx : Nat)
@@ -1256,10 +1200,7 @@ def RecInfoBinderTypes.addMinor
     (hle : BindingContextLE c cMinorTy)
     (HcMinorTy : BindingContextWF cMinorTy)
     (minorName : Name) (minorTy : Expr) (minorBi : BinderInfo)
-    (Hshape : MinorPremiseType)
-    (HshapePosition :
-      Hshape.localIndex = H.minorTypes[dIdx]!.size ∧
-      Hshape.origin = minorTy) :
+    (Hshape : MinorPremiseType) :
     let cMinor : AddInductive.Context := { cMinorTy with
       ngen := cMinorTy.ngen.next
       lctx := cMinorTy.lctx.mkLocalDecl ⟨cMinorTy.ngen.curr⟩

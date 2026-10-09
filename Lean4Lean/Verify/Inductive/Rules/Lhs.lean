@@ -414,7 +414,7 @@ theorem
     HmajorTr.uniqueCtx HuniqueCtx HmajorTr'
   rw [← hmajorTarget] at HmajorTr'
   rcases A.cachedConstructorIndexSpineOfTarget
-      T fieldDomains fieldResult hfields Htarget with
+      T fieldDomains fieldResult Htarget with
     ⟨levels, parameterTargets, indexTargets, hspine, hlevels,
       HparameterTargets, hindexLength, HindexTargets⟩
   have hcanonicalLevels := R.recursorHeaders.recursorLevelTranslation
@@ -763,7 +763,8 @@ theorem
   let args := indexTargets ++ [majorTarget]
   let lhsBody := VExpr.mkApps prefixTarget args
   let typeBody := VExpr.mkApps ownerTarget args
-  rcases A.installedCachedPrefixOwnerTelescope T fieldDomains prefixTarget
+  rcases RecursorCheck.RuleAlignment.installedCachedPrefixOwnerTelescope
+    (H := H) T fieldDomains prefixTarget
       Hfull HcachedCtx HprefixCached with
     ⟨motiveDomains, resultLevel, hdomainLength, hmotive,
       HprefixExpected, HownerExpected, Hsame⟩

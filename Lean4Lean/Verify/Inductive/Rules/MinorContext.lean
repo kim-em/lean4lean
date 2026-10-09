@@ -478,7 +478,7 @@ theorem
               T.minors[minorIdx]! := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let minorIdx := recursorMinorOffset indTypes owner + i
-  rcases A.installedRecursorTelescopeTranslation with ⟨T⟩
+  rcases H.installedRecursorTelescopeTranslationAt owner howner with ⟨T⟩
   have hminor : minorIdx < T.minors.length := by
     rw [T.minors_length]
     exact A.rule.minor_valid
@@ -546,8 +546,6 @@ theorem
       sourceEnv indTypes ctorEnv}
     {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.RuleAlignment owner howner i hctor)
     (minorLimit : Nat)
     (hminorLimit : minorLimit ≤ H.bindings.flatMinors.fvars.length) :
     let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
@@ -568,7 +566,7 @@ theorem
       selections.minors.fvars = H.bindings.flatMinors.fvars := rfl
   have hselectionNoAlias : selections.NoAlias :=
     H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner hrecInfo
-  rcases A.installedRecursorTelescopeTranslation with ⟨T⟩
+  rcases H.installedRecursorTelescopeTranslationAt owner howner with ⟨T⟩
   have HsourceClosed :
       (H.generated.entry owner howner).info.type.FVarsIn
         (fun _ => False) := by
@@ -708,7 +706,8 @@ theorem
       H.recursorWF.mlctx.vlctx := by
   dsimp only
   let minorIdx := recursorMinorOffset indTypes owner + i
-  apply A.installedMinorPrefixUp minorIdx
+  apply RecursorCheck.RuleAlignment.installedMinorPrefixUp
+    (H := H) (owner := owner) (howner := howner) minorIdx
   rw [H.bindings.flatMinors.length_fvars]
   exact Nat.le_of_lt A.rule.minor_valid
 
@@ -944,9 +943,6 @@ theorem checkInductiveTypes.loopType.ScopeEmbedding.instantiateAll
   simpa [abstractForallContext] using H'
 
 
-
-
-
 theorem Expr.closed_mkAppList_fvars {f : Expr} (hf : Closed f) :
     ∀ (fvs : List FVarId), Closed (Expr.mkAppList f (fvs.map Expr.fvar))
   | [] => hf
@@ -967,10 +963,7 @@ theorem
       sourceEnv indTypes ctorEnv}
     {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.RuleAlignment owner howner i hctor) (k : Nat)
-    (hk : k ≤ (H.params.fvars ++ H.bindings.motives.fvars ++
-      H.bindings.flatMinors.fvars).length)
+    (k : Nat)
     (hup : IsFVarUpSet (· ∈ (H.params.fvars ++ H.bindings.motives.fvars ++
       H.bindings.flatMinors.fvars).take k) H.recursorWF.mlctx.vlctx) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -1001,7 +994,7 @@ theorem
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars
-  rcases A.installedRecursorTelescopeTranslation with ⟨T⟩
+  rcases H.installedRecursorTelescopeTranslationAt owner howner with ⟨T⟩
   have hrec : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
   let E := H.generated.entry owner howner
@@ -1031,7 +1024,7 @@ theorem
       apply List.sublist_flatten_of_mem
       simp only [List.mem_ofFn]
       exact ⟨⟨owner, hrec⟩, rfl⟩
-    have hsub2 : H.bindings.flatIndices.fvars <+ H.bindings.allFvars H.params := by
+    have hsub2 : H.bindings.flatIndices.fvars <+ RecInfoBindings.allFvars stats.params H.recInfos := by
       unfold RecInfoBindings.allFvars
       rw [H.bindings.flatIndices.exprArrayFVarIds]
       exact (List.sublist_append_left _ _).trans <|
@@ -1273,7 +1266,8 @@ theorem
       List.drop_eq_getElem_cons hminorLt, hminorFv]
   have hup := A.installedSelectedMinorPrefixUp
   obtain ⟨scope, Hscope, hscope, hscopeShift, hscopeSource, hBClosed, t', HE⟩ :=
-    A.installedPrefixClosedScope k hk (by rw [htake]; exact hup)
+    RecursorCheck.RuleAlignment.installedPrefixClosedScope
+      (H := H) (owner := owner) (howner := howner) k (by rw [htake]; exact hup)
   rw [htake] at hscope hscopeShift hscopeSource
   rw [hdropEq] at HE
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
@@ -1414,8 +1408,6 @@ theorem
       sourceEnv indTypes ctorEnv}
     {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.RuleAlignment owner howner i hctor)
     (minorLimit : Nat)
     (hminorLimit : minorLimit ≤ H.bindings.flatMinors.fvars.length) :
     let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
@@ -1669,7 +1661,7 @@ theorem
       prefixDomain = recursorDomain := by
   dsimp only
   let minorIdx := recursorMinorOffset indTypes owner + i
-  apply A.installedMinorPrefixBinderEq minorIdx
+  apply RecursorCheck.RuleAlignment.installedMinorPrefixBinderEq (H := H) minorIdx
   rw [H.bindings.flatMinors.length_fvars]
   exact Nat.le_of_lt A.rule.minor_valid
 
@@ -1800,7 +1792,6 @@ theorem
     {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.RuleAlignment owner howner i hctor)
     {D : FVarDeclAt H.localContext
       (H.recInfos.flatMap (·.minors))
       (recursorMinorOffset indTypes owner + i)}
@@ -1916,7 +1907,6 @@ theorem
   dsimp only [originIdx, minorIdx] at hposition
   rw [hownerEq] at hposition
   omega
-
 
 end VerifyInductive
 end Lean4Lean
