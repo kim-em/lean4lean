@@ -85,9 +85,9 @@ theorem CaseCompilationData.ctorApp_cases {base : VEnv} {src exp : VInductDecl}
       subst this
       rfl
 
-/-- The major of a generic case equation of a certified schema. -/
-theorem Certified.generic_major {base : VEnv} {source : VInductDecl} {block : VInductBlock}
-    {schema : CaseSchema} (hcert : schema.Certified base source block)
+/-- The major of a generic case equation. -/
+theorem generic_major
+    {schema : CaseSchema}
     {owner : Fin schema.signature.families.size} {rules : List VDefEq}
     (hgen : schema.genericEquations key owner = some rules) (hdf : df ∈ rules)
     (hm : df.lhs.stripLams = .app fn (VExpr.mkApps (.const c ls) args)) :

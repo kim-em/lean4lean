@@ -546,7 +546,7 @@ theorem VContext.registryShape {c : VContext} {n mkC : Name} {structInfo : Induc
     have hΔ₀ : OnCtx (indices.reverse ++ ownParams.reverse) (c.venv.IsType decl.uvars) := by
       rwa [List.reverse_append] at hΓtel
     have e : (indices.reverse ++ ownParams.reverse).reverse = ownParams ++ indices := by simp
-    have hconv := VEnv.IsDefEqU.closed_telescope_instOuter c.Ewf c.Δwf.toCtx hΔ₀ ⟨_, hres⟩ hlsw
+    have hconv := VEnv.IsDefEqU.closed_telescope_instOuter c.Ewf hΔ₀ ⟨_, hres⟩ hlsw
       (args := args) (by simp [hargs, hownLen, hidxLen, hnparams, hindices]; omega) (by
         intro k hk hk'
         simp only [e] at hk' ⊢
@@ -565,7 +565,7 @@ theorem VContext.registryShape {c : VContext} {n mkC : Name} {structInfo : Induc
         rw [List.append_assoc, ← List.reverse_append, List.take_append_drop, List.reverse_append]
       rw [this] at hΓtel
       exact hΓtel.of_append
-    have hconv := VEnv.IsDefEqU.closed_telescope_instOuter c.Ewf c.Δwf.toCtx hΔ₀ ⟨_, hdk⟩ hlsw
+    have hconv := VEnv.IsDefEqU.closed_telescope_instOuter c.Ewf hΔ₀ ⟨_, hdk⟩ hlsw
       (args := args.take k) (by simp; omega) (by
         intro j hj hj'
         simp only [List.length_take] at hj

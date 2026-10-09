@@ -173,7 +173,7 @@ theorem QuotCoherent.ind_defeq (henv : VEnv.WF venv) (hΓ : OnCtx Γ (venv.IsTyp
         (.app (.app (.const ``Quot [um']) (.bvar 2)) (.bvar 1))) :=
     VEnv.IsDefEq.constDF hq.quotMk hlsm'w hls'w rfl
       (.cons (VLevel.equiv_def'.2 (VLevel.equiv_def'.1 huu).symm) .nil)
-  have hcongr := VEnv.IsDefEq.mkApps_congr henv hΓ (args := [a1', a2', a3']) (args' := [α', r', a3'])
+  have hcongr := VEnv.IsDefEq.mkApps_congr (args := [a1', a2', a3']) (args' := [α', r', a3'])
     hcDF rfl rfl (by
       intro j hj hj' hj''
       match j, hj with

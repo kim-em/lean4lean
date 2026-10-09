@@ -870,7 +870,7 @@ theorem _root_.Lean4Lean.VIotaRuleShape.args_typing (henv : VEnv.WF env) (hΓ : 
           (VExpr.wrapForalls (Hctor.doms.map (VExpr.instL cls))
             ((VExpr.mkApps (.const indName (VLevel.params ctorUvars))
               (VExpr.bvarRange cnparams (cnparams + nfields) ++ Hctor.indices)).instL cls)) := by
-        have := IsType.instL_defeq henv.ordered hΓ (henv.ordered.constWF Hctor.const) hL'w hclsw hLcls
+        have := IsType.instL_defeq (Γ := Γ) henv.ordered (henv.ordered.constWF Hctor.const) hL'w hclsw hLcls
         simp only [Hctor.type_eq, VExpr.instL_wrapForalls] at this
         exact this
       have hbsE : List.Forall₂ (env.IsDefEqU U Γ) ((ctorParams.map fun p => (p.instL ls).instOuter (pre.take nparams)) ++ fields.take i)
@@ -1019,7 +1019,7 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota_of_args (henv : VEnv.WF env) (hΓ :
     have := IsDefEq.constDF (Γ := Γ) Hctor.const hclsw hL'w (by simpa using hcls)
       (List.forall₂_symm (fun _ _ h => (VLevel.equiv_def'.1 h).symm) hLcls)
     rwa [Hctor.type_eq, VExpr.instL_wrapForalls] at this
-  have hcongr := IsDefEq.mkApps_congr henv hΓ (args := P' ++ fields)
+  have hcongr := IsDefEq.mkApps_congr (args := P' ++ fields)
     (args' := params ++ fields) hcDF (by simp [hP', hf, Hctor.doms_length])
     (by simp [hP']; omega) (by
       intro j hj hj' hj''
@@ -1111,7 +1111,7 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota_of_args (henv : VEnv.WF env) (hΓ :
       (VExpr.wrapForalls (Hrec.doms.map (VExpr.instL ls)) (Hrec.result.instL ls)) := by
     have := HasType.const (Γ := Γ) Hrec.const hls (by simpa using hlsl)
     rwa [Hrec.type_eq, VExpr.instL_wrapForalls] at this
-  have hX1X2 := IsDefEq.mkApps_congr henv hΓ (args := pre ++ [major])
+  have hX1X2 := IsDefEq.mkApps_congr (args := pre ++ [major])
     (args' := (pre.take m ++ (Hrule.indexArgs.map (VExpr.instL ls)).map (·.instOuter A)) ++
       [VExpr.mkApps (.const ctorName L') (params ++ fields)]) hrecT
     (by simp [hpre, Hrec.doms_length]; omega) (by simp [Hrule.indexArgs_length]; omega) (by
@@ -1237,7 +1237,7 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota_body (henv : VEnv.WF env)
 
 /-- Forward telescope typing: a function typed at a syntactic telescope, applied to arguments typed
 along that telescope, has the instantiated residual type. -/
-theorem HasType.mkApps_of_telescope (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U)) :
+theorem HasType.mkApps_of_telescope :
     ∀ {args : List VExpr} {f : VExpr} {doms : List VExpr} {body : VExpr},
       env.HasType U Γ f (VExpr.wrapForalls doms body) → args.length = doms.length →
       (∀ j (hj : j < args.length) (hj' : j < doms.length),
@@ -1334,7 +1334,7 @@ theorem IsType.instOuter_telescope (henv : VEnv.WF env) {doms args : List VExpr}
 
 /-- A defeq between closed telescope domains, instantiated at universe levels and at arguments typed
 along the telescope. The domains live in the closed context of the binders before them. -/
-theorem IsDefEqU.closed_telescope_instOuter (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
+theorem IsDefEqU.closed_telescope_instOuter (henv : VEnv.WF env)
     {Δ₀ : List VExpr} {X Y : VExpr} (hΓ₀ : OnCtx Δ₀ (env.IsType U₀))
     (H : env.IsDefEqU U₀ Δ₀ X Y) (hls : ∀ l ∈ ls, l.WF U)
     {args : List VExpr} (hargs : args.length = Δ₀.length)
@@ -1412,7 +1412,7 @@ theorem HasType.mkApps_bvarRange {env : VEnv} {U : Nat} (henv : env.WF)
       (VExpr.mkApps f (VExpr.bvarRange doms.length doms.length)) B := by
   have hf' : env.HasType U doms.reverse f (VExpr.wrapForalls doms B) :=
     hf.weak0 henv.ordered
-  have h := HasType.mkApps_of_telescope henv hctx
+  have h := HasType.mkApps_of_telescope
     (args := VExpr.bvarRange doms.length doms.length) hf' (by simp) ?_
   · rwa [VExpr.instOuter_range_bvar' B _ _ hB (Nat.le_refl _), Nat.sub_self,
       VExpr.liftN_zero] at h

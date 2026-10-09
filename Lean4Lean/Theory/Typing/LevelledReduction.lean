@@ -376,12 +376,14 @@ theorem DeltaPar.instN (W : Ctx.InstN Γ₀ a₁ A₀ k Γ₁ Γ) (hΓ₁ : OnCt
             (List.getElem_mem (by simpa using hi))).choose_spec)
       hl hs' (by simp [hi]) ht'
 
+omit [Params] in
 theorem structExpand_liftN :
     (structExpand family info levels params e).liftN n k =
       structExpand family info levels (params.map (·.liftN n k)) (e.liftN n k) := by
   simp [structExpand, VExpr.liftN_mkApps, VExpr.liftN, List.map_append, List.map_map,
     Function.comp_def]
 
+omit [Params] in
 theorem structExpand_inst :
     (structExpand family info levels params e).inst a k =
       structExpand family info levels (params.map (·.inst a k)) (e.inst a k) := by
@@ -627,7 +629,7 @@ theorem Below.mkApps (hΓ : OnCtx Γ (env.IsType univs))
     obtain ⟨_, happ⟩ := schema_mkApps_head_type hΓ (fn := .app f _) ht
     exact ih (Below.app hΓ hf h happ) ht
 
-theorem LevelStep.proj (hΓ : OnCtx Γ (env.IsType univs))
+theorem LevelStep.proj
     (ht : Γ ⊢ .proj s i m : T) (H : LevelStep Γ k m m') :
     LevelStep Γ k (.proj s i m) (.proj s i m') := by
   match k, H with
@@ -641,12 +643,12 @@ theorem Below.proj (hΓ : OnCtx Γ (env.IsType univs))
     (hm : ReflTransGen (Below Γ n) m m') (ht : Γ ⊢ .proj s i m : T) :
     ReflTransGen (Below Γ n) (.proj s i m) (.proj s i m') := by
   have := Below.congr (f := VExpr.proj s i) (P := fun g => Γ ⊢ .proj s i g : T)
-    (fun hP h => LevelStep.proj hΓ hP h)
-    (fun hP h => (LevelStep.proj hΓ hP h).hasType hΓ hP) hm ht
+    (fun hP h => LevelStep.proj hP h)
+    (fun hP h => (LevelStep.proj hP h).hasType hΓ hP) hm ht
   exact this
 
-theorem LevelStep.lam_body (hΓ : OnCtx Γ (env.IsType univs)) (hD : Γ ⊢ D : .sort u)
-    (hb : D :: Γ ⊢ b : B) (H : LevelStep (D :: Γ) k b b') :
+theorem LevelStep.lam_body (hD : Γ ⊢ D : .sort u)
+    (H : LevelStep (D :: Γ) k b b') :
     LevelStep Γ k (.lam D b) (.lam D b') := by
   match k, H with
   | 0, H => exact NormalEqF.lamDF hD hD H
@@ -673,7 +675,7 @@ theorem Below.lam (hΓ : OnCtx Γ (env.IsType univs))
   obtain ⟨⟨_, tD⟩, _, tb⟩ := ht.lam_inv henv hΓ
   have hΓ' : OnCtx (D :: Γ) (env.IsType univs) := ⟨hΓ, _, tD⟩
   have h1 := Below.congr (f := VExpr.lam D) (P := fun g => D :: Γ ⊢ g : _)
-    (fun hP h => h.lam_body hΓ tD hP) (fun hP h => h.hasType hΓ' hP) hb tb
+    (fun hP h => h.lam_body tD) (fun hP h => h.hasType hΓ' hP) hb tb
   have tb' := Below.hasType hΓ' hb tb
   have hDD := Below.defeq hΓ hD tD
   have h2 := Below.congr (f := (VExpr.lam · b')) (P := fun g => Γ ⊢ g : _ ∧ Γ ⊢ D ≡ g)
@@ -683,7 +685,7 @@ theorem Below.lam (hΓ : OnCtx Γ (env.IsType univs))
     (fun hP h => ⟨h.hasType hΓ hP.1, hP.2.trans henv hΓ ⟨_, h.defeq hΓ hP.1⟩⟩) hD ⟨tD, ⟨_, tD⟩⟩
   exact h1.trans h2
 
-theorem LevelStep.forallE_body (hΓ : OnCtx Γ (env.IsType univs)) (hD : Γ ⊢ D : .sort u)
+theorem LevelStep.forallE_body (hD : Γ ⊢ D : .sort u)
     (hb : D :: Γ ⊢ b : .sort v) (H : LevelStep (D :: Γ) k b b') :
     LevelStep Γ k (.forallE D b) (.forallE D b') := by
   match k, H with
@@ -693,7 +695,7 @@ theorem LevelStep.forallE_body (hΓ : OnCtx Γ (env.IsType univs)) (hD : Γ ⊢ 
   | 3, H => exact EtaPar.forallE .rfl H
   | _ + 4, H => exact H.elim
 
-theorem LevelStep.forallE_dom (hΓ : OnCtx Γ (env.IsType univs)) (hD : Γ ⊢ D : .sort u)
+theorem LevelStep.forallE_dom (hD : Γ ⊢ D : .sort u)
     (hb : D :: Γ ⊢ b : .sort v) (H : LevelStep Γ k D D') :
     LevelStep Γ k (.forallE D b) (.forallE D' b) := by
   match k, H with
@@ -710,13 +712,13 @@ theorem Below.forallE (hΓ : OnCtx Γ (env.IsType univs))
   obtain ⟨⟨_, tD⟩, _, tb⟩ := ht.forallE_inv henv
   have hΓ' : OnCtx (D :: Γ) (env.IsType univs) := ⟨hΓ, _, tD⟩
   have h1 := Below.congr (f := VExpr.forallE D) (P := fun g => D :: Γ ⊢ g : .sort _)
-    (fun hP h => h.forallE_body hΓ tD hP) (fun hP h => h.hasType hΓ' hP) hb tb
+    (fun hP h => h.forallE_body tD hP) (fun hP h => h.hasType hΓ' hP) hb tb
   have tb' := Below.hasType hΓ' hb tb
   have hDD := Below.defeq hΓ hD tD
   have h2 := Below.congr (f := (VExpr.forallE · b')) (P := fun g => Γ ⊢ g : _ ∧ Γ ⊢ D ≡ g)
     (fun hP h => by
       have tb'' := tb'.defeqDFC henv (.succ .zero (hP.2.of_l henv hΓ tD))
-      exact h.forallE_dom hΓ hP.1 tb'')
+      exact h.forallE_dom hP.1 tb'')
     (fun hP h => ⟨h.hasType hΓ hP.1, hP.2.trans henv hΓ ⟨_, h.defeq hΓ hP.1⟩⟩) hD ⟨tD, ⟨_, tD⟩⟩
   exact h1.trans h2
 
@@ -1257,7 +1259,7 @@ theorem structExpand_typed_of_normal (hΓ : OnCtx Γ (env.IsType univs))
     (NormalEqF.forall₂_refl (structExpand_params_typed hΓ ht)) ht))
 
 /-- The normal equality of two eta bodies at the same domain. -/
-theorem NormalEqF.etaBody (hΓ : OnCtx Γ (env.IsType univs))
+theorem NormalEqF.etaBody
     (H : NormalEqF η Γ e₁ e₂) (h1 : Γ ⊢ e₁ : .forallE D B) (h2 : Γ ⊢ e₂ : .forallE D B)
     (hD : Γ ⊢ D ≡ D₁ : .sort u) (hD' : Γ ⊢ D ≡ D₂ : .sort u) :
     NormalEqF η Γ (.lam D₁ (.app e₁.lift (.bvar 0))) (.lam D₂ (.app e₂.lift (.bvar 0))) :=
@@ -1353,7 +1355,7 @@ theorem EtaPar.normalEq₀_mirror (hΓ : OnCtx Γ (env.IsType univs))
     refine ⟨_, .funEta hc₀ HA hcT, ?_⟩
     have ⟨⟨_, hD⟩, _⟩ := let ⟨_, h⟩ := ht.isType henv hΓ; h.forallE_inv henv
     have hDD := (EtaPar.full hΓ HA hD).defeq hΓ hD
-    exact NormalEqF.etaBody hΓ ec₀ ((EtaPar.full hΓ hc₀ hcT).hasType hΓ hcT)
+    exact NormalEqF.etaBody ec₀ ((EtaPar.full hΓ hc₀ hcT).hasType hΓ hcT)
       ((EtaPar.full hΓ H1 ht).hasType hΓ ht) hDD hDD
   | structEta H1 hlen hps hl hp hi hs hexp ih ihp =>
     obtain ⟨c₀, hc₀, ec₀⟩ := ih hΓ hc hs
@@ -1471,7 +1473,6 @@ theorem forall₂_getElem?_right {R : α → β → Prop} :
 /-- Pointwise mirrors of developed arguments. -/
 theorem DeltaPar.mirror_args (hΓ : OnCtx Γ (env.IsType univs))
     (ha : Γ ⊢ VExpr.mkApps f args : A) (hlen : args.length = args'.length)
-    (hargs : ∀ i (hi : i < args.length) (hi' : i < args'.length), DeltaPar Γ args[i] args'[i])
     (ih : ∀ i (hi : i < args.length) (hi' : i < args'.length) {c A}, OnCtx Γ (env.IsType univs) →
       NormalEq₀ Γ c args[i] → Γ ⊢ args[i] : A → ∃ c', DeltaPar Γ c c' ∧ NormalEq₀ Γ c' args'[i])
     (hrel : List.Forall₂ (NormalEq₀ Γ) args₁ args) :
@@ -1502,7 +1503,7 @@ theorem DeltaPar.mirror_delta (hΓ : OnCtx Γ (env.IsType univs))
   · exact ⟨c, .rfl, .proofIrrel hp hcT hb⟩
   obtain ⟨ls₁, rfl, hls⟩ : ∃ ls₁, h' = .const name ls₁ ∧ List.Forall₂ (· ≈ ·) ls₁ ls := by
     cases he with | const h => exact ⟨_, rfl, h⟩
-  obtain ⟨Xs, hXs, eXs⟩ := DeltaPar.mirror_args hΓ ha hlen hargs ih hrel
+  obtain ⟨Xs, hXs, eXs⟩ := DeltaPar.mirror_args hΓ ha hlen ih hrel
   obtain ⟨_, hh₁⟩ := schema_mkApps_head_type hΓ hcT
   obtain ⟨_, _, hw₁, _⟩ := hh₁.const_inv henv hΓ
   obtain ⟨rhs', hr', e'⟩ := hr.congr₀ hΓ hw₁
@@ -1526,7 +1527,7 @@ theorem DeltaPar.mirror_quotDelta (hΓ : OnCtx Γ (env.IsType univs))
   obtain ⟨ls₁, rfl, hls⟩ : ∃ ls₁, h' = .const ``Quot.lift ls₁ ∧
       List.Forall₂ (· ≈ ·) ls₁ ls := by
     cases he with | const h => exact ⟨_, rfl, h⟩
-  obtain ⟨Xs, hXs, eXs⟩ := DeltaPar.mirror_args hΓ ha hlen hargs ih hrel
+  obtain ⟨Xs, hXs, eXs⟩ := DeltaPar.mirror_args hΓ ha hlen ih hrel
   obtain ⟨_, hh₁⟩ := schema_mkApps_head_type hΓ hcT
   obtain ⟨_, _, hw₁, _⟩ := hh₁.const_inv henv hΓ
   obtain ⟨rhs', hr', e'⟩ := hr.congr₀ hΓ hw₁
@@ -1566,7 +1567,7 @@ theorem DeltaPar.mirror_projIota (hΓ : OnCtx Γ (env.IsType univs))
     obtain ⟨ls₁, rfl, hls⟩ : ∃ ls₁, h' = .const info.ctorName ls₁ ∧
         List.Forall₂ (· ≈ ·) ls₁ ls := by
       cases he with | const h => exact ⟨_, rfl, h⟩
-    obtain ⟨Xs, hXs, eXs⟩ := DeltaPar.mirror_args hΓ hm.hasType.2 hlen hargs ih hrel
+    obtain ⟨Xs, hXs, eXs⟩ := DeltaPar.mirror_args hΓ hm.hasType.2 hlen ih hrel
     obtain ⟨X, hX, eX⟩ := forall₂_getElem?_right eXs hi
     have ⟨hl', hx'⟩ := getElem_of_forall₂ hXs
     have hcong : DeltaPar Γ (.proj family index (VExpr.mkApps (.const info.ctorName ls₁) args₁))
@@ -2064,8 +2065,8 @@ theorem List.Forall₂.exists_join {R₁ R₂ S T U : α → α → Prop} :
       fun x y z hx => H x y z (List.mem_cons_of_mem _ hx)
     exact ⟨u :: us, v :: vs, .cons hs hss, .cons ht hts, .cons hu hus⟩
 
-theorem DeltaPar.parRed_args (hΓ : OnCtx Γ (env.IsType univs)) (IH : DPDiaBelow (sizeOf a))
-    (ha : Γ ⊢ a : A) (hsub : ∀ x ∈ args, sizeOf x < sizeOf a)
+theorem DeltaPar.parRed_args {a : VExpr} (hΓ : OnCtx Γ (env.IsType univs))
+    (IH : DPDiaBelow (sizeOf a)) (hsub : ∀ x ∈ args, sizeOf x < sizeOf a)
     (htyped : ∀ x ∈ args, ∃ T, Γ ⊢ x : T)
     (h1 : List.Forall₂ (DeltaPar Γ) args args') (h2 : List.Forall₂ (ParRed Γ) args argsP) :
     ∃ D₁ D₂, List.Forall₂ (ParRed Γ) args' D₁ ∧ List.Forall₂ (DeltaPar Γ) argsP D₂ ∧
@@ -2210,7 +2211,7 @@ theorem DeltaPar.parRed_projIota (hΓ : OnCtx Γ (env.IsType univs))
   | proj hM =>
     obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, lm, _, _⟩ := ha.proj_inv henv hΓ
     obtain ⟨argsP, rfl, hP⟩ := ParRed.rigid_const_spine (projection_ctor_rigid hl) hM
-    obtain ⟨D₁, D₂, pD₁, pD₂, eD⟩ := DeltaPar.parRed_args hΓ IH ha
+    obtain ⟨D₁, D₂, pD₁, pD₂, eD⟩ := DeltaPar.parRed_args hΓ IH
       (fun _ hx => by have := sizeOf_mkApps_arg (f := .const info.ctorName ls) hx; simp; omega)
       (HasType.mkApps_args_typed hΓ lm.hasType.2) (List.forall₂_of_getElem hlen hargs) hP
     obtain ⟨d₁, hd₁, pd₁⟩ := forall₂_getElem?_left pD₁ hi
@@ -2279,7 +2280,7 @@ theorem DeltaPar.parRed_diamond_aux : ∀ n, DPDiaBelow n := by
     have hle' : args.length ≤ data.majorOffset := hlen ▸ hle
     obtain ⟨argsP, rfl, hP⟩ := ParRed.const_spine_of args.length
       (fun hp hpre hm => Params.no_match_delta_prefix hdata hp (by omega) hm) (Nat.le_refl _) H2
-    obtain ⟨D₁, D₂, pD₁, pD₂, eD⟩ := DeltaPar.parRed_args hΓ IH ha
+    obtain ⟨D₁, D₂, pD₁, pD₂, eD⟩ := DeltaPar.parRed_args hΓ IH
       (fun _ hx => sizeOf_mkApps_arg hx) (HasType.mkApps_args_typed hΓ ha)
       (List.forall₂_of_getElem hlen hargs) hP
     obtain ⟨rhs₁, X, hr₁, pX, eX⟩ := hr.congr_red ParRed.congrRel ParRed.argRel hΓ pD₁
@@ -2292,7 +2293,7 @@ theorem DeltaPar.parRed_diamond_aux : ∀ n, DPDiaBelow n := by
     have hle : args.length ≤ 5 := hlen ▸ hr.length_le
     obtain ⟨argsP, rfl, hP⟩ := ParRed.const_spine_of args.length
       (fun hp hpre hm => Params.no_match_quot_prefix hr.registered hp (by omega) hm) (Nat.le_refl _) H2
-    obtain ⟨D₁, D₂, pD₁, pD₂, eD⟩ := DeltaPar.parRed_args hΓ IH ha
+    obtain ⟨D₁, D₂, pD₁, pD₂, eD⟩ := DeltaPar.parRed_args hΓ IH
       (fun _ hx => sizeOf_mkApps_arg hx) (HasType.mkApps_args_typed hΓ ha)
       (List.forall₂_of_getElem hlen hargs) hP
     obtain ⟨rhs₁, X, hr₁, pX, eX⟩ := hr.congr_red ParRed.congrRel ParRed.argRel hΓ pD₁
@@ -2770,7 +2771,7 @@ theorem DeltaPar.side_cong {Z X Y E : List VExpr} (hΓ : OnCtx Γ (env.IsType un
 
 /-- Extending a prefix contraction by beta reduction to a longer prefix. -/
 theorem DeltaPar.side_extend {E : List VExpr} {k₁ k₂ : Nat}
-    (hΓ : OnCtx Γ (env.IsType univs)) (hk : k₁ ≤ k₂)
+    (hk : k₁ ≤ k₂)
     (H₁ : SpineRule Γ name ls (E.take k₁) r₁) (H₂ : SpineRule Γ name ls (E.take k₂) r₂) :
     ReflTransGen (Below Γ 2) (VExpr.mkApps r₁ (E.drop k₁)) (VExpr.mkApps r₂ (E.drop k₂)) := by
   have he : E.take k₂ = E.take k₁ ++ (E.drop k₁).take (k₂ - k₁) := by
@@ -2912,8 +2913,8 @@ theorem DeltaPar.peak_spine (hΓ : OnCtx Γ (env.IsType univs))
   · obtain ⟨rE₁, hrE₁, b₁, pb, cb⟩ := DeltaPar.side_contr hΓ hr₁ hB hBE hb
     obtain ⟨rE₂, hrE₂, c₁, pc, cc⟩ := DeltaPar.side_contr hΓ hr₂ hC hCE hc
     rcases Nat.le_total k₁ k₂ with hk | hk
-    · exact ⟨_, ⟨_, pb, cb.trans (DeltaPar.side_extend hΓ hk hrE₁ hrE₂)⟩, ⟨_, pc, cc⟩⟩
-    · exact ⟨_, ⟨_, pb, cb⟩, ⟨_, pc, cc.trans (DeltaPar.side_extend hΓ hk hrE₂ hrE₁)⟩⟩
+    · exact ⟨_, ⟨_, pb, cb.trans (DeltaPar.side_extend hk hrE₁ hrE₂)⟩, ⟨_, pc, cc⟩⟩
+    · exact ⟨_, ⟨_, pb, cb⟩, ⟨_, pc, cc.trans (DeltaPar.side_extend hk hrE₂ hrE₁)⟩⟩
 
 omit [Params] in
 theorem mkApps_const_ne_proj : VExpr.mkApps (.const n ls) args ≠ .proj s i m := by

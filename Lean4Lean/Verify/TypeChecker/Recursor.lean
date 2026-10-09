@@ -629,7 +629,7 @@ theorem toCtorWhenK.WF_all {info : RecursorVal} {major : Expr} {m' : VExpr} (hk 
   rw [VExpr.instL_wrapForalls] at hcT
   have hnewT : c.HasType (VExpr.mkApps (.const ctorName lsI') (AA'.take info.numParams))
       ((ctorBody.instL lsI').instOuter (AA'.take info.numParams)) := by
-    refine VEnv.HasType.mkApps_of_telescope c.Ewf c.Δwf.toCtx hcT (by simp [hClen]; omega) ?_
+    refine VEnv.HasType.mkApps_of_telescope hcT (by simp [hClen]; omega) ?_
     intro j hj hj'
     simp only [List.length_take, List.length_map] at hj hj'
     have hjp : j < info.numParams := by omega
@@ -640,7 +640,7 @@ theorem toCtorWhenK.WF_all {info : RecursorVal} {major : Expr} {m' : VExpr} (hk 
         rw [List.append_nil, ← List.reverse_append, List.take_append_drop]
       rw [this] at hΓI
       exact hΓI.of_append
-    have hconv := VEnv.IsDefEqU.closed_telescope_instOuter c.Ewf c.Δwf.toCtx hΓ₀ hdef hlsI'w
+    have hconv := VEnv.IsDefEqU.closed_telescope_instOuter c.Ewf hΓ₀ hdef hlsI'w
       (args := AA'.take j) (by simp; omega) (by
         intro k hk hk'
         simp only [List.length_take] at hk
@@ -928,7 +928,7 @@ theorem toCtorWhenStruct.WF_all {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
           Nat.add_sub_cancel_left, ← List.map_take, List.take_range, Nat.min_eq_left (by omega)]
       rw [hidx, htake]
       exact hprojT k (by omega)
-  have hctorT := VEnv.HasType.mkApps_of_telescope c.Ewf c.Δwf.toCtx hcT
+  have hctorT := VEnv.HasType.mkApps_of_telescope hcT
     (by simp [hP'len]; omega) hargsT
   -- its type is the structure type
   have hhead' : (result.instL lsI').getAppFnArgs.1 = .const n lsI' := by

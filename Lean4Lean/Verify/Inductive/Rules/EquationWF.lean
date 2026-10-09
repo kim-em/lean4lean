@@ -539,7 +539,7 @@ theorem
       abstractForallContext_toCtx, VLCtx.toCtx, List.reverse_append,
       List.append_assoc] using C.bodyTypings
   rcases VEnv.TypedApplicationSpine.liftClosedDomains
-      H.outVEnvWF.ordered HfnCanonical HbodyTypings with
+      HfnCanonical HbodyTypings with
     ⟨finalType, Hspine⟩
   have hfinalType : finalType = lhsType := by
     rw [Hspine.result_eq_applyForallType]

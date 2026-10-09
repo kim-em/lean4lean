@@ -717,7 +717,7 @@ theorem HTS.spineCod (H : HTS env U Δ Γ e T) {c ls args} (he : e = .mkApps (.c
     obtain ⟨ci, hci, hls, hlen, ih⟩ := ih he W tv
     refine ⟨ci, hci, hls, hlen, fun keys hk x hx => ?_⟩
     obtain ⟨x₁, hx₁, l₁⟩ := ih keys hk x hx
-    obtain ⟨x₂, hx₂, l₂⟩ := (SD.sub henv hΔ hAB W tv).1 x₁ hx₁
+    obtain ⟨x₂, hx₂, l₂⟩ := (SD.sub hAB W tv).1 x₁ hx₁
     exact ⟨x₂, hx₂, l₂.trans l₁⟩
 
 /-! ## Typed keys at given anchors -/

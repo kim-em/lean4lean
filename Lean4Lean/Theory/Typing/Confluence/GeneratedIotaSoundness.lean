@@ -1143,7 +1143,7 @@ theorem GeneratedIotaPattern.sound (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U
       -- the actual constructor arguments along the parameter-aligned telescope
       have hTdef : env.IsDefEqU U Γ (Hctor.type.instL (head.levels.map (·.inst levels)))
           (Hctor.type.instL lsc) :=
-        IsType.instL_defeq henv.ordered hΓ (henv.ordered.constWF Hctor.const)
+        IsType.instL_defeq (Γ := Γ) henv.ordered (henv.ordered.constWF Hctor.const)
           (fun _ hl' => by obtain ⟨_, -, rfl⟩ := List.mem_map.mp hl'; exact VLevel.WF.inst hw)
           hcw hLcls
       have hfty := Hw0.typed

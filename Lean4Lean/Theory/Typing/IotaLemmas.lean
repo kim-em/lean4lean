@@ -83,7 +83,7 @@ theorem IsDefEq.mkApps_wrapLams (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType
         have hj0 : j < as.length := by simpa using hj
         rw [Nat.min_eq_left (Nat.le_of_lt hj0)] at this
         simpa [VExpr.instDomains_getElem ds a 0 j (by simpa using hj')] using this
-      have hcongr := IsDefEq.mkApps_congr henv hΓ (args := as) (args' := as) hbeta
+      have hcongr := IsDefEq.mkApps_congr (args := as) (args' := as) hbeta
         (by simpa using hlen) rfl fun j hj hj' _ => hargs' j hj hj'
       have hih := ih (doms := VExpr.instDomains ds a 0) (body := body.inst a ds.length)
         (T := T.inst a ds.length) hbeta.hasType.2 (by simpa using hlen) hargs'
@@ -117,7 +117,7 @@ theorem IsDefEq.extra_instOuter (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType
     intro j hj hj'
     rw [List.getElem_map]
     exact hty j hj (by simpa using hj')
-  have hcongr := IsDefEq.mkApps_congr henv hΓ (args := args) (args' := args) hex'
+  have hcongr := IsDefEq.mkApps_congr (args := args) (args' := args) hex'
     (by simpa using hargs) rfl fun j hj hj' _ => hty' j hj hj'
   have h1 := IsDefEq.mkApps_wrapLams henv hΓ hex'.hasType.1 (by simpa using hargs) hty'
   have h2 := IsDefEq.mkApps_wrapLams henv hΓ hex'.hasType.2 (by simpa using hargs) hty'
