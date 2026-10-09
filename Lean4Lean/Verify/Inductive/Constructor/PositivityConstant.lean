@@ -18,11 +18,11 @@ theorem whnf'_loop_const_noDelta {n : Name} {us : List Level} {m : Methods} {ctx
   | succ fuel =>
     have hnargs : (Expr.const n us).getAppNumArgs = 0 := rfl
     unfold Inner.whnf'.loop at h
-    simp only [Inner.whnfCore', Inner.reduceNative, Inner.reduceNat, hnargs,
+    simp only [Inner.whnfCore', Inner.reduceNative, Inner.reduceNat,
       Inner.unfoldDefinition, Inner.unfoldDefinitionCore, Expr.isApp] at h
     simp [bind, ReaderT.bind, StateT.bind, Except.bind, getEnv, pure, ReaderT.pure,
       StateT.pure, Except.pure, liftM, monadLift, MonadLift.monadLift, read, MonadReader.read,
-      MonadReaderOf.read, readThe, ReaderT.read, StateT.lift, hdelta] at h
+      MonadReaderOf.read, readThe, ReaderT.read, StateT.lift] at h
     rw [hnargs] at h
     simp [bind, ReaderT.bind, StateT.bind, Except.bind, pure, ReaderT.pure,
       StateT.pure, Except.pure, hdelta] at h
@@ -35,10 +35,10 @@ theorem whnf'_const_noDelta {n : Name} {us : List Level} {m : Methods} {ctx : Co
     (hcache : s.whnfCache[Expr.const n us]? = none)
     (h : Inner.whnf' (.const n us) m ctx s = .ok (r, s')) : r = .const n us := by
   unfold Inner.whnf' at h
-  simp [bind, ReaderT.bind, StateT.bind, Except.bind, pure, ReaderT.pure, StateT.pure,
+  simp [bind, ReaderT.bind, StateT.bind, Except.bind, pure, StateT.pure,
     Except.pure, get, getThe, MonadStateOf.get, StateT.get, hcache, liftM, monadLift,
     MonadLift.monadLift, readThe, MonadReaderOf.read, ReaderT.read, read, MonadReader.read,
-    modify, modifyGet, MonadStateOf.modifyGet, StateT.modifyGet] at h
+    modify, modifyGet, MonadStateOf.modifyGet] at h
   generalize (if ctx.eagerReduce = true then ctx.fuel.whnfEager else ctx.fuel.whnf) = fuel at h
   cases hw : Inner.whnf'.loop (Expr.const n us) fuel m ctx s with
   | error e => simp [hw] at h
@@ -62,7 +62,7 @@ theorem whnf_const_noDelta {n : Name} {us : List Level} {ctx : Context}
     (h : TypeChecker.whnf (.const n us) ctx {} = .ok (r, s')) : r = .const n us := by
   unfold TypeChecker.whnf RecM.run Inner.whnf at h
   simp [bind, ReaderT.bind, StateT.bind, Except.bind, readThe, MonadReaderOf.read,
-    ReaderT.read, read, MonadReader.read, liftM, monadLift, MonadLift.monadLift] at h
+    ReaderT.read] at h
   change (Methods.withFuel ctx.fuel.recDepth).whnf (Expr.const n us) ctx {} = _ at h
   cases hd : ctx.fuel.recDepth with
   | zero => rw [hd] at h; cases h
