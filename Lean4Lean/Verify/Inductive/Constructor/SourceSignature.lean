@@ -491,7 +491,6 @@ theorem sourceModelsOfTables {s : InductiveSignature} {decl : VInductDecl}
     · exact Or.inl hunsafe
     · refine Or.inr ⟨envTypes, hadd, ?_⟩
       intro ctor hc i hi
-      obtain ⟨normalized, hnormal, hshape⟩ := (Hfields ctor hc i hi).2.resolve_left hunsafe
-      exact ⟨normalized, hnormal, hshape.uniform⟩
+      exact (Hfields ctor hc i hi).2.resolve_left hunsafe
 
 end Lean4Lean.VerifyInductive
