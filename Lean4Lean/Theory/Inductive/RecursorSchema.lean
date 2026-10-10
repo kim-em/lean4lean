@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Inductive.Restoration
+import Lean4Lean.Theory.Inductive.Compilation
 import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.ConstructorMajor
 
@@ -23,6 +24,12 @@ structure RecursorSchema where
   restoration : Restoration
 
 namespace RecursorSchema
+
+/-- The schema of a compilation: the source families, the generated signature and the
+restoration table of the specializations. -/
+def ofCompilation (source : VInductDecl) (s : InductiveSignature)
+    (auxiliaries : List ContainerSpecialization) : RecursorSchema :=
+  ⟨source.types.map (·.name), s, compilationRestoration source auxiliaries⟩
 
 /-- The source sort is specialized at the occurrence, independently of the
 recursor's permitted elimination universe. -/
@@ -76,6 +83,49 @@ end RecursorSchema
 end Lean4Lean.InductiveSignature
 
 namespace Lean4Lean.VExpr
+
+/-- Argument accumulation of `getAppFnArgs`. -/
+theorem getAppFnArgs_go_eq (e : VExpr) (args : List VExpr) :
+    VExpr.getAppFnArgs.go e args = (e.getAppFnArgs.1, e.getAppFnArgs.2 ++ args) := by
+  induction e generalizing args with
+  | app f a ih _ =>
+    change VExpr.getAppFnArgs.go f (a :: args) = _
+    rw [ih]
+    change _ = ((VExpr.getAppFnArgs.go f [a]).1, (VExpr.getAppFnArgs.go f [a]).2 ++ args)
+    rw [ih]
+    simp
+  | _ => rfl
+
+/-- The spine of an application: the function's spine extended by the argument. -/
+theorem case_spine_app (fn arg : VExpr) :
+    (VExpr.app fn arg).getAppFnArgs = (fn.getAppFnArgs.1, fn.getAppFnArgs.2 ++ [arg]) := by
+  show VExpr.getAppFnArgs.go fn [arg] = _
+  rw [getAppFnArgs_go_eq]
+
+theorem spine_app_head (fn arg : VExpr) :
+    (VExpr.app fn arg).getAppFnArgs.1 = fn.getAppFnArgs.1 := by
+  show (VExpr.getAppFnArgs.go fn [arg]).1 = _
+  rw [getAppFnArgs_go_eq]
+
+theorem spine_mkApps_head (fn : VExpr) (args : List VExpr) :
+    (VExpr.mkApps fn args).getAppFnArgs.1 = fn.getAppFnArgs.1 := by
+  induction args generalizing fn with
+  | nil => rfl
+  | cons arg args ih => exact (ih (.app fn arg)).trans (spine_app_head fn arg)
+
+/-- The spine of an application of a head without arguments. -/
+theorem spine_mkApps_exact (fn : VExpr) (args : List VExpr)
+    (h : fn.getAppFnArgs = (fn, [])) :
+    (VExpr.mkApps fn args).getAppFnArgs = (fn, args) := by
+  have apps : ∀ fn args acc, VExpr.getAppFnArgs.go (VExpr.mkApps fn args) acc =
+      VExpr.getAppFnArgs.go fn (args ++ acc) := by
+    intro fn args
+    induction args generalizing fn with
+    | nil => intros; rfl
+    | cons a as ih => intro acc; exact ih (.app fn a) acc
+  change VExpr.getAppFnArgs.go (VExpr.mkApps fn args) [] = _
+  rw [apps, List.append_nil, getAppFnArgs_go_eq, h]
+  rfl
 
 /-- An expression is the application of its head to its arguments. -/
 theorem rebuild_spine (e : VExpr) :
@@ -142,7 +192,43 @@ theorem ClosedN.wrapForalls_closed {domains : List VExpr} {body : VExpr} {n : Na
       simpa only [Nat.add_assoc, Nat.add_comm 1] using hh
     · simpa [Nat.add_assoc, Nat.add_comm 1] using hbody
 
+/-- Applications of variables to variables, in order: the shape of the index arguments of a
+generated equation, left untouched by universe instantiation. -/
+inductive VariableApplications : VExpr → Prop where
+  | bvar : VariableApplications (.bvar i)
+  | app : VariableApplications fn → VariableApplications arg → VariableApplications (.app fn arg)
+
+theorem VariableApplications.instL_eq {e : VExpr} {levels : List VLevel}
+    (H : VariableApplications e) : e.instL levels = e := by
+  induction H with
+  | bvar => rfl
+  | app _ _ ihf iha => simp only [VExpr.instL, ihf, iha]
+
 end Lean4Lean.VExpr
+
+namespace Lean4Lean.SimplePattern
+
+theorem recursor_varN_head {name : Name} {n : Nat} {e : VExpr} {ls : List VLevel}
+    {values : (Pattern.varN (.const name) n).Path → VExpr}
+    (h : (Pattern.varN (.const name) n).Matches e ls values) :
+    e.getAppFnArgs.1 = .const name ls := by
+  induction n generalizing e ls with
+  | zero => cases h; rfl
+  | succ n ih =>
+    cases h with | var h => exact (VExpr.spine_app_head _ _).trans (ih h)
+
+/-- A simple pattern (delta or iota) matches only applications headed by a constant. -/
+theorem recursor_pattern_head {pattern : SimplePattern} {e : VExpr} {ls : List VLevel}
+    {values : pattern.toPattern.Path → VExpr}
+    (h : pattern.toPattern.Matches e ls values) :
+    ∃ name, e.getAppFnArgs.1 = .const name ls := by
+  cases pattern with
+  | defn name => cases h; exact ⟨name, rfl⟩
+  | iota name major ctor args =>
+    cases h with
+    | app hf _ => exact ⟨name, (VExpr.spine_app_head _ _).trans (recursor_varN_head hf)⟩
+
+end Lean4Lean.SimplePattern
 
 namespace Lean4Lean.InductiveSignature
 
