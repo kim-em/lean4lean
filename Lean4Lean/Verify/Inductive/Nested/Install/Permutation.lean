@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.FreshExtensions
 import Lean4Lean.Verify.Inductive.Recursor.Entries.AddConstants
+import Lean4Lean.Verify.TypeChecker.CheckerEnv
 
 /-! Fresh extensions of a kernel environment: their lookups, and independence of
 the kernel lookups and the local checking invariants from the insertion order. -/
@@ -186,6 +187,80 @@ theorem AddConstants.freshExtension
   induction H with
   | nil => exact .nil
   | cons hfresh _ _ _ _ _ _ ih => exact .cons hfresh ih
+
+/-! ### Find?-extensional transport of the checking invariants
+
+The invariants below read the kernel environment only through `find?` (of the environment or
+of its constant map) and `quotInit`, so two well-formed environments with the same lookups and
+the same `quotInit` carry the same invariants. -/
+
+section mapExt
+variable {safety : DefinitionSafety} {source target : Environment} {venv : VEnv}
+
+theorem Environment.find?_eq_of_constants (hsourceWF : source.constants.WF)
+    (htargetWF : target.constants.WF)
+    (heq : ∀ name, source.constants.find? name = target.constants.find? name) (n : Name) :
+    source.find? n = target.find? n := by
+  rw [Lean.Kernel.Environment.find?, Lean.Kernel.Environment.find?,
+    hsourceWF.find?'_eq_find?, htargetWF.find?'_eq_find?, heq]
+
+theorem _root_.Lean4Lean.InstalledBlocks.mapExt {st : InstallStage}
+    (H : InstalledBlocks safety source venv st)
+    (hsourceWF : source.constants.WF) (htargetWF : target.constants.WF)
+    (heq : ∀ name, source.constants.find? name = target.constants.find? name) :
+    InstalledBlocks safety target venv st := by
+  have hfind := Environment.find?_eq_of_constants hsourceWF htargetWF heq
+  refine H.extend (fun h => (hfind _).symm ▸ h) (fun h => (heq _).symm ▸ h)
+    (fun _ _ h => (hfind _).symm ▸ h) VEnv.LE.rfl (InstallStage.le_refl _) ?_ ?_ ?_
+    (fun h => .inl h)
+  · intro n v h hn; rw [← hfind, hn] at h; cases h
+  · intro n v h hn; rw [← hfind, hn] at h; cases h
+  · intro n v h hn; rw [← hfind, hn] at h; cases h
+
+theorem _root_.Lean4Lean.EquationHeadsCoherent.mapExt {C C' : ConstMap} (H : EquationHeadsCoherent C venv)
+    (heq : ∀ name, C.find? name = C'.find? name) : EquationHeadsCoherent C' venv :=
+  H.extendSimple (fun h => (heq _).symm ▸ h) (fun _ h => h) (fun _ _ h => h)
+
+theorem _root_.Lean4Lean.QuotEnvCoherent.mapExt {C C' : ConstMap} (H : QuotEnvCoherent C venv)
+    (heq : ∀ name, C.find? name = C'.find? name) : QuotEnvCoherent C' venv :=
+  let ⟨q, hq, hk⟩ := H.find
+  ⟨H.coherent, q, (heq _) ▸ hq, hk⟩
+
+/-- The checking invariant depends only on the lookups of the kernel environment and on
+`quotInit`. -/
+theorem _root_.Lean4Lean.CheckingEnv.Valid.mapExt (H : CheckingEnv.Valid safety source venv)
+    (htargetWF : target.constants.WF)
+    (heq : ∀ name, source.constants.find? name = target.constants.find? name)
+    (hquot : target.quotInit = source.quotInit) :
+    CheckingEnv.Valid safety target venv where
+  toValidCore := CheckingEnv.ValidCore.mapExt H.toValidCore htargetWF heq
+  blocks := H.blocks.mapExt H.tr.map_wf htargetWF heq
+  equationHeads := H.equationHeads.mapExt heq
+  quot hq := (H.quot (hquot ▸ hq)).mapExt heq
+
+theorem _root_.Lean4Lean.RecursorShapes.mapExt {C C' : ConstMap} {rec : RecursorVal}
+    (H : RecursorShapes C venv rec) (heq : ∀ name, C.find? name = C'.find? name) :
+    RecursorShapes C' venv rec := by
+  obtain ⟨cnparams, indLevels, ctorParams, S, hrules⟩ := H
+  refine ⟨cnparams, indLevels, ctorParams, S, fun rule hrule => ?_⟩
+  obtain ⟨ctorUvars, hlen, T, hc⟩ := hrules rule hrule
+  exact ⟨ctorUvars, hlen, T, fun cval h => hc cval ((heq _).trans h)⟩
+
+/-- The checker's environment facts depend only on lookups and `quotInit`. -/
+theorem _root_.Lean4Lean.CheckerEnv.mapExt (H : CheckerEnv safety source venv)
+    (htargetWF : target.constants.WF)
+    (heq : ∀ name, source.constants.find? name = target.constants.find? name)
+    (hquot : target.quotInit = source.quotInit) :
+    CheckerEnv safety target venv where
+  toValid := H.toValid.mapExt htargetWF heq hquot
+  shapes := fun h hs => (H.shapes ((heq _).trans h) hs).mapExt heq
+  iota := by
+    have hfind := Environment.find?_eq_of_constants H.map_wf htargetWF heq
+    intro recName cName rval rule hrec hrule hsafe
+    obtain ⟨cval, rhs, hc, hcval, hrest⟩ := H.iota ((hfind _).trans hrec) hrule hsafe
+    exact ⟨cval, rhs, hc, (hfind _).symm.trans hcval, hrest⟩
+
+end mapExt
 
 end VerifyInductive
 end Lean4Lean

@@ -1,6 +1,7 @@
 import Lean4Lean.Theory.Inductive.RestorationInterpretation
 import Lean4Lean.Theory.Inductive.BetaSubjectReduction
 import Lean4Lean.Verify.Inductive.Nested.Restoration.CompilationData
+import Lean4Lean.Verify.Inductive.Nested.Restoration.PatsFixed
 import Lean4Lean.Theory.Typing.EnvLemmas
 import Lean4Lean.Verify.Typing.ConstSupport
 import Lean4Lean.Std.List
@@ -32,21 +33,17 @@ open InductiveSignature
 
 namespace InductiveSignature
 
-/-- **Stub (restB).** The registered ι rules of a well-formed environment are fixed by a
-restoration interpretation whose restorable names are fresh there: a rule's pattern names its
-recursor and constructor, constants of the environment, and its reduct's fixed terms mention
-only constants of the environment. The source branch's `eliminatorsAvoidConsts` (the case
-eliminators' templates avoid fresh names); on the pattern calculus the reduct template is typed
-in an arbitrary context (`VEnv.PatTyped`), the gap of wave 1A's
-`VEnv.Ordered.patsAvoidFreshConsts` (`Verify/Typing/ConstSupport.lean`). -/
+/-- The registered ι rules of a well-formed environment are fixed by a restoration
+interpretation whose restorable names are fresh there (`VEnv.WF.pats_fixed_of_avoid`). -/
 theorem _root_.Lean4Lean.VEnv.WF.pats_fixed_of_restorableFresh {env : VEnv} (henv : env.WF)
     {r : Restoration} {P : List VExpr}
     (hfresh : ∀ name ∈ r.restorableNames, env.constants name = none) :
     ∀ p rr, env.pats p rr → p.ConstsFixed (r.constInterpretation P) ∧
       rr.1.FixedTermsFixed (r.constInterpretation P) ∧
       rr.2.FixedTermsFixed (r.constInterpretation P) := by
-  -- WAVE 3 STUB (restB): see the docstring.
-  have := henv; have := hfresh; sorry
+  exact henv.pats_fixed_of_avoid hfresh
+    (fun _ hc => Restoration.lambdaReplacement_eq_none_of_not_restorable hc)
+    (fun _ hc => Restoration.renaming_eq_self hc) (fun _ _ => rfl)
 
 /-! ### The lambda replacement is a restoration substitution -/
 

@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Equations.Rules
 import Lean4Lean.Verify.Inductive.Nested.Restoration.InstalledFamilyLookups
+import Lean4Lean.Verify.Inductive.Nested.Restoration.ConstructorCoherence
 
 /-! # The environment-side facts of a restored block and its block certificate (owner: Install)
 
@@ -149,68 +150,119 @@ theorem constructorOwnersPresent (B : RestoredBlock L sourceTypes isUnsafe outEn
   exact NestedRestorationFolds.constructorOwnersPresent (R := L.input) B.runLowering L.Hc'
     L.recursors.installation rfl B.runRestoration Howners
 
-/-- The source syntax checks of the submitted families. -/
-theorem sourceSyntaxChecked (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
-    SourceSyntaxChecked sourceTypes := by
-  -- WAVE 3 STUB (Equations+Install): the dispatch's `SourceSyntaxChecks c.env sourceTypes`
-  -- (`Lowering.lean`) refined to the lowering's `SourceSyntaxChecked`; on the source branch a
-  -- premise of `RestoredBlockCertificate.inductInfosFromDecl`.
-  have := B; sorry
-
-/-- The constructor telescopes of the restored declaration have the arities of the lowered
-declaration's source families. -/
-theorem constructorArityPrefix (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
-    B.decl.ConstructorArityPrefix L.loweredDecl := by
-  -- WAVE 3 STUB (Equations+Install): the source branch's
-  -- `RestoredBlockDerivation.constructorArityPrefix` (`Install/Certificate.lean`), from the
-  -- nested expansion data (`NestedExpansionData.constructorArityPrefix`,
-  -- `Nested/Lowering/Expansion/Formation.lean`) of the run.
-  have := B; sorry
-
-/-- The origin of every inductive header of the output. -/
-theorem inductInfosFromDecl (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
-    InductInfosFromDecl c.env.constants outEnv.constants B.decl := by
-  have Howners : ConstructorOwnersPresent L.c'.env := by
-    rw [L.env_eq]; exact Hc.checking.constructorOwners
-  have Hsource : TrInductDeclCore L.Hc'.venv L.c'.lparams nparams sourceTypes
-      (c.safety != .safe) B.decl B.envTypes B.envCtors := by
-    rw [L.lparams_eq, L.venv_eq, ← B.isUnsafe_lowered]; exact B.source
-  have Hmetadata : SourcePrefixOfLowered B.decl L.loweredDecl := by
-    have h := B.run.sourceCore.checked
+/-- The run's source-side certificates for its recursor-free declaration `runDecl`. -/
+theorem runSource (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
+    TrInductDeclCore L.Hc'.venv L.c'.lparams nparams sourceTypes (c.safety != .safe) B.runDecl
+      B.envTypes B.envCtors ∧
+    SourcePrefixOfLowered B.runDecl L.loweredDecl ∧
+    B.runDecl.ConstructorArityPrefix L.loweredDecl := by
+  have hdecl := B.run_decl
+  have Hsource0 := B.source
+  rw [hdecl] at Hsource0
+  refine ⟨?_, ?_, ?_⟩
+  · rw [L.lparams_eq, L.venv_eq, ← B.isUnsafe_lowered]
+    exact ⟨Hsource0.uvars, Hsource0.nparams, Hsource0.isUnsafe, Hsource0.typesAdded,
+      Hsource0.ctorsAdded, Hsource0.types⟩
+  · have h := B.run.sourceCore.checked
     rw [B.run.sourceCoreDecl_eq,
       LoweredView.loweredDecl_of_heq B.run_loweredEnv B.run_lowered] at h
     exact h
+  · have Harity0 := B.constructorArityPrefix
+    rw [hdecl] at Harity0
+    exact Harity0
+
+/-- The origin of every inductive header of the output, for the run's declaration. -/
+theorem inductInfosFromRunDecl (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
+    InductInfosFromDecl c.env.constants outEnv.constants B.runDecl := by
+  have Howners : ConstructorOwnersPresent L.c'.env := by
+    rw [L.env_eq]; exact Hc.checking.constructorOwners
+  obtain ⟨Hsource, Hmetadata, Harity⟩ := B.runSource
   have H := NestedRestorationFolds.inductInfosFromDecl (R := L.input) B.runLowering L.Hc'
-    L.recursors.installation Hsource Hmetadata B.sourceSyntaxChecked B.constructorArityPrefix
+    L.recursors.installation Hsource Hmetadata B.sourceSyntaxChecked Harity
     Howners rfl B.runRestoration
   rw [L.env_eq] at H
   exact H
 
-/-- The installed mutual blocks of the output are closed. -/
-theorem mutualInductivesClosed (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
-    MutualInductivesClosed outEnv := by
-  -- WAVE 3 STUB (Equations+Install, needs restB's `ConstructorCoherence`): the source
-  -- branch's `RestoredBlockCertificate.mutualInductivesClosed` through
-  -- `InductInfosFromDecl.mutualInductivesClosed` (`Install/ConstructorCoherence.lean`).
-  have := B; sorry
+/-- The origin of every inductive header of the output, carried to `B.decl` along `run_decl`
+(only the families are read). -/
+theorem inductInfosFromDecl (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
+    InductInfosFromDecl c.env.constants outEnv.constants B.decl := by
+  rw [B.run_decl]
+  exact B.inductInfosFromRunDecl.withRecs _
 
-/-- The major family of every new recursor is present. -/
-theorem recMajor (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
+open private Lean.Kernel.Environment.add from Lean.Environment in
+/-- The installed mutual blocks of the output are closed, given those of the base: the
+restored source families are the output's members of the declaration's block
+(`FoldSteps.restoredSourceMemberInfos`), and every other header is the base's
+(`InductInfosFromDecl.mutualInductivesClosed`). -/
+theorem mutualInductivesClosed (B : RestoredBlock L sourceTypes isUnsafe outEnv)
+    (hsourceClosed : MutualInductivesClosed c.env) : MutualInductivesClosed outEnv := by
+  have Howners : ConstructorOwnersPresent L.c'.env := by
+    rw [L.env_eq]; exact Hc.checking.constructorOwners
+  obtain ⟨Hsource, Hmetadata, Harity⟩ := B.runSource
+  have Hrestored := B.runRestoration
+  have hsourceWF : L.c'.env.constants.WF := L.Hc'.checking.tr.map_wf
+  obtain ⟨HprimaryMembers, HprimaryParams⟩ :=
+    Hrestored.inductives.restoredSourceMemberInfos B.runLowering L.Hc'
+      L.recursors.installation Hsource Hmetadata B.sourceSyntaxChecked Harity Howners rfl
+      [] (by simp) hsourceWF
+  obtain ⟨primaryEntries, HprimaryFresh⟩ :=
+    Hrestored.inductives.inductiveFreshExtension hsourceWF
+  obtain ⟨auxEntries, HauxFresh⟩ :=
+    Hrestored.auxiliaries.recursorFreshExtension (HprimaryFresh.targetWF hsourceWF)
+  have hnames : sourceTypes.map (fun type => type.name) =
+      B.runDecl.types.map (fun type => type.name) := sourceTypeNames Hsource.types
+  have Hmembers : InductiveMemberInfos outEnv
+      (B.runDecl.types.map (fun type => type.name)) := by
+    rw [← hnames]
+    exact HprimaryMembers.mono
+      (HauxFresh.preservesSourceFind (HprimaryFresh.targetWF hsourceWF))
+  have HmemberParams : ∀ member info,
+      member ∈ B.runDecl.types.map (fun type => type.name) →
+      outEnv.find? member = some (.inductInfo info) →
+      info.numParams = B.runDecl.nparams := by
+    intro member info hmember hlookup
+    have hmemberSource : member ∈ sourceTypes.map (fun type => type.name) := by
+      rwa [hnames]
+    rcases HprimaryMembers.find hmemberSource with ⟨primaryInfo, hprimaryLookup⟩
+    have houtLookup := HauxFresh.preservesSourceFind
+      (HprimaryFresh.targetWF hsourceWF) hprimaryLookup
+    rw [hlookup] at houtLookup
+    have hinfo : info = primaryInfo :=
+      ConstantInfo.inductInfo.inj (Option.some.inj houtLookup)
+    subst info
+    exact HprimaryParams member primaryInfo hmemberSource hprimaryLookup
+  have htypeNames : (B.runDecl.types.map (fun type => type.name)).Nodup := by
+    simpa [VInductDecl.typeConstants, VInductiveType.toVConstVal,
+      Function.comp_def] using VEnv.addConstVals_names_nodup Hsource.typesAdded
+  have Hfresh := HprimaryFresh.append HauxFresh
+  have hcl : MutualInductivesClosed L.c'.env := by rw [L.env_eq]; exact hsourceClosed
+  have Horigins := B.inductInfosFromRunDecl
+  rw [← L.env_eq] at Horigins
+  exact InductInfosFromDecl.mutualInductivesClosed Horigins hsourceWF
+    (Hfresh.targetWF hsourceWF) hcl
+    (fun hfind => Hfresh.preservesSourceFind hsourceWF hfind) Hmembers HmemberParams htypeNames
+
+/-- A new recursor of the output is one of the block's. -/
+theorem newRec' (B : RestoredBlock L sourceTypes isUnsafe outEnv)
+    {n : Name} {r : RecursorVal} (h1 : outEnv.find? n = some (.recInfo r))
+    (h2 : c.env.find? n = none) : r ∈ B.rvals := by
+  have hwf : c.env.constants.WF := Hc.map_wf
+  have houtWF : outEnv.constants.WF := B.addInduct.wf hwf
+  rw [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?] at h1
+  rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at h2
+  rcases B.addInduct.find? hwf h1 with hold | ⟨hmem, -⟩
+  · rw [h2] at hold; cases hold
+  · rcases AddInduct.mem_consts.1 hmem with ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩ | ⟨rval, hrval, h⟩
+    · cases h
+    · cases h
+    · cases h; exact hrval
+
+/-- The major family of every new recursor is present (`RestoredBlock.recMajor`). -/
+theorem recMajor' (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
     ∀ {n r}, outEnv.find? n = some (.recInfo r) → c.env.find? n = none →
-      ∃ info, outEnv.find? r.getMajorInduct = some (.inductInfo info) := by
-  -- WAVE 3 STUB (Equations+Install): the restored `recInfo`s' majors (`B.trRecs`, the
-  -- restoration folds' recursor entries, `KernelData`), source branch: the `recMajor` field of
-  -- `RestoredBlockCertificate`'s installation.
-  have := B; sorry
-
-/-- The constructor parameter alignment of the output. -/
-theorem constructorParameterAlignment (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
-    ConstructorParameterAlignment c.safety c.env Hc.venv →
-      ConstructorParameterAlignment c.safety outEnv B.outVEnv := by
-  -- WAVE 3 STUB (Equations+Install, needs restB's `ConstructorCoherence`):
-  -- `NestedInstalledRun.constructorParameterDomainsDefEqOfSource`,
-  -- `RestoredBlockCertificate.constructorTypingOfParameterDomains`.
-  have := B; sorry
+      ∃ info, outEnv.find? r.getMajorInduct = some (.inductInfo info) :=
+  fun h1 h2 => B.recMajor _ (B.newRec' h1 h2)
 
 /-- The primitive names of the output: the restored constants are nonprimitive
 (`NestedRun.primitiveSafe`), so the base's primitive invariants persist. -/
@@ -246,12 +298,12 @@ theorem primitives (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
 
 /-- The kernel-level facts of a restored block. -/
 theorem kernelFacts (B : RestoredBlock L sourceTypes isUnsafe outEnv)
-    (_hsource : sourceTypes ≠ []) : B.KernelFacts where
-  closed := B.mutualInductivesClosed
+    (_hsource : sourceTypes ≠ []) (hclosed : MutualInductivesClosed c.env) : B.KernelFacts where
+  closed := B.mutualInductivesClosed hclosed
   constructorOwners := B.constructorOwnersPresent
   inductInfosFromDecl := B.inductInfosFromDecl
-  recMajor := B.recMajor
-  constructorParameterAlignment := B.constructorParameterAlignment
+  recMajor := B.recMajor'
+  constructorParameterAlignment := fun _ => B.constructorParameterAlignment
   hasPrimitives := B.primitives.1
   safePrimitives := B.primitives.2
 
@@ -273,21 +325,6 @@ theorem cover (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
     rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?, ← hname]
     exact h
 
-/-- A new recursor of the output is one of the block's. -/
-theorem newRec' (B : RestoredBlock L sourceTypes isUnsafe outEnv)
-    {n : Name} {r : RecursorVal} (h1 : outEnv.find? n = some (.recInfo r))
-    (h2 : c.env.find? n = none) : r ∈ B.rvals := by
-  have hwf : c.env.constants.WF := Hc.map_wf
-  have houtWF : outEnv.constants.WF := B.addInduct.wf hwf
-  rw [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?] at h1
-  rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at h2
-  rcases B.addInduct.find? hwf h1 with hold | ⟨hmem, -⟩
-  · rw [h2] at hold; cases hold
-  · rcases AddInduct.mem_consts.1 hmem with ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩ | ⟨rval, hrval, h⟩
-    · cases h
-    · cases h
-    · cases h; exact hrval
-
 /-- **The installation boundary theorem**: the output of a nested restoration is a valid
 checking environment with the environment-side facts of the restored block. The checking
 invariant is the base translation extended by the restored declaration (`TrEnv'.induct`, the
@@ -305,7 +342,7 @@ theorem installedFacts (B : RestoredBlock L sourceTypes isUnsafe outEnv)
     (hblocks : InstalledBlocks c.safety c.env Hc.venv .complete)
     (hparams : ConstructorParameterAlignment c.safety c.env Hc.venv) :
     B.Installed := by
-  have K := B.kernelFacts hsource
+  have K := B.kernelFacts hsource (hblocks.mutualInductivesClosed (by decide))
   have hwf : c.env.constants.WF := Hc.map_wf
   have wf' := B.wf' hsource
   have htrOut : TrEnv c.safety outEnv B.outVEnv := by
