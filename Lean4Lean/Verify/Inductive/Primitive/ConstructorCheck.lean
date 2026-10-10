@@ -93,7 +93,7 @@ theorem PrimitiveHeaderEnvironment.parameterScope_eq_nil
   simpa [hzero] using hlength.symm
 
 
-private theorem primitiveTarget_metadata
+theorem primitiveTarget_metadata
     {env : VEnv} {decl : VInductDecl} {target : VInductiveType}
     (henv : env.WF)
     (hdeclParams : decl.nparams = 0)
@@ -135,7 +135,7 @@ private theorem primitiveTarget_metadata
   have hlevels := VEnv.IsDefEqU.sort_inv henv (by trivial) hsortDefEq
   exact ⟨hnindices, hlevels.symm⟩
 
-private theorem primitiveValidIndApp
+theorem primitiveValidIndApp
     {decl : VInductDecl} {target : VInductiveType}
     (htypes : decl.types = [target]) (huvars : decl.uvars = 0)
     (hnparams : decl.nparams = 0) (hnindices : target.numIndices = 0)
@@ -144,7 +144,7 @@ private theorem primitiveValidIndApp
   refine ⟨target, by simp [htypes], Or.inr rfl, [], ?_⟩
   simp [huvars, hnparams, hnindices, VInductDecl.paramVars]
 
-private theorem primitiveResultCtorShape
+theorem primitiveResultCtorShape
     {env : VEnv} {decl : VInductDecl} {target : VInductiveType}
     {ctor : VConstVal}
     (htypes : decl.types = [target])
@@ -175,7 +175,7 @@ private theorem primitiveResultCtorShape
     · rw [hctorType]
       exact hconst
 
-private theorem primitiveTargetHasType
+theorem primitiveTargetHasType
     {env : VEnv} {decl : VInductDecl} {target : VInductiveType}
     (huvars : decl.uvars = 0) (htargetUvars : target.uvars = 0)
     (hlookup : env.constants target.name = some target.toVConstant)
@@ -188,7 +188,7 @@ private theorem primitiveTargetHasType
     (by simp) (by simpa using htargetUvars.symm)
   simpa [htargetType, VExpr.instL, VLevel.inst] using hc
 
-private theorem primitiveResultTailCertificate
+theorem primitiveResultTailCertificate
     {env : VEnv} {decl : VInductDecl} {target : VInductiveType}
     (htypes : decl.types = [target])
     (huvars : decl.uvars = 0) (hnparams : decl.nparams = 0)
@@ -211,7 +211,7 @@ private theorem primitiveResultTailCertificate
       (primitiveValidIndApp htypes huvars hnparams hnindices 0)
       (by simp [huvars, VLevel.params]) }
 
-private theorem primitiveNatSuccTailCertificate
+theorem primitiveNatSuccTailCertificate
     {env : VEnv} {decl : VInductDecl} {target : VInductiveType}
     (htypes : decl.types = [target]) (hname : target.name = ``Nat)
     (huvars : decl.uvars = 0) (hnparams : decl.nparams = 0)
@@ -250,7 +250,7 @@ private theorem primitiveNatSuccTailCertificate
       (.result (by simpa [VExpr.nat, hname] using hvalid1)
         (by simp [VExpr.nat, hname, huvars, VLevel.params])) }
 
-private theorem primitiveTailReplay
+theorem primitiveTailReplay
     {env : VEnv} {decl : VInductDecl} {target : VInductiveType}
     {source : Constructor} {ctorVal : VConstVal}
     (huvars : Us.length = decl.uvars)
@@ -279,7 +279,7 @@ private theorem primitiveTailReplay
       htailType' htailType' hheader
   simpa [hparams] using Nonempty.intro Hsynthesis
 
-private theorem primitiveResultOwnerNormalForm
+theorem primitiveResultOwnerNormalForm
     (hparams : stats.params.size = 0)
     (hparamsArray : stats.params = #[])
     (hconsts : stats.indConsts = #[.const family []])
@@ -295,7 +295,7 @@ private theorem primitiveResultOwnerNormalForm
   simp [AddInductive.isValidIndAppIdx, hparamsArray, hconsts, hindices,
     Expr.getAppFn, Expr.getAppArgs_eq, Expr.getAppArgsList, Id.run]
 
-private theorem primitiveNatSuccOwnerNormalForm
+theorem primitiveNatSuccOwnerNormalForm
     (hparams : stats.params.size = 0)
     (hparamsArray : stats.params = #[])
     (hconsts : stats.indConsts = #[.const ``Nat []])
@@ -316,7 +316,7 @@ private theorem primitiveNatSuccOwnerNormalForm
   · simp [AddInductive.isValidIndAppIdx, hparamsArray, hconsts, hindices,
       Expr.getAppFn, Expr.getAppArgs_eq, Expr.getAppArgsList, Id.run]
 
-private theorem primitiveNatSuccCtorShape
+theorem primitiveNatSuccCtorShape
     {env : VEnv} {decl : VInductDecl} {target : VInductiveType}
     {ctor : VConstVal}
     (htypes : decl.types = [target])
