@@ -475,6 +475,16 @@ Statement changes to `NestedLoweringOutput`/`loweringRun.WF` (`Verify/Inductive/
    `NestedLoweringOutput` def is `NestedLoweringRun` (`Nested/Lowering/Output.lean`), its inductive
    `SourceSyntaxChecks` is `SourceSyntaxChecked`.
 
+7. (Lead's option (B).) `VEnv.InductInstalled` (`Verify/Environment/Blocks.lean`) also records
+   a well-formed compiled block of the declaration (`∃ block, decl.CompilesTo base block ∧
+   decl.RecsOf block ∧ block.WF base`), so that an installed declaration is a container of
+   nested formation (`VEnv.InductInstalled.installedBelow : … → VEnv.InstalledBelow venv decl`).
+   `InstalledBlocks.addInduct`'s `hadd` and `VEnv.InductInstalled.of_addInduct` take it; the
+   ordinary installer supplies `BlockCertificate.compiled` (`Install/BlockCertificate.lean`,
+   also replayed in `rebase`), `SourceAddInduct.inductInstalled` takes it as a hypothesis
+   (`Install/Result.lean`). The nested installer goes through `BlockCertificate` and supplies it
+   from `RestoredBlock.compiledWF` (Equations+Install).
+
 `loweringRun.WF` is proved (no stub left in `Lowering.lean` or `Nested/Lowering/**`): each field
 in `Nested/Lowering/Assembly.lean` from `NestedLoweringOutputClosed`
 (`ElimNestedInductive.run'.translationClosed`), over the source branch's lowering refinement
