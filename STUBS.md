@@ -446,11 +446,12 @@ SideEnvironment/{Environment,ConstructorEnvironment}, SourceHeaders, SourceDecla
 ContainerSpecializations, CompilationData, SourceConstructors, Commutation, ExpansionInverse,
 CommutationUniform, TranslationPreservation, Levels (part), RestoredShapes (new: the restored
 `rec_shape`/`rule_shape`/closedness), plus Verify-side copies of the source Theory's
-IotaSoundnessLemmas/SignatureVars/ProjNamesOK.
+IotaSoundnessLemmas/SignatureVars/ProjNamesOK. The registered ι rules are fixed by the
+restoration interpretations (`VEnv.WF.pats_fixed_of_avoid`, `Nested/Restoration/PatsFixed.lean`,
+from the model's `VEnv.WF'.patsAvoidFreshConsts` and `pats_origin`).
 
 | statement | file | why |
 |---|---|---|
-| `VEnv.WF.pats_fixed_of_restorableFresh` | `Nested/Restoration/SourceConstructors.lean` | the registered ι rules of a well-formed environment are fixed by a restoration interpretation whose restorable names are fresh; the reduct template's constants are not bounded by the environment without the rule's typing in the empty context (the gap of wave 1A's `patsAvoidFreshConsts`; `RecsCompiled` now carries `block.WF`, which should close both) |
 | `nestedRestoredBlock` | `Nested/Restoration/Restore.lean` | assembly in progress |
 
 ## Wave 3 Restoration-A (`Nested/Restoration/Validation/**`)
