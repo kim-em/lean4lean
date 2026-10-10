@@ -177,6 +177,30 @@ theorem ctorInfoNames (R : RecursorInput c stats decl nparams isUnsafe depth sou
     intro l₁ l₂ h; rw [List.flatMap_def, List.flatMap_def, h]
   exact key _ _ h
 
+/-- Every constant of the constructor environment is a constant of the header environment or a
+new constructor. -/
+theorem find?_headerOrigin (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv
+    indTypes ctorEnv) {n : Name} {ci : ConstantInfo} (h : ctorEnv.find? n = some ci) :
+    R.headerEnv.find? n = some ci ∨
+      ci ∈ R.ivals.flatMap fun iv => iv.2.map ConstantInfo.ctorInfo := by
+  have hWFh : R.headerEnv.constants.WF := R.headers.context.checking.map_wf
+  have hWFo : ctorEnv.constants.WF := R.context.checking.tr.map_wf
+  have hnodup := TrInductDeclCore.sourceNames_nodup R.core
+  rw [VInductDecl.sourceNames] at hnodup
+  have hndC := (List.nodup_append.mp hnodup).2.1
+  rw [← R.ctorInfoNames] at hndC
+  have hfreshC : ∀ d ∈ R.ivals.flatMap (fun iv => iv.2.map ConstantInfo.ctorInfo),
+      R.headerEnv.constants.find? d.name = none := by
+    intro d hd
+    obtain ⟨iv, hiv, hd⟩ := List.mem_flatMap.mp hd
+    obtain ⟨cv, hcv, rfl⟩ := List.mem_map.mp hd
+    have := R.fresh iv hiv cv hcv
+    rwa [Kernel.Environment.find?, hWFh.find?'_eq_find?] at this
+  rw [Kernel.Environment.find?, hWFo.find?'_eq_find?, R.map_eq] at h
+  rcases insertConsts_find? hWFh hfreshC hndC h with h | ⟨hmem, -⟩
+  · exact .inl (by rwa [Kernel.Environment.find?, hWFh.find?'_eq_find?])
+  · exact .inr hmem
+
 /-- Every constant of the constructor environment is a constant of the source environment, a
 new header, or a new constructor. -/
 theorem find?_origin (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv
