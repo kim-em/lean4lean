@@ -61,7 +61,7 @@ structure ConstructorCheck (c : AddInductive.Context) (stats : AddInductive.Indu
   /-- (Added for the recursor agent.) The concrete checked tails, in the header environment's
   parameter scope. -/
   constructorTails : ConstructorTails headers.context.venv c.lparams
-    headers.parameters.parameterDecls stats decl indTypes classes
+    headers.statsWF.parameterScope stats decl indTypes classes
   /-- (Added for the recursor agent.) The owner normal forms of the kernel constructor types. -/
   ownerNormalForms : ConstructorOwnerNormalForms stats indTypes
 

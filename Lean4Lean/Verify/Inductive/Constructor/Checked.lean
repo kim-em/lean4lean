@@ -54,7 +54,7 @@ structure ConstructorsChecked {c : AddInductive.Context} {stats : AddInductive.I
   /-- The concrete parameter prefixes and forall spines of the kernel constructor types. -/
   parameterPrefixes : ConstructorParameterPrefixes stats indTypes
   /-- The concrete checked tails, in the header environment's parameter scope. -/
-  constructorTails : ConstructorTails H.context.venv c.lparams H.parameters.parameterDecls
+  constructorTails : ConstructorTails H.context.venv c.lparams H.statsWF.parameterScope
     stats decl indTypes classes
   /-- The owner normal forms of the kernel constructor types. -/
   ownerNormalForms : ConstructorOwnerNormalForms stats indTypes
