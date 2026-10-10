@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Constructor.Install
+import Lean4Lean.Verify.Inductive.Constructor.CheckRun
 
 /-! # The constructor phase: `constructorPhase`
 
@@ -129,10 +130,13 @@ theorem AddInductive.constructorPhase.WF
       fun out => ∃ decl, P.headers.Describes decl ∧
         ∃ R : ConstructorCheck c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes out.1,
           R.classes = out.2 := by
-  have HD := AddInductive.declareInductiveTypes.WF P numNested isUnsafe hvisible hnprimTypes
-    hpresent
+  have HD := AddInductive.declareInductiveTypes.installedWF P numNested isUnsafe hvisible
+    hnprimTypes hpresent
+  have HP := AddInductive.declareInductiveTypes.allowsPrimitives (c := c') stats nparams indTypes
+    numNested isUnsafe Hc'.checking.tr.map_wf
   unfold AddInductive.constructorPhase
-  refine Except.WF.bind HD fun headerEnv ⟨hwfH, Hhdr⟩ => ?_
+  refine Except.WF.bind (fun r h => And.intro (HD r h) (HP r h))
+    fun headerEnv ⟨⟨hwfH, Hhdr⟩, hprimH⟩ => ?_
   intro out hout
   change (AddInductive.checkConstructors indTypes stats isUnsafe { c' with env := headerEnv } >>=
     fun positivity => (AddInductive.declareConstructors stats indTypes isUnsafe >>= fun ctorEnv =>
@@ -154,9 +158,22 @@ theorem AddInductive.constructorPhase.WF
     (stats := stats) (indTypes := indTypes) (isUnsafe := isUnsafe) hwfH ctorEnv hdeclare
   obtain ⟨hmap, hquot, hfr, hnd⟩ := AddInductive.declareConstructors.WF
     (c := { c' with env := headerEnv }) stats indTypes isUnsafe hwfH ctorEnv hdeclare
-  obtain ⟨decl, hD, hU, hK⟩ := AddInductive.checkConstructors.WF P isUnsafe (Hhdr habsent)
-    hlparams positivity hcheck
-  obtain ⟨H⟩ := Hhdr habsent decl hD hU
+  obtain ⟨HI⟩ := Hhdr habsent
+  have hnprimOwner : ∀ owner ∈ indTypes.toList,
+      ¬ Kernel.Environment.primitives.contains owner.name := by
+    intro owner howner hp
+    obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp howner
+    obtain ⟨hlen, hget⟩ := inductiveTypeInfos_getElem stats nparams indTypes numNested isUnsafe
+      c'.lparams P.nindices_size
+    have hi' : i < (AddInductive.inductiveTypeInfos stats nparams indTypes numNested isUnsafe
+        c'.lparams).toList.length := by rw [hlen]; exact hi
+    obtain ⟨hname, -⟩ := hget i hi hi'
+    have hmem := List.getElem_mem hi'
+    rw [← hname] at hp
+    exact hnprimTypes (hprimH _ hmem hp) _ hmem hp
+  obtain ⟨decl, hD, hU, hK⟩ := AddInductive.checkConstructors.WF P numNested isUnsafe HI
+    hvisible hnprimOwner hlparams positivity hcheck
+  let H := HI.toHeaderEnvironment hvisible hD hU
   have hnindices : ∀ i (hi : i < decl.types.length) (hn : i < stats.nindices.size),
       stats.nindices[i] = decl.types[i].numIndices := by
     intro i hi hn
