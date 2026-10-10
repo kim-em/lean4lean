@@ -88,7 +88,8 @@ theorem InductInfosFromDecl.mutualInductivesClosed
 
 /-- Every source family restored by the outer fold is visible in the installed
 kernel environment, in source order. -/
-private theorem FoldSteps.restoredSourceMemberInfos
+-- WAVE 3 COMPAT (eqinst): public, used by `RestoredBlock.mutualInductivesClosed`.
+theorem FoldSteps.restoredSourceMemberInfos
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
@@ -175,7 +176,8 @@ private theorem FoldSteps.restoredSourceMemberInfos
         exact Halign.numParams
       · exact HtailParams member info htail hmemberLookup
 
-private theorem sourceTypeNames
+-- WAVE 3 COMPAT (eqinst): public, used by `RestoredBlock.mutualInductivesClosed`.
+theorem sourceTypeNames
     (H : List.Forall₂ (TrInductiveType sourceEnv envTypes lparams)
       sourceTypes targetTypes) :
     sourceTypes.map (fun type => type.name) =
