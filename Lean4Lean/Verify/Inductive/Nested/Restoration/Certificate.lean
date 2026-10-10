@@ -2,6 +2,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.LoweredRun
 import Lean4Lean.Verify.Inductive.Nested.Restoration.RestorationRun
 import Lean4Lean.Verify.Inductive.Install.BlockCertificate
 import Lean4Lean.Theory.Inductive.CompilationMajors
+import Lean4Lean.Verify.Inductive.Nested.Restoration.Run
 
 /-! # The restored block: the certificate of a nested restoration
 
@@ -111,6 +112,12 @@ structure RestoredBlock {c : AddInductive.Context} {Hc : ContextWF c} {nparams :
   recShapes : ∀ rval ∈ rvals, RecursorShapesAt outEnv.constants outVEnv rval
   /-- The K clause of every new recursor. -/
   recK : ∀ rval ∈ rvals, KLikeRecursor outEnv.constants outVEnv rval
+  /-- (Added by Restoration-B.) The run object of the source branch (`NestedRun`), from which
+  the restoration certificates are read (the Equations owner's restoration substitution, the
+  Install owner's kernel facts). Its lowered run is `L`'s view. -/
+  run : NestedRun res c.env sourceTypes Hc.venv decl c.lparams nparams isUnsafe c.safety outEnv
+  run_loweredEnv : run.loweredEnv = loweredEnv
+  run_lowered : HEq run.lowered L.view
 
 namespace RestoredBlock
 

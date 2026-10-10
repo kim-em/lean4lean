@@ -369,6 +369,13 @@ cover every new recursor, auxiliary ones included). `BlockCertificate.compiled` 
   uniqueness of typing (`IsDefEq.uniq`, hence `wf`) turns the forward `SimAt` around. Nothing
   constructs a `RestoredPattern` yet. `rulesWF` does not need it: the substitution goes from the
   lowered *recursor* stage, which has no patterns of the block.
+  (Fields accepted by the lead.) Who constructs a `RestoredPattern`: nobody on the current
+  route. It is needed only if a restoration substitution is built from a lowered environment
+  that already registers the block's ι rules (the lowered rule stage or a later one). Its
+  `PatClause` then has to be discharged per lowered rule, and whoever builds that
+  substitution constructs it: `wf` from the target's `VEnv.WF`, `recursorNotHead` from
+  `CompilationData.recursorName_not_head` (`RuleAlignment.lean`), and `templateTyped` from
+  the typing of the interpreted template (`Restoration.equation_wf` on the lowered equation).
 * `rulesWF` is `VEnv.patTyped_iota_of_wrapped` on the restored equation of each rule.
   `RestoredBlock.ruleEquation` (`Nested/Equations/RuleAlignment.lean`, new) recovers the exact
   ι counts from the restored generated equation (`rules_ofRestoredEquation`), the restored
@@ -389,7 +396,14 @@ cover every new recursor, auxiliary ones included). `BlockCertificate.compiled` 
 Flagged: `VExpr.RecShape`'s `MajorApp` conjunct (`VInductDecl.WF.rec_shape`,
 `RestoredBlock.rec_shape`) is false for the auxiliary recursors of a nested block. Their major
 is the container applied to the specialization arguments, not to parameter variables.
-Reported to restB and the lead.
+Reported to restB and the lead. Decided by the lead: `MajorApp` is weakened to a head family
+constant applied to parameter-closed arguments followed by index variables (restB implements it). `ruleEquation` uses
+only the arity and motive-application conjuncts, so it is unaffected.
+
+Pending: `InductInstalled` is gaining the compiled block
+(`∃ block, decl.CompilesTo base block ∧ decl.RecsOf block ∧ block.WF base`, lowering, in
+`Verify/Environment/Blocks.lean`). The `InstalledBlocks.addInduct` call in `installedFacts`
+will supply it from `RestoredBlock.compiledWF`.
 
 ## Wave 3 restB (`Nested/Restoration/**` outside `Validation/`, `Uniform/`; `CompilationMajors.lean`)
 
@@ -416,6 +430,31 @@ environments' models (source `Validation/{Environment,ConstructorEnvironment}`) 
 arguments to be the recursor's parameter variables, which a restored auxiliary recursor
 (`Tree.rec_1`, major `List (Tree α)`) violates. Lead decision: weaken `MajorApp` (Restoration-B,
 `-- WAVE 3 COMPAT (restB)`), in progress.
+
+## Wave 3 Restoration-A (`Nested/Restoration/Validation/**`)
+
+The seven statements of `Validation/Passes.lean` are proved; Restoration-A adds no stub.
+Three statements gained premises, because the passes run the checker without checking them
+or because the scaffold form was circular:
+
+* `validateSourceConstructorTypes.run.WF` takes the closedness of the constructor types
+  (`SourceSyntaxChecks.ctorTypesClosed`, `Validation/Checks.lean`, provides it).
+* `validateNestedAuxiliaries.WF` takes the checker context `mlctx` of the lowering's
+  parameters (`mlctx.WF`, `mlctx.lctx = res.lctx`, freshness for the checker's name generator,
+  the cached occurrences scoped in it) and concludes the typing of every cached occurrence in
+  it. The context is a lowering fact: `NestedLoweringOutput.params_opening` with
+  `LoweringParamOpening.toMLCtx` (`Validation/ParameterPrefix.lean`).
+* `stripRecursorRules.checkingValid` (and the new `stripRecursorRules.checkerEnv`, the
+  `CheckerEnv` that `validateRestoredRecursorRules.check.WF` consumes) is stated over a
+  rule-free `AddInduct` into the stripped map and the rule-free facts `RuleFreeStage`
+  (`Validation/Stripped.lean`): the projection stage's `VEnv.WF`, the recursor types, the
+  block's names not primitive, the restored header facts, the K clause and shapes of the new
+  recursors at the recursor stage. The scaffold form took the output's `AddInduct` and
+  `CheckingEnv.Valid`, which contain the rule translations the pass establishes. Restoration-B
+  produces the `RuleFreeStage` (agreed).
+
+`Nested/Restoration/Uniform/**` (parameter uniformity of the lowered recursors) is not needed
+by these statements.
 
 ## Wave 3 lowering
 
@@ -452,6 +491,16 @@ Statement changes to `NestedLoweringOutput`/`loweringRun.WF` (`Verify/Inductive/
    `NestedLoweringOutput` def is `NestedLoweringRun` (`Nested/Lowering/Output.lean`), its inductive
    `SourceSyntaxChecks` is `SourceSyntaxChecked`.
 
+7. (Lead's option (B).) `VEnv.InductInstalled` (`Verify/Environment/Blocks.lean`) also records
+   a well-formed compiled block of the declaration (`∃ block, decl.CompilesTo base block ∧
+   decl.RecsOf block ∧ block.WF base`), so that an installed declaration is a container of
+   nested formation (`VEnv.InductInstalled.installedBelow : … → VEnv.InstalledBelow venv decl`).
+   `InstalledBlocks.addInduct`'s `hadd` and `VEnv.InductInstalled.of_addInduct` take it; the
+   ordinary installer supplies `BlockCertificate.compiled` (`Install/BlockCertificate.lean`,
+   also replayed in `rebase`), `SourceAddInduct.inductInstalled` takes it as a hypothesis
+   (`Install/Result.lean`). The nested installer goes through `BlockCertificate` and supplies it
+   from `RestoredBlock.compiledWF` (Equations+Install).
+
 `loweringRun.WF` is proved (no stub left in `Lowering.lean` or `Nested/Lowering/**`): each field
 in `Nested/Lowering/Assembly.lean` from `NestedLoweringOutputClosed`
 (`ElimNestedInductive.run'.translationClosed`), over the source branch's lowering refinement
@@ -459,31 +508,6 @@ ported under `Nested/Lowering/` (`Refinement`, `ParameterOpening`, `Recognition`
 `Queue`, `AuxiliaryFamilyPositions`, `Output`, `Ordinary`, `Restore/{ExprReplace,ParameterOpening}`;
 new: `Counts` for `types_length`). `Nested/Lowering/Expansion/**` (the `NestedExpansionData`
 for `RestoredBlock.formation`) is being ported by Lowering for Restoration-B.
-
-## Wave 3 Restoration-A (`Nested/Restoration/Validation/**`)
-
-The seven statements of `Validation/Passes.lean` are proved; Restoration-A adds no stub.
-Three statements gained premises, because the passes run the checker without checking them
-or because the scaffold form was circular:
-
-* `validateSourceConstructorTypes.run.WF` takes the closedness of the constructor types
-  (`SourceSyntaxChecks.ctorTypesClosed`, `Validation/Checks.lean`, provides it).
-* `validateNestedAuxiliaries.WF` takes the checker context `mlctx` of the lowering's
-  parameters (`mlctx.WF`, `mlctx.lctx = res.lctx`, freshness for the checker's name generator,
-  the cached occurrences scoped in it) and concludes the typing of every cached occurrence in
-  it. The context is a lowering fact (source branch `NestedLowering.resultParameterMLCtx`), not
-  yet a field of `NestedLoweringOutput`.
-* `stripRecursorRules.checkingValid` (and the new `stripRecursorRules.checkerEnv`, the
-  `CheckerEnv` that `validateRestoredRecursorRules.check.WF` consumes) is stated over a
-  rule-free `AddInduct` into the stripped map and the rule-free facts `RuleFreeStage`
-  (`Validation/Stripped.lean`): the projection stage's `VEnv.WF`, the recursor types, the
-  block's names not primitive, the restored header facts, the K clause and shapes of the new
-  recursors at the recursor stage. The scaffold form took the output's `AddInduct` and
-  `CheckingEnv.Valid`, which contain the rule translations the pass establishes. Restoration-B
-  produces the `RuleFreeStage` (agreed).
-
-`Nested/Restoration/Uniform/**` (parameter uniformity of the lowered recursors) is not needed
-by these statements.
 
 ## Wave 3 scaffold (`Verify/Inductive/Nested/**`, the nested branch's interface)
 

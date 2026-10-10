@@ -128,23 +128,23 @@ theorem validateRestoredRecursorRules.run.WF (C : CheckerEnv safety env venv)
   have := C
   exact forM_append_names_eq_ok _ h
 
-/-- `validateNestedAuxiliaries`: in a well-formed checker context `mlctx` of the model (the
-restored header environment) whose local context is the lowering's, every cached nested
-occurrence `I Ds` translates and is typed. The pass runs the checker in `res.lctx` without
-checking it, so the context `mlctx` (its translation, the freshness of its free variables for
-the checker's name generator, and the scoping of the cached occurrences) is a premise: it is
-the lowering's parameter context (the source branch's `NestedLowering.resultParameterMLCtx`,
-`NestedLoweringOutput.lctx_params`/`nested_app`). -/
-theorem validateNestedAuxiliaries.WF (C : CheckerEnv safety env venv) (lparams : List Name)
-    (fuel : FuelConfig) (res : ElimNestedInductive.Result)
+/-- `validateNestedAuxiliaries`, with the inferred types: in a well-formed checker context
+`mlctx` of the model (the restored header environment) whose local context is the lowering's,
+every cached nested occurrence `I Ds` has a translated typing (`TrTyping`: the occurrence, its
+inferred source type and their translations). This is the source branch's
+`NestedOccurrencesTyped`. The pass runs the checker in `res.lctx` without checking it, so the
+context `mlctx` (its translation, the freshness of its free variables for the checker's name
+generator, and the scoping of the cached occurrences) is a premise:
+`NestedLoweringOutput.parameterMLCtx` (`Validation/ParameterPrefix.lean`) supplies it. -/
+theorem validateNestedAuxiliaries.WF_typing (C : CheckerEnv safety env venv)
+    (lparams : List Name) (fuel : FuelConfig) (res : ElimNestedInductive.Result)
     (mlctx : TypeChecker.MLCtx) (hmlctx : mlctx.WF venv lparams) (hlctx : mlctx.lctx = res.lctx)
     (hfresh : ∀ fv ∈ mlctx.vlctx.fvars, ({} : TypeChecker.State).ngen.Reserves fv)
     (hfvars : ∀ n nested, res.aux2nested.find? n = some nested →
       nested.FVarsIn (· ∈ mlctx.vlctx.fvars))
     (h : validateNestedAuxiliaries env lparams safety fuel res = .ok ()) :
     ∀ n nested, res.aux2nested.find? n = some nested →
-      ∃ e T, TrExprS venv lparams mlctx.vlctx nested e ∧
-        venv.HasType lparams.length mlctx.vlctx.toCtx e T := by
+      ∃ ty e' ty', TrTyping venv lparams mlctx.vlctx nested ty e' ty' := by
   have H : (validateNestedAuxiliaries env lparams safety fuel res).WF fun _ =>
       ∀ n nested, res.aux2nested.find? n = some nested →
         ∃ ty e' ty', TrTyping venv lparams mlctx.vlctx nested ty e' ty' := by
@@ -170,8 +170,25 @@ theorem validateNestedAuxiliaries.WF (C : CheckerEnv safety env venv) (lparams :
       change (show Std.TreeMap Name Expr Name.quickCmp from
         res.aux2nested)[name]? = some e
       exact hfind
+  exact H () h
+
+/-- `validateNestedAuxiliaries`: in a well-formed checker context `mlctx` of the model whose
+local context is the lowering's, every cached nested occurrence `I Ds` translates and is typed
+(`validateNestedAuxiliaries.WF_typing` without the inferred type). -/
+theorem validateNestedAuxiliaries.WF (C : CheckerEnv safety env venv) (lparams : List Name)
+    (fuel : FuelConfig) (res : ElimNestedInductive.Result)
+    (mlctx : TypeChecker.MLCtx) (hmlctx : mlctx.WF venv lparams) (hlctx : mlctx.lctx = res.lctx)
+    (hfresh : ∀ fv ∈ mlctx.vlctx.fvars, ({} : TypeChecker.State).ngen.Reserves fv)
+    (hfvars : ∀ n nested, res.aux2nested.find? n = some nested →
+      nested.FVarsIn (· ∈ mlctx.vlctx.fvars))
+    (h : validateNestedAuxiliaries env lparams safety fuel res = .ok ()) :
+    ∀ n nested, res.aux2nested.find? n = some nested →
+      ∃ e T, TrExprS venv lparams mlctx.vlctx nested e ∧
+        venv.HasType lparams.length mlctx.vlctx.toCtx e T := by
   intro n nested hfind
-  obtain ⟨_, e, T, -, he, -, hT⟩ := H () h n nested hfind
+  obtain ⟨_, e, T, -, he, -, hT⟩ :=
+    validateNestedAuxiliaries.WF_typing C lparams fuel res mlctx hmlctx hlctx hfresh hfvars h
+      n nested hfind
   exact ⟨e, T, he, hT⟩
 
 /-- **The stripped restored environment** (the output with the new recursors' rules removed,

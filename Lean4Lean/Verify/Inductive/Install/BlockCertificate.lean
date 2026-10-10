@@ -66,7 +66,7 @@ theorem le (H : BlockCertificate safety env venv decl outEnv outVEnv) : venv ≤
 
 theorem inductInstalled (H : BlockCertificate safety env venv decl outEnv outVEnv) :
     outVEnv.InductInstalled decl :=
-  VEnv.InductInstalled.of_addInduct H.wf H.installed
+  VEnv.InductInstalled.of_addInduct H.wf H.installed H.compiled -- WAVE 3 COMPAT (lowering)
 
 /-- Every constant of the source environment is a constant of the output, to the same value:
 every name the block inserts is fresh. -/
@@ -87,7 +87,8 @@ theorem installedBlocks (H : BlockCertificate safety env venv decl outEnv outVEn
     InstalledBlocks safety outEnv outVEnv .complete := by
   refine InstalledBlocks.addInduct hblocks hwf H.checking.tr ?_ H.le H.inductInfosFromDecl
     H.cover H.closed H.constructorOwners (fun h1 h2 => H.recMajor h1 h2)
-    (fun _ => ⟨H.wf, H.installed⟩) (fun h => absurd hvisible h)
+    (fun _ => ⟨H.wf, H.installed, H.compiled⟩) -- WAVE 3 COMPAT (lowering)
+    (fun h => absurd hvisible h)
     (fun _ => H.constructorParameterAlignment hparams) (fun h1 h2 _ => H.recK h1 h2)
     (fun h1 h2 _ => H.recShapes h1 h2)
   exact H.find?_mono hwf
@@ -152,7 +153,9 @@ theorem rebase {ves : VEnvs} (H : BlockCertificate .safe env (ves.venv .safe) de
   have hblocks' : InstalledBlocks safety outEnv out' .complete :=
     InstalledBlocks.addInduct wf.blocks hwf htrOut.toChecking (H.find?_mono hwf) add'.le
       H.inductInfosFromDecl H.cover H.closed H.constructorOwners (fun h1 h2 => H.recMajor h1 h2)
-      (fun _ => ⟨wf', installed'⟩) (fun h => absurd hvis h) (fun _ => hparams')
+      -- WAVE 3 COMPAT (lowering): the compiled block, replayed
+      (fun _ => ⟨wf', installed', block, hcomp.mono hle hblock', hrecs, hblock'⟩)
+      (fun h => absurd hvis h) (fun _ => hparams')
       (fun h1 h2 _ => hrecK' h1 h2) (fun h1 h2 _ => (H.recShapes h1 h2).extend hout id)
   refine ⟨out', ⟨{
     wf := wf'
