@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Rules.RuleTranslations
 import Lean4Lean.Verify.Inductive.Install.Result
+import Lean4Lean.Verify.Inductive.Install.Rebase
 
 /-! # The block certificate and its installation into the environment model
 
@@ -40,6 +41,12 @@ structure BlockCertificate (safety : DefinitionSafety) (env : Environment) (venv
     ConstructorParameterAlignment safety outEnv outVEnv
   recK : ∀ {n r}, outEnv.find? n = some (.recInfo r) → env.find? n = none →
     KLikeRecursor outEnv.constants outVEnv r
+  /-- A well-formed compiled block of the declaration: its equations' typing (`block.WF`) is
+  what replays `recsCompiled` in the models of the other safety levels (`rebase`). -/
+  compiled : ∃ block, decl.CompilesTo venv block ∧ decl.RecsOf block ∧ block.WF venv
+  /-- Every inserted constant carries the declaration's `isUnsafe`: an unsafe block is hidden
+  from the partial and safe observers (`extendUnsafeExact`), a safe one is visible to all. -/
+  newUnsafe : ∀ ci ∈ AddInduct.consts add.ivals add.rvals, ci.isUnsafe = decl.isUnsafe
 
 namespace BlockCertificate
 
@@ -79,17 +86,82 @@ theorem installedBlocks (H : BlockCertificate safety env venv decl outEnv outVEn
     (fun _ => H.constructorParameterAlignment hparams) (fun h1 h2 _ => H.recK h1 h2)
   exact H.find?_mono hwf
 
-/-- Replay a certified safe block in a larger model at a lower safety level: the names are
-fresh there too (both environments are aligned with the same constant map), the translations
-are monotone, and the stages succeed on the same abstract constants. -/
-theorem rebase (H : BlockCertificate .safe env venv decl outEnv outVEnv)
-    {safety : DefinitionSafety} {venv' : VEnv} (hvalid : CheckingEnv.Valid safety env venv')
-    (hle : venv ≤ venv') :
-    ∃ outVEnv', Nonempty (BlockCertificate safety env venv' decl outEnv outVEnv') ∧
+/-- The constructor parameter alignment of the output at any observer: the families of the
+source come from the source alignment at that observer, the new families (safe, since the block
+is) from the certificate's alignment at `.safe`. -/
+theorem parameterAlignment (H : BlockCertificate .safe env venv decl outEnv outVEnv)
+    (hwf : env.constants.WF) (hsafe : decl.isUnsafe = false) {venv' outVEnv' : VEnv}
+    (hsrc : ConstructorParameterAlignment safety env venv')
+    (hsrcSafe : ConstructorParameterAlignment .safe env venv)
+    (hle' : venv' ≤ outVEnv') (hout : outVEnv ≤ outVEnv') :
+    ConstructorParameterAlignment safety outEnv outVEnv' := by
+  intro familyName familyInfo hfamily hvisible i hi
+  have houtWF : outEnv.constants.WF := H.checking.tr.map_wf
+  have hfamily' := hfamily
+  rw [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?] at hfamily'
+  rcases H.add.find? hwf hfamily' with hold | ⟨hnew, -⟩
+  · have hold' : env.find? familyName = some (.inductInfo familyInfo) := by
+      rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]; exact hold
+    obtain ⟨C⟩ := hsrc familyName familyInfo hold' hvisible i hi
+    exact ⟨C.rebaseKernel (H.find?_mono hwf C.lookup) hle'⟩
+  · have hu : familyInfo.isUnsafe = false := by
+      have := H.newUnsafe _ hnew; rw [hsafe] at this; exact this
+    have hvis : DefinitionSafety.safe ≤
+        (if familyInfo.isUnsafe then DefinitionSafety.unsafe else .safe) := by
+      simp [hu]
+    obtain ⟨C⟩ := H.constructorParameterAlignment hsrcSafe familyName familyInfo hfamily hvis i hi
+    exact ⟨C.mono hout⟩
+
+/-- Replay a certified safe block in the model of another safety level: the names are fresh
+there too (the model is aligned with the same constant map), the stages replay above the
+original ones (`AddInduct.rebase`), the declaration and its compiled block stay well formed
+(`VInductDecl.WF.rebase`), and the output is a valid checking environment with the new block
+installed (`InstalledBlocks.addInduct`). -/
+theorem rebase {ves : VEnvs} (H : BlockCertificate .safe env (ves.venv .safe) decl outEnv outVEnv)
+    (wf : ves.WF env) (hsafe : decl.isUnsafe = false) (safety : DefinitionSafety) :
+    ∃ outVEnv', Nonempty (BlockCertificate safety env (ves.venv safety) decl outEnv outVEnv') ∧
       outVEnv ≤ outVEnv' := by
-  -- WAVE 2 STUB (Install): the source branch's `BlockCertificate.rebaseAddInductSafe`
-  -- (`Install/BlockCertificate.lean`), now on `AddInduct`.
-  have := H; have := hvalid; have := hle; sorry
+  have hle : ves.venv .safe ≤ ves.venv safety := wf.mono DefinitionSafety.le_safe
+  have htr : TrEnv safety env (ves.venv safety) := wf.tr
+  have hwf : env.constants.WF := htr.map_wf
+  obtain ⟨out', add', hivals, hrvals, hout⟩ :=
+    H.add.rebase (safety := safety) DefinitionSafety.le_safe hle (H.add.fresh_of_aligned htr.aligned)
+  obtain ⟨block, hcomp, hrecs, hblock⟩ := H.compiled
+  obtain ⟨wf', hblock'⟩ := H.wf.rebase hcomp hrecs hblock hle H.add.stT H.add.stC H.add.stR
+    add'.stT add'.stC add'.stR
+  have installed' : (ves.venv safety).addInduct decl = some out' := add'.env_eq
+  have htrOut : TrEnv safety outEnv out' := by
+    unfold TrEnv; rw [H.quotInit_eq]; exact .induct wf' add' htr
+  have hprims' : out'.HasPrimitives :=
+    VEnv.HasPrimitives.addInduct_rebase wf.hasPrimitives H.checking.hasPrimitives H.installed
+      installed' hout
+  have hvis : safety ≤ (if decl.isUnsafe then DefinitionSafety.unsafe else .safe) := by
+    rw [hsafe]; exact DefinitionSafety.le_safe
+  have hparams' : ConstructorParameterAlignment safety outEnv out' :=
+    H.parameterAlignment hwf hsafe wf.constructorParameterAlignment
+      wf.constructorParameterAlignment add'.le hout
+  have hrecK' : ∀ {n r}, outEnv.find? n = some (.recInfo r) → env.find? n = none →
+      KLikeRecursor outEnv.constants out' r :=
+    fun h1 h2 => (H.recK h1 h2).mono hout id
+  have hblocks' : InstalledBlocks safety outEnv out' .complete :=
+    InstalledBlocks.addInduct wf.blocks hwf htrOut.toChecking (H.find?_mono hwf) add'.le
+      H.inductInfosFromDecl H.cover H.closed H.constructorOwners (fun h1 h2 => H.recMajor h1 h2)
+      (fun _ => ⟨wf', installed'⟩) (fun h => absurd hvis h) (fun _ => hparams')
+      (fun h1 h2 _ => hrecK' h1 h2)
+  refine ⟨out', ⟨{
+    wf := wf'
+    add := add'
+    quotInit_eq := H.quotInit_eq
+    checking := htrOut.toCheckingValid hprims' H.checking.safePrimitives hblocks'
+    closed := H.closed
+    constructorOwners := H.constructorOwners
+    inductInfosFromDecl := H.inductInfosFromDecl
+    cover := H.cover
+    recMajor := H.recMajor
+    constructorParameterAlignment := fun _ => hparams'
+    recK := hrecK'
+    compiled := ⟨block, hcomp.mono hle hblock', hrecs, hblock'⟩
+    newUnsafe := by rw [hivals, hrvals]; exact H.newUnsafe }⟩, hout⟩
 
 /-- A certified safe block extends the whole safety-indexed model: the block is replayed at
 every safety level (`rebase`) and `VEnvs.WF.extendInductExact` assembles the models. -/
@@ -99,9 +171,30 @@ theorem extendSafeExact {ves : VEnvs}
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       ves'.venv .safe = outVEnv := by
-  -- WAVE 2 STUB (Install): `rebase` at `.partial` and `.unsafe`, then
-  -- `VEnvs.WF.extendInductExact` with `installedBlocks` at each level.
-  have := H; have := wf; have := hsafe; sorry
+  have hR : ∀ safety, ∃ out', Nonempty (BlockCertificate safety env (ves.venv safety) decl outEnv
+      out') ∧ (safety = .safe → out' = outVEnv) := by
+    intro safety
+    cases safety with
+    | safe => exact ⟨outVEnv, ⟨H⟩, fun _ => rfl⟩
+    | «partial» =>
+      obtain ⟨out', B, -⟩ := H.rebase wf hsafe .partial
+      exact ⟨out', B, fun h => nomatch h⟩
+    | «unsafe» =>
+      obtain ⟨out', B, -⟩ := H.rebase wf hsafe .unsafe
+      exact ⟨out', B, fun h => nomatch h⟩
+  obtain ⟨next, hnext⟩ := VEnvs.axiom_of_choice hR
+  have B : ∀ safety, BlockCertificate safety env (ves.venv safety) decl outEnv (next.venv safety) :=
+    fun safety => Classical.choice (hnext safety).1
+  have hwf : env.constants.WF := (wf.tr (safety := .safe)).map_wf
+  have hvis : ∀ safety : DefinitionSafety,
+      safety ≤ (if decl.isUnsafe then DefinitionSafety.unsafe else .safe) := by
+    intro safety; rw [hsafe]; exact DefinitionSafety.le_safe
+  obtain ⟨ves', wf', hle, heq⟩ := wf.extendInductExact decl next.venv (fun s => (B s).wf)
+    (fun s => (B s).add) H.quotInit_eq (fun s => (B s).checking.hasPrimitives)
+    H.checking.safePrimitives
+    (fun s => (B s).installedBlocks wf.blocks hwf (hvis s) wf.constructorParameterAlignment)
+    (fun h => VEnv.addInduct_mono (wf.mono h) (B _).installed (B _).installed)
+  exact ⟨ves', wf', hle, (heq .safe).trans ((hnext .safe).2 rfl)⟩
 
 /-- A certified unsafe block extends the unsafe model and is hidden from the partial and safe
 observers (`VEnvs.WF.extendUnsafeExact`): every inserted constant is unsafe, so the other two
@@ -112,8 +205,51 @@ theorem extendUnsafeExact {ves : VEnvs}
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       ves'.venv .unsafe = outVEnv := by
-  -- WAVE 2 STUB (Install): the source branch's `BlockCertificate.extendUnsafeOfHiddenExact`.
-  have := H; have := wf; have := hunsafe; sorry
+  have hwf : env.constants.WF := (wf.tr (safety := .unsafe)).map_wf
+  have hhidden : ∀ {safety : DefinitionSafety}, safety ≠ .unsafe →
+      ∀ ci ∈ H.add.order, ¬ safety ≤ ci.safety := fun hs ci hci =>
+    ConstantInfo.not_le_safety_of_isUnsafe
+      ((H.newUnsafe ci (H.add.order_perm.mem_iff.1 hci)).trans hunsafe) hs
+  have htrHidden : ∀ {safety : DefinitionSafety}, safety ≠ .unsafe →
+      TrEnv' safety outEnv.constants outEnv.quotInit (ves.venv safety) := by
+    intro safety hs
+    rw [H.quotInit_eq, H.add.map_eq]
+    exact TrEnv'.ignoreConsts (hhidden hs) H.add.order_fresh H.add.order_nodup wf.tr
+  have hdeclHidden : ∀ {safety : DefinitionSafety}, safety ≠ .unsafe →
+      ¬ safety ≤ (if decl.isUnsafe then DefinitionSafety.unsafe else .safe) := by
+    intro safety hs h
+    rw [hunsafe] at h
+    exact hs (DefinitionSafety.le_antisymm h DefinitionSafety.unsafe_le)
+  have hrecHidden : ∀ {safety : DefinitionSafety}, safety ≠ .unsafe →
+      ∀ {n r}, outEnv.find? n = some (.recInfo r) → env.find? n = none →
+      ¬ safety ≤ (ConstantInfo.recInfo r).safety := by
+    intro safety hs n r h1 h2
+    have houtWF : outEnv.constants.WF := H.checking.tr.map_wf
+    rw [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?] at h1
+    rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at h2
+    rcases H.add.find? hwf h1 with hold | ⟨hnew, -⟩
+    · rw [h2] at hold; cases hold
+    · exact ConstantInfo.not_le_safety_of_isUnsafe ((H.newUnsafe _ hnew).trans hunsafe) hs
+  have hidden : ∀ {safety : DefinitionSafety}, safety ≠ .unsafe →
+      InstalledBlocks safety outEnv (ves.venv safety) .complete := by
+    intro safety hs
+    exact InstalledBlocks.addInduct wf.blocks hwf
+      (show TrEnv safety outEnv (ves.venv safety) from htrHidden hs).toChecking
+      (H.find?_mono hwf) VEnv.LE.rfl H.inductInfosFromDecl H.cover H.closed
+      H.constructorOwners (fun h1 h2 => H.recMajor h1 h2) (fun h => absurd h (hdeclHidden hs))
+      (fun _ => rfl) (fun h => absurd h (hdeclHidden hs))
+      (fun h1 h2 h => absurd h (hrecHidden hs h1 h2))
+  have hvisU : DefinitionSafety.unsafe ≤
+      (if decl.isUnsafe then DefinitionSafety.unsafe else .safe) := DefinitionSafety.unsafe_le
+  refine wf.extendUnsafeExact outVEnv ?_ (htrHidden (by decide)) (htrHidden (by decide))
+    H.checking.hasPrimitives H.checking.safePrimitives ?_ H.le
+  · rw [H.quotInit_eq]; exact .induct H.wf H.add wf.tr
+  · intro safety
+    cases safety with
+    | «unsafe» =>
+      exact H.installedBlocks wf.blocks hwf hvisU wf.constructorParameterAlignment
+    | «partial» => exact hidden (by decide)
+    | safe => exact hidden (by decide)
 
 end BlockCertificate
 
