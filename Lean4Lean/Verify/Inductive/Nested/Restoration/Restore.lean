@@ -9,6 +9,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.FormationWithRecs
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ViewCast
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyTypes
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyKernel
+import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyRecursors
 
 /-! # The restored block of a nested run (owner: Restoration-B)
 
@@ -64,42 +65,61 @@ theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
       false fuel).map_wf
   have hdeclLowered : E.lowered.loweredDecl = L.loweredDecl :=
     LoweredView.heq_field hloweredEnv hlowered (·.loweredDecl)
-  -- WAVE 3 STUB (restB): the restored recursors (`AssemblyRecursors`, in progress).
-  obtain ⟨recs⟩ : Nonempty (List VRecursor) := sorry
+  -- WAVE 3 STUB (restB): the stripped checker environment (`NestedRun.strippedChecker`, fork A).
+  have Cstrip : CheckerEnv (if isUnsafe then .unsafe else .safe)
+      (Lean4Lean.stripRecursorRules outEnv
+        (Lean4Lean.restoredRecursorNames
+          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
+          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.recursorVEnv := sorry
+  obtain ⟨recs, auxiliaries, block, envR, outVEnv, hcontainers, hcompiled, hrecsOf, hrecsAdded,
+    htrRecs, hrecs_wf, hrec_shape, hrules_nodup, hrules_ctor, hrules_ctorParams, hrule_shape,
+    hrules_closed, hrulesAdded, hrecShapes, hrecK⟩ :=
+    E.assemblyRecursors wf Hchecked hnested B hBlowered hBperm Cstrip
+  have hsig : E.lowered.signature = L.recursors.signature :=
+    (LoweredView.heq_field hloweredEnv hlowered (·.signature)).trans L.view_signature
+  have hgen : HEq E.lowered.generatedInstance L.recursors.generation := by
+    refine HEq.trans ?_ L.view_generation
+    clear hcompiled
+    revert hlowered
+    generalize E.lowered = V
+    intro hlowered
+    subst hloweredEnv
+    cases eq_of_heq hlowered
+    rfl
   refine ⟨{
     decl := runDecl.withRecs recs
     envTypes := E.sourceCore.envTypes
     envCtors := E.sourceCore.envCtors
     source := ?source
     formation := VerifyInductive.NestedFormationWF.withRecs recs B.formationAssembly.formation
-    auxiliaries := ?auxiliaries
-    containers := ?containers
-    block := ?block
-    compiled := ?compiled
-    recsOf := ?recsOf
+    auxiliaries := auxiliaries
+    containers := hcontainers
+    block := block
+    compiled := CompilationData.castGenerator hsig hgen (hdeclLowered ▸ hcompiled)
+    recsOf := hrecsOf
     ivals := E.restoration.ivals
     rvals := E.restoration.rvals
     trTypes := E.trTypes B hBlowered
-    envR := ?envR
-    recsAdded := ?recsAdded
-    trRecs := ?trRecs
+    envR := envR
+    recsAdded := hrecsAdded
+    trRecs := htrRecs
     order := E.restoration.entries
     order_perm := hperm
     fresh := hfresh
     map_eq := hmap
     quotInit_eq := hquot
     newUnsafe := E.newUnsafe
-    recs_wf := ?recs_wf
-    rec_shape := ?rec_shape
-    rules_nodup := ?rules_nodup
-    rules_ctor := ?rules_ctor
-    rules_ctorParams := ?rules_ctorParams
-    rule_shape := ?rule_shape
-    rules_closed := ?rules_closed
-    outVEnv := ?outVEnv
-    rulesAdded := ?rulesAdded
-    recShapes := ?recShapes
-    recK := ?recK
+    recs_wf := hrecs_wf
+    rec_shape := hrec_shape
+    rules_nodup := hrules_nodup
+    rules_ctor := hrules_ctor
+    rules_ctorParams := hrules_ctorParams
+    rule_shape := hrule_shape
+    rules_closed := hrules_closed
+    outVEnv := outVEnv
+    rulesAdded := hrulesAdded
+    recShapes := hrecShapes
+    recK := hrecK
     runDecl := runDecl
     run := E
     run_decl := ?run_decl
@@ -119,8 +139,8 @@ theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     have h := E.sourceCore.core
     rw [E.sourceCoreDecl_eq] at h
     exact TrInductDeclCore.withRecs h recs
-  -- WAVE 3 STUB (restB): `trTypes`/`newUnsafe` (`AssemblyTypes`) and the recursor, rule and
-  -- compilation fields (`AssemblyRecursors`), in progress.
+  -- WAVE 3 STUB (restB): `constructorParameterAlignment` and `restoredEquationsWF` wait on
+  -- `envR = B.recursorVEnv` and the equations conjunct of `NestedRun.assemblyRecursors` (fork C).
   all_goals sorry
 
 end VerifyInductive
