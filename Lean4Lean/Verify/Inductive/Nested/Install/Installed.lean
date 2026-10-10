@@ -149,42 +149,35 @@ theorem constructorOwnersPresent (B : RestoredBlock L sourceTypes isUnsafe outEn
   exact NestedRestorationFolds.constructorOwnersPresent (R := L.input) B.runLowering L.Hc'
     L.recursors.installation rfl B.runRestoration Howners
 
-/-- The source syntax checks of the submitted families. -/
-theorem sourceSyntaxChecked₀ (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
-    SourceSyntaxChecked sourceTypes := by
-  -- WAVE 3 STUB (Equations+Install): the dispatch's `SourceSyntaxChecks c.env sourceTypes`
-  -- (`Lowering.lean`) refined to the lowering's `SourceSyntaxChecked`; on the source branch a
-  -- premise of `RestoredBlockCertificate.inductInfosFromDecl`.
-  have := B; sorry
-
-/-- The constructor telescopes of the restored declaration have the arities of the lowered
-declaration's source families. -/
-theorem constructorArityPrefix₀ (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
-    B.decl.ConstructorArityPrefix L.loweredDecl := by
-  -- WAVE 3 STUB (Equations+Install): the source branch's
-  -- `RestoredBlockDerivation.constructorArityPrefix` (`Install/Certificate.lean`), from the
-  -- nested expansion data (`NestedExpansionData.constructorArityPrefix`,
-  -- `Nested/Lowering/Expansion/Formation.lean`) of the run.
-  have := B; sorry
-
-/-- The origin of every inductive header of the output. -/
+/-- The origin of every inductive header of the output, read off the restoration folds for
+the run's recursor-free declaration (`runDecl`) and carried to `B.decl` along `run_decl` (only
+the families are read). -/
 theorem inductInfosFromDecl (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
     InductInfosFromDecl c.env.constants outEnv.constants B.decl := by
   have Howners : ConstructorOwnersPresent L.c'.env := by
     rw [L.env_eq]; exact Hc.checking.constructorOwners
+  have hdecl := B.run_decl
+  have Hsource0 := B.source
+  rw [hdecl] at Hsource0
   have Hsource : TrInductDeclCore L.Hc'.venv L.c'.lparams nparams sourceTypes
-      (c.safety != .safe) B.decl B.envTypes B.envCtors := by
-    rw [L.lparams_eq, L.venv_eq, ← B.isUnsafe_lowered]; exact B.source
-  have Hmetadata : SourcePrefixOfLowered B.decl L.loweredDecl := by
+      (c.safety != .safe) B.runDecl B.envTypes B.envCtors := by
+    rw [L.lparams_eq, L.venv_eq, ← B.isUnsafe_lowered]
+    exact ⟨Hsource0.uvars, Hsource0.nparams, Hsource0.isUnsafe, Hsource0.typesAdded,
+      Hsource0.ctorsAdded, Hsource0.types⟩
+  have Harity0 := B.constructorArityPrefix
+  rw [hdecl] at Harity0
+  have Harity : B.runDecl.ConstructorArityPrefix L.loweredDecl := Harity0
+  have Hmetadata : SourcePrefixOfLowered B.runDecl L.loweredDecl := by
     have h := B.run.sourceCore.checked
     rw [B.run.sourceCoreDecl_eq,
       LoweredView.loweredDecl_of_heq B.run_loweredEnv B.run_lowered] at h
     exact h
   have H := NestedRestorationFolds.inductInfosFromDecl (R := L.input) B.runLowering L.Hc'
-    L.recursors.installation Hsource Hmetadata B.sourceSyntaxChecked₀ B.constructorArityPrefix₀
+    L.recursors.installation Hsource Hmetadata B.sourceSyntaxChecked Harity
     Howners rfl B.runRestoration
   rw [L.env_eq] at H
-  exact H
+  rw [hdecl]
+  exact H.withRecs _
 
 /-- The installed mutual blocks of the output are closed. -/
 theorem mutualInductivesClosed (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
