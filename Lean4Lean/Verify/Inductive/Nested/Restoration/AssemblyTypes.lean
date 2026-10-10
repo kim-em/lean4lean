@@ -4,6 +4,8 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.KernelData
 import Lean4Lean.Verify.Inductive.Nested.Restoration.LoweredLookups
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Lookups
 import Lean4Lean.Verify.Inductive.Constructor.Install
+import Lean4Lean.Verify.Inductive.Nested.Restoration.HeaderDataCompatB
+import Lean4Lean.Verify.Inductive.Nested.Install.DependencyOrder
 
 /-! # The types and kernel half of the nested assembly
 
@@ -225,3 +227,175 @@ theorem NestedRun.trTypes
     exact Option.some.inj (h₁.symm.trans h₂)
   rw [htypes] at hres
   exact hres
+
+/-! ### Safety flags of the restored constants -/
+
+/-- A restored recursor fold whose steps restore recursors of flag `b` restores only such. -/
+theorem FoldSteps.recursorInfos_isUnsafe {names : List Name} {s t : Environment}
+    (F : FoldSteps (RestoredRecursorStep result loweredEnv auxRec allIndNames) names s t)
+    {b : Bool}
+    (h : ∀ n ∈ names, ∀ {s t : Environment}
+      (Hs : RestoredRecursorStep result loweredEnv auxRec allIndNames n s t),
+      Hs.restored.newInfo.isUnsafe = b) :
+    ∀ r ∈ F.recursorInfos, r.isUnsafe = b := by
+  induction F with
+  | nil => simp [FoldSteps.recursorInfos]
+  | cons Hstep Htail ih =>
+    intro r hr
+    simp only [FoldSteps.recursorInfos, List.mem_cons] at hr
+    rcases hr with rfl | hr
+    · exact h _ List.mem_cons_self Hstep
+    · exact ih (fun n hn _ _ Hs => h n (List.mem_cons_of_mem _ hn) Hs) r hr
+
+/-- The restored headers, constructors and recursors of a family fold carry the flag `b` when
+the lowered ones do. -/
+theorem FoldSteps.inductive_isUnsafe {types : List InductiveType} {s t : Environment}
+    (F : FoldSteps (RestoredInductiveStep result loweredEnv auxRec allIndNames) types s t)
+    {b : Bool}
+    (hfam : ∀ indType ∈ types, ∃ iv : InductiveVal × List ConstructorVal,
+      loweredEnv.find? indType.name = some (.inductInfo iv.1) ∧
+      iv.1.ctors = iv.2.map (·.name) ∧
+      (∀ cv ∈ iv.2, loweredEnv.find? cv.name = some (.ctorInfo cv)) ∧
+      iv.1.isUnsafe = b ∧ ∀ cv ∈ iv.2, cv.isUnsafe = b)
+    (hrec : ∀ indType ∈ types, ∀ {s t : Environment}
+      (Hs : RestoredRecursorStep result loweredEnv auxRec allIndNames
+        (Lean.mkRecName indType.name) s t),
+      Hs.restored.newInfo.isUnsafe = b) :
+    (∀ iv ∈ F.inductiveInfos, iv.1.isUnsafe = b ∧ ∀ cv ∈ iv.2, cv.isUnsafe = b) ∧
+      ∀ r ∈ F.inductiveRecs, r.isUnsafe = b := by
+  induction F with
+  | nil => simp [FoldSteps.inductiveInfos, FoldSteps.inductiveRecs]
+  | @cons indType _ _ _ _ Hstep Htail ih =>
+    obtain ⟨ihI, ihR⟩ := ih (fun i hi => hfam i (List.mem_cons_of_mem _ hi))
+      (fun i hi _ _ Hs => hrec i (List.mem_cons_of_mem _ hi) Hs)
+    obtain ⟨iv, hlook, hctors, hcvLook, hivU, hcvU⟩ := hfam indType List.mem_cons_self
+    have holdInfo : Hstep.oldInfo = iv.1 :=
+      ConstantInfo.inductInfo.inj (Option.some.inj (Hstep.lookup.symm.trans hlook))
+    refine ⟨fun x hx => ?_, fun r hr => ?_⟩
+    · simp only [FoldSteps.inductiveInfos, List.mem_cons] at hx
+      rcases hx with rfl | hx
+      · refine ⟨?_, ?_⟩
+        · show Hstep.restored.header.newInfo.isUnsafe = b
+          rw [Hstep.restored.header.restored]
+          show Hstep.oldInfo.isUnsafe = b
+          rw [holdInfo]; exact hivU
+        · rw [Hstep.restored.constructors.ctorInfos_eq (by rw [holdInfo]; exact hctors)
+            hcvLook]
+          intro cv hcv
+          obtain ⟨c, hc, rfl⟩ := List.mem_map.mp hcv
+          exact hcvU c hc
+      · exact ihI x hx
+    · simp only [FoldSteps.inductiveRecs, List.mem_cons] at hr
+      rcases hr with rfl | hr
+      · exact hrec indType List.mem_cons_self Hstep.restored.recursor
+      · exact ihR r hr
+
+/-- A restored recursor of a generated recursor carries the lowered declaration's flag. -/
+theorem RestoredRecursorStep.isUnsafe_of_generated
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv : Environment}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
+    (Hprod : RecursorInstallation R loweredEnv) {oldRecName : Name} {s t : Environment}
+    (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames oldRecName s t)
+    (hgenerated : oldRecName ∈ (Hprod.entries.map Prod.snd).map (·.name)) :
+    Hstep.restored.newInfo.isUnsafe = isUnsafe := by
+  rcases List.mem_map.mp hgenerated with ⟨value, hvalue, hvalueName⟩
+  rcases AddConstants.existsEntryOfValue hvalue with ⟨info, hentry⟩
+  have hlookup := Hprod.findRecursorOfMem hentry
+  have hentryName := Hprod.installed.entryNames hentry
+  have holdInfo : info = .recInfo Hstep.oldInfo := by
+    have hlookup' : loweredEnv.find? info.name = some (.recInfo Hstep.oldInfo) := by
+      rw [hentryName, hvalueName]
+      exact Hstep.lookup
+    exact Option.some.inj (hlookup.symm.trans hlookup')
+  rcases List.mem_iff_getElem.mp hentry with ⟨i, hi, hentryEq⟩
+  have hsource : Hprod.entries[i].1 = .recInfo (Hprod.generated.entry i hi).info :=
+    (Hprod.generated.entry i hi).source_eq
+  have hinfo : Hstep.oldInfo = (Hprod.generated.entry i hi).info := by
+    have : info = .recInfo (Hprod.generated.entry i hi).info :=
+      (congrArg Prod.fst hentryEq).symm.trans hsource
+    rw [holdInfo] at this
+    exact ConstantInfo.recInfo.inj this
+  rw [Hstep.restored.restoration.isUnsafe, hinfo, Hprod.generated_isUnsafe, R.core.isUnsafe]
+
+/-- **Every restored constant carries the declaration's safety flag.** -/
+theorem NestedRun.newUnsafe
+    {res : Lean4Lean.ElimNestedInductive.Result} {sourceProdEnv : Environment}
+    {sourceTypes : List InductiveType} {venv : VEnv} {decl : VInductDecl}
+    {lparams : List Name} {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
+    {outEnv : Environment}
+    (E : NestedRun res sourceProdEnv sourceTypes venv decl lparams nparams isUnsafe safety
+      outEnv) :
+    ∀ ci ∈ AddInduct.consts E.restoration.ivals E.restoration.rvals, ci.isUnsafe = isUnsafe := by
+  have Hlower := E.loweringAtContext
+  have hempty : E.initialState.nestedAux = #[] := rfl
+  have hne : sourceTypes ≠ [] := Hlower.toResult.sourceNonempty
+  let R := E.phases.constructors
+  let Hprod := E.phases.recursors
+  have hRU : E.lowered.isUnsafe = isUnsafe := E.lowered_isUnsafe_source
+  have HcP : ContextWF E.lowered.c := E.loweredContextWF
+  -- the source families are lowered families
+  have hsrc : ∀ indType ∈ sourceTypes, ∃ j, ∃ hj : j < res.types.toArray.size,
+      res.types.toArray[j].name = indType.name := by
+    intro indType hmem
+    obtain ⟨j, hj, rfl⟩ := List.mem_iff_getElem.mp hmem
+    rcases Hlower.sourceResolvedMappingAtFreshAligned hempty hj with
+      ⟨_, _, target, _, _, _, _, Hmapping, htarget⟩
+    obtain ⟨hres, htargetEq⟩ := _root_.getElem?_eq_some_iff.mp htarget
+    exact ⟨j, by simpa using hres, by simpa [htargetEq] using Hmapping.name⟩
+  have hrecords : Hprod.recInfos.size = res.types.toArray.size := by
+    rw [Hprod.cardinality.records, ← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
+      R.core]
+    simp
+  have hfam : ∀ indType ∈ sourceTypes, ∃ iv : InductiveVal × List ConstructorVal,
+      E.loweredEnv.find? indType.name = some (.inductInfo iv.1) ∧
+      iv.1.ctors = iv.2.map (·.name) ∧
+      (∀ cv ∈ iv.2, E.loweredEnv.find? cv.name = some (.ctorInfo cv)) ∧
+      iv.1.isUnsafe = isUnsafe ∧ ∀ cv ∈ iv.2, cv.isUnsafe = isUnsafe := by
+    intro indType hmem
+    obtain ⟨j, hj, hname⟩ := hsrc indType hmem
+    have hmemT : res.types.toArray[j] ∈ res.types.toArray.toList := by simp
+    obtain ⟨iv, hiv, hinfo, hivName, hivCtors, -, -, hivU, hiv2⟩ := R.family_of_mem hmemT
+    refine ⟨iv, ?_, ?_, fun cv hcv => Hprod.findConstructorOfMem hiv hcv, ?_,
+      fun cv hcv => (R.ctor_isUnsafe hiv hcv).trans hRU⟩
+    · rw [← hname, ← hivName]; exact Hprod.findHeaderOfMem hinfo
+    · rw [hivCtors, hiv2, familyCtorInfos, ctorInfosFrom_names]
+    · exact hivU.trans hRU
+  have hrec : ∀ indType ∈ sourceTypes, ∀ {s t : Environment}
+      (Hs : RestoredRecursorStep res E.loweredEnv
+        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
+        (sourceTypes.map (·.name)) (Lean.mkRecName indType.name) s t),
+      Hs.restored.newInfo.isUnsafe = isUnsafe := by
+    intro indType hmem s t Hs
+    obtain ⟨j, hj, hname⟩ := hsrc indType hmem
+    have hgen := Hprod.generated.recursorName_mem hrecords j hj
+    rw [getElem!_pos res.types.toArray j hj, hname] at hgen
+    exact (Hs.isUnsafe_of_generated Hprod hgen).trans hRU
+  obtain ⟨main, rest, rfl⟩ : ∃ main rest, sourceTypes = main :: rest := by
+    cases sourceTypes with
+    | nil => exact absurd rfl hne
+    | cons main rest => exact ⟨main, rest, rfl⟩
+  have haux : ∀ n ∈ (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).1,
+      ∀ {s t : Environment}
+      (Hs : RestoredRecursorStep res E.loweredEnv
+        (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).2
+        ((main :: rest).map (·.name)) n s t),
+      Hs.restored.newInfo.isUnsafe = isUnsafe := by
+    intro n hn s t Hs
+    have hgen := Hlower.auxRecNameGeneratedAtFresh HcP Hprod hempty hn
+    exact (Hs.isUnsafe_of_generated Hprod hgen).trans hRU
+  obtain ⟨hI, hR⟩ := E.restoration.inductives.inductive_isUnsafe hfam hrec
+  have hA := E.restoration.auxiliaries.recursorInfos_isUnsafe haux
+  intro ci hci
+  simp only [AddInduct.consts, List.mem_append, List.mem_map, List.mem_flatMap] at hci
+  rcases hci with ((⟨iv, hiv, rfl⟩ | ⟨iv, hiv, cv, hcv, rfl⟩) | ⟨r, hr, rfl⟩)
+  · exact (hI iv hiv).1
+  · exact (hI iv hiv).2 cv hcv
+  · rcases hr with hr | hr
+    · exact hR r hr
+    · exact hA r hr
+
+end VerifyInductive
+end Lean4Lean
