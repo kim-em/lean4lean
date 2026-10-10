@@ -107,7 +107,8 @@ theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     run_loweredEnv := hloweredEnv
     run_lowered := hlowered
     recMajor := ?recMajor
-    constructorParameterAlignment := ?alignment }⟩
+    constructorParameterAlignment := ?alignment
+    restoredEquationsWF := ?equationsWF }⟩
   case arity =>
     have h := B.formationAssembly.constructorArityPrefix
     rw [B.formationExpanded, hBlowered, hdeclLowered] at h
