@@ -29,9 +29,9 @@ import Lean4Lean.Tests.CacheScope
 import Lean4Lean.Tests.FVarRenamingEquivManager
 import Lean4Lean.Tests.QuotInit
 import Lean4Lean.Tests.Replay
+import Lean4Lean.Tests.AmbientContext
 -- Tests that do not build yet are added back with the wave that makes their imports build
 -- (`iota-port/PLAN-RECONCILED.md`):
--- wave 1A: AmbientContext (`Verify.TypeChecker`)
 -- wave 2: InductiveTheory and TypedInductiveCompilation (re-expressed for the structure
 --   `VInductDecl.WF` and `VEnv.pats`), CorruptRecursorMetadata (`Verify.Inductive.Recursor`)
 -- wave 3: CorruptRestoredRecursorMetadata (`Verify.Inductive.Nested`), RecursiveFieldClassification

@@ -108,8 +108,18 @@ Parked:
 | `Verify/CanonicalEq.lean` | needs `Verify/Inductive/Prelude/EqSyntax.lean` and a `VEnv.HasCanonicalEq` whose `Eq.rec` rule is a pattern; `addDecl.WF` no longer needs it | wave 4 |
 | `Verify/QuotInit.lean` | replaced by PR #43's `Verify/Environment/Quot.lean` | never |
 
-## Wave 1A
+## Wave 1A (checker verification)
+
+`lake build` (default targets), `Lean4Lean.Tests` (with `AmbientContext` restored) and
+`Lean4Lean.Experimental` are green. Outside `Theory/` the only `sorry`s are these two:
 
 | statement | file | why | owner |
 |---|---|---|---|
+| `VEnvAt.recursorShapes` | `Verify/TypeChecker.lean` | the recursor and constructor telescopes (`VRecursorShape`, `VConstructorShape` at the constructor's own parameter count) of every visible recursor of a complete model. Recursor reduction needs them to show the constructor application of a well-typed ι redex saturated. On the source branch they were part of the installed-block invariant (`RecursorAlignmentCore`); `VInductDecl.WF` only records the syntactic `rec_shape`/`rules_ctor` (`CtorShape` does not say the constructor ends in its family at the parameter variables), so they must come from the formation data of the installed declaration. Every other fact the checker reads (`CheckerEnv`) is wave 1B's `CheckingEnv.Valid` or PR #43's `TrEnv.pats_iota'` | wave 2 (installed blocks) |
 | `VEnv.Ordered.patsAvoidFreshConsts` | `Verify/Typing/ConstSupport.lean` | the `pat` case of `IsDefEq.noConsts`: the fixed parts of a registered rule's right-hand side avoid names absent from the environment. `VEnv.PatTyped` types a generic instance in an arbitrary context, so the template's constants are not bounded by the environment without a further argument. Used only by `VExpr.WF.noFreshConsts` (constructor positivity) | wave 2 (or a `PatWF` that types the template in the empty context) |
+
+Interface for the waves that build on this one: the checker reads its environment through
+`CheckerEnv safety env venv` (`Verify/TypeChecker/CheckerEnv.lean`), which extends
+`CheckingEnv.Valid` by `shapes : RecursorShapesCoherent` and `iota : IotaRulesRegistered`
+(`TrEnv.iotaRulesRegistered` proves the latter from `TrEnv`). An inductive declaration that runs
+the checker in an intermediate environment must supply both there.
