@@ -381,6 +381,80 @@ theorem recsWF (H : RecursorInstallation R outEnv) :
   rw [H.entries_snd, R.contextVEnv] at h
   exact h _ (List.mem_map_of_mem hr)
 
+open private Lean.Kernel.Environment.add from Lean.Environment in
+theorem _root_.Lean4Lean.VerifyInductive.AddConstants.constants_eq
+    {safety : DefinitionSafety} {env : Environment} {venv : VEnv}
+    {entries : List (ConstantInfo × VConstVal)} {outEnv : Environment} {outVEnv : VEnv}
+    (H : AddConstants safety env venv entries outEnv outVEnv) :
+    outEnv.constants = insertConsts env.constants (entries.map Prod.fst) := by
+  induction H with
+  | nil => rfl
+  | cons _ _ _ _ _ _ _ ih => rw [ih]; rfl
+
+theorem rvals_mem (H : RecursorInstallation R outEnv) {rval : RecursorVal}
+    (h : rval ∈ H.rvals) : ∃ owner, H.rvalAt owner = rval := by
+  simpa [rvals, List.mem_ofFn] using h
+
+/-- The output constant map is the constructor environment's with the recursors inserted. -/
+theorem mapEq (H : RecursorInstallation R outEnv) :
+    outEnv.constants = insertConsts ctorEnv.constants (H.rvals.map .recInfo) := by
+  rw [H.installed.constants_eq, H.entries_fst, H.localExtends.env_eq]
+
+theorem quotInitEq (H : RecursorInstallation R outEnv) : outEnv.quotInit = ctorEnv.quotInit := by
+  rw [H.installed.quotInit_eq, H.localExtends.env_eq]
+
+theorem freshRvals (H : RecursorInstallation R outEnv) :
+    ∀ rval ∈ H.rvals, ctorEnv.find? rval.name = none := by
+  intro rval hr
+  obtain ⟨owner, rfl⟩ := H.rvals_mem hr
+  have hwf : H.localContext.env.constants.WF := by
+    rw [H.localExtends.env_eq]; exact R.context.checking.tr.map_wf
+  have hmem : (H.entries[owner.val]'(H.entries_lt owner)) ∈ H.entries := List.getElem_mem _
+  have h := H.installed.entryFresh hwf (info := (H.entries[owner.val]'(H.entries_lt owner)).1)
+    (value := (H.entries[owner.val]'(H.entries_lt owner)).2) hmem
+  rw [H.entry_fst owner, H.localExtends.env_eq] at h
+  exact h
+
+theorem kLike (H : RecursorInstallation R outEnv) :
+    ∀ rval ∈ H.rvals, KLikeRecursor outEnv.constants H.outVEnv rval := by
+  intro rval hr
+  obtain ⟨owner, rfl⟩ := H.rvals_mem hr
+  exact H.kOfMetadata H.generator.models H.generationInstance (H.rvalAt_metadata owner)
+
+/-- The output's inductive headers are the source's or the declaration's. -/
+theorem inductInfos (H : RecursorInstallation R outEnv) :
+    InductInfosFromDecl c.env.constants outEnv.constants decl := by
+  have hwf : H.localContext.env.constants.WF := by
+    rw [H.localExtends.env_eq]; exact R.context.checking.tr.map_wf
+  have houtWF := H.installed.targetMapWF hwf
+  have hpres : ∀ {name ci}, ctorEnv.constants.find? name = some ci →
+      outEnv.constants.find? name = some ci := by
+    intro name ci h
+    apply H.outFind
+    rwa [Lean.Kernel.Environment.find?, R.context.checking.tr.map_wf.find?'_eq_find?]
+  intro familyName familyInfo hfind
+  have hfind' : outEnv.find? familyName = some (.inductInfo familyInfo) := by
+    rwa [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?]
+  rcases H.installed.origin hwf hfind' with hold | ⟨entry, hentry, -, hfound⟩
+  · rw [H.localExtends.env_eq, Lean.Kernel.Environment.find?,
+      R.context.checking.tr.map_wf.find?'_eq_find?] at hold
+    rcases R.inductInfosFromDecl familyName familyInfo hold with hsrc | ⟨idx, hname, ⟨A⟩⟩
+    · exact .inl hsrc
+    · exact .inr ⟨idx, hname, ⟨A.rebase (hname ▸ hfind) hpres⟩⟩
+  · exact absurd hfound.symm (H.generated.nonInductive entry.1 entry.2 hentry familyInfo)
+
+theorem ctorParamAlignment (H : RecursorInstallation R outEnv) {safety : DefinitionSafety}
+    (Hsource : ConstructorParameterAlignment safety c.env sourceEnv) :
+    ConstructorParameterAlignment safety outEnv H.outVEnv := by
+  have hwf : H.localContext.env.constants.WF := by
+    rw [H.localExtends.env_eq]; exact R.context.checking.tr.map_wf
+  have h := (R.constructorParameterAlignment Hsource).mono R.ctorLE
+  have he : H.localContext.env = ctorEnv := H.localExtends.env_eq
+  have h' : ∀ V, ConstructorParameterAlignment safety ctorEnv V →
+      ConstructorParameterAlignment safety H.localContext.env V := fun _ h => by rw [he]; exact h
+  exact H.installed.preservesConstructorTyping hwf (h' _ h)
+    (fun info value hmem v => H.generated.nonInductive info value hmem v)
+
 end RecursorInstallation
 
 end VerifyInductive
