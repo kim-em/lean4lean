@@ -1,15 +1,240 @@
 import Lean4Lean.Std.SMap
 import Lean4Lean.Declaration
 import Lean4Lean.Verify.Environment.Basic
+import Lean4Lean.Verify.Environment.QuotCoherence
+import Lean4Lean.Verify.Typing.PrimSpec
 
 namespace Lean4Lean
 open Lean4Lean
 open Lean hiding Environment Exception
 open Kernel
 
+open private Lean.Kernel.Environment.add from Lean.Environment
+
+namespace VerifyInductive
+
+private theorem find?_add_of_ne
+    {env : Environment} (hwf : env.constants.WF)
+    (ci : ConstantInfo) (hfresh : env.find? ci.name = none)
+    (hne : ci.name ≠ name) :
+    (env.add ci).find? name = env.find? name := by
+  rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hfresh
+  change SMap.find?' (env.constants.insert ci.name ci) name = env.find? name
+  rw [(hwf.insert ci.name ci hfresh).find?'_eq_find?,
+    hwf.find?_insert, if_neg (by simpa using hne)]
+  rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
+
+private theorem find?_add_cases
+    {env : Environment} (hwf : env.constants.WF)
+    (ci : ConstantInfo) (hfresh : env.find? ci.name = none)
+    (hfind : (env.add ci).find? name = some found) :
+    (name = ci.name ∧ found = ci) ∨ env.find? name = some found := by
+  rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hfresh
+  change SMap.find?' (env.constants.insert ci.name ci) name = some found at hfind
+  rw [(hwf.insert ci.name ci hfresh).find?'_eq_find?,
+    hwf.find?_insert] at hfind
+  split at hfind
+  · left
+    exact ⟨(LawfulBEq.eq_of_beq (by assumption)).symm,
+      (Option.some.inj hfind).symm⟩
+  · right
+    rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
+    exact hfind
+
+/-- Adding a fresh non-constructor constant preserves constructor-owner
+presence. -/
+theorem ConstructorOwnersPresent.addNonConstructor
+    {ci : ConstantInfo}
+    (H : ConstructorOwnersPresent env)
+    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none)
+    (hnctor : ∀ info, ci ≠ .ctorInfo info) :
+    ConstructorOwnersPresent (env.add ci) := by
+  intro name info hfind
+  rcases find?_add_cases hwf ci hfresh hfind with
+    ⟨_, hnew⟩ | hold
+  · exact False.elim (hnctor info hnew.symm)
+  · rcases H name info hold with ⟨owner, howner, hmem⟩
+    have hne : ci.name ≠ info.induct := by
+      intro heq
+      rw [← heq, hfresh] at howner
+      contradiction
+    exact ⟨owner, (find?_add_of_ne hwf ci hfresh hne).trans howner, hmem⟩
+
+/-- Lookup classification for one fresh addition (public form of `find?_add_cases`). -/
+theorem findAddFresh_cases {env : Environment} (hwf : env.constants.WF)
+    (ci : ConstantInfo) (hfresh : env.find? ci.name = none)
+    (hfind : (env.add ci).find? name = some found) :
+    (name = ci.name ∧ found = ci) ∨ env.find? name = some found :=
+  find?_add_cases hwf ci hfresh hfind
+
+/-- An old lookup survives one fresh addition. -/
+theorem findAddFresh_of_find {env : Environment} (hwf : env.constants.WF)
+    (ci : ConstantInfo) (hfresh : env.find? ci.name = none)
+    (hfind : env.find? name = some found) :
+    (env.add ci).find? name = some found := by
+  have hne : ci.name ≠ name := by
+    intro heq
+    subst name
+    rw [hfind] at hfresh
+    cases hfresh
+  rw [find?_add_of_ne hwf ci hfresh hne]
+  exact hfind
+
+/-- Adding a fresh constant preserves listed-constructor coherence when every present header
+that lists its name is coherent with it, and, for a header, when the names it lists are absent
+afterwards. -/
+theorem ListedConstructorsCoherent.add
+    {ci : ConstantInfo}
+    (H : ListedConstructorsCoherent env)
+    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none)
+    (hold : ∀ familyName familyInfo,
+      env.find? familyName = some (.inductInfo familyInfo) → ci.name ∈ familyInfo.ctors →
+      ∃ info, ci = .ctorInfo info ∧ info.induct = familyName ∧
+        info.isUnsafe = familyInfo.isUnsafe)
+    (hnew : ∀ familyInfo, ci = .inductInfo familyInfo →
+      ∀ name ∈ familyInfo.ctors, (env.add ci).find? name = none) :
+    ListedConstructorsCoherent (env.add ci) := by
+  intro familyName familyInfo hfamily name hname found hfound
+  rcases find?_add_cases hwf ci hfresh hfamily with ⟨-, hheader⟩ | hfamilyOld
+  · rw [hnew familyInfo hheader.symm name hname] at hfound
+    cases hfound
+  · rcases find?_add_cases hwf ci hfresh hfound with ⟨hnameEq, hfoundEq⟩ | hfoundOld
+    · subst hnameEq hfoundEq
+      exact hold familyName familyInfo hfamilyOld hname
+    · exact H familyName familyInfo hfamilyOld name hname found hfoundOld
+
+/-- Listed-constructor coherence passes to an environment whose lookups are all lookups of a
+coherent one. -/
+theorem ListedConstructorsCoherent.ofSub {env env' : Environment}
+    (H : ListedConstructorsCoherent env')
+    (hsub : ∀ {name found}, env.find? name = some found → env'.find? name = some found) :
+    ListedConstructorsCoherent env :=
+  fun familyName familyInfo hfamily name hname found hfound =>
+    H familyName familyInfo (hsub hfamily) name hname found (hsub hfound)
+
+/-- After a declaration's families are installed with their constructors, every listed
+constructor is coherent: an old header lists only old constants, and each header of the
+declaration is aligned with its installed constructors. -/
+theorem ListedConstructorsCoherent.ofInductInfosFromDecl {source target : Environment}
+    (hsourceWF : source.constants.WF) (htargetWF : target.constants.WF)
+    (hlisted : ListedConstructorsCoherent source) (hpresent : ListedConstructorsPresent source)
+    (hsub : ∀ {name found}, source.find? name = some found → target.find? name = some found)
+    (H : InductInfosFromDecl source.constants target.constants decl) :
+    ListedConstructorsCoherent target := by
+  intro familyName familyInfo hfamily name hname found hfound
+  have hfamilyMap : target.constants.find? familyName = some (.inductInfo familyInfo) := by
+    rwa [Lean.Kernel.Environment.find?, htargetWF.find?'_eq_find?] at hfamily
+  rcases H familyName familyInfo hfamilyMap with hold | ⟨familyIdx, hfamilyName, ⟨A⟩⟩
+  · have hold' : source.find? familyName = some (.inductInfo familyInfo) := by
+      rw [Lean.Kernel.Environment.find?, hsourceWF.find?'_eq_find?]
+      exact hold
+    rcases hpresent familyName familyInfo hold' name hname with ⟨old, hold''⟩
+    rw [hsub hold''] at hfound
+    cases hfound
+    exact hlisted familyName familyInfo hold' name hname _ hold''
+  · obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hname
+    have hctor : i < (decl.types[familyIdx]'A.familyIdx_lt).ctors.length := by
+      rw [← A.constructors]; exact hi
+    rcases A.constructor i hctor with ⟨C⟩
+    have hlookup : target.find? familyInfo.ctors[i] = some (.ctorInfo C.info) := by
+      rw [Lean.Kernel.Environment.find?, htargetWF.find?'_eq_find?]
+      exact C.lookup
+    rw [hlookup] at hfound
+    cases hfound
+    exact ⟨C.info, rfl, C.induct.trans hfamilyName.symm, C.isUnsafe.trans A.isUnsafe.symm⟩
+
+theorem InductiveMemberInfos.addConstant
+    {ci : ConstantInfo}
+    (H : InductiveMemberInfos env names)
+    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none) :
+    InductiveMemberInfos (env.add ci) names := by
+  induction H with
+  | nil => exact .nil
+  | @cons name value names hlookup Htail ih =>
+    have hne : ci.name ≠ name := by
+      intro heq
+      subst name
+      rw [hlookup] at hfresh
+      contradiction
+    exact .cons ((find?_add_of_ne hwf ci hfresh hne).trans hlookup) ih
+
+theorem MutualInductiveClosure.addConstant
+    {ci : ConstantInfo}
+    (H : MutualInductiveClosure env targetName value)
+    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none) :
+    MutualInductiveClosure (env.add ci) targetName value := by
+  refine ⟨H.members.addConstant hwf hfresh, H.target, H.names, ?_⟩
+  intro member info hmember hfind
+  rcases H.members.find hmember with ⟨oldInfo, hold⟩
+  have hne : ci.name ≠ member := by
+    intro heq
+    subst member
+    rw [hold] at hfresh
+    contradiction
+  have hfind' := hfind
+  rw [find?_add_of_ne hwf ci hfresh hne] at hfind'
+  have hinfo : info = oldInfo := by
+    rw [hold] at hfind'
+    exact ConstantInfo.inductInfo.inj (Option.some.inj hfind'.symm)
+  subst info
+  exact H.parameters member oldInfo hmember hold
+
+/-- A fresh non-inductive kernel constant preserves complete mutual-block
+metadata. -/
+theorem MutualInductivesClosed.addNonInductive
+    {ci : ConstantInfo}
+    (H : MutualInductivesClosed env)
+    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none)
+    (hnind : ∀ value, ci ≠ .inductInfo value) :
+    MutualInductivesClosed (env.add ci) := by
+  intro targetName value hfind
+  rcases find?_add_cases hwf ci hfresh hfind with
+    ⟨_, hvalue⟩ | hold
+  · exact False.elim (hnind value hvalue.symm)
+  · exact (H targetName value hold).addConstant hwf hfresh
+
+def ConstructorParameterAlignmentAt.mono
+    (H : ConstructorParameterAlignmentAt
+      env venv familyName familyInfo i hi)
+    (hle : venv ≤ venv') :
+    ConstructorParameterAlignmentAt
+      env venv' familyName familyInfo i hi :=
+  { H with
+    familyLookup := hle.constants H.familyLookup
+    constructorLookup := hle.constants H.constructorLookup
+    familyDefEq := H.familyDefEq.mono hle
+    constructorDefEq := H.constructorDefEq.mono hle
+    parameterDomains := H.parameterDomains.mono hle }
+
+/-- Transport `ConstructorParameterAlignmentAt` across an arbitrary
+kernel-environment extension once the exact constructor lookup has been
+shown to survive.  All semantic fields only require monotonicity of the
+abstract environment. -/
+def ConstructorParameterAlignmentAt.rebaseKernel
+    (H : ConstructorParameterAlignmentAt
+      env venv familyName familyInfo i hi)
+    (hlookup : env'.find? familyInfo.ctors[i] = some (.ctorInfo H.info))
+    (hle : venv ≤ venv') :
+    ConstructorParameterAlignmentAt
+      env' venv' familyName familyInfo i hi :=
+  { H.mono hle with
+    toCtorInfoCoherentAt :=
+      { H.toCtorInfoCoherentAt with lookup := hlookup } }
+
+theorem ConstructorParameterAlignment.mono
+    (H : ConstructorParameterAlignment safety env venv)
+    (hle : venv ≤ venv') :
+    ConstructorParameterAlignment safety env venv' := by
+  intro familyName familyInfo hfamily hvisible i hi
+  rcases H familyName familyInfo hfamily hvisible i hi with ⟨C⟩
+  exact ⟨C.mono hle⟩
+
+end VerifyInductive
+
 variable (safety : DefinitionSafety) in
 inductive Aligned : ConstMap → VEnv → Prop where
-  | empty : Aligned {} .empty
+  /-- The empty constant map, in either stage. -/
+  | empty {s : Bool} : Aligned { stage₁ := s } .empty
   | ignoreConst : Aligned C venv → C.find? n = none → ¬safety ≤ ci.safety →
     ci.name = n → Aligned (C.insert n ci) venv
   | const : Aligned C venv → C.find? n = none → TrConstant safety venv ci ci' →
@@ -33,19 +258,27 @@ inductive Aligned : ConstMap → VEnv → Prop where
       cis l →
     l.foldlM (fun (e : VEnv) b => e.addConst b.1 b.2) venv = some venv' →
     Aligned (insertConsts C cis) (venv'.addProjections es)
+  /-- Registering projection entries adds no constant. -/
+  | projections : Aligned C venv → Aligned C (venv.addProjections entries)
+  /-- Kernel constant maps are implementation maps rather than ordered declaration lists:
+  exact lookup equivalence, together with well-formedness of the target representation,
+  permits transport between insertion histories without changing their semantics. -/
+  | mapExt : Aligned C venv → C'.WF →
+      (∀ name, C.find? name = C'.find? name) → Aligned C' venv
 
 theorem Aligned.map_wf (H : Aligned safety C venv) : C.WF := by
   induction H with
-  | empty => exact .empty
+  | empty => exact .empty_stage _
   | ignoreConst _ h1 _ _ ih
   | const _ h1 _ _ _ ih => exact ih.insert _ _ h1
-  | defeq _ ih | pat _ ih => exact ih
+  | defeq _ ih | pat _ ih | projections _ ih => exact ih
   | block _ hfr hnd _ _ ih => exact insertConsts_wf ih hfr hnd
+  | mapExt _ htarget _ _ => exact htarget
 
 theorem Aligned.find?_iff (H : Aligned safety C venv) :
     (∃ ci, C.find? name = some ci ∧ safety ≤ ci.safety) ↔ ∃ ci, venv.constants name = some ci := by
   induction H with
-  | empty => simp [SMap.find?, VEnv.empty]
+  | empty => simp [VEnv.empty]
   | ignoreConst H _ h2 _ ih =>
     simp [H.map_wf.find?_insert]; split <;> [skip; assumption]
     rename_i eq1 eq2; subst eq2; simp [← ih, *]
@@ -74,6 +307,40 @@ theorem Aligned.find?_iff (H : Aligned safety C venv) :
       · obtain ⟨ci, hci, htr, hcn⟩ := hblk.forall_exists_r b hb
         refine ⟨ci, ?_, htr.1⟩
         rw [← hbn, ← hcn]; exact insertConsts_find?_self H.map_wf hfr hnd ci hci
+  | projections _ ih => simpa only [VEnv.addProjections_constants] using ih
+  | mapExt _ _ heq ih => simpa only [← heq] using ih
+
+/-- Every constant of an aligned constant map is stored under its own name. -/
+theorem Aligned.find?_name (H : Aligned safety C venv)
+    (h : C.find? name = some ci) : ci.name = name := by
+  induction H with
+  | empty => simp at h
+  | ignoreConst H _ _ hname ih =>
+    rw [H.map_wf.find?_insert] at h
+    split at h
+    · rename_i heq
+      cases h
+      rw [hname]
+      exact LawfulBEq.eq_of_beq heq
+    · exact ih h
+  | const H _ _ _ hname ih =>
+    rw [H.map_wf.find?_insert] at h
+    split at h
+    · rename_i heq
+      cases h
+      rw [hname]
+      exact LawfulBEq.eq_of_beq heq
+    · exact ih h
+  | defeq _ ih => exact ih h
+  | projections _ ih => exact ih h
+  | pat _ ih => exact ih h
+  | block H hfr hnd _ _ ih =>
+    rcases insertConsts_find? H.map_wf hfr hnd h with h | ⟨-, hn⟩
+    · exact ih h
+    · exact hn
+  | mapExt _ _ heq ih =>
+    rw [← heq] at h
+    exact ih h
 
 theorem Aligned.addQuot1 {Q : Prop}
     (H1 : ∀ c env, Aligned safety c env → P c env → Q)
@@ -260,7 +527,7 @@ theorem Aligned.find? (H : Aligned safety C venv)
       (∃ ci', env₂.constants name = some ci' ∧ TrConstant safety env₂ ci ci')
     | ⟨_, h1, h2⟩ => ⟨_, H.constants h1, h2.mono H⟩
   induction H with
-  | empty => simp [SMap.find?] at h
+  | empty => simp at h
   | ignoreConst h1 _ _ _ ih =>
     rw [h1.map_wf.find?_insert] at h; split at h
     · cases h; contradiction
@@ -282,12 +549,17 @@ theorem Aligned.find? (H : Aligned safety C venv)
       refine ⟨b.2, ?_, htr⟩
       rw [← hn, hbn, VEnv.addProjections_constants]
       exact VEnv.addConst_foldlM_find (nm := Prod.fst) (ci := Prod.snd) hfold b hb
+  | projections _ ih =>
+    rcases ih h with ⟨ci', hci', htr⟩
+    exact ⟨ci', by simpa only [VEnv.addProjections_constants] using hci',
+      htr.mono VEnv.addProjections_le⟩
+  | mapExt _ _ heq ih => rw [← heq] at h; exact ih h
 
 theorem Aligned.find?_uniq (H : Aligned safety C venv)
     (h : C.find? name = some ci) (hs : venv.constants name = some ci') :
     ci.name = name ∧ TrConstant safety venv ci ci' := by
   induction H with
-  | empty => simp [SMap.find?] at h
+  | empty => simp at h
   | ignoreConst H h2 h3 _ ih =>
     simp [H.map_wf.find?_insert] at h; split at h
     · rename_i n ci _ h'; subst n h'
@@ -317,6 +589,10 @@ theorem Aligned.find?_uniq (H : Aligned safety C venv)
       rw [← hbn, hn, hs] at this
       cases this
       exact ⟨hn, htr⟩
+  | projections _ ih =>
+    rcases ih h (by simpa only [VEnv.addProjections_constants] using hs) with ⟨hname, htr⟩
+    exact ⟨hname, htr.mono VEnv.addProjections_le⟩
+  | mapExt _ _ heq ih => rw [← heq] at h; exact ih h hs
 
 theorem TrEnv.find?_iff (H : TrEnv safety env venv) :
     (∃ ci, env.find? name = some ci ∧ safety ≤ ci.safety) ↔ ∃ ci, venv.constants name = some ci := by
@@ -375,7 +651,7 @@ theorem TrEnv'.of_value (H : TrEnv' safety C Q venv) (h : C.find? name = some ci
       C.find? name = some ci ∨ n = name ∧ ci' = ci := by
     rw [hC.find?_insert]; simp; split <;> simp +contextual [*]
   induction H with
-  | empty => simp [SMap.find?] at h
+  | empty => simp at h
   | ignore h1 h2 H ih =>
     obtain h | ⟨rfl, rfl⟩ := this H.map_wf h
     · exact ih h
@@ -440,6 +716,361 @@ nonrec theorem TrEnv.of_value (H : TrEnv safety env venv) (h : env.find? name = 
     TrExpr venv ci.levelParams [] v (.const ci.name (VLevel.params ci.levelParams.length)) :=
   H.of_value (by rwa [← H.map_wf.find?'_eq_find?]) hs hv
 
+/-- The fragment of `TrEnv` needed by the executable type checker. Unlike
+`TrEnv`, this invariant does not assert that the current kernel environment
+was assembled from complete declarations, so it can also describe the
+header and constructor environments used while checking an inductive block. -/
+structure CheckingEnv (safety : DefinitionSafety) (env : Environment) (venv : VEnv) : Prop where
+  aligned : Aligned safety env.constants venv
+  wf : venv.WF
+  of_value : env.find? name = some ci → safety ≤ ci.safety → ci.deltaValue? = some v →
+    TrExpr venv ci.levelParams [] v
+      (.const ci.name (VLevel.params ci.levelParams.length))
+
+theorem TrEnv.toChecking (H : TrEnv safety env venv) : CheckingEnv safety env venv where
+  aligned := H.aligned
+  wf := H.wf
+  of_value := H.of_value
+
+theorem CheckingEnv.map_wf (H : CheckingEnv safety env venv) : env.constants.WF :=
+  H.aligned.map_wf
+
+theorem CheckingEnv.find?_iff (H : CheckingEnv safety env venv) :
+    (∃ ci, env.find? name = some ci ∧ safety ≤ ci.safety) ↔
+      ∃ ci, venv.constants name = some ci := by
+  conv => enter [1,1,_,1,1]; apply H.map_wf.find?'_eq_find?
+  exact H.aligned.find?_iff
+
+theorem CheckingEnv.find? (H : CheckingEnv safety env venv)
+    (h : env.find? name = some ci) (hs : safety ≤ ci.safety) :
+    ∃ ci', venv.constants name = some ci' ∧ TrConstant safety venv ci ci' :=
+  H.aligned.find? (H.map_wf.find?'_eq_find? _ ▸ h) hs
+
+/-- Every constant of a checking environment is stored under its own name. -/
+theorem CheckingEnv.find?_name (H : CheckingEnv safety env venv)
+    (h : env.find? name = some ci) : ci.name = name :=
+  H.aligned.find?_name (H.map_wf.find?'_eq_find? _ ▸ h)
+
+theorem CheckingEnv.find?_uniq (H : CheckingEnv safety env venv)
+    (h : env.find? name = some ci) (hs : venv.constants name = some ci') :
+    ci.name = name ∧ TrConstant safety venv ci ci' :=
+  H.aligned.find?_uniq (H.map_wf.find?'_eq_find? _ ▸ h) hs
+
+open private Lean.Kernel.Environment.add from Lean.Environment
+
+/-- Extend a checking environment by a typed, non-delta constant. This is the
+operation used for temporary inductive headers, constructors, and recursors. -/
+theorem CheckingEnv.add (H : CheckingEnv safety env venv)
+    (hn : env.find? ci.name = none)
+    (htr : TrConstant safety venv ci ci')
+    (hci : ci'.WF venv)
+    (hadd : venv.addConst ci.name ci' = some venv')
+    (hdelta : ci.deltaValue? = none) :
+    CheckingEnv safety (env.add ci) venv' := by
+  have hn' : env.constants.find? ci.name = none := by
+    rw [Lean.Kernel.Environment.find?, H.map_wf.find?'_eq_find?] at hn
+    exact hn
+  refine {
+    aligned := H.aligned.const hn' htr hadd rfl
+    wf := ?_
+    of_value := ?_ }
+  · obtain ⟨ds, hds⟩ := H.wf
+    let vi : VConstVal := { ci' with name := ci.name }
+    exact ⟨_, hds.decl (.axiom (ci := vi) hci hadd)⟩
+  · intro name ci₀ value hfind hs hvalue
+    change (env.constants.insert ci.name ci).find?' name = some ci₀ at hfind
+    rw [(H.map_wf.insert _ _ hn').find?'_eq_find?, H.map_wf.find?_insert] at hfind
+    split at hfind
+    · cases hfind
+      rw [hdelta] at hvalue
+      contradiction
+    · have hold : env.find? name = some ci₀ := by
+        rw [Lean.Kernel.Environment.find?, H.map_wf.find?'_eq_find?]
+        exact hfind
+      exact (H.of_value hold hs hvalue).mono (VEnv.addConst_le hadd)
+
+/-- Adding a nonprimitive constant cannot change the metadata of any primitive
+looked up by the executable type checker. -/
+theorem CheckingEnv.safePrimitives_add (H : CheckingEnv safety env venv)
+    (hn : env.find? ci.name = none)
+    (hnprim : ¬ Kernel.Environment.primitives.contains ci.name)
+    (hsafe : ∀ {n ci}, env.find? n = some ci →
+      Kernel.Environment.primitives.contains n →
+      ci.safety = .safe ∧ ci.levelParams = []) :
+    ∀ {n ci₀}, (env.add ci).find? n = some ci₀ →
+      Kernel.Environment.primitives.contains n →
+      ci₀.safety = .safe ∧ ci₀.levelParams = [] := by
+  have hn' : env.constants.find? ci.name = none := by
+    rw [Lean.Kernel.Environment.find?, H.map_wf.find?'_eq_find?] at hn
+    exact hn
+  intro n ci₀ hfind hprim
+  change (env.constants.insert ci.name ci).find?' n = some ci₀ at hfind
+  rw [(H.map_wf.insert _ _ hn').find?'_eq_find?, H.map_wf.find?_insert] at hfind
+  split at hfind
+  · rename_i heq
+    have hname : ci.name = n := by simpa using heq
+    subst n
+    exact False.elim (hnprim hprim)
+  · apply hsafe (n := n) (ci := ci₀) _ hprim
+    rw [Lean.Kernel.Environment.find?, H.map_wf.find?'_eq_find?]
+    exact hfind
+
+/-! ## Recursor rules and quotient facts along the declaration history -/
+
+theorem insertDefs_find?_of_find? : ∀ {cis : List DefinitionVal} {C : ConstMap} {name ci}, C.WF →
+    (∀ d ∈ cis, C.find? d.name = none) → (cis.map (·.name)).Nodup →
+    C.find? name = some ci → (insertDefs C cis).find? name = some ci
+  | [], _, _, _, _, _, _, h => h
+  | d :: ds, C, name, ci, hC, hfr, hnd, h => by
+    simp only [List.map_cons, List.nodup_cons, List.mem_map] at hnd
+    have hfr' : ∀ e ∈ ds, (SMap.insert C d.name (.defnInfo d)).find? e.name = none := by
+      intro e he
+      rw [hC.find?_insert]
+      have : ¬ (d.name == e.name) = true := by
+        simp only [beq_iff_eq]; intro hh; exact hnd.1 ⟨e, he, hh.symm⟩
+      simp [this]; exact hfr e (.tail _ he)
+    show (insertDefs (SMap.insert C d.name (.defnInfo d)) ds).find? name = some ci
+    refine insertDefs_find?_of_find? (hC.insert _ _ (hfr _ (.head _))) hfr' hnd.2 ?_
+    rw [hC.find?_insert]
+    split
+    · rename_i hb; rw [beq_iff_eq] at hb; rw [← hb, hfr d (.head _)] at h; cases h
+    · exact h
+
+theorem insertDefs_find?_self : ∀ {cis : List DefinitionVal} {C : ConstMap} {d}, C.WF →
+    (∀ d ∈ cis, C.find? d.name = none) → (cis.map (·.name)).Nodup →
+    d ∈ cis → (insertDefs C cis).find? d.name = some (.defnInfo d)
+  | [], _, _, _, _, _, h => by cases h
+  | e :: ds, C, d, hC, hfr, hnd, h => by
+    simp only [List.map_cons, List.nodup_cons, List.mem_map] at hnd
+    have hfr' : ∀ f ∈ ds, (SMap.insert C e.name (.defnInfo e)).find? f.name = none := by
+      intro f hf
+      rw [hC.find?_insert]
+      have : ¬ (e.name == f.name) = true := by
+        simp only [beq_iff_eq]; intro hh; exact hnd.1 ⟨f, hf, hh.symm⟩
+      simp [this]; exact hfr f (.tail _ hf)
+    show (insertDefs (SMap.insert C e.name (.defnInfo e)) ds).find? d.name = some _
+    cases h with
+    | head =>
+      refine insertDefs_find?_of_find? (hC.insert _ _ (hfr _ (.head _))) hfr' hnd.2 ?_
+      rw [hC.find?_insert]; simp
+    | tail _ h =>
+      exact insertDefs_find?_self (hC.insert _ _ (hfr _ (.head _))) hfr' hnd.2 h
+
+/-- Lookup of a constant through the four quotient insertions. -/
+theorem AddQuot.find? (H : AddQuot C₁ C₂ venv₁ venv₂) (hwf : C₁.WF) :
+    C₁.find? ``Quot = none ∧
+    (∀ {n ci}, C₁.find? n = some ci → C₂.find? n = some ci) ∧
+    (∃ q : QuotVal, C₂.find? ``Quot = some (.quotInfo q) ∧ q.kind = .type) ∧
+    (∃ q : QuotVal, C₂.find? ``Quot.lift = some (.quotInfo q) ∧ q.kind = .lift) ∧
+    (∀ {n ci}, C₂.find? n = some ci → C₁.find? n = some ci ∨ ∃ q, ci = .quotInfo q) := by
+  obtain ⟨l1, t1, e1, -, f1, -, l2, t2, e2, -, f2, -, l3, t3, e3, -, f3, -, l4, t4, e4, -, f4, -,
+    hm, -⟩ := H
+  subst hm
+  have w1 := hwf.insert _ (.quotInfo ⟨⟨``Quot, l1, t1⟩, .type⟩) f1
+  have w2 := w1.insert _ (.quotInfo ⟨⟨``Quot.mk, l2, t2⟩, .ctor⟩) f2
+  have w3 := w2.insert _ (.quotInfo ⟨⟨``Quot.lift, l3, t3⟩, .lift⟩) f3
+  -- the intermediate freshness facts on the base map
+  have g2 : C₁.find? ``Quot.mk = none := by
+    rw [hwf.find?_insert] at f2; simpa using f2
+  have g3 : C₁.find? ``Quot.lift = none := by
+    rw [w1.find?_insert, hwf.find?_insert] at f3; simpa using f3
+  have g4 : C₁.find? ``Quot.ind = none := by
+    rw [w2.find?_insert, w1.find?_insert, hwf.find?_insert] at f4; simpa using f4
+  have look : ∀ n, ((((C₁.insert ``Quot (.quotInfo ⟨⟨``Quot, l1, t1⟩, .type⟩)).insert ``Quot.mk
+      (.quotInfo ⟨⟨``Quot.mk, l2, t2⟩, .ctor⟩)).insert ``Quot.lift
+      (.quotInfo ⟨⟨``Quot.lift, l3, t3⟩, .lift⟩)).insert ``Quot.ind
+      (.quotInfo ⟨⟨``Quot.ind, l4, t4⟩, .ind⟩)).find? n =
+      if ``Quot.ind = n then some (.quotInfo ⟨⟨``Quot.ind, l4, t4⟩, .ind⟩)
+      else if ``Quot.lift = n then some (.quotInfo ⟨⟨``Quot.lift, l3, t3⟩, .lift⟩)
+      else if ``Quot.mk = n then some (.quotInfo ⟨⟨``Quot.mk, l2, t2⟩, .ctor⟩)
+      else if ``Quot = n then some (.quotInfo ⟨⟨``Quot, l1, t1⟩, .type⟩)
+      else C₁.find? n := by
+    intro n
+    rw [w3.find?_insert, w2.find?_insert, w1.find?_insert, hwf.find?_insert]
+    simp only [beq_iff_eq]
+  refine ⟨f1, ?_, ?_, ?_, ?_⟩
+  · intro n ci h
+    rw [look]
+    split
+    · rename_i hb; subst hb; rw [g4] at h; cases h
+    split
+    · rename_i hb; subst hb; rw [g3] at h; cases h
+    split
+    · rename_i hb; subst hb; rw [g2] at h; cases h
+    split
+    · rename_i hb; subst hb; rw [f1] at h; cases h
+    exact h
+  · exact ⟨_, by rw [look, if_neg (by decide), if_neg (by decide), if_neg (by decide), if_pos rfl],
+      rfl⟩
+  · exact ⟨_, by rw [look, if_neg (by decide), if_pos rfl], rfl⟩
+  · intro n ci h
+    rw [look] at h
+    split at h
+    · exact .inr ⟨_, (Option.some.inj h).symm⟩
+    split at h
+    · exact .inr ⟨_, (Option.some.inj h).symm⟩
+    split at h
+    · exact .inr ⟨_, (Option.some.inj h).symm⟩
+    split at h
+    · exact .inr ⟨_, (Option.some.inj h).symm⟩
+    exact .inl h
+
+/-- The stored equations after quotient initialization. -/
+theorem AddQuot.defeqs (H : AddQuot C₁ C₂ venv₁ venv₂) :
+    ∀ df, venv₂.defeqs df → venv₁.defeqs df ∨ df = quotDefEq := by
+  obtain ⟨_, _, e1, -, -, h1, _, _, e2, -, -, h2, _, _, e3, -, -, h3, _, _, e4, -, -, h4, -, rfl⟩ :=
+    H
+  intro df hdf
+  rcases hdf with rfl | hdf
+  · exact .inr rfl
+  · rw [VEnv.addConst_defeqs h4, VEnv.addConst_defeqs h3, VEnv.addConst_defeqs h2,
+      VEnv.addConst_defeqs h1] at hdf
+    exact .inl hdf
+
+/-- The heads of the reduction rules along the translation: every stored equation is headed by
+a definition or by `Quot.lift`, and every registered pattern by a recursor of the map. -/
+theorem TrEnv'.equationHeads (H : TrEnv' safety C Q venv) : EquationHeadsCoherent C venv := by
+  induction H with
+  | empty => exact ⟨fun _ h => h.elim, fun _ _ h => h.elim⟩
+  | ignore h1 _ h3 ih => exact ih.insert h3.map_wf h1 (fun _ h => h) (fun _ _ h => h)
+  | «axiom» _ h2 _ h4 h5 ih =>
+    exact ih.insert h5.map_wf h2 (fun _ h => by rwa [VEnv.addConst_defeqs h4] at h)
+      (fun _ _ h => by rwa [VEnv.addConst_pats h4] at h)
+  | thm _ h2 _ _ h4 h5 ih =>
+    exact ih.insert h5.map_wf h2 (fun _ h => by rwa [VEnv.addConst_defeqs h4] at h)
+      (fun _ _ h => by rwa [VEnv.addConst_pats h4] at h)
+  | «opaque» _ h2 _ h4 h5 ih =>
+    exact ih.insert h5.map_wf h2 (fun _ h => by rwa [VEnv.addConst_defeqs h4] at h)
+      (fun _ _ h => by rwa [VEnv.addConst_pats h4] at h)
+  | @defn _ ci _ C _ ci' h1 h2 _ h4 h5 ih =>
+    have hname := h1.1.2
+    dsimp [ConstantInfo.name, ConstantInfo.toConstantVal, VDefVal.toVConstVal] at hname
+    refine (ih.insert h5.map_wf h2 (fun _ h => by rwa [VEnv.addConst_defeqs h4] at h)
+      (fun _ _ h => by rwa [VEnv.addConst_pats h4] at h)).addDefEq ?_
+    have hfind : (SMap.insert C ci.name (ConstantInfo.defnInfo ci)).find? ci'.name =
+        some (ConstantInfo.defnInfo ci) := by
+      rw [← hname, h5.map_wf.find?_insert, if_pos (beq_self_eq_true _)]
+    exact EquationHeadOf.ofDefn ⟨_, _, _, VDefVal.toDefEq_head _, hfind⟩
+  | @mutualDef _ _ C _ cis cis' hblk hnd hfr _ hadd _ htr ih =>
+    refine ih.extend (insertDefs_find?_of_find? htr.map_wf hfr hnd) ?_ ?_
+    · intro df hdf
+      rcases VEnv.addDefEqs_defeqs_iff.1 hdf with hdf | ⟨ci', hci', rfl⟩
+      · rw [VEnv.addConsts_defeqs hadd] at hdf; exact .inl hdf
+      · obtain ⟨ci, hci, htrc⟩ := Lean4Lean.List.Forall₂.forall_exists_r hblk ci' hci'
+        have hname := htrc.1.2
+        dsimp [ConstantInfo.name, ConstantInfo.toConstantVal, VDefVal.toVConstVal] at hname
+        have hfind : (insertDefs C cis).find? ci'.name = some (ConstantInfo.defnInfo ci) := by
+          rw [← hname]
+          exact insertDefs_find?_self htr.map_wf hfr hnd hci
+        exact .inr (EquationHeadOf.ofDefn ⟨_, _, _, VDefVal.toDefEq_head _, hfind⟩)
+    · intro p r hp
+      rw [VEnv.addDefEqs_pats, VEnv.addConsts_pats hadd] at hp
+      exact .inl hp
+  | quot _ hq htr ih =>
+    obtain ⟨-, hpres, -, ⟨q, hlift, hkind⟩, -⟩ := hq.find? htr.map_wf
+    refine ih.extend hpres ?_ ?_
+    · intro df hdf
+      rcases hq.defeqs df hdf with h | rfl
+      · exact .inl h
+      · exact .inr ⟨``Quot.lift, _, _, rfl, hlift, nofun, fun q' hq' => by
+          cases hq'; exact hkind⟩
+    · intro p r hp
+      rw [VEnv.addQuot_pats hq.to_addQuot] at hp
+      exact .inl hp
+  | induct hwf hadd htr ih =>
+    have wf := htr.map_wf
+    refine ih.extend (hadd.find?_mono wf) ?_ ?_
+    · intro df hdf
+      rw [VEnv.addInduct_defeqs hadd.env_eq] at hdf
+      exact .inl hdf
+    · intro p r hp
+      rcases VEnv.addInduct_pats_origin hadd.env_eq hp with h | ⟨rec, hrec, ru, hru, rfl⟩
+      · exact .inl h
+      · obtain ⟨rval, hrfind, -⟩ := hadd.rec_reg wf hwf hrec
+        exact .inr ⟨rval, by rw [SimplePattern.iota_headConst]; exact hrfind⟩
+
+theorem TrEnv.equationHeads (H : TrEnv safety env venv) :
+    EquationHeadsCoherent env.constants venv :=
+  TrEnv'.equationHeads H
+
+/-- Once quotients are initialized, the quotient constants and the `Quot.lift` equation are
+present and `Quot` is rigid. -/
+theorem TrEnv'.quotEnvCoherent (H : TrEnv' safety C Q venv) (hQ : Q = true) :
+    QuotEnvCoherent C venv := by
+  have pres_insert {C : ConstMap} {n ci} (hwf : C.WF) (hfresh : C.find? n = none) :
+      ∀ {m ci'}, C.find? m = some ci' → (C.insert n ci).find? m = some ci' :=
+    fun h => SMap.find?_insert_of_fresh hwf.map₂ hfresh h
+  induction H with
+  | empty => cases hQ
+  | ignore h1 h2 h3 ih =>
+    exact (ih hQ).extend (pres_insert h3.map_wf h1) VEnv.LE.rfl
+      (TrEnv'.ignore h1 h2 h3).equationHeads
+  | «axiom» h1 h2 h3 h4 h5 ih =>
+    exact (ih hQ).extend (pres_insert h5.map_wf h2) (VEnv.addConst_le h4)
+      (TrEnv'.axiom h1 h2 h3 h4 h5).equationHeads
+  | thm h1 h2 h3 h3' h4 h5 ih =>
+    exact (ih hQ).extend (pres_insert h5.map_wf h2) (VEnv.addConst_le h4)
+      (TrEnv'.thm h1 h2 h3 h3' h4 h5).equationHeads
+  | «opaque» h1 h2 h3 h4 h5 ih =>
+    exact (ih hQ).extend (pres_insert h5.map_wf h2) (VEnv.addConst_le h4)
+      (TrEnv'.opaque h1 h2 h3 h4 h5).equationHeads
+  | defn h1 h2 h3 h4 h5 ih =>
+    exact (ih hQ).extend (pres_insert h5.map_wf h2) ((VEnv.addConst_le h4).trans VEnv.addDefEq_le)
+      (TrEnv'.defn h1 h2 h3 h4 h5).equationHeads
+  | mutualDef hblk hnd hfr hwf hadd hci htr ih =>
+    exact (ih hQ).extend (insertDefs_find?_of_find? htr.map_wf hfr hnd)
+      ((VEnv.addConsts_le hadd).trans VEnv.addDefEqs_le)
+      (TrEnv'.mutualDef hblk hnd hfr hwf hadd hci htr).equationHeads
+  | quot h0 hq htr _ =>
+    obtain ⟨-, -, ⟨q, hq', hk⟩, -, -⟩ := hq.find? htr.map_wf
+    exact ⟨AddQuot.quotCoherent hq
+      ((TrEnv'.quot h0 hq htr).equationHeads.rigid_quot hq' hk), q, hq', hk⟩
+  | induct hwf hadd htr ih =>
+    exact (ih hQ).extend (hadd.find?_mono htr.map_wf) hadd.le
+      (TrEnv'.induct hwf hadd htr).equationHeads
+
+theorem TrEnv.quotEnvCoherent (H : TrEnv safety env venv) (hQ : env.quotInit = true) :
+    QuotEnvCoherent env.constants venv :=
+  TrEnv'.quotEnvCoherent H hQ
+
+structure CheckingEnv.ValidCore (safety : DefinitionSafety)
+    (env : Environment) (venv : VEnv) : Prop where
+  tr : CheckingEnv safety env venv
+  hasPrimitives : venv.HasPrimitives
+  safePrimitives : ∀ {n ci}, env.find? n = some ci →
+    Kernel.Environment.primitives.contains n →
+    ci.safety = .safe ∧ ci.levelParams = []
+
+theorem CheckingEnv.ValidCore.add (H : CheckingEnv.ValidCore safety env venv)
+    (hn : env.find? ci.name = none)
+    (hnprim : ¬ Kernel.Environment.primitives.contains ci.name)
+    (htr : TrConstant safety venv ci ci')
+    (hci : ci'.WF venv)
+    (hadd : venv.addConst ci.name ci' = some venv')
+    (hdelta : ci.deltaValue? = none) :
+    CheckingEnv.ValidCore safety (env.add ci) venv' where
+  tr := H.tr.add hn htr hci hadd hdelta
+  hasPrimitives := H.hasPrimitives.addConst_of_not_primitive hadd hnprim
+  safePrimitives := H.tr.safePrimitives_add hn hnprim H.safePrimitives
+
+theorem CheckingEnv.addProjections
+    (H : CheckingEnv safety env venv)
+    (hwf : (venv.addProjections entries).WF) :
+    CheckingEnv safety env (venv.addProjections entries) where
+  aligned := .projections H.aligned
+  wf := hwf
+  of_value := fun hfind hvisible hvalue =>
+    (H.of_value hfind hvisible hvalue).mono VEnv.addProjections_le
+
+
+theorem CheckingEnv.ValidCore.addProjections
+    (H : CheckingEnv.ValidCore safety env venv)
+    (hwf : (venv.addProjections entries).WF) :
+    CheckingEnv.ValidCore safety env (venv.addProjections entries) where
+  tr := H.tr.addProjections hwf
+  hasPrimitives := H.hasPrimitives.addProjections
+  safePrimitives := H.safePrimitives
+
 /-! ### Forward `find?` transport across fresh insertions
 
 A constant already resolvable stays resolvable, to the same value, across insertions of
@@ -492,7 +1123,7 @@ theorem TrEnv'.pats_iota' {safety : DefinitionSafety} {C : ConstMap} {Q : Bool}
         (SimplePattern.iotaRHS recName cName rval.numParams rval.numMotives rval.numMinors
           rval.numIndices cval.numParams rule.nfields rhs hc, .true) := by
   induction H with
-  | empty => simp [SMap.find?] at hrec
+  | empty => simp at hrec
   | ignore h1 h2 h3 ih =>
     rw [h3.map_wf.find?_insert] at hrec; split at hrec
     · injection hrec with hrec; subst hrec; exact absurd hsafe h2
@@ -706,7 +1337,7 @@ theorem TrEnv'.find?_induct {safety : DefinitionSafety} {C : ConstMap} {Q : Bool
       ∃ A : AddInduct safety C₀ env₀ decl C₁ env₁,
         ci ∈ AddInduct.consts A.ivals A.rvals ∧ ci.name = x := by
   induction H with
-  | empty => simp [SMap.find?] at h
+  | empty => simp at h
   | ignore _ h2 Hprev ih =>
     rw [Hprev.map_wf.find?_insert] at h; split at h
     · cases h; exact absurd hsafe h2

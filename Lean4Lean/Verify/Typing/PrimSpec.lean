@@ -66,6 +66,35 @@ theorem PrimSpec.Holds.addDefEq {env : VEnv} {s : PrimSpec} {n : Name}
   | reflectsBitwise => exact fun h => ⟨(H h).1, fun env'' hle => (H h).2 env'' (le.trans hle)⟩
   | stringOfList => intro _ h; obtain ⟨h1, h2, h3⟩ := H _ h; exact ⟨h1, h2.mono le, h3.mono le⟩
 
+-- WAVE 1B COMPAT: transport along an extension that keeps the spec's own lookup
+-- (`VEnv.HasPrimitives.addProjections`, used by the inductive installation stages).
+theorem PrimSpec.Holds.extend {env env' : VEnv} {s : PrimSpec} {n : Name}
+    (H : s.Holds env n) (le : env ≤ env')
+    (same : env'.constants n = env.constants n) : s.Holds env' n := by
+  have old : env'.contains n → env.contains n := fun ⟨_, h⟩ => ⟨_, same ▸ h⟩
+  have new {m} : env.contains m → env'.contains m := fun ⟨_, h⟩ => ⟨_, le.constants h⟩
+  cases s with
+  | containsImplies ns => exact fun h m hm => new (H (old h) m hm)
+  | typeEq => exact fun _ h => H _ (same ▸ h)
+  | reflectsNatNat =>
+    exact fun h => ⟨(H (old h)).1.mono le, fun a => ((H (old h)).2 a).mono le⟩
+  | reflectsNatNatNat =>
+    exact fun h => ⟨(H (old h)).1.mono le, fun a b => ((H (old h)).2 a b).mono le⟩
+  | reflectsNatNatBool =>
+    exact fun h => ⟨(H (old h)).1.mono le, fun a b => ((H (old h)).2 a b).mono le⟩
+  | reflectsBitwise =>
+    exact fun h => ⟨fun _ hc => (H (old h)).1 _ (same ▸ hc),
+      fun env'' hle => (H (old h)).2 env'' (le.trans hle)⟩
+  | stringOfList =>
+    intro _ h
+    obtain ⟨h1, h2, h3⟩ := H _ (same ▸ h)
+    exact ⟨h1, h2.mono le, h3.mono le⟩
+
+-- WAVE 1B COMPAT
+theorem PrimSpec.Holds.addProjections {env : VEnv} {s : PrimSpec} {n : Name}
+    (H : s.Holds env n) : s.Holds (env.addProjections entries) n :=
+  H.extend VEnv.addProjections_le (by simp)
+
 /-- The single environment-extension theorem for `HasPrimitives`. Every spec whose name differs
 from the one being added transfers by monotonicity; the one that matches -- at most one, since
 `primSpecs` is keyed by name -- is the caller's obligation. Adding a non-primitive discharges it
@@ -121,6 +150,17 @@ theorem VEnv.HasPrimitives.addConst {env env' : VEnv} (H : env.HasPrimitives)
 
 theorem VEnv.HasPrimitives.addDefEq {env : VEnv} (H : env.HasPrimitives) :
     (env.addDefEq df).HasPrimitives := fun p hp => (H p hp).addDefEq
+
+-- WAVE 1B COMPAT
+theorem VEnv.HasPrimitives.addProjections {env : VEnv} (H : env.HasPrimitives) :
+    (env.addProjections entries).HasPrimitives :=
+  fun p hp => (H p hp).addProjections
+
+-- WAVE 1B COMPAT
+theorem VEnv.HasPrimitives.addConst_of_not_primitive {env env' : VEnv}
+    (h : env.HasPrimitives) (hadd : env.addConst n ci = some env')
+    (hn : ¬ Environment.primitives.contains n) : env'.HasPrimitives :=
+  h.addConst (by simpa using hn) hadd
 
 
 end Lean4Lean
