@@ -9,9 +9,8 @@ environment) and the resulting `WhnfPreservesParamUniform`. The generic lemmas a
 
 Present so far: the lookups of the recursor pass's environment (`LoweredView.ctorEnv_find_cases`,
 `fresh_familyNames`), the head set `NestedRun.uniformHeads`, and the run-environment lemmas that
-read only `NestedRun`. Pending on Restoration-B's `NestedRun.auxHeadsFacts` inputs
-(`ContainerSpecializations`) and `restorationTablesRestoring`: `NestedRun.ctorTypes_headType`,
-`generatedFamilyType_forall`, `uniformHeads_fresh`, `familyType_headType`, `envParamUniform`.
+read only `NestedRun`. The parts that read `NestedRun.auxHeadsFacts` (`envParamUniform`,
+`whnfPreservesParamUniform`, `recursorParamUniform_of_wfCore`, ...) are in `Uniform/RunEnv.lean`.
 The source's `LoweredRun.nonprimitive_familyNames` is `LoweredView.Nonprimitive`, which a
 nested run supplies as `NestedRun.loweredNonprimitive`. -/
 
