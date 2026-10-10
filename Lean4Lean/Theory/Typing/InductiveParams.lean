@@ -1,4 +1,3 @@
-import Lean4Lean.Theory.Typing.ChurchRosser
 import Lean4Lean.Theory.Typing.PatsIota
 
 namespace Lean4Lean
@@ -7,16 +6,23 @@ namespace VEnv
 open VExpr
 
 /-!
-# A concrete `Params` instance from `env.pats`
+# Non-overlap of the registered ι rules
 
-`VEnv.toParams` instantiates `ChurchRosser`'s abstract pattern-reduction relation
-`Params.Pat` with the environment's own registered ι rules `env.pats`. Its engine is the
-population invariant `VEnv.PatsIota`: every registered pattern is a `SimplePattern.iota`
-redex whose recursor head is a registered `RecHeaded` constant of a spine arity fixed by
-the recursor name, whose constructor is a registered `CtorHeaded` constant, and whose
-reduct is determined by the pattern. The invariant comes from `VInductDecl.WF` and the
-stage lemmas of `addInduct`, and discharges every `Params` side condition except
-`extra_pat`, which `toParams` takes as the hypothesis `VEnv.DefEqsAsPats`.
+The syntactic facts about `env.pats` that the confluence engine's `Params`
+(`Theory/Typing/ChurchRosser.lean`) asks of its pattern relation: every registered pattern is
+a `SimplePattern.iota` redex (`WF.pat_simple`), two registered redexes that intersect agree
+(`WF.pat_uniq`), and a redex has no nested application subpattern (`WF.pat_app_l`,
+`WF.pat_app_l_uniq`, `WF.pat_app_uniq`). Their engine is the population invariant
+`VEnv.PatsIota`: every registered pattern is a `SimplePattern.iota` redex whose recursor head
+is a registered `RecHeaded` constant of a spine arity fixed by the recursor name, whose
+constructor is a registered `CtorHeaded` constant, and whose reduct is determined by the
+pattern. The invariant comes from `VInductDecl.WF` and the stage lemmas of `addInduct`.
+
+PR #43's `toParams`/`DefEqsAsPats`/`inductParams`/`crDefEq_of_induct` (the small-environment
+`Params` instance, for environments without definitions or the quotient) are superseded by
+`VEnv.WF.church_rosser` (`Theory/Typing/Confluence/WFParams.lean`), the instance for every
+well-formed environment with canonical `Eq`; the lemmas below feed its pattern table
+(`ConcretePattern`, `Theory/Typing/Confluence/Patterns.lean`).
 -/
 
 /-! ### Combinatorics of ι redexes -/
@@ -168,86 +174,6 @@ theorem WF.pat_app_uniq {env : VEnv} (H : env.WF) {p r p' r' p₁ p₂ p₁' p�
   | some q =>
     obtain ⟨rfl, -, -⟩ := Pattern.varN_const_inter hinter
     exact absurd rfl (HI.rec_ne_ctor hp hp')
-
-/-- Every registered definitional equation is realised by a registered pattern: the
-content of `Params.extra_pat`, stated verbatim for `env.pats` (in particular the level
-bound `uvars` of the instantiating levels is arbitrary there, as in the class field).
-
-This is a **design hypothesis** of `toParams`, inherited from `Params`, not a deferred proof.
-`ChurchRosser`'s `Params` reads every `defeqs` entry as realised by a `Pat` rule, while in
-this model the δ rules of definitions (`VDecl.WF.def`/`mutualDef`) and the quotient rule
-(`VDecl.WF.quot`) are definitional axioms in `defeqs` and are not registered as `pats`:
-`pats` holds the ι rules, whose reducts have the computational shape `VEnv.PatWF` asks of a
-reduction rule, whereas a δ reduct is the definition's closed body, of arbitrary shape, and
-the quotient rule's redex `Quot.lift f h (Quot.mk r a)` is written under binders that no
-`SimplePattern` matches (`SimplePattern.defn` is unused). `DefEqsAsPats` therefore holds of
-an environment built from axioms and inductives only and fails for any environment containing
-a `def` or `quot`; `toParams` is a `Params` instance exactly for the environments that satisfy
-it; discharging `extra_pat` for the δ and quotient rules is the remaining gap between
-`Params` and `VDecl.WF`.
-
-`DefEqsAsPats.of_no_defeqs` gives the vacuous case, and `inductParams` the resulting
-instance for an environment consisting of one inductive block. -/
-def DefEqsAsPats (env : VEnv) (U : Nat) : Prop :=
-  ∀ {df : VDefEq} {ls : List VLevel} {uvars : Nat} {Γ : List VExpr},
-    env.defeqs df → (∀ l ∈ ls, l.WF uvars) → ls.length = df.uvars →
-    ∃ (p : Pattern) (r : p.RHS × p.Check) (m1 : List VLevel) (m2 : p.Path → VExpr),
-      env.pats p r ∧ p.Matches (df.lhs.instL ls) m1 m2 ∧
-      r.2.OK (env.IsDefEqU U Γ) m1 m2 ∧ df.rhs.instL ls = r.1.apply m1 m2
-
-/-- The `Params` structure induced by a well-formed environment `env`, taking the
-abstract reduction relation `Pat` to be `env.pats`. Five side conditions are
-discharged from `VEnv.PatsIota`; `pat_wf` is `IsDefEq.pat` (recovering a `Realizes`
-witness from `Check.OK`); `pat_env` is the identity; `extra_pat` is the design hypothesis
-`hδ : env.DefEqsAsPats U` (see `DefEqsAsPats`). `inductParams` instantiates it, and
-`IsDefEq.crDefEq_of_induct` runs Church–Rosser through the result. -/
-@[reducible] def toParams (env : VEnv) (henv : env.WF) (U : Nat) (hδ : env.DefEqsAsPats U)
-    (hproj : ∀ n info, ¬ env.projections n info) : Params where
-  env := env
-  henv := henv
-  univs := U
-  Pat := env.pats
-  pat_simple := fun hp => henv.pat_simple hp
-  pat_uniq := fun h1 h2 hs hi => henv.pat_uniq h1 h2 hs hi
-  pat_wf := fun {_ _ _ _ _ Γ A} hpat hmatch hty hok =>
-    let ⟨_, hr, hall⟩ := hok.exists_realizer (rel := fun a b t => IsDefEq env U Γ a b t)
-    ⟨A, IsDefEq.pat hpat hmatch hty hr hall⟩
-  pat_app_l := fun hp hs => henv.pat_app_l hp hs
-  pat_app_l_uniq := fun hp hp' hs hs' hv => henv.pat_app_l_uniq hp hp' hs hs' hv
-  pat_app_uniq := fun hp hp' hs hs' h3 h3' => henv.pat_app_uniq hp hp' hs hs' h3 h3'
-  extra_pat := fun h1 h2 h3 => hδ h1 h2 h3
-  pat_env := id
-  no_projections := hproj
-
-/-! ### An environment the instance applies to -/
-
-/-- An environment with no definitional axiom satisfies `DefEqsAsPats` vacuously. -/
-theorem DefEqsAsPats.of_no_defeqs {env : VEnv} {U : Nat} (h : ∀ df, ¬ env.defeqs df) :
-    env.DefEqsAsPats U := fun hdf _ _ => absurd hdf (h _)
-
-/-- The `Params` instance for an environment consisting of a single well-formed inductive
-block without structures (`hp`: no projection entries, i.e. no family with exactly one
-constructor): `addInduct` registers ι rules and no definitional axiom (`addInduct_defeqs`), so
-`DefEqsAsPats` holds vacuously, and no projection, so `no_projections` holds, and `toParams`
-applies. -/
-@[reducible] def inductParams {decl : VInductDecl} {env : VEnv} (hdecl : decl.WF ∅)
-    (h : VEnv.addInduct ∅ decl = some env) (hp : decl.projectionEntries = []) (U : Nat) :
-    Params :=
-  env.toParams ⟨[.induct decl], .decl (.induct hdecl h) .empty⟩ U
-    (DefEqsAsPats.of_no_defeqs fun _ hdf => by rw [addInduct_defeqs h] at hdf; exact hdf)
-    fun n info hi => by
-      rcases (addInduct_projections_iff h).1 hi with ⟨entry, he, -⟩ | h0
-      · rw [hp] at he; cases he
-      · exact h0.elim
-
-/-- Church–Rosser for such an environment: definitionally equal terms have parallel
-reduction sequences meeting at `NormalEq` terms. -/
-theorem IsDefEq.crDefEq_of_induct {decl : VInductDecl} {env : VEnv} (hdecl : decl.WF ∅)
-    (h : VEnv.addInduct ∅ decl = some env) (hp : decl.projectionEntries = []) {U Γ e₁ e₂ A}
-    (hΓ : OnCtx Γ (env.IsType U)) (he : env.IsDefEq U Γ e₁ e₂ A) :
-    @CRDefEq (inductParams hdecl h hp U) Γ e₁ e₂ :=
-  letI := inductParams hdecl h hp U
-  IsDefEq.church_rosser hΓ he
 
 end VEnv
 end Lean4Lean

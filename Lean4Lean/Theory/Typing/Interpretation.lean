@@ -200,6 +200,7 @@ def RHS.FixedTermsFixed (I : VEnv.Interpretation) {p : Pattern} : p.RHS → Prop
 def Check.FixedTermsFixed (I : VEnv.Interpretation) {p : Pattern} : p.Check → Prop
   | .true => True
   | .defeq a b rest => a.FixedTermsFixed I ∧ b.FixedTermsFixed I ∧ rest.FixedTermsFixed I
+  | .nonzero _ rest => rest.FixedTermsFixed I -- WAVE 4 COMPAT
 
 theorem Matches.interpret {I : VEnv.Interpretation} {p : Pattern} {e : VExpr} {m1 : List VLevel}
     {m2 : p.Path → VExpr} (hp : p.ConstsFixed I) (H : p.Matches e m1 m2) :
@@ -242,6 +243,7 @@ theorem Check.Realizes.interpret {I : VEnv.Interpretation} {p : Pattern} {m1 : L
   | .true, [], _, _ => trivial
   | .true, _ :: _, _, h => h.elim
   | .defeq _ _ _, [], _, h => h.elim
+  | .nonzero _ _, _, _, h => h.elim -- WAVE 4 COMPAT
   | .defeq a b rest, t :: ts, hck, ⟨h1, h2, h3⟩ => by
     refine ⟨?_, ?_, Check.Realizes.interpret hck.2.2 h3⟩
     · simp only [List.map_cons]; rw [h1, RHS.apply_interpret hck.1]
