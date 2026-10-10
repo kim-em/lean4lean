@@ -26,22 +26,18 @@ open InductiveSignature
 
 namespace InductiveSignature
 
-/-- **Stub (restB).** The registered ι rules of a well-formed environment are fixed by the
-restoration interpretation (projection owners renamed) when the restorable names are fresh
-there: the companion of `VEnv.WF.pats_fixed_of_restorableFresh` (`SourceConstructors.lean`,
-for `Restoration.constInterpretation`), with the same gap (wave 1A's
-`VEnv.Ordered.patsAvoidFreshConsts`). The source branch discharged the corresponding clause
-for its case eliminators (`eliminatorsAvoidConsts` and the registered projection names of
-their templates). The fixed terms of a reduct must also project out of no restorable name,
-which holds for the projections registered in the environment (`baseProjection_not_restorable`). -/
+/-- The registered ι rules of a well-formed environment are fixed by the restoration
+interpretation (projection owners renamed) when the restorable names are fresh there
+(`VEnv.WF.pats_fixed_of_avoid`). -/
 theorem _root_.Lean4Lean.VEnv.WF.pats_interpretation_fixed_of_restorableFresh {env : VEnv}
     (henv : env.WF) {r : Restoration} {P : List VExpr}
     (hfresh : ∀ name ∈ r.restorableNames, env.constants name = none) :
     ∀ p rr, env.pats p rr → p.ConstsFixed (r.interpretation P) ∧
       rr.1.FixedTermsFixed (r.interpretation P) ∧
       rr.2.FixedTermsFixed (r.interpretation P) := by
-  -- WAVE 3 STUB (restB): see the docstring.
-  have := henv; have := hfresh; sorry
+  exact henv.pats_fixed_of_avoid hfresh
+    (fun _ hc => Restoration.lambdaReplacement_eq_none_of_not_restorable hc)
+    (fun _ hc => Restoration.renaming_eq_self hc) (fun _ hc => Restoration.renaming_eq_self hc)
 
 end InductiveSignature
 

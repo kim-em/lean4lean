@@ -1,6 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceConstructorTypes
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ExpansionInverse
-import Lean4Lean.Verify.Inductive.Nested.Restoration.LevelsRun
+import Lean4Lean.Verify.Inductive.Nested.Restoration.Levels
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AuxiliaryHeaders
 import Lean4Lean.Std.List
 
