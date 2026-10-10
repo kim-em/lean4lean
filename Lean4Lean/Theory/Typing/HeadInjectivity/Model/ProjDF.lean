@@ -86,7 +86,7 @@ theorem famTy_inv {σ : VExpr.Subst} {S0 : ObSets} {S : Name} {ls : List VLevel}
       hshape, hlt, hchain, hkb, hτk, hty, hx⟩ |
     ⟨_, _, _, keys', _, _, _, _, _, _, he, _⟩
   · obtain ⟨-, rfl⟩ := wrap_inj he notApp_fieldTy hr.notApp
-    rcases hr with ⟨_, h⟩ | ⟨_, _, h⟩ <;> cases h
+    rcases hr with ⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩ <;> cases h
   · exact absurd (by rw [hlhs]; rfl) (hrig.defeqs df hdf (VLevel.params df.uvars))
   · obtain ⟨-, rfl⟩ := wrap_inj he notApp_fieldTy (by
       rcases hr with h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩ <;> (subst h; trivial))
@@ -127,7 +127,7 @@ theorem famDom_inv {σ : VExpr.Subst} {S0 : ObSets} {S : Name} {ls : List VLevel
     ⟨ci, info, τs, keys', j', FL', D', Dc, R0, as, he, _, _, hp, hnz, _, _, hl, hj, hFL,
       hshape, hlt, hchain, hD⟩
   · obtain ⟨-, rfl⟩ := wrap_inj he notApp_fieldDom hr.notApp
-    rcases hr with ⟨_, h⟩ | ⟨_, _, h⟩ <;> cases h
+    rcases hr with ⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩ <;> cases h
   · exact absurd (by rw [hlhs]; rfl) (hrig.defeqs df hdf (VLevel.params df.uvars))
   · obtain ⟨-, rfl⟩ := wrap_inj he notApp_fieldDom (by
       rcases hr with h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩ <;> (subst h; trivial))

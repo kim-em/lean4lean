@@ -124,8 +124,9 @@ theorem quot_C_level (hq : QuotConsts env) (hrigQ : env.Rigid ``Quot) {keys : Li
   · obtain ⟨rfl, rfl⟩ := wrap_inj e trivial hr.notApp
     cases hq.1.symm.trans hci
     have hlen : keys'.length = 2 := by
-      rcases hr with ⟨_, h⟩ | ⟨_, _, h⟩
+      rcases hr with ⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩
       · injection h with _ _ h; exact h.symm
+      · cases h
       · cases h
     obtain ⟨τc, _, hτc, hty'⟩ := chain_terminal_sort (ds := [.sort ((VLevel.param 0).inst ls),
         .forallE (.bvar 0) (.forallE (.bvar 1) (.sort .zero))]) (w := (VLevel.param 0).inst ls)

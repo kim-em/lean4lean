@@ -1086,7 +1086,7 @@ theorem backed (h : Obs' σ S t o) (hS : ∀ i, Backed (S i)) : ∀ w ∈ o.wit,
   | const h0 h1 h2 h3 h4 =>
     intro w hw
     obtain ⟨w', hw', rfl⟩ := mem_wit_wrap.1 hw
-    rcases h4 with ⟨_, rfl⟩ | ⟨_, _, rfl⟩ <;> simp [Ob.wit] at hw'
+    rcases h4 with ⟨_, rfl⟩ | ⟨_, _, rfl⟩ | ⟨_, _, _, _, rfl⟩ <;> simp [Ob.wit] at hw'
   | delta h1 h2 h3 h4 h5 _ _ ih6 =>
     intro w hw
     exact .delta h1 h2 h3 h4 (h5.wit w hw) (ih6 (fun _ _ h => nomatch h) w hw)
