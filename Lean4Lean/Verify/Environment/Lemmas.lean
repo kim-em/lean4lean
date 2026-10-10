@@ -23,13 +23,16 @@ inductive Aligned : ConstMap → VEnv → Prop where
   matching constants `l`, and each constant translates in the model environment holding
   the whole block — the types of a block's recursors mention all of its type formers and
   constructors, so a nested mutual block, which the kernel inserts type by type, cannot
-  be aligned one constant at a time. -/
-  | block {cis : List ConstantInfo} {l : List (Name × VConstant)} :
+  be aligned one constant at a time. The block's projection entries `es` (which add no
+  constant) are registered with it, since the recursor types are translated where the
+  block's structures already have their projections. -/
+  | block {cis : List ConstantInfo} {l : List (Name × VConstant)} {es : List VProjectionEntry} :
     Aligned C venv →
     (∀ ci ∈ cis, C.find? ci.name = none) → (cis.map (·.name)).Nodup →
-    List.Forall₂ (fun ci b => TrConstant safety venv' ci b.2 ∧ ci.name = b.1) cis l →
+    List.Forall₂ (fun ci b => TrConstant safety (venv'.addProjections es) ci b.2 ∧ ci.name = b.1)
+      cis l →
     l.foldlM (fun (e : VEnv) b => e.addConst b.1 b.2) venv = some venv' →
-    Aligned (insertConsts C cis) venv'
+    Aligned (insertConsts C cis) (venv'.addProjections es)
 
 theorem Aligned.map_wf (H : Aligned safety C venv) : C.WF := by
   induction H with
@@ -52,6 +55,7 @@ theorem Aligned.find?_iff (H : Aligned safety C venv) :
     split <;> simp_all; exact h2.1
   | defeq _ ih | pat _ ih => exact ih
   | block H hfr hnd hblk hfold ih =>
+    simp only [VEnv.addProjections_constants]
     constructor
     · rintro ⟨ci, hci, hs⟩
       rcases insertConsts_find? H.map_wf hfr hnd hci with h | ⟨hmem, hn⟩
@@ -95,12 +99,13 @@ theorem Aligned.addRules {decl : VInductDecl} (h : Aligned safety C venv)
 
 /-- Adding an inductive block keeps `Aligned`: the constant stages form one `Aligned.block`
 step — the kernel inserts the block's constants in `H.order`, the model in stage order
-(`VInductDecl.consts`, which `addTypesCtorsRecs` folds over), and an `addConst` fold does
+(`VInductDecl.consts`, which `addTypesCtorsProjsRecs` folds over before the projection stage), and an `addConst` fold does
 not depend on its order (`VEnv.addConst_foldlM_perm`); each constant translates in the
 environment holding the whole block (`H.envR`). The ι-rule stage is `Aligned.addRules`. -/
 theorem Aligned.addInduct (H : AddInduct safety C₁ venv₁ decl C₂ venv₂)
     (h : Aligned safety C₁ venv₁) : Aligned safety C₂ venv₂ := by
-  have leT : H.envT ≤ H.envR := (VEnv.addCtors_le H.stC).trans (VEnv.addRecs_le H.stR)
+  have leT : H.envT ≤ H.envR :=
+    (VEnv.addCtors_le H.stC).trans (VEnv.addProjs_le.trans (VEnv.addRecs_le H.stR))
   -- the block's constants, kernel side and model side, matched by kind
   have hpair : List.Forall₂ (fun ci (b : Name × VConstant) =>
       TrConstant safety H.envR ci b.2 ∧ ci.name = b.1)
@@ -114,15 +119,26 @@ theorem Aligned.addInduct (H : AddInduct safety C₁ venv₁ decl C₂ venv₂)
       exact (List.Forall₂.flatMap (fun _ _ ht => ht.ctors) H.types).imp fun _ _ hc =>
         ⟨hc.1.1.mono leT, hc.1.2⟩
     · rw [List.forall₂_map_left_iff, List.forall₂_map_right_iff]
-      exact H.recs.imp fun _ _ hr => ⟨hr.tr.1.mono (VEnv.addRecs_le H.stR), hr.tr.2⟩
+      exact H.recs.imp fun _ _ hr =>
+        ⟨hr.tr.1.mono (VEnv.addProjs_le.trans (VEnv.addRecs_le H.stR)), hr.tr.2⟩
+  -- the constant stages are one fold, followed by the projection stage
+  have hR := H.addTypesCtorsProjsRecs
+  rw [VInductDecl.addTypesCtorsProjsRecs_eq] at hR
+  obtain ⟨envF, hF, hFR⟩ := Option.map_eq_some_iff.1 hR
   -- the same matching, in the kernel's insertion order
   obtain ⟨l', hl', hpair'⟩ := List.Forall₂.perm_left H.order_perm hpair
-  have hfold : l'.foldlM (fun (e : VEnv) b => e.addConst b.1 b.2) venv₁ = some H.envR := by
-    have := H.addTypesCtorsRecs
-    rw [VInductDecl.addTypesCtorsRecs_eq] at this
-    exact VEnv.addConst_foldlM_perm (nm := Prod.fst) (ci := Prod.snd) hl'.symm this
+  have hfold : l'.foldlM (fun (e : VEnv) b => e.addConst b.1 b.2) venv₁ = some envF :=
+    VEnv.addConst_foldlM_perm (nm := Prod.fst) (ci := Prod.snd) hl'.symm hF
   rw [H.map_eq]
-  exact (h.block H.order_fresh H.order_nodup hpair' hfold).addRules H.stP
+  have hpair'' : List.Forall₂ (fun ci (b : Name × VConstant) =>
+      TrConstant safety (envF.addProjections decl.projectionEntries) ci b.2 ∧ ci.name = b.1)
+      H.order l' := by
+    have : envF.addProjections decl.projectionEntries = H.envR := hFR
+    rw [this]; exact hpair'
+  have hA := h.block H.order_fresh H.order_nodup hpair'' hfold
+  have : envF.addProjections decl.projectionEntries = H.envR := hFR
+  rw [this] at hA
+  exact hA.addRules H.stP
 
 theorem Aligned.addDefEqs {C : ConstMap} : ∀ {cis' : List VDefVal} {venv},
     Aligned safety C venv → Aligned safety C (venv.addDefEqs cis')
@@ -260,10 +276,11 @@ theorem Aligned.find? (H : Aligned safety C venv)
   | pat h1 ih => let ⟨_, h1, h2⟩ := ih h; exact ⟨_, h1, h2.mono VEnv.addPat_le⟩
   | block H hfr hnd hblk hfold ih =>
     rcases insertConsts_find? H.map_wf hfr hnd h with h' | ⟨hmem, hn⟩
-    · exact mono (VEnv.foldlM_le (fun hh => VEnv.addConst_le hh) hfold) (ih h')
+    · exact mono ((VEnv.foldlM_le (fun hh => VEnv.addConst_le hh) hfold).trans
+        VEnv.addProjections_le) (ih h')
     · obtain ⟨b, hb, htr, hbn⟩ := hblk.forall_exists_l ci hmem
       refine ⟨b.2, ?_, htr⟩
-      rw [← hn, hbn]
+      rw [← hn, hbn, VEnv.addProjections_constants]
       exact VEnv.addConst_foldlM_find (nm := Prod.fst) (ci := Prod.snd) hfold b hb
 
 theorem Aligned.find?_uniq (H : Aligned safety C venv)
@@ -285,11 +302,13 @@ theorem Aligned.find?_uniq (H : Aligned safety C venv)
   | defeq h1 ih => let ⟨h1, h2⟩ := ih h hs; exact ⟨h1, h2.mono VEnv.addDefEq_le⟩
   | pat h1 ih => let ⟨h1, h2⟩ := ih h hs; exact ⟨h1, h2.mono VEnv.addPat_le⟩
   | block H hfr hnd hblk hfold ih =>
+    rw [VEnv.addProjections_constants] at hs
     rcases insertConsts_find? H.map_wf hfr hnd h with h' | ⟨hmem, hn⟩
     · rcases VEnv.addConst_foldlM_constants_inv (nm := Prod.fst) (ci := Prod.snd) hfold hs
         with hs' | ⟨b, hb, hbn, -⟩
       · obtain ⟨h1, h2⟩ := ih h' hs'
-        exact ⟨h1, h2.mono (VEnv.foldlM_le (fun hh => VEnv.addConst_le hh) hfold)⟩
+        exact ⟨h1, h2.mono ((VEnv.foldlM_le (fun hh => VEnv.addConst_le hh) hfold).trans
+          VEnv.addProjections_le)⟩
       · exfalso
         obtain ⟨d, hd, -, hdn⟩ := hblk.forall_exists_r b hb
         have := hfr d hd; rw [hdn, hbn, h'] at this; cases this

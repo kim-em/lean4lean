@@ -67,6 +67,10 @@ theorem VLCtx.WF.fvwf : ∀ {Δ}, VLCtx.WF env U Δ → Δ.FVWF
 
 def TrProj : ∀ (Γ : List VExpr) (structName : Name) (idx : Nat) (e : VExpr), VExpr → Prop := sorry
 
+-- WAVE 1B COMPAT: wave 0 dropped `VEnv.contains` from `Theory/VEnv.lean`; restored here
+-- until wave 1A decides where it lives.
+def VEnv.contains (env : VEnv) (name : Name) := ∃ ci, env.constants name = some ci
+
 def VEnv.ContainsLits (env : VEnv) : Literal → Prop
   | .natVal _ => env.contains ``Nat
   | .strVal _ => env.contains ``Char.ofNat ∧ env.contains ``String.ofList

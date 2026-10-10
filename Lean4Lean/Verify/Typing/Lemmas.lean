@@ -3,6 +3,8 @@ import Lean4Lean.Verify.Typing.Expr
 import Lean4Lean.Verify.Expr
 import Lean4Lean.Theory.Typing.Strong
 import Lean4Lean.Theory.Typing.UniqueTyping
+-- WAVE 1B COMPAT: `IsDefEqU.forallE_inv` lives in `Injectivity.lean` after wave 0.
+import Lean4Lean.Theory.Typing.Injectivity
 import Lean4Lean.Instantiate
 
 namespace Lean4Lean

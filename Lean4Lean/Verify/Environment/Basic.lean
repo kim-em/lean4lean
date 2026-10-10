@@ -265,7 +265,8 @@ structure AddInduct (safety : DefinitionSafety) (m₁ : ConstMap) (env₁ : VEnv
   envR : VEnv
   stT : decl.addTypes env₁ = some envT
   stC : decl.addCtors envT = some envC
-  stR : decl.addRecs envC = some envR
+  /-- The recursors are added after the (total) projection stage `addProjs`. -/
+  stR : decl.addRecs (decl.addProjs envC) = some envR
   stP : decl.addRules envR = some env₂
   types : List.Forall₂ (fun iv t => TrIndType safety env₁ envT iv.1 iv.2 t) ivals decl.types
   recs : List.Forall₂ (TrRecursor safety envC envR m₂) rvals decl.recs
@@ -279,17 +280,24 @@ namespace AddInduct
 
 variable {safety : DefinitionSafety} {m₁ m₂ : ConstMap} {env₁ env₂ : VEnv} {decl : VInductDecl}
 
-theorem env_eq (H : AddInduct safety m₁ env₁ decl m₂ env₂) : env₁.addInduct decl = some env₂ := by
-  rw [VEnv.addInduct, VInductDecl.addTypesCtorsRecs, VInductDecl.addTypesCtors, H.stT]
-  simp [H.stC, H.stR, H.stP]
+/-- The projection-stage environment: the constructor stage with the block's projection
+entries registered. -/
+def envP (H : AddInduct safety m₁ env₁ decl m₂ env₂) : VEnv := decl.addProjs H.envC
 
 theorem addTypesCtors (H : AddInduct safety m₁ env₁ decl m₂ env₂) :
     decl.addTypesCtors env₁ = some H.envC := by
   rw [VInductDecl.addTypesCtors, H.stT]; simp [H.stC]
 
-theorem addTypesCtorsRecs (H : AddInduct safety m₁ env₁ decl m₂ env₂) :
-    decl.addTypesCtorsRecs env₁ = some H.envR := by
-  rw [VInductDecl.addTypesCtorsRecs, H.addTypesCtors]; simp [H.stR]
+theorem addTypesCtorsProjs (H : AddInduct safety m₁ env₁ decl m₂ env₂) :
+    decl.addTypesCtorsProjs env₁ = some H.envP :=
+  VEnv.addTypesCtorsProjs_eq_some H.addTypesCtors
+
+theorem addTypesCtorsProjsRecs (H : AddInduct safety m₁ env₁ decl m₂ env₂) :
+    decl.addTypesCtorsProjsRecs env₁ = some H.envR := by
+  rw [VInductDecl.addTypesCtorsProjsRecs, H.addTypesCtorsProjs]; exact H.stR
+
+theorem env_eq (H : AddInduct safety m₁ env₁ decl m₂ env₂) : env₁.addInduct decl = some env₂ := by
+  rw [VEnv.addInduct, H.addTypesCtorsProjsRecs]; exact H.stP
 
 theorem le (H : AddInduct safety m₁ env₁ decl m₂ env₂) : env₁ ≤ env₂ := VEnv.addInduct_le H.env_eq
 theorem leR (H : AddInduct safety m₁ env₁ decl m₂ env₂) : H.envR ≤ env₂ := VEnv.addRules_le H.stP
@@ -357,7 +365,7 @@ theorem names_nodup (H : AddInduct safety m₁ env₁ decl m₂ env₂) :
   · subst hab
     obtain ⟨r, hr, hrn⟩ := List.mem_map.1 hb
     have h2 := VEnv.addRecs_fresh H.stR r hr
-    rw [hrn] at h2
+    rw [VEnv.addProjs_constants, hrn] at h2
     rcases List.mem_append.1 ha with ha | ha
     · obtain ⟨t, ht, rfl⟩ := List.mem_map.1 ha
       have h1 := (VEnv.addCtors_le H.stC).constants (VEnv.addTypes_find H.stT t ht)
@@ -474,17 +482,20 @@ theorem rec_reg {r : VRecursor} (H : AddInduct safety m₁ env₁ decl m₂ env�
     rw [h1]; exact List.find?_eq_of_nodup_map hnd rule hrule
 
 /-- A kernel constructor resolvable after the block was resolvable before, or is one of
-the block's constructors: then it has a rule in one of the block's recursors, with the
-constructor's parameter count (`rules_own_params`) and field count (its type's Π-arity is
-`ctorParams + nfields` by `rules_ctor_shape`, and `numParams + numFields` by `TrIndType`). -/
+the block's constructors: then it is registered in the constructor stage, and the
+kernel's `numParams + numFields` is the Π-arity of its model type (`TrIndType`).
+
+PR #43 additionally concluded that some rule of the block fires on it with
+`ctorParams = numParams` of its own recursor; that reading (`ctors_have_rules`,
+`rules_own_params`) is false for the auxiliary recursors of a nested block, so the rule
+side is read from `rec_reg` instead. -/
 theorem ctor_find {ctorName : Name} {cval : ConstructorVal}
-    (H : AddInduct safety m₁ env₁ decl m₂ env₂) (wf : m₁.WF) (hwf : decl.WF env₁)
+    (H : AddInduct safety m₁ env₁ decl m₂ env₂) (wf : m₁.WF)
     (h : m₂.find? ctorName = some (.ctorInfo cval)) :
     m₁.find? ctorName = some (.ctorInfo cval) ∨
     ∃ t ∈ decl.types, ∃ c ∈ t.ctors, c.name = ctorName ∧
-      ∃ r ∈ decl.recs, ∃ ru ∈ r.rules,
-        ru.ctor = ctorName ∧ ru.ctorParams = cval.numParams ∧ ru.nfields = cval.numFields ∧
-        r.numParams = cval.numParams := by
+      H.envC.constants ctorName = some c.toVConstant ∧
+      cval.numParams + cval.numFields = c.type.piArity := by
   rcases H.find? wf h with h' | ⟨hci, hname⟩
   · exact .inl h'
   · right
@@ -492,15 +503,7 @@ theorem ctor_find {ctorName : Name} {cval : ConstructorVal}
     obtain ⟨t, ht, htr⟩ := H.types.forall_exists_l iv hiv
     obtain ⟨c, hc, hctr, harity⟩ := htr.ctors.forall_exists_l _ hcval
     have hcn : c.name = ctorName := hctr.2.symm.trans hname
-    obtain ⟨r, hr, ru, hru, hruc⟩ := hwf.ctors_have_rules t ht c hc
-    have hown : ru.ctorParams = r.numParams := hwf.rules_own_params r hr ru hru
-    obtain ⟨rval, -, hrtr⟩ := H.recs.forall_exists_r r hr
-    obtain ⟨rule, -, h1, -, ⟨cval'', hcf, hcp⟩, -⟩ := hrtr.rules.forall_exists_r ru hru
-    rw [← h1, hruc, hcn, h] at hcf; cases hcf
-    obtain ⟨ci, hci', hcs⟩ := hwf.rules_ctor_shape H.envC H.addTypesCtors r hr ru hru
-    rw [hruc, VEnv.addCtors_find H.stC t ht c hc] at hci'; cases hci'
-    refine ⟨t, ht, c, hc, hcn, r, hr, ru, hru, hruc.trans hcn, hcp, ?_, hown.symm.trans hcp⟩
-    have := hcs.1; omega
+    exact ⟨t, ht, c, hc, hcn, hcn ▸ VEnv.addCtors_find H.stC t ht c hc, harity⟩
 
 end AddInduct
 
