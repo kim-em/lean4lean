@@ -87,7 +87,7 @@ theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     fresh := hfresh
     map_eq := hmap
     quotInit_eq := hquot
-    newUnsafe := ?newUnsafe
+    newUnsafe := E.newUnsafe
     recs_wf := ?recs_wf
     rec_shape := ?rec_shape
     rules_nodup := ?rules_nodup
