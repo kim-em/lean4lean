@@ -281,6 +281,106 @@ theorem rulesCtor (H : RecursorInstallation R outEnv)
       | cons d ds ih => exact ih
     rw [htype, hpb, hbody, hfn]
 
+theorem modelRecursor_type (H : RecursorInstallation R outEnv)
+    (owner : Fin H.generationSignature.families.size) :
+    (H.modelRecursor owner).type = H.generationInstance.recursorType owner := rfl
+
+/-- `VInductDecl.WF.rec_shape` for the model recursor of an owner. -/
+theorem recShape (H : RecursorInstallation R outEnv)
+    (owner : Fin H.generationSignature.families.size) :
+    let r := H.modelRecursor owner
+    r.type.RecShape r.numParams r.numMotives r.numMinors r.numIndices := by
+  have M := H.rvalAt_metadata owner
+  simp only [modelRecursor_type]
+  simp only [modelRecursor, M.numParams, M.numMotives, M.numMinors, M.numIndices]
+  exact H.generationInstance.recursorType_recShape owner
+
+theorem rules_length (H : RecursorInstallation R outEnv)
+    (owner : Fin H.generationSignature.families.size) :
+    (H.generationSignature.ownedConstructors owner).length = (H.rvalAt owner).rules.length :=
+  List.Forall₂.length_eq (H.rulesCoverage owner)
+
+/-- A model rule of an owner, read off its position. -/
+theorem modelRule_at (H : RecursorInstallation R outEnv)
+    (owner : Fin H.generationSignature.families.size) {ru : VRecRule}
+    (hru : ru ∈ (H.modelRecursor owner).rules) :
+    ∃ index ∈ H.generationSignature.ownedConstructors owner, ∃ rule ∈ (H.rvalAt owner).rules,
+      InductiveSignature.TrRecursorRule H.generationInstance H.outVEnv
+        (H.rvalAt owner).levelParams index rule ∧ ru = H.modelRule index rule := by
+  simp only [modelRecursor] at hru
+  obtain ⟨l, hl, rfl⟩ := List.getElem_of_mem hru
+  simp only [List.length_zipWith] at hl
+  have hl1 : l < (H.generationSignature.ownedConstructors owner).length := by omega
+  have hl2 : l < (H.rvalAt owner).rules.length := by omega
+  obtain ⟨_, hr⟩ := List.forall₂_getElem_exists (H.rulesCoverage owner) l hl1
+  exact ⟨_, List.getElem_mem hl1, _, List.getElem_mem hl2, hr, List.getElem_zipWith ..⟩
+
+/-- `VInductDecl.WF.rules_nodup` for the model recursor of an owner. -/
+theorem rulesNodup (H : RecursorInstallation R outEnv)
+    (owner : Fin H.generationSignature.families.size) :
+    ((H.modelRecursor owner).rules.map (·.ctor)).Nodup := by
+  have hown : owner.val < indTypes.size := H.generator.familyCount ▸ owner.isLt
+  have heq : (H.modelRecursor owner).rules.map (·.ctor) =
+      indTypes[owner.val].ctors.map (·.name) := by
+    apply List.ext_getElem
+    · simp only [modelRecursor, List.length_map, List.length_zipWith, H.rules_length]
+      have := (H.generated.entry owner.val (H.entries_lt owner)).rules.length_eq
+      change (H.rvalAt owner).rules.length = _ at this
+      rw [this]; simp [hown]
+    · intro l h₁ h₂
+      simp only [List.getElem_map, modelRecursor, List.getElem_zipWith, modelRule]
+      have hl : l < (H.rvalAt owner).rules.length := by
+        simp only [modelRecursor, List.length_map, List.length_zipWith] at h₁; omega
+      obtain ⟨hc, hctor, -⟩ := H.ruleAt owner l hl
+      rw [hctor]
+      simp [hown]
+  rw [heq]
+  have hnd := R.kernelConstructorNames_nodup
+  refine (List.Sublist.map _ ?_).nodup hnd
+  rw [List.flatMap_def]
+  exact List.sublist_flatten_of_mem
+    (List.mem_map_of_mem (List.getElem_mem (l := indTypes.toList) (by simpa using hown)))
+
+/-- Every model rule reduct is closed. -/
+theorem rulesClosed (H : RecursorInstallation R outEnv)
+    (owner : Fin H.generationSignature.families.size) :
+    ∀ ru ∈ (H.modelRecursor owner).rules, ru.rhs.Closed := by
+  intro ru hru
+  obtain ⟨index, -, rule, -, hr, rfl⟩ := H.modelRule_at owner hru
+  exact TrExprS.closedN_nil H.outVEnvWF.orderedStrong hr.rhs
+
+/-- `VInductDecl.WF.rule_shape` for the model recursor of an owner. -/
+theorem ruleShape (H : RecursorInstallation R outEnv)
+    (owner : Fin H.generationSignature.families.size) :
+    let r := H.modelRecursor owner
+    ∀ ru ∈ r.rules, ∃ j < r.numMinors, ∃ A,
+      r.type.piBinders[r.numParams + r.numMotives + j]? = some A ∧ A.MinorFor ru.ctor ∧
+      ru.nfields ≤ A.piArity ∧
+      ru.rhs.RuleShape r.numParams r.numMotives r.numMinors ru.nfields (A.piArity - ru.nfields) j := by
+  intro r ru hru
+  obtain ⟨index, hidx, rule, -, hr, rfl⟩ := H.modelRule_at owner hru
+  have M := H.rvalAt_metadata owner
+  have hown : H.generationSignature.constructors[index].owner = owner := by
+    simp only [InductiveSignature.ownedConstructors, List.mem_filter, beq_iff_eq] at hidx
+    exact hidx.2
+  obtain ⟨A, hA, hfor, hle, hshape⟩ := H.generationInstance.equation_ruleShape index
+  rw [hown] at hA
+  refine ⟨index.val, ?_, A, ?_, ?_, ?_, ?_⟩
+  · simp only [r, modelRecursor, M.numMinors]; exact index.isLt
+  · simp only [r, modelRecursor_type, modelRecursor, M.numParams, M.numMotives]; exact hA
+  · simp only [modelRule, hr.ctor]; exact hfor
+  · simp only [modelRule, hr.nfields]; exact hle
+  · simp only [r, modelRecursor, modelRule, M.numParams, M.numMotives, M.numMinors, hr.nfields]
+    exact hshape
+
+/-- `VInductDecl.WF.recs_wf`: the model recursors are typed in the projection stage. -/
+theorem recsWF (H : RecursorInstallation R outEnv) :
+    ∀ r ∈ H.recs, r.toVConstVal.toVConstant.WF R.envP := by
+  intro r hr
+  have h := H.generated.recursorsWF H.localWF H.bindings H.params
+  rw [H.entries_snd, R.contextVEnv] at h
+  exact h _ (List.mem_map_of_mem hr)
+
 end RecursorInstallation
 
 end VerifyInductive
