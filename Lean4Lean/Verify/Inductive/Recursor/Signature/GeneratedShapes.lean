@@ -58,7 +58,7 @@ private theorem getAppFn_mkApps_bvar (k : Nat) (args : List VExpr) :
 private theorem getAppFn_mkApps_const (c : Name) (us : List VLevel) (args : List VExpr) :
     ((VExpr.const c us).mkApps args).getAppFn = .const c us := by simp [VExpr.getAppFn]
 
-theorem vars_eq_bvarsDesc (count below : Nat) : vars count below = bvarsDesc below count := rfl
+private theorem vars_eq_bvarsDesc (count below : Nat) : vars count below = bvarsDesc below count := rfl
 
 private theorem vars_length' (count below : Nat) : (vars count below).length = count := by
   simp [vars]
@@ -76,21 +76,21 @@ private theorem app_off {l₁ l₂ : List VExpr} {n : Nat} (i : Nat) (h : n = l�
 private theorem insertBinders_length' (F : List VExpr) (e : Nat) :
     (insertBinders F e).length = F.length := by simp [insertBinders]
 
-@[simp] theorem Instance.params_length {s : InductiveSignature} (g : Instance s) :
+@[simp] private theorem Instance.params_length {s : InductiveSignature} (g : Instance s) :
     g.params.length = s.params.length := by simp [Instance.params]
 
-@[simp] theorem Instance.motives_length {s : InductiveSignature} (g : Instance s) :
+@[simp] private theorem Instance.motives_length {s : InductiveSignature} (g : Instance s) :
     g.motives.length = s.families.size := by simp [Instance.motives]
 
-@[simp] theorem Instance.minors_length {s : InductiveSignature} (g : Instance s) :
+@[simp] private theorem Instance.minors_length {s : InductiveSignature} (g : Instance s) :
     g.minors.length = s.constructors.size := by simp [Instance.minors]
 
-theorem Instance.motives_getElem {s : InductiveSignature} (g : Instance s) (i : Nat)
+private theorem Instance.motives_getElem {s : InductiveSignature} (g : Instance s) (i : Nat)
     (hi : i < g.motives.length) :
     g.motives[i] = g.motive (s.families[i]'(by simpa using hi)) i := by
   simp [Instance.motives]
 
-theorem Instance.minors_getElem {s : InductiveSignature} (g : Instance s) (i : Nat)
+private theorem Instance.minors_getElem {s : InductiveSignature} (g : Instance s) (i : Nat)
     (hi : i < g.minors.length) :
     g.minors[i] = g.minor (s.constructors[i]'(by simpa using hi)) i := by
   simp [Instance.minors]

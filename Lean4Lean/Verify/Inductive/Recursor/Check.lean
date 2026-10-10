@@ -1,6 +1,6 @@
 import Lean4Lean.Verify.Inductive.RecursorInput  -- WAVE 2 install COMPAT
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
-import Lean4Lean.Verify.Inductive.Recursor.Metadata
+import Lean4Lean.Verify.Inductive.Recursor.Recs
 
 /-! # The recursor phase
 
@@ -108,6 +108,10 @@ structure RecursorCheck
   installation_rvals : installation.entries.map Prod.fst = rvals.map .recInfo
   installation_signature : installation.generationSignature = signature
   installation_generation : HEq installation.generationInstance generation
+  installation_recs : recs = installation.recs
+  installation_rvals' : rvals = installation.rvals
+  /-- Every model rule fires on a constructor with the declaration's parameter count. -/
+  rules_ctorParams : ∀ r ∈ recs, ∀ ru ∈ r.rules, ru.ctorParams = decl.nparams
 
 namespace RecursorCheck
 
