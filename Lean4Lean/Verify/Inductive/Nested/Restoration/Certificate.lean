@@ -133,6 +133,15 @@ structure RestoredBlock {c : AddInductive.Context} {Hc : ContextWF c} {nparams :
   constructorArityPrefix : decl.ConstructorArityPrefix L.loweredDecl
   run_loweredEnv : run.loweredEnv = loweredEnv
   run_lowered : HEq run.lowered L.view
+  /-- (Added by Restoration-B, for Install's kernel facts.) The major inductive of every new
+  recursor is an inductive type of the output. -/
+  recMajor : ∀ rval ∈ rvals, ∃ info, outEnv.find? rval.getMajorInduct = some (.inductInfo info)
+  /-- (Added by Restoration-B, for Install's kernel facts.) Constructor parameter alignment of
+  the output (`RestoredBlockBase.constructorTypingOfParameterDomains`). -/
+  constructorParameterAlignment : ConstructorParameterAlignment c.safety outEnv outVEnv
+  /-- (Added by Restoration-B, for the Equations owner.) The restored equations are typed in the
+  restored recursor stage. -/
+  restoredEquationsWF : ∀ df ∈ block.rules, df.WF envR
 
 namespace RestoredBlock
 

@@ -87,7 +87,7 @@ theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     fresh := hfresh
     map_eq := hmap
     quotInit_eq := hquot
-    newUnsafe := ?newUnsafe
+    newUnsafe := E.newUnsafe
     recs_wf := ?recs_wf
     rec_shape := ?rec_shape
     rules_nodup := ?rules_nodup
@@ -105,7 +105,10 @@ theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     sourceSyntaxChecked := Hchecked
     constructorArityPrefix := ?arity
     run_loweredEnv := hloweredEnv
-    run_lowered := hlowered }⟩
+    run_lowered := hlowered
+    recMajor := ?recMajor
+    constructorParameterAlignment := ?alignment
+    restoredEquationsWF := ?equationsWF }⟩
   case arity =>
     have h := B.formationAssembly.constructorArityPrefix
     rw [B.formationExpanded, hBlowered, hdeclLowered] at h
