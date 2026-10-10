@@ -471,9 +471,15 @@ rule-free stage is built over `insertConsts` of the stripped entries, and transp
 lookups by `CheckingEnv.Valid.mapExt`/`CheckerEnv.mapExt` (`Nested/Install/Permutation.lean`);
 Restoration-A restated `stripRecursorRules.checkingValid`/`checkerEnv` accordingly.
 
-| statement | file | why |
-|---|---|---|
-| `NestedRun.containerConstructorShape` | `Nested/Restoration/RuleConstructors.lean` | in progress: `CtorShape` of a container constructor in `envCtors` |
+Restoration-B leaves no stub: no `sorry` in `Nested/Restoration/**` or `CompilationMajors.lean`.
+`nestedRestoredBlock` depends on `sorryAx` only through other owners' statements
+(`VEnv.WF.patsStrong`, `VEnv.Model.PatValid.iota`, `VEnv.IsDefEqU.weakN_iff`).
+
+The container constructors' kernel listing is not derivable from abstract `InstalledBelow`
+(two installed declarations may share a family name with different constructors), so the
+lowering keeps it: new field `AuxiliaryFamilySource.containerKernel`
+(`Lowering/Expansion/AuxiliarySources.lean`, `-- WAVE 3 COMPAT (restB)`, agreed with lowering),
+carried as the last conjunct of `NestedRun.restorationTablesRestoringAll`.
 
 ## Wave 3 Restoration-A (`Nested/Restoration/Validation/**`)
 
