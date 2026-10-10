@@ -1,6 +1,9 @@
 import Lean4Lean.Theory.VExpr.TelescopeLemmas
 import Lean4Lean.Theory.Inductive.RestorationNames
 import Lean4Lean.Verify.Inductive.Nested.Restoration.SignatureVars
+import Lean4Lean.Verify.Inductive.Install.RecursorShapesOf
+import Lean4Lean.Verify.Inductive.Formation
+import Lean4Lean.Theory.Inductive.RecursiveShapeCorrespondence
 import Lean4Lean.Theory.Inductive
 import Lean4Lean.Theory.Inductive.BetaSubjectReduction
 import Lean4Lean.Theory.Inductive.Compilation
@@ -43,7 +46,7 @@ namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
 
-theorem vars_eq_bvarRange (n below : Nat) :
+theorem nested_vars_eq_bvarRange (n below : Nat) :
     vars n below = VExpr.bvarRange n (n + below) := by
   apply List.ext_getElem
   · simp [vars, VExpr.bvarRange]
@@ -57,9 +60,6 @@ end Lean4Lean
 namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
-
-theorem insertBinders_length (F : List VExpr) (e : Nat) : (insertBinders F e).length = F.length := by
-  simp [insertBinders]
 
 theorem insertBinders_getElem (F : List VExpr) (e i : Nat) (hi : i < (insertBinders F e).length) :
     (insertBinders F e)[i] = (F[i]'(by simpa [insertBinders_length] using hi)).liftN e i := by
@@ -90,33 +90,6 @@ end Lean4Lean
 namespace Lean4Lean
 namespace VerifyInductive
 open InductiveSignature
-
-theorem VExpr.takeForalls_rebuild
-    (H : type.takeForalls arity = some (domains, result)) :
-    type = VExpr.wrapForalls domains result ∧ domains.length = arity := by
-  induction arity generalizing type domains result with
-  | zero =>
-    change some ([], type) = some (domains, result) at H
-    have hp : ([], type) = (domains, result) := Option.some.inj H
-    cases hp
-    exact ⟨rfl, rfl⟩
-  | succ arity ih =>
-    cases type with
-    | forallE domain body =>
-      cases htail : body.takeForalls arity with
-      | none => simp [VExpr.takeForalls, htail] at H
-      | some out =>
-        rcases out with ⟨tailDomains, tailResult⟩
-        rw [VExpr.takeForalls, htail] at H
-        change some (domain :: tailDomains, tailResult) =
-          some (domains, result) at H
-        have hp : (domain :: tailDomains, tailResult) =
-            (domains, result) := Option.some.inj H
-        cases hp
-        rcases ih htail with ⟨hrebuild, hlength⟩
-        exact ⟨by simp [VExpr.wrapForalls, hrebuild], by simp [hlength]⟩
-    | proj typeName index struct => simp [VExpr.takeForalls] at H
-    | bvar | sort | const | app | lam => simp [VExpr.takeForalls] at H
 
 theorem VExpr.instantiateForallPrefix_wrapForalls :
     ∀ (args pre : List VExpr) (body : VExpr), pre.length = args.length →
@@ -361,7 +334,7 @@ theorem VInductDecl.RawCtorShape.constructorShape
     _ = _ := by
       rw [hparams]
       congr 2
-      exact InductiveSignature.vars_eq_bvarRange _ _
+      exact InductiveSignature.nested_vars_eq_bvarRange _ _
 end Lean4Lean
 
 namespace Lean4Lean
@@ -377,7 +350,7 @@ namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
 
-theorem vars_map_liftN (n k : Nat) :
+theorem nested_vars_map_liftN (n k : Nat) :
     (vars n 0).map (fun arg => arg.liftN k) = vars n k := by
   simp only [vars, List.map_map, Function.comp_def, VExpr.liftN, liftVar]
   apply List.map_congr_left
@@ -634,7 +607,7 @@ theorem Restoration.restored_iota_shape {s : InductiveSignature} (g : Instance s
             VExpr.bvarRange s.constructors[index].fields.length
               s.constructors[index].fields.length)]) := by
     rw [← Option.some.inj hlb']
-    simp only [hDlen, hdomains, vars_eq_bvarRange, Nat.add_zero, List.append_assoc,
+    simp only [hDlen, hdomains, nested_vars_eq_bvarRange, Nat.add_zero, List.append_assoc,
       extra, nf, ctor, Nat.add_assoc]
   have hDlen' : D'.length = s.params.length + s.families.size + s.constructors.size +
       s.constructors[index].fields.length := by rw [hDlen, hdomains]
@@ -1264,7 +1237,7 @@ theorem CompilationData.restoredConstructorFieldDomains
       have hid := VExpr.instOuter_insert_bvars _ s.params.length i 0 hclosed
       simp only [Nat.zero_add, VExpr.liftN_zero] at hid
       have hv : vars s.params.length 0 = VExpr.bvarRange s.params.length s.params.length := by
-        rw [vars_eq_bvarRange, Nat.add_zero]
+        rw [nested_vars_eq_bvarRange, Nat.add_zero]
       rw [← hv] at hid
       rw [hid]
       simpa using h
@@ -1540,7 +1513,7 @@ theorem CompilationData.restoredFamilyHead_spec
         (compilationRestoration source auxiliaries).expr_recursorMajor_source g owner hfind
           hrecName]
       simp only [Instance.recursorMajor, Instance.familyApp, InductiveSignature.familyApp,
-        vars_map_liftN]
+        nested_vars_map_liftN]
     · intro index hindex
       obtain ⟨sc, hsc, hscName⟩ := hctorName index hindex
       rw [List.getElem_append_left hsrc] at hsc
@@ -1567,7 +1540,7 @@ theorem CompilationData.restoredFamilyHead_spec
       rw [(compilationRestoration source auxiliaries).expr_mkApps, List.mapM_append,
         (compilationRestoration source auxiliaries).mapM_expr_vars,
         (compilationRestoration source auxiliaries).mapM_expr_vars]
-      simp only [Restoration.expr.go, hcfind, hcrec, vars_map_liftN, Nat.add_zero]
+      simp only [Restoration.expr.go, hcfind, hcrec, nested_vars_map_liftN, Nat.add_zero]
       rfl
   · -- an auxiliary family
     have hge : source.types.length ≤ owner.val := Nat.le_of_not_lt hsrc
