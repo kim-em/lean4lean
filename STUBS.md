@@ -13,8 +13,8 @@ therefore fails on `Verify/` until wave 1. Waves follow `iota-port/PLAN-RECONCIL
 | `VEnv.WF.patCtor_rigid` (`-- WAVE 1C STUB`) | `Theory/Typing/HeadInjectivity/Model/WFFacts.lean` | `ConstructorRigidity.lean` on the source branch (`WF.installed_constructor_rigid`) | wave 1C |
 | `IsDefEqU.weakN_iff` | `Theory/Typing/UniqueTyping.lean` | master | open on master; the one strengthening principle the checker uses (PORT_PLAN section 5) |
 | `NormalEq.parRed` (two `sorry`s, the `extra` cases) | `Theory/Typing/ChurchRosser.lean` | master | wave 4 (confluence retargeted onto `env.pats` supersedes this file) |
-| `VEnv.RestoredPattern.clause` (`-- WAVE 3 STUB`) | `Theory/Inductive/RestorationInterpretation.lean` | new: the `pat` analogue of the source branch's `RestoredEliminator.clause` | wave 3 (Equations+Install) |
-| `InductiveSignature.instantiateParams_liftN` (`-- WAVE 3 STUB`) | `Theory/Typing/RestorationShapes.lean` | source `CaseReduction.lean` | wave 3 (Equations+Install) |
+| ~~`VEnv.RestoredPattern.clause`~~ (closed, wave 3 eqinst) | `Theory/Inductive/RestorationInterpretation.lean` | new: the `pat` analogue of the source branch's `RestoredEliminator.clause` | wave 3 (Equations+Install) |
+| ~~`InductiveSignature.instantiateParams_liftN`~~ (closed, wave 3 eqinst) | `Theory/Typing/RestorationShapes.lean` | source `CaseReduction.lean` | wave 3 (Equations+Install) |
 
 Not stubs but conditional results: everything through `VEnv.WF.orderedStrong` (the strong
 system, substitution theorems, inversion lemmas) depends on `patsStrong`; everything through
@@ -352,6 +352,44 @@ Owed by wave 3: every caller of `InstalledBlocks.addInduct` (the nested installa
 `hrecShapes`, i.e. `RecursorShapesAt` of each new recursor, auxiliary recursors included (their majors are
 containers at specialized arguments, so `recursorShapesOf`, which reads the major off `MajorApp` and the
 rules' constructors off the source declaration, does not cover them).
+
+## Wave 3 eqinst (`Nested/Equations/**`, `Nested/Install/**`, two Theory stubs)
+
+Closed: `InductiveSignature.instantiateParams_liftN`, `VEnv.RestoredPattern.clause`,
+`RestoredBlock.rulesWF`, `RestoredBlock.blockWF`. `RestoredBlock.installedFacts` is now proved
+from the stub `kernelFacts` (below). The nested `InstalledBlocks.addInduct` call is inside
+`installedFacts`. Its `hrecShapes` is `RestoredBlock.recShapes` and its `hrecK` is `recK` (both
+cover every new recursor, auxiliary ones included). `BlockCertificate.compiled` is
+`RestoredBlock.compiledWF` and `newUnsafe` is `RestoredBlock.newUnsafe`.
+
+* `RestoredPattern.clause` gains three fields of `VEnv.RestoredPattern`: `wf : envS.WF`,
+  `recursorNotHead`, and `templateTyped` (the interpreted reduct template is typed). The
+  `PatClause` gives the typing of the interpreted redex only. The interpreted reduct is a
+  β-*expansion* of the restored reduct, so its typing has to come from the template, and
+  uniqueness of typing (`IsDefEq.uniq`, hence `wf`) turns the forward `SimAt` around. Nothing
+  constructs a `RestoredPattern` yet. `rulesWF` does not need it: the substitution goes from the
+  lowered *recursor* stage, which has no patterns of the block.
+* `rulesWF` is `VEnv.patTyped_iota_of_wrapped` on the restored equation of each rule.
+  `RestoredBlock.ruleEquation` (`Nested/Equations/RuleAlignment.lean`, new) recovers the exact
+  ι counts from the restored generated equation (`rules_ofRestoredEquation`), the restored
+  recursor type (`rec_shape`'s arity and motive-application conjuncts, *not* `MajorApp`) and
+  the reduct's λ-arity (`rule_shape`). `envP_wf`/`envR_wf` (`Rules.lean`) are proved from the
+  restored block's fields.
+* `installedFacts` (WAVE 3 eqinst COMPAT) takes `TrEnv c.safety c.env Hc.venv`, the base's
+  complete `InstalledBlocks`, and its `ConstructorParameterAlignment`.
+  `Nested/Install/Dispatch.lean` passes `wf.tr wf.blocks wf.constructorParameterAlignment`.
+  `ContextWF` has the blocks at `.headers` only, which `InstalledBlocks.addInduct` cannot
+  extend.
+
+| statement | file | what remains |
+|---|---|---|
+| `RestoredBlock.restoredEquationsWF` | `Nested/Equations/Rules.lean` | `∀ df ∈ B.block.rules, df.WF B.envR`: the restoration substitution from `L.recursors.outVEnv` into `B.envR` (source `Equations/WF.lean`: `restoredEquationSubstitution`, `restoredEquationsWF_of_substitutionPremises`, with `ProjNames`, `Equations/AuxiliaryConstructors`, `ProjectionRenaming`). Needs `B.run`, restB's port of `NestedRun`/`RestoredBlockBase`, not yet a field of `RestoredBlock`. `blockWF` and `rulesWF` reduce to it. |
+| `RestoredBlock.kernelFacts` | `Nested/Install/Installed.lean` | `KernelFacts B`: `MutualInductivesClosed`, `ConstructorOwnersPresent`, `InductInfosFromDecl`, the recursor majors, the constructor parameter alignment, and `HasPrimitives`/`safePrimitives` of the output, all from the restoration folds of `B.run` (source `RestoredBlockCertificate.inductInfosFromDecl`, `NestedRestorationFolds.constructorOwnersPresentOfContext`, `Install/ConstructorCoherence.lean`). |
+
+Flagged: `VExpr.RecShape`'s `MajorApp` conjunct (`VInductDecl.WF.rec_shape`,
+`RestoredBlock.rec_shape`) is false for the auxiliary recursors of a nested block. Their major
+is the container applied to the specialization arguments, not to parameter variables.
+Reported to restB and the lead.
 
 ## Wave 3 restB (`Nested/Restoration/**` outside `Validation/`, `Uniform/`; `CompilationMajors.lean`)
 
