@@ -391,7 +391,7 @@ cover every new recursor, auxiliary ones included). `BlockCertificate.compiled` 
 | statement | file | what remains |
 |---|---|---|
 | `RestoredBlock.restoredEquationsWF` | `Nested/Equations/Rules.lean` | `∀ df ∈ B.block.rules, df.WF B.envR`: the restoration substitution from `L.recursors.outVEnv` into `B.envR` (source `Equations/WF.lean`: `restoredEquationSubstitution`, `restoredEquationsWF_of_substitutionPremises`, with `ProjNames`, `Equations/AuxiliaryConstructors`, `ProjectionRenaming`). Needs `B.run`, restB's port of `NestedRun`/`RestoredBlockBase`, not yet a field of `RestoredBlock`. `blockWF` and `rulesWF` reduce to it. |
-| `RestoredBlock.kernelFacts` | `Nested/Install/Installed.lean` | `KernelFacts B`: `MutualInductivesClosed`, `ConstructorOwnersPresent`, `InductInfosFromDecl`, the recursor majors, the constructor parameter alignment, and `HasPrimitives`/`safePrimitives` of the output, all from the restoration folds of `B.run` (source `RestoredBlockCertificate.inductInfosFromDecl`, `NestedRestorationFolds.constructorOwnersPresentOfContext`, `Install/ConstructorCoherence.lean`). |
+| `RestoredBlock.kernelFacts` | `Nested/Install/Installed.lean` | Assembled; `constructorOwnersPresent` (`NestedRestorationFolds.constructorOwnersPresent` over `B.run`) is proved, and `inductInfosFromDecl` (`NestedRestorationFolds.inductInfosFromDecl`) is proved given the two input stubs `sourceSyntaxChecked` (the dispatch's `SourceSyntaxChecks` refined to `SourceSyntaxChecked`) and `constructorArityPrefix` (`NestedExpansionData.constructorArityPrefix` of the run). The remaining stubs are `mutualInductivesClosed` and `constructorParameterAlignment` (restB's `ConstructorCoherence`: `RestoredBlockBase.mutualInductivesClosed`, `constructorTypingOfParameterDomains`), and `recMajor` (`KernelData` recursor entries). `primitives` is proved from the run's `primitiveSafe` (`FreshNonprimitiveExtension.new_nonprimitive`/`.safePrimitives`). |
 
 Flagged: `VExpr.RecShape`'s `MajorApp` conjunct (`VInductDecl.WF.rec_shape`,
 `RestoredBlock.rec_shape`) is false for the auxiliary recursors of a nested block. Their major
@@ -476,14 +476,10 @@ or because the scaffold form was circular:
   produces the `RuleFreeStage` (agreed).
 
 `Nested/Restoration/Uniform/**` (parameter uniformity of the lowered recursors, consumed by
-Restoration-B) is ported as far as Restoration-B's run is available: `Uniform/{Recursors,
-Generic,Heads,Base,Lowered,Run,Whnf}.lean`. Pending on Restoration-B's `ContainerSpecializations`
-(`NamePrefix`), `restorationTablesRestoring`, `CompilationDataConstructors`/`Commutation` and
-`NestedInstalledRun`: `NestedRun.auxHeadsFacts`, `envParamUniform`, `whnfPreservesParamUniform`,
-`recursorParamUniform_of_wfCore`, the `NestedRun` part of `Uniform/Declarations` and
-`Validation/ParameterScopes`. `NestedRun.envParamUniform` will take `LoweredView.Nonprimitive`
-(the lowered names passed `checkName` without primitive permission; the target's lowered run
-does not record it). Source `Validation/Result.lean` is superseded by `RestorationRun`.
+Restoration-B) is ported: `Uniform/{Recursors,Generic,Heads,Base,Lowered,Run,Whnf,Declarations,
+RunEnv}.lean`, ending in `NestedRun.recursorParamUniform_of_wfCore`. The lowered names'
+non-primitivity is Restoration-B's `NestedRun.loweredNonprimitive`. Pending on Restoration-B's
+`NestedInstalledRun`/`ConstructorCoherence`: `Validation/ParameterScopes`. Source `Validation/Result.lean` is superseded by `RestorationRun`.
 
 ## Wave 3 lowering
 

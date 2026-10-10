@@ -179,6 +179,25 @@ theorem ctor_safety {iv : InductiveVal × List ConstructorVal} (hiv : iv ∈ R.i
   obtain ⟨v, -, hv⟩ := List.Forall₂.forall_exists_l ht.ctors cval hc
   exact hv.1.1.1
 
+/-- The constructors installed by the constructor phase carry the block's safety flag. -/
+theorem ctor_isUnsafe {iv : InductiveVal × List ConstructorVal} (hiv : iv ∈ R.ivals)
+    {cval : ConstructorVal} (hc : cval ∈ iv.2) : cval.isUnsafe = isUnsafe := by
+  rw [R.ivals_eq] at hiv
+  obtain ⟨p, -, rfl⟩ := List.mem_map.mp hiv
+  obtain ⟨i, ctor, -, rfl⟩ := mem_ctorInfosFrom hc
+  rfl
+
+/-- A constructor of the recursor stage is a constructor of the source environment or a new
+constructor of the block, with its safety flag. -/
+theorem ctorEnv_ctor_cases {n : Name} {cval : ConstructorVal}
+    (h : ctorEnv.find? n = some (.ctorInfo cval)) :
+    c.env.find? n = some (.ctorInfo cval) ∨ cval.isUnsafe = isUnsafe := by
+  rcases R.ctorEnv_cases h with h | ⟨iv, hiv, cv, hc, heq, -⟩
+  · rcases R.headerEnv_cases h with h | ⟨_, _, heq, -⟩
+    · exact .inl h
+    · cases heq
+  · cases heq; exact .inr (R.ctor_isUnsafe hiv hc)
+
 end RecursorInput
 
 end VerifyInductive

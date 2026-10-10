@@ -164,7 +164,8 @@ theorem AddInductive.constructorPhase.primitiveWF
     nindices := hnindices
     params_size := P.params_size
     visible := hvisible }
-  exact ⟨decl, D, I.toRecursorInput hclosed, rfl⟩
+  -- WAVE 3 COMPAT (restB): the primitive path allows primitives.
+  exact ⟨decl, D, I.toRecursorInput hclosed (fun h => by rw [hallow] at h; cases h), rfl⟩
 
 /-- Source-aligned primitive result, retaining the exact abstract model from
 which the executable header traversal began. -/
