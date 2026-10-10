@@ -1,6 +1,7 @@
 import Lean4Lean.Verify.Inductive.Rules.RuleTranslations
 import Lean4Lean.Verify.Inductive.Install.Result
 import Lean4Lean.Verify.Inductive.Install.Rebase
+import Lean4Lean.Verify.Inductive.Install.RecursorShapes
 
 /-! # The block certificate and its installation into the environment model
 
@@ -271,18 +272,6 @@ def RecursorCheck.outVEnv'
     (H : RecursorCheck R outEnv) : VEnv :=
   ((decl.withRecs H.recs).addRules H.outVEnv).getD H.outVEnv
 
-/-- The recursor and constructor telescopes of the new recursors of a recursor check
-(`RecursorShapes`, recorded in the descriptor of the installed block). -/
-theorem RecursorCheck.recursorShapes
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : RecursorCheck R outEnv) :
-    ∀ rval ∈ H.rvals, RecursorShapesAt outEnv.constants H.outVEnv rval := by
-  -- WAVE 2 STUB (Install): in progress.
-  have := H; sorry
-
 /-- The source branch's `OrdinaryInstallation.extend*Exact` read the block certificate off the
 recursor check and the rule translations: this is that assembly. The installed declaration is
 `H.decl'` (the constructor phase's declaration with the generated recursors). -/
@@ -381,6 +370,21 @@ theorem RecursorCheck.blockCertificate
       · cases h
       · cases h
       · cases h; exact hrval
+  have hnpCtor : ∀ {n cval}, outEnv.constants.find? n = some (.ctorInfo cval) →
+      (∃ src ∈ decl.constructorConstants, src.name = n) → cval.numParams = decl.nparams := by
+    intro n cval h ⟨src, hsrc, hname⟩
+    subst hname
+    rcases add.find? hwf h with hold | ⟨hmem, -⟩
+    · have hin : src.name ∈ (AddInduct.consts add.ivals add.rvals).map (·.name) := by
+        rw [add.consts_names]
+        exact List.mem_append_left _ (List.mem_append_right _ (List.mem_map_of_mem hsrc))
+      obtain ⟨ci, hci, hcn⟩ := List.mem_map.1 hin
+      have := add.fresh ci hci
+      rw [hcn, hold] at this; cases this
+    · rcases AddInduct.mem_consts.1 hmem with ⟨_, _, h⟩ | ⟨iv, hiv, cval', hcval', h⟩ | ⟨_, _, h⟩
+      · cases h
+      · cases h; exact R.ctor_numParams iv hiv cval hcval'
+      · cases h
   have checking : CheckingEnv.Valid c.safety outEnv outR := by
     obtain ⟨ds, hds⟩ := hsrcWF
     refine H.checking.addRules hP ⟨_, .decl (.induct wf' installed) hds⟩ ?_
@@ -407,7 +411,7 @@ theorem RecursorCheck.blockCertificate
     recK := fun h1 h2 => (H.kLike _ (newRec h1 h2)).mono hle' id
     compiled := ⟨T.block, T.compilesTo hnonempty, T.recsOf, T.blockWF⟩
     newUnsafe := ?_
-    recShapes := fun h1 h2 => (H.recursorShapes _ (newRec h1 h2)).extend hle' id }⟩
+    recShapes := fun h1 h2 => (H.recursorShapes T hnpCtor _ (newRec h1 h2)).extend hle' id }⟩
   · intro t ht
     obtain ⟨info, hinfo, htr⟩ := List.Forall₂.forall_exists_r R.headers.trHeaders t ht
     have hname : info.name = t.name := htr.1.2
