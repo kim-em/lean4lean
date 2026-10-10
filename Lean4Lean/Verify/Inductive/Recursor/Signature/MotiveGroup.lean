@@ -102,7 +102,7 @@ theorem TrExprS.of_forallBinderTranslations
       exact ⟨.forallE Hdom.2 HbodyType Hdom.1 Hbody, .forallE Hdom.2 HbodyType⟩
 
 theorem RecursorConstruction.motiveSource_support
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
     let source := H.localContext.lctx.mkForall H.recInfos[owner]!.indices
       (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major] (.sort H.elimLevel))
@@ -122,7 +122,7 @@ theorem RecursorConstruction.motiveSource_support
   simpa [H.recursorWF.mlctx.noBV] using S.motiveTypeTr.closed
 
 theorem RecursorConstruction.motiveBinderSource
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
     let source := H.localContext.lctx.mkForall H.recInfos[owner]!.indices
       (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major] (.sort H.elimLevel))
@@ -157,7 +157,7 @@ theorem RecursorConstruction.motiveBinderSource
   exact Hb
 
 theorem RecursorConstruction.sourceParameterCount
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) : R.parameterScope.toCtx.length = stats.params.size := by
   have hlength := Lean4Lean.List.Forall₂.length_eq H.parameterSuffix.cached
   have hctxLength := checkInductiveTypes.loopType.CachedParameterDecl.forall₂_toCtx_length
@@ -168,7 +168,7 @@ theorem RecursorConstruction.sourceParameterCount
   simp
 
 theorem RecursorConstruction.generatedMotiveBinder
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (g : InductiveSignature.Instance s)
     (hp : s.params = R.parameterScope.toCtx.reverse)
     (_hf : s.families = H.families)
@@ -194,7 +194,7 @@ theorem RecursorConstruction.generatedMotiveBinder
     H.sourceIndices_length owner, hp, List.length_reverse, H.sourceParameterCount] using Hweak
 
 theorem RecursorConstruction.generatedMotivesTranslation
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (g : InductiveSignature.Instance s)
     (hp : s.params = R.parameterScope.toCtx.reverse)
     (hf : s.families = H.families)
@@ -245,7 +245,7 @@ of the recursor construction, the executable's closed parameter-and-motive teles
 `Prop`) translates to `g.params ++ g.motives` in the recursor-checking environment at the
 recursor's universe parameters. -/
 theorem RecursorConstruction.generatedParametersMotivesTranslation
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (g : InductiveSignature.Instance s)
     (hp : s.params = R.parameterScope.toCtx.reverse)
     (hf : s.families = H.families)

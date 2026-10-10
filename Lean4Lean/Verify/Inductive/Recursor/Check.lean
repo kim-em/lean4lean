@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.RecursorInput  -- WAVE 2 install COMPAT
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
+import Lean4Lean.Verify.Inductive.Recursor.Metadata
 
 /-! # The recursor phase
 
@@ -50,7 +51,7 @@ structure RecursorCheck
   the constructor stage, telescope split and K flag copied, rules matched one to one with
   reducts translated in the recursor stage and constructor parameter counts read off the
   output map. -/
-  trRecs : List.Forall₂ (TrRecursor c.safety R.ctorVEnv outVEnv outEnv.constants) rvals recs
+  trRecs : List.Forall₂ (TrRecursor c.safety R.envP outVEnv outEnv.constants) rvals recs
   map_eq : outEnv.constants = insertConsts ctorEnv.constants (rvals.map .recInfo)
   quotInit_eq : outEnv.quotInit = ctorEnv.quotInit
   fresh : ∀ rval ∈ rvals, ctorEnv.find? rval.name = none
@@ -95,6 +96,18 @@ structure RecursorCheck
   constructorParameterAlignment : ∀ {safety},
     ConstructorParameterAlignment safety c.env sourceEnv →
     ConstructorParameterAlignment safety outEnv outVEnv
+  /-- (Added by the recursor agent.) The source branch's recursor check: the recursor
+  construction (elimination level, recursor infos, their binder and template typing, the
+  generator) and the installation of the generated recursors. The rule phase reads the
+  recursor internals here (`H.installation.recInfos`, `.entries`, `.generated`, `.ruleTyping`,
+  `.generator`, ...); the interface fields above are read off it (`installation_*`). -/
+  installation : RecursorInstallation R outEnv
+  installation_elimLevel : installation.elimLevel = elimLevel
+  installation_kTarget : installation.kTarget = kTarget
+  installation_outVEnv : installation.outVEnv = outVEnv
+  installation_rvals : installation.entries.map Prod.fst = rvals.map .recInfo
+  installation_signature : installation.generationSignature = signature
+  installation_generation : HEq installation.generationInstance generation
 
 namespace RecursorCheck
 

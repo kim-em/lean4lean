@@ -8,7 +8,7 @@ telescope (`indexDomainSource`) over the source parameter scope and form a type 
 whose instantiation at the recursor's universe levels translates the same telescope over the
 recursor parameter context. -/
 theorem RecursorConstruction.sourceIndexDomains
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
     ∃ domains,
       domains.length = H.recInfos[owner]!.indices.size ∧
@@ -63,7 +63,7 @@ theorem RecursorConstruction.sourceIndices_length
 /-- The families of the construction's signature: names and result levels are those of the
 source declaration, index domains are `declIndexDomains` (chosen by `sourceIndexDomains`). -/
 noncomputable def RecursorConstruction.families
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) : Array InductiveSignature.Family :=
   Array.ofFn fun owner : Fin H.recInfos.size =>
     { name := (decl.types[owner.val]'(by rw [← H.cardinality.records]; exact owner.isLt)).name
@@ -75,7 +75,7 @@ noncomputable def RecursorConstruction.families
   simp [families]
 
 theorem RecursorConstruction.sourceIndices_motive
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Fin H.recInfos.size)
     (hlevel : VLevel.ofLevel (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       H.elimLevel = some level) :
@@ -103,20 +103,20 @@ theorem RecursorConstruction.sourceIndices_motive
     hlevel Hchoice.2.2.2
 
 @[simp] theorem RecursorConstruction.families_indices
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
     (H.families[owner.val]'(by simp [owner.isLt])).indices = H.declIndexDomains owner := by
   simp [families]
 
 @[simp] theorem RecursorConstruction.families_name
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
     (H.families[owner.val]'(by simp [owner.isLt])).name =
       (decl.types[owner.val]'(by rw [← H.cardinality.records]; exact owner.isLt)).name := by
   simp [families]
 
 @[simp] theorem RecursorConstruction.families_level
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
     (H.families[owner.val]'(by simp [owner.isLt])).resultLevel =
       (decl.types[owner.val]'(by rw [← H.cardinality.records]; exact owner.isLt)).resultLevel := by

@@ -25,7 +25,7 @@ theorem MotiveDecl.unannotatedTranslation
 translates over the recursor parameter context in the recursor-checking environment to a type
 definitionally equal to the motive type recorded with its motive declaration. -/
 theorem RecursorConstruction.unannotatedMotiveAtParameters
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size) :
     ∃ S : MotiveDecl H.recursorWF stats decl owner H.recInfos[owner]! H.elimLevel,
@@ -120,7 +120,7 @@ private theorem abstractList_sort (u : Level) (fvars : List FVarId) (k : Nat := 
 `∀ indices, major → Sort level`, with one index domain per executable index and `level` the
 translation of the elimination level chosen by the executable. -/
 theorem RecursorConstruction.unannotatedMotiveDomains
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size) :
     ∃ S : MotiveDecl H.recursorWF stats decl owner H.recInfos[owner]! H.elimLevel,
@@ -182,8 +182,8 @@ theorem RecursorConstruction.unannotatedMotiveDomains
 /-- A family of the block is not accepted as a type-annotation wrapper by the
 constructor environment: a wrapper is a definition, the constructor environment
 adds no definition to the source environment, and the families are fresh there. -/
-theorem ConstructorCheck.family_not_wrapper
-    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
+theorem RecursorInput.family_not_wrapper
+    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
     (family : VInductiveType) (hf : family ∈ decl.types) :
     ctorEnv.isTypeAnnotationWrapper family.name = false := by
   have hfresh := (VEnv.addConstVals_names_fresh R.core.typesAdded).2
@@ -231,7 +231,7 @@ theorem Expr.consumeTypeAnnotationsVerified_eq_of_head {ok : Name → Bool} {e :
 removing type annotations leaves it unchanged, since no family of the block is a
 type-annotation wrapper. -/
 theorem RecursorConstruction.majorSourceType
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (D : FVarDeclAt H.localContext #[H.recInfos[owner]!.major] 0) :
     D.type = mkAppN (mkAppN
@@ -288,7 +288,7 @@ theorem Expr.abstractList_fullApp
   simp
 
 theorem RecursorConstruction.majorBinderSource
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
     Expr.ForallBinderAt
       ((H.localContext.lctx.mkForall H.recInfos[owner]!.indices
@@ -389,7 +389,7 @@ theorem TrExprS.const_bvarSpine_eq
 applied to the bvar spine of parameters and indices; the index domains are determined only up
 to definitional equality. -/
 theorem RecursorConstruction.unannotatedMotiveMajor
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (hindices : indices.length = H.recInfos[owner]!.indices.size)
     (hlevels : stats.levels.mapM (VLevel.ofLevel
