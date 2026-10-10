@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Restore.ParameterOpening
 import Lean4Lean.Verify.Inductive.Nested.Restoration.RecursorTelescopes
+import Lean4Lean.Verify.Inductive.Nested.Lowering.Queue
 
 /-! The steps of the executable nested restoration (`restoreNestedDeclarations` in
 `Lean4Lean/Inductive/Add.lean`) as relations: rule, recursor and constructor
@@ -1067,14 +1068,6 @@ structure NestedRestorationFolds
     (RestoredRecursorStep result loweredEnv auxRec allIndNames)
     auxRecNames sourceFamiliesEnv out.2
   outputUnit : out.1 = ()
-
-theorem find?_none_of_contains_false
-    {env : Environment} {name : Name} (hwf : env.constants.WF)
-    (hfresh : env.contains name = false) : env.find? name = none := by
-  change env.constants.contains name = false at hfresh
-  rw [SMap.find?_isSome] at hfresh
-  rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
-  cases hfind : env.constants.find? name <;> simp_all
 
 theorem FoldSteps.constructorFreshExtension
     (H : FoldSteps (RestoredConstructorStep result loweredEnv)

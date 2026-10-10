@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Recursor.Binders.RecursiveFields
+import Lean4Lean.Verify.Inductive.Rules.SameForallPrefix
 
 namespace Lean4Lean
 
@@ -62,31 +63,6 @@ theorem LoweringParamOpening.context_extension
     refine ⟨decl :: decls, ?_, ?_, by simp [hlength]⟩
     · simp [hlctx, decl, LocalContext.mkLocalDecl_toList]
     · simp [hparams, decl, List.append_assoc, LocalDecl.fvarId]
-
-/-- In a well-formed local context, a declaration occurring in `toList` is
-the unique declaration found at its free-variable identifier. -/
-theorem LocalContextWF_find?_eq_some_of_mem
-    {lctx : LocalContext} {d : LocalDecl}
-    (H : lctx.WF) (hd : d ∈ lctx.toList) :
-    lctx.find? d.fvarId = some d := by
-  rw [H.find?_eq_find?_toList]
-  have find_of_nodup : ∀ (ds : List LocalDecl) (d : LocalDecl),
-      (ds.map (fun decl => decl.fvarId)).Nodup → d ∈ ds →
-      ds.find? (d.fvarId == ·.fvarId) = some d := by
-    intro ds
-    induction ds with
-    | nil => simp
-    | cons head tail ih =>
-      intro d hnodup hmem
-      simp only [List.map_cons, List.nodup_cons] at hnodup
-      simp only [List.mem_cons] at hmem
-      rcases hmem with rfl | hmem
-      · simp
-      · have hne : d.fvarId ≠ head.fvarId := by
-          intro heq
-          exact hnodup.1 (heq ▸ List.mem_map.mpr ⟨d, hmem, rfl⟩)
-        simp [hne, ih d hnodup.2 hmem]
-  exact find_of_nodup lctx.toList d H.nodup hd
 
 end VerifyInductive
 end Lean4Lean

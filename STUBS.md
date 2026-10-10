@@ -385,11 +385,47 @@ Statement changes to `NestedLoweringOutput`/`loweringRun.WF` (`Verify/Inductive/
    premise; `LoweredAuxiliariesInstalled` does not exclude a source constant registered in
    `loweredEnv` as a constructor of an auxiliary family). Restoration-B establishes it from the
    lowered installation (`RestoreAuxConstructorsFresh`, `AddConstants`), as the source did.
+5. `loweringRun.WF` also takes `hsources : SourceSyntaxChecks env types`, and
+   `loweringRun.types_nonempty`/`loweringRun.ordinary_types_eq_source` take `wf` and `hsources`
+   (`Dispatch.lean`'s two calls and the nested dispatch updated): the ported refinement
+   (`ElimNestedInductive.run'.translationClosed`) carries a closing context that exists only for
+   closed source types.
+6. New fields: `params_opening` (the parameter opening of the first source header, for the
+   parameter metacontext of `validateNestedAuxiliaries.WF`, source `resultParameterMLCtx`) and
+   `closed : NestedLoweringOutputClosed …` (the source branch's run relation, so restoration
+   lemmas port verbatim). `SourceBVarClosed` and `RestoreSourceDisjoint` are defined in
+   `Nested/Lowering/Refinement.lean` (imported by `Lowering.lean`); the source branch's
+   `NestedLoweringOutput` def is `NestedLoweringRun` (`Nested/Lowering/Output.lean`), its inductive
+   `SourceSyntaxChecks` is `SourceSyntaxChecked`.
 
 | statement | file | status |
 |---|---|---|
-| `loweringRun.sourceShape` | `Verify/Inductive/Lowering.lean` | stub (Lowering) |
 | `loweringRun.WF` | `Verify/Inductive/Lowering.lean` | stub (Lowering) |
+
+## Wave 3 Restoration-A (`Nested/Restoration/Validation/**`)
+
+The seven statements of `Validation/Passes.lean` are proved; Restoration-A adds no stub.
+Three statements gained premises, because the passes run the checker without checking them
+or because the scaffold form was circular:
+
+* `validateSourceConstructorTypes.run.WF` takes the closedness of the constructor types
+  (`SourceSyntaxChecks.ctorTypesClosed`, `Validation/Checks.lean`, provides it).
+* `validateNestedAuxiliaries.WF` takes the checker context `mlctx` of the lowering's
+  parameters (`mlctx.WF`, `mlctx.lctx = res.lctx`, freshness for the checker's name generator,
+  the cached occurrences scoped in it) and concludes the typing of every cached occurrence in
+  it. The context is a lowering fact (source branch `NestedLowering.resultParameterMLCtx`), not
+  yet a field of `NestedLoweringOutput`.
+* `stripRecursorRules.checkingValid` (and the new `stripRecursorRules.checkerEnv`, the
+  `CheckerEnv` that `validateRestoredRecursorRules.check.WF` consumes) is stated over a
+  rule-free `AddInduct` into the stripped map and the rule-free facts `RuleFreeStage`
+  (`Validation/Stripped.lean`): the projection stage's `VEnv.WF`, the recursor types, the
+  block's names not primitive, the restored header facts, the K clause and shapes of the new
+  recursors at the recursor stage. The scaffold form took the output's `AddInduct` and
+  `CheckingEnv.Valid`, which contain the rule translations the pass establishes. Restoration-B
+  produces the `RuleFreeStage` (agreed).
+
+`Nested/Restoration/Uniform/**` (parameter uniformity of the lowered recursors) is not needed
+by these statements.
 
 ## Wave 3 scaffold (`Verify/Inductive/Nested/**`, the nested branch's interface)
 
