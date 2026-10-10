@@ -476,14 +476,10 @@ or because the scaffold form was circular:
   produces the `RuleFreeStage` (agreed).
 
 `Nested/Restoration/Uniform/**` (parameter uniformity of the lowered recursors, consumed by
-Restoration-B) is ported as far as Restoration-B's run is available: `Uniform/{Recursors,
-Generic,Heads,Base,Lowered,Run,Whnf}.lean`. Pending on Restoration-B's `ContainerSpecializations`
-(`NamePrefix`), `restorationTablesRestoring`, `CompilationDataConstructors`/`Commutation` and
-`NestedInstalledRun`: `NestedRun.auxHeadsFacts`, `envParamUniform`, `whnfPreservesParamUniform`,
-`recursorParamUniform_of_wfCore`, the `NestedRun` part of `Uniform/Declarations` and
-`Validation/ParameterScopes`. `NestedRun.envParamUniform` will take `LoweredView.Nonprimitive`
-(the lowered names passed `checkName` without primitive permission; the target's lowered run
-does not record it). Source `Validation/Result.lean` is superseded by `RestorationRun`.
+Restoration-B) is ported: `Uniform/{Recursors,Generic,Heads,Base,Lowered,Run,Whnf,Declarations,
+RunEnv}.lean`, ending in `NestedRun.recursorParamUniform_of_wfCore`. The lowered names'
+non-primitivity is Restoration-B's `NestedRun.loweredNonprimitive`. Pending on Restoration-B's
+`NestedInstalledRun`/`ConstructorCoherence`: `Validation/ParameterScopes`. Source `Validation/Result.lean` is superseded by `RestorationRun`.
 
 ## Wave 3 lowering
 
