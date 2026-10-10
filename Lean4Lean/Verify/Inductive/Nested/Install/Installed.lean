@@ -140,7 +140,8 @@ theorem installedFacts (B : RestoredBlock L sourceTypes isUnsafe outEnv)
   have hblocks' : InstalledBlocks c.safety outEnv B.outVEnv .complete :=
     InstalledBlocks.addInduct hblocks hwf htrOut.toChecking hpres B.le K.inductInfosFromDecl
       B.cover K.closed K.constructorOwners (fun h1 h2 => K.recMajor h1 h2)
-      (fun _ => ⟨wf', B.installed, B.compiledWF⟩) (fun h => absurd hvis h)
+      (fun _ => ⟨wf', B.installed, B.compiledWF⟩) -- WAVE 3 COMPAT (lowering)
+      (fun h => absurd hvis h)
       (fun _ => K.constructorParameterAlignment hparams)
       (fun h1 h2 _ => B.recK _ (B.newRec' h1 h2))
       (fun h1 h2 _ => B.recShapes _ (B.newRec' h1 h2))
