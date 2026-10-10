@@ -1,3 +1,4 @@
+import Lean4Lean.Verify.Inductive.Constructor.Positivity
 import Lean4Lean.Verify.Inductive.Recursor.Context.RecInfoTraversal
 
 namespace Lean4Lean
@@ -297,6 +298,46 @@ structure RecursorCounts
   indices : ∀ i (hi : i < recInfos.size),
     recInfos[i]!.indices.size =
       (decl.types[i]'(by simpa [records] using hi)).numIndices
+
+theorem RecursorCounts.ofResult
+    {indTypes : Array InductiveType}
+    {recInfos : Array AddInductive.RecInfo}
+    {envTypes envCtors : VEnv}
+    (Hdecl : TrInductDeclCore env lparams nparams indTypes.toList isUnsafe
+      decl envTypes envCtors)
+    (Hmaterialized :
+      checkInductiveTypes.loopInd.HeaderStatsWF
+        headerEnv lparams Δ stats decl depth)
+    (hsize : recInfos.size = indTypes.size)
+    (hcounts : ∀ i, i < recInfos.size →
+      recInfos[i]!.minors.size = indTypes[i]!.ctors.length)
+    (harities : ∀ i, i < recInfos.size →
+      recInfos[i]!.indices.size = stats.nindices[i]!) :
+    RecursorCounts stats recInfos decl where
+  records := hsize.trans (by
+    simpa using Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hdecl)
+  families := by
+    exact
+      (checkPositivityStep.ValidAppStatsWF.ofHeaderStats
+        Hmaterialized).types_size
+  params := by
+    have hlen := List.Forall₂.length_eq
+      Hmaterialized.suffixParams
+    simpa [VInductDecl.paramVars] using hlen
+  motives := mkRecInfos.motives_size_of_translation Hdecl hsize
+  minors := mkRecInfos.flatMinors_size_of_translation Hdecl hsize hcounts
+  indices := by
+    let Hstats :=
+      checkPositivityStep.ValidAppStatsWF.ofHeaderStats Hmaterialized
+    intro i hi
+    have hiDecl : i < decl.types.length := by
+      rw [← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hdecl]
+      simpa [hsize] using hi
+    have hn := Hstats.nindicesAt hiDecl
+    have hstats : stats.nindices[i]! = decl.types[i].numIndices := by
+      obtain ⟨hstatsBound, hnget⟩ := Array.getElem?_eq_some_iff.mp hn
+      simpa [Array.getElem!_eq_getD, Array.getD, hstatsBound] using hnget
+    exact (harities i hi).trans hstats
 
 end VerifyInductive
 end Lean4Lean

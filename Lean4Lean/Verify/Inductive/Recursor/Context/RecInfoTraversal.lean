@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Context
+import Lean4Lean.Verify.Inductive.Constructor.Tails
 
 /-! Support for the proofs about the executable traversal in `mkRecInfos`: the
 proof-side record of the recursive fields selected by `loopCtorArgs`
@@ -53,6 +54,38 @@ theorem RecursiveFieldSelections.selectedSublist
     simpa using ih.append_right [arg]
 
 
+
+
+namespace mkRecInfos.loopCtorArgs.loop
+
+/-- `loopCtorArgs.loop` follows a certified common-parameter prefix without
+changing either accumulator, then delegates to the supplied tail proof. Fuel
+exhaustion is harmless because it cannot return successfully. -/
+theorem followsParamPrefix {α : Type}
+    (stats : AddInductive.InductiveStats)
+    (k : Expr → Array Expr → Array Expr → AddInductive.M α)
+    {t tail : Expr} {i : Nat} {bu u : Array Expr}
+    {c : AddInductive.Context} {Q : α → Prop}
+    (hprefix : ParameterPrefix stats i t tail)
+    (Htail : ∀ fuel,
+      (AddInductive.mkRecInfos.loopCtorArgs.loop stats k tail
+        stats.params.size bu u fuel c).WF Q) :
+    ∀ fuel, (AddInductive.mkRecInfos.loopCtorArgs.loop stats k t i bu u fuel c).WF Q := by
+  intro fuel
+  induction fuel generalizing t i with
+  | zero =>
+    intro _ h
+    simp [AddInductive.mkRecInfos.loopCtorArgs.loop] at h
+  | succ fuel ih =>
+    cases hprefix with
+    | done hi =>
+      subst i
+      exact Htail (fuel + 1)
+    | @step i param body tail name dom bi hparam hprefix =>
+      rw [AddInductive.mkRecInfos.loopCtorArgs.loop, hparam]
+      exact ih hprefix
+
+end mkRecInfos.loopCtorArgs.loop
 
 /-- `Except.WF.bind` lifted across the reader layer used by the executable
 inductive checker. Keeping the reader bind visible avoids repeatedly
