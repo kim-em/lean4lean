@@ -289,5 +289,51 @@ theorem PrimitiveHeaderEnvironment.constructorsChecked
     refine ⟨[], (primitiveCtorVal source.ctors[j]).type, ?_, ⟨_, hu⟩, hcert⟩
     rw [hheaderParams]; exact .zero
 
+/-- The constants of a primitive declaration with canonical constructors are the canonical
+`Bool` or `Nat` batch. -/
+theorem PrimitiveHeaderEnvironment.primitiveConstants
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv : Environment}
+    (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv indTypes
+      headerEnv)
+    (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList isUnsafe)
+    (hrows : decl.types.map (·.ctors) = primitiveRows indTypes.toList) :
+    decl.typeConstants ++ decl.constructorConstants = primitiveBoolConstants ∨
+      decl.typeConstants ++ decl.constructorConstants = primitiveNatConstants := by
+  obtain ⟨source, target, hsrc, hdeclTypes, hname, htargetType, htargetUvars, -, -, -, -, -,
+    htctors, -⟩ := H.canonical Hshape hrows
+  have htarget : target.toVConstVal =
+      ({ name := source.name, uvars := 0, type := .sort (.succ .zero) } : VConstVal) := by
+    rw [← hname, ← htargetUvars, ← htargetType]
+  have hdecl : decl.typeConstants ++ decl.constructorConstants =
+      target.toVConstVal :: source.ctors.map primitiveCtorVal := by
+    simp [VInductDecl.typeConstants, VInductDecl.constructorConstants, hdeclTypes, htctors]
+  rw [hdecl, htarget]
+  rcases Hshape with ⟨-, -, -, htypes | ⟨n, bi, htypes⟩⟩ <;> rw [hsrc] at htypes <;>
+    cases htypes
+  · left; rfl
+  · right; rfl
+
+/-- The primitive invariant of the constructor model of a primitive declaration: the batch of
+the family and its constructors is complete. -/
+theorem PrimitiveHeaderEnvironment.hasPrimitives
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv : Environment}
+    (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv indTypes
+      headerEnv)
+    (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList isUnsafe)
+    (hrows : decl.types.map (·.ctors) = primitiveRows indTypes.toList) :
+    ∀ venv', H.context.venv.addConstVals decl.constructorConstants = some venv' →
+      venv'.HasPrimitives := by
+  intro venv' h
+  have hall := VEnv.addConstVals_append H.typesAdded h
+  have hsrc : sourceEnv.HasPrimitives := by
+    rw [← H.sourceContextVEnv]; exact H.sourceContext.checking.hasPrimitives
+  rcases H.primitiveConstants Hshape hrows with he | he <;> rw [he] at hall
+  · exact VEnv.HasPrimitives.addBoolConstants hsrc hall
+  · exact VEnv.HasPrimitives.addNatConstants hsrc hall
+
 end VerifyInductive
 end Lean4Lean
