@@ -497,7 +497,8 @@ theorem NestedRun.restoredRecursorShapes
       simp only [InductiveSignature.ownedConstructors, List.mem_filter] at hindexMem
       exact eq_of_beq hindexMem.2
     obtain ⟨⟨cval, hcval, hcnp⟩, ⟨ci, hci, hshape⟩, -⟩ :=
-      E.restoredRuleConstructors wf Hsources D Hcert Hdata owner hhead index hown
+      E.restoredRuleConstructors wf Hsources D Hcert Hdata (E.constructorArityPrefix C hC) Haux
+        Hexpansion owner hhead index hown
     refine ⟨⟨cval, hct ▸ hcval, hcnp⟩, ?_⟩
     obtain ⟨head', hhead', fields, ⟨S⟩⟩ := Hdata.restoredConstructorShape Hcert hadded
       hctorsAdded hfresh hfreshCtors hle index owner hown

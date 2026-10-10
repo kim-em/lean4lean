@@ -385,7 +385,16 @@ theorem NestedRun.restoredCompilation
         (List.finRange E.lowered.signature.families.size)
         C.recursorEntries ∧
       List.Forall₂ (fun (rv : RecursorVal) (entry : ConstantInfo × VConstVal) =>
-        entry.1 = .recInfo rv) E.restoration.rvals C.recursorEntries := by
+        entry.1 = .recInfo rv) E.restoration.rvals C.recursorEntries ∧
+      ∃ (envTypes : VEnv) (generated : List VInductiveType),
+        List.Forall₂ (SpecializationGenerates
+          (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
+          E.lowered.headers.commonParameterContext sourceDecl) auxiliaries generated ∧
+        List.Forall₂ (VInductDecl.NestedTypeExpansion
+            (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+            (VInductDecl.NestedOccurrenceReplacementAbs
+              (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
+          generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length) := by
   rcases E.restorationTablesRestoringAll wf Hsources with
     ⟨envTypes, generated, auxiliaries, hadded, henvTypes, Haux, Hexpansion,
       hparamsSize, D, Hrestoring, HauxRestoring⟩
@@ -474,7 +483,8 @@ theorem NestedRun.restoredCompilation
       (List.finRange E.lowered.signature.constructors.size) rules := HCrules
   refine ⟨auxiliaries, rules, D, hrulesEq, Hcertified, Hdata, ?_,
     E.rvals_recursorEntries C.sourceNonempty (Lean4Lean.List.Forall₂.imp
-      (fun _ _ ⟨s, t, Hs, h1, _⟩ => ⟨s, t, Hs, h1⟩) hinfos)⟩
+      (fun _ _ ⟨s, t, Hs, h1, _⟩ => ⟨s, t, Hs, h1⟩) hinfos),
+    envTypes, generated, Haux, Hexpansion⟩
   refine forall₂_imp_mem_right hinfos ?_
   rintro owner entry hentry ⟨s, t, Hstep, hentry1, hrec, Hw⟩
   refine ⟨Hstep.restored.newInfo, hentry1, hrec, ?_⟩
@@ -996,8 +1006,8 @@ theorem NestedRun.assemblyRecursors
       envR = C.recursorVEnv ∧
       (∀ df ∈ block.rules, df.WF envR) := by
   classical
-  obtain ⟨auxiliaries, rules, D, hrulesEq, Hcert, Hdata, Hentries, Hal⟩ :=
-    E.restoredCompilation wf Hsources C hC hkernel Cstrip
+  obtain ⟨auxiliaries, rules, D, hrulesEq, Hcert, Hdata, Hentries, Hal, _, _, Haux,
+      Hexpansion⟩ := E.restoredCompilation wf Hsources C hC hkernel Cstrip
   -- the stage environments
   have Hsource : TrInductDeclCore (ves.venv (if isUnsafe then .unsafe else .safe))
       lparams nparams sourceTypes isUnsafe sourceDecl E.sourceCore.envTypes
@@ -1120,7 +1130,8 @@ theorem NestedRun.assemblyRecursors
   have hHrule := fun owner {head} (hhead : E.lowered.generatedInstance.restoredFamilyHead
       (compilationRestoration sourceDecl auxiliaries) owner = some head) index
       (hown : E.lowered.signature.constructors[index].owner = owner) =>
-    E.restoredRuleConstructors wf Hsources D Hcert Hdata owner hhead index hown
+    E.restoredRuleConstructors wf Hsources D Hcert Hdata (E.constructorArityPrefix C hC) Haux
+        Hexpansion owner hhead index hown
   refine ⟨recs, auxiliaries, restoredBlock sourceDecl C.sourceRecursors C.auxiliaryRecursors
     rules [], C.recursorVEnv, outVEnv, Hcert, Hdata.withRecs recs, ⟨?_, ?_, ?_⟩, hrecsAdded, ?_, ?_, ?_, ?_,
     ?_, ?_, ?_, hclosed, hout, ?_, ?_, rfl, ?_⟩

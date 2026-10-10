@@ -2,6 +2,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.TableAgreement
 import Lean4Lean.Verify.Inductive.Nested.Restoration.CompilationData
 import Lean4Lean.Theory.Inductive.CompilationMajors
 import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceConstructors
+import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyKernel
 
 /-! # The constructors of the restored rules
 
@@ -163,24 +164,245 @@ theorem _root_.Lean4Lean.InductiveSignature.CompilationData.restoredHeadName_aux
     List.mem_flatMap.mpr ⟨a, ha, List.mem_cons_of_mem _ (List.mem_map.mpr ⟨c, hc, rfl⟩)⟩
   exact Restoration.restoredHeadName_of_mem Hd.restorationScoped hmem
 
+/-- The restored family head of a source family: the family itself, at the instance's levels
+and the parameter variables. -/
+theorem _root_.Lean4Lean.InductiveSignature.CompilationData.restoredFamilyHead_source
+    {env : VEnv} {source expanded : VInductDecl} {s : InductiveSignature} {g : Instance s}
+    {auxiliaries : List ContainerSpecialization} {block : VInductBlock}
+    (Hd : CompilationData env source expanded s g auxiliaries block)
+    (owner : Fin s.families.size) (hsrc : owner.val < source.types.length)
+    (hname : s.families[owner].name = (source.types[owner.val]'hsrc).name) :
+    g.restoredFamilyHead (compilationRestoration source auxiliaries) owner =
+      some ⟨s.families[owner].name, g.levels, vars s.params.length 0⟩ := by
+  have hmemF : s.families[owner].name ∈ familyNames source.types :=
+    mem_familyNames.mpr ⟨_, List.getElem_mem hsrc, .inl hname⟩
+  have hfind : (compilationRestoration source auxiliaries).heads.find?
+      (fun h => h.auxiliary == s.families[owner].name) = none :=
+    Restoration.heads_find?_eq_none (Hd.toCaseCompilationData.source_head_disjoint hmemF)
+  have hrecName : (compilationRestoration source auxiliaries).recursorName
+      s.families[owner].name = s.families[owner].name := by
+    unfold Restoration.recursorName
+    cases hr : (compilationRestoration source auxiliaries).recursors.find?
+        (fun p => p.1 == s.families[owner].name) with
+    | none => rfl
+    | some pair =>
+      have hm := List.mem_of_find?_eq_some hr
+      have hn : pair.1 = s.families[owner].name := by simpa using List.find?_some hr
+      have hrec := Hd.recursor_source_mem hm
+      rw [hn] at hrec
+      exact (Hd.source_recursors_disjoint hmemF hrec).elim
+  simp only [Instance.restoredFamilyHead, Instance.familyApp,
+    InductiveSignature.familyApp, List.append_nil]
+  rw [(compilationRestoration source auxiliaries).expr_mkApps,
+    (compilationRestoration source auxiliaries).mapM_expr_vars]
+  simp only [Option.bind_some, Restoration.expr.go, hfind, hrecName]
+  simp only [Option.bind_eq_bind, Option.bind_some,
+    VerifyInductive.VExpr.getAppFnArgs_mkApps]
+  rfl
+
+/-- The restored family head of an auxiliary family: the container family applied to the
+specialization arguments. -/
+theorem _root_.Lean4Lean.InductiveSignature.CompilationData.restoredFamilyHead_auxiliary
+    {env : VEnv} {source expanded : VInductDecl} {s : InductiveSignature} {g : Instance s}
+    {auxiliaries : List ContainerSpecialization} {block : VInductBlock}
+    (Hd : CompilationData env source expanded s g auxiliaries block)
+    (owner : Fin s.families.size) {a : ContainerSpecialization} (ha : a ∈ auxiliaries)
+    (hname : s.families[owner].name = a.auxiliary) :
+    g.restoredFamilyHead (compilationRestoration source auxiliaries) owner =
+      some ⟨a.source.name, a.levels.map (·.inst g.levels),
+        a.arguments.map (fun arg => arg.instL g.levels)⟩ := by
+  obtain ⟨envTypes', direct, -, -, hwellFormed, -⟩ := Hd.correspondence
+  obtain ⟨envExpandedTypes, -, Hadm⟩ := Hd.admissible
+  have hlevelsLen : g.levels.length = source.uvars :=
+    Hadm.levels_length.trans (Hd.model.uvars.trans Hd.uvars)
+  have hnp : s.params.length = source.nparams := Hd.model.nparams.trans Hd.nparams
+  let h : HeadSpecialization :=
+    ⟨a.auxiliary, source.uvars, source.nparams, a.source.name, a.levels, a.arguments⟩
+  have hmem : h ∈ (compilationRestoration source auxiliaries).heads :=
+    List.mem_flatMap.mpr ⟨a, ha, List.mem_cons_self⟩
+  have hfind : (compilationRestoration source auxiliaries).heads.find?
+      (fun h => h.auxiliary == s.families[owner].name) = some h := by
+    rw [hname]
+    exact Restoration.find?_of_nodup Hd.restorationScoped.1 hmem
+  obtain ⟨-, hargsClosed, -, -, -⟩ := hwellFormed a ha
+  have hclosedL : ∀ arg ∈ a.arguments, (arg.instL g.levels).ClosedN s.params.length := by
+    intro arg harg
+    rw [hnp]
+    exact (hargsClosed arg harg).instL
+  have hinst : ∀ k, a.arguments.map (fun arg => instantiateParams (arg.instL g.levels)
+      (vars source.nparams k)) =
+        a.arguments.map (fun arg => (arg.instL g.levels).liftN k) := by
+    intro k
+    apply List.map_congr_left
+    intro arg harg
+    rw [← hnp, instantiateParams_vars (hclosedL arg harg)]
+  simp only [Instance.restoredFamilyHead, Instance.familyApp,
+    InductiveSignature.familyApp, List.append_nil]
+  rw [(compilationRestoration source auxiliaries).expr_mkApps,
+    (compilationRestoration source auxiliaries).mapM_expr_vars]
+  simp only [Option.bind_some, Restoration.expr.go, hfind, HeadSpecialization.apply,
+    hlevelsLen, h, bne_self_eq_false, Bool.false_or, vars_length, hnp]
+  rw [if_neg (by simp), List.take_of_length_le (by simp),
+    List.drop_of_length_le (by simp), hinst 0]
+  simp only [VExpr.liftN_zero, Option.pure_def, Option.bind_eq_bind, Option.bind_some,
+    List.append_nil, VerifyInductive.VExpr.getAppFnArgs_mkApps]
+  rfl
+
 end VerifyInductive
 
 namespace VerifyInductive
 
-/-- **Stub (restB).** The constructor of every restored rule: the restored constructor of a
-generated constructor `index` of family `owner` is a kernel constructor of the output whose
-parameter count is the restored family head's argument count (the source family's parameters,
-or the container's specialization arguments), a constructor of the source constructor stage
-with the constructor shape at that count plus the field count, and either one of the source
+/-- A raw constructor shape ends in a constant-headed codomain. -/
+theorem _root_.Lean4Lean.VInductDecl.RawCtorShape.ctorHeaded {decl : VInductDecl}
+    {t : VInductiveType} {ctor : VConstVal} (H : decl.RawCtorShape t ctor) :
+    ctor.type.CtorHeaded := by
+  obtain ⟨doms, result, htype, -, -, hhead⟩ := H
+  refine ⟨t.name, VLevel.params decl.uvars, ?_⟩
+  have hr : result = VExpr.mkApps (.const t.name (VLevel.params decl.uvars))
+      result.getAppFnArgs.2 := by
+    rw [← hhead]; exact (VExpr.mkApps_getAppFnArgs_eq result).symm
+  have hfn : result.getAppFn = .const t.name (VLevel.params decl.uvars) := by
+    rw [hr]; simp [VExpr.getAppFn]
+  have hbody : result.piBody = result := by
+    clear hr htype hhead; cases result <;> simp_all [VExpr.piBody, VExpr.getAppFn]
+  have hpb : ∀ ds : List VExpr, (VExpr.wrapForalls ds result).piBody = result.piBody := by
+    intro ds; induction ds with
+    | nil => rfl
+    | cons d ds ih => exact ih
+  rw [htype, hpb, hbody, hfn]
+
+/-- The lowered constructor of a generated constructor has the constructor shape at the lowered
+parameter count plus the generated field count. -/
+theorem NestedRun.loweredConstructorShape
+    {result : Lean4Lean.ElimNestedInductive.Result}
+    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
+    {venv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
+    {isUnsafe : Bool} {safety : DefinitionSafety} {outEnv : Environment}
+    (E : NestedRun result sourceProdEnv sourceTypes venv sourceDecl lparams nparams isUnsafe
+      safety outEnv)
+    (index : Fin E.lowered.signature.constructors.size) :
+    ∃ ci, E.lowered.constructors.ctorVEnv.constants
+        E.lowered.signature.constructors[index].name = some ci ∧
+      ci.type.CtorShape (E.lowered.loweredDecl.nparams +
+        E.lowered.signature.constructors[index].fields.length) := by
+  let H := E.lowered.recursors
+  let owner : Fin H.generationSignature.families.size :=
+    E.lowered.signature.constructors[index].owner
+  have hmem : index ∈ H.generationSignature.ownedConstructors owner := by
+    unfold InductiveSignature.ownedConstructors
+    exact List.mem_filter.mpr ⟨List.mem_finRange _, beq_self_eq_true _⟩
+  obtain ⟨l, hl, hidx⟩ := List.mem_iff_getElem.mp hmem
+  have hcov := H.rulesCoverage owner
+  obtain ⟨hl', Htr⟩ := List.forall₂_getElem_exists hcov l hl
+  replace Htr := hidx ▸ Htr
+  have hru : H.modelRule index ((H.rvalAt owner).rules[l]) ∈ (H.modelRecursor owner).rules := by
+    simp only [RecursorInstallation.modelRecursor]
+    have hlz : l < (List.zipWith H.modelRule (H.generationSignature.ownedConstructors owner)
+        (H.rvalAt owner).rules).length := by
+      simp only [List.length_zipWith]; exact Nat.lt_min.mpr ⟨hl, hl'⟩
+    have := List.getElem_mem hlz
+    rw [List.getElem_zipWith] at this
+    exact hidx ▸ this
+  obtain ⟨ci, hci, hshape⟩ := H.rulesCtor owner _ hru
+  refine ⟨ci, ?_, ?_⟩
+  · have h : (H.modelRule index ((H.rvalAt owner).rules[l])).ctor =
+        E.lowered.signature.constructors[index].name := Htr.ctor
+    rw [← h]; exact hci
+  · have h : (H.modelRule index ((H.rvalAt owner).rules[l])).nfields =
+        E.lowered.signature.constructors[index].fields.length := Htr.nfields
+    rw [← h]; exact hshape
+
+/-- **Stub (restB).** The kernel constructor of a container constructor: a constructor `c` of the
+container family of a specialization `a` is a kernel constructor of the output whose parameter
+count is the number of specialization arguments.
+
+What it needs: the lowering's record of the nested occurrence of `a`
+(`NestedLoweringOutputClosed.nested_app`: `nested = mkAppN (.const I ls) args`,
+`env.find? I = some (.inductInfo info)`, `args.size = info.numParams`), linked to `a` by
+`RestorationTablesAgree.familyLookup`/`familyKey` (`AuxiliaryContainerApp`: `I = a.source.name`,
+`args.length = a.arguments.length`), the kernel constructor of `c` among `info.ctors` (the names
+of the container's constructors in the kernel against `a.source.ctors`), and the base
+environment's `ConstructorParameterAlignment` (`numParams = info.numParams`). -/
+theorem NestedRun.containerConstructorKernel
+    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
+    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
+    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
+    {isUnsafe : Bool} {outEnv : Environment}
+    (E : NestedRun result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
+    {auxiliaries : List ContainerSpecialization}
+    (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
+      (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
+    {a : ContainerSpecialization} (ha : a ∈ auxiliaries)
+    {c : VConstVal} (hc : c ∈ a.source.ctors) :
+    ∃ cval : ConstructorVal, outEnv.constants.find? c.name = some (.ctorInfo cval) ∧
+      cval.numParams = a.arguments.length := by
+  -- WAVE 3 STUB (restB): see the docstring.
+  have := wf; have := Hsources; have := D; have := ha; have := hc; sorry
+
+/-- **Stub (restB).** The constructor shape of a container constructor at the specialization
+arguments plus the field count of the generated constructor it specializes.
+
+What it needs: the generated constructor is the container constructor instantiated at the
+specialization arguments under the common parameters
+(`SpecializationGenerates.constructorShapes`), the lowered constructor is its nested expansion
+(`NestedTypeExpansion.constructors`, which keeps the forall arity), and the lowered constructor
+has the lowered parameter count plus the generated field count
+(`NestedRun.loweredConstructorShape`). -/
+theorem NestedRun.containerConstructorShape
+    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
+    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
+    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
+    {isUnsafe : Bool} {outEnv : Environment}
+    (E : NestedRun result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    {auxiliaries : List ContainerSpecialization} {block : VInductBlock}
+    {envTypes : VEnv} {ctx : List VExpr} {generated : List VInductiveType}
+    (Haux : List.Forall₂ (SpecializationGenerates
+      (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes ctx sourceDecl)
+      auxiliaries generated)
+    (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
+        (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+        (VInductDecl.NestedOccurrenceReplacementAbs
+          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
+      generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
+    (Hdata : CompilationData (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+      E.lowered.loweredDecl E.lowered.signature E.lowered.generatedInstance auxiliaries block)
+    (index : Fin E.lowered.signature.constructors.size)
+    (hge : sourceDecl.types.length ≤ E.lowered.signature.constructors[index].owner.val)
+    (hidx : E.lowered.signature.constructors[index].owner.val - sourceDecl.types.length <
+      auxiliaries.length)
+    {c : VConstVal}
+    (hc : c ∈ (auxiliaries[E.lowered.signature.constructors[index].owner.val -
+      sourceDecl.types.length]'hidx).source.ctors)
+    (hname : E.lowered.signature.constructors[index].name =
+      (auxiliaries[E.lowered.signature.constructors[index].owner.val -
+        sourceDecl.types.length]'hidx).constructorName c) :
+    ∃ ci, E.sourceCore.envCtors.constants c.name = some ci ∧
+      ci.type.CtorShape ((auxiliaries[E.lowered.signature.constructors[index].owner.val -
+        sourceDecl.types.length]'hidx).arguments.length +
+        E.lowered.signature.constructors[index].fields.length) := by
+  -- WAVE 3 STUB (restB): see the docstring.
+  have := Haux; have := Hexpansion; have := Hdata; have := hge; have := hc; have := hname
+  sorry
+
+/-- **The constructor of every restored rule**: the restored constructor of a generated
+constructor `index` of family `owner` is a kernel constructor of the output whose parameter
+count is the restored family head's argument count (the source family's parameters, or the
+container's specialization arguments), a constructor of the source constructor stage with the
+constructor shape at that count plus the field count, and either one of the source
 declaration's constructors at its parameter count or a constructor of a container installed
 below at the container's.
 
-What it needs: for a source owner, `restoredHeadName` is the identity on its constructors
-(`CompilationData.restoredFamilyHead_spec`'s first alternative), and the source constructors'
-`ctorInfo`s and `TrIndType`s are the base's (`RestoredBlockBase.sourceTranslations`); for an
-auxiliary owner, the restored constructor is a constructor of `a.container`, whose installation
-(`ContainersInstalled`, then `InstalledBlocks` of the source environment) provides its
-`ctorInfo`, its translation and its `numParams = a.container.nparams = a.arguments.length`. -/
+For a source owner `restoredHeadName` is the identity on its constructors, the constructor's
+kernel `ctorInfo` is read off the output's family lookups (`NestedRun.inductInfosFromDeclOfArity`,
+`NestedRun.coverOfArity`), and its shape off the lowered constructor
+(`NestedRun.loweredConstructorShape`) through the constructor arities `Harity`. For an auxiliary
+owner the restored constructor is a constructor `c` of the container (`NestedRun.containerConstructorKernel`,
+`NestedRun.containerConstructorShape`). -/
 theorem NestedRun.restoredRuleConstructors
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -196,6 +418,16 @@ theorem NestedRun.restoredRuleConstructors
     (Hcert : ContainersInstalled (ves.venv (if isUnsafe then .unsafe else .safe)) auxiliaries)
     (Hdata : CompilationData (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
       E.lowered.loweredDecl E.lowered.signature E.lowered.generatedInstance auxiliaries block)
+    (Harity : sourceDecl.ConstructorArityPrefix E.lowered.loweredDecl)
+    {envTypes : VEnv} {ctx : List VExpr} {generated : List VInductiveType}
+    (Haux : List.Forall₂ (SpecializationGenerates
+      (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes ctx sourceDecl)
+      auxiliaries generated)
+    (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
+        (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+        (VInductDecl.NestedOccurrenceReplacementAbs
+          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
+      generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
     (owner : Fin E.lowered.signature.families.size) {head : RestoredFamilyHead}
     (hhead : E.lowered.generatedInstance.restoredFamilyHead
       (compilationRestoration sourceDecl auxiliaries) owner = some head)
@@ -219,9 +451,122 @@ theorem NestedRun.restoredRuleConstructors
           (compilationRestoration sourceDecl auxiliaries).restoredHeadName
             E.lowered.signature.constructors[index].name = c.name ∧
           head.arguments.length = Dc.nparams)) := by
-  -- WAVE 3 STUB (restB): see the docstring.
-  have := wf; have := Hsources; have := D; have := Hcert; have := Hdata; have := hhead
-  have := hown; sorry
+  have := Hcert
+  have hnp : E.lowered.signature.params.length = sourceDecl.nparams := Hdata.model.nparams.trans Hdata.nparams
+  have hx : E.lowered.signature.constructors[index].name ∈ (E.lowered.signature.declarationFamily owner).ctors.map (·.name) := by
+    have h := E.lowered.signature.declarationCtor_family index
+    rw [hown] at h
+    exact List.mem_map_of_mem h
+  rcases Hdata.familyCases owner with ⟨hsrc, hfamName, hnames⟩ |
+      ⟨hge, hidx, hfamName, hnames⟩
+  · -- a source family
+    have hh := Hdata.restoredFamilyHead_source owner hsrc hfamName
+    rw [hhead] at hh
+    cases hh
+    rw [hnames] at hx
+    obtain ⟨j, hj, hjx⟩ := List.mem_iff_getElem.mp hx
+    simp only [List.getElem_map, List.length_map] at hj hjx
+    let sc := (sourceDecl.types[owner.val]'hsrc).ctors[j]'hj
+    have hscMem : sc ∈ sourceDecl.constructorConstants :=
+      List.mem_flatMap.mpr ⟨_, List.getElem_mem hsrc, List.getElem_mem hj⟩
+    have hrestored : (compilationRestoration sourceDecl auxiliaries).restoredHeadName E.lowered.signature.constructors[index].name = sc.name := by
+      rw [← hjx]
+      exact Hdata.restoredHeadName_source (mem_familyNames.mpr
+        ⟨_, List.getElem_mem hsrc, .inr ⟨sc, List.getElem_mem hj, rfl⟩⟩)
+    have hargs : (vars E.lowered.signature.params.length 0).length = sourceDecl.nparams := by
+      rw [vars_length, hnp]
+    simp only [hrestored, hargs]
+    -- the kernel constructor
+    have hsourceWF : sourceProdEnv.constants.WF := by
+      have h := E.contextWF.checking.tr.map_wf
+      rwa [E.context_env] at h
+    obtain ⟨_, Hfresh⟩ := E.restoration.freshExtension hsourceWF
+    have houtWF : outEnv.constants.WF := Hfresh.targetWF hsourceWF
+    have horig := E.inductInfosFromDeclOfArity Harity Hsources wf.constructorOwners
+    obtain ⟨v, hv, hnone⟩ := E.coverOfArity Harity Hsources wf.constructorOwners
+      _ (List.getElem_mem hsrc)
+    rw [Kernel.Environment.find?_eq_constants houtWF] at hv
+    rw [Kernel.Environment.find?_eq_constants hsourceWF] at hnone
+    have hA : Nonempty (InductInfoAlignment outEnv.constants sourceDecl owner.val v) := by
+      rcases horig _ v hv with hold | ⟨fi, hfn, ⟨A⟩⟩
+      · rw [hnone] at hold; cases hold
+      · have htypesNodup : (sourceDecl.types.map (·.name)).Nodup := by
+          have h := (List.nodup_append.mp Hdata.sourceWF.2.1).1
+          simpa [VInductDecl.typeConstants, List.map_map, Function.comp_def] using h
+        have hfi : fi = owner.val := by
+          have hn : (sourceDecl.types[fi]'A.familyIdx_lt).name =
+              (sourceDecl.types[owner.val]'hsrc).name := A.name.symm.trans hfn.symm
+          have hfi' : fi < (sourceDecl.types.map (·.name)).length := by
+            simpa using A.familyIdx_lt
+          have how' : owner.val < (sourceDecl.types.map (·.name)).length := by
+            simpa using hsrc
+          exact (List.getElem_inj (h₀ := hfi') (h₁ := how') htypesNodup).mp (by simpa using hn)
+        subst hfi
+        exact ⟨A⟩
+    obtain ⟨A⟩ := hA
+    obtain ⟨C⟩ := A.constructor j hj
+    have hCname : v.ctors[j]'C.familyInfo_ctorIdx_lt = sc.name := C.name
+    refine ⟨⟨C.info, by rw [← hCname]; exact C.lookup, C.numParams⟩, ?_, .inl ⟨sc, hscMem, rfl, by simp [hnp]⟩⟩
+    -- the constructor shape
+    have Hcore := E.sourceCore.core
+    rw [E.sourceCoreDecl_eq] at Hcore
+    refine ⟨sc.toVConstant, VEnv.addConstVals_get Hcore.ctorsAdded hscMem, ?_, ?_⟩
+    · -- the lowered constructor at the same position
+      have Hfam := Lean4Lean.List.forall₂_getElem Hdata.model.families owner.val
+        (by simp [InductiveSignature.declaration])
+        (by rw [← Lean4Lean.List.Forall₂.length_eq Hdata.model.families]
+            simp [InductiveSignature.declaration])
+      have hdf : E.lowered.signature.declaration.types[owner.val]'(by simp [InductiveSignature.declaration]) =
+          E.lowered.signature.declarationFamily owner := by
+        simp [InductiveSignature.declaration, InductiveSignature.declarationFamily]
+      have hlnames := Hfam.2.2.2.2
+      rw [hdf, hnames] at hlnames
+      have hlen := congrArg List.length hlnames
+      simp only [List.length_map] at hlen
+      have hiL : owner.val < E.lowered.loweredDecl.types.length := by
+        rw [← Lean4Lean.List.Forall₂.length_eq Hdata.model.families]
+        simp [InductiveSignature.declaration]
+      have hjL : j < (E.lowered.loweredDecl.types[owner.val]'hiL).ctors.length := by
+        rw [← hlen]; exact hj
+      have hlcName : ((E.lowered.loweredDecl.types[owner.val]'hiL).ctors[j]'hjL).name =
+          sc.name := by
+        have := congrArg (fun l => l[j]?) hlnames
+        simp only [List.getElem?_map, List.getElem?_eq_getElem hj,
+          List.getElem?_eq_getElem hjL, Option.map_some, Option.some.injEq] at this
+        exact this.symm
+      have hlcMem : (E.lowered.loweredDecl.types[owner.val]'hiL).ctors[j]'hjL ∈
+          E.lowered.loweredDecl.constructorConstants :=
+        List.mem_flatMap.mpr ⟨_, List.getElem_mem hiL, List.getElem_mem hjL⟩
+      have hlcGet := VEnv.addConstVals_get E.lowered.constructors.core.ctorsAdded hlcMem
+      obtain ⟨ci, hci, hshape⟩ := E.loweredConstructorShape index
+      rw [← hjx, ← hlcName, hlcGet] at hci
+      cases hci
+      have hAr := Harity owner.val hsrc hiL j hj hjL
+      change sc.type.piArity = _
+      rw [VExpr.piArity_eq_forallArity, hAr, ← VExpr.piArity_eq_forallArity, hshape.1,
+        Hdata.nparams]
+    · obtain ⟨-, -, -, -, -, hraw⟩ := Hdata.sourceParameters
+      exact (hraw _ (List.getElem_mem hsrc) sc (List.getElem_mem hj)).ctorHeaded
+  · -- an auxiliary family
+    have ha := List.getElem_mem hidx
+    have hh := Hdata.restoredFamilyHead_auxiliary owner ha hfamName
+    rw [hhead] at hh
+    cases hh
+    rw [hnames] at hx
+    obtain ⟨c, hc, hcx⟩ := List.mem_map.mp hx
+    have hrestored : (compilationRestoration sourceDecl auxiliaries).restoredHeadName E.lowered.signature.constructors[index].name = c.name := by
+      rw [← hcx]; exact Hdata.restoredHeadName_auxiliary ha hc
+    simp only [hrestored, List.length_map]
+    obtain ⟨g', hg', HG⟩ := Lean4Lean.List.Forall₂.forall_exists_l Haux _ ha
+    refine ⟨E.containerConstructorKernel wf Hsources D ha hc, ?_, .inr ⟨_, HG.installed, c,
+      List.mem_flatMap.mpr ⟨_, List.getElem_mem _, hc⟩, rfl, HG.argumentsLength⟩⟩
+    have hown' : E.lowered.signature.constructors[index].owner.val = owner.val := by rw [hown]
+    have hidx' : E.lowered.signature.constructors[index].owner.val - sourceDecl.types.length <
+        auxiliaries.length := by rw [hown']; exact hidx
+    have := E.containerConstructorShape Haux Hexpansion Hdata index (by rw [hown']; exact hge)
+      hidx' (c := c) (by simp only [hown']; exact hc) (by simp only [hown']; exact hcx.symm)
+    simp only [hown'] at this
+    exact this
 
 /-- **Stub (restB).** The restored constructors of one family are distinct: the identity on a
 source family's constructors, and on an auxiliary family's the constructors of its container's
