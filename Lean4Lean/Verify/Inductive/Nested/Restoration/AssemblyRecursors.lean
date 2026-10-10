@@ -6,6 +6,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Certificate
 import Lean4Lean.Verify.Inductive.Nested.Restoration.RuleConstructors
 import Lean4Lean.Verify.Inductive.Nested.Restoration.RestoredRecursorShapes
 import Lean4Lean.Verify.Inductive.Nested.Restoration.KernelData
+import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.RestoredWF
 import Lean4Lean.Verify.Inductive.Nested.Equations.RuleAlignment
 
 /-! # The recursor and compilation half of the restored block
@@ -952,6 +953,11 @@ theorem NestedRun.assemblyRecursors
       (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
+          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.recursorVEnv)
+    (hV : CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
+      (Lean4Lean.stripRecursorRules outEnv
+        (Lean4Lean.restoredRecursorNames
+          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.recursorVEnv) :
     ∃ (recs : List VRecursor) (auxiliaries : List ContainerSpecialization)
       (block : VInductBlock) (envR outVEnv : VEnv),
@@ -986,7 +992,9 @@ theorem NestedRun.assemblyRecursors
       (∀ r ∈ (sourceDecl.withRecs recs).recs, ∀ ru ∈ r.rules, ru.rhs.Closed) ∧
       (sourceDecl.withRecs recs).addRules envR = some outVEnv ∧
       (∀ rval ∈ E.restoration.rvals, RecursorShapesAt outEnv.constants outVEnv rval) ∧
-      (∀ rval ∈ E.restoration.rvals, KLikeRecursor outEnv.constants outVEnv rval) := by
+      (∀ rval ∈ E.restoration.rvals, KLikeRecursor outEnv.constants outVEnv rval) ∧
+      envR = C.recursorVEnv ∧
+      (∀ df ∈ block.rules, df.WF envR) := by
   classical
   obtain ⟨auxiliaries, rules, D, hrulesEq, Hcert, Hdata, Hentries, Hal⟩ :=
     E.restoredCompilation wf Hsources C hC hkernel Cstrip
@@ -1115,7 +1123,7 @@ theorem NestedRun.assemblyRecursors
     E.restoredRuleConstructors wf Hsources D Hcert Hdata owner hhead index hown
   refine ⟨recs, auxiliaries, restoredBlock sourceDecl C.sourceRecursors C.auxiliaryRecursors
     rules [], C.recursorVEnv, outVEnv, Hcert, Hdata.withRecs recs, ⟨?_, ?_, ?_⟩, hrecsAdded, ?_, ?_, ?_, ?_,
-    ?_, ?_, ?_, hclosed, hout, ?_, ?_⟩
+    ?_, ?_, ?_, hclosed, hout, ?_, ?_, rfl, ?_⟩
   · -- RecsOf.recursors
     show recs.map (·.toVConstVal) = C.sourceRecursors ++ C.auxiliaryRecursors
     rw [hrecsVals, C.recursorValues]
@@ -1195,6 +1203,13 @@ theorem NestedRun.assemblyRecursors
     obtain ⟨vr, -, owner, e, -, H⟩ := Lean4Lean.List.Forall₂.forall_exists_l Hrv rv hrv
     obtain ⟨-, -, -, -, -, -, -, -, HV, -⟩ := H
     exact KLikeRecursor.of_k_false (HV.k_eq_false (E.one_lt_familiesSize hnested))
+  · -- the restored equations are well formed in the recursor stage
+    intro df hdf
+    simp only [restoredBlock, List.append_nil] at hdf
+    have h := List.mapM_eq_some.mp hrulesEq
+    obtain ⟨eq, heq, hr⟩ := Lean4Lean.List.Forall₂.forall_exists_r h df hdf
+    obtain ⟨k, -, rfl⟩ := List.mem_map.mp heq
+    exact E.hrestoredWF_of wf Hsources auxiliaries D C hC hV k df hr
 
 end VerifyInductive
 end Lean4Lean
