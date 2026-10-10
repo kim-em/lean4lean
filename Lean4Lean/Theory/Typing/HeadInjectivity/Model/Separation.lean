@@ -33,12 +33,12 @@ theorem rigid_spine_not_pi {σ : VExpr.Subst} {S : ObSets} {o : Ob}
   rcases Obs.const_iff.1 hw with ⟨_, _, keys', r, e, _, _, _, _, hr⟩ |
     ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r, e, _, _, _, _, _, hr, _⟩ |
     ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩ |
-    ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hp, _⟩ |
+    ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hp, _⟩ |
     ⟨_, _, _, _, keys', r, e, _, _, _, _, _, _, ⟨_, _, _, rfl, _⟩, _⟩ |
     ⟨_, _, _, keys', _, _, _, _, _, _, _, e, _⟩ | ⟨_, _, _, keys', _, _, _, _, _, _, e, _⟩
   · obtain ⟨-, rfl⟩ := wrap_inj e hna hr.notApp
     rcases ho with ⟨_, rfl⟩ | ⟨_, rfl⟩ | ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩ <;>
-      rcases hr with ⟨_, h⟩ | ⟨_, _, h⟩ <;> cases h
+      rcases hr with ⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩ <;> cases h
   · exact absurd (by rw [hlhs]; rfl) (hrig.defeqs df hdf _)
   · have hrn : r.NotApp := by
       rcases hr with rfl | ⟨_, _, rfl⟩ | ⟨_, _, _, _, rfl⟩ <;> trivial

@@ -80,13 +80,13 @@ theorem famTy_inv {σ : VExpr.Subst} {S0 : ObSets} {S : Name} {ls : List VLevel}
   rcases Obs.const_iff.1 h' with ⟨_, _, keys', r, he, _, _, _, _, hr⟩ |
     ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r, he, _, _, _, _, _, hr, _⟩ |
     ⟨df, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩ |
-    ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hp, _⟩ |
+    ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hp, _⟩ |
     ⟨_, _, _, _, keys', r, he, _, _, _, _, _, _, hr, _⟩ |
     ⟨ci, info, τs, keys', j', FL', x', Dc, R0, as, τk, he, _, _, hp, hnz, _, _, hl, hj, hFL,
       hshape, hlt, hchain, hkb, hτk, hty, hx⟩ |
     ⟨_, _, _, keys', _, _, _, _, _, _, he, _⟩
   · obtain ⟨-, rfl⟩ := wrap_inj he notApp_fieldTy hr.notApp
-    rcases hr with ⟨_, h⟩ | ⟨_, _, h⟩ <;> cases h
+    rcases hr with ⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩ <;> cases h
   · exact absurd (by rw [hlhs]; rfl) (hrig.defeqs df hdf (VLevel.params df.uvars))
   · obtain ⟨-, rfl⟩ := wrap_inj he notApp_fieldTy (by
       rcases hr with h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩ <;> (subst h; trivial))
@@ -121,13 +121,13 @@ theorem famDom_inv {σ : VExpr.Subst} {S0 : ObSets} {S : Name} {ls : List VLevel
   rcases Obs.const_iff.1 h' with ⟨_, _, keys', r, he, _, _, _, _, hr⟩ |
     ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r, he, _, _, _, _, _, hr, _⟩ |
     ⟨df, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩ |
-    ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hp, _⟩ |
+    ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hp, _⟩ |
     ⟨_, _, _, _, keys', r, he, _, _, _, _, _, _, hr, _⟩ |
     ⟨_, _, _, keys', _, _, _, _, _, _, _, he, _⟩ |
     ⟨ci, info, τs, keys', j', FL', D', Dc, R0, as, he, _, _, hp, hnz, _, _, hl, hj, hFL,
       hshape, hlt, hchain, hD⟩
   · obtain ⟨-, rfl⟩ := wrap_inj he notApp_fieldDom hr.notApp
-    rcases hr with ⟨_, h⟩ | ⟨_, _, h⟩ <;> cases h
+    rcases hr with ⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩ <;> cases h
   · exact absurd (by rw [hlhs]; rfl) (hrig.defeqs df hdf (VLevel.params df.uvars))
   · obtain ⟨-, rfl⟩ := wrap_inj he notApp_fieldDom (by
       rcases hr with h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩ <;> (subst h; trivial))

@@ -163,7 +163,7 @@ theorem NestedRun.sourceCoreParameterWF
     exact Option.some.inj h
   rcases E.restorationTablesRestoringAll wf Hsources with
     ⟨envTypes, generated, auxiliaries, hadded, henvTypes, Haux, Hexpansion, -, -,
-      -, -⟩
+      -, -, -⟩
   have hnodup : (InductiveSignature.familyNames P.loweredDecl.types ++
       P.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
     rcases E.containerSpecializations wf Hsources with

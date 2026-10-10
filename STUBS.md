@@ -390,8 +390,8 @@ cover every new recursor, auxiliary ones included). `BlockCertificate.compiled` 
 
 | statement | file | what remains |
 |---|---|---|
-| `RestoredBlock.restoredEquationsWF` | `Nested/Equations/Rules.lean` | `∀ df ∈ B.block.rules, df.WF B.envR`: the restoration substitution from `L.recursors.outVEnv` into `B.envR` (source `Equations/WF.lean`: `restoredEquationSubstitution`, `restoredEquationsWF_of_substitutionPremises`, with `ProjNames`, `Equations/AuxiliaryConstructors`, `ProjectionRenaming`). Needs `B.run`, restB's port of `NestedRun`/`RestoredBlockBase`, not yet a field of `RestoredBlock`. `blockWF` and `rulesWF` reduce to it. |
-| `RestoredBlock.kernelFacts` | `Nested/Install/Installed.lean` | `KernelFacts B`: `MutualInductivesClosed`, `ConstructorOwnersPresent`, `InductInfosFromDecl`, the recursor majors, the constructor parameter alignment, and `HasPrimitives`/`safePrimitives` of the output, all from the restoration folds of `B.run` (source `RestoredBlockCertificate.inductInfosFromDecl`, `NestedRestorationFolds.constructorOwnersPresentOfContext`, `Install/ConstructorCoherence.lean`). |
+| ~~`RestoredBlock.restoredEquationsWF`~~ (closed) | `Nested/Equations/Rules.lean` | Now restB's `RestoredBlock` field, produced in `nestedRestoredBlock` from `NestedRun.hrestoredWF_of` (`Nested/Restoration/Equations/RestoredWF.lean`, eqinst): the restoration substitution (`Equations/WF.lean`, without eliminators), the projection-name premises (`Equations/ProjNames.lean`, `Equations/ProjNamesAvoid.lean`), the auxiliary constructor lambdas (`Equations/AuxiliaryConstructors.lean`), restB's projection clauses (`AuxiliaryProjections.lean`). |
+| ~~`RestoredBlock.kernelFacts`~~ (closed) | `Nested/Install/Installed.lean` | Proved: `constructorOwnersPresent`, `inductInfosFromDecl` (for `runDecl`, carried along `run_decl`), `mutualInductivesClosed` (given the base's closure, from its complete blocks), `primitives`; `recMajor` and `constructorParameterAlignment` are restB's `RestoredBlock` fields. `ConstructorCoherence.lean`'s `FoldSteps.restoredSourceMemberInfos` and `sourceTypeNames` made public (`-- WAVE 3 COMPAT (eqinst)`). |
 
 Flagged: `VExpr.RecShape`'s `MajorApp` conjunct (`VInductDecl.WF.rec_shape`,
 `RestoredBlock.rec_shape`) is false for the auxiliary recursors of a nested block. Their major
@@ -450,9 +450,36 @@ IotaSoundnessLemmas/SignatureVars/ProjNamesOK. The registered ι rules are fixed
 restoration interpretations (`VEnv.WF.pats_fixed_of_avoid`, `Nested/Restoration/PatsFixed.lean`,
 from the model's `VEnv.WF'.patsAvoidFreshConsts` and `pats_origin`).
 
-| statement | file | why |
-|---|---|---|
-| `nestedRestoredBlock` | `Nested/Restoration/Restore.lean` | assembly in progress |
+`nestedRestoredBlock` (`Restore.lean`) is assembled with no `sorry` of its own:
+`NestedRun.ofRestoration` (the run of the restoration), `NestedRun.sourceParameterWF`,
+`NestedRun.assemblyBase` (the rule-free `RestoredBlockBase` and the kernel-order permutation),
+`NestedRestorationFolds.kernelOrder`, `NestedRun.trTypes`/`newUnsafe` (`AssemblyTypes`),
+`NestedRun.recMajor`/`constructorParameterAlignment` (`AssemblyKernel`),
+`NestedRun.strippedChecker` (`StrippedFacts`, over `RuleFree`), `NestedRun.assemblyRecursors`
+(`AssemblyRecursors`, consuming the Equations owner's `NestedRun.hrestoredWF_of`), and the
+`HEq` casts of `ViewCast`.
+
+Fields added to `RestoredBlock` (Restoration-B): `rules_ctorParams`, `runDecl`, `run`, `run_decl`,
+`sourceSyntaxChecked`, `constructorArityPrefix`, `run_loweredEnv`, `run_lowered` (the run object
+for the Equations and Install owners), `recMajor`, `constructorParameterAlignment` (for
+`kernelFacts`), and `restoredEquationsWF` (the Equations owner's `Rules.lean` theorem of that name
+became the field, `-- WAVE 3 COMPAT (restB)`).
+
+The stripped environment: `AddInduct.map_eq` is a structural `ConstMap` equality and
+`stripRecursorRules` re-inserts each recursor, so no `AddInduct` lands in the stripped map. The
+rule-free stage is built over `insertConsts` of the stripped entries, and transported along
+lookups by `CheckingEnv.Valid.mapExt`/`CheckerEnv.mapExt` (`Nested/Install/Permutation.lean`);
+Restoration-A restated `stripRecursorRules.checkingValid`/`checkerEnv` accordingly.
+
+Restoration-B leaves no stub: no `sorry` in `Nested/Restoration/**` or `CompilationMajors.lean`.
+`nestedRestoredBlock` depends on `sorryAx` only through other owners' statements
+(`VEnv.WF.patsStrong`, `VEnv.Model.PatValid.iota`, `VEnv.IsDefEqU.weakN_iff`).
+
+The container constructors' kernel listing is not derivable from abstract `InstalledBelow`
+(two installed declarations may share a family name with different constructors), so the
+lowering keeps it: new field `AuxiliaryFamilySource.containerKernel`
+(`Lowering/Expansion/AuxiliarySources.lean`, `-- WAVE 3 COMPAT (restB)`, agreed with lowering),
+carried as the last conjunct of `NestedRun.restorationTablesRestoringAll`.
 
 ## Wave 3 Restoration-A (`Nested/Restoration/Validation/**`)
 

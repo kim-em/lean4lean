@@ -140,7 +140,7 @@ theorem const_wrap_inv {Δ : List VExpr} {σ : VExpr.Subst} {S : ObSets} {keys :
   rcases Obs.const_iff.1 h with ⟨_, _, keys', r, e, _, _, _, _, hr⟩ |
     ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r, e, _, _, _, _, _, hr, _⟩ |
     ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩ |
-    ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hp, _⟩ |
+    ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hp, _⟩ |
     ⟨_, _, _, _, keys', r, e, _, _, _, _, _, _, ⟨_, _, _, rfl, _⟩, _⟩ |
     ⟨_, _, _, keys', _, _, _, _, _, _, _, e, _⟩ | ⟨_, _, _, keys', _, _, _, _, _, _, e, _⟩
   · obtain ⟨rfl, rfl⟩ := wrap_inj e hna hr.notApp
@@ -218,7 +218,7 @@ theorem rigid_analysis (henv : env.OrderedStrong) (hnr : SoundEnv env) (hΓ : On
   have hle : ∀ r, LeftEnd r → RigidEnd c (ls.map (·.eval)) keys r := by
     intro r hr; rcases hr with rfl | h
     · exact .inl ⟨_, rfl⟩
-    · exact .inr h
+    · exact .inr (.inl h)
   have hsort : ∀ r, LeftEnd r →
       TypedOb env U Γ (vcls env U Γ .id (.mkApps (.const c ls) args) (.sort u)) r
         [.sort u.eval] := by
@@ -247,12 +247,16 @@ theorem rigid_analysis (henv : env.OrderedStrong) (hnr : SoundEnv env) (hΓ : On
       · exact .inr ⟨_, _, rfl⟩)⟩
   have hlen := List.Forall₂.length_eq hkeys
   obtain ⟨keys', hk1, hr1⟩ := hR _ (.inl rfl)
-  rcases hr1 with ⟨_, e⟩ | ⟨_, _, e⟩
+  rcases hr1 with ⟨_, e⟩ | ⟨_, _, e⟩ | ⟨_, _, _, _, e⟩
+  rotate_left 2
+  · cases e
   · injection e with ec eℓ en
     refine ⟨ci, keys, u.eval, hci, hls, hkeys, hQ _ (hsort _ (.inl rfl)), ec, eℓ, ?_⟩
     refine List.forall₂_of_getElem (by rw [en, List.Forall₂.length_eq hk1]) fun i h₁ h₂ => ?_
     obtain ⟨keys'', hk2, hr2⟩ := hR _ (.inr ⟨i, h₁, rfl⟩)
-    rcases hr2 with ⟨_, e⟩ | ⟨j, hj, e⟩
+    rcases hr2 with ⟨_, e⟩ | ⟨j, hj, e⟩ | ⟨_, _, _, _, e⟩
+    rotate_left 2
+    · cases e
     · cases e
     · injection e with eij ecl
       subst eij

@@ -334,7 +334,7 @@ theorem RuleValid.delta (henv : env.OrderedStrong) (hdr : env.DeltaRules)
       ⟨df', ci', τs, hdf', hlhs', hci', hτ, hty, hv⟩ | ⟨_, _, _, _, _, hc, _⟩ |
       ⟨df', doms, lsP, lead, ctor, lsC, ms, fs, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf',
         hl', _⟩ |
-      ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hp, _⟩ |
+      ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hp, _⟩ |
       ⟨fam, info, _, _, _, _, _, hpi, hcn, _⟩ | ⟨_, _, _, _, _, _, _, _, _, _, _, _, hrig, _⟩ |
       ⟨_, _, _, _, _, _, _, _, _, _, _, hrig, _⟩
     · exact absurd hrig notRigid

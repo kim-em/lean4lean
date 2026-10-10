@@ -70,6 +70,13 @@ theorem LoweredView.phasesAt_commonParameterContext {outEnv : Environment}
   cases h
   rfl
 
+/-- The recursor entries do not depend on the family array index. -/
+theorem LoweredView.phasesAt_recursors_entries {outEnv : Environment}
+    (P : LoweredView outEnv) {indTypes : Array InductiveType} (h : P.indTypes = indTypes) :
+    (P.phasesAt h).recursors.entries = P.recursors.entries := by
+  cases h
+  rfl
+
 /-- The lowered phases indexed by the nested lowering's result families. -/
 def NestedRun.phases
     (E : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams
