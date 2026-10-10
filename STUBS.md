@@ -439,8 +439,14 @@ or because the scaffold form was circular:
   `CheckingEnv.Valid`, which contain the rule translations the pass establishes. Restoration-B
   produces the `RuleFreeStage` (agreed).
 
-`Nested/Restoration/Uniform/**` (parameter uniformity of the lowered recursors) is not needed
-by these statements.
+`Nested/Restoration/Uniform/**` (parameter uniformity of the lowered recursors, consumed by
+Restoration-B) is ported as far as Restoration-B's run is available: `Uniform/{Recursors,
+Generic,Heads,Base,Lowered,Run,Whnf}.lean`. Pending on Restoration-B's `ContainerSpecializations`
+(`NamePrefix`), `restorationTablesRestoring`, `CompilationDataConstructors`/`Commutation` and
+`NestedInstalledRun`: `NestedRun.auxHeadsFacts`, `envParamUniform`, `whnfPreservesParamUniform`,
+`recursorParamUniform_of_wfCore`, the `NestedRun` part of `Uniform/Declarations` and
+`Validation/ParameterScopes`. The lowered names' non-primitivity (`LoweredView.Nonprimitive`)
+is Restoration-B's `NestedRun.loweredNonprimitive`. Source `Validation/Result.lean` is superseded by `RestorationRun`.
 
 ## Wave 3 lowering
 
