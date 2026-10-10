@@ -53,3 +53,27 @@ theorem validateSourceConstructorTypes.sourceConsts_of_run
 
 end VerifyInductive
 end Lean4Lean
+
+namespace Lean4Lean
+open Lean hiding Environment Exception
+open Kernel
+namespace VerifyInductive
+
+/-- A side environment that extends a checker environment by constants that are not
+recursors (restored headers and constructors) is a checker environment: its recursor shapes
+are read off its installed blocks, and its ι rules are the base environment's. -/
+theorem CheckerEnv.ofSideExtension {safety : DefinitionSafety} {env env' : Environment}
+    {venv venv' : VEnv} (C : CheckerEnv safety env venv)
+    (V : CheckingEnv.Valid safety env' venv')
+    (hpres : ∀ {n ci}, env.find? n = some ci → env'.find? n = some ci)
+    (hrecs : ∀ {n r}, env'.find? n = some (.recInfo r) → env.find? n = some (.recInfo r))
+    (hle : venv ≤ venv') : CheckerEnv safety env' venv' where
+  toValid := V
+  shapes := V.blocks.recursorShapesCoherent V.tr.map_wf
+  iota := by
+    intro recName cName rval rule hrec hrule hsafe
+    obtain ⟨cval, rhs, hc, hfind, htr, hpat⟩ := C.iota (hrecs hrec) hrule hsafe
+    exact ⟨cval, rhs, hc, hpres hfind, htr.mono hle, hle.pats hpat⟩
+
+end VerifyInductive
+end Lean4Lean

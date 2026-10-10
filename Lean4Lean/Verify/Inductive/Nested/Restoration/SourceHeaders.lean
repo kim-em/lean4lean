@@ -1,3 +1,4 @@
+import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceValidation
 import Lean4Lean.Verify.Inductive.Nested.Install.DependencyOrder
 import Lean4Lean.Verify.Inductive.Nested.Restoration.SideEnvironment.Environment
 import Lean4Lean.Verify.Inductive.Nested.Restoration.SideEnvironment.ConstructorEnvironment
@@ -376,6 +377,28 @@ theorem ValidationHeaderEnvironment.validOfLowering
   · exact Hadded
   · exact Hvalidation.listedOfLowering Hc Hprod
   · exact hnprimHeaders
+
+/-- The header-only side environment is a checker environment over the restored source headers
+(`validOfLowering` with the base checker environment's recursor facts). -/
+theorem ValidationHeaderEnvironment.checkerEnvOfLowering
+    {c : AddInductive.Context} {sourceVEnv sourceEnvTypes : VEnv} {loweredDecl : VInductDecl}
+    {loweredEnv validationEnv : Environment} {sourceTypes : List InductiveType}
+    (C : CheckerEnv c.safety c.env sourceVEnv)
+    (Hvalidation : ValidationHeaderEnvironment loweredEnv c.env
+      (sourceTypes.map (fun type => type.name)) sourceTypes validationEnv)
+    (hadded : sourceVEnv.addConstVals
+      ((loweredDecl.types.take sourceTypes.length).map VInductiveType.toVConstVal) =
+        some sourceEnvTypes)
+    (V : CheckingEnv.Valid c.safety validationEnv sourceEnvTypes) :
+    CheckerEnv c.safety validationEnv sourceEnvTypes := by
+  have hsourceWF : c.env.constants.WF := C.map_wf
+  rcases Hvalidation.headers.headersFreshExtension hsourceWF with ⟨_, Hfresh⟩
+  refine CheckerEnv.ofSideExtension C V (fun h => Hfresh.preservesSourceFind hsourceWF h)
+    ?_ (VEnv.addConstVals_le hadded)
+  intro n r h
+  rcases Hvalidation.headers.headerFindCases hsourceWF h with hold | ⟨_, _, _, _, _, he⟩
+  · exact hold
+  · cases he
 
 end VerifyInductive
 end Lean4Lean
