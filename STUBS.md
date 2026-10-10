@@ -429,7 +429,29 @@ environments' models (source `Validation/{Environment,ConstructorEnvironment}`) 
 `rules_own_params`/`rec_counts`/`recs_over_block`): its `MajorApp` required the major's leading
 arguments to be the recursor's parameter variables, which a restored auxiliary recursor
 (`Tree.rec_1`, major `List (Tree α)`) violates. Lead decision: weaken `MajorApp` (Restoration-B,
-`-- WAVE 3 COMPAT (restB)`), in progress.
+`-- WAVE 3 COMPAT (restB)`): done (`MajorApp.of_params` is the old shape; Tests/IotaShape's
+`Tree.rec_1` control now expects acceptance). Its consequence, found by the model agent: nothing
+pinned the split of a registered rule's arity into constructor parameters and fields any more;
+lead decision: new field `VInductDecl.WF.rules_ctorParams` (own constructors at `decl.nparams`,
+or a container `D` with `InstalledBelow env D` at `D.nparams`), produced by the ordinary recursor
+phase (`RecursorCheck.rules_own`), the rebase, and `RestoredBlock.rules_ctorParams`.
+
+Ported so far (source names kept; `NestedRun` in `Restoration/Run.lean` with the source signature,
+its lowered run as `LoweredView`): Steps, RecursorTelescopes, FreshExtensions,
+ConstructorTranslations, Translations, Nonprimitive, Tables, TrRestoredRecursorVal, RecursorShape,
+AuxiliaryRecursorsWF, Install/Permutation, Lookups (with target-native `LoweredLookups`),
+KernelData (new: fold entries, `FreshExtension.map_eq`, `entries_perm`), LoweringRestoration,
+SourceTranslations, SourceValidation, InstalledFamilyLookups, Install/DependencyOrder,
+SideEnvironment/{Environment,ConstructorEnvironment}, SourceHeaders, SourceDeclaration,
+ContainerSpecializations, CompilationData, SourceConstructors, Commutation, ExpansionInverse,
+CommutationUniform, TranslationPreservation, Levels (part), RestoredShapes (new: the restored
+`rec_shape`/`rule_shape`/closedness), plus Verify-side copies of the source Theory's
+IotaSoundnessLemmas/SignatureVars/ProjNamesOK.
+
+| statement | file | why |
+|---|---|---|
+| `VEnv.WF.pats_fixed_of_restorableFresh` | `Nested/Restoration/SourceConstructors.lean` | the registered ι rules of a well-formed environment are fixed by a restoration interpretation whose restorable names are fresh; the reduct template's constants are not bounded by the environment without the rule's typing in the empty context (the gap of wave 1A's `patsAvoidFreshConsts`; `RecsCompiled` now carries `block.WF`, which should close both) |
+| `nestedRestoredBlock` | `Nested/Restoration/Restore.lean` | assembly in progress |
 
 ## Wave 3 Restoration-A (`Nested/Restoration/Validation/**`)
 
@@ -453,8 +475,15 @@ or because the scaffold form was circular:
   `CheckingEnv.Valid`, which contain the rule translations the pass establishes. Restoration-B
   produces the `RuleFreeStage` (agreed).
 
-`Nested/Restoration/Uniform/**` (parameter uniformity of the lowered recursors) is not needed
-by these statements.
+`Nested/Restoration/Uniform/**` (parameter uniformity of the lowered recursors, consumed by
+Restoration-B) is ported as far as Restoration-B's run is available: `Uniform/{Recursors,
+Generic,Heads,Base,Lowered,Run,Whnf}.lean`. Pending on Restoration-B's `ContainerSpecializations`
+(`NamePrefix`), `restorationTablesRestoring`, `CompilationDataConstructors`/`Commutation` and
+`NestedInstalledRun`: `NestedRun.auxHeadsFacts`, `envParamUniform`, `whnfPreservesParamUniform`,
+`recursorParamUniform_of_wfCore`, the `NestedRun` part of `Uniform/Declarations` and
+`Validation/ParameterScopes`. `NestedRun.envParamUniform` will take `LoweredView.Nonprimitive`
+(the lowered names passed `checkName` without primitive permission; the target's lowered run
+does not record it). Source `Validation/Result.lean` is superseded by `RestorationRun`.
 
 ## Wave 3 lowering
 
