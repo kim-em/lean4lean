@@ -248,7 +248,7 @@ theorem RecursorInput.recursorPhasesWF  -- WAVE 2 install COMPAT
             kTarget c.lparams)
       { c with env := ctorEnv }).WF fun outEnv =>
         Nonempty (RecursorCheck R outEnv) := by
-  exact (R.recursorInstallationWF R.closed hlparams R.literalDisjointStub
+  exact (R.recursorInstallationWF R.closed hlparams R.literalDisjoint
     (hsourceSafety := hsourceSafety) hnotPartial hnprim hpositivity).mono
       fun _ ⟨H⟩ => ⟨H.toRecursorCheck⟩
 
