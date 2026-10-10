@@ -824,5 +824,113 @@ theorem RestoredRuleSpec.ofEquation {s : InductiveSignature} {g : Instance s}
     exact ⟨head.levels, by simp [VExpr.getAppFn]⟩
   · simp [VExpr.getAppArgs, hcp, hnf, HT.nfields]
 
+theorem Restoration.recursor_type {r : Restoration} {v w : VConstVal}
+    (h : r.recursor v = some w) : r.expr v.type = some w.type ∧ w.name = r.recursorName v.name ∧
+      w.uvars = v.uvars := by
+  simp only [Restoration.recursor, Option.bind_eq_bind, Option.pure_def] at h
+  cases ht : r.expr v.type with
+  | none => simp [ht] at h
+  | some t =>
+    simp only [ht, Option.bind_some, Option.some.injEq] at h
+    subst h
+    exact ⟨rfl, rfl, rfl⟩
+
+section Spec
+
+variable {s : InductiveSignature} {g : Instance s} {r : Restoration} {sourceNames : List Name}
+  {venv : VEnv} {owner : Fin s.families.size} {rv : Lean.RecursorVal}
+  {e : ConstantInfo × VConstVal} {vr : VRecursor}
+
+theorem RestoredRecSpec.type (H : RestoredRecSpec g r sourceNames venv owner rv e vr) :
+    r.expr (g.recursorType owner) = some vr.type := by
+  obtain ⟨hv, -, -, -, -, -, -, hrec, -⟩ := H
+  have h := (Restoration.recursor_type hrec).1
+  rw [show vr.type = e.2.type by rw [← hv]]
+  exact h
+
+theorem RestoredRecSpec.name (H : RestoredRecSpec g r sourceNames venv owner rv e vr) :
+    vr.name = r.recursorName (g.recursorName owner) := by
+  obtain ⟨hv, -, -, -, -, -, -, hrec, -⟩ := H
+  rw [show vr.name = e.2.name by rw [← hv]]
+  exact (Restoration.recursor_type hrec).2.1
+
+theorem RestoredRecSpec.counts (H : RestoredRecSpec g r sourceNames venv owner rv e vr) :
+    vr.numParams = s.params.length ∧ vr.numMotives = s.families.size ∧
+      vr.numMinors = s.constructors.size ∧
+      vr.numIndices = s.families[owner].indices.length := by
+  obtain ⟨-, -, hp, hm, hmi, hi, -, -, HV, -⟩ := H
+  exact ⟨hp.trans HV.numParams, hm.trans HV.numMotives, hmi.trans HV.numMinors,
+    hi.trans HV.numIndices⟩
+
+/-- `rec_shape` of a model recursor read off a restored kernel recursor. -/
+theorem RestoredRecSpec.recShape (H : RestoredRecSpec g r sourceNames venv owner rv e vr)
+    (hr : r.Scoped) (hnp : ∀ h ∈ r.heads, h.nparams = s.params.length) :
+    vr.type.RecShape vr.numParams vr.numMotives vr.numMinors vr.numIndices := by
+  obtain ⟨hp, hm, hmi, hi⟩ := H.counts
+  rw [hp, hm, hmi, hi]
+  exact Restoration.recursorType_recShape hr hnp g owner H.type
+
+/-- The rule data of a model rule of a model recursor. -/
+theorem RestoredRecSpec.rule_mem (H : RestoredRecSpec g r sourceNames venv owner rv e vr)
+    {ru : VRecRule} (hru : ru ∈ vr.rules) :
+    ∃ head index rule, g.restoredFamilyHead r owner = some head ∧
+      index ∈ s.ownedConstructors owner ∧ rule ∈ rv.rules ∧
+      RestoredRuleSpec g r venv rv.levelParams head index rule ru := by
+  obtain ⟨-, -, -, -, -, -, -, -, -, head, hhead, -, Hrules, -⟩ := H
+  obtain ⟨⟨index, rule⟩, hmem, hspec⟩ := Lean4Lean.List.Forall₂.forall_exists_r Hrules ru hru
+  exact ⟨head, index, rule, hhead, (List.of_mem_zip hmem).1, (List.of_mem_zip hmem).2, hspec⟩
+
+theorem RestoredRuleSpec.ctor_headName {head : RestoredFamilyHead}
+    {index : Fin s.constructors.size} {lparams : List Name} {rule : Lean.RecursorRule}
+    {ru : VRecRule} (H : RestoredRuleSpec g r venv lparams head index rule ru) :
+    ru.ctor = r.headName s.constructors[index].name := by
+  obtain ⟨hctor, -, -, HT, -⟩ := H
+  have h := Restoration.expr_mkApps_const_headConst (r := r) HT.constructorApplication
+  simp only [VExpr.headConst?, VExpr.getAppFn_mkApps, VExpr.getAppFn, Option.some.injEq] at h
+  rw [hctor, h]
+
+/-- `rule_shape` of a model rule read off a restored kernel rule. -/
+theorem RestoredRecSpec.ruleShape (H : RestoredRecSpec g r sourceNames venv owner rv e vr)
+    {ru : VRecRule} (hru : ru ∈ vr.rules) :
+    ∃ j < vr.numMinors, ∃ A,
+      vr.type.piBinders[vr.numParams + vr.numMotives + j]? = some A ∧ A.MinorFor ru.ctor ∧
+      ru.nfields ≤ A.piArity ∧
+      ru.rhs.RuleShape vr.numParams vr.numMotives vr.numMinors ru.nfields
+        (A.piArity - ru.nfields) j := by
+  obtain ⟨head, index, rule, -, hidx, -, hspec⟩ := H.rule_mem hru
+  have hown := mem_ownedConstructors_owner hidx
+  have hT := H.type
+  rw [← hown] at hT
+  have hc := RestoredRuleSpec.ctor_headName hspec
+  obtain ⟨-, hnf, -, HT, df, hdf, hrhs, -⟩ := hspec
+  obtain ⟨hp, hm, hmi, -⟩ := H.counts
+  rw [hp, hm, hmi, hnf, HT.nfields, hrhs, hc]
+  exact Restoration.equation_ruleShape g index hT hdf
+
+/-- Every model rule's reduct is closed. -/
+theorem RestoredRecSpec.rules_closed (H : RestoredRecSpec g r sourceNames venv owner rv e vr)
+    (hvenv : venv.OrderedStrong) {ru : VRecRule} (hru : ru ∈ vr.rules) : ru.rhs.Closed := by
+  obtain ⟨head, index, rule, -, -, -, -, -, -, -, df, -, hrhs, ht⟩ := H.rule_mem hru
+  rw [hrhs]
+  exact TrExprS.closedN_nil hvenv ht
+
+/-- `OfEquation` of every model rule of a model recursor. -/
+theorem RestoredRecSpec.ofEquation (H : RestoredRecSpec g r sourceNames venv owner rv e vr)
+    (hindices : ∀ index : Fin s.constructors.size,
+      s.constructors[index].indices.length = s.families[s.constructors[index].owner].indices.length)
+    (hnot : r.heads.find? (fun h => h.auxiliary == g.recursorName owner) = none)
+    {ru : VRecRule} (hru : ru ∈ vr.rules) :
+    ∃ index, s.constructors[index].owner = owner ∧
+      ∃ df, r.equation (g.equation index) = some df ∧ VRecRule.OfEquation vr ru df := by
+  obtain ⟨head, index, rule, -, hidx, -, hspec⟩ := H.rule_mem hru
+  have hown := mem_ownedConstructors_owner hidx
+  obtain ⟨hp, hm, hmi, hi⟩ := H.counts
+  refine ⟨index, hown, RestoredRuleSpec.ofEquation hspec (by rw [H.name, hown]) ?_
+    (by rw [hown]; exact hnot)⟩
+  simp only [VRecursor.getMajorIdx, hp, hm, hmi, hi, hindices index, hown]
+  omega
+
+end Spec
+
 end VerifyInductive
 end Lean4Lean
