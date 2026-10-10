@@ -113,4 +113,32 @@ theorem closed_wrapForalls_domain {domains : List VExpr} {body : VExpr} {k i : N
       simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using
         ih hc.2 (Nat.lt_of_succ_lt_succ hi)
 
+/-- A scoped simultaneous substitution preserves the indicated scope. -/
+theorem ClosedN.subst_closed {e : VExpr} {k n : Nat} {σ : Subst} (he : e.ClosedN k)
+    (hσ : ∀ i < k, (σ i).ClosedN n) : (e.subst σ).ClosedN n := by
+  induction e generalizing k n σ with (simp only [ClosedN, subst] at he ⊢)
+  | bvar i => exact hσ i he
+  | app _ _ ih1 ih2 => exact ⟨ih1 he.1 hσ, ih2 he.2 hσ⟩
+  | proj _ _ _ ih => exact ih he hσ
+  | lam _ _ ih1 ih2 | forallE _ _ ih1 ih2 =>
+    refine ⟨ih1 he.1 hσ, ih2 he.2 ?_⟩
+    intro i hi
+    cases i with
+    | zero => exact Nat.zero_lt_succ _
+    | succ i => exact (hσ i (by omega)).liftN
+
+theorem ClosedN.wrapForalls_closed {domains : List VExpr} {body : VExpr} {n : Nat}
+    (hdomains : ∀ i (hi : i < domains.length), domains[i].ClosedN (n + i))
+    (hbody : body.ClosedN (n + domains.length)) :
+    (VExpr.wrapForalls domains body).ClosedN n := by
+  induction domains generalizing n with
+  | nil => exact hbody
+  | cons d ds ih =>
+    refine ⟨hdomains 0 (by simp), ih (n := n + 1) ?_ ?_⟩
+    · intro i hi
+      have hh := hdomains (i + 1) (by simp; omega)
+      change ds[i].ClosedN (n + (i + 1)) at hh
+      simpa only [Nat.add_assoc, Nat.add_comm 1] using hh
+    · simpa [Nat.add_assoc, Nat.add_comm 1] using hbody
+
 end Lean4Lean.VExpr
