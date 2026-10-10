@@ -3,7 +3,11 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.Passes
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ViewCast
 import Lean4Lean.Verify.Inductive.Nested.Restoration.RestoredShapes
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Certificate
+import Lean4Lean.Verify.Inductive.Nested.Restoration.RuleConstructors
+import Lean4Lean.Verify.Inductive.Nested.Restoration.RestoredRecursorShapes
 import Lean4Lean.Verify.Inductive.Nested.Restoration.KernelData
+import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.RestoredWF
+import Lean4Lean.Verify.Inductive.Nested.Equations.RuleAlignment
 
 /-! # The recursor and compilation half of the restored block
 
@@ -572,108 +576,6 @@ theorem RestoredRecSpec.exists {s : InductiveSignature} {g : Instance s} {r : Re
       rec.k rus,
     rfl, rfl, rfl, rfl, rfl, rfl, rfl, hrec, HV, head, hhead, hmajor, hrus, HR⟩
 
-/-! ### The stubbed facts about the restored rules' constructors -/
-
-/-- **Stub (restB).** The constructor of every restored rule: the restored constructor of a
-generated constructor `index` of family `owner` is a kernel constructor of the output whose
-parameter count is the restored family head's argument count (the source family's parameters,
-or the container's specialization arguments), a constructor of the source constructor stage
-with the constructor shape at that count plus the field count, and either one of the source
-declaration's constructors at its parameter count or a constructor of a container installed
-below at the container's.
-
-What it needs: for a source owner, `restoredHeadName` is the identity on its constructors
-(`CompilationData.restoredFamilyHead_spec`'s first alternative), and the source constructors'
-`ctorInfo`s and `TrIndType`s are the base's (`RestoredBlockBase.sourceTranslations`); for an
-auxiliary owner, the restored constructor is a constructor of `a.container`, whose installation
-(`ContainersInstalled`, then `InstalledBlocks` of the source environment) provides its
-`ctorInfo`, its translation and its `numParams = a.container.nparams = a.arguments.length`. -/
-theorem NestedRun.restoredRuleConstructors
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
-    {auxiliaries : List ContainerSpecialization} {block : VInductBlock}
-    (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
-      (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
-    (Hcert : ContainersInstalled (ves.venv (if isUnsafe then .unsafe else .safe)) auxiliaries)
-    (Hdata : CompilationData (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-      E.lowered.loweredDecl E.lowered.signature E.lowered.generatedInstance auxiliaries block)
-    (owner : Fin E.lowered.signature.families.size) {head : RestoredFamilyHead}
-    (hhead : E.lowered.generatedInstance.restoredFamilyHead
-      (compilationRestoration sourceDecl auxiliaries) owner = some head)
-    (index : Fin E.lowered.signature.constructors.size)
-    (hown : E.lowered.signature.constructors[index].owner = owner) :
-    (∃ cval : ConstructorVal, outEnv.constants.find?
-        ((compilationRestoration sourceDecl auxiliaries).restoredHeadName
-          E.lowered.signature.constructors[index].name) = some (.ctorInfo cval) ∧
-      cval.numParams = head.arguments.length) ∧
-    (∃ ci, E.sourceCore.envCtors.constants
-        ((compilationRestoration sourceDecl auxiliaries).restoredHeadName
-          E.lowered.signature.constructors[index].name) = some ci ∧
-      ci.type.CtorShape (head.arguments.length +
-        E.lowered.signature.constructors[index].fields.length)) ∧
-    ((∃ c ∈ sourceDecl.constructorConstants,
-        (compilationRestoration sourceDecl auxiliaries).restoredHeadName
-          E.lowered.signature.constructors[index].name = c.name ∧
-        head.arguments.length = sourceDecl.nparams) ∨
-      (∃ Dc, VEnv.InstalledBelow (ves.venv (if isUnsafe then .unsafe else .safe)) Dc ∧
-        ∃ c ∈ Dc.constructorConstants,
-          (compilationRestoration sourceDecl auxiliaries).restoredHeadName
-            E.lowered.signature.constructors[index].name = c.name ∧
-          head.arguments.length = Dc.nparams)) := by
-  -- WAVE 3 STUB (restB): see the docstring.
-  have := wf; have := Hsources; have := D; have := Hcert; have := Hdata; have := hhead
-  have := hown; sorry
-
-/-- **Stub (restB).** The restored constructors of one family are distinct: the identity on a
-source family's constructors, and on an auxiliary family's the constructors of its container's
-family (`CaseCompilationData.directFamily_restored_constructor_names`), whose names are distinct
-in the installed container. -/
-theorem NestedRun.restoredRuleConstructors_nodup
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    {auxiliaries : List ContainerSpecialization} {block : VInductBlock}
-    (Hcert : ContainersInstalled (ves.venv (if isUnsafe then .unsafe else .safe)) auxiliaries)
-    (Hdata : CompilationData (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
-      E.lowered.loweredDecl E.lowered.signature E.lowered.generatedInstance auxiliaries block)
-    (owner : Fin E.lowered.signature.families.size) :
-    ((E.lowered.signature.ownedConstructors owner).map fun index =>
-      (compilationRestoration sourceDecl auxiliaries).restoredHeadName
-        E.lowered.signature.constructors[index].name).Nodup := by
-  -- WAVE 3 STUB (restB): see the docstring.
-  have := Hcert; have := Hdata; have := owner; sorry
-
-/-- **Stub (restB).** The recursor and constructor telescopes of every restored kernel recursor
-in the recursor stage of the base (`RecursorShapesAt`, with its rules). The rule-free part is
-`RestoredRecursorShape.alignmentCore`; the rule part is the `VConstructorShape` of each rule's
-restored constructor (`restoredRuleConstructors`) at the recursor's major inductive. -/
-theorem NestedRun.restoredRecursorShapes
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedRun result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
-    (C : RestoredBlockBase E.restoration
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe))
-    (hC : C.lowered = E.lowered) :
-    ∀ rv ∈ E.restoration.rvals, RecursorShapesAt outEnv.constants C.recursorVEnv rv := by
-  -- WAVE 3 STUB (restB): see the docstring.
-  have := wf; have := Hsources; have := hC; sorry
-
 /-- A nested run with a recorded nested occurrence generates an auxiliary
 family, so its expanded block has more than one family. -/
 theorem NestedRun.one_lt_familiesSize
@@ -714,6 +616,30 @@ theorem NestedRun.one_lt_familiesSize
   rw [hN, hresult]
   omega
 
+
+theorem forall₂_mem_zip_l {α β : Type _} {R : α → β → Prop} :
+    ∀ {l₁ : List α} {l₂ : List β}, List.Forall₂ R l₁ l₂ → ∀ a ∈ l₁,
+      ∃ b, (a, b) ∈ l₁.zip l₂ ∧ R a b
+  | _, _, .nil, _, h => by cases h
+  | _, _, .cons hab t, a, h => by
+    rcases List.mem_cons.mp h with rfl | h
+    · exact ⟨_, List.mem_cons_self, hab⟩
+    · obtain ⟨b, hb, hr⟩ := forall₂_mem_zip_l t a h
+      exact ⟨b, List.mem_cons_of_mem _ hb, hr⟩
+
+theorem forall₂_zip_map_snd {α β γ : Type _} {R : α → β → Prop} {S : α × β → γ → Prop} :
+    ∀ {l₁ : List α} {l₂ : List β} {l₃ : List γ}, List.Forall₂ R l₁ l₂ →
+      List.Forall₂ S (l₁.zip l₂) l₃ → List.Forall₂ (fun b c => ∃ a, R a b ∧ S (a, b) c) l₂ l₃
+  | _, _, _, .nil, .nil => .nil
+  | _, _, _, .cons h1 t1, .cons h2 t2 => .cons ⟨_, h1, h2⟩ (forall₂_zip_map_snd t1 t2)
+
+theorem forall₂_zip_map_fst_eq {α β γ δ : Type _} {R : α → β → Prop} {S : α × β → γ → Prop}
+    {f : α → δ} {h : γ → δ} (hS : ∀ ab c, S ab c → h c = f ab.1) :
+    ∀ {l₁ : List α} {l₂ : List β} {l₃ : List γ}, List.Forall₂ R l₁ l₂ →
+      List.Forall₂ S (l₁.zip l₂) l₃ → l₃.map h = l₁.map f
+  | _, _, _, .nil, .nil => rfl
+  | _, _, _, .cons _ t1, .cons h2 t2 => by
+    simp only [List.map_cons, hS _ _ h2, forall₂_zip_map_fst_eq hS t1 t2]
 
 /-! ### The model recursors' clauses, per recursor -/
 
@@ -930,7 +856,360 @@ theorem RestoredRecSpec.ofEquation (H : RestoredRecSpec g r sourceNames venv own
   simp only [VRecursor.getMajorIdx, hp, hm, hmi, hi, hindices index, hown]
   omega
 
+/-- The model rules of a model recursor against the kernel rules. -/
+theorem RestoredRecSpec.rules_forall₂ (H : RestoredRecSpec g r sourceNames venv owner rv e vr) :
+    ∃ head, g.restoredFamilyHead r owner = some head ∧
+      List.Forall₂ (fun rule ru => ∃ index, index ∈ s.ownedConstructors owner ∧
+        TrRestoredRecursorRule g r venv rv.levelParams head index rule ∧
+        RestoredRuleSpec g r venv rv.levelParams head index rule ru) rv.rules vr.rules := by
+  obtain ⟨-, -, -, -, -, -, -, -, -, head, hhead, -, Hrules, HR⟩ := H
+  refine ⟨head, hhead, ?_⟩
+  have h := forall₂_zip_map_snd (Lean4Lean.List.Forall₂.and_mem HR) Hrules
+  refine Lean4Lean.List.Forall₂.imp (fun rule ru ⟨index, ⟨hT, hidx, _⟩, hspec⟩ =>
+    ⟨index, hidx, hT, hspec⟩) h
+
+/-- The constructors of the model rules of a model recursor, in order. -/
+theorem RestoredRecSpec.rules_ctors (H : RestoredRecSpec g r sourceNames venv owner rv e vr) :
+    vr.rules.map (·.ctor) = (s.ownedConstructors owner).map fun index =>
+      r.restoredHeadName s.constructors[index].name := by
+  obtain ⟨-, -, -, -, -, -, -, -, -, head, hhead, -, Hrules, HR⟩ := H
+  exact forall₂_zip_map_fst_eq (fun ir ru h => h.1.trans h.2.2.2.1.ctor) HR Hrules
+
+/-- Every generated equation of the owner is read off by a model rule. -/
+theorem RestoredRecSpec.ofEquation_at (H : RestoredRecSpec g r sourceNames venv owner rv e vr)
+    (hindices : ∀ index : Fin s.constructors.size,
+      s.constructors[index].indices.length = s.families[s.constructors[index].owner].indices.length)
+    (hnot : r.heads.find? (fun h => h.auxiliary == g.recursorName owner) = none)
+    {index : Fin s.constructors.size} (hidx : index ∈ s.ownedConstructors owner) :
+    ∃ ru ∈ vr.rules, ∃ df, r.equation (g.equation index) = some df ∧
+      VRecRule.OfEquation vr ru df := by
+  have hname := H.name
+  obtain ⟨hp, hm, hmi, hi⟩ := H.counts
+  obtain ⟨-, -, -, -, -, -, -, -, -, head, hhead, -, Hrules, HR⟩ := H
+  have hown := mem_ownedConstructors_owner hidx
+  obtain ⟨rule, hmem, -⟩ := forall₂_mem_zip_l HR index hidx
+  obtain ⟨ru, hru, hspec⟩ := Lean4Lean.List.Forall₂.forall_exists_l Hrules _ hmem
+  refine ⟨ru, hru, RestoredRuleSpec.ofEquation hspec (by rw [hname, hown]) ?_
+    (by rw [hown]; exact hnot)⟩
+  simp only [VRecursor.getMajorIdx, hp, hm, hmi, hi, hindices index, hown]
+  omega
+
 end Spec
+
+
+/-- A compilation does not read the source declaration's recursors. -/
+theorem _root_.Lean4Lean.InductiveSignature.CompilationData.withRecs {env : VEnv} {source expanded : VInductDecl}
+    {s : InductiveSignature} {g : Instance s} {auxiliaries : List ContainerSpecialization}
+    {block : VInductBlock} (H : CompilationData env source expanded s g auxiliaries block)
+    (recs : List VRecursor) :
+    CompilationData env (source.withRecs recs) expanded s g auxiliaries block where
+  sourceWF := H.sourceWF
+  sourceParameters := H.sourceParameters
+  expandedWF := H.expandedWF
+  headerPrefix := H.headerPrefix
+  expandedFormation := H.expandedFormation
+  model := H.model
+  uvars := H.uvars
+  nparams := H.nparams
+  safety := H.safety
+  restorationScoped := H.restorationScoped
+  correspondence := H.correspondence
+  familyTypesWF := H.familyTypesWF
+  types := H.types
+  ctors := H.ctors
+  projections := H.projections
+  admissible := H.admissible
+  generatedIHsWellTyped := H.generatedIHsWellTyped
+  recursorNames := H.recursorNames
+  generatedNames := H.generatedNames
+  recursorsFresh := H.recursorsFresh
+  recursors := H.recursors
+  equations := H.equations
+  names := H.names
+/-! ### The recursor and compilation half of the restored block -/
+
+/-- **The recursor and compilation fields of `RestoredBlock`** for a nested run `E`, its
+rule-free base `C` with its kernel order `hkernel`, and the stripped checker environment of the
+base's recursor stage (`Cstrip`), with `decl := sourceDecl.withRecs recs`, the stage environments
+`E.sourceCore.envTypes`/`envCtors`, `envR := C.recursorVEnv`, and `rvals := E.restoration.rvals`. -/
+theorem NestedRun.assemblyRecursors
+    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
+    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
+    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
+    {isUnsafe : Bool} {outEnv : Environment}
+    (E : NestedRun result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
+    (hnested : result.aux2nested.size ≠ 0)
+    (C : RestoredBlockBase E.restoration
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe))
+    (hC : C.lowered = E.lowered)
+    (hkernel : List.Perm
+      ((C.typeEntries ++ C.constructorEntries ++ C.recursorEntries).map Prod.fst)
+      E.restoration.entries)
+    (Cstrip : CheckerEnv (if isUnsafe then .unsafe else .safe)
+      (Lean4Lean.stripRecursorRules outEnv
+        (Lean4Lean.restoredRecursorNames
+          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
+          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.recursorVEnv)
+    (hV : CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
+      (Lean4Lean.stripRecursorRules outEnv
+        (Lean4Lean.restoredRecursorNames
+          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
+          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.recursorVEnv) :
+    ∃ (recs : List VRecursor) (auxiliaries : List ContainerSpecialization)
+      (block : VInductBlock) (envR outVEnv : VEnv),
+      ContainersInstalled (ves.venv (if isUnsafe then .unsafe else .safe)) auxiliaries ∧
+      CompilationData (ves.venv (if isUnsafe then .unsafe else .safe))
+        (sourceDecl.withRecs recs) E.lowered.loweredDecl E.lowered.signature
+        E.lowered.generatedInstance auxiliaries block ∧
+      (sourceDecl.withRecs recs).RecsOf block ∧
+      (sourceDecl.withRecs recs).addRecs
+        ((sourceDecl.withRecs recs).addProjs E.sourceCore.envCtors) = some envR ∧
+      List.Forall₂ (TrRecursor (if isUnsafe then .unsafe else .safe)
+        ((sourceDecl.withRecs recs).addProjs E.sourceCore.envCtors) envR outEnv.constants)
+        E.restoration.rvals (sourceDecl.withRecs recs).recs ∧
+      (∀ r ∈ (sourceDecl.withRecs recs).recs,
+        r.toVConstVal.toVConstant.WF ((sourceDecl.withRecs recs).addProjs E.sourceCore.envCtors)) ∧
+      (∀ r ∈ (sourceDecl.withRecs recs).recs,
+        r.type.RecShape r.numParams r.numMotives r.numMinors r.numIndices) ∧
+      (∀ r ∈ (sourceDecl.withRecs recs).recs, (r.rules.map (·.ctor)).Nodup) ∧
+      (∀ r ∈ (sourceDecl.withRecs recs).recs, ∀ ru ∈ r.rules,
+        ∃ ci, E.sourceCore.envCtors.constants ru.ctor = some ci ∧
+          ci.type.CtorShape (ru.ctorParams + ru.nfields)) ∧
+      (∀ r ∈ (sourceDecl.withRecs recs).recs, ∀ ru ∈ r.rules,
+        (∃ c ∈ (sourceDecl.withRecs recs).constructorConstants, ru.ctor = c.name ∧
+            ru.ctorParams = (sourceDecl.withRecs recs).nparams) ∨
+        (∃ D, VEnv.InstalledBelow (ves.venv (if isUnsafe then .unsafe else .safe)) D ∧
+          ∃ c ∈ D.constructorConstants, ru.ctor = c.name ∧ ru.ctorParams = D.nparams)) ∧
+      (∀ r ∈ (sourceDecl.withRecs recs).recs, ∀ ru ∈ r.rules, ∃ j < r.numMinors, ∃ A,
+        r.type.piBinders[r.numParams + r.numMotives + j]? = some A ∧ A.MinorFor ru.ctor ∧
+        ru.nfields ≤ A.piArity ∧
+        ru.rhs.RuleShape r.numParams r.numMotives r.numMinors ru.nfields
+          (A.piArity - ru.nfields) j) ∧
+      (∀ r ∈ (sourceDecl.withRecs recs).recs, ∀ ru ∈ r.rules, ru.rhs.Closed) ∧
+      (sourceDecl.withRecs recs).addRules envR = some outVEnv ∧
+      (∀ rval ∈ E.restoration.rvals, RecursorShapesAt outEnv.constants outVEnv rval) ∧
+      (∀ rval ∈ E.restoration.rvals, KLikeRecursor outEnv.constants outVEnv rval) ∧
+      envR = C.recursorVEnv ∧
+      (∀ df ∈ block.rules, df.WF envR) := by
+  classical
+  obtain ⟨auxiliaries, rules, D, hrulesEq, Hcert, Hdata, Hentries, Hal⟩ :=
+    E.restoredCompilation wf Hsources C hC hkernel Cstrip
+  -- the stage environments
+  have Hsource : TrInductDeclCore (ves.venv (if isUnsafe then .unsafe else .safe))
+      lparams nparams sourceTypes isUnsafe sourceDecl E.sourceCore.envTypes
+        E.sourceCore.envCtors := by
+    simpa only [E.sourceCoreDecl_eq] using E.sourceCore.core
+  have htypesEq : C.install.venvTypes = E.sourceCore.envTypes := by
+    have h := C.install.abstract_types
+    rw [C.typeValues, Hsource.typesAdded] at h
+    exact (Option.some.inj h).symm
+  have hctorsEq : C.install.venvCtors = E.sourceCore.envCtors := by
+    have h := C.install.abstract_ctors
+    rw [C.constructorValues, htypesEq, Hsource.ctorsAdded] at h
+    exact (Option.some.inj h).symm
+  -- the model recursors
+  have hTr := C.rvalsTranslated
+  rw [← C.recursorValues, Lean4Lean.List.forall₂_map_right_iff] at hTr
+  have Hpair := forall₂_and Hal hTr
+  have Htrip := forall₂_zip_left Hpair Hentries
+  have Hex := Lean4Lean.List.Forall₂.imp (S := fun owner
+      (p : RecursorVal × (ConstantInfo × VConstVal)) => ∃ vr : VRecursor,
+        (p.2.1 = .recInfo p.1 ∧
+          TrConstVal (if isUnsafe then .unsafe else .safe)
+            (C.install.venvCtors.addProjections sourceDecl.projectionEntries) (.recInfo p.1) p.2.2 ∧
+          p.2.2.toVConstant.WF (C.install.venvCtors.addProjections sourceDecl.projectionEntries)) ∧
+        RestoredRecSpec E.lowered.generatedInstance (compilationRestoration sourceDecl auxiliaries)
+          (sourceDecl.types.map (·.name)) C.recursorVEnv owner p.1 p.2 vr)
+    (fun owner p ⟨⟨he, htr⟩, hent⟩ =>
+      let ⟨vr, hvr⟩ := RestoredRecSpec.exists hent he
+      ⟨vr, ⟨he, htr⟩, hvr⟩) Htrip
+  obtain ⟨recs, Hrecs⟩ := forall₂_choose Hex
+  have hZsnd := forall₂_zip_snd Htrip
+  have hPfst := forall₂_zip_fst Hpair
+  have hPsnd := forall₂_zip_snd Hpair
+  have hrecsVals : recs.map (·.toVConstVal) = C.recursorEntries.map Prod.snd := by
+    have h := Lean4Lean.List.Forall₂.map_eq (f := fun q : Fin _ × (RecursorVal ×
+        (ConstantInfo × VConstVal)) => q.2.2.2) (g := fun vr : VRecursor => vr.toVConstVal)
+      (fun q vr h => h.2.1.symm) Hrecs
+    have h2 : ((List.finRange E.lowered.signature.families.size).zip
+        (E.restoration.rvals.zip C.recursorEntries)).map (fun q => q.2.2.2) =
+        ((((List.finRange E.lowered.signature.families.size).zip
+          (E.restoration.rvals.zip C.recursorEntries)).map Prod.snd).map Prod.snd).map
+            Prod.snd := by
+      simp [List.map_map, Function.comp_def]
+    rw [hZsnd, hPsnd] at h2
+    rw [← h, h2]
+  have Hrv : List.Forall₂ (fun rv vr => ∃ owner e,
+      (e.1 = .recInfo rv ∧
+        TrConstVal (if isUnsafe then .unsafe else .safe)
+          (C.install.venvCtors.addProjections sourceDecl.projectionEntries) (.recInfo rv) e.2 ∧
+        e.2.toVConstant.WF (C.install.venvCtors.addProjections sourceDecl.projectionEntries)) ∧
+      RestoredRecSpec E.lowered.generatedInstance (compilationRestoration sourceDecl auxiliaries)
+        (sourceDecl.types.map (·.name)) C.recursorVEnv owner rv e vr)
+      E.restoration.rvals recs := by
+    have h : E.restoration.rvals = ((List.finRange E.lowered.signature.families.size).zip
+        (E.restoration.rvals.zip C.recursorEntries)).map (fun q => q.2.1) := by
+      have h3 : ((List.finRange E.lowered.signature.families.size).zip
+          (E.restoration.rvals.zip C.recursorEntries)).map (fun q => q.2.1) =
+          (((List.finRange E.lowered.signature.families.size).zip
+            (E.restoration.rvals.zip C.recursorEntries)).map Prod.snd).map Prod.fst := by
+        simp [List.map_map, Function.comp_def]
+      rw [h3, hZsnd, hPfst]
+    rw [h, Lean4Lean.List.forall₂_map_left_iff]
+    exact Lean4Lean.List.Forall₂.imp (fun q vr h => ⟨q.1, q.2.2, h⟩) Hrecs
+  have hrecMem : ∀ vr ∈ recs, ∃ rv owner e, rv ∈ E.restoration.rvals ∧
+      (e.1 = .recInfo rv ∧
+        TrConstVal (if isUnsafe then .unsafe else .safe)
+          (C.install.venvCtors.addProjections sourceDecl.projectionEntries) (.recInfo rv) e.2 ∧
+        e.2.toVConstant.WF (C.install.venvCtors.addProjections sourceDecl.projectionEntries)) ∧
+      RestoredRecSpec E.lowered.generatedInstance (compilationRestoration sourceDecl auxiliaries)
+        (sourceDecl.types.map (·.name)) C.recursorVEnv owner rv e vr := by
+    intro vr hvr
+    obtain ⟨rv, hrv, owner, e, h1, h2⟩ := Lean4Lean.List.Forall₂.forall_exists_r Hrv vr hvr
+    exact ⟨rv, owner, e, hrv, h1, h2⟩
+  have hscoped : (compilationRestoration sourceDecl auxiliaries).Scoped := Hdata.restorationScoped
+  have hnpS : E.lowered.signature.params.length = sourceDecl.nparams :=
+    Hdata.model.nparams.trans Hdata.nparams
+  have hnp : ∀ h ∈ (compilationRestoration sourceDecl auxiliaries).heads,
+      h.nparams = E.lowered.signature.params.length := fun h hh =>
+    (compilationRestoration_heads_nparams h hh).trans hnpS.symm
+  have hindices : ∀ index : Fin E.lowered.signature.constructors.size,
+      E.lowered.signature.constructors[index].indices.length =
+        E.lowered.signature.families[E.lowered.signature.constructors[index].owner].indices.length :=
+    fun index => Hdata.model.constructorArity _ (by simp)
+  have hvenvStrong : C.recursorVEnv.OrderedStrong := Cstrip.wf.orderedStrong
+  have hclosed : ∀ r ∈ recs, ∀ ru ∈ r.rules, ru.rhs.Closed := by
+    intro vr hvr ru hru
+    obtain ⟨rv, owner, e, hmem, ⟨he, htr, hwfv⟩, H⟩ := hrecMem vr hvr
+    exact RestoredRecSpec.rules_closed H hvenvStrong hru
+  obtain ⟨outVEnv, hout⟩ := VEnv.addRules_exists (decl := sourceDecl.withRecs recs)
+    C.recursorVEnv hclosed
+  have hprojs : (sourceDecl.withRecs recs).addProjs E.sourceCore.envCtors =
+      C.install.venvCtors.addProjections sourceDecl.projectionEntries := by
+    rw [hctorsEq]; rfl
+  have hrecsAdded : (sourceDecl.withRecs recs).addRecs
+      ((sourceDecl.withRecs recs).addProjs E.sourceCore.envCtors) = some C.recursorVEnv := by
+    rw [VInductDecl.addRecs_eq_addConstVals, hprojs]
+    show (C.install.venvCtors.addProjections sourceDecl.projectionEntries).addConstVals
+      (recs.map (·.toVConstVal)) = _
+    rw [hrecsVals]
+    exact C.install.recursorsAdded.abstract
+  have hrulesMem : ∀ {index df}, (compilationRestoration sourceDecl auxiliaries).equation
+      (E.lowered.generatedInstance.equation index) = some df → df ∈ rules := by
+    intro index df hdf
+    have h := List.mapM_eq_some.mp hrulesEq
+    obtain ⟨df', hdf', hr⟩ := Lean4Lean.List.Forall₂.forall_exists_l h _
+      (List.mem_map_of_mem (f := fun i => E.lowered.generatedInstance.equation i)
+        (List.mem_finRange index))
+    rw [hdf] at hr
+    cases hr
+    exact hdf'
+  have hrecsRV : ∀ {owner} {p : RecursorVal × (ConstantInfo × VConstVal)},
+      (owner, p) ∈ (List.finRange E.lowered.signature.families.size).zip
+        (E.restoration.rvals.zip C.recursorEntries) →
+      ∃ vr ∈ recs, RestoredRecSpec E.lowered.generatedInstance
+        (compilationRestoration sourceDecl auxiliaries) (sourceDecl.types.map (·.name))
+        C.recursorVEnv owner p.1 p.2 vr := by
+    intro owner p hmem
+    obtain ⟨vr, hvr, -, H⟩ := Lean4Lean.List.Forall₂.forall_exists_l Hrecs _ hmem
+    exact ⟨vr, hvr, H⟩
+  have hHrule := fun owner {head} (hhead : E.lowered.generatedInstance.restoredFamilyHead
+      (compilationRestoration sourceDecl auxiliaries) owner = some head) index
+      (hown : E.lowered.signature.constructors[index].owner = owner) =>
+    E.restoredRuleConstructors wf Hsources D Hcert Hdata owner hhead index hown
+  refine ⟨recs, auxiliaries, restoredBlock sourceDecl C.sourceRecursors C.auxiliaryRecursors
+    rules [], C.recursorVEnv, outVEnv, Hcert, Hdata.withRecs recs, ⟨?_, ?_, ?_⟩, hrecsAdded, ?_, ?_, ?_, ?_,
+    ?_, ?_, ?_, hclosed, hout, ?_, ?_, rfl, ?_⟩
+  · -- RecsOf.recursors
+    show recs.map (·.toVConstVal) = C.sourceRecursors ++ C.auxiliaryRecursors
+    rw [hrecsVals, C.recursorValues]
+  · -- RecsOf.rules
+    intro vr hvr ru hru
+    obtain ⟨rv, owner, e, -, -, H⟩ := hrecMem vr hvr
+    obtain ⟨index, -, df, hdf, hof⟩ := RestoredRecSpec.ofEquation H hindices
+      (Hdata.recursorName_not_head owner) hru
+    exact ⟨df, by simp only [restoredBlock, List.append_nil]; exact hrulesMem hdf, hof⟩
+  · -- RecsOf.rules_total
+    intro df hdf
+    simp only [restoredBlock, List.append_nil] at hdf
+    have h := List.mapM_eq_some.mp hrulesEq
+    obtain ⟨eq, heq, hr⟩ := Lean4Lean.List.Forall₂.forall_exists_r h df hdf
+    obtain ⟨k, -, rfl⟩ := List.mem_map.mp heq
+    let owner := E.lowered.signature.constructors[k].owner
+    obtain ⟨p, hp, -⟩ := forall₂_mem_zip_l Htrip owner (List.mem_finRange owner)
+    obtain ⟨vr, hvr, H⟩ := hrecsRV hp
+    obtain ⟨ru, hru, df', hdf', hof⟩ := RestoredRecSpec.ofEquation_at H hindices
+      (Hdata.recursorName_not_head owner) mem_ownedConstructors_of_owner
+    rw [hr] at hdf'
+    cases hdf'
+    exact ⟨vr, hvr, ru, hru, hof⟩
+  · -- the recursor translations
+    rw [hprojs]
+    refine Lean4Lean.List.Forall₂.imp (fun rv vr h => ?_) Hrv
+    obtain ⟨owner, e, ⟨he, htr, -⟩, H⟩ := h
+    have hv : vr.toVConstVal = e.2 := H.1
+    obtain ⟨head, hhead, Hrules⟩ := RestoredRecSpec.rules_forall₂ H
+    obtain ⟨-, hall, hp, hm, hmi, hi, hk, -⟩ := H
+    refine ⟨hv ▸ htr, hall, hp, hm, hmi, hi, hk, ?_⟩
+    refine Lean4Lean.List.Forall₂.imp (fun rule ru h => ?_) Hrules
+    obtain ⟨index, hidx, hT, hspec⟩ := h
+    obtain ⟨hctor, hnf, hcp, -, df, -, hrhs, ht⟩ := hspec
+    obtain ⟨⟨cval, hcval, hnum⟩, -⟩ := hHrule owner hhead index (mem_ownedConstructors_owner hidx)
+    refine ⟨hctor, hnf, ⟨cval, by rw [hT.ctor]; exact hcval, by rw [hcp, hnum]⟩, ?_⟩
+    rw [hrhs]; exact ht
+  · -- recs_wf
+    intro vr hvr
+    obtain ⟨rv, owner, e, -, ⟨-, -, hwfv⟩, H⟩ := hrecMem vr hvr
+    rw [hprojs, show vr.toVConstVal = e.2 from H.1]
+    exact hwfv
+  · -- rec_shape
+    intro vr hvr
+    obtain ⟨rv, owner, e, -, -, H⟩ := hrecMem vr hvr
+    exact RestoredRecSpec.recShape H hscoped hnp
+  · -- rules_nodup
+    intro vr hvr
+    obtain ⟨rv, owner, e, -, -, H⟩ := hrecMem vr hvr
+    rw [RestoredRecSpec.rules_ctors H]
+    exact E.restoredRuleConstructors_nodup Hcert Hdata owner
+  · -- rules_ctor
+    intro vr hvr ru hru
+    obtain ⟨rv, owner, e, -, -, H⟩ := hrecMem vr hvr
+    obtain ⟨head, index, rule, hhead, hidx, -, hspec⟩ := RestoredRecSpec.rule_mem H hru
+    obtain ⟨hctor, hnf, hcp, hT, -⟩ := hspec
+    obtain ⟨-, ⟨ci, hci, hshape⟩, -⟩ := hHrule owner hhead index (mem_ownedConstructors_owner hidx)
+    refine ⟨ci, by rw [hctor, hT.ctor]; exact hci, ?_⟩
+    rw [hcp, hnf, hT.nfields]; exact hshape
+  · -- rules_ctorParams
+    intro vr hvr ru hru
+    obtain ⟨rv, owner, e, -, -, H⟩ := hrecMem vr hvr
+    obtain ⟨head, index, rule, hhead, hidx, -, hspec⟩ := RestoredRecSpec.rule_mem H hru
+    obtain ⟨hctor, -, hcp, hT, -⟩ := hspec
+    obtain ⟨-, -, halt⟩ := hHrule owner hhead index (mem_ownedConstructors_owner hidx)
+    rw [hctor, hT.ctor, hcp]
+    exact halt
+  · -- rule_shape
+    intro vr hvr ru hru
+    obtain ⟨rv, owner, e, -, -, H⟩ := hrecMem vr hvr
+    exact RestoredRecSpec.ruleShape H hru
+  · -- recShapes
+    intro rv hrv
+    exact (E.restoredRecursorShapes wf Hsources C hC rv hrv).extend (VEnv.addRules_le hout) id
+  · -- recK
+    intro rv hrv
+    obtain ⟨vr, -, owner, e, -, H⟩ := Lean4Lean.List.Forall₂.forall_exists_l Hrv rv hrv
+    obtain ⟨-, -, -, -, -, -, -, -, HV, -⟩ := H
+    exact KLikeRecursor.of_k_false (HV.k_eq_false (E.one_lt_familiesSize hnested))
+  · -- the restored equations are well formed in the recursor stage
+    intro df hdf
+    simp only [restoredBlock, List.append_nil] at hdf
+    have h := List.mapM_eq_some.mp hrulesEq
+    obtain ⟨eq, heq, hr⟩ := Lean4Lean.List.Forall₂.forall_exists_r h df hdf
+    obtain ⟨k, -, rfl⟩ := List.mem_map.mp heq
+    exact E.hrestoredWF_of wf Hsources auxiliaries D C hC hV k df hr
 
 end VerifyInductive
 end Lean4Lean
