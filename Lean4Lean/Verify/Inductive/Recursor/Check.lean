@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Constructor.Check
+import Lean4Lean.Verify.Inductive.RecursorInput  -- WAVE 2 install COMPAT
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 
 /-! # The recursor phase
@@ -12,7 +12,7 @@ environment: the kernel recursors `rvals`, the model recursors `recs` they trans
 the recursor-stage environment `outVEnv`, the shape clauses of `VInductDecl.WF`, and the
 signature generator (`signature`, `generation`) whose recursors the `recs` are. The rules'
 typing and their identification with the generated equations are the rule phase's
-(`Rules/RuleTranslations.lean`). `ConstructorCheck.recursorPhasesWF` is the boundary theorem.
+(`Rules/RuleTranslations.lean`). `RecursorInput.recursorPhasesWF` is the boundary theorem.
 
 Wave 2 scaffold: owned by the `Recursor/**` agent (source branch: `Recursor/{Check,
 Construction,Metadata,RecInfoCheck,InstanceAlignment}.lean`, `Recursor/{Binders,Context,
@@ -32,7 +32,7 @@ structure RecursorCheck
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
+    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)  -- WAVE 2 install COMPAT
     (outEnv : Environment) where
   elimLevel : Level
   elimLevelChecked : AddInductive.getElimLevel stats indTypes { c with env := ctorEnv } =
@@ -101,7 +101,7 @@ namespace RecursorCheck
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
   {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv} {indTypes : Array InductiveType}
   {ctorEnv outEnv : Environment}
-  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}  -- WAVE 2 install COMPAT
 
 /-- The declaration with the generated recursors: the declaration `addInduct` installs. -/
 abbrev decl' (H : RecursorCheck R outEnv) : VInductDecl := decl.withRecs H.recs
@@ -125,11 +125,11 @@ end RecursorCheck
 /-- The boundary theorem of the recursor phase: the recursor suffix of `runWithStats`
 (elimination level, K flag, recursor infos, recursive-field check, `declareRecursors`), run in
 the constructor environment, yields a recursor check. -/
-theorem ConstructorCheck.recursorPhasesWF
+theorem RecursorInput.recursorPhasesWF  -- WAVE 2 install COMPAT
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
+    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)  -- WAVE 2 install COMPAT
     (hlparams : c.lparams.Nodup)
     (hsourceSafety : isUnsafe = (c.safety != .safe))
     (hnotPartial : c.safety ≠ .partial)
