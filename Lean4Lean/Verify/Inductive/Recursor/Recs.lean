@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Recursor.InstanceAlignment
-import Lean4Lean.Verify.Inductive.Recursor.RuleCoverage
+import Lean4Lean.Verify.Inductive.Rules.Coverage
 import Lean4Lean.Verify.Inductive.Recursor.Signature.GeneratedShapes
 import Lean4Lean.Verify.Inductive.Constructor.Install
 
@@ -122,7 +122,7 @@ def RulesCoverage (H : RecursorInstallation R outEnv) : Prop :=
 
 theorem rulesCoverage (H : RecursorInstallation R outEnv) : H.RulesCoverage := by
   intro owner
-  have hcov := H.rulesCoveredStub
+  have hcov := H.rulesCovered
   obtain ⟨_, hget⟩ := List.forall₂_getElem_exists hcov owner.val (by simp)
   simp only [List.getElem_finRange] at hget
   obtain ⟨rval, h1, h2⟩ := hget
