@@ -46,7 +46,7 @@ abbrev L4 : LocalContext := L3'.mkLocalDecl x4 `β (.sort v) .implicit
 abbrev L5 : LocalContext := L4.mkLocalDecl x5 `f (.arrow (.fvar x1) (.fvar x4)) .default
 abbrev L6 : LocalContext := L5.mkLocalDecl x6 `b (.fvar x1) .default
 abbrev L4i : LocalContext := L3'.mkLocalDecl x4 `β (.arrow quot_r .prop) .implicit
-abbrev L5i : LocalContext := L4i.mkLocalDecl x5 `q quot_r .implicit
+abbrev L5i : LocalContext := L4i.mkLocalDecl x5 `q quot_r .default
 
 abbrev T1 : Expr := L2.mkForall #[.fvar x1, .fvar x2] (.sort u)
 abbrev T2 : Expr := L3.mkForall #[.fvar x1, .fvar x2, .fvar x3] quot_r
@@ -134,7 +134,7 @@ theorem L4i_find (x) : L4i.find? x =
     else L3'.find? x :=
   find?_mkLocalDecl L3'_mwf x
 theorem L5i_find (x) : L5i.find? x =
-    if x = x5 then some (.cdecl L4i.decls.size x5 `q quot_r .implicit .default) else L4i.find? x :=
+    if x = x5 then some (.cdecl L4i.decls.size x5 `q quot_r .default .default) else L4i.find? x :=
   find?_mkLocalDecl L4i_mwf x
 
 end
@@ -201,7 +201,7 @@ theorem all_quot_eq : all_quot = .forallE `a (.fvar x1)
   quot_simp
 
 theorem T4_inner_eq : L5i.mkForall #[.fvar x5] (.app (.fvar x4) (.fvar x5)) =
-    .forallE `q quot_r (.app (.fvar x4) (.bvar 0)) .implicit := by
+    .forallE `q quot_r (.app (.fvar x4) (.bvar 0)) .default := by
   show LocalContext.mkForall L5i ⟨[x5].map .fvar⟩ _ = _
   rw [LocalContext.mkForall_eq_fold [x5] _ (by quot_mem) (by simp)]
   quot_simp
@@ -213,7 +213,7 @@ theorem T4_eq : T4 = .forallE `α (.sort u) (.forallE `r
         (.forallE `a (.bvar 2) (.app (.bvar 1)
           (.app (.app (.app (.const ``Quot.mk [u]) (.bvar 3)) (.bvar 2)) (.bvar 0))) .default)
         (.forallE `q (.app (.app (.const ``Quot [u]) (.bvar 3)) (.bvar 2))
-          (.app (.bvar 2) (.bvar 0)) .implicit) .default) .implicit) .implicit) .implicit := by
+          (.app (.bvar 2) (.bvar 0)) .default) .default) .implicit) .implicit) .implicit := by
   show LocalContext.mkForall L5i ⟨[x1, x2, x4].map .fvar⟩ _ = _
   rw [all_quot_eq, T4_inner_eq,
     LocalContext.mkForall_eq_fold [x1, x2, x4] _ (by quot_mem) (by simp; decide)]
@@ -221,25 +221,12 @@ theorem T4_eq : T4 = .forallE `α (.sort u) (.forallE `r
 
 /-! ### `checkEqType` -/
 
-abbrev LE1 (u : Name) : LocalContext :=
-  ({} : LocalContext).mkLocalDecl x1 `α (.sort (.param u)) .implicit
-abbrev TE (u : Name) : Expr :=
-  (LE1 u).mkForall #[.fvar x1] (.arrow (.fvar x1) (.arrow (.fvar x1) .prop))
-
-theorem LE1_find (u : Name) (x) : (LE1 u).find? x =
-    if x = x1 then
-      some (.cdecl ({} : LocalContext).decls.size x1 `α (.sort (.param u)) .implicit .default)
-    else none := by
-  rw [LocalContext.find?_mkLocalDecl LocalContext.empty_map_wf, LocalContext.find?_empty]
+/-- The type `checkEqType` compares `Eq`'s type against (`expectedEqType`). -/
+abbrev TE (u : Name) : Expr := expectedEqType u
 
 theorem TE_eq (u : Name) : TE u = .forallE `α (.sort (.param u))
-    (.forallE `a (.bvar 0) (.forallE `a (.bvar 1) (.sort .zero) .default) .default) .implicit := by
-  show LocalContext.mkForall (LE1 u) ⟨[x1].map .fvar⟩ _ = _
-  rw [LocalContext.mkForall_eq_fold [x1] _ (fun x hx => by
-    simp only [List.mem_singleton] at hx; subst hx
-    exact ⟨_, by rw [LE1_find, if_pos rfl]⟩) (by simp)]
-  simp +decide only [List.foldr, LocalContext.mkBindingList1, LE1_find,
-    ↓reduceIte, Expr.abstractList, Expr.abstract1, Expr.arrow, Expr.prop, Nat.zero_add]
+    (.forallE .anonymous (.bvar 0) (.forallE .anonymous (.bvar 1) (.sort .zero) .default)
+      .default) .implicit := rfl
 
 theorem Environment.get_ok {env : Environment} {n : Name} {ci : ConstantInfo}
     (h : env.get n = .ok ci) : env.find? n = some ci := by
@@ -284,17 +271,9 @@ theorem checkEqType_ok (env : Environment) (h : checkEqType env = .ok ()) :
               refine ⟨info, hfind, hu, u, hlp, ?_⟩
               cases hb : (info.type == TE u)
               · exfalso
-                have hb' : (info.type != TE u) = true := by simp [bne, hb]
-                simp only [ExprBuildT.run, bind, ReaderT.bind, withLocalDecl_run, read,
-                  MonadReader.read, readThe, MonadReaderOf.read, ReaderT.read, pure,
-                  ReaderT.pure, Except.pure, Except.bind] at h
-                split at h
-                · cases h
-                · rename_i heq
-                  split at heq
-                  · cases heq
-                  · rename_i hc
-                    exact hc hb'
+                have hb' : (info.type != expectedEqType u) = true := by simp [bne, hb, TE]
+                simp [ExprBuildT.run, hb', bind, ReaderT.bind, pure, ReaderT.pure,
+                  Except.bind, Except.pure, throw, throwThe, MonadExceptOf.throw] at h
               · rfl
     | _ => cases h
 
@@ -326,7 +305,7 @@ abbrev T4' : Expr := .forallE `α (.sort u) (.forallE `r
         (.forallE `a (.bvar 2) (.app (.bvar 1)
           (.app (.app (.app (.const ``Quot.mk [u]) (.bvar 3)) (.bvar 2)) (.bvar 0))) .default)
         (.forallE `q (.app (.app (.const ``Quot [u]) (.bvar 3)) (.bvar 2))
-          (.app (.bvar 2) (.bvar 0)) .implicit) .default) .implicit) .implicit) .implicit
+          (.app (.bvar 2) (.bvar 0)) .default) .default) .implicit) .implicit) .implicit
 
 theorem T1_tr {venv : VEnv} : TrExprS venv [`u] [] T1' quotConst.type := by
   refine .forallE ⟨_, by type_tac⟩ ⟨_, by type_tac⟩ (.sort rfl) ?_

@@ -6,6 +6,7 @@ import Lean4Lean.Verify.Typing.PrimSpec
 import Lean4Lean.Verify.Expr
 import Lean4Lean.Theory.Typing.Strong
 import Lean4Lean.Theory.Typing.ConstructorCaptureTransport
+import Lean4Lean.Theory.Typing.UniqueTyping
 import Lean4Lean.Theory.Typing.Injectivity
 import Lean4Lean.Instantiate
 import Lean4Lean.Verify.Typing.Syntactic.TypedAPI

@@ -21,7 +21,7 @@ theorem VEnv.addConst_mono {env₁ env₂ env₁' env₂' : VEnv} (H : env₁ �
   unfold VEnv.addConst at h₁ h₂
   split at h₁ <;> cases h₁
   split at h₂ <;> cases h₂
-  refine { constants {n a} := ?_, defeqs := H.defeqs, pats := H.pats }
+  refine ⟨fun {n a} => ?_, H.defeqs, H.pats, H.projections⟩
   dsimp; split <;> [exact id; exact H.constants]
 
 theorem VEnv.addDefEq_mono {env₁ env₂ : VEnv} (H : env₁ ≤ env₂) :
@@ -29,6 +29,7 @@ theorem VEnv.addDefEq_mono {env₁ env₂ : VEnv} (H : env₁ ≤ env₂) :
   constants := H.constants
   defeqs := by rintro d (rfl | hd) <;> [exact .inl rfl; exact .inr (H.defeqs hd)]
   pats := H.pats
+  projections := H.projections
 
 theorem VEnv.addConsts_mono {env₁ env₂ env₁' env₂' : VEnv} (H : env₁ ≤ env₂) :
     ∀ {cis}, env₁.addConsts cis = some env₁' → env₂.addConsts cis = some env₂' → env₁' ≤ env₂'
