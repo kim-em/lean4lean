@@ -1232,9 +1232,11 @@ theorem NestedRun.restorationTablesRestoringAllSpec
           ((compilationRestoration sourceDecl auxiliaries).RestoringLeaf
             (VLevel.params sourceDecl.uvars)))
         generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length) ∧
-      ∀ a ∈ auxiliaries, ∃ nested, result.aux2nested.find? a.auxiliary = some nested ∧
+      (∀ a ∈ auxiliaries, ∃ nested, result.aux2nested.find? a.auxiliary = some nested ∧
         AuxiliaryContainerAppAt envTypes E.lowered.headers.commonParameterContext result lparams
-          nested a := by
+          nested a) ∧
+      ∀ a ∈ auxiliaries, ∃ info, sourceProdEnv.find? a.source.name = some (.inductInfo info) ∧
+        info.ctors = a.source.ctors.map (·.name) := by
   have hloweredNodup :
       (familyNames E.lowered.loweredDecl.types ++
         E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
@@ -1336,7 +1338,9 @@ theorem NestedRun.restorationTablesRestoringAllSpec
       ∃ nested, result.aux2nested.find? a.auxiliary = some nested ∧
         AuxiliaryContainerApp result P.c.lparams nested a ∧
         AuxiliaryContainerAppAt E.sourceCore.envTypes N.parameterContext result P.c.lparams
-          nested a := by
+          nested a ∧
+        ∃ info, sourceProdEnv.find? a.source.name = some (.inductInfo info) ∧
+          info.ctors = a.source.ctors.map (·.name) := by
     intro family hfamily
     rcases List.mem_iff_getElem.mp hfamily with ⟨i, hi, rfl⟩
     have hresult : sourceTypes.length + i < result.types.length := by omega
@@ -1352,12 +1356,15 @@ theorem NestedRun.restorationTablesRestoringAllSpec
       rw [haux, NN.sourceName]
       exact Hmap _ _ Horigin.generated.cached
     rcases Htranslations _ _ hfind with ⟨Htr⟩
-    refine ⟨a, hev, Horigin.generated.data.nested, hfind, ?_, ?_⟩
+    refine ⟨a, hev, Horigin.generated.data.nested, hfind, ?_, ?_, ?_⟩
     · exact NN.auxiliaryContainerApp a (by rw [hsrc, NN.containerName]) hlev hargs hfvars
         hfvarsNodup E.auxiliarySelection Htr.sourceClosed.looseBVarRange_zero hnp
     · exact NN.auxiliaryContainerAppAt a (by rw [hsrc, NN.containerName]) hlev hargs hfvars
         hfvarsNodup E.auxiliarySelection Htr.sourceClosed.looseBVarRange_zero hnp
         (VEnv.IsDefEqCtx.mono hbaseLE hctx)
+    · have hk := NN.containerKernel
+      rw [← hsrc, henv] at hk
+      exact hk
   rcases exists_forall₂_of_forall Hpoint with ⟨auxiliaries, Haux'⟩
   have Haux := Lean4Lean.List.Forall₂.imp (fun _ _ h => h.1) Haux'
   have Hexpansion := Hparts.2
@@ -1562,9 +1569,15 @@ theorem NestedRun.restorationTablesRestoringAllSpec
         result lparams nested a := by
     intro a ha
     rcases Lean4Lean.List.Forall₂.forall_exists_l Haux' a ha with
-      ⟨g, -, -, nested, hfind, -, hspec⟩
+      ⟨g, -, -, nested, hfind, -, hspec, -⟩
     rw [hlparams] at hspec
     exact ⟨nested, hfind, hspec⟩
+  have Hkernel : ∀ a ∈ auxiliaries, ∃ info, sourceProdEnv.find? a.source.name = some (.inductInfo info) ∧
+        info.ctors = a.source.ctors.map (·.name) := by
+    intro a ha
+    rcases Lean4Lean.List.Forall₂.forall_exists_l Haux' a ha with
+      ⟨g, -, -, nested, -, -, -, hk⟩
+    exact hk
   refine ⟨E.sourceCore.envTypes, generated, auxiliaries, hadded,
     HsourceTypesWF, Haux, Hexpansion, hparamsSize, D, ?_⟩
   -- the restoring expansion of the source families
@@ -1657,7 +1670,7 @@ theorem NestedRun.restorationTablesRestoringAllSpec
     rw [hdropGet]
     exact Hexp
   rw [hinitial] at Hall
-  exact ⟨Hall, Hspec⟩
+  exact ⟨Hall, Hspec, Hkernel⟩
 
 open _root_.Lean4Lean.InductiveSignature in
 theorem NestedRun.restorationTablesRestoringAll
@@ -1696,10 +1709,12 @@ theorem NestedRun.restorationTablesRestoringAll
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
           ((compilationRestoration sourceDecl auxiliaries).RestoringLeaf
             (VLevel.params sourceDecl.uvars)))
-        generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length) := by
-  obtain ⟨envTypes, generated, auxiliaries, h1, h2, h3, h4, h5, h6, h7, h8, -⟩ :=
+        generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length) ∧
+      ∀ a ∈ auxiliaries, ∃ info, sourceProdEnv.find? a.source.name = some (.inductInfo info) ∧
+        info.ctors = a.source.ctors.map (·.name) := by
+  obtain ⟨envTypes, generated, auxiliaries, h1, h2, h3, h4, h5, h6, h7, h8, -, h9⟩ :=
     E.restorationTablesRestoringAllSpec wf Hsources
-  exact ⟨envTypes, generated, auxiliaries, h1, h2, h3, h4, h5, h6, h7, h8⟩
+  exact ⟨envTypes, generated, auxiliaries, h1, h2, h3, h4, h5, h6, h7, h8, h9⟩
 
 open _root_.Lean4Lean.InductiveSignature in
 /-- `restorationTablesRestoringAll` without the auxiliary families' restoring

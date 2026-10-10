@@ -329,7 +329,7 @@ theorem NestedRun.restoredEquationAuxiliaryConstructors_of
     exact h
   rcases E.restorationTablesRestoringAll wf Hsources with
     ⟨envTypes, generated, aux', hadded, henvTypes, Haux, Hexpansion, -, D', -,
-      HauxRestoring⟩
+      HauxRestoring, -⟩
   have heq : envTypes' = envTypes := Option.some.inj (hadded'.symm.trans hadded)
   rw [heq]
   have hfreshAll := E.restorableNames_fresh hadded Haux Hexpansion hnodup
