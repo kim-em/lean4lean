@@ -51,9 +51,16 @@ theorem AddInductive.constructorPhase.primitiveWF
           indTypes out.1) ∧
         (∀ R : ConstructorCheck c' stats decl nparams isUnsafe P.depth Hc'.venv
           indTypes out.1, R.classes = out.2) := by
-  -- WAVE 2 STUB (Primitive): the source branch's `AddInductive.formationCore.primitiveClosedWF`
-  -- (`Primitive/Run.lean`) with `Primitive/{Headers,Constructors,ConstructorCheck,
-  -- ConstructorParams,BatchInstallation,Constants}.lean`.
+  -- WAVE 2 STUB (Primitive): not provable as stated. `ConstructorCheck` extends
+  -- `CheckedFormation`, whose `headers : HeaderEnvironment` carries
+  -- `context : ContextWF {c with env := headerEnv}`, hence `VEnv.HasPrimitives` of the header
+  -- model `sourceEnv.addConstVals decl.typeConstants`. For `Bool` (and `Nat`) that model
+  -- contains the family without its constructors, which violates the `containsImplies` spec
+  -- of `HasPrimitives`. The source branch verified this phase without a valid header-only
+  -- context (`PrimitiveHeaderEnvironment`, `LocalContextWF`, the atomic batch of
+  -- `Primitive/BatchInstallation.lean`); the interface needs a primitive variant of
+  -- `HeaderEnvironment`/`CheckedFormation` (or a `ContextWF` without `HasPrimitives`) before
+  -- this can be ported.
   have := hsafety; have := Hshape; have := hallow; have := hclosed; have := hpresent; sorry
 
 /-- Source-aligned primitive result, retaining the exact abstract model from
