@@ -15,7 +15,6 @@ therefore fails on `Verify/` until wave 1. Waves follow `iota-port/PLAN-RECONCIL
 | `NormalEq.parRed` (two `sorry`s, the `extra` cases) | `Theory/Typing/ChurchRosser.lean` | master | wave 4 (confluence retargeted onto `env.pats` supersedes this file) |
 | `VEnv.RestoredPattern.clause` (`-- WAVE 3 STUB`) | `Theory/Inductive/RestorationInterpretation.lean` | new: the `pat` analogue of the source branch's `RestoredEliminator.clause` | wave 3 (Equations+Install) |
 | `InductiveSignature.instantiateParams_liftN` (`-- WAVE 3 STUB`) | `Theory/Typing/RestorationShapes.lean` | source `CaseReduction.lean` | wave 3 (Equations+Install) |
-| `Instance.restored_equation_major`, `CompilationData.constructor_name_cases`, `ContainersInstalled.constructor_isPatCtor`, `CompiledInductive.rule_ctor_cases` (`-- WAVE 3 STUB`) | `Theory/Inductive/CompilationMajors.lean` | source `RecursorEquationHeads.lean`, `ConstructorRigidity.lean`; the last two new (pattern form) | wave 3 (Restoration-B); consumed by `WF.patCtor_rigid` |
 
 Not stubs but conditional results: everything through `VEnv.WF.orderedStrong` (the strong
 system, substitution theorems, inversion lemmas) depends on `patsStrong`; everything through
@@ -354,6 +353,41 @@ Owed by wave 3: every caller of `InstalledBlocks.addInduct` (the nested installa
 containers at specialized arguments, so `recursorShapesOf`, which reads the major off `MajorApp` and the
 rules' constructors off the source declaration, does not cover them).
 
+## Wave 3 restB (`Nested/Restoration/**` outside `Validation/`, `Uniform/`; `CompilationMajors.lean`)
+
+Closed: `Instance.restored_equation_major`, `CompilationData.constructor_name_cases`,
+`ContainersInstalled.constructor_isPatCtor`, `CompiledInductive.rule_ctor_cases`
+(`Theory/Inductive/CompilationMajors.lean`, no `sorry`; with the ported helpers
+`Restoration.expr_wrapLams_parts`, `headName_of_mem`, `CompilationData.headName_source`,
+`CaseCompilationData.headName_auxiliary_constructor`/`directFamily_restored_constructor_names`,
+`CompilationData.constructor_equation`, `CompiledInductive.constructor_equation`/
+`equation_major_cases`, `VDefEq.HasConstructorMajor.ofEquation`).
+
+## Wave 3 Restoration-A (`Nested/Restoration/Validation/**`)
+
+The seven statements of `Validation/Passes.lean` are proved; Restoration-A adds no stub.
+Three statements gained premises, because the passes run the checker without checking them
+or because the scaffold form was circular:
+
+* `validateSourceConstructorTypes.run.WF` takes the closedness of the constructor types
+  (`SourceSyntaxChecks.ctorTypesClosed`, `Validation/Checks.lean`, provides it).
+* `validateNestedAuxiliaries.WF` takes the checker context `mlctx` of the lowering's
+  parameters (`mlctx.WF`, `mlctx.lctx = res.lctx`, freshness for the checker's name generator,
+  the cached occurrences scoped in it) and concludes the typing of every cached occurrence in
+  it. The context is a lowering fact: `NestedLoweringOutput.params_opening` with
+  `LoweringParamOpening.toMLCtx` (`Validation/ParameterPrefix.lean`).
+* `stripRecursorRules.checkingValid` (and the new `stripRecursorRules.checkerEnv`, the
+  `CheckerEnv` that `validateRestoredRecursorRules.check.WF` consumes) is stated over a
+  rule-free `AddInduct` into the stripped map and the rule-free facts `RuleFreeStage`
+  (`Validation/Stripped.lean`): the projection stage's `VEnv.WF`, the recursor types, the
+  block's names not primitive, the restored header facts, the K clause and shapes of the new
+  recursors at the recursor stage. The scaffold form took the output's `AddInduct` and
+  `CheckingEnv.Valid`, which contain the rule translations the pass establishes. Restoration-B
+  produces the `RuleFreeStage` (agreed).
+
+`Nested/Restoration/Uniform/**` (parameter uniformity of the lowered recursors) is not needed
+by these statements.
+
 ## Wave 3 lowering
 
 Statement changes to `NestedLoweringOutput`/`loweringRun.WF` (`Verify/Inductive/Lowering.lean`,
@@ -397,6 +431,31 @@ ported under `Nested/Lowering/` (`Refinement`, `ParameterOpening`, `Recognition`
 new: `Counts` for `types_length`). `Nested/Lowering/Expansion/**` (the `NestedExpansionData`
 for `RestoredBlock.formation`) is being ported by Lowering for Restoration-B.
 
+## Wave 3 Restoration-A (`Nested/Restoration/Validation/**`)
+
+The seven statements of `Validation/Passes.lean` are proved; Restoration-A adds no stub.
+Three statements gained premises, because the passes run the checker without checking them
+or because the scaffold form was circular:
+
+* `validateSourceConstructorTypes.run.WF` takes the closedness of the constructor types
+  (`SourceSyntaxChecks.ctorTypesClosed`, `Validation/Checks.lean`, provides it).
+* `validateNestedAuxiliaries.WF` takes the checker context `mlctx` of the lowering's
+  parameters (`mlctx.WF`, `mlctx.lctx = res.lctx`, freshness for the checker's name generator,
+  the cached occurrences scoped in it) and concludes the typing of every cached occurrence in
+  it. The context is a lowering fact (source branch `NestedLowering.resultParameterMLCtx`), not
+  yet a field of `NestedLoweringOutput`.
+* `stripRecursorRules.checkingValid` (and the new `stripRecursorRules.checkerEnv`, the
+  `CheckerEnv` that `validateRestoredRecursorRules.check.WF` consumes) is stated over a
+  rule-free `AddInduct` into the stripped map and the rule-free facts `RuleFreeStage`
+  (`Validation/Stripped.lean`): the projection stage's `VEnv.WF`, the recursor types, the
+  block's names not primitive, the restored header facts, the K clause and shapes of the new
+  recursors at the recursor stage. The scaffold form took the output's `AddInduct` and
+  `CheckingEnv.Valid`, which contain the rule translations the pass establishes. Restoration-B
+  produces the `RuleFreeStage` (agreed).
+
+`Nested/Restoration/Uniform/**` (parameter uniformity of the lowered recursors) is not needed
+by these statements.
+
 ## Wave 3 scaffold (`Verify/Inductive/Nested/**`, the nested branch's interface)
 
 `lake build` (default targets), `Lean4Lean.Tests` and `Lean4Lean.Experimental` are green with
@@ -417,7 +476,6 @@ of wave 2 are now consequences of `loweringRun.WF`.
 | `validateNestedAuxiliaries.WF` | same | `Nested/Lowering/Basic.lean`'s `validateNestedAuxiliaries.WF` (`NestedBindingContextWF`, `NestedOccurrencesTyped`) | Restoration-A |
 | `stripRecursorRules.checkingValid` | same | `Validation/StrippedEnvironment.lean`, `Validation/StrippedRecursorShapes.lean` (overwriting a well-formed `SMap`, `Aligned` under same-type replacement) | Restoration-A |
 | `nestedRestoredBlock` | `Verify/Inductive/Nested/Restoration/Restore.lean` | `nestedValidatedRawSourceWF` + `NestedRun.assemblyOfRun` (`Install/Certificate.lean`, `Install/CertificateOfRun.lean`) + `RestoredBlockCertificate.blockCertificate` (`Install/BlockCertificate.lean`): the restoration folds (`Steps.lean`), the restored source declaration (`SourceDeclaration`, `SourceTranslations`, ...), the specialization tables (`Tables`, `TableAgreement`, `ContainerSpecializations`), the restored recursors (`Recursors`, `RecursorRenaming`, `RecursorShape`, `RecursorAlignment`), the compilation data (`CompilationData*`), the kernel order (`Install/Permutation`, `DependencyOrder`, `RecursorTranslations`) | Restoration-B |
-| `Instance.restored_equation_major`, `CompilationData.constructor_name_cases`, `ContainersInstalled.constructor_isPatCtor`, `CompiledInductive.rule_ctor_cases` | `Theory/Inductive/CompilationMajors.lean` | `RecursorEquationHeads.lean`, `ConstructorRigidity.lean` (with `env.pats` in place of stored equations); what `WF.patCtor_rigid` needs | Restoration-B |
 | `RestoredBlock.rulesWF` | `Verify/Inductive/Nested/Equations/Rules.lean` | `Equations/WF.lean` (`restoredEquationSubstitution`, `restoredEquationsWF_of_substitutionPremises`), `Equations/{RestoredRules,RestoredRulesBase,GeneratedGuard,RuleRhs,SourceIota*}.lean`, restated as `PatTyped` (`Rules/IotaPatTyped.lean`) | Equations+Install |
 | `RestoredBlock.blockWF` | same | `Restoration.equation_wf` along the substitution, `RestoredBlockCertificate.blockCertificate`'s `rulesWF` | Equations+Install |
 | `VEnv.RestoredPattern.clause` | `Theory/Inductive/RestorationInterpretation.lean` | new: the `pat` analogue of `RestoredEliminator.clause` (the interpreted redex is β-convertible to a redex of the restored rule, `Agrees.expr_simAt`, `BetaRed.mkApps_wrapLams`) | Equations+Install |
