@@ -12,8 +12,8 @@ Present so far: the lookups of the recursor pass's environment (`LoweredView.cto
 read only `NestedRun`. Pending on Restoration-B's `NestedRun.auxHeadsFacts` inputs
 (`ContainerSpecializations`) and `restorationTablesRestoring`: `NestedRun.ctorTypes_headType`,
 `generatedFamilyType_forall`, `uniformHeads_fresh`, `familyType_headType`, `envParamUniform`.
-The source's `LoweredRun.nonprimitive_familyNames` is the premise `LoweredView.Nonprimitive`
-(the target's lowered run does not record its `checkName`s). -/
+The source's `LoweredRun.nonprimitive_familyNames` is `LoweredView.Nonprimitive`, which a
+nested run supplies as `NestedRun.loweredNonprimitive`. -/
 
 namespace Lean4Lean
 open Lean hiding Environment Exception

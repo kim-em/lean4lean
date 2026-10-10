@@ -445,9 +445,8 @@ Generic,Heads,Base,Lowered,Run,Whnf}.lean`. Pending on Restoration-B's `Containe
 (`NamePrefix`), `restorationTablesRestoring`, `CompilationDataConstructors`/`Commutation` and
 `NestedInstalledRun`: `NestedRun.auxHeadsFacts`, `envParamUniform`, `whnfPreservesParamUniform`,
 `recursorParamUniform_of_wfCore`, the `NestedRun` part of `Uniform/Declarations` and
-`Validation/ParameterScopes`. `NestedRun.envParamUniform` will take `LoweredView.Nonprimitive`
-(the lowered names passed `checkName` without primitive permission; the target's lowered run
-does not record it). Source `Validation/Result.lean` is superseded by `RestorationRun`.
+`Validation/ParameterScopes`. The lowered names' non-primitivity (`LoweredView.Nonprimitive`)
+is Restoration-B's `NestedRun.loweredNonprimitive`. Source `Validation/Result.lean` is superseded by `RestorationRun`.
 
 ## Wave 3 lowering
 
