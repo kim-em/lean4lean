@@ -132,6 +132,27 @@ theorem mapCtorInfo {safety : DefinitionSafety} {env : VEnv} :
   | _, _, .nil => .nil
   | _, _, .cons h hs => .cons h.1 (mapCtorInfo hs)
 
+def _root_.Lean4Lean.VRecursorShape.mono' {env env' : VEnv} (hle : env ≤ env')
+    {recName : Name} {recUvars nparams cnparams nmotives nminors nindices : Nat} {indName : Name}
+    {indLevels : List VLevel} {ctorParams : List VExpr}
+    (S : VRecursorShape env recName recUvars nparams cnparams nmotives nminors nindices indName
+      indLevels ctorParams) :
+    VRecursorShape env' recName recUvars nparams cnparams nmotives nminors nindices indName
+      indLevels ctorParams :=
+  { S with const := hle.constants S.const }
+
+def _root_.Lean4Lean.VConstructorShape.mono' {env env' : VEnv} (hle : env ≤ env')
+    {ctorName : Name} {ctorUvars nparams nfields nindices : Nat} {indName : Name}
+    (S : VConstructorShape env ctorName ctorUvars nparams nfields nindices indName) :
+    VConstructorShape env' ctorName ctorUvars nparams nfields nindices indName :=
+  { S with const := hle.constants S.const }
+
+theorem InductiveMemberInfos.mono {env env' : Environment}
+    (hpres : ∀ {n ci}, env.find? n = some ci → env'.find? n = some ci) :
+    ∀ {names}, InductiveMemberInfos env names → InductiveMemberInfos env' names
+  | _, .nil => .nil
+  | _, .cons h hs => .cons (hpres h) (InductiveMemberInfos.mono hpres hs)
+
 namespace CtorInstall
 
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
@@ -496,6 +517,314 @@ theorem validCore : CheckingEnv.ValidCore c.safety ctorEnv I.envP where
     rcases I.ctorEnv_cases h with h | ⟨cval, hcval, _, rfl⟩
     · exact I.H.context.checking.safePrimitives h hp
     · exact absurd hp (I.nprim cval hcval)
+
+omit I in
+theorem toEnvFind {E : Environment} (hwf : E.constants.WF) {n : Name} {ci : ConstantInfo} :
+    E.constants.find? n = some ci ↔ E.find? n = some ci := by
+  rw [Kernel.Environment.find?, hwf.find?'_eq_find?]
+
+theorem sourceNames : indTypes.toList.map (·.name) = decl.types.map (·.name) := by
+  have go : ∀ {sources : List InductiveType} {types : List VInductiveType},
+      List.Forall₂ (fun (source : InductiveType) (t : VInductiveType) =>
+        TrSourceConst sourceEnv c.lparams source.name source.type t.toVConstVal ∧
+        source.ctors.map (·.name) = t.ctors.map (·.name)) sources types →
+      sources.map (·.name) = types.map (·.name) := by
+    intro s t h
+    induction h with
+    | nil => rfl
+    | cons h _ ih => simp only [List.map_cons, ih]; exact congrArg (· :: _) h.1.name.symm
+  exact go I.H.trSources
+
+/-- The kernel header of family `i`. -/
+theorem infoAt (i : Nat) (hi : i < decl.types.length) :
+    ∃ (h : i < I.H.infos.length) (hs : i < indTypes.size),
+      I.H.infos[i].name = decl.types[i].name ∧
+      I.H.infos[i].all = decl.types.map (·.name) ∧
+      I.H.infos[i].numParams = decl.nparams ∧
+      I.H.infos[i].numIndices = decl.types[i].numIndices ∧
+      I.H.infos[i].levelParams = c.lparams ∧
+      I.H.infos[i].isUnsafe = isUnsafe ∧
+      I.H.infos[i].ctors = indTypes[i].ctors.map (·.name) ∧
+      I.H.infos[i].ctors = decl.types[i].ctors.map (·.name) := by
+  have h : i < I.H.infos.length := by rw [I.infos_length, I.types_length]; exact hi
+  have hs : i < indTypes.size := by rw [I.types_length]; exact hi
+  have hhdr := List.forall₂_getElem I.H.trHeaders i h hi
+  have harr : i < (AddInductive.inductiveTypeInfos stats nparams indTypes I.H.numNested isUnsafe
+      c.lparams).size := by rw [inductiveTypeInfos_size I.nindices_size]; exact hs
+  obtain ⟨_, hn, hname, -, hnp, hni, hall, hunsafe, hlp, hctors⟩ :=
+    inductiveTypeInfos_fields (stats := stats) (nparams := nparams) (indTypes := indTypes)
+      (numNested := I.H.numNested) (isUnsafe := isUnsafe) (lparams := c.lparams) i harr
+  have heq : I.H.infos[i] = (AddInductive.inductiveTypeInfos stats nparams indTypes
+      I.H.numNested isUnsafe c.lparams)[i] := by
+    simp only [I.H.infos_eq, Array.getElem_toList]
+  refine ⟨h, hs, hhdr.1.2, ?_, ?_, ?_, ?_, ?_, ?_, hhdr.2⟩
+  · rw [heq, hall]; simpa using I.sourceNames
+  · rw [heq, hnp, I.H.nparams]
+  · rw [heq, hni]; exact I.nindices i hi hn
+  · rw [heq, hlp]
+  · rw [heq, hunsafe]
+  · rw [heq, hctors]
+
+omit I in
+/-- The kernel constructors of family `i`. -/
+theorem ctorInfoAt (i : Nat) (hi : i < indTypes.size) (j : Nat)
+    (hj : j < indTypes[i].ctors.length) :
+    AddInductive.constructorInfo stats c.lparams isUnsafe indTypes[i] j indTypes[i].ctors[j] ∈
+      ctorInfos stats c.lparams isUnsafe indTypes.toList := by
+  apply List.mem_flatMap.mpr
+  refine ⟨indTypes[i], by simp, ?_⟩
+  have hj' : j < (familyCtorInfos stats c.lparams isUnsafe indTypes[i]).length := by
+    rw [familyCtorInfos_length]; exact hj
+  rw [← familyCtorInfos_getElem j hj']
+  exact List.getElem_mem hj'
+
+/-- Every newly visible family is an exact family of the declaration. -/
+theorem inductInfosFromDecl : InductInfosFromDecl c.env.constants ctorEnv.constants decl := by
+  intro familyName familyInfo hfamily
+  have hfind := (toEnvFind I.ctorMapWF).mp hfamily
+  rcases I.ctorEnv_cases hfind with h | ⟨cval, _, he, _⟩
+  · rcases I.headerEnv_cases h with h | ⟨info, hinfo, he, hname⟩
+    · exact .inl ((toEnvFind I.sourceMapWF).mpr h)
+    · cases he
+      right
+      obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hinfo
+      have hid : i < decl.types.length := by rw [I.infos_length, I.types_length] at hi; exact hi
+      obtain ⟨_, hs, hname', hall, hnp, hni, hlp, hunsafe, hctorsI, hctorsD⟩ := I.infoAt i hid
+      refine ⟨i, hname.symm, ⟨{
+        familyIdx_lt := hid
+        name := hname'
+        lookup := by rw [hname]; exact hfamily
+        all := hall
+        levelParams := by rw [hlp, I.H.uvars]
+        numParams := hnp
+        numIndices := hni
+        constructors := by rw [hctorsD]; simp
+        isUnsafe := by rw [hunsafe, I.H.isUnsafe]
+        constructor := fun j hj => ?_ }⟩⟩
+      obtain ⟨_, hctors⟩ := I.ctorTrAt i hs
+      have hjs : j < indTypes[i].ctors.length := by
+        rw [List.Forall₂.length_eq hctors]; exact hj
+      have htr := List.forall₂_getElem hctors j hjs hj
+      have hji : j < I.H.infos[i].ctors.length := by rw [hctorsI]; simpa using hjs
+      have hmem := ctorInfoAt (stats := stats) (c := c) (isUnsafe := isUnsafe) i hs j hjs
+      have harity := (I.ctorAt i hs j hjs _ htr).2
+      refine ⟨{
+        familyIdx_lt := hid
+        ctorIdx_lt := hj
+        familyInfo_ctorIdx_lt := hji
+        info := AddInductive.constructorInfo stats c.lparams isUnsafe indTypes[i] j
+          indTypes[i].ctors[j]
+        name := by simp [hctorsD]
+        lookup := by
+          have hn : I.H.infos[i].ctors[j] = indTypes[i].ctors[j].name := by simp [hctorsI]
+          rw [hn]
+          exact (toEnvFind I.ctorMapWF).mpr (I.ctorEnv_self hmem)
+        induct := by
+          simp only [AddInductive.constructorInfo]
+          rw [hname']
+          have := congrArg (·[i]?) I.sourceNames
+          simpa [hid, hs] using this
+        cidx := rfl
+        numParams := by simp [AddInductive.constructorInfo, I.params_size, I.H.nparams]
+        numFields := by
+          rw [AddInductive.constructorInfo_numFields]
+          simp [AddInductive.constructorInfo, I.params_size, I.H.nparams]
+        numFields_forallArity := by
+          rw [← VExpr.piArity_eq_forallArity, ← harity]
+          simp [AddInductive.constructorInfo, I.params_size, I.H.nparams]
+        levelParamsExact := by simp [AddInductive.constructorInfo, hlp]
+        levelParams := by simp [AddInductive.constructorInfo, I.H.uvars]
+        isUnsafe := by simp [AddInductive.constructorInfo, I.H.isUnsafe] }⟩
+  · cases he
+
+theorem indNameAt (i : Nat) (hi : i < indTypes.size) :
+    ∃ h : i < decl.types.length, decl.types[i].name = indTypes[i].name := by
+  have h : i < decl.types.length := I.types_length ▸ hi
+  refine ⟨h, ?_⟩
+  have := congrArg (·[i]?) I.sourceNames
+  simp [h, hi] at this
+  exact this.symm
+
+/-- Every constructor of the constructor environment is listed by its present owner. -/
+theorem constructorOwnersPresent : ConstructorOwnersPresent ctorEnv := by
+  intro name info hfind
+  rcases I.ctorEnv_cases hfind with h | ⟨cval, hcval, he, hname⟩
+  · rcases I.headerEnv_cases h with h | ⟨_, _, he, _⟩
+    · obtain ⟨owner, hown, hmem, hu⟩ :=
+        I.H.sourceContext.checking.constructorOwners name info h
+      exact ⟨owner, I.sourcePres hown, hmem, hu⟩
+    · cases he
+  · cases he
+    obtain ⟨t, ht, j, ctor, hctor, rfl⟩ := mem_ctorInfos hcval
+    obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp ht
+    have his : i < indTypes.size := by simpa using hi
+    obtain ⟨hid, hdn⟩ := I.indNameAt i his
+    obtain ⟨hl, _, hn, -, -, -, -, hunsafe, hctors, -⟩ := I.infoAt i hid
+    refine ⟨I.H.infos[i], ?_, ?_, ?_⟩
+    · have := I.headerPres (I.headerEnv_self (List.getElem_mem hl))
+      simp only [AddInductive.constructorInfo]
+      rw [hn, hdn] at this
+      simpa using this
+    · rw [← hname, hctors]
+      simp only [AddInductive.constructorInfo]
+      exact List.mem_map_of_mem (by simpa using hctor)
+    · simp [AddInductive.constructorInfo, hunsafe]
+
+theorem cover : ∀ T ∈ decl.types, ∃ v, ctorEnv.find? T.name = some (.inductInfo v) ∧
+    c.env.find? T.name = none := by
+  intro T hT
+  obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hT
+  obtain ⟨hl, _, hn, -⟩ := I.infoAt i hi
+  refine ⟨I.H.infos[i], ?_, ?_⟩
+  · rw [← hn]; exact I.headerPres (I.headerEnv_self (List.getElem_mem hl))
+  · rw [← hn]; exact I.H.fresh _ (List.getElem_mem hl)
+
+theorem typeUvars : ∀ T ∈ decl.types, T.uvars = decl.uvars := by
+  intro T hT
+  obtain ⟨_, _, htr⟩ := List.Forall₂.forall_exists_r I.H.trSources T hT
+  exact htr.1.uvars.trans I.H.uvars.symm
+
+theorem declRegistered : InstalledBlocks.DeclRegistered I.envP decl where
+  typeUvars := I.typeUvars
+  constructorUvars := I.constructorUvars
+  family i hi := by
+    simp only [VEnv.addProjections_constants]
+    exact I.headerLE.constants (VEnv.addConstVals_get I.H.typesAdded
+      (List.mem_map_of_mem (List.getElem_mem hi)))
+  ctor i k hi hk := by
+    simp only [VEnv.addProjections_constants]
+    exact VEnv.addConstVals_get I.ctorsAdded
+      (List.mem_flatMap.mpr ⟨_, List.getElem_mem hi, List.getElem_mem hk⟩)
+  projections e he := VEnv.addProjections_iff.mpr (.inl ⟨e, he, rfl, rfl⟩)
+
+theorem projOrigin {S : Name} {info : VProjectionInfo} (h : I.envP.projections S info) :
+    I.H.sourceContext.venv.projections S info ∨ ⟨S, info⟩ ∈ decl.projectionEntries := by
+  rcases VEnv.addProjections_iff.mp h with ⟨e, he, rfl, rfl⟩ | h
+  · exact .inr he
+  · left
+    rw [I.H.sourceContextVEnv]
+    rw [VEnv.addConstVals_projections I.ctorsAdded, VEnv.addConstVals_projections I.H.typesAdded]
+      at h
+    exact h
+
+theorem blocks : InstalledBlocks c.safety ctorEnv I.envP .headers := by
+  have HB := I.H.sourceContext.checking.blocks
+  refine HB.addCtorStage I.H.sourcePresent I.sourceMapWF I.validCore.tr (fun h => I.sourcePres h)
+    (by rw [I.H.sourceContextVEnv]; exact I.sourceLE_P) I.inductInfosFromDecl I.cover
+    I.typeNames_nodup I.constructorOwnersPresent [] ?_ (by simp) (by simp) (by simp)
+    I.declRegistered (fun h => I.projOrigin h)
+  intro n r hfind hnone
+  exfalso
+  rcases I.ctorEnv_cases hfind with h | ⟨_, _, he, _⟩
+  · rcases I.headerEnv_cases h with h | ⟨_, _, he, _⟩
+    · rw [h] at hnone; cases hnone
+    · cases he
+  · cases he
+
+theorem headerPresMap {n : Name} {ci : ConstantInfo} (h : headerEnv.constants.find? n = some ci) :
+    ctorEnv.constants.find? n = some ci :=
+  (toEnvFind I.ctorMapWF).mpr (I.headerPres ((toEnvFind I.headerMapWF).mp h))
+
+theorem equationHeads : EquationHeadsCoherent ctorEnv.constants I.envP :=
+  (I.H.context.checking.equationHeads.extendSimple (C' := ctorEnv.constants)
+    (venv' := I.ctorVEnv) (fun h => I.headerPresMap h)
+    (fun df h => by rwa [VEnv.addConstVals_defeqs I.ctorsAdded] at h)
+    (fun p r h => by rwa [VEnv.addConstVals_pats I.ctorsAdded] at h)).addProjections _
+
+/-- The checking invariant of the constructor environment with the projection entries. -/
+theorem valid : CheckingEnv.Valid c.safety ctorEnv I.envP :=
+  I.validCore.toValid I.blocks I.equationHeads fun hq =>
+    (I.H.context.checking.quot (by rw [← I.quotInit_eq]; exact hq)).extend
+      (fun h => I.headerPresMap h) I.headerLE_P I.equationHeads
+
+/-- A recursor of the constructor environment is a recursor of the header environment. -/
+theorem recHeader {n : Name} {r : RecursorVal}
+    (h : ctorEnv.constants.find? n = some (.recInfo r)) :
+    headerEnv.constants.find? n = some (.recInfo r) := by
+  rcases I.ctorEnv_cases ((toEnvFind I.ctorMapWF).mp h) with h | ⟨_, _, he, _⟩
+  · exact (toEnvFind I.headerMapWF).mpr h
+  · cases he
+
+theorem shapes : RecursorShapesCoherent c.safety ctorEnv.constants I.envP := by
+  intro name rec hrec hsafe
+  obtain ⟨cnparams, indLevels, ctorParams, ⟨S⟩, hrules⟩ := I.H.context.shapes (I.recHeader hrec) hsafe
+  refine ⟨cnparams, indLevels, ctorParams, ⟨S.mono' I.headerLE_P⟩, fun rule hrule => ?_⟩
+  obtain ⟨ctorUvars, hlen, ⟨C⟩, hparams⟩ := hrules rule hrule
+  refine ⟨ctorUvars, hlen, ⟨C.mono' I.headerLE_P⟩, fun cval hcval => ?_⟩
+  rcases I.ctorEnv_cases ((toEnvFind I.ctorMapWF).mp hcval) with h | ⟨cv, hcv, he, hn⟩
+  · exact hparams cval ((toEnvFind I.headerMapWF).mpr h)
+  · exfalso
+    obtain ⟨found, hfound⟩ := I.headerFind_of_constants C.const
+    have := I.fresh cv hcv
+    rw [hn, hfound] at this; cases this
+
+theorem iota : IotaRulesRegistered c.safety ctorEnv I.envP := by
+  intro recName cName rval rule hrec hrule hsafe
+  have hrec' := (toEnvFind I.headerMapWF).mp
+    (I.recHeader ((toEnvFind I.ctorMapWF).mpr hrec))
+  obtain ⟨cval, rhs, hc, hfind, htr, hpat⟩ := I.H.context.iota hrec' hrule hsafe
+  refine ⟨cval, rhs, hc, I.headerPres hfind, htr.mono I.headerLE_P, ?_⟩
+  exact I.headerLE_P.pats hpat
+
+/-- The checking context over the constructor environment. -/
+noncomputable def context : ContextWF { c with env := ctorEnv } :=
+  I.H.context.withEnv I.valid I.shapes I.iota I.headerLE_P
+
+theorem context_venv : I.context.venv = I.envP := rfl
+theorem context_mlctx : I.context.mlctx = I.H.context.mlctx := rfl
+
+noncomputable def parameters :
+    HeaderParameterContext I.context stats I.H.headers.params depth :=
+  I.H.parameters.withEnv I.valid I.shapes I.iota I.headerLE_P
+
+/-- The mutual families of the constructor environment are closed. -/
+theorem closed (hclosed : MutualInductivesClosed c.env) : MutualInductivesClosed ctorEnv := by
+  intro targetName value hfind
+  rcases I.ctorEnv_cases hfind with h | ⟨_, _, he, _⟩
+  · rcases I.headerEnv_cases h with h | ⟨info, hinfo, he, hname⟩
+    · have Hs := hclosed targetName value h
+      refine ⟨Hs.members.mono fun h => I.sourcePres h, Hs.target, Hs.names, ?_⟩
+      intro member info hmember hfindm
+      obtain ⟨sinfo, hs⟩ := Hs.members.find hmember
+      have := I.sourcePres hs
+      rw [hfindm] at this
+      cases this
+      exact Hs.parameters member _ hmember hs
+    · cases he
+      obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hinfo
+      have hid : i < decl.types.length := by rw [I.infos_length, I.types_length] at hi; exact hi
+      obtain ⟨_, _, hn, hall, hnp, -⟩ := I.infoAt i hid
+      have hmembers : ∀ k (hk : k < decl.types.length),
+          ctorEnv.find? decl.types[k].name = some (.inductInfo (I.H.infos[k]'(by
+            rw [I.infos_length, I.types_length]; exact hk))) := by
+        intro k hk
+        obtain ⟨hl, _, hn', -⟩ := I.infoAt k hk
+        rw [← hn']; exact I.headerPres (I.headerEnv_self (List.getElem_mem hl))
+      refine ⟨?_, ?_, ?_, ?_⟩
+      · rw [hall]
+        have : ∀ (l : List VInductiveType), (∀ T ∈ l, ∃ v, ctorEnv.find? T.name =
+            some (.inductInfo v)) → InductiveMemberInfos ctorEnv (l.map (·.name)) := by
+          intro l hl
+          induction l with
+          | nil => exact .nil
+          | cons T l ih =>
+            obtain ⟨v, hv⟩ := hl T (.head _)
+            exact .cons hv (ih fun T' h' => hl T' (.tail _ h'))
+        apply this
+        intro T hT
+        obtain ⟨k, hk, rfl⟩ := List.mem_iff_getElem.mp hT
+        exact ⟨_, hmembers k hk⟩
+      · rw [hall, ← hname, hn]; exact List.mem_map_of_mem (List.getElem_mem hid)
+      · rw [hall]; exact I.typeNames_nodup
+      · intro member minfo hmember hfindm
+        rw [hall] at hmember
+        obtain ⟨T, hT, rfl⟩ := List.mem_map.mp hmember
+        obtain ⟨k, hk, rfl⟩ := List.mem_iff_getElem.mp hT
+        rw [hmembers k hk] at hfindm
+        cases hfindm
+        obtain ⟨_, _, _, _, hnp', -⟩ := I.infoAt k hk
+        rw [hnp', hnp]
+  · cases he
 
 end CtorInstall
 
