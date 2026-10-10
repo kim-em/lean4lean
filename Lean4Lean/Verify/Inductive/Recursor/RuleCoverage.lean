@@ -23,7 +23,7 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl 
 /-- WAVE 2 STUB (Rules): each installed kernel recursor's rules are, in order, the generated
 equations of the constructors its owner owns (the source branch's `RecursorCheck.trRules`,
 `Rules/RuleTranslations.lean`, stated over the installation). -/
-theorem RecursorInstallation.rulesCovered (H : RecursorInstallation R outEnv) :
+theorem RecursorInstallation.rulesCoveredStub (H : RecursorInstallation R outEnv) :
     List.Forall₂ (fun (owner : Fin H.generationSignature.families.size)
         (e : ConstantInfo × VConstVal) =>
       ∃ rval, e.1 = .recInfo rval ∧

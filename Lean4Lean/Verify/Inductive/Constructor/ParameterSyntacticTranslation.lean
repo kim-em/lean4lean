@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Recursor.Binders.RecursiveFields
+import Lean4Lean.Verify.Inductive.Constructor.CheckedConstructors
 import Lean4Lean.Verify.Typing.RawShape
 
 /-! The checked common-parameter prefix of each constructor determines its raw
@@ -141,6 +141,90 @@ theorem CheckedConstructorParameterPrefix.rawCtorShape
   change VExpr.RawShapeRel ctor.type (VExpr.wrapForalls domains tailTarget)
   rw [htarget]
   exact hres.wrapForalls domains
+
+/-- The checked constructors yield the raw syntactic shape of every
+source constructor, positionally aligned with the declaration. -/
+theorem CheckedConstructors.rawShapes
+    (H : CheckedConstructors sourceEnv decl env params stats indTypes
+      Us scope classes)
+    (henv : env.WF)
+    (Htypes : List.Forall₂
+      (TrInductiveTypeHeaders sourceEnv env Us)
+      indTypes.toList decl.types)
+    (hscope : scope.WF env Us.length)
+    (hparamsSize : stats.params.size = decl.nparams) :
+    ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors, decl.RawCtorShape type ctor := by
+  intro target htarget ctor hctor
+  rcases List.mem_iff_getElem.1 htarget with ⟨familyIdx, hfamilyTarget, rfl⟩
+  rcases List.mem_iff_getElem.1 hctor with ⟨ctorIdx, hctorTarget, rfl⟩
+  have hfamilySource : familyIdx < indTypes.size := by
+    have hlength := Lean4Lean.List.Forall₂.length_eq Htypes
+    simpa using (show familyIdx < indTypes.toList.length by
+      rw [hlength]
+      exact hfamilyTarget)
+  have Hfamily := Lean4Lean.List.forall₂_getElem Htypes
+    familyIdx (by simpa using hfamilySource) hfamilyTarget
+  have Hfamily' : TrInductiveTypeHeaders sourceEnv env Us
+      indTypes[familyIdx] decl.types[familyIdx] := by
+    simpa using Hfamily
+  have hctorSource : ctorIdx < indTypes[familyIdx].ctors.length := by
+    rw [Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctors_length Hfamily']
+    exact hctorTarget
+  have Hctor := Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctorAt
+    Hfamily' ctorIdx hctorSource hctorTarget
+  rcases H.constructorTails.replay familyIdx hfamilySource ctorIdx hctorSource with
+    ⟨ctorVal, _tail, _tailTarget, _sourceDomains, _hmem, Hraw, _Hprefix,
+      Hcomparisons, Htranslated, Htail, _Hsynthesis⟩
+  have Hcomparisons' : CheckedConstructorParameterPrefix env Us stats
+      indTypes[familyIdx].ctors[ctorIdx].type decl.nparams _tail scope
+      _sourceDomains := by
+    simpa [hparamsSize] using Hcomparisons
+  have Hshape := Hcomparisons'.rawCtorShape henv hscope Hraw.type Htranslated
+    Htail
+  exact Hshape.of_rawShapeRel (TrExprS.rawShape .base Hctor.type Hraw.type)
+
+/-- The checked constructors already contain every successful raw
+parameter comparison.  Pair it with the declaration translation at the same
+family/constructor indices to obtain the independent raw shape judgment,
+without changing the executable loop or adding a semantic callback. -/
+theorem CheckedConstructors.parameterShapes
+    (H : CheckedConstructors sourceEnv decl env params stats indTypes
+      Us scope classes)
+    (henv : env.WF)
+    (Htypes : List.Forall₂
+      (TrInductiveTypeHeaders sourceEnv env Us)
+      indTypes.toList decl.types)
+    (hscope : scope.WF env Us.length)
+    (hparamsSize : stats.params.size = decl.nparams)
+    (huvars : decl.uvars = Us.length)
+    (hparams : env.IsDefEqCtx Us.length [] params.reverse scope.toCtx) :
+    ConstructorParameterCertificate env decl params where
+  shapes target htarget ctor hctor := by
+    rcases List.mem_iff_getElem.1 htarget with ⟨familyIdx, hfamilyTarget, rfl⟩
+    rcases List.mem_iff_getElem.1 hctor with ⟨ctorIdx, hctorTarget, rfl⟩
+    have hfamilySource : familyIdx < indTypes.size := by
+      have hlength := Lean4Lean.List.Forall₂.length_eq Htypes
+      simpa using (show familyIdx < indTypes.toList.length by
+        rw [hlength]
+        exact hfamilyTarget)
+    have Hfamily := Lean4Lean.List.forall₂_getElem Htypes
+      familyIdx (by simpa using hfamilySource) hfamilyTarget
+    have Hfamily' : TrInductiveTypeHeaders sourceEnv env Us
+        indTypes[familyIdx] decl.types[familyIdx] := by
+      simpa using Hfamily
+    have hctorSource : ctorIdx < indTypes[familyIdx].ctors.length := by
+      rw [Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctors_length Hfamily']
+      exact hctorTarget
+    have Hctor := Lean4Lean.VerifyInductive.TrInductiveTypeHeaders.ctorAt
+      Hfamily' ctorIdx hctorSource hctorTarget
+    rcases H.constructorTails.replay familyIdx hfamilySource ctorIdx hctorSource with
+      ⟨_ctorVal, _tail, _tailTarget, _sourceDomains, _hmem, _Hraw, _Hprefix,
+        Hcomparisons, _Htranslated, _Htail, _Hsynthesis⟩
+    have Hcomparisons' : CheckedConstructorParameterPrefix env Us stats
+        indTypes[familyIdx].ctors[ctorIdx].type decl.nparams _tail scope
+        _sourceDomains := by
+      simpa [hparamsSize] using Hcomparisons
+    exact Hcomparisons'.ctorParameterShape henv hscope Hctor.type huvars hparams
 
 end VerifyInductive
 end Lean4Lean

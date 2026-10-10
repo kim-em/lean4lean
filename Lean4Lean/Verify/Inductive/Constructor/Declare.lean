@@ -254,5 +254,37 @@ theorem AddInductive.declareConstructors.WF {c : AddInductive.Context}
   rw [← Array.foldlM_toList] at h
   exact declareBlockFold stats c.lparams isUnsafe c.allowPrimitive indTypes.toList c.env r hwf h
 
+/-- The header fold installs a primitive name only when primitives are allowed. -/
+theorem declareInductiveTypeInfos.allowsPrimitives (allow : Bool) :
+    ∀ (infos : List InductiveVal) (E r : Environment), E.constants.WF →
+    AddInductive.declareInductiveTypeInfos allow infos E = .ok r →
+    ∀ info ∈ infos, Kernel.Environment.primitives.contains info.name → allow = true
+  | [], _, _, _, _ => by simp
+  | info :: infos, E, r, hwf, h => by
+    simp only [AddInductive.declareInductiveTypeInfos] at h
+    cases hc : Kernel.Environment.checkName E info.name allow with
+    | error e => rw [hc] at h; cases h
+    | ok u =>
+      rw [hc] at h
+      obtain ⟨hfresh, hprim⟩ := checkName.WF hwf info.name allow u hc
+      have hnone : E.constants.find? (ConstantInfo.inductInfo info).name = none := by
+        rwa [Kernel.Environment.find?, hwf.find?'_eq_find?] at hfresh
+      have hwf' : (AddInductive.addConstant E (.inductInfo info)).constants.WF :=
+        hwf.insert _ _ hnone
+      intro i hi hp
+      simp only [List.mem_cons] at hi
+      rcases hi with rfl | hi
+      · exact hprim hp
+      · exact declareInductiveTypeInfos.allowsPrimitives allow infos _ r hwf' h i hi hp
+
+theorem AddInductive.declareInductiveTypes.allowsPrimitives {c : AddInductive.Context}
+    (stats : AddInductive.InductiveStats) (nparams : Nat) (indTypes : Array InductiveType)
+    (numNested : Nat) (isUnsafe : Bool) (hwf : c.env.constants.WF) :
+    (AddInductive.declareInductiveTypes stats nparams indTypes numNested isUnsafe c).WF
+      fun _ => ∀ info ∈ (AddInductive.inductiveTypeInfos stats nparams indTypes numNested
+        isUnsafe c.lparams).toList,
+        Kernel.Environment.primitives.contains info.name → c.allowPrimitive = true :=
+  fun r h => declareInductiveTypeInfos.allowsPrimitives c.allowPrimitive _ c.env r hwf h
+
 end VerifyInductive
 end Lean4Lean
