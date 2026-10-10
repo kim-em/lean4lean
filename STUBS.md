@@ -453,8 +453,15 @@ or because the scaffold form was circular:
   `CheckingEnv.Valid`, which contain the rule translations the pass establishes. Restoration-B
   produces the `RuleFreeStage` (agreed).
 
-`Nested/Restoration/Uniform/**` (parameter uniformity of the lowered recursors) is not needed
-by these statements.
+`Nested/Restoration/Uniform/**` (parameter uniformity of the lowered recursors, consumed by
+Restoration-B) is ported as far as Restoration-B's run is available: `Uniform/{Recursors,
+Generic,Heads,Base,Lowered,Run,Whnf}.lean`. Pending on Restoration-B's `ContainerSpecializations`
+(`NamePrefix`), `restorationTablesRestoring`, `CompilationDataConstructors`/`Commutation` and
+`NestedInstalledRun`: `NestedRun.auxHeadsFacts`, `envParamUniform`, `whnfPreservesParamUniform`,
+`recursorParamUniform_of_wfCore`, the `NestedRun` part of `Uniform/Declarations` and
+`Validation/ParameterScopes`. `NestedRun.envParamUniform` will take `LoweredView.Nonprimitive`
+(the lowered names passed `checkName` without primitive permission; the target's lowered run
+does not record it). Source `Validation/Result.lean` is superseded by `RestorationRun`.
 
 ## Wave 3 lowering
 
@@ -506,8 +513,14 @@ in `Nested/Lowering/Assembly.lean` from `NestedLoweringOutputClosed`
 (`ElimNestedInductive.run'.translationClosed`), over the source branch's lowering refinement
 ported under `Nested/Lowering/` (`Refinement`, `ParameterOpening`, `Recognition`, `Expression`,
 `Queue`, `AuxiliaryFamilyPositions`, `Output`, `Ordinary`, `Restore/{ExprReplace,ParameterOpening}`;
-new: `Counts` for `types_length`). `Nested/Lowering/Expansion/**` (the `NestedExpansionData`
-for `RestoredBlock.formation`) is being ported by Lowering for Restoration-B.
+new: `Counts` for `types_length`). `Nested/Lowering/Expansion/**` and `AuxiliaryFamilies`,
+`AuxiliaryConstructors`, `OccurrenceTyping` are ported too, without stub: the nested expansion for
+`RestoredBlock.formation` is `RecursorInput.nestedExpansionData` / `RecursorInput.nestedFormationWF`
+(`Nested/Lowering/Expansion/Data.lean`), over the lowered run's `RecursorInput`
+(`LoweredRun.input`), the lowering run and the restoration side's source facts. Adaptations:
+the source branch's `OrdinaryConstructorCheck`/`HeaderEnvironment` arguments became
+`RecursorInput`/`HeaderData`, the eliminator cases of the expansion relations are gone, and
+`InstalledBelow` facts are read through `addInduct`'s stages (`VEnv.addInduct_stages`).
 
 ## Wave 3 scaffold (`Verify/Inductive/Nested/**`, the nested branch's interface)
 

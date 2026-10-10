@@ -1,6 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Expression
 import Lean4Lean.Verify.TypeChecker
-import Lean4Lean.Verify.Inductive.Constructor.CheckedFormation
+import Lean4Lean.Verify.Inductive.RecursorInput
 
 namespace Lean4Lean
 
@@ -233,7 +233,8 @@ def NestedExpansionData.ofConstructorPhases
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {expanded source : VInductDecl} {nparams depth : Nat}
     {isUnsafe : Bool} {env : VEnv} {indTypes : Array InductiveType}
-    (R : CheckedFormation c stats expanded nparams isUnsafe depth env indTypes)
+    {ctorEnv : Environment}
+    (R : RecursorInput c stats expanded nparams isUnsafe depth env indTypes ctorEnv)
     (generated : List VInductiveType)
     (hnonempty : indTypes.toList ≠ [])
     (HsourceParameters : source.SourceParameterWF env)
