@@ -150,7 +150,7 @@ theorem recsOf (T : RuleTranslations H) : H.decl'.RecsOf T.block :=
 /-- `VInductDecl.RecsCompiled` of the installed declaration. -/
 theorem recsCompiled (T : RuleTranslations H) (hnonempty : indTypes.toList ≠ []) :
     H.decl'.RecsCompiled sourceEnv :=
-  ⟨T.block, T.compilesTo hnonempty, T.recsOf⟩
+  ⟨T.block, T.compilesTo hnonempty, T.recsOf, T.blockWF⟩  -- MODEL COMPAT
 
 /-- The recursor half of `VInductDecl.WF`. -/
 theorem recursorsWF (T : RuleTranslations H) (hnonempty : indTypes.toList ≠ []) :
