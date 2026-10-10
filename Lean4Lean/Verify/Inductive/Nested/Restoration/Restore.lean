@@ -10,6 +10,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.ViewCast
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyTypes
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyKernel
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyRecursors
+import Lean4Lean.Verify.Inductive.Nested.Restoration.StrippedFacts
 
 /-! # The restored block of a nested run (owner: Restoration-B)
 
@@ -65,17 +66,7 @@ theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
       false fuel).map_wf
   have hdeclLowered : E.lowered.loweredDecl = L.loweredDecl :=
     LoweredView.heq_field hloweredEnv hlowered (·.loweredDecl)
-  -- WAVE 3 STUB (restB): the stripped checker environment (`NestedRun.strippedChecker`, fork A).
-  have Cstrip : CheckerEnv (if isUnsafe then .unsafe else .safe)
-      (Lean4Lean.stripRecursorRules outEnv
-        (Lean4Lean.restoredRecursorNames
-          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.recursorVEnv := sorry
-  have hV : CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
-      (Lean4Lean.stripRecursorRules outEnv
-        (Lean4Lean.restoredRecursorNames
-          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.recursorVEnv := sorry
+  obtain ⟨hV, Cstrip⟩ := E.strippedChecker B hBlowered wf Hchecked Hparameters hnested
   obtain ⟨recs, auxiliaries, block, envR, outVEnv, hcontainers, hcompiled, hrecsOf, hrecsAdded,
     htrRecs, hrecs_wf, hrec_shape, hrules_nodup, hrules_ctor, hrules_ctorParams, hrule_shape,
     hrules_closed, hrulesAdded, hrecShapes, hrecK, henvR, hequationsWF⟩ :=
