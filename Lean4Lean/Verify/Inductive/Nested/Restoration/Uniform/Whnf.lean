@@ -9,9 +9,8 @@ environment) and the resulting `WhnfPreservesParamUniform`. The generic lemmas a
 
 Present so far: the lookups of the recursor pass's environment (`LoweredView.ctorEnv_find_cases`,
 `fresh_familyNames`), the head set `NestedRun.uniformHeads`, and the run-environment lemmas that
-read only `NestedRun`. Pending on Restoration-B's `NestedRun.auxHeadsFacts` inputs
-(`ContainerSpecializations`) and `restorationTablesRestoring`: `NestedRun.ctorTypes_headType`,
-`generatedFamilyType_forall`, `uniformHeads_fresh`, `familyType_headType`, `envParamUniform`.
+read only `NestedRun`. The parts that read `NestedRun.auxHeadsFacts` (`envParamUniform`,
+`whnfPreservesParamUniform`, `recursorParamUniform_of_wfCore`, ...) are in `Uniform/RunEnv.lean`.
 The source's `LoweredRun.nonprimitive_familyNames` is `LoweredView.Nonprimitive`, which a
 nested run supplies as `NestedRun.loweredNonprimitive`. -/
 
@@ -514,6 +513,46 @@ theorem NestedRun.ctorType_tr
   exact ⟨⟨_, HC.type⟩, t, ht, c', hc', HC.name⟩
 
 end RunEnv
+
+/-- `whnf` facts from the environment condition and parameters that the
+checker's name generator never produces. -/
+theorem WhnfPreservesParamUniform.of_env {heads : List Name} {params : List Expr} {ls : List Level}
+    {env : Environment} (henv : EnvParamUniform env heads params.length ls)
+    (hparams : TypeChecker.UngeneratedParams `_kernel_fresh params) :
+    WhnfPreservesParamUniform heads params ls env where
+  whnf Hc _ _ _ hc hn hscope hP hin hrun := by
+    subst hc
+    obtain ⟨_, hn⟩ := hn
+    exact whnfInRecursorContext.paramUniformIn Hc hn henv hparams hscope hin hP _ hrun
+
+section Run
+
+variable {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
+    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
+    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
+    {isUnsafe : Bool} {outEnv : Environment}
+
+/-- The parameters of the run are free variables of its recursor context,
+which never carry names of the type checker's name generator. -/
+theorem NestedRun.paramsUngeneratedParams
+    (E : NestedRun result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv) :
+    TypeChecker.UngeneratedParams `_kernel_fresh E.lowered.stats.params.toList := by
+  intro a ha
+  obtain ⟨fv, rfl, hmem⟩ :=
+    FVarArrayIn.fvar_of_mem E.lowered.recursors.params (Array.mem_toList_iff.1 ha)
+  refine ⟨fv, rfl, fun i heq => ?_⟩
+  have hlctx : fv ∈ E.lowered.recursors.localContext.lctx.fvars :=
+    E.lowered.recursors.params.members fv hmem
+  have hv : fv ∈ E.lowered.recursors.recursorWF.mlctx.vlctx.fvars := by
+    rw [← E.lowered.recursors.recursorWF.mlctx_wf.tr.fvars_eq,
+      E.lowered.recursors.recursorWF.lctx_eq]
+    exact hlctx
+  have := E.lowered.recursors.recursorWF.kernelFresh fv hv i heq
+  exact Nat.not_lt_zero _ this
+
+end Run
 
 end VerifyInductive
 end Lean4Lean
