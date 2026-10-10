@@ -363,6 +363,34 @@ Closed: `Instance.restored_equation_major`, `CompilationData.constructor_name_ca
 `CompilationData.constructor_equation`, `CompiledInductive.constructor_equation`/
 `equation_major_cases`, `VDefEq.HasConstructorMajor.ofEquation`).
 
+## Wave 3 lowering
+
+Statement changes to `NestedLoweringOutput`/`loweringRun.WF` (`Verify/Inductive/Lowering.lean`,
+`-- WAVE 3 COMPAT (lowering)`, approved by the lead):
+
+1. `loweringRun.WF` takes `wf : ves.WF env`: `nested_app`'s `FVarsIn` and the container
+   parameter count of a sibling `J ∈ I.all` need `EnvironmentTypesClosed`/`MutualInductivesClosed`
+   (auxiliary constructor types instantiate kernel constructor types). The ordinary branch's
+   consequences (`loweringRun.types_nonempty`, `loweringRun.ordinary_types_eq_source`) stay
+   hypothesis-free through `loweringRun.sourceShape`.
+2. `lctx_params` reads `res.params.toList.reverse.map (·.fvarId!) = res.lctx.fvars`
+   (`LocalContext.fvars` is most recent first).
+3. `aux_fresh` is `env.find? t.name = none ∧ ∃ i, t.name = .num `_nested i`; new field
+   `aux_ctor_names` (an auxiliary constructor is a container constructor renamed under the
+   auxiliary family). Disjointness from the source family names (a source family may be named
+   `_nested.1`) and constructor freshness (kernel constructor names need not extend their
+   family's name) are not lowering facts; they come from the lowered installation.
+4. `restore_source`'s premise `LoweredAuxiliariesInstalled` is replaced by
+   `RestoreSourceDisjoint res loweredEnv sc.type` per source constructor (the source branch's
+   premise; `LoweredAuxiliariesInstalled` does not exclude a source constant registered in
+   `loweredEnv` as a constructor of an auxiliary family). Restoration-B establishes it from the
+   lowered installation (`RestoreAuxConstructorsFresh`, `AddConstants`), as the source did.
+
+| statement | file | status |
+|---|---|---|
+| `loweringRun.sourceShape` | `Verify/Inductive/Lowering.lean` | stub (Lowering) |
+| `loweringRun.WF` | `Verify/Inductive/Lowering.lean` | stub (Lowering) |
+
 ## Wave 3 scaffold (`Verify/Inductive/Nested/**`, the nested branch's interface)
 
 `lake build` (default targets), `Lean4Lean.Tests` and `Lean4Lean.Experimental` are green with
