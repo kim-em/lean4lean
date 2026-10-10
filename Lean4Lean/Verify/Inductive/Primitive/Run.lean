@@ -102,11 +102,9 @@ theorem AddInductive.run.primitiveSourceAlignedWF
   obtain ⟨ctorEnv, positivity⟩ := out
   obtain ⟨decl, -, ⟨R⟩, hclasses⟩ := Hout
   refine (R.recursorPhasesWF (by rw [P.lparams_eq]; exact hnodup) hsafety
-    (by rw [P.safety_eq]; exact HnotPartial) ?_ (hclasses R).symm).mono
+    (by rw [P.safety_eq]; exact HnotPartial)
+    (fun _ => by simpa using Hshape'.recursorsNonprimitive) (hclasses R).symm).mono
     fun outEnv Hrec => ⟨c', stats, Hc', P, Hshape', decl, ctorEnv, R, Hrec⟩
-  -- WAVE 2 STUB (Primitive): the recursors of `Bool` and `Nat` are not primitives
-  -- (`PrimitiveInductiveShape.recursorsNonprimitive` of the source branch).
-  sorry
 
 end VerifyInductive
 end Lean4Lean

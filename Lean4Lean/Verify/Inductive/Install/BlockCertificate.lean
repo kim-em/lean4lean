@@ -56,6 +56,16 @@ theorem inductInstalled (H : BlockCertificate safety env venv decl outEnv outVEn
     outVEnv.InductInstalled decl :=
   VEnv.InductInstalled.of_addInduct H.wf H.installed
 
+/-- Every constant of the source environment is a constant of the output, to the same value:
+every name the block inserts is fresh. -/
+theorem find?_mono (H : BlockCertificate safety env venv decl outEnv outVEnv)
+    (hwf : env.constants.WF) {n : Name} {ci : ConstantInfo} (h : env.find? n = some ci) :
+    outEnv.find? n = some ci := by
+  have houtWF : outEnv.constants.WF := H.checking.tr.map_wf
+  rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at h
+  rw [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?]
+  exact H.add.find?_mono hwf h
+
 /-- The output of a certified block is a valid checking environment with the installed blocks of
 the source and the new one: wave 1B's `InstalledBlocks.addInduct`. -/
 theorem installedBlocks (H : BlockCertificate safety env venv decl outEnv outVEnv)
@@ -67,9 +77,7 @@ theorem installedBlocks (H : BlockCertificate safety env venv decl outEnv outVEn
     H.cover H.closed H.constructorOwners (fun h1 h2 => H.recMajor h1 h2)
     (fun _ => ⟨H.wf, H.installed⟩) (fun h => absurd hvisible h)
     (fun _ => H.constructorParameterAlignment hparams) (fun h1 h2 _ => H.recK h1 h2)
-  -- WAVE 2 STUB (Install): `hpres`, every constant of `env` is a constant of `outEnv`, from
-  -- `AddInduct.map_eq`/`fresh` (`insertConsts_find?_mono_of_fresh`).
-  sorry
+  exact H.find?_mono hwf
 
 /-- Replay a certified safe block in a larger model at a lower safety level: the names are
 fresh there too (both environments are aligned with the same constant map), the translations
