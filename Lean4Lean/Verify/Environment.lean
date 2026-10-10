@@ -1,6 +1,6 @@
 import Lean4Lean.Verify.Environment.Extension
 import Lean4Lean.Verify.Environment.Quot
-import Lean4Lean.Verify.Inductive.Dispatch
+import Lean4Lean.Verify.Inductive.Nested.Install.Dispatch
 
 namespace Lean4Lean
 open Lean4Lean
@@ -198,8 +198,7 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
 /-- The inductive case of `addDecl.WF`: a checked inductive declaration, at any fuel, preserves
 the invariant `VEnvs.WF` and extends every safety-indexed abstract environment. Wave 1B took it
 as a hypothesis; the verification of the inductive checker (`Verify/Inductive/`) proves it from
-the ordinary and primitive pipelines, with the nested branch as the hypothesis
-`VerifyInductive.NestedInductivePreserves` (`Verify/Inductive/Dispatch.lean`) until wave 3. -/
+the primitive, ordinary and nested pipelines (`inductiveDeclPreserves`). -/
 def InductiveDeclPreserves : Prop :=
   ∀ {env : Environment} {ves : VEnvs} (_wf : ves.WF env)
     (lparams : List Name) (nparams : Nat) (types : List InductiveType)
@@ -209,12 +208,11 @@ def InductiveDeclPreserves : Prop :=
         ∃ ves' : VEnvs, ves'.WF outEnv ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety)
 
-/-- The inductive case, from the nested branch. -/
-theorem inductiveDeclPreserves (hnested : VerifyInductive.NestedInductivePreserves) :
-    InductiveDeclPreserves :=
+/-- The inductive case, with the nested branch (`VerifyInductive.nestedInductivePreserves`,
+`Verify/Inductive/Nested/Install/Dispatch.lean`). -/
+theorem inductiveDeclPreserves : InductiveDeclPreserves :=
   fun wf lparams nparams types isUnsafe fuel =>
-    VerifyInductive.addInductiveDeclaration.WF_preserves hnested wf lparams nparams types
-      isUnsafe fuel
+    VerifyInductive.addInductiveDeclaration.preserves wf lparams nparams types isUnsafe fuel
 
 /-- Successful checked addition of a declaration preserves the invariant `VEnvs.WF` and extends
 every safety-indexed abstract environment, for every declaration form, given the inductive case
@@ -234,13 +232,12 @@ theorem addDecl.WF_of (hind : InductiveDeclPreserves)
   | mutualDefnDecl vs => exact addMutual.WF wf vs
   | inductDecl lparams nparams types isUnsafe => exact hind wf lparams nparams types isUnsafe {}
 
-/-- `addDecl.WF_of` with the inductive case discharged by the inductive checker's verification,
-given the nested branch (`VerifyInductive.NestedInductivePreserves`, wave 3). -/
-theorem addDecl.WF (hnested : VerifyInductive.NestedInductivePreserves)
-    {env : Environment} {ves : VEnvs} (wf : ves.WF env) (decl : Declaration) :
+/-- `addDecl.WF_of` with the inductive case discharged by the inductive checker's
+verification: no hypothesis remains. -/
+theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety :=
-  addDecl.WF_of (inductiveDeclPreserves hnested) wf decl
+  addDecl.WF_of inductiveDeclPreserves wf decl
 
 /-! ### The empty environment -/
 

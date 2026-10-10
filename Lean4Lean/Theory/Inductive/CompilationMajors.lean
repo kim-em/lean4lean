@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Inductive.Compilation
 import Lean4Lean.Theory.Inductive.RestorationNames
+import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.ConstructorMajor
 
 /-! # The constructor of a rule of a compiled block
 
@@ -10,8 +11,7 @@ is a constructor of the block itself or of a container whose own ι rules are re
 environment the block was compiled in (`ContainersInstalled`: the container was installed by
 `VEnv.addInduct`, whose rule stage registers one ι rule per constructor of the container's
 recursors). The second alternative is `VEnv.IsPatCtor env ru.ctor`
-(`Theory/Typing/HeadInjectivity/Rules/ConstructorMajor.lean`), spelled out here because this
-file sits below the model.
+(`Theory/Typing/HeadInjectivity/Rules/ConstructorMajor.lean`).
 
 WAVE 3 COMPAT, all named stubs (owner Restoration-B): the source branch's
 `Instance.restored_equation_major` (`RecursorEquationHeads.lean`),
@@ -20,10 +20,6 @@ WAVE 3 COMPAT, all named stubs (owner Restoration-B): the source branch's
 pattern. -/
 
 namespace Lean4Lean
-
-/-- The final major argument of a generated equation is headed by the constant `name`. -/
-def VDefEq.HasConstructorMajor (equation : VDefEq) (name : Name) : Prop :=
-  ∃ fn levels args, equation.lhs.stripLams = .app fn (VExpr.mkApps (.const name levels) args)
 
 namespace InductiveSignature
 
@@ -64,8 +60,7 @@ theorem ContainersInstalled.constructor_isPatCtor {env : VEnv}
     {auxiliaries : List InductiveSignature.ContainerSpecialization}
     (H : ContainersInstalled env auxiliaries) {a : InductiveSignature.ContainerSpecialization}
     (ha : a ∈ auxiliaries) {ctor : VConstVal} (hc : ctor ∈ a.source.ctors) :
-    ∃ (p : Pattern) (r : p.RHS × p.Check) (recN : Name) (M N : Nat), env.pats p r ∧
-      p = (SimplePattern.iota recN M ctor.name N).toPattern := by
+    VEnv.IsPatCtor env ctor.name := by
   -- WAVE 3 STUB (Restoration-B): the container's compilation has one equation per
   -- constructor (`CompilationData.equations`, `Models`), `RecsOf.rules_total` turns it into a
   -- `VRecRule` on `ctor.name` (`VRecRule.OfEquation`), and the rule stage of `addInduct`
@@ -78,9 +73,7 @@ theorem CompiledInductive.rule_ctor_cases {env : VEnv} {source : VInductDecl}
     {block : VInductBlock} (H : CompiledInductive env source block)
     (hrecs : source.RecsOf block) {r : VRecursor} {ru : VRecRule} (hr : r ∈ source.recs)
     (hru : ru ∈ r.rules) :
-    (∃ ctor ∈ source.constructorConstants, ru.ctor = ctor.name) ∨
-    ∃ (p : Pattern) (rr : p.RHS × p.Check) (recN : Name) (M N : Nat), env.pats p rr ∧
-      p = (SimplePattern.iota recN M ru.ctor N).toPattern := by
+    (∃ ctor ∈ source.constructorConstants, ru.ctor = ctor.name) ∨ VEnv.IsPatCtor env ru.ctor := by
   -- WAVE 3 STUB (Restoration-B): `CompiledInductive.equation_major_cases` of the source
   -- branch's `ConstructorRigidity.lean`, through `RecsOf.rules` (the rule is `OfEquation` of a
   -- block equation, whose major head is `ru.ctor`), `Instance.restored_equation_major`,
