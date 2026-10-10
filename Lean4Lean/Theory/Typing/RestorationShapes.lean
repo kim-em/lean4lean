@@ -5,8 +5,7 @@ import Lean4Lean.Theory.Inductive.SignatureData
 /-! Restoration of generated recursor telescopes and its commutation with lifting.
 
 WAVE 3 COMPAT: port of the source branch's file (the `elim` case of `Restoration.expr` is
-gone). `instantiateParams_liftN` was the source's `CaseReduction.lean` lemma; it is a named
-stub here (owner Equations+Install), the only one of this file. -/
+gone). `instantiateParams_liftN` is the source's `CaseReduction.lean` lemma. -/
 
 namespace Lean4Lean
 namespace InductiveSignature
@@ -119,9 +118,10 @@ theorem instantiateParams_liftN {body : VExpr} {arguments : List VExpr}
     (hc : body.ClosedN arguments.length) (n k : Nat) :
     (instantiateParams body arguments).liftN n k =
       instantiateParams body (arguments.map fun arg => arg.liftN n k) := by
-  -- WAVE 3 STUB (Equations+Install): the source branch's `CaseReduction.instantiateParams_liftN`
-  -- (`instantiateParams_lift'` with `lift'_consN_skipN`).
-  have := hc; sorry
+  rw [← (VExpr.lift'_consN_skipN (e := instantiateParams body arguments))]
+  refine VExpr.lift'_subst.trans (VExpr.subst_congr_closedN hc ?_)
+  intro i hi
+  simp [VExpr.Subst.lift_r, hi, VExpr.lift'_consN_skipN]
 
 theorem HeadSpecialization.apply_liftN {h : HeadSpecialization}
     (hc : ∀ e ∈ h.arguments, e.ClosedN h.nparams) (levels : List VLevel)
