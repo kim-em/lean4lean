@@ -64,7 +64,9 @@ structure CtorInstall (c : AddInductive.Context) (stats : AddInductive.Inductive
     (decl : VInductDecl) (nparams : Nat) (isUnsafe : Bool) (depth : Nat) (sourceEnv : VEnv)
     (indTypes : Array InductiveType) (headerEnv ctorEnv : Environment)
     (classes : List (List (List Bool))) where
-  H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv indTypes headerEnv
+  -- WAVE 2 install COMPAT: the header data (no header `ContextWF`), so that the primitive
+  -- `Bool`/`Nat` path installs its constructors here too
+  H : HeaderData c stats decl nparams isUnsafe depth sourceEnv indTypes headerEnv
   K : ConstructorsChecked H classes
   map_eq : ctorEnv.constants = insertConsts headerEnv.constants
     ((ctorInfos stats c.lparams isUnsafe indTypes.toList).map .ctorInfo)
@@ -72,8 +74,13 @@ structure CtorInstall (c : AddInductive.Context) (stats : AddInductive.Inductive
   fresh : ∀ cval ∈ ctorInfos stats c.lparams isUnsafe indTypes.toList,
     headerEnv.find? cval.name = none
   nodup : ((ctorInfos stats c.lparams isUnsafe indTypes.toList).map (·.name)).Nodup
-  nprim : ∀ cval ∈ ctorInfos stats c.lparams isUnsafe indTypes.toList,
-    ¬ Kernel.Environment.primitives.contains cval.name
+  -- WAVE 2 install COMPAT: the primitive invariant of the constructor model and the primitive
+  -- constants of the constructor environment, in place of `nprim` (the ordinary path proves
+  -- them from the constructor names being nonprimitive, `CtorInstall.ofNprim`)
+  hasPrimitives : ∀ venv', H.context.venv.addConstVals decl.constructorConstants = some venv' →
+    venv'.HasPrimitives
+  safePrimitives : ∀ {n ci}, ctorEnv.find? n = some ci →
+    Kernel.Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
   nindices_size : stats.nindices.size = indTypes.size
   nindices : ∀ i (hi : i < decl.types.length) (hn : i < stats.nindices.size),
     stats.nindices[i] = decl.types[i].numIndices
@@ -215,7 +222,7 @@ theorem ctorNames_nodup : (decl.constructorConstants.map (·.name)).Nodup := by
 /-- A name of the abstract header environment is a name of the kernel header environment. -/
 theorem headerFind_of_constants {n : Name} {ci : VConstant}
     (h : I.headerVEnv.constants n = some ci) : ∃ found, headerEnv.find? n = some found := by
-  obtain ⟨found, hfound, -⟩ := I.H.context.checking.tr.find?_iff.mpr ⟨ci, h⟩
+  obtain ⟨found, hfound, -⟩ := I.H.context.checking.find?_iff.mpr ⟨ci, h⟩
   exact ⟨found, hfound⟩
 
 theorem ctorFresh : ∀ ci ∈ decl.constructorConstants, I.headerVEnv.constants ci.name = none := by
@@ -337,7 +344,7 @@ theorem ctorAt (i : Nat) (hi : i < indTypes.size) (j : Nat)
   · exact htr.type
   · obtain ⟨tail, hprefix⟩ := I.K.parameterPrefixes.replay i hi j hj
     obtain ⟨k, hspine⟩ := I.K.parameterPrefixes.spines i hi j hj
-    obtain ⟨-, harity⟩ := hprefix.constructorArity I.H.parameters.paramFVars
+    obtain ⟨-, harity⟩ := hprefix.constructorArity I.H.sourceParameters.paramFVars
     have hk := hspine.constructorArity
     have hfa := TrExprS.forallArity_of_spine hspine htr.type
     rw [VExpr.piArity_eq_forallArity, hfa]
@@ -364,7 +371,7 @@ theorem trTypes : List.Forall₂ (fun (iv : InductiveVal × List ConstructorVal)
     rw [familyCtorInfos_getElem]
     exact I.ctorAt i h2 j hjs _ (List.forall₂_getElem hctors j hjs hj')
 
-theorem headerMapWF : headerEnv.constants.WF := I.H.context.checking.tr.map_wf
+theorem headerMapWF : headerEnv.constants.WF := I.H.context.checking.map_wf
 
 /-- The kernel constructors in lockstep with the abstract ones. -/
 theorem ctorEntries : List.Forall₂ (fun ci v => TrConstVal c.safety I.headerVEnv ci v ∧
@@ -467,7 +474,7 @@ theorem headerEnv_self {info : InductiveVal} (h : info ∈ I.H.infos) :
 
 /-- The checking invariant of the constructor environment over the abstract one. -/
 theorem checkingCtor : CheckingEnv c.safety ctorEnv I.ctorVEnv :=
-  CheckingEnv.of_constants_eq (CheckingEnv.insertConsts I.H.context.checking.tr I.ctorEntries
+  CheckingEnv.of_constants_eq (CheckingEnv.insertConsts I.H.context.checking I.ctorEntries
     I.ctorCis_fresh I.ctorCis_nodup I.ctorsAdded) (by rw [I.map_eq, constants_foldl_add])
 
 /-- The projection-stage environment, in which the recursors are checked. -/
@@ -484,14 +491,6 @@ theorem envP_wf : I.envP.WF :=
 theorem headerLE_P : I.headerVEnv ≤ I.envP := I.headerLE.trans VEnv.addProjections_le
 
 theorem sourceLE_P : sourceEnv ≤ I.envP := I.sourceLE.trans I.headerLE_P
-
-theorem ctorNames_nprim : ∀ v ∈ decl.constructorConstants,
-    ¬ Kernel.Environment.primitives.contains v.name := by
-  intro v hv hp
-  have hmem : v.name ∈ (ctorInfos stats c.lparams isUnsafe indTypes.toList).map (·.name) := by
-    rw [← I.ctorNames]; exact List.mem_map_of_mem hv
-  obtain ⟨cval, hcval, he⟩ := List.mem_map.mp hmem
-  exact I.nprim cval hcval (he ▸ hp)
 
 omit I in
 theorem HasPrimitives_addConstVals : ∀ {env env' : VEnv} {vs : List VConstVal},
@@ -510,13 +509,8 @@ theorem HasPrimitives_addConstVals : ∀ {env env' : VEnv} {vs : List VConstVal}
 /-- The local checking invariants of the constructor environment with its projections. -/
 theorem validCore : CheckingEnv.ValidCore c.safety ctorEnv I.envP where
   tr := I.checkingCtor.addProjections I.envP_wf
-  hasPrimitives :=
-    (HasPrimitives_addConstVals I.H.context.checking.hasPrimitives I.ctorNames_nprim
-      I.ctorsAdded).addProjections
-  safePrimitives := fun {n ci} h hp => by
-    rcases I.ctorEnv_cases h with h | ⟨cval, hcval, _, rfl⟩
-    · exact I.H.context.checking.safePrimitives h hp
-    · exact absurd hp (I.nprim cval hcval)
+  hasPrimitives := (I.hasPrimitives _ I.ctorsAdded).addProjections
+  safePrimitives := I.safePrimitives
 
 omit I in
 theorem toEnvFind {E : Environment} (hwf : E.constants.WF) {n : Name} {ci : ConstantInfo} :
@@ -725,17 +719,29 @@ theorem headerPresMap {n : Name} {ci : ConstantInfo} (h : headerEnv.constants.fi
     ctorEnv.constants.find? n = some ci :=
   (toEnvFind I.ctorMapWF).mpr (I.headerPres ((toEnvFind I.headerMapWF).mp h))
 
+theorem sourcePresMap {n : Name} {ci : ConstantInfo} (h : c.env.constants.find? n = some ci) :
+    ctorEnv.constants.find? n = some ci :=
+  (toEnvFind I.ctorMapWF).mpr (I.sourcePres ((toEnvFind I.sourceMapWF).mp h))
+
+theorem sourceVEnvLE_P : I.H.sourceContext.venv ≤ I.envP := by
+  rw [I.H.sourceContextVEnv]; exact I.sourceLE_P
+
+-- WAVE 2 install COMPAT: from the source context, extended over the headers and constructors
 theorem equationHeads : EquationHeadsCoherent ctorEnv.constants I.envP :=
-  (I.H.context.checking.equationHeads.extendSimple (C' := ctorEnv.constants)
-    (venv' := I.ctorVEnv) (fun h => I.headerPresMap h)
-    (fun df h => by rwa [VEnv.addConstVals_defeqs I.ctorsAdded] at h)
-    (fun p r h => by rwa [VEnv.addConstVals_pats I.ctorsAdded] at h)).addProjections _
+  (I.H.sourceContext.checking.equationHeads.extendSimple (C' := ctorEnv.constants)
+    (venv' := I.ctorVEnv) (fun h => I.sourcePresMap h)
+    (fun df h => by
+      rw [VEnv.addConstVals_defeqs I.ctorsAdded, VEnv.addConstVals_defeqs I.H.typesAdded] at h
+      rwa [I.H.sourceContextVEnv])
+    (fun p r h => by
+      rw [VEnv.addConstVals_pats I.ctorsAdded, VEnv.addConstVals_pats I.H.typesAdded] at h
+      rwa [I.H.sourceContextVEnv])).addProjections _
 
 /-- The checking invariant of the constructor environment with the projection entries. -/
 theorem valid : CheckingEnv.Valid c.safety ctorEnv I.envP :=
   I.validCore.toValid I.blocks I.equationHeads fun hq =>
-    (I.H.context.checking.quot (by rw [← I.quotInit_eq]; exact hq)).extend
-      (fun h => I.headerPresMap h) I.headerLE_P I.equationHeads
+    (I.H.sourceContext.checking.quot (by rw [← I.H.quotInit_eq, ← I.quotInit_eq]; exact hq)).extend
+      (fun h => I.sourcePresMap h) I.sourceVEnvLE_P I.equationHeads
 
 /-- A recursor of the constructor environment is a recursor of the header environment. -/
 theorem recHeader {n : Name} {r : RecursorVal}
@@ -745,37 +751,52 @@ theorem recHeader {n : Name} {r : RecursorVal}
   · exact (toEnvFind I.headerMapWF).mpr h
   · cases he
 
+/-- A recursor of the constructor environment is a recursor of the source environment. -/
+theorem recSource {n : Name} {r : RecursorVal}
+    (h : ctorEnv.constants.find? n = some (.recInfo r)) :
+    c.env.constants.find? n = some (.recInfo r) := by
+  rcases I.headerEnv_cases ((toEnvFind I.headerMapWF).mp (I.recHeader h)) with h | ⟨_, _, he, _⟩
+  · exact (toEnvFind I.sourceMapWF).mpr h
+  · cases he
+
+-- WAVE 2 install COMPAT: from the source context
 theorem shapes : RecursorShapesCoherent c.safety ctorEnv.constants I.envP := by
   intro name rec hrec hsafe
-  obtain ⟨cnparams, indLevels, ctorParams, ⟨S⟩, hrules⟩ := I.H.context.shapes (I.recHeader hrec) hsafe
-  refine ⟨cnparams, indLevels, ctorParams, ⟨S.mono' I.headerLE_P⟩, fun rule hrule => ?_⟩
+  obtain ⟨cnparams, indLevels, ctorParams, ⟨S⟩, hrules⟩ :=
+    I.H.sourceContext.shapes (I.recSource hrec) hsafe
+  refine ⟨cnparams, indLevels, ctorParams, ⟨S.mono' I.sourceVEnvLE_P⟩, fun rule hrule => ?_⟩
   obtain ⟨ctorUvars, hlen, ⟨C⟩, hparams⟩ := hrules rule hrule
-  refine ⟨ctorUvars, hlen, ⟨C.mono' I.headerLE_P⟩, fun cval hcval => ?_⟩
+  refine ⟨ctorUvars, hlen, ⟨C.mono' I.sourceVEnvLE_P⟩, fun cval hcval => ?_⟩
   rcases I.ctorEnv_cases ((toEnvFind I.ctorMapWF).mp hcval) with h | ⟨cv, hcv, he, hn⟩
-  · exact hparams cval ((toEnvFind I.headerMapWF).mpr h)
+  · rcases I.headerEnv_cases h with h | ⟨_, _, he, _⟩
+    · exact hparams cval ((toEnvFind I.sourceMapWF).mpr h)
+    · cases he
   · exfalso
-    obtain ⟨found, hfound⟩ := I.headerFind_of_constants C.const
+    obtain ⟨found, hfound, -⟩ := I.H.sourceContext.checking.tr.find?_iff.mpr ⟨_, C.const⟩
     have := I.fresh cv hcv
-    rw [hn, hfound] at this; cases this
+    rw [hn] at this
+    rw [insertConsts_env_mono I.H.map_eq I.sourceMapWF I.infoCis_fresh I.infoCis_nodup hfound]
+      at this
+    cases this
 
 theorem iota : IotaRulesRegistered c.safety ctorEnv I.envP := by
   intro recName cName rval rule hrec hrule hsafe
-  have hrec' := (toEnvFind I.headerMapWF).mp
-    (I.recHeader ((toEnvFind I.ctorMapWF).mpr hrec))
-  obtain ⟨cval, rhs, hc, hfind, htr, hpat⟩ := I.H.context.iota hrec' hrule hsafe
-  refine ⟨cval, rhs, hc, I.headerPres hfind, htr.mono I.headerLE_P, ?_⟩
-  exact I.headerLE_P.pats hpat
+  have hrec' := (toEnvFind I.sourceMapWF).mp (I.recSource ((toEnvFind I.ctorMapWF).mpr hrec))
+  obtain ⟨cval, rhs, hc, hfind, htr, hpat⟩ := I.H.sourceContext.iota hrec' hrule hsafe
+  refine ⟨cval, rhs, hc, I.sourcePres hfind, htr.mono I.sourceVEnvLE_P, ?_⟩
+  exact I.sourceVEnvLE_P.pats hpat
 
 /-- The checking context over the constructor environment. -/
 noncomputable def context : ContextWF { c with env := ctorEnv } :=
-  I.H.context.withEnv I.valid I.shapes I.iota I.headerLE_P
+  -- WAVE 2 install COMPAT: from the source context
+  I.H.sourceContext.withEnv I.valid I.shapes I.iota I.sourceVEnvLE_P
 
 theorem context_venv : I.context.venv = I.envP := rfl
-theorem context_mlctx : I.context.mlctx = I.H.context.mlctx := rfl
+theorem context_mlctx : I.context.mlctx = I.H.context.mlctx := I.H.contextMLCtx.symm
 
 noncomputable def parameters :
     HeaderParameterContext I.context stats I.H.headers.params depth :=
-  I.H.parameters.withEnv I.valid I.shapes I.iota I.headerLE_P
+  I.H.sourceParameters.withEnv I.valid I.shapes I.iota I.sourceVEnvLE_P
 
 /-- The mutual families of the constructor environment are closed. -/
 theorem closed (hclosed : MutualInductivesClosed c.env) : MutualInductivesClosed ctorEnv := by
@@ -873,6 +894,69 @@ theorem constructorParameterAlignment {safety : DefinitionSafety}
   · cases he
 
 end CtorInstall
+
+-- WAVE 2 install COMPAT: the primitive fields of `CtorInstall` on the ordinary path, where no
+-- constructor name is a primitive.
+theorem CtorInstall.ordinaryPrimitives {c : AddInductive.Context}
+    {stats : AddInductive.InductiveStats} {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool}
+    {depth : Nat} {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv : Environment} {classes : List (List (List Bool))}
+    (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv indTypes headerEnv)
+    (K : ConstructorsChecked H.toData classes)
+    (map_eq : ctorEnv.constants = insertConsts headerEnv.constants
+      ((ctorInfos stats c.lparams isUnsafe indTypes.toList).map .ctorInfo))
+    (fresh : ∀ cval ∈ ctorInfos stats c.lparams isUnsafe indTypes.toList,
+      headerEnv.find? cval.name = none)
+    (nodup : ((ctorInfos stats c.lparams isUnsafe indTypes.toList).map (·.name)).Nodup)
+    (nprim : ∀ cval ∈ ctorInfos stats c.lparams isUnsafe indTypes.toList,
+      ¬ Kernel.Environment.primitives.contains cval.name) :
+    (∀ venv', H.context.venv.addConstVals decl.constructorConstants = some venv' →
+      venv'.HasPrimitives) ∧
+    (∀ {n ci}, ctorEnv.find? n = some ci →
+      Kernel.Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []) := by
+  have hnames : decl.constructorConstants.map (·.name) =
+      (ctorInfos stats c.lparams isUnsafe indTypes.toList).map (·.name) := by
+    rw [ctorInfos_names]
+    simp only [VInductDecl.constructorConstants, List.map_flatMap]
+    have go : ∀ {sources : List InductiveType} {targets : List VInductiveType},
+        List.Forall₂ (fun (source : InductiveType) (target : VInductiveType) =>
+          List.Forall₂ (fun (ctor : Constructor) (ctor' : VConstVal) =>
+            TrSourceConst H.context.venv c.lparams ctor.name ctor.type ctor')
+            source.ctors target.ctors) sources targets →
+        targets.flatMap (fun t => t.ctors.map (·.name)) =
+          sources.flatMap (fun t => t.ctors.map (·.name)) := by
+      intro sources targets h
+      induction h with
+      | nil => rfl
+      | @cons s t ss ts hst _ ih =>
+        simp only [List.flatMap_cons, ih]
+        congr 1
+        exact (trSourceConst_names hst).symm
+    exact go K.ctorTr
+  have hnp : ∀ v ∈ decl.constructorConstants,
+      ¬ Kernel.Environment.primitives.contains v.name := by
+    intro v hv hp
+    have hmem : v.name ∈ (ctorInfos stats c.lparams isUnsafe indTypes.toList).map (·.name) := by
+      rw [← hnames]; exact List.mem_map_of_mem hv
+    obtain ⟨cval, hcval, he⟩ := List.mem_map.mp hmem
+    exact nprim cval hcval (he ▸ hp)
+  have hwfH : headerEnv.constants.WF := H.context.checking.tr.map_wf
+  have hfr : ∀ ci ∈ (ctorInfos stats c.lparams isUnsafe indTypes.toList).map
+      ConstantInfo.ctorInfo, headerEnv.find? ci.name = none := by
+    intro ci hci
+    obtain ⟨cval, hcval, rfl⟩ := List.mem_map.mp hci
+    exact fresh cval hcval
+  have hnd : (((ctorInfos stats c.lparams isUnsafe indTypes.toList).map
+      ConstantInfo.ctorInfo).map (·.name)).Nodup := by
+    rw [List.map_map]; exact nodup
+  refine ⟨fun venv' h => CtorInstall.HasPrimitives_addConstVals
+    H.context.checking.hasPrimitives hnp h, fun {n ci} h hp => ?_⟩
+  rcases insertConsts_env_cases map_eq hwfH hfr hnd h with h | ⟨hmem, hname⟩
+  · exact H.context.checking.safePrimitives h hp
+  · obtain ⟨cval, hcval, rfl⟩ := List.mem_map.mp hmem
+    have hn : cval.name = n := hname
+    subst hn
+    exact absurd hp (nprim cval hcval)
 
 end VerifyInductive
 end Lean4Lean

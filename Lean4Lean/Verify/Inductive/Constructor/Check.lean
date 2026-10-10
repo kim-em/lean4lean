@@ -182,18 +182,24 @@ theorem AddInductive.constructorPhase.WF
     simp only [Array.getElem?_toList] at h1
     rw [← h2] at h1
     simpa [hi, hn] using h1
+  have hnprim : ∀ cval ∈ ctorInfos stats c'.lparams isUnsafe indTypes.toList,
+      ¬ Kernel.Environment.primitives.contains cval.name := fun cval hcval hp => by
+    have hallow := (hfr cval hcval).2 hp
+    obtain ⟨t, ht, j, ctor, hctor, rfl⟩ := mem_ctorInfos hcval
+    exact hnprimCtors hallow t ht ctor hctor hp
+  -- WAVE 2 install COMPAT: `CtorInstall` over the header data, with its primitive fields
+  have hprims := CtorInstall.ordinaryPrimitives H (hK H) hmap (fun cval hcval => (hfr cval hcval).1)
+    hnd hnprim
   let I : CtorInstall c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes headerEnv ctorEnv
       positivity := {
-    H := H
+    H := H.toData
     K := hK H
     map_eq := hmap
     quotInit_eq := hquot
     fresh := fun cval hcval => (hfr cval hcval).1
     nodup := hnd
-    nprim := fun cval hcval hp => by
-      have hallow := (hfr cval hcval).2 hp
-      obtain ⟨t, ht, j, ctor, hctor, rfl⟩ := mem_ctorInfos hcval
-      exact hnprimCtors hallow t ht ctor hctor hp
+    hasPrimitives := hprims.1
+    safePrimitives := hprims.2
     nindices_size := P.nindices_size
     nindices := hnindices
     params_size := P.params_size
@@ -224,7 +230,7 @@ theorem AddInductive.constructorPhase.WF
       exact (hfr _ hcv).1
     context := I.context
     contextVEnv := rfl
-    contextMLCtx := rfl
+    contextMLCtx := H.contextMLCtx.symm  -- WAVE 2 install COMPAT
     parameters := I.parameters
     closed := I.closed hclosed
     inductInfosFromDecl := I.inductInfosFromDecl
