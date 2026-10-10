@@ -64,7 +64,8 @@ theorem LocalContextWF.map_wf {c : AddInductive.Context} (H : LocalContextWF c) 
   H.checking.map_wf
 
 /-- `HeaderEnvironment` with the header context a `LocalContextWF` (and without the header
-context's `HeaderParameterContext`, which needs a `ContextWF`; the source-side one is kept). -/
+context's `HeaderParameterContext`, which needs a `ContextWF`; the source-side one is kept, and
+the parameter scope is `statsWF.parameterScope`). -/
 structure HeaderData (c : AddInductive.Context) (stats : AddInductive.InductiveStats)
     (decl : VInductDecl) (nparams : Nat) (isUnsafe : Bool) (depth : Nat) (sourceEnv : VEnv)
     (indTypes : Array InductiveType) (outEnv : Environment) where
@@ -93,9 +94,6 @@ structure HeaderData (c : AddInductive.Context) (stats : AddInductive.InductiveS
       source.ctors.map (·.name) = t.ctors.map (·.name))
     indTypes.toList decl.types
   sourceParameters : HeaderParameterContext sourceContext stats headers.params depth
-  /-- The parameter declarations of the header context (`HeaderParameterContext.parameterDecls`
-  of `HeaderEnvironment.parameters`). -/
-  parameterDecls : VLCtx
   sourcePresent : ListedConstructorsPresent c.env
   sourceStatsWF : checkInductiveTypes.loopInd.HeaderStatsWF sourceContext.venv c.lparams
     sourceContext.mlctx.vlctx stats decl depth
@@ -128,7 +126,6 @@ def HeaderEnvironment.toData {c : AddInductive.Context} {stats : AddInductive.In
   trHeaders := H.trHeaders
   trSources := H.trSources
   sourceParameters := H.sourceParameters
-  parameterDecls := H.parameters.parameterDecls
   sourcePresent := H.sourcePresent
   sourceStatsWF := H.sourceStatsWF
   sourceHeaderParams := H.sourceHeaderParams
@@ -177,7 +174,7 @@ structure RecursorInput (c : AddInductive.Context) (stats : AddInductive.Inducti
   ctor_numParams : ∀ iv ∈ ivals, ∀ cval ∈ iv.2, cval.numParams = decl.nparams
   parameterPrefixes : ConstructorParameterPrefixes stats indTypes
   constructorTails : ConstructorTails headers.context.venv c.lparams
-    headers.parameterDecls stats decl indTypes classes
+    headers.statsWF.parameterScope stats decl indTypes classes
   ownerNormalForms : ConstructorOwnerNormalForms stats indTypes
 
 /-- The ordinary constructor phase's output as the recursor phase's input. -/
