@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Basic
+import Lean4Lean.Verify.Inductive.Nested.Lowering.Refinement
 
 /-! # The lowering run and what it certifies
 
@@ -28,11 +29,9 @@ verdict. -/
 def SourceSyntaxChecks (env : Environment) (types : List InductiveType) : Prop :=
   checkInductiveSources env types = .ok ()
 
-/-- Loose-bound-variable closedness of a whole source block. Lowering re-closes constructor
-types over the opened parameters, which would silently repair loose bound variables, so the
-source-facing statements carry this as a hypothesis. -/
-def SourceBVarClosed (types : List InductiveType) : Prop :=
-  ∀ type ∈ types, type.type.Closed ∧ ∀ ctor ∈ type.ctors, ctor.type.Closed
+-- `SourceBVarClosed` and `RestoreSourceDisjoint` are defined in
+-- `Nested/Lowering/Refinement.lean` (WAVE 3 COMPAT (lowering): moved there so that the lowering
+-- proofs, which this file imports, can state them).
 
 /-- The lowering run of `Environment.addInductive`. -/
 abbrev loweringRun (env : Environment) (fuel nparams : Nat) (types : List InductiveType)
@@ -52,23 +51,6 @@ def LoweredAuxiliariesInstalled (res : ElimNestedInductive.Result)
     (sourceTypes : List InductiveType) (loweredEnv : Environment) : Prop :=
   ∀ t ∈ auxTypes res sourceTypes, ∀ c ∈ t.ctors,
     ∃ cval : ConstructorVal, loweredEnv.find? c.name = some (.ctorInfo cval) ∧ cval.induct = t.name
-
-/-- No constant of `e` is a cached auxiliary family of `result` or a constructor of one in
-`env` (`getNestedIfAuxCtor`): restoration leaves every constant of `e` in place. Projections
-follow the body only, as `restoreNestedNode` does. -- WAVE 3 COMPAT (lowering), from the source
-branch's `Nested/Lowering/Basic.lean`. -/
-def RestoreSourceDisjoint (result : ElimNestedInductive.Result) (env : Environment) :
-    Expr → Prop
-  | .bvar _ | .fvar _ | .mvar _ | .sort _ | .lit _ => True
-  | .const name _ =>
-      result.aux2nested.find? name = none ∧ result.getNestedIfAuxCtor env name = none
-  | .app fn arg => RestoreSourceDisjoint result env fn ∧ RestoreSourceDisjoint result env arg
-  | .lam _ dom body _ | .forallE _ dom body _ =>
-      RestoreSourceDisjoint result env dom ∧ RestoreSourceDisjoint result env body
-  | .letE _ type value body _ =>
-      RestoreSourceDisjoint result env type ∧ RestoreSourceDisjoint result env value ∧
-      RestoreSourceDisjoint result env body
-  | .mdata _ body | .proj _ _ body => RestoreSourceDisjoint result env body
 
 /-- **What a successful lowering run certifies** about its result `res` (owner: Lowering;
 produced by `loweringRun.WF`). The restoration consumers read it through these fields; the
