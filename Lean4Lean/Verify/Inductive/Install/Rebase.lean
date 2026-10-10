@@ -379,4 +379,39 @@ theorem ConstantInfo.not_le_safety_of_isUnsafe {ci : ConstantInfo} (h : ci.isUns
   rw [this]; intro hle
   exact hs (DefinitionSafety.le_antisymm hle DefinitionSafety.unsafe_le)
 
+theorem VEnv.HasPrimitives.addRules {decl : VInductDecl} {env env' : VEnv}
+    (H : env.HasPrimitives) (h : decl.addRules env = some env') : env'.HasPrimitives :=
+  VEnv.foldlM_inv (P := VEnv.HasPrimitives)
+    (fun _ _ _ _ hP hstep => VEnv.foldlM_inv (P := VEnv.HasPrimitives)
+      (fun _ _ _ _ hP' hs => by
+        unfold VEnv.addRecRule at hs; split at hs
+        · cases hs; exact hP'.addPat
+        · cases hs) hP hstep) H h
+
+/-- Registering ι rules keeps a valid checking environment valid, given that the new
+environment is well formed and every new pattern is headed by a recursor of the map. -/
+theorem CheckingEnv.Valid.addRules {safety : DefinitionSafety} {env : Environment}
+    {venv venv' : VEnv} {decl : VInductDecl} (H : CheckingEnv.Valid safety env venv)
+    (hP : decl.addRules venv = some venv') (hwf : venv'.WF)
+    (hheads : ∀ p r, venv'.pats p r →
+      venv.pats p r ∨ ∃ rec, env.constants.find? p.headConst = some (.recInfo rec)) :
+    CheckingEnv.Valid safety env venv' := by
+  have hle : venv ≤ venv' := VEnv.addRules_le hP
+  have heads : EquationHeadsCoherent env.constants venv' :=
+    H.equationHeads.extend id (fun df hdf => .inl (by rwa [VEnv.addRules_defeqs hP] at hdf))
+      hheads
+  exact {
+    tr := {
+      aligned := H.tr.aligned.addRules hP
+      wf := hwf
+      of_value := fun h1 h2 h3 => (H.tr.of_value h1 h2 h3).mono hle }
+    hasPrimitives := H.hasPrimitives.addRules hP
+    safePrimitives := H.safePrimitives
+    blocks := H.blocks.extend id id (fun _ _ h => h) hle (InstallStage.le_refl _)
+      (fun h1 h2 => by rw [h2] at h1; cases h1) (fun h1 h2 => by rw [h2] at h1; cases h1)
+      (fun h1 h2 => by rw [h2] at h1; cases h1)
+      (fun hp => .inl (by rwa [VEnv.addRules_projections hP] at hp))
+    equationHeads := heads
+    quot := fun hq => (H.quot hq).extend id hle heads }
+
 end Lean4Lean
