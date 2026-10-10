@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Constructor.Environment
+import Lean4Lean.Verify.Inductive.Constructor.LiteralNames  -- WAVE 2 install COMPAT
 
 /-! # The constructor environment
 
@@ -81,6 +82,9 @@ structure CtorInstall (c : AddInductive.Context) (stats : AddInductive.Inductive
     venv'.HasPrimitives
   safePrimitives : ∀ {n ci}, ctorEnv.find? n = some ci →
     Kernel.Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
+  -- WAVE 2 install COMPAT: positivity's literal side condition in the constructor model
+  literalDisjoint : ∀ venv', H.context.venv.addConstVals decl.constructorConstants = some venv' →
+    checkPositivityStep.AvailableLiteralDisjoint venv' stats.indConsts
   nindices_size : stats.nindices.size = indTypes.size
   nindices : ∀ i (hi : i < decl.types.length) (hn : i < stats.nindices.size),
     stats.nindices[i] = decl.types[i].numIndices
@@ -512,6 +516,10 @@ theorem validCore : CheckingEnv.ValidCore c.safety ctorEnv I.envP where
   hasPrimitives := (I.hasPrimitives _ I.ctorsAdded).addProjections
   safePrimitives := I.safePrimitives
 
+theorem contextLiteralDisjoint :
+    checkPositivityStep.AvailableLiteralDisjoint I.envP stats.indConsts :=
+  (I.literalDisjoint _ I.ctorsAdded).addProjections _
+
 omit I in
 theorem toEnvFind {E : Environment} (hwf : E.constants.WF) {n : Name} {ci : ConstantInfo} :
     E.constants.find? n = some ci ↔ E.find? n = some ci := by
@@ -909,11 +917,14 @@ theorem CtorInstall.ordinaryPrimitives {c : AddInductive.Context}
       headerEnv.find? cval.name = none)
     (nodup : ((ctorInfos stats c.lparams isUnsafe indTypes.toList).map (·.name)).Nodup)
     (nprim : ∀ cval ∈ ctorInfos stats c.lparams isUnsafe indTypes.toList,
-      ¬ Kernel.Environment.primitives.contains cval.name) :
+      ¬ Kernel.Environment.primitives.contains cval.name)
+    (nprimFam : ∀ T ∈ decl.types, ¬ Kernel.Environment.primitives.contains T.name) :
     (∀ venv', H.context.venv.addConstVals decl.constructorConstants = some venv' →
       venv'.HasPrimitives) ∧
     (∀ {n ci}, ctorEnv.find? n = some ci →
-      Kernel.Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []) := by
+      Kernel.Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []) ∧
+    (∀ venv', H.context.venv.addConstVals decl.constructorConstants = some venv' →
+      checkPositivityStep.AvailableLiteralDisjoint venv' stats.indConsts) := by
   have hnames : decl.constructorConstants.map (·.name) =
       (ctorInfos stats c.lparams isUnsafe indTypes.toList).map (·.name) := by
     rw [ctorInfos_names]
@@ -950,7 +961,24 @@ theorem CtorInstall.ordinaryPrimitives {c : AddInductive.Context}
       ConstantInfo.ctorInfo).map (·.name)).Nodup := by
     rw [List.map_map]; exact nodup
   refine ⟨fun venv' h => CtorInstall.HasPrimitives_addConstVals
-    H.context.checking.hasPrimitives hnp h, fun {n ci} h hp => ?_⟩
+    H.context.checking.hasPrimitives hnp h, fun {n ci} h hp => ?_, fun venv' h => ?_⟩
+  rotate_left
+  · have Hlit := H.checkedAvailableLiteralDisjoint nprimFam
+    have hsame : ∀ name, Kernel.Environment.primitives.contains name →
+        venv'.constants name = H.context.venv.constants name := fun name hp =>
+      VEnv.addConstVals_constants_of_forall_ne h fun ci hci e => hnp ci hci (e ▸ hp)
+    intro lit hlit
+    apply Hlit lit
+    cases lit with
+    | natVal _ =>
+      obtain ⟨ci, hci⟩ := hlit
+      exact ⟨ci, by rwa [hsame _ (by simp [Kernel.Environment.primitives, NameSet.contains,
+        NameSet.ofList])] at hci⟩
+    | strVal _ =>
+      obtain ⟨⟨ci, hci⟩, ⟨cj, hcj⟩⟩ := hlit
+      exact ⟨⟨ci, by rwa [hsame _ (by simp [Kernel.Environment.primitives, NameSet.contains,
+        NameSet.ofList])] at hci⟩, ⟨cj, by rwa [hsame _ (by simp [Kernel.Environment.primitives,
+        NameSet.contains, NameSet.ofList])] at hcj⟩⟩
   rcases insertConsts_env_cases map_eq hwfH hfr hnd h with h | ⟨hmem, hname⟩
   · exact H.context.checking.safePrimitives h hp
   · obtain ⟨cval, hcval, rfl⟩ := List.mem_map.mp hmem

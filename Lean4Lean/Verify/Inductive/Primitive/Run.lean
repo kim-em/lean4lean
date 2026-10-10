@@ -159,6 +159,7 @@ theorem AddInductive.constructorPhase.primitiveWF
     nodup := hnd
     hasPrimitives := PE.hasPrimitives Hshape hrows
     safePrimitives := hsafe
+    literalDisjoint := fun _ _ => (H.primitiveLiteralDisjoint Hshape).available
     nindices_size := P.nindices_size
     nindices := hnindices
     params_size := P.params_size

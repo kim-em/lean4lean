@@ -67,6 +67,8 @@ structure RecursorInput (c : AddInductive.Context) (stats : AddInductive.Inducti
   constructorTails : ConstructorTails headers.context.venv c.lparams
     headers.statsWF.parameterScope stats decl indTypes classes
   ownerNormalForms : ConstructorOwnerNormalForms stats indTypes
+  /-- Positivity's literal side condition in the recursor phase's context. -/
+  literalDisjoint : checkPositivityStep.AvailableLiteralDisjoint context.venv stats.indConsts
 
 /-- The ordinary constructor phase's output as the recursor phase's input. -/
 def ConstructorCheck.toRecursorInput {c : AddInductive.Context}
@@ -102,6 +104,7 @@ def ConstructorCheck.toRecursorInput {c : AddInductive.Context}
   parameterPrefixes := R.parameterPrefixes
   constructorTails := R.constructorTails
   ownerNormalForms := R.ownerNormalForms
+  literalDisjoint := R.literalDisjoint
 
 /-- The recursor phase's input from a constructor installation over header data (the path of
 the primitive declarations, whose header environment has no `ContextWF`). -/
@@ -147,6 +150,7 @@ noncomputable def CtorInstall.toRecursorInput {c : AddInductive.Context}
   parameterPrefixes := I.K.parameterPrefixes
   constructorTails := I.K.constructorTails
   ownerNormalForms := I.K.ownerNormalForms
+  literalDisjoint := I.contextLiteralDisjoint
 
 namespace RecursorInput
 

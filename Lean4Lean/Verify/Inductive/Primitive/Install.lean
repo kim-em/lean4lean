@@ -335,5 +335,48 @@ theorem PrimitiveHeaderEnvironment.hasPrimitives
   · exact VEnv.HasPrimitives.addBoolConstants hsrc hall
   · exact VEnv.HasPrimitives.addNatConstants hsrc hall
 
+/-- Literal expansion never mentions the `Bool` family header. -/
+theorem primitiveBoolLiteralDisjoint :
+    checkPositivityStep.LiteralDisjoint #[.const ``Bool []] := by
+  exact (checkPositivityStep.IndConstArray.ofExact (names := [``Bool])
+    rfl).literalDisjoint (by
+      simp [checkPositivityStep.LiteralConstructorNamesDisjoint,
+        checkPositivityStep.literalConstructorNames])
+
+/-- Literal expansion uses `Nat.zero` and `Nat.succ`, not the `Nat` family header. -/
+theorem primitiveNatLiteralDisjoint :
+    checkPositivityStep.LiteralDisjoint #[.const ``Nat []] := by
+  exact (checkPositivityStep.IndConstArray.ofExact (names := [``Nat])
+    rfl).literalDisjoint (by
+      simp [checkPositivityStep.LiteralConstructorNamesDisjoint,
+        checkPositivityStep.literalConstructorNames])
+
+/-- The inductive-constant array of a primitive declaration is literal-disjoint. -/
+theorem HeaderData.primitiveLiteralDisjoint
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv : Environment}
+    (H : HeaderData c stats decl nparams isUnsafe depth sourceEnv indTypes headerEnv)
+    (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList isUnsafe) :
+    checkPositivityStep.LiteralDisjoint stats.indConsts := by
+  have hnames : decl.types.map (·.name) = indTypes.toList.map (·.name) := by
+    have go : ∀ {sources : List InductiveType} {targets : List VInductiveType},
+        List.Forall₂ (fun (source : InductiveType) (t : VInductiveType) =>
+          TrSourceConst sourceEnv c.lparams source.name source.type t.toVConstVal ∧
+          source.ctors.map (·.name) = t.ctors.map (·.name)) sources targets →
+        targets.map (·.name) = sources.map (·.name) := by
+      intro s t h
+      induction h with
+      | nil => rfl
+      | cons h _ ih => simp only [List.map_cons, ih]; exact congrArg (· :: _) h.1.name
+    exact go H.trSources
+  have hconsts : (decl.types.map fun type => Expr.const type.name stats.levels).toArray =
+      (indTypes.toList.map fun type => Expr.const type.name stats.levels).toArray := by
+    simpa [List.map_map, Function.comp_def] using congrArg
+      (fun names => (names.map fun name => Expr.const name stats.levels).toArray) hnames
+  rcases Hshape with ⟨hlp, -, -, htypes | ⟨_, _, htypes⟩⟩ <;>
+  · rw [H.statsWF.consts, hconsts, H.statsWF.levelParams, htypes, hlp]
+    first | exact primitiveBoolLiteralDisjoint | exact primitiveNatLiteralDisjoint
+
 end VerifyInductive
 end Lean4Lean
