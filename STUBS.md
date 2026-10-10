@@ -473,8 +473,8 @@ Restoration-A restated `stripRecursorRules.checkingValid`/`checkerEnv` according
 
 | statement | file | why |
 |---|---|---|
-| `NestedRun.restoredRuleConstructors` | `Nested/Restoration/RuleConstructors.lean` | in progress |
-| `NestedRun.restoredRuleConstructors_nodup` | `Nested/Restoration/RuleConstructors.lean` | in progress |
+| `NestedRun.containerConstructorKernel` | `Nested/Restoration/RuleConstructors.lean` | in progress: kernel `ctorInfo` of a container constructor with `numParams = a.arguments.length` |
+| `NestedRun.containerConstructorShape` | `Nested/Restoration/RuleConstructors.lean` | in progress: `CtorShape` of a container constructor in `envCtors` |
 
 ## Wave 3 Restoration-A (`Nested/Restoration/Validation/**`)
 
