@@ -530,7 +530,7 @@ theorem NestedRun.restoredEquationsWF_of_substitutionPremises
   intro auxiliaries D B hB hV k rule hrule
   rcases E.restorationTablesRestoringAll wf Hsources with
     ⟨envTypes, generated, aux', hadded, henvTypes, Haux, Hexpansion, hparamsSize, D',
-      Hrestoring, -⟩
+      Hrestoring, -, -⟩
   have G' := G aux' D' B hB hV
   have S := E.restoredEquationSubstitution wf Hsources hadded henvTypes Haux Hexpansion
     hparamsSize D' Hrestoring B hB hV G'

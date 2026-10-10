@@ -631,7 +631,7 @@ theorem NestedRun.projectionSourceOnCtx_of
       ⟨_, _, _, _, _, _, _, h, _⟩
     exact h
   rcases E.restorationTablesRestoringAll wf Hsources with
-    ⟨envTypes, generated, aux', hadded, henvTypes, Haux, Hexpansion, -, D', Hrestoring, -⟩
+    ⟨envTypes, generated, aux', hadded, henvTypes, Haux, Hexpansion, -, D', Hrestoring, -, -⟩
   rw [D.interpretation_eq D']
   have hTN : entry.typeName ∉ (compilationRestoration sourceDecl aux').restorableNames :=
     fun h => hTN₀ ((D.restorable_iff D' _).mpr h)
@@ -790,7 +790,7 @@ theorem NestedRun.projectionAuxiliaryOnCtx_of
     exact h
   rcases E.restorationTablesRestoringAll wf Hsources with
     ⟨envTypes, generated, aux', hadded, henvTypes, Haux, Hexpansion, -, D', -,
-      HauxRestoring⟩
+      HauxRestoring, -⟩
   rw [D.interpretation_eq D']
   have hTN : entry.typeName ∈ (compilationRestoration sourceDecl aux').restorableNames :=
     (D.restorable_iff D' _).mp hTN₀

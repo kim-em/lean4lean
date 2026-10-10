@@ -687,7 +687,7 @@ theorem NestedRun.restoredEquationProjNames_of
               (compilationRestoration sourceDecl auxiliaries).restorableNames = true) := by
   intro auxiliaries D _ _ _
   rcases E.restorationTablesRestoringAll wf Hsources with
-    ⟨envTypes, generated, aux', hadded, -, Haux, Hexpansion, -, D', -, -⟩
+    ⟨envTypes, generated, aux', hadded, -, Haux, Hexpansion, -, D', -, -, -⟩
   have hnodup : (familyNames E.lowered.loweredDecl.types ++
       E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
     rcases E.containerSpecializations wf Hsources with
