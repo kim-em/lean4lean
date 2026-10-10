@@ -102,7 +102,7 @@ theorem NestedRun.restoredRecursorShapeOf
         (compilationRestoration sourceDecl auxiliaries) C.recursorVEnv owner rv := by
   rcases E.restorationTablesRestoringAll wf Hsources with
     ⟨envTypes, generated, auxiliaries, hadded, henvTypes, Haux, Hexpansion,
-      hparamsSize, D, Hrestoring, HauxRestoring⟩
+      hparamsSize, D, Hrestoring, HauxRestoring, -⟩
   have hnodup :
       (familyNames E.lowered.loweredDecl.types ++
         E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
@@ -410,7 +410,7 @@ theorem NestedRun.restoredRecursorShapes
     ∀ rv ∈ E.restoration.rvals, RecursorShapesAt outEnv.constants C.recursorVEnv rv := by
   rcases E.restorationTablesRestoringAll wf Hsources with
     ⟨envTypes, generated, auxiliaries, hadded, henvTypes, Haux, Hexpansion,
-      hparamsSize, D, Hrestoring, HauxRestoring⟩
+      hparamsSize, D, Hrestoring, HauxRestoring, Hkernel⟩
   have hnodup :
       (familyNames E.lowered.loweredDecl.types ++
         E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
@@ -498,7 +498,7 @@ theorem NestedRun.restoredRecursorShapes
       exact eq_of_beq hindexMem.2
     obtain ⟨⟨cval, hcval, hcnp⟩, ⟨ci, hci, hshape⟩, -⟩ :=
       E.restoredRuleConstructors wf Hsources D Hcert Hdata (E.constructorArityPrefix C hC) Haux
-        Hexpansion owner hhead index hown
+        Hexpansion Hkernel owner hhead index hown
     refine ⟨⟨cval, hct ▸ hcval, hcnp⟩, ?_⟩
     obtain ⟨head', hhead', fields, ⟨S⟩⟩ := Hdata.restoredConstructorShape Hcert hadded
       hctorsAdded hfresh hfreshCtors hle index owner hown

@@ -350,20 +350,10 @@ theorem NestedRun.containerFamilyKernel
   rw [← hsize, ← Lean4Lean.List.Forall₂.length_eq hYs, ← hargs]
   simp
 
-/-- **Stub (restB).** The constructors of a specialization's container are the constructors
-listed by the kernel family of the container: a constructor `c` of `a.source` is named in the
-kernel `inductInfo` of `a.source.name`.
-
-This is not a consequence of the premises as stated: `RestorationTablesAgree` pins only
-`a.source.name`, `a.levels` and `a.arguments` (`AuxiliaryContainerApp`), not `a.container`, and no
-fact relates an abstract installed container to the kernel header of the same name (two installed
-declarations may share a family name). The fact holds for the specialization list built by
-`NestedRun.restorationTablesRestoringAll`: there each container is the one
-`AuxiliaryFamilySpecialization.installedContainerOfAbstractLookup` recovers from the kernel family,
-whose `AuxiliaryFamilyContainer.constructorName` is exactly this (`info.ctors[i] =
-container.types[familyIdx].ctors[i].name`). Closing it means threading that field through
-`AuxiliaryFamilySource` (`Lowering/Expansion/AuxiliarySources.lean`) and `SpecializationGenerates`
-(`ContainerSpecializations.lean`) to the run's specialization list. -/
+/-- The constructors of a specialization's container are the constructors listed by the kernel
+family of the container, given the kernel families of the specialization list (`Hkernel`, which
+`NestedRun.restorationTablesRestoringAll` provides for the run's own list: the abstract installed
+container does not determine them). -/
 theorem NestedRun.containerConstructorListed
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -376,13 +366,19 @@ theorem NestedRun.containerConstructorListed
     {auxiliaries : List ContainerSpecialization}
     (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
+    (Hkernel : ∀ a ∈ auxiliaries, ∃ info,
+      sourceProdEnv.find? a.source.name = some (.inductInfo info) ∧
+        info.ctors = a.source.ctors.map (·.name))
     {a : ContainerSpecialization} (ha : a ∈ auxiliaries)
     {c : VConstVal} (hc : c ∈ a.source.ctors) {info : InductiveVal}
     (hI : sourceProdEnv.find? a.source.name = some (.inductInfo info)) :
     c.name ∈ info.ctors := by
-  -- WAVE 3 STUB (restB): see the docstring.
-  have := E; have := wf; have := Hsources; have := D; have := ha; have := hc; have := hI
-  sorry
+  have := E; have := wf; have := Hsources; have := D
+  obtain ⟨info', h', hctors⟩ := Hkernel a ha
+  rw [hI] at h'
+  cases h'
+  rw [hctors]
+  exact List.mem_map_of_mem hc
 
 /-- The kernel constructor of a container constructor: a constructor `c` of the container family
 of a specialization `a` is a kernel constructor of the output whose parameter count is the number
@@ -402,12 +398,15 @@ theorem NestedRun.containerConstructorKernel
     {auxiliaries : List ContainerSpecialization}
     (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
+    (Hkernel : ∀ a ∈ auxiliaries, ∃ info,
+      sourceProdEnv.find? a.source.name = some (.inductInfo info) ∧
+        info.ctors = a.source.ctors.map (·.name))
     {a : ContainerSpecialization} (ha : a ∈ auxiliaries)
     {c : VConstVal} (hc : c ∈ a.source.ctors) :
     ∃ cval : ConstructorVal, outEnv.constants.find? c.name = some (.ctorInfo cval) ∧
       cval.numParams = a.arguments.length := by
   obtain ⟨info, hI, hnp⟩ := E.containerFamilyKernel wf Hsources D ha
-  have hmem := E.containerConstructorListed wf Hsources D ha hc hI
+  have hmem := E.containerConstructorListed wf Hsources D Hkernel ha hc hI
   obtain ⟨i, hi, hci⟩ := List.mem_iff_getElem.mp hmem
   obtain ⟨Al⟩ := wf.constructorParameterAlignment (safety := .unsafe) _ info hI
     (by split <;> decide) i hi
@@ -459,6 +458,9 @@ theorem NestedRun.restoredRuleConstructors
         (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
       generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
+    (Hkernel : ∀ a ∈ auxiliaries, ∃ info,
+      sourceProdEnv.find? a.source.name = some (.inductInfo info) ∧
+        info.ctors = a.source.ctors.map (·.name))
     (owner : Fin E.lowered.signature.families.size) {head : RestoredFamilyHead}
     (hhead : E.lowered.generatedInstance.restoredFamilyHead
       (compilationRestoration sourceDecl auxiliaries) owner = some head)
@@ -589,7 +591,7 @@ theorem NestedRun.restoredRuleConstructors
       rw [← hcx]; exact Hdata.restoredHeadName_auxiliary ha hc
     simp only [hrestored, List.length_map]
     obtain ⟨g', hg', HG⟩ := Lean4Lean.List.Forall₂.forall_exists_l Haux _ ha
-    refine ⟨E.containerConstructorKernel wf Hsources D ha hc, ?_, .inr ⟨_, HG.installed, c,
+    refine ⟨E.containerConstructorKernel wf Hsources D Hkernel ha hc, ?_, .inr ⟨_, HG.installed, c,
       List.mem_flatMap.mpr ⟨_, List.getElem_mem _, hc⟩, rfl, HG.argumentsLength⟩⟩
     have hown' : E.lowered.signature.constructors[index].owner.val = owner.val := by rw [hown]
     have hidx' : E.lowered.signature.constructors[index].owner.val - sourceDecl.types.length <
