@@ -101,6 +101,14 @@ structure NestedLoweringOutput (env : Environment) (fuel nparams : Nat)
   -- WAVE 3 COMPAT (lowering): `LocalContext.fvars` lists the most recent declaration first.
   lctx_params : res.params.toList.reverse.map (·.fvarId!) = res.lctx.fvars ∧
     ∀ p ∈ res.params.toList, p.isFVar
+  /-- The parameters are the opening of the first source header's parameter telescope: `res.lctx`
+  declares them (fresh for the type checker's private name generator), as distinct free
+  variables, with the header's binder domains. -- WAVE 3 lowering field (for
+  `validateNestedAuxiliaries.WF`'s parameter metacontext; source `resultParameterMLCtx`). -/
+  params_opening : ∃ first rest tail, sourceTypes = first :: rest ∧
+    LoweringParamOpening {} #[] first.type nparams res.lctx tail res.params ∧
+    res.lctx.WF ∧ (∀ fv ∈ res.lctx.fvars, ({} : TypeChecker.State).ngen.Reserves fv) ∧
+    ∃ fvars : List FVarId, res.params = (fvars.map Expr.fvar).toArray ∧ fvars.Nodup
   /-- Restoration inverts lowering on the source constructors, in any environment in which
   the source constructor type does not mention a cached family or a constructor of one
   (`RestoreSourceDisjoint`): the restored lowered constructor type is the source constructor
