@@ -41,7 +41,7 @@ theorem inductiveTypeInfos_size {stats : AddInductive.InductiveStats}
       indTypes.size := by
   simp [AddInductive.inductiveTypeInfos, h]
 
-theorem inductiveTypeInfos_getElem {stats : AddInductive.InductiveStats}
+theorem inductiveTypeInfos_fields {stats : AddInductive.InductiveStats}
     {indTypes : Array InductiveType} {nparams numNested : Nat} {isUnsafe : Bool}
     {lparams : List Name} (i : Nat)
     (hi : i < (AddInductive.inductiveTypeInfos stats nparams indTypes numNested isUnsafe
