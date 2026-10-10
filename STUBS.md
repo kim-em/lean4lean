@@ -363,6 +363,47 @@ Closed: `Instance.restored_equation_major`, `CompilationData.constructor_name_ca
 `CompilationData.constructor_equation`, `CompiledInductive.constructor_equation`/
 `equation_major_cases`, `VDefEq.HasConstructorMajor.ofEquation`).
 
+Ownership change (lead-approved): the restoration is one dependency chain across the scaffold's
+map, so Restoration-B ports the source files on the path to `RestoredBlock` in source topological
+order whoever the map assigned them to: besides `Nested/Restoration/**` (minus Restoration-A's
+`Validation/{Checks,Stripped*,ParameterPrefix,ParameterScopes,Result}` and `Uniform/**`) also
+`Install/{AddInduct,FromRun,Certificate,RunView,Permutation,DependencyOrder,RecursorTranslations,
+ConstructorCoherence}`, `Equations/{SourceIotaFamilies,SourceIota,RuleRhs}` and the translation
+half of `Equations/{RestoredRules,GeneratedGuard}` (source paths and names kept); the side
+environments' models (source `Validation/{Environment,ConstructorEnvironment}`) live in
+`Nested/Restoration/SideEnvironment/`. Equations+Install keeps the typing side.
+
+`VExpr.RecShape` was false for nested blocks as inherited from #43 (same family as
+`rules_own_params`/`rec_counts`/`recs_over_block`): its `MajorApp` required the major's leading
+arguments to be the recursor's parameter variables, which a restored auxiliary recursor
+(`Tree.rec_1`, major `List (Tree α)`) violates. Lead decision: weaken `MajorApp` (Restoration-B,
+`-- WAVE 3 COMPAT (restB)`), in progress.
+
+## Wave 3 Restoration-A (`Nested/Restoration/Validation/**`)
+
+The seven statements of `Validation/Passes.lean` are proved; Restoration-A adds no stub.
+Three statements gained premises, because the passes run the checker without checking them
+or because the scaffold form was circular:
+
+* `validateSourceConstructorTypes.run.WF` takes the closedness of the constructor types
+  (`SourceSyntaxChecks.ctorTypesClosed`, `Validation/Checks.lean`, provides it).
+* `validateNestedAuxiliaries.WF` takes the checker context `mlctx` of the lowering's
+  parameters (`mlctx.WF`, `mlctx.lctx = res.lctx`, freshness for the checker's name generator,
+  the cached occurrences scoped in it) and concludes the typing of every cached occurrence in
+  it. The context is a lowering fact: `NestedLoweringOutput.params_opening` with
+  `LoweringParamOpening.toMLCtx` (`Validation/ParameterPrefix.lean`).
+* `stripRecursorRules.checkingValid` (and the new `stripRecursorRules.checkerEnv`, the
+  `CheckerEnv` that `validateRestoredRecursorRules.check.WF` consumes) is stated over a
+  rule-free `AddInduct` into the stripped map and the rule-free facts `RuleFreeStage`
+  (`Validation/Stripped.lean`): the projection stage's `VEnv.WF`, the recursor types, the
+  block's names not primitive, the restored header facts, the K clause and shapes of the new
+  recursors at the recursor stage. The scaffold form took the output's `AddInduct` and
+  `CheckingEnv.Valid`, which contain the rule translations the pass establishes. Restoration-B
+  produces the `RuleFreeStage` (agreed).
+
+`Nested/Restoration/Uniform/**` (parameter uniformity of the lowered recursors) is not needed
+by these statements.
+
 ## Wave 3 lowering
 
 Statement changes to `NestedLoweringOutput`/`loweringRun.WF` (`Verify/Inductive/Lowering.lean`,
@@ -398,34 +439,13 @@ Statement changes to `NestedLoweringOutput`/`loweringRun.WF` (`Verify/Inductive/
    `NestedLoweringOutput` def is `NestedLoweringRun` (`Nested/Lowering/Output.lean`), its inductive
    `SourceSyntaxChecks` is `SourceSyntaxChecked`.
 
-| statement | file | status |
-|---|---|---|
-| `loweringRun.WF` | `Verify/Inductive/Lowering.lean` | stub (Lowering) |
-
-## Wave 3 Restoration-A (`Nested/Restoration/Validation/**`)
-
-The seven statements of `Validation/Passes.lean` are proved; Restoration-A adds no stub.
-Three statements gained premises, because the passes run the checker without checking them
-or because the scaffold form was circular:
-
-* `validateSourceConstructorTypes.run.WF` takes the closedness of the constructor types
-  (`SourceSyntaxChecks.ctorTypesClosed`, `Validation/Checks.lean`, provides it).
-* `validateNestedAuxiliaries.WF` takes the checker context `mlctx` of the lowering's
-  parameters (`mlctx.WF`, `mlctx.lctx = res.lctx`, freshness for the checker's name generator,
-  the cached occurrences scoped in it) and concludes the typing of every cached occurrence in
-  it. The context is a lowering fact (source branch `NestedLowering.resultParameterMLCtx`), not
-  yet a field of `NestedLoweringOutput`.
-* `stripRecursorRules.checkingValid` (and the new `stripRecursorRules.checkerEnv`, the
-  `CheckerEnv` that `validateRestoredRecursorRules.check.WF` consumes) is stated over a
-  rule-free `AddInduct` into the stripped map and the rule-free facts `RuleFreeStage`
-  (`Validation/Stripped.lean`): the projection stage's `VEnv.WF`, the recursor types, the
-  block's names not primitive, the restored header facts, the K clause and shapes of the new
-  recursors at the recursor stage. The scaffold form took the output's `AddInduct` and
-  `CheckingEnv.Valid`, which contain the rule translations the pass establishes. Restoration-B
-  produces the `RuleFreeStage` (agreed).
-
-`Nested/Restoration/Uniform/**` (parameter uniformity of the lowered recursors) is not needed
-by these statements.
+`loweringRun.WF` is proved (no stub left in `Lowering.lean` or `Nested/Lowering/**`): each field
+in `Nested/Lowering/Assembly.lean` from `NestedLoweringOutputClosed`
+(`ElimNestedInductive.run'.translationClosed`), over the source branch's lowering refinement
+ported under `Nested/Lowering/` (`Refinement`, `ParameterOpening`, `Recognition`, `Expression`,
+`Queue`, `AuxiliaryFamilyPositions`, `Output`, `Ordinary`, `Restore/{ExprReplace,ParameterOpening}`;
+new: `Counts` for `types_length`). `Nested/Lowering/Expansion/**` (the `NestedExpansionData`
+for `RestoredBlock.formation`) is being ported by Lowering for Restoration-B.
 
 ## Wave 3 scaffold (`Verify/Inductive/Nested/**`, the nested branch's interface)
 
