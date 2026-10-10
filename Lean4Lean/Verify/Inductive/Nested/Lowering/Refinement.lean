@@ -853,24 +853,6 @@ theorem AuxiliaryFamilySpec.generatedFamilyTelescope
   exact Hselection.forallTelescope
     (sourceTail.instantiateRevRange 0 nparams args)
 
-/-- A type definitionally equal to a sort has no outer forall binders: if
-`type.takeForalls n` succeeds then `n = 0`. -/
-theorem VExpr.takeForalls_eq_zero_of_defEqSort
-    {env : VEnv} {U : Nat} {ctx : List VExpr}
-    {type : VExpr} {n : Nat} {domains : List VExpr}
-    {result : VExpr} {u : VLevel}
-    (henv : env.WF) (hctx : OnCtx ctx (env.IsType U))
-    (Htake : type.takeForalls n = some (domains, result))
-    (Hsort : env.IsDefEqU U ctx type (.sort u)) :
-    n = 0 := by
-  cases n with
-  | zero => rfl
-  | succ n =>
-    cases type <;> simp [VExpr.takeForalls] at Htake
-    case forallE domain body =>
-      exact False.elim
-        (VEnv.IsDefEqU.sort_forallE_inv henv hctx Hsort.symm)
-
 def InductiveConstructorsClosed (type : InductiveType) : Prop :=
   ∀ ctor ∈ type.ctors, ctor.type.FVarsIn fun _ => False
 
