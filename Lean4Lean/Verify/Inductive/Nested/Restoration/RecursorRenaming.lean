@@ -321,7 +321,7 @@ theorem NestedRun.recursorVEnv_restorableNames_fresh_of_not_renamed
       C.recursorVEnv.constants n = none := by
   rcases E.restorationTablesRestoringAll wf Hsources with
     ⟨envTypes, generated, aux', hadded, henvTypes, Haux, Hexpansion,
-      hparamsSize, D', -, -⟩
+      hparamsSize, D', -, -, -⟩
   have hnodup :
       (familyNames E.lowered.loweredDecl.types ++
         E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by

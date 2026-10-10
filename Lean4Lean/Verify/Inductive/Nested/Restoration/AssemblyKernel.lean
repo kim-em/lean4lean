@@ -114,17 +114,40 @@ theorem NestedRun.constructorArityPrefix
   rw [B.formationExpanded, hB] at h
   exact h
 
+/-- The kernel family lookups, from the constructor arities of the lowered declaration. -/
+theorem NestedRun.inductInfosFromDeclOfArity
+    (Harity : decl.ConstructorArityPrefix E.lowered.loweredDecl)
+    (Hsources : SourceSyntaxChecked sourceTypes)
+    (Howners : ConstructorOwnersPresent sourceProdEnv) :
+    InductInfosFromDecl sourceProdEnv.constants outEnv.constants decl := by
+  have h := NestedRestorationFolds.inductInfosFromDecl E.loweringAtContext E.loweredContextWF
+    E.phases.recursors E.sourceCoreAtLowered
+    (by simpa only [E.sourceCoreDecl_eq] using E.sourceCore.checked) Hsources
+    Harity (by rw [E.lowered_env]; exact Howners) rfl
+    E.restorationAtLowered
+  rwa [E.lowered_env] at h
+
 /-- **The kernel family lookups**: every inductive header of the output is a base header or an
 aligned family of the declaration. -/
 theorem NestedRun.inductInfosFromDecl
     (B : RestoredBlockBase E.restoration venv decl lparams nparams isUnsafe safety)
     (hB : B.lowered = E.lowered) (Hsources : SourceSyntaxChecked sourceTypes)
     (Howners : ConstructorOwnersPresent sourceProdEnv) :
-    InductInfosFromDecl sourceProdEnv.constants outEnv.constants decl := by
-  have h := NestedRestorationFolds.inductInfosFromDecl E.loweringAtContext E.loweredContextWF
+    InductInfosFromDecl sourceProdEnv.constants outEnv.constants decl :=
+  E.inductInfosFromDeclOfArity (E.constructorArityPrefix B hB) Hsources Howners
+
+/-- The declaration's families are new headers of the output, from the constructor arities of
+the lowered declaration. -/
+theorem NestedRun.coverOfArity
+    (Harity : decl.ConstructorArityPrefix E.lowered.loweredDecl)
+    (Hsources : SourceSyntaxChecked sourceTypes)
+    (Howners : ConstructorOwnersPresent sourceProdEnv) :
+    ∀ T ∈ decl.types, ∃ v, outEnv.find? T.name = some (.inductInfo v) ∧
+      sourceProdEnv.find? T.name = none := by
+  have h := NestedRestorationFolds.cover E.loweringAtContext E.loweredContextWF
     E.phases.recursors E.sourceCoreAtLowered
     (by simpa only [E.sourceCoreDecl_eq] using E.sourceCore.checked) Hsources
-    (E.constructorArityPrefix B hB) (by rw [E.lowered_env]; exact Howners) rfl
+    Harity (by rw [E.lowered_env]; exact Howners) rfl
     E.restorationAtLowered
   rwa [E.lowered_env] at h
 
@@ -134,13 +157,8 @@ theorem NestedRun.cover
     (hB : B.lowered = E.lowered) (Hsources : SourceSyntaxChecked sourceTypes)
     (Howners : ConstructorOwnersPresent sourceProdEnv) :
     ∀ T ∈ decl.types, ∃ v, outEnv.find? T.name = some (.inductInfo v) ∧
-      sourceProdEnv.find? T.name = none := by
-  have h := NestedRestorationFolds.cover E.loweringAtContext E.loweredContextWF
-    E.phases.recursors E.sourceCoreAtLowered
-    (by simpa only [E.sourceCoreDecl_eq] using E.sourceCore.checked) Hsources
-    (E.constructorArityPrefix B hB) (by rw [E.lowered_env]; exact Howners) rfl
-    E.restorationAtLowered
-  rwa [E.lowered_env] at h
+      sourceProdEnv.find? T.name = none :=
+  E.coverOfArity (E.constructorArityPrefix B hB) Hsources Howners
 
 /-- **Every constructor's owner is present in the output.** -/
 theorem NestedRun.constructorOwnersPresent
