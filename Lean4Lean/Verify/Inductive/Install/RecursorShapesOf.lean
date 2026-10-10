@@ -1,6 +1,7 @@
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 import Lean4Lean.Verify.Environment.Blocks
 import Lean4Lean.Theory.Inductive.SignatureLemmas
+import Lean4Lean.Theory.Inductive.RecursiveShapeCorrespondence
 import Lean4Lean.Theory.Typing.RecursorLemmas
 
 /-! # The recursor shapes of an ordinary block
@@ -17,14 +18,6 @@ open Lean hiding Environment Exception
 open Kernel
 
 namespace InductiveSignature
-
-theorem vars_eq_bvarRange (n below : Nat) : vars n below = VExpr.bvarRange n (below + n) := by
-  unfold vars VExpr.bvarRange
-  apply List.ext_getElem (by simp)
-  intro j h1 h2
-  simp at h1
-  simp [List.getElem_reverse]
-  omega
 
 theorem bvarRange_liftN (n k : Nat) :
     (VExpr.bvarRange n n).map (VExpr.liftN k) = VExpr.bvarRange n (n + k) := by

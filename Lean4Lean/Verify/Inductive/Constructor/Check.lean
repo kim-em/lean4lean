@@ -65,6 +65,9 @@ structure ConstructorCheck (c : AddInductive.Context) (stats : AddInductive.Indu
     headers.statsWF.parameterScope stats decl indTypes classes
   /-- (Added for the recursor agent.) The owner normal forms of the kernel constructor types. -/
   ownerNormalForms : ConstructorOwnerNormalForms stats indTypes
+  /-- (Added by install, WAVE 2 install COMPAT.) Positivity's literal side condition, in the
+  recursor phase's context. -/
+  literalDisjoint : checkPositivityStep.AvailableLiteralDisjoint context.venv stats.indConsts
 
 namespace ConstructorCheck
 
@@ -188,8 +191,12 @@ theorem AddInductive.constructorPhase.WF
     obtain ⟨t, ht, j, ctor, hctor, rfl⟩ := mem_ctorInfos hcval
     exact hnprimCtors hallow t ht ctor hctor hp
   -- WAVE 2 install COMPAT: `CtorInstall` over the header data, with its primitive fields
+  have hnprimFam : ∀ T ∈ decl.types, ¬ Kernel.Environment.primitives.contains T.name := by
+    intro T hT hp
+    obtain ⟨src, hsrc, htr⟩ := List.Forall₂.forall_exists_r H.trSources T hT
+    exact hnprimOwner src hsrc (htr.1.name ▸ hp)
   have hprims := CtorInstall.ordinaryPrimitives H (hK H) hmap (fun cval hcval => (hfr cval hcval).1)
-    hnd hnprim
+    hnd hnprim hnprimFam
   let I : CtorInstall c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes headerEnv ctorEnv
       positivity := {
     H := H.toData
@@ -199,7 +206,8 @@ theorem AddInductive.constructorPhase.WF
     fresh := fun cval hcval => (hfr cval hcval).1
     nodup := hnd
     hasPrimitives := hprims.1
-    safePrimitives := hprims.2
+    safePrimitives := hprims.2.1
+    literalDisjoint := hprims.2.2
     nindices_size := P.nindices_size
     nindices := hnindices
     params_size := P.params_size
@@ -239,7 +247,8 @@ theorem AddInductive.constructorPhase.WF
     ctor_numParams := I.ctor_numParams
     parameterPrefixes := I.K.parameterPrefixes
     constructorTails := I.K.constructorTails
-    ownerNormalForms := I.K.ownerNormalForms }, rfl⟩
+    ownerNormalForms := I.K.ownerNormalForms
+    literalDisjoint := I.contextLiteralDisjoint }, rfl⟩
 
 end VerifyInductive
 end Lean4Lean
