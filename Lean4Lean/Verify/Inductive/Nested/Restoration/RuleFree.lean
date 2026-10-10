@@ -349,9 +349,9 @@ theorem consts_stripEntries (ivals : List (InductiveVal × List ConstructorVal))
 installed into `outEnv` (its kernel constants, translations and stages) and the facts of
 `RuleFreeStage` at the output, the block with every recursor's rules removed is installed into
 the rule-free environment `addConstsEnv env (stripEntries names entries)`, whose lookups are
-those of `stripRecursorRules outEnv names`, and the stripped environment is a valid checking
-environment of the recursor stage. -/
-theorem stripRecursorRules.checkingValidOfBlock {safety : DefinitionSafety} {env outEnv : Environment}
+those of `stripRecursorRules outEnv names`; so the stripped environment is a valid checking
+environment, and a checker environment if the source is, of the recursor stage. -/
+theorem stripRecursorRules.validOfBlock {safety : DefinitionSafety} {env outEnv : Environment}
     {venv envT envC envR venvOut : VEnv} {decl : VInductDecl} {recs : List VRecursor}
     {ivals : List (InductiveVal × List ConstructorVal)} {rvals : List RecursorVal}
     {entries : List ConstantInfo}
@@ -382,7 +382,9 @@ theorem stripRecursorRules.checkingValidOfBlock {safety : DefinitionSafety} {env
     (hk : ∀ r ∈ rvals, r.k = false)
     (hshapes : ∀ r ∈ rvals, safety ≤ (ConstantInfo.recInfo r).safety →
       RecursorShapesAt outEnv.constants venvOut r) :
-    CheckingEnv.Valid safety (stripRecursorRules outEnv (rvals.map (·.name))) envR := by
+    CheckingEnv.Valid safety (stripRecursorRules outEnv (rvals.map (·.name))) envR ∧
+      (CheckerEnv safety env venv →
+        CheckerEnv safety (stripRecursorRules outEnv (rvals.map (·.name))) envR) := by
   let names := rvals.map (·.name)
   let decl0 : VInductDecl := { decl with recs := recs.map VRecursor.stripRules }
   let rvals0 := rvals.map RecursorVal.stripRules
@@ -535,8 +537,10 @@ theorem stripRecursorRules.checkingValidOfBlock {safety : DefinitionSafety} {env
           | _ => e) ns).quotInit = _
       rw [ih]
       split <;> rfl
-  exact stripRecursorRules.checkingValid hin H0 F hstripWF (fun n => (hfindEq n).symm)
-    (by rw [hstripQuot, hquot]; exact (addConstsEnv_quotInit _ _).symm)
+  have hq : (stripRecursorRules outEnv names).quotInit = S0.quotInit := by
+    rw [hstripQuot, hquot]; exact (addConstsEnv_quotInit _ _).symm
+  exact ⟨stripRecursorRules.checkingValid hin H0 F hstripWF (fun n => (hfindEq n).symm) hq,
+    fun C => stripRecursorRules.checkerEnv C H0 F hstripWF (fun n => (hfindEq n).symm) hq⟩
 
 end VerifyInductive
 end Lean4Lean
