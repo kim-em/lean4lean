@@ -8,6 +8,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.KernelData
 import Lean4Lean.Verify.Inductive.Nested.Restoration.FormationWithRecs
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ViewCast
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyTypes
+import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyKernel
 
 /-! # The restored block of a nested run (owner: Restoration-B)
 
@@ -106,7 +107,7 @@ theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     constructorArityPrefix := ?arity
     run_loweredEnv := hloweredEnv
     run_lowered := hlowered
-    recMajor := ?recMajor
+    recMajor := E.recMajor wf Hchecked
     constructorParameterAlignment := ?alignment
     restoredEquationsWF := ?equationsWF }⟩
   case arity =>
