@@ -29,22 +29,6 @@ theorem RecursorVal.getMajorInduct_of_binderAt (rec : Lean.RecursorVal)
   | here => rfl
   | there _ ih => exact ih
 
-/-- Substituting a free variable preserves the executable constructor arity. -/
-theorem constructorArity_instantiate1'_fvar (e : Expr) (fv : FVarId) (d : Nat) :
-    AddInductive.constructorArity (e.instantiate1' (.fvar fv) d) =
-      AddInductive.constructorArity e := by
-  induction e generalizing d with
-  | forallE _ _ _ _ _ ihb =>
-    simp only [Expr.instantiate1', AddInductive.constructorArity, ihb]
-  | bvar i =>
-    simp only [Expr.instantiate1']
-    split
-    · rfl
-    · split
-      · simp [Expr.liftLooseBVars', AddInductive.constructorArity]
-      · rfl
-  | _ => simp [Expr.instantiate1', AddInductive.constructorArity]
-
 /-- The executable arity counts every binder of a concrete forall telescope. -/
 theorem Expr.ForallTelescope.constructorArity
     (H : Expr.ForallTelescope source n result) :
@@ -52,23 +36,6 @@ theorem Expr.ForallTelescope.constructorArity
   induction H with
   | nil => simp
   | cons _ ih => simp [AddInductive.constructorArity, ih]; omega
-
-/-- Instantiating the parameter prefix from position `i` removes exactly the remaining
-parameter binders. -/
-theorem ParameterPrefix.constructorArity
-    (H : ParameterPrefix stats i source tail)
-    (hfv : ∀ param ∈ stats.params, ∃ fv, param = .fvar fv) :
-    AddInductive.constructorArity source =
-      (stats.params.size - i) + AddInductive.constructorArity tail := by
-  induction H with
-  | done hi => subst hi; simp
-  | @step i param body tail name dom bi hparam _ ih =>
-    have hi : i < stats.params.size :=
-      (Array.getElem?_eq_some_iff.mp hparam).1
-    rcases hfv param (Array.mem_of_getElem? hparam) with ⟨fv, rfl⟩
-    rw [Expr.instantiate1_eq, constructorArity_instantiate1'_fvar] at ih
-    simp only [AddInductive.constructorArity, ih]
-    omega
 
 /-- Installed recursor entries are indexed by the families of the construction's
 signature. -/
