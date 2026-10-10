@@ -28,18 +28,19 @@ open Kernel
 namespace VerifyInductive
 
 /-- The lowered family and constructor names are not checker primitives when the lowered run
-does not allow primitives.
--- WAVE 3 STUB (restB): the constructor phase derives this (`constructorPhase.WF`'s
-`hnprimFam`, from `declareInductiveTypes.allowsPrimitives` and `declareConstructors`'s
-`checkName`s) but neither `RecursorInput` nor `LoweredRun` records it. A `LoweredRun` field
-`nonprimitive : c.allowPrimitive = false → ∀ n ∈ familyNames loweredDecl.types, ¬ …`, produced
-in `AddInductive.run.loweredRun`, discharges it. -/
+does not allow primitives (`RecursorInput.nonprimitive`, recorded by the constructor phase). -/
 theorem LoweredRun.loweredNonprimitive {c : AddInductive.Context} {Hc : ContextWF c}
     {nparams : Nat} {indTypes : Array InductiveType} {loweredEnv : Environment}
     (L : LoweredRun Hc nparams indTypes loweredEnv) (hallow : c.allowPrimitive = false) :
     ∀ n ∈ InductiveSignature.familyNames L.loweredDecl.types,
       ¬ Kernel.Environment.primitives.contains n := by
-  have := L; have := hallow; sorry
+  intro n hn
+  obtain ⟨T, hT, hn⟩ := List.mem_flatMap.mp hn
+  have H := L.input.nonprimitive (L.phase.allowPrimitive_eq.trans hallow) T hT
+  rcases List.mem_cons.mp hn with rfl | hn
+  · exact H.1
+  · obtain ⟨ctor, hctor, rfl⟩ := List.mem_map.mp hn
+    exact H.2 ctor hctor
 
 theorem LoweredRun.loweredHeadersNonprimitive {c : AddInductive.Context} {Hc : ContextWF c}
     {nparams : Nat} {indTypes : Array InductiveType} {loweredEnv : Environment}

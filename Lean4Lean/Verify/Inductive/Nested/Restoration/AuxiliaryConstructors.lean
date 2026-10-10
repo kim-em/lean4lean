@@ -116,7 +116,7 @@ theorem auxiliaryLoweredConstructors_restore
     obtain ⟨hc, -, hlc⟩ := h1
     obtain ⟨_, hgd⟩ := h2
     have hfree : gc.type.containsAnyConst r.restorableNames = false :=
-      (hgd.hasType.1.noFreshConsts hordered hfresh (by intro _ h; simp at h)).1
+      (hgd.hasType.1.noFreshConsts henv hfresh (by intro _ h; simp at h)).1
     exact ⟨gc.type, hc.type.restore hfree (hlevels t List.mem_cons_self lc hlc),
       fun _ hT => VEnv.IsDefEqU.of_l henv trivial ⟨_, hgd⟩ hT⟩
 
@@ -295,7 +295,7 @@ theorem NestedRun.constructorRestorationSubstitution
     change t.type.containsAnyConst _ = false ∧
       envTypes.HasType t.uvars [] _ t.type
     rw [huvars]
-    refine ⟨(htypeD.noFreshConsts hordered hfreshAll (by intro _ h; simp at h)).2.1, ?_⟩
+    refine ⟨(htypeD.noFreshConsts henvTypes hfreshAll (by intro _ h; simp at h)).2.1, ?_⟩
     have hPS : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
         E.lowered.signature.params.reverse sourceParams.reverse :=
       VEnv.IsDefEqCtx.trans_empty henvTypes hP (hctx.symm hordered)

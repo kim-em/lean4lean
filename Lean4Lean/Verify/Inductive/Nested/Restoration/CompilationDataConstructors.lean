@@ -197,7 +197,7 @@ theorem NestedRun.loweredConstructors_of_lowering
     obtain ⟨C, -, hC⟩ := Lean4Lean.List.Forall₂.forall_exists_r hT.ctors sc hsc
     obtain ⟨u, hu⟩ := hC.wf
     rw [htypesEq] at hu
-    exact (hu.noFreshConsts hordered hfresh (by intro _ h; simp at h)).1
+    exact (hu.noFreshConsts henvTypes hfresh (by intro _ h; simp at h)).1
   refine Lean4Lean.List.Forall₂.flip ?_
   refine Lean4Lean.List.Forall₂.imp (fun family lowered h => ?_)
     (Lean4Lean.List.Forall₂.and_mem Hrestoring)
