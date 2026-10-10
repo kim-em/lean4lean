@@ -481,39 +481,39 @@ lowering keeps it: new field `AuxiliaryFamilySource.containerKernel`
 (`Lowering/Expansion/AuxiliarySources.lean`, `-- WAVE 3 COMPAT (restB)`, agreed with lowering),
 carried as the last conjunct of `NestedRun.restorationTablesRestoringAll`.
 
-## Wave 3 Restoration-A (`Nested/Restoration/Validation/**`)
+## Wave 3 Restoration-A (`Nested/Restoration/{Validation,Uniform}/**`), final
 
-The seven statements of `Validation/Passes.lean` are proved; Restoration-A adds no stub.
-Three statements gained premises, because the passes run the checker without checking them
-or because the scaffold form was circular:
+Closed, no stub left: the seven statements of `Validation/Passes.lean`. Restoration-A adds no
+`sorry`; `Validation/**` and `Uniform/**` are 5.8k lines over 15 files. Three statements carry
+premises the scaffold lacked, because the passes run the checker without checking them or
+because the scaffold form was circular:
 
 * `validateSourceConstructorTypes.run.WF` takes the closedness of the constructor types
-  (`SourceSyntaxChecks.ctorTypesClosed`, `Validation/Checks.lean`, provides it).
-* `validateNestedAuxiliaries.WF` takes the checker context `mlctx` of the lowering's
-  parameters (`mlctx.WF`, `mlctx.lctx = res.lctx`, freshness for the checker's name generator,
-  the cached occurrences scoped in it) and concludes the typing of every cached occurrence in
-  it. The context is a lowering fact: `NestedLoweringOutput.params_opening` with
-  `LoweringParamOpening.toMLCtx` (`Validation/ParameterPrefix.lean`).
-* `stripRecursorRules.checkingValid` (and the new `stripRecursorRules.checkerEnv`, the
-  `CheckerEnv` that `validateRestoredRecursorRules.check.WF` consumes) is stated over a
-  rule-free `AddInduct` into an environment `S` whose lookups and `quotInit` agree with the
-  stripped map's (transfer by Restoration-B's `CheckingEnv.Valid.mapExt`/`CheckerEnv.mapExt`;
-  `stripRecursorRules` re-inserts each recursor, so no `insertConsts` map is structurally the
-  stripped one) and the rule-free facts `RuleFreeStage`
+  (`SourceSyntaxChecks.ctorTypesClosed`, `Validation/Checks.lean`).
+* `validateNestedAuxiliaries.WF` (and `.WF_typing`, keeping the inferred types, the source's
+  `NestedOccurrencesTyped`) take the checker context `mlctx` of the lowering's parameters;
+  `NestedLoweringOutput.parameterMLCtx` (`Validation/ParameterPrefix.lean`, from
+  `params_opening` with `LoweringParamOpening.toMLCtx`) supplies it.
+* `stripRecursorRules.checkingValid`/`.checkerEnv` are stated over a rule-free `AddInduct` into
+  an environment `S` whose lookups and `quotInit` agree with the stripped map's (Restoration-B's
+  `CheckingEnv.Valid.mapExt`/`CheckerEnv.mapExt`), with the rule-free facts `RuleFreeStage`
   (`Validation/Stripped.lean`): the projection stage's `VEnv.WF`, the recursor types, the
   block's names not primitive, the restored header facts, the K clause and shapes of the new
-  recursors at the recursor stage. The scaffold form took the output's `AddInduct` and
-  `CheckingEnv.Valid`, which contain the rule translations the pass establishes. Restoration-B
-  produces the `RuleFreeStage` (agreed).
+  recursors at the recursor stage (`RecursorShapesAt.stripRules`, `KLikeRecursor.of_k_false`
+  derive the last two from `RestoredBlock.recShapes` and `k = false`). Restoration-B produces
+  them (`Restoration/RuleFree.lean`, `AssemblyBase.lean`).
 
-`Nested/Restoration/Uniform/**` (parameter uniformity of the lowered recursors, consumed by
-Restoration-B) is ported: `Uniform/{Recursors,Generic,Heads,Base,Lowered,Run,Whnf,Declarations,
-RunEnv}.lean`, ending in `NestedRun.recursorParamUniform_of_wfCore`. The lowered names'
-non-primitivity is Restoration-B's `NestedRun.loweredNonprimitive`. `Validation/ParameterScopes.lean` (`NestedInstalledRun.restoredFamilyParameterScopes`,
-`constructorParameterDomainsDefEqOfSource`) is ported over Restoration-B's `NestedInstalledRun`.
-The source's `Validation/{Environment,ConstructorEnvironment}` are Restoration-B's
-(`SideEnvironment/`), and the `NestedRun` part of `StrippedRecursorShapes` is replaced by
-`RecursorShapesAt.stripRules` and `KLikeRecursor.of_k_false`. Source `Validation/Result.lean` is superseded by `RestorationRun`.
+Ported for Restoration-B: `Uniform/{Recursors,Generic,Heads,Base,Lowered,Run,Whnf,Declarations,
+RunEnv}.lean` (the parameter uniformity of the lowered recursors, ending in
+`NestedRun.recursorParamUniform_of_wfCore`, read by `Restoration/{Recursors,RecursorRenaming,
+MajorHeads,LoweredRuleAvoidance}`, `Equations/{RuleRhs,ProjNames}`; `normalizedTotal_of` by
+`CompilationDataConstructors`, `RecursorTranslations`), `Validation/ParameterScopes.lean`
+(read by `AssemblyKernel`, `Install/Installed`), `Validation/RecursorBinders.lean`. Not ported:
+source `Validation/Result.lean` (superseded by `RestorationRun`), `Validation/{Environment,
+ConstructorEnvironment}` (Restoration-B, `SideEnvironment/`), the `NestedRun` part of
+`StrippedRecursorShapes` (replaced by the two lemmas above). The lowered names'
+non-primitivity is Restoration-B's field `NestedRun.loweredNonprimitive` (requested by
+Restoration-A). No COMPAT edits.
 
 ## Wave 3 lowering
 
