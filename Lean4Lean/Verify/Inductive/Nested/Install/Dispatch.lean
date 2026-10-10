@@ -44,7 +44,9 @@ theorem nestedInductivePreserves : NestedInductivePreserves := by
   refine (Environment.restoreNestedAfterInstall.WF env loweredEnv lparams sourceTypes safety
     false fuel res).mono fun outEnv V => ?_
   obtain ⟨B⟩ := nestedRestoredBlock wf Hsources Hout hnested L V
-  have I := B.installedFacts Hout.source_nonempty hvisible
+  -- WAVE 3 eqinst COMPAT: the base translation, complete blocks and alignment from `wf`
+  have I := B.installedFacts Hout.source_nonempty hvisible wf.tr wf.blocks
+    wf.constructorParameterAlignment
   exact (NestedCertificate.ofRestoredBlock B I Hout.source_nonempty).inductiveExtension wf
 
 /-- `addInductiveDeclaration.WF_spec` without hypothesis. -/
