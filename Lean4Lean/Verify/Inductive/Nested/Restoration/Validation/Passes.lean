@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.RestorationRun
 import Lean4Lean.Verify.Inductive.Install.BlockCertificate
+import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.Checks
 
 /-! # The validation passes (owner: Restoration-A)
 
@@ -33,16 +34,27 @@ abbrev restoredRecursorOf (res : ElimNestedInductive.Result) (loweredEnv : Envir
   res.restoreRecursor loweredEnv recNameMap allIndNames recName (recNameMap.getD recName recName)
     recInfo
 
-/-- `validateSourceConstructorTypes`: every source constructor type is closed and a type of
-the checker's model (the restored header environment). -/
+/-- `validateSourceConstructorTypes`: every source constructor type is a type of the checker's
+model (the restored header environment). The pass runs the checker in the empty local
+context without checking for free variables, so the closedness of the constructor types is a
+premise: the source checks establish it (`SourceSyntaxChecks.ctorTypesClosed`). -/
 theorem validateSourceConstructorTypes.run.WF (C : CheckerEnv safety env venv)
     (lparams : List Name) (fuel : FuelConfig) (types : List InductiveType)
+    (hclosed : ∀ type ∈ types, ∀ ctor ∈ type.ctors, ctor.type.FVarsIn fun _ => False)
     (h : validateSourceConstructorTypes.run env lparams safety fuel types = .ok ()) :
     ∀ type ∈ types, ∀ ctor ∈ type.ctors,
       ∃ T, TrExprS venv lparams [] ctor.type T ∧ venv.IsType lparams.length [] T := by
-  -- WAVE 3 STUB (Restoration-A): `TypeChecker.checkType.WF` and `ensureSort.WF` in the
-  -- initial checker context of `C` (`VContext.mk1`), over the two `forM`s.
-  have := C; have := h; sorry
+  intro type htype ctor hctor
+  unfold validateSourceConstructorTypes.run at h
+  have hstep := listForM_eq_ok_of_mem (fun ctor : Constructor => do
+      _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
+        (lparams := lparams) (fuel := fuel)
+        (do
+          let type ← TypeChecker.checkType ctor.type
+          TypeChecker.ensureSort type ctor.type))
+    (listForM_eq_ok_of_mem _ h htype) hctor
+  obtain ⟨checked, hrun, -⟩ := except_bind_eq_ok hstep
+  exact checkTypeSort.WF C (hclosed type htype ctor hctor) checked hrun
 
 /-- `validateRestoredRecursorTypes.check`: the lowered recursor exists and its restored type is
 closed and a type of the checker's model (the restored constructor environment). -/
@@ -57,9 +69,14 @@ theorem validateRestoredRecursorTypes.check.WF (C : CheckerEnv safety env venv)
         (restoredRecursorOf res loweredEnv recNameMap allIndNames recName recInfo).type T ∧
       venv.IsType (restoredRecursorOf res loweredEnv recNameMap allIndNames recName
         recInfo).levelParams.length [] T := by
-  -- WAVE 3 STUB (Restoration-A): the source branch's `Validation/Checks.lean`
-  -- (`validateRestoredRecursorTypes.check.WF`).
-  have := C; have := h; sorry
+  unfold validateRestoredRecursorTypes.check at h
+  split at h
+  · rename_i recInfo hfind
+    refine ⟨recInfo, hfind, ?_⟩
+    obtain ⟨⟨⟩, hclosed, h⟩ := except_bind_eq_ok h
+    obtain ⟨checked, hrun, -⟩ := except_bind_eq_ok h
+    exact checkTypeSort.WF C (checkNoMVarNoFVar.closed hclosed) checked hrun
+  · cases h
 
 /-- `validateRestoredRecursorTypes.run`, over the source and auxiliary recursors. -/
 theorem validateRestoredRecursorTypes.run.WF (C : CheckerEnv safety env venv)
@@ -71,8 +88,8 @@ theorem validateRestoredRecursorTypes.run.WF (C : CheckerEnv safety env venv)
     ∀ recName ∈ types.map (mkRecName ·.name) ++ auxRecNames,
       validateRestoredRecursorTypes.check env loweredEnv safety fuel res recNameMap allIndNames
         recName = .ok () := by
-  -- WAVE 3 STUB (Restoration-A): the two `forM`s of `validateRestoredRecursorTypes.run`.
-  have := C; have := h; sorry
+  have := C
+  exact forM_append_names_eq_ok _ h
 
 /-- `validateRestoredRecursorRules.check`: the lowered recursor exists and the reduct of every
 restored rule is closed and typed in the checker's model (the stripped restored
@@ -88,8 +105,15 @@ theorem validateRestoredRecursorRules.check.WF (C : CheckerEnv safety env venv)
             recInfo).levelParams [] rule.rhs rhs ∧
           venv.HasType (restoredRecursorOf res loweredEnv recNameMap allIndNames recName
             recInfo).levelParams.length [] rhs T := by
-  -- WAVE 3 STUB (Restoration-A): `TypeChecker.checkType.WF` over the rules' `forM`.
-  have := C; have := h; sorry
+  unfold validateRestoredRecursorRules.check at h
+  split at h
+  · rename_i recInfo hfind
+    refine ⟨recInfo, hfind, fun rule hrule => ?_⟩
+    have hstep := listForM_eq_ok_of_mem _ h hrule
+    obtain ⟨⟨⟩, hclosed, hstep⟩ := except_bind_eq_ok hstep
+    obtain ⟨checked, hrun, -⟩ := except_bind_eq_ok hstep
+    exact checkTypeClosed.WF C (checkNoMVarNoFVar.closed hclosed) checked hrun
+  · cases h
 
 /-- `validateRestoredRecursorRules.run`, over the source and auxiliary recursors. -/
 theorem validateRestoredRecursorRules.run.WF (C : CheckerEnv safety env venv)
@@ -101,23 +125,54 @@ theorem validateRestoredRecursorRules.run.WF (C : CheckerEnv safety env venv)
     ∀ recName ∈ types.map (mkRecName ·.name) ++ auxRecNames,
       validateRestoredRecursorRules.check env loweredEnv safety fuel res recNameMap allIndNames
         recName = .ok () := by
-  -- WAVE 3 STUB (Restoration-A): the two `forM`s of `validateRestoredRecursorRules.run`.
-  have := C; have := h; sorry
+  have := C
+  exact forM_append_names_eq_ok _ h
 
-/-- `validateNestedAuxiliaries`: the lowering's local context translates to a well-formed
-checker context of the model (the restored header environment), in which every cached nested
-occurrence `I Ds` translates and is typed. -/
+/-- `validateNestedAuxiliaries`: in a well-formed checker context `mlctx` of the model (the
+restored header environment) whose local context is the lowering's, every cached nested
+occurrence `I Ds` translates and is typed. The pass runs the checker in `res.lctx` without
+checking it, so the context `mlctx` (its translation, the freshness of its free variables for
+the checker's name generator, and the scoping of the cached occurrences) is a premise: it is
+the lowering's parameter context (the source branch's `NestedLowering.resultParameterMLCtx`,
+`NestedLoweringOutput.lctx_params`/`nested_app`). -/
 theorem validateNestedAuxiliaries.WF (C : CheckerEnv safety env venv) (lparams : List Name)
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
+    (mlctx : TypeChecker.MLCtx) (hmlctx : mlctx.WF venv lparams) (hlctx : mlctx.lctx = res.lctx)
+    (hfresh : ∀ fv ∈ mlctx.vlctx.fvars, ({} : TypeChecker.State).ngen.Reserves fv)
+    (hfvars : ∀ n nested, res.aux2nested.find? n = some nested →
+      nested.FVarsIn (· ∈ mlctx.vlctx.fvars))
     (h : validateNestedAuxiliaries env lparams safety fuel res = .ok ()) :
-    ∃ mlctx : TypeChecker.MLCtx, mlctx.lctx = res.lctx ∧ mlctx.WF venv lparams ∧
+    ∀ n nested, res.aux2nested.find? n = some nested →
+      ∃ e T, TrExprS venv lparams mlctx.vlctx nested e ∧
+        venv.HasType lparams.length mlctx.vlctx.toCtx e T := by
+  have H : (validateNestedAuxiliaries env lparams safety fuel res).WF fun _ =>
       ∀ n nested, res.aux2nested.find? n = some nested →
-        ∃ e T, TrExprS venv lparams mlctx.vlctx nested e ∧
-          venv.HasType lparams.length mlctx.vlctx.toCtx e T := by
-  -- WAVE 3 STUB (Restoration-A): the source branch's `validateNestedAuxiliaries.WF`
-  -- (`Nested/Lowering/Basic.lean`): `TypeChecker.M.run` in the lowering's `lctx`
-  -- (`NestedBindingContextWF`), `checkType.WF` over the cache's `forM`.
-  have := C; have := h; sorry
+        ∃ ty e' ty', TrTyping venv lparams mlctx.vlctx nested ty e' ty' := by
+    unfold validateNestedAuxiliaries
+    rw [← hlctx]
+    change (TypeChecker.M.run env safety mlctx.lctx lparams fuel
+      ((show Std.TreeMap Name Expr Name.quickCmp from res.aux2nested).forM
+        fun _ e => do
+          _ ← TypeChecker.checkType e)).WF _
+    rw [Std.TreeMap.forM_eq_forM, Std.TreeMap.forM_eq_forM_toList]
+    refine TypeChecker.M.WF.runCheckingMLC (trenv := C) (mlctx_wf := hmlctx) hfresh ?_
+    refine (checkTypeList.WF
+      (c := TypeChecker.VContext.mkCheckingMLC C mlctx hmlctx fuel)
+      (s := {}) res.aux2nested.toList ?_).mono ?_
+    · intro item hitem
+      apply hfvars item.1 item.2
+      change (show Std.TreeMap Name Expr Name.quickCmp from
+        res.aux2nested)[item.1]? = some item.2
+      exact Std.TreeMap.mem_toList_iff_getElem?_eq_some.mp hitem
+    · intro _ _ _ hall name e hfind
+      apply hall (name, e)
+      apply Std.TreeMap.mem_toList_iff_getElem?_eq_some.mpr
+      change (show Std.TreeMap Name Expr Name.quickCmp from
+        res.aux2nested)[name]? = some e
+      exact hfind
+  intro n nested hfind
+  obtain ⟨_, e, T, -, he, -, hT⟩ := H () h n nested hfind
+  exact ⟨e, T, he, hT⟩
 
 /-- **The stripped restored environment** (the output with the new recursors' rules removed,
 in which the restored rules are validated) is a valid checking environment of the recursor
