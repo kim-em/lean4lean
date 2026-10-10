@@ -86,10 +86,11 @@ def Describes.headerCertificate {H : CheckedHeaders env Us nparams params common
     rw [hlevel]; exact p.2.commonLevel
   typeShapes type htype := by
     obtain ⟨p, _, htarget, hindices, hlevel, -⟩ := List.Forall₂.forall_exists_r D.2.2 type htype
-    have := p.2.typeShape decl D.1 D.2.1
-    -- WAVE 2 STUB (Header/Context/Formation): `TypeShape` reads only the header fields of
-    -- `type`, which agree with `headerType p.2.target p.2.numIndices p.2.resultLevel`.
-    sorry
+    have Hshape := p.2.typeShape decl D.1 D.2.1
+    have htype : type.type = p.2.target.type := congrArg (fun v : VConstVal => v.type) htarget
+    unfold VInductDecl.TypeShape at Hshape ⊢
+    rw [htype, hindices, hlevel]
+    exact Hshape
 
 end CheckedHeaders
 

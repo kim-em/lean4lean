@@ -160,6 +160,23 @@ Parked:
 | `Verify/CanonicalEq.lean` | needs `Verify/Inductive/Prelude/EqSyntax.lean` and a `VEnv.HasCanonicalEq` whose `Eq.rec` rule is a pattern; `addDecl.WF` no longer needs it | wave 4 |
 | `Verify/QuotInit.lean` | replaced by PR #43's `Verify/Environment/Quot.lean` | never |
 
+## Wave 2 header (`Context.lean`, `Context/**`, `Formation.lean`, `Header/**`)
+
+Closed: `TrInductDeclCore.sourceNames_nodup`, `CheckedHeaders.Describes.headerCertificate`.
+
+Interface change (statement of a boundary theorem): `AddInductive.declareInductiveTypes.WF` as
+scaffolded was false. Its postcondition built a `ContextWF` over the header environment, whose
+`CheckingEnv.Valid` needs every name a header lists to be absent or a constructor of that
+header, but `declareInductiveTypes` only checks the header names (a source constructor named
+like an existing definition, or like a family of the same block, passes it). The executable
+checks constructor names only in `declareConstructors`, after `checkConstructors`. The
+postcondition is now `headerEnv.constants.WF ∧ (ConstructorNamesAbsent indTypes headerEnv → ∀
+decl, Describes → Nonempty HeaderEnvironment)`, as on the source branch
+(`declareInductiveTypes.headersWF`); the consumer (`constructorPhase.WF`) obtains
+`ConstructorNamesAbsent` from a successful `declareConstructors`
+(`AddInductive.declareConstructors.namesAbsent`, `Header/Installation.lean`), as the source
+branch's `formationCoreWF` does (case on `checkConstructors`, then on `declareConstructors`).
+
 ## Wave 2 scaffold (`Verify/Inductive/**`, the inductive refinement's interface)
 
 `lake build` (default targets), `Lean4Lean.Tests` and `Lean4Lean.Experimental` are green with
