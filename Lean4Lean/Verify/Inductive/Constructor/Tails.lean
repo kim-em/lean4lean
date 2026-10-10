@@ -12,7 +12,7 @@ source branch's definitions (`Recursor/Context/RecInfoTraversal.lean`,
 `Recursor/Binders/ParameterPrefixes.lean`, `Recursor/Context/FVarArrays.lean`,
 `Constructor/Positivity.lean`), produced by the constructor phase and recorded in
 `ConstructorCheck`. The source branch's `checkInductiveTypes.loopType.ScopedHeaderTelescope`
-(a header-phase structure) is restated here as `ConstructorScopedTelescope`. -/
+is named `ConstructorScopedTelescope` here. -/
 
 namespace Lean4Lean
 
@@ -186,6 +186,44 @@ theorem ParameterPrefix.forallSpine
 theorem Expr.ForallSpine.unique (H₁ : Expr.ForallSpine e k₁) (H₂ : Expr.ForallSpine e k₂) :
     k₁ = k₂ := H₁.constructorArity.symm.trans H₂.constructorArity
 
+/-- A partially instantiated common-parameter prefix.  Constructor checking
+builds this left-to-right; when `stop = stats.params.size`, it is exactly the
+complete prefix replay required by recursor generation. -/
+inductive ParameterSegment (stats : AddInductive.InductiveStats) :
+    Nat → Nat → Expr → Expr → Prop
+  | done : ParameterSegment stats i i source source
+  | step {i stop : Nat} {param body tail dom : Expr}
+      {name : Name} {bi : BinderInfo} :
+      stats.params[i]? = some param →
+      ParameterSegment stats (i + 1) stop
+        (body.instantiate1 param) tail →
+      ParameterSegment stats i stop (.forallE name dom body bi) tail
+
+theorem ParameterSegment.trans
+    (H₁ : ParameterSegment stats start middle source current)
+    (H₂ : ParameterSegment stats middle stop current tail) :
+    ParameterSegment stats start stop source tail := by
+  induction H₁ with
+  | done => exact H₂
+  | step hparam _ ih => exact .step hparam (ih H₂)
+
+theorem ParameterSegment.push
+    {body param dom : Expr} {name : Name} {bi : BinderInfo}
+    (H : ParameterSegment stats start i source
+      (.forallE name dom body bi))
+    (hparam : stats.params[i]? = some param) :
+    ParameterSegment stats start (i + 1) source
+      (body.instantiate1 param) := by
+  exact H.trans (.step hparam .done)
+
+theorem ParameterSegment.complete
+    (H : ParameterSegment stats start stop source tail)
+    (hstop : stop = stats.params.size) :
+    ParameterPrefix stats start source tail := by
+  induction H with
+  | done => exact .done hstop
+  | step hparam _ ih => exact .step hparam (ih hstop)
+
 /-- The comparisons performed while consuming the cached common parameters of a constructor
 type: each source parameter domain translates in the current scope and is definitionally the
 cached parameter type returned by the executable `isDefEq` call. -/
@@ -245,22 +283,10 @@ def constructorTelescopeTarget (ctorVal : VConstVal) : VInductiveTypeSkeleton wh
   ctors := []
 
 /-- Definitional header synthesis of a constructor type in the cached parameter scope: the
-type is definitionally a telescope over the scope's parameters (and `nindices` further binders)
-ending in `current`. The source branch's `checkInductiveTypes.loopType.ScopedHeaderTelescope`. -/
-structure ConstructorScopedTelescope
-    (env : VEnv) (Us : List Name) (target : VInductiveTypeSkeleton)
-    (scope : VLCtx) (current : VExpr) (i nindices : Nat) : Type where
-  params : List VExpr
-  indices : List VExpr
-  parameterCount : params.length = i
-  indexCount : indices.length = nindices
-  scopeLength : scope.length = i + nindices
-  scopeCtx : scope.toCtx = indices.reverse ++ params.reverse
-  scopeWF : scope.WF env Us.length
-  currentType : env.IsType Us.length scope.toCtx current
-  exprType : VExpr
-  header : env.IsDefEq Us.length [] target.type
-    (VExpr.wrapForalls (params ++ indices) current) exprType
+header phase's `checkInductiveTypes.loopType.ScopedHeaderTelescope` at a constructor target. -/
+abbrev ConstructorScopedTelescope (env : VEnv) (Us : List Name) (target : VInductiveTypeSkeleton)
+    (scope : VLCtx) (current : VExpr) (i nindices : Nat) : Type :=
+  checkInductiveTypes.loopType.ScopedHeaderTelescope env Us target scope current i nindices
 
 /-- The checked parameter prefix and tail of one executable constructor, with the field
 classification `classes` its positivity check returned. -/
@@ -306,6 +332,24 @@ structure ConstructorTails
     CheckedConstructorTailAt env Us scope stats decl
       (decl.types[familyIdx]'(size_eq ▸ hfamily)) indTypes[familyIdx].ctors[ctorIdx]
       classes[familyIdx]![ctorIdx]!
+
+theorem ConstructorTails.ofAll
+    {env : VEnv} {Us : List Name} {scope : VLCtx}
+    {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+    {indTypes : Array InductiveType} {classes : List (List (List Bool))}
+    (hsize : indTypes.size = decl.types.length)
+    (hclasses : classes.length = indTypes.size)
+    (H : ∀ (familyIdx : Nat) (hfamily : familyIdx < indTypes.size),
+      FamilyConstructorTails env Us scope stats decl
+        (decl.types[familyIdx]'(hsize ▸ hfamily)) indTypes[familyIdx].ctors
+        classes[familyIdx]!) :
+    ConstructorTails env Us scope stats decl indTypes classes where
+  size_eq := hsize
+  classes_length := hclasses
+  row_length familyIdx hfamily := by
+    rw [getElem!_pos indTypes familyIdx hfamily]
+    exact (H familyIdx hfamily).1
+  replay familyIdx hfamily ctorIdx hctor := (H familyIdx hfamily).2 ctorIdx hctor
 
 /-- The owner normal form of a constructor type: its maximal forall telescope ends in a
 valid application of family `targetIdx`. -/
