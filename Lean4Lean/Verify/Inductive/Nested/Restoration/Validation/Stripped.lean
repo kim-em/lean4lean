@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.Checks
 import Lean4Lean.Verify.Inductive.Install.BlockCertificate
+import Lean4Lean.Verify.Inductive.Install.Rebase
 
 /-! # The rule-free recursor stage is a checking environment (owner: Restoration-A)
 
@@ -73,6 +74,33 @@ theorem VEnv.WF.addConstVals_axioms : ∀ {env env' : VEnv} {vs : List VConstVal
       have hmidWF : mid.WF := ⟨_, hds.decl (.axiom (ci := v) (hv v (.head _)) hmid)⟩
       exact VEnv.WF.addConstVals_axioms hmidWF
         (fun w hw => (hv w (.tail _ hw)).mono (VEnv.addConst_le hmid)) hadd
+
+
+/-! ### Recursor facts of the stripped recursors
+
+The stripped environment's new recursors are the restored ones with their rules removed. Their
+shapes read only the model's constants, which the rule stage does not change, so the shapes in
+the output model (`RestoredBlock.recShapes`) give them at the recursor stage; and a recursor of
+a nested block is not K-like (its expanded block has an auxiliary family), so the K clause is
+vacuous. -/
+
+/-- Recursor shapes read only the constants of the model; with the rules removed, the rule
+clauses are vacuous. -/
+theorem RecursorShapesAt.stripRules {C C' : ConstMap} {venv venv' : VEnv} {r : RecursorVal}
+    (hconst : ∀ n, venv.constants n = venv'.constants n) (H : RecursorShapesAt C venv r) :
+    RecursorShapesAt C' venv' { r with rules := [] } := by
+  obtain ⟨⟨cnparams, indLevels, ctorParams, ⟨S⟩, -⟩, -⟩ := H
+  refine ⟨⟨cnparams, indLevels, ctorParams, ⟨{ S with const := ?_ }⟩, nofun⟩, nofun⟩
+  rw [← hconst]; exact S.const
+
+/-- A recursor that is not K-like satisfies the K clause. -/
+theorem KLikeRecursor.of_k_false {C : ConstMap} {venv : VEnv} {r : RecursorVal}
+    (hk : r.k = false) : KLikeRecursor C venv r := fun h => by rw [hk] at h; cases h
+
+/-- The rule stage keeps the constants. -/
+theorem addRules_constants_eq' {decl : VInductDecl} {envR env' : VEnv}
+    (h : decl.addRules envR = some env') : ∀ n, envR.constants n = env'.constants n := by
+  intro n; rw [VEnv.addRules_constants h]
 
 namespace RuleFreeStage
 
