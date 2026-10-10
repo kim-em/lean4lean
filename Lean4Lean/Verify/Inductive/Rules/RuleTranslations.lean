@@ -82,6 +82,19 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
 theorem RecursorCheck.ruleCtorParams (H : RecursorCheck R outEnv) : H.RuleCtorParams :=
   fun r hr ru hru => (H.rules_ctorParams r hr ru hru).trans H.models.nparams.symm
 
+/-- WAVE 3 COMPAT (restB): every model rule fires on one of the declaration's own constructors
+(the generator's rules are indexed by its constructors, `Models` aligns their names). -/
+theorem RecursorCheck.rules_own (H : RecursorCheck R outEnv) :
+    ∀ r ∈ H.recs, ∀ ru ∈ r.rules, ∃ c ∈ decl.constructorConstants, ru.ctor = c.name := by
+  intro r hr ru hru
+  rw [H.installation_recs] at hr
+  obtain ⟨owner, rfl⟩ := H.installation.recs_mem hr
+  obtain ⟨index, -, rule, -, htr, rfl⟩ := H.installation.modelRule_at owner hru
+  obtain ⟨_, _, hctors⟩ := H.installation.generator.models.constructors
+  obtain ⟨c, hc, hrel⟩ := Lean4Lean.List.Forall₂.forall_exists_l hctors _
+    (H.installation.generationSignature.declarationCtor_mem index)
+  exact ⟨c, hc, htr.ctor.trans hrel.1⟩
+
 end
 
 namespace RuleTranslations
@@ -171,6 +184,9 @@ theorem recursorsWF (T : RuleTranslations H) (hnonempty : indTypes.toList ≠ []
       rw [show H.decl'.addTypesCtors sourceEnv = decl.addTypesCtors sourceEnv from rfl, h] at hC
       exact (Option.some.inj hC).symm
     subst this; exact H.rules_ctor r hr ru hru
+  rules_ctorParams r hr ru hru := by
+    obtain ⟨c, hc, hn⟩ := H.rules_own r hr ru hru
+    exact .inl ⟨c, by simpa using hc, hn, H.rules_ctorParams r hr ru hru⟩
   rule_shape := H.rule_shape
   rules_wf envR hR := by
     have : envR = H.outVEnv := by

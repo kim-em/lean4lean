@@ -296,7 +296,8 @@ theorem VInductDecl.WF.rebase {decl : VInductDecl} {block : VInductBlock}
   have hP : decl.addProjs envC ≤ decl.addProjs envC' := VEnv.addProjections_mono hC
   refine ⟨?_, hblock'⟩
   refine ⟨H.source.mono_of_addConstVals hle htypes' hctors', ?_,
-    ⟨block, hcomp.mono hle hblock', hrecs⟩, ?_, H.rec_shape, H.rules_nodup, ?_, H.rule_shape, ?_⟩
+    ⟨block, hcomp.mono hle hblock', hrecs⟩, ?_, H.rec_shape, H.rules_nodup, ?_, ?_, H.rule_shape,
+    ?_⟩
   · cases H.formation with
     | ordinary h => exact .ordinary (h.mono_of_addConstVals hle htypes')
     | nested h hb => exact .nested h (hb.trans hle)
@@ -307,6 +308,11 @@ theorem VInductDecl.WF.rebase {decl : VInductDecl} {block : VInductBlock}
     rw [hCeq hC'']
     obtain ⟨ci, hci, hshape⟩ := H.rules_ctor _ hCeq₀ r hr ru hru
     exact ⟨ci, hC.constants hci, hshape⟩
+  · -- WAVE 3 COMPAT (restB): `rules_ctorParams` is monotone in the environment.
+    intro r hr ru hru
+    rcases H.rules_ctorParams r hr ru hru with h | ⟨D, hD, h⟩
+    · exact .inl h
+    · exact .inr ⟨D, VEnv.InstalledBelow.mono hle hD, h⟩
   · intro envR'' hR'' r hr ru hru hc
     rw [hReq hR'']
     exact (H.rules_wf _ hReq₀ r hr ru hru hc).mono hR

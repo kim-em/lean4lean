@@ -764,6 +764,15 @@ structure VInductDecl.WF (env : VEnv) (decl : VInductDecl) : Prop where
   nested block it is a constructor of the container, declared earlier. -/
   rules_ctor : ∀ envC, decl.addTypesCtors env = some envC → ∀ r ∈ decl.recs, ∀ ru ∈ r.rules,
     ∃ ci, envC.constants ru.ctor = some ci ∧ ci.type.CtorShape (ru.ctorParams + ru.nfields)
+  /-- WAVE 3 COMPAT (restB): the rule's constructor parameter count is that of the declaration
+  the constructor belongs to: the block's own `nparams` for its own constructors, a container's
+  for a constructor of a container installed below (the auxiliary recursors of a nested block).
+  With `rules_ctor` and `VRecRule.OfEquation` it pins the split of a rule's arity into
+  parameters and fields, which `rec_shape`'s weakened `MajorApp` no longer does. -/
+  rules_ctorParams : ∀ r ∈ decl.recs, ∀ ru ∈ r.rules,
+    (∃ c ∈ decl.constructorConstants, ru.ctor = c.name ∧ ru.ctorParams = decl.nparams) ∨
+    (∃ D, VEnv.InstalledBelow env D ∧ ∃ c ∈ D.constructorConstants,
+      ru.ctor = c.name ∧ ru.ctorParams = D.nparams)
   /-- §2.6.4, the reduct shape, tied to §2.6.3's constructor↔minor correspondence: the rule
   for `ru.ctor` reduces to minor `j`, a minor whose last argument is headed by `ru.ctor`,
   applied to the `nfields` fields and to exactly as many further arguments as the minor has
