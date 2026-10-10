@@ -12,7 +12,7 @@ source branch's definitions (`Recursor/Context/RecInfoTraversal.lean`,
 `Recursor/Binders/ParameterPrefixes.lean`, `Recursor/Context/FVarArrays.lean`,
 `Constructor/Positivity.lean`), produced by the constructor phase and recorded in
 `ConstructorCheck`. The source branch's `checkInductiveTypes.loopType.ScopedHeaderTelescope`
-(a header-phase structure) is restated here as `ConstructorScopedTelescope`. -/
+is named `ConstructorScopedTelescope` here. -/
 
 namespace Lean4Lean
 
@@ -245,22 +245,10 @@ def constructorTelescopeTarget (ctorVal : VConstVal) : VInductiveTypeSkeleton wh
   ctors := []
 
 /-- Definitional header synthesis of a constructor type in the cached parameter scope: the
-type is definitionally a telescope over the scope's parameters (and `nindices` further binders)
-ending in `current`. The source branch's `checkInductiveTypes.loopType.ScopedHeaderTelescope`. -/
-structure ConstructorScopedTelescope
-    (env : VEnv) (Us : List Name) (target : VInductiveTypeSkeleton)
-    (scope : VLCtx) (current : VExpr) (i nindices : Nat) : Type where
-  params : List VExpr
-  indices : List VExpr
-  parameterCount : params.length = i
-  indexCount : indices.length = nindices
-  scopeLength : scope.length = i + nindices
-  scopeCtx : scope.toCtx = indices.reverse ++ params.reverse
-  scopeWF : scope.WF env Us.length
-  currentType : env.IsType Us.length scope.toCtx current
-  exprType : VExpr
-  header : env.IsDefEq Us.length [] target.type
-    (VExpr.wrapForalls (params ++ indices) current) exprType
+header phase's `checkInductiveTypes.loopType.ScopedHeaderTelescope` at a constructor target. -/
+abbrev ConstructorScopedTelescope (env : VEnv) (Us : List Name) (target : VInductiveTypeSkeleton)
+    (scope : VLCtx) (current : VExpr) (i nindices : Nat) : Type :=
+  checkInductiveTypes.loopType.ScopedHeaderTelescope env Us target scope current i nindices
 
 /-- The checked parameter prefix and tail of one executable constructor, with the field
 classification `classes` its positivity check returned. -/
