@@ -1,6 +1,6 @@
 import Lean4Lean.Verify.Inductive.RecursorInput  -- WAVE 2 install COMPAT
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
-import Lean4Lean.Verify.Inductive.Recursor.Metadata
+import Lean4Lean.Verify.Inductive.Recursor.Checking
 
 /-! # The recursor phase
 
@@ -108,6 +108,10 @@ structure RecursorCheck
   installation_rvals : installation.entries.map Prod.fst = rvals.map .recInfo
   installation_signature : installation.generationSignature = signature
   installation_generation : HEq installation.generationInstance generation
+  installation_recs : recs = installation.recs
+  installation_rvals' : rvals = installation.rvals
+  /-- Every model rule fires on a constructor with the declaration's parameter count. -/
+  rules_ctorParams : ∀ r ∈ recs, ∀ ru ∈ r.rules, ru.ctorParams = decl.nparams
 
 namespace RecursorCheck
 
@@ -135,6 +139,90 @@ theorem outVEnv_wf (H : RecursorCheck R outEnv) : H.outVEnv.WF := H.checking.tr.
 
 end RecursorCheck
 
+/-- The recursor check of a recursor installation: the kernel recursors and the model recursors
+of the installation (`Recursor/Recs.lean`), the checking invariant at the recursor stage
+(`Recursor/Checking.lean`), the generator's signature and instance, and the installation
+itself. -/
+noncomputable def RecursorInstallation.toRecursorCheck
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorInstallation R outEnv) : RecursorCheck R outEnv where
+  elimLevel := H.elimLevel
+  elimLevelChecked := H.elimLevelChecked
+  kTarget := H.kTarget
+  rvals := H.rvals
+  rvals_names := by
+    have hsize : H.generationSignature.families.size = indTypes.size := H.generator.familyCount
+    apply List.ext_getElem
+    · simp [hsize]
+    · intro i h₁ h₂
+      have hi : i < H.generationSignature.families.size := by simpa using h₁
+      have hi' : i < indTypes.size := hsize ▸ hi
+      simp only [List.getElem_map, RecursorInstallation.rvals, List.getElem_ofFn,
+        Array.getElem_toList]
+      have hn : (H.rvalAt ⟨i, hi⟩).name = Lean.mkRecName indTypes[i]!.name :=
+        (H.generated.entry i (H.entries_lt ⟨i, hi⟩)).name
+      rw [hn]
+      simp [hi']
+  recs := H.recs
+  outVEnv := H.outVEnv
+  recsAdded := by
+    rw [VInductDecl.addRecs_eq_addConstVals, VInductDecl.withRecs_recs, ← H.entries_snd,
+      ← R.envP_eq]
+    exact H.installed.abstract
+  trRecs := H.trRecs
+  map_eq := H.mapEq
+  quotInit_eq := H.quotInitEq
+  fresh := H.freshRvals
+  checking := H.checkingValid
+  recsWF := H.recsWF
+  rec_shape := by
+    intro r hr
+    obtain ⟨owner, rfl⟩ := H.recs_mem hr
+    exact H.recShape owner
+  rules_nodup := by
+    intro r hr
+    obtain ⟨owner, rfl⟩ := H.recs_mem hr
+    exact H.rulesNodup owner
+  rules_ctor := H.rulesCtorAll
+  rule_shape := by
+    intro r hr
+    obtain ⟨owner, rfl⟩ := H.recs_mem hr
+    exact H.ruleShape owner
+  rules_closed := by
+    intro r hr
+    obtain ⟨owner, rfl⟩ := H.recs_mem hr
+    exact H.rulesClosed owner
+  kLike := H.kLike
+  signature := H.generationSignature
+  generation := H.generationInstance
+  models := H.generator.models
+  admissible := H.generator.admissible
+  ihsWellTyped := by rw [← R.envP_eq]; exact H.generator.generatedIHsWellTyped
+  familyTypesWF := by rw [← R.envP_eq]; exact H.generator.familyTypesWF
+  recursorNames := H.generator.names
+  recursors_eq := H.recs_recursors
+  metadata := H.metadataAll
+  closed := H.closed
+  inductInfosFromDecl := H.inductInfos
+  constructorParameterAlignment := fun Hsource => H.ctorParamAlignment Hsource
+  installation := H
+  installation_elimLevel := rfl
+  installation_kTarget := rfl
+  installation_outVEnv := rfl
+  installation_rvals := H.entries_fst
+  installation_signature := rfl
+  installation_generation := HEq.rfl
+  installation_recs := rfl
+  installation_rvals' := rfl
+  rules_ctorParams := by
+    intro r hr ru hru
+    obtain ⟨owner, rfl⟩ := H.recs_mem hr
+    obtain ⟨index, -, rule, -, -, rfl⟩ := H.modelRule_at owner hru
+    rfl
+
 /-- The boundary theorem of the recursor phase: the recursor suffix of `runWithStats`
 (elimination level, K flag, recursor infos, recursive-field check, `declareRecursors`), run in
 the constructor environment, yields a recursor check. -/
@@ -160,11 +248,9 @@ theorem RecursorInput.recursorPhasesWF  -- WAVE 2 install COMPAT
             kTarget c.lparams)
       { c with env := ctorEnv }).WF fun outEnv =>
         Nonempty (RecursorCheck R outEnv) := by
-  -- WAVE 2 STUB (Recursor/**): the source branch's `ConstructorCheck.recursorPhasesWF`
-  -- (`Recursor/Check.lean`), with `TrRecursorVal` replaced by `TrRecursor` and the shape
-  -- clauses of `VInductDecl.WF`.
-  have := hlparams; have := hsourceSafety; have := hnotPartial; have := hnprim
-  have := hpositivity; sorry
+  exact (R.recursorInstallationWF R.closed hlparams R.literalDisjoint
+    (hsourceSafety := hsourceSafety) hnotPartial hnprim hpositivity).mono
+      fun _ ⟨H⟩ => ⟨H.toRecursorCheck⟩
 
 end VerifyInductive
 end Lean4Lean

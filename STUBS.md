@@ -239,24 +239,73 @@ recursor phase imports from `Constructor/Tails.lean`: `ParameterPrefix`, `Parame
 The source's `Header/Declaration.lean` is not ported: `CheckedHeaders.declOf` selects the
 declaration from the checked headers and the raw constructor rows.
 
+## Wave 2 rec (`Verify/Inductive/Recursor/**`, `Rules/RuleSyntax.lean`, `Rules/FromTemplates.lean`)
+
+Closed: `RecursorInput.recursorPhasesWF` (the boundary theorem) and
+`InductiveSignature.VRecRule.OfEquation.ofTr`. `Recursor/**` contains no `sorry`; the boundary
+theorem's only `sorryAx` sources are the foundation stubs `VEnv.WF.patsStrong`,
+`VEnv.Model.PatValid.iota`, `VEnv.WF.patCtor_rigid`, `VEnv.IsDefEqU.weakN_iff`. Ported: the source
+branch's `Recursor/**` (65 files, about 41.8k lines) and `Rules/{RuleSyntax,FromTemplates}` (2.5k,
+lead's ruling: they sit inside the recursor chain).
+
+Structure: `RecursorInstallation` (`Recursor/Installation.lean`) is the source branch's
+`RecursorCheck` (extends `RecursorConstruction`), produced by `RecursorInput.recursorInstallationWF`
+(the source's run theorem); `Recursor/Recs.lean` reads the kernel recursors `rvals` and the model
+recursors `recs` (rules: `ctorParams := decl.nparams`, `rhs :=` the generated equation's) off it,
+with every shape clause of `VInductDecl.WF`; `Recursor/Checking.lean` proves the checking
+invariant at the recursor stage (`InstalledBlocks.addCtorStage` from the source blocks, install's
+`recursorShapesOf`); `RecursorInstallation.toRecursorCheck` (`Recursor/Check.lean`) assembles the
+frozen interface. The rule coverage is the rule phase's `RecursorInstallation.rulesCovered`
+(`Rules/Coverage.lean`).
+
+Interface changes (all agreed with the lead or the owner):
+* `RecursorCheck` gained `installation : RecursorInstallation R outEnv` with
+  `installation_{elimLevel,kTarget,outVEnv,rvals,signature,generation,recs,rvals'}` and
+  `rules_ctorParams`.
+* `RecursorCheck.trRecs` and PR #43's `AddInduct.recs` translate recursor types in the projection
+  stage (`R.envP`, `decl.addProjs envC`), where the executable checks them (`-- WAVE 2 rec COMPAT`
+  in `Verify/Environment/Basic.lean`, `Verify/Environment/Lemmas.lean`, `Install/Rebase.lean`).
+* `VRecRule.OfEquation.ofTr` takes the index-count side condition `harity`
+  (`Models.constructorArity`); `ofTrModels` discharges it from a modelling signature.
+* `RecursorInput.literalDisjoint` (install's field) supplies positivity's literal side condition.
+
+Recursor-side homes of source content that lived elsewhere on the source branch:
+`Recursor/Inputs.lean` (the source `ConstructorCheck`'s header-side members on `RecursorInput`:
+`sourceContext`, `statsWF`, `parameterScope`, `recursorHeaders`, `headerLE`/`ctorLE`/`sourceLE`,
+`find?_origin`, `headerInfo_find`, `ctorInfo_find`, `modelCtorAt`), `Recursor/SourceAlignment.lean`,
+`Recursor/Signature/RecursorTypeTelescope.lean` (from `Nested/Restoration/ExprReplace`),
+`Recursor/Signature/SourceReplay.lean` (the replay-based source signature of the source
+`Constructor/{SourceSignature,CheckedFormation}`), `Recursor/Entries/Metadata.lean` (from
+`Install/Metadata`). Dropped: the case-eliminator and telescope-certificate lemmas
+(`addEliminators`, `SourceCtorsCertified`, `CtorTelescopeAt`), `RecursorCheck.alignmentOfTr`
+(replaced by install's `recursorShapesOf`), the old `AtomicAddConstants` helpers; the constructor
+loop's production (owner normal forms, parameter prefixes) moved to `Constructor/**`.
+
 ## Wave 2 rules (`Verify/Inductive/Rules/**`)
 
-`RecursorCheck.generatedRuleTranslation` is proved. Its `rules_wf : PatTyped` clause is the
-restatement of the generated equations' `VDefEq.WF` (`Instance.equation_patTyped`,
-`Rules/IotaPatTyped.lean`; `RecursorCheck.rules_wf_of`, `Rules/RulesWF.lean`). The scaffold stub
-`generatedRuleTranslation` is now these three named stubs in `Rules/RuleTranslations.lean`:
+`RecursorCheck.generatedRuleTranslation` is proved. The source branch's `Rules/**` is ported onto
+the recursor installation (`RecursorInstallation`, the source `RecursorCheck`): `Rules/{Alignment,
+MinorContext,MinorPremise,Motive,RecursiveCallScope,RecursiveCall,RecursiveApplication,
+EquationTranslation,RecursiveBody,RecursiveResults,Rhs,Lhs,EquationWF,LhsTranslation,Translation}`,
+with the assembly in `Rules/Coverage.lean` (`RecursorInstallation.rulesCovered`, which the recursor
+phase uses to build `TrRecursor`, and `equationsWF'`). Support ported from other source
+directories into `Rules/`: `ContextLemmas.lean` (`rebaseCommonSuffix`, from `Install/Lookups`),
+`SameForallPrefix.lean` (from `Nested/Restoration/ParameterOpening` and
+`Nested/Lowering/ParameterOpening`), `InstallationLemmas.lean` (from `Install/BlockCertificate`).
+`rules_wf : PatTyped` is the restatement of the generated equations' `VDefEq.WF`
+(`Instance.equation_patTyped`, `Rules/IotaPatTyped.lean`; `RecursorCheck.rules_wf_of`,
+`Rules/RulesWF.lean`). `RecursorCheck.rules_ofEquation` gives `VInductDecl.RecsOf`'s rule clauses.
+Foundation changes met in the port: `.ordered` → `.orderedStrong` where `TrExprS.weakBV`/
+`VLCtx.IsDefEq.refl` now take `OrderedStrong`; constructor lookup through `R.core.ctorsAdded`.
+The rule chain's only `sorryAx` dependencies are the foundation's `VEnv.WF.patsStrong`,
+`Model.PatValid.iota`, `WF.patCtor_rigid`, `IsDefEqU.weakN_iff`.
 
-| statement | why open | source / unblocked by |
-|---|---|---|
-| `RecursorCheck.rulesCovered` (`RulesCovered`, the `trRules` clause) | stated against the source `RecursorCheck`'s internals (`recInfos`, `generated`, `canonicalGeneration`, `origins`, `ruleAlignment`), which the scaffold's `RecursorCheck` does not carry | source `RecursorCheck.trRules` over `Rules/{Translation,Alignment,MinorContext,...}.lean`; the Recursor agent's port of `RecursorConstruction`/`GeneratedRecursors` |
-| `RecursorCheck.equationsWF` (`EquationsWF`) | same; the typing comes from the typed rule templates (`ruleTyping : TypedRecursorRulesRange`) | source `RecursorCheck.equationsWF` (`Rules/EquationWF.lean`) |
-| `RecursorCheck.ruleCtorParams` (`RuleCtorParams`: every rule's `ctorParams` is `signature.params.length`) | `TrRecursor` reads `ctorParams` off the constructor's `ctorInfo` in `outEnv`; `ConstructorCheck` records no `numParams` of the kernel constructors | the Constructor agent's requested `ConstructorCheck` field (kernel cvals have `numParams = decl.nparams`) |
+No named stub remains in `Rules/**`. `RecursorCheck.rulesCovered`/`equationsWF` are read off the
+installation (`installation_*`); `ruleCtorParams` is the Recursor agent's `rules_ctorParams` with
+`models.nparams`.
 
-For Install: `RecursorCheck.rules_ofEquation` (`Rules/RulesWF.lean`) gives the `rules` and
-`rules_total` clauses of `VInductDecl.RecsOf` from the same three facts (via
-`RuleEquationData.ofEquation`), so `RuleTranslations.recsOf` needs only `recursors_eq` beyond it.
-`Rules/RuleSyntax.lean` and `Rules/FromTemplates.lean` are ported by the Recursor agent (lead's
-decision: the source's `Recursor/**` imports them).
+`Rules/RuleSyntax.lean` and `Rules/FromTemplates.lean` are the Recursor agent's (lead's decision:
+the source's `Recursor/**` imports them).
 
 ## Wave 2 install (`Install/**`, `Primitive/**`, `Prelude/**`, derived `RuleTranslations` facts)
 

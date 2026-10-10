@@ -293,3 +293,56 @@ end RecursorInput
 
 end VerifyInductive
 end Lean4Lean
+
+namespace Lean4Lean.VerifyInductive.RecursorInput
+open Lean hiding Environment Exception
+open Kernel
+
+variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+  {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv} {indTypes : Array InductiveType}
+  {ctorEnv : Environment}
+
+/-- The model constructor of a kernel source constructor: it lives in a family of the
+declaration, has the same name, and its Π-arity is the kernel's parameter and field count. -/
+theorem modelCtorAt (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv
+    indTypes ctorEnv) (owner : Nat) (howner : owner < indTypes.size) (l : Nat)
+    (hl : l < indTypes[owner].ctors.length) :
+    ∃ t ∈ decl.types, ∃ ctor ∈ t.ctors, ctor.name = indTypes[owner].ctors[l].name ∧
+      ctor.type.piArity = stats.params.size +
+        (AddInductive.constructorArity indTypes[owner].ctors[l].type - stats.params.size) ∧
+      stats.params.size = decl.nparams := by
+  have hlenT : R.ivals.length = decl.types.length := List.Forall₂.length_eq R.trTypes
+  have hcore := TrInductDeclCore.types_length R.core
+  simp only [Array.length_toList] at hcore
+  have hiv : owner < R.ivals.length := by omega
+  have hdt : owner < decl.types.length := by omega
+  have htr := List.forall₂_getElem_exists R.trTypes owner hiv
+  obtain ⟨_, htr⟩ := htr
+  have hivEq : R.ivals[owner] = (R.headers.infos[owner]'(by
+      have h := congrArg List.length R.ivals_eq
+      simp only [List.length_map, List.length_zip, Array.length_toList] at h
+      omega), familyCtorInfos stats c.lparams isUnsafe indTypes[owner]) := by
+    have := R.ivals_eq
+    simp only [this, List.getElem_map, List.getElem_zip, Array.getElem_toList]
+  have hcs := htr.ctors
+  rw [hivEq] at hcs
+  have hlc : l < (familyCtorInfos stats c.lparams isUnsafe indTypes[owner]).length := by
+    rw [familyCtorInfos_length]; exact hl
+  obtain ⟨hlt, hct⟩ := List.forall₂_getElem_exists hcs l hlc
+  rw [familyCtorInfos_getElem] at hct
+  refine ⟨_, List.getElem_mem hdt, _, List.getElem_mem hlt, ?_, ?_, ?_⟩
+  · exact hct.1.2.symm
+  · rw [← hct.2]; simp [AddInductive.constructorInfo]; omega
+  · have hp := R.ctor_numParams R.ivals[owner] (List.getElem_mem hiv)
+      (AddInductive.constructorInfo stats c.lparams isUnsafe indTypes[owner] l
+        (indTypes[owner].ctors[l]'(by simpa [familyCtorInfos_length] using hlc)))
+      (by rw [hivEq]; rw [← familyCtorInfos_getElem l hlc]; exact List.getElem_mem hlc)
+    simpa [AddInductive.constructorInfo] using hp
+
+end Lean4Lean.VerifyInductive.RecursorInput
+
+namespace Lean4Lean.VerifyInductive.RecursorInput
+open Lean hiding Environment Exception
+open Kernel
+
+end Lean4Lean.VerifyInductive.RecursorInput

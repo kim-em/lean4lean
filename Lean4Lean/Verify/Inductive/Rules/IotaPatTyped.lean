@@ -45,6 +45,24 @@ theorem vars_append (a b : Nat) : vars a b ++ vars b 0 = vars (a + b) 0 := by
 theorem vars_zero_eq (n : Nat) : vars n 0 = (List.range n).reverse.map .bvar := by
   simp [vars]
 
+theorem vars_map_liftN_hi (count below n k : Nat) (h : k ≤ below) :
+    (vars count below).map (fun e => e.liftN n k) = vars count (below + n) := by
+  simp only [vars, List.map_map, Function.comp_def]
+  apply List.map_congr_left
+  intro i _
+  simp only [VExpr.liftN, liftVar]
+  rw [if_neg (by omega)]
+  congr 1; omega
+
+theorem vars_map_liftN_lo (count below n k : Nat) (h : below + count ≤ k) :
+    (vars count below).map (fun e => e.liftN n k) = vars count below := by
+  simp only [vars, List.map_map, Function.comp_def]
+  apply List.map_congr_left
+  intro i hi
+  simp only [List.mem_reverse, List.mem_range] at hi
+  simp only [VExpr.liftN, liftVar]
+  rw [if_pos (by omega)]
+
 end InductiveSignature
 
 /-! ### Generic instances of a reduct -/
