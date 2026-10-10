@@ -1,19 +1,32 @@
 import Lean4Lean.Theory.Typing.HeadInversionDefs
 import Lean4Lean.Theory.Typing.HeadInjectivity.Fields
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Separation
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.EnvValid
 
 /-! # Head inversion for types: the base obligation of the inversion layer
 
 The statements (`HeadInversion`, `HeadSeparation`, `HeadInjectivity`) and the chain lemmas are in
 `HeadInversionDefs.lean`. Both halves are proved for every well-formed environment from the glued
-observation model (`Theory/Typing/HeadInjectivity/Model/`, on the verified-inductives branch):
-separation by `VEnv.WF.headSeparationModel`, injectivity by `VEnv.WF.chainHeadInjectivity`.
+observation model (`Theory/Typing/HeadInjectivity/Model/`): separation by
+`VEnv.WF.headSeparationModel`, injectivity by `VEnv.WF.chainHeadInjectivity`. Every inversion
+lemma of `Injectivity.lean` and uniqueness of types (`IsDefEq.uniq`) are derived from these two
+statements through the syntactic layer (`HeadInjectivity/{ChainInjectivity, Congruence,
+FieldType, Uniqueness, Fields}.lean`).
 
-**Wave 0 of the port onto the ι pattern calculus**: the model is not yet ported, so its two
-theorems are stated here as stubs (`sorry`, marked `WAVE 0 STUB`), to be proved in wave 1C by
-porting the model with a `pat` clause in its rule soundness (`Model/RuleSound.lean`). Every
-inversion lemma of `Injectivity.lean` and uniqueness of types (`IsDefEq.uniq`) are derived
-from these two statements through the syntactic layer (`HeadInjectivity/{ChainInjectivity,
-Congruence, FieldType, Uniqueness, Fields}.lean`), which is ported and proved.
+**What the model's theorems depend on, on the ι pattern calculus.** The model interprets
+*strong* derivations (`IsDefEqStrong`), and its extraction turns a weak `TypeChain` link into a
+strong derivation by `IsDefEq.strong` (`Model.chain_sub`, `Model.spine_data`), which on this
+calculus takes `VEnv.OrderedStrong`, whose `pats` field is `VEnv.WF.patsStrong` (subject
+reduction of the registered ι rules, the open theorem of PR #43). The substitution theorems the
+model uses (`IsDefEq.substDF`, `IsDefEqStrong.substEq'`, `HasType.subst`) and the inversion
+lemmas (`HasType.app_inv`, `HasType.const_inv`) take `OrderedStrong` for the same reason. So
+`VEnv.WF.chainHeadInjectivity`, `VEnv.WF.headSeparationModel`, and everything below them
+(`VEnv.WF.headInversion`, `IsDefEq.uniq`, `Injectivity.lean`) are conditional on
+`VEnv.WF.patsStrong`, through `VEnv.WF.orderedStrong`; the model does not use `patsStrong`
+anywhere else, and no history-induction organisation avoids the use, since the extraction's
+input is a weak chain. They are also conditional on the two wave 1C stubs recorded in
+`STUBS.md`: `Model.PatValid.iota` (the `pat` case of soundness for the registered ι rules,
+`Model/PatSound.lean`) and `VEnv.WF.patCtor_rigid` (`Model/WFFacts.lean`).
 
 This file and the model do not import `UniqueTyping`, `Injectivity`, `ChurchRosser`,
 `FullReduction` or `HeadReduction` (section 4.1 of the design notes). -/
@@ -21,25 +34,18 @@ This file and the model do not import `UniqueTyping`, `Injectivity`, `ChurchRoss
 namespace Lean4Lean
 namespace VEnv
 
-/-- Chain-level head injectivity for every well-formed environment, from soundness of the
-glued observation model (`HeadInjectivity/Model/EnvValid.lean` on the source branch).
-
-WAVE 0 STUB: the model is ported in wave 1C, with a `pat` clause for the registered ι rules
-(`env.pats`) in place of the stored-equation clause. -/
+/-- **Chain-level head injectivity** for every well-formed environment, from soundness of the
+glued observation model (`VEnv.WF.soundEnv`, `HeadInjectivity/Model/EnvValid.lean`). -/
 theorem _root_.Lean4Lean.VEnv.WF.chainHeadInjectivity {env : VEnv} (henv : env.WF) :
-    env.ChainHeadInjectivity := by
-  -- WAVE 0 STUB
-  sorry
+    env.ChainHeadInjectivity :=
+  WF.chainHeadInjectivity_of_sound henv henv.soundEnv
 
-/-- Separation for every well-formed environment, from the glued observation model
-(`HeadInjectivity/Model/Separation.lean` on the source branch): a sort has a `sort`
-observation, a Pi type a `piDom` observation, a rigid spine neither.
-
-WAVE 0 STUB: the model is ported in wave 1C. -/
+/-- **Head separation** for every well-formed environment, from the glued observation model
+(`HeadInjectivity/Model/Separation.lean`): a sort has a `sort` observation, a Pi type a `piDom`
+observation, a rigid spine neither. -/
 theorem _root_.Lean4Lean.VEnv.WF.headSeparationModel {env : VEnv} (henv : env.WF) :
-    env.HeadSeparation := by
-  -- WAVE 0 STUB
-  sorry
+    env.HeadSeparation :=
+  WF.headSeparation_of_sound henv henv.soundEnv
 
 /-- Separation for every well-formed environment, from the glued observation model. -/
 theorem _root_.Lean4Lean.VEnv.WF.headSeparation {env : VEnv} (henv : env.WF) :

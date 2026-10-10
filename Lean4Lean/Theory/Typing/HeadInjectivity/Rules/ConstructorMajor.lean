@@ -9,6 +9,9 @@ the constructor heading the final argument of a λ-wrapped definitional axiom
 (`VExpr.forallResult`, `VEnv.CtorResultRigid`). On the ι pattern calculus the recursor rules
 live in `VEnv.pats`, so the only `defeqs` entry with a constructor major is the quotient rule. -/
 
+deriving instance DecidableEq for Lean4Lean.VLevel
+deriving instance DecidableEq for Lean4Lean.VExpr
+
 namespace Lean4Lean
 
 /-- The final major argument of a λ-wrapped definitional axiom is headed by `name`. -/
