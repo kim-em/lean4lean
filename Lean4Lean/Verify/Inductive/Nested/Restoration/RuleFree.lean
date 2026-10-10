@@ -228,8 +228,10 @@ theorem stripRecursorRules_find?_eq_strip {source outEnv : Environment}
     (hnames : ∀ x ∈ names, x ∈ entries.map (·.name)) :
     (stripRecursorRules outEnv names).constants.WF ∧
     (addConstsEnv source (stripEntries names entries)).constants.WF ∧
+    (∀ x, (stripRecursorRules outEnv names).constants.find? x =
+      (addConstsEnv source (stripEntries names entries)).constants.find? x) ∧
     ∀ x, (stripRecursorRules outEnv names).constants.find? x =
-      (addConstsEnv source (stripEntries names entries)).constants.find? x := by
+      (outEnv.constants.find? x).map (stripRecCI names x) := by
   have houtWF : outEnv.constants.WF := by
     rw [hmap]; exact insertConsts_wf hsourceWF hfresh hnodup
   have hstripNames : (stripEntries names entries).map (·.name) = entries.map (·.name) := by
@@ -257,7 +259,7 @@ theorem stripRecursorRules_find?_eq_strip {source outEnv : Environment}
       exact insertConsts_map₂_contains hsourceWF.map₂ hst ci hci
     · exact .inl rfl
   obtain ⟨hstripWF, hstrip⟩ := stripRecursorRules_find? names outEnv houtWF houtNames hrepl
-  refine ⟨hstripWF, hS0WF, fun x => ?_⟩
+  refine ⟨hstripWF, hS0WF, fun x => ?_, hstrip⟩
   rw [hstrip x, addConstsEnv_constants, hmap]
   by_cases hx : ∃ ci ∈ entries, ci.name = x
   · obtain ⟨ci, hci, rfl⟩ := hx
@@ -283,6 +285,258 @@ theorem stripRecursorRules_find?_eq_strip {source outEnv : Environment}
         obtain ⟨d, hd, rfl⟩ := List.mem_map.mp (hnames x hxn)
         rw [hfresh d hd] at hs; cases hs
       simp [stripRecCI, hxn]
+
+/-! ### Transport from the output to the rule-free environment -/
+
+theorem stripRecCI_eq_inductInfo {names : List Name} {x : Name} {ci : ConstantInfo}
+    {v : InductiveVal} : stripRecCI names x ci = .inductInfo v ↔ ci = .inductInfo v := by
+  unfold stripRecCI; split
+  · cases ci <;> simp
+  · rfl
+
+theorem stripRecCI_eq_ctorInfo {names : List Name} {x : Name} {ci : ConstantInfo}
+    {v : ConstructorVal} : stripRecCI names x ci = .ctorInfo v ↔ ci = .ctorInfo v := by
+  unfold stripRecCI; split
+  · cases ci <;> simp
+  · rfl
+
+/-- A recursor value with its rules removed. -/
+abbrev _root_.Lean.RecursorVal.stripRules (r : RecursorVal) : RecursorVal := { r with rules := [] }
+
+/-- A model recursor with its rules removed. -/
+abbrev _root_.Lean4Lean.VRecursor.stripRules (r : VRecursor) : VRecursor := { r with rules := [] }
+
+/-- **Stripped recursor translation**: removing the rules of a recursor and of its model
+keeps the translation, in any constant map. -/
+theorem TrRecursor.stripRules {safety : DefinitionSafety} {envC envR : VEnv} {m m' : ConstMap}
+    {rval : RecursorVal} {r : VRecursor} (H : TrRecursor safety envC envR m rval r) :
+    TrRecursor safety envC envR m' rval.stripRules r.stripRules where
+  tr := H.tr
+  all := H.all
+  numParams := H.numParams
+  numMotives := H.numMotives
+  numMinors := H.numMinors
+  numIndices := H.numIndices
+  k := H.k
+  rules := .nil
+
+theorem consts_stripEntries (ivals : List (InductiveVal × List ConstructorVal))
+    (rvals : List RecursorVal) :
+    stripEntries (rvals.map (·.name)) (AddInduct.consts ivals rvals) =
+      AddInduct.consts ivals (rvals.map RecursorVal.stripRules) := by
+  have hnr : ∀ (l : List ConstantInfo), (∀ ci ∈ l, ∀ r, ci ≠ .recInfo r) →
+      l.map (fun ci => stripRecCI (rvals.map (·.name)) ci.name ci) = l := by
+    intro l hl
+    conv => rhs; rw [← List.map_id l]
+    exact List.map_congr_left fun ci hci => stripRecCI_nonrec (hl ci hci)
+  simp only [stripEntries, AddInduct.consts, List.map_append]
+  congr 1
+  · congr 1
+    · exact hnr _ (by intro ci hci r h; obtain ⟨_, _, rfl⟩ := List.mem_map.mp hci; cases h)
+    · exact hnr _ (by
+        intro ci hci r h
+        obtain ⟨_, _, hc⟩ := List.mem_flatMap.mp hci
+        obtain ⟨_, _, rfl⟩ := List.mem_map.mp hc; cases h)
+  · simp only [List.map_map]
+    apply List.map_congr_left
+    intro r hr
+    have hmem : (ConstantInfo.recInfo r).name ∈ rvals.map (·.name) := List.mem_map_of_mem hr
+    show stripRecCI _ (ConstantInfo.recInfo r).name (.recInfo r) = _
+    unfold stripRecCI
+    rw [if_pos hmem]; rfl
+
+/-- **The rule-free stage of a block installation.** From the step data of an inductive block
+installed into `outEnv` (its kernel constants, translations and stages) and the facts of
+`RuleFreeStage` at the output, the block with every recursor's rules removed is installed into
+the rule-free environment `addConstsEnv env (stripEntries names entries)`, whose lookups are
+those of `stripRecursorRules outEnv names`, and the stripped environment is a valid checking
+environment of the recursor stage. -/
+theorem stripRecursorRules.checkingValidOfBlock {safety : DefinitionSafety} {env outEnv : Environment}
+    {venv envT envC envR venvOut : VEnv} {decl : VInductDecl} {recs : List VRecursor}
+    {ivals : List (InductiveVal × List ConstructorVal)} {rvals : List RecursorVal}
+    {entries : List ConstantInfo}
+    (hin : CheckingEnv.Valid safety env venv)
+    (hT : decl.addTypes venv = some envT) (hC : decl.addCtors envT = some envC)
+    (hR : ({ decl with recs := recs } : VInductDecl).addRecs (decl.addProjs envC) = some envR)
+    (hrules : ({ decl with recs := recs } : VInductDecl).addRules envR = some venvOut)
+    (htypes : List.Forall₂ (fun iv t => TrIndType safety venv envT iv.1 iv.2 t) ivals decl.types)
+    (hrecs : List.Forall₂ (TrRecursor safety (decl.addProjs envC) envR outEnv.constants)
+      rvals recs)
+    (hperm : entries.Perm (AddInduct.consts ivals rvals))
+    (hfresh : ∀ ci ∈ AddInduct.consts ivals rvals, env.constants.find? ci.name = none)
+    (hnodupEntries : (entries.map (·.name)).Nodup)
+    (hmap : outEnv.constants = insertConsts env.constants entries)
+    (hquot : outEnv.quotInit = env.quotInit)
+    (henvP : (decl.addProjs envC).WF)
+    (hrecsWF : ∀ r ∈ recs, r.toVConstVal.toVConstant.WF (decl.addProjs envC))
+    (hnonprimitive : ∀ ci ∈ AddInduct.consts ivals rvals,
+      ¬ Kernel.Environment.primitives.contains ci.name)
+    (hlisted : ListedConstructorsPresent env)
+    (htypeUvars : ∀ T ∈ decl.types, T.uvars = decl.uvars)
+    (hctorUvars : ∀ c ∈ decl.constructorConstants, c.uvars = decl.uvars)
+    (horigins : InductInfosFromDecl env.constants outEnv.constants decl)
+    (hcover : ∀ T ∈ decl.types,
+      ∃ v, outEnv.find? T.name = some (.inductInfo v) ∧ env.find? T.name = none)
+    (howners : ConstructorOwnersPresent outEnv)
+    (hrecMajor : ∀ r ∈ rvals, ∃ info, outEnv.find? r.getMajorInduct = some (.inductInfo info))
+    (hk : ∀ r ∈ rvals, r.k = false)
+    (hshapes : ∀ r ∈ rvals, safety ≤ (ConstantInfo.recInfo r).safety →
+      RecursorShapesAt outEnv.constants venvOut r) :
+    CheckingEnv.Valid safety (stripRecursorRules outEnv (rvals.map (·.name))) envR := by
+  let names := rvals.map (·.name)
+  let decl0 : VInductDecl := { decl with recs := recs.map VRecursor.stripRules }
+  let rvals0 := rvals.map RecursorVal.stripRules
+  let S0 := addConstsEnv env (stripEntries names entries)
+  have hsourceWF : env.constants.WF := hin.tr.map_wf
+  have hsourceNames : ∀ x ci, env.constants.find? x = some ci → ci.name = x := by
+    intro x ci h
+    exact hin.tr.find?_name (by rw [Kernel.Environment.find?, hsourceWF.find?'_eq_find?]; exact h)
+  have hfreshE : ∀ ci ∈ entries, env.constants.find? ci.name = none :=
+    fun ci hci => hfresh ci (hperm.mem_iff.mp hci)
+  have hnamesE : ∀ x ∈ names, x ∈ entries.map (·.name) := by
+    intro x hx
+    obtain ⟨r, hr, rfl⟩ := List.mem_map.mp hx
+    refine List.mem_map.mpr ⟨.recInfo r, hperm.mem_iff.mpr ?_, rfl⟩
+    simp [AddInduct.consts, hr]
+  obtain ⟨hstripWF, hS0WF, hfindEq, hstripFind⟩ := stripRecursorRules_find?_eq_strip
+    hsourceWF hsourceNames hfreshE hnodupEntries hmap hnamesE
+  have houtWF : outEnv.constants.WF := by
+    rw [hmap]; exact insertConsts_wf hsourceWF hfreshE hnodupEntries
+  have hS0map : ∀ x, S0.constants.find? x = (outEnv.constants.find? x).map (stripRecCI names x) :=
+    fun x => (hfindEq x).symm.trans (hstripFind x)
+  have hS0find : ∀ x, S0.find? x = (outEnv.find? x).map (stripRecCI names x) := by
+    intro x
+    rw [Kernel.Environment.find?, Kernel.Environment.find?, hS0WF.find?'_eq_find?,
+      houtWF.find?'_eq_find?, hS0map]
+  have hind : ∀ {x v}, outEnv.find? x = some (.inductInfo v) → S0.find? x = some (.inductInfo v) := by
+    intro x v h; rw [hS0find, h]; simp [stripRecCI_eq_inductInfo]
+  have hind' : ∀ {x v}, S0.find? x = some (.inductInfo v) → outEnv.find? x = some (.inductInfo v) := by
+    intro x v h; rw [hS0find] at h
+    cases h' : outEnv.find? x <;> rw [h'] at h <;> simp at h
+    rw [stripRecCI_eq_inductInfo.mp h]
+  have hctor : ∀ {x v}, outEnv.find? x = some (.ctorInfo v) → S0.find? x = some (.ctorInfo v) := by
+    intro x v h; rw [hS0find, h]; simp [stripRecCI_eq_ctorInfo]
+  have hctor' : ∀ {x v}, S0.find? x = some (.ctorInfo v) → outEnv.find? x = some (.ctorInfo v) := by
+    intro x v h; rw [hS0find] at h
+    cases h' : outEnv.find? x <;> rw [h'] at h <;> simp at h
+    rw [stripRecCI_eq_ctorInfo.mp h]
+  have hindMap : ∀ {x v}, outEnv.constants.find? x = some (.inductInfo v) →
+      S0.constants.find? x = some (.inductInfo v) := by
+    intro x v h; rw [hS0map, h]; simp [stripRecCI_eq_inductInfo]
+  have hindMap' : ∀ {x v}, S0.constants.find? x = some (.inductInfo v) →
+      outEnv.constants.find? x = some (.inductInfo v) := by
+    intro x v h; rw [hS0map] at h
+    cases h' : outEnv.constants.find? x <;> rw [h'] at h <;> simp at h
+    rw [stripRecCI_eq_inductInfo.mp h]
+  have hctorMap : ∀ {x v}, outEnv.constants.find? x = some (.ctorInfo v) →
+      S0.constants.find? x = some (.ctorInfo v) := by
+    intro x v h; rw [hS0map, h]; simp [stripRecCI_eq_ctorInfo]
+  have hconsts0 : AddInduct.consts ivals rvals0 = stripEntries names (AddInduct.consts ivals rvals) :=
+    (consts_stripEntries ivals rvals).symm
+  have hmem0 : ∀ ci ∈ AddInduct.consts ivals rvals0, ∃ d ∈ AddInduct.consts ivals rvals,
+      ci.name = d.name := by
+    intro ci hci
+    rw [hconsts0] at hci
+    obtain ⟨d, hd, rfl⟩ := List.mem_map.mp hci
+    exact ⟨d, hd, stripRecCI_name _ _ _⟩
+  have hrulesNone : ∀ (rs : List VRecursor) (e : VEnv), (∀ r ∈ rs, r.rules = []) →
+      rs.foldlM (init := e) (fun e r => r.rules.foldlM (init := e) fun e ru => e.addRecRule r ru)
+        = some e := by
+    intro rs
+    induction rs with
+    | nil => intro e _; rfl
+    | cons r rs ih =>
+      intro e hr
+      simp only [List.foldlM_cons, hr r (.head _), List.foldlM_nil]
+      exact ih e fun r' h' => hr r' (.tail _ h')
+  have hrules0 : ∀ r ∈ decl0.recs, r.rules = [] := by
+    intro r hr
+    obtain ⟨r', -, rfl⟩ := List.mem_map.mp hr
+    rfl
+  let H0 : AddInduct safety env.constants venv decl0 S0.constants envR := {
+    ivals := ivals
+    rvals := rvals0
+    envT := envT
+    envC := envC
+    envR := envR
+    stT := hT
+    stC := hC
+    stR := by
+      rw [VInductDecl.addRecs_eq_addConstVals] at hR ⊢
+      have h1 : (recs.map VRecursor.stripRules).map (·.toVConstVal) = recs.map (·.toVConstVal) := by
+        simp [List.map_map, Function.comp_def]
+      exact (congrArg (fun l => (decl.addProjs envC).addConstVals l) h1).trans hR
+    stP := hrulesNone _ _ hrules0
+    types := htypes
+    recs := by
+      refine List.forall₂_map_left_iff.mpr (List.forall₂_map_right_iff.mpr ?_)
+      exact Lean4Lean.List.Forall₂.imp (fun _ _ h => TrRecursor.stripRules h) hrecs
+    order := stripEntries names entries
+    order_perm := by rw [hconsts0]; exact hperm.map _
+    fresh := by
+      intro ci hci
+      obtain ⟨d, hd, hname⟩ := hmem0 ci hci
+      rw [hname]; exact hfresh d hd
+    map_eq := addConstsEnv_constants _ _ }
+  have F : RuleFreeStage safety env venv decl0 S0 envR H0 := {
+    rules_empty := hrules0
+    quotInit := addConstsEnv_quotInit _ _
+    envP_wf := henvP
+    recs_wf := by
+      intro r hr
+      obtain ⟨r', hr', rfl⟩ := List.mem_map.mp hr
+      exact hrecsWF r' hr'
+    nonprimitive := by
+      intro ci hci
+      obtain ⟨d, hd, hname⟩ := hmem0 ci hci
+      rw [hname]; exact hnonprimitive d hd
+    listedPresent := hlisted
+    typeUvars := htypeUvars
+    constructorUvars := hctorUvars
+    origins := by
+      intro familyName familyInfo h
+      rcases horigins familyName familyInfo (hindMap' h) with hold | ⟨idx, hn, ⟨A⟩⟩
+      · exact .inl hold
+      · refine .inr ⟨idx, hn, ⟨{ A with
+          lookup := hindMap A.lookup
+          constructor := fun i hi => let ⟨D⟩ := A.constructor i hi
+            ⟨{ D with lookup := hctorMap D.lookup }⟩ }⟩⟩
+    cover := by
+      intro T hT
+      obtain ⟨v, hv, hnone⟩ := hcover T hT
+      exact ⟨v, hind hv, hnone⟩
+    owners := by
+      intro name info h
+      obtain ⟨owner, hown, hrest⟩ := howners name info (hctor' h)
+      exact ⟨owner, hind hown, hrest⟩
+    recMajor := by
+      intro r hr
+      obtain ⟨r', hr', rfl⟩ := List.mem_map.mp hr
+      obtain ⟨info, hinfo⟩ := hrecMajor r' hr'
+      exact ⟨info, hind hinfo⟩
+    recK := by
+      intro r hr _
+      obtain ⟨r', hr', rfl⟩ := List.mem_map.mp hr
+      exact KLikeRecursor.of_k_false (hk r' hr')
+    recShapes := by
+      intro r hr hsafe
+      obtain ⟨r', hr', rfl⟩ := List.mem_map.mp hr
+      exact RecursorShapesAt.stripRules (fun n => (addRules_constants_eq' hrules n).symm)
+        (hshapes r' hr' hsafe) }
+  have hstripQuot : ∀ (ns : List Name) (e : Environment),
+      (stripRecursorRules e ns).quotInit = e.quotInit := by
+    intro ns
+    induction ns with
+    | nil => intro e; rfl
+    | cons n ns ih =>
+      intro e
+      show (stripRecursorRules (match e.find? n with
+          | some (.recInfo info) => e.add (.recInfo { info with rules := [] })
+          | _ => e) ns).quotInit = _
+      rw [ih]
+      split <;> rfl
+  exact stripRecursorRules.checkingValid hin H0 F hstripWF (fun n => (hfindEq n).symm)
+    (by rw [hstripQuot, hquot]; exact (addConstsEnv_quotInit _ _).symm)
 
 end VerifyInductive
 end Lean4Lean
