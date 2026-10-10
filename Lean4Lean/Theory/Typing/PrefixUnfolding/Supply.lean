@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.PrefixUnfolding.Renaming
+import Lean4Lean.Theory.Typing.RestorationShapes
 
 /-! Supplying the next recursor argument specializes the generated residual
 lambda term. This is the concrete overlap between two recursor prefixes. -/

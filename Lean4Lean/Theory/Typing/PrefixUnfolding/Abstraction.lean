@@ -3,6 +3,7 @@ import Lean4Lean.Theory.Typing.PrefixUnfolding.Generation
 import Lean4Lean.Theory.Typing.PrefixUnfolding.Renaming
 import Lean4Lean.Theory.Typing.PrefixUnfolding.Rule
 import Batteries.Tactic.OpenPrivate
+import Lean4Lean.Theory.Typing.RestorationShapes
 
 /-! Typed abstraction of an opened recursor prefix. -/
 
@@ -19,8 +20,8 @@ theorem HasType.supply (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     cases type <;> try contradiction
     rename_i domain body
     have hfa : VExpr.WF env U Γ (.app fn arg) :=
-      VExpr.WF.of_mkApps henv.ordered hΓ (f := .app fn arg) H
-    obtain ⟨domain', body', hf', ha⟩ := hfa.app_inv henv.ordered hΓ
+      VExpr.WF.of_mkApps henv.orderedStrong hΓ (f := .app fn arg) H
+    obtain ⟨domain', body', hf', ha⟩ := hfa.app_inv henv.orderedStrong hΓ
     obtain ⟨⟨_, hdom⟩, _, _⟩ := (hf.uniqU henv hΓ hf').forallE_inv henv hΓ
     have harg := ha.defeqU_r henv hΓ ⟨_, hdom.symm⟩
     exact ih (hf.app harg) H hg

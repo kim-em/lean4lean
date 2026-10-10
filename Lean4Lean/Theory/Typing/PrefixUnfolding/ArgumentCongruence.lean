@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.PrefixUnfolding.NormalCongruence
+import Lean4Lean.Theory.Typing.RestorationShapes
 
 /-! # Prefix unfoldings along related supplied arguments
 

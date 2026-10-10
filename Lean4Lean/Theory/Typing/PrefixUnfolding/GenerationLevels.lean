@@ -2,7 +2,6 @@ import Lean4Lean.Theory.Typing.PrefixUnfolding.LevelCongruence
 import Lean4Lean.Theory.Inductive.QuotPrefixUnfolding
 import Lean4Lean.Theory.Inductive.RecursorSchema
 import Lean4Lean.Theory.Typing.LevelEquiv
-import Lean4Lean.Theory.Inductive.SingletonReconstruction
 import Lean4Lean.Theory.Typing.PrefixUnfolding.Generation
 
 namespace Lean4Lean.InductiveSignature.RecursorData

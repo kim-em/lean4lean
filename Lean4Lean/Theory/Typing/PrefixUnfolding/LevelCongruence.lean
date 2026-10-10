@@ -28,8 +28,8 @@ theorem HasType.eqUpToLevels_both (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U)
     (H : HasType env U Γ e A) (he : EqUpToLevels U e e') (hA : EqUpToLevels U A A') :
     HasType env U Γ e' A' := by
   obtain ⟨u, htype⟩ := H.isType henv.ordered hΓ
-  have he' := (H.eqUpToLevels henv.ordered hΓ he).hasType.2
-  exact he'.defeqU_r henv hΓ ⟨_, htype.eqUpToLevels henv.ordered hΓ hA⟩
+  have he' := (H.eqUpToLevels henv.orderedStrong hΓ he).hasType.2
+  exact he'.defeqU_r henv hΓ ⟨_, htype.eqUpToLevels henv.orderedStrong hΓ hA⟩
 
 private theorem levelsContext (henv : env.WF) (_hΓ : OnCtx Γ (env.IsType U))
     (he : List.Forall₂ (EqUpToLevels U) domains domains')
@@ -39,7 +39,7 @@ private theorem levelsContext (henv : env.WF) (_hΓ : OnCtx Γ (env.IsType U))
   | nil => exact .zero
   | cons hd hs ih =>
     obtain ⟨u, ht⟩ := hc.2
-    exact .succ (ih hc.1) (ht.eqUpToLevels henv.ordered hc.1 hd)
+    exact .succ (ih hc.1) (ht.eqUpToLevels henv.orderedStrong hc.1 hd)
 
 private theorem levels_spine_inv (H : EqUpToLevels U (VExpr.mkApps fn args) output) :
     ∃ fn' args', output = VExpr.mkApps fn' args' ∧ EqUpToLevels U fn fn' ∧
@@ -71,7 +71,7 @@ theorem ConstSpineDefEq.congr_levels (henv : env.WF) (hΓ : OnCtx Γ (env.IsType
           cases has with | cons ha has =>
             cases hes with | cons he hes =>
               obtain ⟨A, ht⟩ := h
-              exact .cons ⟨A, ((ht.symm.eqUpToLevels henv.ordered hΓ ha).symm.eqUpToLevels henv.ordered hΓ he)⟩
+              exact .cons ⟨A, ((ht.symm.eqUpToLevels henv.orderedStrong hΓ ha).symm.eqUpToLevels henv.orderedStrong hΓ he)⟩
                 (ih _ has _ hes)
 
 end Lean4Lean.VEnv
@@ -148,7 +148,7 @@ theorem UnfoldingCheck.congr_levels (henv : env.WF) (hΓ : OnCtx Γ (env.IsType 
     exact ((H.captures_typed j hj₀ hd₀).eqUpToLevels_both henv hctx he ht).defeqDFC henv W
   · obtain ⟨proposition, hprop, hmajor, hctor⟩ := H.major_prop
     exact ⟨proposition, hprop.defeqDFC henv W, hmajor.defeqDFC henv W,
-      ((hctor.eqUpToLevels henv.ordered hctx hp.constructor).hasType.2).defeqDFC henv W⟩
+      ((hctor.eqUpToLevels henv.orderedStrong hctx hp.constructor).hasType.2).defeqDFC henv W⟩
   · apply ConstSpineDefEq.defeqDFC henv W
     apply H.recursor_lhs.congr_levels henv hctx
     · rw [← hlength]

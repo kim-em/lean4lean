@@ -3,6 +3,7 @@ import Lean4Lean.Theory.Typing.SingletonExtraction.Recursor
 import Lean4Lean.Theory.Typing.PrefixUnfolding.Rule
 import Lean4Lean.Theory.Typing.PrefixUnfolding.QuotLift
 import Batteries.Tactic.OpenPrivate
+import Lean4Lean.Theory.Typing.RestorationShapes
 
 namespace Lean4Lean.InductiveSignature.RecursorSchema
 open VExpr VEnv

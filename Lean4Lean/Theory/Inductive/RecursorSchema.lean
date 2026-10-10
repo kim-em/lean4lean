@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Inductive.Restoration
+import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.ConstructorMajor
 
 /-! # The schema of a registered recursor
@@ -142,3 +143,51 @@ theorem ClosedN.wrapForalls_closed {domains : List VExpr} {body : VExpr} {n : Na
     · simpa [Nat.add_assoc, Nat.add_comm 1] using hbody
 
 end Lean4Lean.VExpr
+
+namespace Lean4Lean.InductiveSignature
+
+/-- `instantiateParams` is the outer instantiation. -/
+theorem instantiateParams_eq_instOuter (body : VExpr) (args : List VExpr) :
+    instantiateParams body args = body.instOuter args := by
+  rw [VExpr.instOuter_eq_subst]
+  rfl
+
+/-- Simultaneous parameter substitution of a scoped template commutes with substitution. -/
+theorem instantiateParams_subst {body : VExpr} {arguments : List VExpr}
+    (hc : body.ClosedN arguments.length) (σ : VExpr.Subst) :
+    (instantiateParams body arguments).subst σ =
+      instantiateParams body (arguments.map (·.subst σ)) := by
+  let σ₀ : VExpr.Subst := fun i =>
+    if hi : i < arguments.length then arguments[arguments.length - 1 - i]
+    else .bvar (i - arguments.length)
+  change (body.subst σ₀).subst σ = _
+  rw [VExpr.subst_subst]
+  unfold instantiateParams
+  apply VExpr.subst_congr_closedN hc
+  intro i hi
+  simp [σ₀, VExpr.Subst.comp, hi]
+
+/-- Simultaneous parameter substitution of a scoped template commutes with renaming. -/
+theorem instantiateParams_lift' {body : VExpr} {arguments : List VExpr}
+    (hc : body.ClosedN arguments.length) (ρ : Lift) :
+    (instantiateParams body arguments).lift' ρ =
+      instantiateParams body (arguments.map (·.lift' ρ)) := by
+  let σ₀ : VExpr.Subst := fun i =>
+    if hi : i < arguments.length then arguments[arguments.length - 1 - i]
+    else .bvar (i - arguments.length)
+  change (body.subst σ₀).lift' ρ = _
+  rw [VExpr.lift'_subst]
+  unfold instantiateParams
+  apply VExpr.subst_congr_closedN hc
+  intro i hi
+  simp only [σ₀, VExpr.Subst.lift_r, List.length_map, dif_pos hi, List.getElem_map]
+
+/-- Simultaneous parameter substitution of a scoped template commutes with instantiation. -/
+theorem instantiateParams_instN {body : VExpr} {arguments : List VExpr}
+    (hc : body.ClosedN arguments.length) {value : VExpr} {k : Nat} :
+    (instantiateParams body arguments).inst value k =
+      instantiateParams body (arguments.map fun arg => arg.inst value k) := by
+  simpa only [← VExpr.instN_eq] using
+    instantiateParams_subst hc (VExpr.Subst.liftN (VExpr.Subst.one value) k)
+
+end Lean4Lean.InductiveSignature

@@ -3,6 +3,7 @@ import Lean4Lean.Theory.Typing.NormalSubstitution
 import Lean4Lean.Theory.Typing.PrefixUnfolding.Abstraction
 import Lean4Lean.Theory.Typing.RecursorRuleRegistration
 import Lean4Lean.Theory.Typing.PrefixUnfolding.Arity
+import Lean4Lean.Theory.Typing.RestorationShapes
 
 namespace Lean4Lean.VEnv
 open VExpr Params InductiveSignature InductiveSignature.RecursorData

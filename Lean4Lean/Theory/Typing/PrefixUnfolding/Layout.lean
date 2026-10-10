@@ -50,7 +50,7 @@ theorem mkApps_arguments_wf (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
   | nil => exact ⟨H, by simp⟩
   | cons a args ih =>
     obtain ⟨hf, hargs⟩ := ih H
-    obtain ⟨_, _, hf', ha⟩ := hf.app_inv henv.ordered hΓ
+    obtain ⟨_, _, hf', ha⟩ := hf.app_inv henv.orderedStrong hΓ
     refine ⟨⟨_, hf'⟩, ?_⟩
     intro arg hm
     rcases List.mem_cons.mp hm with rfl | hm

@@ -2,7 +2,7 @@ import Lean4Lean.Theory.Typing.RecursorRegistration
 import Lean4Lean.Theory.Typing.PrefixUnfolding.Generation
 import Lean4Lean.Theory.Typing.PrefixUnfolding.SpineDefEq
 import Lean4Lean.Theory.Typing.BVarConversion
-import Batteries.Tactic.OpenPrivate
+import Lean4Lean.Theory.Typing.PatEquation
 
 /-! Singleton unfolding is checked at a recursor prefix. Supplied
 arguments are instantiated; all remaining binders, including the major, are
@@ -20,13 +20,14 @@ namespace Lean4Lean.VEnv
 open InductiveSignature
 
 /-- Every datum of the unfolding check is fixed by the generated unfolding. These are the
-ordinary typing and syntactic checks of the actual stored equation, not a
-caller-provided proof that an arbitrary replacement computes correctly. -/
+ordinary typing and syntactic checks of the actual equation (realised by the environment,
+`VEnv.PatEquation`: as a registered ι pattern for a recursor, as the stored rule for the
+quotient), not a caller-provided proof that an arbitrary replacement computes correctly. -/
 structure UnfoldingCheck (env : VEnv) (U : Nat) (Γ : List VExpr)
     (source : VExpr) (program : RecursorData.PrefixUnfolding) : Prop where
   source_typed : HasType env U Γ source program.type
   remaining_nonempty : program.domains ≠ []
-  equation_present : env.defeqs program.equation
+  equation_present : env.PatEquation program.equation
   equation_body : RecursorSchema.EquationBody.extract program.equation.lhs
     program.equation.rhs program.equation.type = some program.equationBody
   levels_wf : ∀ level ∈ program.levels, level.WF U
@@ -90,13 +91,15 @@ theorem UnfoldingCheck.defeq (henv : env.WF)
   obtain ⟨majorType, hp, hmajor, hctor⟩ := H.major_prop
   have hmajorEq := IsDefEq.proofIrrel hp hmajor hctor
   have hreplace := IsDefEq.appDF hf
-    (hmajorEq.transport_bvar henv.ordered hctx hmajor hm)
+    (hmajorEq.transport_bvar henv.orderedStrong hctx hmajor hm)
   obtain ⟨hl, hr, ht⟩ := RecursorSchema.EquationBody.extract_sound H.equation_body
-  have hiota := IsDefEq.extra_instOuter henv hctx H.equation_present H.levels_wf
-    H.levels_length hl.symm hr.symm ht.symm H.captures_length H.captures_typed
   have halign := H.recursor_lhs.defeq henv hctx hreplace.hasType.2
+  obtain ⟨_, hlhsEq⟩ := IsDefEqU.trans henv hctx ⟨_, hreplace⟩ halign
+  have hlhsTyped := hlhsEq.hasType.2
+  have hiota := H.equation_present.instOuter hctx H.levels_wf
+    H.levels_length hl.symm hr.symm ht.symm H.captures_length H.captures_typed hlhsTyped
   have hbody := IsDefEqU.of_l henv hctx
-    ((IsDefEqU.trans henv hctx ⟨_, hreplace⟩ halign).trans henv hctx ⟨_, hiota⟩) hopen
+    ((IsDefEqU.trans henv hctx ⟨_, hreplace⟩ halign).trans henv hctx hiota) hopen
   rw [← hetaBody] at hbody
   simpa only [RecursorData.PrefixUnfolding.rhs, RecursorData.PrefixUnfolding.type, instantiateParams_eq_instOuter] using
     heta.trans (hbody.etaOpen_wrapLams hΓ hctx)
@@ -133,32 +136,23 @@ theorem PrefixUnfold.defeqDFC (henv : env.WF)
   cases H with | intro hl hr hn ht hw hp hg replay =>
     exact .intro hl hr hn ht hw hp hg (replay.defeqDFC henv hΓ W)
 
-open private closed_wrapLams_body closed_wrapForalls_domain
-  from Lean4Lean.Theory.Typing.CaseReduction
-
-/-- Installed equation syntax bounds all unfolding captures and their domains. -/
+/-- Equation syntax bounds all unfolding captures and their domains. -/
 theorem UnfoldingCheck.templateScope (henv : env.WF)
     (H : UnfoldingCheck env U Γ source program) :
     program.equationBody.lhs.ClosedN program.captures.length ∧
       program.equationBody.rhs.ClosedN program.captures.length ∧
       ∀ j (hj : j < program.equationBody.domains.length),
         program.equationBody.domains[j].ClosedN j := by
-  have hwf := henv.ordered.defEqWF H.equation_present
-  have hl : program.equation.lhs.Closed :=
-    VExpr.WF.closedN henv.ordered (show VExpr.WF env program.equation.uvars [] _ from ⟨_, hwf.1⟩) trivial
-  have hr : program.equation.rhs.Closed :=
-    VExpr.WF.closedN henv.ordered (show VExpr.WF env program.equation.uvars [] _ from ⟨_, hwf.2⟩) trivial
-  have hleft : env.HasType program.equation.uvars [] program.equation.lhs program.equation.type := hwf.1
-  obtain ⟨u, ht⟩ := hleft.isType henv.ordered (show OnCtx [] (env.IsType program.equation.uvars) from trivial)
-  have ht : program.equation.type.Closed :=
-    VExpr.WF.closedN henv.ordered (show VExpr.WF env program.equation.uvars [] _ from ⟨_, ht⟩) trivial
+  have hl : program.equation.lhs.Closed := H.equation_present.lhs_closed
+  have hr : program.equation.rhs.Closed := H.equation_present.rhs_closed
+  have ht : program.equation.type.Closed := H.equation_present.type_closed
   obtain ⟨hlhs, hrhs, htype⟩ := RecursorSchema.EquationBody.extract_sound H.equation_body
   rw [← hlhs] at hl
   rw [← hrhs] at hr
   rw [← htype] at ht
-  exact ⟨by simpa only [Nat.zero_add, H.captures_length] using closed_wrapLams_body hl,
-    by simpa only [Nat.zero_add, H.captures_length] using closed_wrapLams_body hr,
-    fun j hj => by simpa only [Nat.zero_add] using closed_wrapForalls_domain ht hj⟩
+  exact ⟨by simpa only [Nat.zero_add, H.captures_length] using VExpr.closed_wrapLams_body hl,
+    by simpa only [Nat.zero_add, H.captures_length] using VExpr.closed_wrapLams_body hr,
+    fun j hj => by simpa only [Nat.zero_add] using VExpr.closed_wrapForalls_domain ht hj⟩
 
 
 end Lean4Lean.VEnv

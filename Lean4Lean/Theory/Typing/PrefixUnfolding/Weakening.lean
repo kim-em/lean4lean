@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.PrefixUnfolding.Renaming
 import Lean4Lean.Theory.Typing.PrefixUnfolding.Rule
+import Lean4Lean.Theory.Typing.RestorationShapes
 
 /-! Renaming preserves the concrete generated prefix and all of its checked
 unfolding-check premises. The fresh remaining telescope is renamed under its binders. -/
