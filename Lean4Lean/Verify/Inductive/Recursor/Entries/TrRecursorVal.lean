@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Inductive.Signature
+import Lean4Lean.Verify.Typing.Syntactic.Basic
 import Lean4Lean.Theory.Inductive.AddInduct
 import Lean4Lean.Verify.Environment.Basic
 import Lean4Lean.Verify.Typing.Lemmas
@@ -79,8 +80,24 @@ rules the generated equations, reduct for reduct (`VRecRule.OfEquation`): `TrExp
 functional, so the two translations of a rule's reduct agree. This is the bridge from the
 recursor and rule phases to `VInductDecl.RecsOf`, hence `RecsCompiled`. -/
 
+private theorem lamBody_wrapLams (domains : List VExpr) (body : VExpr) :
+    (VExpr.wrapLams domains body).lamBody = body.lamBody := by
+  induction domains with
+  | nil => rfl
+  | cons d ds ih => exact ih
+
+private theorem lamBody_of_getAppFn_const {e : VExpr} {c : Name} {us : List VLevel}
+    (h : e.getAppFn = .const c us) : e.lamBody = e := by
+  cases e <;> first | rfl | (simp [VExpr.getAppFn] at h)
+
+private theorem vars_length_aux (count below : Nat) : (vars count below).length = count := by
+  simp [vars]
+
 /-- A model rule read off a kernel rule that is a generated equation is that equation's reduct
-(`VRecRule.OfEquation`). -/
+(`VRecRule.OfEquation`). The translations of the kernel reduct into the two environments agree
+(`TrSyn.unique`: translation does not depend on the environment); the equation's left-hand side
+is the recursor applied to the parameters, motives, minors, the constructor's indices (as many
+as its owner's, `harity`) and the constructor application. -/
 theorem VRecRule.OfEquation.ofTr {s : InductiveSignature} {g : Instance s}
     {venv venvR : VEnv} {lparams : List Name} {index : Fin s.constructors.size}
     {rule : Lean.RecursorRule} {r : VRecursor} {ru : VRecRule}
@@ -90,12 +107,49 @@ theorem VRecRule.OfEquation.ofTr {s : InductiveSignature} {g : Instance s}
     (hrhs : TrExprS venvR lparams [] rule.rhs ru.rhs)
     (hmajor : r.getMajorIdx = s.params.length + s.families.size + s.constructors.size +
       s.families[s.constructors[index].owner].indices.length)
-    (hparams : ru.ctorParams = s.params.length) :
+    (hparams : ru.ctorParams = s.params.length)
+    (harity : s.constructors[index].indices.length =
+      s.families[s.constructors[index].owner].indices.length) :
     VRecRule.OfEquation r ru (g.equation index) := by
-  -- WAVE 2 STUB (Recursor/**): shape of `Instance.equation` (`Theory/Inductive/SignatureData`)
-  -- plus `TrExprS.unique` for the reduct.
-  have := hrule; have := hname; have := hctor; have := hnfields; have := hrhs; have := hmajor
-  have := hparams; sorry
+  have hfn : ∀ args, (VExpr.mkApps (.const (g.recursorName s.constructors[index].owner)
+      (VLevel.params g.uvars)) args).getAppFn =
+      .const (g.recursorName s.constructors[index].owner) (VLevel.params g.uvars) := by
+    intro args; simp [VExpr.getAppFn]
+  refine ⟨hrule.rhs.toTrSyn.unique hrhs.toTrSyn, ?_, ?_, ?_⟩
+  · simp only [Instance.equation, Instance.recursorHead]
+    rw [lamBody_wrapLams, lamBody_of_getAppFn_const (hfn _), VExpr.headConst?_eq_some]
+    exact ⟨_, by rw [hfn, hname]⟩
+  · simp only [Instance.equation, Instance.recursorHead]
+    rw [lamBody_wrapLams, lamBody_of_getAppFn_const (hfn _), VExpr.getAppArgs_mkApps]
+    simp only [VExpr.getAppArgs, List.nil_append, List.length_append, List.length_map,
+      vars_length_aux, List.length_singleton]
+    rw [hmajor, harity]; omega
+  · simp only [Instance.equation, Instance.recursorHead]
+    rw [lamBody_wrapLams, lamBody_of_getAppFn_const (hfn _), VExpr.getAppArgs_mkApps]
+    refine ⟨_, by simp [VExpr.getAppArgs]; rfl, ?_, ?_⟩
+    · rw [VExpr.headConst?_eq_some]
+      refine ⟨g.levels, ?_⟩
+      simp [Instance.constructorApp, VExpr.getAppFn, hctor, hrule.ctor]
+    · simp [Instance.constructorApp, VExpr.getAppArgs, hparams, hnfields, hrule.nfields,
+        vars_length_aux]
+
+/-- `VRecRule.OfEquation.ofTr` with the index-count side condition read off a signature that
+models a declaration (`Models.constructorArity`). -/
+theorem VRecRule.OfEquation.ofTrModels {s : InductiveSignature} {g : Instance s}
+    {env venv venvR : VEnv} {decl : VInductDecl} {lparams : List Name}
+    {index : Fin s.constructors.size}
+    {rule : Lean.RecursorRule} {r : VRecursor} {ru : VRecRule}
+    (hmodels : s.Models env decl)
+    (hrule : TrRecursorRule g venv lparams index rule)
+    (hname : r.name = g.recursorName ⟨s.constructors[index].owner, s.constructors[index].owner.isLt⟩)
+    (hctor : ru.ctor = rule.ctor) (hnfields : ru.nfields = rule.nfields)
+    (hrhs : TrExprS venvR lparams [] rule.rhs ru.rhs)
+    (hmajor : r.getMajorIdx = s.params.length + s.families.size + s.constructors.size +
+      s.families[s.constructors[index].owner].indices.length)
+    (hparams : ru.ctorParams = s.params.length) :
+    VRecRule.OfEquation r ru (g.equation index) :=
+  VRecRule.OfEquation.ofTr hrule hname hctor hnfields hrhs hmajor hparams
+    (hmodels.constructorArity _ (Array.getElem_mem_toList ..))
 
 end InductiveSignature
 end Lean4Lean
