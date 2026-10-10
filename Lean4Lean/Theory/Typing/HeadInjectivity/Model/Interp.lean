@@ -153,18 +153,44 @@ def binderTy (doms : List VExpr) (ls : List VLevel) (x : Nat) : VExpr :=
 
 /-- The leading arguments of the generic redex of an ι rule whose reduct binds `k`
 parameters, motives and minors and then `nf` fields (`SimplePattern.iotaRHS'`): the `k`
-bound variables `bvar (k + nf - 1), …, bvar nf` followed by `nind` ignored index
-positions, written as the non-variable dummy `sort 0` so that `RuleBind` binds nothing at
-them (the index holes of a pattern are not variables of the reduct). -/
-def iotaLead (k nind nf : Nat) : List VExpr :=
-  ((List.range k).reverse.map fun i => VExpr.bvar (i + nf)) ++ List.replicate nind (.sort .zero)
+bound variables `bvar (k + nf - 1), …, bvar nf` followed by the constructor's result indices
+`idxT` in the reduct's context. An index that is a bare field variable (`Acc.intro`'s `x`,
+singleton elimination) is bound by `RuleBind` from the index key, as the equation's `eqLead`
+did; the other index positions bind nothing. -/
+def iotaLead (k nf : Nat) (idxT : List VExpr) : List VExpr :=
+  ((List.range k).reverse.map fun i => VExpr.bvar (i + nf)) ++ idxT
 
 /-- The field variables of the generic redex of an ι rule with `nf` fields: the trailing
 constructor arguments `bvar (nf - 1), …, bvar 0`. -/
 def iotaFs (nf : Nat) : List Nat := (List.range nf).reverse
 
-@[simp] theorem iotaLead_length : (iotaLead k nind nf).length = k + nind := by
+@[simp] theorem iotaLead_length : (iotaLead k nf idxT).length = k + idxT.length := by
   simp [iotaLead]
+
+/-- The static data of an ι rule read off its recursor's type `ci.type`: the reduct template
+binds `k + nf` variables; the recursor's type is a telescope of `k + nind + 1` domains whose
+major domain applies the family `I` at the levels `lsI`; and the constructor's result indices
+`ctorIdx` (over the constructor's parameters and fields) are read off the minor premise for
+`ctor` at position `pos` (the minor is a telescope over the `nf` fields and `nih` induction
+hypotheses whose body applies a motive to the indices, lifted into the minor's context, and
+to the constructor application). The lead carries the indices lifted into the reduct's
+context, below the `k - np` motive and minor binders. -/
+def IotaStatic (ci : VConstant) (ctor : Name) (k nind nf : Nat) (doms dsH : List VExpr)
+    (RH : VExpr) (I : Name) (lsI : List VLevel) (iargs lead : List VExpr) : Prop :=
+  doms.length = k + nf ∧ ci.type = .wrapForalls dsH RH ∧ dsH.length = k + nind + 1 ∧
+  dsH[k + nind]? = some (.mkApps (.const I lsI) iargs) ∧
+  ∃ (np pos nih mv : Nat) (ctorIdx Dm margs : List VExpr) (lsC : List VLevel),
+    np ≤ pos ∧ pos < k ∧ ctorIdx.length = nind ∧ Dm.length = nf + nih ∧
+    dsH[pos]? = some (.wrapForalls Dm (.mkApps (.bvar mv)
+      (ctorIdx.map (fun e => (e.liftN nih).liftN (pos - np) (nf + nih)) ++
+        [.mkApps (.const ctor lsC) margs]))) ∧
+    lead = iotaLead k nf (ctorIdx.map (·.liftN (k - np) nf))
+
+theorem IotaStatic.lead_length {ci : VConstant} {ctor : Name} {k nind nf : Nat}
+    {doms dsH : List VExpr} {RH : VExpr} {I : Name} {lsI : List VLevel} {iargs lead : List VExpr}
+    (h : IotaStatic ci ctor k nind nf doms dsH RH I lsI iargs lead) : lead.length = k + nind := by
+  obtain ⟨-, -, -, -, np, pos, nih, mv, ctorIdx, Dm, margs, lsC, -, -, hl, -, -, rfl⟩ := h
+  simp [hl]
 
 @[simp] theorem iotaFs_length : (iotaFs nf).length = nf := by simp [iotaFs]
 
@@ -318,8 +344,7 @@ inductive Obs : VExpr.Subst → ObSets → VExpr → Ob → Prop
     env.pats (SimplePattern.iota n (k + nind) ctor (cnp + nf)).toPattern
       (SimplePattern.iotaRHS' n ctor k nind cnp nf rhs hc, .true) →
     rhs = .wrapLams doms body →
-    doms.length = k + nf ∧ ci.type = .wrapForalls dsH RH ∧ dsH.length = k + nind + 1 ∧
-      dsH[k + nind]? = some (.mkApps (.const I lsI) iargs) →
+    IotaStatic ci ctor k nind nf doms dsH RH I lsI iargs lead →
     env.constants n = some ci → (∀ τ ∈ τs, Obs .id .empty (ci.type.instL ls) τ) →
     TypedOb env U Δ (ElCls env U Δ (TyCls env U Δ (ci.type.instL ls)) (.const n ls)) (wrap (lkeys ++ [(Dm, cm, Km)]) o) τs → lkeys.length = k + nind →
     (mC = true → ∀ (p' : Pattern) (r' : p'.RHS × p'.Check), env.pats p' r' → p'.headConst = n →
@@ -329,7 +354,7 @@ inductive Obs : VExpr.Subst → ObSets → VExpr → Ob → Prop
         (piCodChain lkeys (.piDomOb (.rigid I ℓsI mI fun _ => 0)))) →
     (mC = false → (∃ ℓs, .ctorHead ctor ℓs (cnp + nf) ∈ Km) ∨
       EtaHead env I ctor ci.type lkeys.length) →
-    RuleBind env U Δ doms ls (iotaLead k nind nf) cnp (iotaFs nf) mC I ctor lsI lkeys cm Km τ S' →
+    RuleBind env U Δ doms ls lead cnp (iotaFs nf) mC I ctor lsI lkeys cm Km τ S' →
     KeysBacked (lkeys ++ [(Dm, cm, Km)]) → Obs τ S' (body.instL ls) o →
     Obs σ S (.const n ls) (wrap (lkeys ++ [(Dm, cm, Km)]) o)
   /-- A projection observes the field observations of its major. -/
@@ -432,13 +457,12 @@ theorem const_iff : Obs' σ S (.const n ls) o ↔
       RuleBind env U Δ doms ls lead ms.length fs mC I ctor lsC lkeys cm Km τ S' ∧
       KeysBacked (lkeys ++ [(Dm, cm, Km)]) ∧ Obs' τ S' (body.instL ls) p) ∨
     (∃ k nind ctor cnp nf rhs, ∃ hc : rhs.Closed, ∃ doms body ci τs lkeys Dm cm Km p mC τ S' I ℓsI
-        mI dsH RH lsI iargs,
+        mI dsH RH lsI iargs lead,
       o = wrap (lkeys ++ [(Dm, cm, Km)]) p ∧
       env.pats (SimplePattern.iota n (k + nind) ctor (cnp + nf)).toPattern
         (SimplePattern.iotaRHS' n ctor k nind cnp nf rhs hc, .true) ∧
       rhs = .wrapLams doms body ∧
-      (doms.length = k + nf ∧ ci.type = .wrapForalls dsH RH ∧ dsH.length = k + nind + 1 ∧
-        dsH[k + nind]? = some (.mkApps (.const I lsI) iargs)) ∧
+      IotaStatic ci ctor k nind nf doms dsH RH I lsI iargs lead ∧
       env.constants n = some ci ∧ (∀ τ ∈ τs, Obs' .id .empty (ci.type.instL ls) τ) ∧
       TypedOb env U Δ (ElCls env U Δ (TyCls env U Δ (ci.type.instL ls)) (.const n ls)) (wrap (lkeys ++ [(Dm, cm, Km)]) p) τs ∧
       lkeys.length = k + nind ∧
@@ -449,7 +473,7 @@ theorem const_iff : Obs' σ S (.const n ls) o ↔
           (piCodChain lkeys (.piDomOb (.rigid I ℓsI mI fun _ => 0)))) ∧
       (mC = false → (∃ ℓs, .ctorHead ctor ℓs (cnp + nf) ∈ Km) ∨
         EtaHead env I ctor ci.type lkeys.length) ∧
-      RuleBind env U Δ doms ls (iotaLead k nind nf) cnp (iotaFs nf) mC I ctor lsI lkeys cm Km τ S' ∧
+      RuleBind env U Δ doms ls lead cnp (iotaFs nf) mC I ctor lsI lkeys cm Km τ S' ∧
       KeysBacked (lkeys ++ [(Dm, cm, Km)]) ∧ Obs' τ S' (body.instL ls) p) ∨
     (∃ fam info ci τs keys r, o = wrap keys r ∧ env.projections fam info ∧
       info.ctorName = n ∧ env.constants n = some ci ∧
@@ -489,7 +513,7 @@ theorem const_iff : Obs' σ S (.const n ls) o ↔
       exact .inr (.inr (.inr (.inl ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _,
         rfl, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, hb, h12⟩)))
     | pat h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 hb h12 =>
-      exact .inr (.inr (.inr (.inr (.inl ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _,
+      exact .inr (.inr (.inr (.inr (.inl ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _,
         rfl, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, hb, h12⟩))))
     | projCtor h1 h2 h3 h4 h5 h6 h7 h8 =>
       exact .inr (.inr (.inr (.inr (.inr (.inl ⟨_, _, _, _, _, _, rfl, h1, h2, h3, h4, h5, h6, h7, h8⟩)))))
@@ -503,7 +527,7 @@ theorem const_iff : Obs' σ S (.const n ls) o ↔
       ⟨_, _, _, _, rfl, h0, hp, h1, h2, h3, h4, hb⟩ |
       ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _,
         rfl, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, hb, h12⟩ |
-      ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _,
+      ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _,
         rfl, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, hb, h12⟩ |
       ⟨_, _, _, _, _, _, rfl, h1, h2, h3, h4, h5, h6, h7, h8⟩ |
       ⟨_, _, _, _, _, _, _, _, _, _, _, rfl, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12, h13, h14, h15, h16⟩ |
@@ -1165,8 +1189,8 @@ theorem Obs.const_typed (h : Obs' σ S (.const n ls) o) (hci : env.constants n =
     ⟨_, ci', τs, _, _, hci', hτ, hty, _⟩ | ⟨ci', τs, _, _, rfl, _, _, hci', hτ, hty, _⟩ |
     ⟨_, _, _, _, _, _, _, _, _, ci', τs, _, _, _, _, _, _, _, _, _, _, _, rfl, _, _, _, hci', hτ,
       hty, _⟩ |
-    ⟨_, _, _, _, _, _, _, _, _, ci', τs, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, rfl, _, _, _,
-      hci', hτ, hty, _⟩ | ⟨_, _, ci', τs, _, _, rfl, _, _, hci', hτ, hty, _⟩ |
+    ⟨_, _, _, _, _, _, _, _, _, ci', τs, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, rfl, _, _,
+      _, hci', hτ, hty, _⟩ | ⟨_, _, ci', τs, _, _, rfl, _, _, hci', hτ, hty, _⟩ |
     ⟨ci', _, τs, _, _, _, _, _, _, _, _, rfl, _, hci', _, _, hτ, hty, _⟩ |
     ⟨ci', _, τs, _, _, _, _, _, _, _, rfl, _, hci', _, _, hτ, hty, _⟩ <;>
     cases hci.symm.trans hci' <;> exact ⟨τs, hτ, hty⟩
@@ -1189,8 +1213,8 @@ theorem Obs.const_levels (h : Obs' σ S (.const n ls) o)
     ⟨_, ci, τs, h1, h2, hci, hτ, hty, hv⟩ | ⟨ci, τs, _, _, rfl, h0, hp, hci, hτ, hty, hr, hb⟩ |
     ⟨_, _, _, _, _, _, _, _, _, ci, τs, _, _, _, _, _, _, _, _, _, _, _, rfl, h1, h2, h3, hci,
       hτ, hty, h7, h8, h9, h10, h11, hb, h12⟩ |
-    ⟨_, _, _, _, _, _, _, _, _, ci, τs, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, rfl, h1, h2, h3,
-      hci, hτ, hty, h7, h8, h9, h10, h11, hb, h12⟩ |
+    ⟨_, _, _, _, _, _, _, _, _, ci, τs, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, rfl, h1, h2,
+      h3, hci, hτ, hty, h7, h8, h9, h10, h11, hb, h12⟩ |
     ⟨_, _, ci, τs, _, _, rfl, h1, h2, hci, hτ, hty, h6, h7, h8⟩ |
     ⟨ci, _, τs, _, _, _, _, _, _, _, _, rfl, h0, hci, h3, h4, hτ, hty, h6, h7, h8, h9, h9', h10, h11,
       h12, h13, h14⟩ |

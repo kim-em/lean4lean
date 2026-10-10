@@ -80,7 +80,7 @@ theorem famTy_inv {σ : VExpr.Subst} {S0 : ObSets} {S : Name} {ls : List VLevel}
   rcases Obs.const_iff.1 h' with ⟨_, _, keys', r, he, _, _, _, _, hr⟩ |
     ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r, he, _, _, _, _, _, hr, _⟩ |
     ⟨df, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩ |
-    ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hp, _⟩ |
+    ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hp, _⟩ |
     ⟨_, _, _, _, keys', r, he, _, _, _, _, _, _, hr, _⟩ |
     ⟨ci, info, τs, keys', j', FL', x', Dc, R0, as, τk, he, _, _, hp, hnz, _, _, hl, hj, hFL,
       hshape, hlt, hchain, hkb, hτk, hty, hx⟩ |
@@ -121,7 +121,7 @@ theorem famDom_inv {σ : VExpr.Subst} {S0 : ObSets} {S : Name} {ls : List VLevel
   rcases Obs.const_iff.1 h' with ⟨_, _, keys', r, he, _, _, _, _, hr⟩ |
     ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r, he, _, _, _, _, _, hr, _⟩ |
     ⟨df, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩ |
-    ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hp, _⟩ |
+    ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hp, _⟩ |
     ⟨_, _, _, _, keys', r, he, _, _, _, _, _, _, hr, _⟩ |
     ⟨_, _, _, keys', _, _, _, _, _, _, _, he, _⟩ |
     ⟨ci, info, τs, keys', j', FL', D', Dc, R0, as, he, _, _, hp, hnz, _, _, hl, hj, hFL,

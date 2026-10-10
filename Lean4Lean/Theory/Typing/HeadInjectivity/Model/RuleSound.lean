@@ -772,7 +772,7 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
     ⟨df'', doms'', lsP'', lead'', ctor'', lsC'', ms'', fs'', body'', ci, τs, lkeys, Dm, cm, Km,
       p'', mC, τ, S'', I', ℓsI', mI', e, hdf'', hl'', hr'', hci'', -, -, hlen'', hsingle, -, hhd,
       hbind, -, hbody⟩ |
-    ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hp, _⟩ |
+    ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hp, _⟩ |
     ⟨fam, info, _, _, _, _, _, hpi, hcn, _⟩ | ⟨_, _, _, _, _, _, _, _, _, _, _, _, hrig, _⟩ |
     ⟨_, _, _, _, _, _, _, _, _, _, _, hrig, _⟩
   · exact absurd headOf (hrig.defeqs df hdf lsP)

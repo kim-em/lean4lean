@@ -118,7 +118,7 @@ theorem quot_C_level (hq : QuotConsts env) (hrigQ : env.Rigid ``Quot) {keys : Li
   rcases Obs.const_iff.1 hc with ⟨ci, τs, keys'', r, e, -, hci, hτ, hty, hr⟩ |
     ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys'', r, e, -, -, -, -, -, hr, -⟩ |
     ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩ |
-    ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hp, _⟩ |
+    ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hp, _⟩ |
     ⟨_, _, _, _, keys'', r, e, _, _, _, _, _, _, ⟨_, _, _, rfl, _⟩, _⟩ |
     ⟨_, _, _, keys'', _, _, _, _, _, _, _, e, _⟩ | ⟨_, _, _, keys'', _, _, _, _, _, _, e, _⟩
   · obtain ⟨rfl, rfl⟩ := wrap_inj e trivial hr.notApp

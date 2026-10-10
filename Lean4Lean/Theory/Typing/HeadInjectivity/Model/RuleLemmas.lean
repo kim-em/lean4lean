@@ -233,7 +233,7 @@ theorem ctor_spine_inv {σ : VExpr.Subst} {S : ObSets} (hrig : env.Rigid c)
   rcases Obs.const_iff.1 hw with ⟨_, _, keys', r', e, _, _, _, _, hr'⟩ |
     ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r', e, _, _, _, _, _, hr', _⟩ |
     ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩ |
-    ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hp, _⟩ |
+    ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hp, _⟩ |
     ⟨_, _, _, _, keys', r', e, _, _, _, _, _, _, ⟨_, _, _, rfl, _⟩, _⟩ |
     ⟨_, _, _, keys', _, _, _, _, _, _, _, e, _⟩ | ⟨_, _, _, keys', _, _, _, _, _, _, e, _⟩
   · obtain ⟨rfl, rfl⟩ := wrap_inj e hna hr'.notApp
