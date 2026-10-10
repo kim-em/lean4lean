@@ -25,22 +25,24 @@ namespace Lean4Lean
 open Lean hiding Environment Exception
 open Kernel
 
-/-- The shapes of a visible recursor: its type is a recursor telescope over its major family,
-and the constructor of each rule has the constructor telescope at the recursor's constructor
-parameter count, which is the constructor's own parameter count. -/
-def RecursorShapes (C : ConstMap) (venv : VEnv) (rec : RecursorVal) : Prop :=
-  ∃ cnparams indLevels ctorParams,
-    Nonempty (VRecursorShape venv rec.name rec.levelParams.length rec.numParams cnparams
-      rec.numMotives rec.numMinors rec.numIndices rec.getMajorInduct indLevels ctorParams) ∧
-    ∀ rule ∈ rec.rules, ∃ ctorUvars, indLevels.length = ctorUvars ∧
-      Nonempty (VConstructorShape venv rule.ctor ctorUvars cnparams rule.nfields rec.numIndices
-        rec.getMajorInduct) ∧
-      ∀ cval, C.find? rule.ctor = some (.ctorInfo cval) → cval.numParams = cnparams
+-- WAVE 2 install COMPAT: `RecursorShapes` moved to `Verify/Environment/Blocks.lean` (the
+-- installed-block descriptor records it).
 
 /-- Every visible recursor of the constant map has its shapes. -/
 def RecursorShapesCoherent (safety : DefinitionSafety) (C : ConstMap) (venv : VEnv) : Prop :=
   ∀ {name rec}, C.find? name = some (.recInfo rec) →
     safety ≤ (ConstantInfo.recInfo rec).safety → RecursorShapes C venv rec
+
+/-- WAVE 2 install COMPAT: the shapes of every visible recursor are read off its installed-block
+descriptor (`InstalledBlock.WF.shapes`). -/
+theorem InstalledBlocks.recursorShapesCoherent {safety : DefinitionSafety} {env : Environment}
+    {venv : VEnv} {st : InstallStage} (H : InstalledBlocks safety env venv st)
+    (hwf : env.constants.WF) : RecursorShapesCoherent safety env.constants venv := by
+  intro name rec hfind hsafe
+  have hf : env.find? name = some (.recInfo rec) := by
+    rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
+  obtain ⟨-, B, -, hB, hmem⟩ := H.recursor hf
+  exact (hB.shapes rec hmem hsafe).1
 
 /-- What recursor reduction reads of a visible recursor: its shapes, the rigidity of its major
 family, and the K clause. -/

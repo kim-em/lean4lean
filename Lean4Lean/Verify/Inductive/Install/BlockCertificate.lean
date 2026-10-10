@@ -47,6 +47,10 @@ structure BlockCertificate (safety : DefinitionSafety) (env : Environment) (venv
   /-- Every inserted constant carries the declaration's `isUnsafe`: an unsafe block is hidden
   from the partial and safe observers (`extendUnsafeExact`), a safe one is visible to all. -/
   newUnsafe : ∀ ci ∈ AddInduct.consts add.ivals add.rvals, ci.isUnsafe = decl.isUnsafe
+  /-- The recursor and constructor telescopes of every new recursor (`RecursorShapes`, read by
+  recursor reduction), recorded in the new block's descriptor. -/
+  recShapes : ∀ {n r}, outEnv.find? n = some (.recInfo r) → env.find? n = none →
+    RecursorShapesAt outEnv.constants outVEnv r
 
 namespace BlockCertificate
 
@@ -84,6 +88,7 @@ theorem installedBlocks (H : BlockCertificate safety env venv decl outEnv outVEn
     H.cover H.closed H.constructorOwners (fun h1 h2 => H.recMajor h1 h2)
     (fun _ => ⟨H.wf, H.installed⟩) (fun h => absurd hvisible h)
     (fun _ => H.constructorParameterAlignment hparams) (fun h1 h2 _ => H.recK h1 h2)
+    (fun h1 h2 _ => H.recShapes h1 h2)
   exact H.find?_mono hwf
 
 /-- The constructor parameter alignment of the output at any observer: the families of the
@@ -147,7 +152,7 @@ theorem rebase {ves : VEnvs} (H : BlockCertificate .safe env (ves.venv .safe) de
     InstalledBlocks.addInduct wf.blocks hwf htrOut.toChecking (H.find?_mono hwf) add'.le
       H.inductInfosFromDecl H.cover H.closed H.constructorOwners (fun h1 h2 => H.recMajor h1 h2)
       (fun _ => ⟨wf', installed'⟩) (fun h => absurd hvis h) (fun _ => hparams')
-      (fun h1 h2 _ => hrecK' h1 h2)
+      (fun h1 h2 _ => hrecK' h1 h2) (fun h1 h2 _ => (H.recShapes h1 h2).extend hout id)
   refine ⟨out', ⟨{
     wf := wf'
     add := add'
@@ -161,7 +166,8 @@ theorem rebase {ves : VEnvs} (H : BlockCertificate .safe env (ves.venv .safe) de
     constructorParameterAlignment := fun _ => hparams'
     recK := hrecK'
     compiled := ⟨block, hcomp.mono hle hblock', hrecs, hblock'⟩
-    newUnsafe := by rw [hivals, hrvals]; exact H.newUnsafe }⟩, hout⟩
+    newUnsafe := by rw [hivals, hrvals]; exact H.newUnsafe
+    recShapes := fun h1 h2 => (H.recShapes h1 h2).extend hout id }⟩, hout⟩
 
 /-- A certified safe block extends the whole safety-indexed model: the block is replayed at
 every safety level (`rebase`) and `VEnvs.WF.extendInductExact` assembles the models. -/
@@ -239,6 +245,7 @@ theorem extendUnsafeExact {ves : VEnvs}
       H.constructorOwners (fun h1 h2 => H.recMajor h1 h2) (fun h => absurd h (hdeclHidden hs))
       (fun _ => rfl) (fun h => absurd h (hdeclHidden hs))
       (fun h1 h2 h => absurd h (hrecHidden hs h1 h2))
+      (fun h1 h2 h => absurd h (hrecHidden hs h1 h2))
   have hvisU : DefinitionSafety.unsafe ≤
       (if decl.isUnsafe then DefinitionSafety.unsafe else .safe) := DefinitionSafety.unsafe_le
   refine wf.extendUnsafeExact outVEnv ?_ (htrHidden (by decide)) (htrHidden (by decide))
@@ -263,6 +270,18 @@ def RecursorCheck.outVEnv'
     {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}  -- WAVE 2 install COMPAT
     (H : RecursorCheck R outEnv) : VEnv :=
   ((decl.withRecs H.recs).addRules H.outVEnv).getD H.outVEnv
+
+/-- The recursor and constructor telescopes of the new recursors of a recursor check
+(`RecursorShapes`, recorded in the descriptor of the installed block). -/
+theorem RecursorCheck.recursorShapes
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorCheck R outEnv) :
+    ∀ rval ∈ H.rvals, RecursorShapesAt outEnv.constants H.outVEnv rval := by
+  -- WAVE 2 STUB (Install): in progress.
+  have := H; sorry
 
 /-- The source branch's `OrdinaryInstallation.extend*Exact` read the block certificate off the
 recursor check and the rule translations: this is that assembly. The installed declaration is
@@ -387,7 +406,8 @@ theorem RecursorCheck.blockCertificate
     constructorParameterAlignment := fun h => (H.constructorParameterAlignment h).mono hle'
     recK := fun h1 h2 => (H.kLike _ (newRec h1 h2)).mono hle' id
     compiled := ⟨T.block, T.compilesTo hnonempty, T.recsOf, T.blockWF⟩
-    newUnsafe := ?_ }⟩
+    newUnsafe := ?_
+    recShapes := fun h1 h2 => (H.recursorShapes _ (newRec h1 h2)).extend hle' id }⟩
   · intro t ht
     obtain ⟨info, hinfo, htr⟩ := List.Forall₂.forall_exists_r R.headers.trHeaders t ht
     have hname : info.name = t.name := htr.1.2

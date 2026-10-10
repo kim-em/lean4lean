@@ -208,6 +208,43 @@ structure InstalledBlock.Abstract (env : Environment) (venv : VEnv) (B : Install
     ∀ e ∈ B.decl.projectionEntries, venv.projections e.typeName e.info
   installed : B.stage = .complete → VEnv.InductInstalled venv B.decl
 
+/-- The shapes of a visible recursor: its type is a recursor telescope over its major family,
+and the constructor of each rule has the constructor telescope at the recursor's constructor
+parameter count, which is the constructor's own parameter count. -/
+-- WAVE 2 install COMPAT: moved here from `Verify/TypeChecker/CheckerEnv.lean`.
+def RecursorShapes (C : ConstMap) (venv : VEnv) (rec : RecursorVal) : Prop :=
+  ∃ cnparams indLevels ctorParams,
+    Nonempty (VRecursorShape venv rec.name rec.levelParams.length rec.numParams cnparams
+      rec.numMotives rec.numMinors rec.numIndices rec.getMajorInduct indLevels ctorParams) ∧
+    ∀ rule ∈ rec.rules, ∃ ctorUvars, indLevels.length = ctorUvars ∧
+      Nonempty (VConstructorShape venv rule.ctor ctorUvars cnparams rule.nfields rec.numIndices
+        rec.getMajorInduct) ∧
+      ∀ cval, C.find? rule.ctor = some (.ctorInfo cval) → cval.numParams = cnparams
+
+/-- Recursor shapes survive an extension of the constant map in which the constructors of the
+rules are kept, and an extension of the model. -/
+theorem RecursorShapes.extend {C C' : ConstMap} {venv venv' : VEnv} {rec : RecursorVal}
+    (hle : venv ≤ venv') (hC : ∀ {n ci}, C.find? n = some ci → C'.find? n = some ci)
+    (hpresent : ∀ rule ∈ rec.rules, ∃ cval, C.find? rule.ctor = some (.ctorInfo cval))
+    (H : RecursorShapes C venv rec) : RecursorShapes C' venv' rec := by
+  obtain ⟨cnparams, indLevels, ctorParams, ⟨S⟩, hrules⟩ := H
+  refine ⟨cnparams, indLevels, ctorParams, ⟨{ S with const := hle.constants S.const }⟩, ?_⟩
+  intro rule hrule
+  obtain ⟨ctorUvars, hlen, ⟨T⟩, hc⟩ := hrules rule hrule
+  refine ⟨ctorUvars, hlen, ⟨{ T with const := hle.constants T.const }⟩, fun cval h => ?_⟩
+  obtain ⟨cval', h'⟩ := hpresent rule hrule
+  rw [hC h'] at h; cases h; exact hc _ h'
+
+/-- The shape clause of the descriptor of a recursor: its `RecursorShapes`, with the
+constructors of its rules present. -/
+def RecursorShapesAt (C : ConstMap) (venv : VEnv) (rec : RecursorVal) : Prop :=
+  RecursorShapes C venv rec ∧ ∀ rule ∈ rec.rules, ∃ cval, C.find? rule.ctor = some (.ctorInfo cval)
+
+theorem RecursorShapesAt.extend {C C' : ConstMap} {venv venv' : VEnv} {rec : RecursorVal}
+    (hle : venv ≤ venv') (hC : ∀ {n ci}, C.find? n = some ci → C'.find? n = some ci)
+    (H : RecursorShapesAt C venv rec) : RecursorShapesAt C' venv' rec :=
+  ⟨H.1.extend hle hC H.2, fun rule h => let ⟨cv, hc⟩ := H.2 rule h; ⟨cv, hC hc⟩⟩
+
 /-- A well-formed descriptor: its kernel side, and its abstract side if the observer sees
 it.  A block with only its headers installed has no abstract side yet: the abstract
 declaration is fixed by the constructor check. -/
@@ -218,6 +255,10 @@ structure InstalledBlock.WF (safety : DefinitionSafety) (env : Environment) (ven
   /-- Every recursor the observer sees satisfies the K clause. -/
   recursor : ∀ r ∈ B.recursors, safety ≤ (ConstantInfo.recInfo r).safety →
     KLikeRecursor env.constants venv r
+  /-- WAVE 2 install COMPAT: every recursor the observer sees has its recursor and
+  constructor telescopes (`RecursorShapes`, read by recursor reduction). -/
+  shapes : ∀ r ∈ B.recursors, safety ≤ (ConstantInfo.recInfo r).safety →
+    RecursorShapesAt env.constants venv r
 
 /-- The environment invariant: every inductive header, constructor and recursor of `env`
 belongs to a well-formed descriptor that has reached at least `stage`, and every projection
@@ -332,6 +373,7 @@ theorem InstalledBlock.WF.mono {B : InstalledBlock} (H : B.WF safety env venv)
       projections := fun hst e he => hle.projections (A.projections hst e he)
       installed := fun hst => (A.installed hst).mono hle }
   recursor r hr hvis := (H.recursor r hr hvis).mono hle hmap
+  shapes r hr hvis := (H.shapes r hr hvis).extend hle hmap
 
 /-- Lower the stage the invariant promises. -/
 theorem InstalledBlocks.weaken (H : InstalledBlocks safety env venv st) (h : st' ≤ st) :
@@ -810,6 +852,9 @@ theorem addBlock {decl : VInductDecl} (stage : InstallStage) (hstage : stage ≠
     (hreg : safety ≤ (if decl.isUnsafe then .unsafe else .safe) → DeclRegistered venv' decl)
     (hrecAlign : ∀ r ∈ recs, safety ≤ (ConstantInfo.recInfo r).safety →
       KLikeRecursor env'.constants venv' r)
+    -- WAVE 2 install COMPAT
+    (hrecShapes : ∀ r ∈ recs, safety ≤ (ConstantInfo.recInfo r).safety →
+      RecursorShapesAt env'.constants venv' r)
     (hcomplete : safety ≤ (if decl.isUnsafe then .unsafe else .safe) → stage = .complete →
       VEnv.InductInstalled venv' decl ∧
         VerifyInductive.ConstructorParameterAlignment safety env' venv')
@@ -1030,7 +1075,7 @@ theorem addBlock {decl : VInductDecl} (stage : InstallStage) (hstage : stage ≠
             · have := P.parameterDomains; rw [huv] at this; exact this }
       projections := fun _ e he => hinst.projections e he
       installed := fun hc => (hcomplete hvis hc).1 }
-  have hB : B.WF safety env' venv' := ⟨hBC, fun h _ => hBA h, hrecAlign⟩
+  have hB : B.WF safety env' venv' := ⟨hBC, fun h _ => hBA h, hrecAlign, hrecShapes⟩
   have hBmem : ∀ j (hj : j < decl.types.length),
       ∃ F ∈ B.families, F.header = headerAt env' decl.types[j].name :=
     fun j hj => ⟨_, hfamMem j hj, rfl⟩
@@ -1100,7 +1145,10 @@ theorem addInduct {decl : VInductDecl}
     (hparams : safety ≤ (if decl.isUnsafe then .unsafe else .safe) →
       VerifyInductive.ConstructorParameterAlignment safety env' venv')
     (hrecK : ∀ {n r}, env'.find? n = some (.recInfo r) → env.find? n = none →
-      safety ≤ (ConstantInfo.recInfo r).safety → KLikeRecursor env'.constants venv' r) :
+      safety ≤ (ConstantInfo.recInfo r).safety → KLikeRecursor env'.constants venv' r)
+    -- WAVE 2 install COMPAT
+    (hrecShapes : ∀ {n r}, env'.find? n = some (.recInfo r) → env.find? n = none →
+      safety ≤ (ConstantInfo.recInfo r).safety → RecursorShapesAt env'.constants venv' r) :
     InstalledBlocks safety env' venv' .complete := by
   have hwf' : env'.constants.WF := hchk'.map_wf
   have toMap' : ∀ {n ci}, env'.find? n = some ci → env'.constants.find? n = some ci := by
@@ -1131,7 +1179,7 @@ theorem addInduct {decl : VInductDecl}
     (H.listedConstructorsPresent (by decide)) hwf hchk' hpres hle horigins hcover hnodup
     howners (newRecursors env env') (fun hf hnone => (mem_newRecursors hwf').mpr ⟨_, hf, hnone⟩)
     ?_ ?_ (fun hvis => (VEnv.InductInstalled.of_addInduct (hadd hvis).1 (hadd hvis).2).registered)
-    ?_ (fun hvis _ => ⟨.of_addInduct (hadd hvis).1 (hadd hvis).2, hparams hvis⟩) hproj
+    ?_ ?_ (fun hvis _ => ⟨.of_addInduct (hadd hvis).1 (hadd hvis).2, hparams hvis⟩) hproj
   · intro r hr
     obtain ⟨n, h1, h2⟩ := (mem_newRecursors hwf').mp hr
     have hn : r.name = n := hchk'.find?_name h1
@@ -1142,6 +1190,9 @@ theorem addInduct {decl : VInductDecl}
   · intro r hr hrvis
     obtain ⟨n, h1, h2⟩ := (mem_newRecursors hwf').mp hr
     exact hrecK h1 h2 hrvis
+  · intro r hr hrvis
+    obtain ⟨n, h1, h2⟩ := (mem_newRecursors hwf').mp hr
+    exact hrecShapes h1 h2 hrvis
 
 /-- Installing the headers and constructors of an inductive declaration, with its projections
 registered, extends the invariant by a descriptor at stage
@@ -1165,13 +1216,16 @@ theorem addCtorStage {decl : VInductDecl}
       KLikeRecursor env'.constants venv' r)
     (hreg : DeclRegistered venv' decl)
     (hproj : ∀ {S info}, venv'.projections S info → venv.projections S info ∨
-      ⟨S, info⟩ ∈ decl.projectionEntries) :
+      ⟨S, info⟩ ∈ decl.projectionEntries)
+    -- WAVE 2 install COMPAT (discharged automatically when `recs = []`)
+    (hrecShapes : ∀ r ∈ recs, safety ≤ (ConstantInfo.recInfo r).safety →
+      RecursorShapesAt env'.constants venv' r := by simp) :
     InstalledBlocks safety env' venv' .headers := by
   have hwf' : env'.constants.WF := hchk'.map_wf
   refine H.addBlock .constructors (by decide) (InstallStage.headers_le _)
     (InstallStage.headers_le _) hpresent hwf hchk' hpres hle horigins hcover hnodup howners recs
     hrecs hrecFind hrecMajor (fun _ => hreg)
-    hrecK (fun _ h => absurd h (by decide)) ?_
+    hrecK hrecShapes (fun _ h => absurd h (by decide)) ?_
   intro S info hp
   rcases hproj hp with hold | hentry
   · exact .inl hold
@@ -1345,7 +1399,7 @@ theorem addFreshListed (H : InstalledBlocks safety env venv st) (hwf : env.const
         types := [T]
         isUnsafe := v.isUnsafe }
       refine ⟨hvname, ⟨.headers, v.numParams, v.isUnsafe, [⟨v, [], T⟩], [], D⟩,
-        InstallStage.le_refl _, ⟨?_, fun _ h => absurd rfl h, by simp⟩, ⟨v, [], T⟩, by simp, rfl⟩
+        InstallStage.le_refl _, ⟨?_, fun _ h => absurd rfl h, by simp, by simp⟩, ⟨v, [], T⟩, by simp, rfl⟩
       exact {
         header := by
           intro F hF

@@ -54,8 +54,9 @@ constructor telescope `VConstructorShape` at its own parameter count. On the ver
 branch this was part of the installed-block invariant (`RecursorAlignmentCore`); here it is to
 be read off `VInductDecl.WF` (`rec_shape`, `rules_ctor`) through `InstalledBlocks`. -/
 theorem _root_.Lean4Lean.VEnvAt.recursorShapes {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
-    (wf : VEnvAt env safety venv) : RecursorShapesCoherent safety env.constants venv := by
-  have := wf; sorry
+    (wf : VEnvAt env safety venv) : RecursorShapesCoherent safety env.constants venv :=
+  -- WAVE 2 install COMPAT: proved from the installed-block descriptors
+  wf.blocks.recursorShapesCoherent wf.tr.map_wf
 
 /-- The checker's view of a single-level model. -/
 theorem _root_.Lean4Lean.VEnvAt.toCheckerEnv {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
