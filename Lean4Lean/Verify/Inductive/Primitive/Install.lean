@@ -148,7 +148,7 @@ theorem PrimitiveHeaderEnvironment.canonical
 /-- The facts of one canonical primitive constructor in the header environment: its source
 translation, formation shape, typing, checked tail and raw shape. -/
 theorem primitiveCtorFacts {env : VEnv} {decl : VInductDecl} {target : VInductiveType}
-    {source : InductiveType} {ctor : Constructor}
+    {source : InductiveType} {ctor : Constructor} {Us : List Name} (hUs : Us = [])
     (hdeclTypes : decl.types = [target]) (hname : target.name = source.name)
     (htargetType : target.type = .sort (.succ .zero)) (htargetUvars : target.uvars = 0)
     (hnindices : target.numIndices = 0) (hresult : target.resultLevel ≈ .succ .zero)
@@ -156,12 +156,13 @@ theorem primitiveCtorFacts {env : VEnv} {decl : VInductDecl} {target : VInductiv
     (hlookup : env.constants target.name = some target.toVConstant)
     (hctor : ctor.type = .const source.name [] ∨
       (source.name = ``Nat ∧ ∃ n bi, ctor.type = .forallE n (.const ``Nat []) (.const ``Nat []) bi)) :
-    TrSourceConst env [] ctor.name ctor.type (primitiveCtorVal ctor) ∧
+    TrSourceConst env Us ctor.name ctor.type (primitiveCtorVal ctor) ∧
     decl.CtorShape env [] target (primitiveCtorVal ctor) ∧
     env.IsType decl.uvars [] (primitiveCtorVal ctor).type ∧
     ConstructorTailCertificate env decl target [] 0 (primitiveCtorVal ctor).type
       (primitiveFieldClass ctor) ∧
     decl.RawCtorShape target (primitiveCtorVal ctor) := by
+  subst hUs
   have hT := primitiveTargetHasType (decl := decl) hdeclUvars htargetUvars hlookup htargetType
   have hconst : ∀ Δ : VLCtx, TrExprS env [] Δ (.const target.name []) (.const target.name []) :=
     fun Δ => .const hlookup (by simp) (by simp [htargetUvars])
@@ -210,6 +211,83 @@ theorem primitiveCtorFacts {env : VEnv} {decl : VInductDecl} {target : VInductiv
       · simpa [VExpr.nat, htn, hdeclParams] using
           (primitiveValidIndApp hdeclTypes hdeclUvars hdeclParams hnindices 1).raw
       · simp [hdeclUvars, VLevel.params, VExpr.nat, htn]
+
+/-- The checked constructors of a primitive declaration with canonical constructors, in its
+header data: proved directly from the canonical syntax, without running the checker in the
+header-only environment. -/
+theorem PrimitiveHeaderEnvironment.constructorsChecked
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv : Environment}
+    (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv indTypes
+      headerEnv)
+    (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList isUnsafe)
+    (hrows : decl.types.map (·.ctors) = primitiveRows indTypes.toList) :
+    ConstructorsChecked H.toHeaderData (primitiveFieldClasses indTypes) := by
+  have hheaderParams := H.headerParams_eq_nil Hshape
+  have hlparams : c.lparams = [] := Hshape.1
+  obtain ⟨source, target, hsrc, hdeclTypes, hname, htargetType, htargetUvars, hnindices, hresult,
+    hdeclUvars, hdeclParams, hlookup, htctors, hctors⟩ := H.canonical Hshape hrows
+  have F : ∀ ctor ∈ source.ctors, _ := fun ctor hctor =>
+    primitiveCtorFacts (env := H.context.venv) hlparams hdeclTypes hname htargetType htargetUvars
+      hnindices hresult hdeclUvars hdeclParams hlookup (hctors ctor hctor)
+  have hmemT : ∀ ctor' ∈ target.ctors, ∃ ctor ∈ source.ctors, ctor' = primitiveCtorVal ctor := by
+    intro ctor' h; rw [htctors] at h
+    obtain ⟨ctor, hctor, rfl⟩ := List.mem_map.1 h; exact ⟨ctor, hctor, rfl⟩
+  have hclasses : primitiveFieldClasses indTypes = [source.ctors.map primitiveFieldClass] := by
+    simp [primitiveFieldClasses, hsrc]
+  have hsize : indTypes.size = 1 := by
+    have := congrArg List.length hsrc; simpa using this
+  refine {
+    ctorTr := ?_
+    parameterShapes := ⟨?_⟩
+    shapes := ⟨?_⟩
+    rawShapes := ?_
+    types := ?_
+    classes_length := by rw [hclasses, hsize]; rfl
+    tails := ?_
+    parameterPrefixes := H.parameterPrefixes Hshape
+    constructorTails := H.constructorTails Hshape
+    ownerNormalForms := H.ownerNormalForms Hshape }
+  · rw [hsrc, hdeclTypes]
+    refine .cons ?_ .nil
+    rw [htctors]
+    exact List.forall₂_map_right_iff.2 (forall₂_refl_of_mem fun ctor hctor => (F ctor hctor).1)
+  · intro type htype ctor' hctor'
+    rw [hdeclTypes, List.mem_singleton] at htype; subst htype
+    refine ⟨[], ctor'.type, by simp [hdeclParams, VExpr.takeForalls], ?_⟩
+    show VEnv.IsDefEqCtx _ _ [] _ _
+    rw [hheaderParams]; exact .zero
+  · intro owned howned
+    obtain ⟨type, htype, howned⟩ := List.mem_flatMap.1 howned
+    rw [hdeclTypes, List.mem_singleton] at htype; subst htype
+    obtain ⟨ctor', hctor', rfl⟩ := List.mem_map.1 howned
+    obtain ⟨ctor, hctor, rfl⟩ := hmemT _ hctor'
+    rw [hheaderParams]; exact (F ctor hctor).2.1
+  · intro type htype ctor' hctor'
+    rw [hdeclTypes, List.mem_singleton] at htype; subst htype
+    obtain ⟨ctor, hctor, rfl⟩ := hmemT _ hctor'
+    exact (F ctor hctor).2.2.2.2
+  · intro ctor' hctor'
+    obtain ⟨type, htype, hctor'⟩ := List.mem_flatMap.1 hctor'
+    rw [hdeclTypes, List.mem_singleton] at htype; subst htype
+    obtain ⟨ctor, hctor, rfl⟩ := hmemT _ hctor'
+    exact (F ctor hctor).2.2.1
+  · intro i hi j hj
+    have hi0 : i = 0 := by rw [hdeclTypes] at hi; simpa using hi
+    subst hi0
+    have hj' : j < source.ctors.length := by
+      simp only [hdeclTypes, List.getElem_cons_zero, htctors, List.length_map] at hj; exact hj
+    have hctor := List.getElem_mem hj'
+    have hget : decl.types[0].ctors[j] = primitiveCtorVal source.ctors[j] := by
+      simp [hdeclTypes, htctors]
+    have hcls : (primitiveFieldClasses indTypes)[0]![j]! = primitiveFieldClass source.ctors[j] := by
+      simp [hclasses, hj']
+    have htgt : decl.types[0] = target := by simp [hdeclTypes]
+    rw [hget, hcls, htgt]
+    obtain ⟨-, -, ⟨u, hu⟩, hcert, -⟩ := F _ hctor
+    refine ⟨[], (primitiveCtorVal source.ctors[j]).type, ?_, ⟨_, hu⟩, hcert⟩
+    rw [hheaderParams]; exact .zero
 
 end VerifyInductive
 end Lean4Lean
