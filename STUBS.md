@@ -58,6 +58,56 @@ in `Lean4Lean/Tests.lean` (the manifest of the `Lean4Lean.Tests` library, which 
 | `PreludeEq` | `Verify.Inductive.Prelude.EqSyntax`; `VEnv.HasCanonicalEq` only for confluence | 4 |
 | `CacheMode`, `SyntacticTranslation` | dropped with the scoped cache mode and the strengthening study | never |
 
+## Wave 1B (environment model)
+
+No `sorry` in `Lean4Lean/Verify/Environment/**`, `Verify/Environment.lean` or `Verify.lean`.
+`lake build Lean4Lean.Verify.Environment Lean4Lean.Verify Lean4Lean.Tests.QuotInit` is green
+(the `sorry`s it reports are wave 0's and wave 1A's, in `Theory/` and `Verify/TypeChecker`,
+`Verify/Typing`).
+
+| statement | file | kind | owner |
+|---|---|---|---|
+| `InductiveDeclPreserves` | `Verify/Environment.lean` | named hypothesis of `addDecl.WF` (not a `sorry`): a checked inductive declaration, at any fuel, preserves `VEnvs.WF` and extends every safety level | waves 2 and 3 (`addInductiveDeclaration.WF_preserves`) |
+
+Interface notes for the waves that build on this one:
+
+- `VEnvs`, `VEnvs.WF` (now with `blocks : InstalledBlocks safety env (ves.venv safety) .complete`),
+  `VEnvs.axiom_of_choice` and `VEnvAt` live in `Verify/Environment/Model.lean`;
+  `Verify/TypeChecker.lean` imports it (`-- WAVE 1B COMPAT`).
+- `RecursorAlignment.lean` is gone. `Verify/Environment/RecursorCoherence.lean` keeps
+  `KLikeAlignment`, `KLikeRecursor`, `QuotCoherent`, `QuotEnvCoherent`; `RecursorRulesCoherent`
+  is the K clause only; `EquationHeadsCoherent` is a structure with `defeqs` (as before) and
+  `pats` (every registered pattern is headed by a recursor of the map), so `rigid`,
+  `rigid_quot` and `rigid_of_fresh` give the two-field `VEnv.Rigid`. The ι rule the checker
+  fires is `TrEnv.pats_iota'` (PR #43), which already reads `ctorParams` off the constructor's
+  own `ctorInfo` and so covers nested auxiliary recursors.
+- `CheckingEnv.Valid` has no `ctorTelescopes`; `InstalledBlock` has no `eliminators` and no
+  constructor telescope; `InstalledBlocks.addInduct` takes `decl.WF venv ∧ venv.addInduct decl =
+  some venv'` and the K clause of the new recursors (`hrecK`) instead of the old `AddInduct`.
+- `AddInduct` (PR #43's structure) has the projection stage: `stR : decl.addRecs (decl.addProjs
+  envC) = some envR`, `AddInduct.envP`, `addTypesCtorsProjs`, `addTypesCtorsProjsRecs`.
+  `AddInduct.ctor_find` no longer concludes `ctorParams = numParams` (false for nested blocks).
+- `TrEnv'` gains `inductProjections` (the projection stage, premise `(env.addProjections
+  entries).WF`), and `empty` is either map stage.
+
+Found while porting (not fixed here, `Theory/` is frozen):
+
+- `VEnv.InstalledBelow` (`Theory/Inductive.lean`) still installs a block through
+  `VInductBlock.install`, which adds the generated rules as stored equations (`defeqs`). No
+  environment built by `VEnv.addInduct` contains them, so `InstalledBelow` fails for every
+  container with at least one generated rule in the environments the checker builds, and with
+  it `VInductDecl.NestedFormationWF` (which requires the container to be `InstalledBelow`). The installed-blocks invariant uses
+  `VEnv.InductInstalled venv decl := ∃ base installed, decl.WF base ∧ base.addInduct decl =
+  some installed ∧ installed ≤ venv` (`Verify/Environment/Blocks.lean`) instead; wave 2/3 must
+  restate `InstalledBelow` (or nested formation) on `addInduct`.
+
+Parked:
+
+| item | why | owner |
+|---|---|---|
+| `Verify/CanonicalEq.lean` | needs `Verify/Inductive/Prelude/EqSyntax.lean` and a `VEnv.HasCanonicalEq` whose `Eq.rec` rule is a pattern; `addDecl.WF` no longer needs it | wave 4 |
+| `Verify/QuotInit.lean` | replaced by PR #43's `Verify/Environment/Quot.lean` | never |
+
 ## Wave 1A
 
 | statement | file | why | owner |

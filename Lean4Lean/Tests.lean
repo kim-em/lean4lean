@@ -32,7 +32,6 @@ import Lean4Lean.Tests.Replay
 -- Tests that do not build yet are added back with the wave that makes their imports build
 -- (`iota-port/PLAN-RECONCILED.md`):
 -- wave 1A: AmbientContext (`Verify.TypeChecker`)
--- wave 1B: the closed-form and translation checks of QuotInit (`Verify.Environment`)
 -- wave 2: InductiveTheory and TypedInductiveCompilation (re-expressed for the structure
 --   `VInductDecl.WF` and `VEnv.pats`), CorruptRecursorMetadata (`Verify.Inductive.Recursor`)
 -- wave 3: CorruptRestoredRecursorMetadata (`Verify.Inductive.Nested`), RecursiveFieldClassification

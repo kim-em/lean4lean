@@ -584,6 +584,33 @@ theorem addQuot.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) :
             (by decide) (Environment.find?_add_of_ne m1 q1 f1 (by decide) f3)) (by decide)
           (Environment.find?_add_of_ne m2 q2 (Environment.find?_add_of_ne m1 q1 f1 (by decide) f2)
             (by decide) (Environment.find?_add_of_ne m1 q1 f1 (by decide) f4))
+    blocks {safety} := by
+      obtain ⟨v1, v2, v3, v4, e1, e2, e3, e4, heq, -⟩ := hves' safety
+      have m1 := mapWF
+      have m2 := m1.insert ``Quot q1 (by rwa [← m1.find?'_eq_find?])
+      have m3 := m2.insert ``Quot.mk q2
+        (SMap.find?_insert_none m1.map₂ (by decide) (by rwa [← m1.find?'_eq_find?]))
+      have m4 := m3.insert ``Quot.lift q3 (SMap.find?_insert_none m2.map₂ (by decide)
+        (SMap.find?_insert_none m1.map₂ (by decide) (by rwa [← m1.find?'_eq_find?])))
+      have g2 := Environment.find?_add_of_ne m1 q1 f1 (by decide) f2
+      have g3 := Environment.find?_add_of_ne m2 q2 g2 (by decide)
+        (Environment.find?_add_of_ne m1 q1 f1 (by decide) f3)
+      have g4 := Environment.find?_add_of_ne m3 q3 g3 (by decide)
+        (Environment.find?_add_of_ne m2 q2 g2 (by decide)
+          (Environment.find?_add_of_ne m1 q1 f1 (by decide) f4))
+      have hproj : ∀ {S info}, (ves'.venv safety).projections S info →
+          (ves.venv safety).projections S info := by
+        intro S info hp
+        rw [heq] at hp
+        change v4.projections S info at hp
+        rwa [VEnv.addConst_projections e4, VEnv.addConst_projections e3,
+          VEnv.addConst_projections e2, VEnv.addConst_projections e1] at hp
+      have B1 := (wf.blocks (safety := safety)).addFresh m1 (ci := q1) f1 nofun nofun nofun
+        (hle safety) hproj
+      have B2 := B1.addFresh m2 (ci := q2) g2 nofun nofun nofun VEnv.LE.rfl id
+      have B3 := B2.addFresh m3 (ci := q3) g3 nofun nofun nofun VEnv.LE.rfl id
+      have B4 := B3.addFresh m4 (ci := q4) g4 nofun nofun nofun VEnv.LE.rfl id
+      exact B4.mapEnvironmentEq (fun _ => rfl) (fun _ => rfl)
     mono {safety safety'} hsf := by
       obtain ⟨v1, v2, v3, v4, e1, e2, e3, e4, heq, -⟩ := hves' safety
       obtain ⟨w1, w2, w3, w4, g1, g2, g3, g4, heq', -⟩ := hves' safety'
