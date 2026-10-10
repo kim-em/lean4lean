@@ -80,17 +80,17 @@ rules the generated equations, reduct for reduct (`VRecRule.OfEquation`): `TrExp
 functional, so the two translations of a rule's reduct agree. This is the bridge from the
 recursor and rule phases to `VInductDecl.RecsOf`, hence `RecsCompiled`. -/
 
-theorem lamBody_wrapLams (domains : List VExpr) (body : VExpr) :
+private theorem lamBody_wrapLams (domains : List VExpr) (body : VExpr) :
     (VExpr.wrapLams domains body).lamBody = body.lamBody := by
   induction domains with
   | nil => rfl
   | cons d ds ih => exact ih
 
-theorem lamBody_of_getAppFn_const {e : VExpr} {c : Name} {us : List VLevel}
+private theorem lamBody_of_getAppFn_const {e : VExpr} {c : Name} {us : List VLevel}
     (h : e.getAppFn = .const c us) : e.lamBody = e := by
   cases e <;> first | rfl | (simp [VExpr.getAppFn] at h)
 
-@[simp] theorem vars_length (count below : Nat) : (vars count below).length = count := by
+private theorem vars_length_aux (count below : Nat) : (vars count below).length = count := by
   simp [vars]
 
 /-- A model rule read off a kernel rule that is a generated equation is that equation's reduct
@@ -122,7 +122,7 @@ theorem VRecRule.OfEquation.ofTr {s : InductiveSignature} {g : Instance s}
   · simp only [Instance.equation, Instance.recursorHead]
     rw [lamBody_wrapLams, lamBody_of_getAppFn_const (hfn _), VExpr.getAppArgs_mkApps]
     simp only [VExpr.getAppArgs, List.nil_append, List.length_append, List.length_map,
-      vars_length, List.length_singleton]
+      vars_length_aux, List.length_singleton]
     rw [hmajor, harity]; omega
   · simp only [Instance.equation, Instance.recursorHead]
     rw [lamBody_wrapLams, lamBody_of_getAppFn_const (hfn _), VExpr.getAppArgs_mkApps]
@@ -130,7 +130,8 @@ theorem VRecRule.OfEquation.ofTr {s : InductiveSignature} {g : Instance s}
     · rw [VExpr.headConst?_eq_some]
       refine ⟨g.levels, ?_⟩
       simp [Instance.constructorApp, VExpr.getAppFn, hctor, hrule.ctor]
-    · simp [Instance.constructorApp, VExpr.getAppArgs, hparams, hnfields, hrule.nfields]
+    · simp [Instance.constructorApp, VExpr.getAppArgs, hparams, hnfields, hrule.nfields,
+        vars_length_aux]
 
 /-- `VRecRule.OfEquation.ofTr` with the index-count side condition read off a signature that
 models a declaration (`Models.constructorArity`). -/
