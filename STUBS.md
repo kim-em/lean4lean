@@ -423,9 +423,13 @@ Statement changes to `NestedLoweringOutput`/`loweringRun.WF` (`Verify/Inductive/
    `NestedLoweringOutput` def is `NestedLoweringRun` (`Nested/Lowering/Output.lean`), its inductive
    `SourceSyntaxChecks` is `SourceSyntaxChecked`.
 
-| statement | file | status |
-|---|---|---|
-| `loweringRun.WF` | `Verify/Inductive/Lowering.lean` | stub (Lowering) |
+`loweringRun.WF` is proved (no stub left in `Lowering.lean` or `Nested/Lowering/**`): each field
+in `Nested/Lowering/Assembly.lean` from `NestedLoweringOutputClosed`
+(`ElimNestedInductive.run'.translationClosed`), over the source branch's lowering refinement
+ported under `Nested/Lowering/` (`Refinement`, `ParameterOpening`, `Recognition`, `Expression`,
+`Queue`, `AuxiliaryFamilyPositions`, `Output`, `Ordinary`, `Restore/{ExprReplace,ParameterOpening}`;
+new: `Counts` for `types_length`). `Nested/Lowering/Expansion/**` (the `NestedExpansionData`
+for `RestoredBlock.formation`) is being ported by Lowering for Restoration-B.
 
 ## Wave 3 Restoration-A (`Nested/Restoration/Validation/**`)
 
