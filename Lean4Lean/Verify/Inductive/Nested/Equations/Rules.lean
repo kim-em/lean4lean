@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Certificate
+import Lean4Lean.Verify.Inductive.Nested.Equations.RuleAlignment
 import Lean4Lean.Theory.Inductive.RestorationInterpretation
 import Lean4Lean.Theory.Typing.RestorationShapes
 import Lean4Lean.Theory.Inductive.RestorationHead
@@ -30,20 +31,6 @@ variable {c : AddInductive.Context} {Hc : ContextWF c} {nparams : Nat}
   {res : ElimNestedInductive.Result} {loweredEnv : Environment}
   {L : LoweredRun Hc nparams res.types.toArray loweredEnv}
   {sourceTypes : List InductiveType} {isUnsafe : Bool} {outEnv : Environment}
-
-/-- `VInductDecl.WF.rules_wf` for the restored rules, in the restored recursor stage. -/
-theorem rulesWF (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
-    ∀ r ∈ B.decl.recs, ∀ ru ∈ r.rules, ∀ hc : ru.rhs.Closed,
-      B.envR.PatTyped
-        (SimplePattern.iota r.name r.getMajorIdx ru.ctor (ru.ctorParams + ru.nfields)).toPattern
-        (SimplePattern.iotaRHS r.name ru.ctor r.numParams r.numMotives r.numMinors
-          r.numIndices ru.ctorParams ru.nfields ru.rhs hc, .true) := by
-  -- WAVE 3 STUB (Equations+Install): the restoration substitution
-  -- (`NestedRun.restoredEquationSubstitution`, `restoredEquationsWF_of_substitutionPremises`
-  -- of the source branch's `Equations/WF.lean`, with `RestoredPattern.clause` in place of the
-  -- eliminator clause) transports `L.rules.rules_wf`; `Instance.equation_patTyped`
-  -- (`Rules/IotaPatTyped.lean`) restates the typed restored equation as `PatTyped`.
-  have := B; sorry
 
 /-- The projection stage of the restored block is well formed. -/
 theorem envP_wf (B : RestoredBlock L sourceTypes isUnsafe outEnv) : B.envP.WF := by
@@ -122,6 +109,20 @@ theorem blockWF (B : RestoredBlock L sourceTypes isUnsafe outEnv) : B.block.WF H
     intro ci hci
     obtain ⟨r, hr, rfl⟩ := List.mem_map.1 hci
     exact B.recs_wf r hr
+
+/-- `VInductDecl.WF.rules_wf` for the restored rules, in the restored recursor stage. -/
+theorem rulesWF (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
+    ∀ r ∈ B.decl.recs, ∀ ru ∈ r.rules, ∀ hc : ru.rhs.Closed,
+      B.envR.PatTyped
+        (SimplePattern.iota r.name r.getMajorIdx ru.ctor (ru.ctorParams + ru.nfields)).toPattern
+        (SimplePattern.iotaRHS r.name ru.ctor r.numParams r.numMotives r.numMinors
+          r.numIndices ru.ctorParams ru.nfields ru.rhs hc, .true) := by
+  intro r hr ru hru hc
+  obtain ⟨df, hdf, D, T, idx, cps, lv, hD, hidx, hcps, hl, hrh, ht⟩ := B.ruleEquation hr hru
+  obtain ⟨hL, hR⟩ := B.restoredEquationsWF df hdf
+  rw [hl, ht] at hL
+  rw [hrh, ht] at hR
+  exact VEnv.patTyped_iota_of_wrapped B.envR_wf hc hD hidx hcps hL hR
 
 /-- `VInductDecl.WF` of the restored declaration. -/
 theorem wf' (B : RestoredBlock L sourceTypes isUnsafe outEnv) (hsource : sourceTypes ≠ []) :
