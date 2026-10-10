@@ -150,7 +150,7 @@ theorem constructorOwnersPresent (B : RestoredBlock L sourceTypes isUnsafe outEn
     L.recursors.installation rfl B.runRestoration Howners
 
 /-- The source syntax checks of the submitted families. -/
-theorem sourceSyntaxChecked (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
+theorem sourceSyntaxChecked₀ (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
     SourceSyntaxChecked sourceTypes := by
   -- WAVE 3 STUB (Equations+Install): the dispatch's `SourceSyntaxChecks c.env sourceTypes`
   -- (`Lowering.lean`) refined to the lowering's `SourceSyntaxChecked`; on the source branch a
@@ -159,7 +159,7 @@ theorem sourceSyntaxChecked (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
 
 /-- The constructor telescopes of the restored declaration have the arities of the lowered
 declaration's source families. -/
-theorem constructorArityPrefix (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
+theorem constructorArityPrefix₀ (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
     B.decl.ConstructorArityPrefix L.loweredDecl := by
   -- WAVE 3 STUB (Equations+Install): the source branch's
   -- `RestoredBlockDerivation.constructorArityPrefix` (`Install/Certificate.lean`), from the
@@ -181,7 +181,7 @@ theorem inductInfosFromDecl (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
       LoweredView.loweredDecl_of_heq B.run_loweredEnv B.run_lowered] at h
     exact h
   have H := NestedRestorationFolds.inductInfosFromDecl (R := L.input) B.runLowering L.Hc'
-    L.recursors.installation Hsource Hmetadata B.sourceSyntaxChecked B.constructorArityPrefix
+    L.recursors.installation Hsource Hmetadata B.sourceSyntaxChecked₀ B.constructorArityPrefix₀
     Howners rfl B.runRestoration
   rw [L.env_eq] at H
   exact H
