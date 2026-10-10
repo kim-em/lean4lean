@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Sound
+import Lean4Lean.Theory.Inductive.CompilationMajors
 
 /-! # Facts about well-formed environments used by the history induction
 
@@ -7,10 +8,9 @@ rule and projection cases of soundness: the classification of its definitional a
 rules of definitions and the quotient rule, `WF'.defeqs_cases`), the quotient constants
 (`Quot`, `Quot.mk` rigid and never projection-registered, `WF.quot_not_projection`), the
 projection families (never constructors, `WF.projStatic`) and the rigidity of constructors
-(`WF.isCtor_rigid`). All are proved along the declaration history except
-`WF.patCtor_rigid`, the rigidity of the constructor of a registered ι pattern, which reads the
-constructor off the compilation of its block (`VInductDecl.RecsCompiled`) and is a wave 1C
-stub. -/
+(`WF.isCtor_rigid`). All are proved along the declaration history; the rigidity of the
+constructor of a registered ι pattern (`WF.patCtor_rigid`) reads the constructor off the
+compilation of its block (`VInductDecl.RecsCompiled`, `CompiledInductive.rule_ctor_cases`). -/
 
 namespace Lean4Lean
 namespace VEnv
@@ -292,17 +292,46 @@ theorem WF.projStatic (henv : env.WF) {S : Name} {info : VProjectionInfo}
 
 /-! ## Constructors -/
 
-/-- The constructor of a registered ι pattern is rigid: by `VInductDecl.RecsCompiled` it is a
-constructor of the block that registered the pattern or of a container block declared earlier
-(the auxiliary recursors of a nested block fire on the container's constructors), and
-constructors of a well-formed history are rigid (`VEnv.WF'.inductCtorRigid`).
+/-- Along the history: the constructor of a registered ι pattern is rigid. A pattern of a step
+is an old pattern (its constructor is a declared constant, rigid by the induction hypothesis and
+`Rigid.step`) or a rule of the step's block, whose constructor is a constructor of the block
+(`WF'.inductCtorRigid`) or the constructor of a pattern already registered in the environment
+the block was compiled in (`CompiledInductive.rule_ctor_cases`; the induction hypothesis
+again). -/
+private theorem WF'.patCtor_rigid_aux {ds : List VDecl} (H : env.WF' ds) :
+    ∀ c, IsPatCtor env c → env.Rigid c := by
+  induction H with
+  | empty => rintro c ⟨p, r, _, _, _, hp, _⟩; exact (hp : False).elim
+  | @decl d env' ds env0 hd H ih =>
+    intro c hc
+    have hW : env0.WF := ⟨ds, H⟩
+    have step : IsPatCtor env0 c → env'.Rigid c := fun h0 => by
+      obtain ⟨p, r, recN, M, N, hp, rfl⟩ := h0
+      obtain ⟨ci, hci, -⟩ := hW.patsIota.ctor_shape hp
+      exact (ih _ ⟨_, r, recN, M, N, hp, rfl⟩).step hci hd
+    obtain ⟨p, r, recN, M, N, hp, rfl⟩ := hc
+    rcases hd.pats_eq_or_induct' with heq | ⟨decl, rfl, hdecl, hadd⟩
+    · exact step ⟨_, r, recN, M, N, heq ▸ hp, rfl⟩
+    · rcases addInduct_pats_origin hadd hp with hold | ⟨rec, hrec, ru, hru, e⟩
+      · exact step ⟨_, r, recN, M, N, hold, rfl⟩
+      · obtain ⟨-, -, rfl, -⟩ := iota_toPattern_inj e
+        obtain ⟨block, hcomp, hrecsOf⟩ := hdecl.recsCompiled
+        rcases hcomp.rule_ctor_cases hrecsOf hrec hru with ⟨ctor, hctor, hc'⟩ | hpc
+        · obtain ⟨t, ht, hc⟩ := List.mem_flatMap.1 hctor
+          rw [hc']
+          exact (VEnv.WF'.decl hd H).inductCtorRigid (List.mem_cons_self ..) ht hc
+        · exact step hpc
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
+    rintro c ⟨p, r, recN, M, N, hp, rfl⟩
+    exact (ihCtors _ ⟨_, r, recN, M, N, by simpa using hp, rfl⟩).addProjections
 
-WAVE 1C STUB: reading the constructor off `VRecRule.OfEquation` and the compilation's
-`equation_major_cases` is the material of the parked `ConstructorRigidity.lean`. -/
+/-- **The constructor of a registered ι pattern is rigid**: it is a constructor of the block that
+registered the pattern or of a container block declared earlier (the auxiliary recursors of a
+nested block fire on the container's constructors, `CompiledInductive.rule_ctor_cases`), and
+constructors of a well-formed history are rigid (`VEnv.WF'.inductCtorRigid`). -/
 theorem WF.patCtor_rigid (henv : env.WF) {c : Name} (h : IsPatCtor env c) :
-    env.Rigid c := by
-  -- WAVE 1C STUB
-  sorry
+    env.Rigid c :=
+  let ⟨_, H⟩ := henv; H.patCtor_rigid_aux c h
 
 /-- **Constructors are rigid**: the constructor major of a definitional axiom (`Quot.mk`) and
 the constructor of a registered ι pattern. -/
