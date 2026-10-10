@@ -826,6 +826,52 @@ theorem closed (hclosed : MutualInductivesClosed c.env) : MutualInductivesClosed
         rw [hnp', hnp]
   · cases he
 
+/-- Common-parameter alignment of the constructor environment, from that of the source
+environment and the constructor shapes of the declaration. -/
+theorem constructorParameterAlignment {safety : DefinitionSafety}
+    (Hsource : ConstructorParameterAlignment safety c.env sourceEnv) :
+    ConstructorParameterAlignment safety ctorEnv I.ctorVEnv := by
+  intro familyName familyInfo hfamily hvisible j hj
+  rcases I.ctorEnv_cases hfamily with h | ⟨_, _, he, _⟩
+  · rcases I.headerEnv_cases h with h | ⟨info, hinfo, he, hname⟩
+    · obtain ⟨C⟩ := Hsource familyName familyInfo h hvisible j hj
+      exact ⟨C.rebaseKernel (I.sourcePres C.lookup) (I.sourceLE.trans I.headerLE)⟩
+    · cases he
+      obtain ⟨k, hk, rfl⟩ := List.mem_iff_getElem.mp hinfo
+      have hkd : k < decl.types.length := by rw [I.infos_length, I.types_length] at hk; exact hk
+      obtain ⟨_, hks, hn, -, hnp, -, hlp, hunsafe, hctorsI, hctorsD⟩ := I.infoAt k hkd
+      obtain ⟨_, hctors⟩ := I.ctorTrAt k hks
+      have hjs : j < indTypes[k].ctors.length := by rw [hctorsI] at hj; simpa using hj
+      have hjd : j < decl.types[k].ctors.length := by rw [hctorsD] at hj; simpa using hj
+      have hmem := ctorInfoAt (stats := stats) (c := c) (isUnsafe := isUnsafe) k hks j hjs
+      have hname' : I.H.infos[k].ctors[j] = indTypes[k].ctors[j].name := by simp [hctorsI]
+      have hnameD : I.H.infos[k].ctors[j] = decl.types[k].ctors[j].name := by simp [hctorsD]
+      obtain ⟨_, hdn⟩ := I.indNameAt k hks
+      let C : CtorInfoCoherentAt ctorEnv familyName I.H.infos[k] j hj := {
+        info := AddInductive.constructorInfo stats c.lparams isUnsafe indTypes[k] j
+          indTypes[k].ctors[j]
+        lookup := by rw [hname']; exact I.ctorEnv_self hmem
+        induct := by simp [AddInductive.constructorInfo, ← hname, hn, hdn]
+        cidx := rfl
+        numParams := by simp [AddInductive.constructorInfo, I.params_size, I.H.nparams, hnp]
+        levelParams := by simp [AddInductive.constructorInfo, hlp]
+        isUnsafe := by simp [AddInductive.constructorInfo, hunsafe] }
+      refine ConstructorParameterAlignmentAt.ofShapes (decl := decl) C I.checkingCtor.wf
+        decl.types[k] decl.types[k].ctors[j] ?_ ?_ (I.typeUvars _ (List.getElem_mem hkd))
+        (I.constructorUvars _ (List.mem_flatMap.mpr ⟨_, List.getElem_mem hkd,
+          List.getElem_mem hjd⟩))
+        (by rw [hlp, I.H.uvars]) hnp
+        (I.H.headers.typeShapes _ (List.getElem_mem hkd))
+        (I.K.shapes.ctorShape (List.getElem_mem hkd) (List.getElem_mem hjd))
+        (I.sourceLE.trans I.headerLE) I.headerLE
+      · rw [← hname, hn]
+        exact I.headerLE.constants (VEnv.addConstVals_get I.H.typesAdded
+          (List.mem_map_of_mem (List.getElem_mem hkd)))
+      · rw [hnameD]
+        exact VEnv.addConstVals_get I.ctorsAdded
+          (List.mem_flatMap.mpr ⟨_, List.getElem_mem hkd, List.getElem_mem hjd⟩)
+  · cases he
+
 end CtorInstall
 
 end VerifyInductive
