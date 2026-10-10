@@ -475,7 +475,6 @@ Restoration-A restated `stripRecursorRules.checkingValid`/`checkerEnv` according
 |---|---|---|
 | `NestedRun.restoredRuleConstructors` | `Nested/Restoration/RuleConstructors.lean` | in progress |
 | `NestedRun.restoredRuleConstructors_nodup` | `Nested/Restoration/RuleConstructors.lean` | in progress |
-| `NestedRun.restoredRecursorShapes` | `Nested/Restoration/RestoredRecursorShapes.lean` | in progress |
 
 ## Wave 3 Restoration-A (`Nested/Restoration/Validation/**`)
 
