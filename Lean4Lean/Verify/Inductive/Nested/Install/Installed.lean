@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.Equations.Rules
+import Lean4Lean.Verify.Inductive.Nested.Restoration.InstalledFamilyLookups
 
 /-! # The environment-side facts of a restored block and its block certificate (owner: Install)
 
@@ -63,16 +64,132 @@ structure KernelFacts (B : RestoredBlock L sourceTypes isUnsafe outEnv) : Prop w
   safePrimitives : ∀ {n ci}, outEnv.find? n = some ci →
     Kernel.Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
 
+/-- The lowered declaration of the run is the lowered run's (`run_lowered`). -/
+theorem LoweredView.loweredDecl_of_heq {e₁ e₂ : Environment} (h : e₁ = e₂)
+    {a : LoweredView e₁} {b : LoweredView e₂} (hab : HEq a b) :
+    a.loweredDecl = b.loweredDecl := by
+  subst h; cases hab; rfl
+
+theorem LoweredView.isUnsafe_of_heq {e₁ e₂ : Environment} (h : e₁ = e₂)
+    {a : LoweredView e₁} {b : LoweredView e₂} (hab : HEq a b) :
+    a.isUnsafe = b.isUnsafe := by
+  subst h; cases hab; rfl
+
+/-- The declaration's `isUnsafe` is the lowered run's. -/
+theorem isUnsafe_lowered (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
+    isUnsafe = (c.safety != .safe) :=
+  B.run.lowered_isUnsafe_source.symm.trans
+    (LoweredView.isUnsafe_of_heq B.run_loweredEnv B.run_lowered)
+
+/-- The run's lowering certificate, at the lowered run's context. -/
+theorem runLowering (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
+    NestedLoweringOutputClosed L.c'.env B.run.validationFuel.inductiveFuel nparams sourceTypes
+      { ({ lvls := L.c'.lparams.map .param, newTypes := #[] } :
+          Lean4Lean.ElimNestedInductive.State) with newTypes := sourceTypes.toArray } res := by
+  rw [L.env_eq, L.lparams_eq]
+  exact B.run.lowering
+
+/-- The run's restoration folds, over the lowered environment and the lowered run's context. -/
+def runRestoration (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
+    NestedRestorationFolds res loweredEnv L.c'.env
+      (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
+      (sourceTypes.map (·.name)) sourceTypes
+      (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1 ((), outEnv) := by
+  have h := B.run.restoration
+  rw [B.run_loweredEnv] at h
+  rw [L.env_eq]
+  exact h
+
+/-- Every constructor of the output is listed by its present owner. -/
+theorem constructorOwnersPresent (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
+    ConstructorOwnersPresent outEnv := by
+  have Howners : ConstructorOwnersPresent L.c'.env := by
+    rw [L.env_eq]; exact Hc.checking.constructorOwners
+  exact NestedRestorationFolds.constructorOwnersPresent (R := L.input) B.runLowering L.Hc'
+    L.recursors.installation rfl B.runRestoration Howners
+
+/-- The source syntax checks of the submitted families. -/
+theorem sourceSyntaxChecked (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
+    SourceSyntaxChecked sourceTypes := by
+  -- WAVE 3 STUB (Equations+Install): the dispatch's `SourceSyntaxChecks c.env sourceTypes`
+  -- (`Lowering.lean`) refined to the lowering's `SourceSyntaxChecked`; on the source branch a
+  -- premise of `RestoredBlockCertificate.inductInfosFromDecl`.
+  have := B; sorry
+
+/-- The constructor telescopes of the restored declaration have the arities of the lowered
+declaration's source families. -/
+theorem constructorArityPrefix (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
+    B.decl.ConstructorArityPrefix L.loweredDecl := by
+  -- WAVE 3 STUB (Equations+Install): the source branch's
+  -- `RestoredBlockDerivation.constructorArityPrefix` (`Install/Certificate.lean`), from the
+  -- nested expansion data (`NestedExpansionData.constructorArityPrefix`,
+  -- `Nested/Lowering/Expansion/Formation.lean`) of the run.
+  have := B; sorry
+
+/-- The origin of every inductive header of the output. -/
+theorem inductInfosFromDecl (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
+    InductInfosFromDecl c.env.constants outEnv.constants B.decl := by
+  have Howners : ConstructorOwnersPresent L.c'.env := by
+    rw [L.env_eq]; exact Hc.checking.constructorOwners
+  have Hsource : TrInductDeclCore L.Hc'.venv L.c'.lparams nparams sourceTypes
+      (c.safety != .safe) B.decl B.envTypes B.envCtors := by
+    rw [L.lparams_eq, L.venv_eq, ← B.isUnsafe_lowered]; exact B.source
+  have Hmetadata : SourcePrefixOfLowered B.decl L.loweredDecl := by
+    have h := B.run.sourceCore.checked
+    rw [B.run.sourceCoreDecl_eq,
+      LoweredView.loweredDecl_of_heq B.run_loweredEnv B.run_lowered] at h
+    exact h
+  have H := NestedRestorationFolds.inductInfosFromDecl (R := L.input) B.runLowering L.Hc'
+    L.recursors.installation Hsource Hmetadata B.sourceSyntaxChecked B.constructorArityPrefix
+    Howners rfl B.runRestoration
+  rw [L.env_eq] at H
+  exact H
+
+/-- The installed mutual blocks of the output are closed. -/
+theorem mutualInductivesClosed (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
+    MutualInductivesClosed outEnv := by
+  -- WAVE 3 STUB (Equations+Install, needs restB's `ConstructorCoherence`): the source
+  -- branch's `RestoredBlockCertificate.mutualInductivesClosed` through
+  -- `InductInfosFromDecl.mutualInductivesClosed` (`Install/ConstructorCoherence.lean`).
+  have := B; sorry
+
+/-- The major family of every new recursor is present. -/
+theorem recMajor (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
+    ∀ {n r}, outEnv.find? n = some (.recInfo r) → c.env.find? n = none →
+      ∃ info, outEnv.find? r.getMajorInduct = some (.inductInfo info) := by
+  -- WAVE 3 STUB (Equations+Install): the restored `recInfo`s' majors (`B.trRecs`, the
+  -- restoration folds' recursor entries, `KernelData`), source branch: the `recMajor` field of
+  -- `RestoredBlockCertificate`'s installation.
+  have := B; sorry
+
+/-- The constructor parameter alignment of the output. -/
+theorem constructorParameterAlignment (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
+    ConstructorParameterAlignment c.safety c.env Hc.venv →
+      ConstructorParameterAlignment c.safety outEnv B.outVEnv := by
+  -- WAVE 3 STUB (Equations+Install, needs restB's `ConstructorCoherence`):
+  -- `NestedInstalledRun.constructorParameterDomainsDefEqOfSource`,
+  -- `RestoredBlockCertificate.constructorTypingOfParameterDomains`.
+  have := B; sorry
+
+/-- The primitive names of the output. -/
+theorem primitives (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
+    B.outVEnv.HasPrimitives ∧ ∀ {n ci}, outEnv.find? n = some ci →
+      Kernel.Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = [] := by
+  -- WAVE 3 STUB (Equations+Install): the run's `primitiveSafe`
+  -- (`FreshNonprimitiveExtension`, `Restoration/Nonprimitive.lean`) with the base's
+  -- `HasPrimitives`/`safePrimitives` (`Hc.checking`).
+  have := B; sorry
+
 /-- The kernel-level facts of a restored block. -/
 theorem kernelFacts (B : RestoredBlock L sourceTypes isUnsafe outEnv)
-    (hsource : sourceTypes ≠ []) : B.KernelFacts := by
-  -- WAVE 3 STUB (Equations+Install): read off the restoration folds of `B.run` (restB's port
-  -- of `NestedRun`, not yet a field of `RestoredBlock`): `RestoredBlockCertificate.
-  -- inductInfosFromDecl`, `NestedRestorationFolds.constructorOwnersPresentOfContext`, the
-  -- closure and the recursor majors of the restored `inductInfo`/`recInfo`s, the alignment
-  -- through `NestedInstalledRun.constructorParameterDomainsDefEqOfSource`, the primitive
-  -- names through the lowered run's constructor stage.
-  have := B; have := hsource; sorry
+    (_hsource : sourceTypes ≠ []) : B.KernelFacts where
+  closed := B.mutualInductivesClosed
+  constructorOwners := B.constructorOwnersPresent
+  inductInfosFromDecl := B.inductInfosFromDecl
+  recMajor := B.recMajor
+  constructorParameterAlignment := B.constructorParameterAlignment
+  hasPrimitives := B.primitives.1
+  safePrimitives := B.primitives.2
 
 /-- The families of the declaration are new `inductInfo`s of the output. -/
 theorem cover (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
