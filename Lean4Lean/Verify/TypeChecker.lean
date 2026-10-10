@@ -1,46 +1,16 @@
 import Lean4Lean.Verify.TypeChecker.InferType
 import Lean4Lean.Verify.TypeChecker.WHNF
 import Lean4Lean.Verify.TypeChecker.IsDefEq
+-- WAVE 1B COMPAT
+import Lean4Lean.Verify.Environment.Model
 
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
 open Kernel
 
-structure VEnvs where
-  venv : DefinitionSafety → VEnv
-
-structure VEnvs.WF (env : Environment) (ves : VEnvs) where
-  tr : TrEnv safety env (ves.venv safety)
-  hasPrimitives : VEnv.HasPrimitives (ves.venv safety)
-  safePrimitives : env.find? n = some ci →
-    Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
-  mono : safety ≤ safety' → ves.venv safety' ≤ ves.venv safety
-
-/-- Assemble a `VEnvs` from a pointwise existential. `DefinitionSafety` has three elements, so
-this is a finite case split rather than an appeal to choice -- the name records what it replaces. -/
-theorem VEnvs.axiom_of_choice {P : DefinitionSafety → VEnv → Prop} (H : ∀ sf, ∃ x, P sf x) :
-    ∃ x : VEnvs, ∀ sf, P sf (x.venv sf) := by
-  have ⟨x1, _⟩ := H .safe; have ⟨x2, _⟩ := H .partial; have ⟨x3, _⟩ := H .unsafe
-  exact ⟨⟨fun | .safe => x1 | .partial => x2 | .unsafe => x3⟩, by rintro ⟨⟩ <;> assumption⟩
-
-/-- A model of `env` at a *single* safety level, which is all the type checker consumes.
-
-`VEnvs.WF` bundles one of these at every level, but not every environment the checker runs
-against admits that: while a `partial` mutual block is being checked its members are present
-as axioms tagged `safe` (an `AxiomVal` cannot be tagged `partial`), and their types were only
-checked at `partial`, so there is no `safe`-level model of that environment. -/
-structure VEnvAt (env : Environment) (safety : DefinitionSafety) (venv : VEnv) : Prop where
-  tr : TrEnv safety env venv
-  hasPrimitives : VEnv.HasPrimitives venv
-  safePrimitives : env.find? n = some ci →
-    Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
-
-theorem VEnvs.WF.toVEnvAt {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    (safety : DefinitionSafety) : VEnvAt env safety (ves.venv safety) where
-  tr := wf.tr
-  hasPrimitives := wf.hasPrimitives
-  safePrimitives := wf.safePrimitives
+-- WAVE 1B COMPAT: `VEnvs`, `VEnvs.WF`, `VEnvs.axiom_of_choice`, `VEnvAt` and
+-- `VEnvs.WF.toVEnvAt` live in `Verify/Environment/Model.lean`, with the installed blocks.
 
 namespace TypeChecker
 open Inner
