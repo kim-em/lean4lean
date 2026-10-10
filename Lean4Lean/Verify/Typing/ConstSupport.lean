@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Inductive
-import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.NestedStub
+import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.Compiled
 
 /-! # Typed terms avoid fresh constants
 
@@ -8,10 +8,8 @@ environment (`VEnv.IsDefEq.noConsts`), provided the registered reduction rules d
 (`VEnv.PatsAvoidConsts`). For a well-formed environment the rules do not
 (`VEnv.WF.patsAvoidFreshConsts`): every registered pattern is the ι entry of a recursor rule of
 an installed block (`VEnv.WF'.pats_origin`), whose reduct template is read off a generated
-equation (`VInductDecl.RecsCompiled`); for an ordinary block the template mentions only
-constants of the recursor's type, typed at the projection stage (`VInductDecl.WF.recs_wf`), and
-the block's recursor names (`Instance.equation_rhs_containsAnyConst`); for a nested block the
-restored template is typed in the recursor stage (`VInductDecl.WF.nestedRules_wf`, wave 3). -/
+equation (`VInductDecl.RecsCompiled`) typed in the block's recursor stage (`VInductBlock.WF`,
+`VInductDecl.WF.block_rules_wf`), where the names are still absent. -/
 
 namespace Lean4Lean
 
@@ -273,54 +271,25 @@ theorem VEnv.addInduct_rule_reductAvoids {env env' : VEnv} (hW : env.WF) {decl :
   rw [VExpr.containsAnyConst_mkApps_eq_false_iff, VExpr.containsAnyConst_instL]
   rw [VExpr.containsAnyConst_mkApps_eq_false_iff] at he
   refine ⟨?_, fun arg harg => ?_⟩
-  · -- the template avoids the names
-    obtain ⟨block, base, expanded, s, g, aux, hcomp, hrecsOf, hbase, C, hcont, df, hdf, hOf⟩ :=
+  · -- the template avoids the names: it is typed in the recursor stage (`VInductBlock.WF`)
+    obtain ⟨block, base, expanded, s, g, aux, hcomp, hrecsOf, hWF, -, -, -, df, hdf, hOf⟩ :=
       hdecl.rule_block hrec hru
     obtain ⟨envT, envC, envR, hT, hC, hR, hP⟩ := VEnv.addInduct_stages hadd
     have hPstage : decl.addTypesCtorsProjs env = some (decl.addProjs envC) :=
       VEnv.addTypesCtorsProjs_eq_some (Option.bind_eq_some_iff.2 ⟨envT, hT, hC⟩)
     have hRstage : decl.addTypesCtorsProjsRecs env = some envR := by
       unfold VInductDecl.addTypesCtorsProjsRecs; rw [hPstage]; exact hR
-    have hordP : VEnv.Ordered (decl.addProjs envC) :=
-      VEnv.addTypesCtorsProjs_ordered hW.ordered hdecl hPstage
-    have hordR : VEnv.Ordered envR := VEnv.addRecs_ordered hdecl hPstage hordP hR
-    have hRle : envR ≤ env' := VEnv.addRules_le hP
-    have hPle : decl.addProjs envC ≤ env' := (VEnv.addRecs_le hR).trans hRle
+    have hordR : VEnv.Ordered envR :=
+      VEnv.addRecs_ordered hdecl hPstage (VEnv.addTypesCtorsProjs_ordered hW.ordered hdecl hPstage)
+        hR
     have hfreshR : ∀ n ∈ names, envR.constants n = none :=
-      fun n hn => hRle.constants_eq_none_left (Hfresh n hn)
-    have hfreshP : ∀ n ∈ names, (decl.addProjs envC).constants n = none :=
-      fun n hn => hPle.constants_eq_none_left (Hfresh n hn)
-    have hpatsP : (decl.addProjs envC).PatsAvoidConsts names :=
-      VEnv.PatsAvoidConsts.of_pats_eq
-        (by rw [VEnv.addProjs_pats, VEnv.addCtors_pats hC, VEnv.addTypes_pats hT]) hpats
+      fun n hn => (VEnv.addRules_le hP).constants_eq_none_left (Hfresh n hn)
     have hpatsR : envR.PatsAvoidConsts names :=
       VEnv.PatsAvoidConsts.of_pats_eq (H := hpats) (by
         rw [VEnv.addRecs_pats hR, VEnv.addProjs_pats, VEnv.addCtors_pats hC, VEnv.addTypes_pats hT])
-    cases aux with
-    | nil =>
-      obtain ⟨index, rfl, -, -, -, -, hrhs⟩ := C.ordinary_rule hdf hOf
-      rw [hrhs]
-      apply g.equation_rhs_containsAnyConst names index s.constructors[index].owner
-      · obtain ⟨r', hr', hr'eq⟩ := C.ordinary_rec_of hrecsOf s.constructors[index].owner
-        have hty := hdecl.recs_wf _ hPstage r' hr'
-        have hrt : r'.type = g.recursorType s.constructors[index].owner :=
-          congrArg (fun v : VConstVal => v.type) hr'eq
-        obtain ⟨u, hu⟩ := hty
-        have := (VEnv.IsDefEq.noFreshConsts' hordP hfreshP hpatsP CtxAvoidsConsts.nil hu).1
-        rwa [hrt] at this
-      · intro o
-        obtain ⟨r'', hr'', e⟩ := C.ordinary_rec_of hrecsOf o
-        have hfind := VEnv.addInduct_rec_find hadd hr''
-        have hn : r''.name = g.recursorName o := congrArg (fun v : VConstVal => v.name) e
-        rw [← hn]
-        exact Bool.eq_false_iff.mpr fun hcontains => by
-          have := Hfresh _ (by simpa using hcontains)
-          rw [this] at hfind
-          cases hfind
-    | cons a rest =>
-      have hwf := hdecl.nestedRules_wf hcomp hrecsOf hbase C hcont (by simp) hRstage df hdf
-      have := (VEnv.IsDefEq.noFreshConsts' hordR hfreshR hpatsR CtxAvoidsConsts.nil hwf.2).1
-      rwa [hOf.1] at this
+    have hwf := VInductDecl.WF.block_rules_wf hcomp hrecsOf hWF hRstage df hdf
+    have := (VEnv.IsDefEq.noFreshConsts' hordR hfreshR hpatsR CtxAvoidsConsts.nil hwf.2).1
+    rwa [hOf.1] at this
   · rcases List.mem_append.1 harg with harg | harg
     · exact he.2 _ (List.mem_append_left _ (List.mem_of_mem_take harg))
     · have hmaj := he.2 _ (List.mem_append_right _ (List.mem_singleton_self _))

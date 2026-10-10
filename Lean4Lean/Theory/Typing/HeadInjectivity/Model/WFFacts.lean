@@ -315,7 +315,7 @@ private theorem WF'.patCtor_rigid_aux {ds : List VDecl} (H : env.WF' ds) :
     · rcases addInduct_pats_origin hadd hp with hold | ⟨rec, hrec, ru, hru, e⟩
       · exact step ⟨_, r, recN, M, N, hold, rfl⟩
       · obtain ⟨-, -, rfl, -⟩ := iota_toPattern_inj e
-        obtain ⟨block, hcomp, hrecsOf⟩ := hdecl.recsCompiled
+        obtain ⟨block, hcomp, hrecsOf, -⟩ := hdecl.recsCompiled
         rcases hcomp.rule_ctor_cases hrecsOf hrec hru with ⟨ctor, hctor, hc'⟩ | hpc
         · obtain ⟨t, ht, hc⟩ := List.mem_flatMap.1 hctor
           rw [hc']

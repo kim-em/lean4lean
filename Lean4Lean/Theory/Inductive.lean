@@ -724,9 +724,13 @@ theorem VInductDecl.constructorArityPrefixOfNestedExpansions
 /-- The recursors and rules of `decl` are those of a finite compilation of it
 (`VInductDecl.CompilesTo`): the generator fixes every recursor type and every equation, and
 `decl.recs` is read off that output (`VInductDecl.RecsOf`). Recursors and equations are never
-accepted as input on the strength of their typing alone. -/
+accepted as input on the strength of their typing alone. The compiled block is well formed
+(`VInductBlock.WF`: its equations are typed in its recursor stage), the fact the model reads
+for the rules of nested blocks, whose restored equations it cannot otherwise type.
+-- MODEL COMPAT: `block.WF env` added (lead decision); `CompiledInductive.intro` does not
+record it. -/
 def VInductDecl.RecsCompiled (env : VEnv) (decl : VInductDecl) : Prop :=
-  ∃ block, decl.CompilesTo env block ∧ decl.RecsOf block
+  ∃ block, decl.CompilesTo env block ∧ decl.RecsOf block ∧ block.WF env
 
 /-- Well-formedness of an inductive declaration, staged like the kernel's checks and
 `VEnv.addInduct`. The source judgment (headers typed, a common parameter telescope, constructor

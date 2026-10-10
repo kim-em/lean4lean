@@ -167,7 +167,7 @@ def recBody (owner : Fin s.families.size) : VExpr :=
     (vars (insertBinders (s.families[owner].indices.map (·.instL g.levels))
       (s.families.size + s.constructors.size)).length 1 ++ [.bvar 0])
 
-theorem recursorType_eq (owner : Fin s.families.size) :
+theorem recursorType_eq_recDoms (owner : Fin s.families.size) :
     (g.recursor owner).type = .wrapForalls (g.recDoms owner) (g.recBody owner) := by
   simp only [recursor, recursorType, recDoms, recBody, Instance.familyApp, insertBinders,
     List.length_map, List.length_zipIdx]
@@ -355,18 +355,55 @@ theorem SimplePattern.iotaRHS_apply_of_matches {r c : Name} {k nind cnp nf : Nat
 
 /-! ## The block behind a rule -/
 
+/-- The recursor stage of a compiled block is the recursor stage of its declaration: the block
+lays out the declaration's type formers, constructors and projection entries
+(`CompilesTo`), and its recursors are the declaration's (`RecsOf`). -/
+theorem VInductDecl.recursorStage_eq {env envT envC envRec envR : VEnv} {decl : VInductDecl}
+    {block : VInductBlock} (hcomp : decl.CompilesTo env block) (hrecsOf : decl.RecsOf block)
+    (hT : env.addConstVals block.types = some envT)
+    (hC : envT.addConstVals block.ctors = some envC)
+    (hRec : (envC.addProjections block.projections).addConstVals block.recursors = some envRec)
+    (hR : decl.addTypesCtorsProjsRecs env = some envR) : envRec = envR := by
+  have hT' : decl.addTypes env = some envT := by
+    rw [VInductDecl.addTypes_eq_addConstVals, ← hcomp.types]; exact hT
+  have hC' : decl.addCtors envT = some envC := by
+    rw [VInductDecl.addCtors_eq_addConstVals, ← hcomp.ctors]; exact hC
+  have hRec' : decl.addRecs (decl.addProjs envC) = some envRec := by
+    rw [VInductDecl.addRecs_eq_addConstVals, hrecsOf.recursors]
+    show (envC.addProjections decl.projectionEntries).addConstVals block.recursors = some envRec
+    rw [← hcomp.projections]; exact hRec
+  unfold VInductDecl.addTypesCtorsProjsRecs VInductDecl.addTypesCtorsProjs
+    VInductDecl.addTypesCtors at hR
+  rw [hT'] at hR
+  have h1 : Option.map decl.addProjs (decl.addCtors envT) >>= decl.addRecs = some envR := hR
+  rw [hC'] at h1
+  have h2 : decl.addRecs (decl.addProjs envC) = some envR := h1
+  rw [hRec'] at h2
+  exact Option.some.inj h2
+
+/-- The equations of the compiled block of a well-formed declaration are typed in the
+declaration's recursor stage (`VInductBlock.WF`, read through `VInductDecl.RecsCompiled`). -/
+theorem VInductDecl.WF.block_rules_wf {env envR : VEnv} {decl : VInductDecl}
+    {block : VInductBlock} (hcomp : decl.CompilesTo env block) (hrecsOf : decl.RecsOf block)
+    (hWF : block.WF env) (hR : decl.addTypesCtorsProjsRecs env = some envR) :
+    ∀ df ∈ block.rules, df.WF envR := by
+  obtain ⟨envT, envC, envRec, hT, hC, hRec, -, -, -, hrules⟩ := hWF
+  rw [← VInductDecl.recursorStage_eq hcomp hrecsOf hT hC hRec hR]
+  exact hrules
+
 /-- The compiled block behind a rule of a well-formed declaration: the compilation data at a
-base environment, the installed containers, and the generated equation the rule is read off. -/
+base environment, the installed containers, the block's well-formedness, and the generated
+equation the rule is read off. -/
 theorem VInductDecl.WF.rule_block {env : VEnv} {decl : VInductDecl} (hdecl : decl.WF env)
     {rec : VRecursor} {ru : VRecRule} (hrec : rec ∈ decl.recs) (hru : ru ∈ rec.rules) :
     ∃ (block : VInductBlock) (base : VEnv) (expanded : VInductDecl) (s : InductiveSignature)
       (g : InductiveSignature.Instance s) (aux : List InductiveSignature.ContainerSpecialization),
-      CompiledInductive env decl block ∧ decl.RecsOf block ∧ base ≤ env ∧
+      CompiledInductive env decl block ∧ decl.RecsOf block ∧ block.WF env ∧ base ≤ env ∧
       InductiveSignature.CompilationData base decl expanded s g aux block ∧
       ContainersInstalled base aux ∧ ∃ df ∈ block.rules, VRecRule.OfEquation rec ru df := by
-  obtain ⟨block, hcomp, hrecsOf⟩ := hdecl.recsCompiled
+  obtain ⟨block, hcomp, hrecsOf, hWF⟩ := hdecl.recsCompiled
   obtain ⟨base, expanded, s, g, aux, hbase, C, hcont⟩ := hcomp.data
-  exact ⟨block, base, expanded, s, g, aux, hcomp, hrecsOf, hbase, C, hcont,
+  exact ⟨block, base, expanded, s, g, aux, hcomp, hrecsOf, hWF, hbase, C, hcont,
     hrecsOf.rules rec hrec ru hru⟩
 
 /-- The recursor of a generated recursor value of an ordinary block. -/
