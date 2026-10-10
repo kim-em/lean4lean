@@ -426,11 +426,31 @@ def HeaderCertificate.withRecs (H : HeaderCertificate env decl) (recs : List VRe
   commonLevels := H.commonLevels
   typeShapes := H.typeShapes
 
+theorem _root_.Lean4Lean.VInductDecl.Positive.withRecs {env : VEnv} {decl : VInductDecl}
+    (recs : List VRecursor) (H : decl.Positive env ctx depth e) :
+    (decl.withRecs recs).Positive env ctx depth e :=
+  VInductDecl.Positive.rec (env := env) (decl := decl)
+    (motive_1 := fun ctx depth e _ => (decl.withRecs recs).Positive env ctx depth e)
+    (motive_2 := fun ctx depth e _ => (decl.withRecs recs).SyntacticallyPositive env ctx depth e)
+    (fun hdef _ ih => .unfold hdef ih)
+    (fun h => .nonrecursive h)
+    (fun hcontains hdom hbody _ ih => .forallE hcontains hdom hbody ih)
+    (fun h => .recursive h) H
+
+theorem _root_.Lean4Lean.VInductDecl.CtorTailWF.withRecs {env : VEnv} {decl : VInductDecl}
+    (recs : List VRecursor) (H : decl.CtorTailWF env target ctx depth e) :
+    (decl.withRecs recs).CtorTailWF env target ctx depth e := by
+  induction H with
+  | result happ hdef => exact .result happ hdef
+  | field htype hlevel hpositive hdom hbody _ ih =>
+    exact .field htype hlevel (hpositive.elim .inl fun h => .inr (h.withRecs recs)) hdom hbody ih
+
 theorem ConstructorCertificate.withRecs (H : ConstructorCertificate env decl envTypes params)
-    (recs : List VRecursor) : ConstructorCertificate env (decl.withRecs recs) envTypes params := by
-  -- WAVE 2 STUB (Install): `VInductDecl.CtorTailWF` is an inductive indexed by the
-  -- declaration; it reads only the source fields (transport by induction).
-  have := H; sorry
+    (recs : List VRecursor) : ConstructorCertificate env (decl.withRecs recs) envTypes params where
+  shapes owned howned := by
+    obtain ⟨normalized, ownParams, tail, exprType, tailCtx, h1, h2, h3, h4, h5⟩ :=
+      H.shapes owned howned
+    exact ⟨normalized, ownParams, tail, exprType, tailCtx, h1, h2, h3, h4, h5.withRecs recs⟩
 
 theorem ConstructorParameterCertificate.withRecs
     (H : ConstructorParameterCertificate env decl params) (recs : List VRecursor) :
