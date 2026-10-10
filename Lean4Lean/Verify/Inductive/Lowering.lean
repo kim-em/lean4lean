@@ -53,6 +53,23 @@ def LoweredAuxiliariesInstalled (res : ElimNestedInductive.Result)
   ∀ t ∈ auxTypes res sourceTypes, ∀ c ∈ t.ctors,
     ∃ cval : ConstructorVal, loweredEnv.find? c.name = some (.ctorInfo cval) ∧ cval.induct = t.name
 
+/-- No constant of `e` is a cached auxiliary family of `result` or a constructor of one in
+`env` (`getNestedIfAuxCtor`): restoration leaves every constant of `e` in place. Projections
+follow the body only, as `restoreNestedNode` does. -- WAVE 3 COMPAT (lowering), from the source
+branch's `Nested/Lowering/Basic.lean`. -/
+def RestoreSourceDisjoint (result : ElimNestedInductive.Result) (env : Environment) :
+    Expr → Prop
+  | .bvar _ | .fvar _ | .mvar _ | .sort _ | .lit _ => True
+  | .const name _ =>
+      result.aux2nested.find? name = none ∧ result.getNestedIfAuxCtor env name = none
+  | .app fn arg => RestoreSourceDisjoint result env fn ∧ RestoreSourceDisjoint result env arg
+  | .lam _ dom body _ | .forallE _ dom body _ =>
+      RestoreSourceDisjoint result env dom ∧ RestoreSourceDisjoint result env body
+  | .letE _ type value body _ =>
+      RestoreSourceDisjoint result env type ∧ RestoreSourceDisjoint result env value ∧
+      RestoreSourceDisjoint result env body
+  | .mdata _ body | .proj _ _ body => RestoreSourceDisjoint result env body
+
 /-- **What a successful lowering run certifies** about its result `res` (owner: Lowering;
 produced by `loweringRun.WF`). The restoration consumers read it through these fields; the
 Lowering owner may add fields. -/
@@ -86,26 +103,50 @@ structure NestedLoweringOutput (env : Environment) (fuel nparams : Nat)
       nested = mkAppN (.const I ls) args ∧ env.find? I = some (.inductInfo info) ∧
       args.size = info.numParams ∧
       nested.FVarsIn (fun fv => Expr.fvar fv ∈ res.params.toList)
-  /-- Auxiliary families and constructors are fresh in `env` and are not source names. -/
-  aux_fresh : SourceSyntaxChecks env sourceTypes → ∀ t ∈ auxTypes res sourceTypes,
-    (env.find? t.name = none ∧ t.name ∉ sourceTypes.map (·.name)) ∧
-    ∀ c ∈ t.ctors, env.find? c.name = none ∧ ∀ s ∈ sourceTypes, c.name ∉ s.ctors.map (·.name)
+  /-- Auxiliary families are fresh in `env` and carry the reserved names `_nested.i`.
+  -- WAVE 3 COMPAT (lowering): disjointness from the source names and constructor freshness are
+  -- not lowering facts (`mkUniqueName` consults only `env`; an auxiliary constructor name is a
+  -- kernel constructor name with its family prefix replaced); they come from the lowered
+  -- installation. -/
+  aux_fresh : ∀ t ∈ auxTypes res sourceTypes,
+    env.find? t.name = none ∧ ∃ i : Nat, t.name = .num `_nested i
+  /-- An auxiliary constructor is a constructor of a container family `J` of `env`, renamed
+  under the auxiliary family. -- WAVE 3 COMPAT (lowering) -/
+  aux_ctor_names : ∀ t ∈ auxTypes res sourceTypes, ∀ c ∈ t.ctors,
+    ∃ (J : Name) (info : InductiveVal), env.find? J = some (.inductInfo info) ∧
+      ∃ cJ ∈ info.ctors, c.name = cJ.replacePrefix J t.name
   /-- The lowering's local context declares exactly the parameters, as free variables. -/
-  lctx_params : res.params.toList.map (·.fvarId!) = res.lctx.fvars ∧
+  -- WAVE 3 COMPAT (lowering): `LocalContext.fvars` lists the most recent declaration first.
+  lctx_params : res.params.toList.reverse.map (·.fvarId!) = res.lctx.fvars ∧
     ∀ p ∈ res.params.toList, p.isFVar
-  /-- Restoration inverts lowering on the source constructors, once the lowered auxiliary
-  constructors are installed: the restored lowered constructor type is the source constructor
-  type up to `Expr.eqv` (binder names). -/
+  /-- Restoration inverts lowering on the source constructors, in any environment in which
+  the source constructor type does not mention a cached family or a constructor of one
+  (`RestoreSourceDisjoint`): the restored lowered constructor type is the source constructor
+  type up to `Expr.eqv` (binder names). -- WAVE 3 COMPAT (lowering): the premise was
+  `LoweredAuxiliariesInstalled`, which does not exclude a source constant registered in
+  `loweredEnv` as a constructor of an auxiliary family. -/
   restore_source : SourceSyntaxChecks env sourceTypes → SourceBVarClosed sourceTypes →
-    ∀ loweredEnv, LoweredAuxiliariesInstalled res sourceTypes loweredEnv →
-    List.Forall₂ (fun lowered source => List.Forall₂
-        (fun (lc sc : Constructor) => (res.restoreNested loweredEnv lc.type == sc.type) = true)
+    ∀ loweredEnv, List.Forall₂ (fun lowered source => List.Forall₂
+        (fun (lc sc : Constructor) => RestoreSourceDisjoint res loweredEnv sc.type →
+          (res.restoreNested loweredEnv lc.type == sc.type) = true)
         lowered.ctors source.ctors)
       (res.types.take sourceTypes.length) sourceTypes
 
+/-- The hypothesis-free part of `loweringRun.WF` the ordinary branch reads: the source block is
+nonempty, the lowered block extends it, and with no auxiliary family it is the source block. -/
+theorem loweringRun.sourceShape {env : Environment} {fuel nparams : Nat}
+    {types : List InductiveType} {lparams : List Name} {res : ElimNestedInductive.Result}
+    (h : loweringRun env fuel nparams types lparams = .ok res) :
+    types ≠ [] ∧ types.length ≤ res.types.length ∧
+      (res.aux2nested.size = 0 → SourceSyntaxChecks env types → SourceBVarClosed types →
+        res.types = types) := by
+  -- WAVE 3 STUB (Lowering): `NestedLowering` without the environment invariants.
+  have := h; sorry
+
 /-- **The lowering boundary theorem**: a successful lowering run certifies its result. -/
-theorem loweringRun.WF {env : Environment} {fuel nparams : Nat} {types : List InductiveType}
-    {lparams : List Name} {res : ElimNestedInductive.Result}
+theorem loweringRun.WF {env : Environment} {ves : VEnvs} {fuel nparams : Nat}
+    {types : List InductiveType} {lparams : List Name} {res : ElimNestedInductive.Result}
+    (wf : ves.WF env) -- WAVE 3 COMPAT (lowering): `nested_app` needs the environment invariants
     (h : loweringRun env fuel nparams types lparams = .ok res) :
     NestedLoweringOutput env fuel nparams types lparams res := by
   -- WAVE 3 STUB (Lowering): the source branch's `Nested/Lowering/**` (`NestedLowering`,
@@ -118,11 +159,10 @@ theorem loweringRun.WF {env : Environment} {fuel nparams : Nat} {types : List In
 theorem loweringRun.types_nonempty {env : Environment} {fuel nparams : Nat}
     {types : List InductiveType} {lparams : List Name} {res : ElimNestedInductive.Result}
     (h : loweringRun env fuel nparams types lparams = .ok res) : res.types ≠ [] := by
-  have H := loweringRun.WF h
+  obtain ⟨hne, hle, -⟩ := loweringRun.sourceShape h
   intro hnil
-  have hlen := H.types_length
-  rw [hnil] at hlen
-  exact H.source_nonempty (List.eq_nil_of_length_eq_zero (by simp at hlen; omega))
+  rw [hnil] at hle
+  exact hne (List.eq_nil_of_length_eq_zero (by simpa using hle))
 
 /-- A lowering run that introduces no auxiliary family returns the source types literally. -/
 theorem loweringRun.ordinary_types_eq_source {env : Environment} {fuel nparams : Nat}
@@ -130,7 +170,7 @@ theorem loweringRun.ordinary_types_eq_source {env : Environment} {fuel nparams :
     (hsources : SourceSyntaxChecks env types) (hclosed : SourceBVarClosed types)
     (h : loweringRun env fuel nparams types lparams = .ok res)
     (haux : res.aux2nested.size = 0) : res.types = types :=
-  (loweringRun.WF h).ordinary haux hsources hclosed
+  (loweringRun.sourceShape h).2.2 haux hsources hclosed
 
 /-- `Environment.addInductive` is the source checks, the lowering run and
 `addInductiveAfterLowering`. -/
