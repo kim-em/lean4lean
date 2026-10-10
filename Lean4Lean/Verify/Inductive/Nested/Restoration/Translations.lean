@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Steps
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ConstructorTranslations
--- PORT: missing import Lean4Lean.Verify.Inductive.Nested.Lowering.Recognition
--- PORT: missing import Lean4Lean.Verify.Inductive.Install.Metadata
+import Lean4Lean.Verify.Inductive.Nested.Lowering.Recognition
+import Lean4Lean.Verify.Inductive.Recursor.Entries.Metadata
 
 /-! Translations of the executable nested restoration folds: the source family
 translations (`SourceFamilyTranslations`: header, constructors and source recursor of
