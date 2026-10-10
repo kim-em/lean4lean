@@ -1,6 +1,7 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.RestorationRun
 import Lean4Lean.Verify.Inductive.Install.BlockCertificate
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.Stripped
+import Lean4Lean.Verify.Inductive.Nested.Install.Permutation
 
 /-! # The validation passes (owner: Restoration-A)
 
@@ -193,27 +194,34 @@ theorem validateNestedAuxiliaries.WF (C : CheckerEnv safety env venv) (lparams :
 
 /-- **The stripped restored environment** (the output with the new recursors' rules removed,
 in which the restored rules are validated) is a valid checking environment of the recursor
-stage. It is stated through the rule-free installation `H` of the restored declaration with
-every recursor's rules removed into the stripped map, so that no premise mentions the rules
-being validated: the model is the recursor stage `H.envR`, where none of the block's ι rules is
-registered (`RuleFreeStage`, `Validation/Stripped.lean`). -/
+stage. It is stated through a rule-free installation `H` of the restored declaration with
+every recursor's rules removed into an environment `S` whose lookups agree with the stripped
+map's (`stripRecursorRules` re-inserts each recursor, so no `insertConsts` map is structurally
+the stripped one), so that no premise mentions the rules being validated: the model is the
+recursor stage `H.envR`, where none of the block's ι rules is registered (`RuleFreeStage`,
+`Validation/Stripped.lean`); the transfer to the stripped map is `CheckingEnv.Valid.mapExt`. -/
 theorem stripRecursorRules.checkingValid {outEnv : Environment} {names : List Name}
-    {decl : VInductDecl} {venv₂ : VEnv} (hin : CheckingEnv.Valid safety env venv)
-    (H : AddInduct safety env.constants venv decl (stripRecursorRules outEnv names).constants
-      venv₂)
-    (F : RuleFreeStage safety env venv decl (stripRecursorRules outEnv names) venv₂ H) :
+    {decl : VInductDecl} {S : Environment} {venv₂ : VEnv}
+    (hin : CheckingEnv.Valid safety env venv)
+    (H : AddInduct safety env.constants venv decl S.constants venv₂)
+    (F : RuleFreeStage safety env venv decl S venv₂ H)
+    (hstripWF : (stripRecursorRules outEnv names).constants.WF)
+    (heq : ∀ n, S.constants.find? n = (stripRecursorRules outEnv names).constants.find? n)
+    (hquot : (stripRecursorRules outEnv names).quotInit = S.quotInit) :
     CheckingEnv.Valid safety (stripRecursorRules outEnv names) H.envR :=
-  F.checkingValid hin
+  (F.checkingValid hin).mapExt hstripWF heq hquot
 
 /-- The stripped restored environment is a checker environment of the recursor stage, the
-input of `validateRestoredRecursorRules.check.WF`. -/
+input of `validateRestoredRecursorRules.check.WF` (`CheckerEnv.mapExt`). -/
 theorem stripRecursorRules.checkerEnv {outEnv : Environment} {names : List Name}
-    {decl : VInductDecl} {venv₂ : VEnv} (C : CheckerEnv safety env venv)
-    (H : AddInduct safety env.constants venv decl (stripRecursorRules outEnv names).constants
-      venv₂)
-    (F : RuleFreeStage safety env venv decl (stripRecursorRules outEnv names) venv₂ H) :
+    {decl : VInductDecl} {S : Environment} {venv₂ : VEnv} (C : CheckerEnv safety env venv)
+    (H : AddInduct safety env.constants venv decl S.constants venv₂)
+    (F : RuleFreeStage safety env venv decl S venv₂ H)
+    (hstripWF : (stripRecursorRules outEnv names).constants.WF)
+    (heq : ∀ n, S.constants.find? n = (stripRecursorRules outEnv names).constants.find? n)
+    (hquot : (stripRecursorRules outEnv names).quotInit = S.quotInit) :
     CheckerEnv safety (stripRecursorRules outEnv names) H.envR :=
-  F.checkerEnv C
+  (F.checkerEnv C).mapExt hstripWF heq hquot
 
 end VerifyInductive
 end Lean4Lean
