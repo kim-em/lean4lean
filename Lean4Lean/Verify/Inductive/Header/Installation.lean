@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Header.Check
+import Lean4Lean.Verify.Inductive.Header.Declare
 
 /-! # Header installation: `declareInductiveTypes`
 
@@ -151,6 +151,123 @@ theorem AddInductive.declareConstructors.namesAbsent
   rw [AddInductive.declareConstructors, ← Array.foldlM_toList]
   exact outer indTypes.toList c.env hwf id
 
+/-! ## Reading the kernel headers and the described declaration -/
+
+/-- The kernel headers, family by family. -/
+theorem inductiveTypeInfos_getElem (stats : AddInductive.InductiveStats) (nparams : Nat)
+    (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool) (lparams : List Name)
+    (hsize : stats.nindices.size = indTypes.size) :
+    (AddInductive.inductiveTypeInfos stats nparams indTypes numNested isUnsafe
+      lparams).toList.length = indTypes.toList.length ∧
+    ∀ i (hi : i < indTypes.toList.length) (hi' : i < (AddInductive.inductiveTypeInfos stats
+        nparams indTypes numNested isUnsafe lparams).toList.length),
+      let info := (AddInductive.inductiveTypeInfos stats nparams indTypes numNested isUnsafe
+        lparams).toList[i]
+      info.name = indTypes.toList[i].name ∧ info.type = indTypes.toList[i].type ∧
+      info.levelParams = lparams ∧ info.ctors = indTypes.toList[i].ctors.map (·.name) ∧
+      info.isUnsafe = isUnsafe := by
+  refine ⟨by simp [AddInductive.inductiveTypeInfos, hsize], ?_⟩
+  intro i hi hi'
+  simp [AddInductive.inductiveTypeInfos]
+
+/-- Every kernel header is the header of a source family. -/
+theorem inductiveTypeInfos_mem {stats : AddInductive.InductiveStats} {nparams : Nat}
+    {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool} {lparams : List Name}
+    {info : InductiveVal}
+    (h : info ∈ (AddInductive.inductiveTypeInfos stats nparams indTypes numNested isUnsafe
+      lparams).toList) :
+    ∃ owner ∈ indTypes.toList, info.name = owner.name ∧
+      info.ctors = owner.ctors.map (·.name) := by
+  simp only [AddInductive.inductiveTypeInfos, Array.toList_zipWith] at h
+  rw [List.mem_iff_getElem] at h
+  obtain ⟨i, hi, rfl⟩ := h
+  have hi' : i < indTypes.toList.length := by
+    simp only [List.length_zipWith] at hi; omega
+  simp only [List.getElem_zipWith]
+  exact ⟨indTypes.toList[i], List.getElem_mem hi', rfl, rfl⟩
+
+namespace CheckedHeaders
+
+variable {env : VEnv} {Us : List Name} {nparams : Nat} {params : List VExpr}
+  {commonLevel : VLevel} {sources : List InductiveType}
+
+theorem Describes.length {H : CheckedHeaders env Us nparams params commonLevel sources}
+    {decl : VInductDecl} (D : H.Describes decl) : decl.types.length = sources.length := by
+  rw [← List.Forall₂.length_eq D.2.2, H.payloads_length]
+
+/-- The `i`th family of a described declaration has the header fields of the `i`th payload. -/
+theorem Describes.getElem {H : CheckedHeaders env Us nparams params commonLevel sources}
+    {decl : VInductDecl} (D : H.Describes decl) (i : Nat) (hi : i < decl.types.length) :
+    ∃ hp : i < H.payloads.length,
+      decl.types[i].toVConstVal = H.payloads[i].2.target ∧
+      decl.types[i].numIndices = H.payloads[i].2.numIndices ∧
+      decl.types[i].resultLevel = H.payloads[i].2.resultLevel ∧
+      decl.types[i].ctors.map (·.name) = H.payloads[i].1.ctors.map (·.name) := by
+  have hp : i < H.payloads.length := by rw [List.Forall₂.length_eq D.2.2]; exact hi
+  have := List.forall₂_getElem D.2.2 i hp hi
+  exact ⟨hp, this.1, this.2.1, this.2.2.1, this.2.2.2⟩
+
+theorem payloads_getElem_fst (H : CheckedHeaders env Us nparams params commonLevel sources)
+    (i : Nat) (hp : i < H.payloads.length) (hs : i < sources.length) :
+    H.payloads[i].1 = sources[i] := by
+  have := congrArg (fun l => l[i]?) H.sourceOrder
+  simp [hp, hs] at this
+  exact this
+
+theorem Describes.typeConstants {H : CheckedHeaders env Us nparams params commonLevel sources}
+    {decl : VInductDecl} (D : H.Describes decl) : decl.typeConstants = H.targets := by
+  apply List.ext_getElem
+  · simp [VInductDecl.typeConstants, targets, List.Forall₂.length_eq D.2.2]
+  · intro i h1 h2
+    have hi : i < decl.types.length := by simpa [VInductDecl.typeConstants] using h1
+    obtain ⟨hp, ht, -⟩ := D.getElem i hi
+    simp [VInductDecl.typeConstants, targets, ht]
+
+/-- The source family types translate to the described type formers. -/
+theorem Describes.trSources {H : CheckedHeaders env Us nparams params commonLevel sources}
+    {decl : VInductDecl} (D : H.Describes decl) :
+    List.Forall₂ (fun (source : InductiveType) (t : VInductiveType) =>
+      TrSourceConst env Us source.name source.type t.toVConstVal ∧
+      source.ctors.map (·.name) = t.ctors.map (·.name)) sources decl.types := by
+  have go : ∀ {ps : List (Sigma fun source =>
+      CheckedHeader env Us nparams params commonLevel source)} {ts : List VInductiveType},
+      List.Forall₂ (fun (p : Sigma fun source =>
+          CheckedHeader env Us nparams params commonLevel source) (t : VInductiveType) =>
+        t.toVConstVal = p.2.target ∧ t.numIndices = p.2.numIndices ∧
+        t.resultLevel = p.2.resultLevel ∧ t.ctors.map (·.name) = p.1.ctors.map (·.name)) ps ts →
+      List.Forall₂ (fun (source : InductiveType) (t : VInductiveType) =>
+        TrSourceConst env Us source.name source.type t.toVConstVal ∧
+        source.ctors.map (·.name) = t.ctors.map (·.name)) (ps.map Sigma.fst) ts := by
+    intro ps ts h
+    induction h with
+    | nil => exact .nil
+    | @cons p t _ _ h _ ih =>
+      refine .cons ⟨?_, h.2.2.2.symm⟩ ih
+      rw [h.1]; exact p.2.translation
+  have := go D.2.2
+  rwa [H.sourceOrder] at this
+
+end CheckedHeaders
+
+/-- Move a header parameter context to a larger environment over the same local context. -/
+def HeaderParameterContext.withEnv {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {params : List VExpr} {depth : Nat}
+    (H : HeaderParameterContext Hc stats params depth) {env' : Environment} {venv' : VEnv}
+    (hchecking : CheckingEnv.Valid c.safety env' venv')
+    (hshapes : RecursorShapesCoherent c.safety env'.constants venv')
+    (hiota : IotaRulesRegistered c.safety env' venv') (hle : Hc.venv ≤ venv') :
+    HeaderParameterContext (Hc.withEnv hchecking hshapes hiota hle) stats params depth where
+  ambientDecls := H.ambientDecls
+  parameterDecls := H.parameterDecls
+  context := H.context
+  prefixLength := H.prefixLength
+  paramFVars := H.paramFVars
+  cached := H.cached
+  paramsTr := Lean4Lean.List.Forall₂.imp (fun _ _ h => h.mono hle) H.paramsTr
+  ambient := H.ambient
+  ambient_length := H.ambient_length
+  paramsDefEq := H.paramsDefEq.mono hle
+
 /-- The boundary theorem of header installation: in the context of a completed header phase,
 `declareInductiveTypes` yields a well-formed constant map and, once the constructor names are
 absent from it, a header environment for every declaration the checked headers describe. -/
@@ -166,13 +283,108 @@ theorem AddInductive.declareInductiveTypes.WF
     (AddInductive.declareInductiveTypes stats nparams indTypes numNested isUnsafe c').WF
       fun headerEnv => headerEnv.constants.WF ∧
         (ConstructorNamesAbsent indTypes headerEnv → ∀ decl : VInductDecl,
-          P.headers.Describes decl →
+          P.headers.Describes decl → decl.isUnsafe = isUnsafe →
           Nonempty (HeaderEnvironment c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes
             headerEnv)) := by
-  -- WAVE 2 STUB (Header/Context/Formation): the source branch's
-  -- `HeaderDeclaration.toHeaderEnvironment` (`Install/Headers.lean`) and
-  -- `declareInductiveTypes.installsHeadersAtomicWF`.
-  have := hpresent; sorry
+  have hwf := Hc'.checking.tr.map_wf
+  have hsize : stats.nindices.size = indTypes.size := P.nindices_size
+  obtain ⟨hlen, hget⟩ := inductiveTypeInfos_getElem stats nparams indTypes numNested isUnsafe
+    c'.lparams hsize
+  let infos := (AddInductive.inductiveTypeInfos stats nparams indTypes numNested isUnsafe
+    c'.lparams).toList
+  let L := HeaderInstallation.listedNames indTypes
+  have hpayloads : P.headers.payloads.length = indTypes.toList.length := P.headers.payloads_length
+  have hinfosPayloads : infos.length = P.headers.payloads.length := by
+    rw [hpayloads]; exact hlen
+  -- the kernel headers translate to the checked targets
+  have Hentries : List.Forall₂ (fun info v =>
+      TrConstVal c'.safety Hc'.venv (.inductInfo info) v ∧ v.toVConstant.WF Hc'.venv)
+      infos P.headers.targets := by
+    apply List.forall₂_of_getElem (by simpa [CheckedHeaders.targets] using hinfosPayloads)
+    intro i hi hi'
+    have hp : i < P.headers.payloads.length := by simpa [CheckedHeaders.targets] using hi'
+    have hs : i < indTypes.toList.length := by rw [← hpayloads]; exact hp
+    obtain ⟨hname, htype, hlp, -, hunsafe⟩ := hget i hs hi
+    have hsrc := P.headers.payloads_getElem_fst i hp hs
+    have htr : TrSourceConst Hc'.venv c'.lparams indTypes.toList[i].name indTypes.toList[i].type
+        P.headers.payloads[i].2.target := by
+      rw [← hsrc]; exact P.headers.payloads[i].2.translation
+    simp only [CheckedHeaders.targets, List.getElem_map]
+    exact ⟨TrSourceConst.inductInfo htr hlp hname htype (by rw [hunsafe]; exact hvisible),
+      htr.wf⟩
+  change (AddInductive.declareInductiveTypeInfos c'.allowPrimitive infos c'.env).WF _
+  have HS := HeaderInstallation.declareInfos_structural c'.allowPrimitive infos c'.env hwf
+  intro out hout
+  obtain ⟨hwfOut, hmap, hquot, hfresh, hmono, hself, -⟩ := HS out hout
+  refine ⟨hwfOut, fun habsent decl D hdeclUnsafe => ?_⟩
+  -- the listed names are absent from the source environment and distinct from the headers
+  have hLabs : ∀ n ∈ L, out.find? n = none := by
+    intro n hn
+    obtain ⟨owner, howner, ctor, hctor, rfl⟩ := HeaderInstallation.mem_listedNames.1 hn
+    exact habsent owner howner ctor hctor
+  have hL : ∀ n ∈ L, c'.env.find? n = none := by
+    intro n hn
+    cases h : c'.env.find? n with
+    | none => rfl
+    | some ci => have := hLabs n hn; rw [hmono h] at this; cases this
+  have hnotL : ∀ info ∈ infos, info.name ∉ L := by
+    intro info hinfo hmem
+    have := hLabs _ hmem
+    rw [hself info hinfo] at this
+    cases this
+  have hsub : ∀ info ∈ infos, ∀ n ∈ info.ctors, n ∈ L := by
+    intro info hinfo n hn
+    obtain ⟨owner, howner, -, hctors⟩ := inductiveTypeInfos_mem hinfo
+    rw [hctors] at hn
+    obtain ⟨ctor, hctor, rfl⟩ := List.mem_map.1 hn
+    exact HeaderInstallation.mem_listedNames.2 ⟨owner, howner, ctor, hctor, rfl⟩
+  have hinv : ∀ fn fi, c'.env.find? fn = some (.inductInfo fi) → ∀ n ∈ fi.ctors,
+      (∃ c, c'.env.find? n = some c) ∨ n ∈ L :=
+    fun fn fi hfi n hn => .inl (hpresent fn fi hfi n hn)
+  obtain ⟨outVEnv, htypes, hle, hV, hS, hI⟩ :=
+    HeaderInstallation.declareInfos_valid c'.allowPrimitive L Hc'.venv infos P.headers.targets
+      c'.env Hc'.venv Hentries VEnv.LE.rfl Hc'.checking (@Hc'.shapes) (@Hc'.iota) hL hnotL hsub
+      hinv hnprim out hout
+  let context := Hc'.withEnv hV @hS @hI hle
+  -- the kernel headers and the described families
+  have htrHeaders : List.Forall₂ (fun (info : InductiveVal) (t : VInductiveType) =>
+      TrConstVal c'.safety Hc'.venv (.inductInfo info) t.toVConstVal ∧
+      info.ctors = t.ctors.map (·.name)) infos decl.types := by
+    have hdlen : decl.types.length = indTypes.toList.length := D.length
+    apply List.forall₂_of_getElem (by rw [hdlen]; exact hlen)
+    intro i hi hi'
+    obtain ⟨hp, ht, -, -, hctors⟩ := D.getElem i hi'
+    have hs : i < indTypes.toList.length := by rw [← hdlen]; exact hi'
+    obtain ⟨hname, htype, hlp, hictors, hunsafe⟩ := hget i hs hi
+    have hsrc := P.headers.payloads_getElem_fst i hp hs
+    have htr : TrSourceConst Hc'.venv c'.lparams indTypes.toList[i].name indTypes.toList[i].type
+        P.headers.payloads[i].2.target := by
+      rw [← hsrc]; exact P.headers.payloads[i].2.translation
+    rw [ht]
+    refine ⟨TrSourceConst.inductInfo htr hlp hname htype (by rw [hunsafe]; exact hvisible), ?_⟩
+    change (infos[i]'hi).ctors = _
+    rw [hictors, hctors, hsrc]
+  exact ⟨{
+    numNested := numNested
+    infos := infos
+    infos_eq := rfl
+    map_eq := hmap
+    quotInit_eq := hquot
+    fresh := hfresh
+    uvars := D.1
+    nparams := D.2.1
+    isUnsafe := hdeclUnsafe
+    sourceContext := Hc'
+    sourceContextVEnv := rfl
+    context := context
+    contextMLCtx := rfl
+    typesAdded := by rw [D.typeConstants]; exact htypes
+    headers := D.headerCertificate
+    trHeaders := htrHeaders
+    trSources := D.trSources
+    parameters := P.parameters.withEnv hV @hS @hI hle
+    sourceParameters := P.parameters
+    sourcePresent := hpresent }⟩
 
 end VerifyInductive
 end Lean4Lean

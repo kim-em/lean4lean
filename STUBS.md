@@ -162,7 +162,18 @@ Parked:
 
 ## Wave 2 header (`Context.lean`, `Context/**`, `Formation.lean`, `Header/**`)
 
-Closed: `TrInductDeclCore.sourceNames_nodup`, `CheckedHeaders.Describes.headerCertificate`.
+Closed: all four header stubs (`AddInductive.checkInductiveTypes.WF`,
+`CheckedHeaders.Describes.headerCertificate`, `AddInductive.declareInductiveTypes.WF`,
+`TrInductDeclCore.sourceNames_nodup`). No `sorry` in `Context.lean`, `Context/**`, `Header/**`;
+the one in `Formation.lean` is Install's `ConstructorCertificate.withRecs`.
+
+Two more corrections of the scaffold's header interface (both were false as stated):
+
+* `HeaderParameterContext.paramsTr` placed the parameter variables at `.bvar i`; the
+  continuation of `checkInductiveTypes` runs beneath the index binders of every family (the loop
+  nests them), so they are `.bvar (depth + i)`.
+* `declareInductiveTypes.WF` takes `decl.isUnsafe = isUnsafe` beside `Describes` (which does not
+  constrain `isUnsafe`), since `HeaderEnvironment.isUnsafe` asserts it.
 
 Interface change (statement of a boundary theorem): `AddInductive.declareInductiveTypes.WF` as
 scaffolded was false. Its postcondition built a `ContextWF` over the header environment, whose
