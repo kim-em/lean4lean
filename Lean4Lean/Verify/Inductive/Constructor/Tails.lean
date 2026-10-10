@@ -186,6 +186,44 @@ theorem ParameterPrefix.forallSpine
 theorem Expr.ForallSpine.unique (H₁ : Expr.ForallSpine e k₁) (H₂ : Expr.ForallSpine e k₂) :
     k₁ = k₂ := H₁.constructorArity.symm.trans H₂.constructorArity
 
+/-- A partially instantiated common-parameter prefix.  Constructor checking
+builds this left-to-right; when `stop = stats.params.size`, it is exactly the
+complete prefix replay required by recursor generation. -/
+inductive ParameterSegment (stats : AddInductive.InductiveStats) :
+    Nat → Nat → Expr → Expr → Prop
+  | done : ParameterSegment stats i i source source
+  | step {i stop : Nat} {param body tail dom : Expr}
+      {name : Name} {bi : BinderInfo} :
+      stats.params[i]? = some param →
+      ParameterSegment stats (i + 1) stop
+        (body.instantiate1 param) tail →
+      ParameterSegment stats i stop (.forallE name dom body bi) tail
+
+theorem ParameterSegment.trans
+    (H₁ : ParameterSegment stats start middle source current)
+    (H₂ : ParameterSegment stats middle stop current tail) :
+    ParameterSegment stats start stop source tail := by
+  induction H₁ with
+  | done => exact H₂
+  | step hparam _ ih => exact .step hparam (ih H₂)
+
+theorem ParameterSegment.push
+    {body param dom : Expr} {name : Name} {bi : BinderInfo}
+    (H : ParameterSegment stats start i source
+      (.forallE name dom body bi))
+    (hparam : stats.params[i]? = some param) :
+    ParameterSegment stats start (i + 1) source
+      (body.instantiate1 param) := by
+  exact H.trans (.step hparam .done)
+
+theorem ParameterSegment.complete
+    (H : ParameterSegment stats start stop source tail)
+    (hstop : stop = stats.params.size) :
+    ParameterPrefix stats start source tail := by
+  induction H with
+  | done => exact .done hstop
+  | step hparam _ ih => exact .step hparam (ih hstop)
+
 /-- The comparisons performed while consuming the cached common parameters of a constructor
 type: each source parameter domain translates in the current scope and is definitionally the
 cached parameter type returned by the executable `isDefEq` call. -/
