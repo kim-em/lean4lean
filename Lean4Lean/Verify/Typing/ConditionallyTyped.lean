@@ -117,6 +117,18 @@ context, and context strengthening (`IsDefEqU.weakN_iff`, `Theory/Typing/UniqueT
 moves it to the smaller one. The syntax of a translation is restricted by `TrSyn`; only its typing
 needs strengthening. -/
 
+/-- Context strengthening for definitional equality: an equation between two lifted expressions
+in a context extended by `n` binders (inserted below `k` binders) already holds in the smaller
+context. -/
+def VEnv.Strengthening (env : VEnv) : Prop :=
+  ∀ ⦃U n k Γ Γ' e1 e2⦄, Ctx.LiftN n k Γ Γ' → OnCtx Γ' (env.IsType U) →
+    env.IsDefEqU U Γ' (e1.liftN n k) (e2.liftN n k) → env.IsDefEqU U Γ e1 e2
+
+/-- Every well-formed environment admits context strengthening: master's
+`IsDefEqU.weakN_iff`. This is the one strengthening principle of the checker verification. -/
+theorem VEnv.WF.strengthening {env : VEnv} (henv : env.WF) : env.Strengthening :=
+  fun _ _ _ _ _ _ _ W hΓ h => (IsDefEqU.weakN_iff henv hΓ W).1 h
+
 theorem VLCtx.FVLift'.cons_vlam (W : VLCtx.FVLift' Δ Δ' dk l k)
     (h : ty₀.lift' (l.consN k) = ty') :
     VLCtx.FVLift' ((none, .vlam ty₀) :: Δ) ((none, .vlam ty') :: Δ') (dk + 1) l (k + 1) := by
