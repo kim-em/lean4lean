@@ -252,7 +252,7 @@ theorem Expr.closure_mkAppRange_const (c : Name) (ls : List Level) (n : Nat)
   have hrange : mkAppRange (.const c ls) 0 n args =
       Expr.mkAppList (.const c ls) (args.toList.take n) :=
     Expr.mkAppRange_eq (l₁ := []) (l₃ := args.toList.drop n) (by simp) rfl
-      (by simp <;> omega)
+      (by simp; omega)
   refine ⟨((args.toList.take n).map fun a =>
       ((a.abstractN fvs 0).instantiateList ps.reverse.toList 0)).toArray, by simp; omega, ?_⟩
   rw [hrange, Expr.mkAppN_eq_mkAppList]
