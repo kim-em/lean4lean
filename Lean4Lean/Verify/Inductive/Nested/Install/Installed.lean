@@ -25,6 +25,47 @@ open Kernel
 
 namespace VerifyInductive
 
+open private Lean.Kernel.Environment.add from Lean.Environment in
+/-- A name new in the target of a nonprimitive fresh extension is not primitive. -/
+theorem FreshNonprimitiveExtension.new_nonprimitive {source target : Environment}
+    {entries : List ConstantInfo} (H : FreshNonprimitiveExtension false source entries target)
+    (hwf : source.constants.WF) {n : Name} {ci : ConstantInfo}
+    (ht : target.find? n = some ci) (hs : source.find? n = none) :
+    ¬ Kernel.Environment.primitives.contains n := by
+  induction H with
+  | nil => rw [hs] at ht; cases ht
+  | cons hfresh hnprim Htail ih =>
+    rename_i cis out env ci0
+    have hnextWF : (env.add ci0).constants.WF := constantsWF_add_checked hwf hfresh
+    by_cases hn : ci0.name = n
+    · subst hn; simp [hnprim rfl]
+    · apply ih hnextWF ht
+      have hfreshMap : env.constants.find? ci0.name = none := by
+        rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hfresh
+      rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hs
+      change (env.constants.insert ci0.name ci0).find?' n = none
+      rw [(hwf.insert ci0.name ci0 hfreshMap).find?'_eq_find?, hwf.find?_insert]
+      split
+      · rename_i heq; exact absurd (by simpa using heq) hn
+      · exact hs
+
+/-- The primitive safety of the target of a nonprimitive fresh extension. -/
+theorem FreshNonprimitiveExtension.safePrimitives {source target : Environment}
+    {entries : List ConstantInfo} (H : FreshNonprimitiveExtension false source entries target)
+    (hwf : source.constants.WF)
+    (hsafe : ∀ {n ci}, source.find? n = some ci →
+      Kernel.Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []) :
+    ∀ {n ci}, target.find? n = some ci →
+      Kernel.Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = [] := by
+  intro n ci ht hp
+  cases hs : source.find? n with
+  | none => exact absurd hp (H.new_nonprimitive hwf ht hs)
+  | some ci0 =>
+    have := H.fresh.preservesSourceFind hwf hs
+    rw [ht] at this
+    cases this
+    exact hsafe hs hp
+
 namespace RestoredBlock
 
 variable {c : AddInductive.Context} {Hc : ContextWF c} {nparams : Nat}
@@ -171,14 +212,37 @@ theorem constructorParameterAlignment (B : RestoredBlock L sourceTypes isUnsafe 
   -- `RestoredBlockCertificate.constructorTypingOfParameterDomains`.
   have := B; sorry
 
-/-- The primitive names of the output. -/
+/-- The primitive names of the output: the restored constants are nonprimitive
+(`NestedRun.primitiveSafe`), so the base's primitive invariants persist. -/
 theorem primitives (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
     B.outVEnv.HasPrimitives ∧ ∀ {n ci}, outEnv.find? n = some ci →
       Kernel.Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = [] := by
-  -- WAVE 3 STUB (Equations+Install): the run's `primitiveSafe`
-  -- (`FreshNonprimitiveExtension`, `Restoration/Nonprimitive.lean`) with the base's
-  -- `HasPrimitives`/`safePrimitives` (`Hc.checking`).
-  have := B; sorry
+  have hwf : c.env.constants.WF := Hc.map_wf
+  have houtWF : outEnv.constants.WF := B.addInduct.wf hwf
+  obtain ⟨entries, H⟩ := B.run.primitiveSafe
+  refine ⟨?_, H.safePrimitives hwf Hc.checking.safePrimitives⟩
+  intro p hp
+  have hnot : ∀ b ∈ B.decl.consts, b.1 ≠ p.1 := by
+    intro b hb hbn
+    have hname : b.1 ∈ (AddInduct.consts B.ivals B.rvals).map (·.name) := by
+      show b.1 ∈ (AddInduct.consts B.addInduct.ivals B.addInduct.rvals).map (·.name)
+      rw [B.addInduct.consts_names]
+      simp only [VInductDecl.consts, List.mem_append, List.mem_map] at hb
+      simp only [List.mem_append, List.mem_map]
+      rcases hb with (⟨t, ht, rfl⟩ | ⟨ct, hct, rfl⟩) | ⟨r, hr, rfl⟩
+      · exact .inl (.inl ⟨t, ht, rfl⟩)
+      · exact .inl (.inr ⟨ct, hct, rfl⟩)
+      · exact .inr ⟨r, hr, rfl⟩
+    obtain ⟨ci, hci, hcn⟩ := List.mem_map.1 hname
+    have ht : outEnv.find? b.1 = some ci := by
+      rw [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?, ← hcn]
+      exact B.addInduct.find?_self hwf hci
+    have hs : c.env.find? b.1 = none := by
+      rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?, ← hcn]
+      exact B.fresh ci hci
+    exact H.new_nonprimitive hwf ht hs (hbn ▸ mem_primSpecs_contains hp)
+  exact (Hc.checking.hasPrimitives p hp).extend (VEnv.addInduct_le B.installed)
+    (VEnv.addInduct_constants_of_not_mem B.installed hnot)
 
 /-- The kernel-level facts of a restored block. -/
 theorem kernelFacts (B : RestoredBlock L sourceTypes isUnsafe outEnv)
