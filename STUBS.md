@@ -290,6 +290,8 @@ Interface changes (all marked `-- WAVE 2 install COMPAT`):
   `InstalledBlock.WF` gains `shapes : ∀ r ∈ B.recursors, visible → RecursorShapesAt env.constants venv r`;
   `addBlock`/`addInduct` take `hrecShapes`, `addCtorStage` takes it as an auto-discharged argument.
   `InstalledBlocks.recursorShapesCoherent` (`TypeChecker/CheckerEnv.lean`).
+* `RecursorInput`, `ConstructorCheck` and `CtorInstall` gain `literalDisjoint` (positivity's literal
+  side condition, `AvailableLiteralDisjoint`, in the recursor phase's context; requested by rec).
 * `BlockCertificate` gains `compiled` (a well-formed compiled block, for `rebase`), `newUnsafe` (inserted
   constants carry the declaration's `isUnsafe`) and `recShapes`; `rebase` takes `ves.WF env` and
   `decl.isUnsafe = false`. `RuleTranslations.compilesTo`/`recsCompiled`/`recursorsWF` take
