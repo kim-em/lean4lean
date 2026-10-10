@@ -478,8 +478,11 @@ or because the scaffold form was circular:
 `Nested/Restoration/Uniform/**` (parameter uniformity of the lowered recursors, consumed by
 Restoration-B) is ported: `Uniform/{Recursors,Generic,Heads,Base,Lowered,Run,Whnf,Declarations,
 RunEnv}.lean`, ending in `NestedRun.recursorParamUniform_of_wfCore`. The lowered names'
-non-primitivity is Restoration-B's `NestedRun.loweredNonprimitive`. Pending on Restoration-B's
-`NestedInstalledRun`/`ConstructorCoherence`: `Validation/ParameterScopes`. Source `Validation/Result.lean` is superseded by `RestorationRun`.
+non-primitivity is Restoration-B's `NestedRun.loweredNonprimitive`. `Validation/ParameterScopes.lean` (`NestedInstalledRun.restoredFamilyParameterScopes`,
+`constructorParameterDomainsDefEqOfSource`) is ported over Restoration-B's `NestedInstalledRun`.
+The source's `Validation/{Environment,ConstructorEnvironment}` are Restoration-B's
+(`SideEnvironment/`), and the `NestedRun` part of `StrippedRecursorShapes` is replaced by
+`RecursorShapesAt.stripRules` and `KLikeRecursor.of_k_false`. Source `Validation/Result.lean` is superseded by `RestorationRun`.
 
 ## Wave 3 lowering
 
