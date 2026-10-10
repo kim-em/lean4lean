@@ -161,17 +161,28 @@ theorem CtorParamsDefEq.mono (henv : venv ≤ venv')
 declaration is installed by `VEnv.addInduct`: `InstalledBelow` still installs the block through
 `VInductBlock.install`, which registers the generated rules as stored equations, and no
 environment built by `addInduct` contains those. -/
+-- WAVE 3 COMPAT (lowering): a complete block also records a well-formed compiled block of the
+-- declaration (`∃ block, CompilesTo ∧ RecsOf ∧ block.WF`), so that it is `VEnv.InstalledBelow`
+-- (`InductInstalled.installedBelow`), the container judgment of nested formation.
 def VEnv.InductInstalled (venv : VEnv) (decl : VInductDecl) : Prop :=
-  ∃ base installed, decl.WF base ∧ base.addInduct decl = some installed ∧ installed ≤ venv
+  ∃ base installed, decl.WF base ∧ base.addInduct decl = some installed ∧ installed ≤ venv ∧
+    ∃ block, decl.CompilesTo base block ∧ decl.RecsOf block ∧ block.WF base
 
 theorem VEnv.InductInstalled.mono {venv venv' : VEnv} {decl : VInductDecl} (hle : venv ≤ venv')
     (H : venv.InductInstalled decl) : venv'.InductInstalled decl :=
-  let ⟨b, i, h1, h2, h3⟩ := H; ⟨b, i, h1, h2, h3.trans hle⟩
+  let ⟨b, i, h1, h2, h3, h4⟩ := H; ⟨b, i, h1, h2, h3.trans hle, h4⟩
 
 theorem VEnv.InductInstalled.of_addInduct {venv venv' : VEnv} {decl : VInductDecl}
-    (hwf : decl.WF venv) (h : venv.addInduct decl = some venv') :
+    (hwf : decl.WF venv) (h : venv.addInduct decl = some venv')
+    (hcompiled : ∃ block, decl.CompilesTo venv block ∧ decl.RecsOf block ∧ block.WF venv) :
     venv'.InductInstalled decl :=
-  ⟨venv, venv', hwf, h, .rfl⟩
+  ⟨venv, venv', hwf, h, .rfl, hcompiled⟩
+
+/-- An installed declaration is installed below in the sense of nested formation. -/
+theorem VEnv.InductInstalled.installedBelow {venv : VEnv} {decl : VInductDecl}
+    (H : venv.InductInstalled decl) : VEnv.InstalledBelow venv decl :=
+  let ⟨_, _, hwf, hadd, hle, _, hc, hr, hb⟩ := H
+  .intro hwf.source hwf.formation hc hb hr hadd hle
 
 /-- The abstract counterpart `T` of the kernel constructor `c`. -/
 structure InstalledFamily.CtorAbstract (venv : VEnv) (B : InstalledBlock)
@@ -817,7 +828,7 @@ structure DeclRegistered (venv : VEnv) (decl : VInductDecl) : Prop where
 projection entries. -/
 theorem _root_.Lean4Lean.VEnv.InductInstalled.registered {venv : VEnv} {decl : VInductDecl}
     (H : venv.InductInstalled decl) : DeclRegistered venv decl := by
-  obtain ⟨base, inst, hwf, hadd, hle⟩ := H
+  obtain ⟨base, inst, hwf, hadd, hle, -⟩ := H
   exact {
     typeUvars := hwf.types_uvars
     constructorUvars := fun c hc => by
@@ -1139,8 +1150,10 @@ theorem addInduct {decl : VInductDecl}
     (howners : VerifyInductive.ConstructorOwnersPresent env')
     (hrecMajor : ∀ {n r}, env'.find? n = some (.recInfo r) → env.find? n = none →
       ∃ info, env'.find? r.getMajorInduct = some (.inductInfo info))
+    -- WAVE 3 COMPAT (lowering): and a well-formed compiled block of the declaration
     (hadd : safety ≤ (if decl.isUnsafe then .unsafe else .safe) →
-      decl.WF venv ∧ venv.addInduct decl = some venv')
+      decl.WF venv ∧ venv.addInduct decl = some venv' ∧
+        ∃ block, decl.CompilesTo venv block ∧ decl.RecsOf block ∧ block.WF venv)
     (hhidden : ¬ safety ≤ (if decl.isUnsafe then .unsafe else .safe) → venv' = venv)
     (hparams : safety ≤ (if decl.isUnsafe then .unsafe else .safe) →
       VerifyInductive.ConstructorParameterAlignment safety env' venv')
@@ -1169,7 +1182,7 @@ theorem addInduct {decl : VInductDecl}
         ⟨S, info⟩ ∈ decl.projectionEntries) := by
     intro S info hp
     by_cases hv : safety ≤ (if decl.isUnsafe then .unsafe else .safe)
-    · rcases (VEnv.addInduct_projections_iff (hadd hv).2).1 hp with
+    · rcases (VEnv.addInduct_projections_iff (hadd hv).2.1).1 hp with
         ⟨entry, hentry, rfl, rfl⟩ | hold
       · exact .inr ⟨hv, hentry⟩
       · exact .inl hold
@@ -1178,8 +1191,10 @@ theorem addInduct {decl : VInductDecl}
   refine H.addBlock .complete (by decide) (InstallStage.le_refl _) (InstallStage.le_refl _)
     (H.listedConstructorsPresent (by decide)) hwf hchk' hpres hle horigins hcover hnodup
     howners (newRecursors env env') (fun hf hnone => (mem_newRecursors hwf').mpr ⟨_, hf, hnone⟩)
-    ?_ ?_ (fun hvis => (VEnv.InductInstalled.of_addInduct (hadd hvis).1 (hadd hvis).2).registered)
-    ?_ ?_ (fun hvis _ => ⟨.of_addInduct (hadd hvis).1 (hadd hvis).2, hparams hvis⟩) hproj
+    ?_ ?_ (fun hvis => (VEnv.InductInstalled.of_addInduct (hadd hvis).1 (hadd hvis).2.1
+      (hadd hvis).2.2).registered)
+    ?_ ?_ (fun hvis _ =>
+      ⟨.of_addInduct (hadd hvis).1 (hadd hvis).2.1 (hadd hvis).2.2, hparams hvis⟩) hproj
   · intro r hr
     obtain ⟨n, h1, h2⟩ := (mem_newRecursors hwf').mp hr
     have hn : r.name = n := hchk'.find?_name h1
