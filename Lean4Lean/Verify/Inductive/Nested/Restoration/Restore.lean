@@ -7,6 +7,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.TableAgreement
 import Lean4Lean.Verify.Inductive.Nested.Restoration.KernelData
 import Lean4Lean.Verify.Inductive.Nested.Restoration.FormationWithRecs
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ViewCast
+import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyTypes
 
 /-! # The restored block of a nested run (owner: Restoration-B)
 
@@ -77,7 +78,7 @@ theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     recsOf := ?recsOf
     ivals := E.restoration.ivals
     rvals := E.restoration.rvals
-    trTypes := ?trTypes
+    trTypes := E.trTypes B hBlowered
     envR := ?envR
     recsAdded := ?recsAdded
     trRecs := ?trRecs
@@ -104,7 +105,9 @@ theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     sourceSyntaxChecked := Hchecked
     constructorArityPrefix := ?arity
     run_loweredEnv := hloweredEnv
-    run_lowered := hlowered }⟩
+    run_lowered := hlowered
+    recMajor := ?recMajor
+    constructorParameterAlignment := ?alignment }⟩
   case arity =>
     have h := B.formationAssembly.constructorArityPrefix
     rw [B.formationExpanded, hBlowered, hdeclLowered] at h
