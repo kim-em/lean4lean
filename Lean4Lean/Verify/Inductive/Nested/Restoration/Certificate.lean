@@ -177,9 +177,11 @@ theorem compilesTo (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
     B.decl.CompilesTo Hc.venv B.block :=
   .intro B.compiled B.containers
 
-theorem recsCompiled (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
-    B.decl.RecsCompiled Hc.venv :=
-  ⟨B.block, B.compilesTo, B.recsOf⟩
+-- WAVE 3 COMPAT (eqinst): `RecsCompiled` carries `block.WF`, which is `RestoredBlock.blockWF`
+-- (`Nested/Equations/Rules.lean`, which imports this file); it is taken as a hypothesis here.
+theorem recsCompiled (B : RestoredBlock L sourceTypes isUnsafe outEnv)
+    (hblock : B.block.WF Hc.venv) : B.decl.RecsCompiled Hc.venv :=
+  ⟨B.block, B.compilesTo, B.recsOf, hblock⟩
 
 /-- (For the model's `PatValid.iota`.) Every installed rule is `OfEquation` of a block
 equation that is the restoration of a generated equation of the lowered run's generator
@@ -207,6 +209,7 @@ theorem rule_ctor_cases (B : RestoredBlock L sourceTypes isUnsafe outEnv)
 /-- `VInductDecl.WF` of the restored declaration, given the typing of its rules
 (`RestoredBlock.rulesWF`, `Nested/Equations/Rules.lean`). -/
 theorem wf (B : RestoredBlock L sourceTypes isUnsafe outEnv) (hsource : sourceTypes ≠ [])
+    (hblock : B.block.WF Hc.venv)  -- WAVE 3 COMPAT (eqinst)
     (hrules : ∀ r ∈ B.decl.recs, ∀ ru ∈ r.rules, ∀ hc : ru.rhs.Closed,
       B.envR.PatTyped
         (SimplePattern.iota r.name r.getMajorIdx ru.ctor (ru.ctorParams + ru.nfields)).toPattern
@@ -215,7 +218,7 @@ theorem wf (B : RestoredBlock L sourceTypes isUnsafe outEnv) (hsource : sourceTy
     B.decl.WF Hc.venv where
   source := TrInductDeclCore.sourceWF_ofNonempty B.source (B.types_ne_nil hsource)
   formation := .nested B.formation VEnv.LE.rfl
-  recsCompiled := B.recsCompiled
+  recsCompiled := B.recsCompiled hblock
   recs_wf envP hP r hr := by
     have := B.addInduct.addTypesCtorsProjs
     rw [hP] at this
