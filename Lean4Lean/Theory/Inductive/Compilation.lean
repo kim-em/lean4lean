@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Inductive.Formation
 import Lean4Lean.Theory.Inductive.Restoration
+import Lean4Lean.Theory.Inductive.AddInduct
 
 /-! Finite compilation from certified parameter specializations (section 2.2 of
 the design notes).
@@ -237,14 +238,19 @@ inductive CompiledInductive : VEnv → VInductDecl → VInductBlock → Prop
 
 /-- Each selected container is a compiled block installed below the source environment
 `env`. Current headers, current recursors, and future blocks cannot justify a specialization.
-The mutual induction with `CompiledInductive` makes the tree of containers finite. -/
+The mutual induction with `CompiledInductive` makes the tree of containers finite.
+
+WAVE 2 COMPAT: the container is installed by `VEnv.addInduct` (its recursors and rules read
+off the compiled block, `VInductDecl.RecsOf`), not by `VInductBlock.install`; see
+`VEnv.InstalledBelow` in `Theory/Inductive.lean`. -/
 inductive ContainersInstalled : VEnv →
     List InductiveSignature.ContainerSpecialization → Prop
   | nil {env} : ContainersInstalled env []
   | cons {env a rest base block installed} :
       CompiledInductive base a.container block →
       block.WF base →
-      VInductBlock.install base block = some installed →
+      a.container.RecsOf block →
+      base.addInduct a.container = some installed →
       installed ≤ env →
       ContainersInstalled env rest →
       ContainersInstalled env (a :: rest)
@@ -267,7 +273,7 @@ theorem CompiledInductive.types_eq {env source block} (H : CompiledInductive env
   | intro h _ _ => exact h.types
   | replay _ _ _ ih => exact ih
   | nil => trivial
-  | cons _ _ _ _ _ _ _ => trivial
+  | cons _ _ _ _ _ _ _ _ => trivial
 
 /-- The block of a compilation lays out the source declaration's constructors. -/
 theorem CompiledInductive.ctors_eq {env source block} (H : CompiledInductive env source block) :
@@ -276,7 +282,7 @@ theorem CompiledInductive.ctors_eq {env source block} (H : CompiledInductive env
   | intro h _ _ => exact h.ctors
   | replay _ _ _ ih => exact ih
   | nil => trivial
-  | cons _ _ _ _ _ _ _ => trivial
+  | cons _ _ _ _ _ _ _ _ => trivial
 
 /-- The block of a compilation lays out the source declaration's projections. -/
 theorem CompiledInductive.projections_eq {env source block}
@@ -286,7 +292,7 @@ theorem CompiledInductive.projections_eq {env source block}
   | intro h _ _ => exact h.projections
   | replay _ _ _ ih => exact ih
   | nil => trivial
-  | cons _ _ _ _ _ _ _ => trivial
+  | cons _ _ _ _ _ _ _ _ => trivial
 
 /-- The installed names of a compiled block are distinct. -/
 theorem CompiledInductive.names_nodup {env source block}
@@ -296,7 +302,7 @@ theorem CompiledInductive.names_nodup {env source block}
   | intro h _ _ => exact h.names
   | replay _ _ _ ih => exact ih
   | nil => trivial
-  | cons _ _ _ _ _ _ _ => trivial
+  | cons _ _ _ _ _ _ _ _ => trivial
 
 /-- Ordinary compilation (`Compiles`) is the zero-specialization case of the
 same finite derivation. Formation and output checking are supplied by their

@@ -1126,3 +1126,50 @@ theorem Ordered.projectionShape {env : VEnv} (H : Ordered env)
 
 end VEnv
 end Lean4Lean
+
+/-! ### Lookups below an installed container (`VEnv.InstalledBelow`)
+
+WAVE 2 COMPAT: moved here from `Theory/Inductive.lean`, where `InstalledBelow` is now phrased on
+`VEnv.addInduct`, so that the lookup facts can be read off the `addInduct` lemmas above. -/
+
+namespace Lean4Lean
+
+/-- Every projection entry derived from an installed declaration is present
+in the ambient projection registry. -/
+theorem VEnv.InstalledBelow.projection
+    {env : VEnv} {decl : VInductDecl} {entry : VProjectionEntry}
+    (H : VEnv.InstalledBelow env decl)
+    (hentry : entry ∈ decl.projectionEntries) :
+    env.projections entry.typeName entry.info := by
+  cases H with
+  | intro _ _ _ _ _ hinstall hle =>
+    exact hle.projections ((VEnv.addInduct_projections_iff hinstall).2
+      (.inl ⟨entry, hentry, rfl, rfl⟩))
+
+/-- An installed declaration exposes each of its family constants at the
+exact abstract value recorded by the source declaration. -/
+theorem VEnv.InstalledBelow.familyConstant
+    {env : VEnv} {decl : VInductDecl}
+    (H : VEnv.InstalledBelow env decl)
+    (familyIdx : Nat) (hfamily : familyIdx < decl.types.length) :
+    env.constants decl.types[familyIdx].name =
+      some decl.types[familyIdx].toVConstant := by
+  cases H with
+  | intro _ _ _ _ _ hinstall hle =>
+    exact hle.constants (VEnv.addInduct_type_find hinstall (List.getElem_mem hfamily))
+
+/-- An installed declaration exposes each of its constructor constants at
+the exact abstract value recorded by the source declaration. -/
+theorem VEnv.InstalledBelow.constructorConstant
+    {env : VEnv} {decl : VInductDecl}
+    (H : VEnv.InstalledBelow env decl)
+    (familyIdx ctorIdx : Nat) (hfamily : familyIdx < decl.types.length)
+    (hctor : ctorIdx < decl.types[familyIdx].ctors.length) :
+    env.constants decl.types[familyIdx].ctors[ctorIdx].name =
+      some decl.types[familyIdx].ctors[ctorIdx].toVConstant := by
+  cases H with
+  | intro _ _ _ _ _ hinstall hle =>
+    exact hle.constants (VEnv.addInduct_ctor_find hinstall (List.getElem_mem hfamily)
+      (List.getElem_mem hctor))
+
+end Lean4Lean

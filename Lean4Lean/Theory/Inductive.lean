@@ -255,86 +255,6 @@ theorem VInductDecl.LargeElim.shape {env : VEnv} {decl : VInductDecl} {ℓ : VLe
   · refine ⟨by rw [ht]; rfl, fun t' ht' => ?_⟩
     rw [ht, List.mem_singleton] at ht'; subst ht'; simp [hc]
 
-/-- Register recursor rule `ru` (of recursor `r`) as an ι rule: redex `r`'s spine (major
-at `getMajorIdx`) applied to `ru.ctor`'s spine (`ctorParams + nfields` arguments),
-reduct `SimplePattern.iotaRHS`. Fails if `ru.rhs` is not closed. Only the constructor
-rule of thesis §2.6.4 is registered: K-like reduction (its second rule, on a
-non-constructor major of a subsingleton eliminator) is not registered — see
-`VInductDecl.WF`. -/
-def VEnv.addRecRule (env : VEnv) (r : VRecursor) (ru : VRecRule) : Option VEnv :=
-  if h : ru.rhs.Closed then
-    some <| env.addPat
-      (SimplePattern.iota r.name (r.numParams + r.numMotives + r.numMinors + r.numIndices)
-        ru.ctor (ru.ctorParams + ru.nfields)).toPattern
-      (SimplePattern.iotaRHS r.name ru.ctor
-        r.numParams r.numMotives r.numMinors r.numIndices ru.ctorParams ru.nfields ru.rhs h,
-        .true)
-  else none
-
-/-! ### The stages of `addInduct`
-
-The kernel (`Inductive/Add.lean`, `run`) declares all type formers, then all constructors
-(in block order), then each recursor *together with its rules* (`mkRecRules` inside the
-per-recursor loop, installed in one `recInfo`); for a nested block `Environment.addInductive`
-inserts type by type (`Verify/Environment/Basic.lean`, `AddInduct.consts`). The model
-re-groups this into five stages — all type formers, all constructors, the projection entries
-of the block's structures, all recursors, then all ι rules — which yields the same resulting
-environment as the kernel's interleaving, not its literal order. Each stage is
-named so that `VInductDecl.WF` can type each kind of constant in the environment the kernel
-checks it in. -/
-
-/-- Stage 0: add the type formers as constants. -/
-def VInductDecl.addTypes (decl : VInductDecl) (env : VEnv) : Option VEnv :=
-  decl.types.foldlM (init := env) fun e t => e.addConst t.name t.toVConstVal.toVConstant
-
-/-- Stage 1: add the constructors of every type former, in block order. -/
-def VInductDecl.addCtors (decl : VInductDecl) (env : VEnv) : Option VEnv :=
-  (decl.types.flatMap (·.ctors)).foldlM (init := env) fun e c => e.addConst c.name c.toVConstant
-
-/-- Stage 2: register the projection entries of the declaration's structures
-(`VInductDecl.projectionEntries`). Total: projection registration cannot fail. The recursors
-are checked in the resulting environment, where the block's structures already have their
-projections (the checker may apply `structEta`, `unitLike` or project out of them while
-checking the generated recursor types). -/
-def VInductDecl.addProjs (decl : VInductDecl) (env : VEnv) : VEnv :=
-  env.addProjections decl.projectionEntries
-
-/-- Stage 3: add the recursors as constants. -/
-def VInductDecl.addRecs (decl : VInductDecl) (env : VEnv) : Option VEnv :=
-  decl.recs.foldlM (init := env) fun e r => e.addConst r.name r.toVConstVal.toVConstant
-
-/-- Stage 4: register every recursor rule as an ι rule. -/
-def VInductDecl.addRules (decl : VInductDecl) (env : VEnv) : Option VEnv :=
-  decl.recs.foldlM (init := env) fun e r =>
-    r.rules.foldlM (init := e) fun e ru => e.addRecRule r ru
-
-/-- Stages 0–1: the constructor environment. -/
-def VInductDecl.addTypesCtors (decl : VInductDecl) (env : VEnv) : Option VEnv :=
-  decl.addTypes env >>= decl.addCtors
-
-/-- Stages 0–2: the environment the recursors are checked in. -/
-def VInductDecl.addTypesCtorsProjs (decl : VInductDecl) (env : VEnv) : Option VEnv :=
-  (decl.addTypesCtors env).map decl.addProjs
-
-/-- Stages 0–3: the environment the ι rules are registered in. -/
-def VInductDecl.addTypesCtorsProjsRecs (decl : VInductDecl) (env : VEnv) : Option VEnv :=
-  decl.addTypesCtorsProjs env >>= decl.addRecs
-
-/-- The constants of the declaration as `(name, constant)` pairs, in stage order (type
-formers, constructors, recursors): the constant stages are the `addConst` fold over this list
-(`VInductDecl.addTypesCtorsProjsRecs_eq`). -/
-def VInductDecl.consts (decl : VInductDecl) : List (Name × VConstant) :=
-  decl.types.map (fun t => (t.name, t.toVConstVal.toVConstant)) ++
-  (decl.types.flatMap (·.ctors)).map (fun c => (c.name, c.toVConstant)) ++
-  decl.recs.map (fun r => (r.name, r.toVConstVal.toVConstant))
-
-/-- Extend `env` with the type formers, constructors, and recursors of `decl` (as
-constants), the projection entries of its structures (as `projections`) and its
-ι-reduction rules (as `pats`), or `none` on a name clash or a non-closed rule reduct. The
-chain of `VInductDecl.addTypes`, `addCtors`, `addProjs`, `addRecs`, `addRules`. -/
-def VEnv.addInduct (env : VEnv) (decl : VInductDecl) : Option VEnv :=
-  decl.addTypesCtorsProjsRecs env >>= decl.addRules
-
 
 /-- Abstract compilation, separate from the executable compiler: the shared
 finite derivation `CompiledInductive` (ordinary compilation being its
@@ -450,14 +370,23 @@ inductive VInductDecl.FormationWF : VEnv → VInductDecl → Prop
       VInductDecl.FormationWF env decl
 
 /-- A prior container declaration. It has its own finite source/formation derivation, compiles
-to the exact block, and that well-formed block is installed below the ambient environment. -/
+to the exact block, its recursors and rules are read off that well-formed block
+(`VInductDecl.RecsOf`), and its staged installation `VEnv.addInduct` lies below the ambient
+environment.
+
+WAVE 2 COMPAT: restated on `VEnv.addInduct` (the installation the checker builds,
+`VEnv.InductInstalled` in `Verify/Environment/Blocks.lean`) instead of `VInductBlock.install`,
+which registered the generated rules as stored equations that no `addInduct` environment
+contains. `VInductDecl.WF` cannot be named here (it refers back to `FormationWF`), so the
+recursor-stage typing is carried by `block.WF base` together with `RecsOf`. -/
 inductive VEnv.InstalledBelow : VEnv → VInductDecl → Prop
   | intro {env container base block installed} :
       VInductDecl.SourceWF base container →
       VInductDecl.FormationWF base container →
       container.CompilesTo base block →
       block.WF base →
-      VInductBlock.install base block = some installed →
+      container.RecsOf block →
+      base.addInduct container = some installed →
       installed ≤ env →
       VEnv.InstalledBelow env container
 
@@ -752,24 +681,6 @@ theorem VInductDecl.constructorArityPrefixOfNestedExpansions
     (List.getElem_mem hexpanded) Hexp.name Hexp.numIndices Hctor.type
     (Hraw _ (List.getElem_mem hexpanded) _ (List.getElem_mem hexpandedCtor))).2
 
-/-- `decl.recs` is read off a compiled block: the recursor constants are the block's
-generated recursors, in order, and each recursor rule is the block's generated equation
-for that recursor and constructor, reduct for reduct (`VRecRule.OfEquation`). -/
-def VRecRule.OfEquation (r : VRecursor) (ru : VRecRule) (df : VDefEq) : Prop :=
-  df.rhs = ru.rhs ∧
-  df.lhs.lamBody.headConst? = some r.name ∧
-  df.lhs.lamBody.getAppArgs.length = r.getMajorIdx + 1 ∧
-  ∃ major, df.lhs.lamBody.getAppArgs.getLast? = some major ∧
-    major.headConst? = some ru.ctor ∧
-    major.getAppArgs.length = ru.ctorParams + ru.nfields
-
-/-- The recursor data of a declaration against a compiled block: the recursor constants are
-the block's, and the rules are in bijection with the block's generated equations. -/
-structure VInductDecl.RecsOf (decl : VInductDecl) (block : VInductBlock) : Prop where
-  recursors : decl.recs.map (·.toVConstVal) = block.recursors
-  rules : ∀ r ∈ decl.recs, ∀ ru ∈ r.rules, ∃ df ∈ block.rules, VRecRule.OfEquation r ru df
-  rules_total : ∀ df ∈ block.rules, ∃ r ∈ decl.recs, ∃ ru ∈ r.rules, VRecRule.OfEquation r ru df
-
 /-- The recursors and rules of `decl` are those of a finite compilation of it
 (`VInductDecl.CompilesTo`): the generator fixes every recursor type and every equation, and
 `decl.recs` is read off that output (`VInductDecl.RecsOf`). Recursors and equations are never
@@ -836,27 +747,6 @@ structure VInductDecl.WF (env : VEnv) (decl : VInductDecl) : Prop where
       (SimplePattern.iotaRHS r.name ru.ctor
         r.numParams r.numMotives r.numMinors r.numIndices ru.ctorParams ru.nfields ru.rhs hc,
         .true)
-
-/-- Stage 0 of `addInduct` is `addConstVals` over the type constants. -/
-theorem VInductDecl.addTypes_eq_addConstVals (decl : VInductDecl) (env : VEnv) :
-    decl.addTypes env = env.addConstVals decl.typeConstants := by
-  unfold VInductDecl.addTypes VInductDecl.typeConstants
-  induction decl.types generalizing env with
-  | nil => rfl
-  | cons t ts ih =>
-    simp only [List.foldlM_cons, List.map_cons, VEnv.addConstVals]
-    cases env.addConst t.name t.toVConstVal.toVConstant <;> simp [ih]
-
-/-- Stage 1 of `addInduct` is `addConstVals` over the constructor constants. -/
-theorem VInductDecl.addCtors_eq_addConstVals (decl : VInductDecl) (env : VEnv) :
-    decl.addCtors env = env.addConstVals decl.constructorConstants := by
-  unfold VInductDecl.addCtors VInductDecl.constructorConstants
-  generalize decl.types.flatMap (·.ctors) = cs
-  induction cs generalizing env with
-  | nil => rfl
-  | cons c cs ih =>
-    simp only [List.foldlM_cons, VEnv.addConstVals]
-    cases env.addConst c.name c.toVConstant <;> simp [ih]
 
 /-- Type formers are typed in `env` (`SourceWF`). -/
 theorem VInductDecl.WF.types_wf {env : VEnv} {decl : VInductDecl} (H : decl.WF env) :
@@ -930,60 +820,8 @@ theorem VEnv.InstalledBelow.mono
     (H : VEnv.InstalledBelow env decl) :
     VEnv.InstalledBelow env' decl := by
   cases H with
-  | intro hsource hformation hcompile hblock hinstall hle =>
-    exact .intro hsource hformation hcompile hblock hinstall (hle.trans henv)
-
-/-- Every projection entry derived from an installed declaration is present
-in the ambient projection registry.  This is the registry fact carried by an
-installation certificate; clients do not need to reconstruct the installation order
-of `VInductBlock.install`. -/
-theorem VEnv.InstalledBelow.projection
-    {env : VEnv} {decl : VInductDecl} {entry : VProjectionEntry}
-    (H : VEnv.InstalledBelow env decl)
-    (hentry : entry ∈ decl.projectionEntries) :
-    env.projections entry.typeName entry.info := by
-  cases H with
-  | intro hsource hformation hcompile hblock hinstall hle =>
-    unfold VInductBlock.install at hinstall
-    simp at hinstall
-    rcases hinstall with
-      ⟨envTypes, htypes, envCtors, hctors, envRecursors, hrecursors, rfl⟩
-    apply hle.projections
-    simp only [VEnv.addDefEqRules_projections]
-    rw [VEnv.addConstVals_projections hrecursors]
-    rw [VEnv.addProjections_iff]
-    exact Or.inl ⟨entry, hcompile.projections.symm ▸ hentry, rfl, rfl⟩
-
-/-- An installed declaration exposes each of its family constants at the
-exact abstract value recorded by the source declaration. -/
-theorem VEnv.InstalledBelow.familyConstant
-    {env : VEnv} {decl : VInductDecl}
-    (H : VEnv.InstalledBelow env decl)
-    (familyIdx : Nat) (hfamily : familyIdx < decl.types.length) :
-    env.constants decl.types[familyIdx].name =
-      some decl.types[familyIdx].toVConstant := by
-  cases H with
-  | @intro _ _ base block installed Hsource Hformation Hcompile Hblock
-      Hinstall hle =>
-    rcases Hblock with
-      ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrecursors,
-        _htypesWF, _hctorsWF, _hrecursorsWF, _hrulesWF⟩
-    have hmember : decl.types[familyIdx].toVConstVal ∈ block.types := by
-      rw [Hcompile.types]
-      exact List.mem_map.mpr
-        ⟨decl.types[familyIdx], List.getElem_mem hfamily, rfl⟩
-    have hlookup := VEnv.addConstVals_get htypes hmember
-    have hcanonical : VInductBlock.install base block =
-        some (envRecursors.addDefEqRules block.rules) := by
-      simp [VInductBlock.install, htypes, hctors, hrecursors]
-    have hinstalled : installed = envRecursors.addDefEqRules block.rules :=
-      Option.some.inj (Hinstall.symm.trans hcanonical)
-    subst installed
-    apply hle.constants
-    simpa only [VEnv.addDefEqRules_constants] using
-      (VEnv.addConstVals_le hrecursors).constants
-        (VEnv.addProjections_le.constants
-          ((VEnv.addConstVals_le hctors).constants hlookup))
+  | intro hsource hformation hcompile hblock hrecs hinstall hle =>
+    exact .intro hsource hformation hcompile hblock hrecs hinstall (hle.trans henv)
 
 /-- Every family of an installed declaration carries the declaration's
 universe arity. -/
@@ -992,7 +830,7 @@ theorem VEnv.InstalledBelow.typeUvars
     (H : VEnv.InstalledBelow env decl) :
     ∀ type ∈ decl.types, type.uvars = decl.uvars := by
   cases H with
-  | intro Hsource _ _ _ _ _ => exact Hsource.2.2.1
+  | intro Hsource _ _ _ _ _ _ => exact Hsource.2.2.1
 
 /-- Every constructor of an installed declaration carries the declaration's
 universe arity. -/
@@ -1001,38 +839,6 @@ theorem VEnv.InstalledBelow.constructorUvars
     (H : VEnv.InstalledBelow env decl) :
     ∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars := by
   cases H with
-  | intro Hsource _ _ _ _ _ => exact Hsource.2.2.2.1
-
-/-- An installed declaration exposes each of its constructor constants at
-the exact abstract value recorded by the source declaration. -/
-theorem VEnv.InstalledBelow.constructorConstant
-    {env : VEnv} {decl : VInductDecl}
-    (H : VEnv.InstalledBelow env decl)
-    (familyIdx ctorIdx : Nat) (hfamily : familyIdx < decl.types.length)
-    (hctor : ctorIdx < decl.types[familyIdx].ctors.length) :
-    env.constants decl.types[familyIdx].ctors[ctorIdx].name =
-      some decl.types[familyIdx].ctors[ctorIdx].toVConstant := by
-  cases H with
-  | @intro _ _ base block installed Hsource Hformation Hcompile Hblock
-      Hinstall hle =>
-    rcases Hblock with
-      ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrecursors,
-        _htypesWF, _hctorsWF, _hrecursorsWF, _hrulesWF⟩
-    have hmember : decl.types[familyIdx].ctors[ctorIdx] ∈ block.ctors := by
-      rw [Hcompile.ctors]
-      simp only [VInductDecl.constructorConstants, List.mem_flatMap]
-      exact ⟨decl.types[familyIdx], List.getElem_mem hfamily,
-        List.getElem_mem hctor⟩
-    have hlookup := VEnv.addConstVals_get hctors hmember
-    have hcanonical : VInductBlock.install base block =
-        some (envRecursors.addDefEqRules block.rules) := by
-      simp [VInductBlock.install, htypes, hctors, hrecursors]
-    have hinstalled : installed = envRecursors.addDefEqRules block.rules :=
-      Option.some.inj (Hinstall.symm.trans hcanonical)
-    subst installed
-    apply hle.constants
-    simpa only [VEnv.addDefEqRules_constants] using
-      (VEnv.addConstVals_le hrecursors).constants
-        (VEnv.addProjections_le.constants hlookup)
+  | intro Hsource _ _ _ _ _ _ => exact Hsource.2.2.2.1
 
 end Lean4Lean

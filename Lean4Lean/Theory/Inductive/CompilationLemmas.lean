@@ -342,7 +342,7 @@ theorem CompiledInductive.equation_lhs_ne_sort
     (fun data _ _ => data.equation_lhs_ne_sort)
     (fun _ _ _ ih => ih)
     trivial
-    (fun _ _ _ _ _ _ _ => trivial)
+    (fun _ _ _ _ _ _ _ _ => trivial)
     H
 
 /-- An equality with a bare sort as its left-hand side cannot be inserted by choosing some other
@@ -370,7 +370,7 @@ theorem CompiledInductive.equation_head_owned
     (fun data _ _ df hdf => data.equation_head_owned hdf)
     (fun _ _ _ ih => ih)
     trivial
-    (fun _ _ _ _ _ _ _ => trivial)
+    (fun _ _ _ _ _ _ _ _ => trivial)
     H
 
 end Lean4Lean
