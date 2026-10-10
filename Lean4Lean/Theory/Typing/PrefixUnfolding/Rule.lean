@@ -104,6 +104,34 @@ theorem UnfoldingCheck.defeq (henv : env.WF)
   simpa only [RecursorData.PrefixUnfolding.rhs, RecursorData.PrefixUnfolding.type, instantiateParams_eq_instOuter] using
     heta.trans (hbody.etaOpen_wrapLams hΓ hctx)
 
+/-- The two instantiated bodies of the equation of an unfolding check are convertible: the
+left one is typed through the alignment of the recursor spine (`recursor_lhs`), and the
+realised equation (`equation_present`) applies. -/
+theorem UnfoldingCheck.iota (henv : env.WF)
+    (hΓ : OnCtx Γ (env.IsType U))
+    (H : UnfoldingCheck env U Γ source program) :
+    IsDefEqU env U (program.domains.reverse ++ Γ)
+      ((program.equationBody.lhs.instL program.levels).instOuter program.captures)
+      ((program.equationBody.rhs.instL program.levels).instOuter program.captures) := by
+  obtain ⟨hctx, hopen⟩ := H.source_typed.etaOpen_wf henv.ordered hΓ
+  have hpos : 0 < program.domains.length := List.length_pos_iff.mpr H.remaining_nonempty
+  have hetaBody : etaOpen program.domains.length source =
+      .app (etaOpen (program.domains.length - 1) source).lift (.bvar 0) := by
+    have hlen : program.domains.length = (program.domains.length - 1) + 1 := by omega
+    conv => lhs; rw [hlen]
+    exact etaOpen_succ _ _
+  rw [hetaBody] at hopen
+  obtain ⟨domain, result, hf, hm⟩ := hopen.app_inv henv.orderedStrong hctx
+  obtain ⟨majorType, hp, hmajor, hctor⟩ := H.major_prop
+  have hmajorEq := IsDefEq.proofIrrel hp hmajor hctor
+  have hreplace := IsDefEq.appDF hf
+    (hmajorEq.transport_bvar henv.orderedStrong hctx hmajor hm)
+  obtain ⟨hl, hr, ht⟩ := RecursorSchema.EquationBody.extract_sound H.equation_body
+  have halign := H.recursor_lhs.defeq henv hctx hreplace.hasType.2
+  obtain ⟨_, hlhsEq⟩ := IsDefEqU.trans henv hctx ⟨_, hreplace⟩ halign
+  exact H.equation_present.instOuter hctx H.levels_wf
+    H.levels_length hl.symm hr.symm ht.symm H.captures_length H.captures_typed hlhsEq.hasType.2
+
 theorem PrefixUnfold.defeq (henv : env.WF)
     (hΓ : OnCtx Γ (env.IsType U))
     (H : PrefixUnfold env U registry Γ name levels arguments rhs) :

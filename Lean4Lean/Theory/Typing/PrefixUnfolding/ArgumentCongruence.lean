@@ -52,7 +52,7 @@ theorem CongrRel.subst_args (I : CongrRel R) {e : VExpr} {σ σ' : VExpr.Subst}
     rcases hs i with he | he
     · rw [VExpr.subst, VExpr.subst, ← he]; exact I.rfl
     · exact he
-  | sort | const | elim => exact I.rfl
+  | sort | const => exact I.rfl
   | app fn arg ihf iha => exact I.app (ihf hs) (iha hs)
   | proj family index major ih => exact I.proj (ih hs)
   | lam domain body ihd ihb =>
@@ -130,7 +130,7 @@ private theorem rel_vars (I : ArgRel R) (hΓ : OnCtx Γ (env.IsType univs)) (hn 
 theorem ArgRel.forall₂_defeq (I : ArgRel R) (hΓ : OnCtx Γ (env.IsType univs))
     (ht : Γ ⊢ VExpr.mkApps fn args : T) (ha : List.Forall₂ (R Γ) args args') :
     List.Forall₂ (IsDefEqU env univs Γ) args args' := by
-  have hwf := VExpr.WF.args_of_mkApps henv.ordered hΓ ⟨_, ht⟩
+  have hwf := VExpr.WF.args_of_mkApps henv.orderedStrong hΓ ⟨_, ht⟩
   clear ht
   induction ha with
   | nil => exact .nil
@@ -157,15 +157,15 @@ theorem ConstSpineDefEq.instOuter_defeq {name : Name} {levels : List VLevel}
     ConstSpineDefEq env univs Γ (e.instOuter captures) (e.instOuter captures') := by
   subst e
   simp only [instOuter_mkApps, instOuter_const] at ht ⊢
-  obtain ⟨_, hconst⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, ht⟩
-  obtain ⟨_, _, hw, _⟩ := HasType.const_inv henv.ordered hΓ hconst
+  obtain ⟨_, hconst⟩ := VExpr.WF.of_mkApps henv.orderedStrong hΓ ⟨_, ht⟩
+  obtain ⟨_, _, hw, _⟩ := HasType.const_inv henv.orderedStrong hΓ hconst
   refine ⟨name, levels, levels, _, _, rfl, rfl, hw, hw,
     Lean4Lean.List.Forall₂.rfl (fun _ _ => show _ ≈ _ from rfl), ?_⟩
   apply List.forall₂_map_left_iff.mpr
   apply List.forall₂_map_right_iff.mpr
   apply Lean4Lean.List.Forall₂.rfl
   intro template hm
-  have hwf := VExpr.WF.args_of_mkApps henv.ordered hΓ ⟨_, ht⟩ _ (List.mem_map.mpr ⟨template, hm, rfl⟩)
+  have hwf := VExpr.WF.args_of_mkApps henv.orderedStrong hΓ ⟨_, ht⟩ _ (List.mem_map.mpr ⟨template, hm, rfl⟩)
   obtain ⟨A, hA⟩ := hwf
   exact hc hA.hasType.1
 
@@ -226,7 +226,7 @@ theorem UnfoldingCheck.congr_rel (I : ArgRel R) {name : Name} {levels : List VLe
       R (p.domains.reverse ++ Γ)
         (instantiateParams (p.equationBody.rhs.instL p.levels) p.captures)
         (instantiateParams (p'.equationBody.rhs.instL p'.levels) p'.captures) := by
-  obtain ⟨_, hh⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, H.source_typed⟩
+  obtain ⟨_, hh⟩ := VExpr.WF.of_mkApps henv.orderedStrong hΓ ⟨_, H.source_typed⟩
   have hs := I.mkApps hΓ (I.refl hΓ hh) ha H.source_typed
   have htypes := ((I.defeq hΓ hs H.source_typed).hasType.2).uniqU henv hΓ hsource
   have hctx := (IsType.wrapForalls_inv henv hΓ (H.source_typed.isType henv hΓ)).1
@@ -234,8 +234,7 @@ theorem UnfoldingCheck.congr_rel (I : ArgRel R) {name : Name} {levels : List VLe
   have hcLength := Lean4Lean.List.Forall₂.length_eq hcaptures
   have hpos : 0 < p.domains.length := List.length_pos_iff.mpr H.remaining_nonempty
   obtain ⟨hl, hr, ht⟩ := RecursorSchema.EquationBody.extract_sound H.equation_body
-  have hiota := IsDefEq.extra_instOuter henv hctx H.equation_present H.levels_wf
-    H.levels_length hl.symm hr.symm ht.symm H.captures_length H.captures_typed
+  obtain ⟨_, hiota⟩ := H.iota henv hΓ
   have hcapDefeq : ∀ {template T : VExpr},
       (p.domains.reverse ++ Γ) ⊢ template.instOuter p.captures : T →
       (p.domains.reverse ++ Γ) ⊢ template.instOuter p.captures ≡
@@ -291,7 +290,7 @@ theorem UnfoldingCheck.congr_rel (I : ArgRel R) {name : Name} {levels : List VLe
         ((I.defeq hctx hctor hc).hasType.2).defeqDFC henv W⟩
     · apply ConstSpineDefEq.defeqDFC henv W
       rw [← hlen, ← hbody, ← hlevels]
-      obtain ⟨_, _, hw, _⟩ := HasType.const_inv henv.ordered hΓ hh
+      obtain ⟨_, _, hw, _⟩ := HasType.const_inv henv.orderedStrong hΓ hh
       have hleft := rel_eta_match (name := name) hpos hΓ hw
         (I.forall₂_defeq hΓ H.source_typed ha) hctorDefeq hctx
       obtain ⟨n, ls, as, hhead⟩ := hhead
@@ -328,7 +327,7 @@ theorem PrefixUnfold.congr_rel (I : ArgRel R) {name : Name} {levels : List VLeve
     obtain ⟨_, _, _, _, hlen', _, _⟩ := singletonUnfolding_layout hg'
     have hlength : program.domains.length = program'.domains.length := by
       rw [hlen, hlen', Lean4Lean.List.Forall₂.length_eq ha]
-    obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, replay.source_typed⟩
+    obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.orderedStrong hΓ ⟨_, replay.source_typed⟩
     have hs := I.mkApps hΓ (I.refl hΓ hhead) ha replay.source_typed
     have hsource := hregistered.prefixType henv hΓ hw hg'
       (by simpa only [hname] using
@@ -389,7 +388,7 @@ theorem UnfoldingCheck.quot_rel_components (I : ArgRel R) {levels : List VLevel}
     have ht := H.captures_typed i hi (by rw [← H.captures_length]; exact hi)
     rw [he] at ht
     unfold QuotPrefixUnfolding.prefixProof at ht ⊢
-    obtain ⟨_, hfn⟩ := VExpr.WF.of_mkApps henv.ordered hctx
+    obtain ⟨_, hfn⟩ := VExpr.WF.of_mkApps henv.orderedStrong hctx
       (show VExpr.WF env univs _ _ from ⟨_, ht⟩)
     exact I.mkApps hctx (I.refl hctx hfn)
       (.cons (hnorm 0 (by decide)) (.cons (hnorm 1 (by decide)) (.cons (hnorm 5 (by decide)) .nil))) ht
@@ -398,7 +397,7 @@ theorem UnfoldingCheck.quot_rel_components (I : ArgRel R) {levels : List VLevel}
     exact List.Forall₂.append' (List.forall₂_take hall 5) (.cons hp .nil)
   · obtain ⟨proposition, _, _, hc⟩ := H.major_prop
     rw [hctor] at hc
-    obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.ordered hctx
+    obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.orderedStrong hctx
       (show VExpr.WF env univs _ _ from ⟨_, hc⟩)
     rw [hctor, hctor']
     exact I.mkApps hctx (I.refl hctx hhead)
@@ -426,7 +425,7 @@ theorem QuotPrefixUnfold.congr_rel (I : ArgRel R) {levels : List VLevel}
     have hbody : program.equationBody = program'.equationBody := by
       rw [heq] at hb
       exact Option.some.inj (hb.symm.trans hb')
-    obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, replay.source_typed⟩
+    obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.orderedStrong hΓ ⟨_, replay.source_typed⟩
     have hs := I.mkApps hΓ (I.refl hΓ hhead) ha replay.source_typed
     have ht := hr.prefixType henv hΓ hw hg'
       ⟨_, (I.defeq hΓ hs replay.source_typed).hasType.2⟩

@@ -127,6 +127,11 @@ theorem spine_mkApps_exact (fn : VExpr) (args : List VExpr)
   rw [apps, List.append_nil, getAppFnArgs_go_eq, h]
   rfl
 
+/-- The spine head is the application head. -/
+theorem getAppFn_eq_fst : ∀ e : VExpr, e.getAppFn = e.getAppFnArgs.1
+  | .app f a => by rw [VExpr.getAppFn, spine_app_head]; exact getAppFn_eq_fst f
+  | .bvar _ | .sort _ | .const .. | .lam .. | .forallE .. | .proj .. => rfl
+
 /-- An expression is the application of its head to its arguments. -/
 theorem rebuild_spine (e : VExpr) :
     VExpr.mkApps e.getAppFnArgs.1 e.getAppFnArgs.2 = e := by
@@ -205,6 +210,19 @@ theorem VariableApplications.instL_eq {e : VExpr} {levels : List VLevel}
   | app _ _ ihf iha => simp only [VExpr.instL, ihf, iha]
 
 end Lean4Lean.VExpr
+
+namespace Lean4Lean
+
+theorem case_forall₂_get {α β : Type _} {R : α → β → Prop} {xs : List α} {ys : List β} {i : Nat}
+    (h : List.Forall₂ R xs ys) (hi : i < xs.length) (hi' : i < ys.length) :
+    R xs[i] ys[i] := by
+  induction h generalizing i with
+  | nil => cases hi
+  | cons h _ ih => cases i with
+    | zero => exact h
+    | succ i => exact ih (by simpa using hi) (by simpa using hi')
+
+end Lean4Lean
 
 namespace Lean4Lean.SimplePattern
 

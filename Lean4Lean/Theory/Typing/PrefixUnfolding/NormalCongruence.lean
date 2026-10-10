@@ -53,15 +53,15 @@ theorem ConstSpineDefEq.instOuter_normal {name : Name} {levels : List VLevel} (h
     ConstSpineDefEq env univs Γ (e.instOuter captures) (e.instOuter captures') := by
   subst e
   simp only [instOuter_mkApps, instOuter_const] at ht ⊢
-  obtain ⟨_, hconst⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, ht⟩
-  obtain ⟨_, _, hw, _⟩ := HasType.const_inv henv.ordered hΓ hconst
+  obtain ⟨_, hconst⟩ := VExpr.WF.of_mkApps henv.orderedStrong hΓ ⟨_, ht⟩
+  obtain ⟨_, _, hw, _⟩ := HasType.const_inv henv.orderedStrong hΓ hconst
   refine ⟨name, levels, levels, _, _, rfl, rfl, hw, hw,
     Lean4Lean.List.Forall₂.rfl (fun _ _ => show _ ≈ _ from rfl), ?_⟩
   apply List.forall₂_map_left_iff.mpr
   apply List.forall₂_map_right_iff.mpr
   apply Lean4Lean.List.Forall₂.rfl
   intro template hm
-  have hwf := VExpr.WF.args_of_mkApps henv.ordered hΓ ⟨_, ht⟩ _ (List.mem_map.mpr ⟨template, hm, rfl⟩)
+  have hwf := VExpr.WF.args_of_mkApps henv.orderedStrong hΓ ⟨_, ht⟩ _ (List.mem_map.mpr ⟨template, hm, rfl⟩)
   obtain ⟨A, hA⟩ := hwf
   have hA : HasType env univs Γ (InductiveSignature.instantiateParams template captures) A := by
     rw [instantiateParams_eq_instOuter]
@@ -122,7 +122,7 @@ theorem UnfoldingCheck.congr_normal {name : Name} {levels : List VLevel}
     (hhead : ∃ n ls as, p.equationBody.lhs = mkApps (.const n ls) as) :
     UnfoldingCheck env univs Γ (mkApps (.const name levels) args') p' ∧
       NormalEqF η Γ p.rhs p'.rhs := by
-  obtain ⟨_, hh⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, H.source_typed⟩
+  obtain ⟨_, hh⟩ := VExpr.WF.of_mkApps henv.orderedStrong hΓ ⟨_, H.source_typed⟩
   have hs := NormalEqF.mkApps_spine hΓ (.refl hh) ha H.source_typed
   have htypes := (((hs.defeq hΓ).of_l henv hΓ H.source_typed).hasType.2).uniqU henv hΓ hsource
   have hctx := (IsType.wrapForalls_inv henv hΓ (H.source_typed.isType henv hΓ)).1
@@ -130,8 +130,7 @@ theorem UnfoldingCheck.congr_normal {name : Name} {levels : List VLevel}
   have hcLength := Lean4Lean.List.Forall₂.length_eq hcaptures
   have hpos : 0 < p.domains.length := List.length_pos_iff.mpr H.remaining_nonempty
   obtain ⟨hl, hr, ht⟩ := RecursorSchema.EquationBody.extract_sound H.equation_body
-  have hiota := IsDefEq.extra_instOuter henv hctx H.equation_present H.levels_wf
-    H.levels_length hl.symm hr.symm ht.symm H.captures_length H.captures_typed
+  obtain ⟨_, hiota⟩ := H.iota henv hΓ
   constructor
   · refine {
       source_typed := hsource
@@ -172,7 +171,7 @@ theorem UnfoldingCheck.congr_normal {name : Name} {levels : List VLevel}
         (((hctor.defeq hctx).of_l henv hctx hc).hasType.2).defeqDFC henv W⟩
     · apply ConstSpineDefEq.defeqDFC henv W
       rw [← hlen, ← hbody, ← hlevels]
-      obtain ⟨_, _, hw, _⟩ := HasType.const_inv henv.ordered hΓ hh
+      obtain ⟨_, _, hw, _⟩ := HasType.const_inv henv.orderedStrong hΓ hh
       have hleft := etaOpen_match (name := name) hpos hΓ hw ha hctor hctx
       obtain ⟨n, ls, as, hhead⟩ := hhead
       have hright := ConstSpineDefEq.instOuter_normal hctx
@@ -205,7 +204,7 @@ theorem PrefixUnfold.congr_normal {name : Name} {levels : List VLevel}
     obtain ⟨_, _, _, _, hlen', _, _⟩ := singletonUnfolding_layout hg'
     have hlength : program.domains.length = program'.domains.length := by
       rw [hlen, hlen', Lean4Lean.List.Forall₂.length_eq ha]
-    obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, replay.source_typed⟩
+    obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.orderedStrong hΓ ⟨_, replay.source_typed⟩
     have hs := NormalEqF.mkApps_spine hΓ (.refl hhead) ha replay.source_typed
     have hsource := hregistered.prefixType henv hΓ hw hg'
       (by simpa only [hname] using
@@ -364,7 +363,7 @@ theorem UnfoldingCheck.quot_normal_components {levels : List VLevel}
     have ht := H.captures_typed i hi (by rw [← H.captures_length]; exact hi)
     rw [he] at ht
     unfold QuotPrefixUnfolding.prefixProof at ht ⊢
-    obtain ⟨_, hfn⟩ := VExpr.WF.of_mkApps henv.ordered hctx
+    obtain ⟨_, hfn⟩ := VExpr.WF.of_mkApps henv.orderedStrong hctx
       (show VExpr.WF env univs _ _ from ⟨_, ht⟩)
     exact NormalEqF.mkApps_spine hctx (.refl hfn)
       (.cons (hnorm 0 (by decide)) (.cons (hnorm 1 (by decide)) (.cons (hnorm 5 (by decide)) .nil))) ht
@@ -373,7 +372,7 @@ theorem UnfoldingCheck.quot_normal_components {levels : List VLevel}
     exact List.Forall₂.append' (List.forall₂_take hall 5) (.cons hp .nil)
   · obtain ⟨proposition, _, _, hc⟩ := H.major_prop
     rw [hctor] at hc
-    obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.ordered hctx
+    obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.orderedStrong hctx
       (show VExpr.WF env univs _ _ from ⟨_, hc⟩)
     rw [hctor, hctor']
     exact NormalEqF.mkApps_spine hctx (.refl hhead)
@@ -399,7 +398,7 @@ theorem QuotPrefixUnfold.congr_normal {levels : List VLevel}
     have hbody : program.equationBody = program'.equationBody := by
       rw [heq] at hb
       exact Option.some.inj (hb.symm.trans hb')
-    obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, replay.source_typed⟩
+    obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.orderedStrong hΓ ⟨_, replay.source_typed⟩
     have hs := NormalEqF.mkApps_spine hΓ (.refl hhead) ha replay.source_typed
     have ht := hr.prefixType henv hΓ hw hg'
       ⟨_, ((hs.defeq hΓ).of_l henv hΓ replay.source_typed).hasType.2⟩

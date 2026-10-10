@@ -36,21 +36,26 @@ theorem FullCRDefEq.trans : Γ ⊢ e₁ ≫≪ e₂ → Γ ⊢ e₂ ≫≪ e₃ 
     obtain ⟨_, b1, b2⟩ := (r5.symm hΓ).fullReduction hΓ m2
     exact ⟨l1, r2, _, _, l3.trans a1, r4.trans b1, a2.trans hΓ (m3.trans hΓ (b2.symm hΓ))⟩
 
+/-- Every registered reduction rule (`IsDefEq.pat`) fired at a typed instance joins in the full
+presentation: the live ι step of the pattern calculus is covered by the auxiliary reduction.
+For a guarded instance (`Params.Pat`) the step is a `ParRed.extra`; for the `Prop`-source
+instance of a large-eliminating singleton it is the prefix unfolding together with the joins
+of the index arguments with the constructor's fields, which the typed confluence theorem
+supplies (`Theory/Typing/Confluence/`). -/
+class FullPatCoverage : Prop where
+  pats : OnCtx Γ (env.IsType univs) → env.pats p r → p.Matches e m1 m2 →
+    HasType env univs Γ e A → r.2.Realizes m1 m2 chk →
+    (∀ t ∈ chk, IsDefEq env univs Γ t.1 t.2.1 t.2.2) →
+    ∃ left right, FullReduction Γ e left ∧ FullReduction Γ (r.1.apply m1 m2) right ∧
+      NormalEq Γ left right
+
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
-theorem IsDefEq.church_rosser [FullEquationCoverage]
+theorem IsDefEq.church_rosser [FullEquationCoverage] [FullPatCoverage]
     (H : Γ ⊢ e₁ ≡ e₂ : A) : Γ ⊢ e₁ ≫≪ e₂ := by
   have mk {Γ e₁ e₂ A e₁' e₂'} (H : Γ ⊢ e₁ ≡ e₂ : A)
       (h1 : Γ ⊢ e₁ ≫* e₁') (h2 : Γ ⊢ e₂ ≫* e₂') (h3 : Γ ⊢ e₁' ≡ₚ e₂') : Γ ⊢ e₁≫≪ e₂ :=
     ⟨⟨_, H.hasType.1⟩, ⟨_, H.hasType.2⟩, _, _, h1, h2, h3⟩
   induction H with
-  | elimIota hl hg hm hc hp ht hr _ _ =>
-    obtain ⟨rule, hgen, heq⟩ := InductiveSignature.RecursorSchema.generates_of_genericEquation hg hm
-    cases heq
-    have hbody := generated_case_body henv hΓ hl hgen hc hp ht hr
-    have hred := ParRed.wrapLams (ParRed.of_schema hbody.2)
-    obtain ⟨hlhs, hrhs, _⟩ := hgen.body_exact
-    simp only [← VExpr.instL_wrapLams, hlhs, hrhs] at hred
-    exact mk (.elimIota hl hg hm hc hp ht hr) (.tail .rfl (.core hred)) .rfl (.refl hr)
   | bvar h => exact .refl hΓ (.bvar h)
   | symm _ ih => exact (ih hΓ).symm hΓ
   | trans _ _ ih1 ih2 => exact (ih1 hΓ).trans hΓ (ih2 hΓ)
@@ -96,6 +101,9 @@ theorem IsDefEq.church_rosser [FullEquationCoverage]
   | @extra _ _ Γ h1 h2 h3 =>
     obtain ⟨_, _, hleft, hright, hnormal⟩ := FullEquationCoverage.equations hΓ h1 h2 h3
     exact mk (.extra h1 h2 h3) hleft hright hnormal
+  | pat hp hm he hr hall _ _ =>
+    obtain ⟨_, _, hleft, hright, hnormal⟩ := FullPatCoverage.pats hΓ hp hm he hr hall
+    exact mk (.pat hp hm he hr hall) hleft hright hnormal
   | projIota hl hs hi ht _ _ =>
     have heq := IsDefEq.projIota hl hs hi ht
     exact mk heq (.tail .rfl (.projIota hl hs hi ht)) .rfl (.refl ht)
@@ -112,7 +120,7 @@ theorem IsDefEq.church_rosser [FullEquationCoverage]
     exact mk (.unitLike hl hp hi hf hs ht) (.tail .rfl stepLeft) (.tail .rfl stepRight) (.refl hc)
 
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
-theorem IsDefEq.full_church_rosser [FullEquationCoverage]
+theorem IsDefEq.full_church_rosser [FullEquationCoverage] [FullPatCoverage]
     (H : Γ ⊢ e₁ ≡ e₂ : A) : Γ ⊢ e₁ ≫≪ e₂ := H.church_rosser hΓ
 
 end Lean4Lean.VEnv
