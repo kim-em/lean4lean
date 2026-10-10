@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Lookups
+import Lean4Lean.Verify.Inductive.Recursor.Inputs
 
 /-! # Source-branch accessors of the lowered run (fork B)
 
@@ -22,6 +23,16 @@ def HeaderData.commonParameterContext
     (H : HeaderData c stats decl nparams isUnsafe depth sourceEnv indTypes outEnv) :
     List VExpr :=
   H.sourceStatsWF.parameterScope.toCtx
+
+/-- The parameter scope of the recursor input is the header phase's common parameter context
+(the source's `OrdinaryConstructorCheck.parameterScope_toCtx`). -/
+theorem RecursorInput.parameterScope_toCtx
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool} {depth : Nat}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
+    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
+    R.parameterScope.toCtx = R.headers.commonParameterContext := by
+  rw [← R.sourceParameterScope]; rfl
 
 /-- The lowered phases at a family array. -/
 structure LoweredView.Phases {outEnv : Environment} (P : LoweredView outEnv)

@@ -81,18 +81,23 @@ theorem _root_.Lean4Lean.InductiveSignature.declaration_type_uvars
   obtain ⟨⟨f, i⟩, _, rfl⟩ := hfamily
   rfl
 
-/-- The normalized signature of the lowered declaration (the recursor check's generator, the
-signature `RestoredBlock.compiled` is stated against). -/
+/-- The recursor construction of the lowered declaration. -/
+noncomputable def LoweredView.recursorConstruction
+    {loweredEnv : Environment} (P : LoweredView loweredEnv) :
+    RecursorConstruction P.constructors :=
+  P.recursors.toRecursorConstruction
+
+/-- The normalized signature of the lowered declaration. -/
 noncomputable def LoweredView.signature
     {loweredEnv : Environment} (P : LoweredView loweredEnv) :
     InductiveSignature :=
-  P.check.signature
+  P.recursorConstruction.generator.signature
 
 /-- The generation instance of the lowered declaration. -/
 noncomputable def LoweredView.generatedInstance
     {loweredEnv : Environment} (P : LoweredView loweredEnv) :
     Instance P.signature :=
-  P.check.generation
+  P.recursorConstruction.generator.generation
 
 /-- The fields of `CompilationData` not yet derived from a validated nested
 run.  The source families' names, universes, index counts, result levels and
@@ -182,7 +187,7 @@ theorem NestedRun.compilationData_of_specializations
     hD ▸ D.expandedSource
   have Hmodels : E.lowered.signature.Models
       (ves.venv (if isUnsafe then .unsafe else .safe)) E.lowered.loweredDecl := by
-    have h := E.lowered.check.models
+    have h := E.lowered.recursorConstruction.generator.models
     change E.lowered.signature.Models E.lowered.initialEnv
       E.lowered.loweredDecl at h
     rwa [hinit] at h
@@ -209,14 +214,14 @@ theorem NestedRun.compilationData_of_specializations
   have hsourceLength : sourceDecl.types.length = sourceTypes.length :=
     (TrInductDeclCore.types_length Hsource).symm
   have hlowered := VEnv.addConstVals_append hloweredTypes hloweredCtors
-  have hrecursorsAdded := E.lowered.check.recsAdded
-  rw [VInductDecl.addRecs_eq_addConstVals] at hrecursorsAdded
-  have hrecursorValues : ((E.lowered.loweredDecl.withRecs E.lowered.check.recs).recs.map
-      (·.toVConstVal)) = E.lowered.generatedInstance.recursors :=
-    E.lowered.check.recursors_eq
-  rw [hrecursorValues] at hrecursorsAdded
+  have hrecursorsAdded := E.lowered.recursors.installed.abstract
+  have hrecursorValues : E.lowered.recursors.entries.map Prod.snd =
+      E.lowered.generatedInstance.recursors :=
+    E.lowered.recursors.recursors
+  rw [hrecursorValues,
+    E.lowered.constructors.contextVEnv] at hrecursorsAdded
   have hrecursorsFresh := VEnv.addConstVals_names_fresh hrecursorsAdded
-  simp only [RecursorInput.envP, VEnv.addProjections_constants] at hrecursorsFresh
+  simp only [VEnv.addProjections_constants] at hrecursorsFresh
   have hctorFresh : ∀ recursor ∈ E.lowered.generatedInstance.recursors,
       E.lowered.constructors.ctorVEnv.constants recursor.name = none :=
     hrecursorsFresh.2
@@ -290,11 +295,16 @@ theorem NestedRun.compilationData_of_specializations
           hP.2.2.1, hP.2.2.2⟩
         rw [E.lowered.signature.declaration_type_uvars a
           (List.mem_of_mem_drop ha), Hmodels.uvars, hloweredUvars, hshape.uvars]
-    familyTypesWF := ⟨_, _, hloweredTypes, hloweredCtors, E.lowered.check.familyTypesWF⟩
-    admissible := ⟨_, hloweredTypes, E.lowered.check.admissible⟩
-    generatedIHsWellTyped := ⟨_, _, hloweredTypes, hloweredCtors,
-      E.lowered.check.ihsWellTyped, E.lowered.check.familyTypesWF⟩
-    recursorNames := E.lowered.check.recursorNames
+    familyTypesWF := ⟨_, _, hloweredTypes, hloweredCtors, by
+      rw [← E.lowered.constructors.contextVEnv]
+      exact E.lowered.recursorConstruction.generator.familyTypesWF⟩
+    admissible := ⟨_, hloweredTypes, E.lowered.recursorConstruction.generator.admissible⟩
+    generatedIHsWellTyped := ⟨_, _, hloweredTypes, hloweredCtors, by
+      rw [← E.lowered.constructors.contextVEnv]
+      exact E.lowered.recursorConstruction.generator.generatedIHsWellTyped, by
+      rw [← E.lowered.constructors.contextVEnv]
+      exact E.lowered.recursorConstruction.generator.familyTypesWF⟩
+    recursorNames := E.lowered.recursorConstruction.generator.names
     generatedNames := by
       rw [List.map_append]
       refine List.nodup_append.mpr ⟨(VEnv.addConstVals_names_fresh hlowered).1,
