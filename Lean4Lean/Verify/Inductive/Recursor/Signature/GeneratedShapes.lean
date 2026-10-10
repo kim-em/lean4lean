@@ -197,7 +197,8 @@ theorem Instance.recursorType_recShape {s : InductiveSignature} (g : Instance s)
     · rw [VExpr.headConst?_eq_some]
       exact ⟨g.levels, by simp [major, Instance.familyApp, InductiveSignature.familyApp,
         getAppFn_mkApps_const, VExpr.getAppFn]⟩
-    · refine ⟨g.levels, ?_⟩
+    · -- WAVE 3 COMPAT (restB): `MajorApp` is weakened; the generated major is its old shape.
+      refine VExpr.MajorApp.of_params ⟨g.levels, ?_⟩
       simp only [major, Instance.familyApp, InductiveSignature.familyApp, vars_eq_bvarsDesc,
         hind]
       rfl

@@ -579,8 +579,9 @@ run_meta do
 
   -- The documented nested control. `Tree.node : List Tree → Tree` restores the block
   -- through `List`, so it is not strictly positive; `Tree.rec_1` eliminates `List`, a type
-  -- former outside the block, so its major premise is not a `MajorApp` of the block's
-  -- parameter and index variables.
+  -- former outside the block, at the specialization argument `Tree`. WAVE 3 COMPAT (restB):
+  -- `MajorApp` admits leading arguments over the parameters, so `RecShape` now accepts it
+  -- (the restored auxiliary recursors of nested blocks must satisfy `rec_shape`).
   let .ctorInfo node ← getConstInfo ``Tree.node | throwError "Tree.node"
   let nodeTy ← Meta.ofExpr node.levelParams {} node.type
   if nodeTy.CtorPositive [``Tree] 0 then throwError "CtorPositive accepts Tree.node"
@@ -588,8 +589,8 @@ run_meta do
   let tree1Ty ← Meta.ofExpr tree1.levelParams {} tree1.type
   unless tree1Ty.majorFormer? tree1.getMajorIdx = some ``List do
     throwError "the major premise of Tree.rec_1 is not over List"
-  if tree1Ty.RecShape tree1.numParams tree1.numMotives tree1.numMinors tree1.numIndices then
-    throwError "RecShape accepts the major premise of Tree.rec_1"
+  unless tree1Ty.RecShape tree1.numParams tree1.numMotives tree1.numMinors tree1.numIndices do
+    throwError "RecShape rejects the major premise of Tree.rec_1"
 
   -- Every check, on the direct shapes above and on a selection of `Init`/`Std` inductives.
   for I in [``Refl, ``Le, ``Dep, ``EvI, ``OdI, ``PropLarge, ``Wrap, ``SigmaLike,
