@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Constructor.Tails
+import Lean4Lean.Verify.Inductive.HeaderData  -- WAVE 2 install COMPAT
 
 /-! # The constructor check: `checkConstructors`
 
@@ -34,7 +35,8 @@ construction re-walks. -/
 structure ConstructorsChecked {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool} {depth : Nat} {sourceEnv : VEnv}
     {indTypes : Array InductiveType} {headerEnv : Environment}
-    (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv indTypes headerEnv)
+    -- WAVE 2 install COMPAT: stated over the header data (no header `ContextWF`)
+    (H : HeaderData c stats decl nparams isUnsafe depth sourceEnv indTypes headerEnv)
     (classes : List (List (List Bool))) : Prop where
   /-- Every source constructor translates to the declaration's constructor, in the header
   environment. -/
