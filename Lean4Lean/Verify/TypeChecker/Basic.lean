@@ -320,7 +320,7 @@ theorem VContext.projectionRegistry (c : VContext) :
 
 /-- Every visible recursor has its shapes (`RecursorsCoherent`). This is what recursor reduction
 reads, together with the registered ι rules (`VContext.iota`). -/
-theorem VContext.recursors (c : VContext) : RecursorsCoherent c.safety c.env c.venv :=
+theorem VContext.recursors (c : VContext) : RecursorsCoherent c.safety c.env.constants c.venv :=
   c.trenv.recursors
 
 /-- The ι rules of the visible recursors are registered. -/

@@ -65,16 +65,16 @@ theorem quotReduceRec.WF_paramUniform (he : c.TrExprS e e') (hp : s.ngen.namePre
 /-- The final step of inductive recursor reduction keeps parameter uniformity: the rule's right-hand side
 mentions no head, and the remaining pieces are arguments of the recursor application and of the
 converted major premise. -/
-theorem inductiveReduceRecTail.paramUniformIn {info : RecursorVal} {recFn : Name} {ls : List Level}
+theorem inductiveReduceRecCore.paramUniformIn {info : RecursorVal} {recFn : Name} {ls : List Level}
     {e major₂ : Expr} {heads As lv} {nparams} (H : EnvParamUniform c.env heads nparams lv)
     (hAs : ∀ a ∈ As, ∃ fv, a = .fvar fv)
     (hinfo : c.env.find? recFn = some (.recInfo info))
     (hfirst : info.getFirstIndexIdx ≤ e.getAppArgs.size)
     (hl : e.ParamUniformIn c.env heads As lv) (hm : major₂.ParamUniformIn c.env heads As lv) :
-    ∀ r, inductiveReduceRecTail info ls e.getAppArgs major₂ = some r →
+    ∀ r, inductiveReduceRecCore info ls e.getAppArgs major₂ = some r →
       r.ParamUniformIn c.env heads As lv := by
   intro r hr
-  unfold inductiveReduceRecTail at hr
+  unfold inductiveReduceRecCore at hr
   simp only [bind, Option.bind] at hr
   split at hr <;> [rename_i rule hrule; cases hr]
   unfold getRecRuleFor at hrule
@@ -244,10 +244,10 @@ theorem inductiveReduceRec.Post_paramUniform (he : c.TrExprS e e') (hp : s.ngen.
   -- the tail
   have htail : ∀ (major₂ : Expr), c.FVarsBelow e.getAppArgs[info.getMajorIdx] major₂ →
       c.ParamUniformBelow pfx e.getAppArgs[info.getMajorIdx] major₂ →
-      ∀ e₁, inductiveReduceRecTail info ls e.getAppArgs major₂ = some e₁ →
+      ∀ e₁, inductiveReduceRecCore info ls e.getAppArgs major₂ = some e₁ →
         c.ParamUniformBelow pfx e e₁ := by
     intro major₂ hfv hh e₁ h heads As lv P hs hl hP
-    exact inductiveReduceRecTail.paramUniformIn hs.env hs.params.fvars hinfo
+    exact inductiveReduceRecCore.paramUniformIn hs.env hs.params.fvars hinfo
       (by simp only [RecursorVal.getMajorIdx, RecursorVal.getFirstIndexIdx] at hmaj ⊢; omega) hl
       (hh heads As lv P hs (hl.of_mem_getAppArgsList hs.params.fvars hmem)
         (hP.of_mem_getAppArgsList hmem)) e₁ h

@@ -129,7 +129,7 @@ structure QuotEnvCoherent (C : ConstMap) (venv : VEnv) : Prop where
 /-- The shapes of a visible recursor: its type is a recursor telescope over its major family, the
 major family is rigid, and the constructor of each rule has the constructor telescope at the
 recursor's constructor parameter count, which is the constructor's own parameter count. -/
-def RecursorShapes (env : Environment) (venv : VEnv) (rec : RecursorVal) : Prop :=
+def RecursorShapes (C : ConstMap) (venv : VEnv) (rec : RecursorVal) : Prop :=
   ∃ cnparams indLevels ctorParams,
     Nonempty (VRecursorShape venv rec.name rec.levelParams.length rec.numParams cnparams
       rec.numMotives rec.numMinors rec.numIndices rec.getMajorInduct indLevels ctorParams) ∧
@@ -137,15 +137,15 @@ def RecursorShapes (env : Environment) (venv : VEnv) (rec : RecursorVal) : Prop 
     ∀ rule ∈ rec.rules, ∃ ctorUvars, indLevels.length = ctorUvars ∧
       Nonempty (VConstructorShape venv rule.ctor ctorUvars cnparams rule.nfields rec.numIndices
         rec.getMajorInduct) ∧
-      ∀ cval, env.find? rule.ctor = some (.ctorInfo cval) → cval.numParams = cnparams
+      ∀ cval, C.find? rule.ctor = some (.ctorInfo cval) → cval.numParams = cnparams
 
-/-- Every visible recursor has its shapes, a K-like one eliminates a single-constructor family
-whose constructor is aligned (`KLikeAlignment`), and its major family is an inductive header. -/
-def RecursorsCoherent (safety : DefinitionSafety) (env : Environment) (venv : VEnv) : Prop :=
-  ∀ {name rec}, env.find? name = some (.recInfo rec) →
+/-- Every visible recursor has its shapes, and a K-like one eliminates a single-constructor
+family whose constructor is aligned (`KLikeAlignment`). -/
+def RecursorsCoherent (safety : DefinitionSafety) (C : ConstMap) (venv : VEnv) : Prop :=
+  ∀ {name rec}, C.find? name = some (.recInfo rec) →
     safety ≤ (ConstantInfo.recInfo rec).safety →
-    RecursorShapes env venv rec ∧
-    (rec.k = true → ∃ info ctorName, env.find? rec.getMajorInduct = some (.inductInfo info) ∧
+    RecursorShapes C venv rec ∧
+    (rec.k = true → ∃ info ctorName, C.find? rec.getMajorInduct = some (.inductInfo info) ∧
       info.ctors = [ctorName] ∧ KLikeAlignment venv rec ctorName)
 
 /-- The ι rule of every rule of a visible recursor is registered: PR #43's `TrEnv.pats_iota'`. -/
@@ -214,7 +214,7 @@ structure CheckerEnv (safety : DefinitionSafety) (env : Environment) (venv : VEn
       safety ≤ (ConstantInfo.inductInfo v).safety ∧
       ∃ c : ConstructorVal, env.find? info.ctorName = some (.ctorInfo c) ∧ c.induct = S
   /-- The visible recursors. -/
-  recursors : RecursorsCoherent safety env venv
+  recursors : RecursorsCoherent safety env.constants venv
   /-- The major family of every present recursor is a header whose constructors are present. -/
   recursorMajorCtors : ∀ {name r}, env.find? name = some (.recInfo r) →
     ∃ info, env.find? r.getMajorInduct = some (.inductInfo info) ∧
