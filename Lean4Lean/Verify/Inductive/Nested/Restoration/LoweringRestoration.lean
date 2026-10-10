@@ -223,5 +223,43 @@ theorem NestedLowering.restoreAuxConstructorsFreshOfInstallation
     (H.resultFamilyNamesFreshOfEmpty hwf hempty)
 
 
+/-- Target form of the source branch's `AddConstants.restoreAuxConstructorsFresh` over the
+lowered run's installation: every constructor recognized as belonging to a fresh auxiliary
+family is absent from the source model. -/
+theorem RecursorInstallation.restoreAuxConstructorsFreshOfInstalled
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv loweredEnv : Environment}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
+    {result : Lean4Lean.ElimNestedInductive.Result}
+    (H : RecursorInstallation R loweredEnv)
+    (Howners : ConstructorOwnersPresent c.env)
+    (Hfamilies : RestoreAuxFamiliesFresh result c.env) :
+    RestoreAuxConstructorsFresh result loweredEnv sourceVEnv := by
+  intro name nested auxFamily hrecognized
+  rcases getNestedIfAuxCtor_refines result loweredEnv name nested auxFamily
+      hrecognized with ⟨⟨info, hlookup, hfamily, hmap⟩⟩
+  rcases H.outOrigin hlookup with hctor | ⟨r, -, h⟩
+  · rcases R.ctorEnv_cases hctor with hhdr | ⟨iv, hiv, cval, hc, heq, hname⟩
+    · rcases R.headerEnv_cases hhdr with hold | ⟨info', -, heq, -⟩
+      · rcases Howners name info hold with ⟨owner, howner, -⟩
+        have hfresh := Hfamilies info.induct nested hmap
+        rw [howner] at hfresh
+        contradiction
+      · cases heq
+    · cases heq
+      have hmem : name ∈ decl.constructorConstants.map (·.name) := by
+        rw [← R.ctorCis_names, ← hname]
+        exact List.mem_map.mpr ⟨_, List.mem_flatMap.mpr ⟨iv, hiv, List.mem_map_of_mem hc⟩, rfl⟩
+      obtain ⟨v, hv, rfl⟩ := List.mem_map.mp hmem
+      have hfreshT := Lean4Lean.VEnv.addConstVals_names_fresh R.core.ctorsAdded v hv
+      cases hs : sourceVEnv.constants v.name with
+      | none => rfl
+      | some x =>
+        have := (VEnv.addConstVals_le R.core.typesAdded).constants hs
+        rw [hfreshT] at this; cases this
+  · cases h
+
 end VerifyInductive
 end Lean4Lean
