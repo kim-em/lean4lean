@@ -126,51 +126,67 @@ theorem VExpr.piArity_wrapForalls_mkApps_const (doms args : List VExpr) (n : Nam
   | nil => exact VExpr.piArity_mkApps_const n ls args _ (.inl rfl)
   | cons d ds ih => simp [VExpr.wrapForalls, VExpr.piArity] at ih ⊢; exact ih
 
-/-- The recursor shapes of the recursors installed by a recursor check, given the `AddInduct`
-of the block over the source map (which identifies the constructor infos the rules fire on). -/
-theorem RecursorCheck.recursorShapes
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : RecursorCheck R outEnv) (T : RuleTranslations H)
-    (hnp : ∀ {n cval}, outEnv.constants.find? n = some (.ctorInfo cval) →
+/-- The recursor shapes of the generated recursors, from the facts a recursor check records:
+the generator (`g`, modelling the declaration), the recursor constants in the recursor-stage
+model `envR`, the kernel recursors' translations (`TrRecursor`, read for the names and the rule
+data) and metadata, the rule coverage, the rules' constructor shapes, the source constructors'
+raw shapes, and the parameter count of the constructor infos the rules fire on. -/
+theorem recursorShapesOf {decl : VInductDecl} {s : InductiveSignature} (g : InductiveSignature.Instance s)
+    {safety : DefinitionSafety} {sourceEnv envT envC envA envR : VEnv} {C : ConstMap}
+    {rvals : List RecursorVal} {recs : List VRecursor}
+    (models : s.Models sourceEnv decl) (hlevels : g.levels.length = s.uvars)
+    (typesAdded : sourceEnv.addConstVals decl.typeConstants = some envT)
+    (ctorsAdded : envT.addConstVals decl.constructorConstants = some envC)
+    (hnames : decl.sourceNames.Nodup)
+    (rawShapes : ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors, decl.RawCtorShape type ctor)
+    (hleC : envC ≤ envR)
+    (recsFind : ∀ r ∈ recs, envR.constants r.name = some r.toVConstVal.toVConstant)
+    (recursors_eq : recs.map (·.toVConstVal) = g.recursors)
+    (trRecs : List.Forall₂ (TrRecursor safety envA envR C) rvals recs)
+    (metadata : List.Forall₂ (fun (owner : Fin s.families.size) rval =>
+      InductiveSignature.RecursorMetadata g envR owner rval) (List.finRange s.families.size) rvals)
+    (coverage : List.Forall₂ (fun (owner : Fin s.families.size) rval =>
+      List.Forall₂ (InductiveSignature.TrRecursorRule g envR rval.levelParams)
+        (s.ownedConstructors owner) rval.rules) (List.finRange s.families.size) rvals)
+    (rules_ctor : ∀ r ∈ recs, ∀ ru ∈ r.rules,
+      ∃ ci, envC.constants ru.ctor = some ci ∧ ci.type.CtorShape (ru.ctorParams + ru.nfields))
+    (hnp : ∀ {n cval}, C.find? n = some (.ctorInfo cval) →
       (∃ src ∈ decl.constructorConstants, src.name = n) → cval.numParams = decl.nparams) :
-    ∀ rval ∈ H.rvals, RecursorShapesAt outEnv.constants H.outVEnv rval := by
+    ∀ rval ∈ rvals, RecursorShapesAt C envR rval := by
   intro rval hrval
   obtain ⟨i, hiR, rfl⟩ := List.getElem_of_mem hrval
-  have hlenR : H.rvals.length = H.recs.length := List.Forall₂.length_eq H.trRecs
-  have hlenF : (List.finRange H.signature.families.size).length = H.rvals.length :=
-    List.Forall₂.length_eq H.metadata
-  have hi : i < H.recs.length := hlenR ▸ hiR
-  have hiF : i < (List.finRange H.signature.families.size).length := hlenF ▸ hiR
-  have htr := Lean4Lean.List.Forall₂.getElem_of H.trRecs i hiR hi
-  have hmeta := Lean4Lean.List.Forall₂.getElem_of H.metadata i hiF hiR
-  have hrules := Lean4Lean.List.Forall₂.getElem_of T.trRules i hiF hiR
-  generalize howner : (List.finRange H.signature.families.size)[i] = owner at hmeta hrules
-  have hrec : H.recs[i].toVConstVal = H.generation.recursor owner := by
-    have h := congrArg (fun l => l[i]?) H.recursors_eq
+  have hlenR : rvals.length = recs.length := List.Forall₂.length_eq trRecs
+  have hlenF : (List.finRange s.families.size).length = rvals.length :=
+    List.Forall₂.length_eq metadata
+  have hi : i < recs.length := hlenR ▸ hiR
+  have hiF : i < (List.finRange s.families.size).length := hlenF ▸ hiR
+  have htr := Lean4Lean.List.Forall₂.getElem_of trRecs i hiR hi
+  have hmeta := Lean4Lean.List.Forall₂.getElem_of metadata i hiF hiR
+  have hrules := Lean4Lean.List.Forall₂.getElem_of coverage i hiF hiR
+  generalize howner : (List.finRange s.families.size)[i] = owner at hmeta hrules
+  have hrec : recs[i].toVConstVal = g.recursor owner := by
+    have h := congrArg (fun l => l[i]?) recursors_eq
     simp only [InductiveSignature.Instance.recursors, List.getElem?_map,
       List.getElem?_eq_getElem hi, List.getElem?_eq_getElem hiF, Option.map_some,
       Option.some.injEq, howner] at h
     exact h
   -- the recursor constant
-  have hconst : H.outVEnv.constants H.rvals[i].name =
-      some ⟨H.rvals[i].levelParams.length, H.generation.recursorType owner⟩ := by
-    have h := VEnv.addRecs_find H.recsAdded H.recs[i] (List.getElem_mem hi)
-    have hname : (ConstantInfo.recInfo H.rvals[i]).name = H.recs[i].toVConstVal.name :=
+  have hconst : envR.constants rvals[i].name =
+      some ⟨rvals[i].levelParams.length, g.recursorType owner⟩ := by
+    have h := recsFind recs[i] (List.getElem_mem hi)
+    have hname : (ConstantInfo.recInfo rvals[i]).name = recs[i].toVConstVal.name :=
       htr.tr.2
     rw [hrec] at hname h
     simp only [ConstantInfo.name, ConstantInfo.toConstantVal] at hname
     rw [hname]
     rw [h]
     simp [InductiveSignature.Instance.recursor, VConstVal.toVConstant, hmeta.uvars]
-  obtain ⟨doms, result, htype, hdomslen, hmajor⟩ := H.generation.recursorType_shape owner
-  refine ⟨⟨H.signature.params.length, H.generation.levels,
-    VExpr.bvarRange H.signature.params.length H.signature.params.length, ⟨{
+  obtain ⟨doms, result, htype, hdomslen, hmajor⟩ := g.recursorType_shape owner
+  refine ⟨⟨s.params.length, g.levels,
+    VExpr.bvarRange s.params.length s.params.length, ⟨{
       ctorParams_length := by simp
       ctorParams_closed := by rw [hmeta.numParams]; exact InductiveSignature.bvarRange_closedN _
-      type := H.generation.recursorType owner
+      type := g.recursorType owner
       const := hconst
       doms := doms
       result := result
@@ -182,48 +198,46 @@ theorem RecursorCheck.recursorShapes
         exact hmajor }⟩, ?_⟩, ?_⟩
   · intro rule hrule
     obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem hrule
-    have hj' : j < H.recs[i].rules.length := List.Forall₂.length_eq htr.rules ▸ hj
-    have hjO : j < (H.signature.ownedConstructors owner).length :=
+    have hj' : j < recs[i].rules.length := List.Forall₂.length_eq htr.rules ▸ hj
+    have hjO : j < (s.ownedConstructors owner).length :=
       (List.Forall₂.length_eq hrules).symm ▸ hj
     have hrr := Lean4Lean.List.Forall₂.getElem_of hrules j hjO hj
     have hru := Lean4Lean.List.Forall₂.getElem_of htr.rules j hj hj'
-    generalize hindex : (H.signature.ownedConstructors owner)[j] = index at hrr
-    have howner' : H.signature.constructors[index].owner = owner := by
-      have hmem := List.getElem_mem (l := H.signature.ownedConstructors owner) hjO
+    generalize hindex : (s.ownedConstructors owner)[j] = index at hrr
+    have howner' : s.constructors[index].owner = owner := by
+      have hmem := List.getElem_mem (l := s.ownedConstructors owner) hjO
       rw [hindex] at hmem
       simp only [InductiveSignature.ownedConstructors, List.mem_filter, beq_iff_eq] at hmem
       exact hmem.2
-    obtain ⟨source, hsource, hfname, -, hfidx, -, hfctors⟩ := H.models.family owner
-    have hnames := TrInductDeclCore.sourceNames_nodup R.core
+    obtain ⟨source, hsource, hfname, -, hfidx, -, hfctors⟩ := models.family owner
     have htypesNodup : (decl.types.map (·.name)).Nodup := by
       have := (List.nodup_append.mp hnames).1
       simpa [VInductDecl.typeConstants, List.map_map, Function.comp_def] using this
-    obtain ⟨src, hsrc, hsname, hsuv, -⟩ := H.models.constructorInFamily hnames index
-      R.core.typesAdded hsource (by rw [howner']; exact hfctors)
+    obtain ⟨src, hsrc, hsname, hsuv, -⟩ := models.constructorInFamily hnames index
+      typesAdded hsource (by rw [howner']; exact hfctors)
     obtain ⟨cdoms, indices, hctype, hle, hidx⟩ :=
-      (R.formation.rawShapes source hsource src hsrc).toShape hsource htypesNodup
-    have stC : decl.addCtors R.headerVEnv = some R.ctorVEnv := by
-      rw [VInductDecl.addCtors_eq_addConstVals]; exact R.core.ctorsAdded
-    have hsrcC : R.ctorVEnv.constants src.name = some src.toVConstant :=
+      (rawShapes source hsource src hsrc).toShape hsource htypesNodup
+    have stC : decl.addCtors envT = some envC := by
+      rw [VInductDecl.addCtors_eq_addConstVals]; exact ctorsAdded
+    have hsrcC : envC.constants src.name = some src.toVConstant :=
       VEnv.addCtors_find stC source hsource src hsrc
-    have hleC : R.ctorVEnv ≤ H.outVEnv := VEnv.addProjections_le.trans (VEnv.addRecs_le H.recsAdded)
-    have hrulector : H.rvals[i].rules[j].ctor = src.name := hrr.ctor.trans hsname
-    have hsrcMem : ∃ s ∈ decl.constructorConstants, s.name = H.rvals[i].rules[j].ctor :=
+    have hrulector : rvals[i].rules[j].ctor = src.name := hrr.ctor.trans hsname
+    have hsrcMem : ∃ s' ∈ decl.constructorConstants, s'.name = rvals[i].rules[j].ctor :=
       ⟨src, List.mem_flatMap.2 ⟨source, hsource, hsrc⟩, hrulector.symm⟩
     obtain ⟨hctor, hnfields, ⟨cval, hcval, hcparams⟩, -⟩ := hru
     have hcvalNp := hnp hcval hsrcMem
-    obtain ⟨ci, hci, hshape⟩ := H.rules_ctor _ (List.getElem_mem hi) _ (List.getElem_mem hj')
+    obtain ⟨ci, hci, hshape⟩ := rules_ctor _ (List.getElem_mem hi) _ (List.getElem_mem hj')
     rw [hctor, hrulector, hsrcC] at hci
     cases hci
     have harity := hshape.1
     rw [hctype, VExpr.piArity_wrapForalls_mkApps_const, hcparams, hcvalNp, hnfields] at harity
-    have hnp' : decl.nparams = H.signature.params.length := H.models.nparams.symm
-    have huv : H.generation.levels.length = decl.uvars :=
-      H.admissible.levels_length.trans H.models.uvars
-    refine ⟨H.generation.levels.length, rfl, ⟨{
+    have hnp' : decl.nparams = s.params.length := models.nparams.symm
+    have huv : g.levels.length = decl.uvars :=
+      hlevels.trans models.uvars
+    refine ⟨g.levels.length, rfl, ⟨{
       type := src.type
       const := by
-        rw [hrulector, hleC.constants hsrcC, huv, ← hsuv.symm.trans H.models.uvars]
+        rw [hrulector, hleC.constants hsrcC, huv, ← hsuv.symm.trans models.uvars]
       doms := cdoms
       indices := indices
       type_eq := by
@@ -236,9 +250,26 @@ theorem RecursorCheck.recursorShapes
     rw [hnp hcval' hsrcMem, hnp']
   · intro rule hrule
     obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem hrule
-    have hj' : j < H.recs[i].rules.length := List.Forall₂.length_eq htr.rules ▸ hj
+    have hj' : j < recs[i].rules.length := List.Forall₂.length_eq htr.rules ▸ hj
     obtain ⟨-, -, ⟨cval, hcval, -⟩, -⟩ := Lean4Lean.List.Forall₂.getElem_of htr.rules j hj hj'
     exact ⟨cval, hcval⟩
+
+
+/-- The recursor shapes of the recursors installed by a recursor check. -/
+theorem RecursorCheck.recursorShapes
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorCheck R outEnv) (T : RuleTranslations H)
+    (hnp : ∀ {n cval}, outEnv.constants.find? n = some (.ctorInfo cval) →
+      (∃ src ∈ decl.constructorConstants, src.name = n) → cval.numParams = decl.nparams) :
+    ∀ rval ∈ H.rvals, RecursorShapesAt outEnv.constants H.outVEnv rval :=
+  recursorShapesOf H.generation H.models H.admissible.levels_length R.core.typesAdded
+    R.core.ctorsAdded (TrInductDeclCore.sourceNames_nodup R.core) R.formation.rawShapes
+    (VEnv.addProjections_le.trans (VEnv.addRecs_le H.recsAdded))
+    (fun r hr => VEnv.addRecs_find H.recsAdded r hr) H.recursors_eq H.trRecs H.metadata
+    T.trRules H.rules_ctor hnp
 
 end VerifyInductive
 
