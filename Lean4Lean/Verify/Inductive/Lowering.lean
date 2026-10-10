@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Basic
-import Lean4Lean.Verify.Inductive.Nested.Lowering.Refinement
+import Lean4Lean.Verify.Inductive.Nested.Lowering.Output
 
 /-! # The lowering run and what it certifies
 
@@ -109,6 +109,11 @@ structure NestedLoweringOutput (env : Environment) (fuel nparams : Nat)
     LoweringParamOpening {} #[] first.type nparams res.lctx tail res.params ∧
     res.lctx.WF ∧ (∀ fv ∈ res.lctx.fvars, ({} : TypeChecker.State).ngen.Reserves fv) ∧
     ∃ fvars : List FVarId, res.params = (fvars.map Expr.fvar).toArray ∧ fvars.Nodup
+  /-- The source branch's run relation (`NestedLowering` with a closed cache and distinct
+  parameters), for consumers that port source lemmas stated against it. -- WAVE 3 lowering
+  field. -/
+  closed : NestedLoweringOutputClosed env fuel nparams sourceTypes
+    { lvls := lparams.map .param, newTypes := sourceTypes.toArray } res
   /-- Restoration inverts lowering on the source constructors, in any environment in which
   the source constructor type does not mention a cached family or a constructor of one
   (`RestoreSourceDisjoint`): the restored lowered constructor type is the source constructor
@@ -122,21 +127,12 @@ structure NestedLoweringOutput (env : Environment) (fuel nparams : Nat)
         lowered.ctors source.ctors)
       (res.types.take sourceTypes.length) sourceTypes
 
-/-- The hypothesis-free part of `loweringRun.WF` the ordinary branch reads: the source block is
-nonempty, the lowered block extends it, and with no auxiliary family it is the source block. -/
-theorem loweringRun.sourceShape {env : Environment} {fuel nparams : Nat}
-    {types : List InductiveType} {lparams : List Name} {res : ElimNestedInductive.Result}
-    (h : loweringRun env fuel nparams types lparams = .ok res) :
-    types ≠ [] ∧ types.length ≤ res.types.length ∧
-      (res.aux2nested.size = 0 → SourceSyntaxChecks env types → SourceBVarClosed types →
-        res.types = types) := by
-  -- WAVE 3 STUB (Lowering): `NestedLowering` without the environment invariants.
-  have := h; sorry
-
 /-- **The lowering boundary theorem**: a successful lowering run certifies its result. -/
 theorem loweringRun.WF {env : Environment} {ves : VEnvs} {fuel nparams : Nat}
     {types : List InductiveType} {lparams : List Name} {res : ElimNestedInductive.Result}
-    (wf : ves.WF env) -- WAVE 3 COMPAT (lowering): `nested_app` needs the environment invariants
+    -- WAVE 3 COMPAT (lowering): the refinement of the run needs the environment invariants
+    -- and the closedness of the source types
+    (wf : ves.WF env) (hsources : SourceSyntaxChecks env types)
     (h : loweringRun env fuel nparams types lparams = .ok res) :
     NestedLoweringOutput env fuel nparams types lparams res := by
   -- WAVE 3 STUB (Lowering): the source branch's `Nested/Lowering/**` (`NestedLowering`,
@@ -146,21 +142,25 @@ theorem loweringRun.WF {env : Environment} {ves : VEnvs} {fuel nparams : Nat}
   have := h; sorry
 
 /-- A lowering result has at least the source families. -/
-theorem loweringRun.types_nonempty {env : Environment} {fuel nparams : Nat}
+theorem loweringRun.types_nonempty {env : Environment} {ves : VEnvs} {fuel nparams : Nat}
     {types : List InductiveType} {lparams : List Name} {res : ElimNestedInductive.Result}
+    (wf : ves.WF env) (hsources : SourceSyntaxChecks env types) -- WAVE 3 COMPAT (lowering)
     (h : loweringRun env fuel nparams types lparams = .ok res) : res.types ≠ [] := by
-  obtain ⟨hne, hle, -⟩ := loweringRun.sourceShape h
+  have H := loweringRun.WF wf hsources h
   intro hnil
-  rw [hnil] at hle
-  exact hne (List.eq_nil_of_length_eq_zero (by simpa using hle))
+  have hlen := H.types_length
+  rw [hnil] at hlen
+  exact H.source_nonempty (List.eq_nil_of_length_eq_zero (by simp at hlen; omega))
 
 /-- A lowering run that introduces no auxiliary family returns the source types literally. -/
-theorem loweringRun.ordinary_types_eq_source {env : Environment} {fuel nparams : Nat}
+theorem loweringRun.ordinary_types_eq_source {env : Environment} {ves : VEnvs}
+    {fuel nparams : Nat}
     {types : List InductiveType} {lparams : List Name} {res : ElimNestedInductive.Result}
+    (wf : ves.WF env) -- WAVE 3 COMPAT (lowering)
     (hsources : SourceSyntaxChecks env types) (hclosed : SourceBVarClosed types)
     (h : loweringRun env fuel nparams types lparams = .ok res)
     (haux : res.aux2nested.size = 0) : res.types = types :=
-  (loweringRun.sourceShape h).2.2 haux hsources hclosed
+  (loweringRun.WF wf hsources h).ordinary haux hsources hclosed
 
 /-- `Environment.addInductive` is the source checks, the lowering run and
 `addInductiveAfterLowering`. -/

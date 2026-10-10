@@ -24,7 +24,7 @@ namespace VerifyInductive
 /-- **The nested branch.** -/
 theorem nestedInductivePreserves : NestedInductivePreserves := by
   intro env lparams nparams sourceTypes isUnsafe fuel res ves wf Hsources Hlower hnested
-  have Hout := loweringRun.WF wf Hlower -- WAVE 3 COMPAT (lowering)
+  have Hout := loweringRun.WF wf Hsources Hlower -- WAVE 3 COMPAT (lowering)
   let safety : DefinitionSafety := if isUnsafe then .unsafe else .safe
   let c := initialContext env lparams safety false fuel
   let Hc : ContextWF c := ContextWF.initial wf safety lparams false fuel

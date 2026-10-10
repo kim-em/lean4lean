@@ -82,10 +82,11 @@ theorem Environment.addInductive.inductiveExtensionWF
   refine Environment.addInductive.WF env lparams nparams types isUnsafe false fuel _
     fun res Hsources Hlower => ?_
   by_cases haux : res.aux2nested.size = 0
-  · have htypes := loweringRun.ordinary_types_eq_source Hsources HsourcesB Hlower haux
+  · -- WAVE 3 COMPAT (lowering): the lowering consequences take `wf` and `Hsources`
+    have htypes := loweringRun.ordinary_types_eq_source wf Hsources HsourcesB Hlower haux
     exact Environment.addInductiveAfterLowering.ordinaryInductiveExtensionWF
       env lparams nparams types isUnsafe fuel res ves wf htypes
-      (htypes ▸ loweringRun.types_nonempty Hlower) haux
+      (htypes ▸ loweringRun.types_nonempty wf Hsources Hlower) haux
   · exact hnested env lparams nparams types isUnsafe fuel res ves wf Hsources Hlower haux
 
 /-- Model preservation alone for the non-primitive branch, without any hypothesis on the source
@@ -101,7 +102,8 @@ theorem Environment.addInductive.preservesWF
     fun res Hsources Hlower => ?_
   by_cases haux : res.aux2nested.size = 0
   · exact Environment.addInductiveAfterLowering.ordinaryInstalledModelWF
-      env lparams nparams types isUnsafe fuel res ves wf (loweringRun.types_nonempty Hlower) haux
+      env lparams nparams types isUnsafe fuel res ves wf
+      (loweringRun.types_nonempty wf Hsources Hlower) haux -- WAVE 3 COMPAT (lowering)
   · exact (hnested env lparams nparams types isUnsafe fuel res ves wf Hsources Hlower haux).mono
       fun _ ⟨E⟩ => E.modelExtension
 
