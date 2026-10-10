@@ -7,7 +7,7 @@ import Lean4Lean.Verify.Inductive.Context.TypeAnnotations
 import Lean4Lean.Verify.Inductive.RecursorInput
 
 import Lean4Lean.Verify.Inductive.Recursor.Elimination.Singleton
-import Lean4Lean.Verify.Inductive.Recursor.Signature.ParameterSyntacticTranslation
+import Lean4Lean.Verify.Inductive.Constructor.ParameterSyntacticTranslation
 import Lean4Lean.Theory.Inductive.SignatureLemmas
 
 namespace Lean4Lean

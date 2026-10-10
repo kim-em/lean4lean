@@ -173,6 +173,8 @@ structure RecursorInput (c : AddInductive.Context) (stats : AddInductive.Inducti
     (p.1, familyCtorInfos stats c.lparams isUnsafe p.2)
   ctor_numParams : ∀ iv ∈ ivals, ∀ cval ∈ iv.2, cval.numParams = decl.nparams
   parameterPrefixes : ConstructorParameterPrefixes stats indTypes
+  -- WAVE 2 ctor COMPAT: the tails are in the header statistics' parameter scope, as
+  -- `ConstructorCheck.constructorTails` (and the source branch) states them.
   constructorTails : ConstructorTails headers.context.venv c.lparams
     headers.statsWF.parameterScope stats decl indTypes classes
   ownerNormalForms : ConstructorOwnerNormalForms stats indTypes
