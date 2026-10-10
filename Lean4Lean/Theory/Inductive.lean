@@ -65,16 +65,55 @@ theorem CtorResult_iff {ty : VExpr} {T : Name} {np nf nind : Nat} :
     ⟨fun ⟨us, idx, h1, h2⟩ => ⟨us, idx, h2, h1⟩, fun ⟨us, idx, h1, h2⟩ => ⟨us, idx, h2, h1⟩⟩
   rw [this, eq_const_mkApps_append_iff (P := fun idx => idx.length = nind), bvarsDesc_length]
 
-/-- Thesis §2.6.3, the major premise `z : P p x` of a recursor over `T`: `T` applied to the
-recursor's own parameter variables and to its index variables. -/
-def MajorApp (A : VExpr) (T : Name) (np nm nmin nind : Nat) : Prop :=
-  ∃ us, A = (VExpr.const T us).mkApps (bvarsDesc (nm + nmin + nind) np ++ bvarsDesc 0 nind)
+/-- Thesis §2.6.3, the major premise `z : P p x` of a recursor over `T`: `T` applied to
+leading arguments over the recursor's parameters and to its index variables.
 
+WAVE 3 COMPAT (restB): the leading arguments were the recursor's own parameter variables
+(`bvarsDesc (nm + nmin + nind) np`), which is false for the auxiliary recursors of a nested
+block: a restored `Tree.rec_1` has major `List (Tree α)`, the container at the specialization
+arguments. They are now any terms over the `np` parameters only (lifted past the motives,
+minors and indices), of any number (the container's parameter count);
+`MajorApp.of_params` is the old shape. -/
+def MajorApp (A : VExpr) (T : Name) (np nm nmin nind : Nat) : Prop :=
+  ∃ us pre, A = (VExpr.const T us).mkApps (pre ++ bvarsDesc 0 nind) ∧
+    ∀ a ∈ pre, ∃ a₀ : VExpr, a₀.ClosedN np ∧ a = a₀.liftN (nm + nmin + nind)
+
+/-- The old major shape (the recursor's own parameter variables) is a `MajorApp`. -/
+theorem MajorApp.of_params {A : VExpr} {T : Name} {np nm nmin nind : Nat}
+    (h : ∃ us, A = (VExpr.const T us).mkApps (bvarsDesc (nm + nmin + nind) np ++ bvarsDesc 0 nind)) :
+    A.MajorApp T np nm nmin nind := by
+  obtain ⟨us, rfl⟩ := h
+  refine ⟨us, _, rfl, fun a ha => ?_⟩
+  simp only [bvarsDesc, List.mem_map, List.mem_reverse, List.mem_range] at ha
+  obtain ⟨i, hi, rfl⟩ := ha
+  refine ⟨.bvar i, by simpa [ClosedN] using hi, ?_⟩
+  simp [liftN, liftVar]
+
+/-- Decidable form of `MajorApp`. -/
 theorem MajorApp_iff {A : VExpr} {T : Name} {np nm nmin nind : Nat} :
     A.MajorApp T np nm nmin nind ↔
-      A.headConst? = some T ∧
-        A.getAppArgs = bvarsDesc (nm + nmin + nind) np ++ bvarsDesc 0 nind :=
-  eq_const_mkApps_iff
+      A.headConst? = some T ∧ nind ≤ A.getAppArgs.length ∧
+        A.getAppArgs.drop (A.getAppArgs.length - nind) = bvarsDesc 0 nind ∧
+        ∀ a ∈ A.getAppArgs.take (A.getAppArgs.length - nind),
+          (a.unliftN (nm + nmin + nind) 0).ClosedN np ∧ a.Skips (nm + nmin + nind) 0 := by
+  constructor
+  · rintro ⟨us, pre, rfl, hpre⟩
+    have hargs := (const_mkApps_spine (c := T) (us := us) (args := pre ++ bvarsDesc 0 nind)).2
+    refine ⟨headConst?_eq_some.2 ⟨us, const_mkApps_spine.1⟩, ?_, ?_, ?_⟩ <;> rw [hargs]
+    · simp
+    · simp
+    · intro a ha
+      simp only [List.length_append, bvarsDesc_length, Nat.add_sub_cancel,
+        List.take_left'] at ha
+      obtain ⟨a₀, h0, rfl⟩ := hpre a ha
+      exact ⟨by rw [unliftN_liftN]; exact h0, .liftN⟩
+  · rintro ⟨h1, hlen, hdrop, htake⟩
+    obtain ⟨us, hf⟩ := headConst?_eq_some.1 h1
+    refine ⟨us, A.getAppArgs.take (A.getAppArgs.length - nind), ?_, fun a ha => ?_⟩
+    · apply eq_const_mkApps_of_spine hf
+      rw [← hdrop, List.take_append_drop]
+    · obtain ⟨hc, hs⟩ := htake a ha
+      exact ⟨_, hc, hs.symm⟩
 
 /-- Thesis §2.6.1, the kernel's `isValidIndApp?`: an application of one of the block's type
 formers `fs` to the block's parameter variables — seen from `d` binders below the field
@@ -205,7 +244,8 @@ theorem VExpr.RecShape.one_le_numMotives {ty : VExpr} {np nm nmin nind : Nat}
   h.2.2.2.elim fun _ hj => Nat.lt_of_le_of_lt (Nat.zero_le _) hj.1
 
 /-- The type former a `RecShape` recursor eliminates: the head constant of its major
-premise, which `MajorApp` pins to an application of the parameter and index variables. -/
+premise, which `MajorApp` pins to an application of terms over the parameters and of the index
+variables. -/
 theorem VExpr.RecShape.majorFormer?_eq {ty : VExpr} {np nm nmin nind : Nat}
     (h : ty.RecShape np nm nmin nind) :
     ∃ T M, ty.piBinders[np + nm + nmin + nind]? = some M ∧
