@@ -383,6 +383,11 @@ structure RecursorsWF (env : VEnv) (decl : VInductDecl) : Prop where
   rules_nodup : ∀ r ∈ decl.recs, (r.rules.map (·.ctor)).Nodup
   rules_ctor : ∀ envC, decl.addTypesCtors env = some envC → ∀ r ∈ decl.recs, ∀ ru ∈ r.rules,
     ∃ ci, envC.constants ru.ctor = some ci ∧ ci.type.CtorShape (ru.ctorParams + ru.nfields)
+  /-- WAVE 3 COMPAT (restB): `VInductDecl.WF.rules_ctorParams`. -/
+  rules_ctorParams : ∀ r ∈ decl.recs, ∀ ru ∈ r.rules,
+    (∃ c ∈ decl.constructorConstants, ru.ctor = c.name ∧ ru.ctorParams = decl.nparams) ∨
+    (∃ D, VEnv.InstalledBelow env D ∧ ∃ c ∈ D.constructorConstants,
+      ru.ctor = c.name ∧ ru.ctorParams = D.nparams)
   rule_shape : ∀ r ∈ decl.recs, ∀ ru ∈ r.rules, ∃ j < r.numMinors, ∃ A,
     r.type.piBinders[r.numParams + r.numMotives + j]? = some A ∧ A.MinorFor ru.ctor ∧
     ru.nfields ≤ A.piArity ∧
@@ -397,7 +402,8 @@ structure RecursorsWF (env : VEnv) (decl : VInductDecl) : Prop where
 
 theorem VInductDecl.WF.recursorsWF {env : VEnv} {decl : VInductDecl} (H : decl.WF env) :
     RecursorsWF env decl :=
-  ⟨H.recsCompiled, H.recs_wf, H.rec_shape, H.rules_nodup, H.rules_ctor, H.rule_shape, H.rules_wf⟩
+  ⟨H.recsCompiled, H.recs_wf, H.rec_shape, H.rules_nodup, H.rules_ctor, H.rules_ctorParams,
+    H.rule_shape, H.rules_wf⟩
 
 /-- The declaration judgment from a formation certificate, the source judgment and the
 recursor half. -/
@@ -411,6 +417,7 @@ theorem FormationCertificate.wf
   rec_shape := hrecs.rec_shape
   rules_nodup := hrecs.rules_nodup
   rules_ctor := hrecs.rules_ctor
+  rules_ctorParams := hrecs.rules_ctorParams
   rule_shape := hrecs.rule_shape
   rules_wf := hrecs.rules_wf
 

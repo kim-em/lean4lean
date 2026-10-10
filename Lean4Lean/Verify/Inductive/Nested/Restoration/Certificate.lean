@@ -96,6 +96,13 @@ structure RestoredBlock {c : AddInductive.Context} {Hc : ContextWF c} {nparams :
   source recursors, the container's (declared below) for the auxiliary ones. -/
   rules_ctor : ∀ r ∈ decl.recs, ∀ ru ∈ r.rules,
     ∃ ci, envCtors.constants ru.ctor = some ci ∧ ci.type.CtorShape (ru.ctorParams + ru.nfields)
+  /-- `VInductDecl.WF.rules_ctorParams` (added by Restoration-B, WAVE 3 COMPAT): source
+  rules fire on the declaration's constructors at its `nparams`, auxiliary rules on a
+  container's constructors at the container's. -/
+  rules_ctorParams : ∀ r ∈ decl.recs, ∀ ru ∈ r.rules,
+    (∃ c ∈ decl.constructorConstants, ru.ctor = c.name ∧ ru.ctorParams = decl.nparams) ∨
+    (∃ D, VEnv.InstalledBelow Hc.venv D ∧ ∃ c ∈ D.constructorConstants,
+      ru.ctor = c.name ∧ ru.ctorParams = D.nparams)
   /-- `VInductDecl.WF.rule_shape`. -/
   rule_shape : ∀ r ∈ decl.recs, ∀ ru ∈ r.rules, ∃ j < r.numMinors, ∃ A,
     r.type.piBinders[r.numParams + r.numMotives + j]? = some A ∧ A.MinorFor ru.ctor ∧
@@ -228,6 +235,7 @@ theorem wf (B : RestoredBlock L sourceTypes isUnsafe outEnv) (hsource : sourceTy
     rw [hC] at this
     cases this
     exact B.rules_ctor
+  rules_ctorParams := B.rules_ctorParams
   rule_shape := B.rule_shape
   rules_wf envR hR := by
     have := B.addInduct.addTypesCtorsProjsRecs
