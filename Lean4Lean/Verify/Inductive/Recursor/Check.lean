@@ -51,7 +51,7 @@ structure RecursorCheck
   the constructor stage, telescope split and K flag copied, rules matched one to one with
   reducts translated in the recursor stage and constructor parameter counts read off the
   output map. -/
-  trRecs : List.Forall₂ (TrRecursor c.safety R.ctorVEnv outVEnv outEnv.constants) rvals recs
+  trRecs : List.Forall₂ (TrRecursor c.safety R.envP outVEnv outEnv.constants) rvals recs
   map_eq : outEnv.constants = insertConsts ctorEnv.constants (rvals.map .recInfo)
   quotInit_eq : outEnv.quotInit = ctorEnv.quotInit
   fresh : ∀ rval ∈ rvals, ctorEnv.find? rval.name = none

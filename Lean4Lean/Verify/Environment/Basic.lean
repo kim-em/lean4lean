@@ -1040,7 +1040,7 @@ structure AddInduct (safety : DefinitionSafety) (m₁ : ConstMap) (env₁ : VEnv
   stR : decl.addRecs (decl.addProjs envC) = some envR
   stP : decl.addRules envR = some env₂
   types : List.Forall₂ (fun iv t => TrIndType safety env₁ envT iv.1 iv.2 t) ivals decl.types
-  recs : List.Forall₂ (TrRecursor safety envC envR m₂) rvals decl.recs
+  recs : List.Forall₂ (TrRecursor safety (decl.addProjs envC) envR m₂) rvals decl.recs  -- WAVE 2 rec COMPAT
   /-- The block's constants in the order the kernel inserted them. -/
   order : List ConstantInfo
   order_perm : order.Perm (AddInduct.consts ivals rvals)

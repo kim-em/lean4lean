@@ -387,7 +387,7 @@ theorem Aligned.addInduct (H : AddInduct safety C₁ venv₁ decl C₂ venv₂)
         ⟨hc.1.1.mono leT, hc.1.2⟩
     · rw [List.forall₂_map_left_iff, List.forall₂_map_right_iff]
       exact H.recs.imp fun _ _ hr =>
-        ⟨hr.tr.1.mono (VEnv.addProjs_le.trans (VEnv.addRecs_le H.stR)), hr.tr.2⟩
+        ⟨hr.tr.1.mono (VEnv.addRecs_le H.stR), hr.tr.2⟩  -- WAVE 2 rec COMPAT
   -- the constant stages are one fold, followed by the projection stage
   have hR := H.addTypesCtorsProjsRecs
   rw [VInductDecl.addTypesCtorsProjsRecs_eq] at hR
