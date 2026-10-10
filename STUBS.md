@@ -57,3 +57,9 @@ in `Lean4Lean/Tests.lean` (the manifest of the `Lean4Lean.Tests` library, which 
 | `RecursiveFieldClassification` | `Theory.Typing.Interpretation` | 3 |
 | `PreludeEq` | `Verify.Inductive.Prelude.EqSyntax`; `VEnv.HasCanonicalEq` only for confluence | 4 |
 | `CacheMode`, `SyntacticTranslation` | dropped with the scoped cache mode and the strengthening study | never |
+
+## Wave 1A
+
+| statement | file | why | owner |
+|---|---|---|---|
+| `VEnv.Ordered.patsAvoidFreshConsts` | `Verify/Typing/ConstSupport.lean` | the `pat` case of `IsDefEq.noConsts`: the fixed parts of a registered rule's right-hand side avoid names absent from the environment. `VEnv.PatTyped` types a generic instance in an arbitrary context, so the template's constants are not bounded by the environment without a further argument. Used only by `VExpr.WF.noFreshConsts` (constructor positivity) | wave 2 (or a `PatWF` that types the template in the empty context) |
