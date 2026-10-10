@@ -108,6 +108,65 @@ Parked:
 | `Verify/CanonicalEq.lean` | needs `Verify/Inductive/Prelude/EqSyntax.lean` and a `VEnv.HasCanonicalEq` whose `Eq.rec` rule is a pattern; `addDecl.WF` no longer needs it | wave 4 |
 | `Verify/QuotInit.lean` | replaced by PR #43's `Verify/Environment/Quot.lean` | never |
 
+## Wave 2 scaffold (`Verify/Inductive/**`, the inductive refinement's interface)
+
+`lake build` (default targets), `Lean4Lean.Tests` and `Lean4Lean.Experimental` are green with
+`Verify/Inductive/**` imported by `Verify/Environment.lean` through `Verify/Inductive/Dispatch.lean`.
+`InductiveDeclPreserves` is now the theorem `inductiveDeclPreserves (hnested :
+VerifyInductive.NestedInductivePreserves)`; `addDecl.WF` takes `hnested` (wave 3's branch) and
+`addDecl.WF_of` keeps the `InductiveDeclPreserves` form. The interface, the ownership map and the
+dependency order of the five follow-on agents are in `Lean4Lean/Verify/Inductive/README.md`.
+Every `sorry` of the scaffold is one of the named stubs below (`-- WAVE 2 STUB (owner)` in the
+source); the owner is the directory agent of README.md's ownership map.
+
+| statement | file | what it is on the source branch | owner |
+|---|---|---|---|
+| `AddInductive.checkInductiveTypes.WF` | `Verify/Inductive/Header/Check.lean` | `checkInductiveTypes.accumulatesHeadersSourceAligned` (`Header/Check.lean`), restated with `HeaderPhase` | Header |
+| `CheckedHeaders.Describes.headerCertificate` | `Verify/Inductive/Header/Check.lean` | `HeaderFormations.complete` (`Header/Telescope.lean`): `TypeShape` reads only the header fields | Header |
+| `AddInductive.declareInductiveTypes.WF` | `Verify/Inductive/Header/Installation.lean` | `HeaderDeclaration.toHeaderEnvironment` (`Install/Headers.lean`), `declareInductiveTypes.installsHeadersAtomicWF` | Header |
+| `TrInductDeclCore.sourceNames_nodup` | `Verify/Inductive/Formation.lean` | same name, via `VEnv.addConstVals_append` | Header |
+| `CheckedFormation.signature` | `Verify/Inductive/Constructor/CheckedFormation.lean` | `sourceSignature`, `sourceSignature_models`, `sourceSignature_familyTypesWF_header` (`Constructor/CheckedFormation.lean`), without the case schema | Constructor |
+| `AddInductive.constructorPhase.WF` | `Verify/Inductive/Constructor/Check.lean` | `AddInductive.formationCoreClosedWF` (`Install/Formation.lean`) from `declareInductiveTypes.WF`, `checkConstructors.checkedWF`, `declareConstructors.WF` | Constructor |
+| `ConstructorCheck.recursorPhasesWF` | `Verify/Inductive/Recursor/Check.lean` | same name (`Recursor/Check.lean`), output `TrRecursor` and the shape clauses of `VInductDecl.WF` | Recursor |
+| `InductiveSignature.VRecRule.OfEquation.ofTr` | `Verify/Inductive/Recursor/Entries/TrRecursorVal.lean` | new: a rule that is a generated equation (`TrRecursorRule`) and translates to a `VRecRule` (`TrRecursor`) is `VRecRule.OfEquation` (`TrExprS.unique`, shape of `Instance.equation`) | Recursor |
+| `RecursorCheck.generatedRuleTranslation` | `Verify/Inductive/Rules/RuleTranslations.lean` | same name: `ruleRhsTranslations`, `equationsWF`, `trRules`, plus `rules_wf : PatTyped` (PORT_PLAN 2.3) | Rules |
+| `RuleTranslations.blockWF` (one `sorry`: `addRecs` is `addConstVals` over the recursors) | `Verify/Inductive/Rules/RuleTranslations.lean` | `VInductDecl.addRecs_eq_addConstVals` | Install |
+| `RuleTranslations.compilesTo` | `Verify/Inductive/Rules/RuleTranslations.lean` | `OrdinaryCompilationCertificate.compilesTo` (`Compilation.lean`): `CompiledInductive.intro` with no auxiliaries | Install |
+| `RuleTranslations.recsOf` | `Verify/Inductive/Rules/RuleTranslations.lean` | new: `VInductDecl.RecsOf` from `trRules`, `trRecs`, `recursors_eq` and `VRecRule.OfEquation.ofTr` | Install |
+| `ConstructorCertificate.withRecs` | `Verify/Inductive/Formation.lean` | new: transport of `CtorShape`/`CtorTailWF` along `VInductDecl.withRecs` | Install |
+| `RecursorCheck.blockCertificate` | `Verify/Inductive/Install/BlockCertificate.lean` | `RecursorCheck.blockCertificate` + `OrdinaryInstallation.extend*Exact`'s assembly of `AddInduct` (`Install/BlockCertificate.lean`, `Install/OrdinaryExtension.lean`) | Install |
+| `BlockCertificate.installedBlocks` (one `sorry`: `hpres`) | `Verify/Inductive/Install/BlockCertificate.lean` | every constant of the source is a constant of the output (`insertConsts_find?_mono_of_fresh`) | Install |
+| `BlockCertificate.rebase` | `Verify/Inductive/Install/BlockCertificate.lean` | `BlockCertificate.rebaseAddInductSafe` | Install |
+| `BlockCertificate.extendSafeExact` | `Verify/Inductive/Install/BlockCertificate.lean` | same name, via `rebase` and `VEnvs.WF.extendInductExact` | Install |
+| `BlockCertificate.extendUnsafeExact` | `Verify/Inductive/Install/BlockCertificate.lean` | `BlockCertificate.extendUnsafeOfHiddenExact`, via `VEnvs.WF.extendUnsafeExact` and `TrEnv'.ignore` | Install |
+| `Kernel.Environment.checkDuplicatedUnivParams.WF` | `Verify/Inductive/Install/Ordinary.lean` | same name (`Recursor/Check.lean`) | Install |
+| `checkPrimitiveInductive_eq_true_iff` | `Verify/Inductive/Primitive/Shape.lean` | same name (`Primitive/Shape.lean`) | Primitive |
+| `loweringRun.primitiveNoop` | `Verify/Inductive/Primitive/Shape.lean` | `ElimNestedInductive.run'.primitiveNoopWF` (`Primitive/Lowering.lean`) | Primitive |
+| `AddInductive.constructorPhase.primitiveWF` | `Verify/Inductive/Primitive/Run.lean` | `AddInductive.formationCore.primitiveClosedWF` (`Primitive/Run.lean`) with `Primitive/{Headers,Constructors,ConstructorCheck,ConstructorParams,BatchInstallation,Constants}.lean` | Primitive |
+| `AddInductive.run.primitiveSourceAlignedWF` (one `sorry`: `Bool.rec`/`Nat.rec` are not primitives) | `Verify/Inductive/Primitive/Run.lean` | `PrimitiveInductiveShape.recursorsNonprimitive` | Primitive |
+| `loweringRun.types_nonempty` | `Verify/Inductive/Lowering.lean` | `NestedLoweringOutput.resultTypes_nonempty` (`Install/OrdinaryExtension.lean`, over `Nested/Lowering/**`) | wave 3 (`Nested/Lowering`) |
+| `loweringRun.ordinary_types_eq_source` | `Verify/Inductive/Lowering.lean` | `NestedLoweringOutput.ordinary_types_eq_source` with `checkInductiveSources_refines` | wave 3 (`Nested/Lowering`) |
+
+Not a stub: `VerifyInductive.NestedInductivePreserves` (`Verify/Inductive/Dispatch.lean`), the
+named hypothesis of the nested branch (the source branch's
+`Environment.addInductiveAfterLowering.nestedInductiveExtensionWF`), owner wave 3.
+
+Wave 1A's two stubs stay (`VEnvAt.recursorShapes`, now consumed by `ContextWF.initial`;
+`VEnv.Ordered.patsAvoidFreshConsts`), owner Install for the first (from `InstalledBlocks` and
+`VInductDecl.WF`'s `rec_shape`/`rules_ctor`), wave 2 for the second.
+
+Theory COMPAT of this wave (`-- WAVE 2 COMPAT`): `VEnv.addInduct`'s stages and
+`VInductDecl.RecsOf`/`VRecRule.OfEquation` moved to `Theory/Inductive/AddInduct.lean`;
+`ContainersInstalled.cons` (`Theory/Inductive/Compilation.lean`) and `VEnv.InstalledBelow.intro`
+(`Theory/Inductive.lean`) now install the container by `base.addInduct container = some installed`
+with `container.RecsOf block` (and still `block.WF base`), replacing `VInductBlock.install`; the
+`InstalledBelow` lookup lemmas moved to `Theory/Typing/InductiveLemmas.lean`. This resolves wave
+1B's `InstalledBelow` finding below and wave 1C's `ContainersInstalled` finding. No new `sorry` in
+`Theory/`.
+
+Still deferred in `Lean4Lean/Tests.lean`: `InductiveTheory`, `TypedInductiveCompilation`,
+`CorruptRecursorMetadata` (they need the recursor phase's internals, not just the interface).
+
 ## Wave 1A (checker verification)
 
 `lake build` (default targets), `Lean4Lean.Tests` (with `AmbientContext` restored) and
