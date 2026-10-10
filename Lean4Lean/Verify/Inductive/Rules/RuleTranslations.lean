@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Recursor.Check
 import Lean4Lean.Verify.Inductive.Rules.RulesWF
+import Lean4Lean.Verify.Inductive.Rules.Coverage
 
 /-! # The rule phase
 
@@ -188,24 +189,66 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
   {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}  -- WAVE 2 install COMPAT
 
+/-- Coverage of the installed entries, read on the kernel recursors they carry. -/
+theorem rulesCovered_of_entries {s : InductiveSignature} {g : InductiveSignature.Instance s}
+    {venv : VEnv} {entries : List (ConstantInfo × VConstVal)} {rvals : List RecursorVal}
+    (hcov : List.Forall₂ (fun (owner : Fin s.families.size) (e : ConstantInfo × VConstVal) =>
+      ∃ rval, e.1 = .recInfo rval ∧
+        List.Forall₂ (InductiveSignature.TrRecursorRule g venv rval.levelParams)
+          (s.ownedConstructors owner) rval.rules)
+      (List.finRange s.families.size) entries)
+    (hr : entries.map Prod.fst = rvals.map .recInfo) :
+    List.Forall₂ (fun (owner : Fin s.families.size) rval =>
+      List.Forall₂ (InductiveSignature.TrRecursorRule g venv rval.levelParams)
+        (s.ownedConstructors owner) rval.rules)
+      (List.finRange s.families.size) rvals := by
+  have hlen : entries.length = rvals.length := by
+    simpa using congrArg List.length hr
+  apply List.forall₂_of_getElem
+    ((List.Forall₂.length_eq hcov).trans hlen)
+  intro j hj hj'
+  have hjE : j < entries.length := hlen ▸ hj'
+  obtain ⟨rval, he, H⟩ := List.forall₂_getElem hcov j hj hjE
+  have := congrArg (·[j]?) hr
+  simp only [List.getElem?_map, List.getElem?_eq_getElem hjE, List.getElem?_eq_getElem hj',
+    Option.map_some, Option.some.injEq, he] at this
+  cases this
+  exact H
+
+/-- Transport of the rule clauses along the identification of the installation's generator
+with the interface's (`installation_signature`, `installation_generation`). -/
+theorem ruleClauses_transport {s s' : InductiveSignature} (hs : s = s')
+    {g : InductiveSignature.Instance s} {g' : InductiveSignature.Instance s'} (hg : HEq g g')
+    {venv : VEnv} {rvals : List RecursorVal}
+    (hcov : List.Forall₂ (fun (owner : Fin s.families.size) rval =>
+      List.Forall₂ (InductiveSignature.TrRecursorRule g venv rval.levelParams)
+        (s.ownedConstructors owner) rval.rules)
+      (List.finRange s.families.size) rvals)
+    (hwf : ∀ df ∈ g.equations, df.WF venv) :
+    List.Forall₂ (fun (owner : Fin s'.families.size) rval =>
+      List.Forall₂ (InductiveSignature.TrRecursorRule g' venv rval.levelParams)
+        (s'.ownedConstructors owner) rval.rules)
+      (List.finRange s'.families.size) rvals ∧
+    ∀ df ∈ g'.equations, df.WF venv := by
+  subst hs; cases hg; exact ⟨hcov, hwf⟩
+
+/-- The rule coverage and the equations' well-formedness of a recursor check, read off its
+installation (`RecursorInstallation.rulesCovered`, `equationsWF'`, `Rules/Coverage.lean`). -/
+theorem RecursorCheck.ruleClauses (H : RecursorCheck R outEnv) :
+    H.RulesCovered ∧ H.EquationsWF := by
+  have hcov := rulesCovered_of_entries H.installation.rulesCovered H.installation_rvals
+  have hwf := H.installation.equationsWF'
+  rw [H.installation_outVEnv] at hcov hwf
+  exact ruleClauses_transport H.installation_signature H.installation_generation hcov hwf
+
 /-- Rule coverage: each kernel rule's constructor, field count and reduct are the generated
 equation's. -/
-theorem RecursorCheck.rulesCovered (H : RecursorCheck R outEnv) : H.RulesCovered := by
-  -- WAVE 2 STUB (Rules, pending the recursor phase's internals): the source branch's
-  -- `RecursorCheck.trRules` (`Rules/RuleTranslations.lean`) from `ruleRhsTranslations`
-  -- (`Rules/Translation.lean`), `ruleAlignment` (`Rules/Alignment.lean`) and the rule templates
-  -- of `mkRecInfos` (`generated_rules_eq`); stated against the source `RecursorCheck`'s
-  -- `recInfos`, `generated`, `canonicalGeneration`, `origins`, which the scaffold's
-  -- `RecursorCheck` does not carry yet.
-  have := H; sorry
+theorem RecursorCheck.rulesCovered (H : RecursorCheck R outEnv) : H.RulesCovered :=
+  H.ruleClauses.1
 
 /-- The generated equations are well formed in the recursor stage. -/
-theorem RecursorCheck.equationsWF (H : RecursorCheck R outEnv) : H.EquationsWF := by
-  -- WAVE 2 STUB (Rules, pending the recursor phase's internals): the source branch's
-  -- `RecursorCheck.equationsWF` (`Rules/EquationWF.lean`) from the typed rule templates
-  -- (`ruleTyping : TypedRecursorRulesRange`, `RuleAlignment.generatorEquationWF`) and
-  -- `equationBodyTranslations_of`.
-  have := H; sorry
+theorem RecursorCheck.equationsWF (H : RecursorCheck R outEnv) : H.EquationsWF :=
+  H.ruleClauses.2
 
 end
 
