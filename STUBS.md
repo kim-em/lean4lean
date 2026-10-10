@@ -160,6 +160,69 @@ Parked:
 | `Verify/CanonicalEq.lean` | needs `Verify/Inductive/Prelude/EqSyntax.lean` and a `VEnv.HasCanonicalEq` whose `Eq.rec` rule is a pattern; `addDecl.WF` no longer needs it | wave 4 |
 | `Verify/QuotInit.lean` | replaced by PR #43's `Verify/Environment/Quot.lean` | never |
 
+## Wave 2 header (`Context.lean`, `Context/**`, `Formation.lean`, `Header/**`)
+
+Closed: all four header stubs (`AddInductive.checkInductiveTypes.WF`,
+`CheckedHeaders.Describes.headerCertificate`, `AddInductive.declareInductiveTypes.WF`,
+`TrInductDeclCore.sourceNames_nodup`). No `sorry` in `Context.lean`, `Context/**`, `Header/**`;
+the one in `Formation.lean` is Install's `ConstructorCertificate.withRecs`.
+
+Two more corrections of the scaffold's header interface (both were false as stated):
+
+* `HeaderParameterContext.paramsTr` placed the parameter variables at `.bvar i`; the
+  continuation of `checkInductiveTypes` runs beneath the index binders of every family (the loop
+  nests them), so they are `.bvar (depth + i)`.
+* `declareInductiveTypes.WF` takes `decl.isUnsafe = isUnsafe` beside `Describes` (which does not
+  constrain `isUnsafe`), since `HeaderEnvironment.isUnsafe` asserts it.
+
+Interface change (statement of a boundary theorem): `AddInductive.declareInductiveTypes.WF` as
+scaffolded was false. Its postcondition built a `ContextWF` over the header environment, whose
+`CheckingEnv.Valid` needs every name a header lists to be absent or a constructor of that
+header, but `declareInductiveTypes` only checks the header names (a source constructor named
+like an existing definition, or like a family of the same block, passes it). The executable
+checks constructor names only in `declareConstructors`, after `checkConstructors`. The
+postcondition is now `headerEnv.constants.WF ∧ (ConstructorNamesAbsent indTypes headerEnv → ∀
+decl, Describes → Nonempty HeaderEnvironment)`, as on the source branch
+(`declareInductiveTypes.headersWF`); the consumer (`constructorPhase.WF`) obtains
+`ConstructorNamesAbsent` from a successful `declareConstructors`
+(`AddInductive.declareConstructors.namesAbsent`, `Header/Installation.lean`), as the source
+branch's `formationCoreWF` does (case on `checkConstructors`, then on `declareConstructors`).
+
+Fields added to the header interface (consumers may read them): `CheckedHeader.formation`
+(the loop's `HeaderFormation`); `HeaderPhase.{loopHeaders, headers_eq, cache, suffix,
+ambientParams}` (the loop's accumulator and parameter invariants); `HeaderEnvironment.
+{sourceStatsWF, sourceHeaderParams, statsWF, headerParams, parameterScopeEq}` (the source
+branch's `HeaderStatsWF`, built by `HeaderPhase.statsWF` for every described declaration);
+`ContextSemantics`/`RecursorContextWF` carry `shapes`/`iota` in place of the cache mode, with
+`RecursorContextWF.checkerEnv`. New: `InstalledHeaders` and
+`AddInductive.declareInductiveTypes.installedWF` (the header environment before the declaration
+is known, as the source's `declareInductiveTypes.headersWF`), `InstalledHeaders.toHeaderEnvironment`.
+`declareRecursors.checkRecursorType.WF` (`Context.lean`) now takes a `CheckerEnv` and no cache
+mode. The source's top-level `TypeAnnotations.lean` is `Context/TypeAnnotations.lean`; the
+helpers the source kept in `Theory/Typing/IotaSoundnessLemmas.lean` and used here
+(`VerifyInductive.VExpr.takeForalls_rebuild`) are in `Formation.lean`, with the rest of the
+source's `Formation.lean` (`IndexedPrefix`, `List.Forall₂.targets_eq_of_unique`,
+`VEnv.addConstVals_append`, ...).
+
+## Wave 2 rules (`Verify/Inductive/Rules/**`)
+
+`RecursorCheck.generatedRuleTranslation` is proved. Its `rules_wf : PatTyped` clause is the
+restatement of the generated equations' `VDefEq.WF` (`Instance.equation_patTyped`,
+`Rules/IotaPatTyped.lean`; `RecursorCheck.rules_wf_of`, `Rules/RulesWF.lean`). The scaffold stub
+`generatedRuleTranslation` is now these three named stubs in `Rules/RuleTranslations.lean`:
+
+| statement | why open | source / unblocked by |
+|---|---|---|
+| `RecursorCheck.rulesCovered` (`RulesCovered`, the `trRules` clause) | stated against the source `RecursorCheck`'s internals (`recInfos`, `generated`, `canonicalGeneration`, `origins`, `ruleAlignment`), which the scaffold's `RecursorCheck` does not carry | source `RecursorCheck.trRules` over `Rules/{Translation,Alignment,MinorContext,...}.lean`; the Recursor agent's port of `RecursorConstruction`/`GeneratedRecursors` |
+| `RecursorCheck.equationsWF` (`EquationsWF`) | same; the typing comes from the typed rule templates (`ruleTyping : TypedRecursorRulesRange`) | source `RecursorCheck.equationsWF` (`Rules/EquationWF.lean`) |
+| `RecursorCheck.ruleCtorParams` (`RuleCtorParams`: every rule's `ctorParams` is `signature.params.length`) | `TrRecursor` reads `ctorParams` off the constructor's `ctorInfo` in `outEnv`; `ConstructorCheck` records no `numParams` of the kernel constructors | the Constructor agent's requested `ConstructorCheck` field (kernel cvals have `numParams = decl.nparams`) |
+
+For Install: `RecursorCheck.rules_ofEquation` (`Rules/RulesWF.lean`) gives the `rules` and
+`rules_total` clauses of `VInductDecl.RecsOf` from the same three facts (via
+`RuleEquationData.ofEquation`), so `RuleTranslations.recsOf` needs only `recursors_eq` beyond it.
+`Rules/RuleSyntax.lean` and `Rules/FromTemplates.lean` are ported by the Recursor agent (lead's
+decision: the source's `Recursor/**` imports them).
+
 ## Wave 2 scaffold (`Verify/Inductive/**`, the inductive refinement's interface)
 
 `lake build` (default targets), `Lean4Lean.Tests` and `Lean4Lean.Experimental` are green with

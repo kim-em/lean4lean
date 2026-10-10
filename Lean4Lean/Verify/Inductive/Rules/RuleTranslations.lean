@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Recursor.Check
+import Lean4Lean.Verify.Inductive.Rules.RulesWF
 
 /-! # The rule phase
 
@@ -134,18 +135,54 @@ theorem recursorsWF (T : RuleTranslations H) : RecursorsWF sourceEnv H.decl' whe
 
 end RuleTranslations
 
+section
+variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+  {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+  {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+
+/-- Rule coverage: each kernel rule's constructor, field count and reduct are the generated
+equation's. -/
+theorem RecursorCheck.rulesCovered (H : RecursorCheck R outEnv) : H.RulesCovered := by
+  -- WAVE 2 STUB (Rules, pending the recursor phase's internals): the source branch's
+  -- `RecursorCheck.trRules` (`Rules/RuleTranslations.lean`) from `ruleRhsTranslations`
+  -- (`Rules/Translation.lean`), `ruleAlignment` (`Rules/Alignment.lean`) and the rule templates
+  -- of `mkRecInfos` (`generated_rules_eq`); stated against the source `RecursorCheck`'s
+  -- `recInfos`, `generated`, `canonicalGeneration`, `origins`, which the scaffold's
+  -- `RecursorCheck` does not carry yet.
+  have := H; sorry
+
+/-- The generated equations are well formed in the recursor stage. -/
+theorem RecursorCheck.equationsWF (H : RecursorCheck R outEnv) : H.EquationsWF := by
+  -- WAVE 2 STUB (Rules, pending the recursor phase's internals): the source branch's
+  -- `RecursorCheck.equationsWF` (`Rules/EquationWF.lean`) from the typed rule templates
+  -- (`ruleTyping : TypedRecursorRulesRange`, `RuleAlignment.generatorEquationWF`) and
+  -- `equationBodyTranslations_of`.
+  have := H; sorry
+
+/-- Every model rule fires on a constructor with the signature's parameter count. -/
+theorem RecursorCheck.ruleCtorParams (H : RecursorCheck R outEnv) : H.RuleCtorParams := by
+  -- WAVE 2 STUB (Rules, pending an upstream field): `TrRecursor.rules` reads `ctorParams` off
+  -- the constructor's `ctorInfo` in `outEnv`; that it is `decl.nparams` (= `signature.params.length`
+  -- by `models.nparams`) is the kernel constructors' `numParams` (`declareConstructors`), which
+  -- `ConstructorCheck` does not record (`ivals` carries no `numParams` fact).
+  have := H; sorry
+
+end
+
 /-- The boundary theorem of the rule phase: the recursor check determines its rule
-translations. No rule, telescope, or equation is chosen by the caller. -/
+translations. No rule, telescope, or equation is chosen by the caller. The `rules_wf` clause is
+the `PatTyped` restatement of the generated equations' `VDefEq.WF` (`RecursorCheck.rules_wf_of`,
+PORT_PLAN section 2.3). -/
 theorem RecursorCheck.generatedRuleTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : RecursorCheck R outEnv) : RuleTranslations H := by
-  -- WAVE 2 STUB (Rules/**): the source branch's `RecursorCheck.generatedRuleTranslation`
-  -- (`Rules/RuleTranslations.lean`: `ruleRhsTranslations`, `equationsWF`, `trRules`) plus the
-  -- `PatTyped` restatement of `generatorEquationWF` (PORT_PLAN section 2.3).
-  have := H; sorry
+    (H : RecursorCheck R outEnv) : RuleTranslations H where
+  trRules := H.rulesCovered
+  equationsWF := H.equationsWF
+  rules_wf := H.rules_wf_of H.rulesCovered H.equationsWF H.ruleCtorParams
 
 end VerifyInductive
 end Lean4Lean
