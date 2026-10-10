@@ -94,9 +94,9 @@ Found while porting (not fixed here, `Theory/` is frozen):
 
 - `VEnv.InstalledBelow` (`Theory/Inductive.lean`) still installs a block through
   `VInductBlock.install`, which adds the generated rules as stored equations (`defeqs`). No
-  environment built by `VEnv.addInduct` contains them, so `InstalledBelow` is unsatisfiable for
-  the environments the checker builds, and with it `VInductDecl.NestedFormationWF` (which
-  requires the container to be `InstalledBelow`). The installed-blocks invariant uses
+  environment built by `VEnv.addInduct` contains them, so `InstalledBelow` fails for every
+  container with at least one generated rule in the environments the checker builds, and with
+  it `VInductDecl.NestedFormationWF` (which requires the container to be `InstalledBelow`). The installed-blocks invariant uses
   `VEnv.InductInstalled venv decl := ∃ base installed, decl.WF base ∧ base.addInduct decl =
   some installed ∧ installed ≤ venv` (`Verify/Environment/Blocks.lean`) instead; wave 2/3 must
   restate `InstalledBelow` (or nested formation) on `addInduct`.
