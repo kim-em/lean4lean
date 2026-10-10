@@ -269,7 +269,7 @@ theorem NestedRun.sourceCoreParameterWF
     have hwf := HsourceCtor.wf
     rw [hnativeTypes] at hwf
     obtain ⟨u, hu⟩ := hwf
-    have hclean := (hu.noFreshConsts henvTypes.ordered hfresh
+    have hclean := (hu.noFreshConsts henvTypes hfresh
       (fun _ h => by simp at h)).1
     rw [(VExpr.takeForalls_eq_wrapForalls htake').1] at hclean
     exact (VExpr.containsAnyConst_wrapForalls_inv hclean).1
@@ -284,7 +284,7 @@ theorem NestedRun.sourceCoreParameterWF
       A.containsAnyConst (InductiveSignature.compilationRestoration sourceDecl auxiliaries).restorableNames =
         false := by
     rcases HtypeShapes _ htarget with ⟨_, _, _, _, _, _, _, _, _, hshape, _⟩
-    have hctx := VEnv.Ordered.ctxNoFreshConsts hbaseWF.ordered hbaseFresh hshape.isType
+    have hctx := VEnv.WF.ctxNoFreshConsts hbaseWF hbaseFresh hshape.isType
     intro A hA
     exact hctx A (List.mem_reverse.mpr hA)
   have hmapParams : paramsL.reverse.map

@@ -395,7 +395,7 @@ theorem NestedRun.headerSetup
   change t.type.containsAnyConst _ = false ∧
     envTypes.HasType t.uvars [] _ t.type
   rw [huvars]
-  refine ⟨(htypeD.noFreshConsts hordered hfreshAll (by intro _ h; simp at h)).2.1, ?_⟩
+  refine ⟨(htypeD.noFreshConsts henvTypes hfreshAll (by intro _ h; simp at h)).2.1, ?_⟩
   have hPS : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
       E.lowered.signature.params.reverse sourceParams.reverse :=
     VEnv.IsDefEqCtx.trans_empty henvTypes hP (hctx.symm hordered)
@@ -468,7 +468,7 @@ theorem NestedRun.headerInterpretationSound
   have hbaseFresh : ∀ n ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
       (ves.venv (if isUnsafe then .unsafe else .safe)).constants n = none :=
     fun n hn => hbaseLe.constants_eq_none_left (hfreshAll n hn)
-  have hon := hbase.ordered.onTypes_noFreshConsts hbaseFresh
+  have hon := hbase.onTypes_noFreshConsts hbaseFresh
   have hnotR : ∀ {env : VEnv} {c ci},
       (∀ n ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
         env.constants n = none) →
@@ -503,7 +503,7 @@ theorem NestedRun.headerInterpretationSound
     have hn := hnotR hfreshAll hget
     have hρ := Restoration.lambdaReplacement_eq_none_of_not_restorable
       (domains := fun _ => E.lowered.signature.params) hn
-    obtain ⟨_, hty, -⟩ := (henvTypes.ordered.onTypes_noFreshConsts hfreshAll).1 hget
+    obtain ⟨_, hty, -⟩ := (henvTypes.onTypes_noFreshConsts hfreshAll).1 hget
     obtain ⟨u, hu⟩ := henvTypes.ordered.constWF hget
     refine ⟨fun t ht => (by rw [Restoration.interpretation_consts, hρ] at ht; cases ht), fun _ => ?_⟩
     refine ⟨c.toVConstant, by

@@ -259,7 +259,7 @@ theorem NestedRun.loweredConstructorLevelsAll
       obtain ⟨C, -, hC⟩ := Lean4Lean.List.Forall₂.forall_exists_r hT.ctors sc hsc
       obtain ⟨u, hu⟩ := hC.wf
       rw [htypesEq] at hu
-      exact (hu.noFreshConsts hordered hfresh (by intro _ h; simp at h)).1
+      exact (hu.noFreshConsts henvTypes hfresh (by intro _ h; simp at h)).1
     have Hexpansions := NestedLoweringOutputClosed.sourceExpansionsAboveLvls HliftLv
       ⟨finalState, Hrun, Hcache, Hparams⟩ Hsource Htarget Hmetadata Hsources hempty
       HbaseWF
@@ -309,7 +309,7 @@ theorem NestedRun.loweredConstructorLevelsAll
         Nsource.translation.ctors sc hsc
       have h := hC.type
       rw [htypesEq] at h
-      exact checkPositivityStep.TrExprS.noFreshConstsAtCheckingEnv henvTypes.orderedStrong hfresh
+      exact checkPositivityStep.TrExprS.noFreshConstsAtCheckingEnv henvTypes hfresh
         (Delta := []) (by trivial) h
     exact Hctor.type.constLevelsAt (fun h => h) hscFree
   intro lowered hlowered
