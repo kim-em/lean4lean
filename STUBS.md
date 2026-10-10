@@ -188,6 +188,22 @@ decl, Describes → Nonempty HeaderEnvironment)`, as on the source branch
 (`AddInductive.declareConstructors.namesAbsent`, `Header/Installation.lean`), as the source
 branch's `formationCoreWF` does (case on `checkConstructors`, then on `declareConstructors`).
 
+Fields added to the header interface (consumers may read them): `CheckedHeader.formation`
+(the loop's `HeaderFormation`); `HeaderPhase.{loopHeaders, headers_eq, cache, suffix,
+ambientParams}` (the loop's accumulator and parameter invariants); `HeaderEnvironment.
+{sourceStatsWF, sourceHeaderParams, statsWF, headerParams, parameterScopeEq}` (the source
+branch's `HeaderStatsWF`, built by `HeaderPhase.statsWF` for every described declaration);
+`ContextSemantics`/`RecursorContextWF` carry `shapes`/`iota` in place of the cache mode, with
+`RecursorContextWF.checkerEnv`. New: `InstalledHeaders` and
+`AddInductive.declareInductiveTypes.installedWF` (the header environment before the declaration
+is known, as the source's `declareInductiveTypes.headersWF`), `InstalledHeaders.toHeaderEnvironment`.
+`declareRecursors.checkRecursorType.WF` (`Context.lean`) now takes a `CheckerEnv` and no cache
+mode. The source's top-level `TypeAnnotations.lean` is `Context/TypeAnnotations.lean`; the
+helpers the source kept in `Theory/Typing/IotaSoundnessLemmas.lean` and used here
+(`VerifyInductive.VExpr.takeForalls_rebuild`) are in `Formation.lean`, with the rest of the
+source's `Formation.lean` (`IndexedPrefix`, `List.Forall₂.targets_eq_of_unique`,
+`VEnv.addConstVals_append`, ...).
+
 ## Wave 2 rules (`Verify/Inductive/Rules/**`)
 
 `RecursorCheck.generatedRuleTranslation` is proved. Its `rules_wf : PatTyped` clause is the
