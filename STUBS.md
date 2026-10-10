@@ -415,7 +415,29 @@ environments' models (source `Validation/{Environment,ConstructorEnvironment}`) 
 `rules_own_params`/`rec_counts`/`recs_over_block`): its `MajorApp` required the major's leading
 arguments to be the recursor's parameter variables, which a restored auxiliary recursor
 (`Tree.rec_1`, major `List (Tree α)`) violates. Lead decision: weaken `MajorApp` (Restoration-B,
-`-- WAVE 3 COMPAT (restB)`), in progress.
+`-- WAVE 3 COMPAT (restB)`): done (`MajorApp.of_params` is the old shape; Tests/IotaShape's
+`Tree.rec_1` control now expects acceptance). Its consequence, found by the model agent: nothing
+pinned the split of a registered rule's arity into constructor parameters and fields any more;
+lead decision: new field `VInductDecl.WF.rules_ctorParams` (own constructors at `decl.nparams`,
+or a container `D` with `InstalledBelow env D` at `D.nparams`), produced by the ordinary recursor
+phase (`RecursorCheck.rules_own`), the rebase, and `RestoredBlock.rules_ctorParams`.
+
+Ported so far (source names kept; `NestedRun` in `Restoration/Run.lean` with the source signature,
+its lowered run as `LoweredView`): Steps, RecursorTelescopes, FreshExtensions,
+ConstructorTranslations, Translations, Nonprimitive, Tables, TrRestoredRecursorVal, RecursorShape,
+AuxiliaryRecursorsWF, Install/Permutation, Lookups (with target-native `LoweredLookups`),
+KernelData (new: fold entries, `FreshExtension.map_eq`, `entries_perm`), LoweringRestoration,
+SourceTranslations, SourceValidation, InstalledFamilyLookups, Install/DependencyOrder,
+SideEnvironment/{Environment,ConstructorEnvironment}, SourceHeaders, SourceDeclaration,
+ContainerSpecializations, CompilationData, SourceConstructors, Commutation, ExpansionInverse,
+CommutationUniform, TranslationPreservation, Levels (part), RestoredShapes (new: the restored
+`rec_shape`/`rule_shape`/closedness), plus Verify-side copies of the source Theory's
+IotaSoundnessLemmas/SignatureVars/ProjNamesOK.
+
+| statement | file | why |
+|---|---|---|
+| `VEnv.WF.pats_fixed_of_restorableFresh` | `Nested/Restoration/SourceConstructors.lean` | the registered ι rules of a well-formed environment are fixed by a restoration interpretation whose restorable names are fresh; the reduct template's constants are not bounded by the environment without the rule's typing in the empty context (the gap of wave 1A's `patsAvoidFreshConsts`; `RecsCompiled` now carries `block.WF`, which should close both) |
+| `nestedRestoredBlock` | `Nested/Restoration/Restore.lean` | assembly in progress |
 
 ## Wave 3 Restoration-A (`Nested/Restoration/Validation/**`)
 
