@@ -1346,6 +1346,13 @@ inductive TrEnv' : ConstMap → Bool → VEnv → Prop where
     AddInduct safety C env decl C' env' →
     TrEnv' C Q env →
     TrEnv' C' Q env'
+  /-- The projection stage of an inductive declaration (`VInductDecl.addProjs`,
+  `VEnv.WF'.inductProjections`): projection entries registered in a well-formed environment add
+  no kernel constant. This is the environment the recursors of a block are checked in. -/
+  | inductProjections {entries : List VProjectionEntry} :
+    (env.addProjections entries).WF →
+    TrEnv' C Q env →
+    TrEnv' C Q (env.addProjections entries)
 
 def TrEnv (safety : DefinitionSafety) (env : Environment) (venv : VEnv) : Prop :=
   TrEnv' safety env.constants env.quotInit venv
@@ -1379,3 +1386,4 @@ theorem TrEnv'.wf (H : TrEnv' safety C Q venv) : venv.WF := by
   | induct h1 h2 _ ih =>
     have ⟨_, H⟩ := ih
     exact ⟨_, H.decl <| .induct h1 h2.env_eq⟩
+  | inductProjections h _ _ => exact h

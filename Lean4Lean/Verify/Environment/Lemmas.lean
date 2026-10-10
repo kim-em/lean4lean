@@ -444,6 +444,7 @@ theorem Aligned.insertDefs : ∀ {cis : List DefinitionVal} {cis' : List VDefVal
 theorem TrEnv'.aligned (H : TrEnv' safety C Q venv) : Aligned safety C venv := by
   induction H with
   | empty => exact .empty
+  | inductProjections _ _ ih => exact ih.projections
   | ignore h1 h2 _ ih => exact ih.ignoreConst h1 h2 rfl
   | «axiom» h1 h2 _ h _ ih => exact ih.const h2 h1 h rfl
   | thm h1 h2 _ _ h _ ih => exact ih.const h2 h1.1.1 h rfl
@@ -652,6 +653,7 @@ theorem TrEnv'.of_value (H : TrEnv' safety C Q venv) (h : C.find? name = some ci
     rw [hC.find?_insert]; simp; split <;> simp +contextual [*]
   induction H with
   | empty => simp at h
+  | inductProjections _ _ ih => exact (ih h).mono VEnv.addProjections_le
   | ignore h1 h2 H ih =>
     obtain h | ⟨rfl, rfl⟩ := this H.map_wf h
     · exact ih h
@@ -932,6 +934,7 @@ a definition or by `Quot.lift`, and every registered pattern by a recursor of th
 theorem TrEnv'.equationHeads (H : TrEnv' safety C Q venv) : EquationHeadsCoherent C venv := by
   induction H with
   | empty => exact ⟨fun _ h => h.elim, fun _ _ h => h.elim⟩
+  | inductProjections _ _ ih => exact ih.addProjections _
   | ignore h1 _ h3 ih => exact ih.insert h3.map_wf h1 (fun _ h => h) (fun _ _ h => h)
   | «axiom» _ h2 _ h4 h5 ih =>
     exact ih.insert h5.map_wf h2 (fun _ h => by rwa [VEnv.addConst_defeqs h4] at h)
@@ -1002,6 +1005,8 @@ theorem TrEnv'.quotEnvCoherent (H : TrEnv' safety C Q venv) (hQ : Q = true) :
     fun h => SMap.find?_insert_of_fresh hwf.map₂ hfresh h
   induction H with
   | empty => cases hQ
+  | inductProjections h1 h2 ih =>
+    exact (ih hQ).extend id VEnv.addProjections_le (TrEnv'.inductProjections h1 h2).equationHeads
   | ignore h1 h2 h3 ih =>
     exact (ih hQ).extend (pres_insert h3.map_wf h1) VEnv.LE.rfl
       (TrEnv'.ignore h1 h2 h3).equationHeads
@@ -1124,6 +1129,9 @@ theorem TrEnv'.pats_iota' {safety : DefinitionSafety} {C : ConstMap} {Q : Bool}
           rval.numIndices cval.numParams rule.nfields rhs hc, .true) := by
   induction H with
   | empty => simp at hrec
+  | inductProjections _ _ ih =>
+    obtain ⟨cval, rhs, hc, hct, htr, hp⟩ := ih hrec
+    exact ⟨cval, rhs, hc, hct, htr.mono VEnv.addProjections_le, by rwa [VEnv.addProjections_pats]⟩
   | ignore h1 h2 h3 ih =>
     rw [h3.map_wf.find?_insert] at hrec; split at hrec
     · injection hrec with hrec; subst hrec; exact absurd hsafe h2
@@ -1231,6 +1239,11 @@ theorem TrEnv'.pats_iota_inv' {safety : DefinitionSafety} {C : ConstMap} {Q : Bo
       r.2 = .true := by
   induction H with
   | empty => exact (hp : False).elim
+  | inductProjections _ _ ih =>
+    rw [VEnv.addProjections_pats] at hp
+    obtain ⟨rval, rule, cval, rhs, hc, hrec, hru, hct, hM, hN, htr, hh1, hh2⟩ := ih hp
+    exact ⟨rval, rule, cval, rhs, hc, hrec, hru, hct, hM, hN, htr.mono VEnv.addProjections_le,
+      hh1, hh2⟩
   | ignore h1 _ Hprev ih =>
     obtain ⟨rval, rule, cval, rhs, hc, hrec, hru, hct, hM, hN, htr, hh1, hh2⟩ := ih hp
     have wf := Hprev.map_wf.map₂
@@ -1338,6 +1351,9 @@ theorem TrEnv'.find?_induct {safety : DefinitionSafety} {C : ConstMap} {Q : Bool
         ci ∈ AddInduct.consts A.ivals A.rvals ∧ ci.name = x := by
   induction H with
   | empty => simp at h
+  | inductProjections _ _ ih =>
+    obtain ⟨_, _, _, _, _, hwf, hle, A, hA⟩ := ih h
+    exact ⟨_, _, _, _, _, hwf, hle.trans VEnv.addProjections_le, A, hA⟩
   | ignore _ h2 Hprev ih =>
     rw [Hprev.map_wf.find?_insert] at h; split at h
     · cases h; exact absurd hsafe h2
