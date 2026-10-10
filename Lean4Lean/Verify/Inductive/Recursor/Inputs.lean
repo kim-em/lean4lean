@@ -340,3 +340,20 @@ theorem modelCtorAt (R : RecursorInput c stats decl nparams isUnsafe depth sourc
     simpa [AddInductive.constructorInfo] using hp
 
 end Lean4Lean.VerifyInductive.RecursorInput
+
+namespace Lean4Lean.VerifyInductive.RecursorInput
+open Lean hiding Environment Exception
+open Kernel
+
+/-- WAVE 2 STUB (Install/Constructor, requested by Recursor): positivity's literal side
+condition in the recursor-checking environment (the source branch's callers supplied it from the
+header installation, `HeaderEnvironment.checkedAvailableLiteralDisjoint`, or the primitive shape,
+`PrimitiveInductiveShape.checkedLiteralDisjoint`); requested as a `RecursorInput` field. -/
+theorem literalDisjointStub {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
+    {indTypes : Array InductiveType} {ctorEnv : Environment}
+    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
+    checkPositivityStep.AvailableLiteralDisjoint R.context.venv stats.indConsts := by
+  have := R; sorry
+
+end Lean4Lean.VerifyInductive.RecursorInput
