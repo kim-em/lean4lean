@@ -369,6 +369,13 @@ cover every new recursor, auxiliary ones included). `BlockCertificate.compiled` 
   uniqueness of typing (`IsDefEq.uniq`, hence `wf`) turns the forward `SimAt` around. Nothing
   constructs a `RestoredPattern` yet. `rulesWF` does not need it: the substitution goes from the
   lowered *recursor* stage, which has no patterns of the block.
+  (Fields accepted by the lead.) Who constructs a `RestoredPattern`: nobody on the current
+  route. It is needed only if a restoration substitution is built from a lowered environment
+  that already registers the block's ι rules (the lowered rule stage or a later one). Its
+  `PatClause` then has to be discharged per lowered rule, and whoever builds that
+  substitution constructs it: `wf` from the target's `VEnv.WF`, `recursorNotHead` from
+  `CompilationData.recursorName_not_head` (`RuleAlignment.lean`), and `templateTyped` from
+  the typing of the interpreted template (`Restoration.equation_wf` on the lowered equation).
 * `rulesWF` is `VEnv.patTyped_iota_of_wrapped` on the restored equation of each rule.
   `RestoredBlock.ruleEquation` (`Nested/Equations/RuleAlignment.lean`, new) recovers the exact
   ι counts from the restored generated equation (`rules_ofRestoredEquation`), the restored
@@ -389,7 +396,14 @@ cover every new recursor, auxiliary ones included). `BlockCertificate.compiled` 
 Flagged: `VExpr.RecShape`'s `MajorApp` conjunct (`VInductDecl.WF.rec_shape`,
 `RestoredBlock.rec_shape`) is false for the auxiliary recursors of a nested block. Their major
 is the container applied to the specialization arguments, not to parameter variables.
-Reported to restB and the lead.
+Reported to restB and the lead. Decided by the lead: `MajorApp` is weakened to a head family
+constant applied to parameter-closed arguments followed by index variables (restB implements it). `ruleEquation` uses
+only the arity and motive-application conjuncts, so it is unaffected.
+
+Pending: `InductInstalled` is gaining the compiled block
+(`∃ block, decl.CompilesTo base block ∧ decl.RecsOf block ∧ block.WF base`, lowering, in
+`Verify/Environment/Blocks.lean`). The `InstalledBlocks.addInduct` call in `installedFacts`
+will supply it from `RestoredBlock.compiledWF`.
 
 ## Wave 3 restB (`Nested/Restoration/**` outside `Validation/`, `Uniform/`; `CompilationMajors.lean`)
 
@@ -415,7 +429,29 @@ environments' models (source `Validation/{Environment,ConstructorEnvironment}`) 
 `rules_own_params`/`rec_counts`/`recs_over_block`): its `MajorApp` required the major's leading
 arguments to be the recursor's parameter variables, which a restored auxiliary recursor
 (`Tree.rec_1`, major `List (Tree α)`) violates. Lead decision: weaken `MajorApp` (Restoration-B,
-`-- WAVE 3 COMPAT (restB)`), in progress.
+`-- WAVE 3 COMPAT (restB)`): done (`MajorApp.of_params` is the old shape; Tests/IotaShape's
+`Tree.rec_1` control now expects acceptance). Its consequence, found by the model agent: nothing
+pinned the split of a registered rule's arity into constructor parameters and fields any more;
+lead decision: new field `VInductDecl.WF.rules_ctorParams` (own constructors at `decl.nparams`,
+or a container `D` with `InstalledBelow env D` at `D.nparams`), produced by the ordinary recursor
+phase (`RecursorCheck.rules_own`), the rebase, and `RestoredBlock.rules_ctorParams`.
+
+Ported so far (source names kept; `NestedRun` in `Restoration/Run.lean` with the source signature,
+its lowered run as `LoweredView`): Steps, RecursorTelescopes, FreshExtensions,
+ConstructorTranslations, Translations, Nonprimitive, Tables, TrRestoredRecursorVal, RecursorShape,
+AuxiliaryRecursorsWF, Install/Permutation, Lookups (with target-native `LoweredLookups`),
+KernelData (new: fold entries, `FreshExtension.map_eq`, `entries_perm`), LoweringRestoration,
+SourceTranslations, SourceValidation, InstalledFamilyLookups, Install/DependencyOrder,
+SideEnvironment/{Environment,ConstructorEnvironment}, SourceHeaders, SourceDeclaration,
+ContainerSpecializations, CompilationData, SourceConstructors, Commutation, ExpansionInverse,
+CommutationUniform, TranslationPreservation, Levels (part), RestoredShapes (new: the restored
+`rec_shape`/`rule_shape`/closedness), plus Verify-side copies of the source Theory's
+IotaSoundnessLemmas/SignatureVars/ProjNamesOK.
+
+| statement | file | why |
+|---|---|---|
+| `VEnv.WF.pats_fixed_of_restorableFresh` | `Nested/Restoration/SourceConstructors.lean` | the registered ι rules of a well-formed environment are fixed by a restoration interpretation whose restorable names are fresh; the reduct template's constants are not bounded by the environment without the rule's typing in the empty context (the gap of wave 1A's `patsAvoidFreshConsts`; `RecsCompiled` now carries `block.WF`, which should close both) |
+| `nestedRestoredBlock` | `Nested/Restoration/Restore.lean` | assembly in progress |
 
 ## Wave 3 Restoration-A (`Nested/Restoration/Validation/**`)
 
@@ -439,8 +475,15 @@ or because the scaffold form was circular:
   `CheckingEnv.Valid`, which contain the rule translations the pass establishes. Restoration-B
   produces the `RuleFreeStage` (agreed).
 
-`Nested/Restoration/Uniform/**` (parameter uniformity of the lowered recursors) is not needed
-by these statements.
+`Nested/Restoration/Uniform/**` (parameter uniformity of the lowered recursors, consumed by
+Restoration-B) is ported as far as Restoration-B's run is available: `Uniform/{Recursors,
+Generic,Heads,Base,Lowered,Run,Whnf}.lean`. Pending on Restoration-B's `ContainerSpecializations`
+(`NamePrefix`), `restorationTablesRestoring`, `CompilationDataConstructors`/`Commutation` and
+`NestedInstalledRun`: `NestedRun.auxHeadsFacts`, `envParamUniform`, `whnfPreservesParamUniform`,
+`recursorParamUniform_of_wfCore`, the `NestedRun` part of `Uniform/Declarations` and
+`Validation/ParameterScopes`. `NestedRun.envParamUniform` will take `LoweredView.Nonprimitive`
+(the lowered names passed `checkName` without primitive permission; the target's lowered run
+does not record it). Source `Validation/Result.lean` is superseded by `RestorationRun`.
 
 ## Wave 3 lowering
 
