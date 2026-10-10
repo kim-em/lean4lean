@@ -69,17 +69,8 @@ theorem envR_wf (B : RestoredBlock L sourceTypes isUnsafe outEnv) : B.envR.WF :=
   obtain ⟨r, hr, rfl⟩ := List.mem_map.1 hci
   exact B.recs_wf r hr
 
-/-- The restored equations are typed in the restored recursor stage: the restoration
-substitution from the lowered recursor stage `L.recursors.outVEnv` into `B.envR` transports the
-lowered run's `equationsWF` (`Restoration.equation_wf`); `CompilationData.equations` reads the
-block's rules as the restored generated equations. -/
-theorem restoredEquationsWF (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
-    ∀ df ∈ B.block.rules, df.WF B.envR := by
-  -- WAVE 3 STUB (Equations+Install): the restoration substitution
-  -- (`NestedRun.restoredEquationSubstitution`, `restoredEquationsWF_of_substitutionPremises`
-  -- of the source branch's `Equations/WF.lean`, over `B.run`, restB's port of `NestedRun`,
-  -- not yet a field of `RestoredBlock`).
-  have := B; sorry
+-- WAVE 3 COMPAT (restB): `restoredEquationsWF` is now a field of `RestoredBlock`, produced in
+-- `nestedRestoredBlock` from the Equations owner's `NestedRun.restoredEquationsWF`.
 
 /-- The restored block is well formed: its equations are typed in the restored recursor
 stage. -/

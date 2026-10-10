@@ -139,6 +139,9 @@ structure RestoredBlock {c : AddInductive.Context} {Hc : ContextWF c} {nparams :
   /-- (Added by Restoration-B, for Install's kernel facts.) Constructor parameter alignment of
   the output (`RestoredBlockBase.constructorTypingOfParameterDomains`). -/
   constructorParameterAlignment : ConstructorParameterAlignment c.safety outEnv outVEnv
+  /-- (Added by Restoration-B, for the Equations owner.) The restored equations are typed in the
+  restored recursor stage. -/
+  restoredEquationsWF : ∀ df ∈ block.rules, df.WF envR
 
 namespace RestoredBlock
 

@@ -469,7 +469,10 @@ or because the scaffold form was circular:
   `LoweringParamOpening.toMLCtx` (`Validation/ParameterPrefix.lean`).
 * `stripRecursorRules.checkingValid` (and the new `stripRecursorRules.checkerEnv`, the
   `CheckerEnv` that `validateRestoredRecursorRules.check.WF` consumes) is stated over a
-  rule-free `AddInduct` into the stripped map and the rule-free facts `RuleFreeStage`
+  rule-free `AddInduct` into an environment `S` whose lookups and `quotInit` agree with the
+  stripped map's (transfer by Restoration-B's `CheckingEnv.Valid.mapExt`/`CheckerEnv.mapExt`;
+  `stripRecursorRules` re-inserts each recursor, so no `insertConsts` map is structurally the
+  stripped one) and the rule-free facts `RuleFreeStage`
   (`Validation/Stripped.lean`): the projection stage's `VEnv.WF`, the recursor types, the
   block's names not primitive, the restored header facts, the K clause and shapes of the new
   recursors at the recursor stage. The scaffold form took the output's `AddInduct` and
