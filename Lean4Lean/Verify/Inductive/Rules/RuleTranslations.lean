@@ -79,12 +79,8 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}  -- WAVE 2 install COMPAT
 
 /-- Every model rule fires on a constructor with the signature's parameter count. -/
-theorem RecursorCheck.ruleCtorParams (H : RecursorCheck R outEnv) : H.RuleCtorParams := by
-  -- WAVE 2 STUB (Rules, pending an upstream field): `TrRecursor.rules` reads `ctorParams` off
-  -- the constructor's `ctorInfo` in `outEnv`; that it is `decl.nparams` (= `signature.params.length`
-  -- by `models.nparams`) is the kernel constructors' `numParams` (`declareConstructors`), which
-  -- `ConstructorCheck` does not record (`ivals` carries no `numParams` fact).
-  have := H; sorry
+theorem RecursorCheck.ruleCtorParams (H : RecursorCheck R outEnv) : H.RuleCtorParams :=
+  fun r hr ru hru => (H.rules_ctorParams r hr ru hru).trans H.models.nparams.symm
 
 end
 

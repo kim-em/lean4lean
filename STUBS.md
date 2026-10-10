@@ -258,9 +258,9 @@ Foundation changes met in the port: `.ordered` → `.orderedStrong` where `TrExp
 The rule chain's only `sorryAx` dependencies are the foundation's `VEnv.WF.patsStrong`,
 `Model.PatValid.iota`, `WF.patCtor_rigid`, `IsDefEqU.weakN_iff`.
 
-| statement | why open | unblocked by |
-|---|---|---|
-| `RecursorCheck.ruleCtorParams` (every rule's `ctorParams` is `signature.params.length`) | `RecursorCheck` has no equation for its `recs` against the installation's (`Recursor/Recs.lean` sets `ctorParams := decl.nparams`) | the Recursor agent's `rules_ctorParams` field (requested) |
+No named stub remains in `Rules/**`. `RecursorCheck.rulesCovered`/`equationsWF` are read off the
+installation (`installation_*`); `ruleCtorParams` is the Recursor agent's `rules_ctorParams` with
+`models.nparams`.
 
 `Rules/RuleSyntax.lean` and `Rules/FromTemplates.lean` are the Recursor agent's (lead's decision:
 the source's `Recursor/**` imports them).
