@@ -156,11 +156,24 @@ macro "quot_mem" : tactic => `(tactic|
      | (quot_simp; exact ⟨_, rfl⟩)
      | (intro _ h; cases h))))
 
+-- WAVE 1A COMPAT: `LocalContext.mkForall_eq_fold` needs the body and the bound declarations
+-- locally closed (Lean's `abstract` is the simultaneous `Expr.abstractN`).
+/-- Closedness of a concrete telescope body, or of the declarations a telescope binds. -/
+macro "quot_closed" : tactic => `(tactic| first
+  | (simp +decide [Closed, Expr.arrow, Expr.prop, mkApp2, mkApp3, mkApp])
+  | (intro x _ d hd
+     simp only [L1_find, L2_find, L3_find, L2'_find, L3'_find, L4_find, L5_find, L6_find,
+       L4i_find, L5i_find, LocalContext.find?_mkLocalDecl LocalContext.empty_map_wf,
+       LocalContext.find?_empty] at hd
+     repeat' split at hd
+     all_goals (cases hd <;> simp +decide [LocalContext.DeclClosed, Closed, Expr.arrow,
+       Expr.prop, mkApp2, mkApp3, mkApp])))
+
 theorem T1_eq : T1 = .forallE `α (.sort u) (.forallE `r
     (.forallE `a (.bvar 0) (.forallE `a (.bvar 1) .prop .default) .default) (.sort u) .default)
     .implicit := by
   show LocalContext.mkForall L2 ⟨[x1, x2].map .fvar⟩ _ = _
-  rw [LocalContext.mkForall_eq_fold [x1, x2] _ (by quot_mem) (by simp; decide)]
+  rw [LocalContext.mkForall_eq_fold [x1, x2] _ (by quot_mem) (by simp; decide) (by quot_closed) (by quot_closed)]
   quot_simp
 
 theorem T2_eq : T2 = .forallE `α (.sort u) (.forallE `r
@@ -168,7 +181,7 @@ theorem T2_eq : T2 = .forallE `α (.sort u) (.forallE `r
     (.forallE `a (.bvar 1) (.app (.app (.const ``Quot [u]) (.bvar 2)) (.bvar 1)) .default) .default)
     .implicit := by
   show LocalContext.mkForall L3 ⟨[x1, x2, x3].map .fvar⟩ _ = _
-  rw [LocalContext.mkForall_eq_fold [x1, x2, x3] _ (by quot_mem) (by simp; decide)]
+  rw [LocalContext.mkForall_eq_fold [x1, x2, x3] _ (by quot_mem) (by simp; decide) (by quot_closed) (by quot_closed)]
   quot_simp
 
 theorem sanity_eq : sanity = .forallE `a (.fvar x1) (.forallE `b (.fvar x1)
@@ -176,7 +189,7 @@ theorem sanity_eq : sanity = .forallE `a (.fvar x1) (.forallE `b (.fvar x1)
       (.app (.app (.app (.const ``Eq [v]) (.fvar x4)) (.app (.fvar x5) (.bvar 2)))
         (.app (.fvar x5) (.bvar 1))) .default) .default) .default := by
   show LocalContext.mkForall L6 ⟨[x3, x6].map .fvar⟩ _ = _
-  rw [LocalContext.mkForall_eq_fold [x3, x6] _ (by quot_mem) (by simp; decide)]
+  rw [LocalContext.mkForall_eq_fold [x3, x6] _ (by quot_mem) (by simp; decide) (by quot_closed) (by quot_closed)]
   quot_simp
 
 theorem T3_eq : T3 = .forallE `α (.sort u) (.forallE `r
@@ -190,20 +203,20 @@ theorem T3_eq : T3 = .forallE `α (.sort u) (.forallE `r
         (.forallE `a (.app (.app (.const ``Quot [u]) (.bvar 4)) (.bvar 3)) (.bvar 3) .default)
         .default) .default) .implicit) .implicit) .implicit := by
   show LocalContext.mkForall L6 ⟨[x1, x2, x4, x5].map .fvar⟩ _ = _
-  rw [sanity_eq, LocalContext.mkForall_eq_fold [x1, x2, x4, x5] _ (by quot_mem) (by simp; decide)]
+  rw [sanity_eq, LocalContext.mkForall_eq_fold [x1, x2, x4, x5] _ (by quot_mem) (by simp; decide) (by quot_closed) (by quot_closed)]
   quot_simp
 
 theorem all_quot_eq : all_quot = .forallE `a (.fvar x1)
     (.app (.fvar x4) (.app (.app (.app (.const ``Quot.mk [u]) (.fvar x1)) (.fvar x2)) (.bvar 0)))
     .default := by
   show LocalContext.mkForall L4i ⟨[x3].map .fvar⟩ _ = _
-  rw [LocalContext.mkForall_eq_fold [x3] _ (by quot_mem) (by simp)]
+  rw [LocalContext.mkForall_eq_fold [x3] _ (by quot_mem) (by simp) (by quot_closed) (by quot_closed)]
   quot_simp
 
 theorem T4_inner_eq : L5i.mkForall #[.fvar x5] (.app (.fvar x4) (.fvar x5)) =
     .forallE `q quot_r (.app (.fvar x4) (.bvar 0)) .default := by
   show LocalContext.mkForall L5i ⟨[x5].map .fvar⟩ _ = _
-  rw [LocalContext.mkForall_eq_fold [x5] _ (by quot_mem) (by simp)]
+  rw [LocalContext.mkForall_eq_fold [x5] _ (by quot_mem) (by simp) (by quot_closed) (by quot_closed)]
   quot_simp
 
 theorem T4_eq : T4 = .forallE `α (.sort u) (.forallE `r
@@ -216,7 +229,7 @@ theorem T4_eq : T4 = .forallE `α (.sort u) (.forallE `r
           (.app (.bvar 2) (.bvar 0)) .default) .default) .implicit) .implicit) .implicit := by
   show LocalContext.mkForall L5i ⟨[x1, x2, x4].map .fvar⟩ _ = _
   rw [all_quot_eq, T4_inner_eq,
-    LocalContext.mkForall_eq_fold [x1, x2, x4] _ (by quot_mem) (by simp; decide)]
+    LocalContext.mkForall_eq_fold [x1, x2, x4] _ (by quot_mem) (by simp; decide) (by quot_closed) (by quot_closed)]
   quot_simp
 
 /-! ### `checkEqType` -/
@@ -432,19 +445,19 @@ theorem exists_addQuot {safety} {env : Environment} {venv : VEnv} (H : TrEnv saf
   have n4 := H.constants_eq_none h4
   obtain ⟨v1, e1⟩ := VEnv.addConst_eq_none (ci := quotConst) n1
   have n2 : v1.constants ``Quot.mk = none := by
-    rw [VEnv.addConst_eq_of_ne e1 (by decide)]; exact n2
+    rw [VEnv.addConst_constants_of_ne e1 (by decide)]; exact n2
   have n3 : v1.constants ``Quot.lift = none := by
-    rw [VEnv.addConst_eq_of_ne e1 (by decide)]; exact n3
+    rw [VEnv.addConst_constants_of_ne e1 (by decide)]; exact n3
   have n4 : v1.constants ``Quot.ind = none := by
-    rw [VEnv.addConst_eq_of_ne e1 (by decide)]; exact n4
+    rw [VEnv.addConst_constants_of_ne e1 (by decide)]; exact n4
   obtain ⟨v2, e2⟩ := VEnv.addConst_eq_none (ci := quotMkConst) n2
   have n3 : v2.constants ``Quot.lift = none := by
-    rw [VEnv.addConst_eq_of_ne e2 (by decide)]; exact n3
+    rw [VEnv.addConst_constants_of_ne e2 (by decide)]; exact n3
   have n4 : v2.constants ``Quot.ind = none := by
-    rw [VEnv.addConst_eq_of_ne e2 (by decide)]; exact n4
+    rw [VEnv.addConst_constants_of_ne e2 (by decide)]; exact n4
   obtain ⟨v3, e3⟩ := VEnv.addConst_eq_none (ci := quotLiftConst) n3
   have n4 : v3.constants ``Quot.ind = none := by
-    rw [VEnv.addConst_eq_of_ne e3 (by decide)]; exact n4
+    rw [VEnv.addConst_constants_of_ne e3 (by decide)]; exact n4
   obtain ⟨v4, e4⟩ := VEnv.addConst_eq_none (ci := quotIndConst) n4
   have hQuot1 : v1.constants ``Quot = some quotConst := VEnv.addConst_self e1
   have hQuot2 : v2.constants ``Quot = some quotConst := (VEnv.addConst_le e2).constants hQuot1

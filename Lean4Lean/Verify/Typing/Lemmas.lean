@@ -866,11 +866,6 @@ theorem VEnv.HasPrimitives.nat_of_charOfNat (wf : OrderedStrong env) (henv : env
   let ⟨_, H, _⟩ := H.const_inv wf trivial
   exact ⟨_, H⟩
 
-theorem VEnv.HasPrimitives.addConst_of_not_primitive {env env' : VEnv}
-    (h : env.HasPrimitives) (hadd : env.addConst n ci = some env')
-    (hn : ¬ Kernel.Environment.primitives.contains n) : env'.HasPrimitives := by
-  exact h.addConst (by simpa using hn) hadd
-
 theorem TrExprS.listChar (wf : env.OrderedStrong) (henv : env.HasPrimitives)
     (H : env.contains ``String.ofList) :
     TrExprS env Us Δ (.app (.const ``List [.zero]) (.const ``Char [])) .listChar ∧

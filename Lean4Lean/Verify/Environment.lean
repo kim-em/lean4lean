@@ -175,7 +175,7 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
       (checkNoMVarNoFVar.WF _ v.name v.value)).bind fun _ _ _ hclosed => ?_
     have hclosed' : v.value.FVarsIn
         (· ∈ (TypeChecker.VContext.mk1 wfA v.levelParams).vlctx.fvars) := by
-      simpa [TypeChecker.VContext.mk1] using hclosed
+      simpa [TypeChecker.VContext.mk1, TypeChecker.VContext.mkChecking] using hclosed
     refine hd.2.2 ▸ (TypeChecker.checkType.WF hclosed').bind
       fun valType _ _ ⟨value', valType', _, hval, hvalTy, hhasType⟩ => ?_
     refine (TypeChecker.isDefEq.WF hvalTy hdecl).bind fun equal _ _ hequal => ?_
