@@ -154,7 +154,7 @@ theorem AddInductive.checkConstructors.WF
     (AddInductive.checkConstructors indTypes stats isUnsafe { c' with env := headerEnv }).WF
       fun classes => ∃ decl, P.headers.Describes decl ∧ decl.isUnsafe = isUnsafe ∧
         ∀ H : HeaderEnvironment c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes
-          headerEnv, ConstructorsChecked H classes := by
+          headerEnv, ConstructorsChecked H.toData classes := by  -- WAVE 2 install COMPAT
   intro classes hrun
   -- the placeholder declaration gives a header environment to run the first pass in
   let H0 := HI.toHeaderEnvironment hvisible
