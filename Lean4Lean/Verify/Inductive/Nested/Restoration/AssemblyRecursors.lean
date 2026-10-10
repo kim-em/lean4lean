@@ -1197,7 +1197,7 @@ theorem NestedRun.assemblyRecursors
     exact RestoredRecSpec.ruleShape H hru
   · -- recShapes
     intro rv hrv
-    exact (E.restoredRecursorShapes wf Hsources C hC rv hrv).extend (VEnv.addRules_le hout) id
+    exact (E.restoredRecursorShapes wf Hsources C hC hkernel rv hrv).extend (VEnv.addRules_le hout) id
   · -- recK
     intro rv hrv
     obtain ⟨vr, -, owner, e, -, H⟩ := Lean4Lean.List.Forall₂.forall_exists_l Hrv rv hrv
