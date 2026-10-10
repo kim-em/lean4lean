@@ -715,5 +715,114 @@ theorem NestedRun.one_lt_familiesSize
   omega
 
 
+/-! ### The model recursors' clauses, per recursor -/
+
+theorem mem_ownedConstructors_owner {s : InductiveSignature} {owner : Fin s.families.size}
+    {index : Fin s.constructors.size} (h : index ∈ s.ownedConstructors owner) :
+    s.constructors[index].owner = owner := by
+  unfold InductiveSignature.ownedConstructors at h
+  simp only [List.mem_filter, beq_iff_eq] at h
+  exact h.2
+
+theorem mem_ownedConstructors_of_owner {s : InductiveSignature}
+    {index : Fin s.constructors.size} :
+    index ∈ s.ownedConstructors s.constructors[index].owner := by
+  unfold InductiveSignature.ownedConstructors
+  simp
+
+private theorem mapM_some_append' {f : α → Option β} {l₁ l₂ : List α} {l' : List β}
+    (h : (l₁ ++ l₂).mapM f = some l') :
+    ∃ l₁' l₂', l₁.mapM f = some l₁' ∧ l₂.mapM f = some l₂' ∧ l' = l₁' ++ l₂' := by
+  rw [List.mapM_append] at h
+  cases h₁ : l₁.mapM f <;> cases h₂ : l₂.mapM f <;> simp [h₁, h₂] at h
+  exact ⟨_, _, rfl, rfl, h.symm⟩
+
+private theorem lamBody_wrapLams'' (ds : List VExpr) (b : VExpr) :
+    (VExpr.wrapLams ds b).lamBody = b.lamBody := by
+  induction ds with
+  | nil => rfl
+  | cons d ds ih => exact ih
+
+private theorem mapM_some_length' {f : α → Option β} :
+    ∀ {l : List α} {l' : List β}, l.mapM f = some l' → l'.length = l.length
+  | [], l', h => by simp only [List.mapM_nil, Option.pure_def, Option.some.injEq] at h; subst h; rfl
+  | a :: as, l', h => by
+    simp only [List.mapM_cons, Option.bind_eq_bind, Option.bind_eq_some_iff,
+      Option.pure_def, Option.some.injEq] at h
+    obtain ⟨b, -, bs, hbs, rfl⟩ := h
+    simp [mapM_some_length' hbs]
+
+private theorem lamBody_const_spine (c : Name) (ls : List VLevel) :
+    ∀ (args : List VExpr), args ≠ [] →
+      ((VExpr.const c ls).mkApps args).lamBody = (VExpr.const c ls).mkApps args := by
+  intro args hargs
+  obtain ⟨as, a, rfl⟩ := List.eq_nil_or_concat args |>.resolve_left hargs
+  rw [List.concat_eq_append, VExpr.mkApps_snoc]; rfl
+
+/-- The restored left-hand side of a generated equation: the renamed recursor applied to the
+restored arguments, as many as the generated ones, the last being the restored constructor
+application. -/
+theorem Restoration.equation_lhs_spine {s : InductiveSignature} {g : Instance s}
+    {r : Restoration} {index : Fin s.constructors.size} {df : VDefEq}
+    (hdf : r.equation (g.equation index) = some df)
+    (hnot : r.heads.find? (fun h => h.auxiliary == g.recursorName s.constructors[index].owner) =
+      none)
+    {M : VExpr} (hM : r.expr (g.constructorApp s.constructors[index]
+      (s.families.size + s.constructors.size) 0) = some M) :
+    ∃ args, df.lhs.lamBody = (VExpr.const (r.recursorName
+        (g.recursorName s.constructors[index].owner)) (VLevel.params g.uvars)).mkApps args ∧
+      args.length = s.params.length + (s.families.size + s.constructors.size) +
+        s.constructors[index].indices.length + 1 ∧
+      args.getLast? = some M := by
+  obtain ⟨-, hl, -, -⟩ := Restoration.equation_eq_some' hdf
+  simp only [Instance.equation, Instance.recursorHead] at hl
+  obtain ⟨ds', body', -, hb, hlhs⟩ := Restoration.expr_wrapLams_eq_some hl
+  rw [Restoration.expr_mkApps, Option.bind_eq_some_iff] at hb
+  obtain ⟨args, ha, hb⟩ := hb
+  · simp only [Restoration.expr.go, hnot] at hb
+    simp only [Option.some.injEq] at hb
+    subst hb
+    obtain ⟨pre, last, -, hlast, rfl⟩ := mapM_some_append' ha
+    obtain ⟨M', hM', rfl⟩ : ∃ M', r.expr (g.constructorApp s.constructors[index]
+        (s.families.size + s.constructors.size) 0) = some M' ∧ last = [M'] := by
+      simp only [List.mapM_cons, List.mapM_nil, Option.bind_eq_bind, Option.bind_eq_some_iff,
+        Option.pure_def, Option.some.injEq] at hlast
+      obtain ⟨M', hM', _, rfl, rfl⟩ := hlast
+      exact ⟨M', hM', rfl⟩
+    have hMM : M' = M := Option.some.inj (hM'.symm.trans hM)
+    subst hMM
+    refine ⟨pre ++ [M'], ?_, ?_, by simp⟩
+    · rw [hlhs, lamBody_wrapLams'', lamBody_const_spine _ _ _ (by simp)]
+    · have := mapM_some_length' ha
+      simp only [List.length_append, vars_length, List.length_map, List.length_singleton]
+        at this ⊢
+      omega
+
+/-- **`OfEquation`** of a model rule read off a restored kernel rule. -/
+theorem RestoredRuleSpec.ofEquation {s : InductiveSignature} {g : Instance s}
+    {r : Restoration} {venv : VEnv} {lparams : List Name} {head : RestoredFamilyHead}
+    {index : Fin s.constructors.size} {rule : Lean.RecursorRule} {ru : VRecRule}
+    (H : RestoredRuleSpec g r venv lparams head index rule ru) {vr : VRecursor}
+    (hname : vr.name = r.recursorName (g.recursorName s.constructors[index].owner))
+    (hmajor : vr.getMajorIdx = s.params.length + (s.families.size + s.constructors.size) +
+      s.constructors[index].indices.length)
+    (hnot : r.heads.find? (fun h => h.auxiliary == g.recursorName s.constructors[index].owner) =
+      none) :
+    ∃ df, r.equation (g.equation index) = some df ∧ VRecRule.OfEquation vr ru df := by
+  obtain ⟨hctor, hnf, hcp, HT, df, hdf, hrhs, -⟩ := H
+  obtain ⟨args, hbody, hlen, hlast⟩ := Restoration.equation_lhs_spine hdf hnot
+    HT.constructorApplication
+  refine ⟨df, hdf, hrhs.symm, ?_, ?_, VExpr.mkApps (.const rule.ctor head.levels)
+    (head.arguments.map (fun arg => arg.liftN
+      (s.families.size + s.constructors.size + s.constructors[index].fields.length)) ++
+      vars s.constructors[index].fields.length 0), ?_, ?_, ?_⟩
+  · rw [hbody, VExpr.headConst?_eq_some, hname]
+    exact ⟨VLevel.params g.uvars, by simp [VExpr.getAppFn]⟩
+  · rw [hbody, hmajor]; simp [VExpr.getAppArgs, hlen]
+  · rw [hbody]; simpa [VExpr.getAppArgs] using hlast
+  · rw [VExpr.headConst?_eq_some, hctor]
+    exact ⟨head.levels, by simp [VExpr.getAppFn]⟩
+  · simp [VExpr.getAppArgs, hcp, hnf, HT.nfields]
+
 end VerifyInductive
 end Lean4Lean
