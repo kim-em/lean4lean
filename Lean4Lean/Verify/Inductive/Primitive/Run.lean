@@ -47,10 +47,8 @@ theorem AddInductive.constructorPhase.primitiveWF
     (hpresent : ListedConstructorsPresent c'.env) :
     (AddInductive.constructorPhase stats nparams indTypes numNested isUnsafe c').WF
       fun out => ∃ decl, P.headers.Describes decl ∧
-        Nonempty (ConstructorCheck c' stats decl nparams isUnsafe P.depth Hc'.venv
-          indTypes out.1) ∧
-        (∀ R : ConstructorCheck c' stats decl nparams isUnsafe P.depth Hc'.venv
-          indTypes out.1, R.classes = out.2) := by
+        ∃ R : ConstructorCheck c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes out.1,
+          R.classes = out.2 := by
   -- WAVE 2 STUB (Primitive): not provable as stated. `ConstructorCheck` extends
   -- `CheckedFormation`, whose `headers : HeaderEnvironment` carries
   -- `context : ContextWF {c with env := headerEnv}`, hence `VEnv.HasPrimitives` of the header
@@ -107,10 +105,10 @@ theorem AddInductive.run.primitiveSourceAlignedWF
       (P.allowPrimitive_eq.trans hallow) (P.env_eq ▸ Hclosed) (P.env_eq ▸ Hpresent))
     fun out Hout => ?_
   obtain ⟨ctorEnv, positivity⟩ := out
-  obtain ⟨decl, -, ⟨R⟩, hclasses⟩ := Hout
+  obtain ⟨decl, -, R, hclasses⟩ := Hout
   refine (R.recursorPhasesWF (by rw [P.lparams_eq]; exact hnodup) hsafety
     (by rw [P.safety_eq]; exact HnotPartial)
-    (fun _ => by simpa using Hshape'.recursorsNonprimitive) (hclasses R).symm).mono
+    (fun _ => by simpa using Hshape'.recursorsNonprimitive) hclasses.symm).mono
     fun outEnv Hrec => ⟨c', stats, Hc', P, Hshape', decl, ctorEnv, R, Hrec⟩
 
 end VerifyInductive
