@@ -96,8 +96,18 @@ def OrdinaryRunResult
 
 theorem Kernel.Environment.checkDuplicatedUnivParams.WF (lparams : List Name) :
     (Kernel.Environment.checkDuplicatedUnivParams lparams).WF (fun _ => lparams.Nodup) := by
-  -- WAVE 2 STUB (Install): the source branch's proof (`Recursor/Check.lean`), 30 lines.
-  sorry
+  induction lparams with
+  | nil =>
+    intro out hout
+    cases hout
+    trivial
+  | cons param lparams ih =>
+    by_cases hmem : param ∈ lparams
+    · rw [Kernel.Environment.checkDuplicatedUnivParams]
+      simp only [hmem, if_pos]
+      exact Except.WF.throw
+    · simpa [Kernel.Environment.checkDuplicatedUnivParams, hmem] using
+        ih.mono fun _ htail => List.nodup_cons.mpr ⟨hmem, htail⟩
 
 /-- The complete executable ordinary checker refines a skeleton-free semantic result. -/
 theorem AddInductive.run.sourceAlignedWF

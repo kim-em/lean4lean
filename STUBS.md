@@ -223,6 +223,34 @@ For Install: `RecursorCheck.rules_ofEquation` (`Rules/RulesWF.lean`) gives the `
 `Rules/RuleSyntax.lean` and `Rules/FromTemplates.lean` are ported by the Recursor agent (lead's
 decision: the source's `Recursor/**` imports them).
 
+## Wave 2 install (`Install/**`, `Primitive/**`, `Prelude/**`, derived `RuleTranslations` facts)
+
+Closed: `BlockCertificate.installedBlocks` (`hpres`), `rebase`, `extendSafeExact`,
+`extendUnsafeExact`, `RecursorCheck.blockCertificate`, `Kernel.Environment.checkDuplicatedUnivParams.WF`,
+`RuleTranslations.blockWF`/`compilesTo`/`recsOf` (`recsOf` through the rule phase's
+`rules_ofEquation`), `ConstructorCertificate.withRecs`, `checkPrimitiveInductive_eq_true_iff`,
+`loweringRun.primitiveNoop`, the recursor-names-not-primitive `sorry` of
+`AddInductive.run.primitiveSourceAlignedWF`. `Prelude/{EqSyntax,EqReady,Eq}.lean` are ported
+(the `QuotReady` half: `Environment.addInductive.preludeEqExtensionWF`; the `HasCanonicalEq`
+half stays with `Tests/PreludeEq`, wave 4). The model-side replay is
+`Install/Rebase.lean` (`VEnv.addInduct_rebase`, `AddInduct.rebase`, `VInductDecl.WF.rebase`,
+`CheckingEnv.Valid.addRules`).
+
+Interface changes: `BlockCertificate` gains `compiled` (a well-formed compiled block, which is
+what replays `recsCompiled` at the other safety levels) and `newUnsafe` (every inserted constant
+has the declaration's `isUnsafe`, which hides an unsafe block from the partial and safe
+observers). `BlockCertificate.rebase` now takes `ves.WF env` and `decl.isUnsafe = false` (the
+rebased output's `checking` needs `InstalledBlocks … .complete`, which `CheckingEnv.Valid` does
+not carry). `RuleTranslations.compilesTo`/`recsCompiled`/`recursorsWF` take
+`indTypes.toList ≠ []` (the source judgment `SourceWF` needs a nonempty block, and no structure
+of the recursor phase records it). The rule phase's stub `RecursorCheck.ruleCtorParams` moved
+above `namespace RuleTranslations` (unchanged) so that `recsOf` can use it.
+
+| statement | file | why | owner |
+|---|---|---|---|
+| `AddInductive.constructorPhase.primitiveWF` | `Verify/Inductive/Primitive/Run.lean` | not provable as stated: `ConstructorCheck` contains `HeaderEnvironment.context : ContextWF`, i.e. `HasPrimitives` of the header-only model, false for `Bool`/`Nat` (the family without its constructors violates `containsImplies`). Needs a primitive variant of the header/constructor interface (the source branch's `PrimitiveHeaderEnvironment`/`LocalContextWF`/atomic batch) | lead (interface), then install |
+| `VEnvAt.recursorShapes` (wave 1A) | `Verify/TypeChecker.lean` | the kernel recursor is tied to its model recursor only through `TrEnv'` (an induction like `TrEnv'.find?_induct` extended to `recInfo` gives the `AddInduct` block and its `TrRecursor`); `VRecursorShape` then follows from `rec_shape` (`MajorApp`) and the translation of the kernel type. `VConstructorShape` does not: `rules_ctor` gives only `CtorShape` (arity, some constant head), not that the head is the major family at the parameter variables. That needs the rule's constructor identified with a source constructor of the major family (through `RecsOf`/`OfEquation` and the signature's constructor owners) and its `RawCtorShape`, and for restored nested auxiliary recursors (majors are containers at specialized arguments, rules fire on container constructors) `rec_shape`'s `MajorApp` (parameter variables) does not describe the major, so that case needs wave 3's restoration facts | install (ordinary blocks), wave 3 (nested) |
+
 ## Wave 2 scaffold (`Verify/Inductive/**`, the inductive refinement's interface)
 
 `lake build` (default targets), `Lean4Lean.Tests` and `Lean4Lean.Experimental` are green with
