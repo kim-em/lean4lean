@@ -1,5 +1,13 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Certificate
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.Passes
+import Lean4Lean.Verify.Inductive.Nested.Restoration.RunOfRestoration
+import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceParametersRun
+import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyBase
+import Lean4Lean.Verify.Inductive.Nested.Restoration.TableAgreement
+import Lean4Lean.Verify.Inductive.Nested.Restoration.KernelData
+import Lean4Lean.Verify.Inductive.Nested.Restoration.FormationWithRecs
+import Lean4Lean.Verify.Inductive.Nested.Restoration.ViewCast
+import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyTypes
 
 /-! # The restored block of a nested run (owner: Restoration-B)
 
@@ -45,13 +53,73 @@ theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (V : RestorationRun res loweredEnv env lparams sourceTypes
       (if isUnsafe then .unsafe else .safe) false fuel outEnv) :
     Nonempty (RestoredBlock L sourceTypes isUnsafe outEnv) := by
-  -- WAVE 3 STUB (Restoration-B): the source branch's `NestedRun` from
-  -- `nestedValidatedRawSourceWF`, `NestedRun.assemblyOfRun` (`Install/CertificateOfRun.lean`)
-  -- and `RestoredBlockCertificate.blockCertificate` (`Install/BlockCertificate.lean`), without
-  -- the rule typing (`RestoredBlock.rulesWF`, Equations) and the environment-side facts
-  -- (`RestoredBlock.installedFacts`, Install). The validation passes enter through
-  -- `Validation/Passes.lean`.
-  have := wf; have := Hsources; have := Hout; have := hnested; have := L; have := V; sorry
+  have := hnested
+  obtain ⟨runDecl, E, hloweredEnv, hlowered⟩ := NestedRun.ofRestoration wf Hsources Hout hnested L V
+  have Hchecked := checkInductiveSources_refines env sourceTypes _ Hsources
+  have Hparameters := E.sourceParameterWF wf Hchecked
+  obtain ⟨⟨B, hBlowered, hBperm⟩⟩ := E.assemblyBase wf rfl Hsources Hparameters (by cases isUnsafe <;> decide)
+  obtain ⟨hperm, hfresh, hmap, hquot⟩ :=
+    E.restoration.kernelOrder (ContextWF.initial wf (if isUnsafe then .unsafe else .safe) lparams
+      false fuel).map_wf
+  have hdeclLowered : E.lowered.loweredDecl = L.loweredDecl :=
+    LoweredView.heq_field hloweredEnv hlowered (·.loweredDecl)
+  -- WAVE 3 STUB (restB): the restored recursors (`AssemblyRecursors`, in progress).
+  obtain ⟨recs⟩ : Nonempty (List VRecursor) := sorry
+  refine ⟨{
+    decl := runDecl.withRecs recs
+    envTypes := E.sourceCore.envTypes
+    envCtors := E.sourceCore.envCtors
+    source := ?source
+    formation := VerifyInductive.NestedFormationWF.withRecs recs B.formationAssembly.formation
+    auxiliaries := ?auxiliaries
+    containers := ?containers
+    block := ?block
+    compiled := ?compiled
+    recsOf := ?recsOf
+    ivals := E.restoration.ivals
+    rvals := E.restoration.rvals
+    trTypes := E.trTypes B hBlowered
+    envR := ?envR
+    recsAdded := ?recsAdded
+    trRecs := ?trRecs
+    order := E.restoration.entries
+    order_perm := hperm
+    fresh := hfresh
+    map_eq := hmap
+    quotInit_eq := hquot
+    newUnsafe := E.newUnsafe
+    recs_wf := ?recs_wf
+    rec_shape := ?rec_shape
+    rules_nodup := ?rules_nodup
+    rules_ctor := ?rules_ctor
+    rules_ctorParams := ?rules_ctorParams
+    rule_shape := ?rule_shape
+    rules_closed := ?rules_closed
+    outVEnv := ?outVEnv
+    rulesAdded := ?rulesAdded
+    recShapes := ?recShapes
+    recK := ?recK
+    runDecl := runDecl
+    run := E
+    run_decl := ?run_decl
+    sourceSyntaxChecked := Hchecked
+    constructorArityPrefix := ?arity
+    run_loweredEnv := hloweredEnv
+    run_lowered := hlowered
+    recMajor := ?recMajor
+    constructorParameterAlignment := ?alignment }⟩
+  case arity =>
+    have h := B.formationAssembly.constructorArityPrefix
+    rw [B.formationExpanded, hBlowered, hdeclLowered] at h
+    exact h
+  case run_decl => simp [VInductDecl.withRecs]
+  case source =>
+    have h := E.sourceCore.core
+    rw [E.sourceCoreDecl_eq] at h
+    exact TrInductDeclCore.withRecs h recs
+  -- WAVE 3 STUB (restB): `trTypes`/`newUnsafe` (`AssemblyTypes`) and the recursor, rule and
+  -- compilation fields (`AssemblyRecursors`), in progress.
+  all_goals sorry
 
 end VerifyInductive
 end Lean4Lean
