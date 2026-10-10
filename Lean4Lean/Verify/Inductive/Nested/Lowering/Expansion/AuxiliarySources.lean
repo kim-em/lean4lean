@@ -2,6 +2,7 @@ import Lean4Lean.Verify.Inductive.Nested.Lowering.Expansion.AuxiliaryHeads
 import Lean4Lean.Verify.Inductive.Nested.Lowering.AuxiliaryConstructors
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Expansion.Contexts
 import Lean4Lean.Verify.Inductive.Nested.Install.Permutation
+import Lean4Lean.Verify.Inductive.RecursorInput
 
 namespace Lean4Lean
 
@@ -1258,12 +1259,12 @@ absent from its source kernel environment.  This is the
 freshness companion to `RecursorCheck.findSourceHeader`: it retains the exact header entry
 selected by the declaration's family list and reads freshness off the
 lockstep installation. -/
-theorem HeaderEnvironment.sourceHeaderFresh
+theorem HeaderData.sourceHeaderFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv : Environment}
-    (Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
+    (Hheaders : HeaderData c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
     (Hc : ContextWF c)
     (howner : owner ∈ indTypes.toList) :
@@ -1287,7 +1288,7 @@ theorem LoweredAuxiliaryFamily.installedContainerBeforeHeaders
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv : VEnv}
     {headerEnv : Environment}
-    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderData c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
     {initialState finalState : Lean4Lean.ElimNestedInductive.State}
     {ves : VEnvs}
@@ -1354,7 +1355,7 @@ theorem LoweredAuxiliaryFamily.formationHeaderParameterDomains
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv targetTypesVEnv : VEnv}
     {headerEnv : Environment}
-    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
+    {Hheaders : HeaderData c stats loweredDecl nparams isUnsafe
       depth sourceVEnv indTypes headerEnv}
     (H : LoweredAuxiliaryFamily c.env params nparams finalState
       targetConcrete)
@@ -1418,8 +1419,9 @@ theorem NestedLoweringOutputClosed.auxiliaryFormationParameterContext
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv : VEnv}
-    {R : CheckedFormation c stats loweredDecl nparams isUnsafe depth sourceVEnv
-      result.types.toArray}
+    {ctorEnv : Environment}
+    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv
+      result.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
@@ -1518,8 +1520,9 @@ theorem LoweredAuxiliaryFamily.abstractContainerApplication
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv : VEnv}
-    {R : CheckedFormation c stats loweredDecl nparams isUnsafe depth sourceVEnv
-      result.types.toArray}
+    {ctorEnv : Environment}
+    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv
+      result.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hrun : NestedLowering c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray }
@@ -1620,8 +1623,9 @@ theorem LoweredAuxiliaryFamily.auxiliaryFamilySource
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv targetTypesVEnv : VEnv}
-    {R : CheckedFormation c stats loweredDecl nparams isUnsafe depth sourceVEnv
-      result.types.toArray}
+    {ctorEnv : Environment}
+    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv
+      result.types.toArray ctorEnv}
     {initialState finalState : Lean4Lean.ElimNestedInductive.State}
     {ves : VEnvs}
     (wf : ves.WF c.env)
@@ -1794,8 +1798,9 @@ theorem NestedLowering.auxiliaryFamilySources
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv targetTypesVEnv targetCtorsVEnv : VEnv}
-    {R : CheckedFormation c stats loweredDecl nparams isUnsafe depth sourceVEnv
-      result.types.toArray}
+    {ctorEnv : Environment}
+    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv
+      result.types.toArray ctorEnv}
     {initialState finalState : Lean4Lean.ElimNestedInductive.State}
     {ves : VEnvs}
     (Hrun : NestedLowering c.env fuel nparams sourceTypes

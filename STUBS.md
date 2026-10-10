@@ -476,8 +476,14 @@ in `Nested/Lowering/Assembly.lean` from `NestedLoweringOutputClosed`
 (`ElimNestedInductive.run'.translationClosed`), over the source branch's lowering refinement
 ported under `Nested/Lowering/` (`Refinement`, `ParameterOpening`, `Recognition`, `Expression`,
 `Queue`, `AuxiliaryFamilyPositions`, `Output`, `Ordinary`, `Restore/{ExprReplace,ParameterOpening}`;
-new: `Counts` for `types_length`). `Nested/Lowering/Expansion/**` (the `NestedExpansionData`
-for `RestoredBlock.formation`) is being ported by Lowering for Restoration-B.
+new: `Counts` for `types_length`). `Nested/Lowering/Expansion/**` and `AuxiliaryFamilies`,
+`AuxiliaryConstructors`, `OccurrenceTyping` are ported too, without stub: the nested expansion for
+`RestoredBlock.formation` is `RecursorInput.nestedExpansionData` / `RecursorInput.nestedFormationWF`
+(`Nested/Lowering/Expansion/Data.lean`), over the lowered run's `RecursorInput`
+(`LoweredRun.input`), the lowering run and the restoration side's source facts. Adaptations:
+the source branch's `OrdinaryConstructorCheck`/`HeaderEnvironment` arguments became
+`RecursorInput`/`HeaderData`, the eliminator cases of the expansion relations are gone, and
+`InstalledBelow` facts are read through `addInduct`'s stages (`VEnv.addInduct_stages`).
 
 ## Wave 3 Restoration-A (`Nested/Restoration/Validation/**`)
 
