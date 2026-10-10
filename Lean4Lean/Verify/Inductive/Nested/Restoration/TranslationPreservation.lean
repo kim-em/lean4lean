@@ -644,7 +644,7 @@ def MLCtxAvoids (r : Restoration) : TypeChecker.MLCtx → Prop
   | .vlet .. => False
 
 
-theorem _root_.Lean.Expr.AvoidsConsts.instantiate1'_fvar {names : List Name} {e : Expr}
+private theorem _root_.Lean.Expr.AvoidsConsts.instantiate1'_fvar {names : List Name} {e : Expr}
     (H : e.AvoidsConsts names) (fv : FVarId) (d : Nat) :
     (e.instantiate1' (.fvar fv) d).AvoidsConsts names := by
   induction H generalizing d with
