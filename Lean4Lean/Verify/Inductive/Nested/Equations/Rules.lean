@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Certificate
 import Lean4Lean.Verify.Inductive.Nested.Equations.RuleAlignment
+import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.RestoredWF
 import Lean4Lean.Theory.Inductive.RestorationInterpretation
 import Lean4Lean.Theory.Typing.RestorationShapes
 import Lean4Lean.Theory.Inductive.RestorationHead
@@ -70,7 +71,8 @@ theorem envR_wf (B : RestoredBlock L sourceTypes isUnsafe outEnv) : B.envR.WF :=
   exact B.recs_wf r hr
 
 -- WAVE 3 COMPAT (restB): `restoredEquationsWF` is now a field of `RestoredBlock`, produced in
--- `nestedRestoredBlock` from the Equations owner's `NestedRun.restoredEquationsWF`.
+-- `nestedRestoredBlock` from the Equations owner's `NestedRun.hrestoredWF_of`
+-- (`Nested/Restoration/Equations/RestoredWF.lean`).
 
 /-- The restored block is well formed: its equations are typed in the restored recursor
 stage. -/
