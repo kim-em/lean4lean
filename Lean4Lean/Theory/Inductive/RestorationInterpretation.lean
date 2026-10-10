@@ -3,6 +3,7 @@ import Lean4Lean.Theory.Inductive.BetaSubjectReduction
 import Lean4Lean.Theory.Inductive.RestorationNames
 import Lean4Lean.Theory.Inductive.RestorationNaturality
 import Lean4Lean.Theory.Typing.RecursorLemmas
+import Lean4Lean.Theory.Typing.UniqueTyping
 
 /-! # Restoration as an environment interpretation
 
@@ -31,7 +32,7 @@ telescope `λ params, target levels arguments` over the common parameters
   branch's `RestoredEliminator`).
 
 WAVE 3 COMPAT: port of the source branch's file; the eliminator half is replaced by
-`RestoredPattern`, whose clause is the named stub of this file (owner Equations+Install). -/
+`RestoredPattern`. -/
 
 namespace Lean4Lean
 
@@ -468,6 +469,17 @@ structure RestoredPattern (envS : VEnv) (I : Interpretation) (r : Restoration) (
   agrees : r.Agrees I
   restorationScoped : r.Scoped
   betaSubjectReduction : ∀ U, envS.BetaSubjectReduction U
+  /-- The target environment is well formed (for uniqueness of typing, which turns the
+  β-reduction of the interpreted template into a definitional equality at every type of the
+  restored template). -/
+  wf : envS.WF
+  /-- The recursor of the rule is not a restoration head (it is renamed, not interpreted). -/
+  recursorNotHead : ∀ recN M c N, p = (SimplePattern.iota recN M c N).toPattern →
+    r.heads.find? (fun h => h.auxiliary == recN) = none
+  /-- The interpreted template of the reduct is typed (closed, in `envS`): `PatClause` gives
+  the typing of the interpreted redex only, and the interpreted reduct is a β-expansion of the
+  restored reduct, which needs the typing of its head to be definitionally equal to it. -/
+  templateTyped : ∀ rhs xs, rr.1.spine = some (rhs, xs) → ∃ U₀ T, envS.HasType U₀ [] (I.expr rhs) T
   /-- The rule is a ι rule with a closed template whose projection owners `I` fixes. -/
   iota : ∃ (recN c : Name) (k nind cnp nf : Nat) (rhs : VExpr) (hrhs : rhs.Closed),
     rhs.ProjNamesFixed I.projOwner ∧
@@ -485,17 +497,163 @@ structure RestoredPattern (envS : VEnv) (I : Interpretation) (r : Restoration) (
         (SimplePattern.iotaRHS' (r.recursorName recN) (r.headName c) k nind cnp' nf rhs' hrhs',
           .true)
 
+/-- A constant spine pattern matches exactly the applications of its constant to that many
+arguments. -/
+theorem _root_.Lean4Lean.Pattern.Matches.varN_const_inv {c : Name} :
+    ∀ {n : Nat} {e : VExpr} {m1 : List VLevel} {g : ((Pattern.const c).varN n).Path → VExpr},
+      ((Pattern.const c).varN n).Matches e m1 g →
+      ∃ args : List VExpr, args.length = n ∧ e = (VExpr.const c m1).mkApps args
+  | 0, _, _, _, h => by
+    simp only [Pattern.varN] at h
+    cases h
+    exact ⟨[], rfl, rfl⟩
+  | n+1, _, _, _, h => by
+    simp only [Pattern.varN] at h
+    cases h with
+    | @var _ _ _ _ a' h =>
+      obtain ⟨args, hl, rfl⟩ := Pattern.Matches.varN_const_inv h
+      refine ⟨args ++ [a'], by simp [hl], ?_⟩
+      rw [VExpr.mkApps_append]; rfl
+
+private theorem typedCtx_levelWF {env : VEnv} {U : Nat} :
+    ∀ {Γ : List VExpr}, OnCtx Γ (env.IsType U) → OnCtx Γ fun _ A => A.LevelWF U
+  | [], _ => trivial
+  | _ :: _, ⟨h1, _, h2⟩ => ⟨typedCtx_levelWF h1, (h2.levelWF (typedCtx_levelWF h1)).1⟩
+
+/-- The interpreted constructor head of a restored ι redex β-reduces to the restored
+constructor applied to the restored constructor arguments: an auxiliary constructor (a
+restoration head) is interpreted by a λ-abstraction over the common parameters. -/
+private theorem RestoredPattern.ctor_betaRed {I : Interpretation} {r : Restoration}
+    (A : r.Agrees I) {c : Name} {cnp cnp' nf : Nat}
+    (hcnp : match r.heads.find? (fun h => h.auxiliary == c) with
+      | some h => cnp = h.nparams ∧ cnp' = h.arguments.length
+      | none => cnp' = cnp)
+    {lsc : List VLevel} {ctorArgs : List VExpr} (hcl : ctorArgs.length = cnp + nf) :
+    ∃ lv ctorArgs', ctorArgs'.length = cnp' + nf ∧
+      ctorArgs'.drop cnp' = (ctorArgs.map I.expr).drop cnp ∧
+      VExpr.BetaRed (VExpr.mkApps (I.expr (.const c lsc)) (ctorArgs.map I.expr))
+        (VExpr.mkApps (.const (r.headName c) lv) ctorArgs') := by
+  split at hcnp
+  · next hd hfind =>
+    obtain ⟨rfl, rfl⟩ := hcnp
+    cases hρ : I.consts c with
+    | none => exact absurd hρ (A.headsReplaced c hd hfind)
+    | some t =>
+      obtain ⟨hd', doms, hfind', hdoms, rfl⟩ := A.shape c t hρ
+      rw [hfind] at hfind'
+      cases hfind'
+      rw [Interpretation.expr_const_some hρ, VExpr.instL_wrapLams]
+      have hlen : (doms.map (VExpr.instL lsc)).length ≤ (ctorArgs.map I.expr).length := by
+        simp [hdoms, hcl]
+      have hβ := VExpr.BetaRed.mkApps_wrapLams (doms.map (VExpr.instL lsc))
+        ((VExpr.mkApps (.const hd.target hd.levels) hd.arguments).instL lsc)
+        (ctorArgs.map I.expr) hlen
+      simp only [List.length_map, hdoms] at hβ
+      simp only [VExpr.instL_mkApps, VExpr.instL, VExpr.instOuter_mkApps,
+        VExpr.instOuter_const, ← VExpr.mkApps_append, List.map_map,
+        Function.comp_def] at hβ ⊢
+      have hhead : r.headName c = hd.target := by
+        simp [Restoration.headName, hfind]
+      rw [hhead]
+      refine ⟨_, _, ?_, ?_, hβ⟩
+      · simp [hcl]
+      · simp
+  · next hfind =>
+    subst hcnp
+    have hρ : I.consts c = none := by
+      cases hρ : I.consts c with
+      | none => rfl
+      | some t =>
+        obtain ⟨_, _, hfind', _⟩ := A.shape c t hρ
+        rw [hfind] at hfind'
+        cases hfind'
+    refine ⟨lsc, ctorArgs.map I.expr, by simp [hcl], rfl, ?_⟩
+    have hhead : r.headName c = r.recursorName c := by
+      simp [Restoration.headName, hfind]
+    rw [Interpretation.expr_const_none hρ, A.renamed c hfind, hhead]
+    exact .refl
+
 /-- **The clause of a restored ι rule**, in well-formed contexts. -/
 theorem RestoredPattern.clause {envS : VEnv} {I : Interpretation} {r : Restoration}
     {p : Pattern} {rr : p.RHS × p.Check} (R : RestoredPattern envS I r p rr)
     (henv : envS.OrderedStrong) : I.PatClause envS envS.TypedCtx p rr := by
-  -- WAVE 3 STUB (Equations+Install): the `pat` analogue of the source branch's
-  -- `RestoredEliminator.clause` (`Theory/Inductive/RestorationInterpretation.lean`): the
-  -- interpreted redex is β-convertible (`Agrees.expr_simAt`, `BetaRed.mkApps_wrapLams` on the
-  -- interpreted constructor head) to a redex of the registered restored rule, whose reduct is
-  -- β-convertible to the interpreted reduct (`Pattern.RHS.apply_foldl_var`, the template's
-  -- `expr_simAt`), in the well-formed context `Γ`.
-  have := R; have := henv; sorry
+  obtain ⟨recN, c, k, nind, cnp, nf, rhs, hrhs, hfix, hp, hrr, rhs', hrhs', cnp', hr, hcnp,
+    hpat⟩ := R.iota
+  have hnot := R.recursorNotHead recN _ c _ hp
+  have htmpl := R.templateTyped
+  subst hp
+  subst hrr
+  obtain ⟨U₀, T₀, hT₀⟩ := htmpl rhs _ (SimplePattern.iotaRHS'_spine ..)
+  intro U Γ e A m1 m2 chk hΓ hm H hreal _
+  have hchk : chk = [] := by
+    cases chk with
+    | nil => rfl
+    | cons => exact absurd hreal id
+  subst hchk
+  have hβU := R.betaSubjectReduction U
+  cases hm with
+  | @app _ F _ g1 _ Ac lsc g2 hF hA =>
+  obtain ⟨recArgs, hrl, rfl⟩ := Pattern.Matches.varN_const_inv hF
+  obtain ⟨ctorArgs, hcl, rfl⟩ := Pattern.Matches.varN_const_inv hA
+  obtain ⟨g1', hm1', hg1'⟩ := Pattern.matches_varN_const (c := recN) (ls := m1) _ recArgs hrl
+  obtain ⟨g2', hm2', hg2'⟩ := Pattern.matches_varN_const (c := c) (ls := lsc) _ ctorArgs hcl
+  obtain ⟨-, rfl⟩ := hF.uniq hm1'
+  obtain ⟨-, rfl⟩ := hA.uniq hm2'
+  -- the lowered reduct
+  have hred := SimplePattern.iotaRHS'_apply recN c k nind cnp nf rhs hrhs m1 (Sum.elim g1 g2)
+    hrl hcl (fun i hi => hg1' i hi) (fun i hi => hg2' i hi)
+  rw [hred]
+  -- the interpreted redex
+  have hρrec : I.consts recN = none := by
+    cases hρ : I.consts recN with
+    | none => rfl
+    | some t =>
+      obtain ⟨_, _, hfind', _⟩ := R.agrees.shape recN t hρ
+      rw [hnot] at hfind'
+      cases hfind'
+  have hIe : I.expr (.app ((VExpr.const recN m1).mkApps recArgs)
+        ((VExpr.const c lsc).mkApps ctorArgs)) =
+      .app ((VExpr.const (r.recursorName recN) m1).mkApps (recArgs.map I.expr))
+        ((I.expr (.const c lsc)).mkApps (ctorArgs.map I.expr)) := by
+    simp only [Interpretation.expr, Interpretation.expr_mkApps]
+    rw [← Interpretation.expr, Interpretation.expr_const_none hρrec, R.agrees.renamed recN hnot]
+  rw [hIe] at H ⊢
+  obtain ⟨lv, ctorArgs', hcl', hdrop, hctor⟩ := RestoredPattern.ctor_betaRed (lsc := lsc)
+    (ctorArgs := ctorArgs) R.agrees hcnp hcl
+  have hrl' : (recArgs.map I.expr).length = k + nind := by simp [hrl]
+  -- the restored redex and its match
+  have h1 := (VExpr.BetaRed.app .refl hctor).simAt henv hβU hΓ _ H
+  obtain ⟨g1'', hm1'', hg1''⟩ := Pattern.matches_varN_const (c := r.recursorName recN)
+    (ls := m1) _ (recArgs.map I.expr) hrl'
+  obtain ⟨g2'', hm2'', hg2''⟩ := Pattern.matches_varN_const (c := r.headName c)
+    (ls := lv) _ ctorArgs' hcl'
+  have hmatch : (SimplePattern.iota (r.recursorName recN) (k + nind) (r.headName c)
+      (cnp' + nf)).toPattern.Matches _ m1 (Sum.elim g1'' g2'') := .app hm1'' hm2''
+  have h2 := VEnv.IsDefEq.pat hpat hmatch h1.hasType.2 (chk := []) trivial (by simp)
+  dsimp only at h2
+  have hred2 := SimplePattern.iotaRHS'_apply (r.recursorName recN) (r.headName c) k nind cnp' nf
+    rhs' hrhs' m1 (Sum.elim g1'' g2'') hrl' hcl' (fun i hi => hg1'' i hi) (fun i hi => hg2'' i hi)
+  rw [hred2] at h2
+  have hargs : (recArgs.map I.expr).take k ++ ctorArgs'.drop cnp' =
+      (recArgs.take k ++ ctorArgs.drop cnp).map I.expr := by
+    rw [hdrop, List.map_append, List.map_take, List.map_drop]
+  rw [hargs] at h2
+  -- the interpreted reduct, by β-expansion of the restored template
+  rw [Interpretation.expr_mkApps, Interpretation.expr_instL]
+  have hW := typedCtx_levelWF hΓ
+  have hls := (hmatch.levelWF (h1.levelWF hW).2.1).1
+  have hsimF : envS.SimAt U Γ ((I.expr rhs).instL m1) (rhs'.instL m1) := by
+    have := R.agrees.expr_simAt henv hβU hΓ hfix.instL
+      (e' := rhs'.instL m1) (by rw [← Restoration.expr_instL, hr]; rfl)
+    rwa [Interpretation.expr_instL] at this
+  have hTy : envS.HasType U Γ ((I.expr rhs).instL m1) (T₀.instL m1) :=
+    (hT₀.instL hls).weak0 henv.ordered
+  have hFF := hsimF _ hTy
+  have hrev : envS.SimAt U Γ (rhs'.instL m1) ((I.expr rhs).instL m1) := fun T' hf' => by
+    obtain ⟨u, hTT⟩ := hFF.uniq R.wf hΓ hf'
+    exact .defeqDF hTT hFF.symm
+  have h3 := VEnv.SimAt.mkApps henv hΓ hrev (VEnv.SimAt.forall₂_refl _) _ h2.hasType.2
+  exact h1.trans (h2.trans h3)
 
 end VEnv
 end Lean4Lean
