@@ -204,6 +204,41 @@ helpers the source kept in `Theory/Typing/IotaSoundnessLemmas.lean` and used her
 source's `Formation.lean` (`IndexedPrefix`, `List.Forall₂.targets_eq_of_unique`,
 `VEnv.addConstVals_append`, ...).
 
+## Wave 2 ctor (`Verify/Inductive/Constructor/**`)
+
+Closed: both constructor stubs (`CheckedFormation.signature`, `AddInductive.constructorPhase.WF`).
+No `sorry` in `Constructor/**`; no named stub left. `lake build`, `Lean4Lean.Tests`,
+`Lean4Lean.Experimental` green; `--fresh Init.Prelude` (1975) and `--fresh Init.Core` (3953) pass.
+
+* `CheckedFormation.signature`: the family table is read off the header certificate's type
+  shapes (`HeaderCertificate.familyTelescope`), the constructors off the checked tails
+  (`CheckedFormation.tails`, new field). The empty declaration gets the empty signature.
+* `constructorPhase.WF`: `declareInductiveTypes.installedWF` (header), then the constructor check
+  `AddInductive.checkConstructors.WF` (`Constructor/CheckRun.lean`: the declaration is the one
+  whose constructor types are the raw translations of the run, `accumulatesRawTargets`; the
+  certificates come from `checkConstructors.loopTypes.refinesChecked` and
+  `loopTypes.ownerNormalFormsWF`), then `declareConstructors` (`Constructor/Declare.lean`:
+  `insertConsts` of the `constructorInfo`s, fresh, distinct, nonprimitive) and the constructor
+  environment (`Constructor/Install.lean`: `CheckingEnv.Valid` via
+  `InstalledBlocks.addCtorStage`, recursor shapes and ι rules, projection-stage `WF` via
+  `VEnv.WF.inductProjections`, closure, `InductInfosFromDecl`, parameter alignment).
+
+Interface changes: `constructorPhase.WF`'s postcondition is `∃ R : ConstructorCheck …, R.classes
+= out.2` (the scaffold's `Nonempty … ∧ ∀ R, R.classes = out.2` was unprovable: nothing pins an
+arbitrary `R`'s classes); `Install/Ordinary.lean` adapted (`-- WAVE 2 COMPAT (ctor)`).
+`RecursorInput.constructorTails` is stated over `headers.statsWF.parameterScope`
+(`-- WAVE 2 ctor COMPAT`). Fields added: `CheckedFormation.tails`; `ConstructorCheck.{ivals_eq,
+ctor_numParams, parameterPrefixes, constructorTails, ownerNormalForms}`. Definitions the
+recursor phase imports from `Constructor/Tails.lean`: `ParameterPrefix`, `ParameterSegment`,
+`Expr.ForallSpine`, `CheckedConstructorParameterPrefix`, `ConstructorParameterPrefixes`,
+`CheckedConstructorTailAt`, `ConstructorTails`, `ConstructorOwnerNormalForm(At/s)`,
+`ConstructorScopedTelescope` (= the header's `ScopedHeaderTelescope`).
+`Constructor/OwnerNormalForms.lean` imports the recursor agent's
+`Recursor/Context/FVarArrays.lean` (whose import closure stays inside
+`Constructor/{Tails,Positivity,PrefixUtilities,CheckedFormation,SourceSignature}`).
+The source's `Header/Declaration.lean` is not ported: `CheckedHeaders.declOf` selects the
+declaration from the checked headers and the raw constructor rows.
+
 ## Wave 2 rules (`Verify/Inductive/Rules/**`)
 
 `RecursorCheck.generatedRuleTranslation` is proved. Its `rules_wf : PatTyped` clause is the

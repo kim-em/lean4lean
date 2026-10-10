@@ -59,27 +59,5 @@ structure ConstructorsChecked {c : AddInductive.Context} {stats : AddInductive.I
   /-- The owner normal forms of the kernel constructor types. -/
   ownerNormalForms : ConstructorOwnerNormalForms stats indTypes
 
-/-- The refinement theorem of the constructor check: run in the header environment of a
-completed header phase, `checkConstructors` returns the classifications of a declaration the
-checked headers describe, whose constructors it checked in every header environment of it. -/
-theorem AddInductive.checkConstructors.WF
-    {c c' : AddInductive.Context} {Hc : ContextWF c} {nparams : Nat}
-    {indTypes : Array InductiveType} {Hc' : ContextWF c'} {stats : AddInductive.InductiveStats}
-    (P : HeaderPhase Hc nparams indTypes c' Hc' stats) (isUnsafe : Bool)
-    {headerEnv : Environment}
-    (Hheaders : ∀ decl : VInductDecl, P.headers.Describes decl → decl.isUnsafe = isUnsafe →
-      Nonempty (HeaderEnvironment c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes
-        headerEnv))
-    (hlparams : c'.lparams.Nodup) :
-    (AddInductive.checkConstructors indTypes stats isUnsafe { c' with env := headerEnv }).WF
-      fun classes => ∃ decl, P.headers.Describes decl ∧ decl.isUnsafe = isUnsafe ∧
-        ∀ H : HeaderEnvironment c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes
-          headerEnv, ConstructorsChecked H classes := by
-  -- WAVE 2 STUB (Constructor): the executable refinement of the constructor loops, the source
-  -- branch's `checkConstructors.loopTypes.refinesChecked` (`Constructor/CheckedConstructors.lean`)
-  -- with `checkConstructors.loopTypes.ownerNormalFormsWF`; it needs the header phase's
-  -- parameter scope (`HeaderStatsWF`) beneath `HeaderEnvironment`.
-  have := Hheaders; have := hlparams; sorry
-
 end VerifyInductive
 end Lean4Lean
