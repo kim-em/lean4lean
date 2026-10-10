@@ -333,6 +333,24 @@ structure ConstructorTails
       (decl.types[familyIdx]'(size_eq ▸ hfamily)) indTypes[familyIdx].ctors[ctorIdx]
       classes[familyIdx]![ctorIdx]!
 
+theorem ConstructorTails.ofAll
+    {env : VEnv} {Us : List Name} {scope : VLCtx}
+    {stats : AddInductive.InductiveStats} {decl : VInductDecl}
+    {indTypes : Array InductiveType} {classes : List (List (List Bool))}
+    (hsize : indTypes.size = decl.types.length)
+    (hclasses : classes.length = indTypes.size)
+    (H : ∀ (familyIdx : Nat) (hfamily : familyIdx < indTypes.size),
+      FamilyConstructorTails env Us scope stats decl
+        (decl.types[familyIdx]'(hsize ▸ hfamily)) indTypes[familyIdx].ctors
+        classes[familyIdx]!) :
+    ConstructorTails env Us scope stats decl indTypes classes where
+  size_eq := hsize
+  classes_length := hclasses
+  row_length familyIdx hfamily := by
+    rw [getElem!_pos indTypes familyIdx hfamily]
+    exact (H familyIdx hfamily).1
+  replay familyIdx hfamily ctorIdx hctor := (H familyIdx hfamily).2 ctorIdx hctor
+
 /-- The owner normal form of a constructor type: its maximal forall telescope ends in a
 valid application of family `targetIdx`. -/
 structure ConstructorOwnerNormalForm
