@@ -71,6 +71,22 @@ theorem _root_.Lean4Lean.InductiveSignature.Compiles.withRecs {env : VEnv} {decl
   let ⟨s, g, envTypes, hm, rest⟩ := H.generated
   ⟨s, g, envTypes, hm.withRecs recs, rest⟩
 
+section
+variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+  {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+  {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+
+/-- Every model rule fires on a constructor with the signature's parameter count. -/
+theorem RecursorCheck.ruleCtorParams (H : RecursorCheck R outEnv) : H.RuleCtorParams := by
+  -- WAVE 2 STUB (Rules, pending an upstream field): `TrRecursor.rules` reads `ctorParams` off
+  -- the constructor's `ctorInfo` in `outEnv`; that it is `decl.nparams` (= `signature.params.length`
+  -- by `models.nparams`) is the kernel constructors' `numParams` (`declareConstructors`), which
+  -- `ConstructorCheck` does not record (`ivals` carries no `numParams` fact).
+  have := H; sorry
+
+end
+
 namespace RuleTranslations
 
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
@@ -127,94 +143,12 @@ theorem compilesTo (T : RuleTranslations H) (hnonempty : indTypes.toList ≠ [])
     (R.formation.withRecs H.recs).formationWF (T.compiles.withRecs H.recs) T.blockWF rfl rfl rfl
     hnames
 
-/-- Every model rule fires on a constructor with the signature's parameter count.
-
-WAVE 2 STUB (Install, needs Recursor): `TrRecursor` reads `ru.ctorParams` off the constructor's
-`ctorInfo` in the output map (`numParams`); the kernel declares the block's constructors with
-`numParams = nparams` (`CtorInfoAlignment.numParams` of `inductInfosFromDecl`) and
-`H.models.nparams` identifies `nparams` with the signature's parameter count. -/
-theorem _root_.Lean4Lean.VerifyInductive.RecursorCheck.rules_ctorParams
-    (H : RecursorCheck R outEnv) :
-    ∀ r ∈ H.recs, ∀ ru ∈ r.rules, ru.ctorParams = H.signature.params.length := by
-  have := H; sorry
-
 /-- The model recursors and rules are read off the block (`VInductDecl.RecsOf`): the recursors
 by `recursors_eq`, the rules through `TrRecursorRule` and `TrRecursor` agreeing on the reducts
 (`VRecRule.OfEquation.ofTr`). -/
-theorem recsOf (T : RuleTranslations H) : H.decl'.RecsOf T.block := by
-  have hlenR : H.rvals.length = H.recs.length := (List.Forall₂.length_eq H.trRecs)
-  have hlenF : (List.finRange H.signature.families.size).length = H.rvals.length :=
-    (List.Forall₂.length_eq T.trRules)
-  -- the rule `j` of recursor `i` is the generated equation of the `j`-th constructor of owner `i`
-  have core : ∀ i (hiF : i < (List.finRange H.signature.families.size).length)
-      (hiR : i < H.rvals.length) (hi : i < H.recs.length)
-      j (hjO : j < (H.signature.ownedConstructors
-        (List.finRange H.signature.families.size)[i]).length)
-      (hjR : j < H.rvals[i].rules.length) (hj : j < H.recs[i].rules.length),
-      VRecRule.OfEquation H.recs[i] H.recs[i].rules[j]
-        (H.generation.equation (H.signature.ownedConstructors
-          (List.finRange H.signature.families.size)[i])[j]) := by
-    intro i hiF hiR hi j hjO hjR hj
-    have htr := Lean4Lean.List.Forall₂.getElem_of H.trRecs i hiR hi
-    have hrules := Lean4Lean.List.Forall₂.getElem_of T.trRules i hiF hiR
-    have hmeta := Lean4Lean.List.Forall₂.getElem_of H.metadata i hiF hiR
-    have hru := Lean4Lean.List.Forall₂.getElem_of htr.rules j hjR hj
-    have hrule := Lean4Lean.List.Forall₂.getElem_of hrules j hjO hjR
-    have howner : H.signature.constructors[(H.signature.ownedConstructors
-        (List.finRange H.signature.families.size)[i])[j]].owner =
-        (List.finRange H.signature.families.size)[i] := by
-      have hmem := List.getElem_mem (l := H.signature.ownedConstructors
-        (List.finRange H.signature.families.size)[i]) hjO
-      simp only [InductiveSignature.ownedConstructors, List.mem_filter, beq_iff_eq] at hmem
-      exact hmem.2
-    have hname : H.recs[i].name = H.generation.recursorName
-        (List.finRange H.signature.families.size)[i] := by
-      have h := congrArg (fun l => l[i]?) H.recursors_eq
-      simp only [InductiveSignature.Instance.recursors, List.getElem?_map,
-        List.getElem?_eq_getElem hi, List.getElem?_eq_getElem hiF, Option.map_some,
-        Option.some.injEq] at h
-      exact congrArg VConstVal.name h
-    refine InductiveSignature.VRecRule.OfEquation.ofTr hrule ?_ hru.1 hru.2.1 hru.2.2.2 ?_ ?_
-    · rw [hname]; congr 1; exact (congrArg (fun o : Fin _ => o) howner).symm
-    · rw [VRecursor.getMajorIdx, htr.numParams, htr.numMotives, htr.numMinors, htr.numIndices,
-        hmeta.numParams, hmeta.numMotives, hmeta.numMinors, hmeta.numIndices]
-      have hidx := congrArg
-        (fun o : Fin H.signature.families.size => H.signature.families[o].indices.length) howner
-      simp only [Fin.getElem_fin] at hidx ⊢
-      omega
-    · have := H.rules_ctorParams _ (List.getElem_mem hi) _ (List.getElem_mem hj)
-      exact this
-  refine ⟨H.recursors_eq, ?_, ?_⟩
-  · intro r hr ru hru
-    obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem hr
-    obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem hru
-    have hiR : i < H.rvals.length := hlenR ▸ hi
-    have hiF : i < (List.finRange H.signature.families.size).length := hlenF ▸ hiR
-    have htr := Lean4Lean.List.Forall₂.getElem_of H.trRecs i hiR hi
-    have hrules := Lean4Lean.List.Forall₂.getElem_of T.trRules i hiF hiR
-    have hjR : j < H.rvals[i].rules.length := (List.Forall₂.length_eq htr.rules) ▸ hj
-    have hjO := (List.Forall₂.length_eq hrules) ▸ hjR
-    exact ⟨_, List.mem_map_of_mem (List.mem_finRange _), core i hiF hiR hi j hjO hjR hj⟩
-  · intro df hdf
-    obtain ⟨index, -, rfl⟩ := List.mem_map.1 hdf
-    let owner := H.signature.constructors[index].owner
-    have hiF : owner.val < (List.finRange H.signature.families.size).length := by simp
-    have hiR : owner.val < H.rvals.length := hlenF ▸ hiF
-    have hi : owner.val < H.recs.length := hlenR ▸ hiR
-    have hfin : (List.finRange H.signature.families.size)[owner.val] = owner := by simp
-    have hmem : index ∈ H.signature.ownedConstructors
-        (List.finRange H.signature.families.size)[owner.val] := by
-      rw [hfin]
-      simp [InductiveSignature.ownedConstructors, owner]
-    obtain ⟨j, hjO, hj⟩ := List.getElem_of_mem hmem
-    have htr := Lean4Lean.List.Forall₂.getElem_of H.trRecs owner.val hiR hi
-    have hrules := Lean4Lean.List.Forall₂.getElem_of T.trRules owner.val hiF hiR
-    have hjR : j < H.rvals[owner.val].rules.length := (List.Forall₂.length_eq hrules) ▸ hjO
-    have hjr : j < H.recs[owner.val].rules.length := (List.Forall₂.length_eq htr.rules) ▸ hjR
-    refine ⟨_, List.getElem_mem hi, _, List.getElem_mem hjr, ?_⟩
-    have := core owner.val hiF hiR hi j hjO hjR hjr
-    rw [hj] at this
-    exact this
+theorem recsOf (T : RuleTranslations H) : H.decl'.RecsOf T.block :=
+  ⟨H.recursors_eq, (H.rules_ofEquation T.trRules H.ruleCtorParams).1,
+    (H.rules_ofEquation T.trRules H.ruleCtorParams).2⟩
 
 /-- `VInductDecl.RecsCompiled` of the installed declaration. -/
 theorem recsCompiled (T : RuleTranslations H) (hnonempty : indTypes.toList ≠ []) :
@@ -271,14 +205,6 @@ theorem RecursorCheck.equationsWF (H : RecursorCheck R outEnv) : H.EquationsWF :
   -- `RecursorCheck.equationsWF` (`Rules/EquationWF.lean`) from the typed rule templates
   -- (`ruleTyping : TypedRecursorRulesRange`, `RuleAlignment.generatorEquationWF`) and
   -- `equationBodyTranslations_of`.
-  have := H; sorry
-
-/-- Every model rule fires on a constructor with the signature's parameter count. -/
-theorem RecursorCheck.ruleCtorParams (H : RecursorCheck R outEnv) : H.RuleCtorParams := by
-  -- WAVE 2 STUB (Rules, pending an upstream field): `TrRecursor.rules` reads `ctorParams` off
-  -- the constructor's `ctorInfo` in `outEnv`; that it is `decl.nparams` (= `signature.params.length`
-  -- by `models.nparams`) is the kernel constructors' `numParams` (`declareConstructors`), which
-  -- `ConstructorCheck` does not record (`ivals` carries no `numParams` fact).
   have := H; sorry
 
 end
