@@ -243,23 +243,26 @@ theorem mutualInductivesClosed (B : RestoredBlock L sourceTypes isUnsafe outEnv)
     (Hfresh.targetWF hsourceWF) hcl
     (fun hfind => Hfresh.preservesSourceFind hsourceWF hfind) Hmembers HmemberParams htypeNames
 
-/-- The major family of every new recursor is present. -/
-theorem recMajor (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
-    ∀ {n r}, outEnv.find? n = some (.recInfo r) → c.env.find? n = none →
-      ∃ info, outEnv.find? r.getMajorInduct = some (.inductInfo info) := by
-  -- WAVE 3 STUB (Equations+Install): the restored `recInfo`s' majors (`B.trRecs`, the
-  -- restoration folds' recursor entries, `KernelData`), source branch: the `recMajor` field of
-  -- `RestoredBlockCertificate`'s installation.
-  have := B; sorry
+/-- A new recursor of the output is one of the block's. -/
+theorem newRec' (B : RestoredBlock L sourceTypes isUnsafe outEnv)
+    {n : Name} {r : RecursorVal} (h1 : outEnv.find? n = some (.recInfo r))
+    (h2 : c.env.find? n = none) : r ∈ B.rvals := by
+  have hwf : c.env.constants.WF := Hc.map_wf
+  have houtWF : outEnv.constants.WF := B.addInduct.wf hwf
+  rw [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?] at h1
+  rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at h2
+  rcases B.addInduct.find? hwf h1 with hold | ⟨hmem, -⟩
+  · rw [h2] at hold; cases hold
+  · rcases AddInduct.mem_consts.1 hmem with ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩ | ⟨rval, hrval, h⟩
+    · cases h
+    · cases h
+    · cases h; exact hrval
 
-/-- The constructor parameter alignment of the output. -/
-theorem constructorParameterAlignment (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
-    ConstructorParameterAlignment c.safety c.env Hc.venv →
-      ConstructorParameterAlignment c.safety outEnv B.outVEnv := by
-  -- WAVE 3 STUB (Equations+Install, needs restB's `ConstructorCoherence`):
-  -- `NestedInstalledRun.constructorParameterDomainsDefEqOfSource`,
-  -- `RestoredBlockCertificate.constructorTypingOfParameterDomains`.
-  have := B; sorry
+/-- The major family of every new recursor is present (`RestoredBlock.recMajor`). -/
+theorem recMajor' (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
+    ∀ {n r}, outEnv.find? n = some (.recInfo r) → c.env.find? n = none →
+      ∃ info, outEnv.find? r.getMajorInduct = some (.inductInfo info) :=
+  fun h1 h2 => B.recMajor _ (B.newRec' h1 h2)
 
 /-- The primitive names of the output: the restored constants are nonprimitive
 (`NestedRun.primitiveSafe`), so the base's primitive invariants persist. -/
@@ -299,8 +302,8 @@ theorem kernelFacts (B : RestoredBlock L sourceTypes isUnsafe outEnv)
   closed := B.mutualInductivesClosed hclosed
   constructorOwners := B.constructorOwnersPresent
   inductInfosFromDecl := B.inductInfosFromDecl
-  recMajor := B.recMajor
-  constructorParameterAlignment := B.constructorParameterAlignment
+  recMajor := B.recMajor'
+  constructorParameterAlignment := fun _ => B.constructorParameterAlignment
   hasPrimitives := B.primitives.1
   safePrimitives := B.primitives.2
 
@@ -321,21 +324,6 @@ theorem cover (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
   · have h := B.fresh _ hmem
     rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?, ← hname]
     exact h
-
-/-- A new recursor of the output is one of the block's. -/
-theorem newRec' (B : RestoredBlock L sourceTypes isUnsafe outEnv)
-    {n : Name} {r : RecursorVal} (h1 : outEnv.find? n = some (.recInfo r))
-    (h2 : c.env.find? n = none) : r ∈ B.rvals := by
-  have hwf : c.env.constants.WF := Hc.map_wf
-  have houtWF : outEnv.constants.WF := B.addInduct.wf hwf
-  rw [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?] at h1
-  rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at h2
-  rcases B.addInduct.find? hwf h1 with hold | ⟨hmem, -⟩
-  · rw [h2] at hold; cases hold
-  · rcases AddInduct.mem_consts.1 hmem with ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩ | ⟨rval, hrval, h⟩
-    · cases h
-    · cases h
-    · cases h; exact hrval
 
 /-- **The installation boundary theorem**: the output of a nested restoration is a valid
 checking environment with the environment-side facts of the restored block. The checking
