@@ -1,13 +1,13 @@
-import Lean4Lean.Verify.Inductive.Constructor.Check
+import Lean4Lean.Verify.Inductive.RecursorInput
 import Lean4Lean.Verify.Inductive.Constructor.Tails
 
 /-! # What the recursor phase reads of the constructor check
 
-The source branch's `ConstructorCheck` carried its header-phase data directly (`sourceContext`,
+The source branch's `RecursorInput` carried its header-phase data directly (`sourceContext`,
 `statsWF`, `parameterScope`, `recursorHeaders`, ...). On the scaffold's interface these are
 reached through `CheckedFormation.headers : HeaderEnvironment`; this file names them as the
 recursor port reads them. The constructor telescope data (`parameterPrefixes`, `constructorTails`,
-`ownerNormalForms`) are fields of `ConstructorCheck`. -/
+`ownerNormalForms`) are fields of `RecursorInput`. -/
 
 namespace Lean4Lean
 
@@ -16,69 +16,72 @@ open Kernel
 
 namespace VerifyInductive
 
-namespace ConstructorCheck
+namespace RecursorInput
 
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
   {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv} {indTypes : Array InductiveType}
   {ctorEnv : Environment}
 
 /-- The source context of the header phase. -/
-abbrev sourceContext (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes
+abbrev sourceContext (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes
     ctorEnv) : ContextWF c := R.headers.sourceContext
 
-theorem sourceContextVEnv (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv
+theorem sourceContextVEnv (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv
     indTypes ctorEnv) : R.sourceContext.venv = sourceEnv := R.headers.sourceContextVEnv
 
 /-- The main local context of the header environment. -/
-abbrev headerMLCtx (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes
+abbrev headerMLCtx (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes
     ctorEnv) : TypeChecker.MLCtx := R.headers.context.mlctx
 
 /-- The header statistics over the header environment. -/
-abbrev statsWF (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes
+abbrev statsWF (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes
     ctorEnv) :
     checkInductiveTypes.loopInd.HeaderStatsWF R.headerVEnv c.lparams R.headerMLCtx.vlctx stats
       decl depth := R.headers.statsWF
 
 /-- The common parameters of the declaration. -/
-abbrev params (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes
+abbrev params (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes
     ctorEnv) : List VExpr := R.headers.headers.params
 
 /-- The parameter scope of the header phase. -/
-abbrev parameterScope (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv
+abbrev parameterScope (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv
     indTypes ctorEnv) : VLCtx := R.headers.statsWF.parameterScope
 
 /-- The header statistics over the source environment. -/
-abbrev sourceStatsWF (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes
+abbrev sourceStatsWF (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes
     ctorEnv) :
     checkInductiveTypes.loopInd.HeaderStatsWF R.sourceContext.venv c.lparams
       R.sourceContext.mlctx.vlctx stats decl depth := R.headers.sourceStatsWF
 
-theorem sourceHeaderParams (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv
+theorem sourceHeaderParams (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv
     indTypes ctorEnv) : R.sourceStatsWF.headers.params = R.params := R.headers.sourceHeaderParams
 
-theorem sourceParameterScope (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv
+theorem sourceParameterScope (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv
     indTypes ctorEnv) : R.sourceStatsWF.parameterScope = R.parameterScope :=
   R.headers.parameterScopeEq.symm
 
-theorem sourceLE (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes
+theorem checkedParameterScope (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv
+    indTypes ctorEnv) : R.statsWF.parameterScope = R.parameterScope := rfl
+
+theorem sourceLE (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes
     ctorEnv) : sourceEnv ≤ R.headerVEnv := VEnv.addConstVals_le R.headers.typesAdded
 
-theorem checkedParams (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv
+theorem checkedParams (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv
     indTypes ctorEnv) : R.statsWF.headers.params = R.params := R.headers.headerParams
 
-theorem formationParams (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv
+theorem formationParams (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv
     indTypes ctorEnv) : R.formation.headers.params = R.params := R.params_eq
 
-theorem headerLE (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes
+theorem headerLE (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes
     ctorEnv) : R.headerVEnv ≤ R.ctorVEnv := VEnv.addConstVals_le R.core.ctorsAdded
 
-theorem ctorLE (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes
+theorem ctorLE (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes
     ctorEnv) : R.ctorVEnv ≤ R.context.venv := by
   rw [R.contextVEnv]; exact VEnv.addProjections_le
 
 /-- Transport the retained checked headers to the valid constructor environment, at the start
 of the recursor phase. -/
-def recursorHeaders (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes
+def recursorHeaders (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes
     ctorEnv) :
     checkInductiveTypes.loopInd.HeaderStatsWF
       R.context.venv c.lparams R.context.mlctx.vlctx stats decl depth := by
@@ -105,11 +108,11 @@ def recursorHeaders (R : ConstructorCheck c stats decl nparams isUnsafe depth so
     paramsContext := M.paramsContext
     suffixParams := M.suffixParams }
 
-theorem recursorHeaders_parameterScope (R : ConstructorCheck c stats decl nparams isUnsafe depth
+theorem recursorHeaders_parameterScope (R : RecursorInput c stats decl nparams isUnsafe depth
     sourceEnv indTypes ctorEnv) : R.recursorHeaders.parameterScope = R.parameterScope := by
   simp [recursorHeaders, checkInductiveTypes.loopInd.HeaderStatsWF.mono]
 
-end ConstructorCheck
+end RecursorInput
 
 /-- The base environment of a translated declaration contains none of the declaration's type
 or constructor names (the source branch's `TrInductDeclCore.headerBaseAvoidsSourceNames`). -/
@@ -134,7 +137,7 @@ theorem TrInductDeclCore.baseAvoidsSourceNames
     rw [hvalueName, hlookup] at habsent
     contradiction
 
-namespace ConstructorCheck
+namespace RecursorInput
 
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
   {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -147,7 +150,7 @@ private theorem forall₂_map_eq {α β γ} {P : α → β → Prop} {f : α →
   | _, _, .cons h t => by simp [hfg _ _ h, forall₂_map_eq hfg t]
 
 /-- The kernel names of the header infos are the declaration's type names. -/
-theorem headerInfoNames (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv
+theorem headerInfoNames (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv
     indTypes ctorEnv) :
     (R.headers.infos.map ConstantInfo.inductInfo).map (·.name) =
       decl.typeConstants.map (·.name) := by
@@ -155,7 +158,7 @@ theorem headerInfoNames (R : ConstructorCheck c stats decl nparams isUnsafe dept
   exact forall₂_map_eq (fun _ _ h => h.1.2) R.headers.trHeaders
 
 /-- The kernel names of the new constructors are the declaration's constructor names. -/
-theorem ctorInfoNames (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv
+theorem ctorInfoNames (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv
     indTypes ctorEnv) :
     (R.ivals.flatMap fun iv => iv.2.map ConstantInfo.ctorInfo).map (·.name) =
       decl.constructorConstants.map (·.name) := by
@@ -176,12 +179,12 @@ theorem ctorInfoNames (R : ConstructorCheck c stats decl nparams isUnsafe depth 
 
 /-- Every constant of the constructor environment is a constant of the source environment, a
 new header, or a new constructor. -/
-theorem find?_origin (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv
+theorem find?_origin (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv
     indTypes ctorEnv) {n : Name} {ci : ConstantInfo} (h : ctorEnv.find? n = some ci) :
     c.env.find? n = some ci ∨ ci ∈ R.headers.infos.map ConstantInfo.inductInfo ∨
       ci ∈ R.ivals.flatMap fun iv => iv.2.map ConstantInfo.ctorInfo := by
   have hWFc : c.env.constants.WF := R.headers.sourceContext.checking.tr.map_wf
-  have hWFh : R.headerEnv.constants.WF := R.headers.context.checking.tr.map_wf
+  have hWFh : R.headerEnv.constants.WF := R.headers.context.checking.map_wf
   have hWFo : ctorEnv.constants.WF := R.context.checking.tr.map_wf
   have hnodup := TrInductDeclCore.sourceNames_nodup R.core
   rw [VInductDecl.sourceNames] at hnodup
@@ -210,7 +213,7 @@ theorem find?_origin (R : ConstructorCheck c stats decl nparams isUnsafe depth s
     · exact .inr (.inl hmem)
   · exact .inr (.inr hmem)
 
-end ConstructorCheck
+end RecursorInput
 
 end VerifyInductive
 end Lean4Lean

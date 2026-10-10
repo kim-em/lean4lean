@@ -92,7 +92,7 @@ abstracted over the parameters) translates in the recursor-checking environment 
 parameter context. Typehood of the major-and-sort residual comes from the executable's own
 check, moved into the index context by conversion. -/
 theorem RecursorConstruction.replayMotiveWithIndexDomains
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (hindices : indices.length = H.recInfos[owner]!.indices.size)
     (hlevels : stats.levels.mapM (VLevel.ofLevel

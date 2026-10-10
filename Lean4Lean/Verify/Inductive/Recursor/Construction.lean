@@ -39,7 +39,7 @@ structure RecursorConstruction
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv : Environment}
-    (R : ConstructorCheck c stats decl nparams isUnsafe depth
+    (R : RecursorInput c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     where
   sourceSafety : isUnsafe = (c.safety != .safe)
@@ -119,7 +119,7 @@ open Lean hiding Environment Exception
 open Kernel
 
 theorem RecursorConstruction.sourceFamilyCount
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) : H.recInfos.size = indTypes.size := by
   have htypes := Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core
   have hrecords := H.cardinality.records
@@ -127,7 +127,7 @@ theorem RecursorConstruction.sourceFamilyCount
   omega
 
 theorem RecursorConstruction.sourceMinorOffsetBound
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     recursorMinorOffset indTypes owner + localIndex < decl.ownedConstructors.length := by

@@ -84,8 +84,8 @@ theorem TrExprS.chooseDeclUnivForallDomains
   simpa [VExpr.instL_wrapForalls, VExpr.instL, VLevel.inst] using
     Hsource'.prependLevelParam henv hΔ hfresh
 
-theorem ConstructorCheck.sourceAnonymousParameterWF
-    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
+theorem RecursorInput.sourceAnonymousParameterWF
+    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     VLCtx.WF R.context.venv c.lparams.length
       (abstractForallContext R.parameterScope.toCtx.reverse []) := by
   have Hparams := R.recursorHeaders.paramsContext
@@ -95,7 +95,7 @@ theorem ConstructorCheck.sourceAnonymousParameterWF
   exact (Hctx.symm R.context.checking.tr.wf.orderedStrong).wf
 
 theorem RecursorConstruction.parameterAnonymousContext
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) :
     abstractForallContext H.parameterSuffix.parameterDecls.toCtx.reverse [] =
       (abstractForallContext R.parameterScope.toCtx.reverse []).instL
@@ -184,7 +184,7 @@ theorem FVarArrayIn.forallDomainsOnly
   exact LocalContext.forallDomainsOnly_foldN hdecl body
 
 theorem RecursorConstruction.indexDomainSource_eq
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
     H.indexDomainSource owner =
       (H.localContext.lctx.mkForall H.recInfos[owner]!.indices (.sort .zero)).abstractList
@@ -199,7 +199,7 @@ theorem RecursorConstruction.indexDomainSource_eq
 construction records the index-universe check of the motive pass, and context extension and
 parameter abstraction preserve it. -/
 theorem RecursorConstruction.indexDomainSource_levelParams
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
     (H.indexDomainSource owner).levelParamsIn c.lparams = true := by
   obtain ⟨S, _⟩ := H.motiveTelescopes.motiveDecls owner howner
@@ -209,7 +209,7 @@ theorem RecursorConstruction.indexDomainSource_levelParams
   exact hsource
 
 theorem RecursorConstruction.chooseDeclUnivIndexDomains_large
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (helim : H.elimLevel = .param fresh) :
     ∃ sourceDomains,
@@ -267,7 +267,7 @@ theorem RecursorConstruction.chooseDeclUnivIndexDomains_large
 index domains of the executable motive translate directly in the recursor-checking environment
 over the source parameter scope. -/
 theorem RecursorConstruction.chooseDeclUnivIndexDomains_small
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (helim : H.elimLevel = .zero) :
     ∃ sourceDomains,
