@@ -13,6 +13,9 @@ therefore fails on `Verify/` until wave 1. Waves follow `iota-port/PLAN-RECONCIL
 | `VEnv.WF.patCtor_rigid` (`-- WAVE 1C STUB`) | `Theory/Typing/HeadInjectivity/Model/WFFacts.lean` | `ConstructorRigidity.lean` on the source branch (`WF.installed_constructor_rigid`) | wave 1C |
 | `IsDefEqU.weakN_iff` | `Theory/Typing/UniqueTyping.lean` | master | open on master; the one strengthening principle the checker uses (PORT_PLAN section 5) |
 | `NormalEq.parRed` (two `sorry`s, the `extra` cases) | `Theory/Typing/ChurchRosser.lean` | master | wave 4 (confluence retargeted onto `env.pats` supersedes this file) |
+| `VEnv.RestoredPattern.clause` (`-- WAVE 3 STUB`) | `Theory/Inductive/RestorationInterpretation.lean` | new: the `pat` analogue of the source branch's `RestoredEliminator.clause` | wave 3 (Equations+Install) |
+| `InductiveSignature.instantiateParams_liftN` (`-- WAVE 3 STUB`) | `Theory/Typing/RestorationShapes.lean` | source `CaseReduction.lean` | wave 3 (Equations+Install) |
+| `Instance.restored_equation_major`, `CompilationData.constructor_name_cases`, `ContainersInstalled.constructor_isPatCtor`, `CompiledInductive.rule_ctor_cases` (`-- WAVE 3 STUB`) | `Theory/Inductive/CompilationMajors.lean` | source `RecursorEquationHeads.lean`, `ConstructorRigidity.lean`; the last two new (pattern form) | wave 3 (Restoration-B); consumed by `WF.patCtor_rigid` |
 
 Not stubs but conditional results: everything through `VEnv.WF.orderedStrong` (the strong
 system, substitution theorems, inversion lemmas) depends on `patsStrong`; everything through
@@ -78,7 +81,7 @@ provenance); `IotaSoundnessLemmas.lean` is not needed (the stored-equation detou
 |---|---|---|---|
 | `Theory/Typing/Confluence/**`, `ChurchRosser`/`FullReduction`/`LevelledReduction`/`FullChurchRosser`/`HeadReduction` of the source branch, `LevelledConfluence.lean`, `NormalSubstitution.lean`, `Inductive/{RecursorData,RecursorPrefixUnfolding,QuotPrefixUnfolding,RecursorEquationHeads,RecursorEquationCoverage,SingletonReconstruction}.lean`, `Typing/{RecursorRegistration,RecursorRuleRegistration,RecursorRegistryInstallation,StoredRuleHeads,PatternCaptures,DefinitionPatterns,DefinitionRegistryInstallation,QuotLiftTelescope,QuotPropInhabitant,ConstructorRigidity,RecursorMajorFamily}.lean`, `PrefixUnfolding/`, `SingletonExtraction/` | source branch only | confluence development, to be retargeted from stored equations to `env.pats` | wave 4 |
 | `Theory/Typing/HeadInjectivity/{Model,Rules,Projections}/**`, `EnvTables/`, `Typing/IotaSoundnessLemmas.lean` | source branch only | the observation model behind the two wave-0 stubs | wave 1C |
-| `Theory/Typing/Interpretation.lean`, `Inductive/RestorationInterpretation.lean`, `Typing/RestorationShapes.lean`, `Inductive/RestorationHead.lean` | source branch only | the restoration interpretation needs a `PatClause` for `IsDefEq.pat` (PORT_PLAN section 3) | wave 3 |
+| `Theory/Typing/Interpretation.lean`, `Inductive/RestorationInterpretation.lean`, `Typing/RestorationShapes.lean`, `Inductive/RestorationHead.lean` | ported by the wave 3 scaffold (`-- WAVE 3 COMPAT`), with `PatClause` in place of the eliminator clause; see the wave 3 section | | done |
 | `Theory/Typing/Strengthening/**` | source branch only | dropped (PORT_PLAN section 5) | never |
 | `Inductive/Case*.lean`, `CaseSchema*`, `ProjNamesAvoid`, `RestorationProjNames`, `Typing/{CaseReduction,CaseMotive,CaseSourceSort,CaseMajorDomain,EliminatorCoherence*,SchemaStructCompat,EliminatorRestorationScope,ProjNamesTyping,ProjectionFamilyArity,ProjectionConstructorFamily,SignatureVars}.lean` | source branch only | the case-eliminator registry, dropped with `VExpr.elim` | never |
 | PR #43's `ChurchRosser.lean`, `HeadReduction.lean`, `InductiveParams.lean` | kept and building | `Params.no_projections` makes them the structure-free instance; `toParams`/`inductParams` take the projection-free hypothesis | wave 4 decides whether they stay as the small-environment instance |
@@ -351,6 +354,61 @@ Owed by wave 3: every caller of `InstalledBlocks.addInduct` (the nested installa
 containers at specialized arguments, so `recursorShapesOf`, which reads the major off `MajorApp` and the
 rules' constructors off the source declaration, does not cover them).
 
+## Wave 3 scaffold (`Verify/Inductive/Nested/**`, the nested branch's interface)
+
+`lake build` (default targets), `Lean4Lean.Tests` and `Lean4Lean.Experimental` are green with
+`Verify/Inductive/Nested/**` imported by `Verify/Inductive.lean` and by `Verify/Environment.lean`
+(through `Nested/Install/Dispatch.lean`). `NestedInductivePreserves` is the theorem
+`nestedInductivePreserves`; `addDecl.WF` has no hypothesis. The interface, the ownership map
+(Lowering / Restoration-A / Restoration-B / Equations+Install) and the dependency order are the
+nested section of `Lean4Lean/Verify/Inductive/README.md`. Every `sorry` of the scaffold is one of
+the named stubs below (`-- WAVE 3 STUB (owner)` in the source); the two `Lowering.lean` stubs
+of wave 2 are now consequences of `loweringRun.WF`.
+
+| statement | file | what it is on the source branch | owner |
+|---|---|---|---|
+| `loweringRun.WF` | `Verify/Inductive/Lowering.lean` | `NestedLowering`/`NestedLoweringOutputClosed` (`Nested/Restoration/SourceTranslations.lean`, over `Nested/Lowering/**`): `ElimNestedInductive.run.refines`, `LowerNextStep`, `NestedAuxMapModels`, `ConstructorRestorationInverse.restoredType_eqv_source`, `types_eq_source_of_aux2nested_size_eq_zero` | Lowering |
+| `validateSourceConstructorTypes.run.WF` | `Verify/Inductive/Nested/Restoration/Validation/Passes.lean` | `Validation/Checks.lean` (`validateSourceConstructorTypes.WF`) with `checkType.WF`/`ensureSort.WF` | Restoration-A |
+| `validateRestoredRecursorTypes.check.WF`, `.run.WF` | same | `Validation/Checks.lean`, `Validation/Environment.lean` (`ValidationEnvironment`) | Restoration-A |
+| `validateRestoredRecursorRules.check.WF`, `.run.WF` | same | `Validation/Checks.lean`, `Validation/StrippedEnvironment.lean` | Restoration-A |
+| `validateNestedAuxiliaries.WF` | same | `Nested/Lowering/Basic.lean`'s `validateNestedAuxiliaries.WF` (`NestedBindingContextWF`, `NestedOccurrencesTyped`) | Restoration-A |
+| `stripRecursorRules.checkingValid` | same | `Validation/StrippedEnvironment.lean`, `Validation/StrippedRecursorShapes.lean` (overwriting a well-formed `SMap`, `Aligned` under same-type replacement) | Restoration-A |
+| `nestedRestoredBlock` | `Verify/Inductive/Nested/Restoration/Restore.lean` | `nestedValidatedRawSourceWF` + `NestedRun.assemblyOfRun` (`Install/Certificate.lean`, `Install/CertificateOfRun.lean`) + `RestoredBlockCertificate.blockCertificate` (`Install/BlockCertificate.lean`): the restoration folds (`Steps.lean`), the restored source declaration (`SourceDeclaration`, `SourceTranslations`, ...), the specialization tables (`Tables`, `TableAgreement`, `ContainerSpecializations`), the restored recursors (`Recursors`, `RecursorRenaming`, `RecursorShape`, `RecursorAlignment`), the compilation data (`CompilationData*`), the kernel order (`Install/Permutation`, `DependencyOrder`, `RecursorTranslations`) | Restoration-B |
+| `Instance.restored_equation_major`, `CompilationData.constructor_name_cases`, `ContainersInstalled.constructor_isPatCtor`, `CompiledInductive.rule_ctor_cases` | `Theory/Inductive/CompilationMajors.lean` | `RecursorEquationHeads.lean`, `ConstructorRigidity.lean` (with `env.pats` in place of stored equations); what `WF.patCtor_rigid` needs | Restoration-B |
+| `RestoredBlock.rulesWF` | `Verify/Inductive/Nested/Equations/Rules.lean` | `Equations/WF.lean` (`restoredEquationSubstitution`, `restoredEquationsWF_of_substitutionPremises`), `Equations/{RestoredRules,RestoredRulesBase,GeneratedGuard,RuleRhs,SourceIota*}.lean`, restated as `PatTyped` (`Rules/IotaPatTyped.lean`) | Equations+Install |
+| `RestoredBlock.blockWF` | same | `Restoration.equation_wf` along the substitution, `RestoredBlockCertificate.blockCertificate`'s `rulesWF` | Equations+Install |
+| `VEnv.RestoredPattern.clause` | `Theory/Inductive/RestorationInterpretation.lean` | new: the `pat` analogue of `RestoredEliminator.clause` (the interpreted redex is β-convertible to a redex of the restored rule, `Agrees.expr_simAt`, `BetaRed.mkApps_wrapLams`) | Equations+Install |
+| `InductiveSignature.instantiateParams_liftN` | `Theory/Typing/RestorationShapes.lean` | `CaseReduction.instantiateParams_liftN` | Equations+Install |
+| `RestoredBlock.installedFacts` | `Verify/Inductive/Nested/Install/Installed.lean` | `Install/BlockCertificate.lean` (`inductInfosFromDecl`, `cover`, `constructorOwnersPresentOfContext`), `Install/FromRun.lean` (`assemblyBaseValid`), `Install/ConstructorCoherence.lean` (`constructorParameterDomainsDefEqOfSource`) | Install |
+
+Owed to wave 3 by wave 2, now carried by the interface: `InstalledBlocks.addInduct`'s
+`hrecShapes` is `RestoredBlock.recShapes` (every new recursor, auxiliary recursors included,
+whose majors are containers at specialized arguments; `recursorShapesOf` does not cover them,
+so Restoration-B ports `Restoration/RecursorShape.lean` and `Validation/StrippedRecursorShapes.lean`);
+`BlockCertificate.compiled` is `RestoredBlock.compiledWF`, `newUnsafe` is `RestoredBlock.newUnsafe`.
+
+For the model stubs (lead's request): `CompiledInductive.rule_ctor_cases` is what
+`WF.patCtor_rigid` reads (the second alternative is `VEnv.IsPatCtor env ru.ctor`, the
+container's own registered rule, so the history induction recurses on an earlier pattern);
+`Model.PatValid.iota` reads `RecsCompiled` as `⟨block, .intro compiled containers, recsOf⟩` with
+`CompilationData.equations`/`recursors` (restorations of the generator's equations and
+recursors, `RestoredBlock.rules_ofRestoredEquation`) and `blockWF` (equation typing in the empty
+context); README nested section, "What the nested instance provides".
+
+Theory COMPAT of this wave (`-- WAVE 3 COMPAT`, all new files): `Theory/Typing/Interpretation.lean`
+(`VEnv.Interpretation` without `elim`; `Sound` with `ordered : OrderedStrong`, a `pats` clause
+`PatClause` and no eliminator clause; `PatClause.of_fixed`, `Sound.addPat`, `Sound.of_le` with
+`hpats`), `Theory/Inductive/RestorationInterpretation.lean` (no eliminators; `RestoredPattern`),
+`Theory/Typing/RestorationShapes.lean`, `Theory/Inductive/RestorationHead.lean`,
+`Theory/Inductive/RestorationNames.lean` (`restorableNames`, `headName`, `expr_mkApps`,
+`equation_parts`, `expr_of_avoid`, `VExpr.projNamesAvoid`, two closedness lemmas),
+`Theory/Inductive/CompilationMajors.lean`. No existing Theory file was edited.
+
+Still deferred in `Lean4Lean/Tests.lean`: `CorruptRestoredRecursorMetadata` (needs the restored
+recursor metadata of `nestedRestoredBlock`'s internals) and `RecursiveFieldClassification` (the
+source test imports the restoration interpretation; the test file itself is not on this tree and
+is added back by the Equations+Install owner).
+
 ## Wave 2 scaffold (`Verify/Inductive/**`, the inductive refinement's interface)
 
 `lake build` (default targets), `Lean4Lean.Tests` and `Lean4Lean.Experimental` are green with
@@ -387,12 +445,11 @@ source); the owner is the directory agent of README.md's ownership map.
 | `loweringRun.primitiveNoop` | `Verify/Inductive/Primitive/Shape.lean` | `ElimNestedInductive.run'.primitiveNoopWF` (`Primitive/Lowering.lean`) | Primitive |
 | `AddInductive.constructorPhase.primitiveWF` | `Verify/Inductive/Primitive/Run.lean` | `AddInductive.formationCore.primitiveClosedWF` (`Primitive/Run.lean`) with `Primitive/{Headers,Constructors,ConstructorCheck,ConstructorParams,BatchInstallation,Constants}.lean` | Primitive |
 | `AddInductive.run.primitiveSourceAlignedWF` (one `sorry`: `Bool.rec`/`Nat.rec` are not primitives) | `Verify/Inductive/Primitive/Run.lean` | `PrimitiveInductiveShape.recursorsNonprimitive` | Primitive |
-| `loweringRun.types_nonempty` | `Verify/Inductive/Lowering.lean` | `NestedLoweringOutput.resultTypes_nonempty` (`Install/OrdinaryExtension.lean`, over `Nested/Lowering/**`) | wave 3 (`Nested/Lowering`) |
-| `loweringRun.ordinary_types_eq_source` | `Verify/Inductive/Lowering.lean` | `NestedLoweringOutput.ordinary_types_eq_source` with `checkInductiveSources_refines` | wave 3 (`Nested/Lowering`) |
+| `loweringRun.types_nonempty`, `loweringRun.ordinary_types_eq_source` | `Verify/Inductive/Lowering.lean` | now derived from the wave 3 scaffold's `loweringRun.WF` (`NestedLoweringOutput.source_nonempty`, `.types_length`, `.ordinary`) | wave 3 (Lowering), through `loweringRun.WF` |
 
-Not a stub: `VerifyInductive.NestedInductivePreserves` (`Verify/Inductive/Dispatch.lean`), the
-named hypothesis of the nested branch (the source branch's
-`Environment.addInductiveAfterLowering.nestedInductiveExtensionWF`), owner wave 3.
+`VerifyInductive.NestedInductivePreserves` (`Verify/Inductive/Dispatch.lean`), the named
+hypothesis of the nested branch, is the theorem `nestedInductivePreserves` since the wave 3
+scaffold (`Nested/Install/Dispatch.lean`), proved through the wave 3 stubs below.
 
 Wave 1A's two stubs stay (`VEnvAt.recursorShapes`, now consumed by `ContextWF.initial`;
 `VEnv.Ordered.patsAvoidFreshConsts`), owner Install for the first (from `InstalledBlocks` and

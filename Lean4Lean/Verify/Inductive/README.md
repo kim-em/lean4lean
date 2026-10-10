@@ -64,9 +64,9 @@ a boundary theorem's statement without the lead. Removals and retypings go throu
 | assembly | `BlockCertificate`, `RecursorCheck.outVEnv'` | `RecursorCheck.blockCertificate`, `BlockCertificate.installedBlocks`/`rebase`/`extendSafeExact`/`extendUnsafeExact` | `Install/BlockCertificate.lean` | Install |
 | `AddInductive.run` | `OrdinaryInstallation`, `OrdinaryRunResult`, `PrimitiveNamesFresh` (glue proved) | `Kernel.Environment.checkDuplicatedUnivParams.WF` | `Install/Ordinary.lean` | Install |
 | `addInductiveAfterLowering` (ordinary) | `OrdinaryInstallation.extend*Exact`, `extensionModelWF`, `ordinaryInstalledModelWF`, `ordinaryExtensionModelWF` (all proved) | | `Install/OrdinaryExtension.lean` | Install |
-| `checkInductiveSources`, `ElimNestedInductive.run` | `SourceSyntaxChecks`, `SourceBVarClosed`, `loweringRun`, `Environment.addInductive.WF` (proved) | `loweringRun.types_nonempty`, `loweringRun.ordinary_types_eq_source` | `Lowering.lean` | wave 3 (`Nested/Lowering`) |
+| `checkInductiveSources`, `ElimNestedInductive.run` | `SourceSyntaxChecks`, `SourceBVarClosed`, `loweringRun`, `NestedLoweringOutput`, `Environment.addInductive.WF` (proved); `types_nonempty`/`ordinary_types_eq_source` derived | `loweringRun.WF` | `Lowering.lean` | Lowering (wave 3) |
 | primitive branch | `PrimitiveInductiveShape`, `primitiveAddInductiveContext`, `PrimitiveInstallation`, `PrimitiveRunResult`; extension chain proved | `checkPrimitiveInductive_eq_true_iff`, `loweringRun.primitiveNoop`, `AddInductive.constructorPhase.primitiveWF`, recursor names not primitive (in `primitiveSourceAlignedWF`) | `Primitive/{Shape,Run,Extension}.lean` | Primitive |
-| result, dispatch | `SourceAddInduct` (`decl.WF ∧ addInduct = some`), `InductiveExtension`, `NestedInductivePreserves`, `addInductiveDeclaration.WF`/`WF_spec`/`WF_preserves` (proved) | | `Install/Result.lean`, `Dispatch.lean` | shared (lead) |
+| result, dispatch | `SourceAddInduct` (`decl.WF ∧ addInduct = some`), `InductiveExtension`, `NestedInductivePreserves`, `addInductiveDeclaration.WF`/`WF_spec`/`WF_preserves` (proved); `nestedInductivePreserves`, `addInductiveDeclaration.spec`/`preserves` (proved through the nested stubs, `Nested/Install/Dispatch.lean`) | | `Install/Result.lean`, `Dispatch.lean` | shared (lead) |
 
 The installed declaration is `decl.withRecs recs` (`Basic.lean`): the constructor phase fixes
 the source part, the recursor phase adds the generated recursors with their `VRecRule`s. The
@@ -113,7 +113,7 @@ translation lemmas against the frozen foundation). The boundary theorems land in
    installation (`rebase`, `extendSafeExact`, `extendUnsafeExact`, `installedBlocks`) and
    `Primitive/Shape.lean` depend on nothing upstream and can start immediately.
 
-Wave 3 (nested) discharges `NestedInductivePreserves` and the two `Lowering.lean` stubs.
+Wave 3 (nested) discharges `NestedInductivePreserves`; see the nested section below.
 
 ## Interface decisions for the lead and owners
 
@@ -155,3 +155,128 @@ Wave 3 (nested) discharges `NestedInductivePreserves` and the two `Lowering.lean
 * `ContextWF` lost the cache-mode field (cache modes are gone) and gained `shapes`/`iota`.
   `ConstructorTailCertificate.uniform` keeps `VInductDecl.UniformCtorTail`
   (`Theory/Inductive/Normalization.lean`).
+
+## The nested branch (wave 3 scaffold, branch `agent/iota-w3s`)
+
+`Nested/**` makes the nested branch exist as a buildable skeleton on the same principle: every
+statement in place, every unported proof a named stub (`-- WAVE 3 STUB (owner)`) listed in the
+"Wave 3 scaffold" section of `STUBS.md`. `nestedInductivePreserves` (`Nested/Install/Dispatch.lean`)
+proves wave 2's hypothesis through the stubs, so `addDecl.WF` (`Verify/Environment.lean`) has
+no hypothesis left. The executable's nested branch is `AddInductive.run` on the lowered block
+followed by `Environment.restoreNestedAfterInstall` (restore the source declaration from the
+lowered environment, then four validation passes in side environments).
+
+### Pipeline and interfaces (in order)
+
+| phase (executable) | interface | boundary theorem (stub) | file | owner |
+|---|---|---|---|---|
+| `ElimNestedInductive.run` (`loweringRun`) | `NestedLoweringOutput env fuel nparams sourceTypes lparams res` (Prop): `res.types` = source families (headers unchanged, constructors lowered, `source_headers`) ++ auxiliary families (`types_length`, `aux_cached`/`cached_aux`: one per cache entry); each cached occurrence is a container application `I Ds` at `I.numParams` arguments over `res.params` (`nested_app`); auxiliary names fresh (`aux_fresh`); `res.lctx` declares the parameters (`lctx_params`); the zero-auxiliary identity (`ordinary`); restoration inverts lowering on the source constructors up to `Expr.eqv` once the lowered auxiliary constructors are installed (`restore_source`, `LoweredAuxiliariesInstalled`) | `loweringRun.WF` | `Lowering.lean`; consequences in `Nested/Lowering/Basic.lean` | Lowering |
+| `AddInductive.run` on `res.types` | `LoweredRun Hc nparams indTypes loweredEnv`: the header phase from the source context, the recursor input (`loweredDecl`, header/constructor stages) and the recursor check of the lowered block; `L.rules : RuleTranslations` | `AddInductive.run.loweredRun`, `OrdinaryRunResult.toLoweredRun` (proved) | `Nested/Restoration/LoweredRun.lean` | shared |
+| `restoreNestedAfterInstall` | `RestorationRun res loweredEnv env lparams types safety allowPrimitive fuel outEnv` (Prop): the restoration fold's output, the two side environments and the four passes' `= .ok ()` | `Environment.restoreNestedAfterInstall.WF` (proved) | `Nested/Restoration/RestorationRun.lean` | shared |
+| the validation passes | checker-facing: under `CheckerEnv safety E V` for the side environment, each pass yields `TrExprS`/typing in `V` (`validateSourceConstructorTypes.run.WF`, `validateRestoredRecursorTypes.{check,run}.WF`, `validateRestoredRecursorRules.{check,run}.WF`, `validateNestedAuxiliaries.WF`); the stripped output is a valid checking environment of the recursor stage (`stripRecursorRules.checkingValid`) | the seven statements | `Nested/Restoration/Validation/Passes.lean` | Restoration-A |
+| restoration | `RestoredBlock L sourceTypes isUnsafe outEnv` (data): the source declaration `decl` with restored recursors, `TrInductDeclCore` of the submitted syntax, `NestedFormationWF`, the specialization list with `ContainersInstalled` (on `addInduct`), `CompilationData` of the lowered run's generator with `compilationRestoration decl auxiliaries`, `RecsOf`, the kernel constants with `TrIndType`/`TrRecursor` in the stages, `order`/`map_eq`/`fresh`/`newUnsafe`, the shape clauses (`recs_wf`, `rec_shape`, `rules_nodup`, `rules_ctor`, `rule_shape`, `rules_closed`), `recShapes`/`recK` for every new recursor (auxiliary included); derived: `addInduct : AddInduct` (PR #43's step witness), `compilesTo`, `recsCompiled`, `rules_ofRestoredEquation`, `rule_ctor_cases`, `wf` (given the rule typing) | `nestedRestoredBlock` | `Nested/Restoration/Certificate.lean` (interface), `Restore.lean` (stub) | Restoration-B |
+| rule typing | `RestoredBlock.rulesWF : VInductDecl.WF.rules_wf` of the restored rules in `B.envR`, `RestoredBlock.blockWF : B.block.WF`; derived `wf'`, `compiledWF` | the two | `Nested/Equations/Rules.lean` | Equations+Install |
+| installation | `RestoredBlock.Installed B` (Prop): `CheckingEnv.Valid c.safety outEnv B.outVEnv`, `MutualInductivesClosed`, `ConstructorOwnersPresent`, `InductInfosFromDecl`, cover, recursor majors, `ConstructorParameterAlignment`; derived `blockCertificate : BlockCertificate` (proved) | `RestoredBlock.installedFacts` | `Nested/Install/Installed.lean` | Install |
+| result, dispatch | `NestedCertificate` (the block certificate plus the source translation), `extendExact`/`inductiveExtension` via `BlockCertificate.extend{Safe,Unsafe}Exact` (proved); `nestedInductivePreserves` (proved) | | `Nested/Install/{Result,Dispatch}.lean` | shared |
+
+Theory (`-- WAVE 3 COMPAT`, new files): `Theory/Typing/Interpretation.lean` (environment
+interpretations; the eliminator clause replaced by `PatClause`, the obligation for a registered
+ι rule, with `PatClause.of_fixed` for rules the interpretation fixes and `Sound.addPat`),
+`Theory/Inductive/RestorationInterpretation.lean` (the restoration interpretation and
+substitution; `VEnv.RestoredPattern` with its stubbed `clause`, the `pat` analogue of the
+source's `RestoredEliminator`), `Theory/Typing/RestorationShapes.lean`,
+`Theory/Inductive/RestorationHead.lean`, `Theory/Inductive/RestorationNames.lean` (the
+helpers formerly in the dropped case-eliminator files), `Theory/Inductive/CompilationMajors.lean`
+(what `WF.patCtor_rigid` needs, below).
+
+### What the nested `VInductDecl.WF`/`RecsCompiled` instance provides for the model stubs
+
+The head-inversion model (`Theory/Typing/HeadInjectivity/Model/`) reads two kinds of facts
+off an installed block; the nested instance provides them through `RestoredBlock`:
+
+* **`WF.patCtor_rigid`** (`Model/WFFacts.lean`): the constructor of every rule of every recursor
+  of an installed block is a constructor of the block or of an installed container. Stated in
+  Theory as `CompiledInductive.rule_ctor_cases` (`Theory/Inductive/CompilationMajors.lean`,
+  stub, Restoration-B): for `CompiledInductive env source block` and `source.RecsOf block`,
+  every `ru ∈ r.rules` with `r ∈ source.recs` has `ru.ctor` a constructor constant of `source`
+  or `VEnv.IsPatCtor env ru.ctor` (the container's own ι rule on that constructor is registered
+  in `env`, by `ContainersInstalled` on `addInduct`: `ContainersInstalled.constructor_isPatCtor`).
+  Its ingredients are the source branch's `Instance.restored_equation_major` and
+  `CompilationData.constructor_name_cases`, stated there as stubs. On a `RestoredBlock` it is
+  `RestoredBlock.rule_ctor_cases`. The stored-equation alternative of the source branch
+  (`env.defeqs prior ∧ prior.HasConstructorMajor name`) became a registered pattern, so the
+  history induction of `patCtor_rigid` recurses on the container's pattern, added strictly
+  earlier.
+* **`Model.PatValid.iota`** (`Model/PatSound.lean`): what the ordinary path gets from
+  `RecsCompiled` and `VInductBlock.WF` holds for restored blocks too. `RestoredBlock.recsCompiled`
+  is `⟨block, CompiledInductive.intro compiled containers, recsOf⟩` with `compiled :
+  CompilationData venv decl L.loweredDecl s g auxiliaries block`, so (i) every installed
+  `VRecRule` is `OfEquation` of a block equation that is the restoration of a generated
+  equation of the lowered run's generator (`RestoredBlock.rules_ofRestoredEquation`:
+  `CompilationData.equations : g.restoredEquations (compilationRestoration decl auxiliaries) =
+  some block.rules`); (ii) the restored equation's λ-binders agree with the restored recursor's
+  Π-telescope because both are `Restoration.expr` of the generator's (`CompilationData.recursors`,
+  `Restoration.expr_wrapForalls`/`expr_recursorType` of `Theory/Typing/RestorationShapes.lean`;
+  the generator's own agreement is the ordinary path's `recursorShapesOf`); (iii) the equations
+  are typed in the empty context of the restored recursor stage (`RestoredBlock.blockWF`,
+  Equations, through `Restoration.equation_wf`); (iv) the auxiliary recursors' rules fire on
+  container constructors at the container's parameter count (`TrRecursor.rules` reads
+  `ctorParams` off the output map; `rules_ctor` finds the constructor in the constructor stage,
+  where the container is installed below). Structure eta and the projection entries are
+  generic: `addInduct_projections_iff` on `decl.projectionEntries`, as for ordinary blocks.
+
+### Ownership map (wave 3)
+
+* **Lowering**: `Nested/Lowering/**`; proves `loweringRun.WF` (`Lowering.lean`, lead-owned
+  statement). Source: `Nested/Lowering/**` (15k).
+* **Restoration-A**: `Nested/Restoration/Validation/**` and `Nested/Restoration/Uniform/**` (to
+  create); proves the seven statements of `Validation/Passes.lean`. Source:
+  `Nested/Restoration/{Validation,Uniform}/**` (8k).
+* **Restoration-B**: the rest of `Nested/Restoration/**` (to create, under
+  `Nested/Restoration/`), proves `nestedRestoredBlock` (`Restore.lean`) and the Theory stubs of
+  `CompilationMajors.lean`. Source: `Nested/Restoration/**` minus `Equations/`, `Validation/`,
+  `Uniform/` (22k), plus `Nested/Install/{Permutation,RecursorTranslations,DependencyOrder,
+  ConstructorCoherence}.lean` (3.5k).
+* **Equations+Install**: `Nested/Equations/**`, `Nested/Install/**`; proves `rulesWF`,
+  `blockWF` (`Equations/Rules.lean`), `installedFacts` (`Install/Installed.lean`),
+  `RestoredPattern.clause` (`Theory/Inductive/RestorationInterpretation.lean`),
+  `instantiateParams_liftN` (`Theory/Typing/RestorationShapes.lean`). Source:
+  `Nested/Restoration/Equations/**` (5.5k), `Nested/Install/{BlockCertificate,FromRun,
+  Certificate,CertificateOfRun,Result}.lean` (3.5k).
+* **Shared (lead)**: `Lowering.lean`, `Nested/Restoration/{LoweredRun,RestorationRun,
+  Certificate}.lean`, `Nested/Install/{Result,Dispatch}.lean`, `Dispatch.lean`,
+  `Verify/Environment.lean`, this file. Frozen as in wave 2: producers may add fields and
+  theorems, not rename, remove or retype.
+
+### Dependency order (wave 3)
+
+1. **Lowering** and **Restoration-A** have nothing above them and start at once; neither reads
+   the other's output (Restoration-A's statements are checker-facing, over a `CheckerEnv` the
+   caller supplies).
+2. **Restoration-B** consumes `NestedLoweringOutput` (the cache facts `nested_app`,
+   `aux_cached`, the inverse `restore_source`) and the validation passes (the side environments'
+   models are its own, built from the restoration folds; it instantiates `Passes.lean`'s
+   statements with them). It can start on the folds, the kernel order and the compilation data
+   immediately, requesting fields of `NestedLoweringOutput` from Lowering as needed; its
+   boundary theorem lands after both. The Theory stubs of `CompilationMajors.lean` depend on
+   nothing upstream.
+3. **Equations+Install** consumes `RestoredBlock` (rule typing over `B.envR` and the lowered
+   run's `L.rules`; the environment-side facts over `B.addInduct`). `RestoredPattern.clause`,
+   `instantiateParams_liftN` and the restoration substitution depend on nothing upstream and
+   can start immediately; `rulesWF`/`blockWF`/`installedFacts` land after Restoration-B's
+   interface is final.
+
+### Interface decisions (wave 3)
+
+* The restoration inverse is stated up to `Expr.eqv` (`==`), as the source branch proved it
+  (`restoredType_eqv_source`); consumers translate through `TrExprS.eqv`. The zero-auxiliary
+  identity stays literal.
+* `NestedLoweringOutput` is syntactic (kernel `Expr`s, `env.find?`); the typing of the cached
+  occurrences comes from the validation pass `validateNestedAuxiliaries`, not from lowering.
+* `RestoredBlock` carries `CompilationData` against the lowered run's generator
+  (`L.recursors.signature`/`generation`), so the Equations owner transports `L.rules` along
+  `compilationRestoration decl auxiliaries` without re-deriving the generator.
+* `Interpretation.Sound.ordered` is `OrderedStrong` (wave 2 moved `IsDefEq.instL_r` and
+  `BetaRed.simAt` there); `Sound` has a `pats` clause and no eliminator clause.
+* `RestoredBlock.Installed` is a separate Prop structure so that the Install owner's work
+  (`InstalledBlocks`-style reasoning on the output) does not touch the Restoration owners' data.
