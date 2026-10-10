@@ -53,9 +53,11 @@ theorem AddInductive.runWithStats.WF
     (AddInductive.constructorPhase.WF P numNested isUnsafe hvisible hnprimTypes hnprimCtors
       hlparams hclosed hpresent) fun out Hout => ?_
   obtain ⟨ctorEnv, positivity⟩ := out
-  obtain ⟨decl, -, ⟨R⟩, hclasses⟩ := Hout
+  -- WAVE 2 COMPAT (ctor): `constructorPhase.WF` returns one constructor check with the
+  -- returned classification (`∃ R, R.classes = out.2`).
+  obtain ⟨decl, -, R, hclasses⟩ := Hout
   exact (R.recursorPhasesWF hlparams hsourceSafety hnotPartial hnprimRecursors
-    (hclasses R).symm).mono fun outEnv Hrec => ⟨decl, ctorEnv, R, Hrec⟩
+    hclasses.symm).mono fun outEnv Hrec => ⟨decl, ctorEnv, R, Hrec⟩
 
 /-- Remaining environment-wide contracts at the post-header boundary: with the primitive
 exception enabled, none of the names the block installs is a primitive. -/

@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Constructor.CheckedFormation
+import Lean4Lean.Verify.Inductive.Constructor.Install
 
 /-! # The constructor phase: `constructorPhase`
 
@@ -48,6 +48,22 @@ structure ConstructorCheck (c : AddInductive.Context) (stats : AddInductive.Indu
   constructorParameterAlignment : ∀ {safety},
     ConstructorParameterAlignment safety c.env sourceEnv →
     ConstructorParameterAlignment safety ctorEnv ctorVEnv
+  /-- (Added by the constructor agent.) The kernel headers with their constructors are the
+  executable's `inductiveTypeInfos` and `constructorInfo`s. -/
+  ivals_eq : ivals = (headers.infos.zip indTypes.toList).map fun p =>
+    (p.1, familyCtorInfos stats c.lparams isUnsafe p.2)
+  /-- (Added for the rules agent.) Every kernel constructor has the declaration's parameter
+  count. -/
+  ctor_numParams : ∀ iv ∈ ivals, ∀ cval ∈ iv.2, cval.numParams = decl.nparams
+  /-- (Added for the recursor agent.) The concrete parameter prefixes and spines of the source
+  constructor types. -/
+  parameterPrefixes : ConstructorParameterPrefixes stats indTypes
+  /-- (Added for the recursor agent.) The concrete checked tails, in the header environment's
+  parameter scope. -/
+  constructorTails : ConstructorTails headers.context.venv c.lparams
+    headers.parameters.parameterDecls stats decl indTypes classes
+  /-- (Added for the recursor agent.) The owner normal forms of the kernel constructor types. -/
+  ownerNormalForms : ConstructorOwnerNormalForms stats indTypes
 
 namespace ConstructorCheck
 
@@ -111,14 +127,96 @@ theorem AddInductive.constructorPhase.WF
     (hpresent : ListedConstructorsPresent c'.env) :
     (AddInductive.constructorPhase stats nparams indTypes numNested isUnsafe c').WF
       fun out => ∃ decl, P.headers.Describes decl ∧
-        Nonempty (ConstructorCheck c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes
-          out.1) ∧
-        (∀ R : ConstructorCheck c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes out.1,
-          R.classes = out.2) := by
-  -- WAVE 2 STUB (Constructor/CheckedFormation): the source branch's
-  -- `AddInductive.formationCoreClosedWF` (`Install/Formation.lean`) composed from
-  -- `declareInductiveTypes.WF`, `checkConstructors.checkedWF` and `declareConstructors.WF`.
-  have := hpresent; sorry
+        ∃ R : ConstructorCheck c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes out.1,
+          R.classes = out.2 := by
+  have HD := AddInductive.declareInductiveTypes.WF P numNested isUnsafe hvisible hnprimTypes
+    hpresent
+  unfold AddInductive.constructorPhase
+  refine Except.WF.bind HD fun headerEnv ⟨hwfH, Hhdr⟩ => ?_
+  intro out hout
+  change (AddInductive.checkConstructors indTypes stats isUnsafe { c' with env := headerEnv } >>=
+    fun positivity => (AddInductive.declareConstructors stats indTypes isUnsafe >>= fun ctorEnv =>
+      pure (ctorEnv, positivity)) { c' with env := headerEnv }) = .ok out at hout
+  cases hcheck : AddInductive.checkConstructors indTypes stats isUnsafe
+      { c' with env := headerEnv } with
+  | error e => rw [hcheck] at hout; cases hout
+  | ok positivity =>
+  rw [hcheck] at hout
+  change (AddInductive.declareConstructors stats indTypes isUnsafe { c' with env := headerEnv } >>=
+    fun ctorEnv => (pure (ctorEnv, positivity) : Except Exception _)) = .ok out at hout
+  cases hdeclare : AddInductive.declareConstructors stats indTypes isUnsafe
+      { c' with env := headerEnv } with
+  | error e => rw [hdeclare] at hout; cases hout
+  | ok ctorEnv =>
+  rw [hdeclare] at hout
+  cases hout
+  have habsent := AddInductive.declareConstructors.namesAbsent (c := { c' with env := headerEnv })
+    (stats := stats) (indTypes := indTypes) (isUnsafe := isUnsafe) hwfH ctorEnv hdeclare
+  obtain ⟨hmap, hquot, hfr, hnd⟩ := AddInductive.declareConstructors.WF
+    (c := { c' with env := headerEnv }) stats indTypes isUnsafe hwfH ctorEnv hdeclare
+  obtain ⟨decl, hD, hU, hK⟩ := AddInductive.checkConstructors.WF P isUnsafe (Hhdr habsent)
+    hlparams positivity hcheck
+  obtain ⟨H⟩ := Hhdr habsent decl hD hU
+  have hnindices : ∀ i (hi : i < decl.types.length) (hn : i < stats.nindices.size),
+      stats.nindices[i] = decl.types[i].numIndices := by
+    intro i hi hn
+    have h1 := congrArg (·[i]?) P.nindices
+    have h2 := congrArg (·[i]?) hD.numIndices
+    simp only [Array.getElem?_toList] at h1
+    rw [← h2] at h1
+    simpa [hi, hn] using h1
+  let I : CtorInstall c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes headerEnv ctorEnv
+      positivity := {
+    H := H
+    K := hK H
+    map_eq := hmap
+    quotInit_eq := hquot
+    fresh := fun cval hcval => (hfr cval hcval).1
+    nodup := hnd
+    nprim := fun cval hcval hp => by
+      have hallow := (hfr cval hcval).2 hp
+      obtain ⟨t, ht, j, ctor, hctor, rfl⟩ := mem_ctorInfos hcval
+      exact hnprimCtors hallow t ht ctor hctor hp
+    nindices_size := P.nindices_size
+    nindices := hnindices
+    params_size := P.params_size
+    visible := hvisible }
+  refine ⟨decl, hD, {
+    headerEnv := headerEnv
+    headers := H
+    ctorVEnv := I.ctorVEnv
+    core := I.core
+    formation := I.formation
+    params_eq := rfl
+    checked := ⟨I.K.shapes, I.K.types⟩
+    classes := positivity
+    classes_length := I.K.classes_length
+    tails := I.K.tails
+    ivals := I.ivals
+    ivals_infos := I.ivals_infos
+    trTypes := I.trTypes
+    map_eq := by rw [I.ivals_flat]; exact hmap
+    quotInit_eq := hquot
+    fresh := fun iv hiv cval hcval => by
+      have hmem : ConstantInfo.ctorInfo cval ∈
+          I.ivals.flatMap (fun iv => iv.2.map ConstantInfo.ctorInfo) :=
+        List.mem_flatMap.mpr ⟨iv, hiv, List.mem_map_of_mem hcval⟩
+      rw [I.ivals_flat] at hmem
+      obtain ⟨cv, hcv, he⟩ := List.mem_map.mp hmem
+      cases he
+      exact (hfr _ hcv).1
+    context := I.context
+    contextVEnv := rfl
+    contextMLCtx := rfl
+    parameters := I.parameters
+    closed := I.closed hclosed
+    inductInfosFromDecl := I.inductInfosFromDecl
+    constructorParameterAlignment := fun h => I.constructorParameterAlignment h
+    ivals_eq := rfl
+    ctor_numParams := I.ctor_numParams
+    parameterPrefixes := I.K.parameterPrefixes
+    constructorTails := I.K.constructorTails
+    ownerNormalForms := I.K.ownerNormalForms }, rfl⟩
 
 end VerifyInductive
 end Lean4Lean
