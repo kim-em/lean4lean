@@ -101,7 +101,7 @@ theorem Restoration.constInterpretation_substitution {env envTypes envL : VEnv}
       rr.2.FixedTermsFixed (r.constInterpretation P)) :
     r.Substitution envTypes envL (r.constInterpretation P) := by
   have hordered := henvTypes.ordered
-  have hon := hordered.onTypes_noFreshConsts hfresh
+  have hon := henvTypes.onTypes_noFreshConsts hfresh
   have hfix : ∀ {e : VExpr}, e.containsAnyConst r.restorableNames = false →
       (r.constInterpretation P).expr e = e :=
     Restoration.constInterpretation_expr_eq_self
@@ -452,7 +452,7 @@ theorem NestedRun.sourceConstructors_of_lowering
     change t.type.containsAnyConst _ = false ∧
       envTypes.HasType t.uvars [] _ t.type
     rw [huvars]
-    refine ⟨(htypeD.noFreshConsts hordered hfreshAll (by intro _ h; simp at h)).2.1, ?_⟩
+    refine ⟨(htypeD.noFreshConsts henvTypes hfreshAll (by intro _ h; simp at h)).2.1, ?_⟩
     have hPS : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
         E.lowered.signature.params.reverse sourceParams.reverse :=
       VEnv.IsDefEqCtx.trans_empty henvTypes hP (hctx.symm hordered)

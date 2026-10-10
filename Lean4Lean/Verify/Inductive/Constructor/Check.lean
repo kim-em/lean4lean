@@ -68,6 +68,11 @@ structure ConstructorCheck (c : AddInductive.Context) (stats : AddInductive.Indu
   /-- (Added by install, WAVE 2 install COMPAT.) Positivity's literal side condition, in the
   recursor phase's context. -/
   literalDisjoint : checkPositivityStep.AvailableLiteralDisjoint context.venv stats.indConsts
+  /-- WAVE 3 COMPAT (restB): the family and constructor names are not checker primitives
+  (they passed `checkName`; for the ordinary path primitive names are rejected or
+  `allowsPrimitives` fails). Read by the nested restoration (`NestedRun.loweredNonprimitive`). -/
+  nonprimitive : ∀ T ∈ decl.types, ¬ Kernel.Environment.primitives.contains T.name ∧
+    ∀ ctor ∈ T.ctors, ¬ Kernel.Environment.primitives.contains ctor.name
 
 namespace ConstructorCheck
 
@@ -248,7 +253,16 @@ theorem AddInductive.constructorPhase.WF
     parameterPrefixes := I.K.parameterPrefixes
     constructorTails := I.K.constructorTails
     ownerNormalForms := I.K.ownerNormalForms
-    literalDisjoint := I.contextLiteralDisjoint }, rfl⟩
+    literalDisjoint := I.contextLiteralDisjoint
+    nonprimitive := by
+      -- WAVE 3 COMPAT (restB)
+      intro T hT
+      refine ⟨hnprimFam T hT, fun ctor hctor hp => ?_⟩
+      have hmem : ctor ∈ decl.constructorConstants := List.mem_flatMap.mpr ⟨T, hT, hctor⟩
+      obtain ⟨ci, hci, ⟨-, hname⟩, -, -⟩ :=
+        List.Forall₂.forall_exists_r I.ctorEntries ctor hmem
+      obtain ⟨cval, hcval, rfl⟩ := List.mem_map.mp hci
+      exact hnprim cval hcval (by rw [show cval.name = ctor.name from hname]; exact hp) }, rfl⟩
 
 end VerifyInductive
 end Lean4Lean
