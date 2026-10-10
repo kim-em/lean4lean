@@ -69,6 +69,11 @@ structure RecursorInput (c : AddInductive.Context) (stats : AddInductive.Inducti
   ownerNormalForms : ConstructorOwnerNormalForms stats indTypes
   /-- Positivity's literal side condition in the recursor phase's context. -/
   literalDisjoint : checkPositivityStep.AvailableLiteralDisjoint context.venv stats.indConsts
+  /-- WAVE 3 COMPAT (restB): without the primitive exception, the family and constructor names
+  are not checker primitives (`ConstructorCheck.nonprimitive`). -/
+  nonprimitive : c.allowPrimitive = false → ∀ T ∈ decl.types,
+    ¬ Kernel.Environment.primitives.contains T.name ∧
+      ∀ ctor ∈ T.ctors, ¬ Kernel.Environment.primitives.contains ctor.name
 
 /-- The ordinary constructor phase's output as the recursor phase's input. -/
 def ConstructorCheck.toRecursorInput {c : AddInductive.Context}
@@ -105,6 +110,7 @@ def ConstructorCheck.toRecursorInput {c : AddInductive.Context}
   constructorTails := R.constructorTails
   ownerNormalForms := R.ownerNormalForms
   literalDisjoint := R.literalDisjoint
+  nonprimitive := fun _ => R.nonprimitive
 
 /-- The recursor phase's input from a constructor installation over header data (the path of
 the primitive declarations, whose header environment has no `ContextWF`). -/
@@ -113,7 +119,10 @@ noncomputable def CtorInstall.toRecursorInput {c : AddInductive.Context}
     {depth : Nat} {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv : Environment} {classes : List (List (List Bool))}
     (I : CtorInstall c stats decl nparams isUnsafe depth sourceEnv indTypes headerEnv ctorEnv
-      classes) (hclosed : MutualInductivesClosed c.env) :
+      classes) (hclosed : MutualInductivesClosed c.env)
+    (hnprim : c.allowPrimitive = false → ∀ T ∈ decl.types,
+      ¬ Kernel.Environment.primitives.contains T.name ∧
+        ∀ ctor ∈ T.ctors, ¬ Kernel.Environment.primitives.contains ctor.name) :
     RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv where
   headerEnv := headerEnv
   headers := I.H
@@ -151,6 +160,7 @@ noncomputable def CtorInstall.toRecursorInput {c : AddInductive.Context}
   constructorTails := I.K.constructorTails
   ownerNormalForms := I.K.ownerNormalForms
   literalDisjoint := I.contextLiteralDisjoint
+  nonprimitive := hnprim
 
 namespace RecursorInput
 
