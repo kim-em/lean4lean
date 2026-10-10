@@ -127,7 +127,7 @@ theorem rulesWF (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
 /-- `VInductDecl.WF` of the restored declaration. -/
 theorem wf' (B : RestoredBlock L sourceTypes isUnsafe outEnv) (hsource : sourceTypes ≠ []) :
     B.decl.WF Hc.venv :=
-  B.wf hsource B.rulesWF
+  B.wf hsource B.blockWF B.rulesWF
 
 /-- The compiled block with its typing, for `BlockCertificate.compiled`. -/
 theorem compiledWF (B : RestoredBlock L sourceTypes isUnsafe outEnv) :

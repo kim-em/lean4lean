@@ -743,7 +743,8 @@ theorem RecursorConstruction.paramsFree_of_fresh
   have hon := VLCtx.WF.toCtx (VLCtx.WF.append_right hwf)
   have hfresh' : ∀ name ∈ heads, R.sourceContext.venv.constants name = none := by
     rw [R.sourceContextVEnv]; exact hfresh
-  exact VEnv.Ordered.ctxNoFreshConsts R.sourceContext.checking.tr.wf.ordered hfresh' hon
+  -- MODEL COMPAT: `ctxNoFreshConsts` reads the rules off `env.WF`
+  exact VEnv.WF.ctxNoFreshConsts R.sourceContext.checking.tr.wf hfresh' hon
 
 /-- **Every normalized constructor type of the construction's signature
 is head-applied** at the parameter count and universe arity of the

@@ -235,3 +235,29 @@ theorem NestedRestorationFolds.entries_perm {types : List InductiveType}
 
 end VerifyInductive
 end Lean4Lean
+
+namespace Lean4Lean
+namespace VerifyInductive
+
+open Lean hiding Environment Exception
+open Kernel
+
+/-- The kernel side of a restoration run in the form of PR #43's `AddInduct`: the run's
+constants in insertion order, a permutation of the stage order, fresh in the source map, and
+inserted into it to give the output map. -/
+theorem NestedRestorationFolds.kernelOrder {result : Lean4Lean.ElimNestedInductive.Result}
+    {loweredEnv sourceEnv outEnv : Environment} {auxRec : NameMap Name}
+    {allIndNames : List Name} {types : List InductiveType} {auxRecNames : List Name}
+    (H : NestedRestorationFolds result loweredEnv sourceEnv auxRec allIndNames types auxRecNames
+      ((), outEnv)) (hwf : sourceEnv.constants.WF) :
+    H.entries.Perm (AddInduct.consts H.ivals H.rvals) ∧
+      (∀ ci ∈ AddInduct.consts H.ivals H.rvals, sourceEnv.constants.find? ci.name = none) ∧
+      outEnv.constants = insertConsts sourceEnv.constants H.entries ∧
+      outEnv.quotInit = sourceEnv.quotInit := by
+  have Hfresh := H.freshExtensionExact hwf
+  refine ⟨H.entries_perm, fun ci hci => ?_, Hfresh.map_eq, Hfresh.quotInit_eq⟩
+  have h := Hfresh.sourceFresh hwf ((H.entries_perm).mem_iff.mpr hci)
+  rwa [Kernel.Environment.find?, hwf.find?'_eq_find?] at h
+
+end VerifyInductive
+end Lean4Lean
