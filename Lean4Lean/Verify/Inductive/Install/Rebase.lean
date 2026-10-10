@@ -359,7 +359,7 @@ theorem AddInduct.rebase {s safety : DefinitionSafety} {m₁ m₂ : ConstMap}
         Lean4Lean.List.Forall₂.imp (fun _ _ hc => ⟨⟨(hc.1.1.sf_mono hs).mono hT, hc.1.2⟩, hc.2⟩)
           h.ctors⟩) H.types
     recs := Lean4Lean.List.Forall₂.imp (fun _ _ h =>
-      { tr := ⟨(h.tr.1.sf_mono hs).mono hC, h.tr.2⟩
+      { tr := ⟨(h.tr.1.sf_mono hs).mono (VEnv.addProjections_mono hC), h.tr.2⟩  -- WAVE 2 rec COMPAT
         all := h.all
         numParams := h.numParams
         numMotives := h.numMotives
