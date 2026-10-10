@@ -282,5 +282,173 @@ theorem RestorationInDependencyOrder.existsBlockStages
       abstract := HrecursorsAdded.abstract
       name_eq := fun entry hentry => (H.recursors entry hentry).1.2 } }, rfl, rfl⟩
 
+/-! ### The restored block base -/
+
+/-- **The rule-free restored block of a nested run** (the source branch's
+`NestedRun.assemblyBaseValid`, without the stripped environment's validity, which the target
+reads off the rule-free stage `RuleFreeStage`). Source parameter formation `Hparameters` is a
+premise (the source branch's `NestedRun.sourceCoreParameterWF`). -/
+theorem NestedRun.assemblyBase {res : ElimNestedInductive.Result} {sourceProdEnv : Environment}
+    {sourceTypes : List InductiveType} {sourceVEnv : VEnv} {decl : VInductDecl}
+    {lparams : List Name} {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
+    {outEnv : Environment}
+    (E : NestedRun res sourceProdEnv sourceTypes sourceVEnv decl lparams nparams isUnsafe
+      safety outEnv)
+    {ves : VEnvs} (wf : ves.WF sourceProdEnv) (hsourceVEnv : sourceVEnv = ves.venv safety)
+    (Hsources : SourceSyntaxChecks sourceProdEnv sourceTypes)
+    (Hparameters : decl.SourceParameterWF sourceVEnv)
+    (hvisible : safety ≤ (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
+    Nonempty { B : RestoredBlockBase E.restoration sourceVEnv decl lparams nparams isUnsafe
+      safety // B.lowered = E.lowered } := by
+  obtain ⟨loweredEnv, lowered, context, Hc, context_env, context_lparams, context_safety, -,
+    context_venv, lowered_c, lowered_nparams, lowered_isUnsafe, lowered_isUnsafe_source,
+    lowered_initialEnv, lowered_indTypes, -, -, -, -, -, validationFuel, -, lowering,
+    restoration, primitiveSafe, validationEnv, validationEnvironment, recursorTypeValidation,
+    -, auxiliaryHeaderEnv, headerValidationEnvironment, -, auxiliaryVEnv, -, -, -, -,
+    auxiliarySelection, auxiliaryTranslations, sourceCore, sourceCoreDecl_eq,
+    auxiliaryVEnv_eq_sourceCore, -⟩ := E
+  obtain ⟨c, stats, loweredDecl, nparams', depth, isUnsafe', initialEnv, indTypes, ctorEnv, R,
+    check⟩ := lowered
+  dsimp only at *
+  subst lowered_c
+  subst context_env context_lparams context_safety lowered_initialEnv lowered_nparams
+    lowered_isUnsafe_source lowered_indTypes sourceCoreDecl_eq auxiliaryVEnv_eq_sourceCore
+  change Hc.venv = initialEnv at context_venv
+  have HcChecker : CheckerEnv c.safety c.env initialEnv := context_venv ▸ Hc.checkerEnv
+  let Hprod := check.installation
+  have hsourceWF : c.env.constants.WF := Hc.map_wf
+  have hempty : ({ lvls := c.lparams.map .param, newTypes := #[] } :
+      ElimNestedInductive.State).nestedAux = #[] := rfl
+  have Hlower : NestedLoweringOutputClosed c.env validationFuel.inductiveFuel nparams'
+      sourceTypes { ({ lvls := c.lparams.map .param, newTypes := #[] } :
+        ElimNestedInductive.State) with newTypes := sourceTypes.toArray } res := lowering
+  have Hchecked : SourceSyntaxChecked sourceTypes :=
+    checkInductiveSources_refines c.env sourceTypes () Hsources
+  have Hcore := sourceCore.core
+  have Hmetadata := sourceCore.checked
+  -- the header side environment
+  have Caux := ValidationHeaderEnvironment.checkerEnvOfLowering HcChecker
+    headerValidationEnvironment sourceCore.sourceAdded sourceCore.headerValidationValid
+  -- formation
+  obtain ⟨D, hD⟩ := R.nestedExpansionData wf hsourceVEnv Hc Hlower Hsources Hcore Hmetadata
+    sourceCore.sourceHeaders sourceCore.sourceAdded Caux.wf auxiliarySelection
+    auxiliaryTranslations Hparameters
+  have Harity : sourceCore.sourceDecl.ConstructorArityPrefix loweredDecl := by
+    have h := D.constructorArityPrefix
+    rw [hD] at h
+    exact h
+  -- the projection stage and the constructor side environment
+  have hprojectedWF : (sourceCore.envCtors.addProjections
+      sourceCore.sourceDecl.projectionEntries).WF :=
+    VEnv.WF.inductProjections (block := ⟨sourceCore.sourceDecl.typeConstants,
+        sourceCore.sourceDecl.constructorConstants, [], [],
+        sourceCore.sourceDecl.projectionEntries⟩)
+      HcChecker.wf sourceCore.validationValid.tr.wf
+      (TrInductDeclCore.sourceNames_nodup Hcore)
+      (TrInductDeclCore.typeHeadersWF Hcore) (TrInductDeclCore.constructorUvars Hcore)
+      (TrInductDeclCore.constructorsWF Hcore) Hparameters Hparameters.rawCtorShape
+      rfl rfl rfl Hcore.typesAdded Hcore.ctorsAdded
+  have HtypeValid := validationEnvironment.validProjected Hlower Hc Hprod Hcore Hmetadata
+    Hchecked Harity hempty restoration sourceCore.validationValid HcChecker.toValid hprojectedWF
+  have hle : initialEnv ≤ sourceCore.envCtors.addProjections
+      sourceCore.sourceDecl.projectionEntries :=
+    (VEnv.addConstVals_le Hcore.typesAdded).trans
+      ((VEnv.addConstVals_le Hcore.ctorsAdded).trans VEnv.addProjections_le)
+  have HtypeChecker : CheckerEnv c.safety validationEnv
+      (sourceCore.envCtors.addProjections sourceCore.sourceDecl.projectionEntries) :=
+    CheckerEnv.ofSideExtension HcChecker HtypeValid
+      (fun h => validationEnvironment.preservesSourceFind hsourceWF h)
+      (fun h => by
+        rcases validationEnvironment.findCases hsourceWF h with hold |
+            ⟨_, _, _, _, _, he⟩ | ⟨_, _, _, _, _, _, _, _, _, he⟩
+        · exact hold
+        · cases he
+        · cases he)
+      hle
+  -- the source families
+  have Hfamilies : ∀ name nested, res.aux2nested.find? name = some nested →
+      (`_nested).isPrefixOf name = true := by
+    rcases Hlower with ⟨_finalState, Hrun, _Hcache, _Hparams⟩
+    exact Hrun.resultFamilyNamesReservedFresh hempty
+  have Hconstructors := Hlower.restoreAuxConstructorsFreshAtTypes Hc Hprod Hcore
+    Hc.checking.constructorOwners hempty
+  obtain ⟨primaryRecursors, Hsource⟩ :=
+    Hlower.sourceTraceAtFreshOfTelescopeTranslations Hc Hprod Hchecked Hcore Hmetadata
+      Hfamilies Hconstructors hempty restoration (by
+        intro familyIdx hfamily _hdecl hentry stepSource stepTarget Hstep
+        exact Hlower.restoredSourceTelescopeAtFreshOfValidation Hprod HtypeChecker
+          recursorTypeValidation hempty familyIdx hfamily hentry Hstep)
+  -- the auxiliary recursors
+  have hsourceNonempty : sourceTypes ≠ [] := by
+    rcases Hlower with ⟨_finalState, Hrun, _Hcache, _Hparams⟩
+    rcases Hrun.source with ⟨first, rest, _, _, _, _, htypes, _⟩
+    rw [htypes]; simp
+  obtain ⟨main, rest, rfl⟩ : ∃ main rest, sourceTypes = main :: rest := by
+    cases sourceTypes with
+    | nil => exact (hsourceNonempty rfl).elim
+    | cons main rest => exact ⟨main, rest, rfl⟩
+  have Halignment := restoration.generatedAlignmentTraceOfKernel Hlower Hc Hprod hempty
+  obtain ⟨auxiliaryRecursors, Hauxiliary⟩ := Halignment.recursorTraceOfValidation HtypeChecker
+    recursorTypeValidation (fun _ h => h) []
+  -- the dependency-order replay and its abstract stages
+  obtain ⟨nondeltaEntries, Hnondelta, hnondelta⟩ := restoration.freshExtensionNondelta hsourceWF
+  obtain ⟨typeEntries, constructorEntries, primaryRecursorEntries, primaryActualEntries,
+    Hprimary⟩ := Hsource.existsExactCanonicalSourceReplay Hlower Hprod hempty hvisible hsourceWF
+  have hprimaryWF := Hprimary.fresh.targetWF hsourceWF
+  obtain ⟨auxiliaryEntries, HauxReplay⟩ := Hauxiliary.existsInDependencyOrder hprimaryWF
+  let replay := Hprimary.appendAuxiliaryRecursors HauxReplay
+  have htypesAbstract : initialEnv.addConstVals (replay.typeEntries.map Prod.snd) =
+      some sourceCore.envTypes := by
+    rw [replay.typeValues]
+    simpa [VInductDecl.typeConstants] using Hcore.typesAdded
+  have hconstructorsAbstract : sourceCore.envTypes.addConstVals
+      (replay.constructorEntries.map Prod.snd) = some sourceCore.envCtors := by
+    rw [replay.constructorValues]
+    simpa [VInductDecl.constructorConstants] using Hcore.ctorsAdded
+  obtain ⟨primitiveEntries, Hprimitive⟩ := primitiveSafe
+  obtain ⟨recursorVEnv, S, hT, hC⟩ := replay.existsBlockStages
+    sourceCore.sourceDecl.projectionEntries HcChecker.toValid.tr hprojectedWF Hprimitive
+    Hnondelta hnondelta htypesAbstract hconstructorsAbstract
+  have hownersNonempty : sourceCore.sourceDecl.types ≠ [] :=
+    TrInductDeclCore.nonempty Hcore (by simp)
+  obtain ⟨mainT, restT, htypesSource⟩ : ∃ m r, sourceCore.sourceDecl.types = m :: r := by
+    cases h : sourceCore.sourceDecl.types with
+    | nil => exact (hownersNonempty h).elim
+    | cons m r => exact ⟨m, r, rfl⟩
+  have Hsource' : SourceFamilyTranslations sourceCore.sourceDecl c.lparams c.safety initialEnv
+      S.venvTypes (S.venvCtors.addProjections sourceCore.sourceDecl.projectionEntries)
+      restoration.inductives (mainT :: restT) primaryRecursors := by
+    rw [hT, hC, ← htypesSource]; exact Hsource
+  have Hauxiliary' : AuxiliaryRecursorTranslations c.safety
+      (S.venvCtors.addProjections sourceCore.sourceDecl.projectionEntries)
+      (S.venvCtors.addProjections sourceCore.sourceDecl.projectionEntries)
+      restoration.auxiliaries [] auxiliaryRecursors := by
+    rw [hC]; exact Hauxiliary
+  exact ⟨⟨{
+    lowered := ⟨c, stats, loweredDecl, nparams', depth, isUnsafe', initialEnv,
+      res.types.toArray, ctorEnv, R, check⟩
+    typeEntries := replay.typeEntries
+    constructorEntries := replay.constructorEntries
+    recursorEntries := replay.recursorEntries
+    recursorVEnv := recursorVEnv
+    install := S
+    main := mainT
+    rest := restT
+    typesSource := htypesSource
+    sourceRecursors := primaryRecursors
+    auxiliaryRecursors := auxiliaryRecursors
+    sourceTranslations := Hsource'
+    auxiliaryRecursorTrace := Hauxiliary'
+    typeValues := replay.typeValues
+    constructorValues := replay.constructorValues
+    recursorValues := replay.recursorValues
+    formationAssembly := D
+    formationExpanded := hD
+    checked := Hmetadata
+    uvars := Hcore.uvars
+    numParams := Hcore.nparams
+    unsafeEq := Hcore.isUnsafe
+    sourceNonempty := by simp }, rfl⟩⟩
+
 end VerifyInductive
 end Lean4Lean

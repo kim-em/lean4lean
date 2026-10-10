@@ -530,7 +530,7 @@ theorem SourceFamilyTranslations.existsExactCanonicalSourceReplay
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors : VEnv}
-    {headerEnv ctorEnv loweredEnv sourceProdEnv targetProdEnv : Environment}
+    {ctorEnv loweredEnv sourceProdEnv targetProdEnv : Environment}
     {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     {Htrace : FoldSteps
