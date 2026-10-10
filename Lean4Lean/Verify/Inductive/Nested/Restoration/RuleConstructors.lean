@@ -312,17 +312,124 @@ theorem NestedRun.loweredConstructorShape
         E.lowered.signature.constructors[index].fields.length := Htr.nfields
     rw [← h]; exact hshape
 
-/-- **Stub (restB).** The kernel constructor of a container constructor: a constructor `c` of the
-container family of a specialization `a` is a kernel constructor of the output whose parameter
-count is the number of specialization arguments.
+/-- The container application recorded for an auxiliary family by lowering is a kernel
+inductive family applied to exactly its parameters (`NestedLoweringOutputClosed.nested_app`, from
+the syntactic source checks). -/
+theorem NestedRun.auxiliaryNestedApp
+    {result : Lean4Lean.ElimNestedInductive.Result}
+    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
+    {venv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
+    {isUnsafe : Bool} {safety : DefinitionSafety} {outEnv : Environment} {ves : VEnvs}
+    (E : NestedRun result sourceProdEnv sourceTypes venv sourceDecl lparams nparams isUnsafe
+      safety outEnv)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
+    {n : Name} {nested : Expr} (hfind : result.aux2nested.find? n = some nested) :
+    ∃ (I : Name) (ls : List Level) (info : InductiveVal) (args : Array Expr),
+      nested = mkAppN (.const I ls) args ∧ sourceProdEnv.find? I = some (.inductInfo info) ∧
+      args.size = info.numParams := by
+  obtain ⟨finalState, Hrun, -, -⟩ := E.lowering
+  obtain ⟨C⟩ := Hrun.cachedAuxiliaryFamilyOfLookup (VEnvs.WF.environmentTypesClosed wf)
+    wf.inductivesClosed Hsources rfl (by rfl) hfind
+  obtain ⟨args', hsize, heq⟩ := Expr.closure_mkAppRange_const C.origin.generated.sourceName
+    C.origin.generated.levels C.origin.generated.nestedNParams C.origin.generated.args
+    C.origin.generated.argsArity C.origin.generated.selection.fvars result.params
+  refine ⟨C.origin.generated.sourceName, C.origin.generated.levels, _, args', ?_,
+    C.origin.generated.built.lookup, hsize.trans C.origin.generated.sourceNumParams⟩
+  refine C.nested_eq.symm.trans ?_
+  rw [C.origin.generated.built.nested, C.origin.generated.selection.expressions]
+  exact heq
 
-What it needs: the lowering's record of the nested occurrence of `a`
-(`NestedLoweringOutputClosed.nested_app`: `nested = mkAppN (.const I ls) args`,
-`env.find? I = some (.inductInfo info)`, `args.size = info.numParams`), linked to `a` by
-`RestorationTablesAgree.familyLookup`/`familyKey` (`AuxiliaryContainerApp`: `I = a.source.name`,
-`args.length = a.arguments.length`), the kernel constructor of `c` among `info.ctors` (the names
-of the container's constructors in the kernel against `a.source.ctors`), and the base
-environment's `ConstructorParameterAlignment` (`numParams = info.numParams`). -/
+/-- The kernel family of a specialization's container: the container family is a kernel
+inductive family whose parameter count is the number of specialization arguments. -/
+theorem NestedRun.containerFamilyKernel
+    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
+    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
+    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
+    {isUnsafe : Bool} {outEnv : Environment}
+    (E : NestedRun result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
+    {auxiliaries : List ContainerSpecialization}
+    (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
+      (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
+    {a : ContainerSpecialization} (ha : a ∈ auxiliaries) :
+    ∃ info : InductiveVal, sourceProdEnv.find? a.source.name = some (.inductInfo info) ∧
+      info.numParams = a.arguments.length := by
+  obtain ⟨nested, hn⟩ := D.familyLookup a ha
+  obtain ⟨b, hb, hba, envS, domains, lvls, Ys, -, hab, -, hYs⟩ := D.familyKey _ nested hn
+  -- the recorded application is that of `a`
+  have key : ∀ l : List ContainerSpecialization,
+      (l.flatMap (·.headNames)).Nodup → (l.map (·.auxiliary)).Nodup := by
+    intro l h
+    induction l with
+    | nil => exact .nil
+    | cons x xs ih =>
+      simp only [List.flatMap_cons, InductiveSignature.ContainerSpecialization.headNames,
+        List.cons_append] at h
+      obtain ⟨h1, h2⟩ := List.nodup_cons.mp h
+      have h3 := (List.nodup_append.mp h2).2.1
+      refine List.nodup_cons.mpr ⟨fun hm => ?_, ih h3⟩
+      obtain ⟨y, hy, hyx⟩ := List.mem_map.mp hm
+      exact h1 (List.mem_append_right _ (List.mem_flatMap.mpr ⟨y, hy, by
+        simp only [hyx]
+        exact List.mem_cons_self⟩))
+  have hauxNodup : (auxiliaries.map (·.auxiliary)).Nodup := key _ D.headNodup
+  have hba' : b = a := List.eq_of_mem_of_nodup_map hauxNodup hb ha hba
+  subst hba'
+  obtain ⟨I, ls, info, args, rfl, hI, hsize⟩ := E.auxiliaryNestedApp wf Hsources hn
+  obtain ⟨xs, hxs⟩ := D.paramsFVars
+  rw [hxs, Expr.abstractN_eq, Expr.abstractN_mkAppN, Expr.mkAppN_eq_mkAppList] at hab
+  have hfn := congrArg Expr.getAppFn hab
+  have hargs := congrArg Expr.getAppArgsList hab
+  simp only [Expr.abstractN, Expr.getAppFn_mkAppList_const] at hfn
+  simp only [Expr.abstractN, Expr.getAppArgsList_mkAppList, Expr.getAppArgsList_const,
+    List.nil_append] at hargs
+  cases hfn
+  refine ⟨info, hI, ?_⟩
+  rw [← hsize, ← Lean4Lean.List.Forall₂.length_eq hYs, ← hargs]
+  simp
+
+/-- **Stub (restB).** The constructors of a specialization's container are the constructors
+listed by the kernel family of the container: a constructor `c` of `a.source` is named in the
+kernel `inductInfo` of `a.source.name`.
+
+This is not a consequence of the premises as stated: `RestorationTablesAgree` pins only
+`a.source.name`, `a.levels` and `a.arguments` (`AuxiliaryContainerApp`), not `a.container`, and no
+fact relates an abstract installed container to the kernel header of the same name (two installed
+declarations may share a family name). The fact holds for the specialization list built by
+`NestedRun.restorationTablesRestoringAll`: there each container is the one
+`AuxiliaryFamilySpecialization.installedContainerOfAbstractLookup` recovers from the kernel family,
+whose `AuxiliaryFamilyContainer.constructorName` is exactly this (`info.ctors[i] =
+container.types[familyIdx].ctors[i].name`). Closing it means threading that field through
+`AuxiliaryFamilySource` (`Lowering/Expansion/AuxiliarySources.lean`) and `SpecializationGenerates`
+(`ContainerSpecializations.lean`) to the run's specialization list. -/
+theorem NestedRun.containerConstructorListed
+    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
+    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
+    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
+    {isUnsafe : Bool} {outEnv : Environment}
+    (E : NestedRun result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
+    {auxiliaries : List ContainerSpecialization}
+    (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
+      (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
+    {a : ContainerSpecialization} (ha : a ∈ auxiliaries)
+    {c : VConstVal} (hc : c ∈ a.source.ctors) {info : InductiveVal}
+    (hI : sourceProdEnv.find? a.source.name = some (.inductInfo info)) :
+    c.name ∈ info.ctors := by
+  -- WAVE 3 STUB (restB): see the docstring.
+  have := E; have := wf; have := Hsources; have := D; have := ha; have := hc; have := hI
+  sorry
+
+/-- The kernel constructor of a container constructor: a constructor `c` of the container family
+of a specialization `a` is a kernel constructor of the output whose parameter count is the number
+of specialization arguments. The kernel family is the one lowering recorded for `a`
+(`NestedRun.containerFamilyKernel`), its constructors carry its parameter count
+(`ConstructorParameterAlignment` of the source environment), and the output extends the source
+environment. -/
 theorem NestedRun.containerConstructorKernel
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -339,8 +446,19 @@ theorem NestedRun.containerConstructorKernel
     {c : VConstVal} (hc : c ∈ a.source.ctors) :
     ∃ cval : ConstructorVal, outEnv.constants.find? c.name = some (.ctorInfo cval) ∧
       cval.numParams = a.arguments.length := by
-  -- WAVE 3 STUB (restB): see the docstring.
-  have := wf; have := Hsources; have := D; have := ha; have := hc; sorry
+  obtain ⟨info, hI, hnp⟩ := E.containerFamilyKernel wf Hsources D ha
+  have hmem := E.containerConstructorListed wf Hsources D ha hc hI
+  obtain ⟨i, hi, hci⟩ := List.mem_iff_getElem.mp hmem
+  obtain ⟨Al⟩ := wf.constructorParameterAlignment (safety := .unsafe) _ info hI
+    (by split <;> decide) i hi
+  have hsourceWF : sourceProdEnv.constants.WF := by
+    have h := E.contextWF.checking.tr.map_wf
+    rwa [E.context_env] at h
+  obtain ⟨_, Hfresh⟩ := E.restoration.freshExtension hsourceWF
+  have houtWF : outEnv.constants.WF := Hfresh.targetWF hsourceWF
+  have hlookup := Hfresh.preservesSourceFind hsourceWF Al.lookup
+  rw [hci, Kernel.Environment.find?_eq_constants houtWF] at hlookup
+  exact ⟨Al.info, hlookup, Al.numParams.trans hnp⟩
 
 /-- **Stub (restB).** The constructor shape of a container constructor at the specialization
 arguments plus the field count of the generated constructor it specializes.
