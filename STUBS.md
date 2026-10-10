@@ -160,6 +160,25 @@ Parked:
 | `Verify/CanonicalEq.lean` | needs `Verify/Inductive/Prelude/EqSyntax.lean` and a `VEnv.HasCanonicalEq` whose `Eq.rec` rule is a pattern; `addDecl.WF` no longer needs it | wave 4 |
 | `Verify/QuotInit.lean` | replaced by PR #43's `Verify/Environment/Quot.lean` | never |
 
+## Wave 2 rules (`Verify/Inductive/Rules/**`)
+
+`RecursorCheck.generatedRuleTranslation` is proved. Its `rules_wf : PatTyped` clause is the
+restatement of the generated equations' `VDefEq.WF` (`Instance.equation_patTyped`,
+`Rules/IotaPatTyped.lean`; `RecursorCheck.rules_wf_of`, `Rules/RulesWF.lean`). The scaffold stub
+`generatedRuleTranslation` is now these three named stubs in `Rules/RuleTranslations.lean`:
+
+| statement | why open | source / unblocked by |
+|---|---|---|
+| `RecursorCheck.rulesCovered` (`RulesCovered`, the `trRules` clause) | stated against the source `RecursorCheck`'s internals (`recInfos`, `generated`, `canonicalGeneration`, `origins`, `ruleAlignment`), which the scaffold's `RecursorCheck` does not carry | source `RecursorCheck.trRules` over `Rules/{Translation,Alignment,MinorContext,...}.lean`; the Recursor agent's port of `RecursorConstruction`/`GeneratedRecursors` |
+| `RecursorCheck.equationsWF` (`EquationsWF`) | same; the typing comes from the typed rule templates (`ruleTyping : TypedRecursorRulesRange`) | source `RecursorCheck.equationsWF` (`Rules/EquationWF.lean`) |
+| `RecursorCheck.ruleCtorParams` (`RuleCtorParams`: every rule's `ctorParams` is `signature.params.length`) | `TrRecursor` reads `ctorParams` off the constructor's `ctorInfo` in `outEnv`; `ConstructorCheck` records no `numParams` of the kernel constructors | the Constructor agent's requested `ConstructorCheck` field (kernel cvals have `numParams = decl.nparams`) |
+
+For Install: `RecursorCheck.rules_ofEquation` (`Rules/RulesWF.lean`) gives the `rules` and
+`rules_total` clauses of `VInductDecl.RecsOf` from the same three facts (via
+`RuleEquationData.ofEquation`), so `RuleTranslations.recsOf` needs only `recursors_eq` beyond it.
+`Rules/RuleSyntax.lean` and `Rules/FromTemplates.lean` are ported by the Recursor agent (lead's
+decision: the source's `Recursor/**` imports them).
+
 ## Wave 2 scaffold (`Verify/Inductive/**`, the inductive refinement's interface)
 
 `lake build` (default targets), `Lean4Lean.Tests` and `Lean4Lean.Experimental` are green with
