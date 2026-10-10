@@ -275,13 +275,164 @@ theorem RecursorCheck.blockCertificate
     (H : RecursorCheck R outEnv) (T : RuleTranslations H)
     (hnonempty : indTypes.toList ≠ []) :
     Nonempty (BlockCertificate c.safety c.env sourceEnv H.decl' outEnv H.outVEnv') := by
-  -- WAVE 2 STUB (Install): `decl'.WF` from `R.formation.wf` (`FormationCertificate.wf`, the
-  -- source judgment by `TrInductDeclCore.sourceWF_ofNonempty`, the recursor half by
-  -- `T.recursorsWF`); `AddInduct` from the stages (`R.core`, `R.trTypes`, `H.recsAdded`,
-  -- `H.trRecs`, `addRules` of closed reducts, which makes `outVEnv'` the output of
-  -- `addRules`), `order := consts`, `map_eq` from the three `insertConsts` equations and
-  -- `fresh` from the three freshness facts.
-  have := T; have := hnonempty; sorry
+  have hwf : c.env.constants.WF := R.headers.sourceContext.map_wf
+  have hsrcWF : sourceEnv.WF := R.headers.sourceContextVEnv ▸ R.headers.sourceContext.wf
+  have hhdrWF : R.headerEnv.constants.WF := R.headers.context.map_wf
+  have hctorWF : ctorEnv.constants.WF := R.context.map_wf
+  have toMap : ∀ {E : Environment} (_ : E.constants.WF) {n ci}, E.find? n = some ci →
+      E.constants.find? n = some ci := by
+    intro E hE n ci h; rwa [Lean.Kernel.Environment.find?, hE.find?'_eq_find?] at h
+  have toMapNone : ∀ {E : Environment} (_ : E.constants.WF) {n}, E.find? n = none →
+      E.constants.find? n = none := by
+    intro E hE n h; rwa [Lean.Kernel.Environment.find?, hE.find?'_eq_find?] at h
+  have hinfos : R.headers.infos = R.ivals.map (·.1) := R.ivals_infos.symm
+  -- the kernel side: headers over the source, constructors over the headers, recursors over
+  -- the constructors
+  have freshHdr : ∀ ci ∈ R.headers.infos.map ConstantInfo.inductInfo,
+      c.env.constants.find? ci.name = none := by
+    intro ci hci
+    obtain ⟨info, hinfo, rfl⟩ := List.mem_map.1 hci
+    exact toMapNone hwf (R.headers.fresh info hinfo)
+  have subHdr : ∀ {n x}, c.env.constants.find? n = some x → R.headerEnv.constants.find? n = some x :=
+    fun h => by rw [R.headers.map_eq]; exact insertConsts_find?_mono_of_fresh hwf.map₂ freshHdr h
+  have freshCtor : ∀ ci ∈ R.ivals.flatMap (fun iv => iv.2.map ConstantInfo.ctorInfo),
+      R.headerEnv.constants.find? ci.name = none := by
+    intro ci hci
+    obtain ⟨iv, hiv, hci⟩ := List.mem_flatMap.1 hci
+    obtain ⟨cval, hcval, rfl⟩ := List.mem_map.1 hci
+    exact toMapNone hhdrWF (R.fresh iv hiv cval hcval)
+  have subCtor : ∀ {n x}, R.headerEnv.constants.find? n = some x → ctorEnv.constants.find? n = some x :=
+    fun h => by rw [R.map_eq]; exact insertConsts_find?_mono_of_fresh hhdrWF.map₂ freshCtor h
+  have noneOf : ∀ {C C' : ConstMap} (_ : ∀ {n x}, C.find? n = some x → C'.find? n = some x)
+      {n}, C'.find? n = none → C.find? n = none := by
+    intro C C' hsub n h
+    cases hc : C.find? n with
+    | none => rfl
+    | some x => rw [hsub hc] at h; cases h
+  -- the stages
+  obtain ⟨outR, hP⟩ := VEnv.addRules_exists (decl := H.decl') H.outVEnv H.rules_closed
+  have hout' : H.outVEnv' = outR := by simp [RecursorCheck.outVEnv', hP]
+  rw [hout']
+  have stT : H.decl'.addTypes sourceEnv = some R.headerVEnv := by
+    rw [VInductDecl.addTypes_eq_addConstVals]; exact R.core.typesAdded
+  have stC : H.decl'.addCtors R.headerVEnv = some R.ctorVEnv := by
+    rw [VInductDecl.addCtors_eq_addConstVals]; exact R.core.ctorsAdded
+  have stR : H.decl'.addRecs (H.decl'.addProjs R.ctorVEnv) = some H.outVEnv := H.recsAdded
+  let add : AddInduct c.safety c.env.constants sourceEnv H.decl' outEnv.constants outR := {
+    ivals := R.ivals
+    rvals := H.rvals
+    envT := R.headerVEnv
+    envC := R.ctorVEnv
+    envR := H.outVEnv
+    stT := stT
+    stC := stC
+    stR := stR
+    stP := hP
+    types := R.trTypes
+    recs := H.trRecs
+    order := AddInduct.consts R.ivals H.rvals
+    order_perm := List.Perm.refl _
+    fresh := by
+      intro ci hci
+      rcases AddInduct.mem_consts.1 hci with ⟨iv, hiv, rfl⟩ | ⟨iv, hiv, cval, hcval, rfl⟩ |
+          ⟨rval, hrval, rfl⟩
+      · exact freshHdr _ (List.mem_map_of_mem (by rw [hinfos]; exact List.mem_map_of_mem hiv))
+      · exact noneOf subHdr (toMapNone hhdrWF (R.fresh iv hiv cval hcval))
+      · exact noneOf (fun h => subCtor (subHdr h)) (toMapNone hctorWF (H.fresh rval hrval))
+    map_eq := by
+      rw [H.map_eq, R.map_eq, R.headers.map_eq, hinfos]
+      simp [AddInduct.consts, insertConsts, List.foldl_append, List.map_map, Function.comp_def] }
+  have hle' : H.outVEnv ≤ outR := VEnv.addRules_le hP
+  have hleR : sourceEnv ≤ H.outVEnv :=
+    (VEnv.addTypes_le stT).trans ((VEnv.addCtors_le stC).trans
+      (VEnv.addProjs_le.trans (VEnv.addRecs_le stR)))
+  have wf' : H.decl'.WF sourceEnv :=
+    (R.formation.withRecs H.recs).wf
+      (VInductDecl.SourceWF.withRecs (TrInductDeclCore.sourceWF_ofNonempty R.core
+        (TrInductDeclCore.nonempty R.core hnonempty)) H.recs) (T.recursorsWF hnonempty)
+  have installed : sourceEnv.addInduct H.decl' = some outR := add.env_eq
+  have houtWF : outEnv.constants.WF := H.checking.tr.map_wf
+  -- every new recursor is one of the block's
+  have newRec : ∀ {n r}, outEnv.find? n = some (.recInfo r) → c.env.find? n = none →
+      r ∈ H.rvals := by
+    intro n r h1 h2
+    rcases add.find? hwf (toMap houtWF h1) with hold | ⟨hmem, -⟩
+    · rw [toMapNone hwf h2] at hold; cases hold
+    · rcases AddInduct.mem_consts.1 hmem with ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩ | ⟨rval, hrval, h⟩
+      · cases h
+      · cases h
+      · cases h; exact hrval
+  have checking : CheckingEnv.Valid c.safety outEnv outR := by
+    obtain ⟨ds, hds⟩ := hsrcWF
+    refine H.checking.addRules hP ⟨_, .decl (.induct wf' installed) hds⟩ ?_
+    intro p r hp
+    rcases VEnv.addInduct_pats_origin installed hp with hold | ⟨rec, hrec, ru, -, rfl⟩
+    · exact .inl (hleR.pats hold)
+    · refine .inr ?_
+      rw [SimplePattern.iota_headConst]
+      obtain ⟨rval, hrval, htr⟩ := List.Forall₂.forall_exists_r H.trRecs rec hrec
+      have := add.find?_self hwf (ci := .recInfo rval)
+        (AddInduct.mem_consts.2 (.inr (.inr ⟨rval, hrval, rfl⟩)))
+      exact ⟨rval, htr.tr.2 ▸ this⟩
+  refine ⟨{
+    wf := wf'
+    add := add
+    quotInit_eq := H.quotInit_eq.trans (R.quotInit_eq.trans R.headers.quotInit_eq)
+    checking := checking
+    closed := H.closed
+    constructorOwners := H.checking.constructorOwners
+    inductInfosFromDecl := H.inductInfosFromDecl.withRecs H.recs
+    cover := ?_
+    recMajor := ?_
+    constructorParameterAlignment := fun h => (H.constructorParameterAlignment h).mono hle'
+    recK := fun h1 h2 => (H.kLike _ (newRec h1 h2)).mono hle' id
+    compiled := ⟨T.block, T.compilesTo hnonempty, T.recsOf, T.blockWF⟩
+    newUnsafe := ?_ }⟩
+  · intro t ht
+    obtain ⟨info, hinfo, htr⟩ := List.Forall₂.forall_exists_r R.headers.trHeaders t ht
+    have hname : info.name = t.name := htr.1.2
+    have hmem : ConstantInfo.inductInfo info ∈ AddInduct.consts R.ivals H.rvals := by
+      rw [hinfos] at hinfo
+      obtain ⟨iv, hiv, rfl⟩ := List.mem_map.1 hinfo
+      exact AddInduct.mem_consts.2 (.inl ⟨iv, hiv, rfl⟩)
+    refine ⟨info, ?_, hname ▸ R.headers.fresh info hinfo⟩
+    rw [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?, ← hname]
+    exact add.find?_self hwf hmem
+  · intro n r h1 h2
+    have hr := newRec h1 h2
+    obtain ⟨rec, -, htr⟩ := List.Forall₂.forall_exists_l H.trRecs r hr
+    obtain ⟨info, hinfo⟩ := H.checking.recursors.majors (toMap houtWF h1) htr.tr.1.1
+    exact ⟨info, by rw [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?]; exact hinfo⟩
+  · have hdecl : H.decl'.isUnsafe = decl.isUnsafe := rfl
+    have hfam : ∀ iv ∈ R.ivals, iv.1.isUnsafe = decl.isUnsafe := by
+      intro iv hiv
+      have hmem : ConstantInfo.inductInfo iv.1 ∈ AddInduct.consts R.ivals H.rvals :=
+        AddInduct.mem_consts.2 (.inl ⟨iv, hiv, rfl⟩)
+      have hf := add.find?_self hwf hmem
+      have hf' : outEnv.find? iv.1.name = some (.inductInfo iv.1) := by
+        rw [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?]; exact hf
+      rcases H.inductInfosFromDecl _ _ (toMap houtWF hf') with hold | ⟨_, -, ⟨A⟩⟩
+      · have : c.env.constants.find? iv.1.name = none := add.fresh _ hmem
+        rw [this] at hold; cases hold
+      · exact A.isUnsafe
+    intro ci hci
+    rw [hdecl]
+    rcases AddInduct.mem_consts.1 hci with ⟨iv, hiv, rfl⟩ | ⟨iv, hiv, cval, hcval, rfl⟩ |
+        ⟨rval, hrval, rfl⟩
+    · exact hfam iv hiv
+    · obtain ⟨t, -, ht⟩ := List.Forall₂.forall_exists_l R.trTypes iv hiv
+      have hlisted : cval.name ∈ iv.1.ctors := by
+        rw [ht.ctor_names]; exact List.mem_map_of_mem hcval
+      have hfind : ∀ ci ∈ AddInduct.consts R.ivals H.rvals, outEnv.find? ci.name = some ci := by
+        intro ci hci
+        rw [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?]; exact add.find?_self hwf hci
+      obtain ⟨info, hinfo, -, hu⟩ := H.checking.listedConstructors iv.1.name iv.1
+        (hfind _ (AddInduct.mem_consts.2 (.inl ⟨iv, hiv, rfl⟩))) cval.name hlisted _
+        (hfind _ hci)
+      cases hinfo
+      exact hu.trans (hfam iv hiv)
+    · obtain ⟨owner, -, hm⟩ := List.Forall₂.forall_exists_r H.metadata rval hrval
+      exact hm.isUnsafe.trans H.models.safety
 
 end VerifyInductive
 end Lean4Lean

@@ -222,6 +222,21 @@ theorem HasPrimitives.addInduct_rebase {decl : VInductDecl} {env env' out out' :
   · exact (hbase p hp).extend (addInduct_le h')
       (addInduct_constants_of_not_mem h' fun b hb e => hmem ⟨b, hb, e⟩)
 
+theorem foldlM_exists {α} {f : VEnv → α → Option VEnv} :
+    ∀ {l : List α}, (∀ x ∈ l, ∀ e, ∃ e', f e x = some e') → ∀ init, ∃ r, l.foldlM f init = some r
+  | [], _, init => ⟨init, rfl⟩
+  | x :: xs, hf, init => by
+    obtain ⟨e1, h1⟩ := hf x (.head _) init
+    obtain ⟨r, hr⟩ := foldlM_exists (fun y hy => hf y (.tail _ hy)) e1
+    exact ⟨r, by simp only [List.foldlM, h1]; exact hr⟩
+
+/-- The ι-rule stage succeeds once every reduct is closed. -/
+theorem addRules_exists {decl : VInductDecl} (env : VEnv)
+    (h : ∀ r ∈ decl.recs, ∀ ru ∈ r.rules, ru.rhs.Closed) : ∃ env', decl.addRules env = some env' := by
+  unfold VInductDecl.addRules
+  exact foldlM_exists (fun r hr e => foldlM_exists (f := fun e ru => VEnv.addRecRule e r ru)
+    (fun ru hru e => ⟨_, by unfold VEnv.addRecRule; rw [dif_pos (h r hr ru hru)]⟩) e) env
+
 end VEnv
 
 /-- A well-formed block stays well formed over a larger environment in which it installs. -/
@@ -413,5 +428,19 @@ theorem CheckingEnv.Valid.addRules {safety : DefinitionSafety} {env : Environmen
       (fun hp => .inl (by rwa [VEnv.addRules_projections hP] at hp))
     equationHeads := heads
     quot := fun hq => (H.quot hq).extend id hle heads }
+
+/-- `InductInfoAlignment` reads only the source fields of the declaration. -/
+theorem InductInfoAlignment.withRecs {C : ConstMap} {decl : VInductDecl} {i : Nat}
+    {info : InductiveVal} (A : InductInfoAlignment C decl i info) (recs : List VRecursor) :
+    InductInfoAlignment C (decl.withRecs recs) i info :=
+  { A with constructor := fun k hk => let ⟨B⟩ := A.constructor k hk; ⟨{ B with }⟩ }
+
+theorem InductInfosFromDecl.withRecs {C C' : ConstMap} {decl : VInductDecl}
+    (H : InductInfosFromDecl C C' decl) (recs : List VRecursor) :
+    InductInfosFromDecl C C' (decl.withRecs recs) := by
+  intro n v h
+  rcases H n v h with hold | ⟨i, hn, ⟨A⟩⟩
+  · exact .inl hold
+  · exact .inr ⟨i, hn, ⟨A.withRecs recs⟩⟩
 
 end Lean4Lean
