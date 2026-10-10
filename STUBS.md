@@ -354,6 +354,31 @@ Owed by wave 3: every caller of `InstalledBlocks.addInduct` (the nested installa
 containers at specialized arguments, so `recursorShapesOf`, which reads the major off `MajorApp` and the
 rules' constructors off the source declaration, does not cover them).
 
+## Wave 3 Restoration-A (`Nested/Restoration/Validation/**`)
+
+The seven statements of `Validation/Passes.lean` are proved; Restoration-A adds no stub.
+Three statements gained premises, because the passes run the checker without checking them
+or because the scaffold form was circular:
+
+* `validateSourceConstructorTypes.run.WF` takes the closedness of the constructor types
+  (`SourceSyntaxChecks.ctorTypesClosed`, `Validation/Checks.lean`, provides it).
+* `validateNestedAuxiliaries.WF` takes the checker context `mlctx` of the lowering's
+  parameters (`mlctx.WF`, `mlctx.lctx = res.lctx`, freshness for the checker's name generator,
+  the cached occurrences scoped in it) and concludes the typing of every cached occurrence in
+  it. The context is a lowering fact (source branch `NestedLowering.resultParameterMLCtx`), not
+  yet a field of `NestedLoweringOutput`.
+* `stripRecursorRules.checkingValid` (and the new `stripRecursorRules.checkerEnv`, the
+  `CheckerEnv` that `validateRestoredRecursorRules.check.WF` consumes) is stated over a
+  rule-free `AddInduct` into the stripped map and the rule-free facts `RuleFreeStage`
+  (`Validation/Stripped.lean`): the projection stage's `VEnv.WF`, the recursor types, the
+  block's names not primitive, the restored header facts, the K clause and shapes of the new
+  recursors at the recursor stage. The scaffold form took the output's `AddInduct` and
+  `CheckingEnv.Valid`, which contain the rule translations the pass establishes. Restoration-B
+  produces the `RuleFreeStage` (agreed).
+
+`Nested/Restoration/Uniform/**` (parameter uniformity of the lowered recursors) is not needed
+by these statements.
+
 ## Wave 3 scaffold (`Verify/Inductive/Nested/**`, the nested branch's interface)
 
 `lake build` (default targets), `Lean4Lean.Tests` and `Lean4Lean.Experimental` are green with
