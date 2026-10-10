@@ -67,12 +67,12 @@ theorem AddInductive.checkConstructors.WF
     {indTypes : Array InductiveType} {Hc' : ContextWF c'} {stats : AddInductive.InductiveStats}
     (P : HeaderPhase Hc nparams indTypes c' Hc' stats) (isUnsafe : Bool)
     {headerEnv : Environment}
-    (Hheaders : ∀ decl : VInductDecl, P.headers.Describes decl →
+    (Hheaders : ∀ decl : VInductDecl, P.headers.Describes decl → decl.isUnsafe = isUnsafe →
       Nonempty (HeaderEnvironment c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes
         headerEnv))
     (hlparams : c'.lparams.Nodup) :
     (AddInductive.checkConstructors indTypes stats isUnsafe { c' with env := headerEnv }).WF
-      fun classes => ∃ decl, P.headers.Describes decl ∧
+      fun classes => ∃ decl, P.headers.Describes decl ∧ decl.isUnsafe = isUnsafe ∧
         ∀ H : HeaderEnvironment c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes
           headerEnv, ConstructorsChecked H classes := by
   -- WAVE 2 STUB (Constructor): the executable refinement of the constructor loops, the source

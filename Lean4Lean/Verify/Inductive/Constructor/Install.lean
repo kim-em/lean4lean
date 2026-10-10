@@ -124,6 +124,14 @@ theorem ConstantInfo.ctorInfo_safety (v : ConstructorVal) :
   simp only [ConstantInfo.safety, ConstantInfo.isUnsafe, ConstantInfo.isPartial]
   by_cases h : v.isUnsafe = true <;> simp [h]
 
+theorem mapCtorInfo {safety : DefinitionSafety} {env : VEnv} :
+    ∀ {cvals : List ConstructorVal} {cs : List VConstVal},
+    List.Forall₂ (fun cval c => TrConstVal safety env (.ctorInfo cval) c ∧
+      cval.numParams + cval.numFields = c.type.piArity) cvals cs →
+    List.Forall₂ (fun ci v => TrConstVal safety env ci v) (cvals.map ConstantInfo.ctorInfo) cs
+  | _, _, .nil => .nil
+  | _, _, .cons h hs => .cons h.1 (mapCtorInfo hs)
+
 namespace CtorInstall
 
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
@@ -334,6 +342,160 @@ theorem trTypes : List.Forall₂ (fun (iv : InductiveVal × List ConstructorVal)
     have hjs : j < indTypes[i].ctors.length := by simpa [familyCtorInfos_length] using hj
     rw [familyCtorInfos_getElem]
     exact I.ctorAt i h2 j hjs _ (List.forall₂_getElem hctors j hjs hj')
+
+theorem headerMapWF : headerEnv.constants.WF := I.H.context.checking.tr.map_wf
+
+/-- The kernel constructors in lockstep with the abstract ones. -/
+theorem ctorEntries : List.Forall₂ (fun ci v => TrConstVal c.safety I.headerVEnv ci v ∧
+      v.toVConstant.WF I.headerVEnv ∧ ci.deltaValue? = none)
+    ((ctorInfos stats c.lparams isUnsafe indTypes.toList).map ConstantInfo.ctorInfo)
+    decl.constructorConstants := by
+  have htr : List.Forall₂ (fun ci v => TrConstVal c.safety I.headerVEnv ci v)
+      (I.ivals.flatMap fun iv => iv.2.map ConstantInfo.ctorInfo)
+      (decl.types.flatMap (·.ctors)) := by
+    apply Lean4Lean.List.Forall₂.flatMap (R := fun (iv : InductiveVal × List ConstructorVal)
+      (t : VInductiveType) => TrIndType c.safety sourceEnv I.headerVEnv iv.1 iv.2 t) _ I.trTypes
+    intro iv t h
+    exact mapCtorInfo h.ctors
+  rw [← I.ivals_flat]
+  refine Lean4Lean.List.Forall₂.imp (fun ci v ⟨h, hci, hv⟩ => ⟨h, I.ctorsWF' v hv, ?_⟩)
+    (Lean4Lean.List.Forall₂.and_mem htr)
+  obtain ⟨iv, _, hci⟩ := List.mem_flatMap.mp hci
+  obtain ⟨cval, _, rfl⟩ := List.mem_map.mp hci
+  rfl
+
+theorem ctorCis_fresh : ∀ ci ∈ (ctorInfos stats c.lparams isUnsafe indTypes.toList).map
+    ConstantInfo.ctorInfo, headerEnv.find? ci.name = none := by
+  intro ci hci
+  obtain ⟨cval, hcval, rfl⟩ := List.mem_map.mp hci
+  exact I.fresh cval hcval
+
+theorem ctorCis_nodup : (((ctorInfos stats c.lparams isUnsafe indTypes.toList).map
+    ConstantInfo.ctorInfo).map (·.name)).Nodup := by
+  rw [List.map_map]; exact I.nodup
+
+theorem ctorMapWF : ctorEnv.constants.WF :=
+  insertConsts_map_wf I.map_eq I.headerMapWF I.ctorCis_fresh I.ctorCis_nodup
+
+/-- Every constant of the header environment is a constant of the constructor environment. -/
+theorem headerPres {n : Name} {ci : ConstantInfo} (h : headerEnv.find? n = some ci) :
+    ctorEnv.find? n = some ci :=
+  insertConsts_env_mono I.map_eq I.headerMapWF I.ctorCis_fresh I.ctorCis_nodup h
+
+theorem ctorEnv_cases {n : Name} {ci : ConstantInfo} (h : ctorEnv.find? n = some ci) :
+    headerEnv.find? n = some ci ∨ ∃ cval ∈ ctorInfos stats c.lparams isUnsafe indTypes.toList,
+      ci = .ctorInfo cval ∧ cval.name = n := by
+  rcases insertConsts_env_cases I.map_eq I.headerMapWF I.ctorCis_fresh I.ctorCis_nodup h with
+    h | ⟨hmem, hname⟩
+  · exact .inl h
+  · obtain ⟨cval, hcval, rfl⟩ := List.mem_map.mp hmem
+    exact .inr ⟨cval, hcval, rfl, hname⟩
+
+theorem ctorEnv_self {cval : ConstructorVal}
+    (h : cval ∈ ctorInfos stats c.lparams isUnsafe indTypes.toList) :
+    ctorEnv.find? cval.name = some (.ctorInfo cval) :=
+  insertConsts_env_self I.map_eq I.headerMapWF I.ctorCis_fresh I.ctorCis_nodup
+    (List.mem_map_of_mem h)
+
+theorem sourceMapWF : c.env.constants.WF := I.H.sourceContext.checking.tr.map_wf
+
+theorem infoCis_fresh : ∀ ci ∈ I.H.infos.map ConstantInfo.inductInfo, c.env.find? ci.name = none := by
+  intro ci hci
+  obtain ⟨info, hinfo, rfl⟩ := List.mem_map.mp hci
+  exact I.H.fresh info hinfo
+
+theorem infoNames : I.H.infos.map (·.name) = decl.types.map (·.name) := by
+  have go : ∀ {infos : List InductiveVal} {types : List VInductiveType},
+      List.Forall₂ (fun (info : InductiveVal) (t : VInductiveType) =>
+        TrConstVal c.safety sourceEnv (.inductInfo info) t.toVConstVal ∧
+        info.ctors = t.ctors.map (·.name)) infos types →
+      infos.map (·.name) = types.map (·.name) := by
+    intro infos types h
+    induction h with
+    | nil => rfl
+    | cons h _ ih => simp only [List.map_cons, ih]; exact congrArg (· :: _) h.1.2
+  exact go I.H.trHeaders
+
+theorem typeNames_nodup : (decl.types.map (·.name)).Nodup := by
+  simpa only [VInductDecl.typeConstants, List.map_map, Function.comp_def] using
+    VEnv.addConstVals_names_nodup I.H.typesAdded
+
+theorem infoCis_nodup : ((I.H.infos.map ConstantInfo.inductInfo).map (·.name)).Nodup := by
+  rw [List.map_map]
+  have : (I.H.infos.map ConstantInfo.inductInfo).map (·.name) = I.H.infos.map (·.name) := by
+    simp only [List.map_map]; rfl
+  rw [← List.map_map, this, I.infoNames]; exact I.typeNames_nodup
+
+/-- Every constant of the source environment is a constant of the constructor environment. -/
+theorem sourcePres {n : Name} {ci : ConstantInfo} (h : c.env.find? n = some ci) :
+    ctorEnv.find? n = some ci :=
+  I.headerPres (insertConsts_env_mono I.H.map_eq I.sourceMapWF I.infoCis_fresh I.infoCis_nodup h)
+
+theorem headerEnv_cases {n : Name} {ci : ConstantInfo} (h : headerEnv.find? n = some ci) :
+    c.env.find? n = some ci ∨ ∃ info ∈ I.H.infos, ci = .inductInfo info ∧ info.name = n := by
+  rcases insertConsts_env_cases I.H.map_eq I.sourceMapWF I.infoCis_fresh I.infoCis_nodup h with
+    h | ⟨hmem, hname⟩
+  · exact .inl h
+  · obtain ⟨info, hinfo, rfl⟩ := List.mem_map.mp hmem
+    exact .inr ⟨info, hinfo, rfl, hname⟩
+
+theorem headerEnv_self {info : InductiveVal} (h : info ∈ I.H.infos) :
+    headerEnv.find? info.name = some (.inductInfo info) :=
+  insertConsts_env_self I.H.map_eq I.sourceMapWF I.infoCis_fresh I.infoCis_nodup
+    (List.mem_map_of_mem h)
+
+/-- The checking invariant of the constructor environment over the abstract one. -/
+theorem checkingCtor : CheckingEnv c.safety ctorEnv I.ctorVEnv :=
+  CheckingEnv.of_constants_eq (CheckingEnv.insertConsts I.H.context.checking.tr I.ctorEntries
+    I.ctorCis_fresh I.ctorCis_nodup I.ctorsAdded) (by rw [I.map_eq, constants_foldl_add])
+
+/-- The projection-stage environment, in which the recursors are checked. -/
+noncomputable abbrev envP : VEnv := I.ctorVEnv.addProjections decl.projectionEntries
+
+theorem envP_wf : I.envP.WF :=
+  VEnv.WF.inductProjections (block := ⟨decl.typeConstants, decl.constructorConstants, [], [],
+      decl.projectionEntries⟩)
+    I.sourceEnv_wf I.checkingCtor.wf (TrInductDeclCore.sourceNames_nodup I.core)
+    (TrInductDeclCore.typeHeadersWF I.core) I.constructorUvars I.ctorsWF'
+    I.formation.formationWF.sourceParameterWF I.K.rawShapes rfl rfl rfl I.H.typesAdded
+    I.ctorsAdded
+
+theorem headerLE_P : I.headerVEnv ≤ I.envP := I.headerLE.trans VEnv.addProjections_le
+
+theorem sourceLE_P : sourceEnv ≤ I.envP := I.sourceLE.trans I.headerLE_P
+
+theorem ctorNames_nprim : ∀ v ∈ decl.constructorConstants,
+    ¬ Kernel.Environment.primitives.contains v.name := by
+  intro v hv hp
+  have hmem : v.name ∈ (ctorInfos stats c.lparams isUnsafe indTypes.toList).map (·.name) := by
+    rw [← I.ctorNames]; exact List.mem_map_of_mem hv
+  obtain ⟨cval, hcval, he⟩ := List.mem_map.mp hmem
+  exact I.nprim cval hcval (he ▸ hp)
+
+omit I in
+theorem HasPrimitives_addConstVals : ∀ {env env' : VEnv} {vs : List VConstVal},
+    env.HasPrimitives → (∀ v ∈ vs, ¬ Kernel.Environment.primitives.contains v.name) →
+    env.addConstVals vs = some env' → env'.HasPrimitives
+  | _, _, [], h, _, hadd => by cases hadd; exact h
+  | env, env', v :: vs, h, hn, hadd => by
+    simp only [VEnv.addConstVals] at hadd
+    cases hmid : env.addConst v.name v.toVConstant with
+    | none => simp [hmid] at hadd
+    | some mid =>
+      simp only [hmid, Option.bind_eq_bind, Option.bind_some] at hadd
+      exact HasPrimitives_addConstVals (h.addConst_of_not_primitive hmid (hn v (.head _)))
+        (fun w hw => hn w (.tail _ hw)) hadd
+
+/-- The local checking invariants of the constructor environment with its projections. -/
+theorem validCore : CheckingEnv.ValidCore c.safety ctorEnv I.envP where
+  tr := I.checkingCtor.addProjections I.envP_wf
+  hasPrimitives :=
+    (HasPrimitives_addConstVals I.H.context.checking.hasPrimitives I.ctorNames_nprim
+      I.ctorsAdded).addProjections
+  safePrimitives := fun {n ci} h hp => by
+    rcases I.ctorEnv_cases h with h | ⟨cval, hcval, _, rfl⟩
+    · exact I.H.context.checking.safePrimitives h hp
+    · exact absurd hp (I.nprim cval hcval)
 
 end CtorInstall
 
