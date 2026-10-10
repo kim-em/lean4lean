@@ -40,3 +40,20 @@ the checker verification (waves 2 and 3), not as theorems of `RecsCompiled` as P
 proposed. Deriving `rules_wf` from the typing of the generated λ-wrapped equations needs
 uniqueness and Π-injectivity, both stub-backed in wave 0; wave 2 may either prove it or keep
 discharging the field directly from `generatorEquationWF`.
+
+## Wave 1E (executable, tests, divergences)
+
+No stubs: the executable and test ports add no `sorry`. Tests that do not build yet are listed
+in `Lean4Lean/Tests.lean` (the manifest of the `Lean4Lean.Tests` library, which no longer globs
+`Lean4Lean/Tests/`) with the wave that adds them back:
+
+| test | needs | wave |
+|---|---|---|
+| `AmbientContext` (PR #43) | `Verify.TypeChecker` | 1A |
+| closed-form and translation checks of `QuotInit` (removed from the ported test) | `Verify.Environment` (`Environment.addQuot_eq`, `VEnv.addQuot`) | 1B |
+| `InductiveTheory`, `TypedInductiveCompilation` | re-expression for the structure `VInductDecl.WF` and `VEnv.pats` | 2 |
+| `CorruptRecursorMetadata` | `Verify.Inductive.Recursor` | 2 |
+| `CorruptRestoredRecursorMetadata` | `Verify.Inductive.Nested` | 3 |
+| `RecursiveFieldClassification` | `Theory.Typing.Interpretation` | 3 |
+| `PreludeEq` | `Verify.Inductive.Prelude.EqSyntax`; `VEnv.HasCanonicalEq` only for confluence | 4 |
+| `CacheMode`, `SyntacticTranslation` | dropped with the scoped cache mode and the strengthening study | never |
