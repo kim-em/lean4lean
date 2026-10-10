@@ -127,6 +127,10 @@ structure RestoredBlock {c : AddInductive.Context} {Hc : ContextWF c} {nparams :
   /-- The run's declaration is the source declaration without recursors (its
   `SourcePrefixOfLowered` pins the recursor list); `decl` adds the restored ones. -/
   run_decl : decl = runDecl.withRecs decl.recs
+  /-- (Added by Restoration-B.) The source syntax checks, in the lowering's inductive form. -/
+  sourceSyntaxChecked : SourceSyntaxChecked sourceTypes
+  /-- (Added by Restoration-B.) Lowering keeps each source constructor's arity prefix. -/
+  constructorArityPrefix : decl.ConstructorArityPrefix L.loweredDecl
   run_loweredEnv : run.loweredEnv = loweredEnv
   run_lowered : HEq run.lowered L.view
 
