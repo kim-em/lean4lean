@@ -2,6 +2,9 @@ import Lean4Lean.Verify.Inductive.Nested.Install.Permutation
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.Passes
 import Lean4Lean.Verify.Inductive.Nested.Restoration.KernelData
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyTypes
+import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyKernel
+import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyRecursors
+import Lean4Lean.Verify.Inductive.Nested.Restoration.InstalledRun
 import Lean4Lean.Verify.Inductive.Nested.Install.DependencyOrder
 
 /-! # The rule-free stage of a restored nested block
@@ -347,6 +350,35 @@ theorem consts_stripEntries (ivals : List (InductiveVal × List ConstructorVal))
     unfold stripRecCI
     rw [if_pos hmem]; rfl
 
+/-- The rule-free model recursor of a kernel recursor and its translated constant. -/
+def ruleFreeRecursor (rv : RecursorVal) (v : VConstVal) : VRecursor where
+  toVConstVal := v
+  all := rv.all
+  numParams := rv.numParams
+  numMotives := rv.numMotives
+  numMinors := rv.numMinors
+  numIndices := rv.numIndices
+  k := rv.k
+  rules := []
+
+theorem ruleFreeRecursors_spec {safety : DefinitionSafety} {envP envR : VEnv} {m : ConstMap} :
+    ∀ {rvals : List RecursorVal} {vs : List VConstVal},
+      List.Forall₂ (fun (rv : RecursorVal) (v : VConstVal) =>
+        TrConstVal safety envP (.recInfo rv) v ∧ v.toVConstant.WF envP) rvals vs →
+      (List.zipWith ruleFreeRecursor rvals vs).map (·.toVConstVal) = vs ∧
+      List.Forall₂ (TrRecursor safety envP envR m) (rvals.map RecursorVal.stripRules)
+        (List.zipWith ruleFreeRecursor rvals vs) ∧
+      ∀ r ∈ List.zipWith ruleFreeRecursor rvals vs,
+        r.rules = [] ∧ r.toVConstVal.toVConstant.WF envP
+  | [], [], .nil => ⟨rfl, .nil, by simp⟩
+  | rv :: rvs, v :: vs, .cons h t => by
+    obtain ⟨h1, h2, h3⟩ := ruleFreeRecursors_spec (envR := envR) (m := m) t
+    refine ⟨by simp [h1, ruleFreeRecursor], .cons ⟨h.1, rfl, rfl, rfl, rfl, rfl, rfl, .nil⟩ h2, ?_⟩
+    intro r hr
+    rcases List.mem_cons.mp hr with rfl | hr
+    · exact ⟨rfl, h.2⟩
+    · exact h3 r hr
+
 /-- **The rule-free stage of a block installation.** From the step data of an inductive block
 installed into `outEnv` (its kernel constants, translations and stages) and the facts of
 `RuleFreeStage` at the output, the block with every recursor's rules removed is installed into
@@ -354,23 +386,22 @@ the rule-free environment `addConstsEnv env (stripEntries names entries)`, whose
 those of `stripRecursorRules outEnv names`; so the stripped environment is a valid checking
 environment, and a checker environment if the source is, of the recursor stage. -/
 theorem stripRecursorRules.validOfBlock {safety : DefinitionSafety} {env outEnv : Environment}
-    {venv envT envC envR venvOut : VEnv} {decl : VInductDecl} {recs : List VRecursor}
+    {venv envT envC envR : VEnv} {decl : VInductDecl} {vs : List VConstVal}
     {ivals : List (InductiveVal × List ConstructorVal)} {rvals : List RecursorVal}
     {entries : List ConstantInfo}
     (hin : CheckingEnv.Valid safety env venv)
     (hT : decl.addTypes venv = some envT) (hC : decl.addCtors envT = some envC)
-    (hR : ({ decl with recs := recs } : VInductDecl).addRecs (decl.addProjs envC) = some envR)
-    (hrules : ({ decl with recs := recs } : VInductDecl).addRules envR = some venvOut)
+    (hR : (decl.addProjs envC).addConstVals vs = some envR)
     (htypes : List.Forall₂ (fun iv t => TrIndType safety venv envT iv.1 iv.2 t) ivals decl.types)
-    (hrecs : List.Forall₂ (TrRecursor safety (decl.addProjs envC) envR outEnv.constants)
-      rvals recs)
+    (hrecs : List.Forall₂ (fun (rv : RecursorVal) (v : VConstVal) =>
+      TrConstVal safety (decl.addProjs envC) (.recInfo rv) v ∧
+        v.toVConstant.WF (decl.addProjs envC)) rvals vs)
     (hperm : entries.Perm (AddInduct.consts ivals rvals))
     (hfresh : ∀ ci ∈ AddInduct.consts ivals rvals, env.constants.find? ci.name = none)
     (hnodupEntries : (entries.map (·.name)).Nodup)
     (hmap : outEnv.constants = insertConsts env.constants entries)
     (hquot : outEnv.quotInit = env.quotInit)
     (henvP : (decl.addProjs envC).WF)
-    (hrecsWF : ∀ r ∈ recs, r.toVConstVal.toVConstant.WF (decl.addProjs envC))
     (hnonprimitive : ∀ ci ∈ AddInduct.consts ivals rvals,
       ¬ Kernel.Environment.primitives.contains ci.name)
     (hlisted : ListedConstructorsPresent env)
@@ -383,14 +414,18 @@ theorem stripRecursorRules.validOfBlock {safety : DefinitionSafety} {env outEnv 
     (hrecMajor : ∀ r ∈ rvals, ∃ info, outEnv.find? r.getMajorInduct = some (.inductInfo info))
     (hk : ∀ r ∈ rvals, r.k = false)
     (hshapes : ∀ r ∈ rvals, safety ≤ (ConstantInfo.recInfo r).safety →
-      RecursorShapesAt outEnv.constants venvOut r) :
+      ∃ cnparams indLevels ctorParams, Nonempty (VRecursorShape envR r.name r.levelParams.length
+        r.numParams cnparams r.numMotives r.numMinors r.numIndices r.getMajorInduct indLevels
+        ctorParams)) :
     CheckingEnv.Valid safety (stripRecursorRules outEnv (rvals.map (·.name))) envR ∧
       (CheckerEnv safety env venv →
         CheckerEnv safety (stripRecursorRules outEnv (rvals.map (·.name))) envR) := by
   let names := rvals.map (·.name)
-  let decl0 : VInductDecl := { decl with recs := recs.map VRecursor.stripRules }
+  let recs0 := List.zipWith ruleFreeRecursor rvals vs
+  let decl0 : VInductDecl := { decl with recs := recs0 }
   let rvals0 := rvals.map RecursorVal.stripRules
   let S0 := addConstsEnv env (stripEntries names entries)
+  have hrecs0 := ruleFreeRecursors_spec (envR := envR) (m := S0.constants) hrecs
   have hsourceWF : env.constants.WF := hin.tr.map_wf
   have hsourceNames : ∀ x ci, env.constants.find? x = some ci → ci.name = x := by
     intro x ci h
@@ -453,10 +488,7 @@ theorem stripRecursorRules.validOfBlock {safety : DefinitionSafety} {env outEnv 
       intro e hr
       simp only [List.foldlM_cons, hr r (.head _), List.foldlM_nil]
       exact ih e fun r' h' => hr r' (.tail _ h')
-  have hrules0 : ∀ r ∈ decl0.recs, r.rules = [] := by
-    intro r hr
-    obtain ⟨r', -, rfl⟩ := List.mem_map.mp hr
-    rfl
+  have hrules0 : ∀ r ∈ decl0.recs, r.rules = [] := fun r hr => (hrecs0.2.2 r hr).1
   let H0 : AddInduct safety env.constants venv decl0 S0.constants envR := {
     ivals := ivals
     rvals := rvals0
@@ -466,15 +498,12 @@ theorem stripRecursorRules.validOfBlock {safety : DefinitionSafety} {env outEnv 
     stT := hT
     stC := hC
     stR := by
-      rw [VInductDecl.addRecs_eq_addConstVals] at hR ⊢
-      have h1 : (recs.map VRecursor.stripRules).map (·.toVConstVal) = recs.map (·.toVConstVal) := by
-        simp [List.map_map, Function.comp_def]
-      exact (congrArg (fun l => (decl.addProjs envC).addConstVals l) h1).trans hR
+      rw [VInductDecl.addRecs_eq_addConstVals]
+      show (decl.addProjs envC).addConstVals (recs0.map (·.toVConstVal)) = _
+      rw [hrecs0.1]; exact hR
     stP := hrulesNone _ _ hrules0
     types := htypes
-    recs := by
-      refine List.forall₂_map_left_iff.mpr (List.forall₂_map_right_iff.mpr ?_)
-      exact Lean4Lean.List.Forall₂.imp (fun _ _ h => TrRecursor.stripRules h) hrecs
+    recs := hrecs0.2.1
     order := stripEntries names entries
     order_perm := by rw [hconsts0]; exact hperm.map _
     fresh := by
@@ -486,10 +515,7 @@ theorem stripRecursorRules.validOfBlock {safety : DefinitionSafety} {env outEnv 
     rules_empty := hrules0
     quotInit := addConstsEnv_quotInit _ _
     envP_wf := henvP
-    recs_wf := by
-      intro r hr
-      obtain ⟨r', hr', rfl⟩ := List.mem_map.mp hr
-      exact hrecsWF r' hr'
+    recs_wf := fun r hr => (hrecs0.2.2 r hr).2
     nonprimitive := by
       intro ci hci
       obtain ⟨d, hd, hname⟩ := hmem0 ci hci
@@ -525,8 +551,8 @@ theorem stripRecursorRules.validOfBlock {safety : DefinitionSafety} {env outEnv 
     recShapes := by
       intro r hr hsafe
       obtain ⟨r', hr', rfl⟩ := List.mem_map.mp hr
-      exact RecursorShapesAt.stripRules (fun n => (addRules_constants_eq' hrules n).symm)
-        (hshapes r' hr' hsafe) }
+      obtain ⟨cnparams, indLevels, ctorParams, S⟩ := hshapes r' hr' hsafe
+      exact ⟨⟨cnparams, indLevels, ctorParams, S, nofun⟩, nofun⟩ }
   have hstripQuot : ∀ (ns : List Name) (e : Environment),
       (stripRecursorRules e ns).quotInit = e.quotInit := by
     intro ns
@@ -580,55 +606,52 @@ theorem NestedRestorationFolds.rvals_names {result : Lean4Lean.ElimNestedInducti
     FoldSteps.recursorInfos_names, restoredRecursorNames, List.map_map, Function.comp_def]
 
 /-- **The stripped restored environment of a nested run** is a valid checking environment
-of the rule-free recursor stage (and a checker environment). The recursor side (`recs`, the
-recursor stage `envR`, the rule stage `venvOut`, their translations and shapes) and the
-output-level kernel facts (`horigins`, `hcover`, `howners`, `hrecMajor`) are premises. -/
-theorem NestedRun.strippedValid {res : ElimNestedInductive.Result} {sourceProdEnv : Environment}
-    {sourceTypes : List InductiveType} {sourceVEnv : VEnv} {decl : VInductDecl}
-    {lparams : List Name} {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
-    {outEnv : Environment}
-    (E : NestedRun res sourceProdEnv sourceTypes sourceVEnv decl lparams nparams isUnsafe safety
-      outEnv)
-    (B : RestoredBlockBase E.restoration sourceVEnv decl lparams nparams isUnsafe safety)
-    (hB : B.lowered = E.lowered)
-    (Hparameters : decl.SourceParameterWF sourceVEnv)
-    {recs : List VRecursor} {envR venvOut : VEnv}
-    (hR : ({ decl with recs := recs } : VInductDecl).addRecs
-      (decl.addProjs E.sourceCore.envCtors) = some envR)
-    (hrules : ({ decl with recs := recs } : VInductDecl).addRules envR = some venvOut)
-    (hrecs : List.Forall₂ (TrRecursor safety (decl.addProjs E.sourceCore.envCtors) envR
-      outEnv.constants) E.restoration.rvals recs)
-    (hrecsWF : ∀ r ∈ recs, r.toVConstVal.toVConstant.WF (decl.addProjs E.sourceCore.envCtors))
-    (horigins : InductInfosFromDecl sourceProdEnv.constants outEnv.constants decl)
-    (hcover : ∀ T ∈ decl.types,
-      ∃ v, outEnv.find? T.name = some (.inductInfo v) ∧ sourceProdEnv.find? T.name = none)
-    (howners : ConstructorOwnersPresent outEnv)
-    (hrecMajor : ∀ r ∈ E.restoration.rvals,
-      ∃ info, outEnv.find? r.getMajorInduct = some (.inductInfo info))
+of the rule-free recursor stage `B.recursorVEnv` (and a checker environment). No premise mentions
+the restored rules: the recursors are the base's translated recursor constants
+(`RestoredBlockBase.rvalsTranslated`), and the shapes are their telescopes (`hshapes`). -/
+theorem NestedRun.strippedValid {ves : VEnvs} {res : ElimNestedInductive.Result}
+    {sourceProdEnv : Environment} {sourceTypes : List InductiveType} {decl : VInductDecl}
+    {lparams : List Name} {nparams : Nat} {isUnsafe : Bool} {outEnv : Environment}
+    (E : NestedRun res sourceProdEnv sourceTypes (ves.venv (if isUnsafe then .unsafe else .safe))
+      decl lparams nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (B : RestoredBlockBase E.restoration (ves.venv (if isUnsafe then .unsafe else .safe)) decl
+      lparams nparams isUnsafe (if isUnsafe then .unsafe else .safe))
+    (hB : B.lowered = E.lowered) (wf : ves.WF sourceProdEnv)
+    (Hsources : SourceSyntaxChecked sourceTypes)
+    (Hparameters : decl.SourceParameterWF (ves.venv (if isUnsafe then .unsafe else .safe)))
     (hk : ∀ r ∈ E.restoration.rvals, r.k = false)
-    (hshapes : ∀ r ∈ E.restoration.rvals, safety ≤ (ConstantInfo.recInfo r).safety →
-      RecursorShapesAt outEnv.constants venvOut r) :
-    CheckingEnv.Valid safety (stripRecursorRules outEnv
+    (hshapes : ∀ r ∈ E.restoration.rvals,
+      (if isUnsafe then DefinitionSafety.unsafe else .safe) ≤ (ConstantInfo.recInfo r).safety →
+      ∃ cnparams indLevels ctorParams, Nonempty (VRecursorShape B.recursorVEnv r.name
+        r.levelParams.length r.numParams cnparams r.numMotives r.numMinors r.numIndices
+        r.getMajorInduct indLevels ctorParams)) :
+    CheckingEnv.Valid (if isUnsafe then .unsafe else .safe) (stripRecursorRules outEnv
         (restoredRecursorNames (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) envR ∧
-      (CheckerEnv safety sourceProdEnv sourceVEnv →
-        CheckerEnv safety (stripRecursorRules outEnv
+          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.recursorVEnv ∧
+      (CheckerEnv (if isUnsafe then .unsafe else .safe) sourceProdEnv
+          (ves.venv (if isUnsafe then .unsafe else .safe)) →
+        CheckerEnv (if isUnsafe then .unsafe else .safe) (stripRecursorRules outEnv
           (restoredRecursorNames (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
-            sourceTypes (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) envR) := by
-  have hin : CheckingEnv.Valid safety sourceProdEnv sourceVEnv := by
-    have h := E.contextWF.checking
-    rw [E.context_safety, E.context_env, E.context_venv] at h
-    exact h
+            sourceTypes (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1))
+          B.recursorVEnv) := by
+  have hin : CheckingEnv.Valid (if isUnsafe then .unsafe else .safe) sourceProdEnv
+      (ves.venv (if isUnsafe then .unsafe else .safe)) := wf.toCheckingValid _
   have hwf : sourceProdEnv.constants.WF := hin.tr.map_wf
   have hlisted : ListedConstructorsPresent sourceProdEnv := by
     have h := E.lowered.constructors.headers.sourcePresent
     rw [E.lowered_c, E.context_env] at h
     exact h
-  have hcore : TrInductDeclCore sourceVEnv lparams nparams sourceTypes isUnsafe decl
-      E.sourceCore.envTypes E.sourceCore.envCtors := by
+  have hcoreE : TrInductDeclCore (ves.venv (if isUnsafe then .unsafe else .safe)) lparams nparams
+      sourceTypes isUnsafe decl E.sourceCore.envTypes E.sourceCore.envCtors := by
     have h := E.sourceCore.core
     rw [E.sourceCoreDecl_eq] at h
     exact h
+  have hcore : TrInductDeclCore (ves.venv (if isUnsafe then .unsafe else .safe)) lparams nparams
+      sourceTypes isUnsafe decl B.install.venvTypes B.install.venvCtors :=
+    B.sourceTranslations.core B.typesSource B.uvars B.numParams B.unsafeEq B.typesAdded
+      B.constructorsAdded
+  have hTeq : E.sourceCore.envTypes = B.install.venvTypes :=
+    Option.some.inj (hcoreE.typesAdded.symm.trans hcore.typesAdded)
   obtain ⟨hperm, hfresh, hmap, hquot⟩ := E.restoration.kernelOrder hwf
   have Hexact := E.restoration.freshExtensionExact hwf
   obtain ⟨primitiveEntries, Hprim⟩ := E.primitiveSafe
@@ -636,7 +659,7 @@ theorem NestedRun.strippedValid {res : ElimNestedInductive.Result} {sourceProdEn
       ¬ Kernel.Environment.primitives.contains ci.name := fun ci hci =>
     Hexact.transferForallSameTarget Hprim.fresh hwf Hprim.nonprimitive ci
       (hperm.mem_iff.mpr hci)
-  have henvP : (decl.addProjs E.sourceCore.envCtors).WF :=
+  have henvP : (decl.addProjs B.install.venvCtors).WF :=
     VEnv.WF.inductProjections (block := ⟨decl.typeConstants, decl.constructorConstants, [], [],
         decl.projectionEntries⟩)
       hin.tr.wf (TrInductDeclCore.envCtorsWF hcore hin.tr.wf)
@@ -648,12 +671,21 @@ theorem NestedRun.strippedValid {res : ElimNestedInductive.Result} {sourceProdEn
     intro T hT
     rcases Lean4Lean.List.Forall₂.forall_exists_r hcore.types T hT with ⟨_, _, HT⟩
     rw [HT.header.uvars, hcore.uvars]
+  have htypes := E.trTypes B hB
+  rw [hTeq] at htypes
+  have hR : (decl.addProjs B.install.venvCtors).addConstVals
+      (B.sourceRecursors ++ B.auxiliaryRecursors) = some B.recursorVEnv := by
+    have h := B.install.recursorsAdded.abstract
+    rw [B.recursorValues] at h
+    exact h
+  have Howners : ConstructorOwnersPresent sourceProdEnv := wf.constructorOwners
   have h := stripRecursorRules.validOfBlock hin
     (by rw [VInductDecl.addTypes_eq_addConstVals]; exact hcore.typesAdded)
     (by rw [VInductDecl.addCtors_eq_addConstVals]; exact hcore.ctorsAdded)
-    hR hrules (E.trTypes B hB) hrecs hperm hfresh (Hexact.namesNodup hwf) hmap hquot henvP
-    hrecsWF hnonprimitive hlisted htypeUvars (TrInductDeclCore.constructorUvars hcore)
-    horigins hcover howners hrecMajor hk hshapes
+    hR htypes B.rvalsTranslated hperm hfresh (Hexact.namesNodup hwf) hmap hquot henvP
+    hnonprimitive hlisted htypeUvars (TrInductDeclCore.constructorUvars hcore)
+    (E.inductInfosFromDecl B hB Hsources Howners) (E.cover B hB Hsources Howners)
+    (E.constructorOwnersPresent Howners) (E.recMajor wf Hsources) hk hshapes
   rw [NestedRestorationFolds.rvals_names] at h
   exact h
 
