@@ -450,9 +450,32 @@ IotaSoundnessLemmas/SignatureVars/ProjNamesOK. The registered ι rules are fixed
 restoration interpretations (`VEnv.WF.pats_fixed_of_avoid`, `Nested/Restoration/PatsFixed.lean`,
 from the model's `VEnv.WF'.patsAvoidFreshConsts` and `pats_origin`).
 
+`nestedRestoredBlock` (`Restore.lean`) is assembled with no `sorry` of its own:
+`NestedRun.ofRestoration` (the run of the restoration), `NestedRun.sourceParameterWF`,
+`NestedRun.assemblyBase` (the rule-free `RestoredBlockBase` and the kernel-order permutation),
+`NestedRestorationFolds.kernelOrder`, `NestedRun.trTypes`/`newUnsafe` (`AssemblyTypes`),
+`NestedRun.recMajor`/`constructorParameterAlignment` (`AssemblyKernel`),
+`NestedRun.strippedChecker` (`StrippedFacts`, over `RuleFree`), `NestedRun.assemblyRecursors`
+(`AssemblyRecursors`, consuming the Equations owner's `NestedRun.hrestoredWF_of`), and the
+`HEq` casts of `ViewCast`.
+
+Fields added to `RestoredBlock` (Restoration-B): `rules_ctorParams`, `runDecl`, `run`, `run_decl`,
+`sourceSyntaxChecked`, `constructorArityPrefix`, `run_loweredEnv`, `run_lowered` (the run object
+for the Equations and Install owners), `recMajor`, `constructorParameterAlignment` (for
+`kernelFacts`), and `restoredEquationsWF` (the Equations owner's `Rules.lean` theorem of that name
+became the field, `-- WAVE 3 COMPAT (restB)`).
+
+The stripped environment: `AddInduct.map_eq` is a structural `ConstMap` equality and
+`stripRecursorRules` re-inserts each recursor, so no `AddInduct` lands in the stripped map. The
+rule-free stage is built over `insertConsts` of the stripped entries, and transported along
+lookups by `CheckingEnv.Valid.mapExt`/`CheckerEnv.mapExt` (`Nested/Install/Permutation.lean`);
+Restoration-A restated `stripRecursorRules.checkingValid`/`checkerEnv` accordingly.
+
 | statement | file | why |
 |---|---|---|
-| `nestedRestoredBlock` | `Nested/Restoration/Restore.lean` | assembly in progress |
+| `NestedRun.restoredRuleConstructors` | `Nested/Restoration/RuleConstructors.lean` | in progress |
+| `NestedRun.restoredRuleConstructors_nodup` | `Nested/Restoration/RuleConstructors.lean` | in progress |
+| `NestedRun.restoredRecursorShapes` | `Nested/Restoration/RestoredRecursorShapes.lean` | in progress |
 
 ## Wave 3 Restoration-A (`Nested/Restoration/Validation/**`)
 
