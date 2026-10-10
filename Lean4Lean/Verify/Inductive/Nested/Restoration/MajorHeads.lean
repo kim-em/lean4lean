@@ -358,6 +358,15 @@ theorem NestedRun.auxNestedHead {ves : VEnvs}
   exact ⟨_, _, _, hhead, O.origin.generated.built.lookup⟩
 
 
+/-- The source family names are the names of the source prefix of the
+lowered declaration. -/
+theorem NestedRun.sourceNames_eq
+    (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
+      sourceDecl lparams nparams isUnsafe safety outEnv) :
+    sourceTypes.map (·.name) =
+      (E.lowered.loweredDecl.types.take sourceTypes.length).map (·.name) :=
+  forall₂_map_eq (fun _ _ h => h.name.symm) E.sourceCore.sourceHeaders
+
 end MajorHead
 
 end VerifyInductive

@@ -48,7 +48,7 @@ theorem forall₂_imp_mem_right {R S : α → β → Prop} :
     .cons (H _ _ List.mem_cons_self h)
       (forall₂_imp_mem_right t fun a b hb h => H a b (List.mem_cons_of_mem _ hb) h)
 
-private theorem mem_familyNames_of_type' {types : List VInductiveType} {t : VInductiveType}
+theorem mem_familyNames_of_type {types : List VInductiveType} {t : VInductiveType}
     (ht : t ∈ types) : t.name ∈ familyNames types :=
   List.mem_flatMap.mpr ⟨t, ht, List.mem_cons_self⟩
 
@@ -475,7 +475,7 @@ theorem NestedRun.restoredMajorInduct
     obtain ⟨t, ht, hta⟩ := List.mem_map.mp haux
     have h1 : (E.lowered.loweredDecl.types[owner.val]'hi).name ∈
         familyNames E.lowered.loweredDecl.types :=
-      mem_familyNames_of_type' (List.getElem_mem hi)
+      mem_familyNames_of_type (List.getElem_mem hi)
     have h2 : (E.lowered.loweredDecl.types[owner.val]'hi).name ∈
         E.lowered.loweredDecl.types.map (fun t => t.name.str "rec") := by
       rw [← heq, ← hta]
@@ -493,7 +493,7 @@ theorem NestedRun.restoredMajorInduct
       have htake : E.lowered.loweredDecl.types[owner.val]'hi ∈
           E.lowered.loweredDecl.types.take sourceDecl.types.length :=
         List.mem_iff_getElem.mpr ⟨owner.val, by simp; omega, by simp⟩
-      exact (List.nodup_append.mp hfamNodup).2.2 _ (mem_familyNames_of_type' htake) _ hmem rfl
+      exact (List.nodup_append.mp hfamNodup).2.2 _ (mem_familyNames_of_type htake) _ hmem rfl
     · have hdrop : E.lowered.loweredDecl.types[owner.val]'hi ∈
           E.lowered.loweredDecl.types.drop sourceDecl.types.length :=
         List.mem_iff_getElem.mpr ⟨owner.val - sourceDecl.types.length, by simp; omega, by
