@@ -1,14 +1,15 @@
 import Lean4Lean.Verify.Inductive.Basic
-import Lean4Lean.Verify.Inductive.Nested.Lowering.Output
+import Lean4Lean.Verify.Inductive.Nested.Lowering.Assembly
 
 /-! # The lowering run and what it certifies
 
 `Environment.addInductive` always runs the source checks (`checkInductiveSources`) and the
 nested lowering (`ElimNestedInductive.run`) before `addInductiveAfterLowering`. The lowering
 verification (`Nested/Lowering/**`, wave 3) certifies the result of a successful run as
-`NestedLoweringOutput` (`loweringRun.WF`, the one stub of this file): the lowered block is the
-source families, headers unchanged and constructors lowered, followed by the auxiliary
-families, each a cached parameter specialization of a container of the environment, with the
+`NestedLoweringOutput` (`loweringRun.WF`, proved field by field in
+`Nested/Lowering/Assembly.lean`): the lowered block is the source families, headers
+unchanged and constructors lowered, followed by the auxiliary families, each a cached parameter
+specialization of a container of the environment, with the
 restoration of a lowered source constructor type being its source (up to `Expr.eqv`). The
 ordinary branch reads only the zero-auxiliary case (`loweringRun.types_nonempty`,
 `loweringRun.ordinary_types_eq_source`); the nested branch (`Nested/**`) reads the rest.
@@ -135,11 +136,23 @@ theorem loweringRun.WF {env : Environment} {ves : VEnvs} {fuel nparams : Nat}
     (wf : ves.WF env) (hsources : SourceSyntaxChecks env types)
     (h : loweringRun env fuel nparams types lparams = .ok res) :
     NestedLoweringOutput env fuel nparams types lparams res := by
-  -- WAVE 3 STUB (Lowering): the source branch's `Nested/Lowering/**` (`NestedLowering`,
-  -- `NestedLoweringOutputClosed`, `ElimNestedInductive.run.refines`, `LowerNextStep`,
-  -- `ConstructorRestorationInverse.restoredType_eqv_source`,
-  -- `NestedLoweringOutput.types_eq_source_of_aux2nested_size_eq_zero`).
-  have := h; sorry
+  have Hlow := loweringRun.closedOfRun wf hsources h
+  exact {
+    nparams_eq := Hlow.nparams_eq
+    params_size := Hlow.params_size
+    source_nonempty := Hlow.source_nonempty
+    types_length := Hlow.types_length
+    source_headers := Hlow.source_headers
+    ordinary := fun haux hs hc => Hlow.ordinary hs hc haux
+    aux_cached := Hlow.aux_cached wf hsources
+    cached_aux := Hlow.cached_aux
+    nested_app := Hlow.nested_app wf hsources
+    aux_fresh := Hlow.aux_fresh wf hsources
+    aux_ctor_names := Hlow.aux_ctor_names wf hsources
+    lctx_params := Hlow.lctx_params
+    params_opening := Hlow.params_opening
+    closed := Hlow
+    restore_source := fun hs hc loweredEnv => Hlow.restore_source hs hc loweredEnv }
 
 /-- A lowering result has at least the source families. -/
 theorem loweringRun.types_nonempty {env : Environment} {ves : VEnvs} {fuel nparams : Nat}
