@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.LoweredRun
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Steps
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Nonprimitive
-import Lean4Lean.Verify.Inductive.Nested.Restoration.NestedOccurrences
+import Lean4Lean.Verify.Inductive.Nested.Lowering.OccurrenceTyping
 import Lean4Lean.Verify.Inductive.Nested.Restoration.SideEnvironment.Environment
 
 /-! # The data of a validated nested run (`NestedRun`)
