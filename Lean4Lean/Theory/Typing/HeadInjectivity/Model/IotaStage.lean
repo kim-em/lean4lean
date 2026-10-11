@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.IotaOrdinary
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.FamSort
-import Lean4Lean.Theory.Typing.Confluence.StructureMajor
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.StructCoh
 
 /-! # The stage environments of an inductive step in the model
 
@@ -113,21 +113,58 @@ theorem _root_.Lean4Lean.VExpr.piArity_eq_forallArity : ∀ e : VExpr, e.piArity
   | .forallE _ B => by simp [VExpr.piArity, VExpr.forallArity, VExpr.piArity_eq_forallArity B]
   | .bvar _ | .sort _ | .const _ _ | .app _ _ | .lam _ _ | .proj _ _ _ => rfl
 
+theorem Model.sublist_flatMap_of_mem_aux {α β : Type} {f : α → List β} {a : α} {l : List α}
+    (h : a ∈ l) : List.Sublist (f a) (l.flatMap f) := by
+  induction l with
+  | nil => cases h
+  | cons b t ih =>
+    rw [List.flatMap_cons]
+    rcases List.mem_cons.mp h with rfl | h
+    · exact List.sublist_append_left _ _
+    · exact (ih h).trans (List.sublist_append_right _ _)
+
+theorem Model.eq_singleton_of_nodup_map_aux {α β : Type} {f : α → β} {a : α} {l : List α}
+    (hnodup : (l.map f).Nodup) (ha : a ∈ l) (hsame : ∀ y ∈ l, f y = f a) : l = [a] := by
+  induction l with
+  | nil => cases ha
+  | cons x xs ih =>
+    rw [List.map_cons, List.nodup_cons] at hnodup
+    have hx : x = a := by
+      rcases List.mem_cons.mp ha with rfl | hxs
+      · rfl
+      · exact absurd (hsame x (.head _) ▸ List.mem_map_of_mem hxs) hnodup.1
+    subst hx
+    cases xs with
+    | nil => rfl
+    | cons y ys =>
+      exact absurd ((hsame y (.tail _ (.head _))) ▸ List.mem_map_of_mem (.head _)) hnodup.1
+
 /-- **The projection facts of a family of an installed declaration**, given the validity of the
-declaration's projection entries: the family is not a registered structure and its constructor
-is not a projection constructor, or its entry is the declaration's, with the constructor `fc`,
-the declaration's parameters and the constructor's fields. -/
+declaration's projection entries and that its constructors are pattern constructors: the family
+is not a registered structure and its constructor is not a projection constructor, or its entry
+is the declaration's, with the constructor `fc`, the declaration's parameters and the
+constructor's fields. -/
 theorem projMajor_decl {envF env0 env' : VEnv} {decl : VInductDecl}
     (hF : envF.WF) (hdecl : decl.WF env0) (hadd : env0.addInduct decl = some env')
     (hle : env' ≤ envF)
     (hprojV : ∀ S info, env'.projections S info → Model.ProjValid envF S info)
     {t : VInductiveType} (ht : t ∈ decl.types) {fc : VConstVal} (hfc : fc ∈ t.ctors)
+    (hpat : ∀ c ∈ t.ctors, IsPatCtor envF c.name)
     {nf : Nat} (hshape : fc.type.forallArity = decl.nparams + nf) :
     Model.ProjMajor envF t.name fc.name decl.nparams nf t.resultLevel := by
   by_cases hex : ∃ info, envF.projections t.name info
   · obtain ⟨info, hp⟩ := hex
-    obtain ⟨block, hcomp, hrecs, -⟩ := hdecl.recsCompiled
-    obtain ⟨hsingle, -, -⟩ := hF.installed_projection hcomp hrecs hadd hle ht hfc hp
+    have hall : ∀ c2 ∈ t.ctors, c2.name = info.ctorName := fun c2 hc2 =>
+      hF.structCoh t.name info hp c2.name (hpat c2 hc2)
+        (Model.addInduct_ctor_retFam hdecl hadd hle ht hc2)
+    have hnodup : (t.ctors.map (·.name)).Nodup := by
+      obtain ⟨e1, e2, e3, s1, s2, s3, s4⟩ := addInduct_stages hadd
+      have h := addCtors_nodup s2
+      rw [List.map_flatMap] at h
+      exact List.Nodup.sublist
+        (Model.sublist_flatMap_of_mem_aux (f := fun t => t.ctors.map (·.name)) ht) h
+    have hsingle : t.ctors = [fc] := Model.eq_singleton_of_nodup_map_aux hnodup hfc
+      (fun y hy => (hall y hy).trans (hall fc hfc).symm)
     have hentry : (⟨t.name, ⟨decl.uvars, decl.nparams, t.numIndices, t.resultLevel,
         fc.name, fc.type⟩⟩ : VProjectionEntry) ∈ decl.projectionEntries :=
       List.mem_filterMap.mpr ⟨t, ht, by rw [hsingle]⟩
@@ -138,9 +175,9 @@ theorem projMajor_decl {envF env0 env' : VEnv} {decl : VInductDecl}
     simp only [VProjectionInfo.numFields, hshape]
     omega
   · refine .inl ⟨fun info h => hex ⟨info, h⟩, fun ⟨S, info, hp, hcn⟩ => hex ⟨info, ?_⟩⟩
-    have h1 := hF.ordered.projection_resultFamily hp
+    have h1 := Model.projection_retFam hF.ordered hp
     rw [hcn] at h1
-    have h2 := addInduct_ctor_resultFamily hdecl hadd hle ht hfc
+    have h2 := Model.addInduct_ctor_retFam hdecl hadd hle ht hfc
     rw [← h1.unique h2]; exact hp
 
 /-- **The semantic sort of a family of a declaration**, from the restoration relating it to its
