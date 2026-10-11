@@ -110,7 +110,8 @@ theorem SoundAt.sub_sets {Γ : List VExpr} {t T : VExpr} (h : SoundAt env U Δ �
 /-- `rigid_arg_cls_obs` with the domain class of the argument read off the head's telescope. -/
 theorem rigid_arg_cls_obs' {Γ : List VExpr} {c : Name} {ls : List VLevel} {args : List VExpr}
     {u : VLevel} {σ : VExpr.Subst} {S : ObSets} {ci : VConstant} {Dw : List VExpr} {Rw : VExpr}
-    (hci : env.constants c = some ci) (hTW : ci.type.instL ls = .wrapForalls Dw Rw)
+    (hci : env.constants c = some ci)
+    (hTW : Ob.Sub (Obs' .id .empty (ci.type.instL ls)) (Obs' .id .empty (.wrapForalls Dw Rw)))
     (hpi : PiSD env U Δ [] Dw Rw)
     (H : HTS env U Δ Γ (.mkApps (.const c ls) args) (.sort u)) (W : Ctx.SubstEq env U Δ σ σ Γ)
     (tv : TV env U Δ Γ σ S) (hrig : env.Rigid c) {i : Nat} (hi : i < args.length)
@@ -134,9 +135,7 @@ theorem rigid_arg_cls_obs' {Γ : List VExpr} {c : Name} {ls : List VLevel} {args
     .inr (.inl ⟨i, by simpa using hi', by simp⟩)
   obtain ⟨τ₀, hτ₀, hty₀⟩ := P1 _ (.rigidArg (List.mem_singleton_self _))
   obtain ⟨B, hB⟩ := PT i hi'
-  have hTW' : Ob.Sub (Obs' .id .empty (ci.type.instL ls)) (Obs' .id .empty (.wrapForalls Dw Rw)) :=
-    fun o h => ⟨o, by rw [← hTW]; exact h, .refl⟩
-  have e := spine_dom_cls henv hΔ hci hTW' hpi (pre := args.take i) (by simp; omega) W tv hB
+  have e := spine_dom_cls henv hΔ hci hTW hpi (pre := args.take i) (by simp; omega) W tv hB
   simp only [List.length_take, Nat.min_eq_left (Nat.le_of_lt hi)] at e
   refine ⟨(info[i]).2, h4, h5, e, ?_⟩
   have := obs_mkApps_of_wrap (KeyData.forall₂_keys hinfo) (.const hrig hci hτ₀ hty₀ hr)
@@ -149,7 +148,8 @@ observations. -/
 theorem rigid_spines_substEq {Γ₁ Γ₂ : List VExpr} {c : Name} {ls₁ ls₂ : List VLevel}
     {args₁ args₂ : List VExpr} {u₁ u₂ : VLevel} {σ₁ σ₂ : VExpr.Subst} {S₁ S₂ : ObSets}
     {ci : VConstant} {Dw : List VExpr} {Rw : VExpr}
-    (hci : env.constants c = some ci) (hTW : ci.type.instL ls₁ = .wrapForalls Dw Rw)
+    (hci : env.constants c = some ci)
+    (hTW : Ob.Sub (Obs' .id .empty (ci.type.instL ls₁)) (Obs' .id .empty (.wrapForalls Dw Rw)))
     (hpi : PiSD env U Δ [] Dw Rw)
     (H₁ : HTS env U Δ Γ₁ (.mkApps (.const c ls₁) args₁) (.sort u₁))
     (W₁ : Ctx.SubstEq env U Δ σ₁ σ₁ Γ₁) (tv₁ : TV env U Δ Γ₁ σ₁ S₁)
@@ -409,6 +409,55 @@ theorem tele_sound_res {D₁ D₂ : List VExpr} {R₁ R₂ : VExpr} {u : VLevel}
     have hx' : Obs' (VExpr.argSubst as) S' R₂ x := hG S' hGS' x (List.mem_singleton_self _)
     obtain ⟨x', hx', l⟩ := tele_sound_body henv hΔ hpi₁ hR₁ hsub₂ hTK₂ hTK₁ _ hx'
     exact ⟨x', hx'.mono fun m y hy => hSx m y hy, l⟩
+
+
+omit henv hΔ in
+/-- Extending a typed argument valuation by one argument. -/
+theorem tv_argSubst_snoc {D as : List VExpr} {Sx : ObSets} {a : VExpr} {X : Ob → Prop}
+    (hl : as.length < D.length)
+    (tv : TV env U Δ (D.take as.length).reverse (VExpr.argSubst as) Sx) (hb : Backed X)
+    (hX : ∀ o, X o → TypedAt env U Δ
+      (ElCls env U Δ (TyCls env U Δ (D[as.length].subst (VExpr.argSubst as))) a)
+      (VExpr.argSubst as) Sx D[as.length] o) :
+    TV env U Δ (D.take (as ++ [a]).length).reverse (VExpr.argSubst (as ++ [a])) (Sx.cons X) := by
+  rw [List.length_append, List.length_singleton, List.take_succ_eq_append_getElem hl,
+    List.reverse_append, VExpr.argSubst_append_one]
+  exact TV.cons_set tv hb hX
+
+omit henv hΔ in
+/-- The entries of related argument valuations along a telescope. -/
+theorem substEq_argSubst_get {D as bs : List VExpr}
+    (hl : as.length = bs.length) (hD : as.length ≤ D.length)
+    (W : Ctx.SubstEq env U Δ (VExpr.argSubst as) (VExpr.argSubst bs) (D.take as.length).reverse)
+    {i : Nat} (hi : i < as.length) :
+    (∃ u, env.HasType U (D.take i).reverse D[i] (.sort u)) ∧
+    env.IsDefEq U Δ as[i] (bs[i]'(by omega)) (D[i].subst (VExpr.argSubst (as.take i))) := by
+  have W' := substEq_take as bs hl hD W (i + 1) (by omega)
+  rw [List.take_succ_eq_append_getElem hi, List.take_succ_eq_append_getElem (by omega),
+    List.take_succ_eq_append_getElem (by omega), List.reverse_append,
+    VExpr.argSubst_append_one, VExpr.argSubst_append_one] at W'
+  cases W' with
+  | cons _ hA h => exact ⟨⟨_, by simpa using hA⟩, by simpa using h⟩
+
+/-- **The domain class at a bare-variable argument of a constant spine** is the class of the
+variable's type. -/
+theorem bvar_arg_dom_cls {Γ' : List VExpr} {c : Name} {ls : List VLevel} {ci : VConstant}
+    {Dw : List VExpr} {Rw T₀ : VExpr} {args : List VExpr} {ρ : VExpr.Subst} {R : ObSets}
+    (hci : env.constants c = some ci)
+    (hTW : Ob.Sub (Obs' .id .empty (ci.type.instL ls)) (Obs' .id .empty (.wrapForalls Dw Rw)))
+    (hpi : PiSD env U Δ [] Dw Rw)
+    (H : HTS env U Δ Γ' (.mkApps (.const c ls) args) T₀)
+    (W : Ctx.SubstEq env U Δ ρ ρ Γ') (tv : TV env U Δ Γ' ρ R)
+    {i y : Nat} {T : VExpr} (hi : i < args.length) (hiD : i < Dw.length)
+    (hy : args[i] = .bvar y) (hL : Lookup Γ' y T) :
+    TyCls env U Δ (Dw[i].subst (VExpr.argSubst ((args.take i).map (·.subst ρ)))) =
+      TyCls env U Δ (T.subst ρ) := by
+  obtain ⟨A, B, hf, ha, -⟩ := HTS.spine_at _ rfl H i hi
+  have e1 := spine_dom_cls henv hΔ hci hTW hpi (pre := args.take i) (by simp; omega) W tv hf
+  simp only [List.length_take, Nat.min_eq_left (Nat.le_of_lt hi)] at e1
+  rw [hy] at ha
+  rw [← e1]
+  exact bvar_dom_cls henv hΔ W ha hL
 
 end
 
