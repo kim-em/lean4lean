@@ -630,7 +630,7 @@ theorem mkApps_snoc_eq_app (f x : VExpr) (args : List VExpr) :
 /-- **The `IotaStatic` data of a restored equation**: the restored recursor's telescope, its
 major domain (the restored family spine), and the restored minor of the constructor, which is
 the last minor ending in the restored constructor with the major's motive. -/
-theorem restored_iotaStatic {base env : VEnv} {source expanded : VInductDecl}
+theorem restored_iotaStatic {base : VEnv} {source expanded : VInductDecl}
     {s : InductiveSignature} {g : Instance s} {aux : List ContainerSpecialization}
     {block : VInductBlock} (C : CompilationData base source expanded s g aux block)
     (hrecsOf : source.RecsOf block) {rec : VRecursor} (hrec : rec ∈ source.recs)
