@@ -783,74 +783,32 @@ the checker in an intermediate environment must supply both there.
 
 ## Model pat stubs (`Model.PatValid.iota`, `Ordered.patsAvoidFreshConsts`, `WF.patCtor_rigid`)
 
-No stub of this section is closed; none is added. The three remain as stated above, for the
-reasons below, each of which needs a decision outside this agent's ownership.
+`WF.patCtor_rigid` and `Ordered.patsAvoidFreshConsts` are closed (earlier commits of this
+branch). `Model.PatValid.iota` is in progress; state of the work:
 
-**`VEnv.Ordered.patsAvoidFreshConsts` is not provable from its hypotheses without a new
-metatheorem.** `Ordered.pat` only records `PatWF`, whose `PatTyped` types one generic instance
-in an *arbitrary* context `Γ` (no `OnCtx Γ`). `IsDefEq.noConsts` needs a context avoiding the
-names, and a context mentioning a fresh constant `F` does type terms containing `F` (a `beta`
-redex `(λ (x : A). b) a` is typed without typing `A`; `eta` puts the domain of a variable's
-type into a term), so the template's constants are not bounded by the environment. Proving the
-statement as is needs an inertness theorem (an undeclared constant reaches a typed endpoint only
-through the context) that is close to context strengthening. `OrderedStrong` does not help: its
-`PatsStrongOn` concerns strongly typed instances in strong contexts, and no such instance is
-known to exist. Minimal fixes, both in frozen files: add `OnCtx Γ (env.IsType U)` to
-`VEnv.PatTyped` (then the proof is the `Ordered` induction with `IsDefEq.noConsts` on the
-generic reduct, about 80 lines), or state the lemma for `VEnv.WF` from the installed blocks'
-rule typing (`VInductBlock.WF`'s `df.WF envRecursors` types each equation in the empty context).
+**Route.** The generic λ-wrapped equation `L ≡ R` of a rule is not derivable in the final
+environment without uniqueness of typing (the pattern rule types only instances, at the redex's
+type), so the `pat` case is proved directly at the instance
+`e = rec m1 (recArgs ++ [ctor lsC ctorArgs])`, `red = (rhs.instL m1) argsR`, read at the argument
+valuation `v = argSubst (argsR σ)` of the template's binders (`Model/IotaInstance.lean`):
+`iota_lhs_sub_inst` (the `pat` clause's binding `τ` is equal to `v`), `iota_rhs_sub_inst` (a body
+observation at `v` builds the clause on the redex's own keys, typed through the instance's
+`IsDefEq.pat` and `HTS.spineH'`), and `iota_inst_sound`. `RuleBind`'s lead clause is a covering
+(an index key binds a field whose observations are only subsumed by the index argument's).
 
-**`Model.PatValid.iota` needs three things 1C's scope did not list.**
-1. *Index-determined fields under singleton elimination.* `Signature.SingletonElimination`
-   admits a non-proposition field `x` when `bvar x` is a bare index of the constructor's result
-   (`Acc.intro`'s `x`). In mode C (the major is a proof, so `Km` is empty) `RuleBind` can bind
-   such a field neither from `Km` nor by the proof binding, and `iotaLead` puts the dummy
-   `sort 0` at every index position, so the field cannot be bound from its index key either. For
-   `Acc.rec` the reduct has observations that `Obs.pat` cannot produce on the redex, so
-   `PatValid` fails for the current `Obs.pat`. Fix (`Model/Interp.lean`): let the clause's lead
-   carry `bvar x` at index position `j` exactly when the constructor's result index `j` is
-   `bvar x`, as the stored equations' `eqLead` did.
-2. *Injectivity of the major's family at the instance.* A pattern instance has arbitrary terms
-   at the index holes and at the constructor-parameter holes `Q`. `RuleBind` types each anchor
-   at the template's binder type, but the field classes `Km` provides are classes at the
-   constructor's field domains instantiated at `Q`, and an index key is a class of the instance's
-   index argument. Relating them needs `Q ≡ P` (recursor parameters) and `idx_j ≡ F_x`, that is
-   injectivity of the family `I` between the constructor's result type and the recursor's major
-   domain. The stored equations of the source branch never needed this: their λ-wrapped sides
-   shared one variable between both positions (`bvar_dom_cls`). At the instance it must be
-   extracted from the sound conversion links of the redex's `HTS` (a `Π`-domain step and a
-   rigid-spine argument step, as `forallE_chain` and `rigid_analysis` in `Model/Extract.lean`
-   do, but from `SD` links instead of `SoundEnv`). Semantic uniqueness of types would serve too;
-   neither exists in the model.
-3. *Agreement of the template's binder types with the recursor telescope.* The parameter,
-   motive and minor anchors are bound from recursor keys, which are classes at the recursor's
-   domains; `RuleBind` and the left-to-right direction need them at the template's binder
-   types. `VInductDecl.WF` does not relate the two (`rule_shape` is a count, `rules_wf` is
-   `PatTyped` in an arbitrary context). They agree syntactically for the generated equations
-   (`Instance.equation`'s domains start with the recursor's `params ++ motives ++ minors`), so the
-   facts come from `RecsCompiled`: `CompilationData.equations` and `VRecRule.OfEquation`, with
-   `VInductBlock.WF` typing each equation in the recursor-stage environment, whose model is sound
-   along the history (`EnvValid` of that stage follows from the pre-block one).
+**The arguments against the template** (`IotaArgRel`) are established by `iotaArgRel_of`
+(`Model/IotaArgs.lean`, sorry-free) from syntactic shapes of the recursor type, the installed and
+the *normalized* constructor types (`InductiveSignature.constructorType`, soundly equal to the
+installed one: `tele_sound_dom`, `tele_sound_res`) and the family's normalized telescope
+(`TypeShape`), relating the recursor's parameters and indices to the constructor's through
+`rigid_spines_substEq` (`Model/IotaRel.lean`). `IotaStatic` now pins the minor as the last domain
+before the indices ending in the constructor, so `IotaStatic.lead_unique` gives `LeadUniq`
+(`Model/IotaLead.lean`).
 
-The remaining ingredients are as 1C listed: the elimination classification
-(`Instance.Admissible.elimination`: data families make mode C contradictory through `FamSort`;
-small elimination leaves both sides without observations; singleton elimination gives the rule's
-uniqueness per recursor and the proof binders, `Model/{FamSort,Singleton,RecursorRule}.lean` on
-the source branch), the projection entry of a structure family (eta mode), and `PatsIota` for
-uniqueness in the left-to-right direction. All of it is read off `CompilationData`, which for
-nested blocks goes through the restoration (`compilationRestoration`, `Inductive/RestorationHead`
-and `Rules/RestoredRecursorEquations` on the source branch, parked for wave 3). The theorem
-therefore cannot be closed for nested blocks before wave 3; for ordinary blocks (`auxiliaries =
-[]`) the estimate is 4k to 6k lines: the instance-level directions (the analogue of
-`pat_rhs_sub_head`/`pat_lhs_sub`, about 1.5k lines), the two injectivity extractions, and the
-ordinary compilation facts ported from the source branch's `Rules/` and `Model/` files (about
-2.5k lines). `EnvValid.lean` must also pass the pre-block `EnvValid` to the pattern case, which
-today calls `PatValid.iota hF` with no history data.
-
-**`VEnv.WF.patCtor_rigid`**: `restored_equation_major` and `constructor_name_cases` do not exist
-in this tree. For an ordinary block the constructor is `s.constructors[i].name` through
-`CompilationData.equations` and `Instance.equation`, a constructor of the block, hence rigid. An
-auxiliary recursor's rule fires on a container constructor, which needs the restoration
-(wave 3). Wave 3 must provide: for every rule `ru` of every recursor of an installed nested
-block, `ru.ctor` is a constructor of the block or of an installed container
-(`ContainersInstalled`), read off the restored equation's major.
+**Remaining** (for ordinary blocks): discharging the hypotheses of `iota_inst_sound` and
+`iotaArgRel_of` for `g.equation index` of an ordinary `CompilationData` along the history
+(`WF'.envValid`'s `induct` case: `IotaStatic` of `g.recursor`, `PatUniq` from `PatsClosed`, `rules_nodup`
+and `PatsIota`, `MajorFam` from the block's projection entries (`projMajor_source` on the source
+branch), `FamSort`, proof binders (`Model/{FamSort,Singleton}.lean`), the typing of `ru.rhs` and of
+the normalized constructor type in the recursor and type stages, `envR.OrderedStrong`), then the
+`PatValid` assembly. Nested blocks: one named stub.
