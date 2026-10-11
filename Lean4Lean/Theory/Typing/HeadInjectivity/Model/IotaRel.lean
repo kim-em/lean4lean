@@ -46,14 +46,15 @@ theorem argSubst_liftN_mid (e : VExpr) (pre mid post : List VExpr) :
       congr 1; omega
 
 /-- Extending related argument valuations by one argument. -/
-theorem substEq_argSubst_snoc {D : List VExpr} {as bs : List VExpr} {a b : VExpr}
-    (hl : as.length < D.length)
-    (W : Ctx.SubstEq env U Δ (VExpr.argSubst as) (VExpr.argSubst bs) (D.take as.length).reverse)
-    (hA : env.HasType U (D.take as.length).reverse D[as.length] (.sort u))
-    (h : env.IsDefEq U Δ a b (D[as.length].subst (VExpr.argSubst as))) :
+theorem substEq_argSubst_snoc {D : List VExpr} {as bs : List VExpr} {a b : VExpr} {n : Nat}
+    (hn : as.length = n) (hl : n < D.length)
+    (W : Ctx.SubstEq env U Δ (VExpr.argSubst as) (VExpr.argSubst bs) (D.take n).reverse)
+    (hA : env.HasType U (D.take n).reverse D[n] (.sort u))
+    (h : env.IsDefEq U Δ a b (D[n].subst (VExpr.argSubst as))) :
     Ctx.SubstEq env U Δ (VExpr.argSubst (as ++ [a])) (VExpr.argSubst (bs ++ [b]))
-      (D.take (as ++ [a]).length).reverse := by
-  rw [List.length_append, List.length_singleton, List.take_succ_eq_append_getElem hl,
+      (D.take (n + 1)).reverse := by
+  subst hn
+  rw [List.take_succ_eq_append_getElem hl,
     List.reverse_append, VExpr.argSubst_append_one, VExpr.argSubst_append_one]
   exact .cons W hA h
 
@@ -214,13 +215,11 @@ theorem rigid_spines_substEq {Γ₁ Γ₂ : List VExpr} {c : Name} {ls₁ ls₂ 
       rw [List.append_nil] at hDn
       have := substEq_argSubst_snoc (D := Dw) (as := (args₁.take n).map (·.subst σ₁))
         (bs := (args₂.take n).map (·.subst σ₂)) (a := args₁[n].subst σ₁)
-        (b := args₂[n].subst σ₂) (by simp; omega)
-        (by simpa [Nat.min_eq_left (Nat.le_of_lt hn₁)] using ih (by omega))
-        (by simpa [Nat.min_eq_left (Nat.le_of_lt hn₁)] using hDn.1.defeq.hasType.1)
-        (by simpa [Nat.min_eq_left (Nat.le_of_lt hn₁)] using hdef n hn₁ hn₂ hnD)
+        (b := args₂[n].subst σ₂) (n := n) (by simp; omega) hnD (ih (by omega))
+        hDn.1.defeq.hasType.1 (hdef n hn₁ hn₂ hnD)
       rw [List.take_succ_eq_append_getElem hn₁, List.take_succ_eq_append_getElem hn₂,
         List.map_append, List.map_append]
-      simpa [Nat.min_eq_left (Nat.le_of_lt hn₁)] using this
+      simpa using this
   have := key args₁.length (Nat.le_refl _)
   rwa [List.take_length, List.take_of_length_le (by omega)] at this
 
@@ -413,15 +412,15 @@ theorem tele_sound_res {D₁ D₂ : List VExpr} {R₁ R₂ : VExpr} {u : VLevel}
 
 omit henv hΔ in
 /-- Extending a typed argument valuation by one argument. -/
-theorem tv_argSubst_snoc {D as : List VExpr} {Sx : ObSets} {a : VExpr} {X : Ob → Prop}
-    (hl : as.length < D.length)
-    (tv : TV env U Δ (D.take as.length).reverse (VExpr.argSubst as) Sx) (hb : Backed X)
+theorem tv_argSubst_snoc {D as : List VExpr} {Sx : ObSets} {a : VExpr} {X : Ob → Prop} {n : Nat}
+    (hn : as.length = n) (hl : n < D.length)
+    (tv : TV env U Δ (D.take n).reverse (VExpr.argSubst as) Sx) (hb : Backed X)
     (hX : ∀ o, X o → TypedAt env U Δ
-      (ElCls env U Δ (TyCls env U Δ (D[as.length].subst (VExpr.argSubst as))) a)
-      (VExpr.argSubst as) Sx D[as.length] o) :
-    TV env U Δ (D.take (as ++ [a]).length).reverse (VExpr.argSubst (as ++ [a])) (Sx.cons X) := by
-  rw [List.length_append, List.length_singleton, List.take_succ_eq_append_getElem hl,
-    List.reverse_append, VExpr.argSubst_append_one]
+      (ElCls env U Δ (TyCls env U Δ (D[n].subst (VExpr.argSubst as))) a)
+      (VExpr.argSubst as) Sx D[n] o) :
+    TV env U Δ (D.take (n + 1)).reverse (VExpr.argSubst (as ++ [a])) (Sx.cons X) := by
+  subst hn
+  rw [List.take_succ_eq_append_getElem hl, List.reverse_append, VExpr.argSubst_append_one]
   exact TV.cons_set tv hb hX
 
 omit henv hΔ in
@@ -505,6 +504,49 @@ theorem PiSD.body_sd : ∀ {Γ D : List VExpr} {R : VExpr} {u : VLevel}, PiSD en
   | Γ, A :: ds, R, _, .cons _ hB hP, _ => by
     obtain ⟨v, h⟩ := PiSD.body_sd hP hB
     exact ⟨v, by simpa [List.reverse_cons, List.append_assoc] using h⟩
+
+
+omit henv hΔ in
+/-- The typing of the last argument of a typed argument valuation. -/
+theorem TV.snoc_inv {D as : List VExpr} {Sx : ObSets} {a : VExpr} {X : Ob → Prop} {n : Nat}
+    (hn : as.length = n) (hl : n < D.length)
+    (tv : TV env U Δ (D.take (n + 1)).reverse (VExpr.argSubst (as ++ [a])) (Sx.cons X)) :
+    ∀ o, X o → TypedAt env U Δ
+      (ElCls env U Δ (TyCls env U Δ (D[n].subst (VExpr.argSubst as))) a)
+      (VExpr.argSubst as) Sx D[n] o := by
+  subst hn
+  intro o ho
+  rw [List.take_succ_eq_append_getElem hl, List.reverse_append, VExpr.argSubst_append_one] at tv
+  have h := tv.2 0 _ .zero o ho
+  rw [vcls_bvar_zero] at h
+  obtain ⟨τs, h1, h2⟩ := h
+  exact ⟨τs, fun τ hτ => Obs.lift_cons_iff.1 (h1 τ hτ), h2⟩
+
+omit henv hΔ in
+theorem argSets_lt {σ : VExpr.Subst} {S : ObSets} {L : List VExpr} {i : Nat} (hi : i < L.length) :
+    argSets env U Δ σ S L i = Obs' σ S (L[L.length - 1 - i]'(by omega)) := by
+  simp only [argSets, hi, dite_true]
+
+omit henv hΔ in
+theorem argSubst_map_lt {σ : VExpr.Subst} {L : List VExpr} {i : Nat} (hi : i < L.length) :
+    VExpr.argSubst (L.map (·.subst σ)) i = (L[L.length - 1 - i]'(by omega)).subst σ := by
+  rw [VExpr.argSubst_lt _ (by simpa using hi)]
+  simp
+
+
+omit henv hΔ in
+/-- The last entry of related argument valuations. -/
+theorem substEq_snoc_inv {D as bs : List VExpr} {a b : VExpr} {n : Nat} (hn : as.length = n)
+    (hl : n < D.length)
+    (W : Ctx.SubstEq env U Δ (VExpr.argSubst (as ++ [a])) (VExpr.argSubst (bs ++ [b]))
+      (D.take (n + 1)).reverse) :
+    env.IsDefEq U Δ a b (D[n].subst (VExpr.argSubst as)) ∧
+    Ctx.SubstEq env U Δ (VExpr.argSubst as) (VExpr.argSubst bs) (D.take n).reverse := by
+  subst hn
+  rw [List.take_succ_eq_append_getElem hl,
+    List.reverse_append, VExpr.argSubst_append_one, VExpr.argSubst_append_one] at W
+  cases W with
+  | cons W _ h => exact ⟨by simpa using h, by simpa using W⟩
 
 end
 
