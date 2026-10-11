@@ -1013,6 +1013,91 @@ theorem iotaArgRel_container
     simp only [List.length_take, Nat.min_eq_left (show cnp + j ≤ ctorArgs.length by omega)] at e
     rw [e, hFieldCls j hj, (hF1 j hj).1]
 
+/-- `IotaArgRel` of an instance of a rule whose constructor has no fields: the reduct's
+arguments are the recursor's parameters, motives and minors. -/
+theorem iotaArgRel_nofields
+    {Γ : List VExpr} {n ctor : Name} {m1 lsC : List VLevel} {np nmm nind cnp : Nat}
+    {doms lead recArgs ctorArgs argsR : List VExpr} {A : VExpr}
+    {ci : VConstant} {dsH : List VExpr} {RH : VExpr}
+    (hci : env.constants n = some ci) (eH : ci.type.instL m1 = .wrapForalls dsH RH)
+    (hlenH : dsH.length = np + nmm + nind + 1)
+    (hdl : doms.length = np + nmm)
+    (hDK : ∀ i < np + nmm, (doms.map (·.instL m1))[i]? = dsH[i]?)
+    (hleadK : ∀ i < np + nmm, lead[i]? = some (.bvar (np + nmm - 1 - i)))
+    (hrA : recArgs.length = np + nmm + nind) (hcA : ctorArgs.length = cnp)
+    (hargs : argsR = recArgs.take (np + nmm) ++ ctorArgs.drop cnp)
+    (ihe : HTS env U Δ Γ (.mkApps (.const n m1) (recArgs ++ [.mkApps (.const ctor lsC) ctorArgs])) A)
+    {σ : VExpr.Subst} {S : ObSets} (W : Ctx.SubstEq env U Δ σ σ Γ) (tv : TV env U Δ Γ σ S) :
+    IotaArgRel env U Δ Γ n ctor m1 lsC cnp 0 doms lead recArgs ctorArgs argsR σ S := by
+  obtain ⟨ci₁, -, hci₁, hlw, ⟨uT, hT, hTsd⟩, -, -, -, -, -⟩ :=
+    ihe.spine henv hΔ rfl W tv ((recArgs ++ [VExpr.mkApps (.const ctor lsC) ctorArgs]).map fun _ => [])
+      (forall₂_nil_lists _) [] nofun
+  cases hci.symm.trans hci₁
+  have hT' : HTS env U Δ [] (.wrapForalls dsH RH) (.sort uT) := by rw [← eH]; exact hT
+  have hpiH : PiSD env U Δ [] dsH RH := hT'.piSD
+  have hTWr : Ob.Sub (Obs' .id .empty (ci.type.instL m1)) (Obs' .id .empty (.wrapForalls dsH RH)) := by
+    rw [eH]; exact Ob.Sub.refl
+  have hRpre := spine_tele_prefix henv hΔ ihe W tv hci hTWr hpiH (by simp; omega)
+  have hRpre' : ∀ m, m ≤ recArgs.length →
+      Ctx.SubstEq env U Δ (VExpr.argSubst ((recArgs.take m).map (·.subst σ)))
+        (VExpr.argSubst ((recArgs.take m).map (·.subst σ))) (dsH.take m).reverse ∧
+      TV env U Δ (dsH.take m).reverse (VExpr.argSubst ((recArgs.take m).map (·.subst σ)))
+        (argSets env U Δ σ S (recArgs.take m)) := by
+    intro m hm
+    have := hRpre m (by simp; omega)
+    rwa [List.take_append_of_le_length hm] at this
+  have hargsE : argsR = recArgs.take (np + nmm) := by
+    rw [hargs, List.drop_eq_nil_of_le (by omega), List.append_nil]
+  subst hargsE
+  have hDtake : (doms.map (·.instL m1)) = dsH.take (np + nmm) := by
+    apply List.ext_getElem? 
+    intro i
+    simp only [List.getElem?_take]
+    split
+    · exact hDK i (by omega)
+    · exact List.getElem?_eq_none (by simp; omega)
+  obtain ⟨Wf, tvf⟩ := hRpre' (np + nmm) (by omega)
+  have hal : (recArgs.take (np + nmm)).length = np + nmm := by simp; omega
+  refine ⟨by rw [hDtake]; exact Wf, by rw [hDtake]; exact tvf,
+    fun i x hi hx hfirst => ?_, fun j hj => absurd hj (Nat.not_lt_zero _)⟩
+  have hil : i < np + nmm := by
+    by_contra hil
+    have hxl : x < np + nmm := by omega
+    have hi' := hleadK (np + nmm - 1 - x) (by omega)
+    rw [show np + nmm - 1 - (np + nmm - 1 - x) = x by omega] at hi'
+    exact hfirst _ (by omega) hi'
+  have hxi : x = np + nmm - 1 - i := by
+    rw [hleadK i hil] at hi; injection hi with hi; injection hi with hi; omega
+  subst hxi
+  have eBT : (binderTy doms m1 (np + nmm - 1 - i)).subst
+      (VExpr.argSubst ((recArgs.take (np + nmm)).map (·.subst σ))) =
+      (dsH[i]'(by omega)).subst (VExpr.argSubst ((recArgs.take i).map (·.subst σ))) := by
+    rw [binderTy_subst_argSubst (by omega) (by simp [hdl]; omega)]
+    simp only [show doms.length - 1 - (np + nmm - 1 - i) = i by omega, ← List.map_take]
+    simp only [List.take_take, Nat.min_eq_left (show i ≤ np + nmm by omega)]
+    have := hDK i hil
+    rw [List.getElem?_eq_getElem (by simp; omega), List.getElem?_eq_getElem (by omega)] at this
+    rw [Option.some.inj this]
+  have hvx : VExpr.argSubst ((recArgs.take (np + nmm)).map (·.subst σ)) (np + nmm - 1 - i) =
+      (recArgs[i]'(by omega)).subst σ := by
+    rw [argSubst_map_lt (by omega)]
+    simp only [List.getElem_take]
+    congr 2; simp; omega
+  have hvS : argSets env U Δ σ S (recArgs.take (np + nmm)) (np + nmm - 1 - i) = Obs' σ S (recArgs[i]'(by omega)) := by
+    rw [argSets_lt (by omega)]
+    simp only [List.getElem_take]
+    congr 2; simp; omega
+  obtain ⟨WRi, -⟩ := hRpre' (i + 1) (by omega)
+  rw [List.take_succ_eq_append_getElem (by omega), List.map_append, List.map_singleton] at WRi
+  have hrml : ((recArgs.take i).map (·.subst σ)).length = i := by simp; omega
+  have hty := (substEq_snoc_inv hrml (by omega) WRi).1
+  refine ⟨recArgs[i]'(by omega), List.getElem?_eq_getElem _, ⟨_, by rw [eBT]; exact TyCls.self,
+    by rw [hvx]; exact hty.hasType.1⟩, fun Aq Bq hB => ?_, by rw [hvS]; exact Ob.Sub.refl,
+    by rw [hvS]; exact Ob.Sub.refl⟩
+  have e := spine_dom_cls henv hΔ hci hTWr hpiH (pre := recArgs.take i) (by simp; omega) W tv hB
+  simp only [List.length_take, Nat.min_eq_left (show i ≤ recArgs.length by omega)] at e
+  rw [eBT, e]
+
 end
 
 end Model
