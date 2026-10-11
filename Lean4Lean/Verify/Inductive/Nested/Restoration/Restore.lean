@@ -23,7 +23,7 @@ the refinement of the restoration folds (`Steps.lean`: `restoreNestedDeclaration
 `SourceTranslations`, `HeaderRenaming`, `InstalledFamilyLookups`, `InstalledConstructorTypes`),
 the specialization table (`Tables`, `TableAgreement`, `ContainerSpecializations`,
 `AuxiliaryHeaders`, `AuxiliaryConstructors`, `AuxiliaryProjections`, `ExpansionInverse`,
-`Commutation*`, `TranslationPreservation`, `Translations`, `HeadTranslation`), the restored
+`Commutation*`, `TranslationProjNames`, `Translations`), the restored
 recursors (`Recursors`, `RecursorTypes`, `RecursorRenaming`, `RecursorShape`,
 `RecursorAlignment`, `AuxiliaryRecursorsWF`, `TrRestoredRecursorVal`, `LoweredRuleAvoidance`,
 `Nonprimitive`), the compilation data (`CompilationData`, `CompilationDataConstructors`,

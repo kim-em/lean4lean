@@ -278,7 +278,7 @@ untouched), which names it binds (fresh, to exactly the declared constant, witho
 duplicates), and the origin of every registered pattern entry
 (`addInduct_pats_origin'`: an old one, or exactly the ι entry of one recursor rule).
 These are the facts the front-end refinement (`Verify/Environment`) derives its
-`AddInduct` theorems from, so they live here rather than in `InductiveParams`. -/
+`AddInduct` theorems from. -/
 
 /-- `addConsts` (a block of `addConst`s) leaves `pats` unchanged. -/
 theorem addConsts_pats {env env' : VEnv} : ∀ {cis},

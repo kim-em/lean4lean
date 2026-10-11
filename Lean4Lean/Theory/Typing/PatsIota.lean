@@ -12,9 +12,8 @@ Every registered pattern of a well-formed environment is a `SimplePattern.iota` 
 recursor head is a registered `RecHeaded` constant of a spine arity fixed by the recursor
 name, whose constructor is a registered `CtorHeaded` constant, and whose reduct is determined
 by the pattern. The invariant comes from `VInductDecl.WF` and the stage lemmas of
-`addInduct`. It is the engine of the `Params` instance of `InductiveParams.lean` and of the
-rigidity of type formers and structures (`ProjectionRigidity.lean`): a pattern head is a
-recursor name, fresh when registered.
+`addInduct`. It is the engine of the rigidity of type formers and structures
+(`ProjectionRigidity.lean`): a pattern head is a recursor name, fresh when registered.
 -/
 
 /-- Each `VDecl.WF` step either leaves `pats` unchanged (`axiom`/`def`/`opaque`/

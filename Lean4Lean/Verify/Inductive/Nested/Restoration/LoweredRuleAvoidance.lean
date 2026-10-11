@@ -1,5 +1,4 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.RecursorRenaming
-import Lean4Lean.Verify.Inductive.Nested.Restoration.TranslationPreservation
 
 /-! # Input-side avoidance of the auxiliary constructor names by the lowered rules
 
@@ -42,6 +41,35 @@ of the minor premises, so complete avoidance is false; the argument is:
 namespace Lean.Expr
 
 open Lean4Lean
+
+/-- `TrailingArgs heads np Q e`: in `e`, every argument after the first `np` of an
+application spine headed by a constant of `heads` satisfies `Q`. The generalization of
+`TrailingArgsAvoid` (without its literal clause) to an arbitrary condition. -/
+inductive TrailingArgs (heads : List Name) (np : Nat) (Q : Expr → Prop) : Expr → Prop
+  | bvar (i : Nat) : TrailingArgs heads np Q (.bvar i)
+  | fvar (fv : FVarId) : TrailingArgs heads np Q (.fvar fv)
+  | mvar (mv : MVarId) : TrailingArgs heads np Q (.mvar mv)
+  | sort (u : Level) : TrailingArgs heads np Q (.sort u)
+  | const (c : Name) (us : List Level) : TrailingArgs heads np Q (.const c us)
+  | lit (l : Literal) : TrailingArgs heads np Q (.lit l)
+  | app {f a : Expr} : TrailingArgs heads np Q f → TrailingArgs heads np Q a →
+      (∀ c us, (Expr.app f a).getAppFn = .const c us → c ∈ heads →
+        ∀ x ∈ ((Expr.app f a).getAppArgsList).drop np, Q x) →
+      TrailingArgs heads np Q (.app f a)
+  | lam {n : Name} {t b : Expr} {bi : BinderInfo} :
+      TrailingArgs heads np Q t → TrailingArgs heads np Q b →
+      TrailingArgs heads np Q (.lam n t b bi)
+  | forallE {n : Name} {t b : Expr} {bi : BinderInfo} :
+      TrailingArgs heads np Q t → TrailingArgs heads np Q b →
+      TrailingArgs heads np Q (.forallE n t b bi)
+  | letE {n : Name} {t v b : Expr} {nd : Bool} :
+      TrailingArgs heads np Q t → TrailingArgs heads np Q v →
+      TrailingArgs heads np Q b →
+      TrailingArgs heads np Q (.letE n t v b nd)
+  | mdata {m : MData} {e : Expr} : TrailingArgs heads np Q e →
+      TrailingArgs heads np Q (.mdata m e)
+  | proj {s : Name} {i : Nat} {e : Expr} : TrailingArgs heads np Q e →
+      TrailingArgs heads np Q (.proj s i e)
 
 /-! ### Trailing-argument conditions at head occurrences -/
 

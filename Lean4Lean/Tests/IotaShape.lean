@@ -1,5 +1,5 @@
 import Lean4Lean.Tests.ShapeDecide
-import Lean4Lean.Theory.Typing.InductiveParams
+import Lean4Lean.Theory.Typing.PatsIota
 import Lean4Lean.Theory.Meta
 
 /-!
