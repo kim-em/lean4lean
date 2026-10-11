@@ -2,12 +2,10 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.HeaderRenaming
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Expansion.AuxiliarySources
 
 /-! # Source parameter formation of a nested run
-
-Ported from the source branch's `Install/FromRun.lean` (`NestedRun.sourceCoreTypeShapes`,
-`NestedRun.sourceCoreParameterWF`): the source families inherit the header shapes of the
-lowered prefix, and the parameter shape of every source constructor is the lowered one's,
-transported to the source header environment by the header-stage restoration interpretation
-(`NestedRun.headerInterpretationSound`). -/
+ `NestedRun.sourceCoreTypeShapes`, `NestedRun.sourceCoreParameterWF`: the source families inherit
+the header shapes of the lowered prefix, and the parameter shape of every source constructor is the
+lowered one's, transported to the source header environment by the header-stage restoration
+interpretation (`NestedRun.headerInterpretationSound`). -/
 
 namespace Lean4Lean
 
@@ -17,7 +15,7 @@ open scoped _root_.List
 
 namespace VExpr
 
-/-- (The source branch's `Theory/Inductive/RestorationProjNames.lean` lemma.) -/
+/-- A telescope avoiding `names` has domains and body avoiding `names`. -/
 theorem containsAnyConst_wrapForalls_inv {names : List Name} :
     ∀ {ds : List VExpr} {b : VExpr}, (VExpr.wrapForalls ds b).containsAnyConst names = false →
       (∀ d ∈ ds, d.containsAnyConst names = false) ∧ b.containsAnyConst names = false

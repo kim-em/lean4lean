@@ -4,7 +4,7 @@ import Lean4Lean.Verify.Inductive.Recursor.Binders.MotiveTelescopes
 motives, minors, indices, major) that one generated recursor type is built from,
 their order in the executable local context (`RecInfoOuterOrder`), the motive
 shapes `MotiveTypes`, and the row counts of the motive and minor passes of
-`mkRecInfos`. Part of the recursor phase (section 3.2 of the design notes). -/
+`mkRecInfos`. Part of the recursor phase. -/
 
 namespace Lean4Lean
 open Lean hiding Environment Exception

@@ -9,8 +9,7 @@ import Lean4Lean.Verify.Inductive.Constructor.Check
 The executable constructor check still runs on the primitive path. For the canonical `Bool`
 and `Nat` syntax the facts that the ordinary constructor phase derives from it (checked
 constructors, parameter prefixes, constructor tails, owner normal forms) are proved
-directly, in the empty parameter scope, without a valid header-only checker context
-(ported from the source branch's `Primitive/ConstructorCheck.lean`).
+directly, in the empty parameter scope, without a valid header-only checker context.
 -/
 
 namespace Lean4Lean

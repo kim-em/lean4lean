@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Constructor.Tails
-import Lean4Lean.Verify.Inductive.HeaderData  -- WAVE 2 install COMPAT
+import Lean4Lean.Verify.Inductive.HeaderData
 
 /-! # The constructor check: `checkConstructors`
 
@@ -10,15 +10,11 @@ every field and the validity of the result, and returns the field classification
 constructor types are the translations of the source ones; `AddInductive.checkConstructors.WF`
 is the refinement theorem.
 
-The refinement theorem is the named stub `AddInductive.checkConstructors.WF` (`STUBS.md`,
-"Wave 2 ctor"). On the source branch it is `checkConstructors.loopTypes.refinesChecked`
-(`Constructor/CheckedConstructors.lean`) over `Constructor/{Positivity,Normalization,
-RawTranslation,Translation}.lean`, `Recursor/Binders/ParameterPrefixes.lean` and the owner
-normal forms of `Recursor/Context/FVarArrays.lean`; those proofs walk the checker's context
-frames (`withUnannotatedCheckedLocalDecl`, `paramCheckLCtx`) through the header phase's
-parameter scope (`HeaderStatsWF`: `parameterSuffix`, `normalizedShapes`, `paramsContext`),
-which the header agent ports beneath `HeaderEnvironment`/`HeaderPhase` (`Context/**`,
-`Header/**`). The statement below asks only for the header interface. -/
+The proof (`Constructor/{Positivity,Normalization,RawTranslation,Translation}.lean`, the
+parameter prefixes and the owner normal forms) walks the checker's context frames
+(`withUnannotatedCheckedLocalDecl`, `paramCheckLCtx`) through the header phase's parameter
+scope (`HeaderStatsWF`: `parameterSuffix`, `normalizedShapes`, `paramsContext`). The statement
+below asks only for the header interface. -/
 
 namespace Lean4Lean
 
@@ -35,7 +31,7 @@ construction re-walks. -/
 structure ConstructorsChecked {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool} {depth : Nat} {sourceEnv : VEnv}
     {indTypes : Array InductiveType} {headerEnv : Environment}
-    -- WAVE 2 install COMPAT: stated over the header data (no header `ContextWF`)
+    -- stated over the header data (no header `ContextWF`)
     (H : HeaderData c stats decl nparams isUnsafe depth sourceEnv indTypes headerEnv)
     (classes : List (List (List Bool))) : Prop where
   /-- Every source constructor translates to the declaration's constructor, in the header

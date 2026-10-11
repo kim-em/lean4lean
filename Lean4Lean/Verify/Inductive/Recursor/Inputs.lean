@@ -3,11 +3,10 @@ import Lean4Lean.Verify.Inductive.Constructor.Tails
 
 /-! # What the recursor phase reads of the constructor check
 
-The source branch's `RecursorInput` carried its header-phase data directly (`sourceContext`,
-`statsWF`, `parameterScope`, `recursorHeaders`, ...). On the scaffold's interface these are
-reached through `CheckedFormation.headers : HeaderEnvironment`; this file names them as the
-recursor port reads them. The constructor telescope data (`parameterPrefixes`, `constructorTails`,
-`ownerNormalForms`) are fields of `RecursorInput`. -/
+The header-phase data the recursor phase reads (`sourceContext`, `statsWF`, `parameterScope`,
+`recursorHeaders`, ...) are reached through `CheckedFormation.headers : HeaderEnvironment`; this
+file names them as the recursor phase reads them. The constructor telescope data
+(`parameterPrefixes`, `constructorTails`, `ownerNormalForms`) are fields of `RecursorInput`. -/
 
 namespace Lean4Lean
 
@@ -115,7 +114,7 @@ theorem recursorHeaders_parameterScope (R : RecursorInput c stats decl nparams i
 end RecursorInput
 
 /-- The base environment of a translated declaration contains none of the declaration's type
-or constructor names (the source branch's `TrInductDeclCore.headerBaseAvoidsSourceNames`). -/
+or constructor names. -/
 theorem TrInductDeclCore.baseAvoidsSourceNames
     (H : TrInductDeclCore base lparams declNParams types isUnsafe decl envTypes envCtors)
     {name : Name} {ci : VConstant} (hlookup : base.constants name = some ci) :

@@ -6,9 +6,8 @@ import Lean4Lean.Verify.Inductive.Constructor.Normalization
 (`CheckedConstructorParameterPrefix`) and the refinement of a constructor tail to its
 abstract shape in the parameter/field scope.
 
-Ported from the source branch's `Recursor/Binders/ParameterPrefixes.lean` (the
-definitions are in `Constructor/Tails.lean`, the `FVarsIn` utilities in
-`Constructor/PrefixUtilities.lean`). -/
+The definitions are in `Constructor/Tails.lean`, the `FVarsIn` utilities in
+`Constructor/PrefixUtilities.lean`. -/
 
 namespace Lean4Lean
 open Lean hiding Environment Exception

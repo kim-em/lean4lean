@@ -1,16 +1,13 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.RestorationRun
 import Lean4Lean.Verify.Inductive.Context
 
-/-! # The validation passes, step by step (owner: Restoration-A)
+/-! # The validation passes, step by step
 
 Selection lemmas for the `forM` loops of the four validation passes of
 `restoreNestedAfterInstall`, and the checker-facing content of a single successful step: a
 successful `checkType`/`ensureSort` run in a `CheckerEnv` translates the checked expression
 and types it in the model (`TypeChecker.checkType.WF`, `ensureSort.WF`,
-`M.WF.runChecking`/`runCheckingMLC`). Ported from the source branch's
-`Nested/Restoration/Validation/Checks.lean` and `Nested/Lowering/Basic.lean`
-(`validateNestedAuxiliaries.WF`), with `CheckerEnv` in place of `CheckingEnv.Valid` and the
-cache-mode premise. -/
+`M.WF.runChecking`/`runCheckingMLC`), and `validateNestedAuxiliaries.WF`. -/
 
 namespace Lean4Lean
 

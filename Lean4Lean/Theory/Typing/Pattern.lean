@@ -160,7 +160,7 @@ inductive Pattern.RHS (p : Pattern) where
 inductive Pattern.Check (p : Pattern) where
   | true
   | defeq (x y : RHS p) (rest : Check p)
-  /-- WAVE 4 COMPAT: a universe guard, satisfied when the level is not `Prop` at the
+  /-- A universe guard, satisfied when the level is not `Prop` at the
   instance's universes. The registered rules of an environment (`VEnv.pats`) never carry it
   (`Realizes` rejects it); it belongs to the guarded pattern relation of the confluence
   engine (`Theory/Typing/ChurchRosser.lean`, `Params.Pat`), which excludes the `Prop`-source
@@ -310,7 +310,7 @@ theorem Pattern.Check.OK.map
   | nonzero level rest ih => exact ⟨H.1, ih H.2⟩
 
 /-- `OK.map` with a change of universe instantiation, which must preserve the universe
-guards (WAVE 4 COMPAT). -/
+guards. -/
 theorem Pattern.Check.OK.map_levels
     {df df' : VExpr → VExpr → Prop} {p : Pattern} {ck : p.Check} {m1 m2 m1' m2'}
     (hl : ∀ level : VLevel, ¬(level.inst m1 ≈ .zero) → ¬(level.inst m1' ≈ .zero))
@@ -322,7 +322,7 @@ theorem Pattern.Check.OK.map_levels
   | defeq a b rest ih => exact ⟨h _ _ H.1, ih H.2⟩
   | nonzero level rest ih => exact ⟨hl _ H.1, ih H.2⟩
 
-/-- A check without universe guards: the shape of every registered rule (WAVE 4 COMPAT). -/
+/-- A check without universe guards: the shape of every registered rule. -/
 def Pattern.Check.Unguarded {p : Pattern} : p.Check → Prop
   | .true => True
   | .defeq _ _ rest => rest.Unguarded

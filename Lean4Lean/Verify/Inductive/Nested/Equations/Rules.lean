@@ -5,7 +5,7 @@ import Lean4Lean.Theory.Inductive.RestorationInterpretation
 import Lean4Lean.Theory.Typing.RestorationShapes
 import Lean4Lean.Theory.Inductive.RestorationHead
 
-/-! # The typing of the restored rules (owner: Equations+Install)
+/-! # The typing of the restored rules
 
 The restored ι rules are typed by transport along the restoration interpretation
 (`Theory/Inductive/RestorationInterpretation.lean`): the lowered run's rules are typed in its
@@ -13,11 +13,8 @@ recursor stage (`RuleTranslations.rules_wf`, `equationsWF`), the restoration sub
 the lowered recursor stage `L.recursors.outVEnv` into the restored recursor stage `B.envR`
 (`Restoration.Substitution`, with `PatClause` for the lowered rules as `RestoredPattern`s)
 carries them to their restorations (`Restoration.equation_wf`), and the restored rules are
-the restored equations (`RestoredBlock.rules_ofRestoredEquation`). Source branch:
-`Nested/Restoration/Equations/{WF,RestoredRules,RestoredRulesBase,GeneratedGuard,RuleRhs,
-SourceIota,SourceIotaFamilies,AuxiliaryConstructors,ProjNames,ProjectionRenaming}.lean`,
-stated for `VDefEq`; here the `PatTyped` restatement follows the ordinary path
-(`Rules/IotaPatTyped.lean`). -/
+the restored equations (`RestoredBlock.rules_ofRestoredEquation`). The rules are stated as
+`PatTyped`, as on the ordinary path (`Rules/IotaPatTyped.lean`). -/
 
 namespace Lean4Lean
 
@@ -70,9 +67,8 @@ theorem envR_wf (B : RestoredBlock L sourceTypes isUnsafe outEnv) : B.envR.WF :=
   obtain ⟨r, hr, rfl⟩ := List.mem_map.1 hci
   exact B.recs_wf r hr
 
--- WAVE 3 COMPAT (restB): `restoredEquationsWF` is now a field of `RestoredBlock`, produced in
--- `nestedRestoredBlock` from the Equations owner's `NestedRun.hrestoredWF_of`
--- (`Nested/Restoration/Equations/RestoredWF.lean`).
+-- `restoredEquationsWF` is a field of `RestoredBlock`, produced in `nestedRestoredBlock` from
+-- `NestedRun.hrestoredWF_of` (`Nested/Restoration/Equations/RestoredWF.lean`).
 
 /-- The restored block is well formed: its equations are typed in the restored recursor
 stage. -/

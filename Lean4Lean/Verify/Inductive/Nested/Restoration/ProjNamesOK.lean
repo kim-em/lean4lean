@@ -1,8 +1,6 @@
 import Lean4Lean.Theory.VExpr
 
-/-! `VExpr.ProjNamesOK`: every projection type name of a term satisfies a predicate. Ported
-from the source branch's `Theory/Inductive/CaseFormation.lean` (without the eliminator case),
-for the translation preservation of nested restoration. -/
+/-! `VExpr.ProjNamesOK`: every projection type name of a term satisfies a predicate. -/
 
 namespace Lean4Lean
 

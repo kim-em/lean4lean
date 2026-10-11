@@ -12,9 +12,7 @@ import Lean4Lean.Verify.Inductive.Nested.Lowering.OccurrenceTyping
 
 `NestedRun.ofRestoration` assembles the `NestedRun` record from the lowering certificate
 (`NestedLoweringOutput`), the lowered run (`LoweredRun`) and the executable restoration
-(`RestorationRun`). It is the target analogue of the source branch's
-`Environment.addInductiveAfterLowering.nestedValidatedRawSourceWF`
-(`Install/Certificate.lean`): the restoration folds and the side environments are read off the
+(`RestorationRun`): the restoration folds and the side environments are read off the
 runs recorded by `RestorationRun`, the source declaration is reconstructed by
 `NestedLoweringOutputClosed.sourceCore`, and the cached nested occurrences are typed in the
 header side environment (`validateNestedAuxiliaries.WF_typing`), whose checker environment is

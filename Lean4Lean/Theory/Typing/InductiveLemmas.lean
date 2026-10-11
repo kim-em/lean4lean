@@ -931,7 +931,7 @@ theorem addInduct_rec_ne_ctor {env env' : VEnv} {decl : VInductDecl} {rec : VRec
   have hbound := (addProjs_le (decl := decl)).constants (addCtors_find hC t ht c hc)
   rw [heq, hbound] at hfresh; cases hfresh
 
-/-! ### Lemmas of the verified-inductives branch: `addDefEqRules`, `addConstVals`, blocks -/
+/-! ### `addDefEqRules`, `addConstVals`, blocks -/
 
 theorem addDefEqRules_le {env : VEnv} {dfs : List VDefEq} : env ≤ env.addDefEqRules dfs := by
   induction dfs generalizing env with
@@ -1129,8 +1129,8 @@ end Lean4Lean
 
 /-! ### Lookups below an installed container (`VEnv.InstalledBelow`)
 
-WAVE 2 COMPAT: moved here from `Theory/Inductive.lean`, where `InstalledBelow` is now phrased on
-`VEnv.addInduct`, so that the lookup facts can be read off the `addInduct` lemmas above. -/
+`InstalledBelow` is phrased on `VEnv.addInduct`, so the lookup facts are read off the
+`addInduct` lemmas above. -/
 
 namespace Lean4Lean
 

@@ -28,9 +28,8 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.ProjNamesAvoid
   indices), so their projection names are among those of any generated
   recursor type (`Instance.equation_projNamesAvoid_of_recursorType`).
 
-WAVE 3 (eqinst): port of the source branch's file without the eliminator schemas;
-`TrExprS.targetProjsRegistered` and `NestedRun.constructorProjNames_of` are restB's
-(`Restoration/AuxiliaryProjections.lean`). -/
+`TrExprS.targetProjsRegistered` and `NestedRun.constructorProjNames_of` are in
+`Restoration/AuxiliaryProjections.lean`. -/
 
 namespace Lean4Lean
 

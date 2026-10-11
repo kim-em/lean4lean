@@ -84,9 +84,9 @@ theorem IsDefEqU.trans (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
 
 /-! ## Strengthening
 
-Master's statement of context strengthening for definitional equality, open (`sorry`): the
-one strengthening principle the checker verification uses (`VEnv.WF.strengthening`, the
-`GlobalCacheLicense` of the verified-inductives branch collapses to it). -/
+Master's statement of context strengthening for definitional equality: the one strengthening
+principle the checker verification uses (through `VEnv.WF.strengthening`). Open proof, listed
+in `scripts/inductive-audit-inventory.json`. -/
 
 variable! (henv : VEnv.WF env) (hΓ : OnCtx Γ' (env.IsType U)) in
 theorem IsDefEqU.weakN_iff (W : Ctx.LiftN n k Γ Γ') :

@@ -3,13 +3,11 @@ import Lean4Lean.Verify.Inductive.Header.Telescope
 /-!
 # Raw header translations
 
-The first step of the header phase (section 3.2 of the design notes): each
-successful `checkClosedType` of a family type yields a raw source translation of the header
-(`ClosedHeaderCheck`, `TrSourceConstRaw`), without `VConstVal.WF`. The mutual-header loop
-accumulates these in source order (`RawHeaderTranslations`,
-`checkInductiveTypes.loopInd.stepPrefix.accumulatesRawHeaders`), before any declaration
-skeleton or constructor translation exists.
--/
+The first step of the header phase: each successful `checkClosedType` of a family type yields a raw
+source translation of the header (`ClosedHeaderCheck`, `TrSourceConstRaw`), without `VConstVal.WF`.
+The mutual-header loop accumulates these in source order (`RawHeaderTranslations`,
+`checkInductiveTypes.loopInd.stepPrefix.accumulatesRawHeaders`), before any declaration skeleton or
+constructor translation exists. -/
 
 namespace Lean4Lean
 

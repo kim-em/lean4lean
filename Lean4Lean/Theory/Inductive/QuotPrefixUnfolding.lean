@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Inductive.RecursorPrefixUnfolding
 import Lean4Lean.Theory.Quot
 
-/-! Prefix unfolding of `Quot.lift` (section 4.2 of the design notes): quotient
+/-! Prefix unfolding of `Quot.lift`: quotient
 reconstruction at a Prop-valued source, where `Quot.ind` recovers a proof of the source
 proposition from the quotient major. The unfolding retains the primitive quotient equation
 `quotDefEq` for its typing. -/

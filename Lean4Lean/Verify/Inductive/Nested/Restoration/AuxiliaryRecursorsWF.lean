@@ -1,8 +1,7 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Translations
 
 /-! Well-formedness of the restored auxiliary recursors and their rules, along the executable
-auxiliary-recursor restoration fold of a nested run (section 3.3 of
-the design notes). -/
+auxiliary-recursor restoration fold of a nested run. -/
 
 namespace Lean4Lean
 

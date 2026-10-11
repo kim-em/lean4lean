@@ -6,9 +6,8 @@ import Lean4Lean.Verify.Inductive.Recursor.Checking
 
 The constants the restoration fold reads from the lowered environment: the kernel headers of
 the header phase, the constructors of the constructor phase (`RecursorInput.ivals`) and the
-recursors of the recursor phase. Target-native replacements of the source branch's
-`Install/Lookups.lean` header and constructor lemmas, read off the `insertConsts` maps of the
-wave 2 interfaces (`HeaderData.map_eq`, `RecursorInput.map_eq`). -/
+recursors of the recursor phase, read off the `insertConsts` maps of the phase interfaces
+(`HeaderData.map_eq`, `RecursorInput.map_eq`). -/
 
 namespace Lean4Lean
 

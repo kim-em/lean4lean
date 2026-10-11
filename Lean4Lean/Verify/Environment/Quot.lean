@@ -156,7 +156,7 @@ macro "quot_mem" : tactic => `(tactic|
      | (quot_simp; exact ⟨_, rfl⟩)
      | (intro _ h; cases h))))
 
--- WAVE 1A COMPAT: `LocalContext.mkForall_eq_fold` needs the body and the bound declarations
+-- `LocalContext.mkForall_eq_fold` needs the body and the bound declarations
 -- locally closed (Lean's `abstract` is the simultaneous `Expr.abstractN`).
 /-- Closedness of a concrete telescope body, or of the declarations a telescope binds. -/
 macro "quot_closed" : tactic => `(tactic| first

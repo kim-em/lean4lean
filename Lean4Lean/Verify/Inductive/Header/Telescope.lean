@@ -4,7 +4,7 @@ import Lean4Lean.Verify.Inductive.Header.CheckingScope
 # The header telescope loop
 
 Verifies `checkInductiveTypes.loopType`, the traversal of one family type's parameter and
-index binders in the header phase (section 3.2 of the design notes). The first
+index binders in the header phase. The first
 header introduces the common parameters and is described by `HeaderTelescope`; a later header
 reuses the cached parameters and is described in its own scope, which excludes the indices
 left by earlier families (`ScopedHeaderTelescope`, `ReusedParameterScope`). Each header

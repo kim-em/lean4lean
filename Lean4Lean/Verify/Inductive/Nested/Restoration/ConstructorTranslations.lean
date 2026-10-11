@@ -2,8 +2,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Steps
 
 /-! Source translations of the restored constructors of one source family: each step of the
 executable constructor-restoration fold paired with the translation of the source constructor
-it installs, stated in the abstract header environment (section 3.3 of
-the design notes). -/
+it installs, stated in the abstract header environment. -/
 
 namespace Lean4Lean
 

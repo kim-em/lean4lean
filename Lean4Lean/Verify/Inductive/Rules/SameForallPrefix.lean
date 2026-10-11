@@ -1,8 +1,7 @@
 import Lean4Lean.Verify.Inductive.Recursor.Installation
 
 /-! Identical concrete forall prefixes (`Expr.SameForallPrefix`) and the closing of two bodies
-over the same local selection (`CDeclArray.sameForallPrefix`); source branch:
-`Nested/Restoration/ParameterOpening.lean`, used by the rule typing. -/
+over the same local selection (`CDeclArray.sameForallPrefix`), used by the rule typing. -/
 
 namespace Lean4Lean
 

@@ -17,7 +17,7 @@ namespace VerifyInductive
 The source family headers of a nested declaration are the literal prefix of the lowered block,
 so the source header environment and its translation are read off the ordinary header phase of
 the lowered run, and the header-only environment of the restoration validation models that
-prefix (section 3.3 of the design notes). -/
+prefix. -/
 
 /-- The source mutual headers form the literal prefix of the lowered
 abstract block.  Splitting ordinary header installation at that queue

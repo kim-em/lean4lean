@@ -5,14 +5,11 @@ import Lean4Lean.Verify.Inductive.Lowering
 /-!
 # The primitive declaration shapes
 
-Primitive declarations are `Bool` and `Nat`, recognized by `Primitive.checkInductive`
-(section 3.1 of the design notes). `PrimitiveInductiveShape` is the dispatch predicate: a
+Primitive declarations are `Bool` and `Nat`, recognized by `Primitive.checkInductive`.
+`PrimitiveInductiveShape` is the dispatch predicate: a
 successful recognition has exactly the canonical `Bool` or `Nat` syntax
 (`checkPrimitiveInductive_eq_true_iff`), so the primitive path is verified for two finite
-declarations.
-
-Wave 2 scaffold: owned by the `Install/`+`Primitive/`+`Prelude/` agent (source branch:
-`Primitive/{Shape,Lowering}.lean`). -/
+declarations. -/
 
 namespace Lean4Lean
 

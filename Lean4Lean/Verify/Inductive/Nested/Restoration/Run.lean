@@ -6,17 +6,13 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.SideEnvironment.Environment
 
 /-! # The data of a validated nested run (`NestedRun`)
 
-The run object the restoration certificates are indexed by: the source branch's `NestedRun`
-(`Nested/Install/Certificate.lean`) with its field names kept, so that the restoration lemmas
-port verbatim, over the target's lowered run. The lowered run is exposed through
-`LoweredView`, the source branch's `LoweredRun` record (its context, statistics, lowered
-declaration, the recursor input as `constructors` and the recursor installation as
-`recursors`), built from the scaffold's `LoweredRun` by `LoweredRun.view`. The scaffold's
-`LoweredRun.recursors : RecursorCheck` is `LoweredView.check`; the source's `RecursorCheck` is
-the target's `RecursorInstallation` (`LoweredView.recursors`).
+The run object the restoration certificates are indexed by. The lowered run is exposed through
+`LoweredView` (its context, statistics, lowered declaration, the recursor input as
+`constructors` and the recursor installation as `recursors`), built from `LoweredRun` by
+`LoweredRun.view`; `LoweredRun.recursors : RecursorCheck` is `LoweredView.check`, and
+`LoweredView.recursors` is its `RecursorInstallation`.
 
-Also here: `NestedSourceDeclaration` (from the source's `Restoration/SourceDeclaration.lean`)
-and the derived views of the source's `Install/RunView.lean`. -/
+Also here: `NestedSourceDeclaration` and the derived views of a run. -/
 
 namespace Lean4Lean
 
@@ -25,7 +21,7 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- The lowered run, in the source branch's shape (its `LoweredRun`). -/
+/-- The lowered run, as read by the restoration lemmas. -/
 structure LoweredView (outEnv : Environment) where
   c : AddInductive.Context
   stats : AddInductive.InductiveStats
@@ -36,17 +32,17 @@ structure LoweredView (outEnv : Environment) where
   initialEnv : VEnv
   indTypes : Array InductiveType
   ctorEnv : Environment
-  /-- The constructor phase's output (the source's `OrdinaryConstructorCheck`). -/
+  /-- The constructor phase's output. -/
   constructors : RecursorInput c stats loweredDecl nparams isUnsafe depth initialEnv indTypes
     ctorEnv
-  /-- The recursor phase's check (the scaffold's `RecursorCheck`). -/
+  /-- The recursor phase's check. -/
   check : RecursorCheck constructors outEnv
 
 namespace LoweredView
 
 variable {outEnv : Environment}
 
-/-- The source's `RecursorCheck`: the recursor installation. -/
+/-- The recursor installation of the recursor phase's check. -/
 abbrev recursors (P : LoweredView outEnv) : RecursorInstallation P.constructors outEnv :=
   P.check.installation
 
@@ -59,7 +55,7 @@ abbrev headers (P : LoweredView outEnv) :
 
 end LoweredView
 
-/-- The scaffold's lowered run in the source branch's shape. -/
+/-- A lowered run as a `LoweredView`. -/
 def LoweredRun.view {c : AddInductive.Context} {Hc : ContextWF c} {nparams : Nat}
     {indTypes : Array InductiveType} {loweredEnv : Environment}
     (L : LoweredRun Hc nparams indTypes loweredEnv) : LoweredView loweredEnv where
@@ -102,7 +98,7 @@ structure NestedSourceDeclaration
   validationValid : CheckingEnv.ValidCore safety validationEnv envCtors
 
 /-- All proof-relevant data produced by a successful nested execution before
-the restored block certificate is assembled (the source branch's `NestedRun`). -/
+the restored block certificate is assembled. -/
 structure NestedRun
     (res : Lean4Lean.ElimNestedInductive.Result)
     (sourceProdEnv : Environment) (sourceTypes : List InductiveType)
@@ -188,7 +184,7 @@ structure NestedRun
   loweredNonprimitive : ∀ n ∈ InductiveSignature.familyNames lowered.loweredDecl.types,
     ¬ Kernel.Environment.primitives.contains n
 
-/-! ### Derived views (the source branch's `Install/RunView.lean`) -/
+/-! ### Derived views -/
 
 theorem NestedRun.lowered_env
     (E : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams

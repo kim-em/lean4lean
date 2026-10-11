@@ -4,7 +4,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.IotaSoundnessLemmas
 
 /-! Translation of the restored recursors of a nested block (`TrRestoredRecursorVal`,
 `TrRestoredCompilation`): each executable recursor entry translates the restoration of a
-generated recursor of one finite compilation (section 3.3 of the design notes).
+generated recursor of one finite compilation.
 
 Restoration changes a recursor's name, type, constructor names, and rule RHSs.
 It preserves the expanded block's parameter/index/motive/minor counts and its

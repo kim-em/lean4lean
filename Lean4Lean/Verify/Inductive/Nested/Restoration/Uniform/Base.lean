@@ -1,12 +1,11 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Heads
 
-/-! # Parameter uniformity: base constants (owner: Restoration-A)
+/-! # Parameter uniformity: base constants
 
-The `Old` section of the source branch's `Nested/Restoration/Uniform/Whnf.lean`: the constants
-of a base environment with a model `ves.WF env₀` avoid a head set fresh in `env₀`, and project
-only out of base structures. With ι rules registered as patterns (no stored equations), the
-translation of every rule right-hand side of a visible recursor is `TrEnv'.rules_tr`, read off
-the `AddInduct` step that installed the recursor (`AddInduct.rec_find`). -/
+The constants of a base environment with a model `ves.WF env₀` avoid a head set fresh in `env₀`, and
+project only out of base structures. With ι rules registered as patterns (no stored equations), the
+translation of every rule right-hand side of a visible recursor is `TrEnv'.rules_tr`, read off the
+`AddInduct` step that installed the recursor (`AddInduct.rec_find`). -/
 
 namespace Lean4Lean
 open Lean hiding Environment Exception

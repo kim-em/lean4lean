@@ -206,10 +206,10 @@ theorem NestedRun.loweredConstructorShape
         E.lowered.signature.constructors[index].fields.length := Htr.nfields
     rw [← h]; exact hshape
 
-/-- **Stub (restB).** The constructor shape of a container constructor at the specialization
+/-- The constructor shape of a container constructor at the specialization
 arguments plus the field count of the generated constructor it specializes.
 
-What it needs: the generated constructor is the container constructor instantiated at the
+The proof: the generated constructor is the container constructor instantiated at the
 specialization arguments under the common parameters
 (`SpecializationGenerates.constructorShapes`), the lowered constructor is its nested expansion
 (`NestedTypeExpansion.constructors`, which keeps the forall arity), and the lowered constructor

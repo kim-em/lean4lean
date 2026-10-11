@@ -25,15 +25,12 @@ namespace Lean4Lean
 open Lean hiding Environment Exception
 open Kernel
 
--- WAVE 2 install COMPAT: `RecursorShapes` moved to `Verify/Environment/Blocks.lean` (the
--- installed-block descriptor records it).
-
 /-- Every visible recursor of the constant map has its shapes. -/
 def RecursorShapesCoherent (safety : DefinitionSafety) (C : ConstMap) (venv : VEnv) : Prop :=
   ∀ {name rec}, C.find? name = some (.recInfo rec) →
     safety ≤ (ConstantInfo.recInfo rec).safety → RecursorShapes C venv rec
 
-/-- WAVE 2 install COMPAT: the shapes of every visible recursor are read off its installed-block
+/-- The shapes of every visible recursor are read off its installed-block
 descriptor (`InstalledBlock.WF.shapes`). -/
 theorem InstalledBlocks.recursorShapesCoherent {safety : DefinitionSafety} {env : Environment}
     {venv : VEnv} {st : InstallStage} (H : InstalledBlocks safety env venv st)

@@ -17,7 +17,7 @@ a signature instance, and the model's recursors (`VRecursor`, `VRecRule`):
 
 `TrConstVal` relates only a name, universe arity and type; it says nothing about rules,
 parameter counts or the K flag. `TrRecursorVal` records those facts explicitly against the
-signature generator (section 3.2 of the design notes). -/
+signature generator. -/
 
 namespace Lean4Lean
 namespace InductiveSignature

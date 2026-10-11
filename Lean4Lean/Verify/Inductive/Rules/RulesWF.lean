@@ -4,10 +4,9 @@ import Lean4Lean.Verify.Inductive.Rules.IotaPatTyped
 /-! # `rules_wf` from the generated equations
 
 The rule clause of `VInductDecl.WF` (`rules_wf`) types each model rule of the installed
-recursors as a schematic ι rule (`VEnv.PatTyped`). On the source branch the rules were stored
-equations and their typing was the `VDefEq.WF` of the generated equations; here the rule is a
-pattern and its typing is restated from that `VDefEq.WF` (PORT_PLAN section 2.3,
-`InductiveSignature.Instance.equation_patTyped`). This file identifies each model rule with
+recursors as a schematic ι rule (`VEnv.PatTyped`): the rule is a pattern and its typing is
+restated from the `VDefEq.WF` of the generated equation
+(`InductiveSignature.Instance.equation_patTyped`). This file identifies each model rule with
 its generated equation through the kernel recursor it translates (`TrRecursor`, functional by
 `TrExprS.unique`) and the generator's coverage of the kernel rules (`TrRecursorRule`), and
 reads the counts off the recursor metadata (`RecursorMetadata`). -/
@@ -35,7 +34,7 @@ section
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
   {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv} {indTypes : Array InductiveType}
   {ctorEnv outEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}  -- WAVE 2 install COMPAT
+  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- The rule coverage of a recursor check (the `trRules` clause of `RuleTranslations`): each
 kernel recursor's rules are, in order, the generated equations of the constructors it owns. -/

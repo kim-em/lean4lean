@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Audit the dependency closure of the verified theorems, including opaque bodies and types.
 
-The roots are listed below (section 1.4 of the design notes). Every axiom a root reaches must
+The roots are listed below. Every axiom a root reaches must
 be listed in scripts/inductive-audit-inventory.json; the strict roots (generator definitions,
 foundational lemmas, and the confluence theorem with its coverage lemmas) may use only the
 standard axioms. Every `sorry` a root reaches must come from a declaration listed there as an
@@ -74,7 +74,7 @@ DEFINITION_ROOTS = {
     "Lean4Lean.VEnv.HasCanonicalEq",
 }
 # Foundational lemmas, and the confluence theorem for every well-formed environment with
-# canonical `Eq` (section 4.2 of the design notes) with its parameters and coverage lemmas.
+# canonical `Eq` with its parameters and coverage lemmas.
 FOUNDATION_ROOTS = {
     "Lean4Lean.VEnv.IsDefEq.strong",
     "Lean4Lean.VEnv.IsDefEqStrong.subst",

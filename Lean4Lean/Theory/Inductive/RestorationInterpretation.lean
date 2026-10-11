@@ -28,11 +28,7 @@ telescope `λ params, target levels arguments` over the common parameters
 * `VEnv.RestoredPattern`: a ι rule of `envL` matched in `envS` by its restored rule. Its clause
   holds after interpretation in well-formed contexts, by the agreement up to beta
   (`RestoredPattern.clause`, a `PatClause` for `VEnv.TypedCtx`); this is the one rule clause
-  that needs a context invariant (PORT_PLAN section 3: the `PatClause` replaces the source
-  branch's `RestoredEliminator`).
-
-WAVE 3 COMPAT: port of the source branch's file; the eliminator half is replaced by
-`RestoredPattern`. -/
+  that needs a context invariant. -/
 
 namespace Lean4Lean
 

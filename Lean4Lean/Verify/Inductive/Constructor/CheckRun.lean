@@ -11,9 +11,7 @@ import Lean4Lean.Verify.Inductive.Context.TypeAnnotations
 fixes the declaration (its constructor types are the translations of the source ones, read off
 the run: `checkConstructors.loopTypes.accumulatesRawTargets`) and establishes, in every header
 environment of that declaration, the formation certificates, the checked tails and the owner
-normal forms (`ConstructorsChecked`). Source branch: `Install/{Headers,Environments}.lean`
-(`declareInductiveTypes.constructorsWF`, `checkConstructors.checkedWF`,
-`checkConstructors.ownerNormalFormsWF`), over `Constructor/CheckedConstructors.lean`. -/
+normal forms (`ConstructorsChecked`). -/
 
 namespace Lean4Lean
 
@@ -154,7 +152,7 @@ theorem AddInductive.checkConstructors.WF
     (AddInductive.checkConstructors indTypes stats isUnsafe { c' with env := headerEnv }).WF
       fun classes => ∃ decl, P.headers.Describes decl ∧ decl.isUnsafe = isUnsafe ∧
         ∀ H : HeaderEnvironment c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes
-          headerEnv, ConstructorsChecked H.toData classes := by  -- WAVE 2 install COMPAT
+          headerEnv, ConstructorsChecked H.toData classes := by
   intro classes hrun
   -- the placeholder declaration gives a header environment to run the first pass in
   let H0 := HI.toHeaderEnvironment hvisible

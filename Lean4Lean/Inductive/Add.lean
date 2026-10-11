@@ -66,8 +66,7 @@ structure Context where
   motives, minors or induction hypotheses), so every checker fact is produced
   in the context in which its verification uses it.  The C++ kernel shows each
   call a larger context; the results agree because a checker run only
-  consults free variables reachable from its inputs.  See section 3.2 of
-  the design notes. -/
+  consults free variables reachable from its inputs. -/
   checkLCtx : LocalContext := {}
   lparams : List Name
   /-- Universe parameters used by embedded typechecker calls.  Inductive
@@ -165,7 +164,7 @@ def paramCheckLCtx (stats : InductiveStats) (n : Nat) : M LocalContext :=
 def checkClosedType (name : Name) (type : Expr) : M Expr := do
   let env := (← read).env
   env.checkNoMVarNoFVar name type
-  -- runs in the checking context (section 3.2 of the design notes)
+  -- runs in the checking context
   withCheckLCtx {} (checkType type)
 
 namespace checkInductiveTypes
@@ -178,14 +177,14 @@ def loopType (nparams : Nat) (stats : InductiveStats) (type : Expr)
     if let .forallE name dom body bi := type then
       if i < nparams then
         if stats.indConsts.isEmpty then
-          -- runs in the checking context (section 3.2 of the design notes)
+          -- runs in the checking context
           withUnannotatedCheckedLocalDecl name bi dom fun param => do
             let stats := { stats with params := stats.params.push param }
             let type := body.instantiate1 param
             loopType nparams stats (← whnf type) (i + 1) nindices fuel k
         else
           let param := stats.params[i]!
-          -- runs in the checking context (section 3.2 of the design notes)
+          -- runs in the checking context
           let paramTy ← getType param
           unless ← withCheckLCtx (← paramCheckLCtx stats i) (isDefEq dom paramTy) do
             throw <| .other "parameters of all inductive datatypes must match"
@@ -193,7 +192,7 @@ def loopType (nparams : Nat) (stats : InductiveStats) (type : Expr)
           let type ← withCheckLCtx (← paramCheckLCtx stats (i + 1)) (whnf type)
           loopType nparams stats type (i + 1) nindices fuel k
       else
-        -- runs in the checking context (section 3.2 of the design notes)
+        -- runs in the checking context
         withUnannotatedCheckedLocalDecl name bi dom fun arg => do
           let type := body.instantiate1 arg
           loopType nparams stats (← whnf type) i (nindices + 1) fuel k
@@ -209,7 +208,7 @@ def loopInd (nparams : Nat) (indTypes : Array InductiveType)
     let type := indType.type
     _ ← checkClosedType indType.name type
     let fuel := (← readThe Context).fuel.inductiveFuel
-    -- runs in the checking context (section 3.2 of the design notes)
+    -- runs in the checking context
     -- The closed header is normalized in the empty context, and the telescope
     -- is opened on top of the parameters (none yet for the first family).
     let type ← withCheckLCtx {} (whnf type)
@@ -333,7 +332,7 @@ where
   | fuel+1 => do
     let t ← whnf t
     let .forallE name dom body bi := t | return isValidIndApp? stats t
-    -- runs in the checking context (section 3.2 of the design notes)
+    -- runs in the checking context
     withUnannotatedCheckedLocalDecl name bi dom fun arg => do
     loop (body.instantiate1 arg) fuel
 
@@ -348,7 +347,7 @@ def checkPositivityStep (stats : InductiveStats) (t : Expr)
     if hasIndOcc stats.indConsts dom then
       throw <| .other s!"arg #{idx + 1} of '{ctor}' \
         has a non positive occurrence of the datatypes being declared"
-    -- runs in the checking context (section 3.2 of the design notes)
+    -- runs in the checking context
     withUnannotatedCheckedLocalDecl name bi dom fun arg => do
       recur (body.instantiate1 arg)
   else if let none := isValidIndApp? stats t then
@@ -379,7 +378,7 @@ def loopCtor (stats : InductiveStats) (isUnsafe : Bool) (ctor : Name)
   | fuel+1 => do
     if let .forallE name dom body bi := t then
       if let some param := stats.params[i]? then
-        -- runs in the checking context (section 3.2 of the design notes)
+        -- runs in the checking context
         let paramTy ← getType param
         unless ← withCheckLCtx (← paramCheckLCtx stats i) (isDefEq dom paramTy) do
           throw <| .other
@@ -392,7 +391,7 @@ def loopCtor (stats : InductiveStats) (isUnsafe : Bool) (ctor : Name)
           throw <| .other s!"universe level of type_of(arg #{i + 1}) of '{ctor}' \
             is too big for the corresponding inductive datatype"
         let recursive ← if !isUnsafe then checkPositivity stats dom ctor i else pure false
-        -- runs in the checking context (section 3.2 of the design notes)
+        -- runs in the checking context
         withUnannotatedCheckedLocalDecl name bi dom fun arg => do
           return recursive :: (← loopCtor stats isUnsafe ctor targetIdx
             (body.instantiate1 arg) (i + 1) fuel)
@@ -445,7 +444,7 @@ recursor construction is required to agree with it (`checkRecursiveFields`). -/
 def checkConstructors (indTypes : Array InductiveType)
     (stats : InductiveStats) (isUnsafe : Bool) : M (List (List (List Bool))) := do
   let _ ← getEnv
-  -- runs in the checking context (section 3.2 of the design notes)
+  -- runs in the checking context
   withCheckLCtx (← paramCheckLCtx stats stats.params.size) do
   checkConstructors.loopTypes indTypes stats isUnsafe 0
 
@@ -502,7 +501,7 @@ def isLargeEliminator (stats : InductiveStats) (indTypes : Array InductiveType) 
     | 0 => throw .deepRecursion
     | fuel+1 => do
       if let .forallE name dom body bi := type then
-        -- runs in the checking context (section 3.2 of the design notes)
+        -- runs in the checking context
         withUnannotatedCheckedLocalDecl name bi dom fun arg => do
           let mut toCheck := toCheck
           if i ≥ stats.params.size then
@@ -511,7 +510,7 @@ def isLargeEliminator (stats : InductiveStats) (indTypes : Array InductiveType) 
           loop (body.instantiate1 arg) (i + 1) toCheck fuel
       else
         return toCheck.all type.getAppArgs.contains
-    -- runs in the checking context (section 3.2 of the design notes)
+    -- runs in the checking context
     withCheckLCtx {} (loop ctor.type 0 #[] (← readThe Context).fuel.inductiveFuel)
   | _ => return false
 
@@ -548,12 +547,12 @@ def loopArgs1 (stats : InductiveStats) (type : Expr) (i : Nat) (indices : Array 
   | fuel+1 => do
     if let .forallE name dom body bi := type then
       if i < stats.params.size then
-        -- runs in the checking context (section 3.2 of the design notes)
+        -- runs in the checking context
         let type ← withCheckLCtx (← paramCheckLCtx stats (i + 1))
           (whnf <| body.instantiate1 stats.params[i]!)
         loopArgs1 stats type (i + 1) indices fuel k
       else
-        -- runs in the checking context (section 3.2 of the design notes)
+        -- runs in the checking context
         withUnannotatedCheckedLocalDecl name bi dom fun arg => do
         loopArgs1 stats (← whnf <| body.instantiate1 arg) i (indices.push arg) fuel k
     else
@@ -566,7 +565,7 @@ variable (stats : InductiveStats) (indTypes : Array InductiveType) (elimLevel : 
 def loopInd1 (dIdx : Nat) (recInfos : Array RecInfo) (k : Array RecInfo → M α) : M α := do
   if _h : dIdx < indTypes.size then
     let ctx ← readThe Context
-    -- runs in the checking context (section 3.2 of the design notes)
+    -- runs in the checking context
     let type ← withCheckLCtx {} (whnf indTypes[dIdx].type)
     withCheckLCtx (← paramCheckLCtx stats stats.params.size) do
     loopArgs1 stats type 0 #[] ctx.fuel.inductiveFuel fun indices => do
@@ -595,7 +594,7 @@ where
       if let some param := stats.params[i]? then
         loop (body.instantiate1 param) (i + 1) bu u fuel
       else
-        -- runs in the checking context (section 3.2 of the design notes)
+        -- runs in the checking context
         -- The field is checked on top of the parameters and earlier fields.
         let fieldCheck := (← getLCtx).restrictTo
           ((stats.params ++ bu).toList.map (·.fvarId!))
@@ -613,7 +612,7 @@ def fieldsBefore (stats : InductiveStats) (fields : Array Expr) (ui : Expr) :
   stats.params ++ fields.takeWhile (·.fvarId! != ui.fvarId!)
 
 def loopUArgs (prior : Array Expr) (ui : Expr) (k : Expr → Array Expr → M α) : M α := do
-  -- runs in the checking context (section 3.2 of the design notes)
+  -- runs in the checking context
   -- The recursive field's type is read off its declaration and normalized in
   -- the checker context of `prior`: the parameters and the fields before it.
   let uiTy ← getType ui
@@ -625,7 +624,7 @@ where
   | 0 => throw .deepRecursion
   | fuel+1 => do
     if let .forallE name dom body bi := uiTy then
-      -- runs in the checking context (section 3.2 of the design notes)
+      -- runs in the checking context
       withUnannotatedCheckedLocalDecl name bi dom fun arg => do
       loop (← whnf <| body.instantiate1 arg) (xs.push arg) fuel
     else
@@ -1468,7 +1467,7 @@ def stripRecursorRules (env : Environment) (recNames : List Name) : Environment 
 /-- Restore a successfully installed lowered block. Before the restored environment is
 returned, the source constructor types, the restored recursor types, the right-hand sides of
 the restored rules and the nested applications `I Ds` are type-checked, each in its own side
-environment (section 3.3 of the design notes). -/
+environment. -/
 def Environment.restoreNestedAfterInstall (env loweredEnv : Environment)
     (lparams : List Name) (types : List InductiveType)
     (safety : DefinitionSafety) (allowPrimitive : Bool) (fuel : FuelConfig)

@@ -5,8 +5,7 @@ import Lean4Lean.Verify.Inductive.Rules.Translation
 
 /-! # Rule coverage and equation well-formedness of the recursor installation
 
-Assembly of the rule translations over the recursor installation (source branch:
-`Rules/RuleTranslations.lean`). Given the translation of each installed rule's closed
+Assembly of the rule translations over the recursor installation. Given the translation of each installed rule's closed
 right-hand side to the generator's equation right-hand side (`RuleRhsTranslations`, supplied by
 `RecursorInstallation.ruleRhsTranslations` of `Rules/Translation.lean`):
 

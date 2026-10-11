@@ -2,11 +2,10 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.Passes
 
 /-! # Source constants from the source-constructor validation pass
 
-The source branch's `validateSourceConstructorTypes.sourceConst_of_run`/`sourceConsts_of_run`
-(`Nested/Restoration/Validation/Checks.lean`) as consequences of Restoration-A's
+`validateSourceConstructorTypes.sourceConst_of_run`/`sourceConsts_of_run`, as consequences of
 `validateSourceConstructorTypes.run.WF`: every source constructor type translates to a
-well-formed abstract constant of the checker's model. The cache-mode premise of the source
-branch is gone; the checker environment is a `CheckerEnv`. -/
+well-formed abstract constant of the checker's model, whose checker environment is a
+`CheckerEnv`. -/
 
 namespace Lean4Lean
 

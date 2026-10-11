@@ -7,10 +7,9 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Run
 /-! # The restored block: the certificate of a nested restoration
 
 `RestoredBlock L sourceTypes isUnsafe outEnv` is what the restoration of a lowered run `L`
-certifies about the returned environment `outEnv`, in the foundation's vocabulary (frozen
-interface of the wave 3 scaffold; the Restoration owners produce it, `Nested/Restoration/Restore.lean`,
-the Equations owner adds the rule typing, `Nested/Equations/Rules.lean`, the Install owner
-reads it, `Nested/Install/**`):
+certifies about the returned environment `outEnv`, in the foundation's vocabulary. It is
+produced in `Nested/Restoration/Restore.lean`, its rule typing is added in
+`Nested/Equations/Rules.lean`, and `Nested/Install/**` reads it:
 
 * the **source declaration** `decl` with the restored recursors (the source families' with
   their restored rules, the auxiliary recursors renamed `Main.rec_k` firing on the containers'
@@ -33,7 +32,7 @@ reads it, `Nested/Install/**`):
 What is *not* here is the typing of the restored rules (`VInductDecl.WF.rules_wf`,
 `RestoredBlock.rulesWF`) and of the restored block's equations (`RestoredBlock.blockWF`): they
 go through the restoration interpretation (`Theory/Inductive/RestorationInterpretation.lean`)
-and are the Equations owner's (`Nested/Equations/Rules.lean`). `RestoredBlock.addInduct` and
+and are proved in `Nested/Equations/Rules.lean`. `RestoredBlock.addInduct` and
 `RestoredBlock.wf` (given those two) are proved here. -/
 
 namespace Lean4Lean
@@ -96,7 +95,7 @@ structure RestoredBlock {c : AddInductive.Context} {Hc : ContextWF c} {nparams :
   source recursors, the container's (declared below) for the auxiliary ones. -/
   rules_ctor : ∀ r ∈ decl.recs, ∀ ru ∈ r.rules,
     ∃ ci, envCtors.constants ru.ctor = some ci ∧ ci.type.CtorShape (ru.ctorParams + ru.nfields)
-  /-- `VInductDecl.WF.rules_ctorParams` (added by Restoration-B, WAVE 3 COMPAT): source
+  /-- `VInductDecl.WF.rules_ctorParams`: source
   rules fire on the declaration's constructors at its `nparams`, auxiliary rules on a
   container's constructors at the container's. -/
   rules_ctorParams : ∀ r ∈ decl.recs, ∀ ru ∈ r.rules,
@@ -119,27 +118,27 @@ structure RestoredBlock {c : AddInductive.Context} {Hc : ContextWF c} {nparams :
   recShapes : ∀ rval ∈ rvals, RecursorShapesAt outEnv.constants outVEnv rval
   /-- The K clause of every new recursor. -/
   recK : ∀ rval ∈ rvals, KLikeRecursor outEnv.constants outVEnv rval
-  /-- (Added by Restoration-B.) The run object of the source branch (`NestedRun`), from which
-  the restoration certificates are read (the Equations owner's restoration substitution, the
-  Install owner's kernel facts). Its lowered run is `L`'s view. -/
+  /-- The run object (`NestedRun`), from which the restoration certificates are read (the
+  restoration substitution of the equations, the kernel facts of the installation). Its lowered
+  run is `L`'s view. -/
   runDecl : VInductDecl
   run : NestedRun res c.env sourceTypes Hc.venv runDecl c.lparams nparams isUnsafe c.safety outEnv
   /-- The run's declaration is the source declaration without recursors (its
   `SourcePrefixOfLowered` pins the recursor list); `decl` adds the restored ones. -/
   run_decl : decl = runDecl.withRecs decl.recs
-  /-- (Added by Restoration-B.) The source syntax checks, in the lowering's inductive form. -/
+  /-- The source syntax checks, in the lowering's inductive form. -/
   sourceSyntaxChecked : SourceSyntaxChecked sourceTypes
-  /-- (Added by Restoration-B.) Lowering keeps each source constructor's arity prefix. -/
+  /-- Lowering keeps each source constructor's arity prefix. -/
   constructorArityPrefix : decl.ConstructorArityPrefix L.loweredDecl
   run_loweredEnv : run.loweredEnv = loweredEnv
   run_lowered : HEq run.lowered L.view
-  /-- (Added by Restoration-B, for Install's kernel facts.) The major inductive of every new
+  /-- The major inductive of every new
   recursor is an inductive type of the output. -/
   recMajor : ∀ rval ∈ rvals, ∃ info, outEnv.find? rval.getMajorInduct = some (.inductInfo info)
-  /-- (Added by Restoration-B, for Install's kernel facts.) Constructor parameter alignment of
+  /-- Constructor parameter alignment of
   the output (`RestoredBlockBase.constructorTypingOfParameterDomains`). -/
   constructorParameterAlignment : ConstructorParameterAlignment c.safety outEnv outVEnv
-  /-- (Added by Restoration-B, for the Equations owner.) The restored equations are typed in the
+  /-- The restored equations are typed in the
   restored recursor stage. -/
   restoredEquationsWF : ∀ df ∈ block.rules, df.WF envR
 
@@ -201,7 +200,7 @@ theorem compilesTo (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
     B.decl.CompilesTo Hc.venv B.block :=
   .intro B.compiled B.containers
 
--- WAVE 3 COMPAT (eqinst): `RecsCompiled` carries `block.WF`, which is `RestoredBlock.blockWF`
+-- `RecsCompiled` carries `block.WF`, which is `RestoredBlock.blockWF`
 -- (`Nested/Equations/Rules.lean`, which imports this file); it is taken as a hypothesis here.
 theorem recsCompiled (B : RestoredBlock L sourceTypes isUnsafe outEnv)
     (hblock : B.block.WF Hc.venv) : B.decl.RecsCompiled Hc.venv :=
@@ -233,7 +232,7 @@ theorem rule_ctor_cases (B : RestoredBlock L sourceTypes isUnsafe outEnv)
 /-- `VInductDecl.WF` of the restored declaration, given the typing of its rules
 (`RestoredBlock.rulesWF`, `Nested/Equations/Rules.lean`). -/
 theorem wf (B : RestoredBlock L sourceTypes isUnsafe outEnv) (hsource : sourceTypes ≠ [])
-    (hblock : B.block.WF Hc.venv)  -- WAVE 3 COMPAT (eqinst)
+    (hblock : B.block.WF Hc.venv)
     (hrules : ∀ r ∈ B.decl.recs, ∀ ru ∈ r.rules, ∀ hc : ru.rhs.Closed,
       B.envR.PatTyped
         (SimplePattern.iota r.name r.getMajorIdx ru.ctor (ru.ctorParams + ru.nfields)).toPattern

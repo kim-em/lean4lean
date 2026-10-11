@@ -6,12 +6,9 @@ import Lean4Lean.Verify.Inductive.Constructor.CheckRun
 `AddInductive.constructorPhase` installs the headers (`declareInductiveTypes`), checks the
 constructors against them (`checkConstructors`) and installs them (`declareConstructors`). Its
 output is the constructor environment, the input of the recursor phase. `ConstructorCheck` is the
-frozen interface of that environment; `AddInductive.constructorPhase.WF` is the boundary
-theorem.
-
-Wave 2 scaffold: owned by the `Constructor/`+`CheckedFormation` agent, who composes the header
-agent's `declareInductiveTypes.WF` with their own `checkConstructors` and `declareConstructors`
-refinements (source branch: `Constructor/Check.lean`, `Install/{Environments,Formation}.lean`). -/
+interface of that environment; `AddInductive.constructorPhase.WF` is the boundary theorem,
+composing `declareInductiveTypes.WF` with the `checkConstructors` and `declareConstructors`
+refinements. -/
 
 namespace Lean4Lean
 
@@ -49,26 +46,26 @@ structure ConstructorCheck (c : AddInductive.Context) (stats : AddInductive.Indu
   constructorParameterAlignment : ∀ {safety},
     ConstructorParameterAlignment safety c.env sourceEnv →
     ConstructorParameterAlignment safety ctorEnv ctorVEnv
-  /-- (Added by the constructor agent.) The kernel headers with their constructors are the
+  /-- The kernel headers with their constructors are the
   executable's `inductiveTypeInfos` and `constructorInfo`s. -/
   ivals_eq : ivals = (headers.infos.zip indTypes.toList).map fun p =>
     (p.1, familyCtorInfos stats c.lparams isUnsafe p.2)
-  /-- (Added for the rules agent.) Every kernel constructor has the declaration's parameter
+  /-- Every kernel constructor has the declaration's parameter
   count. -/
   ctor_numParams : ∀ iv ∈ ivals, ∀ cval ∈ iv.2, cval.numParams = decl.nparams
-  /-- (Added for the recursor agent.) The concrete parameter prefixes and spines of the source
+  /-- The concrete parameter prefixes and spines of the source
   constructor types. -/
   parameterPrefixes : ConstructorParameterPrefixes stats indTypes
-  /-- (Added for the recursor agent.) The concrete checked tails, in the header environment's
+  /-- The concrete checked tails, in the header environment's
   parameter scope. -/
   constructorTails : ConstructorTails headers.context.venv c.lparams
     headers.statsWF.parameterScope stats decl indTypes classes
-  /-- (Added for the recursor agent.) The owner normal forms of the kernel constructor types. -/
+  /-- The owner normal forms of the kernel constructor types. -/
   ownerNormalForms : ConstructorOwnerNormalForms stats indTypes
-  /-- (Added by install, WAVE 2 install COMPAT.) Positivity's literal side condition, in the
+  /-- Positivity's literal side condition, in the
   recursor phase's context. -/
   literalDisjoint : checkPositivityStep.AvailableLiteralDisjoint context.venv stats.indConsts
-  /-- WAVE 3 COMPAT (restB): the family and constructor names are not checker primitives
+  /-- The family and constructor names are not checker primitives
   (they passed `checkName`; for the ordinary path primitive names are rejected or
   `allowsPrimitives` fails). Read by the nested restoration (`NestedRun.loweredNonprimitive`). -/
   nonprimitive : ∀ T ∈ decl.types, ¬ Kernel.Environment.primitives.contains T.name ∧
@@ -195,7 +192,7 @@ theorem AddInductive.constructorPhase.WF
     have hallow := (hfr cval hcval).2 hp
     obtain ⟨t, ht, j, ctor, hctor, rfl⟩ := mem_ctorInfos hcval
     exact hnprimCtors hallow t ht ctor hctor hp
-  -- WAVE 2 install COMPAT: `CtorInstall` over the header data, with its primitive fields
+  -- `CtorInstall` over the header data, with its primitive fields
   have hnprimFam : ∀ T ∈ decl.types, ¬ Kernel.Environment.primitives.contains T.name := by
     intro T hT hp
     obtain ⟨src, hsrc, htr⟩ := List.Forall₂.forall_exists_r H.trSources T hT
@@ -243,7 +240,7 @@ theorem AddInductive.constructorPhase.WF
       exact (hfr _ hcv).1
     context := I.context
     contextVEnv := rfl
-    contextMLCtx := H.contextMLCtx.symm  -- WAVE 2 install COMPAT
+    contextMLCtx := H.contextMLCtx.symm
     parameters := I.parameters
     closed := I.closed hclosed
     inductInfosFromDecl := I.inductInfosFromDecl
@@ -255,7 +252,6 @@ theorem AddInductive.constructorPhase.WF
     ownerNormalForms := I.K.ownerNormalForms
     literalDisjoint := I.contextLiteralDisjoint
     nonprimitive := by
-      -- WAVE 3 COMPAT (restB)
       intro T hT
       refine ⟨hnprimFam T hT, fun ctor hctor hp => ?_⟩
       have hmem : ctor ∈ decl.constructorConstants := List.mem_flatMap.mpr ⟨T, hT, hctor⟩

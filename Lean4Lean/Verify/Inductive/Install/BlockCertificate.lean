@@ -8,14 +8,9 @@ import Lean4Lean.Verify.Inductive.Install.RecursorShapes
 `BlockCertificate` is what a complete run of the ordinary pipeline certifies at the checked
 safety level: the installed declaration is well formed (`VInductDecl.WF`), PR #43's `AddInduct`
 relates the source and output environments (so `TrEnv'.induct` applies), and the facts
-`InstalledBlocks.addInduct` (wave 1B) reads of the output. `RecursorCheck.blockCertificate`
+`InstalledBlocks.addInduct` reads of the output. `RecursorCheck.blockCertificate`
 assembles it from the recursor and rule phases; `BlockCertificate.extendSafeExact` and
-`extendUnsafeExact` install it into the safety-indexed model `VEnvs` ("Assembly" in section 3.2
-of the design notes).
-
-Wave 2 scaffold: owned by the `Install/`+`Primitive/`+`Prelude/` agent (source branch:
-`Install/{BlockCertificate,Environments,Lookups,Metadata,LiteralNames}.lean`, rewritten against
-`AddInduct`). -/
+`extendUnsafeExact` install it into the safety-indexed model `VEnvs`. -/
 
 namespace Lean4Lean
 
@@ -66,7 +61,7 @@ theorem le (H : BlockCertificate safety env venv decl outEnv outVEnv) : venv ≤
 
 theorem inductInstalled (H : BlockCertificate safety env venv decl outEnv outVEnv) :
     outVEnv.InductInstalled decl :=
-  VEnv.InductInstalled.of_addInduct H.wf H.installed H.compiled -- WAVE 3 COMPAT (lowering)
+  VEnv.InductInstalled.of_addInduct H.wf H.installed H.compiled
 
 /-- Every constant of the source environment is a constant of the output, to the same value:
 every name the block inserts is fresh. -/
@@ -79,7 +74,7 @@ theorem find?_mono (H : BlockCertificate safety env venv decl outEnv outVEnv)
   exact H.add.find?_mono hwf h
 
 /-- The output of a certified block is a valid checking environment with the installed blocks of
-the source and the new one: wave 1B's `InstalledBlocks.addInduct`. -/
+the source and the new one (`InstalledBlocks.addInduct`). -/
 theorem installedBlocks (H : BlockCertificate safety env venv decl outEnv outVEnv)
     (hblocks : InstalledBlocks safety env venv .complete) (hwf : env.constants.WF)
     (hvisible : safety ≤ (if decl.isUnsafe then DefinitionSafety.unsafe else .safe))
@@ -87,7 +82,7 @@ theorem installedBlocks (H : BlockCertificate safety env venv decl outEnv outVEn
     InstalledBlocks safety outEnv outVEnv .complete := by
   refine InstalledBlocks.addInduct hblocks hwf H.checking.tr ?_ H.le H.inductInfosFromDecl
     H.cover H.closed H.constructorOwners (fun h1 h2 => H.recMajor h1 h2)
-    (fun _ => ⟨H.wf, H.installed, H.compiled⟩) -- WAVE 3 COMPAT (lowering)
+    (fun _ => ⟨H.wf, H.installed, H.compiled⟩)
     (fun h => absurd hvisible h)
     (fun _ => H.constructorParameterAlignment hparams) (fun h1 h2 _ => H.recK h1 h2)
     (fun h1 h2 _ => H.recShapes h1 h2)
@@ -153,7 +148,7 @@ theorem rebase {ves : VEnvs} (H : BlockCertificate .safe env (ves.venv .safe) de
   have hblocks' : InstalledBlocks safety outEnv out' .complete :=
     InstalledBlocks.addInduct wf.blocks hwf htrOut.toChecking (H.find?_mono hwf) add'.le
       H.inductInfosFromDecl H.cover H.closed H.constructorOwners (fun h1 h2 => H.recMajor h1 h2)
-      -- WAVE 3 COMPAT (lowering): the compiled block, replayed
+      -- the compiled block, replayed
       (fun _ => ⟨wf', installed', block, hcomp.mono hle hblock', hrecs, hblock'⟩)
       (fun h => absurd hvis h) (fun _ => hparams')
       (fun h1 h2 _ => hrecK' h1 h2) (fun h1 h2 _ => (H.recShapes h1 h2).extend hout id)
@@ -271,18 +266,17 @@ def RecursorCheck.outVEnv'
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}  -- WAVE 2 install COMPAT
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv) : VEnv :=
   ((decl.withRecs H.recs).addRules H.outVEnv).getD H.outVEnv
 
-/-- The source branch's `OrdinaryInstallation.extend*Exact` read the block certificate off the
-recursor check and the rule translations: this is that assembly. The installed declaration is
-`H.decl'` (the constructor phase's declaration with the generated recursors). -/
+/-- The block certificate read off the recursor check and the rule translations. The installed
+declaration is `H.decl'` (the constructor phase's declaration with the generated recursors). -/
 theorem RecursorCheck.blockCertificate
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}  -- WAVE 2 install COMPAT
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv) (T : RuleTranslations H)
     (hnonempty : indTypes.toList ≠ []) :
     Nonempty (BlockCertificate c.safety c.env sourceEnv H.decl' outEnv H.outVEnv') := by

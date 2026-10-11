@@ -1,11 +1,11 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Declarations
 
-/-! # The environment condition at the recursor pass of a nested run (owner: Restoration-A)
+/-! # The environment condition at the recursor pass of a nested run
 
-The parts of the source branch's `Nested/Restoration/Uniform/Whnf.lean` that read
-`NestedRun.auxHeadsFacts`: the lowered constructor types are head types for the run's head
-set, the heads are fresh in the source model, the family types are head types, and
-`NestedRun.envParamUniform`: `EnvParamUniform` of the recursor pass's environment. -/
+The parameter-uniformity facts that read `NestedRun.auxHeadsFacts`: the lowered constructor types
+are head types for the run's head set, the heads are fresh in the source model, the family types are
+head types, and `NestedRun.envParamUniform`: `EnvParamUniform` of the recursor pass's environment.
+-/
 
 namespace Lean4Lean
 open Lean hiding Environment Exception

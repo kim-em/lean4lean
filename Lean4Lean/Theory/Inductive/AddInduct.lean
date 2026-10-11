@@ -4,9 +4,9 @@ import Lean4Lean.Theory.VDecl
 
 The stages of `VEnv.addInduct` (type formers, constructors, projections, recursors, ι rules)
 and the syntactic reading of a declaration's recursors off a compiled block
-(`VRecRule.OfEquation`, `VInductDecl.RecsOf`). Moved here from `Theory/Inductive.lean` so
+(`VRecRule.OfEquation`, `VInductDecl.RecsOf`). They live below `Theory/Inductive.lean` so
 that `Theory/Inductive/Compilation.lean` can phrase the installation of a prior container
-(`ContainersInstalled`) on `addInduct` (`-- WAVE 2 COMPAT`). -/
+(`ContainersInstalled`) on `addInduct`. -/
 
 namespace Lean4Lean
 

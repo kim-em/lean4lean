@@ -4,8 +4,7 @@ import Lean4Lean.Verify.Inductive.Recursor.Signature.RecursiveShapeTranslations
 import Lean4Lean.Verify.Inductive.Recursor.Metadata
 
 /-! Well-formedness of the generator's equations for the instance of the recursor
-construction (`RecursorInstallation.canonicalGeneration`), part of the typing of the iota rules
-(section 3.2 of the design notes).
+construction (`RecursorInstallation.canonicalGeneration`), part of the typing of the iota rules.
 
 Each generated rule of the executable is typed in the fixed equation context
 `parameterDecls ++ motives ++ minors ++ equationFields` (`canonicalEquationDomains`).

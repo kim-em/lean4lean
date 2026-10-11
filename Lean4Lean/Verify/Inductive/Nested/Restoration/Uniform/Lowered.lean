@@ -1,10 +1,9 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Base
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Queue
 
-/-! # Parameter uniformity of lowered constructor types (owner: Restoration-A)
+/-! # Parameter uniformity of lowered constructor types
 
-The lowering-side lemmas of the source branch's `Nested/Restoration/Uniform/Recursors.lean`:
-lowering an input that mentions no head produces a parameter-uniform output
+Lowering an input that mentions no head produces a parameter-uniform output
 (`ExprLowering.Resolved.paramUniform`), and a lowered constructor type is a parameter-uniform
 parameter telescope (`ConstructorLowering.Resolved.paramUniformTele`). -/
 

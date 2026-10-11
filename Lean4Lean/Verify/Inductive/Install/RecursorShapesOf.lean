@@ -6,7 +6,7 @@ import Lean4Lean.Theory.Typing.RecursorLemmas
 
 /-! # The recursor shapes of an ordinary block
 
-The recursor and constructor telescopes (`RecursorShapes`, wave 1A) of the recursors installed
+The recursor and constructor telescopes (`RecursorShapes`) of the recursors installed
 by a recursor check: the recursor type is the generator's `Instance.recursorType`, literally a
 recursor telescope over its major family; each rule fires on a source constructor of the major
 family, whose raw shape (`RawCtorShape`) is the constructor telescope. Recorded in the installed

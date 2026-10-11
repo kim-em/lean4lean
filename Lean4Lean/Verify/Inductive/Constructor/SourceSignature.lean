@@ -10,8 +10,7 @@ tails: the classification of each field as external or recursive and the
 shared family and parameter choices, with the proof that the signature models
 the source declaration.
 
-Ported from the source branch's `Constructor/SourceSignature.lean`. The family table is read
-off the header certificate (`VInductDecl.TypeShape`) instead of the header phase's cached
+The family table is read off the header certificate (`VInductDecl.TypeShape`) instead of the header phase's cached
 statistics. -/
 
 namespace Lean4Lean

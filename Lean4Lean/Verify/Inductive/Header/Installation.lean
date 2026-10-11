@@ -4,12 +4,9 @@ import Lean4Lean.Verify.Inductive.Header.Declare
 
 After the header traversal, `AddInductive.declareInductiveTypes` adds the kernel headers
 (`inductiveTypeInfos`) to the environment, one checked name at a time. `HeaderEnvironment` is
-the frozen interface of the resulting environment, indexed by the abstract declaration `decl`
+the interface of the resulting environment, indexed by the abstract declaration `decl`
 the constructor phase will select (only its header data is constrained here);
-`AddInductive.declareInductiveTypes.WF` is the boundary theorem.
-
-Wave 2 scaffold: owned by the `Header/`+`Context/`+`Formation` agent (source branch:
-`Header/{Declaration,Installation}.lean`, `Install/Headers.lean`). -/
+`AddInductive.declareInductiveTypes.WF` is the boundary theorem. -/
 
 namespace Lean4Lean
 
@@ -296,7 +293,7 @@ theorem CheckedHeaders.Describes.numIndices {env : VEnv} {Us : List Name} {npara
     | cons h _ ih => simp only [List.map_cons, ih, h.2.1]
   simpa [CheckedHeaders.metadata, List.map_map, Function.comp_def] using go D.2.2
 
-/-- The header statistics of the source branch (`HeaderStatsWF`) for every declaration the
+/-- The header statistics (`HeaderStatsWF`) for every declaration the
 checked headers describe: its header certificate, the normalized source telescope and
 semantic shape of every family, and the parameter scope of the header phase. -/
 def HeaderPhase.statsWF {c c' : AddInductive.Context} {Hc : ContextWF c} {nparams : Nat}

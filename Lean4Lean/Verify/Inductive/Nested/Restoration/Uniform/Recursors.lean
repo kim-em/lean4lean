@@ -23,9 +23,8 @@ the executable's generated recursors are parameter-uniform:
   `GeneratedRecursorEntry`.
 * `NestedRun.recursorParamUniform` (with projections `recursorTypeParamUniform`,
   `ruleRhsParamUniform`): the same for the recursor read back by any restoration step of a
-  validated nested run, at `result.nparams` and `lparams.map Level.param`. (Ported from the
-  source branch's file of the same name; the `NestedRun` section and the lowering-side lemmas
-  follow in `Uniform/Run.lean`, over Restoration-B's `NestedRun`.)
+  validated nested run, at `result.nparams` and `lparams.map Level.param` (in
+  `Uniform/Run.lean`).
 
 The head occurrences come from three sources.
 

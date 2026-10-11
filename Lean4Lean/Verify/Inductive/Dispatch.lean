@@ -4,13 +4,13 @@ import Lean4Lean.Verify.Inductive.Primitive.Extension
 /-! # Dispatch of inductive declarations
 
 The primitive, ordinary and nested paths each produce an `InductiveExtension`; this file
-combines them along the executable's own branch selection (section 3.1 of the design notes):
-the primitive recognizer first (`Primitive.checkInductive`), then the number of auxiliary
-families returned by lowering (`res.aux2nested.size`).
+combines them along the executable's own branch selection: the primitive recognizer first
+(`Primitive.checkInductive`), then the number of auxiliary families returned by lowering
+(`res.aux2nested.size`).
 
-The nested branch is the hypothesis `NestedInductivePreserves` (wave 3 proves it, as the source
-branch's `Environment.addInductiveAfterLowering.nestedInductiveExtensionWF`); everything else is
-proved from the ordinary and primitive pipelines. `Verify/Environment.lean` consumes
+The nested branch is the hypothesis `NestedInductivePreserves`, proved as
+`nestedInductivePreserves` in `Nested/Install/Dispatch.lean`; everything else is proved from the
+ordinary and primitive pipelines. `Verify/Environment.lean` consumes
 `addInductiveDeclaration.WF_preserves` for `addDecl.WF`. -/
 
 namespace Lean4Lean
@@ -22,7 +22,8 @@ namespace VerifyInductive
 
 /-- The nested branch of `addInductiveAfterLowering`: a lowering result with auxiliary families
 (after the source checks) is restored and validated into an extension of the model for the
-submitted source declaration. Wave 3 (`Nested/**`) proves this statement. -/
+submitted source declaration. `nestedInductivePreserves` (`Nested/Install/Dispatch.lean`)
+proves this statement. -/
 def NestedInductivePreserves : Prop :=
   ∀ (env : Environment) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
@@ -82,7 +83,7 @@ theorem Environment.addInductive.inductiveExtensionWF
   refine Environment.addInductive.WF env lparams nparams types isUnsafe false fuel _
     fun res Hsources Hlower => ?_
   by_cases haux : res.aux2nested.size = 0
-  · -- WAVE 3 COMPAT (lowering): the lowering consequences take `wf` and `Hsources`
+  · -- the lowering consequences take `wf` and `Hsources`
     have htypes := loweringRun.ordinary_types_eq_source wf Hsources HsourcesB Hlower haux
     exact Environment.addInductiveAfterLowering.ordinaryInductiveExtensionWF
       env lparams nparams types isUnsafe fuel res ves wf htypes
@@ -103,7 +104,7 @@ theorem Environment.addInductive.preservesWF
   by_cases haux : res.aux2nested.size = 0
   · exact Environment.addInductiveAfterLowering.ordinaryInstalledModelWF
       env lparams nparams types isUnsafe fuel res ves wf
-      (loweringRun.types_nonempty wf Hsources Hlower) haux -- WAVE 3 COMPAT (lowering)
+      (loweringRun.types_nonempty wf Hsources Hlower) haux
   · exact (hnested env lparams nparams types isUnsafe fuel res ves wf Hsources Hlower haux).mono
       fun _ ⟨E⟩ => E.modelExtension
 

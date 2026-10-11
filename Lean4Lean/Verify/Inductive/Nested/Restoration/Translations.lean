@@ -8,7 +8,7 @@ translations (`SourceFamilyTranslations`: header, constructors and source recurs
 each source family) and the auxiliary recursor fold (`AuxiliaryRecursorRuleBatches`),
 the restored block `restoredBlock`, and the auxiliary-constructor freshness
 consequence of installation. Shared lookup and mutual-header effects live in
-`Install/Metadata.lean`. Section 3.3 of the design notes. -/
+`Install/Metadata.lean`. -/
 
 namespace Lean4Lean
 

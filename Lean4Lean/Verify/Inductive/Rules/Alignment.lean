@@ -4,8 +4,7 @@ import Lean4Lean.Verify.Inductive.Rules.InstallationLemmas
 import Lean4Lean.Verify.Inductive.Rules.ContextLemmas
 import Lean4Lean.Verify.Inductive.Recursor.SourceAlignment
 
-/-! Rule alignment, the entry point of the typing of the iota rules (`Rules/`,
-section 3.2 of the design notes). For each rule emitted by the recursor construction,
+/-! Rule alignment, the entry point of the typing of the iota rules (`Rules/`). For each rule emitted by the recursor construction,
 `RecursorInstallation.RuleAlignment` fixes in one record the executable family in `indTypes`, the
 abstract family and constructor of `decl`, and the rule's syntax and typing facts
 (`RecursorRuleSyntax`, `RecursorRuleSyntax.Semantics`); `RecursorInstallation.ruleAlignment` produces

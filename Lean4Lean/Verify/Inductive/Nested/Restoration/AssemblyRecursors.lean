@@ -15,11 +15,11 @@ The fields of `RestoredBlock` (`Nested/Restoration/Certificate.lean`) about recu
 compilation, produced from a nested run `E`, a rule-free restored block base `B` of it, and the
 restoration tables of `restorationTablesRestoringAll`.
 
-* **Rule translation** (`NestedRun.trRestoredRecursorRule_of_equation`, the source branch's
-  `Equations/RestoredRules.lean` lemma): in the recursor stage of `B`, where the stripped output
-  environment is a checker environment (`CheckerEnv`, the input of restA's
-  `validateRestoredRecursorRules.check.WF`), the right-hand side of every executable restored
-  rule translates, and its translation is the restoration of the generated right-hand side. -/
+* **Rule translation** (`NestedRun.trRestoredRecursorRule_of_equation`): in the recursor stage
+  of `B`, where the stripped output environment is a checker environment (`CheckerEnv`, the
+  input of `validateRestoredRecursorRules.check.WF`), the right-hand side of every executable
+  restored rule translates, and its translation is the restoration of the generated right-hand
+  side. -/
 
 namespace Lean4Lean
 
@@ -89,9 +89,8 @@ theorem _root_.Lean4Lean.InductiveSignature.Restoration.equation_eq_some'
         subst h
         exact ⟨rfl, rfl, rfl, rfl⟩
 
-/-- **Translation of a restored generated equation** (the source branch's
-`trRestoredRecursorRule_of_equation`, with the stripped checker environment `Cstrip` in place of
-the source's validity and cache-soundness premises). In the recursor environment of a restored
+/-- **Translation of a restored generated equation**, over the stripped checker environment
+`Cstrip`. In the recursor environment of a restored
 block base, the abstract restoration of the `k`-th generated equation is a translation of the
 executable restored rule at `k`. -/
 theorem NestedRun.trRestoredRecursorRule_of_equation
@@ -340,8 +339,8 @@ theorem NestedRun.rvals_recursorEntries
   rintro owner entry rv ⟨s, t, Hs, he⟩ ⟨s', t', Hs', rfl⟩
   rw [he, (Hs.info_eq Hs').2]
 
-/-- **The restored compilation of a nested run** (the body of the source branch's
-`assemblyOfRun_of_run`, over a rule-free base `C` and the stripped checker environment): for the
+/-- **The restored compilation of a nested run**, over a rule-free base `C` and the stripped
+checker environment: for the
 specializations of `restorationTablesRestoringAll`, the restored generated equations `rules`
 exist, the containers are installed, the restored block with these rules is a
 `CompilationData` of the lowered run's generator, and every recursor entry of `C` translates the

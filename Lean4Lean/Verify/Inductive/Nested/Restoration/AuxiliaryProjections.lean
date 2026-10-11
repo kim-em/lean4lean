@@ -35,15 +35,10 @@ equivalence is definitional equality (`VExpr.LEquiv.defeq`).
   is the corresponding rule of `J` after beta reducing the restoration
   lambdas (`VEnv.Interpretation.ProjectionClause.of_specialization`).
 
-The composition is `NestedRun.restoredEquationGaps` and
-`NestedRun.hrestoredWF_of`.
-
-Port note (restB): `NestedRun.restoredEquationGaps` and `NestedRun.hrestoredWF_of` are not ported:
-they assemble the source's `RestorationSubstitutionPremises` (`Equations/WF.lean`), which the
-target's equations owner states. The prerequisites the source kept in `Equations/ProjNames.lean`
-and `Equations/AuxiliaryConstructors.lean` (`TrExprS.targetProjsRegistered`,
+The composition is `NestedRun.restoredEquationGaps` and `NestedRun.hrestoredWF_of`
+(`Equations/RestoredWF.lean`). The prerequisites `TrExprS.targetProjsRegistered`,
 `NestedRun.constructorProjNames_of`, `RestorationTablesAgree.interpretation_eq`/`restorable_iff`,
-`Restoration.expr_forallArity`, `VEnv.InstalledBelow.constructorConstant_mem`) are ported here.
+`Restoration.expr_forallArity` and `VEnv.InstalledBelow.constructorConstant_mem` are proved here.
 -/
 
 namespace Lean4Lean

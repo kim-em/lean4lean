@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Constructor.Environment
-import Lean4Lean.Verify.Inductive.Constructor.LiteralNames  -- WAVE 2 install COMPAT
+import Lean4Lean.Verify.Inductive.Constructor.LiteralNames
 
 /-! # The constructor environment
 
@@ -65,7 +65,7 @@ structure CtorInstall (c : AddInductive.Context) (stats : AddInductive.Inductive
     (decl : VInductDecl) (nparams : Nat) (isUnsafe : Bool) (depth : Nat) (sourceEnv : VEnv)
     (indTypes : Array InductiveType) (headerEnv ctorEnv : Environment)
     (classes : List (List (List Bool))) where
-  -- WAVE 2 install COMPAT: the header data (no header `ContextWF`), so that the primitive
+  -- The header data (no header `ContextWF`), so that the primitive
   -- `Bool`/`Nat` path installs its constructors here too
   H : HeaderData c stats decl nparams isUnsafe depth sourceEnv indTypes headerEnv
   K : ConstructorsChecked H classes
@@ -75,14 +75,14 @@ structure CtorInstall (c : AddInductive.Context) (stats : AddInductive.Inductive
   fresh : ∀ cval ∈ ctorInfos stats c.lparams isUnsafe indTypes.toList,
     headerEnv.find? cval.name = none
   nodup : ((ctorInfos stats c.lparams isUnsafe indTypes.toList).map (·.name)).Nodup
-  -- WAVE 2 install COMPAT: the primitive invariant of the constructor model and the primitive
+  -- The primitive invariant of the constructor model and the primitive
   -- constants of the constructor environment, in place of `nprim` (the ordinary path proves
   -- them from the constructor names being nonprimitive, `CtorInstall.ofNprim`)
   hasPrimitives : ∀ venv', H.context.venv.addConstVals decl.constructorConstants = some venv' →
     venv'.HasPrimitives
   safePrimitives : ∀ {n ci}, ctorEnv.find? n = some ci →
     Kernel.Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
-  -- WAVE 2 install COMPAT: positivity's literal side condition in the constructor model
+  -- Positivity's literal side condition in the constructor model
   literalDisjoint : ∀ venv', H.context.venv.addConstVals decl.constructorConstants = some venv' →
     checkPositivityStep.AvailableLiteralDisjoint venv' stats.indConsts
   nindices_size : stats.nindices.size = indTypes.size
@@ -734,7 +734,7 @@ theorem sourcePresMap {n : Name} {ci : ConstantInfo} (h : c.env.constants.find? 
 theorem sourceVEnvLE_P : I.H.sourceContext.venv ≤ I.envP := by
   rw [I.H.sourceContextVEnv]; exact I.sourceLE_P
 
--- WAVE 2 install COMPAT: from the source context, extended over the headers and constructors
+-- From the source context, extended over the headers and constructors
 theorem equationHeads : EquationHeadsCoherent ctorEnv.constants I.envP :=
   (I.H.sourceContext.checking.equationHeads.extendSimple (C' := ctorEnv.constants)
     (venv' := I.ctorVEnv) (fun h => I.sourcePresMap h)
@@ -767,7 +767,7 @@ theorem recSource {n : Name} {r : RecursorVal}
   · exact (toEnvFind I.sourceMapWF).mpr h
   · cases he
 
--- WAVE 2 install COMPAT: from the source context
+-- From the source context
 theorem shapes : RecursorShapesCoherent c.safety ctorEnv.constants I.envP := by
   intro name rec hrec hsafe
   obtain ⟨cnparams, indLevels, ctorParams, ⟨S⟩, hrules⟩ :=
@@ -796,7 +796,7 @@ theorem iota : IotaRulesRegistered c.safety ctorEnv I.envP := by
 
 /-- The checking context over the constructor environment. -/
 noncomputable def context : ContextWF { c with env := ctorEnv } :=
-  -- WAVE 2 install COMPAT: from the source context
+  -- From the source context
   I.H.sourceContext.withEnv I.valid I.shapes I.iota I.sourceVEnvLE_P
 
 theorem context_venv : I.context.venv = I.envP := rfl
@@ -903,7 +903,7 @@ theorem constructorParameterAlignment {safety : DefinitionSafety}
 
 end CtorInstall
 
--- WAVE 2 install COMPAT: the primitive fields of `CtorInstall` on the ordinary path, where no
+-- The primitive fields of `CtorInstall` on the ordinary path, where no
 -- constructor name is a primitive.
 theorem CtorInstall.ordinaryPrimitives {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool}

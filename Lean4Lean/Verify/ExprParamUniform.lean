@@ -7,7 +7,7 @@ This file holds the syntactic predicates `Expr.ParamUniform`, `Expr.ParamUniform
 `Expr.ParamUniformTele` together with their structural lemmas. An expression is
 parameter-uniform for a set of head constants when every application of a head is applied to
 exactly the block parameters at the block universe levels; restoration of a nested
-declaration (section 3.3 of the design notes) copies the trailing arguments of such
+declaration copies the trailing arguments of such
 an application verbatim. The generic constant-absence
 judgment `Expr.AvoidsConsts` is in `Lean4Lean/Verify/Expr.lean`, and the binder-prefix
 predicate `Expr.LeadingBinders` in `Lean4Lean/Verify/LocalContext.lean`. It depends only on the expression-level

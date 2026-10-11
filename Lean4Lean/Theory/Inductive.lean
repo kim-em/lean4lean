@@ -68,10 +68,10 @@ theorem CtorResult_iff {ty : VExpr} {T : Name} {np nf nind : Nat} :
 /-- Thesis §2.6.3, the major premise `z : P p x` of a recursor over `T`: `T` applied to
 leading arguments over the recursor's parameters and to its index variables.
 
-WAVE 3 COMPAT (restB): the leading arguments were the recursor's own parameter variables
-(`bvarsDesc (nm + nmin + nind) np`), which is false for the auxiliary recursors of a nested
+The leading arguments are not just the recursor's own parameter variables
+(`bvarsDesc (nm + nmin + nind) np`): that shape fails for the auxiliary recursors of a nested
 block: a restored `Tree.rec_1` has major `List (Tree α)`, the container at the specialization
-arguments. They are now any terms over the `np` parameters only (lifted past the motives,
+arguments. They are any terms over the `np` parameters only (lifted past the motives,
 minors and indices), of any number (the container's parameter count);
 `MajorApp.of_params` is the old shape. -/
 def MajorApp (A : VExpr) (T : Name) (np nm nmin nind : Nat) : Prop :=
@@ -414,9 +414,9 @@ to the exact block, its recursors and rules are read off that well-formed block
 (`VInductDecl.RecsOf`), and its staged installation `VEnv.addInduct` lies below the ambient
 environment.
 
-WAVE 2 COMPAT: restated on `VEnv.addInduct` (the installation the checker builds,
-`VEnv.InductInstalled` in `Verify/Environment/Blocks.lean`) instead of `VInductBlock.install`,
-which registered the generated rules as stored equations that no `addInduct` environment
+Stated on `VEnv.addInduct` (the installation the checker builds,
+`VEnv.InductInstalled` in `Verify/Environment/Blocks.lean`), not on `VInductBlock.install`,
+which registers the generated rules as stored equations that no `addInduct` environment
 contains. `VInductDecl.WF` cannot be named here (it refers back to `FormationWF`), so the
 recursor-stage typing is carried by `block.WF base` together with `RecsOf`. -/
 inductive VEnv.InstalledBelow : VEnv → VInductDecl → Prop
@@ -727,8 +727,7 @@ theorem VInductDecl.constructorArityPrefixOfNestedExpansions
 accepted as input on the strength of their typing alone. The compiled block is well formed
 (`VInductBlock.WF`: its equations are typed in its recursor stage), the fact the model reads
 for the rules of nested blocks, whose restored equations it cannot otherwise type.
--- MODEL COMPAT: `block.WF env` added (lead decision); `CompiledInductive.intro` does not
-record it. -/
+`CompiledInductive.intro` does not record `block.WF env`, so it is a separate conjunct. -/
 def VInductDecl.RecsCompiled (env : VEnv) (decl : VInductDecl) : Prop :=
   ∃ block, decl.CompilesTo env block ∧ decl.RecsOf block ∧ block.WF env
 
@@ -768,7 +767,7 @@ structure VInductDecl.WF (env : VEnv) (decl : VInductDecl) : Prop where
   nested block it is a constructor of the container, declared earlier. -/
   rules_ctor : ∀ envC, decl.addTypesCtors env = some envC → ∀ r ∈ decl.recs, ∀ ru ∈ r.rules,
     ∃ ci, envC.constants ru.ctor = some ci ∧ ci.type.CtorShape (ru.ctorParams + ru.nfields)
-  /-- WAVE 3 COMPAT (restB): the rule's constructor parameter count is that of the declaration
+  /-- The rule's constructor parameter count is that of the declaration
   the constructor belongs to: the block's own `nparams` for its own constructors, a container's
   for a constructor of a container installed below (the auxiliary recursors of a nested block).
   With `rules_ctor` and `VRecRule.OfEquation` it pins the split of a rule's arity into

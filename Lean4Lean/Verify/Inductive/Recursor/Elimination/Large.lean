@@ -6,7 +6,7 @@ A large elimination level is returned only after a successful large-eliminator c
 cached result-universe flag is linked to the checked headers, and the singleton check is
 mirrored by the loop relation `LargeEliminationCheck`, which exposes every parameter, proof
 field and required result argument. This supplies the elimination level of the recursor
-construction (section 3.2 of the design notes).
+construction.
 -/
 
 namespace Lean4Lean

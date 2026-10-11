@@ -109,8 +109,7 @@ theorem RestoredRecursorShape.shape {s : InductiveSignature} {g : Instance s}
   rw [H.numParams, H.numMotives, H.numMinors, H.numIndices, ← hprelen,
     List.getElem?_concat_length, hmaj, ← hmajor, nested_vars_eq_bvarRange, Nat.add_zero]
 
-/-- The rule-free copy of a restored recursor has its recursor shape (`RecursorShapes`; the
-source branch's `RecursorAlignmentCore`). -/
+/-- The rule-free copy of a restored recursor has its recursor shape (`RecursorShapes`). -/
 theorem RestoredRecursorShape.alignmentCore {s : InductiveSignature} {g : Instance s}
     {r : Restoration} {venv : VEnv} {owner : Fin s.families.size}
     {rec : Lean.RecursorVal} (H : RestoredRecursorShape g r venv owner rec)

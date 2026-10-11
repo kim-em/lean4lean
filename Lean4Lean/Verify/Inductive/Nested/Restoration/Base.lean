@@ -3,15 +3,9 @@ import Lean4Lean.Verify.Inductive.Nested.Lowering.Expansion.Formation
 
 /-! # The rule-free restored block (`RestoredBlockBase`)
 
-The target form of the source branch's `RestoredBlockBase` (`Nested/Install/Certificate.lean`):
-everything about a restored nested block except its rules. The source's `BlockInstallation`
-(a canonical concrete installation in dependency order, with the case eliminators) is replaced
-by its abstract stages (`BlockStages`); the kernel insertion order is PR #43's `AddInduct.order`
-(`KernelData.lean`), so `installedEnv`/`executableOrder_perm` are gone. Field names are the
-source's, so the restoration lemmas over `B.install.venvTypes`, `B.install.abstract_types`,
-`B.install.recursorsAdded.abstract`, `B.sourceTranslations`, `B.auxiliaryRecursorTrace`,
-`B.formationAssembly`... port with `(venvCtors.addEliminators es).addProjections` read as
-`venvCtors.addProjections`. -/
+Everything about a restored nested block except its rules. The installation is recorded by its
+abstract stages (`BlockStages`); the kernel insertion order is PR #43's `AddInduct.order`
+(`KernelData.lean`). -/
 
 namespace Lean4Lean
 
@@ -31,7 +25,7 @@ theorem RecursorsAdded.le {envP recursorVEnv : VEnv} {recursors : List (Constant
   VEnv.addConstVals_le H.abstract
 
 /-- The abstract stages of a restored block: headers, constructors, the projection stage, the
-recursors (the source's `BlockInstallation` without its concrete side and case eliminators). -/
+recursors. -/
 structure BlockStages (sourceEnv : VEnv) (types ctors recursors : List (ConstantInfo × VConstVal))
     (projections : List VProjectionEntry) (recursorVEnv : VEnv) where
   venvTypes : VEnv
@@ -48,8 +42,7 @@ theorem BlockStages.abstract_recursors {sourceEnv recursorVEnv : VEnv}
       some recursorVEnv :=
   H.recursorsAdded.abstract
 
-/-- Rule-independent part of a restored block (the source branch's `RestoredBlockBase`, see
-the module documentation). -/
+/-- Rule-independent part of a restored block (see the module documentation). -/
 structure RestoredBlockBase
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}

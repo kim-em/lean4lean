@@ -3,7 +3,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.CompilationData
 /-! # The generator of the lowered view is the lowered run's
 
 `LoweredView.signature`/`generatedInstance` read the generator off the recursor installation;
-`RestoredBlock.compiled` is stated against the scaffold's `RecursorCheck.signature`/`generation`.
+`RestoredBlock.compiled` is stated against `RecursorCheck.signature`/`generation`.
 They agree (`RecursorCheck.installation_signature`, `installation_generation`), and
 `CompilationData.castGenerator` transports a compilation along that agreement. -/
 

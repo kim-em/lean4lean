@@ -10,9 +10,8 @@ induction hypothesis from the recorded `Recursive` shape instead. When that hypo
 well typed (`Instance.GeneratedIHsWellTyped`), unique typing and the injectivity of rigid family
 heads identify the two (`Instance.recursiveShape_correspondence`): same target family, same
 number of binders, and definitionally equal binders and indices after the generator's embedding.
-Since definitional equality is never moved to a smaller context (section 5.1 of
-the design notes), the binder and index comparisons are stated under all of the
-hypothesis' binders. -/
+Since definitional equality is never moved to a smaller context, the binder and index
+comparisons are stated under all of the hypothesis' binders. -/
 
 namespace Lean4Lean
 

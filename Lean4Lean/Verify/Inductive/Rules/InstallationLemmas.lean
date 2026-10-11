@@ -1,8 +1,7 @@
 import Lean4Lean.Verify.Inductive.Recursor.Installation
 import Lean4Lean.Verify.Inductive.Recursor.InstanceAlignment
 
-/-! Facts about the recursor installation used by the rule typing (source branch:
-`Install/BlockCertificate.lean`). -/
+/-! Facts about the recursor installation used by the rule typing. -/
 
 namespace Lean4Lean
 

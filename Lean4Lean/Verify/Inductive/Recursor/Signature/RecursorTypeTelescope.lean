@@ -4,8 +4,8 @@ import Lean4Lean.Verify.Inductive.Recursor.Signature.MinorFields
 /-! # The binder-by-binder decomposition of a generated recursor type
 
 `RecursorTypeTelescope` splits the translation of a generated recursor type into its
-parameter, motive, minor, index and major groups and its residual (the source branch's
-`Nested/Restoration/ExprReplace.lean`, recursor part; nested restoration reuses it). -/
+parameter, motive, minor, index and major groups and its residual; nested restoration
+reuses it. -/
 
 namespace Lean4Lean
 

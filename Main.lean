@@ -94,9 +94,9 @@ declaration adds; it prints the counts per module and fails on any disagreement
 declarations that take lean4lean over a second.
 
 Both modes run the replay core `Lean4Lean.Replay.replayCore` (through `replay`), whose results are
-covered by `replayFresh.WF` and `replayPure.WF_fromImports` in `Lean4Lean/Verify/Replay.lean`
-(ported with the nested-inductive verification, wave 3). Those theorems are stated for the default fuel `{}`, which is the configuration used here when no
-`--config` flag is given.
+covered by `replayFresh.WF` and `replayPure.WF_fromImports` in `Lean4Lean/Verify/Replay.lean`.
+Those theorems are stated for the default fuel `{}`, which is the configuration used here when
+no `--config` flag is given.
 -/
 unsafe def main (args : List String) : IO UInt32 := do
   initSearchPath (← findSysroot)

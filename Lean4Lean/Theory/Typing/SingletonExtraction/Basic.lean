@@ -9,10 +9,9 @@ field occurs literally as an index ("singleton elimination"), so the data of a
 proof `m : I ps idx` can be read from `idx`. A proof field is extracted from `m`
 itself by eliminating into `Prop`. The motive must be well typed at *generic*
 indices `is'`, where the index slot of a data field has type `IdxTy(is')`, which in
-general is not the field's declared type `A(…)` (the strengthening countermodel, section 5.1
-of the design notes). The motive therefore abstracts, for each earlier
-field, either an equation between the two *types* (data field) or a proof (proof field),
-and reads each data field through a cast along its equation:
+general is not the field's declared type `A(…)` (the strengthening countermodel). The motive
+therefore abstracts, for each earlier field, either an equation between the two *types* (data
+field) or a proof (proof field), and reads each data field through a cast along its equation:
 
 ```text
 cast telescope, field i < j:

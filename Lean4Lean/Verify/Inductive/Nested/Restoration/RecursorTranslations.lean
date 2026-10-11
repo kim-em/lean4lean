@@ -170,9 +170,8 @@ theorem NestedRestorationFolds.find_restoredRecursor
 /-- The recursor entries of a restored block base are installed in the
 output environment under the names of their abstract values.
 
-WAVE 3 COMPAT (restB): the target `RestoredBlockBase` has no `executableOrder_perm`; its
-content, that the block's entries are the restoration run's insertions up to order
-(`NestedRestorationFolds.entries`), is the premise `hkernel`. -/
+That the block's entries are the restoration run's insertions up to order
+(`NestedRestorationFolds.entries`) is the premise `hkernel`. -/
 theorem RestoredBlockBase.find_recursorEntry
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}

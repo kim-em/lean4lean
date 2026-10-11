@@ -4,10 +4,9 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.TableAgreement
 import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceConstructorTypes
 
 /-! # Discharging the non-`whnf` parameter-uniformity inputs of a nested run
-(owner: Restoration-A)
 
-The `NestedRun` part of the source branch's `Nested/Restoration/Uniform/Declarations.lean`
-(the generic part is `Uniform/Heads.lean`): name prefixes; `NestedRun.auxHeadsFacts` (the
+The `NestedRun` part of the declaration facts (the generic part is `Uniform/Heads.lean`): name
+prefixes; `NestedRun.auxHeadsFacts` (the
 auxiliary heads are fresh in the source environment, lie in the reserved `_nested` namespace,
 and contain every key of `aux2nested`); the lowering mappings of the lowered families
 (`NestedRun.loweredFamilyMappings`), the parameter uniformity of the lowered constructor types

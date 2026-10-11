@@ -1,7 +1,8 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.IotaSoundnessLemmas
 import Lean4Lean.Theory.Typing.RestorationShapes
 
-/-! Totality of restoration on generated syntax (`Restoration.SpineOK`, `Instance.restoredEquations_isSome`); the first part of the source branch's `Restoration/Recursors.lean`. -/
+/-! Totality of restoration on generated syntax (`Restoration.SpineOK`,
+`Instance.restoredEquations_isSome`). -/
 
 namespace Lean4Lean
 namespace InductiveSignature

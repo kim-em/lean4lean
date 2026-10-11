@@ -1,14 +1,13 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Generic
 
-/-! # Parameter uniformity: head application and declaration facts (owner: Restoration-A)
+/-! # Parameter uniformity: head application and declaration facts
 
-The parts of the source branch's `Nested/Restoration/Uniform/Declarations.lean` that do not
-read a nested run: `Expr.HeadsApplied`/`VExpr.HeadsApplied` (every head occurrence applied to
-at least `nparams` arguments, which makes `Restoration.expr` total) and its transport along
-`TrExprS`, name prefixes, `TrExprS.projsRegistered`, and the facts about a recursor
-construction that discharge `RecursorConstruction.ParamUniformDeclarations` (the parameter
-declarations, `recursorNames_not_mem`, the minor sources and replays). The `NestedRun`
-instances follow in `Uniform/Declarations.lean`. -/
+The declaration facts that do not read a nested run: `Expr.HeadsApplied`/`VExpr.HeadsApplied` (every
+head occurrence applied to at least `nparams` arguments, which makes `Restoration.expr` total) and
+its transport along `TrExprS`, name prefixes, `TrExprS.projsRegistered`, and the facts about a
+recursor construction that discharge `RecursorConstruction.ParamUniformDeclarations` (the parameter
+declarations, `recursorNames_not_mem`, the minor sources and replays). The `NestedRun` instances
+follow in `Uniform/Declarations.lean`. -/
 
 namespace Lean.Expr
 
@@ -261,8 +260,7 @@ private theorem exists_forall₂_of_forall {P : α → β → Prop} :
     obtain ⟨ys, hys⟩ := exists_forall₂_of_forall (l := l) fun z hz => H z (by simp [hz])
     exact ⟨y :: ys, .cons hy hys⟩
 
-/-- `Restoration.expr.go` over an application spine whose arguments restore. (A local copy
-of the source branch's `Restoration.expr.go_mkApps`, `Restoration/Commutation.lean`.) -/
+/-- `Restoration.expr.go` over an application spine whose arguments restore. -/
 private theorem restorationGo_mkApps (r : InductiveSignature.Restoration) {xs ys : List VExpr}
     (H : List.Forall₂ (fun x y => InductiveSignature.Restoration.expr.go r x [] = some y) xs ys)
     (f : VExpr) (args : List VExpr) :
@@ -743,7 +741,7 @@ theorem RecursorConstruction.paramsFree_of_fresh
   have hon := VLCtx.WF.toCtx (VLCtx.WF.append_right hwf)
   have hfresh' : ∀ name ∈ heads, R.sourceContext.venv.constants name = none := by
     rw [R.sourceContextVEnv]; exact hfresh
-  -- MODEL COMPAT: `ctxNoFreshConsts` reads the rules off `env.WF`
+  -- `ctxNoFreshConsts` reads the rules off `env.WF`
   exact VEnv.WF.ctxNoFreshConsts R.sourceContext.checking.tr.wf hfresh' hon
 
 /-- **Every normalized constructor type of the construction's signature

@@ -3,21 +3,17 @@ import Lean4Lean.Verify.Inductive.Install.BlockCertificate
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.Stripped
 import Lean4Lean.Verify.Inductive.Nested.Install.Permutation
 
-/-! # The validation passes (owner: Restoration-A)
+/-! # The validation passes
 
 The semantic content of the four validation passes of `restoreNestedAfterInstall`
 (`RestorationRun`), each stated against a checker environment `CheckerEnv safety E V` for the
-side environment `E` it runs in, as the wave 1A checker verification reads it
+side environment `E` it runs in, as the checker verification reads it
 (`TypeChecker.checkType.WF`, `ensureSort.WF`, `checkNoMVarNoFVar.WF`): the checked syntax
 translates and is typed in the model `V`. These are the boundary theorems of the
-`Validation/` directory; the restoration owner (Restoration-B) instantiates them with the
-models of the side environments it builds from the restoration folds, and the stripped
-environment's model is `stripRecursorRules.checkingValid`.
-
-Source branch: `Nested/Restoration/Validation/{Checks,Environment,ConstructorEnvironment,
-StrippedEnvironment,StrippedRecursorShapes,ParameterScopes,ParameterPrefix,Result}.lean` and
-`Nested/Restoration/Uniform/{Declarations,Recursors,Whnf}.lean` (parameter uniformity of the
-restored telescopes under `whnf`, read by the recursor-type validation). -/
+`Validation/` directory; the restoration instantiates them with the models of the side
+environments it builds from the restoration folds, and the stripped environment's model is
+`stripRecursorRules.checkingValid`. The recursor-type validation reads the parameter
+uniformity of the restored telescopes under `whnf` (`Nested/Restoration/Uniform/`). -/
 
 namespace Lean4Lean
 
@@ -129,11 +125,10 @@ theorem validateRestoredRecursorRules.run.WF (C : CheckerEnv safety env venv)
   have := C
   exact forM_append_names_eq_ok _ h
 
-/-- `validateNestedAuxiliaries`, with the inferred types: in a well-formed checker context
-`mlctx` of the model (the restored header environment) whose local context is the lowering's,
-every cached nested occurrence `I Ds` has a translated typing (`TrTyping`: the occurrence, its
-inferred source type and their translations). This is the source branch's
-`NestedOccurrencesTyped`. The pass runs the checker in `res.lctx` without checking it, so the
+/-- `validateNestedAuxiliaries`, with the inferred types: in a well-formed checker context `mlctx`
+of the model (the restored header environment) whose local context is the lowering's, every cached
+nested occurrence `I Ds` has a translated typing (`TrTyping`: the occurrence, its inferred source
+type and their translations). The pass runs the checker in `res.lctx` without checking it, so the
 context `mlctx` (its translation, the freshness of its free variables for the checker's name
 generator, and the scoping of the cached occurrences) is a premise:
 `NestedLoweringOutput.parameterMLCtx` (`Validation/ParameterPrefix.lean`) supplies it. -/

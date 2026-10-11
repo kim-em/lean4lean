@@ -3,8 +3,7 @@ import Lean4Lean.Verify.Inductive.Recursor.Signature.RecursorTypeTelescope
 
 /-! The binder-by-binder decomposition of a generated recursor type (`RecursorTypeTelescope`),
 used to transport restored recursor types, and the restoration telescopes of generated recursor
-entries. Ported from the source branch's `Nested/Restoration/ExprReplace.lean` (its typed
-part; the syntactic part is `Nested/Lowering/Restore/ExprReplace.lean`). -/
+entries. The syntactic part is `Nested/Lowering/Restore/ExprReplace.lean`. -/
 
 namespace Lean4Lean
 

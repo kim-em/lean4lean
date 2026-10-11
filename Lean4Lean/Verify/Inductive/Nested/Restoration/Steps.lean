@@ -7,7 +7,7 @@ import Lean4Lean.Verify.Inductive.Nested.Lowering.Queue
 restoration, the header, constructor and recursor restoration steps, the generic
 fold relation `FoldSteps`, fresh extensions (`FreshExtension`), and the two folds
 of a nested restoration run (`NestedRestorationFolds`: source families, then
-auxiliary recursors). Section 3.3 of the design notes. -/
+auxiliary recursors). -/
 
 namespace Lean4Lean
 

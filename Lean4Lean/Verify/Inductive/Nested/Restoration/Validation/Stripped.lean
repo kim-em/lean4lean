@@ -2,7 +2,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.Checks
 import Lean4Lean.Verify.Inductive.Install.BlockCertificate
 import Lean4Lean.Verify.Inductive.Install.Rebase
 
-/-! # The rule-free recursor stage is a checking environment (owner: Restoration-A)
+/-! # The rule-free recursor stage is a checking environment
 
 `validateRestoredRecursorRules` runs in `stripRecursorRules outEnv names`: the restored
 environment with the rule lists of the new recursors emptied. Its model is the recursor stage
@@ -15,10 +15,7 @@ the projection stage, the recursor types, the restored headers, the K clause and
 new recursors), the output is a checking environment over `H.envR`
 (`RuleFreeStage.checkingValid`), and a checker environment (`RuleFreeStage.checkerEnv`). The
 descriptor of the new block is built by `InstalledBlocks.addCtorStage`, as in the ordinary
-recursor phase (`RecursorInstallation.checkingValid`).
-
-This replaces the source branch's `Validation/StrippedEnvironment.lean`
-(`NestedRestorationFolds.validOfInstallation_of_shapes`), which took the same rule-free data. -/
+recursor phase (`RecursorInstallation.checkingValid`). -/
 
 namespace Lean4Lean
 

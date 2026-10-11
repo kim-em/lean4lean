@@ -297,7 +297,7 @@ theorem VInductDecl.WF.rebase {decl : VInductDecl} {block : VInductBlock}
   refine ⟨?_, hblock'⟩
   refine ⟨H.source.mono_of_addConstVals hle htypes' hctors', ?_,
     ⟨block, hcomp.mono hle hblock', hrecs, hblock'⟩, ?_, H.rec_shape, H.rules_nodup, ?_, ?_,
-    H.rule_shape, ?_⟩  -- MODEL COMPAT: `RecsCompiled` carries `block.WF`
+    H.rule_shape, ?_⟩  -- `RecsCompiled` carries `block.WF`
   · cases H.formation with
     | ordinary h => exact .ordinary (h.mono_of_addConstVals hle htypes')
     | nested h hb => exact .nested h (hb.trans hle)
@@ -308,7 +308,7 @@ theorem VInductDecl.WF.rebase {decl : VInductDecl} {block : VInductBlock}
     rw [hCeq hC'']
     obtain ⟨ci, hci, hshape⟩ := H.rules_ctor _ hCeq₀ r hr ru hru
     exact ⟨ci, hC.constants hci, hshape⟩
-  · -- WAVE 3 COMPAT (restB): `rules_ctorParams` is monotone in the environment.
+  · -- `rules_ctorParams` is monotone in the environment.
     intro r hr ru hru
     rcases H.rules_ctorParams r hr ru hru with h | ⟨D, hD, h⟩
     · exact .inl h
@@ -365,7 +365,7 @@ theorem AddInduct.rebase {s safety : DefinitionSafety} {m₁ m₂ : ConstMap}
         Lean4Lean.List.Forall₂.imp (fun _ _ hc => ⟨⟨(hc.1.1.sf_mono hs).mono hT, hc.1.2⟩, hc.2⟩)
           h.ctors⟩) H.types
     recs := Lean4Lean.List.Forall₂.imp (fun _ _ h =>
-      { tr := ⟨(h.tr.1.sf_mono hs).mono (VEnv.addProjections_mono hC), h.tr.2⟩  -- WAVE 2 rec COMPAT
+      { tr := ⟨(h.tr.1.sf_mono hs).mono (VEnv.addProjections_mono hC), h.tr.2⟩
         all := h.all
         numParams := h.numParams
         numMotives := h.numMotives

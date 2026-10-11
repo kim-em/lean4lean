@@ -8,16 +8,10 @@ The rules of the installed recursors are the generator's equations: each kernel 
 translates to the generated equation's reduct (`TrRecursorRule`), the generated equations are
 well formed in the recursor-stage environment (as `VDefEq`s, for the compiled block), and each
 model rule is typed as a schematic ι rule (`VEnv.PatTyped`, the `rules_wf` clause of
-`VInductDecl.WF`; PORT_PLAN section 2.3 restates the source branch's `generatorEquationWF` in the
-open equation context as the generic instance). `RuleTranslations` is the frozen interface;
-`RecursorCheck.generatedRuleTranslation` is the boundary theorem.
-
-Wave 2 scaffold: owned by the `Rules/**` agent (source branch: `Rules/{Alignment,EquationList,
-EquationTranslation,EquationWF,FromTemplates,Lhs,LhsTranslation,MinorContext,MinorPremise,
-Motive,RecursiveApplication,RecursiveBody,RecursiveCall,RecursiveCallScope,RecursiveResults,
-Rhs,RuleSyntax,RuleTranslations,Translation}.lean`). The rule phase consumes the recursor
-phase's internals (rule templates, minor contexts), so its port lands after the recursor
-agent's. -/
+`VInductDecl.WF`, the well-formedness of the generated equations restated in the open
+equation context as the generic instance). `RuleTranslations` is the interface of the rule
+phase; `RecursorCheck.generatedRuleTranslation` is the boundary theorem. The rule phase reads
+the recursor phase's internals (rule templates, minor contexts). -/
 
 namespace Lean4Lean
 
@@ -33,7 +27,7 @@ structure RuleTranslations
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}  -- WAVE 2 install COMPAT
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv) : Prop where
   /-- Each kernel recursor's rules are, in order, the generated equations of the constructors
   it owns. -/
@@ -76,13 +70,13 @@ section
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}  -- WAVE 2 install COMPAT
+  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- Every model rule fires on a constructor with the signature's parameter count. -/
 theorem RecursorCheck.ruleCtorParams (H : RecursorCheck R outEnv) : H.RuleCtorParams :=
   fun r hr ru hru => (H.rules_ctorParams r hr ru hru).trans H.models.nparams.symm
 
-/-- WAVE 3 COMPAT (restB): every model rule fires on one of the declaration's own constructors
+/-- Every model rule fires on one of the declaration's own constructors
 (the generator's rules are indexed by its constructors, `Models` aligns their names). -/
 theorem RecursorCheck.rules_own (H : RecursorCheck R outEnv) :
     ∀ r ∈ H.recs, ∀ ru ∈ r.rules, ∃ c ∈ decl.constructorConstants, ru.ctor = c.name := by
@@ -102,7 +96,7 @@ namespace RuleTranslations
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
   {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv} {indTypes : Array InductiveType}
   {ctorEnv outEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}  -- WAVE 2 install COMPAT
+  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
   {H : RecursorCheck R outEnv}
 
 /-- The compiled block of the recursor check: the declaration's constants, the generated
@@ -163,7 +157,7 @@ theorem recsOf (T : RuleTranslations H) : H.decl'.RecsOf T.block :=
 /-- `VInductDecl.RecsCompiled` of the installed declaration. -/
 theorem recsCompiled (T : RuleTranslations H) (hnonempty : indTypes.toList ≠ []) :
     H.decl'.RecsCompiled sourceEnv :=
-  ⟨T.block, T.compilesTo hnonempty, T.recsOf, T.blockWF⟩  -- MODEL COMPAT
+  ⟨T.block, T.compilesTo hnonempty, T.recsOf, T.blockWF⟩
 
 /-- The recursor half of `VInductDecl.WF`. -/
 theorem recursorsWF (T : RuleTranslations H) (hnonempty : indTypes.toList ≠ []) :
@@ -199,7 +193,7 @@ section
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}  -- WAVE 2 install COMPAT
+  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- Coverage of the installed entries, read on the kernel recursors they carry. -/
 theorem rulesCovered_of_entries {s : InductiveSignature} {g : InductiveSignature.Instance s}
@@ -266,13 +260,12 @@ end
 
 /-- The boundary theorem of the rule phase: the recursor check determines its rule
 translations. No rule, telescope, or equation is chosen by the caller. The `rules_wf` clause is
-the `PatTyped` restatement of the generated equations' `VDefEq.WF` (`RecursorCheck.rules_wf_of`,
-PORT_PLAN section 2.3). -/
+the `PatTyped` restatement of the generated equations' `VDefEq.WF` (`RecursorCheck.rules_wf_of`). -/
 theorem RecursorCheck.generatedRuleTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}  -- WAVE 2 install COMPAT
+    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv) : RuleTranslations H where
   trRules := H.rulesCovered
   equationsWF := H.equationsWF

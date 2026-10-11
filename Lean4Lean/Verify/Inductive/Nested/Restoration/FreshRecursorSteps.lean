@@ -1,6 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Steps
 
-/-! The recursors installed by a nested restoration are the restored recursors of its steps (from the source branch's `Validation/StrippedRecursorShapes.lean`). -/
+/-! The recursors installed by a nested restoration are the restored recursors of its steps. -/
 
 namespace Lean4Lean
 

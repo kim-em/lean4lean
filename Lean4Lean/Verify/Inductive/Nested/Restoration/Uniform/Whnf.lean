@@ -1,8 +1,7 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Run
-/-! # `whnf` preserves parameter uniformity in a nested run (owner: Restoration-A)
+/-! # `whnf` preserves parameter uniformity in a nested run
 
-The `NestedRun` sections of the source branch's `Nested/Restoration/Uniform/Whnf.lean`: the
-production facts of the lowered run, the checker's head set `E.uniformHeads`, the lowered
+The production facts of the lowered run, the checker's head set `E.uniformHeads`, the lowered
 constructor types, `NestedRun.envParamUniform` (`EnvParamUniform` of the recursor pass's
 environment) and the resulting `WhnfPreservesParamUniform`. The generic lemmas are in
 `Uniform/Generic.lean` and `Uniform/Base.lean`.
@@ -11,8 +10,8 @@ Present so far: the lookups of the recursor pass's environment (`LoweredView.cto
 `fresh_familyNames`), the head set `NestedRun.uniformHeads`, and the run-environment lemmas that
 read only `NestedRun`. The parts that read `NestedRun.auxHeadsFacts` (`envParamUniform`,
 `whnfPreservesParamUniform`, `recursorParamUniform_of_wfCore`, ...) are in `Uniform/RunEnv.lean`.
-The source's `LoweredRun.nonprimitive_familyNames` is `LoweredView.Nonprimitive`, which a
-nested run supplies as `NestedRun.loweredNonprimitive`. -/
+The nonprimitive family names are `LoweredView.Nonprimitive`, which a nested run supplies as
+`NestedRun.loweredNonprimitive`. -/
 
 namespace Lean4Lean
 open Lean hiding Environment Exception
@@ -240,8 +239,7 @@ theorem LoweredView.fresh_familyNames (hwf : P.c.env.constants.WF)
 
 /-- The family and constructor names of the lowered declaration are not checker primitives:
 they passed `checkName` without primitive permission (`NestedRun.context_allowPrimitive`).
--- WAVE 3 restA: a premise of the instances below (`NestedRun.envParamUniform`), produced
-by the nested run. -/
+A premise of the instances below (`NestedRun.envParamUniform`), produced by the nested run. -/
 def LoweredView.Nonprimitive : Prop :=
   ∀ n ∈ InductiveSignature.familyNames P.loweredDecl.types,
     ¬ Kernel.Environment.primitives.contains n

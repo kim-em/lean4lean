@@ -601,7 +601,7 @@ theorem NestedRun.restoredRuleConstructors
     simp only [hown'] at this
     exact this
 
-/-- **Stub (restB).** The restored constructors of one family are distinct: the identity on a
+/-- The restored constructors of one family are distinct: the identity on a
 source family's constructors, and on an auxiliary family's the constructors of its container's
 family (`CaseCompilationData.directFamily_restored_constructor_names`), whose names are distinct
 in the installed container. -/

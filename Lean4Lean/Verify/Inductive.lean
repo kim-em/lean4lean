@@ -33,9 +33,9 @@ import Lean4Lean.Verify.Inductive.Nested.Install.Dispatch
 
 Collects the verification of the executable inductive checker (`Lean4Lean/Verify/Inductive/`):
 headers, constructors, checked formation, recursors and rules, block installation, primitive
-families and the dispatch over the executable's branches (section 3 of the design notes), and
+families and the dispatch over the executable's branches, and
 the nested branch (`Nested/**`: the lowering certificate, the lowered run, the restoration
-steps and the restored block certificate, `nestedInductivePreserves`). The interface between
-the directories and its ownership are described in `Inductive/README.md`; the open proofs are
-the "Wave 3 scaffold" section of `STUBS.md`.
+steps and the restored block certificate, `nestedInductivePreserves`). The pipeline is
+described in `Inductive/README.md`; the open proofs are listed in
+`scripts/inductive-audit-inventory.json`.
 -/

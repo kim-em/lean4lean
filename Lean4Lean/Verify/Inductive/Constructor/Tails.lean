@@ -7,12 +7,8 @@ The recursor construction re-walks the kernel constructor types (`mkRecInfos`) w
 common parameters, so it needs the concrete telescopes the constructor check established, not
 only their abstract shapes: the replay of the parameter prefix (`ParameterPrefix`), the syntactic
 forall spine (`Expr.ForallSpine`), the checked tail with its translation and certificate
-(`ConstructorTails`) and the owner normal form (`ConstructorOwnerNormalForms`). These are the
-source branch's definitions (`Recursor/Context/RecInfoTraversal.lean`,
-`Recursor/Binders/ParameterPrefixes.lean`, `Recursor/Context/FVarArrays.lean`,
-`Constructor/Positivity.lean`), produced by the constructor phase and recorded in
-`ConstructorCheck`. The source branch's `checkInductiveTypes.loopType.ScopedHeaderTelescope`
-is named `ConstructorScopedTelescope` here. -/
+(`ConstructorTails`) and the owner normal form (`ConstructorOwnerNormalForms`). They are
+produced by the constructor phase and recorded in `ConstructorCheck`. -/
 
 namespace Lean4Lean
 

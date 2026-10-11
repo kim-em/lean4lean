@@ -3,12 +3,10 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.AuxiliaryProjections
 
 /-! # Avoided projection names of generated terms
 
-WAVE 3 (eqinst): the source branch's `Theory/Inductive/ProjNamesAvoid.lean` (without the
-eliminator case); `VExpr.projNamesAvoid` itself is `Theory/Inductive/RestorationNames.lean`,
-`ProjNamesOK.projNamesAvoid` restB's `Restoration/AuxiliaryProjections.lean`.
-
 `VExpr.projNamesAvoid names e`: no projection node of `e` is out of a name in `names`; and how the
-signature generator's constructions preserve it. -/
+signature generator's constructions preserve it. `VExpr.projNamesAvoid` itself is defined in
+`Theory/Inductive/RestorationNames.lean`, `ProjNamesOK.projNamesAvoid` in
+`Restoration/AuxiliaryProjections.lean`. -/
 
 namespace Lean4Lean
 open InductiveSignature

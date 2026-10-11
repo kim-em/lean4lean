@@ -4,15 +4,14 @@ import Lean4Lean.Verify.Inductive.Dispatch
 
 /-! # The nested branch of `addInductiveAfterLowering`
 
-`nestedInductivePreserves` proves wave 2's hypothesis `NestedInductivePreserves` through the
+`nestedInductivePreserves` proves the hypothesis `NestedInductivePreserves` through the
 nested pipeline: the ordinary pipeline on the lowered block (`AddInductive.run.loweredRun`),
 the restoration steps (`Environment.restoreNestedAfterInstall.WF`), the lowering's
 certificate (`loweringRun.WF`), the restored block (`nestedRestoredBlock`), its
 environment-side facts (`RestoredBlock.installedFacts`) and the installation of its block
 certificate (`NestedCertificate.inductiveExtension`). The dispatch theorems of
-`Dispatch.lean` then hold without hypothesis (`addInductiveDeclaration.spec`,
-`addInductiveDeclaration.preserves`), and `addDecl.WF` (`Verify/Environment.lean`) loses its
-last one. -/
+`Dispatch.lean` are instantiated with it here (`addInductiveDeclaration.spec`,
+`addInductiveDeclaration.preserves`), and `addDecl.WF` (`Verify/Environment.lean`) uses them. -/
 
 namespace Lean4Lean
 
@@ -24,7 +23,7 @@ namespace VerifyInductive
 /-- **The nested branch.** -/
 theorem nestedInductivePreserves : NestedInductivePreserves := by
   intro env lparams nparams sourceTypes isUnsafe fuel res ves wf Hsources Hlower hnested
-  have Hout := loweringRun.WF wf Hsources Hlower -- WAVE 3 COMPAT (lowering)
+  have Hout := loweringRun.WF wf Hsources Hlower
   let safety : DefinitionSafety := if isUnsafe then .unsafe else .safe
   let c := initialContext env lparams safety false fuel
   let Hc : ContextWF c := ContextWF.initial wf safety lparams false fuel
@@ -44,7 +43,7 @@ theorem nestedInductivePreserves : NestedInductivePreserves := by
   refine (Environment.restoreNestedAfterInstall.WF env loweredEnv lparams sourceTypes safety
     false fuel res).mono fun outEnv V => ?_
   obtain ⟨B⟩ := nestedRestoredBlock wf Hsources Hout hnested L V
-  -- WAVE 3 eqinst COMPAT: the base translation, complete blocks and alignment from `wf`
+  -- the base translation, complete blocks and alignment from `wf`
   have I := B.installedFacts Hout.source_nonempty hvisible wf.tr wf.blocks
     wf.constructorParameterAlignment
   exact (NestedCertificate.ofRestoredBlock B I Hout.source_nonempty).inductiveExtension wf

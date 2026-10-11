@@ -69,7 +69,7 @@ elab "#inductive_audit " ids:ident* : command => do
     liftIO <| IO.println s!"INDUCTIVE_AUDIT {(toJson report).compress}"
 
 
--- The top-level verification theorems (section 1.4 of the design notes): checked addition of
+-- The top-level verification theorems: checked addition of
 -- every declaration form, the inductive pipelines, the checker, the realizability of canonical
 -- `Eq`, and the replay driver.
 #inductive_audit Lean4Lean.addDecl.WF

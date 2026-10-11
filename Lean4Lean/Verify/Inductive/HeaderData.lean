@@ -6,9 +6,7 @@ import Lean4Lean.Verify.Inductive.Header.Installation
 `ContextWF` that does not assert the primitive invariant (`HasPrimitives`): that invariant is
 false in the header-only environment of the primitive `Bool`/`Nat` declarations. It is what the
 constructor installation (`CtorInstall`) and the recursor phase (`RecursorInput`) read of the
-header environment.
-
-WAVE 2 install COMPAT: interface structure (shared). -/
+header environment. -/
 
 namespace Lean4Lean
 

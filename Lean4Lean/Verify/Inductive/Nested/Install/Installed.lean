@@ -2,22 +2,16 @@ import Lean4Lean.Verify.Inductive.Nested.Equations.Rules
 import Lean4Lean.Verify.Inductive.Nested.Restoration.InstalledFamilyLookups
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ConstructorCoherence
 
-/-! # The environment-side facts of a restored block and its block certificate (owner: Install)
+/-! # The environment-side facts of a restored block and its block certificate
 
 `RestoredBlock.Installed` collects what `InstalledBlocks.addInduct` and `BlockCertificate` read
 of the output environment beyond the restored block's own data: the checking invariant of the
 output over the output model, closure, constructor owners, the origin of every new header
 (`InductInfosFromDecl`), the cover of the declaration's families, the majors of the new
-recursors and the constructor parameter alignment. `RestoredBlock.installedFacts` produces it (the
-stub of this file); `RestoredBlock.blockCertificate` assembles PR #43's `BlockCertificate`
-from it, the restored block and the Equations owner's rule typing (proved), after which the
-ordinary path's `BlockCertificate.extendSafeExact`/`extendUnsafeExact` install the block.
-
-Source branch: `Nested/Install/{BlockCertificate,FromRun,DependencyOrder,ConstructorCoherence,
-Result}.lean` (`RestoredBlockCertificate.inductInfosFromDecl`, `.cover`,
-`NestedRestorationFolds.constructorOwnersPresentOfContext`,
-`NestedInstalledRun.constructorParameterDomainsDefEqOfSource`, the `CheckingEnv.Valid` of the
-restored output through `InstalledBlocks.addCtorStage`-style staging). -/
+recursors and the constructor parameter alignment. `RestoredBlock.installedFacts` produces it;
+`RestoredBlock.blockCertificate` assembles PR #43's `BlockCertificate` from it, the restored
+block and the typing of the restored rules (`Nested/Equations/`), after which the ordinary
+path's `BlockCertificate.extendSafeExact`/`extendUnsafeExact` install the block. -/
 
 namespace Lean4Lean
 
@@ -90,10 +84,7 @@ structure Installed (B : RestoredBlock L sourceTypes isUnsafe outEnv) : Prop whe
 /-- The kernel-level facts of the restored output: what the restoration folds certify about
 the inserted `inductInfo`/`ctorInfo`/`recInfo` metadata (the `all` lists, constructor owners,
 the families' alignment with the declaration, the recursors' majors, the constructor
-parameter domains) and the primitive names. Source branch: `RestoredBlockCertificate`
-(`inductInfosFromDecl`, `NestedRestorationFolds.constructorOwnersPresentOfContext`,
-`Install/Result.lean`'s `MutualInductivesClosed` and `hconstructorSemantics` through
-`Install/ConstructorCoherence.lean`). -/
+parameter domains) and the primitive names. -/
 structure KernelFacts (B : RestoredBlock L sourceTypes isUnsafe outEnv) : Prop where
   closed : MutualInductivesClosed outEnv
   constructorOwners : ConstructorOwnersPresent outEnv
@@ -331,7 +322,7 @@ invariant is the base translation extended by the restored declaration (`TrEnv'.
 declaration's `VInductDecl.WF` being `RestoredBlock.wf'`), its installed blocks the base's
 complete ones extended by the new block (`InstalledBlocks.addInduct`, whose `hrecShapes` is
 `RestoredBlock.recShapes`, auxiliary recursors included, and `hrecK` is `RestoredBlock.recK`).
-WAVE 3 eqinst COMPAT: takes the base translation, its complete installed blocks and its
+It takes the base translation, its complete installed blocks and its
 constructor parameter alignment (the caller has them from `VEnvs.WF`); `ContextWF` records the
 checking invariant at the `.headers` stage only, which `InstalledBlocks.addInduct` cannot
 extend. -/
@@ -358,7 +349,7 @@ theorem installedFacts (B : RestoredBlock L sourceTypes isUnsafe outEnv)
   have hblocks' : InstalledBlocks c.safety outEnv B.outVEnv .complete :=
     InstalledBlocks.addInduct hblocks hwf htrOut.toChecking hpres B.le K.inductInfosFromDecl
       B.cover K.closed K.constructorOwners (fun h1 h2 => K.recMajor h1 h2)
-      (fun _ => ⟨wf', B.installed, B.compiledWF⟩) -- WAVE 3 COMPAT (lowering)
+      (fun _ => ⟨wf', B.installed, B.compiledWF⟩)
       (fun h => absurd hvis h)
       (fun _ => K.constructorParameterAlignment hparams)
       (fun h1 h2 _ => B.recK _ (B.newRec' h1 h2))

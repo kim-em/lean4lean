@@ -19,9 +19,8 @@ below make every choice agree with the registered rules:
 * every stored equation is the quotient rule or the δ rule of a registered definition
   (`WF.defeqs_origin`), which is the registry's (`WF.definitionRegistry_of_defeq`).
 
-On the verified-inductives branch these tables were built along the declaration history
-(`Confluence/RegistryOfWF.lean` there); with the ι rules registered as patterns
-(`VEnv.pats`, provenance `WF'.pats_origin`) they are read off the environment directly. -/
+With the ι rules registered as patterns (`VEnv.pats`, provenance `WF'.pats_origin`), these
+tables are read off the environment directly. -/
 
 namespace Lean4Lean
 

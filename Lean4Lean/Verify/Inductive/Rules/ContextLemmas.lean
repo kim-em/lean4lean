@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Typing.Telescope
 import Lean4Lean.Theory.Typing.ProjectionShape
 
-/-! Context conversions used by the rule typing (source branch: `Install/Lookups.lean`). -/
+/-! Context conversions used by the rule typing. -/
 
 namespace Lean4Lean
 

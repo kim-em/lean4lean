@@ -1,8 +1,7 @@
 import Lean4Lean.Theory.Typing.ProjectionLemmas
 import Lean4Lean.Theory.Typing.RecursorLemmas
 
-/-! Generic syntactic helpers of the confluence development, ported from the
-verified-inductives branch (`Confluence/RecursorRegistration.lean` there). -/
+/-! Generic syntactic helpers of the confluence development. -/
 
 namespace Lean4Lean
 namespace VExpr

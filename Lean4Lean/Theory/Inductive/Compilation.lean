@@ -2,8 +2,7 @@ import Lean4Lean.Theory.Inductive.Formation
 import Lean4Lean.Theory.Inductive.Restoration
 import Lean4Lean.Theory.Inductive.AddInduct
 
-/-! Finite compilation from certified parameter specializations (section 2.2 of
-the design notes).
+/-! Finite compilation from certified parameter specializations.
 
 Every container of a nested declaration is a previously installed block with its own finite
 compilation derivation (`ContainersInstalled`). The chosen family fixes both the restoration heads and the entire
@@ -240,7 +239,7 @@ inductive CompiledInductive : VEnv → VInductDecl → VInductBlock → Prop
 `env`. Current headers, current recursors, and future blocks cannot justify a specialization.
 The mutual induction with `CompiledInductive` makes the tree of containers finite.
 
-WAVE 2 COMPAT: the container is installed by `VEnv.addInduct` (its recursors and rules read
+The container is installed by `VEnv.addInduct` (its recursors and rules read
 off the compiled block, `VInductDecl.RecsOf`), not by `VInductBlock.install`; see
 `VEnv.InstalledBelow` in `Theory/Inductive.lean`. -/
 inductive ContainersInstalled : VEnv →

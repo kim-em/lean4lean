@@ -1,8 +1,8 @@
 import Lean4Lean.Verify.Inductive.Basic
 
 /-! The result shared by every inductive execution path: the source-facing `SourceAddInduct`
-and the declaration-level `InductiveExtension`. Shared interface of the wave 2 scaffold
-(frozen); consumed by `Dispatch.lean` and `Verify/Environment.lean`. -/
+and the declaration-level `InductiveExtension`; consumed by `Dispatch.lean` and
+`Verify/Environment.lean`. -/
 
 namespace Lean4Lean
 
@@ -34,7 +34,7 @@ abbrev OrdinarySourceAddInduct := SourceAddInduct
 
 theorem SourceAddInduct.inductInstalled
     (H : SourceAddInduct sourceEnv lparams nparams sourceTypes isUnsafe installedVEnv)
-    -- WAVE 3 COMPAT (lowering): `InductInstalled` records a well-formed compiled block
+    -- `InductInstalled` records a well-formed compiled block
     (hcompiled : ∃ block, H.decl.CompilesTo sourceEnv block ∧ H.decl.RecsOf block ∧
       block.WF sourceEnv) :
     installedVEnv.InductInstalled H.decl :=

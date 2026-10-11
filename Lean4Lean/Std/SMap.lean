@@ -13,7 +13,6 @@ structure WF (s : SMap α β) where
 
 theorem WF.empty : WF ({} : SMap α β) := ⟨.empty, fun _ => rfl, by simp⟩
 
--- WAVE 1B COMPAT: the empty map in either stage (`TrEnv'.empty`, `Aligned.empty`).
 /-- An empty map in either stage is well formed. -/
 theorem WF.empty_stage (s : Bool) : WF ({ stage₁ := s } : SMap α β) :=
   ⟨.empty, fun _ => rfl, by simp⟩
@@ -117,7 +116,6 @@ theorem WF.find?_eq {α β} [BEq α] [Hashable α] [LawfulBEq α] [LawfulHashabl
   · simp [toList', List.lookup_append, wf.map₂.find?_eq]
     cases List.lookup a .. <;> simp [Std.HashMap.getElem?_eq_lookup_toList]
 
--- WAVE 1B COMPAT
 @[simp] theorem find?_empty_stage {α β} [BEq α] [Hashable α] [LawfulBEq α] [LawfulHashable α]
     (s : Bool) (k : α) : ({ stage₁ := s } : SMap α β).find? k = none := by
   rw [(WF.empty_stage s).find?_eq]; simp [toList']

@@ -5,8 +5,7 @@ import Lean4Lean.Theory.Typing.ProjectionLemmas
 import Lean4Lean.Theory.Typing.RecursorLemmas
 
 /-! Beta reduction of typed λ-telescopes and the result of a lifted motive applied to its
-telescope variables. Ported from the verified-inductives branch (`Confluence/CaseResultTyping.lean`,
-without the case-schema part). -/
+telescope variables. -/
 
 namespace Lean4Lean.VEnv
 open VExpr InductiveSignature

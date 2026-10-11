@@ -12,11 +12,10 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyKernel
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyRecursors
 import Lean4Lean.Verify.Inductive.Nested.Restoration.StrippedFacts
 
-/-! # The restored block of a nested run (owner: Restoration-B)
+/-! # The restored block of a nested run
 
 The boundary theorem of the restoration: a lowered run `L` on the lowered block, a successful
-restoration `V` and the lowering's certificate `Hout` yield the `RestoredBlock`. The source
-branch's material is `Nested/Restoration/**` minus `Equations/` and the Restoration-A files:
+restoration `V` and the lowering's certificate `Hout` yield the `RestoredBlock`. It assembles
 the refinement of the restoration folds (`Steps.lean`: `restoreNestedDeclarations_refines`,
 `FreshExtension`, `NestedRestorationFolds`), the restored source declaration
 (`SourceDeclaration`, `SourceHeaders`, `SourceConstructors`, `SourceConstructorTypes`,

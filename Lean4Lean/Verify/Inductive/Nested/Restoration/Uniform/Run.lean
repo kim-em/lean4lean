@@ -1,11 +1,10 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Lowered
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Run
 
-/-! # Parameter uniformity of a nested run's recursors (owner: Restoration-A)
+/-! # Parameter uniformity of a nested run's recursors
 
-The `NestedRun` section of the source branch's `Nested/Restoration/Uniform/Recursors.lean`:
-the auxiliary heads of a run, and the parameter uniformity of the lowered recursor read back by
-any restoration step (`NestedRun.recursorParamUniform`), over Restoration-B's `NestedRun`. -/
+The auxiliary heads of a run, and the parameter uniformity of the lowered recursor read back by
+any restoration step (`NestedRun.recursorParamUniform`). -/
 
 namespace Lean4Lean
 

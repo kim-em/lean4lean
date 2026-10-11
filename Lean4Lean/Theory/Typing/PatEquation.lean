@@ -5,8 +5,7 @@ import Lean4Lean.Theory.Inductive.RecursorSchema
 
 On the ι pattern calculus the generated recursor equations are not stored: each is registered
 as the ι pattern of its recursor rule (`VEnv.addRecRule`). The singleton prefix unfolding
-(`Theory/Typing/PrefixUnfolding/`) applies such an equation at an instance of its λ-telescope,
-which on the verified-inductives branch was `IsDefEq.extra_instOuter` on the stored equation.
+(`Theory/Typing/PrefixUnfolding/`) applies such an equation at an instance of its λ-telescope.
 `VEnv.PatEquation` abstracts what the unfolding needs of an equation: its three sides are
 closed and, at every universe instantiation and every well-typed instance of its telescope
 (the common λ/∀ telescope of its sides, `RecursorSchema.EquationBody.extract`) whose redex is

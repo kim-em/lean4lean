@@ -7,7 +7,7 @@ The interface of the mutual-header traversal `AddInductive.checkInductiveTypes n
 (`Inductive/Add.lean`): it checks every family's type against the common parameter telescope and
 result level, records the `InductiveStats` and runs the continuation `k stats` in a context whose
 local context holds the parameters as free variables. `HeaderPhase` is what that continuation
-may assume (frozen interface); `AddInductive.checkInductiveTypes.WF` is the boundary theorem.
+may assume; `AddInductive.checkInductiveTypes.WF` is the boundary theorem.
 
 The structures are the interface. The traversal itself is verified in `Header/Loop.lean`
 (`checkInductiveTypes.accumulatesHeadersSourceAligned`) against the loop's own accumulator

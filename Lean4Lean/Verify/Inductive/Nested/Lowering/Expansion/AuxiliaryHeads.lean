@@ -14,9 +14,9 @@ namespace VerifyInductive
 /-! # Typing of the head of an auxiliary family
 
 `AuxiliaryHeadTyping` records the restored nested application `I Ds` of an auxiliary family,
-closed over the parameter context, with its translation and typing (section 3.3 of
-the design notes). The file reads the container application, its arguments and its
-universe arity off the validated translation of the cached nested application. -/
+closed over the parameter context, with its translation and typing. The file reads the container
+application, its arguments and its universe arity off the validated translation of the cached
+nested application. -/
 
 /-- Source-facing typing of the head of an auxiliary family: the
 restored nested application `I Ds`, closed over the common parameter

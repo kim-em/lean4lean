@@ -1,14 +1,12 @@
 import Lean4Lean.Verify.Inductive.Install.Ordinary
 import Lean4Lean.Verify.Inductive.Lowering
 
-/-! The ordinary path of section 3.1 of the design notes: a successful ordinary run extends the
+/-! The ordinary path: a successful ordinary run extends the
 safety-indexed environment model, and a lowering result without auxiliary families leaves the
 source declaration literally unchanged, so the ordinary branch of `addInductiveAfterLowering`
-yields an `InductiveExtension` for the submitted declaration.
-
-Wave 2 scaffold: owned by the `Install/` agent; the glue is in place, the assembly of the
-block certificate (`RecursorCheck.blockCertificate`) and its installation
-(`BlockCertificate.extend*Exact`) are the named stubs of `Install/BlockCertificate.lean`. -/
+yields an `InductiveExtension` for the submitted declaration. The block certificate is
+assembled by `RecursorCheck.blockCertificate` and installed by `BlockCertificate.extend*Exact`
+(`Install/BlockCertificate.lean`). -/
 
 namespace Lean4Lean
 

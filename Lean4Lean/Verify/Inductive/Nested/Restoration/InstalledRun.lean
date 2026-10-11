@@ -3,12 +3,9 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Run
 
 /-! # The installed nested run (`NestedInstalledRun`)
 
-The target form of the source branch's `NestedInstalledRun` (`Nested/Install/Certificate.lean`):
-a validated nested run (`NestedRun`, which carries every run field of the source structure)
-together with the rule-free restored block it produced (`RestoredBlockBase`) over the same
-lowered view. The source's `assembly : RestoredBlockCertificate` becomes the rule-free
-`RestoredBlockBase`, and its `installedResult : NestedInstallResult` is dropped: the target
-installs nested blocks through `RestoredBlock` (`Nested/Install/Installed.lean`) instead. -/
+A validated nested run (`NestedRun`) together with the rule-free restored block it produced
+(`RestoredBlockBase`) over the same lowered view. Nested blocks are installed through
+`RestoredBlock` (`Nested/Install/Installed.lean`). -/
 
 namespace Lean4Lean
 

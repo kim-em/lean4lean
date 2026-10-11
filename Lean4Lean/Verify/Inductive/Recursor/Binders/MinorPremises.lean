@@ -6,7 +6,7 @@ import Lean4Lean.Verify.Inductive.Recursor.Binders.InductionHypothesisUniverses
 `loopInd2`): every induction hypothesis, recursive-call template and minor premise
 the executable declares is translated and well typed in the recursor context, and
 the recorded rule templates are typed (`TypedRuleTemplates`). Part of the recursor
-phase (section 3.2 of the design notes). -/
+phase. -/
 
 namespace Lean4Lean
 

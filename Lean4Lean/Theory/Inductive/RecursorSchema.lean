@@ -5,15 +5,12 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.ConstructorMajor
 
 /-! # The schema of a registered recursor
 
-The data of a compiled declaration that the confluence development reads off a recursor
-(section 4.2 of the design notes): the source families it owns, the generated signature and
-the restoration table. On the verified-inductives branch this was the case-eliminator schema
-(`CaseSchema`, with the per-family eliminator view); the ι pattern calculus has no abstract
-eliminators, so only the three data fields remain.
+The data of a compiled declaration that the confluence development reads off a recursor:
+the source families it owns, the generated signature and the restoration table. The ι pattern
+calculus has no abstract eliminators, so these three data fields are the whole schema.
 
 `EquationBody` (the open body of a generated equation with its shared λ/∀ telescope) and the
-closedness helpers of the telescope are here too; on the source branch they were part of the
-case-reduction data. -/
+closedness helpers of the telescope are here too. -/
 
 namespace Lean4Lean.InductiveSignature
 

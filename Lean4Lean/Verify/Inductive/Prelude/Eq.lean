@@ -11,12 +11,12 @@ open Kernel
 
 `Init.Prelude` declares `Eq` as an ordinary inductive, before any quotient. This file follows
 that one declaration (`PreludeEqShape`) through the executable: the primitive Bool/Nat
-recognizer rejects it, lowering leaves it unchanged, and the ordinary path of section 3.1 of
-the design notes installs it. From the source translation of the installed declaration it
+recognizer rejects it, lowering leaves it unchanged, and the ordinary path installs it.
+From the source translation of the installed declaration it
 derives that every safety-indexed model of the output contains abstract `Eq` with the prelude's
 type (`QuotReadyEnvs`). PR #43 derives `QuotReady` at quotient initialization from
 `checkEqType`, so this is not needed by `addDecl.WF`; the canonical `Eq.rec` facts
-(`HasCanonicalEq`) of the source branch stay with `Tests/PreludeEq` (wave 4). -/
+(`HasCanonicalEq`) are in `Verify/CanonicalEq.lean` and `Tests/PreludeEq`. -/
 
 namespace VerifyInductive
 

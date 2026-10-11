@@ -7,16 +7,12 @@ import Lean4Lean.Verify.Inductive.Context.Semantics
 
 `ContextWF c` is the invariant of an `AddInductive.Context` (`Inductive/Add.lean`) in which the
 executable inductive checker runs embedded type-checker calls: the abstract environment `venv`
-of the kernel environment `c.env` with the checking invariant (`CheckingEnv.Valid`, wave 1B)
+of the kernel environment `c.env` with the checking invariant (`CheckingEnv.Valid`)
 and the two recursor facts the checker reads (`RecursorShapesCoherent`, `IotaRulesRegistered`,
-wave 1A's `CheckerEnv`), the main local context `mlctx` with its translation, and the embedded
+as in `CheckerEnv`), the main local context `mlctx` with its translation, and the embedded
 checking context (`CheckBase`). `ContextWF.initial` is the context `Environment.addInductive`
 starts from; `ContextWF.withEnv` moves it to a larger kernel environment with the same local
 context, as `AddInductive.withEnv` does after each installation stage.
-
-Wave 2 scaffold: the structure's fields are the interface (frozen); the frame operations of the
-source branch (`withLocalDecl`, `withCheckedLocalDecl`, `RecursorContextWF`, ...) are the
-`Header/`+`Context/` agent's to port beneath it.
 -/
 
 namespace Lean4Lean
@@ -33,9 +29,9 @@ checking context `c.checkLCtx` embeds in it. -/
 structure ContextWF (c : AddInductive.Context) where
   venv : VEnv
   checking : CheckingEnv.Valid c.safety c.env venv
-  /-- The shapes of the visible recursors (wave 1A's `CheckerEnv.shapes`). -/
+  /-- The shapes of the visible recursors (as `CheckerEnv.shapes`). -/
   shapes : RecursorShapesCoherent c.safety c.env.constants venv
-  /-- The ι rules of the visible recursors are registered (wave 1A's `CheckerEnv.iota`). -/
+  /-- The ι rules of the visible recursors are registered (as `CheckerEnv.iota`). -/
   iota : IotaRulesRegistered c.safety c.env venv
 
   mlctx : TypeChecker.MLCtx
@@ -391,9 +387,9 @@ structure RecursorContextWF (c : AddInductive.Context)
   indFresh : ∀ fv ∈ mlctx.vlctx.fvars, c.ngen.Reserves fv
   kernelFresh : ∀ fv ∈ mlctx.vlctx.fvars,
     ({} : TypeChecker.State).ngen.Reserves fv
-  /-- The shapes of the visible recursors (wave 1A's `CheckerEnv.shapes`). -/
+  /-- The shapes of the visible recursors (as `CheckerEnv.shapes`). -/
   shapes : RecursorShapesCoherent c.safety c.env.constants venv
-  /-- The ι rules of the visible recursors are registered (wave 1A's `CheckerEnv.iota`). -/
+  /-- The ι rules of the visible recursors are registered (as `CheckerEnv.iota`). -/
   iota : IotaRulesRegistered c.safety c.env venv
   /-- The semantic checker context, embedded in the main one. -/
   check : CheckBase venv recLparams mlctx c.lctx c.checkLCtx

@@ -6,12 +6,9 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.KernelData
 
 /-! # The rule-free restored block of a nested run
 
-`NestedRun.assemblyBase` builds the `RestoredBlockBase` of a nested run: the target version of
-the source branch's `existsValidatedExactRestoration`, `RestoredBlockBase.ofReplay`,
-`assemblyBaseOfFormation` and `assemblyBaseValid` (`Install/FromRun.lean`). The restored
+`NestedRun.assemblyBase` builds the `RestoredBlockBase` of a nested run. The restored
 constants are replayed in dependency order (`RestorationInDependencyOrder`) and installed in
-the abstract stages `BlockStages` (the source's `BlockInstallation` without its concrete side
-and case eliminators). The restored recursor types are translated by the recursor-type
+the abstract stages `BlockStages`. The restored recursor types are translated by the recursor-type
 validation pass in the constructor side environment, a checker environment of the projection
 stage (`ValidationEnvironment.validProjected`, `CheckerEnv.ofSideExtension`). -/
 
@@ -131,8 +128,7 @@ theorem NestedLoweringOutputClosed.restoredSourceTelescopeAtFreshOfValidation
     simpa only [Nat.add_assoc] using
       Expr.ForallTelescopeTypeTranslation.ofTrExprS Htel Htr Htype⟩
 
-/-- The recursor-type pass translates the auxiliary recursor of one restoration step (the
-source branch's `AuxiliaryRecursorGeneratedAlignment.recursorStepOfValidation`). -/
+/-- The recursor-type pass translates the auxiliary recursor of one restoration step. -/
 theorem AuxiliaryRecursorGeneratedAlignment.recursorStepOfValidation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -202,10 +198,8 @@ theorem AuxiliaryRecursorGeneratedAlignments.recursorTraceOfValidation
       exact ⟨finalRecursors,
         AuxiliaryRecursorTranslations.cons Hstep Htail Hhead Hfinal⟩
 
-/-- The abstract stages of a dependency-order replay (the source branch's
-`RestorationInDependencyOrder.existsBlockInstallation` without its concrete installation and
-case eliminators): the headers and constructors are the declaration's, and the recursors are
-added to the projection stage. -/
+/-- The abstract stages of a dependency-order replay: the headers and constructors are the
+declaration's, and the recursors are added to the projection stage. -/
 theorem RestorationInDependencyOrder.existsBlockStages
     {safety : DefinitionSafety} {sourceProdEnv outProdEnv : Environment}
     {sourceVEnv envTypes envCtors : VEnv} {owners : List VInductiveType}
@@ -321,10 +315,9 @@ theorem FreshExtension.permOfSameTarget {source target : Environment}
       contradiction
     · simpa [hfound] using hentry
 
-/-- **The rule-free restored block of a nested run** (the source branch's
-`NestedRun.assemblyBaseValid`, without the stripped environment's validity, which the target
-reads off the rule-free stage `RuleFreeStage`). Source parameter formation `Hparameters` is a
-premise (the source branch's `NestedRun.sourceCoreParameterWF`). -/
+/-- **The rule-free restored block of a nested run.** The stripped environment's validity is
+read off the rule-free stage `RuleFreeStage`. Source parameter formation `Hparameters` is a
+premise. -/
 theorem NestedRun.assemblyBase {res : ElimNestedInductive.Result} {sourceProdEnv : Environment}
     {sourceTypes : List InductiveType} {sourceVEnv : VEnv} {decl : VInductDecl}
     {lparams : List Name} {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}

@@ -689,7 +689,7 @@ structure AuxiliaryFamilySource
   containerUnsafe : H.generated.sourceInfo.isUnsafe = container.isUnsafe
   familyMember : containerFamily ∈ container.types
   containerName : containerFamily.name = H.generated.sourceName
-  -- WAVE 3 COMPAT (restB): the kernel family of the container lists exactly the container
+  -- The kernel family of the container lists exactly the container
   -- family's constructors (`AuxiliaryFamilyContainer.constructorName`), which no abstract fact
   -- about the installed container determines.
   containerKernel : ∃ info, prodEnv.find? containerFamily.name = some (.inductInfo info) ∧

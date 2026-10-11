@@ -32,9 +32,9 @@ structure ContextSemantics (c : AddInductive.Context) (Us : List Name) where
   indFresh : ∀ fv ∈ mlctx.vlctx.fvars, c.ngen.Reserves fv
   kernelFresh : ∀ fv ∈ mlctx.vlctx.fvars,
     ({} : TypeChecker.State).ngen.Reserves fv
-  /-- The shapes of the visible recursors (wave 1A's `CheckerEnv.shapes`). -/
+  /-- The shapes of the visible recursors (as in `CheckerEnv.shapes`). -/
   shapes : RecursorShapesCoherent c.safety c.env.constants venv
-  /-- The ι rules of the visible recursors are registered (wave 1A's `CheckerEnv.iota`). -/
+  /-- The ι rules of the visible recursors are registered (as in `CheckerEnv.iota`). -/
   iota : IotaRulesRegistered c.safety c.env venv
   /-- The semantic checker context, embedded in the main one. -/
   check : CheckBase venv Us mlctx c.lctx c.checkLCtx

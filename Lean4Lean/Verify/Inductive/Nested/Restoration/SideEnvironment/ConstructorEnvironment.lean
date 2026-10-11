@@ -14,10 +14,7 @@ projection entries): its lookups are included in those of
 the environment after the source-family restoration fold, every constructor
 owner is present, and the projection registry is coherent.
 
-Port note (restB): ported from the source branch's `Validation/ConstructorEnvironment.lean`
-without the case eliminators, the constructor telescope certificates (`CtorTelescopes`) and
-`NestedRestorationFolds.localValidOfInstallation` (which read the source's
-`BlockInstallation`); the equation heads are carried as in the ordinary constructor phase
+The equation heads are carried as in the ordinary constructor phase
 (`EquationHeadsCoherent.extendSimple`).
 -/
 

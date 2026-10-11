@@ -5,8 +5,8 @@ import Lean4Lean.Theory.Typing.Pattern
 
 `VEnv.HasCanonicalEq`: the environment contains the prelude's `Eq`, `Eq.refl` and `Eq.rec`
 with their types and the registered ι rule of `Eq.rec`. It is the hypothesis `heq` of the
-confluence theorem `VEnv.WF.church_rosser` (WAVE 4: the stored rule of the source branch is a
-registered pattern on the ι pattern calculus). -/
+confluence theorem `VEnv.WF.church_rosser`; the ι rule of `Eq.rec` is a registered pattern
+of the ι pattern calculus. -/
 
 namespace Lean4Lean
 

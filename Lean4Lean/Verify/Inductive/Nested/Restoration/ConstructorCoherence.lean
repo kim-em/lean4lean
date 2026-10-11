@@ -10,16 +10,11 @@ import Lean4Lean.Verify.Inductive.Nested.Lowering.Restore.ParameterOpening
 and coherence of the restored constructors' common parameters for a nested
 run, all derived from the lowered run and the restoration folds.
 
-Target form (restB): the source's `RestoredBlockCertificate` becomes the rule-free
-`RestoredBlockBase`. The kernel family lookups (`InductInfosFromDecl`), which the source read off
-the certificate, are a premise of `RestoredBlockBase.mutualInductivesClosed`, and the installed
-abstract environment of `constructorTypingOfParameterDomains` is any extension of the recursor
-stage. Not ported: the source's installed-model assemblies
-(`RestoredBlockCertificate.safe/unsafeInductiveExtensionOfKernelClosed`,
-`NestedInstalledRun.safe/unsafeInductiveExtension`,
-`NestedInstalledRun.safe/unsafeConstructorTypingOfParameterDomains`, `LoweredRun.reindex`),
-superseded by `RestoredBlock.kernelFacts`/`installedFacts`, and
-`RestoredBlockCertificate.entriesUnsafe`, which read the dropped `executableOrder_perm`. -/
+The facts are stated over the rule-free `RestoredBlockBase`. The kernel family lookups
+(`InductInfosFromDecl`) are a premise of `RestoredBlockBase.mutualInductivesClosed`, and the
+installed abstract environment of `constructorTypingOfParameterDomains` is any extension of the
+recursor stage. The installed-model facts are assembled in `RestoredBlock.kernelFacts` and
+`installedFacts`. -/
 
 namespace Lean4Lean
 
@@ -88,7 +83,6 @@ theorem InductInfosFromDecl.mutualInductivesClosed
 
 /-- Every source family restored by the outer fold is visible in the installed
 kernel environment, in source order. -/
--- WAVE 3 COMPAT (eqinst): public, used by `RestoredBlock.mutualInductivesClosed`.
 theorem FoldSteps.restoredSourceMemberInfos
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
@@ -176,7 +170,6 @@ theorem FoldSteps.restoredSourceMemberInfos
         exact Halign.numParams
       · exact HtailParams member info htail hmemberLookup
 
--- WAVE 3 COMPAT (eqinst): public, used by `RestoredBlock.mutualInductivesClosed`.
 theorem sourceTypeNames
     (H : List.Forall₂ (TrInductiveType sourceEnv envTypes lparams)
       sourceTypes targetTypes) :

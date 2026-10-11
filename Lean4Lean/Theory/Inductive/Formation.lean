@@ -418,7 +418,7 @@ Nested lowering preserves the position of every constructor field, replacing
 maximal nested applications by applications of fresh auxiliary families. The
 relations below state that source-to-expanded correspondence independently of
 the executable lowering state; the refinement proof shows that the stateful `Expr`
-traversal of lowering projects to them (section 3.3 of the design notes). -/
+traversal of lowering projects to them. -/
 
 /-- Structural expression expansion with an explicit relation `leaf` for maximal
 nested occurrences (`.occurrence`). Binder depth is retained because direct inductive

@@ -2,9 +2,8 @@ import Lean4Lean.Verify.Inductive.Recursor.Context.FVarArrays
 import Lean4Lean.Verify.Inductive.Constructor.ParameterPrefixes
 
 /-! The owner normal forms of the constructor types (`ConstructorOwnerNormalForms`), recorded by
-a successful run of the constructor check. Ported from the source branch's
-`Recursor/Context/FVarArrays.lean` (the constructor-check part; the free-variable-array
-infrastructure stays in `Recursor/Context/`). -/
+a successful run of the constructor check (the free-variable-array infrastructure is in
+`Recursor/Context/`). -/
 
 namespace Lean4Lean
 open Lean hiding Environment Exception

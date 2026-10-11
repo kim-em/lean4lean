@@ -5,8 +5,7 @@ import Lean4Lean.Verify.Inductive.Nested.Lowering.Expansion.AuxiliarySources
 /-! # Source parameter formation of a nested run
 
 `NestedRun.sourceParameterWF`: the source declaration's parameter formation, from the raw
-constructor shapes of the lowered declaration transported along the nested expansion (the
-source branch's `NestedRun.assemblyBaseValid`, up to `Hparameters`). -/
+constructor shapes of the lowered declaration transported along the nested expansion. -/
 
 namespace Lean4Lean
 

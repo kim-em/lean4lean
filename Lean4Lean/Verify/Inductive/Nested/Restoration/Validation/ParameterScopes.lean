@@ -2,9 +2,9 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.InstalledRun
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ConstructorCoherence
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.RunEnv
 
-/-! # Restored family parameter scopes (owner: Restoration-A)
+/-! # Restored family parameter scopes
 
-The source branch's `Nested/Restoration/Validation/ParameterScopes.lean`: every restored family
+Every restored family
 of an installed nested run has a parameter scope that agrees with the lowered run's checked
 parameter context (`NestedInstalledRun.restoredFamilyParameterScopes`), from which the restored
 constructors' parameter domains are definitionally equal to their family's

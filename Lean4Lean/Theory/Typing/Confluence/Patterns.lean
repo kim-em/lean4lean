@@ -17,10 +17,7 @@ prefix unfolding computes instead (`FullReduction`). This file proves the non-ov
 soundness facts of the table that `Params` asks for; the structure facts are in
 `Confluence/StructureMajor.lean`.
 
-On the verified-inductives branch the ι entries were the generated iota patterns of the stored
-recursor equations (`GeneratedIotaPattern`), whose soundness (`GeneratedIotaSoundness.lean`,
-1.2k lines) was the iota theorem of the compiled block. Here an entry is a registered rule and
-its soundness is the rule `IsDefEq.pat` itself. -/
+An ι entry is a registered rule, and its soundness is the rule `IsDefEq.pat` itself. -/
 
 namespace Lean4Lean.VEnv
 open InductiveSignature

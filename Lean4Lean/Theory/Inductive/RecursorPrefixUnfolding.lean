@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Inductive.RecursorData
 
-/-! Prefix unfolding of a recursor at a singleton (section 4.2 of the design notes):
+/-! Prefix unfolding of a recursor at a singleton:
 the recursor applied to arguments up to its major is unfolded to a lambda whose body is the
 singleton iota equation at the reconstructed constructor (`prefixUnfolding`). The constructor
 is reconstructed only after checking its indices. The program may be exposed at any prefix: the unsupplied telescope

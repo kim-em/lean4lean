@@ -8,12 +8,11 @@ import Lean4Lean.Verify.Inductive.Constructor.SourceSignature
 environment, the translated declaration (`TrInductDeclCore`), the formation certificate and the
 field classification the executable returns. From it the constructor phase delivers a source
 signature of the declaration (`CheckedFormation.signature`), which the recursor phase's generator
-instantiates (section 3.2 of the design notes).
+instantiates.
 
-Ported from the source branch's `Constructor/CheckedFormation.lean`: the signature's family
-table is read off the header certificate (`HeaderCertificate.familyTelescope`) and its
-constructors off the checked tails (`tails`, an added field: the abstract half of the source
-branch's `ConstructorTails`). The case eliminators of the source branch are gone. -/
+The signature's family table is read off the header certificate
+(`HeaderCertificate.familyTelescope`) and its constructors off the checked tails (`tails`, the
+abstract half of `ConstructorTails`). -/
 
 namespace Lean4Lean
 
@@ -75,7 +74,7 @@ structure CheckedFormation (c : AddInductive.Context) (stats : AddInductive.Indu
   family and constructor by constructor. -/
   classes : List (List (List Bool))
   classes_length : classes.length = indTypes.size
-  /-- (Added by the constructor agent.) The checked tail of every constructor, with the
+  /-- The checked tail of every constructor, with the
   classification the executable returned for it. -/
   tails : ∀ i (hi : i < decl.types.length) j (hj : j < decl.types[i].ctors.length),
     CheckedCtorTail headers.context.venv decl formation.headers.params decl.types[i]

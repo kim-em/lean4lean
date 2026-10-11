@@ -161,7 +161,7 @@ theorem CtorParamsDefEq.mono (henv : venv ≤ venv')
 declaration is installed by `VEnv.addInduct`: `InstalledBelow` still installs the block through
 `VInductBlock.install`, which registers the generated rules as stored equations, and no
 environment built by `addInduct` contains those. -/
--- WAVE 3 COMPAT (lowering): a complete block also records a well-formed compiled block of the
+-- A complete block also records a well-formed compiled block of the
 -- declaration (`∃ block, CompilesTo ∧ RecsOf ∧ block.WF`), so that it is `VEnv.InstalledBelow`
 -- (`InductInstalled.installedBelow`), the container judgment of nested formation.
 def VEnv.InductInstalled (venv : VEnv) (decl : VInductDecl) : Prop :=
@@ -222,7 +222,6 @@ structure InstalledBlock.Abstract (env : Environment) (venv : VEnv) (B : Install
 /-- The shapes of a visible recursor: its type is a recursor telescope over its major family,
 and the constructor of each rule has the constructor telescope at the recursor's constructor
 parameter count, which is the constructor's own parameter count. -/
--- WAVE 2 install COMPAT: moved here from `Verify/TypeChecker/CheckerEnv.lean`.
 def RecursorShapes (C : ConstMap) (venv : VEnv) (rec : RecursorVal) : Prop :=
   ∃ cnparams indLevels ctorParams,
     Nonempty (VRecursorShape venv rec.name rec.levelParams.length rec.numParams cnparams
@@ -266,7 +265,7 @@ structure InstalledBlock.WF (safety : DefinitionSafety) (env : Environment) (ven
   /-- Every recursor the observer sees satisfies the K clause. -/
   recursor : ∀ r ∈ B.recursors, safety ≤ (ConstantInfo.recInfo r).safety →
     KLikeRecursor env.constants venv r
-  /-- WAVE 2 install COMPAT: every recursor the observer sees has its recursor and
+  /-- Every recursor the observer sees has its recursor and
   constructor telescopes (`RecursorShapes`, read by recursor reduction). -/
   shapes : ∀ r ∈ B.recursors, safety ≤ (ConstantInfo.recInfo r).safety →
     RecursorShapesAt env.constants venv r
@@ -863,7 +862,6 @@ theorem addBlock {decl : VInductDecl} (stage : InstallStage) (hstage : stage ≠
     (hreg : safety ≤ (if decl.isUnsafe then .unsafe else .safe) → DeclRegistered venv' decl)
     (hrecAlign : ∀ r ∈ recs, safety ≤ (ConstantInfo.recInfo r).safety →
       KLikeRecursor env'.constants venv' r)
-    -- WAVE 2 install COMPAT
     (hrecShapes : ∀ r ∈ recs, safety ≤ (ConstantInfo.recInfo r).safety →
       RecursorShapesAt env'.constants venv' r)
     (hcomplete : safety ≤ (if decl.isUnsafe then .unsafe else .safe) → stage = .complete →
@@ -1150,7 +1148,7 @@ theorem addInduct {decl : VInductDecl}
     (howners : VerifyInductive.ConstructorOwnersPresent env')
     (hrecMajor : ∀ {n r}, env'.find? n = some (.recInfo r) → env.find? n = none →
       ∃ info, env'.find? r.getMajorInduct = some (.inductInfo info))
-    -- WAVE 3 COMPAT (lowering): and a well-formed compiled block of the declaration
+    -- and a well-formed compiled block of the declaration
     (hadd : safety ≤ (if decl.isUnsafe then .unsafe else .safe) →
       decl.WF venv ∧ venv.addInduct decl = some venv' ∧
         ∃ block, decl.CompilesTo venv block ∧ decl.RecsOf block ∧ block.WF venv)
@@ -1159,7 +1157,6 @@ theorem addInduct {decl : VInductDecl}
       VerifyInductive.ConstructorParameterAlignment safety env' venv')
     (hrecK : ∀ {n r}, env'.find? n = some (.recInfo r) → env.find? n = none →
       safety ≤ (ConstantInfo.recInfo r).safety → KLikeRecursor env'.constants venv' r)
-    -- WAVE 2 install COMPAT
     (hrecShapes : ∀ {n r}, env'.find? n = some (.recInfo r) → env.find? n = none →
       safety ≤ (ConstantInfo.recInfo r).safety → RecursorShapesAt env'.constants venv' r) :
     InstalledBlocks safety env' venv' .complete := by
@@ -1232,7 +1229,7 @@ theorem addCtorStage {decl : VInductDecl}
     (hreg : DeclRegistered venv' decl)
     (hproj : ∀ {S info}, venv'.projections S info → venv.projections S info ∨
       ⟨S, info⟩ ∈ decl.projectionEntries)
-    -- WAVE 2 install COMPAT (discharged automatically when `recs = []`)
+    -- discharged automatically when `recs = []`
     (hrecShapes : ∀ r ∈ recs, safety ≤ (ConstantInfo.recInfo r).safety →
       RecursorShapesAt env'.constants venv' r := by simp) :
     InstalledBlocks safety env' venv' .headers := by

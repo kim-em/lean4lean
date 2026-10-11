@@ -6,11 +6,10 @@ import Lean4Lean.Verify.Inductive.Nested.Lowering.OccurrenceTyping
 
 /-! # The restoration side of the lowering verification
 
-Ported from the source branch's `Nested/Lowering/Queue.lean`: the theorems that read the
-restoration steps (`ConstructorLowering.Resolved.constructorRestoration_inverse`,
-`restoredType_translation`, `LoweredRestoredConstructors`,
-`NestedLowering.restoreAuxConstructorsFreshOfInstallation`). The lowering owner ported the
-rest of the file under `Nested/Lowering/`. -/
+The lowering theorems that read the restoration steps
+(`ConstructorLowering.Resolved.constructorRestoration_inverse`, `restoredType_translation`,
+`LoweredRestoredConstructors`, `NestedLowering.restoreAuxConstructorsFreshOfInstallation`); the
+rest of the lowering verification is under `Nested/Lowering/`. -/
 
 namespace Lean4Lean
 
@@ -223,9 +222,8 @@ theorem NestedLowering.restoreAuxConstructorsFreshOfInstallation
     (H.resultFamilyNamesFreshOfEmpty hwf hempty)
 
 
-/-- Target form of the source branch's `AddConstants.restoreAuxConstructorsFresh` over the
-lowered run's installation: every constructor recognized as belonging to a fresh auxiliary
-family is absent from the source model. -/
+/-- Over the lowered run's installation: every constructor recognized as belonging to a fresh
+auxiliary family is absent from the source model. -/
 theorem RecursorInstallation.restoreAuxConstructorsFreshOfInstalled
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}

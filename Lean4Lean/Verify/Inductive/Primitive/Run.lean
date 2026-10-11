@@ -7,11 +7,7 @@ import Lean4Lean.Verify.Inductive.Primitive.Install
 The executable runs a recognized `Bool` or `Nat` declaration through the same pipeline with the
 primitive-name exception enabled (`allowPrimitive := true`). Its header and constructor phases
 are verified separately for the two finite shapes (the ordinary boundary theorems exclude
-primitive names); the recursor phase is shared (`RecursorInput.recursorPhasesWF`).
-
-Wave 2 scaffold: owned by the `Install/`+`Primitive/`+`Prelude/` agent (source branch:
-`Primitive/{Run,Headers,Constructors,ConstructorCheck,ConstructorParams,BatchInstallation,
-Constants,Context}.lean`). -/
+primitive names); the recursor phase is shared (`RecursorInput.recursorPhasesWF`). -/
 
 namespace Lean4Lean
 
@@ -164,7 +160,7 @@ theorem AddInductive.constructorPhase.primitiveWF
     nindices := hnindices
     params_size := P.params_size
     visible := hvisible }
-  -- WAVE 3 COMPAT (restB): the primitive path allows primitives.
+  -- The primitive path allows primitives.
   exact ⟨decl, D, I.toRecursorInput hclosed (fun h => by rw [hallow] at h; cases h), rfl⟩
 
 /-- Source-aligned primitive result, retaining the exact abstract model from

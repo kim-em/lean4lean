@@ -12,8 +12,7 @@ The stored quotient rule `quotDefEq` joins in the full presentation at every uni
 specialization: by the guarded quotient pattern where the source of `Quot.lift` is not `Prop`
 (`QuotPattern.equation_trace`), and by the closed quotient prefix unfolding with a
 proof-irrelevant result alignment at a `Prop` source (`QuotRegistered.zero_equation_join`,
-through the concrete five-argument prefix `QuotPrefixUnfold.atFive`). Ported from the
-verified-inductives branch (`Confluence/QuotPrefixTyping.lean`, `QuotEquationCoverage.lean`); the
+through the concrete five-argument prefix `QuotPrefixUnfold.atFive`). The
 unfolding check reads the equation through `VEnv.PatEquation` (`PatEquation.of_defeq`). -/
 
 namespace Lean4Lean.VEnv

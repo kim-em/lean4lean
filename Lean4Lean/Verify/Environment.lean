@@ -196,9 +196,9 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   · obtain ⟨v, -, h⟩ := hbody.forall_exists_r ci hc; exact h.2
 
 /-- The inductive case of `addDecl.WF`: a checked inductive declaration, at any fuel, preserves
-the invariant `VEnvs.WF` and extends every safety-indexed abstract environment. Wave 1B took it
-as a hypothesis; the verification of the inductive checker (`Verify/Inductive/`) proves it from
-the primitive, ordinary and nested pipelines (`inductiveDeclPreserves`). -/
+the invariant `VEnvs.WF` and extends every safety-indexed abstract environment. The
+verification of the inductive checker (`Verify/Inductive/`) proves it from the primitive,
+ordinary and nested pipelines (`inductiveDeclPreserves`). -/
 def InductiveDeclPreserves : Prop :=
   ∀ {env : Environment} {ves : VEnvs} (_wf : ves.WF env)
     (lparams : List Name) (nparams : Nat) (types : List InductiveType)

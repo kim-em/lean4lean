@@ -21,12 +21,8 @@ recursors.  This file relates the two orders.  It does not assume an endpoint
 correspondence: a fresh extension is replayed in any permutation, and the
 endpoint correspondence is then proved extensionally.
 
-Port note (restB): the source's `BlockInstallation`/`AtomicAddConstants` assembly
-(`AtomicAddConstants.freshExtension`, `BlockInstallation.validCoreOfFreshPermutation`,
-`RestorationInDependencyOrder.existsBlockInstallation`,
-`SourceFamilyTranslations.existsExactRestoration`) is not ported: the target installs a block by
-PR #43's `AddInduct` (`order`, `order_perm`, `map_eq`), and the source's versions registered
-case eliminators. -/
+The abstract side installs a block by PR #43's `AddInduct` (`order`, `order_perm`,
+`map_eq`). -/
 
 /-- A finite list of pairwise-distinct constants that is fresh in the source
 environment can be installed in its listed order. -/

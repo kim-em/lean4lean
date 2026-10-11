@@ -13,12 +13,11 @@ namespace VerifyInductive
 
 /-! # Nested lowering: occurrence typing, fresh names and restoration premises
 
-Basic definitions for the verification of `ElimNestedInductive` (section 3.3 of
-the design notes): the typing of the nested applications validated by
-`validateNestedAuxiliaries` (`ClosedNestedOccurrencesTyped`), the fresh local context and
-fresh auxiliary names used by lowering, the auxiliary family construction
-(`AuxiliaryFamilySpec`), the source syntax checks, and the disjointness and freshness premises
-of restoration. -/
+Basic definitions for the verification of `ElimNestedInductive`: the typing of the nested
+applications validated by `validateNestedAuxiliaries` (`ClosedNestedOccurrencesTyped`), the
+fresh local context and fresh auxiliary names used by lowering, the auxiliary family
+construction (`AuxiliaryFamilySpec`), the source syntax checks, and the disjointness and
+freshness premises of restoration. -/
 
 /-- Fresh local-context invariant for the `_nested_fresh` name generator used
 by `ElimNestedInductive.withParams`. -/

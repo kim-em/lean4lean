@@ -14,7 +14,7 @@ namespace VerifyInductive
 The installed container of an auxiliary family (`AuxiliaryFamilyContainer`), the conversion of
 ordered family expansions into the abstract nested formation judgment
 (`VInductDecl.NestedFormationWF.ofForall₂`), and the data of a nested expansion of a source
-declaration (`NestedExpansionData`), section 3.3 of the design notes. -/
+declaration (`NestedExpansionData`). -/
 
 /-- A finite installed-declaration derivation exposes the exact abstract
 family constant at every source position. -/

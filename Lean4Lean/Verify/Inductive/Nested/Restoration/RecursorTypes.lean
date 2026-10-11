@@ -2,8 +2,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.TableAgreement
 
 /-! Restored recursor types of a validated nested run, with the parameter
 telescope of the lowered recursor type discharged from the restoration step and
-the generated recursor type it translates to (section 3.3 of
-the design notes). -/
+the generated recursor type it translates to. -/
 
 namespace Lean4Lean
 namespace VerifyInductive

@@ -9,11 +9,9 @@ well formed in the recursor stage of a restored block base in which the stripped
 environment is valid. It is `restoredEquationsWF_of_substitutionPremises`
 (`Equations/WF.lean`) with the substitution premises supplied by `restoredEquationGaps`:
 the projection names (`Equations/ProjNames.lean`), the auxiliary constructor lambdas
-(`Equations/AuxiliaryConstructors.lean`) and the projection rules (restB's
-`Restoration/AuxiliaryProjections.lean`). WAVE 3 (eqinst): the source branch's
-`NestedRun.restoredEquationGaps`/`hrestoredWF_of` (`Restoration/AuxiliaryProjections.lean`
-there), without eliminators. `RestoredBlock.restoredEquationsWF` (restB's field, produced in
-`nestedRestoredBlock`) is read off this theorem. -/
+(`Equations/AuxiliaryConstructors.lean`) and the projection rules
+(`Restoration/AuxiliaryProjections.lean`). The field `RestoredBlock.restoredEquationsWF`
+(produced in `nestedRestoredBlock`) is read off this theorem. -/
 
 namespace Lean4Lean
 

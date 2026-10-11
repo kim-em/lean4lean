@@ -7,8 +7,7 @@ import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 base that `TrRecursorVal` extends with rule coverage) is established for each installed
 recursor entry of a `RecursorInstallation`, against the one instance of the construction's signature
 (`RecursorInstallation.canonicalGeneration`). Together with the rule translations of `Rules/` this
-shows that the executable's recursors are the translations of the generated ones (section 3.2
-of the design notes).
+shows that the executable's recursors are the translations of the generated ones.
 -/
 
 namespace Lean4Lean

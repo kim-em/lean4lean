@@ -11,15 +11,11 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 /-! # Formation certificates and source translations
 
-The certificates that the header and constructor phases of section 3.2 of the design notes
-assemble (`HeaderCertificate`, `ConstructorCertificate` and their prefix invariants,
-`FormationCertificate`, which yields `VInductDecl.OrdinaryFormationWF`), and the source
-translation of a declaration (`TrInductDeclCore`, wave 1B's `Verify/Environment/Basic.lean`):
-its passage from the two checking phases and the well-formedness facts it carries
-(`TrInductDeclCore.sourceWF`).
-
-Wave 2 scaffold: the certificate structures are the interface (frozen); the proofs that are
-not mechanical are named stubs owned by the `Header/`+`Context/`+`Formation` agent. -/
+The certificates that the header and constructor phases assemble (`HeaderCertificate`,
+`ConstructorCertificate` and their prefix invariants, `FormationCertificate`, which yields
+`VInductDecl.OrdinaryFormationWF`), and the source translation of a declaration (`TrInductDeclCore`,
+`Verify/Environment/Basic.lean`): its passage from the two checking phases and the well-formedness
+facts it carries (`TrInductDeclCore.sourceWF`). -/
 
 namespace VerifyInductive
 
@@ -383,7 +379,7 @@ structure RecursorsWF (env : VEnv) (decl : VInductDecl) : Prop where
   rules_nodup : ∀ r ∈ decl.recs, (r.rules.map (·.ctor)).Nodup
   rules_ctor : ∀ envC, decl.addTypesCtors env = some envC → ∀ r ∈ decl.recs, ∀ ru ∈ r.rules,
     ∃ ci, envC.constants ru.ctor = some ci ∧ ci.type.CtorShape (ru.ctorParams + ru.nfields)
-  /-- WAVE 3 COMPAT (restB): `VInductDecl.WF.rules_ctorParams`. -/
+  /-- `VInductDecl.WF.rules_ctorParams`. -/
   rules_ctorParams : ∀ r ∈ decl.recs, ∀ ru ∈ r.rules,
     (∃ c ∈ decl.constructorConstants, ru.ctor = c.name ∧ ru.ctorParams = decl.nparams) ∨
     (∃ D, VEnv.InstalledBelow env D ∧ ∃ c ∈ D.constructorConstants,

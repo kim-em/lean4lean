@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Recursor.Entries.AddConstants
 
-/-! Exact lookup and mutual-block effects of a lockstep installation (`AddConstants`): the part
-of the source branch's `Install/Metadata.lean` the recursor phase uses. -/
+/-! Exact lookup and mutual-block effects of a lockstep installation (`AddConstants`), as the
+recursor phase uses them. -/
 
 namespace Lean4Lean
 open Lean hiding Environment Exception

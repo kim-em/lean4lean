@@ -1,11 +1,10 @@
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Queue
 
-/-! The lowering run as a relation on its result (`NestedLoweringRun`, the source branch's
-`NestedLoweringRun`, renamed because `NestedLoweringRun` is the interface structure of
-`Verify/Inductive/Lowering.lean`), its closed form `NestedLoweringOutputClosed` (the final cache
+/-! The lowering run as a relation on its result (`NestedLoweringRun`; the name
+`NestedLoweringRun` is the interface structure of `Verify/Inductive/Lowering.lean`), its closed
+form `NestedLoweringOutputClosed` (the final cache
 mentions only the returned parameters, which are distinct free variables), and the syntactic
-consequences the restoration side reads. From the source branch's
-`Nested/Restoration/SourceTranslations.lean`. -/
+consequences the restoration side reads. -/
 
 namespace Lean4Lean
 

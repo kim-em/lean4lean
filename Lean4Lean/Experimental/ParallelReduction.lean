@@ -880,8 +880,7 @@ theorem Typing.CRDefEq.trans : TY.CRDefEq Γ e₁ e₂ → TY.CRDefEq Γ e₂ e�
 /-- The environment registers no projections, so none of the projection rules (`projDF`,
 `projIota`, `structEta`, `unitLike`) of `VEnv.IsDefEq` can fire. The abstract `Typing` and
 `ParRed` of this file model the ι fragment (`pat`) and the original rules; structures are
-handled by the `Theory/Typing/Confluence/` development of the verified-inductives branch
-(wave 4). -/
+handled by the `Theory/Typing/Confluence/` development. -/
 def VEnv.NoInductiveRules (env : VEnv) : Prop :=
   ∀ typeName info, ¬env.projections typeName info
 

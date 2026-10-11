@@ -1,7 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Output
 
-/-! A lowering run that introduces no auxiliary family returns the source block literally
-(from the source branch's `Install/OrdinaryExtension.lean`). -/
+/-! A lowering run that introduces no auxiliary family returns the source block literally. -/
 
 namespace Lean4Lean
 

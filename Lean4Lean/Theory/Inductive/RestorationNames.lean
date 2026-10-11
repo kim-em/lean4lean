@@ -3,12 +3,9 @@ import Lean4Lean.Theory.Inductive.Formation
 
 /-! # Names of a restoration table and basic facts about `Restoration.expr`
 
-WAVE 3 COMPAT: the helpers the restoration metatheory (`Theory/Typing/RestorationShapes.lean`,
+The helpers the restoration metatheory (`Theory/Typing/RestorationShapes.lean`,
 `Theory/Inductive/RestorationInterpretation.lean`, `RestorationHead.lean`) reads off a
-`Restoration`, collected from the source branch's `IotaSoundnessLemmas.lean`,
-`CaseRuleConstructors.lean`, `CaseReductionLemmas.lean`, `CaseSchemaLemmas.lean`,
-`RestorationProjNames.lean`, `ProjNamesAvoid.lean` and `CaseProjections.lean` (all otherwise
-dropped with the case eliminators):
+`Restoration`:
 
 * `Restoration.restorableNames`: the auxiliary heads and the renamed recursors;
 * `Restoration.headName`: the constant a restored head is renamed to;
@@ -96,7 +93,7 @@ theorem Restoration.expr_mkApps (r : Restoration) (f : VExpr) (args : List VExpr
       (args.mapM r.expr).bind fun args' => Restoration.expr.go r f args' := by
   simp [Restoration.expr_eq_go, Restoration.go_mkApps]
 
-/-- `go_mkApps` in the `do` form of the source branch. -/
+/-- `go_mkApps` in `do` form. -/
 theorem restoration_mkApps (r : Restoration) (fn : VExpr) (inputArgs args : List VExpr) :
     Restoration.expr.go r (VExpr.mkApps fn inputArgs) args = (do
       let restoredArgs ← inputArgs.mapM r.expr

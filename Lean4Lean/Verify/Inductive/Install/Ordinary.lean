@@ -3,10 +3,8 @@ import Lean4Lean.Verify.Inductive.Install.BlockCertificate
 /-! The complete ordinary checker (`AddInductive.runWithStats`, `AddInductive.run`) refines a
 skeleton-free result (`OrdinaryInstallation`, `OrdinaryRunResult`): the declaration is the one
 synthesized by the successful header and constructor traversals, and the same declaration is
-carried through the recursor check and the rules.
-
-Wave 2 scaffold: the glue below composes the three boundary theorems of the header,
-constructor and recursor phases; owned by the `Install/` agent. -/
+carried through the recursor check and the rules. The proof composes the boundary theorems of
+the header, constructor and recursor phases. -/
 
 namespace Lean4Lean
 
@@ -22,7 +20,7 @@ def OrdinaryInstallation
     (nparams depth : Nat) (indTypes : Array InductiveType)
     (isUnsafe : Bool) (sourceEnv : VEnv) (outEnv : Environment) : Prop :=
   ∃ decl ctorEnv,
-    -- WAVE 2 install COMPAT: indexed by the recursor phase's input
+    -- indexed by the recursor phase's input
     ∃ R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv,
       Nonempty (RecursorCheck R outEnv)
 
@@ -54,7 +52,7 @@ theorem AddInductive.runWithStats.WF
     (AddInductive.constructorPhase.WF P numNested isUnsafe hvisible hnprimTypes hnprimCtors
       hlparams hclosed hpresent) fun out Hout => ?_
   obtain ⟨ctorEnv, positivity⟩ := out
-  -- WAVE 2 COMPAT (ctor): `constructorPhase.WF` returns one constructor check with the
+  -- `constructorPhase.WF` returns one constructor check with the
   -- returned classification (`∃ R, R.classes = out.2`).
   obtain ⟨decl, -, R, hclasses⟩ := Hout
   exact (R.toRecursorInput.recursorPhasesWF hlparams hsourceSafety hnotPartial hnprimRecursors

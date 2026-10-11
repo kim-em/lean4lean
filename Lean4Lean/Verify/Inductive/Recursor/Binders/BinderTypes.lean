@@ -4,7 +4,7 @@ import Lean4Lean.Verify.Inductive.Recursor.Context.FVarArrays
 their translations (`FVarDeclAt`, `FVarArrayBinderTypes`, `TrBinderTypes`), the
 constructor application typing `ConstructorApplicationAt`, and the input and run
 relations of `loopUArgs` (`LoopUArgsInput`, `LoopUArgsRun`). Part of the recursor
-phase (section 3.2 of the design notes). -/
+phase. -/
 
 namespace Lean4Lean
 

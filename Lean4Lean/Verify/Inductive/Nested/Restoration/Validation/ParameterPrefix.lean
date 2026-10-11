@@ -2,15 +2,14 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.Passes
 import Lean4Lean.Verify.Inductive.Nested.Lowering.ParameterOpening
 import Lean4Lean.Verify.Inductive.Constructor.ParameterSyntacticTranslation
 
-/-! # The lowering's parameter context (owner: Restoration-A)
+/-! # The lowering's parameter context
 
 The checker context in which `validateNestedAuxiliaries` runs: the lowering's local context
 `res.lctx` is the opening of the first source header's parameter telescope
 (`NestedLoweringOutput.params_opening`), so it is the local context of a well-formed checker
-context in any model where that header translates (`LoweringParamOpening.toMLCtx`, ported from
-the source branch), and that context supplies the premises of
-`validateNestedAuxiliaries.WF` (`NestedLoweringOutput.parameterMLCtx`, the source branch's
-`NestedLowering.resultParameterMLCtx`). -/
+context in any model where that header translates (`LoweringParamOpening.toMLCtx`), and that
+context supplies the premises of `validateNestedAuxiliaries.WF`
+(`NestedLoweringOutput.parameterMLCtx`). -/
 
 namespace Lean4Lean
 

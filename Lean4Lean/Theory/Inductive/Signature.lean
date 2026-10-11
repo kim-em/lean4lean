@@ -2,8 +2,8 @@ import Lean4Lean.Theory.Inductive.SignatureData
 import Lean4Lean.Theory.Inductive.SourceShape
 import Lean4Lean.Theory.Typing.Lemmas
 
-/-! Typed models and elimination admissibility for the pure signature generator (section 2.2
-of the design notes): `Models` relates a signature to a source declaration,
+/-! Typed models and elimination admissibility for the pure signature generator:
+`Models` relates a signature to a source declaration,
 `Instance.Admissible` fixes the elimination universe, and `Compiles` is ordinary compilation. -/
 
 namespace Lean4Lean
@@ -110,8 +110,7 @@ Singleton (large) elimination additionally requires a free elimination universe
 proposition whose only recursor has motive universe `succ u`; its proof fields could then
 not be extracted (there is no elimination into `Prop`), so its iota rule would have no
 reconstruction step and `FullEquationCoverage` would fail. Lean never produces such
-recursors, and the executable's recursor construction satisfies the free shape (section 2.4
-of the design notes). -/
+recursors, and the executable's recursor construction satisfies the free shape. -/
 structure Instance.Admissible {s : InductiveSignature} (g : Instance s)
     (envTypes : VEnv) : Prop where
   levels_length : g.levels.length = s.uvars
@@ -132,7 +131,7 @@ constructors and the declaration's projection entries,
 since that is where the executable checks the generated types.  A
 definitional-equality form in a smaller context is not derivable from the
 checker's runs without context strengthening of definitional equality, which is false
-in general (section 5.1 of the design notes). -/
+in general. -/
 def Instance.GeneratedIHsWellTyped {s : InductiveSignature} (g : Instance s) (env : VEnv) : Prop :=
   ∀ (index : Fin s.constructors.size) (j : Nat)
     (hj : j < (recursiveFields s.constructors[index]).length),

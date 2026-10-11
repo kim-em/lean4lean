@@ -32,12 +32,10 @@ Closure is separate from shape: that no interpreting term is a Pi type
 (`Interpretation.PreservesTelescopes`) is needed only where a projection field type is computed by
 walking a constructor telescope (`fieldType_interpret`, `ProjectionClause.of_fixed`).
 
-WAVE 3 COMPAT (port of the source branch's file): the eliminator clause is gone with
-`VExpr.elim`; its place is taken by `PatClause`, the obligation for a registered ι rule
-(`IsDefEq.pat`, PORT_PLAN section 3). `PatClause.of_fixed` discharges it for a rule of `envS`
-whose constants and fixed reduct terms the interpretation fixes (the analogue of
-`DefEqClause.of_rule`); the restored rules of a nested block are the `RestoredPattern`s of
-`RestorationInterpretation.lean`. -/
+The obligation for a registered ι rule (`IsDefEq.pat`) is `PatClause`. `PatClause.of_fixed`
+discharges it for a rule of `envS` whose constants and fixed reduct terms the interpretation
+fixes (the analogue of `DefEqClause.of_rule`); the restored rules of a nested block are the
+`RestoredPattern`s of `RestorationInterpretation.lean`. -/
 
 namespace Lean4Lean
 
@@ -200,7 +198,7 @@ def RHS.FixedTermsFixed (I : VEnv.Interpretation) {p : Pattern} : p.RHS → Prop
 def Check.FixedTermsFixed (I : VEnv.Interpretation) {p : Pattern} : p.Check → Prop
   | .true => True
   | .defeq a b rest => a.FixedTermsFixed I ∧ b.FixedTermsFixed I ∧ rest.FixedTermsFixed I
-  | .nonzero _ rest => rest.FixedTermsFixed I -- WAVE 4 COMPAT
+  | .nonzero _ rest => rest.FixedTermsFixed I
 
 theorem Matches.interpret {I : VEnv.Interpretation} {p : Pattern} {e : VExpr} {m1 : List VLevel}
     {m2 : p.Path → VExpr} (hp : p.ConstsFixed I) (H : p.Matches e m1 m2) :
@@ -243,7 +241,7 @@ theorem Check.Realizes.interpret {I : VEnv.Interpretation} {p : Pattern} {m1 : L
   | .true, [], _, _ => trivial
   | .true, _ :: _, _, h => h.elim
   | .defeq _ _ _, [], _, h => h.elim
-  | .nonzero _ _, _, _, h => h.elim -- WAVE 4 COMPAT
+  | .nonzero _ _, _, _, h => h.elim
   | .defeq a b rest, t :: ts, hck, ⟨h1, h2, h3⟩ => by
     refine ⟨?_, ?_, Check.Realizes.interpret hck.2.2 h3⟩
     · simp only [List.map_cons]; rw [h1, RHS.apply_interpret hck.1]

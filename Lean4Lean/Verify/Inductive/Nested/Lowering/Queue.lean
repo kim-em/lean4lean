@@ -11,8 +11,8 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- `Environment.contains` is `find?` on a well-formed constant map (from the source branch's
-`Restoration/Steps.lean`; lowering's freshness reads it). -/
+/-- `Environment.contains` is `find?` on a well-formed constant map (lowering's freshness
+reads it). -/
 theorem find?_none_of_contains_false
     {env : Environment} {name : Name} (hwf : env.constants.WF)
     (hfresh : env.contains name = false) : env.find? name = none := by

@@ -579,7 +579,7 @@ run_meta do
 
   -- The documented nested control. `Tree.node : List Tree → Tree` restores the block
   -- through `List`, so it is not strictly positive; `Tree.rec_1` eliminates `List`, a type
-  -- former outside the block, at the specialization argument `Tree`. WAVE 3 COMPAT (restB):
+  -- former outside the block, at the specialization argument `Tree`.
   -- `MajorApp` admits leading arguments over the parameters, so `RecShape` now accepts it
   -- (the restored auxiliary recursors of nested blocks must satisfy `rec_shape`).
   let .ctorInfo node ← getConstInfo ``Tree.node | throwError "Tree.node"

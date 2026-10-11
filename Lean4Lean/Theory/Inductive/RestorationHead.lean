@@ -1,9 +1,7 @@
 import Lean4Lean.Theory.Inductive.RestorationNames
 import Lean4Lean.Theory.Inductive.CompilationNames
 
-/-! Exact universe spines of restored heads (`Restoration.headLevels`).
-
-WAVE 3 COMPAT: port of the source branch's file onto `RestorationNames.lean`. -/
+/-! Exact universe spines of restored heads (`Restoration.headLevels`). -/
 
 namespace Lean4Lean.InductiveSignature
 

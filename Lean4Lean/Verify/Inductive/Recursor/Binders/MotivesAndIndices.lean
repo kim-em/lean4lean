@@ -6,7 +6,7 @@ import Lean4Lean.Verify.Inductive.Recursor.Binders.MotiveFrames
 header is normalized and its parameters and indices are opened under the recursor
 universe list, against the checked header (`MotivePassHeaderAt`), and the
 executable motive type is definitionally equal to the generated motive telescope.
-Part of the recursor phase (section 3.2 of the design notes). -/
+Part of the recursor phase. -/
 
 namespace Lean4Lean
 

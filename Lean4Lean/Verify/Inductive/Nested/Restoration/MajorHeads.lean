@@ -1,8 +1,7 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Recursors
 
 /-! The restored major heads of a nested run's recursors (`NestedRun.restoredMajorHead`,
-`NestedRun.auxNestedHead`): the first part of the source branch's
-`Validation/StrippedRecursorShapes.lean`, without the stripped-environment validity. -/
+`NestedRun.auxNestedHead`). -/
 
 namespace Lean4Lean
 

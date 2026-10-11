@@ -546,7 +546,7 @@ theorem defeqs_const_uniq {ds : List VDecl} {env : VEnv} (H : env.WF' ds)
 
 end VEnv.WF'
 
-/-! ### Projection and installation bookkeeping of the verified-inductives branch -/
+/-! ### Projection and installation bookkeeping -/
 
 theorem VEnv.addConsts_projections {env env' : VEnv} :
     ∀ {cis}, env.addConsts cis = some env' → env'.projections = env.projections

@@ -14,7 +14,7 @@ instead. Its coverage (`VEnv.WF.singletonPatCoverageJ`) chains three joins:
    (`singletonInstance_alignJ`, from the joinable typing of the instance and the joins of the
    constructor's normalization at the stage the declaration was installed at);
 2. the generic equation joins at a `Prop` source by the prefix unfolding
-   (`RecursorRegistered.zero_join`, ported from the verified-inductives branch), here applied to
+   (`RecursorRegistered.zero_join`), here applied to
    the equation's registered rule (`RecursorRegistered.patEquation_of_empty`);
 3. the right side of the generic equation applied to those arguments is the rule's reduct. -/
 

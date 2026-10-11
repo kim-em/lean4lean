@@ -2,11 +2,10 @@ import Lean4Lean.Verify.Inductive.Context
 
 /-! # Removing type-annotation wrappers from binder domains
 
-The inductive checker removes `optParam`, `autoParam`, `outParam` and `semiOutParam` from a
-binder domain (`Expr.consumeTypeAnnotationsVerified`) only where the environment declares the
-wrapper as the prelude's definition (`TypeAnnotationWrappers`, section 1.3 of
-the design notes). This file proves that the unannotated domain translates to a
-type definitionally equal to the source domain, and discharges the two hypotheses
+The inductive checker removes `optParam`, `autoParam`, `outParam` and `semiOutParam` from a binder
+domain (`Expr.consumeTypeAnnotationsVerified`) only where the environment declares the wrapper as
+the prelude's definition (`TypeAnnotationWrappers`). This file proves that the unannotated domain
+translates to a type definitionally equal to the source domain, and discharges the two hypotheses
 `ConsumeTypeAnnotationsCompat` and `RecursorConsumeTypeAnnotationsCompat` of `Context.lean`. -/
 
 namespace Lean4Lean

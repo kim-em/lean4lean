@@ -2,10 +2,7 @@ import Lean4Lean.Theory.Inductive.RestorationNames
 import Lean4Lean.Theory.Inductive.RestorationNaturality
 import Lean4Lean.Theory.Inductive.SignatureData
 
-/-! Restoration of generated recursor telescopes and its commutation with lifting.
-
-WAVE 3 COMPAT: port of the source branch's file (the `elim` case of `Restoration.expr` is
-gone). `instantiateParams_liftN` is the source's `CaseReduction.lean` lemma. -/
+/-! Restoration of generated recursor telescopes and its commutation with lifting. -/
 
 namespace Lean4Lean
 namespace InductiveSignature

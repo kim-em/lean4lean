@@ -47,15 +47,13 @@ theorem Methods.withFuel.WF : ∀ {n}, (withFuel n).WF
 theorem RecM.WF.run {x : RecM α} (H : x.WF c s Q) : (RecM.run x).WF c s Q :=
   H _ Methods.withFuel.WF
 
-/-- **Stub (wave 1A).** The recursor and constructor shapes of the visible recursors of a
-complete environment model (`RecursorShapes`): every recursor of an installed block has the
-recursor telescope `VRecursorShape` over its major family, and the constructor of each rule the
-constructor telescope `VConstructorShape` at its own parameter count. On the verified-inductives
-branch this was part of the installed-block invariant (`RecursorAlignmentCore`); here it is to
-be read off `VInductDecl.WF` (`rec_shape`, `rules_ctor`) through `InstalledBlocks`. -/
+/-- The recursor and constructor shapes of the visible recursors of a complete environment
+model (`RecursorShapes`): every recursor of an installed block has the recursor telescope
+`VRecursorShape` over its major family, and the constructor of each rule the constructor
+telescope `VConstructorShape` at its own parameter count. They are read off the installed-block
+descriptors (`InstalledBlocks.recursorShapesCoherent`). -/
 theorem _root_.Lean4Lean.VEnvAt.recursorShapes {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
     (wf : VEnvAt env safety venv) : RecursorShapesCoherent safety env.constants venv :=
-  -- WAVE 2 install COMPAT: proved from the installed-block descriptors
   wf.blocks.recursorShapesCoherent wf.tr.map_wf
 
 /-- The checker's view of a single-level model. -/

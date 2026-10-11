@@ -18,7 +18,7 @@ restoration folds are interpreted as the source family translations
 (`SourceFamilyTranslations`) of the submitted declaration, with headers, constructors and
 source recursors. The file ends with `Environment.addInductive.checkedLoweringClosedWF`,
 which runs the source checks and lowering of `Environment.addInductive` before
-dispatch (sections 3.1 and 3.3 of the design notes). -/
+dispatch. -/
 
 namespace Lean4Lean
 

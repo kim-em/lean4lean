@@ -8,9 +8,8 @@ The family head of a constructor's owner, in a compiled declaration, is the resu
 of a constructor registered as a pattern constructor: a constructor of the declaration itself,
 or a constructor of a certified container (whose own rules are registered earlier). Through
 `WF.patCtor_resultRigid` this makes every major family of a registered recursor a present
-rigid constant (`RecursorRegistered.family_head_rigid`, `Theory/Typing/RecursorMajorFamily.lean`).
-On the verified-inductives branch the same facts came from the installed equations
-(`ConstructorRigidity.lean`). -/
+rigid constant (`RecursorRegistered.family_head_rigid`,
+`Theory/Typing/RecursorMajorFamily.lean`). -/
 
 namespace Lean4Lean
 open InductiveSignature

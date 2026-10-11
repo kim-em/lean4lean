@@ -16,7 +16,7 @@ for `e : @Eq (Sort u) X Y` and `x : X`. When `X ≡ Y`, the cast computes to `x`
 equation proof is proof-irrelevantly `Eq.refl X`, and the stored `Eq.rec` iota rule
 fires. This is the K-like computation used by singleton eta.
 
-WAVE 4 COMPAT: the iota rule of `Eq.rec` is the registered pattern of `HasCanonicalEq`
+The iota rule of `Eq.rec` is the registered pattern of `HasCanonicalEq`
 (`IsDefEq.canonicalEqRec_iota`), not a stored equation. -/
 
 set_option linter.unusedSimpArgs false

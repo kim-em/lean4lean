@@ -1,20 +1,17 @@
 import Lean4Lean.Verify.Inductive.Lowering
 
-/-! # The lowering verification (owner: Lowering)
+/-! # The lowering verification
 
 The interface of the lowering run is `NestedLoweringOutput` and its boundary theorem
-`loweringRun.WF` (`Verify/Inductive/Lowering.lean`, lead-owned; this directory proves it).
-The source branch's `Nested/Lowering/**` (`Basic`, `Queue`, `Expression`, `Recognition`,
-`Levels`, `AuxiliaryFamilies`, `AuxiliaryConstructors`, `AuxiliaryFamilyPositions`,
-`Expansion/**`, `ParameterOpening`, `Phases`, `Run`; about 15k lines) is the material: the
-refinement of `ElimNestedInductive.run` (`NestedLowering`, `LowerNextStep`), the cache
+`loweringRun.WF` (`Verify/Inductive/Lowering.lean`); this directory proves it: the refinement
+of `ElimNestedInductive.run` (`NestedLowering`, `LowerNextStep`), the cache
 (`NestedAuxMapModels`), the auxiliary family specifications and the restoration inverse
 (`ConstructorRestorationInverse.restoredType_eqv_source`), the zero-auxiliary identity
-(`types_eq_source_of_aux2nested_size_eq_zero`). The semantic content the source kept here
-(`AuxiliaryFamilySpecialization`, `SpecializationGenerates`, the typing of the nested
-occurrences) belongs to the restoration side now: the restoration owners translate the
-syntactic cache facts of `NestedLoweringOutput` (`nested_app`, `aux_cached`) through the
-validation pass `validateNestedAuxiliaries` (`Nested/Restoration/Validation/Passes.lean`).
+(`types_eq_source_of_aux2nested_size_eq_zero`). The semantic content (the specialization of
+the auxiliary families, the typing of the nested occurrences) belongs to the restoration side:
+the restoration translates the syntactic cache facts of `NestedLoweringOutput` (`nested_app`,
+`aux_cached`) through the validation pass `validateNestedAuxiliaries`
+(`Nested/Restoration/Validation/Passes.lean`).
 
 This file collects the consequences of `NestedLoweringOutput` the nested pipeline reads
 directly. -/

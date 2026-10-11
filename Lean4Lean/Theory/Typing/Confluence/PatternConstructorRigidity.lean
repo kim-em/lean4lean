@@ -12,8 +12,7 @@ container's own registered rule (`CompiledInductive.rule_ctor_cases`), handled b
 argument on the strictly shorter history before the declaration (`WF'.patCtor_provenance`).
 
 These are the facts the confluence engine's pattern table (`Params.pat_ctor_rigid`) and the
-major-family lemmas (`RecursorRegistered.major_not_pi`) read; on the verified-inductives
-branch they came from the stored-equation history induction of `ConstructorRigidity.lean`. -/
+major-family lemmas (`RecursorRegistered.major_not_pi`) read. -/
 
 namespace Lean4Lean
 namespace VEnv

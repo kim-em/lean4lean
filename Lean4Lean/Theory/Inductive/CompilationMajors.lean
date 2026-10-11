@@ -17,13 +17,11 @@ environment the block was compiled in (`ContainersInstalled`: the container was 
 recursors). The second alternative is `VEnv.IsPatCtor env ru.ctor`
 (`Theory/Typing/HeadInjectivity/Rules/ConstructorMajor.lean`).
 
-WAVE 3 COMPAT (Restoration-B): ports the source branch's `Instance.restored_equation_major`
-(`RecursorEquationHeads.lean`), `CompilationData.constructor_name_cases`,
-`CompilationData.constructor_equation` (`RecursorEquationCoverage.lean`), the restored-name
-lemmas of `CaseRuleConstructors.lean` (`headName_source`, `headName_auxiliary_constructor`,
-`directFamily_restored_constructor_names`) and `CompiledInductive.equation_major_cases`
-(`ConstructorRigidity.lean`), with the stored-equation alternative replaced by a registered
-pattern (`VEnv.IsPatCtor`). -/
+The file proves `Instance.restored_equation_major`, `CompilationData.constructor_name_cases`,
+`CompilationData.constructor_equation`, the restored-name lemmas (`headName_source`,
+`headName_auxiliary_constructor`, `directFamily_restored_constructor_names`) and
+`CompiledInductive.equation_major_cases`, whose second alternative is a registered pattern
+(`VEnv.IsPatCtor`). -/
 
 namespace Lean4Lean
 

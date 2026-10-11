@@ -123,7 +123,6 @@ theorem VEnv.HasPrimitives.addConst {env env' : VEnv} (H : env.HasPrimitives)
 theorem VEnv.HasPrimitives.addDefEq {env : VEnv} (H : env.HasPrimitives) :
     (env.addDefEq df).HasPrimitives := fun p hp => (H p hp).addDefEq
 
--- WAVE 1B COMPAT
 theorem VEnv.HasPrimitives.addConst_of_not_primitive {env env' : VEnv}
     (h : env.HasPrimitives) (hadd : env.addConst n ci = some env')
     (hn : ¬ Environment.primitives.contains n) : env'.HasPrimitives :=

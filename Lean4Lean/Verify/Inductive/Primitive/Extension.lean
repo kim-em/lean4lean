@@ -4,12 +4,10 @@ import Lean4Lean.Verify.Inductive.Install.OrdinaryExtension
 /-!
 # The primitive inductive extension
 
-The end of the primitive path of section 3.1 of the design notes: a successful run on `Bool` or
-`Nat` yields well-formed models of the output that extend the source models, together with the
-source judgment (`SourceAddInduct`, `addInductiveDeclaration.primitiveExtensionModelWF`).
-
-Wave 2 scaffold: glue over `OrdinaryInstallation.extendSafeExact`; owned by the
-`Install/`+`Primitive/`+`Prelude/` agent. -/
+The end of the primitive path: a successful run on `Bool` or `Nat` yields well-formed models
+of the output that extend the source models, together with the source judgment
+(`SourceAddInduct`, `addInductiveDeclaration.primitiveExtensionModelWF`), by way of
+`OrdinaryInstallation.extendSafeExact`. -/
 
 namespace Lean4Lean
 

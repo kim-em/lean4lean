@@ -1,12 +1,10 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Recursors
 import Lean4Lean.Verify.TypeChecker.ParamUniformWHNF
 
-/-! # Parameter uniformity: generic lemmas (owner: Restoration-A)
-
-The parts of the source branch's `Nested/Restoration/Uniform/Whnf.lean` that do not read a
-nested run: syntactic lemmas on `LeadingForalls`, `ParamUniformBV`/`ParamUniformTele` (`grow`,
-`shrink`, level instantiation), and the
-lift of `TypeChecker.whnf.paramUniform` to the inductive checker's recursor context
+/-! # Parameter uniformity: generic lemmas
+ The parameter-uniformity lemmas that do not read a nested run: syntactic lemmas on
+`LeadingForalls`, `ParamUniformBV`/`ParamUniformTele` (`grow`, `shrink`, level instantiation), and
+the lift of `TypeChecker.whnf.paramUniform` to the inductive checker's recursor context
 (`whnfInRecursorContext.paramUniformIn`). The `NestedRun` instances follow in
 `Uniform/Whnf.lean`. -/
 namespace Lean.Expr

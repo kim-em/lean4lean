@@ -12,7 +12,7 @@ generator's equation for a constructor (`InductiveSignature.Instance.equation`) 
 fields; its left-hand side body is the recursor applied to the variables of the first three
 groups, the constructor indices and the constructor applied to parameter and field variables;
 its right-hand side is a closed template. This file restates `VDefEq.WF` of a generated
-equation as `PatTyped` (PORT_PLAN section 2.3): open the λ-telescope (`HasType.wrapLams_inv`)
+equation as `PatTyped`: open the λ-telescope (`HasType.wrapLams_inv`)
 for the redex, and apply the closed reduct to the variables of the telescope
 (`HasType.mkApps_wrapForalls_bvarSpine`) for the reduct. -/
 

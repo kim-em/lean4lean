@@ -6,8 +6,7 @@ import Lean4Lean.Verify.LocalContext
 
 The header loops of `Lean4Lean/Inductive/Add.lean` keep indices of earlier families and the
 cached common parameters in one local context. This file describes the abstract scopes that
-the proof carves out of it without strengthening (section 5.1 of
-the design notes): the abstract images of the parameter cache
+the proof carves out of it without strengthening: the abstract images of the parameter cache
 (`cachedParamVars`, `ParameterCachePrefix`, `ParameterContextSuffix`), source telescopes of
 all-lambda contexts (`SourceTelescope`), and dependency-closed sub-scopes of a larger
 context (`FrontScopeEmbedding`, `ScopeEmbedding`), into which terms and types are moved by

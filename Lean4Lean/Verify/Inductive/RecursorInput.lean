@@ -10,10 +10,8 @@ import Lean4Lean.Verify.Inductive.HeaderData
 `Bool`/`Nat` declarations (the family is present without its constructors). The ordinary
 constructor phase produces it by `ConstructorCheck.toRecursorInput`, the primitive one directly
 (`Primitive/`). Field names are those of `ConstructorCheck`, so `R.foo` reads the same field
-under either index.
-
-WAVE 2 install COMPAT: interface structure, introduced so that the recursor phase keeps one
-input type for the ordinary and the primitive path. -/
+under either index. The structure gives the recursor phase one input type for the ordinary
+and the primitive path. -/
 
 namespace Lean4Lean
 
@@ -62,14 +60,14 @@ structure RecursorInput (c : AddInductive.Context) (stats : AddInductive.Inducti
     (p.1, familyCtorInfos stats c.lparams isUnsafe p.2)
   ctor_numParams : ∀ iv ∈ ivals, ∀ cval ∈ iv.2, cval.numParams = decl.nparams
   parameterPrefixes : ConstructorParameterPrefixes stats indTypes
-  -- WAVE 2 ctor COMPAT: the tails are in the header statistics' parameter scope, as
-  -- `ConstructorCheck.constructorTails` (and the source branch) states them.
+  -- The tails are in the header statistics' parameter scope, as
+  -- `ConstructorCheck.constructorTails` states them.
   constructorTails : ConstructorTails headers.context.venv c.lparams
     headers.statsWF.parameterScope stats decl indTypes classes
   ownerNormalForms : ConstructorOwnerNormalForms stats indTypes
   /-- Positivity's literal side condition in the recursor phase's context. -/
   literalDisjoint : checkPositivityStep.AvailableLiteralDisjoint context.venv stats.indConsts
-  /-- WAVE 3 COMPAT (restB): without the primitive exception, the family and constructor names
+  /-- Without the primitive exception, the family and constructor names
   are not checker primitives (`ConstructorCheck.nonprimitive`). -/
   nonprimitive : c.allowPrimitive = false → ∀ T ∈ decl.types,
     ¬ Kernel.Environment.primitives.contains T.name ∧

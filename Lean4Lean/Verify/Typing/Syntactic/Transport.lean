@@ -21,7 +21,7 @@ without `HasType`, without an environment and without a well-formed context:
 
 The last item is the syntactic half of strengthening. It is elementary here, and the typed half
 is isolated in `Syntactic/Typed.lean`: restricting the *syntax* of a translation is free,
-restricting its *typing* is not (section 5.1 of the design notes).
+restricting its *typing* is not.
 -/
 
 namespace Lean4Lean

@@ -2,8 +2,8 @@ import Lean4Lean.Verify.Inductive.Nested.Lowering.Refinement
 import Lean4Lean.Verify.Inductive.Recursor.Signature.RecursorTypeTelescope
 
 /-! An exact, cache-independent specification of `Expr.replace` (`ExprReplacement`) and the
-telescope accepted by nested restoration (`RestoreTelescope`). The typing part of the source
-file (`RecursorTypeTelescope`, the generated recursor telescopes) is ported by Restoration-B. -/
+telescope accepted by nested restoration (`RestoreTelescope`). The typing of the generated
+recursor telescopes is in `Recursor/Signature/RecursorTypeTelescope.lean`. -/
 
 namespace Lean4Lean
 

@@ -146,8 +146,7 @@ for any specialization list named after the auxiliary families, well formed,
 scoped and with direct families (`hnames`, `hwellFormed`, `hscoped`, `hdirect`),
 modulo `NestedCompilationRestorationFacts`. The nested formation is the lowering's
 `NestedExpansionData` of the lowered declaration (`hD`); the block is any block laying out
-the source declaration with distinct names (target form: the source branch read these off its
-`RestoredBlockDerivation`). -/
+the source declaration with distinct names. -/
 theorem NestedRun.compilationData_of_specializations
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}

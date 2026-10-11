@@ -6,8 +6,7 @@ What the validation pass `validateNestedAuxiliaries` establishes about the cache
 (`NestedOccurrencesTyped`, in the lowering's parameter metacontext), closed over the lowering
 parameters (`ClosedNestedOccurrencesTyped`, `NestedLowering.closeNestedOccurrencesTyped`) and
 in de Bruijn form (`ClosedNestedOccurrenceTyping`), as the lowering expansion and the
-restoration read it. From the source branch's `Nested/Lowering/{Basic,Queue}.lean` and
-`Nested/Restoration/SourceTranslations.lean`. -/
+restoration read it. -/
 
 namespace Lean4Lean
 

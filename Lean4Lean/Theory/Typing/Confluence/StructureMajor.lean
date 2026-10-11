@@ -16,8 +16,7 @@ constructor whose type returns a registered structure is that structure's constr
 registered structure is a type former with a single constructor, so the declaration installing a
 pattern constructor's family registers exactly that projection entry
 (`WF.installed_projection`), whose parameter count is the rule's
-(`VInductDecl.WF.rules_ctorParams`). On the verified-inductives branch the same facts were read
-off the installed equations (`StructureConstructorHistory.lean`, `StructureParams.lean`). -/
+(`VInductDecl.WF.rules_ctorParams`). -/
 
 namespace Lean4Lean.VEnv
 open InductiveSignature

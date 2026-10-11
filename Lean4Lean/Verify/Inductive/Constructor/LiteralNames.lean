@@ -2,8 +2,8 @@ import Lean4Lean.Verify.Inductive.Constructor.LiteralDisjoint
 
 /-! Literal-name side conditions of the positivity check, in the header environment: no
 family is a kernel-reserved primitive name, and the three literal expansion names that the
-kernel does not reserve are excluded once string-literal support is present. Ported from the
-source branch's `Install/LiteralNames.lean`, stated over the header interface. -/
+kernel does not reserve are excluded once string-literal support is present. Stated over the
+header interface. -/
 
 namespace Lean4Lean
 

@@ -50,8 +50,8 @@
     "Lean4Lean.VEnv.WF.patsStrong"
   ],
   "openProofsSources": {
-    "Lean4Lean.VEnv.IsDefEqU.weakN_iff": "Theory/Typing/UniqueTyping.lean: context strengthening for definitional equality, open on master (PORT_PLAN section 5).",
-    "Lean4Lean.VEnv.Model.PatValid.iota": "Theory/Typing/HeadInjectivity/Model/PatSound.lean: the pat case of the observation model's soundness (wave 1C; STUBS.md, Model pat stubs).",
-    "Lean4Lean.VEnv.WF.patsStrong": "Theory/Typing/EnvLemmas.lean: PR #43's strong typing of registered pattern instances (wave 1D, blocked on the premise decision; SPIKE_PATSSTRONG.md)."
+    "Lean4Lean.VEnv.IsDefEqU.weakN_iff": "Theory/Typing/UniqueTyping.lean: context strengthening for definitional equality (inverse weakening), stated as on master.",
+    "Lean4Lean.VEnv.Model.PatValid.iota": "Theory/Typing/HeadInjectivity/Model/PatSound.lean: the pat case of the observation model's soundness: a registered iota rule is valid in the model.",
+    "Lean4Lean.VEnv.WF.patsStrong": "Theory/Typing/EnvLemmas.lean: PR #43's strong typing of registered pattern instances (PatsStrong), needed for OrderedStrong."
   }
 }

@@ -1114,9 +1114,8 @@ names that are not renamed recursor names
 conclusion available: a renamed recursor name that coincides with a restorable name is
 installed in every such recursor environment.
 
-WAVE 3 COMPAT (restB): the source's `RestoredBlockDerivation` is the base with its rule lists
-(`sourceRules`, `auxiliaryRules`); the base's kernel order (`hkernel`) replaces its
-`executableOrder_perm` field. -/
+The block is the base with its rule lists (`sourceRules`, `auxiliaryRules`); its kernel order
+is the premise `hkernel`. -/
 theorem NestedRun.hrules_of_modulo
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}

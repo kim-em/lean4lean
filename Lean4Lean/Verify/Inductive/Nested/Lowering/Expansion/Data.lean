@@ -10,9 +10,7 @@ the lowered block (`RecursorInput`, the constructor phase's output) and the rest
 facts about the source declaration: its translation (`TrInductDeclCore`), the header prefix of
 the lowered declaration, the typing of the cached nested occurrences
 (`ClosedNestedOccurrenceTypings`, from `validateNestedAuxiliaries`) and source parameter
-formation. The source branch's `NestedRun.assemblyBaseValid` (`Install/FromRun.lean`) assembles
-the same from `auxiliaryFamilySources`, `allExpansionsOfSources` and
-`NestedExpansionData.ofConstructorPhases`. -/
+formation. -/
 
 namespace Lean4Lean
 

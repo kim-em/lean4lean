@@ -16,8 +16,7 @@ namespace VerifyInductive
 The abstract source declaration of a nested declaration (`NestedSourceDeclaration`),
 with its header and constructor environments and their translation `TrInductDeclCore`,
 is reconstructed from the lowering, restoration and validation runs; neither the
-declaration nor its constructor translations are supplied by the caller (section 3.3 of
-the design notes). -/
+declaration nor its constructor translations are supplied by the caller. -/
 
 /-- Two runs of the deterministic header-validation fold (`ValidationHeaderStep`)
 have the same endpoint. -/
