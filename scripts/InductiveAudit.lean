@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Dispatch
-import Lean4Lean.Verify.Inductive.Nested.Install.Dispatch
+import Lean4Lean.Verify.Inductive.Nested.Install.Extension
 import Lean4Lean.Verify.Environment
 import Lean4Lean.Verify.TypeChecker
 import Lean4Lean.Verify.CanonicalEq
@@ -74,11 +74,10 @@ elab "#inductive_audit " ids:ident* : command => do
 -- `Eq`, and the replay driver.
 #inductive_audit Lean4Lean.addDecl.WF
 #inductive_audit Lean4Lean.addQuot.WF
-#inductive_audit Lean4Lean.inductiveDeclPreserves
 #inductive_audit Lean4Lean.VerifyInductive.addInductiveDeclaration.preserves
 #inductive_audit Lean4Lean.VerifyInductive.Environment.addInductive.inductiveExtensionWF
 #inductive_audit Lean4Lean.VerifyInductive.Environment.addInductive.primitiveInductiveExtensionWF
-#inductive_audit Lean4Lean.VerifyInductive.nestedInductivePreserves
+#inductive_audit Lean4Lean.VerifyInductive.Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
 #inductive_audit Lean4Lean.TypeChecker.whnf.WF
 #inductive_audit Lean4Lean.TypeChecker.Inner.reduceRecursor.WF
 #inductive_audit Lean4Lean.VerifyInductive.RecursorConstruction.typeTranslations
