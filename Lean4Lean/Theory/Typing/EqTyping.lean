@@ -216,6 +216,7 @@ theorem IsDefEq.canonicalEqRec_iota (henv : env.WF) (heq : env.HasCanonicalEq)
     (hΓ : OnCtx Γ (env.IsType U))
     (H : env.HasType U Γ (VExpr.eqRecApp v w α a motive minor b (VExpr.eqReflApp w' α' a')) T) :
     env.IsDefEq U Γ (VExpr.eqRecApp v w α a motive minor b (VExpr.eqReflApp w' α' a')) minor T := by
+  obtain ⟨doms, hc, hdl, hp⟩ := heq.2.2.2
   obtain ⟨g1, hm1, hg1⟩ := Pattern.matches_varN_const (c := ``Eq.rec) (ls := [v, w]) 5
     [α, a, motive, minor, b] rfl
   obtain ⟨g2, hm2, hg2⟩ := Pattern.matches_varN_const (c := ``Eq.refl) (ls := [w']) 2
@@ -224,24 +225,18 @@ theorem IsDefEq.canonicalEqRec_iota (henv : env.WF) (heq : env.HasCanonicalEq)
   have hm : canonicalEqRecPattern.Matches
       (VExpr.eqRecApp v w α a motive minor b (VExpr.eqReflApp w' α' a')) [v, w] m2 :=
     .app hm1 hm2
-  have hpat := IsDefEq.pat (chk := []) heq.2.2.2 hm H trivial (by simp)
-  have happly : canonicalEqRecRHS.apply [v, w] m2 =
-      VExpr.mkApps (canonicalEqRecRule.rhs.instL [v, w]) [α, a, motive, minor] :=
-    SimplePattern.iotaRHS'_apply ``Eq.rec ``Eq.refl 4 1 2 0 canonicalEqRecRule.rhs
-      canonicalEqRecRule_rhs_closed [v, w] m2
-      (recArgs := [α, a, motive, minor, b]) (ctorArgs := [α', a']) rfl rfl
+  have hpat := IsDefEq.pat (chk := []) hp hm H trivial (by simp)
+  have happly : (canonicalEqRecRHS doms hc).apply [v, w] m2 =
+      VExpr.mkApps ((VExpr.wrapLams doms (.bvar 0)).instL [v, w]) [α, a, motive, minor] :=
+    SimplePattern.iotaRHS'_apply ``Eq.rec ``Eq.refl 4 1 2 0 (VExpr.wrapLams doms (.bvar 0)) hc
+      [v, w] m2 (recArgs := [α, a, motive, minor, b]) (ctorArgs := [α', a']) rfl rfl
       (fun i hi => hg1 i hi) (fun i hi => hg2 i hi)
-  rw [happly] at hpat
+  rw [happly, VExpr.instL_wrapLams] at hpat
   have hsim := SimAt.mkApps_wrapLams henv hΓ (args := [α, a, motive, minor])
-    (doms := [.sort (.param 1), .bvar 0, canonicalEqRecMotive, canonicalEqRecMinor].map
-      (VExpr.instL [v, w])) (body := .bvar 0) rfl
-  have hrhs : canonicalEqRecRule.rhs.instL [v, w] =
-      VExpr.wrapLams ([.sort (.param 1), .bvar 0, canonicalEqRecMotive,
-        canonicalEqRecMinor].map (VExpr.instL [v, w])) (.bvar 0) := by
-    simp [canonicalEqRecRule, VExpr.wrapLams, VExpr.instL]
-  rw [← hrhs] at hsim
-  have hres : (VExpr.bvar 0).instOuter [α, a, motive, minor] = minor := by
-    simp [VExpr.inst, VExpr.instVar, VExpr.instOuter_liftN]
+    (doms := doms.map (VExpr.instL [v, w])) (body := (VExpr.bvar 0).instL [v, w])
+    (by simp [hdl])
+  have hres : ((VExpr.bvar 0).instL [v, w]).instOuter [α, a, motive, minor] = minor := by
+    simp [VExpr.instL, VExpr.inst, VExpr.instVar, VExpr.instOuter_liftN]
   rw [hres] at hsim
   exact hpat.trans (hsim _ hpat.hasType.2)
 

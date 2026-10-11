@@ -77,13 +77,14 @@ parameters `α` and `a`, the motive, the minor premise `refl` and the index `b`)
 argument being `Eq.refl` applied to its two parameters. -/
 def canonicalEqRecPattern : Pattern := (SimplePattern.iota ``Eq.rec 5 ``Eq.refl 2).toPattern
 
-/-- The reduct of the registered ι rule of `Eq.rec`, as `VEnv.addRecRule` registers it: the
-λ-wrapped right-hand side of `canonicalEqRecRule` applied to the parameters, the motive and the
-minor premise (two parameters, one motive, one minor, one index; the constructor has two
-parameters and no field). -/
-def canonicalEqRecRHS : canonicalEqRecPattern.RHS :=
-  SimplePattern.iotaRHS ``Eq.rec ``Eq.refl 2 1 1 1 2 0 canonicalEqRecRule.rhs
-    canonicalEqRecRule_rhs_closed
+/-- A reduct of the registered ι rule of `Eq.rec`, as `VEnv.addRecRule` registers it: a
+λ-template over the parameters, the motive and the minor premise returning the minor premise
+(two parameters, one motive, one minor, one index; the constructor has two parameters and no
+field). The binder domains of the template are not observable by the rule and are left free;
+the generated equation's are those of `canonicalEqRecRule`. -/
+def canonicalEqRecRHS (doms : List VExpr) (hc : (VExpr.wrapLams doms (.bvar 0)).Closed) :
+    canonicalEqRecPattern.RHS :=
+  SimplePattern.iotaRHS ``Eq.rec ``Eq.refl 2 1 1 1 2 0 (VExpr.wrapLams doms (.bvar 0)) hc
 
 /-- The environment contains Lean's prelude equality `Eq`, its constructor
 `Eq.refl` and its recursor `Eq.rec`, with the types and the iota rule that the
@@ -99,7 +100,7 @@ sort of `α`, `.param 0`); `Eq.rec.{u, u_1}` has two, the motive universe `u`
 * `Eq.rec : ∀ {α : Sort u_1} {a : α} {motive : ∀ b, @Eq α a b → Sort u},
     motive a (Eq.refl a) → ∀ {b : α} (t : @Eq α a b), motive b t`;
 * the iota rule `@Eq.rec α a motive refl b (@Eq.refl α' a') ⟶ refl`, registered as the
-  pattern `canonicalEqRecPattern` with reduct `canonicalEqRecRHS` (the generated equation
+  pattern `canonicalEqRecPattern` with a reduct `canonicalEqRecRHS` (the generated equation
   `canonicalEqRecRule` as a schematic reduction rule, `VEnv.addRecRule`).
 
 Realizability: `addDecl.preludeEq_hasCanonicalEq`
@@ -111,13 +112,15 @@ def VEnv.HasCanonicalEq (env : VEnv) : Prop :=
   env.constants ``Eq = some ⟨1, canonicalEqType⟩ ∧
   env.constants ``Eq.refl = some ⟨1, canonicalEqReflType⟩ ∧
   env.constants ``Eq.rec = some ⟨2, canonicalEqRecType⟩ ∧
-  env.pats canonicalEqRecPattern (canonicalEqRecRHS, .true)
+  ∃ (doms : List VExpr) (hc : (VExpr.wrapLams doms (.bvar 0)).Closed), doms.length = 4 ∧
+    env.pats canonicalEqRecPattern (canonicalEqRecRHS doms hc, .true)
 
 /-- Canonical equality is preserved by every extension of the environment:
 `≤` preserves constants and registered patterns. -/
 theorem VEnv.HasCanonicalEq.mono {env env' : VEnv} (hle : env ≤ env')
     (h : env.HasCanonicalEq) : env'.HasCanonicalEq :=
-  ⟨hle.constants h.1, hle.constants h.2.1, hle.constants h.2.2.1, hle.pats h.2.2.2⟩
+  let ⟨doms, hc, hl, hp⟩ := h.2.2.2
+  ⟨hle.constants h.1, hle.constants h.2.1, hle.constants h.2.2.1, doms, hc, hl, hle.pats hp⟩
 
 /-- The `Eq` clause of `HasCanonicalEq` is the quotient-readiness condition. -/
 theorem VEnv.HasCanonicalEq.quotReady {env : VEnv} (h : env.HasCanonicalEq) :
