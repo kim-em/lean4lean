@@ -204,7 +204,7 @@ theorem recsCompiled (B : RestoredBlock L sourceTypes isUnsafe outEnv)
     (hblock : B.block.WF Hc.venv) : B.decl.RecsCompiled Hc.venv :=
   ⟨B.block, B.compilesTo, B.recsOf, hblock⟩
 
-/-- (For the model's `PatValid.iota`.) Every installed rule is `OfEquation` of a block
+/-- (For the model's ι clause, `Model.PatValid.nested`.) Every installed rule is `OfEquation` of a block
 equation that is the restoration of a generated equation of the lowered run's generator
 (`CompilationData.equations`). -/
 theorem rules_ofRestoredEquation (B : RestoredBlock L sourceTypes isUnsafe outEnv)
