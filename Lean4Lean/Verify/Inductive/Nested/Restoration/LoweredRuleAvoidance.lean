@@ -886,7 +886,7 @@ section TrailAssembly
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth
     sourceEnv indTypes ctorEnv}
 
 /-- **Inputs of the trailing-argument chain** of a recursor
@@ -1156,7 +1156,7 @@ section TrailAssembly2
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth
     sourceEnv indTypes ctorEnv}
 
 namespace RecursorConstruction
@@ -1416,7 +1416,7 @@ theorem RecursorConstruction.familyNames_not_mem
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {names : List Name}
     (hnames : ∀ n ∈ names, n ∈ decl.types.flatMap (fun t => t.ctors.map (·.name)))
@@ -1435,7 +1435,7 @@ theorem RecursorConstruction.paramDecls_trail
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {env : Environment} {heads : List Name}
     {ls : List Level}

@@ -23,7 +23,7 @@ namespace RecursorInstallation
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
   {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv} {indTypes : Array InductiveType}
   {ctorEnv outEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 theorem entries_lt (H : RecursorInstallation R outEnv)
     (owner : Fin H.generationSignature.families.size) : owner.val < H.entries.length := by

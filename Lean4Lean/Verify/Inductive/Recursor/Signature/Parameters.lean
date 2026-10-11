@@ -39,7 +39,7 @@ theorem checkInductiveTypes.loopType.ParameterContextSuffix.recursorDomains
 /-- The recursor parameter context is the source parameter scope instantiated at the
 recursor's universe levels (`recursorDeclarationAbstractLevels`). -/
 theorem RecursorConstruction.parameterDomains
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) :
     H.parameterSuffix.parameterDecls.toCtx.reverse =
@@ -56,7 +56,7 @@ theorem RecursorConstruction.parameterDomains
 universe parameters, to the source parameter scope instantiated at the recursor's universe
 levels. -/
 theorem RecursorConstruction.sourceParameterTranslation
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) :
     TrExprS R.context.venv
@@ -69,8 +69,8 @@ theorem RecursorConstruction.sourceParameterTranslation
   rw [H.recursorEnv, H.recursorWF.lctx_eq, H.parameterDomains] at Htr
   exact Htr
 
-theorem RecursorInput.sourceParameterContext
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
+theorem ConstructorCheck.sourceParameterContext
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     sourceEnv.IsDefEqCtx decl.uvars [] R.params.reverse R.parameterScope.toCtx := by
   have Hctx := R.sourceStatsWF.paramsContext
   rw [R.sourceHeaderParams, R.sourceParameterScope,

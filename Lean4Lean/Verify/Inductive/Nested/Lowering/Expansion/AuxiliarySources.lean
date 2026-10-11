@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Expansion.AuxiliaryHeads
 import Lean4Lean.Verify.Inductive.Nested.Lowering.AuxiliaryConstructors
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Expansion.Contexts
-import Lean4Lean.Verify.Inductive.RecursorInput
+import Lean4Lean.Verify.Inductive.ConstructorCheck
 
 namespace Lean4Lean
 
@@ -1433,7 +1433,7 @@ theorem NestedLoweringOutputClosed.auxiliaryFormationParameterContext
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv : VEnv}
     {ctorEnv : Environment}
-    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv
+    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv
       result.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
@@ -1534,7 +1534,7 @@ theorem LoweredAuxiliaryFamily.abstractContainerApplication
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv : VEnv}
     {ctorEnv : Environment}
-    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv
+    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv
       result.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hrun : NestedLowering c.env fuel nparams sourceTypes
@@ -1637,7 +1637,7 @@ theorem LoweredAuxiliaryFamily.auxiliaryFamilySource
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv targetTypesVEnv : VEnv}
     {ctorEnv : Environment}
-    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv
+    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv
       result.types.toArray ctorEnv}
     {initialState finalState : Lean4Lean.ElimNestedInductive.State}
     {ves : VEnvs}
@@ -1812,7 +1812,7 @@ theorem NestedLowering.auxiliaryFamilySources
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv targetTypesVEnv targetCtorsVEnv : VEnv}
     {ctorEnv : Environment}
-    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv
+    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv
       result.types.toArray ctorEnv}
     {initialState finalState : Lean4Lean.ElimNestedInductive.State}
     {ves : VEnvs}

@@ -33,7 +33,7 @@ structure LoweredRun {c₀ : AddInductive.Context} (Hc : ContextWF c₀) (nparam
   families, with its generated recursors added by `recursors.recs` (`RecursorCheck.decl'`). -/
   loweredDecl : VInductDecl
   ctorEnv : Environment
-  constructors : RecursorInput c stats loweredDecl nparams (c₀.safety != .safe) phase.depth
+  constructors : ConstructorCheck c stats loweredDecl nparams (c₀.safety != .safe) phase.depth
     Hc'.venv indTypes ctorEnv
   recursors : RecursorInstallation constructors loweredEnv
 

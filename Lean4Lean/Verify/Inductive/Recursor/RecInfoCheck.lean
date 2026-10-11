@@ -12,8 +12,8 @@ open Kernel
 
 namespace VerifyInductive
 
-theorem RecursorInput.checkedRecursorConstructorTailAt
-    (R : RecursorInput c stats decl nparams isUnsafe depth
+theorem ConstructorCheck.checkedRecursorConstructorTailAt
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
     (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length) :
@@ -27,8 +27,8 @@ theorem RecursorInput.checkedRecursorConstructorTailAt
 
 /-- The motive-pass header of one family of the block, read off the constructor check: its
 translation and checked header, transported through either ordinary or atomic installation. -/
-def RecursorInput.motivePassHeaderAt
-    (R : RecursorInput c stats decl nparams isUnsafe depth
+def ConstructorCheck.motivePassHeaderAt
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
     (hlparams : c.lparams.Nodup) :
@@ -93,8 +93,8 @@ def RecursorInput.motivePassHeaderAt
 
 /-- The constructor check supplies a typed constructor application prefix, whether its
 constants were installed ordinarily or as an atomic primitive batch. -/
-theorem RecursorInput.checkedConstructorPrefixAt
-    (R : RecursorInput c stats decl nparams isUnsafe depth
+theorem ConstructorCheck.checkedConstructorPrefixAt
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     (hlparams : c.lparams.Nodup)
@@ -242,8 +242,8 @@ theorem RecursorInput.checkedConstructorPrefixAt
 
 /-- The checked constructor prefix of `checkedConstructorPrefixAt`, reinterpreted in any
 later recursor context with the same parameter suffix. -/
-theorem RecursorInput.checkedConstructorPrefixInRecursorContextAt
-    (R : RecursorInput c stats decl nparams isUnsafe depth
+theorem ConstructorCheck.checkedConstructorPrefixInRecursorContextAt
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (elimLevel : Level)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
@@ -336,9 +336,9 @@ theorem RecursorInput.checkedConstructorPrefixInRecursorContextAt
     tailNarrow, HtailCurrent, HtailTypeCurrent⟩
 
 /-- Enter the motive pass (`mkRecInfos.loopInd1`) from a constructor check. -/
-theorem RecursorInput.loopInd1WF
+theorem ConstructorCheck.loopInd1WF
     {alpha : Type} {Q : alpha -> Prop}
-    (R : RecursorInput c stats decl nparams isUnsafe depth
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (elimLevel : Level)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
@@ -462,9 +462,9 @@ theorem RecursorInput.loopInd1WF
     HnoAlias Horder Harities Hempty Hblueprints Hroot' ?_ HindexTraces
   simpa using hsize
 
-theorem RecursorInput.mkRecInfosWF
+theorem ConstructorCheck.mkRecInfosWF
     {alpha : Type} {Q : alpha -> Prop}
-    (R : RecursorInput c stats decl nparams isUnsafe depth
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (elimLevel : Level)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
@@ -605,9 +605,9 @@ theorem RecursorInput.mkRecInfosWF
 
 /-- The `getElimLevel` and `mkRecInfos` part of the recursor phase, run after a constructor
 check. -/
-theorem RecursorInput.getElimLevelMkRecInfosWF
+theorem ConstructorCheck.getElimLevelMkRecInfosWF
     {alpha : Type} {Q : alpha -> Prop}
-    (R : RecursorInput c stats decl nparams isUnsafe depth
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (hlparams : c.lparams.Nodup)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)

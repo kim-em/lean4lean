@@ -1,10 +1,10 @@
-import Lean4Lean.Verify.Inductive.RecursorInput
+import Lean4Lean.Verify.Inductive.ConstructorCheck
 
 /-! # The constructor phase: `constructorPhase`
 
 `AddInductive.constructorPhase` installs the headers (`declareInductiveTypes`), checks the
 constructors against them (`checkConstructors`) and installs them (`declareConstructors`). Its
-output is the constructor environment, the input of the recursor phase. `RecursorInput` is the
+output is the constructor environment, the input of the recursor phase. `ConstructorCheck` is the
 interface of that environment; `AddInductive.constructorPhase.WF` is the boundary theorem,
 composing `declareInductiveTypes.WF` with the `checkConstructors` and `declareConstructors`
 refinements. -/
@@ -37,7 +37,7 @@ theorem AddInductive.constructorPhase.WF
     (hpresent : ListedConstructorsPresent c'.env) :
     (AddInductive.constructorPhase stats nparams indTypes numNested isUnsafe c').WF
       fun out => ∃ decl, P.headers.Describes decl ∧
-        ∃ R : RecursorInput c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes out.1,
+        ∃ R : ConstructorCheck c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes out.1,
           R.classes = out.2 := by
   have HD := AddInductive.declareInductiveTypes.installedWF P numNested isUnsafe hvisible
     hnprimTypes hpresent
@@ -118,7 +118,7 @@ theorem AddInductive.constructorPhase.WF
     nindices := hnindices
     params_size := P.params_size
     visible := hvisible }
-  refine ⟨decl, hD, I.toRecursorInput hclosed fun _ => ?_, rfl⟩
+  refine ⟨decl, hD, I.toConstructorCheck hclosed fun _ => ?_, rfl⟩
   intro T hT
   refine ⟨hnprimFam T hT, fun ctor hctor hp => ?_⟩
   have hmem : ctor ∈ decl.constructorConstants := List.mem_flatMap.mpr ⟨T, hT, hctor⟩

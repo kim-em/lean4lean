@@ -17,13 +17,13 @@ namespace VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-namespace RecursorInput
+namespace ConstructorCheck
 
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
 
-end RecursorInput
+end ConstructorCheck
 
 theorem vars_append_bvarSpine (a b : Nat) :
     InductiveSignature.vars a b ++ InductiveSignature.vars b 0 = bvarSpine (a + b) := by
@@ -32,7 +32,7 @@ theorem vars_append_bvarSpine (a b : Nat) :
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- The index domains of each family (`declIndexDomains`), over the source parameter scope, form
 a well-formed context in the recursor-checking environment (from `sourceIndexDomains`). -/

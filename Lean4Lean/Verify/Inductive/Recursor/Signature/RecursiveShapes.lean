@@ -456,7 +456,7 @@ and an index list `indices`, translated in `parameters ++ sourceFields.take pos`
 `B0`), whose sources are the argument domains of `O` and its exposed indices closed over the
 fields before `pos` and the parameters. -/
 theorem RecursorConstruction.recursorTelescope_hypothesisSmall
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
@@ -741,7 +741,7 @@ them in `parameters ++ sourceFields.take pos` (extended by `B0`), then the
 and `indices`, applied to the owner's motive variable and the recursive field
 variable. -/
 theorem RecursorConstruction.recursorTelescope_hypothesisLift
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
     (T : RecursorTypeTelescope R.context.venv
@@ -967,7 +967,7 @@ the closed exposed indices of `O`, closed the same way at depth `O.args.size`.
 The generator-context sources of `recursorTelescope_hypothesisDomains` are
 exactly the lifts of these sources (`Expr.closeShapeSource`). -/
 theorem RecursorConstruction.recursorTelescope_hypothesisUnlift
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
     (T : RecursorTypeTelescope R.context.venv

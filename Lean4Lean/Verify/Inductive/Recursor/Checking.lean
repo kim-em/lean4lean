@@ -33,14 +33,14 @@ theorem AddConstants.projections_eq
   | nil => rfl
   | cons _ _ _ _ hadd _ _ ih => rw [ih, VEnv.addConst_projections hadd]
 
-namespace RecursorInput
+namespace ConstructorCheck
 
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
   {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv} {indTypes : Array InductiveType}
   {ctorEnv : Environment}
 
 /-- Constants of the source environment stay in the constructor environment. -/
-theorem sourcePres (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes
+theorem sourcePres (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes
     ctorEnv) {n : Name} {ci : ConstantInfo} (h : c.env.find? n = some ci) :
     ctorEnv.find? n = some ci := by
   have hWFc : c.env.constants.WF := R.headers.sourceContext.checking.tr.map_wf
@@ -65,14 +65,14 @@ theorem sourcePres (R : RecursorInput c stats decl nparams isUnsafe depth source
   rw [Kernel.Environment.find?, hWFo.find?'_eq_find?, R.map_eq]
   exact insertConsts_find?_mono_of_fresh hWFh.map₂ hfreshC hH
 
-end RecursorInput
+end ConstructorCheck
 
 namespace RecursorInstallation
 
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
   {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv} {indTypes : Array InductiveType}
   {ctorEnv outEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 theorem ctorMapWF (H : RecursorInstallation R outEnv) : H.localContext.env.constants.WF := by
   rw [H.localExtends.env_eq]; exact R.context.checking.tr.map_wf

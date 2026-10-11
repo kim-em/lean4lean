@@ -1156,7 +1156,7 @@ theorem RecursorInstallation.ctorInfoOrigin
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv) (hwf : c.env.constants.WF)
     {n : Name} {info : ConstructorVal}
     (hfind : outEnv.find? n = some (.ctorInfo info)) :

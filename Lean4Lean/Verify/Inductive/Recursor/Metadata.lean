@@ -39,7 +39,7 @@ theorem Expr.ForallTelescope.constructorArity
 /-- Installed recursor entries are indexed by the families of the construction's
 signature. -/
 theorem RecursorInstallation.entries_length_eq
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv) :
     H.entries.length = H.generationSignature.families.size := by
@@ -49,7 +49,7 @@ theorem RecursorInstallation.entries_length_eq
 
 /-- The head constant of the generated major premise is the owner family. -/
 theorem RecursorInstallation.generated_getMajorInduct
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
@@ -78,7 +78,7 @@ theorem RecursorInstallation.generated_getMajorInduct
 /-- A successful K check pins down the construction's signature: one family, one
 constructor without fields beyond the parameters, in `Prop`. -/
 theorem RecursorInstallation.kShape
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv) (hk : H.kTarget = true) :
     H.generationSignature.families.size = 1 ∧
@@ -156,7 +156,7 @@ theorem RecursorInstallation.kShape
 /-- Every installed recursor translates all non-rule metadata of the generated recursor
 for its owner. -/
 theorem RecursorInstallation.trMetadata
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (owner : Fin H.generationSignature.families.size) :

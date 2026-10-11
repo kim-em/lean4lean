@@ -1000,7 +1000,7 @@ private theorem loweredConstructor_facts
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {types : List InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv types.toArray ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv types.toArray ctorEnv}
     (H : RecursorInstallation R outEnv)
     {t : VInductiveType} (ht : t ∈ decl.types)
     {ctor : VConstVal} (hctor : ctor ∈ t.ctors) :
@@ -1037,7 +1037,7 @@ private theorem loweredNames_nodup
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {types : List InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv types.toArray ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv types.toArray ctorEnv}
     (Hc : ContextWF c) (H : RecursorInstallation R outEnv) :
     (familyNames decl.types ++
       decl.types.map (fun t => t.name.str "rec")).Nodup := by

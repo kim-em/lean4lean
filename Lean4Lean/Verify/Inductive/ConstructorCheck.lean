@@ -4,7 +4,7 @@ import Lean4Lean.Verify.Inductive.HeaderData
 
 /-! # The constructor check
 
-`RecursorInput` is the output of the constructor phase and the input of the recursor and rule
+`ConstructorCheck` is the output of the constructor phase and the input of the recursor and rule
 phases: the header data, the translated declaration (`TrInductDeclCore`), the formation
 certificate, the checked constructor tails with the executable's field classification, the
 kernel constructors installed over the header environment (`ivals`, `map_eq`, `fresh`) and
@@ -16,7 +16,7 @@ One structure serves the ordinary and the primitive path. Its header data (`Head
 the header environment's checker context as a `LocalContextWF`, the part of `ContextWF` without
 the primitive invariant (`HasPrimitives`): that invariant is false in the header-only
 environment of the primitive `Bool`/`Nat` declarations (the family is present without its
-constructors). Both paths build it from a constructor installation (`CtorInstall.toRecursorInput`:
+constructors). Both paths build it from a constructor installation (`CtorInstall.toConstructorCheck`:
 `constructorPhase.WF` and `Primitive/`). -/
 
 namespace Lean4Lean
@@ -27,7 +27,7 @@ open Kernel
 namespace VerifyInductive
 
 /-- The constructor check (see the module documentation). -/
-structure RecursorInput (c : AddInductive.Context) (stats : AddInductive.InductiveStats)
+structure ConstructorCheck (c : AddInductive.Context) (stats : AddInductive.InductiveStats)
     (decl : VInductDecl) (nparams : Nat) (isUnsafe : Bool) (depth : Nat) (sourceEnv : VEnv)
     (indTypes : Array InductiveType) (ctorEnv : Environment) where
   headerEnv : Environment
@@ -79,7 +79,7 @@ structure RecursorInput (c : AddInductive.Context) (stats : AddInductive.Inducti
       ∀ ctor ∈ T.ctors, ¬ Kernel.Environment.primitives.contains ctor.name
 
 /-- The constructor check of a constructor installation over header data. -/
-noncomputable def CtorInstall.toRecursorInput {c : AddInductive.Context}
+noncomputable def CtorInstall.toConstructorCheck {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool}
     {depth : Nat} {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv : Environment} {classes : List (List (List Bool))}
@@ -88,7 +88,7 @@ noncomputable def CtorInstall.toRecursorInput {c : AddInductive.Context}
     (hnprim : c.allowPrimitive = false → ∀ T ∈ decl.types,
       ¬ Kernel.Environment.primitives.contains T.name ∧
         ∀ ctor ∈ T.ctors, ¬ Kernel.Environment.primitives.contains ctor.name) :
-    RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv where
+    ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv where
   headerEnv := headerEnv
   headers := I.H
   ctorVEnv := I.ctorVEnv
@@ -127,46 +127,46 @@ noncomputable def CtorInstall.toRecursorInput {c : AddInductive.Context}
   literalDisjoint := I.contextLiteralDisjoint
   nonprimitive := hnprim
 
-namespace RecursorInput
+namespace ConstructorCheck
 
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
   {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv} {indTypes : Array InductiveType}
   {ctorEnv : Environment}
 
 /-- The abstract header environment. -/
-abbrev headerVEnv (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
+abbrev headerVEnv (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     VEnv := R.headers.context.venv
 
-theorem headerVEnv_wf (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes
+theorem headerVEnv_wf (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes
     ctorEnv) : R.headerVEnv.WF := R.headers.context.wf
 
 /-- The projection-stage environment, in which the recursors are checked. -/
-abbrev envP (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
+abbrev envP (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     VEnv := R.ctorVEnv.addProjections decl.projectionEntries
 
-theorem envP_eq (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
+theorem envP_eq (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     R.context.venv = R.envP := R.contextVEnv
 
-theorem envP_wf (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
+theorem envP_wf (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     R.envP.WF := by have := R.context.wf; rwa [R.contextVEnv] at this
 
-theorem addTypesCtors (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes
+theorem addTypesCtors (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes
     ctorEnv) : decl.addTypesCtors sourceEnv = some R.ctorVEnv := by
   rw [VInductDecl.addTypesCtors, VInductDecl.addTypes_eq_addConstVals, R.core.typesAdded]
   simp [VInductDecl.addCtors_eq_addConstVals, R.core.ctorsAdded]
 
-theorem addTypesCtorsProjs (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv
+theorem addTypesCtorsProjs (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv
     indTypes ctorEnv) : decl.addTypesCtorsProjs sourceEnv = some R.envP := by
   rw [VInductDecl.addTypesCtorsProjs, R.addTypesCtors]; rfl
 
-theorem typesWF (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes
+theorem typesWF (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes
     ctorEnv) : ∀ ci ∈ decl.typeConstants, ci.toVConstant.WF sourceEnv := by
   intro ci hci
   simp only [VInductDecl.typeConstants, List.mem_map] at hci
   obtain ⟨t, ht, rfl⟩ := hci
   exact TrInductDeclCore.typeHeadersWF R.core t ht
 
-theorem ctorsWF (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes
+theorem ctorsWF (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes
     ctorEnv) : ∀ ci ∈ decl.constructorConstants, ci.toVConstant.WF R.headerVEnv := by
   intro ci hci
   simp only [VInductDecl.constructorConstants, List.mem_flatMap] at hci
@@ -175,7 +175,7 @@ theorem ctorsWF (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv
   obtain ⟨_, _, Hc⟩ := List.Forall₂.forall_exists_r Ht.ctors ci hci
   exact Hc.wf
 
-end RecursorInput
+end ConstructorCheck
 
 
 end VerifyInductive

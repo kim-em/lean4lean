@@ -8,7 +8,7 @@ common parameters, so it needs the concrete telescopes the constructor check est
 only their abstract shapes: the replay of the parameter prefix (`ParameterPrefix`), the syntactic
 forall spine (`Expr.ForallSpine`), the checked tail with its translation and certificate
 (`ConstructorTails`) and the owner normal form (`ConstructorOwnerNormalForms`). They are
-produced by the constructor phase and recorded in the constructor check (`RecursorInput`). -/
+produced by the constructor phase and recorded in the constructor check (`ConstructorCheck`). -/
 
 namespace Lean4Lean
 

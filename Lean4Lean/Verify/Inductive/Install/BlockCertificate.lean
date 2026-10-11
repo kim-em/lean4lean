@@ -266,7 +266,7 @@ noncomputable def RecursorCheck.outVEnv'
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv) : VEnv :=
   ((decl.withRecs H.recs).addRules H.outVEnv).getD H.outVEnv
 
@@ -276,7 +276,7 @@ theorem RecursorCheck.blockCertificate
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv) (T : RuleTranslations H)
     (hnonempty : indTypes.toList ≠ []) :
     Nonempty (BlockCertificate c.safety c.env sourceEnv H.decl' outEnv H.outVEnv') := by

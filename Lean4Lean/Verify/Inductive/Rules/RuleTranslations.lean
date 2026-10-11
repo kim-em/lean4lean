@@ -27,7 +27,7 @@ structure RuleTranslations
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv) : Prop where
   /-- Each kernel recursor's rules are, in order, the generated equations of the constructors
   it owns. -/
@@ -70,7 +70,7 @@ section
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- Every model rule fires on a constructor with the signature's parameter count. -/
 theorem RecursorCheck.ruleCtorParams (H : RecursorCheck R outEnv) : H.RuleCtorParams :=
@@ -95,7 +95,7 @@ namespace RuleTranslations
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
   {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv} {indTypes : Array InductiveType}
   {ctorEnv outEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
   {H : RecursorCheck R outEnv}
 
 /-- The compiled block of the recursor check: the declaration's constants, the generated
@@ -192,7 +192,7 @@ section
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- Coverage of the installed entries, read on the kernel recursors they carry. -/
 theorem rulesCovered_of_entries {s : InductiveSignature} {g : InductiveSignature.Instance s}
@@ -245,7 +245,7 @@ theorem RecursorCheck.generatedRuleTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv) : RuleTranslations H where
   trRules := H.rulesCovered
   equationsWF := H.equationsWF

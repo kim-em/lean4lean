@@ -21,7 +21,7 @@ def OrdinaryInstallation
     (isUnsafe : Bool) (sourceEnv : VEnv) (outEnv : Environment) : Prop :=
   ∃ decl ctorEnv,
     -- indexed by the recursor phase's input
-    ∃ R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv,
+    ∃ R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv,
       Nonempty (RecursorCheck R outEnv)
 
 /-- Complete ordinary `runWithStats` refinement: the constructor phase's declaration is carried

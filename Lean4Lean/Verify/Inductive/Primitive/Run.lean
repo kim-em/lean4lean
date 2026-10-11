@@ -7,7 +7,7 @@ import Lean4Lean.Verify.Inductive.Primitive.Install
 The executable runs a recognized `Bool` or `Nat` declaration through the same pipeline with the
 primitive-name exception enabled (`allowPrimitive := true`). Its header and constructor phases
 are verified separately for the two finite shapes (the ordinary boundary theorems exclude
-primitive names); the recursor phase is shared (`RecursorInput.recursorPhasesWF`). -/
+primitive names); the recursor phase is shared (`ConstructorCheck.recursorPhasesWF`). -/
 
 namespace Lean4Lean
 
@@ -44,7 +44,7 @@ theorem AddInductive.constructorPhase.primitiveWF
     (hpresent : ListedConstructorsPresent c'.env) :
     (AddInductive.constructorPhase stats nparams indTypes numNested isUnsafe c').WF
       fun out => ∃ decl, P.headers.Describes decl ∧
-        ∃ R : RecursorInput c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes out.1,
+        ∃ R : ConstructorCheck c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes out.1,
           R.classes = out.2 := by
   have hunsafe : isUnsafe = false := Hshape.2.2.1
   have hlp : c'.lparams = [] := Hshape.1
@@ -161,7 +161,7 @@ theorem AddInductive.constructorPhase.primitiveWF
     params_size := P.params_size
     visible := hvisible }
   -- The primitive path allows primitives.
-  exact ⟨decl, D, I.toRecursorInput hclosed (fun h => by rw [hallow] at h; cases h), rfl⟩
+  exact ⟨decl, D, I.toConstructorCheck hclosed (fun h => by rw [hallow] at h; cases h), rfl⟩
 
 /-- Source-aligned primitive result, retaining the exact abstract model from
 which the executable header traversal began. -/

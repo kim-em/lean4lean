@@ -943,7 +943,7 @@ theorem NestedRun.projectionAuxiliaryOnCtx_of
       (E.lowered.constructors.parameterScope.toCtx.reverse).reverse
       E.lowered.headers.commonParameterContext := by
     rw [List.reverse_reverse,
-      RecursorInput.parameterScope_toCtx]
+      ConstructorCheck.parameterScope_toCtx]
     exact VEnv.IsDefEqCtx.mono (VEnv.addConstVals_le hadded)
       (E.commonParameterContext_refl wf)
   have hparamsEq : E.lowered.signature.params =

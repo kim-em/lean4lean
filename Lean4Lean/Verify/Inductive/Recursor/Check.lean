@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.RecursorInput
+import Lean4Lean.Verify.Inductive.ConstructorCheck
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 import Lean4Lean.Verify.Inductive.Recursor.Checking
 
@@ -13,7 +13,7 @@ environment: the kernel recursors `rvals`, the model recursors `recs` they trans
 the recursor-stage environment `outVEnv`, the shape clauses of `VInductDecl.WF`, and the
 signature generator (`signature`, `generation`) whose recursors the `recs` are. The rules'
 typing and their identification with the generated equations are the rule phase's
-(`Rules/RuleTranslations.lean`). `RecursorInput.recursorPhasesWF` is the boundary theorem. -/
+(`Rules/RuleTranslations.lean`). `ConstructorCheck.recursorPhasesWF` is the boundary theorem. -/
 
 namespace Lean4Lean
 
@@ -33,7 +33,7 @@ abbrev RecursorCheck
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
     (outEnv : Environment) : Type :=
   RecursorInstallation R outEnv
 
@@ -42,7 +42,7 @@ namespace RecursorCheck
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
   {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv} {indTypes : Array InductiveType}
   {ctorEnv outEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- The signature of the generator: it models the declaration. -/
 noncomputable abbrev signature (H : RecursorCheck R outEnv) : InductiveSignature := H.generationSignature
@@ -158,11 +158,11 @@ end RecursorCheck
 /-- The boundary theorem of the recursor phase: the recursor suffix of `runWithStats`
 (elimination level, K flag, recursor infos, recursive-field check, `declareRecursors`), run in
 the constructor environment, yields a recursor check. -/
-theorem RecursorInput.recursorPhasesWF
+theorem ConstructorCheck.recursorPhasesWF
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
     (hlparams : c.lparams.Nodup)
     (hsourceSafety : isUnsafe = (c.safety != .safe))
     (hnotPartial : c.safety ≠ .partial)

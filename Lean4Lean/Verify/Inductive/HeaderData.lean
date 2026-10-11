@@ -5,7 +5,7 @@ import Lean4Lean.Verify.Inductive.Header.Installation
 `HeaderData` is `HeaderEnvironment` with the header context a `LocalContextWF`, the part of
 `ContextWF` that does not assert the primitive invariant (`HasPrimitives`): that invariant is
 false in the header-only environment of the primitive `Bool`/`Nat` declarations. It is what the
-constructor installation (`CtorInstall`) and the recursor phase (`RecursorInput`) read of the
+constructor installation (`CtorInstall`) and the recursor phase (`ConstructorCheck`) read of the
 header environment. -/
 
 namespace Lean4Lean

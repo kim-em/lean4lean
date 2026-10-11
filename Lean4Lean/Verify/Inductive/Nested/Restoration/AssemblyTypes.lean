@@ -300,7 +300,7 @@ theorem RestoredRecursorStep.isUnsafe_of_generated
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
     (Hprod : RecursorInstallation R loweredEnv) {oldRecName : Name} {s t : Environment}
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames oldRecName s t)
     (hgenerated : oldRecName ∈ (Hprod.entries.map Prod.snd).map (·.name)) :

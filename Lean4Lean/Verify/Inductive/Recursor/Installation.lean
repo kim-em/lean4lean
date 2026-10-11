@@ -4,7 +4,7 @@ import Lean4Lean.Verify.Inductive.Recursor.Signature.Generator
 
 import Lean4Lean.Verify.Inductive.Recursor.Binders.FieldOpening
 import Lean4Lean.Verify.Inductive.Context.TypeAnnotations
-import Lean4Lean.Verify.Inductive.RecursorInput
+import Lean4Lean.Verify.Inductive.ConstructorCheck
 
 import Lean4Lean.Verify.Inductive.Recursor.Elimination.Singleton
 import Lean4Lean.Verify.Inductive.Constructor.ParameterSyntacticTranslation
@@ -26,7 +26,7 @@ structure RecursorInstallation
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv : Environment}
-    (R : RecursorInput c stats decl nparams isUnsafe depth
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (outEnv : Environment) extends RecursorConstruction R where
   outVEnv : VEnv
@@ -47,7 +47,7 @@ structure RecursorInstallation
 /-- The installed recursor values are exactly the generator's recursors, in order. Equality
 holds because the targets are chosen before the loop, not by uniqueness of translations. -/
 theorem RecursorInstallation.recursors
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv) :
     H.entries.map Prod.snd = H.toRecursorConstruction.generationInstance.recursors := by
@@ -80,7 +80,7 @@ theorem RecursorInstallation.generated_k
 recorded by `mkRecInfos`, as `declareRecursors.loop` builds them through
 `mkRecRulesFromTemplates` in the local context of the recursor construction. -/
 theorem RecursorInstallation.generated_rules_eq
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
@@ -94,7 +94,7 @@ theorem RecursorInstallation.generated_rules_eq
 
 /-- Each installed recursor has exactly one rule per rule template. -/
 theorem RecursorInstallation.generated_rules_length
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
@@ -105,7 +105,7 @@ theorem RecursorInstallation.generated_rules_length
 
 /-- Rule-wise form of `generated_rules_eq`. -/
 theorem RecursorInstallation.rulesLiteral
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length)
@@ -123,7 +123,7 @@ theorem RecursorInstallation.rulesLiteral
 /-- The recursor safety metadata agrees with the source declaration because
 both flags come from the same declaration checking context. -/
 theorem RecursorInstallation.generated_isUnsafe
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
@@ -134,12 +134,12 @@ theorem RecursorInstallation.generated_isUnsafe
 /-- The recursor phase (`getElimLevel`, `mkRecInfos`, `declareRecursors`) run after a
 constructor check succeeds and yields a `RecursorInstallation`. This is shared by ordinary and
 atomic primitive formation. -/
-theorem RecursorInput.recursorInstallationWF
+theorem ConstructorCheck.recursorInstallationWF
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv : Environment}
-    (R : RecursorInput c stats decl nparams isUnsafe depth
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (hclosed : MutualInductivesClosed ctorEnv)
     (hlparams : c.lparams.Nodup)
@@ -332,7 +332,7 @@ namespace VerifyInductive
 /-- The construction's signature instance (`generationInstance`) of a recursor check. The
 generated recursors and the executable metadata are both compared with this one instance. -/
 noncomputable def RecursorInstallation.canonicalGeneration
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv) :
     InductiveSignature.Instance H.toRecursorConstruction.generationSignature :=
@@ -341,7 +341,7 @@ noncomputable def RecursorInstallation.canonicalGeneration
 /-- The construction's instance is admissible in the header environment, with the elimination
 level and singleton decision the executable computed. -/
 theorem RecursorInstallation.canonicalGeneration_admissible
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv) :
     H.canonicalGeneration.Admissible R.headerVEnv :=

@@ -69,7 +69,7 @@ theorem NestedLoweringOutputClosed.restoreAuxConstructorsFreshAtBase
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {ctorEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
@@ -89,7 +89,7 @@ theorem NestedLoweringOutputClosed.restoreAuxConstructorsFreshAtHeaderPrefix
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv : VEnv}
     {ctorEnv : Environment}
-    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
+    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
@@ -142,7 +142,7 @@ theorem NestedLoweringOutputClosed.sourceConstructorRestorationTraceAtFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {ctorEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutputClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
@@ -198,7 +198,7 @@ theorem NestedLoweringOutputClosed.sourceRecursorUnmappedAtFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {ctorEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutputClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
@@ -269,7 +269,7 @@ theorem NestedLoweringOutputClosed.sourceConstructorTypingAtFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv canonicalEnv : VEnv} {ctorEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutputClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
@@ -313,7 +313,7 @@ theorem NestedLoweringOutputClosed.sourceConstructorTypingAtFreshOfValidation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv : VEnv} {ctorEnv : Environment}
-    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
+    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
@@ -366,7 +366,7 @@ theorem NestedLoweringOutputClosed.trSourceRecursorAtFresh
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors recEnv : VEnv}
     {ctorEnv : Environment}
-    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
+    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutputClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
@@ -463,7 +463,7 @@ theorem NestedLoweringOutputClosed.trSourceRecursorAtFreshOfTelescope
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors recEnv : VEnv}
     {ctorEnv : Environment}
-    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
+    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutputClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
@@ -502,7 +502,7 @@ theorem NestedLoweringOutputClosed.sourceInductiveTypingAtFreshExactOwner
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors : VEnv}
     {ctorEnv : Environment}
-    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
+    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutputClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
@@ -652,7 +652,7 @@ theorem NestedLoweringOutputClosed.sourceTraceAtFreshOfTelescopeTranslations
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors recEnv : VEnv}
     {ctorEnv : Environment}
-    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
+    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
     {auxRecNames : List Name}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutputClosed loweredSourceEnv fuel nparams sourceTypes
@@ -723,7 +723,7 @@ theorem NestedLoweringOutputClosed.restoreAuxConstructorsFreshAtTypes
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors : VEnv}
     {ctorEnv : Environment}
-    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
+    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
@@ -768,7 +768,7 @@ theorem RecursorInstallation.restorationSourcesOfLowering
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {res : Lean4Lean.ElimNestedInductive.Result}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv res.types.toArray ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv res.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hc : ContextWF c) (H : RecursorInstallation R outEnv)
     (Hlower : NestedLoweringRun prodEnv fuel nparams sourceTypes
@@ -803,7 +803,7 @@ theorem RecursorInstallation.auxRestorationSourcesOfLowering
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {res : Lean4Lean.ElimNestedInductive.Result}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv res.types.toArray ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv res.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hc : ContextWF c) (H : RecursorInstallation R outEnv)
     (Hlower : NestedLoweringRun prodEnv fuel nparams sourceTypes

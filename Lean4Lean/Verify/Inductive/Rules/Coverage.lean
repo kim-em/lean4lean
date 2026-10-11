@@ -79,7 +79,7 @@ section
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- The input of `ruleTranslation_of`: every installed rule's closed right-hand side
 translates to the generator's equation right-hand side at its flattened

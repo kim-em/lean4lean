@@ -43,7 +43,7 @@ the header environment over the parameter scope, to the constructor's field type
 its family application. -/
 theorem RecursorConstruction.minorSourceReplay
     {isUnsafe : Bool}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)

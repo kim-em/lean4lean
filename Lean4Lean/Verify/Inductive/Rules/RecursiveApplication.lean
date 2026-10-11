@@ -26,7 +26,7 @@ theorem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     {H : RecursorInstallation R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
@@ -111,7 +111,7 @@ theorem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     {H : RecursorInstallation R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
@@ -182,7 +182,7 @@ theorem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     {H : RecursorInstallation R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
@@ -233,7 +233,7 @@ theorem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     {H : RecursorInstallation R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
@@ -467,7 +467,7 @@ theorem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     {H : RecursorInstallation R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
@@ -723,7 +723,7 @@ theorem RecursorInstallation.recursorUvarsAt
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
@@ -742,7 +742,7 @@ theorem RecursorInstallation.RuleAlignment.recursorUvars
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     {H : RecursorInstallation R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
@@ -760,7 +760,7 @@ theorem RecursorInstallation.installedRecursorHeadTranslationAt
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length)
@@ -808,7 +808,7 @@ theorem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     {H : RecursorInstallation R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
@@ -836,7 +836,7 @@ theorem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     {H : RecursorInstallation R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
@@ -881,7 +881,7 @@ theorem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     {H : RecursorInstallation R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
@@ -961,7 +961,7 @@ theorem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     {H : RecursorInstallation R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
@@ -1002,7 +1002,7 @@ theorem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     {H : RecursorInstallation R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
@@ -1057,7 +1057,7 @@ theorem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     {H : RecursorInstallation R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
@@ -1126,7 +1126,7 @@ theorem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     {H : RecursorInstallation R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
@@ -1196,7 +1196,7 @@ theorem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     {H : RecursorInstallation R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
@@ -1316,7 +1316,7 @@ theorem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     {H : RecursorInstallation R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
@@ -1426,7 +1426,7 @@ theorem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     {H : RecursorInstallation R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
@@ -1511,7 +1511,7 @@ theorem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     {H : RecursorInstallation R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
@@ -1567,7 +1567,7 @@ theorem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     {H : RecursorInstallation R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}

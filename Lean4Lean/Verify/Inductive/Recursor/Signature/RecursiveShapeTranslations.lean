@@ -24,7 +24,7 @@ open Kernel
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- The recursive shapes of a constructor of the construction's signature `H.signature HU`,
 for any proof `HU` of the universe support; see `generatedBy_shapeTranslations`. -/

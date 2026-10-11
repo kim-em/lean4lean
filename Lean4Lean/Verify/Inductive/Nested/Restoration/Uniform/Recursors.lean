@@ -791,7 +791,7 @@ section Assembly
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth
     sourceEnv indTypes ctorEnv}
 
 /-- **Non-`whnf` hypotheses** for the parameter uniformity of a

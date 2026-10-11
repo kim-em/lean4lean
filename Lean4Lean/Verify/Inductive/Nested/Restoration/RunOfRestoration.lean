@@ -26,7 +26,7 @@ open Kernel
 namespace VerifyInductive
 
 /-- The lowered family and constructor names are not checker primitives when the lowered run
-does not allow primitives (`RecursorInput.nonprimitive`, recorded by the constructor phase). -/
+does not allow primitives (`ConstructorCheck.nonprimitive`, recorded by the constructor phase). -/
 theorem LoweredRun.loweredNonprimitive {c : AddInductive.Context} {Hc : ContextWF c}
     {nparams : Nat} {indTypes : Array InductiveType} {loweredEnv : Environment}
     (L : LoweredRun Hc nparams indTypes loweredEnv) (hallow : c.allowPrimitive = false) :

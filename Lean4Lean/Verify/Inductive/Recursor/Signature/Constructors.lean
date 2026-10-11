@@ -43,7 +43,7 @@ application and abstracted over the parameters, translates in the header environ
 (`declFieldDomains`), and the terminal application translates to `result` over those domains;
 both are types. -/
 theorem RecursorConstruction.sourceConstructorTail
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
@@ -116,7 +116,7 @@ theorem TrExprS.forallTelescope_residual
           ih (by simpa using hlen) Hbody
 
 theorem RecursorConstruction.constructorTerminalSpine
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
@@ -175,7 +175,7 @@ theorem RecursorConstruction.constructorTerminalSpine
   exact (VExpr.const.inj hname).1.symm.trans hfamilyOwner
 
 theorem RecursorConstruction.constructorClosedParameters
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
@@ -229,7 +229,7 @@ theorem TrExprS.shiftedBvarSpine_eq
     simpa [InductiveSignature.vars, List.getElem_reverse] using heq
 
 theorem RecursorConstruction.constructorResultIndices
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
@@ -296,7 +296,7 @@ theorem RecursorConstruction.constructorResultIndices
   exact ⟨indices, Hfull, Htype, Hindices⟩
 
 theorem RecursorConstruction.constructorTerminalOwner
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
@@ -325,7 +325,7 @@ theorem RecursorConstruction.constructorTerminalOwner
   simpa only [htargetEq] using hvalid
 
 theorem RecursorConstruction.constructorIndices_length
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
@@ -366,7 +366,7 @@ noncomputable def RecursorConstruction.declConstructorIndices
     (H.sourceMinorTyping owner howner localIndex hlocal))
 
 theorem RecursorConstruction.sourceConstructorIndices_replay
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
@@ -410,7 +410,7 @@ open Kernel
 is definitionally equal, in the header environment over the parameter scope, to the matching
 constructor of the source signature. -/
 theorem RecursorConstruction.sourceConstructorDefEq
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :

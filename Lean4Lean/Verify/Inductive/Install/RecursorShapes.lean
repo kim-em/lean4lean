@@ -15,7 +15,7 @@ theorem RecursorCheck.recursorShapes
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv) (T : RuleTranslations H)
     (hnp : ∀ {n cval}, outEnv.constants.find? n = some (.ctorInfo cval) →
       (∃ src ∈ decl.constructorConstants, src.name = n) → cval.numParams = decl.nparams) :

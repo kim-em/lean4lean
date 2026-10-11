@@ -6,7 +6,7 @@ import Lean4Lean.Verify.Inductive.Constructor.SourceSignature
 `CheckedCtorTail`: a constructor type is definitionally a telescope over the common parameters
 ending in a constructor tail certified by the executable check (`checkConstructors`), with the
 field classification it returned. The constructor check records one per constructor
-(`RecursorInput.tails`). -/
+(`ConstructorCheck.tails`). -/
 
 namespace Lean4Lean
 

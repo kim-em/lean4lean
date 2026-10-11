@@ -76,7 +76,7 @@ theorem RecursorFieldDecisions.consumeForallTypes
 
 /-- Every minor's constructor traversal starts in the kernel constructor environment. -/
 theorem RecursorConstruction.minorRootEnv
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
@@ -90,7 +90,7 @@ theorem RecursorConstruction.minorRootEnv
   exact h1.symm.trans (h2.symm.trans h3)
 
 theorem RecursorConstruction.constructorUnannotatedSource
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
@@ -161,7 +161,7 @@ theorem TrExprS.abstractCachedParameters {scope : VLCtx}
   simpa using Hclosed
 
 theorem RecursorConstruction.constructorRawSourceReplay
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
@@ -192,8 +192,8 @@ theorem RecursorConstruction.constructorRawSourceReplay
 /-- The header environment is a checking environment, and the type-annotation wrappers
 recognized by the constructor environment are definitions of the header environment, since
 the constructor stage adds only constructors. -/
-theorem RecursorInput.headerCheckingAnnotations
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
+theorem ConstructorCheck.headerCheckingAnnotations
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     CheckingEnv c.safety R.headerEnv R.headerVEnv ∧
       TypeAnnotationWrappers R.headerEnv ctorEnv.isTypeAnnotationWrapper := by
   refine ⟨R.headers.context.checking, .of_reflect _ _ fun {n v} hfind => ?_⟩
@@ -203,8 +203,8 @@ theorem RecursorInput.headerCheckingAnnotations
     obtain ⟨_, _, h⟩ := List.mem_map.mp h
     cases h
 
-theorem RecursorInput.headerAnonymousParameterWF
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
+theorem ConstructorCheck.headerAnonymousParameterWF
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     VLCtx.WF R.headerVEnv c.lparams.length
       (abstractForallContext R.parameterScope.toCtx.reverse []) := by
   have Hparams := R.statsWF.paramsContext
@@ -215,8 +215,8 @@ theorem RecursorInput.headerAnonymousParameterWF
 
 /-- Each constructor type of the source signature is a type in the header environment, over
 the parameter scope. -/
-theorem RecursorInput.sourceConstructorTailType
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
+theorem ConstructorCheck.sourceConstructorTailType
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
     (index : Fin decl.ownedConstructors.length) :
     let ctor := R.sourceSignatureConstructor index
     R.headerVEnv.IsType c.lparams.length R.parameterScope.toCtx
@@ -237,7 +237,7 @@ theorem RecursorInput.sourceConstructorTailType
 family application and abstracted over the parameters, translates in the header environment
 to a type definitionally equal to the matching source signature constructor type. -/
 theorem RecursorConstruction.constructorUnannotatedHeaderReplay
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
@@ -312,7 +312,7 @@ theorem MLCtxOnlyLams.mkForall_fvarsIn_upset
 the source parameter scope, lifts to the recursor's universe parameters and parameter context,
 with the target instantiated at the recursor's universe levels. -/
 theorem RecursorConstruction.liftDeclUnivType
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (Hsource : TrExprS R.context.venv c.lparams
       (abstractForallContext R.parameterScope.toCtx.reverse []) source target) :
@@ -343,7 +343,7 @@ and translates at the recursor's universe parameters to `sourceDomains` instanti
 recursor's universe levels. The domains are read in the header environment, before the
 block's constructors exist. -/
 theorem RecursorConstruction.sourceFieldDomains
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (_hsourceOwner : owner < indTypes.size)
@@ -385,14 +385,14 @@ open Kernel
 /-- The field domains of the constructor of a minor, chosen by `sourceFieldDomains` in the
 header environment, in the source universes and parameter scope. -/
 noncomputable def RecursorConstruction.declFieldDomains
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) : List VExpr :=
   Classical.choose (H.sourceFieldDomains owner howner (by rwa [← H.sourceFamilyCount])
     localIndex hlocal (H.sourceMinorOffsetBound owner howner localIndex hlocal))
 
 theorem RecursorConstruction.sourceFields_length
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     (H.declFieldDomains owner howner localIndex hlocal).length =
@@ -401,7 +401,7 @@ theorem RecursorConstruction.sourceFields_length
     localIndex hlocal (H.sourceMinorOffsetBound owner howner localIndex hlocal))).1
 
 theorem RecursorConstruction.sourceFields_headerReplay
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     let S := H.origins.minorShapes owner howner localIndex hlocal
@@ -420,7 +420,7 @@ theorem RecursorConstruction.sourceFields_headerReplay
     localIndex hlocal (H.sourceMinorOffsetBound owner howner localIndex hlocal))).2
 
 theorem RecursorConstruction.sourceFields_replay
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     let S := H.origins.minorShapes owner howner localIndex hlocal

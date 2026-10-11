@@ -70,7 +70,7 @@ namespace VerifyInductive
 
 /-- The recursor-stage environment is a checking environment of the output. -/
 theorem RecursorInstallation.validCore
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv) :
     CheckingEnv.ValidCore c.safety outEnv H.outVEnv := by
@@ -81,25 +81,25 @@ theorem RecursorInstallation.validCore
   rwa [H.localExtends.safety_eq] at this
 
 theorem RecursorInstallation.outVEnvWF
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv) : H.outVEnv.WF :=
   H.validCore.tr.wf
 
 theorem RecursorInstallation.headerLE
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv) : R.headerVEnv ≤ H.outVEnv :=
   R.headerLE.trans (R.ctorLE.trans H.installed.le)
 
 theorem RecursorInstallation.sourceLE
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv) : sourceEnv ≤ H.outVEnv :=
   R.sourceLE.trans H.headerLE
 
 theorem RecursorInstallation.familyConstant
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (family : VInductiveType) (hf : family ∈ decl.types) :
@@ -108,7 +108,7 @@ theorem RecursorInstallation.familyConstant
     (List.mem_map.mpr ⟨family, hf, rfl⟩))
 
 theorem RecursorInstallation.constructorConstant
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (ctor : VConstVal) (hc : ctor ∈ decl.constructorConstants) :
@@ -135,7 +135,7 @@ theorem AddConstants.rigid {c : Name}
   | cons _ _ _ _ hadd _ _ ih => exact ih (hr.addConst hadd)
 
 theorem RecursorInstallation.familyRigid
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (family : VInductiveType) (hf : family ∈ decl.types) :
@@ -152,7 +152,7 @@ theorem RecursorInstallation.familyRigid
 /-- In a signature that models the declaration, each constructor result has as many
 indices as its family (`Models.constructorArity`). -/
 theorem RecursorInstallation.normalizedIndexArity
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (_H : RecursorInstallation R outEnv)
     {s : InductiveSignature} (hm : s.Models sourceEnv decl)
@@ -162,7 +162,7 @@ theorem RecursorInstallation.normalizedIndexArity
   hm.constructorArity _ (by simp)
 
 theorem RecursorInstallation.rawConstructorShape
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     {s : InductiveSignature} (hm : s.Models sourceEnv decl)
@@ -187,7 +187,7 @@ theorem RecursorInstallation.rawConstructorShape
 /-- The installed constructor's type is definitionally equal to the signature's constructor
 type. -/
 theorem RecursorInstallation.constructorTypeDefEq
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     {s : InductiveSignature} (hm : s.Models sourceEnv decl)
@@ -212,7 +212,7 @@ theorem RecursorInstallation.constructorTypeDefEq
   exact hctype.mono H.headerLE
 
 theorem RecursorInstallation.normalizedFamilyRigid
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     {s : InductiveSignature} (hm : s.Models sourceEnv decl)
@@ -224,7 +224,7 @@ theorem RecursorInstallation.normalizedFamilyRigid
 /-- The installed header is an `inductInfo` whose constructor-name list is exactly that of
 the source family. -/
 theorem RecursorInstallation.familyInfo
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (family : VInductiveType) (hf : family ∈ decl.types) :
@@ -243,7 +243,7 @@ theorem RecursorInstallation.familyInfo
   exact ⟨info, hout, htr.2⟩
 
 theorem RecursorInstallation.majorOfTr
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     {s : InductiveSignature} (hm : s.Models sourceEnv decl) {g : s.Instance}
@@ -261,7 +261,7 @@ sort (which is `Prop` by the K condition and the model's result level), the
 constructor's raw parameter prefix comes from `CtorParameterShape`, and both
 parameter telescopes agree with the common one (`ParamsDefEq`). -/
 theorem RecursorInstallation.kOfTr
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     {s : InductiveSignature} (hm : s.Models sourceEnv decl) (g : s.Instance)
@@ -367,7 +367,7 @@ theorem RecursorInstallation.kOfTr
 
 /-- `kOfTr` read off the recursor metadata alone, in the recursor stage. -/
 theorem RecursorInstallation.kOfMetadata
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     {s : InductiveSignature} (hm : s.Models sourceEnv decl) (g : s.Instance)

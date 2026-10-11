@@ -434,7 +434,7 @@ theorem InductiveSignature.recursiveFields_markFields {s : InductiveSignature}
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- The argument telescope and the target indices of every recursive call recorded in the rule
 templates mention only the declaration's universe parameters (never the fresh elimination

@@ -174,7 +174,7 @@ theorem LoweredRestoredConstructors.ofInstalled
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (Hprod : RecursorInstallation R loweredEnv)
     (howner : owner ∈ indTypes.toList)
     (Hmapping : ConstructorLowerings.Resolved mappingEnv params nparams result
@@ -229,7 +229,7 @@ theorem RecursorInstallation.restoreAuxConstructorsFreshOfInstalled
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv loweredEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
     {result : Lean4Lean.ElimNestedInductive.Result}
     (H : RecursorInstallation R loweredEnv)
     (Howners : ConstructorOwnersPresent c.env)

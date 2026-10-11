@@ -80,7 +80,7 @@ theorem NestedLoweringOutputClosed.restoredSourceTelescopeAtFreshOfValidation
     {result : ElimNestedInductive.Result} {sourceTypes : List InductiveType}
     {loweredSourceEnv : Environment} {fuel : Nat} {auxRecNames : List Name}
     {validationSafety : DefinitionSafety} {validationFuel : FuelConfig}
-    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv
+    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv
       result.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutputClosed loweredSourceEnv fuel nparams sourceTypes
@@ -137,7 +137,7 @@ theorem AuxiliaryRecursorGeneratedAlignment.recursorStepOfValidation
     {result : ElimNestedInductive.Result} {auxRec : NameMap Name} {allIndNames : List Name}
     {oldRecName : Name} {validationFuel : FuelConfig} {validationTypes : List InductiveType}
     {auxRecNames : List Name}
-    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
     {Hprod : RecursorInstallation R loweredEnv}
     {Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName stepSource stepTarget}
@@ -171,7 +171,7 @@ theorem AuxiliaryRecursorGeneratedAlignments.recursorTraceOfValidation
     {result : ElimNestedInductive.Result} {auxRec : NameMap Name} {allIndNames : List Name}
     {names : List Name} {validationFuel : FuelConfig} {validationTypes : List InductiveType}
     {auxRecNames : List Name}
-    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
     {Hprod : RecursorInstallation R loweredEnv}
     {Htrace : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)

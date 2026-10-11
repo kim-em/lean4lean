@@ -59,7 +59,7 @@ theorem TrExprS.unannotatedTelescope_body_eq {venv : VEnv} {Us : List Name}
 constructor (`declConstructorIndices`) are syntactically those of the matching checked-formation
 signature constructor. -/
 theorem RecursorConstruction.sourceConstructorIndices_eq_header
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
@@ -177,7 +177,7 @@ theorem IsDefEqCtx.ofFieldPrefixes {env : VEnv} {U : Nat} {P xs ys : List VExpr}
 universe parameters and levels, the elimination level as target, and recursor names `T.rec`.
 Only the recursor names depend on `s`. -/
 noncomputable def RecursorConstruction.generatedInstance
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (s : InductiveSignature) :
     InductiveSignature.Instance s where
   uvars := (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
@@ -186,7 +186,7 @@ noncomputable def RecursorConstruction.generatedInstance
   recursorName owner := s.families[owner].name.str "rec"
 
 theorem RecursorConstruction.generatedInstance_target
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (s : InductiveSignature) :
     VLevel.ofLevel (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       H.elimLevel = some (H.generatedInstance s).targetLevel :=
@@ -196,7 +196,7 @@ theorem RecursorConstruction.generatedInstance_target
 zero, or the target is `Prop`, or the block has one family with at most one constructor,
 accepted by the executable's large-elimination check. -/
 theorem RecursorConstruction.elimLevelDecision
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) :
     (∀ family ∈ decl.types, family.resultLevel.IsNeverZero) ∨
     H.elimLevel = .zero ∨
@@ -222,7 +222,7 @@ the generator's singleton condition (`SingletonElimination`) for any signature w
 construction's parameters, families, field domains and result indices, at every universe
 instance. -/
 theorem RecursorConstruction.unannotatedSingletonElimination
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) {s : InductiveSignature}
     (hparams : s.params = R.parameterScope.toCtx.reverse)
     (hfam : s.families = H.families)
@@ -339,7 +339,7 @@ theorem RecursorConstruction.unannotatedSingletonElimination
 signature with the source universe count, parameters, the construction's families, constructor
 count and per-minor field domains and result indices. -/
 theorem RecursorConstruction.generatedInstance_admissible
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     {s : InductiveSignature} (huvars : s.uvars = decl.uvars)
     (hparams : s.params = R.parameterScope.toCtx.reverse)

@@ -206,7 +206,7 @@ theorem RestoredInductiveStep.restoredHeaderTranslationAtFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {ctorEnv loweredEnv : Environment}
-    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
+    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
@@ -526,7 +526,7 @@ theorem SourceFamilyTranslations.existsExactCanonicalSourceReplay
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors : VEnv}
     {ctorEnv loweredEnv sourceProdEnv targetProdEnv : Environment}
-    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
+    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     {Htrace : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec
@@ -595,7 +595,7 @@ theorem RecursorInstallation.restoredTelescopeAlignmentOfGeneratedName
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv loweredEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
     (Hprod : RecursorInstallation R loweredEnv)
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName sourceProdEnv targetProdEnv)
@@ -637,7 +637,7 @@ structure AuxiliaryRecursorGeneratedAlignment
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv loweredEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
     (Hprod : RecursorInstallation R loweredEnv)
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName sourceProdEnv targetProdEnv) where
@@ -657,7 +657,7 @@ inductive AuxiliaryRecursorGeneratedAlignments
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv loweredEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
     (Hprod : RecursorInstallation R loweredEnv)
     {result : Lean4Lean.ElimNestedInductive.Result}
     {auxRec : NameMap Name} {allIndNames : List Name} :
@@ -682,7 +682,7 @@ theorem FoldSteps.generatedAlignmentTrace
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv loweredEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
     (Hprod : RecursorInstallation R loweredEnv)
     {result : Lean4Lean.ElimNestedInductive.Result}
     {auxRec : NameMap Name} {allIndNames : List Name}
@@ -716,7 +716,7 @@ theorem NestedLoweringOutputClosed.auxRecNameGeneratedAtFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {ctorEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams (main :: rest)
       { initialState with newTypes := (main :: rest).toArray } result)
@@ -768,7 +768,7 @@ theorem NestedRestorationFolds.generatedAlignmentTraceOfKernel
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {ctorEnv loweredEnv : Environment}
-    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
+    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv result.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams (main :: rest)
       { initialState with newTypes := (main :: rest).toArray } result)
