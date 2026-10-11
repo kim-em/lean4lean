@@ -7,7 +7,8 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Model.RuleSound
 `beta_spine_sub`: a closed, semantically typed and sound lambda telescope `wrapLams D G`
 applied to arguments that are typed along `D` (a typed valuation of `D.reverse` by the
 arguments, as `spine_tele` produces) has, up to subsumption in both directions, the
-observations of the instantiated body `G.subst (argSubst args)`. Left to right the keys of the
+observations of the instantiated body `G.subst (argSubst args)` (right to left without
+subsumption: every observation of the body is one of the application). Left to right the keys of the
 application are typed keys along `D` (`Obs.wrapLams_iff`) whose anchors are related to the
 arguments (`TeleKeys.substEq`), so the soundness of the body (`HTS.wrapLams_body`) changes the
 anchors to the arguments and monotonicity enlarges the key observations to the arguments'
@@ -53,7 +54,7 @@ theorem beta_spine_sub {D : List VExpr} {G P : VExpr} {args : List VExpr} {σ : 
     (tv : TV env U Δ D.reverse (VExpr.argSubst (args.map (·.subst σ)))
       (argSets env U Δ σ S args)) :
     Ob.Sub (Obs' σ S (.mkApps (.wrapLams D G) args)) (Obs' σ S (G.subst (VExpr.argSubst args))) ∧
-    Ob.Sub (Obs' σ S (G.subst (VExpr.argSubst args))) (Obs' σ S (.mkApps (.wrapLams D G) args)) := by
+    ∀ o, Obs' σ S (G.subst (VExpr.argSubst args)) o → Obs' σ S (.mkApps (.wrapLams D G) args) o := by
   obtain ⟨hGcl, hDcl⟩ := closedN_wrapLams hcl
   simp only [Nat.zero_add] at hGcl hDcl
   rw [← has] at hGcl
@@ -115,7 +116,7 @@ theorem beta_spine_sub {D : List VExpr} {G P : VExpr} {args : List VExpr} {σ : 
       congr 2; omega
     have hw : Obs' .id .empty (.wrapLams D G) (wrap keys o) :=
       Obs.wrapLams_iff.2 ⟨keys, _, _, o, hTK, rfl, hG'⟩
-    refine ⟨o, obs_mkApps_of_wrap_le ?_ ((Obs.closed_iff_id hcl).2 hw), .refl⟩
+    refine obs_mkApps_of_wrap_le ?_ ((Obs.closed_iff_id hcl).2 hw)
     obtain ⟨ys, hv, -, hyl, -, hd⟩ := hTK.data
     have hys : ys = args.map (·.subst σ) := argSubst_inj (by rw [hyl, hasl]) hv.symm
     subst hys
