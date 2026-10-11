@@ -18,7 +18,10 @@ namespace VerifyInductive
 
 /-- The part of `ContextWF` that stays meaningful while a primitive declaration is only partly
 installed: no `HasPrimitives` (nor the other `CheckingEnv.Valid` and `CheckerEnv` facts), only
-the translation invariant `CheckingEnv` and the local context. -/
+the translation invariant `CheckingEnv` and the local context. `ContextWF` is not stated as an
+extension of it because its `checking` field is the stronger `CheckingEnv.Valid` (read as
+`Hc.checking` throughout the checker proofs); the two convert definitionally
+(`ContextWF.toLocal`, `LocalContextWF.toContextWF`). -/
 structure LocalContextWF (c : AddInductive.Context) where
   venv : VEnv
   checking : CheckingEnv c.safety c.env venv
