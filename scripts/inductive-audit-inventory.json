@@ -53,5 +53,31 @@
     "Lean4Lean.VEnv.IsDefEqU.weakN_iff": "Theory/Typing/UniqueTyping.lean: context strengthening for definitional equality, master's statement; see OPEN_PROOFS.md.",
     "Lean4Lean.VEnv.Model.PatValid.nested": "Theory/Typing/HeadInjectivity/Model/PatSound.lean: validity in the observation model of the iota rules of a nested block (the ordinary case, PatValid.ordinary, is proved); see OPEN_PROOFS.md.",
     "Lean4Lean.VEnv.WF.patsStrong": "Theory/Typing/EnvLemmas.lean: PR #43's subject reduction of the registered iota rules in the strong system, needed for OrderedStrong; see OPEN_PROOFS.md."
+  },
+  "acceptedUnder": {
+    "Lean4Lean.VEnv.WF.church_rosser": [
+      "Lean4Lean.VEnv.Model.PatValid.nested",
+      "Lean4Lean.VEnv.WF.patsStrong"
+    ],
+    "Lean4Lean.VEnv.WF.equationCoverage": [
+      "Lean4Lean.VEnv.Model.PatValid.nested",
+      "Lean4Lean.VEnv.WF.patsStrong"
+    ],
+    "Lean4Lean.VEnv.WF.params": [
+      "Lean4Lean.VEnv.Model.PatValid.nested",
+      "Lean4Lean.VEnv.WF.patsStrong"
+    ],
+    "Lean4Lean.VEnv.WF.patCoverage": [
+      "Lean4Lean.VEnv.Model.PatValid.nested",
+      "Lean4Lean.VEnv.WF.patsStrong"
+    ],
+    "Lean4Lean.VEnv.WF.patCoverageJ": [
+      "Lean4Lean.VEnv.Model.PatValid.nested",
+      "Lean4Lean.VEnv.WF.patsStrong"
+    ],
+    "Lean4Lean.VEnv.WF.singletonPatCoverageJ": [
+      "Lean4Lean.VEnv.Model.PatValid.nested",
+      "Lean4Lean.VEnv.WF.patsStrong"
+    ]
   }
 }
