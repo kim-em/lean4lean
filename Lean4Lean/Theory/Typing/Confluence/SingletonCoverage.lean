@@ -84,7 +84,7 @@ namespace Lean4Lean.InductiveSignature
 open VExpr VEnv RecursorData RecursorSchema
 set_option backward.isDefEq.respectTransparency false
 
-private theorem extract_wrap_const {lhs rhs type : VExpr}
+theorem extract_wrap_const {lhs rhs type : VExpr}
     {name : Name} {levels : List VLevel}
     (hhead : lhs.getAppFnArgs.1 = .const name levels) (domains : List VExpr) :
     EquationBody.extract (wrapLams domains lhs) (wrapLams domains rhs)
