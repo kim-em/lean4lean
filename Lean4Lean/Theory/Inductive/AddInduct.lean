@@ -131,4 +131,104 @@ structure VInductDecl.RecsOf (decl : VInductDecl) (block : VInductBlock) : Prop 
   rules : ∀ r ∈ decl.recs, ∀ ru ∈ r.rules, ∃ df ∈ block.rules, VRecRule.OfEquation r ru df
   rules_total : ∀ df ∈ block.rules, ∃ r ∈ decl.recs, ∃ ru ∈ r.rules, VRecRule.OfEquation r ru df
 
+/-! ### Replaying the stages over a larger environment
+
+A successful stage of `addInduct` replays over any larger environment in which its names are
+fresh, above the original result. -/
+
+namespace VEnv
+
+theorem addPat_mono {env₁ env₂ : VEnv} {p : Pattern} {r : p.RHS × p.Check} (H : env₁ ≤ env₂) :
+    env₁.addPat p r ≤ env₂.addPat p r where
+  constants := H.constants
+  defeqs := H.defeqs
+  pats h := h.elim .inl (.inr ∘ H.pats)
+  projections := H.projections
+
+/-- A fold whose steps replay over larger environments replays as a whole. -/
+theorem foldlM_rebase {α} {f : VEnv → α → Option VEnv}
+    (hf : ∀ {e₁ e₂ e₁' : VEnv} {x}, e₁ ≤ e₂ → f e₁ x = some e₁' →
+      ∃ e₂', f e₂ x = some e₂' ∧ e₁' ≤ e₂') :
+    ∀ {l : List α} {i₁ i₂ o₁ : VEnv}, i₁ ≤ i₂ → l.foldlM f i₁ = some o₁ →
+      ∃ o₂, l.foldlM f i₂ = some o₂ ∧ o₁ ≤ o₂
+  | [], i₁, i₂, o₁, hle, h => by simp [List.foldlM] at h; subst h; exact ⟨i₂, rfl, hle⟩
+  | x :: xs, i₁, i₂, o₁, hle, h => by
+    simp only [List.foldlM] at h
+    obtain ⟨e1, h1, h2⟩ := Option.bind_eq_some_iff.1 h
+    obtain ⟨e2, h1', hle'⟩ := hf hle h1
+    obtain ⟨o₂, h2', hle''⟩ := foldlM_rebase (f := f) hf hle' h2
+    exact ⟨o₂, by simp only [List.foldlM, h1']; exact h2', hle''⟩
+
+/-- A fold whose successful steps are monotone in the environment is monotone. -/
+theorem foldlM_mono {α} {f : VEnv → α → Option VEnv}
+    (hf : ∀ {e₁ e₂ e₁' e₂' : VEnv} {x}, e₁ ≤ e₂ → f e₁ x = some e₁' → f e₂ x = some e₂' →
+      e₁' ≤ e₂') :
+    ∀ {l : List α} {i₁ i₂ o₁ o₂ : VEnv}, i₁ ≤ i₂ → l.foldlM f i₁ = some o₁ →
+      l.foldlM f i₂ = some o₂ → o₁ ≤ o₂
+  | [], _, _, _, _, hle, h, h' => by
+    simp [List.foldlM] at h h'; subst h h'; exact hle
+  | x :: xs, _, _, _, _, hle, h, h' => by
+    simp only [List.foldlM] at h h'
+    obtain ⟨e1, h1, h2⟩ := Option.bind_eq_some_iff.1 h
+    obtain ⟨e1', h1', h2'⟩ := Option.bind_eq_some_iff.1 h'
+    exact foldlM_mono (f := f) hf (hf hle h1 h1') h2 h2'
+
+theorem addRecRule_rebase {e₁ e₂ e₁' : VEnv} {r : VRecursor} {ru : VRecRule} (hle : e₁ ≤ e₂)
+    (h : e₁.addRecRule r ru = some e₁') :
+    ∃ e₂', e₂.addRecRule r ru = some e₂' ∧ e₁' ≤ e₂' := by
+  unfold VEnv.addRecRule at h ⊢
+  split at h
+  · cases h; rw [dif_pos ‹_›]; exact ⟨_, rfl, addPat_mono hle⟩
+  · cases h
+
+theorem addRules_rebase {decl : VInductDecl} {e₁ e₂ e₁' : VEnv} (hle : e₁ ≤ e₂)
+    (h : decl.addRules e₁ = some e₁') :
+    ∃ e₂', decl.addRules e₂ = some e₂' ∧ e₁' ≤ e₂' := by
+  unfold VInductDecl.addRules at h ⊢
+  exact foldlM_rebase (f := fun e r => r.rules.foldlM (fun e ru => e.addRecRule r ru) e)
+    (fun {_ _ _ r} hle h => foldlM_rebase (f := fun e ru => VEnv.addRecRule e r ru)
+      (fun hle h => addRecRule_rebase hle h) hle h) hle h
+
+theorem addRules_mono {decl : VInductDecl} {e₁ e₂ e₁' e₂' : VEnv} (hle : e₁ ≤ e₂)
+    (h : decl.addRules e₁ = some e₁') (h' : decl.addRules e₂ = some e₂') : e₁' ≤ e₂' := by
+  obtain ⟨e₂'', h'', hle'⟩ := addRules_rebase hle h
+  rw [h'] at h''; cases h''; exact hle'
+
+/-- The constant stages of `addInduct`, as the one fold over `VInductDecl.consts`. -/
+theorem addTypesCtorsProjsRecs_of_stages {decl : VInductDecl} {env envT envC envR : VEnv}
+    (stT : decl.addTypes env = some envT) (stC : decl.addCtors envT = some envC)
+    (stR : decl.addRecs (decl.addProjs envC) = some envR) :
+    decl.addTypesCtorsProjsRecs env = some envR := by
+  simp [VInductDecl.addTypesCtorsProjsRecs, VInductDecl.addTypesCtorsProjs,
+    VInductDecl.addTypesCtors, stT, stC, stR]
+
+theorem stages_of_addTypesCtorsProjsRecs {decl : VInductDecl} {env envR : VEnv}
+    (h : decl.addTypesCtorsProjsRecs env = some envR) :
+    ∃ envT envC, decl.addTypes env = some envT ∧ decl.addCtors envT = some envC ∧
+      decl.addRecs (decl.addProjs envC) = some envR := by
+  unfold VInductDecl.addTypesCtorsProjsRecs at h
+  obtain ⟨envP, hP', hRec⟩ := Option.bind_eq_some_iff.1 h
+  unfold VInductDecl.addTypesCtorsProjs at hP'
+  obtain ⟨envC, hC', rfl⟩ := Option.map_eq_some_iff.1 hP'
+  unfold VInductDecl.addTypesCtors at hC'
+  obtain ⟨envT, hT, hC⟩ := Option.bind_eq_some_iff.1 hC'
+  exact ⟨envT, envC, hT, hC, hRec⟩
+
+theorem foldlM_exists {α} {f : VEnv → α → Option VEnv} :
+    ∀ {l : List α}, (∀ x ∈ l, ∀ e, ∃ e', f e x = some e') → ∀ init, ∃ r, l.foldlM f init = some r
+  | [], _, init => ⟨init, rfl⟩
+  | x :: xs, hf, init => by
+    obtain ⟨e1, h1⟩ := hf x (.head _) init
+    obtain ⟨r, hr⟩ := foldlM_exists (fun y hy => hf y (.tail _ hy)) e1
+    exact ⟨r, by simp only [List.foldlM, h1]; exact hr⟩
+
+/-- The ι-rule stage succeeds once every reduct is closed. -/
+theorem addRules_exists {decl : VInductDecl} (env : VEnv)
+    (h : ∀ r ∈ decl.recs, ∀ ru ∈ r.rules, ru.rhs.Closed) : ∃ env', decl.addRules env = some env' := by
+  unfold VInductDecl.addRules
+  exact foldlM_exists (fun r hr e => foldlM_exists (f := fun e ru => VEnv.addRecRule e r ru)
+    (fun ru hru e => ⟨_, by unfold VEnv.addRecRule; rw [dif_pos (h r hr ru hru)]⟩) e) env
+
+end VEnv
+
 end Lean4Lean

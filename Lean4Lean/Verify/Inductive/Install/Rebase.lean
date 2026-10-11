@@ -1,13 +1,13 @@
 import Lean4Lean.Verify.Inductive.Basic
 
-/-! # Replaying `addInduct` over a larger environment
+/-! # Rebasing a certified block onto a larger model
 
-A successful `VEnv.addInduct` of a declaration replays over any larger environment in which the
-declaration's names are fresh, stage by stage above the original stages
-(`VEnv.addInduct_rebase`), and two successful installations of the same declaration are ordered
-like their bases (`VEnv.addInduct_mono`). These are the model-side facts behind
-`BlockCertificate.rebase`: a block certified at one safety level is installed in the models of
-the other safety levels. -/
+`AddInduct.rebase`: a block certified at one safety level is installed in the models of the
+other safety levels (the facts behind `BlockCertificate.rebase`). The model-side replay of
+`VEnv.addInduct` over a larger environment is in `Theory/Inductive/AddInduct.lean` (the stages)
+and `Theory/Typing/InductiveLemmas.lean` (`VEnv.addInduct_rebase`, `VEnv.addInduct_mono`);
+this file adds the facts that need the checker's side: the primitive invariant
+(`HasPrimitives.addInduct_rebase`), `VInductDecl.WF.rebase`, and the kernel-side alignment. -/
 
 namespace Lean4Lean
 
@@ -15,197 +15,6 @@ open Lean hiding Environment Exception
 open Kernel
 
 namespace VEnv
-
-theorem addPat_mono {env₁ env₂ : VEnv} {p : Pattern} {r : p.RHS × p.Check} (H : env₁ ≤ env₂) :
-    env₁.addPat p r ≤ env₂.addPat p r where
-  constants := H.constants
-  defeqs := H.defeqs
-  pats h := h.elim .inl (.inr ∘ H.pats)
-  projections := H.projections
-
-/-- A successful `addConst` fold replays over a larger environment in which its names are
-fresh, above the original result. -/
-theorem addConst_foldlM_rebase {α} {nm : α → Name} {ci : α → VConstant} :
-    ∀ {l : List α} {init final init' : VEnv},
-      l.foldlM (fun (e : VEnv) a => e.addConst (nm a) (ci a)) init = some final →
-      init ≤ init' → (∀ a ∈ l, init'.constants (nm a) = none) →
-      ∃ final', l.foldlM (fun (e : VEnv) a => e.addConst (nm a) (ci a)) init' = some final' ∧
-        final ≤ final'
-  | [], init, final, init', h, hle, _ => by
-    simp [List.foldlM] at h; subst h; exact ⟨init', rfl, hle⟩
-  | b :: bs, init, final, init', h, hle, hfr => by
-    simp only [List.foldlM] at h
-    obtain ⟨e1, h1, h2⟩ := Option.bind_eq_some_iff.1 h
-    obtain ⟨-, hs1, -⟩ := addConst_eq h1
-    cases h1' : init'.addConst (nm b) (ci b) with
-    | none =>
-      unfold VEnv.addConst at h1'; rw [hfr b (.head _)] at h1'; cases h1'
-    | some e1' =>
-      obtain ⟨-, -, ho1'⟩ := addConst_eq h1'
-      have hfr' : ∀ a ∈ bs, e1'.constants (nm a) = none := by
-        intro a ha
-        have hne : nm b ≠ nm a := by
-          intro e
-          have := addConst_foldlM_fresh h2 a ha
-          rw [← e, hs1] at this; cases this
-        rw [ho1' _ hne]; exact hfr a (.tail _ ha)
-      obtain ⟨final', hf', hle'⟩ := addConst_foldlM_rebase h2 (addConstVal_mono hle h1 h1') hfr'
-      exact ⟨final', by simp only [List.foldlM, h1']; exact hf', hle'⟩
-
-/-- A fold whose steps replay over larger environments replays as a whole. -/
-theorem foldlM_rebase {α} {f : VEnv → α → Option VEnv}
-    (hf : ∀ {e₁ e₂ e₁' : VEnv} {x}, e₁ ≤ e₂ → f e₁ x = some e₁' →
-      ∃ e₂', f e₂ x = some e₂' ∧ e₁' ≤ e₂') :
-    ∀ {l : List α} {i₁ i₂ o₁ : VEnv}, i₁ ≤ i₂ → l.foldlM f i₁ = some o₁ →
-      ∃ o₂, l.foldlM f i₂ = some o₂ ∧ o₁ ≤ o₂
-  | [], i₁, i₂, o₁, hle, h => by simp [List.foldlM] at h; subst h; exact ⟨i₂, rfl, hle⟩
-  | x :: xs, i₁, i₂, o₁, hle, h => by
-    simp only [List.foldlM] at h
-    obtain ⟨e1, h1, h2⟩ := Option.bind_eq_some_iff.1 h
-    obtain ⟨e2, h1', hle'⟩ := hf hle h1
-    obtain ⟨o₂, h2', hle''⟩ := foldlM_rebase (f := f) hf hle' h2
-    exact ⟨o₂, by simp only [List.foldlM, h1']; exact h2', hle''⟩
-
-/-- A fold whose successful steps are monotone in the environment is monotone. -/
-theorem foldlM_mono {α} {f : VEnv → α → Option VEnv}
-    (hf : ∀ {e₁ e₂ e₁' e₂' : VEnv} {x}, e₁ ≤ e₂ → f e₁ x = some e₁' → f e₂ x = some e₂' →
-      e₁' ≤ e₂') :
-    ∀ {l : List α} {i₁ i₂ o₁ o₂ : VEnv}, i₁ ≤ i₂ → l.foldlM f i₁ = some o₁ →
-      l.foldlM f i₂ = some o₂ → o₁ ≤ o₂
-  | [], _, _, _, _, hle, h, h' => by
-    simp [List.foldlM] at h h'; subst h h'; exact hle
-  | x :: xs, _, _, _, _, hle, h, h' => by
-    simp only [List.foldlM] at h h'
-    obtain ⟨e1, h1, h2⟩ := Option.bind_eq_some_iff.1 h
-    obtain ⟨e1', h1', h2'⟩ := Option.bind_eq_some_iff.1 h'
-    exact foldlM_mono (f := f) hf (hf hle h1 h1') h2 h2'
-
-theorem addRecRule_rebase {e₁ e₂ e₁' : VEnv} {r : VRecursor} {ru : VRecRule} (hle : e₁ ≤ e₂)
-    (h : e₁.addRecRule r ru = some e₁') :
-    ∃ e₂', e₂.addRecRule r ru = some e₂' ∧ e₁' ≤ e₂' := by
-  unfold VEnv.addRecRule at h ⊢
-  split at h
-  · cases h; rw [dif_pos ‹_›]; exact ⟨_, rfl, addPat_mono hle⟩
-  · cases h
-
-theorem addRules_rebase {decl : VInductDecl} {e₁ e₂ e₁' : VEnv} (hle : e₁ ≤ e₂)
-    (h : decl.addRules e₁ = some e₁') :
-    ∃ e₂', decl.addRules e₂ = some e₂' ∧ e₁' ≤ e₂' := by
-  unfold VInductDecl.addRules at h ⊢
-  exact foldlM_rebase (f := fun e r => r.rules.foldlM (fun e ru => e.addRecRule r ru) e)
-    (fun {_ _ _ r} hle h => foldlM_rebase (f := fun e ru => VEnv.addRecRule e r ru)
-      (fun hle h => addRecRule_rebase hle h) hle h) hle h
-
-theorem addRules_mono {decl : VInductDecl} {e₁ e₂ e₁' e₂' : VEnv} (hle : e₁ ≤ e₂)
-    (h : decl.addRules e₁ = some e₁') (h' : decl.addRules e₂ = some e₂') : e₁' ≤ e₂' := by
-  obtain ⟨e₂'', h'', hle'⟩ := addRules_rebase hle h
-  rw [h'] at h''; cases h''; exact hle'
-
-/-- The ι-rule stage adds no constant. -/
-theorem addRules_constants {decl : VInductDecl} {e e' : VEnv}
-    (h : decl.addRules e = some e') : e'.constants = e.constants :=
-  foldlM_inv (P := fun x => x.constants = e.constants)
-    (fun _ _ _ _ hP hstep => foldlM_inv (P := fun x => x.constants = e.constants)
-      (fun _ _ _ _ hP' hstep' => by
-        unfold VEnv.addRecRule at hstep'; split at hstep'
-        · cases hstep'; exact hP'
-        · cases hstep') hP hstep) rfl h
-
-/-- The constant stages of `addInduct`, as the one fold over `VInductDecl.consts`. -/
-theorem addTypesCtorsProjsRecs_of_stages {decl : VInductDecl} {env envT envC envR : VEnv}
-    (stT : decl.addTypes env = some envT) (stC : decl.addCtors envT = some envC)
-    (stR : decl.addRecs (decl.addProjs envC) = some envR) :
-    decl.addTypesCtorsProjsRecs env = some envR := by
-  simp [VInductDecl.addTypesCtorsProjsRecs, VInductDecl.addTypesCtorsProjs,
-    VInductDecl.addTypesCtors, stT, stC, stR]
-
-theorem stages_of_addTypesCtorsProjsRecs {decl : VInductDecl} {env envR : VEnv}
-    (h : decl.addTypesCtorsProjsRecs env = some envR) :
-    ∃ envT envC, decl.addTypes env = some envT ∧ decl.addCtors envT = some envC ∧
-      decl.addRecs (decl.addProjs envC) = some envR := by
-  unfold VInductDecl.addTypesCtorsProjsRecs at h
-  obtain ⟨envP, hP', hRec⟩ := Option.bind_eq_some_iff.1 h
-  unfold VInductDecl.addTypesCtorsProjs at hP'
-  obtain ⟨envC, hC', rfl⟩ := Option.map_eq_some_iff.1 hP'
-  unfold VInductDecl.addTypesCtors at hC'
-  obtain ⟨envT, hT, hC⟩ := Option.bind_eq_some_iff.1 hC'
-  exact ⟨envT, envC, hT, hC, hRec⟩
-
-/-- The stages of a successful installation are ordered like their bases. -/
-theorem addStages_mono {decl : VInductDecl} {env env' envT envC envR envT' envC' envR' : VEnv}
-    (hle : env ≤ env')
-    (stT : decl.addTypes env = some envT) (stC : decl.addCtors envT = some envC)
-    (stR : decl.addRecs (decl.addProjs envC) = some envR)
-    (stT' : decl.addTypes env' = some envT') (stC' : decl.addCtors envT' = some envC')
-    (stR' : decl.addRecs (decl.addProjs envC') = some envR') :
-    envT ≤ envT' ∧ envC ≤ envC' ∧ envR ≤ envR' := by
-  rw [VInductDecl.addTypes_eq_addConstVals] at stT stT'
-  rw [VInductDecl.addCtors_eq_addConstVals] at stC stC'
-  rw [VInductDecl.addRecs_eq_addConstVals] at stR stR'
-  have hT := addConstVals_mono hle stT stT'
-  have hC := addConstVals_mono hT stC stC'
-  exact ⟨hT, hC, addConstVals_mono (addProjections_mono hC) stR stR'⟩
-
-/-- Two successful installations of the same declaration are ordered like their bases. -/
-theorem addInduct_mono {decl : VInductDecl} {env env' out out' : VEnv} (hle : env ≤ env')
-    (h : env.addInduct decl = some out) (h' : env'.addInduct decl = some out') : out ≤ out' := by
-  obtain ⟨envT, envC, envR, stT, stC, stR, stP⟩ := addInduct_stages h
-  obtain ⟨envT', envC', envR', stT', stC', stR', stP'⟩ := addInduct_stages h'
-  exact addRules_mono (addStages_mono hle stT stC stR stT' stC' stR').2.2 stP stP'
-
-/-- The stages of a successful installation replay over a larger environment in which the
-declaration's names are fresh. -/
-theorem addInduct_rebase {decl : VInductDecl} {env env' envT envC envR out : VEnv}
-    (stT : decl.addTypes env = some envT) (stC : decl.addCtors envT = some envC)
-    (stR : decl.addRecs (decl.addProjs envC) = some envR) (stP : decl.addRules envR = some out)
-    (hle : env ≤ env') (hfresh : ∀ b ∈ decl.consts, env'.constants b.1 = none) :
-    ∃ envT' envC' envR' out', decl.addTypes env' = some envT' ∧
-      decl.addCtors envT' = some envC' ∧ decl.addRecs (decl.addProjs envC') = some envR' ∧
-      decl.addRules envR' = some out' ∧
-      envT ≤ envT' ∧ envC ≤ envC' ∧ envR ≤ envR' ∧ out ≤ out' := by
-  have hR := addTypesCtorsProjsRecs_of_stages stT stC stR
-  rw [VInductDecl.addTypesCtorsProjsRecs_eq] at hR
-  obtain ⟨envF, hF, -⟩ := Option.map_eq_some_iff.1 hR
-  obtain ⟨envF', hF', -⟩ := addConst_foldlM_rebase (nm := Prod.fst) (ci := Prod.snd) hF hle hfresh
-  have hR' : decl.addTypesCtorsProjsRecs env' = some (decl.addProjs envF') := by
-    rw [VInductDecl.addTypesCtorsProjsRecs_eq, hF']; rfl
-  obtain ⟨envT', envC', stT', stC', stR'⟩ := stages_of_addTypesCtorsProjsRecs hR'
-  obtain ⟨hT, hC, hRle⟩ := addStages_mono hle stT stC stR stT' stC' stR'
-  obtain ⟨out', stP', hout⟩ := addRules_rebase hRle stP
-  exact ⟨envT', envC', _, out', stT', stC', stR', stP', hT, hC, hRle, hout⟩
-
-theorem addConst_foldlM_constants_of_not_mem {α} {nm : α → Name} {ci : α → VConstant} :
-    ∀ {l : List α} {init final : VEnv},
-      l.foldlM (fun (e : VEnv) a => e.addConst (nm a) (ci a)) init = some final →
-      ∀ {n}, (∀ a ∈ l, nm a ≠ n) → final.constants n = init.constants n
-  | [], _, _, h, _, _ => by simp [List.foldlM] at h; rw [h]
-  | b :: bs, init, final, h, n, hn => by
-    simp only [List.foldlM] at h
-    obtain ⟨e1, h1, h2⟩ := Option.bind_eq_some_iff.1 h
-    rw [addConst_foldlM_constants_of_not_mem h2 (fun a ha => hn a (.tail _ ha)),
-      (addConst_eq h1).2.2 n (hn b (.head _))]
-
-/-- `addInduct` binds no name outside the declaration's constants. -/
-theorem addInduct_constants_of_not_mem {decl : VInductDecl} {env out : VEnv}
-    (h : env.addInduct decl = some out) {n : Name} (hn : ∀ b ∈ decl.consts, b.1 ≠ n) :
-    out.constants n = env.constants n := by
-  unfold VEnv.addInduct at h
-  obtain ⟨envR, hR, hP⟩ := Option.bind_eq_some_iff.1 h
-  rw [VInductDecl.addTypesCtorsProjsRecs_eq] at hR
-  obtain ⟨envF, hF, rfl⟩ := Option.map_eq_some_iff.1 hR
-  rw [addRules_constants hP, VInductDecl.addProjs, addProjections_constants]
-  exact addConst_foldlM_constants_of_not_mem (nm := Prod.fst) (ci := Prod.snd) hF hn
-
-/-- `addInduct` binds each of the declaration's constants. -/
-theorem addInduct_constants_mem {decl : VInductDecl} {env out : VEnv}
-    (h : env.addInduct decl = some out) {b : Name × VConstant} (hb : b ∈ decl.consts) :
-    out.constants b.1 = some b.2 := by
-  unfold VEnv.addInduct at h
-  obtain ⟨envR, hR, hP⟩ := Option.bind_eq_some_iff.1 h
-  rw [VInductDecl.addTypesCtorsProjsRecs_eq] at hR
-  obtain ⟨envF, hF, rfl⟩ := Option.map_eq_some_iff.1 hR
-  rw [addRules_constants hP, VInductDecl.addProjs, addProjections_constants]
-  exact addConst_foldlM_find (nm := Prod.fst) (ci := Prod.snd) hF b hb
 
 /-- The primitive invariant of a replayed installation: the declaration's names are looked up
 as in the original installation, every other name as in the larger base. -/
@@ -222,37 +31,7 @@ theorem HasPrimitives.addInduct_rebase {decl : VInductDecl} {env env' out out' :
   · exact (hbase p hp).extend (addInduct_le h')
       (addInduct_constants_of_not_mem h' fun b hb e => hmem ⟨b, hb, e⟩)
 
-theorem foldlM_exists {α} {f : VEnv → α → Option VEnv} :
-    ∀ {l : List α}, (∀ x ∈ l, ∀ e, ∃ e', f e x = some e') → ∀ init, ∃ r, l.foldlM f init = some r
-  | [], _, init => ⟨init, rfl⟩
-  | x :: xs, hf, init => by
-    obtain ⟨e1, h1⟩ := hf x (.head _) init
-    obtain ⟨r, hr⟩ := foldlM_exists (fun y hy => hf y (.tail _ hy)) e1
-    exact ⟨r, by simp only [List.foldlM, h1]; exact hr⟩
-
-/-- The ι-rule stage succeeds once every reduct is closed. -/
-theorem addRules_exists {decl : VInductDecl} (env : VEnv)
-    (h : ∀ r ∈ decl.recs, ∀ ru ∈ r.rules, ru.rhs.Closed) : ∃ env', decl.addRules env = some env' := by
-  unfold VInductDecl.addRules
-  exact foldlM_exists (fun r hr e => foldlM_exists (f := fun e ru => VEnv.addRecRule e r ru)
-    (fun ru hru e => ⟨_, by unfold VEnv.addRecRule; rw [dif_pos (h r hr ru hru)]⟩) e) env
-
 end VEnv
-
-/-- A well-formed block stays well formed over a larger environment in which it installs. -/
-theorem VInductBlock.WF.rebase {block : VInductBlock} {env env' envT' envC' envR' : VEnv}
-    (H : block.WF env) (hle : env ≤ env')
-    (ht : env'.addConstVals block.types = some envT')
-    (hc : envT'.addConstVals block.ctors = some envC')
-    (hr : (envC'.addProjections block.projections).addConstVals block.recursors = some envR') :
-    block.WF env' := by
-  obtain ⟨envT, envC, envR, ht₀, hc₀, hr₀, htw, hcw, hrw, hdw⟩ := H
-  have hT := VEnv.addConstVals_mono hle ht₀ ht
-  have hC := VEnv.addConstVals_mono hT hc₀ hc
-  have hR := VEnv.addConstVals_mono (VEnv.addProjections_mono hC) hr₀ hr
-  exact ⟨envT', envC', envR', ht, hc, hr, fun ci h => (htw ci h).mono hle,
-    fun ci h => (hcw ci h).mono hT, fun ci h => (hrw ci h).mono (VEnv.addProjections_mono hC),
-    fun df h => (hdw df h).mono hR⟩
 
 /-- A well-formed declaration with a well-formed compiled block stays well formed over a larger
 environment in which its stages replay. -/
