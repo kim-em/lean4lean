@@ -13,7 +13,10 @@ from `HeadsClosed` and `PatsClosed`: along the history, no later declaration add
 definitional axiom or a pattern headed by an existing constant, so the rules headed by
 `Quot.lift` are exactly the quotient rule. A projection entry is valid from the header
 environment of its declaration (`ProjDeclAt.ofEntry`, `ProjValid.of_origin`), which is valid
-by the induction hypothesis. A registered ι pattern is valid by `Model.PatValid.iota`.
+by the induction hypothesis. A registered ι pattern of an inductive step is valid by
+`Model.PatValid.ordinary` when the step's compilation is ordinary, and by `Model.PatValid.nested`
+(open) when it has container specializations; both read the model of the step's stage
+environments, which are strong because the step's base is a prefix of `envF` (`WFPrefix`).
 
 `VEnv.WF.soundEnv`: soundness of the model for every well-formed environment, the hypothesis
 of the extraction (`Model/Extract.lean`) and of separation (`Model/Separation.lean`). -/
@@ -203,9 +206,10 @@ theorem projValid_of_decl {envF env0 env' : VEnv} {d : VDecl} {ds : List VDecl} 
 /-- **Environment validity**: every environment in the declaration history of a well-formed
 `envF` is valid in the model of `envF`: its definitional axioms, its projection entries and its
 registered ι patterns. -/
-theorem WF'.envValid {envF : VEnv} (hF : envF.WF) :
-    ∀ {ds env}, env.WF' ds → env ≤ envF → HeadsClosed envF env → PatsClosed envF env →
-      Model.EnvValid envF env := by
+theorem WF'.envValid {envF : VEnv} {dsF : List VDecl} (HF : envF.WF' dsF) :
+    ∀ {ds env}, env.WF' ds → env ≤ envF → envF.WFPrefix env → (∀ d ∈ ds, d ∈ dsF) →
+      HeadsClosed envF env → PatsClosed envF env → Model.EnvValid envF env := by
+  have hF : envF.WF := ⟨dsF, HF⟩
   have henvF := hF.orderedStrong
   have hdr := hF.deltaRules
   have hctor : ∀ c, Model.IsCtor envF c → envF.Rigid c := fun _ h => hF.isCtor_rigid h
@@ -215,17 +219,38 @@ theorem WF'.envValid {envF : VEnv} (hF : envF.WF) :
   intro ds env H
   induction H with
   | empty =>
-    intro _ _ _
+    intro _ _ _ _ _
     exact ⟨fun df h => (by cases h), fun _ _ h => (by cases h), fun _ _ h => (by cases h)⟩
   | @decl d env' ds env0 hdecl hbase ih =>
-    intro hle hcl hpc
+    intro hle hpre hds hcl hpc
     have h0le := hdecl.le
     have h0W : env0.WF := ⟨ds, hbase⟩
     have hcl0 := HeadsClosed.of_decl hdecl hcl
     have hpc0 := PatsClosed.of_decl hdecl hpc
-    have V0 : Model.EnvValid envF env0 := ih (h0le.trans hle) hcl0 hpc0
+    have hpre0 : envF.WFPrefix env0 := hpre.trans (.decl hdecl .rfl)
+    have V0 : Model.EnvValid envF env0 :=
+      ih (h0le.trans hle) hpre0 (fun d' hd' => hds d' (.tail _ hd')) hcl0 hpc0
     have hprojV := projValid_of_decl hF hdecl hbase hle V0
-    refine ⟨fun df hdf => ?_, hprojV, fun p r hp => Model.PatValid.iota hF (hle.pats hp)⟩
+    refine ⟨fun df hdf => ?_, hprojV, fun p r hp => ?pat⟩
+    case pat =>
+      -- the registered ι rules
+      rcases hdecl.pats_eq_or_induct' with heq | ⟨decl, rfl, hdeclWF, hadd⟩
+      · exact V0.pat p r (heq ▸ hp)
+      rcases addInduct_pats_origin' hadd hp with hold | ⟨rec, hrec, ru, hru, hc, e, he⟩
+      · exact V0.pat p r hold
+      subst e
+      have he' : r = _ := he
+      subst he'
+      have hdmem : VDecl.induct decl ∈ dsF := hds _ (.head _)
+      obtain ⟨block, base, expanded, s, g, aux, hcomp, hrecsOf, hbwf, hbase', C, hcont, df, hdf,
+        H⟩ := hdeclWF.rule_block hrec hru
+      by_cases haux : aux = []
+      · subst haux
+        exact Model.PatValid.ordinary hF hpre0 h0W hdeclWF hadd hle V0 hprojV hpc hcl
+          (fun t ht => HF.inductTypeRigid hdmem ht) hctor hpctor hrec hru hc hcomp hrecsOf hbwf
+          hbase' C hdf H
+      · exact Model.PatValid.nested hF hpre0 h0W hdeclWF hadd hle V0 hprojV hpc hcl hrec hru hc
+          haux hcomp hrecsOf hbwf hbase' C hcont hdf H
     have hdfF := hle.defeqs hdf
     cases hdecl with
     | «axiom» _ hadd | «opaque» _ hadd =>
@@ -268,24 +293,20 @@ theorem WF'.envValid {envF : VEnv} (hF : envF.WF) :
     | induct _ hadd => exact V0.rule df (by rwa [addInduct_defeqs hadd] at hdf)
   | @inductProjections _ ds base envTypes envCtors decl block hbase hctorsW hsource htypesWF
       hconstructorUvars hctorsWF' hspw hshape htypesSource hctorsSource hprojections htypes
-      hctors ihBase ihCtors =>
-    intro hle hcl hpc
+      hctors _ ihCtors =>
+    intro hle hpre hds hcl hpc
     have hCF : envCtors ≤ envF := addProjections_le.trans hle
-    have hBC : base ≤ envCtors := (addConstVals_le htypes).trans (addConstVals_le hctors)
     have hclC : HeadsClosed envF envCtors := fun df h n ls h' ⟨ci, hci⟩ => by
       simpa using hcl df h n ls h' ⟨ci, by simpa using hci⟩
     have hpcC : PatsClosed envF envCtors := fun p r hp ⟨ci, hci⟩ => by
       simpa using hpc p r hp ⟨ci, by simpa using hci⟩
-    have hclB : HeadsClosed envF base := fun df h n ls h' ⟨ci, hci⟩ => by
-      have := hclC df h n ls h' ⟨ci, hBC.constants hci⟩
-      rwa [addConstVals_defeqs hctors, addConstVals_defeqs htypes] at this
-    have hpcB : PatsClosed envF base := fun p r hp ⟨ci, hci⟩ => by
-      have := hpcC p r hp ⟨ci, hBC.constants hci⟩
-      rwa [addConstVals_pats hctors, addConstVals_pats htypes] at this
-    have VB := ihBase (hBC.trans hCF) hclB hpcB
-    have VC := ihCtors hCF hclC hpcC
+    have VC := ihCtors hCF (hpre.trans (.projs .rfl)) hds hclC hpcC
+    have VT : Model.EnvValid envF envTypes := VC.of_sub
+      (fun df h => by rwa [addConstVals_defeqs hctors])
+      (fun n p h => by rwa [addConstVals_projections hctors])
+      (fun p r h => by rwa [addConstVals_pats hctors])
     refine ⟨fun df hdf => VC.rule df (by simpa using hdf), fun S info hp => ?_,
-      fun p r hp => Model.PatValid.iota hF (hle.pats hp)⟩
+      fun p r hp => VC.pat p r (by simpa using hp)⟩
     have hpF := hle.projections hp
     rw [addProjections_iff] at hp
     rcases hp with ⟨entry, hentry, rfl, rfl⟩ | hold
@@ -294,13 +315,13 @@ theorem WF'.envValid {envF : VEnv} (hF : envF.WF) :
       rw [htypesSource] at htypes'
       exact Model.ProjValid.of_origin hF hpF (ProjDeclAt.ofEntry hbase htypes'
         ((addConstVals_le hctors).trans hCF) htypesWF hctorsWF' hconstructorUvars hshape
-        hsource hspw hentry) (VB.addConstVals htypes')
+        hsource hspw hentry) VT
     · exact VC.proj _ _ hold
 
 /-- **Soundness of the glued observation model** for every well-formed environment. -/
 theorem WF.soundEnv {env : VEnv} (henv : env.WF) : Model.SoundEnv env := by
   obtain ⟨ds, H⟩ := henv
-  have V := WF'.envValid ⟨ds, H⟩ H .rfl (fun _ h _ _ _ _ => h) (fun _ _ h _ => h)
+  have V := WF'.envValid H H .rfl .rfl (fun _ h => h) (fun _ h _ _ _ _ => h) (fun _ _ h _ => h)
   intro U Δ Γ t t' T hΔ H'
   exact V.soundAtH (VEnv.WF.orderedStrong ⟨ds, H⟩) .rfl U Δ hΔ H'
 

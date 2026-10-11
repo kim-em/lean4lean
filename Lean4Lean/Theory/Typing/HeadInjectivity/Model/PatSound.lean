@@ -1,37 +1,55 @@
-import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Sound
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.IotaHistory
 
 /-! # Validity of the registered ι rules
 
-`Model.PatValid.iota`: every registered pattern of a well-formed environment is valid in the
-model (`Model.PatValid`, the `pat` case of `Model.sound`). The rule is an ι rule of an
-installed block (`VEnv.WF'.pats_origin`): its recursor head has a `pat` clause in `Obs`
-(`Obs.pat`), whose binding of the rule's variables from the keys of a head chain is the
-`RuleBind` of the stored-rule clause with the reduct template `rhs = wrapLams doms body`
-read off `SimplePattern.iotaRHS'`. Soundness of an *instance* `rec us args ≡ rhs us pmm fields`
-then follows the two directions of `Model/RuleSound.lean` (`pat_lhs_sub`, `pat_rhs_sub_head`,
-which is already stated for an abstract head clause `hrule`) with the instance's spine in place
-of the λ-wrapped generic sides, from the semantic typing of the redex (`HTS.spine` gives the
-keys of its arguments typed against the recursor's telescope) and of the reduct (the λ-telescope
-of `rhs`, `HTS.lamSpine`), and from the static facts of the block: the recursor's telescope
-shape (`VInductDecl.WF.rec_shape`, which supplies the `dsH`/`I`/`lsI` data of the clause), the
-constructor's shape (`rules_ctor`), uniqueness of the rule per head and constructor
-(`PatsIota`, `rules_nodup`), the family's recorded sort (`Model/FamSort.lean`, from soundness of
-the environment before the block, along the history), the proof binders of a singleton
-elimination (mode C), and the projection entry of a structure family (eta mode,
-`Model/EtaBind.lean`).
+A registered ι rule of a well-formed environment is valid in the model (`Model.PatValid`, the
+`pat` case of `Model.sound`). Along the declaration history (`Model/EnvValid.lean`) the rule is
+an ι rule registered by an inductive step (`addInduct_pats_origin'`), read off a generated
+equation of the step's compiled block (`VInductDecl.WF.rule_block`):
 
-WAVE 1C STUB: the theorem is stated at the level of `env.WF`; the instance-level soundness and
-the static facts above are the remaining material. Every use of the model's conclusions
-(`VEnv.WF.chainHeadInjectivity`, `VEnv.WF.headSeparationModel`) depends on it. -/
+* for an ordinary compilation (no container specializations) by `Model.PatValid.ordinary`
+  (`Model/IotaHistory.lean`);
+* for a nested compilation by `Model.PatValid.nested`, stated here.
+
+NESTED STUB: `PatValid.nested` is open. Its statement is that of `PatValid.ordinary` with the
+compilation's container specializations `aux ≠ []` installed below the block
+(`ContainersInstalled`). The generic part of the proof applies unchanged (`PatValid.of_rule`,
+`PatValid.of_rule_empty`, `iotaArgRel_of`); what a nested block must supply is the static data
+of a restored equation (`IotaStatic` of the restored recursor's type, the restored lead and the
+restored constructor of an auxiliary family, which is a container constructor declared earlier),
+the projection facts and the semantic sort of the major's family when it is a container
+(`ProjMajor`, `FamSort`), and the relation of the container constructor's installed type to the
+restored template's field domains (the hypotheses `hNS`, `hDP`, `hDF` of `iotaArgRel_of`). -/
 
 namespace Lean4Lean
 namespace VEnv
 namespace Model
 
-/-- **Validity of a registered ι rule** in the model of a well-formed environment. -/
-theorem PatValid.iota {env : VEnv} (henv : env.WF) {p : Pattern} {r : p.RHS × p.Check}
-    (hp : env.pats p r) : PatValid env p r := by
-  -- WAVE 1C STUB
+/-- **Validity of the ι rules of a nested block** (open). -/
+theorem PatValid.nested {envF env0 env' : VEnv} {decl : VInductDecl}
+    (hF : envF.WF) (hpre : envF.WFPrefix env0) (h0 : env0.WF) (hdecl : decl.WF env0)
+    (hadd : env0.addInduct decl = some env') (hle : env' ≤ envF)
+    (V0 : EnvValid envF env0)
+    (hprojV : ∀ S info, env'.projections S info → ProjValid envF S info)
+    (hpats : ∀ (p : Pattern) (r : p.RHS × p.Check), envF.pats p r →
+      (∃ ci, env'.constants p.headConst = some ci) → env'.pats p r)
+    (hdefs : ∀ df, envF.defeqs df → ∀ n ls, df.lhs.stripLams.getAppFnArgs.1 = .const n ls →
+      (∃ ci, env'.constants n = some ci) → env'.defeqs df)
+    {rec : VRecursor} {ru : VRecRule} (hrec : rec ∈ decl.recs) (hru : ru ∈ rec.rules)
+    (hc : ru.rhs.Closed)
+    {block : VInductBlock} {base : VEnv} {expanded : VInductDecl} {s : InductiveSignature}
+    {g : InductiveSignature.Instance s} {aux : List InductiveSignature.ContainerSpecialization}
+    (haux : aux ≠ [])
+    (hcomp : CompiledInductive env0 decl block)
+    (hrecsOf : decl.RecsOf block) (hbwf : block.WF env0) (hbase : base ≤ env0)
+    (C : InductiveSignature.CompilationData base decl expanded s g aux block)
+    (hcont : ContainersInstalled base aux)
+    {df : VDefEq} (hdf : df ∈ block.rules) (H : VRecRule.OfEquation rec ru df) :
+    PatValid envF
+      (SimplePattern.iota rec.name rec.getMajorIdx ru.ctor (ru.ctorParams + ru.nfields)).toPattern
+      (SimplePattern.iotaRHS rec.name ru.ctor rec.numParams rec.numMotives rec.numMinors
+        rec.numIndices ru.ctorParams ru.nfields ru.rhs hc, .true) := by
+  -- NESTED STUB
   sorry
 
 end Model
