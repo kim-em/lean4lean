@@ -537,6 +537,8 @@ def _root_.Lean4Lean.Pattern.Check.defeqsS {p : Pattern}
     (m1 : List SLevel) (m2 : p.Path → SExpr) : p.Check → List (SExpr × SExpr)
   | .true => []
   | .defeq a b rest => (a.applyS m1 m2, b.applyS m1 m2) :: rest.defeqsS m1 m2
+  -- WAVE 4 COMPAT: the universe guard of the confluence engine's patterns carries no equation.
+  | .nonzero _ rest => rest.defeqsS m1 m2
 
 section
 set_option hygiene false

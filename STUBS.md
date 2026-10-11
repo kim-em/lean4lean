@@ -12,7 +12,8 @@ therefore fails on `Verify/` until wave 1. Waves follow `iota-port/PLAN-RECONCIL
 | `VEnv.Model.PatValid.iota` (`-- WAVE 1C STUB`) | `Theory/Typing/HeadInjectivity/Model/PatSound.lean` | new: the `pat` case of `Model.sound` for the registered ι rules (see the wave 1C section) | wave 1C |
 | `VEnv.WF.patCtor_rigid` (`-- WAVE 1C STUB`) | `Theory/Typing/HeadInjectivity/Model/WFFacts.lean` | `ConstructorRigidity.lean` on the source branch (`WF.installed_constructor_rigid`) | wave 1C |
 | `IsDefEqU.weakN_iff` | `Theory/Typing/UniqueTyping.lean` | master | open on master; the one strengthening principle the checker uses (PORT_PLAN section 5) |
-| `NormalEq.parRed` (two `sorry`s, the `extra` cases) | `Theory/Typing/ChurchRosser.lean` | master | wave 4 (confluence retargeted onto `env.pats` supersedes this file) |
+| ~~`NormalEq.parRed`~~ (retired, wave 4: the verified-inductives branch's engine, sorry-free, replaces master's file) | `Theory/Typing/ChurchRosser.lean` | master | wave 4 |
+| `VEnv.WF.singletonInstance_align` (WAVE 4 STUB) | `Theory/Typing/Confluence/SingletonPatCoverage.lean` | new: index alignment of a `Prop`-source singleton ι instance with its generic equation (see the wave 4 section) | wave 4 (needs a decision, see there) |
 | ~~`VEnv.RestoredPattern.clause`~~ (closed, wave 3 eqinst) | `Theory/Inductive/RestorationInterpretation.lean` | new: the `pat` analogue of the source branch's `RestoredEliminator.clause` | wave 3 (Equations+Install) |
 | ~~`InductiveSignature.instantiateParams_liftN`~~ (closed, wave 3 eqinst) | `Theory/Typing/RestorationShapes.lean` | source `CaseReduction.lean` | wave 3 (Equations+Install) |
 
@@ -21,7 +22,85 @@ system, substitution theorems, inversion lemmas) depends on `patsStrong`; everyt
 `VEnv.WF.headInversion` and `IsDefEq.uniq` depends on `patsStrong` (through
 `VEnv.WF.orderedStrong`, see the wave 1C section) and on the two wave 1C stubs.
 `Injectivity.lean` has no `sorry` of its own: PR #43's `IsDefEqU.const_arity_inv` is derived
-from `VEnv.WF'.inductTypeRigid` and `headInversion`.
+from `VEnv.WF'.inductTypeRigid` and `headInversion`. The confluence theorem
+`VEnv.WF.church_rosser` depends on `patsStrong`, `Model.PatValid.iota` (through
+`IsDefEq.uniq`, which the engine's transport lemmas use throughout) and the wave 4 stub
+`WF.singletonInstance_align`, and on nothing else (`scripts/check-inductive-audit.py`).
+
+## Wave 4: confluence on the ι pattern calculus
+
+`VEnv.WF.church_rosser` (`Theory/Typing/Confluence/WFParams.lean`): in a well-formed environment
+with canonical `Eq`, definitionally equal terms reduce in the full presentation to normally equal
+terms. It is the source branch's theorem with the ι rules read off `VEnv.pats`:
+
+* **The engine** (`ChurchRosser`, `HeadReduction`, `FullReduction`, `LevelledReduction`,
+  `FullChurchRosser`, `LevelledConfluence`, `PrefixUnfolding/`, `SingletonExtraction/`) is the
+  source branch's without its case-schema steps. `IsDefEq.church_rosser` covers the `pat` rule
+  through the class `FullPatCoverage`: every typed instance of a registered rule joins in the full
+  presentation (route 1 of Astra's answer, section 8: coverage of each live pattern step instead of
+  literal `pat_env` inclusion). The singleton prefix unfolding reads its equation through
+  `VEnv.PatEquation` (the equation is realised at every typed instance of its extracted
+  telescope) instead of a stored equation.
+* **The parameters** (`WF.params`, `Confluence/Params.lean`): the recursor registry
+  (`recursorRegistry`, `Confluence/Registry.lean`) chooses, for each name, the compilation data of
+  the recursor of an installed declaration whose rules are exactly the registered patterns of that
+  name (`RecursorEntry`; existence from `WF'.oneRecursor`: along the history the patterns of one
+  head are the rules of one recursor); the pattern table (`ConcretePattern`,
+  `Confluence/Patterns.lean`) is the δ rules of the registered definitions, the guarded quotient
+  rule and the registered ι rules under the universe guard of their recursor
+  (`GuardedIotaPattern`; soundness is `IsDefEq.pat`, so the source's `GeneratedIotaSoundness`, 1.2k
+  lines, is gone). The non-overlap facts rest on the head separation of
+  `Confluence/HeadSeparation.lean`; the structure facts on `WF'.structureCtorCoherent`
+  (`Confluence/StructureMajor.lean`).
+* **Coverage**: stored equations (`WF.equationCoverage`: δ rules by one pattern step, the quotient
+  rule by `Confluence/QuotCoverage.lean`); registered ι rules (`WF.patCoverage`): one guarded
+  pattern step where the source of the major is not `Prop` or the target is small, and the
+  singleton prefix unfolding otherwise (`WF.singletonPatCoverage`,
+  `Confluence/SingletonPatCoverage.lean`, through `RecursorRegistered.zero_join` of
+  `Confluence/SingletonCoverage.lean` applied to the rule's generic equation, realised by the rule,
+  `RecursorRegistered.patEquation_of_empty`). PORT_PLAN section 8's "same `SingletonCoverage`
+  argument, re-targeted from installed `defeqs` equation to registered `pats` instance" holds with
+  one exception, the stub below.
+
+| statement | file | what remains |
+|---|---|---|
+| `VEnv.WF.singletonInstance_align` | `Confluence/SingletonPatCoverage.lean` | A typed instance `rec A (c B)` of a registered ι rule of a large-eliminating recursor at a `Prop` source joins the β-redex of the rule's generic equation at the recursor's parameters, motives and minors and the major's fields. The two are definitionally equal (they differ in the instance's index arguments and the major's parameters, equal to the equation's by the typing of the major and injectivity of the family), and confluence joins them; but that definitional equality is not a subderivation of `IsDefEq.pat`, whose only premise is the typing of the instance, so the induction of `IsDefEq.church_rosser` does not supply its join. On the source branch the stored equation entered `IsDefEq` only through `extra` and `appDF`, whose premises carried these equalities as subderivations. Example: `Acc.rec` at `Acc.intro x h : Acc r x'` with `x'` only definitionally equal to `x`; the prefix unfolding reads the data field off the index `x'`, the rule's reduct reads it off the field `x`. Routes: (a) register the ι rules with `.defeq` checks aligning the index holes with the constructor's indices and the constructor's parameter holes with the recursor's (`Pattern.Check.defeq`; the premises of `IsDefEq.pat` then carry the alignments and the induction supplies their joins). This touches `VEnv.addRecRule`, `pats_origin`, `PatsIota`, the model's `PatValid.iota`, `patsStrong` and the checker's `reduceRecursor.WF` (which must supply the alignment derivations, by injectivity); decision for Kim/Mario. (b) A type-joinability induction: strengthen the motive of `IsDefEq.church_rosser` so that two types of one constant-headed spine join argumentwise. Estimated 2k to 4k lines, new metatheory. |
+
+**Decisions.** PR #43's `ChurchRosser.lean` and `HeadReduction.lean` are replaced by the source
+branch's engine (wave 4's first commits): its `NormalEq.parRed` is sorry-free, so master's two
+`sorry`s are retired. PR #43's small-environment instance (`toParams`, `DefEqsAsPats`,
+`inductParams`, `crDefEq_of_induct` in `InductiveParams.lean`) is deleted: `WF.params` covers every
+well-formed environment, with definitions and the quotient, which `DefEqsAsPats` excluded. The
+rest of `InductiveParams.lean` (#43's non-overlap facts for `VEnv.pats`: `WF.pat_simple`,
+`WF.pat_uniq`, `WF.pat_app_l`, `WF.pat_app_l_uniq`, `WF.pat_app_uniq`) stays, used by
+`Tests/IotaShape`. `VEnv.HasCanonicalEq` (`Theory/CanonicalEq.lean`) states the ι rule of `Eq.rec`
+as a registered pattern whose reduct template `fun α a motive refl => refl` has free binder
+domains (the rule never reads them); `Verify/CanonicalEq.lean` realizes it from the prelude
+(`addDecl.preludeEq_hasCanonicalEq`, reading the rule off the kernel recursor through
+`TrEnv.iotaRulesRegistered`, given the installed `Eq.refl`/`Eq.rec` metadata `IsPreludeEqReflVal`,
+`IsPreludeEqRecVal`), which `Tests/PreludeEq` checks for `Init.Prelude`.
+
+**Deviations from PORT_PLAN.** The confluence theorem is not sorry-free: besides the stub above it
+inherits `patsStrong` and `Model.PatValid.iota` through `IsDefEq.uniq`, which the engine uses (the
+source branch had neither). `RecursorRegistered` records the typing of its compiled block
+(`VInductBlock.WF`), and `RecursorRegisteredAt` fixes its installation.
+
+**COMPAT edits outside wave 4's files.** `Pattern.lean` (`Check.nonzero`, `OK.map_levels`,
+`Check.Unguarded`, wave 4's first commit), `Interpretation.lean` (the guard's cases),
+`EqTyping.lean` (`Eq.rec`'s ι rule through `IsDefEq.pat`, `IsDefEq.canonicalEqRec_iota`),
+`Experimental/SExpr.lean` (`defeqsS` skips the guard). Read-only uses of other owners' files:
+`HeadInjectivity/Rules/Compiled.lean` (`iotaRHS_apply_of_matches`, `block_rules_wf`),
+`HeadInjectivity/Model/WFFacts.lean` (`WF.quotMk_rigid`, `WF.quot_rigid`,
+`WF.quot_not_projection`), `Verify/TypeChecker/CheckerEnv.lean` (`TrEnv.iotaRulesRegistered`).
+
+**Audit.** `scripts/InductiveAudit.lean`, `scripts/check-inductive-audit.py`,
+`scripts/inductive-audit-inventory.json`: the top-level theorems, the inductive pipelines, the
+checker, `addDecl.preludeEq_hasCanonicalEq`, the confluence engine, and as strict roots (only the
+three standard axioms) the generator definitions, the foundational lemmas and
+`VEnv.WF.church_rosser` with `WF.params` and its coverage lemmas. The accepted open proofs are
+`WF.patsStrong`, `IsDefEqU.weakN_iff`, `Model.PatValid.iota` and `WF.singletonInstance_align`;
+`--require-complete` also rejects a listed proof no longer reached. CI runs `--self-test` and
+`--no-build --require-complete`.
 
 ## Wave 1C: the observation model on the ι pattern calculus
 
@@ -78,12 +157,12 @@ provenance); `IotaSoundnessLemmas.lean` is not needed (the stored-equation detou
 
 | item | where | why | owner |
 |---|---|---|---|
-| `Theory/Typing/Confluence/**`, `ChurchRosser`/`FullReduction`/`LevelledReduction`/`FullChurchRosser`/`HeadReduction` of the source branch, `LevelledConfluence.lean`, `NormalSubstitution.lean`, `Inductive/{RecursorData,RecursorPrefixUnfolding,QuotPrefixUnfolding,RecursorEquationHeads,RecursorEquationCoverage,SingletonReconstruction}.lean`, `Typing/{RecursorRegistration,RecursorRuleRegistration,RecursorRegistryInstallation,StoredRuleHeads,PatternCaptures,DefinitionPatterns,DefinitionRegistryInstallation,QuotLiftTelescope,QuotPropInhabitant,ConstructorRigidity,RecursorMajorFamily}.lean`, `PrefixUnfolding/`, `SingletonExtraction/` | source branch only | confluence development, to be retargeted from stored equations to `env.pats` | wave 4 |
+| `Theory/Typing/Confluence/**`, `ChurchRosser`/`FullReduction`/`LevelledReduction`/`FullChurchRosser`/`HeadReduction` of the source branch, `LevelledConfluence.lean`, `NormalSubstitution.lean`, `Inductive/{RecursorData,RecursorPrefixUnfolding,QuotPrefixUnfolding,RecursorEquationHeads,RecursorEquationCoverage,SingletonReconstruction}.lean`, `Typing/{RecursorRegistration,RecursorRuleRegistration,RecursorRegistryInstallation,StoredRuleHeads,PatternCaptures,DefinitionPatterns,DefinitionRegistryInstallation,QuotLiftTelescope,QuotPropInhabitant,ConstructorRigidity,RecursorMajorFamily}.lean`, `PrefixUnfolding/`, `SingletonExtraction/` | ported (wave 4) except the case-schema files and `GeneratedIotaSoundness`/`RegistryOfWF`/`DefinitionHistory`, replaced by `Confluence/{Registry,HeadSeparation,Patterns}.lean` | see the wave 4 section | done |
 | `Theory/Typing/HeadInjectivity/{Model,Rules,Projections}/**`, `EnvTables/`, `Typing/IotaSoundnessLemmas.lean` | source branch only | the observation model behind the two wave-0 stubs | wave 1C |
 | `Theory/Typing/Interpretation.lean`, `Inductive/RestorationInterpretation.lean`, `Typing/RestorationShapes.lean`, `Inductive/RestorationHead.lean` | ported by the wave 3 scaffold (`-- WAVE 3 COMPAT`), with `PatClause` in place of the eliminator clause; see the wave 3 section | | done |
 | `Theory/Typing/Strengthening/**` | source branch only | dropped (PORT_PLAN section 5) | never |
 | `Inductive/Case*.lean`, `CaseSchema*`, `ProjNamesAvoid`, `RestorationProjNames`, `Typing/{CaseReduction,CaseMotive,CaseSourceSort,CaseMajorDomain,EliminatorCoherence*,SchemaStructCompat,EliminatorRestorationScope,ProjNamesTyping,ProjectionFamilyArity,ProjectionConstructorFamily,SignatureVars}.lean` | source branch only | the case-eliminator registry, dropped with `VExpr.elim` | never |
-| PR #43's `ChurchRosser.lean`, `HeadReduction.lean`, `InductiveParams.lean` | kept and building | `Params.no_projections` makes them the structure-free instance; `toParams`/`inductParams` take the projection-free hypothesis | wave 4 decides whether they stay as the small-environment instance |
+| PR #43's `ChurchRosser.lean`, `HeadReduction.lean`, `InductiveParams.lean` | decided (wave 4) | the engine files are replaced by the source branch's; the small-environment instance of `InductiveParams.lean` is deleted, its non-overlap facts stay | done |
 
 ## Not a stub: hypotheses of the declaration judgment
 
@@ -109,7 +188,7 @@ in `Lean4Lean/Tests.lean` (the manifest of the `Lean4Lean.Tests` library, which 
 | `CorruptRecursorMetadata` | `Verify.Inductive.Recursor` | 2 |
 | `CorruptRestoredRecursorMetadata` | `Verify.Inductive.Nested` | 3 |
 | `RecursiveFieldClassification` | `Theory.Typing.Interpretation` | 3 |
-| `PreludeEq` | `Verify.Inductive.Prelude.EqSyntax`; `VEnv.HasCanonicalEq` only for confluence | 4 |
+| ~~`PreludeEq`~~ (restored, wave 4) | `Verify.Inductive.Prelude.EqSyntax`; `VEnv.HasCanonicalEq` only for confluence | 4 |
 | `CacheMode`, `SyntacticTranslation` | dropped with the scoped cache mode and the strengthening study | never |
 
 ## Wave 1B (environment model)
@@ -159,7 +238,7 @@ Parked:
 
 | item | why | owner |
 |---|---|---|
-| `Verify/CanonicalEq.lean` | needs `Verify/Inductive/Prelude/EqSyntax.lean` and a `VEnv.HasCanonicalEq` whose `Eq.rec` rule is a pattern; `addDecl.WF` no longer needs it | wave 4 |
+| ~~`Verify/CanonicalEq.lean`~~ (restored, wave 4) | needs `Verify/Inductive/Prelude/EqSyntax.lean` and a `VEnv.HasCanonicalEq` whose `Eq.rec` rule is a pattern; `addDecl.WF` no longer needs it | wave 4 |
 | `Verify/QuotInit.lean` | replaced by PR #43's `Verify/Environment/Quot.lean` | never |
 
 ## Wave 2 header (`Context.lean`, `Context/**`, `Formation.lean`, `Header/**`)
