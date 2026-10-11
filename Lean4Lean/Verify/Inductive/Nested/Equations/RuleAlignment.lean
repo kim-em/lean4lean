@@ -182,7 +182,7 @@ theorem ruleEquation (B : RestoredBlock L sourceTypes isUnsafe outEnv)
   obtain ⟨df, hdf, hof, k, hk⟩ := B.rules_ofRestoredEquation hr hru
   refine ⟨df, hdf, ?_⟩
   have H := B.compiled
-  generalize hg : L.recursors.generation = g at hk H
+  generalize hg : L.recursors.generationInstance = g at hk H
   obtain ⟨hl, hrr, ht⟩ := Restoration.equation_parts hk
   have huv : df.uvars = g.uvars := by
     simp only [Restoration.equation, bind, Option.bind_eq_some_iff] at hk
@@ -191,34 +191,34 @@ theorem ruleEquation (B : RestoredBlock L sourceTypes isUnsafe outEnv)
   -- the generated equation, unfolded
   have hlhs0 : (g.equation k).lhs = VExpr.wrapLams
       (g.params ++ g.motives ++ g.minors ++
-        insertBinders ((L.recursors.signature.fieldTypes L.recursors.signature.constructors[k]).map (·.instL g.levels))
-          (L.recursors.signature.families.size + L.recursors.signature.constructors.size))
-      (VExpr.mkApps (.const (g.recursorName L.recursors.signature.constructors[k].owner) (VLevel.params g.uvars))
-        (vars (L.recursors.signature.params.length + (L.recursors.signature.families.size + L.recursors.signature.constructors.size))
-            L.recursors.signature.constructors[k].fields.length ++
-          L.recursors.signature.constructors[k].indices.map (fun e => (e.instL g.levels).liftN
-            (L.recursors.signature.families.size + L.recursors.signature.constructors.size) L.recursors.signature.constructors[k].fields.length) ++
-          [VExpr.mkApps (.const L.recursors.signature.constructors[k].name g.levels)
-            (vars L.recursors.signature.params.length (L.recursors.signature.families.size + L.recursors.signature.constructors.size +
-              L.recursors.signature.constructors[k].fields.length + 0) ++
-              vars L.recursors.signature.constructors[k].fields.length 0)])) := rfl
+        insertBinders ((L.recursors.generationSignature.fieldTypes L.recursors.generationSignature.constructors[k]).map (·.instL g.levels))
+          (L.recursors.generationSignature.families.size + L.recursors.generationSignature.constructors.size))
+      (VExpr.mkApps (.const (g.recursorName L.recursors.generationSignature.constructors[k].owner) (VLevel.params g.uvars))
+        (vars (L.recursors.generationSignature.params.length + (L.recursors.generationSignature.families.size + L.recursors.generationSignature.constructors.size))
+            L.recursors.generationSignature.constructors[k].fields.length ++
+          L.recursors.generationSignature.constructors[k].indices.map (fun e => (e.instL g.levels).liftN
+            (L.recursors.generationSignature.families.size + L.recursors.generationSignature.constructors.size) L.recursors.generationSignature.constructors[k].fields.length) ++
+          [VExpr.mkApps (.const L.recursors.generationSignature.constructors[k].name g.levels)
+            (vars L.recursors.generationSignature.params.length (L.recursors.generationSignature.families.size + L.recursors.generationSignature.constructors.size +
+              L.recursors.generationSignature.constructors[k].fields.length + 0) ++
+              vars L.recursors.generationSignature.constructors[k].fields.length 0)])) := rfl
   obtain ⟨rb0, hrhs0⟩ : ∃ rb0, (g.equation k).rhs = VExpr.wrapLams
       (g.params ++ g.motives ++ g.minors ++
-        insertBinders ((L.recursors.signature.fieldTypes L.recursors.signature.constructors[k]).map (·.instL g.levels))
-          (L.recursors.signature.families.size + L.recursors.signature.constructors.size))
-      (VExpr.mkApps (.bvar (L.recursors.signature.constructors[k].fields.length + L.recursors.signature.constructors.size - 1 - k.val))
+        insertBinders ((L.recursors.generationSignature.fieldTypes L.recursors.generationSignature.constructors[k]).map (·.instL g.levels))
+          (L.recursors.generationSignature.families.size + L.recursors.generationSignature.constructors.size))
+      (VExpr.mkApps (.bvar (L.recursors.generationSignature.constructors[k].fields.length + L.recursors.generationSignature.constructors.size - 1 - k.val))
         rb0) := ⟨_, rfl⟩
   obtain ⟨tb0, htype0⟩ : ∃ tb0, (g.equation k).type = VExpr.wrapForalls
       (g.params ++ g.motives ++ g.minors ++
-        insertBinders ((L.recursors.signature.fieldTypes L.recursors.signature.constructors[k]).map (·.instL g.levels))
-          (L.recursors.signature.families.size + L.recursors.signature.constructors.size)) tb0 := ⟨_, rfl⟩
+        insertBinders ((L.recursors.generationSignature.fieldTypes L.recursors.generationSignature.constructors[k]).map (·.instL g.levels))
+          (L.recursors.generationSignature.families.size + L.recursors.generationSignature.constructors.size)) tb0 := ⟨_, rfl⟩
   rw [hlhs0, Restoration.expr_wrapLams] at hl
   rw [hrhs0, Restoration.expr_wrapLams] at hrr
   rw [htype0, Restoration.expr_wrapForalls] at ht
   have hDlen0 := Instance.equationDomains_length g k
   generalize (g.params ++ g.motives ++ g.minors ++
-        insertBinders ((L.recursors.signature.fieldTypes L.recursors.signature.constructors[k]).map (·.instL g.levels))
-          (L.recursors.signature.families.size + L.recursors.signature.constructors.size)) = domains at hl hrr ht hDlen0
+        insertBinders ((L.recursors.generationSignature.fieldTypes L.recursors.generationSignature.constructors[k]).map (·.instL g.levels))
+          (L.recursors.generationSignature.families.size + L.recursors.generationSignature.constructors.size)) = domains at hl hrr ht hDlen0
   cases hD : domains.mapM (compilationRestoration B.decl B.auxiliaries).expr with
   | none => simp [hD] at hl
   | some D =>
@@ -226,12 +226,12 @@ theorem ruleEquation (B : RestoredBlock L sourceTypes isUnsafe outEnv)
   obtain ⟨lb, hlb, hlhs⟩ := hl
   obtain ⟨rb, hrb, hrhs⟩ := hrr
   obtain ⟨T, -, htype⟩ := ht
-  have hDlen : D.length = L.recursors.signature.params.length + L.recursors.signature.families.size + L.recursors.signature.constructors.size +
-      L.recursors.signature.constructors[k].fields.length := (mapM_some_length hD).trans hDlen0
+  have hDlen : D.length = L.recursors.generationSignature.params.length + L.recursors.generationSignature.families.size + L.recursors.generationSignature.constructors.size +
+      L.recursors.generationSignature.constructors[k].fields.length := (mapM_some_length hD).trans hDlen0
   -- the restored left-hand side
-  have hnpS : L.recursors.signature.params.length = B.decl.nparams := by
+  have hnpS : L.recursors.generationSignature.params.length = B.decl.nparams := by
     exact H.model.nparams.trans H.nparams
-  have hnot := H.recursorName_not_head L.recursors.signature.constructors[k].owner
+  have hnot := H.recursorName_not_head L.recursors.generationSignature.constructors[k].owner
   obtain ⟨idx', lv, cps, hidx, rfl⟩ := Restoration.expr_iotaLhs hnot
     (vars_bvars _ _) (vars_bvars _ _) (vars_bvars _ _)
     (fun h hf => by
@@ -266,8 +266,8 @@ theorem ruleEquation (B : RestoredBlock L sourceTypes isUnsafe outEnv)
   obtain ⟨t, ht', heq⟩ := hvr
   have hrt : r.type = t := by rw [← heq]
   obtain ⟨pre, maj', hpre, -, htyp⟩ := Restoration.expr_recursorType_eq_some _ ht'
-  have hpl : pre.length = L.recursors.signature.params.length + L.recursors.signature.families.size + L.recursors.signature.constructors.size +
-      L.recursors.signature.families[owner'].indices.length :=
+  have hpl : pre.length = L.recursors.generationSignature.params.length + L.recursors.generationSignature.families.size + L.recursors.generationSignature.constructors.size +
+      L.recursors.generationSignature.families[owner'].indices.length :=
     (mapM_some_length hpre).trans (g.recursorPrefix_length owner')
   obtain ⟨hpa, -, -, j, -, -, hbody⟩ := B.rec_shape r hr
   rw [hrt, htyp, VExpr.piArity_wrapForalls] at hpa
@@ -285,9 +285,9 @@ theorem ruleEquation (B : RestoredBlock L sourceTypes isUnsafe outEnv)
   -- the counts
   simp only [List.length_map] at hidx
   have hindices : idx'.length = r.numIndices := by omega
-  have hk' : L.recursors.signature.params.length + (L.recursors.signature.families.size + L.recursors.signature.constructors.size) =
+  have hk' : L.recursors.generationSignature.params.length + (L.recursors.generationSignature.families.size + L.recursors.generationSignature.constructors.size) =
       r.numParams + r.numMotives + r.numMinors := by omega
-  have hnf : L.recursors.signature.constructors[k].fields.length = ru.nfields := by omega
+  have hnf : L.recursors.generationSignature.constructors[k].fields.length = ru.nfields := by omega
   have hcps : cps.length = ru.ctorParams := by omega
   refine ⟨D, T, idx', cps, lv, by omega, hindices, hcps, ?_, hrhsEq, htype.symm⟩
   rw [← hlhs, huv, hhead, hmh, hk', hnf]

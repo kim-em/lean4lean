@@ -6,11 +6,11 @@ constructor types, `NestedRun.envParamUniform` (`EnvParamUniform` of the recurso
 environment) and the resulting `WhnfPreservesParamUniform`. The generic lemmas are in
 `Uniform/Generic.lean` and `Uniform/Base.lean`.
 
-Present so far: the lookups of the recursor pass's environment (`LoweredView.ctorEnv_find_cases`,
+Present so far: the lookups of the recursor pass's environment (`LoweredRun.ctorEnv_find_cases`,
 `fresh_familyNames`), the head set `NestedRun.uniformHeads`, and the run-environment lemmas that
 read only `NestedRun`. The parts that read `NestedRun.auxHeadsFacts` (`envParamUniform`,
 `whnfPreservesParamUniform`, `recursorParamUniform_of_wfCore`, ...) are in `Uniform/RunEnv.lean`.
-The nonprimitive family names are `LoweredView.Nonprimitive`, which a nested run supplies as
+The nonprimitive family names are `LoweredRun.Nonprimitive`, which a nested run supplies as
 `NestedRun.loweredNonprimitive`. -/
 
 namespace Lean4Lean
@@ -86,41 +86,43 @@ theorem AddConstants.entryNonprimitive
     · exact hnprim
     · exact ih htail
 
-variable {outEnv : Environment} (P : LoweredView outEnv)
+variable {c₀ : AddInductive.Context} {Hc : ContextWF c₀} {nparams : Nat}
+  {indTypes : Array InductiveType} {outEnv : Environment}
+  (P : LoweredRun Hc nparams indTypes outEnv)
 
-theorem LoweredView.headerMapWF : P.headerEnv.constants.WF :=
+theorem LoweredRun.headerMapWF : P.headerEnv.constants.WF :=
   P.constructors.headers.context.checking.map_wf
 
-theorem LoweredView.ctorMapWF : P.ctorEnv.constants.WF :=
+theorem LoweredRun.ctorMapWF : P.ctorEnv.constants.WF :=
   P.constructors.context.checking.tr.map_wf
 
 /-- The kernel headers carry the declaration's family names. -/
-theorem LoweredView.infoNames :
+theorem LoweredRun.infoNames :
     P.constructors.headers.infos.map (·.name) = P.loweredDecl.types.map (·.name) :=
   List.Forall₂.map_eq (fun _ _ h => h.1.2) P.constructors.headers.trHeaders
 
 /-- The kernel constructors carry the declaration's constructor names. -/
-theorem LoweredView.ctorNames :
+theorem LoweredRun.ctorNames :
     (P.constructors.ivals.flatMap (·.2)).map (·.name) =
       (P.loweredDecl.types.flatMap (·.ctors)).map (·.name) :=
   List.Forall₂.map_eq (fun _ _ h => h.1.2)
     (List.Forall₂.flatMap (fun _ _ h => h.ctors) P.constructors.trTypes)
 
-theorem LoweredView.namesNodup :
+theorem LoweredRun.namesNodup :
     (P.loweredDecl.types.map (·.name) ++
       (P.loweredDecl.types.flatMap (·.ctors)).map (·.name)).Nodup := by
   have h := TrInductDeclCore.sourceNames_nodup P.constructors.core
   simpa [VInductDecl.sourceNames, VInductDecl.typeConstants, VInductDecl.constructorConstants,
     List.map_map, Function.comp_def, List.map_flatMap] using h
 
-theorem LoweredView.infoCis_nodup :
+theorem LoweredRun.infoCis_nodup :
     ((P.constructors.headers.infos.map ConstantInfo.inductInfo).map (·.name)).Nodup := by
   have : (P.constructors.headers.infos.map ConstantInfo.inductInfo).map (·.name) =
       P.constructors.headers.infos.map (·.name) := by simp only [List.map_map]; rfl
   rw [this, P.infoNames]
   exact (List.nodup_append.mp P.namesNodup).1
 
-theorem LoweredView.ctorCis_nodup :
+theorem LoweredRun.ctorCis_nodup :
     ((P.constructors.ivals.flatMap fun iv => iv.2.map ConstantInfo.ctorInfo).map
       (·.name)).Nodup := by
   have : (P.constructors.ivals.flatMap fun iv => iv.2.map ConstantInfo.ctorInfo).map (·.name) =
@@ -129,7 +131,7 @@ theorem LoweredView.ctorCis_nodup :
   rw [this, P.ctorNames]
   exact (List.nodup_append.mp P.namesNodup).2.1
 
-theorem LoweredView.infoCis_fresh (hwf : P.c.env.constants.WF) :
+theorem LoweredRun.infoCis_fresh (hwf : P.c.env.constants.WF) :
     ∀ ci ∈ P.constructors.headers.infos.map ConstantInfo.inductInfo,
       P.c.env.constants.find? ci.name = none := by
   intro ci hci
@@ -137,7 +139,7 @@ theorem LoweredView.infoCis_fresh (hwf : P.c.env.constants.WF) :
   have := P.constructors.headers.fresh info hinfo
   rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at this
 
-theorem LoweredView.ctorCis_fresh :
+theorem LoweredRun.ctorCis_fresh :
     ∀ ci ∈ P.constructors.ivals.flatMap (fun iv => iv.2.map ConstantInfo.ctorInfo),
       P.headerEnv.constants.find? ci.name = none := by
   intro ci hci
@@ -149,12 +151,12 @@ theorem LoweredView.ctorCis_fresh :
 /-- **Lookups in the constructor-phase environment** (where the recursor pass
 runs): either a base constant, an installed family header, or an installed
 constructor. -/
-theorem LoweredView.ctorEnv_find_cases (hwf : P.c.env.constants.WF)
+theorem LoweredRun.ctorEnv_find_cases (hwf : P.c.env.constants.WF)
     {n : Name} {ci : ConstantInfo} (h : P.ctorEnv.find? n = some ci) :
     P.c.env.find? n = some ci ∨
-      (∃ indType ∈ P.indTypes.toList, ∃ info : InductiveVal, ci = .inductInfo info ∧
+      (∃ indType ∈ indTypes.toList, ∃ info : InductiveVal, ci = .inductInfo info ∧
         n = indType.name ∧ info.type = indType.type ∧ info.levelParams = P.c.lparams) ∨
-      (∃ owner ∈ P.indTypes.toList, ∃ ctor ∈ owner.ctors, ∃ info : ConstructorVal,
+      (∃ owner ∈ indTypes.toList, ∃ ctor ∈ owner.ctors, ∃ info : ConstructorVal,
         ci = .ctorInfo info ∧ n = ctor.name ∧ info.type = ctor.type ∧
         info.levelParams = P.c.lparams) := by
   rw [Lean.Kernel.Environment.find?, P.ctorMapWF.find?'_eq_find?,
@@ -173,13 +175,13 @@ theorem LoweredView.ctorEnv_find_cases (hwf : P.c.env.constants.WF)
     obtain ⟨cval, hcval, rfl⟩ := List.mem_map.mp hci
     rw [P.constructors.ivals_eq] at hiv
     obtain ⟨⟨info, owner⟩, hp, rfl⟩ := List.mem_map.mp hiv
-    have howner : owner ∈ P.indTypes.toList := (List.of_mem_zip hp).2
+    have howner : owner ∈ indTypes.toList := (List.of_mem_zip hp).2
     obtain ⟨k, ctor, hctor, rfl⟩ := mem_ctorInfosFrom hcval
     exact .inr (.inr ⟨owner, howner, ctor, hctor, _, rfl, hname.symm, rfl, rfl⟩)
 
 /-- A constant of the constructor-phase environment absent from the base environment is a
 family or constructor name of the installed declaration. -/
-theorem LoweredView.ctorEnv_new_name (hwf : P.c.env.constants.WF)
+theorem LoweredRun.ctorEnv_new_name (hwf : P.c.env.constants.WF)
     {n : Name} {ci : ConstantInfo} (h : P.ctorEnv.find? n = some ci)
     (hold : P.c.env.find? n = none) :
     n ∈ InductiveSignature.familyNames P.loweredDecl.types := by
@@ -211,7 +213,7 @@ theorem LoweredView.ctorEnv_new_name (hwf : P.c.env.constants.WF)
 
 /-- Every family and constructor name of the installed declaration is fresh
 in the environment before installation. -/
-theorem LoweredView.fresh_familyNames (hwf : P.c.env.constants.WF)
+theorem LoweredRun.fresh_familyNames (hwf : P.c.env.constants.WF)
     {n : Name} (hn : n ∈ InductiveSignature.familyNames P.loweredDecl.types) :
     P.c.env.find? n = none := by
   obtain ⟨t, ht, hn⟩ := List.mem_flatMap.1 hn
@@ -240,13 +242,13 @@ theorem LoweredView.fresh_familyNames (hwf : P.c.env.constants.WF)
 /-- The family and constructor names of the lowered declaration are not checker primitives:
 they passed `checkName` without primitive permission (`NestedRun.context_allowPrimitive`).
 A premise of the instances below (`NestedRun.envParamUniform`), produced by the nested run. -/
-def LoweredView.Nonprimitive : Prop :=
+def LoweredRun.Nonprimitive : Prop :=
   ∀ n ∈ InductiveSignature.familyNames P.loweredDecl.types,
     ¬ Kernel.Environment.primitives.contains n
 
 /-- A constant of the constructor-phase environment that is not a base
 constant was installed by the run, hence is not a reserved primitive name. -/
-theorem LoweredView.ctorEnv_new_nonprimitive (hnprim : P.Nonprimitive)
+theorem LoweredRun.ctorEnv_new_nonprimitive (hnprim : P.Nonprimitive)
     (hwf : P.c.env.constants.WF)
     {n : Name} {ci : ConstantInfo} (h : P.ctorEnv.find? n = some ci)
     (hold : P.c.env.find? n = none) :
@@ -298,8 +300,10 @@ variable {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
 lowered types mention auxiliary families, so they are heads of the type
 checker's parameter-uniformity invariant. -/
 def NestedRun.mainCtorNames
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv) : List Name :=
+      sourceDecl lparams nparams isUnsafe safety outEnv L) : List Name :=
   (E.lowered.loweredDecl.types.take sourceDecl.types.length).flatMap
     fun t => t.ctors.map (·.name)
 
@@ -307,13 +311,17 @@ def NestedRun.mainCtorNames
 pass: the auxiliary families and constructors together with the source
 constructors. -/
 def NestedRun.uniformHeads
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv) : List Name :=
+      sourceDecl lparams nparams isUnsafe safety outEnv L) : List Name :=
   E.auxHeads ++ E.mainCtorNames
 
 theorem NestedRun.uniformHeads_subset
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv) {n : Name}
+      sourceDecl lparams nparams isUnsafe safety outEnv L) {n : Name}
     (hn : n ∈ E.uniformHeads) :
     n ∈ InductiveSignature.familyNames E.lowered.loweredDecl.types := by
   rcases List.mem_append.1 hn with hn | hn
@@ -322,14 +330,18 @@ theorem NestedRun.uniformHeads_subset
     exact List.mem_flatMap.2 ⟨t, List.mem_of_mem_take ht, List.mem_cons_of_mem _ hn⟩
 
 theorem NestedRun.auxHeads_subset_uniformHeads
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv) :
+      sourceDecl lparams nparams isUnsafe safety outEnv L) :
     ∀ c ∈ E.auxHeads, c ∈ E.uniformHeads := fun _ h => List.mem_append_left _ h
 
 /-- Every lowered constructor name is a head. -/
 theorem NestedRun.ctorName_mem_uniformHeads
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv)
+      sourceDecl lparams nparams isUnsafe safety outEnv L)
     {t : VInductiveType} (ht : t ∈ E.lowered.loweredDecl.types)
     {c : VConstVal} (hc : c ∈ t.ctors) : c.name ∈ E.uniformHeads := by
   have hsplit := List.take_append_drop sourceDecl.types.length E.lowered.loweredDecl.types
@@ -342,8 +354,10 @@ theorem NestedRun.ctorName_mem_uniformHeads
 
 /-- A source family name is not a head. -/
 theorem NestedRun.mainFamily_not_mem_uniformHeads
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv)
+      sourceDecl lparams nparams isUnsafe safety outEnv L)
     (hnodup : (InductiveSignature.familyNames E.lowered.loweredDecl.types).Nodup)
     {t : VInductiveType} (ht : t ∈ E.lowered.loweredDecl.types.take sourceDecl.types.length) :
     t.name ∉ E.uniformHeads := by
@@ -395,9 +409,11 @@ variable {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
 environment in which its constructor types are translated (the source
 environment extended by the lowered family headers). -/
 theorem NestedRun.ctorNames_fresh_headerVEnv
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv)
     (hnodup : (InductiveSignature.familyNames E.lowered.loweredDecl.types).Nodup)
     {t : VInductiveType} (ht : t ∈ E.lowered.loweredDecl.types)
@@ -417,7 +433,7 @@ theorem NestedRun.ctorNames_fresh_headerVEnv
       (by rw [show t'.toVConstVal.name = t'.name from rfl] at heq; rw [heq]
           exact List.mem_flatMap.2 ⟨t, ht, List.mem_map_of_mem hc⟩)
   rw [VEnv.addConstVals_constants_of_forall_ne hadded hne]
-  cases hv : E.lowered.initialEnv.constants c.name with
+  cases hv : E.lowered.Hc'.venv.constants c.name with
   | none => rfl
   | some ci =>
     exfalso
@@ -451,31 +467,39 @@ variable {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
 
 /-- The recursor pass runs in the constructor-phase environment. -/
 theorem NestedRun.recursorPassEnv
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv) :
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L) :
     E.lowered.recursors.localContext.env = E.lowered.ctorEnv :=
   E.lowered.recursors.localExtends.env_eq
 
 theorem NestedRun.lowered_c_env
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv) :
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L) :
     E.lowered.c.env = sourceProdEnv := by
   rw [E.lowered_c, E.context_env]
 
 theorem NestedRun.lowered_c_lparams
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv) :
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L) :
     E.lowered.c.lparams = lparams := by
   rw [E.lowered_c, E.context_lparams]
 
 /-- Lookups of base constants persist into the constructor-phase environment. -/
 theorem NestedRun.ctorEnv_preserves
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) {n : Name} {ci : ConstantInfo}
     (h : sourceProdEnv.find? n = some ci) : E.lowered.ctorEnv.find? n = some ci := by
   have := wf
@@ -484,10 +508,12 @@ theorem NestedRun.ctorEnv_preserves
 
 /-- Family header types are translated in the source environment. -/
 theorem NestedRun.familyType_tr
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    {owner : InductiveType} (howner : owner ∈ E.lowered.indTypes.toList) :
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+    {owner : InductiveType} (howner : owner ∈ result.types.toArray.toList) :
     ∃ e', TrExprS (ves.venv (if isUnsafe then .unsafe else .safe)) lparams [] owner.type e' := by
   obtain ⟨t, -, HT⟩ := Lean4Lean.List.Forall₂.forall_exists_l
     E.lowered.constructors.core.types owner howner
@@ -498,10 +524,12 @@ theorem NestedRun.familyType_tr
 /-- Constructor types are translated in the header environment, and their
 names are lowered constructor names. -/
 theorem NestedRun.ctorType_tr
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    {owner : InductiveType} (howner : owner ∈ E.lowered.indTypes.toList)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
+    {owner : InductiveType} (howner : owner ∈ result.types.toArray.toList)
     {ctor : Constructor} (hctor : ctor ∈ owner.ctors) :
     (∃ e', TrExprS E.lowered.headers.context.venv E.lowered.c.lparams [] ctor.type e') ∧
       ∃ t ∈ E.lowered.loweredDecl.types, ∃ c ∈ t.ctors, c.name = ctor.name := by
@@ -533,9 +561,11 @@ variable {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
 /-- The parameters of the run are free variables of its recursor context,
 which never carry names of the type checker's name generator. -/
 theorem NestedRun.paramsUngeneratedParams
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv) :
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L) :
     TypeChecker.UngeneratedParams `_kernel_fresh E.lowered.stats.params.toList := by
   intro a ha
   obtain ⟨fv, rfl, hmem⟩ :=

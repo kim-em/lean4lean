@@ -52,7 +52,7 @@ structure RestoredBlockBase
       auxRec allIndNames sourceTypes auxRecNames ((), outEnv))
     (sourceEnv : VEnv) (decl : VInductDecl) (lparams : List Name)
     (nparams : Nat) (isUnsafe : Bool) (safety : DefinitionSafety) where
-  lowered : LoweredView loweredEnv
+  loweredDecl : VInductDecl
   typeEntries : List (ConstantInfo × VConstVal)
   constructorEntries : List (ConstantInfo × VConstVal)
   recursorEntries : List (ConstantInfo × VConstVal)
@@ -76,8 +76,8 @@ structure RestoredBlockBase
   constructorValues : constructorEntries.map Prod.snd = decl.constructorConstants
   recursorValues : recursorEntries.map Prod.snd = sourceRecursors ++ auxiliaryRecursors
   formationAssembly : NestedExpansionData sourceEnv decl
-  formationExpanded : formationAssembly.expanded = lowered.loweredDecl
-  checked : SourcePrefixOfLowered decl lowered.loweredDecl
+  formationExpanded : formationAssembly.expanded = loweredDecl
+  checked : SourcePrefixOfLowered decl loweredDecl
   uvars : decl.uvars = lparams.length
   numParams : decl.nparams = nparams
   unsafeEq : decl.isUnsafe = isUnsafe

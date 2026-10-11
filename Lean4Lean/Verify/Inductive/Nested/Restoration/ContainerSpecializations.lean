@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Inductive.CompilationNames
 import Lean4Lean.Verify.Inductive.Nested.Restoration.TrRestoredRecursorVal
 import Lean4Lean.Verify.Inductive.Rules.Alignment
-import Lean4Lean.Verify.Inductive.Nested.Restoration.HeaderDataCompatB
+import Lean4Lean.Verify.Inductive.Nested.Restoration.Lookups
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Tables
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Expansion.AuxiliarySources
 
@@ -1092,9 +1092,11 @@ theorem NestedRun.containerSpecializations
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∃ (envTypes : VEnv) (generated : List VInductiveType)
         (auxiliaries : List ContainerSpecialization),
@@ -1123,25 +1125,25 @@ theorem NestedRun.containerSpecializations
   let P := E.lowered
   have henv : P.c.env = sourceProdEnv := E.lowered_env
   have hlparams : P.c.lparams = lparams := E.lowered_lparams
-  have hnparams : P.nparams = nparams := E.lowered_nparams
-  have hinitial : P.initialEnv = ves.venv safety := by
+  have hnparams : nparams = nparams := rfl
+  have hinitial : P.Hc'.venv = ves.venv safety := by
     simpa only [safety] using E.lowered_initialEnv
   have hisUnsafe : P.isUnsafe = isUnsafe := E.lowered_isUnsafe_source
   have HcP : ContextWF P.c := E.loweredContextWF
   let initialState := E.initialState
   have Hlower : NestedLoweringOutputClosed P.c.env
-      E.validationFuel.inductiveFuel P.nparams sourceTypes
+      E.validationFuel.inductiveFuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result := E.loweringAtContext
   rcases Hlower with ⟨finalState, Hrun, Hcache, Hparams⟩
-  let Hpack := E.phases
+  let Hpack := E.lowered
   let R := Hpack.constructors
   let Hprod := Hpack.recursors
-  have Hsource : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
+  have Hsource : TrInductDeclCore P.Hc'.venv P.c.lparams nparams
       sourceTypes P.isUnsafe sourceDecl E.sourceCore.envTypes
         E.sourceCore.envCtors := by
-    simpa only [hinitial, hlparams, hnparams, hisUnsafe, safety,
+    simpa only [hinitial, hlparams, hisUnsafe, safety,
       E.sourceCoreDecl_eq] using E.sourceCore.core
-  have Htarget : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
+  have Htarget : TrInductDeclCore P.Hc'.venv P.c.lparams nparams
       result.types P.isUnsafe P.loweredDecl Hpack.headers.context.venv
         R.ctorVEnv := by
     exact R.core
@@ -1150,11 +1152,11 @@ theorem NestedRun.containerSpecializations
   have wfP : ves.WF P.c.env := by
     simpa only [henv] using wf
   have HsourceHeaders : List.Forall₂
-      (fun source target => TrSourceConst P.initialEnv P.c.lparams source.name
+      (fun source target => TrSourceConst P.Hc'.venv P.c.lparams source.name
         source.type target.toVConstVal)
       sourceTypes (P.loweredDecl.types.take sourceTypes.length) := by
     simpa only [hinitial, hlparams, safety] using E.sourceCore.sourceHeaders
-  have HsourceAdded : P.initialEnv.addConstVals
+  have HsourceAdded : P.Hc'.venv.addConstVals
       ((P.loweredDecl.types.take sourceTypes.length).map
         VInductiveType.toVConstVal) = some E.sourceCore.envTypes := by
     simpa only [hinitial, safety] using E.sourceCore.sourceAdded
@@ -1172,7 +1174,7 @@ theorem NestedRun.containerSpecializations
       hinitial HcP Hsources HsourceHeaders HsourceAdded HsourceTypesWF
       hempty E.auxiliarySelection Htranslations Htarget with ⟨N, hNctx⟩
   have hctxEq : N.parameterContext = P.headers.commonParameterContext := by
-    exact hNctx.trans E.phases_commonParameterContext
+    exact hNctx
   have Htypes := Hrun.allExpansionsOfSources Hcache Hparams Hsource
     Htarget Hmetadata Hsources
       (VEnvs.WF.environmentTypesClosed wfP) wfP.inductivesClosed
@@ -1200,7 +1202,7 @@ theorem NestedRun.containerSpecializations
     omega
   have Hparts := (Lean4Lean.List.Forall₂.append_of_left hprefixLength).mp
     (by rw [List.take_append_drop]; exact Htypes)
-  have hbaseLE : P.initialEnv ≤ E.sourceCore.envTypes :=
+  have hbaseLE : P.Hc'.venv ≤ E.sourceCore.envTypes :=
     VEnv.addConstVals_le HsourceAdded
   have Hmap : NestedAuxMapModels result finalState :=
     Hrun.resultAuxMapModelsFresh (by simpa using hempty)
@@ -1284,7 +1286,7 @@ theorem NestedRun.containerSpecializations
   rcases Hprod.findSourceHeader HcP (by simpa using hloweredMain) with
     ⟨info, hfind, _hctors, hall⟩
   rw [hloweredName] at hfind
-  generalize E.loweredEnv = loweredEnv at hfind ⊢
+  dsimp only [NestedRun.loweredEnv]
   rw [hsourceTypes]
   have hsourceNames := forall₂_trInductiveType_names Hsource.types
   have hloweredNames := forall₂_trInductiveType_names Htarget.types
@@ -1305,7 +1307,7 @@ theorem NestedRun.containerSpecializations
     rw [hauxNames, List.map_drop]
     exact htypes.sublist (List.drop_sublist _ _)
   exact compilationRestoration_recursorName_eq_mkAuxRecNameMap sourceDecl
-    auxiliaries main rest loweredEnv info hfind hfirst hnames hnodup
+    auxiliaries main rest _ info hfind hfirst hnames hnodup
 
 
 /-- The common header parameter context of the lowered run is a
@@ -1316,9 +1318,11 @@ theorem NestedRun.commonParameterContext_refl
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) :
     VEnv.IsDefEqCtx (ves.venv (if isUnsafe then .unsafe else .safe))
       sourceDecl.uvars [] E.lowered.headers.commonParameterContext

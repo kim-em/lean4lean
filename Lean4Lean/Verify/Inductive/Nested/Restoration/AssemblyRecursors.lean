@@ -35,9 +35,11 @@ theorem NestedRun.restoredRuleRhs_translation'
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     {venv : VEnv}
     (Cstrip : CheckerEnv (if isUnsafe then .unsafe else .safe)
       (Lean4Lean.stripRecursorRules outEnv
@@ -97,9 +99,11 @@ theorem NestedRun.trRestoredRecursorRule_of_equation
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
@@ -123,7 +127,7 @@ theorem NestedRun.trRestoredRecursorRule_of_equation
     (C : RestoredBlockBase E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
-    (hC : C.lowered = E.lowered)
+    (hC : C.loweredDecl = E.lowered.loweredDecl)
     (hkernel : List.Perm
       ((C.typeEntries ++ C.constructorEntries ++ C.recursorEntries).map Prod.fst)
       E.restoration.entries)
@@ -319,8 +323,10 @@ theorem NestedRun.rvals_recursorEntries
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv)
+      sourceDecl lparams nparams isUnsafe safety outEnv L)
     (hnonempty : sourceTypes ≠ [])
     {entries : List (ConstantInfo × VConstVal)}
     (hinfos : List.Forall₂ (fun owner (entry : ConstantInfo × VConstVal) =>
@@ -350,14 +356,16 @@ theorem NestedRun.restoredCompilation
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     (C : RestoredBlockBase E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
-    (hC : C.lowered = E.lowered)
+    (hC : C.loweredDecl = E.lowered.loweredDecl)
     (hkernel : List.Perm
       ((C.typeEntries ++ C.constructorEntries ++ C.recursorEntries).map Prod.fst)
       E.restoration.entries)
@@ -595,8 +603,10 @@ theorem NestedRun.one_lt_familiesSize
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv)
+      sourceDecl lparams nparams isUnsafe safety outEnv L)
     (hnested : result.aux2nested.size ≠ 0) :
     1 < E.lowered.recursors.generationSignature.families.size := by
   rcases E.lowering with ⟨finalState, Hrun, _, _⟩
@@ -620,7 +630,7 @@ theorem NestedRun.one_lt_familiesSize
     rw [E.lowered.recursors.generated.length,
       E.lowered.recursors.cardinality.records,
       ← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
-        E.lowered.constructors.core, E.lowered_indTypes]
+        E.lowered.constructors.core]
   have hj' : j < finalState.newTypes.size := hj
   have hinit' : sourceTypes.length ≤ j := by simpa using hinit
   have hlen : 1 ≤ sourceTypes.length := by rw [htypes]; simp
@@ -942,15 +952,17 @@ theorem NestedRun.assemblyRecursors
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     (hnested : result.aux2nested.size ≠ 0)
     (C : RestoredBlockBase E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
-    (hC : C.lowered = E.lowered)
+    (hC : C.loweredDecl = E.lowered.loweredDecl)
     (hkernel : List.Perm
       ((C.typeEntries ++ C.constructorEntries ++ C.recursorEntries).map Prod.fst)
       E.restoration.entries)

@@ -8,7 +8,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.InstalledFamilyLookups
 /-! # The kernel half of the nested assembly
 
 The kernel facts of a validated nested run, over `E : NestedRun`, its rule-free block
-`B : RestoredBlockBase E.restoration …` and `hB : B.lowered = E.lowered`: the kernel family
+`B : RestoredBlockBase E.restoration …` and `hB : B.loweredDecl = E.lowered.loweredDecl`: the kernel family
 lookups (`NestedRun.inductInfosFromDecl`), the cover of the declaration's families
 (`NestedRun.cover`), the constructor owners (`NestedRun.constructorOwnersPresent`), the major
 inductives of the restored recursors (`NestedRun.recMajor`) and the constructor parameter
@@ -63,8 +63,10 @@ theorem NestedRun.recursorOwnerOfName
     {sourceTypes : List InductiveType} {venv : VEnv} {decl : VInductDecl}
     {lparams : List Name} {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
     (E : NestedRun res sourceProdEnv sourceTypes venv decl lparams nparams isUnsafe safety
-      outEnv)
+      outEnv L)
     {n : Name} (hn : n ∈ (E.lowered.recursors.entries.map Prod.snd).map (·.name)) :
     ∃ owner : Fin E.lowered.recursors.generationSignature.families.size,
       E.lowered.recursors.canonicalGeneration.recursorName owner = n := by
@@ -86,17 +88,19 @@ variable {res : Lean4Lean.ElimNestedInductive.Result} {sourceProdEnv : Environme
   {sourceTypes : List InductiveType} {venv : VEnv} {decl : VInductDecl}
   {lparams : List Name} {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
   {outEnv : Environment}
-  (E : NestedRun res sourceProdEnv sourceTypes venv decl lparams nparams isUnsafe safety
-    outEnv)
+  {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
+    (E : NestedRun res sourceProdEnv sourceTypes venv decl lparams nparams isUnsafe safety
+    outEnv L)
 include E
 
 /-- The source core of the run at the lowered context's indices. -/
 theorem NestedRun.sourceCoreAtLowered :
-    TrInductDeclCore E.lowered.initialEnv E.lowered.c.lparams E.lowered.nparams sourceTypes
+    TrInductDeclCore E.lowered.Hc'.venv E.lowered.c.lparams nparams sourceTypes
       E.lowered.isUnsafe decl E.sourceCore.envTypes E.sourceCore.envCtors := by
   have h := E.sourceCore.core
   rw [E.sourceCoreDecl_eq] at h
-  rw [E.lowered_initialEnv, E.lowered_lparams, E.lowered_nparams, E.lowered_isUnsafe_source]
+  rw [E.lowered_initialEnv, E.lowered_lparams, E.lowered_isUnsafe_source]
   exact h
 
 /-- The restoration folds at the lowered context. -/
@@ -109,7 +113,7 @@ def NestedRun.restorationAtLowered :
 /-- The constructor arities of the source declaration are those of the lowered one. -/
 theorem NestedRun.constructorArityPrefix
     (B : RestoredBlockBase E.restoration venv decl lparams nparams isUnsafe safety)
-    (hB : B.lowered = E.lowered) : decl.ConstructorArityPrefix E.lowered.loweredDecl := by
+    (hB : B.loweredDecl = E.lowered.loweredDecl) : decl.ConstructorArityPrefix E.lowered.loweredDecl := by
   have h := B.formationAssembly.constructorArityPrefix
   rw [B.formationExpanded, hB] at h
   exact h
@@ -121,7 +125,7 @@ theorem NestedRun.inductInfosFromDeclOfArity
     (Howners : ConstructorOwnersPresent sourceProdEnv) :
     InductInfosFromDecl sourceProdEnv.constants outEnv.constants decl := by
   have h := NestedRestorationFolds.inductInfosFromDecl E.loweringAtContext E.loweredContextWF
-    E.phases.recursors E.sourceCoreAtLowered
+    E.lowered.recursors E.sourceCoreAtLowered
     (by simpa only [E.sourceCoreDecl_eq] using E.sourceCore.checked) Hsources
     Harity (by rw [E.lowered_env]; exact Howners) rfl
     E.restorationAtLowered
@@ -131,7 +135,7 @@ theorem NestedRun.inductInfosFromDeclOfArity
 aligned family of the declaration. -/
 theorem NestedRun.inductInfosFromDecl
     (B : RestoredBlockBase E.restoration venv decl lparams nparams isUnsafe safety)
-    (hB : B.lowered = E.lowered) (Hsources : SourceSyntaxChecked sourceTypes)
+    (hB : B.loweredDecl = E.lowered.loweredDecl) (Hsources : SourceSyntaxChecked sourceTypes)
     (Howners : ConstructorOwnersPresent sourceProdEnv) :
     InductInfosFromDecl sourceProdEnv.constants outEnv.constants decl :=
   E.inductInfosFromDeclOfArity (E.constructorArityPrefix B hB) Hsources Howners
@@ -145,7 +149,7 @@ theorem NestedRun.coverOfArity
     ∀ T ∈ decl.types, ∃ v, outEnv.find? T.name = some (.inductInfo v) ∧
       sourceProdEnv.find? T.name = none := by
   have h := NestedRestorationFolds.cover E.loweringAtContext E.loweredContextWF
-    E.phases.recursors E.sourceCoreAtLowered
+    E.lowered.recursors E.sourceCoreAtLowered
     (by simpa only [E.sourceCoreDecl_eq] using E.sourceCore.checked) Hsources
     Harity (by rw [E.lowered_env]; exact Howners) rfl
     E.restorationAtLowered
@@ -154,7 +158,7 @@ theorem NestedRun.coverOfArity
 /-- **The declaration's families are new headers of the output.** -/
 theorem NestedRun.cover
     (B : RestoredBlockBase E.restoration venv decl lparams nparams isUnsafe safety)
-    (hB : B.lowered = E.lowered) (Hsources : SourceSyntaxChecked sourceTypes)
+    (hB : B.loweredDecl = E.lowered.loweredDecl) (Hsources : SourceSyntaxChecked sourceTypes)
     (Howners : ConstructorOwnersPresent sourceProdEnv) :
     ∀ T ∈ decl.types, ∃ v, outEnv.find? T.name = some (.inductInfo v) ∧
       sourceProdEnv.find? T.name = none :=
@@ -164,7 +168,7 @@ theorem NestedRun.cover
 theorem NestedRun.constructorOwnersPresent
     (Howners : ConstructorOwnersPresent sourceProdEnv) : ConstructorOwnersPresent outEnv :=
   NestedRestorationFolds.constructorOwnersPresent E.loweringAtContext E.loweredContextWF
-    E.phases.recursors rfl E.restorationAtLowered (by rw [E.lowered_env]; exact Howners)
+    E.lowered.recursors rfl E.restorationAtLowered (by rw [E.lowered_env]; exact Howners)
 
 end
 
@@ -174,9 +178,11 @@ theorem NestedRun.recMajor
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∀ rval ∈ E.restoration.rvals,
       ∃ info, outEnv.find? rval.getMajorInduct = some (.inductInfo info) := by
@@ -193,7 +199,7 @@ theorem NestedRun.recMajor
   have houtWF : outEnv.constants.WF := Hfresh.targetWF hsourceWF
   have Hlower := E.loweringAtContext
   have hempty : E.initialState.nestedAux = #[] := rfl
-  let Hprod := E.phases.recursors
+  let Hprod := E.lowered.recursors
   -- the names restored are generated recursor names
   have hgen : ∀ (n : Name) {s t : Environment}
       (Hs : RestoredRecursorStep result E.loweredEnv
@@ -206,8 +212,8 @@ theorem NestedRun.recMajor
     obtain ⟨info, hinfo⟩ := E.restoredMajorFound wf Hsources Haux Hexpansion hnodup hparamsSize D
       owner Hs
     exact ⟨info, by rw [Kernel.Environment.find?_eq_constants houtWF]; exact hinfo⟩
-  have hentries : E.phases.recursors.entries = E.lowered.recursors.entries :=
-    E.lowered.phasesAt_recursors_entries E.lowered_indTypes
+  have hentries : E.lowered.recursors.entries = E.lowered.recursors.entries :=
+    rfl
   intro rval hrval
   rcases List.mem_append.mp hrval with hr | hr
   · obtain ⟨indType, hmem, s, t, Hs, rfl⟩ := E.restoration.inductives.inductiveRecs_mem hr
@@ -219,7 +225,7 @@ theorem NestedRun.recMajor
     have hj' : j < result.types.toArray.size := by simpa using hres
     have hrecords : Hprod.recInfos.size = result.types.toArray.size := by
       rw [Hprod.cardinality.records,
-        ← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length E.phases.constructors.core]
+        ← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length E.lowered.constructors.core]
       simp
     have h := Hprod.generated.recursorName_mem hrecords j hj'
     rw [hentries] at h
@@ -246,15 +252,17 @@ theorem NestedRun.constructorParameterAlignment
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {decl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {safety : DefinitionSafety} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes (ves.venv safety) decl lparams
-      nparams isUnsafe safety outEnv)
+      nparams isUnsafe safety outEnv L)
     (B : RestoredBlockBase E.restoration (ves.venv safety) decl lparams nparams isUnsafe safety)
-    (hB : B.lowered = E.lowered)
+    (hB : B.loweredDecl = E.lowered.loweredDecl)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {installedVEnv : VEnv} (hinstalled : B.recursorVEnv ≤ installedVEnv) :
     ConstructorParameterAlignment safety outEnv installedVEnv := by
   let I : NestedInstalledRun result sourceProdEnv sourceTypes (ves.venv safety) decl lparams
-      nparams isUnsafe safety outEnv := { toNestedRun := E, assembly := B, lowered_eq := hB }
+      nparams isUnsafe safety outEnv L := { toNestedRun := E, assembly := B, lowered_eq := hB }
   have Hlower : NestedLoweringOutputClosed I.context.env E.validationFuel.inductiveFuel nparams
       sourceTypes
       { ({ lvls := lparams.map .param, newTypes := #[] } : Lean4Lean.ElimNestedInductive.State)

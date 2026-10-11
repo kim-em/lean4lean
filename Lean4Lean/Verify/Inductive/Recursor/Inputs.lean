@@ -345,3 +345,28 @@ open Lean hiding Environment Exception
 open Kernel
 
 end Lean4Lean.VerifyInductive.RecursorInput
+
+namespace Lean4Lean.VerifyInductive
+open Lean hiding Environment Exception
+open Kernel
+
+/-- The common parameter context recorded by the header phase of a block
+(in context order). -/
+def HeaderData.commonParameterContext
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool} {depth : Nat}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType} {outEnv : Environment}
+    (H : HeaderData c stats decl nparams isUnsafe depth sourceEnv indTypes outEnv) :
+    List VExpr :=
+  H.sourceStatsWF.parameterScope.toCtx
+
+/-- The parameter scope of the recursor input is the header phase's common parameter context. -/
+theorem RecursorInput.parameterScope_toCtx
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool} {depth : Nat}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
+    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
+    R.parameterScope.toCtx = R.headers.commonParameterContext := by
+  rw [← R.sourceParameterScope]; rfl
+
+end Lean4Lean.VerifyInductive

@@ -280,8 +280,10 @@ theorem NestedRun.auxiliaryNestedApp
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {venv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {safety : DefinitionSafety} {outEnv : Environment} {ves : VEnvs}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes venv sourceDecl lparams nparams isUnsafe
-      safety outEnv)
+      safety outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {n : Name} {nested : Expr} (hfind : result.aux2nested.find? n = some nested) :
     ∃ (I : Name) (ls : List Level) (info : InductiveVal) (args : Array Expr),
@@ -306,9 +308,11 @@ theorem NestedRun.containerFamilyKernel
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
@@ -359,9 +363,11 @@ theorem NestedRun.containerConstructorListed
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
@@ -391,9 +397,11 @@ theorem NestedRun.containerConstructorKernel
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
@@ -438,9 +446,11 @@ theorem NestedRun.restoredRuleConstructors
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {auxiliaries : List ContainerSpecialization} {block : VInductBlock}
     (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
@@ -610,9 +620,11 @@ theorem NestedRun.restoredRuleConstructors_nodup
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     {auxiliaries : List ContainerSpecialization} {block : VInductBlock}
     (Hcert : ContainersInstalled (ves.venv (if isUnsafe then .unsafe else .safe)) auxiliaries)
     (Hdata : CompilationData (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl

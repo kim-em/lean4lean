@@ -1200,9 +1200,11 @@ theorem NestedRun.restorationTablesRestoringAllSpec
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∃ (envTypes : VEnv) (generated : List VInductiveType)
         (auxiliaries : List ContainerSpecialization),
@@ -1247,25 +1249,25 @@ theorem NestedRun.restorationTablesRestoringAllSpec
   let P := E.lowered
   have henv : P.c.env = sourceProdEnv := E.lowered_env
   have hlparams : P.c.lparams = lparams := E.lowered_lparams
-  have hnparams : P.nparams = nparams := E.lowered_nparams
-  have hinitial : P.initialEnv = ves.venv safety := by
+  have hnparams : nparams = nparams := rfl
+  have hinitial : P.Hc'.venv = ves.venv safety := by
     simpa only [safety] using E.lowered_initialEnv
   have hisUnsafe : P.isUnsafe = isUnsafe := E.lowered_isUnsafe_source
   have HcP : ContextWF P.c := E.loweredContextWF
   let initialState := E.initialState
   have Hlower : NestedLoweringOutputClosed P.c.env
-      E.validationFuel.inductiveFuel P.nparams sourceTypes
+      E.validationFuel.inductiveFuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result := E.loweringAtContext
   rcases Hlower with ⟨finalState, Hrun, Hcache, Hparams⟩
-  let Hpack := E.phases
+  let Hpack := E.lowered
   let R := Hpack.constructors
   let Hprod := Hpack.recursors
-  have Hsource : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
+  have Hsource : TrInductDeclCore P.Hc'.venv P.c.lparams nparams
       sourceTypes P.isUnsafe sourceDecl E.sourceCore.envTypes
         E.sourceCore.envCtors := by
-    simpa only [hinitial, hlparams, hnparams, hisUnsafe, safety,
+    simpa only [hinitial, hlparams, hisUnsafe, safety,
       E.sourceCoreDecl_eq] using E.sourceCore.core
-  have Htarget : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
+  have Htarget : TrInductDeclCore P.Hc'.venv P.c.lparams nparams
       result.types P.isUnsafe P.loweredDecl Hpack.headers.context.venv
         R.ctorVEnv := by
     exact R.core
@@ -1274,11 +1276,11 @@ theorem NestedRun.restorationTablesRestoringAllSpec
   have wfP : ves.WF P.c.env := by
     simpa only [henv] using wf
   have HsourceHeaders : List.Forall₂
-      (fun source target => TrSourceConst P.initialEnv P.c.lparams source.name
+      (fun source target => TrSourceConst P.Hc'.venv P.c.lparams source.name
         source.type target.toVConstVal)
       sourceTypes (P.loweredDecl.types.take sourceTypes.length) := by
     simpa only [hinitial, hlparams, safety] using E.sourceCore.sourceHeaders
-  have HsourceAdded : P.initialEnv.addConstVals
+  have HsourceAdded : P.Hc'.venv.addConstVals
       ((P.loweredDecl.types.take sourceTypes.length).map
         VInductiveType.toVConstVal) = some E.sourceCore.envTypes := by
     simpa only [hinitial, safety] using E.sourceCore.sourceAdded
@@ -1296,7 +1298,7 @@ theorem NestedRun.restorationTablesRestoringAllSpec
       hinitial HcP Hsources HsourceHeaders HsourceAdded HsourceTypesWF
       hempty E.auxiliarySelection Htranslations Htarget with ⟨N, hNctx⟩
   have hctxEq : N.parameterContext = P.headers.commonParameterContext := by
-    exact hNctx.trans E.phases_commonParameterContext
+    exact hNctx
   have Htypes := Hrun.allExpansionsOfSources Hcache Hparams Hsource
     Htarget Hmetadata Hsources
       (VEnvs.WF.environmentTypesClosed wfP) wfP.inductivesClosed
@@ -1324,12 +1326,12 @@ theorem NestedRun.restorationTablesRestoringAllSpec
     omega
   have Hparts := (Lean4Lean.List.Forall₂.append_of_left hprefixLength).mp
     (by rw [List.take_append_drop]; exact Htypes)
-  have hbaseLE : P.initialEnv ≤ E.sourceCore.envTypes :=
+  have hbaseLE : P.Hc'.venv ≤ E.sourceCore.envTypes :=
     VEnv.addConstVals_le HsourceAdded
   have Hmap : NestedAuxMapModels result finalState :=
     Hrun.resultAuxMapModelsFresh (by simpa using hempty)
   obtain ⟨fvars, hfvars, hfvarsNodup⟩ := Hparams
-  have hnp : result.nparams = P.nparams := Hrun.resultNParams
+  have hnp : result.nparams = nparams := Hrun.resultNParams
   have hparamsSize : result.params.size = result.nparams :=
     Hrun.resultParamsSize.trans hnp.symm
   have Hpoint : ∀ family ∈ N.generated, ∃ a,
@@ -1410,7 +1412,7 @@ theorem NestedRun.restorationTablesRestoringAllSpec
     have HctorFacts : ∀ t ∈ P.loweredDecl.types, ∀ ctor ∈ t.ctors,
         (∃ info : ConstructorVal,
           E.loweredEnv.find? ctor.name = some (.ctorInfo info) ∧ info.induct = t.name) ∧
-        P.initialEnv.constants ctor.name = none := by
+        P.Hc'.venv.constants ctor.name = none := by
       intro t ht ctor hctor
       constructor
       · rcases Lean4Lean.List.Forall₂.forall_exists_r R.core.types t ht with
@@ -1426,7 +1428,7 @@ theorem NestedRun.restorationTablesRestoringAllSpec
           simp only [VInductDecl.constructorConstants, List.mem_flatMap]
           exact ⟨t, ht, hctor⟩
         have hfresh := (VEnv.addConstVals_names_fresh R.core.ctorsAdded).2 ctor hmem
-        cases hsource : P.initialEnv.constants ctor.name with
+        cases hsource : P.Hc'.venv.constants ctor.name with
         | none => rfl
         | some ci =>
           have := (VEnv.addConstVals_le R.core.typesAdded).constants hsource
@@ -1613,7 +1615,7 @@ theorem NestedRun.restorationTablesRestoringAllSpec
     rcases Htranslations _ _ hfind with ⟨Htr⟩
     exact Htr.sourceClosed.looseBVarRange_zero
   let Hclosed : NestedLoweringOutputClosed P.c.env E.validationFuel.inductiveFuel
-      P.nparams sourceTypes { initialState with newTypes := sourceTypes.toArray }
+      nparams sourceTypes { initialState with newTypes := sourceTypes.toArray }
       result := ⟨finalState, Hrun, Hcache, ⟨fvars, hfvars, hfvarsNodup⟩⟩
   have hresultNodup := Hclosed.selectionNodup E.auxiliarySelection
   have Horiginal := Hclosed.sourceExpansionsAbove Hlift Hsource Htarget Hmetadata
@@ -1626,11 +1628,11 @@ theorem NestedRun.restorationTablesRestoringAllSpec
   refine ⟨Lean4Lean.List.Forall₂.imp (fun _ _ h =>
     Lean4Lean.List.Forall₂.imp (fun _ _ hc => hc.type) h.constructors) Horiginal, ?_⟩
   -- the restoring expansion of the auxiliary families
-  have hbaseWF : P.initialEnv.WF := by
+  have hbaseWF : P.Hc'.venv.WF := by
     simpa only [hinitial, safety] using (wf.tr (safety := safety)).wf
   have HtargetTypesWF : Hpack.headers.context.venv.WF :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Htarget hbaseWF
-  have Hall : List.Forall₂ (VInductDecl.NestedTypeExpansion P.initialEnv sourceDecl
+  have Hall : List.Forall₂ (VInductDecl.NestedTypeExpansion P.Hc'.venv sourceDecl
       (r.RestoringLeaf (VLevel.params sourceDecl.uvars)))
       generated (P.loweredDecl.types.drop sourceDecl.types.length) := by
     subst hgenEq
@@ -1646,7 +1648,7 @@ theorem NestedRun.restorationTablesRestoringAllSpec
     have HtargetType := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt
       Htarget (sourceTypes.length + i) hresult htarget
     have Hmapping := Horigin.resolvedMapping Hmap
-    have Hheader : NestedTypeExpansionHeader P.initialEnv sourceDecl
+    have Hheader : NestedTypeExpansionHeader P.Hc'.venv sourceDecl
         Nsource.source P.loweredDecl.types[sourceTypes.length + i] :=
       Hmapping.abstractHeaderExpansion Nsource.translation HtargetType hbaseWF
         Hsource.uvars Nsource.numIndices Nsource.resultLevel
@@ -1678,9 +1680,11 @@ theorem NestedRun.restorationTablesRestoringAll
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∃ (envTypes : VEnv) (generated : List VInductiveType)
         (auxiliaries : List ContainerSpecialization),
@@ -1724,9 +1728,11 @@ theorem NestedRun.restorationTablesRestoring
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∃ (envTypes : VEnv) (generated : List VInductiveType)
         (auxiliaries : List ContainerSpecialization),

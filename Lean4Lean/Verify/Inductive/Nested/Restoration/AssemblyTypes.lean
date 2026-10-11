@@ -4,7 +4,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.KernelData
 import Lean4Lean.Verify.Inductive.Nested.Restoration.LoweredLookups
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Lookups
 import Lean4Lean.Verify.Inductive.Constructor.Install
-import Lean4Lean.Verify.Inductive.Nested.Restoration.HeaderDataCompatB
+import Lean4Lean.Verify.Inductive.Nested.Restoration.Lookups
 import Lean4Lean.Verify.Inductive.Nested.Install.DependencyOrder
 
 /-! # The types and kernel half of the nested assembly
@@ -149,8 +149,10 @@ theorem NestedRun.ivals_lookup
     {sourceTypes : List InductiveType} {venv : VEnv} {decl : VInductDecl}
     {lparams : List Name} {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
     (E : NestedRun res sourceProdEnv sourceTypes venv decl lparams nparams isUnsafe safety
-      outEnv) :
+      outEnv L) :
     ∀ iv ∈ E.lowered.constructors.ivals,
       E.loweredEnv.find? iv.1.name = some (.inductInfo iv.1) ∧
       ∀ cv ∈ iv.2, E.loweredEnv.find? cv.name = some (.ctorInfo cv) := by
@@ -169,10 +171,12 @@ theorem NestedRun.trTypes
     {sourceTypes : List InductiveType} {venv : VEnv} {decl : VInductDecl}
     {lparams : List Name} {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
     (E : NestedRun res sourceProdEnv sourceTypes venv decl lparams nparams isUnsafe safety
-      outEnv)
+      outEnv L)
     (B : RestoredBlockBase E.restoration venv decl lparams nparams isUnsafe safety)
-    (hB : B.lowered = E.lowered) :
+    (hB : B.loweredDecl = E.lowered.loweredDecl) :
     List.Forall₂ (fun iv t => TrIndType safety venv E.sourceCore.envTypes iv.1 iv.2 t)
       E.restoration.ivals decl.types := by
   let n := sourceTypes.length
@@ -188,7 +192,7 @@ theorem NestedRun.trTypes
       (E.lowered.constructors.ivals.take n) (E.lowered.loweredDecl.types.take n) := by
     have h := List.forall₂_take E.lowered.constructors.trTypes n
     have hs : E.lowered.c.safety = safety := by rw [E.lowered_c, E.context_safety]
-    have hi : E.lowered.initialEnv = venv := E.lowered_initialEnv
+    have hi : E.lowered.Hc'.venv = venv := E.lowered_initialEnv
     generalize E.lowered.constructors.headers.context.venv = envL at h ⊢
     generalize E.lowered.constructors.ivals.take n = ivs at h ⊢
     generalize E.lowered.loweredDecl.types.take n = ls at h ⊢
@@ -326,14 +330,16 @@ theorem NestedRun.newUnsafe
     {sourceTypes : List InductiveType} {venv : VEnv} {decl : VInductDecl}
     {lparams : List Name} {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
     (E : NestedRun res sourceProdEnv sourceTypes venv decl lparams nparams isUnsafe safety
-      outEnv) :
+      outEnv L) :
     ∀ ci ∈ AddInduct.consts E.restoration.ivals E.restoration.rvals, ci.isUnsafe = isUnsafe := by
   have Hlower := E.loweringAtContext
   have hempty : E.initialState.nestedAux = #[] := rfl
   have hne : sourceTypes ≠ [] := Hlower.toResult.sourceNonempty
-  let R := E.phases.constructors
-  let Hprod := E.phases.recursors
+  let R := E.lowered.constructors
+  let Hprod := E.lowered.recursors
   have hRU : E.lowered.isUnsafe = isUnsafe := E.lowered_isUnsafe_source
   have HcP : ContextWF E.lowered.c := E.loweredContextWF
   -- the source families are lowered families

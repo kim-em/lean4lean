@@ -159,8 +159,10 @@ def NestedRun.TrRestoredRecursorRule
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv)
+      sourceDecl lparams nparams isUnsafe safety outEnv L)
     (r : Restoration) (trEnv : VEnv)
     (k : Fin E.lowered.recursors.generationSignature.constructors.size)
     (rule : VDefEq) : Prop :=
@@ -171,7 +173,7 @@ def NestedRun.TrRestoredRecursorRule
       (sourceTypes.map (·.name))
       (E.lowered.recursors.canonicalGeneration.recursorName owner) s t)
     (hj : j < Hstep.restored.newInfo.rules.length),
-    k.val = recursorMinorOffset E.lowered.indTypes owner.val + j ∧
+    k.val = recursorMinorOffset result.types.toArray owner.val + j ∧
     rule.uvars = (E.lowered.recursors.canonicalGeneration.equation k).uvars ∧
     TrExprS trEnv Hstep.restored.newInfo.levelParams []
       (Hstep.restored.newInfo.rules[j]'hj).rhs rule.rhs ∧

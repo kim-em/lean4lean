@@ -21,11 +21,13 @@ variable {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
 /-- **Every lowered constructor type is a head type for the run's head set**
 (before level instantiation). -/
 theorem NestedRun.ctorTypes_headType
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
-    ∀ owner ∈ E.lowered.indTypes.toList, ∀ ctor ∈ owner.ctors,
+    ∀ owner ∈ result.types.toArray.toList, ∀ ctor ∈ owner.ctors,
       HeadType E.uniformHeads nparams (lparams.map Level.param) ctor.type := by
   obtain ⟨-, -, -, -, -, -, hkeys, hnodupAll⟩ := E.auxHeadsFacts wf Hsources
   have hnodup : (InductiveSignature.familyNames E.lowered.loweredDecl.types).Nodup :=
@@ -35,7 +37,7 @@ theorem NestedRun.ctorTypes_headType
   -- head type for the auxiliary heads
   have hAux : HeadType E.auxHeads nparams (lparams.map Level.param) ctor.type := by
     have howner' : owner ∈ result.types := by
-      rw [E.lowered_indTypes] at howner; simpa using howner
+      simpa using howner
     obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.1 howner'
     obtain ⟨source, st, ls, havoid, -, hlv, M⟩ := hmaps i hi
     obtain ⟨src, hsrc, before, after, hbefore, Mc⟩ := M.constructors.forall_mem ctor hctor
@@ -61,9 +63,11 @@ theorem NestedRun.ctorTypes_headType
 lowering builds them as `LocalContext.mkForall As _` over the `nparams`
 lowering parameters. -/
 theorem NestedRun.generatedFamilyType_forall
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∀ i (hi : i < result.types.length), sourceTypes.length ≤ i →
       ∃ body, Expr.LeadingForalls nparams result.types[i].type body := by
@@ -72,39 +76,39 @@ theorem NestedRun.generatedFamilyType_forall
   let P := E.lowered
   have henv : P.c.env = sourceProdEnv := E.lowered_env
   have hlparams : P.c.lparams = lparams := E.lowered_lparams
-  have hnparams : P.nparams = nparams := E.lowered_nparams
-  have hinitial : P.initialEnv = ves.venv safety := by
+  have hnparams : nparams = nparams := rfl
+  have hinitial : P.Hc'.venv = ves.venv safety := by
     simpa only [safety] using E.lowered_initialEnv
   have hisUnsafe : P.isUnsafe = isUnsafe := E.lowered_isUnsafe_source
   have HcP : ContextWF P.c := E.loweredContextWF
   let initialState := E.initialState
   have Hlower : NestedLoweringOutputClosed P.c.env
-      E.validationFuel.inductiveFuel P.nparams sourceTypes
+      E.validationFuel.inductiveFuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result := E.loweringAtContext
   rcases Hlower with ⟨finalState, Hrun, Hcache, Hparams⟩
-  let Hpack := E.phases
+  let Hpack := E.lowered
   let R := Hpack.constructors
-  have Hsource : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
+  have Hsource : TrInductDeclCore P.Hc'.venv P.c.lparams nparams
       sourceTypes P.isUnsafe sourceDecl E.sourceCore.envTypes
         E.sourceCore.envCtors := by
-    simpa only [hinitial, hlparams, hnparams, hisUnsafe, safety,
+    simpa only [hinitial, hlparams, hisUnsafe, safety,
       E.sourceCoreDecl_eq] using E.sourceCore.core
-  have Htarget : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
+  have Htarget : TrInductDeclCore P.Hc'.venv P.c.lparams nparams
       result.types P.isUnsafe P.loweredDecl R.headers.context.venv
         R.ctorVEnv := by
     simpa using R.core
   have wfP : ves.WF P.c.env := by
     simpa only [henv] using wf
   have HsourceHeaders : List.Forall₂
-      (fun source target => TrSourceConst P.initialEnv P.c.lparams source.name
+      (fun source target => TrSourceConst P.Hc'.venv P.c.lparams source.name
         source.type target.toVConstVal)
       sourceTypes (P.loweredDecl.types.take sourceTypes.length) := by
     simpa only [hinitial, hlparams, safety] using E.sourceCore.sourceHeaders
-  have HsourceAdded : P.initialEnv.addConstVals
+  have HsourceAdded : P.Hc'.venv.addConstVals
       ((P.loweredDecl.types.take sourceTypes.length).map
         VInductiveType.toVConstVal) = some E.sourceCore.envTypes := by
     simpa only [hinitial, safety] using E.sourceCore.sourceAdded
-  have HbaseWF : P.initialEnv.WF := by
+  have HbaseWF : P.Hc'.venv.WF := by
     simpa only [hinitial, safety] using (wf.tr (safety := safety)).wf
   have HsourceTypesWF : E.sourceCore.envTypes.WF :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Hsource HbaseWF
@@ -139,9 +143,11 @@ theorem NestedRun.generatedFamilyType_forall
 
 /-- The heads are absent from the source kernel environment. -/
 theorem NestedRun.uniformHeads_fresh
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) :
     ∀ n ∈ E.uniformHeads, sourceProdEnv.find? n = none := by
   intro n hn
@@ -154,11 +160,13 @@ theorem NestedRun.uniformHeads_fresh
 /-- A family of the run whose name is a head is an auxiliary family, so its
 type is a head type. -/
 theorem NestedRun.familyType_headType
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
-    {owner : InductiveType} (howner : owner ∈ E.lowered.indTypes.toList)
+    {owner : InductiveType} (howner : owner ∈ result.types.toArray.toList)
     (hname : owner.name ∈ E.uniformHeads) :
     HeadType E.uniformHeads nparams (lparams.map Level.param) owner.type := by
   obtain ⟨-, -, -, -, -, -, -, hnodupAll⟩ := E.auxHeadsFacts wf Hsources
@@ -179,14 +187,14 @@ theorem NestedRun.familyType_headType
       refine ⟨i, ?_, ?_⟩
       · rw [List.length_take]; omega
       · rw [List.getElem_take]
-    · have hn : E.lowered.loweredDecl.types[i].name = E.lowered.indTypes.toList[i].name :=
+    · have hn : E.lowered.loweredDecl.types[i].name = result.types.toArray.toList[i].name :=
         HT.header.name
       rw [hn]; exact hname
-  have hres : E.lowered.indTypes.toList = result.types := by
-    rw [E.lowered_indTypes]
+  have hres : result.types.toArray.toList = result.types := by
+    simp
   have hiR : i < result.types.length := by rw [← hres]; exact hi
   obtain ⟨body, hl⟩ := E.generatedFamilyType_forall wf Hsources i hiR hge
-  have heq : E.lowered.indTypes.toList[i] = result.types[i] := List.getElem_of_eq hres hi
+  have heq : result.types.toArray.toList[i] = result.types[i] := List.getElem_of_eq hres hi
   obtain ⟨e', htr⟩ := E.familyType_tr (List.getElem_mem hi)
   rw [heq] at htr ⊢
   have havoid : result.types[i].type.AvoidsConsts E.uniformHeads :=
@@ -210,9 +218,11 @@ constants (they are reserved, so the run did not install them), and then
 `List.cons` to be base constants as well, while every head is fresh
 (`uniformHeads_fresh`). -/
 theorem NestedRun.envParamUniform
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     EnvParamUniform E.lowered.ctorEnv E.uniformHeads nparams (lparams.map Level.param) := by
   have hfresh := E.uniformHeads_fresh wf
@@ -222,10 +232,10 @@ theorem NestedRun.envParamUniform
     rw [E.lowered_c_env]; exact (wf.tr (safety := .unsafe)).map_wf
   have horigin : ∀ {n ci}, E.lowered.ctorEnv.find? n = some ci →
       sourceProdEnv.find? n = some ci ∨
-      (∃ indType ∈ E.lowered.indTypes.toList, ∃ info : InductiveVal,
+      (∃ indType ∈ result.types.toArray.toList, ∃ info : InductiveVal,
         ci = .inductInfo info ∧ n = indType.name ∧ info.type = indType.type ∧
         info.levelParams = lparams) ∨
-      (∃ owner ∈ E.lowered.indTypes.toList, ∃ ctor ∈ owner.ctors, ∃ info : ConstructorVal,
+      (∃ owner ∈ result.types.toArray.toList, ∃ ctor ∈ owner.ctors, ∃ info : ConstructorVal,
         ci = .ctorInfo info ∧ n = ctor.name ∧ info.type = ctor.type ∧
         info.levelParams = lparams) := by
     intro n ci h
@@ -376,9 +386,11 @@ set `E.uniformHeads` (auxiliary families and constructors, and the source
 constructors), the run's parameters and the declaration's levels, in the
 environment of the recursor pass. -/
 theorem NestedRun.whnfPreservesParamUniform
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     WhnfPreservesParamUniform E.uniformHeads E.lowered.stats.params.toList (lparams.map Level.param)
       E.lowered.recursors.localContext.env := by
@@ -403,9 +415,11 @@ recursor pass, derived from the run alone:
   environment, whose projections are the source environment's;
 * recursor names: distinct from the family and constructor names. -/
 theorem NestedRun.paramUniformDeclarations_of
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     E.lowered.recursors.toRecursorConstruction.ParamUniformDeclarations
       E.uniformHeads := by
@@ -430,10 +444,10 @@ theorem NestedRun.paramUniformDeclarations_of
     rw [VEnv.addConstVals_projections_eq E.lowered.constructors.core.typesAdded,
       E.lowered_initialEnv] at h
     exact ⟨info, h⟩
-  have hmem : ∀ i, i < E.lowered.indTypes.size →
-      E.lowered.indTypes[i]! ∈ E.lowered.indTypes.toList := by
+  have hmem : ∀ i, i < result.types.toArray.size →
+      result.types.toArray[i]! ∈ result.types.toArray.toList := by
     intro i hi
-    rw [getElem!_pos E.lowered.indTypes i hi]
+    rw [getElem!_pos result.types.toArray i hi]
     exact Array.getElem_mem_toList hi
   refine ⟨?_, ?_, ?_, ?_⟩
   · refine E.lowered.recursors.toRecursorConstruction.paramDecls_paramUniformIn
@@ -468,9 +482,11 @@ validated nested run, at the checker's head set `E.uniformHeads`**:
 `recursorParamUniform` with its two hypotheses discharged by
 `paramUniformDeclarations_of` and `whnfPreservesParamUniform`. -/
 theorem NestedRun.recursorParamUniform_uniformHeads
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     (owner : Fin E.lowered.recursors.generationSignature.families.size)
     {auxRec : NameMap Name} {allIndNames : List Name}
@@ -497,9 +513,11 @@ The proof runs the parameter-uniformity chain at the checker's head set `E.unifo
 (`recursorParamUniform_uniformHeads`) and drops the source constructors with
 `ParamUniformTele.shrink`. -/
 theorem NestedRun.recursorParamUniform_of_wfCore
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     (owner : Fin E.lowered.recursors.generationSignature.families.size)
     {auxRec : NameMap Name} {allIndNames : List Name}

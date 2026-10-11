@@ -1479,8 +1479,10 @@ variable {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
 /-- The auxiliary constructor names of a nested run: the constructor names of
 the lowered families after the source families. -/
 def NestedRun.auxCtorNames
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv) : List Name :=
+      sourceDecl lparams nparams isUnsafe safety outEnv L) : List Name :=
   (E.lowered.loweredDecl.types.drop sourceDecl.types.length).flatMap
     fun t => t.ctors.map (·.name)
 
@@ -1495,22 +1497,28 @@ theorem badLevels_ne (lparams : List Name) : foreignLevels lparams ≠ lparams.m
   simp [foreignLevels] at this
 
 theorem NestedRun.auxCtorNames_auxHeads
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv) :
+      sourceDecl lparams nparams isUnsafe safety outEnv L) :
     ∀ n ∈ E.auxCtorNames, n ∈ E.auxHeads := by
   intro n hn
   obtain ⟨t, ht, hn⟩ := List.mem_flatMap.1 hn
   exact List.mem_flatMap.2 ⟨t, ht, List.mem_cons_of_mem _ hn⟩
 
 theorem NestedRun.auxCtorNames_uniformHeads
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv) :
+      sourceDecl lparams nparams isUnsafe safety outEnv L) :
     ∀ n ∈ E.auxCtorNames, n ∈ E.uniformHeads :=
   fun n hn => E.auxHeads_subset_uniformHeads n (E.auxCtorNames_auxHeads n hn)
 
 theorem NestedRun.auxCtorNames_ctor
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv) :
+      sourceDecl lparams nparams isUnsafe safety outEnv L) :
     ∀ n ∈ E.auxCtorNames, ∃ t ∈ E.lowered.loweredDecl.types, ∃ c ∈ t.ctors, c.name = n := by
   intro n hn
   obtain ⟨t, ht, hn⟩ := List.mem_flatMap.1 hn
@@ -1527,11 +1535,13 @@ variable {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
 /-- The auxiliary constructor names are absent from the header environment, so
 every lowered constructor type avoids them. -/
 theorem NestedRun.ctorType_avoids_auxCtorNames
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
-    {owner : InductiveType} (howner : owner ∈ E.lowered.indTypes.toList)
+    {owner : InductiveType} (howner : owner ∈ result.types.toArray.toList)
     {ctor : Constructor} (hctor : ctor ∈ owner.ctors) :
     ctor.type.AvoidsConsts E.auxCtorNames := by
   obtain ⟨-, -, -, -, -, -, -, hnodupAll⟩ := E.auxHeadsFacts wf Hsources
@@ -1551,9 +1561,11 @@ constructors: translated in the header environment, where every lowered
 constructor name is fresh), and so do the auxiliary constructors themselves,
 so their types are (parameterless) head types at any level list. -/
 theorem NestedRun.envParamUniform_auxCtorNames
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     EnvParamUniform E.lowered.ctorEnv E.auxCtorNames 0 (foreignLevels lparams) := by
   have hfresh : ∀ n ∈ E.auxCtorNames, sourceProdEnv.find? n = none :=
@@ -1564,10 +1576,10 @@ theorem NestedRun.envParamUniform_auxCtorNames
     rw [E.lowered_c_env]; exact (wf.tr (safety := .unsafe)).map_wf
   have horigin : ∀ {n ci}, E.lowered.ctorEnv.find? n = some ci →
       sourceProdEnv.find? n = some ci ∨
-      (∃ indType ∈ E.lowered.indTypes.toList, ∃ info : InductiveVal,
+      (∃ indType ∈ result.types.toArray.toList, ∃ info : InductiveVal,
         ci = .inductInfo info ∧ n = indType.name ∧ info.type = indType.type ∧
         info.levelParams = lparams) ∨
-      (∃ owner ∈ E.lowered.indTypes.toList, ∃ ctor ∈ owner.ctors, ∃ info : ConstructorVal,
+      (∃ owner ∈ result.types.toArray.toList, ∃ ctor ∈ owner.ctors, ∃ info : ConstructorVal,
         ci = .ctorInfo info ∧ n = ctor.name ∧ info.type = ctor.type ∧
         info.levelParams = lparams) := by
     intro n ci h
@@ -1703,9 +1715,11 @@ theorem NestedRun.envParamUniform_auxCtorNames
 /-- **`whnf` preserves "mentions the auxiliary constructors only at
 `foreignLevels`"** in the recursor pass of a validated nested run. -/
 theorem NestedRun.whnfPreservesParamUniform_auxCtorNames
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     WhnfPreservesParamUniform E.auxCtorNames [] (foreignLevels lparams)
       E.lowered.recursors.localContext.env := by
@@ -1716,9 +1730,11 @@ theorem NestedRun.whnfPreservesParamUniform_auxCtorNames
 /-- **The inputs of the trailing-argument chain for a validated nested run** at the
 auxiliary constructor names and `foreignLevels`. -/
 theorem NestedRun.trailingArgDeclarations_of
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     E.lowered.recursors.toRecursorConstruction.TrailingArgDeclarations
       E.auxCtorNames (foreignLevels lparams) := by
@@ -1744,10 +1760,10 @@ theorem NestedRun.trailingArgDeclarations_of
     rw [VEnv.addConstVals_projections_eq E.lowered.constructors.core.typesAdded,
       E.lowered_initialEnv] at h
     exact ⟨info, h⟩
-  have hmem : ∀ i, i < E.lowered.indTypes.size →
-      E.lowered.indTypes[i]! ∈ E.lowered.indTypes.toList := by
+  have hmem : ∀ i, i < result.types.toArray.size →
+      result.types.toArray[i]! ∈ result.types.toArray.toList := by
     intro i hi
-    rw [getElem!_pos E.lowered.indTypes i hi]
+    rw [getElem!_pos result.types.toArray i hi]
     exact Array.getElem_mem_toList hi
   refine ⟨?_, ?_, ?_, ?_⟩
   · refine E.lowered.recursors.toRecursorConstruction.paramDecls_trail
@@ -1839,8 +1855,10 @@ theorem NestedRun.LoweredRulesAvoid.mono
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     {E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv}
+      sourceDecl lparams nparams isUnsafe safety outEnv L}
     {heads X Y : List Name} (H : E.LoweredRulesAvoid heads X) (hsub : ∀ n ∈ Y, n ∈ X) :
     E.LoweredRulesAvoid heads Y :=
   fun owner rec hfind rule hrule =>
@@ -1856,9 +1874,11 @@ variable {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
 /-- The lowered recursor found at a generated owner's recursor name is the
 owner's generated entry. -/
 theorem NestedRun.generatedEntryOfFind
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (owner : Fin E.lowered.recursors.generationSignature.families.size)
     {rec : RecursorVal}
     (hfind : E.loweredEnv.find?
@@ -1906,9 +1926,11 @@ The parameter-uniformity chain at the declaration's levels (`recursorParamUnifor
 says that every occurrence is at `lparams.map Level.param ≠ foreignLevels`, so the
 trailing occurrences do not exist. -/
 theorem NestedRun.loweredRulesAvoid_auxCtorNames
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     (heads : List Name) :
     E.LoweredRulesAvoid heads E.auxCtorNames := by
@@ -2033,9 +2055,11 @@ an auxiliary constructor: lowered auxiliary recursor names are never renamed
 (`auxRecName_not_renamed`), and auxiliary family names are numeric
 (`_nested.i`) while renamed names are string extensions. -/
 theorem NestedRun.restorableRenamed_auxCtorNames
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
@@ -2084,9 +2108,11 @@ restorable names among the renamed auxiliary recursor names, discharged from
 the run alone (`loweredRulesAvoid_auxCtorNames`,
 `restorableRenamed_auxCtorNames`). -/
 theorem NestedRun.loweredRulesAvoid_renamed
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}

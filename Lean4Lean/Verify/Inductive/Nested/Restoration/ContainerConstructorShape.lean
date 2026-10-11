@@ -171,8 +171,10 @@ theorem NestedRun.loweredConstructorShape
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {venv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {safety : DefinitionSafety} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes venv sourceDecl lparams nparams isUnsafe
-      safety outEnv)
+      safety outEnv L)
     (index : Fin E.lowered.signature.constructors.size) :
     ∃ ci, E.lowered.constructors.ctorVEnv.constants
         E.lowered.signature.constructors[index].name = some ci ∧
@@ -219,9 +221,11 @@ theorem NestedRun.containerConstructorShape
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     {auxiliaries : List ContainerSpecialization} {block : VInductBlock}
     {envTypes : VEnv} {ctx : List VExpr} {generated : List VInductiveType}
     (Haux : List.Forall₂ (SpecializationGenerates

@@ -44,15 +44,17 @@ header shapes of the exact lowered prefix.  The source-core builder retains
 literal header values, while the header checks retain the separately checked
 index count and result universe. -/
 theorem NestedRun.sourceCoreTypeShapes
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceVEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv)
+      sourceDecl lparams nparams isUnsafe safety outEnv L)
     {params : List VExpr}
     (Hshapes : ∀ target ∈ E.lowered.loweredDecl.types,
-      E.lowered.loweredDecl.TypeShape E.lowered.initialEnv params target) :
+      E.lowered.loweredDecl.TypeShape E.lowered.Hc'.venv params target) :
     ∀ target ∈ sourceDecl.types,
       sourceDecl.TypeShape sourceVEnv params target := by
   let P := E.lowered
-  have hinitial : P.initialEnv = sourceVEnv := E.lowered_initialEnv
+  have hinitial : P.Hc'.venv = sourceVEnv := E.lowered_initialEnv
   have Hsource : TrInductDeclCore sourceVEnv lparams nparams sourceTypes
       isUnsafe sourceDecl E.sourceCore.envTypes E.sourceCore.envCtors := by
     simpa only [E.sourceCoreDecl_eq] using E.sourceCore.core
@@ -60,8 +62,7 @@ theorem NestedRun.sourceCoreTypeShapes
     (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hsource).symm
   have hloweredLength : P.loweredDecl.types.length = result.types.length :=
     by
-      have harray := congrArg Array.toList E.lowered_indTypes
-      simp at harray
+      have harray : result.types.toArray.toList = result.types := by simp
       exact (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
         P.constructors.core).symm.trans (congrArg List.length harray)
   have hprefix : sourceDecl.types.length ≤ P.loweredDecl.types.length := by
@@ -82,7 +83,7 @@ theorem NestedRun.sourceCoreTypeShapes
   have hnparamsEq : sourceDecl.nparams = P.loweredDecl.nparams := by
     calc
       sourceDecl.nparams = nparams := Hsource.nparams
-      _ = P.nparams := E.lowered_nparams.symm
+      _ = nparams := rfl
       _ = P.loweredDecl.nparams := P.constructors.core.nparams.symm
   intro target htarget
   rcases List.mem_iff_getElem.1 htarget with ⟨i, hi, rfl⟩
@@ -116,7 +117,7 @@ theorem NestedRun.sourceCoreTypeShapes
   have hresultLevel : sourceTarget.resultLevel = expandedTarget.resultLevel :=
     Hmetadata.resultLevel hprefix i hi hiExpanded
   have Hshape : P.loweredDecl.TypeShape sourceVEnv params expandedTarget := by
-    have H : P.loweredDecl.TypeShape P.initialEnv params expandedTarget :=
+    have H : P.loweredDecl.TypeShape P.Hc'.venv params expandedTarget :=
       Hshapes expandedTarget (List.getElem_mem hiExpanded)
     rw [hinitial] at H
     exact H
@@ -143,15 +144,17 @@ environment: the parameters and the prefix mention no auxiliary family, so the
 interpretation fixes them. -/
 theorem NestedRun.sourceCoreParameterWF
     {ves : VEnvs}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     (Hraw : ∀ type ∈ sourceDecl.types, ∀ ctor ∈ type.ctors,
       sourceDecl.RawCtorShape type ctor) :
     sourceDecl.SourceParameterWF (ves.venv (if isUnsafe then .unsafe else .safe)) := by
   let P := E.lowered
-  have hinitial : P.initialEnv = ves.venv (if isUnsafe then .unsafe else .safe) :=
+  have hinitial : P.Hc'.venv = ves.venv (if isUnsafe then .unsafe else .safe) :=
     E.lowered_initialEnv
   obtain ⟨paramsL, envTypesL, haddedL, HtypeShapesL, HctorsL, -⟩ :=
     P.constructors.formation.formationWF.sourceParameterWF
@@ -208,34 +211,33 @@ theorem NestedRun.sourceCoreParameterWF
   have Hsame := HctorMapping.sourceTargetSameForallPrefix
     (by simpa using HsourceCtor.type.fvarsIn) HsourceCtor.type.closed
   -- Its translation in the lowered header environment.
-  have hindTypes : P.indTypes.toList = result.types := by
-    have harray := congrArg Array.toList E.lowered_indTypes
-    simpa using harray
+  have hindTypes : result.types.toArray.toList = result.types := by
+    simp
   have Hlowered := P.constructors.core
   have hloweredFamily : familyIdx < result.types.length := by
     rcases List.getElem?_eq_some_iff.1 hloweredType with ⟨h, _⟩
     exact h
-  have hloweredFamily' : familyIdx < P.indTypes.toList.length := by
+  have hloweredFamily' : familyIdx < result.types.toArray.toList.length := by
     rw [hindTypes]; exact hloweredFamily
   have hloweredDeclFamily : familyIdx < P.loweredDecl.types.length := by
     rw [← TrInductDeclCore.types_length Hlowered]; exact hloweredFamily'
   have HloweredType := TrInductDeclCore.typeAt Hlowered familyIdx hloweredFamily'
     hloweredDeclFamily
-  have hloweredTypeEq : P.indTypes.toList[familyIdx] = loweredType := by
-    have h : P.indTypes.toList[familyIdx]? = some loweredType := by
+  have hloweredTypeEq : result.types.toArray.toList[familyIdx] = loweredType := by
+    have h : result.types.toArray.toList[familyIdx]? = some loweredType := by
       rw [hindTypes]; exact hloweredType
     rw [List.getElem?_eq_getElem hloweredFamily'] at h
     exact Option.some.inj h
   have hloweredCtorIdx : ctorIdx < loweredType.ctors.length := by
     rcases List.getElem?_eq_some_iff.1 hloweredCtorEq with ⟨h, _⟩
     exact h
-  have hloweredCtorIdx' : ctorIdx < P.indTypes.toList[familyIdx].ctors.length := by
+  have hloweredCtorIdx' : ctorIdx < result.types.toArray.toList[familyIdx].ctors.length := by
     rw [hloweredTypeEq]; exact hloweredCtorIdx
   have hloweredDeclCtor : ctorIdx < P.loweredDecl.types[familyIdx].ctors.length := by
     rw [← TrInductiveType.ctors_length HloweredType]; exact hloweredCtorIdx'
   have HloweredCtor := TrInductiveType.ctorAt HloweredType ctorIdx hloweredCtorIdx'
     hloweredDeclCtor
-  have hloweredCtorEq' : P.indTypes.toList[familyIdx].ctors[ctorIdx] = loweredCtor := by
+  have hloweredCtorEq' : result.types.toArray.toList[familyIdx].ctors[ctorIdx] = loweredCtor := by
     have h : loweredType.ctors[ctorIdx]? = some loweredCtor := hloweredCtorEq
     rw [List.getElem?_eq_getElem hloweredCtorIdx] at h
     simp only [hloweredTypeEq]
@@ -252,7 +254,7 @@ theorem NestedRun.sourceCoreParameterWF
     (congrArg AddInductive.Context.lparams E.lowered_c).trans
       E.context_lparams
   have hnparamsEq : P.loweredDecl.nparams = sourceDecl.nparams :=
-    P.constructors.core.nparams.trans (E.lowered_nparams.trans Hsource.nparams.symm)
+    P.constructors.core.nparams.trans Hsource.nparams.symm
   rw [hnparamsEq] at htake
   have hnparams : sourceDecl.nparams = nparams := Hsource.nparams
   rw [hnparams] at htake

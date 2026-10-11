@@ -27,8 +27,10 @@ def NestedRun.auxHeads
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv) : List Name :=
+      sourceDecl lparams nparams isUnsafe safety outEnv L) : List Name :=
   InductiveSignature.familyNames (E.lowered.loweredDecl.types.drop sourceDecl.types.length)
 
 section Run
@@ -38,8 +40,10 @@ variable {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv)
+      sourceDecl lparams nparams isUnsafe safety outEnv L)
 
 /-- The lowered run's statistics carry the declaration's universe parameters. -/
 theorem NestedRun.statsLevels :
@@ -52,7 +56,7 @@ theorem NestedRun.statsParamsSize :
     E.lowered.stats.params.size = result.nparams := by
   obtain ⟨_, Hrun, _, _⟩ := E.lowering
   rw [Hrun.resultNParams, E.lowered.recursors.cardinality.params,
-    E.lowered.constructors.core.nparams, E.lowered_nparams]
+    E.lowered.constructors.core.nparams]
 
 /-- The generated entry of an owner is the recursor read back by any
 restoration step at the owner's recursor name. -/

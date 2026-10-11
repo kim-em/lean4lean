@@ -61,8 +61,8 @@ structure RestoredBlock {c : AddInductive.Context} {Hc : ContextWF c} {nparams :
   containers : ContainersInstalled Hc.venv auxiliaries
   /-- The restored block of the lowered run's generator. -/
   block : VInductBlock
-  compiled : CompilationData Hc.venv decl L.loweredDecl L.recursors.signature
-    L.recursors.generation auxiliaries block
+  compiled : CompilationData Hc.venv decl L.loweredDecl L.recursors.generationSignature
+    L.recursors.generationInstance auxiliaries block
   /-- `decl.recs` is read off the restored block. -/
   recsOf : decl.RecsOf block
   /-- The kernel constants: the restored headers and constructors (`all := the source names`),
@@ -118,10 +118,11 @@ structure RestoredBlock {c : AddInductive.Context} {Hc : ContextWF c} {nparams :
   /-- The K clause of every new recursor. -/
   recK : ∀ rval ∈ rvals, KLikeRecursor outEnv.constants outVEnv rval
   /-- The run object (`NestedRun`), from which the restoration certificates are read (the
-  restoration substitution of the equations, the kernel facts of the installation). Its lowered
-  run is `L`'s view. -/
+  restoration substitution of the equations, the kernel facts of the installation), over the
+  lowered run `L`. -/
   runDecl : VInductDecl
-  run : NestedRun res c.env sourceTypes Hc.venv runDecl c.lparams nparams isUnsafe c.safety outEnv
+  run : NestedRun res c.env sourceTypes Hc.venv runDecl c.lparams nparams isUnsafe c.safety
+    outEnv L
   /-- The run's declaration is the source declaration without recursors (its
   `SourcePrefixOfLowered` pins the recursor list); `decl` adds the restored ones. -/
   run_decl : decl = runDecl.withRecs decl.recs
@@ -129,8 +130,6 @@ structure RestoredBlock {c : AddInductive.Context} {Hc : ContextWF c} {nparams :
   sourceSyntaxChecked : SourceSyntaxChecked sourceTypes
   /-- Lowering keeps each source constructor's arity prefix. -/
   constructorArityPrefix : decl.ConstructorArityPrefix L.loweredDecl
-  run_loweredEnv : run.loweredEnv = loweredEnv
-  run_lowered : HEq run.lowered L.view
   /-- The major inductive of every new
   recursor is an inductive type of the output. -/
   recMajor : ∀ rval ∈ rvals, ∃ info, outEnv.find? rval.getMajorInduct = some (.inductInfo info)
@@ -212,7 +211,7 @@ theorem rules_ofRestoredEquation (B : RestoredBlock L sourceTypes isUnsafe outEn
     {r : VRecursor} {ru : VRecRule} (hr : r ∈ B.decl.recs) (hru : ru ∈ r.rules) :
     ∃ df ∈ B.block.rules, VRecRule.OfEquation r ru df ∧
       ∃ k, (compilationRestoration B.decl B.auxiliaries).equation
-        (L.recursors.generation.equation k) = some df := by
+        (L.recursors.generationInstance.equation k) = some df := by
   obtain ⟨df, hdf, hof⟩ := B.recsOf.rules r hr ru hru
   refine ⟨df, hdf, hof, ?_⟩
   have h := B.compiled.equations

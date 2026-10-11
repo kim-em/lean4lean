@@ -97,53 +97,40 @@ structure KernelFacts (B : RestoredBlock L sourceTypes isUnsafe outEnv) : Prop w
   safePrimitives : ∀ {n ci}, outEnv.find? n = some ci →
     Kernel.Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
 
-/-- The lowered declaration of the run is the lowered run's (`run_lowered`). -/
-theorem LoweredView.loweredDecl_of_heq {e₁ e₂ : Environment} (h : e₁ = e₂)
-    {a : LoweredView e₁} {b : LoweredView e₂} (hab : HEq a b) :
-    a.loweredDecl = b.loweredDecl := by
-  subst h; cases hab; rfl
-
-theorem LoweredView.isUnsafe_of_heq {e₁ e₂ : Environment} (h : e₁ = e₂)
-    {a : LoweredView e₁} {b : LoweredView e₂} (hab : HEq a b) :
-    a.isUnsafe = b.isUnsafe := by
-  subst h; cases hab; rfl
-
 /-- The declaration's `isUnsafe` is the lowered run's. -/
 theorem isUnsafe_lowered (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
     isUnsafe = (c.safety != .safe) :=
-  B.run.lowered_isUnsafe_source.symm.trans
-    (LoweredView.isUnsafe_of_heq B.run_loweredEnv B.run_lowered)
+  B.run.lowered_isUnsafe_source.symm
 
 /-- The run's lowering certificate, at the lowered run's context. -/
 theorem runLowering (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
-    NestedLoweringOutputClosed L.c'.env B.run.validationFuel.inductiveFuel nparams sourceTypes
-      { ({ lvls := L.c'.lparams.map .param, newTypes := #[] } :
+    NestedLoweringOutputClosed L.c.env B.run.validationFuel.inductiveFuel nparams sourceTypes
+      { ({ lvls := L.c.lparams.map .param, newTypes := #[] } :
           Lean4Lean.ElimNestedInductive.State) with newTypes := sourceTypes.toArray } res := by
   rw [L.env_eq, L.lparams_eq]
   exact B.run.lowering
 
 /-- The run's restoration folds, over the lowered environment and the lowered run's context. -/
 def runRestoration (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
-    NestedRestorationFolds res loweredEnv L.c'.env
+    NestedRestorationFolds res loweredEnv L.c.env
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
       (sourceTypes.map (·.name)) sourceTypes
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1 ((), outEnv) := by
   have h := B.run.restoration
-  rw [B.run_loweredEnv] at h
   rw [L.env_eq]
   exact h
 
 /-- Every constructor of the output is listed by its present owner. -/
 theorem constructorOwnersPresent (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
     ConstructorOwnersPresent outEnv := by
-  have Howners : ConstructorOwnersPresent L.c'.env := by
+  have Howners : ConstructorOwnersPresent L.c.env := by
     rw [L.env_eq]; exact Hc.checking.constructorOwners
-  exact NestedRestorationFolds.constructorOwnersPresent (R := L.input) B.runLowering L.Hc'
+  exact NestedRestorationFolds.constructorOwnersPresent (R := L.constructors) B.runLowering L.Hc'
     L.recursors rfl B.runRestoration Howners
 
 /-- The run's source-side certificates for its recursor-free declaration `runDecl`. -/
 theorem runSource (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
-    TrInductDeclCore L.Hc'.venv L.c'.lparams nparams sourceTypes (c.safety != .safe) B.runDecl
+    TrInductDeclCore L.Hc'.venv L.c.lparams nparams sourceTypes (c.safety != .safe) B.runDecl
       B.envTypes B.envCtors ∧
     SourcePrefixOfLowered B.runDecl L.loweredDecl ∧
     B.runDecl.ConstructorArityPrefix L.loweredDecl := by
@@ -155,8 +142,7 @@ theorem runSource (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
     exact ⟨Hsource0.uvars, Hsource0.nparams, Hsource0.isUnsafe, Hsource0.typesAdded,
       Hsource0.ctorsAdded, Hsource0.types⟩
   · have h := B.run.sourceCore.checked
-    rw [B.run.sourceCoreDecl_eq,
-      LoweredView.loweredDecl_of_heq B.run_loweredEnv B.run_lowered] at h
+    rw [B.run.sourceCoreDecl_eq] at h
     exact h
   · have Harity0 := B.constructorArityPrefix
     rw [hdecl] at Harity0
@@ -165,10 +151,10 @@ theorem runSource (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
 /-- The origin of every inductive header of the output, for the run's declaration. -/
 theorem inductInfosFromRunDecl (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
     InductInfosFromDecl c.env.constants outEnv.constants B.runDecl := by
-  have Howners : ConstructorOwnersPresent L.c'.env := by
+  have Howners : ConstructorOwnersPresent L.c.env := by
     rw [L.env_eq]; exact Hc.checking.constructorOwners
   obtain ⟨Hsource, Hmetadata, Harity⟩ := B.runSource
-  have H := NestedRestorationFolds.inductInfosFromDecl (R := L.input) B.runLowering L.Hc'
+  have H := NestedRestorationFolds.inductInfosFromDecl (R := L.constructors) B.runLowering L.Hc'
     L.recursors Hsource Hmetadata B.sourceSyntaxChecked Harity
     Howners rfl B.runRestoration
   rw [L.env_eq] at H
@@ -188,11 +174,11 @@ restored source families are the output's members of the declaration's block
 (`InductInfosFromDecl.mutualInductivesClosed`). -/
 theorem mutualInductivesClosed (B : RestoredBlock L sourceTypes isUnsafe outEnv)
     (hsourceClosed : MutualInductivesClosed c.env) : MutualInductivesClosed outEnv := by
-  have Howners : ConstructorOwnersPresent L.c'.env := by
+  have Howners : ConstructorOwnersPresent L.c.env := by
     rw [L.env_eq]; exact Hc.checking.constructorOwners
   obtain ⟨Hsource, Hmetadata, Harity⟩ := B.runSource
   have Hrestored := B.runRestoration
-  have hsourceWF : L.c'.env.constants.WF := L.Hc'.checking.tr.map_wf
+  have hsourceWF : L.c.env.constants.WF := L.Hc'.checking.tr.map_wf
   obtain ⟨HprimaryMembers, HprimaryParams⟩ :=
     Hrestored.inductives.restoredSourceMemberInfos B.runLowering L.Hc'
       L.recursors Hsource Hmetadata B.sourceSyntaxChecked Harity Howners rfl
@@ -227,7 +213,7 @@ theorem mutualInductivesClosed (B : RestoredBlock L sourceTypes isUnsafe outEnv)
     simpa [VInductDecl.typeConstants, VInductiveType.toVConstVal,
       Function.comp_def] using VEnv.addConstVals_names_nodup Hsource.typesAdded
   have Hfresh := HprimaryFresh.append HauxFresh
-  have hcl : MutualInductivesClosed L.c'.env := by rw [L.env_eq]; exact hsourceClosed
+  have hcl : MutualInductivesClosed L.c.env := by rw [L.env_eq]; exact hsourceClosed
   have Horigins := B.inductInfosFromRunDecl
   rw [← L.env_eq] at Horigins
   exact InductInfosFromDecl.mutualInductivesClosed Horigins hsourceWF

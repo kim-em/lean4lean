@@ -281,9 +281,11 @@ theorem NestedRun.sourceConstructors_of_lowering
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
@@ -337,7 +339,7 @@ theorem NestedRun.sourceConstructors_of_lowering
       (E.commonParameterContext_refl wf)
   have hscoped := auxiliarySpecializations_scoped Haux Hexpansion hsuffixNodup
   -- the base and lowered header environments
-  have hinit : E.lowered.initialEnv =
+  have hinit : E.lowered.Hc'.venv =
       ves.venv (if isUnsafe then .unsafe else .safe) := E.lowered_initialEnv
   have hloweredTypes : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       E.lowered.loweredDecl.typeConstants =
@@ -365,7 +367,7 @@ theorem NestedRun.sourceConstructors_of_lowering
   have Hmodels : E.lowered.signature.Models
       (ves.venv (if isUnsafe then .unsafe else .safe)) E.lowered.loweredDecl := by
     have h := E.lowered.recursorConstruction.generator.models
-    change E.lowered.signature.Models E.lowered.initialEnv
+    change E.lowered.signature.Models E.lowered.Hc'.venv
       E.lowered.loweredDecl at h
     rwa [hinit] at h
   have hheadNames : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =

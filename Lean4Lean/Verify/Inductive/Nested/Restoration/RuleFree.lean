@@ -612,11 +612,13 @@ the restored rules: the recursors are the base's translated recursor constants
 theorem NestedRun.strippedValid {ves : VEnvs} {res : ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType} {decl : VInductDecl}
     {lparams : List Name} {nparams : Nat} {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
     (E : NestedRun res sourceProdEnv sourceTypes (ves.venv (if isUnsafe then .unsafe else .safe))
-      decl lparams nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      decl lparams nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (B : RestoredBlockBase E.restoration (ves.venv (if isUnsafe then .unsafe else .safe)) decl
       lparams nparams isUnsafe (if isUnsafe then .unsafe else .safe))
-    (hB : B.lowered = E.lowered) (wf : ves.WF sourceProdEnv)
+    (hB : B.loweredDecl = E.lowered.loweredDecl) (wf : ves.WF sourceProdEnv)
     (Hsources : SourceSyntaxChecked sourceTypes)
     (Hparameters : decl.SourceParameterWF (ves.venv (if isUnsafe then .unsafe else .safe)))
     (hk : ∀ r ∈ E.restoration.rvals, r.k = false)

@@ -4,7 +4,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Run
 /-! # The installed nested run (`NestedInstalledRun`)
 
 A validated nested run (`NestedRun`) together with the rule-free restored block it produced
-(`RestoredBlockBase`) over the same lowered view. Nested blocks are installed through
+(`RestoredBlockBase`) over the same lowered run. Nested blocks are installed through
 `RestoredBlock` (`Nested/Install/Installed.lean`). -/
 
 namespace Lean4Lean
@@ -20,11 +20,12 @@ structure NestedInstalledRun
     (sourceProdEnv : Environment) (sourceTypes : List InductiveType)
     (sourceEnv : VEnv) (decl : VInductDecl) (lparams : List Name)
     (nparams : Nat) (isUnsafe : Bool) (safety : DefinitionSafety)
-    (outEnv : Environment) extends
+    (outEnv : Environment) {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} (L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀) extends
     NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams nparams isUnsafe safety
-      outEnv where
+      outEnv L where
   assembly : RestoredBlockBase restoration sourceEnv decl lparams nparams isUnsafe safety
-  lowered_eq : assembly.lowered = lowered
+  lowered_eq : assembly.loweredDecl = L.loweredDecl
 
 section
 

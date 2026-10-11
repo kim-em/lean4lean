@@ -8,7 +8,7 @@ import Lean4Lean.Std.List
 
 The expanded declaration is the lowered declaration `E.lowered.loweredDecl`,
 the signature and instance are those of its recursor construction
-(`LoweredView.signature`, `LoweredView.generatedInstance`), and the block is the
+(`LoweredRun.signature`, `LoweredRun.generatedInstance`), and the block is the
 `restoredBlock` of a `RestoredBlockDerivation`. Every field is proved here except the restoration
 correspondence of the constructor types (and of the auxiliary family headers)
 and the restored recursor and equation lists, collected in
@@ -81,20 +81,26 @@ theorem _root_.Lean4Lean.InductiveSignature.declaration_type_uvars
   rfl
 
 /-- The recursor construction of the lowered declaration. -/
-noncomputable def LoweredView.recursorConstruction
-    {loweredEnv : Environment} (P : LoweredView loweredEnv) :
+noncomputable def LoweredRun.recursorConstruction
+    {c₀ : AddInductive.Context} {Hc : ContextWF c₀} {nparams : Nat}
+    {indTypes : Array InductiveType} {loweredEnv : Environment}
+    (P : LoweredRun Hc nparams indTypes loweredEnv) :
     RecursorConstruction P.constructors :=
   P.recursors.toRecursorConstruction
 
 /-- The normalized signature of the lowered declaration. -/
-noncomputable def LoweredView.signature
-    {loweredEnv : Environment} (P : LoweredView loweredEnv) :
+noncomputable def LoweredRun.signature
+    {c₀ : AddInductive.Context} {Hc : ContextWF c₀} {nparams : Nat}
+    {indTypes : Array InductiveType} {loweredEnv : Environment}
+    (P : LoweredRun Hc nparams indTypes loweredEnv) :
     InductiveSignature :=
   P.recursorConstruction.generator.signature
 
 /-- The generation instance of the lowered declaration. -/
-noncomputable def LoweredView.generatedInstance
-    {loweredEnv : Environment} (P : LoweredView loweredEnv) :
+noncomputable def LoweredRun.generatedInstance
+    {c₀ : AddInductive.Context} {Hc : ContextWF c₀} {nparams : Nat}
+    {indTypes : Array InductiveType} {loweredEnv : Environment}
+    (P : LoweredRun Hc nparams indTypes loweredEnv) :
     Instance P.signature :=
   P.recursorConstruction.generator.generation
 
@@ -151,9 +157,11 @@ theorem NestedRun.compilationData_of_specializations
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (D : NestedExpansionData (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl)
     (hD : D.expanded = E.lowered.loweredDecl)
     {block : VInductBlock}
@@ -178,7 +186,7 @@ theorem NestedRun.compilationData_of_specializations
     CompilationData (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
       E.lowered.loweredDecl E.lowered.signature
       E.lowered.generatedInstance auxiliaries block := by
-  have hinit : E.lowered.initialEnv =
+  have hinit : E.lowered.Hc'.venv =
       ves.venv (if isUnsafe then .unsafe else .safe) := E.lowered_initialEnv
   have HexpandedSource : E.lowered.loweredDecl.SourceWF
       (ves.venv (if isUnsafe then .unsafe else .safe)) :=
@@ -186,7 +194,7 @@ theorem NestedRun.compilationData_of_specializations
   have Hmodels : E.lowered.signature.Models
       (ves.venv (if isUnsafe then .unsafe else .safe)) E.lowered.loweredDecl := by
     have h := E.lowered.recursorConstruction.generator.models
-    change E.lowered.signature.Models E.lowered.initialEnv
+    change E.lowered.signature.Models E.lowered.Hc'.venv
       E.lowered.loweredDecl at h
     rwa [hinit] at h
   have Hsource := E.sourceCore.core

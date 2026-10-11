@@ -6,11 +6,9 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.SideEnvironment.Environment
 
 /-! # The data of a validated nested run (`NestedRun`)
 
-The run object the restoration certificates are indexed by. The lowered run is exposed through
-`LoweredView` (its context, statistics, lowered declaration, the recursor input as
-`constructors` and the recursor installation as `recursors`), built from `LoweredRun` by
-`LoweredRun.view`; `LoweredRun.recursors : RecursorCheck` is `LoweredView.check`, and
-`LoweredView.recursors` is its `RecursorInstallation`.
+The run object the restoration certificates are indexed by. It is indexed by the lowered run
+`L : LoweredRun` (the ordinary pipeline's run on the lowered block), which the restoration
+lemmas read as `E.lowered`.
 
 Also here: `NestedSourceDeclaration` and the derived views of a run. -/
 
@@ -20,56 +18,6 @@ open Lean hiding Environment Exception
 open Kernel
 
 namespace VerifyInductive
-
-/-- The lowered run, as read by the restoration lemmas. -/
-structure LoweredView (outEnv : Environment) where
-  c : AddInductive.Context
-  stats : AddInductive.InductiveStats
-  loweredDecl : VInductDecl
-  nparams : Nat
-  depth : Nat
-  isUnsafe : Bool
-  initialEnv : VEnv
-  indTypes : Array InductiveType
-  ctorEnv : Environment
-  /-- The constructor phase's output. -/
-  constructors : RecursorInput c stats loweredDecl nparams isUnsafe depth initialEnv indTypes
-    ctorEnv
-  /-- The recursor phase's check. -/
-  check : RecursorCheck constructors outEnv
-
-namespace LoweredView
-
-variable {outEnv : Environment}
-
-/-- The recursor installation of the recursor phase's check. -/
-abbrev recursors (P : LoweredView outEnv) : RecursorInstallation P.constructors outEnv :=
-  P.check
-
-abbrev headerEnv (P : LoweredView outEnv) : Environment := P.constructors.headerEnv
-
-abbrev headers (P : LoweredView outEnv) :
-    HeaderData P.c P.stats P.loweredDecl P.nparams P.isUnsafe P.depth P.initialEnv
-      P.indTypes P.headerEnv :=
-  P.constructors.headers
-
-end LoweredView
-
-/-- A lowered run as a `LoweredView`. -/
-def LoweredRun.view {c : AddInductive.Context} {Hc : ContextWF c} {nparams : Nat}
-    {indTypes : Array InductiveType} {loweredEnv : Environment}
-    (L : LoweredRun Hc nparams indTypes loweredEnv) : LoweredView loweredEnv where
-  c := L.c'
-  stats := L.stats
-  loweredDecl := L.loweredDecl
-  nparams := nparams
-  depth := L.phase.depth
-  isUnsafe := c.safety != .safe
-  initialEnv := L.Hc'.venv
-  indTypes := indTypes
-  ctorEnv := L.ctorEnv
-  constructors := L.input
-  check := L.recursors
 
 /-- The source declaration with its header and constructor environments,
 obtained from the lowering, restoration, and validation runs. -/
@@ -104,9 +52,8 @@ structure NestedRun
     (sourceProdEnv : Environment) (sourceTypes : List InductiveType)
     (sourceEnv : VEnv) (decl : VInductDecl) (lparams : List Name)
     (nparams : Nat) (isUnsafe : Bool) (safety : DefinitionSafety)
-    (outEnv : Environment) where
-  loweredEnv : Environment
-  lowered : LoweredView loweredEnv
+    (outEnv : Environment) {c₀ : AddInductive.Context} {Hc : ContextWF c₀}
+    {loweredEnv : Environment} (L : LoweredRun Hc nparams res.types.toArray loweredEnv) where
   context : AddInductive.Context
   contextWF : ContextWF context
   context_env : context.env = sourceProdEnv
@@ -114,12 +61,10 @@ structure NestedRun
   context_safety : context.safety = safety
   context_allowPrimitive : context.allowPrimitive = false
   context_venv : contextWF.venv = sourceEnv
-  lowered_c : lowered.c = context
-  lowered_nparams : lowered.nparams = nparams
-  lowered_isUnsafe : lowered.isUnsafe = (context.safety != .safe)
-  lowered_isUnsafe_source : lowered.isUnsafe = isUnsafe
-  lowered_initialEnv : lowered.initialEnv = sourceEnv
-  lowered_indTypes : lowered.indTypes = res.types.toArray
+  lowered_c : L.c = context
+  lowered_isUnsafe : L.isUnsafe = (context.safety != .safe)
+  lowered_isUnsafe_source : L.isUnsafe = isUnsafe
+  lowered_initialEnv : L.Hc'.venv = sourceEnv
   stats : AddInductive.InductiveStats
   depth : Nat
   commonParams : List VExpr
@@ -175,54 +120,79 @@ structure NestedRun
   auxiliaryTranslations : ClosedNestedOccurrenceTypings auxiliaryVEnv
     lparams res auxiliarySelection
   sourceCore : NestedSourceDeclaration sourceEnv lparams nparams
-    sourceTypes isUnsafe lowered.loweredDecl safety validationEnv
+    sourceTypes isUnsafe L.loweredDecl safety validationEnv
       auxiliaryHeaderEnv
   sourceCoreDecl_eq : sourceCore.sourceDecl = decl
   auxiliaryVEnv_eq_sourceCore : auxiliaryVEnv = sourceCore.envTypes
   /-- (New.) The lowered family and constructor names are not primitives (the lowered run
   checks them with `allowPrimitive = false`). -/
-  loweredNonprimitive : ∀ n ∈ InductiveSignature.familyNames lowered.loweredDecl.types,
+  loweredNonprimitive : ∀ n ∈ InductiveSignature.familyNames L.loweredDecl.types,
     ¬ Kernel.Environment.primitives.contains n
 
 /-! ### Derived views -/
 
+/-- The lowered run of a nested run. -/
+abbrev NestedRun.lowered {c₀ : AddInductive.Context} {Hc : ContextWF c₀}
+    {loweredEnv : Environment} {L : LoweredRun Hc nparams res.types.toArray loweredEnv}
+    (_ : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams
+      nparams isUnsafe safety outEnv L) : LoweredRun Hc nparams res.types.toArray loweredEnv :=
+  L
+
+/-- The environment the lowered run returns. -/
+abbrev NestedRun.loweredEnv {c₀ : AddInductive.Context} {Hc : ContextWF c₀}
+    {loweredEnv : Environment} {L : LoweredRun Hc nparams res.types.toArray loweredEnv}
+    (_ : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams
+      nparams isUnsafe safety outEnv L) : Environment :=
+  loweredEnv
+
 theorem NestedRun.lowered_env
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
     (E : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams
-      nparams isUnsafe safety outEnv) : E.lowered.c.env = sourceProdEnv :=
+      nparams isUnsafe safety outEnv L) : E.lowered.c.env = sourceProdEnv :=
   (congrArg AddInductive.Context.env E.lowered_c).trans E.context_env
 
 theorem NestedRun.lowered_lparams
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
     (E : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams
-      nparams isUnsafe safety outEnv) : E.lowered.c.lparams = lparams :=
+      nparams isUnsafe safety outEnv L) : E.lowered.c.lparams = lparams :=
   (congrArg AddInductive.Context.lparams E.lowered_c).trans E.context_lparams
 
 theorem NestedRun.lowered_safety
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
     (E : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams
-      nparams isUnsafe safety outEnv) : E.lowered.c.safety = safety :=
+      nparams isUnsafe safety outEnv L) : E.lowered.c.safety = safety :=
   (congrArg AddInductive.Context.safety E.lowered_c).trans E.context_safety
 
 /-- The context certificate already recorded by the nested run, at its lowered context. -/
 def NestedRun.loweredContextWF
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
     (E : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams
-      nparams isUnsafe safety outEnv) : ContextWF E.lowered.c := by
+      nparams isUnsafe safety outEnv L) : ContextWF E.lowered.c := by
   rw [E.lowered_c]
   exact E.contextWF
 
 /-- The ordinary initial state used by the recorded nested lowering. -/
 def NestedRun.initialState
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
     (E : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams
-      nparams isUnsafe safety outEnv) : Lean4Lean.ElimNestedInductive.State :=
+      nparams isUnsafe safety outEnv L) : Lean4Lean.ElimNestedInductive.State :=
   { lvls := E.lowered.c.lparams.map .param, newTypes := #[] }
 
 /-- The recorded lowering in the lowered run's context and parameter indices. -/
 theorem NestedRun.loweringAtContext
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
     (E : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams
-      nparams isUnsafe safety outEnv) :
+      nparams isUnsafe safety outEnv L) :
     NestedLoweringOutputClosed E.lowered.c.env E.validationFuel.inductiveFuel
-      E.lowered.nparams sourceTypes
+      nparams sourceTypes
       { E.initialState with newTypes := sourceTypes.toArray } res := by
-  simpa only [NestedRun.initialState, E.lowered_env, E.lowered_lparams,
-    E.lowered_nparams] using E.lowering
+  simpa only [NestedRun.initialState, E.lowered_env, E.lowered_lparams] using E.lowering
 
 end VerifyInductive
 end Lean4Lean

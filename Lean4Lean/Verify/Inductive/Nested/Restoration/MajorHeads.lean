@@ -192,9 +192,11 @@ is an application of a constant: the owner family itself when it is not a
 restoration head, and otherwise the head of the nested occurrence recorded
 for the owner family by lowering. -/
 theorem NestedRun.restoredMajorHead {ves : VEnvs}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {r : Restoration} {auxRec : NameMap Name} {targetEnv : VEnv} {Us : List Name}
     {auxLevels : List Level}
@@ -341,8 +343,10 @@ theorem NestedRun.restoredMajorHead {ves : VEnvs}
 /-- Every nested occurrence recorded by lowering is headed by an inductive
 type of the source kernel environment. -/
 theorem NestedRun.auxNestedHead {ves : VEnvs}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv)
+      sourceDecl lparams nparams isUnsafe safety outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {name : Name} {nested : Expr} (hfind : result.aux2nested.find? name = some nested) :
     ∃ I ls info, nested.getAppFn = .const I ls ∧
@@ -360,8 +364,10 @@ theorem NestedRun.auxNestedHead {ves : VEnvs}
 /-- The source family names are the names of the source prefix of the
 lowered declaration. -/
 theorem NestedRun.sourceNames_eq
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv) :
+      sourceDecl lparams nparams isUnsafe safety outEnv L) :
     sourceTypes.map (·.name) =
       (E.lowered.loweredDecl.types.take sourceTypes.length).map (·.name) :=
   forall₂_map_eq (fun _ _ h => h.name.symm) E.sourceCore.sourceHeaders
