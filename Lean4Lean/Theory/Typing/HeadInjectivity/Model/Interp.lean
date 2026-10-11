@@ -167,6 +167,11 @@ def iotaFs (nf : Nat) : List Nat := (List.range nf).reverse
 @[simp] theorem iotaLead_length : (iotaLead k nf idxT).length = k + idxT.length := by
   simp [iotaLead]
 
+/-- The domain `A` ends in an application whose last argument is headed by the constructor
+`c` (the shape of `c`'s minor premise). -/
+def EndsInCtor (c : Name) (A : VExpr) : Prop :=
+  ∃ f args lsC margs, A.piBody = .mkApps f (args ++ [.mkApps (.const c lsC) margs])
+
 /-- The static data of an ι rule read off its recursor's type `ci.type`: the reduct template
 binds `k + nf` variables; the recursor's type is a telescope of `k + nind + 1` domains whose
 major domain applies the family `I` at the levels `lsI`; and the constructor's result indices
@@ -174,7 +179,9 @@ major domain applies the family `I` at the levels `lsI`; and the constructor's r
 `ctor` at position `pos` (the minor is a telescope over the `nf` fields and `nih` induction
 hypotheses whose body applies a motive to the indices, lifted into the minor's context, and
 to the constructor application). The lead carries the indices lifted into the reduct's
-context, below the `k - np` motive and minor binders. -/
+context, below the `k - np` motive and minor binders. The minor is the last domain before the
+indices that ends in `ctor` (`EndsInCtor`), which makes the lead unique
+(`IotaStatic.lead_unique`). -/
 def IotaStatic (ci : VConstant) (ctor : Name) (k nind nf : Nat) (doms dsH : List VExpr)
     (RH : VExpr) (I : Name) (lsI : List VLevel) (iargs lead : List VExpr) : Prop :=
   doms.length = k + nf ∧ ci.type = .wrapForalls dsH RH ∧ dsH.length = k + nind + 1 ∧
@@ -184,12 +191,13 @@ def IotaStatic (ci : VConstant) (ctor : Name) (k nind nf : Nat) (doms dsH : List
     dsH[pos]? = some (.wrapForalls Dm (.mkApps (.bvar mv)
       (ctorIdx.map (fun e => (e.liftN nih).liftN (pos - np) (nf + nih)) ++
         [.mkApps (.const ctor lsC) margs]))) ∧
-    lead = iotaLead k nf (ctorIdx.map (·.liftN (k - np) nf))
+    lead = iotaLead k nf (ctorIdx.map (·.liftN (k - np) nf)) ∧
+    ∀ pos' A, pos < pos' → pos' < k → dsH[pos']? = some A → ¬ EndsInCtor ctor A
 
 theorem IotaStatic.lead_length {ci : VConstant} {ctor : Name} {k nind nf : Nat}
     {doms dsH : List VExpr} {RH : VExpr} {I : Name} {lsI : List VLevel} {iargs lead : List VExpr}
     (h : IotaStatic ci ctor k nind nf doms dsH RH I lsI iargs lead) : lead.length = k + nind := by
-  obtain ⟨-, -, -, -, np, pos, nih, mv, ctorIdx, Dm, margs, lsC, -, -, hl, -, -, rfl⟩ := h
+  obtain ⟨-, -, -, -, np, pos, nih, mv, ctorIdx, Dm, margs, lsC, -, -, hl, -, -, rfl, -⟩ := h
   simp [hl]
 
 @[simp] theorem iotaFs_length : (iotaFs nf).length = nf := by simp [iotaFs]
