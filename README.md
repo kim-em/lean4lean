@@ -86,6 +86,18 @@ recursors. The tests in `Lean4Lean/Tests` compare generated recursors, construct
 with Lean's kernel, check the specification on small examples, and pin the divergences listed in
 `divergences.md`.
 
+Wall time of `lake exe lean4lean --fresh MOD` (seconds, median of three runs, bash `time`, on a
+shared and loaded machine) against PR #43's head, whose executable has the same caches:
+
+| `MOD` | declarations | PR #43 | this branch |
+|---|---|---|---|
+| `Init.Prelude` | 1975 | 0.49 | 0.47 |
+| `Init.Core` | 3953 | 0.66 | 0.64 |
+| `Init.System.IO` | 43609 | 29.2 | 30.6 |
+
+The `Init.System.IO` runs were interleaved between the two builds; on this machine single runs
+varied by up to 7 seconds.
+
 ## More documentation
 
 * [bugs-found.md](bugs-found.md): A list of kernel bugs that the lean4lean project has uncovered.
