@@ -84,6 +84,7 @@ theorem iotaStatic (index : Fin s.constructors.size)
     (recursiveFields s.constructors[index]).length,
     s.constructors[index].fields.length + (recursiveFields s.constructors[index]).length +
       index.val + (s.families.size - 1 - s.constructors[index].owner.val),
+    s.params.length + s.constructors[index].owner.val,
     s.constructors[index].indices.map (·.instL g.levels),
     insertBinders ((s.fieldTypes s.constructors[index]).map (·.instL g.levels))
         (s.families.size + index.val) ++
@@ -93,8 +94,18 @@ theorem iotaStatic (index : Fin s.constructors.size)
         (recursiveFields s.constructors[index]).length) ++
       vars s.constructors[index].fields.length (recursiveFields s.constructors[index]).length,
     g.levels,
-    by omega, by have := index.isLt; omega, by simpa using harity, ?_, ?_, ?_, ?_⟩
+    by omega, by have := index.isLt; omega, by simpa using harity, ?_,
+    by have := s.constructors[index].owner.isLt; omega, ?_, ⟨vars (insertBinders (s.families[s.constructors[index].owner].indices.map
+      (·.instL g.levels)) (s.families.size + s.constructors.size)).length 1 ++ [.bvar 0], ?_⟩,
+    ?_, ?_, ?_⟩
   · simp [insertBinders, fieldTypes]
+  · simp only [insertBinders, List.length_append, List.length_map, List.length_zipIdx, fieldTypes]
+    have := s.constructors[index].owner.isLt
+    omega
+  · simp only [recBody, insertBinders, List.length_map, List.length_zipIdx]
+    congr 2
+    have := s.constructors[index].owner.isLt
+    omega
   · rw [hpos]
     simp only [minor, constructorApp, List.map_map, Option.some.injEq, List.length_map,
       List.length_zipIdx, show s.params.length + s.families.size + index.val - s.params.length =
@@ -109,7 +120,7 @@ theorem iotaStatic (index : Fin s.constructors.size)
     have hi' : i' < s.constructors.size := by omega
     rw [g.recDoms_minor _ ⟨i', hi'⟩] at hA
     cases hA
-    have := hnames ⟨i', hi'⟩ (g.minor_endsInCtor hE).symm
+    have := hnames ⟨i', hi'⟩ (g.minor_endsInCtor hE.endsInCtor).symm
     have : i' = index.val := congrArg Fin.val this
     omega
 

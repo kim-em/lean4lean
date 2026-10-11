@@ -31,23 +31,46 @@ theorem endsInCtor_of {c : Name} {Dm args margs : List VExpr} {f : VExpr} {lsC :
   refine ⟨f, args, lsC, margs, ?_⟩
   rw [VExpr.mkApps_snoc, piBody_wrapForalls_app]
 
+theorem EndsInCtorAt.endsInCtor {c : Name} {p : Nat} {A : VExpr} (h : EndsInCtorAt c p A) :
+    EndsInCtor c A := by
+  obtain ⟨Dm, args, lsC, margs, rfl⟩ := h
+  exact endsInCtor_of
+
+theorem VExpr.mkApps_bvar_head_inj {i j : Nat} {a b : List VExpr}
+    (h : VExpr.mkApps (.bvar i) a = VExpr.mkApps (.bvar j) b) : i = j := by
+  have := congrArg VExpr.getAppFn h
+  simp only [VExpr.getAppFn_mkApps, VExpr.getAppFn] at this
+  injection this
+
 theorem IotaStatic.lead_unique {ci : VConstant} {ctor : Name} {k nind nf : Nat}
     {doms dsH : List VExpr} {RH : VExpr} {I : Name} {lsI : List VLevel} {iargs lead : List VExpr}
     {doms' dsH' : List VExpr} {RH' : VExpr} {I' : Name} {lsI' : List VLevel}
     {iargs' lead' : List VExpr}
     (h1 : IotaStatic ci ctor k nind nf doms dsH RH I lsI iargs lead)
     (h2 : IotaStatic ci ctor k nind nf doms' dsH' RH' I' lsI' iargs' lead') : lead' = lead := by
-  obtain ⟨-, eH, hl, -, np, pos, nih, mv, cI, Dm, margs, lsC, hnp, hpk, hcl, hDml, hpos, rfl,
-    hmax⟩ := h1
-  obtain ⟨-, eH', hl', -, np', pos', nih', mv', cI', Dm', margs', lsC', hnp', hpk', hcl', hDml',
-    hpos', rfl, hmax'⟩ := h2
-  obtain ⟨rfl, -⟩ := VExpr.wrapForalls_inj_of_length (hl.trans hl'.symm) (eH.symm.trans eH')
+  obtain ⟨-, eH, hl, -, np, pos, nih, mv, pm, cI, Dm, margs, lsC, hnp, hpk, hcl, hDml, hpm, hmv,
+    ⟨rargs, hRH⟩, hpos, rfl, hmax⟩ := h1
+  obtain ⟨-, eH', hl', -, np', pos', nih', mv', pm', cI', Dm', margs', lsC', hnp', hpk', hcl',
+    hDml', hpm', hmv', ⟨rargs', hRH'⟩, hpos', rfl, hmax'⟩ := h2
+  obtain ⟨rfl, eR⟩ := VExpr.wrapForalls_inj_of_length (hl.trans hl'.symm) (eH.symm.trans eH')
+  -- the motive
+  have hpp' : pm = pm' := by
+    have := VExpr.mkApps_bvar_head_inj (hRH.symm.trans (eR.trans hRH'))
+    omega
+  subst hpp'
   -- the minor's position
+  have hend : ∀ {pos Dm mv margs lsC} {cI : List VExpr} {nih np : Nat}, mv = pos - 1 - pm + Dm.length →
+      EndsInCtorAt ctor (pos - 1 - pm) (.wrapForalls Dm (.mkApps (.bvar mv)
+        (cI.map (fun e => (e.liftN nih).liftN (pos - np) (nf + nih)) ++
+          [.mkApps (.const ctor lsC) margs]))) := by
+    intro pos Dm mv margs lsC cI nih np hmv
+    subst hmv
+    exact ⟨Dm, _, lsC, margs, rfl⟩
   have hpp : pos = pos' := by
     rcases Nat.lt_trichotomy pos pos' with h | h | h
-    · exact absurd endsInCtor_of (hmax pos' _ h hpk' hpos')
+    · exact absurd (hend hmv') (hmax pos' _ h hpk' hpos')
     · exact h
-    · exact absurd endsInCtor_of (hmax' pos _ h hpk hpos)
+    · exact absurd (hend hmv) (hmax' pos _ h hpk hpos)
   subst hpp
   have e := Option.some.inj (hpos.symm.trans hpos')
   rw [VExpr.mkApps_snoc, VExpr.mkApps_snoc] at e
