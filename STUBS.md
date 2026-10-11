@@ -27,6 +27,37 @@ from `VEnv.WF'.inductTypeRigid` and `headInversion`. The confluence theorem
 `IsDefEq.uniq`, which the engine's transport lemmas use throughout), and on nothing else
 (`scripts/check-inductive-audit.py`).
 
+## Cleanup 1
+
+Behaviour-preserving cleanup; no statement changed.
+
+* Deleted, nothing imported or used them: `Nested/Restoration/Validation/RecursorBinders.lean`
+  (209 lines, a copy of `MajorHeads.lean`'s private lemmas), `Theory/Inductive/GuardedIotaLemmas.lean`
+  (105), `Theory/Typing/TelescopeConversion.lean` (24), `Nested/Restoration/HeadTranslation.lean`
+  (206), `Theory/Typing/InductiveParams.lean` (179; `Tests/IotaShape` imports `PatsIota`
+  instead), `Theory/Typing/DefinitionRegistryInstallation.lean` (14, `VEnv.installDefinitions`).
+* `Nested/Restoration/TranslationPreservation.lean` (1344 lines) cut to its consumed part: the
+  projection-name lemmas are `Nested/Restoration/TranslationProjNames.lean` (69 lines) and
+  `Expr.TrailingArgs` moved to its one consumer `LoweredRuleAvoidance.lean`; `restorationTranslates`,
+  `RestoreTypedCtx` and the opening lemmas had no consumer.
+* `RecursorData.installEntries`, `CompilationData.recursorEntries_lookup` and
+  `RecursorRegistered.constant_exists` deleted (no consumer; the first was an audit root only).
+* Duplicates merged (one public copy kept): `Nested/Restoration/SignatureVars.lean` (70 lines, a
+  copy of `Theory/Typing/SignatureVars.lean`); `vars_length` and its variants (four copies) into
+  `length_vars`; `VExpr.piBinders_wrapForalls`, `piBody_wrapForalls`, `piArity_wrapForalls`,
+  `lamArity_wrapLams` into `Theory/VExpr/Telescope.lean` and `VExpr.bvarsDesc_succ_zero` into
+  `Theory/VExpr.lean`; private `lamBody_wrapLams` copies replaced by `VExpr.lamBody_wrapLams`
+  where it is imported; `find?_add_cases`/`Environment.find?_freshAdd_cases`/
+  `find?_freshAdd_preserves` into `findAddFresh_cases`/`findAddFresh_of_find`;
+  `IsDefEq.close_sort_header` into `UniqueTyping.lean`; `VInductDecl.RawCtorShape.constructorShape`
+  into `RecursiveShapeCorrespondence.lean`; `VConstant.eq_of_fields` into `DeclarationData.lean`;
+  `Restoration.expr_wrapLams` into `RestorationShapes.lean`.
+* Moved: the model-side replay of `addInduct` from `Install/Rebase.lean` (452 to 231 lines) to
+  `Theory/Inductive/AddInduct.lean` and `Theory/Typing/InductiveLemmas.lean`;
+  `Theory/Inductive/RestorationNames.lean` (151 lines) folded into `Restoration.lean`.
+* Process markers and provenance stripped from comments outside
+  `Theory/Typing/HeadInjectivity/`; 31 unused imports dropped.
+
 ## Replay theorems (`Verify/Replay.lean`) and the restored tests
 
 No stubs. `Verify/Replay.lean` proves `Replayed.foldlM`, `replayFresh.WF`, `replayFresh.WF_target`
