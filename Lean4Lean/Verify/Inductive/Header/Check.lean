@@ -135,7 +135,9 @@ end CheckedHeaders
 /-- The common-parameter context of the header phase: the cached parameters `stats.params` are
 the free variables of the suffix `parameterDecls` of the main context, translating to the
 de Bruijn parameter variables, and the context converts to the ambient prefix (of length
-`depth`) followed by the common parameter telescope `params`. -/
+`depth`) followed by the common parameter telescope `params`. The parameters are `.bvar (depth + i)`, not
+`.bvar i`: the continuation of `checkInductiveTypes` runs beneath the index binders of every
+family, which the loop nests. -/
 structure HeaderParameterContext {c : AddInductive.Context} (Hc : ContextWF c)
     (stats : AddInductive.InductiveStats) (params : List VExpr) (depth : Nat) where
   ambientDecls : VLCtx

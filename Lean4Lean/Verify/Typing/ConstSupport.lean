@@ -320,6 +320,9 @@ theorem VEnv.WF'.patsAvoidFreshConsts {ds : List VDecl} {env : VEnv} (H : env.WF
     intro p rr e m1 m2 hp hm he
     exact ihCtors (fun n hn => by simpa using Hfresh n hn) (by simpa using hp) hm he
 
+/-- Stated for `VEnv.WF`, not `VEnv.Ordered`: `Ordered.pat` records only `PatWF`, whose generic
+instance is typed in an arbitrary context, and bounding the template's constants from that needs
+an inertness theorem close to context strengthening. -/
 theorem VEnv.WF.patsAvoidFreshConsts {env : VEnv} (H : env.WF) {names : List Lean.Name}
     (Hfresh : ∀ name ∈ names, env.constants name = none) : env.PatsAvoidConsts names :=
   let ⟨_, H⟩ := H; H.patsAvoidFreshConsts Hfresh

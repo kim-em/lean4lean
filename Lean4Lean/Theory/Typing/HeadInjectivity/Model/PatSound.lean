@@ -11,7 +11,7 @@ equation of the step's compiled block (`VInductDecl.WF.rule_block`):
   (`Model/IotaHistory.lean`);
 * for a nested compilation by `Model.PatValid.nested`, stated here.
 
-NESTED STUB: `PatValid.nested` is open. Its statement is that of `PatValid.ordinary` with the
+Open: `PatValid.nested` is an open proof (`OPEN_PROOFS.md`). Its statement is that of `PatValid.ordinary` with the
 compilation's container specializations `aux ≠ []` installed below the block
 (`ContainersInstalled`). The generic part of the proof applies unchanged (`PatValid.of_rule`,
 `PatValid.of_rule_empty`, `iotaArgRel_of`); what a nested block must supply is the static data
@@ -49,7 +49,7 @@ theorem PatValid.nested {envF env0 env' : VEnv} {decl : VInductDecl}
       (SimplePattern.iota rec.name rec.getMajorIdx ru.ctor (ru.ctorParams + ru.nfields)).toPattern
       (SimplePattern.iotaRHS rec.name ru.ctor rec.numParams rec.numMotives rec.numMinors
         rec.numIndices ru.ctorParams ru.nfields ru.rhs hc, .true) := by
-  -- NESTED STUB
+  -- Open proof, see `OPEN_PROOFS.md`.
   sorry
 
 end Model

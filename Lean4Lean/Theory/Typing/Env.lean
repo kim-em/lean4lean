@@ -48,7 +48,8 @@ inductive VDecl.WF : VEnv → VDecl → VEnv → Prop where
 inductive VEnv.WF' : List VDecl → VEnv → Prop where
   | empty : VEnv.WF' [] .empty
   | decl {env} : VDecl.WF env d env' → env.WF' ds → env'.WF' (d::ds)
-  /-- The projection stage of an inductive declaration (`VInductDecl.addProjs`): register
+  /-- The projection stage of an inductive declaration (`VInductDecl.addProjs`; the premise that
+  the constructor-complete environment is well formed is what makes the stage well formed): register
   the projection entries of a declaration whose type formers and constructors are present
   and well formed, before its recursors are checked. The checker runs that happen in the
   recursor-checking environment therefore run in a well-formed environment, which every

@@ -4,7 +4,7 @@ This directory verifies the executable inductive checker on PR #43's calculus an
 on top of the checker verification (`Verify/TypeChecker`) and the environment model
 (`Verify/Environment`). Each phase of the executable has an interface structure and a boundary
 theorem; the tables below list them in pipeline order. Every boundary theorem is proved; the
-proofs depend on `sorryAx` only through the accepted open proofs of `STUBS.md`.
+proofs depend on `sorryAx` only through the accepted open proofs of `OPEN_PROOFS.md`.
 
 ## Principle
 

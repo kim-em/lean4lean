@@ -547,7 +547,11 @@ def InstalledHeaders.toHeaderEnvironment {c c' : AddInductive.Context} {Hc : Con
 
 /-- The boundary theorem of header installation: in the context of a completed header phase,
 `declareInductiveTypes` yields a well-formed constant map and, once the constructor names are
-absent from it, a header environment for every declaration the checked headers describe. -/
+absent from it, a header environment for every declaration the checked headers describe.
+The `ConstructorNamesAbsent` hypothesis of the postcondition is needed because
+`declareInductiveTypes` checks only the header names; the executable checks constructor names in
+`declareConstructors`, from which `constructorPhase.WF` obtains it. The declaration's `isUnsafe`
+is a premise (`decl.isUnsafe = isUnsafe`) since `Describes` does not constrain it. -/
 theorem AddInductive.declareInductiveTypes.WF
     {c c' : AddInductive.Context} {Hc : ContextWF c} {nparams : Nat}
     {indTypes : Array InductiveType} {Hc' : ContextWF c'} {stats : AddInductive.InductiveStats}

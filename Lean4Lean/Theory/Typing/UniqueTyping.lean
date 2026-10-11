@@ -85,13 +85,13 @@ theorem IsDefEqU.trans (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
 /-! ## Strengthening
 
 Master's statement of context strengthening for definitional equality: the one strengthening
-principle the checker verification uses (through `VEnv.WF.strengthening`). Open proof, listed
-in `scripts/inductive-audit-inventory.json`. -/
+principle the checker verification uses (through `VEnv.WF.strengthening`). Open proof
+(`OPEN_PROOFS.md`); PR #53 argued it false for well-formed environments without `Eq`. -/
 
 variable! (henv : VEnv.WF env) (hΓ : OnCtx Γ' (env.IsType U)) in
 theorem IsDefEqU.weakN_iff (W : Ctx.LiftN n k Γ Γ') :
     env.IsDefEqU U Γ' (e1.liftN n k) (e2.liftN n k) ↔ env.IsDefEqU U Γ e1 e2 := by
-  refine ⟨fun h => have := henv; have := hΓ; sorry, fun h => h.weakN henv W⟩
+  refine ⟨fun _ => sorry, fun h => h.weakN henv W⟩
 
 variable! (henv : VEnv.WF env) (hΓ : OnCtx Γ' (env.IsType U)) in
 theorem _root_.Lean4Lean.VExpr.WF.weakN_iff (W : Ctx.LiftN n k Γ Γ') :

@@ -116,7 +116,9 @@ end ConstructorCheck
 
 /-- The boundary theorem of the constructor phase: in the context of a completed header phase,
 `constructorPhase` yields a constructor check for a declaration the checked headers describe,
-whose classification is the one returned. -/
+whose classification is the one returned. The postcondition is `∃ R, R.classes = out.2`: the
+form `Nonempty … ∧ ∀ R, R.classes = out.2` is unprovable, since nothing pins an arbitrary `R`'s
+classes. -/
 theorem AddInductive.constructorPhase.WF
     {c c' : AddInductive.Context} {Hc : ContextWF c} {nparams : Nat}
     {indTypes : Array InductiveType} {Hc' : ContextWF c'} {stats : AddInductive.InductiveStats}

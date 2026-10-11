@@ -12,6 +12,11 @@ All observations are taken at the identity valuation `(id, ∅)` of the chain's 
 (`Δ = Γ`); a chain is turned into `Ob.Sub` inclusions link by link (`chain_sub`, from
 `sound`).
 
+Every lemma takes `OrderedStrong` (from `VEnv.WF.orderedStrong`, hence `patsStrong`): the
+extraction strengthens the weak links of a chain of the final environment by `IsDefEq.strong`.
+Restricting `patsStrong` to strict prefixes would not avoid this, since the extraction's input
+is a weak chain of the final environment itself.
+
 * `sort_sort`: the `sort` observation.
 * `forallE_chain`, with two observations: the domain class at the identity
   valuation gives `TypeChain Γ A A'`; then, in `A :: Γ` and for the weakened chain, the

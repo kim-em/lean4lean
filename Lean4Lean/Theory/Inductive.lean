@@ -745,7 +745,10 @@ The remaining clauses are the syntactic shapes of the kernel's recursor data: th
 split (`rec_shape`), one rule per constructor (`rules_nodup`), each rule firing on a
 constructor constant of the right spine arity (`rules_ctor`, stated so that the auxiliary
 recursors of a nested block, which fire on the constructors of a previously declared
-container, are admissible) and the reduct shape (`rule_shape`). -/
+container, are admissible) and the reduct shape (`rule_shape`). The recursor clauses
+(`recs_wf`, `rules_wf`, `rec_shape`, `rule_shape`, `rules_nodup`, `rules_ctor`) are fields rather
+than consequences of `recsCompiled`: deriving `rules_wf` from the compiled block needs uniqueness
+of typing and Π-injectivity, which depend on the open proofs (`OPEN_PROOFS.md`). -/
 structure VInductDecl.WF (env : VEnv) (decl : VInductDecl) : Prop where
   /-- The source judgment: headers and constructors typed, names distinct, universes shared. -/
   source : decl.SourceWF env
@@ -767,7 +770,8 @@ structure VInductDecl.WF (env : VEnv) (decl : VInductDecl) : Prop where
   nested block it is a constructor of the container, declared earlier. -/
   rules_ctor : ∀ envC, decl.addTypesCtors env = some envC → ∀ r ∈ decl.recs, ∀ ru ∈ r.rules,
     ∃ ci, envC.constants ru.ctor = some ci ∧ ci.type.CtorShape (ru.ctorParams + ru.nfields)
-  /-- The rule's constructor parameter count is that of the declaration
+  /-- This clause exists because `MajorApp` was weakened to admit the auxiliary recursors of
+  nested blocks. The rule's constructor parameter count is that of the declaration
   the constructor belongs to: the block's own `nparams` for its own constructors, a container's
   for a constructor of a container installed below (the auxiliary recursors of a nested block).
   With `rules_ctor` and `VRecRule.OfEquation` it pins the split of a rule's arity into
