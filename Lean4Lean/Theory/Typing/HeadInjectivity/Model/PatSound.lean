@@ -197,7 +197,100 @@ theorem PatValid.nested {envF env0 env' : VEnv} {decl : VInductDecl}
         hrelF.resultLevel
     · rw [hpL _ hglv]
       exact VLevel.inst_congr_l (Eq.symm hrelF.resultLevel)
-  · sorry
+  · -- an auxiliary constructor: the container's constructor at the specialization
+    have hSF : Spec (compilationRestoration decl aux) s.families[s.constructors[index].owner].name
+        s.params.length a.source.name (fun lv => a.levels.map (·.inst lv)) a.arguments := by
+      rw [hfa]; exact hSFa
+    have hSC : Spec (compilationRestoration decl aux) s.constructors[index].name
+        s.params.length c.name (fun lv => a.levels.map (·.inst lv)) a.arguments := by
+      rw [hcn]; exact hSCa
+    obtain ⟨hname, hctorN, -, -, -, hcp, hnf, -⟩ :=
+      rule_counts hdecl hrecsOf C hrec hru index hSC hres H
+    -- the container
+    obtain ⟨base0, installed, base', block', expanded', s', g', aux', hb', C', -, hadd', hle'⟩ :=
+      containers_mem hcont ha
+    have hsrc : a.source ∈ a.container.types := List.getElem_mem a.family.isLt
+    obtain ⟨_, _, _, hshapes', _, hraws'⟩ := C'.sourceParameters
+    have hcu : c.uvars = a.container.uvars :=
+      C'.sourceWF.2.2.2.1 c (List.mem_flatMap.2 ⟨a.source, hsrc, hc'⟩)
+    obtain ⟨cdoms, cres, hcty, hcle, hcresP⟩ := rawCtorShape_data (hraws' a.source hsrc c hc') hcu
+    have hargl : a.arguments.length = a.container.nparams := hwf.1
+    have hiE : installed ≤ env0 := hle'.trans hbase
+    have hiF : installed ≤ envF := hiE.trans h0F
+    have hcc : envF.constants c.name = some c.toVConstant :=
+      hiF.constants (addInduct_ctor_find hadd' hsrc hc')
+    have h0C : env0 ≤ envC := (addTypes_le sT).trans (addCtors_le sC)
+    have hcC : envC.constants c.name = some c.toVConstant :=
+      (hiE.trans h0C).constants (addInduct_ctor_find hadd' hsrc hc')
+    rw [hctorN] at hci2
+    cases hcC.symm.trans hci2
+    have hcdl : cdoms.length = a.arguments.length + s.constructors[index].fields.length := by
+      have := hsh'
+      change c.type.forallArity = _ at this
+      rw [hcty, VExpr.forallArity_wrapForalls, forallArity_mkApps_const', hcp, hnf] at this
+      omega
+    -- the specialized constructor type
+    rw [hcty] at hT
+    have eT := specializeType_shape (by omega) hT
+    have hB0 : ∀ L : List VLevel, L.length = s.uvars → (VExpr.wrapForalls s.params T).instL L =
+        .wrapForalls (s.params.map (·.instL L) ++
+          ((cdoms.drop a.arguments.length).zipIdx.map fun ((d, j) : VExpr × Nat) =>
+            (d.instL (a.levels.map (·.inst L))).subst
+              ((VExpr.argSubst (a.arguments.map (·.instL L))).liftN j)))
+        (((VExpr.mkApps (.const a.source.name (VLevel.params c.toVConstant.uvars)) cres).instL
+          (a.levels.map (·.inst L))).subst
+            ((VExpr.argSubst (a.arguments.map (·.instL L))).liftN
+              s.constructors[index].fields.length)) := by
+      intro L _
+      rw [eT, VExpr.instL_wrapForalls, VExpr.instL_wrapForalls, ← VExpr.wrapForalls_append,
+        instL_spec, VExpr.instL_instL, show cdoms.length - a.arguments.length =
+          s.constructors[index].fields.length by omega]
+      congr 2
+      rw [List.map_map]
+      apply List.map_congr_left
+      intro x _
+      simp only [Function.comp, instL_spec, VExpr.instL_instL]
+    -- the container family's telescope
+    obtain ⟨N, ownP, afterP, idxs, res, X, hN, htf1, htf2, -, -⟩ := hshapes' a.source hsrc
+    obtain ⟨e1, l1⟩ := VExpr.takeForalls_eq_wrapForalls htf1
+    obtain ⟨e2, l2⟩ := VExpr.takeForalls_eq_wrapForalls htf2
+    subst e1 e2
+    rw [← VExpr.wrapForalls_append] at hN
+    -- the container family is rigid
+    obtain ⟨dsF, HF⟩ := hF
+    have hpc : IsPatCtor envF c.name := by
+      obtain ⟨p, r, recN, M, N', hp, hpe⟩ := hcont.constructor_isPatCtor ha hc'
+      exact ⟨p, r, recN, M, N', hbF.pats hp, hpe⟩
+    have hIrig : envF.Rigid a.source.name := by
+      obtain ⟨ci, hci, F, ls, hhead, -, hrig⟩ := patCtor_resultRigid HF hpc
+      cases hcc.symm.trans hci
+      have := (rawCtorShape_head (hraws' a.source hsrc c hc')).symm.trans hhead
+      cases this
+      exact hrig
+    have hF : envF.WF := ⟨dsF, HF⟩
+    have hpat' : ∀ c2 ∈ a.source.ctors, IsPatCtor envF c2.name := by
+      intro c2 hc2
+      obtain ⟨p, r, recN, M, N', hp, hpe⟩ := hcont.constructor_isPatCtor ha hc2
+      exact ⟨p, r, recN, M, N', hbF.pats hp, hpe⟩
+    refine nested_finish hF hpre h0 hdecl hadd hle V0 hprojV hpats hdefs hctor hpctor hrec hru hc
+      haux hcomp hrecsOf hbwf hbase C hdf H index hres htypes hSF hSC
+      (lvC0 := a.levels) (fun lv _ => rfl) hRT
+      (cc := c.toVConstant) (cdoms := cdoms) (cres := cres) (PB := s.params)
+      rfl hB0 (cI := a.source.toVConstant)
+      (hiF.constants (addInduct_type_find hadd' hsrc))
+      (hN.mono (hb'.trans ((addInduct_le hadd').trans hiE)))
+      (by simp only [List.length_append, l1, l2, hnI, hargl]; omega) hIrig hcc
+      (by show c.type = _; rw [hcty]) (by show a.levels.length = c.uvars; rw [hwf.2.2.1, hcu])
+      (fun i hi => by rw [hcresP i (by omega), hcdl])
+      (L := a.source.resultLevel) ?_
+      (famSort_installed henvF h0.orderedStrong h0F V0 hb' C' hadd' hiE hsrc) ?_
+    · have hshape : c.type.forallArity = a.container.nparams + s.constructors[index].fields.length := by
+        rw [hcty, VExpr.forallArity_wrapForalls, forallArity_mkApps_const', hcdl, hargl]; rfl
+      have := projMajor_installed hF (fun t ht c hc => hraws' t ht c hc) hadd' hiF
+        (fun S info h => V0.proj S info (hiE.projections h)) hsrc hc' hpat' hshape
+      rw [hargl]; exact this
+    · rw [← VLevel.inst_inst]
+      exact VLevel.inst_congr_l (Eq.symm hLev)
 
 end Model
 end VEnv

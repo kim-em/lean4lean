@@ -46,12 +46,10 @@
   ],
   "openProofs": [
     "Lean4Lean.VEnv.IsDefEqU.weakN_iff",
-    "Lean4Lean.VEnv.Model.PatValid.nested",
     "Lean4Lean.VEnv.WF.patsStrong"
   ],
   "openProofsSources": {
     "Lean4Lean.VEnv.IsDefEqU.weakN_iff": "Theory/Typing/UniqueTyping.lean: context strengthening for definitional equality (inverse weakening), stated as on master.",
-    "Lean4Lean.VEnv.Model.PatValid.nested": "Theory/Typing/HeadInjectivity/Model/PatSound.lean: validity in the observation model of the iota rules of a nested block (the ordinary case, PatValid.ordinary, is proved).",
     "Lean4Lean.VEnv.WF.patsStrong": "Theory/Typing/EnvLemmas.lean: PR #43's strong typing of registered pattern instances (PatsStrong), needed for OrderedStrong."
   }
 }
