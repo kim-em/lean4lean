@@ -27,7 +27,7 @@ theorem RecursorRegistered.family_head_rigid {data : RecursorData} (henv : env.W
     env.Rigid (data.schema.restoration.headName data.schema.signature.families[owner].name) := by
   subst hown
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
-    hdata, hprior, hbase, hr, _, _, _, _, _, hadd, hrecs, he⟩ := H
+    hdata, hprior, hbase, hr, _, _, _, _, _, hadd, hrecs, he, -⟩ := H
   rw [hr]
   obtain ⟨ctor, ls, hpat, hconst, hres⟩ :=
     hdata.family_head_cases hprior hbase hrecs hadd he index
@@ -310,7 +310,7 @@ theorem RecursorRegistered.major_not_proof {data : RecursorData} (henv : env.WF)
     (hM : env.HasType U Γ M P) (hP : env.HasType U Γ P (.sort .zero)) : False := by
   obtain ⟨hw, hlw, args, hMt⟩ := H.major_type henv hΓ ht hlen
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
-    hdata, hprior, hbase, hr, _, hu, hl, _, _, hadd, _, he⟩ := H
+    hdata, hprior, hbase, hr, _, hu, hl, _, _, hadd, _, he, -⟩ := H
   have hle : base ≤ env := hbase.trans ((addInduct_le hadd).trans he)
   have hconstants : ∀ family ∈ source.types,
       env.constants family.name = some family.toVConstant := fun family hf =>

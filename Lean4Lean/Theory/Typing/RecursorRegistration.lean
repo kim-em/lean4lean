@@ -55,7 +55,7 @@ def RecursorRegistered (env : VEnv) (data : RecursorData) : Prop :=
     data.schema.sourceFamilies = source.types.map (·.name) ∧
     data.uvars = g.uvars ∧ data.levels = g.levels ∧ data.target = g.targetLevel ∧
     source.WF installBase ∧ installBase.addInduct source = some installed ∧
-    source.RecsOf block ∧ installed ≤ env
+    source.RecsOf block ∧ installed ≤ env ∧ block.WF installBase
 
 /-- A fold that succeeds passes through every element: the step at `a ∈ l` succeeds from some
 intermediate environment, and its result is below the final one. -/
@@ -134,7 +134,7 @@ theorem RecursorRegistered.restoredEquation_pat
           r.numParams r.numMotives r.numMinors r.numIndices ru.ctorParams ru.nfields ru.rhs hc,
           .true) := by
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
-    hdata, _, _, hr, _, hu, hl, ht, hwf, hadd, hrecs, he⟩ := H
+    hdata, _, _, hr, _, hu, hl, ht, hwf, hadd, hrecs, he, -⟩ := H
   have hinstance : data.recursorInstance = g :=
     RecursorRegistered.recursorInstance_eq hdata hu hl ht
   rw [hinstance, hr] at hgen
@@ -178,7 +178,7 @@ theorem RecursorRegistered.recursorType
     (hgen : data.recursorType = some type) :
     env.constants data.name = some { uvars := data.uvars, type := type } := by
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
-    hdata, _, _, hr, _, hu, hl, ht, hwf, hadd, hrecs, he⟩ := H
+    hdata, _, _, hr, _, hu, hl, ht, hwf, hadd, hrecs, he, -⟩ := H
   have hinstance : data.recursorInstance = g :=
     RecursorRegistered.recursorInstance_eq hdata hu hl ht
   have hgenerated : g.recursor data.owner ∈ g.recursors :=

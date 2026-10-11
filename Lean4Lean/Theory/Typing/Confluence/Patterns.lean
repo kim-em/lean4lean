@@ -388,7 +388,7 @@ theorem registered (henv : env.WF) {recursor ctor : Name} {major fields : Nat}
     cases H with
     | @intro recN ctor' major' fields' rhs data hpat hl =>
       obtain ⟨rfl, rfl, rfl, rfl⟩ := SimplePattern.iota_toPattern_inj hP
-      obtain ⟨hreg, hname, hindex⟩ := recursorRegistry_entry hl
+      obtain ⟨hreg, hname, hindex, -⟩ := recursorRegistry_entry hl
       refine ⟨data, hreg, hname, henv.recursorEntry_majorOffset hpat (recursorRegistry_entry hl),
         hl, hindex, fun hlarge => ⟨.true, ?_⟩⟩
       simp [RecursorData.guard, hlarge]

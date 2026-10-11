@@ -27,7 +27,7 @@ private theorem registeredInstance (H : RecursorRegistered env data) :
       source.WF installBase ∧ installBase.addInduct source = some installed ∧
       source.RecsOf block ∧ installed ≤ env := by
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
-    hdata, hprior, _, hr, _, hu, hl, ht, hwf, hadd, hrecs, he⟩ := H
+    hdata, hprior, _, hr, _, hu, hl, ht, hwf, hadd, hrecs, he, -⟩ := H
   have hg : data.recursorInstance = g := RecursorRegistered.recursorInstance_eq hdata hu hl ht
   exact ⟨base, installBase, source, expanded, auxiliaries, block, installed, hg ▸ hdata, hprior, hr,
     hwf, hadd, hrecs, he⟩

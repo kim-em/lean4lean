@@ -108,7 +108,7 @@ structure SingletonSignature (env : VEnv) (data : RecursorData) : Prop where
 theorem singletonSignature (H : RecursorRegistered env data) (hlarge : data.largeTarget = true)
     (hzero : data.sourceLevel packed ≈ .zero) : SingletonSignature env data := by
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
-    hdata, hprior, hbase, hr, hsrc, hu, hl, ht, hwf, hadd, hrecs, he⟩ := H
+    hdata, hprior, hbase, hr, hsrc, hu, hl, ht, hwf, hadd, hrecs, he, hbwf⟩ := H
   have hinstance : data.recursorInstance = g :=
     RecursorRegistered.recursorInstance_eq hdata hu hl ht
   obtain ⟨envTypes, htypes0, hadm⟩ := hdata.admissible
@@ -158,7 +158,7 @@ theorem singletonSignature (H : RecursorRegistered env data) (hlarge : data.larg
       simp [recursorType, hrest]
     exact RecursorRegistered.recursorType
       ⟨base, installBase, source, expanded, g, auxiliaries, block, _, hdata, hprior, hbase, hr, hsrc,
-        hu, hl, ht, hwf, hadd, hrecs, he⟩ hgen
+        hu, hl, ht, hwf, hadd, hrecs, he, hbwf⟩ hgen
   · exact ⟨envTypes, htypesLE, by rw [hu, hl]; exact hsingle.1⟩
   · rw [hl]; exact hadm.levels_length
 

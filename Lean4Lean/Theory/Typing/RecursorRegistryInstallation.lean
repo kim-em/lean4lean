@@ -71,7 +71,7 @@ entire restored recursor list was actually installed. -/
 theorem RecursorRegistered.recursorType_exists
     (H : RecursorRegistered env data) : ∃ type, data.recursorType = some type := by
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
-    hdata, _, _, hr, _, hu, hl, ht, _, _, _, he⟩ := H
+    hdata, _, _, hr, _, hu, hl, ht, _, _, _, he, -⟩ := H
   have hinstance : data.recursorInstance = g :=
     RecursorRegistered.recursorInstance_eq hdata hu hl ht
   have hgenerated : g.recursor data.owner ∈ g.recursors :=
