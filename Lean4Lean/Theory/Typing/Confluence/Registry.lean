@@ -115,18 +115,38 @@ theorem WF'.oneRecursor {ds : List VDecl} (H : env.WF' ds) {name : Name}
             cases addInduct_recs_name_inj hadd hrec' hrec hn
             exact ⟨ru', hru', hc', e', he'⟩
 
-/-- A registry entry for the name `name`: the metadata of a registered recursor of that name
-whose owner has a constructor, and whose generated equations are the registered patterns headed
-by `name` (`covers`): every such pattern is the ι rule of one of its equations. -/
+/-- A registry entry for the name `name`: the metadata of the recursor `rec` named `name` of an
+installed declaration, read off that declaration's compilation, whose owner has a constructor, and
+whose generated equations are the registered patterns headed by `name` (`covers`): every such
+pattern is the ι rule of a rule of `rec` read off one of the entry's equations. -/
 def RecursorEntry (env : VEnv) (name : Name) (data : RecursorData) : Prop :=
-  RecursorRegistered env data ∧ data.name = name ∧
+  ∃ (decl : VInductDecl) (env₀ env₁ : VEnv) (rec : VRecursor),
+    RecursorRegisteredAt env data decl env₀ env₁ ∧ rec ∈ decl.recs ∧ rec.name = name ∧
+    data.name = name ∧
     (∃ index : Fin data.schema.signature.constructors.size,
       data.schema.signature.constructors[index].owner = data.owner) ∧
     ∀ (p : Pattern) (r : p.RHS × p.Check), env.pats p r → p.headConst = name →
-      ∃ (index : Fin data.schema.signature.constructors.size) (equation : VDefEq)
-        (rec : VRecursor), data.schema.signature.constructors[index].owner = data.owner ∧
-        data.equation index = some equation ∧ rec.name = name ∧
-        ∃ ru ∈ rec.rules, VRecRule.OfEquation rec ru equation ∧ RuleOf rec p r
+      ∃ (index : Fin data.schema.signature.constructors.size) (equation : VDefEq) (ru : VRecRule),
+        data.schema.signature.constructors[index].owner = data.owner ∧
+        data.equation index = some equation ∧ ru ∈ rec.rules ∧
+        VRecRule.OfEquation rec ru equation ∧
+        ∃ (hc : ru.rhs.Closed) (e : p = (SimplePattern.iota rec.name rec.getMajorIdx ru.ctor
+          (ru.ctorParams + ru.nfields)).toPattern),
+          e ▸ r = (SimplePattern.iotaRHS rec.name ru.ctor rec.numParams rec.numMotives
+            rec.numMinors rec.numIndices ru.ctorParams ru.nfields ru.rhs hc, .true)
+
+theorem RecursorEntry.registered {name : Name} {data : RecursorData}
+    (H : RecursorEntry env name data) : RecursorRegistered env data :=
+  let ⟨_, _, _, _, h, _⟩ := H; h.registered
+
+theorem RecursorEntry.name_eq {name : Name} {data : RecursorData}
+    (H : RecursorEntry env name data) : data.name = name :=
+  let ⟨_, _, _, _, _, _, _, h, _⟩ := H; h
+
+theorem RecursorEntry.index {name : Name} {data : RecursorData}
+    (H : RecursorEntry env name data) : ∃ index : Fin data.schema.signature.constructors.size,
+      data.schema.signature.constructors[index].owner = data.owner :=
+  let ⟨_, _, _, _, _, _, _, _, h, _⟩ := H; h
 
 open Classical in
 /-- The recursor registry of an environment: some registry entry of each name. -/
@@ -172,11 +192,12 @@ theorem WF'.recursorEntry_of_oneRecursor {ds : List VDecl} (_H : env.WF' ds) {na
   obtain ⟨ru₀, hru₀, -⟩ := hall p₀ r₀ hp₀ hh₀
   obtain ⟨block, hcomp, hrecs, hbwf⟩ := hdecl.recsCompiled
   obtain ⟨base, expanded, s, g, auxiliaries, hbase, hdata, hprior⟩ := hcomp.exists_compilation
-  have hreg : ∀ owner, RecursorRegistered env
+  have hregAt : ∀ owner, RecursorRegisteredAt env
       (RecursorData.ofInstance .anonymous (RecursorSchema.ofCompilation decl s auxiliaries) g
-        owner) := fun owner =>
-    ⟨base, env₀, decl, expanded, g, auxiliaries, block, env₁, hdata, hprior, hbase, rfl, rfl,
+        owner) decl env₀ env₁ := fun owner =>
+    ⟨base, expanded, g, auxiliaries, block, hdata, hprior, hbase, rfl, rfl,
       rfl, rfl, rfl, hdecl, hadd, hrecs, hle, hbwf⟩
+  have hreg := fun owner => (hregAt owner).registered
   -- the entry of a rule of `rec`: the compilation entry of its equation
   have hentry : ∀ ru ∈ rec.rules, ∃ (owner : Fin s.families.size) (index : Fin s.constructors.size)
       (equation : VDefEq),
@@ -197,9 +218,9 @@ theorem WF'.recursorEntry_of_oneRecursor {ds : List VDecl} (_H : env.WF' ds) {na
     obtain ⟨_, h⟩ := h
     exact (VExpr.const.inj h).1.trans hname
   obtain ⟨owner, index₀, eq₀, howner₀, hgen₀, hname₀, -⟩ := hentry ru₀ hru₀
-  refine ⟨_, hreg owner, hname₀, ⟨index₀, howner₀⟩, fun p r hp hh => ?_⟩
-  have hrule := hall p r hp hh
-  obtain ⟨ru, hru, -⟩ := id hrule
+  refine ⟨_, decl, env₀, env₁, rec, hregAt owner, hrec, hname, hname₀, ⟨index₀, howner₀⟩,
+    fun p r hp hh => ?_⟩
+  obtain ⟨ru, hru, hc, e, he⟩ := hall p r hp hh
   obtain ⟨owner', index, equation, howner, hgen, hname', hof⟩ := hentry ru hru
   -- both entries are compilation entries of the same name, hence the same entry
   have hsame : owner' = owner := by
@@ -210,7 +231,7 @@ theorem WF'.recursorEntry_of_oneRecursor {ds : List VDecl} (_H : env.WF' ds) {na
     have := nodup_map_inj_on hnodup _ (hm owner') _ (hm owner) (hname'.trans hname₀.symm)
     exact Fin.ext (congrArg (fun d : RecursorData => (d.owner : Nat)) this)
   subst hsame
-  exact ⟨index, equation, rec, howner, hgen, hname, ru, hru, hof, hrule⟩
+  exact ⟨index, equation, ru, howner, hgen, hru, hof, hc, e, he⟩
 
 /-- **Every registered ι pattern has a recursor registry entry.** -/
 theorem WF.pat_recursorEntry (henv : env.WF) {recN ctor : Name} {major fields : Nat}
@@ -235,7 +256,8 @@ theorem WF.recursorEntry_majorOffset (henv : env.WF) {recN ctor : Name} {major f
   obtain ⟨decl, ds₀, env₀, env₁, -, -, hdecl, hadd, hle, rec, hrec, ru, hru, -, hpe, -⟩ :=
     H.pats_origin hp
   obtain ⟨rfl, rfl, -, -⟩ := SimplePattern.iota_toPattern_inj hpe
-  obtain ⟨hreg, hname, -, -⟩ := hentry
+  have hreg := hentry.registered
+  have hname := hentry.name_eq
   obtain ⟨c, hc, harity⟩ := hreg.constant_piArity
   have hrc := hle.constants (addInduct_rec_find hadd hrec)
   rw [hname, hrc] at hc
@@ -273,7 +295,9 @@ theorem RecursorRegistered.equation_exists' {data : RecursorData}
 constructor is the rule of one of the recursor's rules (`RecursorRegistered.restoredEquation_pat`). -/
 theorem RecursorEntry.pat {name : Name} {data : RecursorData} (H : RecursorEntry env name data) :
     ∃ (p : Pattern) (r : p.RHS × p.Check), env.pats p r ∧ p.headConst = name := by
-  obtain ⟨hreg, hname, ⟨index, howner⟩, -⟩ := H
+  have hreg := H.registered
+  have hname := H.name_eq
+  obtain ⟨index, howner⟩ := H.index
   obtain ⟨equation, hgen⟩ := hreg.equation_exists' index
   obtain ⟨rec, ru, hc, hof, hp⟩ := hreg.restoredEquation_pat index hgen
   refine ⟨_, _, hp, ?_⟩

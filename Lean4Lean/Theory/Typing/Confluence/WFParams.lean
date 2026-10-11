@@ -1,5 +1,6 @@
-import Lean4Lean.Theory.Typing.Confluence.StructureMajor
+import Lean4Lean.Theory.Typing.Confluence.Params
 import Lean4Lean.Theory.Typing.Confluence.QuotCoverage
+import Lean4Lean.Theory.Typing.Confluence.SingletonPatCoverage
 import Lean4Lean.Theory.Typing.FullChurchRosser
 import Lean4Lean.Theory.CanonicalEq
 
@@ -17,32 +18,6 @@ major is `Prop`; that instance is covered by the singleton prefix unfolding
 
 namespace Lean4Lean.VEnv
 open InductiveSignature
-
-/-- **The confluence parameters of a well-formed environment** at universe bound `U`: its
-recursor registry and its pattern table (`ConcretePattern`). Every field is a theorem. -/
-@[instance_reducible] noncomputable def WF.params {env : VEnv} (henv : env.WF) (U : Nat) :
-    Params where
-  env := env
-  henv := henv
-  univs := U
-  recursorData := env.recursorRegistry
-  recursorData_registered h := let ⟨a, b, _⟩ := recursorRegistry_entry h; ⟨a, b⟩
-  Pat := ConcretePattern env
-  pat_storedRule h := ConcretePattern.origin henv h
-  pat_recursor h := ConcretePattern.recursor henv h
-  pat_simple h := ConcretePattern.simple henv h
-  pat_uniq h h' hs hi := ConcretePattern.uniq henv h h' hs hi
-  pat_wf hΓ h hm ht hc := ConcretePattern.sound henv hΓ h hm ht hc
-  pat_app_l h hs := ConcretePattern.app_l henv h hs
-  pat_app_l_uniq h h' hs hs' hb := ConcretePattern.app_l_uniq henv h h' hs hs' hb
-  pat_app_uniq h h' hs hs' hl hr := ConcretePattern.app_uniq henv h h' hs hs' hl hr
-  pat_const_not_unfolding h := ConcretePattern.const_not_unfolding henv h
-  recursorData_quot hq := ConcretePattern.recursor_quot henv hq
-  pat_ctor_rigid h := ConcretePattern.ctor_rigid henv h
-  projection_ctor_rigid hl := henv.projectionCtorRigid hl
-  pat_struct_major h hΓ hl hs hlen := ConcretePattern.struct_major henv h hΓ hl hs hlen
-  pat_iota_params h hl hcc hm hm' hps hps' :=
-    ConcretePattern.iota_params henv h hl hcc hm hm' hps hps'
 
 /-- The stored quotient rule is installed only with the quotient declaration. -/
 theorem WF'.quotRegistered {env : VEnv} {ds : List VDecl} (H : env.WF' ds)
@@ -109,20 +84,6 @@ theorem _root_.Lean4Lean.InductiveSignature.RecursorData.guard_OK {data : Recurs
   unfold RecursorData.guard
   split <;> simp_all [Pattern.Check.OK]
 
-/-- WAVE 4 STUB. **Coverage of a registered ι rule at a `Prop` source of a large-eliminating
-recursor**: the instance joins its reduct in the full presentation, by the singleton prefix
-unfolding. -/
-theorem WF.singletonPatCoverage (heq : env.HasCanonicalEq) :
-    letI := henv.params U
-    ∀ {Γ : List VExpr} {p : Pattern} {r : p.RHS × p.Check} {e A : VExpr} {m1 : List VLevel}
-      {m2 : p.Path → VExpr} {data : RecursorData},
-      OnCtx Γ (env.IsType U) → env.pats p r → env.recursorRegistry p.headConst = some data →
-      data.largeTarget = true → (data.schema.sourceLevel data.owner data.levels).inst m1 ≈ .zero →
-      p.Matches e m1 m2 → env.HasType U Γ e A →
-      ∃ left right, FullReduction Γ e left ∧ FullReduction Γ (r.1.apply m1 m2) right ∧
-        NormalEq Γ left right := by
-  sorry
-
 /-- **Coverage of the registered ι rules**: every typed instance of a registered rule joins its
 reduct, by one pattern step where the universe guard of its recursor holds, and by the singleton
 prefix unfolding where the source of its major is `Prop`. -/
@@ -133,7 +94,7 @@ theorem WF.patCoverage (heq : env.HasCanonicalEq) : @FullPatCoverage (henv.param
   have hred := IsDefEq.pat hp hm he hr hall
   by_cases hzero : data.largeTarget = true ∧
       (data.schema.sourceLevel data.owner data.levels).inst m1 ≈ .zero
-  · exact henv.singletonPatCoverage U heq hΓ hp
+  · exact WF.singletonPatCoverage henv U heq hΓ hp
       (by rw [SimplePattern.iota_headConst]; exact hl) hzero.1 hzero.2 hm he
   · have hok : (data.guard _).OK (IsDefEqU env U Γ) m1 m2 := RecursorData.guard_OK.mpr hzero
     have hstep : ParRed Γ e (r.1.apply m1 m2) :=

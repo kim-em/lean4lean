@@ -57,6 +57,26 @@ def RecursorRegistered (env : VEnv) (data : RecursorData) : Prop :=
     source.WF installBase ∧ installBase.addInduct source = some installed ∧
     source.RecsOf block ∧ installed ≤ env ∧ block.WF installBase
 
+/-- `RecursorRegistered` with its installation fixed: the declaration `source`, installed at
+`installBase` into `installed`. -/
+def RecursorRegisteredAt (env : VEnv) (data : RecursorData) (source : VInductDecl)
+    (installBase installed : VEnv) : Prop :=
+  ∃ base expanded, ∃ (g : Instance data.schema.signature), ∃ auxiliaries block,
+    CompilationData base source expanded data.schema.signature g auxiliaries block ∧
+    ContainersInstalled base auxiliaries ∧
+    base ≤ installBase ∧
+    data.schema.restoration = compilationRestoration source auxiliaries ∧
+    data.schema.sourceFamilies = source.types.map (·.name) ∧
+    data.uvars = g.uvars ∧ data.levels = g.levels ∧ data.target = g.targetLevel ∧
+    source.WF installBase ∧ installBase.addInduct source = some installed ∧
+    source.RecsOf block ∧ installed ≤ env ∧ block.WF installBase
+
+theorem RecursorRegisteredAt.registered {data : RecursorData} {source : VInductDecl}
+    {installBase installed : VEnv}
+    (H : RecursorRegisteredAt env data source installBase installed) : RecursorRegistered env data :=
+  let ⟨base, expanded, g, auxiliaries, block, h⟩ := H
+  ⟨base, installBase, source, expanded, g, auxiliaries, block, installed, h⟩
+
 /-- A fold that succeeds passes through every element: the step at `a ∈ l` succeeds from some
 intermediate environment, and its result is below the final one. -/
 theorem foldlM_step_le {α} {f : VEnv → α → Option VEnv} (hf : ∀ {e a e'}, f e a = some e' → e ≤ e') :
