@@ -16,6 +16,14 @@ targets (including `Lean4Lean.Theory` and `Lean4Lean.Verify`), `Lean4Lean.Tests`
 | ~~`VEnv.WF.singletonInstance_align`~~ | `Theory/Typing/Confluence/SingletonPatCoverage.lean` | new | proved by route (b) (`singletonInstance_alignJ`, see the confluence section) |
 | ~~`VEnv.RestoredPattern.clause`~~ | `Theory/Inductive/RestorationInterpretation.lean` | new: the `pat` analogue of PR #53's `RestoredEliminator.clause` | proved |
 | ~~`InductiveSignature.instantiateParams_liftN`~~ | `Theory/Typing/RestorationShapes.lean` | PR #53's `CaseReduction.lean` | proved |
+| `VEnv.WF.patsStrong` | `Theory/Typing/EnvLemmas.lean` | PR #43 | wave 1D (`patsStrong`), after the 0b spike |
+| `VEnv.Model.PatValid.nested` (`-- NESTED STUB`; replaces `Model.PatValid.iota`, whose ordinary case is `Model.PatValid.ordinary`) | `Theory/Typing/HeadInjectivity/Model/PatSound.lean` | new: the `pat` case of `Model.sound` for the ι rules of a nested block (see the model pat stubs section) | model pat stubs |
+| ~~`VEnv.WF.patCtor_rigid`~~ (closed, model pat stubs: `CompiledInductive.rule_ctor_cases` along the history) | `Theory/Typing/HeadInjectivity/Model/WFFacts.lean` | `ConstructorRigidity.lean` on the source branch (`WF.installed_constructor_rigid`) | model pat stubs |
+| `IsDefEqU.weakN_iff` | `Theory/Typing/UniqueTyping.lean` | master | open on master; the one strengthening principle the checker uses (PORT_PLAN section 5) |
+| ~~`NormalEq.parRed`~~ (retired, wave 4: the verified-inductives branch's engine, sorry-free, replaces master's file) | `Theory/Typing/ChurchRosser.lean` | master | wave 4 |
+| `VEnv.WF.singletonInstance_align` (WAVE 4 STUB) | `Theory/Typing/Confluence/SingletonPatCoverage.lean` | new: index alignment of a `Prop`-source singleton ι instance with its generic equation (see the wave 4 section) | wave 4 (needs a decision, see there) |
+| ~~`VEnv.RestoredPattern.clause`~~ (closed, wave 3 eqinst) | `Theory/Inductive/RestorationInterpretation.lean` | new: the `pat` analogue of the source branch's `RestoredEliminator.clause` | wave 3 (Equations+Install) |
+| ~~`InductiveSignature.instantiateParams_liftN`~~ (closed, wave 3 eqinst) | `Theory/Typing/RestorationShapes.lean` | source `CaseReduction.lean` | wave 3 (Equations+Install) |
 
 Not stubs but conditional results: everything through `VEnv.WF.orderedStrong` (the strong
 system, substitution theorems, inversion lemmas) depends on `patsStrong`; everything through
@@ -26,6 +34,9 @@ from `VEnv.WF'.inductTypeRigid` and `headInversion`. The confluence theorem
 `VEnv.WF.church_rosser` depends on `patsStrong`, `Model.PatValid.iota` (through
 `IsDefEq.uniq`, which the engine's transport lemmas use throughout), and on nothing else
 (`scripts/check-inductive-audit.py`).
+`VEnv.WF.church_rosser` depends on `patsStrong`, `Model.PatValid.nested` (through
+`IsDefEq.uniq`, which the engine's transport lemmas use throughout) and the wave 4 stub
+`WF.singletonInstance_align`, and on nothing else (`scripts/check-inductive-audit.py`).
 
 ## Cleanup 1
 
@@ -148,6 +159,9 @@ domains (the rule never reads them); `Verify/CanonicalEq.lean` realizes it from 
 **Deviations from PR #53.** The confluence theorem is not sorry-free: it
 inherits `patsStrong` and `Model.PatValid.iota` through `IsDefEq.uniq`, which the engine uses
 (PR #53 had neither). `RecursorRegistered` records the typing of its compiled block
+**Deviations from PORT_PLAN.** The confluence theorem is not sorry-free: besides the stub above it
+inherits `patsStrong` and `Model.PatValid.nested` (formerly `Model.PatValid.iota`) through `IsDefEq.uniq`, which the engine uses (the
+source branch had neither). `RecursorRegistered` records the typing of its compiled block
 (`VInductBlock.WF`), and `RecursorRegisteredAt` fixes its installation.
 
 **Edits outside the confluence files.** `Pattern.lean` (`Check.nonzero`, `OK.map_levels`,
@@ -164,6 +178,7 @@ checker, `addDecl.preludeEq_hasCanonicalEq`, the confluence engine, and as stric
 three standard axioms) the generator definitions, the foundational lemmas and
 `VEnv.WF.church_rosser` with `WF.params` and its coverage lemmas. The accepted open proofs are
 `WF.patsStrong`, `IsDefEqU.weakN_iff` and `Model.PatValid.iota`;
+`WF.patsStrong`, `IsDefEqU.weakN_iff`, `Model.PatValid.nested` and `WF.singletonInstance_align`;
 `--require-complete` also rejects a listed proof no longer reached. CI runs `--self-test` and
 `--no-build --require-complete`.
 
@@ -895,3 +910,64 @@ constructor is `s.constructors[i].name` through `CompilationData.equations` and
 on a container constructor; `CompiledInductive.rule_ctor_cases` (restored equation's major)
 gives that for every rule `ru` of every recursor of an installed nested block, `ru.ctor` is a
 constructor of the block or of an installed container (`ContainersInstalled`).
+`WF.patCtor_rigid` and `Ordered.patsAvoidFreshConsts` are closed (earlier commits of this
+branch). `Model.PatValid.iota` is gone: the history induction (`WF'.envValid`,
+`Model/EnvValid.lean`) dispatches each ι rule registered by an inductive step on its compilation
+(`VInductDecl.WF.rule_block`). Ordinary compilations (`aux = []`): `Model.PatValid.ordinary`
+(`Model/IotaHistory.lean`, sorry-free). Nested compilations: the one open stub
+`Model.PatValid.nested` (`Model/PatSound.lean`), stated with the same hypotheses as
+`PatValid.ordinary` plus `aux ≠ []` and `ContainersInstalled base aux`.
+
+**Route.** The generic λ-wrapped equation `L ≡ R` of a rule is not derivable in the final
+environment without uniqueness of typing (the pattern rule types only instances, at the redex's
+type), so the `pat` case is proved directly at the instance
+`e = rec m1 (recArgs ++ [ctor lsC ctorArgs])`, `red = (rhs.instL m1) argsR`, read at the argument
+valuation `v = argSubst (argsR σ)` of the template's binders (`Model/IotaInstance.lean`). The
+generic assembly is `PatValid.of_rule` / `PatValid.of_rule_empty` (`Model/IotaPat.lean`), the
+arguments against the template are `iotaArgRel_of` (`Model/IotaArgs.lean`).
+
+**Ordinary blocks** (`PatValid.ordinary`): `IotaStatic` of the generated recursor
+(`Instance.iotaStatic`), uniqueness per head (`patUniq_decl`), the stage environments
+`envT`/`envR` of `addInduct` are strong and valid in the model of `envF`
+(`stages_orderedStrong`, `stages_envValid`, `Model/IotaStage.lean`; this needs `WFPrefix envF env0`,
+now carried by `WF'.envValid`), the reduct is typed in `envR` (`block_rules_wf`), the projection
+facts of the major's family (`projMajor_decl`, from `WF.installed_projection`), its semantic sort
+(`famSort_decl`), and the split on `Admissible.elimination`: never-zero families (mode C absurd,
+`C_absurd_gen`), small elimination (`of_rule_empty` with `rhs_empty_motive`), singleton elimination
+(proof binders from `SingletonElimination`, uniqueness of the recursor's single rule). The instance
+relation (`ordinary_rel`) reads the family's normalized telescope off `TypeShape` and the normalized
+constructor type off the correspondence's `IsDefEqU`; its sort typing comes from Π-inversion when the
+constructor has binders, and the installed type is used as its own normal form when it has none.
+
+**What `PatValid.nested` needs** (what wave 3's nested blocks must provide, by analogy with the facts
+the ordinary case uses): the static data of a restored equation (`IotaStatic` of the restored
+recursor's type, including the minor ending in the restored constructor and no later minor ending in
+it); uniqueness of the rule per head and constructor; the projection facts and the semantic sort of
+the major's family when it is a container family (`ProjMajor`, `FamSort`, as the source branch's
+`projMajor_restored`/`famSort_container`); and for `iotaArgRel_of` the container constructor's raw
+shape and the relation of its installed type to the restored template's field domains (`hNS`, `hDP`,
+`hDF`).
+
+**`VInductDecl.WF` and descriptor facts used by the ordinary case.** `VInductDecl.WF`: `recsCompiled`
+(the compiled block, `RecsOf`, `block.WF` and its `rules` typed in the recursor stage; `CompiledInductive`
+for `WF.installed_projection` and `addInduct_ctor_resultFamily`), `rec_shape` (the number of indices of
+the recursor), `rule_shape` (the number of fields, through `lamArity`), `rules_nodup`, `rules_ctor` (the
+constructor's arity, for the projection entry's `numFields`), `recs_wf`, `types_wf`, `ctors_wf`
+(strong typing of the stages), `source` (constructor universes). `CompilationData`: `ordinary_rules`,
+`ordinary_recursors`, `names`, `model.constructorArity`, `model.nparams`, `nparams`, `model.families`
+and `headerPrefix` (expanded types), `correspondence` (`RestoresFamily`: name, indices, result level,
+type; constructors up to `IsDefEqU`), `sourceParameters` (`TypeShape`, `RawCtorShape` with
+`RawIndAppAt`), `admissible` (`elimination`, `SingletonElimination`). Environment facts:
+`WF.installed_projection`, `Ordered.projections_unique`, `Ordered.projection_resultFamily`,
+`WF'.inductTypeRigid`, `WF.isCtor_rigid`, `WF.projCtor_rigid`, and `WF.patsStrong` (open, for the
+strong stages).
+
+**Import hazards met on the way.** The model cannot import `Confluence/**` (it imports the model
+through `HeadInversion`), so `Confluence/StructureMajor.lean`'s structure coherence is restated
+for the model (`Model/StructCoh.lean`, `WF.structCoh`). `InductiveSignature.vars_map_liftN_lo`
+is declared identically in `Theory/Typing/SignatureVars.lean`,
+`Verify/Inductive/Rules/IotaPatTyped.lean` and `Verify/Inductive/Nested/Restoration/SignatureVars.lean`;
+Lean accepts the duplicate theorem but not differing auxiliary `simp` lemmas, whose names shift
+when the equation lemmas of `vars` are realized in an imported module. `Rules/Compiled.lean` and the
+model therefore avoid `simp [vars]` (`InductiveSignature.vars_unfold`); deduplicating the three
+copies would remove the hazard.

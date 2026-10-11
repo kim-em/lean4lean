@@ -431,7 +431,8 @@ theorem pat_rhs_sub_head {df : VDefEq} {hd type : VExpr} {doms lead ms : List VE
     by_cases hb : ∃ i : Nat, lead[i]? = some (VExpr.bvar x)
     · obtain ⟨i, hi, hfirst⟩ := firstOcc x hb
       obtain ⟨k, hk1, hk2, hk3, hk4⟩ := bind_lead henv hΔ Wv hLx hx hinfoL hKsiL hi
-      exact .inl ⟨i, k, hi, hfirst, hk1, hk2, hk3, hk4⟩
+      exact .inl ⟨i, k, hi, hfirst, hk1, hk2, hk3, fun o ho =>
+        ⟨o, by rw [hk4] at ho; exact ho, .refl⟩⟩
     · have hnb : ∀ i : Nat, lead[i]? ≠ some (VExpr.bvar x) := fun i h => hb ⟨i, h⟩
       have hxf : x ∈ fs := (hcov x hx).resolve_left fun h => by
         obtain ⟨i, hi, e⟩ := List.getElem_of_mem h
@@ -512,7 +513,8 @@ theorem pat_rhs_sub_head {df : VDefEq} {hd type : VExpr} {doms lead ms : List VE
           obtain ⟨k, hk1, hk2, hk3, hk4⟩ := bind_lead henv hΔ Wv hLx hx hinfoL2 hKsiL2 hi
           have : S' x = vS x := by
             simp only [S']; rw [if_neg]; rintro ⟨-, h, -⟩; exact h i hi
-          exact .inl ⟨i, k, hi, hfirst, hk1, hk2, hk3, this.trans hk4⟩
+          exact .inl ⟨i, k, hi, hfirst, hk1, hk2, hk3, fun o ho =>
+            ⟨o, by rw [this, hk4] at ho; exact ho, .refl⟩⟩
         · have hnb : ∀ i : Nat, lead[i]? ≠ some (VExpr.bvar x) := fun i h => hb ⟨i, h⟩
           have hxf : x ∈ fs := (hcov x hx).resolve_left fun h => by
             obtain ⟨i, hi, e⟩ := List.getElem_of_mem h
@@ -635,7 +637,8 @@ theorem pat_rhs_sub_head {df : VDefEq} {hd type : VExpr} {doms lead ms : List VE
             obtain ⟨k, hk1, hk2, hk3, hk4⟩ := bind_lead henv hΔ Wv hLx hx hinfoL2 hKsiL2 hi
             have : S' x = vS x := by
               simp only [S']; rw [if_neg]; rintro ⟨-, h, -⟩; exact h i hi
-            exact .inl ⟨i, k, hi, hfirst, hk1, hk2, hk3, this.trans hk4⟩
+            exact .inl ⟨i, k, hi, hfirst, hk1, hk2, hk3, fun o ho =>
+            ⟨o, by rw [this, hk4] at ho; exact ho, .refl⟩⟩
           · have hnb : ∀ i : Nat, lead[i]? ≠ some (VExpr.bvar x) := fun i h => hb ⟨i, h⟩
             have hxf : x ∈ fs := (hcov x hx).resolve_left fun h => by
               obtain ⟨i, hi, e⟩ := List.getElem_of_mem h
@@ -669,7 +672,8 @@ theorem pat_rhs_sub_head {df : VDefEq} {hd type : VExpr} {doms lead ms : List VE
         by_cases hb : ∃ i : Nat, lead[i]? = some (VExpr.bvar x)
         · obtain ⟨i, hi, hfirst⟩ := firstOcc x hb
           obtain ⟨k, hk1, hk2, hk3, hk4⟩ := bind_lead henv hΔ Wv hLx hx hinfoL hKsiL hi
-          exact .inl ⟨i, k, hi, hfirst, hk1, hk2, hk3, hk4⟩
+          exact .inl ⟨i, k, hi, hfirst, hk1, hk2, hk3, fun o ho =>
+        ⟨o, by rw [hk4] at ho; exact ho, .refl⟩⟩
         · have hnb : ∀ i : Nat, lead[i]? ≠ some (VExpr.bvar x) := fun i h => hb ⟨i, h⟩
           have hxf : x ∈ fs := (hcov x hx).resolve_left fun h => by
             obtain ⟨i, hi, e⟩ := List.getElem_of_mem h
@@ -885,7 +889,7 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
     · simp only [S', hx, if_true] at ho
       rcases hbind.2 x hx with ⟨i, k, hi, -, hki, -, -, hkS⟩ |
         ⟨-, j, hj, ⟨-, -, -, -, -, hS⟩ | ⟨-, -, hS⟩ | ⟨-, info', hpi', -, hle', -, -, -, hS⟩⟩
-      · rw [hkS] at ho
+      · obtain ⟨o₀, ho₀, l₀⟩ := hkS o ho
         have hil : i < lkeys.length := by
           have := List.Forall₂.length_eq hkeysL
           have := (List.getElem?_eq_some_iff.1 hi).1; simp at *; omega
@@ -893,13 +897,13 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
         have hk : lkeys[i] = k := by
           have := List.getElem?_eq_some_iff.1 hki; exact this.2
         rw [hk] at hcov
-        obtain ⟨o', ho', l⟩ := hcov o ho
+        obtain ⟨o', ho', l⟩ := hcov o₀ ho₀
         have ha : (lead''.map (·.instL ls))[i]'(by
             have := List.Forall₂.length_eq hkeysL; omega) = .bvar x := by
           simp only [List.getElem_map]
           rw [(List.getElem?_eq_some_iff.1 hi).2]; rfl
         rw [ha] at ho'
-        exact ⟨o', Obs.bvar_iff.1 ho', l⟩
+        exact ⟨o', Obs.bvar_iff.1 ho', l.trans l₀⟩
       · rw [hS] at ho
         obtain ⟨pre, hpre⟩ := ho
         exact argObOf j x pre o hj hpre

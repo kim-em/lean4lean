@@ -303,8 +303,9 @@ def HeadTy (env : VEnv) (U : Nat) (hd Th : VExpr) : Prop :=
   ∃ c ls ci, hd = .const c ls ∧ env.constants c = some ci ∧ (∀ l ∈ ls, l.WF U) ∧
     Th = ci.type.instL ls
 
-/-- **The spine lemma**, for constant heads. -/
-theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args)
+/-- **The spine lemma**, for constant heads, with the typing of each prefix of the spine at a
+Pi type whose domain is the key's domain type. -/
+theorem HTS.spineH' (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args)
     (hhd : ∃ c ls, hd = .const c ls)
     {σ S} (W : Ctx.SubstEq env U Δ σ σ Γ) (tv : TV env U Δ Γ σ S)
     (Ks : List (List Ob)) (hKs : List.Forall₂ (fun K a => ∀ x ∈ K, Obs' σ S a x) Ks args)
@@ -320,7 +321,9 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
         ∃ x', Obs' σ S T x' ∧ x' ≼ x) ∧
       (∀ pre ka post, info = pre ++ ka :: post → ∀ x,
         Obs' .id .empty (Th) (piCodChain (pre.map (·.1)) (.piDomOb x)) →
-        ∃ x', Obs' σ S ka.2 x' ∧ x' ≼ x) := by
+        ∃ x', Obs' σ S ka.2 x' ∧ x' ≼ x) ∧
+      (∀ i (hi : i < info.length), ∃ B,
+        HTS env U Δ Γ (.mkApps hd (args.take i)) (.forallE (info[i]'hi).2 B)) := by
   induction H generalizing args Ks τs with
   | bvar =>
     obtain ⟨_, _, rfl⟩ := hhd
@@ -347,10 +350,10 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
           (Obs.closed_iff_id (henv.ordered.closedC hci).instL).1 (hτs τ hτ),
           vcls_closed (e := .const _ _) trivial (henv.ordered.closedC hci).instL ▸ ho⟩,
         fun x hx => ⟨x, (Obs.closed_iff_id (henv.ordered.closedC hci).instL).2 hx, .refl⟩,
-        fun pre ka post h => ?_⟩
+        fun pre ka post h => ?_, fun i hi => absurd hi (Nat.not_lt_zero _)⟩
       cases pre <;> cases h
     · cases he'
-  | @app _ A u B v f a hA hB _ hfty _ hsa ihf _ =>
+  | @app _ A u B v f a hA hB hfH hfty _ hsa ihf _ =>
     rcases mkApps_inv he with ⟨rfl, he'⟩ | ⟨as, a', rfl, he'⟩
     · obtain ⟨_, _, rfl⟩ := hhd; cases he'
     injection he' with hf ha; subst ha
@@ -381,14 +384,30 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
       hsa.1.defeq.hasType.1.substDF henv W.wf hΔ W
     have hc := TypedElCls.of_hasType haσ
     obtain ⟨τPi, hτPi, hwrap⟩ := pi_list hc ElCls.self hτk hkk hbK hKτ
-    obtain ⟨Th, info, hTh, hcl, hT, hinfo, hKsi, P1, P2, dP2⟩ :=
+    obtain ⟨Th, info, hTh, hcl, hT, hinfo, hKsi, P1, P2, dP2, PT⟩ :=
       ihf hf W tv Ks₀ hKs₀ τPi hτPi
     let k : Key := (TyCls env U Δ (A.subst σ), ElCls env U Δ (TyCls env U Δ (A.subst σ))
       (a.subst σ), K)
+    have hil : info.length = as.length := List.Forall₂.length_eq hinfo
     refine ⟨Th, info ++ [(k, A)], hTh, hcl, hT, forall₂_append_single hinfo
       ⟨rfl, hK, rfl, by assumption, hsa, hbK⟩,
       forall₂_append_single hKsi (fun x hx => hKK _ (List.mem_append_left _ hx)), fun o ho => ?_,
-      fun x hx => ?_, fun pre ka post h => ?_⟩
+      fun x hx => ?_, fun pre ka post h => ?_, fun i hi => ?_⟩
+    rotate_left 3
+    · simp only [List.length_append, List.length_singleton] at hi
+      by_cases hil' : i < info.length
+      · obtain ⟨B', hB'⟩ := PT i hil'
+        refine ⟨B', ?_⟩
+        rw [List.getElem_append_left hil', List.take_append_of_le_length (by omega)]
+        exact hB'
+      · have hi' : i = info.length := by omega
+        subst hi'
+        refine ⟨B, ?_⟩
+        rw [List.getElem_append_right (by omega)]
+        simp only [Nat.sub_self, List.getElem_singleton]
+        rw [hil, List.take_left', ← hf]
+        · exact hfH
+        · rfl
     · rw [vcls_app henv hΔ W hfty hsa.1.defeq.hasType.1] at ho
       obtain ⟨τ₀, h1, h2⟩ := P1 _ (hwrap _ o ho)
       refine ⟨τ₀, h1, ?_⟩
@@ -429,12 +448,34 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
   | conv _ hAB ih =>
     have hs := SD.sub hAB W tv
     obtain ⟨τs', h1, h2⟩ := exists_list_cover fun τ hτ => hs.2 τ (hτs τ hτ)
-    obtain ⟨Th, info, hTh, hcl, hT, hinfo, hKsi, P1, P2, dP2⟩ := ih he W tv Ks hKs τs' h1
+    obtain ⟨Th, info, hTh, hcl, hT, hinfo, hKsi, P1, P2, dP2, PT⟩ := ih he W tv Ks hKs τs' h1
     refine ⟨Th, info, hTh, hcl, hT, hinfo, hKsi, fun o ho =>
-      P1 o (((vcls_conv henv hΔ W hAB.1.defeq).symm ▸ ho).strengthen h2), fun x hx => ?_, dP2⟩
+      P1 o (((vcls_conv henv hΔ W hAB.1.defeq).symm ▸ ho).strengthen h2), fun x hx => ?_, dP2,
+      PT⟩
     obtain ⟨x₁, hx₁, l₁⟩ := P2 x hx
     obtain ⟨x₂, hx₂, l₂⟩ := hs.1 x₁ hx₁
     exact ⟨x₂, hx₂, l₂.trans l₁⟩
+
+/-- **The spine lemma**, for constant heads. -/
+theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args)
+    (hhd : ∃ c ls, hd = .const c ls)
+    {σ S} (W : Ctx.SubstEq env U Δ σ σ Γ) (tv : TV env U Δ Γ σ S)
+    (Ks : List (List Ob)) (hKs : List.Forall₂ (fun K a => ∀ x ∈ K, Obs' σ S a x) Ks args)
+    (τs : List Ob) (hτs : ∀ τ ∈ τs, Obs' σ S T τ) :
+    ∃ Th info, HeadTy env U hd Th ∧ Th.ClosedN ∧
+      (∃ u, HTS env U Δ [] Th (.sort u) ∧ SD env U Δ [] Th Th (.sort u)) ∧
+      List.Forall₂ (KeyData env U Δ Γ σ S) info args ∧
+      List.Forall₂ (fun K (ka : Key × VExpr) => ∀ x ∈ K, x ∈ ka.1.2.2) Ks info ∧
+      (∀ o, TypedOb env U Δ (vcls env U Δ σ e T) o τs →
+        ∃ τ₀, (∀ τ ∈ τ₀, Obs' .id .empty (Th) τ) ∧
+        TypedOb env U Δ (ElCls env U Δ (TyCls env U Δ Th) hd) (wrap (info.map (·.1)) o) τ₀) ∧
+      (∀ x, Obs' .id .empty (Th) (piCodChain (info.map (·.1)) x) →
+        ∃ x', Obs' σ S T x' ∧ x' ≼ x) ∧
+      (∀ pre ka post, info = pre ++ ka :: post → ∀ x,
+        Obs' .id .empty (Th) (piCodChain (pre.map (·.1)) (.piDomOb x)) →
+        ∃ x', Obs' σ S ka.2 x' ∧ x' ≼ x) :=
+  let ⟨Th, info, h1, h2, h3, h4, h5, h6, h7, h8, _⟩ := H.spineH' henv hΔ he hhd W tv Ks hKs τs hτs
+  ⟨Th, info, h1, h2, h3, h4, h5, h6, h7, h8⟩
 
 /-- **The spine lemma** for constant heads. -/
 theorem HTS.spine (H : HTS env U Δ Γ e T) {c ls args} (he : e = .mkApps (.const c ls) args)
