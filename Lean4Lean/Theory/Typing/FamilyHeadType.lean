@@ -31,32 +31,6 @@ end Lean4Lean.InductiveSignature
 
 namespace Lean4Lean.VEnv
 
-private theorem isType_wrapForalls_inv {env : VEnv} {U : Nat} (henv : env.Ordered) :
-    ∀ {domains Γ : List VExpr} {body : VExpr}, OnCtx Γ (env.IsType U) →
-      env.IsType U Γ (VExpr.wrapForalls domains body) →
-      OnCtx (domains.reverse ++ Γ) (env.IsType U)
-  | [], _, _, hΓ, _ => hΓ
-  | d :: ds, Γ, body, hΓ, H => by
-    have hinv := IsType.forallE_inv henv H
-    have := isType_wrapForalls_inv henv (domains := ds) (Γ := d :: Γ) (body := body)
-      ⟨hΓ, hinv.1⟩ hinv.2
-    simpa [List.reverse_cons, List.append_assoc] using this
-
-/-- Close the open header form: a well-formed type definitionally equal to a
-telescope whose body is definitionally a sort in the telescope's scope is
-definitionally the telescope ending in that sort. -/
-theorem IsDefEq.close_sort_header {env : VEnv} {U : Nat} {T A body : VExpr}
-    {domains : List VExpr} {level : VLevel}
-    (henv : env.WF) (hT : env.IsType U [] T)
-    (h1 : env.IsDefEq U [] T (VExpr.wrapForalls domains body) A)
-    (h2 : env.IsDefEq U domains.reverse body (.sort level) (.sort (.succ level))) :
-    env.IsDefEqU U [] T (VExpr.wrapForalls domains (.sort level)) := by
-  have hW : env.IsType U [] (VExpr.wrapForalls domains body) :=
-    hT.defeqU_l henv trivial ⟨A, h1⟩
-  have hctx := isType_wrapForalls_inv henv.ordered (Γ := []) trivial hW
-  obtain ⟨_, hw⟩ := VExpr.wrapForalls_defeq (Γ := []) (by simpa using hctx) (by simpa using h2)
-  exact IsDefEqU.trans henv trivial ⟨_, h1⟩ ⟨_, hw⟩
-
 private theorem addConst_le_target {base added current : VEnv}
     (hle : base ≤ current) (hadd : base.addConst name ci = some added)
     (hvalue : current.constants name = some ci) : added ≤ current := by

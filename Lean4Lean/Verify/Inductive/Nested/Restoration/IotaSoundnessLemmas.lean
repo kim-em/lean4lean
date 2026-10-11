@@ -297,47 +297,6 @@ end InductiveSignature
 end Lean4Lean
 
 namespace Lean4Lean
-open InductiveSignature
-
-theorem VInductDecl.RawCtorShape.constructorShape
-    {decl : VInductDecl} {family : VInductiveType} {ctor : VConstVal} {env : VEnv}
-    (H : decl.RawCtorShape family ctor) (hnames : decl.sourceNames.Nodup)
-    (hfamily : family ∈ decl.types)
-    (hlookup : env.constants ctor.name = some ⟨decl.uvars, ctor.type⟩) :
-    ∃ fields, Nonempty (VConstructorShape env ctor.name decl.uvars decl.nparams
-      fields family.numIndices family.name) := by
-  rcases H with ⟨doms, result, htype, hparamsLe, hvalid, hhead⟩
-  rcases hvalid with ⟨target, htarget, htargetName, levels, hfn, hlevels, hargs, hparams⟩
-  rcases htargetName with hnone | htargetName
-  · cases hnone
-  have heq : target = family := VInductDecl.type_eq_of_mem_name hnames htarget hfamily
-    (Option.some.inj htargetName).symm
-  subst target
-  change result.getAppFnArgs.2.length = decl.nparams + family.numIndices at hargs
-  change result.getAppFnArgs.2.take decl.nparams = decl.paramVars (doms.length - decl.nparams) at hparams
-  refine ⟨doms.length - decl.nparams, ⟨{
-    type := ctor.type
-    const := hlookup
-    doms := doms
-    indices := result.getAppFnArgs.2.drop decl.nparams
-    type_eq := ?_
-    doms_length := by omega
-    indices_length := by simp only [List.length_drop, hargs]; omega }⟩⟩
-  rw [htype]
-  congr 1
-  calc
-    result = VExpr.mkApps result.getAppFnArgs.1 result.getAppFnArgs.2 :=
-      (VExpr.mkApps_getAppFnArgs_eq result).symm
-    _ = VExpr.mkApps (.const family.name (VLevel.params decl.uvars))
-        ((result.getAppFnArgs.2.take decl.nparams) ++ result.getAppFnArgs.2.drop decl.nparams) := by
-      rw [List.take_append_drop, hhead]
-    _ = _ := by
-      rw [hparams]
-      congr 2
-      exact InductiveSignature.nested_vars_eq_bvarRange _ _
-end Lean4Lean
-
-namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
 
@@ -386,25 +345,6 @@ theorem declaration_ctor_mem (s : InductiveSignature) (index : Fin s.constructor
     List.mem_filterMap]
   refine ⟨s.constructors[index], Array.getElem_mem_toList _, ?_⟩
   simp
-end InductiveSignature
-end Lean4Lean
-
-namespace Lean4Lean
-namespace InductiveSignature
-open InductiveSignature
-
-theorem Restoration.expr_wrapLams_eq (r : Restoration) (doms : List VExpr) (body : VExpr) :
-    r.expr (VExpr.wrapLams doms body) =
-      (doms.mapM r.expr).bind fun doms' =>
-        (r.expr body).map (VExpr.wrapLams doms') := by
-  induction doms with
-  | nil => cases hb : r.expr body <;> simp [VExpr.wrapLams, hb]
-  | cons d ds ih =>
-    change Restoration.expr.go r (.lam d (VExpr.wrapLams ds body)) [] = _
-    simp only [Restoration.expr.go, List.mapM_cons]
-    rw [← Restoration.expr_eq_go, ← Restoration.expr_eq_go, ih]
-    cases hd : r.expr d <;> cases hds : ds.mapM r.expr <;>
-      cases hb : r.expr body <;> simp [VExpr.mkApps, VExpr.wrapLams]
 end InductiveSignature
 end Lean4Lean
 
@@ -550,8 +490,8 @@ theorem Restoration.restored_iota_shape {s : InductiveSignature} (g : Instance s
   | some type =>
   simp only [hl, hr, ht, Option.bind_some, Option.some.injEq] at heq
   subst heq
-  rw [hlhs, r.expr_wrapLams_eq] at hl
-  rw [hrhs, r.expr_wrapLams_eq] at hr
+  rw [hlhs, r.expr_wrapLams] at hl
+  rw [hrhs, r.expr_wrapLams] at hr
   rw [htype, r.expr_wrapForalls] at ht
   cases hD : domains.mapM r.expr with
   | none => simp [hD] at hl

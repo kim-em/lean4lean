@@ -32,10 +32,6 @@ namespace Lean4Lean
 open Lean hiding Environment Exception
 open Kernel
 
-private theorem vconstant_ext {a b : VConstant} (huvars : a.uvars = b.uvars)
-    (htype : a.type = b.type) : a = b := by
-  cases a; cases b; simp_all
-
 /-- The translated constant of a safe kernel constant whose type
 translates uniquely. -/
 private theorem VEnvs.WF.constant_of_kernel {env : Environment} {ves : VEnvs}
@@ -49,7 +45,7 @@ private theorem VEnvs.WF.constant_of_kernel {env : Environment} {ves : VEnvs}
       (by rw [hsafe]; exact DefinitionSafety.le_safe) with
     ⟨ci', hci', -, hciUvars, hciType⟩
   rw [hci']
-  exact congrArg some (vconstant_ext (hciUvars.symm.trans huvars) (htype hciType))
+  exact congrArg some (VConstant.eq_of_fields (hciUvars.symm.trans huvars) (htype hciType))
 
 /-- The constant clauses of `HasCanonicalEq` hold in every well-formed model of
 an environment containing the prelude's `Eq`, `Eq.refl` and `Eq.rec`. -/

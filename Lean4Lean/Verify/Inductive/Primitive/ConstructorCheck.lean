@@ -30,12 +30,6 @@ theorem List.Forall₂.leftPair
       cases Hnil
       exact ⟨_, _, rfl, ha₁, ha₂⟩
 
-theorem VConstant.eq_of_fields {a b : VConstant}
-    (huvars : a.uvars = b.uvars) (htype : a.type = b.type) : a = b := by
-  cases a
-  cases b
-  simp_all
-
 /-- The header data of a primitive declaration with its header translation (the constructor
 types translated syntactically in the header environment). -/
 structure PrimitiveHeaderEnvironment (c : AddInductive.Context)

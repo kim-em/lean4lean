@@ -22,19 +22,6 @@ open Kernel
 
 namespace InductiveSignature
 
-theorem Restoration.expr_wrapLams (r : Restoration) (doms : List VExpr) (body : VExpr) :
-    r.expr (VExpr.wrapLams doms body) =
-      (doms.mapM r.expr).bind fun doms' =>
-        (r.expr body).map (VExpr.wrapLams doms') := by
-  induction doms with
-  | nil => cases hb : r.expr body <;> simp [VExpr.wrapLams, hb]
-  | cons d ds ih =>
-    change Restoration.expr.go r (.lam d (VExpr.wrapLams ds body)) [] = _
-    simp only [Restoration.expr.go, List.mapM_cons]
-    rw [← Restoration.expr_eq_go, ← Restoration.expr_eq_go, ih]
-    cases hd : r.expr d <;> cases hds : ds.mapM r.expr <;>
-      cases hb : r.expr body <;> simp [VExpr.mkApps, VExpr.wrapLams]
-
 theorem vars_bvars (n below : Nat) : ∀ e ∈ vars n below, ∃ i, e = .bvar i := by
   simp only [vars, List.mem_map]
   rintro e ⟨a, _, rfl⟩

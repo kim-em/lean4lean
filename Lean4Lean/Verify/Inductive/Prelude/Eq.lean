@@ -20,12 +20,6 @@ type (`QuotReadyEnvs`). PR #43 derives `QuotReady` at quotient initialization fr
 
 namespace VerifyInductive
 
-private theorem vconstant_eq_of_fields {a b : VConstant}
-    (huvars : a.uvars = b.uvars) (htype : a.type = b.type) : a = b := by
-  cases a
-  cases b
-  simp_all
-
 /-- The exact syntax of the prelude's ordinary (non-primitive) `Eq`
 declaration, modulo binder and universe-parameter names.  As
 submitted by `Init.Prelude`, `Eq` has two parameters (`α` and the left
@@ -58,10 +52,10 @@ theorem TrInductDeclCore.preludeEqDecl
   rcases List.Forall₂.leftSingleton Hfamily.ctors with ⟨refl, hctors, Hrefl⟩
   refine ⟨family, refl, hdecl, Hfamily.header.name, ?_, hctors, Hrefl.name, ?_,
     H.nparams⟩
-  · apply vconstant_eq_of_fields
+  · apply VConstant.eq_of_fields
     · simpa using Hfamily.header.uvars
     · exact TrExprS.eq_canonicalEqType Hfamily.header.type
-  · apply vconstant_eq_of_fields
+  · apply VConstant.eq_of_fields
     · simpa using Hrefl.uvars
     · exact TrExprS.eq_canonicalEqReflType Hrefl.type
 

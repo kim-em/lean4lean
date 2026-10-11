@@ -9,6 +9,12 @@ structure VConstant where
   uvars : Nat
   type : VExpr
 
+theorem VConstant.eq_of_fields {a b : VConstant}
+    (huvars : a.uvars = b.uvars) (htype : a.type = b.type) : a = b := by
+  cases a
+  cases b
+  simp_all
+
 structure VDefEq where
   uvars : Nat
   lhs : VExpr
