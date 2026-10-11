@@ -15,12 +15,6 @@ namespace InductiveSignature
 
 open VExpr
 
-private theorem lamBody_wrapLams (ds : List VExpr) (b : VExpr) :
-    (VExpr.wrapLams ds b).lamBody = b.lamBody := by
-  induction ds with
-  | nil => rfl
-  | cons d ds ih => exact ih
-
 /-- An application spine headed by a bound variable or a constant is neither a Π nor a λ. -/
 private theorem spine_notBinder {e : VExpr}
     (h : (∃ k, e.getAppFn = .bvar k) ∨ ∃ c us, e.getAppFn = .const c us) :

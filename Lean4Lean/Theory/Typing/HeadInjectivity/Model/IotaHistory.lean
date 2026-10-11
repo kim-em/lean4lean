@@ -40,7 +40,7 @@ theorem eqLead_index {j : Nat} (hj : j < s.constructors[index].indices.length) :
       some (((s.constructors[index].indices[j]).instL g.levels).liftN
         (s.families.size + s.constructors.size) s.constructors[index].fields.length) := by
   unfold eqLead
-  rw [List.getElem?_append_right (by simp [vars_len]), vars_len, Nat.add_sub_cancel_left]
+  rw [List.getElem?_append_right (by simp [length_vars]), length_vars, Nat.add_sub_cancel_left]
   simp [eqIndices, List.getElem?_map]
   exact ⟨_, List.getElem?_eq_getElem (by simpa using hj), rfl⟩
 
@@ -222,10 +222,6 @@ theorem forallArity_mkApps_const' (c : Name) (ls : List VLevel) : ∀ args : Lis
   | nil => rfl
   | snoc args a _ => rw [VExpr.mkApps_snoc]; rfl
 
-theorem vars_instL (count below : Nat) (ls : List VLevel) :
-    (vars count below).map (·.instL ls) = vars count below := by
-  simp [vars_unfold, VExpr.instL]
-
 theorem eq_mkApps_of_getAppFnArgs {e f : VExpr} (h : e.getAppFnArgs.1 = f) :
     e = .mkApps f e.getAppFnArgs.2 := by
   have := VExpr.mkApps_getAppFnArgs_go e []
@@ -355,7 +351,7 @@ theorem ordinary_rel {envF env0 envT envR base envTypes : VEnv} {decl : VInductD
         (s.families.size + s.constructors.size) - 1 - i + s.constructors[index].fields.length)) := by
     intro i hi
     simp only [Instance.eqLead]
-    rw [List.getElem?_append_left (by simp [vars_len]; omega), vars_getElem? hi]
+    rw [List.getElem?_append_left (by simp [length_vars]; omega), vars_getElem? hi]
     congr 2; omega
   have hleadl : (g.eqLead index).length = s.params.length +
       (s.families.size + s.constructors.size) +
@@ -380,7 +376,7 @@ theorem ordinary_rel {envF env0 envT envR base envTypes : VEnv} {decl : VInductD
       some (.bvar (s.params.length + (s.families.size + s.constructors.size) +
         s.families[s.constructors[index].owner].indices.length - 1 - i)) := by
     intro i hi
-    rw [List.getElem?_append_left (by simp [vars_len]; omega), vars_getElem? hi]
+    rw [List.getElem?_append_left (by simp [length_vars]; omega), vars_getElem? hi]
     congr 2; omega
   have hiargsI : ∀ j < s.families[s.constructors[index].owner].indices.length,
       (vars s.params.length ((s.families.size + s.constructors.size) +
@@ -388,14 +384,14 @@ theorem ordinary_rel {envF env0 envT envR base envTypes : VEnv} {decl : VInductD
         vars s.families[s.constructors[index].owner].indices.length 0)[s.params.length + j]? =
       some (.bvar (s.families[s.constructors[index].owner].indices.length - 1 - j)) := by
     intro j hj
-    rw [List.getElem?_append_right (by simp [vars_len]), vars_len, Nat.add_sub_cancel_left,
+    rw [List.getElem?_append_right (by simp [length_vars]), length_vars, Nat.add_sub_cancel_left,
       vars_getElem? hj]
     congr 2; omega
   have hiargsl : (vars s.params.length ((s.families.size + s.constructors.size) +
         s.families[s.constructors[index].owner].indices.length) ++
         vars s.families[s.constructors[index].owner].indices.length 0).length =
       s.params.length + s.families[s.constructors[index].owner].indices.length := by
-    simp [vars_len]
+    simp [length_vars]
   by_cases hz : s.params.length + s.constructors[index].fields.length = 0
   · -- no binders: the installed constructor type is its own normal form
     have hcd0 : cdoms = [] := List.eq_nil_of_length_eq_zero (by omega)
@@ -458,9 +454,9 @@ theorem ordinary_rel {envF env0 envT envR base envTypes : VEnv} {decl : VInductD
     obtain ⟨SN2, HN2, -⟩ := VT.soundAtH henvF hTF U Δ hΔ stN
     obtain ⟨h1, h2⟩ := iotaArgRel_of henvF hΔ hci eH hlenH hkH hiargsl hiargsP hiargsI hcI' hITW
       hIpi hDIl hIrig' hcc eC (by simp; omega) hNcl HN2 ⟨stN.mono hTF, SN2⟩ SC hDl
-      (by simp only [List.length_append, List.length_map, vars_len]; rw [harity])
+      (by simp only [List.length_append, List.length_map, length_vars]; rw [harity])
       (fun i hi => by
-        rw [List.getElem?_append_left (by simp [vars_len]; omega), vars_getElem? hi]
+        rw [List.getElem?_append_left (by simp [length_vars]; omega), vars_getElem? hi]
         congr 2; omega)
       (g.eqDoms_length index)
       (fun h i hi => by
@@ -489,7 +485,7 @@ theorem ordinary_rel {envF env0 envT envR base envTypes : VEnv} {decl : VInductD
           rw [List.getElem?_eq_none (by rw [g.eqLead_length]; omega)] at hx; cases hx
         rw [g.eqLead_index index hj] at hx
         have e1 := eq_bvar_of_instL (eq_bvar_of_liftN (Option.some.inj hx) hxf)
-        rw [List.getElem?_append_right (by simp [vars_len]), vars_len, Nat.add_sub_cancel_left,
+        rw [List.getElem?_append_right (by simp [length_vars]), length_vars, Nat.add_sub_cancel_left,
           List.getElem?_map, List.getElem?_eq_getElem hj, e1]; rfl)
       hleadl hdomsSD hrA hcA rfl ihe W tv
     exact ⟨h1, by rwa [hlsC'] at h2⟩
@@ -677,7 +673,7 @@ theorem PatValid.ordinary {envF env0 env' : VEnv} {decl : VInductDecl}
     rw [hrhs] at ho
     refine rhs_empty_motive henvF hΔ (doms := (g.eqDoms index).map (·.instL m1))
       (by show (VExpr.wrapForalls (g.eqDoms index) _).instL m1 = _
-          rw [VExpr.instL_wrapForalls]) (by rw [g.equation_rhs_eq, instL_wrapLams])
+          rw [VExpr.instL_wrapForalls]) (by rw [g.equation_rhs_eq, VExpr.instL_wrapLams])
       hcl hTH (by simp only [VExpr.instL_mkApps, VExpr.instL]; rfl) hlk ?_
       (funext fun v => by
         rw [VLevel.eval_inst]; exact (VLevel.equiv_def.1 hsmall _).trans rfl)

@@ -75,8 +75,8 @@ theorem pat_instL {df : VDefEq} {fs : List Nat}
       (lead.map (·.instL ls) ++ [.mkApps (.const ctor (lsC.map (·.inst ls)))
         (ms.map (·.instL ls) ++ fs.map .bvar)])) ∧
     df.rhs.instL ls = .wrapLams (doms.map (·.instL ls)) (body.instL ls) := by
-  refine ⟨?_, by rw [hr, instL_wrapLams]⟩
-  rw [hl, instL_wrapLams]
+  refine ⟨?_, by rw [hr, VExpr.instL_wrapLams]⟩
+  rw [hl, VExpr.instL_wrapLams]
   simp only [VExpr.instL_mkApps, VExpr.instL, List.map_append, List.map_cons, List.map_nil,
     List.map_map, Function.comp_def, hlsP]
 

@@ -151,13 +151,6 @@ theorem RecursorCheck.equation_rule (H : RecursorCheck R outEnv) (hcov : H.Rules
   refine ⟨_, List.getElem_mem hi, _, List.getElem_mem hj, ?_⟩
   simpa [hjeq] using D
 
-/-- A λ-telescope over an application has that application as its body. -/
-theorem VExpr.lamBody_wrapLams_app (doms : List VExpr) (f a : VExpr) :
-    (VExpr.wrapLams doms (.app f a)).lamBody = .app f a := by
-  induction doms with
-  | nil => rfl
-  | cons d ds ih => exact ih
-
 /-- A model rule sharing its data with a generated equation is that equation
 (`VRecRule.OfEquation`, the `rules` clauses of `VInductDecl.RecsOf`). -/
 theorem RuleEquationData.ofEquation {H : RecursorCheck R outEnv} {r : VRecursor}

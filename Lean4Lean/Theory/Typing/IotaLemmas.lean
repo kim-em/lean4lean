@@ -91,13 +91,6 @@ theorem IsDefEq.mkApps_wrapLams (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType
       simp only [VExpr.instOuter_cons, hlen]
       exact this
 
-theorem _root_.Lean4Lean.VExpr.instL_wrapLams (doms : List VExpr) (body : VExpr) (ls : List VLevel) :
-    (VExpr.wrapLams doms body).instL ls =
-      VExpr.wrapLams (doms.map (VExpr.instL ls)) (body.instL ls) := by
-  induction doms with
-  | nil => rfl
-  | cons d ds ih => simp [VExpr.wrapLams, VExpr.instL] at ih ⊢; exact ih
-
 /-- A stored lambda-wrapped equation, instantiated at universe levels and applied to a full list of
 arguments typed at its telescope, yields the instantiated bodies. -/
 theorem IsDefEq.extra_instOuter (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))

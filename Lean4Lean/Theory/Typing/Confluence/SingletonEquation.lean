@@ -38,12 +38,6 @@ theorem RecursorRegistered.equation_typed {data : RecursorData} (H : RecursorReg
   have hwf := VInductDecl.WF.block_rules_wf hcomp hrecs hbwf hR equation hmem
   exact ⟨hwf.1.mono hle, hwf.2.mono hle⟩
 
-theorem _root_.Lean4Lean.VExpr.lamBody_wrapLams_app (domains : List VExpr) (f a : VExpr) :
-    (VExpr.wrapLams domains (.app f a)).lamBody = .app f a := by
-  induction domains with
-  | nil => rfl
-  | cons _ _ ih => exact ih
-
 theorem _root_.Lean4Lean.VExpr.lamArity_wrapLams_app (domains : List VExpr) (f a : VExpr) :
     (VExpr.wrapLams domains (.app f a)).lamArity = domains.length := by
   induction domains with

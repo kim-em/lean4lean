@@ -66,8 +66,6 @@ theorem vars_eq_bvarRange' (n : Nat) : vars n 0 = VExpr.bvarRange n n := by
   · intro i hi hi'
     simp [vars, VExpr.bvarRange] at hi hi' ⊢
 
-theorem vars_instL (n k : Nat) (ls : List VLevel) : (vars n k).map (VExpr.instL ls) = vars n k := by
-  simp [vars, List.map_map, Function.comp_def, VExpr.instL]
 end Lean4Lean.VEnv
 
 /-! # Coverage of zero-source singleton recursor equations
@@ -260,7 +258,7 @@ theorem singleton_equation_syntax (H : RecursorRegistered env data)
       simp [indexOffset, numParams, Nat.add_assoc, s]
     rw [hnf, hnp, hio, hextra]
     simp only [VExpr.mkApps_snoc, VExpr.instL, VExpr.instL_mkApps, List.map_append, Instance.recursorHead,
-      hname, VEnv.vars_instL, List.map_map, Function.comp_def, VExpr.instL_liftN, VExpr.instL_instL,
+      hname, InductiveSignature.vars_instL, List.map_map, Function.comp_def, VExpr.instL_liftN, VExpr.instL_instL,
       Instance.constructorApp, Instance.singletonElim, Instance.ctorIndicesAt]
     have hu : (VLevel.params g.uvars).map (VLevel.inst ls) = ls := VLevel.inst_map_id hlen
     have hgl' : (data.recursorInstance.specialize 0 (ls.set k .zero)).levels =
