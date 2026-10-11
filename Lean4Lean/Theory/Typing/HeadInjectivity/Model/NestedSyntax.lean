@@ -350,7 +350,9 @@ theorem restored_minor {s : InductiveSignature} (g : Instance s) {r : Restoratio
           prior + (s.families.size - 1 - ctor.owner.val)))
         (ctorIdx.map (fun e => (e.liftN (Instance.recursiveFields ctor).length).liftN
             (s.families.size + prior) (ctor.fields.length + (Instance.recursiveFields ctor).length)) ++
-          [.mkApps (.const c0 (lvf g.levels)) margs])) := by
+          [.mkApps (.const c0 (lvf g.levels)) margs])) ∧
+      ∃ d rest out', r.expr (.mkApps (.const ctor.name g.levels) (vars s.params.length d ++ rest)) =
+        some out' := by
   unfold Instance.minor at h
   obtain ⟨Dm, b, hDm, hb, rfl⟩ := expr_wrapForalls_parts h
   rw [Restoration.expr_mkApps_bvar] at hb
@@ -359,6 +361,7 @@ theorem restored_minor {s : InductiveSignature} (g : Instance s) {r : Restoratio
   simp only [List.mapM_cons, List.mapM_nil, bind, Option.bind_eq_some_iff, pure,
     Option.some.injEq] at h2
   obtain ⟨major, hmaj, _, rfl, rfl⟩ := h2
+  have hsucc := hmaj
   obtain ⟨rest', hrest, rfl⟩ := hS.spine _ _ _ _ hmaj
   obtain ⟨ctorIdx, hci, rfl⟩ := mapM_map_inv (φ := fun e => (e.liftN (Instance.recursiveFields ctor).length).liftN
       (s.families.size + prior) (ctor.fields.length + (Instance.recursiveFields ctor).length))
@@ -371,7 +374,7 @@ theorem restored_minor {s : InductiveSignature} (g : Instance s) {r : Restoratio
     rw [mapM_length hDm]
     simp [insertBinders, fieldTypes]
   simp only [List.length_map, List.length_zipIdx]
-  exact ⟨Dm, ctorIdx, _, hl, hci, rfl⟩
+  exact ⟨Dm, ctorIdx, _, hl, hci, rfl, _, _, _, hsucc⟩
 
 theorem expr_liftN_map {r : Restoration}
     (hsc : ∀ h ∈ r.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams) (n k : Nat) (x : VExpr) :
@@ -564,6 +567,183 @@ theorem rule_counts {env base : VEnv} {decl expanded : VInductDecl} {s : Inducti
   rw [← hrhs, hr, lamArity_wrapLams, mapM_length hds, Instance.eqDoms_length, hb,
     lamArity_mkApps_bvar] at hla
   refine ⟨hname, hus'.1.symm, hrhs.symm, by omega, by omega, by omega, by omega, harity⟩
+
+/-- **Restored constructor names are distinct within a family.** -/
+theorem target_inj {base : VEnv} {source expanded : VInductDecl} {s : InductiveSignature}
+    {g : Instance s} {aux : List ContainerSpecialization} {block : VInductBlock}
+    (C : CompilationData base source expanded s g aux block) {i j : Fin s.constructors.size}
+    (ho : s.constructors[i].owner = s.constructors[j].owner) {c : Name}
+    {fi fj : List VLevel → List VLevel} {Di Dj : List VExpr}
+    (hSi : Spec (compilationRestoration source aux) s.constructors[i].name s.params.length c fi Di)
+    (hSj : Spec (compilationRestoration source aux) s.constructors[j].name s.params.length c fj Dj)
+    {lvi lvj : List VLevel} {di dj : Nat} {resti restj : List VExpr} {outi outj : VExpr}
+    (hri : (compilationRestoration source aux).expr
+      (.mkApps (.const s.constructors[i].name lvi) (vars s.params.length di ++ resti)) = some outi)
+    (hrj : (compilationRestoration source aux).expr
+      (.mkApps (.const s.constructors[j].name lvj) (vars s.params.length dj ++ restj)) = some outj) :
+    i = j := by
+  apply C.ctor_index_inj
+  have hdis := C.toCaseCompilationData.source_head_disjoint
+  obtain ⟨eT1, -, hci⟩ := ctor_cases C i
+  obtain ⟨eT2, -, hcj⟩ := ctor_cases C j
+  have hfam : s.families[s.constructors[i].owner].name =
+      s.families[s.constructors[j].owner].name :=
+    congrArg (fun o : Fin s.families.size => s.families[o].name) ho
+  rcases hci with ⟨t, ht, fc, hfc, hfn, hcn, -, -, -, hS⟩ |
+      ⟨a, ha, c', hc', T, hfa, hcn, -, -, -, -, -, hS⟩ <;>
+    rcases hcj with ⟨t2, ht2, fc2, hfc2, hfn2, hcn2, -, -, -, hS2⟩ |
+      ⟨a2, ha2, c2, hc2, T2, hfa2, hcn2, -, -, -, -, -, hS2⟩
+  · rw [hcn] at hSi hri; rw [hcn2] at hSj hrj
+    have e1 := hSi.target_unique hS hri
+    have e2 := hSj.target_unique hS2 hrj
+    rw [hcn, hcn2, ← e1, ← e2]
+  · exfalso
+    have h1 : t.name ∈ familyNames source.types := List.mem_flatMap.mpr ⟨t, ht, List.mem_cons_self⟩
+    rw [← hfn, hfam, hfa2] at h1
+    exact hdis h1 (List.mem_map.mpr ⟨_, List.mem_flatMap.mpr ⟨a2, ha2, List.mem_cons_self⟩, rfl⟩)
+  · exfalso
+    have h1 : t2.name ∈ familyNames source.types :=
+      List.mem_flatMap.mpr ⟨t2, ht2, List.mem_cons_self⟩
+    rw [← hfn2, ← hfam, hfa] at h1
+    exact hdis h1 (List.mem_map.mpr ⟨_, List.mem_flatMap.mpr ⟨a, ha, List.mem_cons_self⟩, rfl⟩)
+  · rw [hcn] at hSi hri; rw [hcn2] at hSj hrj
+    have e1 := hSi.target_unique hS hri
+    have e2 := hSj.target_unique hS2 hrj
+    -- the two family heads are the same specialization
+    have hm1 : HeadSpecialization.mk a.auxiliary source.uvars source.nparams a.source.name
+        a.levels a.arguments ∈ (compilationRestoration source aux).heads :=
+      List.mem_flatMap.mpr ⟨a, ha, List.mem_cons_self⟩
+    have hm2 : HeadSpecialization.mk a2.auxiliary source.uvars source.nparams a2.source.name
+        a2.levels a2.arguments ∈ (compilationRestoration source aux).heads :=
+      List.mem_flatMap.mpr ⟨a2, ha2, List.mem_cons_self⟩
+    have heq := List.eq_of_mem_of_nodup_map C.restorationScoped.1 hm1 hm2
+      (hfa.symm.trans (hfam.trans hfa2))
+    simp only [HeadSpecialization.mk.injEq] at heq
+    rw [hcn, hcn2]
+    simp only [ContainerSpecialization.constructorName]
+    rw [show c'.name = c2.name from e1.symm.trans e2, heq.1, heq.2.2.2.1]
+
+theorem mkApps_snoc_eq_app (f x : VExpr) (args : List VExpr) :
+    VExpr.mkApps f (args ++ [x]) = .app (VExpr.mkApps f args) x := VExpr.mkApps_snoc ..
+
+/-- **The `IotaStatic` data of a restored equation**: the restored recursor's telescope, its
+major domain (the restored family spine), and the restored minor of the constructor, which is
+the last minor ending in the restored constructor with the major's motive. -/
+theorem restored_iotaStatic {base env : VEnv} {source expanded : VInductDecl}
+    {s : InductiveSignature} {g : Instance s} {aux : List ContainerSpecialization}
+    {block : VInductBlock} (C : CompilationData base source expanded s g aux block)
+    (hrecsOf : source.RecsOf block) {rec : VRecursor} (hrec : rec ∈ source.recs)
+    (index : Fin s.constructors.size)
+    {I0 c0 : Name} {lvf lvfC : List VLevel → List VLevel} {Ds0 Ds0C : List VExpr}
+    (hSF : Spec (compilationRestoration source aux) s.families[s.constructors[index].owner].name
+      s.params.length I0 lvf Ds0)
+    (hSC : Spec (compilationRestoration source aux) s.constructors[index].name s.params.length c0
+      lvfC Ds0C)
+    (hname : rec.name = (compilationRestoration source aux).recursorName
+      (g.recursorName s.constructors[index].owner))
+    {ds' ctorIdx : List VExpr}
+    (hds : (g.eqDoms index).mapM (compilationRestoration source aux).expr = some ds')
+    (hci : (s.constructors[index].indices.map (·.instL g.levels)).mapM
+      (compilationRestoration source aux).expr = some ctorIdx)
+    (harity : s.constructors[index].indices.length =
+      s.families[s.constructors[index].owner].indices.length) :
+    ∃ dsH', (g.recDoms s.constructors[index].owner).mapM
+        (compilationRestoration source aux).expr = some dsH' ∧
+      rec.type = .wrapForalls dsH' (g.recBody s.constructors[index].owner) ∧
+      IotaStatic rec.toVConstVal.toVConstant c0
+        (s.params.length + (s.families.size + s.constructors.size))
+        s.families[s.constructors[index].owner].indices.length
+        s.constructors[index].fields.length ds' dsH' (g.recBody s.constructors[index].owner) I0
+        (lvf g.levels)
+        (Ds0.map (fun e => (e.instL g.levels).liftN
+            (s.families.size + s.constructors.size +
+              s.families[s.constructors[index].owner].indices.length)) ++
+          vars s.families[s.constructors[index].owner].indices.length 0)
+        (iotaLead (s.params.length + (s.families.size + s.constructors.size))
+          s.constructors[index].fields.length
+          (ctorIdx.map (·.liftN (s.params.length + (s.families.size + s.constructors.size) -
+            s.params.length) s.constructors[index].fields.length))) := by
+  have hsc : ∀ h ∈ (compilationRestoration source aux).heads, ∀ e ∈ h.arguments,
+      e.ClosedN h.nparams := fun h hh => (C.restorationScoped.2.2.1 h hh).2
+  obtain ⟨dsH', hdsH, htype, -⟩ := restored_recursor C hrecsOf hrec _ hname
+  refine ⟨dsH', hdsH, htype, ?_⟩
+  have hlenH := mapM_length hdsH
+  rw [g.recDoms_length] at hlenH
+  have hlo := s.constructors[index].owner.isLt
+  have hix := index.isLt
+  -- the major domain
+  obtain ⟨maj, hmaj, hmajget⟩ := mapM_getElem? hdsH (g.recDoms_major s.constructors[index].owner)
+  obtain ⟨rest', hrest, rfl⟩ := hSF.spine _ _ _ _ hmaj
+  rw [mapM_expr_vars] at hrest
+  cases hrest
+  -- the minor
+  obtain ⟨mn, hmn, hmnget⟩ := mapM_getElem? hdsH (g.recDoms_minor s.constructors[index].owner index)
+  obtain ⟨Dm, ctorIdx', margs, hDml, hci', rfl, -⟩ := restored_minor g hsc _ _ hSC hmn
+  cases hci.symm.trans hci'
+  have hcil := mapM_length hci
+  simp only [List.length_map] at hcil
+  refine ⟨by rw [mapM_length hds, g.eqDoms_length], by simp only [htype],
+    by omega, hmajget, s.params.length, s.params.length + s.families.size + index.val,
+    (Instance.recursiveFields s.constructors[index]).length,
+    s.constructors[index].fields.length + (Instance.recursiveFields s.constructors[index]).length +
+      index.val + (s.families.size - 1 - s.constructors[index].owner.val),
+    s.params.length + s.constructors[index].owner.val, ctorIdx, Dm, margs, lvfC g.levels,
+    by omega, by omega, by omega, hDml, by omega, ?_,
+    ⟨vars (insertBinders (s.families[s.constructors[index].owner].indices.map
+      (·.instL g.levels)) (s.families.size + s.constructors.size)).length 1 ++ [.bvar 0], ?_⟩,
+    ?_, rfl, ?_⟩
+  · rw [hDml]; omega
+  · simp only [Instance.recBody, insertBinders, List.length_map, List.length_zipIdx]
+    congr 2
+    omega
+  · rw [hmnget, show s.params.length + s.families.size + index.val - s.params.length =
+      s.families.size + index.val by omega]
+  · -- no later minor ends in the constructor with the same motive
+    intro pos' A h1 h2 hA hE
+    obtain ⟨i', rfl⟩ : ∃ i', pos' = s.params.length + s.families.size + i' :=
+      ⟨pos' - (s.params.length + s.families.size), by omega⟩
+    have hi' : i' < s.constructors.size := by omega
+    rw [show s.params.length + s.families.size + i' =
+      s.params.length + s.families.size + (⟨i', hi'⟩ : Fin s.constructors.size).val from rfl] at hA
+    obtain ⟨mn', hmn', hmnget'⟩ := mapM_getElem? hdsH
+      (g.recDoms_minor s.constructors[index].owner ⟨i', hi'⟩)
+    rw [hA] at hmnget'
+    cases hmnget'
+    obtain ⟨eT, -, hcases⟩ := ctor_cases C ⟨i', hi'⟩
+    obtain ⟨c', lvf', Ds', hS'⟩ : ∃ c' lvf' Ds',
+        Spec (compilationRestoration source aux) s.constructors[(⟨i', hi'⟩ : Fin _)].name
+          s.params.length c' lvf' Ds' := by
+      rcases hcases with ⟨t, -, fc, -, -, hcn, -, -, -, hS⟩ |
+        ⟨a, -, c, -, T, -, hcn, -, -, -, -, -, hS⟩
+      · exact ⟨_, _, _, hcn ▸ hS⟩
+      · exact ⟨_, _, _, hcn ▸ hS⟩
+    obtain ⟨Dm', ctorIdx2, margs', hDml', -, eA, d', rest2, out2, hsucc'⟩ :=
+      restored_minor g hsc _ _ hS' hmn'
+    obtain ⟨Dm0, args0, lsC0, margs0, eA'⟩ := hE
+    rw [eA] at eA'
+    rw [mkApps_snoc_eq_app, mkApps_snoc_eq_app] at eA'
+    have hDl : Dm'.length = Dm0.length := by
+      have := congrArg VExpr.piBinders eA'
+      rw [piBinders_wrapForalls_app, piBinders_wrapForalls_app] at this
+      rw [this]
+    obtain ⟨rfl, e2⟩ := VExpr.wrapForalls_inj_of_length hDl eA'
+    injection e2 with e3 e4
+    have hmv := VExpr.mkApps_bvar_head_inj e3
+    have hc := VExpr.mkApps_const_name_inj e4
+    subst hc
+    have ho : s.constructors[(⟨i', hi'⟩ : Fin _)].owner = s.constructors[index].owner := by
+      have := s.constructors[(⟨i', hi'⟩ : Fin _)].owner.isLt
+      apply Fin.ext
+      rw [hDml'] at hmv
+      have hlo' := s.constructors[index].owner.isLt
+      have hv : ((⟨i', hi'⟩ : Fin s.constructors.size) : Nat) = i' := rfl
+      rw [hv] at hmv
+      omega
+    obtain ⟨-, -, -, -, -, -, d0, rest0, out0, hsucc⟩ := restored_minor g hsc _ _ hSC hmn
+    have := target_inj C ho hS' hSC hsucc' hsucc
+    have := congrArg Fin.val this
+    simp at this
+    omega
 
 end Nested
 end Model
