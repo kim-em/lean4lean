@@ -1,6 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.HeaderDataCompatB
 import Lean4Lean.Verify.Inductive.Nested.Restoration.TranslationProjNames
-import Lean4Lean.Theory.Inductive.RestorationNames
+import Lean4Lean.Theory.Inductive.Restoration
 import Lean4Lean.Verify.Inductive.Nested.Restoration.CompilationDataConstructors
 import Lean4Lean.Verify.Inductive.Nested.Restoration.HeaderRenaming
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ContainerSpecializations

@@ -1,5 +1,4 @@
 import Lean4Lean.Theory.VExpr.TelescopeLemmas
-import Lean4Lean.Theory.Inductive.RestorationNames
 import Lean4Lean.Theory.Typing.SignatureVars
 import Lean4Lean.Verify.Inductive.Install.RecursorShapesOf
 import Lean4Lean.Verify.Inductive.Formation

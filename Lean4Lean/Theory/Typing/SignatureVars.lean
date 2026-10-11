@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Inductive.RestorationNames
+import Lean4Lean.Theory.Inductive.Restoration
 
 /-! Syntactic facts about the bvar spines `InductiveSignature.vars`, their
 restoration and lifting. -/

@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.EqTyping
 import Lean4Lean.Theory.Typing.RecursorLemmas
-import Lean4Lean.Theory.Inductive.RestorationNames
+import Lean4Lean.Theory.Inductive.Restoration
 
 /-! # Extraction of singleton proof fields along type casts
 

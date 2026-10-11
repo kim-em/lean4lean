@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Inductive.Compilation
-import Lean4Lean.Theory.Inductive.RestorationNames
+import Lean4Lean.Theory.Inductive.Restoration
 import Lean4Lean.Theory.Inductive.RestorationHead
 import Lean4Lean.Theory.Inductive.CompilationNames
 import Lean4Lean.Theory.Inductive.SignatureLemmas

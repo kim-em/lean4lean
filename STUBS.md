@@ -719,7 +719,7 @@ New Theory files of the nested interface: `Theory/Typing/Interpretation.lean`
 `PatClause` and no eliminator clause; `PatClause.of_fixed`, `Sound.addPat`, `Sound.of_le` with
 `hpats`), `Theory/Inductive/RestorationInterpretation.lean` (no eliminators; `RestoredPattern`),
 `Theory/Typing/RestorationShapes.lean`, `Theory/Inductive/RestorationHead.lean`,
-`Theory/Inductive/RestorationNames.lean` (`restorableNames`, `headName`, `expr_mkApps`,
+`Theory/Inductive/Restoration.lean` (now also `restorableNames`, `headName`, `expr_mkApps`,
 `equation_parts`, `expr_of_avoid`, `VExpr.projNamesAvoid`, two closedness lemmas),
 `Theory/Inductive/CompilationMajors.lean`. No existing Theory file was edited for it.
 

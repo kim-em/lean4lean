@@ -48,7 +48,6 @@ theorem Restoration.expr_ctorApp {r : Restoration} {c : Name} {ls : List VLevel}
   unfold Restoration.headName
   split at h
   · next hd hf =>
-    simp only [hf]
     unfold HeadSpecialization.apply at h
     split at h
     · cases h
@@ -57,7 +56,6 @@ theorem Restoration.expr_ctorApp {r : Restoration} {c : Name} {ls : List VLevel}
       rw [hnp hd hf, List.drop_left]
       exact ⟨_, _, rfl⟩
   · next hf =>
-    simp only [hf]
     simp only [Option.some.injEq] at h
     subst h
     exact ⟨ls, pre, rfl⟩

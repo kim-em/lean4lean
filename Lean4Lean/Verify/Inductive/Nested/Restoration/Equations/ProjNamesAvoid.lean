@@ -5,7 +5,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.AuxiliaryProjections
 
 `VExpr.projNamesAvoid names e`: no projection node of `e` is out of a name in `names`; and how the
 signature generator's constructions preserve it. `VExpr.projNamesAvoid` itself is defined in
-`Theory/Inductive/RestorationNames.lean`, `ProjNamesOK.projNamesAvoid` in
+`Theory/Inductive/Restoration.lean`, `ProjNamesOK.projNamesAvoid` in
 `Restoration/AuxiliaryProjections.lean`. -/
 
 namespace Lean4Lean

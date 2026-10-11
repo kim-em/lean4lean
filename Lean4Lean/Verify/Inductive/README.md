@@ -156,7 +156,7 @@ interpretations; the eliminator clause replaced by `PatClause`, the obligation f
 `Theory/Inductive/RestorationInterpretation.lean` (the restoration interpretation and
 substitution; `VEnv.RestoredPattern` with its `clause`, the `pat` analogue of PR #53's
 `RestoredEliminator`), `Theory/Typing/RestorationShapes.lean`,
-`Theory/Inductive/RestorationHead.lean`, `Theory/Inductive/RestorationNames.lean` (the
+`Theory/Inductive/RestorationHead.lean`, the second half of `Theory/Inductive/Restoration.lean` (the
 helpers formerly in the dropped case-eliminator files), `Theory/Inductive/CompilationMajors.lean`
 (what `WF.patCtor_rigid` needs, below).
 

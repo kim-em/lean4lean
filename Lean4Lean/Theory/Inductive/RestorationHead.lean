@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Inductive.RestorationNames
+import Lean4Lean.Theory.Inductive.Restoration
 import Lean4Lean.Theory.Inductive.CompilationNames
 
 /-! Exact universe spines of restored heads (`Restoration.headLevels`). -/
