@@ -452,6 +452,119 @@ theorem restored_equation {base : VEnv} {source expanded : VInductDecl} {s : Ind
   refine ⟨ds', ctorIdx, _, args', hds, hci, ?_, er, rfl, huv⟩
   rw [el, ← Option.some.inj hout]
 
+theorem recursor_parts {r : Restoration} {value value' : VConstVal}
+    (h : r.recursor value = some value') :
+    value'.name = r.recursorName value.name ∧ value'.uvars = value.uvars ∧
+      r.expr value.type = some value'.type := by
+  simp only [Restoration.recursor, bind, Option.bind_eq_some_iff, pure, Option.some.injEq] at h
+  obtain ⟨t, ht, rfl⟩ := h
+  exact ⟨rfl, rfl, ht⟩
+
+theorem expr_recBody {s : InductiveSignature} (g : Instance s) (r : Restoration)
+    (o : Fin s.families.size) : r.expr (g.recBody o) = some (g.recBody o) := by
+  simp only [Instance.recBody]
+  rw [Restoration.expr_mkApps_bvar, List.mapM_append, mapM_expr_vars]
+  rfl
+
+/-- **The restored recursor of a rule**: a recursor of the declaration whose name is the renamed
+generated recursor name of a family is the restoration of that family's generated recursor. -/
+theorem restored_recursor {base : VEnv} {source expanded : VInductDecl} {s : InductiveSignature}
+    {g : Instance s} {aux : List ContainerSpecialization} {block : VInductBlock}
+    (C : CompilationData base source expanded s g aux block) (hrecsOf : source.RecsOf block)
+    {rec : VRecursor} (hrec : rec ∈ source.recs) (o : Fin s.families.size)
+    (hname : rec.name = (compilationRestoration source aux).recursorName (g.recursorName o)) :
+    ∃ dsH', (g.recDoms o).mapM (compilationRestoration source aux).expr = some dsH' ∧
+      rec.type = .wrapForalls dsH' (g.recBody o) ∧ rec.uvars = g.uvars := by
+  have hrs := List.mapM_eq_some.mp C.recursors
+  obtain ⟨rr, hrr, hr⟩ := Lean4Lean.List.Forall₂.forall_exists_l hrs (g.recursor o)
+    (g.recursor_mem o)
+  obtain ⟨hn, hu, ht⟩ := recursor_parts hr
+  have hmem : rec.toVConstVal ∈ block.recursors := by
+    rw [← hrecsOf.recursors]; exact List.mem_map_of_mem hrec
+  have hnd : (block.recursors.map (·.name)).Nodup := by
+    have := C.names
+    simp only [List.map_append] at this
+    exact (List.nodup_append.1 this).2.1
+  have heq : rec.toVConstVal = rr :=
+    VEnv.inj_on_of_nodup_map hnd hmem hrr (hname.trans hn.symm)
+  rw [show (g.recursor o).type = .wrapForalls (g.recDoms o) (g.recBody o) from
+    g.recursorType_eq_recDoms o] at ht
+  obtain ⟨dsH', b, hds, hb, et⟩ := expr_wrapForalls_parts ht
+  rw [expr_recBody] at hb
+  cases hb
+  refine ⟨dsH', hds, ?_, ?_⟩
+  · show rec.toVConstVal.type = _
+    rw [heq, et]
+  · show rec.toVConstVal.uvars = _
+    rw [heq, hu]; rfl
+
+/-- **The counts of a rule read off a restored equation.** -/
+theorem rule_counts {env base : VEnv} {decl expanded : VInductDecl} {s : InductiveSignature}
+    {g : Instance s} {aux : List ContainerSpecialization} {block : VInductBlock}
+    (hdecl : decl.WF env) (hrecsOf : decl.RecsOf block)
+    (C : CompilationData base decl expanded s g aux block)
+    {rec : VRecursor} {ru : VRecRule} (hrec : rec ∈ decl.recs) (hru : ru ∈ rec.rules)
+    (index : Fin s.constructors.size) {c0 : Name} {lvf : List VLevel → List VLevel}
+    {Ds0 : List VExpr}
+    (hS : Spec (compilationRestoration decl aux) s.constructors[index].name s.params.length c0
+      lvf Ds0) {df : VDefEq}
+    (hres : (compilationRestoration decl aux).equation (g.equation index) = some df)
+    (H : VRecRule.OfEquation rec ru df) :
+    rec.name = (compilationRestoration decl aux).recursorName
+        (g.recursorName s.constructors[index].owner) ∧
+      ru.ctor = c0 ∧ ru.rhs = df.rhs ∧
+      rec.numParams + rec.numMotives + rec.numMinors =
+        s.params.length + (s.families.size + s.constructors.size) ∧
+      rec.numIndices = s.families[s.constructors[index].owner].indices.length ∧
+      ru.ctorParams = Ds0.length ∧ ru.nfields = s.constructors[index].fields.length ∧
+      s.constructors[index].indices.length =
+        s.families[s.constructors[index].owner].indices.length := by
+  obtain ⟨ds', ctorIdx, body', args', hds, hci, hl, hr, hb, -⟩ := restored_equation C index hS hres
+  have harity : s.constructors[index].indices.length =
+      s.families[s.constructors[index].owner].indices.length :=
+    C.model.constructorArity s.constructors[index] (by simp)
+  obtain ⟨hrhs, hhead, hlen, major, hmajor, hmc, hml⟩ := H
+  rw [hl, VExpr.lamBody_wrapLams, VExpr.lamBody_mkApps_const] at hhead hlen hmajor
+  rw [VExpr.headConst?_eq_some] at hhead
+  obtain ⟨us, hus⟩ := hhead
+  simp only [VExpr.getAppFn_mkApps, VExpr.getAppFn] at hus
+  have hname := (VExpr.const.inj hus).1.symm
+  rw [VExpr.getAppArgs_mkApps] at hlen hmajor
+  simp only [VExpr.getAppArgs, List.nil_append, List.length_append, List.length_singleton,
+    List.length_map, vars_len] at hlen
+  simp only [VExpr.getAppArgs, List.nil_append, List.getLast?_append, List.getLast?_singleton,
+    Option.some_or, Option.some.injEq] at hmajor
+  subst hmajor
+  rw [VExpr.headConst?_eq_some] at hmc
+  obtain ⟨us', hus'⟩ := hmc
+  rw [VExpr.getAppFn_mkApps] at hus'
+  simp only [VExpr.getAppFn, VExpr.const.injEq] at hus'
+  rw [VExpr.getAppArgs_mkApps] at hml
+  simp only [VExpr.getAppArgs, List.nil_append, List.length_append, List.length_map,
+    vars_len] at hml
+  -- the recursor's indices
+  obtain ⟨dsH', hdsH, htype, -⟩ := restored_recursor C hrecsOf hrec _ hname
+  obtain ⟨-, -, -, j, hj, -, hbody⟩ := hdecl.rec_shape rec hrec
+  rw [htype] at hbody
+  simp only [Instance.recBody] at hbody
+  rw [VExpr.mkApps_snoc, Model.piBody_wrapForalls_app, ← VExpr.mkApps_snoc] at hbody
+  have hlenI := getAppArgs_length_eq_of_mkApps_bvar hbody
+  simp only [List.length_append, vars_len, List.length_singleton,
+    VExpr.bvarsDesc_length, insertBinders, List.length_map, List.length_zipIdx] at hlenI
+  have hci_l := mapM_length hci
+  simp only [List.length_map] at hci_l
+  have hmaj' : rec.numParams + rec.numMotives + rec.numMinors + rec.numIndices =
+      s.params.length + (s.families.size + s.constructors.size) +
+        s.constructors[index].indices.length := by
+    simp only [VRecursor.getMajorIdx] at hlen
+    omega
+  -- the number of fields, from the rule's shape
+  obtain ⟨_, -, _, -, -, -, hrs⟩ := hdecl.rule_shape rec hrec ru hru
+  have hla := hrs.1
+  rw [← hrhs, hr, lamArity_wrapLams, mapM_length hds, Instance.eqDoms_length, hb,
+    lamArity_mkApps_bvar] at hla
+  refine ⟨hname, hus'.1.symm, hrhs.symm, by omega, by omega, by omega, by omega, harity⟩
+
 end Nested
 end Model
 end VEnv
