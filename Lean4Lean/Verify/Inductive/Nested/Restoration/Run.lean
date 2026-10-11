@@ -101,7 +101,7 @@ structure NestedRun
       auxiliaryHeaderEnv
   sourceCoreDecl_eq : sourceCore.sourceDecl = decl
   auxiliaryVEnv_eq_sourceCore : auxiliaryVEnv = sourceCore.envTypes
-  /-- (New.) The lowered family and constructor names are not primitives (the lowered run
+  /-- The lowered family and constructor names are not primitives (the lowered run
   checks them with `allowPrimitive = false`). -/
   loweredNonprimitive : ∀ n ∈ InductiveSignature.familyNames L.loweredDecl.types,
     ¬ Kernel.Environment.primitives.contains n

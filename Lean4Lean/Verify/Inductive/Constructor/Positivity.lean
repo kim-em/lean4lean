@@ -1573,7 +1573,7 @@ theorem refinesScoped
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx)
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
       scope stats decl depth)
-    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (htypeNarrow : TrExprS Hc.venv c.lparams scope type narrowType)
     (htypeFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullType) :
@@ -1737,7 +1737,7 @@ theorem checkPositivity.refinesScoped
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx)
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
       scope stats decl depth)
-    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (htypeNarrow : TrExprS Hc.venv c.lparams scope type narrowType)
     (htypeFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullType) :

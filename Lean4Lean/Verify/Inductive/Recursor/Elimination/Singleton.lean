@@ -226,11 +226,11 @@ theorem LargeEliminationCheck.singletonTelescope
       obtain ⟨fullForall, hfullForall, _⟩ := hfull
       cases hfullForall with
       | forallE hfullDomType _ hfullDom hfullBody =>
-        obtain ⟨consumed, Hdom⟩ := consumeTypeAnnotationsCompat c Hc hfullDom hfullDomType
+        obtain ⟨consumed, Hdom⟩ := consumeTypeAnnotationsDefEq c Hc hfullDom hfullDomType
         rcases halign.forallE_align Hc.checking.tr.wf hdomNarrow hdomType hbodyNarrow with
           ⟨dom₀, _, hdom₀, hdom₀Type, _, _, _⟩
         obtain ⟨consumed₀, Hdom₀⟩ :=
-          consumeTypeAnnotationsCompat _ Hc.atCheckLCtx hdom₀ hdom₀Type
+          consumeTypeAnnotationsDefEq _ Hc.atCheckLCtx hdom₀ hdom₀Type
         let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
         have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
@@ -276,11 +276,11 @@ theorem LargeEliminationCheck.singletonTelescope
       obtain ⟨fullForall, hfullForall, _⟩ := hfull
       cases hfullForall with
       | forallE hfullDomType _ hfullDom hfullBody =>
-        obtain ⟨consumed, Hdom⟩ := consumeTypeAnnotationsCompat c Hc hfullDom hfullDomType
+        obtain ⟨consumed, Hdom⟩ := consumeTypeAnnotationsDefEq c Hc hfullDom hfullDomType
         rcases halign.forallE_align Hc.checking.tr.wf hdomNarrow hdomType hbodyNarrow with
           ⟨dom₀, _, hdom₀, hdom₀Type, _, _, _⟩
         obtain ⟨consumed₀, Hdom₀⟩ :=
-          consumeTypeAnnotationsCompat _ Hc.atCheckLCtx hdom₀ hdom₀Type
+          consumeTypeAnnotationsDefEq _ Hc.atCheckLCtx hdom₀ hdom₀Type
         let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
         have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
@@ -332,11 +332,11 @@ theorem LargeEliminationCheck.singletonTelescope
       obtain ⟨fullForall, hfullForall, _⟩ := hfull
       cases hfullForall with
       | forallE hfullDomType _ hfullDom hfullBody =>
-        obtain ⟨consumed, Hdom⟩ := consumeTypeAnnotationsCompat c Hc hfullDom hfullDomType
+        obtain ⟨consumed, Hdom⟩ := consumeTypeAnnotationsDefEq c Hc hfullDom hfullDomType
         rcases halign.forallE_align Hc.checking.tr.wf hdomNarrow hdomType hbodyNarrow with
           ⟨dom₀, _, hdom₀, hdom₀Type, _, _, _⟩
         obtain ⟨consumed₀, Hdom₀⟩ :=
-          consumeTypeAnnotationsCompat _ Hc.atCheckLCtx hdom₀ hdom₀Type
+          consumeTypeAnnotationsDefEq _ Hc.atCheckLCtx hdom₀ hdom₀Type
         let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
         have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=

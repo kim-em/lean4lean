@@ -204,7 +204,7 @@ theorem AddInductive.checkConstructors.WF
   have Hchecked := AddInductive.checkConstructors.ofLoops
     (checkConstructors.loopTypes.refinesChecked (params := H.headers.params) Hc Htypes
       H.typesAdded H.statsWF H.headerParams
-      HS.headerCheck_paramAligned consumeTypeAnnotationsCompat hlit
+      HS.headerCheck_paramAligned consumeTypeAnnotationsDefEq hlit
       (fun h => h) H.statsWF.universeBound hlparams) classes hrun
   have Howners : ConstructorOwnerNormalForms stats indTypes :=
     AddInductive.checkConstructors.ofLoops
@@ -213,7 +213,7 @@ theorem AddInductive.checkConstructors.WF
         Hc Htypes (ConstructorOwnerNormalFormRows.empty stats indTypes)
         HS.toHeaderCheck
         (checkPositivityStep.ValidAppStatsWF.ofHeaderStatsScoped H.statsWF)
-        HS.headerCheck_paramAligned consumeTypeAnnotationsCompat hlit
+        HS.headerCheck_paramAligned consumeTypeAnnotationsDefEq hlit
         (fun Hrows _ => Hrows.complete)) classes hrun
   have hscopeWF := H.statsWF.parameterEmbedding.scopeWF H.context.checking.wf
   have hparamsSize :=

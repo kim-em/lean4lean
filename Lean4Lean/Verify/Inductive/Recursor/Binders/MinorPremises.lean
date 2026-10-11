@@ -728,7 +728,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
     {decl : VInductDecl} {depth : Nat}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     {fieldTarget : VExpr}
@@ -1044,7 +1044,7 @@ theorem inductionHypothesisTypeOrigin
     {decl : VInductDecl} {depth : Nat}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     {fieldTarget : VExpr}
@@ -1153,7 +1153,7 @@ theorem resultTypingOfMotiveApplications
     {decl : VInductDecl} {depth : Nat}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (Hfields : ∀ j (hj : j < u.size),
@@ -1327,7 +1327,7 @@ theorem resultTypingOfMotiveTelescopes
     {decl : VInductDecl} {depth : Nat}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (Hfields : ∀ j (hj : j < u.size),
@@ -2875,7 +2875,7 @@ theorem constructorMinorClosureTyping {alpha : Type} {Q : alpha → Prop}
     (hprefix : ParameterPrefix stats 0 ctor.type tail)
     (htailScope : tail.FVarsIn
       (fun fv => fv ∈ ExprArrayFVarIds stats.params))
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (htail : TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget)
     (htailType : R.venv.IsType recLparams.length
@@ -3369,7 +3369,7 @@ theorem oneConstructorTyping {alpha : Type} {Q : alpha → Prop}
       (fun fv => fv ∈ ExprArrayFVarIds stats.params))
     (hparamUniverses : ParameterUniverseSupport c stats.params)
     (htailUniverses : tail.levelParamsIn c.lparams = true)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (htail : TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget)
@@ -3770,7 +3770,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
     (Hsuffix : RecursorParameterContextSuffix R stats depth)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (Hbindings : RecInfoBindings c recInfos)
@@ -3983,7 +3983,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
     (HsuffixCtx : RecursorParameterContextSuffix R stats depth)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     (Hbindings : RecInfoBindings c recInfos)

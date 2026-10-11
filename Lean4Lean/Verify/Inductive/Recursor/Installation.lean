@@ -162,7 +162,7 @@ theorem ConstructorCheck.recursorInstallationWF
       { c with env := ctorEnv }).WF fun outEnv =>
         Nonempty (RecursorInstallation R outEnv) := by
   apply R.getElimLevelMkRecInfosWF hlparams
-    Lean4Lean.recursorConsumeTypeAnnotationsCompat hlit
+    Lean4Lean.recursorConsumeTypeAnnotationsDefEq hlit
     (Q := fun outEnv => Nonempty (RecursorInstallation R outEnv))
     (k := fun elimLevel kTarget recInfos => do
       AddInductive.checkRecursiveFields isUnsafe positivity recInfos
@@ -261,7 +261,7 @@ theorem ConstructorCheck.recursorInstallationWF
   }
   have Hrecursors := AddInductive.declareRecursors.bindingWFOfTargets
     (elimLevel := elimLevel) kTarget hkTarget Hvalid Rlocal
-    HstatsLocal Lean4Lean.recursorConsumeTypeAnnotationsCompat
+    HstatsLocal Lean4Lean.recursorConsumeTypeAnnotationsDefEq
     (by simpa only [henvLocal] using hlit) hctxLocal Hcard Hcore Hbindings
     Horigins Hblueprints HblueprintSemantics HminorSources HminorSemantics
     Hparams hnoalias HminorCounts HsuffixLocal.parameterFVarsUp Hseed

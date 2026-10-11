@@ -240,7 +240,7 @@ theorem AddInductive.checkInductiveTypes.WF
       (Hc' : ContextWF c'), HeaderPhase Hc nparams indTypes c' Hc' stats → (k stats c').WF Q) :
     (AddInductive.checkInductiveTypes nparams indTypes k c).WF Q := by
   apply checkInductiveTypes.loopInd.checkInductiveTypes.accumulatesHeadersSourceAligned
-    k Q Hc hctx hnonempty consumeTypeAnnotationsCompat
+    k Q Hc hctx hnonempty consumeTypeAnnotationsDefEq
   intro c' stats depth commonParams commonLevel Hc' henv hsafety hlparams hallow hfuel hvenv
     Hloop _hlevelsLength hlevels hnindicesSize hnindices _hconstsSize hconsts _hconstsNonempty
     hparams hcommonParams Hcache Hsuffix Hambient hcommon hnotzero

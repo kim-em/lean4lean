@@ -343,7 +343,7 @@ theorem ConstructorCheck.loopInd1WF
     (elimLevel : Level)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     (hlparams : c.lparams.Nodup)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (k : Array AddInductive.RecInfo -> AddInductive.M alpha)
     (Hk : forall {cOut : AddInductive.Context} {outDepth : Nat}
       (recInfos : Array AddInductive.RecInfo)
@@ -469,7 +469,7 @@ theorem ConstructorCheck.mkRecInfosWF
     (elimLevel : Level)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     (hlparams : c.lparams.Nodup)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.context.venv stats.indConsts)
     (k : Array AddInductive.RecInfo -> AddInductive.M alpha)
     (Hk : forall {cOut : AddInductive.Context} {outDepth : Nat}
@@ -610,7 +610,7 @@ theorem ConstructorCheck.getElimLevelMkRecInfosWF
     (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (hlparams : c.lparams.Nodup)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.context.venv stats.indConsts)
     (k : Level -> Bool -> Array AddInductive.RecInfo -> AddInductive.M alpha)
     (Hk : forall elimLevel,

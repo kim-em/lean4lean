@@ -16,7 +16,7 @@ This module joins the concrete auxiliary builder to the independently
 validated, closed translation of each cached nested application.  For every auxiliary slot
 of the lowering queue it constructs the pre-lowering auxiliary family as a specialization of
 its installed container (`AuxiliaryFamilySource`, `AuxiliaryFamilySources`), interprets
-every replaced occurrence by that source (`AuxiliaryFamilySources.replacementCompat`), and
+every replaced occurrence by that source (`AuxiliaryFamilySources.replacementLeaves`), and
 assembles the ordered nested expansion of the whole lowered queue
 (`NestedLowering.allExpansionsOfSources`) required by `NestedFormationWF`.  The results are
 indexed by the auxiliary family of each slot (`LoweredAuxiliaryFamily`); no replacement or
@@ -294,7 +294,7 @@ abstraction depth and abstract target depth. -/
 theorem ParameterExpansionCtx.vlam
     (H : ParameterExpansionCtx leaf fvars fieldDepth abstractDepth
       targetDepth canonicalCtx currentCtx)
-    (Hlift : NestedExpansionLeafLiftCompat leaf) :
+    (Hlift : NestedExpansionLeafLiftStable leaf) :
     ParameterExpansionCtx leaf fvars fieldDepth
       (abstractDepth + 1) (targetDepth + 1)
       ((none, .vlam canonicalType) :: canonicalCtx)
@@ -512,7 +512,7 @@ theorem TrExprS.abstractSelectedExpansion
     (Hnodup : fvars.Nodup)
     (Hbridge : ParameterExpansionCtx leaf fvars fieldDepth
       abstractDepth targetDepth canonicalCtx currentCtx)
-    (Hlift : NestedExpansionLeafLiftCompat leaf)
+    (Hlift : NestedExpansionLeafLiftStable leaf)
     (Hclosed : Closed (expr.abstractList fvars abstractDepth)
       (fvars.length + abstractDepth))
     (Hscope : expr.FVarsIn (· ∈ fvars))
@@ -2035,7 +2035,7 @@ theorem AuxiliaryFamilySources.sourceForReplacement
 replaced occurrence and the sources of the auxiliary families (`AuxiliaryFamilySources`).
 No caller-supplied callback or arbitrary second source translation is
 used. -/
-theorem AuxiliaryFamilySources.replacementCompat
+theorem AuxiliaryFamilySources.replacementLeaves
     {initialState : Lean4Lean.ElimNestedInductive.State}
     {Hrun : NestedLowering prodEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray }
@@ -2054,7 +2054,7 @@ theorem AuxiliaryFamilySources.replacementCompat
     (hempty : initialState.nestedAux = #[])
     (huvars : sourceDecl.uvars = lparams.length)
     (hnparams : sourceDecl.nparams = nparams) :
-    NestedFormationReplacementCompat prodEnv result baseVEnv sourceTypesVEnv
+    NestedFormationReplacementLeaves prodEnv result baseVEnv sourceTypesVEnv
       targetTypesVEnv lparams sourceDecl N.generated := by
   intro lctx As input state output nextState traceFinalState depth fieldDepth
     sourceValue targetValue sourceCtx targetCtx Htrace Hctx selection
@@ -2228,9 +2228,9 @@ theorem NestedLowering.auxiliaryExpansionsOfSources
   have HtargetType := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt
     Htarget (sourceTypes.length + i) hresult htarget
   have Hmap := Hrun.resultAuxMapModelsFresh (by simpa using hempty)
-  have Hhit : NestedFormationReplacementCompat prodEnv result baseVEnv
+  have Hhit : NestedFormationReplacementLeaves prodEnv result baseVEnv
       sourceTypesVEnv targetEnvTypes lparams sourceDecl N.generated :=
-    N.replacementCompat Htarget Henv hclosures Hsources hsourceTypes
+    N.replacementLeaves Htarget Henv hclosures Hsources hsourceTypes
       resultSelection hresultNodup hempty huvars hnparams
   have Hexpansion := Horigin.abstractExpansion Nsource HtargetType
     Hmap henv huvars HsourceTypesWF HtargetTypesWF Hrun.resultParamsSize
@@ -2274,9 +2274,9 @@ theorem NestedLowering.allExpansionsOfSources
       { initialState with newTypes := sourceTypes.toArray } result :=
     ⟨finalState, Hrun, Hcache, Hparams⟩
   have hresultNodup := Hclosed.selectionNodup resultSelection
-  have Hhit : NestedFormationReplacementCompat prodEnv result baseVEnv
+  have Hhit : NestedFormationReplacementLeaves prodEnv result baseVEnv
       sourceEnvTypes targetEnvTypes lparams sourceDecl N.generated :=
-    N.replacementCompat Htarget Henv hclosures Hsources Hsource.typesAdded
+    N.replacementLeaves Htarget Henv hclosures Hsources Hsource.typesAdded
       resultSelection hresultNodup hempty Hsource.uvars Hsource.nparams
   have Horiginal := Hclosed.sourceExpansions Hsource Htarget Hmetadata
     Hsources (by simpa using hempty) henv N.generated Hhit
