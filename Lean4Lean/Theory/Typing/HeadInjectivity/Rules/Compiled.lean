@@ -36,16 +36,20 @@ theorem CompiledInductive.data {env : VEnv} {decl : VInductDecl} {block : VInduc
 
 namespace InductiveSignature
 
+-- These proofs avoid `simp`: an auxiliary lemma it creates here would change the names of the
+-- auxiliary lemmas of the duplicated `vars_map_liftN_lo` in the files importing this one.
 theorem vars_len (count below : Nat) : (vars count below).length = count := by
-  simp [vars]
+  show ((List.range count).reverse.map _).length = count
+  rw [List.length_map, List.length_reverse, List.length_range]
 
 theorem vars_zero (n : Nat) : vars n 0 = (List.range n).reverse.map .bvar := by
-  simp [vars]
+  show (List.range n).reverse.map (fun i => VExpr.bvar (0 + i)) = _
+  exact List.map_congr_left fun i _ => by rw [Nat.zero_add]
 
 theorem mem_vars {count below x : Nat} (h1 : below ≤ x) (h2 : x < below + count) :
-    VExpr.bvar x ∈ vars count below := by
-  simp only [vars, List.mem_map, List.mem_reverse, List.mem_range]
-  exact ⟨x - below, by omega, by congr 1; omega⟩
+    VExpr.bvar x ∈ vars count below :=
+  List.mem_map.2 ⟨x - below, List.mem_reverse.2 (List.mem_range.2 (by omega)),
+    by congr 1; omega⟩
 
 theorem compilationRestoration_nil (source : VInductDecl) :
     compilationRestoration source [] = {} := rfl
@@ -494,7 +498,11 @@ namespace InductiveSignature
 
 theorem vars_containsAnyConst (names : List Name) (count below : Nat) :
     (vars count below).any (·.containsAnyConst names) = false := by
-  simp [vars]
+  show ((List.range count).reverse.map _).any _ = false
+  rw [List.any_eq_false]
+  intro e he
+  obtain ⟨i, -, rfl⟩ := List.mem_map.1 he
+  exact Bool.false_ne_true
 
 /-- Mapping a constant-support-preserving function over an indexed list preserves the
 support. -/

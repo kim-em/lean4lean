@@ -22,6 +22,14 @@ theorem VExpr.mkApps_const_name_inj {c c' : Name} {ls ls' : List VLevel} {a a' :
   simp only [VExpr.getAppFn_mkApps, VExpr.getAppFn] at this
   injection this
 
+/-- `vars` unfolded. Rewriting with it rather than with `vars` keeps the equation lemmas of
+`vars` from being realized here: their realization in an imported module renames the auxiliary
+lemmas of the duplicated `InductiveSignature.vars_map_liftN_lo` (`Verify/Inductive/Rules/IotaPatTyped.lean`,
+`Verify/Inductive/Nested/Restoration/SignatureVars.lean`), which are then imported together with
+different contents. -/
+theorem InductiveSignature.vars_unfold (count below : Nat) :
+    vars count below = (List.range count).reverse.map fun i => VExpr.bvar (below + i) := rfl
+
 namespace InductiveSignature.Instance
 open VEnv.Model
 
@@ -91,7 +99,7 @@ theorem iotaStatic (index : Fin s.constructors.size)
     simp only [minor, constructorApp, List.map_map, Option.some.injEq, List.length_map,
       List.length_zipIdx, show s.params.length + s.families.size + index.val - s.params.length =
         s.families.size + index.val by omega, Function.comp_def]
-  · simp only [eqLead, iotaLead, eqIndices, vars, List.map_map]
+  · simp only [eqLead, iotaLead, eqIndices, vars_unfold, List.map_map]
     congr 1
     · congr 1; funext i; simp; omega
     · congr 1; funext e; simp only [Function.comp]; congr 1; omega
