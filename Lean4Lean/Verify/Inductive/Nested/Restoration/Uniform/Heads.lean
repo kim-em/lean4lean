@@ -374,7 +374,7 @@ theorem TrSyn.mkAppList_const_inv {Us : List Name} {Δ : VLCtx}
     intro e' H
     cases H with
     | const hus =>
-      exact ⟨_, [], rfl, (VerifyInductive.checkPositivityStep.List.mapM_some_length hus).symm, .nil⟩
+      exact ⟨_, [], rfl, List.mapM_some_length hus, .nil⟩
   | cons a init ih =>
     intro e' H
     rw [List.reverse_cons, Expr.mkAppList_append] at H

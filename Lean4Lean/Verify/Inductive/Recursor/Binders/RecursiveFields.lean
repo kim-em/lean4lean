@@ -302,7 +302,7 @@ theorem RecursorValidAppStatsWF.validIndAppAtTarget
   rcases checkPositivityStep.TrExprS.constAppSpine htr hhead with
     ⟨levels', args', hspine, hlevels, hargs⟩
   have hlevelLen : levels'.length = decl.uvars := by
-    have hlength := checkPositivityStep.List.mapM_some_length hlevels
+    have hlength := (List.mapM_some_length hlevels).symm
     exact hlength.symm.trans H.levels
   have hargsLen : args'.length =
       decl.nparams + decl.types[typeIdx].numIndices := by

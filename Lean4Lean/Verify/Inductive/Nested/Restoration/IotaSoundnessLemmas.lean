@@ -347,20 +347,6 @@ namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
 
-theorem _root_.List.mapM_append_eq_some {f : α → Option β} {a b : List α} {c : List β}
-    (h : (a ++ b).mapM f = some c) :
-    ∃ ca cb, a.mapM f = some ca ∧ b.mapM f = some cb ∧ c = ca ++ cb := by
-  rw [List.mapM_append] at h
-  cases ha : a.mapM f with
-  | none => simp [ha] at h
-  | some ca =>
-    cases hb : b.mapM f with
-    | none => simp [ha, hb] at h
-    | some cb =>
-      simp only [ha, hb, Option.bind_eq_bind, Option.bind_some, Option.pure_def,
-        Option.some.injEq] at h
-      exact ⟨ca, cb, rfl, rfl, h.symm⟩
-
 /-- Substitution through a telescope, binder by binder. -/
 theorem _root_.Lean4Lean.VExpr.wrapForalls_subst_doms (σ : VExpr.Subst) :
     ∀ (ds : List VExpr) (b : VExpr), ∃ ds' b',

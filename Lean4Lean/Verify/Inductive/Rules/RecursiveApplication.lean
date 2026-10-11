@@ -793,7 +793,7 @@ theorem RecursorInstallation.installedRecursorHeadTranslationAt
         recursor.uvars := by
     calc
       _ = (VLevel.params Us.length).length :=
-        checkPositivityStep.List.mapM_some_length hlevels
+        (List.mapM_some_length hlevels).symm
       _ = Us.length := VLevel.params_length
       _ = recursor.uvars := H.recursorUvarsAt owner howner
   rw [hname]

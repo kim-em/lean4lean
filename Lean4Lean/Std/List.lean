@@ -120,4 +120,24 @@ theorem List.snoc_induction {α} {P : List α → Prop} (nil : P [])
   | nil => simpa using nil
   | cons a t ih => simpa using snoc _ a ih
 
+theorem List.eq_nil_or_snoc (l : List α) : l = [] ∨ ∃ L b, l = L ++ [b] := by
+  rcases List.eq_nil_or_concat l with h | ⟨L, b, h⟩
+  · exact .inl h
+  · exact .inr ⟨L, b, by simpa using h⟩
+
+theorem List.mapM_some_length {f : α → Option β} {l : List α} {l' : List β}
+    (h : l.mapM f = some l') : l'.length = l.length :=
+  (List.Forall₂.length_eq (List.mapM_eq_some.mp h)).symm
+
+theorem _root_.List.mapM_append_eq_some {f : α → Option β} {a b : List α} {c : List β}
+    (h : (a ++ b).mapM f = some c) :
+    ∃ ca cb, a.mapM f = some ca ∧ b.mapM f = some cb ∧ c = ca ++ cb := by
+  rw [List.mapM_append] at h
+  cases ha : a.mapM f <;> cases hb : b.mapM f <;> simp [ha, hb] at h
+  exact ⟨_, _, rfl, rfl, h.symm⟩
+
+theorem List.getElem?_append_add {l₁ l₂ : List α} {n : Nat} (i : Nat) (h : n = l₁.length) :
+    (l₁ ++ l₂)[n + i]? = l₂[i]? := by
+  subst h; rw [List.getElem?_append_right (by omega)]; simp
+
 end Lean4Lean

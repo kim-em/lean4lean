@@ -1775,7 +1775,7 @@ theorem LoweredAuxiliaryFamily.auxiliaryFamilySource
   have hlevelsLength : abstractLevels.length = C.container.uvars := by
     calc
       abstractLevels.length = H.generated.levels.length :=
-        (checkPositivityStep.List.mapM_some_length Hlevels).symm
+        List.mapM_some_length Hlevels
       _ = (C.container.types[C.familyIdx]'C.familyIdx_lt).uvars := by
         simpa using H.generated.levelsLengthOfAbstractLookup realization
           (hbaseLE.constants C.familyLookup)
@@ -2144,7 +2144,7 @@ theorem AuxiliaryFamilySources.replacementCompat
     Option.some.inj (T.auxiliaryLookup.symm.trans htargetLookup)
   have hauxiliaryLevels : T.auxiliaryLevels.length = sourceDecl.uvars := by
     have htranslatedLength :=
-      checkPositivityStep.List.mapM_some_length T.auxiliaryLevelsTranslation
+      (List.mapM_some_length T.auxiliaryLevelsTranslation).symm
     rw [T.auxiliaryConcreteArity, hauxInfo] at htranslatedLength
     exact htranslatedLength.symm.trans
       (HtargetType.header.uvars.trans huvars.symm)

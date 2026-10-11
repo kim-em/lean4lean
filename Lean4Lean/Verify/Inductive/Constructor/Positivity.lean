@@ -412,23 +412,6 @@ structure ValidAppStatsWF (env : VEnv) (Us : List Name) (Δ : VLCtx)
     (decl.paramVars depth)
   paramFVars : ∀ param ∈ stats.params, ∃ fv, param = .fvar fv
 
-theorem List.mapM_some_length
-    {xs : List α} {ys : List β} {f : α → Option β}
-    (H : xs.mapM f = some ys) :
-    xs.length = ys.length := by
-  induction xs generalizing ys with
-  | nil =>
-    simp at H
-    subst ys
-    rfl
-  | cons x xs ih =>
-    cases hx : f x <;> simp [hx] at H
-    rename_i y
-    cases hxs : xs.mapM f <;> simp [hxs] at H
-    rename_i ys'
-    subst ys
-    simp [ih hxs]
-
 theorem forall₂_get?_eq_some
     {R : α → β → Prop} {as : List α} {bs : List β}
     {i : Nat} {a : α} {b : β}
@@ -1258,7 +1241,7 @@ theorem isValidIndAppIdx.validIndAppAt
   rcases checkPositivityStep.TrExprS.constAppSpine htr hhead with
     ⟨levels', args', hspine, hlevels, hargs⟩
   have hlevelLen : levels'.length = decl.uvars := by
-    have hlen := List.mapM_some_length hlevels
+    have hlen := (List.mapM_some_length hlevels).symm
     have hstats := H.levels
     omega
   have hargsLen : args'.length =
@@ -1316,7 +1299,7 @@ theorem isValidIndAppIdx.isType
   have hlevelsWF : ∀ level ∈ levels, level.WF Us.length :=
     VLevel.WF.of_mapM_ofLevel hlevels
   have hlevelsLength : levels.length = decl.types[typeIdx].uvars := by
-    have htranslated := List.mapM_some_length hlevels
+    have htranslated := (List.mapM_some_length hlevels).symm
     have hstats := H.levels
     rw [huvars]
     omega

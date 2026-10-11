@@ -36,10 +36,6 @@ private theorem getAppFn_mkApps_const (c : Name) (us : List VLevel) (args : List
 
 private theorem vars_eq_bvarsDesc (count below : Nat) : vars count below = bvarsDesc below count := rfl
 
-private theorem app_off {l₁ l₂ : List VExpr} {n : Nat} (i : Nat) (h : n = l₁.length) :
-    (l₁ ++ l₂)[n + i]? = l₂[i]? := by
-  subst h; rw [List.getElem?_append_right (by omega)]; simp
-
 private theorem insertBinders_length' (F : List VExpr) (e : Nat) :
     (insertBinders F e).length = F.length := by simp [insertBinders]
 
@@ -144,7 +140,7 @@ theorem Instance.recursorType_recShape {s : InductiveSignature} (g : Instance s)
       (g.recursorType owner).piBinders[s.params.length + i]? =
         some (g.motive s.families[i] i) := by
     intro i hi
-    rw [hbinders, app_off i (by simp), List.getElem?_append_left (by simp [hi]),
+    rw [hbinders, List.getElem?_append_add i (by simp), List.getElem?_append_left (by simp [hi]),
       List.getElem?_eq_getElem (by simpa using hi), g.motives_getElem]
   refine ⟨?_, ?_, ?_, owner.val, owner.isLt, ?_, ?_⟩
   · rw [← piBinders_length, hbinders]; simp [hind]; omega
@@ -152,14 +148,14 @@ theorem Instance.recursorType_recShape {s : InductiveSignature} (g : Instance s)
     exact ⟨_, hmot i hi, g.motive_motiveShape _ _⟩
   · intro i hi
     refine ⟨g.minor s.constructors[i] i, ?_, g.minor_minorHeaded _ _⟩
-    rw [hbinders, Nat.add_assoc, app_off _ (by simp), app_off i (by simp),
+    rw [hbinders, Nat.add_assoc, List.getElem?_append_add _ (by simp), List.getElem?_append_add i (by simp),
       List.getElem?_append_left (by simpa using hi),
       List.getElem?_eq_getElem (by simpa using hi), g.minors_getElem]
   · refine ⟨major, ?_, s.families[owner].name, ?_, ?_, _, hmot owner owner.isLt,
       g.motive_motiveFormer _ _⟩
-    · rw [hbinders, Nat.add_assoc, Nat.add_assoc, app_off _ (by simp), app_off _ (by simp),
-        app_off _ (by simp), ← hind, show indices.length = indices.length + 0 from rfl,
-        app_off 0 rfl]
+    · rw [hbinders, Nat.add_assoc, Nat.add_assoc, List.getElem?_append_add _ (by simp), List.getElem?_append_add _ (by simp),
+        List.getElem?_append_add _ (by simp), ← hind, show indices.length = indices.length + 0 from rfl,
+        List.getElem?_append_add 0 rfl]
       rfl
     · rw [VExpr.headConst?_eq_some]
       exact ⟨g.levels, by simp [major, Instance.familyApp, InductiveSignature.familyApp,
@@ -197,7 +193,7 @@ theorem Instance.equation_ruleShape {s : InductiveSignature} (g : Instance s)
     simp only [List.append_assoc]
     rw [show s.params.length + s.families.size + index.val =
         s.params.length + (s.families.size + index.val) by omega,
-      app_off (s.families.size + index.val) (by simp), app_off index.val (by simp),
+      List.getElem?_append_add (s.families.size + index.val) (by simp), List.getElem?_append_add index.val (by simp),
       List.getElem?_append_left (by simp), List.getElem?_eq_getElem (by simp),
       g.minors_getElem]
     rfl

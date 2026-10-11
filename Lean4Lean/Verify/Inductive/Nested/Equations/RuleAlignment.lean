@@ -27,10 +27,6 @@ theorem vars_bvars (n below : Nat) : ∀ e ∈ vars n below, ∃ i, e = .bvar i 
   rintro e ⟨a, _, rfl⟩
   exact ⟨_, rfl⟩
 
-theorem mapM_some_length {α β : Type _} {f : α → Option β} {l : List α} {l' : List β}
-    (h : l.mapM f = some l') : l'.length = l.length :=
-  (List.Forall₂.length_eq (List.mapM_eq_some.mp h)).symm
-
 /-- Restoration of a constructor application whose parameter and field arguments are
 variables: the restored constructor (`headName`) applied to restored parameters and the same
 field variables, when every restoration head of that name takes exactly those parameters. -/
@@ -84,7 +80,7 @@ theorem Restoration.expr_iotaLhs {r : Restoration} {recN c : Name} {lsR lsC : Li
       obtain ⟨lv, cps, rfl⟩ := Restoration.expr_ctorApp hcpre hpost hnp hmaj
       simp only [hidx, hmaj, List.mapM_cons, List.mapM_nil] at h
       simp [Restoration.expr.go, hrec] at h
-      exact ⟨idx', lv, cps, mapM_some_length hidx, by rw [← h, List.append_assoc]⟩
+      exact ⟨idx', lv, cps, List.mapM_some_length hidx, by rw [← h, List.append_assoc]⟩
 
 theorem compilationRestoration_heads_nparams {source : VInductDecl}
     {auxiliaries : List ContainerSpecialization} :
@@ -227,7 +223,7 @@ theorem ruleEquation (B : RestoredBlock L sourceTypes isUnsafe outEnv)
   obtain ⟨rb, hrb, hrhs⟩ := hrr
   obtain ⟨T, -, htype⟩ := ht
   have hDlen : D.length = L.recursors.generationSignature.params.length + L.recursors.generationSignature.families.size + L.recursors.generationSignature.constructors.size +
-      L.recursors.generationSignature.constructors[k].fields.length := (mapM_some_length hD).trans hDlen0
+      L.recursors.generationSignature.constructors[k].fields.length := (List.mapM_some_length hD).trans hDlen0
   -- the restored left-hand side
   have hnpS : L.recursors.generationSignature.params.length = B.decl.nparams := by
     exact H.model.nparams.trans H.nparams
@@ -268,7 +264,7 @@ theorem ruleEquation (B : RestoredBlock L sourceTypes isUnsafe outEnv)
   obtain ⟨pre, maj', hpre, -, htyp⟩ := Restoration.expr_recursorType_eq_some _ ht'
   have hpl : pre.length = L.recursors.generationSignature.params.length + L.recursors.generationSignature.families.size + L.recursors.generationSignature.constructors.size +
       L.recursors.generationSignature.families[owner'].indices.length :=
-    (mapM_some_length hpre).trans (g.recursorPrefix_length owner')
+    (List.mapM_some_length hpre).trans (g.recursorPrefix_length owner')
   obtain ⟨hpa, -, -, j, -, -, hbody⟩ := B.rec_shape r hr
   rw [hrt, htyp, VExpr.piArity_wrapForalls] at hpa
   rw [hrt, htyp, VExpr.piBody_wrapForalls] at hbody

@@ -329,15 +329,9 @@ local notation:65 Γ " ⊢ " e1 " ≡ " e2:36 " : " A:36 => IsDefEq env univs Γ
 local notation:65 Γ " ⊢ " e1 " ≡ " e2:36 => IsDefEqU env univs Γ e1 e2
 
 omit [Params] in
-private theorem eq_nil_or_snoc (l : List α) : l = [] ∨ ∃ L b, l = L ++ [b] := by
-  rcases List.eq_nil_or_concat l with h | ⟨L, b, h⟩
-  · exact .inl h
-  · exact .inr ⟨L, b, by simpa using h⟩
-
-omit [Params] in
 private theorem mkApps_app_isApp (g c : VExpr) (bs : List VExpr) :
     ∃ f a, VExpr.mkApps (.app g c) bs = .app f a := by
-  rcases eq_nil_or_snoc bs with rfl | ⟨bs', b, rfl⟩
+  rcases List.eq_nil_or_snoc bs with rfl | ⟨bs', b, rfl⟩
   · exact ⟨_, _, rfl⟩
   · exact ⟨_, _, VExpr.mkApps_snoc ..⟩
 
@@ -386,7 +380,7 @@ private theorem NormalEqN.beta_aux (n : Nat) :
     | sortDF | constDF | projDF | lamDF | forallEDF | etaR =>
       rw [happ] at hR; cases hR
     | appDF l1 l2 l3 l4 l5 l6 =>
-      rcases eq_nil_or_snoc bs with rfl | ⟨bs', b, rfl⟩
+      rcases List.eq_nil_or_snoc bs with rfl | ⟨bs', b, rfl⟩
       · cases hR
         obtain ⟨X, hX, hn⟩ := ((ih _ (by omega)).2 hΓ l5 hx)
         have ⟨⟨_, d1⟩, _, d2⟩ := l2.lam_inv henv hΓ
@@ -496,7 +490,7 @@ omit [Params] in
 theorem RigidHead.mkApps_eq_app (hh : RigidHead h)
     (H : VExpr.mkApps h targs = .app f a) :
     ∃ targs₀, targs = targs₀ ++ [a] ∧ f = VExpr.mkApps h targs₀ := by
-  rcases eq_nil_or_snoc targs with rfl | ⟨targs₀, t, rfl⟩
+  rcases List.eq_nil_or_snoc targs with rfl | ⟨targs₀, t, rfl⟩
   · cases hh <;> cases H
   · rw [VExpr.mkApps_snoc] at H; cases H; exact ⟨_, rfl, rfl⟩
 
@@ -584,7 +578,7 @@ theorem NormalEqN.spine_expose (hΓ : OnCtx Γ (env.IsType univs)) (hh : RigidHe
   | constDF _ _ _ _ l5 =>
     cases hh with
     | const =>
-      rcases eq_nil_or_snoc targs with rfl | ⟨_, _, rfl⟩
+      rcases List.eq_nil_or_snoc targs with rfl | ⟨_, _, rfl⟩
       · cases hR
         exact .inr (.inl ⟨_, bs, .const l5, .rfl, hbs⟩)
       · rw [VExpr.mkApps_snoc] at hR; cases hR
@@ -755,7 +749,7 @@ theorem SpineTransport.induct (hstep : ParRed Γ e e')
   intro n
   induction n using Nat.strongRecOn with | _ n ih => ?_
   intro ρ Γ' bs x hΓ W H
-  rcases eq_nil_or_snoc bs with rfl | ⟨bs, b, rfl⟩
+  rcases List.eq_nil_or_snoc bs with rfl | ⟨bs, b, rfl⟩
   · exact hbase n ih hΓ W H
   have hR := SpineTransport.red hstep W (bs ++ [b])
   generalize hRR : VExpr.mkApps (e.lift' ρ) (bs ++ [b]) = R at H
@@ -1051,7 +1045,7 @@ theorem _root_.Lean4Lean.Pattern.Matches.constVarN_transport {R : VExpr → VExp
   | 0, vs, vs', ls, ls', m2, H, hR => by
     generalize hE : VExpr.mkApps (.const c ls) vs = E at H
     cases H
-    rcases eq_nil_or_snoc vs with rfl | ⟨_, _, rfl⟩
+    rcases List.eq_nil_or_snoc vs with rfl | ⟨_, _, rfl⟩
     · cases hR; exact ⟨_, .const, nofun⟩
     · rw [VExpr.mkApps_snoc] at hE; cases hE
   | k + 1, vs, vs', ls, ls', m2, H, hR => by
@@ -1253,7 +1247,7 @@ theorem SpineTransport.redex {hd : List VLevel → VExpr} (hhd : ∀ ls, RigidHe
       exact ⟨_, (ReflTransGen.tail .rfl (.funEta l1)).trans (FullReduction.lam .rfl hY),
         .etaL (htyT l2) hn⟩
     | @appDF _ x1 _ _ _ x2 _ _ _ _ l1 l2 l3 l4 l5 l6 =>
-      rcases eq_nil_or_snoc bs with rfl | ⟨bs₀, b, rfl⟩
+      rcases List.eq_nil_or_snoc bs with rfl | ⟨bs₀, b, rfl⟩
       · cases hRR
         have hxT := hxd.hasType.1
         have hx2M : NormalEq Γ' _ _ := NormalEq.trans hΓ ⟨_, l6⟩ hMr
