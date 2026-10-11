@@ -224,6 +224,192 @@ theorem rigid_spines_substEq {Γ₁ Γ₂ : List VExpr} {c : Name} {ls₁ ls₂ 
   have := key args₁.length (Nat.le_refl _)
   rwa [List.take_length, List.take_of_length_le (by omega)] at this
 
+
+/-- The two family spines of an ι redex (`redex_major_rel`, before relating their
+arguments): the recursor's major domain at the recursor arguments and the constructor's result
+at the constructor arguments are semantically typed sort spines whose observations subsume each
+other, at typed valuations of the two telescopes. -/
+theorem redex_major_sub {Γ : List VExpr} {n ctor I : Name} {m1 lsC lsI lsC' : List VLevel}
+    {ci cc : VConstant} {dsH Dc iargs cargs recArgs ctorArgs : List VExpr} {RH A : VExpr}
+    {kM : Nat} {uT uC : VLevel} {σ : VExpr.Subst} {S : ObSets}
+    (hci : env.constants n = some ci) (eH : ci.type.instL m1 = .wrapForalls dsH RH)
+    (hT : HTS env U Δ [] (ci.type.instL m1) (.sort uT))
+    (hlenH : dsH.length = kM + 1) (hkH : dsH[kM]? = some (.mkApps (.const I lsI) iargs))
+    (hcc : env.constants ctor = some cc)
+    (eC : cc.type.instL lsC = .wrapForalls Dc (.mkApps (.const I lsC') cargs))
+    (hTc : HTS env U Δ [] (cc.type.instL lsC) (.sort uC))
+    (hrA : recArgs.length = kM) (hcA : ctorArgs.length = Dc.length)
+    (H : HTS env U Δ Γ (.mkApps (.const n m1) (recArgs ++ [.mkApps (.const ctor lsC) ctorArgs])) A)
+    (W : Ctx.SubstEq env U Δ σ σ Γ) (tv : TV env U Δ Γ σ S) :
+    ∃ uR uI,
+      HTS env U Δ (dsH.take kM).reverse (.mkApps (.const I lsI) iargs) (.sort uR) ∧
+      HTS env U Δ Dc.reverse (.mkApps (.const I lsC') cargs) (.sort uI) ∧
+      Ctx.SubstEq env U Δ (VExpr.argSubst (recArgs.map (·.subst σ)))
+        (VExpr.argSubst (recArgs.map (·.subst σ))) (dsH.take kM).reverse ∧
+      TV env U Δ (dsH.take kM).reverse (VExpr.argSubst (recArgs.map (·.subst σ)))
+        (argSets env U Δ σ S recArgs) ∧
+      Ctx.SubstEq env U Δ (VExpr.argSubst (ctorArgs.map (·.subst σ)))
+        (VExpr.argSubst (ctorArgs.map (·.subst σ))) Dc.reverse ∧
+      TV env U Δ Dc.reverse (VExpr.argSubst (ctorArgs.map (·.subst σ)))
+        (argSets env U Δ σ S ctorArgs) ∧
+      Ob.Sub (Obs' (VExpr.argSubst (ctorArgs.map (·.subst σ))) (argSets env U Δ σ S ctorArgs)
+          (.mkApps (.const I lsC') cargs))
+        (Obs' (VExpr.argSubst (recArgs.map (·.subst σ))) (argSets env U Δ σ S recArgs)
+          (.mkApps (.const I lsI) iargs)) ∧
+      Ob.Sub (Obs' (VExpr.argSubst (recArgs.map (·.subst σ))) (argSets env U Δ σ S recArgs)
+          (.mkApps (.const I lsI) iargs))
+        (Obs' (VExpr.argSubst (ctorArgs.map (·.subst σ))) (argSets env U Δ σ S ctorArgs)
+          (.mkApps (.const I lsC') cargs)) := by
+  subst hrA
+  have hkM : recArgs.length < dsH.length := by omega
+  obtain ⟨Amaj, B, u, v, hf, -, -, -, hmaj, hsmaj, hch⟩ := H.app_const_inv' rfl
+  have hT' : HTS env U Δ [] (.wrapForalls dsH RH) (.sort uT) := by rw [← eH]; exact hT
+  have hTc' : HTS env U Δ [] (.wrapForalls Dc (.mkApps (.const I lsC') cargs)) (.sort uC) := by
+    rw [← eC]; exact hTc
+  have hpiH' : PiSD env U Δ [] dsH RH := hT'.piSD
+  have hpiC : PiSD env U Δ [] Dc (.mkApps (.const I lsC') cargs) := hTc'.piSD
+  have hTW : Ob.Sub (Obs' .id .empty (ci.type.instL m1))
+      (Obs' .id .empty (.wrapForalls dsH RH)) := by rw [eH]; exact Ob.Sub.refl
+  have hTWc : Ob.Sub (Obs' .id .empty (cc.type.instL lsC))
+      (Obs' .id .empty (.wrapForalls Dc (.mkApps (.const I lsC') cargs))) := by
+    rw [eC]; exact Ob.Sub.refl
+  obtain ⟨WR, tvR⟩ := spine_tele henv hΔ hf W tv hci hTW hpiH' (by omega)
+  obtain ⟨WC, tvC⟩ := spine_tele henv hΔ hmaj W tv hcc hTWc hpiC (Nat.le_of_eq hcA)
+  rw [hcA, List.take_length] at WC tvC
+  have hdom := HTS.spineVal_dom henv hΔ hci eH hpiH' hf W tv (by omega)
+  have hdsHk : dsH[recArgs.length] = .mkApps (.const I lsI) iargs := by
+    rw [List.getElem?_eq_getElem hkM] at hkH; exact Option.some.inj hkH
+  rw [hdsHk] at hdom
+  have hres := HTS.spineVal henv hΔ hcc eC hpiC hmaj W tv (Nat.le_of_eq hcA)
+  rw [hcA, List.drop_length] at hres
+  simp only [VExpr.wrapForalls, List.foldr_nil] at hres
+  obtain ⟨uR, hIR, -⟩ := HTS.tele_dom (pre := dsH.take recArgs.length) (post := [])
+    (A := dsH[recArgs.length])
+    (by rw [← wrapForalls_last hlenH]; exact hT')
+  rw [List.append_nil, hdsHk] at hIR
+  obtain ⟨uI, hIC⟩ := HTS.wrapForalls_body hTc'
+  rw [List.append_nil] at hIC
+  exact ⟨uR, uI, hIR, hIC, WR, tvR, WC, tvC, hres.2.trans hdom.1, hdom.2.trans hres.1⟩
+
+
+/-- The bodies of two telescopes whose observations are subsumed one way, at typed keys along
+both telescopes. -/
+theorem tele_sound_body {D₁ D₂ : List VExpr} {R₁ R₂ : VExpr} (hpi₂ : PiSD env U Δ [] D₂ R₂)
+    {w : VLevel} (hR₂ : SD env U Δ D₂.reverse R₂ R₂ (.sort w))
+    (hsub : Ob.Sub (Obs' .id .empty (.wrapForalls D₁ R₁)) (Obs' .id .empty (.wrapForalls D₂ R₂)))
+    {keys : List Key} {σ' : VExpr.Subst} {S' : ObSets}
+    (hTK₁ : TeleKeys env U Δ .id .empty D₁ keys σ' S')
+    (hTK₂ : TeleKeys env U Δ .id .empty D₂ keys σ' S') :
+    Ob.Sub (Obs' σ' S' R₁) (Obs' σ' S' R₂) := by
+  have hkl : keys.length = D₂.length := hTK₂.length
+  have hds₂ : DomsSD env U Δ [] D₂ := hpi₂.doms
+  have hctx : CtxSD env U Δ [] D₂.reverse := by
+    have := DomsSD.ctxSD (L := []) (Γ := []) hds₂ .nil
+    simpa using this
+  obtain ⟨ys₀, hσ', hS', hyl₀, -, -⟩ := hTK₂.data
+  intro z hz
+  have h1 := tele_obs hTK₁ hz
+  obtain ⟨o', ho', l⟩ := hsub _ h1
+  obtain ⟨keys', z', rfl, hkk, lz⟩ := Le.piCodChain_inv l
+  have hkl' : keys'.length = D₂.length := by rw [List.Forall₂.length_eq hkk, hkl]
+  obtain ⟨keys'', ys, hT, -, hky, hz'⟩ := tele_split (Nat.le_of_eq hkl') ho'
+  rw [hkl', List.take_length] at hT
+  rw [hkl', List.drop_length] at hz'
+  simp only [VExpr.wrapForalls, List.foldr_nil] at hz'
+  have hcls : List.Forall₂ (fun (k : Key) y => k.2.1 y) keys ys :=
+    forall₂_zip (fun _ _ _ h1 h2 => h1.2.1 ▸ h2) hkk hky
+  have W' := hTK₂.substEq henv hΔ (v := .id) hds₂ .nil hcls
+  rw [List.append_nil] at W'
+  have W'' : Ctx.SubstEq env U Δ (VExpr.argSubst ys) σ' D₂.reverse := SubstEq.symm henv hΔ W'
+  obtain ⟨Wy, tvy⟩ := hT.typed henv hΔ hds₂ .nil TV.empty
+  rw [List.append_nil] at Wy tvy
+  have hyl : ys.length = D₂.length := by rw [← List.Forall₂.length_eq hky, hkl']
+  have hout : ∀ x, D₂.reverse.length ≤ x →
+      σ' x = (ys.foldl VExpr.Subst.cons VExpr.Subst.id) x := by
+    intro x hx
+    rw [List.length_reverse] at hx
+    show σ' x = VExpr.argSubst ys x
+    rw [hσ', VExpr.argSubst_ge _ (by omega)]
+    show VExpr.argSubst ys₀ x = _
+    rw [VExpr.argSubst_ge _ (by omega), hyl, hyl₀]
+  have tvσ : TV env U Δ D₂.reverse σ' (extS .empty keys') := by
+    have := TV.transfer henv hΔ (Γ := []) hctx (by simpa using W') (by simpa using hout)
+      (by simpa using tvy)
+    simpa using this
+  obtain ⟨z'', hz'', l''⟩ := (hR₂.2 _ _ _ W'' tvy tvσ).1 _ hz'
+  obtain ⟨z₃, hz₃, l₃⟩ := hz''.mono_le (S' := S') fun i o h => by
+    rw [hS']
+    exact extS_covers hkk i o h
+  exact ⟨z₃, hz₃, l₃.trans (l''.trans lz)⟩
+
+/-- **Bodies of soundly equal telescopes** at a full typed valuation by arguments: their
+observations subsume each other. -/
+theorem tele_sound_res {D₁ D₂ : List VExpr} {R₁ R₂ : VExpr} {u : VLevel}
+    (hcl₁ : ∀ i (hi : i < D₁.length), (D₁[i]).ClosedN i)
+    (hR₁cl : R₁.ClosedN D₁.length) (hR₂cl : R₂.ClosedN D₂.length)
+    (hS : SoundAt env U Δ [] (.wrapForalls D₁ R₁) (.wrapForalls D₂ R₂) (.sort u))
+    (hpi₁ : PiSD env U Δ [] D₁ R₁) (hpi₂ : PiSD env U Δ [] D₂ R₂)
+    {w₁ w₂ : VLevel} (hR₁ : SD env U Δ D₁.reverse R₁ R₁ (.sort w₁))
+    (hR₂ : SD env U Δ D₂.reverse R₂ R₂ (.sort w₂)) (hlen : D₁.length = D₂.length)
+    {as : List VExpr} {Sx : ObSets} (has : as.length = D₁.length)
+    (W : Ctx.SubstEq env U Δ (VExpr.argSubst as) (VExpr.argSubst as) D₁.reverse)
+    (tv : TV env U Δ D₁.reverse (VExpr.argSubst as) Sx) :
+    Ob.Sub (Obs' (VExpr.argSubst as) Sx R₁) (Obs' (VExpr.argSubst as) Sx R₂) ∧
+    Ob.Sub (Obs' (VExpr.argSubst as) Sx R₂) (Obs' (VExpr.argSubst as) Sx R₁) := by
+  have hS0 := hS .id .id .empty .nil TV.empty TV.empty
+  have hsub₁ := hS0.1
+  have hsub₂ := hS0.2.1
+  -- typed keys along both telescopes at the arguments, with the given demands
+  have keysOf : ∀ G : List (List Ob), G.length = as.length →
+      (∀ m (hm : m < G.length), ∀ y ∈ G[m], Sx m y) →
+      ∃ keys S', TeleKeys env U Δ .id .empty D₁ keys (VExpr.argSubst as) S' ∧
+        TeleKeys env U Δ .id .empty D₂ keys (VExpr.argSubst as) S' ∧
+        (∀ m (hm : m < G.length), ∀ y ∈ G[m], S' m y) ∧ (∀ m y, S' m y → Sx m y) := by
+    intro G hGl hGS
+    obtain ⟨keys, S', hTK, hkl, hS', hkeys⟩ := tele_compact hcl₁ has W tv G.reverse
+      (by rw [List.length_reverse, hGl, has]) (fun i Fi hFi y hy => by
+        have hil : i < G.length := by
+          have := (List.getElem?_eq_some_iff.1 hFi).1; simpa using this
+        rw [List.getElem?_reverse hil, List.getElem?_eq_getElem (by omega)] at hFi
+        cases hFi
+        have := hGS (G.length - 1 - i) (by omega) y hy
+        rwa [hGl, has] at this)
+    have hTK₂ := tele_sound_keys henv hΔ hpi₂ hsub₁ hlen D₁.length (Nat.le_refl _)
+      (by rwa [List.take_length])
+    rw [List.take_of_length_le (by omega)] at hTK₂
+    refine ⟨keys, S', hTK, hTK₂, fun m hm y hy => ?_, fun m y hy => ?_⟩
+    · have hmD : m < D₁.length := by rw [← has, ← hGl]; exact hm
+      have hkD : D₁.length - 1 - m < keys.length := by omega
+      refine (hS' m keys[_] (List.getElem?_eq_getElem hkD) hmD y).2 ?_
+      refine (hkeys _ _ (List.getElem?_eq_getElem hkD)).1 G[m] ?_ y hy
+      rw [List.getElem?_reverse (by omega), List.getElem?_eq_getElem (by omega)]
+      congr 2; omega
+    · by_cases hm : m < D₁.length
+      · have hkD : D₁.length - 1 - m < keys.length := by omega
+        have := (hS' m keys[_] (List.getElem?_eq_getElem hkD) hm y).1 hy
+        have h2 := (hkeys _ _ (List.getElem?_eq_getElem hkD)).2.1 y this
+        rwa [show D₁.length - 1 - (D₁.length - 1 - m) = m by omega] at h2
+      · exfalso
+        have hout := hTK.outer (m - D₁.length)
+        rw [show m - D₁.length + D₁.length = m by omega] at hout
+        rw [hout.2] at hy
+        exact hy
+  refine ⟨fun x hx => ?_, fun x hx => ?_⟩
+  · have hR₁cl' : R₁.ClosedN as.length := by rw [has]; exact hR₁cl
+    obtain ⟨G, hGl, hGS, hG⟩ := Obs.compact_all hR₁cl' (τs := [x])
+      (fun τ hτ => by rw [List.mem_singleton] at hτ; subst hτ; exact hx)
+    obtain ⟨keys, S', hTK₁, hTK₂, hGS', hSx⟩ := keysOf G hGl hGS
+    have hx' : Obs' (VExpr.argSubst as) S' R₁ x := hG S' hGS' x (List.mem_singleton_self _)
+    obtain ⟨x', hx', l⟩ := tele_sound_body henv hΔ hpi₂ hR₂ hsub₁ hTK₁ hTK₂ _ hx'
+    exact ⟨x', hx'.mono fun m y hy => hSx m y hy, l⟩
+  · have hR₂cl' : R₂.ClosedN as.length := by rw [has, hlen]; exact hR₂cl
+    obtain ⟨G, hGl, hGS, hG⟩ := Obs.compact_all hR₂cl' (τs := [x])
+      (fun τ hτ => by rw [List.mem_singleton] at hτ; subst hτ; exact hx)
+    obtain ⟨keys, S', hTK₁, hTK₂, hGS', hSx⟩ := keysOf G hGl hGS
+    have hx' : Obs' (VExpr.argSubst as) S' R₂ x := hG S' hGS' x (List.mem_singleton_self _)
+    obtain ⟨x', hx', l⟩ := tele_sound_body henv hΔ hpi₁ hR₁ hsub₂ hTK₂ hTK₁ _ hx'
+    exact ⟨x', hx'.mono fun m y hy => hSx m y hy, l⟩
+
 end
 
 end Model
