@@ -23,11 +23,10 @@ MARKER = "INDUCTIVE_AUDIT "
 ROOTS = {
     "Lean4Lean.addDecl.WF",
     "Lean4Lean.addQuot.WF",
-    "Lean4Lean.inductiveDeclPreserves",
     "Lean4Lean.VerifyInductive.addInductiveDeclaration.preserves",
     "Lean4Lean.VerifyInductive.Environment.addInductive.inductiveExtensionWF",
     "Lean4Lean.VerifyInductive.Environment.addInductive.primitiveInductiveExtensionWF",
-    "Lean4Lean.VerifyInductive.nestedInductivePreserves",
+    "Lean4Lean.VerifyInductive.Environment.addInductiveAfterLowering.nestedInductiveExtensionWF",
     "Lean4Lean.TypeChecker.whnf.WF",
     "Lean4Lean.TypeChecker.Inner.reduceRecursor.WF",
     "Lean4Lean.VerifyInductive.RecursorConstruction.typeTranslations",
@@ -96,7 +95,7 @@ STRICT_ROOTS = DEFINITION_ROOTS | FOUNDATION_ROOTS
 ROOTS |= STRICT_ROOTS
 BUILD_TARGETS = [
     "Lean4Lean.Verify.Inductive.Dispatch",
-    "Lean4Lean.Verify.Inductive.Nested.Install.Dispatch",
+    "Lean4Lean.Verify.Inductive.Nested.Install.Extension",
     "Lean4Lean.Verify.Environment",
     "Lean4Lean.Verify.TypeChecker",
     "Lean4Lean.Verify.CanonicalEq",
