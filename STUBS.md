@@ -10,7 +10,7 @@ therefore fails on `Verify/` until wave 1. Waves follow `iota-port/PLAN-RECONCIL
 |---|---|---|---|
 | `VEnv.WF.patsStrong` | `Theory/Typing/EnvLemmas.lean` | PR #43 | wave 1D (`patsStrong`), after the 0b spike |
 | `VEnv.Model.PatValid.iota` (`-- WAVE 1C STUB`) | `Theory/Typing/HeadInjectivity/Model/PatSound.lean` | new: the `pat` case of `Model.sound` for the registered ι rules (see the wave 1C section) | wave 1C |
-| `VEnv.WF.patCtor_rigid` (`-- WAVE 1C STUB`) | `Theory/Typing/HeadInjectivity/Model/WFFacts.lean` | `ConstructorRigidity.lean` on the source branch (`WF.installed_constructor_rigid`) | wave 1C |
+| ~~`VEnv.WF.patCtor_rigid`~~ (closed, model pat stubs: `CompiledInductive.rule_ctor_cases` along the history) | `Theory/Typing/HeadInjectivity/Model/WFFacts.lean` | `ConstructorRigidity.lean` on the source branch (`WF.installed_constructor_rigid`) | model pat stubs |
 | `IsDefEqU.weakN_iff` | `Theory/Typing/UniqueTyping.lean` | master | open on master; the one strengthening principle the checker uses (PORT_PLAN section 5) |
 | ~~`NormalEq.parRed`~~ (retired, wave 4: the verified-inductives branch's engine, sorry-free, replaces master's file) | `Theory/Typing/ChurchRosser.lean` | master | wave 4 |
 | `VEnv.WF.singletonInstance_align` (WAVE 4 STUB) | `Theory/Typing/Confluence/SingletonPatCoverage.lean` | new: index alignment of a `Prop`-source singleton ι instance with its generic equation (see the wave 4 section) | wave 4 (needs a decision, see there) |
