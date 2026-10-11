@@ -8,8 +8,8 @@ import Lean4Lean.Theory.Inductive.ConstructorArity
 The recursor construction reads the declaration's source signature off the exact kernel
 constructor telescopes the constructor check retained (`ConstructorTails`): each constructor of
 the signature keeps its literal checked tail (`SourceConstructorTelescope`), which the recursor
-generator re-walks. This is the source signature by replay, stated for `RecursorInput`; the constructor phase's own `CheckedFormation.sourceSignature` is
-built from the abstract tails instead. -/
+generator re-walks. This is the source signature by replay, stated for the constructor check
+(`ConstructorCheck`). -/
 
 namespace Lean4Lean
 
@@ -216,14 +216,14 @@ theorem CheckedConstructorTailAt.signatureConstructor
   rw [← htype]
   exact (hsource.trans henv trivial hclosed').symm
 
-namespace RecursorInput
+namespace ConstructorCheck
 variable {isUnsafe : Bool}
 
 /-- Constructor identities are unique in the actual kernel constructor array as
 well as in its translated table. This identifies retained replays
 with the constructors visited by subsequent passes. -/
 theorem kernelConstructorNames
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     (indTypes.toList.flatMap (·.ctors)).map Lean.Constructor.name =
       decl.constructorConstants.map VConstVal.name := by
   have names : ∀ {sources targets},
@@ -248,7 +248,7 @@ theorem kernelConstructorNames
   exact names R.core.types
 
 theorem kernelConstructorNames_nodup
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     ((indTypes.toList.flatMap (·.ctors)).map Lean.Constructor.name).Nodup := by
   rw [R.kernelConstructorNames]
   exact VEnv.addConstVals_names_nodup R.core.ctorsAdded
@@ -256,19 +256,19 @@ theorem kernelConstructorNames_nodup
 /-- Shared source-universe parameters and family choices, before the
 eliminator's additional universe is introduced. -/
 noncomputable def sourceSignatureHeader
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) : InductiveSignature :=
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) : InductiveSignature :=
   R.sourceStatsWF.signatureHeader
 
 theorem sourceSignatureHeader_params
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) : R.sourceSignatureHeader.params = R.params :=
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) : R.sourceSignatureHeader.params = R.params :=
   R.sourceHeaderParams
 
 theorem sourceSignatureHeader_params_length
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) : R.sourceSignatureHeader.params.length = decl.nparams :=
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) : R.sourceSignatureHeader.params.length = decl.nparams :=
   R.sourceStatsWF.signatureParams_length
 
 theorem sourceSignatureHeader_families
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     List.Forall₂ (fun f src =>
       f.name = src.name ∧ f.indices.length = src.numIndices ∧
       f.resultLevel = src.resultLevel ∧
@@ -294,7 +294,7 @@ theorem sourceSignatureHeader_families
 /-- Each checked source constructor supplies one constructor over the same
 source family table. Ordered source names identify the replay's exact target. -/
 theorem sourceSignatureHeader_constructor
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
     (i : Nat) (hi : i < decl.types.length)
     (j : Nat) (hj : j < decl.types[i].ctors.length) :
     ∃ ctor : InductiveSignature.Constructor R.sourceSignatureHeader.families.size,
@@ -357,7 +357,7 @@ theorem sourceSignatureHeader_constructor
 /-- An owned constructor determines its family and local positions: family and
 constructor names are distinct. -/
 theorem ownedConstructor_index_unique
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
     {i i' j j' : Nat} (hi : i < decl.types.length) (hi' : i' < decl.types.length)
     (hj : j < decl.types[i].ctors.length) (hj' : j' < decl.types[i'].ctors.length)
     (hfamily : decl.types[i] = decl.types[i'])
@@ -381,7 +381,7 @@ theorem ownedConstructor_index_unique
     (hsub.nodup hctorNames)).mp (by simp [hctor])
 
 theorem sourceSignatureHeader_ownedConstructor
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
     (pair : VInductiveType × VConstVal) (hpair : pair ∈ decl.ownedConstructors) :
     ∃ ctor : InductiveSignature.Constructor R.sourceSignatureHeader.families.size,
       R.sourceSignatureHeader.families[ctor.owner].name = pair.1.name ∧
@@ -414,17 +414,17 @@ theorem sourceSignatureHeader_ownedConstructor
 /-- Choose each constructor once, in the declaration's exact flattened
 order. All later generation uses these same source-universe choices. -/
 noncomputable def sourceSignatureConstructor
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) (i : Fin decl.ownedConstructors.length) :
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) (i : Fin decl.ownedConstructors.length) :
     InductiveSignature.Constructor R.sourceSignatureHeader.families.size :=
   Classical.choose (R.sourceSignatureHeader_ownedConstructor _ (List.getElem_mem i.isLt))
 
 noncomputable def sourceSignature
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) : InductiveSignature :=
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) : InductiveSignature :=
   { R.sourceSignatureHeader with
     constructors := Array.ofFn R.sourceSignatureConstructor }
 
 theorem sourceSignatureConstructor_name
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) (i : Fin decl.ownedConstructors.length) :
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) (i : Fin decl.ownedConstructors.length) :
     (R.sourceSignatureConstructor i).name = decl.ownedConstructors[i].2.name :=
   (Classical.choose_spec
     (R.sourceSignatureHeader_ownedConstructor _ (List.getElem_mem i.isLt))).2.1
@@ -432,7 +432,7 @@ theorem sourceSignatureConstructor_name
 /-- The selected constructor keeps its source family's position, not just
 its name. Distinct installed header names determine the owner index. -/
 theorem sourceSignatureConstructor_owner
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) (i : Fin decl.ownedConstructors.length)
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) (i : Fin decl.ownedConstructors.length)
     (owner : Nat) (howner : owner < decl.types.length)
     (hfamily : decl.ownedConstructors[i].1 = decl.types[owner]) :
     (R.sourceSignatureConstructor i).owner.val = owner := by
@@ -458,12 +458,12 @@ theorem sourceSignatureConstructor_owner
   simpa only [List.getElem_map] using hname
 
 theorem sourceSignature_fieldType
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) (field : Field R.sourceSignatureHeader.families.size) :
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) (field : Field R.sourceSignatureHeader.families.size) :
     R.sourceSignature.fieldType k field = R.sourceSignatureHeader.fieldType k field := by
   cases field <;> rfl
 
 theorem sourceSignature_fieldTypes
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) (ctor : InductiveSignature.Constructor R.sourceSignatureHeader.families.size) :
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) (ctor : InductiveSignature.Constructor R.sourceSignatureHeader.families.size) :
     R.sourceSignature.fieldTypes ctor = R.sourceSignatureHeader.fieldTypes ctor := by
   unfold fieldTypes
   apply List.map_congr_left
@@ -471,13 +471,13 @@ theorem sourceSignature_fieldTypes
   exact R.sourceSignature_fieldType field.1
 
 theorem sourceSignature_constructorType
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) (ctor : InductiveSignature.Constructor R.sourceSignatureHeader.families.size) :
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) (ctor : InductiveSignature.Constructor R.sourceSignatureHeader.families.size) :
     R.sourceSignature.constructorType ctor = R.sourceSignatureHeader.constructorType ctor := by
   simp only [constructorType, sourceSignature_fieldTypes]
   rfl
 
 theorem sourceSignature_fieldModel
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) (field : Field R.sourceSignatureHeader.families.size) :
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) (field : Field R.sourceSignatureHeader.families.size) :
     SignatureFieldModel env decl' R.sourceSignature ctx k field ↔
       SignatureFieldModel env decl' R.sourceSignatureHeader ctx k field := by
   cases field <;> rfl
@@ -485,7 +485,7 @@ theorem sourceSignature_fieldModel
 /-- Every selected source constructor keeps its exact checked replay,
 including the literal tail used to determine fields and result indices. -/
 theorem sourceSignatureConstructor_replay
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) (i : Fin decl.ownedConstructors.length) :
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) (i : Fin decl.ownedConstructors.length) :
     ∃ production ∈ indTypes.toList.flatMap (·.ctors),
       SourceConstructorTelescope R.headerVEnv c.lparams R.parameterScope stats decl
         decl.ownedConstructors[i].1 production decl.ownedConstructors[i].2
@@ -503,7 +503,7 @@ theorem sourceSignatureConstructor_replay
 this name. Global constructor freshness rules out a different source
 telescope hidden by the existential replay witness. -/
 theorem sourceSignature_replay_of_source
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) (i : Fin decl.ownedConstructors.length)
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) (i : Fin decl.ownedConstructors.length)
     (source : Constructor) (hsource : source ∈ indTypes.toList.flatMap (·.ctors))
     (hname : source.name = decl.ownedConstructors[i].2.name) :
     SourceConstructorTelescope R.headerVEnv c.lparams R.parameterScope stats decl
@@ -520,7 +520,7 @@ theorem sourceSignature_replay_of_source
 /-- Arity comes from the exact retained replay of each selected constructor,
 not from comparing the types of a fully applied family. -/
 theorem sourceSignature_constructorArity
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     ∀ ctor ∈ R.sourceSignature.constructors.toList,
       ctor.indices.length = R.sourceSignature.families[ctor.owner].indices.length := by
   intro ctor member
@@ -559,7 +559,7 @@ theorem sourceSignature_constructorArity
 /-- The complete checked source signature models the source declaration.
 Its normalization choices are fixed before the recursor construction begins. -/
 private theorem sourceSignature_models_of_nonempty
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) (hnonempty : decl.types ≠ []) :
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) (hnonempty : decl.types ≠ []) :
     R.sourceSignature.Models sourceEnv decl := by
   apply sourceModelsOfTables (s := R.sourceSignature)
     (Lean4Lean.VerifyInductive.TrInductDeclCore.sourceWF R.core hnonempty
@@ -606,7 +606,7 @@ private theorem sourceSignature_models_of_nonempty
 /-- Source extraction is total even for an empty intermediate table; the
 public installation boundary separately enforces declaration nonemptiness. -/
 theorem sourceSignature_models
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) : R.sourceSignature.Models sourceEnv decl := by
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) : R.sourceSignature.Models sourceEnv decl := by
   by_cases hempty : decl.types = []
   · have hfamilies : R.sourceSignature.families = #[] := by
       apply Array.eq_empty_of_size_eq_zero
@@ -622,18 +622,12 @@ theorem sourceSignature_models
     all_goals simp [declaration, hfamilies, hctors, VInductDecl.constructorConstants, hempty]
   · exact R.sourceSignature_models_of_nonempty hempty
 
-theorem headerWF
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
-    R.headerVEnv.WF :=
-  Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF R.core
-    (by rw [← R.sourceContextVEnv]; exact R.sourceContext.checking.tr.wf)
-
 /-- The family applications of the source signature are typed in the header environment. -/
 theorem sourceSignature_familyTypesWF_header
-    (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     R.sourceSignature.FamilyTypesWF R.headerVEnv decl.uvars := by
   intro owner
-  have henv := R.headerWF
+  have henv := R.headerVEnv_wf
   have hle : sourceEnv ≤ R.headerVEnv := VEnv.addConstVals_le R.core.typesAdded
   have hheader : owner.val < R.sourceSignatureHeader.families.size := owner.isLt
   have hdecl : owner.val < decl.types.length := by
@@ -676,7 +670,7 @@ theorem sourceSignature_familyTypesWF_header
   rw [InductiveSignature.vars_append_eq_bvarRange, ← List.length_append]
   simpa [List.reverse_append] using happ
 
-end RecursorInput
+end ConstructorCheck
 
 end VerifyInductive
 end Lean4Lean

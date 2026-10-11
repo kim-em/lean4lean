@@ -26,7 +26,7 @@ open Kernel
 namespace VerifyInductive
 
 /-- The lowered family and constructor names are not checker primitives when the lowered run
-does not allow primitives (`RecursorInput.nonprimitive`, recorded by the constructor phase). -/
+does not allow primitives (`ConstructorCheck.nonprimitive`, recorded by the constructor phase). -/
 theorem LoweredRun.loweredNonprimitive {c : AddInductive.Context} {Hc : ContextWF c}
     {nparams : Nat} {indTypes : Array InductiveType} {loweredEnv : Environment}
     (L : LoweredRun Hc nparams indTypes loweredEnv) (hallow : c.allowPrimitive = false) :
@@ -34,7 +34,7 @@ theorem LoweredRun.loweredNonprimitive {c : AddInductive.Context} {Hc : ContextW
       ¬ Kernel.Environment.primitives.contains n := by
   intro n hn
   obtain ⟨T, hT, hn⟩ := List.mem_flatMap.mp hn
-  have H := L.input.nonprimitive (L.phase.allowPrimitive_eq.trans hallow) T hT
+  have H := L.constructors.nonprimitive (L.phase.allowPrimitive_eq.trans hallow) T hT
   rcases List.mem_cons.mp hn with rfl | hn
   · exact H.1
   · obtain ⟨ctor, hctor, rfl⟩ := List.mem_map.mp hn
@@ -53,7 +53,7 @@ private theorem inductiveSafety_ne_safe (isUnsafe : Bool) :
   cases isUnsafe <;> rfl
 
 /-- **The nested run of a successful restoration.** The lowering certificate, the lowered run
-and the executable restoration determine a `NestedRun` whose lowered view is the lowered run's. -/
+and the executable restoration determine a `NestedRun` over the lowered run. -/
 theorem NestedRun.ofRestoration {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     {lparams : List Name} {nparams : Nat} {sourceTypes : List InductiveType} {isUnsafe : Bool}
     {fuel : FuelConfig} {res : ElimNestedInductive.Result} {loweredEnv outEnv : Environment}
@@ -64,10 +64,9 @@ theorem NestedRun.ofRestoration {env : Environment} {ves : VEnvs} (wf : ves.WF e
       fuel) nparams res.types.toArray loweredEnv)
     (V : RestorationRun res loweredEnv env lparams sourceTypes
       (if isUnsafe then .unsafe else .safe) false fuel outEnv) :
-    ∃ decl, ∃ E : NestedRun res env sourceTypes
+    ∃ decl, Nonempty <| NestedRun res env sourceTypes
         (ContextWF.initial wf (if isUnsafe then .unsafe else .safe) lparams false fuel).venv
-        decl lparams nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv,
-      E.loweredEnv = loweredEnv ∧ HEq E.lowered L.view := by
+        decl lparams nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L := by
   have := hnested
   let Hc0 := ContextWF.initial wf (if isUnsafe then .unsafe else .safe) lparams false fuel
   have hsourceWF : env.constants.WF := Hc0.map_wf
@@ -77,8 +76,8 @@ theorem NestedRun.ofRestoration {env : Environment} {ves : VEnvs} (wf : ves.WF e
       { ({ lvls := lparams.map .param, newTypes := #[] } : ElimNestedInductive.State) with
         newTypes := sourceTypes.toArray } res := Hlow.toResult
   -- the restoration folds
-  have Htypes := L.recursors.installation.restorationSourcesOfLowering L.Hc' HlowRun
-  have Haux := L.recursors.installation.auxRestorationSourcesOfLowering L.Hc' HlowRun
+  have Htypes := L.recursors.restorationSourcesOfLowering L.Hc' HlowRun
+  have Haux := L.recursors.auxRestorationSourcesOfLowering L.Hc' HlowRun
   rw [← Hout.nparams_eq] at Htypes Haux
   have Hrefines := restoreNestedDeclarations_refines_primitiveSafe res loweredEnv env
     (auxRecNameMap loweredEnv sourceTypes) (sourceTypes.map (·.name)) false sourceTypes
@@ -97,16 +96,16 @@ theorem NestedRun.ofRestoration {env : Environment} {ves : VEnvs} (wf : ves.WF e
   obtain ⟨-, ⟨HH⟩⟩ := restoreNestedHeaders_validationWF loweredEnv env
     (sourceTypes.map (·.name)) false sourceTypes _ hhrun
   -- the source declaration
-  have hallow : L.c'.allowPrimitive = false := L.phase.allowPrimitive_eq
-  have hvisible : L.c'.safety ≤
+  have hallow : L.c.allowPrimitive = false := L.phase.allowPrimitive_eq
+  have hvisible : L.c.safety ≤
       (if ((if isUnsafe then DefinitionSafety.unsafe else .safe) != .safe) then
         DefinitionSafety.unsafe else .safe) := by
     rw [L.safety_eq]
     change (if isUnsafe then DefinitionSafety.unsafe else .safe) ≤ _
     cases isUnsafe <;> decide
-  have hN := NestedLoweringOutputClosed.sourceCore (R := L.input)
+  have hN := NestedLoweringOutputClosed.sourceCore (R := L.constructors)
     (initialState := { lvls := lparams.map .param, newTypes := #[] })
-    (by rw [L.env_eq]; exact Hlow) L.Hc' L.recursors.installation
+    (by rw [L.env_eq]; exact Hlow) L.Hc' L.recursors
     (checkInductiveSources_refines env sourceTypes () Hsources)
     L.Hc'.checking.constructorOwners rfl
     (by rw [L.env_eq]; exact Hfolds) (by rw [L.env_eq]; exact HV) (by rw [L.env_eq]; exact HH)
@@ -136,32 +135,13 @@ theorem NestedRun.ofRestoration {env : Environment} {ves : VEnvs} (wf : ves.WF e
   obtain ⟨finalState, HlowNested, -, -⟩ := Hlow
   obtain ⟨selection, Htranslations⟩ :=
     HlowNested.validatedAuxiliaryResidualTranslations Caux.wf mlctx hmlctx hlctx Hvalidated
-  refine ⟨N.sourceDecl, {
-    loweredEnv := loweredEnv
-    lowered := L.view
-    context := L.c'
-    contextWF := L.Hc'
+  refine ⟨N.sourceDecl, ⟨{
     context_env := L.env_eq
     context_lparams := L.lparams_eq
     context_safety := L.safety_eq
-    context_allowPrimitive := hallow
-    context_venv := L.venv_eq
-    lowered_c := rfl
-    lowered_nparams := rfl
-    lowered_isUnsafe := by
-      change ((if isUnsafe then DefinitionSafety.unsafe else .safe) != .safe) =
-        (L.c'.safety != .safe)
-      rw [L.safety_eq]; rfl
     lowered_isUnsafe_source := inductiveSafety_ne_safe isUnsafe
     lowered_initialEnv := L.venv_eq
-    lowered_indTypes := rfl
-    stats := L.stats
-    depth := L.phase.depth
-    commonParams := L.phase.commonParams
-    commonLevel := L.phase.commonLevel
-    sourceHeaderTyping := L.phase.loopHeaders
     validationFuel := fuel
-    context_fuel := L.phase.fuel_eq
     lowering := Hout.closed
     restoration := Hfolds
     primitiveSafe := Hprim
@@ -171,18 +151,13 @@ theorem NestedRun.ofRestoration {env : Environment} {ves : VEnvs} (wf : ves.WF e
     recursorRuleValidation := V.rules
     auxiliaryHeaderEnv := auxiliaryHeaderEnv
     headerValidationEnvironment := HH
-    parameterValidation := hparams
     auxiliaryVEnv := N.envTypes
-    auxiliaryMLCtx := mlctx
-    auxiliaryMLCtx_lctx := hlctx
-    auxiliaryMLCtxWF := hmlctx
-    validatedAuxiliaries := Hvalidated
     auxiliarySelection := selection
     auxiliaryTranslations := Htranslations
     sourceCore := N
     sourceCoreDecl_eq := rfl
     auxiliaryVEnv_eq_sourceCore := rfl
-    loweredNonprimitive := L.loweredNonprimitive rfl }, rfl, HEq.rfl⟩
+    loweredNonprimitive := L.loweredNonprimitive rfl }⟩⟩
 
 end VerifyInductive
 end Lean4Lean

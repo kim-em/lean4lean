@@ -222,7 +222,7 @@ theorem iota_lhs_sub_inst {n ctor : Name} {k nind cnp nf : Nat} {rhs : VExpr} {h
   have hal : argsR.length = doms.length := by subst hargs; simp; omega
   -- the reduct template
   have eR : rhs.instL m1 = .wrapLams (doms.map (·.instL m1)) (body.instL m1) := by
-    rw [hr, instL_wrapLams]
+    rw [hr, VExpr.instL_wrapLams]
   have hbcl : (body.instL m1).ClosedN doms.length := by
     have := (closedN_wrapLams (hr ▸ hrcl : (VExpr.wrapLams doms body).ClosedN 0)).1
     simpa using this.instL
@@ -605,7 +605,7 @@ theorem iota_rhs_sub_inst {n ctor : Name} {k nind cnp nf : Nat} {rhs : VExpr} {h
   have hkr : k ≤ recArgs.length := by omega
   -- the reduct template
   have eR : rhs.instL m1 = .wrapLams (doms.map (·.instL m1)) (body.instL m1) := by
-    rw [hr, instL_wrapLams]
+    rw [hr, VExpr.instL_wrapLams]
   have hbcl : (body.instL m1).ClosedN doms.length := by
     have := (closedN_wrapLams (hr ▸ hrcl : (VExpr.wrapLams doms body).ClosedN 0)).1
     simpa using this.instL

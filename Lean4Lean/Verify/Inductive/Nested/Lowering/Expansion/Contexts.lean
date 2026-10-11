@@ -79,7 +79,7 @@ theorem SourcePrefixOfLowered.resultLevel
 
 /-- Compatibility of a leaf relation with entering one additional concrete
 binder.  The cutoff records binders internal to the abstract expression. -/
-def NestedExpansionLeafLiftCompat
+def NestedExpansionLeafLiftStable
     (leaf : Nat → VExpr → VExpr → Prop) : Prop :=
   ∀ {depth source target} (cutoff : Nat),
     cutoff ≤ depth →
@@ -219,7 +219,7 @@ theorem VInductDecl.NestedOccurrenceReplacementAbs.liftFieldDepth
 /-- Structural nested expansion is stable under entering one surrounding
 binder whenever its successful leaves are. -/
 theorem VExpr.NestedExprExpansion.liftDepth
-    (Hlift : NestedExpansionLeafLiftCompat leaf)
+    (Hlift : NestedExpansionLeafLiftStable leaf)
     (H : VExpr.NestedExprExpansion leaf depth source target) (cutoff : Nat)
     (Hcutoff : cutoff ≤ depth) :
     VExpr.NestedExprExpansion leaf (depth + 1)
@@ -375,7 +375,7 @@ theorem NestedExpansionLookupCtx.vlet
 /-- Corresponding variable lookups in expansion-related contexts return
 expansion-related values. -/
 theorem NestedExpansionCtx.find?_expansion
-    (Hlift : NestedExpansionLeafLiftCompat leaf)
+    (Hlift : NestedExpansionLeafLiftStable leaf)
     (Hctx : NestedExpansionCtx leaf depth sourceCtx targetCtx)
     (Hsource : sourceCtx.find? var = some (sourceValue, sourceType))
     (Htarget : targetCtx.find? var = some (targetValue, targetType)) :
@@ -496,7 +496,7 @@ identity half of formation projection: it handles unchanged common-parameter
 domains, including concrete lets, and delegates only opaque projections. -/
 theorem TrExprS.abstractExpansionRelational
     (Hctx : NestedExpansionCtx leaf depth sourceCtx targetCtx)
-    (Hlift : NestedExpansionLeafLiftCompat leaf)
+    (Hlift : NestedExpansionLeafLiftStable leaf)
     (Hsource : TrExprS sourceVEnv lparams sourceCtx expr sourceTarget)
     (Htarget : TrExprS targetVEnv lparams targetCtx expr targetTarget) :
     VExpr.NestedExprExpansion leaf depth sourceTarget targetTarget := by
@@ -1154,7 +1154,7 @@ theorem Expr.SameForallPrefix.openedAbstractProjection
     (HsourceCtxWF : sourceCtx.WF sourceVEnv lparams.length)
     (HtargetCtxWF : targetCtx.WF targetVEnv lparams.length)
     (Hctx : NestedExpansionCtx leaf depth sourceCtx targetCtx)
-    (Hlift : NestedExpansionLeafLiftCompat leaf)
+    (Hlift : NestedExpansionLeafLiftStable leaf)
     (Hsource : TrExprS sourceVEnv lparams sourceCtx source sourceTarget)
     (Htarget : TrExprS targetVEnv lparams targetCtx target targetTarget)
     (fvars : List FVarId) (hfvars : fvars.length = arity)
@@ -1947,7 +1947,7 @@ lowering result and one independently translated source/expanded block.  In
 contrast to a generic expression provider, every quantified replacement is
 an actual `NodeReplacementHasResolvedMapping` into this exact final result,
 and both translations use the exact mutual-header environments. -/
-def NestedFormationReplacementCompat
+def NestedFormationReplacementLeaves
     (prodEnv : Environment) (result : Lean4Lean.ElimNestedInductive.Result)
     (baseVEnv sourceVEnv targetVEnv : VEnv) (lparams : List Name)
     (sourceDecl : VInductDecl) (generated : List VInductiveType) : Prop :=
@@ -2181,7 +2181,7 @@ theorem NestedLoweringOutputClosed.sourceExpansions
     (hempty : initialState.nestedAux = #[])
     (henv : sourceVEnv.WF)
     (generated : List VInductiveType)
-    (Hhit : NestedFormationReplacementCompat prodEnv result sourceVEnv
+    (Hhit : NestedFormationReplacementLeaves prodEnv result sourceVEnv
       sourceEnvTypes targetEnvTypes lparams sourceDecl generated)
     :
     List.Forall₂

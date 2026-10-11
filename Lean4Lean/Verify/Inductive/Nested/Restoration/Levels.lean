@@ -152,9 +152,11 @@ theorem NestedRun.loweredConstructorLevelsAll
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∀ lowered ∈ E.lowered.loweredDecl.types, ∀ lc ∈ lowered.ctors,
       lc.type.ConstLevelsAt
@@ -191,39 +193,39 @@ theorem NestedRun.loweredConstructorLevelsAll
   let P := E.lowered
   have henv : P.c.env = sourceProdEnv := E.lowered_env
   have hlparams : P.c.lparams = lparams := E.lowered_lparams
-  have hnparams : P.nparams = nparams := E.lowered_nparams
-  have hinitial : P.initialEnv = ves.venv safety := by
+  have hnparams : nparams = nparams := rfl
+  have hinitial : P.Hc'.venv = ves.venv safety := by
     simpa only [safety] using E.lowered_initialEnv
   have hisUnsafe : P.isUnsafe = isUnsafe := E.lowered_isUnsafe_source
   have HcP : ContextWF P.c := E.loweredContextWF
   let initialState := E.initialState
   have Hlower : NestedLoweringOutputClosed P.c.env
-      E.validationFuel.inductiveFuel P.nparams sourceTypes
+      E.validationFuel.inductiveFuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result := E.loweringAtContext
   rcases Hlower with ⟨finalState, Hrun, Hcache, Hparams⟩
-  let Hpack := E.phases
+  let Hpack := E.lowered
   let R := Hpack.constructors
   let Hprod := Hpack.recursors
-  have Hsource : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
+  have Hsource : TrInductDeclCore P.Hc'.venv P.c.lparams nparams
       sourceTypes P.isUnsafe sourceDecl E.sourceCore.envTypes
         E.sourceCore.envCtors := by
-    simpa only [hinitial, hlparams, hnparams, hisUnsafe, safety,
+    simpa only [hinitial, hlparams, hisUnsafe, safety,
       E.sourceCoreDecl_eq] using E.sourceCore.core
-  have Htarget : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
+  have Htarget : TrInductDeclCore P.Hc'.venv P.c.lparams nparams
       result.types P.isUnsafe P.loweredDecl Hpack.headers.context.venv
         R.ctorVEnv := R.core
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
     simpa only [E.sourceCoreDecl_eq] using E.sourceCore.checked
   have wfP : ves.WF P.c.env := by
     simpa only [henv] using wf
-  have HbaseWF : P.initialEnv.WF := by
+  have HbaseWF : P.Hc'.venv.WF := by
     simpa only [hinitial, safety] using (wf.tr (safety := safety)).wf
   have HsourceHeaders : List.Forall₂
-      (fun source target => TrSourceConst P.initialEnv P.c.lparams source.name
+      (fun source target => TrSourceConst P.Hc'.venv P.c.lparams source.name
         source.type target.toVConstVal)
       sourceTypes (P.loweredDecl.types.take sourceTypes.length) := by
     simpa only [hinitial, hlparams, safety] using E.sourceCore.sourceHeaders
-  have HsourceAdded : P.initialEnv.addConstVals
+  have HsourceAdded : P.Hc'.venv.addConstVals
       ((P.loweredDecl.types.take sourceTypes.length).map
         VInductiveType.toVConstVal) = some E.sourceCore.envTypes := by
     simpa only [hinitial, safety] using E.sourceCore.sourceAdded
@@ -239,7 +241,7 @@ theorem NestedRun.loweredConstructorLevelsAll
   rcases Hrun.auxiliaryFamilySources (R := R) Hcache Hparams wfP
       hinitial HcP Hsources HsourceHeaders HsourceAdded HsourceTypesWF
       hempty E.auxiliarySelection Htranslations Htarget with ⟨N, -⟩
-  have hparamsSize : result.params.size = P.nparams := Hrun.resultParamsSize
+  have hparamsSize : result.params.size = nparams := Hrun.resultParamsSize
   have HliftLv : NestedExpansionLeafLiftAbove sourceDecl.nparams
       (VExpr.LevelLeaf names (VLevel.params sourceDecl.uvars)) :=
     VExpr.levelLeaf_liftAbove names (VLevel.params sourceDecl.uvars) sourceDecl.nparams
@@ -324,9 +326,11 @@ theorem NestedRun.loweredConstructorLevels
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∀ lowered ∈ E.lowered.loweredDecl.types.take sourceDecl.types.length,
       ∀ lc ∈ lowered.ctors,
@@ -342,9 +346,11 @@ theorem NestedRun.loweredAuxiliaryConstructorLevels
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∀ lowered ∈ E.lowered.loweredDecl.types.drop sourceDecl.types.length,
       ∀ lc ∈ lowered.ctors,
@@ -363,9 +369,11 @@ theorem NestedRun.loweredConstructorLevels_heads
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (hheadNames : auxiliaries.flatMap (·.headNames) =

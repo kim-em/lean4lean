@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.RecursorInput
+import Lean4Lean.Verify.Inductive.ConstructorCheck
 import Lean4Lean.Verify.Inductive.Primitive.Shape
 
 /-! # The primitive header installation

@@ -1351,19 +1351,19 @@ theorem RecursorContextWF.UnannotatedDomain.bodyDefEqUnannotated
 /-- Removing type annotations from a binder domain (`Expr.consumeTypeAnnotationsVerified`)
 in a context of the inductive checker yields an unannotated domain
 (`ContextWF.UnannotatedDomain`). This is a hypothesis of the verification of the header and
-constructor loops; `Lean4Lean/Verify/Inductive/TypeAnnotations.lean` proves it
-(`consumeTypeAnnotationsCompat`). -/
-def ConsumeTypeAnnotationsCompat : Prop :=
+constructor loops; `Verify/Inductive/Context/TypeAnnotations.lean` proves it
+(`consumeTypeAnnotationsDefEq`). -/
+def ConsumeTypeAnnotationsDefEq : Prop :=
   ∀ (c : AddInductive.Context) (Hc : ContextWF c)
     {dom : Expr} {source' : VExpr},
     TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom source' →
     Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx source' →
     ∃ consumed', Hc.UnannotatedDomain dom source' consumed'
 
-/-- The form of `ConsumeTypeAnnotationsCompat` for recursor contexts
+/-- The form of `ConsumeTypeAnnotationsDefEq` for recursor contexts
 (`RecursorContextWF`), at the generated universe parameters, where `ContextWF` is not
-available. Proved by `recursorConsumeTypeAnnotationsCompat`. -/
-def RecursorConsumeTypeAnnotationsCompat : Prop :=
+available. Proved by `recursorConsumeTypeAnnotationsDefEq`. -/
+def RecursorConsumeTypeAnnotationsDefEq : Prop :=
   ∀ (c : AddInductive.Context) (recLparams : List Name)
     (R : RecursorContextWF c recLparams)
     {dom : Expr} {source' : VExpr},

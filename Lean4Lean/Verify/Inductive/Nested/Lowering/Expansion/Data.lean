@@ -6,7 +6,7 @@ import Lean4Lean.Verify.Inductive.Nested.Lowering.Assembly
 The ordered nested expansion of the source declaration into the lowered declaration, as nested
 formation reads it (`NestedExpansionData`, hence `VInductDecl.NestedFormationWF`), from the
 lowering run (`NestedLoweringOutputClosed`), the recursor input of the ordinary pipeline run on
-the lowered block (`RecursorInput`, the constructor phase's output) and the restoration side's
+the lowered block (`ConstructorCheck`, the constructor phase's output) and the restoration side's
 facts about the source declaration: its translation (`TrInductDeclCore`), the header prefix of
 the lowered declaration, the typing of the cached nested occurrences
 (`ClosedNestedOccurrenceTypings`, from `validateNestedAuxiliaries`) and source parameter
@@ -20,12 +20,12 @@ open Kernel
 namespace VerifyInductive
 
 /-- **The nested expansion of a lowering run.** -/
-theorem RecursorInput.nestedExpansionData
+theorem ConstructorCheck.nestedExpansionData
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {ctorEnv : Environment} {fuel : Nat}
     {sourceTypes : List InductiveType} {res : ElimNestedInductive.Result}
-    (R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv res.types.toArray
+    (R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv res.types.toArray
       ctorEnv)
     {ves : VEnvs} {safety : DefinitionSafety} (wf : ves.WF c.env)
     (hsourceVEnv : sourceVEnv = ves.venv safety) (Hc : ContextWF c)
@@ -69,12 +69,12 @@ theorem RecursorInput.nestedExpansionData
     (R.core.isUnsafe.trans Hsource.isUnsafe.symm) Htypes, rfl⟩
 
 /-- Nested formation of the source declaration, through the lowered declaration. -/
-theorem RecursorInput.nestedFormationWF
+theorem ConstructorCheck.nestedFormationWF
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {ctorEnv : Environment} {fuel : Nat}
     {sourceTypes : List InductiveType} {res : ElimNestedInductive.Result}
-    (R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv res.types.toArray
+    (R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv res.types.toArray
       ctorEnv)
     {ves : VEnvs} {safety : DefinitionSafety} (wf : ves.WF c.env)
     (hsourceVEnv : sourceVEnv = ves.venv safety) (Hc : ContextWF c)

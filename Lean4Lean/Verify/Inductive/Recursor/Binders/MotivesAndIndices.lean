@@ -1601,7 +1601,7 @@ theorem MotivePassHeaderAt.recursorMajorDomain
     (hcanonical : indexTargets = indexBVarSpine nindices)
     (harity : (indices.size == stats.nindices[familyIdx]!) = true)
     (henv : R.venv = Hc.venv)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat) :
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq) :
     ∃ sourceTarget consumedTarget,
       R.UnannotatedDomain
         (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params) indices)
@@ -1650,7 +1650,7 @@ theorem MotivePassHeaderAt.recursorFrame
     (hcanonical : indexTargets = indexBVarSpine nindices)
     (harity : (indices.size == stats.nindices[familyIdx]!) = true)
     (henv : Rindices.venv = Hbase.venv)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (Hrecent : RecursorFVarSuffix Rroot Rindices indices) :
     Nonempty (RecursorMotiveFrameWF Rindices stats familyIdx indices
       elimLevel) := by
@@ -1961,7 +1961,7 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
     (Rroot : RecursorContextWF root
       (AddInductive.getRecLevelParams elimLevel base.lparams))
     {rootParameterDecls : VLCtx}
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (Hk : ∀ {current : AddInductive.Context} {runtimeDepth : Nat}
       (R : RecursorContextWF current
         (AddInductive.getRecLevelParams elimLevel base.lparams))
@@ -2844,7 +2844,7 @@ theorem MotivePassHeaderAt.startRecursorTyping
     (Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel)
     (R : RecursorContextWF current
       (AddInductive.getRecLevelParams elimLevel base.lparams))
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (henv : R.venv = Hbase.venv)
     (Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth)
     (hctx : VEnv.IsDefEqCtx R.venv

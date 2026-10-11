@@ -48,7 +48,7 @@ there, and each minor matches its signature constructor (`ConstructorMatchesMino
 signature's binder syntax is that of the generated declarations, so it need not coincide with
 the checked-formation signature. -/
 structure RecursorConstruction.GeneratedBy
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) where
   signature : InductiveSignature
@@ -95,7 +95,7 @@ structure RecursorConstruction.GeneratedBy
 
 /-- Each constructor of the construction's signature matches its minor premise. -/
 theorem RecursorConstruction.signature_origins
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
@@ -138,7 +138,7 @@ theorem RecursorConstruction.signature_origins
 signature `H.signature HU` with its generated instance generates the executable's
 recursors. -/
 noncomputable def RecursorConstruction.generatorOf
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses) :
     H.GeneratedBy := by
@@ -223,7 +223,7 @@ noncomputable def RecursorConstruction.recursorTarget
   else { name := .anonymous, uvars := 0, type := .sort .zero }
 
 theorem RecursorConstruction.recursorTarget_eq
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < indTypes.size) :
     H.recursorTarget owner = {
@@ -242,7 +242,7 @@ theorem RecursorConstruction.recursorTarget_eq
   exact congrArg (fun name : Name => name.str "rec") hfName
 
 theorem RecursorConstruction.typeTranslations
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < indTypes.size) :

@@ -22,11 +22,7 @@ theorem VExpr.mkApps_const_name_inj {c c' : Name} {ls ls' : List VLevel} {a a' :
   simp only [VExpr.getAppFn_mkApps, VExpr.getAppFn] at this
   injection this
 
-/-- `vars` unfolded. Rewriting with it rather than with `vars` keeps the equation lemmas of
-`vars` from being realized here: their realization in an imported module renames the auxiliary
-lemmas of the duplicated `InductiveSignature.vars_map_liftN_lo` (`Verify/Inductive/Rules/IotaPatTyped.lean`,
-`Verify/Inductive/Nested/Restoration/SignatureVars.lean`), which are then imported together with
-different contents. -/
+/-- `vars` unfolded, as a rewriting lemma. -/
 theorem InductiveSignature.vars_unfold (count below : Nat) :
     vars count below = (List.range count).reverse.map fun i => VExpr.bvar (below + i) := rfl
 
@@ -193,7 +189,7 @@ theorem ordinary_rule_data {base env : VEnv} {decl expanded : VInductDecl}
   simp only [InductiveSignature.Instance.recBody] at hbody
   rw [VExpr.mkApps_snoc, Model.piBody_wrapForalls_app, ← VExpr.mkApps_snoc] at hbody
   have hlenI := getAppArgs_length_eq_of_mkApps_bvar hbody
-  simp only [List.length_append, InductiveSignature.vars_len, List.length_singleton,
+  simp only [List.length_append, InductiveSignature.length_vars, List.length_singleton,
     VExpr.bvarsDesc_length, InductiveSignature.insertBinders, List.length_map,
     List.length_zipIdx] at hlenI
   have hmaj' : rec.numParams + rec.numMotives + rec.numMinors + rec.numIndices =

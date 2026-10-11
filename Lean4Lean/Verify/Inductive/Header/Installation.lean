@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Header.Declare
+import Lean4Lean.Verify.Inductive.HeaderData
 
 /-! # Header installation: `declareInductiveTypes`
 
@@ -17,59 +17,29 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- The environment after `declareInductiveTypes`: the kernel headers are installed over the
-source environment (`map_eq`, `fresh`), each translating to the abstract type former of `decl`
-(`trHeaders`, the header half of `TrIndType`); the abstract header environment is the source
-model with `decl`'s type constants (`typesAdded`); the parameters are still declared in the
-context (`parameters`). -/
+/-- The environment after `declareInductiveTypes`: the header data (`HeaderData`: the kernel
+headers installed over the source environment, each translating to the abstract type former of
+`decl`, and the abstract header environment, the source model with `decl`'s type constants)
+together with the validity of the header context (`contextValid`, `contextShapes`,
+`contextIota`, which make it a `ContextWF`, `fullContext`) and the parameters still declared in
+it (`parameters`). -/
 structure HeaderEnvironment (c : AddInductive.Context) (stats : AddInductive.InductiveStats)
     (decl : VInductDecl) (nparams : Nat) (isUnsafe : Bool) (depth : Nat) (sourceEnv : VEnv)
-    (indTypes : Array InductiveType) (outEnv : Environment) where
-  numNested : Nat
-  /-- The kernel headers, exactly the executable's `inductiveTypeInfos`. -/
-  infos : List InductiveVal
-  infos_eq : infos = (AddInductive.inductiveTypeInfos stats nparams indTypes numNested
-    isUnsafe c.lparams).toList
-  map_eq : outEnv.constants = insertConsts c.env.constants (infos.map .inductInfo)
-  quotInit_eq : outEnv.quotInit = c.env.quotInit
-  fresh : ∀ info ∈ infos, c.env.find? info.name = none
-  uvars : decl.uvars = c.lparams.length
-  nparams : decl.nparams = nparams
-  isUnsafe : decl.isUnsafe = isUnsafe
-  /-- The source context and the context over the header environment share the main local
-  context (the parameters). -/
-  sourceContext : ContextWF c
-  sourceContextVEnv : sourceContext.venv = sourceEnv
-  context : ContextWF { c with env := outEnv }
-  contextMLCtx : context.mlctx = sourceContext.mlctx
-  typesAdded : sourceEnv.addConstVals decl.typeConstants = some context.venv
-  headers : HeaderCertificate sourceEnv decl
-  /-- Each kernel header translates to the abstract type former and lists the declaration's
-  constructor names (the header half of `TrIndType`). -/
-  trHeaders : List.Forall₂ (fun (info : InductiveVal) (t : VInductiveType) =>
-      TrConstVal c.safety sourceEnv (.inductInfo info) t.toVConstVal ∧
-      info.ctors = t.ctors.map (·.name))
-    infos decl.types
-  /-- The source family types translate to the abstract type formers. -/
-  trSources : List.Forall₂ (fun (source : InductiveType) (t : VInductiveType) =>
-      TrSourceConst sourceEnv c.lparams source.name source.type t.toVConstVal ∧
-      source.ctors.map (·.name) = t.ctors.map (·.name))
-    indTypes.toList decl.types
-  parameters : HeaderParameterContext context stats headers.params depth
-  sourceParameters : HeaderParameterContext sourceContext stats headers.params depth
-  /-- Every constructor a header of the source environment lists is present there. -/
-  sourcePresent : ListedConstructorsPresent c.env
-  /-- The header statistics of the header phase (`HeaderStatsWF`: the normalized source
-  telescope and semantic shape of every family, and the parameter scope) over the source
-  environment ... -/
-  sourceStatsWF : checkInductiveTypes.loopInd.HeaderStatsWF sourceContext.venv c.lparams
-    sourceContext.mlctx.vlctx stats decl depth
-  sourceHeaderParams : sourceStatsWF.headers.params = headers.params
-  /-- ... and over the header environment. -/
-  statsWF : checkInductiveTypes.loopInd.HeaderStatsWF context.venv c.lparams
-    context.mlctx.vlctx stats decl depth
-  headerParams : statsWF.headers.params = headers.params
-  parameterScopeEq : statsWF.parameterScope = sourceStatsWF.parameterScope
+    (indTypes : Array InductiveType) (outEnv : Environment) extends
+    HeaderData c stats decl nparams isUnsafe depth sourceEnv indTypes outEnv where
+  contextValid : CheckingEnv.Valid c.safety outEnv context.venv
+  contextShapes : RecursorShapesCoherent c.safety outEnv.constants context.venv
+  contextIota : IotaRulesRegistered c.safety outEnv context.venv
+  parameters : HeaderParameterContext (context.toContextWF contextValid contextShapes contextIota)
+    stats headers.params depth
+
+/-- The header context of a header environment, as a `ContextWF`. -/
+abbrev HeaderEnvironment.fullContext {c : AddInductive.Context}
+    {stats : AddInductive.InductiveStats} {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool}
+    {depth : Nat} {sourceEnv : VEnv} {indTypes : Array InductiveType} {outEnv : Environment}
+    (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv indTypes outEnv) :
+    ContextWF { c with env := outEnv } :=
+  H.context.toContextWF H.contextValid H.contextShapes H.contextIota
 
 /-- The constructor names of a declaration are absent from an environment. The header
 environment is a checking environment (`CheckingEnv.Valid`: a header lists only absent names or
@@ -530,7 +500,10 @@ def InstalledHeaders.toHeaderEnvironment {c c' : AddInductive.Context} {Hc : Con
     isUnsafe := hdeclUnsafe
     sourceContext := Hc'
     sourceContextVEnv := rfl
-    context := I.context
+    context := I.context.toLocal
+    contextValid := I.context.checking
+    contextShapes := I.context.shapes
+    contextIota := I.context.iota
     contextMLCtx := I.contextMLCtx
     typesAdded := by rw [D.typeConstants]; exact I.typesAdded
     headers := D.headerCertificate
@@ -541,13 +514,17 @@ def InstalledHeaders.toHeaderEnvironment {c c' : AddInductive.Context} {Hc : Con
     sourcePresent := I.sourcePresent
     sourceStatsWF := S
     sourceHeaderParams := rfl
-    statsWF := (S.mono I.le).retargetScope (by rw [I.contextMLCtx])
+    statsWF := (S.mono I.le).retargetScope (by rw [ContextWF.toLocal_mlctx, I.contextMLCtx])
     headerParams := by simp; rfl
     parameterScopeEq := by simp }
 
 /-- The boundary theorem of header installation: in the context of a completed header phase,
 `declareInductiveTypes` yields a well-formed constant map and, once the constructor names are
-absent from it, a header environment for every declaration the checked headers describe. -/
+absent from it, a header environment for every declaration the checked headers describe.
+The `ConstructorNamesAbsent` hypothesis of the postcondition is needed because
+`declareInductiveTypes` checks only the header names; the executable checks constructor names in
+`declareConstructors`, from which `constructorPhase.WF` obtains it. The declaration's `isUnsafe`
+is a premise (`decl.isUnsafe = isUnsafe`) since `Describes` does not constrain it. -/
 theorem AddInductive.declareInductiveTypes.WF
     {c c' : AddInductive.Context} {Hc : ContextWF c} {nparams : Nat}
     {indTypes : Array InductiveType} {Hc' : ContextWF c'} {stats : AddInductive.InductiveStats}

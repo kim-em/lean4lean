@@ -246,7 +246,7 @@ theorem nested_rel {envF envT envTypes envI : VEnv}
     rw [List.getElem_append_right (by simp [hPBl])]
     simp [hPBl]
   obtain ⟨hres, hlsCI⟩ := iotaArgRel_container henvF hΔ (cnp := Ds0.length) (Ds := Ds)
-    hci eH hlenH' hkH hDsl hDscl (by simp [hDsl, vars_len])
+    hci eH hlenH' hkH hDsl hDscl (by simp [hDsl, length_vars])
     (fun i hi => by
       rw [List.getElem?_append_left (by simp [hDsl]; omega), List.getElem?_map,
         List.getElem?_eq_getElem (by omega)]; rfl)

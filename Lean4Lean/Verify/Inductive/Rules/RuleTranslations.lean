@@ -27,7 +27,7 @@ structure RuleTranslations
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv) : Prop where
   /-- Each kernel recursor's rules are, in order, the generated equations of the constructors
   it owns. -/
@@ -70,7 +70,7 @@ section
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- Every model rule fires on a constructor with the signature's parameter count. -/
 theorem RecursorCheck.ruleCtorParams (H : RecursorCheck R outEnv) : H.RuleCtorParams :=
@@ -81,12 +81,11 @@ theorem RecursorCheck.ruleCtorParams (H : RecursorCheck R outEnv) : H.RuleCtorPa
 theorem RecursorCheck.rules_own (H : RecursorCheck R outEnv) :
     ∀ r ∈ H.recs, ∀ ru ∈ r.rules, ∃ c ∈ decl.constructorConstants, ru.ctor = c.name := by
   intro r hr ru hru
-  rw [H.installation_recs] at hr
-  obtain ⟨owner, rfl⟩ := H.installation.recs_mem hr
-  obtain ⟨index, -, rule, -, htr, rfl⟩ := H.installation.modelRule_at owner hru
-  obtain ⟨_, _, hctors⟩ := H.installation.generator.models.constructors
+  obtain ⟨owner, rfl⟩ := H.recs_mem hr
+  obtain ⟨index, -, rule, -, htr, rfl⟩ := H.modelRule_at owner hru
+  obtain ⟨_, _, hctors⟩ := H.generator.models.constructors
   obtain ⟨c, hc, hrel⟩ := Lean4Lean.List.Forall₂.forall_exists_l hctors _
-    (H.installation.generationSignature.declarationCtor_mem index)
+    (H.generationSignature.declarationCtor_mem index)
   exact ⟨c, hc, htr.ctor.trans hrel.1⟩
 
 end
@@ -96,12 +95,12 @@ namespace RuleTranslations
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
   {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv} {indTypes : Array InductiveType}
   {ctorEnv outEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
   {H : RecursorCheck R outEnv}
 
 /-- The compiled block of the recursor check: the declaration's constants, the generated
 recursors and equations, the declaration's projection entries. -/
-def block (_T : RuleTranslations H) : VInductBlock where
+noncomputable def block (_T : RuleTranslations H) : VInductBlock where
   types := decl.typeConstants
   ctors := decl.constructorConstants
   recursors := H.generation.recursors
@@ -120,10 +119,10 @@ theorem blockWF (T : RuleTranslations H) : T.block.WF sourceEnv :=
   ⟨R.headerVEnv, R.ctorVEnv, H.outVEnv, R.core.typesAdded, R.core.ctorsAdded,
     by
       have h := H.recsAdded
-      rw [VInductDecl.addRecs_eq_addConstVals, VInductDecl.withRecs_recs, H.recursors_eq] at h
+      rw [VInductDecl.addRecs_eq_addConstVals, VInductDecl.withRecs_recs, H.recs_recursors] at h
       exact h,
     R.typesWF, R.ctorsWF,
-    by rw [show T.block.recursors = H.recs.map (·.toVConstVal) from H.recursors_eq.symm]
+    by rw [show T.block.recursors = H.recs.map (·.toVConstVal) from H.recs_recursors.symm]
        intro ci hci; obtain ⟨r, hr, rfl⟩ := List.mem_map.1 hci; exact H.recsWF r hr,
     T.equationsWF⟩
 
@@ -136,7 +135,7 @@ theorem compilesTo (T : RuleTranslations H) (hnonempty : indTypes.toList ≠ [])
     rw [VInductDecl.addTypesCtorsProjsRecs_eq] at hR
     obtain ⟨envF, hF, -⟩ := Option.map_eq_some_iff.1 hR
     have hnd := VEnv.addConst_foldlM_nodup (nm := Prod.fst) (ci := Prod.snd) hF
-    have hrecs : T.block.recursors = H.recs.map (·.toVConstVal) := H.recursors_eq.symm
+    have hrecs : T.block.recursors = H.recs.map (·.toVConstVal) := H.recs_recursors.symm
     rw [hrecs]
     simpa [block, VInductDecl.consts, VInductDecl.typeConstants,
       VInductDecl.constructorConstants, List.map_append, List.map_map, Function.comp_def,
@@ -151,7 +150,7 @@ theorem compilesTo (T : RuleTranslations H) (hnonempty : indTypes.toList ≠ [])
 by `recursors_eq`, the rules through `TrRecursorRule` and `TrRecursor` agreeing on the reducts
 (`VRecRule.OfEquation.ofTr`). -/
 theorem recsOf (T : RuleTranslations H) : H.decl'.RecsOf T.block :=
-  ⟨H.recursors_eq, (H.rules_ofEquation T.trRules H.ruleCtorParams).1,
+  ⟨H.recs_recursors, (H.rules_ofEquation T.trRules H.ruleCtorParams).1,
     (H.rules_ofEquation T.trRules H.ruleCtorParams).2⟩
 
 /-- `VInductDecl.RecsCompiled` of the installed declaration. -/
@@ -177,7 +176,7 @@ theorem recursorsWF (T : RuleTranslations H) (hnonempty : indTypes.toList ≠ []
       have h := R.addTypesCtors (decl := decl)
       rw [show H.decl'.addTypesCtors sourceEnv = decl.addTypesCtors sourceEnv from rfl, h] at hC
       exact (Option.some.inj hC).symm
-    subst this; exact H.rules_ctor r hr ru hru
+    subst this; exact H.rulesCtorAll r hr ru hru
   rules_ctorParams r hr ru hru := by
     obtain ⟨c, hc, hn⟩ := H.rules_own r hr ru hru
     exact .inl ⟨c, by simpa using hc, hn, H.rules_ctorParams r hr ru hru⟩
@@ -193,7 +192,7 @@ section
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- Coverage of the installed entries, read on the kernel recursors they carry. -/
 theorem rulesCovered_of_entries {s : InductiveSignature} {g : InductiveSignature.Instance s}
@@ -221,31 +220,12 @@ theorem rulesCovered_of_entries {s : InductiveSignature} {g : InductiveSignature
   cases this
   exact H
 
-/-- Transport of the rule clauses along the identification of the installation's generator
-with the interface's (`installation_signature`, `installation_generation`). -/
-theorem ruleClauses_transport {s s' : InductiveSignature} (hs : s = s')
-    {g : InductiveSignature.Instance s} {g' : InductiveSignature.Instance s'} (hg : HEq g g')
-    {venv : VEnv} {rvals : List RecursorVal}
-    (hcov : List.Forall₂ (fun (owner : Fin s.families.size) rval =>
-      List.Forall₂ (InductiveSignature.TrRecursorRule g venv rval.levelParams)
-        (s.ownedConstructors owner) rval.rules)
-      (List.finRange s.families.size) rvals)
-    (hwf : ∀ df ∈ g.equations, df.WF venv) :
-    List.Forall₂ (fun (owner : Fin s'.families.size) rval =>
-      List.Forall₂ (InductiveSignature.TrRecursorRule g' venv rval.levelParams)
-        (s'.ownedConstructors owner) rval.rules)
-      (List.finRange s'.families.size) rvals ∧
-    ∀ df ∈ g'.equations, df.WF venv := by
-  subst hs; cases hg; exact ⟨hcov, hwf⟩
-
 /-- The rule coverage and the equations' well-formedness of a recursor check, read off its
 installation (`RecursorInstallation.rulesCovered`, `equationsWF'`, `Rules/Coverage.lean`). -/
 theorem RecursorCheck.ruleClauses (H : RecursorCheck R outEnv) :
-    H.RulesCovered ∧ H.EquationsWF := by
-  have hcov := rulesCovered_of_entries H.installation.rulesCovered H.installation_rvals
-  have hwf := H.installation.equationsWF'
-  rw [H.installation_outVEnv] at hcov hwf
-  exact ruleClauses_transport H.installation_signature H.installation_generation hcov hwf
+    H.RulesCovered ∧ H.EquationsWF :=
+  ⟨rulesCovered_of_entries (RecursorInstallation.rulesCovered H) H.entries_fst,
+    RecursorInstallation.equationsWF' H⟩
 
 /-- Rule coverage: each kernel rule's constructor, field count and reduct are the generated
 equation's. -/
@@ -265,7 +245,7 @@ theorem RecursorCheck.generatedRuleTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv) : RuleTranslations H where
   trRules := H.rulesCovered
   equationsWF := H.equationsWF

@@ -71,6 +71,23 @@ theorem VExpr.lamArity_wrapLams (ds : List VExpr) (b : VExpr) :
     simp only [VExpr.wrapLams, List.foldr_cons] at ih ⊢
     simp only [VExpr.lamArity, ih, List.length_cons]; omega
 
+theorem VExpr.lamBody_wrapLams (ds : List VExpr) (b : VExpr) :
+    (VExpr.wrapLams ds b).lamBody = b.lamBody := by
+  induction ds with
+  | nil => rfl
+  | cons d ds ih => exact ih
+
+theorem VExpr.lamBody_wrapLams_app (ds : List VExpr) (f a : VExpr) :
+    (VExpr.wrapLams ds (.app f a)).lamBody = .app f a :=
+  VExpr.lamBody_wrapLams ds _
+
+theorem VExpr.instL_wrapLams (doms : List VExpr) (body : VExpr) (ls : List VLevel) :
+    (VExpr.wrapLams doms body).instL ls =
+      VExpr.wrapLams (doms.map (VExpr.instL ls)) (body.instL ls) := by
+  induction doms with
+  | nil => rfl
+  | cons d ds ih => simp [VExpr.wrapLams, VExpr.instL] at ih ⊢; exact ih
+
 @[simp] theorem VExpr.instL_wrapForalls (ds : List VExpr) (body : VExpr) (ls : List VLevel) :
     (VExpr.wrapForalls ds body).instL ls =
       VExpr.wrapForalls (ds.map (·.instL ls)) (body.instL ls) := by

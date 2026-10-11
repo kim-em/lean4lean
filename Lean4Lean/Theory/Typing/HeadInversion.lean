@@ -24,9 +24,9 @@ lemmas (`HasType.app_inv`, `HasType.const_inv`) take `OrderedStrong` for the sam
 (`VEnv.WF.headInversion`, `IsDefEq.uniq`, `Injectivity.lean`) are conditional on
 `VEnv.WF.patsStrong`, through `VEnv.WF.orderedStrong`; the model does not use `patsStrong`
 anywhere else, and no history-induction organisation avoids the use, since the extraction's
-input is a weak chain. They are also conditional on the open proof `Model.PatValid.nested` (the
-`pat` case of soundness for the ι rules of a nested block, `Model/PatSound.lean`; the ordinary
-case `Model.PatValid.ordinary` is proved), listed in `scripts/inductive-audit-inventory.json`.
+input is a weak chain. The `pat` case of the model's soundness is proved for the ι rules of
+ordinary blocks (`Model.PatValid.ordinary`) and of nested blocks (`Model.PatValid.nested`,
+`Model/PatSound.lean`).
 
 This file and the model do not import `UniqueTyping`, `Injectivity`, `ChurchRosser`,
 `FullReduction` or `HeadReduction`. -/

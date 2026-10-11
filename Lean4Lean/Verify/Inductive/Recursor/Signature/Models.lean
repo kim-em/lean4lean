@@ -168,7 +168,7 @@ theorem recursorMinorOffset_unique (indTypes : Array InductiveType)
 
 /-- Each family has as many minors as constructors. -/
 theorem RecursorConstruction.minorTypes_size
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
     H.origins.minorTypes[owner]!.size = indTypes[owner]!.ctors.length := by
   have hsize := (H.origins.minors owner howner).size_eq
@@ -178,7 +178,7 @@ theorem RecursorConstruction.minorTypes_size
 /-- The total number of owned constructors is the executable's minor offset after the last
 family. -/
 theorem RecursorConstruction.ownedConstructors_length_offset
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (_H : RecursorConstruction R) :
     decl.ownedConstructors.length = recursorMinorOffset indTypes indTypes.size := by
   have htotal := Lean4Lean.VerifyInductive.TrInductDeclCore.ownedConstructors_length R.core
@@ -190,7 +190,7 @@ theorem RecursorConstruction.ownedConstructors_length_offset
 /-- Every flattened constructor position is the minor offset of some family plus a local index
 among that family's minors (unique by `flatMinorIndex_unique`). -/
 theorem RecursorConstruction.flatMinorIndex
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (k : Nat) (hk : k < decl.ownedConstructors.length) :
     ∃ owner, ∃ _howner : owner < H.recInfos.size,
       ∃ localIndex, ∃ _hlocal : localIndex < H.origins.minorTypes[owner]!.size,
@@ -202,7 +202,7 @@ theorem RecursorConstruction.flatMinorIndex
   exact ⟨owner, howner', localIndex, by rw [H.minorTypes_size owner howner']; exact hlocal, rfl⟩
 
 theorem RecursorConstruction.flatMinorIndex_unique
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     {owner owner' localIndex localIndex' : Nat}
     (howner : owner < H.recInfos.size) (howner' : owner' < H.recInfos.size)
@@ -299,7 +299,7 @@ theorem sourceModelsOfTablesPositive {s : InductiveSignature} {decl : VInductDec
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- A signature over the data of the recursor construction: the source universes, parameter
 scope and safety, the construction's families, and one constructor per minor whose field types
@@ -377,7 +377,7 @@ theorem RecursorConstruction.SignatureSpec.constructorType_defeq
           ⟨recursorMinorOffset indTypes owner + localIndex, bound⟩))
         (decl.ownedConstructors[recursorMinorOffset indTypes owner + localIndex]'bound).2.type :=
       hmodel.2.2.1
-    simpa only [RecursorInput.sourceSignature_constructorType] using ht
+    simpa only [ConstructorCheck.sourceSignature_constructorType] using ht
   have hdefeq := H.sourceConstructorDefEq owner howner localIndex hlocal
   have hreplay := (H.sourceConstructorIndices_replay owner howner localIndex hlocal).2.1
   have henv := R.headerCheckingAnnotations.1.wf

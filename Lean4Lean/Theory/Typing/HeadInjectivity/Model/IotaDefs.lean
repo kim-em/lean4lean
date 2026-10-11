@@ -11,8 +11,7 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Sound
 * `C_absurd_gen`: mode C is impossible at a recursor whose major family has a result sort that
   is never zero.
 
-These are the notions of the source branch's `Model/RecursorRule.lean`, kept separate from
-the generator syntax. -/
+These notions are stated independently of the generator syntax. -/
 
 namespace Lean4Lean
 namespace VEnv

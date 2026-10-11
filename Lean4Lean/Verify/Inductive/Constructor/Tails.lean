@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Constructor.CheckedFormation
+import Lean4Lean.Verify.Inductive.Constructor.CheckedTail
 import Lean4Lean.Verify.Expr.Telescope
 
 /-! # The concrete constructor telescopes retained by the constructor check
@@ -8,7 +8,7 @@ common parameters, so it needs the concrete telescopes the constructor check est
 only their abstract shapes: the replay of the parameter prefix (`ParameterPrefix`), the syntactic
 forall spine (`Expr.ForallSpine`), the checked tail with its translation and certificate
 (`ConstructorTails`) and the owner normal form (`ConstructorOwnerNormalForms`). They are
-produced by the constructor phase and recorded in `ConstructorCheck`. -/
+produced by the constructor phase and recorded in the constructor check (`ConstructorCheck`). -/
 
 namespace Lean4Lean
 

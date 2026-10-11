@@ -220,7 +220,7 @@ theorem InductionHypothesisType.projsOK
   have hnormalizedP : O.loopInput.normalizedType.FVarsIn P :=
     hnormalizedBelow P hscope.1 hinferredP
   obtain ⟨Rcurrent, P', _, _, _, hsc', hexposedH, _, _, hargs, _⟩ :=
-    O.loopTrace.paramUniform W hp recursorConsumeTypeAnnotationsCompat henv RF hscope
+    O.loopTrace.paramUniform W hp recursorConsumeTypeAnnotationsDefEq henv RF hscope
       hnormalizedTr hinferredType hnormalized₀ hnormalizedH hnormalizedP
   have hargDecls : ∀ x ∈ O.arguments_bound.fvars, ∀ decl,
       O.current.lctx.find? x = some decl → decl.DeclProjsOK (projAvoidsHeads env heads) := by
@@ -251,7 +251,7 @@ section Assembly
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth
     sourceEnv indTypes ctorEnv}
 
 namespace RecursorConstruction
@@ -545,9 +545,11 @@ auxiliary family) and is translated in the recursor-pass environment, which
 registers only base structures and lowered families (no auxiliary constructor
 or recursor). The generated recursor type is its translation. -/
 theorem NestedRun.recursorProjNames_of
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
@@ -569,12 +571,12 @@ theorem NestedRun.recursorProjNames_of
         (compilationRestoration sourceDecl auxiliaries).restorableNames = true := by
   intro owner
   have hfam := E.lowered.recursors.toRecursorConstruction.generator.familyCount
-  have howner : owner.val < E.lowered.indTypes.size := by
+  have howner : owner.val < result.types.toArray.size := by
     have := owner.isLt
     simp only [RecursorConstruction.generationSignature] at this
     omega
   have hrecSize : E.lowered.recursors.toRecursorConstruction.recInfos.size =
-      E.lowered.indTypes.size := by
+      result.types.toArray.size := by
     rw [E.lowered.recursors.toRecursorConstruction.cardinality.records]
     simpa using (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
       E.lowered.constructors.core).symm
@@ -630,9 +632,11 @@ theorem NestedRun.recursorProjNames_of
 /-- **Field `equationProjNames`**: the generated equations are built from the
 pieces of the generated recursor types. -/
 theorem NestedRun.equationProjNames_of
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     {auxiliaries : List ContainerSpecialization}
     (Hrec : ∀ owner : Fin E.lowered.recursors.generationSignature.families.size,
       (E.lowered.recursors.canonicalGeneration.recursorType owner).projNamesAvoid
@@ -655,9 +659,11 @@ are not used): proved for the table of `restorationTablesRestoringAll`, whose
 restorable names contain those of every table
 (`RestorationTablesAgree.restorable_transfer`). -/
 theorem NestedRun.restoredEquationProjNames_of
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes) :
     ∀ auxiliaries : List ContainerSpecialization,
       RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
@@ -665,7 +671,7 @@ theorem NestedRun.restoredEquationProjNames_of
       ∀ B : RestoredBlockBase E.restoration
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
           nparams isUnsafe (if isUnsafe then .unsafe else .safe),
-        B.lowered = E.lowered →
+        B.loweredDecl = E.lowered.loweredDecl →
         CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
@@ -708,9 +714,11 @@ auxiliary constructor restoration lambdas (`auxiliaryConstructors`) and the tran
 lowered projection rules (`projections`). The projection names of the lowered constructor
 types, generated recursor types and generated equations are `restoredEquationProjNames_of`. -/
 theorem NestedRun.restoredEquationGaps_of
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     (Hcontainers : ∀ auxiliaries : List ContainerSpecialization,
       RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
@@ -718,7 +726,7 @@ theorem NestedRun.restoredEquationGaps_of
       ∀ B : RestoredBlockBase E.restoration
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
           nparams isUnsafe (if isUnsafe then .unsafe else .safe),
-        B.lowered = E.lowered →
+        B.loweredDecl = E.lowered.loweredDecl →
         CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
@@ -745,7 +753,7 @@ theorem NestedRun.restoredEquationGaps_of
       ∀ B : RestoredBlockBase E.restoration
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
           nparams isUnsafe (if isUnsafe then .unsafe else .safe),
-        B.lowered = E.lowered →
+        B.loweredDecl = E.lowered.loweredDecl →
         CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames

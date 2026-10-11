@@ -111,7 +111,7 @@ mentions only `Us`, then at the terminal context of the run there is a
 universe scope containing every opened argument, and the exposed type mentions
 only `Us` and lies in that scope. -/
 theorem LoopUArgsRun.universeSupport
-    (hconsume : RecursorConsumeTypeAnnotationsCompat) {Us : List Name}
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq) {Us : List Name}
     {root : AddInductive.Context} {l : LocalContext} {source : Expr}
     {current : AddInductive.Context} {exposed : Expr} {args : Array Expr}
     (trace : LoopUArgsRun root l source current exposed args)
@@ -244,7 +244,7 @@ argument telescope closed over the opened arguments and the exposed family
 arguments mention only `Us`, provided the inferred field type does and lies
 in a universe scope `P` of the root context. -/
 theorem LoopUArgsInput.callUniverses
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     {root : AddInductive.Context} {fv : FVarId}
     (Hinput : LoopUArgsInput root (.fvar fv))
     {current : AddInductive.Context} {exposed : Expr} {args : Array Expr}

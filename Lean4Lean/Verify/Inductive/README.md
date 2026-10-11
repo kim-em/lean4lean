@@ -4,7 +4,7 @@ This directory verifies the executable inductive checker on PR #43's calculus an
 on top of the checker verification (`Verify/TypeChecker`) and the environment model
 (`Verify/Environment`). Each phase of the executable has an interface structure and a boundary
 theorem; the tables below list them in pipeline order. Every boundary theorem is proved; the
-proofs depend on `sorryAx` only through the accepted open proofs of `STUBS.md`.
+proofs depend on `sorryAx` only through the accepted open proofs of `OPEN_PROOFS.md`.
 
 ## Principle
 
@@ -36,14 +36,13 @@ may carry fields its consumers ignore; the boundary theorems' statements are the
   `extendUnsafeExact` install it into `VEnvs` (`VEnvs.WF.extendInductExact`, replaying the
   block at the other safety levels by `BlockCertificate.rebase`; `VEnvs.WF.extendUnsafeExact`
   with `TrEnv'.ignore` for the hidden observers).
-* `InductiveDeclPreserves` (`Verify/Environment.lean`) is the theorem `inductiveDeclPreserves`,
-  from `addInductiveDeclaration.WF_preserves` (`Dispatch.lean`): the primitive branch
+* The inductive case of `addDecl.WF` (`Verify/Environment.lean`) is
+  `addInductiveDeclaration.preserves` (`Dispatch.lean`): the primitive branch
   (`Primitive.checkInductive = .ok true`, `checkPrimitiveInductive_eq_true_iff`), the ordinary
-  branch (lowering with no auxiliary family) and the nested branch, the latter through the
-  hypothesis `NestedInductivePreserves`, which `nestedInductivePreserves`
-  (`Nested/Install/Dispatch.lean`) proves. `addDecl.WF_of` keeps the `InductiveDeclPreserves`
-  form. `addInductiveDeclaration.WF_spec` is the source-facing form (`InductiveExtension`),
-  under `SourceBVarClosed`.
+  branch (lowering with no auxiliary family) and the nested branch
+  (`Environment.addInductiveAfterLowering.nestedInductiveExtensionWF`,
+  `Nested/Install/Extension.lean`). `addInductiveDeclaration.spec` is the source-facing form
+  (`InductiveExtension`), under `SourceBVarClosed`.
 
 ## The phases and their interfaces (in pipeline order)
 
@@ -52,10 +51,9 @@ may carry fields its consumers ignore; the boundary theorems' statements are the
 | context | `ContextWF c` (`initial`, `withEnv` proved) | | `Context.lean` |
 | certificates | `HeaderCertificate`, `ConstructorCertificate`, `FormationCertificate`, `RecursorsWF`, `FormationCertificate.wf : decl.WF`, `TrInductDeclCore.*` | `TrInductDeclCore.sourceNames_nodup`, `ConstructorCertificate.withRecs` | `Formation.lean` |
 | `checkInductiveTypes nparams indTypes k` | `CheckedHeader(s)`, `CheckedHeaders.Describes`, `HeaderParameterContext`, `HeaderPhase Hc nparams indTypes c' Hc' stats` | `AddInductive.checkInductiveTypes.WF`, `Describes.headerCertificate` | `Header/Check.lean` |
-| `declareInductiveTypes` | `HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv indTypes outEnv` (decl-indexed; only header data constrained) | `AddInductive.declareInductiveTypes.WF` | `Header/Installation.lean` |
-| `checkConstructors` | `CheckedFormation` (header env, `TrInductDeclCore`, `FormationCertificate`, `classes`) | `CheckedFormation.signature` (∃ `s`, `s.Models sourceEnv decl ∧ FamilyTypesWF headerVEnv`) | `Constructor/CheckedFormation.lean` |
-| `constructorPhase` (= headers + checkConstructors + declareConstructors) | `ConstructorCheck` extends `CheckedFormation`: `ivals`, `trTypes : TrIndType`, `map_eq`/`fresh`, `context : ContextWF {c with env := ctorEnv}` over `envP = ctorVEnv.addProjections decl.projectionEntries`, `closed`, `inductInfosFromDecl`, `constructorParameterAlignment` | `AddInductive.constructorPhase.WF` | `Constructor/Check.lean` |
-| recursor suffix of `runWithStats` | `RecursorCheck R outEnv`: `rvals`, `recs`, `outVEnv`, `recsAdded`, `trRecs : TrRecursor`, `map_eq`/`fresh`, `checking`, the shape clauses `recsWF`/`rec_shape`/`rules_nodup`/`rules_ctor`/`rule_shape`/`rules_closed`, `kLike`, the generator (`signature`, `generation`, `models`, `admissible`, `ihsWellTyped`, `familyTypesWF`, `recursors_eq`, `metadata`) | `RecursorInput.recursorPhasesWF`, `VRecRule.OfEquation.ofTr` | `Recursor/Check.lean`, `Recursor/Entries/TrRecursorVal.lean` |
+| `declareInductiveTypes` | `HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv indTypes outEnv` extends `HeaderData` (decl-indexed; only header data constrained) with the validity of the header context | `AddInductive.declareInductiveTypes.WF` | `Header/Installation.lean`, `HeaderData.lean` |
+| `constructorPhase` (= headers + checkConstructors + declareConstructors) | `ConstructorCheck`: header data, `TrInductDeclCore`, `FormationCertificate`, `classes`, `ivals`, `trTypes : TrIndType`, `map_eq`/`fresh`, `context : ContextWF {c with env := ctorEnv}` over `envP = ctorVEnv.addProjections decl.projectionEntries`, `closed`, `inductInfosFromDecl`, `constructorParameterAlignment` (one structure for the ordinary and the primitive path) | `AddInductive.constructorPhase.WF` | `ConstructorCheck.lean`, `Constructor/Check.lean` |
+| recursor suffix of `runWithStats` | `RecursorCheck R outEnv` (= `RecursorInstallation R outEnv`): `rvals`, `recs`, `outVEnv`, `recsAdded`, `trRecs : TrRecursor`, `mapEq`/`freshRvals`, `checkingValid`, the shape clauses `recsWF`/`rec_shape`/`rules_nodup`/`rulesCtorAll`/`rule_shape`/`rules_closed`, `kLike`, the generator (`signature`, `generation`, `models`, `admissible`, `ihsWellTyped`, `familyTypesWF`, `recs_recursors`, `metadataAll`) | `ConstructorCheck.recursorPhasesWF`, `VRecRule.OfEquation.ofTr` | `Recursor/Check.lean`, `Recursor/Entries/TrRecursorVal.lean` |
 | rules | `RuleTranslations H` (Prop): `trRules : TrRecursorRule` coverage, `equationsWF : VDefEq.WF`, `rules_wf : PatTyped`; derived `block`, `compiles`, `blockWF`, `compilesTo`, `recsOf`, `recsCompiled`, `recursorsWF` | `RecursorCheck.generatedRuleTranslation`; `blockWF`/`compilesTo`/`recsOf` | `Rules/RuleTranslations.lean` |
 | assembly | `BlockCertificate`, `RecursorCheck.outVEnv'` | `RecursorCheck.blockCertificate`, `BlockCertificate.installedBlocks`/`rebase`/`extendSafeExact`/`extendUnsafeExact` | `Install/BlockCertificate.lean` |
 | `AddInductive.run` | `OrdinaryInstallation`, `OrdinaryRunResult`, `PrimitiveNamesFresh` | `Kernel.Environment.checkDuplicatedUnivParams.WF` | `Install/Ordinary.lean` |
@@ -142,7 +140,7 @@ side environments).
 | phase (executable) | interface | boundary theorem | file |
 |---|---|---|---|
 | `ElimNestedInductive.run` (`loweringRun`) | `NestedLoweringOutput env fuel nparams sourceTypes lparams res` (Prop): `res.types` = source families (headers unchanged, constructors lowered, `source_headers`) ++ auxiliary families (`types_length`, `aux_cached`/`cached_aux`: one per cache entry); each cached occurrence is a container application `I Ds` at `I.numParams` arguments over `res.params` (`nested_app`); auxiliary names fresh (`aux_fresh`); `res.lctx` declares the parameters (`lctx_params`); the zero-auxiliary identity (`ordinary`); restoration inverts lowering on the source constructors up to `Expr.eqv` (`restore_source`, under `RestoreSourceDisjoint`) | `loweringRun.WF` | `Lowering.lean`; consequences in `Nested/Lowering/Basic.lean` |
-| `AddInductive.run` on `res.types` | `LoweredRun Hc nparams indTypes loweredEnv`: the header phase from the source context, the recursor input (`loweredDecl`, header/constructor stages) and the recursor check of the lowered block; `L.rules : RuleTranslations` | `AddInductive.run.loweredRun`, `OrdinaryRunResult.toLoweredRun` | `Nested/Restoration/LoweredRun.lean` |
+| `AddInductive.run` on `res.types` | `LoweredRun Hc nparams indTypes loweredEnv`: the header phase from the source context, the constructor check (`loweredDecl`, header/constructor stages) and the recursor installation of the lowered block; `NestedRun` is indexed by it; `L.rules : RuleTranslations` | `AddInductive.run.loweredRun`, `OrdinaryRunResult.toLoweredRun` | `Nested/Restoration/LoweredRun.lean` |
 | `restoreNestedAfterInstall` | `RestorationRun res loweredEnv env lparams types safety allowPrimitive fuel outEnv` (Prop): the restoration fold's output, the two side environments and the four passes' `= .ok ()` | `Environment.restoreNestedAfterInstall.WF` | `Nested/Restoration/RestorationRun.lean` |
 | the validation passes | checker-facing: under `CheckerEnv safety E V` for the side environment, each pass yields `TrExprS`/typing in `V` (`validateSourceConstructorTypes.run.WF`, `validateRestoredRecursorTypes.{check,run}.WF`, `validateRestoredRecursorRules.{check,run}.WF`, `validateNestedAuxiliaries.WF`); the stripped output is a valid checking environment of the recursor stage (`stripRecursorRules.checkingValid`) | the seven statements | `Nested/Restoration/Validation/Passes.lean` |
 | restoration | `RestoredBlock L sourceTypes isUnsafe outEnv` (data): the source declaration `decl` with restored recursors, `TrInductDeclCore` of the submitted syntax, `NestedFormationWF`, the specialization list with `ContainersInstalled` (on `addInduct`), `CompilationData` of the lowered run's generator with `compilationRestoration decl auxiliaries`, `RecsOf`, the kernel constants with `TrIndType`/`TrRecursor` in the stages, `order`/`map_eq`/`fresh`/`newUnsafe`, the shape clauses (`recs_wf`, `rec_shape`, `rules_nodup`, `rules_ctor`, `rule_shape`, `rules_closed`), `recShapes`/`recK` for every new recursor (auxiliary included); derived: `addInduct : AddInduct` (PR #43's step witness), `compilesTo`, `recsCompiled`, `rules_ofRestoredEquation`, `rule_ctor_cases`, `wf` (given the rule typing) | `nestedRestoredBlock` | `Nested/Restoration/Certificate.lean` (interface), `Restore.lean` |

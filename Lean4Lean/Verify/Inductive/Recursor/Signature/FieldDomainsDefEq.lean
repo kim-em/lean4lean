@@ -79,7 +79,7 @@ definitionally equal to the field types of the matching source signature constru
 either field scope over the parameter scope, in the header environment and universes, and
 they are types there. -/
 theorem RecursorConstruction.sourceFields_defeq_header
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :

@@ -31,7 +31,7 @@ theorem firstStep.initializesAccumulator
     (hidx : 0 < indTypes.size)
     (hempty : stats.indConsts.isEmpty = true)
     (hparams : stats.params = #[])
-    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (Hrec : ∀ {c' : AddInductive.Context}
       {stats' : AddInductive.InductiveStats} {nindices : Nat}
       {resultSort : Level} {resultLevel : VLevel} {params : List VExpr},
@@ -334,7 +334,7 @@ theorem laterStep.extendsAccumulator
       Hc commonParams depth)
     (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
       some commonLevel)
-    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (Hrec : ∀ {c' : AddInductive.Context} {nindices : Nat}
       {resultSort : Level} {resultLevel : VLevel},
       (Hc' : ContextWF c') →
@@ -649,7 +649,7 @@ theorem laterLoopInd
     {rootVEnv : VEnv}
     {alpha : Type} (k : AddInductive.InductiveStats → AddInductive.M alpha)
     (Q : alpha → Prop)
-    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (Hfinish : ∀ {c' : AddInductive.Context}
       {stats' : AddInductive.InductiveStats} {depth' : Nat},
       (Hc' : ContextWF c') →
@@ -790,7 +790,7 @@ theorem firstLoopInd
     {indTypes : Array InductiveType} {nparams : Nat}
     {alpha : Type} (k : AddInductive.InductiveStats → AddInductive.M alpha)
     (Q : alpha → Prop)
-    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (Hc : ContextWF c)
     (Hfinish : ∀ {c' : AddInductive.Context}
       {stats' : AddInductive.InductiveStats} {depth' : Nat}
@@ -896,7 +896,7 @@ theorem checkInductiveTypes.accumulatesHeadersSourceAligned
     (Hc : ContextWF c)
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < indTypes.size)
-    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (Hfinish : ∀ {c' : AddInductive.Context}
       {stats' : AddInductive.InductiveStats} {depth : Nat}
       {commonParams : List VExpr} {commonLevel : VLevel},

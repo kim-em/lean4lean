@@ -21,7 +21,7 @@ def OrdinaryInstallation
     (isUnsafe : Bool) (sourceEnv : VEnv) (outEnv : Environment) : Prop :=
   ∃ decl ctorEnv,
     -- indexed by the recursor phase's input
-    ∃ R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv,
+    ∃ R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv,
       Nonempty (RecursorCheck R outEnv)
 
 /-- Complete ordinary `runWithStats` refinement: the constructor phase's declaration is carried
@@ -55,8 +55,8 @@ theorem AddInductive.runWithStats.WF
   -- `constructorPhase.WF` returns one constructor check with the
   -- returned classification (`∃ R, R.classes = out.2`).
   obtain ⟨decl, -, R, hclasses⟩ := Hout
-  exact (R.toRecursorInput.recursorPhasesWF hlparams hsourceSafety hnotPartial hnprimRecursors
-    hclasses.symm).mono fun outEnv Hrec => ⟨decl, ctorEnv, R.toRecursorInput, Hrec⟩
+  exact (R.recursorPhasesWF hlparams hsourceSafety hnotPartial hnprimRecursors
+    hclasses.symm).mono fun outEnv Hrec => ⟨decl, ctorEnv, R, Hrec⟩
 
 /-- Remaining environment-wide contracts at the post-header boundary: with the primitive
 exception enabled, none of the names the block installs is a primitive. -/

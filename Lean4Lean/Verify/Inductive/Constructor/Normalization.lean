@@ -50,7 +50,7 @@ theorem checkPositivity.loop.uniformNormalFormScoped
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
       scope stats decl depth)
     (hlevels : stats.levels.mapM (VLevel.ofLevel c.lparams) = some levels)
-    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (htypeNarrow : TrExprS Hc.venv c.lparams scope type narrowType)
     (htypeFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullType) :
@@ -205,7 +205,7 @@ theorem checkPositivity.uniformNormalFormScoped
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
       scope stats decl depth)
     (hlevels : stats.levels.mapM (VLevel.ofLevel c.lparams) = some levels)
-    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (htypeNarrow : TrExprS Hc.venv c.lparams scope type narrowType)
     (htypeFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullType) :

@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Audit the dependency closure of the verified theorems, including opaque bodies and types.
 
-The roots are listed below. Every axiom a root reaches must
-be listed in scripts/inductive-audit-inventory.json; the strict roots (generator definitions,
-foundational lemmas, and the confluence theorem with its coverage lemmas) may use only the
+The roots are listed below. Every axiom a root reaches must be listed in
+scripts/inductive-audit-inventory.json; the strict roots (generator definitions, foundational
+lemmas, and the confluence theorem with its parameters and coverage lemmas) may use only the
 standard axioms. Every `sorry` a root reaches must come from a declaration listed there as an
-accepted open proof (`openProofs`). With --require-complete the inventory must also be exact:
-every accepted open proof must still be reached by some root, so that closing a proof forces
-its removal from the list.
+accepted open proof (`openProofs`). A strict root may reach no `sorry` at all, except the open
+proofs the inventory accepts for that root by name (`acceptedUnder`). With --require-complete
+the inventory must also be exact: every accepted open proof must still be reached by some root,
+and every open proof accepted under a strict root must still be reached by that root, so that
+closing a proof forces its removal from the lists.
 """
 import argparse
 import json
@@ -21,11 +23,10 @@ MARKER = "INDUCTIVE_AUDIT "
 ROOTS = {
     "Lean4Lean.addDecl.WF",
     "Lean4Lean.addQuot.WF",
-    "Lean4Lean.inductiveDeclPreserves",
     "Lean4Lean.VerifyInductive.addInductiveDeclaration.preserves",
     "Lean4Lean.VerifyInductive.Environment.addInductive.inductiveExtensionWF",
     "Lean4Lean.VerifyInductive.Environment.addInductive.primitiveInductiveExtensionWF",
-    "Lean4Lean.VerifyInductive.nestedInductivePreserves",
+    "Lean4Lean.VerifyInductive.Environment.addInductiveAfterLowering.nestedInductiveExtensionWF",
     "Lean4Lean.TypeChecker.whnf.WF",
     "Lean4Lean.TypeChecker.Inner.reduceRecursor.WF",
     "Lean4Lean.VerifyInductive.RecursorConstruction.typeTranslations",
@@ -94,7 +95,7 @@ STRICT_ROOTS = DEFINITION_ROOTS | FOUNDATION_ROOTS
 ROOTS |= STRICT_ROOTS
 BUILD_TARGETS = [
     "Lean4Lean.Verify.Inductive.Dispatch",
-    "Lean4Lean.Verify.Inductive.Nested.Install.Dispatch",
+    "Lean4Lean.Verify.Inductive.Nested.Install.Extension",
     "Lean4Lean.Verify.Environment",
     "Lean4Lean.Verify.TypeChecker",
     "Lean4Lean.Verify.CanonicalEq",
@@ -118,6 +119,53 @@ def run_audit(path):
     if not reports:
         raise RuntimeError("Lean dependency audit produced no reports")
     return reports
+
+
+def check_reports(reports, inventory, strict_roots, require_complete, log=lambda _: None):
+    """Check the audit reports against the inventory. Returns the failure messages and the set
+    of open proofs reached."""
+    standard = set(inventory["standardAxioms"])
+    allowed = standard | set(inventory["implementationAxioms"])
+    accepted = set(inventory["openProofs"])
+    accepted_under = {root: set(names)
+                      for root, names in inventory.get("acceptedUnder", {}).items()}
+    failures = []
+    for root, names in sorted(accepted_under.items()):
+        if root not in strict_roots:
+            failures.append(f"acceptedUnder lists {root}, which is not a strict root")
+        for name in sorted(names - accepted):
+            failures.append(f"acceptedUnder[{root}] lists {name}, which is not in openProofs")
+    reached = set()
+    for report in reports:
+        root = report["root"]
+        sorries = {d["name"] for d in report["sorrySources"]}
+        reached |= sorries
+        axioms = {d["name"] for d in report["axioms"]}
+        log(f'{root}: {len(sorries)} open proofs, {len(axioms - {"sorryAx"})} axioms besides sorryAx')
+        strict = root in strict_roots
+        permitted = standard if strict else allowed
+        for dependency in report["axioms"]:
+            name = dependency["name"]
+            if name != "sorryAx" and name not in permitted:
+                failures.append("  UNLISTED AXIOM: " + " -> ".join(dependency["path"]))
+        for dependency in report["sorrySources"]:
+            name = dependency["name"]
+            if name not in accepted:
+                failures.append("  OPEN PROOF NOT ACCEPTED: " + " -> ".join(dependency["path"]))
+            elif strict and name not in accepted_under.get(root, set()):
+                failures.append("  OPEN PROOF UNDER A STRICT ROOT, NOT IN acceptedUnder: "
+                                + " -> ".join(dependency["path"]))
+        if "sorryAx" in axioms and not sorries:
+            failures.append(f"  {root}: sorryAx reached without a recorded source")
+        if require_complete and strict:
+            for name in sorted(accepted_under.get(root, set()) - sorries):
+                failures.append(f"acceptedUnder[{root}] lists {name}, which it no longer "
+                                "reaches (remove it from the inventory)")
+    if require_complete:
+        for name in sorted(accepted - reached):
+            failures.append("ACCEPTED OPEN PROOF NO LONGER REACHED (remove it from the "
+                            "inventory): " + name)
+    return failures, reached
 
 
 def self_test():
@@ -151,13 +199,47 @@ end AuditSelfTest
         "AuditSelfTest.typeDependency", "AuditSelfTest.assumed"}, "missed a type dependency"
     clean = reports["AuditSelfTest.clean"]
     assert not clean["axioms"] and not clean["sorrySources"], "false positive on a clean proof"
-    print("Audit self-test passed: opaque bodies, types, paths, and clean proofs.")
+    check_self_test()
+    print("Audit self-test passed: opaque bodies, types, paths, clean proofs, and the "
+          "per-root acceptance of open proofs under strict roots.")
+
+
+def check_self_test():
+    """The acceptance rules of `check_reports` on synthetic reports."""
+    def report(root, sorries):
+        return {"root": root,
+                "axioms": [{"name": "sorryAx", "path": [root, "sorryAx"]}] if sorries else [],
+                "sorrySources": [{"name": n, "path": [root, n]} for n in sorries]}
+    inventory = {"standardAxioms": [], "implementationAxioms": [],
+                 "openProofs": ["open.a", "open.b"],
+                 "acceptedUnder": {"strict.r": ["open.a"]}}
+    strict = {"strict.r", "strict.clean"}
+
+    def failures(reports, require_complete=True, inv=inventory):
+        return check_reports(reports, inv, strict, require_complete)[0]
+    base = [report("loose.r", ["open.a", "open.b"]), report("strict.r", ["open.a"]),
+            report("strict.clean", [])]
+    assert not failures(base), "rejected an inventory that matches"
+    assert failures([report("loose.r", ["open.a", "open.c"])] + base[1:]), \
+        "accepted an unlisted open proof"
+    assert failures([base[0], report("strict.r", ["open.a", "open.b"]), base[2]]), \
+        "accepted, under a strict root, an open proof not listed for that root"
+    assert failures(base[:2] + [report("strict.clean", ["open.a"])]), \
+        "accepted an open proof under a strict root with no acceptedUnder entry"
+    assert failures([base[0], report("strict.r", []), base[2]]), \
+        "--require-complete accepted a stale acceptedUnder entry"
+    assert not failures([base[0], report("strict.r", []), base[2]], require_complete=False), \
+        "a stale acceptedUnder entry failed without --require-complete"
+    assert failures([report("loose.r", ["open.a"])] + base[1:]), \
+        "--require-complete accepted a stale openProofs entry"
+    assert failures(base, inv=dict(inventory, acceptedUnder={"loose.r": ["open.a"]})), \
+        "accepted an acceptedUnder entry for a root that is not strict"
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--require-complete", action="store_true",
-                        help="also reject accepted open proofs that no root reaches any more")
+                        help="also reject accepted open proofs (globally or under a strict root) that are no longer reached")
     parser.add_argument("--no-build", action="store_true", help="use already-built dependencies")
     parser.add_argument("--json", type=Path, help="write full dependency paths to this file")
     parser.add_argument("--self-test", action="store_true", help="test the auditor and exit")
@@ -173,34 +255,11 @@ def main():
     if args.json:
         args.json.write_text(json.dumps(reports, indent=2) + "\n")
     inventory = json.loads((ROOT / "scripts/inductive-audit-inventory.json").read_text())
-    standard = set(inventory["standardAxioms"])
-    allowed = standard | set(inventory["implementationAxioms"])
-    accepted = set(inventory["openProofs"])
-    failed = False
-    reached = set()
-    for report in reports:
-        sorries = {d["name"] for d in report["sorrySources"]}
-        reached |= sorries
-        axioms = {d["name"] for d in report["axioms"]}
-        print(f'{report["root"]}: {len(sorries)} open proofs, {len(axioms - {"sorryAx"})} axioms besides sorryAx')
-        permitted = standard if report["root"] in STRICT_ROOTS else allowed
-        for dependency in report["axioms"]:
-            name = dependency["name"]
-            if name != "sorryAx" and name not in permitted:
-                failed = True
-                print("  UNLISTED AXIOM: " + " -> ".join(dependency["path"]))
-        for dependency in report["sorrySources"]:
-            if dependency["name"] not in accepted:
-                failed = True
-                print("  OPEN PROOF NOT ACCEPTED: " + " -> ".join(dependency["path"]))
-        if "sorryAx" in axioms and not sorries:
-            failed = True
-            print("  sorryAx reached without a recorded source")
-    if args.require_complete:
-        for name in sorted(accepted - reached):
-            failed = True
-            print("ACCEPTED OPEN PROOF NO LONGER REACHED (remove it from the inventory): " + name)
-    if failed:
+    failures, reached = check_reports(reports, inventory, STRICT_ROOTS, args.require_complete,
+                                      log=print)
+    for line in failures:
+        print(line)
+    if failures:
         print("Inductive dependency audit FAILED.", file=sys.stderr)
         return 1
     if reached:

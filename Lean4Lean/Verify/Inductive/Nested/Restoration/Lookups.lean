@@ -25,7 +25,7 @@ theorem RecursorInstallation.findHeaderOfMem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv) {info : InductiveVal}
     (hinfo : info ∈ R.headers.infos) :
     outEnv.find? info.name = some (.inductInfo info) :=
@@ -38,7 +38,7 @@ theorem RecursorInstallation.findSourceHeader
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (Hc : ContextWF c) (H : RecursorInstallation R outEnv)
     {owner : InductiveType} (howner : owner ∈ indTypes.toList) :
     ∃ info : InductiveVal,
@@ -185,7 +185,7 @@ theorem RecursorInstallation.findConstructorOfMem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv) {iv : InductiveVal × List ConstructorVal}
     (hiv : iv ∈ R.ivals) {cval : ConstructorVal} (hc : cval ∈ iv.2) :
     outEnv.find? cval.name = some (.ctorInfo cval) :=
@@ -198,7 +198,7 @@ theorem RecursorInstallation.findSourceConstructor
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv) {owner : InductiveType}
     (howner : owner ∈ indTypes.toList) {ctor : Constructor} (hctor : ctor ∈ owner.ctors) :
     ∃ info : ConstructorVal,
@@ -216,7 +216,7 @@ theorem RestoredConstructorStep.oldType_eq_ofInstalled
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (Hstep : RestoredConstructorStep result outEnv ctorName
       sourceProdEnv targetProdEnv)
     (H : RecursorInstallation R outEnv)
@@ -242,7 +242,7 @@ theorem RestoredConstructorStep.metadataOfInstalled
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     {result : Lean4Lean.ElimNestedInductive.Result} {ctorName : Name}
     {sourceProdEnv targetProdEnv : Environment}
     (Hstep : RestoredConstructorStep result outEnv ctorName
@@ -274,7 +274,7 @@ theorem RestoredInductiveStep.oldConstructors_eq_ofInstalled
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (Hstep : RestoredInductiveStep result outEnv auxRec allIndNames indType
       sourceProdEnv targetProdEnv)
     (Hc : ContextWF c) (H : RecursorInstallation R outEnv)
@@ -300,14 +300,14 @@ theorem RecursorInstallation.findRecursorOfMem
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (hentry : (info, value) ∈ H.entries) :
     outEnv.find? info.name = some info := by
   have hlocalWF : H.localContext.env.constants.WF := by
     rw [H.localExtends.env_eq]
     exact R.context.checking.tr.map_wf
-  exact H.installed.findOfMem hlocalWF hentry
+  exact H.installed.findEntry hlocalWF hentry
 
 /-- The generated recursor for every lowered family is present in the
 installed environment and satisfies both telescope preconditions used by
@@ -317,7 +317,7 @@ theorem RecursorInstallation.findSourceRecursor
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (ownerIdx : Nat) (howner : ownerIdx < indTypes.size) :
     ∃ info : RecursorVal,
@@ -356,7 +356,7 @@ theorem RecursorInstallation.restorationSources
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (Hc : ContextWF c) (H : RecursorInstallation R outEnv)
     (HctorTelescope : ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       RestoreTelescope ctor.type nparams) :
@@ -400,7 +400,7 @@ theorem RecursorInstallation.restoredSourceRecursorMetadata
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (ownerIdx : Nat) (hentry : ownerIdx < H.entries.length)
     (Hstep : RestoredRecursorStep result outEnv auxRec allIndNames
@@ -442,7 +442,7 @@ theorem RecursorInstallation.restoredSourceTelescopeAlignment
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (ownerIdx : Nat) (hentry : ownerIdx < H.entries.length)
     (Hstep : RestoredRecursorStep result outEnv auxRec allIndNames
@@ -493,7 +493,7 @@ theorem RecursorInstallation.restoredSourceRecursorUvars
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (ownerIdx : Nat) (hentry : ownerIdx < H.entries.length)
     (Hstep : RestoredRecursorStep result outEnv auxRec allIndNames
@@ -533,7 +533,7 @@ def RecursorInstallation.restoredTrSourceRecursor
     {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (ownerIdx : Nat) (hentry : ownerIdx < H.entries.length)
     (Hstep : RestoredRecursorStep result outEnv auxRec allIndNames

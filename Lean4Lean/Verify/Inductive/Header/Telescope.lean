@@ -1925,7 +1925,7 @@ theorem parameterMismatch.WF
 the unannotated domain (`consumeTypeAnnotationsVerified`) actually installed
 in the executable local context, and `hdom₀`/`hdomType₀` for the same domain
 in the checker context; deriving them from the source domain is the separate
-`ConsumeTypeAnnotationsCompat` obligation.  The continuation receives the facts about the
+`ConsumeTypeAnnotationsDefEq` obligation.  The continuation receives the facts about the
 normal form in both contexts. -/
 theorem index.WF
     (Hc : ContextWF c) (hi : ¬ i < nparams)
@@ -2568,7 +2568,7 @@ theorem firstHeaderTelescopeWF
     {R : VEnv → Prop}
     {α : Type} (k : Expr → AddInductive.InductiveStats → Nat →
       AddInductive.M α) (Q : α → Prop)
-    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (Hresult : ∀ {c' : AddInductive.Context}
       {stats' : AddInductive.InductiveStats} {type' : Expr}
       {current' : VExpr} {i' nindices' : Nat}
@@ -2800,7 +2800,7 @@ theorem laterIndexTelescopeWF
         commonParams.reverse Hsynthesis'.params.reverse →
       (AddInductive.checkInductiveTypes.loopType nparams stats type'
         nparams nindices' (fuel' + 1) k c').WF Q)
-    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (Hc : ContextWF c)
     (henv : c.env = sourceEnv)
     (hsafety : c.safety = sourceSafety)

@@ -66,8 +66,6 @@ theorem vars_eq_bvarRange' (n : Nat) : vars n 0 = VExpr.bvarRange n n := by
   · intro i hi hi'
     simp [vars, VExpr.bvarRange] at hi hi' ⊢
 
-theorem vars_instL (n k : Nat) (ls : List VLevel) : (vars n k).map (VExpr.instL ls) = vars n k := by
-  simp [vars, List.map_map, Function.comp_def, VExpr.instL]
 end Lean4Lean.VEnv
 
 /-! # Coverage of zero-source singleton recursor equations
@@ -260,7 +258,7 @@ theorem singleton_equation_syntax (H : RecursorRegistered env data)
       simp [indexOffset, numParams, Nat.add_assoc, s]
     rw [hnf, hnp, hio, hextra]
     simp only [VExpr.mkApps_snoc, VExpr.instL, VExpr.instL_mkApps, List.map_append, Instance.recursorHead,
-      hname, VEnv.vars_instL, List.map_map, Function.comp_def, VExpr.instL_liftN, VExpr.instL_instL,
+      hname, InductiveSignature.vars_instL, List.map_map, Function.comp_def, VExpr.instL_liftN, VExpr.instL_instL,
       Instance.constructorApp, Instance.singletonElim, Instance.ctorIndicesAt]
     have hu : (VLevel.params g.uvars).map (VLevel.inst ls) = ls := VLevel.inst_map_id hlen
     have hgl' : (data.recursorInstance.specialize 0 (ls.set k .zero)).levels =
@@ -327,7 +325,7 @@ theorem InstForallsC.supplyType_eq {env : VEnv} {U : Nat} {Γ : List VExpr} {T :
 
 theorem instOuter_vars_lift {X : VExpr} {n k : Nat} (hX : X.ClosedN n) :
     X.instOuter (vars n k) = X.liftN k := by
-  rw [vars_eq_bvarRange, instOuter_range_bvar' _ _ _ hX (by omega), Nat.add_sub_cancel_left]
+  rw [vars_eq_bvarRange_add, instOuter_range_bvar' _ _ _ hX (by omega), Nat.add_sub_cancel_left]
 
 theorem vars_add (a b k : Nat) : vars (a + b) k = vars a (b + k) ++ vars b k := by
   apply List.ext_getElem (by simp [vars])
@@ -366,7 +364,7 @@ theorem instOuter_vars_skip {X : VExpr} {np nf r k : Nat} (hX : X.ClosedN (np + 
 
 theorem map_instOuter_vars (n k : Nat) (args : List VExpr) (h : n + k ≤ args.length) :
     (vars n k).map (·.instOuter args) = (args.drop (args.length - (n + k))).take n := by
-  rw [vars_eq_bvarRange, instOuter_bvarRange _ _ _ (by omega) h]
+  rw [vars_eq_bvarRange_add, instOuter_bvarRange _ _ _ (by omega) h]
 
 section
 variable [Params]

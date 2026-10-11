@@ -45,7 +45,8 @@ open InductiveSignature
 
 /-- The recursor metadata `data` is that of an actual finite compilation of a declaration
 `source` that `VEnv.addInduct` installs below `env`, its recursors and rules read off the
-compiled `block` (`VInductDecl.RecsOf`). -/
+compiled `block` (`VInductDecl.RecsOf`). It records the block's typing `block.WF installBase`,
+so confluence, which reads it through `IsDefEq.uniq`, inherits the open proofs. -/
 def RecursorRegistered (env : VEnv) (data : RecursorData) : Prop :=
   ∃ base installBase source expanded, ∃ (g : Instance data.schema.signature), ∃ auxiliaries block installed,
     CompilationData base source expanded data.schema.signature g auxiliaries block ∧

@@ -79,8 +79,10 @@ theorem RestoredFamilyParameterScope.constructorDomains
 to the restored constructors.  This chooses no constructor and contains no
 constructor translation. -/
 def NestedRestoredFamilyParameterScopes
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedInstalledRun result sourceProdEnv sourceTypes sourceEnv
-      decl lparams nparams isUnsafe safety outEnv) : Prop :=
+      decl lparams nparams isUnsafe safety outEnv L) : Prop :=
   ∀ familyIdx (hfamily : familyIdx < decl.types.length),
     Nonempty (RestoredFamilyParameterScope E.assembly.install.venvCtors
       lparams nparams E.lowered.headers.statsWF.parameterScope
@@ -91,8 +93,10 @@ the lowered header checked by the executable.
 The telescope need not be syntactically visible in the restored constant:
 header checking normalizes before exposing `TypeShape`. -/
 theorem NestedInstalledRun.restoredFamilyParameterScopes
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedInstalledRun result sourceProdEnv sourceTypes sourceEnv
-      decl lparams nparams isUnsafe safety outEnv)
+      decl lparams nparams isUnsafe safety outEnv L)
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed E.context.env fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result)
@@ -124,16 +128,16 @@ theorem NestedInstalledRun.restoredFamilyParameterScopes
   have hloweredFamily : familyIdx < E.lowered.loweredDecl.types.length := by
     rw [← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
       E.lowered.constructors.core]
-    simpa only [E.lowered_indTypes] using hresultFamily
+    exact hresultFamily
   let sourceTarget := decl.types[familyIdx]
   let loweredTarget := E.lowered.loweredDecl.types[familyIdx]
   have HsourceType := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt Hsource
     familyIdx hsourceFamily hfamily
-  have HproductionCore : TrInductDeclCore E.lowered.initialEnv lparams
+  have HproductionCore : TrInductDeclCore E.lowered.Hc'.venv lparams
       nparams result.types E.lowered.isUnsafe E.lowered.loweredDecl
       E.lowered.headers.context.venv
       E.lowered.constructors.ctorVEnv := by
-    simpa [hlparams, E.lowered_nparams, E.lowered_indTypes]
+    simpa [hlparams]
       using E.lowered.constructors.core
   rcases Hlower.sourceHeaderTranslationAtFresh hempty
       HproductionCore familyIdx hsourceFamily with
@@ -199,8 +203,8 @@ theorem NestedInstalledRun.restoredFamilyParameterScopes
     length := by
       calc
         ownParams.length = E.lowered.loweredDecl.nparams := hownParams
-        _ = E.lowered.nparams := E.lowered.constructors.core.nparams
-        _ = nparams := E.lowered_nparams
+        _ = nparams := E.lowered.constructors.core.nparams
+        _ = nparams := rfl
     context := by
       rw [E.lowered.headers.parameterScopeEq]
       exact HownCached }⟩
@@ -212,8 +216,10 @@ constructor.  For each restored family, equal-length forall inversion aligns
 that list with the executable cached parameter scope, so no
 derivation-locality or environment-restriction premise is required. -/
 theorem NestedInstalledRun.constructorParameterDomainsDefEqOfSource
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedInstalledRun result sourceProdEnv sourceTypes sourceEnv
-      decl lparams nparams isUnsafe safety outEnv)
+      decl lparams nparams isUnsafe safety outEnv L)
     (Hfamilies : NestedRestoredFamilyParameterScopes E) :
     NestedConstructorParameterDomainsDefEq E.assembly := by
   rcases E.assembly.formationAssembly.sourceParameters with

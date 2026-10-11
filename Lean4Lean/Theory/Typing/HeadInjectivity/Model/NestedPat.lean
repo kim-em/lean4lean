@@ -281,7 +281,7 @@ theorem nested_finish {envF env0 env' : VEnv} {decl : VInductDecl}
     rw [List.append_nil, emds] at hlk
     rw [hrhs] at ho
     refine rhs_empty_motive henvF hΔ (doms := ds'.map (·.instL m1))
-      (by rw [htyp, VExpr.instL_wrapForalls]) (by rw [hr, instL_wrapLams])
+      (by rw [htyp, VExpr.instL_wrapForalls]) (by rw [hr, VExpr.instL_wrapLams])
       hcl hTH (by simp only [VExpr.instL_mkApps, VExpr.instL]; rfl) hlk ?_
       (funext fun v => by
         rw [VLevel.eval_inst]; exact (VLevel.equiv_def.1 hsmall _).trans rfl)

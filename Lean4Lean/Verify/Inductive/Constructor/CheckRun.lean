@@ -152,12 +152,12 @@ theorem AddInductive.checkConstructors.WF
     (AddInductive.checkConstructors indTypes stats isUnsafe { c' with env := headerEnv }).WF
       fun classes => ∃ decl, P.headers.Describes decl ∧ decl.isUnsafe = isUnsafe ∧
         ∀ H : HeaderEnvironment c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes
-          headerEnv, ConstructorsChecked H.toData classes := by
+          headerEnv, ConstructorsChecked H.toHeaderData classes := by
   intro classes hrun
   -- the placeholder declaration gives a header environment to run the first pass in
   let H0 := HI.toHeaderEnvironment hvisible
     (P.headers.declOf_describes isUnsafe (CheckedHeaders.nameRows_names indTypes.toList)) rfl
-  let Hc0 := H0.statsWF.parameterSuffix.headerCheck
+  let Hc0 := (checkInductiveTypes.loopInd.HeaderStatsWF.parameterSuffix (Hc := H0.fullContext) H0.statsWF).headerCheck
   have hraw : Nonempty (RawBlockCtorTranslations Hc0.venv c'.lparams indTypes.toList) :=
     AddInductive.checkConstructors.ofLoops
       (checkConstructors.loopTypes.accumulatesRawTargets
@@ -191,7 +191,9 @@ theorem AddInductive.checkConstructors.WF
       simpa using h2
     rw [hc, hv]
     exact hr
-  let Hc := H.statsWF.parameterSuffix.headerCheck
+  let HS := checkInductiveTypes.loopInd.HeaderStatsWF.parameterSuffix (Hc := H.fullContext)
+    H.statsWF
+  let Hc := HS.headerCheck
   have hnprimDecl : ∀ T ∈ decl.types, ¬ Kernel.Environment.primitives.contains T.name := by
     intro T hT hp
     have hmem : T.name ∈ indTypes.toList.map (·.name) := by
@@ -202,18 +204,18 @@ theorem AddInductive.checkConstructors.WF
   have Hchecked := AddInductive.checkConstructors.ofLoops
     (checkConstructors.loopTypes.refinesChecked (params := H.headers.params) Hc Htypes
       H.typesAdded H.statsWF H.headerParams
-      H.statsWF.parameterSuffix.headerCheck_paramAligned consumeTypeAnnotationsCompat hlit
+      HS.headerCheck_paramAligned consumeTypeAnnotationsDefEq hlit
       (fun h => h) H.statsWF.universeBound hlparams) classes hrun
   have Howners : ConstructorOwnerNormalForms stats indTypes :=
     AddInductive.checkConstructors.ofLoops
       (checkConstructors.loopTypes.ownerNormalFormsWF
         (Q := fun _ => ConstructorOwnerNormalForms stats indTypes) (isUnsafe := isUnsafe)
         Hc Htypes (ConstructorOwnerNormalFormRows.empty stats indTypes)
-        H.statsWF.parameterSuffix.toHeaderCheck
+        HS.toHeaderCheck
         (checkPositivityStep.ValidAppStatsWF.ofHeaderStatsScoped H.statsWF)
-        H.statsWF.parameterSuffix.headerCheck_paramAligned consumeTypeAnnotationsCompat hlit
+        HS.headerCheck_paramAligned consumeTypeAnnotationsDefEq hlit
         (fun Hrows _ => Hrows.complete)) classes hrun
-  have hscopeWF := H.statsWF.parameterEmbedding.scopeWF H.context.checking.tr.wf
+  have hscopeWF := H.statsWF.parameterEmbedding.scopeWF H.context.checking.wf
   have hparamsSize :=
     (checkPositivityStep.ValidAppStatsWF.ofHeaderStatsScoped H.statsWF).params_size
   have hparamsCtx : H.context.venv.IsDefEqCtx c'.lparams.length [] H.headers.params.reverse

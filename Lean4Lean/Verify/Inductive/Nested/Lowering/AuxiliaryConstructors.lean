@@ -617,7 +617,7 @@ theorem AuxiliaryFamilyContainer.directAuxiliaryFamilyType
       H.sourceInfo.levelParams.length = C.container.uvars := C.levelParams
       _ = abstractLevels.length := hlevelsLength.symm
       _ = H.levels.length :=
-        (checkPositivityStep.List.mapM_some_length Hlevels).symm
+        List.mapM_some_length Hlevels
   have hlevelsWF : ∀ level ∈ abstractLevels,
       level.WF lparams.length :=
     VLevel.WF.of_mapM_ofLevel Hlevels
@@ -888,7 +888,7 @@ theorem AuxiliaryFamilyContainer.AuxiliaryConstructorTranslation.directAuxiliary
           C.constructorUvars i B.abstractIdx_lt
       _ = abstractLevels.length := hlevelsLength.symm
       _ = H.levels.length :=
-        (checkPositivityStep.List.mapM_some_length Hlevels).symm
+        List.mapM_some_length Hlevels
   have hlevelsWF : ∀ level ∈ abstractLevels,
       level.WF lparams.length :=
     VLevel.WF.of_mapM_ofLevel Hlevels

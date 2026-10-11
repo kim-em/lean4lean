@@ -308,7 +308,7 @@ theorem checkConstructors.loopCtor.tailRefinesScoped
     (htargetWF : target.toVConstant.WF Hc.venv)
     (htargetShape : decl.TypeShape Hc.venv params target)
     (hparamAt : stats.params[i]? = none)
-    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
     (hbound : ∀ fieldLevel fieldLevel',
@@ -610,7 +610,7 @@ theorem checkConstructors.loopCtor.ctorShapeRefinesScoped
     (htargetWF : target.toVConstant.WF Hc.venv)
     (htargetShape : decl.TypeShape Hc.venv params target)
     (hparamAt : stats.params[i]? = none)
-    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
     (hbound : ∀ fieldLevel fieldLevel',
@@ -679,7 +679,7 @@ theorem checkConstructors.loopCtor.ctorShapeRefinesOfTelescope
     (htargetWF : target.toVConstant.WF Hc.venv)
     (htargetShape : decl.TypeShape Hc.venv params target)
     (hparamAt : stats.params[decl.nparams]? = none)
-    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
     (hbound : ∀ fieldLevel fieldLevel',
@@ -753,7 +753,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
       some target.toVConstant)
     (htargetWF : target.toVConstant.WF Hc.venv)
     (htargetShape : decl.TypeShape Hc.venv params target)
-    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
     (hbound : ∀ fieldLevel fieldLevel',

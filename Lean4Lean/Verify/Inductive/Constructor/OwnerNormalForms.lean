@@ -28,7 +28,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
       scope stats decl depth)
     (hi : targetIdx < decl.types.length)
     (hparamAt : stats.params[i]? = none)
-    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (Hparams : FVarArrayIn root stats.params)
     (Hfields : FVarSuffix Hroot Hc fields)
@@ -203,7 +203,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
     (hchecked : TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
       source checkedType fullType checkedType')
     (hi : targetIdx < decl.types.length)
-    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts) :
     (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
       source 0 fuel c).WF
@@ -393,7 +393,7 @@ theorem ownerNormalFormsWF
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length
       Hsuffix.parameterDecls Hc.chk.vlctx)
     (htargetIdx : targetIdx < decl.types.length)
-    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (Hfinish : ConstructorOwnerNormalFormRow stats targetIdx source.ctors
         source.ctors.length → ∀ out, Q out) :
@@ -443,7 +443,7 @@ theorem ownerNormalFormsWF
       Hsuffix.parameterDecls stats decl 0)
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length
       Hsuffix.parameterDecls Hc.chk.vlctx)
-    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (Hfinish : ConstructorOwnerNormalFormRows stats indTypes indTypes.size →
       ∀ out, Q out) :

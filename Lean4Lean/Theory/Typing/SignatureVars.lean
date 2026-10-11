@@ -16,6 +16,10 @@ theorem mem_vars {count below x : Nat} (h1 : below ≤ x) (h2 : x < below + coun
   simp only [vars, List.mem_map, List.mem_reverse, List.mem_range]
   exact ⟨x - below, by omega, by congr 1; omega⟩
 
+theorem vars_instL (count below : Nat) (ls : List VLevel) :
+    (vars count below).map (·.instL ls) = vars count below := by
+  simp [vars, List.map_map, Function.comp_def, VExpr.instL]
+
 theorem vars_map_liftN_hi (count below n k : Nat) (h : k ≤ below) :
     (vars count below).map (fun e => e.liftN n k) = vars count (below + n) := by
   simp only [vars, List.map_map, Function.comp_def]

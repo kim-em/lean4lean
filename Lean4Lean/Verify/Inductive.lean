@@ -3,7 +3,7 @@ import Lean4Lean.Verify.Inductive.Context
 import Lean4Lean.Verify.Inductive.Formation
 import Lean4Lean.Verify.Inductive.Header.Check
 import Lean4Lean.Verify.Inductive.Header.Installation
-import Lean4Lean.Verify.Inductive.Constructor.CheckedFormation
+import Lean4Lean.Verify.Inductive.Constructor.CheckedTail
 import Lean4Lean.Verify.Inductive.Constructor.Check
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 import Lean4Lean.Verify.Inductive.Recursor.Check
@@ -26,16 +26,16 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Restore
 import Lean4Lean.Verify.Inductive.Nested.Equations.Rules
 import Lean4Lean.Verify.Inductive.Nested.Install.Installed
 import Lean4Lean.Verify.Inductive.Nested.Install.Result
-import Lean4Lean.Verify.Inductive.Nested.Install.Dispatch
+import Lean4Lean.Verify.Inductive.Nested.Install.Extension
 
 /-!
 # Verification of inductive declarations
 
 Collects the verification of the executable inductive checker (`Lean4Lean/Verify/Inductive/`):
-headers, constructors, checked formation, recursors and rules, block installation, primitive
+headers, constructors, recursors and rules, block installation, primitive
 families and the dispatch over the executable's branches, and
 the nested branch (`Nested/**`: the lowering certificate, the lowered run, the restoration
-steps and the restored block certificate, `nestedInductivePreserves`). The pipeline is
+steps and the restored block certificate, `nestedInductiveExtensionWF`). The pipeline is
 described in `Inductive/README.md`; the open proofs are listed in
 `scripts/inductive-audit-inventory.json`.
 -/

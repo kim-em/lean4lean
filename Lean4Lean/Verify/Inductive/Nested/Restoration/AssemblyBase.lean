@@ -80,7 +80,7 @@ theorem NestedLoweringOutputClosed.restoredSourceTelescopeAtFreshOfValidation
     {result : ElimNestedInductive.Result} {sourceTypes : List InductiveType}
     {loweredSourceEnv : Environment} {fuel : Nat} {auxRecNames : List Name}
     {validationSafety : DefinitionSafety} {validationFuel : FuelConfig}
-    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv
+    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv
       result.types.toArray ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutputClosed loweredSourceEnv fuel nparams sourceTypes
@@ -137,7 +137,7 @@ theorem AuxiliaryRecursorGeneratedAlignment.recursorStepOfValidation
     {result : ElimNestedInductive.Result} {auxRec : NameMap Name} {allIndNames : List Name}
     {oldRecName : Name} {validationFuel : FuelConfig} {validationTypes : List InductiveType}
     {auxRecNames : List Name}
-    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
     {Hprod : RecursorInstallation R loweredEnv}
     {Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName stepSource stepTarget}
@@ -171,7 +171,7 @@ theorem AuxiliaryRecursorGeneratedAlignments.recursorTraceOfValidation
     {result : ElimNestedInductive.Result} {auxRec : NameMap Name} {allIndNames : List Name}
     {names : List Name} {validationFuel : FuelConfig} {validationTypes : List InductiveType}
     {auxRecNames : List Name}
-    {R : RecursorInput c stats loweredDecl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats loweredDecl nparams isUnsafe depth sourceVEnv indTypes ctorEnv}
     {Hprod : RecursorInstallation R loweredEnv}
     {Htrace : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
@@ -322,36 +322,34 @@ theorem NestedRun.assemblyBase {res : ElimNestedInductive.Result} {sourceProdEnv
     {sourceTypes : List InductiveType} {sourceVEnv : VEnv} {decl : VInductDecl}
     {lparams : List Name} {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
     (E : NestedRun res sourceProdEnv sourceTypes sourceVEnv decl lparams nparams isUnsafe
-      safety outEnv)
+      safety outEnv L)
     {ves : VEnvs} (wf : ves.WF sourceProdEnv) (hsourceVEnv : sourceVEnv = ves.venv safety)
     (Hsources : SourceSyntaxChecks sourceProdEnv sourceTypes)
     (Hparameters : decl.SourceParameterWF sourceVEnv)
     (hvisible : safety ≤ (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
     Nonempty { B : RestoredBlockBase E.restoration sourceVEnv decl lparams nparams isUnsafe
-      safety // B.lowered = E.lowered ∧
+      safety // B.loweredDecl = E.lowered.loweredDecl ∧
         ((B.typeEntries ++ B.constructorEntries ++ B.recursorEntries).map Prod.fst).Perm
           E.restoration.entries } := by
-  obtain ⟨loweredEnv, lowered, context, Hc, context_env, context_lparams, context_safety, -,
-    context_venv, lowered_c, lowered_nparams, lowered_isUnsafe, lowered_isUnsafe_source,
-    lowered_initialEnv, lowered_indTypes, -, -, -, -, -, validationFuel, -, lowering,
+  obtain ⟨context_env, context_lparams, context_safety, lowered_isUnsafe_source,
+    lowered_initialEnv, validationFuel, lowering,
     restoration, primitiveSafe, validationEnv, validationEnvironment, recursorTypeValidation,
-    -, auxiliaryHeaderEnv, headerValidationEnvironment, -, auxiliaryVEnv, -, -, -, -,
+    -, auxiliaryHeaderEnv, headerValidationEnvironment, auxiliaryVEnv,
     auxiliarySelection, auxiliaryTranslations, sourceCore, sourceCoreDecl_eq,
     auxiliaryVEnv_eq_sourceCore, -⟩ := E
-  obtain ⟨c, stats, loweredDecl, nparams', depth, isUnsafe', initialEnv, indTypes, ctorEnv, R,
-    check⟩ := lowered
+  obtain ⟨c, stats, Hc, phase, loweredDecl, ctorEnv, R, check⟩ := L
   dsimp only at *
-  subst lowered_c
-  subst context_env context_lparams context_safety lowered_initialEnv lowered_nparams
-    lowered_isUnsafe_source lowered_indTypes sourceCoreDecl_eq auxiliaryVEnv_eq_sourceCore
-  change Hc.venv = initialEnv at context_venv
-  have HcChecker : CheckerEnv c.safety c.env initialEnv := context_venv ▸ Hc.checkerEnv
-  let Hprod := check.installation
+  subst context_env context_lparams context_safety lowered_initialEnv
+    lowered_isUnsafe_source sourceCoreDecl_eq auxiliaryVEnv_eq_sourceCore
+  have HcChecker : CheckerEnv c.safety c.env Hc.venv := Hc.checkerEnv
+  let Hprod := check
   have hsourceWF : c.env.constants.WF := Hc.map_wf
   have hempty : ({ lvls := c.lparams.map .param, newTypes := #[] } :
       ElimNestedInductive.State).nestedAux = #[] := rfl
-  have Hlower : NestedLoweringOutputClosed c.env validationFuel.inductiveFuel nparams'
+  have Hlower : NestedLoweringOutputClosed c.env validationFuel.inductiveFuel nparams
       sourceTypes { ({ lvls := c.lparams.map .param, newTypes := #[] } :
         ElimNestedInductive.State) with newTypes := sourceTypes.toArray } res := lowering
   have Hchecked : SourceSyntaxChecked sourceTypes :=
@@ -382,7 +380,7 @@ theorem NestedRun.assemblyBase {res : ElimNestedInductive.Result} {sourceProdEnv
       rfl rfl rfl Hcore.typesAdded Hcore.ctorsAdded
   have HtypeValid := validationEnvironment.validProjected Hlower Hc Hprod Hcore Hmetadata
     Hchecked Harity hempty restoration sourceCore.validationValid HcChecker.toValid hprojectedWF
-  have hle : initialEnv ≤ sourceCore.envCtors.addProjections
+  have hle : Hc.venv ≤ sourceCore.envCtors.addProjections
       sourceCore.sourceDecl.projectionEntries :=
     (VEnv.addConstVals_le Hcore.typesAdded).trans
       ((VEnv.addConstVals_le Hcore.ctorsAdded).trans VEnv.addProjections_le)
@@ -429,7 +427,7 @@ theorem NestedRun.assemblyBase {res : ElimNestedInductive.Result} {sourceProdEnv
   have hprimaryWF := Hprimary.fresh.targetWF hsourceWF
   obtain ⟨auxiliaryEntries, HauxReplay⟩ := Hauxiliary.existsInDependencyOrder hprimaryWF
   let replay := Hprimary.appendAuxiliaryRecursors HauxReplay
-  have htypesAbstract : initialEnv.addConstVals (replay.typeEntries.map Prod.snd) =
+  have htypesAbstract : Hc.venv.addConstVals (replay.typeEntries.map Prod.snd) =
       some sourceCore.envTypes := by
     rw [replay.typeValues]
     simpa [VInductDecl.typeConstants] using Hcore.typesAdded
@@ -447,7 +445,7 @@ theorem NestedRun.assemblyBase {res : ElimNestedInductive.Result} {sourceProdEnv
     cases h : sourceCore.sourceDecl.types with
     | nil => exact (hownersNonempty h).elim
     | cons m r => exact ⟨m, r, rfl⟩
-  have Hsource' : SourceFamilyTranslations sourceCore.sourceDecl c.lparams c.safety initialEnv
+  have Hsource' : SourceFamilyTranslations sourceCore.sourceDecl c.lparams c.safety Hc.venv
       S.venvTypes (S.venvCtors.addProjections sourceCore.sourceDecl.projectionEntries)
       restoration.inductives (mainT :: restT) primaryRecursors := by
     rw [hT, hC, ← htypesSource]; exact Hsource
@@ -457,8 +455,7 @@ theorem NestedRun.assemblyBase {res : ElimNestedInductive.Result} {sourceProdEnv
       restoration.auxiliaries [] auxiliaryRecursors := by
     rw [hC]; exact Hauxiliary
   exact ⟨⟨{
-    lowered := ⟨c, stats, loweredDecl, nparams', depth, isUnsafe', initialEnv,
-      res.types.toArray, ctorEnv, R, check⟩
+    loweredDecl := loweredDecl
     typeEntries := replay.typeEntries
     constructorEntries := replay.constructorEntries
     recursorEntries := replay.recursorEntries

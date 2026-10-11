@@ -977,14 +977,6 @@ end DefRel
 
 section Disjoint
 
-omit [Params] in
-theorem eq_nil_or_snoc' (l : List α) : l = [] ∨ ∃ L b, l = L ++ [b] := by
-  rcases List.eq_nil_or_concat l with h | ⟨L, b, h⟩
-  · exact .inl h
-  · exact .inr ⟨L, b, by simpa using h⟩
-
-
-
 theorem PrefixUnfold.not_rigid
     (H : PrefixUnfold env univs recursorData Γ name ls args rhs) :
     ¬ env.Rigid name := by
@@ -2713,7 +2705,7 @@ theorem DeltaPar.peak_spine (hΓ : OnCtx Γ (env.IsType univs))
 
 omit [Params] in
 theorem mkApps_const_ne_proj : VExpr.mkApps (.const n ls) args ≠ .proj s i m := by
-  rcases eq_nil_or_snoc' args with rfl | ⟨l, a, rfl⟩
+  rcases List.eq_nil_or_snoc args with rfl | ⟨l, a, rfl⟩
   · intro h; cases h
   · rw [VExpr.mkApps_snoc]; intro h; cases h
 
@@ -2831,11 +2823,11 @@ theorem DeltaPar.atom_inv (hh : ∀ c ls, h ≠ .const c ls) (hh₁ : ∀ f x, h
   | lam => exact absurd rfl (hh₃ _ _)
   | forallE => exact absurd rfl (hh₄ _ _)
   | @delta _ name ls rhs args args' _ _ _ =>
-    rcases eq_nil_or_snoc' args with rfl | ⟨l, a, rfl⟩
+    rcases List.eq_nil_or_snoc args with rfl | ⟨l, a, rfl⟩
     · exact absurd rfl (hh _ _)
     · exact absurd (VExpr.mkApps_snoc ..) (hh₁ _ _)
   | @quotDelta _ ls rhs args args' _ _ _ =>
-    rcases eq_nil_or_snoc' args with rfl | ⟨l, a, rfl⟩
+    rcases List.eq_nil_or_snoc args with rfl | ⟨l, a, rfl⟩
     · exact absurd rfl (hh _ _)
     · exact absurd (VExpr.mkApps_snoc ..) (hh₁ _ _)
   | projIota => exact absurd rfl (hh₂ _ _ _)
@@ -2852,7 +2844,7 @@ theorem DeltaPar.peak_aux : ∀ n, DDBelow n := by
   · exact ⟨c, ⟨b, .rfl, .tail .rfl ⟨0, by decide, .proofIrrel hprop hb hc⟩⟩, ⟨c, .rfl, .rfl⟩⟩
   have IH : DDBelow (sizeOf a) := fun h => ih (by omega)
   obtain ⟨h, as, rfl, hh⟩ := exists_spine a
-  rcases eq_nil_or_snoc' as with rfl | ⟨as₀, x, rfl⟩
+  rcases List.eq_nil_or_snoc as with rfl | ⟨as₀, x, rfl⟩
   · change Γ ⊢ h : A at ha
     change DeltaPar Γ h b at H1
     change DeltaPar Γ h c at H2
@@ -3063,7 +3055,7 @@ omit [Params] in
 theorem mkApps_const_eq_cases (he : VExpr.mkApps (.const n ls) vs = e) :
     (vs = [] ∧ e = .const n ls) ∨
       ∃ vs₀ x, vs = vs₀ ++ [x] ∧ e = .app (VExpr.mkApps (.const n ls) vs₀) x := by
-  rcases eq_nil_or_snoc' vs with rfl | ⟨vs₀, x, rfl⟩
+  rcases List.eq_nil_or_snoc vs with rfl | ⟨vs₀, x, rfl⟩
   · exact .inl ⟨rfl, he.symm⟩
   · exact .inr ⟨vs₀, x, rfl, by rw [← he, VExpr.mkApps_snoc]⟩
 
@@ -3247,8 +3239,8 @@ theorem _root_.Lean4Lean.Pattern.Matches.constVarN_forall₂ {R : VExpr → VExp
     generalize hE : VExpr.mkApps (.const c ls) vs = E at H
     generalize hE' : VExpr.mkApps (.const c ls') vs' = E' at H'
     cases H; cases H'
-    rcases eq_nil_or_snoc' vs with rfl | ⟨_, _, rfl⟩
-    · rcases eq_nil_or_snoc' vs' with rfl | ⟨_, _, rfl⟩
+    rcases List.eq_nil_or_snoc vs with rfl | ⟨_, _, rfl⟩
+    · rcases List.eq_nil_or_snoc vs' with rfl | ⟨_, _, rfl⟩
       · exact .nil
       · rw [VExpr.mkApps_snoc] at hE'; cases hE'
     · rw [VExpr.mkApps_snoc] at hE; cases hE
@@ -3272,7 +3264,7 @@ theorem _root_.Lean4Lean.Pattern.Matches.constVarN_exists :
     cases List.length_eq_zero_iff.mp h
     exact ⟨_, .const⟩
   | k + 1, vs, ls, h => by
-    rcases eq_nil_or_snoc' vs with rfl | ⟨vs₀, x, rfl⟩
+    rcases List.eq_nil_or_snoc vs with rfl | ⟨vs₀, x, rfl⟩
     · simp at h
     · obtain ⟨m, hm⟩ := Pattern.Matches.constVarN_exists k (vs := vs₀) (ls := ls) (by simpa using h)
       rw [VExpr.mkApps_snoc]

@@ -16,7 +16,7 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl 
   {ctorEnv outEnv : Environment}
 
 theorem RecursorInstallation.generatedTelescopeTranslations
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv) :
     RecursorTypeTelescopes
@@ -35,7 +35,7 @@ theorem RecursorInstallation.generatedTelescopeTranslations
   exact E.telescopeTranslation selections hrecInfo hnoalias
 
 theorem RecursorInstallation.generatedRecursorCommonPrefixBinderDomainAt
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (owner₁ : Nat) (howner₁ : owner₁ < H.entries.length)

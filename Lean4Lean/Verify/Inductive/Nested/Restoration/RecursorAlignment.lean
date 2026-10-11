@@ -78,7 +78,7 @@ theorem TrRestoredRecursorVal.shape_of_head {s : InductiveSignature} {g : Instan
       simp [hprelen, H.numParams, H.numMotives, H.numMinors, H.numIndices]
     major_eq := ?_ }⟩
   rw [H.numParams, H.numMotives, H.numMinors, H.numIndices, ← hprelen,
-    List.getElem?_concat_length, hmaj, nested_vars_eq_bvarRange, Nat.add_zero]
+    List.getElem?_concat_length, hmaj, InductiveSignature.vars_eq_bvarRange_add, Nat.add_zero]
 
 
 
@@ -117,15 +117,17 @@ theorem NestedRun.loweredSourceKeyed {result : Lean4Lean.ElimNestedInductive.Res
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType} {sourceEnv : VEnv}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat} {isUnsafe : Bool}
     {safety : DefinitionSafety} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv)
+      sourceDecl lparams nparams isUnsafe safety outEnv L)
     {t : InductiveType} (ht : t ∈ sourceTypes) {info : InductiveVal}
     (hfind : E.loweredEnv.find? t.name = some (.inductInfo info)) :
     info.name = t.name := by
-  have hloweredNames : E.lowered.indTypes.toList.map (·.name) =
+  have hloweredNames : result.types.toArray.toList.map (·.name) =
       E.lowered.loweredDecl.types.map (·.name) :=
     forall₂_map_eq (fun _ _ h => h.header.name.symm) E.lowered.constructors.core.types
-  have hmem : t.name ∈ E.lowered.indTypes.toList.map (·.name) := by
+  have hmem : t.name ∈ result.types.toArray.toList.map (·.name) := by
     rw [hloweredNames]
     have h := List.mem_map_of_mem (f := (·.name)) ht
     rw [E.sourceNames_eq, List.map_take] at h
@@ -146,9 +148,11 @@ theorem NestedRun.restoredMajorFound
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}

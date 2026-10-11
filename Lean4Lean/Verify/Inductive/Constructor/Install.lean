@@ -176,7 +176,6 @@ include I
 /-- The abstract header environment. -/
 abbrev headerVEnv : VEnv := I.H.context.venv
 
-theorem headerVEnv_wf : I.headerVEnv.WF := I.H.context.wf
 
 theorem sourceEnv_wf : sourceEnv.WF := by
   rw [← I.H.sourceContextVEnv]; exact I.H.sourceContext.wf
@@ -910,7 +909,7 @@ theorem CtorInstall.ordinaryPrimitives {c : AddInductive.Context}
     {depth : Nat} {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv : Environment} {classes : List (List (List Bool))}
     (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv indTypes headerEnv)
-    (K : ConstructorsChecked H.toData classes)
+    (K : ConstructorsChecked H.toHeaderData classes)
     (map_eq : ctorEnv.constants = insertConsts headerEnv.constants
       ((ctorInfos stats c.lparams isUnsafe indTypes.toList).map .ctorInfo))
     (fresh : ∀ cval ∈ ctorInfos stats c.lparams isUnsafe indTypes.toList,
@@ -951,7 +950,7 @@ theorem CtorInstall.ordinaryPrimitives {c : AddInductive.Context}
       rw [← hnames]; exact List.mem_map_of_mem hv
     obtain ⟨cval, hcval, he⟩ := List.mem_map.mp hmem
     exact nprim cval hcval (he ▸ hp)
-  have hwfH : headerEnv.constants.WF := H.context.checking.tr.map_wf
+  have hwfH : headerEnv.constants.WF := H.contextValid.tr.map_wf
   have hfr : ∀ ci ∈ (ctorInfos stats c.lparams isUnsafe indTypes.toList).map
       ConstantInfo.ctorInfo, headerEnv.find? ci.name = none := by
     intro ci hci
@@ -961,7 +960,7 @@ theorem CtorInstall.ordinaryPrimitives {c : AddInductive.Context}
       ConstantInfo.ctorInfo).map (·.name)).Nodup := by
     rw [List.map_map]; exact nodup
   refine ⟨fun venv' h => CtorInstall.HasPrimitives_addConstVals
-    H.context.checking.hasPrimitives hnp h, fun {n ci} h hp => ?_, fun venv' h => ?_⟩
+    H.contextValid.hasPrimitives hnp h, fun {n ci} h hp => ?_, fun venv' h => ?_⟩
   rotate_left
   · have Hlit := H.checkedAvailableLiteralDisjoint nprimFam
     have hsame : ∀ name, Kernel.Environment.primitives.contains name →
@@ -980,7 +979,7 @@ theorem CtorInstall.ordinaryPrimitives {c : AddInductive.Context}
         NameSet.ofList])] at hci⟩, ⟨cj, by rwa [hsame _ (by simp [Kernel.Environment.primitives,
         NameSet.contains, NameSet.ofList])] at hcj⟩⟩
   rcases insertConsts_env_cases map_eq hwfH hfr hnd h with h | ⟨hmem, hname⟩
-  · exact H.context.checking.safePrimitives h hp
+  · exact H.contextValid.safePrimitives h hp
   · obtain ⟨cval, hcval, rfl⟩ := List.mem_map.mp hmem
     have hn : cval.name = n := hname
     subst hn

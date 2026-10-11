@@ -263,7 +263,7 @@ theorem checkConstructors.loopTypes.refinesChecked
     (hparams : Hmaterialized.headers.params = params)
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length
       Hmaterialized.parameterScope Hc.chk.vlctx)
-    (hconsume : ConsumeTypeAnnotationsCompat)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
       Hc.venv stats.indConsts)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)

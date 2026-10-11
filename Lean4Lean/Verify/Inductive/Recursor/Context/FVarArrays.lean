@@ -1007,7 +1007,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
     (hparams : stats.params.size ≤ i)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
@@ -1471,7 +1471,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
     (hprefix : ParameterPrefix stats 0 t tail)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)

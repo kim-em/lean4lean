@@ -129,7 +129,7 @@ theorem PatValid.nested {envF env0 env' : VEnv} {decl : VInductDecl}
       have := hsh'
       change fc.type.forallArity = _ at this
       rw [hcty, VExpr.forallArity_wrapForalls, forallArity_mkApps_const', hcp, hnf] at this
-      simp [vars_len] at this; omega
+      simp [length_vars] at this; omega
     -- the stage environments
     obtain ⟨hTs, -⟩ := stages_orderedStrong hF hpre h0 hdecl hle sT sC sR sP
     obtain ⟨VT, -⟩ := stages_envValid V0 hprojV sT sC sR sP
@@ -139,7 +139,7 @@ theorem PatValid.nested {envF env0 env' : VEnv} {decl : VInductDecl}
       rw [← hcty]; exact henvF.ordered.closedC hcc
     obtain ⟨hcRcl, hcDcl⟩ := closedN_wrapForalls hccl
     simp only [Nat.zero_add] at hcRcl hcDcl
-    have hvl : (vars s.params.length 0).length = s.params.length := vars_len _ _
+    have hvl : (vars s.params.length 0).length = s.params.length := length_vars _ _
     have hpL : ∀ L : List VLevel, L.length = s.uvars → (VLevel.params s.uvars).map (·.inst L) = L :=
       fun L h => VLevel.inst_map_id h
     have hB0 : ∀ L : List VLevel, L.length = s.uvars → fc.type.instL L = .wrapForalls

@@ -114,7 +114,7 @@ theorem instantiateParams_vars {e : VExpr} {n : Nat} (he : e.ClosedN n) (k : Nat
   unfold instantiateParams
   apply VExpr.subst_congr_closedN he
   intro i hi
-  have hl : (vars n k).length = n := vars_len n k
+  have hl : (vars n k).length = n := length_vars n k
   rw [dif_pos (by omega)]
   simp only [VExpr.Subst.lift_l, Lift.liftVar_consN_skipN, VExpr.Subst.id]
   rw [show (vars n k)[(vars n k).length - 1 - i] = .bvar (k + i) by
@@ -197,7 +197,7 @@ theorem Spec.of_head {r : Restoration} (hr : r.Scoped) {spec : HeadSpecializatio
     unfold HeadSpecialization.apply at hout
     split at hout
     · cases hout
-    · have hl : (vars spec.nparams d).length = spec.nparams := vars_len _ _
+    · have hl : (vars spec.nparams d).length = spec.nparams := length_vars _ _
       refine ⟨l2, h2, ?_⟩
       simp only [Option.pure_def, Option.some.injEq] at hout
       rw [← hout, List.take_left' hl, List.drop_left' hl]
@@ -547,7 +547,7 @@ theorem rule_counts {env base : VEnv} {decl expanded : VInductDecl} {s : Inducti
   have hname := (VExpr.const.inj hus).1.symm
   rw [VExpr.getAppArgs_mkApps] at hlen hmajor
   simp only [VExpr.getAppArgs, List.nil_append, List.length_append, List.length_singleton,
-    List.length_map, vars_len] at hlen
+    List.length_map, length_vars] at hlen
   simp only [VExpr.getAppArgs, List.nil_append, List.getLast?_append, List.getLast?_singleton,
     Option.some_or, Option.some.injEq] at hmajor
   subst hmajor
@@ -557,7 +557,7 @@ theorem rule_counts {env base : VEnv} {decl expanded : VInductDecl} {s : Inducti
   simp only [VExpr.getAppFn, VExpr.const.injEq] at hus'
   rw [VExpr.getAppArgs_mkApps] at hml
   simp only [VExpr.getAppArgs, List.nil_append, List.length_append, List.length_map,
-    vars_len] at hml
+    length_vars] at hml
   -- the recursor's indices
   obtain ⟨dsH', hdsH, htype, -⟩ := restored_recursor C hrecsOf hrec _ hname
   obtain ⟨-, -, -, j, hj, -, hbody⟩ := hdecl.rec_shape rec hrec
@@ -565,7 +565,7 @@ theorem rule_counts {env base : VEnv} {decl expanded : VInductDecl} {s : Inducti
   simp only [Instance.recBody] at hbody
   rw [VExpr.mkApps_snoc, Model.piBody_wrapForalls_app, ← VExpr.mkApps_snoc] at hbody
   have hlenI := getAppArgs_length_eq_of_mkApps_bvar hbody
-  simp only [List.length_append, vars_len, List.length_singleton,
+  simp only [List.length_append, length_vars, List.length_singleton,
     VExpr.bvarsDesc_length, insertBinders, List.length_map, List.length_zipIdx] at hlenI
   have hci_l := mapM_length hci
   simp only [List.length_map] at hci_l
@@ -842,7 +842,7 @@ theorem subst_spec_vars {e : VExpr} {np j : Nat} (he : e.ClosedN (np + j)) :
   rw [Subst.liftN_apply]
   split
   · rfl
-  · rw [VExpr.argSubst_lt _ (by rw [vars_len]; omega)]
+  · rw [VExpr.argSubst_lt _ (by rw [length_vars]; omega)]
     simp only [vars_unfold, List.getElem_map, List.getElem_reverse, List.getElem_range,
       List.length_map, List.length_reverse, List.length_range]
     simp only [VExpr.liftN, liftVar, VExpr.Subst.id]

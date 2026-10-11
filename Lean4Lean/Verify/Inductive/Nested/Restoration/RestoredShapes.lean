@@ -45,19 +45,6 @@ private theorem bvar_spine (k : Nat) (args : List VExpr) :
   cases e <;> simp_all [VExpr.getAppFn, VExpr.piBinders, VExpr.piBody, VExpr.lamArity,
     VExpr.lamBody]
 
-private theorem app_off' {l₁ l₂ : List VExpr} {n : Nat} (i : Nat) (h : n = l₁.length) :
-    (l₁ ++ l₂)[n + i]? = l₂[i]? := by
-  subst h; rw [List.getElem?_append_right (by omega)]; simp
-
-private theorem mapM_some_length {f : α → Option β} :
-    ∀ {l : List α} {l' : List β}, l.mapM f = some l' → l'.length = l.length
-  | [], l', h => by simp only [List.mapM_nil, Option.pure_def, Option.some.injEq] at h; subst h; rfl
-  | a :: as, l', h => by
-    simp only [List.mapM_cons, Option.bind_eq_bind, Option.bind_eq_some_iff,
-      Option.pure_def, Option.some.injEq] at h
-    obtain ⟨b, -, bs, hbs, rfl⟩ := h
-    simp [mapM_some_length hbs]
-
 private theorem mapM_some_getElem? {f : α → Option β} :
     ∀ {l : List α} {l' : List β}, l.mapM f = some l' → ∀ {i : Nat} {a : α}, l[i]? = some a →
       ∃ b, l'[i]? = some b ∧ f a = some b
@@ -70,13 +57,6 @@ private theorem mapM_some_getElem? {f : α → Option β} :
     | zero => simp only [List.getElem?_cons_zero, Option.some.injEq] at hx ⊢; subst hx
               exact ⟨b, rfl, hb⟩
     | succ i => simpa using mapM_some_getElem? hbs (i := i) (by simpa using hx)
-
-private theorem mapM_some_append {f : α → Option β} {l₁ l₂ : List α} {l' : List β}
-    (h : (l₁ ++ l₂).mapM f = some l') :
-    ∃ l₁' l₂', l₁.mapM f = some l₁' ∧ l₂.mapM f = some l₂' ∧ l' = l₁' ++ l₂' := by
-  rw [List.mapM_append] at h
-  cases h₁ : l₁.mapM f <;> cases h₂ : l₂.mapM f <;> simp [h₁, h₂] at h
-  exact ⟨_, _, rfl, rfl, h.symm⟩
 
 /-! ### Restoration of telescopes and spines -/
 
@@ -129,7 +109,7 @@ theorem Restoration.expr_bvarBody {r : Restoration} {e e' : VExpr} {k : Nat}
   refine ⟨?_, ⟨ds', hds, by rw [piBinders_wrapForalls, hs.1, List.append_nil]⟩, args', ha,
     by rw [piBody_wrapForalls, hs.2.1]⟩
   rw [← piBinders_length, ← piBinders_length, piBinders_wrapForalls, hs.1, List.append_nil,
-    mapM_some_length hds]
+    List.mapM_some_length hds]
 
 /-! ### Closedness -/
 
@@ -230,7 +210,7 @@ theorem Restoration.expr_motive {r : Restoration} (g : Instance s) {family : Fam
   obtain ⟨ds', body', hds, hb, rfl⟩ := Restoration.expr_wrapForalls_eq_some h
   simp only [Restoration.expr_sort, Option.some.injEq] at hb
   subst hb
-  obtain ⟨is', ms, -, hm, rfl⟩ := mapM_some_append hds
+  obtain ⟨is', ms, -, hm, rfl⟩ := List.mapM_append_eq_some hds
   obtain ⟨m', hm', rfl⟩ : ∃ m', r.expr (VExpr.mkApps (.const family.name g.levels)
       (vars s.params.length (prior + (insertBinders (family.indices.map (·.instL g.levels))
         prior).length) ++ vars (insertBinders (family.indices.map (·.instL g.levels))
@@ -256,7 +236,7 @@ theorem Restoration.expr_minor {r : Restoration} (g : Instance s)
       A.MinorFor (r.headName ctor.name) := by
   obtain ⟨-, args, hbody⟩ := g.minor_pi ctor prior
   obtain ⟨harity, -, args', hargs, hbody'⟩ := Restoration.expr_bvarBody hbody h
-  obtain ⟨pre', last, -, hlast, rfl⟩ := mapM_some_append hargs
+  obtain ⟨pre', last, -, hlast, rfl⟩ := List.mapM_append_eq_some hargs
   obtain ⟨c', hc', rfl⟩ : ∃ c', r.expr (g.constructorApp ctor (s.families.size + prior)
       (Instance.recursiveFields ctor).length) = some c' ∧ last = [c'] := by
     simp only [List.mapM_cons, List.mapM_nil, Option.bind_eq_bind, Option.bind_eq_some_iff,
@@ -315,7 +295,7 @@ private theorem Instance.recursorPrefix_motive (g : Instance s) (owner : Fin s.f
     (i : Nat) (hi : i < s.families.size) :
     (g.recursorPrefix owner)[s.params.length + i]? = some (g.motive s.families[i] i) := by
   simp only [Instance.recursorPrefix, List.append_assoc]
-  rw [app_off' i (by simp [Instance.params]), List.getElem?_append_left
+  rw [List.getElem?_append_add i (by simp [Instance.params]), List.getElem?_append_left
     (by simp [Instance.motives, hi])]
   simp [Instance.motives, hi]
 
@@ -324,8 +304,8 @@ private theorem Instance.recursorPrefix_minor (g : Instance s) (owner : Fin s.fa
     (g.recursorPrefix owner)[s.params.length + s.families.size + i]? =
       some (g.minor s.constructors[i] i) := by
   simp only [Instance.recursorPrefix, List.append_assoc]
-  rw [Nat.add_assoc, app_off' _ (by simp [Instance.params]),
-    app_off' i (by simp [Instance.motives]), List.getElem?_append_left
+  rw [Nat.add_assoc, List.getElem?_append_add _ (by simp [Instance.params]),
+    List.getElem?_append_add i (by simp [Instance.motives]), List.getElem?_append_left
     (by simp [Instance.minors, hi])]
   simp [Instance.minors, hi]
 
@@ -344,7 +324,7 @@ theorem Restoration.recursorType_recShape {r : Restoration} (hr : r.Scoped)
     rw [piBinders_wrapForalls, Instance.recursorBody, hbody.1, List.append_nil]
   have hprelen : pre.length = s.params.length + s.families.size + s.constructors.size +
       s.families[owner].indices.length := by
-    rw [mapM_some_length hpre, g.recursorPrefix_length]
+    rw [List.mapM_some_length hpre, g.recursorPrefix_length]
   have hpos : ∀ {i : Nat} {a : VExpr}, (g.recursorPrefix owner)[i]? = some a →
       ∃ b, (VExpr.wrapForalls (pre ++ [major]) (g.recursorBody owner)).piBinders[i]? =
         some b ∧ r.expr a = some b := by
@@ -409,16 +389,16 @@ theorem Restoration.equation_ruleShape {r : Restoration} (g : Instance s)
     simp only [Instance.equation] at hrhs
     obtain ⟨ds', body', hds, hb, hdfeq⟩ := Restoration.expr_wrapLams_eq_some hrhs
     obtain ⟨args', hargs, rfl⟩ := Restoration.expr_mkApps_bvar_eq_some hb
-    obtain ⟨vs, calls', hvs, hcalls, rfl⟩ := mapM_some_append hargs
+    obtain ⟨vs, calls', hvs, hcalls, rfl⟩ := List.mapM_append_eq_some hargs
     rw [r.mapM_expr_vars, Option.some.injEq] at hvs
     subst hvs
     have hs := bvar_spine (s.constructors[index].fields.length + s.constructors.size - 1 -
       index.val) (vars s.constructors[index].fields.length 0 ++ calls')
     refine ⟨?_, calls', ?_, ?_⟩
-    · rw [hdfeq, lamArity_wrapLams, hs.2.2.1, mapM_some_length hds]
+    · rw [hdfeq, lamArity_wrapLams, hs.2.2.1, List.mapM_some_length hds]
       simp [insertBinders, fieldTypes, Instance.params, Instance.motives, Instance.minors]
       omega
-    · rw [mapM_some_length hcalls]; simp
+    · rw [List.mapM_some_length hcalls]; simp
     · rw [hdfeq, lamBody_wrapLams, hs.2.2.2]
       change VExpr.mkApps _ (bvarsDesc 0 _ ++ calls') = _
       simp only [Fin.getElem_fin]

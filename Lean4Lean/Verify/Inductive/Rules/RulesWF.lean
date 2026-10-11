@@ -34,7 +34,7 @@ section
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
   {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv} {indTypes : Array InductiveType}
   {ctorEnv outEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- The rule coverage of a recursor check (the `trRules` clause of `RuleTranslations`): each
 kernel recursor's rules are, in order, the generated equations of the constructors it owns. -/
@@ -86,12 +86,12 @@ theorem RecursorCheck.rule_equation_getElem (H : RecursorCheck R outEnv)
   have hiR : i < H.rvals.length := hlenR ▸ hi
   have hiF : i < H.signature.families.size := H.families_size_eq hcov ▸ hi
   have Htr := List.forall₂_getElem H.trRecs i hiR hi
-  have Hmeta := List.forall₂_getElem H.metadata i (by simpa using hiF) hiR
+  have Hmeta := List.forall₂_getElem H.metadataAll i (by simpa using hiF) hiR
   have Hcov := List.forall₂_getElem hcov i (by simpa using hiF) hiR
   simp only [List.getElem_finRange, Fin.cast_mk] at Hmeta Hcov
   -- the model recursor is the generated recursor of family `i`
   have hrec : H.recs[i].toVConstVal = H.generation.recursor ⟨i, hiF⟩ := by
-    have h := congrArg (·[i]?) H.recursors_eq
+    have h := congrArg (·[i]?) H.recs_recursors
     simpa [List.getElem?_eq_getElem hi, InductiveSignature.Instance.recursors, hiF] using h
   have hjK : j < H.rvals[i].rules.length := (List.Forall₂.length_eq Htr.rules) ▸ hj
   have Hrule := List.forall₂_getElem Htr.rules j hjK hj
@@ -150,13 +150,6 @@ theorem RecursorCheck.equation_rule (H : RecursorCheck R outEnv) (hcov : H.Rules
   obtain ⟨_, _, D⟩ := H.rule_equation_getElem hcov hparams o.val hi j hj
   refine ⟨_, List.getElem_mem hi, _, List.getElem_mem hj, ?_⟩
   simpa [hjeq] using D
-
-/-- A λ-telescope over an application has that application as its body. -/
-theorem VExpr.lamBody_wrapLams_app (doms : List VExpr) (f a : VExpr) :
-    (VExpr.wrapLams doms (.app f a)).lamBody = .app f a := by
-  induction doms with
-  | nil => rfl
-  | cons d ds ih => exact ih
 
 /-- A model rule sharing its data with a generated equation is that equation
 (`VRecRule.OfEquation`, the `rules` clauses of `VInductDecl.RecsOf`). -/

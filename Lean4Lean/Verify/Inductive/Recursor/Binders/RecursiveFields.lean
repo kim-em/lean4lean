@@ -302,7 +302,7 @@ theorem RecursorValidAppStatsWF.validIndAppAtTarget
   rcases checkPositivityStep.TrExprS.constAppSpine htr hhead with
     ⟨levels', args', hspine, hlevels, hargs⟩
   have hlevelLen : levels'.length = decl.uvars := by
-    have hlength := checkPositivityStep.List.mapM_some_length hlevels
+    have hlength := (List.mapM_some_length hlevels).symm
     exact hlength.symm.trans H.levels
   have hargsLen : args'.length =
       decl.nparams + decl.types[typeIdx].numIndices := by
@@ -517,7 +517,7 @@ theorem refinesRecursor
     (R : RecursorContextWF c recLparams)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
@@ -608,7 +608,7 @@ theorem isRecArg.refinesRecursor
     (R : RecursorContextWF c recLparams)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)

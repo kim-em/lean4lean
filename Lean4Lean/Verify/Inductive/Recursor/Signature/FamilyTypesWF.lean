@@ -1,12 +1,10 @@
 import Lean4Lean.Theory.Typing.ProjectionLemmas
 import Lean4Lean.Verify.Inductive.Recursor.Signature.MotiveGroup
 import Lean4Lean.Verify.Inductive.Constructor.Check
-import Lean4Lean.Verify.Inductive.Constructor.CheckedFormation
+import Lean4Lean.Verify.Inductive.Constructor.CheckedTail
 
 /-! Well-formed family applications (`InductiveSignature.FamilyTypesWF`) for the signatures
-over the families of the recursor construction (`RecursorConstruction.families`). The
-corresponding fact for the checked-formation source signature is in
-`Constructor/CheckedFormation.lean`.
+over the families of the recursor construction (`RecursorConstruction.families`).
 
 The proof does not compare the index telescope definitionally with the declared family type:
 the telescope and the family application are read off the index domains of the motive pass
@@ -19,13 +17,13 @@ namespace VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-namespace RecursorInput
+namespace ConstructorCheck
 
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
 
-end RecursorInput
+end ConstructorCheck
 
 theorem vars_append_bvarSpine (a b : Nat) :
     InductiveSignature.vars a b ++ InductiveSignature.vars b 0 = bvarSpine (a + b) := by
@@ -34,7 +32,7 @@ theorem vars_append_bvarSpine (a b : Nat) :
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- The index domains of each family (`declIndexDomains`), over the source parameter scope, form
 a well-formed context in the recursor-checking environment (from `sourceIndexDomains`). -/

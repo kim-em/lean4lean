@@ -374,15 +374,15 @@ definitional axioms are strengthened. This is the thesis's regularity lemma for 
 consequence of `Ordered`, whose `defeq` step admits arbitrary well-typed axioms: under
 `List Nat ≡ List Bool` the redex `List.rec Nat m n c (List.cons Bool true tl)` is well-typed
 and its reduct is not. It is open: proving it needs inversion of the redex's typing and
-injectivity of the block's type formers (`Injectivity.lean`, also open), which the
-direct-block specification of `VInductDecl.WF` makes applicable — every rule fires on a
-constructor of the eliminated type former, whose result type carries the constructor's
-parameters and whose major premise carries the recursor's. -/
+injectivity of the block's type formers, which the direct-block specification of
+`VInductDecl.WF` makes applicable — every rule fires on a constructor of the eliminated type
+former, whose result type carries the constructor's parameters and whose major premise carries
+the recursor's. The intended hypothesis on the prefixes is `env₁.WF`, not `env.WFPrefix env₁`. -/
 theorem VEnv.WF.patsStrong {env : VEnv} (H : env.WF) : env.PatsStrong := sorry
 
 /-- A well-formed environment satisfies the hypotheses of the strong system: `Ordered`,
 strong typing of its constants and definitional axioms, and subject reduction of its ι rules
-(`VEnv.WF.patsStrong`, the deferred ι obligation). -/
+(`VEnv.WF.patsStrong`). -/
 theorem VEnv.WF.orderedStrong (H : WF env) : OrderedStrong env :=
   ⟨H.ordered, H.strong H.patsStrong, H.patsStrong _ _ .rfl .rfl .rfl rfl rfl H.ordered⟩
 

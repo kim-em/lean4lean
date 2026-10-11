@@ -262,11 +262,11 @@ end BlockCertificate
 /-- The environment after the rules are registered: the output of `addInduct` for the
 recursor check's declaration (`RecursorCheck.decl'`), given that `addRules` succeeds
 (`rules_closed`). -/
-def RecursorCheck.outVEnv'
+noncomputable def RecursorCheck.outVEnv'
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv) : VEnv :=
   ((decl.withRecs H.recs).addRules H.outVEnv).getD H.outVEnv
 
@@ -276,7 +276,7 @@ theorem RecursorCheck.blockCertificate
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv) (T : RuleTranslations H)
     (hnonempty : indTypes.toList ≠ []) :
     Nonempty (BlockCertificate c.safety c.env sourceEnv H.decl' outEnv H.outVEnv') := by
@@ -343,9 +343,9 @@ theorem RecursorCheck.blockCertificate
           ⟨rval, hrval, rfl⟩
       · exact freshHdr _ (List.mem_map_of_mem (by rw [hinfos]; exact List.mem_map_of_mem hiv))
       · exact noneOf subHdr (toMapNone hhdrWF (R.fresh iv hiv cval hcval))
-      · exact noneOf (fun h => subCtor (subHdr h)) (toMapNone hctorWF (H.fresh rval hrval))
+      · exact noneOf (fun h => subCtor (subHdr h)) (toMapNone hctorWF (H.freshRvals rval hrval))
     map_eq := by
-      rw [H.map_eq, R.map_eq, R.headers.map_eq, hinfos]
+      rw [H.mapEq, R.map_eq, R.headers.map_eq, hinfos]
       simp [AddInduct.consts, insertConsts, List.foldl_append, List.map_map, Function.comp_def] }
   have hle' : H.outVEnv ≤ outR := VEnv.addRules_le hP
   have hleR : sourceEnv ≤ H.outVEnv :=
@@ -356,7 +356,7 @@ theorem RecursorCheck.blockCertificate
       (VInductDecl.SourceWF.withRecs (TrInductDeclCore.sourceWF_ofNonempty R.core
         (TrInductDeclCore.nonempty R.core hnonempty)) H.recs) (T.recursorsWF hnonempty)
   have installed : sourceEnv.addInduct H.decl' = some outR := add.env_eq
-  have houtWF : outEnv.constants.WF := H.checking.tr.map_wf
+  have houtWF : outEnv.constants.WF := H.checkingValid.tr.map_wf
   -- every new recursor is one of the block's
   have newRec : ∀ {n r}, outEnv.find? n = some (.recInfo r) → c.env.find? n = none →
       r ∈ H.rvals := by
@@ -384,7 +384,7 @@ theorem RecursorCheck.blockCertificate
       · cases h
   have checking : CheckingEnv.Valid c.safety outEnv outR := by
     obtain ⟨ds, hds⟩ := hsrcWF
-    refine H.checking.addRules hP ⟨_, .decl (.induct wf' installed) hds⟩ ?_
+    refine H.checkingValid.addRules hP ⟨_, .decl (.induct wf' installed) hds⟩ ?_
     intro p r hp
     rcases VEnv.addInduct_pats_origin installed hp with hold | ⟨rec, hrec, ru, -, rfl⟩
     · exact .inl (hleR.pats hold)
@@ -397,14 +397,14 @@ theorem RecursorCheck.blockCertificate
   refine ⟨{
     wf := wf'
     add := add
-    quotInit_eq := H.quotInit_eq.trans (R.quotInit_eq.trans R.headers.quotInit_eq)
+    quotInit_eq := H.quotInitEq.trans (R.quotInit_eq.trans R.headers.quotInit_eq)
     checking := checking
     closed := H.closed
-    constructorOwners := H.checking.constructorOwners
-    inductInfosFromDecl := H.inductInfosFromDecl.withRecs H.recs
+    constructorOwners := H.checkingValid.constructorOwners
+    inductInfosFromDecl := H.inductInfos.withRecs H.recs
     cover := ?_
     recMajor := ?_
-    constructorParameterAlignment := fun h => (H.constructorParameterAlignment h).mono hle'
+    constructorParameterAlignment := fun h => (H.ctorParamAlignment h).mono hle'
     recK := fun h1 h2 => (H.kLike _ (newRec h1 h2)).mono hle' id
     compiled := ⟨T.block, T.compilesTo hnonempty, T.recsOf, T.blockWF⟩
     newUnsafe := ?_
@@ -422,7 +422,7 @@ theorem RecursorCheck.blockCertificate
   · intro n r h1 h2
     have hr := newRec h1 h2
     obtain ⟨rec, -, htr⟩ := List.Forall₂.forall_exists_l H.trRecs r hr
-    obtain ⟨info, hinfo⟩ := H.checking.recursors.majors (toMap houtWF h1) htr.tr.1.1
+    obtain ⟨info, hinfo⟩ := H.checkingValid.recursors.majors (toMap houtWF h1) htr.tr.1.1
     exact ⟨info, by rw [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?]; exact hinfo⟩
   · have hdecl : H.decl'.isUnsafe = decl.isUnsafe := rfl
     have hfam : ∀ iv ∈ R.ivals, iv.1.isUnsafe = decl.isUnsafe := by
@@ -432,7 +432,7 @@ theorem RecursorCheck.blockCertificate
       have hf := add.find?_self hwf hmem
       have hf' : outEnv.find? iv.1.name = some (.inductInfo iv.1) := by
         rw [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?]; exact hf
-      rcases H.inductInfosFromDecl _ _ (toMap houtWF hf') with hold | ⟨_, -, ⟨A⟩⟩
+      rcases H.inductInfos _ _ (toMap houtWF hf') with hold | ⟨_, -, ⟨A⟩⟩
       · have : c.env.constants.find? iv.1.name = none := add.fresh _ hmem
         rw [this] at hold; cases hold
       · exact A.isUnsafe
@@ -447,12 +447,12 @@ theorem RecursorCheck.blockCertificate
       have hfind : ∀ ci ∈ AddInduct.consts R.ivals H.rvals, outEnv.find? ci.name = some ci := by
         intro ci hci
         rw [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?]; exact add.find?_self hwf hci
-      obtain ⟨info, hinfo, -, hu⟩ := H.checking.listedConstructors iv.1.name iv.1
+      obtain ⟨info, hinfo, -, hu⟩ := H.checkingValid.listedConstructors iv.1.name iv.1
         (hfind _ (AddInduct.mem_consts.2 (.inl ⟨iv, hiv, rfl⟩))) cval.name hlisted _
         (hfind _ hci)
       cases hinfo
       exact hu.trans (hfam iv hiv)
-    · obtain ⟨owner, -, hm⟩ := List.Forall₂.forall_exists_r H.metadata rval hrval
+    · obtain ⟨owner, -, hm⟩ := List.Forall₂.forall_exists_r H.metadataAll rval hrval
       exact hm.isUnsafe.trans H.models.safety
 
 end VerifyInductive

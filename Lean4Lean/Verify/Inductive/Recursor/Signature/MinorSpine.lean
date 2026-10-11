@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Recursor.Signature.SourceReplay
 import Lean4Lean.Verify.Inductive.Recursor.Construction
 import Lean4Lean.Verify.Inductive.Constructor.Check
-import Lean4Lean.Verify.Inductive.Constructor.CheckedFormation
+import Lean4Lean.Verify.Inductive.Constructor.CheckedTail
 
 /-! Source telescopes of the constructor traversals recorded for each minor premise during the
 minor pass of the recursor construction: each traversal's parameter tail translates to the
@@ -43,7 +43,7 @@ the header environment over the parameter scope, to the constructor's field type
 its family application. -/
 theorem RecursorConstruction.minorSourceReplay
     {isUnsafe : Bool}
-    {R : RecursorInput c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)

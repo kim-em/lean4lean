@@ -302,14 +302,16 @@ theorem NestedRun.recursorVEnv_restorableNames_fresh_of_not_renamed
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     (C : RestoredBlockBase E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
-    (hC : C.lowered = E.lowered)
+    (hC : C.loweredDecl = E.lowered.loweredDecl)
     (hkernel : List.Perm
       ((C.typeEntries ++ C.constructorEntries ++ C.recursorEntries).map Prod.fst)
       E.restoration.entries)
@@ -759,9 +761,11 @@ theorem NestedRun.restoredRuleRhs_of_trail
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (hheads : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
@@ -786,7 +790,7 @@ theorem NestedRun.restoredRuleRhs_of_trail
         rule.rhs.LamPrefixAvoids X result.nparams)
     (j : Nat) (hj : j < Hstep.restored.newInfo.rules.length)
     (k : Fin E.lowered.recursors.generationSignature.constructors.size)
-    (hk : k.val = recursorMinorOffset E.lowered.indTypes owner.val + j)
+    (hk : k.val = recursorMinorOffset result.types.toArray owner.val + j)
     {rhs : VExpr}
     (Ht : TrExprS trEnv Hstep.restored.newInfo.levelParams []
       (Hstep.restored.newInfo.rules[j]'hj).rhs rhs) :
@@ -798,10 +802,10 @@ theorem NestedRun.restoredRuleRhs_of_trail
   have hjOld : j < Hstep.oldInfo.rules.length := hlenRules ▸ hj
   have hjGen : j < (P.generated.entry owner.val hi).info.rules.length := by
     rw [hinfo]; exact hjOld
-  have hkb : recursorMinorOffset E.lowered.indTypes owner.val + j <
+  have hkb : recursorMinorOffset result.types.toArray owner.val + j <
       P.generationSignature.constructors.size := hk ▸ k.isLt
   have Hs0 := P.ruleRhsTranslations owner.val hi j hjGen hkb
-  have hkfin : (⟨recursorMinorOffset E.lowered.indTypes owner.val + j, hkb⟩ :
+  have hkfin : (⟨recursorMinorOffset result.types.toArray owner.val + j, hkb⟩ :
       Fin P.generationSignature.constructors.size) = k := Fin.ext hk.symm
   rw [hkfin] at Hs0
   have hlevels : (P.generated.entry owner.val hi).info.levelParams =
@@ -898,8 +902,10 @@ def NestedRun.LoweredRulesAvoid
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv)
+      sourceDecl lparams nparams isUnsafe safety outEnv L)
     (heads X : List Name) : Prop :=
   ∀ (owner : Fin E.lowered.recursors.generationSignature.families.size)
     (rec : RecursorVal),
@@ -919,8 +925,10 @@ def NestedRun.TrRestoredRulesModulo
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv)
+      sourceDecl lparams nparams isUnsafe safety outEnv L)
     (r : Restoration) (X : List Name) (rules : List VDefEq) : Prop :=
   ∃ trEnv : VEnv, (∀ n ∈ r.restorableNames, n ∉ X → trEnv.constants n = none) ∧
     List.Forall₂ (E.TrRestoredRecursorRule r trEnv)
@@ -942,8 +950,10 @@ theorem NestedRun.TrRestoredRulesModulo.filter_restorable
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     {E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv}
+      sourceDecl lparams nparams isUnsafe safety outEnv L}
     {r : Restoration} {X : List Name} {rules : List VDefEq}
     (H : E.TrRestoredRulesModulo r X rules) :
     E.TrRestoredRulesModulo r (X.filter (· ∈ r.restorableNames)) rules := by
@@ -956,9 +966,11 @@ theorem NestedRun.restoredEquation_of_trModulo
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (hheads : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
@@ -997,9 +1009,11 @@ theorem NestedRun.restoredEquations_of_trModulo
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (hheads : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
@@ -1055,9 +1069,11 @@ theorem NestedRun.auxRecName_not_renamed
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
@@ -1121,9 +1137,11 @@ theorem NestedRun.hrules_of_modulo
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     (HruleShape : ∀ auxiliaries : List ContainerSpecialization,
       RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
@@ -1132,7 +1150,7 @@ theorem NestedRun.hrules_of_modulo
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
           nparams isUnsafe (if isUnsafe then .unsafe else .safe))
         (sourceRules auxiliaryRules : List VDefEq),
-        C.lowered = E.lowered ∧
+        C.loweredDecl = E.lowered.loweredDecl ∧
         List.Perm ((C.typeEntries ++ C.constructorEntries ++ C.recursorEntries).map Prod.fst)
           E.restoration.entries ∧
         List.Forall₂
@@ -1147,7 +1165,7 @@ theorem NestedRun.hrules_of_modulo
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
           nparams isUnsafe (if isUnsafe then .unsafe else .safe))
         (sourceRules auxiliaryRules : List VDefEq),
-        C.lowered = E.lowered ∧
+        C.loweredDecl = E.lowered.loweredDecl ∧
         (∀ n ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
           n ∉ (compilationRestoration sourceDecl auxiliaries).recursors.map Prod.snd →
           C.recursorVEnv.constants n = none) ∧

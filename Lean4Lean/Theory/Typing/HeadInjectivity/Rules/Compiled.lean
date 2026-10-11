@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.PatsIota
 import Lean4Lean.Theory.Inductive.CompilationNames
+import Lean4Lean.Theory.Typing.SignatureVars
 
 /-! # The compiled block behind a registered ι pattern
 
@@ -35,21 +36,6 @@ theorem CompiledInductive.data {env : VEnv} {decl : VInductDecl} {block : VInduc
   | cons _ _ _ _ _ _ _ _ => trivial
 
 namespace InductiveSignature
-
--- These proofs avoid `simp`: an auxiliary lemma it creates here would change the names of the
--- auxiliary lemmas of the duplicated `vars_map_liftN_lo` in the files importing this one.
-theorem vars_len (count below : Nat) : (vars count below).length = count := by
-  show ((List.range count).reverse.map _).length = count
-  rw [List.length_map, List.length_reverse, List.length_range]
-
-theorem vars_zero (n : Nat) : vars n 0 = (List.range n).reverse.map .bvar := by
-  show (List.range n).reverse.map (fun i => VExpr.bvar (0 + i)) = _
-  exact List.map_congr_left fun i _ => by rw [Nat.zero_add]
-
-theorem mem_vars {count below x : Nat} (h1 : below ≤ x) (h2 : x < below + count) :
-    VExpr.bvar x ∈ vars count below :=
-  List.mem_map.2 ⟨x - below, List.mem_reverse.2 (List.mem_range.2 (by omega)),
-    by congr 1; omega⟩
 
 theorem compilationRestoration_nil (source : VInductDecl) :
     compilationRestoration source [] = {} := rfl
@@ -129,7 +115,7 @@ theorem eqIndices_length : (g.eqIndices index).length = s.constructors[index].in
 theorem eqLead_length : (g.eqLead index).length =
     s.params.length + (s.families.size + s.constructors.size) +
       s.constructors[index].indices.length := by
-  simp [eqLead, eqIndices, vars_len]
+  simp [eqLead, eqIndices, length_vars]
 
 theorem equation_lhs_eq : (g.equation index).lhs = .wrapLams (g.eqDoms index)
     (.mkApps (.const (g.recursorName s.constructors[index].owner) (VLevel.params g.uvars))
@@ -143,7 +129,7 @@ theorem equation_rhs_eq : (g.equation index).rhs = .wrapLams (g.eqDoms index) (g
 
 theorem equation_uvars : (g.equation index).uvars = g.uvars := rfl
 
-theorem eqMs_length : (eqMs index).length = s.params.length := by simp [eqMs, vars_len]
+theorem eqMs_length : (eqMs index).length = s.params.length := by simp [eqMs, length_vars]
 theorem eqFs_length : (eqFs index).length = s.constructors[index].fields.length := by simp [eqFs]
 
 /-- Every binder of a generated equation is a bare leading argument or a field. -/
@@ -247,12 +233,6 @@ theorem minor_mem : g.minor s.constructors[index] index.val ∈ g.minors := by
 end Instance
 
 /-! ## Inverting a model rule against its generated equation -/
-
-theorem _root_.Lean4Lean.VExpr.lamBody_wrapLams (ds : List VExpr) (b : VExpr) :
-    (VExpr.wrapLams ds b).lamBody = b.lamBody := by
-  induction ds with
-  | nil => rfl
-  | cons d ds ih => exact ih
 
 theorem _root_.Lean4Lean.VExpr.lamBody_mkApps_const (c : Name) (ls : List VLevel)
     (args : List VExpr) :

@@ -122,7 +122,10 @@ structure NestedLoweringOutput (env : Environment) (fuel nparams : Nat)
         lowered.ctors source.ctors)
       (res.types.take sourceTypes.length) sourceTypes
 
-/-- **The lowering boundary theorem**: a successful lowering run certifies its result. -/
+/-- **The lowering boundary theorem**: a successful lowering run certifies its result. It takes
+`ves.WF env`, since the container parameter counts and the `FVarsIn` facts of nested
+applications need `EnvironmentTypesClosed`/`MutualInductivesClosed`, and `SourceSyntaxChecks`,
+since the refinement's closing context exists only for closed source types. -/
 theorem loweringRun.WF {env : Environment} {ves : VEnvs} {fuel nparams : Nat}
     {types : List InductiveType} {lparams : List Name} {res : ElimNestedInductive.Result}
     -- the refinement of the run needs the environment invariants

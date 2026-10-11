@@ -5,9 +5,9 @@ import Lean4Lean.Verify.Inductive.Recursor.Checking
 /-! # Lookups in the lowered environment
 
 The constants the restoration fold reads from the lowered environment: the kernel headers of
-the header phase, the constructors of the constructor phase (`RecursorInput.ivals`) and the
+the header phase, the constructors of the constructor phase (`ConstructorCheck.ivals`) and the
 recursors of the recursor phase, read off the `insertConsts` maps of the phase interfaces
-(`HeaderData.map_eq`, `RecursorInput.map_eq`). -/
+(`HeaderData.map_eq`, `ConstructorCheck.map_eq`). -/
 
 namespace Lean4Lean
 
@@ -16,12 +16,12 @@ open Kernel
 
 namespace VerifyInductive
 
-namespace RecursorInput
+namespace ConstructorCheck
 
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
   {nparams : Nat} {isUnsafe : Bool} {depth : Nat} {sourceEnv : VEnv}
   {indTypes : Array InductiveType} {ctorEnv : Environment}
-  (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
+  (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
 include R
 
 theorem sourceMapWF : c.env.constants.WF := R.headers.sourceContext.checking.tr.map_wf
@@ -197,7 +197,7 @@ theorem ctorEnv_ctor_cases {n : Name} {cval : ConstructorVal}
     · cases heq
   · cases heq; exact .inr (R.ctor_isUnsafe hiv hc)
 
-end RecursorInput
+end ConstructorCheck
 
 end VerifyInductive
 end Lean4Lean

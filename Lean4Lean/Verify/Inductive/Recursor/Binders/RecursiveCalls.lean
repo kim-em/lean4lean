@@ -152,7 +152,7 @@ theorem motiveSourceReplay
     {Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel}
     (Hheader : mkRecInfos.loopArgs1.MotivePassHeaderAt Hbase stats decl
       baseDepth source dIdx)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     {R : RecursorContextWF current
       (AddInductive.getRecLevelParams elimLevel base.lparams)}
     (Rindices : RecursorContextWF cIndices
@@ -787,7 +787,7 @@ theorem motiveDecl
     {Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel}
     (Hheader : mkRecInfos.loopArgs1.MotivePassHeaderAt Hbase stats decl
       baseDepth source dIdx)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     {R : RecursorContextWF current
       (AddInductive.getRecLevelParams elimLevel base.lparams)}
     (Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth)
@@ -1152,7 +1152,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
     (Hheaders : ∀ i (hi : i < indTypes.size),
       mkRecInfos.loopArgs1.MotivePassHeaderAt Hbase stats decl
         baseDepth indTypes[i] i)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
     (k : Array AddInductive.RecInfo → AddInductive.M alpha)
     (R : RecursorContextWF current
@@ -1521,7 +1521,7 @@ theorem resultRecursiveDomain {alpha : Type}
     {decl : VInductDecl} {recLparams : List Name}
     {root : AddInductive.Context}
     (Rroot : RecursorContextWF root recLparams)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
       Rroot.venv stats.indConsts)
     {initialType uiTy : Expr} {xs : Array Expr} {fuel : Nat}
@@ -1907,7 +1907,7 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
     {decl : VInductDecl} {depth : Nat}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     {fieldTarget : VExpr}

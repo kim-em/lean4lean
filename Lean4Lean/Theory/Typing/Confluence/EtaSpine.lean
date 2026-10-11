@@ -459,7 +459,7 @@ theorem EtaSpine.spine_inv :
     generalize he : VExpr.mkApps (.const c' ls') [] = e at H
     cases H with
     | @spine _ _ bs₀ h =>
-      rcases eq_nil_or_snoc' bs₀ with rfl | ⟨bs₁, b, rfl⟩
+      rcases List.eq_nil_or_snoc bs₀ with rfl | ⟨bs₁, b, rfl⟩
       · cases he; exact ⟨rfl, rfl, h⟩
       · rw [VExpr.mkApps_snoc] at he; cases he
     | app => cases he

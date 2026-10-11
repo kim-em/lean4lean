@@ -6,7 +6,6 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyBase
 import Lean4Lean.Verify.Inductive.Nested.Restoration.TableAgreement
 import Lean4Lean.Verify.Inductive.Nested.Restoration.KernelData
 import Lean4Lean.Verify.Inductive.Nested.Restoration.FormationWithRecs
-import Lean4Lean.Verify.Inductive.Nested.Restoration.ViewCast
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyTypes
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyKernel
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyRecursors
@@ -19,12 +18,12 @@ restoration `V` and the lowering's certificate `Hout` yield the `RestoredBlock`.
 the refinement of the restoration folds (`Steps.lean`: `restoreNestedDeclarations_refines`,
 `FreshExtension`, `NestedRestorationFolds`), the restored source declaration
 (`SourceDeclaration`, `SourceHeaders`, `SourceConstructors`, `SourceConstructorTypes`,
-`SourceTranslations`, `HeaderRenaming`, `InstalledFamilyLookups`, `InstalledConstructorTypes`),
+`SourceTranslations`, `HeaderRenaming`, `InstalledFamilyLookups`),
 the specialization table (`Tables`, `TableAgreement`, `ContainerSpecializations`,
 `AuxiliaryHeaders`, `AuxiliaryConstructors`, `AuxiliaryProjections`, `ExpansionInverse`,
 `Commutation*`, `TranslationProjNames`, `Translations`), the restored
 recursors (`Recursors`, `RecursorTypes`, `RecursorRenaming`, `RecursorShape`,
-`RecursorAlignment`, `AuxiliaryRecursorsWF`, `TrRestoredRecursorVal`, `LoweredRuleAvoidance`,
+`RecursorAlignment`, `TrRestoredRecursorVal`, `LoweredRuleAvoidance`,
 `Nonprimitive`), the compilation data (`CompilationData`, `CompilationDataConstructors`,
 `ConstructorTelescopes`, `ConstructorTranslations`, `FreshExtensions`, `ExprReplace`,
 `ParameterOpening`), and `Install/{Permutation,RecursorTranslations,DependencyOrder,
@@ -56,31 +55,18 @@ theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
       (if isUnsafe then .unsafe else .safe) false fuel outEnv) :
     Nonempty (RestoredBlock L sourceTypes isUnsafe outEnv) := by
   have := hnested
-  obtain ⟨runDecl, E, hloweredEnv, hlowered⟩ := NestedRun.ofRestoration wf Hsources Hout hnested L V
+  obtain ⟨runDecl, ⟨E⟩⟩ := NestedRun.ofRestoration wf Hsources Hout hnested L V
   have Hchecked := checkInductiveSources_refines env sourceTypes _ Hsources
   have Hparameters := E.sourceParameterWF wf Hchecked
   obtain ⟨⟨B, hBlowered, hBperm⟩⟩ := E.assemblyBase wf rfl Hsources Hparameters (by cases isUnsafe <;> decide)
   obtain ⟨hperm, hfresh, hmap, hquot⟩ :=
     E.restoration.kernelOrder (ContextWF.initial wf (if isUnsafe then .unsafe else .safe) lparams
       false fuel).map_wf
-  have hdeclLowered : E.lowered.loweredDecl = L.loweredDecl :=
-    LoweredView.heq_field hloweredEnv hlowered (·.loweredDecl)
   obtain ⟨hV, Cstrip⟩ := E.strippedChecker B hBlowered wf Hchecked Hparameters hnested
   obtain ⟨recs, auxiliaries, block, envR, outVEnv, hcontainers, hcompiled, hrecsOf, hrecsAdded,
     htrRecs, hrecs_wf, hrec_shape, hrules_nodup, hrules_ctor, hrules_ctorParams, hrule_shape,
     hrules_closed, hrulesAdded, hrecShapes, hrecK, henvR, hequationsWF⟩ :=
     E.assemblyRecursors wf Hchecked hnested B hBlowered hBperm Cstrip hV
-  have hsig : E.lowered.signature = L.recursors.signature :=
-    (LoweredView.heq_field hloweredEnv hlowered (·.signature)).trans L.view_signature
-  have hgen : HEq E.lowered.generatedInstance L.recursors.generation := by
-    refine HEq.trans ?_ L.view_generation
-    clear hcompiled
-    revert hlowered
-    generalize E.lowered = V
-    intro hlowered
-    subst hloweredEnv
-    cases eq_of_heq hlowered
-    rfl
   refine ⟨{
     decl := runDecl.withRecs recs
     envTypes := E.sourceCore.envTypes
@@ -90,7 +76,7 @@ theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     auxiliaries := auxiliaries
     containers := hcontainers
     block := block
-    compiled := CompilationData.castGenerator hsig hgen (hdeclLowered ▸ hcompiled)
+    compiled := hcompiled
     recsOf := hrecsOf
     ivals := E.restoration.ivals
     rvals := E.restoration.rvals
@@ -120,15 +106,13 @@ theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     run_decl := ?run_decl
     sourceSyntaxChecked := Hchecked
     constructorArityPrefix := ?arity
-    run_loweredEnv := hloweredEnv
-    run_lowered := hlowered
     recMajor := E.recMajor wf Hchecked
     constructorParameterAlignment := E.constructorParameterAlignment B hBlowered wf Hchecked
       (henvR ▸ VEnv.addRules_le hrulesAdded)
     restoredEquationsWF := hequationsWF }⟩
   case arity =>
     have h := B.formationAssembly.constructorArityPrefix
-    rw [B.formationExpanded, hBlowered, hdeclLowered] at h
+    rw [B.formationExpanded, hBlowered] at h
     exact h
   case run_decl => simp [VInductDecl.withRecs]
   case source =>

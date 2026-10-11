@@ -7,7 +7,8 @@ A pattern constructor whose type returns a registered structure is that structur
 declaration whose constructors are pattern constructors is the declaration's own entry
 (`projMajor_decl`, `Model/IotaStage.lean`). These are the facts of
 `Confluence/StructureMajor.lean` (`WF'.structureCtorCoherent`, `WF.installed_projection`),
-restated here because the confluence files import the model. -/
+restated here because the confluence files import the model, so the model cannot import them
+(import cycle). -/
 
 namespace Lean4Lean
 namespace VEnv

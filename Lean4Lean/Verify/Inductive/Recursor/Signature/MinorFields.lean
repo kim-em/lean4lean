@@ -45,7 +45,7 @@ levels), lifted beneath `inserted` binders placed between the parameters and the
 translate the executable field telescope abstracted over the parameters and any `extra` free
 variables of the same count: the parameter-closed field telescope contains no free variable. -/
 theorem RecursorConstruction.minorFieldsTemplate
-    {R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)

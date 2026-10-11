@@ -125,8 +125,10 @@ theorem NestedRun.recursorMetadataOfStep
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv)
+      sourceDecl lparams nparams isUnsafe safety outEnv L)
     (owner : Fin E.lowered.recursors.generationSignature.families.size)
     {auxRec : NameMap Name} {allIndNames : List Name}
     {stepSource stepTarget : Environment}
@@ -168,9 +170,11 @@ theorem NestedRun.restoredRecursor_of_step
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     {auxiliaries : List ContainerSpecialization}
     (hparamsSize : result.params.size = result.nparams)
     (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
@@ -236,7 +240,7 @@ theorem RestoredBlockBase.sourceConstructorNames
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     (B : RestoredBlockBase H sourceEnv decl lparams nparams isUnsafe safety) :
     ∀ c ∈ decl.constructorConstants,
-      c.name ∈ familyNames (B.lowered.loweredDecl.types.take decl.types.length) := by
+      c.name ∈ familyNames (B.loweredDecl.types.take decl.types.length) := by
   intro c hc
   obtain ⟨src, hsrc, hcsrc⟩ := List.mem_flatMap.mp hc
   have HT := List.forall₂_take B.formationAssembly.types decl.types.length
@@ -253,9 +257,11 @@ theorem NestedRun.restorableNames_fresh_ctors
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
@@ -340,8 +346,10 @@ theorem NestedRun.recursorNames_order
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv)
+      sourceDecl lparams nparams isUnsafe safety outEnv L)
     (hnonempty : sourceTypes ≠ []) :
     (List.finRange
         E.lowered.recursors.generationSignature.families.size).map
@@ -349,16 +357,16 @@ theorem NestedRun.recursorNames_order
       sourceTypes.map (fun t => Lean.mkRecName t.name) ++
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1 := by
   let P := E.lowered
-  have hentries : P.recursors.entries.length = P.indTypes.toList.length := by
+  have hentries : P.recursors.entries.length = result.types.toArray.toList.length := by
     rw [P.recursors.generated.length, P.recursors.cardinality.records,
       ← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length P.constructors.core]
   -- generated names in owner order
   have hgen : (List.finRange
         E.lowered.recursors.generationSignature.families.size).map
         E.lowered.recursors.canonicalGeneration.recursorName =
-      P.indTypes.toList.map (fun t => Lean.mkRecName t.name) := by
+      result.types.toArray.toList.map (fun t => Lean.mkRecName t.name) := by
     have hN : E.lowered.recursors.generationSignature.families.size =
-        P.indTypes.toList.length := by
+        result.types.toArray.toList.length := by
       rw [← E.lowered.recursors.entries_length_eq]
       exact hentries
     apply List.ext_getElem
@@ -372,18 +380,19 @@ theorem NestedRun.recursorNames_order
       subst this
       rw [← h]
       congr 2
-      have hi'' : i < P.indTypes.size := by simpa using hi'
-      rw [getElem!_pos P.indTypes i hi'', Array.getElem_toList]
+      have hi'' : i < result.types.toArray.size := by simpa using hi'
+      rw [getElem!_pos result.types.toArray i hi'']
+      rfl
   -- source and lowered names
-  have hloweredNames : P.indTypes.toList.map (·.name) =
+  have hloweredNames : result.types.toArray.toList.map (·.name) =
       P.loweredDecl.types.map (·.name) :=
     forall₂_map_eq (fun a b h => h.header.name.symm) P.constructors.core.types
   have hsourceNames : sourceTypes.map (·.name) =
       (P.loweredDecl.types.take sourceTypes.length).map (·.name) :=
     forall₂_map_eq (fun a b h => h.name.symm) E.sourceCore.sourceHeaders
-  have hsplit : P.indTypes.toList.map (·.name) =
+  have hsplit : result.types.toArray.toList.map (·.name) =
       sourceTypes.map (·.name) ++
-        (P.indTypes.toList.drop sourceTypes.length).map (·.name) := by
+        (result.types.toArray.toList.drop sourceTypes.length).map (·.name) := by
     rw [hsourceNames, List.map_take, ← hloweredNames, ← List.map_take,
       ← List.map_append, List.take_append_drop]
   -- the auxiliary recursor names
@@ -391,8 +400,8 @@ theorem NestedRun.recursorNames_order
     cases sourceTypes with
     | nil => exact absurd rfl hnonempty
     | cons main rest => exact ⟨main, rest, rfl⟩
-  obtain ⟨o, os, hos⟩ : ∃ o os, P.indTypes.toList = o :: os := by
-    cases h : P.indTypes.toList with
+  obtain ⟨o, os, hos⟩ : ∃ o os, result.types.toArray.toList = o :: os := by
+    cases h : result.types.toArray.toList with
     | nil => rw [h] at hsplit; simp at hsplit
     | cons o os => exact ⟨o, os, rfl⟩
   have hoName : o.name = main.name := by
@@ -405,7 +414,7 @@ theorem NestedRun.recursorNames_order
     (owner := o) (by rw [hos]; exact List.mem_cons_self)
   rw [hoName] at hfind
   have haux : (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).1 =
-      (P.indTypes.toList.drop (main :: rest).length).map
+      (result.types.toArray.toList.drop (main :: rest).length).map
         (fun t => Lean.mkRecName t.name) := by
     by_cases hlength : (main :: rest).length < info.all.length
     · rw [mkAuxRecNameMap_recNames main rest E.loweredEnv info hfind hlength, hall,
@@ -417,14 +426,15 @@ theorem NestedRun.recursorNames_order
         simp [Lean4Lean.mkAuxRecNameMap, hfind, hlength']
         rfl
       rw [hnil]
-      have : P.indTypes.toList.drop (main :: rest).length = [] := by
+      have : result.types.toArray.toList.drop (main :: rest).length = [] := by
         apply List.drop_eq_nil_of_le
         have := congrArg List.length hall
         simp only [List.length_map] at this
+        dsimp only at this ⊢
         omega
       rw [this]; rfl
   rw [hgen, haux]
-  conv => lhs; rw [← List.take_append_drop (main :: rest).length P.indTypes.toList]
+  conv => lhs; rw [← List.take_append_drop (main :: rest).length result.types.toArray.toList]
   rw [List.map_append]
   congr 1
   have h := congrArg (List.take (main :: rest).length) hsplit
@@ -443,13 +453,15 @@ theorem NestedRun.restoredRecursorEntries_of_paramUniform
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (B : RestoredBlockBase E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
-    (hB : B.lowered = E.lowered)
+    (hB : B.loweredDecl = E.lowered.loweredDecl)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
@@ -541,13 +553,15 @@ theorem NestedRun.restoredRecursorList_of_paramUniform
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (B : RestoredBlockBase E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
-    (hB : B.lowered = E.lowered)
+    (hB : B.loweredDecl = E.lowered.loweredDecl)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
@@ -587,13 +601,15 @@ theorem NestedRun.restoredRecursors_of_paramUniform
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (B : RestoredBlockBase E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
-    (hB : B.lowered = E.lowered) (sourceRules auxiliaryRules : List VDefEq)
+    (hB : B.loweredDecl = E.lowered.loweredDecl) (sourceRules auxiliaryRules : List VDefEq)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
@@ -647,13 +663,15 @@ theorem NestedRun.restoredRecursorShapeFields
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (B : RestoredBlockBase E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
-    (hB : B.lowered = E.lowered)
+    (hB : B.loweredDecl = E.lowered.loweredDecl)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecked sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
@@ -736,8 +754,10 @@ theorem NestedRun.recursorName_mem_lowered
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv)
+      sourceDecl lparams nparams isUnsafe safety outEnv L)
     (owner : Fin E.lowered.recursors.generationSignature.families.size) :
     E.lowered.recursors.canonicalGeneration.recursorName owner ∈
       E.lowered.loweredDecl.types.map (fun t => t.name.str "rec") := by
@@ -750,19 +770,19 @@ theorem NestedRun.recursorName_mem_lowered
   have : owner' = owner := Fin.ext hown
   subst this
   rw [← h]
-  have hloweredNames : E.lowered.indTypes.toList.map (·.name) =
+  have hloweredNames : result.types.toArray.toList.map (·.name) =
       E.lowered.loweredDecl.types.map (·.name) :=
     forall₂_map_eq (fun a b h => h.header.name.symm) E.lowered.constructors.core.types
-  have hlt : owner'.val < E.lowered.indTypes.size := by
+  have hlt : owner'.val < result.types.toArray.size := by
     have := E.lowered.recursors.generated.length
     rw [E.lowered.recursors.cardinality.records,
       ← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
         E.lowered.constructors.core] at this
     rw [this] at hiE
     simpa using hiE
-  have hmem : E.lowered.indTypes[owner'.val]!.name ∈
-      E.lowered.indTypes.toList.map (·.name) := by
-    rw [getElem!_pos E.lowered.indTypes owner'.val hlt]
+  have hmem : result.types.toArray[owner'.val]!.name ∈
+      result.types.toArray.toList.map (·.name) := by
+    rw [getElem!_pos result.types.toArray owner'.val hlt]
     exact List.mem_map_of_mem (Array.getElem_mem_toList hlt)
   rw [hloweredNames] at hmem
   obtain ⟨t, ht, hname⟩ := List.mem_map.mp hmem
@@ -775,9 +795,11 @@ theorem NestedRun.recursorName_not_head
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (Haux : List.Forall₂ (SpecializationGenerates

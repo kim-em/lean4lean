@@ -374,7 +374,7 @@ theorem TrSyn.mkAppList_const_inv {Us : List Name} {Δ : VLCtx}
     intro e' H
     cases H with
     | const hus =>
-      exact ⟨_, [], rfl, (VerifyInductive.checkPositivityStep.List.mapM_some_length hus).symm, .nil⟩
+      exact ⟨_, [], rfl, List.mapM_some_length hus, .nil⟩
   | cons a init ih =>
     intro e' H
     rw [List.reverse_cons, Expr.mkAppList_append] at H
@@ -540,7 +540,7 @@ section Completed
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : RecursorInput c stats decl nparams isUnsafe depth
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth
     sourceEnv indTypes ctorEnv}
 
 theorem familyNames_drop_subset {types : List VInductiveType} {k : Nat} {name : Name}

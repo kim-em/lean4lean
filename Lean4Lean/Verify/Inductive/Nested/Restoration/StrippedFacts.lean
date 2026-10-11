@@ -26,8 +26,10 @@ theorem NestedRun.restored_k_false
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
     (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv)
+      sourceDecl lparams nparams isUnsafe safety outEnv L)
     (hnonempty : sourceTypes ≠ []) (hnested : result.aux2nested.size ≠ 0) :
     ∀ rv ∈ E.restoration.rvals, rv.k = false := by
   intro rv hrv
@@ -46,11 +48,13 @@ a checker environment of the rule-free recursor stage `B.recursorVEnv`. -/
 theorem NestedRun.strippedChecker {ves : VEnvs} {res : ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType} {decl : VInductDecl}
     {lparams : List Name} {nparams : Nat} {isUnsafe : Bool} {outEnv : Environment}
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
     (E : NestedRun res sourceProdEnv sourceTypes (ves.venv (if isUnsafe then .unsafe else .safe))
-      decl lparams nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+      decl lparams nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv L)
     (B : RestoredBlockBase E.restoration (ves.venv (if isUnsafe then .unsafe else .safe)) decl
       lparams nparams isUnsafe (if isUnsafe then .unsafe else .safe))
-    (hB : B.lowered = E.lowered) (wf : ves.WF sourceProdEnv)
+    (hB : B.loweredDecl = E.lowered.loweredDecl) (wf : ves.WF sourceProdEnv)
     (Hsources : SourceSyntaxChecked sourceTypes)
     (Hparameters : decl.SourceParameterWF (ves.venv (if isUnsafe then .unsafe else .safe)))
     (hnested : res.aux2nested.size ≠ 0) :
