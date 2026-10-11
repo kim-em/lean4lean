@@ -107,4 +107,87 @@ theorem iotaStatic (index : Fin s.constructors.size)
 
 end InductiveSignature.Instance
 
+
+namespace VEnv.Model
+open InductiveSignature
+
+theorem lamArity_wrapLams (ds : List VExpr) (b : VExpr) :
+    (VExpr.wrapLams ds b).lamArity = ds.length + b.lamArity := by
+  induction ds with
+  | nil => simp [VExpr.wrapLams]
+  | cons d ds ih =>
+    simp only [VExpr.wrapLams, List.foldr_cons, VExpr.lamArity, List.length_cons] at ih ⊢
+    rw [ih]; omega
+
+theorem lamArity_mkApps_bvar (i : Nat) : ∀ args : List VExpr,
+    (VExpr.mkApps (.bvar i) args).lamArity = 0 := by
+  intro args
+  induction args using List.reverseRecOn with
+  | nil => rfl
+  | snoc args a _ => rw [VExpr.mkApps_snoc]; rfl
+
+theorem getAppArgs_length_eq_of_mkApps_bvar {i j : Nat} {a b : List VExpr}
+    (h : VExpr.mkApps (.bvar i) a = VExpr.mkApps (.bvar j) b) : a.length = b.length := by
+  have := congrArg VExpr.getAppArgs h
+  simp only [VExpr.getAppArgs_mkApps, VExpr.getAppArgs, List.nil_append] at this
+  rw [this]
+
+/-- **The data of an ordinary rule**: the generated equation it is read off, the generated
+recursor, and the split of its counts. -/
+theorem ordinary_rule_data {base env : VEnv} {decl expanded : VInductDecl}
+    {s : InductiveSignature} {g : InductiveSignature.Instance s} {block : VInductBlock}
+    (hdecl : decl.WF env) (hrecsOf : decl.RecsOf block)
+    (C : InductiveSignature.CompilationData base decl expanded s g [] block)
+    {rec : VRecursor} {ru : VRecRule} (hrec : rec ∈ decl.recs) (hru : ru ∈ rec.rules)
+    {df : VDefEq} (hdf : df ∈ block.rules) (H : VRecRule.OfEquation rec ru df) :
+    ∃ index : Fin s.constructors.size,
+      rec.toVConstVal = g.recursor s.constructors[index].owner ∧
+      ru.ctor = s.constructors[index].name ∧ ru.rhs = (g.equation index).rhs ∧
+      rec.numParams + rec.numMotives + rec.numMinors =
+        s.params.length + (s.families.size + s.constructors.size) ∧
+      rec.numIndices = s.families[s.constructors[index].owner].indices.length ∧
+      ru.ctorParams = s.params.length ∧ ru.nfields = s.constructors[index].fields.length ∧
+      s.constructors[index].indices.length =
+        s.families[s.constructors[index].owner].indices.length := by
+  obtain ⟨index, rfl, hn, hmaj, hctor, hcf, hrhs⟩ := C.ordinary_rule hdf H
+  have harity : s.constructors[index].indices.length =
+      s.families[s.constructors[index].owner].indices.length :=
+    C.model.constructorArity s.constructors[index] (by simp)
+  -- the recursor
+  have hmemB : rec.toVConstVal ∈ g.recursors := by
+    rw [← C.ordinary_recursors, ← hrecsOf.recursors]; exact List.mem_map_of_mem hrec
+  have hmemG := g.recursor_mem s.constructors[index].owner
+  have hnd : (g.recursors.map (·.name)).Nodup := by
+    have := C.names
+    rw [C.ordinary_recursors] at this
+    simp only [List.map_append] at this
+    exact (List.nodup_append.1 this).2.1
+  have hrv : rec.toVConstVal = g.recursor s.constructors[index].owner :=
+    VEnv.inj_on_of_nodup_map hnd hmemB hmemG hn
+  -- the number of indices, from the recursor's shape
+  obtain ⟨-, -, -, j, hj, -, hbody⟩ := hdecl.rec_shape rec hrec
+  have htype : rec.type = g.recursorType s.constructors[index].owner :=
+    congrArg (fun c : VConstVal => c.type) hrv
+  rw [htype, show g.recursorType s.constructors[index].owner =
+    (g.recursor s.constructors[index].owner).type from rfl,
+    InductiveSignature.Instance.recursorType_eq_recDoms (g := g)] at hbody
+  simp only [InductiveSignature.Instance.recBody] at hbody
+  rw [VExpr.mkApps_snoc, Model.piBody_wrapForalls_app, ← VExpr.mkApps_snoc] at hbody
+  have hlenI := getAppArgs_length_eq_of_mkApps_bvar hbody
+  simp only [List.length_append, InductiveSignature.vars_len, List.length_singleton,
+    VExpr.bvarsDesc_length, InductiveSignature.insertBinders, List.length_map,
+    List.length_zipIdx] at hlenI
+  have hmaj' : rec.numParams + rec.numMotives + rec.numMinors + rec.numIndices =
+      s.params.length + (s.families.size + s.constructors.size) +
+        s.constructors[index].indices.length := hmaj
+  -- the number of fields, from the rule's shape
+  obtain ⟨_, -, _, -, -, -, hrs⟩ := hdecl.rule_shape rec hrec ru hru
+  have hla := hrs.1
+  rw [hrhs, InductiveSignature.Instance.equation_rhs_eq, lamArity_wrapLams,
+    InductiveSignature.Instance.eqDoms_length] at hla
+  simp only [InductiveSignature.Instance.eqBody, lamArity_mkApps_bvar] at hla
+  refine ⟨index, hrv, hctor, hrhs, by omega, by omega, by omega, by omega, harity⟩
+
+end VEnv.Model
+
 end Lean4Lean
