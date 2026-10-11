@@ -14,7 +14,8 @@ rule) and of the registered ι rules (`VEnv.WF.patCoverage`), and the confluence
 A registered ι rule (`IsDefEq.pat`) fired at a typed instance is a pattern step of the engine
 (`ParRed.extra`) unless its recursor is large-eliminating and the source of the instance's
 major is `Prop`; that instance is covered by the singleton prefix unfolding
-(`VEnv.WF.singletonPatCoverage`). -/
+(`VEnv.WF.singletonPatCoverageJ`), proved by an induction along the environment's history
+(`VEnv.WF.patCoverageJ`). -/
 
 namespace Lean4Lean.VEnv
 open InductiveSignature
@@ -84,22 +85,78 @@ theorem _root_.Lean4Lean.InductiveSignature.RecursorData.guard_OK {data : Recurs
   unfold RecursorData.guard
   split <;> simp_all [Pattern.Check.OK]
 
-/-- **Coverage of the registered ι rules**: every typed instance of a registered rule joins its
-reduct, by one pattern step where the universe guard of its recursor holds, and by the singleton
-prefix unfolding where the source of its major is `Prop`. -/
+/-- The stage at which a recursor is installed is later than every stage registering a rule of
+an earlier recursor: the earlier recursor is a constant of that stage, fresh where it is installed. -/
+theorem WF.stage_rank_lt {ds : List VDecl} (H : env.WFH ds env.stages) {p : Pattern}
+    {r : p.RHS × p.Check} {i j : Nat} (hi : i < env.stages.length) (hj : j < env.stages.length)
+    (hp : env.stages[i].pats p r) {decl : VInductDecl} {env₁ : VEnv} {rec : VRecursor}
+    (hadd : env.stages[j].addInduct decl = some env₁) (hrec : rec ∈ decl.recs)
+    (hname : rec.name = p.headConst) : i < j := by
+  refine Nat.lt_of_not_le fun hji => ?_
+  have hle := H.chain hj hi hji
+  obtain ⟨c, hc⟩ := (H.stage (List.getElem_mem hi)).1.pat_head_declared hp
+  have := hle.constants hc
+  rw [← hname, addInduct_rec_fresh hadd hrec] at this
+  cases this
+
+/-- **Coverage of the registered ι rules at joinably typed instances**: every such instance
+joins its reduct, by one pattern step where the universe guard of its recursor holds, and by
+the singleton prefix unfolding where the source of its major is `Prop`. The latter needs the
+joins of the definitional equalities of the stage its declaration was installed at, which
+cover the rules of earlier stages: the proof is an induction along the environment's chosen
+history (`WF.stage_rank_lt`). -/
+theorem WF.patCoverageJ (heq : env.HasCanonicalEq) : @FullPatCoverageJ (henv.params U) := by
+  letI := henv.params U
+  haveI := henv.equationCoverage U
+  obtain ⟨ds, H⟩ := henv.stagesH
+  -- the rank of a pattern bounds the stages of the installations of its recursor
+  let Rank (p : Pattern) (n : Nat) : Prop :=
+    ∀ {data decl env₀ env₁ rec i} (hi : i < env.stages.length),
+      RecursorRegisteredAt env data decl env₀ env₁ → rec ∈ decl.recs →
+      rec.name = p.headConst → env.stages[i] = env₀ → env.stages.length ≤ n + i
+  have key : ∀ n, ∀ {p : Pattern} {r : p.RHS × p.Check}, env.pats p r → Rank p n →
+      CoverageJ p r := by
+    intro n
+    induction n using Nat.strongRecOn with
+    | _ n ih =>
+    intro p r hp hrank Γ e m1 m2 A chk hΓ hm he hJ hr hall
+    obtain ⟨recN, major, ctor, fields, data, rfl, hl, -, -, hG⟩ := henv.pats_guarded hp
+    have hred := IsDefEq.pat hp hm he hr hall
+    by_cases hzero : data.largeTarget = true ∧
+        (data.schema.sourceLevel data.owner data.levels).inst m1 ≈ .zero
+    · refine WF.singletonPatCoverageJ henv U heq hΓ hp
+        (by rw [SimplePattern.iota_headConst]; exact hl) hzero.1 hzero.2 hm hred hJ ?_
+      intro decl env₀ env₁ rec hAt hstage hrec hrname
+      obtain ⟨i, hi, hie⟩ := List.getElem_of_mem hstage
+      have hbound := hrank hi hAt hrec hrname hie
+      obtain ⟨base, expanded, g, auxiliaries, block, -, -, -, -, -, -, -, -, hdecl, hadd, -, hle,
+        -⟩ := hAt
+      have hcov : ∀ {p' : Pattern} {r' : p'.RHS × p'.Check}, env₀.pats p' r' → CoverageJ p' r' := by
+        intro p' r' hp'
+        have hp'E : env.pats p' r' := (H.stage_le hstage).pats hp'
+        have hn : 0 < n := by omega
+        have hrk : Rank p' (n - 1) := by
+          intro data' decl' env₀' env₁' rec' j hj hAt' hrec' hname' hje
+          obtain ⟨-, -, -, -, -, -, -, -, -, -, -, -, -, -, hadd', -, -, -⟩ := hAt'
+          have hlt := WF.stage_rank_lt H hi hj (hie ▸ hp') (hje ▸ hadd') hrec' hname'
+          omega
+        intro Γ' e' m1' m2' A' chk' hΓ' hm' he' hJ' hr' hall'
+        exact ih (n - 1) (by omega) hp'E hrk hΓ' hm' he' hJ' hr' hall'
+      intro base E
+      exact stage_types_joins hstage hdecl hadd hle hcov
+    · have hok : (data.guard _).OK (IsDefEqU env U Γ) m1 m2 := RecursorData.guard_OK.mpr hzero
+      have hstep : ParRed Γ e (r.1.apply m1 m2) :=
+        ParRed.extra (r := (r.1, data.guard _)) (.inr (.inr hG)) hm hok fun _ => .rfl
+      exact ⟨_, _, .tail .rfl (.core hstep), .rfl, .refl hred.hasType.2⟩
+  exact ⟨fun hΓ hp hm he hJ hr hall =>
+    key env.stages.length hp (fun _ _ _ _ _ => by omega) hΓ hm he hJ hr hall⟩
+
+/-- **Coverage of the registered ι rules**, from coverage at joinably typed instances. -/
 theorem WF.patCoverage (heq : env.HasCanonicalEq) : @FullPatCoverage (henv.params U) := by
   letI := henv.params U
-  refine ⟨fun {Γ p r e m1 m2 A chk} hΓ hp hm he hr hall => ?_⟩
-  obtain ⟨recN, major, ctor, fields, data, rfl, hl, -, -, hG⟩ := henv.pats_guarded hp
-  have hred := IsDefEq.pat hp hm he hr hall
-  by_cases hzero : data.largeTarget = true ∧
-      (data.schema.sourceLevel data.owner data.levels).inst m1 ≈ .zero
-  · exact WF.singletonPatCoverage henv U heq hΓ hp
-      (by rw [SimplePattern.iota_headConst]; exact hl) hzero.1 hzero.2 hm he
-  · have hok : (data.guard _).OK (IsDefEqU env U Γ) m1 m2 := RecursorData.guard_OK.mpr hzero
-    have hstep : ParRed Γ e (r.1.apply m1 m2) :=
-      ParRed.extra (r := (r.1, data.guard _)) (.inr (.inr hG)) hm hok fun _ => .rfl
-    exact ⟨_, _, .tail .rfl (.core hstep), .rfl, .refl hred.hasType.2⟩
+  haveI := henv.equationCoverage U
+  haveI := henv.patCoverageJ U heq
+  exact FullPatCoverageJ.toFull
 
 end
 
