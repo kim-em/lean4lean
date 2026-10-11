@@ -200,7 +200,7 @@ theorem pat_lhs_sub_iota {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead
     · simp only [S', hx, if_true] at ho
       rcases hbind.2 x hx with ⟨i, k, hi, -, hki, -, -, hkS⟩ |
         ⟨-, j, hj, ⟨-, -, -, -, -, hS⟩ | ⟨-, -, hS⟩ | ⟨-, info', hpi', -, hle', -, -, -, hS⟩⟩
-      · rw [hkS] at ho
+      · obtain ⟨o₀, ho₀, l₀⟩ := hkS o ho
         have hil : i < lkeys.length := by
           have := List.Forall₂.length_eq hkeysL
           have := (List.getElem?_eq_some_iff.1 hi).1; simp at *; omega
@@ -208,13 +208,13 @@ theorem pat_lhs_sub_iota {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead
         have hk : lkeys[i] = k := by
           have := List.getElem?_eq_some_iff.1 hki; exact this.2
         rw [hk] at hcov
-        obtain ⟨o', ho', l⟩ := hcov o ho
+        obtain ⟨o', ho', l⟩ := hcov o₀ ho₀
         have ha : (lead.map (·.instL ls))[i]'(by
             have := List.Forall₂.length_eq hkeysL; omega) = .bvar x := by
           simp only [List.getElem_map]
           rw [(List.getElem?_eq_some_iff.1 hi).2]; rfl
         rw [ha] at ho'
-        exact ⟨o', Obs.bvar_iff.1 ho', l⟩
+        exact ⟨o', Obs.bvar_iff.1 ho', l.trans l₀⟩
       · rw [hS] at ho
         obtain ⟨pre, hpre⟩ := ho
         exact argObOf j x pre o hj hpre

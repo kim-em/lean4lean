@@ -199,7 +199,8 @@ variable (env : VEnv) (U : Nat) (Δ : List VExpr)
 
 /-- The binding of a rule's variables from the keys of a head chain: a variable occurring
 bare among the leading arguments takes the key at its first
-occurrence; otherwise it is the `j`-th field of the major and is
+occurrence (its observations are covered by the key's: an index key of an ι redex binds a field
+whose own observations are only subsumed by those of the index argument); otherwise it is the `j`-th field of the major and is
 * (AB) read, in mode AB, from the constructor observations `Km` of the major key;
 * (proof) in any mode, any term of its type, which is a proposition, with no observations;
 * (eta) in mode AB, when the major's constructor `ctor` is the constructor of the
@@ -216,7 +217,7 @@ def RuleBind (doms : List VExpr) (ls : List VLevel) (lead : List VExpr) (msLen :
     (∃ i : Nat, ∃ k : Key, lead[i]? = some (VExpr.bvar x) ∧ (∀ j < i, lead[j]? ≠ some (VExpr.bvar x)) ∧
       keys[i]? = some k ∧
       TypedElCls env U Δ (TyCls env U Δ ((binderTy doms ls x).subst τ)) k.2.1 ∧ k.2.1 (τ x) ∧
-      S' x = listSet k.2.2) ∨
+      ∀ o, S' x o → ∃ o' ∈ k.2.2, o' ≼ o) ∨
     ((∀ i : Nat, lead[i]? ≠ some (VExpr.bvar x)) ∧ ∃ j : Nat, fs[j]? = some x ∧
       ((mC = false ∧ ∃ c, .ctorArg (msLen + j) c ∈ Km ∧
           TypedElCls env U Δ (TyCls env U Δ ((binderTy doms ls x).subst τ)) c ∧ c (τ x) ∧
