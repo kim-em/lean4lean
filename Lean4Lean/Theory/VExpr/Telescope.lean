@@ -43,6 +43,26 @@ def VExpr.wrapLams (domains : List VExpr) (body : VExpr) : VExpr :=
 def VExpr.wrapForalls (domains : List VExpr) (body : VExpr) : VExpr :=
   domains.foldr .forallE body
 
+theorem VExpr.piBinders_wrapForalls (ds : List VExpr) (b : VExpr) :
+    (VExpr.wrapForalls ds b).piBinders = ds ++ b.piBinders := by
+  induction ds with
+  | nil => rfl
+  | cons d ds ih => simp [VExpr.wrapForalls, VExpr.piBinders] at ih ⊢; exact ih
+
+theorem VExpr.piBody_wrapForalls (ds : List VExpr) (b : VExpr) :
+    (VExpr.wrapForalls ds b).piBody = b.piBody := by
+  induction ds with
+  | nil => rfl
+  | cons d ds ih => exact ih
+
+theorem VExpr.lamArity_wrapLams (ds : List VExpr) (b : VExpr) :
+    (VExpr.wrapLams ds b).lamArity = ds.length + b.lamArity := by
+  induction ds with
+  | nil => simp [VExpr.wrapLams]
+  | cons d ds ih =>
+    simp only [VExpr.wrapLams, List.foldr_cons] at ih ⊢
+    simp only [VExpr.lamArity, ih, List.length_cons]; omega
+
 @[simp] theorem VExpr.instL_wrapForalls (ds : List VExpr) (body : VExpr) (ls : List VLevel) :
     (VExpr.wrapForalls ds body).instL ls =
       VExpr.wrapForalls (ds.map (·.instL ls)) (body.instL ls) := by

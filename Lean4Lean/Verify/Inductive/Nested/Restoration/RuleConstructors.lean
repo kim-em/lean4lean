@@ -242,7 +242,7 @@ theorem _root_.Lean4Lean.InductiveSignature.CompilationData.restoredFamilyHead_a
   rw [(compilationRestoration source auxiliaries).expr_mkApps,
     (compilationRestoration source auxiliaries).mapM_expr_vars]
   simp only [Option.bind_some, Restoration.expr.go, hfind, HeadSpecialization.apply,
-    hlevelsLen, h, bne_self_eq_false, Bool.false_or, vars_length, hnp]
+    hlevelsLen, h, bne_self_eq_false, Bool.false_or, length_vars, hnp]
   rw [if_neg (by simp), List.take_of_length_le (by simp),
     List.drop_of_length_le (by simp), hinst 0]
   simp only [VExpr.liftN_zero, Option.pure_def, Option.bind_eq_bind, Option.bind_some,
@@ -507,7 +507,7 @@ theorem NestedRun.restoredRuleConstructors
       exact Hdata.restoredHeadName_source (mem_familyNames.mpr
         ⟨_, List.getElem_mem hsrc, .inr ⟨sc, List.getElem_mem hj, rfl⟩⟩)
     have hargs : (vars E.lowered.signature.params.length 0).length = sourceDecl.nparams := by
-      rw [vars_length, hnp]
+      rw [length_vars, hnp]
     simp only [hrestored, hargs]
     -- the kernel constructor
     have hsourceWF : sourceProdEnv.constants.WF := by

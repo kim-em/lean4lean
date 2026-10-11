@@ -676,12 +676,6 @@ private theorem mapM_some_append' {f : α → Option β} {l₁ l₂ : List α} {
   cases h₁ : l₁.mapM f <;> cases h₂ : l₂.mapM f <;> simp [h₁, h₂] at h
   exact ⟨_, _, rfl, rfl, h.symm⟩
 
-private theorem lamBody_wrapLams'' (ds : List VExpr) (b : VExpr) :
-    (VExpr.wrapLams ds b).lamBody = b.lamBody := by
-  induction ds with
-  | nil => rfl
-  | cons d ds ih => exact ih
-
 private theorem mapM_some_length' {f : α → Option β} :
     ∀ {l : List α} {l' : List β}, l.mapM f = some l' → l'.length = l.length
   | [], l', h => by simp only [List.mapM_nil, Option.pure_def, Option.some.injEq] at h; subst h; rfl
@@ -731,9 +725,9 @@ theorem Restoration.equation_lhs_spine {s : InductiveSignature} {g : Instance s}
     have hMM : M' = M := Option.some.inj (hM'.symm.trans hM)
     subst hMM
     refine ⟨pre ++ [M'], ?_, ?_, by simp⟩
-    · rw [hlhs, lamBody_wrapLams'', lamBody_const_spine _ _ _ (by simp)]
+    · rw [hlhs, VExpr.lamBody_wrapLams, lamBody_const_spine _ _ _ (by simp)]
     · have := mapM_some_length' ha
-      simp only [List.length_append, vars_length, List.length_map, List.length_singleton]
+      simp only [List.length_append, length_vars, List.length_map, List.length_singleton]
         at this ⊢
       omega
 

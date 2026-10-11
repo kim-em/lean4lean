@@ -171,10 +171,10 @@ theorem RuleEquationData.ofEquation {H : RecursorCheck R outEnv} {r : VRecursor}
   rw [VExpr.mkApps_snoc, VExpr.lamBody_wrapLams_app]
   refine ⟨D.rhs.symm, ?_, ?_, _, List.getLast?_concat .., ?_, ?_⟩
   · simp [VExpr.headConst?, VExpr.getAppFn, D.name]
-  · simp [VRecursor.getMajorIdx, VExpr.getAppArgs, InductiveSignature.vars_length, D.numParams,
+  · simp [VRecursor.getMajorIdx, VExpr.getAppArgs, InductiveSignature.length_vars, D.numParams,
       D.numMotives, D.numMinors, D.numIndices]; omega
   · simp [VExpr.headConst?, VExpr.getAppFn, D.ctor]
-  · simp [VExpr.getAppArgs, InductiveSignature.vars_length, D.ctorParams, D.nfields]
+  · simp [VExpr.getAppArgs, InductiveSignature.length_vars, D.ctorParams, D.nfields]
 
 /-- The rules of the model recursors are the generated equations, both ways (the `rules` and
 `rules_total` clauses of `VInductDecl.RecsOf`). -/

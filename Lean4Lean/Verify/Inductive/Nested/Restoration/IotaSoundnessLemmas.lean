@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.VExpr.TelescopeLemmas
 import Lean4Lean.Theory.Inductive.RestorationNames
-import Lean4Lean.Verify.Inductive.Nested.Restoration.SignatureVars
+import Lean4Lean.Theory.Typing.SignatureVars
 import Lean4Lean.Verify.Inductive.Install.RecursorShapesOf
 import Lean4Lean.Verify.Inductive.Formation
 import Lean4Lean.Theory.Inductive.RecursiveShapeCorrespondence
@@ -335,15 +335,6 @@ theorem VInductDecl.RawCtorShape.constructorShape
       rw [hparams]
       congr 2
       exact InductiveSignature.nested_vars_eq_bvarRange _ _
-end Lean4Lean
-
-namespace Lean4Lean
-namespace InductiveSignature
-open InductiveSignature
-
-@[simp] theorem vars_length (n k : Nat) : (vars n k).length = n := by
-  simp [vars]
-end InductiveSignature
 end Lean4Lean
 
 namespace Lean4Lean
@@ -967,7 +958,7 @@ theorem CompilationData.restoredConstructorShape
         (List.getElem_mem hsrc) hlookup with ⟨fields, hshape⟩
       refine ⟨fields, ?_⟩
       rw [hchead]
-      simpa only [vars_length, hlevelsLen, hnp, hidxEq, hname'] using hshape
+      simpa only [length_vars, hlevelsLen, hnp, hidxEq, hname'] using hshape
   · -- an auxiliary family
     have hge : source.types.length ≤ owner.val := Nat.le_of_not_lt hsrc
     have hidx : owner.val - source.types.length < direct.length := by
@@ -1013,7 +1004,7 @@ theorem CompilationData.restoredConstructorShape
       rw [(compilationRestoration source auxiliaries).expr_mkApps,
         (compilationRestoration source auxiliaries).mapM_expr_vars]
       simp only [Option.bind_some, Restoration.expr.go, hfind, HeadSpecialization.apply,
-        hlevelsLen, h, bne_self_eq_false, Bool.false_or, vars_length, hnp]
+        hlevelsLen, h, bne_self_eq_false, Bool.false_or, length_vars, hnp]
       rw [if_neg (by simp), List.take_of_length_le (by simp),
         List.drop_of_length_le (by simp), hinst 0]
       simp only [VExpr.liftN_zero, Option.pure_def, Option.bind_eq_bind, Option.bind_some,
@@ -1226,7 +1217,7 @@ theorem CompilationData.restoredConstructorFieldDomains
       have hty : sc.type = VExpr.wrapForalls ctorDoms ctorBody := by
         have := congrArg VConstant.type (Option.some.inj (hlookup.symm.trans hc))
         simpa using this
-      simp only [vars_length] at hclen ⊢
+      simp only [length_vars] at hclen ⊢
       have hTi : s.params.length + i < (ctorDoms.map (·.instL g.levels)).length := by
         simp; omega
       have h := finish (ctorDoms.map (·.instL g.levels)) (ctorBody.instL g.levels)
@@ -1286,7 +1277,7 @@ theorem CompilationData.restoredConstructorFieldDomains
       rw [(compilationRestoration source auxiliaries).expr_mkApps,
         (compilationRestoration source auxiliaries).mapM_expr_vars]
       simp only [Option.bind_some, Restoration.expr.go, hfind, HeadSpecialization.apply,
-        hlevelsLen, h, bne_self_eq_false, Bool.false_or, vars_length, hnp]
+        hlevelsLen, h, bne_self_eq_false, Bool.false_or, length_vars, hnp]
       rw [if_neg (by simp), List.take_of_length_le (by simp),
         List.drop_of_length_le (by simp), hinst 0]
       simp only [VExpr.liftN_zero, Option.pure_def, Option.bind_eq_bind, Option.bind_some,
@@ -1588,7 +1579,7 @@ theorem CompilationData.restoredFamilyHead_spec
       rw [(compilationRestoration source auxiliaries).expr_mkApps,
         (compilationRestoration source auxiliaries).mapM_expr_vars]
       simp only [Option.bind_some, Restoration.expr.go, hfind, HeadSpecialization.apply,
-        hlevelsLen, h, bne_self_eq_false, Bool.false_or, vars_length, hnp]
+        hlevelsLen, h, bne_self_eq_false, Bool.false_or, length_vars, hnp]
       rw [if_neg (by simp), List.take_of_length_le (by simp),
         List.drop_of_length_le (by simp), hinst 0]
       simp only [VExpr.liftN_zero, Option.pure_def, Option.bind_eq_bind, Option.bind_some,
@@ -1640,10 +1631,10 @@ theorem CompilationData.restoredFamilyHead_spec
         (compilationRestoration source auxiliaries).mapM_expr_vars]
       simp only [Option.bind_eq_bind, Option.bind_some, Option.pure_def,
         Restoration.expr.go, hcfind, HeadSpecialization.apply,
-        hlevelsLen, hc, bne_self_eq_false, Bool.false_or, List.length_append, vars_length,
+        hlevelsLen, hc, bne_self_eq_false, Bool.false_or, List.length_append, length_vars,
         hnp, Nat.add_zero]
-      rw [if_neg (by simp), List.take_left' (vars_length _ _),
-        List.drop_left' (vars_length _ _), hinst]
+      rw [if_neg (by simp), List.take_left' (length_vars _ _),
+        List.drop_left' (length_vars _ _), hinst]
       simp only [List.map_map, Function.comp_def]
 end InductiveSignature
 end Lean4Lean

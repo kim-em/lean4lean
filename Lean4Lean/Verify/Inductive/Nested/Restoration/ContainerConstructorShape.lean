@@ -128,12 +128,6 @@ theorem piArity_wrapForalls_aux (ds : List VExpr) (b : VExpr) :
     simp only [VExpr.wrapForalls, List.foldr_cons] at ih ⊢
     simp only [VExpr.piArity, ih, List.length_cons]; omega
 
-theorem piBody_wrapForalls_aux (ds : List VExpr) (b : VExpr) :
-    (VExpr.wrapForalls ds b).piBody = b.piBody := by
-  induction ds with
-  | nil => rfl
-  | cons d ds ih => exact ih
-
 private theorem piArity_eq_forallArity' : ∀ e : VExpr, e.piArity = e.forallArity
   | .forallE _ b => by simp [VExpr.piArity, VExpr.forallArity, piArity_eq_forallArity' b]
   | .bvar _ | .sort _ | .const .. | .app .. | .proj .. | .lam .. => rfl
@@ -311,7 +305,7 @@ theorem NestedRun.containerConstructorShape
   obtain ⟨doms, result, hct, hnp, -, hhead⟩ := hparams.rawCtorShape a.source haSrc c hc
   obtain ⟨hr0, hrTail⟩ := constTail_of_getAppFnArgs hhead
   have hcTail : ConstTail c.type := by
-    rw [hct]; simpa [ConstTail, piBody_wrapForalls_aux] using hrTail
+    rw [hct]; simpa [ConstTail, VExpr.piBody_wrapForalls] using hrTail
   have hcArity : c.type.piArity = doms.length := by
     rw [hct, piArity_wrapForalls_aux, hr0]; rfl
   obtain ⟨hlA, hlT⟩ := hcTail.instL a.levels

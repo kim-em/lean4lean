@@ -3,6 +3,7 @@ import Lean4Lean.Verify.Typing.Syntactic.Basic
 import Lean4Lean.Theory.Inductive.AddInduct
 import Lean4Lean.Verify.Environment.Basic
 import Lean4Lean.Verify.Typing.Lemmas
+import Lean4Lean.Theory.Typing.SignatureVars
 
 /-! Translation relations between the executable's recursor values, the generated recursors of
 a signature instance, and the model's recursors (`VRecursor`, `VRecRule`):
@@ -80,18 +81,9 @@ rules the generated equations, reduct for reduct (`VRecRule.OfEquation`): `TrExp
 functional, so the two translations of a rule's reduct agree. This is the bridge from the
 recursor and rule phases to `VInductDecl.RecsOf`, hence `RecsCompiled`. -/
 
-private theorem lamBody_wrapLams (domains : List VExpr) (body : VExpr) :
-    (VExpr.wrapLams domains body).lamBody = body.lamBody := by
-  induction domains with
-  | nil => rfl
-  | cons d ds ih => exact ih
-
 private theorem lamBody_of_getAppFn_const {e : VExpr} {c : Name} {us : List VLevel}
     (h : e.getAppFn = .const c us) : e.lamBody = e := by
   cases e <;> first | rfl | (simp [VExpr.getAppFn] at h)
-
-private theorem vars_length_aux (count below : Nat) : (vars count below).length = count := by
-  simp [vars]
 
 /-- A model rule read off a kernel rule that is a generated equation is that equation's reduct
 (`VRecRule.OfEquation`). The translations of the kernel reduct into the two environments agree
@@ -117,21 +109,21 @@ theorem VRecRule.OfEquation.ofTr {s : InductiveSignature} {g : Instance s}
     intro args; simp [VExpr.getAppFn]
   refine ⟨hrule.rhs.toTrSyn.unique hrhs.toTrSyn, ?_, ?_, ?_⟩
   · simp only [Instance.equation, Instance.recursorHead]
-    rw [lamBody_wrapLams, lamBody_of_getAppFn_const (hfn _), VExpr.headConst?_eq_some]
+    rw [VExpr.lamBody_wrapLams, lamBody_of_getAppFn_const (hfn _), VExpr.headConst?_eq_some]
     exact ⟨_, by rw [hfn, hname]⟩
   · simp only [Instance.equation, Instance.recursorHead]
-    rw [lamBody_wrapLams, lamBody_of_getAppFn_const (hfn _), VExpr.getAppArgs_mkApps]
+    rw [VExpr.lamBody_wrapLams, lamBody_of_getAppFn_const (hfn _), VExpr.getAppArgs_mkApps]
     simp only [VExpr.getAppArgs, List.nil_append, List.length_append, List.length_map,
-      vars_length_aux, List.length_singleton]
+      length_vars, List.length_singleton]
     rw [hmajor, harity]; omega
   · simp only [Instance.equation, Instance.recursorHead]
-    rw [lamBody_wrapLams, lamBody_of_getAppFn_const (hfn _), VExpr.getAppArgs_mkApps]
+    rw [VExpr.lamBody_wrapLams, lamBody_of_getAppFn_const (hfn _), VExpr.getAppArgs_mkApps]
     refine ⟨_, by simp [VExpr.getAppArgs]; rfl, ?_, ?_⟩
     · rw [VExpr.headConst?_eq_some]
       refine ⟨g.levels, ?_⟩
       simp [Instance.constructorApp, VExpr.getAppFn, hctor, hrule.ctor]
     · simp [Instance.constructorApp, VExpr.getAppArgs, hparams, hnfields, hrule.nfields,
-        vars_length_aux]
+        length_vars]
 
 /-- `VRecRule.OfEquation.ofTr` with the index-count side condition read off a signature that
 models a declaration (`Models.constructorArity`). -/

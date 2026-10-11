@@ -142,14 +142,6 @@ end InductiveSignature
 
 namespace VExpr
 
-theorem lamArity_wrapLams (doms : List VExpr) (body : VExpr) :
-    (VExpr.wrapLams doms body).lamArity = doms.length + body.lamArity := by
-  induction doms with
-  | nil => simp [VExpr.wrapLams]
-  | cons d ds ih =>
-    show (VExpr.lam d (VExpr.wrapLams ds body)).lamArity = _
-    simp only [VExpr.lamArity, ih, List.length_cons]; omega
-
 theorem lamBody_wrapLams_of_lamArity (doms : List VExpr) {body : VExpr}
     (h : body.lamArity = 0) : (VExpr.wrapLams doms body).lamBody = body := by
   induction doms with
@@ -163,12 +155,6 @@ theorem piArity_wrapForalls (doms : List VExpr) (body : VExpr) :
   | cons d ds ih =>
     show (VExpr.forallE d (VExpr.wrapForalls ds body)).piArity = _
     simp only [VExpr.piArity, ih, List.length_cons]; omega
-
-theorem piBody_wrapForalls (doms : List VExpr) (body : VExpr) :
-    (VExpr.wrapForalls doms body).piBody = body.piBody := by
-  induction doms with
-  | nil => rfl
-  | cons d ds ih => exact ih
 
 theorem mkApps_spine_arity : ∀ (args : List VExpr) {f : VExpr},
     (∀ A b, f ≠ .lam A b) → (∀ A b, f ≠ .forallE A b) →
@@ -272,7 +258,7 @@ theorem ruleEquation (B : RestoredBlock L sourceTypes isUnsafe outEnv)
   obtain ⟨idx', lv, cps, hidx, rfl⟩ := Restoration.expr_iotaLhs hnot
     (vars_bvars _ _) (vars_bvars _ _) (vars_bvars _ _)
     (fun h hf => by
-      rw [compilationRestoration_heads_nparams h (List.mem_of_find?_eq_some hf), vars_length,
+      rw [compilationRestoration_heads_nparams h (List.mem_of_find?_eq_some hf), length_vars,
         hnpS])
     hlb
   -- the restored right-hand side is a variable spine
@@ -284,14 +270,14 @@ theorem ruleEquation (B : RestoredBlock L sourceTypes isUnsafe outEnv)
   simp only [VExpr.headConst?, VExpr.getAppFn_mkApps, VExpr.getAppFn, Option.some.injEq]
     at hhead
   simp only [VExpr.getAppArgs_mkApps, VExpr.getAppArgs, List.nil_append, List.length_append,
-    vars_length, List.length_singleton, hidx, List.length_map, VRecursor.getMajorIdx] at hlen
+    length_vars, List.length_singleton, hidx, List.length_map, VRecursor.getMajorIdx] at hlen
   simp only [VExpr.getAppArgs_mkApps, VExpr.getAppArgs, List.nil_append,
     List.getLast?_append, List.getLast?_singleton, Option.some_or, Option.some.injEq] at hlast
   subst hlast
   simp only [VExpr.headConst?, VExpr.getAppFn_mkApps, VExpr.getAppFn, Option.some.injEq]
     at hmh
   simp only [VExpr.getAppArgs_mkApps, VExpr.getAppArgs, List.nil_append, List.length_append,
-    vars_length] at hmlen
+    length_vars] at hmlen
   -- the restored recursor's type: arity and motive application
   have hmemB : r.toVConstVal ∈ B.block.recursors :=
     B.recsOf.recursors ▸ List.mem_map_of_mem hr
@@ -314,7 +300,7 @@ theorem ruleEquation (B : RestoredBlock L sourceTypes isUnsafe outEnv)
   rw [(VExpr.mkApps_bvar_spine _ _).2.2] at hbody
   have hbl := congrArg (fun e => e.getAppArgs.length) hbody
   simp only [VExpr.getAppArgs_mkApps, VExpr.getAppArgs, List.nil_append, List.length_append,
-    vars_length, List.length_singleton, VExpr.bvarsDesc_length] at hbl hpa
+    length_vars, List.length_singleton, VExpr.bvarsDesc_length] at hbl hpa
   -- the rule's reduct
   obtain ⟨j', -, A, -, -, -, hrs⟩ := B.rule_shape r hr ru hru
   have hla := hrs.1

@@ -116,41 +116,6 @@ private theorem ConstructorLowering.Resolved.constructorArity_eq
     Expr.constructorArity_abstractN,
     Expr.constructorArity_abstractN, Hmapping.constructorArity_eq]
 
-/-- Lookup classification for one checked addition to the kernel environment. -/
-theorem Environment.find?_freshAdd_cases
-    {env : Environment} (hwf : env.constants.WF)
-    (ci : ConstantInfo) (hfresh : env.find? ci.name = none)
-    (hfind : (env.add ci).find? name = some found) :
-    (name = ci.name ∧ found = ci) ∨ env.find? name = some found := by
-  rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hfresh
-  change SMap.find?' (env.constants.insert ci.name ci) name = some found at hfind
-  rw [(hwf.insert ci.name ci hfresh).find?'_eq_find?,
-    hwf.find?_insert] at hfind
-  split at hfind
-  · left
-    exact ⟨(LawfulBEq.eq_of_beq (by assumption)).symm,
-      (Option.some.inj hfind).symm⟩
-  · right
-    rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
-    exact hfind
-
-/-- An old lookup is preserved by one checked addition. -/
-theorem Environment.find?_freshAdd_preserves
-    {env : Environment} (hwf : env.constants.WF)
-    (ci : ConstantInfo) (hfresh : env.find? ci.name = none)
-    (hfind : env.find? name = some found) :
-    (env.add ci).find? name = some found := by
-  have hne : ci.name ≠ name := by
-    intro heq
-    subst name
-    rw [hfind] at hfresh
-    contradiction
-  rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hfresh hfind
-  change SMap.find?' (env.constants.insert ci.name ci) name = some found
-  rw [(hwf.insert ci.name ci hfresh).find?'_eq_find?,
-    hwf.find?_insert, if_neg (by simpa using hne)]
-  exact hfind
-
 /-- The keyed value is visible immediately after its checked addition. -/
 theorem Environment.find?_freshAdd_self
     {env : Environment} (hwf : env.constants.WF)
@@ -183,7 +148,7 @@ theorem InductInfosFromDecl.addNoninductive
       some (.inductInfo familyInfo) := by
     rw [Lean.Kernel.Environment.find?, htargetWF.find?'_eq_find?]
     exact hfamily
-  rcases Environment.find?_freshAdd_cases hwf ci hfresh hfamilyEnv with
+  rcases findAddFresh_cases hwf ci hfresh hfamilyEnv with
       hnew | hold
   · rcases hnew with ⟨hname, hinfo⟩
     subst familyName
@@ -199,7 +164,7 @@ theorem InductInfosFromDecl.addNoninductive
         (fun {name found} hfind => by
           have hfindEnv : env.find? name = some found := by
             rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
-          have hpreserved := Environment.find?_freshAdd_preserves hwf ci
+          have hpreserved := findAddFresh_of_find hwf ci
             hfresh hfindEnv
           rwa [Lean.Kernel.Environment.find?,
             htargetWF.find?'_eq_find?] at hpreserved)⟩⟩
@@ -251,7 +216,7 @@ theorem FoldSteps.constructorInductiveFindSource
         hmiddle.symm ▸ constantsWF_add_checked hsourceWF hfresh
       have hmiddleFind := ih hmiddleWF hfind
       rw [hmiddle] at hmiddleFind
-      rcases Environment.find?_freshAdd_cases hsourceWF ci hfresh
+      rcases findAddFresh_cases hsourceWF ci hfresh
           hmiddleFind with hnew | hold
       · rcases hnew with ⟨_hname, hinfo⟩
         simp [ci] at hinfo
@@ -344,7 +309,7 @@ theorem FoldSteps.constructorFindCases
         hmiddle.symm ▸ constantsWF_add_checked hsourceWF hfresh
       rcases ih hmiddleWF hfind with hold | hnew
       · rw [hmiddle] at hold
-        rcases Environment.find?_freshAdd_cases hsourceWF ci hfresh hold with
+        rcases findAddFresh_cases hsourceWF ci hfresh hold with
           hhead | hsource
         · rcases hhead with ⟨hname, hfound⟩
           right
@@ -392,13 +357,13 @@ theorem SourceFamilyRestoration.inductiveFindCases
     have htarget : targetEnv = H.constructorEnv.add recursor :=
       congrArg Prod.snd H.recursor.restored.output
     rw [htarget] at hfind
-    rcases Environment.find?_freshAdd_cases
+    rcases findAddFresh_cases
         hconstructorWF recursor hrecFresh hfind with hnew | hold
     · rcases hnew with ⟨_hname, hinfo⟩
       simp [recursor] at hinfo
     · exact H.constructors.constructorInductiveFindSource hheaderWF hold
   rw [hheaderEnv] at hctorFind
-  rcases Environment.find?_freshAdd_cases hsourceWF header hheaderFresh
+  rcases findAddFresh_cases hsourceWF header hheaderFresh
       hctorFind with hnew | hold
   · left
     simpa [header, ConstantInfo.name, ConstantInfo.toConstantVal] using hnew
@@ -438,7 +403,7 @@ theorem SourceFamilyRestoration.headerFind
     congrArg Prod.snd H.recursor.restored.output
   have htargetFind : targetEnv.find? header.name = some header := by
     rw [htarget]
-    exact Environment.find?_freshAdd_preserves hconstructorWF recursor
+    exact findAddFresh_of_find hconstructorWF recursor
       hrecFresh (by
         simpa [header, ConstantInfo.name, ConstantInfo.toConstantVal] using
           hconstructorFind)
@@ -711,14 +676,14 @@ theorem RestoredInductiveStep.constructorOwnersPresent
   have htarget : stepTarget = Hstep.restored.constructorEnv.add recursor :=
     congrArg Prod.snd Hstep.restored.recursor.restored.output
   rw [htarget] at hfind
-  rcases Environment.find?_freshAdd_cases hconstructorWF recursor hrecFresh
+  rcases findAddFresh_cases hconstructorWF recursor hrecFresh
       hfind with hrec | hconstructor
   · rcases hrec with ⟨_name, hinfo⟩
     simp [recursor] at hinfo
   · rcases Hstep.restored.constructors.constructorFindCases hheaderWF
         hconstructor with hbefore | hrestored
     · rw [hheaderEnv] at hbefore
-      rcases Environment.find?_freshAdd_cases hsourceWF header hheaderFresh
+      rcases findAddFresh_cases hsourceWF header hheaderFresh
           hbefore with hnewHeader | hsource
       · rcases hnewHeader with ⟨_name, hinfo⟩
         simp [header] at hinfo
@@ -1032,7 +997,7 @@ theorem RestoredInductiveStep.inductInfoAlignmentAt
     have hctorFinalFind : stepTarget.find? newCtorInfo.name =
         some (.ctorInfo newCtorInfo) := by
       rw [htargetEnv]
-      exact Environment.find?_freshAdd_preserves hconstructorWF recursor
+      exact findAddFresh_of_find hconstructorWF recursor
         hrecFresh hctorFind
     have hnewFamilyCtors : Hstep.restored.header.newInfo.ctors =
         target.ctors.map (fun ctor => ctor.name) := by

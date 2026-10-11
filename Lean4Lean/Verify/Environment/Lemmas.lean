@@ -24,8 +24,8 @@ private theorem find?_add_of_ne
     hwf.find?_insert, if_neg (by simpa using hne)]
   rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
 
-private theorem find?_add_cases
-    {env : Environment} (hwf : env.constants.WF)
+/-- Lookup classification for one fresh addition. -/
+theorem findAddFresh_cases {env : Environment} (hwf : env.constants.WF)
     (ci : ConstantInfo) (hfresh : env.find? ci.name = none)
     (hfind : (env.add ci).find? name = some found) :
     (name = ci.name ∧ found = ci) ∨ env.find? name = some found := by
@@ -50,7 +50,7 @@ theorem ConstructorOwnersPresent.addNonConstructor
     (hnctor : ∀ info, ci ≠ .ctorInfo info) :
     ConstructorOwnersPresent (env.add ci) := by
   intro name info hfind
-  rcases find?_add_cases hwf ci hfresh hfind with
+  rcases findAddFresh_cases hwf ci hfresh hfind with
     ⟨_, hnew⟩ | hold
   · exact False.elim (hnctor info hnew.symm)
   · rcases H name info hold with ⟨owner, howner, hmem⟩
@@ -59,13 +59,6 @@ theorem ConstructorOwnersPresent.addNonConstructor
       rw [← heq, hfresh] at howner
       contradiction
     exact ⟨owner, (find?_add_of_ne hwf ci hfresh hne).trans howner, hmem⟩
-
-/-- Lookup classification for one fresh addition (public form of `find?_add_cases`). -/
-theorem findAddFresh_cases {env : Environment} (hwf : env.constants.WF)
-    (ci : ConstantInfo) (hfresh : env.find? ci.name = none)
-    (hfind : (env.add ci).find? name = some found) :
-    (name = ci.name ∧ found = ci) ∨ env.find? name = some found :=
-  find?_add_cases hwf ci hfresh hfind
 
 /-- An old lookup survives one fresh addition. -/
 theorem findAddFresh_of_find {env : Environment} (hwf : env.constants.WF)
@@ -95,10 +88,10 @@ theorem ListedConstructorsCoherent.add
       ∀ name ∈ familyInfo.ctors, (env.add ci).find? name = none) :
     ListedConstructorsCoherent (env.add ci) := by
   intro familyName familyInfo hfamily name hname found hfound
-  rcases find?_add_cases hwf ci hfresh hfamily with ⟨-, hheader⟩ | hfamilyOld
+  rcases findAddFresh_cases hwf ci hfresh hfamily with ⟨-, hheader⟩ | hfamilyOld
   · rw [hnew familyInfo hheader.symm name hname] at hfound
     cases hfound
-  · rcases find?_add_cases hwf ci hfresh hfound with ⟨hnameEq, hfoundEq⟩ | hfoundOld
+  · rcases findAddFresh_cases hwf ci hfresh hfound with ⟨hnameEq, hfoundEq⟩ | hfoundOld
     · subst hnameEq hfoundEq
       exact hold familyName familyInfo hfamilyOld hname
     · exact H familyName familyInfo hfamilyOld name hname found hfoundOld
@@ -188,7 +181,7 @@ theorem MutualInductivesClosed.addNonInductive
     (hnind : ∀ value, ci ≠ .inductInfo value) :
     MutualInductivesClosed (env.add ci) := by
   intro targetName value hfind
-  rcases find?_add_cases hwf ci hfresh hfind with
+  rcases findAddFresh_cases hwf ci hfresh hfind with
     ⟨_, hvalue⟩ | hold
   · exact False.elim (hnind value hvalue.symm)
   · exact (H targetName value hold).addConstant hwf hfresh

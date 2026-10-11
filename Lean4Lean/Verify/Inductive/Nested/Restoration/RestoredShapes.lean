@@ -27,32 +27,6 @@ open VExpr
 
 /-! ### Telescope and list helpers -/
 
-private theorem piBinders_wrapForalls' (ds : List VExpr) (b : VExpr) :
-    (VExpr.wrapForalls ds b).piBinders = ds ++ b.piBinders := by
-  induction ds with
-  | nil => rfl
-  | cons d ds ih => simp [VExpr.wrapForalls, VExpr.piBinders] at ih ⊢; exact ih
-
-private theorem piBody_wrapForalls' (ds : List VExpr) (b : VExpr) :
-    (VExpr.wrapForalls ds b).piBody = b.piBody := by
-  induction ds with
-  | nil => rfl
-  | cons d ds ih => exact ih
-
-private theorem lamArity_wrapLams' (ds : List VExpr) (b : VExpr) :
-    (VExpr.wrapLams ds b).lamArity = ds.length + b.lamArity := by
-  induction ds with
-  | nil => simp [VExpr.wrapLams]
-  | cons d ds ih =>
-    simp only [VExpr.wrapLams, List.foldr_cons] at ih ⊢
-    simp only [VExpr.lamArity, ih, List.length_cons]; omega
-
-private theorem lamBody_wrapLams' (ds : List VExpr) (b : VExpr) :
-    (VExpr.wrapLams ds b).lamBody = b.lamBody := by
-  induction ds with
-  | nil => rfl
-  | cons d ds ih => exact ih
-
 private theorem wrapForalls_piBinders_piBody : ∀ e : VExpr,
     VExpr.wrapForalls e.piBinders e.piBody = e
   | .forallE A B => by
@@ -70,12 +44,6 @@ private theorem bvar_spine (k : Nat) (args : List VExpr) :
   generalize (VExpr.bvar k).mkApps args = e at h
   cases e <;> simp_all [VExpr.getAppFn, VExpr.piBinders, VExpr.piBody, VExpr.lamArity,
     VExpr.lamBody]
-
-private theorem bvarsDesc_succ_zero' (n : Nat) :
-    bvarsDesc 0 (n + 1) = bvarsDesc 1 n ++ [.bvar 0] := by
-  simp only [bvarsDesc, List.range_succ_eq_map, List.reverse_cons, List.map_append,
-    List.map_reverse, List.map_map, List.map_cons, List.map_nil]
-  simp [Function.comp_def, Nat.add_comm]
 
 private theorem app_off' {l₁ l₂ : List VExpr} {n : Nat} (i : Nat) (h : n = l₁.length) :
     (l₁ ++ l₂)[n + i]? = l₂[i]? := by
@@ -158,9 +126,9 @@ theorem Restoration.expr_bvarBody {r : Restoration} {e e' : VExpr} {k : Nat}
   obtain ⟨ds', body', hds, hb, rfl⟩ := Restoration.expr_wrapForalls_eq_some h
   obtain ⟨args', ha, rfl⟩ := Restoration.expr_mkApps_bvar_eq_some hb
   have hs := bvar_spine k args'
-  refine ⟨?_, ⟨ds', hds, by rw [piBinders_wrapForalls', hs.1, List.append_nil]⟩, args', ha,
-    by rw [piBody_wrapForalls', hs.2.1]⟩
-  rw [← piBinders_length, ← piBinders_length, piBinders_wrapForalls', hs.1, List.append_nil,
+  refine ⟨?_, ⟨ds', hds, by rw [piBinders_wrapForalls, hs.1, List.append_nil]⟩, args', ha,
+    by rw [piBody_wrapForalls, hs.2.1]⟩
+  rw [← piBinders_length, ← piBinders_length, piBinders_wrapForalls, hs.1, List.append_nil,
     mapM_some_length hds]
 
 /-! ### Closedness -/
@@ -274,10 +242,10 @@ theorem Restoration.expr_motive {r : Restoration} (g : Instance s) {family : Fam
   have hhead := Restoration.expr_mkApps_const_headConst hm'
   have hformer : (VExpr.wrapForalls (is' ++ [m']) (.sort g.targetLevel)).motiveFormer? =
       some (r.headName family.name) := by
-    simp only [VExpr.motiveFormer?, piBinders_wrapForalls']
+    simp only [VExpr.motiveFormer?, piBinders_wrapForalls]
     simp [VExpr.piBinders, hhead]
   refine ⟨⟨⟨g.targetLevel, ?_⟩, by rw [hformer]; rfl⟩, hformer⟩
-  rw [piBody_wrapForalls']; rfl
+  rw [piBody_wrapForalls]; rfl
 
 /-- A restored minor keeps its Π-arity, stays `MinorHeaded`, and is `MinorFor` the restored
 constructor. -/
@@ -373,7 +341,7 @@ theorem Restoration.recursorType_recShape {r : Restoration} (hr : r.Scoped)
     (vars s.families[owner].indices.length 1 ++ [.bvar 0])
   have hbinders : (VExpr.wrapForalls (pre ++ [major]) (g.recursorBody owner)).piBinders =
       pre ++ [major] := by
-    rw [piBinders_wrapForalls', Instance.recursorBody, hbody.1, List.append_nil]
+    rw [piBinders_wrapForalls, Instance.recursorBody, hbody.1, List.append_nil]
   have hprelen : pre.length = s.params.length + s.families.size + s.constructors.size +
       s.families[owner].indices.length := by
     rw [mapM_some_length hpre, g.recursorPrefix_length]
@@ -406,7 +374,7 @@ theorem Restoration.recursorType_recShape {r : Restoration} (hr : r.Scoped)
     · rw [hbinders, ← hprelen, List.getElem?_append_right (by omega)]; simp
     · obtain ⟨A, hA, -, hformer⟩ := hmot owner.val owner.isLt
       exact ⟨A, hA, by simpa using hformer⟩
-  · rw [piBody_wrapForalls', Instance.recursorBody, hbody.2.1, bvarsDesc_succ_zero']
+  · rw [piBody_wrapForalls, Instance.recursorBody, hbody.2.1, bvarsDesc_succ_zero]
     change _ = VExpr.mkApps _ (vars s.families[owner].indices.length 1 ++ [.bvar 0])
     congr 2; omega
 
@@ -432,7 +400,7 @@ theorem Restoration.equation_ruleShape {r : Restoration} (g : Instance s)
   obtain ⟨harity, -, hfor⟩ := Restoration.expr_minor g hrA
   obtain ⟨hmarity, -⟩ := g.minor_pi s.constructors[index] index.val
   refine ⟨index.val, index.isLt, A, ?_, by simpa using hfor, ?_, ?_⟩
-  · rw [piBinders_wrapForalls', Instance.recursorBody, hbody.1, List.append_nil,
+  · rw [piBinders_wrapForalls, Instance.recursorBody, hbody.1, List.append_nil,
       List.getElem?_append_left (List.getElem?_eq_some_iff.mp hA).1]
     exact hA
   · rw [harity]; simp only [Fin.getElem_fin] at hmarity ⊢; rw [hmarity]; simp
@@ -447,11 +415,11 @@ theorem Restoration.equation_ruleShape {r : Restoration} (g : Instance s)
     have hs := bvar_spine (s.constructors[index].fields.length + s.constructors.size - 1 -
       index.val) (vars s.constructors[index].fields.length 0 ++ calls')
     refine ⟨?_, calls', ?_, ?_⟩
-    · rw [hdfeq, lamArity_wrapLams', hs.2.2.1, mapM_some_length hds]
+    · rw [hdfeq, lamArity_wrapLams, hs.2.2.1, mapM_some_length hds]
       simp [insertBinders, fieldTypes, Instance.params, Instance.motives, Instance.minors]
       omega
     · rw [mapM_some_length hcalls]; simp
-    · rw [hdfeq, lamBody_wrapLams', hs.2.2.2]
+    · rw [hdfeq, lamBody_wrapLams, hs.2.2.2]
       change VExpr.mkApps _ (bvarsDesc 0 _ ++ calls') = _
       simp only [Fin.getElem_fin]
       congr 2; omega

@@ -71,14 +71,14 @@ theorem RestoredInductiveStep.constructorInductFresh
   have htarget : stepTarget = Hstep.restored.constructorEnv.add recursor :=
     congrArg Prod.snd Hstep.restored.recursor.restored.output
   rw [htarget] at hfind
-  rcases Environment.find?_freshAdd_cases hconstructorWF recursor hrecFresh
+  rcases findAddFresh_cases hconstructorWF recursor hrecFresh
       hfind with hrec | hconstructor
   · rcases hrec with ⟨_name, hinfo⟩
     simp [recursor] at hinfo
   · rcases Hstep.restored.constructors.constructorFindCases hheaderWF
         hconstructor with hbefore | hrestored
     · rw [hheaderEnv] at hbefore
-      rcases Environment.find?_freshAdd_cases hsourceWF header hheaderFresh
+      rcases findAddFresh_cases hsourceWF header hheaderFresh
           hbefore with hnewHeader | hsource
       · rcases hnewHeader with ⟨_name, hinfo⟩
         simp [header] at hinfo
@@ -160,7 +160,7 @@ theorem FoldSteps.recursorConstructorFind
         hmiddle.symm ▸ constantsWF_add_checked hsourceWF hfresh
       have hmid := ih hmiddleWF hfind
       rw [hmiddle] at hmid
-      rcases Environment.find?_freshAdd_cases hsourceWF ci hfresh hmid with
+      rcases findAddFresh_cases hsourceWF ci hfresh hmid with
           ⟨_, hci⟩ | hsrc
       · simp [ci] at hci
       · exact hsrc
@@ -275,7 +275,7 @@ theorem FoldSteps.inductiveHeaderFindOfMem
         have hmid : middle.find? ctorOld.name = some (.ctorInfo
             { ctorOld with type := result.restoreNested loweredEnv ctorOld.type }) := by
           rw [hmiddleEq]
-          exact Environment.find?_freshAdd_preserves hconstructorWF recursor
+          exact findAddFresh_of_find hconstructorWF recursor
             hrecFresh hfindCtor
         rcases Htail.inductiveFreshExtension hmiddleWF with ⟨entries', Hfresh'⟩
         exact Hfresh'.preservesSourceFind hmiddleWF hmid
@@ -397,7 +397,7 @@ theorem FoldSteps.headerFindCases
     rcases ih hmiddleWF hfind with hmid |
         ⟨indType, hmem, oldInfo, hlookup, hn, hci⟩
     · rw [hmiddle] at hmid
-      rcases Environment.find?_freshAdd_cases hwf ci' hfresh hmid with
+      rcases findAddFresh_cases hwf ci' hfresh hmid with
           ⟨hn, hci⟩ | hsrc
       · right
         refine ⟨head, by simp, Hstep.oldInfo, Hstep.lookup, ?_, hci⟩
@@ -464,7 +464,7 @@ theorem FoldSteps.validationConstructorFindCases
     rcases ih hmiddleWF hfind with hmid |
         ⟨cn, hmem, ctorOld, hlookup, hn, hci⟩
     · rw [hmiddle] at hmid
-      rcases Environment.find?_freshAdd_cases hwf ci' hfresh hmid with
+      rcases findAddFresh_cases hwf ci' hfresh hmid with
           ⟨hn, hci⟩ | hsrc
       · right
         refine ⟨head, by simp, Hstep.oldInfo, Hstep.lookup, ?_, hci⟩

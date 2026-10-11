@@ -131,7 +131,7 @@ theorem ConstructorsFromSources.addNonConstructor
     (hci : ∀ info, ci ≠ .ctorInfo info) :
     ConstructorsFromSources lparams baseEnv isUnsafe [] env (env.add ci) := by
   intro name info hfind
-  rcases Environment.find?_freshAdd_cases hwf ci hfresh hfind with
+  rcases findAddFresh_cases hwf ci hfresh hfind with
     ⟨_hname, hfound⟩ | hold
   · exact absurd hfound.symm (hci info)
   · exact .inl hold
@@ -145,7 +145,7 @@ theorem ConstructorsFromSources.addConstructor
     ConstructorsFromSources lparams baseEnv isUnsafe [source] env
       (env.add (.ctorInfo info)) := by
   intro name found hfind
-  rcases Environment.find?_freshAdd_cases hwf _ hfresh hfind with
+  rcases findAddFresh_cases hwf _ hfresh hfind with
     ⟨_hname, hfound⟩ | hold
   · cases hfound
     subst _hname

@@ -1120,6 +1120,12 @@ def bvarsDesc (lo n : Nat) : List VExpr := (List.range n).reverse.map fun i => .
 
 @[simp] theorem bvarsDesc_length (lo n : Nat) : (bvarsDesc lo n).length = n := by simp [bvarsDesc]
 
+theorem bvarsDesc_succ_zero (n : Nat) :
+    bvarsDesc 0 (n + 1) = bvarsDesc 1 n ++ [.bvar 0] := by
+  simp only [bvarsDesc, List.range_succ_eq_map, List.reverse_cons, List.map_append,
+    List.map_reverse, List.map_map, List.map_cons, List.map_nil]
+  simp [Function.comp_def, Nat.add_comm]
+
 /-- Number of leading Π-binders. -/
 def piArity : VExpr → Nat
   | .forallE _ B => B.piArity + 1

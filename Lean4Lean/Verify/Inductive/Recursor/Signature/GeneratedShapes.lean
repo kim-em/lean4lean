@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Inductive
 import Lean4Lean.Theory.Inductive.SignatureData
+import Lean4Lean.Theory.Typing.SignatureVars
 
 /-! # Syntactic shapes of the generated recursors and equations
 
@@ -15,29 +16,9 @@ namespace InductiveSignature
 
 open VExpr
 
-private theorem piBinders_wrapForalls (ds : List VExpr) (b : VExpr) :
-    (VExpr.wrapForalls ds b).piBinders = ds ++ b.piBinders := by
-  induction ds with
-  | nil => rfl
-  | cons d ds ih => simp [VExpr.wrapForalls, VExpr.piBinders] at ih ⊢; exact ih
-
 private theorem piArity_wrapForalls (ds : List VExpr) (b : VExpr) :
     (VExpr.wrapForalls ds b).piArity = ds.length + b.piArity := by
   rw [← piBinders_length, piBinders_wrapForalls]; simp
-
-private theorem piBody_wrapForalls (ds : List VExpr) (b : VExpr) :
-    (VExpr.wrapForalls ds b).piBody = b.piBody := by
-  induction ds with
-  | nil => rfl
-  | cons d ds ih => exact ih
-
-private theorem lamArity_wrapLams (ds : List VExpr) (b : VExpr) :
-    (VExpr.wrapLams ds b).lamArity = ds.length + b.lamArity := by
-  induction ds with
-  | nil => simp [VExpr.wrapLams]
-  | cons d ds ih =>
-    simp only [VExpr.wrapLams, List.foldr_cons] at ih ⊢
-    simp only [VExpr.lamArity, ih, List.length_cons]; omega
 
 private theorem lamBody_wrapLams (ds : List VExpr) (b : VExpr) :
     (VExpr.wrapLams ds b).lamBody = b.lamBody := by
@@ -59,15 +40,6 @@ private theorem getAppFn_mkApps_const (c : Name) (us : List VLevel) (args : List
     ((VExpr.const c us).mkApps args).getAppFn = .const c us := by simp [VExpr.getAppFn]
 
 private theorem vars_eq_bvarsDesc (count below : Nat) : vars count below = bvarsDesc below count := rfl
-
-private theorem vars_length' (count below : Nat) : (vars count below).length = count := by
-  simp [vars]
-
-private theorem bvarsDesc_succ_zero (n : Nat) :
-    bvarsDesc 0 (n + 1) = bvarsDesc 1 n ++ [.bvar 0] := by
-  simp only [bvarsDesc, List.range_succ_eq_map, List.reverse_cons, List.map_append,
-    List.map_reverse, List.map_map, List.map_cons, List.map_nil]
-  simp [Function.comp_def, Nat.add_comm]
 
 private theorem app_off {l₁ l₂ : List VExpr} {n : Nat} (i : Nat) (h : n = l₁.length) :
     (l₁ ++ l₂)[n + i]? = l₂[i]? := by

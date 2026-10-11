@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.Telescope
 import Lean4Lean.Theory.Inductive.SignatureData
+import Lean4Lean.Theory.Typing.SignatureVars
 
 /-! # Generated equations as typed ι rules
 
@@ -23,45 +24,21 @@ open VExpr
 
 namespace InductiveSignature
 
-theorem vars_length (count below : Nat) : (vars count below).length = count := by
-  simp [vars]
-
 theorem vars_getElem (count below i : Nat) (hi : i < (vars count below).length) :
     (vars count below)[i] = .bvar (below + (count - 1 - i)) := by
   simp only [vars, List.getElem_map, List.getElem_reverse, List.getElem_range, List.length_range]
 
 theorem vars_append (a b : Nat) : vars a b ++ vars b 0 = vars (a + b) 0 := by
   apply List.ext_getElem
-  · simp [vars_length]
+  · simp [length_vars]
   · intro i h1 h2
-    simp only [vars_length] at h1 h2
-    rw [vars_getElem _ _ _ (by simp [vars_length]; omega)]
+    simp only [length_vars] at h1 h2
+    rw [vars_getElem _ _ _ (by simp [length_vars]; omega)]
     by_cases hi : i < a
-    · rw [List.getElem_append_left (by simp [vars_length]; omega), vars_getElem]
+    · rw [List.getElem_append_left (by simp [length_vars]; omega), vars_getElem]
       congr 1; omega
-    · rw [List.getElem_append_right (by simp [vars_length]; omega), vars_getElem]
-      simp only [vars_length]; congr 1; omega
-
-theorem vars_zero_eq (n : Nat) : vars n 0 = (List.range n).reverse.map .bvar := by
-  simp [vars]
-
-theorem vars_map_liftN_hi (count below n k : Nat) (h : k ≤ below) :
-    (vars count below).map (fun e => e.liftN n k) = vars count (below + n) := by
-  simp only [vars, List.map_map, Function.comp_def]
-  apply List.map_congr_left
-  intro i _
-  simp only [VExpr.liftN, liftVar]
-  rw [if_neg (by omega)]
-  congr 1; omega
-
-theorem vars_map_liftN_lo (count below n k : Nat) (h : below + count ≤ k) :
-    (vars count below).map (fun e => e.liftN n k) = vars count below := by
-  simp only [vars, List.map_map, Function.comp_def]
-  apply List.map_congr_left
-  intro i hi
-  simp only [List.mem_reverse, List.mem_range] at hi
-  simp only [VExpr.liftN, liftVar]
-  rw [if_pos (by omega)]
+    · rw [List.getElem_append_right (by simp [length_vars]; omega), vars_getElem]
+      simp only [length_vars]; congr 1; omega
 
 end InductiveSignature
 
@@ -91,7 +68,7 @@ theorem Pattern.RHS.generic_foldl_var {p : Pattern} {c : VExpr} {hc : c.Closed}
     (hl : l.map m2 = InductiveSignature.vars n 0) :
     ((l.map Pattern.RHS.var).foldl Pattern.RHS.app (.fixed c hc)).Generic m2 n := by
   have hlen : l.length = n := by
-    have := congrArg List.length hl; simpa [InductiveSignature.vars_length] using this
+    have := congrArg List.length hl; simpa [InductiveSignature.length_vars] using this
   have hval : ∀ i (hi : i < l.length), m2 l[i] = .bvar (n - 1 - i) := by
     intro i hi
     have := List.getElem_of_eq hl (by simpa using hi)
@@ -164,16 +141,16 @@ theorem VEnv.patTyped_iota_of_wrapped {env : VEnv} (henv : env.WF) {U : Nat}
     (hrhs : env.HasType U [] rhs (wrapForalls doms T)) :
     env.PatTyped (SimplePattern.iota r (k+nind) c (cnp+nf)).toPattern
       (SimplePattern.iotaRHS' r c k nind cnp nf rhs hc, .true) := by
-  have hrec : (vars k nf ++ idx).length = k + nind := by simp [vars_length, hidx]
-  have hctor : (cps ++ vars nf 0).length = cnp + nf := by simp [vars_length, hcps]
+  have hrec : (vars k nf ++ idx).length = k + nind := by simp [length_vars, hidx]
+  have hctor : (cps ++ vars nf 0).length = cnp + nf := by simp [length_vars, hcps]
   obtain ⟨g1, hm1, hg1⟩ := Pattern.matches_varN_const (c := r) (ls := VLevel.params U)
     (k + nind) _ hrec
   obtain ⟨g2, hm2, hg2⟩ := Pattern.matches_varN_const (c := c) (ls := ls) (cnp + nf) _ hctor
   have hmatch := Pattern.Matches.app hm1 hm2
   have hpaths := SimplePattern.iotaPaths_map (m2 := Sum.elim g1 g2) hrec hctor hg1 hg2
   have hargs : (vars k nf ++ idx).take k ++ (cps ++ vars nf 0).drop cnp = vars (k + nf) 0 := by
-    rw [List.take_append_of_le_length (by simp [vars_length]),
-      List.take_of_length_le (by simp [vars_length]),
+    rw [List.take_append_of_le_length (by simp [length_vars]),
+      List.take_of_length_le (by simp [length_vars]),
       List.drop_append_of_le_length (by simp [hcps]),
       List.drop_of_length_le (by simp [hcps]), List.nil_append, vars_append]
   rw [hargs] at hpaths
@@ -188,7 +165,7 @@ theorem VEnv.patTyped_iota_of_wrapped {env : VEnv} (henv : env.WF) {U : Nat}
     exact Pattern.RHS.generic_foldl_var hpaths
   · have happ := SimplePattern.iotaRHS'_apply r c k nind cnp nf rhs hc (VLevel.params U)
       (Sum.elim g1 g2) hrec hctor hg1 hg2
-    rw [hargs, hlw.instL_id, ← hdoms, vars_zero_eq] at happ
+    rw [hargs, hlw.instL_id, ← hdoms, vars_zero] at happ
     rw [happ]
     exact hred
 
@@ -225,7 +202,7 @@ theorem equation_patTyped (g : Instance s) {env : VEnv} (henv : env.WF)
   simp only [equation, constructorApp, recursorHead, Nat.add_zero] at hlhs hrhs hc ⊢
   rw [← Nat.add_assoc] at hlhs
   exact VEnv.patTyped_iota_of_wrapped henv hc (equationDomains_length g index)
-    (by simp) (by simp [vars_length]) hlhs hrhs
+    (by simp) (by simp [length_vars]) hlhs hrhs
 
 end InductiveSignature.Instance
 
