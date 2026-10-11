@@ -3,7 +3,7 @@ import Lean4Lean.Verify.Inductive.Context
 import Lean4Lean.Verify.Inductive.Formation
 import Lean4Lean.Verify.Inductive.Header.Check
 import Lean4Lean.Verify.Inductive.Header.Installation
-import Lean4Lean.Verify.Inductive.Constructor.CheckedFormation
+import Lean4Lean.Verify.Inductive.Constructor.CheckedTail
 import Lean4Lean.Verify.Inductive.Constructor.Check
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 import Lean4Lean.Verify.Inductive.Recursor.Check

@@ -1,12 +1,10 @@
 import Lean4Lean.Theory.Typing.ProjectionLemmas
 import Lean4Lean.Verify.Inductive.Recursor.Signature.MotiveGroup
 import Lean4Lean.Verify.Inductive.Constructor.Check
-import Lean4Lean.Verify.Inductive.Constructor.CheckedFormation
+import Lean4Lean.Verify.Inductive.Constructor.CheckedTail
 
 /-! Well-formed family applications (`InductiveSignature.FamilyTypesWF`) for the signatures
-over the families of the recursor construction (`RecursorConstruction.families`). The
-corresponding fact for the checked-formation source signature is in
-`Constructor/CheckedFormation.lean`.
+over the families of the recursor construction (`RecursorConstruction.families`).
 
 The proof does not compare the index telescope definitionally with the declared family type:
 the telescope and the family application are read off the index domains of the motive pass

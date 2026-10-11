@@ -4,8 +4,8 @@ import Lean4Lean.Verify.Inductive.Constructor.Tails
 /-! # What the recursor phase reads of the constructor check
 
 The header-phase data the recursor phase reads (`sourceContext`, `statsWF`, `parameterScope`,
-`recursorHeaders`, ...) are reached through `CheckedFormation.headers : HeaderEnvironment`; this
-file names them as the recursor phase reads them. The constructor telescope data
+`recursorHeaders`, ...) are reached through `RecursorInput.headers : HeaderData`; this file names
+them as the recursor phase reads them. The constructor telescope data
 (`parameterPrefixes`, `constructorTails`, `ownerNormalForms`) are fields of `RecursorInput`. -/
 
 namespace Lean4Lean

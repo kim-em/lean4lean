@@ -3,7 +3,7 @@ import Lean4Lean.Verify.Inductive.Recursor.Binders.FieldOpening
 import Lean4Lean.Verify.Inductive.Context.TypeAnnotations
 
 import Lean4Lean.Verify.Inductive.Constructor.Check
-import Lean4Lean.Verify.Inductive.Constructor.CheckedFormation
+import Lean4Lean.Verify.Inductive.Constructor.CheckedTail
 
 namespace Lean4Lean
 open Lean hiding Environment Exception

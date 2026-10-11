@@ -8,8 +8,8 @@ import Lean4Lean.Theory.Inductive.ConstructorArity
 The recursor construction reads the declaration's source signature off the exact kernel
 constructor telescopes the constructor check retained (`ConstructorTails`): each constructor of
 the signature keeps its literal checked tail (`SourceConstructorTelescope`), which the recursor
-generator re-walks. This is the source signature by replay, stated for `RecursorInput`; the constructor phase's own `CheckedFormation.sourceSignature` is
-built from the abstract tails instead. -/
+generator re-walks. This is the source signature by replay, stated for the constructor check
+(`RecursorInput`). -/
 
 namespace Lean4Lean
 

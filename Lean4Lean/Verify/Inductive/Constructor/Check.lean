@@ -1,11 +1,10 @@
-import Lean4Lean.Verify.Inductive.Constructor.Install
-import Lean4Lean.Verify.Inductive.Constructor.CheckRun
+import Lean4Lean.Verify.Inductive.RecursorInput
 
 /-! # The constructor phase: `constructorPhase`
 
 `AddInductive.constructorPhase` installs the headers (`declareInductiveTypes`), checks the
 constructors against them (`checkConstructors`) and installs them (`declareConstructors`). Its
-output is the constructor environment, the input of the recursor phase. `ConstructorCheck` is the
+output is the constructor environment, the input of the recursor phase. `RecursorInput` is the
 interface of that environment; `AddInductive.constructorPhase.WF` is the boundary theorem,
 composing `declareInductiveTypes.WF` with the `checkConstructors` and `declareConstructors`
 refinements. -/
@@ -16,103 +15,6 @@ open Lean hiding Environment Exception
 open Kernel
 
 namespace VerifyInductive
-
-/-- The constructor check, the input of the recursor phase: the checked formation, the kernel
-constructors installed over the header environment (`ivals`, `map_eq`, `fresh`) and translating
-to the abstract ones (`trTypes`, PR #43's `TrIndType`, the `types` field of `AddInduct`), and a
-valid checking context over the constructor environment with the declaration's projection
-entries registered (`context`, `contextVEnv`): the recursors are checked in it. -/
-structure ConstructorCheck (c : AddInductive.Context) (stats : AddInductive.InductiveStats)
-    (decl : VInductDecl) (nparams : Nat) (isUnsafe : Bool) (depth : Nat) (sourceEnv : VEnv)
-    (indTypes : Array InductiveType) (ctorEnv : Environment) extends
-    CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes where
-  /-- The kernel headers with their constructors, in block order. -/
-  ivals : List (InductiveVal × List ConstructorVal)
-  ivals_infos : ivals.map (·.1) = headers.infos
-  trTypes : List.Forall₂ (fun (iv : InductiveVal × List ConstructorVal) (t : VInductiveType) =>
-    TrIndType c.safety sourceEnv headers.context.venv iv.1 iv.2 t) ivals decl.types
-  map_eq : ctorEnv.constants =
-    insertConsts headerEnv.constants (ivals.flatMap fun iv => iv.2.map .ctorInfo)
-  quotInit_eq : ctorEnv.quotInit = headerEnv.quotInit
-  fresh : ∀ iv ∈ ivals, ∀ cval ∈ iv.2, headerEnv.find? cval.name = none
-  /-- The checking context of the recursor phase: the constructor environment with the
-  declaration's projection entries registered (the recursors are checked there). -/
-  context : ContextWF { c with env := ctorEnv }
-  contextVEnv : context.venv = ctorVEnv.addProjections decl.projectionEntries
-  contextMLCtx : context.mlctx = headers.context.mlctx
-  parameters : HeaderParameterContext context stats formation.headers.params depth
-  closed : MutualInductivesClosed ctorEnv
-  inductInfosFromDecl : InductInfosFromDecl c.env.constants ctorEnv.constants decl
-  constructorParameterAlignment : ∀ {safety},
-    ConstructorParameterAlignment safety c.env sourceEnv →
-    ConstructorParameterAlignment safety ctorEnv ctorVEnv
-  /-- The kernel headers with their constructors are the
-  executable's `inductiveTypeInfos` and `constructorInfo`s. -/
-  ivals_eq : ivals = (headers.infos.zip indTypes.toList).map fun p =>
-    (p.1, familyCtorInfos stats c.lparams isUnsafe p.2)
-  /-- Every kernel constructor has the declaration's parameter
-  count. -/
-  ctor_numParams : ∀ iv ∈ ivals, ∀ cval ∈ iv.2, cval.numParams = decl.nparams
-  /-- The concrete parameter prefixes and spines of the source
-  constructor types. -/
-  parameterPrefixes : ConstructorParameterPrefixes stats indTypes
-  /-- The concrete checked tails, in the header environment's
-  parameter scope. -/
-  constructorTails : ConstructorTails headers.context.venv c.lparams
-    headers.statsWF.parameterScope stats decl indTypes classes
-  /-- The owner normal forms of the kernel constructor types. -/
-  ownerNormalForms : ConstructorOwnerNormalForms stats indTypes
-  /-- Positivity's literal side condition, in the
-  recursor phase's context. -/
-  literalDisjoint : checkPositivityStep.AvailableLiteralDisjoint context.venv stats.indConsts
-  /-- The family and constructor names are not checker primitives
-  (they passed `checkName`; for the ordinary path primitive names are rejected or
-  `allowsPrimitives` fails). Read by the nested restoration (`NestedRun.loweredNonprimitive`). -/
-  nonprimitive : ∀ T ∈ decl.types, ¬ Kernel.Environment.primitives.contains T.name ∧
-    ∀ ctor ∈ T.ctors, ¬ Kernel.Environment.primitives.contains ctor.name
-
-namespace ConstructorCheck
-
-variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
-  {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv} {indTypes : Array InductiveType}
-  {ctorEnv : Environment}
-
-/-- The projection-stage environment, in which the recursors are checked. -/
-abbrev envP (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
-    VEnv := R.ctorVEnv.addProjections decl.projectionEntries
-
-theorem envP_eq (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
-    R.context.venv = R.envP := R.contextVEnv
-
-theorem envP_wf (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
-    R.envP.WF := by have := R.context.wf; rwa [R.contextVEnv] at this
-
-theorem addTypesCtors (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes
-    ctorEnv) : decl.addTypesCtors sourceEnv = some R.ctorVEnv := by
-  rw [VInductDecl.addTypesCtors, VInductDecl.addTypes_eq_addConstVals, R.core.typesAdded]
-  simp [VInductDecl.addCtors_eq_addConstVals, R.core.ctorsAdded]
-
-theorem addTypesCtorsProjs (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv
-    indTypes ctorEnv) : decl.addTypesCtorsProjs sourceEnv = some R.envP := by
-  rw [VInductDecl.addTypesCtorsProjs, R.addTypesCtors]; rfl
-
-theorem typesWF (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes
-    ctorEnv) : ∀ ci ∈ decl.typeConstants, ci.toVConstant.WF sourceEnv := by
-  intro ci hci
-  simp only [VInductDecl.typeConstants, List.mem_map] at hci
-  obtain ⟨t, ht, rfl⟩ := hci
-  exact TrInductDeclCore.typeHeadersWF R.core t ht
-
-theorem ctorsWF (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes
-    ctorEnv) : ∀ ci ∈ decl.constructorConstants, ci.toVConstant.WF R.headerVEnv := by
-  intro ci hci
-  simp only [VInductDecl.constructorConstants, List.mem_flatMap] at hci
-  obtain ⟨t, ht, hci⟩ := hci
-  obtain ⟨_, _, Ht⟩ := List.Forall₂.forall_exists_r R.core.types t ht
-  obtain ⟨_, _, Hc⟩ := List.Forall₂.forall_exists_r Ht.ctors ci hci
-  exact Hc.wf
-
-end ConstructorCheck
 
 /-- The boundary theorem of the constructor phase: in the context of a completed header phase,
 `constructorPhase` yields a constructor check for a declaration the checked headers describe,
@@ -135,7 +37,7 @@ theorem AddInductive.constructorPhase.WF
     (hpresent : ListedConstructorsPresent c'.env) :
     (AddInductive.constructorPhase stats nparams indTypes numNested isUnsafe c').WF
       fun out => ∃ decl, P.headers.Describes decl ∧
-        ∃ R : ConstructorCheck c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes out.1,
+        ∃ R : RecursorInput c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes out.1,
           R.classes = out.2 := by
   have HD := AddInductive.declareInductiveTypes.installedWF P numNested isUnsafe hvisible
     hnprimTypes hpresent
@@ -216,51 +118,14 @@ theorem AddInductive.constructorPhase.WF
     nindices := hnindices
     params_size := P.params_size
     visible := hvisible }
-  refine ⟨decl, hD, {
-    headerEnv := headerEnv
-    headers := H
-    ctorVEnv := I.ctorVEnv
-    core := I.core
-    formation := I.formation
-    params_eq := rfl
-    checked := ⟨I.K.shapes, I.K.types⟩
-    classes := positivity
-    classes_length := I.K.classes_length
-    tails := I.K.tails
-    ivals := I.ivals
-    ivals_infos := I.ivals_infos
-    trTypes := I.trTypes
-    map_eq := by rw [I.ivals_flat]; exact hmap
-    quotInit_eq := hquot
-    fresh := fun iv hiv cval hcval => by
-      have hmem : ConstantInfo.ctorInfo cval ∈
-          I.ivals.flatMap (fun iv => iv.2.map ConstantInfo.ctorInfo) :=
-        List.mem_flatMap.mpr ⟨iv, hiv, List.mem_map_of_mem hcval⟩
-      rw [I.ivals_flat] at hmem
-      obtain ⟨cv, hcv, he⟩ := List.mem_map.mp hmem
-      cases he
-      exact (hfr _ hcv).1
-    context := I.context
-    contextVEnv := rfl
-    contextMLCtx := H.contextMLCtx.symm
-    parameters := I.parameters
-    closed := I.closed hclosed
-    inductInfosFromDecl := I.inductInfosFromDecl
-    constructorParameterAlignment := fun h => I.constructorParameterAlignment h
-    ivals_eq := rfl
-    ctor_numParams := I.ctor_numParams
-    parameterPrefixes := I.K.parameterPrefixes
-    constructorTails := I.K.constructorTails
-    ownerNormalForms := I.K.ownerNormalForms
-    literalDisjoint := I.contextLiteralDisjoint
-    nonprimitive := by
-      intro T hT
-      refine ⟨hnprimFam T hT, fun ctor hctor hp => ?_⟩
-      have hmem : ctor ∈ decl.constructorConstants := List.mem_flatMap.mpr ⟨T, hT, hctor⟩
-      obtain ⟨ci, hci, ⟨-, hname⟩, -, -⟩ :=
-        List.Forall₂.forall_exists_r I.ctorEntries ctor hmem
-      obtain ⟨cval, hcval, rfl⟩ := List.mem_map.mp hci
-      exact hnprim cval hcval (by rw [show cval.name = ctor.name from hname]; exact hp) }, rfl⟩
+  refine ⟨decl, hD, I.toRecursorInput hclosed fun _ => ?_, rfl⟩
+  intro T hT
+  refine ⟨hnprimFam T hT, fun ctor hctor hp => ?_⟩
+  have hmem : ctor ∈ decl.constructorConstants := List.mem_flatMap.mpr ⟨T, hT, hctor⟩
+  obtain ⟨ci, hci, ⟨-, hname⟩, -, -⟩ :=
+    List.Forall₂.forall_exists_r I.ctorEntries ctor hmem
+  obtain ⟨cval, hcval, rfl⟩ := List.mem_map.mp hci
+  exact hnprim cval hcval (by rw [show cval.name = ctor.name from hname]; exact hp)
 
 end VerifyInductive
 end Lean4Lean

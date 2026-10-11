@@ -1,17 +1,23 @@
-import Lean4Lean.Verify.Inductive.Constructor.Check
+import Lean4Lean.Verify.Inductive.Constructor.Install
+import Lean4Lean.Verify.Inductive.Constructor.CheckRun
 import Lean4Lean.Verify.Inductive.HeaderData
 
-/-! # The input of the recursor phase
+/-! # The constructor check
 
-`RecursorInput` is what the recursor and rule phases read of the constructor phase. It is
-`ConstructorCheck` with the header environment's checker context weakened to a
-`LocalContextWF`, the part of `ContextWF` that does not assert the primitive invariant
-(`HasPrimitives`): that invariant is false in the header-only environment of the primitive
-`Bool`/`Nat` declarations (the family is present without its constructors). The ordinary
-constructor phase produces it by `ConstructorCheck.toRecursorInput`, the primitive one directly
-(`Primitive/`). Field names are those of `ConstructorCheck`, so `R.foo` reads the same field
-under either index. The structure gives the recursor phase one input type for the ordinary
-and the primitive path. -/
+`RecursorInput` is the output of the constructor phase and the input of the recursor and rule
+phases: the header data, the translated declaration (`TrInductDeclCore`), the formation
+certificate, the checked constructor tails with the executable's field classification, the
+kernel constructors installed over the header environment (`ivals`, `map_eq`, `fresh`) and
+translating to the abstract ones (`trTypes`, PR #43's `TrIndType`), and a valid checking context
+over the constructor environment with the declaration's projection entries registered
+(`context`, `contextVEnv`), in which the recursors are checked.
+
+One structure serves the ordinary and the primitive path. Its header data (`HeaderData`) carries
+the header environment's checker context as a `LocalContextWF`, the part of `ContextWF` without
+the primitive invariant (`HasPrimitives`): that invariant is false in the header-only
+environment of the primitive `Bool`/`Nat` declarations (the family is present without its
+constructors). Both paths build it from a constructor installation (`CtorInstall.toRecursorInput`:
+`constructorPhase.WF` and `Primitive/`). -/
 
 namespace Lean4Lean
 
@@ -20,8 +26,7 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- The input of the recursor phase: `ConstructorCheck` (with its `CheckedFormation` fields
-flattened, under the same names) with the header context a `LocalContextWF`. -/
+/-- The constructor check (see the module documentation). -/
 structure RecursorInput (c : AddInductive.Context) (stats : AddInductive.InductiveStats)
     (decl : VInductDecl) (nparams : Nat) (isUnsafe : Bool) (depth : Nat) (sourceEnv : VEnv)
     (indTypes : Array InductiveType) (ctorEnv : Environment) where
@@ -60,58 +65,20 @@ structure RecursorInput (c : AddInductive.Context) (stats : AddInductive.Inducti
     (p.1, familyCtorInfos stats c.lparams isUnsafe p.2)
   ctor_numParams : ∀ iv ∈ ivals, ∀ cval ∈ iv.2, cval.numParams = decl.nparams
   parameterPrefixes : ConstructorParameterPrefixes stats indTypes
-  -- The tails are in the header statistics' parameter scope, as
-  -- `ConstructorCheck.constructorTails` states them.
+  -- The tails are in the header statistics' parameter scope.
   constructorTails : ConstructorTails headers.context.venv c.lparams
     headers.statsWF.parameterScope stats decl indTypes classes
   ownerNormalForms : ConstructorOwnerNormalForms stats indTypes
   /-- Positivity's literal side condition in the recursor phase's context. -/
   literalDisjoint : checkPositivityStep.AvailableLiteralDisjoint context.venv stats.indConsts
-  /-- Without the primitive exception, the family and constructor names
-  are not checker primitives (`ConstructorCheck.nonprimitive`). -/
+  /-- Without the primitive exception, the family and constructor names are not checker
+  primitives (they passed `checkName`). Read by the nested restoration
+  (`NestedRun.loweredNonprimitive`). -/
   nonprimitive : c.allowPrimitive = false → ∀ T ∈ decl.types,
     ¬ Kernel.Environment.primitives.contains T.name ∧
       ∀ ctor ∈ T.ctors, ¬ Kernel.Environment.primitives.contains ctor.name
 
-/-- The ordinary constructor phase's output as the recursor phase's input. -/
-def ConstructorCheck.toRecursorInput {c : AddInductive.Context}
-    {stats : AddInductive.InductiveStats} {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool}
-    {depth : Nat} {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
-    RecursorInput c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv where
-  headerEnv := R.headerEnv
-  headers := R.headers.toData
-  ctorVEnv := R.ctorVEnv
-  core := R.core
-  formation := R.formation
-  params_eq := R.params_eq
-  checked := R.checked
-  classes := R.classes
-  classes_length := R.classes_length
-  tails := R.tails
-  ivals := R.ivals
-  ivals_infos := R.ivals_infos
-  trTypes := R.trTypes
-  map_eq := R.map_eq
-  quotInit_eq := R.quotInit_eq
-  fresh := R.fresh
-  context := R.context
-  contextVEnv := R.contextVEnv
-  contextMLCtx := R.contextMLCtx
-  parameters := R.parameters
-  closed := R.closed
-  inductInfosFromDecl := R.inductInfosFromDecl
-  constructorParameterAlignment := R.constructorParameterAlignment
-  ivals_eq := R.ivals_eq
-  ctor_numParams := R.ctor_numParams
-  parameterPrefixes := R.parameterPrefixes
-  constructorTails := R.constructorTails
-  ownerNormalForms := R.ownerNormalForms
-  literalDisjoint := R.literalDisjoint
-  nonprimitive := fun _ => R.nonprimitive
-
-/-- The recursor phase's input from a constructor installation over header data (the path of
-the primitive declarations, whose header environment has no `ContextWF`). -/
+/-- The constructor check of a constructor installation over header data. -/
 noncomputable def CtorInstall.toRecursorInput {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool}
     {depth : Nat} {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -210,27 +177,6 @@ theorem ctorsWF (R : RecursorInput c stats decl nparams isUnsafe depth sourceEnv
 
 end RecursorInput
 
-section
-variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
-  {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv} {indTypes : Array InductiveType}
-  {ctorEnv : Environment}
-  (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
-
-@[simp] theorem ConstructorCheck.toRecursorInput_headerEnv :
-    R.toRecursorInput.headerEnv = R.headerEnv := rfl
-@[simp] theorem ConstructorCheck.toRecursorInput_ctorVEnv :
-    R.toRecursorInput.ctorVEnv = R.ctorVEnv := rfl
-@[simp] theorem ConstructorCheck.toRecursorInput_headerVEnv :
-    R.toRecursorInput.headerVEnv = R.headerVEnv := rfl
-@[simp] theorem ConstructorCheck.toRecursorInput_envP :
-    R.toRecursorInput.envP = R.envP := rfl
-@[simp] theorem ConstructorCheck.toRecursorInput_classes :
-    R.toRecursorInput.classes = R.classes := rfl
-@[simp] theorem ConstructorCheck.toRecursorInput_ivals :
-    R.toRecursorInput.ivals = R.ivals := rfl
-@[simp] theorem ConstructorCheck.toRecursorInput_infos :
-    R.toRecursorInput.headers.infos = R.headers.infos := rfl
-end
 
 end VerifyInductive
 end Lean4Lean
