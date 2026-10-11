@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.IotaPat
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.CtorNames
 
 /-! # The static data of the ι rules of an ordinary block
 
