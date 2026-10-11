@@ -89,7 +89,8 @@ FOUNDATION_ROOTS = {
     "Lean4Lean.VEnv.WF.church_rosser",
     "Lean4Lean.VEnv.WF.equationCoverage",
     "Lean4Lean.VEnv.WF.patCoverage",
-    "Lean4Lean.VEnv.WF.singletonPatCoverage",
+    "Lean4Lean.VEnv.WF.singletonPatCoverageJ",
+    "Lean4Lean.VEnv.WF.patCoverageJ",
 }
 STRICT_ROOTS = DEFINITION_ROOTS | FOUNDATION_ROOTS
 ROOTS |= STRICT_ROOTS

@@ -13,7 +13,7 @@ therefore fails on `Verify/` until wave 1. Waves follow `iota-port/PLAN-RECONCIL
 | `VEnv.WF.patCtor_rigid` (`-- WAVE 1C STUB`) | `Theory/Typing/HeadInjectivity/Model/WFFacts.lean` | `ConstructorRigidity.lean` on the source branch (`WF.installed_constructor_rigid`) | wave 1C |
 | `IsDefEqU.weakN_iff` | `Theory/Typing/UniqueTyping.lean` | master | open on master; the one strengthening principle the checker uses (PORT_PLAN section 5) |
 | ~~`NormalEq.parRed`~~ (retired, wave 4: the verified-inductives branch's engine, sorry-free, replaces master's file) | `Theory/Typing/ChurchRosser.lean` | master | wave 4 |
-| `VEnv.WF.singletonInstance_align` (WAVE 4 STUB) | `Theory/Typing/Confluence/SingletonPatCoverage.lean` | new: index alignment of a `Prop`-source singleton ι instance with its generic equation (see the wave 4 section) | wave 4 (needs a decision, see there) |
+| ~~`VEnv.WF.singletonInstance_align`~~ (closed, wave 4: route (b), see the wave 4 section) | `Theory/Typing/Confluence/SingletonPatCoverage.lean` | new | wave 4 |
 | ~~`VEnv.RestoredPattern.clause`~~ (closed, wave 3 eqinst) | `Theory/Inductive/RestorationInterpretation.lean` | new: the `pat` analogue of the source branch's `RestoredEliminator.clause` | wave 3 (Equations+Install) |
 | ~~`InductiveSignature.instantiateParams_liftN`~~ (closed, wave 3 eqinst) | `Theory/Typing/RestorationShapes.lean` | source `CaseReduction.lean` | wave 3 (Equations+Install) |
 
@@ -24,8 +24,8 @@ system, substitution theorems, inversion lemmas) depends on `patsStrong`; everyt
 `Injectivity.lean` has no `sorry` of its own: PR #43's `IsDefEqU.const_arity_inv` is derived
 from `VEnv.WF'.inductTypeRigid` and `headInversion`. The confluence theorem
 `VEnv.WF.church_rosser` depends on `patsStrong`, `Model.PatValid.iota` (through
-`IsDefEq.uniq`, which the engine's transport lemmas use throughout) and the wave 4 stub
-`WF.singletonInstance_align`, and on nothing else (`scripts/check-inductive-audit.py`).
+`IsDefEq.uniq`, which the engine's transport lemmas use throughout), and on nothing else
+(`scripts/check-inductive-audit.py`).
 
 ## Replay port (`Verify/Replay.lean`, the deferred tests)
 
@@ -70,16 +70,35 @@ terms. It is the source branch's theorem with the ι rules read off `VEnv.pats`:
 * **Coverage**: stored equations (`WF.equationCoverage`: δ rules by one pattern step, the quotient
   rule by `Confluence/QuotCoverage.lean`); registered ι rules (`WF.patCoverage`): one guarded
   pattern step where the source of the major is not `Prop` or the target is small, and the
-  singleton prefix unfolding otherwise (`WF.singletonPatCoverage`,
+  singleton prefix unfolding otherwise (`WF.singletonPatCoverageJ`,
   `Confluence/SingletonPatCoverage.lean`, through `RecursorRegistered.zero_join` of
   `Confluence/SingletonCoverage.lean` applied to the rule's generic equation, realised by the rule,
-  `RecursorRegistered.patEquation_of_empty`). PORT_PLAN section 8's "same `SingletonCoverage`
-  argument, re-targeted from installed `defeqs` equation to registered `pats` instance" holds with
-  one exception, the stub below.
-
-| statement | file | what remains |
-|---|---|---|
-| `VEnv.WF.singletonInstance_align` | `Confluence/SingletonPatCoverage.lean` | A typed instance `rec A (c B)` of a registered ι rule of a large-eliminating recursor at a `Prop` source joins the β-redex of the rule's generic equation at the recursor's parameters, motives and minors and the major's fields. The two are definitionally equal (they differ in the instance's index arguments and the major's parameters, equal to the equation's by the typing of the major and injectivity of the family), and confluence joins them; but that definitional equality is not a subderivation of `IsDefEq.pat`, whose only premise is the typing of the instance, so the induction of `IsDefEq.church_rosser` does not supply its join. On the source branch the stored equation entered `IsDefEq` only through `extra` and `appDF`, whose premises carried these equalities as subderivations. Example: `Acc.rec` at `Acc.intro x h : Acc r x'` with `x'` only definitionally equal to `x`; the prefix unfolding reads the data field off the index `x'`, the rule's reduct reads it off the field `x`. Routes: (a) register the ι rules with `.defeq` checks aligning the index holes with the constructor's indices and the constructor's parameter holes with the recursor's (`Pattern.Check.defeq`; the premises of `IsDefEq.pat` then carry the alignments and the induction supplies their joins). This touches `VEnv.addRecRule`, `pats_origin`, `PatsIota`, the model's `PatValid.iota`, `patsStrong` and the checker's `reduceRecursor.WF` (which must supply the alignment derivations, by injectivity); decision for Kim/Mario. (b) A type-joinability induction: strengthen the motive of `IsDefEq.church_rosser` so that two types of one constant-headed spine join argumentwise. Estimated 2k to 4k lines, new metatheory. |
+  `RecursorRegistered.patEquation_of_empty`).
+* **Index alignment (route (b), closing the former stub `WF.singletonInstance_align`).** At a
+  `Prop`-source singleton instance `rec A (c B)` the prefix unfolding reads the data fields off the
+  index arguments, the rule's reduct off the constructor's fields; joining them needs the joins of
+  the index arguments with the constructor's index expressions, which the typing of the major
+  implies but no subderivation of `IsDefEq.pat` carries. The confluence induction is strengthened
+  to joinable typings: `HasTypeJ` (`Confluence/JoinableTyping.lean`) is a typing whose
+  applications and constants are syntax-directed and whose conversions are joins, and
+  `IsDefEqStrong.church_rosserJ_of` proves both sides of every strong derivation (of any
+  environment below the confluence environment) join and are joinably typed, given coverage of
+  the rules at joinably typed instances (`FullPatCoverageJ`; `FullPatCoverageJ.toFull` recovers
+  `FullPatCoverage`). Joins are stable under substitution and application and injective on
+  Π-types (`Confluence/JoinLemmas.lean`) and on sort-typed rigid spines
+  (`FullCRDefEq.rigid_spine_inv`, `Confluence/EtaSpine.lean`, through the reducts of a rigid
+  spine, which function eta expansion of partial applications takes out of spine form); a
+  joinable typing of an application spine joins its head's declared telescope
+  (`Confluence/JoinTelescope.lean`). `singletonInstance_alignJ` (`Confluence/SingletonAlign.lean`)
+  then aligns the instance with the generic equation, given the joins of the definitional
+  equality of the constructor's declared type with its normalized type
+  (`RestoresFamily.constructors`, a derivation in the environment the declaration's type formers
+  are added to). Those come from the confluence of that earlier environment
+  (`stage_types_joins`, `Confluence/StageJoins.lean`), so the coverage is proved by induction
+  along a chosen history of the environment (`VEnv.WFH`, `VEnv.stages`,
+  `Confluence/History.lean`; `WF.patCoverageJ`, `WF.stage_rank_lt`): the recursor registry is
+  pinned to its stages (`RecursorEntry`), so the rules a stage registers are installed at earlier
+  stages.
 
 **Decisions.** PR #43's `ChurchRosser.lean` and `HeadReduction.lean` are replaced by the source
 branch's engine (wave 4's first commits): its `NormalEq.parRed` is sorry-free, so master's two
@@ -95,7 +114,7 @@ domains (the rule never reads them); `Verify/CanonicalEq.lean` realizes it from 
 `TrEnv.iotaRulesRegistered`, given the installed `Eq.refl`/`Eq.rec` metadata `IsPreludeEqReflVal`,
 `IsPreludeEqRecVal`), which `Tests/PreludeEq` checks for `Init.Prelude`.
 
-**Deviations from PORT_PLAN.** The confluence theorem is not sorry-free: besides the stub above it
+**Deviations from PORT_PLAN.** The confluence theorem is not sorry-free: it
 inherits `patsStrong` and `Model.PatValid.iota` through `IsDefEq.uniq`, which the engine uses (the
 source branch had neither). `RecursorRegistered` records the typing of its compiled block
 (`VInductBlock.WF`), and `RecursorRegisteredAt` fixes its installation.
@@ -113,7 +132,7 @@ source branch had neither). `RecursorRegistered` records the typing of its compi
 checker, `addDecl.preludeEq_hasCanonicalEq`, the confluence engine, and as strict roots (only the
 three standard axioms) the generator definitions, the foundational lemmas and
 `VEnv.WF.church_rosser` with `WF.params` and its coverage lemmas. The accepted open proofs are
-`WF.patsStrong`, `IsDefEqU.weakN_iff`, `Model.PatValid.iota` and `WF.singletonInstance_align`;
+`WF.patsStrong`, `IsDefEqU.weakN_iff` and `Model.PatValid.iota`;
 `--require-complete` also rejects a listed proof no longer reached. CI runs `--self-test` and
 `--no-build --require-complete`.
 

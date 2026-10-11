@@ -146,4 +146,5 @@ elab "#inductive_audit " ids:ident* : command => do
 #inductive_audit Lean4Lean.VEnv.WF.church_rosser
 #inductive_audit Lean4Lean.VEnv.WF.equationCoverage
 #inductive_audit Lean4Lean.VEnv.WF.patCoverage
-#inductive_audit Lean4Lean.VEnv.WF.singletonPatCoverage
+#inductive_audit Lean4Lean.VEnv.WF.singletonPatCoverageJ
+#inductive_audit Lean4Lean.VEnv.WF.patCoverageJ
