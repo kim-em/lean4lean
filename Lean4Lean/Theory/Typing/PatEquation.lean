@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.IotaLemmas
+import Lean4Lean.Theory.Inductive.RecursorSchema
 
 /-! # Equations realised by the environment
 
@@ -8,7 +9,8 @@ as the ι pattern of its recursor rule (`VEnv.addRecRule`). The singleton prefix
 which on the verified-inductives branch was `IsDefEq.extra_instOuter` on the stored equation.
 `VEnv.PatEquation` abstracts what the unfolding needs of an equation: its three sides are
 closed and, at every universe instantiation and every well-typed instance of its telescope
-whose redex is typed, the two instantiated bodies are convertible. A stored equation realises
+(the common λ/∀ telescope of its sides, `RecursorSchema.EquationBody.extract`) whose redex is
+typed, the two instantiated bodies are convertible. A stored equation realises
 it (`PatEquation.of_defeq`); the singleton equation of a registered recursor realises it through
 `IsDefEq.pat` (`Theory/Typing/Confluence/SingletonCoverage.lean`). -/
 
@@ -20,16 +22,15 @@ structure PatEquation (env : VEnv) (df : VDefEq) : Prop where
   lhs_closed : df.lhs.Closed
   rhs_closed : df.rhs.Closed
   type_closed : df.type.Closed
-  instOuter : ∀ {U : Nat} {Γ : List VExpr} {ls : List VLevel} {doms : List VExpr}
-    {lhsBody rhsBody typeBody T : VExpr} {args : List VExpr},
+  instOuter : ∀ {U : Nat} {Γ : List VExpr} {ls : List VLevel}
+    {body : InductiveSignature.RecursorSchema.EquationBody} {T : VExpr} {args : List VExpr},
     OnCtx Γ (env.IsType U) → (∀ l ∈ ls, l.WF U) → ls.length = df.uvars →
-    df.lhs = VExpr.wrapLams doms lhsBody → df.rhs = VExpr.wrapLams doms rhsBody →
-    df.type = VExpr.wrapForalls doms typeBody →
-    args.length = doms.length →
-    (∀ j (hj : j < args.length) (hj' : j < doms.length),
-      env.HasType U Γ args[j] (((doms[j]).instL ls).instOuter (args.take j))) →
-    env.HasType U Γ ((lhsBody.instL ls).instOuter args) T →
-    env.IsDefEqU U Γ ((lhsBody.instL ls).instOuter args) ((rhsBody.instL ls).instOuter args)
+    InductiveSignature.RecursorSchema.EquationBody.extract df.lhs df.rhs df.type = some body →
+    args.length = body.domains.length →
+    (∀ j (hj : j < args.length) (hj' : j < body.domains.length),
+      env.HasType U Γ args[j] (((body.domains[j]).instL ls).instOuter (args.take j))) →
+    env.HasType U Γ ((body.lhs.instL ls).instOuter args) T →
+    env.IsDefEqU U Γ ((body.lhs.instL ls).instOuter args) ((body.rhs.instL ls).instOuter args)
 
 /-- A stored equation of a well-formed environment is realised. -/
 theorem PatEquation.of_defeq {env : VEnv} (henv : env.WF) {df : VDefEq} (hdf : env.defeqs df) :
@@ -44,7 +45,9 @@ theorem PatEquation.of_defeq {env : VEnv} (henv : env.WF) {df : VDefEq} (hdf : e
   have ht : df.type.Closed :=
     VExpr.WF.closedN henv.ordered (show VExpr.WF env df.uvars [] _ from ⟨_, ht⟩) trivial
   refine ⟨hl, hr, ht, ?_⟩
-  intro U Γ ls doms lhsBody rhsBody typeBody T args hΓ hls hlen hlhs hrhs htype hargs hty _
-  exact ⟨_, IsDefEq.extra_instOuter henv hΓ hdf hls hlen hlhs hrhs htype hargs hty⟩
+  intro U Γ ls body T args hΓ hls hlen hbody hargs hty _
+  obtain ⟨hlhs, hrhs, htype⟩ := InductiveSignature.RecursorSchema.EquationBody.extract_sound hbody
+  exact ⟨_, IsDefEq.extra_instOuter henv hΓ hdf hls hlen hlhs.symm hrhs.symm htype.symm
+    hargs hty⟩
 
 end Lean4Lean.VEnv

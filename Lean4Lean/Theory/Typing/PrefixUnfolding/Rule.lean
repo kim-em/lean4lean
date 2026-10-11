@@ -97,7 +97,7 @@ theorem UnfoldingCheck.defeq (henv : env.WF)
   obtain ⟨_, hlhsEq⟩ := IsDefEqU.trans henv hctx ⟨_, hreplace⟩ halign
   have hlhsTyped := hlhsEq.hasType.2
   have hiota := H.equation_present.instOuter hctx H.levels_wf
-    H.levels_length hl.symm hr.symm ht.symm H.captures_length H.captures_typed hlhsTyped
+    H.levels_length H.equation_body H.captures_length H.captures_typed hlhsTyped
   have hbody := IsDefEqU.of_l henv hctx
     ((IsDefEqU.trans henv hctx ⟨_, hreplace⟩ halign).trans henv hctx hiota) hopen
   rw [← hetaBody] at hbody
@@ -130,7 +130,7 @@ theorem UnfoldingCheck.iota (henv : env.WF)
   have halign := H.recursor_lhs.defeq henv hctx hreplace.hasType.2
   obtain ⟨_, hlhsEq⟩ := IsDefEqU.trans henv hctx ⟨_, hreplace⟩ halign
   exact H.equation_present.instOuter hctx H.levels_wf
-    H.levels_length hl.symm hr.symm ht.symm H.captures_length H.captures_typed hlhsEq.hasType.2
+    H.levels_length H.equation_body H.captures_length H.captures_typed hlhsEq.hasType.2
 
 theorem PrefixUnfold.defeq (henv : env.WF)
     (hΓ : OnCtx Γ (env.IsType U))
