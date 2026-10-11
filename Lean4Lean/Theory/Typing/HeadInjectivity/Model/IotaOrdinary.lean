@@ -87,7 +87,7 @@ theorem iotaStatic (index : Fin s.constructors.size)
     by omega, by have := index.isLt; omega, by simpa using harity, ?_, ?_, ?_, ?_⟩
   · simp [insertBinders, fieldTypes]
   · rw [hpos]
-    simp only [minor, constructorApp, Option.some.injEq, List.length_map,
+    simp only [minor, constructorApp, List.map_map, Option.some.injEq, List.length_map,
       List.length_zipIdx, show s.params.length + s.families.size + index.val - s.params.length =
         s.families.size + index.val by omega, Function.comp_def]
   · simp only [eqLead, iotaLead, eqIndices, vars, List.map_map]
