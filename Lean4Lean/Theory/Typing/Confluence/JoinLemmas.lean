@@ -202,4 +202,41 @@ theorem FullCRDefEq.forallE_inv (hΓ : OnCtx Γ (env.IsType univs))
   exact ⟨jX, ⟨_, hY⟩, ⟨_, hY''⟩, _, _, rY, rY'.defeqDFC hΓ (.succ .zero dX.symm) hY',
     nY.defeqDFC hΓ (.succ .zero dX₁.symm)⟩
 
+/-! ## Equivalent universe levels -/
+
+/-- Terms equal up to equivalent universe levels are normally equal. -/
+theorem NormalEq.of_eqUpToLevels (H : EqUpToLevels univs e e') :
+    ∀ {Γ T}, OnCtx Γ (env.IsType univs) → Γ ⊢ e : T → NormalEq Γ e e' := by
+  induction H with
+  | bvar => intro Γ T _ h; exact .refl h
+  | const h1 h2 h3 =>
+    intro Γ T hΓ h
+    obtain ⟨ci, hc, hw, hl⟩ := h.const_inv henv.orderedStrong hΓ
+    exact .constDF hc h1 h2 hl h3
+  | sort h1 h2 h3 => intro Γ T _ _; exact .sortDF h1 h2 h3
+  | app hf ha ihf iha =>
+    intro Γ T hΓ h
+    obtain ⟨A, B, hft, hat⟩ := h.app_inv henv.orderedStrong hΓ
+    have hft' := (IsDefEq.eqUpToLevels henv.orderedStrong hΓ hft hf).hasType.2
+    have hat' := (IsDefEq.eqUpToLevels henv.orderedStrong hΓ hat ha).hasType.2
+    exact .appDF hft hft' hat hat' (ihf hΓ hft) (iha hΓ hat)
+  | proj _ ih =>
+    intro Γ T hΓ h
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ := h.proj_inv henv.orderedStrong hΓ
+    exact .projDF h (ih hΓ hm.hasType.2)
+  | lam hA hb ihA ihb =>
+    intro Γ T hΓ h
+    obtain ⟨⟨_, hAt⟩, _, hbt⟩ := h.lam_inv henv.orderedStrong hΓ
+    have hAA := IsDefEq.eqUpToLevels henv.orderedStrong hΓ hAt hA
+    exact .lamDF hAt hAA (ihb ⟨hΓ, _, hAt⟩ hbt)
+  | forallE hA hB ihA ihB =>
+    intro Γ T hΓ h
+    obtain ⟨⟨_, hAt⟩, _, hBt⟩ := h.forallE_inv henv.ordered
+    exact .forallEDF hAt (ihA hΓ hAt) hBt (ihB ⟨hΓ, _, hAt⟩ hBt)
+
+/-- Instantiations of a typed term at equivalent universe levels join. -/
+theorem FullCRDefEq.of_eqUpToLevels (hΓ : OnCtx Γ (env.IsType univs)) (H : EqUpToLevels univs e e')
+    (h : Γ ⊢ e : T) : Γ ⊢ e ≫≪ e' :=
+  .normalEq hΓ (NormalEq.of_eqUpToLevels H hΓ h)
+
 end Lean4Lean.VEnv

@@ -132,4 +132,74 @@ theorem FullCRDefEq.wrapForalls_instOuter (hΓ : OnCtx Γ (env.IsType univs)) :
         (by simpa [VExpr.mkApps] using hwf) hY'
       simpa [hlen, hlen'] using this
 
+omit [Params] in
+theorem VExpr.instOuter_forallE (A B : VExpr) :
+    ∀ args : List VExpr, ∃ B', (VExpr.forallE A B).instOuter args = .forallE (A.instOuter args) B'
+  | [] => ⟨_, rfl⟩
+  | a :: as => by
+    simp only [VExpr.instOuter_cons, VExpr.inst]
+    obtain ⟨B', h⟩ := VExpr.instOuter_forallE (A.inst a as.length) (B.inst a (as.length + 1)) as
+    exact ⟨B', h⟩
+
+/-- Full reduction of a lambda telescope applied to as many arguments as it has binders. -/
+theorem FullReduction.mkApps_wrapLams :
+    ∀ {args doms : List VExpr} {body : VExpr}, args.length = doms.length →
+      FullReduction Γ (VExpr.mkApps (VExpr.wrapLams doms body) args) (body.instOuter args)
+  | [], [], _, _ => .rfl
+  | a :: as, d :: ds, body, h => by
+    simp only [List.length_cons, Nat.add_right_cancel_iff] at h
+    have h1 : FullReduction Γ (VExpr.mkApps (.app (.lam d (VExpr.wrapLams ds body)) a) as)
+        (VExpr.mkApps ((VExpr.wrapLams ds body).inst a) as) :=
+      FullReduction.mkApps (.tail .rfl (.core (.beta .rfl .rfl))) (FullReduction.forall₂_rfl _)
+    rw [VExpr.wrapLams_inst, Nat.zero_add] at h1
+    have h2 := FullReduction.mkApps_wrapLams (Γ := Γ) (args := as)
+      (doms := VExpr.instDomains ds a 0) (body := body.inst a ds.length) (by simpa using h)
+    have := h1.trans h2
+    simp only [VExpr.instOuter_cons, h]
+    exact this
+  | [], _ :: _, _, h | _ :: _, [], _, h => by simp at h
+
+/-- **Joinable typing of the major of a recursor application**: the major of
+`r recArgs M`, with the recursor's type a telescope `∀ pre, ∀ (x : dm), br`, has a joinable type
+joining `dm` instantiated at `recArgs`. -/
+theorem HasTypeJ.major_join (hΓ : OnCtx Γ (env.IsType univs))
+    (hc : env.constants rn = some ⟨u, VExpr.wrapForalls pre (.forallE dm br)⟩)
+    (hlen : recArgs.length = pre.length)
+    (H : HasTypeJ Γ (.app (VExpr.mkApps (.const rn L) recArgs) M) T) :
+    ∃ X, HasTypeJ Γ M X ∧ Γ ⊢ (dm.instL L).instOuter recArgs ≫≪ X := by
+  obtain ⟨X, Y, hJf, hJM, -⟩ := H.app_inv hΓ
+  obtain ⟨_, hJc⟩ := HasTypeJ.mkApps_head hΓ hJf
+  obtain ⟨ci, hci, -⟩ := hJc.const_inv hΓ
+  rw [hc] at hci; cases hci
+  obtain ⟨_, hw, hl⟩ := hJc.hasType.const_inv henv.orderedStrong hΓ
+  rw [hc] at hw; cases hw
+  have hct : Γ ⊢ .const rn L : VExpr.wrapForalls (pre.map (·.instL L))
+      (.forallE (dm.instL L) (br.instL L)) := by
+    have := HasType.const (Γ := Γ) hc hl.1 hl.2
+    simpa [VExpr.instL_wrapForalls, VExpr.instL] using this
+  have hj := HasTypeJ.mkApps_wrapForalls hΓ (by simpa using hlen) hct (fun T' hJ' => by
+    obtain ⟨ci, hci, hj⟩ := hJ'.const_inv hΓ
+    rw [hc] at hci; cases hci
+    simpa [VExpr.instL_wrapForalls, VExpr.instL] using hj) _ hJf
+  obtain ⟨B', hB'⟩ := VExpr.instOuter_forallE (dm.instL L) (br.instL L) recArgs
+  rw [hB'] at hj
+  exact ⟨X, hJM, (hj.forallE_inv hΓ).1⟩
+
+/-- **Joinable typing of a saturated application of a constant** with a telescope type. -/
+theorem HasTypeJ.const_spine_join (hΓ : OnCtx Γ (env.IsType univs))
+    (hc : env.constants cn = some ⟨u, VExpr.wrapForalls Ds Rs⟩)
+    (hlen : B.length = Ds.length)
+    (H : HasTypeJ Γ (VExpr.mkApps (.const cn cl) B) X) :
+    Γ ⊢ (Rs.instL cl).instOuter B ≫≪ X := by
+  obtain ⟨_, hJc⟩ := HasTypeJ.mkApps_head hΓ H
+  obtain ⟨_, hw, hl⟩ := hJc.hasType.const_inv henv.orderedStrong hΓ
+  rw [hc] at hw; cases hw
+  have hct : Γ ⊢ .const cn cl : VExpr.wrapForalls (Ds.map (·.instL cl)) (Rs.instL cl) := by
+    have := HasType.const (Γ := Γ) hc hl.1 hl.2
+    simpa [VExpr.instL_wrapForalls, VExpr.instL] using this
+  exact HasTypeJ.mkApps_wrapForalls hΓ (by simpa using hlen) hct (fun T' hJ' => by
+    obtain ⟨ci, hci, hj⟩ := hJ'.const_inv hΓ
+    rw [hc] at hci; cases hci
+    simpa [VExpr.instL_wrapForalls, VExpr.instL] using hj) _ H
+
 end Lean4Lean.VEnv
