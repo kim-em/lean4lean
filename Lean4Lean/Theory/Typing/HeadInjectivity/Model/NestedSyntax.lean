@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.IotaHistory
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.NestedArgs
 import Lean4Lean.Theory.Typing.RestorationShapes
 import Lean4Lean.Theory.Inductive.CompilationMajors
 
@@ -744,6 +745,97 @@ theorem restored_iotaStatic {base env : VEnv} {source expanded : VInductDecl}
     have := congrArg Fin.val this
     simp at this
     omega
+
+/-! ## Specialization substitutions under binders -/
+
+theorem Subst.liftN_apply (σ : VExpr.Subst) : ∀ (j x : Nat),
+    σ.liftN j x = if x < j then .bvar x else (σ (x - j)).liftN j
+  | 0, x => by simp [VExpr.Subst.liftN, VExpr.liftN_zero]
+  | j + 1, 0 => by simp [VExpr.Subst.liftN, VExpr.Subst.lift]
+  | j + 1, x + 1 => by
+    show (σ.liftN j x).lift = _
+    rw [Subst.liftN_apply σ j x]
+    split
+    · rw [if_pos (by omega)]
+      show VExpr.liftN 1 (.bvar x) 0 = _
+      simp only [VExpr.liftN, liftVar]
+      rw [if_neg (by omega)]
+      congr 1; omega
+    · rw [if_neg (by omega), show x + 1 - (j + 1) = x - j by omega, VExpr.lift,
+        VExpr.liftN_liftN]
+
+theorem subst_wrapForalls_liftN (σ : VExpr.Subst) : ∀ (ds : List VExpr) (R : VExpr) (k : Nat),
+    (VExpr.wrapForalls ds R).subst (σ.liftN k) =
+      .wrapForalls ((ds.zipIdx k).map fun (d, i) => d.subst (σ.liftN i))
+        (R.subst (σ.liftN (k + ds.length)))
+  | [], R, k => by simp [VExpr.wrapForalls]
+  | d :: ds, R, k => by
+    rw [VExpr.subst_wrapForalls_cons]
+    have ih := subst_wrapForalls_liftN σ ds R (k + 1)
+    rw [show (σ.liftN k).lift = σ.liftN (k + 1) from rfl, ih]
+    simp only [List.zipIdx_cons, List.map_cons, VExpr.wrapForalls, List.foldr_cons,
+      List.length_cons]
+    rw [show k + 1 + ds.length = k + (ds.length + 1) by omega]
+
+/-- Substituting the specialization arguments under `j` binders and then a parameter valuation
+`ps` with `j` further arguments is substituting the specialization arguments at `ps`. -/
+theorem subst_spec_argSubst {e : VExpr} {Ds ps fs : List VExpr} {j : Nat}
+    (he : e.ClosedN (Ds.length + j)) (hfs : fs.length = j) :
+    (e.subst ((VExpr.argSubst Ds).liftN j)).subst (VExpr.argSubst (ps ++ fs)) =
+      e.subst (VExpr.argSubst (Ds.map (·.subst (VExpr.argSubst ps)) ++ fs)) := by
+  rw [VExpr.subst_subst]
+  apply VExpr.subst_congr_closedN he
+  intro x hx
+  show ((VExpr.argSubst Ds).liftN j x).subst (VExpr.argSubst (ps ++ fs)) = _
+  rw [Subst.liftN_apply]
+  split
+  · rw [VExpr.subst_bvar, argSubst_eq_getD, argSubst_eq_getD]
+    simp only [List.length_append, List.length_map]
+    rw [if_pos (by omega), if_pos (by omega), List.getElem?_append_right (by omega),
+      List.getElem?_append_right (by simp; omega)]
+    congr 2; simp; omega
+  · rw [VExpr.argSubst_lt _ (by omega), VExpr.argSubst_lt _ (by simp; omega),
+      List.getElem_append_left (by simp; omega)]
+    have := liftN_subst_argSubst_append (Ds[Ds.length - 1 - (x - j)]'(by omega)) ps fs
+    rw [hfs] at this
+    rw [this]
+    simp only [List.getElem_map, List.length_append, List.length_map]
+    congr 2; omega
+
+theorem instL_spec {e : VExpr} (Ds : List VExpr) (j : Nat) (L : List VLevel) :
+    (e.subst ((VExpr.argSubst Ds).liftN j)).instL L =
+      (e.instL L).subst ((VExpr.argSubst (Ds.map (·.instL L))).liftN j) := by
+  rw [VExpr.instL_subst]
+  congr 1
+  funext x
+  rw [Subst.liftN_apply, Subst.liftN_apply]
+  split
+  · rfl
+  · rw [VExpr.instL_liftN]
+    congr 1
+    rw [argSubst_eq_getD, argSubst_eq_getD]
+    simp only [List.length_map]
+    split
+    · rw [List.getElem?_map]
+      cases Ds[Ds.length - 1 - (x - j)]? <;> rfl
+    · rfl
+
+/-- The specialization at the parameter variables is the identity on terms scoped by the
+parameters and `j` further binders. -/
+theorem subst_spec_vars {e : VExpr} {np j : Nat} (he : e.ClosedN (np + j)) :
+    e.subst ((VExpr.argSubst (vars np 0)).liftN j) = e := by
+  conv => rhs; rw [← VExpr.subst_id (e := e)]
+  apply VExpr.subst_congr_closedN he
+  intro x hx
+  rw [Subst.liftN_apply]
+  split
+  · rfl
+  · rw [VExpr.argSubst_lt _ (by rw [vars_len]; omega)]
+    simp only [vars_unfold, List.getElem_map, List.getElem_reverse, List.getElem_range,
+      List.length_map, List.length_reverse, List.length_range]
+    simp only [VExpr.liftN, liftVar, VExpr.Subst.id]
+    rw [if_neg (by omega)]
+    congr 1; omega
 
 end Nested
 end Model
