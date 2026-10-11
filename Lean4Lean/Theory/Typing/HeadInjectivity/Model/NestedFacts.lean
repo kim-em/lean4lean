@@ -219,6 +219,53 @@ theorem restored_constructorType {s : InductiveSignature} {r : Restoration}
   obtain ⟨Idx0, hIdx, rfl⟩ := hSF.spine _ _ _ _ hb
   exact ⟨P0, Fn0, Idx0, h1, h2, hIdx, rfl⟩
 
+/-! ## The restored equation's type and motive -/
+
+theorem eqDoms_motive {s : InductiveSignature} (g : Instance s) (index : Fin s.constructors.size) :
+    (g.eqDoms index)[s.params.length + s.constructors[index].owner.val]? =
+      some (g.motive s.families[s.constructors[index].owner] s.constructors[index].owner.val) := by
+  have ho := s.constructors[index].owner.isLt
+  simp only [Instance.eqDoms, List.append_assoc]
+  rw [List.getElem?_append_right (by simp [Instance.params]),
+    List.getElem?_append_left (by simp [Instance.params, Instance.motives])]
+  simp [Instance.params, Instance.motives]
+
+/-- The restored motive of an owner is a telescope of the owner's index count plus one ending in
+the target sort. -/
+theorem restored_motive {s : InductiveSignature} (g : Instance s) {r : Restoration}
+    (family : Family) (prior : Nat) {out : VExpr} (h : r.expr (g.motive family prior) = some out) :
+    ∃ mds, out = .wrapForalls mds (.sort g.targetLevel) ∧ mds.length = family.indices.length + 1 := by
+  unfold Instance.motive at h
+  obtain ⟨ds', b, hds, hb, rfl⟩ := expr_wrapForalls_parts h
+  rw [Restoration.expr_sort] at hb
+  cases hb
+  refine ⟨ds', rfl, ?_⟩
+  rw [mapM_length hds]
+  simp [insertBinders]
+
+/-- The type of a restored equation: a telescope over the restored binders whose body applies
+the major's motive to the restored indices and constructor application. -/
+theorem restored_equation_type {s : InductiveSignature} (g : Instance s) {r : Restoration}
+    (index : Fin s.constructors.size) {df : VDefEq} {ds' : List VExpr}
+    (hds : (g.eqDoms index).mapM r.expr = some ds') (h : r.equation (g.equation index) = some df) :
+    ∃ targs, df.type = .wrapForalls ds' (.mkApps (.bvar (s.constructors[index].fields.length +
+        s.constructors.size + (s.families.size - 1 - s.constructors[index].owner.val))) targs) ∧
+      targs.length = s.constructors[index].indices.length + 1 := by
+  obtain ⟨-, -, ht⟩ := Restoration.equation_parts h
+  have hty : (g.equation index).type = .wrapForalls (g.eqDoms index)
+      (.mkApps (.bvar (s.constructors[index].fields.length + s.constructors.size +
+        (s.families.size - 1 - s.constructors[index].owner.val)))
+        (g.eqIndices index ++ [g.constructorApp s.constructors[index]
+          (s.families.size + s.constructors.size) 0])) := rfl
+  rw [hty] at ht
+  obtain ⟨ds2, b, hds2, hb, et⟩ := expr_wrapForalls_parts ht
+  cases hds.symm.trans hds2
+  rw [Restoration.expr_mkApps_bvar] at hb
+  obtain ⟨targs, htargs, rfl⟩ := Option.map_eq_some_iff.1 hb
+  refine ⟨targs, et, ?_⟩
+  rw [mapM_length htargs]
+  simp [Instance.eqIndices]
+
 end Nested
 end Model
 end VEnv
