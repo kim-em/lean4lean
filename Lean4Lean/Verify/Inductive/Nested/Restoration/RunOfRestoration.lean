@@ -77,8 +77,8 @@ theorem NestedRun.ofRestoration {env : Environment} {ves : VEnvs} (wf : ves.WF e
       { ({ lvls := lparams.map .param, newTypes := #[] } : ElimNestedInductive.State) with
         newTypes := sourceTypes.toArray } res := Hlow.toResult
   -- the restoration folds
-  have Htypes := L.recursors.installation.restorationSourcesOfLowering L.Hc' HlowRun
-  have Haux := L.recursors.installation.auxRestorationSourcesOfLowering L.Hc' HlowRun
+  have Htypes := L.recursors.restorationSourcesOfLowering L.Hc' HlowRun
+  have Haux := L.recursors.auxRestorationSourcesOfLowering L.Hc' HlowRun
   rw [← Hout.nparams_eq] at Htypes Haux
   have Hrefines := restoreNestedDeclarations_refines_primitiveSafe res loweredEnv env
     (auxRecNameMap loweredEnv sourceTypes) (sourceTypes.map (·.name)) false sourceTypes
@@ -106,7 +106,7 @@ theorem NestedRun.ofRestoration {env : Environment} {ves : VEnvs} (wf : ves.WF e
     cases isUnsafe <;> decide
   have hN := NestedLoweringOutputClosed.sourceCore (R := L.input)
     (initialState := { lvls := lparams.map .param, newTypes := #[] })
-    (by rw [L.env_eq]; exact Hlow) L.Hc' L.recursors.installation
+    (by rw [L.env_eq]; exact Hlow) L.Hc' L.recursors
     (checkInductiveSources_refines env sourceTypes () Hsources)
     L.Hc'.checking.constructorOwners rfl
     (by rw [L.env_eq]; exact Hfolds) (by rw [L.env_eq]; exact HV) (by rw [L.env_eq]; exact HH)

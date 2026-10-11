@@ -23,8 +23,8 @@ theorem RecursorCheck.recursorShapes
   recursorShapesOf H.generation H.models H.admissible.levels_length R.core.typesAdded
     R.core.ctorsAdded (TrInductDeclCore.sourceNames_nodup R.core) R.formation.rawShapes
     (VEnv.addProjections_le.trans (VEnv.addRecs_le H.recsAdded))
-    (fun r hr => VEnv.addRecs_find H.recsAdded r hr) H.recursors_eq H.trRecs H.metadata
-    T.trRules H.rules_ctor hnp
+    (fun r hr => VEnv.addRecs_find H.recsAdded r hr) H.recs_recursors H.trRecs H.metadataAll
+    T.trRules H.rulesCtorAll hnp
 
 end VerifyInductive
 end Lean4Lean

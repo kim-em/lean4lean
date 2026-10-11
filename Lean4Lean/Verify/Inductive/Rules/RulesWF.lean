@@ -86,12 +86,12 @@ theorem RecursorCheck.rule_equation_getElem (H : RecursorCheck R outEnv)
   have hiR : i < H.rvals.length := hlenR ▸ hi
   have hiF : i < H.signature.families.size := H.families_size_eq hcov ▸ hi
   have Htr := List.forall₂_getElem H.trRecs i hiR hi
-  have Hmeta := List.forall₂_getElem H.metadata i (by simpa using hiF) hiR
+  have Hmeta := List.forall₂_getElem H.metadataAll i (by simpa using hiF) hiR
   have Hcov := List.forall₂_getElem hcov i (by simpa using hiF) hiR
   simp only [List.getElem_finRange, Fin.cast_mk] at Hmeta Hcov
   -- the model recursor is the generated recursor of family `i`
   have hrec : H.recs[i].toVConstVal = H.generation.recursor ⟨i, hiF⟩ := by
-    have h := congrArg (·[i]?) H.recursors_eq
+    have h := congrArg (·[i]?) H.recs_recursors
     simpa [List.getElem?_eq_getElem hi, InductiveSignature.Instance.recursors, hiF] using h
   have hjK : j < H.rvals[i].rules.length := (List.Forall₂.length_eq Htr.rules) ▸ hj
   have Hrule := List.forall₂_getElem Htr.rules j hjK hj

@@ -56,7 +56,7 @@ theorem venv_eq (L : LoweredRun Hc nparams indTypes loweredEnv) : L.Hc'.venv = H
   L.phase.venv_eq
 
 /-- The lowered declaration with its generated recursors, as installed by the lowered run. -/
-def decl' (L : LoweredRun Hc nparams indTypes loweredEnv) : VInductDecl :=
+noncomputable def decl' (L : LoweredRun Hc nparams indTypes loweredEnv) : VInductDecl :=
   L.recursors.decl'
 
 end LoweredRun

@@ -44,7 +44,7 @@ namespace LoweredView.Phases
 variable {outEnv : Environment} {P : LoweredView outEnv} {indTypes : Array InductiveType}
 
 abbrev recursors (Q : P.Phases indTypes) : RecursorInstallation Q.constructors outEnv :=
-  Q.check.installation
+  Q.check
 
 abbrev headers (Q : P.Phases indTypes) :
     HeaderData P.c P.stats P.loweredDecl P.nparams P.isUnsafe P.depth P.initialEnv indTypes

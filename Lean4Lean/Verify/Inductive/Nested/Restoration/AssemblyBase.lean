@@ -347,7 +347,7 @@ theorem NestedRun.assemblyBase {res : ElimNestedInductive.Result} {sourceProdEnv
     lowered_isUnsafe_source lowered_indTypes sourceCoreDecl_eq auxiliaryVEnv_eq_sourceCore
   change Hc.venv = initialEnv at context_venv
   have HcChecker : CheckerEnv c.safety c.env initialEnv := context_venv ▸ Hc.checkerEnv
-  let Hprod := check.installation
+  let Hprod := check
   have hsourceWF : c.env.constants.WF := Hc.map_wf
   have hempty : ({ lvls := c.lparams.map .param, newTypes := #[] } :
       ElimNestedInductive.State).nestedAux = #[] := rfl

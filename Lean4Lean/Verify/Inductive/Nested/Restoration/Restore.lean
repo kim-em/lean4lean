@@ -6,7 +6,6 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyBase
 import Lean4Lean.Verify.Inductive.Nested.Restoration.TableAgreement
 import Lean4Lean.Verify.Inductive.Nested.Restoration.KernelData
 import Lean4Lean.Verify.Inductive.Nested.Restoration.FormationWithRecs
-import Lean4Lean.Verify.Inductive.Nested.Restoration.ViewCast
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyTypes
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyKernel
 import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyRecursors
@@ -43,6 +42,22 @@ abbrev nestedContext (env : Environment) (lparams : List Name) (isUnsafe : Bool)
     (fuel : FuelConfig) : AddInductive.Context :=
   initialContext env lparams (if isUnsafe then .unsafe else .safe) false fuel
 
+theorem CompilationData.castGenerator {env : VEnv} {source expanded : VInductDecl}
+    {s s' : InductiveSignature} {g : InductiveSignature.Instance s}
+    {g' : InductiveSignature.Instance s'}
+    {auxiliaries : List InductiveSignature.ContainerSpecialization} {block : VInductBlock}
+    (hs : s = s') (hg : HEq g g')
+    (H : Lean4Lean.InductiveSignature.CompilationData env source expanded s g auxiliaries block) :
+    Lean4Lean.InductiveSignature.CompilationData env source expanded s' g' auxiliaries
+      block := by
+  subst hs; cases eq_of_heq hg; exact H
+
+/-- Transport of a field of a lowered view along a heterogeneous equality of views. -/
+theorem LoweredView.heq_field {α : Sort _} {env₁ env₂ : Environment}
+    {V₁ : LoweredView env₁} {V₂ : LoweredView env₂} (henv : env₁ = env₂) (h : HEq V₁ V₂)
+    (f : ∀ {env}, LoweredView env → α) : f V₁ = f V₂ := by
+  subst henv; cases eq_of_heq h; rfl
+
 /-- **The restoration boundary theorem.** -/
 theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     {lparams : List Name} {nparams : Nat} {sourceTypes : List InductiveType} {isUnsafe : Bool}
@@ -71,9 +86,8 @@ theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     hrules_closed, hrulesAdded, hrecShapes, hrecK, henvR, hequationsWF⟩ :=
     E.assemblyRecursors wf Hchecked hnested B hBlowered hBperm Cstrip hV
   have hsig : E.lowered.signature = L.recursors.signature :=
-    (LoweredView.heq_field hloweredEnv hlowered (·.signature)).trans L.view_signature
+    LoweredView.heq_field hloweredEnv hlowered (·.signature)
   have hgen : HEq E.lowered.generatedInstance L.recursors.generation := by
-    refine HEq.trans ?_ L.view_generation
     clear hcompiled
     revert hlowered
     generalize E.lowered = V

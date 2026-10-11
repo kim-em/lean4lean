@@ -139,7 +139,7 @@ theorem constructorOwnersPresent (B : RestoredBlock L sourceTypes isUnsafe outEn
   have Howners : ConstructorOwnersPresent L.c'.env := by
     rw [L.env_eq]; exact Hc.checking.constructorOwners
   exact NestedRestorationFolds.constructorOwnersPresent (R := L.input) B.runLowering L.Hc'
-    L.recursors.installation rfl B.runRestoration Howners
+    L.recursors rfl B.runRestoration Howners
 
 /-- The run's source-side certificates for its recursor-free declaration `runDecl`. -/
 theorem runSource (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
@@ -169,7 +169,7 @@ theorem inductInfosFromRunDecl (B : RestoredBlock L sourceTypes isUnsafe outEnv)
     rw [L.env_eq]; exact Hc.checking.constructorOwners
   obtain ⟨Hsource, Hmetadata, Harity⟩ := B.runSource
   have H := NestedRestorationFolds.inductInfosFromDecl (R := L.input) B.runLowering L.Hc'
-    L.recursors.installation Hsource Hmetadata B.sourceSyntaxChecked Harity
+    L.recursors Hsource Hmetadata B.sourceSyntaxChecked Harity
     Howners rfl B.runRestoration
   rw [L.env_eq] at H
   exact H
@@ -195,7 +195,7 @@ theorem mutualInductivesClosed (B : RestoredBlock L sourceTypes isUnsafe outEnv)
   have hsourceWF : L.c'.env.constants.WF := L.Hc'.checking.tr.map_wf
   obtain ⟨HprimaryMembers, HprimaryParams⟩ :=
     Hrestored.inductives.restoredSourceMemberInfos B.runLowering L.Hc'
-      L.recursors.installation Hsource Hmetadata B.sourceSyntaxChecked Harity Howners rfl
+      L.recursors Hsource Hmetadata B.sourceSyntaxChecked Harity Howners rfl
       [] (by simp) hsourceWF
   obtain ⟨primaryEntries, HprimaryFresh⟩ :=
     Hrestored.inductives.inductiveFreshExtension hsourceWF

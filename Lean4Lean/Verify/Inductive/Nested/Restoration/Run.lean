@@ -44,7 +44,7 @@ variable {outEnv : Environment}
 
 /-- The recursor installation of the recursor phase's check. -/
 abbrev recursors (P : LoweredView outEnv) : RecursorInstallation P.constructors outEnv :=
-  P.check.installation
+  P.check
 
 abbrev headerEnv (P : LoweredView outEnv) : Environment := P.constructors.headerEnv
 
