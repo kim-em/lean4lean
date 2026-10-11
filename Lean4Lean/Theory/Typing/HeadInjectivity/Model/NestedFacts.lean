@@ -168,6 +168,57 @@ theorem famSort_installed {envF env0 base0 installed base' : VEnv} {D expanded :
   exact famSort_congr (Model.famSort_of henvF h0s h0F V0 hc (h1.mono hTE) (h2.mono hTE) hlev)
     hrel.resultLevel
 
+/-! ## The specialized and the restored constructor types -/
+
+theorem takeForalls_wrapForalls_le {ds : List VExpr} {R : VExpr} {n : Nat} (hn : n ≤ ds.length) :
+    (VExpr.wrapForalls ds R).takeForalls n = some (ds.take n, .wrapForalls (ds.drop n) R) := by
+  have := VExpr.takeForalls_wrapForalls_append (ds.take n) (ds.drop n) R
+  rw [List.take_append_drop, List.length_take, Nat.min_eq_left hn] at this
+  exact this
+
+theorem instantiateParams_eq_subst (body : VExpr) (args : List VExpr) :
+    instantiateParams body args = body.subst (VExpr.argSubst args) := by
+  unfold instantiateParams
+  congr 1
+  funext i
+  rw [VExpr.argSubst, VExpr.foldl_cons_apply]
+  rfl
+
+/-- **The specialized type of a container constructor.** -/
+theorem specializeType_shape {cdoms : List VExpr} {R0 : VExpr} {lv : List VLevel}
+    {Ds0 : List VExpr} {T : VExpr} (hl : Ds0.length ≤ cdoms.length)
+    (h : specializeType ((VExpr.wrapForalls cdoms R0).instL lv) Ds0 = some T) :
+    T = .wrapForalls ((cdoms.drop Ds0.length).zipIdx.map fun ((d, j) : VExpr × Nat) =>
+        (d.instL lv).subst ((VExpr.argSubst Ds0).liftN j))
+      ((R0.instL lv).subst ((VExpr.argSubst Ds0).liftN (cdoms.length - Ds0.length))) := by
+  unfold specializeType at h
+  rw [VExpr.instL_wrapForalls, takeForalls_wrapForalls_le (by simpa using hl)] at h
+  simp only [bind, Option.bind_some, pure, Option.some.injEq] at h
+  subst h
+  rw [instantiateParams_eq_subst,
+    show VExpr.argSubst Ds0 = (VExpr.argSubst Ds0).liftN 0 from rfl, subst_wrapForalls_liftN]
+  simp only [List.map_drop, Nat.zero_add, List.length_drop, List.length_map]
+  rw [← List.map_drop, List.zipIdx_map, List.map_map]
+  rfl
+
+/-- **The restored normalized constructor type**: the restored parameters and fields, and the
+restored family spine over the specialization arguments and the restored indices. -/
+theorem restored_constructorType {s : InductiveSignature} {r : Restoration}
+    (ctor : Constructor s.families.size) {I0 : Name} {lvf : List VLevel → List VLevel}
+    {Ds0 : List VExpr}
+    (hSF : Spec r s.families[ctor.owner].name s.params.length I0 lvf Ds0) {out : VExpr}
+    (h : r.expr (s.constructorType ctor) = some out) :
+    ∃ P0 Fn0 Idx0, s.params.mapM r.expr = some P0 ∧ (s.fieldTypes ctor).mapM r.expr = some Fn0 ∧
+      ctor.indices.mapM r.expr = some Idx0 ∧
+      out = .wrapForalls (P0 ++ Fn0) (.mkApps (.const I0 (lvf (VLevel.params s.uvars)))
+        (Ds0.map (fun e => (e.instL (VLevel.params s.uvars)).liftN ctor.fields.length) ++ Idx0)) := by
+  unfold constructorType at h
+  obtain ⟨ds', b, hds, hb, rfl⟩ := expr_wrapForalls_parts h
+  obtain ⟨P0, Fn0, h1, h2, rfl⟩ := mapM_append hds
+  simp only [familyApp] at hb
+  obtain ⟨Idx0, hIdx, rfl⟩ := hSF.spine _ _ _ _ hb
+  exact ⟨P0, Fn0, Idx0, h1, h2, hIdx, rfl⟩
+
 end Nested
 end Model
 end VEnv
