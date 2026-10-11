@@ -35,6 +35,10 @@ ROOTS = {
     "Lean4Lean.VEnv.QuotPrefixUnfold.defeq",
     "Lean4Lean.VEnv.QuotRegistered.propInhabitant_app",
     "Lean4Lean.VEnv.IsDefEq.full_church_rosser",
+    "Lean4Lean.Replay.replayFresh.WF",
+    "Lean4Lean.Replay.replayFresh.WF_target",
+    "Lean4Lean.Replay.replayPure.WF_fromImports",
+    "Lean4Lean.Replay.Replayed.foldlM",
 }
 DEFINITION_ROOTS = {
     "Lean4Lean.QuotPrefixUnfolding.propInhabitant",
@@ -101,6 +105,7 @@ BUILD_TARGETS = [
     "Lean4Lean.Theory.Typing.DefinitionRegistryInstallation",
     "Lean4Lean.Theory.Typing.RecursorRegistryInstallation",
     "Lean4Lean.Theory.Typing.ConstructorCaptureTransport",
+    "Lean4Lean.Verify.Replay",
 ]
 
 

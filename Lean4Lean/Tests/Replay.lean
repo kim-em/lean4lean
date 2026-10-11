@@ -1,4 +1,4 @@
-import Lean4Lean.Replay
+import Lean4Lean.Verify.Replay
 
 /-! The pure replay core.
 

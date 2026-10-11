@@ -9,6 +9,7 @@ import Lean4Lean.Theory.Typing.QuotPropInhabitant
 import Lean4Lean.Theory.Typing.DefinitionRegistryInstallation
 import Lean4Lean.Theory.Typing.RecursorRegistryInstallation
 import Lean4Lean.Theory.Typing.ConstructorCaptureTransport
+import Lean4Lean.Verify.Replay
 
 /-! Audit the transitive dependency closure, including opaque theorem bodies.
 Run through `scripts/check-inductive-audit.py`; this file emits one JSON record
@@ -71,7 +72,7 @@ elab "#inductive_audit " ids:ident* : command => do
 
 -- The top-level verification theorems (section 1.4 of the design notes): checked addition of
 -- every declaration form, the inductive pipelines, the checker, the realizability of canonical
--- `Eq`.
+-- `Eq`, and the replay driver.
 #inductive_audit Lean4Lean.addDecl.WF
 #inductive_audit Lean4Lean.addQuot.WF
 #inductive_audit Lean4Lean.inductiveDeclPreserves
@@ -83,6 +84,12 @@ elab "#inductive_audit " ids:ident* : command => do
 #inductive_audit Lean4Lean.TypeChecker.Inner.reduceRecursor.WF
 #inductive_audit Lean4Lean.VerifyInductive.RecursorConstruction.typeTranslations
 #inductive_audit Lean4Lean.addDecl.preludeEq_hasCanonicalEq
+
+-- The replay driver (`Lean4Lean/Verify/Replay.lean`).
+#inductive_audit Lean4Lean.Replay.replayFresh.WF
+#inductive_audit Lean4Lean.Replay.replayFresh.WF_target
+#inductive_audit Lean4Lean.Replay.replayPure.WF_fromImports
+#inductive_audit Lean4Lean.Replay.Replayed.foldlM
 
 -- The confluence engine.
 #inductive_audit Lean4Lean.VEnv.NormalEq.parRed
