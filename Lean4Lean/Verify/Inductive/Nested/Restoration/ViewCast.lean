@@ -35,5 +35,11 @@ theorem CompilationData.castGenerator {env : VEnv} {source expanded : VInductDec
     CompilationData env source expanded s' g' auxiliaries block := by
   subst hs; cases eq_of_heq hg; exact H
 
+/-- Transport of a field of a lowered view along a heterogeneous equality of views. -/
+theorem LoweredView.heq_field {α : Sort _} {env₁ env₂ : Environment}
+    {V₁ : LoweredView env₁} {V₂ : LoweredView env₂} (henv : env₁ = env₂) (h : HEq V₁ V₂)
+    (f : ∀ {env}, LoweredView env → α) : f V₁ = f V₂ := by
+  subst henv; cases eq_of_heq h; rfl
+
 end VerifyInductive
 end Lean4Lean

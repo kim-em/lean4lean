@@ -122,9 +122,26 @@ structure RestoredBlock {c : AddInductive.Context} {Hc : ContextWF c} {nparams :
   /-- (Added by Restoration-B.) The run object of the source branch (`NestedRun`), from which
   the restoration certificates are read (the Equations owner's restoration substitution, the
   Install owner's kernel facts). Its lowered run is `L`'s view. -/
-  run : NestedRun res c.env sourceTypes Hc.venv decl c.lparams nparams isUnsafe c.safety outEnv
+  runDecl : VInductDecl
+  run : NestedRun res c.env sourceTypes Hc.venv runDecl c.lparams nparams isUnsafe c.safety outEnv
+  /-- The run's declaration is the source declaration without recursors (its
+  `SourcePrefixOfLowered` pins the recursor list); `decl` adds the restored ones. -/
+  run_decl : decl = runDecl.withRecs decl.recs
+  /-- (Added by Restoration-B.) The source syntax checks, in the lowering's inductive form. -/
+  sourceSyntaxChecked : SourceSyntaxChecked sourceTypes
+  /-- (Added by Restoration-B.) Lowering keeps each source constructor's arity prefix. -/
+  constructorArityPrefix : decl.ConstructorArityPrefix L.loweredDecl
   run_loweredEnv : run.loweredEnv = loweredEnv
   run_lowered : HEq run.lowered L.view
+  /-- (Added by Restoration-B, for Install's kernel facts.) The major inductive of every new
+  recursor is an inductive type of the output. -/
+  recMajor : ∀ rval ∈ rvals, ∃ info, outEnv.find? rval.getMajorInduct = some (.inductInfo info)
+  /-- (Added by Restoration-B, for Install's kernel facts.) Constructor parameter alignment of
+  the output (`RestoredBlockBase.constructorTypingOfParameterDomains`). -/
+  constructorParameterAlignment : ConstructorParameterAlignment c.safety outEnv outVEnv
+  /-- (Added by Restoration-B, for the Equations owner.) The restored equations are typed in the
+  restored recursor stage. -/
+  restoredEquationsWF : ∀ df ∈ block.rules, df.WF envR
 
 namespace RestoredBlock
 

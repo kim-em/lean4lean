@@ -2,6 +2,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Base
 import Lean4Lean.Verify.Inductive.Nested.Restoration.RunOfRestoration
 import Lean4Lean.Verify.Inductive.Nested.Restoration.SideEnvironment.ConstructorEnvironment
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Expansion.Data
+import Lean4Lean.Verify.Inductive.Nested.Restoration.KernelData
 
 /-! # The rule-free restored block of a nested run
 
@@ -284,6 +285,42 @@ theorem RestorationInDependencyOrder.existsBlockStages
 
 /-! ### The restored block base -/
 
+private theorem nodup_of_map_nodup {l : List α} (f : α → β) (H : (l.map f).Nodup) :
+    l.Nodup := by
+  induction l with
+  | nil => simp
+  | cons a l ih =>
+    simp only [List.map_cons, List.nodup_cons] at H ⊢
+    exact ⟨fun ha => H.1 (List.mem_map_of_mem ha), ih H.2⟩
+
+/-- A fresh extension between fixed endpoints has a unique payload up to order. -/
+theorem FreshExtension.permOfSameTarget {source target : Environment}
+    {leftEntries rightEntries : List ConstantInfo}
+    (Hleft : FreshExtension source leftEntries target)
+    (Hright : FreshExtension source rightEntries target)
+    (hsourceWF : source.constants.WF) : leftEntries ~ rightEntries := by
+  have leftNodup : leftEntries.Nodup :=
+    nodup_of_map_nodup ConstantInfo.name (Hleft.namesNodup hsourceWF)
+  have rightNodup : rightEntries.Nodup :=
+    nodup_of_map_nodup ConstantInfo.name (Hright.namesNodup hsourceWF)
+  apply List.Subperm.antisymm
+  · apply List.subperm_of_subset leftNodup
+    intro ci hci
+    have hfind := Hleft.findEntry hsourceWF hci
+    rcases Hright.entryOrigin hsourceWF hfind with hsource |
+      ⟨entry, hentry, _hname, hfound⟩
+    · rw [Hleft.sourceFresh hsourceWF hci] at hsource
+      contradiction
+    · simpa [hfound] using hentry
+  · apply List.subperm_of_subset rightNodup
+    intro ci hci
+    have hfind := Hright.findEntry hsourceWF hci
+    rcases Hleft.entryOrigin hsourceWF hfind with hsource |
+      ⟨entry, hentry, _hname, hfound⟩
+    · rw [Hright.sourceFresh hsourceWF hci] at hsource
+      contradiction
+    · simpa [hfound] using hentry
+
 /-- **The rule-free restored block of a nested run** (the source branch's
 `NestedRun.assemblyBaseValid`, without the stripped environment's validity, which the target
 reads off the rule-free stage `RuleFreeStage`). Source parameter formation `Hparameters` is a
@@ -299,7 +336,9 @@ theorem NestedRun.assemblyBase {res : ElimNestedInductive.Result} {sourceProdEnv
     (Hparameters : decl.SourceParameterWF sourceVEnv)
     (hvisible : safety ≤ (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
     Nonempty { B : RestoredBlockBase E.restoration sourceVEnv decl lparams nparams isUnsafe
-      safety // B.lowered = E.lowered } := by
+      safety // B.lowered = E.lowered ∧
+        ((B.typeEntries ++ B.constructorEntries ++ B.recursorEntries).map Prod.fst).Perm
+          E.restoration.entries } := by
   obtain ⟨loweredEnv, lowered, context, Hc, context_env, context_lparams, context_safety, -,
     context_venv, lowered_c, lowered_nparams, lowered_isUnsafe, lowered_isUnsafe_source,
     lowered_initialEnv, lowered_indTypes, -, -, -, -, -, validationFuel, -, lowering,
@@ -448,7 +487,9 @@ theorem NestedRun.assemblyBase {res : ElimNestedInductive.Result} {sourceProdEnv
     uvars := Hcore.uvars
     numParams := Hcore.nparams
     unsafeEq := Hcore.isUnsafe
-    sourceNonempty := by simp }, rfl⟩⟩
+    sourceNonempty := by simp }, rfl,
+    replay.kernelOrder.symm.trans
+      (replay.fresh.permOfSameTarget (restoration.freshExtensionExact hsourceWF) hsourceWF)⟩⟩
 
 end VerifyInductive
 end Lean4Lean
