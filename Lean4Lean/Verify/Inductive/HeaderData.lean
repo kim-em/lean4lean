@@ -1,12 +1,13 @@
-import Lean4Lean.Verify.Inductive.Header.Installation
+import Lean4Lean.Verify.Inductive.Header.Declare
 
 /-! # The header environment without the primitive invariant
 
-`HeaderData` is `HeaderEnvironment` with the header context a `LocalContextWF`, the part of
+`HeaderData` is the header environment with the header context a `LocalContextWF`, the part of
 `ContextWF` that does not assert the primitive invariant (`HasPrimitives`): that invariant is
 false in the header-only environment of the primitive `Bool`/`Nat` declarations. It is what the
-constructor installation (`CtorInstall`) and the recursor phase (`ConstructorCheck`) read of the
-header environment. -/
+constructor installation (`CtorInstall`) and the constructor check (`ConstructorCheck`) read of
+the header environment. The ordinary header phase's `HeaderEnvironment` extends it with the
+validity of the header context (`Header/Installation.lean`). -/
 
 namespace Lean4Lean
 
@@ -32,7 +33,7 @@ structure LocalContextWF (c : AddInductive.Context) where
     ({} : TypeChecker.State).ngen.Reserves fv
   check : CheckBase venv c.lparams mlctx c.lctx c.checkLCtx
 
-def ContextWF.toLocal {c : AddInductive.Context} (H : ContextWF c) : LocalContextWF c where
+abbrev ContextWF.toLocal {c : AddInductive.Context} (H : ContextWF c) : LocalContextWF c where
   venv := H.venv
   checking := H.checking.tr
   mlctx := H.mlctx
@@ -50,6 +51,14 @@ def ContextWF.toLocal {c : AddInductive.Context} (H : ContextWF c) : LocalContex
 @[simp] theorem ContextWF.toLocal_mlctx {c : AddInductive.Context} (H : ContextWF c) :
     H.toLocal.mlctx = H.mlctx := rfl
 
+/-- A `ContextWF` from its local part and the validity facts the local part omits. Its
+`toLocal` is the local part, definitionally. -/
+abbrev LocalContextWF.toContextWF {c : AddInductive.Context} (L : LocalContextWF c)
+    (valid : CheckingEnv.Valid c.safety c.env L.venv)
+    (shapes : RecursorShapesCoherent c.safety c.env.constants L.venv)
+    (iota : IotaRulesRegistered c.safety c.env L.venv) : ContextWF c :=
+  { L with checking := valid, shapes, iota }
+
 theorem LocalContextWF.wf {c : AddInductive.Context} (H : LocalContextWF c) : H.venv.WF :=
   H.checking.wf
 
@@ -57,9 +66,9 @@ theorem LocalContextWF.map_wf {c : AddInductive.Context} (H : LocalContextWF c) 
     c.env.constants.WF :=
   H.checking.map_wf
 
-/-- `HeaderEnvironment` with the header context a `LocalContextWF` (and without the header
-context's `HeaderParameterContext`, which needs a `ContextWF`; the source-side one is kept, and
-the parameter scope is `statsWF.parameterScope`). -/
+/-- The header environment of a declaration, with the header context a `LocalContextWF` (and
+without the header context's `HeaderParameterContext`, which needs a `ContextWF`; the
+source-side one is kept, and the parameter scope is `statsWF.parameterScope`). -/
 structure HeaderData (c : AddInductive.Context) (stats : AddInductive.InductiveStats)
     (decl : VInductDecl) (nparams : Nat) (isUnsafe : Bool) (depth : Nat) (sourceEnv : VEnv)
     (indTypes : Array InductiveType) (outEnv : Environment) where
@@ -96,36 +105,6 @@ structure HeaderData (c : AddInductive.Context) (stats : AddInductive.InductiveS
     context.mlctx.vlctx stats decl depth
   headerParams : statsWF.headers.params = headers.params
   parameterScopeEq : statsWF.parameterScope = sourceStatsWF.parameterScope
-
-def HeaderEnvironment.toData {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool} {depth : Nat} {sourceEnv : VEnv}
-    {indTypes : Array InductiveType} {outEnv : Environment}
-    (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv indTypes outEnv) :
-    HeaderData c stats decl nparams isUnsafe depth sourceEnv indTypes outEnv where
-  numNested := H.numNested
-  infos := H.infos
-  infos_eq := H.infos_eq
-  map_eq := H.map_eq
-  quotInit_eq := H.quotInit_eq
-  fresh := H.fresh
-  uvars := H.uvars
-  nparams := H.nparams
-  isUnsafe := H.isUnsafe
-  sourceContext := H.sourceContext
-  sourceContextVEnv := H.sourceContextVEnv
-  context := H.context.toLocal
-  contextMLCtx := H.contextMLCtx
-  typesAdded := H.typesAdded
-  headers := H.headers
-  trHeaders := H.trHeaders
-  trSources := H.trSources
-  sourceParameters := H.sourceParameters
-  sourcePresent := H.sourcePresent
-  sourceStatsWF := H.sourceStatsWF
-  sourceHeaderParams := H.sourceHeaderParams
-  statsWF := H.statsWF
-  headerParams := H.headerParams
-  parameterScopeEq := H.parameterScopeEq
 
 end VerifyInductive
 end Lean4Lean

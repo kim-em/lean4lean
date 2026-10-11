@@ -105,7 +105,7 @@ theorem AddInductive.constructorPhase.WF
     hnd hnprim hnprimFam
   let I : CtorInstall c' stats decl nparams isUnsafe P.depth Hc'.venv indTypes headerEnv ctorEnv
       positivity := {
-    H := H.toData
+    H := H.toHeaderData
     K := hK H
     map_eq := hmap
     quotInit_eq := hquot
