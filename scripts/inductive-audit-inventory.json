@@ -50,8 +50,8 @@
     "Lean4Lean.VEnv.WF.patsStrong"
   ],
   "openProofsSources": {
-    "Lean4Lean.VEnv.IsDefEqU.weakN_iff": "Theory/Typing/UniqueTyping.lean: context strengthening for definitional equality (inverse weakening), stated as on master.",
-    "Lean4Lean.VEnv.Model.PatValid.nested": "Theory/Typing/HeadInjectivity/Model/PatSound.lean: validity in the observation model of the iota rules of a nested block (the ordinary case, PatValid.ordinary, is proved).",
-    "Lean4Lean.VEnv.WF.patsStrong": "Theory/Typing/EnvLemmas.lean: PR #43's strong typing of registered pattern instances (PatsStrong), needed for OrderedStrong."
+    "Lean4Lean.VEnv.IsDefEqU.weakN_iff": "Theory/Typing/UniqueTyping.lean: context strengthening for definitional equality, master's statement; see OPEN_PROOFS.md.",
+    "Lean4Lean.VEnv.Model.PatValid.nested": "Theory/Typing/HeadInjectivity/Model/PatSound.lean: validity in the observation model of the iota rules of a nested block (the ordinary case, PatValid.ordinary, is proved); see OPEN_PROOFS.md.",
+    "Lean4Lean.VEnv.WF.patsStrong": "Theory/Typing/EnvLemmas.lean: PR #43's subject reduction of the registered iota rules in the strong system, needed for OrderedStrong; see OPEN_PROOFS.md."
   }
 }
