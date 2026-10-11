@@ -645,7 +645,7 @@ theorem singleton_fieldsCtx {env : VEnv} (henv : env.WF) (hfam : s.families.size
   have hPlen : g.params.length = s.params.length := by simp [params]
   have hown0 : c.owner.val = 0 := by
     have := c.owner.isLt; omega
-  have hrec := g.recursorType_shape hfam hcs owner index
+  have hrec := g.recursorType_singletonShape hfam hcs owner index
   rw [hc] at hrec
   rw [g.motive_shape owner htarget, g.minor_shape hfam _ hown0, g.major_lift owner,
     g.constructorApp_shape] at hrec
@@ -734,7 +734,7 @@ theorem singletonElim_wf {env : VEnv} (henv : env.WF) (hfam : s.families.size = 
   have hPlen : g.params.length = s.params.length := by simp [params]
   have hown0 : c.owner.val = 0 := by
     have := c.owner.isLt; omega
-  have hrec := g.recursorType_shape hfam hcs owner index
+  have hrec := g.recursorType_singletonShape hfam hcs owner index
   rw [hc] at hrec
   rw [g.motive_shape owner htarget, g.minor_shape hfam _ hown0, g.major_lift owner,
     g.constructorApp_shape] at hrec

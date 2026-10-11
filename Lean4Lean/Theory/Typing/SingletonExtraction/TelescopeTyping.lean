@@ -61,7 +61,7 @@ theorem toList_of_size_one {α} (a : Array α) (h : a.size = 1) (i : Fin a.size)
   match a, h with
   | ⟨[x]⟩, _ => simp [hi]
 
-theorem recursorType_shape (hfam : s.families.size = 1) (hcs : s.constructors.size = 1)
+theorem recursorType_singletonShape (hfam : s.families.size = 1) (hcs : s.constructors.size = 1)
     (owner : Fin s.families.size) (index : Fin s.constructors.size) :
     g.recursorType owner =
       VExpr.wrapForalls (g.params ++ [g.motive s.families[owner] 0] ++

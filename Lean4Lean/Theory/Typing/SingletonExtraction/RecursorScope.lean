@@ -74,7 +74,7 @@ theorem propElim_closed (henv : env.WF) (H : RecursorRegistered env data)
       simp [recursorType, F.restoration]
     have := (H.recursorType_closed henv hgen).instL (ls := ls.set k .zero)
     rwa [Instance.recursorType_specialize _ 0] at this
-  have hrec := gp.recursorType_shape hfam hcs data.owner i
+  have hrec := gp.recursorType_singletonShape hfam hcs data.owner i
   rw [hc, gp.motive_shape data.owner htarget, gp.minor_shape hfam c hown0, gp.major_lift,
     gp.constructorApp_shape] at hrec
   rw [hrec] at hclosed
