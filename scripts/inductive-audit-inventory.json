@@ -46,13 +46,13 @@
   ],
   "openProofs": [
     "Lean4Lean.VEnv.IsDefEqU.weakN_iff",
-    "Lean4Lean.VEnv.Model.PatValid.iota",
+    "Lean4Lean.VEnv.Model.PatValid.nested",
     "Lean4Lean.VEnv.WF.patsStrong",
     "Lean4Lean.VEnv.WF.singletonInstance_align"
   ],
   "openProofsSources": {
     "Lean4Lean.VEnv.IsDefEqU.weakN_iff": "Theory/Typing/UniqueTyping.lean: context strengthening for definitional equality, open on master (PORT_PLAN section 5).",
-    "Lean4Lean.VEnv.Model.PatValid.iota": "Theory/Typing/HeadInjectivity/Model/PatSound.lean: the pat case of the observation model's soundness (wave 1C; STUBS.md, Model pat stubs).",
+    "Lean4Lean.VEnv.Model.PatValid.nested": "Theory/Typing/HeadInjectivity/Model/PatSound.lean: validity in the observation model of the iota rules of a nested block (the ordinary case is PatValid.ordinary; STUBS.md, Model pat stubs).",
     "Lean4Lean.VEnv.WF.patsStrong": "Theory/Typing/EnvLemmas.lean: PR #43's strong typing of registered pattern instances (wave 1D, blocked on the premise decision; SPIKE_PATSSTRONG.md).",
     "Lean4Lean.VEnv.WF.singletonInstance_align": "Theory/Typing/Confluence/SingletonPatCoverage.lean: index alignment of a Prop-source singleton iota instance with its generic equation (wave 4; STUBS.md, Wave 4)."
   }
