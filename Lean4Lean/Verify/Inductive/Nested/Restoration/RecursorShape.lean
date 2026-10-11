@@ -106,7 +106,7 @@ theorem RestoredRecursorShape.shape {s : InductiveSignature} {g : Instance s}
       simp [hprelen, H.numParams, H.numMotives, H.numMinors, H.numIndices]
     major_eq := ?_ }⟩⟩
   rw [H.numParams, H.numMotives, H.numMinors, H.numIndices, ← hprelen,
-    List.getElem?_concat_length, hmaj, ← hmajor, nested_vars_eq_bvarRange, Nat.add_zero]
+    List.getElem?_concat_length, hmaj, ← hmajor, InductiveSignature.vars_eq_bvarRange_add, Nat.add_zero]
 
 /-- The rule-free copy of a restored recursor has its recursor shape (`RecursorShapes`). -/
 theorem RestoredRecursorShape.alignmentCore {s : InductiveSignature} {g : Instance s}

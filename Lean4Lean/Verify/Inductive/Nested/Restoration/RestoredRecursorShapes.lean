@@ -392,7 +392,7 @@ theorem restoredRecursorVShape {s : InductiveSignature} {g : Instance s}
       simp [hprelen, hnp, hnm, hnmin, hni]
     major_eq := ?_ }⟩
   rw [hnp, hnm, hnmin, hni, ← hprelen,
-    List.getElem?_concat_length, hmaj, ← hmajor, nested_vars_eq_bvarRange, Nat.add_zero]
+    List.getElem?_concat_length, hmaj, ← hmajor, InductiveSignature.vars_eq_bvarRange_add, Nat.add_zero]
 
 /-- **The recursor and constructor telescopes of every restored kernel recursor** in the
 recursor stage of the base (`RecursorShapesAt`, with its rules): the recursor telescope at the

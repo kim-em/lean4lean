@@ -82,12 +82,12 @@ theorem outWF (H : RecursorInstallation R outEnv) : outEnv.constants.WF :=
 
 theorem outPres (H : RecursorInstallation R outEnv) {n : Name} {ci : ConstantInfo}
     (h : ctorEnv.find? n = some ci) : outEnv.find? n = some ci :=
-  H.installed.preservesFind H.ctorMapWF (by rw [H.localExtends.env_eq]; exact h)
+  H.installed.preservesSourceFind H.ctorMapWF (by rw [H.localExtends.env_eq]; exact h)
 
 theorem outOrigin (H : RecursorInstallation R outEnv) {n : Name} {ci : ConstantInfo}
     (h : outEnv.find? n = some ci) :
     ctorEnv.find? n = some ci ∨ ∃ r ∈ H.rvals, ci = .recInfo r := by
-  rcases H.installed.origin H.ctorMapWF h with hold | ⟨entry, hentry, -, rfl⟩
+  rcases H.installed.entryOrigin H.ctorMapWF h with hold | ⟨entry, hentry, -, rfl⟩
   · left; rw [H.localExtends.env_eq] at hold; exact hold
   · right
     have hmem : entry.1 ∈ H.entries.map Prod.fst := List.mem_map_of_mem hentry
@@ -128,7 +128,7 @@ theorem recFind (H : RecursorInstallation R outEnv) :
   intro r hr
   obtain ⟨owner, rfl⟩ := H.rvals_mem hr
   have hmem : (H.entries[owner.val]'(H.entries_lt owner)) ∈ H.entries := List.getElem_mem _
-  have h := H.installed.findOfMem H.ctorMapWF
+  have h := H.installed.findEntry H.ctorMapWF
     (info := (H.entries[owner.val]'(H.entries_lt owner)).1)
     (value := (H.entries[owner.val]'(H.entries_lt owner)).2) hmem
   rw [H.entry_fst owner] at h

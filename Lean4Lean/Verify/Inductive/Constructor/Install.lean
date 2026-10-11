@@ -176,7 +176,6 @@ include I
 /-- The abstract header environment. -/
 abbrev headerVEnv : VEnv := I.H.context.venv
 
-theorem headerVEnv_wf : I.headerVEnv.WF := I.H.context.wf
 
 theorem sourceEnv_wf : sourceEnv.WF := by
   rw [← I.H.sourceContextVEnv]; exact I.H.sourceContext.wf

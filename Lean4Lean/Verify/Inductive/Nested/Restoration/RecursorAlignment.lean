@@ -78,7 +78,7 @@ theorem TrRestoredRecursorVal.shape_of_head {s : InductiveSignature} {g : Instan
       simp [hprelen, H.numParams, H.numMotives, H.numMinors, H.numIndices]
     major_eq := ?_ }⟩
   rw [H.numParams, H.numMotives, H.numMinors, H.numIndices, ← hprelen,
-    List.getElem?_concat_length, hmaj, nested_vars_eq_bvarRange, Nat.add_zero]
+    List.getElem?_concat_length, hmaj, InductiveSignature.vars_eq_bvarRange_add, Nat.add_zero]
 
 
 

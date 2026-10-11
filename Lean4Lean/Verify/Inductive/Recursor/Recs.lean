@@ -167,7 +167,7 @@ theorem outFind (H : RecursorInstallation R outEnv) {n : Name} {ci : ConstantInf
     (h : ctorEnv.find? n = some ci) : outEnv.constants.find? n = some ci := by
   have hctorWF : H.localContext.env.constants.WF := by
     rw [H.localExtends.env_eq]; exact R.context.checking.tr.map_wf
-  have hout := H.installed.preservesFind hctorWF (by rw [H.localExtends.env_eq]; exact h)
+  have hout := H.installed.preservesSourceFind hctorWF (by rw [H.localExtends.env_eq]; exact h)
   rwa [Lean.Kernel.Environment.find?, (H.installed.targetMapWF hctorWF).find?'_eq_find?] at hout
 
 /-- Each kernel recursor translates to its model recursor (PR #43's `TrRecursor`), the type
@@ -435,7 +435,7 @@ theorem inductInfos (H : RecursorInstallation R outEnv) :
   intro familyName familyInfo hfind
   have hfind' : outEnv.find? familyName = some (.inductInfo familyInfo) := by
     rwa [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?]
-  rcases H.installed.origin hwf hfind' with hold | ⟨entry, hentry, -, hfound⟩
+  rcases H.installed.entryOrigin hwf hfind' with hold | ⟨entry, hentry, -, hfound⟩
   · rw [H.localExtends.env_eq, Lean.Kernel.Environment.find?,
       R.context.checking.tr.map_wf.find?'_eq_find?] at hold
     rcases R.inductInfosFromDecl familyName familyInfo hold with hsrc | ⟨idx, hname, ⟨A⟩⟩

@@ -237,7 +237,7 @@ theorem RecursorInstallation.familyInfo
     rw [H.localExtends.env_eq]; exact R.context.checking.tr.map_wf
   have hfind : H.localContext.env.find? info.name = some (.inductInfo info) := by
     rw [H.localExtends.env_eq]; exact R.headerInfo_find hinfo
-  have hout := H.installed.preservesFind hctorWF hfind
+  have hout := H.installed.preservesSourceFind hctorWF hfind
   have houtWF := H.installed.targetMapWF hctorWF
   rw [Lean.Kernel.Environment.find?, houtWF.find?'_eq_find?, hname] at hout
   exact ⟨info, hout, htr.2⟩

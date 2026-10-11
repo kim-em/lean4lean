@@ -307,7 +307,7 @@ theorem RecursorInstallation.findRecursorOfMem
   have hlocalWF : H.localContext.env.constants.WF := by
     rw [H.localExtends.env_eq]
     exact R.context.checking.tr.map_wf
-  exact H.installed.findOfMem hlocalWF hentry
+  exact H.installed.findEntry hlocalWF hentry
 
 /-- The generated recursor for every lowered family is present in the
 installed environment and satisfies both telescope preconditions used by

@@ -52,55 +52,6 @@ theorem addConstant_find_cases
   · right
     rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
 
-/-- A lockstep installation preserves every lookup in its source kernel
-environment. -/
-theorem AddConstants.preservesFind
-    (H : AddConstants safety env venv entries outEnv outVEnv)
-    (hwf : env.constants.WF)
-    (hfind : env.find? name = some found) :
-    outEnv.find? name = some found := by
-  induction H with
-  | nil => exact hfind
-  | cons hn hnprim htr hciwf hadd hdelta Htail ih =>
-    rename_i venvHead ci ci' venvNext rest outProd outAbs envHead
-    have hne : ci.name ≠ name := by
-      intro heq
-      subst name
-      rw [hfind] at hn
-      contradiction
-    have hfreshMap : envHead.constants.find? ci.name = none := by
-      rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hn
-    have hnextWF : (envHead.add ci).constants.WF := by
-      change (envHead.constants.insert ci.name ci).WF
-      exact hwf.insert ci.name ci hfreshMap
-    apply ih hnextWF
-    change (Lean4Lean.AddInductive.addConstant envHead ci).find? name = some found
-    exact addConstant_find_of_ne envHead ci name hwf hn hne hfind
-
-/-- Every lookup in the target of a lockstep installation either came from
-the source environment or is one of the newly installed entries. -/
-theorem AddConstants.origin
-    (H : AddConstants safety env venv entries outEnv outVEnv)
-    (hwf : env.constants.WF)
-    (hfind : outEnv.find? name = some found) :
-    env.find? name = some found ∨
-      ∃ entry ∈ entries, name = entry.1.name ∧ found = entry.1 := by
-  induction H with
-  | nil => exact Or.inl hfind
-  | cons hn hnprim htr hciwf hadd hdelta Htail ih =>
-    rename_i venvHead ci ci' venvNext rest outProd outAbs envHead
-    have hfreshMap : envHead.constants.find? ci.name = none := by
-      rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hn
-    have hnextWF : (envHead.add ci).constants.WF := by
-      change (envHead.constants.insert ci.name ci).WF
-      exact hwf.insert ci.name ci hfreshMap
-    rcases ih hnextWF hfind with hnext | ⟨entry, hentry, hname, hfound⟩
-    · rcases addConstant_find_cases envHead ci name hwf hn hnext with
-        ⟨hname, hfound⟩ | hold
-      · exact Or.inr ⟨(ci, ci'), by simp, hname, hfound⟩
-      · exact Or.inl hold
-    · exact Or.inr ⟨entry, by simp [hentry], hname, hfound⟩
-
 theorem AddConstants.entryNames
     (H : AddConstants safety env venv entries outEnv outVEnv)
     (hentry : entry ∈ entries) : entry.1.name = entry.2.name := by
@@ -111,33 +62,6 @@ theorem AddConstants.entryNames
     rcases hentry with rfl | htail
     · exact htr.2
     · exact ih htail
-
-/-- Every entry of an `AddConstants` installation is present with its exact
-metadata in the target kernel environment. -/
-theorem AddConstants.findOfMem
-    (H : AddConstants safety env venv entries outEnv outVEnv)
-    (hwf : env.constants.WF)
-    (hentry : (info, value) ∈ entries) :
-    outEnv.find? info.name = some info := by
-  induction H with
-  | nil => simp at hentry
-  | cons hn hnprim htr hciwf hadd hdelta Htail ih =>
-    rename_i venvHead ci ci' venvNext rest outProd outAbs envHead
-    simp only [List.mem_cons] at hentry
-    have hfreshMap : envHead.constants.find? ci.name = none := by
-      rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hn
-    have hnextWF : (envHead.add ci).constants.WF := by
-      change (envHead.constants.insert ci.name ci).WF
-      exact hwf.insert ci.name ci hfreshMap
-    rcases hentry with hhead | htail
-    · have hinstalled : outProd.find? ci.name = some ci := by
-        apply Htail.preservesFind hnextWF
-        change (Lean4Lean.AddInductive.addConstant envHead ci).find? ci.name = some ci
-        exact addConstant_find_self envHead ci hwf hn
-      have hi : info = ci := congrArg Prod.fst hhead
-      simpa [hi] using hinstalled
-    · exact ih hnextWF htail
-
 
 /-- A lockstep installation consisting only of constructors, recursors, or
 other non-inductive constants preserves closure of all mutual blocks. -/

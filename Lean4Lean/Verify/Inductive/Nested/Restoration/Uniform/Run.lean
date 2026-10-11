@@ -78,7 +78,7 @@ theorem NestedRun.generatedEntryOfStep
   refine ⟨hlen, ?_⟩
   have hmem := List.getElem_mem (l := E.lowered.recursors.entries)
     (n := owner.val) hlen
-  have hfind := E.lowered.recursors.installed.findOfMem E.lowered.recursors.ctorMapWF
+  have hfind := E.lowered.recursors.installed.findEntry E.lowered.recursors.ctorMapWF
     (info := (E.lowered.recursors.entries[owner.val]'hlen).1)
     (value := (E.lowered.recursors.entries[owner.val]'hlen).2) hmem
   have hrec' : (E.lowered.recursors.entries[owner.val]'hlen).1 = .recInfo rec := hrec

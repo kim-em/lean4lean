@@ -105,3 +105,29 @@ theorem generatedIHsWellTyped_of_recursorType {s : InductiveSignature} (g : Inst
 end Instance
 end InductiveSignature
 end Lean4Lean
+
+namespace Lean4Lean.InductiveSignature
+
+theorem vars_eq_bvarRange (count below : Nat) :
+    vars count below = VExpr.bvarRange count (below + count) := by
+  apply List.ext_getElem
+  · simp [vars]
+  · intro k h1 h2
+    simp only [vars, List.getElem_map, List.getElem_reverse, List.getElem_range,
+      List.length_range]
+    rw [VExpr.bvarRange_getElem _ _ _ (by simpa [vars] using h1)]
+    congr 1; simp [vars] at h1; omega
+
+theorem vars_eq_bvarRange_add (count below : Nat) :
+    vars count below = VExpr.bvarRange count (count + below) := by
+  apply List.ext_getElem
+  · simp [vars, VExpr.bvarRange]
+  · intro i hi hi'
+    simp only [vars, List.getElem_map, List.getElem_reverse, List.getElem_range]
+    rw [VExpr.bvarRange_getElem count (count + below) i (by simpa [vars] using hi)]
+    simp only [List.length_range]
+    have : i < count := by simpa [vars] using hi
+    congr 1
+    omega
+
+end Lean4Lean.InductiveSignature

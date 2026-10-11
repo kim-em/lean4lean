@@ -327,7 +327,7 @@ theorem InstForallsC.supplyType_eq {env : VEnv} {U : Nat} {Γ : List VExpr} {T :
 
 theorem instOuter_vars_lift {X : VExpr} {n k : Nat} (hX : X.ClosedN n) :
     X.instOuter (vars n k) = X.liftN k := by
-  rw [vars_eq_bvarRange, instOuter_range_bvar' _ _ _ hX (by omega), Nat.add_sub_cancel_left]
+  rw [vars_eq_bvarRange_add, instOuter_range_bvar' _ _ _ hX (by omega), Nat.add_sub_cancel_left]
 
 theorem vars_add (a b k : Nat) : vars (a + b) k = vars a (b + k) ++ vars b k := by
   apply List.ext_getElem (by simp [vars])
@@ -366,7 +366,7 @@ theorem instOuter_vars_skip {X : VExpr} {np nf r k : Nat} (hX : X.ClosedN (np + 
 
 theorem map_instOuter_vars (n k : Nat) (args : List VExpr) (h : n + k ≤ args.length) :
     (vars n k).map (·.instOuter args) = (args.drop (args.length - (n + k))).take n := by
-  rw [vars_eq_bvarRange, instOuter_bvarRange _ _ _ (by omega) h]
+  rw [vars_eq_bvarRange_add, instOuter_bvarRange _ _ _ (by omega) h]
 
 section
 variable [Params]

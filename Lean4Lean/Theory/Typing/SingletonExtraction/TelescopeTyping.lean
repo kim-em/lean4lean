@@ -89,19 +89,6 @@ theorem getElem_insertBinders {l : List VExpr} {n i : Nat} (h : i < (insertBinde
     (insertBinders l n)[i] = (l[i]'(by simpa using h)).liftN n i := by
   simp [insertBinders]
 
-theorem vars_eq_bvarRange (count below : Nat) :
-    vars count below = bvarRange count (count + below) := by
-  apply List.ext_getElem
-  · simp [vars, bvarRange]
-  · intro i hi hi'
-    simp only [vars, List.getElem_map, List.getElem_reverse, List.getElem_range]
-    rw [bvarRange_getElem count (count + below) i (by simpa [vars] using hi)]
-    simp only [List.length_range]
-    have : i < count := by simpa [vars] using hi
-    congr 1
-    omega
-
-
 end VEnv
 
 end Lean4Lean
@@ -166,9 +153,9 @@ theorem constructorApp_shape (c : Constructor s.families.size) :
         ((g.fieldsAt c).length + (g.hypotheses c).length) := by
   have hnf : (g.fieldsAt c).length = c.fields.length := by simp [fieldsAt, fieldTypes]
   simp only [constructorApp, ctorApp, VExpr.liftN_mkApps, hnf]
-  have hv := vars_eq_bvarRange c.fields.length 0
+  have hv := vars_eq_bvarRange_add c.fields.length 0
   simp only [Nat.add_zero] at hv
-  rw [SingletonLayout.bvarRange_split, ← vars_eq_bvarRange, ← hv]
+  rw [SingletonLayout.bvarRange_split, ← vars_eq_bvarRange_add, ← hv]
   simp only [List.map_append, List.map_map, Function.comp_def]
   congr 1
   congr 1 <;>

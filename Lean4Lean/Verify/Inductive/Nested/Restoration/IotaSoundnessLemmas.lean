@@ -41,14 +41,6 @@ namespace Lean4Lean
 namespace InductiveSignature
 open InductiveSignature
 
-theorem nested_vars_eq_bvarRange (n below : Nat) :
-    vars n below = VExpr.bvarRange n (n + below) := by
-  apply List.ext_getElem
-  · simp [vars, VExpr.bvarRange]
-  · intro i hi hi'
-    simp [vars, VExpr.bvarRange] at hi hi' ⊢
-    congr 1
-    omega
 end InductiveSignature
 end Lean4Lean
 
@@ -519,7 +511,7 @@ theorem Restoration.restored_iota_shape {s : InductiveSignature} (g : Instance s
             VExpr.bvarRange s.constructors[index].fields.length
               s.constructors[index].fields.length)]) := by
     rw [← Option.some.inj hlb']
-    simp only [hDlen, hdomains, nested_vars_eq_bvarRange, Nat.add_zero, List.append_assoc,
+    simp only [hDlen, hdomains, InductiveSignature.vars_eq_bvarRange_add, Nat.add_zero, List.append_assoc,
       extra, nf, ctor, Nat.add_assoc]
   have hDlen' : D'.length = s.params.length + s.families.size + s.constructors.size +
       s.constructors[index].fields.length := by rw [hDlen, hdomains]
@@ -1149,7 +1141,7 @@ theorem CompilationData.restoredConstructorFieldDomains
       have hid := VExpr.instOuter_insert_bvars _ s.params.length i 0 hclosed
       simp only [Nat.zero_add, VExpr.liftN_zero] at hid
       have hv : vars s.params.length 0 = VExpr.bvarRange s.params.length s.params.length := by
-        rw [nested_vars_eq_bvarRange, Nat.add_zero]
+        rw [InductiveSignature.vars_eq_bvarRange_add, Nat.add_zero]
       rw [← hv] at hid
       rw [hid]
       simpa using h

@@ -51,16 +51,6 @@ end VExpr
 
 namespace InductiveSignature
 
-theorem vars_eq_bvarRange (count below : Nat) :
-    vars count below = VExpr.bvarRange count (below + count) := by
-  apply List.ext_getElem
-  · simp [vars]
-  · intro k h1 h2
-    simp only [vars, List.getElem_map, List.getElem_reverse, List.getElem_range,
-      List.length_range]
-    rw [VExpr.bvarRange_getElem _ _ _ (by simpa [vars] using h1)]
-    congr 1; simp [vars] at h1; omega
-
 theorem vars_map_liftN (count n : Nat) :
     (vars count 0).map (·.liftN n count) = vars count 0 := by
   simp only [vars, List.map_map]

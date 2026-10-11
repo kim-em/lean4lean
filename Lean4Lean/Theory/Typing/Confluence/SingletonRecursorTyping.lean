@@ -577,7 +577,7 @@ theorem HasType.elimApp (henv : env.WF) {P I : List VExpr} {Maj Min h M m : VExp
       List.getElem_append_right (by simp)]
     simp
   have hv : vars I.length 1 ++ [VExpr.bvar 0] = bvarRange (I.length + 1) (I.length + 1) := by
-    rw [vars_eq_bvarRange, SingletonLayout.bvarRange_append I.length 1 _ (by omega)]
+    rw [vars_eq_bvarRange_add, SingletonLayout.bvarRange_append I.length 1 _ (by omega)]
     simp [bvarRange]
   rw [hhd, hv, instOuter_bvarRange _ _ _ (Nat.le_refl _) (by omega), hlen,
     show P.length + I.length + 3 - (I.length + 1) = P.length + 2 by omega,
@@ -832,10 +832,10 @@ theorem singletonElim_wf {env : VEnv} (henv : env.WF) (hfam : s.families.size = 
   have hMajEq : g.majorType owner = VExpr.mkApps (.const s.families[owner].name g.levels)
       (bvarRange (g.params.length + (g.indicesAt owner).length)
         (g.params.length + (g.indicesAt owner).length)) := by
-    have hv := vars_eq_bvarRange (g.indicesAt owner).length 0
+    have hv := vars_eq_bvarRange_add (g.indicesAt owner).length 0
     simp only [Nat.add_zero] at hv
     simp only [majorType, indicesAt, List.length_map] at hv ⊢
-    rw [SingletonLayout.bvarRange_split, ← vars_eq_bvarRange, ← hv, hPlen]
+    rw [SingletonLayout.bvarRange_split, ← vars_eq_bvarRange_add, ← hv, hPlen]
   have hctorT : env.HasType g.uvars (g.params ++ g.fieldsAt c).reverse (g.ctorApp c)
       (VExpr.mkApps (.const s.families[owner].name g.levels)
         (bvarRange g.params.length (g.params.length + (g.fieldsAt c).length) ++ g.ctorIndicesAt c)) := by

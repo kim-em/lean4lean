@@ -622,18 +622,12 @@ theorem sourceSignature_models
     all_goals simp [declaration, hfamilies, hctors, VInductDecl.constructorConstants, hempty]
   · exact R.sourceSignature_models_of_nonempty hempty
 
-theorem headerWF
-    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
-    R.headerVEnv.WF :=
-  Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF R.core
-    (by rw [← R.sourceContextVEnv]; exact R.sourceContext.checking.tr.wf)
-
 /-- The family applications of the source signature are typed in the header environment. -/
 theorem sourceSignature_familyTypesWF_header
     (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     R.sourceSignature.FamilyTypesWF R.headerVEnv decl.uvars := by
   intro owner
-  have henv := R.headerWF
+  have henv := R.headerVEnv_wf
   have hle : sourceEnv ≤ R.headerVEnv := VEnv.addConstVals_le R.core.typesAdded
   have hheader : owner.val < R.sourceSignatureHeader.families.size := owner.isLt
   have hdecl : owner.val < decl.types.length := by
