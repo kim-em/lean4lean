@@ -13,11 +13,6 @@ def compilationEntries (key : Name) (source : VInductDecl) (s : InductiveSignatu
   (List.finRange s.families.size).map fun owner =>
     ofInstance key (RecursorSchema.ofCompilation source s auxiliaries) g owner
 
-/-- Extend the metadata table with the entries of one installed block. -/
-def installEntries (old : Name → Option RecursorData) (entries : List RecursorData)
-    (name : Name) : Option RecursorData :=
-  (entries.find? (fun data => data.name == name)).orElse (fun _ => old name)
-
 end Lean4Lean.InductiveSignature.RecursorData
 
 namespace Lean4Lean.VEnv
@@ -82,12 +77,6 @@ theorem RecursorRegistered.recursorType_exists
   obtain ⟨type, htype, _⟩ := hrestore
   exact ⟨type, by simpa only [RecursorData.recursorType, hinstance, hr] using htype⟩
 
-theorem RecursorRegistered.constant_exists
-    (H : RecursorRegistered env data) :
-    ∃ value, env.constants data.name = some value := by
-  obtain ⟨type, htype⟩ := H.recursorType_exists
-  exact ⟨_, H.recursorType htype⟩
-
 theorem _root_.Lean4Lean.InductiveSignature.CompilationData.recursorEntries_nodup
     (hdata : CompilationData base source expanded s g auxiliaries block) :
     ((compilationEntries key source s auxiliaries g).map (·.name)).Nodup := by
@@ -95,34 +84,6 @@ theorem _root_.Lean4Lean.InductiveSignature.CompilationData.recursorEntries_nodu
   have hh := hdata.names
   simp only [List.map_append, List.nodup_append] at hh
   exact hh.2.1
-
-private theorem recursorEntries_find (entries : List RecursorData)
-    (hnodup : (entries.map (·.name)).Nodup) (hmem : data ∈ entries) :
-    entries.find? (fun value => value.name == data.name) = some data := by
-  induction entries with
-  | nil => cases hmem
-  | cons head tail ih =>
-    simp only [List.map_cons, List.nodup_cons] at hnodup
-    rcases List.mem_cons.mp hmem with he | hm
-    · subst head
-      simp
-    · have hne : head.name ≠ data.name := by
-        intro he
-        apply hnodup.1
-        exact List.mem_map.mpr ⟨data, hm, he.symm⟩
-      simp only [List.find?_cons, beq_eq_false_iff_ne.mpr hne]
-      exact ih hnodup.2 hm
-
-/-- Every newly installed family remains individually addressable by its
-actual restored name. -/
-theorem _root_.Lean4Lean.InductiveSignature.CompilationData.recursorEntries_lookup
-    (hdata : CompilationData base source expanded s g auxiliaries block)
-    (hmem : data ∈ compilationEntries key source s auxiliaries g) :
-    RecursorData.installEntries old (compilationEntries key source s auxiliaries g)
-      data.name = some data := by
-  unfold RecursorData.installEntries
-  rw [recursorEntries_find _ hdata.recursorEntries_nodup hmem]
-  rfl
 
 end Lean4Lean.VEnv
 

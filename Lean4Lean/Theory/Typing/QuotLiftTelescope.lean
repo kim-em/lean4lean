@@ -1,4 +1,3 @@
-import Lean4Lean.Theory.Typing.DefinitionRegistryInstallation
 import Lean4Lean.Theory.Typing.Pattern
 import Lean4Lean.Theory.Typing.PrefixUnfolding.QuotLift
 

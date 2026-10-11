@@ -6,7 +6,6 @@ import Lean4Lean.Verify.CanonicalEq
 import Lean4Lean.Theory.Typing.Confluence.WFParams
 import Lean4Lean.Theory.Typing.PrefixUnfolding.QuotLift
 import Lean4Lean.Theory.Typing.QuotPropInhabitant
-import Lean4Lean.Theory.Typing.DefinitionRegistryInstallation
 import Lean4Lean.Theory.Typing.RecursorRegistryInstallation
 import Lean4Lean.Theory.Typing.ConstructorCaptureTransport
 import Lean4Lean.Verify.Replay
@@ -105,9 +104,7 @@ elab "#inductive_audit " ids:ident* : command => do
 #inductive_audit Lean4Lean.VEnv.QuotPrefixUnfold
 #inductive_audit Lean4Lean.VEnv.DefinitionRegistered
 #inductive_audit Lean4Lean.VEnv.DefinitionPattern
-#inductive_audit Lean4Lean.VEnv.installDefinitions
 #inductive_audit Lean4Lean.InductiveSignature.RecursorData.compilationEntries
-#inductive_audit Lean4Lean.InductiveSignature.RecursorData.installEntries
 #inductive_audit Lean.Level.paramsIn
 #inductive_audit Lean.Expr.levelParamsIn
 #inductive_audit Lean4Lean.InductiveSignature.TrRestoredCompilation
