@@ -1155,7 +1155,6 @@ theorem iota_inst_sound {n ctor : Name} {k nind cnp nf : Nat} {rhs : VExpr} {hc 
         (∃ P, TyCls env U Δ ((binderTy doms m1 x).subst v) P ∧
           env.HasType U Δ P (.sort .zero)) ∧
         ∀ τ, Obs' v vS (binderTy doms m1 x) τ → ∃ cv', TypedOb env U Δ cv' τ [.sort fun _ => 0])
-    (hlsC : List.Forall₂ (· ≈ ·) lsC (lsI.map (·.inst m1)))
     {recArgs ctorArgs argsR : List VExpr}
     (hrA : recArgs.length = k + nind) (hcA : ctorArgs.length = cnp + nf)
     (hargs : argsR = recArgs.take k ++ ctorArgs.drop cnp)
@@ -1169,12 +1168,13 @@ theorem iota_inst_sound {n ctor : Name} {k nind cnp nf : Nat} {rhs : VExpr} {hc 
     {T : VExpr} (hRH : HTS env U Δ [] (rhs.instL m1) T)
     (hRS : SoundAt env U Δ [] (rhs.instL m1) (rhs.instL m1) T)
     (hrel : ∀ σ S, Ctx.SubstEq env U Δ σ σ Γ → TV env U Δ Γ σ S →
-      IotaArgRel env U Δ Γ n ctor m1 lsC cnp nf doms lead recArgs ctorArgs argsR σ S) :
+      IotaArgRel env U Δ Γ n ctor m1 lsC cnp nf doms lead recArgs ctorArgs argsR σ S ∧
+        List.Forall₂ (· ≈ ·) lsC (lsI.map (·.inst m1))) :
     SoundAt env U Δ Γ (.mkApps (.const n m1) (recArgs ++ [.mkApps (.const ctor lsC) ctorArgs]))
       (.mkApps (rhs.instL m1) argsR) A := by
   intro σ σ' S W tv tv'
   have W' := SubstEq.right henv hΔ W
-  obtain ⟨Wv, tvv, hlead, hfield⟩ := hrel σ' S W' tv'
+  obtain ⟨⟨Wv, tvv, hlead, hfield⟩, hlsC⟩ := hrel σ' S W' tv'
   have E := ihe.1 σ σ' S W tv tv'
   have hLR := iota_lhs_sub_inst henv hΔ hp hr hci hstat hleadU huniq hcrig hctor hpctor hnodf
     hfam.weak (lsC := lsC) hrA hcA hargs hRH hRS (σ := σ') rfl rfl Wv tvv

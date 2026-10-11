@@ -64,9 +64,11 @@ theorem iotaArgRel_of
     (hnargsP : ∀ i < np, nargs[i]? = some (.bvar (np + nf - 1 - i)))
     -- the template
     (hdl : doms.length = np + nmm + nf)
-    (hDP : ∀ i < np, ∃ d dn, dsH[i]? = some d ∧ Dn[i]? = some dn ∧ LvEq U d dn)
+    (hDP : List.Forall₂ (· ≈ ·) lsC' lsI →
+      ∀ i < np, ∃ d dn, dsH[i]? = some d ∧ Dn[i]? = some dn ∧ LvEq U d dn)
     (hDK : ∀ i < np + nmm, (doms.map (·.instL m1))[i]? = dsH[i]?)
-    (hDF : ∀ j < nf, ∃ d dn, (doms.map (·.instL m1))[np + nmm + j]? = some d ∧
+    (hDF : List.Forall₂ (· ≈ ·) lsC' lsI →
+      ∀ j < nf, ∃ d dn, (doms.map (·.instL m1))[np + nmm + j]? = some d ∧
       Dn[np + j]? = some dn ∧ LvEq U d (dn.liftN nmm j))
     (hleadK : ∀ i < np + nmm, lead[i]? = some (.bvar (np + nmm - 1 - i + nf)))
     (hleadI : ∀ j x, lead[np + nmm + j]? = some (.bvar x) → x < nf →
@@ -78,7 +80,8 @@ theorem iotaArgRel_of
     (hargs : argsR = recArgs.take (np + nmm) ++ ctorArgs.drop np)
     (ihe : HTS env U Δ Γ (.mkApps (.const n m1) (recArgs ++ [.mkApps (.const ctor lsC) ctorArgs])) A)
     {σ : VExpr.Subst} {S : ObSets} (W : Ctx.SubstEq env U Δ σ σ Γ) (tv : TV env U Δ Γ σ S) :
-    IotaArgRel env U Δ Γ n ctor m1 lsC np nf doms lead recArgs ctorArgs argsR σ S := by
+    IotaArgRel env U Δ Γ n ctor m1 lsC np nf doms lead recArgs ctorArgs argsR σ S ∧
+      List.Forall₂ (· ≈ ·) lsC' lsI := by
   -- S1: the typings of the recursor's and the constructor's types
   obtain ⟨ci₁, -, hci₁, hlw, ⟨uT, hT, hTsd⟩, -, -, -, -, -⟩ :=
     ihe.spine henv hΔ rfl W tv ((recArgs ++ [VExpr.mkApps (.const ctor lsC) ctorArgs]).map fun _ => [])
@@ -93,6 +96,10 @@ theorem iotaArgRel_of
   -- S2: the two family spines of the redex
   obtain ⟨uR, uI, hIR, hIC, WR, tvR, WC, tvC, subCR, subRC⟩ :=
     redex_major_sub henv hΔ hci eH hT hlenH hkH hcc eC hTc hrA (by omega) ihe W tv
+  obtain ⟨-, hlsCI, -⟩ := rigid_spines_rel henv hΔ hIC WC tvC hIR WR tvR hIrig subCR subRC
+  replace hDP := hDP hlsCI
+  replace hDF := hDF hlsCI
+  refine ⟨?_, hlsCI⟩
   -- S3: the telescopes of the installed and the normalized constructor types
   have hCcl : (VExpr.wrapForalls Dc (.mkApps (.const I lsC') cargs)).ClosedN := by
     rw [← eC]; exact (henv.ordered.closedC hcc).instL
