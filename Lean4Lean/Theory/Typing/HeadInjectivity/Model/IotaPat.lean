@@ -99,6 +99,63 @@ theorem PatValid.of_rule (henv : env.OrderedStrong)
     hctor hpctor hnodf hms hfam hC hrA hcA rfl ihe ihred.1 heq hRH hRS
     (hrel U Δ hΔ Γ m1 lsC recArgs ctorArgs A hrA hcA ihe.2)
 
+
+/-- **Validity of an ι rule whose reduct has no observations** (elimination into `Prop`). -/
+theorem PatValid.of_rule_empty (henv : env.OrderedStrong)
+    {n ctor : Name} {k nind cnp nf : Nat} {rhs : VExpr} {hc : rhs.Closed}
+    {doms : List VExpr} {body : VExpr}
+    (hp : env.pats (SimplePattern.iota n (k + nind) ctor (cnp + nf)).toPattern
+      (SimplePattern.iotaRHS' n ctor k nind cnp nf rhs hc, .true))
+    (hr : rhs = .wrapLams doms body)
+    {ci : VConstant} {dsH : List VExpr} {RH : VExpr} {I : Name} {lsI : List VLevel}
+    {iargs lead : List VExpr}
+    (hci : env.constants n = some ci)
+    (hstat : IotaStatic ci ctor k nind nf doms dsH RH I lsI iargs lead)
+    (huniq : PatUniq env n ctor k nind cnp nf rhs)
+    (hcrig : env.Rigid ctor) (hctor : ∀ c, IsCtor env c → env.Rigid c)
+    (hpctor : ∀ c, IsProjCtor env c → env.Rigid c)
+    (hnodf : ∀ df', env.defeqs df' → ∀ ls', df'.lhs.stripLams.getAppFnArgs.1 ≠ .const n ls')
+    (hfam : MajorFamEntry env I ctor)
+    (hlev : ∀ (U : Nat) (Δ : List VExpr), OnCtx Δ (env.IsType U) → ∀ m1 : List VLevel,
+      (∀ l ∈ m1, l.WF U) → m1.length = ci.uvars →
+      (∃ T, HTS env U Δ [] (rhs.instL m1) T ∧ SoundAt env U Δ [] (rhs.instL m1) (rhs.instL m1) T) ∧
+      ∀ o, ¬ Obs env U Δ .id .empty (rhs.instL m1) o)
+    (hrel : ∀ (U : Nat) (Δ : List VExpr), OnCtx Δ (env.IsType U) →
+      ∀ (Γ : List VExpr) (m1 lsC : List VLevel) (recArgs ctorArgs : List VExpr) (A : VExpr),
+      recArgs.length = k + nind → ctorArgs.length = cnp + nf →
+      HTS env U Δ Γ (.mkApps (.const n m1) (recArgs ++ [.mkApps (.const ctor lsC) ctorArgs])) A →
+      ∀ σ S, Ctx.SubstEq env U Δ σ σ Γ → TV env U Δ Γ σ S →
+        IotaArgRel env U Δ Γ n ctor m1 lsC cnp nf doms lead recArgs ctorArgs
+          (recArgs.take k ++ ctorArgs.drop cnp) σ S ∧
+        List.Forall₂ (· ≈ ·) lsC (lsI.map (·.inst m1))) :
+    PatValid env (SimplePattern.iota n (k + nind) ctor (cnp + nf)).toPattern
+      (SimplePattern.iotaRHS' n ctor k nind cnp nf rhs hc, .true) := by
+  intro U Δ Γ e A m1 m2 chk hΔ hm hr' he ihe hred ihred hall
+  obtain ⟨recArgs, ctorArgs, lsC, hrA, hcA, rfl, hred_eq⟩ :=
+    SimplePattern.iotaRHS_apply_of_matches hm
+  have e : Pattern.RHS.apply m1 m2 (SimplePattern.iotaRHS' n ctor k nind cnp nf rhs hc) =
+      (rhs.instL m1).mkApps (recArgs.take k ++ ctorArgs.drop cnp) := hred_eq
+  rw [e] at ihred ⊢
+  obtain ⟨ci', hci', hlw, hlen⟩ := ihe.2.spine_levels
+  cases hci.symm.trans hci'
+  obtain ⟨⟨T, hRH, hRS⟩, hE⟩ := hlev U Δ hΔ m1 hlw hlen
+  have hRcl : (rhs.instL m1).ClosedN := (show rhs.ClosedN from hc).instL
+  have empty : ∀ σ' S', ∀ o, ¬ Obs env U Δ σ' S' ((rhs.instL m1).mkApps (recArgs.take k ++ ctorArgs.drop cnp)) o := by
+    intro σ' S' o ho
+    obtain ⟨keys, -, hw⟩ := wrap_of_obs_mkApps ho
+    exact hE _ ((Obs.closed_iff_id hRcl).1 hw)
+  intro σ σ' S W tv tv'
+  have W' := SubstEq.right henv hΔ W
+  obtain ⟨⟨Wv, tvv, hlead, -⟩, -⟩ := hrel U Δ hΔ Γ m1 lsC recArgs ctorArgs A hrA hcA ihe.2 σ' S W' tv'
+  have hLR := iota_lhs_sub_inst henv hΔ hp hr hci hstat hstat.leadUniq huniq hcrig hctor hpctor
+    hnodf hfam (lsC := lsC) hrA hcA rfl hRH hRS (σ := σ') rfl rfl Wv tvv
+    (fun i x h1 h2 h3 => let ⟨a, ha, hd, _, hs, _⟩ := hlead i x h1 h2 h3; ⟨a, ha, hd, hs⟩)
+  refine ⟨fun o ho => ?_, fun o ho => absurd ho (empty _ _ o), (ihe.1 σ σ S W.left tv tv).2.2.1,
+    (ihred.1 σ' σ' S W' tv' tv').2.2.1⟩
+  obtain ⟨o₁, ho₁, -⟩ := (ihe.1 σ σ' S W tv tv').1 o ho
+  obtain ⟨o₂, ho₂, -⟩ := hLR o₁ ho₁
+  exact absurd ho₂ (empty _ _ o₂)
+
 end Model
 end VEnv
 end Lean4Lean
