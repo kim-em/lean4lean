@@ -33,8 +33,8 @@ No stubs. `Verify/Replay.lean` proves `Replayed.foldlM`, `replayFresh.WF`, `repl
 and `replayPure.WF_fromImports` from the hypothesis-free `addDecl.WF` and `VEnvs.WF.empty`; the
 source branch's `AddDeclChain`, `HasCanonicalEqType`/`hasCanonicalEqType_spec` and the `_mode`
 variants are gone (the kernel's `checkEqType` replaces the driver's `Eq` check, and there is one
-cache mode). The four theorems are audit roots; they reach exactly the accepted open proofs of
-`addDecl.WF` (`patsStrong`, `Model.PatValid.iota`, `IsDefEqU.weakN_iff`). All deferred tests
+cache mode). The four theorems are audit roots; the three that rely on `addDecl.WF` reach the same three
+accepted open proofs as `addDecl.WF`, and `Replayed.foldlM` reaches none. All deferred tests
 are back in `Lean4Lean/Tests.lean`: `InductiveTheory` now gives `enumDecl` its kernel recursor
 and rule and proves the full structure `enumDecl.WF .empty` (including the `VEnv.PatTyped` rule
 clause) and that `VEnv.addInduct` installs it; `TypedInductiveCompilation` installs the
