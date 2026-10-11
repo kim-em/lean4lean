@@ -191,10 +191,10 @@ theorem tele_sound_keys {D₁ D₂ : List VExpr} {R₁ R₂ : VExpr}
 
 /-- **Domains of soundly equal telescopes** at a typed valuation of a prefix by arguments: the
 next domains have the same type class and observations subsuming each other. -/
-theorem tele_sound_dom {D₁ D₂ : List VExpr} {R₁ R₂ : VExpr} {u : VLevel}
+theorem tele_sound_dom {D₁ D₂ : List VExpr} {R₁ R₂ : VExpr} {T : VExpr}
     (hcl₁ : ∀ i (hi : i < D₁.length), (D₁[i]).ClosedN i)
     (hcl₂ : ∀ i (hi : i < D₂.length), (D₂[i]).ClosedN i)
-    (hS : SoundAt env U Δ [] (.wrapForalls D₁ R₁) (.wrapForalls D₂ R₂) (.sort u))
+    (hS : SoundAt env U Δ [] (.wrapForalls D₁ R₁) (.wrapForalls D₂ R₂) T)
     (hpi₁ : PiSD env U Δ [] D₁ R₁) (hpi₂ : PiSD env U Δ [] D₂ R₂) (hlen : D₁.length = D₂.length)
     {as : List VExpr} {Sx : ObSets} (hj : as.length < D₁.length)
     (W : Ctx.SubstEq env U Δ (VExpr.argSubst as) (VExpr.argSubst as) (D₁.take as.length).reverse)

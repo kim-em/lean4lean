@@ -58,8 +58,9 @@ theorem iotaArgRel_of
     (hNH : HTS env U Δ [] (.wrapForalls Dn (.mkApps (.const I lsN) nargs)) (.sort uN))
     (hNSD : SD env U Δ [] (.wrapForalls Dn (.mkApps (.const I lsN) nargs))
       (.wrapForalls Dn (.mkApps (.const I lsN) nargs)) (.sort uN))
+    {TN : VExpr}
     (hNS : SoundAt env U Δ [] (cc.type.instL lsC) (.wrapForalls Dn (.mkApps (.const I lsN) nargs))
-      (.sort uN))
+      TN)
     (hDnl : Dn.length = np + nf) (hnargsl : nargs.length = np + nind)
     (hnargsP : ∀ i < np, nargs[i]? = some (.bvar (np + nf - 1 - i)))
     -- the template
@@ -119,7 +120,7 @@ theorem iotaArgRel_of
   obtain ⟨uNb, hNbH⟩ := HTS.wrapForalls_body hNH
   rw [List.append_nil] at hNbH
   have hS : SoundAt env U Δ [] (.wrapForalls Dc (.mkApps (.const I lsC') cargs))
-      (.wrapForalls Dn (.mkApps (.const I lsN) nargs)) (.sort uN) := by
+      (.wrapForalls Dn (.mkApps (.const I lsN) nargs)) TN := by
     rw [← eC]; exact hNS
   have hlenCN : Dc.length = Dn.length := by omega
   have hTWc : Ob.Sub (Obs' .id .empty (cc.type.instL lsC))

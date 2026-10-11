@@ -140,7 +140,7 @@ theorem ordinary_rule_data {base env : VEnv} {decl expanded : VInductDecl}
     (C : InductiveSignature.CompilationData base decl expanded s g [] block)
     {rec : VRecursor} {ru : VRecRule} (hrec : rec ∈ decl.recs) (hru : ru ∈ rec.rules)
     {df : VDefEq} (hdf : df ∈ block.rules) (H : VRecRule.OfEquation rec ru df) :
-    ∃ index : Fin s.constructors.size,
+    ∃ index : Fin s.constructors.size, df = g.equation index ∧
       rec.toVConstVal = g.recursor s.constructors[index].owner ∧
       ru.ctor = s.constructors[index].name ∧ ru.rhs = (g.equation index).rhs ∧
       rec.numParams + rec.numMotives + rec.numMinors =
@@ -186,7 +186,7 @@ theorem ordinary_rule_data {base env : VEnv} {decl expanded : VInductDecl}
   rw [hrhs, InductiveSignature.Instance.equation_rhs_eq, lamArity_wrapLams,
     InductiveSignature.Instance.eqDoms_length] at hla
   simp only [InductiveSignature.Instance.eqBody, lamArity_mkApps_bvar] at hla
-  refine ⟨index, hrv, hctor, hrhs, by omega, by omega, by omega, by omega, harity⟩
+  refine ⟨index, rfl, hrv, hctor, hrhs, by omega, by omega, by omega, by omega, harity⟩
 
 end VEnv.Model
 

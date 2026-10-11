@@ -343,10 +343,10 @@ theorem tele_sound_body {D₁ D₂ : List VExpr} {R₁ R₂ : VExpr} (hpi₂ : P
 
 /-- **Bodies of soundly equal telescopes** at a full typed valuation by arguments: their
 observations subsume each other. -/
-theorem tele_sound_res {D₁ D₂ : List VExpr} {R₁ R₂ : VExpr} {u : VLevel}
+theorem tele_sound_res {D₁ D₂ : List VExpr} {R₁ R₂ : VExpr} {T : VExpr}
     (hcl₁ : ∀ i (hi : i < D₁.length), (D₁[i]).ClosedN i)
     (hR₁cl : R₁.ClosedN D₁.length) (hR₂cl : R₂.ClosedN D₂.length)
-    (hS : SoundAt env U Δ [] (.wrapForalls D₁ R₁) (.wrapForalls D₂ R₂) (.sort u))
+    (hS : SoundAt env U Δ [] (.wrapForalls D₁ R₁) (.wrapForalls D₂ R₂) T)
     (hpi₁ : PiSD env U Δ [] D₁ R₁) (hpi₂ : PiSD env U Δ [] D₂ R₂)
     {w₁ w₂ : VLevel} (hR₁ : SD env U Δ D₁.reverse R₁ R₁ (.sort w₁))
     (hR₂ : SD env U Δ D₂.reverse R₂ R₂ (.sort w₂)) (hlen : D₁.length = D₂.length)
