@@ -31,17 +31,66 @@ After `lake build lean4lean`, the executable will be in `.lake/build/bin/lean4le
 
 If you run this as is (with no additional arguments), it will check every olean in the `lean4lean` package itself, which is probably not what you want. To check a different Lean package you should navigate the directory of the target project, then use `lake env path/to/lean4lean/.lake/build/bin/lean4lean <args>` to run `lean4lean` in the context of the target project. The command line arguments are:
 
-> `lean4lean [--fresh] [-v|--verbose] [--compare] [MOD]`
+> `lean4lean [--fresh] [--exact] [-v|--verbose] [--compare] [--differential] [MOD]`
 
 * `MOD`: an optional lean module name, like `Lean4Lean.Verify`. If provided, the specified module will be checked (single-threaded); otherwise, all modules on the Lean search path will be checked (multithreaded).
 * `--fresh`: Only valid when a `MOD` is provided. In this mode, the module and all its imports will be rebuilt from scratch, checking all dependencies of the module. The behavior without the flag is to only check the module itself, assuming all imports are correct.
 * `--verbose`: shows the name of each declaration before adding it to the environment. Useful to know if the kernel got stuck on something.
 * `--compare`: If lean4lean takes more than a second on a given definition, we also check the C++ kernel performance to see if it is also slow on the same definition and report if lean4lean is abnormally slow in comparison.
+* `--exact`: match `MOD` exactly instead of as a prefix, so that `--fresh --exact Init` replays the module `Init` and all its imports.
+* `--differential`: also send every declaration to the C++ kernel on the same environment, compare the two decisions and, when both accept, the constants the declaration adds; print the counts per module and fail on any disagreement.
+
+## Verified inductive declarations
+
+`Lean4Lean.addDecl.WF` (`Lean4Lean/Verify/Environment.lean`) states that the checked `addDecl`
+is sound for every declaration form, including ordinary, mutual and nested inductive
+declarations and quotient initialization: whenever it returns an environment, that environment
+is modelled at every safety level by a well-formed abstract environment (`VEnv.WF`, with the
+generative specification of inductive types in `Lean4Lean/Theory/Inductive`) extending the
+previous model. Its only hypothesis is that the invariant held before the call.
+`replayFresh.WF` (`Lean4Lean/Verify/Replay.lean`) lifts this to a whole `--fresh` replay from
+the empty environment, without hypotheses: the replayed environment is modelled by well-formed
+abstract environments, and every safe, non-partial source constant is in it and agrees with
+the source. Outside the soundness argument, `VEnv.WF.church_rosser`
+(`Lean4Lean/Theory/Typing/Confluence/WFParams.lean`) states confluence: in a well-formed
+environment with the prelude's `Eq`, two definitionally equal terms reduce to terms that are
+equal up to universe levels, proof irrelevance and eta.
+
+These theorems are conditional on three open proofs, listed with their status in
+[OPEN_PROOFS.md](OPEN_PROOFS.md). The trusted base is the three standard axioms, the
+implementation axioms of `Lean4Lean/Verify/Axioms.lean` and those three open proofs; the exact
+list is `scripts/inductive-audit-inventory.json`. The changes to the executable are audited in
+[divergences.md](divergences.md).
+
+The checks, as CI runs them:
+
+```
+lake build                                              # Theory and Verify
+lake build Lean4Lean.Experimental                       # prototypes
+lake build Lean4Lean.Tests                              # executable and specification tests
+python3 scripts/check-inductive-audit.py --self-test    # tests the dependency auditor
+python3 scripts/check-inductive-audit.py --no-build --require-complete
+lake exe lean4lean Init.Core
+lake exe lean4lean --fresh Init.System.IO
+scripts/differential-replay.sh                          # lean4lean against the C++ kernel
+```
+
+The audit walks the dependency closure of the top-level theorems, including opaque bodies and
+types. It fails on an axiom not listed in `scripts/inductive-audit-inventory.json`, on a `sorry`
+that is not one of the listed open proofs, on any `sorry` under a strict root (the generator
+definitions and the confluence theorem with its coverage lemmas) that the inventory does not
+accept for that root, and, with `--require-complete`, on a listed open proof that is no longer
+reached. The differential replay sends every declaration of `Init` and of the test modules to
+both lean4lean and the C++ kernel and compares the decisions and the generated constructors and
+recursors. The tests in `Lean4Lean/Tests` compare generated recursors, constructors and rules
+with Lean's kernel, check the specification on small examples, and pin the divergences listed in
+`divergences.md`.
 
 ## More documentation
 
 * [bugs-found.md](bugs-found.md): A list of kernel bugs that the lean4lean project has uncovered.
 * [divergences.md](divergences.md): A list of deliberate divergences between lean's kernel and the lean4lean kernel.
+* [OPEN_PROOFS.md](OPEN_PROOFS.md): The open proofs the verification of inductive declarations is conditional on.
 
 ## (Selected) file breakdown
 
@@ -68,7 +117,7 @@ If you run this as is (with no additional arguments), it will check every olean 
       * `Lemmas.lean`: theorems about the typing relation
       * `Meta.lean`: tactic for proving typing judgments
       * `Strong.lean`: proof that you can have all the inductive hypotheses
-      * `UniqueTyping.lean`: conjectures about the typing relation
+      * `UniqueTyping.lean`: uniqueness of types, and context strengthening
       * `Env.lean`: typing for environments
   * `Verify`: relation between the metatheory and the kernel
     * `Axioms.lean`: theorems about upstream opaques that shouldn't be opaque
