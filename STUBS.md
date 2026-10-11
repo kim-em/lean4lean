@@ -390,8 +390,8 @@ cover every new recursor, auxiliary ones included). `BlockCertificate.compiled` 
 
 | statement | file | what remains |
 |---|---|---|
-| `RestoredBlock.restoredEquationsWF` | `Nested/Equations/Rules.lean` | `∀ df ∈ B.block.rules, df.WF B.envR`: the restoration substitution from `L.recursors.outVEnv` into `B.envR` (source `Equations/WF.lean`: `restoredEquationSubstitution`, `restoredEquationsWF_of_substitutionPremises`, with `ProjNames`, `Equations/AuxiliaryConstructors`, `ProjectionRenaming`). Needs `B.run`, restB's port of `NestedRun`/`RestoredBlockBase`, not yet a field of `RestoredBlock`. `blockWF` and `rulesWF` reduce to it. |
-| `RestoredBlock.kernelFacts` | `Nested/Install/Installed.lean` | `KernelFacts B`: `MutualInductivesClosed`, `ConstructorOwnersPresent`, `InductInfosFromDecl`, the recursor majors, the constructor parameter alignment, and `HasPrimitives`/`safePrimitives` of the output, all from the restoration folds of `B.run` (source `RestoredBlockCertificate.inductInfosFromDecl`, `NestedRestorationFolds.constructorOwnersPresentOfContext`, `Install/ConstructorCoherence.lean`). |
+| ~~`RestoredBlock.restoredEquationsWF`~~ (closed) | `Nested/Equations/Rules.lean` | Now restB's `RestoredBlock` field, produced in `nestedRestoredBlock` from `NestedRun.hrestoredWF_of` (`Nested/Restoration/Equations/RestoredWF.lean`, eqinst): the restoration substitution (`Equations/WF.lean`, without eliminators), the projection-name premises (`Equations/ProjNames.lean`, `Equations/ProjNamesAvoid.lean`), the auxiliary constructor lambdas (`Equations/AuxiliaryConstructors.lean`), restB's projection clauses (`AuxiliaryProjections.lean`). |
+| ~~`RestoredBlock.kernelFacts`~~ (closed) | `Nested/Install/Installed.lean` | Proved: `constructorOwnersPresent`, `inductInfosFromDecl` (for `runDecl`, carried along `run_decl`), `mutualInductivesClosed` (given the base's closure, from its complete blocks), `primitives`; `recMajor` and `constructorParameterAlignment` are restB's `RestoredBlock` fields. `ConstructorCoherence.lean`'s `FoldSteps.restoredSourceMemberInfos` and `sourceTypeNames` made public (`-- WAVE 3 COMPAT (eqinst)`). |
 
 Flagged: `VExpr.RecShape`'s `MajorApp` conjunct (`VInductDecl.WF.rec_shape`,
 `RestoredBlock.rec_shape`) is false for the auxiliary recursors of a nested block. Their major
@@ -429,39 +429,91 @@ environments' models (source `Validation/{Environment,ConstructorEnvironment}`) 
 `rules_own_params`/`rec_counts`/`recs_over_block`): its `MajorApp` required the major's leading
 arguments to be the recursor's parameter variables, which a restored auxiliary recursor
 (`Tree.rec_1`, major `List (Tree α)`) violates. Lead decision: weaken `MajorApp` (Restoration-B,
-`-- WAVE 3 COMPAT (restB)`), in progress.
+`-- WAVE 3 COMPAT (restB)`): done (`MajorApp.of_params` is the old shape; Tests/IotaShape's
+`Tree.rec_1` control now expects acceptance). Its consequence, found by the model agent: nothing
+pinned the split of a registered rule's arity into constructor parameters and fields any more;
+lead decision: new field `VInductDecl.WF.rules_ctorParams` (own constructors at `decl.nparams`,
+or a container `D` with `InstalledBelow env D` at `D.nparams`), produced by the ordinary recursor
+phase (`RecursorCheck.rules_own`), the rebase, and `RestoredBlock.rules_ctorParams`.
 
-## Wave 3 Restoration-A (`Nested/Restoration/Validation/**`)
+Ported so far (source names kept; `NestedRun` in `Restoration/Run.lean` with the source signature,
+its lowered run as `LoweredView`): Steps, RecursorTelescopes, FreshExtensions,
+ConstructorTranslations, Translations, Nonprimitive, Tables, TrRestoredRecursorVal, RecursorShape,
+AuxiliaryRecursorsWF, Install/Permutation, Lookups (with target-native `LoweredLookups`),
+KernelData (new: fold entries, `FreshExtension.map_eq`, `entries_perm`), LoweringRestoration,
+SourceTranslations, SourceValidation, InstalledFamilyLookups, Install/DependencyOrder,
+SideEnvironment/{Environment,ConstructorEnvironment}, SourceHeaders, SourceDeclaration,
+ContainerSpecializations, CompilationData, SourceConstructors, Commutation, ExpansionInverse,
+CommutationUniform, TranslationPreservation, Levels (part), RestoredShapes (new: the restored
+`rec_shape`/`rule_shape`/closedness), plus Verify-side copies of the source Theory's
+IotaSoundnessLemmas/SignatureVars/ProjNamesOK. The registered ι rules are fixed by the
+restoration interpretations (`VEnv.WF.pats_fixed_of_avoid`, `Nested/Restoration/PatsFixed.lean`,
+from the model's `VEnv.WF'.patsAvoidFreshConsts` and `pats_origin`).
 
-The seven statements of `Validation/Passes.lean` are proved; Restoration-A adds no stub.
-Three statements gained premises, because the passes run the checker without checking them
-or because the scaffold form was circular:
+`nestedRestoredBlock` (`Restore.lean`) is assembled with no `sorry` of its own:
+`NestedRun.ofRestoration` (the run of the restoration), `NestedRun.sourceParameterWF`,
+`NestedRun.assemblyBase` (the rule-free `RestoredBlockBase` and the kernel-order permutation),
+`NestedRestorationFolds.kernelOrder`, `NestedRun.trTypes`/`newUnsafe` (`AssemblyTypes`),
+`NestedRun.recMajor`/`constructorParameterAlignment` (`AssemblyKernel`),
+`NestedRun.strippedChecker` (`StrippedFacts`, over `RuleFree`), `NestedRun.assemblyRecursors`
+(`AssemblyRecursors`, consuming the Equations owner's `NestedRun.hrestoredWF_of`), and the
+`HEq` casts of `ViewCast`.
+
+Fields added to `RestoredBlock` (Restoration-B): `rules_ctorParams`, `runDecl`, `run`, `run_decl`,
+`sourceSyntaxChecked`, `constructorArityPrefix`, `run_loweredEnv`, `run_lowered` (the run object
+for the Equations and Install owners), `recMajor`, `constructorParameterAlignment` (for
+`kernelFacts`), and `restoredEquationsWF` (the Equations owner's `Rules.lean` theorem of that name
+became the field, `-- WAVE 3 COMPAT (restB)`).
+
+The stripped environment: `AddInduct.map_eq` is a structural `ConstMap` equality and
+`stripRecursorRules` re-inserts each recursor, so no `AddInduct` lands in the stripped map. The
+rule-free stage is built over `insertConsts` of the stripped entries, and transported along
+lookups by `CheckingEnv.Valid.mapExt`/`CheckerEnv.mapExt` (`Nested/Install/Permutation.lean`);
+Restoration-A restated `stripRecursorRules.checkingValid`/`checkerEnv` accordingly.
+
+Restoration-B leaves no stub: no `sorry` in `Nested/Restoration/**` or `CompilationMajors.lean`.
+`nestedRestoredBlock` depends on `sorryAx` only through other owners' statements
+(`VEnv.WF.patsStrong`, `VEnv.Model.PatValid.iota`, `VEnv.IsDefEqU.weakN_iff`).
+
+The container constructors' kernel listing is not derivable from abstract `InstalledBelow`
+(two installed declarations may share a family name with different constructors), so the
+lowering keeps it: new field `AuxiliaryFamilySource.containerKernel`
+(`Lowering/Expansion/AuxiliarySources.lean`, `-- WAVE 3 COMPAT (restB)`, agreed with lowering),
+carried as the last conjunct of `NestedRun.restorationTablesRestoringAll`.
+
+## Wave 3 Restoration-A (`Nested/Restoration/{Validation,Uniform}/**`), final
+
+Closed, no stub left: the seven statements of `Validation/Passes.lean`. Restoration-A adds no
+`sorry`; `Validation/**` and `Uniform/**` are 5.8k lines over 15 files. Three statements carry
+premises the scaffold lacked, because the passes run the checker without checking them or
+because the scaffold form was circular:
 
 * `validateSourceConstructorTypes.run.WF` takes the closedness of the constructor types
-  (`SourceSyntaxChecks.ctorTypesClosed`, `Validation/Checks.lean`, provides it).
-* `validateNestedAuxiliaries.WF` takes the checker context `mlctx` of the lowering's
-  parameters (`mlctx.WF`, `mlctx.lctx = res.lctx`, freshness for the checker's name generator,
-  the cached occurrences scoped in it) and concludes the typing of every cached occurrence in
-  it. The context is a lowering fact: `NestedLoweringOutput.params_opening` with
-  `LoweringParamOpening.toMLCtx` (`Validation/ParameterPrefix.lean`).
-* `stripRecursorRules.checkingValid` (and the new `stripRecursorRules.checkerEnv`, the
-  `CheckerEnv` that `validateRestoredRecursorRules.check.WF` consumes) is stated over a
-  rule-free `AddInduct` into the stripped map and the rule-free facts `RuleFreeStage`
+  (`SourceSyntaxChecks.ctorTypesClosed`, `Validation/Checks.lean`).
+* `validateNestedAuxiliaries.WF` (and `.WF_typing`, keeping the inferred types, the source's
+  `NestedOccurrencesTyped`) take the checker context `mlctx` of the lowering's parameters;
+  `NestedLoweringOutput.parameterMLCtx` (`Validation/ParameterPrefix.lean`, from
+  `params_opening` with `LoweringParamOpening.toMLCtx`) supplies it.
+* `stripRecursorRules.checkingValid`/`.checkerEnv` are stated over a rule-free `AddInduct` into
+  an environment `S` whose lookups and `quotInit` agree with the stripped map's (Restoration-B's
+  `CheckingEnv.Valid.mapExt`/`CheckerEnv.mapExt`), with the rule-free facts `RuleFreeStage`
   (`Validation/Stripped.lean`): the projection stage's `VEnv.WF`, the recursor types, the
   block's names not primitive, the restored header facts, the K clause and shapes of the new
-  recursors at the recursor stage. The scaffold form took the output's `AddInduct` and
-  `CheckingEnv.Valid`, which contain the rule translations the pass establishes. Restoration-B
-  produces the `RuleFreeStage` (agreed).
+  recursors at the recursor stage (`RecursorShapesAt.stripRules`, `KLikeRecursor.of_k_false`
+  derive the last two from `RestoredBlock.recShapes` and `k = false`). Restoration-B produces
+  them (`Restoration/RuleFree.lean`, `AssemblyBase.lean`).
 
-`Nested/Restoration/Uniform/**` (parameter uniformity of the lowered recursors, consumed by
-Restoration-B) is ported as far as Restoration-B's run is available: `Uniform/{Recursors,
-Generic,Heads,Base,Lowered,Run,Whnf}.lean`. Pending on Restoration-B's `ContainerSpecializations`
-(`NamePrefix`), `restorationTablesRestoring`, `CompilationDataConstructors`/`Commutation` and
-`NestedInstalledRun`: `NestedRun.auxHeadsFacts`, `envParamUniform`, `whnfPreservesParamUniform`,
-`recursorParamUniform_of_wfCore`, the `NestedRun` part of `Uniform/Declarations` and
-`Validation/ParameterScopes`. `NestedRun.envParamUniform` will take `LoweredView.Nonprimitive`
-(the lowered names passed `checkName` without primitive permission; the target's lowered run
-does not record it). Source `Validation/Result.lean` is superseded by `RestorationRun`.
+Ported for Restoration-B: `Uniform/{Recursors,Generic,Heads,Base,Lowered,Run,Whnf,Declarations,
+RunEnv}.lean` (the parameter uniformity of the lowered recursors, ending in
+`NestedRun.recursorParamUniform_of_wfCore`, read by `Restoration/{Recursors,RecursorRenaming,
+MajorHeads,LoweredRuleAvoidance}`, `Equations/{RuleRhs,ProjNames}`; `normalizedTotal_of` by
+`CompilationDataConstructors`, `RecursorTranslations`), `Validation/ParameterScopes.lean`
+(read by `AssemblyKernel`, `Install/Installed`), `Validation/RecursorBinders.lean`. Not ported:
+source `Validation/Result.lean` (superseded by `RestorationRun`), `Validation/{Environment,
+ConstructorEnvironment}` (Restoration-B, `SideEnvironment/`), the `NestedRun` part of
+`StrippedRecursorShapes` (replaced by the two lemmas above). The lowered names'
+non-primitivity is Restoration-B's field `NestedRun.loweredNonprimitive` (requested by
+Restoration-A). No COMPAT edits.
 
 ## Wave 3 lowering
 
@@ -649,3 +701,77 @@ Interface for the waves that build on this one: the checker reads its environmen
 `CheckingEnv.Valid` by `shapes : RecursorShapesCoherent` and `iota : IotaRulesRegistered`
 (`TrEnv.iotaRulesRegistered` proves the latter from `TrEnv`). An inductive declaration that runs
 the checker in an intermediate environment must supply both there.
+
+## Model pat stubs (`Model.PatValid.iota`, `Ordered.patsAvoidFreshConsts`, `WF.patCtor_rigid`)
+
+No stub of this section is closed; none is added. The three remain as stated above, for the
+reasons below, each of which needs a decision outside this agent's ownership.
+
+**`VEnv.Ordered.patsAvoidFreshConsts` is not provable from its hypotheses without a new
+metatheorem.** `Ordered.pat` only records `PatWF`, whose `PatTyped` types one generic instance
+in an *arbitrary* context `Γ` (no `OnCtx Γ`). `IsDefEq.noConsts` needs a context avoiding the
+names, and a context mentioning a fresh constant `F` does type terms containing `F` (a `beta`
+redex `(λ (x : A). b) a` is typed without typing `A`; `eta` puts the domain of a variable's
+type into a term), so the template's constants are not bounded by the environment. Proving the
+statement as is needs an inertness theorem (an undeclared constant reaches a typed endpoint only
+through the context) that is close to context strengthening. `OrderedStrong` does not help: its
+`PatsStrongOn` concerns strongly typed instances in strong contexts, and no such instance is
+known to exist. Minimal fixes, both in frozen files: add `OnCtx Γ (env.IsType U)` to
+`VEnv.PatTyped` (then the proof is the `Ordered` induction with `IsDefEq.noConsts` on the
+generic reduct, about 80 lines), or state the lemma for `VEnv.WF` from the installed blocks'
+rule typing (`VInductBlock.WF`'s `df.WF envRecursors` types each equation in the empty context).
+
+**`Model.PatValid.iota` needs three things 1C's scope did not list.**
+1. *Index-determined fields under singleton elimination.* `Signature.SingletonElimination`
+   admits a non-proposition field `x` when `bvar x` is a bare index of the constructor's result
+   (`Acc.intro`'s `x`). In mode C (the major is a proof, so `Km` is empty) `RuleBind` can bind
+   such a field neither from `Km` nor by the proof binding, and `iotaLead` puts the dummy
+   `sort 0` at every index position, so the field cannot be bound from its index key either. For
+   `Acc.rec` the reduct has observations that `Obs.pat` cannot produce on the redex, so
+   `PatValid` fails for the current `Obs.pat`. Fix (`Model/Interp.lean`): let the clause's lead
+   carry `bvar x` at index position `j` exactly when the constructor's result index `j` is
+   `bvar x`, as the stored equations' `eqLead` did.
+2. *Injectivity of the major's family at the instance.* A pattern instance has arbitrary terms
+   at the index holes and at the constructor-parameter holes `Q`. `RuleBind` types each anchor
+   at the template's binder type, but the field classes `Km` provides are classes at the
+   constructor's field domains instantiated at `Q`, and an index key is a class of the instance's
+   index argument. Relating them needs `Q ≡ P` (recursor parameters) and `idx_j ≡ F_x`, that is
+   injectivity of the family `I` between the constructor's result type and the recursor's major
+   domain. The stored equations of the source branch never needed this: their λ-wrapped sides
+   shared one variable between both positions (`bvar_dom_cls`). At the instance it must be
+   extracted from the sound conversion links of the redex's `HTS` (a `Π`-domain step and a
+   rigid-spine argument step, as `forallE_chain` and `rigid_analysis` in `Model/Extract.lean`
+   do, but from `SD` links instead of `SoundEnv`). Semantic uniqueness of types would serve too;
+   neither exists in the model.
+3. *Agreement of the template's binder types with the recursor telescope.* The parameter,
+   motive and minor anchors are bound from recursor keys, which are classes at the recursor's
+   domains; `RuleBind` and the left-to-right direction need them at the template's binder
+   types. `VInductDecl.WF` does not relate the two (`rule_shape` is a count, `rules_wf` is
+   `PatTyped` in an arbitrary context). They agree syntactically for the generated equations
+   (`Instance.equation`'s domains start with the recursor's `params ++ motives ++ minors`), so the
+   facts come from `RecsCompiled`: `CompilationData.equations` and `VRecRule.OfEquation`, with
+   `VInductBlock.WF` typing each equation in the recursor-stage environment, whose model is sound
+   along the history (`EnvValid` of that stage follows from the pre-block one).
+
+The remaining ingredients are as 1C listed: the elimination classification
+(`Instance.Admissible.elimination`: data families make mode C contradictory through `FamSort`;
+small elimination leaves both sides without observations; singleton elimination gives the rule's
+uniqueness per recursor and the proof binders, `Model/{FamSort,Singleton,RecursorRule}.lean` on
+the source branch), the projection entry of a structure family (eta mode), and `PatsIota` for
+uniqueness in the left-to-right direction. All of it is read off `CompilationData`, which for
+nested blocks goes through the restoration (`compilationRestoration`, `Inductive/RestorationHead`
+and `Rules/RestoredRecursorEquations` on the source branch, parked for wave 3). The theorem
+therefore cannot be closed for nested blocks before wave 3; for ordinary blocks (`auxiliaries =
+[]`) the estimate is 4k to 6k lines: the instance-level directions (the analogue of
+`pat_rhs_sub_head`/`pat_lhs_sub`, about 1.5k lines), the two injectivity extractions, and the
+ordinary compilation facts ported from the source branch's `Rules/` and `Model/` files (about
+2.5k lines). `EnvValid.lean` must also pass the pre-block `EnvValid` to the pattern case, which
+today calls `PatValid.iota hF` with no history data.
+
+**`VEnv.WF.patCtor_rigid`**: `restored_equation_major` and `constructor_name_cases` do not exist
+in this tree. For an ordinary block the constructor is `s.constructors[i].name` through
+`CompilationData.equations` and `Instance.equation`, a constructor of the block, hence rigid. An
+auxiliary recursor's rule fires on a container constructor, which needs the restoration
+(wave 3). Wave 3 must provide: for every rule `ru` of every recursor of an installed nested
+block, `ru.ctor` is a constructor of the block or of an installed container
+(`ContainersInstalled`), read off the restored equation's major.

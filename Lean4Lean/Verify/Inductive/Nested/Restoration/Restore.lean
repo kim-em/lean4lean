@@ -1,5 +1,16 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Certificate
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.Passes
+import Lean4Lean.Verify.Inductive.Nested.Restoration.RunOfRestoration
+import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceParametersRun
+import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyBase
+import Lean4Lean.Verify.Inductive.Nested.Restoration.TableAgreement
+import Lean4Lean.Verify.Inductive.Nested.Restoration.KernelData
+import Lean4Lean.Verify.Inductive.Nested.Restoration.FormationWithRecs
+import Lean4Lean.Verify.Inductive.Nested.Restoration.ViewCast
+import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyTypes
+import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyKernel
+import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyRecursors
+import Lean4Lean.Verify.Inductive.Nested.Restoration.StrippedFacts
 
 /-! # The restored block of a nested run (owner: Restoration-B)
 
@@ -45,13 +56,86 @@ theorem nestedRestoredBlock {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (V : RestorationRun res loweredEnv env lparams sourceTypes
       (if isUnsafe then .unsafe else .safe) false fuel outEnv) :
     Nonempty (RestoredBlock L sourceTypes isUnsafe outEnv) := by
-  -- WAVE 3 STUB (Restoration-B): the source branch's `NestedRun` from
-  -- `nestedValidatedRawSourceWF`, `NestedRun.assemblyOfRun` (`Install/CertificateOfRun.lean`)
-  -- and `RestoredBlockCertificate.blockCertificate` (`Install/BlockCertificate.lean`), without
-  -- the rule typing (`RestoredBlock.rulesWF`, Equations) and the environment-side facts
-  -- (`RestoredBlock.installedFacts`, Install). The validation passes enter through
-  -- `Validation/Passes.lean`.
-  have := wf; have := Hsources; have := Hout; have := hnested; have := L; have := V; sorry
+  have := hnested
+  obtain ⟨runDecl, E, hloweredEnv, hlowered⟩ := NestedRun.ofRestoration wf Hsources Hout hnested L V
+  have Hchecked := checkInductiveSources_refines env sourceTypes _ Hsources
+  have Hparameters := E.sourceParameterWF wf Hchecked
+  obtain ⟨⟨B, hBlowered, hBperm⟩⟩ := E.assemblyBase wf rfl Hsources Hparameters (by cases isUnsafe <;> decide)
+  obtain ⟨hperm, hfresh, hmap, hquot⟩ :=
+    E.restoration.kernelOrder (ContextWF.initial wf (if isUnsafe then .unsafe else .safe) lparams
+      false fuel).map_wf
+  have hdeclLowered : E.lowered.loweredDecl = L.loweredDecl :=
+    LoweredView.heq_field hloweredEnv hlowered (·.loweredDecl)
+  obtain ⟨hV, Cstrip⟩ := E.strippedChecker B hBlowered wf Hchecked Hparameters hnested
+  obtain ⟨recs, auxiliaries, block, envR, outVEnv, hcontainers, hcompiled, hrecsOf, hrecsAdded,
+    htrRecs, hrecs_wf, hrec_shape, hrules_nodup, hrules_ctor, hrules_ctorParams, hrule_shape,
+    hrules_closed, hrulesAdded, hrecShapes, hrecK, henvR, hequationsWF⟩ :=
+    E.assemblyRecursors wf Hchecked hnested B hBlowered hBperm Cstrip hV
+  have hsig : E.lowered.signature = L.recursors.signature :=
+    (LoweredView.heq_field hloweredEnv hlowered (·.signature)).trans L.view_signature
+  have hgen : HEq E.lowered.generatedInstance L.recursors.generation := by
+    refine HEq.trans ?_ L.view_generation
+    clear hcompiled
+    revert hlowered
+    generalize E.lowered = V
+    intro hlowered
+    subst hloweredEnv
+    cases eq_of_heq hlowered
+    rfl
+  refine ⟨{
+    decl := runDecl.withRecs recs
+    envTypes := E.sourceCore.envTypes
+    envCtors := E.sourceCore.envCtors
+    source := ?source
+    formation := VerifyInductive.NestedFormationWF.withRecs recs B.formationAssembly.formation
+    auxiliaries := auxiliaries
+    containers := hcontainers
+    block := block
+    compiled := CompilationData.castGenerator hsig hgen (hdeclLowered ▸ hcompiled)
+    recsOf := hrecsOf
+    ivals := E.restoration.ivals
+    rvals := E.restoration.rvals
+    trTypes := E.trTypes B hBlowered
+    envR := envR
+    recsAdded := hrecsAdded
+    trRecs := htrRecs
+    order := E.restoration.entries
+    order_perm := hperm
+    fresh := hfresh
+    map_eq := hmap
+    quotInit_eq := hquot
+    newUnsafe := E.newUnsafe
+    recs_wf := hrecs_wf
+    rec_shape := hrec_shape
+    rules_nodup := hrules_nodup
+    rules_ctor := hrules_ctor
+    rules_ctorParams := hrules_ctorParams
+    rule_shape := hrule_shape
+    rules_closed := hrules_closed
+    outVEnv := outVEnv
+    rulesAdded := hrulesAdded
+    recShapes := hrecShapes
+    recK := hrecK
+    runDecl := runDecl
+    run := E
+    run_decl := ?run_decl
+    sourceSyntaxChecked := Hchecked
+    constructorArityPrefix := ?arity
+    run_loweredEnv := hloweredEnv
+    run_lowered := hlowered
+    recMajor := E.recMajor wf Hchecked
+    constructorParameterAlignment := E.constructorParameterAlignment B hBlowered wf Hchecked
+      (henvR ▸ VEnv.addRules_le hrulesAdded)
+    restoredEquationsWF := hequationsWF }⟩
+  case arity =>
+    have h := B.formationAssembly.constructorArityPrefix
+    rw [B.formationExpanded, hBlowered, hdeclLowered] at h
+    exact h
+  case run_decl => simp [VInductDecl.withRecs]
+  case source =>
+    have h := E.sourceCore.core
+    rw [E.sourceCoreDecl_eq] at h
+    exact TrInductDeclCore.withRecs h recs
 
 end VerifyInductive
 end Lean4Lean

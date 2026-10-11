@@ -689,6 +689,11 @@ structure AuxiliaryFamilySource
   containerUnsafe : H.generated.sourceInfo.isUnsafe = container.isUnsafe
   familyMember : containerFamily ∈ container.types
   containerName : containerFamily.name = H.generated.sourceName
+  -- WAVE 3 COMPAT (restB): the kernel family of the container lists exactly the container
+  -- family's constructors (`AuxiliaryFamilyContainer.constructorName`), which no abstract fact
+  -- about the installed container determines.
+  containerKernel : ∃ info, prodEnv.find? containerFamily.name = some (.inductInfo info) ∧
+    info.ctors = containerFamily.ctors.map (·.name)
   sourceParamsLength : sourceParams.length = nparams
   sourceParamsWF : OnCtx sourceParams.reverse
     (sourceTypesVEnv.IsType lparams.length)
@@ -1216,6 +1221,15 @@ theorem AuxiliaryFamilyContainer.auxiliaryFamilySource
     containerUnsafe := C.containerUnsafe
     familyMember := List.getElem_mem C.familyIdx_lt
     containerName := (C.lookupName.trans C.familyName).symm
+    containerKernel := by
+      refine ⟨Horigin.generated.sourceInfo, ?_, ?_⟩
+      · rw [← (C.lookupName.trans C.familyName)]
+        exact Horigin.generated.built.lookup
+      · apply List.ext_getElem
+        · simp [containerFamily, C.constructors]
+        · intro i h₁ h₂
+          simp only [List.getElem_map]
+          exact C.constructorName i h₁
     sourceParamsLength := hsourceParamsLength
     sourceParamsWF := hparams
     baseArgsLength := by

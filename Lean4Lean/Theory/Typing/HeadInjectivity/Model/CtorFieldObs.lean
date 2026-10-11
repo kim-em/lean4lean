@@ -155,11 +155,12 @@ theorem wrap_eq_wrap_notApp : ∀ {ks₀ ks : List Key} {o r : Ob}, r.NotApp →
 /-- The end observations of a rigid family constant that is not a projection constructor. -/
 def FamEnd (S : Name) (ls : List VLevel) (keys : List Key) (r : Ob) : Prop :=
   (∃ s, r = .rigid S (ls.map (·.eval)) keys.length s) ∨ (∃ i c, r = .rigidArg i c) ∨
+  (∃ i o, r = .rigidArgOb i o) ∨
   (∃ j FL x, r = .fieldTy S j FL x) ∨ (∃ j FL D, r = .fieldDom S j FL D) ∨
   CtorEnd S (ls.map (·.eval)) keys r
 
 theorem FamEnd.notApp (h : FamEnd S ls keys r) : r.NotApp := by
-  rcases h with ⟨_, rfl⟩ | ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩ | ⟨_, _, _, rfl⟩ |
+  rcases h with ⟨_, rfl⟩ | ⟨_, _, rfl⟩ | ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩ | ⟨_, _, _, rfl⟩ |
     (rfl | ⟨_, _, rfl⟩ | ⟨_, _, _, _, rfl⟩) <;> trivial
 
 /-- Inversion of the observations of a rigid constant that is not a projection constructor. -/
@@ -168,17 +169,18 @@ theorem Obs.famConst_inv {S : Name} (hrig : env.Rigid S)
     ∃ keys r, o = wrap keys r ∧ FamEnd S ls keys r := by
   cases h with
   | const _ _ _ _ hr =>
-    rcases hr with ⟨s, rfl⟩ | ⟨i, _, rfl⟩
+    rcases hr with ⟨s, rfl⟩ | ⟨i, _, rfl⟩ | ⟨i, _, k, _, rfl⟩
     · exact ⟨_, _, rfl, .inl ⟨s, rfl⟩⟩
     · exact ⟨_, _, rfl, .inr (.inl ⟨i, _, rfl⟩)⟩
+    · exact ⟨_, _, rfl, .inr (.inr (.inl ⟨i, k, rfl⟩))⟩
   | delta hdf hlhs => exact absurd (by rw [hlhs]; rfl) (hrig.defeqs _ hdf (VLevel.params _))
-  | ctor _ _ _ _ _ hr => exact ⟨_, _, rfl, .inr (.inr (.inr (.inr hr)))⟩
+  | ctor _ _ _ _ _ hr => exact ⟨_, _, rfl, .inr (.inr (.inr (.inr (.inr hr))))⟩
   | projCtor hp hn => exact absurd ⟨_, _, hp, hn⟩ hnpc
   | rule hdf hlhs =>
     exact absurd (by rw [hlhs]; exact VExpr.stripLams_wrapLams_mkApps_head) (hrig.defeqs _ hdf _)
   | pat hp => exact absurd (SimplePattern.iota_headConst ..) (hrig.pats _ _ hp)
-  | famTy => exact ⟨_, _, rfl, .inr (.inr (.inl ⟨_, _, _, rfl⟩))⟩
-  | famDom => exact ⟨_, _, rfl, .inr (.inr (.inr (.inl ⟨_, _, _, rfl⟩)))⟩
+  | famTy => exact ⟨_, _, rfl, .inr (.inr (.inr (.inl ⟨_, _, _, rfl⟩)))⟩
+  | famDom => exact ⟨_, _, rfl, .inr (.inr (.inr (.inr (.inl ⟨_, _, _, rfl⟩))))⟩
 
 /-- Inversion of the observations of a spine of a rigid constant that is not a constructor:
 they are end observations wrapped in keys. -/
@@ -544,20 +546,20 @@ theorem ProjValid.ctx (henv : env.OrderedStrong) (hΔ : OnCtx Δ (env.IsType U))
 /-! ## Inversions -/
 
 theorem FamEnd.not_sort : ¬ FamEnd S ls keys (.sort l) := by
-  rintro (⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, h⟩ | ⟨_, _, _, h⟩ | (h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩)) <;>
+  rintro (⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, h⟩ | ⟨_, _, _, h⟩ | (h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩)) <;>
     cases h
 
 theorem FamEnd.not_piDom : ¬ FamEnd S ls keys (.piDom D) := by
-  rintro (⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, h⟩ | ⟨_, _, _, h⟩ | (h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩)) <;>
+  rintro (⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, h⟩ | ⟨_, _, _, h⟩ | (h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩)) <;>
     cases h
 
 theorem FamEnd.rigid_eq (h : FamEnd S ls keys (.rigid I ℓs m z)) : I = S ∧ ℓs = ls.map (·.eval) := by
-  rcases h with ⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, h⟩ | ⟨_, _, _, h⟩ | (h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩) <;>
+  rcases h with ⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, h⟩ | ⟨_, _, _, h⟩ | (h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩) <;>
     cases h
   exact ⟨rfl, rfl⟩
 
 theorem FamEnd.fieldDom_eq (h : FamEnd S ls keys (.fieldDom n j FL D)) : n = S := by
-  rcases h with ⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, h⟩ | ⟨_, _, _, h⟩ | (h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩) <;>
+  rcases h with ⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, h⟩ | ⟨_, _, _, h⟩ | (h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩) <;>
     cases h
   rfl
 
@@ -633,7 +635,7 @@ theorem Obs.ctorSpine_fieldOb_inv {S : Name} {info : VProjectionInfo}
   cases h' with
   | const _ _ _ _ hr =>
     obtain ⟨-, e⟩ := wrap_inj hw trivial hr.notApp
-    rcases hr with ⟨_, rfl⟩ | ⟨_, _, rfl⟩ <;> cases e
+    rcases hr with ⟨_, rfl⟩ | ⟨_, _, rfl⟩ | ⟨_, _, _, _, rfl⟩ <;> cases e
   | delta hdf hlhs => exact absurd (by rw [hlhs]; rfl) (hrig.defeqs _ hdf (VLevel.params _))
   | ctor _ hnp => exact absurd ⟨_, _, hp, rfl⟩ hnp
   | rule hdf hlhs =>

@@ -202,6 +202,11 @@ theorem Le.rigidArg_inv (h : o ≼ .rigidArg i c) : o = .rigidArg i c := by case
 theorem Le.ctorHead_inv (h : o ≼ .ctorHead c ℓs n) : o = .ctorHead c ℓs n := by cases h; rfl
 theorem Le.ctorArg_inv (h : o ≼ .ctorArg i c) : o = .ctorArg i c := by cases h; rfl
 
+theorem Le.rigidArgOb_inv (h : o ≼ .rigidArgOb i x) : ∃ y, o = .rigidArgOb i y ∧ y ≼ x := by
+  cases h with
+  | refl => exact ⟨_, rfl, .refl⟩
+  | rigidArgOb h => exact ⟨_, rfl, h⟩
+
 theorem Le.ctorArgOb_inv (h : o ≼ .ctorArgOb i pre x) :
     ∃ y, o = .ctorArgOb i pre y ∧ y ≼ x := by
   cases h with
@@ -269,9 +274,13 @@ def wrap (keys : List Key) (o : Ob) : Ob := keys.foldr (fun k o => .app k.1 k.2.
 theorem wrap_append : wrap (ks ++ ks') o = wrap ks (wrap ks' o) := by
   simp [wrap, List.foldr_append]
 
-/-- The innermost observations of a rigid spine after the keys `keys`. -/
+/-- The innermost observations of a rigid spine after the keys `keys`: the head, an argument
+class, or an argument observation (so that a sound equality of two rigid spines relates the
+observations of corresponding arguments, not only their classes). -/
 def RigidEnd (n : Name) (ℓs : List (List Nat → Nat)) (keys : List Key) (r : Ob) : Prop :=
-  (∃ s, r = .rigid n ℓs keys.length s) ∨ ∃ i, ∃ h : i < keys.length, r = .rigidArg i (keys[i]).2.1
+  (∃ s, r = .rigid n ℓs keys.length s) ∨
+  (∃ i, ∃ h : i < keys.length, r = .rigidArg i (keys[i]).2.1) ∨
+  (∃ i, ∃ h : i < keys.length, ∃ k ∈ (keys[i]).2.2, r = .rigidArgOb i k)
 
 /-- An observation that is not an `app` observation. -/
 def Ob.NotApp : Ob → Prop
@@ -279,7 +288,7 @@ def Ob.NotApp : Ob → Prop
   | _ => True
 
 theorem RigidEnd.notApp (h : RigidEnd n ℓs keys r) : r.NotApp := by
-  rcases h with ⟨_, rfl⟩ | ⟨_, _, rfl⟩ <;> trivial
+  rcases h with ⟨_, rfl⟩ | ⟨_, _, rfl⟩ | ⟨_, _, _, _, rfl⟩ <;> trivial
 
 /-- Spines of non-`app` endpoints are determined by the wrapped observation. -/
 theorem wrap_inj {ks ks' : List Key} (h : wrap ks o = wrap ks' o') (ho : o.NotApp)

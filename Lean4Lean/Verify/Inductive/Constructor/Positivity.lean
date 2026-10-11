@@ -1152,7 +1152,7 @@ theorem VLCtx.SourceConstFree.cons
 well-formedness proves freshness for the whole translated expression,
 including projection targets. -/
 theorem TrExprS.noFreshConstsAtCheckingEnv
-    (henv : VEnv.OrderedStrong env)
+    (henv : VEnv.WF env)  -- MODEL COMPAT: `VExpr.WF.noFreshConsts` reads the rules off `env.WF`
     (hfresh : ∀ name ∈ names, env.constants name = none)
     (hctx : VLCtx.WF env Us.length Delta)
     (H : TrExprS env Us Delta expression target) :
