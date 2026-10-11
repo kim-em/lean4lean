@@ -14,8 +14,8 @@ is installed with type
 
   `List ((a : Nat) → CE.T) → List ((a : Nat) → CE.T) → CE.T`.
 
-The two types are `==` (`Expr.eqv`) but not `Expr.equal`. See
-`Lean4Lean.Verify.Inductive.Nested.Restoration.InstalledConstructorTypes`.
+The two types are `==` (`Expr.eqv`) but not `Expr.equal`; the per-constructor
+statement is `ConstructorRestorationInverse.restoredType_eqv_source`.
 -/
 
 namespace Lean4Lean.Tests.NestedConstructorRoundTrip

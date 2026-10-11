@@ -19,12 +19,12 @@ restoration `V` and the lowering's certificate `Hout` yield the `RestoredBlock`.
 the refinement of the restoration folds (`Steps.lean`: `restoreNestedDeclarations_refines`,
 `FreshExtension`, `NestedRestorationFolds`), the restored source declaration
 (`SourceDeclaration`, `SourceHeaders`, `SourceConstructors`, `SourceConstructorTypes`,
-`SourceTranslations`, `HeaderRenaming`, `InstalledFamilyLookups`, `InstalledConstructorTypes`),
+`SourceTranslations`, `HeaderRenaming`, `InstalledFamilyLookups`),
 the specialization table (`Tables`, `TableAgreement`, `ContainerSpecializations`,
 `AuxiliaryHeaders`, `AuxiliaryConstructors`, `AuxiliaryProjections`, `ExpansionInverse`,
 `Commutation*`, `TranslationProjNames`, `Translations`), the restored
 recursors (`Recursors`, `RecursorTypes`, `RecursorRenaming`, `RecursorShape`,
-`RecursorAlignment`, `AuxiliaryRecursorsWF`, `TrRestoredRecursorVal`, `LoweredRuleAvoidance`,
+`RecursorAlignment`, `TrRestoredRecursorVal`, `LoweredRuleAvoidance`,
 `Nonprimitive`), the compilation data (`CompilationData`, `CompilationDataConstructors`,
 `ConstructorTelescopes`, `ConstructorTranslations`, `FreshExtensions`, `ExprReplace`,
 `ParameterOpening`), and `Install/{Permutation,RecursorTranslations,DependencyOrder,

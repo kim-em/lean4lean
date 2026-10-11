@@ -787,8 +787,7 @@ theorem NestedRestorationFolds.generatedAlignmentTraceOfKernel
   · exact Hlower.resultParamsSize
 
 /-- Pre-rule auxiliary recursor translations, synchronized directly with
-the executable restoration fold.  Unlike
-`RestoredAuxiliaryRecursorsWF`, this relation has no dependency on an
+the executable restoration fold. This relation has no dependency on an
 already selected block or rule semantics, so it can be used to construct the
 recursor environment without a circular premise. -/
 inductive AuxiliaryRecursorTranslations
