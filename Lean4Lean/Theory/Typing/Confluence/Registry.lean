@@ -3,6 +3,7 @@ import Lean4Lean.Theory.Typing.RecursorRegistryInstallation
 import Lean4Lean.Theory.Typing.RecursorMajorFamily
 import Lean4Lean.Theory.Typing.DefinitionPatterns
 import Lean4Lean.Theory.Typing.PatsIota
+import Lean4Lean.Theory.Typing.Confluence.History
 
 /-! # The head registries of a well-formed environment
 
@@ -62,37 +63,41 @@ def RuleOf (rec : VRecursor) (p : Pattern) (r : p.RHS × p.Check) : Prop :=
 
 /-- All registered patterns headed by `name` are rules of one recursor of one installed
 declaration. -/
-def OneRecursor (env : VEnv) (name : Name) : Prop :=
+def OneRecursor (env : VEnv) (hs : List VEnv) (name : Name) : Prop :=
   ∃ (decl : VInductDecl) (env₀ env₁ : VEnv) (rec : VRecursor),
-    decl.WF env₀ ∧ env₀.addInduct decl = some env₁ ∧ env₁ ≤ env ∧ rec ∈ decl.recs ∧
+    decl.WF env₀ ∧ env₀.addInduct decl = some env₁ ∧ env₁ ≤ env ∧ env₀ ∈ hs ∧ rec ∈ decl.recs ∧
     rec.name = name ∧
     ∀ (p : Pattern) (r : p.RHS × p.Check), env.pats p r → p.headConst = name → RuleOf rec p r
 
-theorem OneRecursor.mono {env' : VEnv} (H : OneRecursor env name) (hle : env ≤ env')
+theorem OneRecursor.mono {env' : VEnv} {hs hs' : List VEnv} (H : OneRecursor env hs name)
+    (hle : env ≤ env') (hhs : ∀ e ∈ hs, e ∈ hs')
     (hpats : ∀ (p : Pattern) (r : p.RHS × p.Check), env'.pats p r → p.headConst = name →
-      env.pats p r) : OneRecursor env' name :=
-  let ⟨decl, env₀, env₁, rec, hd, ha, hl, hr, hn, hall⟩ := H
-  ⟨decl, env₀, env₁, rec, hd, ha, hl.trans hle, hr, hn, fun p r hp hh => hall p r (hpats p r hp hh) hh⟩
+      env.pats p r) : OneRecursor env' hs' name :=
+  let ⟨decl, env₀, env₁, rec, hd, ha, hl, hm, hr, hn, hall⟩ := H
+  ⟨decl, env₀, env₁, rec, hd, ha, hl.trans hle, hhs _ hm, hr, hn,
+    fun p r hp hh => hall p r (hpats p r hp hh) hh⟩
 
 /-- **The patterns of one head are the rules of one recursor**, along the history: the heads of
 an `induct` step's patterns are its recursors' names, fresh at that step. -/
-theorem WF'.oneRecursor {ds : List VDecl} (H : env.WF' ds) {name : Name}
+theorem WFH.oneRecursor {ds : List VDecl} {hs : List VEnv} (H : env.WFH ds hs) {name : Name}
     (hex : ∃ (p : Pattern) (r : p.RHS × p.Check), env.pats p r ∧ p.headConst = name) :
-    OneRecursor env name := by
+    OneRecursor env hs name := by
   induction H with
   | empty => obtain ⟨p, r, hp, -⟩ := hex; cases hp
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
+  | projs _ _ ihCtors =>
     obtain ⟨p, r, hp, hh⟩ := hex
-    exact (ihCtors ⟨p, r, by simpa using hp, hh⟩).mono addProjections_le
+    exact (ihCtors ⟨p, r, by simpa using hp, hh⟩).mono addProjections_le (fun _ h => h)
       (fun p r hp _ => by simpa using hp)
-  | @decl d env' ds env hd H ih =>
+  | @decl env env' d ds hs hd H _ ih =>
     have hW : env.WF := ⟨ds, H⟩
     rcases hd.pats_eq_or_induct' with hpats | ⟨decl, rfl, hdecl, hadd⟩
     · obtain ⟨p, r, hp, hh⟩ := hex
-      exact (ih ⟨p, r, hpats ▸ hp, hh⟩).mono hd.le (fun p r hp _ => hpats ▸ hp)
+      exact (ih ⟨p, r, hpats ▸ hp, hh⟩).mono hd.le (fun _ h => List.mem_cons_of_mem _ h)
+        (fun p r hp _ => hpats ▸ hp)
     · by_cases hold : ∃ (p : Pattern) (r : p.RHS × p.Check), env.pats p r ∧ p.headConst = name
       · -- an old head: no new pattern has it
-        refine (ih hold).mono (addInduct_le hadd) (fun p r hp hh => ?_)
+        refine (ih hold).mono (addInduct_le hadd) (fun _ h => List.mem_cons_of_mem _ h)
+          (fun p r hp hh => ?_)
         rcases addInduct_pats_origin hadd hp with h | ⟨rec, hrec, ru, hru, rfl⟩
         · exact h
         · exfalso
@@ -105,7 +110,7 @@ theorem WF'.oneRecursor {ds : List VDecl} (H : env.WF' ds) {name : Name}
         rcases addInduct_pats_origin' hadd hp with h | ⟨rec, hrec, ru, hru, hc, e, he⟩
         · exact (hold ⟨p, r, h, hh⟩).elim
         · subst e
-          refine ⟨decl, env, _, rec, hdecl, hadd, VEnv.LE.rfl, hrec,
+          refine ⟨decl, env, _, rec, hdecl, hadd, VEnv.LE.rfl, List.mem_cons_self, hrec,
             by rw [← hh, SimplePattern.iota_headConst], fun p' r' hp' hh' => ?_⟩
           rcases addInduct_pats_origin' hadd hp' with h' | ⟨rec', hrec', ru', hru', hc', e', he'⟩
           · exact (hold ⟨p', r', h', hh'⟩).elim
@@ -121,8 +126,8 @@ whose generated equations are the registered patterns headed by `name` (`covers`
 pattern is the ι rule of a rule of `rec` read off one of the entry's equations. -/
 def RecursorEntry (env : VEnv) (name : Name) (data : RecursorData) : Prop :=
   ∃ (decl : VInductDecl) (env₀ env₁ : VEnv) (rec : VRecursor),
-    RecursorRegisteredAt env data decl env₀ env₁ ∧ rec ∈ decl.recs ∧ rec.name = name ∧
-    data.name = name ∧
+    RecursorRegisteredAt env data decl env₀ env₁ ∧ env₀ ∈ env.stages ∧ rec ∈ decl.recs ∧
+    rec.name = name ∧ data.name = name ∧
     (∃ index : Fin data.schema.signature.constructors.size,
       data.schema.signature.constructors[index].owner = data.owner) ∧
     ∀ (p : Pattern) (r : p.RHS × p.Check), env.pats p r → p.headConst = name →
@@ -141,12 +146,12 @@ theorem RecursorEntry.registered {name : Name} {data : RecursorData}
 
 theorem RecursorEntry.name_eq {name : Name} {data : RecursorData}
     (H : RecursorEntry env name data) : data.name = name :=
-  let ⟨_, _, _, _, _, _, _, h, _⟩ := H; h
+  let ⟨_, _, _, _, _, _, _, _, h, _⟩ := H; h
 
 theorem RecursorEntry.index {name : Name} {data : RecursorData}
     (H : RecursorEntry env name data) : ∃ index : Fin data.schema.signature.constructors.size,
       data.schema.signature.constructors[index].owner = data.owner :=
-  let ⟨_, _, _, _, _, _, _, _, h, _⟩ := H; h
+  let ⟨_, _, _, _, _, _, _, _, _, h, _⟩ := H; h
 
 open Classical in
 /-- The recursor registry of an environment: some registry entry of each name. -/
@@ -183,11 +188,11 @@ theorem RecursorRegistered.constant_piArity {data : RecursorData}
 
 /-- The compilation data of the recursor `rec` of an installed declaration, whose rules are the
 registered patterns of its name, is a registry entry. -/
-theorem WF'.recursorEntry_of_oneRecursor {ds : List VDecl} (_H : env.WF' ds) {name : Name}
-    (H1 : OneRecursor env name)
+theorem WF'.recursorEntry_of_oneRecursor {name : Name}
+    (H1 : OneRecursor env env.stages name)
     (hex : ∃ (p : Pattern) (r : p.RHS × p.Check), env.pats p r ∧ p.headConst = name) :
     ∃ data, RecursorEntry env name data := by
-  obtain ⟨decl, env₀, env₁, rec, hdecl, hadd, hle, hrec, hname, hall⟩ := H1
+  obtain ⟨decl, env₀, env₁, rec, hdecl, hadd, hle, hstage, hrec, hname, hall⟩ := H1
   obtain ⟨p₀, r₀, hp₀, hh₀⟩ := hex
   obtain ⟨ru₀, hru₀, -⟩ := hall p₀ r₀ hp₀ hh₀
   obtain ⟨block, hcomp, hrecs, hbwf⟩ := hdecl.recsCompiled
@@ -218,7 +223,7 @@ theorem WF'.recursorEntry_of_oneRecursor {ds : List VDecl} (_H : env.WF' ds) {na
     obtain ⟨_, h⟩ := h
     exact (VExpr.const.inj h).1.trans hname
   obtain ⟨owner, index₀, eq₀, howner₀, hgen₀, hname₀, -⟩ := hentry ru₀ hru₀
-  refine ⟨_, decl, env₀, env₁, rec, hregAt owner, hrec, hname, hname₀, ⟨index₀, howner₀⟩,
+  refine ⟨_, decl, env₀, env₁, rec, hregAt owner, hstage, hrec, hname, hname₀, ⟨index₀, howner₀⟩,
     fun p r hp hh => ?_⟩
   obtain ⟨ru, hru, hc, e, he⟩ := hall p r hp hh
   obtain ⟨owner', index, equation, howner, hgen, hname', hof⟩ := hentry ru hru
@@ -239,10 +244,10 @@ theorem WF.pat_recursorEntry (henv : env.WF) {recN ctor : Name} {major fields : 
       (SimplePattern.iota recN major ctor fields).toPattern.Check}
     (hp : env.pats (SimplePattern.iota recN major ctor fields).toPattern r) :
     ∃ data, RecursorEntry env recN data := by
-  obtain ⟨ds, H⟩ := henv
+  obtain ⟨ds, H⟩ := henv.stagesH
   have hex : ∃ (p : Pattern) (r : p.RHS × p.Check), env.pats p r ∧ p.headConst = recN :=
     ⟨_, r, hp, SimplePattern.iota_headConst _ _ _ _⟩
-  exact H.recursorEntry_of_oneRecursor (H.oneRecursor hex) hex
+  exact WF'.recursorEntry_of_oneRecursor (H.oneRecursor hex) hex
 
 /-- **The registry's major offset is the pattern's**: both are read off the recursor's
 constant. -/

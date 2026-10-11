@@ -106,7 +106,7 @@ theorem WF.singletonPatCoverage (henv : env.WF) (U : Nat) (heq : env.HasCanonica
   letI := henv.params U
   intro Γ p r t T m1 m2 data hΓ hp hreg hlarge hzero hm ht
   have hentry := recursorRegistry_entry hreg
-  obtain ⟨decl, env₀, env₁, rec, hAt, hrec, hrname, hdname, -, covers⟩ := hentry
+  obtain ⟨decl, env₀, env₁, rec, hAt, -, hrec, hrname, hdname, -, covers⟩ := hentry
   obtain ⟨index, equation, ru, howner, hgen, hru, hof, hc, e, he⟩ := covers p r hp rfl
   subst e
   have he' : r = _ := he
