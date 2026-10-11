@@ -59,22 +59,11 @@ structure NestedRun
   context_env : context.env = sourceProdEnv
   context_lparams : context.lparams = lparams
   context_safety : context.safety = safety
-  context_allowPrimitive : context.allowPrimitive = false
   context_venv : contextWF.venv = sourceEnv
   lowered_c : L.c = context
-  lowered_isUnsafe : L.isUnsafe = (context.safety != .safe)
   lowered_isUnsafe_source : L.isUnsafe = isUnsafe
   lowered_initialEnv : L.Hc'.venv = sourceEnv
-  stats : AddInductive.InductiveStats
-  depth : Nat
-  commonParams : List VExpr
-  commonLevel : VLevel
-  sourceHeaderTyping :
-    checkInductiveTypes.loopType.CheckedHeaders
-      contextWF.venv context.lparams nparams commonParams
-        commonLevel res.types.toArray.toList
   validationFuel : FuelConfig
-  context_fuel : context.fuel = validationFuel
   lowering : NestedLoweringOutputClosed sourceProdEnv
     validationFuel.inductiveFuel nparams sourceTypes
     { lvls := lparams.map .param, newTypes := sourceTypes.toArray } res
@@ -107,15 +96,7 @@ structure NestedRun
   headerValidationEnvironment :
     ValidationHeaderEnvironment loweredEnv sourceProdEnv
       (sourceTypes.map (·.name)) sourceTypes auxiliaryHeaderEnv
-  parameterValidation :
-    Lean4Lean.validateSourceConstructorTypes.run auxiliaryHeaderEnv
-      lparams safety validationFuel sourceTypes = .ok ()
   auxiliaryVEnv : VEnv
-  auxiliaryMLCtx : TypeChecker.MLCtx
-  auxiliaryMLCtx_lctx : auxiliaryMLCtx.lctx = res.lctx
-  auxiliaryMLCtxWF : auxiliaryMLCtx.WF auxiliaryVEnv lparams
-  validatedAuxiliaries : NestedOccurrencesTyped auxiliaryVEnv lparams
-    auxiliaryMLCtx.vlctx res
   auxiliarySelection : CDeclArray res.lctx res.params
   auxiliaryTranslations : ClosedNestedOccurrenceTypings auxiliaryVEnv
     lparams res auxiliarySelection

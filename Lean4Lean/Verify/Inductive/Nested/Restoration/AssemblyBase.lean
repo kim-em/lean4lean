@@ -334,11 +334,11 @@ theorem NestedRun.assemblyBase {res : ElimNestedInductive.Result} {sourceProdEnv
       safety // B.loweredDecl = E.lowered.loweredDecl ∧
         ((B.typeEntries ++ B.constructorEntries ++ B.recursorEntries).map Prod.fst).Perm
           E.restoration.entries } := by
-  obtain ⟨context, Hc, context_env, context_lparams, context_safety, -,
-    context_venv, lowered_c, lowered_isUnsafe, lowered_isUnsafe_source,
-    lowered_initialEnv, -, -, -, -, -, validationFuel, -, lowering,
+  obtain ⟨context, Hc, context_env, context_lparams, context_safety,
+    context_venv, lowered_c, lowered_isUnsafe_source,
+    lowered_initialEnv, validationFuel, lowering,
     restoration, primitiveSafe, validationEnv, validationEnvironment, recursorTypeValidation,
-    -, auxiliaryHeaderEnv, headerValidationEnvironment, -, auxiliaryVEnv, -, -, -, -,
+    -, auxiliaryHeaderEnv, headerValidationEnvironment, auxiliaryVEnv,
     auxiliarySelection, auxiliaryTranslations, sourceCore, sourceCoreDecl_eq,
     auxiliaryVEnv_eq_sourceCore, -⟩ := E
   obtain ⟨c, stats, Hc', phase, loweredDecl, ctorEnv, R, check⟩ := L

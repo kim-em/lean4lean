@@ -141,22 +141,11 @@ theorem NestedRun.ofRestoration {env : Environment} {ves : VEnvs} (wf : ves.WF e
     context_env := L.env_eq
     context_lparams := L.lparams_eq
     context_safety := L.safety_eq
-    context_allowPrimitive := hallow
     context_venv := L.venv_eq
     lowered_c := rfl
-    lowered_isUnsafe := by
-      change ((if isUnsafe then DefinitionSafety.unsafe else .safe) != .safe) =
-        (L.c.safety != .safe)
-      rw [L.safety_eq]; rfl
     lowered_isUnsafe_source := inductiveSafety_ne_safe isUnsafe
     lowered_initialEnv := L.venv_eq
-    stats := L.stats
-    depth := L.phase.depth
-    commonParams := L.phase.commonParams
-    commonLevel := L.phase.commonLevel
-    sourceHeaderTyping := L.phase.loopHeaders
     validationFuel := fuel
-    context_fuel := L.phase.fuel_eq
     lowering := Hout.closed
     restoration := Hfolds
     primitiveSafe := Hprim
@@ -166,12 +155,7 @@ theorem NestedRun.ofRestoration {env : Environment} {ves : VEnvs} (wf : ves.WF e
     recursorRuleValidation := V.rules
     auxiliaryHeaderEnv := auxiliaryHeaderEnv
     headerValidationEnvironment := HH
-    parameterValidation := hparams
     auxiliaryVEnv := N.envTypes
-    auxiliaryMLCtx := mlctx
-    auxiliaryMLCtx_lctx := hlctx
-    auxiliaryMLCtxWF := hmlctx
-    validatedAuxiliaries := Hvalidated
     auxiliarySelection := selection
     auxiliaryTranslations := Htranslations
     sourceCore := N
