@@ -65,7 +65,7 @@ theorem WF'.patCtor_provenance : ∀ {ds : List VDecl} {env : VEnv}, env.WF' ds 
   obtain ⟨-, -, rfl, -⟩ := SimplePattern.iota_toPattern_inj hpe
   have hmem : VDecl.induct decl ∈ ds := hsuf.subset (List.mem_cons_self ..)
   obtain ⟨block, hcomp, hrecs⟩ := hdecl.recsCompiled
-  rcases hcomp.rule_ctor_cases hrecs hrec hru with ⟨ctor, hctor, hname⟩ | hpat
+  rcases hcomp.rule_ctor_cases hrecs.1 hrec hru with ⟨ctor, hctor, hname⟩ | hpat
   · obtain ⟨type, htype, hctor'⟩ := List.mem_flatMap.1 hctor
     obtain ⟨base, expanded, s, g, auxiliaries, -, hdata, -⟩ := hcomp.exists_compilation
     obtain ⟨-, -, -, -, -, hraw⟩ := hdata.sourceParameters
