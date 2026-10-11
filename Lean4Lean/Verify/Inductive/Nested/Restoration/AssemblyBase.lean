@@ -334,20 +334,17 @@ theorem NestedRun.assemblyBase {res : ElimNestedInductive.Result} {sourceProdEnv
       safety // B.loweredDecl = E.lowered.loweredDecl ∧
         ((B.typeEntries ++ B.constructorEntries ++ B.recursorEntries).map Prod.fst).Perm
           E.restoration.entries } := by
-  obtain ⟨context, Hc, context_env, context_lparams, context_safety,
-    context_venv, lowered_c, lowered_isUnsafe_source,
+  obtain ⟨context_env, context_lparams, context_safety, lowered_isUnsafe_source,
     lowered_initialEnv, validationFuel, lowering,
     restoration, primitiveSafe, validationEnv, validationEnvironment, recursorTypeValidation,
     -, auxiliaryHeaderEnv, headerValidationEnvironment, auxiliaryVEnv,
     auxiliarySelection, auxiliaryTranslations, sourceCore, sourceCoreDecl_eq,
     auxiliaryVEnv_eq_sourceCore, -⟩ := E
-  obtain ⟨c, stats, Hc', phase, loweredDecl, ctorEnv, R, check⟩ := L
+  obtain ⟨c, stats, Hc, phase, loweredDecl, ctorEnv, R, check⟩ := L
   dsimp only at *
-  subst lowered_c
   subst context_env context_lparams context_safety lowered_initialEnv
     lowered_isUnsafe_source sourceCoreDecl_eq auxiliaryVEnv_eq_sourceCore
-  change Hc.venv = Hc'.venv at context_venv
-  have HcChecker : CheckerEnv c.safety c.env Hc'.venv := context_venv ▸ Hc.checkerEnv
+  have HcChecker : CheckerEnv c.safety c.env Hc.venv := Hc.checkerEnv
   let Hprod := check
   have hsourceWF : c.env.constants.WF := Hc.map_wf
   have hempty : ({ lvls := c.lparams.map .param, newTypes := #[] } :
@@ -383,7 +380,7 @@ theorem NestedRun.assemblyBase {res : ElimNestedInductive.Result} {sourceProdEnv
       rfl rfl rfl Hcore.typesAdded Hcore.ctorsAdded
   have HtypeValid := validationEnvironment.validProjected Hlower Hc Hprod Hcore Hmetadata
     Hchecked Harity hempty restoration sourceCore.validationValid HcChecker.toValid hprojectedWF
-  have hle : Hc'.venv ≤ sourceCore.envCtors.addProjections
+  have hle : Hc.venv ≤ sourceCore.envCtors.addProjections
       sourceCore.sourceDecl.projectionEntries :=
     (VEnv.addConstVals_le Hcore.typesAdded).trans
       ((VEnv.addConstVals_le Hcore.ctorsAdded).trans VEnv.addProjections_le)
@@ -430,7 +427,7 @@ theorem NestedRun.assemblyBase {res : ElimNestedInductive.Result} {sourceProdEnv
   have hprimaryWF := Hprimary.fresh.targetWF hsourceWF
   obtain ⟨auxiliaryEntries, HauxReplay⟩ := Hauxiliary.existsInDependencyOrder hprimaryWF
   let replay := Hprimary.appendAuxiliaryRecursors HauxReplay
-  have htypesAbstract : Hc'.venv.addConstVals (replay.typeEntries.map Prod.snd) =
+  have htypesAbstract : Hc.venv.addConstVals (replay.typeEntries.map Prod.snd) =
       some sourceCore.envTypes := by
     rw [replay.typeValues]
     simpa [VInductDecl.typeConstants] using Hcore.typesAdded
@@ -448,7 +445,7 @@ theorem NestedRun.assemblyBase {res : ElimNestedInductive.Result} {sourceProdEnv
     cases h : sourceCore.sourceDecl.types with
     | nil => exact (hownersNonempty h).elim
     | cons m r => exact ⟨m, r, rfl⟩
-  have Hsource' : SourceFamilyTranslations sourceCore.sourceDecl c.lparams c.safety Hc'.venv
+  have Hsource' : SourceFamilyTranslations sourceCore.sourceDecl c.lparams c.safety Hc.venv
       S.venvTypes (S.venvCtors.addProjections sourceCore.sourceDecl.projectionEntries)
       restoration.inductives (mainT :: restT) primaryRecursors := by
     rw [hT, hC, ← htypesSource]; exact Hsource

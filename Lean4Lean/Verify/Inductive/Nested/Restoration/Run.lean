@@ -54,13 +54,9 @@ structure NestedRun
     (nparams : Nat) (isUnsafe : Bool) (safety : DefinitionSafety)
     (outEnv : Environment) {c₀ : AddInductive.Context} {Hc : ContextWF c₀}
     {loweredEnv : Environment} (L : LoweredRun Hc nparams res.types.toArray loweredEnv) where
-  context : AddInductive.Context
-  contextWF : ContextWF context
-  context_env : context.env = sourceProdEnv
-  context_lparams : context.lparams = lparams
-  context_safety : context.safety = safety
-  context_venv : contextWF.venv = sourceEnv
-  lowered_c : L.c = context
+  context_env : L.c.env = sourceProdEnv
+  context_lparams : L.c.lparams = lparams
+  context_safety : L.c.safety = safety
   lowered_isUnsafe_source : L.isUnsafe = isUnsafe
   lowered_initialEnv : L.Hc'.venv = sourceEnv
   validationFuel : FuelConfig
@@ -126,35 +122,63 @@ abbrev NestedRun.loweredEnv {c₀ : AddInductive.Context} {Hc : ContextWF c₀}
       nparams isUnsafe safety outEnv L) : Environment :=
   loweredEnv
 
+/-- The checker context of the lowered run after its header phase. -/
+abbrev NestedRun.context
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
+    (E : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams
+      nparams isUnsafe safety outEnv L) : AddInductive.Context :=
+  E.lowered.c
+
+/-- The context certificate of the lowered run after its header phase. -/
+abbrev NestedRun.contextWF
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
+    (E : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams
+      nparams isUnsafe safety outEnv L) : ContextWF E.context :=
+  E.lowered.Hc'
+
+theorem NestedRun.lowered_c
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
+    (E : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams
+      nparams isUnsafe safety outEnv L) : E.lowered.c = E.context := rfl
+
+theorem NestedRun.context_venv
+    {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
+    {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
+    (E : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams
+      nparams isUnsafe safety outEnv L) : E.contextWF.venv = sourceEnv :=
+  E.lowered_initialEnv
+
 theorem NestedRun.lowered_env
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
     (E : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams
       nparams isUnsafe safety outEnv L) : E.lowered.c.env = sourceProdEnv :=
-  (congrArg AddInductive.Context.env E.lowered_c).trans E.context_env
+  E.context_env
 
 theorem NestedRun.lowered_lparams
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
     (E : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams
       nparams isUnsafe safety outEnv L) : E.lowered.c.lparams = lparams :=
-  (congrArg AddInductive.Context.lparams E.lowered_c).trans E.context_lparams
+  E.context_lparams
 
 theorem NestedRun.lowered_safety
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
     (E : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams
       nparams isUnsafe safety outEnv L) : E.lowered.c.safety = safety :=
-  (congrArg AddInductive.Context.safety E.lowered_c).trans E.context_safety
+  E.context_safety
 
 /-- The context certificate already recorded by the nested run, at its lowered context. -/
 def NestedRun.loweredContextWF
     {c₀ : AddInductive.Context} {Hc₀ : ContextWF c₀}
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams res.types.toArray loweredEnv₀}
     (E : NestedRun res sourceProdEnv sourceTypes sourceEnv decl lparams
-      nparams isUnsafe safety outEnv L) : ContextWF E.lowered.c := by
-  rw [E.lowered_c]
-  exact E.contextWF
+      nparams isUnsafe safety outEnv L) : ContextWF E.lowered.c :=
+  E.contextWF
 
 /-- The ordinary initial state used by the recorded nested lowering. -/
 def NestedRun.initialState

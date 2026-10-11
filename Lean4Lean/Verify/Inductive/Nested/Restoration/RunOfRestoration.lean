@@ -136,13 +136,9 @@ theorem NestedRun.ofRestoration {env : Environment} {ves : VEnvs} (wf : ves.WF e
   obtain ⟨selection, Htranslations⟩ :=
     HlowNested.validatedAuxiliaryResidualTranslations Caux.wf mlctx hmlctx hlctx Hvalidated
   refine ⟨N.sourceDecl, ⟨{
-    context := L.c
-    contextWF := L.Hc'
     context_env := L.env_eq
     context_lparams := L.lparams_eq
     context_safety := L.safety_eq
-    context_venv := L.venv_eq
-    lowered_c := rfl
     lowered_isUnsafe_source := inductiveSafety_ne_safe isUnsafe
     lowered_initialEnv := L.venv_eq
     validationFuel := fuel
