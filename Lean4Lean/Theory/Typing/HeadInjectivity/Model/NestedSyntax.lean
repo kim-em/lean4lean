@@ -231,6 +231,14 @@ theorem specializedFamily_resultLevel {a : ContainerSpecialization} {uv : Nat}
   obtain ⟨_, _, _, _, rfl⟩ := H
   rfl
 
+theorem specializedFamily_numIndices {a : ContainerSpecialization} {uv : Nat}
+    {params : List VExpr} {direct : VInductiveType} (H : a.specializedFamily uv params = some direct) :
+    direct.numIndices = a.source.numIndices := by
+  unfold ContainerSpecialization.specializedFamily at H
+  simp only [bind, Option.bind_eq_some_iff, pure, Option.some.injEq] at H
+  obtain ⟨_, _, _, _, rfl⟩ := H
+  rfl
+
 /-- **The constructor of a nested signature**: a source constructor of a source family, or an
 auxiliary constructor of an auxiliary family, restored to a container constructor at the
 specialization; in both cases the restoration of the family's and the constructor's spines. -/
@@ -256,6 +264,7 @@ theorem ctor_cases {base : VEnv} {source expanded : VInductDecl} {s : InductiveS
       RestoresType (compilationRestoration source aux) envTypes source.uvars
         (s.constructorType s.constructors[index]) (VExpr.wrapForalls s.params T) ∧
       s.families[s.constructors[index].owner].resultLevel ≈ a.source.resultLevel.inst a.levels ∧
+      s.families[s.constructors[index].owner].indices.length = a.source.numIndices ∧
       a.WellFormed envTypes source s.params ∧
       Spec (compilationRestoration source aux) a.auxiliary s.params.length a.source.name
         (fun lv => a.levels.map (·.inst lv)) a.arguments ∧
@@ -302,9 +311,12 @@ theorem ctor_cases {base : VEnv} {source expanded : VInductDecl} {s : InductiveS
     have hsC := Spec.of_head hscoped hmemC
     simp only at hsF hsC
     rw [← hnp] at hsF hsC
-    refine ⟨a, ha, c, hc, T, hname.trans hfa, hcname, hT, hrelc.2.2, ?_, hwf a ha, hsF, hsC⟩
-    have := hrel.resultLevel
-    rwa [specializedFamily_resultLevel hdf] at this
+    refine ⟨a, ha, c, hc, T, hname.trans hfa, hcname, hT, hrelc.2.2, ?_, ?_, hwf a ha, hsF, hsC⟩
+    · have := hrel.resultLevel
+      rwa [specializedFamily_resultLevel hdf] at this
+    · have := hrel.indices
+      rw [specializedFamily_numIndices hdf] at this
+      simpa [declarationFamily] using this
 
 theorem mapM_map_inv {f : VExpr → Option VExpr} {φ : VExpr → VExpr}
     (hφ : ∀ x, f (φ x) = (f x).map φ) :
@@ -591,9 +603,9 @@ theorem target_inj {base : VEnv} {source expanded : VInductDecl} {s : InductiveS
       s.families[s.constructors[j].owner].name :=
     congrArg (fun o : Fin s.families.size => s.families[o].name) ho
   rcases hci with ⟨t, ht, fc, hfc, hfn, hcn, -, -, -, hS⟩ |
-      ⟨a, ha, c', hc', T, hfa, hcn, -, -, -, -, -, hS⟩ <;>
+      ⟨a, ha, c', hc', T, hfa, hcn, -, -, -, -, -, -, hS⟩ <;>
     rcases hcj with ⟨t2, ht2, fc2, hfc2, hfn2, hcn2, -, -, -, hS2⟩ |
-      ⟨a2, ha2, c2, hc2, T2, hfa2, hcn2, -, -, -, -, -, hS2⟩
+      ⟨a2, ha2, c2, hc2, T2, hfa2, hcn2, -, -, -, -, -, -, hS2⟩
   · rw [hcn] at hSi hri; rw [hcn2] at hSj hrj
     have e1 := hSi.target_unique hS hri
     have e2 := hSj.target_unique hS2 hrj
@@ -715,7 +727,7 @@ theorem restored_iotaStatic {base : VEnv} {source expanded : VInductDecl}
         Spec (compilationRestoration source aux) s.constructors[(⟨i', hi'⟩ : Fin _)].name
           s.params.length c' lvf' Ds' := by
       rcases hcases with ⟨t, -, fc, -, -, hcn, -, -, -, hS⟩ |
-        ⟨a, -, c, -, T, -, hcn, -, -, -, -, -, hS⟩
+        ⟨a, -, c, -, T, -, hcn, -, -, -, -, -, -, hS⟩
       · exact ⟨_, _, _, hcn ▸ hS⟩
       · exact ⟨_, _, _, hcn ▸ hS⟩
     obtain ⟨Dm', ctorIdx2, margs', hDml', -, eA, d', rest2, out2, hsucc'⟩ :=

@@ -249,7 +249,8 @@ theorem WF'.envValid {envF : VEnv} {dsF : List VDecl} (HF : envF.WF' dsF) :
         exact Model.PatValid.ordinary hF hpre0 h0W hdeclWF hadd hle V0 hprojV hpc hcl
           (fun t ht => HF.inductTypeRigid hdmem ht) hctor hpctor hrec hru hc hcomp hrecsOf hbwf
           hbase' C hdf H
-      · exact Model.PatValid.nested hF hpre0 h0W hdeclWF hadd hle V0 hprojV hpc hcl hrec hru hc
+      · exact Model.PatValid.nested hF hpre0 h0W hdeclWF hadd hle V0 hprojV hpc hcl
+          (fun t ht => HF.inductTypeRigid hdmem ht) hctor hpctor hrec hru hc
           haux hcomp hrecsOf hbwf hbase' C hcont hdf H
     have hdfF := hle.defeqs hdf
     cases hdecl with
