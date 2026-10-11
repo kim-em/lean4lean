@@ -108,7 +108,8 @@ the model installation (`rebase`, `extendSafeExact`, `extendUnsafeExact`, `insta
   (`decl.WF base ∧ base.addInduct decl = some installed ∧ installed ≤ venv`): `WF.recsCompiled`
   gives the block with `CompilesTo` and `RecsOf`; `block.WF base` needs the equations' `VDefEq.WF`,
   which is why `RuleTranslations.equationsWF` is kept.
-* For `Model.PatValid.iota`: every complete installed block exposes its whole
+* For the ι clause of the observation model (`Model.PatValid.ordinary` and
+  `Model.PatValid.nested`, both proved): every complete installed block exposes its whole
   `VInductDecl.WF` through `InstalledBlocks` (`InstalledBlock.Abstract.installed :
   VEnv.InductInstalled venv B.decl`), hence `rec_shape`, `rules_ctor`, `rules_nodup`,
   `rule_shape`, `recs_wf`, `rules_wf` and the formation data (`FormationWF` →
@@ -176,7 +177,7 @@ off an installed block; the nested instance provides them through `RestoredBlock
   (`env.defeqs prior ∧ prior.HasConstructorMajor name`) became a registered pattern, so the
   history induction of `patCtor_rigid` recurses on the container's pattern, added strictly
   earlier.
-* **`Model.PatValid.iota`** (`Model/PatSound.lean`, open): what the ordinary path gets from
+* **`Model.PatValid.nested`** (`Model/PatSound.lean`, proved): what the ordinary path gets from
   `RecsCompiled` and `VInductBlock.WF` holds for restored blocks too. `RestoredBlock.recsCompiled`
   is `⟨block, CompiledInductive.intro compiled containers, recsOf⟩` with `compiled :
   CompilationData venv decl L.loweredDecl s g auxiliaries block`, so (i) every installed
