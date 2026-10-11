@@ -1,7 +1,6 @@
 import Lean4Lean.Theory.Typing.EnvLemmas
 import Lean4Lean.Theory.Typing.TypeChain
 import Lean4Lean.Theory.Typing.Strong
-import Lean4Lean.Theory.Typing.ProjectionRigidity
 
 /-! # Head inversion for types: the statements
 

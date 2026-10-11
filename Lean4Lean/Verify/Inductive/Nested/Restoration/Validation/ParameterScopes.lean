@@ -1,6 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.InstalledRun
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ConstructorCoherence
-import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.RunEnv
 
 /-! # Restored family parameter scopes
 

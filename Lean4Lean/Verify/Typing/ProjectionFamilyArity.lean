@@ -1,4 +1,3 @@
-import Lean4Lean.Theory.Typing.ProjectionProofResult
 import Lean4Lean.Theory.Typing.SignatureArity
 import Lean4Lean.Theory.Typing.InductiveLemmas
 

@@ -1,7 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Expansion.AuxiliaryHeads
 import Lean4Lean.Verify.Inductive.Nested.Lowering.AuxiliaryConstructors
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Expansion.Contexts
-import Lean4Lean.Verify.Inductive.Nested.Install.Permutation
 import Lean4Lean.Verify.Inductive.RecursorInput
 
 namespace Lean4Lean

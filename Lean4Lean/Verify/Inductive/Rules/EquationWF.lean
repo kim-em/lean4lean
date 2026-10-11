@@ -1,6 +1,5 @@
 import Lean4Lean.Verify.Inductive.Rules.Lhs
 import Lean4Lean.Verify.Inductive.Recursor.Installation
-import Lean4Lean.Verify.Inductive.Recursor.Signature.RecursiveShapeTranslations
 import Lean4Lean.Verify.Inductive.Recursor.Metadata
 
 /-! Well-formedness of the generator's equations for the instance of the recursor

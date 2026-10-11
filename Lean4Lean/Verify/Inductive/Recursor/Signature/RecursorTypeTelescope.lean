@@ -1,5 +1,4 @@
 import Lean4Lean.Verify.Inductive.Recursor.Entries.AddConstants
-import Lean4Lean.Verify.Inductive.Recursor.Signature.MinorFields
 
 /-! # The binder-by-binder decomposition of a generated recursor type
 

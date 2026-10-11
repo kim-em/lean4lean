@@ -1,4 +1,3 @@
-import Lean4Lean.Verify.Inductive.Nested.Restoration.Steps
 import Lean4Lean.Verify.Inductive.Formation
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Expression
 import Lean4Lean.Theory.Typing.Lemmas

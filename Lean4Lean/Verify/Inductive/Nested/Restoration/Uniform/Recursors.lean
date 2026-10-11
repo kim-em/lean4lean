@@ -1,5 +1,4 @@
 import Lean4Lean.Verify.Inductive.Recursor.Installation
-import Lean4Lean.Verify.Inductive.Recursor.Check
 import Lean4Lean.Verify.Inductive.Constructor.Positivity
 import Lean4Lean.Verify.ExprParamUniform
 import Lean4Lean.Verify.Inductive.Recursor.Binders.FieldTypes

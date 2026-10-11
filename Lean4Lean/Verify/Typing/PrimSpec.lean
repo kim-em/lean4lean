@@ -1,5 +1,4 @@
 import Lean4Lean.Verify.Typing.Expr
-import Lean4Lean.Theory.Typing.EnvLemmas
 import Lean4Lean.Environment.Basic
 
 /-!

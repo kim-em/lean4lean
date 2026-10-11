@@ -1,4 +1,3 @@
-import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Inductive.CompilationMajors
 import Lean4Lean.Theory.Typing.InductiveLemmas
 import Lean4Lean.Theory.Typing.ProjectionLemmas

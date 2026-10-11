@@ -1,6 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.Install.Permutation
 import Lean4Lean.Verify.Inductive.Nested.Restoration.InstalledFamilyLookups
-import Lean4Lean.Verify.Inductive.Nested.Restoration.AuxiliaryRecursorsWF
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Nonprimitive
 
 namespace Lean4Lean

@@ -1,5 +1,4 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.LoweredRun
-import Lean4Lean.Verify.Inductive.Nested.Restoration.RestorationRun
 import Lean4Lean.Verify.Inductive.Install.BlockCertificate
 import Lean4Lean.Theory.Inductive.CompilationMajors
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Run

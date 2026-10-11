@@ -1,4 +1,3 @@
-import Lean4Lean.Verify.Environment
 import Lean4Lean.Verify.Inductive.Prelude.Eq
 import Lean4Lean.Verify.TypeChecker.CheckerEnv
 

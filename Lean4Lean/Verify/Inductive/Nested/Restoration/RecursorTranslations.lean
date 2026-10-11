@@ -1,6 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.MajorHeads
 import Lean4Lean.Verify.Inductive.Nested.Restoration.KernelData
-import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceParameters
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.RuleRhs
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Declarations
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.Stripped

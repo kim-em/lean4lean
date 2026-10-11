@@ -1,6 +1,5 @@
 import Lean4Lean.Theory.Typing.Confluence.Patterns
 import Lean4Lean.Theory.Typing.Confluence.FamilyHeadCases
-import Lean4Lean.Theory.Typing.ProjectionConstructorFamily
 import Lean4Lean.Theory.Typing.PatternCaptures
 
 /-! # Registered ι rules at structure constructors

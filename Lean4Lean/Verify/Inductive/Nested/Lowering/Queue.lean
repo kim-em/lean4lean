@@ -1,5 +1,4 @@
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Expression
-import Lean4Lean.Verify.Inductive.Rules.Alignment
 
 namespace Lean4Lean
 

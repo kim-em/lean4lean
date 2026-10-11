@@ -1,6 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ContainerSpecializations
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Run
-import Lean4Lean.Verify.Inductive.Nested.Restoration.RecursorShape
 import Lean4Lean.Verify.Inductive.Recursor.Signature.Generator
 import Lean4Lean.Verify.Inductive.Recursor.Check
 import Lean4Lean.Std.List

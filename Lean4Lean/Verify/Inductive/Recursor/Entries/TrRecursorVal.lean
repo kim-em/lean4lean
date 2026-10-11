@@ -1,7 +1,6 @@
 import Lean4Lean.Theory.Inductive.Signature
 import Lean4Lean.Verify.Typing.Syntactic.Basic
 import Lean4Lean.Theory.Inductive.AddInduct
-import Lean4Lean.Verify.Environment.Basic
 import Lean4Lean.Verify.Typing.Lemmas
 import Lean4Lean.Theory.Typing.SignatureVars
 

@@ -1,6 +1,5 @@
 import Lean4Lean.Theory.Inductive
 import Lean4Lean.Theory.Inductive.SignatureData
-import Lean4Lean.Theory.Typing.SignatureVars
 
 /-! # Syntactic shapes of the generated recursors and equations
 

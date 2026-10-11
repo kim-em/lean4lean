@@ -1,5 +1,4 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.InstalledRun
-import Lean4Lean.Verify.Inductive.Nested.Restoration.InstalledConstructorTypes
 import Lean4Lean.Verify.Inductive.Nested.Restoration.FreshExtensions
 import Lean4Lean.Verify.Inductive.Recursor.Binders.MinorAlignment
 import Lean4Lean.Verify.Inductive.Recursor.Context.ForallTelescope

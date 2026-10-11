@@ -1,5 +1,4 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.Checks
-import Lean4Lean.Verify.Inductive.Install.BlockCertificate
 import Lean4Lean.Verify.Inductive.Install.Rebase
 
 /-! # The rule-free recursor stage is a checking environment

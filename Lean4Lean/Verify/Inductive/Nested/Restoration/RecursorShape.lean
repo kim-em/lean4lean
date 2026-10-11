@@ -1,4 +1,3 @@
-import Lean4Lean.Verify.Inductive.Recursor.Signature.GeneratorShapes
 import Lean4Lean.Verify.Inductive.Nested.Restoration.TrRestoredRecursorVal
 import Lean4Lean.Verify.Environment.Blocks
 import Lean4Lean.Theory.Inductive.Restoration

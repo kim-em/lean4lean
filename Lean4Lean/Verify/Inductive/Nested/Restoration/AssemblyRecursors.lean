@@ -1,6 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.LoweredRuleAvoidance
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.Passes
-import Lean4Lean.Verify.Inductive.Nested.Restoration.ViewCast
 import Lean4Lean.Verify.Inductive.Nested.Restoration.RestoredShapes
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Certificate
 import Lean4Lean.Verify.Inductive.Nested.Restoration.RuleConstructors

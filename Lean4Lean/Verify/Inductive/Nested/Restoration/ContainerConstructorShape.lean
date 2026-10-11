@@ -2,7 +2,6 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.TableAgreement
 import Lean4Lean.Verify.Inductive.Nested.Restoration.CompilationData
 import Lean4Lean.Theory.Inductive.CompilationMajors
 import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceConstructors
-import Lean4Lean.Verify.Inductive.Nested.Restoration.AssemblyKernel
 
 /-! # The constructor shape of a container constructor
 

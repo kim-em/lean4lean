@@ -1,6 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Certificate
 import Lean4Lean.Verify.Inductive.Nested.Equations.RuleAlignment
-import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.RestoredWF
 import Lean4Lean.Theory.Inductive.RestorationInterpretation
 import Lean4Lean.Theory.Typing.RestorationShapes
 import Lean4Lean.Theory.Inductive.RestorationHead

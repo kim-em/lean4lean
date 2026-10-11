@@ -1,6 +1,5 @@
 import Lean4Lean.Theory.Typing.FamilyHeadType
 import Lean4Lean.Theory.Typing.Confluence.PatternConstructorRigidity
-import Lean4Lean.Theory.Typing.RecursorRuleRegistration
 
 /-! # The family head of a recursor's owner
 
