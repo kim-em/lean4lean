@@ -36,5 +36,3 @@ import Lean4Lean.Tests.InductiveTheory
 import Lean4Lean.Tests.TypedInductiveCompilation
 import Lean4Lean.Tests.CorruptRecursorMetadata
 import Lean4Lean.Tests.CorruptRestoredRecursorMetadata
--- Not ported: CacheMode and SyntacticTranslation (the scoped cache mode and the strengthening
--- study do not exist on this branch).

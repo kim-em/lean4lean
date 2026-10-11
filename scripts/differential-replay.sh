@@ -35,7 +35,7 @@ run() {
 run --fresh --exact --differential Init
 
 # The test modules are the imports of `Lean4Lean/Tests.lean`, the manifest of the test library;
-# a file under `Lean4Lean/Tests/` that it does not import yet is not built.
+# a file under `Lean4Lean/Tests/` that it does not import is not built.
 for m in $(sed -n 's/^import \(Lean4Lean\.Tests\.[A-Za-z0-9_.]*\).*/\1/p' Lean4Lean/Tests.lean); do
   run --exact --differential "$m"
 done

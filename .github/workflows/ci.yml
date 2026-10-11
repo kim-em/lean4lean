@@ -43,8 +43,10 @@ jobs:
       # `scripts/InductiveAudit.lean`: every axiom they reach is listed in
       # `scripts/inductive-audit-inventory.json` (only the three standard axioms for the strict
       # roots: generator definitions, foundational lemmas and the confluence theorem), and every
-      # `sorry` comes from an accepted open proof listed there, including inside opaque bodies.
-      # `--require-complete` also rejects accepted open proofs that are no longer reached. The
+      # `sorry` comes from an accepted open proof listed there, including inside opaque bodies;
+      # under a strict root, only from the open proofs the inventory accepts for that root
+      # (`acceptedUnder`). `--require-complete` also rejects accepted open proofs that are no
+      # longer reached, globally or under their strict root. The
       # self-test first checks that the auditor itself sees through types and opaque bodies. The
       # modules it needs are default targets, already built above.
       - name: Self-test the inductive dependency audit
