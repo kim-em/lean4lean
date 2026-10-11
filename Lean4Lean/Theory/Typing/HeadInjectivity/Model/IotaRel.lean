@@ -459,6 +459,53 @@ theorem bvar_arg_dom_cls {Γ' : List VExpr} {c : Name} {ls : List VLevel} {ci : 
   rw [← e1]
   exact bvar_dom_cls henv hΔ W ha hL
 
+
+omit henv hΔ in
+/-- The argument substitution shifted past the last `x + 1` arguments. -/
+theorem argSubst_shift (L : List VExpr) {x : Nat} (hx : x < L.length) :
+    (fun j => VExpr.argSubst L (j + (x + 1))) = VExpr.argSubst (L.take (L.length - (x + 1))) := by
+  funext j
+  rw [argSubst_eq_getD, argSubst_eq_getD]
+  simp only [List.length_take, Nat.min_eq_left (Nat.sub_le _ _)]
+  by_cases hj : j + (x + 1) < L.length
+  · rw [if_pos hj, if_pos (by omega), List.getElem?_take_of_lt (by omega)]
+    congr 2; omega
+  · rw [if_neg hj, if_neg (by omega)]
+    congr 1; omega
+
+omit henv hΔ in
+/-- A type of the reversed telescope at the argument valuation is the domain at the prefix. -/
+theorem lift_subst_argSubst (D L : List VExpr) {x : Nat} (hx : x < D.length)
+    (hL : L.length = D.length) :
+    ((D.reverse[x]'(by simpa using hx)).liftN (x + 1)).subst (VExpr.argSubst L) =
+      (D[D.length - 1 - x]'(by omega)).subst (VExpr.argSubst (L.take (D.length - 1 - x))) := by
+  rw [liftN_subst_shift, argSubst_shift L (by omega), List.getElem_reverse]
+  congr 3; omega
+
+omit henv hΔ in
+/-- `binderTy` at the argument valuation. -/
+theorem binderTy_subst_argSubst {doms : List VExpr} {ls : List VLevel} {L : List VExpr}
+    {x : Nat} (hx : x < doms.length) (hL : L.length = doms.length) :
+    (binderTy doms ls x).subst (VExpr.argSubst L) =
+      ((doms.map (·.instL ls))[doms.length - 1 - x]'(by simp; omega)).subst
+        (VExpr.argSubst (L.take (doms.length - 1 - x))) := by
+  have hx' : x < (doms.map (·.instL ls)).reverse.length := by simpa using hx
+  have e : binderTy doms ls x =
+      ((doms.map (fun d : VExpr => d.instL ls)).reverse[x]'hx').liftN (x+1) :=
+    (lookup_binderTy (Γ := []) (ls := ls) hx).uniq (lookup_append _ x hx')
+  rw [e, lift_subst_argSubst (doms.map (·.instL ls)) L (by simpa using hx) (by simpa using hL)]
+  simp
+
+omit henv hΔ in
+/-- The body of a sound Pi telescope is sound in the telescope's context. -/
+theorem PiSD.body_sd : ∀ {Γ D : List VExpr} {R : VExpr} {u : VLevel}, PiSD env U Δ Γ D R →
+    SD env U Δ Γ (.wrapForalls D R) (.wrapForalls D R) (.sort u) →
+    ∃ v, SD env U Δ (D.reverse ++ Γ) R R (.sort v)
+  | _, [], _, _, _, h => ⟨_, by simpa [VExpr.wrapForalls] using h⟩
+  | Γ, A :: ds, R, _, .cons _ hB hP, _ => by
+    obtain ⟨v, h⟩ := PiSD.body_sd hP hB
+    exact ⟨v, by simpa [List.reverse_cons, List.append_assoc] using h⟩
+
 end
 
 end Model
