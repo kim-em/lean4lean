@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.IotaLemmas
 import Lean4Lean.Theory.CanonicalEq
+import Lean4Lean.Theory.Inductive.BetaSubjectReduction
 
 /-! # Typing of canonical equality terms
 
@@ -13,7 +14,10 @@ typeCast u X Y e x := @Eq.rec.{u, u+1} (Sort u) X (fun T _ => T) x Y e : Y
 
 for `e : @Eq (Sort u) X Y` and `x : X`. When `X ≡ Y`, the cast computes to `x`: the
 equation proof is proof-irrelevantly `Eq.refl X`, and the stored `Eq.rec` iota rule
-fires. This is the K-like computation used by singleton eta. -/
+fires. This is the K-like computation used by singleton eta.
+
+WAVE 4 COMPAT: the iota rule of `Eq.rec` is the registered pattern of `HasCanonicalEq`
+(`IsDefEq.canonicalEqRec_iota`), not a stored equation. -/
 
 set_option linter.unusedSimpArgs false
 
@@ -189,6 +193,58 @@ theorem IsDefEq.eqApp_r (heq : env.HasCanonicalEq) (hw : w.WF U)
   have := IsDefEq.appDF (HasType.eqApp2 heq hw hα ha) hb
   simpa [VExpr.eqApp, VExpr.inst] using this
 
+/-- A λ-telescope applied to as many arguments as it has binders beta-reduces, at every type
+of the application, to its body instantiated by the arguments. -/
+theorem SimAt.mkApps_wrapLams (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U)) :
+    ∀ {args doms : List VExpr} {body : VExpr}, args.length = doms.length →
+      env.SimAt U Γ (VExpr.mkApps (VExpr.wrapLams doms body) args) (body.instOuter args)
+  | [], [], _, _ => .refl
+  | a :: as, d :: ds, body, hlen => by
+    have hlen' : as.length = ds.length := by simpa using hlen
+    have hbeta := WF.betaSubjectReduction (U := U) henv Γ d (VExpr.wrapLams ds body) a hΓ
+    have hhead := SimAt.mkApps (as := as) henv.orderedStrong hΓ hbeta (SimAt.forall₂_refl as)
+    rw [VExpr.wrapLams_inst, Nat.zero_add] at hhead
+    have ih := SimAt.mkApps_wrapLams henv hΓ (args := as) (doms := VExpr.instDomains ds a 0)
+      (body := body.inst a ds.length) (by simpa using hlen')
+    show env.SimAt U Γ (VExpr.mkApps (.app (.lam d (VExpr.wrapLams ds body)) a) as) _
+    rw [VExpr.instOuter_cons, hlen']
+    exact hhead.trans ih
+
+/-- The registered ι rule of `Eq.rec` (`HasCanonicalEq`): an application of `Eq.rec` to a
+reflexivity proof computes to its minor premise, at every type of the redex. -/
+theorem IsDefEq.canonicalEqRec_iota (henv : env.WF) (heq : env.HasCanonicalEq)
+    (hΓ : OnCtx Γ (env.IsType U))
+    (H : env.HasType U Γ (VExpr.eqRecApp v w α a motive minor b (VExpr.eqReflApp w' α' a')) T) :
+    env.IsDefEq U Γ (VExpr.eqRecApp v w α a motive minor b (VExpr.eqReflApp w' α' a')) minor T := by
+  obtain ⟨g1, hm1, hg1⟩ := Pattern.matches_varN_const (c := ``Eq.rec) (ls := [v, w]) 5
+    [α, a, motive, minor, b] rfl
+  obtain ⟨g2, hm2, hg2⟩ := Pattern.matches_varN_const (c := ``Eq.refl) (ls := [w']) 2
+    [α', a'] rfl
+  let m2 : canonicalEqRecPattern.Path → VExpr := Sum.elim g1 g2
+  have hm : canonicalEqRecPattern.Matches
+      (VExpr.eqRecApp v w α a motive minor b (VExpr.eqReflApp w' α' a')) [v, w] m2 :=
+    .app hm1 hm2
+  have hpat := IsDefEq.pat (chk := []) heq.2.2.2 hm H trivial (by simp)
+  have happly : canonicalEqRecRHS.apply [v, w] m2 =
+      VExpr.mkApps (canonicalEqRecRule.rhs.instL [v, w]) [α, a, motive, minor] :=
+    SimplePattern.iotaRHS'_apply ``Eq.rec ``Eq.refl 4 1 2 0 canonicalEqRecRule.rhs
+      canonicalEqRecRule_rhs_closed [v, w] m2
+      (recArgs := [α, a, motive, minor, b]) (ctorArgs := [α', a']) rfl rfl
+      (fun i hi => hg1 i hi) (fun i hi => hg2 i hi)
+  rw [happly] at hpat
+  have hsim := SimAt.mkApps_wrapLams henv hΓ (args := [α, a, motive, minor])
+    (doms := [.sort (.param 1), .bvar 0, canonicalEqRecMotive, canonicalEqRecMinor].map
+      (VExpr.instL [v, w])) (body := .bvar 0) rfl
+  have hrhs : canonicalEqRecRule.rhs.instL [v, w] =
+      VExpr.wrapLams ([.sort (.param 1), .bvar 0, canonicalEqRecMotive,
+        canonicalEqRecMinor].map (VExpr.instL [v, w])) (.bvar 0) := by
+    simp [canonicalEqRecRule, VExpr.wrapLams, VExpr.instL]
+  rw [← hrhs] at hsim
+  have hres : (VExpr.bvar 0).instOuter [α, a, motive, minor] = minor := by
+    simp [VExpr.inst, VExpr.instVar, VExpr.instOuter_liftN]
+  rw [hres] at hsim
+  exact hpat.trans (hsim _ hpat.hasType.2)
+
 /-- K for type casts: along an equation between definitionally equal types, the cast
 computes to its argument. In `VEnv.IsDefEq` this is proof irrelevance (the equation proof
 is `Eq.refl`) followed by the stored `Eq.rec` iota rule. -/
@@ -222,33 +278,12 @@ theorem IsDefEq.typeCast_refl (henv : env.WF) (heq : env.HasCanonicalEq) (hu : u
   have hc2 := IsDefEq.appDF hc1 (by simpa [VExpr.eqApp] using hirr)
   eqnorm at hc2
   -- `hc2 : typeCast … ≡ Eq.rec … X (Eq.refl X) : castMotive Y e`
-  have hiota := IsDefEq.extra_instOuter henv hΓ heq.2.2.2 (ls := [u, .succ u])
-    (doms := [.sort (.param 1), .bvar 0, canonicalEqRecMotive, canonicalEqRecMinor])
-    (lhsBody := .app (.app (.app (.app (.app (.app (.const ``Eq.rec [.param 0, .param 1])
-      (.bvar 3)) (.bvar 2)) (.bvar 1)) (.bvar 0)) (.bvar 2))
-      (.app (.app (.const ``Eq.refl [.param 1]) (.bvar 3)) (.bvar 2)))
-    (rhsBody := .bvar 0)
-    (typeBody := .app (.app (.bvar 1) (.bvar 2))
-      (.app (.app (.const ``Eq.refl [.param 1]) (.bvar 3)) (.bvar 2)))
-    (by simp; exact ⟨hu, hsu⟩) rfl rfl rfl rfl
-    (args := [.sort u, X, VExpr.castMotive u X, x]) rfl (by
-      intro j hj _
-      match j, hj with
-      | 0, _ => simpa [VExpr.instL, VLevel.inst, VExpr.instOuter] using hs
-      | 1, _ => simpa [VExpr.instL, VExpr.instOuter, VExpr.inst, instVar] using hX
-      | 2, _ => simpa [canonicalEqRecMotive, VExpr.instL, VLevel.inst, VExpr.instOuter,
-          VExpr.inst, instVar, VExpr.eqApp, VExpr.liftN, liftN_liftN, inst_liftN_lo, inst_lift]
-          using hM
-      | 3, _ => simpa [canonicalEqRecMinor, VExpr.instL, VLevel.inst, VExpr.instOuter,
-          VExpr.inst, instVar, VExpr.eqReflApp, VExpr.liftN, liftN_liftN, inst_liftN_lo,
-          inst_lift] using hm)
-  simp [VExpr.instL, VLevel.inst, VExpr.instOuter, VExpr.inst, instVar, VExpr.liftN,
-    liftN_liftN, inst_liftN_lo, inst_lift] at hiota
+  have hiota := IsDefEq.canonicalEqRec_iota henv heq hΓ hc2.hasType.2
   have hY' := IsDefEq.castMotive_app henv.ordered heq hu hX hY he
   have h1 : env.IsDefEq U Γ (VExpr.typeCast u X Y e x) _ Y := .defeqDF hY' (by
     simpa [VExpr.typeCast, VExpr.eqRecApp, VExpr.eqApp, VExpr.eqReflApp] using hc2)
-  have h2 : env.IsDefEq U Γ _ x Y := .defeqDF (hmX.trans hXY) (by
-    simpa [VExpr.eqReflApp] using hiota)
+  have h2 : env.IsDefEq U Γ _ x Y := .defeqDF hY' (by
+    simpa [VExpr.typeCast, VExpr.eqRecApp, VExpr.eqApp, VExpr.eqReflApp] using hiota)
   exact h1.trans h2
 
 end VEnv
