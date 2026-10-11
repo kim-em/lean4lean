@@ -29,14 +29,6 @@ theorem VExpr.stripLams_eq_lamBody : ∀ e : VExpr, e.stripLams = e.lamBody
   | .lam _ b => stripLams_eq_lamBody b
   | .bvar _ | .sort _ | .const .. | .app .. | .forallE .. | .proj .. => rfl
 
-theorem VExpr.piArity_wrapForalls (ds : List VExpr) (b : VExpr) :
-    (VExpr.wrapForalls ds b).piArity = ds.length + b.piArity := by
-  induction ds with
-  | nil => simp [VExpr.wrapForalls]
-  | cons d ds ih =>
-    show (VExpr.forallE d (VExpr.wrapForalls ds b)).piArity = _
-    simp only [VExpr.piArity, ih, List.length_cons]; omega
-
 theorem VExpr.piArity_mkApps_bvar (k : Nat) (args : List VExpr) :
     (VExpr.mkApps (.bvar k) args).piArity = 0 := by
   rcases List.eq_nil_or_concat args with rfl | ⟨as, a, rfl⟩

@@ -55,6 +55,14 @@ theorem VExpr.piBody_wrapForalls (ds : List VExpr) (b : VExpr) :
   | nil => rfl
   | cons d ds ih => exact ih
 
+theorem VExpr.piArity_wrapForalls (ds : List VExpr) (b : VExpr) :
+    (VExpr.wrapForalls ds b).piArity = ds.length + b.piArity := by
+  induction ds with
+  | nil => simp [VExpr.wrapForalls]
+  | cons d ds ih =>
+    show (VExpr.forallE d (VExpr.wrapForalls ds b)).piArity = _
+    simp only [VExpr.piArity, ih, List.length_cons]; omega
+
 theorem VExpr.lamArity_wrapLams (ds : List VExpr) (b : VExpr) :
     (VExpr.wrapLams ds b).lamArity = ds.length + b.lamArity := by
   induction ds with

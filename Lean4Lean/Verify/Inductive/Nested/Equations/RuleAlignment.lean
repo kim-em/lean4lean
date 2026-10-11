@@ -135,14 +135,6 @@ theorem lamBody_wrapLams_of_lamArity (doms : List VExpr) {body : VExpr}
   | nil => cases body <;> simp_all [VExpr.wrapLams, VExpr.lamBody, VExpr.lamArity]
   | cons d ds ih => exact ih
 
-theorem piArity_wrapForalls (doms : List VExpr) (body : VExpr) :
-    (VExpr.wrapForalls doms body).piArity = doms.length + body.piArity := by
-  induction doms with
-  | nil => simp [VExpr.wrapForalls]
-  | cons d ds ih =>
-    show (VExpr.forallE d (VExpr.wrapForalls ds body)).piArity = _
-    simp only [VExpr.piArity, ih, List.length_cons]; omega
-
 theorem mkApps_spine_arity : ∀ (args : List VExpr) {f : VExpr},
     (∀ A b, f ≠ .lam A b) → (∀ A b, f ≠ .forallE A b) →
     (VExpr.mkApps f args).lamArity = 0 ∧ (VExpr.mkApps f args).piArity = 0 ∧

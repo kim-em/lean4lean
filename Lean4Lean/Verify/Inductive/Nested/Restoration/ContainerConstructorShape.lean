@@ -120,14 +120,6 @@ theorem ConstTail.instantiateForallPrefix : ∀ {T : VExpr} (args : List VExpr),
   | .app .., _ :: _, _, hlen | .lam .., _ :: _, _, hlen | .proj .., _ :: _, _, hlen => by
     simp [VExpr.piArity] at hlen
 
-theorem piArity_wrapForalls_aux (ds : List VExpr) (b : VExpr) :
-    (VExpr.wrapForalls ds b).piArity = ds.length + b.piArity := by
-  induction ds with
-  | nil => simp [VExpr.wrapForalls]
-  | cons d ds ih =>
-    simp only [VExpr.wrapForalls, List.foldr_cons] at ih ⊢
-    simp only [VExpr.piArity, ih, List.length_cons]; omega
-
 private theorem piArity_eq_forallArity' : ∀ e : VExpr, e.piArity = e.forallArity
   | .forallE _ b => by simp [VExpr.piArity, VExpr.forallArity, piArity_eq_forallArity' b]
   | .bvar _ | .sort _ | .const .. | .app .. | .proj .. | .lam .. => rfl
@@ -307,7 +299,7 @@ theorem NestedRun.containerConstructorShape
   have hcTail : ConstTail c.type := by
     rw [hct]; simpa [ConstTail, VExpr.piBody_wrapForalls] using hrTail
   have hcArity : c.type.piArity = doms.length := by
-    rw [hct, piArity_wrapForalls_aux, hr0]; rfl
+    rw [hct, VExpr.piArity_wrapForalls, hr0]; rfl
   obtain ⟨hlA, hlT⟩ := hcTail.instL a.levels
   obtain ⟨hEA, hET⟩ := LEquiv.constTail hLE
   have hTtail : ConstTail instT := hET.mpr hlT
@@ -317,7 +309,7 @@ theorem NestedRun.containerConstructorShape
   obtain ⟨hIA, -⟩ := hTtail.instantiateForallPrefix a.arguments hle
   have htA : (gen.ctors[j]).type.piArity =
       sp.length + (instT.piArity - a.arguments.length) := by
-    rw [htarget, piArity_wrapForalls_aux, hIA]
+    rw [htarget, VExpr.piArity_wrapForalls, hIA]
   have hnpL : E.lowered.loweredDecl.nparams = sourceDecl.nparams := Hdata.nparams
   -- the constant in the source constructor stage
   have hconst : (ves.venv (if isUnsafe then .unsafe else .safe)).constants c.name =

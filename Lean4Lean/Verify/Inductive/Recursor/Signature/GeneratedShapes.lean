@@ -16,10 +16,6 @@ namespace InductiveSignature
 
 open VExpr
 
-private theorem piArity_wrapForalls (ds : List VExpr) (b : VExpr) :
-    (VExpr.wrapForalls ds b).piArity = ds.length + b.piArity := by
-  rw [← piBinders_length, piBinders_wrapForalls]; simp
-
 private theorem lamBody_wrapLams (ds : List VExpr) (b : VExpr) :
     (VExpr.wrapLams ds b).lamBody = b.lamBody := by
   induction ds with
