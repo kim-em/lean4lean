@@ -27,6 +27,21 @@ from `VEnv.WF'.inductTypeRigid` and `headInversion`. The confluence theorem
 `IsDefEq.uniq`, which the engine's transport lemmas use throughout) and the wave 4 stub
 `WF.singletonInstance_align`, and on nothing else (`scripts/check-inductive-audit.py`).
 
+## Replay port (`Verify/Replay.lean`, the deferred tests)
+
+No stubs. `Verify/Replay.lean` proves `Replayed.foldlM`, `replayFresh.WF`, `replayFresh.WF_target`
+and `replayPure.WF_fromImports` from the hypothesis-free `addDecl.WF` and `VEnvs.WF.empty`; the
+source branch's `AddDeclChain`, `HasCanonicalEqType`/`hasCanonicalEqType_spec` and the `_mode`
+variants are gone (the kernel's `checkEqType` replaces the driver's `Eq` check, and there is one
+cache mode). The four theorems are audit roots; they reach exactly the accepted open proofs of
+`addDecl.WF` (`patsStrong`, `Model.PatValid.iota`, `IsDefEqU.weakN_iff`). All deferred tests
+are back in `Lean4Lean/Tests.lean`: `InductiveTheory` now gives `enumDecl` its kernel recursor
+and rule and proves the full structure `enumDecl.WF .empty` (including the `VEnv.PatTyped` rule
+clause) and that `VEnv.addInduct` installs it; `TypedInductiveCompilation` installs the
+container with `addInduct` and `RecsOf`; `CorruptRecursorMetadata` is stated against
+`TrRecursorEntry` and `InductiveSignature.Models` (the source's `TrCompilation` does not exist
+here).
+
 ## Wave 4: confluence on the ι pattern calculus
 
 `VEnv.WF.church_rosser` (`Theory/Typing/Confluence/WFParams.lean`): in a well-formed environment
@@ -184,9 +199,9 @@ in `Lean4Lean/Tests.lean` (the manifest of the `Lean4Lean.Tests` library, which 
 |---|---|---|
 | `AmbientContext` (PR #43) | `Verify.TypeChecker` | 1A |
 | closed-form and translation checks of `QuotInit` (removed from the ported test) | `Verify.Environment` (`Environment.addQuot_eq`, `VEnv.addQuot`) | 1B |
-| `InductiveTheory`, `TypedInductiveCompilation` | re-expression for the structure `VInductDecl.WF` and `VEnv.pats` | 2 |
-| `CorruptRecursorMetadata` | `Verify.Inductive.Recursor` | 2 |
-| `CorruptRestoredRecursorMetadata` | `Verify.Inductive.Nested` | 3 |
+| ~~`InductiveTheory`, `TypedInductiveCompilation`~~ (restored, replay port) | re-expression for the structure `VInductDecl.WF` and `VEnv.pats` | 2 |
+| ~~`CorruptRecursorMetadata`~~ (restored, replay port) | `Verify.Inductive.Recursor` | 2 |
+| ~~`CorruptRestoredRecursorMetadata`~~ (restored, replay port) | `Verify.Inductive.Nested` | 3 |
 | `RecursiveFieldClassification` | `Theory.Typing.Interpretation` | 3 |
 | ~~`PreludeEq`~~ (restored, wave 4) | `Verify.Inductive.Prelude.EqSyntax`; `VEnv.HasCanonicalEq` only for confluence | 4 |
 | `CacheMode`, `SyntacticTranslation` | dropped with the scoped cache mode and the strengthening study | never |
@@ -762,8 +777,8 @@ with `container.RecsOf block` (and still `block.WF base`), replacing `VInductBlo
 1B's `InstalledBelow` finding below and wave 1C's `ContainersInstalled` finding. No new `sorry` in
 `Theory/`.
 
-Still deferred in `Lean4Lean/Tests.lean`: `InductiveTheory`, `TypedInductiveCompilation`,
-`CorruptRecursorMetadata` (they need the recursor phase's internals, not just the interface).
+(`InductiveTheory`, `TypedInductiveCompilation` and `CorruptRecursorMetadata`, deferred here,
+are restored by the replay port.)
 
 ## Wave 1A (checker verification)
 

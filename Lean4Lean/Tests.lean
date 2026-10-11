@@ -32,9 +32,9 @@ import Lean4Lean.Tests.Replay
 import Lean4Lean.Tests.AmbientContext
 import Lean4Lean.Tests.RecursiveFieldClassification
 import Lean4Lean.Tests.PreludeEq
--- Tests that do not build yet are added back with the wave that makes their imports build
--- (`iota-port/PLAN-RECONCILED.md`):
--- wave 2: InductiveTheory and TypedInductiveCompilation (re-expressed for the structure
---   `VInductDecl.WF` and `VEnv.pats`), CorruptRecursorMetadata (`Verify.Inductive.Recursor`)
--- wave 3: CorruptRestoredRecursorMetadata (`Verify.Inductive.Nested`)
--- dropped: CacheMode, SyntacticTranslation (the scoped cache mode and the strengthening study)
+import Lean4Lean.Tests.InductiveTheory
+import Lean4Lean.Tests.TypedInductiveCompilation
+import Lean4Lean.Tests.CorruptRecursorMetadata
+import Lean4Lean.Tests.CorruptRestoredRecursorMetadata
+-- Not ported: CacheMode and SyntacticTranslation (the scoped cache mode and the strengthening
+-- study do not exist on this branch).
