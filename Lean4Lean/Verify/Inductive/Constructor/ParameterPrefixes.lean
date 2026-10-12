@@ -93,8 +93,8 @@ theorem checkConstructors.loopCtor.parameterTelescopeWF
     {decl : VInductDecl} {ctorVal : VConstVal}
     {original : Expr}
     (Hc : ContextWF c)
-    {Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
-      Hc stats depth}
+    {Hsuffix : ParameterContextSuffix
+      Hc.toSemantics stats depth}
     (Q : List Bool → Prop)
     (Hresult : ∀ {source' : Expr}
         {current' fullCurrent' : VExpr} {fuel' : Nat}
@@ -115,7 +115,7 @@ theorem checkConstructors.loopCtor.parameterTelescopeWF
         {sourceDomains : List VExpr},
       i' < decl.nparams →
       (¬ ∃ name dom body bi, source' = .forallE name dom body bi) →
-      checkInductiveTypes.loopType.ReusedParameterScope
+      ReusedParameterScope
         Hsuffix i' source' →
       (Hsynthesis' :
         checkInductiveTypes.loopType.ScopedHeaderTelescope
@@ -131,7 +131,7 @@ theorem checkConstructors.loopCtor.parameterTelescopeWF
     (hbound : i ≤ decl.nparams)
     (Hsegment : ParameterSegment stats 0 i original source)
     (Hscope : ∀ _h : i < stats.params.size,
-      checkInductiveTypes.loopType.ReusedParameterScope Hsuffix i source)
+      ReusedParameterScope Hsuffix i source)
     (hscopeEq : ∀ h : i < stats.params.size,
       scope = (Hscope h).older)
     (hcompleteScope : i = decl.nparams →
@@ -223,7 +223,7 @@ theorem checkConstructors.loopCtor.parameterTelescopeWF
             .step Hcomparisons hparamAt Hcurrent.parameter hsourceDom hsourceDomType
               hsourceDomEq
           let Hbody :
-              checkInductiveTypes.loopType.ReusedParameterScope
+              ReusedParameterScope
                 Hsuffix i body :=
             { Hcurrent with fvars := Hcurrent.fvars.2 }
           exact ih (i := i + 1)
@@ -254,9 +254,9 @@ theorem checkConstructors.loopCtor.parameterTelescopeWF
 
 theorem checkConstructors.loopCtor.earlyParameterResult.WF
     (Hc : ContextWF c)
-    {Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
-      Hc stats depth}
-    (Hscope : checkInductiveTypes.loopType.ReusedParameterScope
+    {Hsuffix : ParameterContextSuffix
+      Hc.toSemantics stats depth}
+    (Hscope : ReusedParameterScope
       Hsuffix i source)
     (hi : i < stats.params.size)
     (hforall : ¬ ∃ name dom body bi,
@@ -337,12 +337,12 @@ theorem checkConstructors.loopCtor.tailRefinesScoped
         cases hfullForall with
         | @forallE fullDom fullBody _ _ _ _ _
             hdomFullType _ hdomFull hbodyFull =>
-          rcases hconsume c Hc hdomFull hdomFullType with
+          rcases hconsume c _ Hc.toSemantics hdomFull hdomFullType with
             ⟨consumedDom, Hdom⟩
           have henv := Hc.checking.tr.wf
           rcases halign.forallE_align henv hdomNarrow hdomNarrowType hbodyNarrow with
             ⟨dom₀, body₀, hdom₀, hdom₀Type, _hdomU, hbody₀, _⟩
-          rcases hconsume _ Hc.atCheckLCtx hdom₀ hdom₀Type with
+          rcases hconsume _ _ Hc.atCheckLCtx.toSemantics hdom₀ hdom₀Type with
             ⟨consumedDom₀, Hdom₀⟩
           have hparamNext : stats.params[i + 1]? = none := by
             rw [Array.getElem?_eq_none_iff] at hparamAt ⊢
@@ -350,7 +350,7 @@ theorem checkConstructors.loopCtor.tailRefinesScoped
           have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
               (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
-          rcases Hruntime.unannotatedDomain Hc Hdom hdomNarrow with
+          rcases Hruntime.unannotatedDomain Hdom hdomNarrow with
             ⟨domainLevel, hdomain⟩
           cases isUnsafe with
           | false =>
@@ -735,8 +735,8 @@ theorem checkConstructors.loopCtor.refinesCtorShape
     {decl : VInductDecl} {target : VInductiveType}
     {ctorVal : VConstVal} {params : List VExpr}
     (Hc : ContextWF c)
-    (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
-      Hc stats depth)
+    (Hsuffix : ParameterContextSuffix
+      Hc.toSemantics stats depth)
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
       Hsuffix.parameterDecls stats decl 0)
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length
@@ -812,8 +812,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
           (decl := decl) (ctorVal := ctorVal) (params := params)
           (type := source) (i := 0) (ctor := ctor) (fuel := fuel + 1) Hc
           (narrowType := ctorVal.type) (fullType := fullType)
-          (checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix
-            Hc Hsuffix) halign
+          (Hsuffix.parameterEmbedding) halign
           Hstats hi htarget htargetUvars htargetLookup htargetWF htargetShape
           hparamAt
           hconsume hlit hunsafe hbound hlevels
@@ -830,8 +829,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
       have Htail := checkConstructors.loopCtor.tailRefinesScoped
         (params := params) (type := source) (i := 0) (ctor := ctor)
         (fuel := fuel + 1) Hc
-        (checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix
-          Hc Hsuffix) halign
+        (Hsuffix.parameterEmbedding) halign
         Hstats hi htarget htargetUvars htargetLookup htargetWF
         htargetShape hparamAt hconsume hlit hunsafe hbound hlevels
         (by simpa [hscope] using Hctor.type)
@@ -906,16 +904,14 @@ theorem checkConstructors.loopCtor.refinesCtorShape
                 Hc.venv.IsType decl.uvars [] ctorVal.type) := by
           exact checkConstructors.loopCtor.ctorShapeRefinesOfTelescope
             (ctor := ctor) (fuel := fuel' + 1) Hc
-            (checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix
-              Hc Hsuffix) halign
+            (Hsuffix.parameterEmbedding) halign
             Hstats Hsynthesis' hi htarget htargetUvars htargetLookup
             htargetWF htargetShape hparamAt hconsume hlit hunsafe
             hbound hlevels hparams htrNarrow htrFull
         have Htail := checkConstructors.loopCtor.tailRefinesScoped
           (params := params) (type := source') (i := decl.nparams)
           (ctor := ctor) (fuel := fuel' + 1) Hc
-          (checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix
-            Hc Hsuffix) halign
+          (Hsuffix.parameterEmbedding) halign
           Hstats hi htarget htargetUvars htargetLookup htargetWF
           htargetShape hparamAt hconsume hlit hunsafe hbound hlevels
           htrNarrow htrFull
@@ -942,9 +938,9 @@ theorem checkConstructors.loopCtor.refinesCtorShape
           (by simpa [Hstats.params_size] using hi') hforall)
       Hstats.params_size (by omega) (.done)
       (fun h =>
-        checkInductiveTypes.loopType.ReusedParameterScope.ofNoFVars h hnoFVars)
+        ReusedParameterScope.ofNoFVars h hnoFVars)
       (fun h =>
-        (checkInductiveTypes.loopType.ReusedParameterScope.ofNoFVars
+        (ReusedParameterScope.ofNoFVars
           h hnoFVars).older_eq_nil h |>.symm)
       (by
         intro hdone
@@ -964,7 +960,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
         omega
       exact checkConstructors.loopCtor.earlyParameterResult.WF
         (Hsuffix := Hsuffix) (fuel := fuel) Hc
-        (checkInductiveTypes.loopType.ReusedParameterScope.ofNoFVars
+        (ReusedParameterScope.ofNoFVars
           (Hsuffix := Hsuffix) hiStats hnoFVars)
         (by omega) hforall
 

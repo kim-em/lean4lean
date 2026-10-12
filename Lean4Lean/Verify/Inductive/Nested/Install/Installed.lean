@@ -138,7 +138,7 @@ theorem runSource (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
   have Hsource0 := B.source
   rw [hdecl] at Hsource0
   refine ⟨?_, ?_, ?_⟩
-  · rw [L.lparams_eq, L.venv_eq, ← B.isUnsafe_lowered]
+  · simp only [L.lparams_eq, L.venv_eq, ← B.isUnsafe_lowered]
     exact ⟨Hsource0.uvars, Hsource0.nparams, Hsource0.isUnsafe, Hsource0.typesAdded,
       Hsource0.ctorsAdded, Hsource0.types⟩
   · have h := B.run.sourceCore.checked

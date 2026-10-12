@@ -70,7 +70,7 @@ structure RecursorConstruction
   free-variable contexts of the motive pass without strengthening. -/
   recursorTypes : TrRecursorTypes R.context.venv localContext.lparams elimLevel
     localContext stats indTypes recInfos
-  parameterSuffix : RecursorParameterContextSuffix recursorWF stats
+  parameterSuffix : ParameterContextSuffix recursorWF.toSemantics stats
     recursorDepth
   parameterDecls : parameterSuffix.parameterDecls =
     (R.recursorHeaders.parameterSuffix.toRecursorContext

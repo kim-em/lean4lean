@@ -52,8 +52,8 @@ theorem firstStep.initializesAccumulator
       VLevel.ofLevel c'.lparams resultSort = some resultLevel →
       checkInductiveTypes.loopType.ParameterCachePrefix
         Hc'.venv c'.lparams Hc'.mlctx.vlctx stats' nparams nindices →
-      checkInductiveTypes.loopType.ParameterContextSuffix
-        Hc' stats' nindices →
+      ParameterContextSuffix
+        Hc'.toSemantics stats' nindices →
       checkInductiveTypes.loopType.AmbientParamContext
         Hc' params nindices →
       (AddInductive.checkInductiveTypes.loopInd nparams indTypes 1
@@ -80,8 +80,8 @@ theorem firstStep.initializesAccumulator
       exact Htarget
     -- The telescope is opened in the header checker context.
     let HcBase := Hc
-    let HsuffixBase := checkInductiveTypes.loopType.ParameterContextSuffix.empty
-      Hc hctx hparams
+    let HsuffixBase := ParameterContextSuffix.empty
+      Hc.toSemantics hctx hparams
     let Hc := HsuffixBase.headerCheck
     have halign : Hc.Aligned := by
       have h := HsuffixBase.headerCheck_paramAligned
@@ -96,10 +96,10 @@ theorem firstStep.initializesAccumulator
     have Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
         Hc.venv c.lparams Hc.mlctx.vlctx stats 0 0 :=
       checkInductiveTypes.loopType.ParameterCachePrefix.empty hparams
-    let Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
-        Hc stats 0 :=
-      checkInductiveTypes.loopType.ParameterContextSuffix.empty
-        Hc hctx hparams
+    let Hsuffix : ParameterContextSuffix
+        Hc.toSemantics stats 0 :=
+      ParameterContextSuffix.empty
+        Hc.toSemantics hctx hparams
     apply checkInductiveTypes.loopType.firstHeaderTelescopeWF
       (Us := c.lparams) (target := sourceSkeleton)
       (nparams := nparams) (stats := stats)
@@ -151,8 +151,8 @@ theorem firstStep.initializesAccumulator
         exact ⟨List.eq_nil_of_length_eq_zero Hsynthesis.indexCount, rfl⟩)
       hnormalized'
   · -- The telescope is opened in the header checker context.
-    let HsuffixBase := checkInductiveTypes.loopType.ParameterContextSuffix.empty
-      Hc hctx hparams
+    let HsuffixBase := ParameterContextSuffix.empty
+      Hc.toSemantics hctx hparams
     let Hc := HsuffixBase.headerCheck
     cases hfuel : c.fuel.inductiveFuel with
     | zero => exact checkInductiveTypes.loopType.zero.WF
@@ -218,10 +218,10 @@ theorem firstStep.initializesAccumulator
         have Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
             Hc.venv c.lparams Hc.mlctx.vlctx stats 0 0 :=
           checkInductiveTypes.loopType.ParameterCachePrefix.empty hparams
-        let Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
-            Hc stats 0 :=
-          checkInductiveTypes.loopType.ParameterContextSuffix.empty
-            Hc hctx hparams
+        let Hsuffix : ParameterContextSuffix
+            Hc.toSemantics stats 0 :=
+          ParameterContextSuffix.empty
+            Hc.toSemantics hctx hparams
         exact Hrec Hc rfl rfl rfl rfl rfl rfl rfl rfl rfl Hsemantic rfl
           hofLevel Hcache Hsuffix
           (checkInductiveTypes.loopType.AmbientParamContext.ofFirstDefEq
@@ -324,8 +324,8 @@ theorem laterStep.extendsAccumulator
     (hcommonParams : commonParams.length = nparams)
     (Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
       Hc.venv c.lparams Hc.mlctx.vlctx stats nparams depth)
-    (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
-      Hc stats depth)
+    (Hsuffix : ParameterContextSuffix
+      Hc.toSemantics stats depth)
     (Hsemantic :
       checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel
@@ -349,7 +349,7 @@ theorem laterStep.extendsAccumulator
         (updatedStats stats stats.lctx resultSort false nindices
           indTypes[dIdx].name)
         nparams (depth + nindices) →
-      checkInductiveTypes.loopType.ParameterContextSuffix Hc'
+      ParameterContextSuffix Hc'.toSemantics
         (updatedStats stats stats.lctx resultSort false nindices
           indTypes[dIdx].name)
         (depth + nindices) →
@@ -400,8 +400,8 @@ theorem laterStep.extendsAccumulator
     let Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
         HsuffixBase.headerCheck.venv c.lparams HsuffixBase.headerCheck.mlctx.vlctx
         stats nparams depth := Hcache
-    let Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
-        HsuffixBase.headerCheck stats depth := HsuffixBase.toHeaderCheck
+    let Hsuffix : ParameterContextSuffix
+        HsuffixBase.headerCheck.toSemantics stats depth := HsuffixBase.toHeaderCheck
     let Hambient : checkInductiveTypes.loopType.AmbientParamContext
         HsuffixBase.headerCheck commonParams depth := { Hambient with }
     let Hc := HsuffixBase.headerCheck
@@ -409,7 +409,7 @@ theorem laterStep.extendsAccumulator
         hclosed with
       ⟨narrowCurrent, hnormalizedNarrow, ⟨Hsynthesis⟩⟩
     let Hscope : ∀ h : 0 < stats.params.size,
-        checkInductiveTypes.loopType.ReusedParameterScope Hsuffix 0
+        ReusedParameterScope Hsuffix 0
           (.forallE name dom body bi) := fun h =>
       initialReusedParameterScope Hc Hsuffix h HtargetSkeleton.raw hbelow
     apply checkInductiveTypes.loopType.laterParameterTelescopeWF Hc
@@ -438,8 +438,7 @@ theorem laterStep.extendsAccumulator
         cases hi'
         subst scope'
         let Hruntime :=
-          checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix
-            Hc Hsuffix
+          Hsuffix.parameterEmbedding
         have hindices' : Hsynthesis'.indices = [] :=
           List.eq_nil_of_length_eq_zero Hsynthesis'.indexCount
         have hparamScope : Hsuffix.parameterDecls.toCtx =
@@ -543,8 +542,8 @@ theorem laterStep.extendsAccumulator
         stats nparams depth := Hcache
     let Hambient : checkInductiveTypes.loopType.AmbientParamContext
         HsuffixBase.headerCheck commonParams depth := { Hambient with }
-    let Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
-        HsuffixBase.headerCheck stats depth := HsuffixBase.toHeaderCheck
+    let Hsuffix : ParameterContextSuffix
+        HsuffixBase.headerCheck.toSemantics stats depth := HsuffixBase.toHeaderCheck
     let Hc := HsuffixBase.headerCheck
     cases hfuel : c.fuel.inductiveFuel with
     | zero => exact checkInductiveTypes.loopType.zero.WF
@@ -584,8 +583,7 @@ theorem laterStep.extendsAccumulator
           apply List.eq_nil_of_length_eq_zero
           rw [Hsuffix.parameterDecls_length, hparams, ← hzero]
         let HruntimeBase :=
-          checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix
-            Hc Hsuffix
+          Hsuffix.parameterEmbedding
         have Hruntime : checkInductiveTypes.loopType.FrontScopeEmbedding
             Hc.venv c.lparams [] Hc.mlctx.vlctx := by
           simpa [hscopeEmpty] using HruntimeBase
@@ -677,8 +675,8 @@ theorem laterLoopInd
       checkInductiveTypes.loopType.ParameterCachePrefix
         Hc'.venv c'.lparams Hc'.mlctx.vlctx stats'
           nparams depth' →
-      checkInductiveTypes.loopType.ParameterContextSuffix
-        Hc' stats' depth' →
+      ParameterContextSuffix
+        Hc'.toSemantics stats' depth' →
       checkInductiveTypes.loopType.AmbientParamContext
         Hc' commonParams depth' →
       VLevel.ofLevel c'.lparams stats'.resultLevel = some commonLevel →
@@ -711,8 +709,8 @@ theorem laterLoopInd
     (hcommonParams : commonParams.length = nparams)
     (Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
       Hc.venv c.lparams Hc.mlctx.vlctx stats nparams depth)
-    (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
-      Hc stats depth)
+    (Hsuffix : ParameterContextSuffix
+      Hc.toSemantics stats depth)
     (Hambient : checkInductiveTypes.loopType.AmbientParamContext
       Hc commonParams depth)
     (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
@@ -820,8 +818,8 @@ theorem firstLoopInd
       checkInductiveTypes.loopType.ParameterCachePrefix
         Hc'.venv c'.lparams Hc'.mlctx.vlctx stats'
           nparams depth' →
-      checkInductiveTypes.loopType.ParameterContextSuffix
-        Hc' stats' depth' →
+      ParameterContextSuffix
+        Hc'.toSemantics stats' depth' →
       checkInductiveTypes.loopType.AmbientParamContext
         Hc' commonParams depth' →
       VLevel.ofLevel c'.lparams stats'.resultLevel = some commonLevel →
@@ -925,8 +923,8 @@ theorem checkInductiveTypes.accumulatesHeadersSourceAligned
       checkInductiveTypes.loopType.ParameterCachePrefix
         Hc'.venv c'.lparams Hc'.mlctx.vlctx stats'
           nparams depth →
-      checkInductiveTypes.loopType.ParameterContextSuffix
-        Hc' stats' depth →
+      ParameterContextSuffix
+        Hc'.toSemantics stats' depth →
       checkInductiveTypes.loopType.AmbientParamContext
         Hc' commonParams depth →
       VLevel.ofLevel c'.lparams stats'.resultLevel = some commonLevel →

@@ -54,8 +54,8 @@ structure
   originContext : RecursorContextWF originRoot
     (AddInductive.getRecLevelParams H.elimLevel c.lparams)
   priorHypotheses : Array Expr
-  originRecent : RecursorFVarSuffix A.typing.context
-    originContext priorHypotheses
+  originRecent : FVarSuffix A.typing.context.toSemantics
+    originContext.toSemantics priorHypotheses
   originCheck : originContext.chk = A.typing.context.chk
   priorHypotheses_size : priorHypotheses.size = j
   callDepth : Nat
@@ -106,7 +106,7 @@ def RecursorInstallation.RuleAlignment.RecursiveCallFrame.originExtension
     {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj) :
-    RecursorContextExtension A.typing.context F.originContext :=
+    ContextExtension A.typing.context.toSemantics F.originContext.toSemantics :=
   F.originRecent.contextExtension
 
 theorem
@@ -541,8 +541,8 @@ theorem
   let selectedOwner := F.semantic.generated.ownerIdx
   have hrecInfo : selectedOwner < H.recInfos.size := by
     simpa [H.generated.length] using F.entry_lt
-  let Hext : RecursorContextExtension A.typing.context
-      F.semantic.current_context :=
+  let Hext : ContextExtension A.typing.context.toSemantics
+      F.semantic.current_context.toSemantics :=
     F.originExtension.trans F.semantic.recent.contextExtension
   have HexposedType : F.semantic.current_context.venv.IsType
       (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
@@ -636,14 +636,12 @@ theorem
       parameterDecls := by
     simpa [HfieldBase, Hparameter,
       checkInductiveTypes.loopType.FrontScopeEmbedding.retargetRuntime,
-      RecursorParameterContextSuffix.parameterEmbedding,
-      checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix]
+      ParameterContextSuffix.parameterEmbedding]
       using hfieldBase
   have hfront : HfieldScope.frontSourceDomains = fieldDomains := by
     simpa [HfieldBase, Hparameter,
       checkInductiveTypes.loopType.FrontScopeEmbedding.retargetRuntime,
-      RecursorParameterContextSuffix.parameterEmbedding,
-      checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix]
+      ParameterContextSuffix.parameterEmbedding]
       using hfieldFront
   exact ⟨fieldScope, HfieldScope, by simpa [hfieldRev] using
     hfieldScopeFVars, hbase, ⟨fieldDomains, hfieldDomains, hfront⟩,

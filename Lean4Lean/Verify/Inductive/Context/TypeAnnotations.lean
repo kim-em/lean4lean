@@ -6,7 +6,7 @@ The inductive checker removes `optParam`, `autoParam`, `outParam` and `semiOutPa
 domain (`Expr.consumeTypeAnnotationsVerified`) only where the environment declares the wrapper as
 the prelude's definition (`TypeAnnotationWrappers`). This file proves that the unannotated domain
 translates to a type definitionally equal to the source domain, and discharges the two hypotheses
-`ConsumeTypeAnnotationsDefEq` and `RecursorConsumeTypeAnnotationsDefEq` of `Context.lean`. -/
+`ConsumeTypeAnnotationsDefEq` and `ConsumeTypeAnnotationsDefEq` of `Context.lean`. -/
 
 namespace Lean4Lean
 
@@ -355,25 +355,11 @@ theorem consumeTypeAnnotationsSemantic
         source' consumed' (.sort u) :=
   consumeTypeAnnotationsSemantic_of_wrappers Hchecking.tr (.of_env env) hDelta htr htype
 
-/-- The annotation hypothesis of the inductive checker's contexts holds, using the
+/-- The annotation hypothesis of the inductive checker's frames holds, using the
 environment's own wrapper lookup (`TypeAnnotationWrappers.of_env`). -/
 theorem consumeTypeAnnotationsDefEq : VerifyInductive.ConsumeTypeAnnotationsDefEq := by
-  intro c Hc dom source' htr htype
-  rcases consumeTypeAnnotationsSemantic Hc.checking Hc.mlctx_wf.tr.wf
-      htr htype with
-    ⟨consumed', hconsumed, hconsumedType, u, hsourceEq⟩
-  exact ⟨consumed', {
-    source := htr
-    unannotated := hconsumed
-    isType := hconsumedType
-    source_defeq := ⟨u, hsourceEq⟩ }⟩
-
-/-- The annotation hypothesis of the recursor contexts holds: it is the same theorem
-at the generated universe list. -/
-theorem recursorConsumeTypeAnnotationsDefEq :
-    VerifyInductive.RecursorConsumeTypeAnnotationsDefEq := by
-  intro c recLparams R dom source' htr htype
-  rcases consumeTypeAnnotationsSemantic R.checking R.mlctx_wf.tr.wf
+  intro c Us S dom source' htr htype
+  rcases consumeTypeAnnotationsSemantic S.checking S.mlctx_wf.tr.wf
       htr htype with
     ⟨consumed', hconsumed, hconsumedType, u, hsourceEq⟩
   exact ⟨consumed', {

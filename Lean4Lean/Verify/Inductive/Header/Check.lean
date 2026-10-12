@@ -174,7 +174,7 @@ def HeaderParameterContext.ofLoop {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {params : List VExpr} {depth nparams : Nat}
     (cache : checkInductiveTypes.loopType.ParameterCachePrefix Hc.venv c.lparams
       Hc.mlctx.vlctx stats nparams depth)
-    (suffix : checkInductiveTypes.loopType.ParameterContextSuffix Hc stats depth)
+    (suffix : ParameterContextSuffix Hc.toSemantics stats depth)
     (ambient : checkInductiveTypes.loopType.AmbientParamContext Hc params depth)
     (hsize : stats.params.size = nparams) :
     HeaderParameterContext Hc stats params depth where
@@ -226,7 +226,7 @@ structure HeaderPhase {c : AddInductive.Context} (Hc : ContextWF c) (nparams : N
   cache : checkInductiveTypes.loopType.ParameterCachePrefix Hc'.venv c'.lparams
     Hc'.mlctx.vlctx stats nparams depth
   /-- The loop's parameter suffix of the main context. -/
-  suffix : checkInductiveTypes.loopType.ParameterContextSuffix Hc' stats depth
+  suffix : ParameterContextSuffix Hc'.toSemantics stats depth
   /-- The loop's conversion of the context to the ambient prefix and the common parameters. -/
   ambientParams : checkInductiveTypes.loopType.AmbientParamContext Hc' commonParams depth
 

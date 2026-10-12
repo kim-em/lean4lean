@@ -271,13 +271,13 @@ theorem safeField.sourceWF
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true
   · rw [if_pos hbound]
     refine Hpos.bind fun recursive hpos => ?_
-    rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
-    rcases Hdom₀.body Hc.atCheckLCtx hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
+    rcases Hdom.body hbody with ⟨body'', hbody'', hbodyEq⟩
+    rcases Hdom₀.body hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
     refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
       (k := fun arg => do
         return recursive :: (← AddInductive.checkConstructors.loopCtor stats false ctor
           targetIdx (body.instantiate1 arg) (i + 1) fuel))
-      Hc Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
+      Hc.toSemantics Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
     have hopened := Hc.instantiateFresh (name := name) (bi := bi)
       Hdom.unannotated Hdom.isType hbody''
     have hopened₀ := Hc.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
@@ -355,13 +355,13 @@ theorem unsafeField.sourceWF
       (stats.resultLevel.isAlwaysZero ||
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true
   · rw [if_pos hbound]
-    rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
-    rcases Hdom₀.body Hc.atCheckLCtx hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
+    rcases Hdom.body hbody with ⟨body'', hbody'', hbodyEq⟩
+    rcases Hdom₀.body hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
     refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
       (k := fun arg => do
         return false :: (← AddInductive.checkConstructors.loopCtor stats true ctor
           targetIdx (body.instantiate1 arg) (i + 1) fuel))
-      Hc Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
+      Hc.toSemantics Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
     have hopened := Hc.instantiateFresh (name := name) (bi := bi)
       Hdom.unannotated Hdom.isType hbody''
     have hopened₀ := Hc.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
@@ -1485,11 +1485,11 @@ theorem forallE.sourceWF
       ctor idx recur c).WF Q := by
   rw [AddInductive.checkPositivityStep]
   rw [if_neg (by simp [hocc]), if_neg (by simp [hdomOcc])]
-  rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
-  rcases Hdom₀.body Hc.atCheckLCtx hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
+  rcases Hdom.body hbody with ⟨body'', hbody'', hbodyEq⟩
+  rcases Hdom₀.body hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
   refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
     (k := fun arg => recur (body.instantiate1 arg))
-    Hc Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
+    Hc.toSemantics Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
   have hopened := Hc.instantiateFresh (name := name) (bi := bi)
     Hdom.unannotated Hdom.isType hbody''
   have hopened₀ := Hc.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
@@ -1628,11 +1628,11 @@ theorem refinesScoped
         cases hexposedFull with
         | @forallE fullDom fullBody _ _ _ _ _
             hdomFullType _ hdomFull hbodyFull =>
-          rcases hconsume c Hc hdomFull hdomFullType with
+          rcases hconsume c _ Hc.toSemantics hdomFull hdomFullType with
             ⟨consumedDom, Hdom⟩
           rcases halign.forallE_align henv hdomNarrow hdomNarrowType hbodyNarrow with
             ⟨dom₀, body₀, hdom₀, hdom₀Type, hdomU, hbody₀, _⟩
-          rcases hconsume _ Hc.atCheckLCtx hdom₀ hdom₀Type with
+          rcases hconsume _ _ Hc.atCheckLCtx.toSemantics hdom₀ hdom₀Type with
             ⟨consumedDom₀, Hdom₀⟩
           refine finish <| checkPositivityStep.forallE.sourceWF
             (Q := fun _ => decl.SyntacticallyPositive Hc.venv
@@ -1646,7 +1646,7 @@ theorem refinesScoped
           have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
               (Expr.consumeTypeAnnotationsVerified_fvarsIn hnormalizedFVars.1)).1
-          rcases Hruntime.unannotatedDomain Hc Hdom hdomNarrow with
+          rcases Hruntime.unannotatedDomain Hdom hdomNarrow with
             ⟨domainLevel, hdomain⟩
           let Hruntime' :
               checkInductiveTypes.loopType.FrontScopeEmbedding

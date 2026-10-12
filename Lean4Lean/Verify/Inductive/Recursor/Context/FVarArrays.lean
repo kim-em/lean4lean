@@ -5,11 +5,11 @@ import Lean4Lean.Verify.Inductive.Recursor.Context.ForallTelescope
 The recursor construction opens binders (indices, majors, constructor fields, the arguments
 of recursive fields) and closes them again with `LocalContext.mkForall`/`mkLambda`. This file
 records how such an array sits in the local context: `FVarArrayAfter` (opened after a root
-context), `FVarSuffix` and `RecursorFVarSuffix` (the exact consecutive suffix above a root,
-in introduction order), and `RecursorContextExtension` (the de Bruijn lift of the abstract
+context), `FVarSuffix` (the exact consecutive suffix above a root frame, in introduction
+order), and `ContextExtension` (the de Bruijn lift of the abstract
 context along an extension). With these, translations and typings move from a root context
 to the extended one, and closing the suffix gives a translated forall or lambda in the root
-context (`RecursorFVarSuffix.mkForall`, `mkLambda`).
+context (`FVarSuffix.mkForall`, `mkLambda`).
 
 It also proves that the constructor phase records, for every constructor, its owner normal
 form (`ConstructorOwnerNormalForm`: the field telescope ends in a valid application of its
@@ -85,39 +85,39 @@ theorem BindingContextLE.withCheckedLocalDecl
 context. `BindingContextLE` is enough to look up local declarations, but it does not
 determine how translated de Bruijn targets move; the `FVLift'` does. It is used to move
 motive-pass facts under later constructor binders. -/
-structure RecursorContextExtension
-    {root current : AddInductive.Context} {recLparams : List Name}
-    (Rroot : RecursorContextWF root recLparams)
-    (Rcurrent : RecursorContextWF current recLparams) where
+structure ContextExtension
+    {root current : AddInductive.Context} {Us : List Name}
+    (Rroot : ContextSemantics root Us)
+    (Rcurrent : ContextSemantics current Us) where
   contextLE : BindingContextLE root current
   venv_eq : Rcurrent.venv = Rroot.venv
   shift : Lift
   lift : VLCtx.FVLift' Rroot.mlctx.vlctx Rcurrent.mlctx.vlctx
     0 shift 0
 
-def RecursorContextExtension.refl
-    (R : RecursorContextWF c recLparams) :
-    RecursorContextExtension R R where
+def ContextExtension.refl
+    (R : ContextSemantics c Us) :
+    ContextExtension R R where
   contextLE := BindingContextLE.refl c
   venv_eq := rfl
   shift := .refl
   lift := .refl
 
-def RecursorContextExtension.trans
-    (H₁ : RecursorContextExtension R₁ R₂)
-    (H₂ : RecursorContextExtension R₂ R₃) :
-    RecursorContextExtension R₁ R₃ where
+def ContextExtension.trans
+    (H₁ : ContextExtension R₁ R₂)
+    (H₂ : ContextExtension R₂ R₃) :
+    ContextExtension R₁ R₃ where
   contextLE := H₁.contextLE.trans H₂.contextLE
   venv_eq := H₂.venv_eq.trans H₁.venv_eq
   shift := H₁.shift.comp H₂.shift
   lift := H₁.lift.comp H₂.lift
 
-/-- The one-local extension corresponding to `RecursorContextWF.withLocalDecl`. -/
-def RecursorContextExtension.withLocalDecl
-    (R : RecursorContextWF c recLparams)
-    (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
-    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty') :
-    RecursorContextExtension R
+/-- The one-local extension corresponding to `ContextSemantics.withLocalDecl`. -/
+def ContextExtension.withLocalDecl
+    (R : ContextSemantics c Us)
+    (htr : TrExprS R.venv Us R.mlctx.vlctx ty ty')
+    (hty : R.venv.IsType Us.length R.mlctx.vlctx.toCtx ty') :
+    ContextExtension R
       (R.withLocalDecl (name := name) (bi := bi) htr hty) where
   contextLE := BindingContextLE.withLocalDecl c R.toBindingContextWF
     name ty bi
@@ -127,15 +127,15 @@ def RecursorContextExtension.withLocalDecl
 
 /-- Weaken a translation along a recursor-context extension. The executable expression is
 unchanged; its abstract target is lifted by the extension's `Lift`. -/
-theorem RecursorContextExtension.weakTrExprS
-    {root current : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {Rcurrent : RecursorContextWF current recLparams}
-    (H : RecursorContextExtension Rroot Rcurrent)
-    (htr : TrExprS Rroot.venv recLparams Rroot.mlctx.vlctx source target) :
-    TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx source
+theorem ContextExtension.weakTrExprS
+    {root current : AddInductive.Context} {Us : List Name}
+    {Rroot : ContextSemantics root Us}
+    {Rcurrent : ContextSemantics current Us}
+    (H : ContextExtension Rroot Rcurrent)
+    (htr : TrExprS Rroot.venv Us Rroot.mlctx.vlctx source target) :
+    TrExprS Rcurrent.venv Us Rcurrent.mlctx.vlctx source
       (target.lift' (H.shift.consN 0)) := by
-  have hcurrentWF : VLCtx.WF Rroot.venv recLparams.length
+  have hcurrentWF : VLCtx.WF Rroot.venv Us.length
       Rcurrent.mlctx.vlctx := by
     simpa only [H.venv_eq] using Rcurrent.mlctx_wf.tr.wf
   have hweak := htr.weakFV' Rroot.checking.tr.wf.orderedStrong H.lift
@@ -143,41 +143,41 @@ theorem RecursorContextExtension.weakTrExprS
   simpa only [H.venv_eq] using hweak
 
 /-- Weaken a typing along the lift of a recursor-context extension. -/
-theorem RecursorContextExtension.weakHasType
-    {root current : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {Rcurrent : RecursorContextWF current recLparams}
-    (H : RecursorContextExtension Rroot Rcurrent)
-    (htype : Rroot.venv.HasType recLparams.length Rroot.mlctx.vlctx.toCtx
+theorem ContextExtension.weakHasType
+    {root current : AddInductive.Context} {Us : List Name}
+    {Rroot : ContextSemantics root Us}
+    {Rcurrent : ContextSemantics current Us}
+    (H : ContextExtension Rroot Rcurrent)
+    (htype : Rroot.venv.HasType Us.length Rroot.mlctx.vlctx.toCtx
       term type) :
-    Rcurrent.venv.HasType recLparams.length Rcurrent.mlctx.vlctx.toCtx
+    Rcurrent.venv.HasType Us.length Rcurrent.mlctx.vlctx.toCtx
       (term.lift' (H.shift.consN 0))
       (type.lift' (H.shift.consN 0)) := by
   have hweak := htype.weak' Rroot.checking.tr.wf.ordered H.lift.toCtx
   simpa only [H.venv_eq] using hweak
 
 /-- Weaken typehood along a recursor-context extension. -/
-theorem RecursorContextExtension.weakIsType
-    {root current : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {Rcurrent : RecursorContextWF current recLparams}
-    (H : RecursorContextExtension Rroot Rcurrent)
-    (htype : Rroot.venv.IsType recLparams.length Rroot.mlctx.vlctx.toCtx
+theorem ContextExtension.weakIsType
+    {root current : AddInductive.Context} {Us : List Name}
+    {Rroot : ContextSemantics root Us}
+    {Rcurrent : ContextSemantics current Us}
+    (H : ContextExtension Rroot Rcurrent)
+    (htype : Rroot.venv.IsType Us.length Rroot.mlctx.vlctx.toCtx
       type) :
-    Rcurrent.venv.IsType recLparams.length Rcurrent.mlctx.vlctx.toCtx
+    Rcurrent.venv.IsType Us.length Rcurrent.mlctx.vlctx.toCtx
       (type.lift' (H.shift.consN 0)) := by
   have hweak := htype.weak' Rroot.checking.tr.wf.ordered H.lift.toCtx
   simpa only [H.venv_eq] using hweak
 
 /-- Weaken definitional equality along a recursor-context extension. -/
-theorem RecursorContextExtension.weakDefEqU
-    {root current : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {Rcurrent : RecursorContextWF current recLparams}
-    (H : RecursorContextExtension Rroot Rcurrent)
-    (hdefeq : Rroot.venv.IsDefEqU recLparams.length
+theorem ContextExtension.weakDefEqU
+    {root current : AddInductive.Context} {Us : List Name}
+    {Rroot : ContextSemantics root Us}
+    {Rcurrent : ContextSemantics current Us}
+    (H : ContextExtension Rroot Rcurrent)
+    (hdefeq : Rroot.venv.IsDefEqU Us.length
       Rroot.mlctx.vlctx.toCtx left right) :
-    Rcurrent.venv.IsDefEqU recLparams.length Rcurrent.mlctx.vlctx.toCtx
+    Rcurrent.venv.IsDefEqU Us.length Rcurrent.mlctx.vlctx.toCtx
       (left.lift' (H.shift.consN 0))
       (right.lift' (H.shift.consN 0)) := by
   have hweak := hdefeq.weak' Rroot.checking.tr.wf.ordered H.lift.toCtx
@@ -432,63 +432,16 @@ def FVarArrayAfter.rebaseRoot
     intro fv hfv hroot'
     exact H.fresh fv hfv (hle hroot')
 
-/-- The suffix of ordinary locals introduced after `root`, in order. Unlike
-`FVarArrayAfter`, it records that no other local is interleaved and that `xs` lists the
-suffix in introduction order, as `RecursorContextWF.mkForallRecent` requires. -/
-structure FVarSuffix {root c : AddInductive.Context}
-    (Hroot : ContextWF root) (Hc : ContextWF c) (xs : Array Expr)
-    extends FVarArrayAfter root c xs where
-  contextLE : BindingContextLE root c
-  size_le : xs.size ≤ Hc.mlctx.length
-  reverse_eq : xs.toList.reverse =
-    (Hc.mlctx.fvarRevList xs.size size_le).map Expr.fvar
-  drop_eq : Hc.mlctx.dropN xs.size size_le = Hroot.mlctx
-
-def FVarSuffix.empty (Hc : ContextWF c) :
-    FVarSuffix Hc Hc #[] where
-  toFVarArrayAfter := FVarArrayAfter.empty c
-  contextLE := BindingContextLE.refl c
-  size_le := by simp
-  reverse_eq := by simp
-  drop_eq := rfl
-
-/-- Variant of `FVarSuffix.pushCurrent` for a binder opened in both contexts. -/
-def FVarSuffix.pushCurrentChecked {root c : AddInductive.Context}
-    {Hroot : ContextWF root} {Hc : ContextWF c} {xs : Array Expr}
-    (H : FVarSuffix Hroot Hc xs)
-    (name : Name) (ty : Expr) (ty' : VExpr) (bi : BinderInfo)
-    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
-    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty')
-    {ty₀ : VExpr}
-    (htr₀ : TrExprS Hc.venv c.lparams Hc.chk.vlctx ty ty₀)
-    (hty₀ : Hc.venv.IsType c.lparams.length Hc.chk.vlctx.toCtx ty₀) :
-    FVarSuffix Hroot
-      (ContextWF.withCheckedLocalDecl (c := c) (name := name) (ty := ty)
-        (ty' := ty') (bi := bi) (H := Hc) htr hty htr₀ hty₀)
-      (xs.push (.fvar ⟨c.ngen.curr⟩)) where
-  toFVarArrayAfter := H.toFVarArrayAfter.pushCurrentChecked
-    Hc.toBindingContextWF H.contextLE name ty bi
-  contextLE := H.contextLE.trans <|
-    BindingContextLE.withCheckedLocalDecl c Hc.toBindingContextWF name ty bi
-  size_le := by
-    simpa only [Array.size_push, ContextWF.withCheckedLocalDecl, ContextWF.withCheckedLocalDeclOn,
-      TypeChecker.MLCtx.length] using Nat.succ_le_succ H.size_le
-  reverse_eq := by
-    simpa only [Array.toList_push, List.reverse_append, List.reverse_singleton,
-      List.singleton_append, Array.size_push, ContextWF.withCheckedLocalDecl, ContextWF.withCheckedLocalDeclOn,
-      TypeChecker.MLCtx.fvarRevList, List.map_cons] using
-        congrArg (List.cons (.fvar ⟨c.ngen.curr⟩)) H.reverse_eq
-  drop_eq := by
-    simpa only [Array.size_push, ContextWF.withCheckedLocalDecl, ContextWF.withCheckedLocalDeclOn,
-      TypeChecker.MLCtx.dropN] using H.drop_eq
-
-/-- The consecutive suffix `xs` of a recursor context above the root context `Rroot`,
-under the same universe list: the abstract context of `R` is that of `Rroot` with the
-entries of `xs` on top. -/
-structure RecursorFVarSuffix
-    {root c : AddInductive.Context} {recLparams : List Name}
-    (Rroot : RecursorContextWF root recLparams)
-    (R : RecursorContextWF c recLparams) (xs : Array Expr)
+/-- The consecutive suffix `xs` of a frame `R` above the root frame `Rroot`: the abstract
+context of `R` is that of `Rroot` with the entries of `xs` on top. Unlike `FVarArrayAfter`, it
+records that no other local is interleaved and that `xs` lists the suffix in introduction order,
+as `ContextSemantics.mkForallRecent` requires. The two frames index their universe parameters
+separately (the header phase's root and current contexts carry `root.lparams` and `c.lparams`);
+the lemmas that move typings along the suffix take them equal. -/
+structure FVarSuffix
+    {root c : AddInductive.Context} {Us Us' : List Name}
+    (Rroot : ContextSemantics root Us)
+    (R : ContextSemantics c Us') (xs : Array Expr)
     extends FVarArrayAfter root c xs where
   contextLE : BindingContextLE root c
   venv_eq : R.venv = Rroot.venv
@@ -499,13 +452,13 @@ structure RecursorFVarSuffix
 
 /-- A recent suffix rooted at a checker-context variant of `Rroot` is rooted
 at `Rroot` itself: the root's checker context plays no role. -/
-def RecursorFVarSuffix.ofCheckRoot
-    {root c : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {R : RecursorContextWF c recLparams} {xs : Array Expr}
+def FVarSuffix.ofCheckRoot
+    {root c : AddInductive.Context} {Us₀ Us : List Name}
+    {Rroot : ContextSemantics root Us₀}
+    {R : ContextSemantics c Us} {xs : Array Expr}
     {l : LocalContext} {B : Rroot.Base l}
-    (H : RecursorFVarSuffix (Rroot.withCheckLCtx l B) R xs) :
-    RecursorFVarSuffix Rroot R xs where
+    (H : FVarSuffix (Rroot.withCheckLCtx l B) R xs) :
+    FVarSuffix Rroot R xs where
   toFVarArrayIn := H.toFVarArrayIn
   nodup := H.nodup
   fresh := H.fresh
@@ -517,9 +470,9 @@ def RecursorFVarSuffix.ofCheckRoot
   reverse_eq := H.reverse_eq
   drop_eq := H.drop_eq
 
-def RecursorFVarSuffix.empty
-    (R : RecursorContextWF c recLparams) :
-    RecursorFVarSuffix R R #[] where
+def FVarSuffix.empty
+    (R : ContextSemantics c Us) :
+    FVarSuffix R R #[] where
   toFVarArrayAfter := FVarArrayAfter.empty c
   contextLE := BindingContextLE.refl c
   venv_eq := rfl
@@ -527,15 +480,15 @@ def RecursorFVarSuffix.empty
   reverse_eq := by simp
   drop_eq := rfl
 
-def RecursorFVarSuffix.pushCurrent
-    {root c : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorFVarSuffix Rroot R xs)
+def FVarSuffix.pushCurrent
+    {root c : AddInductive.Context} {Us₀ Us : List Name}
+    {Rroot : ContextSemantics root Us₀}
+    {R : ContextSemantics c Us} {xs : Array Expr}
+    (H : FVarSuffix Rroot R xs)
     (name : Name) (ty : Expr) (ty' : VExpr) (bi : BinderInfo)
-    (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
-    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty') :
-    RecursorFVarSuffix Rroot
+    (htr : TrExprS R.venv Us R.mlctx.vlctx ty ty')
+    (hty : R.venv.IsType Us.length R.mlctx.vlctx.toCtx ty') :
+    FVarSuffix Rroot
       (R.withLocalDecl (name := name) (bi := bi) htr hty)
       (xs.push (.fvar ⟨c.ngen.curr⟩)) where
   toFVarArrayAfter := H.toFVarArrayAfter.pushCurrent
@@ -544,30 +497,30 @@ def RecursorFVarSuffix.pushCurrent
     BindingContextLE.withLocalDecl c R.toBindingContextWF name ty bi
   venv_eq := H.venv_eq
   size_le := by
-    simpa only [Array.size_push, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn,
+    simpa only [Array.size_push, ContextSemantics.withLocalDecl, ContextSemantics.withCheckedLocalDecl, ContextSemantics.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.length] using Nat.succ_le_succ H.size_le
   reverse_eq := by
     simpa only [Array.toList_push, List.reverse_append, List.reverse_singleton,
-      List.singleton_append, Array.size_push, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn,
+      List.singleton_append, Array.size_push, ContextSemantics.withLocalDecl, ContextSemantics.withCheckedLocalDecl, ContextSemantics.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.fvarRevList, List.map_cons] using
         congrArg (List.cons (.fvar ⟨c.ngen.curr⟩)) H.reverse_eq
   drop_eq := by
-    simpa only [Array.size_push, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn,
+    simpa only [Array.size_push, ContextSemantics.withLocalDecl, ContextSemantics.withCheckedLocalDecl, ContextSemantics.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.dropN] using H.drop_eq
 
-/-- Variant of `RecursorFVarSuffix.pushCurrent` for a binder opened in both contexts. -/
-def RecursorFVarSuffix.pushCurrentChecked
-    {root c : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorFVarSuffix Rroot R xs)
+/-- Variant of `FVarSuffix.pushCurrent` for a binder opened in both contexts. -/
+def FVarSuffix.pushCurrentChecked
+    {root c : AddInductive.Context} {Us₀ Us : List Name}
+    {Rroot : ContextSemantics root Us₀}
+    {R : ContextSemantics c Us} {xs : Array Expr}
+    (H : FVarSuffix Rroot R xs)
     (name : Name) (ty : Expr) (ty' : VExpr) (bi : BinderInfo)
-    (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
-    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty')
+    (htr : TrExprS R.venv Us R.mlctx.vlctx ty ty')
+    (hty : R.venv.IsType Us.length R.mlctx.vlctx.toCtx ty')
     {ty₀ : VExpr}
-    (htr₀ : TrExprS R.venv recLparams R.chk.vlctx ty ty₀)
-    (hty₀ : R.venv.IsType recLparams.length R.chk.vlctx.toCtx ty₀) :
-    RecursorFVarSuffix Rroot
+    (htr₀ : TrExprS R.venv Us R.chk.vlctx ty ty₀)
+    (hty₀ : R.venv.IsType Us.length R.chk.vlctx.toCtx ty₀) :
+    FVarSuffix Rroot
       (R.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀)
       (xs.push (.fvar ⟨c.ngen.curr⟩)) where
   toFVarArrayAfter := H.toFVarArrayAfter.pushCurrentChecked
@@ -576,32 +529,32 @@ def RecursorFVarSuffix.pushCurrentChecked
     BindingContextLE.withCheckedLocalDecl c R.toBindingContextWF name ty bi
   venv_eq := H.venv_eq
   size_le := by
-    simpa only [Array.size_push, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn,
+    simpa only [Array.size_push, ContextSemantics.withCheckedLocalDecl, ContextSemantics.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.length] using Nat.succ_le_succ H.size_le
   reverse_eq := by
     simpa only [Array.toList_push, List.reverse_append, List.reverse_singleton,
-      List.singleton_append, Array.size_push, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn,
+      List.singleton_append, Array.size_push, ContextSemantics.withCheckedLocalDecl, ContextSemantics.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.fvarRevList, List.map_cons] using
         congrArg (List.cons (.fvar ⟨c.ngen.curr⟩)) H.reverse_eq
   drop_eq := by
-    simpa only [Array.size_push, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn,
+    simpa only [Array.size_push, ContextSemantics.withCheckedLocalDecl, ContextSemantics.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.dropN] using H.drop_eq
 
-/-- Variant of `RecursorFVarSuffix.pushCurrent` for a binder opened
+/-- Variant of `FVarSuffix.pushCurrent` for a binder opened
 on an explicit checker base. -/
-def RecursorFVarSuffix.pushCurrentOn
-    {root c : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorFVarSuffix Rroot R xs)
+def FVarSuffix.pushCurrentOn
+    {root c : AddInductive.Context} {Us₀ Us : List Name}
+    {Rroot : ContextSemantics root Us₀}
+    {R : ContextSemantics c Us} {xs : Array Expr}
+    (H : FVarSuffix Rroot R xs)
     (name : Name) (ty : Expr) (ty' : VExpr) (bi : BinderInfo)
     (base : LocalContext) (B : R.Base base)
-    (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
-    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty')
+    (htr : TrExprS R.venv Us R.mlctx.vlctx ty ty')
+    (hty : R.venv.IsType Us.length R.mlctx.vlctx.toCtx ty')
     {ty₀ : VExpr}
-    (htr₀ : TrExprS R.venv recLparams B.m.vlctx ty ty₀)
-    (hty₀ : R.venv.IsType recLparams.length B.m.vlctx.toCtx ty₀) :
-    RecursorFVarSuffix Rroot
+    (htr₀ : TrExprS R.venv Us B.m.vlctx ty ty₀)
+    (hty₀ : R.venv.IsType Us.length B.m.vlctx.toCtx ty₀) :
+    FVarSuffix Rroot
       (R.withCheckedLocalDeclOn (name := name) (bi := bi) base B htr hty htr₀ hty₀)
       (xs.push (.fvar ⟨c.ngen.curr⟩)) where
   toFVarArrayAfter := H.toFVarArrayAfter.pushCurrentChecked
@@ -610,25 +563,25 @@ def RecursorFVarSuffix.pushCurrentOn
     BindingContextLE.withCheckedLocalDecl c R.toBindingContextWF name ty bi
   venv_eq := H.venv_eq
   size_le := by
-    simpa only [Array.size_push, RecursorContextWF.withCheckedLocalDeclOn,
+    simpa only [Array.size_push, ContextSemantics.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.length] using Nat.succ_le_succ H.size_le
   reverse_eq := by
     simpa only [Array.toList_push, List.reverse_append, List.reverse_singleton,
-      List.singleton_append, Array.size_push, RecursorContextWF.withCheckedLocalDeclOn,
+      List.singleton_append, Array.size_push, ContextSemantics.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.fvarRevList, List.map_cons] using
         congrArg (List.cons (.fvar ⟨c.ngen.curr⟩)) H.reverse_eq
   drop_eq := by
-    simpa only [Array.size_push, RecursorContextWF.withCheckedLocalDeclOn,
+    simpa only [Array.size_push, ContextSemantics.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.dropN] using H.drop_eq
 
 /-- A recursor suffix induces a recursor-context extension (lifting by the suffix
 length), used to weaken facts established at the root. -/
-def RecursorFVarSuffix.contextExtension
-    {root c : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorFVarSuffix Rroot R xs) :
-    RecursorContextExtension Rroot R where
+def FVarSuffix.contextExtension
+    {root c : AddInductive.Context} {Us : List Name}
+    {Rroot : ContextSemantics root Us}
+    {R : ContextSemantics c Us} {xs : Array Expr}
+    (H : FVarSuffix Rroot R xs) :
+    ContextExtension Rroot R where
   contextLE := H.contextLE
   venv_eq := H.venv_eq
   shift := .skipN .refl xs.size
@@ -638,11 +591,11 @@ def RecursorFVarSuffix.contextExtension
 
 /-- The newest-first free-variable prefix of the abstract metacontext is the suffix
 array, reversed. -/
-theorem RecursorFVarSuffix.fvarRevList_eq
-    {root c : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorFVarSuffix Rroot R xs) :
+theorem FVarSuffix.fvarRevList_eq
+    {root c : AddInductive.Context} {Us : List Name}
+    {Rroot : ContextSemantics root Us}
+    {R : ContextSemantics c Us} {xs : Array Expr}
+    (H : FVarSuffix Rroot R xs) :
     R.mlctx.fvarRevList xs.size H.size_le = H.fvars.reverse := by
   have hexpressions := congrArg Array.toList H.expressions
   have hmapped : xs.toList = H.fvars.map Expr.fvar := by
@@ -656,11 +609,11 @@ theorem RecursorFVarSuffix.fvarRevList_eq
 
 /-- The free variables of the current recursor context are those of the suffix, newest
 first, followed by those of the root. Unlike `BindingContextLE`, this preserves order. -/
-theorem RecursorFVarSuffix.contextFVars
-    {root c : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorFVarSuffix Rroot R xs) :
+theorem FVarSuffix.contextFVars
+    {root c : AddInductive.Context} {Us : List Name}
+    {Rroot : ContextSemantics root Us}
+    {R : ContextSemantics c Us} {xs : Array Expr}
+    (H : FVarSuffix Rroot R xs) :
     R.mlctx.vlctx.fvars = H.fvars.reverse ++ Rroot.mlctx.vlctx.fvars := by
   have hsplit := TypeChecker.MLCtx.vlctx_eq_take_append_dropN
     R.mlctx xs.size H.size_le
@@ -674,11 +627,11 @@ theorem RecursorFVarSuffix.contextFVars
 /-- An up-set of the root context that contains only root variables remains an up-set
 after the suffix: the suffix binders are outside the predicate, while their dependencies
 may lie inside it. -/
-theorem RecursorFVarSuffix.upsetRoot
-    {root c : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorFVarSuffix Rroot R xs)
+theorem FVarSuffix.upsetRoot
+    {root c : AddInductive.Context} {Us : List Name}
+    {Rroot : ContextSemantics root Us}
+    {R : ContextSemantics c Us} {xs : Array Expr}
+    (H : FVarSuffix Rroot R xs)
     {P : FVarId → Prop}
     (hscope : ∀ fv, P fv → fv ∈ Rroot.mlctx.vlctx.fvars)
     (hup : IsFVarUpSet P Rroot.mlctx.vlctx) :
@@ -702,13 +655,13 @@ theorem RecursorFVarSuffix.upsetRoot
 /-- Opening a recursor suffix preserves the parameter suffix: the fresh locals become
 additional ambient declarations, and the cached parameter declarations and their
 translations are unchanged. -/
-def RecursorParameterContextSuffix.weakenRecent
+def ParameterContextSuffix.weakenRecent
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorParameterContextSuffix Rroot stats depth)
-    (Hrecent : RecursorFVarSuffix Rroot R xs) :
-    RecursorParameterContextSuffix R stats (depth + xs.size) := by
+    (H : ParameterContextSuffix Rroot.toSemantics stats depth)
+    (Hrecent : FVarSuffix Rroot.toSemantics R.toSemantics xs) :
+    ParameterContextSuffix R.toSemantics stats (depth + xs.size) := by
   let added := R.mlctx.vlctx.take xs.size
   have hadded : added.length = xs.size := by
     change (R.mlctx.vlctx.take xs.size).length = xs.size
@@ -745,7 +698,7 @@ theorem RecursorValidAppStatsWF.weakenRecent
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
     (H : RecursorValidAppStatsWF Rroot.venv recLparams
       Rroot.mlctx.vlctx stats decl depth)
-    (Hrecent : RecursorFVarSuffix Rroot R xs) :
+    (Hrecent : FVarSuffix Rroot.toSemantics R.toSemantics xs) :
     RecursorValidAppStatsWF R.venv recLparams R.mlctx.vlctx
       stats decl (depth + xs.size) := by
   let W := R.onlyLams.dropN_fvlift xs.size Hrecent.size_le
@@ -769,11 +722,11 @@ theorem RecursorValidAppStatsWF.weakenRecent
 
 /-- The suffix entries are fresh bound variables, so a context without the block's
 inductive constants stays so across the suffix. -/
-theorem RecursorFVarSuffix.noIndConsts
-    {root c : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorFVarSuffix Rroot R xs)
+theorem FVarSuffix.noIndConsts
+    {root c : AddInductive.Context} {Us : List Name}
+    {Rroot : ContextSemantics root Us}
+    {R : ContextSemantics c Us} {xs : Array Expr}
+    (H : FVarSuffix Rroot R xs)
     (hroot : VLCtx.NoIndConsts names Rroot.mlctx.vlctx) :
     VLCtx.NoIndConsts names R.mlctx.vlctx := by
   apply checkInductiveTypes.loopType.MLCtxOnlyLams.noIndConsts_of_dropN
@@ -902,45 +855,45 @@ theorem ConstructorOwnerNormalForm.validOfOpening
     Hparams.fvars Hopening.fvars 0 hclosedValid hconst
     Hparams.expressions
 
-theorem RecursorParameterContextSuffix.fieldFVars
+theorem ParameterContextSuffix.fieldFVars
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     {stats : AddInductive.InductiveStats} {depth : Nat}
-    (H : RecursorParameterContextSuffix R stats depth) :
+    (H : ParameterContextSuffix R.toSemantics stats depth) :
     (R.mlctx.dropN depth H.depth_le).fvarList =
       (stats.params ++ (#[] : Array Expr)).toList.map (·.fvarId!) := by
-  rw [TypeChecker.MLCtx.fvarList_eq, H.dropAmbient_vlctx,
+  rw [TypeChecker.MLCtx.fvarList_eq, H.headerVLCtx,
     checkInductiveTypes.loopType.CachedParameterDecl.forall₂_fvars H.cached]
   simp [List.map_reverse]
 
 /-- The checker context of the first constructor field: the parameters, at
 the bottom of the recursor context. -/
-def RecursorParameterContextSuffix.fieldBase
+def ParameterContextSuffix.fieldBase
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     {stats : AddInductive.InductiveStats} {depth : Nat}
-    (H : RecursorParameterContextSuffix R stats depth) :
+    (H : ParameterContextSuffix R.toSemantics stats depth) :
     R.Base (ctorFieldCheck c stats #[]) :=
   (R.baseMain depth H.depth_le).cast
     (((R.baseMain depth H.depth_le).restrictTo_eq).symm.trans
       (congrArg c.lctx.restrictTo H.fieldFVars))
 
-theorem RecursorParameterContextSuffix.fieldBase_fvarList
+theorem ParameterContextSuffix.fieldBase_fvarList
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     {stats : AddInductive.InductiveStats} {depth : Nat}
-    (H : RecursorParameterContextSuffix R stats depth) :
+    (H : ParameterContextSuffix R.toSemantics stats depth) :
     H.fieldBase.m.fvarList =
       (stats.params ++ (#[] : Array Expr)).toList.map (·.fvarId!) :=
   H.fieldFVars
 
-theorem RecursorParameterContextSuffix.fieldBase_vlctx
+theorem ParameterContextSuffix.fieldBase_vlctx
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     {stats : AddInductive.InductiveStats} {depth : Nat}
-    (H : RecursorParameterContextSuffix R stats depth) :
+    (H : ParameterContextSuffix R.toSemantics stats depth) :
     H.fieldBase.m.vlctx = H.parameterDecls :=
-  H.dropAmbient_vlctx
+  H.headerVLCtx
 
 /-- The checker context of the next constructor field: the parameters and
 every field opened so far. -/
@@ -988,7 +941,7 @@ theorem RecursorContextWF.fieldBaseNext_fvarList
 namespace mkRecInfos.loopCtorArgs.loop
 
 /-- The traversal of constructor fields in the minor pass classifies the recursive fields
-and opens the complete field array as a recursor suffix (`RecursorFVarSuffix`). The suffix
+and opens the complete field array as a recursor suffix (`FVarSuffix`). The suffix
 is needed when the minor pass closes all field binders around the minor premise. -/
 theorem recursiveDomainsRecursorRecent {alpha : Type}
     (stats : AddInductive.InductiveStats)
@@ -1007,7 +960,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
     (hparams : stats.params.size ≤ i)
-    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
@@ -1031,7 +984,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
     (hdecisions : RecursorFieldDecisions stats root source c t bu u positions)
     (hargs : List.Forall₂
       (TrExprS R.venv recLparams R.mlctx.vlctx) u.toList args)
-    (Hrecent : RecursorFVarSuffix Rroot R bu)
+    (Hrecent : FVarSuffix Rroot.toSemantics R.toSemantics bu)
     (Hopening : ConstructorFieldOpening source t bu)
     (hrootType : Rroot.venv.IsDefEqU recLparams.length
       Rroot.mlctx.vlctx.toCtx rootTypeTarget
@@ -1064,7 +1017,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       List.Forall₂
         (TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx)
         u'.toList args' →
-      (Hrecent' : RecursorFVarSuffix Rroot Rcurrent bu') →
+      (Hrecent' : FVarSuffix Rroot.toSemantics Rcurrent.toSemantics bu') →
       (Hopening' : ConstructorFieldOpening source t' bu') →
       Rroot.venv.IsDefEqU recLparams.length Rroot.mlctx.vlctx.toCtx
         rootTypeTarget
@@ -1107,16 +1060,16 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       rcases TrExpr.forallE_source htypeTr with
         ⟨sourceDom, sourceBody, hdom, hbody, hdomType,
           hbodyType, hforallEq⟩
-      rcases hconsume c recLparams R hdom hdomType with
+      rcases hconsume c recLparams R.toSemantics hdom hdomType with
         ⟨consumedDom, Hdom⟩
-      rcases Hdom.body R hbody with
+      rcases Hdom.body hbody with
         ⟨consumedBody, hbodyConsumed, _hbodyEq⟩
       let RB := R.withCheckLCtx _ B
       rcases TrExpr.forallE_source (htype₀.trExpr R.checking.tr.wf B.wf.tr.wf) with
         ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, hbodyN₀Type, hforallEq₀⟩
-      rcases hconsume _ recLparams RB.atCheckLCtx hdom₀ hdom₀Type with
+      rcases hconsume _ recLparams RB.atCheckLCtx.toSemantics hdom₀ hdom₀Type with
         ⟨consumedDom₀, Hdom₀⟩
-      rcases Hdom₀.body RB.atCheckLCtx hbodyN₀ with ⟨body₀'', hbody₀'', hbody₀Eq⟩
+      rcases Hdom₀.body hbodyN₀ with ⟨body₀'', hbody₀'', hbody₀Eq⟩
       have hcons₀ : TrExprS R.venv recLparams B.m.vlctx
           (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) consumedDom₀ := Hdom₀.unannotated
       have hconsT₀ : R.venv.IsType recLparams.length B.m.vlctx.toCtx
@@ -1195,7 +1148,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
           R'.mlctx.vlctx.toCtx
           (.app (appliedTarget.liftN 1 0) (.bvar 0)) consumedBody := by
         have happ := VEnv.HasType.app happliedFnType hargType
-        have hbodyEq' := Hdom.bodyDefEqUnannotated R _hbodyEq
+        have hbodyEq' := Hdom.bodyDefEqUnannotated _hbodyEq
         apply happ.defeqU_r R'.checking.tr.wf R'.mlctx_wf.tr.wf.toCtx
         simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
           RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VExpr.inst_liftN_bvar] using
@@ -1213,7 +1166,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
           RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VLCtx.toCtx] using
           hbodyType.defeqDFC R.checking.tr.wf.ordered hctxEq.defeqCtx
-      have hbodyEq' := Hdom.bodyDefEqUnannotated R _hbodyEq
+      have hbodyEq' := Hdom.bodyDefEqUnannotated _hbodyEq
       have hconsumedBodyType : R'.venv.IsType recLparams.length
           R'.mlctx.vlctx.toCtx consumedBody := by
         apply hsourceBodyType.defeqU_l R'.checking.tr.wf
@@ -1299,7 +1252,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
               (B.m.mkForall' bu.size hn (.forallE consumedDom₀ body₀'')) := by
         obtain ⟨hnB, hagB, hdropB, hrootB⟩ := hagreeB
         refine ⟨hnB, hagB, hdropB, ?_⟩
-        have hbodyEq₀ := Hdom₀.bodyDefEqUnannotated RB.atCheckLCtx hbody₀Eq
+        have hbodyEq₀ := Hdom₀.bodyDefEqUnannotated hbody₀Eq
         let HdomainCtx₀ : VLCtx.IsDefEq R.venv recLparams.length
             ((none, .vlam dom₀) :: B.m.vlctx)
             ((none, .vlam consumedDom₀) :: B.m.vlctx) :=
@@ -1471,12 +1424,12 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
     (hprefix : ParameterPrefix stats 0 t tail)
-    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
     (htail : TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget)
-    {sdepth : Nat} (Hsuffix : RecursorParameterContextSuffix R stats sdepth)
+    {sdepth : Nat} (Hsuffix : ParameterContextSuffix R.toSemantics stats sdepth)
     {tailTarget₀ : VExpr}
     (htail₀ : TrExprS R.venv recLparams Hsuffix.parameterDecls tail tailTarget₀)
     (htail₀Type : R.venv.IsType recLparams.length
@@ -1509,7 +1462,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
       List.Forall₂
         (TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx)
         u'.toList args' →
-      (Hrecent : RecursorFVarSuffix R Rcurrent bu') →
+      (Hrecent : FVarSuffix R.toSemantics Rcurrent.toSemantics bu') →
       (Hopening : ConstructorFieldOpening tail t' bu') →
       R.venv.IsDefEqU recLparams.length R.mlctx.vlctx.toCtx tailTarget
         (Rcurrent.mlctx.mkForall' bu'.size Hrecent.size_le typeTarget') →
@@ -1562,7 +1515,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
         rcases htail₀Type with ⟨level₀, Htype₀⟩
         exact ⟨.sort level₀, Htype₀⟩⟩
       (fun h => by simp at h)
-      htailType .nil .nil .nil (RecursorFVarSuffix.empty R)
+      htailType .nil .nil .nil (FVarSuffix.empty R.toSemantics)
       (ConstructorFieldOpening.empty tail)
       hrootType
       htailScope (by
@@ -1575,19 +1528,19 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
 
 /-- Closing a recursor suffix around a translated type with `LocalContext.mkForall` gives
 a translated type in the root context. -/
-theorem RecursorFVarSuffix.mkForall
-    {root c : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorFVarSuffix Rroot R xs)
+theorem FVarSuffix.mkForall
+    {root c : AddInductive.Context} {Us : List Name}
+    {Rroot : ContextSemantics root Us}
+    {R : ContextSemantics c Us} {xs : Array Expr}
+    (H : FVarSuffix Rroot R xs)
     {body : Expr} {bodyTarget : VExpr}
-    (hbody : TrExprS R.venv recLparams R.mlctx.vlctx body bodyTarget)
-    (hbodyType : R.venv.IsType recLparams.length
+    (hbody : TrExprS R.venv Us R.mlctx.vlctx body bodyTarget)
+    (hbodyType : R.venv.IsType Us.length
       R.mlctx.vlctx.toCtx bodyTarget) :
     ∃ resultTarget,
-      TrExprS Rroot.venv recLparams Rroot.mlctx.vlctx
+      TrExprS Rroot.venv Us Rroot.mlctx.vlctx
         (c.lctx.mkForall xs body) resultTarget ∧
-      Rroot.venv.IsType recLparams.length
+      Rroot.venv.IsType Us.length
         Rroot.mlctx.vlctx.toCtx resultTarget := by
   rcases R.mkForallRecent hbody hbodyType xs.size H.size_le xs
       H.reverse_eq with ⟨htr, htype⟩
@@ -1597,19 +1550,19 @@ theorem RecursorFVarSuffix.mkForall
 
 /-- `mkForall` with the abstract target given explicitly: the suffix's abstract domains
 wrapped around the body's translation. -/
-theorem RecursorFVarSuffix.mkForallExact
-    {root c : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorFVarSuffix Rroot R xs)
+theorem FVarSuffix.mkForallExact
+    {root c : AddInductive.Context} {Us : List Name}
+    {Rroot : ContextSemantics root Us}
+    {R : ContextSemantics c Us} {xs : Array Expr}
+    (H : FVarSuffix Rroot R xs)
     {body : Expr} {bodyTarget : VExpr}
-    (hbody : TrExprS R.venv recLparams R.mlctx.vlctx body bodyTarget)
-    (hbodyType : R.venv.IsType recLparams.length
+    (hbody : TrExprS R.venv Us R.mlctx.vlctx body bodyTarget)
+    (hbodyType : R.venv.IsType Us.length
       R.mlctx.vlctx.toCtx bodyTarget) :
     let domains := MLCtxForallDomains R.mlctx xs.size H.size_le
-    TrExprS Rroot.venv recLparams Rroot.mlctx.vlctx
+    TrExprS Rroot.venv Us Rroot.mlctx.vlctx
         (c.lctx.mkForall xs body) (VExpr.wrapForalls domains bodyTarget) ∧
-      Rroot.venv.IsType recLparams.length Rroot.mlctx.vlctx.toCtx
+      Rroot.venv.IsType Us.length Rroot.mlctx.vlctx.toCtx
         (VExpr.wrapForalls domains bodyTarget) := by
   rcases R.mkForallRecent hbody hbodyType xs.size H.size_le xs
       H.reverse_eq with ⟨htr, htype⟩
@@ -1619,19 +1572,19 @@ theorem RecursorFVarSuffix.mkForallExact
 /-- Closing a recursor suffix around a typed term with `LocalContext.mkLambda` gives a
 translated term in the root context. The abstract lambda and its forall type use the same
 domain list, so the typing of the rules sees a single constructor field telescope. -/
-theorem RecursorFVarSuffix.mkLambda
-    {root c : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorFVarSuffix Rroot R xs)
+theorem FVarSuffix.mkLambda
+    {root c : AddInductive.Context} {Us : List Name}
+    {Rroot : ContextSemantics root Us}
+    {R : ContextSemantics c Us} {xs : Array Expr}
+    (H : FVarSuffix Rroot R xs)
     {body : Expr} {bodyTarget typeTarget : VExpr}
-    (hbody : TrExprS R.venv recLparams R.mlctx.vlctx body bodyTarget)
-    (hbodyType : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+    (hbody : TrExprS R.venv Us R.mlctx.vlctx body bodyTarget)
+    (hbodyType : R.venv.HasType Us.length R.mlctx.vlctx.toCtx
       bodyTarget typeTarget) :
     let domains := MLCtxForallDomains R.mlctx xs.size H.size_le
-    TrExprS Rroot.venv recLparams Rroot.mlctx.vlctx
+    TrExprS Rroot.venv Us Rroot.mlctx.vlctx
         (c.lctx.mkLambda xs body) (VExpr.wrapLams domains bodyTarget) ∧
-      Rroot.venv.HasType recLparams.length Rroot.mlctx.vlctx.toCtx
+      Rroot.venv.HasType Us.length Rroot.mlctx.vlctx.toCtx
         (VExpr.wrapLams domains bodyTarget)
         (VExpr.wrapForalls domains typeTarget) := by
   have Hclosed := R.mlctx_wf.mkLambda_trS R.checking.tr.wf hbody

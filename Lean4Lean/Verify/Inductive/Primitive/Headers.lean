@@ -19,22 +19,6 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- Move a local context to a larger environment over the same local context. -/
-def LocalContextWF.withEnv {c : AddInductive.Context} (H : LocalContextWF c)
-    {env' : Environment} {venv' : VEnv} (hchecking : CheckingEnv c.safety env' venv')
-    (hle : H.venv ≤ venv') : LocalContextWF { c with env := env' } where
-  venv := venv'
-  checking := hchecking
-  mlctx := H.mlctx
-  mlctx_wf := H.mlctx_wf.mono hle
-  typeCheckerLParams_eq := H.typeCheckerLParams_eq
-  onlyLams := H.onlyLams
-  lctx_eq := H.lctx_eq
-  ngen_prefix := H.ngen_prefix
-  indFresh := H.indFresh
-  kernelFresh := H.kernelFresh
-  check := H.check.mono hle
-
 namespace HeaderInstallation
 
 /-- The header fold keeps the translation invariant, with the translated headers added to the

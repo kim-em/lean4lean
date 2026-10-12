@@ -31,7 +31,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
     (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (Hparams : FVarArrayIn root stats.params)
-    (Hfields : FVarSuffix Hroot Hc fields)
+    (Hfields : FVarSuffix Hroot.toSemantics Hc.toSemantics fields)
     (Hopening : ConstructorFieldOpening source type fields)
     (htrNarrow : TrExprS Hc.venv c.lparams scope type narrowType)
     (htrFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullType) :
@@ -52,12 +52,12 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
         cases hfullForall with
         | @forallE fullDom fullBody _ _ _ _ _
             hdomFullType _ hdomFull hbodyFull =>
-          rcases hconsume c Hc hdomFull hdomFullType with
+          rcases hconsume c _ Hc.toSemantics hdomFull hdomFullType with
             ⟨consumedDom, Hdom⟩
           rcases halign.forallE_align Hc.checking.tr.wf hdomNarrow
               hdomNarrowType hbodyNarrow with
             ⟨dom₀, _, hdom₀, hdom₀Type, _, hbody₀, _⟩
-          rcases hconsume _ Hc.atCheckLCtx hdom₀ hdom₀Type with
+          rcases hconsume _ _ Hc.atCheckLCtx.toSemantics hdom₀ hdom₀Type with
             ⟨consumedDom₀, Hdom₀⟩
           have hparamNext : stats.params[i + 1]? = none := by
             rw [Array.getElem?_eq_none_iff] at hparamAt ⊢
@@ -65,7 +65,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
           have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
               (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
-          rcases Hruntime.unannotatedDomain Hc Hdom hdomNarrow with
+          rcases Hruntime.unannotatedDomain Hdom hdomNarrow with
             ⟨_domainLevel, hdomain⟩
           cases isUnsafe with
           | false =>
@@ -193,8 +193,8 @@ instantiated as in `refinesCtorShape`; only the constructor fields enter the nor
 theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
     {decl : VInductDecl} {ctorVal : VConstVal}
     (Hc : ContextWF c)
-    (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
-      Hc stats depth)
+    (Hsuffix : ParameterContextSuffix
+      Hc.toSemantics stats depth)
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
       Hsuffix.parameterDecls stats decl 0)
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length
@@ -230,10 +230,9 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
         (i := 0) (ctor := ctor) (fuel := fuel + 1)
         (isUnsafe := isUnsafe)
         (Hroot := Hc) Hc
-        (checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix
-          Hc Hsuffix) halign
+        (Hsuffix.parameterEmbedding) halign
         Hstats hi hparamAt hconsume hlit Hsuffix.paramsBound
-        (FVarSuffix.empty Hc)
+        (FVarSuffix.empty Hc.toSemantics)
         (ConstructorFieldOpening.empty source)
         (by simpa [hscope] using Hctor.type)
         (hchecked.2.1.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
@@ -266,10 +265,9 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
           (i := decl.nparams) (ctor := ctor) (fuel := fuel' + 1)
           (isUnsafe := isUnsafe)
           (Hroot := Hc) Hc
-          (checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix
-            Hc Hsuffix) halign
+          (Hsuffix.parameterEmbedding) halign
           Hstats hi hparamAt hconsume hlit Hsuffix.paramsBound
-          (FVarSuffix.empty Hc)
+          (FVarSuffix.empty Hc.toSemantics)
           (ConstructorFieldOpening.empty source') htrNarrow htrFull
         exact Hnormal.mono fun _ Hnormal =>
           ⟨source', by
@@ -286,9 +284,9 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
           (by simpa [Hstats.params_size] using hi') hforall)
       Hstats.params_size (by omega) (.done)
       (fun h =>
-        checkInductiveTypes.loopType.ReusedParameterScope.ofNoFVars h hnoFVars)
+        ReusedParameterScope.ofNoFVars h hnoFVars)
       (fun h =>
-        (checkInductiveTypes.loopType.ReusedParameterScope.ofNoFVars
+        (ReusedParameterScope.ofNoFVars
           h hnoFVars).older_eq_nil h |>.symm)
       (by
         intro hdone
@@ -308,7 +306,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
         omega
       exact checkConstructors.loopCtor.earlyParameterResult.WF
         (Hsuffix := Hsuffix) (fuel := fuel) Hc
-        (checkInductiveTypes.loopType.ReusedParameterScope.ofNoFVars
+        (ReusedParameterScope.ofNoFVars
           (Hsuffix := Hsuffix) hiStats hnoFVars)
         (by omega) hforall
 
@@ -386,8 +384,8 @@ theorem ownerNormalFormsWF
       source target)
     (Hrow : ConstructorOwnerNormalFormRow stats targetIdx
       source.ctors ctorIdx)
-    (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
-      Hc stats depth)
+    (Hsuffix : ParameterContextSuffix
+      Hc.toSemantics stats depth)
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
       Hsuffix.parameterDecls stats decl 0)
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length
@@ -437,8 +435,8 @@ theorem ownerNormalFormsWF
       (TrInductiveTypeHeaders sourceEnv Hc.venv c.lparams)
       indTypes.toList decl.types)
     (Hrows : ConstructorOwnerNormalFormRows stats indTypes targetIdx)
-    (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
-      Hc stats depth)
+    (Hsuffix : ParameterContextSuffix
+      Hc.toSemantics stats depth)
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
       Hsuffix.parameterDecls stats decl 0)
     (halign : VLCtx.IsDefEq Hc.venv c.lparams.length

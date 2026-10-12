@@ -233,6 +233,20 @@ theorem CachedParameterDecl.forall₂_toCtx_length
     rcases h with ⟨fv, deps, type, rfl, rfl⟩
     simp [VLCtx.toCtx, ih]
 
+/-- Reindex a parameter cache across statistics updates that leave the
+cached parameter array unchanged. -/
+theorem ParameterCachePrefix.reindex
+    (H : ParameterCachePrefix env Us Δ stats done depth)
+    (hparams : stats'.params = stats.params) :
+    ParameterCachePrefix env Us Δ stats' done depth where
+  params := by rw [hparams]; exact H.params
+  paramFVars := by rw [hparams]; exact H.paramFVars
+
+end checkInductiveTypes.loopType
+
+section
+open checkInductiveTypes.loopType
+
 /-- Structural companion to `ParameterCachePrefix`.  Cached parameter local
 declarations form an exact suffix of the retained context; every index added
 after the parameter phase belongs to `ambientDecls`.  The reverse is
@@ -243,34 +257,25 @@ declarations are pushed at the head.
 This suffix decomposition is what lets later mutual headers discard ambient
 indices and not-yet-used cached parameters and work in the scope of the
 parameters they have already processed (`ReusedParameterScope`). -/
-structure ParameterContextSuffix (Hc : ContextWF c)
+structure ParameterContextSuffix (S : ContextSemantics c Us)
     (stats : AddInductive.InductiveStats) (depth : Nat) : Type where
   ambientDecls : VLCtx
   parameterDecls : VLCtx
-  context : Hc.mlctx.vlctx = ambientDecls ++ parameterDecls
+  context : S.mlctx.vlctx = ambientDecls ++ parameterDecls
   prefixLength : ambientDecls.length = depth
   cached : List.Forall₂ CachedParameterDecl
     stats.params.toList.reverse parameterDecls
   suffixParams : List.Forall₂
-    (TrExprS Hc.venv c.lparams parameterDecls)
+    (TrExprS S.venv Us parameterDecls)
     stats.params.toList (cachedParamVars stats.params.size 0)
-  sources : SourceTelescope Hc.venv c.lparams parameterDecls
-
-/-- Reindex a parameter cache across statistics updates that leave the
-cached parameter array unchanged. -/
-theorem ParameterCachePrefix.reindex
-    (H : ParameterCachePrefix env Us Δ stats done depth)
-    (hparams : stats'.params = stats.params) :
-    ParameterCachePrefix env Us Δ stats' done depth where
-  params := by rw [hparams]; exact H.params
-  paramFVars := by rw [hparams]; exact H.paramFVars
+  sources : SourceTelescope S.venv Us parameterDecls
 
 /-- Reindex the exact cached suffix across a statistics update that changes
 only per-header output fields. -/
 def ParameterContextSuffix.reindex
-    (H : ParameterContextSuffix Hc stats depth)
+    (H : ParameterContextSuffix S stats depth)
     (hparams : stats'.params = stats.params) :
-    ParameterContextSuffix Hc stats' depth where
+    ParameterContextSuffix S stats' depth where
   ambientDecls := H.ambientDecls
   parameterDecls := H.parameterDecls
   context := H.context
@@ -278,6 +283,10 @@ def ParameterContextSuffix.reindex
   cached := by rw [hparams]; exact H.cached
   suffixParams := by rw [hparams]; exact H.suffixParams
   sources := H.sources
+
+end
+
+namespace checkInductiveTypes.loopType
 
 def _root_.Lean4Lean.checkPositivityStep.VLCtx.NoIndConsts
     (names : List Name) (Δ : VLCtx) : Prop :=
@@ -350,8 +359,13 @@ theorem MLCtxOnlyLams.noIndConsts
   | vlet fv name type value type' value' tail ih =>
       exact H.vlet_false.elim
 
+end checkInductiveTypes.loopType
+
+section
+open checkInductiveTypes.loopType
+
 theorem ParameterContextSuffix.noIndConsts
-    (H : ParameterContextSuffix Hc stats depth) (names : List Name) :
+    (H : ParameterContextSuffix S stats depth) (names : List Name) :
     checkPositivityStep.VLCtx.NoIndConsts names H.parameterDecls := by
   have go : ∀ {params : List Expr} {entries : VLCtx},
       List.Forall₂ CachedParameterDecl params entries →
@@ -366,6 +380,10 @@ theorem ParameterContextSuffix.noIndConsts
       exact checkPositivityStep.VLCtx.NoIndConsts.cons ih rfl
   intro v mapped type hfind
   exact go H.cached hfind
+
+end
+
+namespace checkInductiveTypes.loopType
 
 /-- A semantic header scope embedded in the larger executable local context.
 `expanded` is the literal weakening of the semantic scope; it is kept separate
@@ -1293,10 +1311,10 @@ theorem MLCtxOnlyLams.fullSourceScope
 /-- At the parameter/index boundary, discard the ambient prefix retained
 from previously checked mutual headers and keep the exact cached-parameter
 suffix as the semantic scope. -/
-def FrontScopeEmbedding.ofParameterSuffix
-    (Hc : ContextWF c)
+def _root_.Lean4Lean.VerifyInductive.ParameterContextSuffix.parameterEmbedding
+    {c : AddInductive.Context} {Us : List Name} {Hc : ContextSemantics c Us}
     (Hsuffix : ParameterContextSuffix Hc stats depth) :
-    FrontScopeEmbedding Hc.venv c.lparams Hsuffix.parameterDecls
+    FrontScopeEmbedding Hc.venv Us Hsuffix.parameterDecls
       Hc.mlctx.vlctx := by
   have hambient : Hsuffix.ambientDecls.NoBV := by
     apply VLCtx.NoBV.leftOfAppend Hsuffix.ambientDecls
@@ -1322,7 +1340,7 @@ def FrontScopeEmbedding.ofParameterSuffix
   · exact .zero (by
       rw [Hsuffix.context]
       exact W.toFVLift')
-  · have hwf : VLCtx.WF Hc.venv c.lparams.length
+  · have hwf : VLCtx.WF Hc.venv Us.length
         (Hsuffix.ambientDecls ++ Hsuffix.parameterDecls) := by
       rw [← Hsuffix.context]
       exact Hc.mlctx_wf.tr.wf
@@ -1338,7 +1356,7 @@ def FrontScopeEmbedding.ofParameterSuffix
       Hsuffix.parameterDecls).bvars = 0 at hfull
     rw [VLCtx.bvars_append] at hfull
     omega
-  · have hwf : VLCtx.WF Hc.venv c.lparams.length
+  · have hwf : VLCtx.WF Hc.venv Us.length
         (Hsuffix.ambientDecls ++ Hsuffix.parameterDecls) := by
       rw [← Hsuffix.context]
       exact Hc.mlctx_wf.tr.wf
@@ -1347,13 +1365,13 @@ def FrontScopeEmbedding.ofParameterSuffix
 /-- Relate a domain translated in the semantic scope to the unannotated
 domain installed by the executable checker. -/
 theorem FrontScopeEmbedding.unannotatedDomain
-    (Hc : ContextWF c)
-    (H : FrontScopeEmbedding Hc.venv c.lparams scope Hc.mlctx.vlctx)
+    {c : AddInductive.Context} {Us : List Name} {Hc : ContextSemantics c Us}
+    (H : FrontScopeEmbedding Hc.venv Us scope Hc.mlctx.vlctx)
     (Hdom : Hc.UnannotatedDomain dom sourceDom consumedDom)
-    (hnarrow : TrExprS Hc.venv c.lparams scope dom indexType) :
-    ∃ u, Hc.venv.IsDefEq c.lparams.length H.expanded.toCtx
+    (hnarrow : TrExprS Hc.venv Us scope dom indexType) :
+    ∃ u, Hc.venv.IsDefEq Us.length H.expanded.toCtx
       (indexType.lift' H.shift) consumedDom (.sort u) := by
-  have hweak : TrExprS Hc.venv c.lparams H.expanded dom
+  have hweak : TrExprS Hc.venv Us H.expanded dom
       (indexType.lift' H.shift) := by
     simpa using hnarrow.weakFV' Hc.checking.tr.wf.orderedStrong H.lift
       H.context.wf
@@ -1365,27 +1383,6 @@ theorem FrontScopeEmbedding.unannotatedDomain
   have hdomainU := hsource.trans Hc.checking.tr.wf H.context.wf.toCtx
     ⟨_, hsourceConsumed'⟩
   exact ⟨u, hdomainU.of_r Hc.checking.tr.wf H.context.wf.toCtx
-    hsourceConsumed'.hasType.2⟩
-
-theorem FrontScopeEmbedding.recursorUnannotatedDomain
-    (R : RecursorContextWF c recLparams)
-    (H : FrontScopeEmbedding R.venv recLparams scope R.mlctx.vlctx)
-    (Hdom : R.UnannotatedDomain dom sourceDom consumedDom)
-    (hnarrow : TrExprS R.venv recLparams scope dom indexType) :
-    ∃ u, R.venv.IsDefEq recLparams.length H.expanded.toCtx
-      (indexType.lift' H.shift) consumedDom (.sort u) := by
-  have hweak : TrExprS R.venv recLparams H.expanded dom
-      (indexType.lift' H.shift) := by
-    simpa using hnarrow.weakFV' R.checking.tr.wf.orderedStrong H.lift
-      H.context.wf
-  have hsource := hweak.uniq R.checking.tr.wf H.context Hdom.source
-  rcases Hdom.source_defeq with ⟨u, hsourceConsumed⟩
-  have hsourceConsumed' := hsourceConsumed.defeqDFC
-    R.checking.tr.wf.ordered
-    (H.context.defeqCtx.symm R.checking.tr.wf.ordered)
-  have hdomainU := hsource.trans R.checking.tr.wf H.context.wf.toCtx
-    ⟨_, hsourceConsumed'⟩
-  exact ⟨u, hdomainU.of_r R.checking.tr.wf H.context.wf.toCtx
     hsourceConsumed'.hasType.2⟩
 
 end checkInductiveTypes.loopType

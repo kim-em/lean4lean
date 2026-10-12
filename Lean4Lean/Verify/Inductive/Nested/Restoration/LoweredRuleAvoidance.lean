@@ -866,7 +866,7 @@ theorem InductionHypothesisType.templateFacts
   have hnormalizedP : O.loopInput.normalizedType.FVarsIn P :=
     hnormalizedBelow P hscope.1 hinferredP
   obtain ⟨Rcurrent, P', T, hexpTr, _, hsc', hexposedH, _, _, hargs, _⟩ :=
-    O.loopTrace.paramUniform W hp recursorConsumeTypeAnnotationsDefEq henv RF hscope
+    O.loopTrace.paramUniform W hp consumeTypeAnnotationsDefEq henv RF hscope
       hnormalizedTr hinferredType hnormalized₀ hnormalizedH hnormalizedP
   refine ⟨fun x hx decl hdecl => ⟨?_, Rcurrent.declType_closed hdecl⟩, hexposedH, ?_⟩
   · have hxArg : Expr.fvar x ∈ O.args.toList := by

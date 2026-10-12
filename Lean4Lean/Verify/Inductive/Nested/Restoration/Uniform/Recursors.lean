@@ -317,7 +317,7 @@ theorem LoopUArgsRun.paramUniform
     {heads : List Name} {params : List Expr} {ls : List Level} {env : Environment}
     (W : WhnfPreservesParamUniform heads params ls env)
     (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv)
-    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     {root : AddInductive.Context} {l : LocalContext} {source : Expr}
     {current : AddInductive.Context} {exposed : Expr} {args : Array Expr}
     (trace : LoopUArgsRun root l source current exposed args)
@@ -351,13 +351,13 @@ theorem LoopUArgsRun.paramUniform
     subst next_eq
     rcases TrExpr.forallE_source htype with
       ⟨sourceDom, sourceBody, hdom, hbody, hdomType, hbodyType, hforallEq⟩
-    rcases hconsume current recLparams R hdom hdomType with ⟨consumedDom, Hdom⟩
-    rcases Hdom.body R hbody with ⟨consumedBody, hbodyConsumed, hbodyEq⟩
+    rcases hconsume current recLparams R.toSemantics hdom hdomType with ⟨consumedDom, Hdom⟩
+    rcases Hdom.body hbody with ⟨consumedBody, hbodyConsumed, hbodyEq⟩
     rcases TrExpr.forallE_source htype₀ with
       ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, _, _⟩
-    rcases hconsume _ recLparams R.atCheckLCtx hdom₀ hdom₀Type with
+    rcases hconsume _ recLparams R.atCheckLCtx.toSemantics hdom₀ hdom₀Type with
       ⟨consumedDom₀, Hdom₀⟩
-    rcases Hdom₀.body R.atCheckLCtx hbodyN₀ with ⟨consumedBody₀, hbodyConsumed₀, _⟩
+    rcases Hdom₀.body hbodyN₀ with ⟨consumedBody₀, hbodyConsumed₀, _⟩
     let x : FVarId := ⟨current.ngen.curr⟩
     let R' := R.withCheckedLocalDecl (name := name) (bi := bi) Hdom.unannotated Hdom.isType
       Hdom₀.unannotated Hdom₀.isType
@@ -410,7 +410,7 @@ theorem LoopUArgsRun.paramUniform
     have hscopeRun := hdualRun.1
     have hnormH : normalized.ParamUniformIn env heads params ls :=
       W.whnf R' hcenv ⟨_, hopened₀⟩ hsc' hinstP hinstH normalization
-    have hbodyEq' := Hdom.bodyDefEqUnannotated R hbodyEq
+    have hbodyEq' := Hdom.bodyDefEqUnannotated hbodyEq
     have hsourceBodyType : R'.venv.IsType recLparams.length
         R'.mlctx.vlctx.toCtx sourceBody := by
       let hctxEq : VLCtx.IsDefEq R.venv recLparams.length
@@ -509,7 +509,7 @@ theorem InductionHypothesisType.paramUniform
   have hnormalizedP : O.loopInput.normalizedType.FVarsIn P :=
     hnormalizedBelow P hscope.1 hinferredP
   obtain ⟨Rcurrent, P', _, _, _, hsc', hexposedH, _, _, hargs, _⟩ :=
-    O.loopTrace.paramUniform W hp recursorConsumeTypeAnnotationsDefEq henv RF hscope
+    O.loopTrace.paramUniform W hp consumeTypeAnnotationsDefEq henv RF hscope
       hnormalizedTr hinferredType hnormalized₀ hnormalizedH hnormalizedP
   have hargDecls : ∀ x ∈ O.arguments_bound.fvars, ∀ decl,
       O.current.lctx.find? x = some decl → decl.ParamUniform heads params ls := by
@@ -759,10 +759,10 @@ theorem FVarArrayBinderTypes.declParamUniform {heads : List Name} {params : List
 /-! ### Hypotheses on the recursor construction -/
 
 /-- The cached parameters are variables of the context carrying the suffix. -/
-theorem RecursorParameterContextSuffix.param_mem {r : AddInductive.Context}
+theorem ParameterContextSuffix.param_mem {r : AddInductive.Context}
     {recLparams : List Name} {Rr : RecursorContextWF r recLparams}
     {stats : AddInductive.InductiveStats} {depth : Nat}
-    (P : RecursorParameterContextSuffix Rr stats depth) {pv : FVarId}
+    (P : ParameterContextSuffix Rr.toSemantics stats depth) {pv : FVarId}
     (h : Expr.fvar pv ∈ stats.params) : pv ∈ r.lctx.fvars := by
   obtain ⟨fvars, hparams, hdecls⟩ := cachedParameterDecls_fvars P.cached
   have hmem : Expr.fvar pv ∈ stats.params.toList.reverse := by simpa using h

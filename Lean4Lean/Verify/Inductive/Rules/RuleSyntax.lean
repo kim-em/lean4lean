@@ -321,7 +321,7 @@ structure TypedRecursiveCallsAbove
   entries : ∀ i, i < done → (hi : i < u.size) →
     ∃ originRoot,
       ∃ Rorigin : RecursorContextWF originRoot recLparams,
-        ∃ _ : RecursorContextExtension Rfield Rorigin,
+        ∃ _ : ContextExtension Rfield.toSemantics Rorigin.toSemantics,
           ∃ callDepth,
             ∃ S : TypedRecursiveCall indTypes stats
               motives minors lvls Rorigin decl callDepth u[i] v[i]!,
@@ -367,7 +367,7 @@ structure TypedRecursiveCallsAfterHypotheses
     ∃ originRoot,
       ∃ Rorigin : RecursorContextWF originRoot recLparams,
         ∃ priorHypotheses : Array Expr,
-          ∃ _ : RecursorFVarSuffix Rfield Rorigin
+          ∃ _ : FVarSuffix Rfield.toSemantics Rorigin.toSemantics
               priorHypotheses,
             priorHypotheses.size = i ∧ Rorigin.chk = Rfield.chk ∧
               ∃ callDepth,
@@ -941,15 +941,15 @@ structure RecursorRuleSyntax.Semantics
   fieldRoot : AddInductive.Context
   fieldRootContext : RecursorContextWF fieldRoot recLparams
   parameterDepth : Nat
-  parameterSuffix : RecursorParameterContextSuffix fieldRootContext stats
+  parameterSuffix : ParameterContextSuffix fieldRootContext.toSemantics stats
     parameterDepth
   parameterDecls : VLCtx
   parameterDecls_eq : parameterSuffix.parameterDecls = parameterDecls
   /-- The field root of the minor pass precedes the rule's recursor context.
   Rule templates must preserve this direction; reversing it would amount
   to pretending that the fields were freshly replayed after installation. -/
-  fieldRootExtension : RecursorContextExtension fieldRootContext Rroot
-  fieldsRecent : RecursorFVarSuffix fieldRootContext context
+  fieldRootExtension : ContextExtension fieldRootContext.toSemantics Rroot.toSemantics
+  fieldsRecent : FVarSuffix fieldRootContext.toSemantics context.toSemantics
     H.allArgs
   parameterTail : Expr
   parameterPrefix : ParameterPrefix stats 0 sourceCtor.type parameterTail

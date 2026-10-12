@@ -244,7 +244,7 @@ theorem ParamOpening.forall_rebuilding_data
       have hfind' : ∀ d ∈ decl :: decls,
           outLctx'.find? d.fvarId = some d := by
         intro d hd
-        apply LocalContextWF_find?_eq_some_of_mem Hwf
+        apply Lean.LocalContext.WF.find?_eq_some_of_mem Hwf
         rw [hlctx']
         exact List.mem_append_left _ (List.mem_reverse.mpr hd)
       refine ⟨decl :: decls, hlctx', hparams', by simp [hlength],
@@ -334,7 +334,7 @@ theorem ParamOpening.lambda_rebuilding_data
       have hfind' : ∀ d ∈ decl :: decls,
           outLctx'.find? d.fvarId = some d := by
         intro d hd
-        apply LocalContextWF_find?_eq_some_of_mem Hwf
+        apply Lean.LocalContext.WF.find?_eq_some_of_mem Hwf
         rw [hlctx']
         exact List.mem_append_left _ (List.mem_reverse.mpr hd)
       refine ⟨decl :: decls, hlctx', hparams', by simp [hlength],
@@ -458,7 +458,7 @@ theorem ParamOpening.forall_closing_data
       have hfind' : ∀ d ∈ decl :: decls,
           outLctx'.find? d.fvarId = some d := by
         intro d hd
-        apply LocalContextWF_find?_eq_some_of_mem Hwf
+        apply Lean.LocalContext.WF.find?_eq_some_of_mem Hwf
         rw [hlctx']
         exact List.mem_append_left _ (List.mem_reverse.mpr hd)
       refine ⟨decl :: decls, hlctx', hparams', by simp [hlength],
@@ -561,7 +561,7 @@ theorem ParamOpening.forall_closing_data_fvarsIn
       have hfind' : ∀ d ∈ decl :: decls,
           outLctx'.find? d.fvarId = some d := by
         intro d hd
-        apply LocalContextWF_find?_eq_some_of_mem Hwf
+        apply Lean.LocalContext.WF.find?_eq_some_of_mem Hwf
         rw [hlctx']
         exact List.mem_append_left _ (List.mem_reverse.mpr hd)
       refine ⟨decl :: decls, hlctx', hparams', by simp [hlength],

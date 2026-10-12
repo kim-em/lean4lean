@@ -100,13 +100,13 @@ reused-parameter scope (`ReusedParameterScope`) at executable parameter zero. -/
 noncomputable def initialReusedParameterScope
     {source : InductiveType} {target : VInductiveTypeSkeleton}
     (Hc : ContextWF c)
-    (Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
-      Hc stats depth)
+    (Hsuffix : ParameterContextSuffix
+      Hc.toSemantics stats depth)
     (hi : 0 < stats.params.size)
     (Htarget : TrSourceConstRaw Hc.venv c.lparams source.name source.type
       target.toVConstVal)
     (hnormalized : FVarsBelow Hc.mlctx.vlctx source.type normalized) :
-    checkInductiveTypes.loopType.ReusedParameterScope
+    ReusedParameterScope
       Hsuffix 0 normalized := by
   have hsourceNoFVars : FVarsIn (fun _ => False) source.type :=
     Htarget.type.fvarsIn.mono fun fv hfv => by
@@ -115,7 +115,7 @@ noncomputable def initialReusedParameterScope
     have hsuffix := IsFVarUpSet.suffixFVars ([] : VLCtx)
       Hc.mlctx.vlctx (by simpa using Hc.mlctx_wf.tr.wf)
     simpa [VLCtx.fvars] using hsuffix
-  exact checkInductiveTypes.loopType.ReusedParameterScope.ofNoFVars hi
+  exact ReusedParameterScope.ofNoFVars hi
     (hnormalized _ hfalseUpSet hsourceNoFVars)
 
 
@@ -534,7 +534,7 @@ def HeaderStatsWF.parameterSuffix
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : HeaderStatsWF Hc.venv c.lparams Hc.mlctx.vlctx
       stats decl depth) :
-    checkInductiveTypes.loopType.ParameterContextSuffix Hc stats depth where
+    ParameterContextSuffix Hc.toSemantics stats depth where
   ambientDecls := H.ambientScope
   parameterDecls := H.parameterScope
   context := H.scopeDecomposition
@@ -577,19 +577,19 @@ theorem ParameterCachePrefix.reindexUpdatedStats
   H.reindex (by
     cases first <;> simp [checkInductiveTypes.loopInd.updatedStats])
 
+end checkInductiveTypes.loopType
+
 /-- Exact cached-context suffixes survive the same per-header statistics
 update. -/
 def ParameterContextSuffix.reindexUpdatedStats
-    (H : ParameterContextSuffix Hc stats depth)
+    (H : ParameterContextSuffix S stats depth)
     (lctx : LocalContext) (resultLevel : Level) (first : Bool)
     (nindices : Nat) (indName : Name) :
-    ParameterContextSuffix Hc
+    ParameterContextSuffix S
       (checkInductiveTypes.loopInd.updatedStats stats lctx resultLevel first
         nindices indName) depth :=
   H.reindex (by
     cases first <;> simp [checkInductiveTypes.loopInd.updatedStats])
-
-end checkInductiveTypes.loopType
 
 end VerifyInductive
 end Lean4Lean

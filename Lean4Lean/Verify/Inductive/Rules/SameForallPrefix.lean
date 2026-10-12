@@ -13,7 +13,7 @@ namespace VerifyInductive
 
 /-- In a well-formed local context, a declaration occurring in `toList` is
 the unique declaration found at its free-variable identifier. -/
-theorem LocalContextWF_find?_eq_some_of_mem
+theorem _root_.Lean.LocalContext.WF.find?_eq_some_of_mem
     {lctx : LocalContext} {d : LocalDecl}
     (H : lctx.WF) (hd : d ∈ lctx.toList) :
     lctx.find? d.fvarId = some d := by
@@ -46,7 +46,7 @@ theorem FVarDeclAt.declaration_eq_of_mem
     (d : LocalDecl) (hd : d ∈ c.lctx.toList)
     (hfv : d.fvarId = D.fvar) :
     d = .cdecl D.index D.fvar D.userName D.type D.binderInfo D.kind := by
-  have hfind := LocalContextWF_find?_eq_some_of_mem Hc.wf hd
+  have hfind := Lean.LocalContext.WF.find?_eq_some_of_mem Hc.wf hd
   rw [hfv] at hfind
   exact Option.some.inj (hfind.symm.trans D.declaration)
 

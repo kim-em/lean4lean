@@ -226,23 +226,23 @@ theorem LargeEliminationCheck.singletonTelescope
       obtain ⟨fullForall, hfullForall, _⟩ := hfull
       cases hfullForall with
       | forallE hfullDomType _ hfullDom hfullBody =>
-        obtain ⟨consumed, Hdom⟩ := consumeTypeAnnotationsDefEq c Hc hfullDom hfullDomType
+        obtain ⟨consumed, Hdom⟩ := consumeTypeAnnotationsDefEq c _ Hc.toSemantics hfullDom hfullDomType
         rcases halign.forallE_align Hc.checking.tr.wf hdomNarrow hdomType hbodyNarrow with
           ⟨dom₀, _, hdom₀, hdom₀Type, _, _, _⟩
         obtain ⟨consumed₀, Hdom₀⟩ :=
-          consumeTypeAnnotationsDefEq _ Hc.atCheckLCtx hdom₀ hdom₀Type
+          consumeTypeAnnotationsDefEq _ _ Hc.atCheckLCtx.toSemantics hdom₀ hdom₀Type
         let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
         have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
-        obtain ⟨domainLevel, hdomain⟩ := Hruntime.unannotatedDomain Hc Hdom hdomNarrow
+        obtain ⟨domainLevel, hdomain⟩ := Hruntime.unannotatedDomain Hdom hdomNarrow
         let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain hdomType
         have halign' := Hc.alignedBinder (name := name) (bi := bi) halign
           Hdom Hdom₀ hdomNarrow hdomType hdeps
         have hscopeWF := halign'.wf
         have hopened := hbodyNarrow.inst_fvar Hc.checking.tr.wf.orderedStrong hscopeWF
         rw [← Expr.instantiate1_eq] at hopened
-        obtain ⟨fullBody, hfullBody', _⟩ := Hdom.body Hc hfullBody
+        obtain ⟨fullBody, hfullBody', _⟩ := Hdom.body hfullBody
         have hopenedFull := Hc.instantiateFresh (name := name) (bi := bi)
           Hdom.unannotated Hdom.isType hfullBody'
         have hspineBody : ∃ n, Expr.ForallSpine body n := by
@@ -276,23 +276,23 @@ theorem LargeEliminationCheck.singletonTelescope
       obtain ⟨fullForall, hfullForall, _⟩ := hfull
       cases hfullForall with
       | forallE hfullDomType _ hfullDom hfullBody =>
-        obtain ⟨consumed, Hdom⟩ := consumeTypeAnnotationsDefEq c Hc hfullDom hfullDomType
+        obtain ⟨consumed, Hdom⟩ := consumeTypeAnnotationsDefEq c _ Hc.toSemantics hfullDom hfullDomType
         rcases halign.forallE_align Hc.checking.tr.wf hdomNarrow hdomType hbodyNarrow with
           ⟨dom₀, _, hdom₀, hdom₀Type, _, _, _⟩
         obtain ⟨consumed₀, Hdom₀⟩ :=
-          consumeTypeAnnotationsDefEq _ Hc.atCheckLCtx hdom₀ hdom₀Type
+          consumeTypeAnnotationsDefEq _ _ Hc.atCheckLCtx.toSemantics hdom₀ hdom₀Type
         let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
         have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
-        obtain ⟨domainLevel, hdomain⟩ := Hruntime.unannotatedDomain Hc Hdom hdomNarrow
+        obtain ⟨domainLevel, hdomain⟩ := Hruntime.unannotatedDomain Hdom hdomNarrow
         let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain hdomType
         have halign' := Hc.alignedBinder (name := name) (bi := bi) halign
           Hdom Hdom₀ hdomNarrow hdomType hdeps
         have hscopeWF := halign'.wf
         have hopened := hbodyNarrow.inst_fvar Hc.checking.tr.wf.orderedStrong hscopeWF
         rw [← Expr.instantiate1_eq] at hopened
-        obtain ⟨fullBody, hfullBody', _⟩ := Hdom.body Hc hfullBody
+        obtain ⟨fullBody, hfullBody', _⟩ := Hdom.body hfullBody
         have hopenedFull := Hc.instantiateFresh (name := name) (bi := bi)
           Hdom.unannotated Hdom.isType hfullBody'
         have hspineBody : ∃ n, Expr.ForallSpine body n := by
@@ -332,23 +332,23 @@ theorem LargeEliminationCheck.singletonTelescope
       obtain ⟨fullForall, hfullForall, _⟩ := hfull
       cases hfullForall with
       | forallE hfullDomType _ hfullDom hfullBody =>
-        obtain ⟨consumed, Hdom⟩ := consumeTypeAnnotationsDefEq c Hc hfullDom hfullDomType
+        obtain ⟨consumed, Hdom⟩ := consumeTypeAnnotationsDefEq c _ Hc.toSemantics hfullDom hfullDomType
         rcases halign.forallE_align Hc.checking.tr.wf hdomNarrow hdomType hbodyNarrow with
           ⟨dom₀, _, hdom₀, hdom₀Type, _, _, _⟩
         obtain ⟨consumed₀, Hdom₀⟩ :=
-          consumeTypeAnnotationsDefEq _ Hc.atCheckLCtx hdom₀ hdom₀Type
+          consumeTypeAnnotationsDefEq _ _ Hc.atCheckLCtx.toSemantics hdom₀ hdom₀Type
         let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
         have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
-        obtain ⟨domainLevel, hdomain⟩ := Hruntime.unannotatedDomain Hc Hdom hdomNarrow
+        obtain ⟨domainLevel, hdomain⟩ := Hruntime.unannotatedDomain Hdom hdomNarrow
         let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain hdomType
         have halign' := Hc.alignedBinder (name := name) (bi := bi) halign
           Hdom Hdom₀ hdomNarrow hdomType hdeps
         have hscopeWF := halign'.wf
         have hopened := hbodyNarrow.inst_fvar Hc.checking.tr.wf.orderedStrong hscopeWF
         rw [← Expr.instantiate1_eq] at hopened
-        obtain ⟨fullBody, hfullBody', _⟩ := Hdom.body Hc hfullBody
+        obtain ⟨fullBody, hfullBody', _⟩ := Hdom.body hfullBody
         have hopenedFull := Hc.instantiateFresh (name := name) (bi := bi)
           Hdom.unannotated Hdom.isType hfullBody'
         have hspineBody : ∃ n, Expr.ForallSpine body n := by

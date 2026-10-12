@@ -464,7 +464,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisSmall
       (H.origins.minorShapes mowner hmowner localIndex hlocal))
     (hparams : F.parameterSuffix.parameterDecls = H.parameterSuffix.parameterDecls)
     {Rorigin : RecursorContextWF originRoot (AddInductive.getRecLevelParams H.elimLevel c.lparams)}
-    {prior : Array Expr} (Hprior : RecursorFVarSuffix F.terminalWF Rorigin prior)
+    {prior : Array Expr} (Hprior : FVarSuffix F.terminalWF.toSemantics Rorigin.toSemantics prior)
     (hchkO : Rorigin.chk = F.terminalWF.chk) :
     let S := H.origins.minorShapes mowner hmowner localIndex hlocal
     let sourceFields := (H.declFieldDomains mowner hmowner localIndex hlocal).map

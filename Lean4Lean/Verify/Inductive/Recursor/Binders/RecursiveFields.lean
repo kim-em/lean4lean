@@ -96,10 +96,10 @@ theorem checkPositivityStep.ValidAppStatsWF.toRecursorContext
 
 /-- Restrict recursor application statistics to the exact cached-parameter
 suffix, independently of all generated ambient frames. -/
-theorem RecursorParameterContextSuffix.scopedStats
+theorem ParameterContextSuffix.scopedStats
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
-    (H : RecursorParameterContextSuffix R stats depth)
+    (H : ParameterContextSuffix R.toSemantics stats depth)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams R.mlctx.vlctx
       stats decl depth) :
     RecursorValidAppStatsWF R.venv recLparams H.parameterDecls
@@ -517,7 +517,7 @@ theorem refinesRecursor
     (R : RecursorContextWF c recLparams)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
@@ -548,21 +548,21 @@ theorem refinesRecursor
     · rcases hforall with ⟨name, dom, body, bi, rfl⟩
       cases hexposed with
       | forallE hdomType _ hdom hbody =>
-        rcases hconsume c recLparams R hdom hdomType with
+        rcases hconsume c recLparams R.toSemantics hdom hdomType with
           ⟨consumedDom', Hdom⟩
-        rcases Hdom.body R hbody with ⟨body'', hbody'', hbodyEq⟩
+        rcases Hdom.body hbody with ⟨body'', hbody'', hbodyEq⟩
         rcases TrExpr.forallE_source hnormalized₀ with
           ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, _, _⟩
-        rcases hconsume _ recLparams R.atCheckLCtx hdom₀ hdom₀Type with
+        rcases hconsume _ recLparams R.atCheckLCtx.toSemantics hdom₀ hdom₀Type with
           ⟨consumedDom₀, Hdom₀⟩
-        rcases Hdom₀.body R.atCheckLCtx hbodyN₀ with ⟨body₀'', hbody₀'', _⟩
-        refine withCheckedLocalDecl.recursorWF (name := name) (bi := bi)
+        rcases Hdom₀.body hbodyN₀ with ⟨body₀'', hbody₀'', _⟩
+        refine withCheckedLocalDecl.WF (name := name) (bi := bi)
           (Q := fun result => ∀ target, result = some target →
             ∃ htarget : target < decl.types.length,
             decl.RecursiveArgAtTarget R.venv recLparams.length
               (decl.types[target]'htarget).name
               R.mlctx.vlctx.toCtx depth type')
-          R Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
+          R.toSemantics Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
         let R' := R.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
         have hopened := R.instantiateFresh (name := name) (bi := bi)
@@ -608,7 +608,7 @@ theorem isRecArg.refinesRecursor
     (R : RecursorContextWF c recLparams)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
