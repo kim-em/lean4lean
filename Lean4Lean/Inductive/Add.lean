@@ -1246,6 +1246,7 @@ def checkInductiveSources (env : Environment) :
   | [] => pure ()
   | indType :: types => do
     env.checkNoMVarNoFVar indType.name indType.type
+    checkNoNestedAux indType.name indType.type
     checkConstructorSources env indType.ctors
     checkInductiveSources env types
 

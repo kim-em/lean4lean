@@ -79,6 +79,7 @@ theorem SourceSyntaxChecks.ctorTypesClosed {env : Environment} :
   | head :: tail, h, type, htype => by
     unfold SourceSyntaxChecks checkInductiveSources at h
     obtain ⟨⟨⟩, -, h⟩ := except_bind_eq_ok h
+    obtain ⟨⟨⟩, -, h⟩ := except_bind_eq_ok h
     obtain ⟨⟨⟩, hctors, htail⟩ := except_bind_eq_ok h
     rcases List.mem_cons.mp htype with rfl | htype
     · exact checkConstructorSources.closed hctors

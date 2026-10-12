@@ -78,6 +78,14 @@ private def nestedAuxProjDecl : Declaration :=
           (.const `L4LKNProj []) .default) .default }]
   }] false
 
+/-- An inductive type (not a constructor) naming a `_nested` auxiliary.  Both kernels reject it
+for the reserved prefix before the type is checked, rather than as an unknown constant. -/
+private def nestedAuxHeaderDecl : Declaration :=
+  .inductDecl [] 0 [{
+    name := `L4LKNHeader
+    type := .forallE `x (.const `_nested.L4LHost_1 []) (.sort .zero) .default
+    ctors := [] }] false
+
 private def nestedBadDecl (bad : Expr) (name : Name) : Declaration :=
   let ind := fun a => .app (.const name []) a
   .inductDecl [] 1 [{
@@ -186,6 +194,10 @@ run_meta do
   -- unknown constant.
   expectError "constructor naming a nested auxiliary in a projection" "reserved prefix '_nested'" <|
     Lean4Lean.addDecl env nestedAuxProjDecl
+  expectError "inductive type naming a nested auxiliary" "reserved prefix '_nested'" <|
+    Lean4Lean.addDecl env nestedAuxHeaderDecl
+  expectError "inductive type naming a nested auxiliary (C++ kernel)" "reserved prefix '_nested'" <|
+    Kernel.Environment.addDeclCore env 0 50000 nestedAuxHeaderDecl none
 
   -- lean4#14576/#14577: parametric arguments dropped from the auxiliary declaration.
   expectError "nested inductive with ill-typed dropped parameters" "invalid projection" <|
