@@ -42,6 +42,19 @@ removes the countermodel), or a verification that never moves a typing fact to a
 (PR #53's scoped caches and constructor-telescope certificates; an executable change, slower
 than the C++ kernel's caching).
 
+**Fresh replay.** The executable keeps its caches across binders unconditionally, as the C++
+kernel does, so every binder exit of the checker moves cache facts with this theorem, whichever
+declaration is being checked. The prelude's declarations before `Eq` (`id`, `PUnit`, `True`,
+`Not`, ...) have binders, so `replayFresh.WF` and `replayFresh.WF_target` use the theorem in
+environments without `Eq`, which is the case the countermodel concerns. Restricting the theorem
+to environments with canonical `Eq` therefore cannot cover fresh replay: a sharpened variant
+(branch `agent/iota-canoneq`) makes `addDecl.WF` depend only on the restricted statement but has
+to give the fresh-replay theorems the explicit hypothesis that strengthening holds in well-formed
+environments without `Eq`. The uses are `State.WF.restrict` through `VContext.strengthening`
+(`Verify/TypeChecker/Basic.lean`), `lowerClosedBody` (`Verify/TypeChecker/IsDefEq.lean`),
+`TrExprS.lowerClosedBV` (`Verify/TypeChecker/Projection.lean`), `State.WF.eqv_uniq`
+(`Verify/EquivManager.lean`) and two places in `Verify/Environment/Primitive/Recursion.lean`.
+
 ## `VEnv.WF.patsStrong` (`Theory/Typing/EnvLemmas.lean`)
 
 **Statement.** `env.WF → env.PatsStrong`: subject reduction of the registered ι rules in the
