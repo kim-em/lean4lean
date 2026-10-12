@@ -47,11 +47,17 @@ is sound for every declaration form, including ordinary, mutual and nested induc
 declarations and quotient initialization: whenever it returns an environment, that environment
 is modelled at every safety level by a well-formed abstract environment (`VEnv.WF`, with the
 generative specification of inductive types in `Lean4Lean/Theory/Inductive`) extending the
-previous model. Its only hypothesis is that the invariant held before the call.
-`replayFresh.WF` (`Lean4Lean/Verify/Replay.lean`) lifts this to a whole `--fresh` replay from
-the empty environment, without hypotheses: the replayed environment is modelled by well-formed
-abstract environments, and every safe, non-partial source constant is in it and agrees with
-the source. Outside the soundness argument, `VEnv.WF.church_rosser`
+previous model. Its only hypothesis is that the invariant held before the call. The invariant
+includes context strengthening in every well-formed extension of the model, which the checker's
+caches need because they persist across binders, as in the C++ kernel; in an environment with
+the prelude's `Eq` it follows from the open proof `IsDefEqU.weakN_iff`.
+`replayPure.WF_fromImports` (`Lean4Lean/Verify/Replay.lean`) lifts this to a whole replay on top
+of imports with the prelude's `Eq`: the replayed environment is modelled by well-formed abstract
+environments, and every safe, non-partial source constant is in it and agrees with the source.
+`replayFresh.WF` states the same for a `--fresh` replay from the empty environment, under the
+hypothesis `VEnv.EqFreeStrengthening` (context strengthening in environments without `Eq`, which
+the replay of the prelude's first declarations needs); that hypothesis is argued false in
+general (see [OPEN_PROOFS.md](OPEN_PROOFS.md)). Outside the soundness argument, `VEnv.WF.church_rosser`
 (`Lean4Lean/Theory/Typing/Confluence/WFParams.lean`) states confluence: in a well-formed
 environment with the prelude's `Eq`, two definitionally equal terms reduce to terms that are
 equal up to universe levels, proof irrelevance and eta.

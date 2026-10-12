@@ -49,7 +49,7 @@
     "Lean4Lean.VEnv.WF.patsStrong"
   ],
   "openProofsSources": {
-    "Lean4Lean.VEnv.IsDefEqU.weakN_iff": "Theory/Typing/UniqueTyping.lean: context strengthening for definitional equality, master's statement; see OPEN_PROOFS.md.",
+    "Lean4Lean.VEnv.IsDefEqU.weakN_iff": "Theory/Typing/UniqueTyping.lean: context strengthening for definitional equality in a well-formed environment with canonical Eq (master's statement with the hypothesis VEnv.HasCanonicalEq); see OPEN_PROOFS.md.",
     "Lean4Lean.VEnv.WF.patsStrong": "Theory/Typing/EnvLemmas.lean: PR #43's subject reduction of the registered iota rules in the strong system, needed for OrderedStrong; see OPEN_PROOFS.md."
   },
   "acceptedUnder": {

@@ -1,44 +1,69 @@
 # Open proofs
 
 The verification of `addDecl` (`Lean4Lean.addDecl.WF`) and everything stated on top of it is
-conditional on two theorems whose proofs are `sorry`. They are the `openProofs` of
+conditional on two theorems whose proofs are `sorry` (and the fresh-replay theorems on a further
+hypothesis, see `IsDefEqU.weakN_iff` below). They are the `openProofs` of
 `scripts/inductive-audit-inventory.json`; `scripts/check-inductive-audit.py --require-complete`
 checks that every `sorry` reached from an audit root is one of them and that each of them is still
 reached. Paths are relative to `Lean4Lean/`.
 
 | theorem | origin | reached by |
 |---|---|---|
-| `IsDefEqU.weakN_iff` | master | the checker verification |
+| `IsDefEqU.weakN_iff` | master, with canonical `Eq` | replays on top of imports with `Eq`; fresh replays |
 | `VEnv.WF.patsStrong` | PR #43 | everything that uses the strong system |
 
 ## `IsDefEqU.weakN_iff` (`Theory/Typing/UniqueTyping.lean`)
 
-**Statement.** Context strengthening: in a well-formed environment, if two terms that do not
-mention `n` binders of a context are definitionally equal in that context, they are
-definitionally equal in the context without those binders.
+**Statement.** Context strengthening in an environment with canonical `Eq`: in a well-formed
+environment that has the prelude's `Eq`, `Eq.refl` and `Eq.rec` with its ι rule
+(`VEnv.HasCanonicalEq`, `Theory/CanonicalEq.lean`), if two terms that do not mention `n` binders
+of a context are definitionally equal in that context, they are definitionally equal in the
+context without those binders. This is master's statement with the hypothesis
+`heq : env.HasCanonicalEq` added.
 
 **Use.** The executable keeps the C++ kernel's caches and equivalence manager across binders.
-The checker verification moves the facts they record out of a binder's scope with this theorem,
-through `VEnv.WF.strengthening` (`Verify/Typing/ConditionallyTyped.lean`) and
-`VContext.strengthening` (`Verify/TypeChecker/Basic.lean`). It is master's statement, used as
-master uses it, at Mario's direction. Every root of the checker verification reaches it
-(`addDecl.WF`, `whnf.WF`, the inductive pipeline, the replay theorems); `reduceRecursor.WF` and
-the confluence theorem do not.
+The checker verification moves the facts they record out of a binder's scope with context
+strengthening (`VEnv.Strengthening`), which it reads from its environment: the invariant
+`VEnvs.WF` (`Verify/Environment/Model.lean`) and the checker's `CheckerEnv` carry
+`VEnv.StrengtheningAbove`, strengthening in every well-formed extension of the model, which is
+monotone along the extensions a declaration makes. `VEnv.HasCanonicalEq.strengtheningAbove`
+derives it from canonical `Eq` with this theorem; it is reached through
+`VEnvs.WFCore.toWF_of_canonicalEq` by `replayPure.WF_fromImports` and
+`addDecl.WF_of_canonicalEq`, and through `VEnv.EqFreeStrengthening.strengtheningAbove` by the
+fresh-replay theorems. `addDecl.WF` and the rest of the checker verification take strengthening
+from the invariant and do not reach it; `reduceRecursor.WF` and the confluence theorem do not use
+strengthening at all.
 
-**Why it is open.** It is not known to be true. The predecessor branch (PR #53) argued that it is
-false for well-formed environments without `Eq`. In the environment that
-`Tests/CacheScope.lean` builds (two singleton `Prop` families `I`, `J` with large elimination
-over `P : F c → Prop`), the types `SI := I.rec K p` and `SJ := J.rec K r` are definitionally
-equal under a binder `q : P v` (proof irrelevance and ι reduction through `K v q`), while a
-groupoid interpretation of the context without `q` (one object with automorphism group `Z/3`
-acting on a three-element fiber) separates them. The larger-context derivation was checked in
-Lean; the separation is argued on paper, not formalised. With canonical `Eq` this countermodel
-disappears (`P v` can be extracted from `p`), but no proof is known: PR #53 reduced the statement
-to strengthening for endpoints typed at a common type without closing it.
+**Why it is open.** It is not known to be true or false. Master's statement, without
+`HasCanonicalEq`, was argued false by the predecessor branch (PR #53) for well-formed
+environments without `Eq`: in the environment that `Tests/CacheScope.lean` builds (two singleton
+`Prop` families `I`, `J` with large elimination over `P : F c → Prop`, and no `Eq`), the types
+`SI := I.rec K p` and `SJ := J.rec K r` are definitionally equal under a binder `q : P v` (proof
+irrelevance and ι reduction through `K v q`), while a groupoid interpretation of the context
+without `q` (one object with automorphism group `Z/3` acting on a three-element fiber) separates
+them. The larger-context derivation was checked in Lean; the separation is argued on paper, not
+formalised. That environment has no `Eq`, so the sharpened statement claims nothing about it;
+with canonical `Eq` the countermodel disappears (`P v` can be extracted from `p`), but no proof is
+known: PR #53 reduced the statement to strengthening for endpoints typed at a common type without
+closing it. `addDecl.preludeEq_hasCanonicalEq` (`Verify/CanonicalEq.lean`) shows that the
+hypothesis is met by the environments that check the real prelude's `Eq`.
 
-**What would close it.** Either a proof under canonical `Eq` (add `VEnv.HasCanonicalEq` to the
-hypotheses, which `addDecl.preludeEq_hasCanonicalEq` supplies for the real prelude; this at least
-removes the countermodel), or a verification that never moves a typing fact to a smaller context
+**Fresh replay.** A `--fresh` replay checks the prelude's declarations before `Eq` (`id`,
+`PUnit`, `True`, `False`, `Not`, ...) with the same persistent caches, and every exit from a
+binder moves the caches' facts with strengthening (`State.WF.restrict` in
+`RecM.WF.withLocalDecl`, `M.WF.withLocalDecl` and `RecM.WF.withLetDecl`, through
+`VContext.strengthening`, `Verify/TypeChecker/Basic.lean`; `lowerClosedBody` in
+`Verify/TypeChecker/IsDefEq.lean`; the projection walk `TrExprS.lowerClosedBV`; the equivalence
+manager `State.WF.eqv_uniq`). Canonical `Eq` cannot supply it there, so `replayFresh.WF` and
+`replayFresh.WF_target` take strengthening in every well-formed environment without canonical
+`Eq` (`VEnv.EqFreeStrengthening`) as a hypothesis. For an arbitrary source table this hypothesis
+is argued false, by the same countermodel: replaying the `Tests/CacheScope.lean` declarations
+fresh needs no `Eq`, and the persistent caches accept its seeded `result`.
+
+**What would close it.** A proof of the sharpened statement under canonical `Eq`. That would
+leave the fresh-replay theorems conditional on `VEnv.EqFreeStrengthening`; making them
+unconditional needs either strengthening for the specific `Eq`-free environments the prelude
+builds before `Eq`, or a verification that never moves a typing fact to a smaller context
 (PR #53's scoped caches and constructor-telescope certificates; an executable change, slower
 than the C++ kernel's caching).
 
