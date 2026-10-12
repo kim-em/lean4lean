@@ -61,7 +61,8 @@ theorem _root_.Lean4Lean.VEnvAt.toCheckerEnv {env : Environment} {safety : Defin
     (wf : VEnvAt env safety venv) : CheckerEnv safety env venv :=
   { wf.toCheckingValid with
     shapes := wf.recursorShapes
-    iota := wf.tr.iotaRulesRegistered }
+    iota := wf.tr.iotaRulesRegistered
+    strengthening := wf.strengthening }
 
 def VContext.mkChecking {env : Environment} {venv : VEnv}
     (trenv : CheckerEnv safety env venv)

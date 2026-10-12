@@ -22,10 +22,16 @@ Agreement is up to `==` on `ConstantInfo`: the derived equality, which compares 
 `Expr.eqv`, so it ignores binder names and binder annotations. This is the same comparison the
 driver uses for constructors and recursors.
 
-Every step is covered by `addDecl.WF`, which has no hypothesis: the quotient declaration is
-checked by the kernel itself (`checkEqType` requires a safe `Eq` with the prelude's type and
-constructor), and its model is `Lean4Lean/Verify/Environment/Quot.lean`. So the driver needs no
-side condition of its own, and the base case of a fresh replay is `VEnvs.WF.empty`.
+Every step is covered by `addDecl.WF`, which preserves the invariant `VEnvs.WF`: the quotient
+declaration is checked by the kernel itself (`checkEqType` requires a safe `Eq` with the
+prelude's type and constructor), and its model is `Lean4Lean/Verify/Environment/Quot.lean`. The
+invariant includes context strengthening above the model, which the checker's persistent caches
+need when they leave a binder. On top of imports with canonical `Eq` it comes from the open proof
+`IsDefEqU.weakN_iff` (`replayPure.WF_fromImports`). A fresh replay checks the prelude's
+declarations before `Eq` exists, where canonical `Eq` cannot supply it: the fresh-replay theorems
+take strengthening in environments without canonical `Eq` (`VEnv.EqFreeStrengthening`) as a
+hypothesis. That hypothesis is argued false in general (`OPEN_PROOFS.md`, `Tests/CacheScope.lean`:
+an `Eq`-free source whose replay the persistent caches accept).
 
 The per-declaration theorems are stated for the default fuel `{}`, which is also the executable's
 configuration when no `--config` flag is given. The walk lemma `Replayed.foldlM` holds for any
@@ -79,26 +85,31 @@ theorem ReplayResult.wf_of_WF {cfg : Config} (hfuel : cfg.fuel = {}) {start : En
     exact ⟨ves₂, wf₂, fun safety => (hle₁ safety).trans (hle₂ safety)⟩
 
 /-- A replay result from the empty environment with the default fuel is modelled by well-formed
-abstract environments. -/
+abstract environments, given strengthening in environments without canonical `Eq`. -/
 theorem ReplayResult.wf_empty {cfg : Config} (hfuel : cfg.fuel = {}) {m : Name} {s : Bool}
+    (hstr : VEnv.EqFreeStrengthening)
     {decl : Option Name} (r : ReplayResult cfg (Kernel.Environment.empty m s) decl) :
     ∃ ves' : VEnvs, ves'.WF r.env :=
-  let ⟨ves', wf, _⟩ := r.wf_of_WF hfuel (VEnvs.WF.empty m s)
+  let ⟨ves', wf, _⟩ := r.wf_of_WF hfuel (VEnvs.WF.empty m s (hstr.strengtheningAbove _))
   ⟨ves', wf⟩
 
 /-- **Soundness of fresh replay.** If the pure replay of a source constant table `src` from the
 empty environment (`--fresh` mode, default fuel, all constants) succeeds, the environment it
 built is modelled by well-formed abstract environments, and every safe, non-partial source
 constant is present in it and agrees with the source constant (up to `==`, see the module
-docstring). There is no hypothesis: the base case is `VEnvs.WF.empty`, and every step is covered
-by the hypothesis-free `addDecl.WF`. -/
-theorem replayFresh.WF {src : Std.HashMap Name ConstantInfo} {mainModule : Name} :
+docstring). The hypothesis `hstr` is context strengthening in every well-formed environment
+without canonical `Eq` (`VEnv.EqFreeStrengthening`): the replay checks declarations before `Eq`
+exists, and the checker's caches persist across binders. It is the part of master's
+strengthening statement that the open proof `IsDefEqU.weakN_iff` no longer asserts, and it is
+argued false in general (`OPEN_PROOFS.md`). -/
+theorem replayFresh.WF {src : Std.HashMap Name ConstantInfo} {mainModule : Name}
+    (hstr : VEnv.EqFreeStrengthening) :
     (replayFresh src mainModule).WF fun r =>
       (∃ ves' : VEnvs, ves'.WF r.env) ∧
       ∀ n ci, src[n]? = some ci → ci.isUnsafe = false → ci.isPartial = false →
         ∃ ci', r.env.find? n = some ci' ∧ (ci' == ci) = true := by
   intro r _
-  exact ⟨r.wf_empty rfl, fun n ci hci hu hp => r.agree n (r.complete rfl n ci hci hu hp) ci hci⟩
+  exact ⟨r.wf_empty rfl hstr, fun n ci hci hu hp => r.agree n (r.complete rfl n ci hci hu hp) ci hci⟩
 
 /-- A targeted replay checked its target: `d` is a source constant, and it is present in the
 result and agrees with the source constant. -/
@@ -112,29 +123,36 @@ theorem ReplayResult.target_agree {cfg : Config} {start : Environment} {d : Name
 /-- **Soundness of targeted fresh replay.** If the pure replay of the dependency cone of `d` in
 `src` from the empty environment (default fuel) succeeds, the environment it built is modelled by
 well-formed abstract environments, and `d` is a source constant that is present in it and agrees
-with the source constant. -/
-theorem replayFresh.WF_target {src : Std.HashMap Name ConstantInfo} {mainModule d : Name} :
+with the source constant. The hypothesis is that of `replayFresh.WF`. -/
+theorem replayFresh.WF_target {src : Std.HashMap Name ConstantInfo} {mainModule d : Name}
+    (hstr : VEnv.EqFreeStrengthening) :
     (replayFresh src mainModule {} (some d)).WF fun r =>
       (∃ ves' : VEnvs, ves'.WF r.env) ∧
       ∃ ci, src[d]? = some ci ∧ ∃ ci', r.env.find? d = some ci' ∧ (ci' == ci) = true := by
   intro r _
-  exact ⟨r.wf_empty rfl, r.target_agree⟩
+  exact ⟨r.wf_empty rfl hstr, r.target_agree⟩
 
 /-- **Soundness of replay on top of imports.** If the pure replay of a module's constant table
 `src` into the environment `env` of its imports (default fuel, all constants) succeeds, and `env`
-is modelled by well-formed abstract environments, then so is the environment the replay built
-(extending the model of `env`), and every safe, non-partial source constant is present in it and
-agrees with the source constant. The imports are trusted in this mode (`lake exe lean4lean M`
+is modelled by abstract environments satisfying the translation invariant (`VEnvs.WFCore`) with
+canonical `Eq`, then the environment the replay built is modelled by well-formed abstract
+environments with canonical `Eq` (extending the model of `env`), and every safe, non-partial
+source constant is present in it and agrees with the source constant. Canonical `Eq` supplies
+the context strengthening of the invariant (on the open proof `IsDefEqU.weakN_iff`). The imports are trusted in this mode (`lake exe lean4lean M`
 without `--fresh`): the well-formedness of `env` is a hypothesis, not checked by the replay. The
 theorem is about the pure core `replayPure`; the module loading the executable performs before
 it is not covered. -/
 theorem replayPure.WF_fromImports {src : Std.HashMap Name ConstantInfo} {checkQuot : Bool}
-    {env : Environment} {ves : VEnvs} (wf : ves.WF env) :
+    {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
+    (heq : ∀ safety, (ves.venv safety).HasCanonicalEq) :
     (replayPure { newConstants := src, checkQuot } env).WF fun r =>
-      (∃ ves' : VEnvs, ves'.WF r.env ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
+      (∃ ves' : VEnvs, ves'.WF r.env ∧ (∀ safety, (ves'.venv safety).HasCanonicalEq) ∧
+        ∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       ∀ n ci, src[n]? = some ci → ci.isUnsafe = false → ci.isPartial = false →
         ∃ ci', r.env.find? n = some ci' ∧ (ci' == ci) = true := by
   intro r _
-  exact ⟨r.wf_of_WF rfl wf, fun n ci hci hu hp => r.agree n (r.complete rfl n ci hci hu hp) ci hci⟩
+  obtain ⟨ves', wf', hle⟩ := r.wf_of_WF rfl (wf.toWF_of_canonicalEq heq)
+  exact ⟨⟨ves', wf', fun safety => (heq safety).mono (hle safety), hle⟩,
+    fun n ci hci hu hp => r.agree n (r.complete rfl n ci hci hu hp) ci hci⟩
 
 end Lean4Lean.Replay

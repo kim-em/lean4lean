@@ -14,9 +14,11 @@ then answers `SI ≡ SJ` outside that scope and accepts `result`, while it rejec
 definition without `seed`. Lean4Lean's caches and equivalence manager persist across scopes in
 the same way, so it accepts `result` and rejects the unseeded definition, exactly as the C++
 kernel does. (A branch of lean4lean once restored its caches when a binder was closed and
-rejected `result`; that mode is gone. The acceptance relies on the open proof
-`IsDefEqU.weakN_iff`, context strengthening: the conversion under the unused binder `q` holds
-without it.)
+rejected `result`; that mode is gone.) This environment has no `Eq`, and it is the countermodel
+to master's unconditional statement of context strengthening (`OPEN_PROOFS.md`). The open proof
+`IsDefEqU.weakN_iff` assumes canonical `Eq` (`VEnv.HasCanonicalEq`) and so claims nothing about
+it; a fresh replay of these declarations is covered by `replayFresh.WF` only under its hypothesis
+`VEnv.EqFreeStrengthening`, which this environment is argued to refute.
 
 The last check runs the comparisons directly: before the binder `SI ≡ SJ` fails, and under it
 each link succeeds. After it, `SI ≡ SJ` itself still fails, because the failure found before the

@@ -43,11 +43,13 @@ abbrev ContextWF.toLocal {c : AddInductive.Context} (H : ContextWF c) : LocalCon
 abbrev LocalContextWF.toContextWF {c : AddInductive.Context} (L : LocalContextWF c)
     (valid : CheckingEnv.Valid c.safety c.env L.venv)
     (shapes : RecursorShapesCoherent c.safety c.env.constants L.venv)
-    (iota : IotaRulesRegistered c.safety c.env L.venv) : ContextWF c where
+    (iota : IotaRulesRegistered c.safety c.env L.venv)
+    (strengthening : L.venv.StrengtheningAbove) : ContextWF c where
   toFrame := L.toFrame
   checking := valid
   shapes := shapes
   iota := iota
+  strengthening := strengthening
   typeCheckerLParams_eq := L.typeCheckerLParams_eq
 
 theorem LocalContextWF.wf {c : AddInductive.Context} (H : LocalContextWF c) : H.venv.WF :=

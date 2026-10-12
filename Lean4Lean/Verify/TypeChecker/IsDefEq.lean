@@ -33,7 +33,7 @@ theorem lowerClosedBody {c : VContext} {s : State} {m} [mwf : c.MLCWF m]
       ⟨mwf.1.tr.wf, nofun, b1⟩)
   have := a3.inst_fvar c.Ewf.orderedStrong hΔ
   rw [Expr.instantiate1'_eq_self (by rw [h]; exact Nat.zero_le _)] at this
-  obtain ⟨e₀, he, rfl⟩ := this.restrictFV_inv c.Ewf (.skip_fvar _ _ .refl) hΔ
+  obtain ⟨e₀, he, rfl⟩ := this.restrictFV_inv c.Ewf hs (.skip_fvar _ _ .refl) hΔ
     (by simpa using a3.fvarsIn)
   exact ⟨e₀, he, hw⟩
 

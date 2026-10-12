@@ -18,7 +18,8 @@ each visible recursor, collected here:
 * `IotaRulesRegistered`: the ι rule of each rule is registered, in the form of PR #43's
   `TrEnv.pats_iota'`.
 
-`CheckerEnv` is `CheckingEnv.Valid` with these two facts.
+`CheckerEnv` is `CheckingEnv.Valid` with these two facts and context strengthening
+(`VEnv.StrengtheningAbove`), which the checker's persistent caches need when they leave a binder.
 -/
 
 namespace Lean4Lean
@@ -75,14 +76,19 @@ def IotaRulesRegistered (safety : DefinitionSafety) (env : Environment) (venv : 
 theorem TrEnv.iotaRulesRegistered (H : TrEnv safety env venv) :
     IotaRulesRegistered safety env venv := fun hrec hrule hsafe => H.pats_iota' hrec hrule hsafe
 
-/-- Everything the checker verification reads of its environment: the checking invariant and
-the two recursor facts. -/
+/-- Everything the checker verification reads of its environment: the checking invariant, the
+two recursor facts, and context strengthening. -/
 structure CheckerEnv (safety : DefinitionSafety) (env : Environment) (venv : VEnv) : Prop
     extends CheckingEnv.Valid safety env venv where
   /-- The shapes of the visible recursors. -/
   shapes : RecursorShapesCoherent safety env.constants venv
   /-- The ι rules of the visible recursors. -/
   iota : IotaRulesRegistered safety env venv
+  /-- Context strengthening in every well-formed extension of the environment: the caches and
+  the equivalence manager persist across binders, and the facts they record are moved out of a
+  binder's scope with it. Canonical `Eq` supplies it (`VEnv.HasCanonicalEq.strengtheningAbove`,
+  on the open proof `IsDefEqU.weakN_iff`). -/
+  strengthening : venv.StrengtheningAbove
 
 namespace CheckerEnv
 variable {safety : DefinitionSafety} {env : Environment} {venv : VEnv}

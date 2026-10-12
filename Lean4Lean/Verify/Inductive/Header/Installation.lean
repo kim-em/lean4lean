@@ -21,7 +21,7 @@ namespace VerifyInductive
 headers installed over the source environment, each translating to the abstract type former of
 `decl`, and the abstract header environment, the source model with `decl`'s type constants)
 together with the validity of the header context (`contextValid`, `contextShapes`,
-`contextIota`, which make it a `ContextWF`, `fullContext`) and the parameters still declared in
+`contextIota`, `contextStrengthening`, which make it a `ContextWF`, `fullContext`) and the parameters still declared in
 it (`parameters`). -/
 structure HeaderEnvironment (c : AddInductive.Context) (stats : AddInductive.InductiveStats)
     (decl : VInductDecl) (nparams : Nat) (isUnsafe : Bool) (depth : Nat) (sourceEnv : VEnv)
@@ -30,7 +30,9 @@ structure HeaderEnvironment (c : AddInductive.Context) (stats : AddInductive.Ind
   contextValid : CheckingEnv.Valid c.safety outEnv context.venv
   contextShapes : RecursorShapesCoherent c.safety outEnv.constants context.venv
   contextIota : IotaRulesRegistered c.safety outEnv context.venv
-  parameters : HeaderParameterContext (context.toContextWF contextValid contextShapes contextIota)
+  contextStrengthening : context.venv.StrengtheningAbove
+  parameters : HeaderParameterContext
+    (context.toContextWF contextValid contextShapes contextIota contextStrengthening)
     stats headers.params depth
 
 /-- The header context of a header environment, as a `ContextWF`. -/
@@ -39,7 +41,7 @@ abbrev HeaderEnvironment.fullContext {c : AddInductive.Context}
     {depth : Nat} {sourceEnv : VEnv} {indTypes : Array InductiveType} {outEnv : Environment}
     (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv indTypes outEnv) :
     ContextWF { c with env := outEnv } :=
-  H.context.toContextWF H.contextValid H.contextShapes H.contextIota
+  H.context.toContextWF H.contextValid H.contextShapes H.contextIota H.contextStrengthening
 
 /-- The constructor names of a declaration are absent from an environment. The header
 environment is a checking environment (`CheckingEnv.Valid`: a header lists only absent names or
@@ -504,6 +506,7 @@ def InstalledHeaders.toHeaderEnvironment {c c' : AddInductive.Context} {Hc : Con
     contextValid := I.context.checking
     contextShapes := I.context.shapes
     contextIota := I.context.iota
+    contextStrengthening := I.context.strengthening
     contextMLCtx := I.contextMLCtx
     typesAdded := by rw [D.typeConstants]; exact I.typesAdded
     headers := D.headerCertificate

@@ -199,7 +199,8 @@ theorem VEnvAt.addAxioms {env : Environment} {venv : VEnv} {bs : DefinitionSafet
           (by rw [hax]; simp [hd.2.2.2])
         blocks := wf.blocks.addFresh wf.tr.map_wf (ci := .axiomInfo { v with isUnsafe := bs == .unsafe })
           (hax ▸ hd.2.2.1) nofun nofun nofun hle fun hp => by
-            rwa [VEnv.addConst_projections h₁'] at hp }
+            rwa [VEnv.addConst_projections h₁'] at hp
+        strengthening := wf.strengthening.mono hle }
     show VEnvAt (vs.foldl (fun e v => e.add (.axiomInfo { v with isUnsafe := bs == .unsafe }))
       (env.add (.axiomInfo { v with isUnsafe := bs == .unsafe }))) bs venv'
     refine VEnvAt.addAxioms hsf wf₁ ?_ hnd.2 h₂
@@ -263,6 +264,7 @@ theorem addMutualBlock.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     · rw [hsame sf hv]; exact VEnv.LE.rfl
   refine ⟨ves', ?_, hleFinal⟩
   exact {
+    strengthening {sf} := wf.strengthening.mono (hleFinal sf)
     tr {sf} := by
       show TrEnv sf _ _
       unfold TrEnv
@@ -339,6 +341,10 @@ theorem VEnvs.WF.extendUnsafeExact
   let ves' : VEnvs := ⟨next⟩
   refine ⟨ves', ?_, ?_, rfl⟩
   · refine {
+      strengthening {safety} := match safety with
+        | .unsafe => wf.strengthening.mono hleUnsafe
+        | .partial => wf.strengthening
+        | .safe => wf.strengthening
       tr := ?_
       hasPrimitives := ?_
       safePrimitives := hsafePrimitives
@@ -400,6 +406,7 @@ theorem VEnvs.WF.extendInductExact
   let ves' : VEnvs := ⟨next⟩
   refine ⟨ves', ?_, ?_, ?_⟩
   · exact {
+      strengthening {safety} := wf.strengthening.mono (hadd safety).le
       tr := by
         intro safety
         change TrEnv' safety env'.constants env'.quotInit (next safety)
@@ -461,6 +468,7 @@ theorem addConstCore.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     have h := hves' safety; unfold VEnv.AddConst at h; rwa [if_neg hvisible] at h
   refine ⟨ves', ?_, hves'⟩
   exact {
+    strengthening {safety} := wf.strengthening.mono (hves' safety).le
     tr {safety} := by
       by_cases hvisible : safety ≤ ci.safety
       · exact step safety _ (visible_tr safety hvisible) (visible_wf safety hvisible)
@@ -546,6 +554,7 @@ theorem addDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     have h := hves' safety; unfold VEnv.AddDef at h; rwa [if_neg hvisible] at h
   refine ⟨ves', ?_, hves'⟩
   refine {
+    strengthening {safety} := wf.strengthening.mono (hves' safety).le
     tr {safety} := by
       change TrEnv' safety (env.constants.insert v.name (.defnInfo v)) env.quotInit _
       by_cases hvisible : safety ≤ (ConstantInfo.defnInfo v).safety
@@ -614,6 +623,9 @@ theorem addUnsafeDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   refine ⟨⟨fun | .unsafe => base.addDefEq ci'.toDefEq | sf => ves.venv sf⟩, ?_,
     by rintro ⟨⟩ <;> first | exact hle | exact .rfl⟩
   exact {
+    strengthening {safety} := match safety with
+      | .unsafe => wf.strengthening.mono hle
+      | .safe | .partial => wf.strengthening
     tr {safety} := by
       change TrEnv' safety (env.constants.insert v.name (.defnInfo v)) env.quotInit _
       match safety with

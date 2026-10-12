@@ -151,7 +151,7 @@ theorem TrExprS.lowerClosedBV {c : VContext} {s : State} (wf : s.WF c) (hd : c.I
     rintro _ _ ⟨⟩; simp; exact fun h => s.ngen.not_reserves_self (wf.ngen_wf _ h)
   have := H.inst_fvar c.Ewf.orderedStrong hΔ
   rw [Expr.instantiate1'_eq_self (by rw [h]; exact Nat.zero_le _)] at this
-  obtain ⟨B₀, hB₀, rfl⟩ := this.restrictFV_inv c.Ewf (.skip_fvar _ _ .refl) hΔ
+  obtain ⟨B₀, hB₀, rfl⟩ := this.restrictFV_inv c.Ewf c.strengthening (.skip_fvar _ _ .refl) hΔ
     (by simpa using H.fvarsIn)
   exact ⟨B₀, hB₀, rfl⟩
 

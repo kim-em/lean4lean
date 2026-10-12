@@ -280,7 +280,10 @@ theorem checkerEnv (F : RuleFreeStage safety env venv decl S venv₂ H)
     rw [Lean.Kernel.Environment.find?, wf₁.find?'_eq_find?]
   have hfindS : ∀ x, S.find? x = S.constants.find? x := fun x => by
     rw [Lean.Kernel.Environment.find?, wfS.find?'_eq_find?]
-  refine { V with shapes := V.blocks.recursorShapesCoherent V.tr.map_wf, iota := ?_ }
+  refine { V with
+    shapes := V.blocks.recursorShapesCoherent V.tr.map_wf
+    strengthening := C.strengthening.mono le_envR
+    iota := ?_ }
   intro recName cName rval rule hrec hrule hsafe
   rw [hfindS] at hrec
   rcases H.find? wf₁ hrec with hold | ⟨hci, -⟩

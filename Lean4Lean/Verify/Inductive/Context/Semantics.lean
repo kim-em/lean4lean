@@ -48,6 +48,8 @@ structure ContextSemantics (c : AddInductive.Context) (Us : List Name)
   shapes : RecursorShapesCoherent c.safety c.env.constants venv
   /-- The ι rules of the visible recursors are registered (as in `CheckerEnv.iota`). -/
   iota : IotaRulesRegistered c.safety c.env venv
+  /-- Context strengthening above the model (as in `CheckerEnv.strengthening`). -/
+  strengthening : venv.StrengtheningAbove
 
 theorem ContextFrame.current_not_mem (H : ContextFrame c Us) :
     ⟨c.ngen.curr⟩ ∉ H.mlctx.vlctx.fvars := fun hmem =>
@@ -99,6 +101,7 @@ abbrev ContextSemantics.withEnv (H : ContextSemantics c Us)
   checking := hchecking
   shapes := hshapes
   iota := hiota
+  strengthening := H.strengthening.mono hle
 
 /-- Replace the checking context by a certified sub-context of the main context. -/
 abbrev ContextSemantics.withCheckLCtx (H : ContextSemantics c Us) (l : LocalContext) (B : H.Base l) :
@@ -114,6 +117,7 @@ abbrev ContextSemantics.withCheckLCtx (H : ContextSemantics c Us) (l : LocalCont
   kernelFresh := H.kernelFresh
   shapes := H.shapes
   iota := H.iota
+  strengthening := H.strengthening
   check := B
 
 /-- View the embedded checking context as the main context of the same frame. -/
@@ -130,6 +134,7 @@ abbrev ContextSemantics.atCheckLCtx (H : ContextSemantics c Us) :
   kernelFresh := fun fv h => H.kernelFresh fv (H.check.embed.fvars_subset h)
   shapes := H.shapes
   iota := H.iota
+  strengthening := H.strengthening
   check := { m := H.chk, wf := H.check.wf, onlyLams := H.check.onlyLams,
              lctx_eq := H.check.lctx_eq,
              embed := .refl H.checking.tr.wf.orderedStrong H.check.wf.tr.wf,
@@ -164,6 +169,7 @@ abbrev ContextSemantics.withLocalDecl (H : ContextSemantics c Us)
     · exact (H.indFresh _ hmem).mono NameGenerator.LE.next
   shapes := H.shapes
   iota := H.iota
+  strengthening := H.strengthening
   kernelFresh := by
     intro fv hmem
     simp only [TypeChecker.MLCtx.vlctx, VLCtx.fvars_cons_some,
@@ -196,6 +202,7 @@ abbrev ContextSemantics.withCheckedLocalDecl (H : ContextSemantics c Us)
   kernelFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).kernelFresh
   shapes := H.shapes
   iota := H.iota
+  strengthening := H.strengthening
   check := H.check.cons H.checking.tr.wf H.lctx_eq
     (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx_wf htr₀ hty₀
 
@@ -221,6 +228,7 @@ abbrev ContextSemantics.withCheckedLocalDeclOn (H : ContextSemantics c Us) (base
   kernelFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).kernelFresh
   shapes := H.shapes
   iota := H.iota
+  strengthening := H.strengthening
   check := B.cons H.checking.tr.wf H.lctx_eq
     (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx_wf htr₀ hty₀
 

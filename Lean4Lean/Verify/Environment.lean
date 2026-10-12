@@ -198,9 +198,10 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
 /-- Successful checked addition of a declaration preserves the invariant `VEnvs.WF` and extends
 every safety-indexed abstract environment, for every declaration form. The inductive case is the
 verification of the inductive checker (`VerifyInductive.addInductiveDeclaration.preserves`:
-primitive, ordinary and nested pipelines). No hypothesis on `Eq` is needed: quotient
-initialization reads the abstract `Eq` off the successful `checkEqType`
-(`Verify/Environment/Quot.lean`). -/
+primitive, ordinary and nested pipelines). Quotient initialization reads the abstract `Eq` off
+the successful `checkEqType` (`Verify/Environment/Quot.lean`). The invariant `VEnvs.WF` includes
+context strengthening above the model (`VEnvs.WF.strengthening`), which the checker's persistent
+caches use; `addDecl.WF_of_canonicalEq` supplies it from canonical `Eq`. -/
 theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety := by
@@ -214,6 +215,17 @@ theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (decl : D
   | mutualDefnDecl vs => exact addMutual.WF wf vs
   | inductDecl lparams nparams types isUnsafe =>
     exact VerifyInductive.addInductiveDeclaration.preserves wf lparams nparams types isUnsafe {}
+
+/-- `addDecl.WF` in an environment with canonical `Eq`: the translation invariant
+(`VEnvs.WFCore`) and canonical `Eq` give the full invariant (on the open proof
+`IsDefEqU.weakN_iff`), and both are preserved. -/
+theorem addDecl.WF_of_canonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
+    (heq : ∀ safety, (ves.venv safety).HasCanonicalEq) (decl : Declaration) :
+    (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
+      ∃ ves' : VEnvs, ves'.WF env' ∧ (∀ safety, (ves'.venv safety).HasCanonicalEq) ∧
+        ∀ safety, ves.venv safety ≤ ves'.venv safety :=
+  (addDecl.WF (wf.toWF_of_canonicalEq heq) decl).mono fun _ ⟨ves', hwf, hle⟩ =>
+    ⟨ves', hwf, fun safety => (heq safety).mono (hle safety), hle⟩
 
 /-! ### The empty environment -/
 
@@ -232,9 +244,12 @@ theorem VEnv.HasPrimitives.empty : VEnv.empty.HasPrimitives := by
     VEnv.ReflectsNatNatBool, VEnv.ReflectsNatBitwise, VEnv.contains, VEnv.empty]
 
 /-- **Base case.** The empty environment that a replay starts from (`Kernel.Environment.empty`,
-in either stage) satisfies the invariant; every field but the translation is vacuous. -/
-theorem VEnvs.WF.empty (m : Name) (s : Bool) :
+in either stage) satisfies the invariant, given context strengthening above the empty abstract
+environment (`hstr`); every other field but the translation is vacuous. The empty environment has
+no `Eq`, so canonical `Eq` cannot supply `hstr`; `VEnv.EqFreeStrengthening` can. -/
+theorem VEnvs.WF.empty (m : Name) (s : Bool) (hstr : VEnv.empty.StrengtheningAbove) :
     VEnvs.empty.WF (Kernel.Environment.empty m s) where
+  strengthening {_} := hstr
   tr := .empty
   hasPrimitives := VEnv.HasPrimitives.empty
   safePrimitives h := by simp [Kernel.Environment.empty_find?] at h

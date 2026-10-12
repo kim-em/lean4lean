@@ -34,7 +34,7 @@ structure ContextWF (c : AddInductive.Context) extends toSemantics : ContextSema
 
 /-- What the embedded type checker reads of the context's environment. -/
 def ContextSemantics.checkerEnv (H : ContextSemantics c Us) : CheckerEnv c.safety c.env H.venv :=
-  { H.checking with shapes := H.shapes, iota := H.iota }
+  { H.checking with shapes := H.shapes, iota := H.iota, strengthening := H.strengthening }
 
 theorem ContextWF.wf (H : ContextWF c) : H.venv.WF := H.checking.tr.wf
 
@@ -61,6 +61,7 @@ def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   checking := wf.toCheckingValid safety
   shapes := (wf.toVEnvAt safety).recursorShapes
   iota := (wf.tr (safety := safety)).iotaRulesRegistered
+  strengthening := wf.strengthening
   mlctx := .nil
   mlctx_wf := trivial
   typeCheckerLParams_eq := rfl
@@ -326,6 +327,7 @@ def ContextWF.toRecursorContextWF (H : ContextWF c) :
   kernelFresh := H.kernelFresh
   shapes := H.shapes
   iota := H.iota
+  strengthening := H.strengthening
   check := H.check
 
 /-- Reinterpret an already verified executable local context after prepending
@@ -359,6 +361,7 @@ def ContextWF.prependRecursorLevelParam
       exact H.indFresh fv (hfv ▸ hmem)
     shapes := H.shapes
     iota := H.iota
+    strengthening := H.strengthening
     kernelFresh := by
       intro fv hmem
       exact H.kernelFresh fv (hfv ▸ hmem)

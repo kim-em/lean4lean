@@ -113,21 +113,10 @@ theorem ConditionallyWHNF.fresh
 
 The conditional cache entries stay valid when a free variable is removed from the context: an
 entry whose key does not mention the variable was, by the condition, derived in the larger
-context, and context strengthening (`IsDefEqU.weakN_iff`, `Theory/Typing/UniqueTyping.lean`)
-moves it to the smaller one. The syntax of a translation is restricted by `TrSyn`; only its typing
+context, and context strengthening (`VEnv.Strengthening`, `Theory/Typing/UniqueTyping.lean`)
+moves it to the smaller one. The lemmas take strengthening as a hypothesis `hs`; the checker
+supplies it from its environment (`CheckerEnv.strengthening`). The syntax of a translation is restricted by `TrSyn`; only its typing
 needs strengthening. -/
-
-/-- Context strengthening for definitional equality: an equation between two lifted expressions
-in a context extended by `n` binders (inserted below `k` binders) already holds in the smaller
-context. -/
-def VEnv.Strengthening (env : VEnv) : Prop :=
-  ∀ ⦃U n k Γ Γ' e1 e2⦄, Ctx.LiftN n k Γ Γ' → OnCtx Γ' (env.IsType U) →
-    env.IsDefEqU U Γ' (e1.liftN n k) (e2.liftN n k) → env.IsDefEqU U Γ e1 e2
-
-/-- Every well-formed environment admits context strengthening: master's
-`IsDefEqU.weakN_iff`. This is the one strengthening principle of the checker verification. -/
-theorem VEnv.WF.strengthening {env : VEnv} (henv : env.WF) : env.Strengthening :=
-  fun _ _ _ _ _ _ _ W hΓ h => (IsDefEqU.weakN_iff henv hΓ W).1 h
 
 theorem VLCtx.FVLift'.cons_vlam (W : VLCtx.FVLift' Δ Δ' dk l k)
     (h : ty₀.lift' (l.consN k) = ty') :
@@ -139,7 +128,7 @@ theorem VLCtx.FVLift'.cons_vlet (W : VLCtx.FVLift' Δ Δ' dk l k)
     VLCtx.FVLift' ((none, .vlet ty₀ val₀) :: Δ) ((none, .vlet ty' val') :: Δ') (dk + 1) l k := by
   subst h1 h2; exact W.cons_bvar (.vlet ty₀ val₀)
 
-variable! (henv : VEnv.WF env) in
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) in
 /-- The residual obligations of a typed translation in an extension `Δ'` of `Δ` by free
 variables hold in `Δ`, for a source scoped by `Δ`. -/
 theorem TrExprS.residual_restrictFV' {Us : List Name}
@@ -164,13 +153,13 @@ theorem TrExprS.residual_restrictFV' {Us : List Name}
     have e1 := (s1.weakFV' W hΔ'.fvars_nodup).unique a1.toTrSyn
     have e2 := (s2.weakFV' W hΔ'.fvars_nodup).unique a2.toTrSyn
     have W' := W.cons_vlet e1 e2
-    have h1' := (HasType.weak'_iff henv hΔ'.toCtx W.toCtx).1 (by rw [← e1, ← e2] at h1; exact h1)
+    have h1' := (HasType.weak'_iff henv hs hΔ'.toCtx W.toCtx).1 (by rw [← e1, ← e2] at h1; exact h1)
     exact .letE s1 s2 h1' (ih1 W hΔ' s1) (ih2 W hΔ' s2) (ih3 W' ⟨hΔ', nofun, h1⟩ s3)
   | lit h1 _ ih => let .lit s := hsyn; exact .lit h1 (ih W hΔ' s)
   | mdata _ ih => let .mdata s := hsyn; exact .mdata (ih W hΔ' s)
   | proj _ _ ih => let .proj s := hsyn; exact .proj (ih W hΔ' s)
 
-variable! (henv : VEnv.WF env) in
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) in
 /-- **Strengthening of a typed translation**: a source scoped by `Δ` that has a typed translation
 in an extension `Δ'` of `Δ` by free variables has one in `Δ`, of which the larger one is the lift.
 The syntax is `TrSyn`-style restriction; the typing is `VExpr.WF.weak'_iff`. -/
@@ -181,16 +170,16 @@ theorem TrExprS.restrictFV'_inv {Us : List Name}
   have hc : Closed e Δ.bvars := W.bvars_eq ▸ H.closed
   obtain ⟨e₀, s⟩ := TrSyn.exists_of_scoped hc hfv H.toTrSyn.levelParamsIn
   have heq : e' = e₀.lift' (l.consN k) := H.toTrSyn.unique (s.weakFV' W hΔ'.fvars_nodup)
-  refine ⟨e₀, s.toTrExprS henv.orderedStrong hΔ ?_ (H.residual_restrictFV' henv W hΔ' s), heq⟩
-  exact (VExpr.WF.weak'_iff henv hΔ'.toCtx W.toCtx).1 (heq ▸ H.wf henv.orderedStrong hΔ')
+  refine ⟨e₀, s.toTrExprS henv.orderedStrong hΔ ?_ (H.residual_restrictFV' henv hs W hΔ' s), heq⟩
+  exact (VExpr.WF.weak'_iff henv hs hΔ'.toCtx W.toCtx).1 (heq ▸ H.wf henv.orderedStrong hΔ')
 
-variable! (henv : VEnv.WF env) in
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) in
 /-- `TrExprS.restrictFV'_inv` for the removal of free variables only. -/
 theorem TrExprS.restrictFV_inv {Us : List Name}
     (W : VLCtx.FVLift Δ Δ' 0 n 0) (hΔ' : Δ'.WF env Us.length)
     (H : TrExprS env Us Δ' e e') (hfv : FVarsIn (· ∈ Δ.fvars) e) :
     ∃ e₀, TrExprS env Us Δ e e₀ ∧ e' = e₀.liftN n := by
-  obtain ⟨e₀, h, rfl⟩ := H.restrictFV'_inv henv W.toFVLift' hΔ' (W.wf henv hΔ') hfv
+  obtain ⟨e₀, h, rfl⟩ := H.restrictFV'_inv henv hs W.toFVLift' hΔ' (W.wf henv hΔ') hfv
   exact ⟨e₀, h, by simpa using VExpr.lift'_consN_skipN (e := e₀) (n := n) (k := 0)⟩
 
 private theorem upSet_tail {env : VEnv} {Us : List Name} {Δ : VLCtx} (hΔ : VLCtx.WF env Us.length ((some (fv, deps), d) :: Δ)) :
@@ -203,17 +192,17 @@ private theorem fvarsBelow_tail {env : VEnv} {Us : List Name} {Δ : VLCtx} (hΔ 
   h1 _ ⟨(IsFVarUpSet.and_fvars hΔ.1.fvwf).1 hP, fun h => (hΔ.2.1 _ _ rfl).1.elim h.2⟩
     (he'.mp (fun _ => .intro) he) |>.mono fun _ => (·.1)
 
-variable! (henv : VEnv.WF env) in
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) in
 theorem ConditionallyTyped.weakN_inv
     (hΔ : VLCtx.WF env Us.length ((some fv, d) :: Δ))
     (H : ConditionallyTyped ngen env Us ((some fv, d) :: Δ) e) :
     ConditionallyTyped ngen env Us Δ e := by
   refine ⟨H.1, H.2.1, fun H2 => ?_⟩
   have ⟨_, h⟩ := H.2.2 H2.fvars_cons
-  obtain ⟨_, h, -⟩ := h.restrictFV_inv henv (.skip_fvar _ _ .refl) hΔ H2
+  obtain ⟨_, h, -⟩ := h.restrictFV_inv henv hs (.skip_fvar _ _ .refl) hΔ H2
   exact ⟨_, h⟩
 
-variable! (henv : VEnv.WF env) in
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) in
 theorem ConditionallyHasType.weakN_inv
     (hΔ : VLCtx.WF env Us.length ((some fv, d) :: Δ))
     (H : ConditionallyHasType ngen env Us ((some fv, d) :: Δ) e A) :
@@ -223,12 +212,12 @@ theorem ConditionallyHasType.weakN_inv
   refine ⟨c1, f1, c2, f2, fun H4 => ?_⟩
   have ⟨e', A', h1, h2, h3, h4⟩ := H H4.fvars_cons
   have W : VLCtx.FVLift Δ ((some (fv, deps), d) :: Δ) 0 (0 + d.depth) 0 := .skip_fvar _ _ .refl
-  obtain ⟨e₀, he, rfl⟩ := h2.restrictFV_inv henv W hΔ H4
-  obtain ⟨A₀, hA, rfl⟩ := h3.restrictFV_inv henv W hΔ (h1 _ (upSet_tail hΔ) H4)
-  have h4 := (HasType.weakN_iff henv hΔ.toCtx W.toCtx).1 h4
+  obtain ⟨e₀, he, rfl⟩ := h2.restrictFV_inv henv hs W hΔ H4
+  obtain ⟨A₀, hA, rfl⟩ := h3.restrictFV_inv henv hs W hΔ (h1 _ (upSet_tail hΔ) H4)
+  have h4 := (HasType.weakN_iff henv hs hΔ.toCtx W.toCtx).1 h4
   exact ⟨_, _, fvarsBelow_tail hΔ h1 he.fvarsIn, he, hA, h4⟩
 
-variable! (henv : VEnv.WF env) in
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) in
 theorem ConditionallyWHNF.weakN_inv
     (hΔ : VLCtx.WF env Us.length ((some fv, d) :: Δ))
     (H : ConditionallyWHNF ngen env Us ((some fv, d) :: Δ) e e₁) :
@@ -238,7 +227,7 @@ theorem ConditionallyWHNF.weakN_inv
   refine ⟨c1, f1, c2, f2, fun H4 => ?_⟩
   have ⟨e', h1, h2, ⟨_, h3, h4⟩, h5⟩ := H H4.fvars_cons
   have W : VLCtx.FVLift Δ ((some (fv, deps), d) :: Δ) 0 (0 + d.depth) 0 := .skip_fvar _ _ .refl
-  obtain ⟨e₀, he, rfl⟩ := h2.restrictFV_inv henv W hΔ H4
-  obtain ⟨e₁', he₁, rfl⟩ := h3.restrictFV_inv henv W hΔ (h1 _ (upSet_tail hΔ) H4)
-  have h4 := (IsDefEqU.weakN_iff henv hΔ.toCtx W.toCtx).1 h4
+  obtain ⟨e₀, he, rfl⟩ := h2.restrictFV_inv henv hs W hΔ H4
+  obtain ⟨e₁', he₁, rfl⟩ := h3.restrictFV_inv henv hs W hΔ (h1 _ (upSet_tail hΔ) H4)
+  have h4 := hs W.toCtx hΔ.toCtx h4
   exact ⟨_, fvarsBelow_tail hΔ h1 he.fvarsIn, he, ⟨_, he₁, h4⟩, h5⟩

@@ -313,7 +313,7 @@ end EquivManager
 namespace TypeChecker.Inner
 
 /-- A fact recorded by the equivalence manager, between two terms translated in the current
-context, is a definitional equality there. In the global cache mode this is where strengthening
+context, is a definitional equality there. This is where strengthening (`VContext.strengthening`)
 is used: the fact holds in an extension of the current context by variables of closed binders. -/
 theorem _root_.Lean4Lean.TypeChecker.State.WF.eqv_uniq {c : VContext} {s : State} (wf : s.WF c)
     (hΔ' : EqvScope c s.ngen Δ') (H : EquivManager.IsDefEqE c.venv c.lparams Δ' e₁ e₂)
@@ -324,7 +324,7 @@ theorem _root_.Lean4Lean.TypeChecker.State.WF.eqv_uniq {c : VContext} {s : State
       show Δ'.bvars = 0; rw [W.bvars_eq]; exact c.mlctx.noBV
     have := H.uniq c.Ewf noBV hwf (he₁.weakFV' c.Ewf.orderedStrong W hwf)
       (he₂.weakFV' c.Ewf.orderedStrong W hwf)
-    exact (VEnv.IsDefEqU.weak'_iff c.Ewf hwf.toCtx W.toCtx).1 this
+    exact (VEnv.IsDefEqU.weak'_iff c.Ewf c.strengthening hwf.toCtx W.toCtx).1 this
 
 open EquivManager in
 theorem addEquiv.WF {c : VContext} {s : State} (he₁ : c.TrExprS e₁ e') (he₂ : c.TrExpr e₂ e') :

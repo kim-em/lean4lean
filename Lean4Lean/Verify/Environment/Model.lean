@@ -19,9 +19,9 @@ open Kernel
 structure VEnvs where
   venv : DefinitionSafety → VEnv
 
-/-- The well-formedness invariant of the checker's environment model. Every checked declaration
-preserves it (`addDecl.WF`). -/
-structure VEnvs.WF (env : Environment) (ves : VEnvs) where
+/-- The translation part of the well-formedness invariant of the checker's environment model:
+`VEnvs.WF` without context strengthening. -/
+structure VEnvs.WFCore (env : Environment) (ves : VEnvs) where
   tr : TrEnv safety env (ves.venv safety)
   hasPrimitives : VEnv.HasPrimitives (ves.venv safety)
   safePrimitives : env.find? n = some ci →
@@ -30,6 +30,20 @@ structure VEnvs.WF (env : Environment) (ves : VEnvs) where
   block (`InstalledBlocks`). -/
   blocks : InstalledBlocks safety env (ves.venv safety) .complete
   mono : safety ≤ safety' → ves.venv safety' ≤ ves.venv safety
+
+/-- The well-formedness invariant of the checker's environment model. Every checked declaration
+preserves it (`addDecl.WF`). Besides the translation (`VEnvs.WFCore`) it records context
+strengthening in every well-formed extension of the model (`VEnv.StrengtheningAbove`): the
+checker's caches and equivalence manager persist across binders, and their facts are moved out
+of a binder's scope with it. An environment with canonical `Eq` has it
+(`VEnvs.WFCore.toWF_of_canonicalEq`, on the open proof `IsDefEqU.weakN_iff`). -/
+structure VEnvs.WF (env : Environment) (ves : VEnvs) extends VEnvs.WFCore env ves where
+  strengthening : (ves.venv safety).StrengtheningAbove
+
+/-- Canonical `Eq` supplies the strengthening field of the invariant. -/
+theorem VEnvs.WFCore.toWF_of_canonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
+    (heq : ∀ safety, (ves.venv safety).HasCanonicalEq) : ves.WF env :=
+  { wf with strengthening := fun {safety} => (heq safety).strengtheningAbove }
 
 namespace VEnvs.WF
 variable {env : Environment} {ves : VEnvs}
@@ -84,13 +98,14 @@ theorem VEnvs.ofPointwiseExists {P : DefinitionSafety → VEnv → Prop}
   exact ⟨⟨fun | .safe => x1 | .partial => x2 | .unsafe => x3⟩, by rintro ⟨⟩ <;> assumption⟩
 
 /-- The type checker's model of `env` at one safety level: the translation, the primitives,
-and the installed blocks of every inductive constant (all complete). -/
+the installed blocks of every inductive constant (all complete), and context strengthening. -/
 structure VEnvAt (env : Environment) (safety : DefinitionSafety) (venv : VEnv) : Prop where
   tr : TrEnv safety env venv
   hasPrimitives : VEnv.HasPrimitives venv
   safePrimitives : env.find? n = some ci →
     Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
   blocks : InstalledBlocks safety env venv .complete
+  strengthening : venv.StrengtheningAbove
 
 /-- Recursor coherence of a single-level model. -/
 theorem VEnvAt.recursors (wf : VEnvAt env safety venv) :
@@ -113,6 +128,7 @@ theorem VEnvs.WF.toVEnvAt {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   hasPrimitives := wf.hasPrimitives
   safePrimitives := wf.safePrimitives
   blocks := wf.blocks
+  strengthening := wf.strengthening
 
 /-- The checking invariant at one safety level of a well-formed model. -/
 theorem VEnvs.WF.toCheckingValid {env : Environment} {ves : VEnvs} (wf : ves.WF env)

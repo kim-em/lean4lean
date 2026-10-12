@@ -254,6 +254,7 @@ theorem _root_.Lean4Lean.CheckerEnv.mapExt (H : CheckerEnv safety source venv)
     CheckerEnv safety target venv where
   toValid := H.toValid.mapExt htargetWF heq hquot
   shapes := fun h hs => (H.shapes ((heq _).trans h) hs).mapExt heq
+  strengthening := H.strengthening
   iota := by
     have hfind := Environment.find?_eq_of_constants H.map_wf htargetWF heq
     intro recName cName rval rule hrec hrule hsafe

@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.HeadInversion
 import Lean4Lean.Theory.Typing.Pattern
+import Lean4Lean.Theory.CanonicalEq
 
 /-! # Unique typing and its consequences.
 
@@ -84,37 +85,86 @@ theorem IsDefEqU.trans (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
 
 /-! ## Strengthening
 
-Master's statement of context strengthening for definitional equality: the one strengthening
-principle the checker verification uses (through `VEnv.WF.strengthening`). Open proof
-(`OPEN_PROOFS.md`); PR #53 argued it false for well-formed environments without `Eq`. -/
+Context strengthening for definitional equality, sharpened from master's statement by the
+hypothesis that the environment has the prelude's canonical `Eq` (`VEnv.HasCanonicalEq`). It is
+the one strengthening principle the checker verification uses (through `VEnv.Strengthening`).
+Open proof (`OPEN_PROOFS.md`): master's statement without `HasCanonicalEq` was argued false for
+well-formed environments without `Eq` (PR #53, `Tests/CacheScope.lean`); the sharpened statement
+is not known to be false. -/
 
-variable! (henv : VEnv.WF env) (hΓ : OnCtx Γ' (env.IsType U)) in
+/-- Context strengthening for definitional equality: an equation between two lifted expressions
+in a context extended by `n` binders (inserted below `k` binders) already holds in the smaller
+context. -/
+def Strengthening (env : VEnv) : Prop :=
+  ∀ ⦃U n k Γ Γ' e1 e2⦄, Ctx.LiftN n k Γ Γ' → OnCtx Γ' (env.IsType U) →
+    env.IsDefEqU U Γ' (e1.liftN n k) (e2.liftN n k) → env.IsDefEqU U Γ e1 e2
+
+/-- Context strengthening in every well-formed extension of `env`. This is monotone in `env`,
+and it is what the checker verification carries through the environments it checks in. -/
+def StrengtheningAbove (env : VEnv) : Prop :=
+  ∀ ⦃env'⦄, env ≤ env' → env'.WF → env'.Strengthening
+
+theorem StrengtheningAbove.mono {env env' : VEnv} (hle : env ≤ env')
+    (h : env.StrengtheningAbove) : env'.StrengtheningAbove :=
+  fun _ hle' hwf => h (hle.trans hle') hwf
+
+variable! (henv : VEnv.WF env) (heq : env.HasCanonicalEq) (hΓ : OnCtx Γ' (env.IsType U)) in
 theorem IsDefEqU.weakN_iff (W : Ctx.LiftN n k Γ Γ') :
     env.IsDefEqU U Γ' (e1.liftN n k) (e2.liftN n k) ↔ env.IsDefEqU U Γ e1 e2 := by
   refine ⟨fun _ => sorry, fun h => h.weakN henv W⟩
 
-variable! (henv : VEnv.WF env) (hΓ : OnCtx Γ' (env.IsType U)) in
-theorem _root_.Lean4Lean.VExpr.WF.weakN_iff (W : Ctx.LiftN n k Γ Γ') :
-    VExpr.WF env U Γ' (e.liftN n k) ↔ VExpr.WF env U Γ e := IsDefEqU.weakN_iff henv hΓ W
+/-- Every well-formed environment with canonical `Eq` admits context strengthening
+(`IsDefEqU.weakN_iff`). -/
+theorem WF.strengthening (henv : env.WF) (heq : env.HasCanonicalEq) : env.Strengthening :=
+  fun _ _ _ _ _ _ _ W hΓ h => (IsDefEqU.weakN_iff henv heq hΓ W).1 h
 
-theorem IsDefEq.skips (henv : VEnv.WF env) (hΓ : OnCtx Γ' (env.IsType U))
-    (W : Ctx.LiftN n k Γ Γ')
+/-- Canonical `Eq` gives context strengthening in every well-formed extension. -/
+theorem _root_.Lean4Lean.VEnv.HasCanonicalEq.strengtheningAbove (heq : env.HasCanonicalEq) :
+    env.StrengtheningAbove :=
+  fun _ hle hwf => hwf.strengthening (heq.mono hle)
+
+/-- Context strengthening in every well-formed environment without canonical `Eq`: the part of
+master's statement of `IsDefEqU.weakN_iff` that the sharpened statement no longer asserts. It is
+argued false (`OPEN_PROOFS.md`, `Tests/CacheScope.lean`); it appears only as the hypothesis of
+the fresh-replay theorems, which check the prelude's declarations before `Eq` exists. -/
+def EqFreeStrengthening : Prop :=
+  ∀ env : VEnv, env.WF → ¬ env.HasCanonicalEq → env.Strengthening
+
+/-- With `EqFreeStrengthening`, every environment admits strengthening above it: the
+environments with canonical `Eq` by `IsDefEqU.weakN_iff`, the others by the hypothesis. -/
+theorem EqFreeStrengthening.strengtheningAbove (h : EqFreeStrengthening) (env : VEnv) :
+    env.StrengtheningAbove := fun env' _ hwf =>
+  open Classical in
+  if heq : env'.HasCanonicalEq then hwf.strengthening heq else h env' hwf heq
+
+/-- Strengthening in both directions, from `Strengthening`. -/
+theorem Strengthening.weakN_iff (henv : VEnv.WF env) (hs : env.Strengthening)
+    (hΓ : OnCtx Γ' (env.IsType U)) (W : Ctx.LiftN n k Γ Γ') :
+    env.IsDefEqU U Γ' (e1.liftN n k) (e2.liftN n k) ↔ env.IsDefEqU U Γ e1 e2 :=
+  ⟨hs W hΓ, fun h => h.weakN henv W⟩
+
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) (hΓ : OnCtx Γ' (env.IsType U)) in
+theorem _root_.Lean4Lean.VExpr.WF.weakN_iff (W : Ctx.LiftN n k Γ Γ') :
+    VExpr.WF env U Γ' (e.liftN n k) ↔ VExpr.WF env U Γ e := hs.weakN_iff henv hΓ W
+
+theorem IsDefEq.skips (henv : VEnv.WF env) (hs : env.Strengthening)
+    (hΓ : OnCtx Γ' (env.IsType U)) (W : Ctx.LiftN n k Γ Γ')
     (H : env.IsDefEq U Γ' e₁ e₂ A) (h1 : e₁.Skips n k) (h2 : e₂.Skips n k) :
     ∃ B, env.IsDefEq U Γ' e₁ e₂ B ∧ B.Skips n k := by
   obtain ⟨e₁, rfl⟩ := VExpr.skips_iff_exists.1 h1
   obtain ⟨e₂, rfl⟩ := VExpr.skips_iff_exists.1 h2
-  have ⟨_, H⟩ := (IsDefEqU.weakN_iff henv hΓ W).1 ⟨_, H⟩
+  have ⟨_, H⟩ := hs W hΓ ⟨_, H⟩
   exact ⟨_, H.weakN henv W, .liftN⟩
 
-variable! (henv : VEnv.WF env) (hΓ' : OnCtx Γ' (env.IsType U)) (hΓ : OnCtx Γ (env.IsType U)) in
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) (hΓ' : OnCtx Γ' (env.IsType U)) (hΓ : OnCtx Γ (env.IsType U)) in
 theorem IsDefEq.weakN_iff' (W : Ctx.LiftN n k Γ Γ') :
     env.IsDefEq U Γ' (e1.liftN n k) (e2.liftN n k) (A.liftN n k) ↔ env.IsDefEq U Γ e1 e2 A := by
   refine ⟨fun h => ?_, fun h => h.weakN henv W⟩
-  have ⟨_, H⟩ := (IsDefEqU.weakN_iff henv hΓ' W).1 ⟨_, h⟩
+  have ⟨_, H⟩ := (hs W hΓ') ⟨_, h⟩
   refine IsDefEqU.defeqDF henv hΓ ?_ H
-  exact (IsDefEqU.weakN_iff henv hΓ' W).1 <| (H.weakN henv W).uniqU henv hΓ' h.symm
+  exact (hs W hΓ') <| (H.weakN henv W).uniqU henv hΓ' h.symm
 
-variable! (henv : VEnv.WF env) in
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) in
 theorem _root_.Lean4Lean.OnCtx.weakN_inv
     (W : Ctx.LiftN n k Γ Γ') (H : OnCtx Γ' (env.IsType U)) : OnCtx Γ (env.IsType U) := by
   induction W with
@@ -125,29 +175,29 @@ theorem _root_.Lean4Lean.OnCtx.weakN_inv
     | cons A As ih => exact ih H.1
   | succ W ih =>
     let ⟨H1, _, H2⟩ := H
-    exact ⟨ih H1, _, (IsDefEq.weakN_iff' henv H1 (ih H1) W).1 H2⟩
+    exact ⟨ih H1, _, (IsDefEq.weakN_iff' henv hs H1 (ih H1) W).1 H2⟩
 
-variable! (henv : VEnv.WF env) (hΓ' : OnCtx Γ' (env.IsType U)) in
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) (hΓ' : OnCtx Γ' (env.IsType U)) in
 theorem IsDefEq.weakN_iff (W : Ctx.LiftN n k Γ Γ') :
     env.IsDefEq U Γ' (e1.liftN n k) (e2.liftN n k) (A.liftN n k) ↔ env.IsDefEq U Γ e1 e2 A :=
-  IsDefEq.weakN_iff' henv hΓ' (hΓ'.weakN_inv henv W) W
+  IsDefEq.weakN_iff' henv hs hΓ' (hΓ'.weakN_inv henv hs W) W
 
-variable! (henv : VEnv.WF env) (hΓ' : OnCtx Γ' (env.IsType U)) in
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) (hΓ' : OnCtx Γ' (env.IsType U)) in
 theorem HasType.weakN_iff (W : Ctx.LiftN n k Γ Γ') :
     env.HasType U Γ' (e.liftN n k) (A.liftN n k) ↔ env.HasType U Γ e A :=
-  IsDefEq.weakN_iff henv hΓ' W
+  IsDefEq.weakN_iff henv hs hΓ' W
 
-variable! (henv : VEnv.WF env) (hΓ' : OnCtx Γ' (env.IsType U)) in
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) (hΓ' : OnCtx Γ' (env.IsType U)) in
 theorem IsType.weakN_iff (W : Ctx.LiftN n k Γ Γ') :
     env.IsType U Γ' (A.liftN n k) ↔ env.IsType U Γ A :=
-  exists_congr fun _ => HasType.weakN_iff henv hΓ' W (A := .sort _)
+  exists_congr fun _ => HasType.weakN_iff henv hs hΓ' W (A := .sort _)
 
-variable! (henv : VEnv.WF env) (hΓ' : OnCtx Γ' (env.IsType U)) in
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) (hΓ' : OnCtx Γ' (env.IsType U)) in
 theorem HasType.skips (W : Ctx.LiftN n k Γ Γ')
     (h1 : env.HasType U Γ' e A) (h2 : e.Skips n k) : ∃ B, env.HasType U Γ' e B ∧ B.Skips n k :=
-  IsDefEq.skips henv hΓ' W h1 h2 h2
+  IsDefEq.skips henv hs hΓ' W h1 h2 h2
 
-variable! (henv : VEnv.WF env) (hΓ' : OnCtx Γ' (env.IsType U)) in
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) (hΓ' : OnCtx Γ' (env.IsType U)) in
 theorem IsDefEqU.weak'_iff (W : Ctx.Lift' l Γ Γ') :
     env.IsDefEqU U Γ' (e1.lift' l) (e2.lift' l) ↔ env.IsDefEqU U Γ e1 e2 := by
   generalize e : l.depth = n
@@ -158,9 +208,9 @@ theorem IsDefEqU.weak'_iff (W : Ctx.Lift' l Γ Γ') :
     have ⟨Γ₁, W1, W2⟩ := W.of_cons_skip
     rw [Lift.consN_skip_eq, VExpr.lift'_comp, VExpr.lift'_comp,
       ← Lift.skipN_one, VExpr.lift'_consN_skipN, VExpr.lift'_consN_skipN,
-      weakN_iff henv hΓ' W2, ih (hΓ'.weakN_inv henv W2) W1 Lift.depth_consN]
+      Strengthening.weakN_iff henv hs hΓ' W2, ih (hΓ'.weakN_inv henv hs W2) W1 Lift.depth_consN]
 
-variable! (henv : VEnv.WF env) (hΓ' : OnCtx Γ' (env.IsType U)) in
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) (hΓ' : OnCtx Γ' (env.IsType U)) in
 theorem IsDefEq.weak'_iff (W : Ctx.Lift' l Γ Γ') :
     env.IsDefEq U Γ' (e1.lift' l) (e2.lift' l) (A.lift' l) ↔ env.IsDefEq U Γ e1 e2 A := by
   generalize e : l.depth = n
@@ -171,23 +221,23 @@ theorem IsDefEq.weak'_iff (W : Ctx.Lift' l Γ Γ') :
     have ⟨Γ₁, W1, W2⟩ := W.of_cons_skip
     rw [Lift.consN_skip_eq, VExpr.lift'_comp, VExpr.lift'_comp, VExpr.lift'_comp,
       ← Lift.skipN_one, VExpr.lift'_consN_skipN, VExpr.lift'_consN_skipN, VExpr.lift'_consN_skipN,
-      weakN_iff henv hΓ' W2, ih (hΓ'.weakN_inv henv W2) W1 Lift.depth_consN]
+      weakN_iff henv hs hΓ' W2, ih (hΓ'.weakN_inv henv hs W2) W1 Lift.depth_consN]
 
-variable! (henv : VEnv.WF env) (hΓ' : OnCtx Γ' (env.IsType U)) in
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) (hΓ' : OnCtx Γ' (env.IsType U)) in
 theorem HasType.weak'_iff (W : Ctx.Lift' l Γ Γ') :
     env.HasType U Γ' (e.lift' l) (A.lift' l) ↔ env.HasType U Γ e A :=
-  IsDefEq.weak'_iff henv hΓ' W
+  IsDefEq.weak'_iff henv hs hΓ' W
 
-variable! (henv : VEnv.WF env) (hΓ' : OnCtx Γ' (env.IsType U)) in
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) (hΓ' : OnCtx Γ' (env.IsType U)) in
 theorem IsType.weak'_iff (W : Ctx.Lift' l Γ Γ') :
     env.IsType U Γ' (e.lift' l) ↔ env.IsType U Γ e :=
-  exists_congr fun _ => HasType.weak'_iff henv hΓ' W (A := .sort _)
+  exists_congr fun _ => HasType.weak'_iff henv hs hΓ' W (A := .sort _)
 
-variable! (henv : VEnv.WF env) (hΓ : OnCtx Γ' (env.IsType U)) in
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) (hΓ : OnCtx Γ' (env.IsType U)) in
 theorem _root_.Lean4Lean.VExpr.WF.weak'_iff (W : Ctx.Lift' l Γ Γ') :
-    VExpr.WF env U Γ' (e.lift' l) ↔ VExpr.WF env U Γ e := IsDefEqU.weak'_iff henv hΓ W
+    VExpr.WF env U Γ' (e.lift' l) ↔ VExpr.WF env U Γ e := IsDefEqU.weak'_iff henv hs hΓ W
 
-variable! (henv : VEnv.WF env) in
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) in
 theorem _root_.Lean4Lean.OnCtx.weak'_inv
     (W : Ctx.Lift' ρ Γ Γ') (H : OnCtx Γ' (env.IsType U)) : OnCtx Γ (env.IsType U) := by
   generalize e : ρ.depth = n
@@ -196,7 +246,7 @@ theorem _root_.Lean4Lean.OnCtx.weak'_inv
   | succ n ih =>
     obtain ⟨l, k, rfl, rfl⟩ := Lift.depth_succ e
     have ⟨Γ₁, W1, W2⟩ := W.of_cons_skip
-    exact ih W1 (.weakN_inv henv W2 H) (by simp)
+    exact ih W1 (.weakN_inv henv hs W2 H) (by simp)
 
 private theorem isType_wrapForalls_inv {env : VEnv} {U : Nat} (henv : env.Ordered) :
     ∀ {domains Γ : List VExpr} {body : VExpr}, OnCtx Γ (env.IsType U) →

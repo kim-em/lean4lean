@@ -327,10 +327,11 @@ theorem VContext.recursors (c : VContext) : RecursorsCoherent c.safety c.env.con
 theorem VContext.iota (c : VContext) : IotaRulesRegistered c.safety c.env c.venv :=
   c.trenv.iota
 
-/-- Context strengthening (`VEnv.WF.strengthening`, on `IsDefEqU.weakN_iff`). The caches and
-the equivalence manager persist across binders, as in the C++ kernel, and a fact found under a
-binder is moved out of it with this. -/
-theorem VContext.strengthening (c : VContext) : c.venv.Strengthening := c.Ewf.strengthening
+/-- Context strengthening (`CheckerEnv.strengthening`; with canonical `Eq`, the open proof
+`IsDefEqU.weakN_iff`). The caches and the equivalence manager persist across binders, as in the
+C++ kernel, and a fact found under a binder is moved out of it with this. -/
+theorem VContext.strengthening (c : VContext) : c.venv.Strengthening :=
+  c.trenv.strengthening VEnv.LE.rfl c.Ewf
 
 /-- Resolve the exact projection alignment selected by successful concrete
 family and constructor lookups in a checking context. -/
@@ -1284,11 +1285,11 @@ theorem State.WF.restrict {c : VContext} {m m'} [cwf : c.MLCWF m] [cwf' : c.MLCW
   have hic {ic} (H : InferCache.WF (c.withMLC m') s ic) : InferCache.WF (c.withMLC m) s ic :=
     fun _ _ h => by
       have : ConditionallyHasType s.ngen c.venv c.lparams m'.vlctx _ _ := H h
-      rw [hΔ] at this; exact this.weakN_inv c.Ewf trwf
+      rw [hΔ] at this; exact this.weakN_inv c.Ewf c.strengthening trwf
   have hwc {wc} (H : WHNFCache.WF (c.withMLC m') s wc) : WHNFCache.WF (c.withMLC m) s wc :=
     fun _ _ h => by
       have : ConditionallyWHNF s.ngen c.venv c.lparams m'.vlctx _ _ := H h
-      rw [hΔ] at this; exact this.weakN_inv c.Ewf trwf
+      rw [hΔ] at this; exact this.weakN_inv c.Ewf c.strengthening trwf
   have hfind' : ∀ fv, fv ≠ x → (c.withMLC m').lctx'.find? fv = (c.withMLC m).lctx'.find? fv :=
     hfind
   exact

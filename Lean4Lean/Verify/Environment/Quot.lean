@@ -563,6 +563,7 @@ theorem addQuot.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) :
       (VEnv.addConst_le e3).trans <| (VEnv.addConst_le e4).trans VEnv.addDefEq_le
   refine ⟨ves', ?_, hle⟩
   exact {
+    strengthening {safety} := wf.strengthening.mono (hle safety)
     tr {safety} := by
       obtain ⟨v1, v2, v3, v4, e1, e2, e3, e4, heq, hA⟩ := hves' safety
       have htr := wf.tr (safety := safety)

@@ -60,7 +60,8 @@ namespace VerifyInductive
 
 /-- A side environment that extends a checker environment by constants that are not
 recursors (restored headers and constructors) is a checker environment: its recursor shapes
-are read off its installed blocks, and its ι rules are the base environment's. -/
+are read off its installed blocks, and its ι rules and strengthening are the base
+environment's. -/
 theorem CheckerEnv.ofSideExtension {safety : DefinitionSafety} {env env' : Environment}
     {venv venv' : VEnv} (C : CheckerEnv safety env venv)
     (V : CheckingEnv.Valid safety env' venv')
@@ -69,6 +70,7 @@ theorem CheckerEnv.ofSideExtension {safety : DefinitionSafety} {env env' : Envir
     (hle : venv ≤ venv') : CheckerEnv safety env' venv' where
   toValid := V
   shapes := V.blocks.recursorShapesCoherent V.tr.map_wf
+  strengthening := C.strengthening.mono hle
   iota := by
     intro recName cName rval rule hrec hrule hsafe
     obtain ⟨cval, rhs, hc, hfind, htr, hpat⟩ := C.iota (hrecs hrec) hrule hsafe
