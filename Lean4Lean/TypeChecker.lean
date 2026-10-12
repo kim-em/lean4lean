@@ -842,13 +842,14 @@ where
     | .unknown tn sn | .false tn sn => finish tn sn
 
 /-- If `t` is a string literal and `s` is a `String.ofList` application, checks that they are defeq
-after expanding `t` into a `String.ofList` application of an explicit character list. Otherwise,
+after expanding `t` into a `String.ofList` application of an explicit character list and reducing
+that to weak head normal form, as `try_string_lit_expansion_core` does. Otherwise,
 defers to the calling function. -/
 def tryStringLitExpansionCore (t s : Expr) : RecM LBool := do
   let .lit (.strVal st) := t | return .undef
   let .app sf _ := s | return .undef
   unless sf == .const ``String.ofList [] do return .undef
-  toLBoolM <| isDefEqCore (.strLitToConstructor st) s
+  toLBoolM <| isDefEqCore (← whnf (.strLitToConstructor st)) s
 
 @[inherit_doc tryStringLitExpansionCore]
 def tryStringLitExpansion (t s : Expr) : RecM LBool := do

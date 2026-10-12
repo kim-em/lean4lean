@@ -670,7 +670,9 @@ theorem tryStringLitExpansionCore.WF {c : VContext} {s : State}
     RecM.WF c s (tryStringLitExpansionCore e₁ e₂) fun b _ => b = .true → c.IsDefEqU e₁' e₂' := by
   unfold tryStringLitExpansionCore; iterate 3 split <;> [skip; exact .pure nofun]
   let .lit _ he₁ := he₁
-  exact .toLBoolM <| isDefEqCore.WF he₁ he₂
+  refine (whnf.WF he₁).bind fun _ _ _ ⟨_, _, a1, a2⟩ => ?_
+  exact .toLBoolM <| (isDefEqCore.WF a1 he₂).mono fun _ _ _ h hb =>
+    a2.symm.trans c.Ewf c.Δwf (h hb)
 
 theorem tryStringLitExpansion.WF {c : VContext} {s : State}
     (he₁ : c.TrExprS e₁ e₁') (he₂ : c.TrExprS e₂ e₂') :
