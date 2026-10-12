@@ -111,7 +111,7 @@ mentions only `Us`, then at the terminal context of the run there is a
 universe scope containing every opened argument, and the exposed type mentions
 only `Us` and lies in that scope. -/
 theorem LoopUArgsRun.universeSupport
-    (hconsume : RecursorConsumeTypeAnnotationsDefEq) {Us : List Name}
+    (hconsume : ConsumeTypeAnnotationsDefEq) {Us : List Name}
     {root : AddInductive.Context} {l : LocalContext} {source : Expr}
     {current : AddInductive.Context} {exposed : Expr} {args : Array Expr}
     (trace : LoopUArgsRun root l source current exposed args)
@@ -143,11 +143,11 @@ theorem LoopUArgsRun.universeSupport
     subst next_eq
     rcases TrExpr.forallE_source htype with
       ⟨sourceDom, sourceBody, hdom, hbody, hdomType, hbodyType, hforallEq⟩
-    rcases hconsume current recLparams R hdom hdomType with ⟨consumedDom, Hdom⟩
+    rcases hconsume current recLparams R.toSemantics hdom hdomType with ⟨consumedDom, Hdom⟩
     rcases Hdom.body hbody with ⟨consumedBody, hbodyConsumed, hbodyEq⟩
     rcases TrExpr.forallE_source htype₀ with
       ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, _, _⟩
-    rcases hconsume _ recLparams R.atCheckLCtx hdom₀ hdom₀Type with
+    rcases hconsume _ recLparams R.atCheckLCtx.toSemantics hdom₀ hdom₀Type with
       ⟨consumedDom₀, Hdom₀⟩
     rcases Hdom₀.body hbodyN₀ with ⟨consumedBody₀, hbodyConsumed₀, _⟩
     let x : FVarId := ⟨current.ngen.curr⟩
@@ -244,7 +244,7 @@ argument telescope closed over the opened arguments and the exposed family
 arguments mention only `Us`, provided the inferred field type does and lies
 in a universe scope `P` of the root context. -/
 theorem LoopUArgsInput.callUniverses
-    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     {root : AddInductive.Context} {fv : FVarId}
     (Hinput : LoopUArgsInput root (.fvar fv))
     {current : AddInductive.Context} {exposed : Expr} {args : Array Expr}

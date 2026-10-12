@@ -1601,7 +1601,7 @@ theorem MotivePassHeaderAt.recursorMajorDomain
     (hcanonical : indexTargets = indexBVarSpine nindices)
     (harity : (indices.size == stats.nindices[familyIdx]!) = true)
     (henv : R.venv = Hc.venv)
-    (hconsume : RecursorConsumeTypeAnnotationsDefEq) :
+    (hconsume : ConsumeTypeAnnotationsDefEq) :
     ∃ sourceTarget consumedTarget,
       R.UnannotatedDomain
         (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params) indices)
@@ -1611,7 +1611,7 @@ theorem MotivePassHeaderAt.recursorMajorDomain
     ⟨hnarrow, _happ, hnarrowType⟩
   rcases Hruntime.transportType R.checking.tr.wf hnarrow hnarrowType with
     ⟨sourceTarget, hsource, hsourceType⟩
-  rcases hconsume current _ R hsource hsourceType with
+  rcases hconsume current _ R.toSemantics hsource hsourceType with
     ⟨consumedTarget, Hconsumed⟩
   exact ⟨sourceTarget, consumedTarget, Hconsumed⟩
 
@@ -1650,7 +1650,7 @@ theorem MotivePassHeaderAt.recursorFrame
     (hcanonical : indexTargets = indexBVarSpine nindices)
     (harity : (indices.size == stats.nindices[familyIdx]!) = true)
     (henv : Rindices.venv = Hbase.venv)
-    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (Hrecent : FVarSuffix Rroot.toSemantics Rindices.toSemantics indices) :
     Nonempty (RecursorMotiveFrameWF Rindices stats familyIdx indices
       elimLevel) := by
@@ -1961,7 +1961,7 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
     (Rroot : RecursorContextWF root
       (AddInductive.getRecLevelParams elimLevel base.lparams))
     {rootParameterDecls : VLCtx}
-    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (Hk : ∀ {current : AddInductive.Context} {runtimeDepth : Nat}
       (R : RecursorContextWF current
         (AddInductive.getRecLevelParams elimLevel base.lparams))
@@ -2097,7 +2097,7 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
           rcases TrExpr.forallE_source htypeFull with
             ⟨sourceDom, fullBody, hdomFull, hbodyFull, hdomFullType,
               hbodyFullType, _hfullCurrent⟩
-          rcases hconsume current _ R hdomFull hdomFullType with
+          rcases hconsume current _ R.toSemantics hdomFull hdomFullType with
             ⟨consumedDom, Hdom⟩
           rcases Hdom.body hbodyFull with
             ⟨consumedBody, hbodyConsumed, hbodyEq⟩
@@ -2105,7 +2105,7 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
           have hscopeWF₀ := halign.wf
           rcases halign.forallE_align henvWF hdomNarrow hdomType hbodyNarrow with
             ⟨domC, bodyC, hdomC, hdomCType, hdomCU, hbodyC, _⟩
-          rcases hconsume _ _ R.atCheckLCtx hdomC hdomCType with ⟨consumed₀, Hdom₀⟩
+          rcases hconsume _ _ R.atCheckLCtx.toSemantics hdomC hdomCType with ⟨consumed₀, Hdom₀⟩
           rcases Hdom₀.body hbodyC with
             ⟨consumedBody₀, hbodyConsumed₀, _hbodyEq₀⟩
           refine withCheckedLocalDecl.recursorWF (name := name) (bi := bi) (Q := Q)
@@ -2844,7 +2844,7 @@ theorem MotivePassHeaderAt.startRecursorTyping
     (Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel)
     (R : RecursorContextWF current
       (AddInductive.getRecLevelParams elimLevel base.lparams))
-    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (henv : R.venv = Hbase.venv)
     (Hsuffix : ParameterContextSuffix R.toSemantics stats runtimeDepth)
     (hctx : VEnv.IsDefEqCtx R.venv

@@ -317,7 +317,7 @@ theorem LoopUArgsRun.paramUniform
     {heads : List Name} {params : List Expr} {ls : List Level} {env : Environment}
     (W : WhnfPreservesParamUniform heads params ls env)
     (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv)
-    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     {root : AddInductive.Context} {l : LocalContext} {source : Expr}
     {current : AddInductive.Context} {exposed : Expr} {args : Array Expr}
     (trace : LoopUArgsRun root l source current exposed args)
@@ -351,11 +351,11 @@ theorem LoopUArgsRun.paramUniform
     subst next_eq
     rcases TrExpr.forallE_source htype with
       ⟨sourceDom, sourceBody, hdom, hbody, hdomType, hbodyType, hforallEq⟩
-    rcases hconsume current recLparams R hdom hdomType with ⟨consumedDom, Hdom⟩
+    rcases hconsume current recLparams R.toSemantics hdom hdomType with ⟨consumedDom, Hdom⟩
     rcases Hdom.body hbody with ⟨consumedBody, hbodyConsumed, hbodyEq⟩
     rcases TrExpr.forallE_source htype₀ with
       ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, _, _⟩
-    rcases hconsume _ recLparams R.atCheckLCtx hdom₀ hdom₀Type with
+    rcases hconsume _ recLparams R.atCheckLCtx.toSemantics hdom₀ hdom₀Type with
       ⟨consumedDom₀, Hdom₀⟩
     rcases Hdom₀.body hbodyN₀ with ⟨consumedBody₀, hbodyConsumed₀, _⟩
     let x : FVarId := ⟨current.ngen.curr⟩
@@ -509,7 +509,7 @@ theorem InductionHypothesisType.paramUniform
   have hnormalizedP : O.loopInput.normalizedType.FVarsIn P :=
     hnormalizedBelow P hscope.1 hinferredP
   obtain ⟨Rcurrent, P', _, _, _, hsc', hexposedH, _, _, hargs, _⟩ :=
-    O.loopTrace.paramUniform W hp recursorConsumeTypeAnnotationsDefEq henv RF hscope
+    O.loopTrace.paramUniform W hp consumeTypeAnnotationsDefEq henv RF hscope
       hnormalizedTr hinferredType hnormalized₀ hnormalizedH hnormalizedP
   have hargDecls : ∀ x ∈ O.arguments_bound.fvars, ∀ decl,
       O.current.lctx.find? x = some decl → decl.ParamUniform heads params ls := by

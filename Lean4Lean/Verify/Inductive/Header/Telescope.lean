@@ -1876,7 +1876,7 @@ theorem firstHeaderTelescopeWF
     · rcases hforall with ⟨name, dom, body, bi, rfl⟩
       cases htype with
       | forallE hdomType hbodyType hdom hbody =>
-        rcases hconsume c Hc hdom hdomType with ⟨consumedDom, Hdom⟩
+        rcases hconsume c _ Hc.toSemantics hdom hdomType with ⟨consumedDom, Hdom⟩
         by_cases hi : i < nparams
         · rcases hphase hi with ⟨hindices, hnindices⟩
           subst nindices
@@ -2096,7 +2096,7 @@ theorem laterIndexTelescopeWF
         rcases TrExpr.forallE_source htypeFull with
           ⟨sourceDom, fullBody, hdomFull, hbodyFull,
             hdomFullType, _hbodyFullType, _hfullCurrent⟩
-        rcases hconsume c Hc hdomFull hdomFullType with
+        rcases hconsume c _ Hc.toSemantics hdomFull hdomFullType with
           ⟨consumedDom, Hdom⟩
         rcases Hdom.body hbodyFull with
           ⟨consumedBody, hbodyConsumed, _hbodyEq⟩
@@ -2106,7 +2106,7 @@ theorem laterIndexTelescopeWF
         have hdomCType : Hc.venv.IsType c.lparams.length Hc.chk.vlctx.toCtx domC :=
           (hdomType.defeqU_l henvWF hscopeWF₀.toCtx hdomCU).defeqDFC
             henvWF.ordered halign.defeqCtx
-        rcases hconsume _ Hc.atCheckLCtx hdomC hdomCType with ⟨consumed₀, Hdom₀⟩
+        rcases hconsume _ _ Hc.atCheckLCtx.toSemantics hdomC hdomCType with ⟨consumed₀, Hdom₀⟩
         obtain ⟨v, hv⟩ := hdomType
         have hctxC : VLCtx.IsDefEq Hc.venv c.lparams.length
             ((none, .vlam indexType) :: scope) ((none, .vlam domC) :: Hc.chk.vlctx) :=

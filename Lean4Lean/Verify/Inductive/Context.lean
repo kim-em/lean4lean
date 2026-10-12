@@ -1057,27 +1057,17 @@ theorem ContextSemantics.UnannotatedDomain.bodyDefEqUnannotated
   exact hbodyEq.defeqDFC Hc.checking.tr.wf.orderedStrong hctx
 
 /-- Removing type annotations from a binder domain (`Expr.consumeTypeAnnotationsVerified`)
-in a context of the inductive checker yields an unannotated domain
-(`ContextSemantics.UnannotatedDomain`). This is a hypothesis of the verification of the header and
-constructor loops; `Verify/Inductive/Context/TypeAnnotations.lean` proves it
-(`consumeTypeAnnotationsDefEq`). -/
+in a frame of the inductive checker yields an unannotated domain
+(`ContextSemantics.UnannotatedDomain`), at the frame's universe parameters: the declaration's
+in the header and constructor phases, the generated ones in the recursor phase. This is a
+hypothesis of the verification of the header, constructor and recursor loops;
+`Verify/Inductive/Context/TypeAnnotations.lean` proves it (`consumeTypeAnnotationsDefEq`). -/
 def ConsumeTypeAnnotationsDefEq : Prop :=
-  ∀ (c : AddInductive.Context) (Hc : ContextWF c)
+  ∀ (c : AddInductive.Context) (Us : List Name) (S : ContextSemantics c Us)
     {dom : Expr} {source' : VExpr},
-    TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom source' →
-    Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx source' →
-    ∃ consumed', Hc.UnannotatedDomain dom source' consumed'
-
-/-- The form of `ConsumeTypeAnnotationsDefEq` for recursor contexts
-(`RecursorContextWF`), at the generated universe parameters, where `ContextWF` is not
-available. Proved by `recursorConsumeTypeAnnotationsDefEq`. -/
-def RecursorConsumeTypeAnnotationsDefEq : Prop :=
-  ∀ (c : AddInductive.Context) (recLparams : List Name)
-    (R : RecursorContextWF c recLparams)
-    {dom : Expr} {source' : VExpr},
-    TrExprS R.venv recLparams R.mlctx.vlctx dom source' →
-    R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx source' →
-    ∃ consumed', R.UnannotatedDomain dom source' consumed'
+    TrExprS S.venv Us S.mlctx.vlctx dom source' →
+    S.venv.IsType Us.length S.mlctx.vlctx.toCtx source' →
+    ∃ consumed', S.UnannotatedDomain dom source' consumed'
 
 set_option linter.unusedSimpArgs false in
 /-! ### Contexts whose checker context is the main context

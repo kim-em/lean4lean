@@ -118,11 +118,11 @@ theorem checkPositivity.loop.uniformNormalFormScoped
         cases hexposedFull with
         | @forallE fullDom fullBody _ _ _ _ _
             hdomFullType _ hdomFull hbodyFull =>
-          rcases hconsume c Hc hdomFull hdomFullType with
+          rcases hconsume c _ Hc.toSemantics hdomFull hdomFullType with
             ⟨consumedDom, Hdom⟩
           rcases halign.forallE_align henv hdomNarrow hdomNarrowType hbodyNarrow with
             ⟨dom₀, body₀, hdom₀, hdom₀Type, _hdomU, hbody₀, _⟩
-          rcases hconsume _ Hc.atCheckLCtx hdom₀ hdom₀Type with
+          rcases hconsume _ _ Hc.atCheckLCtx.toSemantics hdom₀ hdom₀Type with
             ⟨consumedDom₀, Hdom₀⟩
           refine finish <| checkPositivityStep.forallE.sourceWF
             (Q := fun recursive => ∃ result,

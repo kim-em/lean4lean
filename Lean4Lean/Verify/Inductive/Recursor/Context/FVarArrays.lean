@@ -960,7 +960,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
     (hparams : stats.params.size ≤ i)
-    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
@@ -1060,14 +1060,14 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       rcases TrExpr.forallE_source htypeTr with
         ⟨sourceDom, sourceBody, hdom, hbody, hdomType,
           hbodyType, hforallEq⟩
-      rcases hconsume c recLparams R hdom hdomType with
+      rcases hconsume c recLparams R.toSemantics hdom hdomType with
         ⟨consumedDom, Hdom⟩
       rcases Hdom.body hbody with
         ⟨consumedBody, hbodyConsumed, _hbodyEq⟩
       let RB := R.withCheckLCtx _ B
       rcases TrExpr.forallE_source (htype₀.trExpr R.checking.tr.wf B.wf.tr.wf) with
         ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, hbodyN₀Type, hforallEq₀⟩
-      rcases hconsume _ recLparams RB.atCheckLCtx hdom₀ hdom₀Type with
+      rcases hconsume _ recLparams RB.atCheckLCtx.toSemantics hdom₀ hdom₀Type with
         ⟨consumedDom₀, Hdom₀⟩
       rcases Hdom₀.body hbodyN₀ with ⟨body₀'', hbody₀'', hbody₀Eq⟩
       have hcons₀ : TrExprS R.venv recLparams B.m.vlctx
@@ -1424,7 +1424,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
     (hprefix : ParameterPrefix stats 0 t tail)
-    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)

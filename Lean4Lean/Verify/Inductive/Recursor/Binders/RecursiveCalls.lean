@@ -152,7 +152,7 @@ theorem motiveSourceReplay
     {Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel}
     (Hheader : mkRecInfos.loopArgs1.MotivePassHeaderAt Hbase stats decl
       baseDepth source dIdx)
-    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     {R : RecursorContextWF current
       (AddInductive.getRecLevelParams elimLevel base.lparams)}
     (Rindices : RecursorContextWF cIndices
@@ -260,7 +260,7 @@ theorem motiveSourceReplay
       Rindices.chk.vlctx.toCtx famChk :=
     (HfamNarrow.2.2.defeqU_l henvR halign.wf.toCtx HfamChkEq).defeqDFC
       henvR.ordered halign.defeqCtx
-  rcases hconsume _ _ Rindices.atCheckLCtx HfamChk HfamChkType with
+  rcases hconsume _ _ Rindices.atCheckLCtx.toSemantics HfamChk HfamChkType with
     ⟨majorChk, HmajorChk⟩
   have HmotiveChk := Rindices.scopedMotiveClosure indices.size hnChk
     indices hxsChk HmajorChk.unannotated HmajorChk.isType
@@ -787,7 +787,7 @@ theorem motiveDecl
     {Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel}
     (Hheader : mkRecInfos.loopArgs1.MotivePassHeaderAt Hbase stats decl
       baseDepth source dIdx)
-    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     {R : RecursorContextWF current
       (AddInductive.getRecLevelParams elimLevel base.lparams)}
     (Hsuffix : ParameterContextSuffix R.toSemantics stats runtimeDepth)
@@ -1152,7 +1152,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
     (Hheaders : ∀ i (hi : i < indTypes.size),
       mkRecInfos.loopArgs1.MotivePassHeaderAt Hbase stats decl
         baseDepth indTypes[i] i)
-    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
     (k : Array AddInductive.RecInfo → AddInductive.M alpha)
     (R : RecursorContextWF current
@@ -1521,7 +1521,7 @@ theorem resultRecursiveDomain {alpha : Type}
     {decl : VInductDecl} {recLparams : List Name}
     {root : AddInductive.Context}
     (Rroot : RecursorContextWF root recLparams)
-    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
       Rroot.venv stats.indConsts)
     {initialType uiTy : Expr} {xs : Array Expr} {fuel : Nat}
@@ -1608,13 +1608,13 @@ theorem resultRecursiveDomain {alpha : Type}
       rcases TrExpr.forallE_source htype with
         ⟨sourceDom, sourceBody, hdom, hbody, hdomType,
           hbodyType, hforallEq⟩
-      rcases hconsume c recLparams R hdom hdomType with
+      rcases hconsume c recLparams R.toSemantics hdom hdomType with
         ⟨consumedDom, Hdom⟩
       rcases Hdom.body hbody with
         ⟨consumedBody, hbodyConsumed, hbodyEq⟩
       rcases TrExpr.forallE_source htype₀ with
         ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, hbodyN₀Type, hforallEq₀⟩
-      rcases hconsume _ recLparams R.atCheckLCtx hdom₀ hdom₀Type with
+      rcases hconsume _ recLparams R.atCheckLCtx.toSemantics hdom₀ hdom₀Type with
         ⟨consumedDom₀, Hdom₀⟩
       rcases Hdom₀.body hbodyN₀ with
         ⟨consumedBody₀, hbodyConsumed₀, hbodyEq₀⟩
@@ -1907,7 +1907,7 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
     {decl : VInductDecl} {depth : Nat}
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
-    (hconsume : RecursorConsumeTypeAnnotationsDefEq)
+    (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
     {fieldTarget : VExpr}
