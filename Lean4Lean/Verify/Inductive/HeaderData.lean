@@ -16,38 +16,22 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- The part of `ContextWF` that stays meaningful while a primitive declaration is only partly
-installed: no `HasPrimitives` (nor the other `CheckingEnv.Valid` and `CheckerEnv` facts), only
-the translation invariant `CheckingEnv` and the local context. `ContextWF` is not stated as an
-extension of it because its `checking` field is the stronger `CheckingEnv.Valid` (read as
-`Hc.checking` throughout the checker proofs); the two convert definitionally
-(`ContextWF.toLocal`, `LocalContextWF.toContextWF`). -/
-structure LocalContextWF (c : AddInductive.Context) where
-  venv : VEnv
+/-- The frame of a `ContextWF` with only the translation invariant `CheckingEnv` for its
+environment, which stays meaningful while a primitive declaration is only partly installed: no
+`HasPrimitives` (nor the other `CheckingEnv.Valid` facts, nor the recursor facts of
+`ContextSemantics`). `ContextWF` and `LocalContextWF` share their local frame (`ContextFrame`)
+and differ only in what they assert of the environment, `CheckingEnv.Valid` with the recursor
+facts against `CheckingEnv`; they convert by `ContextWF.toLocal` and
+`LocalContextWF.toContextWF`. -/
+structure LocalContextWF (c : AddInductive.Context) extends toFrame : ContextFrame c c.lparams
+    where
   checking : CheckingEnv c.safety c.env venv
-  mlctx : TypeChecker.MLCtx
-  mlctx_wf : mlctx.WF venv c.lparams
   typeCheckerLParams_eq : c.typeCheckerLParams = none
-  onlyLams : MLCtxOnlyLams mlctx
-  lctx_eq : mlctx.lctx = c.lctx
-  ngen_prefix : c.ngen.namePrefix = `_ind_fresh
-  indFresh : ∀ fv ∈ mlctx.vlctx.fvars, c.ngen.Reserves fv
-  kernelFresh : ∀ fv ∈ mlctx.vlctx.fvars,
-    ({} : TypeChecker.State).ngen.Reserves fv
-  check : CheckBase venv c.lparams mlctx c.lctx c.checkLCtx
 
 abbrev ContextWF.toLocal {c : AddInductive.Context} (H : ContextWF c) : LocalContextWF c where
-  venv := H.venv
+  toFrame := H.toFrame
   checking := H.checking.tr
-  mlctx := H.mlctx
-  mlctx_wf := H.mlctx_wf
   typeCheckerLParams_eq := H.typeCheckerLParams_eq
-  onlyLams := H.onlyLams
-  lctx_eq := H.lctx_eq
-  ngen_prefix := H.ngen_prefix
-  indFresh := H.indFresh
-  kernelFresh := H.kernelFresh
-  check := H.check
 
 @[simp] theorem ContextWF.toLocal_venv {c : AddInductive.Context} (H : ContextWF c) :
     H.toLocal.venv = H.venv := rfl
@@ -59,8 +43,12 @@ abbrev ContextWF.toLocal {c : AddInductive.Context} (H : ContextWF c) : LocalCon
 abbrev LocalContextWF.toContextWF {c : AddInductive.Context} (L : LocalContextWF c)
     (valid : CheckingEnv.Valid c.safety c.env L.venv)
     (shapes : RecursorShapesCoherent c.safety c.env.constants L.venv)
-    (iota : IotaRulesRegistered c.safety c.env L.venv) : ContextWF c :=
-  { L with checking := valid, shapes, iota }
+    (iota : IotaRulesRegistered c.safety c.env L.venv) : ContextWF c where
+  toFrame := L.toFrame
+  checking := valid
+  shapes := shapes
+  iota := iota
+  typeCheckerLParams_eq := L.typeCheckerLParams_eq
 
 theorem LocalContextWF.wf {c : AddInductive.Context} (H : LocalContextWF c) : H.venv.WF :=
   H.checking.wf
@@ -68,6 +56,14 @@ theorem LocalContextWF.wf {c : AddInductive.Context} (H : LocalContextWF c) : H.
 theorem LocalContextWF.map_wf {c : AddInductive.Context} (H : LocalContextWF c) :
     c.env.constants.WF :=
   H.checking.map_wf
+
+/-- Move a local context to a larger environment over the same local context. -/
+abbrev LocalContextWF.withEnv {c : AddInductive.Context} (H : LocalContextWF c)
+    {env' : Environment} {venv' : VEnv} (hchecking : CheckingEnv c.safety env' venv')
+    (hle : H.venv ≤ venv') : LocalContextWF { c with env := env' } where
+  toFrame := H.toFrame.withEnv hle
+  checking := hchecking
+  typeCheckerLParams_eq := H.typeCheckerLParams_eq
 
 /-- The header environment of a declaration, with the header context a `LocalContextWF` (and
 without the header context's `HeaderParameterContext`, which needs a `ContextWF`; the

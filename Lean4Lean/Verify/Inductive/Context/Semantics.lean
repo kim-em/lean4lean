@@ -18,12 +18,14 @@ open scoped _root_.List
 
 namespace VerifyInductive
 
-/-- Shared semantics at the active universe parameters. The ordinary and recursor
-frames separately retain their `none`/`some` contracts and recursor universe origin. -/
-structure ContextSemantics (c : AddInductive.Context) (Us : List Name) where
+/-- The local frame of an inductive-checker context at the active universe parameters `Us`:
+the abstract environment `venv` it is read in, the main metacontext `mlctx` (all
+λ-declarations, fresh for both name generators) and the checking context embedded in it. It
+says nothing about the kernel environment `c.env`; the frames built on it add what they know
+of it (`ContextSemantics`: `CheckingEnv.Valid` and the recursor facts; `LocalContextWF`: only
+the translation invariant `CheckingEnv`). -/
+structure ContextFrame (c : AddInductive.Context) (Us : List Name) where
   venv : VEnv
-  checking : CheckingEnv.Valid c.safety c.env venv
-
   mlctx : TypeChecker.MLCtx
   mlctx_wf : mlctx.WF venv Us
   onlyLams : MLCtxOnlyLams mlctx
@@ -32,32 +34,53 @@ structure ContextSemantics (c : AddInductive.Context) (Us : List Name) where
   indFresh : ∀ fv ∈ mlctx.vlctx.fvars, c.ngen.Reserves fv
   kernelFresh : ∀ fv ∈ mlctx.vlctx.fvars,
     ({} : TypeChecker.State).ngen.Reserves fv
+  /-- The semantic checker context, embedded in the main one. -/
+  check : CheckBase venv Us mlctx c.lctx c.checkLCtx
+
+/-- Shared semantics at the active universe parameters: a frame whose abstract environment
+models the kernel environment with the checking invariant and the recursor facts the checker
+reads. The ordinary and recursor frames separately retain their `none`/`some` contracts and
+recursor universe origin. -/
+structure ContextSemantics (c : AddInductive.Context) (Us : List Name)
+    extends toFrame : ContextFrame c Us where
+  checking : CheckingEnv.Valid c.safety c.env venv
   /-- The shapes of the visible recursors (as in `CheckerEnv.shapes`). -/
   shapes : RecursorShapesCoherent c.safety c.env.constants venv
   /-- The ι rules of the visible recursors are registered (as in `CheckerEnv.iota`). -/
   iota : IotaRulesRegistered c.safety c.env venv
-  /-- The semantic checker context, embedded in the main one. -/
-  check : CheckBase venv Us mlctx c.lctx c.checkLCtx
 
-theorem ContextSemantics.current_not_mem (H : ContextSemantics c Us) :
+theorem ContextFrame.current_not_mem (H : ContextFrame c Us) :
     ⟨c.ngen.curr⟩ ∉ H.mlctx.vlctx.fvars := fun hmem =>
   c.ngen.not_reserves_self (H.indFresh _ hmem)
 
-theorem ContextSemantics.kernel_reserves_current (H : ContextSemantics c Us) :
+theorem ContextFrame.kernel_reserves_current (H : ContextFrame c Us) :
     ({} : TypeChecker.State).ngen.Reserves ⟨c.ngen.curr⟩ := by
   apply NameGenerator.Reserves.num_of_prefix_ne
   simp [H.ngen_prefix]
 
-theorem ContextSemantics.lctxWF (H : ContextSemantics c Us) : c.lctx.WF :=
+theorem ContextFrame.lctxWF (H : ContextFrame c Us) : c.lctx.WF :=
   H.lctx_eq ▸ H.mlctx_wf.tr.1
 
-abbrev ContextSemantics.chk (H : ContextSemantics c Us) : TypeChecker.MLCtx := H.check.m
+abbrev ContextFrame.chk (H : ContextFrame c Us) : TypeChecker.MLCtx := H.check.m
 
-theorem ContextSemantics.checkSub (H : ContextSemantics c Us) : c.checkLCtx.SubContextOf c.lctx :=
+theorem ContextFrame.checkSub (H : ContextFrame c Us) : c.checkLCtx.SubContextOf c.lctx :=
   H.check.sub
 
-abbrev ContextSemantics.Base (H : ContextSemantics c Us) (l : LocalContext) : Type :=
+abbrev ContextFrame.Base (H : ContextFrame c Us) (l : LocalContext) : Type :=
   CheckBase H.venv Us H.mlctx c.lctx l
+
+/-- Keep the local frame while moving to a larger abstract environment. -/
+abbrev ContextFrame.withEnv (H : ContextFrame c Us) (hle : H.venv ≤ venv') :
+    ContextFrame { c with env := env' } Us where
+  venv := venv'
+  mlctx := H.mlctx
+  mlctx_wf := H.mlctx_wf.mono hle
+  onlyLams := H.onlyLams
+  lctx_eq := H.lctx_eq
+  ngen_prefix := H.ngen_prefix
+  indFresh := H.indFresh
+  kernelFresh := H.kernelFresh
+  check := H.check.mono hle
 
 abbrev ContextSemantics.baseNil (H : ContextSemantics c Us) : H.Base {} :=
   .nil H.checking.tr.wf.orderedStrong H.mlctx_wf
@@ -72,18 +95,10 @@ abbrev ContextSemantics.withEnv (H : ContextSemantics c Us)
     (hiota : IotaRulesRegistered c.safety env' venv')
     (hle : H.venv ≤ venv') :
     ContextSemantics { c with env := env' } Us where
-  venv := venv'
+  toFrame := H.toFrame.withEnv hle
   checking := hchecking
-  mlctx := H.mlctx
-  mlctx_wf := H.mlctx_wf.mono hle
-  onlyLams := H.onlyLams
-  lctx_eq := H.lctx_eq
-  ngen_prefix := H.ngen_prefix
-  indFresh := H.indFresh
-  kernelFresh := H.kernelFresh
   shapes := hshapes
   iota := hiota
-  check := H.check.mono hle
 
 /-- Replace the checking context by a certified sub-context of the main context. -/
 abbrev ContextSemantics.withCheckLCtx (H : ContextSemantics c Us) (l : LocalContext) (B : H.Base l) :

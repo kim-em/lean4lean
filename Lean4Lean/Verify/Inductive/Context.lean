@@ -558,7 +558,7 @@ theorem ContextSemantics.mkForallRecent
   rw [hsource]
   exact H.mlctx_wf.mkForall_trS H.checking.tr.wf htr hty n hn
 
-theorem ContextSemantics.findCDecl (H : ContextSemantics c Us)
+theorem ContextFrame.findCDecl (H : ContextFrame c Us)
     (hmem : fv ∈ H.mlctx.vlctx.fvars) :
     ∃ index name type bi kind,
       c.lctx.find? fv = some (.cdecl index fv name type bi kind) := by
@@ -593,7 +593,7 @@ structure BindingContextWF (c : AddInductive.Context) where
   findCDecl : ∀ fv ∈ c.lctx.fvars, ∃ index name type bi kind,
     c.lctx.find? fv = some (.cdecl index fv name type bi kind)
 
-theorem ContextSemantics.toBindingContextWF (H : ContextSemantics c Us) :
+theorem ContextFrame.toBindingContextWF (H : ContextFrame c Us) :
     BindingContextWF c where
   wf := H.lctx_eq ▸ H.mlctx_wf.tr.1
   onlyLams := by
@@ -611,7 +611,7 @@ theorem ContextSemantics.toBindingContextWF (H : ContextSemantics c Us) :
     rw [← H.mlctx_wf.tr.fvars_eq, H.lctx_eq]
     exact hfv
 
-theorem ContextSemantics.lctxClosed (R : ContextSemantics c Us) :
+theorem ContextFrame.lctxClosed (R : ContextFrame c Us) :
     LocalContext.LctxClosed c.lctx :=
   R.lctx_eq ▸ R.mlctx_wf.tr.lctxClosed
 
@@ -1355,7 +1355,7 @@ theorem ContextWF.Aligned.withCheckedLocalDecl {H : ContextWF c} (ha : H.Aligned
   rintro _ _ ⟨⟩
   exact ⟨H.current_not_mem, htr.fvarsList⟩
 
-theorem ContextSemantics.chkKernelFresh (H : ContextSemantics c Us) :
+theorem ContextFrame.chkKernelFresh (H : ContextFrame c Us) :
     ∀ fv ∈ H.chk.vlctx.fvars, ({} : TypeChecker.State).ngen.Reserves fv :=
   fun fv h => H.kernelFresh fv (H.check.embed.fvars_subset h)
 
