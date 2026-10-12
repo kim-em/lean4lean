@@ -74,6 +74,16 @@ Mine (namespace `Lean4Lean.VEnv.StrengtheningModel` unless noted):
   contracta. This is the lemma that removes the proof-argument case from the residue of
   section 4.
 
+* `Strengthening/ProofErasedSize.lean` (190 lines, namespace `Lean4Lean.VEnv.Strengthening`,
+  `[Params]`, imports agent A's `NormalDescent.lean` for `IsProof`). **`μ`**, the proof-erased
+  size (nodes inside proof subterms count `0`), with `μ_proof`, `μ_bvar`/`μ_sort`/`μ_const`,
+  `μ_app`, `μ_lam`, `μ_forallE` (a `Π` is never a proof: `not_isProof_forallE`,
+  `not_isProof_of_sort`), `μ_proj`, `μ_defeqDFC` (context conversion, with `IsDefEqCtx.symm'`
+  and `IsProof.defeqDFC_iff`), `IsProof.instN_iff` (proofness is invariant under
+  instantiation of typed terms), **`μ_instN_proof`**/`μ_inst_proof` (substituting a proof for
+  a proof variable leaves `μ` unchanged, at any depth). This is the outer component of the
+  `(μ, n)` measure of section 4, requested by agent A for the relaxation of `NormalEqS`.
+
 Agent A's shared base, used here: `Cancel.lean` (192), `TypingFront.lean` (314), `Closures.lean`
 (352): `Strengthening ↔ Front ↔ Cancel`, `TypedFront ↔ TypeFront ↔ PropFront` under canonical
 `Eq`, `TypingFrontN ↔ AppFrontN ∧ TypeFrontN ∧ ProjFrontN`.
@@ -235,7 +245,8 @@ points the same way.
   B: `Model*`).
 * 45e1cbb5 `Model.lean`; f9c41403 `ModelObstruction.lean`; merged A's d112421a (061942a5);
   2cbd1dd5 `TypedReflection` refuted, `ModelBridge.lean`; aa42a92a `InhabitedProp.lean`;
-  11b9c05c `HeteroSubst.lean`.
+  11b9c05c `HeteroSubst.lean`; merged A's 5a45e672 (`NormalDescent.lean`: `NormalEqS.descend`,
+  `StrictJoinRepair`, `typedFront_of_strictJoinRepair`); `ProofErasedSize.lean`.
   Each pushed to `kim-em/agent/iota-strengthB` after a green build of the module.
 * Messages to A: the split; the push SHAs; the `(μ, n)` descent analysis with the proof-argument
   β-pair closed by contraction and the lambda-argument β-pair as the residue; the equivalence
