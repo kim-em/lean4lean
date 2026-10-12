@@ -33,7 +33,7 @@ structure ContextWF (c : AddInductive.Context) extends toSemantics : ContextSema
   typeCheckerLParams_eq : c.typeCheckerLParams = none
 
 /-- What the embedded type checker reads of the context's environment. -/
-def ContextWF.checkerEnv (H : ContextWF c) : CheckerEnv c.safety c.env H.venv :=
+def ContextSemantics.checkerEnv (H : ContextSemantics c Us) : CheckerEnv c.safety c.env H.venv :=
   { H.checking with shapes := H.shapes, iota := H.iota }
 
 theorem ContextWF.wf (H : ContextWF c) : H.venv.WF := H.checking.tr.wf
@@ -302,11 +302,6 @@ structure RecursorContextWF (c : AddInductive.Context)
   typeCheckerLParams_eq : c.typeCheckerLParams = some recLparams
   lparams_origin : RecursorLParams c.lparams recLparams
 
-/-- What the embedded type checker reads of a recursor frame's environment. -/
-def RecursorContextWF.checkerEnv (H : RecursorContextWF c recLparams) :
-    CheckerEnv c.safety c.env H.venv :=
-  { H.checking with shapes := H.shapes, iota := H.iota }
-
 /-- Restore the public frame with its explicit universe contract. -/
 abbrev RecursorContextWF.ofSemantics (H : ContextSemantics c recLparams)
     (hparams : c.typeCheckerLParams = some recLparams)
@@ -544,16 +539,16 @@ theorem RecursorContextWF.withLocalDecl_chk
 /-- Close the `n` most recently introduced recursor locals into the exact
 `LocalContext.mkForall` telescope the executable builds.  The free-variable equation
 connects the executable's array of selected free variables to the `MLCtx` suffix. -/
-theorem RecursorContextWF.mkForallRecent
-    (H : RecursorContextWF c recLparams)
-    (htr : TrExprS H.venv recLparams H.mlctx.vlctx body body')
-    (hty : H.venv.IsType recLparams.length H.mlctx.vlctx.toCtx body')
+theorem ContextSemantics.mkForallRecent
+    (H : ContextSemantics c Us)
+    (htr : TrExprS H.venv Us H.mlctx.vlctx body body')
+    (hty : H.venv.IsType Us.length H.mlctx.vlctx.toCtx body')
     (n : Nat) (hn : n ≤ H.mlctx.length) (xs : Array Expr)
     (hxs : xs.toList.reverse =
       (H.mlctx.fvarRevList n hn).map Expr.fvar) :
-    TrExprS H.venv recLparams (H.mlctx.dropN n hn).vlctx
+    TrExprS H.venv Us (H.mlctx.dropN n hn).vlctx
         (c.lctx.mkForall xs body) (H.mlctx.mkForall' n hn body') ∧
-      H.venv.IsType recLparams.length
+      H.venv.IsType Us.length
         (H.mlctx.dropN n hn).vlctx.toCtx
         (H.mlctx.mkForall' n hn body') := by
   have hsource : c.lctx.mkForall xs body =
@@ -563,7 +558,7 @@ theorem RecursorContextWF.mkForallRecent
   rw [hsource]
   exact H.mlctx_wf.mkForall_trS H.checking.tr.wf htr hty n hn
 
-theorem ContextWF.findCDecl (H : ContextWF c)
+theorem ContextSemantics.findCDecl (H : ContextSemantics c Us)
     (hmem : fv ∈ H.mlctx.vlctx.fvars) :
     ∃ index name type bi kind,
       c.lctx.find? fv = some (.cdecl index fv name type bi kind) := by
@@ -586,30 +581,6 @@ theorem ContextWF.findCDecl (H : ContextWF c)
   rw [← H.lctx_eq]
   exact hfind
 
-theorem RecursorContextWF.findCDecl
-    (R : RecursorContextWF c recLparams)
-    (hmem : fv ∈ R.mlctx.vlctx.fvars) :
-    ∃ index name type bi kind,
-      c.lctx.find? fv = some (.cdecl index fv name type bi kind) := by
-  rcases (R.mlctx_wf.tr.find?_eq_some (fv := fv)).2 hmem with
-    ⟨decl, hfind⟩
-  have hfindDecls : R.mlctx.decls.find? (fv == ·.fvarId) = some decl := by
-    rw [← R.mlctx_wf.find?_eq]
-    exact hfind
-  have hdeclMem : decl ∈ R.mlctx.decls :=
-    List.mem_of_find?_eq_some hfindDecls
-  rcases R.onlyLams decl hdeclMem with
-    ⟨index, fv', name, type, bi, kind, hdecl⟩
-  subst decl
-  have hfv : fv' = fv := by
-    have hpred := List.find?_some hfindDecls
-    have hfv' : fv = fv' := by simpa [LocalDecl.fvarId] using hpred
-    exact hfv'.symm
-  subst fv'
-  refine ⟨index, name, type, bi, kind, ?_⟩
-  rw [← R.lctx_eq]
-  exact hfind
-
 /-- Operational local-context invariant used by structurally exploded
 recursor traversals.  It records exactly what those proofs need in order to
 retain generated binders, without claiming semantic typing for their domains. -/
@@ -622,7 +593,7 @@ structure BindingContextWF (c : AddInductive.Context) where
   findCDecl : ∀ fv ∈ c.lctx.fvars, ∃ index name type bi kind,
     c.lctx.find? fv = some (.cdecl index fv name type bi kind)
 
-theorem ContextWF.toBindingContextWF (H : ContextWF c) :
+theorem ContextSemantics.toBindingContextWF (H : ContextSemantics c Us) :
     BindingContextWF c where
   wf := H.lctx_eq ▸ H.mlctx_wf.tr.1
   onlyLams := by
@@ -640,27 +611,7 @@ theorem ContextWF.toBindingContextWF (H : ContextWF c) :
     rw [← H.mlctx_wf.tr.fvars_eq, H.lctx_eq]
     exact hfv
 
-/-- A recursor-universe semantic context projects to the same concrete
-binder/freshness invariant used by the structural traversals. -/
-theorem RecursorContextWF.toBindingContextWF
-    (R : RecursorContextWF c recLparams) : BindingContextWF c where
-  wf := R.lctx_eq ▸ R.mlctx_wf.tr.1
-  onlyLams := by
-    intro d hd
-    apply R.onlyLams d
-    rw [← R.mlctx_wf.toList_eq, R.lctx_eq]
-    exact hd
-  ngen_prefix := R.ngen_prefix
-  fresh := by
-    intro fv hfv
-    apply R.indFresh fv
-    rw [← R.mlctx_wf.tr.fvars_eq, R.lctx_eq]
-    exact hfv
-  findCDecl fv hfv := R.findCDecl <| by
-    rw [← R.mlctx_wf.tr.fvars_eq, R.lctx_eq]
-    exact hfv
-
-theorem RecursorContextWF.lctxClosed (R : RecursorContextWF c recLparams) :
+theorem ContextSemantics.lctxClosed (R : ContextSemantics c Us) :
     LocalContext.LctxClosed c.lctx :=
   R.lctx_eq ▸ R.mlctx_wf.tr.lctxClosed
 
@@ -985,86 +936,51 @@ theorem typeShape_forallAritySort
 /-- Opening a source binder with the fresh free variable chosen by the
 executable checker leaves its abstract body unchanged: the extended `VLCtx`
 maps that free variable back to the new outermost de Bruijn variable. -/
-theorem ContextWF.instantiateFresh (Hc : ContextWF c)
-    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
-    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty')
-    (hbody : TrExprS Hc.venv c.lparams
+theorem ContextSemantics.instantiateFresh (Hc : ContextSemantics c Us)
+    (htr : TrExprS Hc.venv Us Hc.mlctx.vlctx ty ty')
+    (hty : Hc.venv.IsType Us.length Hc.mlctx.vlctx.toCtx ty')
+    (hbody : TrExprS Hc.venv Us
       ((none, .vlam ty') :: Hc.mlctx.vlctx) body body') :
     let Hc' := Hc.withLocalDecl (name := name) (bi := bi) htr hty
-    TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx
+    TrExprS Hc'.venv Us Hc'.mlctx.vlctx
       (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body' := by
   dsimp only
   rw [Expr.instantiate1_eq]
   exact hbody.inst_fvar Hc.checking.tr.wf.orderedStrong
-    (Hc.withLocalDecl htr hty).mlctx_wf.tr.wf
+    (Hc.withLocalDecl (name := name) (bi := bi) htr hty).mlctx_wf.tr.wf
 
 /-- Instantiate a source binder with an existing translated argument whose
 cached type is only definitionally equal to the binder domain. -/
-theorem ContextWF.instantiateDefEq (Hc : ContextWF c)
-    (hbody : TrExprS Hc.venv c.lparams
+theorem ContextSemantics.instantiateDefEq (Hc : ContextSemantics c Us)
+    (hbody : TrExprS Hc.venv Us
       ((none, .vlam dom') :: Hc.mlctx.vlctx) body body')
-    (harg : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx arg arg')
-    (hargType : Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
+    (harg : TrExprS Hc.venv Us Hc.mlctx.vlctx arg arg')
+    (hargType : Hc.venv.HasType Us.length Hc.mlctx.vlctx.toCtx
       arg' argType')
-    (heq : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
+    (heq : Hc.venv.IsDefEqU Us.length Hc.mlctx.vlctx.toCtx
       dom' argType') :
-    TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+    TrExprS Hc.venv Us Hc.mlctx.vlctx
       (body.instantiate1 arg) (body'.inst arg') := by
   have hargType' := hargType.defeqU_r Hc.checking.tr.wf
     Hc.mlctx_wf.tr.wf.toCtx heq.symm
   rw [Expr.instantiate1_eq]
   exact hbody.inst Hc.checking.tr.wf.orderedStrong hargType' harg
 
-/-- Recursor-universe analogue of `ContextWF.instantiateFresh`. -/
-theorem RecursorContextWF.instantiateFresh
-    (R : RecursorContextWF c recLparams)
-    (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
-    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty')
-    (hbody : TrExprS R.venv recLparams
-      ((none, .vlam ty') :: R.mlctx.vlctx) body body') :
-    let R' := R.withLocalDecl (c := c) (recLparams := recLparams)
-      (ty := ty) (ty' := ty')
-      (name := name) (bi := bi) htr hty
-    TrExprS R'.venv recLparams R'.mlctx.vlctx
-      (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body' := by
-  dsimp only
-  rw [Expr.instantiate1_eq]
-  exact hbody.inst_fvar R.checking.tr.wf.orderedStrong
-    (R.withLocalDecl htr hty).mlctx_wf.tr.wf
-
-/-- Instantiate a recursor-universe source binder with an existing cached
-argument whose semantic type is definitionally equal to its domain. -/
-theorem RecursorContextWF.instantiateDefEq
-    (R : RecursorContextWF c recLparams)
-    (hbody : TrExprS R.venv recLparams
-      ((none, .vlam dom') :: R.mlctx.vlctx) body body')
-    (harg : TrExprS R.venv recLparams R.mlctx.vlctx arg arg')
-    (hargType : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
-      arg' argType')
-    (heq : R.venv.IsDefEqU recLparams.length R.mlctx.vlctx.toCtx
-      dom' argType') :
-    TrExprS R.venv recLparams R.mlctx.vlctx
-      (body.instantiate1 arg) (body'.inst arg') := by
-  have hargType' := hargType.defeqU_r R.checking.tr.wf
-    R.mlctx_wf.tr.wf.toCtx heq.symm
-  rw [Expr.instantiate1_eq]
-  exact hbody.inst R.checking.tr.wf.orderedStrong hargType' harg
-
 /-- The executable checker's removal of binder type annotations, translated: the
 unannotated syntax may translate to a different abstract term,
 but it must remain a type definitionally equal to the source domain. -/
-structure ContextWF.UnannotatedDomain (Hc : ContextWF c)
+structure ContextSemantics.UnannotatedDomain (Hc : ContextSemantics c Us)
     (dom : Expr) (source' consumed' : VExpr) : Prop where
-  source : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom source'
-  unannotated : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
+  source : TrExprS Hc.venv Us Hc.mlctx.vlctx dom source'
+  unannotated : TrExprS Hc.venv Us Hc.mlctx.vlctx
     (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) consumed'
-  isType : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx consumed'
-  source_defeq : ∃ u, Hc.venv.IsDefEq c.lparams.length Hc.mlctx.vlctx.toCtx
+  isType : Hc.venv.IsType Us.length Hc.mlctx.vlctx.toCtx consumed'
+  source_defeq : ∃ u, Hc.venv.IsDefEq Us.length Hc.mlctx.vlctx.toCtx
     source' consumed' (.sort u)
 
-theorem ContextWF.UnannotatedDomain.sourceIsType {Hc : ContextWF c}
+theorem ContextSemantics.UnannotatedDomain.sourceIsType {Hc : ContextSemantics c Us}
     (H : Hc.UnannotatedDomain dom source' consumed') :
-    Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx source' :=
+    Hc.venv.IsType Us.length Hc.mlctx.vlctx.toCtx source' :=
   let ⟨_, h⟩ := H.source_defeq; ⟨_, h.hasType.1⟩
 
 theorem Expr.consumeTypeAnnotationsVerified_eq_self {dom : Expr}
@@ -1104,18 +1020,18 @@ theorem Expr.consumeTypeAnnotationsVerified_fvarsIn
 /-- Transport the source body translation to the unannotated binder
 type.  This is needed before opening the binder with the executable's
 free variable. -/
-theorem ContextWF.UnannotatedDomain.body
-    {c : AddInductive.Context} (Hc : ContextWF c)
+theorem ContextSemantics.UnannotatedDomain.body
+    {c : AddInductive.Context} {Us : List Name} {Hc : ContextSemantics c Us}
     {dom body : Expr} {source' consumed' body' : VExpr}
     (H : Hc.UnannotatedDomain dom source' consumed')
-    (hbody : TrExprS Hc.venv c.lparams
+    (hbody : TrExprS Hc.venv Us
       ((none, .vlam source') :: Hc.mlctx.vlctx) body body') :
-    ∃ body'', TrExprS Hc.venv c.lparams
+    ∃ body'', TrExprS Hc.venv Us
         ((none, .vlam consumed') :: Hc.mlctx.vlctx) body body'' ∧
-      Hc.venv.IsDefEqU c.lparams.length
+      Hc.venv.IsDefEqU Us.length
         (source' :: Hc.mlctx.vlctx.toCtx) body' body'' := by
   rcases H.source_defeq with ⟨_, hdom⟩
-  have hctx : VLCtx.IsDefEq Hc.venv c.lparams.length
+  have hctx : VLCtx.IsDefEq Hc.venv Us.length
       ((none, .vlam source') :: Hc.mlctx.vlctx)
       ((none, .vlam consumed') :: Hc.mlctx.vlctx) :=
     VLCtx.IsDefEq.cons
@@ -1125,70 +1041,24 @@ theorem ContextWF.UnannotatedDomain.body
 
 /-- Move the source/body conversion produced by `body` into the
 unannotated context installed by the executable checker. -/
-theorem ContextWF.UnannotatedDomain.bodyDefEqUnannotated
-    {c : AddInductive.Context} (Hc : ContextWF c)
+theorem ContextSemantics.UnannotatedDomain.bodyDefEqUnannotated
+    {c : AddInductive.Context} {Us : List Name} {Hc : ContextSemantics c Us}
     {dom : Expr} {source' consumed' sourceBody body'' : VExpr}
     (H : Hc.UnannotatedDomain dom source' consumed')
-    (hbodyEq : Hc.venv.IsDefEqU c.lparams.length
+    (hbodyEq : Hc.venv.IsDefEqU Us.length
       (source' :: Hc.mlctx.vlctx.toCtx) sourceBody body'') :
-    Hc.venv.IsDefEqU c.lparams.length
+    Hc.venv.IsDefEqU Us.length
       (consumed' :: Hc.mlctx.vlctx.toCtx) sourceBody body'' := by
   rcases H.source_defeq with ⟨_, hsource⟩
-  have hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
+  have hctx : VEnv.IsDefEqCtx Hc.venv Us.length []
       (source' :: Hc.mlctx.vlctx.toCtx)
       (consumed' :: Hc.mlctx.vlctx.toCtx) :=
     .succ (.refl Hc.mlctx_wf.tr.wf.toCtx) hsource
   exact hbodyEq.defeqDFC Hc.checking.tr.wf.orderedStrong hctx
 
-/-- Annotation-erased domain certificate interpreted under the universe list
-of a generated recursor context. -/
-structure RecursorContextWF.UnannotatedDomain
-    (R : RecursorContextWF c recLparams)
-    (dom : Expr) (source' consumed' : VExpr) : Prop where
-  source : TrExprS R.venv recLparams R.mlctx.vlctx dom source'
-  unannotated : TrExprS R.venv recLparams R.mlctx.vlctx
-    (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) consumed'
-  isType : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx consumed'
-  source_defeq : ∃ u, R.venv.IsDefEq recLparams.length R.mlctx.vlctx.toCtx
-    source' consumed' (.sort u)
-
-theorem RecursorContextWF.UnannotatedDomain.body
-    (R : RecursorContextWF c recLparams)
-    {dom body : Expr} {source' consumed' body' : VExpr}
-    (H : R.UnannotatedDomain dom source' consumed')
-    (hbody : TrExprS R.venv recLparams
-      ((none, .vlam source') :: R.mlctx.vlctx) body body') :
-    ∃ body'', TrExprS R.venv recLparams
-        ((none, .vlam consumed') :: R.mlctx.vlctx) body body'' ∧
-      R.venv.IsDefEqU recLparams.length
-        (source' :: R.mlctx.vlctx.toCtx) body' body'' := by
-  rcases H.source_defeq with ⟨_, hdom⟩
-  have hctx : VLCtx.IsDefEq R.venv recLparams.length
-      ((none, .vlam source') :: R.mlctx.vlctx)
-      ((none, .vlam consumed') :: R.mlctx.vlctx) :=
-    VLCtx.IsDefEq.cons
-      (.refl R.checking.tr.wf R.mlctx_wf.tr.wf) nofun (.vlam hdom)
-  rcases hbody.defeqDFC R.checking.tr.wf hctx with ⟨body'', hbody''⟩
-  exact ⟨body'', hbody'', hbody.uniq R.checking.tr.wf hctx hbody''⟩
-
-theorem RecursorContextWF.UnannotatedDomain.bodyDefEqUnannotated
-    (R : RecursorContextWF c recLparams)
-    {dom : Expr} {source' consumed' sourceBody body'' : VExpr}
-    (H : R.UnannotatedDomain dom source' consumed')
-    (hbodyEq : R.venv.IsDefEqU recLparams.length
-      (source' :: R.mlctx.vlctx.toCtx) sourceBody body'') :
-    R.venv.IsDefEqU recLparams.length
-      (consumed' :: R.mlctx.vlctx.toCtx) sourceBody body'' := by
-  rcases H.source_defeq with ⟨_, hsource⟩
-  have hctx : VEnv.IsDefEqCtx R.venv recLparams.length []
-      (source' :: R.mlctx.vlctx.toCtx)
-      (consumed' :: R.mlctx.vlctx.toCtx) :=
-    .succ (.refl R.mlctx_wf.tr.wf.toCtx) hsource
-  exact hbodyEq.defeqDFC R.checking.tr.wf.orderedStrong hctx
-
 /-- Removing type annotations from a binder domain (`Expr.consumeTypeAnnotationsVerified`)
 in a context of the inductive checker yields an unannotated domain
-(`ContextWF.UnannotatedDomain`). This is a hypothesis of the verification of the header and
+(`ContextSemantics.UnannotatedDomain`). This is a hypothesis of the verification of the header and
 constructor loops; `Verify/Inductive/Context/TypeAnnotations.lean` proves it
 (`consumeTypeAnnotationsDefEq`). -/
 def ConsumeTypeAnnotationsDefEq : Prop :=
@@ -1353,14 +1223,14 @@ theorem _root_.Lean4Lean.TrExprS.instantiateFVar {env : VEnv} {Us : List Name}
 
 /-- Opening a binder in both contexts extends a scope aligned with the
 checker context by the scope translation of the binder's domain. -/
-theorem ContextWF.alignedBinder (Hc : ContextWF c)
-    (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx)
+theorem ContextSemantics.alignedBinder (Hc : ContextSemantics c Us)
+    (halign : VLCtx.IsDefEq Hc.venv Us.length scope Hc.chk.vlctx)
     (Hdom : Hc.UnannotatedDomain dom sourceDom consumedDom)
     (Hdom₀ : Hc.atCheckLCtx.UnannotatedDomain dom sourceDom₀ consumedDom₀)
-    (hdomNarrow : TrExprS Hc.venv c.lparams scope dom narrowDom)
-    (hdomNarrowType : Hc.venv.IsType c.lparams.length scope.toCtx narrowDom)
+    (hdomNarrow : TrExprS Hc.venv Us scope dom narrowDom)
+    (hdomNarrowType : Hc.venv.IsType Us.length scope.toCtx narrowDom)
     (hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars) :
-    VLCtx.IsDefEq Hc.venv c.lparams.length
+    VLCtx.IsDefEq Hc.venv Us.length
       ((some (⟨c.ngen.curr⟩, (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
         .vlam narrowDom) :: scope)
       (Hc.withCheckedLocalDecl (name := name) (bi := bi)
@@ -1370,7 +1240,7 @@ theorem ContextWF.alignedBinder (Hc : ContextWF c)
   have hdomU := hdomNarrow.uniq henv halign Hdom₀.source
   rcases Hdom₀.source_defeq with ⟨u₀, hsc₀⟩
   have hsc₀' := hsc₀.defeqDFC henv.ordered (halign.defeqCtx.symm henv.orderedStrong)
-  have hdomC : Hc.venv.IsDefEqU c.lparams.length scope.toCtx
+  have hdomC : Hc.venv.IsDefEqU Us.length scope.toCtx
       narrowDom consumedDom₀ :=
     hdomU.trans henv hscopeΓ ⟨_, hsc₀'⟩
   rcases hdomNarrowType with ⟨domLevel, hdomTyped⟩
@@ -1378,34 +1248,6 @@ theorem ContextWF.alignedBinder (Hc : ContextWF c)
     intro hmem
     rw [halign.fvars] at hmem
     exact Hc.current_not_mem (Hc.check.embed.fvars_subset hmem)
-  exact halign.consAligned hfresh hdeps (hdomC.of_l henv hscopeΓ hdomTyped)
-
-/-- Recursor-frame analogue of `ContextWF.alignedBinder`. -/
-theorem RecursorContextWF.alignedBinder (R : RecursorContextWF c recLparams)
-    (halign : VLCtx.IsDefEq R.venv recLparams.length scope R.chk.vlctx)
-    (Hdom : R.UnannotatedDomain dom sourceDom consumedDom)
-    (Hdom₀ : R.atCheckLCtx.UnannotatedDomain dom sourceDom₀ consumedDom₀)
-    (hdomNarrow : TrExprS R.venv recLparams scope dom narrowDom)
-    (hdomNarrowType : R.venv.IsType recLparams.length scope.toCtx narrowDom)
-    (hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars) :
-    VLCtx.IsDefEq R.venv recLparams.length
-      ((some (⟨c.ngen.curr⟩, (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
-        .vlam narrowDom) :: scope)
-      (R.withCheckedLocalDecl (name := name) (bi := bi)
-        Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType).chk.vlctx := by
-  have henv := R.checking.tr.wf
-  have hscopeΓ := halign.wf.toCtx
-  have hdomU := hdomNarrow.uniq henv halign Hdom₀.source
-  rcases Hdom₀.source_defeq with ⟨u₀, hsc₀⟩
-  have hsc₀' := hsc₀.defeqDFC henv.ordered (halign.defeqCtx.symm henv.orderedStrong)
-  have hdomC : R.venv.IsDefEqU recLparams.length scope.toCtx
-      narrowDom consumedDom₀ :=
-    hdomU.trans henv hscopeΓ ⟨_, hsc₀'⟩
-  rcases hdomNarrowType with ⟨domLevel, hdomTyped⟩
-  have hfresh : (⟨c.ngen.curr⟩ : FVarId) ∉ scope.fvars := by
-    intro hmem
-    rw [halign.fvars] at hmem
-    exact R.current_not_mem (R.check.embed.fvars_subset hmem)
   exact halign.consAligned hfresh hdeps (hdomC.of_l henv hscopeΓ hdomTyped)
 
 /-- The checker-context normal form of an opened body, read back in a scope
@@ -1513,12 +1355,12 @@ theorem ContextWF.Aligned.withCheckedLocalDecl {H : ContextWF c} (ha : H.Aligned
   rintro _ _ ⟨⟩
   exact ⟨H.current_not_mem, htr.fvarsList⟩
 
-theorem ContextWF.chkKernelFresh (H : ContextWF c) :
+theorem ContextSemantics.chkKernelFresh (H : ContextSemantics c Us) :
     ∀ fv ∈ H.chk.vlctx.fvars, ({} : TypeChecker.State).ngen.Reserves fv :=
   fun fv h => H.kernelFresh fv (H.check.embed.fvars_subset h)
 
 /-- The checker context as a type-checker context. -/
-def ContextWF.checkTC (H : ContextWF c) : TypeChecker.VContext :=
+def ContextSemantics.checkTC (H : ContextSemantics c Us) : TypeChecker.VContext :=
   TypeChecker.VContext.mkCheckingMLC H.checkerEnv H.chk H.check.wf c.fuel
 
 /-- Reuse a verified typechecker computation inside `AddInductive.M`.  The
@@ -1595,15 +1437,6 @@ def RecursorContextWF.typeChecker
     (H : RecursorContextWF c recLparams) : TypeChecker.VContext :=
   TypeChecker.VContext.mkCheckingMLC
     H.checkerEnv H.mlctx H.mlctx_wf c.fuel
-
-theorem RecursorContextWF.chkKernelFresh (H : RecursorContextWF c recLparams) :
-    ∀ fv ∈ H.chk.vlctx.fvars, ({} : TypeChecker.State).ngen.Reserves fv :=
-  fun fv h => H.kernelFresh fv (H.check.embed.fvars_subset h)
-
-/-- The checker context of a recursor frame as a type-checker context. -/
-def RecursorContextWF.checkTC (H : RecursorContextWF c recLparams) :
-    TypeChecker.VContext :=
-  TypeChecker.VContext.mkCheckingMLC H.checkerEnv H.chk H.check.wf c.fuel
 
 /-- Reuse a verified typechecker computation in a recursor frame; the run
 happens in the checker context under the recursor universe parameters. -/

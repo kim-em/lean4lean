@@ -144,12 +144,12 @@ theorem LoopUArgsRun.universeSupport
     rcases TrExpr.forallE_source htype with
       ⟨sourceDom, sourceBody, hdom, hbody, hdomType, hbodyType, hforallEq⟩
     rcases hconsume current recLparams R hdom hdomType with ⟨consumedDom, Hdom⟩
-    rcases Hdom.body R hbody with ⟨consumedBody, hbodyConsumed, hbodyEq⟩
+    rcases Hdom.body hbody with ⟨consumedBody, hbodyConsumed, hbodyEq⟩
     rcases TrExpr.forallE_source htype₀ with
       ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, _, _⟩
     rcases hconsume _ recLparams R.atCheckLCtx hdom₀ hdom₀Type with
       ⟨consumedDom₀, Hdom₀⟩
-    rcases Hdom₀.body R.atCheckLCtx hbodyN₀ with ⟨consumedBody₀, hbodyConsumed₀, _⟩
+    rcases Hdom₀.body hbodyN₀ with ⟨consumedBody₀, hbodyConsumed₀, _⟩
     let x : FVarId := ⟨current.ngen.curr⟩
     let R' := R.withCheckedLocalDecl (name := name) (bi := bi) Hdom.unannotated Hdom.isType
       Hdom₀.unannotated Hdom₀.isType
@@ -195,7 +195,7 @@ theorem LoopUArgsRun.universeSupport
       normalization
     have hscopeRun := hdualRun.1
     have hlevelRun := (whnfInRecursorContext.levelsWF R' hopened₀) normalized normalization
-    have hbodyEq' := Hdom.bodyDefEqUnannotated R hbodyEq
+    have hbodyEq' := Hdom.bodyDefEqUnannotated hbodyEq
     have hsourceBodyType : R'.venv.IsType recLparams.length
         R'.mlctx.vlctx.toCtx sourceBody := by
       let hctxEq : VLCtx.IsDefEq R.venv recLparams.length

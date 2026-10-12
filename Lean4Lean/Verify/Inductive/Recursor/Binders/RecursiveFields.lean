@@ -550,12 +550,12 @@ theorem refinesRecursor
       | forallE hdomType _ hdom hbody =>
         rcases hconsume c recLparams R hdom hdomType with
           ⟨consumedDom', Hdom⟩
-        rcases Hdom.body R hbody with ⟨body'', hbody'', hbodyEq⟩
+        rcases Hdom.body hbody with ⟨body'', hbody'', hbodyEq⟩
         rcases TrExpr.forallE_source hnormalized₀ with
           ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, _, _⟩
         rcases hconsume _ recLparams R.atCheckLCtx hdom₀ hdom₀Type with
           ⟨consumedDom₀, Hdom₀⟩
-        rcases Hdom₀.body R.atCheckLCtx hbodyN₀ with ⟨body₀'', hbody₀'', _⟩
+        rcases Hdom₀.body hbodyN₀ with ⟨body₀'', hbody₀'', _⟩
         refine withCheckedLocalDecl.recursorWF (name := name) (bi := bi)
           (Q := fun result => ∀ target, result = some target →
             ∃ htarget : target < decl.types.length,

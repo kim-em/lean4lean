@@ -1365,13 +1365,13 @@ def _root_.Lean4Lean.VerifyInductive.ParameterContextSuffix.parameterEmbedding
 /-- Relate a domain translated in the semantic scope to the unannotated
 domain installed by the executable checker. -/
 theorem FrontScopeEmbedding.unannotatedDomain
-    (Hc : ContextWF c)
-    (H : FrontScopeEmbedding Hc.venv c.lparams scope Hc.mlctx.vlctx)
+    {c : AddInductive.Context} {Us : List Name} {Hc : ContextSemantics c Us}
+    (H : FrontScopeEmbedding Hc.venv Us scope Hc.mlctx.vlctx)
     (Hdom : Hc.UnannotatedDomain dom sourceDom consumedDom)
-    (hnarrow : TrExprS Hc.venv c.lparams scope dom indexType) :
-    ∃ u, Hc.venv.IsDefEq c.lparams.length H.expanded.toCtx
+    (hnarrow : TrExprS Hc.venv Us scope dom indexType) :
+    ∃ u, Hc.venv.IsDefEq Us.length H.expanded.toCtx
       (indexType.lift' H.shift) consumedDom (.sort u) := by
-  have hweak : TrExprS Hc.venv c.lparams H.expanded dom
+  have hweak : TrExprS Hc.venv Us H.expanded dom
       (indexType.lift' H.shift) := by
     simpa using hnarrow.weakFV' Hc.checking.tr.wf.orderedStrong H.lift
       H.context.wf
@@ -1383,27 +1383,6 @@ theorem FrontScopeEmbedding.unannotatedDomain
   have hdomainU := hsource.trans Hc.checking.tr.wf H.context.wf.toCtx
     ⟨_, hsourceConsumed'⟩
   exact ⟨u, hdomainU.of_r Hc.checking.tr.wf H.context.wf.toCtx
-    hsourceConsumed'.hasType.2⟩
-
-theorem FrontScopeEmbedding.recursorUnannotatedDomain
-    (R : RecursorContextWF c recLparams)
-    (H : FrontScopeEmbedding R.venv recLparams scope R.mlctx.vlctx)
-    (Hdom : R.UnannotatedDomain dom sourceDom consumedDom)
-    (hnarrow : TrExprS R.venv recLparams scope dom indexType) :
-    ∃ u, R.venv.IsDefEq recLparams.length H.expanded.toCtx
-      (indexType.lift' H.shift) consumedDom (.sort u) := by
-  have hweak : TrExprS R.venv recLparams H.expanded dom
-      (indexType.lift' H.shift) := by
-    simpa using hnarrow.weakFV' R.checking.tr.wf.orderedStrong H.lift
-      H.context.wf
-  have hsource := hweak.uniq R.checking.tr.wf H.context Hdom.source
-  rcases Hdom.source_defeq with ⟨u, hsourceConsumed⟩
-  have hsourceConsumed' := hsourceConsumed.defeqDFC
-    R.checking.tr.wf.ordered
-    (H.context.defeqCtx.symm R.checking.tr.wf.ordered)
-  have hdomainU := hsource.trans R.checking.tr.wf H.context.wf.toCtx
-    ⟨_, hsourceConsumed'⟩
-  exact ⟨u, hdomainU.of_r R.checking.tr.wf H.context.wf.toCtx
     hsourceConsumed'.hasType.2⟩
 
 end checkInductiveTypes.loopType

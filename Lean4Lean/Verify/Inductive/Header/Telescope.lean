@@ -1370,8 +1370,8 @@ theorem index.sourceWF
               (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }).WF Q) :
     (AddInductive.checkInductiveTypes.loopType nparams stats
       (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
-  rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
-  rcases Hdom₀.body Hc.atCheckLCtx hbody₀ with ⟨body₀', hbody₀', hbodyEq₀⟩
+  rcases Hdom.body hbody with ⟨body'', hbody'', hbodyEq⟩
+  rcases Hdom₀.body hbody₀ with ⟨body₀', hbody₀', hbodyEq₀⟩
   exact index.WF Hc hi Hdom.unannotated Hdom.isType hbody''
     Hdom₀.unannotated Hdom₀.isType hbody₀'
     (fun normalized h1 h2 h3 h4 =>
@@ -1471,7 +1471,7 @@ theorem index.cacheTelescopeWF
   intro body'' hbodyEq _ _ normalized _ hnormalized _ _ Hcache'
   let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
     Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
-  have hbodyEq' := Hdom.bodyDefEqUnannotated Hc hbodyEq
+  have hbodyEq' := Hdom.bodyDefEqUnannotated hbodyEq
   have hbodyEq'' : Hc'.venv.IsDefEqU c.lparams.length
       Hc'.mlctx.vlctx.toCtx sourceBody' body'' := by
     simpa only [Hc', ContextWF.withLocalDecl_venv, ContextWF.withCheckedLocalDecl_venv,
@@ -1564,8 +1564,8 @@ theorem firstParameter.sourceWF
               (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }).WF Q) :
     (AddInductive.checkInductiveTypes.loopType nparams stats
       (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
-  rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
-  rcases Hdom₀.body Hc.atCheckLCtx hbody₀ with ⟨body₀', hbody₀', -⟩
+  rcases Hdom.body hbody with ⟨body'', hbody'', hbodyEq⟩
+  rcases Hdom₀.body hbody₀ with ⟨body₀', hbody₀', -⟩
   exact firstParameter.WF Hc hi hempty Hdom.unannotated Hdom.isType hbody''
     Hdom₀.unannotated Hdom₀.isType hbody₀'
     (fun normalized hnormalized => Hrec body'' hbodyEq normalized hnormalized)
@@ -1662,7 +1662,7 @@ theorem firstParameter.cacheTelescopeWF
   intro body'' hbodyEq normalized hnormalized Hcache'
   let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
     Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
-  have hbodyEq' := Hdom.bodyDefEqUnannotated Hc hbodyEq
+  have hbodyEq' := Hdom.bodyDefEqUnannotated hbodyEq
   have hbodyEq'' : Hc'.venv.IsDefEqU c.lparams.length
       Hc'.mlctx.vlctx.toCtx sourceBody' body'' := by
     simpa only [Hc', ContextWF.withLocalDecl_venv, ContextWF.withCheckedLocalDecl_venv,
@@ -2098,7 +2098,7 @@ theorem laterIndexTelescopeWF
             hdomFullType, _hbodyFullType, _hfullCurrent⟩
         rcases hconsume c Hc hdomFull hdomFullType with
           ⟨consumedDom, Hdom⟩
-        rcases Hdom.body Hc hbodyFull with
+        rcases Hdom.body hbodyFull with
           ⟨consumedBody, hbodyConsumed, _hbodyEq⟩
         -- the same binder in the checker context
         obtain ⟨domC, hdomC⟩ := hdomNarrow.defeqDFC henvWF halign
@@ -2112,7 +2112,7 @@ theorem laterIndexTelescopeWF
             ((none, .vlam indexType) :: scope) ((none, .vlam domC) :: Hc.chk.vlctx) :=
           .cons halign nofun (.vlam (hdomCU.of_l henvWF hscopeWF₀.toCtx hv))
         obtain ⟨bodyC, hbodyC⟩ := hbodyNarrow.defeqDFC henvWF hctxC
-        rcases Hdom₀.body Hc.atCheckLCtx hbodyC with
+        rcases Hdom₀.body hbodyC with
           ⟨consumedBody₀, hbodyConsumed₀, _hbodyEq₀⟩
         apply index.WF (stats := stats) (nparams := nparams)
           (i := nparams) (nindices := nindices) (fuel := fuel)
@@ -2124,7 +2124,7 @@ theorem laterIndexTelescopeWF
         have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp
             (Expr.consumeTypeAnnotationsVerified_fvarsIn htypeFVars.1)).1
-        rcases Hruntime.unannotatedDomain Hc Hdom hdomNarrow with
+        rcases Hruntime.unannotatedDomain Hdom hdomNarrow with
           ⟨domainLevel, hdomain⟩
         let Hruntime' : FrontScopeEmbedding Hc'.venv c.lparams
             ((some (⟨c.ngen.curr⟩,

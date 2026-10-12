@@ -65,7 +65,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
           have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
               (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
-          rcases Hruntime.unannotatedDomain Hc Hdom hdomNarrow with
+          rcases Hruntime.unannotatedDomain Hdom hdomNarrow with
             ⟨_domainLevel, hdomain⟩
           cases isUnsafe with
           | false =>

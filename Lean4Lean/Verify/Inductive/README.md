@@ -18,7 +18,7 @@ may carry fields its consumers ignore; the boundary theorems' statements are the
 * From the checker verification: `CheckerEnv safety env venv` (what the checker reads:
   `CheckingEnv.Valid` plus `RecursorShapesCoherent` and `IotaRulesRegistered`) and
   `VContext`/`MLCtx`/`CheckBase`. The pipeline's context `ContextWF c` (`Context.lean`) carries
-  all three environment facts, so `ContextWF.checkerEnv` gives the checker its `CheckerEnv` in
+  all three environment facts, so `ContextSemantics.checkerEnv` gives the checker its `CheckerEnv` in
   every intermediate environment (header, constructor, projection stage).
 * From the environment model: `VEnvs`/`VEnvs.WF`, `InstalledBlocks` and `InstalledBlocks.addInduct`,
   `CheckingEnv.Valid`, `EquationHeadsCoherent` (through `CheckingEnv.Valid.equationHeads`),

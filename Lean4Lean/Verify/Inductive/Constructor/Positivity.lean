@@ -271,8 +271,8 @@ theorem safeField.sourceWF
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true
   · rw [if_pos hbound]
     refine Hpos.bind fun recursive hpos => ?_
-    rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
-    rcases Hdom₀.body Hc.atCheckLCtx hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
+    rcases Hdom.body hbody with ⟨body'', hbody'', hbodyEq⟩
+    rcases Hdom₀.body hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
     refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
       (k := fun arg => do
         return recursive :: (← AddInductive.checkConstructors.loopCtor stats false ctor
@@ -355,8 +355,8 @@ theorem unsafeField.sourceWF
       (stats.resultLevel.isAlwaysZero ||
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true
   · rw [if_pos hbound]
-    rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
-    rcases Hdom₀.body Hc.atCheckLCtx hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
+    rcases Hdom.body hbody with ⟨body'', hbody'', hbodyEq⟩
+    rcases Hdom₀.body hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
     refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
       (k := fun arg => do
         return false :: (← AddInductive.checkConstructors.loopCtor stats true ctor
@@ -1485,8 +1485,8 @@ theorem forallE.sourceWF
       ctor idx recur c).WF Q := by
   rw [AddInductive.checkPositivityStep]
   rw [if_neg (by simp [hocc]), if_neg (by simp [hdomOcc])]
-  rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
-  rcases Hdom₀.body Hc.atCheckLCtx hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
+  rcases Hdom.body hbody with ⟨body'', hbody'', hbodyEq⟩
+  rcases Hdom₀.body hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
   refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
     (k := fun arg => recur (body.instantiate1 arg))
     Hc Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
@@ -1646,7 +1646,7 @@ theorem refinesScoped
           have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
               (Expr.consumeTypeAnnotationsVerified_fvarsIn hnormalizedFVars.1)).1
-          rcases Hruntime.unannotatedDomain Hc Hdom hdomNarrow with
+          rcases Hruntime.unannotatedDomain Hdom hdomNarrow with
             ⟨domainLevel, hdomain⟩
           let Hruntime' :
               checkInductiveTypes.loopType.FrontScopeEmbedding

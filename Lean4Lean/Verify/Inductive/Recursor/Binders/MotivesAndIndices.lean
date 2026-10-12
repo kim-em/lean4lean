@@ -2099,14 +2099,14 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
               hbodyFullType, _hfullCurrent⟩
           rcases hconsume current _ R hdomFull hdomFullType with
             ⟨consumedDom, Hdom⟩
-          rcases Hdom.body R hbodyFull with
+          rcases Hdom.body hbodyFull with
             ⟨consumedBody, hbodyConsumed, hbodyEq⟩
           have henvWF := R.checking.tr.wf
           have hscopeWF₀ := halign.wf
           rcases halign.forallE_align henvWF hdomNarrow hdomType hbodyNarrow with
             ⟨domC, bodyC, hdomC, hdomCType, hdomCU, hbodyC, _⟩
           rcases hconsume _ _ R.atCheckLCtx hdomC hdomCType with ⟨consumed₀, Hdom₀⟩
-          rcases Hdom₀.body R.atCheckLCtx hbodyC with
+          rcases Hdom₀.body hbodyC with
             ⟨consumedBody₀, hbodyConsumed₀, _hbodyEq₀⟩
           refine withCheckedLocalDecl.recursorWF (name := name) (bi := bi) (Q := Q)
             R Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
@@ -2159,7 +2159,7 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
             simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
               RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VLCtx.toCtx] using
               hbodyFullType.defeqDFC R.checking.tr.wf.ordered hctx.defeqCtx
-          have hbodyEq' := Hdom.bodyDefEqUnannotated R hbodyEq
+          have hbodyEq' := Hdom.bodyDefEqUnannotated hbodyEq
           have hconsumedBodyType : R'.venv.IsType
               (AddInductive.getRecLevelParams elimLevel base.lparams).length
               R'.mlctx.vlctx.toCtx consumedBody := by
@@ -2171,7 +2171,7 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
           have hdeps : (dom.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
               (Expr.consumeTypeAnnotationsVerified_fvarsIn htypeFVars.1)).1
-          rcases Hruntime.recursorUnannotatedDomain R Hdom hdomNarrow with
+          rcases Hruntime.unannotatedDomain Hdom hdomNarrow with
             ⟨_domainLevel, hdomain⟩
           let Hruntime' :
               checkInductiveTypes.loopType.FrontScopeEmbedding

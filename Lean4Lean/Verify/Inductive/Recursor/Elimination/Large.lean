@@ -198,7 +198,7 @@ theorem AddInductive.isLargeEliminator.loop.trace
 
 /-- A field classified as a proof by the singleton check has an unannotated domain that is a
 proposition in the field-prefix context, not only beneath the newly opened field. -/
-theorem ContextWF.UnannotatedDomain.proof_of_largeEliminationCheck
+theorem ContextSemantics.UnannotatedDomain.proof_of_largeEliminationCheck
     {c : AddInductive.Context} {name : Name} {bi : BinderInfo}
     (Hc : ContextWF c) (Hdom : Hc.UnannotatedDomain dom source' consumed')
     (Hdom₀ : Hc.atCheckLCtx.UnannotatedDomain dom source₀ consumed₀)

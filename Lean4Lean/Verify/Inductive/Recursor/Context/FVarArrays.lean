@@ -434,7 +434,7 @@ def FVarArrayAfter.rebaseRoot
 
 /-- The suffix of ordinary locals introduced after `root`, in order. Unlike
 `FVarArrayAfter`, it records that no other local is interleaved and that `xs` lists the
-suffix in introduction order, as `RecursorContextWF.mkForallRecent` requires. -/
+suffix in introduction order, as `ContextSemantics.mkForallRecent` requires. -/
 structure FVarSuffix {root c : AddInductive.Context}
     (Hroot : ContextWF root) (Hc : ContextWF c) (xs : Array Expr)
     extends FVarArrayAfter root c xs where
@@ -1109,14 +1109,14 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
           hbodyType, hforallEq⟩
       rcases hconsume c recLparams R hdom hdomType with
         ⟨consumedDom, Hdom⟩
-      rcases Hdom.body R hbody with
+      rcases Hdom.body hbody with
         ⟨consumedBody, hbodyConsumed, _hbodyEq⟩
       let RB := R.withCheckLCtx _ B
       rcases TrExpr.forallE_source (htype₀.trExpr R.checking.tr.wf B.wf.tr.wf) with
         ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, hbodyN₀Type, hforallEq₀⟩
       rcases hconsume _ recLparams RB.atCheckLCtx hdom₀ hdom₀Type with
         ⟨consumedDom₀, Hdom₀⟩
-      rcases Hdom₀.body RB.atCheckLCtx hbodyN₀ with ⟨body₀'', hbody₀'', hbody₀Eq⟩
+      rcases Hdom₀.body hbodyN₀ with ⟨body₀'', hbody₀'', hbody₀Eq⟩
       have hcons₀ : TrExprS R.venv recLparams B.m.vlctx
           (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) consumedDom₀ := Hdom₀.unannotated
       have hconsT₀ : R.venv.IsType recLparams.length B.m.vlctx.toCtx
@@ -1195,7 +1195,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
           R'.mlctx.vlctx.toCtx
           (.app (appliedTarget.liftN 1 0) (.bvar 0)) consumedBody := by
         have happ := VEnv.HasType.app happliedFnType hargType
-        have hbodyEq' := Hdom.bodyDefEqUnannotated R _hbodyEq
+        have hbodyEq' := Hdom.bodyDefEqUnannotated _hbodyEq
         apply happ.defeqU_r R'.checking.tr.wf R'.mlctx_wf.tr.wf.toCtx
         simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
           RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VExpr.inst_liftN_bvar] using
@@ -1213,7 +1213,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
           RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VLCtx.toCtx] using
           hbodyType.defeqDFC R.checking.tr.wf.ordered hctxEq.defeqCtx
-      have hbodyEq' := Hdom.bodyDefEqUnannotated R _hbodyEq
+      have hbodyEq' := Hdom.bodyDefEqUnannotated _hbodyEq
       have hconsumedBodyType : R'.venv.IsType recLparams.length
           R'.mlctx.vlctx.toCtx consumedBody := by
         apply hsourceBodyType.defeqU_l R'.checking.tr.wf
@@ -1299,7 +1299,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
               (B.m.mkForall' bu.size hn (.forallE consumedDom₀ body₀'')) := by
         obtain ⟨hnB, hagB, hdropB, hrootB⟩ := hagreeB
         refine ⟨hnB, hagB, hdropB, ?_⟩
-        have hbodyEq₀ := Hdom₀.bodyDefEqUnannotated RB.atCheckLCtx hbody₀Eq
+        have hbodyEq₀ := Hdom₀.bodyDefEqUnannotated hbody₀Eq
         let HdomainCtx₀ : VLCtx.IsDefEq R.venv recLparams.length
             ((none, .vlam dom₀) :: B.m.vlctx)
             ((none, .vlam consumedDom₀) :: B.m.vlctx) :=

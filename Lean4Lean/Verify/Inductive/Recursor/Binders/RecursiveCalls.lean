@@ -1610,13 +1610,13 @@ theorem resultRecursiveDomain {alpha : Type}
           hbodyType, hforallEq⟩
       rcases hconsume c recLparams R hdom hdomType with
         ⟨consumedDom, Hdom⟩
-      rcases Hdom.body R hbody with
+      rcases Hdom.body hbody with
         ⟨consumedBody, hbodyConsumed, hbodyEq⟩
       rcases TrExpr.forallE_source htype₀ with
         ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, hbodyN₀Type, hforallEq₀⟩
       rcases hconsume _ recLparams R.atCheckLCtx hdom₀ hdom₀Type with
         ⟨consumedDom₀, Hdom₀⟩
-      rcases Hdom₀.body R.atCheckLCtx hbodyN₀ with
+      rcases Hdom₀.body hbodyN₀ with
         ⟨consumedBody₀, hbodyConsumed₀, hbodyEq₀⟩
       -- the closed checker type stays fixed across the checking-context binder
       have hchkWF := R.check.wf.tr.wf
@@ -1704,7 +1704,7 @@ theorem resultRecursiveDomain {alpha : Type}
           R'.mlctx.vlctx.toCtx
           (.app (appliedTarget.liftN 1 0) (.bvar 0)) consumedBody := by
         have happ := VEnv.HasType.app happliedFnType hargType
-        have hbodyEq' := Hdom.bodyDefEqUnannotated R hbodyEq
+        have hbodyEq' := Hdom.bodyDefEqUnannotated hbodyEq
         apply happ.defeqU_r R'.checking.tr.wf R'.mlctx_wf.tr.wf.toCtx
         simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
           RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VExpr.inst_liftN_bvar] using
@@ -1783,7 +1783,7 @@ theorem resultRecursiveDomain {alpha : Type}
         simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
           RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VLCtx.toCtx] using
           hbodyType.defeqDFC R.checking.tr.wf.ordered hctxEq.defeqCtx
-      have hbodyEq' := Hdom.bodyDefEqUnannotated R hbodyEq
+      have hbodyEq' := Hdom.bodyDefEqUnannotated hbodyEq
       have hconsumedBodyType : R'.venv.IsType recLparams.length
           R'.mlctx.vlctx.toCtx consumedBody := by
         apply hsourceBodyType.defeqU_l R'.checking.tr.wf

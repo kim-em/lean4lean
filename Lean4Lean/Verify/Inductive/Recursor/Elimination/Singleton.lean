@@ -235,14 +235,14 @@ theorem LargeEliminationCheck.singletonTelescope
           Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
         have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
-        obtain ⟨domainLevel, hdomain⟩ := Hruntime.unannotatedDomain Hc Hdom hdomNarrow
+        obtain ⟨domainLevel, hdomain⟩ := Hruntime.unannotatedDomain Hdom hdomNarrow
         let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain hdomType
         have halign' := Hc.alignedBinder (name := name) (bi := bi) halign
           Hdom Hdom₀ hdomNarrow hdomType hdeps
         have hscopeWF := halign'.wf
         have hopened := hbodyNarrow.inst_fvar Hc.checking.tr.wf.orderedStrong hscopeWF
         rw [← Expr.instantiate1_eq] at hopened
-        obtain ⟨fullBody, hfullBody', _⟩ := Hdom.body Hc hfullBody
+        obtain ⟨fullBody, hfullBody', _⟩ := Hdom.body hfullBody
         have hopenedFull := Hc.instantiateFresh (name := name) (bi := bi)
           Hdom.unannotated Hdom.isType hfullBody'
         have hspineBody : ∃ n, Expr.ForallSpine body n := by
@@ -285,14 +285,14 @@ theorem LargeEliminationCheck.singletonTelescope
           Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
         have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
-        obtain ⟨domainLevel, hdomain⟩ := Hruntime.unannotatedDomain Hc Hdom hdomNarrow
+        obtain ⟨domainLevel, hdomain⟩ := Hruntime.unannotatedDomain Hdom hdomNarrow
         let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain hdomType
         have halign' := Hc.alignedBinder (name := name) (bi := bi) halign
           Hdom Hdom₀ hdomNarrow hdomType hdeps
         have hscopeWF := halign'.wf
         have hopened := hbodyNarrow.inst_fvar Hc.checking.tr.wf.orderedStrong hscopeWF
         rw [← Expr.instantiate1_eq] at hopened
-        obtain ⟨fullBody, hfullBody', _⟩ := Hdom.body Hc hfullBody
+        obtain ⟨fullBody, hfullBody', _⟩ := Hdom.body hfullBody
         have hopenedFull := Hc.instantiateFresh (name := name) (bi := bi)
           Hdom.unannotated Hdom.isType hfullBody'
         have hspineBody : ∃ n, Expr.ForallSpine body n := by
@@ -341,14 +341,14 @@ theorem LargeEliminationCheck.singletonTelescope
           Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
         have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
-        obtain ⟨domainLevel, hdomain⟩ := Hruntime.unannotatedDomain Hc Hdom hdomNarrow
+        obtain ⟨domainLevel, hdomain⟩ := Hruntime.unannotatedDomain Hdom hdomNarrow
         let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain hdomType
         have halign' := Hc.alignedBinder (name := name) (bi := bi) halign
           Hdom Hdom₀ hdomNarrow hdomType hdeps
         have hscopeWF := halign'.wf
         have hopened := hbodyNarrow.inst_fvar Hc.checking.tr.wf.orderedStrong hscopeWF
         rw [← Expr.instantiate1_eq] at hopened
-        obtain ⟨fullBody, hfullBody', _⟩ := Hdom.body Hc hfullBody
+        obtain ⟨fullBody, hfullBody', _⟩ := Hdom.body hfullBody
         have hopenedFull := Hc.instantiateFresh (name := name) (bi := bi)
           Hdom.unannotated Hdom.isType hfullBody'
         have hspineBody : ∃ n, Expr.ForallSpine body n := by
