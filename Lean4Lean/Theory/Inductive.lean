@@ -748,7 +748,7 @@ recursors of a nested block, which fire on the constructors of a previously decl
 container, are admissible) and the reduct shape (`rule_shape`). The recursor clauses
 (`recs_wf`, `rules_wf`, `rec_shape`, `rule_shape`, `rules_nodup`, `rules_ctor`) are fields rather
 than consequences of `recsCompiled`: deriving `rules_wf` from the compiled block needs uniqueness
-of typing and Π-injectivity, which depend on the open proofs (`OPEN_PROOFS.md`). -/
+of typing and Π-injectivity, which are proved downstream of this definition. -/
 structure VInductDecl.WF (env : VEnv) (decl : VInductDecl) : Prop where
   /-- The source judgment: headers and constructors typed, names distinct, universes shared. -/
   source : decl.SourceWF env

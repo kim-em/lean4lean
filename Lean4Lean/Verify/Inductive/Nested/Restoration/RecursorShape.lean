@@ -2,7 +2,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.TrRestoredRecursorVal
 import Lean4Lean.Verify.Environment.Blocks
 import Lean4Lean.Theory.Inductive.Restoration
 import Lean4Lean.Theory.Typing.RestorationShapes
-import Lean4Lean.Verify.Inductive.Nested.Restoration.IotaSoundnessLemmas
+import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 
 namespace Lean4Lean
 namespace InductiveSignature

@@ -3,7 +3,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.RecursorTelescopes
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Steps
 import Lean4Lean.Verify.Inductive.Nested.Restoration.TrRestoredRecursorVal
 import Lean4Lean.Verify.TypeChecker.WHNF
-import Lean4Lean.Verify.Inductive.Nested.Restoration.IotaSoundnessLemmas
+import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 
 /-! Commutation of executable nested restoration with `Restoration.expr`.
 

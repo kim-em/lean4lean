@@ -56,9 +56,9 @@ the source. Outside the soundness argument, `VEnv.WF.church_rosser`
 environment with the prelude's `Eq`, two definitionally equal terms reduce to terms that are
 equal up to universe levels, proof irrelevance and eta.
 
-These theorems are conditional on two open proofs, listed with their status in
+These theorems are conditional on one open proof, listed with its status in
 [OPEN_PROOFS.md](OPEN_PROOFS.md). The trusted base is the three standard axioms, the
-implementation axioms of `Lean4Lean/Verify/Axioms.lean` and those two open proofs; the exact
+implementation axioms of `Lean4Lean/Verify/Axioms.lean` and that open proof; the exact
 list is `scripts/inductive-audit-inventory.json`. The changes to the executable are audited in
 [divergences.md](divergences.md).
 

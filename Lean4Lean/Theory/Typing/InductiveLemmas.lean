@@ -14,7 +14,7 @@ recursor rule's ι rule ends up in `pats`), threaded through the stages `addType
 `addProjs`/`addRecs`/`addRules` (`addInduct_stages`); `addInduct_WF` (adding a well-formed inductive
 keeps the environment `Ordered`), proved stage by stage from `VInductDecl.WF`; and the
 population lemmas saying what each stage binds in `constants` and registers in `pats`.
-Subject reduction of the registered ι rules is the open `VEnv.WF.patsStrong` (`EnvLemmas.lean`).
+Subject reduction of the registered ι rules is `VEnv.WF.iotaReductTyped` (`IotaReductTyped.lean`).
 -/
 
 /-- Monotonicity of a monadic left fold in the `Option` monad: if each successful

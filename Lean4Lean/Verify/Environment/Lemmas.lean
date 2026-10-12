@@ -3,6 +3,7 @@ import Lean4Lean.Declaration
 import Lean4Lean.Verify.Environment.Basic
 import Lean4Lean.Verify.Environment.QuotCoherence
 import Lean4Lean.Verify.Typing.PrimSpec
+import Lean4Lean.Theory.Typing.IotaReductTyped
 
 namespace Lean4Lean
 open Lean4Lean
@@ -1465,15 +1466,17 @@ theorem TrEnv.ctorInfo_inv {safety : DefinitionSafety} {env : Environment} {venv
   exact TrEnv'.ctorInfo_inv H h hsafe
 
 /-- A registered ι rule, matched against a well-typed redex with its `Realizes` side
-conditions discharged, gives a definitional equality between redex and reduct. Thin
-wrapper over `VEnv.IsDefEq.pat`. -/
+conditions discharged, gives a definitional equality between redex and reduct, in a
+well-formed environment and context: `VEnv.IsDefEq.pat`, with the reduct's typing supplied by
+`VEnv.WF.iotaReductTyped`. -/
 theorem TrEnv.iota_defeq {venv : VEnv} {U : Nat} {Γ : List VExpr}
     {p : Pattern} {r : p.RHS × p.Check} {e A : VExpr} {m1 m2 chk}
+    (henv : venv.WF) (hΓ : OnCtx Γ (venv.IsType U))
     (hpat : venv.pats p r) (hm : p.Matches e m1 m2)
     (hty : venv.HasType U Γ e A) (hR : r.2.Realizes m1 m2 chk)
     (hall : ∀ t ∈ chk, venv.IsDefEq U Γ t.1 t.2.1 t.2.2) :
     venv.IsDefEqU U Γ e (r.1.apply m1 m2) :=
-  ⟨A, VEnv.IsDefEq.pat hpat hm hty hR hall⟩
+  ⟨A, VEnv.IsDefEq.pat hpat hm hty (henv.iotaReductTyped hΓ hpat hm hty) hR hall⟩
 
 /-- The ι reduction step of a translated environment, as `reduceRecursor.WF` needs it: a
 well-typed redex matching a recursor's ι pattern (over the constructor `cval` resolved in
@@ -1490,7 +1493,7 @@ theorem TrEnv.iota_rec {safety : DefinitionSafety} {env : Environment} {venv : V
     (hm : (SimplePattern.iota recName
         (rval.numParams + rval.numMotives + rval.numMinors + rval.numIndices) cName
         (cval.numParams + rule.nfields)).toPattern.Matches e m1 m2)
-    (hty : venv.HasType U Γ e A) :
+    (hΓ : OnCtx Γ (venv.IsType U)) (hty : venv.HasType U Γ e A) :
     ∃ (rhs : VExpr) (hc : rhs.Closed),
       TrExprS venv rval.levelParams [] rule.rhs rhs ∧
       venv.IsDefEqU U Γ e ((SimplePattern.iotaRHS recName cName rval.numParams
@@ -1498,7 +1501,7 @@ theorem TrEnv.iota_rec {safety : DefinitionSafety} {env : Environment} {venv : V
           m1 m2) := by
   obtain ⟨cval', rhs, hc, hct, htr, hp⟩ := H.pats_iota' hrec hrule hsafe
   rw [hctor] at hct; cases hct
-  exact ⟨rhs, hc, htr, TrEnv.iota_defeq hp hm hty (chk := []) trivial nofun⟩
+  exact ⟨rhs, hc, htr, TrEnv.iota_defeq (TrEnv'.wf H) hΓ hp hm hty (chk := []) trivial nofun⟩
 
 /-- The head of a well-typed application spine is well-typed. -/
 theorem VEnv.HasType.mkApps_inv_head {env : VEnv} {U : Nat} {Γ : List VExpr}

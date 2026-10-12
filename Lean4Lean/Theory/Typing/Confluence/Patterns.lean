@@ -4,6 +4,7 @@ import Lean4Lean.Theory.Typing.ChurchRosser
 import Lean4Lean.Theory.Typing.QuotLiftTelescope
 import Lean4Lean.Theory.Typing.PrefixUnfolding.SpineDefEq
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.WFFacts
+import Lean4Lean.Theory.Typing.IotaReductTyped
 
 /-! # The pattern table of a well-formed environment
 
@@ -17,7 +18,8 @@ prefix unfolding computes instead (`FullReduction`). This file proves the non-ov
 soundness facts of the table that `Params` asks for; the structure facts are in
 `Confluence/StructureMajor.lean`.
 
-An ι entry is a registered rule, and its soundness is the rule `IsDefEq.pat` itself. -/
+An ι entry is a registered rule, and its soundness is the rule `IsDefEq.pat`, whose reduct
+typing is `VEnv.WF.iotaReductTyped`. -/
 
 namespace Lean4Lean.VEnv
 open InductiveSignature
@@ -456,10 +458,11 @@ theorem app_uniq (henv : env.WF) (H : GuardedIotaPattern env p rhs)
   exact SimplePattern.iota_app_uniq (rec_ne_ctor henv H0 H0') hl hr
 
 /-- A registered ι rule is sound at every instance, guarded or not: it is `IsDefEq.pat`. -/
-theorem sound (H : GuardedIotaPattern env p rhs)
+theorem sound (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U)) (H : GuardedIotaPattern env p rhs)
     (hm : p.Matches expr levels values) (ht : env.HasType U Γ expr type) :
     env.IsDefEqU U Γ expr (rhs.1.apply levels values) :=
-  ⟨_, IsDefEq.pat (r := (rhs.1, Pattern.Check.true)) (chk := []) H.pats hm ht trivial (by simp)⟩
+  ⟨_, IsDefEq.pat (r := (rhs.1, Pattern.Check.true)) (chk := []) H.pats hm ht
+    (henv.iotaReductTyped hΓ H.pats hm ht) trivial (by simp)⟩
 
 theorem ctor_rigid (henv : env.WF)
     (H : GuardedIotaPattern env (SimplePattern.iota recursor major ctor fields).toPattern r) :
@@ -694,7 +697,7 @@ theorem ConcretePattern.sound (hΓ : OnCtx Γ (env.IsType U)) (H : ConcretePatte
   rcases H with H | H | H
   · exact DefinitionPattern.sound henv hΓ (definitionRegistry_registered') H hm ht
   · exact QuotPattern.sound henv hΓ H hm ht hc
-  · exact H.sound hm ht
+  · exact H.sound henv hΓ hm ht
 
 end
 

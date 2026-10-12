@@ -4,12 +4,9 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.Compiled
 /-! # Typed terms avoid fresh constants
 
 A typing derivation of an ordered environment cannot introduce a constant absent from the
-environment (`VEnv.IsDefEq.noConsts`), provided the registered reduction rules do not
-(`VEnv.PatsAvoidConsts`). For a well-formed environment the rules do not
-(`VEnv.WF.patsAvoidFreshConsts`): every registered pattern is the ι entry of a recursor rule of
-an installed block (`VEnv.WF'.pats_origin`), whose reduct template is read off a generated
-equation (`VInductDecl.RecsCompiled`) typed in the block's recursor stage (`VInductBlock.WF`,
-`VInductDecl.WF.block_rules_wf`), where the names are still absent. -/
+environment (`VEnv.IsDefEq.noConsts`). The reduct of a registered reduction rule needs no
+separate argument: `IsDefEq.pat` carries the reduct's typing derivation, which avoids the names
+by induction. -/
 
 namespace Lean4Lean
 
@@ -63,20 +60,6 @@ theorem Lookup.noConsts
       simpa using VExpr.containsAnyConst_liftN
         (e := type) (names := names) 1 0 |>.trans (ih htail)
 
-/-- Every registered reduction rule produces a reduct avoiding `names` from a redex avoiding
-`names`: the fixed parts of its right-hand side avoid them. -/
-def VEnv.PatsAvoidConsts (env : VEnv) (names : List Lean.Name) : Prop :=
-  ∀ {p : Pattern} {r : p.RHS × p.Check} {e m1 m2}, env.pats p r → p.Matches e m1 m2 →
-    e.containsAnyConst names = false → (r.1.apply m1 m2).containsAnyConst names = false
-
-theorem VEnv.PatsAvoidConsts.mono {env env' : VEnv} (hle : env ≤ env')
-    (H : env'.PatsAvoidConsts names) : env.PatsAvoidConsts names :=
-  fun hp => H (hle.pats hp)
-
-theorem VEnv.PatsAvoidConsts.of_pats_eq {env env' : VEnv} (h : env'.pats = env.pats)
-    (H : env.PatsAvoidConsts names) : env'.PatsAvoidConsts names :=
-  fun hp => H (h ▸ hp)
-
 /-- A typing derivation cannot introduce a selected constant when the
 environment declarations used by `constDF`/`extra`, the local context, and
 all directly looked-up constants avoid it.  The result is simultaneous for
@@ -86,7 +69,6 @@ theorem VEnv.IsDefEq.noConsts
       e.containsAnyConst names = false ∧
       A.containsAnyConst names = false)
     (Hfresh : ∀ {name ci}, env.constants name = some ci → name ∉ names)
-    (Hpats : env.PatsAvoidConsts names)
     (Hctx : CtxAvoidsConsts names Gamma)
     (H : env.IsDefEq U Gamma lhs rhs type) :
     lhs.containsAnyConst names = false ∧
@@ -109,9 +91,8 @@ theorem VEnv.IsDefEq.noConsts
           Hfresh Hlookup (by simpa using hcontains)
       have htype := (Htypes.1 Hlookup).choose_spec.1
       exact ⟨hname, hname, by simpa using htype⟩
-  | pat hp hm _ _ _ ih =>
-      have ih := ih Hctx
-      exact ⟨ih.1, Hpats hp hm ih.1, ih.2.2⟩
+  | pat _ _ _ _ _ _ ih ihred =>
+      exact ⟨(ih Hctx).1, (ihred Hctx).1, (ih Hctx).2.2⟩
   | appDF _ _ ihFn ihArg =>
       specialize ihFn Hctx
       specialize ihArg Hctx
@@ -194,138 +175,50 @@ theorem VEnv.IsDefEq.noConsts
       specialize ihE' Hctx
       exact ⟨ihE.1, ihE'.1, ihE.2.2⟩
 
-/-! ## Ordered environments whose rules avoid the names -/
+/-! ## Ordered environments -/
 
 /-- All declarations stored in an ordered environment avoid names which are absent from that
-environment, given that its registered rules avoid them. The proof follows the same
-well-founded environment induction as `VEnv.Ordered.closed`. -/
+environment. The proof follows the same well-founded environment induction as
+`VEnv.Ordered.closed`. -/
 theorem VEnv.Ordered.onTypes_noFreshConsts
     (Henv : VEnv.Ordered env)
-    (Hfresh : ∀ name ∈ names, env.constants name = none)
-    (Hpats : env.PatsAvoidConsts names) :
+    (Hfresh : ∀ name ∈ names, env.constants name = none) :
     OnTypes env fun _ e A =>
       e.containsAnyConst names = false ∧
       A.containsAnyConst names = false := by
   let motive := fun (current : VEnv) (_ : Nat) (e A : VExpr) =>
     ∀ selected : List Lean.Name,
       (∀ name ∈ selected, current.constants name = none) →
-      current.PatsAvoidConsts selected →
       e.containsAnyConst selected = false ∧
       A.containsAnyConst selected = false
   have Hall : OnTypes env (motive env) := Henv.induction motive
-    (fun Hle Hsupport selected hfresh hpats => by
+    (fun Hle Hsupport selected hfresh => by
       apply Hsupport selected
-      · intro name hname
-        exact Hle.constants_eq_none_left (hfresh name hname)
-      · exact VEnv.PatsAvoidConsts.mono Hle hpats)
-    (fun _Hordered Hstored Htyping selected hfresh hpats => by
+      intro name hname
+      exact Hle.constants_eq_none_left (hfresh name hname))
+    (fun _Hordered Hstored Htyping selected hfresh => by
       have Hstored' :=
-        Hstored.mono VEnv.LE.rfl (fun H => H selected hfresh hpats)
+        Hstored.mono VEnv.LE.rfl (fun H => H selected hfresh)
       have Hresult := Htyping.noConsts Hstored' (fun hlookup hname => by
         rw [hfresh _ hname] at hlookup
-        contradiction) hpats CtxAvoidsConsts.nil
+        contradiction) CtxAvoidsConsts.nil
       exact ⟨Hresult.1, Hresult.2.2⟩)
-  exact Hall.mono VEnv.LE.rfl (fun H => H names Hfresh Hpats)
+  exact Hall.mono VEnv.LE.rfl (fun H => H names Hfresh)
 
 /-- Derivation-level form of `Ordered.onTypes_noFreshConsts`. -/
 theorem VEnv.IsDefEq.noFreshConsts'
     (Henv : VEnv.Ordered env)
     (Hfresh : ∀ name ∈ names, env.constants name = none)
-    (Hpats : env.PatsAvoidConsts names)
     (Hctx : CtxAvoidsConsts names Gamma)
     (H : env.IsDefEq U Gamma lhs rhs type) :
     lhs.containsAnyConst names = false ∧
     rhs.containsAnyConst names = false ∧
     type.containsAnyConst names = false := by
-  apply H.noConsts (Henv.onTypes_noFreshConsts Hfresh Hpats)
+  apply H.noConsts (Henv.onTypes_noFreshConsts Hfresh)
   · intro name ci hlookup hname
     rw [Hfresh name hname] at hlookup
     contradiction
-  · exact Hpats
   · exact Hctx
-
-/-! ## The rules of a well-formed environment avoid its fresh names -/
-
-/-- The reduct of a freshly registered ι rule of a well-formed declaration avoids the names
-absent from the resulting environment, given that the rules of the environment before it
-do. -/
-theorem VEnv.addInduct_rule_reductAvoids {env env' : VEnv} (hW : env.WF) {decl : VInductDecl}
-    (hdecl : decl.WF env) (hadd : env.addInduct decl = some env') {names : List Lean.Name}
-    (Hfresh : ∀ name ∈ names, env'.constants name = none) (hpats : env.PatsAvoidConsts names)
-    {rec : VRecursor} (hrec : rec ∈ decl.recs) {ru : VRecRule} (hru : ru ∈ rec.rules)
-    (hc : ru.rhs.Closed) {e : VExpr} {m1 : List VLevel}
-    {m2 : (SimplePattern.iota rec.name rec.getMajorIdx ru.ctor
-      (ru.ctorParams + ru.nfields)).toPattern.Path → VExpr}
-    (hm : (SimplePattern.iota rec.name rec.getMajorIdx ru.ctor
-      (ru.ctorParams + ru.nfields)).toPattern.Matches e m1 m2)
-    (he : e.containsAnyConst names = false) :
-    ((SimplePattern.iotaRHS rec.name ru.ctor rec.numParams rec.numMotives rec.numMinors
-      rec.numIndices ru.ctorParams ru.nfields ru.rhs hc).apply m1 m2).containsAnyConst names =
-      false := by
-  obtain ⟨recArgs, ctorArgs, lsC, h1, h2, rfl, happ⟩ :=
-    SimplePattern.iotaRHS_apply_of_matches (k := rec.numParams + rec.numMotives + rec.numMinors)
-      (nind := rec.numIndices) (cnp := ru.ctorParams) (nf := ru.nfields) (rhs := ru.rhs) (hc := hc)
-      hm
-  unfold SimplePattern.iotaRHS
-  erw [happ]
-  rw [VExpr.containsAnyConst_mkApps_eq_false_iff, VExpr.containsAnyConst_instL]
-  rw [VExpr.containsAnyConst_mkApps_eq_false_iff] at he
-  refine ⟨?_, fun arg harg => ?_⟩
-  · -- the template avoids the names: it is typed in the recursor stage (`VInductBlock.WF`)
-    obtain ⟨block, base, expanded, s, g, aux, hcomp, hrecsOf, hWF, -, -, -, df, hdf, hOf⟩ :=
-      hdecl.rule_block hrec hru
-    obtain ⟨envT, envC, envR, hT, hC, hR, hP⟩ := VEnv.addInduct_stages hadd
-    have hPstage : decl.addTypesCtorsProjs env = some (decl.addProjs envC) :=
-      VEnv.addTypesCtorsProjs_eq_some (Option.bind_eq_some_iff.2 ⟨envT, hT, hC⟩)
-    have hRstage : decl.addTypesCtorsProjsRecs env = some envR := by
-      unfold VInductDecl.addTypesCtorsProjsRecs; rw [hPstage]; exact hR
-    have hordR : VEnv.Ordered envR :=
-      VEnv.addRecs_ordered hdecl hPstage (VEnv.addTypesCtorsProjs_ordered hW.ordered hdecl hPstage)
-        hR
-    have hfreshR : ∀ n ∈ names, envR.constants n = none :=
-      fun n hn => (VEnv.addRules_le hP).constants_eq_none_left (Hfresh n hn)
-    have hpatsR : envR.PatsAvoidConsts names :=
-      VEnv.PatsAvoidConsts.of_pats_eq (H := hpats) (by
-        rw [VEnv.addRecs_pats hR, VEnv.addProjs_pats, VEnv.addCtors_pats hC, VEnv.addTypes_pats hT])
-    have hwf := VInductDecl.WF.block_rules_wf hcomp hrecsOf hWF hRstage df hdf
-    have := (VEnv.IsDefEq.noFreshConsts' hordR hfreshR hpatsR CtxAvoidsConsts.nil hwf.2).1
-    rwa [hOf.1] at this
-  · rcases List.mem_append.1 harg with harg | harg
-    · exact he.2 _ (List.mem_append_left _ (List.mem_of_mem_take harg))
-    · have hmaj := he.2 _ (List.mem_append_right _ (List.mem_singleton_self _))
-      rw [VExpr.containsAnyConst_mkApps_eq_false_iff] at hmaj
-      exact hmaj.2 _ (List.mem_of_mem_drop harg)
-
-/-- **The rules of a well-formed environment avoid the names absent from it.** By induction on
-the declaration history: a freshly registered rule's reduct template is read off its block's
-compilation (`VEnv.addInduct_rule_reductAvoids`). -/
-theorem VEnv.WF'.patsAvoidFreshConsts {ds : List VDecl} {env : VEnv} (H : env.WF' ds)
-    {names : List Lean.Name} (Hfresh : ∀ name ∈ names, env.constants name = none) :
-    env.PatsAvoidConsts names := by
-  induction H with
-  | empty => intro p r e m1 m2 hp; exact (hp : False).elim
-  | @decl d env' ds env hd H ih =>
-    have hfresh0 : ∀ name ∈ names, env.constants name = none :=
-      fun n hn => hd.le.constants_eq_none_left (Hfresh n hn)
-    have ih0 : env.PatsAvoidConsts names := ih hfresh0
-    rcases hd.pats_eq_or_induct with heq | ⟨decl, hdecl, hadd⟩
-    · intro p rr e m1 m2 hp hm he
-      exact ih0 (heq ▸ hp) hm he
-    · intro p rr e m1 m2 hp hm he
-      rcases VEnv.addInduct_pats_origin' hadd hp with hold | ⟨rec, hrec, ru, hru, hc, ea, hrr⟩
-      · exact ih0 hold hm he
-      · subst ea; subst hrr
-        exact VEnv.addInduct_rule_reductAvoids ⟨ds, H⟩ hdecl hadd Hfresh ih0 hrec hru hc hm he
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
-    intro p rr e m1 m2 hp hm he
-    exact ihCtors (fun n hn => by simpa using Hfresh n hn) (by simpa using hp) hm he
-
-/-- Stated for `VEnv.WF`, not `VEnv.Ordered`: `Ordered.pat` records only `PatWF`, whose generic
-instance is typed in an arbitrary context, and bounding the template's constants from that needs
-an inertness theorem close to context strengthening. -/
-theorem VEnv.WF.patsAvoidFreshConsts {env : VEnv} (H : env.WF) {names : List Lean.Name}
-    (Hfresh : ∀ name ∈ names, env.constants name = none) : env.PatsAvoidConsts names :=
-  let ⟨_, H⟩ := H; H.patsAvoidFreshConsts Hfresh
 
 /-! ## Well-formed environments -/
 
@@ -337,7 +230,7 @@ theorem VEnv.WF.onTypes_noFreshConsts
     OnTypes env fun _ e A =>
       e.containsAnyConst names = false ∧
       A.containsAnyConst names = false :=
-  Henv.ordered.onTypes_noFreshConsts Hfresh (Henv.patsAvoidFreshConsts Hfresh)
+  Henv.ordered.onTypes_noFreshConsts Hfresh
 
 /-- Usable derivation-level form of `onTypes_noFreshConsts`. -/
 theorem VEnv.IsDefEq.noFreshConsts
@@ -348,7 +241,7 @@ theorem VEnv.IsDefEq.noFreshConsts
     lhs.containsAnyConst names = false ∧
     rhs.containsAnyConst names = false ∧
     type.containsAnyConst names = false :=
-  H.noFreshConsts' Henv.ordered Hfresh (Henv.patsAvoidFreshConsts Hfresh) Hctx
+  H.noFreshConsts' Henv.ordered Hfresh Hctx
 
 theorem VEnv.WF.ctxNoFreshConsts
     (Henv : VEnv.WF env)

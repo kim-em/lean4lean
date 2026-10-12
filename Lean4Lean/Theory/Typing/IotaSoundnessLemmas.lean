@@ -1,7 +1,5 @@
 import Lean4Lean.Theory.VExpr.TelescopeLemmas
 import Lean4Lean.Theory.Typing.SignatureVars
-import Lean4Lean.Verify.Inductive.Install.RecursorShapesOf
-import Lean4Lean.Verify.Inductive.Formation
 import Lean4Lean.Theory.Inductive.RecursiveShapeCorrespondence
 import Lean4Lean.Theory.Inductive
 import Lean4Lean.Theory.Inductive.Compilation
@@ -103,7 +101,7 @@ theorem specializeType_eq_instantiateForallPrefix {type specialized : VExpr}
     rcases out with ⟨pre, body⟩
     simp only [htake, bind, Option.bind_some, pure, Option.some.injEq] at H
     subst H
-    obtain ⟨rfl, hlen⟩ := VExpr.takeForalls_rebuild htake
+    obtain ⟨rfl, hlen⟩ := Lean4Lean.VExpr.takeForalls_eq_wrapForalls htake
     rw [VExpr.instantiateForallPrefix_wrapForalls _ _ _ hlen, instantiateParams,
       VExpr.instOuter_eq_subst]
     rfl
@@ -398,7 +396,7 @@ theorem Restoration.restored_iota_shape {s : InductiveSignature} (g : Instance s
     (r : Restoration) (index : Fin s.constructors.size) {env₀ env : VEnv} {df : VDefEq}
     {ctorName : Name} {levels : List VLevel} {params : List VExpr}
     (heq : r.equation (g.equation index) = some df)
-    (hdef : env.defeqs df)
+    (hdfwf : df.WF env)
     (henv₀ : VEnv.WF env₀) (hle : env₀ ≤ env) (hconsts : ∀ n, env.constants n = env₀.constants n)
     (hrecType : ∃ type, r.expr (g.recursorType s.constructors[index].owner) = some type ∧
       env₀.constants (r.recursorName (g.recursorName s.constructors[index].owner)) =
@@ -425,7 +423,7 @@ theorem Restoration.restored_iota_shape {s : InductiveSignature} (g : Instance s
             ((RF.map (·.instL g.levels))[i]'(by simpa using hi'))
             (((ctorDoms[params.length + i]'(by omega)).instL levels).instOuter
               ((params.map (·.liftN i)) ++ VExpr.bvarRange i i))) :
-    Nonempty (VIotaRuleShape env (r.recursorName (g.recursorName s.constructors[index].owner))
+    Nonempty (VIotaRuleTyped env (r.recursorName (g.recursorName s.constructors[index].owner))
       g.uvars s.params.length params.length s.families.size s.constructors.size
       s.families[s.constructors[index].owner].indices.length ctorName levels
       s.constructors[index].fields.length df params) := by
@@ -518,7 +516,7 @@ theorem Restoration.restored_iota_shape {s : InductiveSignature} (g : Instance s
   have hIlen' : I'.length = s.families[s.constructors[index].owner].indices.length := by
     rw [hIlen]; simpa [indices, ctor] using hindices
   refine ⟨{
-    defeq := hdef
+    wf := hdfwf
     uvars := huv
     doms := D'
     lhsBody := lb
@@ -639,11 +637,11 @@ open InductiveSignature
 /-- **Field count of a restored rule.** In a well-formed environment, a typed
 equation with the iota shape of a recursor whose constructor has a rigid
 major family supplies exactly the constructor's fields. -/
-theorem VIotaRuleShape.fieldCount {env env' : VEnv} (henv : env.WF)
+theorem VIotaRuleTyped.fieldCount {env env' : VEnv} (henv : env.WF)
     {recName ctorName indName : Name}
     {recUvars nparams cnparams nmotives nminors nindices nf ctorUvars fields nindices' : Nat}
     {ctorLevels indLevels : List VLevel} {df : VDefEq} {ctorParams : List VExpr}
-    (I : VIotaRuleShape env' recName recUvars nparams cnparams nmotives nminors nindices ctorName
+    (I : VIotaRuleTyped env' recName recUvars nparams cnparams nmotives nminors nindices ctorName
       ctorLevels nf df ctorParams)
     (hwf : df.WF env)
     (hrec : VRecursorShape env recName recUvars nparams cnparams nmotives nminors nindices

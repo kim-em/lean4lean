@@ -13,20 +13,15 @@ lemma of `Injectivity.lean` and uniqueness of types (`IsDefEq.uniq`) are derived
 statements through the syntactic layer (`HeadInjectivity/{ChainInjectivity, Congruence,
 FieldType, Uniqueness, Fields}.lean`).
 
-**What the model's theorems depend on, on the ι pattern calculus.** The model interprets
-*strong* derivations (`IsDefEqStrong`), and its extraction turns a weak `TypeChain` link into a
-strong derivation by `IsDefEq.strong` (`Model.chain_sub`, `Model.spine_data`), which on this
-calculus takes `VEnv.OrderedStrong`, whose `pats` field is `VEnv.WF.patsStrong` (subject
-reduction of the registered ι rules, the open theorem of PR #43). The substitution theorems the
-model uses (`IsDefEq.substDF`, `IsDefEqStrong.substEq'`, `HasType.subst`) and the inversion
-lemmas (`HasType.app_inv`, `HasType.const_inv`) take `OrderedStrong` for the same reason. So
-`VEnv.WF.chainHeadInjectivity`, `VEnv.WF.headSeparationModel`, and everything below them
-(`VEnv.WF.headInversion`, `IsDefEq.uniq`, `Injectivity.lean`) are conditional on
-`VEnv.WF.patsStrong`, through `VEnv.WF.orderedStrong`; the model does not use `patsStrong`
-anywhere else, and no history-induction organisation avoids the use, since the extraction's
-input is a weak chain. The `pat` case of the model's soundness is proved for the ι rules of
-ordinary blocks (`Model.PatValid.ordinary`) and of nested blocks (`Model.PatValid.nested`,
-`Model/PatSound.lean`).
+**The model on the ι pattern calculus.** The model interprets *strong* derivations
+(`IsDefEqStrong`), and its extraction turns a weak `TypeChain` link into a strong derivation by
+`IsDefEq.strong` (`Model.chain_sub`, `Model.spine_data`). `IsDefEq.pat` carries the typing of
+its reduct as a premise, so `IsDefEq.strong` strengthens it like any other premise and
+`VEnv.WF.orderedStrong` holds unconditionally: the model, `VEnv.WF.headInversion`,
+`IsDefEq.uniq` and `Injectivity.lean` depend on no open proof. The `pat` case of the model's
+soundness is proved for the ι rules of ordinary blocks (`Model.PatValid.ordinary`) and of nested
+blocks (`Model.PatValid.nested`, `Model/PatSound.lean`), with the reduct's strong typing among
+its premises.
 
 This file and the model do not import `UniqueTyping`, `Injectivity`, `ChurchRosser`,
 `FullReduction` or `HeadReduction`. -/

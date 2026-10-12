@@ -86,7 +86,7 @@ theorem PatValid.of_rule (henv : env.OrderedStrong)
       (SimplePattern.iotaRHS' n ctor k nind cnp nf rhs hc, .true) := by
   intro U Δ Γ e A m1 m2 chk hΔ hm hr' he ihe hred ihred hall
   have heq : env.IsDefEq U Γ e ((SimplePattern.iotaRHS' n ctor k nind cnp nf rhs hc).apply m1 m2) A :=
-    .pat hp hm he.defeq.hasType.1 hr' (fun t ht => (hall t ht).1.defeq)
+    .pat hp hm he.defeq.hasType.1 hred.defeq.hasType.1 hr' (fun t ht => (hall t ht).1.defeq)
   obtain ⟨recArgs, ctorArgs, lsC, hrA, hcA, rfl, hred_eq⟩ :=
     SimplePattern.iotaRHS_apply_of_matches hm
   have e : Pattern.RHS.apply m1 m2 (SimplePattern.iotaRHS' n ctor k nind cnp nf rhs hc) =

@@ -15,10 +15,12 @@ inductive IsDefEq.Avoids {env : VEnv} {uvars : Nat}
     ∀ {ctx lhs rhs type}, env.IsDefEq uvars ctx lhs rhs type → Prop where
   | pat {p : Pattern} {r : p.RHS × p.Check} {m1 m2 chk}
       (Hp : env.pats p r) (Hm : p.Matches e m1 m2)
-      (He : env.IsDefEq uvars ctx e e A) (Hr : r.2.Realizes m1 m2 chk)
+      (He : env.IsDefEq uvars ctx e e A)
+      (Hred : env.IsDefEq uvars ctx (r.1.apply m1 m2) (r.1.apply m1 m2) A)
+      (Hr : r.2.Realizes m1 m2 chk)
       (Hchk : ∀ t ∈ chk, env.IsDefEq uvars ctx t.1 t.2.1 t.2.2) :
-      Avoids changed He → (∀ t ht, Avoids changed (Hchk t ht)) →
-      Avoids changed (.pat Hp Hm He Hr Hchk)
+      Avoids changed He → Avoids changed Hred → (∀ t ht, Avoids changed (Hchk t ht)) →
+      Avoids changed (.pat Hp Hm He Hred Hr Hchk)
   | bvar (H : Lookup ctx i type) : Avoids changed (.bvar H)
   | symm : Avoids changed H → Avoids changed (.symm H)
   | trans : Avoids changed H₁ → Avoids changed H₂ →
@@ -122,7 +124,8 @@ theorem IsDefEq.avoids_of_constants
       ¬ changed name) :
     H.Avoids changed := by
   induction H with
-  | pat hp hm he hr hchk ihe ihchk => exact .pat hp hm he hr hchk ihe ihchk
+  | pat hp hm he hred hr hchk ihe ihred ihchk =>
+    exact .pat hp hm he hred hr hchk ihe ihred ihchk
   | bvar Hlookup => exact .bvar Hlookup
   | symm H IH => exact .symm IH
   | trans H₁ H₂ IH₁ IH₂ => exact .trans IH₁ IH₂
@@ -165,9 +168,9 @@ theorem IsDefEq.Avoids.mono
     (HU : H.Avoids changed) :
     (H.mono henv).Avoids changed := by
   induction HU with
-  | pat hp hm he hr hchk _ _ ihe ihchk =>
-    exact .pat (henv.pats hp) hm (he.mono henv) hr (fun t ht => (hchk t ht).mono henv)
-      ihe ihchk
+  | pat hp hm he hred hr hchk _ _ _ ihe ihred ihchk =>
+    exact .pat (henv.pats hp) hm (he.mono henv) (hred.mono henv) hr
+      (fun t ht => (hchk t ht).mono henv) ihe ihred ihchk
   | bvar Hlookup => exact .bvar Hlookup
   | symm _ IH => exact .symm IH
   | trans _ _ IH₁ IH₂ => exact .trans IH₁ IH₂

@@ -12,8 +12,7 @@ the syntax of the generated equations of an *ordinary* compilation (one without 
 specializations, `auxiliaries = []`: `Instance.equation_lhs_eq`, `equation_rhs_eq`, the
 inversion `VRecRule.OfEquation.ordinary` of a model rule against its generated equation), and
 proves that the reduct template of an ordinary rule mentions only constants of the recursor's
-type and the block's recursor names (`Instance.equation_rhs_containsAnyConst`), the fact behind
-`VEnv.WF.patsAvoidFreshConsts`. -/
+type and the block's recursor names (`Instance.equation_rhs_containsAnyConst`). -/
 
 namespace Lean4Lean
 

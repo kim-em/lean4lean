@@ -416,7 +416,8 @@ theorem inductiveReduceRecCore.WF {info : RecursorVal} {recFn : Name} {ls : List
   have hredex : c.HasType (.app (VExpr.mkApps (.const info.name ls') (args'.take info.getMajorIdx))
       (VExpr.mkApps (.const rule.ctor lsc') MA')) (B.inst (VExpr.mkApps (.const rule.ctor lsc') MA')) :=
     hf.app hmajDF.hasType.2
-  have hdefeq := TrEnv.iota_defeq hpat (hm1.app hm2) hredex (chk := []) trivial nofun
+  have hdefeq := TrEnv.iota_defeq c.Ewf c.Δwf.toCtx hpat (hm1.app hm2) hredex (chk := [])
+    trivial nofun
   simp only [SimplePattern.iotaRHS] at hdefeq
   rw [SimplePattern.iotaRHS'_apply _ _ _ _ _ _ _ _ _ (Sum.elim g1 g2) hpreLen hMLen' hg1 hg2,
     List.take_take, Nat.min_eq_left (by simp [RecursorVal.getMajorIdx]), hcnp'] at hdefeq

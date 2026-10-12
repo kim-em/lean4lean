@@ -2,7 +2,7 @@ import Lean4Lean.Theory.Inductive
 import Lean4Lean.Theory.Typing.RestorationShapes
 import Lean4Lean.Theory.Inductive.RestorationHead
 import Lean4Lean.Theory.Inductive.CompilationMajors
-import Lean4Lean.Verify.Inductive.Nested.Restoration.IotaSoundnessLemmas
+import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 import Lean4Lean.Verify.Inductive.Recursor.Signature.GeneratedShapes
 
 /-! # Syntactic shapes of the restored recursors and equations

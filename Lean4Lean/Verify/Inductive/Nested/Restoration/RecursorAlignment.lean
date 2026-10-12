@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.LoweredRuleAvoidance
-import Lean4Lean.Verify.Inductive.Nested.Restoration.IotaSoundnessLemmas
+import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 import Lean4Lean.Verify.Inductive.Nested.Restoration.HeaderRenaming
 import Lean4Lean.Verify.Inductive.Nested.Restoration.FreshRecursorSteps
 

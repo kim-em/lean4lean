@@ -9,19 +9,17 @@ block (`VEnv.WF'.pats_origin`): its key names the recursor and the rule's constr
 constants of the environment, and its reduct is the rule's closed template applied to holes,
 the template being typed in the block's recursor stage. So an interpretation that only moves
 names absent from the environment fixes the key's constants and the reduct's fixed term
-(`VEnv.WF.pats_fixed_of_avoid`). The template part is the argument of the model's
-`VEnv.addInduct_rule_reductAvoids` (`Verify/Typing/ConstSupport.lean`). -/
+(`VEnv.WF.pats_fixed_of_avoid`). -/
 
 namespace Lean4Lean
 
 open Lean (Name)
 
 /-- The closed template of a rule of a freshly installed well-formed declaration avoids the
-names absent from the resulting environment, given that the rules before it do. -/
+names absent from the resulting environment. -/
 theorem VEnv.addInduct_rule_templateAvoids {env env' : VEnv} (hW : env.WF)
     {decl : VInductDecl} (hdecl : decl.WF env) (hadd : env.addInduct decl = some env')
     {names : List Name} (Hfresh : ∀ name ∈ names, env'.constants name = none)
-    (hpats : env.PatsAvoidConsts names)
     {rec : VRecursor} (hrec : rec ∈ decl.recs) {ru : VRecRule} (hru : ru ∈ rec.rules) :
     ru.rhs.containsAnyConst names = false := by
   obtain ⟨block, base, expanded, s, g, aux, hcomp, hrecsOf, hWF, -, -, -, df, hdf, hOf⟩ :=
@@ -36,11 +34,8 @@ theorem VEnv.addInduct_rule_templateAvoids {env env' : VEnv} (hW : env.WF)
       hR
   have hfreshR : ∀ n ∈ names, envR.constants n = none :=
     fun n hn => (VEnv.addRules_le hP).constants_eq_none_left (Hfresh n hn)
-  have hpatsR : envR.PatsAvoidConsts names :=
-    VEnv.PatsAvoidConsts.of_pats_eq (H := hpats) (by
-      rw [VEnv.addRecs_pats hR, VEnv.addProjs_pats, VEnv.addCtors_pats hC, VEnv.addTypes_pats hT])
   have hwf := VInductDecl.WF.block_rules_wf hcomp hrecsOf hWF hRstage df hdf
-  have := (VEnv.IsDefEq.noFreshConsts' hordR hfreshR hpatsR CtxAvoidsConsts.nil hwf.2).1
+  have := (VEnv.IsDefEq.noFreshConsts' hordR hfreshR CtxAvoidsConsts.nil hwf.2).1
   rwa [hOf.1] at this
 
 /-- **The registered ι entries of a well-formed environment, with what an interpretation of
@@ -61,12 +56,9 @@ theorem VEnv.WF'.pats_iota_avoid {ds : List VDecl} {env : VEnv} (H : env.WF' ds)
     H.pats_origin hp
   have hfresh₁ : ∀ n ∈ names, env₁.constants n = none :=
     fun n hn => hle.constants_eq_none_left (Hfresh n hn)
-  have hfresh₀ : ∀ n ∈ names, env₀.constants n = none :=
-    fun n hn => (VEnv.addInduct_le hadd).constants_eq_none_left (hfresh₁ n hn)
-  have hpats₀ : env₀.PatsAvoidConsts names := hwf'.patsAvoidFreshConsts hfresh₀
   obtain ⟨ci, hci, -⟩ := VEnv.addInduct_rule_ctor hdecl hadd hrec hru
   exact ⟨rec, ru, hc, e, hrr,
-    VEnv.addInduct_rule_templateAvoids ⟨ds₀, hwf'⟩ hdecl hadd hfresh₁ hpats₀ hrec hru,
+    VEnv.addInduct_rule_templateAvoids ⟨ds₀, hwf'⟩ hdecl hadd hfresh₁ hrec hru,
     ⟨_, hle.constants (VEnv.addInduct_rec_find hadd hrec)⟩, ⟨ci, hle.constants hci⟩⟩
 
 theorem Pattern.ConstsFixed_varN {I : VEnv.Interpretation} {q : Pattern} :

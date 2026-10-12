@@ -895,7 +895,7 @@ theorem VEnv.IsDefEq.toTyping (hplain : TY.env.NoInductiveRules)
   | projIota h => exact absurd h (hplain _ _)
   | structEta h => exact absurd h (hplain _ _)
   | unitLike h => exact absurd h (hplain _ _)
-  | pat hp hm _ hr _ ih ihall =>
+  | pat hp hm _ _ hr _ ih _ ihall =>
     have hok := hr.toOK (defeq := TY.IsDefEqU _) fun t ht => (ihall t ht).1
     exact ⟨TY.pat_wf (TY.pat_env hp) hm ih.2 hok, ih.2⟩
   | bvar h => exact ⟨TY.refl (TY.bvar h), TY.bvar h⟩
@@ -928,9 +928,9 @@ theorem VEnv.IsDefEqU.church_rosser (hplain : TY.env.NoInductiveRules)
   | projIota h => exact absurd h (hplain _ _)
   | structEta h => exact absurd h (hplain _ _)
   | unitLike h => exact absurd h (hplain _ _)
-  | pat hp hm he hr hall =>
+  | pat hp hm he hred hr hall =>
     have hok := hr.toOK (defeq := TY.IsDefEqU _) fun t ht => ((hall t ht).toTyping hplain).1
-    refine have h := VEnv.IsDefEq.pat hp hm he hr hall
+    refine have h := VEnv.IsDefEq.pat hp hm he hred hr hall
       mk h (.tail .rfl (.extra (TY.pat_env hp) hm hok fun _ => .rfl)) .rfl ?_
     exact .refl (h.symm.toTyping hplain).2
   | bvar h => exact .refl (TY.bvar h)

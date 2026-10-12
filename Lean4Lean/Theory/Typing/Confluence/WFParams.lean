@@ -121,7 +121,7 @@ theorem WF.patCoverageJ (heq : env.HasCanonicalEq) : @FullPatCoverageJ (henv.par
     | _ n ih =>
     intro p r hp hrank Γ e m1 m2 A chk hΓ hm he hJ hr hall
     obtain ⟨recN, major, ctor, fields, data, rfl, hl, -, -, hG⟩ := henv.pats_guarded hp
-    have hred := IsDefEq.pat hp hm he hr hall
+    have hred := IsDefEq.pat hp hm he (henv.iotaReductTyped hΓ hp hm he) hr hall
     by_cases hzero : data.largeTarget = true ∧
         (data.schema.sourceLevel data.owner data.levels).inst m1 ≈ .zero
     · refine WF.singletonPatCoverageJ henv U heq hΓ hp

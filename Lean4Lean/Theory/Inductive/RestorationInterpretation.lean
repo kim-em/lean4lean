@@ -580,7 +580,7 @@ theorem RestoredPattern.clause {envS : VEnv} {I : Interpretation} {r : Restorati
   subst hp
   subst hrr
   obtain ⟨U₀, T₀, hT₀⟩ := htmpl rhs _ (SimplePattern.iotaRHS'_spine ..)
-  intro U Γ e A m1 m2 chk hΓ hm H hreal _
+  intro U Γ e A m1 m2 chk hΓ hm H hredT hreal _
   have hchk : chk = [] := by
     cases chk with
     | nil => rfl
@@ -598,7 +598,7 @@ theorem RestoredPattern.clause {envS : VEnv} {I : Interpretation} {r : Restorati
   -- the lowered reduct
   have hred := SimplePattern.iotaRHS'_apply recN c k nind cnp nf rhs hrhs m1 (Sum.elim g1 g2)
     hrl hcl (fun i hi => hg1' i hi) (fun i hi => hg2' i hi)
-  rw [hred]
+  rw [hred] at hredT ⊢
   -- the interpreted redex
   have hρrec : I.consts recN = none := by
     cases hρ : I.consts recN with
@@ -625,23 +625,25 @@ theorem RestoredPattern.clause {envS : VEnv} {I : Interpretation} {r : Restorati
     (ls := lv) _ ctorArgs' hcl'
   have hmatch : (SimplePattern.iota (r.recursorName recN) (k + nind) (r.headName c)
       (cnp' + nf)).toPattern.Matches _ m1 (Sum.elim g1'' g2'') := .app hm1'' hm2''
-  have h2 := VEnv.IsDefEq.pat hpat hmatch h1.hasType.2 (chk := []) trivial (by simp)
-  dsimp only at h2
   have hred2 := SimplePattern.iotaRHS'_apply (r.recursorName recN) (r.headName c) k nind cnp' nf
     rhs' hrhs' m1 (Sum.elim g1'' g2'') hrl' hcl' (fun i hi => hg1'' i hi) (fun i hi => hg2'' i hi)
-  rw [hred2] at h2
   have hargs : (recArgs.map I.expr).take k ++ ctorArgs'.drop cnp' =
       (recArgs.take k ++ ctorArgs.drop cnp).map I.expr := by
     rw [hdrop, List.map_append, List.map_take, List.map_drop]
-  rw [hargs] at h2
   -- the interpreted reduct, by β-expansion of the restored template
-  rw [Interpretation.expr_mkApps, Interpretation.expr_instL]
+  rw [Interpretation.expr_mkApps, Interpretation.expr_instL] at hredT ⊢
   have hW := typedCtx_levelWF hΓ
   have hls := (hmatch.levelWF (h1.levelWF hW).2.1).1
   have hsimF : envS.SimAt U Γ ((I.expr rhs).instL m1) (rhs'.instL m1) := by
     have := R.agrees.expr_simAt henv hβU hΓ hfix.instL
       (e' := rhs'.instL m1) (by rw [← Restoration.expr_instL, hr]; rfl)
     rwa [Interpretation.expr_instL] at this
+  -- the restored reduct is typed at the redex's type
+  have hredR := (VEnv.SimAt.mkApps henv hΓ hsimF (VEnv.SimAt.forall₂_refl _) _ hredT).hasType.2
+  rw [← hargs, ← hred2] at hredR
+  have h2 := VEnv.IsDefEq.pat hpat hmatch h1.hasType.2 hredR (chk := []) trivial (by simp)
+  dsimp only at h2
+  rw [hred2, hargs] at h2
   have hTy : envS.HasType U Γ ((I.expr rhs).instL m1) (T₀.instL m1) :=
     (hT₀.instL hls).weak0 henv.ordered
   have hFF := hsimF _ hTy

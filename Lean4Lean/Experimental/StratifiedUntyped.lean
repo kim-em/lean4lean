@@ -65,6 +65,7 @@ inductive IsDefEqU1 : List VExpr → VExpr → VExpr → Prop where
     Γ ⊢ df.lhs.instL ls ≡ df.rhs.instL ls
   | pat {p : Pattern} {r : p.RHS × p.Check} {m1 m2 chk} :
     env.pats p r → p.Matches e m1 m2 → Γ ⊢ e : A →
+    Γ ⊢ r.1.apply m1 m2 : A →
     r.2.Realizes m1 m2 chk →
     (∀ t ∈ chk, Γ ⊢ t.1 ≡ t.2.1) →
     Γ ⊢ e ≡ r.1.apply m1 m2
@@ -155,7 +156,8 @@ theorem IsDefEq.inductionU1
   | extra h1 h2 h3 _ _ _ _ _ _ _ _ _ ihl' ihr' =>
     exact ⟨ihl'.1, ihr'.1, .extra h1 h2 h3⟩
   | pat hp hm _ _ hr _ ihe ihred ihall =>
-    exact ⟨ihe.1, ihred.1, .pat hp hm (hty ihe.1) hr fun t ht => (ihall t ht).2.2⟩
+    exact ⟨ihe.1, ihred.1, .pat hp hm (hty ihe.1) (hty ihred.1) hr
+      fun t ht => (ihall t ht).2.2⟩
   | projDF h1 h2 h3 h4 h5 h6 _ _ _ _ h7 h8 ihF ih1 ih2 =>
     exact ⟨.proj h1 h2 h3 h4 h5 h6 ihF.1 ih1.1 (hdf ih1.1 ih1.2.1 ih1.2.2) h7 h8,
       .proj h1 h2 h3 h4 h5 h6 ihF.1 ih2.1 (hdf ih2.1 ih2.2.1 ih2.2.2) h7 h8,

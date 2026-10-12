@@ -84,6 +84,7 @@ inductive IsDefEq1 : List VExpr → VExpr → VExpr → VExpr → Prop where
     Γ ⊢ df.lhs.instL ls ≡ df.rhs.instL ls : df.type.instL ls
   | pat {p : Pattern} {r : p.RHS × p.Check} {m1 m2 chk} :
     env.pats p r → p.Matches e m1 m2 → Γ ⊢ e : A →
+    Γ ⊢ r.1.apply m1 m2 : A →
     r.2.Realizes m1 m2 chk →
     (∀ t ∈ chk, Γ ⊢ t.1 ≡ t.2.1 : t.2.2) →
     Γ ⊢ e ≡ r.1.apply m1 m2 : A
@@ -175,7 +176,8 @@ theorem IsDefEq.induction1
   | extra h1 h2 h3 _ _ _ _ _ _ _ _ _ ihl' ihr' =>
     exact ⟨ihl'.1, ihr'.1, .extra h1 h2 h3⟩
   | pat hp hm _ _ hr _ ihe ihred ihall =>
-    exact ⟨ihe.1, ihred.1, .pat hp hm (hty ihe.1) hr fun t ht => (ihall t ht).2.2⟩
+    exact ⟨ihe.1, ihred.1, .pat hp hm (hty ihe.1) (hty ihred.1) hr
+      fun t ht => (ihall t ht).2.2⟩
   | projDF h1 h2 h3 h4 h5 h6 _ _ _ _ h7 h8 ihF ih1 ih2 =>
     exact ⟨.proj h1 h2 h3 h4 h5 h6 ihF.1 (hdf ih1.2.2) h7 h8,
       .proj h1 h2 h3 h4 h5 h6 ihF.1 (hdf ih2.2.2) h7 h8,
@@ -223,7 +225,7 @@ theorem IsDefEq1.induction
   | eta h => exact .eta (hty h)
   | proofIrrel h1 h2 h3 => exact .proofIrrel (hty h1) (hty h2) (hty h3)
   | extra h1 h2 h3 => exact .extra h1 h2 h3
-  | pat hp hm he hr _ ihall => exact .pat hp hm (hty he) hr ihall
+  | pat hp hm he hred hr _ ihall => exact .pat hp hm (hty he) (hty hred) hr ihall
   | projDF h1 h2 h3 h4 h5 h6 h7 _ _ h8 h9 ih1 ih2 =>
     exact .projDF h1 h2 h3 h4 h5 h6 (hty h7) ih1 ih2 h8 h9
   | projIota h1 h2 h3 h4 => exact .projIota h1 (hty h2) h3 (hty h4)

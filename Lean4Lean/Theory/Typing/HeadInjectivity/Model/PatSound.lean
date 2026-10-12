@@ -54,7 +54,7 @@ theorem rawCtorShape_data {decl : VInductDecl} {t : VInductiveType} {fc : VConst
 set_option maxHeartbeats 8000000 in
 /-- **Validity of the ι rules of a nested block.** -/
 theorem PatValid.nested {envF env0 env' : VEnv} {decl : VInductDecl}
-    (hF : envF.WF) (hpre : envF.WFPrefix env0) (h0 : env0.WF) (hdecl : decl.WF env0)
+    (hF : envF.WF) (h0 : env0.WF) (hdecl : decl.WF env0)
     (hadd : env0.addInduct decl = some env') (hle : env' ≤ envF)
     (V0 : EnvValid envF env0)
     (hprojV : ∀ S info, env'.projections S info → ProjValid envF S info)
@@ -131,7 +131,7 @@ theorem PatValid.nested {envF env0 env' : VEnv} {decl : VInductDecl}
       rw [hcty, VExpr.forallArity_wrapForalls, forallArity_mkApps_const', hcp, hnf] at this
       simp [length_vars] at this; omega
     -- the stage environments
-    obtain ⟨hTs, -⟩ := stages_orderedStrong hF hpre h0 hdecl hle sT sC sR sP
+    obtain ⟨hTs, -⟩ := stages_orderedStrong h0 hdecl sT sC sR
     obtain ⟨VT, -⟩ := stages_envValid V0 hprojV sT sC sR sP
     have hTF : envT ≤ envF := (addCtors_le sC).trans hCF
     -- the installed constructor's type is closed
@@ -174,7 +174,7 @@ theorem PatValid.nested {envF env0 env' : VEnv} {decl : VInductDecl}
     rw [← VExpr.wrapForalls_append] at hN
     have hfam := hrelF.indices
     simp only [declarationFamily] at hfam
-    refine nested_finish hF hpre h0 hdecl hadd hle V0 hprojV hpats hdefs hctor hpctor hrec hru hc
+    refine nested_finish hF h0 hdecl hadd hle V0 hprojV hpats hdefs hctor hpctor hrec hru hc
       haux hcomp hrecsOf hbwf hbase C hdf H index hres htypes hSF hSC
       (lvC0 := VLevel.params s.uvars) (fun lv h => (VLevel.inst_map_id h).symm) hRT
       (cc := fc.toVConstant) (cdoms := cdoms) (cres := cres)
@@ -272,7 +272,7 @@ theorem PatValid.nested {envF env0 env' : VEnv} {decl : VInductDecl}
       intro c2 hc2
       obtain ⟨p, r, recN, M, N', hp, hpe⟩ := hcont.constructor_isPatCtor ha hc2
       exact ⟨p, r, recN, M, N', hbF.pats hp, hpe⟩
-    refine nested_finish hF hpre h0 hdecl hadd hle V0 hprojV hpats hdefs hctor hpctor hrec hru hc
+    refine nested_finish hF h0 hdecl hadd hle V0 hprojV hpats hdefs hctor hpctor hrec hru hc
       haux hcomp hrecsOf hbwf hbase C hdf H index hres htypes hSF hSC
       (lvC0 := a.levels) (fun lv _ => rfl) hRT
       (cc := c.toVConstant) (cdoms := cdoms) (cres := cres) (PB := s.params)

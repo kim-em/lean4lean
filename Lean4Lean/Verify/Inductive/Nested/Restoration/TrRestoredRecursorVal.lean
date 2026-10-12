@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Inductive.Compilation
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
-import Lean4Lean.Verify.Inductive.Nested.Restoration.IotaSoundnessLemmas
+import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 
 /-! Translation of the restored recursors of a nested block (`TrRestoredRecursorVal`,
 `TrRestoredCompilation`): each executable recursor entry translates the restoration of a
