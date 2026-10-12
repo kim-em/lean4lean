@@ -181,7 +181,7 @@ theorem motiveSourceReplay
     (hindexCount : indexTargets.length = nindices)
     (hcanonical :
       indexTargets = mkRecInfos.loopArgs1.indexBVarSpine nindices)
-    (Hrecent : RecursorFVarSuffix R Rindices indices)
+    (Hrecent : FVarSuffix R.toSemantics Rindices.toSemantics indices)
     (harity : (indices.size == stats.nindices[dIdx]!) = true)
     {resultLevel : VLevel}
     (hresultLevel : VLevel.ofLevel
@@ -372,7 +372,7 @@ theorem motiveSourceFVars
       (AddInductive.getRecLevelParams elimLevel base.lparams) scope)
       indices.toList indexTargets)
     (hindexCount : indexTargets.length = nindices)
-    (Hrecent : RecursorFVarSuffix R Rindices indices)
+    (Hrecent : FVarSuffix R.toSemantics Rindices.toSemantics indices)
     (Hframe : RecursorMotiveFrameWF Rindices stats dIdx indices elimLevel) :
     let majorTy :=
       ((mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
@@ -757,13 +757,13 @@ theorem motiveTargetDefEqAfterMajor
       Hframe.majorTr Hframe.majorType
     Rmajor.venv.IsDefEqU recLparams.length Rmajor.mlctx.vlctx.toCtx
       Hframe.motiveTarget
-      (T.lift' ((RecursorContextExtension.withLocalDecl (name := `t)
-        (bi := .default) Rindices Hframe.majorTr Hframe.majorType).shift.consN
+      (T.lift' ((ContextExtension.withLocalDecl (name := `t)
+        (bi := .default) Rindices.toSemantics Hframe.majorTr Hframe.majorType).shift.consN
           0)) := by
   intro _
   let HmajorExtension :=
-    RecursorContextExtension.withLocalDecl (name := `t)
-      (bi := .default) Rindices
+    ContextExtension.withLocalDecl (name := `t)
+      (bi := .default) Rindices.toSemantics
       Hframe.majorTr Hframe.majorType
   have hmajorLift (expression : VExpr) :
       expression.liftN 1 0 =
@@ -822,7 +822,7 @@ theorem motiveDecl
     (hcanonical :
       indexTargets = mkRecInfos.loopArgs1.indexBVarSpine nindices)
     (Hbound : FVarArrayIn cIndices indices)
-    (Hrecent : RecursorFVarSuffix R Rindices indices)
+    (Hrecent : FVarSuffix R.toSemantics Rindices.toSemantics indices)
     (hindexUniverses :
       (cIndices.lctx.mkForall indices (.sort .zero)).levelParamsIn
         base.lparams = true)
@@ -900,12 +900,12 @@ theorem motiveDecl
         (cMotive.lctx.mkForall #[major] (.sort elimLevel))
     exact hnewMotiveShape
   let HmajorExtension :=
-    RecursorContextExtension.withLocalDecl (name := `t)
-      (bi := .default) Rindices
+    ContextExtension.withLocalDecl (name := `t)
+      (bi := .default) Rindices.toSemantics
       Hframe.majorTr Hframe.majorType
   let HmotiveExtension :=
-    RecursorContextExtension.withLocalDecl (name := motiveName)
-      (bi := .default) Rmajor
+    ContextExtension.withLocalDecl (name := motiveName)
+      (bi := .default) Rmajor.toSemantics
       Hframe.motiveTr Hframe.motiveType
   have HmotiveTypeDefEqMajor' :=
     motiveTargetDefEqAfterMajor Hframe HmotiveCanonical
@@ -1424,16 +1424,16 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
           rw [hIndices.env_eq]; exact HmajorShapes
         let HmajorShapes' := HmajorShapesI.push nextInfo majorTy hnewMajorShape
         let HmajorExtension :=
-          RecursorContextExtension.withLocalDecl (name := `t)
-            (bi := .default) Rindices
+          ContextExtension.withLocalDecl (name := `t)
+            (bi := .default) Rindices.toSemantics
             Hframe.majorTr Hframe.majorType
         let HmotiveExtension :=
-          RecursorContextExtension.withLocalDecl (name := motiveName)
-            (bi := .default) Rmajor
+          ContextExtension.withLocalDecl (name := motiveName)
+            (bi := .default) Rmajor.toSemantics
             Hframe.motiveTr Hframe.motiveType
-        let HframeExtension : RecursorContextExtension Rindices Rmotive :=
+        let HframeExtension : ContextExtension Rindices.toSemantics Rmotive.toSemantics :=
           HmajorExtension.trans HmotiveExtension
-        let HrootExtension : RecursorContextExtension R Rmotive :=
+        let HrootExtension : ContextExtension R.toSemantics Rmotive.toSemantics :=
           Hrecent.contextExtension.trans HframeExtension
         have HseedPair :
             ∃ S : MotiveDecl Rmotive stats decl
@@ -1538,7 +1538,7 @@ theorem resultRecursiveDomain {alpha : Type}
     {typeTarget₀ : VExpr}
     (htype₀ : TrExpr R.venv recLparams R.chk.vlctx uiTy typeTarget₀)
     (htypeType₀ : R.venv.IsType recLparams.length R.chk.vlctx.toCtx typeTarget₀)
-    (Hxs : RecursorFVarSuffix Rroot R xs)
+    (Hxs : FVarSuffix Rroot.toSemantics R.toSemantics xs)
     {M₀ : TypeChecker.MLCtx} {T₀ : VExpr}
     (hagreeR : ∃ hn : xs.size ≤ R.chk.length,
       MLCtxTopAgree R.mlctx R.chk xs.size ∧ R.chk.dropN xs.size hn = M₀ ∧
@@ -1567,7 +1567,7 @@ theorem resultRecursiveDomain {alpha : Type}
         Rcurrent.mlctx.vlctx.toCtx syntaxTarget terminalTarget →
       Rcurrent.venv.IsType recLparams.length
         Rcurrent.mlctx.vlctx.toCtx terminalTarget →
-      (Hrecent : RecursorFVarSuffix Rroot Rcurrent args) →
+      (Hrecent : FVarSuffix Rroot.toSemantics Rcurrent.toSemantics args) →
       TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         (mkAppN head args) appliedTarget →
       Rcurrent.venv.HasType recLparams.length
@@ -1935,7 +1935,7 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
         Rcurrent.mlctx.vlctx.toCtx syntaxTarget terminalTarget →
       Rcurrent.venv.IsType recLparams.length
         Rcurrent.mlctx.vlctx.toCtx terminalTarget →
-      (Hrecent : RecursorFVarSuffix R Rcurrent args) →
+      (Hrecent : FVarSuffix R.toSemantics Rcurrent.toSemantics args) →
       TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         (mkAppN (.fvar fv) args) appliedTarget →
       Rcurrent.venv.HasType recLparams.length
@@ -2044,7 +2044,7 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
     (fuel := c.fuel.inductiveFuel) (.fvar fv) stats k RF
     hconsume hlit RF Hstats hctx hnormalizedTr hinferredType hnormalized₀
     hfieldType₀Ty
-    (RecursorFVarSuffix.empty RF)
+    (FVarSuffix.empty RF.toSemantics)
     (M₀ := RF.chk) (T₀ := fieldType₀)
     ⟨Nat.zero_le _, .zero _ _, rfl, by
       obtain ⟨u, h⟩ := hfieldType₀Ty
@@ -2387,7 +2387,7 @@ structure TypedRecursiveCall
   generated : RecursiveCall indTypes stats motives minors lvls
     root field value
   current_context : RecursorContextWF generated.current recLparams
-  recent : RecursorFVarSuffix R current_context
+  recent : FVarSuffix R.toSemantics current_context.toSemantics
     generated.localArgs
   rootScope : FVarId → Prop
   /-- Source scope established by the successful recursive-field

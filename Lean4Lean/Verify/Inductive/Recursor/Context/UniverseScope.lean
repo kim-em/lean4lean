@@ -207,11 +207,11 @@ theorem RecursorContextWF.universeScope_of_types
 /-- A universe scope of the root of an exact recent suffix, denoting only
 root variables, remains a universe scope after the suffix: the fresh binders
 are outside it and the root declarations are unchanged. -/
-theorem RecursorFVarSuffix.universeScope
+theorem FVarSuffix.universeScope
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorFVarSuffix Rroot R xs)
+    (H : FVarSuffix Rroot.toSemantics R.toSemantics xs)
     {Us : List Name} {P : FVarId → Prop}
     (hscope : ∀ fv, P fv → fv ∈ Rroot.mlctx.vlctx.fvars)
     (hU : Rroot.typeChecker.UniverseScope Us P) :

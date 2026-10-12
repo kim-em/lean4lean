@@ -685,7 +685,7 @@ theorem RecInfoOuterOrder.monoRecent
     {Hparams : FVarArrayIn root stats.params}
     {Hbindings : RecInfoBindings root recInfos}
     (Horder : RecInfoOuterOrder Rroot Hparams Hbindings)
-    (Hrecent : RecursorFVarSuffix Rroot Rcurrent args) :
+    (Hrecent : FVarSuffix Rroot.toSemantics Rcurrent.toSemantics args) :
     RecInfoOuterOrder Rcurrent (Hparams.mono Hrecent.contextLE)
       (Hbindings.mono Hrecent.contextLE) := by
   unfold RecInfoOuterOrder at Horder ⊢
@@ -723,7 +723,7 @@ theorem MotiveTypes.motiveBindingRecent
     (Horigins : RecInfoBinderTypes root recInfos)
     (Hshape : MotiveTypes root recInfos
       Horigins.motiveTypes elimLevel)
-    (Hrecent : RecursorFVarSuffix Rroot Rcurrent args)
+    (Hrecent : FVarSuffix Rroot.toSemantics Rcurrent.toSemantics args)
     (target : Nat) (htarget : target < recInfos.size) :
     Nonempty (MotiveBinding Rcurrent recInfos[target]! elimLevel) :=
   Hshape.motiveBindingMono Hbindings Horigins Hrecent.contextLE target
@@ -744,7 +744,7 @@ theorem RecInfoMotiveApplications.applyAtMono
     (Horigins : RecInfoBinderTypes root recInfos)
     (Hshape : MotiveTypes root recInfos
       Horigins.motiveTypes elimLevel)
-    (Hext : RecursorContextExtension Rroot Rcurrent)
+    (Hext : ContextExtension Rroot.toSemantics Rcurrent.toSemantics)
     (target : Nat) (htarget : target < recInfos.size)
     {depth : Nat} {exposedType major : Expr}
     {syntaxTarget terminalTarget majorTarget : VExpr}

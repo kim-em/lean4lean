@@ -14,12 +14,12 @@ open Kernel
 
 namespace VerifyInductive
 
-def RecursorFVarSuffix.castRoot
+def FVarSuffix.castRoot
     {c c' origin : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     {Rorigin : RecursorContextWF origin recLparams} {xs : Array Expr}
-    (h : c = c') (H : RecursorFVarSuffix R Rorigin xs) :
-    RecursorFVarSuffix (h ▸ R) Rorigin xs := by
+    (h : c = c') (H : FVarSuffix R.toSemantics Rorigin.toSemantics xs) :
+    FVarSuffix (h ▸ R : RecursorContextWF c' recLparams).toSemantics Rorigin.toSemantics xs := by
   cases h
   exact H
 
@@ -489,8 +489,8 @@ structure RuleFromTemplateTyping
     parameterDepth
   parameterDecls : VLCtx
   parameterDecls_eq : parameterSuffix.parameterDecls = parameterDecls
-  fieldRootExtension : RecursorContextExtension fieldRootContext Rroot
-  fieldsRecent : RecursorFVarSuffix fieldRootContext context allArgs
+  fieldRootExtension : ContextExtension fieldRootContext.toSemantics Rroot.toSemantics
+  fieldsRecent : FVarSuffix fieldRootContext.toSemantics context.toSemantics allArgs
   parameterTail : Expr
   parameterPrefix : ParameterPrefix stats 0 sourceCtor.type parameterTail
   parameterTail_fvars : parameterTail.FVarsIn
@@ -681,7 +681,7 @@ structure RecursorRuleSyntax.CallAt
   originRoot : AddInductive.Context
   originContext : RecursorContextWF originRoot recLparams
   priorHypotheses : Array Expr
-  originRecent : RecursorFVarSuffix S.context originContext
+  originRecent : FVarSuffix S.context.toSemantics originContext.toSemantics
     priorHypotheses
   originCheck : originContext.chk = S.context.chk
   priorHypotheses_size : priorHypotheses.size = j
@@ -1014,11 +1014,11 @@ theorem RuleFromTemplate.typingOfProducer
       originContext := Rorigin
       priorHypotheses := priorHypotheses
       originRecent := by
-        have HrecentC : RecursorFVarSuffix C.context Rorigin
+        have HrecentC : FVarSuffix C.context.toSemantics Rorigin.toSemantics
             priorHypotheses := Hrecent
-        have HrecentCast : RecursorFVarSuffix
-            (hroot.symm ▸ C.context) Rorigin priorHypotheses := by
-          exact RecursorFVarSuffix.castRoot hroot.symm HrecentC
+        have HrecentCast : FVarSuffix
+            (hroot.symm ▸ C.context).toSemantics Rorigin.toSemantics priorHypotheses := by
+          exact FVarSuffix.castRoot hroot.symm HrecentC
         rw [hsemanticContext]
         exact HrecentCast
       originCheck := by

@@ -31,7 +31,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
     (hconsume : ConsumeTypeAnnotationsDefEq)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
     (Hparams : FVarArrayIn root stats.params)
-    (Hfields : FVarSuffix Hroot Hc fields)
+    (Hfields : FVarSuffix Hroot.toSemantics Hc.toSemantics fields)
     (Hopening : ConstructorFieldOpening source type fields)
     (htrNarrow : TrExprS Hc.venv c.lparams scope type narrowType)
     (htrFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type fullType) :
@@ -232,7 +232,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
         (Hroot := Hc) Hc
         (Hsuffix.parameterEmbedding) halign
         Hstats hi hparamAt hconsume hlit Hsuffix.paramsBound
-        (FVarSuffix.empty Hc)
+        (FVarSuffix.empty Hc.toSemantics)
         (ConstructorFieldOpening.empty source)
         (by simpa [hscope] using Hctor.type)
         (hchecked.2.1.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
@@ -267,7 +267,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
           (Hroot := Hc) Hc
           (Hsuffix.parameterEmbedding) halign
           Hstats hi hparamAt hconsume hlit Hsuffix.paramsBound
-          (FVarSuffix.empty Hc)
+          (FVarSuffix.empty Hc.toSemantics)
           (ConstructorFieldOpening.empty source') htrNarrow htrFull
         exact Hnormal.mono fun _ Hnormal =>
           ⟨source', by

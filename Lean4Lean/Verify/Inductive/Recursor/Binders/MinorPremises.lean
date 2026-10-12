@@ -80,7 +80,7 @@ structure TypedCallTemplates
     ∃ originRoot,
       ∃ Rorigin : RecursorContextWF originRoot recLparams,
         ∃ priorHypotheses : Array Expr,
-          ∃ _ : RecursorFVarSuffix Rroot Rorigin priorHypotheses,
+          ∃ _ : FVarSuffix Rroot.toSemantics Rorigin.toSemantics priorHypotheses,
             priorHypotheses.size = j ∧ Rorigin.chk = Rroot.chk ∧
               Nonempty (TypedCallTemplate stats motives
                 Rorigin rootScope decl (depth + j) fields[j]! calls[j]!)
@@ -103,7 +103,7 @@ theorem TypedCallTemplates.pushCurrent
     {calls : Array AddInductive.RecCallTemplate}
     (Hsem : TypedCallTemplates Rroot decl depth stats
       motives rootScope fields hypotheses calls)
-    (Hrecent : RecursorFVarSuffix Rroot R hypotheses)
+    (Hrecent : FVarSuffix Rroot.toSemantics R.toSemantics hypotheses)
     (hchk : R.chk = Rroot.chk)
     (call : AddInductive.RecCallTemplate)
     (S : TypedCallTemplate stats motives R rootScope decl
@@ -234,7 +234,7 @@ structure TypedCallTemplatesAt
     ∃ originRoot,
       ∃ Rorigin : RecursorContextWF originRoot recLparams,
         ∃ priorHypotheses : Array Expr,
-          ∃ _ : RecursorFVarSuffix Rroot Rorigin priorHypotheses,
+          ∃ _ : FVarSuffix Rroot.toSemantics Rorigin.toSemantics priorHypotheses,
             priorHypotheses.size = j ∧ Rorigin.chk = Rroot.chk ∧
               Nonempty (TypedCallTemplate stats motives
                 Rorigin (fieldScope j) decl (depth + j) fields[j]! calls[j]!)
@@ -257,7 +257,7 @@ theorem TypedCallTemplatesAt.pushCurrent
     {calls : Array AddInductive.RecCallTemplate}
     (Hsem : TypedCallTemplatesAt Rroot decl depth stats
       motives fieldScope fields hypotheses calls)
-    (Hrecent : RecursorFVarSuffix Rroot R hypotheses)
+    (Hrecent : FVarSuffix Rroot.toSemantics R.toSemantics hypotheses)
     (hchk : R.chk = Rroot.chk)
     (call : AddInductive.RecCallTemplate)
     (S : TypedCallTemplate stats motives R
@@ -317,8 +317,8 @@ structure TypedRuleFieldTraversal
   terminalWF : RecursorContextWF traversal.terminalContext recLparams
   parameterDepth : Nat
   parameterSuffix : ParameterContextSuffix rootWF.toSemantics stats parameterDepth
-  terminalExtension : RecursorContextExtension terminalWF Rambient
-  fieldsRecent : RecursorFVarSuffix rootWF terminalWF S.fields
+  terminalExtension : ContextExtension terminalWF.toSemantics Rambient.toSemantics
+  fieldsRecent : FVarSuffix rootWF.toSemantics terminalWF.toSemantics S.fields
   parameterTarget : VExpr
   parameterTail_params : traversal.parameterTail.FVarsIn
     (· ∈ ExprArrayFVarIds stats.params)
@@ -361,7 +361,7 @@ structure TypedRuleFieldTraversal
 
 def TypedRuleFieldTraversal.mono
     (F : TypedRuleFieldTraversal R stats S)
-    (E : RecursorContextExtension R R') :
+    (E : ContextExtension R.toSemantics R'.toSemantics) :
     TypedRuleFieldTraversal R' stats S :=
   { F with terminalExtension := F.terminalExtension.trans E }
 
@@ -383,7 +383,7 @@ structure MotiveTelescopesAt
   appliesTo : ∀ target (_htarget : target < recInfos.size)
       {current : AddInductive.Context}
       (Rcurrent : RecursorContextWF current recLparams)
-      (_Hext : RecursorContextExtension Rroot Rcurrent)
+      (_Hext : ContextExtension Rroot.toSemantics Rcurrent.toSemantics)
       {depth : Nat} {exposedType : Expr} {syntaxTarget : VExpr},
     TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         exposedType syntaxTarget →
@@ -407,7 +407,7 @@ theorem MotiveTelescopesAt.of
     MotiveTelescopesAt Rroot stats decl recInfos elimLevel where
   rootBinding target htarget := by
     exact Hshapes.motiveBindingMono Hbindings Horigins
-        (RecursorContextExtension.refl Rroot).contextLE target htarget
+        (ContextExtension.refl Rroot.toSemantics).contextLE target htarget
   appliesTo target htarget _current Rcurrent Hext _depth _exposedType
       _syntaxTarget Hexposed HsyntaxType Hvalidated := by
     rcases Hshapes.motiveBindingMono (Rcurrent := Rcurrent)
@@ -474,7 +474,7 @@ theorem TypedRuleTemplateAt.mono
     (H : TypedRuleTemplateAt R decl stats recInfos elimLevel
       parameterDecls
       expectedOwnerIdx S B)
-    (E : RecursorContextExtension R R') :
+    (E : ContextExtension R.toSemantics R'.toSemantics) :
     TypedRuleTemplateAt R' decl stats recInfos elimLevel
       parameterDecls
       expectedOwnerIdx S B := by
@@ -529,7 +529,7 @@ theorem TypedRuleTemplates.mono
     {R' : RecursorContextWF c' recLparams}
     (H : TypedRuleTemplates R decl stats recInfos elimLevel
       parameterDecls Horigins)
-    (E : RecursorContextExtension R R') :
+    (E : ContextExtension R.toSemantics R'.toSemantics) :
     TypedRuleTemplates R' decl stats recInfos elimLevel
       parameterDecls
       (Horigins.mono E.contextLE) := by
@@ -591,7 +591,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
     (hrootUp : IsFVarUpSet rootScope Rroot.mlctx.vlctx)
     (i : Nat) (v : Array Expr)
     (calls : Array AddInductive.RecCallTemplate)
-    (Hrecent : RecursorFVarSuffix Rroot R v)
+    (Hrecent : FVarSuffix Rroot.toSemantics R.toSemantics v)
     (Horigins : InductionHypothesisTypesPrefix stats recInfos root current u v)
     (HcallOrigins : CallTemplatesMatchPrefix Horigins rootScope
       calls)
@@ -607,7 +607,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
     (Hvi : ∀ {next : AddInductive.Context}
       (Rnext : RecursorContextWF next recLparams)
       {prior : Array Expr}
-      (_Hprior : RecursorFVarSuffix Rroot Rnext prior)
+      (_Hprior : FVarSuffix Rroot.toSemantics Rnext.toSemantics prior)
       (_hcheckNext : next.checkLCtx = root.checkLCtx)
       (j : Nat) (hj : j < u.size),
       ((AddInductive.mkRecInfos.loopUArgs
@@ -657,7 +657,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
       (Rout : RecursorContextWF out recLparams)
       (values : Array Expr)
       (outCalls : Array AddInductive.RecCallTemplate),
-      RecursorFVarSuffix Rroot Rout values →
+      FVarSuffix Rroot.toSemantics Rout.toSemantics values →
       (HoutOrigins : InductionHypothesisTypesPrefix
         stats recInfos root out u values) →
       CallTemplatesMatchPrefix HoutOrigins rootScope outCalls →
@@ -756,7 +756,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
         Rcurrent.mlctx.vlctx.toCtx syntaxTarget terminalTarget →
       Rcurrent.venv.IsType recLparams.length
         Rcurrent.mlctx.vlctx.toCtx terminalTarget →
-      (Hargs : RecursorFVarSuffix R Rcurrent args) →
+      (Hargs : FVarSuffix R.toSemantics Rcurrent.toSemantics args) →
       TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         (mkAppN (.fvar fv) args) appliedTarget →
       Rcurrent.venv.HasType recLparams.length
@@ -1071,7 +1071,7 @@ theorem inductionHypothesisTypeOrigin
         Rcurrent.mlctx.vlctx.toCtx syntaxTarget terminalTarget →
       Rcurrent.venv.IsType recLparams.length
         Rcurrent.mlctx.vlctx.toCtx terminalTarget →
-      (Hargs : RecursorFVarSuffix R Rcurrent args) →
+      (Hargs : FVarSuffix R.toSemantics Rcurrent.toSemantics args) →
       TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
         (mkAppN (.fvar fv) args) appliedTarget →
       Rcurrent.venv.HasType recLparams.length
@@ -1187,7 +1187,7 @@ theorem resultTypingOfMotiveApplications
       (Rout : RecursorContextWF out recLparams)
       (values : Array Expr)
       (calls : Array AddInductive.RecCallTemplate),
-      RecursorFVarSuffix R Rout values →
+      FVarSuffix R.toSemantics Rout.toSemantics values →
       (HoutOrigins : InductionHypothesisTypesPrefix
         stats recInfos c out u values) →
       CallTemplatesMatchPrefix HoutOrigins rootScope calls →
@@ -1202,7 +1202,7 @@ theorem resultTypingOfMotiveApplications
       k c).WF Q := by
   refine resultBindings stats bu u recInfos k R R rootScope
     rootScopeInContext hrootUp 0 #[] #[]
-    (RecursorFVarSuffix.empty R)
+    (FVarSuffix.empty R.toSemantics)
     (InductionHypothesisTypesPrefix.empty stats recInfos c u)
     (CallTemplatesMatchPrefix.empty
       (InductionHypothesisTypesPrefix.empty stats recInfos c u) rootScope)
@@ -1361,7 +1361,7 @@ theorem resultTypingOfMotiveTelescopes
       (Rout : RecursorContextWF out recLparams)
       (values : Array Expr)
       (calls : Array AddInductive.RecCallTemplate),
-      RecursorFVarSuffix R Rout values →
+      FVarSuffix R.toSemantics Rout.toSemantics values →
       (HoutOrigins : InductionHypothesisTypesPrefix
         stats recInfos c out u values) →
       CallTemplatesMatchPrefix HoutOrigins rootScope calls →
@@ -2312,8 +2312,8 @@ theorem continueMinor_templateSemanticOrigins
     TypedRuleTemplates Rminor decl stats next elimLevel
       parameterDecls HoriginsNext := by
   intro cMinor next Hcore HoriginsMinor HoriginsNext Rminor
-  let Hstep := RecursorContextExtension.withLocalDecl
-    (name := minorName) (bi := .default) R Hminor HminorType
+  let Hstep : ContextExtension R.toSemantics Rminor.toSemantics := ContextExtension.withLocalDecl
+    (name := minorName) (bi := .default) R.toSemantics Hminor HminorType
   let HmotiveCore := modifyMinorAndTemplate_motiveCoreEq recInfos dIdx hidx
     (.fvar ⟨c.ngen.curr⟩) (mkTemplate (.fvar ⟨c.ngen.curr⟩))
   have hmotivesNext : next.map (·.motive) = recInfos.map (·.motive) := by
@@ -2564,8 +2564,8 @@ theorem continueMinorTyping {alpha : Type} {Q : alpha → Prop}
       minors := info.minors.push (.fvar ⟨c.ngen.curr⟩)
       ruleTemplates := info.ruleTemplates.push
         (mkTemplate (.fvar ⟨c.ngen.curr⟩)) }
-  let Hstep := RecursorContextExtension.withLocalDecl
-    (name := minorName) (bi := .default) R Hminor HminorType
+  let Hstep : ContextExtension R.toSemantics Rminor.toSemantics := ContextExtension.withLocalDecl
+    (name := minorName) (bi := .default) R.toSemantics Hminor HminorType
   let HbindingsMinor := Hbindings.addMinor dIdx hidx
     (BindingContextLE.refl c) R.toBindingContextWF minorName
       (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) .default
@@ -2577,7 +2577,7 @@ theorem continueMinorTyping {alpha : Type} {Q : alpha → Prop}
     (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) .default HminorShape
     HminorShapePosition HminorSource HminorHypothesisOrigins HminorTraversal
   let HminorSemanticsMinor := HminorSemantics.addMinor
-    (RecursorContextExtension.refl R) dIdx hidx minorName
+    (ContextExtension.refl R.toSemantics) dIdx hidx minorName
     (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) .default Hminor HminorType HminorShape
     HminorSemantic
   let Hcore := modifyMinorAndTemplate_coreEq recInfos dIdx hidx
@@ -2664,7 +2664,7 @@ theorem constructorFieldPrefixScopeUp
     {R : RecursorContextWF c recLparams}
     {Rargs : RecursorContextWF current recLparams}
     {stats : AddInductive.InductiveStats} {allFields : Array Expr}
-    (HfieldsRecent : RecursorFVarSuffix R Rargs allFields)
+    (HfieldsRecent : FVarSuffix R.toSemantics Rargs.toSemantics allFields)
     (Hparams : FVarArrayIn c stats.params)
     (hfieldsUp : IsFVarUpSet
       (fun fv => fv ∈ HfieldsRecent.fvars ∨
@@ -2710,8 +2710,8 @@ theorem constructorMinorTypeTranslation
     {Rargs : RecursorContextWF current recLparams}
     {Rout : RecursorContextWF outCtx recLparams}
     {allFields hypotheses : Array Expr} {body : Expr} {bodyTarget : VExpr}
-    (HfieldsRecent : RecursorFVarSuffix R Rargs allFields)
-    (HhypothesesRecent : RecursorFVarSuffix Rargs Rout hypotheses)
+    (HfieldsRecent : FVarSuffix R.toSemantics Rargs.toSemantics allFields)
+    (HhypothesesRecent : FVarSuffix Rargs.toSemantics Rout.toSemantics hypotheses)
     (Hbody : TrExprS Rout.venv recLparams Rout.mlctx.vlctx body bodyTarget)
     (HbodyType : Rout.venv.IsType recLparams.length Rout.mlctx.vlctx.toCtx
       bodyTarget) :
@@ -2770,7 +2770,7 @@ theorem inductionHypothesesOuterFresh
     (Hparams : FVarArrayIn c stats.params)
     (Hbindings : RecInfoBindings c recInfos)
     (hle : BindingContextLE c current)
-    (HhypothesesRecent : RecursorFVarSuffix Rargs Rout hypotheses) :
+    (HhypothesesRecent : FVarSuffix Rargs.toSemantics Rout.toSemantics hypotheses) :
     ∀ fv,
       fv ∈ ExprArrayFVarIds stats.params ++
           ExprArrayFVarIds (recInfos.map (·.motive)) →
@@ -2794,7 +2794,7 @@ theorem constructorFieldsOuterFresh
     {Rargs : RecursorContextWF current recLparams}
     {stats : AddInductive.InductiveStats}
     {recInfos : Array AddInductive.RecInfo} {allFields : Array Expr}
-    (HfieldsRecent : RecursorFVarSuffix R Rargs allFields)
+    (HfieldsRecent : FVarSuffix R.toSemantics Rargs.toSemantics allFields)
     (Hparams : FVarArrayIn c stats.params)
     (Hbindings : RecInfoBindings c recInfos) :
     ∀ fv ∈ HfieldsRecent.fvars,
@@ -2963,7 +2963,7 @@ theorem constructorMinorClosureTyping {alpha : Type} {Q : alpha → Prop}
       recLparams.length allFields recursiveFields fields)
     (Hdecisions : RecursorFieldDecisions stats c tail current terminal
       allFields recursiveFields positions)
-    (HfieldsRecent : RecursorFVarSuffix R Rargs allFields)
+    (HfieldsRecent : FVarSuffix R.toSemantics Rargs.toSemantics allFields)
     (Hopening : ConstructorFieldOpening tail terminal allFields)
     (HfieldTargetDefEq : R.venv.IsDefEqU recLparams.length
       R.mlctx.vlctx.toCtx tailTarget
@@ -3008,7 +3008,7 @@ theorem constructorMinorClosureTyping {alpha : Type} {Q : alpha → Prop}
     {outCtx : AddInductive.Context}
     (Rout : RecursorContextWF outCtx recLparams)
     (hypotheses : Array Expr) (calls : Array AddInductive.RecCallTemplate)
-    (HhypothesesRecent : RecursorFVarSuffix Rargs Rout hypotheses)
+    (HhypothesesRecent : FVarSuffix Rargs.toSemantics Rout.toSemantics hypotheses)
     (HhypothesisOrigins : InductionHypothesisTypesPrefix stats recInfos current
       outCtx recursiveFields hypotheses)
     (HhypothesisCallOrigins : CallTemplatesMatchPrefix
@@ -3229,7 +3229,7 @@ theorem constructorMinorClosureTyping {alpha : Type} {Q : alpha → Prop}
       ⟨{
         semantic := {
           sourceWF := Rout
-          extension := RecursorContextExtension.refl Rout
+          extension := ContextExtension.refl Rout.toSemantics
           traversal := traversal
           traversal_eq := rfl
           traversal_fields := rfl

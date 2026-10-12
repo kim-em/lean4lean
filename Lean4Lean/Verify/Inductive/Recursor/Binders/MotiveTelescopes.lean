@@ -52,7 +52,7 @@ def MotiveApplicationAbove
     (elimLevel : Level) : Prop :=
   ∀ {current : AddInductive.Context}
     (R : RecursorContextWF current recLparams)
-    (_Hext : RecursorContextExtension Rroot R)
+    (_Hext : ContextExtension Rroot.toSemantics R.toSemantics)
     {depth : Nat}
     {exposedType major : Expr} {syntaxTarget majorTarget : VExpr},
     MotiveBinding R info elimLevel →
@@ -265,7 +265,7 @@ def MotiveAppliesAbove
     (elimLevel : Level) : Prop :=
   ∀ {current : AddInductive.Context}
     (R : RecursorContextWF current recLparams)
-    (_Hext : RecursorContextExtension Rroot R)
+    (_Hext : ContextExtension Rroot.toSemantics R.toSemantics)
     {depth : Nat} {exposedType : Expr} {syntaxTarget : VExpr}
     (binding : MotiveBinding R info elimLevel),
     TrExprS R.venv recLparams R.mlctx.vlctx exposedType syntaxTarget →
@@ -490,7 +490,7 @@ def MotiveDecl.mono
     {Rroot : RecursorContextWF root recLparams}
     {Rcurrent : RecursorContextWF current recLparams}
     (H : MotiveDecl Rroot stats decl target info elimLevel)
-    (Hext : RecursorContextExtension Rroot Rcurrent) :
+    (Hext : ContextExtension Rroot.toSemantics Rcurrent.toSemantics) :
     MotiveDecl Rcurrent stats decl target info elimLevel := by
   have hmajorSource :
       current.lctx.mkForall #[info.major] (.sort elimLevel) =
@@ -792,7 +792,7 @@ theorem RecInfoMotiveTelescopes.empty
 theorem RecInfoMotiveTelescopes.mono
     (H : RecInfoMotiveTelescopes Rroot stats decl parameterCtx recInfos
       elimLevel)
-    (Hext : RecursorContextExtension Rroot Rcurrent) :
+    (Hext : ContextExtension Rroot.toSemantics Rcurrent.toSemantics) :
     RecInfoMotiveTelescopes Rcurrent stats decl parameterCtx recInfos
       elimLevel where
   telescope target htarget := fun R Hlater =>

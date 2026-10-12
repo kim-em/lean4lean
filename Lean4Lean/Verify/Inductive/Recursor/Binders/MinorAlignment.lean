@@ -236,7 +236,7 @@ structure TypedMinorTraversal
     (R : RecursorContextWF c recLparams)
     (S : MinorPremiseType) where
   sourceWF : RecursorContextWF S.sourceFullContext recLparams
-  extension : RecursorContextExtension sourceWF R
+  extension : ContextExtension sourceWF.toSemantics R.toSemantics
   traversal : ConstructorFieldTraversal
   traversal_eq : S.traversal = some traversal
   traversal_fields : traversal.fields = S.fields
@@ -255,7 +255,7 @@ structure TypedMinorTraversal
   /-- The same tail translated directly in the cached parameter suffix. -/
   parameterTranslation₀ : ∃ t, TrExprS rootWF.venv recLparams
     parameterSuffix.parameterDecls traversal.parameterTail t
-  fieldsRecent : RecursorFVarSuffix rootWF terminalWF S.fields
+  fieldsRecent : FVarSuffix rootWF.toSemantics terminalWF.toSemantics S.fields
   /-- The fields were also opened in the checker context directly above the
   parameter declarations, and the checker closure of the terminal agrees
   with the parameter-scope translation of the tail. -/
@@ -279,7 +279,7 @@ structure TypedMinorTraversal
   fieldParameterUp : IsFVarUpSet (fun fv =>
     fv ∈ fieldsRecent.fvars ∨
       fv ∈ ExprArrayFVarIds traversal.stats.params) terminalWF.mlctx.vlctx
-  hypothesesRecent : RecursorFVarSuffix terminalWF sourceWF
+  hypothesesRecent : FVarSuffix terminalWF.toSemantics sourceWF.toSemantics
     S.hypotheses
   terminalTarget : VExpr
   terminalTranslation : TrExprS terminalWF.venv recLparams
@@ -326,7 +326,7 @@ def TypedMinorTraversal.mono
     {Rcurrent : RecursorContextWF current recLparams}
     {S : MinorPremiseType}
     (HS : TypedMinorTraversal Rroot S)
-    (Hext : RecursorContextExtension Rroot Rcurrent) :
+    (Hext : ContextExtension Rroot.toSemantics Rcurrent.toSemantics) :
     TypedMinorTraversal Rcurrent S where
   sourceWF := HS.sourceWF
   extension := HS.extension.trans Hext
@@ -450,7 +450,7 @@ def TypedMinorTraversalAt.mono
     {Rcurrent : RecursorContextWF current recLparams}
     {S : MinorPremiseType} {parameterDecls : VLCtx}
     (HS : TypedMinorTraversalAt Rroot S parameterDecls)
-    (Hext : RecursorContextExtension Rroot Rcurrent) :
+    (Hext : ContextExtension Rroot.toSemantics Rcurrent.toSemantics) :
     TypedMinorTraversalAt Rcurrent S parameterDecls where
   semantic := HS.semantic.mono Hext
   parameterDecls_eq := HS.parameterDecls_eq
@@ -486,7 +486,7 @@ theorem TypedMinors.mono
     {Rcurrent : RecursorContextWF current recLparams}
     {H : RecInfoBinderTypes root recInfos}
     (A : TypedMinors Rroot H parameterDecls)
-    (Hext : RecursorContextExtension Rroot Rcurrent) :
+    (Hext : ContextExtension Rroot.toSemantics Rcurrent.toSemantics) :
     TypedMinors Rcurrent (H.mono Hext.contextLE)
       parameterDecls := by
   intro owner howner localIndex hlocal
@@ -500,7 +500,7 @@ theorem TypedMinors.addMinor
     {Rcurrent : RecursorContextWF current recLparams}
     {H : RecInfoBinderTypes root recInfos}
     (A : TypedMinors Rroot H parameterDecls)
-    (Hext : RecursorContextExtension Rroot Rcurrent)
+    (Hext : ContextExtension Rroot.toSemantics Rcurrent.toSemantics)
     (dIdx : Nat) (hidx : dIdx < recInfos.size)
     (minorName : Name) (minorTy : Expr) (minorBi : BinderInfo)
     {minorTarget : VExpr}
@@ -518,8 +518,9 @@ theorem TypedMinors.addMinor
         minorName minorTy minorBi Hshape) parameterDecls := by
   let Rnext := Rcurrent.withLocalDecl (name := minorName) (bi := minorBi)
     Hminor HminorType
-  let Hstep := RecursorContextExtension.withLocalDecl
-    (name := minorName) (bi := minorBi) Rcurrent Hminor HminorType
+  let Hstep : ContextExtension Rcurrent.toSemantics Rnext.toSemantics :=
+    ContextExtension.withLocalDecl
+      (name := minorName) (bi := minorBi) Rcurrent.toSemantics Hminor HminorType
   let nextMinorTypes := H.minorTypes.modify dIdx fun types =>
     types.push minorTy
   intro owner howner localIndex hlocal

@@ -1651,7 +1651,7 @@ theorem MotivePassHeaderAt.recursorFrame
     (harity : (indices.size == stats.nindices[familyIdx]!) = true)
     (henv : Rindices.venv = Hbase.venv)
     (hconsume : RecursorConsumeTypeAnnotationsDefEq)
-    (Hrecent : RecursorFVarSuffix Rroot Rindices indices) :
+    (Hrecent : FVarSuffix Rroot.toSemantics Rindices.toSemantics indices) :
     Nonempty (RecursorMotiveFrameWF Rindices stats familyIdx indices
       elimLevel) := by
   let majorTy :=
@@ -2014,7 +2014,7 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
       indexTargets = indexBVarSpine nindices →
       FVarArrayBinderTypes current indices originTypes →
       TrBinderTypes R originTypes →
-      RecursorFVarSuffix Rroot R indices →
+      FVarSuffix Rroot.toSemantics R.toSemantics indices →
       IndexTelescopeRun stats current source.type stats.params.size type
         indices →
       (k indices current).WF Q) :
@@ -2068,7 +2068,7 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
       indexTargets = indexBVarSpine nindices →
       FVarArrayBinderTypes current indices originTypes →
       TrBinderTypes R originTypes →
-      RecursorFVarSuffix Rroot R indices →
+      FVarSuffix Rroot.toSemantics R.toSemantics indices →
       IndexTelescopeRun stats current source.type stats.params.size type
         indices →
       (∀ fv ∈ scope.fvars, fv ∈ ExprArrayFVarIds stats.params ∨
@@ -2799,11 +2799,11 @@ theorem MotivePassHeaderAt.startRecursorParameterTyping
 
 /-- The index telescope opened by `loopArgs1` mentions only `Us` when its
 declarations lie in a universe scope of the index checking scope. -/
-theorem _root_.Lean4Lean.VerifyInductive.RecursorFVarSuffix.indexUniverses
+theorem _root_.Lean4Lean.VerifyInductive.FVarSuffix.indexUniverses
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorFVarSuffix Rroot R xs)
+    (H : FVarSuffix Rroot.toSemantics R.toSemantics xs)
     {Us : List Name} {scope : VLCtx} {targets : List VExpr}
     (hscope : R.typeChecker.UniverseScope Us (· ∈ scope.fvars))
     (Hxs : List.Forall₂ (TrExprS R.venv recLparams scope) xs.toList targets) :
@@ -2907,7 +2907,7 @@ theorem MotivePassHeaderAt.startRecursorTyping
       indexTargets = indexBVarSpine nindices →
       FVarArrayBinderTypes next indices originTypes →
       TrBinderTypes Rnext originTypes →
-      RecursorFVarSuffix R Rnext indices →
+      FVarSuffix R.toSemantics Rnext.toSemantics indices →
       (next.lctx.mkForall indices (.sort .zero)).levelParamsIn base.lparams = true →
       IndexTelescopeRun stats next source.type stats.params.size type
         indices →
@@ -2952,7 +2952,7 @@ theorem MotivePassHeaderAt.startRecursorTyping
     htypeFull htypeFullType .nil .nil
     rfl rfl (FVarArrayBinderTypes.empty _)
     (TrBinderTypes.empty RL)
-    (RecursorFVarSuffix.empty RL)
+    (FVarSuffix.empty RL.toSemantics)
     (Htrace.mono (BindingContextLE.checkLCtx_rev current _)) (by
       intro fv hfv
       rw [Hsuffix.parameterDecls_fvars] at hfv

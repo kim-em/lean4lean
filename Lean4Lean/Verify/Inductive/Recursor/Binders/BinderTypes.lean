@@ -63,7 +63,7 @@ minor premises are introduced in separate traversals, so their composite
 extension is more useful here than a consecutive-suffix specialization. -/
 def TrBinderTypes.mono
     (H : TrBinderTypes Rroot origins)
-    (Hext : RecursorContextExtension Rroot Rcurrent) :
+    (Hext : ContextExtension Rroot.toSemantics Rcurrent.toSemantics) :
     TrBinderTypes Rcurrent origins where
   targets := H.targets.map fun target =>
     target.lift' (Hext.shift.consN 0)
@@ -187,7 +187,7 @@ def TrBinderTypes.weakenRecent
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {indices : Array Expr}
     (H : TrBinderTypes Rroot origins)
-    (Hrecent : RecursorFVarSuffix Rroot R indices) :
+    (Hrecent : FVarSuffix Rroot.toSemantics R.toSemantics indices) :
     TrBinderTypes R origins := by
   let W := R.onlyLams.dropN_fvlift indices.size Hrecent.size_le
   refine {
@@ -225,7 +225,7 @@ def TrBinderTypesPerFamily.empty
 /-- Row-wise form of `TrBinderTypes.mono`. -/
 def TrBinderTypesPerFamily.mono
     (H : TrBinderTypesPerFamily Rroot origins)
-    (Hext : RecursorContextExtension Rroot Rcurrent) :
+    (Hext : ContextExtension Rroot.toSemantics Rcurrent.toSemantics) :
     TrBinderTypesPerFamily Rcurrent origins where
   rows i hi := (H.rows i hi).mono Hext
 
@@ -252,7 +252,7 @@ def TrBinderTypesPerFamily.weakenRecent
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {indices : Array Expr}
     (H : TrBinderTypesPerFamily Rroot origins)
-    (Hrecent : RecursorFVarSuffix Rroot R indices) :
+    (Hrecent : FVarSuffix Rroot.toSemantics R.toSemantics indices) :
     TrBinderTypesPerFamily R origins where
   rows i hi := (H.rows i hi).weakenRecent Hrecent
 
