@@ -33,7 +33,7 @@ by two fresh axioms of a fresh type, so reflection of observations cannot replac
 
 namespace Lean4Lean
 namespace VEnv.StrengtheningModel
-open VEnv VExpr VEnv.Model
+open VEnv _root_.Lean4Lean.VExpr VEnv.Model
 
 variable {env : VEnv} {U : Nat}
 
