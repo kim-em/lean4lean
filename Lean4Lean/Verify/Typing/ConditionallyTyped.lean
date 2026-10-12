@@ -1,6 +1,5 @@
 import Lean4Lean.Verify.Typing.Lemmas
 import Lean4Lean.Verify.Typing.LevelEquiv
-import Lean4Lean.WHNFCacheKey
 import Lean4Lean.Verify.Typing.Syntactic.Typed
 
 namespace Lean4Lean
@@ -62,34 +61,32 @@ theorem ConditionallyHasType.fresh
     · cases Nat.lt_irrefl _ (h2 _ rfl)
     · exact h1
 
-theorem whnfCacheKey_eqv {e e' : Expr} (h : e == e') :
-    whnfCacheKey e = whnfCacheKey e' := by
-  simp [(· == ·)] at h
-  cases e <;> cases e' <;> first | rfl | (change false = true at h; cases h)
-
-theorem TrExprS.cacheKey_not_forall (H : TrExprS env Us Δ e e')
-    (hkey : whnfCacheKey e = true) : e' ≠ .forallE domain body := by
-  cases H <;> simp only [whnfCacheKey] at hkey
-  all_goals first | contradiction | (intro h; cases h)
-
 /-- A `whnf` cache entry `e ↦ e₁` that is valid conditionally on the context: both sides are
 closed and mention only reserved free variables, and whenever the free variables of `e` lie in `Δ`,
-`e` is a cache key (`whnfCacheKey`, so its translation is not a forall) translating to some `e'`
-to which `e₁` also translates, with `FVarsBelow Δ e e₁`. -/
+`e` translates to some `e'` to which `e₁` also translates, with `FVarsBelow Δ e e₁`, and strictly
+so when `e'` is a dependent function type. Every expression the checker caches (applications,
+constants, lambdas, projections, `let` expressions and let-bound free variables, the keys of
+`type_checker.cpp`) is a possible key: a `let` expression or a let-bound variable can translate to a
+dependent function type, and the entry then records that its reduct translates to it strictly. -/
 def ConditionallyWHNF
     (ngen : NameGenerator) (env : VEnv) (Us : List Name) (Δ : VLCtx) (e e₁ : Expr) : Prop :=
   Closed e ∧ FVarsIn ngen.Reserves e ∧ Closed e₁ ∧ FVarsIn ngen.Reserves e₁ ∧
     (FVarsIn (· ∈ Δ.fvars) e → ∃ e',
       FVarsBelow Δ e e₁ ∧ TrExprS env Us Δ e e' ∧ TrExpr env Us Δ e₁ e' ∧
-      whnfCacheKey e = true)
+      ∀ A B, e' = .forallE A B → TrExprS env Us Δ e₁ e')
 
 theorem ConditionallyWHNF.mk {Δ : VLCtx}
     (noBV : Δ.NoBV) (hb : FVarsBelow Δ e e₁)
     (he : TrExprS env Us Δ e e') (he₁ : TrExpr env Us Δ e₁ e')
-    (hkey : whnfCacheKey e = true)
+    (hfa : ∀ A B, e' = .forallE A B → TrExprS env Us Δ e₁ e')
     (re : FVarsIn ngen.Reserves e) (re₁ : FVarsIn ngen.Reserves e₁) :
     ConditionallyWHNF ngen env Us Δ e e₁ := by
-  refine ⟨noBV ▸ he.closed, re, noBV ▸ he₁.closed, re₁, fun _ => ⟨_, hb, he, he₁, hkey⟩⟩
+  refine ⟨noBV ▸ he.closed, re, noBV ▸ he₁.closed, re₁, fun _ => ⟨_, hb, he, he₁, hfa⟩⟩
+
+/-- A lift of an expression is a dependent function type only if the expression is one. -/
+theorem VExpr.liftN_eq_forallE {e : VExpr} (h : e.liftN n k = .forallE A B) :
+    ∃ A' B', e = .forallE A' B' := by
+  cases e <;> simp [VExpr.liftN] at h ⊢
 
 theorem ConditionallyWHNF.mono (H : ngen₁ ≤ ngen₂) :
     ConditionallyWHNF ngen₁ env Us Δ e A → ConditionallyWHNF ngen₂ env Us Δ e A
@@ -104,7 +101,10 @@ theorem ConditionallyWHNF.fresh
   have ⟨e', h1, h2, h3, h5⟩ := H (H4.mp ?_ f1)
   · have W : VLCtx.FVLift Δ ((some (⟨ngen.curr⟩, deps), d) :: Δ) 0 (0 + d.depth) 0 :=
       .skip_fvar _ _ .refl
-    exact ⟨_, fun P hP => h1 _ hP.1, h2.weakFV henv W hΔ, h3.weakFV henv W hΔ, h5⟩
+    refine ⟨_, fun P hP => h1 _ hP.1, h2.weakFV henv.orderedStrong W hΔ, h3.weakFV henv W hΔ,
+      fun A B hAB => ?_⟩
+    obtain ⟨A', B', rfl⟩ := VExpr.liftN_eq_forallE hAB
+    exact (h5 _ _ rfl).weakFV henv.orderedStrong W hΔ
   · intro _ h1 h2; simp at h1; rcases h1 with rfl | h1
     · cases Nat.lt_irrefl _ (h2 _ rfl)
     · exact h1
@@ -239,6 +239,10 @@ theorem ConditionallyWHNF.weakN_inv
   have ⟨e', h1, h2, ⟨_, h3, h4⟩, h5⟩ := H H4.fvars_cons
   have W : VLCtx.FVLift Δ ((some (fv, deps), d) :: Δ) 0 (0 + d.depth) 0 := .skip_fvar _ _ .refl
   obtain ⟨e₀, he, rfl⟩ := h2.restrictFV_inv henv W hΔ H4
-  obtain ⟨e₁', he₁, rfl⟩ := h3.restrictFV_inv henv W hΔ (h1 _ (upSet_tail hΔ) H4)
+  have H1 := h1 _ (upSet_tail hΔ) H4
+  obtain ⟨e₁', he₁, rfl⟩ := h3.restrictFV_inv henv W hΔ H1
   have h4 := (IsDefEqU.weakN_iff henv hΔ.toCtx W.toCtx).1 h4
-  exact ⟨_, fvarsBelow_tail hΔ h1 he.fvarsIn, he, ⟨_, he₁, h4⟩, h5⟩
+  refine ⟨_, fvarsBelow_tail hΔ h1 he.fvarsIn, he, ⟨_, he₁, h4⟩, fun A B hAB => ?_⟩
+  subst hAB
+  obtain ⟨e₁'', he₁', heq⟩ := (h5 _ _ rfl).restrictFV_inv henv W hΔ H1
+  exact (VExpr.liftN_inj.1 heq) ▸ he₁'
