@@ -64,6 +64,16 @@ Mine (namespace `Lean4Lean.VEnv.StrengtheningModel` unless noted):
   descent is weaker than the open statement: `P ↦ (P → P)` is inhabited by the identity and
   `Π`-injective.
 
+* `Strengthening/HeteroSubst.lean` (124 lines, namespace `Lean4Lean.VEnv.Strengthening`,
+  `[Params]`). **`NormalEqF.instN_lr`**: heterogeneous substitution of two normally equal terms
+  into the two sides of a normal equality, at any depth, in the left-instantiated context (the
+  library had the homogeneous `NormalEqN.instN` and the one-term `NormalEqF.instN_r`; every
+  right-hand typing premise is retyped by `retype_instN_r`). Corollaries
+  `NormalEqF.contract_proofArgs` and `NormalEqF.contract`: a matched head β-redex pair with
+  proof arguments, or with normally equal arguments, contracts to a normal equality of the
+  contracta. This is the lemma that removes the proof-argument case from the residue of
+  section 4.
+
 Agent A's shared base, used here: `Cancel.lean` (192), `TypingFront.lean` (314), `Closures.lean`
 (352): `Strengthening ↔ Front ↔ Cancel`, `TypedFront ↔ TypeFront ↔ PropFront` under canonical
 `Eq`, `TypingFrontN ↔ AppFrontN ∧ TypeFrontN ∧ ProjFrontN`.
@@ -147,6 +157,15 @@ mechanising it as `NormalEqN.descend_betaNormal`):
     above, nothing determines `C₁ ≡ C₂` or `A₁ ≡ A₂` below, and contraction duplicates the
     argument (`μ` can grow). **This is the single residual configuration.**
 
+Refinement of the residual case, after `NormalEqF.contract`: contracting the β-pair is always
+sound above, and the proof-erased size drops whenever the abstracted variable occurs at most
+once in the body, or occurs at positions whose types are determined below (argument of a
+common spine head, root, operand of a resolvable application): in all those cases the domains
+`A₁ ≡ A₂` follow from the typing of the use sites below. What remains is an abstracted
+variable that occurs several times and only at undetermined positions (as the argument of
+another abstraction bound by a β-redex, or applied to abstractions), i.e. nested β-redexes with
+abstraction arguments; eliminating them is β-normalisation restricted to such redexes.
+
 The residual is equivalent to `TypeFront` (take `t_i := bvar 0`: `λ (z : C₁). z`,
 `λ (z : C₂). z` are typed below and their lifts are `lamDF`-normally equal above), hence to
 `TypedFront` and `PropFront`; agent A is recording it as `HeadRedexDomainFront` with the
@@ -215,7 +234,8 @@ points the same way.
   Agreed the split with agent A (A: `Cancel`, `TypingFront`, `Closures`, confluence descent;
   B: `Model*`).
 * 45e1cbb5 `Model.lean`; f9c41403 `ModelObstruction.lean`; merged A's d112421a (061942a5);
-  2cbd1dd5 `TypedReflection` refuted, `ModelBridge.lean`; aa42a92a `InhabitedProp.lean`.
+  2cbd1dd5 `TypedReflection` refuted, `ModelBridge.lean`; aa42a92a `InhabitedProp.lean`;
+  11b9c05c `HeteroSubst.lean`.
   Each pushed to `kim-em/agent/iota-strengthB` after a green build of the module.
 * Messages to A: the split; the push SHAs; the `(μ, n)` descent analysis with the proof-argument
   β-pair closed by contraction and the lambda-argument β-pair as the residue; the equivalence
