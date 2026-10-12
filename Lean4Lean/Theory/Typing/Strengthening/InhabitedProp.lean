@@ -70,4 +70,56 @@ theorem inhabitedPropFront_iff_typedFront (henv : env.WF) (heq : env.HasCanonica
     InhabitedPropFront env ↔ TypedFront env :=
   (inhabitedPropFront_iff_propFront henv).trans (typedFront_iff_propFront henv heq).symm
 
+/-! ## The lambda-domain front
+
+Two lifted abstractions, each typed below (at possibly different types, the mode-0 situation
+of the normal-equality descent: the argument pair of a matched β-redex pair), convertible
+above: their domains are convertible below. With a *common* type below this is trivial
+(`lamDomain_of_common_type`, by `Π`-injectivity), which is why the residue lives at positions
+without type information. Without a common type it is exactly `TypeFront`
+(`lamDomainFront_iff_typeFront`). -/
+
+/-- Domain descent for lifted abstractions typed below at unrelated types. -/
+def LamDomainFront (env : VEnv) : Prop :=
+  ∀ ⦃U Γ Q C₁ C₂ t₁ t₂ T₁ T₂⦄, OnCtx (Q :: Γ) (env.IsType U) →
+    env.HasType U Γ (.lam C₁ t₁) T₁ → env.HasType U Γ (.lam C₂ t₂) T₂ →
+    env.IsDefEqU U (Q :: Γ) (VExpr.lam C₁ t₁).lift (VExpr.lam C₂ t₂).lift →
+    env.IsDefEqU U Γ C₁ C₂
+
+/-- With a common type below, the domains agree below by `Π`-injectivity alone. -/
+theorem lamDomain_of_common_type (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+    (h₁ : env.HasType U Γ (.lam C₁ t₁) T) (h₂ : env.HasType U Γ (.lam C₂ t₂) T) :
+    env.IsDefEqU U Γ C₁ C₂ := by
+  obtain ⟨B₁, e₁, -⟩ := h₁.lam_inv_forallE henv hΓ
+  obtain ⟨B₂, e₂, -⟩ := h₂.lam_inv_forallE henv hΓ
+  obtain ⟨u, h⟩ := ((e₁.trans henv hΓ (e₂.symm)).forallE_inv henv hΓ).1
+  exact ⟨_, h⟩
+
+theorem LamDomainFront.of_typeFront (henv : env.WF) (H : TypeFront env) : LamDomainFront env := by
+  intro U Γ Q C₁ C₂ t₁ t₂ T₁ T₂ hΓ h₁ h₂ he
+  obtain ⟨⟨u, hC₁⟩, -⟩ := h₁.lam_inv henv hΓ.1
+  obtain ⟨⟨v, hC₂⟩, -⟩ := h₂.lam_inv henv hΓ.1
+  obtain ⟨w, hd⟩ := IsDefEqU.lam_domain henv hΓ he
+  exact H hΓ hC₁ hC₂ ⟨_, hd⟩
+
+theorem TypeFront.of_lamDomainFront (henv : env.WF) (H : LamDomainFront env) : TypeFront env := by
+  intro U Γ Q A B u v hΓ hA hB hAB
+  have hΓ₀ := hΓ.1
+  have hd := hAB.of_l henv hΓ (hA.weak henv.ordered)
+  have hv : env.HasType U (Q :: Γ) B.lift (.sort u) := hd.hasType.2
+  have hId₁ : env.HasType U Γ (.lam A (.bvar 0)) (.forallE A A.lift) := HasType.lam hA (.bvar .zero)
+  have hId₂ : env.HasType U Γ (.lam B (.bvar 0)) (.forallE B B.lift) := HasType.lam hB (.bvar .zero)
+  have he : env.IsDefEqU U (Q :: Γ) (VExpr.lam A (.bvar 0)).lift (VExpr.lam B (.bvar 0)).lift := by
+    refine ⟨_, IsDefEq.lamDF (u := u) hd (.bvar .zero)⟩
+  exact H hΓ hId₁ hId₂ he
+
+/-- The lambda-domain front is the type front. -/
+theorem lamDomainFront_iff_typeFront (henv : env.WF) : LamDomainFront env ↔ TypeFront env :=
+  ⟨TypeFront.of_lamDomainFront henv, LamDomainFront.of_typeFront henv⟩
+
+/-- Under canonical `Eq`, the lambda-domain front is the typed front. -/
+theorem lamDomainFront_iff_typedFront (henv : env.WF) (heq : env.HasCanonicalEq) :
+    LamDomainFront env ↔ TypedFront env :=
+  (lamDomainFront_iff_typeFront henv).trans (typeFront_iff_typedFront henv heq)
+
 end Lean4Lean.VEnv.Strengthening

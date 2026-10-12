@@ -62,7 +62,11 @@ Mine (namespace `Lean4Lean.VEnv.StrengtheningModel` unless noted):
   `selfArrow`, **`inhabitedPropFront_iff_propFront`**, `inhabitedPropFront_iff_typedFront`.
   This kills the hope (mine and A's, independently) that the residue of the normal-equality
   descent is weaker than the open statement: `P ↦ (P → P)` is inhabited by the identity and
-  `Π`-injective.
+  `Π`-injective. Also `LamDomainFront` (two lifted abstractions typed below at unrelated types,
+  convertible above, have convertible domains below: the mode-0 residue of the descent),
+  `lamDomain_of_common_type` (with a common type below it is `Π`-injectivity, which is why the
+  residue sits at positions without type information), **`lamDomainFront_iff_typeFront`**,
+  `lamDomainFront_iff_typedFront`.
 
 * `Strengthening/HeteroSubst.lean` (124 lines, namespace `Lean4Lean.VEnv.Strengthening`,
   `[Params]`). **`NormalEqF.instN_lr`**: heterogeneous substitution of two normally equal terms
