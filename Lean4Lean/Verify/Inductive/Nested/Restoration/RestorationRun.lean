@@ -79,6 +79,7 @@ theorem Environment.restoreNestedAfterInstall.WF (env loweredEnv : Environment)
       (RestorationRun res loweredEnv env lparams types safety allowPrimitive fuel) := by
   unfold Environment.restoreNestedAfterInstall
   rcases hp : mkAuxRecNameMap loweredEnv types with ⟨recNames, recNameMap⟩
+  refine Except.WF.bind Except.WF.unit fun _ _ => ?_
   refine Except.WF.bind Except.WF.stateRun fun restoredEnv hrestored => ?_
   refine Except.WF.bind Except.WF.stateRun fun validationEnv hvalidation => ?_
   refine Except.WF.bind Except.WF.stateRun fun auxiliaryHeaderEnv hheaders => ?_

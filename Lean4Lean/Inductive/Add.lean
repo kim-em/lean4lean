@@ -986,6 +986,85 @@ def restoreRecursor (r : Result) (env' : Environment)
     rules := recInfo.rules.map
       (r.restoreRule env' auxRec oldRecName newRecName) }
 
+
+/-- The node test of `restoreNestedNode`, with the exceptions that `restore_nested` throws in the
+C++ kernel ([leanprover/lean4#14632](https://github.com/leanprover/lean4/pull/14632)) where
+`restoreNestedNode` has `assert!`/`unreachable!`: `true` when the node is replaced (so the
+traversal does not descend into it), `false` when the traversal descends. -/
+def checkRestoreNestedNode (r : Result) (env' : Environment) (auxRec : NameMap Name)
+    (t : Expr) : Except Exception Bool := do
+  if let .const c _ := t then
+    if (auxRec.find? c).isSome then return true
+  let .const c _ := t.getAppFn | return false
+  if (r.aux2nested.find? c).isSome then
+    unless r.nparams ≤ t.getAppNumArgs do
+      throw <| .other "failed to restore nested inductive types, \
+        auxiliary type is not applied to all parameters"
+    return true
+  let some (nested, _) := r.getNestedIfAuxCtor env' c | return false
+  unless r.nparams ≤ t.getAppNumArgs do
+    throw <| .other "failed to restore nested inductive types, \
+      auxiliary constructor is not applied to all parameters"
+  unless nested.getAppFn.isConst do
+    throw <| .other "failed to restore nested inductive types, \
+      nested occurrence is not an inductive type application"
+  return true
+
+/-- Run `f` on the nodes that `Expr.replace f'` visits when `f` decides whether `f'` replaces a
+node: a node for which `f` returns `true` is not descended into. -/
+def checkRestoreReplace (f : Expr → Except Exception Bool) : Expr → Except Exception Unit
+  | e@(.app fn arg) => do
+    unless ← f e do
+      checkRestoreReplace f fn
+      checkRestoreReplace f arg
+  | e@(.lam _ ty body _) | e@(.forallE _ ty body _) => do
+    unless ← f e do
+      checkRestoreReplace f ty
+      checkRestoreReplace f body
+  | e@(.letE _ ty value body _) => do
+    unless ← f e do
+      checkRestoreReplace f ty
+      checkRestoreReplace f value
+      checkRestoreReplace f body
+  | e@(.mdata _ inner) | e@(.proj _ _ inner) => do
+    unless ← f e do
+      checkRestoreReplace f inner
+  | e => discard (f e)
+
+/-- The body under the first `n` binders (`forallE` or `lam`), as opened by `restoreNested`;
+`none` where `restore_nested` throws for too few binders. -/
+def restoreBody? : Nat → Expr → Option Expr
+  | 0, e => some e
+  | n + 1, .forallE _ _ body _ | n + 1, .lam _ _ body _ => restoreBody? n body
+  | _ + 1, _ => none
+
+/-- Throws exactly where the C++ `restore_nested` throws on `e`; `restoreNested` itself is total.
+Opening the parameters replaces bound variables by free ones, which changes no head constant and
+no argument count, so the closed body is tested. -/
+def checkRestoreNested (r : Result) (env' : Environment) (e : Expr)
+    (auxRec : NameMap Name := {}) : Except Exception Unit := do
+  let some body := restoreBody? r.nparams e
+    | throw <| .other "failed to restore nested inductive types, fewer binders than parameters"
+  checkRestoreReplace (r.checkRestoreNestedNode env' auxRec) body
+
+/-- Throws exactly where the C++ `restore_constructor_name` throws on `c`. -/
+def checkRestoreCtorName (r : Result) (env' : Environment) (c : Name) :
+    Except Exception Unit := do
+  let some (e, _) := r.getNestedIfAuxCtor env' c
+    | throw <| .other s!"failed to restore nested inductive types, \
+        '{c}' is not a constructor of an auxiliary type"
+  unless e.getAppFn.isConst do
+    throw <| .other "failed to restore nested inductive types, \
+      nested occurrence is not an inductive type application"
+
+/-- Throws exactly where the C++ restoration of the recursor `recInfo` throws. -/
+def checkRestoreRecursor (r : Result) (env' : Environment) (auxRec : NameMap Name)
+    (oldRecName newRecName : Name) (recInfo : RecursorVal) : Except Exception Unit := do
+  r.checkRestoreNested env' recInfo.type auxRec
+  recInfo.rules.forM fun rule => do
+    r.checkRestoreNested env' rule.rhs auxRec
+    unless newRecName == oldRecName do r.checkRestoreCtorName env' rule.ctor
+
 end Result
 
 structure State where
@@ -1465,6 +1544,28 @@ def stripRecursorRules (env : Environment) (recNames : List Name) : Environment 
     | some (.recInfo info) => env.add (.recInfo { info with rules := [] })
     | _ => env
 
+/-- The exceptions of the C++ nested restoration
+([leanprover/lean4#14632](https://github.com/leanprover/lean4/pull/14632)), checked on every
+lowered constructor type and recursor that the restoration reads, before anything is restored:
+the restoration itself (`restoreNested`, `restoreCtorName`) is total, and on a successful check
+its `assert!`s and `unreachable!`s are not reached. A lowered declaration that is missing is
+reported by the restoration. -/
+def checkRestorable (res : ElimNestedInductive.Result) (loweredEnv : Environment)
+    (recNameMap : NameMap Name) (types : List InductiveType) (auxRecNames : List Name) :
+    Except Exception Unit := do
+  types.forM fun indType => do
+    if let some (.inductInfo ind) := loweredEnv.find? indType.name then
+      ind.ctors.forM fun ctorName => do
+        if let some (.ctorInfo ctor) := loweredEnv.find? ctorName then
+          res.checkRestoreNested loweredEnv ctor.type
+    checkRec (mkRecName indType.name)
+  auxRecNames.forM checkRec
+where
+  checkRec (recName : Name) : Except Exception Unit := do
+    if let some (.recInfo recInfo) := loweredEnv.find? recName then
+      res.checkRestoreRecursor loweredEnv recNameMap recName (recNameMap.getD recName recName)
+        recInfo
+
 /-- Restore a successfully installed lowered block. Before the restored environment is
 returned, the source constructor types, the restored recursor types, the right-hand sides of
 the restored rules and the nested applications `I Ds` are type-checked, each in its own side
@@ -1475,6 +1576,7 @@ def Environment.restoreNestedAfterInstall (env loweredEnv : Environment)
     (res : ElimNestedInductive.Result) : Except Exception Environment := do
   let allIndNames := types.map (·.name)
   let (recNames', recNameMap') := mkAuxRecNameMap loweredEnv types
+  checkRestorable res loweredEnv recNameMap' types recNames'
   let restoredEnv ← (·.2) <$> StateT.run (s := env)
     (restoreNestedDeclarations res loweredEnv recNameMap' allIndNames
       allowPrimitive types recNames')
