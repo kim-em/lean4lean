@@ -26,6 +26,7 @@ import Lean4Lean.Tests.Level
 import Lean4Lean.Tests.TypeAnnotationWrappers
 import Lean4Lean.Tests.StructEtaIota
 import Lean4Lean.Tests.CacheScope
+import Lean4Lean.Tests.LetCache
 import Lean4Lean.Tests.FVarRenamingEquivManager
 import Lean4Lean.Tests.QuotInit
 import Lean4Lean.Tests.Replay
