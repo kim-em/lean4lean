@@ -6,7 +6,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.HeaderRenaming
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ContainerSpecializations
 import Lean4Lean.Verify.Inductive.Nested.Restoration.TableAgreement
 import Lean4Lean.Verify.Inductive.Nested.Restoration.CompilationData
-import Lean4Lean.Verify.Inductive.Nested.Restoration.IotaSoundnessLemmas
+import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Base
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.ProjectionRenaming
 

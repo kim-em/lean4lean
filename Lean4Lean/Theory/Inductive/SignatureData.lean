@@ -60,6 +60,9 @@ def vars (count below : Nat) : List VExpr :=
 def insertBinders (domains : List VExpr) (count : Nat) : List VExpr :=
   domains.zipIdx.map fun (type, i) => type.liftN count i
 
+theorem insertBinders_length (l : List VExpr) (k : Nat) : (insertBinders l k).length = l.length := by
+  simp [insertBinders]
+
 def familyApp (s : InductiveSignature) (owner : Fin s.families.size)
     (levels : List VLevel) (params indices : List VExpr) : VExpr :=
   VExpr.mkApps (.const s.families[owner].name levels) (params ++ indices)

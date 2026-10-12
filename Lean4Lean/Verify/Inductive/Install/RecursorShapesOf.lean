@@ -34,9 +34,6 @@ theorem bvarRange_closedN (n : Nat) : ∀ p ∈ VExpr.bvarRange n n, p.ClosedN n
   obtain ⟨j, hj, rfl⟩ := hp
   simp [VExpr.ClosedN]; omega
 
-theorem insertBinders_length (l : List VExpr) (k : Nat) : (insertBinders l k).length = l.length := by
-  simp [insertBinders]
-
 /-- The generated recursor type is a recursor telescope over its major family. -/
 theorem Instance.recursorType_shape {s : InductiveSignature} (g : Instance s)
     (owner : Fin s.families.size) :

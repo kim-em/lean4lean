@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Nested.Restoration.IotaSoundnessLemmas
+import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 import Lean4Lean.Theory.Typing.RestorationShapes
 
 /-! Totality of restoration on generated syntax (`Restoration.SpineOK`,

@@ -1,15 +1,14 @@
 # Open proofs
 
 The verification of `addDecl` (`Lean4Lean.addDecl.WF`) and everything stated on top of it is
-conditional on two theorems whose proofs are `sorry`. They are the `openProofs` of
+conditional on one theorem whose proof is `sorry`. It is the `openProofs` entry of
 `scripts/inductive-audit-inventory.json`; `scripts/check-inductive-audit.py --require-complete`
-checks that every `sorry` reached from an audit root is one of them and that each of them is still
-reached. Paths are relative to `Lean4Lean/`.
+checks that every `sorry` reached from an audit root is it and that it is still reached. Paths
+are relative to `Lean4Lean/`.
 
 | theorem | origin | reached by |
 |---|---|---|
 | `IsDefEqU.weakN_iff` | master | the checker verification |
-| `VEnv.WF.patsStrong` | PR #43 | everything that uses the strong system |
 
 ## `IsDefEqU.weakN_iff` (`Theory/Typing/UniqueTyping.lean`)
 
@@ -41,30 +40,3 @@ hypotheses, which `addDecl.preludeEq_hasCanonicalEq` supplies for the real prelu
 removes the countermodel), or a verification that never moves a typing fact to a smaller context
 (PR #53's scoped caches and constructor-telescope certificates; an executable change, slower
 than the C++ kernel's caching).
-
-## `VEnv.WF.patsStrong` (`Theory/Typing/EnvLemmas.lean`)
-
-**Statement.** `env.WF → env.PatsStrong`: subject reduction of the registered ι rules in the
-strong system, in every environment the strong typing of constants walks through (a prefix
-`env₁` of `env` with `env.WFPrefix env₁`, and its extensions by constants alone inside `env`).
-
-**Use.** `VEnv.WF.orderedStrong` builds `OrderedStrong` from it, and every lemma of the strong
-system takes `OrderedStrong`: `IsDefEq.strong`, the substitution theorems, the inversion lemmas,
-and every lemma of the observation model. Through them it is reached by every root that reaches
-head inversion, uniqueness of typing, the checker verification or confluence.
-
-**Why it is open.** A proof by induction along the history works with an invariant that excludes
-`PatsStrongOn` (a prototype on PR #43 proves this part), but its key step aligns the
-constructor's parameters with the recursor's inside a strong derivation, so that the fields can be
-retyped there. That needs head inversion with *strong* conclusions. The observation model gives
-head inversion with weak conclusions only, and is itself built on `OrderedStrong`.
-
-**What would close it.** Either head inversion with strong conclusions (new metatheory), or a
-change to the calculus: a premise on `IsDefEq.pat` that the reduct is typed. With the premise,
-`patsStrong` is no longer needed and the one new obligation is that the reducts of the registered
-rules are typed in the weak system, which the observation model supports (tried on PR #43: +90/-129
-lines over 12 files). The premise is a design decision for the calculus.
-
-**Statement defect.** `WFPrefix` admits prefixes that are not well-formed: a `decl` step may
-reorder the history, so a prefix can mention a constant it does not contain. The hypothesis should
-be `env₁.WF`; the `WFPrefix` and `≤ env` bounds are not used by `VEnv.WF.strong`.

@@ -695,7 +695,7 @@ theorem singleton_fieldsCtx {env : VEnv} (henv : env.WF) (hfam : s.families.size
     intro i hi
     have := hallcl (g.params.length + 1 + i) (by simp; omega)
     rw [List.getElem_append_left (by simp; omega), List.getElem_append_right (by simp),
-      getElem_insertBinders (by simp; omega)] at this
+      VEnv.getElem_insertBinders (by simp; omega)] at this
     simp only [List.length_append, List.length_singleton,
       show g.params.length + 1 + i - (g.params.length + 1) = i by omega] at this
     exact VExpr.ClosedN.of_liftN (k := g.params.length + i) (by simpa [Nat.add_right_comm] using this)
@@ -784,7 +784,7 @@ theorem singletonElim_wf {env : VEnv} (henv : env.WF) (hfam : s.families.size = 
     intro i hi
     have := hallcl (g.params.length + 1 + i) (by simp; omega)
     rw [List.getElem_append_left (by simp; omega), List.getElem_append_right (by simp),
-      getElem_insertBinders (by simp; omega)] at this
+      VEnv.getElem_insertBinders (by simp; omega)] at this
     simp only [List.length_append, List.length_singleton,
       show g.params.length + 1 + i - (g.params.length + 1) = i by omega] at this
     exact VExpr.ClosedN.of_liftN (k := g.params.length + i) (by simpa [Nat.add_right_comm] using this)

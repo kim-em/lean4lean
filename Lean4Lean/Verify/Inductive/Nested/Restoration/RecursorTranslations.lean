@@ -3,7 +3,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.KernelData
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.RuleRhs
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Declarations
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.Stripped
-import Lean4Lean.Verify.Inductive.Nested.Restoration.IotaSoundnessLemmas
+import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 
 /-! Restored block certificate of a validated nested run: the pieces.
 
