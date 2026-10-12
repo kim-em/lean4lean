@@ -196,4 +196,51 @@ theorem μ_inst_proof (hΓ : OnCtx Γ (Params.env.IsType univs)) (hA : Γ ⊢ A 
     (hx : Γ ⊢ x : A) (hs : A :: Γ ⊢ s : T) : μ Γ (s.inst x) = μ (A :: Γ) s :=
   μ_instN_proof ⟨hΓ, _, hA⟩ hA hx .zero hs
 
+/-! ## Renaming -/
+
+/-- Proofness is invariant under renaming, for typed terms. -/
+theorem IsProof.lift'_iff (hΓ : OnCtx Γ (Params.env.IsType univs))
+    (hΓ' : OnCtx Γ' (Params.env.IsType univs)) (W : Ctx.Lift' ρ Γ Γ') (he : Γ ⊢ e : T) :
+    IsProof Γ' (e.lift' ρ) ↔ IsProof Γ e :=
+  ⟨fun ⟨_, hp, hP⟩ => IsProof.of_lift hΓ hΓ' W he hP hp, IsProof.lift' W⟩
+
+/-- `μ` is invariant under renaming, for typed terms. -/
+theorem μ_lift' (hΓ : OnCtx Γ (Params.env.IsType univs))
+    (hΓ' : OnCtx Γ' (Params.env.IsType univs)) (W : Ctx.Lift' ρ Γ Γ') (he : Γ ⊢ e : T) :
+    μ Γ' (e.lift' ρ) = μ Γ e := by
+  have hp := IsProof.lift'_iff hΓ hΓ' W he
+  induction e generalizing Γ Γ' ρ T with
+  | bvar i =>
+    simp only [lift'] at hp; simp only [lift', μ, hp]
+  | sort u =>
+    simp only [lift'] at hp; simp only [lift', μ, hp]
+  | const c ls =>
+    simp only [lift'] at hp; simp only [lift', μ, hp]
+  | app f a ihf iha =>
+    obtain ⟨_, _, hf, ha⟩ := he.app_inv henv hΓ
+    simp only [lift'] at hp
+    simp only [lift', μ, hp, ihf hΓ hΓ' W hf (IsProof.lift'_iff hΓ hΓ' W hf),
+      iha hΓ hΓ' W ha (IsProof.lift'_iff hΓ hΓ' W ha)]
+  | lam A b ihA ihb =>
+    obtain ⟨⟨u, hA⟩, _, hb⟩ := he.lam_inv henv hΓ
+    have hΓA : OnCtx (A :: Γ) (Params.env.IsType univs) := ⟨hΓ, u, hA⟩
+    have hΓA' : OnCtx (A.lift' ρ :: Γ') (Params.env.IsType univs) :=
+      ⟨hΓ', u, hA.weak' henv.ordered W⟩
+    simp only [lift'] at hp
+    simp only [lift', μ, hp, ihA hΓ hΓ' W hA (IsProof.lift'_iff hΓ hΓ' W hA),
+      ihb hΓA hΓA' W.cons hb (IsProof.lift'_iff hΓA hΓA' W.cons hb)]
+  | forallE A B ihA ihB =>
+    obtain ⟨⟨u, hA⟩, _, hB⟩ := he.forallE_inv henv.ordered
+    have hΓA : OnCtx (A :: Γ) (Params.env.IsType univs) := ⟨hΓ, u, hA⟩
+    have hΓA' : OnCtx (A.lift' ρ :: Γ') (Params.env.IsType univs) :=
+      ⟨hΓ', u, hA.weak' henv.ordered W⟩
+    simp only [lift'] at hp
+    simp only [lift', μ, hp, ihA hΓ hΓ' W hA (IsProof.lift'_iff hΓ hΓ' W hA),
+      ihB hΓA hΓA' W.cons hB (IsProof.lift'_iff hΓA hΓA' W.cons hB)]
+  | proj S i m ih =>
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hmajor, _, _⟩ := he.proj_inv henv hΓ
+    simp only [lift'] at hp
+    simp only [lift', μ, hp, ih hΓ hΓ' W hmajor.hasType.2
+      (IsProof.lift'_iff hΓ hΓ' W hmajor.hasType.2)]
+
 end Lean4Lean.VEnv.Strengthening
