@@ -99,14 +99,35 @@ shared and loaded machine) against PR #43's head, whose executable has the same 
 |---|---|---|---|
 | `Init.Prelude` | 1975 | 0.49 | 0.47 |
 | `Init.Core` | 3953 | 0.66 | 0.64 |
-| `Init.System.IO` | 43609 | 29.2 | 30.6 |
+| `Init.System.IO` | 43609 | 29.2 | 30.4 |
 
 The `Init.System.IO` runs were interleaved between the two builds; on this machine single runs
-varied by up to 7 seconds.
+varied by up to 7 seconds. The `Init.System.IO` time of this branch was re-measured after the
+`whnf` caches were given the C++ kernel's keys (`let` expressions and let-bound variables),
+interleaved with the executable without them: 30.4 against 30.0 seconds, within that variation.
 
 A `lake build` of the default targets from a clean checkout took 17 minutes of wall time (28
 CPU-minutes) on the same machine; `Lean4Lean.Tests` and `Lean4Lean.Experimental` add about 30
 seconds on top of it.
+
+Larger corpora. The same differential replay (`lean4lean --fresh --exact --differential MOD`,
+run directly with `LEAN_PATH` set to the corpus's build) was run over two packages pinned to
+this branch's toolchain `v4.33.0-rc2`: Batteries at `45f65c8b` (its last commit on that
+toolchain) and Mathlib at `3ef2c2e2` (likewise), built from the Mathlib cache. Each run replays
+the root module and everything it imports from the empty environment, so it covers `Init`,
+`Std` and the imported part of `Lean` as well (1372 modules for Batteries, 10498 for Mathlib,
+including Aesop, Qq, Plausible and ProofWidgets); unsafe and partial constants are skipped as
+for `Init`. Both kernels accepted every declaration, and every constant the declarations add
+agreed:
+
+| corpus | declarations checked | agreements | lean4lean-only rejections | kernel-only rejections | constructed-term mismatches | wall time | peak RSS |
+|---|---|---|---|---|---|---|---|
+| `Batteries` | 129623 | 129623 | 0 | 0 | 0 | 2 min 7 s | 1.0 GB |
+| `Mathlib` | 750221 | 750221 | 0 | 0 | 0 | 37 min 38 s | 7.8 GB |
+
+Wall time is from process start to exit, on a shared and loaded 96-core machine (the replay is single
+threaded); peak RSS is `VmHWM` sampled every two seconds. In the Mathlib run 21 declarations
+took lean4lean over a second, the slowest `PresheafOfModules.freeObj._proof_2` (34 s).
 
 ## More documentation
 

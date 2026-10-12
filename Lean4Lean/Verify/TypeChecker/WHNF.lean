@@ -105,26 +105,22 @@ theorem whnfCore'.WF_all {c : VContext} {s : State} (he : c.TrExprS e e') :
   simp [F]; refine fun hfull => .get ?_; split
   · rename_i r eq; refine .stateWF fun wf => hP ▸ .pure ?_
     have ⟨_, h1, h2, h3, h5⟩ := (wf.whnfCore_wf eq).2.2.2.2 he.fvarsIn
-    refine ⟨⟨⟨h1, h3.defeq c.Ewf c.Δwf ?_, fun _ _ hAB =>
-      (he.cacheKey_not_forall h5 hAB).elim⟩, wf.whnfCore_levels eq he.fvarsIn⟩,
+    cases h2.toTrSyn.unique he.toTrSyn
+    exact ⟨⟨⟨h1, h3, h5⟩, wf.whnfCore_levels eq he.fvarsIn⟩,
       hpfx ▸ wf.whnfCore_paramUniform eq he.fvarsIn⟩
-    exact h2.uniq c.Ewf (.refl c.Ewf c.Δwf) he
   have hsave {e₁ s} (hs : s.ngen.namePrefix = pfx) (h1 : c.FVarsBelow e e₁)
       (h2 : c.TrExpr e₁ e') (h3 : ∀ A B, e' = .forallE A B → c.TrExprS e₁ e')
       (h4 : c.LevelsBelow e e₁) (h5 : c.ParamUniformBelow pfx e e₁) :
       (save e cheapProj e₁).WF c s P := by
     simp [save]
     split <;> [skip; exact hP ▸ .pure ⟨⟨⟨h1, h2, h3⟩, h4⟩, h5⟩]
-    rename_i hcacheKey
-    have hkey : whnfCacheKey e = true := by
-      simpa only [Bool.and_eq_true] using hcacheKey |> And.right
     rintro _ mwf wf a s' ⟨⟩
     refine let s' := _; ⟨s', rfl, ?_⟩
     have hic {ic} (hic : WHNFCache.WF c s ic) : WHNFCache.WF c s (ic.insert e e₁) := by
       intro _ _ h
       rw [Std.HashMap.getElem?_insert] at h; split at h <;> [cases h; exact hic h]
       rename_i eq
-      refine .mk c.mlctx.noBV (.eqv h1 eq BEq.rfl) (he.eqv eq) h2 (by rw [← whnfCacheKey_eqv eq]; exact hkey) (.eqv eq ?_) ?_
+      refine .mk c.mlctx.noBV (.eqv h1 eq BEq.rfl) (he.eqv eq) h2 h3 (.eqv eq ?_) ?_
       · exact he.fvarsIn.mono wf.ngen_wf
       · exact h2.fvarsIn.mono wf.ngen_wf
     have h5' := h5; rw [← hs] at h5'
@@ -290,10 +286,9 @@ theorem whnf'.WF_all {c : VContext} {s : State} (he : c.TrExprS e e') :
   simp [F]; refine .get ?_; split
   · rename_i r eq; refine .stateWF fun wf => hP ▸ .pure ?_
     have ⟨_, h1, h2, h3, h5⟩ := (wf.whnf_wf eq).2.2.2.2 he.fvarsIn
-    refine ⟨⟨⟨h1, h3.defeq c.Ewf c.Δwf ?_, fun _ _ hAB =>
-      (he.cacheKey_not_forall h5 hAB).elim⟩, wf.whnf_levels eq he.fvarsIn⟩,
+    cases h2.toTrSyn.unique he.toTrSyn
+    exact ⟨⟨⟨h1, h3, h5⟩, wf.whnf_levels eq he.fvarsIn⟩,
       hpfx ▸ wf.whnf_paramUniform eq he.fvarsIn⟩
-    exact h2.uniq c.Ewf (.refl c.Ewf c.Δwf) he
   have {e e' s n} (he : c.TrExprS e e') (hs : s.ngen.namePrefix = pfx) : (loop e n).WF c s
       fun e₁ _ =>
       ((c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' ∧ (∀ A B, e' = .forallE A B → c.TrExprS e₁ e')) ∧
@@ -332,25 +327,22 @@ theorem whnf'.WF_all {c : VContext} {s : State} (he : c.TrExprS e e') :
     · exact hh1.trans h1 ((HH _ rfl).trans a1 bh)
   refine .readThe <| (this he hpfx).bind fun e₁ s le ⟨⟨⟨h1, h2, h3⟩, hl⟩, hh⟩ => ?_
   have hs := State.LE.namePrefix_eq hpfx le
-  split
-  · rename_i hkey
-    rintro _ mwf wf a s' ⟨⟩
-    refine let s' := _; ⟨s', rfl, ?_⟩
-    have hic {ic} (hic : WHNFCache.WF c s ic) : WHNFCache.WF c s (ic.insert e e₁) := by
-      intro _ _ h
-      rw [Std.HashMap.getElem?_insert] at h; split at h <;> [cases h; exact hic h]
-      rename_i eq
-      refine .mk c.mlctx.noBV (.eqv h1 eq BEq.rfl) (he.eqv eq) h2 (by rw [← whnfCacheKey_eqv eq]; exact hkey) (.eqv eq ?_) ?_
-      · exact he.fvarsIn.mono wf.ngen_wf
-      · exact h2.fvarsIn.mono wf.ngen_wf
-    have hh' := hh; rw [← hs] at hh'
-    exact hP ▸ ⟨.rfl,
-      { wf with
-        whnf_wf := hic wf.whnf_wf
-        whnf_levels := wf.whnf_levels.insert hl
-        whnf_paramUniform := wf.whnf_paramUniform.insert hh' },
-      ⟨⟨h1, h2, h3⟩, hl⟩, hh⟩
-  · exact hP ▸ .pureBind (.pure ⟨⟨⟨h1, h2, h3⟩, hl⟩, hh⟩)
+  rintro _ mwf wf a s' ⟨⟩
+  refine let s' := _; ⟨s', rfl, ?_⟩
+  have hic {ic} (hic : WHNFCache.WF c s ic) : WHNFCache.WF c s (ic.insert e e₁) := by
+    intro _ _ h
+    rw [Std.HashMap.getElem?_insert] at h; split at h <;> [cases h; exact hic h]
+    rename_i eq
+    refine .mk c.mlctx.noBV (.eqv h1 eq BEq.rfl) (he.eqv eq) h2 h3 (.eqv eq ?_) ?_
+    · exact he.fvarsIn.mono wf.ngen_wf
+    · exact h2.fvarsIn.mono wf.ngen_wf
+  have hh' := hh; rw [← hs] at hh'
+  exact hP ▸ ⟨.rfl,
+    { wf with
+      whnf_wf := hic wf.whnf_wf
+      whnf_levels := wf.whnf_levels.insert hl
+      whnf_paramUniform := wf.whnf_paramUniform.insert hh' },
+    ⟨⟨h1, h2, h3⟩, hl⟩, hh⟩
 
 theorem whnf'.WF {c : VContext} {s : State} (he : c.TrExprS e e') :
     RecM.WF c s (whnf' e) fun e₁ _ =>

@@ -53,8 +53,9 @@ hypothesis is met by the environments that check the real prelude's `Eq`.
 binder moves the caches' facts with strengthening (`State.WF.restrict` in
 `RecM.WF.withLocalDecl`, `M.WF.withLocalDecl` and `RecM.WF.withLetDecl`, through
 `VContext.strengthening`, `Verify/TypeChecker/Basic.lean`; `lowerClosedBody` in
-`Verify/TypeChecker/IsDefEq.lean`; the projection walk `TrExprS.lowerClosedBV`; the equivalence
-manager `State.WF.eqv_uniq`). Canonical `Eq` cannot supply it there, so `replayFresh.WF` and
+`Verify/TypeChecker/IsDefEq.lean`; the projection walk `TrExprS.lowerClosedBV`,
+`Verify/TypeChecker/Projection.lean`; the equivalence manager `State.WF.eqv_uniq`,
+`Verify/EquivManager.lean`; and two places in `Verify/Environment/Primitive/Recursion.lean`). Canonical `Eq` cannot supply it there, so `replayFresh.WF` and
 `replayFresh.WF_target` take strengthening in every well-formed environment without canonical
 `Eq` (`VEnv.EqFreeStrengthening`) as a hypothesis. For an arbitrary source table this hypothesis
 is argued false, by the same countermodel: replaying the `Tests/CacheScope.lean` declarations
@@ -89,6 +90,15 @@ change to the calculus: a premise on `IsDefEq.pat` that the reduct is typed. Wit
 `patsStrong` is no longer needed and the one new obligation is that the reducts of the registered
 rules are typed in the weak system, which the observation model supports (tried on PR #43: +90/-129
 lines over 12 files). The premise is a design decision for the calculus.
+
+**A ready alternative.** Branch `agent/iota-premise` (kim-em) carries the premise variant on top of
+this branch: `IsDefEq.pat` gains the premise `Γ ⊢ r.1.apply m1 m2 : A`, `PatStrong`,
+`PatsStrongOn`, `VEnv.PatsStrong` and `WF.patsStrong` are deleted, `OrderedStrong` is `Ordered`
+plus `EnvStrong`, and the one new obligation `VEnv.WF.iotaReductTyped` (the reduct of a registered
+rule instance is typed, in the weak system, `Theory/Typing/IotaReductTyped.lean`) is proved from
+the installed blocks' equation typing. The change is 48 files, +767/-402; the checker proof
+supplies the reduct typing at `inductiveReduceRecCore.WF`; head inversion and confluence become
+unconditional, and the only accepted open proof left is `IsDefEqU.weakN_iff`.
 
 **Statement defect.** `WFPrefix` admits prefixes that are not well-formed: a `decl` step may
 reorder the history, so a prefix can mention a constant it does not contain. The hypothesis should
