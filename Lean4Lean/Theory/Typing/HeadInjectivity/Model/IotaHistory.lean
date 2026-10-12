@@ -493,7 +493,7 @@ theorem ordinary_rel {envF env0 envT envR base envTypes : VEnv} {decl : VInductD
 set_option maxHeartbeats 4000000 in
 /-- **Validity of the ι rules of an ordinary block.** -/
 theorem PatValid.ordinary {envF env0 env' : VEnv} {decl : VInductDecl}
-    (hF : envF.WF) (hpre : envF.WFPrefix env0) (h0 : env0.WF) (hdecl : decl.WF env0)
+    (hF : envF.WF) (h0 : env0.WF) (hdecl : decl.WF env0)
     (hadd : env0.addInduct decl = some env') (hle : env' ≤ envF)
     (V0 : EnvValid envF env0)
     (hprojV : ∀ S info, env'.projections S info → ProjValid envF S info)
@@ -595,7 +595,7 @@ theorem PatValid.ordinary {envF env0 env' : VEnv} {decl : VInductDecl}
     show fc.type.forallResult.getAppFnArgs.1 = _
     rw [hty, VExpr.forallResult_wrapForalls, forallResult_of_const_head hhead, hhead, htn]
   -- the stage environments
-  obtain ⟨hTs, hRs⟩ := stages_orderedStrong h0 hdecl sT sC sR sP
+  obtain ⟨hTs, hRs⟩ := stages_orderedStrong h0 hdecl sT sC sR
   obtain ⟨VT, VR⟩ := stages_envValid V0 hprojV sT sC sR sP
   have hRF : envR ≤ envF := (addRules_le sP).trans hle
   have hTF : envT ≤ envF :=

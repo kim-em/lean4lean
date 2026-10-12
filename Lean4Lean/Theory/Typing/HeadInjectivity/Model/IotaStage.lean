@@ -15,10 +15,10 @@ namespace VEnv
 
 /-- Strong typing of the constants of the type-former stage and the recursor stage of
 `addInduct` (the corresponding part of `addInduct_strong`). -/
-theorem addInduct_stage_strong {env env' envT envC envR : VEnv} {decl : VInductDecl}
+theorem addInduct_stage_strong {env envT envC envR : VEnv} {decl : VInductDecl}
     (hord : Ordered env) (IH : OnTypes env (EnvStrong env)) (hdecl : decl.WF env)
     (hT : decl.addTypes env = some envT) (hC : decl.addCtors envT = some envC)
-    (hR : decl.addRecs (decl.addProjs envC) = some envR) (hP : decl.addRules envR = some env') :
+    (hR : decl.addRecs (decl.addProjs envC) = some envR) :
     OnTypes envT (EnvStrong envT) ∧ OnTypes envR (EnvStrong envR) := by
   have hTC : decl.addTypesCtors env = some envC := by
     unfold VInductDecl.addTypesCtors; rw [hT]; exact hC
@@ -46,13 +46,13 @@ theorem addInduct_stage_strong {env env' envT envC envR : VEnv} {decl : VInductD
 
 /-- **The stage environments of an inductive step are strong**: the type-former stage and the
 recursor stage of `addInduct` over a well-formed environment. -/
-theorem stages_orderedStrong {env0 env' envT envC envR : VEnv} {decl : VInductDecl}
+theorem stages_orderedStrong {env0 envT envC envR : VEnv} {decl : VInductDecl}
     (h0 : env0.WF) (hdecl : decl.WF env0)
     (hT : decl.addTypes env0 = some envT) (hC : decl.addCtors envT = some envC)
-    (hR : decl.addRecs (decl.addProjs envC) = some envR) (hP : decl.addRules envR = some env') :
+    (hR : decl.addRecs (decl.addProjs envC) = some envR) :
     envT.OrderedStrong ∧ envR.OrderedStrong := by
   have hord := h0.ordered
-  obtain ⟨IHT, IHR⟩ := addInduct_stage_strong hord h0.orderedStrong.strong hdecl hT hC hR hP
+  obtain ⟨IHT, IHR⟩ := addInduct_stage_strong hord h0.orderedStrong.strong hdecl hT hC hR
   have hTC : decl.addTypesCtors env0 = some envC := by
     unfold VInductDecl.addTypesCtors; rw [hT]; exact hC
   have hTCP : decl.addTypesCtorsProjs env0 = some (decl.addProjs envC) :=

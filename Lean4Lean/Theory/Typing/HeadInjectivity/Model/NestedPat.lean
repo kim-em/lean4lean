@@ -34,7 +34,7 @@ theorem nested_families {base : VEnv} {source expanded : VInductDecl} {s : Induc
 set_option maxHeartbeats 8000000 in
 /-- **Validity of a rule of a nested block** from the data of its constructor. -/
 theorem nested_finish {envF env0 env' : VEnv} {decl : VInductDecl}
-    (hF : envF.WF) (hpre : envF.WFPrefix env0) (h0 : env0.WF) (hdecl : decl.WF env0)
+    (hF : envF.WF) (h0 : env0.WF) (hdecl : decl.WF env0)
     (hadd : env0.addInduct decl = some env') (hle : env' ≤ envF)
     (V0 : EnvValid envF env0)
     (hprojV : ∀ S info, env'.projections S info → ProjValid envF S info)
@@ -122,7 +122,7 @@ theorem nested_finish {envF env0 env' : VEnv} {decl : VInductDecl}
   obtain ⟨envT, envC, envR, sT, sC, sR, sP⟩ := addInduct_stages hadd
   have hTC : decl.addTypesCtors env0 = some envC := by
     unfold VInductDecl.addTypesCtors; rw [sT]; exact sC
-  obtain ⟨hTs, hRs⟩ := stages_orderedStrong h0 hdecl sT sC sR sP
+  obtain ⟨hTs, hRs⟩ := stages_orderedStrong h0 hdecl sT sC sR
   obtain ⟨VT, VR⟩ := stages_envValid V0 hprojV sT sC sR sP
   have hRF : envR ≤ envF := (addRules_le sP).trans hle
   have hCF : envC ≤ envF := addProjs_le.trans ((addRecs_le sR).trans hRF)
