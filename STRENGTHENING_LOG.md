@@ -74,15 +74,16 @@ Mine (namespace `Lean4Lean.VEnv.StrengtheningModel` unless noted):
   contracta. This is the lemma that removes the proof-argument case from the residue of
   section 4.
 
-* `Strengthening/ProofErasedSize.lean` (190 lines, namespace `Lean4Lean.VEnv.Strengthening`,
+* `Strengthening/ProofErasedSize.lean` (235 lines, namespace `Lean4Lean.VEnv.Strengthening`,
   `[Params]`, imports agent A's `NormalDescent.lean` for `IsProof`). **`μ`**, the proof-erased
   size (nodes inside proof subterms count `0`), with `μ_proof`, `μ_bvar`/`μ_sort`/`μ_const`,
   `μ_app`, `μ_lam`, `μ_forallE` (a `Π` is never a proof: `not_isProof_forallE`,
   `not_isProof_of_sort`), `μ_proj`, `μ_defeqDFC` (context conversion, with `IsDefEqCtx.symm'`
   and `IsProof.defeqDFC_iff`), `IsProof.instN_iff` (proofness is invariant under
   instantiation of typed terms), **`μ_instN_proof`**/`μ_inst_proof` (substituting a proof for
-  a proof variable leaves `μ` unchanged, at any depth). This is the outer component of the
-  `(μ, n)` measure of section 4, requested by agent A for the relaxation of `NormalEqS`.
+  a proof variable leaves `μ` unchanged, at any depth), `IsProof.lift'_iff`, `μ_lift'`
+  (invariance under renaming). This is the outer component of the `(μ, n)` measure of
+  section 4, requested by agent A for the relaxation of `NormalEqS` (section 7).
 
 Agent A's shared base, used here: `Cancel.lean` (192), `TypingFront.lean` (314), `Closures.lean`
 (352): `Strengthening ↔ Front ↔ Cancel`, `TypedFront ↔ TypeFront ↔ PropFront` under canonical
@@ -235,7 +236,34 @@ found no mechanism producing one; the regress argument (the only root use of the
 variable is proof irrelevance against it, which the mode-2 dispatch shows is never needed)
 points the same way.
 
-## 6. Log
+## 6. State of the joint reduction at the time of this report
+
+Agent A's `NormalDescent.lean` (merged here at 6852afc3): `NormalEqS` (normal equality with no
+lambda in function position of a congruence), `NormalEqS.descend` (descent of such an equality
+between lifts of terms typed below, along any renaming, with no hypothesis on the environment
+beyond `WF`), and the residual `StrictJoinRepair` (the join of a lifted equation can be chosen
+with lifted reducts and a strict normal equality) with `typedFront_of_strictJoinRepair`. So:
+
+```
+weakN_iff ⇔ Strengthening ⇔ Front ⇔ Cancel                        (A, every WF env)
+Cancel ⇔ TypingFront ⇔ ... ⇐ TypedFront ∧ PiExposureN ∧ ProjFrontN  (A, canonical Eq)
+TypedFront ⇔ TypeFront ⇔ PropFront ⇔ InhabitedPropFront ⇔ KeyFaithful (A, B; canonical Eq)
+TypedFront ⇐ StrictJoinRepair                                       (A, every WF env)
+StrictJoinRepair ⇐ replay of the join (lifted reducts) ∧ head-redex-free normal equality
+```
+
+The replay part (reductions above from a lift are lifts of reductions below): agent A's
+`CoreDescent.lean` (in progress) shows the core parallel steps and all concrete pattern checks
+descend from typing alone, so the replay residue is the two eta rules (non-lift reducts, the
+predecessor's eta-chain invariant) and singleton prefix unfolding (K-alignment of the indices
+of a major typed below: `PropEqFront`, a conversion between propositionally equal terms, which
+I could not reduce to `TypedFront` and which may be a genuine weakening). The join part: with
+`HeteroSubst.lean` and `ProofErasedSize.lean`, agent A is relaxing `NormalEqS` to allow head
+β-redex pairs with proof arguments (contracted, `μ` dropping by at least 2 per side), after
+which the residue is exactly the β-redex pairs whose argument pair is a lambda pair
+(`ArgLamFront`, equivalent to `TypeFront`).
+
+## 7. Log
 
 * Read the brief, the predecessor's `STRENGTHENING_ATTEMPT_2026-10-09{,b}.md`, logs A, B, B2,
   B3, C, E, F, Astra reviews 5 to 7 and round 4/7 answers, the predecessor's `Kripke.lean`,
