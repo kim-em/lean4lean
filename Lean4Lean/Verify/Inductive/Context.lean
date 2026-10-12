@@ -685,10 +685,10 @@ theorem BindingContextWF.withCheckedLocalDecl (H : BindingContextWF c)
     fresh := H'.fresh
     findCDecl := H'.findCDecl }
 
-theorem withLocalDecl.recursorWF {k : Expr → AddInductive.M α}
-    (R : RecursorContextWF c recLparams)
-    (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
-    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty')
+theorem withLocalDecl.WF {k : Expr → AddInductive.M α}
+    (R : ContextSemantics c Us)
+    (htr : TrExprS R.venv Us R.mlctx.vlctx ty ty')
+    (hty : R.venv.IsType Us.length R.mlctx.vlctx.toCtx ty')
     (Hk : (k (.fvar ⟨c.ngen.curr⟩)
       { c with
         ngen := c.ngen.next
@@ -697,11 +697,11 @@ theorem withLocalDecl.recursorWF {k : Expr → AddInductive.M α}
   have _R' := R.withLocalDecl (name := name) (bi := bi) htr hty
   exact Hk
 
-theorem withCheckedLocalDecl.WF {k : Expr → AddInductive.M α} (Hc : ContextWF c)
-    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
-    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty')
-    (htr₀ : TrExprS Hc.venv c.lparams Hc.chk.vlctx ty ty₀)
-    (hty₀ : Hc.venv.IsType c.lparams.length Hc.chk.vlctx.toCtx ty₀)
+theorem withCheckedLocalDecl.WF {k : Expr → AddInductive.M α} (Hc : ContextSemantics c Us)
+    (htr : TrExprS Hc.venv Us Hc.mlctx.vlctx ty ty')
+    (hty : Hc.venv.IsType Us.length Hc.mlctx.vlctx.toCtx ty')
+    (htr₀ : TrExprS Hc.venv Us Hc.chk.vlctx ty ty₀)
+    (hty₀ : Hc.venv.IsType Us.length Hc.chk.vlctx.toCtx ty₀)
     (Hk : (k (.fvar ⟨c.ngen.curr⟩)
       { c with
         ngen := c.ngen.next
@@ -709,21 +709,6 @@ theorem withCheckedLocalDecl.WF {k : Expr → AddInductive.M α} (Hc : ContextWF
         checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }).WF Q) :
     (AddInductive.withCheckedLocalDecl name bi ty k c).WF Q := by
   have _Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀
-  exact Hk
-
-theorem withCheckedLocalDecl.recursorWF {k : Expr → AddInductive.M α}
-    (R : RecursorContextWF c recLparams)
-    (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
-    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty')
-    (htr₀ : TrExprS R.venv recLparams R.chk.vlctx ty ty₀)
-    (hty₀ : R.venv.IsType recLparams.length R.chk.vlctx.toCtx ty₀)
-    (Hk : (k (.fvar ⟨c.ngen.curr⟩)
-      { c with
-        ngen := c.ngen.next
-        lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
-        checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }).WF Q) :
-    (AddInductive.withCheckedLocalDecl name bi ty k c).WF Q := by
-  have _R' := R.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀
   exact Hk
 
 @[simp] theorem RecursorContextWF.withCheckedLocalDeclOn_venv

@@ -1320,7 +1320,7 @@ theorem index.WF
       let type := body.instantiate1 arg
       AddInductive.checkInductiveTypes.loopType nparams stats
         (← TypeChecker.whnf type) i (nindices + 1) fuel k)
-    Hc hdom hdomType hdom₀ hdomType₀ ?_
+    Hc.toSemantics hdom hdomType hdom₀ hdomType₀ ?_
   let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi) hdom hdomType hdom₀ hdomType₀
   have hopened := Hc.instantiateFresh (name := name) (bi := bi)
     hdom hdomType hbody
@@ -1525,7 +1525,7 @@ theorem firstParameter.WF
       let type := body.instantiate1 param
       AddInductive.checkInductiveTypes.loopType nparams stats
         (← TypeChecker.whnf type) (i + 1) nindices fuel k)
-    Hc hdom hdomType hdom₀ hdomType₀ ?_
+    Hc.toSemantics hdom hdomType hdom₀ hdomType₀ ?_
   let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi) hdom hdomType hdom₀ hdomType₀
   have hopened := Hc.instantiateFresh (name := name) (bi := bi)
     hdom hdomType hbody

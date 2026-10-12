@@ -277,7 +277,7 @@ theorem safeField.sourceWF
       (k := fun arg => do
         return recursive :: (← AddInductive.checkConstructors.loopCtor stats false ctor
           targetIdx (body.instantiate1 arg) (i + 1) fuel))
-      Hc Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
+      Hc.toSemantics Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
     have hopened := Hc.instantiateFresh (name := name) (bi := bi)
       Hdom.unannotated Hdom.isType hbody''
     have hopened₀ := Hc.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
@@ -361,7 +361,7 @@ theorem unsafeField.sourceWF
       (k := fun arg => do
         return false :: (← AddInductive.checkConstructors.loopCtor stats true ctor
           targetIdx (body.instantiate1 arg) (i + 1) fuel))
-      Hc Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
+      Hc.toSemantics Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
     have hopened := Hc.instantiateFresh (name := name) (bi := bi)
       Hdom.unannotated Hdom.isType hbody''
     have hopened₀ := Hc.atCheckLCtx.instantiateFresh (name := name) (bi := bi)
@@ -1489,7 +1489,7 @@ theorem forallE.sourceWF
   rcases Hdom₀.body hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
   refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
     (k := fun arg => recur (body.instantiate1 arg))
-    Hc Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
+    Hc.toSemantics Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
   have hopened := Hc.instantiateFresh (name := name) (bi := bi)
     Hdom.unannotated Hdom.isType hbody''
   have hopened₀ := Hc.atCheckLCtx.instantiateFresh (name := name) (bi := bi)

@@ -2108,8 +2108,8 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
           rcases hconsume _ _ R.atCheckLCtx.toSemantics hdomC hdomCType with ⟨consumed₀, Hdom₀⟩
           rcases Hdom₀.body hbodyC with
             ⟨consumedBody₀, hbodyConsumed₀, _hbodyEq₀⟩
-          refine withCheckedLocalDecl.recursorWF (name := name) (bi := bi) (Q := Q)
-            R Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
+          refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
+            R.toSemantics Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
           let R' := R.withCheckedLocalDecl (name := name) (bi := bi)
             Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
           let Hsuffix' := Hsuffix.withIndex (name := name) (bi := bi)

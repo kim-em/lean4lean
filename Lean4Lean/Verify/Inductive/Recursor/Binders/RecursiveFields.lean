@@ -556,13 +556,13 @@ theorem refinesRecursor
         rcases hconsume _ recLparams R.atCheckLCtx.toSemantics hdom₀ hdom₀Type with
           ⟨consumedDom₀, Hdom₀⟩
         rcases Hdom₀.body hbodyN₀ with ⟨body₀'', hbody₀'', _⟩
-        refine withCheckedLocalDecl.recursorWF (name := name) (bi := bi)
+        refine withCheckedLocalDecl.WF (name := name) (bi := bi)
           (Q := fun result => ∀ target, result = some target →
             ∃ htarget : target < decl.types.length,
             decl.RecursiveArgAtTarget R.venv recLparams.length
               (decl.types[target]'htarget).name
               R.mlctx.vlctx.toCtx depth type')
-          R Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
+          R.toSemantics Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
         let R' := R.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
         have hopened := R.instantiateFresh (name := name) (bi := bi)

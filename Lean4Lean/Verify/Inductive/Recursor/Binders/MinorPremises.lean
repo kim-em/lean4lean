@@ -688,8 +688,8 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
     subst lctx
     let vName :=
       (current.lctx.get! u[v.size].fvarId!).userName.appendAfter "_ih"
-    refine withLocalDecl.recursorWF (name := vName) (bi := .default)
-      R HviTr HviType ?_
+    refine withLocalDecl.WF (name := vName) (bi := .default)
+      R.toSemantics HviTr HviType ?_
     let R' := R.withLocalDecl (name := vName) (bi := .default)
       HviTr HviType
     refine resultBindings stats bu u recInfos k Rroot R' rootScope
@@ -2551,8 +2551,8 @@ theorem continueMinorTyping {alpha : Type} {Q : alpha → Prop}
             minors := info.minors.push minor
             ruleTemplates := info.ruleTemplates.push (mkTemplate minor) }
         k next) c).WF Q := by
-  refine withLocalDecl.recursorWF (name := minorName) (bi := .default)
-    R Hminor HminorType ?_
+  refine withLocalDecl.WF (name := minorName) (bi := .default)
+    R.toSemantics Hminor HminorType ?_
   let Rminor := R.withLocalDecl (name := minorName) (bi := .default)
     Hminor HminorType
   let cMinor : AddInductive.Context := { c with

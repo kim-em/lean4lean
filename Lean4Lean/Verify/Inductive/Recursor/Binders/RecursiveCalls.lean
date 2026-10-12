@@ -1274,8 +1274,8 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
         let majorTy :=
           ((mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
             indices).consumeTypeAnnotationsVerified cIndices.env.isTypeAnnotationWrapper)
-        refine withLocalDecl.recursorWF (name := `t) (bi := .default)
-          Rindices Hframe.majorTr Hframe.majorType ?_
+        refine withLocalDecl.WF (name := `t) (bi := .default)
+          Rindices.toSemantics Hframe.majorTr Hframe.majorType ?_
         let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
           Hframe.majorTr Hframe.majorType
         let HsuffixMajor := HsuffixIndices.withAmbient
@@ -1299,8 +1299,8 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
           cMajor.lctx.mkForall #[major] <| .sort elimLevel
         let motiveName := if indTypes.size > 1 then
           (`motive).appendIndexAfter (dIdx + 1) else `motive
-        refine withLocalDecl.recursorWF (name := motiveName) (bi := .default)
-          Rmajor Hframe.motiveTr Hframe.motiveType ?_
+        refine withLocalDecl.WF (name := motiveName) (bi := .default)
+          Rmajor.toSemantics Hframe.motiveTr Hframe.motiveType ?_
         let Rmotive := Rmajor.withLocalDecl (name := motiveName)
           (bi := .default) Hframe.motiveTr Hframe.motiveType
         let HsuffixMotive := HsuffixMajor.withAmbient
@@ -1640,13 +1640,13 @@ theorem resultRecursiveDomain {alpha : Type}
       rcases HtypeType₀ with ⟨typeLevel₀, HtypeType₀⟩
       have HtypeConsumedAtSort₀ := HtypeConsumed₀.of_l R.checking.tr.wf
         hchkWF.toCtx HtypeType₀
-      refine withCheckedLocalDecl.recursorWF (name := name) (bi := bi)
+      refine withCheckedLocalDecl.WF (name := name) (bi := bi)
         (Q := fun out =>
           ∃ target, ∃ htarget : target < decl.types.length,
             decl.RecursiveArgAtTarget R.venv recLparams.length
               (decl.types[target]'htarget).name
               R.mlctx.vlctx.toCtx depth typeTarget ∧ Q target out)
-        R Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
+        R.toSemantics Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
       let c' : AddInductive.Context := { c with
         ngen := c.ngen.next
         lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
