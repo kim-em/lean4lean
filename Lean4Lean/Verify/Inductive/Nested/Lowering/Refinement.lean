@@ -1423,6 +1423,7 @@ theorem checkInductiveSources_refines
       intro _ h
       exact checkNoMVarNoFVar.closed (env := env) (name := type.name) h
     exact Hclosed.bind fun _ hclosed =>
+      (checkNoNestedAux_refines type.name type.type).bind fun _ _ =>
       (checkConstructorSources_refines env type.ctors).bind fun _ hctors =>
         ih.mono fun _ htail =>
           .cons ⟨hclosed, hctors⟩ htail

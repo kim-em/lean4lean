@@ -435,11 +435,11 @@ theorem isDefEqApp.WF {c : VContext} {s : State}
     RecM.WF c s (isDefEqApp e₁ e₂) fun b _ => b → c.IsDefEqU e₁' e₂' := by
   unfold isDefEqApp; split <;> [skip; exact .pure nofun]
   rw [Expr.withApp_eq, Expr.withApp_eq]
-  split <;> [rename_i eq; exact .pure nofun]
   have ⟨_, he₁'⟩ := AppStack.build <| e₁.mkAppList_getAppArgsList ▸ he₁
   have ⟨_, he₂'⟩ := AppStack.build <| e₂.mkAppList_getAppArgsList ▸ he₂
   refine (isDefEq.WF he₁'.tr he₂'.tr).bind fun _ _ _ h => ?_
   split <;> [skip; exact .pure nofun]
+  split <;> [rename_i eq; exact .pure nofun]
   let rec loop.WF {s args₁ args₂ f₁ f₂ f₁' f₂' eq i} (l₁ r₁ l₂ r₂)
       (h₁ : args₁.toList = l₁ ++ r₁) (hi₁ : l₁.length = i)
       (h₂ : args₂.toList = l₂ ++ r₂) (hi₂ : l₂.length = i)
@@ -670,7 +670,9 @@ theorem tryStringLitExpansionCore.WF {c : VContext} {s : State}
     RecM.WF c s (tryStringLitExpansionCore e₁ e₂) fun b _ => b = .true → c.IsDefEqU e₁' e₂' := by
   unfold tryStringLitExpansionCore; iterate 3 split <;> [skip; exact .pure nofun]
   let .lit _ he₁ := he₁
-  exact .toLBoolM <| isDefEqCore.WF he₁ he₂
+  refine (whnf.WF he₁).bind fun _ _ _ ⟨_, _, a1, a2⟩ => ?_
+  exact .toLBoolM <| (isDefEqCore.WF a1 he₂).mono fun _ _ _ h hb =>
+    a2.symm.trans c.Ewf c.Δwf (h hb)
 
 theorem tryStringLitExpansion.WF {c : VContext} {s : State}
     (he₁ : c.TrExprS e₁ e₁') (he₂ : c.TrExprS e₂ e₂') :

@@ -318,9 +318,9 @@ def inferType' (e : Expr) (inferOnly : Bool) : RecM Expr := do
         -- for some universe level `l`, so this use of `isDefEq` is valid
         let ok ← if a.isAppOfArity ``eagerReduce 2 then
           withTheReader Context (fun s => {s with eagerReduce := true}) <|
-            isDefEq dType aType
+            isDefEq aType dType
         else
-          isDefEq dType aType
+          isDefEq aType dType
         if !ok then throw <| .appTypeMismatch (← getEnv) (← getLCtx) e fType aType
         pure <| fType.bindingBody!.instantiate1 a
     | .letE .. => inferLet e inferOnly
@@ -690,8 +690,8 @@ def isDefEqApp (t s : Expr) : RecM Bool := do
   unless t.isApp && s.isApp do return false
   t.withApp fun tf tArgs =>
   s.withApp fun sf sArgs => do
+  unless ← isDefEq tf sf do return false
   if _h : tArgs.size = sArgs.size then
-    unless ← isDefEq tf sf do return false
     let rec loop i := do
       if _h : i < tArgs.size then
         unless ← isDefEq tArgs[i] sArgs[i] do return false
@@ -840,13 +840,14 @@ where
     | .unknown tn sn | .false tn sn => finish tn sn
 
 /-- If `t` is a string literal and `s` is a `String.ofList` application, checks that they are defeq
-after expanding `t` into a `String.ofList` application of an explicit character list. Otherwise,
+after expanding `t` into a `String.ofList` application of an explicit character list and reducing
+that to weak head normal form, as `try_string_lit_expansion_core` does. Otherwise,
 defers to the calling function. -/
 def tryStringLitExpansionCore (t s : Expr) : RecM LBool := do
   let .lit (.strVal st) := t | return .undef
   let .app sf _ := s | return .undef
   unless sf == .const ``String.ofList [] do return .undef
-  toLBoolM <| isDefEqCore (.strLitToConstructor st) s
+  toLBoolM <| isDefEqCore (← whnf (.strLitToConstructor st)) s
 
 @[inherit_doc tryStringLitExpansionCore]
 def tryStringLitExpansion (t s : Expr) : RecM LBool := do
