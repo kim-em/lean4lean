@@ -98,6 +98,10 @@ shared and loaded machine) against PR #43's head, whose executable has the same 
 The `Init.System.IO` runs were interleaved between the two builds; on this machine single runs
 varied by up to 7 seconds.
 
+A `lake build` of the default targets from a clean checkout took 17 minutes of wall time (28
+CPU-minutes) on the same machine; `Lean4Lean.Tests` and `Lean4Lean.Experimental` add about 30
+seconds on top of it.
+
 ## More documentation
 
 * [bugs-found.md](bugs-found.md): A list of kernel bugs that the lean4lean project has uncovered.
