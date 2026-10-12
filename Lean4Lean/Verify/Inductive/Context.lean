@@ -25,26 +25,12 @@ namespace VerifyInductive
 /-- The invariant of an `AddInductive.Context`: its kernel environment has the abstract model
 `venv` with the checking invariant and the recursor facts the checker reads, its local context
 is the main metacontext `mlctx` (all λ-declarations, fresh for both name generators), and the
-checking context `c.checkLCtx` embeds in it. -/
-structure ContextWF (c : AddInductive.Context) where
-  venv : VEnv
-  checking : CheckingEnv.Valid c.safety c.env venv
-  /-- The shapes of the visible recursors (as `CheckerEnv.shapes`). -/
-  shapes : RecursorShapesCoherent c.safety c.env.constants venv
-  /-- The ι rules of the visible recursors are registered (as `CheckerEnv.iota`). -/
-  iota : IotaRulesRegistered c.safety c.env venv
-
-  mlctx : TypeChecker.MLCtx
-  mlctx_wf : mlctx.WF venv c.lparams
+checking context `c.checkLCtx` embeds in it. The frame data is the shared
+`ContextSemantics` at the declaration's universe parameters; the type checker runs with no
+universe-parameter override. -/
+structure ContextWF (c : AddInductive.Context) extends toSemantics : ContextSemantics c c.lparams
+    where
   typeCheckerLParams_eq : c.typeCheckerLParams = none
-  onlyLams : MLCtxOnlyLams mlctx
-  lctx_eq : mlctx.lctx = c.lctx
-  ngen_prefix : c.ngen.namePrefix = `_ind_fresh
-  indFresh : ∀ fv ∈ mlctx.vlctx.fvars, c.ngen.Reserves fv
-  kernelFresh : ∀ fv ∈ mlctx.vlctx.fvars,
-    ({} : TypeChecker.State).ngen.Reserves fv
-  /-- The semantic checker context, embedded in the main one. -/
-  check : CheckBase venv c.lparams mlctx c.lctx c.checkLCtx
 
 /-- What the embedded type checker reads of the context's environment. -/
 def ContextWF.checkerEnv (H : ContextWF c) : CheckerEnv c.safety c.env H.venv :=
@@ -54,38 +40,10 @@ theorem ContextWF.wf (H : ContextWF c) : H.venv.WF := H.checking.tr.wf
 
 theorem ContextWF.map_wf (H : ContextWF c) : c.env.constants.WF := H.checking.tr.map_wf
 
-/-- The shared semantic view, preserving the concrete frame data by reduction. -/
-abbrev ContextWF.toSemantics (H : ContextWF c) : ContextSemantics c c.lparams where
-  venv := H.venv
-  checking := H.checking
-  mlctx := H.mlctx
-  mlctx_wf := H.mlctx_wf
-  onlyLams := H.onlyLams
-  lctx_eq := H.lctx_eq
-  ngen_prefix := H.ngen_prefix
-  indFresh := H.indFresh
-  kernelFresh := H.kernelFresh
-  shapes := H.shapes
-  iota := H.iota
-  check := H.check
-
 /-- Restore the public frame with its explicit universe contract. -/
 abbrev ContextWF.ofSemantics (H : ContextSemantics c c.lparams)
     (hparams : c.typeCheckerLParams = none) :
-    ContextWF c where
-  venv := H.venv
-  checking := H.checking
-  mlctx := H.mlctx
-  mlctx_wf := H.mlctx_wf
-  onlyLams := H.onlyLams
-  lctx_eq := H.lctx_eq
-  ngen_prefix := H.ngen_prefix
-  indFresh := H.indFresh
-  kernelFresh := H.kernelFresh
-  shapes := H.shapes
-  iota := H.iota
-  check := H.check
-  typeCheckerLParams_eq := hparams
+    ContextWF c := ⟨H, hparams⟩
 
 /-- The context `Environment.addInductive` runs the ordinary and nested branches in
 (`addInductiveAfterLowering`). -/
@@ -130,20 +88,8 @@ def ContextWF.withEnv (H : ContextWF c) {env' : Environment} {venv' : VEnv}
     (hshapes : RecursorShapesCoherent c.safety env'.constants venv')
     (hiota : IotaRulesRegistered c.safety env' venv')
     (hle : H.venv ≤ venv') :
-    ContextWF { c with env := env' } where
-  venv := venv'
-  checking := hchecking
-  shapes := hshapes
-  iota := hiota
-  mlctx := H.mlctx
-  mlctx_wf := H.mlctx_wf.mono hle
-  typeCheckerLParams_eq := H.typeCheckerLParams_eq
-  onlyLams := H.onlyLams
-  lctx_eq := H.lctx_eq
-  ngen_prefix := H.ngen_prefix
-  indFresh := H.indFresh
-  kernelFresh := H.kernelFresh
-  check := H.check.mono hle
+    ContextWF { c with env := env' } :=
+  .ofSemantics (H.toSemantics.withEnv hchecking hshapes hiota hle) H.typeCheckerLParams_eq
 
 @[simp] theorem ContextWF.withEnv_venv (H : ContextWF c) {env' : Environment} {venv' : VEnv}
     (hchecking : CheckingEnv.Valid c.safety env' venv')
@@ -156,36 +102,6 @@ def ContextWF.withEnv (H : ContextWF c) {env' : Environment} {venv' : VEnv}
     (hshapes : RecursorShapesCoherent c.safety env'.constants venv')
     (hiota : IotaRulesRegistered c.safety env' venv') (hle : H.venv ≤ venv') :
     (H.withEnv hchecking hshapes hiota hle).mlctx = H.mlctx := rfl
-
-theorem ContextWF.current_not_mem (H : ContextWF c) :
-    ⟨c.ngen.curr⟩ ∉ H.mlctx.vlctx.fvars :=
-  H.toSemantics.current_not_mem
-
-theorem ContextWF.kernel_reserves_current (H : ContextWF c) :
-    ({} : TypeChecker.State).ngen.Reserves ⟨c.ngen.curr⟩ :=
-  H.toSemantics.kernel_reserves_current
-
-theorem ContextWF.lctxWF (H : ContextWF c) : c.lctx.WF :=
-  H.toSemantics.lctxWF
-
-/-- The semantic checker context. -/
-abbrev ContextWF.chk (H : ContextWF c) : TypeChecker.MLCtx := H.check.m
-
-theorem ContextWF.checkSub (H : ContextWF c) : c.checkLCtx.SubContextOf c.lctx :=
-  H.toSemantics.checkSub
-
-/-- A candidate checker context beneath the main context of `H`. -/
-abbrev ContextWF.Base (H : ContextWF c) (l : LocalContext) : Type :=
-  CheckBase H.venv c.lparams H.mlctx c.lctx l
-
-/-- The empty checker context. -/
-def ContextWF.baseNil (H : ContextWF c) : H.Base {} :=
-  H.toSemantics.baseNil
-
-/-- A bottom part of the main context as checker context. -/
-def ContextWF.baseMain (H : ContextWF c) (j : Nat) (hj : j ≤ H.mlctx.length) :
-    H.Base (H.mlctx.dropN j hj).lctx :=
-  H.toSemantics.baseMain j hj
 
 /-- Replace the checker context by a described sub-context of the main
 context. -/
@@ -373,67 +289,20 @@ embedded typechecker runs under exactly `recLparams`; the declaration's own
 universe parameters remain separately available as `c.lparams` for the
 installed recursor metadata. -/
 structure RecursorContextWF (c : AddInductive.Context)
-    (recLparams : List Name) where
-  venv : VEnv
-  checking : CheckingEnv.Valid c.safety c.env venv
-
-  mlctx : TypeChecker.MLCtx
-  mlctx_wf : mlctx.WF venv recLparams
+    (recLparams : List Name) extends toSemantics : ContextSemantics c recLparams where
   typeCheckerLParams_eq : c.typeCheckerLParams = some recLparams
   lparams_origin : RecursorLParams c.lparams recLparams
-  onlyLams : MLCtxOnlyLams mlctx
-  lctx_eq : mlctx.lctx = c.lctx
-  ngen_prefix : c.ngen.namePrefix = `_ind_fresh
-  indFresh : ∀ fv ∈ mlctx.vlctx.fvars, c.ngen.Reserves fv
-  kernelFresh : ∀ fv ∈ mlctx.vlctx.fvars,
-    ({} : TypeChecker.State).ngen.Reserves fv
-  /-- The shapes of the visible recursors (as `CheckerEnv.shapes`). -/
-  shapes : RecursorShapesCoherent c.safety c.env.constants venv
-  /-- The ι rules of the visible recursors are registered (as `CheckerEnv.iota`). -/
-  iota : IotaRulesRegistered c.safety c.env venv
-  /-- The semantic checker context, embedded in the main one. -/
-  check : CheckBase venv recLparams mlctx c.lctx c.checkLCtx
 
 /-- What the embedded type checker reads of a recursor frame's environment. -/
 def RecursorContextWF.checkerEnv (H : RecursorContextWF c recLparams) :
     CheckerEnv c.safety c.env H.venv :=
   { H.checking with shapes := H.shapes, iota := H.iota }
 
-/-- The shared semantic view, preserving the concrete frame data by reduction. -/
-abbrev RecursorContextWF.toSemantics (H : RecursorContextWF c recLparams) :
-    ContextSemantics c recLparams where
-  venv := H.venv
-  checking := H.checking
-  mlctx := H.mlctx
-  mlctx_wf := H.mlctx_wf
-  onlyLams := H.onlyLams
-  lctx_eq := H.lctx_eq
-  ngen_prefix := H.ngen_prefix
-  indFresh := H.indFresh
-  kernelFresh := H.kernelFresh
-  shapes := H.shapes
-  iota := H.iota
-  check := H.check
-
 /-- Restore the public frame with its explicit universe contract. -/
 abbrev RecursorContextWF.ofSemantics (H : ContextSemantics c recLparams)
     (hparams : c.typeCheckerLParams = some recLparams)
     (horigin : RecursorLParams c.lparams recLparams) :
-    RecursorContextWF c recLparams where
-  venv := H.venv
-  checking := H.checking
-  mlctx := H.mlctx
-  mlctx_wf := H.mlctx_wf
-  onlyLams := H.onlyLams
-  lctx_eq := H.lctx_eq
-  ngen_prefix := H.ngen_prefix
-  indFresh := H.indFresh
-  kernelFresh := H.kernelFresh
-  shapes := H.shapes
-  iota := H.iota
-  check := H.check
-  typeCheckerLParams_eq := hparams
-  lparams_origin := horigin
+    RecursorContextWF c recLparams := ⟨H, hparams, horigin⟩
 
 /-- An ordinary verified context is already a recursor context when no
 universe rebasing is required. -/
@@ -499,40 +368,6 @@ def ContextWF.prependRecursorLevelParam
     (H : ContextWF c) (hfresh : fresh ∉ c.lparams) :
     (H.prependRecursorLevelParam hfresh).mlctx =
       H.mlctx.prependLevelParam c.lparams.length := rfl
-
-theorem RecursorContextWF.current_not_mem
-    (H : RecursorContextWF c recLparams) :
-    ⟨c.ngen.curr⟩ ∉ H.mlctx.vlctx.fvars :=
-  H.toSemantics.current_not_mem
-
-theorem RecursorContextWF.kernel_reserves_current
-    (H : RecursorContextWF c recLparams) :
-    ({} : TypeChecker.State).ngen.Reserves ⟨c.ngen.curr⟩ :=
-  H.toSemantics.kernel_reserves_current
-
-theorem RecursorContextWF.lctxWF (H : RecursorContextWF c recLparams) :
-    c.lctx.WF :=
-  H.toSemantics.lctxWF
-
-/-- The semantic checker context of a recursor frame. -/
-abbrev RecursorContextWF.chk (H : RecursorContextWF c recLparams) : TypeChecker.MLCtx :=
-  H.check.m
-
-theorem RecursorContextWF.checkSub (H : RecursorContextWF c recLparams) :
-    c.checkLCtx.SubContextOf c.lctx :=
-  H.toSemantics.checkSub
-
-/-- A candidate checker context beneath the main context of a recursor frame. -/
-abbrev RecursorContextWF.Base (H : RecursorContextWF c recLparams) (l : LocalContext) :
-    Type :=
-  CheckBase H.venv recLparams H.mlctx c.lctx l
-
-def RecursorContextWF.baseNil (H : RecursorContextWF c recLparams) : H.Base {} :=
-  H.toSemantics.baseNil
-
-def RecursorContextWF.baseMain (H : RecursorContextWF c recLparams) (j : Nat)
-    (hj : j ≤ H.mlctx.length) : H.Base (H.mlctx.dropN j hj).lctx :=
-  H.toSemantics.baseMain j hj
 
 def RecursorContextWF.withCheckLCtx (H : RecursorContextWF c recLparams)
     (l : LocalContext) (B : H.Base l) :

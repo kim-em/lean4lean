@@ -1377,7 +1377,7 @@ theorem NestedRun.restorationTablesRestoringAllSpec
   rw [hinitial] at Hexpansion
   have D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams := by
-    rw [hlparams] at Haux'
+    simp only [hlparams] at Haux'
     have hloweredNames : P.loweredDecl.types.map (·.name) = result.types.map (·.name) :=
       forall₂_trInductiveType_names Htarget.types
     have htypesNodup : (P.loweredDecl.types.map (·.name)).Nodup := by
@@ -1572,7 +1572,7 @@ theorem NestedRun.restorationTablesRestoringAllSpec
     intro a ha
     rcases Lean4Lean.List.Forall₂.forall_exists_l Haux' a ha with
       ⟨g, -, -, nested, hfind, -, hspec, -⟩
-    rw [hlparams] at hspec
+    simp only [hlparams] at hspec
     exact ⟨nested, hfind, hspec⟩
   have Hkernel : ∀ a ∈ auxiliaries, ∃ info, sourceProdEnv.find? a.source.name = some (.inductInfo info) ∧
         info.ctors = a.source.ctors.map (·.name) := by
