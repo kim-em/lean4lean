@@ -316,7 +316,7 @@ structure TypedRuleFieldTraversal
   rootWF : RecursorContextWF traversal.rootContext recLparams
   terminalWF : RecursorContextWF traversal.terminalContext recLparams
   parameterDepth : Nat
-  parameterSuffix : RecursorParameterContextSuffix rootWF stats parameterDepth
+  parameterSuffix : ParameterContextSuffix rootWF.toSemantics stats parameterDepth
   terminalExtension : RecursorContextExtension terminalWF Rambient
   fieldsRecent : RecursorFVarSuffix rootWF terminalWF S.fields
   parameterTarget : VExpr
@@ -2432,7 +2432,7 @@ theorem continueMinorTyping {alpha : Type} {Q : alpha → Prop}
     {root c : AddInductive.Context}
     (R : RecursorContextWF c recLparams)
     {decl : VInductDecl}
-    (Hsuffix : RecursorParameterContextSuffix R stats depth)
+    (Hsuffix : ParameterContextSuffix R.toSemantics stats depth)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
@@ -2512,7 +2512,7 @@ theorem continueMinorTyping {alpha : Type} {Q : alpha → Prop}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx recLparams)
       (_henvOut : Rout.venv = R.venv)
-      (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth)
+      (HsuffixOut : ParameterContextSuffix Rout.toSemantics stats outDepth)
       (_hparameterDeclsOut :
         HsuffixOut.parameterDecls = Hsuffix.parameterDecls)
       (_HstatsOut : RecursorValidAppStatsWF Rout.venv recLparams
@@ -2869,7 +2869,7 @@ theorem constructorMinorClosureTyping {alpha : Type} {Q : alpha → Prop}
     {root c : AddInductive.Context}
     (R : RecursorContextWF c recLparams)
     {decl : VInductDecl} {tailTarget : VExpr}
-    (Hsuffix : RecursorParameterContextSuffix R stats depth)
+    (Hsuffix : ParameterContextSuffix R.toSemantics stats depth)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
     (hprefix : ParameterPrefix stats 0 ctor.type tail)
@@ -2915,7 +2915,7 @@ theorem constructorMinorClosureTyping {alpha : Type} {Q : alpha → Prop}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx recLparams)
       (_henvOut : Rout.venv = R.venv)
-      (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth)
+      (HsuffixOut : ParameterContextSuffix Rout.toSemantics stats outDepth)
       (_hparameterDeclsOut :
         HsuffixOut.parameterDecls = Hsuffix.parameterDecls)
       (_HstatsOut : RecursorValidAppStatsWF Rout.venv recLparams
@@ -3361,7 +3361,7 @@ theorem oneConstructorTyping {alpha : Type} {Q : alpha → Prop}
     {root c : AddInductive.Context}
     (R : RecursorContextWF c recLparams)
     {decl : VInductDecl} {tailTarget : VExpr}
-    (Hsuffix : RecursorParameterContextSuffix R stats depth)
+    (Hsuffix : ParameterContextSuffix R.toSemantics stats depth)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
     (hprefix : ParameterPrefix stats 0 ctor.type tail)
@@ -3418,7 +3418,7 @@ theorem oneConstructorTyping {alpha : Type} {Q : alpha → Prop}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx recLparams)
       (_henvOut : Rout.venv = R.venv)
-      (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth)
+      (HsuffixOut : ParameterContextSuffix Rout.toSemantics stats outDepth)
       (_hparameterDeclsOut :
         HsuffixOut.parameterDecls = Hsuffix.parameterDecls)
       (_HstatsOut : RecursorValidAppStatsWF Rout.venv recLparams
@@ -3767,7 +3767,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
     {root c : AddInductive.Context}
     (R : RecursorContextWF c recLparams)
     {decl : VInductDecl}
-    (Hsuffix : RecursorParameterContextSuffix R stats depth)
+    (Hsuffix : ParameterContextSuffix R.toSemantics stats depth)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
     (hconsume : RecursorConsumeTypeAnnotationsDefEq)
@@ -3808,7 +3808,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
     (Hseed : ∀ {current : AddInductive.Context} {currentDepth : Nat}
       (Rcurrent : RecursorContextWF current recLparams),
       Rcurrent.venv = R.venv →
-      (HsuffixCurrent : RecursorParameterContextSuffix Rcurrent stats
+      (HsuffixCurrent : ParameterContextSuffix Rcurrent.toSemantics stats
         currentDepth) →
       HsuffixCurrent.parameterDecls = Hsuffix.parameterDecls →
       ∀ ctor, ctor ∈ ctors →
@@ -3833,7 +3833,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx recLparams),
       Rout.venv = R.venv →
-      (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth) →
+      (HsuffixOut : ParameterContextSuffix Rout.toSemantics stats outDepth) →
       HsuffixOut.parameterDecls = Hsuffix.parameterDecls →
       RecursorValidAppStatsWF Rout.venv recLparams
         Rout.mlctx.vlctx stats decl outDepth →
@@ -3980,7 +3980,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
     {root c : AddInductive.Context}
     (R : RecursorContextWF c recLparams)
     {decl : VInductDecl}
-    (HsuffixCtx : RecursorParameterContextSuffix R stats depth)
+    (HsuffixCtx : ParameterContextSuffix R.toSemantics stats depth)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams
       R.mlctx.vlctx stats decl depth)
     (hconsume : RecursorConsumeTypeAnnotationsDefEq)
@@ -4022,7 +4022,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
     (Hseed : ∀ {current : AddInductive.Context} {currentDepth : Nat}
       (Rcurrent : RecursorContextWF current recLparams),
       Rcurrent.venv = R.venv →
-      (HsuffixCurrent : RecursorParameterContextSuffix Rcurrent stats
+      (HsuffixCurrent : ParameterContextSuffix Rcurrent.toSemantics stats
         currentDepth) →
       HsuffixCurrent.parameterDecls = HsuffixCtx.parameterDecls →
       ∀ familyIdx, (hfamily : familyIdx < indTypes.size) →
@@ -4049,7 +4049,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx recLparams),
       Rout.venv = R.venv →
-      (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth) →
+      (HsuffixOut : ParameterContextSuffix Rout.toSemantics stats outDepth) →
       HsuffixOut.parameterDecls = HsuffixCtx.parameterDecls →
       RecursorValidAppStatsWF Rout.venv recLparams
         Rout.mlctx.vlctx stats decl outDepth →

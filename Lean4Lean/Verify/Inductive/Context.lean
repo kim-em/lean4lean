@@ -184,11 +184,20 @@ abbrev headerCheckContext (c : AddInductive.Context)
 
 /-- The parameter snapshot `n` as checker context, when the first `n`
 parameters are the declarations at the bottom of the main context. -/
-def ContextWF.baseParams (Hc : ContextWF c) (stats : AddInductive.InductiveStats)
+def ContextSemantics.baseParams (Hc : ContextSemantics c Us)
+    (stats : AddInductive.InductiveStats)
     (n : Nat) (j : Nat) (hj : j ≤ Hc.mlctx.length)
     (hfv : paramCheckFVars stats n = (Hc.mlctx.dropN j hj).fvarList) :
     Hc.Base (c.lctx.restrictTo (paramCheckFVars stats n)) :=
   (Hc.baseMain j hj).cast (by rw [hfv]; exact ((Hc.baseMain j hj).restrictTo_eq).symm)
+
+/-- The frame of a run under the parameter snapshot `n`. -/
+abbrev ContextSemantics.paramCheck (Hc : ContextSemantics c Us)
+    (stats : AddInductive.InductiveStats)
+    (n : Nat) (j : Nat) (hj : j ≤ Hc.mlctx.length)
+    (hfv : paramCheckFVars stats n = (Hc.mlctx.dropN j hj).fvarList) :
+    ContextSemantics { c with checkLCtx := c.lctx.restrictTo (paramCheckFVars stats n) } Us :=
+  Hc.withCheckLCtx _ (Hc.baseParams stats n j hj hfv)
 
 /-- The context of a run under the parameter snapshot `n`. -/
 def ContextWF.paramCheck (Hc : ContextWF c) (stats : AddInductive.InductiveStats)
@@ -432,12 +441,6 @@ def ContextWF.headerCheck (Hc : ContextWF c) (stats : AddInductive.InductiveStat
 
 @[simp] theorem ContextWF.headerCheck_chk (Hc : ContextWF c) (stats j hj hfv) :
     (Hc.headerCheck stats j hj hfv).chk = Hc.mlctx.dropN j hj := rfl
-
-def RecursorContextWF.baseParams (Hc : RecursorContextWF c recLparams)
-    (stats : AddInductive.InductiveStats) (n : Nat) (j : Nat) (hj : j ≤ Hc.mlctx.length)
-    (hfv : paramCheckFVars stats n = (Hc.mlctx.dropN j hj).fvarList) :
-    Hc.Base (c.lctx.restrictTo (paramCheckFVars stats n)) :=
-  (Hc.baseMain j hj).cast (by rw [hfv]; exact ((Hc.baseMain j hj).restrictTo_eq).symm)
 
 def RecursorContextWF.paramCheck (Hc : RecursorContextWF c recLparams)
     (stats : AddInductive.InductiveStats) (n : Nat) (j : Nat) (hj : j ≤ Hc.mlctx.length)

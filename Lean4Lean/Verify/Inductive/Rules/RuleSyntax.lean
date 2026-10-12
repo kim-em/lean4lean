@@ -941,7 +941,7 @@ structure RecursorRuleSyntax.Semantics
   fieldRoot : AddInductive.Context
   fieldRootContext : RecursorContextWF fieldRoot recLparams
   parameterDepth : Nat
-  parameterSuffix : RecursorParameterContextSuffix fieldRootContext stats
+  parameterSuffix : ParameterContextSuffix fieldRootContext.toSemantics stats
     parameterDepth
   parameterDecls : VLCtx
   parameterDecls_eq : parameterSuffix.parameterDecls = parameterDecls

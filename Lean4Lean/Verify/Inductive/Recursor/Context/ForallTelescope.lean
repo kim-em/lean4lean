@@ -1929,10 +1929,10 @@ theorem cachedParameterDecls_fvars
 
 /-- The declaration order of the retained parameter suffix is the reverse of
 the executable parameter array's free-variable order. -/
-theorem RecursorParameterContextSuffix.parameterDecls_fvars
+theorem ParameterContextSuffix.parameterDecls_fvars
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
-    (H : RecursorParameterContextSuffix R stats depth) :
+    (H : ParameterContextSuffix R.toSemantics stats depth) :
     H.parameterDecls.fvars = (ExprArrayFVarIds stats.params).reverse := by
   rcases cachedParameterDecls_fvars H.cached with
     ⟨fvars, hparams, hdecls⟩
@@ -1944,10 +1944,10 @@ theorem RecursorParameterContextSuffix.parameterDecls_fvars
 /-- Close the cached parameter suffix outside an anonymous inner telescope. The source
 parameter order is that of the parameter array used by the recursor construction, and the
 abstract domains are those cached by the header phase. -/
-theorem RecursorParameterContextSuffix.abstractParameters
+theorem ParameterContextSuffix.abstractParameters
     {c root : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
-    (H : RecursorParameterContextSuffix R stats depth)
+    (H : ParameterContextSuffix R.toSemantics stats depth)
     (Hparams : FVarArrayIn root stats.params)
     (hnodup : Hparams.fvars.Nodup)
     (Htr : TrExprS env Us
@@ -1984,10 +1984,10 @@ theorem RecursorParameterContextSuffix.abstractParameters
 /-- The cached parameters form a dependency-closed subset (an up-set) of the recursor
 context: motives and minors are newer ambient declarations, so no parameter depends on
 them. -/
-theorem RecursorParameterContextSuffix.parameterFVarsUp
+theorem ParameterContextSuffix.parameterFVarsUp
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
-    (H : RecursorParameterContextSuffix R stats depth) :
+    (H : ParameterContextSuffix R.toSemantics stats depth) :
     IsFVarUpSet (fun fv => fv ∈ ExprArrayFVarIds stats.params)
       R.mlctx.vlctx := by
   have hwf : VLCtx.WF R.venv recLparams.length
@@ -2009,10 +2009,10 @@ theorem RecursorParameterContextSuffix.parameterFVarsUp
 
 /-- Typed form of `closedSortTranslation`: the closed parameter telescope translates and
 is a type, so its domains can be opened as the base context of a later telescope. -/
-theorem RecursorParameterContextSuffix.closedSortTyped
+theorem ParameterContextSuffix.closedSortTyped
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
-    (H : RecursorParameterContextSuffix R stats depth) :
+    (H : ParameterContextSuffix R.toSemantics stats depth) :
     TrExprS R.venv recLparams []
         (R.mlctx.lctx.mkForall stats.params
           (.sort (.zero : Level)))
@@ -2027,7 +2027,7 @@ theorem RecursorParameterContextSuffix.closedSortTyped
   have hparameterOnly : MLCtxOnlyLams parameterMLCtx := by
     simpa [parameterMLCtx] using R.onlyLams.dropN depth H.depth_le
   have hparameterCtx : parameterMLCtx.vlctx = H.parameterDecls := by
-    simpa [parameterMLCtx] using H.dropAmbient_vlctx
+    simpa [parameterMLCtx] using H.headerVLCtx
   have hparams : stats.params.toList.reverse =
       (parameterMLCtx.fvarRevList parameterMLCtx.length
         (Nat.le_refl _)).map Expr.fvar := by
@@ -2088,10 +2088,10 @@ theorem RecursorParameterContextSuffix.closedSortTyped
 /-- `Sort 0` closed over the cached parameter declarations translates. This gives a
 translation of the parameter telescope on its own, whose prefix can be compared with any
 executable telescope closed over the same parameters. -/
-theorem RecursorParameterContextSuffix.closedSortTranslation
+theorem ParameterContextSuffix.closedSortTranslation
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
-    (H : RecursorParameterContextSuffix R stats depth) :
+    (H : ParameterContextSuffix R.toSemantics stats depth) :
     TrExprS R.venv recLparams []
       (R.mlctx.lctx.mkForall stats.params
         (.sort (.zero : Level)))
@@ -2101,9 +2101,9 @@ theorem RecursorParameterContextSuffix.closedSortTranslation
 
 /-- The parameter array `stats.params` used by `mkRecInfos` is an array of free variables
 of the header context. -/
-def checkInductiveTypes.loopType.ParameterContextSuffix.paramsBound
+def ParameterContextSuffix.paramsBound
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : ParameterContextSuffix Hc stats depth) :
+    (H : ParameterContextSuffix Hc.toSemantics stats depth) :
     FVarArrayIn c stats.params := by
   refine {
     fvars := ExprArrayFVarIds stats.params
@@ -2138,9 +2138,9 @@ def checkInductiveTypes.loopType.ParameterContextSuffix.paramsBound
     rw [← Hc.mlctx_wf.tr.fvars_eq, Hc.lctx_eq] at hfull
     exact hfull
 
-theorem checkInductiveTypes.loopType.ParameterContextSuffix.paramsBound_nodup
+theorem ParameterContextSuffix.paramsBound_nodup
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : ParameterContextSuffix Hc stats depth) :
+    (H : ParameterContextSuffix Hc.toSemantics stats depth) :
     (H.paramsBound (c := c)).fvars.Nodup := by
   change (ExprArrayFVarIds stats.params).Nodup
   rcases cachedParameterDecls_fvars H.cached with

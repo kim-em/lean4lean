@@ -636,14 +636,12 @@ theorem
       parameterDecls := by
     simpa [HfieldBase, Hparameter,
       checkInductiveTypes.loopType.FrontScopeEmbedding.retargetRuntime,
-      RecursorParameterContextSuffix.parameterEmbedding,
-      checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix]
+      ParameterContextSuffix.parameterEmbedding]
       using hfieldBase
   have hfront : HfieldScope.frontSourceDomains = fieldDomains := by
     simpa [HfieldBase, Hparameter,
       checkInductiveTypes.loopType.FrontScopeEmbedding.retargetRuntime,
-      RecursorParameterContextSuffix.parameterEmbedding,
-      checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix]
+      ParameterContextSuffix.parameterEmbedding]
       using hfieldFront
   exact ⟨fieldScope, HfieldScope, by simpa [hfieldRev] using
     hfieldScopeFVars, hbase, ⟨fieldDomains, hfieldDomains, hfront⟩,

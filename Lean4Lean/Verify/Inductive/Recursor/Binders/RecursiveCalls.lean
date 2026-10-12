@@ -790,7 +790,7 @@ theorem motiveDecl
     (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     {R : RecursorContextWF current
       (AddInductive.getRecLevelParams elimLevel base.lparams)}
-    (Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth)
+    (Hsuffix : ParameterContextSuffix R.toSemantics stats runtimeDepth)
     (Hroot : BindingContextLE base current)
     (Rindices : RecursorContextWF cIndices
       (AddInductive.getRecLevelParams elimLevel base.lparams))
@@ -1158,7 +1158,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
     (R : RecursorContextWF current
       (AddInductive.getRecLevelParams elimLevel base.lparams))
     (henv : R.venv = Hbase.venv)
-    (Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth)
+    (Hsuffix : ParameterContextSuffix R.toSemantics stats runtimeDepth)
     (HparamsCtx : ∀ i (hi : i < indTypes.size),
       VEnv.IsDefEqCtx R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams).length []
@@ -1194,7 +1194,7 @@ theorem resultTyping {alpha : Type} {Q : alpha → Prop}
       (Rout : RecursorContextWF outCtx
         (AddInductive.getRecLevelParams elimLevel base.lparams))
       (_henvOut : Rout.venv = Hbase.venv)
-      (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth)
+      (HsuffixOut : ParameterContextSuffix Rout.toSemantics stats outDepth)
       (_hparameterDeclsOut :
         HsuffixOut.parameterDecls = Hsuffix.parameterDecls)
       (_HstatsOut : RecursorValidAppStatsWF Rout.venv

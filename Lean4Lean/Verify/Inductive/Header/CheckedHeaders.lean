@@ -459,7 +459,7 @@ def CheckedHeaders.checkedResult
     (hparamsLength : params.length = nparams)
     (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
       stats nparams depth)
-    (Hsuffix : ParameterContextSuffix Hc stats depth)
+    (Hsuffix : ParameterContextSuffix Hc.toSemantics stats depth)
     (Hambient : AmbientParamContext Hc params depth)
     (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
       some commonLevel)
@@ -489,7 +489,7 @@ def CheckedHeaders.checkedResult
   scopeDecomposition := Hsuffix.context
   ambientLength := Hsuffix.prefixLength
   cachedScope := Hsuffix.cached
-  parameterEmbedding := FrontScopeEmbedding.ofParameterSuffix Hc Hsuffix
+  parameterEmbedding := Hsuffix.parameterEmbedding
   paramsContext := Hsuffix.paramsDefEq Hambient <|
     hparamsLength.trans hparams.symm
   suffixParams := by

@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Header.CheckingScope
+import Lean4Lean.Verify.Inductive.Header.ParameterSuffix
 
 /-!
 # The header telescope loop
@@ -35,9 +35,9 @@ structure AmbientParamContext (Hc : ContextWF c) (params : List VExpr)
 parameter telescope fixed by the first header.  The ambient prefixes may
 differ definitionally, but have the same recorded depth and can be inverted
 away from the context conversion. -/
-theorem ParameterContextSuffix.paramsDefEq
+theorem _root_.Lean4Lean.VerifyInductive.ParameterContextSuffix.paramsDefEq
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (Hsuffix : ParameterContextSuffix Hc stats depth)
+    (Hsuffix : ParameterContextSuffix Hc.toSemantics stats depth)
     (Hambient : AmbientParamContext Hc params depth)
     (hparams : params.length = stats.params.size) :
     VEnv.IsDefEqCtx Hc.venv c.lparams.length []
@@ -1155,656 +1155,6 @@ theorem ParameterCachePrefix.empty
   · simp [hparams]
   · simp [hparams]
 
-def ParameterContextSuffix.empty
-    (Hc : ContextWF c) (hctx : Hc.mlctx.vlctx = [])
-    (hparams : stats.params = #[]) :
-    ParameterContextSuffix Hc stats 0 where
-  ambientDecls := []
-  parameterDecls := []
-  context := by simpa using hctx
-  prefixLength := rfl
-  cached := by simp [hparams]
-  suffixParams := by simp [hparams]
-  sources := .nil
-
-/-- The first-header parameter branch extends the cached suffix itself.  The
-empty-prefix premise records that parameters are all introduced before any
-index binder. -/
-def ParameterContextSuffix.push
-    (Hc : ContextWF c)
-    (H : ParameterContextSuffix Hc stats 0)
-    (hprefix : H.ambientDecls = [])
-    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
-    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty')
-    (htr₀ : TrExprS Hc.venv c.lparams Hc.chk.vlctx ty ty₀)
-    (hty₀ : Hc.venv.IsType c.lparams.length Hc.chk.vlctx.toCtx ty₀) :
-    ParameterContextSuffix
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀)
-      { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
-      0 := by
-  let entry : Option (FVarId × List FVarId) × VLocalDecl :=
-    (some (⟨c.ngen.curr⟩, ty.fvarsList), .vlam ty')
-  refine {
-    ambientDecls := []
-    parameterDecls := entry :: H.parameterDecls
-    context := ?_
-    prefixLength := rfl
-    cached := ?_
-    suffixParams := ?_
-    sources := ?_ }
-  · have hcontext := H.context
-    rw [hprefix] at hcontext
-    change entry :: Hc.mlctx.vlctx = [] ++ entry :: H.parameterDecls
-    simp only [List.nil_append]
-    simpa using congrArg (entry :: ·) hcontext
-  · simp only [Array.toList_push, List.reverse_append,
-      List.reverse_singleton, List.singleton_append]
-    exact .cons ⟨⟨c.ngen.curr⟩, ty.fvarsList, ty', rfl, rfl⟩
-      H.cached
-  · let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀
-    let W : VLCtx.FVLift H.parameterDecls
-        (entry :: H.parameterDecls) 0 1 0 :=
-      .skip_fvar _ _ .refl
-    have hscope : Hc.mlctx.vlctx = H.parameterDecls := by
-      simpa [hprefix] using H.context
-    have hnarrowWF : VLCtx.WF Hc'.venv c.lparams.length
-        (entry :: H.parameterDecls) := by
-      change VLCtx.WF Hc.venv c.lparams.length
-        (entry :: H.parameterDecls)
-      refine ⟨?_, ?_, ?_⟩
-      · simpa [hscope] using Hc.mlctx_wf.tr.wf
-      · intro fv deps heq
-        simp only [Option.some.injEq, Prod.mk.injEq] at heq
-        rcases heq with ⟨rfl, rfl⟩
-        exact ⟨by simpa [hscope] using Hc.current_not_mem,
-          by simpa [hscope] using htr.fvarsList⟩
-      · change Hc.venv.IsType c.lparams.length
-          H.parameterDecls.toCtx ty'
-        simpa [hscope] using hty
-    have hold : List.Forall₂
-        (TrExprS Hc'.venv c.lparams (entry :: H.parameterDecls))
-        stats.params.toList
-        ((cachedParamVars stats.params.size 0).map
-          fun e => e.liftN 1 0) := by
-      have weakAll : ∀ {as bs},
-          List.Forall₂
-              (TrExprS Hc.venv c.lparams H.parameterDecls) as bs →
-            List.Forall₂
-              (TrExprS Hc'.venv c.lparams (entry :: H.parameterDecls))
-              as (bs.map fun e => e.liftN 1 0) := by
-        intro as bs hp
-        induction hp with
-        | nil => exact .nil
-        | cons h _ ih =>
-          exact .cons
-            (h.weakFV Hc.checking.tr.wf.orderedStrong W hnarrowWF) ih
-      exact weakAll H.suffixParams
-    have hnew : TrExprS Hc'.venv c.lparams
-        (entry :: H.parameterDecls)
-        (.fvar ⟨c.ngen.curr⟩) (.bvar 0) := by
-      apply TrExprS.fvar (A := ty'.lift)
-      simp [entry, VLCtx.find?, VLCtx.next, VLocalDecl.value,
-        VLocalDecl.type]
-    simpa [Array.toList_push, cachedParamVars_succ] using
-      List.Forall₂.append' hold
-        (.cons hnew .nil)
-  · have hscope : Hc.mlctx.vlctx = H.parameterDecls := by
-      simpa [hprefix] using H.context
-    change SourceTelescope Hc.venv c.lparams
-      (entry :: H.parameterDecls)
-    exact .cons H.sources name bi ty (by simpa [hscope] using htr)
-
-/-- Index binders extend only the ambient prefix and preserve the exact
-cached-parameter suffix. -/
-def ParameterContextSuffix.withIndex
-    (Hc : ContextWF c)
-    (H : ParameterContextSuffix Hc stats depth)
-    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
-    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty')
-    (htr₀ : TrExprS Hc.venv c.lparams Hc.chk.vlctx ty ty₀)
-    (hty₀ : Hc.venv.IsType c.lparams.length Hc.chk.vlctx.toCtx ty₀) :
-    ParameterContextSuffix
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀)
-      stats (depth + 1) := by
-  let entry : Option (FVarId × List FVarId) × VLocalDecl :=
-    (some (⟨c.ngen.curr⟩, ty.fvarsList), .vlam ty')
-  refine {
-    ambientDecls := entry :: H.ambientDecls
-    parameterDecls := H.parameterDecls
-    context := ?_
-    prefixLength := by simp [H.prefixLength]
-    cached := H.cached
-    suffixParams := H.suffixParams
-    sources := H.sources }
-  change entry :: Hc.mlctx.vlctx =
-    (entry :: H.ambientDecls) ++ H.parameterDecls
-  simp only [List.cons_append]
-  rw [H.context]
-
-theorem ParameterContextSuffix.parameterDecls_length
-    (H : ParameterContextSuffix Hc stats depth) :
-    H.parameterDecls.length = stats.params.size := by
-  have hlength := List.Forall₂.length_eq
-    H.cached
-  simpa using hlength.symm
-
-/-- Locate executable parameter `i` in the reverse-ordered local-context
-suffix. -/
-theorem ParameterContextSuffix.parameterAt
-    (H : ParameterContextSuffix Hc stats depth)
-    (hi : i < stats.params.size)
-    (hj : stats.params.size - 1 - i < H.parameterDecls.length) :
-    CachedParameterDecl stats.params[i]
-      H.parameterDecls[stats.params.size - 1 - i] := by
-  let j := stats.params.size - 1 - i
-  have hj' : j < stats.params.size := by
-    dsimp [j]
-    omega
-  have hleft : j < stats.params.toList.reverse.length := by
-    simpa using hj'
-  have hright : j < H.parameterDecls.length := by
-    exact hj
-  have hcached := List.forall₂_getElem
-    H.cached j hleft hright
-  simp only [List.getElem_reverse, Array.getElem_toList] at hcached
-  change CachedParameterDecl stats.params[stats.params.size - 1 - j]
-    H.parameterDecls[j] at hcached
-  dsimp [j] at hcached ⊢
-  have hindex : stats.params.size - 1 -
-      (stats.params.size - 1 - i) = i := by omega
-  have helem :
-      stats.params[stats.params.size - 1 -
-        (stats.params.size - 1 - i)] = stats.params[i] :=
-    getElem_congr rfl hindex (by omega)
-  rw [← helem]
-  exact hcached
-
-/-- Split the cached-parameter suffix at executable array index `i`.  Entries
-in `newer` are precisely the cached declarations introduced after parameter
-`i`; `older` contains those introduced before it. -/
-theorem ParameterContextSuffix.splitAt
-    (H : ParameterContextSuffix Hc stats depth)
-    (hi : i < stats.params.size) :
-    ∃ newer entry older,
-      H.parameterDecls = newer ++ entry :: older ∧
-      newer.length = stats.params.size - 1 - i ∧
-      CachedParameterDecl stats.params[i] entry := by
-  let j := stats.params.size - 1 - i
-  have hj : j < H.parameterDecls.length := by
-    rw [H.parameterDecls_length]
-    dsimp [j]
-    omega
-  refine ⟨H.parameterDecls.take j, H.parameterDecls[j],
-    H.parameterDecls.drop (j + 1), ?_, ?_, ?_⟩
-  · calc
-      H.parameterDecls =
-          H.parameterDecls.take j ++ H.parameterDecls.drop j :=
-        (List.take_append_drop j H.parameterDecls).symm
-      _ = H.parameterDecls.take j ++
-          H.parameterDecls[j] :: H.parameterDecls.drop (j + 1) := by
-        rw [List.drop_eq_getElem_cons hj]
-  · simp [List.length_take, Nat.min_eq_left (Nat.le_of_lt hj), j]
-  · exact H.parameterAt hi hj
-
-/-- Expose the exact `FVLift` that removes the ambient declarations and the
-cached parameters newer than executable parameter `i`, leaving that
-parameter as the head of the retained suffix. -/
-theorem ParameterContextSuffix.fvLiftAt
-    (H : ParameterContextSuffix Hc stats depth)
-    (hi : i < stats.params.size) :
-    ∃ added newer older fv deps paramType,
-      H.parameterDecls =
-        newer ++ (some (fv, deps), .vlam paramType) :: older ∧
-      newer.length = stats.params.size - 1 - i ∧
-      added = H.ambientDecls ++ newer ∧
-      Hc.mlctx.vlctx =
-        added ++ (some (fv, deps), .vlam paramType) :: older ∧
-      stats.params[i] = .fvar fv ∧
-      VLCtx.FVLift ((some (fv, deps), .vlam paramType) :: older)
-        Hc.mlctx.vlctx
-        0 (VLCtx.toCtx added).length 0 := by
-  rcases H.splitAt hi with
-    ⟨newer, entry, older, hdecls, hnewer, hcached⟩
-  rcases hcached with ⟨fv, deps, paramType, hparam, rfl⟩
-  let added := H.ambientDecls ++ newer
-  have hcontext : Hc.mlctx.vlctx =
-      added ++ (some (fv, deps), .vlam paramType) :: older := by
-    rw [H.context, hdecls]
-    simp only [added, List.append_assoc]
-  have hfullNoBV :
-      (added ++ (some (fv, deps), .vlam paramType) :: older).NoBV := by
-    rw [← hcontext]
-    exact Hc.mlctx.noBV
-  have hadded : added.NoBV :=
-    VLCtx.NoBV.leftOfAppend added
-      ((some (fv, deps), .vlam paramType) :: older)
-      hfullNoBV
-  have hlift := VLCtx.FVLift.to_append
-    ((some (fv, deps), .vlam paramType) :: older) hadded
-  rw [← hcontext] at hlift
-  exact ⟨added, newer, older, fv, deps, paramType, hdecls, hnewer, rfl,
-    hcontext, hparam, hlift⟩
-
-theorem _root_.Lean4Lean.TypeChecker.MLCtx.fvarList_eq (m : TypeChecker.MLCtx) :
-    m.fvarList = m.vlctx.fvars.reverse := by
-  induction m with
-  | nil => rfl
-  | vlam id _ _ _ _ c ih =>
-    simp [TypeChecker.MLCtx.fvarList, ih, TypeChecker.MLCtx.vlctx, VLCtx.fvars_cons_some]
-  | vlet id _ _ _ _ _ c ih =>
-    simp [TypeChecker.MLCtx.fvarList, ih, TypeChecker.MLCtx.vlctx, VLCtx.fvars_cons_some]
-
-theorem CachedParameterDecl.forall₂_fvars
-    (H : List.Forall₂ CachedParameterDecl ps decls) :
-    VLCtx.fvars decls = ps.map (·.fvarId!) := by
-  induction H with
-  | nil => rfl
-  | cons h _ ih =>
-    obtain ⟨fv, deps, ty, rfl, rfl⟩ := h
-    simp [VLCtx.fvars_cons_some, ih, Expr.fvarId!]
-
-theorem CachedParameterDecl.forall₂_drop :
-    ∀ (n : Nat) {ps : List Expr} {decls : VLCtx},
-      List.Forall₂ CachedParameterDecl ps decls →
-      List.Forall₂ CachedParameterDecl (ps.drop n) (decls.drop n)
-  | 0, _, _, H => by simpa using H
-  | _ + 1, _, _, .nil => .nil
-  | n + 1, _, _, .cons _ H => by simpa using CachedParameterDecl.forall₂_drop n H
-
-theorem ParameterContextSuffix.mlctx_length
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth : Nat}
-    (H : ParameterContextSuffix Hc stats depth) :
-    Hc.mlctx.length = depth + stats.params.size := by
-  rw [← TypeChecker.MLCtx.vlctx_length, H.context, List.length_append,
-    H.prefixLength, H.parameterDecls_length]
-
-/-- The first `k` parameters are the `k` oldest declarations of the main
-context: the bottom of the context that drops all but them. -/
-theorem ParameterContextSuffix.bottom
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth : Nat}
-    (H : ParameterContextSuffix Hc stats depth) (k : Nat)
-    (hk : k ≤ stats.params.size) :
-    (Hc.mlctx.dropN (depth + (stats.params.size - k))
-        (by rw [H.mlctx_length]; omega)).vlctx =
-      H.parameterDecls.drop (stats.params.size - k) ∧
-    paramCheckFVars stats k =
-      (Hc.mlctx.dropN (depth + (stats.params.size - k))
-        (by rw [H.mlctx_length]; omega)).fvarList := by
-  have hvl : (Hc.mlctx.dropN (depth + (stats.params.size - k))
-      (by rw [H.mlctx_length]; omega)).vlctx =
-      H.parameterDecls.drop (stats.params.size - k) := by
-    rw [Hc.onlyLams.vlctx_dropN, H.context, List.drop_append, H.prefixLength]
-    rw [List.drop_eq_nil_of_le (by rw [H.prefixLength]; omega)]
-    simp
-  refine ⟨hvl, ?_⟩
-  rw [TypeChecker.MLCtx.fvarList_eq, hvl]
-  have hcached := H.cached
-  have hdrop : List.Forall₂ CachedParameterDecl
-      (stats.params.toList.reverse.drop (stats.params.size - k))
-      (H.parameterDecls.drop (stats.params.size - k)) :=
-    CachedParameterDecl.forall₂_drop _ hcached
-  rw [CachedParameterDecl.forall₂_fvars hdrop, ← List.map_reverse]
-  unfold paramCheckFVars
-  congr 1
-  have hlen : stats.params.toList.length = stats.params.size := by simp
-  rw [List.drop_reverse]
-  simp only [List.reverse_reverse]
-  congr 1
-  omega
-
-theorem ParameterContextSuffix.depth_le
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth : Nat}
-    (H : ParameterContextSuffix Hc stats depth) :
-    depth ≤ Hc.mlctx.length := by
-  rw [H.mlctx_length]; omega
-
-theorem ParameterContextSuffix.headerFVars
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth : Nat}
-    (H : ParameterContextSuffix Hc stats depth) :
-    paramCheckFVars stats stats.params.size =
-      (Hc.mlctx.dropN depth H.depth_le).fvarList := by
-  have h := (H.bottom stats.params.size (Nat.le_refl _)).2
-  simp only [Nat.sub_self, Nat.add_zero] at h
-  exact h
-
-theorem ParameterContextSuffix.headerVLCtx
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth : Nat}
-    (H : ParameterContextSuffix Hc stats depth) :
-    (Hc.mlctx.dropN depth H.depth_le).vlctx = H.parameterDecls := by
-  have h := (H.bottom stats.params.size (Nat.le_refl _)).1
-  simp only [Nat.sub_self, Nat.add_zero, List.drop_zero] at h
-  exact h
-
-/-- The header checker context of a parameter suffix: the checker context
-holds exactly the cached parameters, which are the bottom of the main
-context. -/
-def ParameterContextSuffix.headerCheck
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth : Nat}
-    (H : ParameterContextSuffix Hc stats depth) :
-    ContextWF (headerCheckContext c stats) :=
-  Hc.headerCheck stats depth H.depth_le H.headerFVars
-
-@[simp] theorem ParameterContextSuffix.headerCheck_venv
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth : Nat}
-    (H : ParameterContextSuffix Hc stats depth) :
-    H.headerCheck.venv = Hc.venv := rfl
-
-@[simp] theorem ParameterContextSuffix.headerCheck_mlctx
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth : Nat}
-    (H : ParameterContextSuffix Hc stats depth) :
-    H.headerCheck.mlctx = Hc.mlctx := rfl
-
-theorem ParameterContextSuffix.headerCheck_chk_vlctx
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth : Nat}
-    (H : ParameterContextSuffix Hc stats depth) :
-    H.headerCheck.chk.vlctx = H.parameterDecls := H.headerVLCtx
-
-/-- The same suffix, over the header checker context. -/
-def ParameterContextSuffix.toHeaderCheck
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth : Nat}
-    (H : ParameterContextSuffix Hc stats depth) :
-    ParameterContextSuffix H.headerCheck stats depth := { H with }
-
-/-- In the header checker context the parameter declarations are aligned
-with the checker context. -/
-theorem ParameterContextSuffix.headerCheck_paramAligned
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth : Nat}
-    (H : ParameterContextSuffix Hc stats depth) :
-    VLCtx.IsDefEq Hc.venv c.lparams.length H.parameterDecls
-      H.headerCheck.chk.vlctx := by
-  rw [H.headerCheck_chk_vlctx]
-  have hwf := H.headerCheck.check.wf.tr.wf
-  change VLCtx.WF Hc.venv c.lparams.length H.headerCheck.chk.vlctx at hwf
-  rw [H.headerCheck_chk_vlctx] at hwf
-  exact .refl Hc.checking.tr.wf hwf
-
-/-- Concrete scope of a later header immediately before processing cached
-parameter `i`.
-Only parameters already processed by this later header may occur; ambient
-indices and the current-or-future cached parameters are excluded. -/
-structure ReusedParameterScope
-    (Hsuffix : ParameterContextSuffix Hc stats depth)
-    (i : Nat) (e : Expr) : Type where
-  added : VLCtx
-  newer : VLCtx
-  older : VLCtx
-  fv : FVarId
-  deps : List FVarId
-  paramType : VExpr
-  parameterDecls : Hsuffix.parameterDecls =
-    newer ++ (some (fv, deps), .vlam paramType) :: older
-  newerLength : newer.length = stats.params.size - 1 - i
-  addedEq : added = Hsuffix.ambientDecls ++ newer
-  context : Hc.mlctx.vlctx =
-    added ++ (some (fv, deps), .vlam paramType) :: older
-  parameter : stats.params[i]! = .fvar fv
-  lift : VLCtx.FVLift ((some (fv, deps), .vlam paramType) :: older)
-    Hc.mlctx.vlctx 0 (VLCtx.toCtx added).length 0
-  fvars : FVarsIn (· ∈ older.fvars) e
-
-theorem ReusedParameterScope.olderLength
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth} {e : Expr}
-    (H : ReusedParameterScope Hsuffix i e)
-    (hi : i < stats.params.size) :
-    H.older.length = i := by
-  have htotal := Hsuffix.parameterDecls_length
-  have hparts := congrArg List.length H.parameterDecls
-  simp only [List.length_append, List.length_cons] at hparts
-  rw [htotal, H.newerLength] at hparts
-  omega
-
-theorem ReusedParameterScope.older_eq_nil
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth} {e : Expr}
-    (H : ReusedParameterScope Hsuffix 0 e)
-    (hi : 0 < stats.params.size) : H.older = [] :=
-  List.eq_nil_of_length_eq_zero (H.olderLength hi)
-
-/-- After the final cached parameter is processed, the accumulated
-scope is exactly the complete cached-parameter suffix. -/
-theorem ReusedParameterScope.scope
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth} {e : Expr}
-    (H : ReusedParameterScope Hsuffix i e)
-    (hdone : i + 1 = stats.params.size) :
-    (some (H.fv, H.deps), .vlam H.paramType) :: H.older =
-      Hsuffix.parameterDecls := by
-  have hnewerLength : H.newer.length = 0 := by
-    rw [H.newerLength]
-    omega
-  have hnewer : H.newer = [] :=
-    List.eq_nil_of_length_eq_zero hnewerLength
-  rw [H.parameterDecls, hnewer]
-  simp
-
-/-- Consecutive cached-parameter scopes agree on the processed suffix. -/
-theorem ReusedParameterScope.nextOlder
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth}
-    {e next : Expr}
-    (H : ReusedParameterScope Hsuffix i e)
-    (Hnext : ReusedParameterScope Hsuffix (i + 1) next)
-    (hi : i + 1 < stats.params.size) :
-    (some (H.fv, H.deps), .vlam H.paramType) :: H.older =
-      Hnext.older := by
-  let currentEntry : Option (FVarId × List FVarId) × VLocalDecl :=
-    (some (H.fv, H.deps), .vlam H.paramType)
-  let nextEntry : Option (FVarId × List FVarId) × VLocalDecl :=
-    (some (Hnext.fv, Hnext.deps), .vlam Hnext.paramType)
-  have hdecomp :
-      H.newer ++ currentEntry :: H.older =
-        (Hnext.newer ++ [nextEntry]) ++ Hnext.older := by
-    calc
-      H.newer ++ currentEntry :: H.older =
-          Hsuffix.parameterDecls := H.parameterDecls.symm
-      _ = Hnext.newer ++ nextEntry :: Hnext.older :=
-        Hnext.parameterDecls
-      _ = (Hnext.newer ++ [nextEntry]) ++ Hnext.older := by
-        simp [List.append_assoc]
-  have hprefixLength :
-      H.newer.length = (Hnext.newer ++ [nextEntry]).length := by
-    simp only [List.length_append, List.length_singleton]
-    rw [H.newerLength, Hnext.newerLength]
-    omega
-  simpa only [currentEntry] using
-    List.append_inj_right hdecomp hprefixLength
-
-theorem ReusedParameterScope.openedFVars
-    (H : ReusedParameterScope Hsuffix i body) :
-    FVarsIn
-      (· ∈ VLCtx.fvars
-        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
-      (body.instantiate1' (.fvar H.fv)) := by
-  apply (H.fvars.mono fun fv hfv => by
-    rw [VLCtx.fvars_cons_some]
-    exact List.mem_cons_of_mem H.fv hfv).instantiate1
-  simp only [FVarsIn]
-  rw [VLCtx.fvars_cons_some]
-  exact List.mem_cons_self
-
-theorem ReusedParameterScope.openedUpSet
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth}
-    {body : Expr}
-    (H : ReusedParameterScope Hsuffix i body) :
-    IsFVarUpSet
-      (· ∈ VLCtx.fvars
-        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
-      Hc.mlctx.vlctx := by
-  rw [H.context]
-  exact IsFVarUpSet.suffixFVars
-    ((some (H.fv, H.deps), .vlam H.paramType) :: H.older) H.added
-    (by simpa [H.context] using Hc.mlctx_wf.tr.wf)
-
-/-- Substitution of the current cached parameter, followed by an executable
-normalization step, cannot introduce dependencies outside the newly processed
-parameter scope. -/
-theorem ReusedParameterScope.unannotatedFVars
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth}
-    {body normalized : Expr}
-    (H : ReusedParameterScope Hsuffix i body)
-    (hbelow : FVarsBelow Hc.mlctx.vlctx
-      (body.instantiate1 stats.params[i]!) normalized) :
-    FVarsIn
-      (· ∈ VLCtx.fvars
-        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
-      normalized := by
-  have hopened : FVarsIn
-      (· ∈ VLCtx.fvars
-        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
-      (body.instantiate1 stats.params[i]!) := by
-    rw [Expr.instantiate1_eq, H.parameter]
-    exact H.openedFVars
-  exact hbelow _ H.openedUpSet hopened
-
-theorem ReusedParameterScope.olderDrop
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth} {e : Expr}
-    (H : ReusedParameterScope Hsuffix i e) (hi : i < stats.params.size) :
-    Hsuffix.parameterDecls.drop (stats.params.size - i) = H.older ∧
-    Hsuffix.parameterDecls.drop (stats.params.size - (i + 1)) =
-      (some (H.fv, H.deps), .vlam H.paramType) :: H.older := by
-  rw [H.parameterDecls]
-  have hn := H.newerLength
-  constructor
-  · rw [show stats.params.size - i = H.newer.length + 1 by omega, List.drop_append]
-    simp
-  · rw [show stats.params.size - (i + 1) = H.newer.length by omega, List.drop_append]
-    simp
-
-/-- The checker contexts of the cached-parameter step: the parameters before
-`i`, and those up to and including `i`, together with the declared type of
-parameter `i` translated among the earlier parameters. -/
-theorem ReusedParameterScope.scopedTyping
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth} {e : Expr}
-    (H : ReusedParameterScope Hsuffix i e) (hi : i < stats.params.size) :
-    (Hc.mlctx.dropN (depth + (stats.params.size - i))
-        (by rw [Hsuffix.mlctx_length]; omega)).vlctx = H.older ∧
-    (Hc.mlctx.dropN (depth + (stats.params.size - (i + 1)))
-        (by rw [Hsuffix.mlctx_length]; omega)).vlctx =
-      (some (H.fv, H.deps), .vlam H.paramType) :: H.older ∧
-    ∃ paramTy, (AddInductive.getType stats.params[i]! c).WF (fun ty => ty = paramTy) ∧
-      TrExprS Hc.venv c.lparams H.older paramTy H.paramType ∧
-      Hc.venv.IsType c.lparams.length H.older.toCtx H.paramType := by
-  obtain ⟨hd₀, hd₁⟩ := H.olderDrop hi
-  have hb₀ := (Hsuffix.bottom i (by omega)).1
-  have hb₁ := (Hsuffix.bottom (i + 1) (by omega)).1
-  rw [hd₀] at hb₀
-  rw [hd₁] at hb₁
-  refine ⟨hb₀, hb₁, ?_⟩
-  have hj : depth + (stats.params.size - (i + 1)) ≤ Hc.mlctx.length := by
-    rw [Hsuffix.mlctx_length]; omega
-  have hmwf := Hc.mlctx_wf.dropN _ hj
-  have hmem : H.fv ∈ (Hc.mlctx.dropN _ hj).vlctx.fvars := by
-    rw [hb₁]; simp [VLCtx.fvars_cons_some]
-  have hfind := Hc.onlyLams.dropN_find?_eq Hc.mlctx_wf _ hj hmem
-  have honly := Hc.onlyLams.dropN _ hj
-  generalize Hc.mlctx.dropN _ hj = m at hb₁ hmwf hfind honly
-  cases m with
-  | nil => simp at hb₁
-  | vlet => exact honly.vlet_false.elim
-  | vlam id name ty ty' bi tail =>
-    simp only [TypeChecker.MLCtx.vlctx, List.cons.injEq, Prod.mk.injEq,
-      Option.some.injEq] at hb₁
-    obtain ⟨⟨⟨rfl, -⟩, hty'⟩, htail⟩ := hb₁
-    cases hty'
-    obtain ⟨htailWF, hfresh, htr, hty⟩ := hmwf
-    rw [htail] at htr hty
-    refine ⟨ty, ?_, htr, hty⟩
-    intro ty' hrun
-    rw [H.parameter] at hrun
-    change Except.ok ((c.lctx.get! H.fv).type) = Except.ok ty' at hrun
-    have hfind' : c.lctx.find? H.fv =
-        some (.cdecl tail.lctx.decls.size H.fv name ty bi .default) := by
-      rw [← Hc.lctx_eq, hfind]
-      change (tail.lctx.mkLocalDecl H.fv name ty bi).find? H.fv = _
-      rw [LocalContext.find?_mkLocalDecl htailWF.tr.1.map_wf]
-      simp
-    simp only [LocalContext.get!, hfind', Except.ok.injEq] at hrun
-    exact hrun.symm
-
-/-- Recover every premise needed by the executable cached-parameter branch
-from the retained local-context translation. -/
-theorem ReusedParameterScope.typing
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth}
-    {body : Expr}
-    (H : ReusedParameterScope Hsuffix i body) :
-    ∃ paramTy paramTy' param',
-      (AddInductive.getType stats.params[i]! c).WF
-        (fun ty => ty = paramTy) ∧
-      TrExprS Hc.venv c.lparams Hc.mlctx.vlctx paramTy paramTy' ∧
-      paramTy' = H.paramType.lift.liftN
-        (VLCtx.toCtx H.added).length 0 ∧
-      TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
-        stats.params[i]! param' ∧
-      Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
-        param' paramTy' := by
-  have hhead : VLCtx.find?
-      ((some (H.fv, H.deps), .vlam H.paramType) :: H.older)
-      (.inr H.fv) = some (.bvar 0, H.paramType.lift) := by
-    simp [VLCtx.find?, VLCtx.next, VLocalDecl.value, VLocalDecl.type]
-  have hfull := H.lift.find? Hc.mlctx_wf.tr.wf.fvars_nodup hhead
-  rcases hfull with hfull
-  let param' := (VExpr.bvar 0).liftN (VLCtx.toCtx H.added).length 0
-  let paramTy' := H.paramType.lift.liftN
-    (VLCtx.toCtx H.added).length 0
-  have hfind : Hc.mlctx.vlctx.find? (.inr H.fv) =
-      some (param', paramTy') := by
-    simpa [param', paramTy'] using hfull
-  have hfv : H.fv ∈ Hc.mlctx.vlctx.fvars :=
-    VLCtx.find?_eq_some.1 ⟨_, hfind⟩
-  have hlocal :=
-    (Hc.mlctx_wf.tr.find?_eq_some (fv := H.fv)).2 hfv
-  rcases hlocal with ⟨localDecl, hlocal⟩
-  have hlocal' : c.lctx.find? H.fv = some localDecl := by
-    rw [← Hc.lctx_eq]
-    exact hlocal
-  have hlist := hlocal
-  rw [Hc.mlctx_wf.tr.1.find?_eq_find?_toList] at hlist
-  have hid : H.fv = localDecl.fvarId := by
-    simpa using List.find?_some hlist
-  have hmem : localDecl ∈ Hc.mlctx.lctx.toList :=
-    List.mem_of_find?_eq_some hlist
-  rcases Hc.mlctx_wf.tr.find?_of_mem Hc.checking.tr.wf hmem with
-    ⟨value', type', hfind', _hvalueBelow, _htypeBelow,
-      _hvalue, htype⟩
-  rw [← hid] at hfind'
-  rw [hfind] at hfind'
-  cases hfind'
-  refine ⟨localDecl.type, paramTy', param', ?_, htype, rfl, ?_, ?_⟩
-  · intro ty hrun
-    rw [H.parameter] at hrun
-    change Except.ok ((c.lctx.get! H.fv).type) = Except.ok ty at hrun
-    simp [LocalContext.get!, hlocal'] at hrun
-    exact hrun.symm
-  · rw [H.parameter]
-    exact .fvar hfind
-  · exact Hc.mlctx_wf.tr.wf.find?_wf Hc.checking.tr.wf hfind
-
 theorem ParameterCachePrefix.push
     (Hc : ContextWF c)
     (H : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx stats done 0)
@@ -2089,7 +1439,7 @@ theorem index.cacheTelescopeWF
     (halign : Hc.Aligned)
     (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
       stats done depth)
-    (Hsuffix : ParameterContextSuffix Hc stats depth)
+    (Hsuffix : ParameterContextSuffix Hc.toSemantics stats depth)
     (Hsynthesis : HeaderTelescope Hc target
       (.forallE sourceDom' sourceBody') i nindices)
     (Hdom : Hc.UnannotatedDomain dom sourceDom' consumedDom')
@@ -2107,7 +1457,7 @@ theorem index.cacheTelescopeWF
       TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx normalized next →
       ParameterCachePrefix Hc'.venv c'.lparams Hc'.mlctx.vlctx
         stats done (depth + 1) →
-      ParameterContextSuffix Hc' stats (depth + 1) →
+      ParameterContextSuffix Hc'.toSemantics stats (depth + 1) →
       HeaderTelescope Hc' target next i (nindices + 1) →
       (AddInductive.checkInductiveTypes.loopType nparams stats normalized
         i (nindices + 1) fuel k c').WF Q) :
@@ -2132,7 +1482,7 @@ theorem index.cacheTelescopeWF
     Hc'.mlctx_wf.tr.wf.toCtx hnextEq.symm
   exact Hrec Hc' rfl rfl rfl rfl rfl rfl normalized next
     (halign.withCheckedLocalDecl _ _ _ _) hnext Hcache'
-    (Hsuffix.withIndex Hc Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType)
+    (Hsuffix.withIndex Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType)
     ((Hsynthesis.withIndex Hdom Hdom₀).normalize hsourceNext)
 
 /-- Verification step for a common parameter of the first mutual header.  In
@@ -2272,7 +1622,7 @@ theorem firstParameter.cacheTelescopeWF
     (halign : Hc.Aligned)
     (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
       stats done 0)
-    (Hsuffix : ParameterContextSuffix Hc stats 0)
+    (Hsuffix : ParameterContextSuffix Hc.toSemantics stats 0)
     (hprefix : Hsuffix.ambientDecls = [])
     (Hsynthesis : HeaderTelescope Hc target
       (.forallE sourceDom' sourceBody') i nindices)
@@ -2293,7 +1643,7 @@ theorem firstParameter.cacheTelescopeWF
       ParameterCachePrefix Hc'.venv c'.lparams Hc'.mlctx.vlctx
         { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
         (done + 1) 0 →
-      ParameterContextSuffix Hc'
+      ParameterContextSuffix Hc'.toSemantics
         { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
         0 →
       (Hsynthesis' : HeaderTelescope
@@ -2325,102 +1675,8 @@ theorem firstParameter.cacheTelescopeWF
     (Hsynthesis.withParameter hindices Hdom Hdom₀).normalize hsourceNext
   exact Hrec Hc' rfl rfl rfl rfl rfl rfl normalized next
     (halign.withCheckedLocalDecl _ _ _ _) hnext Hcache'
-    (Hsuffix.push Hc hprefix Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType)
+    (Hsuffix.push hprefix Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType)
     Hsynthesis' (by rfl)
-
-/-- A closed source header starts the later-parameter traversal with an empty
-free-variable scope. -/
-noncomputable def ReusedParameterScope.ofNoFVars
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth}
-    (hi : i < stats.params.size)
-    (hfvars : FVarsIn (fun _ => False) e) :
-    ReusedParameterScope Hsuffix i e :=
-  Classical.choice <| by
-    rcases Hsuffix.fvLiftAt hi with
-      ⟨added, newer, older, fv, deps, paramType, hdecls, hnewer, hadd,
-        hcontext, hparam, hlift⟩
-    exact ⟨{
-      added := added
-      newer := newer
-      older := older
-      fv := fv
-      deps := deps
-      paramType := paramType
-      parameterDecls := hdecls
-      newerLength := hnewer
-      addedEq := hadd
-      context := hcontext
-      parameter := by
-        simpa [Array.getElem!_eq_getD, hi] using hparam
-      lift := hlift
-      fvars := hfvars.mono fun _ h => False.elim h }⟩
-
-/-- Advance the reused-parameter scope after substituting cached parameter `i` and
-normalizing the resulting body.  The next parameter's older suffix is
-exactly the current cached declaration followed by the current older suffix.
--/
-noncomputable def ReusedParameterScope.next
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth}
-    {body normalized : Expr}
-    (H : ReusedParameterScope Hsuffix i body)
-    (hi : i + 1 < stats.params.size)
-    (hbelow : FVarsBelow Hc.mlctx.vlctx
-      (body.instantiate1 stats.params[i]!) normalized) :
-    ReusedParameterScope Hsuffix (i + 1) normalized :=
-  Classical.choice <| by
-    rcases Hsuffix.fvLiftAt hi with
-      ⟨added, newer, older, fv, deps, paramType, hdecls, hnewer, hadd,
-        hcontext, hparam, hlift⟩
-    let currentEntry : Option (FVarId × List FVarId) × VLocalDecl :=
-      (some (H.fv, H.deps), .vlam H.paramType)
-    let nextEntry : Option (FVarId × List FVarId) × VLocalDecl :=
-      (some (fv, deps), .vlam paramType)
-    have hdecomp :
-        H.newer ++ currentEntry :: H.older =
-          (newer ++ [nextEntry]) ++ older := by
-      calc
-        H.newer ++ currentEntry :: H.older =
-            Hsuffix.parameterDecls := H.parameterDecls.symm
-        _ = newer ++ nextEntry :: older := hdecls
-        _ = (newer ++ [nextEntry]) ++ older := by
-          simp [List.append_assoc]
-    have hprefixLength :
-        H.newer.length = (newer ++ [nextEntry]).length := by
-      simp only [List.length_append, List.length_singleton]
-      rw [H.newerLength, hnewer]
-      omega
-    have htail : currentEntry :: H.older = older :=
-      List.append_inj_right hdecomp hprefixLength
-    have hopened : FVarsIn
-        (· ∈ VLCtx.fvars (currentEntry :: H.older))
-        (body.instantiate1 stats.params[i]!) := by
-      rw [Expr.instantiate1_eq, H.parameter]
-      exact H.openedFVars
-    have hnormalized : FVarsIn
-        (· ∈ VLCtx.fvars (currentEntry :: H.older)) normalized :=
-      hbelow _ H.openedUpSet hopened
-    have hnextFVars : FVarsIn (· ∈ VLCtx.fvars older) normalized := by
-      rw [← htail]
-      exact hnormalized
-    exact ⟨{
-      added := added
-      newer := newer
-      older := older
-      fv := fv
-      deps := deps
-      paramType := paramType
-      parameterDecls := hdecls
-      newerLength := hnewer
-      addedEq := hadd
-      context := hcontext
-      parameter := by
-        simpa [Array.getElem!_eq_getD, hi] using hparam
-      lift := hlift
-      fvars := hnextFVars }⟩
 
 /-- Complete cached-parameter step of a later mutual header.  The executable
 compares the domain with the cached parameter type in the checker context of
@@ -2430,7 +1686,7 @@ those contexts, which are exactly the scopes recorded by `Hscope`. -/
 theorem laterParameter.checkedScopeWF
     (Hc : ContextWF c) (hi : i < nparams)
     (hnonempty : stats.indConsts.isEmpty = false)
-    (Hsuffix : ParameterContextSuffix Hc stats depth)
+    (Hsuffix : ParameterContextSuffix Hc.toSemantics stats depth)
     (Hscope : ReusedParameterScope Hsuffix i
       (.forallE name dom body bi))
     (histats : i < stats.params.size)
@@ -2588,7 +1844,7 @@ theorem firstHeaderTelescopeWF
       i' = nparams →
       ParameterCachePrefix Hc'.venv c'.lparams Hc'.mlctx.vlctx
         stats' i' nindices' →
-      ParameterContextSuffix Hc' stats' nindices' →
+      ParameterContextSuffix Hc'.toSemantics stats' nindices' →
       HeaderTelescope Hc' target current' i' nindices' →
       TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx type' current' →
       (k type' stats' nindices' c').WF Q)
@@ -2606,7 +1862,7 @@ theorem firstHeaderTelescopeWF
     (HR : R Hc.venv)
     (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
       stats i nindices)
-    (Hsuffix : ParameterContextSuffix Hc stats nindices)
+    (Hsuffix : ParameterContextSuffix Hc.toSemantics stats nindices)
     (Hsynthesis : HeaderTelescope Hc target current i nindices)
     (hphase : i < nparams → Hsynthesis.indices = [] ∧ nindices = 0)
     (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type current) :
@@ -2680,7 +1936,7 @@ theorem laterParameterTelescopeWF
     (k : Expr → AddInductive.InductiveStats → Nat →
       AddInductive.M alpha) (Q : alpha → Prop)
     (hnonempty : stats.indConsts.isEmpty = false)
-    (Hsuffix : ParameterContextSuffix Hc stats depth)
+    (Hsuffix : ParameterContextSuffix Hc.toSemantics stats depth)
     (Hresult : ∀ {type' narrowCurrent fullCurrent scope' i' fuel'},
       i' = nparams →
       ScopedHeaderTelescope Hc.venv c.lparams target
@@ -2793,7 +2049,7 @@ theorem laterIndexTelescopeWF
       TrExpr Hc'.venv c'.lparams Hc'.mlctx.vlctx type' fullCurrent →
       ParameterCachePrefix Hc'.venv c'.lparams Hc'.mlctx.vlctx
         stats nparams (depth + nindices') →
-      ParameterContextSuffix Hc' stats (depth + nindices') →
+      ParameterContextSuffix Hc'.toSemantics stats (depth + nindices') →
       AmbientParamContext Hc' commonParams (depth + nindices') →
       R Hc'.venv →
       VEnv.IsDefEqCtx Hc'.venv paramU []
@@ -2808,7 +2064,7 @@ theorem laterIndexTelescopeWF
     (hfuel : c.fuel = sourceFuel)
     (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
       stats nparams (depth + nindices))
-    (Hsuffix : ParameterContextSuffix Hc stats (depth + nindices))
+    (Hsuffix : ParameterContextSuffix Hc.toSemantics stats (depth + nindices))
     (Hambient : AmbientParamContext Hc commonParams
       (depth + nindices))
     (HR : R Hc.venv)
@@ -2973,8 +2229,10 @@ theorem laterIndexTelescopeWF
           (by
             have h := Hcache.withIndex (name := name) (bi := bi) Hc Hdom.unannotated Hdom.isType
             rw [← Nat.add_assoc]; exact h)
-          (by simpa [Nat.add_assoc] using
-            Hsuffix.withIndex Hc Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType)
+          (by
+            have h := Hsuffix.withIndex (name := name) (bi := bi)
+              Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
+            rw [← Nat.add_assoc]; exact h)
           (by simpa [Nat.add_assoc] using
             (Hambient.withIndex Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
               Hdom.source_defeq))

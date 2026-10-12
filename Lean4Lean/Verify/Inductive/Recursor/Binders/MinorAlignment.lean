@@ -243,7 +243,7 @@ structure TypedMinorTraversal
   rootWF : RecursorContextWF traversal.rootContext recLparams
   terminalWF : RecursorContextWF traversal.terminalContext recLparams
   parameterDepth : Nat
-  parameterSuffix : RecursorParameterContextSuffix rootWF traversal.stats
+  parameterSuffix : ParameterContextSuffix rootWF.toSemantics traversal.stats
     parameterDepth
   parameterScope : traversal.parameterTail.FVarsIn
     (fun fv => fv ∈ parameterSuffix.parameterDecls.fvars)

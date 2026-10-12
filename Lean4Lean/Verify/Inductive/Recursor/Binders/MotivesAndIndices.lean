@@ -368,10 +368,10 @@ theorem MotivePassHeaderAt.recursorCurrentDomainDefEq
     {c' : AddInductive.Context}
     {R : RecursorContextWF c'
       (AddInductive.getRecLevelParams elimLevel c.lparams)}
-    {Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth}
+    {Hsuffix : ParameterContextSuffix R.toSemantics stats runtimeDepth}
     {name : Name} {dom body : Expr} {bi : BinderInfo}
     {currentDomain currentBody : VExpr}
-    (Hscope : RecursorReusedParameterScope Hsuffix i
+    (Hscope : ReusedParameterScope Hsuffix i
       (.forallE name dom body bi))
     (Hsynthesis :
       checkInductiveTypes.loopType.ScopedHeaderTelescope
@@ -1857,10 +1857,10 @@ theorem parameterStepOfCheckedRecursorHeader
     (Helim : AddInductive.AdmissibleElimLevel base.lparams elimLevel)
     (R : RecursorContextWF current
       (AddInductive.getRecLevelParams elimLevel base.lparams))
-    {Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth}
+    {Hsuffix : ParameterContextSuffix R.toSemantics stats runtimeDepth}
     {i : Nat} {name : Name} {dom body : Expr} {bi : BinderInfo}
     {currentTarget currentDomain currentBody : VExpr}
-    (Hscope : RecursorReusedParameterScope Hsuffix i
+    (Hscope : ReusedParameterScope Hsuffix i
       (.forallE name dom body bi))
     (Hsynthesis :
       checkInductiveTypes.loopType.ScopedHeaderTelescope
@@ -1916,11 +1916,11 @@ theorem _root_.Lean4Lean.VerifyInductive.ExprArrayFVarIds_push_fvar
   simp [ExprArrayFVarIds, recursorFVarId]
 
 /-- A cached parameter is a variable of the context carrying the suffix. -/
-theorem _root_.Lean4Lean.VerifyInductive.RecursorParameterContextSuffix.mem_lctx_of_mem_params
+theorem _root_.Lean4Lean.VerifyInductive.ParameterContextSuffix.mem_lctx_of_mem_params
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     {stats : AddInductive.InductiveStats} {depth : Nat}
-    (Hsuffix : RecursorParameterContextSuffix R stats depth) {fv : FVarId}
+    (Hsuffix : ParameterContextSuffix R.toSemantics stats depth) {fv : FVarId}
     (h : fv ∈ ExprArrayFVarIds stats.params) : fv ∈ c.lctx.fvars := by
   rw [← R.lctx_eq, R.mlctx_wf.tr.fvars_eq, Hsuffix.context, VLCtx.fvars_append,
     Hsuffix.parameterDecls_fvars]
@@ -1966,7 +1966,7 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
       (R : RecursorContextWF current
         (AddInductive.getRecLevelParams elimLevel base.lparams))
       (_henv : R.venv = Hbase.venv)
-      (Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth)
+      (Hsuffix : ParameterContextSuffix R.toSemantics stats runtimeDepth)
       (_hparameterDecls :
         Hsuffix.parameterDecls = rootParameterDecls)
       {type : Expr} {fullTarget narrowTarget : VExpr} {scope : VLCtx}
@@ -2022,7 +2022,7 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
       (R : RecursorContextWF current
         (AddInductive.getRecLevelParams elimLevel base.lparams))
       (_henv : R.venv = Hbase.venv)
-      (Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth)
+      (Hsuffix : ParameterContextSuffix R.toSemantics stats runtimeDepth)
       (_hparameterDecls : Hsuffix.parameterDecls = rootParameterDecls)
       type fullTarget narrowTarget scope nindices indices originTypes
         indexTargets fuel,
@@ -2112,7 +2112,7 @@ theorem continueRecursorIndexTelescopeTyping {alpha : Type}
             R Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType ?_
           let R' := R.withCheckedLocalDecl (name := name) (bi := bi)
             Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
-          let Hsuffix' := Hsuffix.withAmbientChecked (name := name) (bi := bi)
+          let Hsuffix' := Hsuffix.withIndex (name := name) (bi := bi)
             Hdom.unannotated Hdom.isType Hdom₀.unannotated Hdom₀.isType
           let W : VLCtx.FVLift R.mlctx.vlctx R'.mlctx.vlctx 0 1 0 :=
             .skip_fvar _ _ .refl
@@ -2466,7 +2466,7 @@ theorem continueRecursorParameterTyping {alpha : Type}
     (R : RecursorContextWF current
       (AddInductive.getRecLevelParams elimLevel base.lparams))
     (henv : R.venv = Hbase.venv)
-    (Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth)
+    (Hsuffix : ParameterContextSuffix R.toSemantics stats runtimeDepth)
     (hctx : VEnv.IsDefEqCtx R.venv
       (AddInductive.getRecLevelParams elimLevel base.lparams).length []
       (H.recursorParams Helim).reverse Hsuffix.parameterDecls.toCtx)
@@ -2508,7 +2508,7 @@ theorem continueRecursorParameterTyping {alpha : Type}
     ∀ type fullTarget narrowTarget scope i indices fuel,
       i ≤ stats.params.size →
       (Hscope : ∀ _hi : i < stats.params.size,
-        RecursorReusedParameterScope Hsuffix i type) →
+        ReusedParameterScope Hsuffix i type) →
       (∀ hi : i < stats.params.size, scope = (Hscope hi).older) →
       (i = stats.params.size → scope = Hsuffix.parameterDecls) →
       checkInductiveTypes.loopType.ScopedHeaderTelescope
@@ -2633,7 +2633,7 @@ theorem continueRecursorParameterTyping {alpha : Type}
                 exact ⟨hparam, Hsuffix.mem_lctx_of_mem_params hparam⟩
               have hindices : Hsynthesis.indices = [] :=
                 List.eq_nil_of_length_eq_zero Hsynthesis.indexCount
-              let Hbody : RecursorReusedParameterScope Hsuffix i body :=
+              let Hbody : ReusedParameterScope Hsuffix i body :=
                 { Hcurrent with fvars := Hcurrent.fvars.2 }
               have hnext₀' : TrExpr R.venv
                   (AddInductive.getRecLevelParams elimLevel base.lparams)
@@ -2684,7 +2684,7 @@ theorem MotivePassHeaderAt.startRecursorParameterTyping
     (R : RecursorContextWF current
       (AddInductive.getRecLevelParams elimLevel base.lparams))
     (henv : R.venv = Hbase.venv)
-    (Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth)
+    (Hsuffix : ParameterContextSuffix R.toSemantics stats runtimeDepth)
     (hctx : VEnv.IsDefEqCtx R.venv
       (AddInductive.getRecLevelParams elimLevel base.lparams).length []
       (H.recursorParams Helim).reverse Hsuffix.parameterDecls.toCtx)
@@ -2745,9 +2745,9 @@ theorem MotivePassHeaderAt.startRecursorParameterTyping
     -- The telescope is opened on top of the parameters.
     let R₀ := R
     let HsuffixBase := Hsuffix
-    let Hsuffix : RecursorParameterContextSuffix
-        HsuffixBase.headerCheck stats runtimeDepth := HsuffixBase.toHeaderCheck
-    let R := HsuffixBase.headerCheck
+    let Hsuffix : ParameterContextSuffix
+        HsuffixBase.recursorHeaderCheck.toSemantics stats runtimeDepth := HsuffixBase.toHeaderCheck
+    let R := HsuffixBase.recursorHeaderCheck
     rcases hnormalized.2 with
       ⟨narrowTarget, hnormalizedNarrow, ⟨Hsynthesis⟩⟩
     have hsourceNoFVars : FVarsIn (fun _ => False) source.type :=
@@ -2775,8 +2775,8 @@ theorem MotivePassHeaderAt.startRecursorParameterTyping
         (narrowTarget.liftN R.mlctx.vlctx.toCtx.length 0) :=
       Hsynthesis.currentType.weakN R.checking.tr.wf.ordered W.toCtx
     let Hscope : ∀ hi : 0 < stats.params.size,
-        RecursorReusedParameterScope Hsuffix 0 normalized := fun hi =>
-      RecursorReusedParameterScope.ofNoFVars hi hnormalizedNoFVars
+        ReusedParameterScope Hsuffix 0 normalized := fun hi =>
+      ReusedParameterScope.ofNoFVars hi hnormalizedNoFVars
     have hscopeEq : ∀ hi : 0 < stats.params.size,
         [] = (Hscope hi).older := by
       intro hi
@@ -2846,7 +2846,7 @@ theorem MotivePassHeaderAt.startRecursorTyping
       (AddInductive.getRecLevelParams elimLevel base.lparams))
     (hconsume : RecursorConsumeTypeAnnotationsDefEq)
     (henv : R.venv = Hbase.venv)
-    (Hsuffix : RecursorParameterContextSuffix R stats runtimeDepth)
+    (Hsuffix : ParameterContextSuffix R.toSemantics stats runtimeDepth)
     (hctx : VEnv.IsDefEqCtx R.venv
       (AddInductive.getRecLevelParams elimLevel base.lparams).length []
       (H.recursorParams Helim).reverse Hsuffix.parameterDecls.toCtx)
@@ -2860,7 +2860,7 @@ theorem MotivePassHeaderAt.startRecursorTyping
       (Rnext : RecursorContextWF next
         (AddInductive.getRecLevelParams elimLevel base.lparams))
       (_henvNext : Rnext.venv = Hbase.venv)
-      (HsuffixNext : RecursorParameterContextSuffix Rnext stats nextDepth)
+      (HsuffixNext : ParameterContextSuffix Rnext.toSemantics stats nextDepth)
       (_hparameterDecls :
         HsuffixNext.parameterDecls = Hsuffix.parameterDecls)
       {type : Expr} {fullTarget narrowTarget : VExpr} {scope : VLCtx}
@@ -2939,8 +2939,8 @@ theorem MotivePassHeaderAt.startRecursorTyping
       List.eq_nil_of_length_eq_zero Hsynthesis.indexCount
     simpa [hindices] using Hsynthesis.scopeCtx.symm
   -- The index telescope is opened on top of the parameters.
-  let RL := Hsuffix.headerCheck
-  let HsuffixL : RecursorParameterContextSuffix RL stats runtimeDepth :=
+  let RL := Hsuffix.recursorHeaderCheck
+  let HsuffixL : ParameterContextSuffix RL.toSemantics stats runtimeDepth :=
     Hsuffix.toHeaderCheck
   refine continueRecursorIndexTelescopeTyping
     (rootParameterDecls := Hsuffix.parameterDecls) stats k H Helim RL

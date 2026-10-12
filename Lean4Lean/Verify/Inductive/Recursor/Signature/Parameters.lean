@@ -14,13 +14,13 @@ theorem onCtx_isType_instL_id {env : VEnv} {Γ : List VExpr} (H : OnCtx Γ (env.
     simp only [List.map_cons, Hw.2.instL_id]
     exact congrArg (List.cons A) (ih H.1 Hw.1)
 
-theorem checkInductiveTypes.loopType.ParameterContextSuffix.recursorDomains
+theorem ParameterContextSuffix.recursorDomains
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : checkInductiveTypes.loopType.ParameterContextSuffix Hc stats depth)
+    (H : ParameterContextSuffix Hc.toSemantics stats depth)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
     (H.toRecursorContext Helim).parameterDecls.toCtx =
       H.parameterDecls.toCtx.map (VExpr.instL (recursorDeclarationAbstractLevels c.lparams Helim)) := by
-  have Hwf := (checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix Hc H).scopeWF Hc.checking.tr.wf
+  have Hwf := (H.parameterEmbedding).scopeWF Hc.checking.tr.wf
   have hid := onCtx_isType_instL_id Hwf.toCtx
   cases elimLevel with
   | zero => exact hid.symm
@@ -46,7 +46,7 @@ theorem RecursorConstruction.parameterDomains
       R.parameterScope.toCtx.reverse.map
         (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)) := by
   rw [H.parameterDecls,
-    checkInductiveTypes.loopType.ParameterContextSuffix.recursorDomains,
+    ParameterContextSuffix.recursorDomains,
     List.map_reverse]
   have hscope : R.recursorHeaders.parameterSuffix.parameterDecls = R.parameterScope :=
     R.recursorHeaders_parameterScope

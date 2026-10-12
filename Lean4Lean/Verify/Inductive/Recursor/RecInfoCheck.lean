@@ -253,7 +253,7 @@ theorem ConstructorCheck.checkedConstructorPrefixInRecursorContextAt
       (AddInductive.getRecLevelParams elimLevel c.lparams))
     (henvCurrent : Rcurrent.venv = R.context.venv)
     {runtimeDepth : Nat}
-    (HsuffixCurrent : RecursorParameterContextSuffix Rcurrent stats
+    (HsuffixCurrent : ParameterContextSuffix Rcurrent.toSemantics stats
       runtimeDepth)
     (hparameterDecls : HsuffixCurrent.parameterDecls =
       (R.recursorHeaders.parameterSuffix.toRecursorContext
@@ -350,7 +350,7 @@ theorem ConstructorCheck.loopInd1WF
       (Rout : RecursorContextWF cOut
         (AddInductive.getRecLevelParams elimLevel c.lparams))
       (_henvOut : Rout.venv = R.context.venv)
-      (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth)
+      (HsuffixOut : ParameterContextSuffix Rout.toSemantics stats outDepth)
       (_hparameterDeclsOut : HsuffixOut.parameterDecls =
         (R.recursorHeaders.parameterSuffix.toRecursorContext
           Helim).parameterDecls)
@@ -477,7 +477,7 @@ theorem ConstructorCheck.mkRecInfosWF
       (Rout : RecursorContextWF cOut
         (AddInductive.getRecLevelParams elimLevel c.lparams)),
       Rout.venv = R.context.venv ->
-      (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth) ->
+      (HsuffixOut : ParameterContextSuffix Rout.toSemantics stats outDepth) ->
       HsuffixOut.parameterDecls =
         (R.recursorHeaders.parameterSuffix.toRecursorContext
           Helim).parameterDecls ->
@@ -623,7 +623,7 @@ theorem ConstructorCheck.getElimLevelMkRecInfosWF
       (Rout : RecursorContextWF cOut
         (AddInductive.getRecLevelParams elimLevel c.lparams)),
       Rout.venv = R.context.venv ->
-      (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth) ->
+      (HsuffixOut : ParameterContextSuffix Rout.toSemantics stats outDepth) ->
       HsuffixOut.parameterDecls =
         (R.recursorHeaders.parameterSuffix.toRecursorContext
           Helim).parameterDecls ->

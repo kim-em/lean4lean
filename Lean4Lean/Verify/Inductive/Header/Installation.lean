@@ -308,7 +308,7 @@ def HeaderPhase.statsWF {c c' : AddInductive.Context} {Hc : ContextWF c} {nparam
   ambientLength := P.suffix.prefixLength
   cachedScope := P.suffix.cached
   parameterEmbedding :=
-    checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix Hc' P.suffix
+    P.suffix.parameterEmbedding
   paramsContext := P.suffix.paramsDefEq P.ambientParams
     (P.commonParams_length.trans P.params_size.symm)
   suffixParams := by

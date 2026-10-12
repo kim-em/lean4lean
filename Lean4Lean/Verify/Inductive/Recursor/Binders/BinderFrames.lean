@@ -583,7 +583,7 @@ def RecInfoBindings.empty (c : AddInductive.Context) :
 theorem RecInfoOuterOrder.empty
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
-    (Hsuffix : RecursorParameterContextSuffix R stats depth)
+    (Hsuffix : ParameterContextSuffix R.toSemantics stats depth)
     (Hparams : FVarArrayIn c stats.params) :
     RecInfoOuterOrder R Hparams (RecInfoBindings.empty c) := by
   have hmotives : (RecInfoBindings.empty c).motives.fvars = [] :=

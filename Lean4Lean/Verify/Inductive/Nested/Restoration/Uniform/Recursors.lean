@@ -759,10 +759,10 @@ theorem FVarArrayBinderTypes.declParamUniform {heads : List Name} {params : List
 /-! ### Hypotheses on the recursor construction -/
 
 /-- The cached parameters are variables of the context carrying the suffix. -/
-theorem RecursorParameterContextSuffix.param_mem {r : AddInductive.Context}
+theorem ParameterContextSuffix.param_mem {r : AddInductive.Context}
     {recLparams : List Name} {Rr : RecursorContextWF r recLparams}
     {stats : AddInductive.InductiveStats} {depth : Nat}
-    (P : RecursorParameterContextSuffix Rr stats depth) {pv : FVarId}
+    (P : ParameterContextSuffix Rr.toSemantics stats depth) {pv : FVarId}
     (h : Expr.fvar pv ∈ stats.params) : pv ∈ r.lctx.fvars := by
   obtain ⟨fvars, hparams, hdecls⟩ := cachedParameterDecls_fvars P.cached
   have hmem : Expr.fvar pv ∈ stats.params.toList.reverse := by simpa using h

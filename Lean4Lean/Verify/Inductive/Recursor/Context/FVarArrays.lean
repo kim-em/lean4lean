@@ -702,13 +702,13 @@ theorem RecursorFVarSuffix.upsetRoot
 /-- Opening a recursor suffix preserves the parameter suffix: the fresh locals become
 additional ambient declarations, and the cached parameter declarations and their
 translations are unchanged. -/
-def RecursorParameterContextSuffix.weakenRecent
+def ParameterContextSuffix.weakenRecent
     {root c : AddInductive.Context} {recLparams : List Name}
     {Rroot : RecursorContextWF root recLparams}
     {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorParameterContextSuffix Rroot stats depth)
+    (H : ParameterContextSuffix Rroot.toSemantics stats depth)
     (Hrecent : RecursorFVarSuffix Rroot R xs) :
-    RecursorParameterContextSuffix R stats (depth + xs.size) := by
+    ParameterContextSuffix R.toSemantics stats (depth + xs.size) := by
   let added := R.mlctx.vlctx.take xs.size
   have hadded : added.length = xs.size := by
     change (R.mlctx.vlctx.take xs.size).length = xs.size
@@ -902,45 +902,45 @@ theorem ConstructorOwnerNormalForm.validOfOpening
     Hparams.fvars Hopening.fvars 0 hclosedValid hconst
     Hparams.expressions
 
-theorem RecursorParameterContextSuffix.fieldFVars
+theorem ParameterContextSuffix.fieldFVars
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     {stats : AddInductive.InductiveStats} {depth : Nat}
-    (H : RecursorParameterContextSuffix R stats depth) :
+    (H : ParameterContextSuffix R.toSemantics stats depth) :
     (R.mlctx.dropN depth H.depth_le).fvarList =
       (stats.params ++ (#[] : Array Expr)).toList.map (·.fvarId!) := by
-  rw [TypeChecker.MLCtx.fvarList_eq, H.dropAmbient_vlctx,
+  rw [TypeChecker.MLCtx.fvarList_eq, H.headerVLCtx,
     checkInductiveTypes.loopType.CachedParameterDecl.forall₂_fvars H.cached]
   simp [List.map_reverse]
 
 /-- The checker context of the first constructor field: the parameters, at
 the bottom of the recursor context. -/
-def RecursorParameterContextSuffix.fieldBase
+def ParameterContextSuffix.fieldBase
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     {stats : AddInductive.InductiveStats} {depth : Nat}
-    (H : RecursorParameterContextSuffix R stats depth) :
+    (H : ParameterContextSuffix R.toSemantics stats depth) :
     R.Base (ctorFieldCheck c stats #[]) :=
   (R.baseMain depth H.depth_le).cast
     (((R.baseMain depth H.depth_le).restrictTo_eq).symm.trans
       (congrArg c.lctx.restrictTo H.fieldFVars))
 
-theorem RecursorParameterContextSuffix.fieldBase_fvarList
+theorem ParameterContextSuffix.fieldBase_fvarList
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     {stats : AddInductive.InductiveStats} {depth : Nat}
-    (H : RecursorParameterContextSuffix R stats depth) :
+    (H : ParameterContextSuffix R.toSemantics stats depth) :
     H.fieldBase.m.fvarList =
       (stats.params ++ (#[] : Array Expr)).toList.map (·.fvarId!) :=
   H.fieldFVars
 
-theorem RecursorParameterContextSuffix.fieldBase_vlctx
+theorem ParameterContextSuffix.fieldBase_vlctx
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     {stats : AddInductive.InductiveStats} {depth : Nat}
-    (H : RecursorParameterContextSuffix R stats depth) :
+    (H : ParameterContextSuffix R.toSemantics stats depth) :
     H.fieldBase.m.vlctx = H.parameterDecls :=
-  H.dropAmbient_vlctx
+  H.headerVLCtx
 
 /-- The checker context of the next constructor field: the parameters and
 every field opened so far. -/
@@ -1476,7 +1476,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
     (hctx : VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
     (htail : TrExprS R.venv recLparams R.mlctx.vlctx tail tailTarget)
-    {sdepth : Nat} (Hsuffix : RecursorParameterContextSuffix R stats sdepth)
+    {sdepth : Nat} (Hsuffix : ParameterContextSuffix R.toSemantics stats sdepth)
     {tailTarget₀ : VExpr}
     (htail₀ : TrExprS R.venv recLparams Hsuffix.parameterDecls tail tailTarget₀)
     (htail₀Type : R.venv.IsType recLparams.length
