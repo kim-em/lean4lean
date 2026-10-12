@@ -41,6 +41,25 @@ removes the countermodel), or a verification that never moves a typing fact to a
 (PR #53's scoped caches and constructor-telescope certificates; an executable change, slower
 than the C++ kernel's caching).
 
+**Attempts on this branch.** Two attempts to prove the special case with canonical `Eq`, on the
+branches `agent/iota-strengthA` (confluence-based) and `agent/iota-strengthB` (model-based), are
+checked and `sorry`-free but do not close it. They reduce the statement, on this calculus and for
+every well-formed environment with canonical `Eq`, to one obligation: `PropFront`, strengthening
+for two propositions typed below the new binders (equivalently `TypedFront`, `LamDomainFront`,
+`KeyFaithful`, `StrictJoinRepair` on those branches). The confluence route proves that a strict
+normal equality between lifted terms descends with no hypothesis at all (`NormalEqS.descend`),
+that core reduction steps above a lift descend (`ParRed.descend`), and that eta and proof
+irrelevance, which PR #53 diagnosed as the circularity, are not obstacles here; what remains is a
+matched beta-redex pair in the confluence join whose arguments are lambdas, that is, aligning the
+domains of two lifted abstractions with no type information, and beta-normalising such a join is
+not available because the calculus does not normalise. The model route shows that the observation
+model cannot help: a lifted equation says only that the terms have the same observations in every
+target where the new binder's type is inhabited, and the reflection step back to the smaller
+context is false (`extension_not_freshReflection`). Canonical `Eq` enters only through the
+confluence theorem. The obligation holds in every normalising fragment; no counterexample with
+canonical `Eq` is known, and a counterexample would itself be a pair of propositions typed and
+inhabited below whose lifts are convertible above but not below.
+
 **Fresh replay.** The executable keeps its caches across binders unconditionally, as the C++
 kernel does, so every binder exit of the checker moves cache facts with this theorem, whichever
 declaration is being checked. The prelude's declarations before `Eq` (`id`, `PUnit`, `True`,
