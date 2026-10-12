@@ -516,6 +516,33 @@ theorem extension_not_freshReflection (henv : env.WF) (heq : env.HasCanonicalEq)
   · simpa [VExpr.instL] using HasType.const (U := 0) (Γ := []) (ls := []) ha (by simp) rfl
   · simpa [VExpr.instL] using HasType.const (U := 0) (Γ := []) (ls := []) hb (by simp) rfl
 
+/-- Reflection of `KEq` at a common type in the *same* context: the statement that
+`ModelStrengthening` would have to be combined with. -/
+def TypedReflection (env : VEnv) : Prop :=
+  ∀ ⦃U Γ a b T⦄, OnCtx Γ (env.IsType U) →
+    env.HasType U Γ a T → env.HasType U Γ b T →
+    KEq env U Γ a b → env.IsDefEq U Γ a b T
+
+/-- `TypedReflection` fails in the same extension: the two opaque constants agree in every
+target and are typed at the common type `I` in the empty context. -/
+theorem extension_not_typedReflection (henv : env.WF) (heq : env.HasCanonicalEq)
+    (hf : FreshNames env I a b) (haq : a ≠ ``Quot.lift) (hbq : b ≠ ``Quot.lift) :
+    ¬ TypedReflection (extension env I a b) := by
+  obtain ⟨hw, he, hI, ha, hb⟩ := extension_properties henv heq hf
+  obtain ⟨hOI, hOA, hOB⟩ := extension_opaque_heads henv hf
+  intro hR
+  have htI : (extension env I a b).HasType 0 [] (.const I []) (.sort (.succ .zero)) := by
+    simpa [VExpr.instL, VLevel.inst] using
+      HasType.const (U := 0) (Γ := []) (ls := []) hI (by simp) rfl
+  have hta : (extension env I a b).HasType 0 [] (.const a []) (.const I []) := by
+    simpa [VExpr.instL] using HasType.const (U := 0) (Γ := []) (ls := []) ha (by simp) rfl
+  have htb : (extension env I a b).HasType 0 [] (.const b []) (.const I []) := by
+    simpa [VExpr.instL] using HasType.const (U := 0) (Γ := []) (ls := []) hb (by simp) rfl
+  have hK : KEq (extension env I a b) 0 [] (.const a []) (.const b []) :=
+    opaque_KEq (args := []) hOA hOB hOI.rigid ha hb rfl rfl
+  exact opaque_constants_not_defeq (Γ := []) hw he trivial hOA.rigid hOB.rigid hOI.rigid
+    hOI.notFamily hf.AB haq hbq htI hta htb ⟨_, hR trivial hta htb hK⟩
+
 /-- Fresh names always exist: `FreshReflection` fails in some extension of every well-formed
 environment with canonical `Eq`. -/
 theorem exists_not_freshReflection (henv : env.WF) (heq : env.HasCanonicalEq)
