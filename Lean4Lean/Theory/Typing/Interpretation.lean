@@ -381,7 +381,7 @@ def DefEqClause (df : VDefEq) : Prop :=
 
 /-- The obligation for a registered reduction rule `(p, r)` of the source environment: the
 conclusion of `IsDefEq.pat` holds after interpretation, in every target context satisfying
-`P`, once the interpreted premises do (the interpreted redex typed, the interpreted side
+`P`, once the interpreted premises do (the interpreted redex and reduct typed, the interpreted side
 conditions derivable). The match itself is a premise on the uninterpreted redex: the
 interpretation of a redex need not be a redex of a rule of `envS` (restoration interprets an
 auxiliary constructor by a λ-abstraction, so the interpreted major is a β-redex), which is
@@ -390,6 +390,7 @@ def PatClause (p : Pattern) (r : p.RHS × p.Check) : Prop :=
   ∀ {U : Nat} {Γ : List VExpr} {e A : VExpr} {m1 : List VLevel} {m2 : p.Path → VExpr}
     {chk : List (VExpr × VExpr × VExpr)},
     P U Γ → p.Matches e m1 m2 → envS.HasType U Γ (I.expr e) (I.expr A) →
+    envS.HasType U Γ (I.expr (r.1.apply m1 m2)) (I.expr A) →
     r.2.Realizes m1 m2 chk →
     (∀ t ∈ chk, envS.IsDefEq U Γ (I.expr t.1) (I.expr t.2.1) (I.expr t.2.2)) →
     envS.IsDefEq U Γ (I.expr e) (I.expr (r.1.apply m1 m2)) (I.expr A)
@@ -524,9 +525,9 @@ theorem Sound.isDefEq {envL : VEnv} (S : I.Sound envS envL P) (hP : envS.CtxInva
   | proofIrrel _ _ _ ih1 ih2 ih3 =>
     intro hΓ; exact .proofIrrel (ih1 hΓ) (ih2 hΓ) (ih3 hΓ)
   | extra h1 h2 h3 => intro _; exact (S.defeqs _ h1 h2 h3).weak0 henv.ordered
-  | pat hp hm _ hreal _ ihe ihchk =>
+  | pat hp hm _ _ hreal _ ihe ihred ihchk =>
     intro hΓ
-    exact (S.pats _ _ hp) hΓ hm (ihe hΓ) hreal fun t ht => ihchk t ht hΓ
+    exact (S.pats _ _ hp) hΓ hm (ihe hΓ) (ihred hΓ) hreal fun t ht => ihchk t ht hΓ
   | projIota h1 _ h3 _ ih1 ih2 =>
     intro hΓ
     exact (S.projections _ _ h1).projIota hΓ (ih1 hΓ) h3 (ih2 hΓ)
@@ -598,9 +599,9 @@ redex is a redex of the same rule (`Pattern.Matches.interpret`), with the interp
 theorem PatClause.of_fixed {p : Pattern} {r : p.RHS × p.Check} (hS : envS.pats p r)
     (hp : p.ConstsFixed I) (hr : r.1.FixedTermsFixed I) (hc : r.2.FixedTermsFixed I) :
     I.PatClause envS P p r := by
-  intro U Γ e A m1 m2 chk _ hm hty hreal hchk
-  rw [Pattern.RHS.apply_interpret hr]
-  refine .pat hS (hm.interpret hp) hty (hreal.interpret hc) fun t ht => ?_
+  intro U Γ e A m1 m2 chk _ hm hty hred hreal hchk
+  rw [Pattern.RHS.apply_interpret hr] at hred ⊢
+  refine .pat hS (hm.interpret hp) hty hred (hreal.interpret hc) fun t ht => ?_
   obtain ⟨t', ht', rfl⟩ := List.mem_map.1 ht
   exact hchk t' ht'
 

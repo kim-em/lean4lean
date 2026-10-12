@@ -1,6 +1,7 @@
 import Lean4Lean.Theory.Typing.IotaLemmas
 import Lean4Lean.Theory.CanonicalEq
 import Lean4Lean.Theory.Inductive.BetaSubjectReduction
+import Lean4Lean.Theory.Typing.IotaReductTyped
 
 /-! # Typing of canonical equality terms
 
@@ -225,7 +226,7 @@ theorem IsDefEq.canonicalEqRec_iota (henv : env.WF) (heq : env.HasCanonicalEq)
   have hm : canonicalEqRecPattern.Matches
       (VExpr.eqRecApp v w α a motive minor b (VExpr.eqReflApp w' α' a')) [v, w] m2 :=
     .app hm1 hm2
-  have hpat := IsDefEq.pat (chk := []) hp hm H trivial (by simp)
+  have hpat := IsDefEq.pat (chk := []) hp hm H (henv.iotaReductTyped hΓ hp hm H) trivial (by simp)
   have happly : (canonicalEqRecRHS doms hc).apply [v, w] m2 =
       VExpr.mkApps ((VExpr.wrapLams doms (.bvar 0)).instL [v, w]) [α, a, motive, minor] :=
     SimplePattern.iotaRHS'_apply ``Eq.rec ``Eq.refl 4 1 2 0 (VExpr.wrapLams doms (.bvar 0)) hc

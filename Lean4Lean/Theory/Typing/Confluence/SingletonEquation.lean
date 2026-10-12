@@ -218,7 +218,8 @@ theorem RecursorRegistered.patEquation_of_empty (henv : env.WF) {data : Recursor
   have hm : (SimplePattern.iota r.name r.getMajorIdx ru.ctor
       (ru.ctorParams + ru.nfields)).toPattern.Matches ((lb.instL ls).instOuter args) ls m2 := by
     rw [he]; exact .app hm1 hm2
-  have hpat := IsDefEq.pat (chk := []) hp' hm hT trivial (by simp)
+  have hpat := IsDefEq.pat (chk := []) hp' hm hT (henv.iotaReductTyped hΓ hp' hm hT) trivial
+    (by simp)
   -- the rule's reduct is the right side applied to the telescope
   have happly := SimplePattern.iotaRHS'_apply r.name ru.ctor
     (r.numParams + r.numMotives + r.numMinors) r.numIndices ru.ctorParams ru.nfields ru.rhs hc ls m2

@@ -101,9 +101,9 @@ theorem IsDefEq.church_rosser [FullEquationCoverage] [FullPatCoverage]
   | @extra _ _ Γ h1 h2 h3 =>
     obtain ⟨_, _, hleft, hright, hnormal⟩ := FullEquationCoverage.equations hΓ h1 h2 h3
     exact mk (.extra h1 h2 h3) hleft hright hnormal
-  | pat hp hm he hr hall _ _ =>
+  | pat hp hm he hred hr hall _ _ _ =>
     obtain ⟨_, _, hleft, hright, hnormal⟩ := FullPatCoverage.pats hΓ hp hm he hr hall
-    exact mk (.pat hp hm he hr hall) hleft hright hnormal
+    exact mk (.pat hp hm he hred hr hall) hleft hright hnormal
   | projIota hl hs hi ht _ _ =>
     have heq := IsDefEq.projIota hl hs hi ht
     exact mk heq (.tail .rfl (.projIota hl hs hi ht)) .rfl (.refl ht)

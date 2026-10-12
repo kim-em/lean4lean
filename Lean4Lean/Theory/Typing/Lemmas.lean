@@ -486,9 +486,9 @@ variable! (henv : OnTypes env fun _ e A => e.ClosedN ∧ A.ClosedN) in
 theorem IsDefEq.closedN' (H : env.IsDefEq U Γ e1 e2 A) (hΓ : CtxClosed Γ) :
     e1.ClosedN Γ.length ∧ e2.ClosedN Γ.length ∧ A.ClosedN Γ.length := by
   induction H with
-  | pat _ hm _ _ _ ihe _ =>
+  | pat _ _ _ _ _ _ ihe ihred _ =>
     obtain ⟨he, -, hA⟩ := ihe hΓ
-    exact ⟨he, Pattern.RHS.apply_closedN (hm.closedN he) _, hA⟩
+    exact ⟨he, (ihred hΓ).1, hA⟩
   | bvar h => exact ⟨h.lt, h.lt, hΓ.lookup h⟩
   | constDF h1 =>
     let ⟨_, h, _⟩ := henv.1 h1
@@ -570,7 +570,7 @@ theorem IsDefEqCtx.closed (H : CtxClosed Γ₀) :
 variable! {env env' : VEnv} (henv : env ≤ env') in
 theorem IsDefEq.mono (H : env.IsDefEq U Γ e1 e2 A) : env'.IsDefEq U Γ e1 e2 A := by
   induction H with
-  | pat hp hm _ hr _ ihe ihall => exact .pat (henv.pats hp) hm ihe hr ihall
+  | pat hp hm _ _ hr _ ihe ihred ihall => exact .pat (henv.pats hp) hm ihe ihred hr ihall
   | bvar h => exact .bvar h
   | constDF h1 h2 h3 h4 h5 => exact .constDF (henv.1 h1) h2 h3 h4 h5
   | sortDF h1 h2 h3 => exact .sortDF h1 h2 h3
@@ -692,10 +692,9 @@ variable {env : VEnv} in
 theorem IsDefEq.levelWF (H : env.IsDefEq U Γ e1 e2 A) (W : OnCtx Γ fun _ A => A.LevelWF U) :
     e1.LevelWF U ∧ e2.LevelWF U ∧ A.LevelWF U := by
   induction H with
-  | pat _ hm _ _ _ ihe _ =>
+  | pat _ _ _ _ _ _ ihe ihred _ =>
     obtain ⟨he, -, hA⟩ := ihe W
-    obtain ⟨hm1, hm2⟩ := hm.levelWF he
-    exact ⟨he, Pattern.RHS.apply_levelWF hm1 hm2 _, hA⟩
+    exact ⟨he, (ihred W).1, hA⟩
   | bvar h =>
     refine ⟨⟨⟩, ⟨⟩, ?_⟩
     induction h with
@@ -757,9 +756,10 @@ variable! (henv : Ordered env) in
 theorem IsDefEq.weakN (W : Ctx.LiftN n k Γ Γ') (H : env.IsDefEq U Γ e1 e2 A) :
     env.IsDefEq U Γ' (e1.liftN n k) (e2.liftN n k) (A.liftN n k) := by
   induction H generalizing k Γ' with
-  | pat hp hm _ hr _ ihe ihall =>
-    rw [Pattern.RHS.liftN_apply]
-    refine .pat hp (Pattern.matches_liftN.2 ⟨_, hm, fun _ => rfl⟩) (ihe W) hr.map_liftN ?_
+  | pat hp hm _ _ hr _ ihe ihred ihall =>
+    have ihred := ihred W
+    rw [Pattern.RHS.liftN_apply] at ihred ⊢
+    refine .pat hp (Pattern.matches_liftN.2 ⟨_, hm, fun _ => rfl⟩) (ihe W) ihred hr.map_liftN ?_
     intro t ht
     obtain ⟨t0, ht0, rfl⟩ := List.mem_map.1 ht
     exact ihall t0 ht0 W
@@ -889,9 +889,9 @@ variable! {env : VEnv} {ls : List VLevel} (hls : ∀ l ∈ ls, l.WF U') in
 theorem IsDefEq.instL (H : env.IsDefEq U Γ e1 e2 A) :
     env.IsDefEq U' (Γ.map (VExpr.instL ls)) (e1.instL ls) (e2.instL ls) (A.instL ls) := by
   induction H with
-  | pat hp hm _ hr _ ihe ihall =>
-    rw [Pattern.RHS.instL_apply]
-    refine .pat hp (Pattern.matches_instL hm) ihe hr.map_instL ?_
+  | pat hp hm _ _ hr _ ihe ihred ihall =>
+    rw [Pattern.RHS.instL_apply] at ihred ⊢
+    refine .pat hp (Pattern.matches_instL hm) ihe ihred hr.map_instL ?_
     intro t ht
     obtain ⟨t0, ht0, rfl⟩ := List.mem_map.1 ht
     exact ihall t0 ht0
@@ -969,9 +969,10 @@ variable! (henv : Ordered env) (h₀ : env.HasType U Γ₀ e₀ A₀) in
 theorem IsDefEq.instN (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : env.IsDefEq U Γ₁ e1 e2 A) :
     env.IsDefEq U Γ (e1.inst e₀ k) (e2.inst e₀ k) (A.inst e₀ k) := by
   induction H generalizing Γ k with
-  | pat hp hm _ hr _ ihe ihall =>
-    rw [Pattern.RHS.instN_apply]
-    refine .pat hp (Pattern.matches_instN hm) (ihe W) hr.map_instN ?_
+  | pat hp hm _ _ hr _ ihe ihred ihall =>
+    have ihred := ihred W
+    rw [Pattern.RHS.instN_apply] at ihred ⊢
+    refine .pat hp (Pattern.matches_instN hm) (ihe W) ihred hr.map_instN ?_
     intro t ht
     obtain ⟨t0, ht0, rfl⟩ := List.mem_map.1 ht
     exact ihall t0 ht0 W
@@ -1115,7 +1116,7 @@ theorem IsDefEq.forallE_inv'
     (H : env.IsDefEq U Γ e1 e2 V) (eq : e1 = A.forallE B ∨ e2 = A.forallE B) :
     env.IsType U Γ A ∧ env.IsType U (A::Γ) B := by
   induction H generalizing A B with
-  | pat hp _ _ _ _ ihe _ =>
+  | pat hp _ _ _ _ _ ihe _ _ =>
     obtain eq | eq := eq
     · exact ihe (.inl eq)
     · exact absurd eq (henv.patHeaded hp).apply_ne_forallE
@@ -1187,7 +1188,7 @@ variable! (henv : Ordered env) in
 theorem IsDefEq.sort_inv'
     (H : env.IsDefEq U Γ e1 e2 V) (eq : e1 = .sort u ∨ e2 = .sort u) : u.WF U := by
   induction H with
-  | pat hp _ _ _ _ ihe _ =>
+  | pat hp _ _ _ _ _ ihe _ _ =>
     obtain eq | eq := eq
     · exact ihe (.inl eq)
     · exact absurd eq (henv.patHeaded hp).apply_ne_sort
@@ -1244,7 +1245,7 @@ variable! (henv : Ordered env)
 theorem IsDefEq.isType' (hΓ : OnCtx Γ (env.IsType U)) (H : env.IsDefEq U Γ e1 e2 A) :
     env.IsType U Γ A := by
   induction H with
-  | pat _ _ _ _ _ ihe _ => exact ihe hΓ
+  | pat _ _ _ _ _ _ ihe _ _ => exact ihe hΓ
   | bvar h => exact .lookup henv hΓ h
   | proofIrrel h1 => exact ⟨_, h1⟩
   | extra h1 h2 =>

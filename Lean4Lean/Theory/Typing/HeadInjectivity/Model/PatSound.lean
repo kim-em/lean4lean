@@ -131,7 +131,7 @@ theorem PatValid.nested {envF env0 env' : VEnv} {decl : VInductDecl}
       rw [hcty, VExpr.forallArity_wrapForalls, forallArity_mkApps_const', hcp, hnf] at this
       simp [length_vars] at this; omega
     -- the stage environments
-    obtain ⟨hTs, -⟩ := stages_orderedStrong hF hpre h0 hdecl hle sT sC sR sP
+    obtain ⟨hTs, -⟩ := stages_orderedStrong h0 hdecl sT sC sR sP
     obtain ⟨VT, -⟩ := stages_envValid V0 hprojV sT sC sR sP
     have hTF : envT ≤ envF := (addCtors_le sC).trans hCF
     -- the installed constructor's type is closed

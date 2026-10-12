@@ -46,30 +46,30 @@
   ],
   "openProofs": [
     "Lean4Lean.VEnv.IsDefEqU.weakN_iff",
-    "Lean4Lean.VEnv.WF.patsStrong"
+    "Lean4Lean.VEnv.WF.iotaReductTyped"
   ],
   "openProofsSources": {
     "Lean4Lean.VEnv.IsDefEqU.weakN_iff": "Theory/Typing/UniqueTyping.lean: context strengthening for definitional equality, master's statement; see OPEN_PROOFS.md.",
-    "Lean4Lean.VEnv.WF.patsStrong": "Theory/Typing/EnvLemmas.lean: PR #43's subject reduction of the registered iota rules in the strong system, needed for OrderedStrong; see OPEN_PROOFS.md."
+    "Lean4Lean.VEnv.WF.iotaReductTyped": "Theory/Typing/IotaReductTyped.lean: the reducts of the registered iota rules are typed (premise route, being proved)."
   },
   "acceptedUnder": {
     "Lean4Lean.VEnv.WF.church_rosser": [
-      "Lean4Lean.VEnv.WF.patsStrong"
+      "Lean4Lean.VEnv.WF.iotaReductTyped"
     ],
     "Lean4Lean.VEnv.WF.equationCoverage": [
-      "Lean4Lean.VEnv.WF.patsStrong"
+      "Lean4Lean.VEnv.WF.iotaReductTyped"
     ],
     "Lean4Lean.VEnv.WF.params": [
-      "Lean4Lean.VEnv.WF.patsStrong"
+      "Lean4Lean.VEnv.WF.iotaReductTyped"
     ],
     "Lean4Lean.VEnv.WF.patCoverage": [
-      "Lean4Lean.VEnv.WF.patsStrong"
+      "Lean4Lean.VEnv.WF.iotaReductTyped"
     ],
     "Lean4Lean.VEnv.WF.patCoverageJ": [
-      "Lean4Lean.VEnv.WF.patsStrong"
+      "Lean4Lean.VEnv.WF.iotaReductTyped"
     ],
     "Lean4Lean.VEnv.WF.singletonPatCoverageJ": [
-      "Lean4Lean.VEnv.WF.patsStrong"
+      "Lean4Lean.VEnv.WF.iotaReductTyped"
     ]
   }
 }

@@ -17,8 +17,6 @@ namespace VEnv
 `addInduct` (the corresponding part of `addInduct_strong`). -/
 theorem addInduct_stage_strong {env env' envT envC envR : VEnv} {decl : VInductDecl}
     (hord : Ordered env) (IH : OnTypes env (EnvStrong env)) (hdecl : decl.WF env)
-    (hpats : ∀ {e : VEnv}, env ≤ e → e ≤ env' → e.defeqs = env.defeqs → e.pats = env.pats →
-      Ordered e → PatsStrongOn e)
     (hT : decl.addTypes env = some envT) (hC : decl.addCtors envT = some envC)
     (hR : decl.addRecs (decl.addProjs envC) = some envR) (hP : decl.addRules envR = some env') :
     OnTypes envT (EnvStrong envT) ∧ OnTypes envR (EnvStrong envR) := by
@@ -26,71 +24,43 @@ theorem addInduct_stage_strong {env env' envT envC envR : VEnv} {decl : VInductD
     unfold VInductDecl.addTypesCtors; rw [hT]; exact hC
   have hTCP : decl.addTypesCtorsProjs env = some (decl.addProjs envC) :=
     addTypesCtorsProjs_eq_some hTC
-  have leT := addTypes_le hT; have leC := addCtors_le hC
-  have leP' : envC ≤ decl.addProjs envC := addProjs_le
-  have leR := addRecs_le hR; have leP := addRules_le hP
-  have dT := addTypes_defeqs hT; have dC := addCtors_defeqs hC
-  have dP : (decl.addProjs envC).defeqs = envC.defeqs := addProjs_defeqs
-  have pT := addTypes_pats hT; have pC := addCtors_pats hC
-  have pP : (decl.addProjs envC).pats = envC.pats := addProjs_pats
   have hordT := addTypes_ordered hord hdecl hT
   have hordC := addCtors_ordered hdecl hT hordT hC
   have hordP := addProjs_ordered hord hdecl hTC hordC
   have IHT : OnTypes envT (EnvStrong envT) := by
     unfold VInductDecl.addTypes at hT
-    exact foldlM_addConst_strong
-      (fun hl hl' hd hpt ho =>
-        hpats hl (hl'.trans (leC.trans (leP'.trans (leR.trans leP)))) hd hpt ho)
-      hord IH hdecl.types_wf hT
+    exact foldlM_addConst_strong hord IH hdecl.types_wf hT
   have IHC : OnTypes envC (EnvStrong envC) := by
     have hcw : ∀ c ∈ decl.types.flatMap (·.ctors), c.toVConstant.WF envT := fun c hc => by
       obtain ⟨t, ht, hc⟩ := List.mem_flatMap.1 hc
       exact hdecl.ctors_wf envT hT t ht c hc
     unfold VInductDecl.addCtors at hC
-    exact foldlM_addConst_strong
-      (fun hl hl' hd hpt ho => hpats (leT.trans hl) (hl'.trans (leP'.trans (leR.trans leP)))
-        (hd.trans dT) (hpt.trans pT) ho)
-      hordT IHT hcw hC
+    exact foldlM_addConst_strong hordT IHT hcw hC
   have IHP : OnTypes (decl.addProjs envC) (EnvStrong (decl.addProjs envC)) :=
     OnTypes.addProjections IHC
   have IHR : OnTypes envR (EnvStrong envR) := by
     have hrw := hdecl.recs_wf _ hTCP
     unfold VInductDecl.addRecs at hR
-    exact foldlM_addConst_strong
-      (fun hl hl' hd hpt ho => hpats ((leT.trans (leC.trans leP')).trans hl) (hl'.trans leP)
-        (hd.trans (dP.trans (dC.trans dT))) (hpt.trans (pP.trans (pC.trans pT))) ho)
-      hordP IHP hrw hR
+    exact foldlM_addConst_strong hordP IHP hrw hR
   exact ⟨IHT, IHR⟩
 
 /-- **The stage environments of an inductive step are strong**: the type-former stage and the
-recursor stage of `addInduct`, inside a well-formed environment of which the step's base is a
-prefix. -/
-theorem stages_orderedStrong {envF env0 env' envT envC envR : VEnv} {decl : VInductDecl}
-    (hF : envF.WF) (hpre : envF.WFPrefix env0) (h0 : env0.WF) (hdecl : decl.WF env0)
-    (hle : env' ≤ envF)
+recursor stage of `addInduct` over a well-formed environment. -/
+theorem stages_orderedStrong {env0 env' envT envC envR : VEnv} {decl : VInductDecl}
+    (h0 : env0.WF) (hdecl : decl.WF env0)
     (hT : decl.addTypes env0 = some envT) (hC : decl.addCtors envT = some envC)
     (hR : decl.addRecs (decl.addProjs envC) = some envR) (hP : decl.addRules envR = some env') :
     envT.OrderedStrong ∧ envR.OrderedStrong := by
   have hord := h0.ordered
-  have hpats : ∀ {e : VEnv}, env0 ≤ e → e ≤ env' → e.defeqs = env0.defeqs →
-      e.pats = env0.pats → Ordered e → PatsStrongOn e :=
-    fun hl hl' hd hpt ho => hF.patsStrong _ _ hpre hl (hl'.trans hle) hd hpt ho
-  obtain ⟨IHT, IHR⟩ := addInduct_stage_strong hord h0.orderedStrong.strong hdecl hpats hT hC hR hP
+  obtain ⟨IHT, IHR⟩ := addInduct_stage_strong hord h0.orderedStrong.strong hdecl hT hC hR hP
   have hTC : decl.addTypesCtors env0 = some envC := by
     unfold VInductDecl.addTypesCtors; rw [hT]; exact hC
   have hTCP : decl.addTypesCtorsProjs env0 = some (decl.addProjs envC) :=
     addTypesCtorsProjs_eq_some hTC
-  have leT := addTypes_le hT; have leC := addCtors_le hC
-  have leP' : envC ≤ decl.addProjs envC := addProjs_le
-  have leR := addRecs_le hR; have leP := addRules_le hP
   have hordT := addTypes_ordered hord hdecl hT
   have hordR : Ordered envR :=
     addRecs_ordered hdecl hTCP (addTypesCtorsProjs_ordered hord hdecl hTCP) hR
-  refine ⟨⟨hordT, IHT, hpats leT (leC.trans (leP'.trans (leR.trans leP)))
-      (addTypes_defeqs hT) (addTypes_pats hT) hordT⟩,
-    ⟨hordR, IHR, hpats (leT.trans (leC.trans (leP'.trans leR))) leP ?_ ?_ hordR⟩⟩
-  · rw [addRecs_defeqs hR, addProjs_defeqs, addCtors_defeqs hC, addTypes_defeqs hT]
-  · rw [addRecs_pats hR, addProjs_pats, addCtors_pats hC, addTypes_pats hT]
+  exact ⟨⟨hordT, IHT⟩, ⟨hordR, IHR⟩⟩
 
 /-- **The stage environments of an inductive step are valid** in the model of `envF`, given
 the validity of the step's base and of the step's projection entries. -/

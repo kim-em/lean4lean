@@ -70,11 +70,14 @@ inductive IsDefEq : List VExpr → VExpr → VExpr → VExpr → Prop where
   | extra :
     env.defeqs df → (∀ l ∈ ls, l.WF uvars) → ls.length = df.uvars →
     Γ ⊢ df.lhs.instL ls ≡ df.rhs.instL ls : df.type.instL ls
-  /-- ι reduction: the reduct is asserted at the redex's type, with no typing premise on
-  the reduct — the thesis's regularity theorem for ι taken as a rule, as `Params.pat_wf`
-  states it. `VEnv.WF.patsStrong` is where the strong system repays that. -/
+  /-- ι reduction: a typed redex is equal to its reduct, which is typed at the redex's type.
+  The reduct's typing is a premise, as both sides of `extra` are typed through `VDefEq.WF`:
+  the rule carries its regularity rather than asserting it, so the strong system strengthens
+  it like any other premise. That the premise is always available for the registered rules of
+  a well-formed environment is `VEnv.WF.iotaReductTyped`. -/
   | pat {p : Pattern} {r : p.RHS × p.Check} {m1 m2 chk} :
     env.pats p r → p.Matches e m1 m2 → Γ ⊢ e : A →
+    Γ ⊢ r.1.apply m1 m2 : A →
     r.2.Realizes m1 m2 chk →
     (∀ t ∈ chk, Γ ⊢ t.1 ≡ t.2.1 : t.2.2) →
     Γ ⊢ e ≡ r.1.apply m1 m2 : A
@@ -149,6 +152,7 @@ The shape is what makes a `pats` entry a *reduction* rule rather than a definiti
 (`VEnv.defeqs`, whose sides are arbitrary closed terms): the head of a reduct is fixed by
 the rule, so no instance of it is a sort, a Π-type or a bare hole. This is the monotone
 (`PatWF.mono`) condition under which a rule may be registered (`Ordered.pat`). It does not
-give subject reduction, which is false under `Ordered` and is `VEnv.PatsStrongOn`. -/
+give subject reduction, which is false under `Ordered`; for well-formed environments it is
+`VEnv.WF.iotaReductTyped`. -/
 def VEnv.PatWF (env : VEnv) (p : Pattern) (r : p.RHS × p.Check) : Prop :=
   env.PatTyped p r ∧ r.1.TemplateHeaded

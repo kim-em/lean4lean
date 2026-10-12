@@ -595,7 +595,7 @@ theorem PatValid.ordinary {envF env0 env' : VEnv} {decl : VInductDecl}
     show fc.type.forallResult.getAppFnArgs.1 = _
     rw [hty, VExpr.forallResult_wrapForalls, forallResult_of_const_head hhead, hhead, htn]
   -- the stage environments
-  obtain ⟨hTs, hRs⟩ := stages_orderedStrong hF hpre h0 hdecl hle sT sC sR sP
+  obtain ⟨hTs, hRs⟩ := stages_orderedStrong h0 hdecl sT sC sR sP
   obtain ⟨VT, VR⟩ := stages_envValid V0 hprojV sT sC sR sP
   have hRF : envR ≤ envF := (addRules_le sP).trans hle
   have hTF : envT ≤ envF :=

@@ -122,7 +122,7 @@ theorem nested_finish {envF env0 env' : VEnv} {decl : VInductDecl}
   obtain ⟨envT, envC, envR, sT, sC, sR, sP⟩ := addInduct_stages hadd
   have hTC : decl.addTypesCtors env0 = some envC := by
     unfold VInductDecl.addTypesCtors; rw [sT]; exact sC
-  obtain ⟨hTs, hRs⟩ := stages_orderedStrong hF hpre h0 hdecl hle sT sC sR sP
+  obtain ⟨hTs, hRs⟩ := stages_orderedStrong h0 hdecl sT sC sR sP
   obtain ⟨VT, VR⟩ := stages_envValid V0 hprojV sT sC sR sP
   have hRF : envR ≤ envF := (addRules_le sP).trans hle
   have hCF : envC ≤ envF := addProjs_le.trans ((addRecs_le sR).trans hRF)
