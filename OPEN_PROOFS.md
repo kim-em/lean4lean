@@ -78,6 +78,15 @@ change to the calculus: a premise on `IsDefEq.pat` that the reduct is typed. Wit
 rules are typed in the weak system, which the observation model supports (tried on PR #43: +90/-129
 lines over 12 files). The premise is a design decision for the calculus.
 
+**A ready alternative.** Branch `agent/iota-premise` (kim-em) carries the premise variant on top of
+this branch: `IsDefEq.pat` gains the premise `Γ ⊢ r.1.apply m1 m2 : A`, `PatStrong`,
+`PatsStrongOn`, `VEnv.PatsStrong` and `WF.patsStrong` are deleted, `OrderedStrong` is `Ordered`
+plus `EnvStrong`, and the one new obligation `VEnv.WF.iotaReductTyped` (the reduct of a registered
+rule instance is typed, in the weak system, `Theory/Typing/IotaReductTyped.lean`) is proved from
+the installed blocks' equation typing. The change is 48 files, +767/-402; the checker proof
+supplies the reduct typing at `inductiveReduceRecCore.WF`; head inversion and confluence become
+unconditional, and the only accepted open proof left is `IsDefEqU.weakN_iff`.
+
 **Statement defect.** `WFPrefix` admits prefixes that are not well-formed: a `decl` step may
 reorder the history, so a prefix can mention a constant it does not contain. The hypothesis should
 be `env₁.WF`; the `WFPrefix` and `≤ env` bounds are not used by `VEnv.WF.strong`.
