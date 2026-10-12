@@ -93,10 +93,12 @@ shared and loaded machine) against PR #43's head, whose executable has the same 
 |---|---|---|---|
 | `Init.Prelude` | 1975 | 0.49 | 0.47 |
 | `Init.Core` | 3953 | 0.66 | 0.64 |
-| `Init.System.IO` | 43609 | 29.2 | 30.6 |
+| `Init.System.IO` | 43609 | 29.2 | 30.4 |
 
 The `Init.System.IO` runs were interleaved between the two builds; on this machine single runs
-varied by up to 7 seconds.
+varied by up to 7 seconds. The `Init.System.IO` time of this branch was re-measured after the
+`whnf` caches were given the C++ kernel's keys (`let` expressions and let-bound variables),
+interleaved with the executable without them: 30.4 against 30.0 seconds, within that variation.
 
 A `lake build` of the default targets from a clean checkout took 17 minutes of wall time (28
 CPU-minutes) on the same machine; `Lean4Lean.Tests` and `Lean4Lean.Experimental` add about 30
