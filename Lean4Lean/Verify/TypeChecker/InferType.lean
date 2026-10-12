@@ -1525,9 +1525,10 @@ theorem inferType'.WF_all
           s.ngen.namePrefix = pfx) fun b _ _ h => this h.1 h.2
         intro _ mwf wf _ _ eq
         let c' := { c with eagerReduce := true }
-        have ⟨_, h1, h2, h3, h4⟩ := isDefEq.WF (c := c') hl3 ha2 _ mwf { wf with } _ _ eq
-        exact ⟨_, h1, h2, { h3 with }, h4, State.LE.namePrefix_eq hs₃ h2⟩
-      · exact (isDefEq.WF hl3 ha2).bind fun b _ le h => this h (State.LE.namePrefix_eq hs₃ le)
+        have ⟨_, h1, h2, h3, h4⟩ := isDefEq.WF (c := c') ha2 hl3 _ mwf { wf with } _ _ eq
+        exact ⟨_, h1, h2, { h3 with }, fun hb => (h4 hb).symm, State.LE.namePrefix_eq hs₃ h2⟩
+      · exact (isDefEq.WF ha2 hl3).bind fun b _ le h =>
+          this (fun hb => (h hb).symm) (State.LE.namePrefix_eq hs₃ le)
     subst G2; dsimp; rintro s ⟨⟩ H hs
     · exact .getEnv <| .getLCtx .throw
     simp [G1, Expr.bindingBody!]

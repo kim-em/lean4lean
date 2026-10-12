@@ -319,9 +319,9 @@ def inferType' (e : Expr) (inferOnly : Bool) : RecM Expr := do
         -- for some universe level `l`, so this use of `isDefEq` is valid
         let ok ← if a.isAppOfArity ``eagerReduce 2 then
           withTheReader Context (fun s => {s with eagerReduce := true}) <|
-            isDefEq dType aType
+            isDefEq aType dType
         else
-          isDefEq dType aType
+          isDefEq aType dType
         if !ok then throw <| .appTypeMismatch (← getEnv) (← getLCtx) e fType aType
         pure <| fType.bindingBody!.instantiate1 a
     | .letE .. => inferLet e inferOnly
