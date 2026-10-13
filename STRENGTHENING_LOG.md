@@ -752,3 +752,22 @@ Typed demands or restricted preservation remain alternative refinements.
 The boundary, both base-head exclusions, and their axiom audits pass. Continue
 with pattern/projection computation and structure eta, while keeping the model's
 head-exposure purpose separate from arbitrary equality reflection.
+
+### Computational projections lower with reconstructed field typings
+
+`ProjectionComputation.lean` adds registered saturated-constructor projections to
+beta and closed declaration computation. `ProjectionCompute.lift_inv` lowers
+complete compatible finite paths through arbitrary lifts without any typing
+premise. `ProjectionCompute.simAt` replays each projection using the existing
+`HasType.projIota_field`, reconstructing its dependent field typing from the source
+projection typing and the saturated constructor arity. `descend` combines these:
+only the original source typing below is needed, not any ambient field typing.
+`function_type_below` now covers computational Pi exposures through these paths.
+
+The saturation premise is explicit. Eta elimination for this enlarged operational
+relation is not yet proved; the earlier finite observations still lack field and
+constructor observations. This is computational replay infrastructure for that
+extension, not full head-exposure adequacy or a sufficient strengthening residue.
+All new main results and the reused field-typing theorem are axiom-clean, and the
+module builds. Next: projection cancellation of structure expansions with arbitrary
+parameters, followed by their integration into the finite head observations.
