@@ -399,3 +399,25 @@ supply that function-domain conversion. No smaller sufficient obligation is clai
 Both new modules build. Axiom audits of their principal results, including the
 syntactic lift inversion, contain only `propext`, `Classical.choice`, and `Quot.sound`
 (or a subset); no `sorryAx`. The executable and the open theorem are unchanged.
+
+## Reannotation reflection already contains the entire proposition front
+
+`ReannotationBarrier.lean` now checks the cost of a tempting follow-up lemma.
+For `domainProbe A = λ (_ : A). Prop`, `domainProbe_reduction_iff` proves that a full
+reduction from the A-probe to the B-probe is equivalent to declarative conversion
+of A and B. The reverse implication is typed eta reannotation; the forward
+implication uses subject reduction, uniqueness, and Pi-domain injectivity.
+Both probe endpoints are independently typable whenever their domains are types.
+
+Consequently `probeReflection_iff_propositionFront` proves an exact equivalence,
+at fixed Params, between proposition strengthening and reflecting full reductions
+of these probes from a one-binder extension. It needs no canonical-Eq hypothesis.
+The lowered final syntax and a reflexive `DomainNormal` certificate below are
+already supplied by `domainProbe_repair_certificate`. Thus those two conditions,
+even together with independent endpoint typings below, cannot make unrestricted
+reannotation-reduction reflection a strictly smaller obligation.
+
+The module builds; all three results are audited without `sorryAx`. This is a
+barrier to an overstrong local lemma, not a counterexample to strengthening.
+A derivation-sensitive repair remains live. Recovering Pi shape below may help
+choose eta annotations but does not itself align the domains of matched lambdas.
