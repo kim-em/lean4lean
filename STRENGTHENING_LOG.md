@@ -1389,3 +1389,33 @@ prefix steps; their existing model simulations still need a unified typed trace
 bridge. Indexed singleton prefixes still lack their alignment argument. The
 matched-lambda comparison repair remains after full head exposure. These are
 live work items, not rejected routes or a blocked state.
+
+### Unified full-reduction bridge with indexed replay isolated
+
+The prior turn is classified as progress: its commits and checked core/eta bridge
+are present at the start of this turn. The worktree was clean at bf4dbdde.
+
+`FullHeadExposure.lean` combines stored equations, conditionally registered
+quotient unfoldings, closed structure equations, and closed unindexed singleton
+equations into one sound, constructor-rigid collection. Equation inclusion lifts
+computation and mixed paths, so the checked complete core simulation embeds.
+Quotient registration is recovered from each actual quotient-prefix step; the
+model works in canonical-Eq environments without Quot as well.
+
+`step_of_indexed` inducts on the actual FullStep relation. Projection inversion
+and typed major-family alignment recover projection-iota's complete constructor
+arity. Typed structure expansions recover their closed admissibility certificate.
+Unindexed and quotient prefixes use their existing closed computations. Only
+registered indexed singleton prefixes use the named `IndexedPrefixReplay`
+hypothesis. `reduction_of_indexed` threads actual subject reduction through finite
+full traces, and `function_type_below_of_indexed` then recovers a Pi type below an
+arbitrary binder insertion.
+
+The full target builds (276 dependency jobs), and eight axiom audits cover model
+soundness and rigidity, the three unconditional computational embeddings, both
+full bridges, and conditional Pi recovery. Only propext, Classical.choice, and
+Quot.sound occur. No executable changes and no sorryAx. The isolated replay
+premise is a model-specific obligation, not a newly established sufficient
+obligation strictly smaller than PropFront. Its truth for the current raw model
+still needs testing; it must not be conflated with the more general typed head
+exposure problem.
