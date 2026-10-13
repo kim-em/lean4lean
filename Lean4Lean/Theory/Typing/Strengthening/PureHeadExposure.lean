@@ -37,7 +37,7 @@ theorem BetaEta.of_beta (H : BetaRed e out) : BetaEta e out := by
 
 /-- Every observation at the end of a beta/eta path was already available at its
 start. The lambda-domain congruence is harmless because it is not evaluated. -/
-theorem BetaEta.obs_back (R : BetaEta e out) (H : Obs S out o) : Obs S e o := by
+theorem BetaEta.obs_back (R : BetaEta e out) (H : Obs D S out o) : Obs D S e o := by
   induction R generalizing S o with
   | refl => exact H
   | trans _ _ ih1 ih2 => exact ih1 (ih2 H)
@@ -56,11 +56,15 @@ theorem BetaEta.obs_back (R : BetaEta e out) (H : Obs S out o) : Obs S e o := by
 The domains/bodies of the beta reduct need not be the path's final annotations. -/
 theorem BetaEta.pi_exposure (R : BetaEta e (.forallE A B)) :
     ∃ D C, BetaRed e (.forallE D C) :=
-  (R.obs_back (S := fun _ _ => False) .pi).pi_exposure
+  by
+  obtain ⟨D, C, hr⟩ := (R.obs_back (D := .empty) (S := fun _ _ => False) .pi).pi_exposure
+  exact ⟨D, C, hr.to_beta⟩
 
 /-- The analogous operational adequacy result for a sort head. -/
 theorem BetaEta.sort_exposure (R : BetaEta e (.sort u)) : ∃ v, BetaRed e (.sort v) :=
-  (R.obs_back (S := fun _ _ => False) .sort).sort_exposure
+  by
+  obtain ⟨v, hr⟩ := (R.obs_back (D := .empty) (S := fun _ _ => False) .sort).sort_exposure
+  exact ⟨v, hr.to_beta⟩
 
 /-- Pi exposure of a lifted term in this fragment produces an actual beta path to
 a Pi below. No typing or scoped-annotation premise on the ambient eta steps is used. -/

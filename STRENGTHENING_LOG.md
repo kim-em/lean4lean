@@ -686,3 +686,25 @@ extend this operational model to actual closed declaration unfolding, then addre
 pattern/projection computation and structure eta. The model currently has no
 constant or projection observations, and an arbitrary ambient equality does not
 yet supply the required beta/eta head trace.
+
+### Closed declaration equations in finite head observations
+
+Generalized the existing finite-demand model over a `Definitions` relation with
+closed right-hand sides. This is a parameterization of the same checked proofs,
+not a duplicated model. Constant observations contain a finite observation of the
+body at the empty valuation. There is no termination or acyclicity assumption;
+recursive and nondeterministic equations are allowed. The previous beta-only
+results are retained by specializing to `Definitions.empty`.
+
+`DeclarationHeadExposure.lean` proves valuation independence for closed bodies,
+backwards observation closure under beta/delta, and `Compute.lift_inv` for any
+lift. `ComputeEta.pi_exposure` and `sort_exposure` remove function eta from finite
+head-exposing paths. `pi_exposure_below` extracts a computational Pi path below an
+arbitrary lift, without requiring the intervening eta annotations to be scoped.
+This is still a syntactic head-exposure result, not equality reflection or a
+sufficient obligation for strengthening. Actual environment instantiation and
+typed replay are next; pattern/projection computation and structure eta remain.
+
+The generalized model, all previous pure examples, and the new exposure module
+build. Axiom checks of realization, substitution inversion, finite support, eta,
+lift inversion, and both exposure results contain no `sorryAx`.

@@ -9,9 +9,11 @@ normalization or typing hypotheses.
 namespace Lean4Lean.VEnv.Strengthening.PureObservation
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr
 
+variable {D : Definitions}
+
 /-- Valuation demands may be supplied by observations of target variables, allowing
 subsumption at the boundary of a valuation. -/
-theorem Obs.mono_obs (H : Obs S e o) (hST : ∀ i o, S i o → Obs T (.bvar i) o) : Obs T e o := by
+theorem Obs.mono_obs (H : Obs D S e o) (hST : ∀ i o, S i o → Obs D T (.bvar i) o) : Obs D T e o := by
   induction H generalizing T with
   | var h => exact hST _ _ h
   | sort => exact .sort
@@ -26,50 +28,53 @@ theorem Obs.mono_obs (H : Obs S e o) (hST : ∀ i o, S i o → Obs T (.bvar i) o
     | succ i =>
       simpa only [VExpr.lift, VExpr.liftN, liftVar, Nat.not_lt_zero, if_false, Nat.add_comm]
         using (Obs.lift_iff (P := fun key => key ∈ keys)).2 (hST i o hi)
+  | delta hd hr => exact .delta hd hr
   | sub _ h ih => exact .sub (ih hST) h
 
-theorem Obs.lam_inv (H : Obs S (.lam A b) o) :
-    ∃ keys result, Obs (Sets.cons (fun key => key ∈ keys) S) b result ∧
+theorem Obs.lam_inv (H : Obs D S (.lam A b) o) :
+    ∃ keys result, Obs D (Sets.cons (fun key => key ∈ keys) S) b result ∧
       Ob.Le (.app keys result) o := by
   generalize he : VExpr.lam A b = e at H
   induction H with
   | lam hb => cases he; exact ⟨_, _, hb, .refl⟩
   | sub _ h ih => obtain ⟨_, _, hb, hl⟩ := ih he; exact ⟨_, _, hb, hl.trans h⟩
-  | var | sort | pi | app => cases he
+  | delta | var | sort | pi | app => cases he
 
-theorem Obs.sort_inv (H : Obs S (.sort u) o) : Ob.Le .sort o := by
+theorem Obs.sort_inv (H : Obs D S (.sort u) o) : Ob.Le .sort o := by
   generalize he : VExpr.sort u = e at H
   induction H with
   | sort => exact .refl
   | sub _ h ih => exact (ih he).trans h
-  | var | pi | lam | app => cases he
+  | delta | var | pi | lam | app => cases he
 
-theorem Obs.pi_inv (H : Obs S (.forallE A B) o) : Ob.Le .pi o := by
+theorem Obs.pi_inv (H : Obs D S (.forallE A B) o) : Ob.Le .pi o := by
   generalize he : VExpr.forallE A B = e at H
   induction H with
   | pi => exact .refl
   | sub _ h ih => exact (ih he).trans h
-  | var | sort | lam | app => cases he
+  | delta | var | sort | lam | app => cases he
 
-private theorem Obs.const_false (H : Obs S (.const c ls) o) : False := by
+/-- Constant observations are independent of the surrounding variable valuation. -/
+theorem Obs.const_valuation (H : Obs D S (.const c ls) o) : Obs D T (.const c ls) o := by
   generalize he : VExpr.const c ls = e at H
   induction H with
-  | sub _ _ ih => exact ih he
+  | delta hd hr => cases he; exact .delta hd hr
+  | sub _ h ih => exact .sub (ih he) h
   | var | sort | pi | lam | app => cases he
 
-theorem Obs.proj_false (H : Obs S (.proj s i m) o) : False := by
+theorem Obs.proj_false (H : Obs D S (.proj s i m) o) : False := by
   generalize he : VExpr.proj s i m = e at H
   induction H with
   | sub _ _ ih => exact ih he
-  | var | sort | pi | lam | app => cases he
+  | delta | var | sort | pi | lam | app => cases he
 
 /-- An observation of a substituted expression is an observation of its open
 syntax under the valuation supplied by the substituted expressions. -/
-theorem Obs.subst_inv (H : Obs S (e.subst σ) o) : Obs (fun i key => Obs S (σ i) key) e o := by
+theorem Obs.subst_inv (H : Obs D S (e.subst σ) o) : Obs D (fun i key => Obs D S (σ i) key) e o := by
   induction e generalizing S σ o with
   | bvar i => exact .var H
   | sort => exact .sub .sort H.sort_inv
-  | const => exact H.const_false.elim
+  | const => exact H.const_valuation
   | proj => exact H.proj_false.elim
   | forallE => exact .sub .pi H.pi_inv
   | app f a ihf iha =>
@@ -87,20 +92,21 @@ theorem Obs.subst_inv (H : Obs S (e.subst σ) o) : Obs (fun i key => Obs S (σ i
     | succ i => exact .var (Obs.lift_iff.1 hi)
 
 /-- Each derivation consults only finitely many variable observations. -/
-theorem Obs.finite_support (H : Obs S e o) :
+theorem Obs.finite_support (H : Obs D S e o) :
     ∃ support : List (Nat × Ob), (∀ p ∈ support, S p.1 p.2) ∧
-      Obs (fun i key => (i, key) ∈ support) e o := by
+      Obs D (fun i key => (i, key) ∈ support) e o := by
   classical
   induction H with
   | @var S i o h =>
     exact ⟨[(i,o)], by simpa using h, .var (by simp)⟩
   | sort => exact ⟨[], by simp, .sort⟩
   | pi => exact ⟨[], by simp, .pi⟩
+  | delta hd hr => exact ⟨[], by simp, .delta hd hr⟩
   | @app S f keys o a _ _ ihf iha =>
     obtain ⟨sf, hsf, hf⟩ := ihf
     let supports (key : Ob) := if hk : key ∈ keys then (iha key hk).choose else []
     have hsupports (key) (hk : key ∈ keys) :
-        (∀ p ∈ supports key, S p.1 p.2) ∧ Obs (fun i o => (i,o) ∈ supports key) a key := by
+        (∀ p ∈ supports key, S p.1 p.2) ∧ Obs D (fun i o => (i,o) ∈ supports key) a key := by
       simpa only [supports, dif_pos hk] using (iha key hk).choose_spec
     refine ⟨sf ++ keys.flatMap supports, ?_, .app (keys := keys) ?_ ?_⟩
     · intro p hp
@@ -133,8 +139,8 @@ theorem Obs.finite_support (H : Obs S e o) :
 
 /-- A possibly infinite head valuation can be replaced by the finite demands used
 by one derivation, while the tail valuation is left unchanged. -/
-theorem Obs.compact_head (H : Obs (Sets.cons P S) e o) :
-    ∃ keys : List Ob, (∀ key ∈ keys, P key) ∧ Obs (Sets.cons (fun key => key ∈ keys) S) e o := by
+theorem Obs.compact_head (H : Obs D (Sets.cons P S) e o) :
+    ∃ keys : List Ob, (∀ key ∈ keys, P key) ∧ Obs D (Sets.cons (fun key => key ∈ keys) S) e o := by
   obtain ⟨support, hs, he⟩ := H.finite_support
   let keys := support.filterMap fun p => if p.1 = 0 then some p.2 else none
   refine ⟨keys, ?_, he.mono ?_⟩
@@ -152,11 +158,11 @@ theorem Obs.compact_head (H : Obs (Sets.cons P S) e o) :
 
 /-- An observation after substitution gives a finite abstraction demand and
 observations of the argument satisfying every one of those demands. -/
-theorem Obs.inst_inv (H : Obs S (b.inst a) o) :
-    ∃ keys : List Ob, Obs (Sets.cons (fun key => key ∈ keys) S) b o ∧ ∀ key ∈ keys, Obs S a key := by
+theorem Obs.inst_inv (H : Obs D S (b.inst a) o) :
+    ∃ keys : List Ob, Obs D (Sets.cons (fun key => key ∈ keys) S) b o ∧ ∀ key ∈ keys, Obs D S a key := by
   rw [inst_eq] at H
   have hb := H.subst_inv
-  have hb' : Obs (Sets.cons (fun key => Obs S a key) S) b o := by
+  have hb' : Obs D (Sets.cons (fun key => Obs D S a key) S) b o := by
     apply hb.mono_obs
     intro i key hi
     cases i with
@@ -168,7 +174,7 @@ theorem Obs.inst_inv (H : Obs S (b.inst a) o) :
   exact ⟨keys, hb, hk⟩
 
 /-- Root beta contraction cannot add a finite computational observation. -/
-theorem Obs.beta_back (H : Obs S (b.inst a) o) : Obs S (.app (.lam A b) a) o := by
+theorem Obs.beta_back (H : Obs D S (b.inst a) o) : Obs D S (.app (.lam A b) a) o := by
   obtain ⟨keys, hb, ha⟩ := H.inst_inv
   exact .app (.lam hb) ha
 
