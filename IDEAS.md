@@ -19,7 +19,7 @@ An open entry is not a rejection. Work continues while an unrefuted route remain
 | Counterexample using recursive definitions | **Open.** `mutualDef` permits looping definitions. No new canonical-Eq counterexample; a loop by itself does not produce a new equation under a binder. |
 | Add a fresh global inhabitant, substitute, then remove it | **Open but no simplification established.** Removal of an opaque axiom from conversion may be the same support problem as removing a variable; a self-looping definition adds no extra equation beyond reflexivity. |
 | Erase lambda annotations, then reflect at a common type | **Open.** Could address the matched-lambda case, but needs typed coherence for applications and proof irrelevance. Untyped proof erasure is already refuted by the previous study. |
-| Superdevelopments, permitting upward-created redexes | **Open.** The new identity-spine example uses upward creation and is therefore not an obstruction to this stronger tool. Need to check downward creation at substituted variables in the obstructing join. |
+| Superdevelopments, permitting upward-created redexes | **Active, first pass proved.** `Superdevelopments.lean` supplies a structural pass, beta-reduction soundness, typing preservation, and commutation with binder insertion. It solves every identity spine in one pass. `downwardExample_still_hasBeta` leaves a typed lambda-argument redex created at a substituted variable; this tests one pass, not every marking strategy. |
 
 Literature check: Bonelli–Barenbaum, [Superdevelopments for Weak Reduction](https://arxiv.org/pdf/1001.4429),
 §1 distinguishes upward creation (I/II) from substitution into function positions (III).

@@ -74,3 +74,41 @@ https://arxiv.org/pdf/1001.4429, §1. The newer typed-confluence formalisation
 https://github.com/thiagofelicissimo/typed-confluence was cloned read-only under
 `/tmp/lean4lean-strength-literature/typed-confluence`; its `eq_erased` requires
 `Nf`/`Ne`, so it does not supply the needed non-normal annotation coherence.
+
+## Upward creation handled; next case is downward creation
+
+`Superdevelopments.lean` defines a structural pass: first recursively develop both
+children of an application, then beta-contract if the resulting function is a lambda,
+without recursively processing the substituted result. Checked results:
+
+* `superdevelop_betaRed` gives a finite `VExpr.BetaRed` derivation.
+* `superdevelop_simAt` preserves every type in every well-formed context.
+* `superdevelop_liftN` proves exact commutation with arbitrary binder insertion.
+* `superdevelop_eq_iff` reflects as well as preserves equality for endpoints typed
+  below at a common type; `superdevelop_front_failure` transports a hypothetical
+  typed-front counterexample through the pass without any strengthening assumption.
+* `superdevelop_chain` removes the entire identity spine in one pass, regardless of
+  the number of ordinary marking rounds it needed.
+* `downwardExample_typed` and `downwardExample_still_hasBeta` check the term
+  `(λ f : T₂. f I₀) I₁ : T₁`: its pass yields `I₁ I₀`, still a beta-redex whose
+  argument is a lambda. This is substitution into a function position (type III
+  creation), rather than upward creation along the existing spine.
+
+`lake build Lean4Lean.Theory.Typing.Strengthening.Superdevelopments` passes; this
+build includes all three new modules. Axiom audits of all eight principal results
+listed above contain no `sorryAx`, only the standard metatheoretic axioms as needed.
+No executable or existing verification source was changed.
+
+Continuation point: connect this pass to the *normal comparison* of a join. Track a
+downward-created function lambda back to the substituted argument's lambda-domain
+comparison. Its above-context domain equality is already an opaque premise of the
+original `NormalEqN.lamDF`; it is not charged by that relation's current index. A
+successful invariant must explain why those comparisons can be descended or give a
+well-founded provenance order on them. Neither the present development weight nor
+the structural recursion of `superdevelop` supplies that order. This is an open next
+step, not a new irreducible obligation claimed smaller than `PropFront`.
+
+The goal remains active: the required proof/canonical-Eq counterexample/strictly
+smaller sufficient obligation has not been obtained. The first goal turn made
+concrete progress (new checked theory and tested strategy limits), rather than waiting
+or encountering an external blocker. The research ledger retains the unrefuted routes.
