@@ -112,3 +112,27 @@ The goal remains active: the required proof/canonical-Eq counterexample/strictly
 smaller sufficient obligation has not been obtained. The first goal turn made
 concrete progress (new checked theory and tested strategy limits), rather than waiting
 or encountering an external blocker. The research ledger retains the unrefuted routes.
+
+## Recursive domain comparisons: unconditional descent
+
+`DomainNormal.lean` records a recursive normal comparison at every lambda domain,
+charging both domain and body to its index. It currently excludes eta constructors,
+but permits applications with lambda functions. `DescentSupport.lean` reuses route A's
+lift/proofness helpers without importing its front predicates.
+
+Checked: soundness into the existing eta-free `NormalEqF false`, index-preserving
+context conversion and homogeneous substitution, and `DomainNormal.descend` along
+arbitrary `Ctx.Lift'`. Descent has a common-type mode and an independent mode requiring
+only that the left endpoint is not a proof. The latter now includes lambdas. Its
+lambda case recursively descends the domain comparison; impredicativity ensures
+that a non-proof lambda has a non-proof body. Application descent can therefore
+handle a lambda function directly. This is the concrete benefit of charging the
+lambda-domain comparison, not a claim that the full confluence join supplies one.
+
+Build: `lake build Lean4Lean.Theory.Typing.Strengthening.DomainNormal` passes.
+Axiom audits of descent, substitution, and soundness list only `propext`,
+`Classical.choice`, and `Quot.sound`. No executable or original theorem changed.
+The earlier study's domain-counted pilot remains relevant: opaque typing witnesses
+can reintroduce uncounted alignment during composition/confluence. Next tests are
+transitivity, heterogeneous substitution, and whether eta/full confluence can
+produce recursive domain certificates. No completeness assumption is being made.
