@@ -1047,3 +1047,53 @@ recursor's major-family metadata and discharging the field guards at the generic
 instance. Prop-source structures, potentially-zero universes, index-sensitive
 singleton prefixes, and the final matched-lambda comparison repair remain open.
 The full goal is not complete.
+
+
+### Closed structure equations and raw iota simulation
+
+`StructureFamilyArity.lean` proves that a typed saturated registered family has
+exactly its parameter-plus-index arity. The proof identifies its normalized
+signature and uses sort-head rigidity; it does not use strengthening.
+
+`ClosedStructureUnfolding.lean` supplies deterministic pattern captures and a
+closed lambda program for a registered structure recursor. At the generic recursor
+telescope, the registered major-type theorem and family arity recover the exact
+parameter list. The preceding projected-iota replay then applies, and eta closes
+its equation in the empty context. `canonical_equation` chooses the telescope from
+the registered recursor type automatically. Its assumptions concern the registry,
+the enabled rule's uniform typing check, well-formed universe arguments, zero
+indices, and a never-zero source universe; there is no occurrence-specific typing
+or expanded-major typing premise.
+
+`StructureHeadComputation.lean` adds these closed equations to arbitrary sound,
+constructor-rigid definitions, preserving soundness and rigidity. It embeds the
+entire earlier EtaCompute relation, including non-structure iota, function and
+structure eta, and existing closed quotient equations. Saturation of the new
+constant equation computes by finite beta reduction to its supplied body.
+Smaller-context function-type reconstruction is available both over ordinary
+stored definitions and over the earlier quotient extension.
+
+`StructureUnfoldingSupply.lean` identifies that supplied body with the pattern RHS
+on projections of the raw major. For an actual constructor match, all field
+projections compute to its field suffix. Checked iota parameter independence
+restores the original parameter captures and levels from the closed dummy values.
+`iota_compute` consequently simulates every raw match of a covered rule by the
+augmented ProjectionCompute relation, with no source or argument typings.
+`iota_etaCompute` embeds this directly into the mixed observation model.
+`concrete_iota_etaCompute` obtains the uniform check certificate from an actual
+enabled concrete rule.
+
+All four modules build successfully (265 dependency jobs). The family arity,
+closed equation and closedness, definition soundness and rigidity, prior-model
+embedding, raw supplied computation and iota simulation, concrete-rule wrapper,
+and smaller-context function-type wrappers pass the axiom audit with only
+propext, Classical.choice, and Quot.sound (or subsets). No executable changes.
+
+This closes the previously explicit integration gap for unindexed structures
+whose instantiated source universe is never zero. It does not cover a source
+universe that merely fails to be identically zero, nor Prop structures with
+non-proof fields. Extending the generic equation to admissible proof-field guards
+is still live; arbitrary registered structures must not be assumed eta-expandable.
+Index-sensitive singleton prefixes and matched-lambda comparison repair remain
+open. The full strengthening goal is still active; these are checked fragments,
+not a new sufficient obligation claimed smaller than PropFront.
