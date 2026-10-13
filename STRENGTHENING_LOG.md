@@ -857,3 +857,42 @@ prefix computation remain absent, and full head exposure still would not alone
 settle the remaining matched-lambda comparison repair. The original strengthening
 goal remains open. Next: add observations and operational realization for recursor
 computation, including how structure majors compute through singleton prefixes.
+
+### Closed Quot.lift unfolding replaces all quotient-prefix replay checks
+
+Inspection of the remaining rules distinguishes two cases: existing singleton
+prefix unfolding is restricted to proposition-valued majors, whereas unfolding a
+structure major in Type through its projections requires a separate reconstruction
+argument. The latter is still open. For the quotient, however, the checked
+five-argument rule is sufficient to derive a closed equation.
+
+`ClosedQuotUnfolding.lean` opens the first five binders of Quot.lift's exact constant
+type, applies `QuotPrefixUnfold.atFive` at fresh variables, and closes the equality
+by eta. `equation` proves Quot.lift.[u,v] equal to a closed lambda value whenever
+u is equivalent to zero. This uses only QuotRegistered, environment WF, and the
+universe guards. `generated_zero_rhs` identifies that value with the zero-prefix
+generator result, and `generated_prefix_beta`/`value_prefix_beta` prove that supplying
+any admissible prefix beta reduces it to the exact generated RHS. Generation and
+beta replay here have no occurrence-specific typing premises.
+
+`QuotHeadComputation.lean` adds this proved equation to the declaration collection.
+Its soundness in arbitrary contexts is ordinary weakening of the closed equality;
+constructor rigidity is preserved because Quot.lift's stored rule prevents its
+being a projection constructor. `prefix_compute` embeds EVERY checked quotient
+prefix as one closed constant unfolding followed by beta. This discharges the
+whole quotient-prefix family in the mixed field head-exposure model, not merely
+the five-argument prefix.
+
+`prefix_descend` reconstructs the computational equality below an arbitrary lift
+from the original source typing alone. `prefix_reflect` is the exact equation when
+both endpoints are supplied below. It does not descend `UnfoldingCheck` fields;
+the closed equation bypasses those occurrence-specific checks. `function_type_below`
+uses the augmented collection with all soundness and rigidity conditions discharged.
+
+Both modules build without new warnings, and the closed equation, generated beta
+replay, model soundness, prefix descent/reflection, and head reconstruction are
+axiom-clean. This is a new checked strengthening result for the quotient-prefix
+reduction family, not the full strengthening deliverable. Ordinary recursor patterns,
+index-sensitive singleton prefixes, structure-major reconstruction, and the general
+comparison-repair argument remain open. Do not infer that unaligned Eq.rec admits
+a checked zero-prefix unfolding from this quotient-specific construction.
