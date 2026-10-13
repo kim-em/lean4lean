@@ -823,3 +823,37 @@ constructor observations and the actual environment's constructor rigidity.
 The four new modules compile without new warnings, and realization, eta,
 substitution, finite support, constructor observations, and backwards computation
 closure are axiom-clean. The strengthening goal remains open.
+
+### Both eta expansions eliminated from projection head exposure
+
+`FieldStructureEta.lean` proves `Obs.struct_eta_back`. Inverting the constructor's
+curried observation leaves one field demand; constructor-family uniqueness aligns
+it with a projection of the original value, and subsumption composes the payload
+demands. Actual constructor rigidity rules out the alternative declaration-body
+case. Parameters and levels may be arbitrary, and neither the value nor the new
+parameters require typing or scope premises for this syntactic result.
+
+`FieldHeadExposure.lean` combines computation, function eta, structure eta, and
+all syntax congruences in `EtaCompute`. `pi_exposure` and `sort_exposure` recover
+actual beta/delta/projection paths from arbitrary finite mixed paths. The Pi path
+lowers through an arbitrary lift; `function_type_below_ofEnv` reconstructs a genuine
+Pi typing below for actual environment equations, and `function_eta_below` supplies
+a typed full eta step there. `of_etaPar` embeds every actual parallel eta step from
+the full confluence presentation, including changed domains/parameters. The earlier
+beta/delta/function-eta fragment also embeds.
+
+`FieldHeadExamples.lean` checks a registered one-parameter, one-field constructor
+whose function and structure expansions both use a fresh variable. The intermediate
+fails scope, but the mixed trace still gives computational Pi exposure below.
+Arbitrary annotations in this syntactic test are not claimed well typed. The
+`variable_no_pi` boundary confirms that unrestricted eta does not manufacture a Pi
+head from a free variable in this fragment.
+
+All new modules build without new warnings. Structure eta, mixed-path preservation,
+head exposure, smaller-context typing, the examples, and the actual EtaPar embedding
+are axiom-clean. This is now a head-exposure theorem for both eta forms and actual
+projection computation, not just a local cancellation. Pattern and singleton/quotient
+prefix computation remain absent, and full head exposure still would not alone
+settle the remaining matched-lambda comparison repair. The original strengthening
+goal remains open. Next: add observations and operational realization for recursor
+computation, including how structure majors compute through singleton prefixes.
