@@ -421,3 +421,30 @@ The module builds; all three results are audited without `sorryAx`. This is a
 barrier to an overstrong local lemma, not a counterexample to strengthening.
 A derivation-sensitive repair remains live. Recovering Pi shape below may help
 choose eta annotations but does not itself align the domains of matched lambdas.
+
+## Annotated proof erasure: a different reduction representation
+
+The old `ProofAware.untyped_erasure_reflection_false` was reread at the pinned tag.
+It refutes independent reflection for *heterogeneous proofs*, and assigning one
+ordinary `VExpr` token every proof type. It does not refute reflection at a common
+type, or independent reflection when the left endpoint is a non-proof.
+
+`ProofErasure.lean` implements a separate `ProofShape` syntax with one proof marker
+and all ordinary constructors, retaining every non-proof lambda annotation.
+`proofErase_reflect` proves that equal erasures give a `DomainNormal` certificate in
+exactly those two modes. The proof uses function equality to align application
+argument types, and domain equality to align binder contexts. It does not compare
+heterogeneous top-level proof tokens. `proofErase_defeqCtx` handles context conversion.
+
+`ProofErasureSubstitution.lean` proves commutation with arbitrary typed
+single-variable substitution, including under binders and for proof arguments;
+proofness is unchanged by such substitutions. Erasure also commutes with arbitrary
+binder insertion, whose action on erased syntax is injective. Hence equality of
+erased lifted terms reflects below when the original endpoints are typed there.
+These are structural equalities of erasures, not arbitrary erased convertibility.
+
+Both modules build with their principal theorems axiom-clean. The next step is
+replaying reductions of erased syntax on typed originals. Beta is the first case;
+eta, declaration computation, singleton extraction, and quotient guards still need
+sound and complete treatment. This route does not yet supply any global front or
+strictly smaller sufficient obligation.
