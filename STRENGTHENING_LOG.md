@@ -801,3 +801,25 @@ interleaved compatible paths. Next, extend finite observations with field demand
 and constructor observations so the beta/substitution/eta argument can account for
 these computational eliminators. Pattern/prefix computation remains outside the
 current projection relation. The strengthening goal is still open.
+
+### Finite field observations and constructor demands
+
+`FieldObservation.lean` extends the finite-demand syntax with field observations
+and curried constructor observations, using actual `ProjectionCompute` paths as
+its operational interpretation. Constructor observations select a demanded field
+argument at the registered saturated arity. `Obs.realizes` proves operational
+adequacy under realizing substitutions, including constructor and projection cases.
+
+`FieldObservationEta.lean` and `FieldObservationSubstitution.lean` carry the
+renaming, subsumption, function-eta, substitution-inversion, and finite-support
+proofs over the richer syntax. `FieldComputationObservations.lean` proves backwards
+closure for every beta/delta/projection path. Its `Obs.ctor_spine` constructs a field
+observation from only the selected field's observation; unrelated arguments can
+have empty demands. No typed quotient classes or normalization assumptions enter.
+
+This extends the previously checked operational model while retaining its API in
+the original modules. Structure-eta soundness is next: it requires inversion of
+constructor observations and the actual environment's constructor rigidity.
+The four new modules compile without new warnings, and realization, eta,
+substitution, finite support, constructor observations, and backwards computation
+closure are axiom-clean. The strengthening goal remains open.
