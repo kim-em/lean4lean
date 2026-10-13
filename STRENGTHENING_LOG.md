@@ -599,3 +599,42 @@ environment extension, comparison exclusions, canonical instances, and positive
 full repair are axiom-clean. No executable or UniqueTyping change was made.
 The next unresolved issue is full repair with annotations and typings available
 below, not another beta development bound or beta-only simulation lemma.
+
+## Full computation preserves scope; eta annotations are the remaining syntax checks
+
+Revalidated clean HEAD `d007ceb6`. The previous turn was progress: the application
+lemma and the guarded recursive counterexample were committed and pushed. This
+turn investigates full repair, since beta-only completeness is now refuted.
+
+`GeneratedScope.lean` inverts arbitrary `liftN` insertions in both singleton and
+quotient prefix generators. Raw substitution of a syntactic dummy removes each
+inserted binder from the supplied arguments; regenerating and renaming back gives
+the original program by determinism. No typing is asserted for the dummy. The
+checked unfolding's template scope then proves that its generated RHS is a lift.
+This is syntactic scope preservation, not descent of its `UnfoldingCheck`: source,
+capture, major-constructor, and spine-alignment typing checks remain ambient.
+
+`FullScope.lean` proves scope preservation for core parallel reduction without
+assuming a smaller-context source typing or reflection of its guards. It defines
+`ScopedFullStep`/`ScopedFullReduction`, retaining every full-reduction rule and
+adding scope checks only on a function-eta domain and structure-eta parameters.
+Such paths preserve scope throughout and return a lowered target syntax for any
+lifted source. Conversely every actual full path below weakens to a scoped full
+path above (`FullReduction.weakN_scoped`). The generator checks and all existing
+typing premises are retained; no executable rule changes.
+
+`ScopedReannotation.lean` tests whether this stronger path invariant removes the
+known reannotation barrier. It does not: `lambda_reannotation_scoped` checks the
+eta/beta repair whenever its target annotation is scoped, and
+`scopedProbeReflection_iff_propositionFront` proves that reflecting even these
+fully scoped probe paths remains exactly PropositionFront. All their intermediate
+terms can omit the removed binder, yet the function typing needed for reannotation
+below is still the missing information. This strengthens the earlier endpoint-only
+barrier and prevents treating scope preservation as a sufficient new obligation.
+
+All three modules build without new warnings; generator inversion, core/full scope,
+scoped weakening, target lowering, and the equivalence audit are axiom-clean.
+The goal is not complete. Scope is now isolated from typing: a full repair route
+must construct/recover the needed typings below, rather than merely keep generated
+annotations free of the extra variable. The declaration replay checks also require
+separate justification; their descent is not inferred from syntactic generation.
