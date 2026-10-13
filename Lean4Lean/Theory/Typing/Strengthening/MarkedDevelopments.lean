@@ -418,6 +418,15 @@ theorem erase_markAll (e : VExpr) : (markAll e).erase = e := by
 /-- One complete-development round: newly created redexes may remain afterward. -/
 def round (e : VExpr) : VExpr := (markAll e).develop
 
+theorem round_app_lam (A b a : VExpr) :
+    round (.app (.lam A b) a) = (round b).inst (round a) := rfl
+
+theorem round_app_app (f a b : VExpr) :
+    round (.app (.app f a) b) = .app (round (.app f a)) (round b) := by
+  change (markRoot (markRoot (markAll f) (markAll a)) (markAll b)).develop =
+    .app (markRoot (markAll f) (markAll a)).develop (markAll b).develop
+  cases markAll f <;> rfl
+
 theorem round_defeq [Params] (hΓ : OnCtx Γ (Params.env.IsType Params.univs))
     (ht : Params.env.HasType Params.univs Γ e A) :
     Params.env.IsDefEq Params.univs Γ e (round e) A := by

@@ -6,7 +6,7 @@ An open entry is not a rejection. Work continues while an unrefuted route remain
 
 | Idea | Test and current verdict |
 | --- | --- |
-| Finite developments with explicit redex marks | **Active.** Develop the original marks, including their copies, without marking created redexes. Then test a marking invariant on the actual comparison join. Finite developments alone do not justify repeated marking until beta-normality. |
+| Finite developments with explicit redex marks | **Active, tool proved.** `MarkedDevelopments.lean` proves termination, existence and uniqueness of complete developments, and typing preservation. `DevelopmentRounds.no_uniform_round_bound` refutes a fixed number of ordinary marking rounds, even on typed identities; it does not refute selective join repair. |
 | Standardisation of just the obstructing comparisons | **Open.** Needs a rule for newly created obstructing pairs, not normalization of all endpoints. No concrete refutation yet. |
 | Descend normal equality up to parallel substitutions | **Open.** Route A log §5.2 identifies the exact eta/proofness bridge to maintain. Existing open typings do not survive inverse exposure after substitution. |
 | Strong derivation induction, including typing certificates | **Open with constraints.** Prior `Obstructions.lean`, `PilotRank.lean`, and direction A log refute source-only substitution bounds, size-monotone transport ranks, and global proof/type phase ranks. They do not refute every derivation order. |
@@ -19,6 +19,18 @@ An open entry is not a rejection. Work continues while an unrefuted route remain
 | Counterexample using recursive definitions | **Open.** `mutualDef` permits looping definitions. No new canonical-Eq counterexample; a loop by itself does not produce a new equation under a binder. |
 | Add a fresh global inhabitant, substitute, then remove it | **Open but no simplification established.** Removal of an opaque axiom from conversion may be the same support problem as removing a variable; a self-looping definition adds no extra equation beyond reflexivity. |
 | Erase lambda annotations, then reflect at a common type | **Open.** Could address the matched-lambda case, but needs typed coherence for applications and proof irrelevance. Untyped proof erasure is already refuted by the previous study. |
+| Superdevelopments, permitting upward-created redexes | **Open.** The new identity-spine example uses upward creation and is therefore not an obstruction to this stronger tool. Need to check downward creation at substituted variables in the obstructing join. |
+
+Literature check: Bonelli–Barenbaum, [Superdevelopments for Weak Reduction](https://arxiv.org/pdf/1001.4429),
+§1 distinguishes upward creation (I/II) from substitution into function positions (III).
+Its discussion explicitly allows I/II in ordinary superdevelopments; the identity-spine
+example here only excludes a fixed number of ordinary development rounds.
+
+The 2026 Felicissimo–Winterhalter [formalisation](https://github.com/thiagofelicissimo/typed-confluence)
+was also inspected. `theories/ConversionChecking.v:eq_erased` assumes an erased **normal**
+form (`Nf`) or neutral form (`Ne`), then uses the same common-type/neutral-mode split.
+It does not supply reflection of arbitrary non-normal erased terms. It remains a useful
+reference, but this theorem alone does not remove the present matched-beta obstruction.
 
 Evidence read: `OPEN_PROOFS.md`; fetched route A/B logs and their front/descent statements;
 the previous calculus's tagged `Obstructions.lean`, `Kripke.lean`, attempt reports and
