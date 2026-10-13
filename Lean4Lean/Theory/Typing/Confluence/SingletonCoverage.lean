@@ -196,7 +196,8 @@ theorem singleton_equation_syntax (H : RecursorRegistered env data)
         (mkApps E.ctor (vars (data.propParams ls).length (2 + S.fields.length) ++
           vars S.fields.length 0)) ∧
       data.indexOffset = (data.propParams ls).length + 2 ∧
-      data.recursorType = some (data.recursorInstance.recursorType data.owner) := by
+      data.recursorType = some (data.recursorInstance.recursorType data.owner) ∧
+      X = (data.recursorInstance.motives ++ data.recursorInstance.minors).map (·.instL ls) := by
   obtain ⟨k, hk, hfam, hcs, hres, hS0, hE0, hP, hgl, hseq⟩ :=
     singleton_shape H hlarge hzero howner
   rw [hS0] at hS; cases Option.some.inj hS
@@ -214,7 +215,7 @@ theorem singleton_equation_syntax (H : RecursorRegistered env data)
         c.indices.map (fun e => (e.instL g.levels).liftN (s.families.size + s.constructors.size)
           c.fields.length) ++
         [g.constructorApp c (s.families.size + s.constructors.size) 0]),
-    ?rb, ?tb, (g.motives ++ g.minors).map (·.instL ls), ?h1, ?h2, ?h3, ?h4, ?h5, ?h6, ?h7, ?h8⟩
+    ?rb, ?tb, (g.motives ++ g.minors).map (·.instL ls), ?h1, ?h2, ?h3, ?h4, ?h5, ?h6, ?h7, ?h8, rfl⟩
   case h1 =>
     unfold RecursorData.equation
     rw [hres, Restoration.equation_empty]
@@ -600,7 +601,7 @@ theorem RecursorRegistered.zero_join (heq : env.HasCanonicalEq) {Γ : List VExpr
   have hlΓ : env.HasType univs Γ (equation.lhs.instL levels) (equation.type.instL levels) :=
     hlC.weak0 henv.ordered
   obtain ⟨S, E, hS, hE, W⟩ := RecursorData.propElim_wf henv H hlarge hz hw hlen ⟨index, howner⟩
-  obtain ⟨D, lb, rb, tb, X, hgen', hseq, hext, hD, hX, hlb, hio, hrt⟩ :=
+  obtain ⟨D, lb, rb, tb, X, hgen', hseq, hext, hD, hX, hlb, hio, hrt, _⟩ :=
     RecursorData.singleton_equation_syntax H hlarge hz hlen howner hS hE
   rw [hgen'] at hgen
   cases Option.some.inj hgen

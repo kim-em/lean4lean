@@ -1140,3 +1140,56 @@ recovered automatically from all applicable singleton registration metadata.
 Potentially-zero sources with non-proof fields, indexed singleton prefixes, and
 the final matched-lambda comparison repair remain open. No completion or smaller
 sufficient obligation is claimed.
+
+
+### Generic reconstruction of unindexed singleton prefixes
+
+The next obstacle is the confluence engine's singleton-prefix computation at a
+Prop source, where its ordinary iota rule is guarded off. This differs from the
+environment's actual stored iota pattern: `PatEquation` still realizes the
+installed equation at typed instances. The prefix check must establish a typed
+reconstructed major, a typed equation-capture telescope, and exact recursor-spine
+alignment. An arbitrary indexed family does not supply those alignments at fresh
+indices, so a blanket zero-prefix closure would be unjustified.
+
+`SingletonProofReconstruction.lean` removes the pre-existing field-instance premise
+from proof-only extraction. With no data slots, the instantiated cast substitution
+is the identity on its arguments and the extraction's cast arguments equal its
+reconstructed fields. The proof-field step of `PropElim.occ_typed` can therefore
+be replayed without comparison to an original field list. `SingletonProof.occ_typed`
+derives the cast and field telescope typings from the typed parameters, indices,
+and major alone. `slots_none` obtains the all-proof condition for an unindexed
+well-scoped layout, and `unindexed_eta` then invokes singleton eta with the newly
+constructed field instance. No original constructor instance or index-alignment
+premise is supplied. Canonical Eq is used by the existing proof extraction typing.
+
+`SingletonUnindexedTelescope.lean` connects this result to actual registration.
+`type_shape` identifies the specialized recursor's exact parameter, motive/minor,
+and major telescope with the extraction family. `generic_major_args` derives the
+parameter and major instances in that fresh telescope. `registered_reconstruction`
+obtains `PropElim.WF` from the registered large-eliminating singleton, checks that
+there are no index slots, and provides the generic context, typed prefix, typed
+extracted fields, and reconstruction equation. Its premises are environment WF,
+canonical Eq, registration, the Prop-source specialization, universe WF/count,
+an owned constructor, extraction metadata, and zero indices. It does not take
+occurrence typings or a caller-provided reconstruction certificate.
+
+`captures_typed` inserts the motive/minor arguments between parameters and fields
+while preserving dependent field typings. `lhs_instOuter` proves the exact raw
+substitution of that capture list into the unindexed equation's left side.
+The existing `singleton_equation_syntax` theorem now also identifies its two-entry
+middle telescope with the actual motive/minor list; its `zero_join` consumer is
+updated and remains checked.
+
+Both new modules build without new warnings. All new reconstruction, telescope,
+capture, and syntax theorems, plus the changed syntax theorem and its existing
+zero_join consumer, pass the axiom audit with only propext, Classical.choice, and
+Quot.sound (or subsets). No strengthening axiom or executable changes are used.
+
+The full generated zero-prefix check and resulting closed constant equation are
+not yet assembled. After that, successful generation at every arity and the
+existing singleton supply-one theorem should provide all-prefix beta simulation,
+as for the quotient construction. Indexed singleton alignment, remaining ordinary
+structure cases, and full matched-lambda comparison repair remain open. The main
+goal is active; this is supporting progress, not a claimed sufficient obligation
+smaller than PropFront.
