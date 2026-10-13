@@ -1454,3 +1454,26 @@ The combined boundary target builds (277 dependency jobs). Its five key theorems
 have only propext, Classical.choice, and Quot.sound (or subsets) as axioms, with no
 sorryAx. No executable changes. Full strengthening, a canonical-Eq counterexample,
 and a smaller sufficient front remain unestablished; the goal remains active.
+
+### Nonlinear canonical cast computation with source-only replay
+
+The preceding checkpoint remains progress, not a completed strengthening proof.
+`ReflexiveCastReplay.lean` inverts the complete canonical Eq.rec telescope of an
+arbitrarily typed type cast. It recovers the universe and typings of both endpoint
+types, the equality proof, and the payload. This allows canonical K replay at any
+source typing when the endpoints are syntactically identical, including a free
+proof variable.
+
+`CastComputation.lean` adds that nonlinear rule to concrete pattern computation.
+Arbitrary substitution preserves the repeated endpoint. Binder insertion reflects
+it: applying the lift retraction recovers the complete cast shape, and application
+injectivity recovers the output payload. The compatible/transitive closure thus
+lowers through arbitrary lifts and replays entirely from source typing below.
+No ambient typing, equality guard, or scope premise is imported into replay.
+
+The target builds (239 dependency jobs); six axiom audits contain only propext,
+Classical.choice, and Quot.sound, or subsets. There is no sorryAx dependency and
+no executable change. This is a sound extension of computational descent, not a
+proof of full head exposure: eta can potentially create a nonlinear endpoint
+match, and general indexed prefixes have more alignment than this one cast rule.
+The next test is whether eta removal survives even this restricted extension.
