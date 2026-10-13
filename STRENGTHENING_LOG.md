@@ -1529,3 +1529,36 @@ sufficient PropFront obligation is made.
 The combined target builds (280 dependency jobs). Five replay/head-recovery axiom
 audits contain only propext, Classical.choice, and Quot.sound; no sorryAx occurs.
 No executable changes. Full strengthening remains open and the goal stays active.
+
+### Propositional extraction of data-slot equality witnesses
+
+The preceding goal turn is classified as progress: three checked commits through
+7a8aefc4 are present and the worktree was clean at this turn's start. The local
+cast bridge does not apply directly to the existing singleton occurrence program.
+That program fills data-slot telescope binders with Eq.refl and therefore already
+requires endpoint alignment. Merely adding cast head replay would leave that
+requirement in place.
+
+The new direction retains transports and generates their proofs from the major.
+`SingletonPropElimination.lean` factors closed propositional elimination for an
+arbitrary body in the generic parameter/index/major context and its constructor
+branch. `SingletonStepWitness.lean` proves every reconstruction-telescope domain
+is a proposition. In constructor branches, proof slots return the field variable;
+data slots return Eq.refl, justified there by uniqueness of the two typings of
+the same literal field variable. Those branch equalities require no occurrence
+alignment.
+
+`SingletonStepExtraction.lean` packages these motives and branches as closed
+`stepValue` functions. `stepValue_typed` covers every slot, including data slots,
+and accepts arbitrary occurrence indices in its argument telescope. The future
+occurrence program can call this function to obtain an equality proof rather than
+inserting an unjustified reflexivity proof. This uses canonical Eq beyond its
+role in confluence.
+
+The target builds (170 jobs). Six axiom audits contain only propext,
+Classical.choice, and Quot.sound, with no sorryAx. All changes are in metatheory.
+Next: instantiate these functions along their own recursively generated witness
+telescope, obtaining typed transported fields at arbitrary major occurrences.
+Then relate the transported program to aligned singleton prefixes and examine a
+uniform recursor equation. None of those later steps, or full strengthening, is
+claimed yet.
