@@ -145,3 +145,34 @@ context using the already recorded domain equality; it does not invent a replace
 domain certificate from that opaque equality. Heterogeneous substitution composes
 homogeneous substitution with structural congruence on the typed right endpoint.
 The index can grow, as expected; this is preservation, not a termination measure.
+
+## Reduction compatibility of recursive domain certificates
+
+`DomainSuperdevelopment.lean` proves `DomainNormal.contractApp` and
+`DomainNormal.superdevelop`. Related function/argument pairs remain related after
+contracting matched beta-redexes, and after a complete superdevelopment pass. If a
+function comparison is proof irrelevance, the application result is itself a proof;
+otherwise the explicit lambda case uses heterogeneous substitution of the body
+certificate. Reducing annotations changes binder contexts by the corresponding
+checked definitional equality, while retaining the recursive domain certificate.
+
+`DomainBetaSimulation.lean` goes beyond the chosen pass: `beta_simulation` matches
+**any finite compatible beta reduction** of the left endpoint by a finite beta
+reduction of the right endpoint, with a `DomainNormal` comparison of the results.
+The induction includes reductions inside lambda and Pi annotations, beta contraction,
+and arbitrary finite composition. It assumes a typing for the original left endpoint
+and context well-formedness; no strengthening or canonical-Eq assumption is used.
+
+Both modules build. Axiom audits of contraction, superdevelopment preservation, and
+beta simulation contain only `propext`, `Classical.choice`, and `Quot.sound`.
+This establishes stability through downward redex creation, rather than giving a
+well-founded bound on repeated repair of the original opaque comparisons.
+
+The earlier `alignment_can_be_hidden` example still applies to proof leaves: their
+common type can hide an arbitrary conversion. The present descent theorem does not
+claim independent descent for proofs, and its application case first descends the
+non-proof function and obtains convertible argument types below. Thus that example
+is not a counterexample to the checked invariant. The remaining completeness issue
+is producing these certificates from the original unrestricted normal comparisons,
+especially opaque lambda-domain conversions and eta. No smaller sufficient obligation
+or full proof has yet been obtained.
