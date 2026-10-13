@@ -448,3 +448,24 @@ replaying reductions of erased syntax on typed originals. Beta is the first case
 eta, declaration computation, singleton extraction, and quotient guards still need
 sound and complete treatment. This route does not yet supply any global front or
 strictly smaller sufficient obligation.
+
+## Erased beta paths replay and descend
+
+`ProofErasureBeta.lean` defines compatible finite beta reduction on `ProofShape`.
+`proofErase_beta_replay` reconstructs an original beta path for every erased path
+from a typed source. Lambda and Pi cases convert the body's erasure context after
+the annotation reduction; beta uses the checked erasure/substitution theorem.
+No intermediate erased typing is assumed. Original subject reduction supplies all
+reconstructed endpoint typings in the starting context.
+
+`proofErase_beta_join_reflect` then reflects erased beta joins at a common type.
+`betaRed_lift_inv` syntactically lowers any original beta path from a lifted source,
+and `proofErase_beta_join_descend` combines this with replay and typed erasure
+reflection to descend an erased beta join from an extension. The new module builds
+and all four results are axiom-clean. This is still a beta-join theorem, not full
+conversion completeness; the existing beta-only repair obstructions remain valid.
+
+The next test concerns eta: erasure can hide occurrences of the eta binder inside
+proof payloads. An erased eta contraction may therefore create a proof marker for
+which no original proof is supplied below. Exact target replay needs a separate
+argument; beta replay cannot simply be reused for eta.
