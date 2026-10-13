@@ -370,3 +370,32 @@ Neither condition follows from this new completeness theorem. The unresolved ste
 now explicitly the choice/lowering of the repaired reductions and their typings, not
 existence of finite domain-certified joins in the larger context. No claim of a
 strictly smaller irreducible obligation is made.
+
+## Scope-preserving eta-free reannotation
+
+`EtaScope.lean` separates two issues. A full eta step can introduce an unused
+variable into its chosen domain annotation: eta-expand the lifted identity at a
+domain `(λ (_ : Q↑). Prop) #0`, convertible to Prop but containing the new binder.
+`scope_failure_and_cleanup` includes the extension's well-formedness, the full step,
+its target's failure to skip the new binder, and a finite beta cleanup. This refutes
+scope preservation for arbitrary full reducts, not strengthening or scope repair.
+Conversely, `eta_lift_descend` proves an eta step descends when its target is a lift
+and both endpoints have a common typing below. Target typing remains explicit.
+
+`LeftReannotation.lean` improves eta-free normal repair. It holds the left endpoint
+fixed and reannotates each right lambda with its displayed left partner's domain.
+Its syntactic relation `Reannotates` commutes backwards through arbitrary lifts,
+including binders. Thus `normal0_lift_reannotation` produces a lifted final endpoint
+and a `DomainNormal` certificate at exactly the original normal-comparison index.
+This removes the arbitrary common annotation witness from eta-free repair.
+
+Both the right-hand reduction and the certificate still live in the larger context.
+The theorem does not establish typing of the repaired endpoint below or reduction
+of the original right endpoint below. At a reannotated lambda, the right body was
+typed under its original domain; moving it to the left domain needs precisely a
+justified domain conversion. In applications, a common whole-term type does not
+supply that function-domain conversion. No smaller sufficient obligation is claimed.
+
+Both new modules build. Axiom audits of their principal results, including the
+syntactic lift inversion, contain only `propext`, `Classical.choice`, and `Quot.sound`
+(or a subset); no `sorryAx`. The executable and the open theorem are unchanged.

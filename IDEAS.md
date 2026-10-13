@@ -52,3 +52,9 @@ equivalence or normalization to a checked theorem.
 Thesis source: https://github.com/digama0/lean-type-theory/blob/master/soundness.tex
 (read alongside `typesys.tex`, 2026-10-13). Its set model also targets a different
 declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
+
+| Further refinement | Test and current verdict |
+| --- | --- |
+| Arbitrary full reduction preserves absence of an unused binder | **Refuted.** `EtaScope.scope_failure_and_cleanup` gives a typed eta step from a lifted identity to a term whose domain explicitly mentions the inserted variable. A finite beta cleanup restores scope in this example. |
+| Eta descent from endpoint typings | **Proved.** `eta_lift_descend` lowers a syntactically lifted eta target when both endpoints have a common typing below. It does not derive that target typing from ambient subject reduction. |
+| Eta-free repair borrowing only left annotations | **Proved in the ambient context.** `normal0_left_reannotation` fixes the left endpoint and retains the comparison index. `Reannotates.lift_inv` makes the repaired endpoint a lift whenever both inputs are lifts. Lowering the repair's typing and reduction witnesses remains open. |
