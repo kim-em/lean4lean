@@ -92,7 +92,7 @@ theorem etaCompute_base (H : ConstructorObservation.EtaCompute D e out) :
   | iota hp hc hm hn => exact .iota hp hc hm hn
   | trans _ _ ih1 ih2 => exact .trans ih1 ih2
   | funEta => exact .funEta
-  | structEta hi hz hp => exact .structEta hi hz hp
+  | structEta hi hz ha hp => exact .structEta hi hz ha hp
   | app _ _ ih1 ih2 => exact .app ih1 ih2
   | lam _ _ ih1 ih2 => exact .lam ih1 ih2
   | forallE _ _ ih1 ih2 => exact .forallE ih1 ih2

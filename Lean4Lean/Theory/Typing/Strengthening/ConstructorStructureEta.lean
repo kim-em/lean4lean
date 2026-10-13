@@ -60,7 +60,7 @@ theorem Obs.spine_inv (H : Obs D S (mkApps f args) o) :
 
 /-- A non-unfolding constant's observation must come from a registered
 constructor, followed only by subsumption. -/
-theorem Obs.const_ctor_inv (hrigid : Params.env.Rigid c) (hc : ¬ NotEtaCtor c)
+theorem Obs.const_ctor_inv (hrigid : Params.env.Rigid c) (hc : ¬ NotEtaInstance c ls)
     (hn : ∀ ls rhs, ¬ D.unfolds c ls rhs)
     (H : Obs D S (.const c ls) o) :
     ∃ s info keys i K key, Params.env.projections s info ∧ info.ctorName = c ∧
@@ -82,13 +82,14 @@ theorem Obs.const_ctor_inv (hrigid : Params.env.Rigid c) (hc : ¬ NotEtaCtor c)
 
 /-- Structure eta is backwards sound for finite observations. Neither the value
 nor the newly chosen parameters need be typed, and the parameters need not be
-scoped below any lift. Rigidity of the actual constructor is essential. -/
-theorem Obs.struct_eta_back (hinfo : Params.env.projections s info) (hindices : info.nindices = 0)
+scoped below any lift. The universe instance carries its closed eta-admissibility
+certificate. Rigidity of the actual constructor is essential. -/
+theorem Obs.struct_eta_back (hinfo : Params.env.projections s info) (hindices : info.nindices = 0) (ha : EtaAdmissible info ls)
     (hn : ∀ ls rhs, ¬ D.unfolds info.ctorName ls rhs) (hps : ps.length = info.nparams)
     (H : Obs D S (structExpand s info ls ps e) o) : Obs D S e o := by
   obtain ⟨keys, hc, hargs⟩ := H.spine_inv
   obtain ⟨s', info', keys', i, K, key, hi, hname, hlen, hget, hkey, hle⟩ := hc.const_ctor_inv (Params.henv.projectionCtorRigid hinfo)
-    (fun h => h s info hinfo hindices rfl) hn
+    (fun h => h s info hinfo hindices ha rfl) hn
   obtain ⟨rfl, rfl⟩ := Params.henv.ordered.projectionConstructor_family hi hinfo hname
   have hlen' : keys'.length = keys.length := by
     have ha := hargs.length_eq
@@ -108,11 +109,11 @@ theorem Obs.struct_eta_back (hinfo : Params.env.projections s info) (hindices : 
 
 /-- Actual environment equations satisfy the constructor-rigidity premise. -/
 theorem Obs.struct_eta_back_ofEnv (hinfo : Params.env.projections s info)
-    (hindices : info.nindices = 0) (hps : ps.length = info.nparams)
+    (hindices : info.nindices = 0) (ha : EtaAdmissible info ls) (hps : ps.length = info.nparams)
     (H : Obs (Definitions.ofEnv Params.env Params.univs Params.henv) S
       (structExpand s info ls ps e) o) :
     Obs (Definitions.ofEnv Params.env Params.univs Params.henv) S e o :=
-  H.struct_eta_back hinfo hindices
+  H.struct_eta_back hinfo hindices ha
     (fun _ _ => Definitions.ofEnv_no_rigid Params.henv (Params.henv.projectionCtorRigid hinfo)) hps
 
 end Lean4Lean.VEnv.Strengthening.ConstructorObservation

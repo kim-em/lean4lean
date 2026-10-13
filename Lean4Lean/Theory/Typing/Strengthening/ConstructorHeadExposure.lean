@@ -23,7 +23,8 @@ theorem ConstructorRigid.ofEnv : ConstructorRigid (Definitions.ofEnv env univs h
   fun _ _ hi _ _ => Definitions.ofEnv_no_rigid henv (henv.projectionCtorRigid hi)
 
 /-- Compatible beta/delta/projection computation and both eta expansions. The eta
-rules require no typings; structure eta retains its actual zero-index guard.
+rules use closed certificates: structure eta retains its actual zero-index and
+projection-admissibility guards. No occurrence typing is needed in a path.
 Backwards head exposure remains syntactic.
 Iota carries the uniform check certificate already supplied by every concrete rule. -/
 inductive EtaCompute (D : Definitions) : VExpr → VExpr → Prop where
@@ -33,10 +34,10 @@ inductive EtaCompute (D : Definitions) : VExpr → VExpr → Prop where
       {captures : (SimplePattern.iota recursor major ctor fields).toPattern.Path → VExpr} :
       Pat _ r → CheckFromTyping env univs _ r levels →
       (SimplePattern.iota recursor major ctor fields).toPattern.Matches e levels captures →
-      NotEtaCtor ctor → EtaCompute D e (r.1.apply levels captures)
+      TestableMajor ctor e → EtaCompute D e (r.1.apply levels captures)
   | trans : EtaCompute D a b → EtaCompute D b c → EtaCompute D a c
   | funEta : EtaCompute D e (.lam A (.app e.lift (.bvar 0)))
-  | structEta : env.projections s info → info.nindices = 0 → ps.length = info.nparams →
+  | structEta : env.projections s info → info.nindices = 0 → EtaAdmissible info ls → ps.length = info.nparams →
       EtaCompute D e (structExpand s info ls ps e)
   | app : EtaCompute D f f' → EtaCompute D a a' → EtaCompute D (.app f a) (.app f' a')
   | lam : EtaCompute D A A' → EtaCompute D b b' → EtaCompute D (.lam A b) (.lam A' b')
@@ -44,16 +45,31 @@ inductive EtaCompute (D : Definitions) : VExpr → VExpr → Prop where
   | proj : EtaCompute D m m' → EtaCompute D (.proj s i m) (.proj s i m')
 
 /-- Every actual parallel eta step in the full confluence presentation embeds in
-this relation, including simultaneous changes of domains and structure parameters. -/
-theorem EtaCompute.of_etaPar (R : EtaPar Γ e out) : EtaCompute D e out := by
+this relation from a well-typed source, including simultaneous changes of domains
+and structure parameters. The source typing supplies well-formed binder contexts. -/
+theorem EtaCompute.of_etaPar (R : EtaPar Γ e out)
+    (hΓ : OnCtx Γ (env.IsType univs)) (he : VExpr.WF env univs Γ e) : EtaCompute D e out := by
   induction R with
   | bvar | sort | const => exact .compute (.base .refl)
-  | app _ _ ih1 ih2 => exact .app ih1 ih2
-  | proj _ ih => exact .proj ih
-  | lam _ _ ih1 ih2 => exact .lam ih1 ih2
-  | forallE _ _ ih1 ih2 => exact .forallE ih1 ih2
-  | funEta _ _ _ ih _ => exact ih.trans .funEta
-  | structEta _ hl _ hi hp hz _ _ ih _ => exact ih.trans (.structEta hi hz (by omega))
+  | app _ _ ih1 ih2 =>
+    obtain ⟨A, B, hf, ha⟩ := he.app_inv henv hΓ
+    exact .app (ih1 hΓ ⟨_, hf⟩) (ih2 hΓ ⟨_, ha⟩)
+  | proj _ ih =>
+    obtain ⟨_, ht⟩ := he
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ := HasType.proj_inv henv hΓ ht
+    exact .proj (ih hΓ ⟨_, hm.hasType.2⟩)
+  | lam _ _ ih1 ih2 =>
+    obtain ⟨hA, hb⟩ := he.lam_inv henv hΓ
+    exact .lam (ih1 hΓ (hA.elim fun _ h => ⟨_, h⟩)) (ih2 ⟨hΓ, hA⟩ hb)
+  | forallE _ _ ih1 ih2 =>
+    obtain ⟨_, ht⟩ := he
+    obtain ⟨hA, hB⟩ := HasType.forallE_inv henv.ordered ht
+    exact .forallE (ih1 hΓ (hA.elim fun _ h => ⟨_, h⟩))
+      (ih2 ⟨hΓ, hA⟩ (hB.elim fun _ h => ⟨_, h⟩))
+  | funEta _ _ _ ih _ => exact (ih hΓ he).trans .funEta
+  | structEta _ hl _ hi hp hz hm ht ih _ =>
+    have ha := (StructureReplay.expansion_typed_iff henv hΓ hi hp hz hm).1 ht
+    exact (ih hΓ he).trans (.structEta hi hz ha (by omega))
 
 /-- The earlier beta/delta/function-eta fragment embeds without restriction. -/
 theorem EtaCompute.of_computeEta (R : PureObservation.ComputeEta D e out) : EtaCompute D e out := by
@@ -90,8 +106,40 @@ theorem EtaCompute.of_iota {env : VEnv} (henv : env.WF)
     (H : ∀ p, @EtaCompute (henv.params U) D (captures p) (captures' p)) :
     @EtaCompute (henv.params U) D e (r.1.apply levels captures') := by
   letI := henv.params U
+  exact (EtaCompute.iota hp (PureObservation.ConcretePattern.checkFromTyping henv hp hc) hm hn.testableMajor).trans
+    (EtaCompute.apply_pat _ H)
+
+omit [Params] in
+/-- A concrete iota rule at any testable major instance embeds, including mixed
+paths in all captures. The test concerns actual constructor levels; the recursor
+universe and ordinary rule guard are retained separately. -/
+theorem EtaCompute.of_iota_instance {env : VEnv} (henv : env.WF)
+    {r : (SimplePattern.iota recursor major ctor fields).toPattern.RHS ×
+      (SimplePattern.iota recursor major ctor fields).toPattern.Check}
+    {captures captures' : (SimplePattern.iota recursor major ctor fields).toPattern.Path → VExpr}
+    (hp : ConcretePattern env _ r)
+    (hm : (SimplePattern.iota recursor major ctor fields).toPattern.Matches e levels captures)
+    (hc : r.2.OK (env.IsDefEqU U Γ) levels captures)
+    (hn : @TestableMajor (henv.params U) ctor e)
+    (H : ∀ p, @EtaCompute (henv.params U) D (captures p) (captures' p)) :
+    @EtaCompute (henv.params U) D e (r.1.apply levels captures') := by
+  letI := henv.params U
   exact (EtaCompute.iota hp (PureObservation.ConcretePattern.checkFromTyping henv hp hc) hm hn).trans
     (EtaCompute.apply_pat _ H)
+
+/-- Ordinary iota at an inadmissible structure instance is supported directly by
+tuple observations. It requires neither projections nor a closed recursor unfolding. -/
+theorem EtaCompute.iota_inadmissible
+    {r : (SimplePattern.iota recursor major info.ctorName fields).toPattern.RHS ×
+      (SimplePattern.iota recursor major info.ctorName fields).toPattern.Check}
+    {captures : (SimplePattern.iota recursor major info.ctorName fields).toPattern.Path → VExpr}
+    (hi : env.projections family info) (hn : ¬ EtaAdmissible info ctorLevels)
+    (hp : Pat _ r) (hc : CheckFromTyping env univs _ r levels)
+    (hm : (SimplePattern.iota recursor major info.ctorName fields).toPattern.Matches
+      (.app f (mkApps (.const info.ctorName ctorLevels) args)) levels captures) :
+    EtaCompute D (.app f (mkApps (.const info.ctorName ctorLevels) args))
+      (r.1.apply levels captures) :=
+  .iota hp hc hm (TestableMajor.of_instance (NotEtaInstance.of_inadmissible hi hn))
 
 /-- Indexed projection metadata discharges the constructor-test restriction for
 ordinary iota, with no typing of the matched source or captured arguments. -/
@@ -103,7 +151,7 @@ theorem EtaCompute.iota_indexed
     (hp : Pat _ r) (hc : CheckFromTyping env univs _ r levels)
     (hm : (SimplePattern.iota recursor major info.ctorName fields).toPattern.Matches e levels captures) :
     EtaCompute D e (r.1.apply levels captures) :=
-  .iota hp hc hm (NotEtaCtor.of_indexed hi hn)
+  .iota hp hc hm (NotEtaCtor.of_indexed hi hn).testableMajor
 
 omit [Params] in
 /-- Every enabled concrete indexed iota rule embeds, including subsequent mixed
@@ -145,7 +193,7 @@ theorem EtaCompute.obs_back (hD : ConstructorRigid D) (R : EtaCompute D e out)
   | iota hp hc hm hn => exact H.iota_back hp hc hm hn
   | trans _ _ ih1 ih2 => exact ih1 (ih2 H)
   | funEta => exact H.eta_back
-  | structEta hi hz hp => exact H.struct_eta_back hi hz (hD _ _ hi) hp
+  | structEta hi hz ha hp => exact H.struct_eta_back hi hz ha (hD _ _ hi) hp
   | app _ _ ihf iha =>
     obtain ⟨keys, hf, ha⟩ := H.app_inv
     exact .app (ihf hf) (fun key hk => iha (ha key hk))

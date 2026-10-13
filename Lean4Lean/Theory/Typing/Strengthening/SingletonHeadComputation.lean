@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ClosedSingletonUnfolding
-import Lean4Lean.Theory.Typing.Strengthening.StructureUnfoldingSupply
+import Lean4Lean.Theory.Typing.Strengthening.OrdinaryIotaCoverage
 
 /-! # Closed singleton prefixes in computational head exposure
 
@@ -98,7 +98,7 @@ theorem etaCompute_base (heq : env.HasCanonicalEq) (H : ConstructorObservation.E
   | iota hp hc hm hn => exact .iota hp hc hm hn
   | trans _ _ ih1 ih2 => exact .trans ih1 ih2
   | funEta => exact .funEta
-  | structEta hi hz hp => exact .structEta hi hz hp
+  | structEta hi hz ha hp => exact .structEta hi hz ha hp
   | app _ _ ih1 ih2 => exact .app ih1 ih2
   | lam _ _ ih1 ih2 => exact .lam ih1 ih2
   | forallE _ _ ih1 ih2 => exact .forallE ih1 ih2

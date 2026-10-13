@@ -157,9 +157,9 @@ theorem Obs.apply_pat_inv {p : Pattern} {r : p.RHS} {levels : List VLevel}
         hc p o (List.mem_append_right _ (List.mem_flatMap.2 ⟨key, hk, ho⟩))))
 
 /-- An ordinary constructor spine supplies all its argument demands together. -/
-theorem Obs.ctor_tuple {ctor : Name} (hn : NotEtaCtor ctor)
+theorem Obs.ctor_tuple {ctor : Name} (hn : NotEtaInstance ctor levels)
     (ha : List.Forall₂ (fun K a => ∀ key ∈ K, Obs D S a key) keys args) :
-    Obs D S (mkApps (.const ctor levels) args) (.ctor ctor keys) :=
+    Obs D S (mkApps (.const ctor levels) args) (.ctor ctor levels keys) :=
   (Obs.ctorTuple hn).wrap_elim ha
 
 /-- Every enabled iota rule whose major constructor cannot undergo structure eta
@@ -170,18 +170,18 @@ theorem Obs.iota_back {recursor ctor : Name} {major fields : Nat}
     {captures : (SimplePattern.iota recursor major ctor fields).toPattern.Path → VExpr}
     (hp : Params.Pat _ r) (hc : CheckFromTyping Params.env Params.univs _ r levels)
     (hm : (SimplePattern.iota recursor major ctor fields).toPattern.Matches e levels captures)
-    (hn : NotEtaCtor ctor) (H : Obs D S (r.1.apply levels captures) o) : Obs D S e o := by
+    (hn : TestableMajor ctor e) (H : Obs D S (r.1.apply levels captures) o) : Obs D S e o := by
   obtain ⟨K, hK, hR⟩ := H.apply_pat_inv
   obtain ⟨recArgs, ctorArgs, ctorLevels, hrlen, hclen, rfl, hrg, hcg⟩ :=
     SimplePattern.iota_matches_inv hm
   have hrec := (spineKeys_demands hrlen hrg).2 (fun p key hk => hK (.inl p) key hk)
   have hctor := (spineKeys_demands hclen hcg).2 (fun p key hk => hK (.inr p) key hk)
-  have hf := (Obs.recursor hp hc hR (S := S)).wrap_elim hrec
+  have hf := (Obs.recursor hp hc hR (S := S) (ctorLevels := ctorLevels)).wrap_elim hrec
   rw [mkApps_append]
   apply Obs.app hf
   intro key hk
   simp only [List.mem_singleton] at hk
   subst key
-  exact Obs.ctor_tuple hn hctor
+  exact Obs.ctor_tuple (hn _ _ _ (by rw [mkApps_append]; rfl)) hctor
 
 end Lean4Lean.VEnv.Strengthening.ConstructorObservation

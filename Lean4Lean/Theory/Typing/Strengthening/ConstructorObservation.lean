@@ -1,11 +1,12 @@
 import Lean4Lean.Theory.Typing.Strengthening.PatternComputation
+import Lean4Lean.Theory.Typing.Strengthening.StructureEtaUniverses
 
 /-! # Constructor tuple observations for pattern computation
 
 A constructor observation exposes one constructor spine and retains simultaneous
 finite demands on all its arguments. Constructors admitting structure eta use field
-observations instead. Indexed projection constructors retain tuple observations,
-since actual structure eta requires zero indices.
+observations instead. Tuple observations retain constructor universes, admitting
+indexed constructors and instances with no typed structure expansion.
 -/
 namespace Lean4Lean.VEnv.Strengthening.ConstructorObservation
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr
@@ -17,7 +18,7 @@ inductive Ob where
   | sort
   | app (keys : List Ob) (result : Ob)
   | field (family : Name) (index : Nat) (result : Ob)
-  | ctor (name : Name) (keys : List (List Ob))
+  | ctor (name : Name) (levels : List VLevel) (keys : List (List Ob))
 
 /-- A stronger observation satisfies a weaker one. Function arguments vary
 contravariantly, including their own finite demands. -/
@@ -39,7 +40,7 @@ variable {D : Definitions}
 def Realizes (D : Definitions) (e : VExpr) : Ob → Prop
   | .pi => ∃ A B, PatternCompute D e (.forallE A B)
   | .sort => ∃ u, PatternCompute D e (.sort u)
-  | .ctor c keys => ∃ ls args, PatternCompute D e (mkApps (.const c ls) args) ∧
+  | .ctor c ls keys => ∃ args, PatternCompute D e (mkApps (.const c ls) args) ∧
       ∃ hlen : keys.length = args.length,
         ∀ i (hi : i < keys.length) key, key ∈ keys[i] →
           Realizes D (args[i]'(hlen ▸ hi)) key
@@ -59,10 +60,10 @@ theorem Realizes.compute_back (R : PatternCompute D e e') (H : Realizes D e' o) 
   cases o with
   | pi => simp only [Realizes] at H ⊢; obtain ⟨A, B, H⟩ := H; exact ⟨A, B, R.trans H⟩
   | sort => simp only [Realizes] at H ⊢; obtain ⟨u, H⟩ := H; exact ⟨u, R.trans H⟩
-  | ctor c keys =>
+  | ctor c ls keys =>
     simp only [Realizes] at H ⊢
-    obtain ⟨ls, args, hr, hl, ha⟩ := H
-    exact ⟨ls, args, R.trans hr, hl, ha⟩
+    obtain ⟨args, hr, hl, ha⟩ := H
+    exact ⟨args, R.trans hr, hl, ha⟩
   | field s i result =>
     simp only [Realizes] at H ⊢
     exact Realizes.compute_back (.proj R) H
@@ -85,18 +86,18 @@ theorem Realizes.mono (h : Ob.Le o o') (H : Realizes D e o) : Realizes D e o' :=
 /-- Introduce a single exposed constructor tuple with all its finite demands. -/
 theorem Realizes.ctor_intro (R : PatternCompute D e (mkApps (.const c ls) args))
     (ha : List.Forall₂ (fun K a => ∀ key ∈ K, Realizes D a key) keys args) :
-    Realizes D e (.ctor c keys) := by
+    Realizes D e (.ctor c ls keys) := by
   simp only [Realizes]
-  exact ⟨ls, args, R, ha.length_eq, fun i hi key hk =>
+  exact ⟨args, R, ha.length_eq, fun i hi key hk =>
     ha.getElem_of i hi (ha.length_eq ▸ hi) key hk⟩
 
 /-- Constructor demands come from one common exposure, with no joining premise. -/
-theorem Realizes.ctor_inv (H : Realizes D e (.ctor c keys)) :
-    ∃ ls args, PatternCompute D e (mkApps (.const c ls) args) ∧
+theorem Realizes.ctor_inv (H : Realizes D e (.ctor c ls keys)) :
+    ∃ args, PatternCompute D e (mkApps (.const c ls) args) ∧
       List.Forall₂ (fun K a => ∀ key ∈ K, Realizes D a key) keys args := by
   simp only [Realizes] at H
-  obtain ⟨ls, args, hr, hl, ha⟩ := H
-  exact ⟨ls, args, hr, List.forall₂_of_getElem hl (fun i hi _ => ha i hi)⟩
+  obtain ⟨args, hr, hl, ha⟩ := H
+  exact ⟨args, hr, List.forall₂_of_getElem hl (fun i hi _ => ha i hi)⟩
 
 /-- A constructor has no registered projection metadata. -/
 def NotProjectionCtor (c : Name) : Prop :=
@@ -118,6 +119,67 @@ theorem NotEtaCtor.of_indexed (hi : Params.env.projections s info) (hn : info.ni
   intro s' info' hi' hz he
   obtain ⟨rfl, rfl⟩ := Params.henv.ordered.projectionConstructor_family hi' hi he
   exact hn hz
+
+/-- The exact universe-sensitive certificate for a typed structure expansion. -/
+def EtaAdmissible (info : VProjectionInfo) (levels : List VLevel) : Prop :=
+  (info.resultLevel.inst levels).IsNeverZero ∨
+    StructureReplay.ProofFields Params.env Params.univs info levels
+
+/-- Eta admissibility follows equivalent well-formed universe instances. -/
+theorem EtaAdmissible.level_congr (hi : Params.env.projections family info)
+    (hw : ∀ l ∈ levels, l.WF Params.univs) (hw' : ∀ l ∈ levels', l.WF Params.univs)
+    (hl : levels.length = info.uvars) (he : List.Forall₂ (· ≈ ·) levels levels')
+    (H : EtaAdmissible info levels) : EtaAdmissible info levels' := by
+  rcases H with hn | hf
+  · exact .inl (hn.of_equiv (VLevel.inst_congr rfl he))
+  · exact .inr (hf.level_congr Params.henv hi hw hw' hl he)
+
+/-- A constructor instance is testable unless a typed unindexed expansion can
+introduce that very universe instance. -/
+def NotEtaInstance (c : Name) (levels : List VLevel) : Prop :=
+  ∀ s info, Params.env.projections s info → info.nindices = 0 →
+    EtaAdmissible info levels → info.ctorName ≠ c
+
+/-- Universe-independent constructor tests remain valid at every instance. -/
+theorem NotEtaCtor.atLevels (H : NotEtaCtor c) : NotEtaInstance c levels :=
+  fun s info hi hz _ => H s info hi hz
+
+/-- An inadmissible structure universe instance admits tuple observations. -/
+theorem NotEtaInstance.of_inadmissible (hi : Params.env.projections s info)
+    (hn : ¬ EtaAdmissible info levels) : NotEtaInstance info.ctorName levels := by
+  intro s' info' hi' _ ha he
+  obtain ⟨rfl, rfl⟩ := Params.henv.ordered.projectionConstructor_family hi' hi he
+  exact hn ha
+
+/-- The constructor actually displayed in the major argument is testable. The
+condition retains its universe levels, which pattern matching itself ignores. -/
+def TestableMajor (ctor : Name) (e : VExpr) : Prop :=
+  ∀ f ls args, e = .app f (mkApps (.const ctor ls) args) → NotEtaInstance ctor ls
+
+/-- Every previously allowed constructor supplies testable majors. -/
+theorem NotEtaCtor.testableMajor (H : NotEtaCtor c) : TestableMajor c e :=
+  fun _ _ _ _ => H.atLevels
+
+/-- For a displayed projection registration, only indexedness or failure of
+eta admissibility permits a tuple test. This is an exact classification. -/
+theorem NotEtaInstance.iff_registered (hi : Params.env.projections s info) :
+    NotEtaInstance info.ctorName levels ↔
+      info.nindices ≠ 0 ∨ ¬ EtaAdmissible info levels := by
+  constructor
+  · intro H
+    by_cases hz : info.nindices = 0
+    · exact .inr (fun ha => H s info hi hz ha rfl)
+    · exact .inl hz
+  · rintro (hn | hn)
+    · exact (NotEtaCtor.of_indexed hi hn).atLevels
+    · exact NotEtaInstance.of_inadmissible hi hn
+
+/-- A displayed constructor major needs only its own universe-instance test. -/
+theorem TestableMajor.of_instance (H : NotEtaInstance ctor ls) :
+    TestableMajor ctor (.app f (mkApps (.const ctor ls) args)) := by
+  intro f' ls' args' he
+  obtain ⟨_, rfl, _⟩ := mkApps_const_inj (VExpr.app.inj he).2
+  exact H
 
 /-- Realize a curried observation by realizing every demanded argument spine. -/
 theorem Realizes.wrap_intro
@@ -199,13 +261,13 @@ theorem Realizes.recursor {recursor ctor : Name} {major fields : Nat}
     (hr : RHSRealizes D r.1 levels K o) :
     Realizes D (.const recursor levels)
       (Ob.wrap (spineKeys (fun p => K (.inl p)))
-        (.app [.ctor ctor (spineKeys (fun p => K (.inr p)))] o)) := by
+        (.app [.ctor ctor ctorLevels (spineKeys (fun p => K (.inr p)))] o)) := by
   apply Realizes.wrap_intro
   intro recArgs hrecArgs
   simp only [Realizes]
   intro majorExpr hmajor
-  obtain ⟨ctorLevels, ctorArgs, hcompute, hctorArgs⟩ :=
-    (hmajor (.ctor ctor (spineKeys (fun p => K (.inr p)))) (by simp)).ctor_inv
+  obtain ⟨ctorArgs, hcompute, hctorArgs⟩ :=
+    (hmajor (.ctor ctor ctorLevels (spineKeys (fun p => K (.inr p)))) (by simp)).ctor_inv
   have hrecLen : recArgs.length = major := by simpa [spineKeys] using hrecArgs.length_eq.symm
   have hctorLen : ctorArgs.length = fields := by simpa [spineKeys] using hctorArgs.length_eq.symm
   obtain ⟨recCaptures, hmrec, hgrec⟩ := Pattern.matches_varN_const major recArgs hrecLen
@@ -238,8 +300,8 @@ inductive Obs (D : Definitions) : Sets → VExpr → Ob → Prop where
   | ctor : Params.env.projections s info → keys.length = info.nparams + info.numFields →
       keys[info.nparams + i]? = some K → o ∈ K →
       Obs D S (.const info.ctorName ls) (Ob.wrap keys (.field s i o))
-  | ctorTuple : NotEtaCtor c →
-      Obs D S (.const c ls) (Ob.wrap keys (.ctor c keys))
+  | ctorTuple : NotEtaInstance c ls →
+      Obs D S (.const c ls) (Ob.wrap keys (.ctor c ls keys))
   | recursor {r : (SimplePattern.iota recursor major ctor fields).toPattern.RHS ×
         (SimplePattern.iota recursor major ctor fields).toPattern.Check}
       {K : (SimplePattern.iota recursor major ctor fields).toPattern.Path → List Ob} :
@@ -247,7 +309,7 @@ inductive Obs (D : Definitions) : Sets → VExpr → Ob → Prop where
       RHSRealizes D r.1 levels K o →
       Obs D S (.const recursor levels)
         (Ob.wrap (spineKeys (fun p => K (.inl p)))
-          (.app [.ctor ctor (spineKeys (fun p => K (.inr p)))] o))
+          (.app [.ctor ctor ctorLevels (spineKeys (fun p => K (.inr p)))] o))
   | proj : Obs D S m (.field s i o) → Obs D S (.proj s i m) o
   | sub : Obs D S e o → Ob.Le o o' → Obs D S e o'
 

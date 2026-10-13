@@ -1309,3 +1309,49 @@ main front. The next model refinement must retain constructor universe instances
 the new eta criterion is universe-sensitive, while existing tuple observations
 forget constructor levels. Indexed singleton alignment and matched-lambda repair
 remain open.
+
+### Universe-sensitive tuple tests and complete ordinary-iota coverage
+
+Constructor tuple observations now retain the actual constructor universe list.
+`NotEtaInstance` excludes only unindexed instances with a closed eta-admissibility
+certificate. Its exact classification for a registered projection constructor is
+proved by `iff_registered`: indexedness or failure of that certificate. The mixed
+structure-eta rule carries the certificate, and `EtaCompute.of_etaPar` derives it
+for every actual eta path from a typed source. The source typing also supplies
+well-formed contexts under binders; the previous embedding's arbitrary untyped
+source presentation has accordingly been narrowed. Actual typed eta is retained.
+
+`StructureEtaUniverses.lean` proves context conversion for pointwise level
+variants, transports ProofFields across equivalent well-formed universe lists,
+and aligns a typed constructor's actual universe list with its major-family
+instance. These are context conversion and uniqueness arguments, not context
+strengthening. The raw observation/replay relation needs no occurrence typings.
+
+`StructureIotaCoverage.iota_typed` covers every typed registered structure-iota
+match. Indexed instances use tuple tests. An admissible unindexed recursor
+instance uses the already-proved closed projection equation. In the remaining
+case universe alignment proves that the actual matched constructor is itself
+eta-inadmissible, so its tuple test applies. No projection certificate is assumed
+from the caller, and the ordinary rule's enabling guard is retained.
+
+`OrdinaryIotaCoverage.concrete_iota_coverage` removes the registry, family and
+arity premises as well. The concrete pattern table supplies the recursor; a typed
+major identifies any projection registration with the recursor's rigid family
+and recovers its full constructor arity. Quotient constructors cannot have
+projection metadata. Thus every enabled concrete ordinary iota occurrence is
+covered from source typing alone, including structures at potentially-zero
+universes with non-proof fields. The singleton extension imports the result and
+preserves the refined model and all earlier closed computations.
+
+The combined example target builds (275 dependency jobs). Eighteen axiom audits
+cover the universe transport, tuple semantics, iota preservation, typed eta
+embedding, head exposure and reconstruction, complete concrete iota coverage,
+combined singleton wrapper, and both guard-boundary examples. All use only
+propext, Classical.choice, and Quot.sound; no sorryAx. No executable changes.
+
+The new `inadmissible_eta_excluded` example verifies that dropping the new guard
+would incorrectly put a constructor observation at a free variable. This is a
+boundary of the raw model, not a counterexample to strengthening. Remaining work
+includes embedding the complete typed core/full paths, indexed singleton-prefix
+alignment, and the matched-lambda comparison repair. No proof, canonical-Eq
+counterexample, or smaller sufficient obligation for the main front is claimed.
