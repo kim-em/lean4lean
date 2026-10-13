@@ -469,3 +469,28 @@ The next test concerns eta: erasure can hide occurrences of the eta binder insid
 proof payloads. An erased eta contraction may therefore create a proof marker for
 which no original proof is supplied below. Exact target replay needs a separate
 argument; beta replay cannot simply be reused for eta.
+
+## Eta can expose an unfilled proof marker
+
+`ProofErasureEta.lean` checks the proposed eta extension against
+`F : Q → Q → Prop`, with Q a proposition. The typed source `λ h : Q. F h h`
+erases to `λ erase(Q). (F ⋆)↑ ⋆`. The first occurrence of h has vanished inside
+the erased function, so this is an apparent eta redex in the proof-erased syntax.
+
+`target_representative_iff` proves that the proposed short form `F ⋆` has **any**
+typed original representative in the starting context exactly when Q has an
+inhabitant there. Inverting erasure forces every representative to be `F q`;
+typing inversion and uniqueness force `q : Q`. Conversely any such q supplies a
+representative. `source_eq_of_inhabitant` proves the original source equal to
+`F q` by proof irrelevance under the binder followed by ordinary typed eta.
+
+`target_not_replayable` makes the uninhabited case explicit, with uninhabitedness
+as a premise. This does not instantiate a consistent canonical-Eq environment,
+refute typed erased-conversion reflection at existing endpoint typings, or refute
+strengthening. It prevents treating exact beta replay as an automatic eta replay
+lemma. A typed repair can retain or restore eta binders instead of demanding an
+original for each short erased intermediate. That remains a live direction.
+
+The module builds without new warnings. All principal results, including the
+inhabitation equivalence and its positive repair, are axiom-clean. The executable
+and `UniqueTyping.lean` remain unchanged. No goal deliverable is claimed yet.
