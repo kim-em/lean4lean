@@ -997,3 +997,53 @@ reconstructed constructor); index-sensitive singleton prefixes remain open.
 Even full head exposure would not yet settle the matched-lambda comparison repair.
 This is progress on the active computational route, not the full strengthening
 deliverable or a newly sufficient obligation smaller than PropFront.
+
+### Dependent structure reconstruction and projected-iota replay
+
+Inspection of `projDF` exposed a necessary distinction: its source-sort guard is
+IsNeverZero, whereas the ordinary large-eliminating iota guard is only failure of
+level equivalence to zero. A universe parameter can satisfy the latter while failing
+the former. Similarly, non-proof fields of a Prop structure cannot simply be
+projected. The reconstruction therefore keeps the actual field guard, rather than
+assuming that every typed structure major has a typed eta expansion.
+
+`StructureReconstruction.lean` extends the declaration/parameter argument from
+`HasType.unitLike_constructor` to structures with arbitrarily many dependent fields.
+`projection_args_typed` walks the constructor telescope by strong induction: it
+instantiates each domain using the already typed parameters and earlier projections,
+identifies that domain with fieldType, checks its projection guard, and types the
+next projection. `structure_constructor` first recovers the constructor parameter
+typings from the family's normalized parameter telescope and the declaration's
+common parameter context. It then applies the constructor to the entire typed
+projection spine and identifies its result with the original unindexed family.
+No typing of the expanded constructor is assumed.
+
+`structure_constructor_neverZero` discharges every field guard for a never-zero
+source universe. `structure_eta_neverZero` gives an actual typed eta equation from
+source typing at the family alone, without any expanded-endpoint typing premise.
+The general guarded theorem also permits proof-valued fields through the other
+branch of projDF's guard.
+
+`StructureIotaReplay.lean` uses this reconstruction to replay a pattern after eta
+expansion in the smaller context. `projected_iota` then uses Params.pat_iota_params:
+the rule RHS ignores the constructor parameters and levels. Consequently the raw
+matching witness may contain arbitrary dummy constructor parameters and levels;
+they need neither typings nor scope. The proof replaces them with the major's
+actual family parameters while establishing typing and then returns the exact
+original RHS. `projected_iota_neverZero` discharges its field-guard premise.
+
+Both modules build without new warnings. Reconstruction, typed eta, pattern replay,
+and projected-iota parameter replacement pass the axiom audit with only propext,
+Classical.choice, and Quot.sound. No executable changes or strengthening axiom is
+used.
+
+This does not yet add structure-major iota to ConstructorObservation.EtaCompute.
+The replay currently takes the major's registered family typing below and the
+projection guards as explicit premises; the generic raw computation model needs
+those recovered uniformly. A promising next step is to reconstruct at the generic
+recursor telescope and close the result into a constant equation, following the
+successful closed quotient unfolding. That still requires matching the registered
+recursor's major-family metadata and discharging the field guards at the generic
+instance. Prop-source structures, potentially-zero universes, index-sensitive
+singleton prefixes, and the final matched-lambda comparison repair remain open.
+The full goal is not complete.
