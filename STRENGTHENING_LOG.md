@@ -1495,3 +1495,37 @@ might repair the example. It does rule out extending the previous *untyped*
 eta-removal argument with nonlinear K and no other change. This is not a
 strengthening counterexample. The target builds (240 jobs); the boundary's axiom
 audit contains only propext and Quot.sound.
+
+### Typed universe alignment repairs an outer cast
+
+`CastTypedReplay.lean` establishes a typed alternative to raw nonlinear matching.
+`cast_eq_of_common_typing` first observes that a cast and payload at a common
+type force conversion of their endpoint types by uniqueness, hence canonical K.
+The stronger `cast_type_eq` needs only that each is a type below. If their sort
+levels are v and w, the cast endpoint universe u is convertible to both succ v
+and succ w. Universe injectivity gives v ≈ w, so the common-typing theorem
+applies. There is no ambient equality premise, use of strengthening, or syntactic
+endpoint equality.
+
+A computational Pi exposure of the payload supplies its required typehood:
+replay from the payload's recovered source typing, invert the resulting Pi's
+typing, and transfer that sort typing back along the computation. This proves
+`cast_pi_exposure_below` for a lifted payload computation. `CastHeadExposure.lean`
+then removes both eta forms from an existing mixed payload trace, invokes this
+bridge, and recovers a function's Pi type below when its original type is the
+outer cast. The generic sound/rigid definition collection may be the full
+combined collection, so all existing ordinary iota, projection, stored equation,
+quotient, and unindexed singleton computations remain available in the payload.
+
+This is a local typed head-exposure bridge, not an embedding of arbitrary cast
+steps into EtaCompute. In particular, a cast in function position may transport
+between different function types; its argument typings cannot be discarded.
+A nested cast payload need not itself be a type below merely because it is
+well-formed. Extending the typed reconstruction through those cases and actual
+indexed singleton programs remains the live direction. The original matched
+lambda-domain comparison also remains unresolved. No claim of a smaller
+sufficient PropFront obligation is made.
+
+The combined target builds (280 dependency jobs). Five replay/head-recovery axiom
+audits contain only propext, Classical.choice, and Quot.sound; no sorryAx occurs.
+No executable changes. Full strengthening remains open and the goal stays active.
