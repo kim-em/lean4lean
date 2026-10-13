@@ -1419,3 +1419,38 @@ premise is a model-specific obligation, not a newly established sufficient
 obligation strictly smaller than PropFront. Its truth for the current raw model
 still needs testing; it must not be conflated with the more general typed head
 exposure problem.
+
+### Checked free-major boundary for indexed proof elimination
+
+`IndexedPrefixBoundary.lean` tests the model premise instead of assuming it will
+follow from more metadata. A recursor's registry entry fixes the major offset of
+every ordinary pattern at that head. When no closed equation unfolds the head,
+a Pi observation at the fully supplied spine must use a recursor observation.
+Such an observation demands a constructor tuple from its major. A free variable
+in the empty valuation supplies none. `recursor_variable_no_pi` therefore excludes
+all mixed computational/eta paths from such a spine to any Pi, even when its
+preceding arguments can compute. This uses finite observation inversion, not a
+normalization assumption.
+
+`eqRec_no_stored_unfold` shows that canonical Eq.rec has no stored constant
+unfolding: the canonical iota pattern and stored-definition heads are disjoint.
+`canonical_cast_boundary` combines the obstruction with `IsDefEq.typeCast_refl`.
+Given the actual Eq.rec registration with major offset five, a typed Pi term, its
+type, and a free proof of reflexive equality of that type, canonical Eq proves the
+cast equal to the Pi. The stored-definition/guarded-iota/projection/eta model has
+no corresponding path. Registration and all typing premises are retained; no
+concrete environment witness or strengthening counterexample is asserted.
+
+This refutes direct indexed K simulation in that precise model. It does not yet
+refute the newer full equation collection, because the no-unfolding premise must
+also exclude its derived structure and singleton equations. Nor does it refute
+typed head exposure: the example already has the required Pi equality below.
+It shows why the free major cannot simply be treated as an ordinary constructor
+tuple. Further indexed work must change the model or justify additional closed
+computations; repeatedly trying to derive tuple demands from the empty valuation
+would repeat a checked obstruction.
+
+The combined boundary target builds (277 dependency jobs). Its five key theorems
+have only propext, Classical.choice, and Quot.sound (or subsets) as axioms, with no
+sorryAx. No executable changes. Full strengthening, a canonical-Eq counterexample,
+and a smaller sufficient front remain unestablished; the goal remains active.
