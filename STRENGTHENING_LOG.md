@@ -494,3 +494,39 @@ original for each short erased intermediate. That remains a live direction.
 The module builds without new warnings. All principal results, including the
 inhabitation equivalence and its positive repair, are axiom-clean. The executable
 and `UniqueTyping.lean` remain unchanged. No goal deliverable is claimed yet.
+
+## 2026-10-13 continuation: recursive eta-aware domains with explicit modes
+
+Revalidated clean HEAD `2ba33c6b`. The previous turn was progress: it committed
+structural proof-erasure reflection, typed substitution/weakening, beta replay and
+descent, and an exact conditional eta-replay obstruction. No external blocker.
+
+`BidirectionalNormal.lean` introduces `BiNormal mode n`. Common-type mode permits
+eta and the ordinary opaque-domain lambda rule. Independent mode has a lambda
+rule whose domains are recursively compared in common-type mode and whose bodies
+are compared independently. Applications always compare functions independently
+and arguments at a common type. An independent comparison can be promoted to
+common-type mode. Ordinary normal soundness, index-preserving context conversion,
+and embedding of `DomainNormal` are checked.
+
+`BidirectionalDescent.lean` proves the intended descent theorem for arbitrary
+context lifts. Common-type mode requires convertible endpoint types below;
+independent mode only requires that the independently typed left endpoint is not
+a proof. The latter includes lambdas. Sort-level alignment for a domain comparison
+is reflected from the ambient equation by universe injectivity, then the recursive
+common-type domain certificate descends. A nonempty variable-spine lemma peels
+eta-both to an independent comparison without choosing its domain below.
+
+`BidirectionalLoop.lean` proves a direct independent-mode certificate, index 10,
+for the recursive-family self-application loops that defeated every beta-only
+hybrid join. Their domain comparison now admits the eta-related family argument
+at its common function type. This tests actual added coverage; no reduction of the
+loops or assumption of normalization is used.
+
+All three modules build without new warnings, and their principal results are
+axiom-clean. This is not full strengthening or a smaller sufficient obligation.
+Transitivity and heterogeneous substitution need care: the ordinary normal
+transitivity proof applies a common-mode comparison in function position under an
+eta binder, where this calculus requires independent mode. Typed application up
+to reduction, rather than an invalid mode coercion, is the next local repair to
+investigate. Global completeness and lowering of full repair paths remain open.
