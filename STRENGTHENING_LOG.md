@@ -638,3 +638,51 @@ The goal is not complete. Scope is now isolated from typing: a full repair route
 must construct/recover the needed typings below, rather than merely keep generated
 annotations free of the extra variable. The declaration replay checks also require
 separate justification; their descent is not inferred from syntactic generation.
+
+## Finite observations recover Pi exposure through beta and function eta
+
+Revalidated clean HEAD `6d030ae2`; the previous turn was progress. Scope preservation
+alone was shown insufficient, so this turn addresses a missing typing ingredient:
+recovering a function-type shape below without replaying the ambient eta annotations.
+
+`PureObservation.lean` introduces a small class-free finite-demand interpretation.
+Its observations are Pi heads, sort heads, and function demands on finite lists of
+argument observations. Lambda annotations are ignored. This is a head-exposure
+model, not an equality model: annotation erasure is not claimed to reflect conversion.
+Operational realization uses actual finite beta paths for Pi/sort heads. The
+fundamental lemma proves that each observation realizes its operational meaning
+under any realizing substitution, giving beta head exposure at the empty valuation.
+
+`PureObservationEta.lean` proves subsumption, valuation monotonicity, renaming in
+both directions, and backwards soundness of arbitrary function-eta expansion.
+`PureObservationSubstitution.lean` proves substitution inversion and finite support.
+Compacting the demand on one substituted variable gives a finite lambda demand,
+which proves backwards beta soundness. No normalization hypothesis, type classes,
+or typed short eta representative is required.
+
+`PureHeadExposure.lean` combines these into a compatible beta/function-eta relation.
+`BetaEta.pi_exposure` and `sort_exposure` show that any finite mixed path ending at
+a Pi/sort has an actual beta-only path from its source to that kind of head. The
+exposed domain/body may differ from the mixed path's final annotations. Syntactic
+beta-path inversion then proves `pi_exposure_below` for arbitrary lifts.
+`function_type_below` uses beta subject reduction to reconstruct a function typing
+in the smaller context from such a trace on its lifted type; `function_eta_below`
+performs a genuine typed eta expansion below at the recovered domain. This is a
+new constructive bridge for the beta/function-eta fragment, not full Pi exposure
+from arbitrary ambient declarative equality.
+
+`PureHeadExamples.lean` includes the guarded recursive loop's finite eta trace,
+checks that it does not falsely acquire a Pi head, and demonstrates a mixed path
+with a captured eta annotation whose original source still has beta-only Pi
+exposure. `lambda_head_boundary` rules out extending the theorem to lambda heads:
+eta expands a variable to a lambda although the variable has no lambda beta reduct.
+The captured-annotation test is syntactic; no typing of its arbitrary annotation
+is claimed.
+
+All five modules build without new warnings. Realization, eta soundness, finite
+support/substitution inversion, head exposure, reconstruction below, and the
+boundary examples are axiom-clean. The strengthening goal remains open. Next:
+extend this operational model to actual closed declaration unfolding, then address
+pattern/projection computation and structure eta. The model currently has no
+constant or projection observations, and an arbitrary ambient equality does not
+yet supply the required beta/eta head trace.
