@@ -1248,3 +1248,44 @@ constructor tests at indexed projection constructors which cannot undergo actual
 structure eta. Full head exposure would still leave matched-lambda comparison
 repair. The main strengthening goal remains active; no new sufficient obligation
 strictly smaller than PropFront is claimed.
+
+
+### Indexed constructor tests with the actual structure-eta guard
+
+The constructor-observation model previously excluded every projection constructor
+from tuple tests, because its raw eta relation allowed expansions for arbitrary
+projection metadata. Actual typed structure eta requires zero indices. The model
+now retains that guard and replaces `NotProjectionCtor` with `NotEtaCtor` in the
+tuple and ordinary-iota rules. Ordered-environment constructor-family uniqueness
+shows that indexed metadata cannot have a second unindexed registration, so
+`NotEtaCtor.of_indexed` admits every indexed projection constructor.
+
+`EtaCompute.of_etaPar` still embeds every actual eta step. The closed structure
+and singleton definition extensions preserve the refined mixed relation, and
+`of_nonProjection_iota` retains the old ordinary-iota assumptions. The indexed
+entry points `iota_indexed` and `of_indexed_iota` discharge the new criterion from
+metadata alone; the latter retains arbitrary mixed paths in captured arguments.
+The ordinary rule's enabled universe check remains necessary.
+
+`IndexedConstructorExamples.lean` checks the semantic boundary. Empty tuple
+demands observe a testable constructor without inspecting its arguments.
+Consequently `indexed_eta_excluded` rules out a raw path from a free variable to
+its indexed structure expansion under constructor-rigid definitions: backwards
+observation closure would put a constructor observation at a variable in the empty
+valuation. This is a boundary of the computational model, not a counterexample
+to typed strengthening. The previous raw model's unrestricted indexed eta paths
+do not embed; every actual typed eta path does.
+
+The example target and combined model build successfully (271 dependency jobs).
+The axiom audit covers indexed eligibility, semantic realization, finite pattern
+capture extraction, iota and structure-eta backwards closure, actual eta and
+indexed-iota embeddings, head exposure and function-type recovery below, both
+boundary examples, the combined quotient/structure/singleton wrapper, and exact
+singleton-prefix reflection. Dependencies are only propext, Classical.choice,
+and Quot.sound (or subsets), with no sorryAx. Executable code is unchanged.
+
+This removes indexed *ordinary iota* from the constructor-test restriction. It
+does not justify a closed zero-prefix singleton equation with arbitrary fresh
+indices or discharge the generated prefix's alignment checks. Unindexed structure
+iota outside the current projection admissibility criterion and full
+matched-lambda comparison repair also remain open. The main goal remains active.

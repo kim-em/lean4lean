@@ -3,8 +3,9 @@ import Lean4Lean.Theory.Typing.Strengthening.PatternComputation
 /-! # Constructor tuple observations for pattern computation
 
 A constructor observation exposes one constructor spine and retains simultaneous
-finite demands on all its arguments. Projection constructors use field observations
-instead, so structure eta cannot create a constructor test.
+finite demands on all its arguments. Constructors admitting structure eta use field
+observations instead. Indexed projection constructors retain tuple observations,
+since actual structure eta requires zero indices.
 -/
 namespace Lean4Lean.VEnv.Strengthening.ConstructorObservation
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr
@@ -97,9 +98,26 @@ theorem Realizes.ctor_inv (H : Realizes D e (.ctor c keys)) :
   obtain ⟨ls, args, hr, hl, ha⟩ := H
   exact ⟨ls, args, hr, List.forall₂_of_getElem hl (fun i hi _ => ha i hi)⟩
 
-/-- Ordinary constructor tests are excluded for registered projection constructors. -/
+/-- A constructor has no registered projection metadata. -/
 def NotProjectionCtor (c : Name) : Prop :=
   ∀ s info, Params.env.projections s info → info.ctorName ≠ c
+
+/-- Constructor tests are permitted unless the constructor belongs to an unindexed
+projection family, the only kind admitting actual structure eta. -/
+def NotEtaCtor (c : Name) : Prop :=
+  ∀ s info, Params.env.projections s info → info.nindices = 0 → info.ctorName ≠ c
+
+/-- All previously admitted non-projection constructor tests remain available. -/
+theorem NotProjectionCtor.notEtaCtor (H : NotProjectionCtor c) : NotEtaCtor c :=
+  fun s info hi _ => H s info hi
+
+/-- Indexed projection constructors cannot undergo actual structure eta.
+Constructor-family uniqueness rules out alternative unindexed metadata. -/
+theorem NotEtaCtor.of_indexed (hi : Params.env.projections s info) (hn : info.nindices ≠ 0) :
+    NotEtaCtor info.ctorName := by
+  intro s' info' hi' hz he
+  obtain ⟨rfl, rfl⟩ := Params.henv.ordered.projectionConstructor_family hi' hi he
+  exact hn hz
 
 /-- Realize a curried observation by realizing every demanded argument spine. -/
 theorem Realizes.wrap_intro
@@ -220,7 +238,7 @@ inductive Obs (D : Definitions) : Sets → VExpr → Ob → Prop where
   | ctor : Params.env.projections s info → keys.length = info.nparams + info.numFields →
       keys[info.nparams + i]? = some K → o ∈ K →
       Obs D S (.const info.ctorName ls) (Ob.wrap keys (.field s i o))
-  | ctorTuple : NotProjectionCtor c →
+  | ctorTuple : NotEtaCtor c →
       Obs D S (.const c ls) (Ob.wrap keys (.ctor c keys))
   | recursor {r : (SimplePattern.iota recursor major ctor fields).toPattern.RHS ×
         (SimplePattern.iota recursor major ctor fields).toPattern.Check}

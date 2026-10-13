@@ -3,9 +3,11 @@ import Lean4Lean.Theory.Typing.Strengthening.QuotHeadComputation
 
 /-! # Head exposure through ordinary recursor computation and both eta forms
 
-The finite model includes iota rules with non-projection constructor majors.
+The finite model includes iota rules at constructors that cannot undergo structure
+eta, including indexed projection constructors.
 Recovered paths use PatternCompute and replay below from source typing alone.
-Structure-major iota and index-sensitive singleton prefix unfolding remain open.
+Iota at constructors admitting structure eta and index-sensitive singleton
+prefixes require separate computational constructions.
 -/
 namespace Lean4Lean.VEnv.Strengthening.ConstructorObservation
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params
@@ -21,7 +23,8 @@ theorem ConstructorRigid.ofEnv : ConstructorRigid (Definitions.ofEnv env univs h
   fun _ _ hi _ _ => Definitions.ofEnv_no_rigid henv (henv.projectionCtorRigid hi)
 
 /-- Compatible beta/delta/projection computation and both eta expansions. The eta
-rules deliberately require no typings: backwards head exposure is syntactic.
+rules require no typings; structure eta retains its actual zero-index guard.
+Backwards head exposure remains syntactic.
 Iota carries the uniform check certificate already supplied by every concrete rule. -/
 inductive EtaCompute (D : Definitions) : VExpr → VExpr → Prop where
   | compute : ProjectionCompute D e out → EtaCompute D e out
@@ -30,10 +33,10 @@ inductive EtaCompute (D : Definitions) : VExpr → VExpr → Prop where
       {captures : (SimplePattern.iota recursor major ctor fields).toPattern.Path → VExpr} :
       Pat _ r → CheckFromTyping env univs _ r levels →
       (SimplePattern.iota recursor major ctor fields).toPattern.Matches e levels captures →
-      NotProjectionCtor ctor → EtaCompute D e (r.1.apply levels captures)
+      NotEtaCtor ctor → EtaCompute D e (r.1.apply levels captures)
   | trans : EtaCompute D a b → EtaCompute D b c → EtaCompute D a c
   | funEta : EtaCompute D e (.lam A (.app e.lift (.bvar 0)))
-  | structEta : env.projections s info → ps.length = info.nparams →
+  | structEta : env.projections s info → info.nindices = 0 → ps.length = info.nparams →
       EtaCompute D e (structExpand s info ls ps e)
   | app : EtaCompute D f f' → EtaCompute D a a' → EtaCompute D (.app f a) (.app f' a')
   | lam : EtaCompute D A A' → EtaCompute D b b' → EtaCompute D (.lam A b) (.lam A' b')
@@ -50,7 +53,7 @@ theorem EtaCompute.of_etaPar (R : EtaPar Γ e out) : EtaCompute D e out := by
   | lam _ _ ih1 ih2 => exact .lam ih1 ih2
   | forallE _ _ ih1 ih2 => exact .forallE ih1 ih2
   | funEta _ _ _ ih _ => exact ih.trans .funEta
-  | structEta _ hl _ hi hp _ _ _ ih _ => exact ih.trans (.structEta hi (by omega))
+  | structEta _ hl _ hi hp hz _ _ ih _ => exact ih.trans (.structEta hi hz (by omega))
 
 /-- The earlier beta/delta/function-eta fragment embeds without restriction. -/
 theorem EtaCompute.of_computeEta (R : PureObservation.ComputeEta D e out) : EtaCompute D e out := by
@@ -74,9 +77,54 @@ theorem EtaCompute.apply_pat {p : Pattern} (r : p.RHS)
   | app _ _ ihf iha => exact .app ihf iha
 
 omit [Params] in
-/-- An actual checked non-structure iota rule embeds, including arbitrary mixed
+/-- An actual checked iota rule at a constructor without structure eta embeds, including mixed
 computation/eta paths in its captures. Concrete checks supply the uniform certificate. -/
 theorem EtaCompute.of_iota {env : VEnv} (henv : env.WF)
+    {r : (SimplePattern.iota recursor major ctor fields).toPattern.RHS ×
+      (SimplePattern.iota recursor major ctor fields).toPattern.Check}
+    {captures captures' : (SimplePattern.iota recursor major ctor fields).toPattern.Path → VExpr}
+    (hp : ConcretePattern env _ r)
+    (hm : (SimplePattern.iota recursor major ctor fields).toPattern.Matches e levels captures)
+    (hc : r.2.OK (env.IsDefEqU U Γ) levels captures)
+    (hn : @NotEtaCtor (henv.params U) ctor)
+    (H : ∀ p, @EtaCompute (henv.params U) D (captures p) (captures' p)) :
+    @EtaCompute (henv.params U) D e (r.1.apply levels captures') := by
+  letI := henv.params U
+  exact (EtaCompute.iota hp (PureObservation.ConcretePattern.checkFromTyping henv hp hc) hm hn).trans
+    (EtaCompute.apply_pat _ H)
+
+/-- Indexed projection metadata discharges the constructor-test restriction for
+ordinary iota, with no typing of the matched source or captured arguments. -/
+theorem EtaCompute.iota_indexed
+    {r : (SimplePattern.iota recursor major info.ctorName fields).toPattern.RHS ×
+      (SimplePattern.iota recursor major info.ctorName fields).toPattern.Check}
+    {captures : (SimplePattern.iota recursor major info.ctorName fields).toPattern.Path → VExpr}
+    (hi : env.projections family info) (hn : info.nindices ≠ 0)
+    (hp : Pat _ r) (hc : CheckFromTyping env univs _ r levels)
+    (hm : (SimplePattern.iota recursor major info.ctorName fields).toPattern.Matches e levels captures) :
+    EtaCompute D e (r.1.apply levels captures) :=
+  .iota hp hc hm (NotEtaCtor.of_indexed hi hn)
+
+omit [Params] in
+/-- Every enabled concrete indexed iota rule embeds, including subsequent mixed
+computation and eta paths in its captures. The ordinary rule's universe checks
+remain in force; this is independent of indexed singleton-prefix alignment. -/
+theorem EtaCompute.of_indexed_iota {env : VEnv} (henv : env.WF)
+    {r : (SimplePattern.iota recursor major info.ctorName fields).toPattern.RHS ×
+      (SimplePattern.iota recursor major info.ctorName fields).toPattern.Check}
+    {captures captures' : (SimplePattern.iota recursor major info.ctorName fields).toPattern.Path → VExpr}
+    (hi : env.projections family info) (hn : info.nindices ≠ 0)
+    (hp : ConcretePattern env _ r)
+    (hm : (SimplePattern.iota recursor major info.ctorName fields).toPattern.Matches e levels captures)
+    (hc : r.2.OK (env.IsDefEqU U Γ) levels captures)
+    (H : ∀ p, @EtaCompute (henv.params U) D (captures p) (captures' p)) :
+    @EtaCompute (henv.params U) D e (r.1.apply levels captures') := by
+  letI := henv.params U
+  exact EtaCompute.of_iota henv hp hm hc (NotEtaCtor.of_indexed hi hn) H
+
+omit [Params] in
+/-- Non-projection constructor rules retain the previous entry point's assumptions. -/
+theorem EtaCompute.of_nonProjection_iota {env : VEnv} (henv : env.WF)
     {r : (SimplePattern.iota recursor major ctor fields).toPattern.RHS ×
       (SimplePattern.iota recursor major ctor fields).toPattern.Check}
     {captures captures' : (SimplePattern.iota recursor major ctor fields).toPattern.Path → VExpr}
@@ -87,8 +135,7 @@ theorem EtaCompute.of_iota {env : VEnv} (henv : env.WF)
     (H : ∀ p, @EtaCompute (henv.params U) D (captures p) (captures' p)) :
     @EtaCompute (henv.params U) D e (r.1.apply levels captures') := by
   letI := henv.params U
-  exact (EtaCompute.iota hp (PureObservation.ConcretePattern.checkFromTyping henv hp hc) hm hn).trans
-    (EtaCompute.apply_pat _ H)
+  exact EtaCompute.of_iota henv hp hm hc hn.notEtaCtor H
 
 /-- No step of a mixed computational/eta path adds a finite observation. -/
 theorem EtaCompute.obs_back (hD : ConstructorRigid D) (R : EtaCompute D e out)
@@ -98,7 +145,7 @@ theorem EtaCompute.obs_back (hD : ConstructorRigid D) (R : EtaCompute D e out)
   | iota hp hc hm hn => exact H.iota_back hp hc hm hn
   | trans _ _ ih1 ih2 => exact ih1 (ih2 H)
   | funEta => exact H.eta_back
-  | structEta hi hp => exact H.struct_eta_back hi (hD _ _ hi) hp
+  | structEta hi hz hp => exact H.struct_eta_back hi hz (hD _ _ hi) hp
   | app _ _ ihf iha =>
     obtain ⟨keys, hf, ha⟩ := H.app_inv
     exact .app (ihf hf) (fun key hk => iha (ha key hk))

@@ -157,20 +157,20 @@ theorem Obs.apply_pat_inv {p : Pattern} {r : p.RHS} {levels : List VLevel}
         hc p o (List.mem_append_right _ (List.mem_flatMap.2 ⟨key, hk, ho⟩))))
 
 /-- An ordinary constructor spine supplies all its argument demands together. -/
-theorem Obs.ctor_tuple {ctor : Name} (hn : NotProjectionCtor ctor)
+theorem Obs.ctor_tuple {ctor : Name} (hn : NotEtaCtor ctor)
     (ha : List.Forall₂ (fun K a => ∀ key ∈ K, Obs D S a key) keys args) :
     Obs D S (mkApps (.const ctor levels) args) (.ctor ctor keys) :=
   (Obs.ctorTuple hn).wrap_elim ha
 
-/-- Every enabled iota rule whose major is not a projection constructor preserves
-finite observations backwards. The rule RHS is arbitrary, including quotient RHSs. -/
+/-- Every enabled iota rule whose major constructor cannot undergo structure eta
+preserves finite observations backwards. The rule RHS is arbitrary, including quotient RHSs. -/
 theorem Obs.iota_back {recursor ctor : Name} {major fields : Nat}
     {r : (SimplePattern.iota recursor major ctor fields).toPattern.RHS ×
       (SimplePattern.iota recursor major ctor fields).toPattern.Check}
     {captures : (SimplePattern.iota recursor major ctor fields).toPattern.Path → VExpr}
     (hp : Params.Pat _ r) (hc : CheckFromTyping Params.env Params.univs _ r levels)
     (hm : (SimplePattern.iota recursor major ctor fields).toPattern.Matches e levels captures)
-    (hn : NotProjectionCtor ctor) (H : Obs D S (r.1.apply levels captures) o) : Obs D S e o := by
+    (hn : NotEtaCtor ctor) (H : Obs D S (r.1.apply levels captures) o) : Obs D S e o := by
   obtain ⟨K, hK, hR⟩ := H.apply_pat_inv
   obtain ⟨recArgs, ctorArgs, ctorLevels, hrlen, hclen, rfl, hrg, hcg⟩ :=
     SimplePattern.iota_matches_inv hm
