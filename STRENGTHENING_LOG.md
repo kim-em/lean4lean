@@ -342,3 +342,31 @@ and track how such typings are supplied at matched lambda arguments. The origina
 frontier still lacks a common function type *below* when only the enclosing
 application has a common type. Reannotation does not manufacture that missing type
 alignment; its explicit typing premise must not be hidden in a claimed solution.
+
+## 2026-10-13 continuation: ambient full joins are domain-certified
+
+Revalidated the clean branch at `12642acd`. The previous turn was progress: it
+changed the checked theory and refuted arbitrary finite beta-only repair while
+proving a full eta-aware repair of that same loop example.
+
+`DomainJoin.lean` proves `normal_domain_join` by induction on the existing normal
+comparison. Applications and projections combine the inductive reductions. A lambda
+pair is reannotated at its common domain witness, then its body comparison is repaired.
+Pi domains are repaired recursively and body contexts are converted using the checked
+domain reductions. Eta-left, eta-right and eta-both become explicit eta expansions
+followed by repaired body comparisons. Proof-irrelevance leaves remain leaves.
+This construction is finite even for non-normalizing endpoints.
+
+Composing this repair with `WF.church_rosser` gives `domain_join_complete`: **every
+declarative equality in a canonical-Eq environment has a finite full-reduction join
+modulo `DomainNormal` in its ambient context**. Its axiom audit, and that of
+`normal_domain_join`, contain no `sorryAx`. The module builds successfully.
+
+This is not strengthening. The construction may choose common lambda-domain witnesses
+or eta-both domains that mention the extra binder. Even if the final syntax is a lift,
+the theorem supplies only ambient-context typings and reductions. `DomainNormal.reflect`
+requires endpoint typings below; `HybridNormal.descend_join` requires reductions below.
+Neither condition follows from this new completeness theorem. The unresolved step is
+now explicitly the choice/lowering of the repaired reductions and their typings, not
+existence of finite domain-certified joins in the larger context. No claim of a
+strictly smaller irreducible obligation is made.
