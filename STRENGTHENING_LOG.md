@@ -896,3 +896,43 @@ reduction family, not the full strengthening deliverable. Ordinary recursor patt
 index-sensitive singleton prefixes, structure-major reconstruction, and the general
 comparison-repair argument remain open. Do not infer that unaligned Eq.rec admits
 a checked zero-prefix unfolding from this quotient-specific construction.
+
+### Uniform pattern checks and context-independent core computation
+
+`PatternTypingChecks.lean` adapts the quotient alignment proof from route A's
+`CoreDescent.lean`, with explicit attribution. This is reuse of the earlier core
+result, not a new solution of that alignment problem. The new packaging is
+`CheckFromTyping`: for a fixed pattern, rule, and universe instance, EVERY matching
+source in EVERY well-formed context passes the checks whenever it is typed.
+`ConcretePattern.checkFromTyping` obtains this uniform certificate from any enabled
+concrete rule. Definitions have no checks; ordinary recursors have only universe
+guards; quotient parameter and relation alignment is reconstructed by rigid Quot
+head injectivity at the new occurrence.
+
+`PatternComputation.lean` extends `ProjectionCompute` by registered pattern steps
+carrying this uniform certificate. `of_parRed` embeds every actual concrete core
+parallel step, including parallel computation of its captures, without needing
+source typing or ambient context WF. `subst` survives arbitrary raw substitutions;
+`lift_inv` lowers entire paths syntactically. The certificate does not mention the
+original source/captures/context, so these operations retain it unchanged.
+`simAt` then reconstructs intermediate typings from the source in the replay
+context. `descend`, `reflect`, and `function_type_below` combine these two layers.
+In particular, `core_reflect` reflects actual core steps between lifted endpoints
+using only source typing and context WF below. It does not need an ambient context
+WF premise or a relation between the two contexts.
+
+Both modules build, and the uniform-check theorem, raw substitution, concrete
+embedding, lift inversion, typed replay, reflection, and Pi-type recovery pass the
+axiom audit (only propext, Classical.choice, and Quot.sound, or subsets). No executable
+changes. The declaration collection remains a parameter, so the previously checked
+closed quotient equation is available in these larger paths as well.
+
+Remaining work is not discharged by this operational extension. The finite field
+observation model still uses ProjectionCompute; backwards preservation and eta
+elimination for PatternCompute need constructor/recursor observations. Constructor
+argument demands must share one exposed constructor tuple to avoid assuming that
+separately exposed fields can be joined. Projection constructors need special
+handling because structure eta can introduce their head. Index-sensitive singleton
+prefixes and the general matched-lambda comparison repair also remain open. This
+is a checked extension of the research infrastructure, not a smaller sufficient
+obligation or a completed strengthening proof.
