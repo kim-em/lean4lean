@@ -294,3 +294,51 @@ same `Prop`, with a reflexive hybrid comparison. Thus direct heterogeneous closu
 for arbitrary hybrid arguments is refuted; closure **up to finite reduction** is
 still live and is the next necessary test. This is not a counterexample to
 strengthening. Both boundary theorems have clean axiom audits.
+
+## Typed loops refute arbitrary finite beta-only selective repair
+
+A stronger test than the finite identity spines is now checked.
+`RecursiveDomainEnvironment.lean` installs the recursive family
+`R : (Prop → Prop) → Sort 1` with value `λ f. (R f → Prop)` using
+`VDecl.WF.mutualDef`. The value is checked in the temporary constant environment,
+**before** its defining equation is installed. `extended_wf` proves that any
+well-formed base extends at a fresh name, and `extended_canonicalEq` preserves the
+canonical Eq hypothesis. This is an actual declaration construction, not an assumed
+recursive type equation.
+
+In `RecursiveDomainLoop.lean`, take `f : Prop → Prop`, set `D = R f`,
+`E = R (λ x : Prop. f x)`, `δ_D = λ x : D. x x`, and `Ω_D = δ_D δ_D` (likewise E).
+The installed equation types `Ω_D : Prop`; the same-body lambda comparison and domain
+eta equality type `Ω_E : Prop` and give `NormalEqF false Ω_D Ω_E`.
+Both terms are non-proof propositions. A hybrid application comparison would require
+a domain certificate for the diagonals, hence a recursive comparison of `f` and its
+eta expansion, which is impossible. Eta-both at the root is excluded because the
+loop's type is a sort.
+
+`omega_beta_eq` proves that **every finite compatible beta reduction** of either
+loop returns exactly itself: its annotations and lambda bodies are beta-normal, and
+the root contraction reproduces the same self-application. `no_beta_hybrid_join`
+therefore rules out every finite beta-only repair, not just a fixed number of rounds.
+`canonical_beta_only_failure` instantiates this result with the constructed extension
+of an arbitrary canonical-Eq environment at a fresh name, including both endpoint
+typings and the old normal comparison. This is a counterexample to a proposed repair
+strategy, **not** to strengthening.
+
+The repair is also checked. `LambdaReannotation.lean` proves that a typing
+`λ x : D. b : Π x : A. B` yields a full reduction to `λ x : A. b`: expand eta at
+that chosen function type and beta-contract under the new binder.
+`RecursiveDomain.full_repair` uses this to reannotate the right diagonal to the left
+one, and hence reduce `Ω_E` to `Ω_D`, without normalizing the loop. This validates the
+need to consider eta-aware repair rather than treating the beta-only obstruction as
+a reason to reject the whole developments/confluence route.
+
+Build: `lake build Lean4Lean.Theory.Typing.Strengthening.RecursiveDomainLoop` passes.
+Axiom audits of the declaration, environment WF, Eq preservation, canonical beta-only
+failure, full repair, and generic lambda reannotation are free of `sorryAx`.
+The executable and the original open theorem remain unchanged.
+
+Next: generalize the reannotation repair where a common function typing is available,
+and track how such typings are supplied at matched lambda arguments. The original
+frontier still lacks a common function type *below* when only the enclosing
+application has a common type. Reannotation does not manufacture that missing type
+alignment; its explicit typing premise must not be hidden in a claimed solution.
