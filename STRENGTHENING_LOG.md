@@ -729,3 +729,26 @@ Both modules compile, and principal definitions/replay/reconstruction/example
 results are axiom-clean. The original strengthening sorry remains open. Full
 conversion still includes proof irrelevance, pattern/projection computation, and
 structure eta; none of those is covered by this fragment theorem.
+
+### Boundary: proof irrelevance and untyped higher-order demands
+
+`ObservationProofBoundary.lean` checks a concrete obstruction to a direct
+extension of preservation to *all* definitional equalities. In the well-formed
+context Q : Prop, h : Q, the equal proofs λ x : Q. x and λ x : Q. h differ at the
+finite demand `app [pi] pi`: the identity has it and the constant proof has no
+observation at the empty valuation. `no_defeq_observation_preservation` holds for
+every environment and every definition collection, hence also under canonical Eq.
+
+The obstruction is precisely to arbitrary untyped function demands. Conversely,
+`Obs.proof_no_pi` and `proof_no_sort` use the new typed computational replay to
+exclude base-head observations of actual proofs for any sound declaration
+collection. Neither result is a strengthening counterexample. This also does not
+refute the current full-reduction head-exposure route: `FullStep`/`ParRed` have no
+proof-irrelevance reduction constructor. The confluence route can potentially
+use full computational paths and only head-shape inversion of the final normal
+comparison, rather than preserving every observation through declarative equality.
+Typed demands or restricted preservation remain alternative refinements.
+
+The boundary, both base-head exclusions, and their axiom audits pass. Continue
+with pattern/projection computation and structure eta, while keeping the model's
+head-exposure purpose separate from arbitrary equality reflection.
