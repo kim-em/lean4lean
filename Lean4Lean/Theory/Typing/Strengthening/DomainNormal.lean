@@ -97,21 +97,25 @@ theorem DomainNormal.instN (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ₂) (he₀ 
     exact .proofIrrel (hP.instN henv.ordered W he₀) (ha.instN henv.ordered W he₀)
       (hb.instN henv.ordered W he₀)
 
-/-- Descent in two modes: convertible endpoint types, or a non-proof left endpoint.
-The independent mode includes lambdas because their domains are recursively compared.
-No canonical-Eq hypothesis or strengthening principle is used. -/
-theorem DomainNormal.descend : ∀ n {ρ : Lift} {Γ Γ' : List VExpr} {a b A B : VExpr},
+/-- Recursive domain certificates reflect along lifts in common-type mode, or
+independently for a non-proof endpoint. Unlike `descend`, the conclusion preserves
+the syntactic comparison invariant. It does not strengthen arbitrary typings. -/
+theorem DomainNormal.reflect : ∀ n {ρ : Lift} {Γ Γ' : List VExpr} {a b A B : VExpr},
     Ctx.Lift' ρ Γ Γ' → OnCtx Γ (Params.env.IsType univs) → OnCtx Γ' (Params.env.IsType univs) →
     Γ ⊢ a : A → Γ ⊢ b : B → DomainNormal n Γ' (a.lift' ρ) (b.lift' ρ) →
-    (Γ ⊢ A ≡ B → Γ ⊢ a ≡ b) ∧ (¬ IsProof Γ a → Γ ⊢ a ≡ b) := by
+    (Γ ⊢ A ≡ B → ∃ m, DomainNormal m Γ a b) ∧
+    (¬ IsProof Γ a → ∃ m, DomainNormal m Γ a b) := by
   intro n
   induction n using Nat.strongRecOn with
   | ind n ih =>
   intro ρ Γ Γ' a b A B W hΓ hΓ' ha hb H
-  suffices core : ¬ IsProof Γ a → Γ ⊢ a ≡ b by
+  suffices core : ¬ IsProof Γ a → ∃ m, DomainNormal m Γ a b by
     refine ⟨fun hAB => ?_, core⟩
     by_cases hp : IsProof Γ a
-    · exact IsProof.descend hΓ hp ha hb hAB
+    · obtain ⟨P, haP, hP⟩ := hp
+      have hAP := ha.uniqU henv hΓ haP
+      have hbP := hb.defeqU_r henv hΓ (hAB.symm.trans henv hΓ hAP)
+      exact ⟨_, .proofIrrel hP haP hbP⟩
     · exact core hp
   intro hna
   generalize hl : a.lift' ρ = l at H
@@ -119,7 +123,7 @@ theorem DomainNormal.descend : ∀ n {ρ : Lift} {Γ Γ' : List VExpr} {a b A B 
   cases H with
   | refl _ =>
     cases lift'_inj.1 (hl.trans hr.symm)
-    exact ⟨_, ha⟩
+    exact ⟨_, .refl ha⟩
   | sortDF h1 h2 h3 =>
     cases lift'_eq_sort hl; cases lift'_eq_sort hr
     exact ⟨_, .sortDF h1 h2 h3⟩
@@ -131,53 +135,60 @@ theorem DomainNormal.descend : ∀ n {ρ : Lift} {Γ Γ' : List VExpr} {a b A B 
     obtain ⟨f', x', rfl, rfl, rfl⟩ := lift'_eq_app hr
     obtain ⟨A₁, B₁, hf, hx⟩ := ha.app_inv henv hΓ
     obtain ⟨A₂, B₂, hf', hx'⟩ := hb.app_inv henv hΓ
-    have hff := (ih _ (by omega) W hΓ hΓ' hf hf' Hf).2 (not_isProof_fn hΓ hf hx hna)
-    have hfPi : Γ ⊢ f ≡ f' : .forallE A₁ B₁ := hff.of_l henv hΓ hf
+    obtain ⟨_, HF⟩ := (ih _ (by omega) W hΓ hΓ' hf hf' Hf).2 (not_isProof_fn hΓ hf hx hna)
+    have hfPi := (HF.defeq hΓ).of_l henv hΓ hf
     obtain ⟨⟨u, hA₁₂⟩, -⟩ := (hfPi.uniqU henv hΓ hf').forallE_inv henv hΓ
-    have hxx := (ih _ (by omega) W hΓ hΓ' hx hx' Hx).1 ⟨_, hA₁₂⟩
-    exact ⟨_, IsDefEq.appDF hfPi (hxx.of_l henv hΓ hx)⟩
+    obtain ⟨_, HX⟩ := (ih _ (by omega) W hΓ hΓ' hx hx' Hx).1 ⟨_, hA₁₂⟩
+    exact ⟨_, .appDF hf hfPi.hasType.2 hx ((HX.defeq hΓ).of_l henv hΓ hx).hasType.2 HF HX⟩
   | projDF _ Hm =>
     obtain ⟨m, rfl, rfl⟩ := lift'_eq_proj hl
     obtain ⟨m', rfl, rfl⟩ := lift'_eq_proj hr
-    obtain ⟨info, levels, params, indexArgs, sourceMajor, fieldType, fieldLevel, hinfo, hlevels,
-      huvars, hparams, hindices, hfield, hfieldTyping, hmajor, hclosed, hguard⟩ :=
-      ha.proj_inv henv hΓ
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hmajor, _, _⟩ := ha.proj_inv henv hΓ
     obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hmajor', _, _⟩ := hb.proj_inv henv hΓ
-    have hm := hmajor.hasType.2
-    have hm' := hmajor'.hasType.2
-    have hmm := (ih _ (by omega) W hΓ hΓ' hm hm' Hm).2 (not_isProof_major hΓ ha hna)
-    have h2 := hmajor.trans_l henv hΓ (hmm.of_l henv hΓ hm)
-    exact ⟨_, IsDefEq.projDF hinfo hlevels huvars hparams hindices hfield hfieldTyping hmajor h2
-      hclosed hguard⟩
+    obtain ⟨_, HM⟩ := (ih _ (by omega) W hΓ hΓ' hmajor.hasType.2 hmajor'.hasType.2 Hm).2
+      (not_isProof_major hΓ ha hna)
+    exact ⟨_, .projDF ha HM⟩
   | lamDF _ HA Hb =>
     obtain ⟨A₀, b₁, rfl, rfl, rfl⟩ := lift'_eq_lam hl
     obtain ⟨A₂, b₂, rfl, rfl, rfl⟩ := lift'_eq_lam hr
     obtain ⟨⟨u₀, hA₀⟩, _, hb₁⟩ := ha.lam_inv henv hΓ
     obtain ⟨⟨u₂, hA₂⟩, _, hb₂⟩ := hb.lam_inv henv hΓ
-    have hAA := (ih _ (by omega) W hΓ hΓ' hA₀ hA₂ HA).2 (not_isProof_of_sort hΓ hA₀)
-    have hA₀₂ := hAA.of_l henv hΓ hA₀
+    obtain ⟨_, HD⟩ := (ih _ (by omega) W hΓ hΓ' hA₀ hA₂ HA).2 (not_isProof_of_sort hΓ hA₀)
+    have hA₀₂ := (HD.defeq hΓ).of_l henv hΓ hA₀
     have hΓA : OnCtx (A₀ :: Γ) (Params.env.IsType univs) := ⟨hΓ, u₀, hA₀⟩
     have hΓA' : OnCtx (A₀.lift' ρ :: Γ') (Params.env.IsType univs) :=
       ⟨hΓ', u₀, hA₀.weak' henv W⟩
     have hb₂' := hb₂.defeqDFC henv (.succ .zero hA₀₂.symm)
     have hnb : ¬ IsProof (A₀ :: Γ) b₁ := fun hp => hna (hp.lam hΓ hA₀)
-    have hbb := (ih _ (by omega) W.cons hΓA hΓA' hb₁ hb₂' Hb).2 hnb
-    exact ⟨_, IsDefEq.lamDF hA₀₂ (hbb.of_l henv hΓA hb₁)⟩
+    obtain ⟨_, HB⟩ := (ih _ (by omega) W.cons hΓA hΓA' hb₁ hb₂' Hb).2 hnb
+    exact ⟨_, .lamDF hA₀ HD HB⟩
   | forallEDF _ HA _ HB =>
     obtain ⟨A₀, B₁, rfl, rfl, rfl⟩ := lift'_eq_forallE hl
     obtain ⟨A₂, B₂, rfl, rfl, rfl⟩ := lift'_eq_forallE hr
     obtain ⟨⟨u₀, hA₀⟩, v₀, hB₁⟩ := ha.forallE_inv henv.ordered
     obtain ⟨⟨u₂, hA₂⟩, v₂, hB₂⟩ := hb.forallE_inv henv.ordered
-    have hAA := (ih _ (by omega) W hΓ hΓ' hA₀ hA₂ HA).2 (not_isProof_of_sort hΓ hA₀)
-    have hA₀₂ := hAA.of_l henv hΓ hA₀
+    obtain ⟨_, HD⟩ := (ih _ (by omega) W hΓ hΓ' hA₀ hA₂ HA).2 (not_isProof_of_sort hΓ hA₀)
+    have hA₀₂ := (HD.defeq hΓ).of_l henv hΓ hA₀
     have hΓA : OnCtx (A₀ :: Γ) (Params.env.IsType univs) := ⟨hΓ, u₀, hA₀⟩
     have hΓA' : OnCtx (A₀.lift' ρ :: Γ') (Params.env.IsType univs) :=
       ⟨hΓ', u₀, hA₀.weak' henv W⟩
     have hB₂' := hB₂.defeqDFC henv (.succ .zero hA₀₂.symm)
-    have hBB := (ih _ (by omega) W.cons hΓA hΓA' hB₁ hB₂' HB).2 (not_isProof_of_sort hΓA hB₁)
-    exact ⟨_, IsDefEq.forallEDF hA₀₂ (hBB.of_l henv hΓA hB₁)⟩
+    obtain ⟨_, HB⟩ := (ih _ (by omega) W.cons hΓA hΓA' hB₁ hB₂' HB).2 (not_isProof_of_sort hΓA hB₁)
+    exact ⟨_, .forallEDF hA₀ HD hB₁ HB⟩
   | proofIrrel hp hl' _ =>
     subst hl
     exact (hna (IsProof.of_lift hΓ hΓ' W ha hp hl')).elim
+
+/-- Descent in two modes: convertible endpoint types, or a non-proof left endpoint.
+The independent mode includes lambdas because their domains are recursively compared.
+No canonical-Eq hypothesis or strengthening principle is used. -/
+theorem DomainNormal.descend (n : Nat) {ρ : Lift} {Γ Γ' : List VExpr} {a b A B : VExpr}
+    (W : Ctx.Lift' ρ Γ Γ') (hΓ : OnCtx Γ (Params.env.IsType univs))
+    (hΓ' : OnCtx Γ' (Params.env.IsType univs)) (ha : Γ ⊢ a : A) (hb : Γ ⊢ b : B)
+    (H : DomainNormal n Γ' (a.lift' ρ) (b.lift' ρ)) :
+    (Γ ⊢ A ≡ B → Γ ⊢ a ≡ b) ∧ (¬ IsProof Γ a → Γ ⊢ a ≡ b) := by
+  have hs := DomainNormal.reflect n W hΓ hΓ' ha hb H
+  exact ⟨fun h => let ⟨_, H⟩ := hs.1 h; H.defeq hΓ,
+    fun h => let ⟨_, H⟩ := hs.2 h; H.defeq hΓ⟩
 
 end Lean4Lean.VEnv.Strengthening

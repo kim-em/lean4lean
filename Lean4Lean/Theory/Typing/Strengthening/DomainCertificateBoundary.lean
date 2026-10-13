@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.DomainSuperdevelopment
-import Lean4Lean.Theory.Typing.Strengthening.HybridNormal
+import Lean4Lean.Theory.Typing.Strengthening.HybridSubstitution
 
 /-! # A boundary of beta-only domain-certificate repair
 
@@ -130,6 +130,76 @@ theorem no_beta_certificate_join :
 without globally certifying its opaque lambda-domain equality. -/
 theorem hybrid : HybridNormal 1 ctx left right :=
   .lamDF domain_typed domain_eq (.refl (.sort (by trivial)))
+
+/-! ## Heterogeneous substitution requires reduction repair -/
+
+/-- Extend by an argument of the left domain; domain conversion also types it on
+ the right. -/
+def appCtx : List VExpr := domainL :: ctx
+def appLeft : VExpr := .app left.lift (.bvar 0)
+def appRight : VExpr := .app right.lift (.bvar 0)
+def functionType : VExpr := .forallE domainL.lift (.sort (.succ .zero))
+def sourceBody : VExpr := .app (.bvar 0) (.bvar 1)
+
+private theorem appCtx_wf : OnCtx appCtx (Params.env.IsType univs) :=
+  ⟨ctx_wf, _, domain_typed⟩
+
+private theorem left_lift_typed : appCtx ⊢ left.lift : functionType :=
+  left_typed.weak henv
+
+private theorem right_lift_typed : appCtx ⊢ right.lift : functionType :=
+  (((normal.defeq ctx_wf).of_l henv ctx_wf left_typed).hasType.2).weak henv
+
+private theorem appLeft_typed : appCtx ⊢ appLeft : .sort (.succ .zero) :=
+  left_lift_typed.app (.bvar .zero)
+
+private theorem no_lift_certificate : ¬ DomainNormal n appCtx left.lift right.lift := by
+  intro H
+  have ht := ((normal.defeq ctx_wf).of_l henv ctx_wf left_typed).hasType.2
+  rw [lift_eq_lift', lift_eq_lift'] at H
+  obtain ⟨_, H'⟩ := (DomainNormal.reflect n (Ctx.Lift'.skip (A := domainL) .refl)
+    ctx_wf appCtx_wf left_typed ht H).2 left_not_proof
+  exact no_certificate H'
+
+/-- Direct selective comparison fails after these related lambdas are substituted
+into function position. The application result is a sort, ruling out both proof
+irrelevance and eta-both as escape cases. -/
+theorem no_hybrid_application : ¬ HybridNormal n appCtx appLeft appRight := by
+  intro H
+  cases H with
+  | appDF hs _ _ _ _ _ _ =>
+    rcases hs with ⟨hl, _⟩ | ⟨_, Hcert⟩
+    · exact hl trivial
+    · exact no_lift_certificate Hcert
+  | etaBoth hl _ _ =>
+    exact (appLeft_typed.uniqU henv appCtx_wf hl).sort_forallE_inv henv appCtx_wf
+  | proofIrrel hp hl _ =>
+    exact not_isProof_of_sort appCtx_wf appLeft_typed ⟨_, hl, hp⟩
+
+private theorem source_typed : functionType :: appCtx ⊢ sourceBody : .sort (.succ .zero) := by
+  have hf : functionType :: appCtx ⊢ .bvar 0 :
+      .forallE domainL.lift.lift (.sort (.succ .zero)) := .bvar .zero
+  exact hf.app (.bvar (.succ .zero))
+
+/-- A concrete failure of unrestricted heterogeneous substitution for the hybrid
+relation itself. Both arguments and the source body have selective comparisons;
+their two instances do not. This does not refute closure up to reduction. -/
+theorem unrestricted_substitution_fails :
+    HybridNormal 1 appCtx left.lift right.lift ∧
+    HybridNormal 0 (functionType :: appCtx) sourceBody sourceBody ∧
+    ¬ ∃ n, HybridNormal n appCtx (sourceBody.inst left.lift) (sourceBody.inst right.lift) := by
+  refine ⟨hybrid.weakN .one, .refl source_typed, ?_⟩
+  rintro ⟨n, H⟩
+  have H' : HybridNormal n appCtx appLeft appRight := by
+    simpa only [sourceBody, appLeft, appRight, inst, instVar, Nat.lt_irrefl,
+      Nat.zero_lt_one, Nat.not_lt_zero, Nat.one_ne_zero, ↓reduceIte, liftN_zero] using H
+  exact no_hybrid_application H'
+
+/-- One matched beta contraction repairs this substitution boundary. -/
+theorem application_repaired :
+    BetaRed appLeft (.sort .zero) ∧ BetaRed appRight (.sort .zero) ∧
+      HybridNormal 0 appCtx (.sort .zero) (.sort .zero) :=
+  ⟨.beta, .beta, .refl (.sort (by trivial))⟩
 
 end DomainBoundary
 end Lean4Lean.VEnv.Strengthening

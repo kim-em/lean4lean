@@ -269,3 +269,28 @@ contain only `propext`, `Classical.choice`, and `Quot.sound`. This does not esta
 substitution with arbitrary hybrid arguments: the recursive argument certificate is
 an explicit hypothesis. Next, test whether that restriction is essential or can be
 removed by direct comparison; if direct closure fails, reduction repair is required.
+
+## Certificate reflection and the actual substitution boundary
+
+Strengthened the existing descent proof to `DomainNormal.reflect`: given typings
+below, it reconstructs a recursive comparison below, in common-type mode or for a
+non-proof endpoint. `DomainNormal.descend` is now the immediate declarative corollary.
+This replaces its former proof rather than maintaining two copies of the induction.
+No arbitrary typing-strengthening claim is involved. Rebuilt all affected domain,
+hybrid, substitution, beta-simulation, and boundary modules successfully; both
+reflection and declarative descent have clean axiom audits.
+
+The boundary example now extends its context by `h : D`. Substituting the related
+functions `l = λ h : D. Prop` and `r = λ h : E. Prop` into the reflexive source body
+`g h` yields `l h` and `r h`. `unrestricted_substitution_fails` proves that these
+instances have **no hybrid comparison**, despite the hybrid comparison of the
+arguments and the reflexive comparison of the source. Their result type is `Sort 1`,
+which rules out proof irrelevance and eta-both at the application root. Application
+congruence would require a recursive certificate for the two lambdas; reflection
+would give the already refuted certificate in the original context.
+
+`application_repaired` verifies that one beta contraction on each side yields the
+same `Prop`, with a reflexive hybrid comparison. Thus direct heterogeneous closure
+for arbitrary hybrid arguments is refuted; closure **up to finite reduction** is
+still live and is the next necessary test. This is not a counterexample to
+strengthening. Both boundary theorems have clean axiom audits.
