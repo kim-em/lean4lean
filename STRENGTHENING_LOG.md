@@ -530,3 +530,28 @@ transitivity proof applies a common-mode comparison in function position under a
 eta binder, where this calculus requires independent mode. Typed application up
 to reduction, rather than an invalid mode coercion, is the next local repair to
 investigate. Global completeness and lowering of full repair paths remain open.
+
+## Common-mode application and the beta-simulation boundary
+
+`BidirectionalApplication.lean` proves mode- and index-preserving homogeneous
+substitution. `BiNormal.apply_same_arg` applies a common-mode function comparison
+to one typed argument, obtaining a beta join of common-mode certificates. The
+lambda cases contract the displayed redexes; eta cases instantiate the compared
+bodies. `BiBetaJoin.descend` lowers such joins using syntactic beta-path inversion
+and subject reduction below. This does not assume heterogeneous substitution or
+transitivity of beta joins.
+
+`BidirectionalBetaBoundary.lean` checks the next closure question. In context
+`f : Prop → Prop`, independently compare `(λ x. x) f` with `(λ x. x) (λ y. f y)`.
+The left root beta step exposes `f`. The right side has exactly two beta reducts,
+its source and its eta-expanded argument; neither has an independent comparison
+with the non-proof variable. `beta_simulation_failure` proves this even with
+common endpoint typings. `full_repair` supplies the explicit eta/beta join. The
+example is uniform in Params and needs no recursive declarations. It refutes
+independent beta simulation, not common-mode beta-join completeness or full repair.
+
+Both modules build, and substitution, application, beta-join descent, the failure,
+and its full repair have only the standard propext/Classical.choice/Quot.sound
+axioms. The strengthening goal remains open. Full repair must handle exposure of
+common-mode eta comparisons in independent positions; copying the eta-free beta
+simulation proof cannot establish the needed closure.
