@@ -936,3 +936,64 @@ handling because structure eta can introduce their head. Index-sensitive singlet
 prefixes and the general matched-lambda comparison repair also remain open. This
 is a checked extension of the research infrastructure, not a smaller sufficient
 obligation or a completed strengthening proof.
+
+### Finite constructor tuples integrate ordinary iota into mixed head exposure
+
+The preceding turn's PatternCompute supplied operational replay but no backwards
+observation theorem for patterns. This turn fills that part for every iota rule
+whose major constructor is not a registered projection constructor. No restriction
+on the shape of the pattern RHS is imposed.
+
+`ConstructorObservation.lean` adds `Ob.ctor name keys`. Its realization exposes ONE
+constructor application and realizes all argument demands in that same application.
+This avoids requiring a confluence theorem to join separately exposed arguments.
+Only non-projection constructors introduce these tests; projection constructors
+retain their field-only interpretation. `RHSRealizes` is a uniform semantic
+certificate: every assignment of captures satisfying the finite demand map realizes
+the instantiated RHS. `Realizes.recursor` combines this certificate, one constructor
+tuple, the ordinary recursor argument demands, and the uniform check certificate
+from the previous turn. The new primitive is independent of occurrence valuations.
+
+`ConstructorObservationEta.lean` and `ConstructorObservationSubstitution.lean`
+extend the checked finite-support, renaming, function-eta, substitution-inversion,
+and backwards-beta arguments. Constructor demand subsumption needs only reflexivity;
+function and field subsumption remain as before.
+
+The key additional construction is `Obs.apply_pat_inv` in
+`ConstructorComputationObservations.lean`. Induction on the actual RHS observation
+extracts a finite demand list for each capture and a RHSRealizes certificate. Fixed
+parts use closedness and operational adequacy; variable parts demand the observed
+key; application merges the function demands and the finitely many argument demand
+maps. Thus the recursor primitive's semantic premise is established from every
+actual reduct observation, not left as an external assumption. `Obs.iota_back`
+uses the extracted certificate and a common constructor tuple to preserve all
+observations backwards through the rule.
+
+`ConstructorStructureEta.lean` retains backwards structure eta. Constructor tests
+cannot arise at a projection constructor, and recursor primitives cannot arise
+there because actual pattern heads have stored rules whereas projection constructors
+are rigid. Constructor-family uniqueness then reduces the remaining observations
+to the original field argument, as in the preceding model.
+
+`ConstructorHeadExposure.lean` puts these results together: finite compatible paths
+mix beta, closed declarations, projections, non-structure iota, arbitrary function
+eta, and arbitrary structure eta. `of_iota` embeds actual enabled concrete rules,
+including further mixed paths in their captures. `pi_exposure_below` recovers an
+actual PatternCompute path below the lift; `function_type_below_ofEnv` reconstructs
+its typing from the original source. `of_quotPrefix` and
+`function_type_below_quot` carry all previously checked quotient-prefix computation
+into this larger model, with soundness and rigidity discharged for its closed
+quotient equation.
+
+All six modules build without new warnings. The operational recursor certificate,
+adequacy, both eta proofs, finite capture extraction, iota preservation, concrete
+embedding, Pi exposure below, and smaller-context typing pass the axiom audit:
+only propext, Classical.choice, and Quot.sound (or subsets), with no sorryAx.
+The executable remains unchanged.
+
+The remaining cases have not been hidden in a completeness claim. Structure-major
+iota needs a field-based computational replay (including the typing of any
+reconstructed constructor); index-sensitive singleton prefixes remain open.
+Even full head exposure would not yet settle the matched-lambda comparison repair.
+This is progress on the active computational route, not the full strengthening
+deliverable or a newly sufficient obligation smaller than PropFront.
