@@ -771,3 +771,33 @@ extension, not full head-exposure adequacy or a sufficient strengthening residue
 All new main results and the reused field-typing theorem are axiom-clean, and the
 module builds. Next: projection cancellation of structure expansions with arbitrary
 parameters, followed by their integration into the finite head observations.
+
+### Eliminating captured parameters from nested structure expansions
+
+`ProjectionEtaCancellation.lean` introduces `RecordExpansion`, a finite nesting of
+root structure expansions with independently chosen levels and parameters at each
+node. `cancel_projection` removes the whole nesting by actual saturated projection
+computations. No intermediate typing or scope assumption is needed. The typed
+corollary replays cancellation at the expanded projection's exact type when that
+source typing is supplied. Further applications preserve the cancellation.
+
+`ProjectionEtaExamples.lean` exhibits a registered structure expansion with a fresh
+variable in its parameter list. Its syntax fails `Skips 1 0`, yet projecting a
+valid field computes exactly to the original lifted projection. This is a syntactic
+scope test, not an assertion that the deliberately arbitrary captured parameter is
+well typed. Nested cancellation uses the finite expansion derivation, not a fixed
+number of development passes.
+
+`ProjectionHeadRigidity.lean` proves that beta/delta/projection paths preserve a
+non-unfolding constant head. Actual registered constructor heads satisfy this
+premise by `WF.projectionCtorRigid`. Thus a displayed structure expansion cannot
+itself compute to a Pi or sort in this operational fragment. A surrounding
+eliminator is essential; the local projection case is now checked.
+
+All three modules build without new warnings; cancellation, the captured-parameter
+example, and head rigidity are axiom-clean. Full eta elimination remains open:
+local cancellation of nested root expansions is not a proof about arbitrary
+interleaved compatible paths. Next, extend finite observations with field demands
+and constructor observations so the beta/substitution/eta argument can account for
+these computational eliminators. Pattern/prefix computation remains outside the
+current projection relation. The strengthening goal is still open.
