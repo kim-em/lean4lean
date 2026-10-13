@@ -136,3 +136,12 @@ The earlier study's domain-counted pilot remains relevant: opaque typing witness
 can reintroduce uncounted alignment during composition/confluence. Next tests are
 transitivity, heterogeneous substitution, and whether eta/full confluence can
 produce recursive domain certificates. No completeness assumption is being made.
+
+`DomainNormalAlgebra.lean` extends this with index-preserving symmetry and weakening,
+transitivity, and heterogeneous substitution (`instN_r`, `instN_lr`). These all build;
+axiom audits of symmetry, transitivity, and both heterogeneous substitution theorems
+are free of `sorryAx`. In particular, transitivity aligns the middle lambda's body
+context using the already recorded domain equality; it does not invent a replacement
+domain certificate from that opaque equality. Heterogeneous substitution composes
+homogeneous substitution with structural congruence on the typed right endpoint.
+The index can grow, as expected; this is preservation, not a termination measure.
