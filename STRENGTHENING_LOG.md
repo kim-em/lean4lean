@@ -555,3 +555,47 @@ and its full repair have only the standard propext/Classical.choice/Quot.sound
 axioms. The strengthening goal remains open. Full repair must handle exposure of
 common-mode eta comparisons in independent positions; copying the eta-free beta
 simulation proof cannot establish the needed closure.
+
+## Guarded eta loops refute beta-only bidirectional completeness
+
+The independent-simulation failure did not by itself refute common-mode beta
+joins. A stronger checked example now does, including at proposition endpoints.
+
+`GuardedEtaEnvironment.lean` installs `D := D → (Prop → Prop)` by the existing
+mutual-definition rule. Its value is typed in the temporary constant environment
+without its own equation. The extension is well formed and preserves canonical Eq.
+Let `d = λ x : D. x x` and `dη = λ x : D. λ y : Prop. (x x) y`. Both diagonals
+have type D, and `d d` and `dη dη` have an ordinary normal comparison at
+`Prop → Prop`.
+
+`GuardedEtaSyntax.lean` defines a beta-stable grammar: every D-domain lambda has
+an extra Prop-domain lambda at the start of its body. It contains `dη dη` and all
+its finite beta reducts. Meanwhile `d d` has only itself as a beta reduct.
+`GuardedEtaComparison.lean` rules out independent comparison of any application
+spine headed by d with guarded syntax. Its lambda case either tries to equate D
+with Prop (contradicting the recursive Pi equation and head separation), or must
+compare an application body with a lambda in independent mode. Common-mode eta
+only extends the spine, eventually requiring the impossible independent function
+comparison. This is a finite induction on certificates, with no normalization
+assumption or restriction on the number of beta contractions.
+
+`GuardedEtaLoop.no_beta_join` therefore excludes joins in both modes, and
+`canonical_beta_only_failure` realizes the common-mode failure in the actual
+canonical-Eq extension. `GuardedEtaPropositions.canonical_proposition_failure`
+applies both loops to a proposition variable in context `[Prop]`. The resulting
+terms are typed propositions with an ordinary normal comparison and still admit
+no common-mode beta-only join. Thus the failure occurs at the PropFront sort,
+not merely at unrelated function endpoints.
+
+`full_repair` and `propositions_full_repair` explicitly expand each diagonal body
+by typed eta, then use congruence. The terms are already equal below; this is not
+a strengthening counterexample. It rejects beta-only completeness of BiNormal,
+while leaving its proved descent and full scope-controlled repair live. Adding
+recursive eta-aware domain comparisons solved the old domain-loop test but does
+not remove the need to repair eta in independently compared lambda bodies.
+
+All five new modules build without new warnings. The grammar invariant,
+environment extension, comparison exclusions, canonical instances, and positive
+full repair are axiom-clean. No executable or UniqueTyping change was made.
+The next unresolved issue is full repair with annotations and typings available
+below, not another beta development bound or beta-only simulation lemma.
