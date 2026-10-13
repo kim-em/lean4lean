@@ -242,3 +242,30 @@ arguments can expose uncertified lambda functions and will require selective bet
 repair. The checked `DomainNormal.instN_lr` and beta simulation cover substitutions
 whose arguments already carry domain certificates, not arbitrary hybrid arguments.
 Do not silently use the stronger closure statement. The full objective remains active.
+
+## 2026-10-13 continuation: substitution of the selective relation
+
+The previous goal turn made authoritative progress (five pushed commits and checked
+positive/negative results); it was not a wait or an external blocker. Revalidated a
+clean worktree at `46099237` before continuing.
+
+`HybridAlgebra.lean` proves symmetry and weakening with unchanged indices, plus
+`variable_inv_lift`: a non-proof variable compared with a non-lambda is syntactically
+identical to it, even after arbitrary context extension. Eta-both comparisons are
+peeled with the existing spine lemma until the comparison index decreases.
+
+`HybridSubstitution.lean` proves `HybridNormal.instN_lr` for arguments related by
+`DomainNormal`, and homogeneous substitution as a corollary using a reflexive argument
+certificate. In an application, substitution can expose a function lambda only at a
+variable. Variable rigidity then identifies the two original function terms, and
+`DomainNormal.instN_r` supplies a certificate for their instances. Proof functions
+produce proof applications, handled by proof irrelevance. Existing function certificates
+are transported by the already checked heterogeneous domain substitution theorem.
+Eta and context-conversion cases are included.
+
+Build: `lake build Lean4Lean.Theory.Typing.Strengthening.HybridSubstitution` passes.
+Axiom audits of variable rigidity, symmetry, weakening, and both substitution results
+contain only `propext`, `Classical.choice`, and `Quot.sound`. This does not establish
+substitution with arbitrary hybrid arguments: the recursive argument certificate is
+an explicit hypothesis. Next, test whether that restriction is essential or can be
+removed by direct comparison; if direct closure fails, reduction repair is required.
