@@ -1477,3 +1477,21 @@ no executable change. This is a sound extension of computational descent, not a
 proof of full head exposure: eta can potentially create a nonlinear endpoint
 match, and general indexed prefixes have more alignment than this one cast rule.
 The next test is whether eta removal survives even this restricted extension.
+
+### Raw eta elimination fails for nonlinear K
+
+`CastEtaBoundary.lean` checks the next test in the minimal beta/K fragment.
+The two cast endpoints are a neutral application F f and F (λ x. f x). The
+payload is a Pi. Both copies of the short endpoint (the explicit endpoint and
+the one in the cast motive) eta-expand to the long one, enabling reflexive K.
+A decidable normal certificate shows that the original source has no beta or
+syntactically reflexive cast redex anywhere. Induction over the full compatible,
+transitive beta/K relation proves that every reduct is the original source.
+Thus the raw eta-enriched path reaches a Pi and the eta-free relation cannot.
+
+The theorem is deliberately limited to this raw fragment. No source typing or
+canonical environment witness is asserted, and extra declaration computations
+might repair the example. It does rule out extending the previous *untyped*
+eta-removal argument with nonlinear K and no other change. This is not a
+strengthening counterexample. The target builds (240 jobs); the boundary's axiom
+audit contains only propext and Quot.sound.
