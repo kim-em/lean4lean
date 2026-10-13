@@ -1355,3 +1355,37 @@ boundary of the raw model, not a counterexample to strengthening. Remaining work
 includes embedding the complete typed core/full paths, indexed singleton-prefix
 alignment, and the matched-lambda comparison repair. No proof, canonical-Eq
 counterexample, or smaller sufficient obligation for the main front is claimed.
+
+### Actual typed core paths, eta interleavings, and Pi recovery below
+
+`CoreHeadExposure.lean` connects complete core derivations to the refined model.
+`definition_compute` identifies a concrete constant pattern with its stored
+closed equation, recovering the actual universe instance from source typing.
+`concrete_pattern_compute` combines that with complete concrete iota coverage.
+`core_compute` then inducts on actual ParRed derivations. In the pattern case,
+source typing recovers typings for every capture, so all parallel recursive
+capture reductions embed; binders similarly supply their own context typings.
+
+`CoreEtaTrace` is the finite closure of actual ParRed and EtaPar. Its `compute`
+theorem carries the source type through the trace using existing subject
+reduction and embeds the whole trace into the observation model.
+`function_type_below_core_eta` applies this to a lifted type under an arbitrary
+Ctx.LiftN insertion. The finite observation theorem removes eta, syntactic descent
+lowers the recovered computational exposure, and replay gives a Pi typing below.
+Eta annotations need not avoid the inserted binders. This requires no canonical-Eq
+hypothesis, because ordinary core rules retain their universe guards; the special
+zero-source singleton computations are not claimed here.
+
+The target builds (270 dependency jobs), and all five bridge/recovery theorems
+have only propext, Classical.choice, and Quot.sound as axioms. No sorryAx and no
+executable changes. The model API's consumers were checked by source search; all
+occur in the dependency closures of the combined example and core targets built
+in this turn. This turn made authoritative progress and pushed the checkpoints.
+
+Completion remains unproven: weakN_iff is still open, there is no canonical-Eq
+counterexample, and no new sufficient obligation strictly smaller than PropFront
+has been established. CoreEtaTrace deliberately excludes projection-iota and
+prefix steps; their existing model simulations still need a unified typed trace
+bridge. Indexed singleton prefixes still lack their alignment argument. The
+matched-lambda comparison repair remains after full head exposure. These are
+live work items, not rejected routes or a blocked state.
