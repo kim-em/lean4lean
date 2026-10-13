@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.DomainSuperdevelopment
+import Lean4Lean.Theory.Typing.Strengthening.HybridNormal
 
 /-! # A boundary of beta-only domain-certificate repair
 
@@ -124,6 +125,11 @@ theorem no_beta_certificate_join :
   rintro ⟨l, r, n, hl, hr, H⟩
   rw [beta_eq_of_not_hasBeta hl left_normal, beta_eq_of_not_hasBeta hr right_normal] at H
   exact no_certificate H
+
+/-- The selective eta-aware relation handles this boundary example directly,
+without globally certifying its opaque lambda-domain equality. -/
+theorem hybrid : HybridNormal 1 ctx left right :=
+  .lamDF domain_typed domain_eq (.refl (.sort (by trivial)))
 
 end DomainBoundary
 end Lean4Lean.VEnv.Strengthening

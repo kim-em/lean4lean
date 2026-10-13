@@ -208,3 +208,37 @@ already handles eta at common types), or certificates tied to the original equal
 derivation. Do not assume that removing explicit eta constructors removes eta from
 opaque typing/domain premises. The objective is still open and all other unrefuted
 ledger routes remain live.
+
+## Selective certificates with eta-aware descent
+
+`HybridNormal.lean` adapts route A's checked strict relation and descent proof. At an
+application, the functions must either both be non-lambdas, or additionally carry a
+`DomainNormal` comparison. The ordinary recursive hybrid comparison remains present;
+its index continues to support the original eta/spine induction. All other rules,
+including opaque lambda domains and eta, retain route A's behavior.
+
+`HybridNormal.descend` is checked along arbitrary context lifts, in the original
+common-type and non-lambda/non-proof modes. The new application branch invokes the
+stronger `DomainNormal.descend` for its function certificate, then aligns argument
+types below and uses the hybrid common-type induction for the arguments. Thus
+lambda functions with certified domains are admitted without eliminating all beta
+redexes or requiring global recursive certification.
+
+`DomainNormal.toHybrid` embeds all of the recursive comparisons. The local theorem
+`HybridNormal.descend_join` checks that full reductions performed below, followed by
+a selective comparison of their lifts, suffice to descend the original equation.
+It explicitly leaves construction of those joins open and makes no claim that this
+condition is irreducible or strictly smaller than the typed front.
+
+`DomainBoundary.hybrid` directly handles the previous counterexample at index one,
+confirming that global certificate failure is not an obstruction to this selective
+relation. The boundary module and all its dependencies build; axiom audits of the
+hybrid descent, join descent, embedding, and boundary example have no `sorryAx`.
+
+Next substantive test: substitution and confluence for the hybrid relation. A
+non-lambda function can become a lambda after substitution. Homogeneous substitution
+may be recoverable by variable-spine rigidity; heterogeneous substitution of hybrid
+arguments can expose uncertified lambda functions and will require selective beta
+repair. The checked `DomainNormal.instN_lr` and beta simulation cover substitutions
+whose arguments already carry domain certificates, not arbitrary hybrid arguments.
+Do not silently use the stronger closure statement. The full objective remains active.
