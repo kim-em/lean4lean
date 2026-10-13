@@ -5,8 +5,9 @@ import Lean4Lean.Theory.Typing.Confluence.SingletonCoverage
 
 /-! # Closed projection unfoldings for registered structure recursors
 
-At a never-zero source universe, an unindexed structure recursor is equal to a
-closed lambda term computing its rule on projections of the generic major.
+With a never-zero source universe or proof-valued fields, an unindexed structure
+recursor is equal to a closed lambda term computing its rule on projections of
+the generic major.
 The constructor's parameter captures are closed dummy terms: the checked rule
 ignores them. Every occurrence can therefore replay this equation by weakening.
 -/
@@ -53,6 +54,17 @@ def family (data : RecursorData) : Name :=
 def familyLevels (data : RecursorData) (levels : List VLevel) : List VLevel :=
   (data.schema.restoration.headLevels data.schema.signature.families[data.owner].name
     data.levels).map (·.inst levels)
+
+/-- A declaration-level certificate for all projections used by the unfolding.
+Proof fields permit Prop sources and universe expressions that may become zero. -/
+def Admissible (env : VEnv) (U : Nat) (data : RecursorData) (info : VProjectionInfo)
+    (levels : List VLevel) : Prop :=
+  (info.resultLevel.inst (familyLevels data levels)).IsNeverZero ∨
+    StructureReplay.ProofFields env U info (familyLevels data levels)
+
+/-- Zero-field structures need no universe restriction. -/
+theorem Admissible.of_no_fields (hn : info.numFields = 0) : Admissible env U data info levels :=
+  .inr (StructureReplay.ProofFields.of_no_fields hn)
 
 abbrev pattern (data : RecursorData) (info : VProjectionInfo) : Pattern :=
   .app ((Pattern.const data.name).varN data.majorOffset)
@@ -119,7 +131,7 @@ theorem equation (hregistered : RecursorRegistered env data)
     (hshape : type.instL levels = wrapForalls domains result)
     (hlen : domains.length = data.majorOffset + 1)
     (hinfo : env.projections (family data) info) (hindices : info.nindices = 0)
-    (hnever : (info.resultLevel.inst (familyLevels data levels)).IsNeverZero)
+    (hadmissible : Admissible env univs data info levels)
     {r : (pattern data info).RHS × (pattern data info).Check}
     (hpat : Pat _ r) (hcheck : CheckFromTyping env univs _ r levels) :
     IsDefEq env univs [] (.const data.name levels) (value data info levels r.1 domains)
@@ -140,8 +152,8 @@ theorem equation (hregistered : RecursorRegistered env data)
     (List.replicate info.nparams (.sort .zero) ++
       (List.range info.numFields).map (fun i => .proj (family data) i (.bvar 0)))
     (by simp : _ = info.nparams + info.numFields) []
-  have he := StructureReplay.projected_iota_neverZero hctx hinfo hparams hindices hnever hmajor hsource
-    hpat hcheck hrec (by simp) hctor
+  have he := StructureReplay.projected_iota hctx hinfo hparams hindices hmajor hsource
+    (hadmissible.elim (fun hz => .inl (fun _ _ _ _ _ _ => .inl hz)) Or.inr) hpat hcheck hrec (by simp) hctor
   have hbody : IsDefEq env univs (domains.reverse ++ [])
       (etaOpen domains.length (.const data.name levels)) (body data info levels r.1) result := by
     rw [opened data levels hlen]
@@ -157,11 +169,11 @@ theorem value_closed (hregistered : RecursorRegistered env data)
     (hshape : type.instL levels = wrapForalls domains result)
     (hlen : domains.length = data.majorOffset + 1)
     (hinfo : env.projections (family data) info) (hindices : info.nindices = 0)
-    (hnever : (info.resultLevel.inst (familyLevels data levels)).IsNeverZero)
+    (hadmissible : Admissible env univs data info levels)
     {r : (pattern data info).RHS × (pattern data info).Check}
     (hpat : Pat _ r) (hcheck : CheckFromTyping env univs _ r levels) :
     (value data info levels r.1 domains).Closed :=
-  (equation hregistered htype hlevels hlevelCount hshape hlen hinfo hindices hnever hpat hcheck).hasType.2.closedN
+  (equation hregistered htype hlevels hlevelCount hshape hlen hinfo hindices hadmissible hpat hcheck).hasType.2.closedN
     henv.ordered (by trivial)
 
 /-- The closed equation with the telescope selected entirely from the registry.
@@ -169,24 +181,24 @@ No occurrence-specific typing or constructor parameters appear among its premise
 theorem canonical_equation (hregistered : RecursorRegistered env data)
     (hlevels : ∀ l ∈ levels, l.WF univs) (hlevelCount : levels.length = data.uvars)
     (hinfo : env.projections (family data) info) (hindices : info.nindices = 0)
-    (hnever : (info.resultLevel.inst (familyLevels data levels)).IsNeverZero)
+    (hadmissible : Admissible env univs data info levels)
     {r : (pattern data info).RHS × (pattern data info).Check}
     (hpat : Pat _ r) (hcheck : CheckFromTyping env univs _ r levels) :
     IsDefEqU env univs [] (.const data.name levels)
       (value data info levels r.1 (domainsOf data levels)) := by
   obtain ⟨type, htype⟩ := hregistered.recursorType_exists
   obtain ⟨hshape, hlen⟩ := type_shape (levels := levels) htype
-  exact ⟨_, equation hregistered htype hlevels hlevelCount hshape hlen hinfo hindices hnever hpat hcheck⟩
+  exact ⟨_, equation hregistered htype hlevels hlevelCount hshape hlen hinfo hindices hadmissible hpat hcheck⟩
 
 /-- The canonical unfolding is closed, independently of any application context. -/
 theorem canonical_closed (hregistered : RecursorRegistered env data)
     (hlevels : ∀ l ∈ levels, l.WF univs) (hlevelCount : levels.length = data.uvars)
     (hinfo : env.projections (family data) info) (hindices : info.nindices = 0)
-    (hnever : (info.resultLevel.inst (familyLevels data levels)).IsNeverZero)
+    (hadmissible : Admissible env univs data info levels)
     {r : (pattern data info).RHS × (pattern data info).Check}
     (hpat : Pat _ r) (hcheck : CheckFromTyping env univs _ r levels) :
     (value data info levels r.1 (domainsOf data levels)).Closed := by
-  obtain ⟨_, he⟩ := canonical_equation hregistered hlevels hlevelCount hinfo hindices hnever hpat hcheck
+  obtain ⟨_, he⟩ := canonical_equation hregistered hlevels hlevelCount hinfo hindices hadmissible hpat hcheck
   exact he.hasType.2.closedN henv.ordered (by trivial)
 
 end

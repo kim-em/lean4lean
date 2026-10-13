@@ -21,9 +21,10 @@ theorem pattern_after_structure
     (hp : params.length = info.nparams) (hi : info.nindices = 0)
     (hmajor : HasType env univs Γ major (mkApps (.const family ctorLevels) params))
     (hsource : HasType env univs Γ (.app fn major) T)
-    (hguard : ∀ index F u, index < info.numFields →
+    (hguard : (∀ index F u, index < info.numFields →
       info.fieldType family ctorLevels params index major = some F → HasType env univs Γ F (.sort u) →
-      (info.resultLevel.inst ctorLevels).IsNeverZero ∨ u ≈ .zero)
+      (info.resultLevel.inst ctorLevels).IsNeverZero ∨ u ≈ .zero) ∨
+      ProofFields env univs info ctorLevels)
     (hpat : Pat p r) (hcheck : CheckFromTyping env univs p r levels)
     (hmatch : p.Matches (.app fn (structExpand family info ctorLevels params major)) levels captures) :
     IsDefEq env univs Γ (.app fn major) (r.1.apply levels captures) T := by
@@ -50,9 +51,10 @@ theorem projected_iota
     (hp : params.length = info.nparams) (hi : info.nindices = 0)
     (hmajor : HasType env univs Γ major (mkApps (.const family ctorLevels) params))
     (hsource : HasType env univs Γ (.app fn major) T)
-    (hguard : ∀ index F u, index < info.numFields →
+    (hguard : (∀ index F u, index < info.numFields →
       info.fieldType family ctorLevels params index major = some F → HasType env univs Γ F (.sort u) →
-      (info.resultLevel.inst ctorLevels).IsNeverZero ∨ u ≈ .zero)
+      (info.resultLevel.inst ctorLevels).IsNeverZero ∨ u ≈ .zero) ∨
+      ProofFields env univs info ctorLevels)
     (hpat : Pat _ r) (hcheck : CheckFromTyping env univs _ r levels)
     (hrec : ((Pattern.const recursor).varN offset).Matches fn levels recCaptures)
     (hdummy : dummyParams.length = info.nparams)
@@ -90,7 +92,7 @@ theorem projected_iota_neverZero
         (dummyParams ++ (List.range info.numFields).map (fun i => .proj family i major))) dummyLevels ctorCaptures) :
     IsDefEq env univs Γ (.app fn major) (Pattern.RHS.apply (p := (Pattern.app ((Pattern.const recursor).varN offset)
       ((Pattern.const info.ctorName).varN (info.nparams + info.numFields)))) levels (Sum.elim recCaptures ctorCaptures) r.1) T :=
-  projected_iota hΓ hinfo hp hi hmajor hsource (fun _ _ _ _ _ _ => .inl hz)
+  projected_iota hΓ hinfo hp hi hmajor hsource (.inl (fun _ _ _ _ _ _ => .inl hz))
     hpat hcheck hrec hdummy hctor
 
 end Lean4Lean.VEnv.Strengthening.StructureReplay

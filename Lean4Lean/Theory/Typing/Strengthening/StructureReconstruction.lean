@@ -1,16 +1,62 @@
 import Lean4Lean.Theory.Typing.UnitLikeConstructor
 import Lean4Lean.Theory.Typing.LevelledReduction
+import Lean4Lean.Theory.Typing.Confluence.SingletonExtractionTyping
 
 /-! # Reconstructing a structure from its dependent projections
 
 The reconstruction must type every field along the actual constructor telescope.
-Projection admissibility is kept explicit: a merely nonzero universe expression
+Projection admissibility is established from the actual field guard or a closed
+proof-field telescope certificate: a merely nonzero universe expression
 is not necessarily never zero, and non-proof fields of a Prop structure cannot
 be projected. No strengthening theorem is used.
 -/
 namespace Lean4Lean.VEnv.Strengthening.StructureReplay
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr
 variable {env : VEnv}
+
+/-- Every field domain of the constructor is a proposition in its own closed
+prefix telescope, after the fixed universe specialization. The telescope is
+uniquely determined by its shape and length; no occurrence parameters occur here. -/
+def ProofFields (env : VEnv) (U : Nat) (info : VProjectionInfo) (levels : List VLevel) : Prop :=
+  ∀ doms result, info.ctorType = wrapForalls doms result →
+    doms.length = info.nparams + info.numFields →
+    ∀ j (hj : j < doms.length), info.nparams ≤ j →
+      env.HasType U ((doms.map (VExpr.instL levels)).take j).reverse
+        (doms[j].instL levels) (.sort .zero)
+
+/-- A single displayed constructor telescope supplies the certificate; the
+universal presentation does not ask for any other telescope or occurrence. -/
+theorem ProofFields.of_telescope
+    (hshape : info.ctorType = wrapForalls doms result)
+    (hlen : doms.length = info.nparams + info.numFields)
+    (hfields : ∀ j (hj : j < doms.length), info.nparams ≤ j →
+      env.HasType U ((doms.map (VExpr.instL levels)).take j).reverse
+        (doms[j].instL levels) (.sort .zero)) : ProofFields env U info levels := by
+  intro doms' result' hshape' hlen'
+  have he := congrArg (VExpr.takeForalls doms.length) (hshape.symm.trans hshape')
+  rw [takeForalls_wrapForalls, show doms.length = doms'.length by omega,
+    takeForalls_wrapForalls] at he
+  obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj he)
+  exact hfields
+
+/-- Declaration-universe proof-field typings specialize to every well-formed
+universe instance. This certificate can be established once at registration. -/
+theorem ProofFields.of_decl_telescope
+    (hshape : info.ctorType = wrapForalls doms result)
+    (hlen : doms.length = info.nparams + info.numFields)
+    (hlevels : ∀ l ∈ levels, l.WF U)
+    (hfields : ∀ j (hj : j < doms.length), info.nparams ≤ j →
+      env.HasType info.uvars (doms.take j).reverse doms[j] (.sort .zero)) :
+    ProofFields env U info levels := by
+  apply ProofFields.of_telescope hshape hlen
+  intro j hj hp
+  have H := (hfields j hj hp).instL hlevels
+  simpa only [List.map_reverse, List.map_take, VExpr.instL, VLevel.inst] using H
+
+/-- An empty field telescope satisfies the proof-field certificate vacuously. -/
+theorem ProofFields.of_no_fields (hn : info.numFields = 0) : ProofFields env U info levels := by
+  intro doms result hshape hlen j hj hparam
+  omega
 
 /-- Prefixes of the parameter-and-projection spine stop at the corresponding field. -/
 theorem projection_args_take (hp : params.length = nparams) (hi : index ≤ fields) :
@@ -31,9 +77,10 @@ theorem projection_args_typed (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     (hmajor : env.HasType U Γ major (mkApps (.const family levels) params))
     (hparams : ∀ k (hk : k < params.length) (hk' : k < doms.length),
       env.HasType U Γ params[k] ((doms[k].instL levels).instOuter (params.take k)))
-    (hguard : ∀ index F u, index < info.numFields →
+    (hguard : (∀ index F u, index < info.numFields →
       info.fieldType family levels params index major = some F → env.HasType U Γ F (.sort u) →
-      (info.resultLevel.inst levels).IsNeverZero ∨ u ≈ .zero) :
+      (info.resultLevel.inst levels).IsNeverZero ∨ u ≈ .zero) ∨
+      ProofFields env U info levels) :
     ∀ j (hj : j < (params ++ (List.range info.numFields).map (fun i => VExpr.proj family i major)).length)
       (hj' : j < doms.length),
       env.HasType U Γ (params ++ (List.range info.numFields).map (fun i => VExpr.proj family i major))[j]
@@ -56,13 +103,17 @@ theorem projection_args_typed (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
       simpa only [List.getElem_append_left hjp, List.take_append_of_le_length (Nat.le_of_lt hjp)] using ht
     · have hji : j - info.nparams < info.numFields := by omega
       have hdom := hctx.reverse_getElem j (by simpa using hj')
+      have hprior : ∀ k (hk : k < (args.take j).length)
+          (hk' : k < ((doms.map (VExpr.instL levels)).take j).length),
+          env.HasType U Γ (args.take j)[k]
+            ((((doms.map (VExpr.instL levels)).take j)[k]'hk').instOuter ((args.take j).take k)) := by
+        intro k hk hk'
+        simp only [List.length_take, List.length_map] at hk hk'
+        have ht := ihj k (by omega) (by change k < args.length; omega) (by omega)
+        simpa only [List.getElem_take, List.getElem_map, List.take_take,
+          Nat.min_eq_left (show k ≤ j by omega)] using ht
       have hF := hdom.instOuter_telescope henv (args := args.take j)
-        (by simp [hargsLen]) (by
-          intro k hk hk'
-          simp only [List.length_take] at hk hk'
-          have ht := ihj k (by omega) (by change k < args.length; omega) (by omega)
-          simpa only [List.getElem_take, List.getElem_map, List.take_take,
-            Nat.min_eq_left (show k ≤ j by omega)] using ht)
+        (by simp [hargsLen]) hprior
       obtain ⟨u, hF⟩ := hF
       simp only [List.getElem_map] at hF
       have htake : args.take j = params ++ (List.range (j - info.nparams)).map
@@ -74,10 +125,30 @@ theorem projection_args_typed (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
       simp only [Nat.add_sub_of_le (show info.nparams ≤ j by omega), ← htake] at hfield
       have hm : env.HasType U Γ major (mkApps (.const family levels) (params ++ [])) := by
         simpa only [List.append_nil] using hmajor
+      have hguard' : (info.resultLevel.inst levels).IsNeverZero ∨ u ≈ .zero := by
+        rcases hguard with hguard | hproof
+        · exact hguard _ _ _ hji hfield hF
+        · have hprop := hproof doms result hshape hdomlen j hj' (by omega)
+          have hprefix : OnCtx ((doms.map (VExpr.instL levels)).take j).reverse (env.IsType U) := by
+            have he : (doms.map (VExpr.instL levels)).reverse =
+                ((doms.map (VExpr.instL levels)).drop j).reverse ++
+                  ((doms.map (VExpr.instL levels)).take j).reverse := by
+              rw [← List.reverse_append, List.take_append_drop]
+            have hc₀ := HasType.const (Γ := []) (henv.ordered.projectionConstructor hinfo) hlevels hlevelCount
+            rw [hshape, instL_wrapForalls] at hc₀
+            have hh := (IsType.wrapForalls_inv henv (by trivial)
+              (hc₀.isType henv.ordered (by trivial))).1
+            simp only [List.append_nil] at hh
+            rw [he] at hh
+            exact hh.of_append
+          have hinst := HasType.closed_instOuter henv (args := args.take j) hprefix hprop
+            ⟨by simp [hargsLen], hprior⟩
+          simp only [instOuter_sort] at hinst
+          exact .inr ((hF.uniqU henv hΓ hinst).sort_inv henv hΓ)
       have ht : env.HasType U Γ (.proj family (j - info.nparams) major)
           ((doms[j].instL levels).instOuter (args.take j)) :=
         .projDF hinfo hlevels hlevelCount hp (by simpa using hi.symm) hfield hF hm hm hclosed
-          (hguard _ _ _ hji hfield hF)
+          hguard'
       simpa only [List.getElem_append_right (as := params) (i := j) (by omega), hp, List.getElem_map,
         List.getElem_range] using ht
 
@@ -88,9 +159,10 @@ theorem structure_constructor (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     (hinfo : env.projections name info) (hp : params.length = info.nparams)
     (hi : info.nindices = 0)
     (H : env.HasType U Γ major (mkApps (.const name levels) params))
-    (hguard : ∀ index F u, index < info.numFields →
+    (hguard : (∀ index F u, index < info.numFields →
       info.fieldType name levels params index major = some F → env.HasType U Γ F (.sort u) →
-      (info.resultLevel.inst levels).IsNeverZero ∨ u ≈ .zero) :
+      (info.resultLevel.inst levels).IsNeverZero ∨ u ≈ .zero) ∨
+      ProofFields env U info levels) :
     env.HasType U Γ (structExpand name info levels params major)
       (mkApps (.const name levels) params) := by
   obtain ⟨decl, family, ctor, hfamily, hctorMem, hname, hctorUvars, huvars,
@@ -223,7 +295,17 @@ theorem structure_constructor_neverZero (henv : env.WF) (hΓ : OnCtx Γ (env.IsT
     (H : env.HasType U Γ major (mkApps (.const name levels) params)) :
     env.HasType U Γ (structExpand name info levels params major)
       (mkApps (.const name levels) params) :=
-  structure_constructor henv hΓ hinfo hp hi H (fun _ _ _ _ _ _ => .inl hz)
+  structure_constructor henv hΓ hinfo hp hi H (.inl (fun _ _ _ _ _ _ => .inl hz))
+
+/-- Proof-valued constructor fields allow reconstruction at any source universe,
+including Prop. The certificate concerns only the closed constructor telescope. -/
+theorem structure_constructor_proofFields (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+    (hinfo : env.projections name info) (hp : params.length = info.nparams)
+    (hi : info.nindices = 0) (hproof : ProofFields env U info levels)
+    (H : env.HasType U Γ major (mkApps (.const name levels) params)) :
+    env.HasType U Γ (structExpand name info levels params major)
+      (mkApps (.const name levels) params) :=
+  structure_constructor henv hΓ hinfo hp hi H (.inr hproof)
 
 /-- The newly reconstructed constructor licenses an actual typed eta equation;
 no typing of the expanded endpoint is assumed. -/

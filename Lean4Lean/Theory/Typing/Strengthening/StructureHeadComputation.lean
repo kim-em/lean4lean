@@ -5,19 +5,19 @@ import Lean4Lean.Theory.Typing.Strengthening.ConstructorHeadExposure
 
 The augmented declaration collection retains all prior equations and adds the
 proved projection unfoldings of registered unindexed structure recursors at
-never-zero source universes. Occurrence replay uses only the closed equation.
+never-zero source universes or proof-valued fields. Occurrence replay uses only the closed equation.
 -/
 namespace Lean4Lean.VEnv.Strengthening.ClosedStructure
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr InductiveSignature Params
 open PureObservation (Definitions Compute ProjectionCompute CheckFromTyping)
 variable [Params]
 
-/-- Registry and level data enabling a closed structure-recursion equation. -/
+/-- Registry, universe, and field-admissibility data enabling a closed structure equation. -/
 inductive Unfolds : Name → List VLevel → VExpr → Prop where
   | intro {r : (pattern data info).RHS × (pattern data info).Check} :
       RecursorRegistered env data → (∀ l ∈ levels, l.WF univs) → levels.length = data.uvars →
       env.projections (family data) info → info.nindices = 0 →
-      (info.resultLevel.inst (familyLevels data levels)).IsNeverZero →
+      Admissible env univs data info levels →
       Pat _ r → CheckFromTyping env univs _ r levels →
       Unfolds data.name levels (value data info levels r.1 (domainsOf data levels))
 
@@ -108,7 +108,7 @@ theorem saturated_compute
     {r : (pattern data info).RHS × (pattern data info).Check}
     (hr : RecursorRegistered env data) (hw : ∀ l ∈ levels, l.WF univs) (hl : levels.length = data.uvars)
     (hi : env.projections (family data) info) (hn : info.nindices = 0)
-    (hz : (info.resultLevel.inst (familyLevels data levels)).IsNeverZero)
+    (hz : Admissible env univs data info levels)
     (hp : Pat _ r) (hc : CheckFromTyping env univs _ r levels)
     (ha : args.length = data.majorOffset + 1) :
     Compute (definitions D) (mkApps (.const data.name levels) args)

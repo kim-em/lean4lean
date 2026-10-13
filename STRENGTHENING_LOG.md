@@ -1097,3 +1097,46 @@ is still live; arbitrary registered structures must not be assumed eta-expandabl
 Index-sensitive singleton prefixes and matched-lambda comparison repair remain
 open. The full strengthening goal is still active; these are checked fragments,
 not a new sufficient obligation claimed smaller than PropFront.
+
+
+### Proof-field certificates extend closed structure replay
+
+The prior never-zero condition has been generalized to `ClosedStructure.Admissible`:
+either the source universe is never zero, or every constructor field domain is
+proved to be a proposition in its own closed prefix telescope. The latter is the
+new `StructureReplay.ProofFields` certificate. It has no occurrence parameters,
+major, or reconstructed-endpoint typing. `of_telescope` shows that one displayed
+constructor telescope suffices; `of_decl_telescope` specializes evidence proved
+at the declaration's universe parameters to any well-formed universe instance.
+
+Inside `projection_args_typed`, the strong induction already establishes typings
+for the supplied parameters and earlier projections. These instantiate the closed
+proof-field typing at the current field. Type uniqueness identifies its sort with
+the sort obtained from general telescope formation, proving the zero-sort branch
+of projDF's guard. `structure_constructor_proofFields` therefore reconstructs the
+whole constructor at any source universe with this certificate. The original
+occurrence-specific guard remains an alternative in the general reconstruction
+and projected-iota theorems.
+
+The certificate is threaded through the generic recursor closure, augmented
+closed definitions, finite saturation computation, raw iota simulation, concrete
+rule wrapper, and mixed-model function-type reconstruction. All previous
+never-zero cases remain via the first branch of Admissible. Zero-field structures
+have a vacuous certificate at every universe. `StructureProofFieldExamples.lean`
+checks the conjunction-shaped telescope [Prop, Prop, bvar 1, bvar 1] directly using
+variable typing, establishing its two fields as propositions independently of the
+constructor result or source universe.
+
+The complete example target builds (266 dependency jobs) without new warnings.
+The extended pipeline and all new certificate constructors pass the axiom audit:
+only propext, Classical.choice, and Quot.sound, with no sorryAx. Executable code
+is unchanged.
+
+These are projection-admissibility results for enabled rules. A large-eliminating
+ordinary iota rule disabled at a zero-source universe does not acquire a uniform
+check merely because its fields are proofs. Its singleton-prefix computation
+still requires a separate argument. Likewise, the certificate has not yet been
+recovered automatically from all applicable singleton registration metadata.
+Potentially-zero sources with non-proof fields, indexed singleton prefixes, and
+the final matched-lambda comparison repair remain open. No completion or smaller
+sufficient obligation is claimed.

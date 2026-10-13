@@ -72,7 +72,7 @@ theorem supplied_compute
     {r : (pattern data info).RHS × (pattern data info).Check}
     (hr : RecursorRegistered Params.env data) (hw : ∀ l ∈ levels, l.WF Params.univs)
     (hl : levels.length = data.uvars) (hi : Params.env.projections (family data) info)
-    (hn : info.nindices = 0) (hz : (info.resultLevel.inst (familyLevels data levels)).IsNeverZero)
+    (hn : info.nindices = 0) (hz : Admissible Params.env Params.univs data info levels)
     (hp : Params.Pat _ r) (hc : CheckFromTyping Params.env Params.univs _ r levels)
     (ha : args.length = data.majorOffset) :
     Compute (definitions D) (.app (mkApps (.const data.name levels) args) major)
@@ -128,7 +128,7 @@ theorem iota_compute
     {captures : (pattern data info).Path → VExpr}
     (hr : RecursorRegistered Params.env data) (hw : ∀ l ∈ levels, l.WF Params.univs)
     (hl : levels.length = data.uvars) (hi : Params.env.projections (family data) info)
-    (hn : info.nindices = 0) (hz : (info.resultLevel.inst (familyLevels data levels)).IsNeverZero)
+    (hn : info.nindices = 0) (hz : Admissible Params.env Params.univs data info levels)
     (hp : Params.Pat _ r) (hc : CheckFromTyping Params.env Params.univs _ r levels)
     (hm : (pattern data info).Matches source levels captures) :
     ProjectionCompute (definitions D) source (r.1.apply levels captures) := by
@@ -165,7 +165,7 @@ theorem iota_etaCompute
     {captures : (pattern data info).Path → VExpr}
     (hr : RecursorRegistered Params.env data) (hw : ∀ l ∈ levels, l.WF Params.univs)
     (hl : levels.length = data.uvars) (hi : Params.env.projections (family data) info)
-    (hn : info.nindices = 0) (hz : (info.resultLevel.inst (familyLevels data levels)).IsNeverZero)
+    (hn : info.nindices = 0) (hz : Admissible Params.env Params.univs data info levels)
     (hp : Params.Pat _ r) (hc : CheckFromTyping Params.env Params.univs _ r levels)
     (hm : (pattern data info).Matches source levels captures) :
     ConstructorObservation.EtaCompute (definitions D) source (r.1.apply levels captures) :=
@@ -173,13 +173,14 @@ theorem iota_etaCompute
 
 omit [Params] in
 /-- An enabled concrete structure-iota rule supplies its own uniform check
-certificate. The remaining premises concern only registry data and universe levels. -/
+certificate. The remaining premises concern registry data, universe levels, and closed
+projection admissibility. -/
 theorem concrete_iota_etaCompute {env : VEnv} (henv : env.WF)
     {r : (pattern data info).RHS × (pattern data info).Check}
     {captures : (pattern data info).Path → VExpr}
     (hr : RecursorRegistered env data) (hw : ∀ l ∈ levels, l.WF U)
     (hl : levels.length = data.uvars) (hi : env.projections (family data) info)
-    (hn : info.nindices = 0) (hz : (info.resultLevel.inst (familyLevels data levels)).IsNeverZero)
+    (hn : info.nindices = 0) (hz : Admissible env U data info levels)
     (hp : ConcretePattern env _ r)
     (hc : r.2.OK (env.IsDefEqU U Γ) levels captures)
     (hm : (pattern data info).Matches source levels captures) :
