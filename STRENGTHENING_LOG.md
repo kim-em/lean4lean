@@ -1289,3 +1289,23 @@ does not justify a closed zero-prefix singleton equation with arbitrary fresh
 indices or discharge the generated prefix's alignment checks. Unindexed structure
 iota outside the current projection admissibility criterion and full
 matched-lambda comparison repair also remain open. The main goal remains active.
+
+### Exact admissibility of typed structure expansions
+
+`StructureEtaAdmissibility.lean` now checks. `projection_result_prop` compares the
+source family's universe at the projection's inferred instance with the supplied
+major typing. If that source universe can be zero, the projection guard forces
+its result type to be a proposition. `proofFields_of_expansion` applies this to
+every projection in a typed constructor expansion, instantiates the closed
+constructor telescope, and uses sort uniqueness to recover the proposition typing
+of each field in its original closed prefix. It does not strengthen an occurrence
+typing. `expansion_typed_iff` pairs this necessity result with the existing
+reconstruction theorem, yielding an exact criterion.
+
+The module builds (218 dependency jobs); all three new theorems have only
+propext, Classical.choice, and Quot.sound as axioms, without sorryAx. No executable
+changes. This is progress beyond the previous checkpoint, not a solution of the
+main front. The next model refinement must retain constructor universe instances:
+the new eta criterion is universe-sensitive, while existing tuple observations
+forget constructor levels. Indexed singleton alignment and matched-lambda repair
+remain open.
