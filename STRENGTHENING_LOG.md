@@ -708,3 +708,24 @@ typed replay are next; pattern/projection computation and structure eta remain.
 The generalized model, all previous pure examples, and the new exposure module
 build. Axiom checks of realization, substitution inversion, finite support, eta,
 lift inversion, and both exposure results contain no `sorryAx`.
+
+### Typed replay of closed declaration head exposure
+
+`DeclarationHeadTyping.lean` instantiates the model from actual stored equations
+whose instantiated left side is a constant. `Definitions.ofEnv_sound` uses the
+existing `extra` rule. `Compute.simAt` replays beta/delta computation at every
+source type using subject reduction and uniqueness; there is no strengthening
+premise. `ComputeEta.function_type_below` reconstructs a Pi typing below, and
+`function_eta_below` supplies the resulting genuine full eta expansion there.
+
+`DeclarationHeadExamples.lean` checks this against the admitted recursive equation
+D := D → (Prop → Prop). `canonical_recursive_head` packages the well-formed
+canonical-Eq extension, a computational Pi exposure, the absence of every beta Pi
+exposure, and reconstruction for functions typed at D. `captured_alias_exposure`
+checks a mixed eta/beta/delta trace with an unscoped intermediate annotation. No
+typing of that arbitrary intermediate annotation is asserted.
+
+Both modules compile, and principal definitions/replay/reconstruction/example
+results are axiom-clean. The original strengthening sorry remains open. Full
+conversion still includes proof irrelevance, pattern/projection computation, and
+structure eta; none of those is covered by this fragment theorem.
