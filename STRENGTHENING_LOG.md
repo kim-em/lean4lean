@@ -176,3 +176,35 @@ is not a counterexample to the checked invariant. The remaining completeness iss
 is producing these certificates from the original unrestricted normal comparisons,
 especially opaque lambda-domain conversions and eta. No smaller sufficient obligation
 or full proof has yet been obtained.
+
+## Concrete boundary: eta hidden in an eta-free comparison
+
+`DomainCertificateBoundary.lean` refutes the naive completeness bridge from
+`NormalEqF false` to a beta join modulo `DomainNormal`. In the well-formed context
+`f : Prop → Prop, P : (Prop → Prop) → Prop`, set
+
+* `D = P f`, `E = P (λ x : Prop. f x)`;
+* `l = λ h : D. Prop`, `r = λ h : E. Prop`.
+
+`DomainBoundary.normal` checks `NormalEqF false l r`: the old lambda constructor
+accepts the declarative equality `D ≡ E`, which uses eta internally. Both endpoints
+are beta-normal and are not proofs. `no_certificate` proves there is no
+`DomainNormal l r`: a structural domain comparison would require a comparison of
+`f` with its eta expansion, which the eta-free recursive relation cannot supply.
+`no_beta_certificate_join` then proves that no finite beta reductions of either
+endpoint can repair it. The general lemma `beta_eq_of_not_hasBeta` checks that such
+reductions are identities. Axiom audits of all three principal results are clean.
+
+This is a specific refutation of **beta-only global certificate repair**, even for
+an eta-free input normal comparison. It is not a counterexample to strengthening,
+to route A's strict comparison repair, or to a strategy that handles eta. In this
+example the strict relation can simply compare the two outer lambdas at a common
+type; it does not require certifying their domains recursively. Thus requiring a
+`DomainNormal` certificate everywhere is stronger than the intended selective repair.
+
+Continuation: retain the proved certificate algebra/beta simulation for matched
+function lambdas, but investigate a hybrid with the existing strict relation (which
+already handles eta at common types), or certificates tied to the original equality
+derivation. Do not assume that removing explicit eta constructors removes eta from
+opaque typing/domain premises. The objective is still open and all other unrefuted
+ledger routes remain live.
