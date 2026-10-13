@@ -1193,3 +1193,58 @@ as for the quotient construction. Indexed singleton alignment, remaining ordinar
 structure cases, and full matched-lambda comparison repair remain open. The main
 goal is active; this is supporting progress, not a claimed sufficient obligation
 smaller than PropFront.
+
+
+### Closed equations for every unindexed singleton prefix
+
+`ClosedSingletonUnfolding.lean` assembles the preceding generic reconstruction
+into an equation of the bare recursor constant in the empty context. The proof
+identifies the exact registered equation and its motive/minor telescope, types
+its captures using the extracted fields, and computes the instantiated left side
+syntactically. It replaces the fresh major by its typed reconstructed constructor,
+applies `PatEquation.instOuter`, and closes the resulting body equation by eta.
+A separate syntactic calculation identifies the closed value with the actual
+program returned by `singletonUnfolding` at the empty prefix. Thus the proof does
+not assume a zero-prefix check or a caller-supplied unfolding equation.
+
+`zero_equation_exists` constructs the zero program from registry data and an
+owned constructor. `zero_equation` recovers that constructor from successful
+generation and uses determinism to obtain the equation for the supplied program.
+`zero_closed` follows from the empty-context equality. `generated_template_closed`
+recovers the registered equation body's scope at every prefix. Using the existing
+supply-one theorem, `generated_prefix_beta` proves finite beta specialization from
+the zero program to every generated prefix. This last syntax theorem also permits
+indices; it is the closed zero-prefix equation that currently needs zero indices.
+
+`SingletonHeadComputation.lean` adds the closed singleton programs to arbitrary
+sound, constructor-rigid definitions. Actual stored iota heads establish that
+these recursors cannot be projection constructors, preserving the rigidity needed
+by backwards structure eta. The complete previous mixed path relation embeds.
+`generated_compute` simulates every generated unindexed singleton prefix on raw
+arguments by one closed unfolding and finite beta computation. `prefix_compute`
+discards the occurrence-specific checks of an actual checked prefix after
+selecting its unindexed registry entry.
+
+`prefix_descend` and `prefix_reflect_ofEnv` give exact smaller-context replay from
+source typing below, with no ambient capture or major checks assumed to descend.
+The combined `function_type_below_quot_structures` wrapper retains stored equations,
+non-structure iota, all covered structure-iota equations, every quotient prefix,
+every unindexed singleton prefix, and both eta forms.
+
+The complete new head target builds (270 dependency jobs), without new warnings.
+The closed equation, generated scope, all-prefix beta specialization, closedness,
+definition soundness and rigidity, previous-model embedding, raw simulation,
+exact prefix descent/reflection, and combined head-exposure wrapper pass the axiom
+audit: only propext, Classical.choice, and Quot.sound, with no sorryAx. No executable
+changes. This uses canonical Eq substantively through proof extraction, not just
+through confluence.
+
+Indexed singleton prefixes still require an argument for their actual alignment
+checks; the closed zero-prefix equation is not claimed for arbitrary fresh indices.
+Ordinary structure iota with potentially-zero sources and non-proof fields also
+remains outside the covered projection construction. A related next refinement
+is to carry the actual zero-index guard in the raw structure-eta model, allowing
+constructor tests at indexed projection constructors which cannot undergo actual
+structure eta. Full head exposure would still leave matched-lambda comparison
+repair. The main strengthening goal remains active; no new sufficient obligation
+strictly smaller than PropFront is claimed.
