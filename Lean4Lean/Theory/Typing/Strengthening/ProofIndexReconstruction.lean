@@ -207,6 +207,58 @@ theorem proof_indices_eq (henv : env.WF) (W : E.WF S params env U)
     ← getD_of_lt (d := (default : VExpr)) (by simpa [W.ctorIndices_length] using hk)] at h
   exact h
 
+/-- Literal field slots align with any typed field instance when the indices
+are proofs. The field instance need not have the requested indices syntactically. -/
+theorem proof_indices_alignment (henv : env.WF) (W : E.WF S params env U)
+    (hΓ : OnCtx Γ (env.IsType U))
+    (hindices : PropTelescope env U params.reverse S.indices)
+    (hslot : ∀ l k, S.slot.getD l none = some k → l < S.fields.length)
+    (hps : ps.length = params.length)
+    (hia : TelInst env U Γ (params ++ S.indices) (ps ++ idx))
+    (hf : TelInst env U Γ (params ++ S.fields) (ps ++ f))
+    (hs : S.slot.getD l none = some k) :
+    env.IsDefEq U Γ (f.getD l default) (idx.getD k default)
+      ((S.fields.getD l default).instOuter (ps ++ f.take l)) := by
+  have hfl : f.length = S.fields.length := by
+    have := hf.1; simp only [List.length_append] at this; omega
+  have hl := hslot l k hs
+  have hk := W.typed.scope.slot_lt l k hs
+  have h := (proof_indices_eq henv W hΓ hindices hps hia hf hk).symm
+  rw [W.slot_literal l k hs, instOuter_bvar _ (by simp [hps, hfl]; omega)] at h
+  have he : (ps ++ f)[(ps ++ f).length - 1 - (S.fields.length - 1 - l)]'(by
+      simp only [List.length_append]; omega) = f.getD l default := by
+    rw [List.getElem_append_right (by simp [hfl]; omega), getD_of_lt (by omega)]
+    congr 1
+    simp only [List.length_append]
+    omega
+  rw [he] at h
+  have ht := hf.getD (j := params.length + l) (by simp; omega)
+  rw [getD_append_right' (by omega), getD_append_right' (by omega), List.take_append,
+    List.take_of_length_le (by omega), hps, Nat.add_sub_cancel_left] at ht
+  exact (show env.IsDefEqU U Γ (f.getD l default) (idx.getD k default) from ⟨_, h⟩).of_l henv hΓ ht
+
+/-- The generated occurrence supplies a typed field telescope at proof indices. -/
+theorem proof_indices_occ_typed (henv : env.WF) (heq : env.HasCanonicalEq)
+    (W : E.WF S params env U) (hΓ : OnCtx Γ (env.IsType U))
+    (hindices : PropTelescope env U params.reverse S.indices)
+    (hslot : ∀ l k, S.slot.getD l none = some k → l < S.fields.length)
+    (hps : ps.length = params.length)
+    (hargs : TelInst env U Γ (params ++ S.indices ++ [majorTy S params E])
+      (ps ++ idx ++ [m])) :
+    TelInst env U Γ (params ++ S.fields)
+      (ps ++ (occ S params E ps idx m S.fields.length).2) := by
+  have hidx : idx.length = S.indices.length := by
+    have := hargs.1; simp only [List.length_append, List.length_singleton] at this; omega
+  have hia : TelInst env U Γ (params ++ S.indices) (ps ++ idx) := by
+    have := hargs.take (doms := params ++ S.indices) (more := [majorTy S params E])
+    simpa [hps, hidx, List.take_append, List.take_of_length_le] using this
+  have hf := transportedFields_typed henv heq W hΓ hps hargs (Nat.le_refl S.fields.length)
+  rw [List.take_length] at hf
+  have h := (occ_typed params henv heq W hΓ hps hargs hf
+    (fun _ _ hs => proof_indices_alignment henv W hΓ hindices hslot hps hia hf hs)
+    S.fields.length (Nat.le_refl _)).2.1
+  simpa only [List.take_length] using h
+
 /-- The original generated singleton reconstruction is valid for proof indices.
 The slot bound is the ordinary layout condition satisfied by registered
 singletons; neither aligned fields nor ambient index equations are assumed. -/
@@ -228,24 +280,8 @@ theorem proof_indices_singleton_eta (henv : env.WF) (heq : env.HasCanonicalEq)
   let f := transportedFields S params E ps idx m S.fields.length
   have hf : TelInst env U Γ (params ++ S.fields) (ps ++ f) := by
     simpa [f] using transportedFields_typed henv heq W hΓ hps hargs (Nat.le_refl S.fields.length)
-  have hfl : f.length = S.fields.length := by
-    have := hf.1; simp only [List.length_append] at this; omega
-  have hix := fun k hk => proof_indices_eq henv W hΓ hindices hps hia hf (k := k) hk
-  apply singleton_eta params henv heq W hΓ hps hargs hf ?_ hix
-  intro l k hs
-  have hl := hslot l k hs
-  have hk := W.typed.scope.slot_lt l k hs
-  have h := (hix k hk).symm
-  rw [W.slot_literal l k hs, instOuter_bvar _ (by simp [hps, hfl]; omega)] at h
-  have he : (ps ++ f)[(ps ++ f).length - 1 - (S.fields.length - 1 - l)]'(by simp only [List.length_append]; omega) = f.getD l default := by
-    rw [List.getElem_append_right (by simp [hfl]; omega), getD_of_lt (by omega)]
-    congr 1
-    simp only [List.length_append]
-    omega
-  rw [he] at h
-  have ht := hf.getD (j := params.length + l) (by simp; omega)
-  rw [getD_append_right' (by omega), getD_append_right' (by omega), List.take_append,
-    List.take_of_length_le (by omega), hps, Nat.add_sub_cancel_left] at ht
-  exact (show env.IsDefEqU U Γ (f.getD l default) (idx.getD k default) from ⟨_, h⟩).of_l henv hΓ ht
+  exact singleton_eta params henv heq W hΓ hps hargs hf
+    (fun _ _ hs => proof_indices_alignment henv W hΓ hindices hslot hps hia hf hs)
+    (fun _ hk => proof_indices_eq henv W hΓ hindices hps hia hf hk)
 
 end Lean4Lean.PropElim

@@ -2645,3 +2645,27 @@ executable changed. Concurrent proof-index files were left untouched. The open
 work is to repair the full-reduction recovery into a descending computational
 model and establish sufficient comparison coverage. The original strengthening
 sorry and requested final deliverable remain unresolved; the goal stays active.
+
+### Closed registered unfoldings with dependent proof indices
+
+`ProofIndexTelescope.lean` identifies the exact complete indexed recursor type
+from registration, retaining the index binders inserted after motive and minor.
+Its generic telescope provides both the equation prefix and the extraction's
+parameter/index/major instance. `registered_reconstruction` now derives typed
+generated fields and constructor eta at that generic occurrence under the
+propositional-index premise. Two reusable alignment/field-typing lemmas were
+factored out of the preceding reconstruction proof.
+
+`ClosedProofIndexUnfolding.lean` applies the actual registered equation to those
+generated fields. The fresh indices match the constructor's indices by dependent
+proof irrelevance; `ConstSpineDefEq` transports the complete recursor application
+before iota. Eta closes the checked body. The resulting value is identified
+exactly with `singletonUnfolding ... []`, so `zero_equation` proves the real
+zero-prefix program without assuming a caller-supplied unfolding check. This
+extends the former zero-index result, while retaining arbitrary parameters and
+arbitrary dependent proof-index telescopes.
+
+The targeted build passes with 234 dependency jobs. Nine new/refactored theorem
+axiom audits exclude sorryAx (only propext, Classical.choice and Quot.sound).
+The executable is unchanged. General data indices and equality completeness are
+still open; this is not claimed to settle the strengthening deliverable.
