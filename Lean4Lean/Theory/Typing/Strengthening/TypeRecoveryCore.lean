@@ -39,6 +39,15 @@ def TypeComputeDescent (C : List VExpr → VExpr → VExpr → Prop) : Prop :=
 theorem ComputeDescent.types (H : ComputeDescent C) : TypeComputeDescent C :=
   fun R W hΓ hΓ' ht => H R W hΓ hΓ' ht
 
+/-- Identity insertion gives ambient replay at the supplied source sort. -/
+theorem TypeComputeDescent.replay (hc : TypeComputeDescent C) (R : C Γ e out)
+    (hΓ : OnCtx Γ (env.IsType univs)) (ht : env.HasType univs Γ e (.sort u)) :
+    env.IsDefEq univs Γ e out (.sort u) := by
+  have R' : C Γ (e.lift' .refl) out := by simpa using R
+  obtain ⟨out₀, ho, H⟩ := hc R' .refl hΓ hΓ ht
+  simp only [lift'_refl] at ho
+  exact ho.symm ▸ H
+
 /-- Typed replay is the identity-insertion instance of scoped descent. -/
 theorem ComputeDescent.simAt (hc : ComputeDescent C) (R : C Γ e out)
     (hΓ : OnCtx Γ (env.IsType univs)) : env.SimAt univs Γ e out := by

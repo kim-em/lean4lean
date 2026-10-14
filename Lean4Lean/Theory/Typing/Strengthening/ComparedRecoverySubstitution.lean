@@ -16,10 +16,10 @@ variable {C C' : List VExpr → VExpr → VExpr → Prop}
 
 /-- A change of computational base transforms all recovered type certificates
 inside both comparison modes. Ambient soundness supplies their source typings. -/
-theorem RecoveredComparisonWith.instN_to
+theorem RecoveredComparisonWith.instN_to_of_types
     (H : RecoveredComparisonWith C mode Γ₁ a b)
-    (hc : ComputeDescent C) (hw : ComputeWeakening C')
-    (hsub : ComputeSubstitutionTo C C' Γ₀ x A₀)
+    (hc : TypeComputeDescent C) (hw : ComputeWeakening C')
+    (hsub : TypeComputeSubstitutionTo C C' Γ₀ x A₀)
     (hΓ₁ : OnCtx Γ₁ (env.IsType univs)) (hx : env.HasType univs Γ₀ x A₀)
     (Rx : TypeRecoveryWith C' Γ₀ x A₀) (W : Ctx.InstN Γ₀ x A₀ k Γ₁ Γ) :
     RecoveredComparisonWith C' mode Γ (a.inst x k) (b.inst x k) := by
@@ -30,12 +30,23 @@ theorem RecoveredComparisonWith.instN_to
       (hb.instN henv W hx) (ihf hΓ₁ W) (iha hΓ₁ W)
   | recover Ra Rb HT Hab ihT ihab =>
     obtain ⟨_, hab⟩ := Hab.defeq hΓ₁
-    exact .recover (Ra.instN_to hc hw hsub hΓ₁ hx Rx W ⟨_, hab.hasType.1⟩)
-      (Rb.instN_to hc hw hsub hΓ₁ hx Rx W ⟨_, hab.hasType.2⟩) (ihT hΓ₁ W) (ihab hΓ₁ W)
+    exact .recover (Ra.instN_to_of_types hc hw hsub hΓ₁ hx Rx W ⟨_, hab.hasType.1⟩)
+      (Rb.instN_to_of_types hc hw hsub hΓ₁ hx Rx W ⟨_, hab.hasType.2⟩) (ihT hΓ₁ W) (ihab hΓ₁ W)
   | sameType Ra Rb Hab ih =>
     obtain ⟨_, hab⟩ := Hab.defeq hΓ₁
-    exact .sameType (Ra.instN_to hc hw hsub hΓ₁ hx Rx W ⟨_, hab.hasType.1⟩)
-      (Rb.instN_to hc hw hsub hΓ₁ hx Rx W ⟨_, hab.hasType.2⟩) (ih hΓ₁ W)
+    exact .sameType (Ra.instN_to_of_types hc hw hsub hΓ₁ hx Rx W ⟨_, hab.hasType.1⟩)
+      (Rb.instN_to_of_types hc hw hsub hΓ₁ hx Rx W ⟨_, hab.hasType.2⟩) (ih hΓ₁ W)
+
+/-- The former ordinary-computation interface is a specialization of the
+sort-source transformation used inside recovered types. -/
+theorem RecoveredComparisonWith.instN_to
+    (H : RecoveredComparisonWith C mode Γ₁ a b)
+    (hc : ComputeDescent C) (hw : ComputeWeakening C')
+    (hsub : ComputeSubstitutionTo C C' Γ₀ x A₀)
+    (hΓ₁ : OnCtx Γ₁ (env.IsType univs)) (hx : env.HasType univs Γ₀ x A₀)
+    (Rx : TypeRecoveryWith C' Γ₀ x A₀) (W : Ctx.InstN Γ₀ x A₀ k Γ₁ Γ) :
+    RecoveredComparisonWith C' mode Γ (a.inst x k) (b.inst x k) :=
+  H.instN_to_of_types hc.types hw hsub.types hΓ₁ hx Rx W
 
 /-- Endpoint computations and the final recovered comparison transform to the
 same target base. This includes the comparison's own type computations. -/

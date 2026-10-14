@@ -2955,3 +2955,27 @@ loop and full-recovery clients pass. Eleven axiom audits contain no sorryAx.
 Recoverable substitution for the enlarged stages is the next closure check;
 general head/guard completeness and the original strengthening goal remain open.
 No executable changed.
+
+### Recoverable beta substitution through the type-restricted extension
+
+`TypeComputeSubstitutionTo` restricts the source of substituted type computation
+to IsType. The generic recovery and recovered comparison transformations need
+only this interface and TypeComputeDescent; their old ordinary-computation APIs
+remain wrappers. This restriction matters for composition: an intermediate cast
+head result can be replayed because the starting term has sort type, without
+asserting arbitrary-term replay of the added cast rules.
+
+`TypedIndexedSubstitution.lean` proves substitution for TypeHeadExtension and its
+TypedEtaStep consumer. Payload transformations use the ordinary predecessor's
+source-typed substitution; transitive type intermediates use the new sort replay
+lemma. Both kinds of comparison guards, generated singleton prefixes, and eta
+annotations therefore transform together. A stage-n path survives substitution
+of a stage-r recovered argument at stage r+n. `beta_inst` includes the displayed
+beta step before the transformed body computation. As in the earlier exact-output
+boundary, argument recovery at its declared type remains an explicit premise.
+
+The new target builds with 328 jobs. The combined loop, scope-boundary, family
+trace and covered-path checks pass with 378 jobs. Nine axiom audits contain no
+sorryAx. No executable changed. The enlarged fragment's substitution closure is
+now checked; arbitrary re-synthesis, head-path repair and guard completeness
+remain open, and the original strengthening goal remains active.

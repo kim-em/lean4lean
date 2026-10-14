@@ -18,6 +18,20 @@ def ComputeSubstitutionTo (C C' : List VExpr → VExpr → VExpr → Prop)
   ∀ {k Γ₁ Γ e out}, OnCtx Γ₁ (env.IsType univs) → Ctx.InstN Γ₀ x A₀ k Γ₁ Γ →
     VExpr.WF env univs Γ₁ e → C Γ₁ e out → C' Γ (e.inst x k) (out.inst x k)
 
+/-- Type recovery only substitutes computation paths whose source is a type.
+This interface allows a computational base with sort-source replay only. -/
+def TypeComputeSubstitutionTo (C C' : List VExpr → VExpr → VExpr → Prop)
+    (Γ₀ : List VExpr) (x A₀ : VExpr) : Prop :=
+  ∀ {k Γ₁ Γ e out}, OnCtx Γ₁ (env.IsType univs) → Ctx.InstN Γ₀ x A₀ k Γ₁ Γ →
+    env.IsType univs Γ₁ e → C Γ₁ e out → C' Γ (e.inst x k) (out.inst x k)
+
+/-- Ordinary source-typed substitution supplies the restricted type interface. -/
+theorem ComputeSubstitutionTo.types (H : ComputeSubstitutionTo C C' Γ₀ x A₀) :
+    TypeComputeSubstitutionTo C C' Γ₀ x A₀ := by
+  intro k Γ₁ Γ e out hΓ W ht R
+  obtain ⟨_, ht⟩ := ht
+  exact H hΓ W ⟨_, ht⟩ R
+
 /-- The substituted lookup uses the argument's target-base recovery; other
 lookups use weakening under each subsequent binder. -/
 theorem TypeRecoveryWith.lookup_instN (hw : ComputeWeakening C)
@@ -37,9 +51,9 @@ theorem TypeRecoveryWith.lookup_instN (hw : ComputeWeakening C)
 
 /-- Exact output recovery survives substitution when the argument recovers its
 declaration in the target base and all source computations transform there. -/
-theorem TypeRecoveryWith.instN_to (R : TypeRecoveryWith C Γ₁ e T)
-    (hc : ComputeDescent C) (hw : ComputeWeakening C')
-    (hsub : ComputeSubstitutionTo C C' Γ₀ x A₀)
+theorem TypeRecoveryWith.instN_to_of_types (R : TypeRecoveryWith C Γ₁ e T)
+    (hc : TypeComputeDescent C) (hw : ComputeWeakening C')
+    (hsub : TypeComputeSubstitutionTo C C' Γ₀ x A₀)
     (hΓ₁ : OnCtx Γ₁ (env.IsType univs)) (hx : env.HasType univs Γ₀ x A₀)
     (Rx : TypeRecoveryWith C' Γ₀ x A₀) (W : Ctx.InstN Γ₀ x A₀ k Γ₁ Γ)
     (ht : VExpr.WF env univs Γ₁ e) :
@@ -68,9 +82,20 @@ theorem TypeRecoveryWith.instN_to (R : TypeRecoveryWith C Γ₁ e T)
     simp only [inst_mkApps, inst] at hm'
     exact TypeRecoveryWith.proj hi hm' hF'
   | convert R RC ih =>
-    have heT := R.hasType hc hΓ₁ ht
+    have heT := R.hasType_of_types hc hΓ₁ ht
     obtain ⟨_, hT⟩ := heT.isType henv hΓ₁
     exact .convert (ih hΓ₁ W ht) (hsub hΓ₁ W ⟨_, hT⟩ RC)
+
+/-- Ordinary descent and substitution remain sufficient through the restricted
+type interfaces; existing clients need no changes. -/
+theorem TypeRecoveryWith.instN_to (R : TypeRecoveryWith C Γ₁ e T)
+    (hc : ComputeDescent C) (hw : ComputeWeakening C')
+    (hsub : ComputeSubstitutionTo C C' Γ₀ x A₀)
+    (hΓ₁ : OnCtx Γ₁ (env.IsType univs)) (hx : env.HasType univs Γ₀ x A₀)
+    (Rx : TypeRecoveryWith C' Γ₀ x A₀) (W : Ctx.InstN Γ₀ x A₀ k Γ₁ Γ)
+    (ht : VExpr.WF env univs Γ₁ e) :
+    TypeRecoveryWith C' Γ (e.inst x k) (T.inst x k) :=
+  R.instN_to_of_types hc.types hw hsub.types hΓ₁ hx Rx W ht
 
 /-- Compatible eta computation transforms under the same certified argument.
 Eta preserves its recovered Pi, and replay types all transitive intermediates. -/
