@@ -5495,3 +5495,45 @@ in these three modules pass `/tmp/exact-computation-audit.log`; together with
 the core triangle and ordinary-root exchange, all nineteen new public results
 use only propext, Classical.choice and Quot.sound or subsets, with no sorryAx.
 No executable was changed, and no strengthening inverse was used.
+
+### Erased computation before the Eq.rec proof major
+
+`EqRecBeforeMajorReplay` reconstructs the canonical five-argument telescope
+from any typing of an Eq.rec prefix. It proves the original prefix equation at
+every supplied source type from endpoint conversion, by typed eta opening and
+full K under the canonical proof binder. It uses neither strengthening nor a
+recovered arbitrary ambient eta annotation.
+
+`ProofErasurePrefixK` adds the corresponding raw primitive. A preceding raw
+checking certificate for the endpoints permits the prefix to compute to the
+lambda over its exact canonical equality domain, returning the lifted minor.
+The primitive is stable under arbitrary raw substitution and block insertion.
+Typed descent reconstructs the five original arguments below insertion, reflects
+the guard there, and proves the exact erasure of the new lambda, including proof
+classification and domain erasure. Forward coverage also handles whole-proof
+source collapse.
+
+`ProofErasurePrefixKStages` combines core computation, full K and proof-major
+prefix K at finite stages. Each stage retains typed descent, raw substitution,
+weakening and all earlier raw-checking K stages at the same bound. Both full and
+prefix forward steps may use guards containing previous prefix computations.
+Contextual certificates remain monotone and retain same-argument application.
+The guard fragment is still oracle-free raw checking; arbitrary contextual
+certificates have not been installed as primitive guards.
+
+`ProofErasurePrefixKRepair` checks the earlier counterexample concretely. Both
+closed partial recursors now compute to their common lambda at stage one, so
+they compare directly without any composition premise. Their comparison also
+belongs to the raw checking guard fragment and may certify later K steps.
+The old beta/full-K fragment embeds, and the same witnesses prove strict
+inclusion at common-typed originals in the empty context.
+
+This repairs the identified obstruction but does not prove general composition,
+all indexed prefix coverage, declarative completeness, or strengthening. The
+remaining computational question includes transport of comparison guards through
+computation, and other residual recursor telescopes still need examination.
+
+Validation: the repair target builds successfully (315 jobs). All 28 new public
+declarations pass `/tmp/prefix-k-audit.log` with only propext, Classical.choice,
+and Quot.sound (or subsets); no sorryAx or forbidden strengthening inverse is
+used. No executable changed.

@@ -534,3 +534,11 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
 | Remove normal comparison from mixed prefix/core diamonds and prefix self-peaks | **Checked.** `ExactPrefixCoreDiamond` gives an exact DeltaPar/ParRed diamond and commutation of both finite closures. `ExactPrefixPeaks` gives exact joins after one further DeltaPar step and core-only paths on each side, including different contraction arities joined by beta supply. Full-program congruence replaces every generated-domain normal comparison; no proof-type collapse is used. |
 
 | Assemble exact confluence of the original computational presentation | **Checked.** `ExactComputationalConfluence` applies the existing decreasing-diagram criterion to core parallel reduction and actual prefix/projection parallel reduction. Their finite union `PrefixCoreReduction` is confluent from every typed source with a literal common endpoint. This includes indexed singletons and recursive core definitions without normalization or canonical Eq. Eta, universe equivalence and extra closed structure equations remain outside this relation; no full strengthening result or smaller sufficient front is claimed. |
+
+- **Erase the canonical Eq.rec prefix before its proof major.** **Checked** in
+  `ProofErasurePrefixK` and its finite stages. Source typing recovers the exact
+  residual equality domain; raw endpoint checking supplies lower conversion.
+  The step descends, substitutes and weakens. It repairs both closed partial
+  recursors from `ContextPrefixWitness` at stage one, including a raw checking
+  guard usable by later K steps. Other indexed prefixes and general composition
+  remain open; arbitrary contextual guards have not been added.
