@@ -618,3 +618,5 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   compute independently, including the data used in the generated annotation.
   Guards are transported as raw checking certificates. General recursive guards
   and higher-stage prefix interactions remain open; this is not full confluence.
+
+| Recover data-parameter phases from a family phase using head beta | **Checked.** `NormalSortHeadBeta` mirrors finite head beta through NormalEq when the whole source is sort-typed, carrying pending arguments through eta cases without reducing under lambdas. `SymmetricFamilyArguments` retains eta paths from both original family spines and extracts pointwise EtaJoin or PrefixEtaJoin, including data arguments and differing universe syntax. `StructureEtaFamilyPhase` uses this to discharge the parameter premise of the constructor-exposing eta/computation overlap from a phase between its family instances. Arbitrary typing-derived conversion still does not provide that family phase; general mixed composition and strengthening remain open. |

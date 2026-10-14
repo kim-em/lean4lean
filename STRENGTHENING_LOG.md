@@ -5837,3 +5837,36 @@ open; no smaller sufficient front is claimed.
 Validation: the final target builds (427 jobs). All 12 public declarations pass
 `/tmp/core-raw-eta-audit.log`, with only propext, Classical.choice and Quot.sound
 and no sorryAx. No executable edits or strengthening inverse was introduced.
+
+## Family argument inversion by sort-typed head beta transport
+
+`NormalSortHeadBeta` strengthens normal beta simulation at sort-typed sources:
+head beta on the right can be mirrored by head beta alone on the left. The
+mutual induction carries all pending arguments while comparing either a beta
+spine or its lambda head. An unapplied etaL or etaBoth case contradicts the
+whole application's sort typing; an applied case consumes an argument and
+continues with a strictly smaller normal derivation. No contraction under a
+lambda or inside an argument is introduced. Finite transport follows by path
+induction, with source sort typing preserved throughout.
+
+`SymmetricFamilyArguments` uses this stronger transport to invert symmetric
+phases between registered family applications. Normalize the right eta-expanded
+family by head beta, transport its normal comparison to the left, and expose
+the left constant spine by head beta as well. Existing exact eta/head-beta
+exchange preserves eta expansions from both original constant spines. Their
+arguments therefore retain pointwise EtaJoin certificates. Rigid computational
+spine preservation upgrades the result to pointwise PrefixEtaJoin, along with
+the universe comparison. This handles arbitrary data arguments, not just proof
+parameters, but requires an existing phase between the family applications.
+
+`StructureEtaFamilyPhase` connects this inversion to the preceding constructor
+overlap result. A phase between the exposed constructor's family instance and
+the output instance supplies the required parameter phases. Typing alone only
+gives conversion between those instances; this theorem deliberately retains the
+stronger family phase premise. It is not a proof of unrestricted phase
+composition or a smaller sufficient strengthening front.
+
+Validation: the final target builds (430 jobs). All eight public declarations
+pass `/tmp/symmetric-family-audit.log` with only propext, Classical.choice and
+Quot.sound and no sorryAx. No executable changes or strengthening inverses were
+used. The original strengthening sorry remains open.
