@@ -3084,3 +3084,28 @@ The targeted build passes with 235 jobs. No executable changed, and the original
 strengthening goal remains active.
 Nine axiom audits contain no sorryAx; only propext, Classical.choice and Quot.sound
 occur in the new replay, forward primitive and descent theorems.
+
+### Simultaneous erasure substitution and visible registered pattern replay
+
+`ProofErasureSimultaneous.lean` proves that typed simultaneous substitutions
+preserve and reflect proofness. ErasedSubstAgreement constrains the erased map
+only at non-proof source variables; its binder-extension theorem avoids imposing
+an image for a bound proof that has disappeared from the erased body. Structural
+induction then proves proofErase_subst_with and its canonical substitution-map
+instance. proofErase_template_congr transfers a typed template between different
+target contexts when retained captures have the same erasure. No definitional
+comparison of the erased proof captures is required.
+
+`ProofErasurePatterns.lean` defines matching on retained erased syntax. Every
+visible match reconstructs the original literal match and all original captures.
+Registered selector and capture-application RHSs therefore meet primitive replay;
+source typing re-establishes their uniform checks. The actual quotient-lift RHS
+is a capture application, and erased_quotient_step_concrete obtains its table
+membership from the well-formed environment's real confluence parameters. Its
+nonzero universe guard remains explicit. The union with the earlier concrete
+primitives has exact compatible replay and erased computational join descent.
+
+The build passes with 237 jobs. Nine axiom audits contain no sorryAx, using only
+propext, Classical.choice and Quot.sound. General recursor-template assembly,
+proof-valued major computation, eta repair and full equality coverage remain
+open. No executable changed; the original goal remains active.
