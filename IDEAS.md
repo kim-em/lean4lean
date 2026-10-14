@@ -528,3 +528,5 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   composition. Do not assume the new contextual sort witnesses alone solve it.
 
 | Move an entire ordinary path past an actual unsaturated prefix root | **Checked.** `PrefixOrdinaryExchange` excludes stored and selected-structure delta at the checked head and exact universes. Prefix arity excludes ordinary pattern roots at every shorter spine, so ordinary paths only compute supplied arguments. Full-program congruence replays the actual prefix and yields an ordinary residual path with the same endpoint. This includes indexed singletons and quotients. |
+
+| Strengthen the existing core complete-development triangle to literal endpoints | **Checked.** `ExactCoreTriangle` proves `ParRed.triangle_exact` and an exact typed parallel diamond. Smaller capture reductions, typed check transport and dependent-context conversion suffice; the existing triangle's NormalEq remainder is unnecessary for core computation itself. No normalization, canonical Eq or front is assumed. |

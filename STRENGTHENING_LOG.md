@@ -5439,3 +5439,19 @@ Validation: the target builds (364 jobs), and all ten public results pass the
 axiom audit in `/tmp/exact-computation-audit.log`, without sorryAx. No executable
 or strengthening inverse was used. This root exchange alone does not assert
 confluence of the augmented prefix relation.
+
+### Exact core complete-development triangle
+
+`ExactCoreTriangle.lean` strengthens the original complete-development triangle:
+every core parallel step reaches the chosen complete development by one further
+parallel step with exactly the same syntax. Matching either survives on the
+fixed pattern structure or identifies the same root rule by uniqueness. In both
+cases, smaller capture reductions finish the triangle. Dependent binder contexts
+are transported using source typing. Beta substitution uses the existing typed
+parallel substitution theorem. No normal comparison is needed, including at
+proof types. Choosing a complete development gives an exact typed core diamond.
+
+Validation: the target builds (212 jobs); both public theorems pass
+`/tmp/exact-computation-audit.log` with only propext, Classical.choice and
+Quot.sound. No executable or strengthening inverse was used. Finite prefix
+computation and eta still require separate assembly results.
