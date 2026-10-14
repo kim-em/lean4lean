@@ -2930,3 +2930,28 @@ certificates for arbitrary ambient family conversions.
 The new target passes with 287 jobs. Six axiom audits exclude sorryAx, using only
 propext, Classical.choice and Quot.sound. No executable changed. The original
 strengthening goal and general certificate coverage remain open.
+
+### Feed type-restricted cast recovery into indexed finite stages
+
+`TypeHeadExtension.lean` generalizes the root cast-head rules from raw CastCompute
+to any computational predecessor with checked ordinary descent. Source sort
+typing is sufficient to replay the extension below; weakening and monotonicity
+are inherited. `TypedEtaStep` consumes recovery over a separate type-computation
+base, turning it into an ordinary term eta step with full descent. This avoids
+claiming arbitrary-source validity for the cast-head rules themselves.
+
+`TypedIndexedEtaComputation.lean` combines those rules with the now-committed
+indexed prefix stages. Each successor retains ordinary indexed computation and
+additionally permits K and singleton-prefix guards whose comparisons recover
+types using TypeHeadExtension of the predecessor. Eta may use that recovery too.
+Every finite stage descends and weakens. The prior indexed stages embed at equal
+bounds; strict enlargement of their entire finite union is not claimed.
+`eta_from_cast` needs only an inferred cast type and payload Pi computation,
+without a separate endpoint comparison premise. The generated singleton target
+is unchanged when its guard uses the extended recovery.
+
+The new target builds with 322 jobs and its combined indexed-substitution,
+loop and full-recovery clients pass. Eleven axiom audits contain no sorryAx.
+Recoverable substitution for the enlarged stages is the next closure check;
+general head/guard completeness and the original strengthening goal remain open.
+No executable changed.
