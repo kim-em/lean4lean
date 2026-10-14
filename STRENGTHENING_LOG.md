@@ -3085,6 +3085,31 @@ strengthening goal remains active.
 Nine axiom audits contain no sorryAx; only propext, Classical.choice and Quot.sound
 occur in the new replay, forward primitive and descent theorems.
 
+### Preserve recursive-loop computational roles under full reduction
+
+`RecursiveLoopTypes.lean` identifies the three closed types used by the loop:
+the recursive domain, Prop → Prop, and Prop. They are pairwise nonconvertible.
+Every displayed Pi typing has the domain and codomain prescribed by its role,
+up to conversion. None of these roles admits proof irrelevance or registered
+structure eta. The statements allow arbitrary well-formed contexts and arbitrary
+displayed eta annotations.
+
+`RecursiveLoopBodies.lean` records one of those typings at every variable,
+application and lambda body node, leaving annotations unrestricted. The grammar
+is preserved by binder insertion, typed substitution, context conversion, core
+parallel computation and every full reduction step. In particular beta may
+duplicate the recursive diagonal, and function eta may introduce noncanonical
+annotations, without escaping the grammar. Actual self-application starts in it.
+Erasing lambda annotations maps a full path to beta/function-eta computation;
+constant-headed rules, projections and structure eta cannot act in these bodies.
+
+The remaining separation argument must retain recursive-domain information
+through beta and eta and through the final normal comparison. Ordinary untyped
+annotation erasure loses that information, so this is not a non-convertibility
+proof of the two loops. The original strengthening obligation remains open.
+The targeted build passes with 283 jobs. Eleven axiom audits contain no sorryAx.
+No executable changed.
+
 ### Simultaneous erasure substitution and visible registered pattern replay
 
 `ProofErasureSimultaneous.lean` proves that typed simultaneous substitutions
