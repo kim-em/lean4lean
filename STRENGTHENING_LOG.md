@@ -2278,3 +2278,37 @@ certified K computation, retaining their theorem interfaces and constructor
 aliases. Existing loop, recovered-comparison and recovery-substitution boundary
 modules build after the refactor. New staged clients and their audits are
 recorded next. No executable changed.
+
+### Finite eta/K interaction inside recovered types
+
+`StagedEtaComputation` starts from certified K computation. Each successor stage
+has compatible recovered eta over two base alternatives: the preceding stage,
+and guarded K whose endpoints compute at the preceding stage to a hybrid normal
+comparison. `ComputedComparison.descends` lowers both endpoint computations and
+then their comparison, deriving the reduct typings from replay. `NextComputation`
+therefore inherits exact typed descent. Induction proves descent and weakening
+for every finite stage, along with stage monotonicity and staged type recovery.
+There is no bound on ordinary reduction-path length and no normalization claim.
+
+`StagedEtaLoop` exercises the interaction rather than just lifting old
+certificates. At stage one the recursive omega term eta-computes to its repaired
+endpoint. Stage two uses this pair as the guard of a type-valued constant-motive
+Eq.rec whose minor is Prop → Prop. A variable declared at that cast type
+recovers the Pi by stage-two computation, then eta-expands at stage three.
+`canonical_staged_cast_eta` derives the entire context's well-formedness and
+checks the expansion's equality at the original cast type in the actual
+canonical-Eq-preserving recursive extension.
+
+`StagedEtaScope` proves that every stage still excludes the captured eta target
+and the captured identity type. Thus increasing the depth cannot repair exact
+recovery substitution; general substitution must permit re-synthesized output
+types or provide stronger argument certificates. It also cannot copy every
+ambient eta annotation in a coverage theorem.
+
+The staged loop and existing comparison/substitution-boundary targets build
+with 298 dependency jobs; the uniform scope target builds with 276 jobs. Twelve
+axiom audits cover the generic interfaces, all-stage descent and weakening,
+staged recovery, the actual three-stage example, both scope exclusions, and old
+consumer theorems. Only propext, Classical.choice and Quot.sound occur. No
+executable changed. General indexed-prefix and comparison coverage, and the
+final strengthening deliverable, remain open. The goal stays active.
