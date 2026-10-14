@@ -638,3 +638,13 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   results; no general transitivity or smaller sufficient front is claimed.
 
 | Keep deterministic closed equations while transporting equivalent universes | **Checked.** `Definitions.LevelCompatible` permits structurally level-equivalent unfolding results instead of requiring identical raw results. Stored definitions satisfy it directly. `StructureLevelCompatibility` transports closed proof-field contexts, projection admissibility, concrete guards, and selected programs, proving it for the actual stored/structure union. Normal beta/delta, pattern, and checked-prefix simulations now have compatible variants, with existing interfaces retained. `RegisteredNormalSimulation` instantiates pattern transport unconditionally and prefix/function-eta transport under the witnessed front on exactly the equation collection used by computational confluence. This removes the previous level-saturation mismatch; structure-eta composition and the front itself remain open. |
+
+- **Obtain full typed equality coverage by increasing current raw K/prefix stages.**
+  **Refuted** in `ProofErasureRecursiveEtaBoundary`. In the well-formed context
+  `g : (Prop → Prop) → Prop`, the equal pair `λ x. g (λ y. x y)` and `g` has
+  literal non-proof erasures fixed by every stage. No raw checking constructor
+  can compare them: the outer eta is recursive, not displayed head eta.
+  Contextual comparison accepts the pair without computation. This persists
+  for every closed-definition collection and every finite stage, so further
+  stage iteration cannot make the current raw guard language complete. A
+  contextual or suitably annotated recursive guard extension is required.

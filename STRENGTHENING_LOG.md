@@ -5954,3 +5954,34 @@ All 31 new or affected public theorem interfaces audited in
 Quot.sound, with no sorryAx. No executable changes or strengthening inverses were
 introduced. This removes an obstruction to combining existing results; it does
 not establish the requested strengthening deliverable.
+
+## Typed recursive eta excludes completeness of the current raw stages
+
+`ProofErasurePrimitiveHeads` proves that every erased ordinary primitive has a
+constant or projection head, and that all finite enriched K/prefix stages retain
+this property. Variable-headed neutral terms and their normal lambda arguments
+therefore remain fixed under every such computational stage.
+
+`ProofErasureRecursiveEtaBoundary` gives a fully typed obstruction to raw guard
+completeness. In `g : (Prop → Prop) → Prop`, the endpoints
+`λ x. g (λ y. x y)` and `g` share a function type and are definitionally equal
+by two typed eta rules plus congruence. Their erasures retain every node.
+Contextual recursive eta compares them without computation. Raw comparison
+cannot: both erasures are computationally fixed, their outer constructors differ,
+and the long endpoint has a lambda argument where displayed head eta requires
+a fresh variable or proof marker. Structure eta is excluded by the outer shapes.
+The rejection holds in both comparison modes and at every finite stage, for
+arbitrary closed definitions. `no_raw_stage_completeness` packages the resulting
+failure of declarative equality coverage even with derivation-dependent stages.
+The prefix-only presentation has the same guards by its existing equivalence.
+
+This refutes a completeness route for the present raw language, not strengthening.
+The checked raw application and joined-instantiation fragments remain useful,
+but arbitrary recursive eta requires a guard extension before any full stage
+completeness argument. Context-indexed computation or additional transported sort
+annotations are live designs; unrestricted common composition is still unproved.
+
+Validation: the target builds (314 jobs); all 23 public declarations pass
+`/tmp/recursive-eta-boundary-audit.log` using only propext, Classical.choice and
+Quot.sound, with no sorryAx. No executable edits or strengthening inverses were
+used. The original strengthening sorry remains open.
