@@ -5112,3 +5112,33 @@ Validation: both modules build in the successful 343-job target. All fourteen
 public results are audited at `/tmp/declaration-confluence-audit.log`, with only
 propext, Classical.choice and Quot.sound or subsets, and no sorryAx. No executable
 was changed.
+
+### Exact confluence through constructor projection
+
+`ProjectionParallel.lean` adds constructor projection to parallel beta/delta
+computation. A projection root develops its selected original field. Parallel
+lifting and simultaneous substitution hold because declaration values are
+closed and selection is preserved by list maps. A non-unfolding constant spine
+retains every argument position with pointwise parallel reductions. Every
+parallel derivation serializes into the existing `ProjectionCompute` relation.
+
+`ProjectionConfluence.lean` proves the exact parallel diamond by source size.
+For a root projection against compatible computation, constructor rigidity
+exposes the competing spine and the selected original field's parallel step.
+Both field steps join by the smaller-source induction. Two projection roots
+use uniqueness of environment projection metadata to identify the same field.
+Beta overlaps use parallel substitution; delta overlaps use the fixed-universe
+determinism established in the preceding entry. Finite serialization and the
+strip lemma yield exact confluence of arbitrary raw `ProjectionCompute` paths.
+
+The actual stored-definition/selected-structure collection satisfies both
+determinism and constructor rigidity, so the theorem applies to that collection.
+No typing, canonical Eq, normalization or strengthening front is assumed. This
+now includes the beta/projection joins used by closed structure programs, but
+ordinary iota and actual singleton prefixes still need to be included in the
+computational confluence theorem. Equivalent-universe closure and general
+symmetric phase composition remain open; strengthening is not proved.
+
+Validation: the combined target builds (348 jobs). All ten public results are
+axiom-audited in `/tmp/projection-confluence-audit.log`, with no sorryAx and only
+propext, Classical.choice and Quot.sound or subsets. No executable changed.
