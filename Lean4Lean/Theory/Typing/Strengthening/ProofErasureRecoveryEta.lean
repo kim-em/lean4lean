@@ -70,17 +70,27 @@ theorem proofErase_lookup_eta_forward (hΓ : OnCtx Γ (env.IsType univs))
 
 /-- Recovery of an exposed erased Pi reconstructs its original domain and
 codomain below the insertion, as well as a lower typing of the short function. -/
+theorem proofErase_recovered_pi_descend_of_oracleTyping (hstep : ErasedPrimitiveDescent Step)
+    (hΓ : OnCtx Γ (env.IsType univs)) (hΓ' : OnCtx Γ' (env.IsType univs))
+    (W : Ctx.LiftN n k Γ Γ') (hσ : ErasedOracleTyping Γ σ n k)
+    (hf : env.HasType univs Γ f T)
+    (R : ProofShape.TypeRecovery Step σ ((proofErase Γ f).liftN n k) (.forallE A B)) :
+    ∃ D C, env.HasType univs Γ f (.forallE D C) ∧
+      (proofErase Γ D).liftN n k = A ∧ (proofErase (D :: Γ) C).liftN n (k+1) = B := by
+  obtain ⟨F, hfF, EF⟩ := proofErase_typeRecovery_descend_of_oracleTyping hstep hΓ hΓ' W hσ hf R
+  obtain ⟨_, _, Es, EA, EB⟩ := ProofShape.liftN_forallE_inv EF
+  obtain ⟨D, C, rfl, _, ED, EC⟩ := erase_forallE_inv Es
+  exact ⟨D, C, hfF, by simpa only [← ED] using EA, by simpa only [← EC] using EB⟩
+
+/-- Exact lookup agreement specializes typed-oracle Pi recovery. -/
 theorem proofErase_recovered_pi_descend (hstep : ErasedPrimitiveDescent Step)
     (hΓ : OnCtx Γ (env.IsType univs)) (hΓ' : OnCtx Γ' (env.IsType univs))
     (W : Ctx.LiftN n k Γ Γ') (hσ : ErasedOracleAbove Γ σ n k)
     (hf : env.HasType univs Γ f T)
     (R : ProofShape.TypeRecovery Step σ ((proofErase Γ f).liftN n k) (.forallE A B)) :
     ∃ D C, env.HasType univs Γ f (.forallE D C) ∧
-      (proofErase Γ D).liftN n k = A ∧ (proofErase (D :: Γ) C).liftN n (k+1) = B := by
-  obtain ⟨F, hfF, EF⟩ := proofErase_typeRecovery_descend hstep hΓ hΓ' W hσ hf R
-  obtain ⟨_, _, Es, EA, EB⟩ := ProofShape.liftN_forallE_inv EF
-  obtain ⟨D, C, rfl, _, ED, EC⟩ := erase_forallE_inv Es
-  exact ⟨D, C, hfF, by simpa only [← ED] using EA, by simpa only [← EC] using EB⟩
+      (proofErase Γ D).liftN n k = A ∧ (proofErase (D :: Γ) C).liftN n (k+1) = B :=
+  proofErase_recovered_pi_descend_of_oracleTyping hstep hΓ hΓ' W hσ.typing hf R
 
 /-- Recovered inferred eta descends for independently typed endpoints. The short
 endpoint need not be a lambda; its recovered Pi supplies the missing lower domain.

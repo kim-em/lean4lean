@@ -4151,3 +4151,22 @@ Validation: the combined targeted build passes (361 jobs). Twenty-two public
 axiom audits in `/tmp/eta-phase-audit.log` contain no sorryAx and use only
 propext, Classical.choice and Quot.sound or a subset. No executable changed;
 the original UniqueTyping sorry remains.
+
+### Typed oracle entries across changed binder annotations
+
+Compatible comparison must retain two potentially different binder domains.
+A single oracle with literal lookup agreement cannot serve both sides after the
+right body is converted into the left body's context.
+
+`ErasedOracleTyping` now permits each retained oracle entry to be the erasure
+of any type actually assigned to that variable below. `cons_convert` extends
+the oracle using a domain convertible to the actual context binder. Old entries
+weaken normally; the new variable is retyped using the supplied domain equality.
+This retains exact erasures of the assigned types rather than asserting equality
+of the two displayed domain erasures.
+
+Recovery descent and exposed-Pi reconstruction now accept this typed invariant.
+The earlier exact agreement interfaces delegate to it, preserving their
+statements. Seven new or affected recovery/eta axiom audits pass without sorryAx;
+they use only propext, Classical.choice and Quot.sound. The dependent compatible
+comparison build also passes. No executable changed.

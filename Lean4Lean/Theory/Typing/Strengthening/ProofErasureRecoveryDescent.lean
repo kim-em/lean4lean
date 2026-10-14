@@ -54,12 +54,58 @@ private theorem erased_lift_bvar_inv
   cases e <;> simp only [proofErase] at H <;> split at H <;>
     simp_all [ProofShape.liftN]
 
+/-- An oracle may assign a convertible type instead of the literal lookup type.
+Each retained entry must still have an original typed representative below. This
+permits two different binder annotations during a compatible comparison. -/
+def ErasedOracleTyping (Γ : List VExpr) (σ : ProofShape.TypeOracle) (n k : Nat) : Prop :=
+  ∀ {i T}, Lookup Γ i T → ∃ A, env.HasType univs Γ (.bvar i) A ∧
+    (proofErase Γ A).liftN n k = σ (liftVar n i k)
+
+/-- Exact lookup agreement is a special case of typed oracle agreement. -/
+theorem ErasedOracleAbove.typing (H : ErasedOracleAbove Γ σ n k) :
+    ErasedOracleTyping Γ σ n k :=
+  fun hl => ⟨_, .bvar hl, (H hl).symm⟩
+
+/-- Extend an oracle using a domain convertible to the actual new binder's
+domain. The stored erased domains need not coincide syntactically. -/
+theorem ErasedOracleTyping.cons_convert (H : ErasedOracleTyping Γ σ n k)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (hA : env.HasType univs Γ A (.sort u)) (hD : env.HasType univs Γ D (.sort v))
+    (HAD : env.IsDefEqU univs Γ A D) :
+    ErasedOracleTyping (A :: Γ) (σ.cons ((proofErase Γ D).liftN n k)) n (k+1) := by
+  intro i T hl
+  have hΓA : OnCtx (A :: Γ) (env.IsType univs) := ⟨hΓ, u, hA⟩
+  cases hl with
+  | zero =>
+    have hx : env.HasType univs (A :: Γ) (.bvar 0) A.lift := .bvar .zero
+    refine ⟨D.lift, ((HAD.of_l henv hΓ hA).weak henv).defeq hx, ?_⟩
+    simp only [liftVar_lt (Nat.zero_lt_succ _), ProofShape.TypeOracle.cons,
+      proofErase_liftN hΓ hΓA Ctx.LiftN.one hD]
+    exact (ProofShape.liftN_comm _ n 1 k 0 (Nat.zero_le _)).symm
+  | succ hl =>
+    rename_i i T
+    obtain ⟨T', hx, ET⟩ := H hl
+    obtain ⟨_, hT'⟩ := hx.isType henv hΓ
+    have hx' : env.HasType univs (A :: Γ) (.bvar (i + 1)) T'.lift := by
+      simpa only [HasType, lift, liftN, liftVar, Nat.not_lt_zero, if_false, Nat.add_comm]
+        using (hx.weak henv (B := A))
+    refine ⟨T'.lift, hx', ?_⟩
+    simp only [liftVar_succ, ProofShape.TypeOracle.cons, ← ET,
+      proofErase_liftN hΓ hΓA Ctx.LiftN.one hT']
+    exact (ProofShape.liftN_comm _ n 1 k 0 (Nat.zero_le _)).symm
+
+/-- The same-domain extension needs no conversion premise. -/
+theorem ErasedOracleTyping.cons (H : ErasedOracleTyping Γ σ n k)
+    (hΓ : OnCtx Γ (env.IsType univs)) (hA : env.HasType univs Γ A (.sort u)) :
+    ErasedOracleTyping (A :: Γ) (σ.cons ((proofErase Γ A).liftN n k)) n (k+1) :=
+  H.cons_convert hΓ hA hA ⟨_, hA⟩
+
 /-- Erased type recovery descends from source typing through arbitrary block
 insertion. Its whole output erasure is a lift of a reconstructed lower type,
 even when it contains substituted proof markers or computed type expressions. -/
-theorem proofErase_typeRecovery_descend (hstep : ErasedPrimitiveDescent Step)
+theorem proofErase_typeRecovery_descend_of_oracleTyping (hstep : ErasedPrimitiveDescent Step)
     (hΓ : OnCtx Γ (env.IsType univs)) (hΓ' : OnCtx Γ' (env.IsType univs))
-    (W : Ctx.LiftN n k Γ Γ') (hσ : ErasedOracleAbove Γ σ n k)
+    (W : Ctx.LiftN n k Γ Γ') (hσ : ErasedOracleTyping Γ σ n k)
     (ht : env.HasType univs Γ e T)
     (R : ProofShape.TypeRecovery Step σ ((proofErase Γ e).liftN n k) out) :
     ∃ A, env.HasType univs Γ e A ∧ (proofErase Γ A).liftN n k = out := by
@@ -68,7 +114,7 @@ theorem proofErase_typeRecovery_descend (hstep : ErasedPrimitiveDescent Step)
   | bvar =>
     obtain ⟨i, rfl, rfl⟩ := erased_lift_bvar_inv Ee
     obtain ⟨A, hl⟩ := ht.bvar_inv henv hΓ
-    exact ⟨A, .bvar hl, (hσ hl).symm⟩
+    exact hσ hl
   | sort hu =>
     obtain rfl := erase_sort_inv (ProofShape.liftN_sort_inv Ee)
     refine ⟨_, .sort hu, ?_⟩
@@ -135,6 +181,15 @@ theorem proofErase_typeRecovery_descend (hstep : ErasedPrimitiveDescent Step)
     obtain ⟨u, hA⟩ := heA.isType henv hΓ
     obtain ⟨A', HAA, EA'⟩ := proofErase_compute_typed_descend hstep hΓ hΓ' W hA (EA ▸ RC)
     exact ⟨A', HAA.defeq heA, EA'⟩
+
+/-- Exact oracle agreement retains the original recovery descent interface. -/
+theorem proofErase_typeRecovery_descend (hstep : ErasedPrimitiveDescent Step)
+    (hΓ : OnCtx Γ (env.IsType univs)) (hΓ' : OnCtx Γ' (env.IsType univs))
+    (W : Ctx.LiftN n k Γ Γ') (hσ : ErasedOracleAbove Γ σ n k)
+    (ht : env.HasType univs Γ e T)
+    (R : ProofShape.TypeRecovery Step σ ((proofErase Γ e).liftN n k) out) :
+    ∃ A, env.HasType univs Γ e A ∧ (proofErase Γ A).liftN n k = out :=
+  proofErase_typeRecovery_descend_of_oracleTyping hstep hΓ hΓ' W hσ.typing ht R
 
 /-- Canonical erased context oracles instantiate the abstract retained-variable
 agreement. The actual upper recovered type is reconstructed below. -/
