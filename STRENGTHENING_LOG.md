@@ -2400,3 +2400,24 @@ The target builds with 243 dependency jobs. Five axiom audits have no sorryAx;
 only propext, Classical.choice and Quot.sound occur. No executable changed.
 Concurrent staged computation/substitution work was preserved without modification.
 The original strengthening deliverable remains unresolved and the goal active.
+
+### Projection recovery needs family exposure alone
+
+`ProjectionRecoveryTotality.lean` proves that any family typing of the major
+of a well-formed projection admits field selection. The original typing bounds
+the field index; rigid-family injectivity fixes level and parameter counts; the
+registered constructor telescope supplies the selected field. Combining this
+with existing projection replay gives its typing at the recovered field.
+
+`FamilyRecoveryExistence.lean` removes selection and registration witnesses from
+the unresolved projection clause. Under ComputeDescent, recovery existence is
+exactly equivalent to Pi recovery at applications and family recovery at
+projections. Computational family exposure is likewise equivalent to the former
+projection-exposure premise including successful selection. This discharges an
+auxiliary requirement, but the head-exposure obligations remain unproved for the
+staged computation, and this is not a smaller sufficient strengthening front.
+
+The combined target builds successfully (245 dependency jobs). Five axiom audits
+contain only propext, Classical.choice and Quot.sound. No executable changed;
+the original strengthening sorry remains unresolved. Concurrent staged-prefix
+work was left untouched. The goal remains active.
