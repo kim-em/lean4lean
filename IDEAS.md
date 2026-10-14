@@ -300,3 +300,11 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
 | Permit convertible types in erased variable oracles | **Typed-oracle recovery descent proved.** `ErasedOracleTyping` requires an original typed representative for each retained variable's assigned type, without requiring the literal lookup annotation. `cons_convert` keeps an oracle using the right binder's domain valid in the left binder's context. Generalized recovery and Pi reconstruction descend with this weaker invariant; the previous exact-oracle interfaces remain specializations. This supplies the context alignment needed by compatible recovered eta, not certificate completeness. |
 
 | Make recovered inferred eta compatible under separate endpoint oracles | **Recursive comparison, block descent and same-stage weakening proved.** `ProofErasureRecoveredComparison` retains the earlier raw comparison and adds recovered eta at arbitrary compatible positions. Each binder extends its own endpoint oracle; typed oracle conversion validates both in the lower left context. Recovered eta's domain guard itself uses the new recursive comparison. Symmetry, mode promotion and all syntax constructors are supported. `ProofErasureRecoveredWeakening` preserves recovery and comparison under canonical context insertion, and a nested variable-eta example checks inferred mode beneath a lambda. Projection type synthesis, arbitrary substitution/thinning, feedback into K guards and full equality coverage remain open. |
+
+- **Factor typed erased replay through arbitrary thinning:** checked. Block
+  primitive descent plus raw substitution stability gives arbitrary-thinning
+  primitive descent by induction on the number of inserted variables. A typed
+  factorization constructs each intermediate context using lower declarations,
+  avoiding context strengthening. Compatible computation and every finite
+  compared-K stage inherit the result. This removes a transport limitation;
+  contextual recovery/comparison and completeness remain separate obligations.

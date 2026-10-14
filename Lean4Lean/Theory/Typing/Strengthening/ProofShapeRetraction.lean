@@ -20,6 +20,25 @@ def lift' : ProofShape → Lift → ProofShape
   | .lam A b, ρ => .lam (A.lift' ρ) (b.lift' ρ.cons)
   | .forallE A B, ρ => .forallE (A.lift' ρ) (B.lift' ρ.cons)
 
+/-- Composition of arbitrary thinnings agrees with sequential renaming. -/
+theorem lift'_comp (e : ProofShape) :
+    e.lift' (ρ.comp τ) = (e.lift' ρ).lift' τ := by
+  induction e generalizing ρ τ with
+  | proof | sort | const => rfl
+  | bvar => exact congrArg ProofShape.bvar (Lift.liftVar_comp ..)
+  | app _ _ ihf iha => simp only [lift', ihf, iha]
+  | proj _ _ _ ih => simp only [lift', ih]
+  | lam _ _ ihA ihb =>
+    simp only [lift']
+    exact congr (congrArg ProofShape.lam ihA) (ihb (ρ := ρ.cons) (τ := τ.cons))
+  | forallE _ _ ihA ihb =>
+    simp only [lift']
+    exact congr (congrArg ProofShape.forallE ihA) (ihb (ρ := ρ.cons) (τ := τ.cons))
+
+/-- A thinning with no inserted variables fixes every proof shape. -/
+theorem lift'_depth_zero (e : ProofShape) (H : ρ.depth = 0) : e.lift' ρ = e := by
+  induction e generalizing ρ <;> simp_all [lift', Lift.depth, Lift.liftVar_depth_zero]
+
 /-- General thinning is a raw substitution by renamed variables. -/
 theorem lift'_eq_subst (e : ProofShape) (ρ : Lift) :
     e.lift' ρ = e.subst (fun i => .bvar (ρ.liftVar i)) := by

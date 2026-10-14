@@ -4210,3 +4210,26 @@ substitution and arbitrary thinning for the contextual relation, feedback of
 these stronger guards into K computation, and equality completeness remain
 open. No transitivity constructor or completeness premise was silently added.
 The executable and the original UniqueTyping sorry remain unchanged.
+
+### Arbitrary-thinning replay by single-insertion factorization
+
+`ProofErasureThinning.lean` extends source-typed erased computation replay from
+one inserted block to every `Ctx.Lift'`. The generic theorem assumes block
+primitive descent and raw substitution stability. After splitting the final
+single insertion, block replay supplies an exact lifted erasure for its target.
+Raw substitution retracts that insertion, so induction can replay the remaining
+thinning. Original equality is reconstructed below, never strengthened.
+
+The intermediate context is proved well formed directly: removed declarations
+come from the upper context, while retained declarations are weakened from the
+lower context. This avoids the existing context-strengthening helpers, which
+would import the unresolved theorem. The result applies to compatible Compute
+and all finite compared-K stages without changing their stage or adding a target
+scope premise. Raw thinning composition and depth-zero identity support the
+factorization.
+
+Validation: the targeted build passes (265 jobs); all six public theorem axiom
+audits in `/tmp/erasure-thinning-audit.log` use at most propext, Classical.choice,
+and Quot.sound. Contextual recovery and recovered comparison still need their
+arbitrary-thinning interfaces. No completeness or smaller sufficient front has
+been established, and the original UniqueTyping sorry remains.
