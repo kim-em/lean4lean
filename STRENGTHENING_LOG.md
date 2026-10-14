@@ -4020,3 +4020,30 @@ axiom audits in `/tmp/erasure-recovery-audit.log` use only propext,
 Classical.choice and Quot.sound, with no sorryAx. Projection recovery, general
 coverage, and raw weakening/substitution closure of this context-indexed recovery
 remain open. No executable changed; strengthening remains unresolved.
+
+### Inferred head eta with a recovered short endpoint
+
+`ProofErasureRecoveryEta.lean` consumes the new source-based recovery. Its
+RecoveredEtaHead retains a recovered Pi for the short endpoint, an inferred
+comparison of the long and recovered domains, and the displayed erased eta
+shape. The short endpoint may be a variable or another recoverable expression;
+it need not be a lambda as required by the old raw Compare.etaLams rule.
+
+Recovery descent reconstructs the short Pi below inserted binders. Existing
+comparison descent aligns its domain with the long lambda's displayed domain,
+and the previously proved inferred head eta theorem finishes. The two original
+endpoints need only independent typings below, with no supplied equality of
+their result types. Hidden proof dependencies in the long expression still use
+the already typed short endpoint rather than an invented contractum.
+
+Forward coverage holds for each original eta whose displayed Pi has a recovery
+certificate. A variable with an actual Pi lookup supplies a concrete new case,
+including the whole-proof identity alternative. The result specializes to every
+finite recursive K stage without increasing its bound. It is a contextual head
+certificate: this commit does not add it to the old context-free Compare or
+claim compatible comparison closure, projection recovery or complete synthesis.
+
+Validation: the targeted build passes (268 jobs). All five eta/recovered-Pi
+public audits pass, completing twelve core/descent/eta audits in
+`/tmp/erasure-recovery-audit.log`; only propext, Classical.choice and Quot.sound
+occur, with no sorryAx. No executable changed. The strengthening goal is open.
