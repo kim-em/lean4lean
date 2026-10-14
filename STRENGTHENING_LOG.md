@@ -2765,3 +2765,26 @@ executable is unchanged. The next coverage step is to derive the opened
 parameter/index/major instance from a typed arbitrary recursor prefix and replay
 the installed equation using this family guard. Guard completeness and general
 equality coverage remain open; the original goal remains active.
+
+### Repair whole full paths with local proof-index coverage
+
+`PrefixCoveredReduction.lean` makes prefix coverage explicit in a finite full
+reduction derivation. Its step relation has every FullStep constructor and adds
+a declaration certificate only to singleton-prefix nodes. Forgetting that
+certificate gives an actual FullReduction. In particular, the ambient environment
+may still contain canonical Eq at data-index universes outside the covered path.
+
+`ProofIndexFullHead` adds the checked proof-index equations to FullHead's closed
+collection. Soundness and constructor rigidity are inherited. Every covered step
+and path embeds in EtaCompute from source typing, including computation beneath
+binders and both eta forms. Backwards observations give Pi and registered-family
+exposure by PatternCompute. Family levels and argument counts are preserved;
+annotations and arguments may change. The lower function and projection theorems
+use this repair through arbitrary context insertion and derive field selection
+from the original projection typing.
+
+The targeted build passes with 296 jobs; the combined full-recovery, family-trace
+and compared-substitution build also passes. Nine axiom audits have no sorryAx.
+The executable is unchanged. This is checked fragment coverage, not a claim that
+confluence chooses covered paths or that arbitrary data-index prefixes embed.
+The canonical-Eq strengthening goal remains open and active.
