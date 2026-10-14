@@ -860,3 +860,17 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   family guard under the erased residual telescope. This identifies a uniform
   guard interface but does not prove guard coverage or define a complete
   general-prefix stage.
+
+- **Compute residual telescope erasures by supplying the erased declaration.**
+  **Checked** in `ProofErasurePrefixTelescope`. Typed supply commutes with raw
+  substitution; typed Pi peeling retains each contextual annotation. Actual
+  generated prefixes use a context-independent closed initial type. Equal
+  erased supplied arguments determine erased residual domains and results
+  across unrelated well-formed contexts, before checking any family guard.
+- **Determine opened fresh proof markers from the erased context.** **Checked**
+  in `ProofErasurePrefixArguments`. A semantic selector using proofness in a
+  well-formed realization is independent of the realization by context-erasure
+  reflection and context conversion. Raw opening computes the exact provider
+  vector from erased ambient context, residual domains and supplied arguments.
+  This is a mathematical selector, not an executable propositionhood decision.
+  General primitive construction and recursive guard coverage remain next.

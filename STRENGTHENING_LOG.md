@@ -6578,3 +6578,31 @@ or strengthening inverses were used. The next missing construction is a raw
 primitive with uniform residual-telescope reconstruction and operational replay;
 coverage of ambient family guards and `IsDefEqU.weakN_iff` remain open. No smaller
 sufficient front is claimed, and the full goal remains active.
+
+## Residual telescopes and opened providers are uniform on erased inputs
+
+`ProofErasurePrefixTelescope` supplies and peels literal Pi telescopes directly
+in `ProofShape`. Typed original supply commutes exactly with raw supply, using
+ordinary substitution and type uniqueness. Peeling preserves every residual
+annotation at its proper binder context and the final result. For an actual
+generated singleton prefix, the initial erased recursor type is the fixed
+closed declaration instance. Equal erased supplied arguments therefore give
+identical erased residual domains and results across arbitrary well-formed
+contexts, without a family guard, an unfolding check, or equality of contexts.
+
+`ProofErasurePrefixArguments` adds a semantic variable selector on erased
+contexts: a variable becomes a marker if it is a proof in some well-formed
+realization. Previously checked context-erasure reflection and context
+conversion make this equivalent to proofness in every such realization. This
+is not claimed to be an executable propositionhood test. Raw opening now lifts
+the supplied erasures and appends the exact fresh variable vector. For a typed
+generated prefix it gives the actual erased opened arguments. Equal erased
+contexts and supplied arguments yield identical opened providers; no comparison
+of original argument representatives is needed.
+
+Both targets build; logs are `/tmp/erased-prefix-telescope-build.log` and
+`/tmp/erased-prefix-arguments-build.log`. All 14 public definitions/theorems were
+audited in the corresponding `*-audit.log` files, with only propext,
+Classical.choice and Quot.sound and no sorryAx. No executable changes or
+strengthening inverses were used. This closes residual/provider uniformity,
+not the general primitive's descent, guard coverage, or strengthening itself.
