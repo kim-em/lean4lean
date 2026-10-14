@@ -3435,3 +3435,32 @@ integration and declarative coverage remain open, particularly eta where an
 inferred function comparison lacks a lower common type. This is checked closure
 and handling of a known obstruction, not a sufficient strictly smaller front or
 a solution of weakN_iff. No executable changed; the original goal remains active.
+
+### Compatible beta simulation and function-eta postponement
+
+`BetaStep.lean` defines one compatible beta contraction, including annotation
+positions, and proves lifting plus induction over arbitrary finite BetaRed paths.
+`NormalBetaSimulation.lean` proves `normal_beta_step` by induction on the normal
+comparison. Root contraction uses the preceding beta-spine theorem. EtaL lifts
+the contraction to the fresh application, while etaR and etaBoth use fresh-body
+reflection to produce a beta path from the original function. Lambda-domain
+contractions are absorbed into the existing opaque domain equality.
+
+`normal_beta_simulation` now covers every finite compatible beta path, not merely
+a head contraction. It works for both modes of the input comparison and produces
+ordinary eta-aware NormalEq. No eta steps appear in the simulated reduction.
+
+`NormalBetaFactorization.lean` packages beta followed by NormalEq as BetaNormal,
+proves transitivity using that simulation, and proves compatibility at all syntax
+constructors. `TypedBetaEta.factor` then factors every typed compatible path of
+beta and function-eta expansion into beta alone followed by one normal comparison.
+Its proof does not normalize the terms and includes reductions under binders and
+in annotations. Stored rules, prefixes, projection-iota and structure eta are
+explicitly excluded from this fragment; extending beyond it remains open.
+
+This is a positive step toward full head standardization. It is not strengthening:
+the final ordinary comparison still contains opaque domain conversions, and no
+reflection or descending-certificate completeness has been proved. The targeted
+build passes (197 jobs). Nine axiom audits contain no sorryAx, only propext,
+Classical.choice and Quot.sound. The executable and original UniqueTyping sorry
+are unchanged; the full goal remains active.
