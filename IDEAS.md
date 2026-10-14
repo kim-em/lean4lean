@@ -6,6 +6,7 @@ An open entry is not a rejection. Work continues while an unrefuted route remain
 
 | Idea | Test and current verdict |
 | --- | --- |
+| Postpone eta while mirroring beta through ordinary normal equality | **Root-spine case checked; general simulation open.** `FreshBetaReflection.beta_fresh_application` reflects finite computation at a fresh argument into the function; `beta_eta_body_reflection` supplies ordinary normal comparison to the resulting eta body. `NormalBetaReflection.normal_lam_beta` and `normal_beta_spine` mirror head beta contraction by beta alone, including extensionality. Opaque domain equalities remain, so this is neither a recursive-domain certificate theorem nor strengthening. Next: compatible beta simulation, then declaration/singleton computation with actual guards. |
 | Finite developments with explicit redex marks | **Active, tool proved.** `MarkedDevelopments.lean` proves termination, existence and uniqueness of complete developments, and typing preservation. `DevelopmentRounds.no_uniform_round_bound` refutes a fixed number of ordinary marking rounds, even on typed identities; it does not refute selective join repair. |
 | Standardisation of just the obstructing comparisons | **Open.** Needs a rule for newly created obstructing pairs, not normalization of all endpoints. No concrete refutation yet. |
 | Descend normal equality up to parallel substitutions | **Open.** Route A log §5.2 identifies the exact eta/proofness bridge to maintain. Existing open typings do not survive inverse exposure after substitution. |

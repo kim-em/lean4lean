@@ -3378,3 +3378,35 @@ witnesses are not admitted. Full declarative comparison coverage remains open.
 The build passes with 255 jobs. Seven axiom audits contain no sorryAx, using only
 propext, Classical.choice and Quot.sound. No executable changed; the original
 goal remains active.
+
+### Beta reflection through ordinary eta-aware normal comparison
+
+`FreshBetaReflection.lean` proves a syntactic decomposition of every finite beta
+path from an application. Applied to `f↑ #0`, either the application remains,
+or `f` itself beta-reduces to a lambda with the exact resulting body. The
+contracting branch uses lift reflection and the fresh-variable substitution
+identity; all later reductions run inside the exposed lambda.
+
+For a typed function, `beta_eta_body_reflection` consequently replaces any beta
+path under its eta expansion with a beta path from the function and a final
+ordinary NormalEq comparison. The reduct's lambda domain comes from the original
+function's computation and is aligned by Pi injectivity. No arbitrary annotation
+is introduced along that beta path.
+
+`NormalBetaReflection.lean` uses this in the extensionality branch of the existing
+beta-spine induction. `normal_lam_beta` and `normal_beta_spine` now mirror a head
+beta contraction through ordinary NormalEq by finite beta reduction alone. They
+include proof irrelevance, opaque lambda-domain equality, eta and etaBoth. This
+is different from the refuted beta-only repair into recursive domain certificates:
+the output here is ordinary NormalEq and retains opaque domain conversions.
+
+General compatible beta simulation remains unproved. A candidate next step is
+induction on a one-step compatible beta relation and the normal-comparison bound;
+the fresh-argument lemma handles etaBoth, while `normal_lam_beta` handles a root
+contraction. Extension to stored rules, singleton/quotient prefixes and structure
+eta still needs separate work. This is an intermediate standardization result,
+not a smaller sufficient obligation or a solution to strengthening.
+
+The targeted build passes (194 jobs). Five axiom audits contain no sorryAx;
+only propext, Classical.choice and Quot.sound occur. No executable changed.
+The original UniqueTyping sorry remains and the goal is active.
