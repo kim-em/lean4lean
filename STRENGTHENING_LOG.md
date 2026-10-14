@@ -3058,3 +3058,29 @@ no strengthening counterexample is claimed.
 The targeted build passes with 264 jobs, and the combined loop and typed-indexed
 substitution build passes with 352 jobs. Eight axiom audits contain no sorryAx.
 No executable changed. The original strengthening goal remains open and active.
+
+### Extend annotated proof-erasure replay beyond beta
+
+`ProofErasureComputation.lean` defines compatible finite erased computation over
+an explicit primitive relation. A primitive replay certificate extends through
+beta, transitivity, application, projection and both binder forms. Context
+conversion handles changed binder annotations. The original representative uses
+the existing PatternCompute relation, so its syntactic lift inversion supplies
+erased computational join descent from independently typed sources below.
+
+`ProofErasurePrimitives.lean` instantiates this interface with closed declaration
+unfolding and saturated constructor projection. Closed-body erasure is independent
+of the ambient well-formed context; proof erasure preserves syntactic closure.
+A visible erased constructor spine recovers every original argument, including
+proof fields, so projection replay never invents an inhabitant for a proof marker.
+Actual typed delta and projection steps also simulate forwards; a proof result
+produces an empty erased path. Recursive declaration bodies are allowed, with no
+normalization or acyclicity hypothesis.
+
+The concrete erased beta/delta/projection join theorem now lowers equality across
+binder insertion. This remains a computational fragment: arbitrary pattern iota,
+proof-major singleton rules, eta repair and full declarative coverage are open.
+The targeted build passes with 235 jobs. No executable changed, and the original
+strengthening goal remains active.
+Nine axiom audits contain no sorryAx; only propext, Classical.choice and Quot.sound
+occur in the new replay, forward primitive and descent theorems.
