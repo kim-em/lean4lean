@@ -50,6 +50,11 @@ theorem TypeRecovery.subst_of_recovery
     rw [subst_inst]
     exact .app (ih hσ)
   | forallE _ _ ihA ihB => exact .forallE (ihA hσ) (ihB (hσ.cons hweak))
+  | proj hi HT hj hlen HR ih =>
+    have HR' := ih hσ
+    simp only [ProofShape.subst_mkApps, ProofShape.subst] at HR'
+    rw [ProofShape.projectionType_subst HT hj (by omega)]
+    exact .proj hi HT hj (by simpa only [List.length_map] using hlen) HR'
   | convert _ RC ih => exact .convert (ih hσ) (RC.subst hsubst)
 
 /-- Both comparison modes survive homogeneous raw substitution with exactly

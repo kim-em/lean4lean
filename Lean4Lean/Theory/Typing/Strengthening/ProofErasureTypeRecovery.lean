@@ -1,17 +1,19 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureComparedK
 import Lean4Lean.Theory.Typing.Strengthening.TypeRecoveryCore
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureTemplateTransport
 
 /-! # Source-typed recovery on proof-erased syntax
 
 Variable types are supplied by an erased context oracle. Application substitutes
 the erased argument into the recovered codomain, including proof markers; its
 original argument typing is recovered from the supplied source by uniqueness.
-There is no rule assigning a type to a standalone proof marker. Projection
-recovery and completeness are separate obligations, not assumed here.
+There is no rule assigning a type to a standalone proof marker. Projections use
+closed erased field templates after recovering their major family. Completeness
+remains a separate obligation.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params
-open private erase_app_inv erase_lam_inv erase_forallE_inv
+open private erase_app_inv erase_proj_inv erase_lam_inv erase_forallE_inv
   from Lean4Lean.Theory.Typing.Strengthening.ProofErasureBeta
 open private erase_const_inv from Lean4Lean.Theory.Typing.Strengthening.ProofErasurePrimitives
 open private erase_sort_inv from Lean4Lean.Theory.Typing.Strengthening.ProofErasureComparison
@@ -77,6 +79,12 @@ inductive TypeRecovery (Step : ProofShape → ProofShape → Prop) :
   | forallE : TypeRecovery Step σ A (.sort u) →
       TypeRecovery Step (σ.cons A) B (.sort v) →
       TypeRecovery Step σ (.forallE A B) (.sort (.imax u v))
+  | proj {s : Name} {info : VProjectionInfo} {ls : List VLevel}
+      {doms : List VExpr} {result : VExpr} {j : Nat} {args : List ProofShape} :
+      env.projections s info → ProjTele env univs s info ls doms result →
+      (hj : info.nparams + j < doms.length) → args.length = info.nparams + info.nindices →
+      TypeRecovery Step σ m (mkApps (.const s ls) args) →
+      TypeRecovery Step σ (.proj s j m) (projectionType s info doms j hj args m)
   | convert : TypeRecovery Step σ e T → Compute Step T T' → TypeRecovery Step σ e T'
 end ProofShape
 
@@ -134,6 +142,13 @@ theorem proofErase_typeRecovery_replay (hstep : ErasedPrimitiveDescent Step)
     refine ⟨_, .forallE hAu hBv, ?_⟩
     exact if_neg (not_isProof_of_sort hΓ
       (HasType.sort (l := .imax _ _) ⟨hAu.sort_r henv hΓ, hBv.sort_r henv hΓA⟩))
+  | proj hi HT hj hlen R ih =>
+    obtain ⟨m, rfl, hn, Em⟩ := erase_proj_inv Ee
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ := ht.proj_inv henv hΓ
+    obtain ⟨F, hmF, EF⟩ := ih hΓ hσ hm.hasType.2 Em
+    obtain ⟨args, rfl, rfl⟩ := proofErase_const_spine_inv EF
+    obtain ⟨hj', F, hproj, E⟩ := proofErase_projection_at_recovered_family hΓ hi HT ht hn hmF
+    exact ⟨F, hproj, by simpa only [ProofShape.projectionType, List.map_take, ← Em] using E⟩
   | convert _ RC ih =>
     obtain ⟨A, heA, EA⟩ := ih hΓ hσ ht Ee
     obtain ⟨u, hA⟩ := heA.isType henv hΓ
@@ -141,5 +156,43 @@ theorem proofErase_typeRecovery_replay (hstep : ErasedPrimitiveDescent Step)
     obtain ⟨A', HAA, EA'⟩ := proofErase_compute_typed_descend hstep hΓ hΓ W hA
       (by simpa only [ProofShape.liftN_zero, EA] using RC)
     exact ⟨A', HAA.defeq heA, by simpa only [ProofShape.liftN_zero] using EA'⟩
+
+/-- Recovering the major's registered family gives recovery for every retained
+projection. Its selected field recipe is exactly the erasure of an original type. -/
+theorem proofErase_projection_recovery_forward
+    (hΓ : OnCtx Γ (env.IsType univs)) (hi : env.projections s info)
+    (HT : ProjTele env univs s info ls doms result)
+    (ht : env.HasType univs Γ (.proj s j m) U) (hn : ¬ IsProof Γ (.proj s j m))
+    (hm : env.HasType univs Γ m (mkApps (.const s ls) args))
+    (R : ProofShape.TypeRecovery Step σ (proofErase Γ m)
+      (proofErase Γ (mkApps (.const s ls) args))) :
+    ∃ F, env.HasType univs Γ (.proj s j m) F ∧
+      ProofShape.TypeRecovery Step σ (proofErase Γ (.proj s j m)) (proofErase Γ F) := by
+  obtain ⟨hj, F, hproj, EF⟩ := proofErase_projection_at_recovered_family hΓ hi HT ht hn hm
+  obtain ⟨u, hfamily⟩ := hm.isType henv hΓ
+  rw [proofErase_const_spine hΓ hfamily (not_isProof_of_sort hΓ hfamily)] at R
+  have hlen := StructureReplay.family_arity henv hΓ hi ⟨u, hfamily⟩
+  have HR := ProofShape.TypeRecovery.proj hi HT hj
+    (show (args.map (proofErase Γ)).length = info.nparams + info.nindices by
+      simpa only [List.length_map] using hlen) R
+  refine ⟨F, hproj, ?_⟩
+  rw [show proofErase Γ (.proj s j m) = .proj s j (proofErase Γ m) from if_neg hn, EF]
+  simpa only [ProofShape.projectionType, List.map_take] using HR
+
+/-- Major-family recovery alone supplies projection recovery; registration and
+source typing synthesize the static constructor recipe and all dynamic checks. -/
+theorem proofErase_projection_recovery_from_family
+    (hΓ : OnCtx Γ (env.IsType univs)) (hi : env.projections s info)
+    (ht : env.HasType univs Γ (.proj s j m) U) (hn : ¬ IsProof Γ (.proj s j m))
+    (hm : env.HasType univs Γ m (mkApps (.const s ls) args))
+    (R : ProofShape.TypeRecovery Step σ (proofErase Γ m)
+      (proofErase Γ (mkApps (.const s ls) args))) :
+    ∃ F, env.HasType univs Γ (.proj s j m) F ∧
+      ProofShape.TypeRecovery Step σ (proofErase Γ (.proj s j m)) (proofErase Γ F) := by
+  obtain ⟨_, hfamily⟩ := hm.isType henv hΓ
+  obtain ⟨_, hhead⟩ := (show VExpr.WF env univs Γ (mkApps (.const s ls) args) from ⟨_, hfamily⟩).of_mkApps henv hΓ
+  obtain ⟨_, _, hls, _⟩ := HasType.const_inv henv hΓ hhead
+  obtain ⟨doms, result, HT⟩ := projection_telescope_exists hi hls
+  exact proofErase_projection_recovery_forward hΓ hi HT ht hn hm R
 
 end Lean4Lean.VEnv.Strengthening

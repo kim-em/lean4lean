@@ -8,7 +8,7 @@ binder extension admits convertible domain annotations on the two endpoints.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params
-open private erase_app_inv erase_lam_inv erase_forallE_inv
+open private erase_app_inv erase_proj_inv erase_lam_inv erase_forallE_inv
   from Lean4Lean.Theory.Typing.Strengthening.ProofErasureBeta
 open private erase_const_inv from Lean4Lean.Theory.Typing.Strengthening.ProofErasurePrimitives
 open private erase_sort_inv from Lean4Lean.Theory.Typing.Strengthening.ProofErasureComparison
@@ -137,6 +137,24 @@ theorem proofErase_typeRecovery_thinning (hcompute : ErasedPrimitiveThinning (Pr
       if_neg (not_isProof_of_sort hΓ
         (HasType.sort (l := .imax _ _) ⟨hAu.sort_r henv hΓ, hBv.sort_r henv hΓA⟩))]
     rfl
+  | proj hi HT hj hlen R ih =>
+    rename_i s info ls doms result j argsRaw
+    obtain ⟨_, Es, Em⟩ := ProofShape.lift'_proj_inv Ee
+    obtain ⟨m, rfl, hn, Emm⟩ := erase_proj_inv Es
+    rw [← Emm] at Em
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ := ht.proj_inv henv hΓ
+    obtain ⟨F, hmF, EF⟩ := ih hΓ hΓ' W hσ hm.hasType.2 Em
+    obtain ⟨rawArgs, Es, Eargs⟩ := ProofShape.lift'_const_spine_inv EF
+    obtain ⟨args, rfl, rfl⟩ := proofErase_const_spine_inv Es
+    obtain ⟨hj', F, hproj, E⟩ := proofErase_projection_at_recovered_family hΓ hi HT ht hn hmF
+    refine ⟨F, hproj, ?_⟩
+    have E' : proofErase Γ F = ProofShape.projectionType s info doms j hj
+        (args.map (proofErase Γ)) (proofErase Γ m) := by
+      simpa only [ProofShape.projectionType, List.map_take] using E
+    rw [E', ProofShape.projectionType_lift' HT hj (by
+      have hh := congrArg List.length Eargs
+      simp only [List.length_map] at hh ⊢
+      omega), ← Eargs, Em]
   | convert _ RC ih =>
     obtain ⟨A, heA, EA⟩ := ih hΓ hΓ' W hσ ht Ee
     obtain ⟨u, hA⟩ := heA.isType henv hΓ

@@ -153,6 +153,23 @@ theorem proofErase_projection_field
     simp only [List.length_append, projsOf, List.length_map, List.length_range,
       List.length_take, hp, Nat.min_eq_left (Nat.le_of_lt hj)])
 
+/-- Registration supplies the closed instantiated constructor telescope used
+by the field recipe. No source-context typing certificate is stored in it. -/
+theorem projection_telescope_exists (hi : env.projections s info)
+    (hls : ∀ l ∈ ls, l.WF univs) :
+    ∃ doms result, ProjTele env univs s info ls doms result := by
+  obtain ⟨decl, family, ctor, _, _, _, _, _, _, _, _, _, hctorType, _, _, _, hraw, _⟩ :=
+    henv.ordered.projectionShape hi
+  obtain ⟨doms, result, hshape, _, _, hhead, _⟩ := hraw.forallArity
+  have hresult : result = mkApps (.const family.name (VLevel.params decl.uvars)) result.getAppFnArgs.2 := by
+    rw [← hhead]
+    exact (mkApps_getAppFnArgs_eq result).symm
+  have hshape' : info.ctorType = wrapForalls doms
+      (mkApps (.const family.name (VLevel.params decl.uvars)) result.getAppFnArgs.2) := by
+    rw [← hctorType, hshape, ← hresult]
+  have hwf := henv.ordered.constWF (henv.ordered.projectionConstructor hi)
+  exact ⟨_, _, ProjTele.of henv hshape' hwf hls⟩
+
 /-- Source projection typing and any recovered major family supply all dynamic
 premises of the erased field recipe. Earlier fields need no separate certificates,
 and the major family may have indices or convertible parameter annotations. -/

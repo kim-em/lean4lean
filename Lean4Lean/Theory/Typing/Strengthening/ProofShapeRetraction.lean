@@ -170,6 +170,33 @@ theorem relation_liftN_reflect {R : ProofShape → ProofShape → Prop} {a b : P
     (hsubst : ∀ {a b} (σ : Subst), R a b → R (a.subst σ) (b.subst σ))
     (H : R (a.liftN n k) (b.liftN n k)) : R a b :=
   relation_lift'_reflect (ρ := .consN (.skipN .refl n) k) hsubst (by simpa only [lift'_consN_skipN] using H)
+/-- General thinning acts pointwise on an erased application spine. -/
+theorem lift'_mkApps (f : ProofShape) (args : List ProofShape) :
+    (mkApps f args).lift' ρ = mkApps (f.lift' ρ) (args.map (·.lift' ρ)) := by
+  induction args generalizing f with
+  | nil => rfl
+  | cons a args ih => simpa only [mkApps, List.map_cons, lift'] using ih (f := .app f a)
+
+/-- A constant spine exposed after thinning has a spine with the same header below. -/
+theorem lift'_const_spine_inv {e : ProofShape}
+    (H : e.lift' ρ = mkApps (.const c ls) args) :
+    ∃ original, e = mkApps (.const c ls) original ∧ args = original.map (·.lift' ρ) := by
+  induction args using List.snoc_induction generalizing e with
+  | nil => exact ⟨[], lift'_const_inv H, rfl⟩
+  | snoc args a ih =>
+    rw [mkApps_snoc] at H
+    obtain ⟨f, a₀, rfl, Hf, Ha⟩ := lift'_app_inv H
+    obtain ⟨args₀, rfl, rfl⟩ := ih Hf
+    exact ⟨args₀ ++ [a₀], (mkApps_snoc ..).symm, by simp [Ha]⟩
+
+/-- Block insertion likewise reflects an exposed constant spine. -/
+theorem liftN_const_spine_inv {e : ProofShape}
+    (H : e.liftN n k = mkApps (.const c ls) args) :
+    ∃ original, e = mkApps (.const c ls) original ∧ args = original.map (·.liftN n k) := by
+  obtain ⟨original, HE, HA⟩ := lift'_const_spine_inv
+    (ρ := .consN (.skipN .refl n) k) (by simpa only [lift'_consN_skipN] using H)
+  exact ⟨original, HE, by simpa only [lift'_consN_skipN] using HA⟩
+
 end ProofShape
 
 end Lean4Lean.VEnv.Strengthening

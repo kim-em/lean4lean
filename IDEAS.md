@@ -351,3 +351,13 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   proofness mask or synthetic inhabitant. A non-proof source projection and a
   recovered major family supply the exact raw result recipe. Integration into
   erased recovery and its transport laws remains the next step toward full syntax.
+
+- **Integrate dependent projections into erased recovery:** checked. The new
+  projection rule recovers its major at a registered family and instantiates the
+  closed erased field template. Source typing supplies all dynamic checks,
+  including indexed-family arity and non-proof universe guards. Exact recovery
+  descends through arbitrary thinning and remains stable under weakening and
+  recoverable-image substitution. A lookup-major example checks the entire
+  thinning path. All retained syntax constructors now have rules; existence of
+  suitable computational head certificates remains open. Both the composition
+  and exact-substitution obstructions survive the enlarged relation.

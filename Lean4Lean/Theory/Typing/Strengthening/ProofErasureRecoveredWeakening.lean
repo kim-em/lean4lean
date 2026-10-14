@@ -50,6 +50,11 @@ theorem TypeRecovery.liftN
     simp only [ProofShape.liftN, Hinst]
     exact .app (ih hσ)
   | forallE _ _ ihA ihB => exact .forallE (ihA hσ) (ihB hσ.cons)
+  | proj hi HT hj hlen HR ih =>
+    have HR' := ih hσ
+    simp only [ProofShape.liftN_mkApps, ProofShape.liftN] at HR'
+    rw [ProofShape.projectionType_liftN HT hj (by omega)]
+    exact .proj hi HT hj (by simpa only [List.length_map] using hlen) HR'
   | convert _ RC ih => exact .convert (ih hσ) (RC.liftN hstep)
 
 /-- Compatible comparison weakens with both endpoint oracles. The mode and

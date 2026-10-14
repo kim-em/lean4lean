@@ -4466,3 +4466,34 @@ Validation: the combined targeted build passes (248 jobs), and all eight public
 theorem audits in `/tmp/erasure-projection-template-audit.log` use only propext,
 Classical.choice and Quot.sound or a subset. No sorryAx, executable change, or
 strengthening completion is claimed.
+
+### Dependent projections integrated into erased recovery
+
+`ProofErasureTemplateTransport.lean` proves substitution and renaming transport
+for closed erased templates and packages the projection result recipe. The
+original constructor domain is closed over the parameter/preceding-field
+prefix, so substituting into the result only acts on its supplied images.
+`ProofShapeRetraction.lean` adds constant-spine reflection through arbitrary
+raw thinning, which reconstructs a lower major family during replay.
+
+`ProofErasureTypeRecovery.lean` now contains a projection constructor and proves
+its ambient replay. Registration synthesizes the static constructor telescope;
+the major's recovered family and the actual non-proof source projection supply
+all remaining checks. The same branch is integrated into block and arbitrary
+thinning descent, same-stage weakening, and recoverable-image substitution.
+No extra premise was added to these existing transport interfaces.
+
+`ProofErasureProjectionRecoveryExamples.lean` checks recovery for a projection
+of a variable whose lookup is the registered family, then checks it through
+arbitrary context thinning at each finite compared-K stage. Both existing
+negative boundaries still hold: general typed comparison composition implies
+PropositionFront, and exact chosen-type recovery after typed substitution fails
+at every finite output stage. Syntax coverage therefore does not establish
+recovery completeness; suitable computational sort/Pi/family head exposure and
+equality coverage remain open. The goal remains active.
+
+Validation: the combined dependent build passes (342 jobs), and the projection
+examples build passes (275 jobs). All 54 new/affected public theorem audits in
+`/tmp/erasure-projection-integration-audit.log` use only propext,
+Classical.choice and Quot.sound or subsets; none uses sorryAx. Diff whitespace
+checks pass. No executable changed, and UniqueTyping's original gap remains.
