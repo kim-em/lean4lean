@@ -2207,3 +2207,31 @@ propext, Classical.choice and Quot.sound. General comparison/recovery completene
 and substitution of these new certificates remain open. No executable changed;
 no final strengthening deliverable is claimed. Concurrent projection-recovery
 edits were left untouched.
+
+### Exact recovery substitution fails; output re-synthesis repairs the example
+
+Before using recovered comparisons in the delayed-substitution invariant,
+`RecoverySubstitutionBoundary.lean` tests the required recovery substitution law.
+A variable declared at the captured Pi type has a lookup recovery certificate.
+The lifted identity has an ordinary typing at exactly that declaration, so the
+one-variable substitution and both source contexts are valid. Its substituted
+output type still contains the unused binder inside a beta-redex domain.
+
+`identity_captured_not_recovered` rules out every recovery certificate for that
+exact output: TypeRecovery.descend would make the captured Pi syntax a lift.
+`exact_recovery_substitution_failure` packages the well-formed source, typed
+argument, context-instantiation witness, source certificate, and missing target
+certificate. Thus ordinary typed substitution alone is insufficient for exact
+recovery preservation, even homogeneously and under canonical Eq.
+
+The test also checks the repair. `substituted_identity_plain_recovery` recovers
+the ordinary Prop → Prop type, and `captured_pi_computes_plain` computes the old
+captured output to it. This does not establish a general re-synthesis theorem.
+The live choices are substitution with explicit argument-recovery evidence,
+or re-synthesis of convertible output types after substitution. No claim is made
+that RecoveredComparison itself lacks a different post-substitution certificate.
+
+The target builds with 272 dependency jobs. Four axiom audits have no sorryAx;
+only propext, Classical.choice and Quot.sound occur. The executable is unchanged,
+and the strengthening goal stays active. Concurrent recovery-core and staged-eta
+work was preserved without modification.
