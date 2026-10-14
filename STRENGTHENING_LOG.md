@@ -4852,3 +4852,53 @@ Validation: the combined boundary target builds (291 jobs). All eleven public
 theorem audits in `/tmp/bidirectional-composition-audit.log` contain no sorryAx
 and use only propext, Classical.choice and Quot.sound or subsets. No executable
 changed. The original strengthening gap remains and the goal stays active.
+
+### Symmetric composition depends on the closed recursor equations
+
+The previous terminal eta confluence result does not imply composition of
+symmetric computation/eta phases for an arbitrary sound equation collection.
+`NeutralRecursorFixed.lean` proves a concrete obstruction criterion: a registered
+recursor at a nonzero source universe is computationally fixed when every
+supplied argument is fixed and has no constant head. Definition-pattern
+exclusion follows from recursor registration; iota would need a constructor
+argument; singleton unfolding requires the excluded zero source level; quotient
+unfolding is incompatible with the registry. Lambda motives and branches are
+allowed by the criterion, with their computational fixedness explicit.
+
+`SymmetricNeutralBoundary.lean` proves that EtaJoin still reflects a projection
+from a sort-typed projection endpoint. The right eta path retains its projection
+head, and the existing normal/eta reflection applies on the left. Actual prefix
+computation fixes a projection of a variable. A fixed neutral recursor spine
+therefore cannot have a symmetric phase to that projection if the closed
+collection does not unfold the recursor.
+
+`StructureReadoutBoundary.lean` connects this endpoint constraint to actual
+rules. A structure eta expansion of the variable major enables a checked
+pattern whose result is an identity branch applied to the selected projection.
+One core step and one beta step finish the readout. The same iota/beta suffix is
+actual prefix computation. Under the explicit registration, matching, guard,
+argument-fixedness and source-typing premises, the two input symmetric phases
+have a common middle and all three terms have the same sort type, yet their
+endpoints have no symmetric phase. Thus merely supplying intermediate typing
+does not resolve this composition problem. This remains a conditional rule-level
+boundary: no well-formed example environment is constructed, and strengthening
+is not refuted.
+
+`StructureEtaReadout.lean` checks the exact repair for the registered structure
+program. Its supplied body equals the iota RHS on the exact eta expansion,
+because the rule ignores constructor parameters. Adding the existing closed
+structure equations then computes directly from the original major to its
+selected projection, followed only by beta. The proof accepts arbitrary raw
+majors and uses the existing closed admissibility certificate. No front,
+canonical Eq, general phase composition or normalization premise is used.
+
+The next composition attempt must retain these closed structure equations
+(and the appropriate universe closure for normal transport). General composition
+for that enlarged collection is still unproved. Witnessed-prefix descent and
+opaque-domain descent also remain; no smaller sufficient strengthening obligation
+has been obtained.
+
+Validation: the combined boundary/repair build passes (402 jobs). All ten new
+public theorems are audited in `/tmp/structure-phase-boundary-audit.log`, using
+only propext, Classical.choice and Quot.sound or subsets. No sorryAx or executable
+changes were introduced; the original UniqueTyping gap remains open.

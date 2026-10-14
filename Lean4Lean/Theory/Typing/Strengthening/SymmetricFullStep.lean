@@ -5,6 +5,7 @@ import Lean4Lean.Theory.Typing.Strengthening.SymmetricPrefixCompatibility
 All core, singleton, quotient, projection and eta roots are covered, as are
 their compatible combinations. Finite full paths still require a mixed phase
 composition theorem; terminal eta confluence alone does not supply that theorem.
+`StructureReadoutBoundary` locates recursor equations needed for such composition.
 -/
 namespace Lean4Lean.VEnv.Strengthening.PureObservation
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params

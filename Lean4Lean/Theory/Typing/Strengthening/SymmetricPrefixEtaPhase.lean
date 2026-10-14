@@ -7,7 +7,10 @@ import Lean4Lean.Theory.Typing.Strengthening.ConstructorEtaCompletion
 
 Both endpoints compute and then expand by eta before normal comparison. This
 contains the previous completed phase and repairs the converted-parameter test.
-Pi/family head repair survives. General coverage and transitivity remain open.
+Pi/family head repair survives. Composition depends on the closed equations:
+`StructureReadoutBoundary` gives a conditional obstruction when a required
+recursor unfolding is absent. General coverage with an enlarged collection
+remains open.
 -/
 namespace Lean4Lean.VEnv.Strengthening.PureObservation
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params
