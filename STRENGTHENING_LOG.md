@@ -1880,3 +1880,37 @@ no sorryAx. The executable is unchanged. Full indexed-prefix coverage and hybrid
 comparison completeness are not proved, and this is not a smaller sufficient
 obligation than PropFront. The strengthening goal remains active. An independently
 appearing HeterogeneousProofSubstitution file was left untouched.
+
+### Delayed proof arguments: independently typed common-template instances
+
+The previous goal turn was progress: 4367bfc5 is present and pushed, with the
+full-model refutation checked. This turn revisits route A's delayed-substitution
+proposal. The persistent beta-pair obstruction remains; the new result addresses
+the benign same-template pairs created when proof arguments are substituted.
+
+`HeterogeneousProofSubstitution.lean` defines `ProofSubstRel`: substitution
+entries may agree literally, have a recursive domain certificate, or both be
+proofs, without any prior alignment of their propositions. The literal case
+permits arbitrary unused entries. The relation lifts under binders.
+
+`subst_certificate_nonproof` compares independently typed non-proof instances
+of a raw template, producing another DomainNormal certificate.
+`subst_certificate_common` includes proof results when their types align below.
+The open template need not be typed in the smaller context. In an application,
+the function comparison aligns its domain, which supplies the proof-irrelevance
+premise for proof arguments. Lambda annotations are recursively compared and
+retained. This avoids assuming a common proposition for every substitution
+entry and preserves the comparison invariant rather than only declarative equality.
+
+`inst_proofs_certificate` specializes to one proof variable, and
+`beta_proofs_same_template` uses beta subject reduction to obtain the body-instance
+typings. It constructs a bidirectional beta join even when the two original
+lambda domains differ. This closes the shared-template proof-argument case;
+there is no claim of arbitrary beta-join completeness or lambda-argument repair.
+The next step is to transport the proofness bridge through genuinely suspended
+comparisons, using typed substitutions in the ambient context.
+
+The target builds with 217 dependency jobs. Four axiom audits contain only
+propext, Classical.choice, and Quot.sound, with no sorryAx. No executable changed,
+and the original strengthening deliverable remains unresolved. Independent
+workspace commits through d900dc31 were preserved without modification.
