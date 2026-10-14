@@ -3855,3 +3855,45 @@ argument does not require normalization or a computation bound.
 The targeted build passes (264 jobs), and four axiom audits use only propext,
 Classical.choice and Quot.sound. This is promotion of existing certificates,
 not their completeness or transitivity. The strengthening goal remains open.
+
+### Typed eta/beta composition still contains the original front
+
+The raw empty-structure obstruction leaves open composition when the middle
+shape has an original representative at the same type. The new checked barrier
+shows that this repair retains the entire original difficulty, even if the
+composed certificate may use an arbitrary larger finite stage.
+
+`ProofErasureProbe.lean` first establishes a raw invariant: all core and guarded
+K primitives have constant, application or projection roots. Consequently
+compatible computation of `fun _ : A => Prop` retains its lambda and constant
+sort body, computing only A. A comparison between two such probes therefore
+contains an inferred comparison of their domains. Neither common head eta can
+apply to the constant body. This extraction is independent of source typing,
+normalization and a stage bound.
+
+`ProofErasureTypedCompositionBarrier.lean` constructs the crucial pair from
+any original sort-typed equality P ≡ Q. The left probe is `fun _ : P => Prop`.
+Its eta expansion at domain Q is the middle term, and beta reduces that term to
+`fun _ : Q => Prop`. All three originals are typed at `Q → Sort 1`. The first
+link has a stage-zero common-mode certificate; the second is erased beta. No
+input certificate compares P and Q.
+
+`TypedErasedBetaTransport` names the still-missing rule that would transport
+just this kind of stage-zero comparison across beta, while allowing any finite
+output stage. The proved `sort_coverage` consequence extracts certificates for
+every sort-typed domain equality. Applying it above an inserted binder, then
+retracting the extracted inferred certificate, proves PropositionFront. The
+general `TypedErasedComposition` schema implies this transport rule, hence also
+PropositionFront.
+
+This is an implication barrier, not a converse equivalence or a counterexample
+to typed composition. Typed composition remains a possible route to proving the
+full theorem, but the common intermediate typing does not establish a smaller
+remaining front. The tiny eta/beta instance already forces arbitrary domain
+certificate coverage. A future standardization/composition argument must solve
+that case explicitly instead of treating it as routine closure.
+
+Validation: the combined mode/probe/barrier build passes (272 jobs). Fourteen
+public axiom audits in `/tmp/erasure-mode-composition-audit.log` contain no
+sorryAx; all use only propext, Classical.choice and Quot.sound or a subset. No
+executable changed. The original UniqueTyping sorry and the goal remain open.
