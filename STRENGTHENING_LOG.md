@@ -2734,3 +2734,34 @@ separately declared recursive fixed-point types have the same raw unannotated
 shape. No non-convertibility proof was obtained. Finite beta stability alone
 would not exclude full delta/eta joins, so this remains an unverified candidate,
 not a rejection of annotation-erasure repair and not a strengthening counterexample.
+
+### One exact family guard for arbitrary indexed reconstruction
+
+`GuardedSingletonReconstruction.lean` removes the proof-index restriction from
+the reconstruction criterion. The transported field telescope is always typed.
+Conversion of its family to the requested family, together with rigid-head
+injectivity, supplies every dependent index equation and every literal data-slot
+alignment. `reconstruction_of_family_conversion` then types the original
+generated field telescope and proves its constructor eta equation.
+
+The converse is checked too. Typed original fields have literal data slots and
+hence form an aligned instance. Proof-telescope irrelevance identifies them with
+the transported fields, giving `transportedCtor_eq_occ`. Consequently
+`reconstruction_iff_family_conversion` is an exact criterion for the original
+program, extending the earlier equivalence for the transported constructor.
+It is not claimed to be a sufficient smaller front for all strengthening.
+
+The transported family commutes with arbitrary substitution of occurrence
+providers and therefore with binder insertion. Both family propositions are
+typed below without the guard. Existing EndpointDescent certificates thus lower
+the guard and validate reconstruction below. The concrete
+`registered_singleton_reconstruction_below` uses finite ComparedEtaCompute
+comparison guards; registration discharges family rigidity, slot bounds, and
+extraction typing. No index domain must be a proposition in this result.
+
+The targeted build passes with 271 dependency jobs. Nine theorem axiom audits
+contain only propext, Classical.choice and Quot.sound, with no sorryAx. The
+executable is unchanged. The next coverage step is to derive the opened
+parameter/index/major instance from a typed arbitrary recursor prefix and replay
+the installed equation using this family guard. Guard completeness and general
+equality coverage remain open; the original goal remains active.
