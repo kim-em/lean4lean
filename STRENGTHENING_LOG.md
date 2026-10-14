@@ -1562,3 +1562,41 @@ telescope, obtaining typed transported fields at arbitrary major occurrences.
 Then relate the transported program to aligned singleton prefixes and examine a
 uniform recursor equation. None of those later steps, or full strengthening, is
 claimed yet.
+
+### Arbitrary-occurrence transported fields and aligned comparison
+
+`SingletonTransportedOccurrence.lean` recursively calls each closed witness
+function with the parameters, arbitrary indices, major, and earlier witnesses.
+`transportedWitnesses_typed` types the resulting list along the cast telescope
+without assuming a constructor instance or any endpoint alignment. Instantiating
+the symbolic cast fields at that list gives `transportedFields_typed`. The
+constructor at those fields is typed at its own computed indices by
+`transportedConstructor_typed`; its type is stated explicitly, without identifying
+those indices with the major's original ones.
+
+`ProofTelescopeIrrelevance.lean` proves that two typed instances of a dependent
+proposition telescope induce definitionally equal substitutions over any
+well-formed base context. At each binder, the previous substitution equality
+aligns the two domain instances before proof irrelevance compares the arguments.
+All singleton reconstruction domains satisfy this proposition-telescope invariant.
+Consequently `SingletonTransportComparison.lean` proves the reconstructed fields
+independent of the chosen telescope witnesses. `transportedFields_eq_occ` and
+`transportedFields_eq_aligned` identify them with the existing aligned program
+and with any supplied aligned constructor field instance.
+
+This completes the proposed repair of field extraction typing. It does not remove
+the result-index obligation. `SingletonIndexAlignmentBoundary.lean` checks this
+precisely for Eq with an explicit rigid-family premise: Eq.refl A a has requested
+type Eq A a b iff a and b are definitionally equal. Eq has no fields to repair,
+so uniformly typed field extraction cannot alone produce a constructor at every
+original major type. A whole-recursion replacement would need a further justified
+transport/computation argument. Propositional equality to a transported program
+would not suffice to install it as a definitional constant equation. That next
+step remains a research question, not an assumed consequence of these lemmas.
+
+The combined target builds (174 jobs). Audits of witness typing, field and
+constructor typing, proof-telescope substitution, both aligned comparisons, and
+the Eq boundary contain only propext, Classical.choice, and Quot.sound. There is
+no sorryAx dependency and no executable change. The requested strengthening
+proof, canonical-Eq counterexample, or strictly smaller sufficient irreducible
+front is still unestablished; the goal remains active.
