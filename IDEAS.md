@@ -802,3 +802,17 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   an erased primitive encoding all such prefixes. The theorem does not extend
   the raw stage or prove arbitrary-thinning replay, and is not a smaller-front
   result.
+
+- **Identify the manual canonical K prefix with the actual generated program.**
+  **Checked**, closing the earlier metadata gap, in `CanonicalEqPrefixMetadata`,
+  `CanonicalEqPrefixGeneration`, and `CanonicalEqPrefixReplay`. The installed
+  recursor type fixes universe arity 2, major offset 5, motive position 2 and
+  target parameter 0. A fresh typed equality-proof major forces source sort
+  Prop. Singleton compilation then fixes one family, one constructor, two
+  parameters, identity restoration, and exactly the canonical iota equation.
+  Its four captures force an empty field layout. The actual generator returns
+  the explicit one-domain program with Eq.refl constructor and four captures;
+  its RHS is literally the manual K-prefix lambda. Endpoint conversion checks
+  that actual program, and canonical Eq supplies its registry entry without an
+  additional metadata hypothesis. This removes an operational replay gap; it
+  does not supply general family-certificate coverage or raw prefix confluence.

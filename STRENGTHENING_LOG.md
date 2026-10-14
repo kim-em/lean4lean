@@ -6430,3 +6430,41 @@ Validation: the new target builds (361 jobs), logged in
 `/tmp/scoped-singleton-prefix-audit.log`, using only propext, Classical.choice,
 and Quot.sound, with no sorryAx. No executable changes or strengthening inverses
 were used. The main goal remains open.
+
+## Canonical K prefix equals the actual registered singleton program
+
+The earlier operational bridge lacked an identification between the manual
+five-argument Eq.rec prefix and the actual registry-generated singleton program.
+This gap is now closed by three new modules.
+
+`CanonicalEqPrefixMetadata` reads the installed canonical recursor type through
+an arbitrary genuine registration. The telescope's result head and length fix
+the motive position and target parameter 0; this proves large elimination
+without a separate metadata premise. A typed five-argument occurrence can be
+opened under its actual Eq-proof domain. `major_not_proof` then forces the
+registered source level to zero. Singleton compilation gives identity
+restoration and one family; the telescope arithmetic fixes two parameters and
+one constructor. `Instance.eqRecEquations` identifies the actual singleton
+equation with `canonicalEqRecRule`. Its four extracted domains, compared with
+the generated capture telescope, force the field layout to be empty.
+
+`CanonicalEqPrefixGeneration` extracts the exact canonical equation body, reads
+Eq.refl's head and level from its final argument, and computes the actual
+`singletonUnfolding` for five supplied arguments. It returns a program with
+one Eq-proof domain, the canonical stored equation, four lifted captures, and
+Eq.refl at the lifted carrier and left endpoint. Its output is literally
+`lam (eqApp w alpha a b) m.lift`. Generation needs no endpoint conversion.
+
+`CanonicalEqPrefixReplay` checks that actual program using lower source typing
+and endpoint conversion. It verifies the capture typings, major proof typing,
+and the six-argument constant-spine comparison. The exported
+`eqRecBeforeMajor_prefix` obtains the genuine registry entry from canonical Eq
+and concludes an actual `PrefixUnfold` with the exact manual output. It assumes
+neither an invented prefix rule nor an additional canonical registry shape.
+
+Validation: the final combined target builds in
+`/tmp/scoped-operational-replay-build.log` (405 jobs). The first 15 declarations
+in `/tmp/canonical-scoped-operational-audit.log` cover these three modules and
+use only propext, Classical.choice and Quot.sound, with no sorryAx. No executable
+edits or strengthening inverses were used. General family-certificate coverage,
+forward erasure of general indexed prefixes, and `IsDefEqU.weakN_iff` remain open.
