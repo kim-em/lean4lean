@@ -3523,3 +3523,40 @@ only propext, Classical.choice and Quot.sound. General inferred short endpoints,
 singleton primitive integration and equality completeness remain open. The
 result is not a sufficient strictly smaller front. No executable changed and
 the original goal remains active.
+
+### Applied iota transport without eta reduction
+
+The applied-pattern obstacle is more specific than arbitrary pattern matching:
+Params.pat_simple says every applied pattern is an iota pattern whose final
+argument is constructor-headed. `FreshPatternReflection.pattern_no_variable_argument`
+therefore excludes a root pattern step at `f↑ #0`. Finite projection and pattern
+computations of a bare variable leave it unchanged. Together with existing lift
+reflection, this proves `PatternCompute.fresh_application` and the typed
+`eta_body_reflection`, covering beta, closed unfolding, saturated projection and
+all compatible concrete core patterns without introducing an eta reduction.
+
+`NormalSpineExposure.normal_spine_expose_beta` revises the existing normal-spine
+exposure induction. Its first three alternatives are proof, a beta-exposed rigid
+spine, or a beta-exposed lambda. A fourth alternative retains an unexpanded
+function with a strictly smaller comparison at a fresh argument. When an actual
+argument is supplied, substitution consumes this comparison without eta expansion.
+The fourth alternative is deliberately not advertised as head exposure.
+
+`PatternSpineTransport.pattern_redex_transport` uses this alternative and fresh
+reflection to transport a root rule through arbitrary normal comparisons, under
+renamings and extra application spines. Its explicit premise is root firing for
+normally compared head arguments and major. `PatternIotaTransport` discharges
+that premise for enabled concrete ordinary and quotient iota rules. A normally
+compared constructor major beta-exposes its constructor, or is a proof (handled
+by major_proof); both function alternatives contradict major_not_pi using the
+original redex typing. Captures and level instances are aligned by the existing
+normal congruence theorem. CheckFromTyping retains the actual rule guards for
+PatternCompute replay. `normal_iota_compute` exposes the resulting root theorem.
+
+No eta reductions occur in these output paths. General compatible pattern
+simulation still needs assembly; singleton/quotient prefixes and structure eta
+remain outside this result. Ordinary NormalEq still retains opaque domain
+conversions. Thus this is progress toward full standardization, not strengthening
+or a smaller sufficient obligation. The targeted build passes (240 jobs); eight
+axiom audits contain no sorryAx and use only propext, Classical.choice and
+Quot.sound. The executable is unchanged and the goal remains active.

@@ -29,7 +29,7 @@ theorem compute_application_cases (R : Compute defs (.app f a) out) :
   | beta => cases hs; exact ⟨_, _, .refl, .refl, .inr ⟨_, _, rfl, .refl⟩⟩
   | lam | forallE | proj | delta => cases hs
 
-private theorem compute_bvar_eq (R : Compute defs (.bvar i) out) : out = .bvar i := by
+theorem compute_bvar_eq (R : Compute defs (.bvar i) out) : out = .bvar i := by
   have aux {x y : VExpr} (R : Compute defs x y) : ∀ i, x = .bvar i → y = .bvar i := by
     induction R with
     | refl => exact fun _ h => h
