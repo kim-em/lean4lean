@@ -487,3 +487,7 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   substitution of distinct compared arguments, and declarative coverage remain
   open. Existing indexed guards still use their original raw comparison base;
   no contextual-guard completeness is claimed.
+
+| Infer every typed structure/iota overlap from the registry and source typing | **Checked.** `TypedStructureCriticalPair` derives the competing pattern's major offset, constructor and arity, then simulates its contraction using closed delta/beta/projection. Capture computation and arbitrary competing projection paths are covered. The selected collection also preserves every rigid head, including ordinary iota constructors. |
+
+| Eliminate declaration/pattern overlaps before attempting ordinary computational confluence | **Checked reduction of the presentation.** `SeparatedPatternRoots` and `SeparatedPatternComputation` retain only roots whose heads have no closed unfolding at their exact universes. Stored constant rules and enabled structure rules are simulated by beta/delta/projection. Every typed finite ordinary-pattern path translates with identical endpoints; the restricted presentation is substitution-stable. Its raw confluence would imply typed ordinary-pattern confluence, but that remaining theorem, indexed prefixes, universe closure and mixed eta composition are still open. No smaller sufficient strengthening front is claimed. |

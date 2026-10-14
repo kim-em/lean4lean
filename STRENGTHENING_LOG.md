@@ -5200,3 +5200,48 @@ Validation: all six new modules build together through the beta target (299
 jobs). All 25 public theorem audits in `/tmp/erasure-context-audit.log` use only
 propext, Classical.choice and Quot.sound or subsets, with no sorryAx. No
 executable changed. The full goal remains active.
+
+### Remove overlapping ordinary patterns by typed simulation
+
+`TypedStructureCriticalPair.lean` removes the same-pattern premise from the
+previous structure/iota join. The registry fixes the recursor and major offset.
+Source typing gives the major's registered structure-family type, and the
+existing typed major inversion fixes its constructor and capture arity. Pattern
+uniqueness then invokes the exact beta/projection join. Definition-pattern and
+quotient-pattern alternatives at this head are excluded by registry separation.
+
+Consequently every typed ordinary pattern at an enabled selected structure head
+is simulated by closed delta, beta and projection alone. The simulation permits
+subsequent computation in all captures. Combining it with projection confluence
+also joins any subsequent beta/delta/projection path against any competing path
+from the original source. The same selected collection preserves all rigid
+heads, including ordinary inductive constructors, not just projection constructors.
+
+`SeparatedPatternRoots.lean` classifies every typed ordinary root. Constant
+patterns use their stored definition; iota at an enabled structure head uses
+the simulation above. Every remaining iota root has no closed unfolding at its
+head and exact universe instance. Stored definitions cannot contribute an iota
+head, including the registered quotient case.
+
+`SeparatedPatternComputation.lean` packages these remaining roots with
+beta/delta/projection computation. Forgetting head separation maps a path back
+to ordinary pattern computation; arbitrary raw substitution preserves the
+separation certificate. Every typed finite ordinary-pattern path over the
+actual stored/selected-structure collection translates to this presentation
+with identical endpoints. Intermediate typings are replayed from the source,
+without strengthening.
+
+The named conditional theorem `PatternCompute.confluent_of_separated` isolates
+the next computational obligation: raw confluence of this presentation implies
+typed confluence of the augmented ordinary-pattern relation. The retained
+patterns have no delta overlap at their heads; their constructor heads are
+rigid, and their own overlaps still use the existing pattern uniqueness and
+non-overlap laws. This raw confluence is not proved yet. Nor does this reduction
+cover actual indexed singleton prefixes, equivalent-universe closure or general
+eta/computation phase composition. It is not claimed to be a sufficient smaller
+front for strengthening.
+
+Validation: all three modules build in the successful 355-job target. All
+fourteen public results are axiom-audited at
+`/tmp/separated-pattern-computation-audit.log`, using only propext, Classical.choice
+and Quot.sound or subsets, with no sorryAx. No executable was changed.
