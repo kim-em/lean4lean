@@ -2012,3 +2012,33 @@ This is not yet one of the requested final deliverables.
 The target builds with 219 dependency jobs; six axiom audits contain only
 propext, Classical.choice and Quot.sound. The executable is unchanged. Independent
 workspace work through 3cb66fee and the PureBodyComputation file was preserved.
+
+### Pure computational bodies retain beta behavior under every K guard
+
+The previous turn made progress on application of recursive certificates. This
+turn tests whether strengthening the matching predicate could also supply the
+body-eta repair of the old recursive-loop obstruction.
+
+`PureBodyComputation.lean` allows arbitrary expressions and computation in lambda
+annotations, but requires body nodes to be variables, applications, or lambdas.
+Annotation erasure commutes with binder insertion and substitution. Every closed
+constant, projection, pattern, syntactic-K, and guarded-K computational path
+preserves the body grammar and erases to a finite ordinary beta path. Constant
+patterns cannot match these bodies; K cannot introduce a constant-headed body
+redex. The final theorem works for any matching predicate, not only finite-depth
+certificates, and any declaration collection, without a soundness premise.
+
+`CertifiedKLoopBoundary.lean` applies the invariant to the recursive ordinary
+loop: its erased body is beta-fixed, so all guarded computations retain exactly
+that body. Its known eta repair has a different erased body. The canonical
+recursive extension supplies typings and an actual finite FullReduction to that
+repair, while every GuardedKCompute predicate and collection misses that target.
+This is an exact-repair obstruction, not a proof that no different final hybrid
+join exists, and not a strengthening counterexample.
+
+The target builds with 265 dependency jobs. Five axiom audits have no sorryAx.
+The next mechanism to test is body eta with function-type synthesis certificates
+that reconstruct the chosen Pi type below; arbitrary ambient typing annotations
+remain insufficient. No executable changed, and the original goal remains open.
+The independently appearing suspended/heterogeneous-substitution files were
+left untouched.
