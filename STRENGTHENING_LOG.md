@@ -1914,3 +1914,24 @@ The target builds with 217 dependency jobs. Four axiom audits contain only
 propext, Classical.choice, and Quot.sound, with no sorryAx. No executable changed,
 and the original strengthening deliverable remains unresolved. Independent
 workspace commits through d900dc31 were preserved without modification.
+
+### Typed substitution preserves recursive K certificates
+
+`CertifiedKSubstitution.lean` closes the homogeneous substitution law needed to
+use these computations beneath beta reduction. The generic guarded relation
+inherits substitution when its matching certificates do. Source typing supplies
+valid contexts under lambdas and Pis; replay supplies the intermediate typing in
+a transitive path. Consequently no additional typing premises for interior nodes
+are necessary.
+
+The concrete KCertificate family satisfies that matching property by induction
+on depth. At the leaves, HybridNormal.instN handles lambda arguments and the
+redexes they create. At successor depth, the two certified endpoint computations
+are substituted recursively. Certificate depth is unchanged, while the hidden
+hybrid comparison index may increase. This is homogeneous typed substitution;
+no claim of arbitrary raw or heterogeneous substitution is made.
+
+The target builds with 247 dependency jobs. Four audits have no sorryAx, only
+propext, Classical.choice and Quot.sound. The requested full strengthening result,
+a canonical-Eq counterexample, or a strictly smaller sufficient front has still
+not been established. The goal stays active.
