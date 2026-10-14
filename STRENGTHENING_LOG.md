@@ -3560,3 +3560,32 @@ conversions. Thus this is progress toward full standardization, not strengthenin
 or a smaller sufficient obligation. The targeted build passes (240 jobs); eight
 axiom audits contain no sorryAx and use only propext, Classical.choice and
 Quot.sound. The executable is unchanged and the goal remains active.
+
+### Raw retraction and registered singleton prefix replay
+
+`ProofErasureRetraction` gives arbitrary thinning of annotated proof shapes and
+a raw substitution left inverse. The inverse maps skipped variables to the proof
+marker, without assigning an original type to that marker. It recovers every
+retained variable exactly. Consequently every raw relation stable under arbitrary
+substitution is invariant under thinning. This is a syntax-level theorem and does
+not require proof inhabitants for the removed context entries.
+
+Typed proof classification and erasure commute with arbitrary Ctx.Lift'. Applying
+the inverse to the already substitution-stable finite recursive comparison gives
+raw same-stage reflection, then existing typed reflection gives original equality
+below in both modes. This extends the earlier single-block insertion descent to
+arbitrary thinnings without reconstructing every intermediate certificate node
+against a lower original term.
+
+`ProofErasureSingletonPrefix` uses that result to discharge EndpointDescent for
+recursive erased family guards. The existing registered-prefix machinery now
+rebuilds the actual lower unfolding check and replays its actual generated RHS.
+The result allows arbitrary data fields and indices, has no lower target-typing
+premise, and supplies ComputeDescent for PrefixStep with these guards. It is an
+original-syntax prefix rule with an erased guard; integration of singleton steps
+as raw erased primitives and coverage of arbitrary family conversions remain open.
+
+The combined targeted build passes (304 jobs). Twelve axiom audits contain only
+propext, Classical.choice and Quot.sound, with no sorryAx. This improves the
+certificate route but neither proves weakN_iff nor establishes a sufficient
+strictly smaller obligation. No executable changed; the original goal is active.
