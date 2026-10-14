@@ -4596,3 +4596,84 @@ Validation: targeted builds pass (271, 287 and 288 jobs). All fourteen public
 theorem audits in `/tmp/erasure-recovery-existence-audit.log` use only propext,
 Classical.choice and Quot.sound or subsets, with no sorryAx. The executable
 and the original UniqueTyping gap remain unchanged.
+
+### Computational completion: constructor joins and a parameter obstruction
+
+The previous turn's exact-phase obstruction can be repaired by completing its
+remaining projection. This turn establishes the useful general constructor
+case and then finds a separate obstruction to unrestricted completion.
+
+`PrefixHeadPreservation.lean` proves that all actual PrefixCompute paths preserve
+an exposed Pi, and preserve the exact head, levels and arity of a rigid constant
+spine. The stronger spine theorem retains a computational path for each argument.
+Singleton prefixes at rigid names are excluded by their actual stored iota
+rules; quotient prefixes are excluded by their stored equation. These arguments
+cover arbitrary indices and supplied prefix lengths.
+
+`CompletedEtaPhase.lean` allows the right endpoint to compute before meeting a
+PrefixEtaNormal representation. Pi exposure, rigid-family exposure and both
+lower inferred-type repair theorems survive this completion. Computational replay
+below still assumes WitnessedPropDescent. The representation is sound from
+original typings of both endpoints; raw completion alone is not an assertion
+that its right source is typed. The selective-projection test is covered.
+
+`ProjectionPathSpecialization.lean` handles arbitrary fields, not only the
+previous variable test. A finite path from proj_i (c args) either retains that
+projection with pointwise computations in args, or has already selected the
+original ith field and computed it further. Hence that path can be completed to
+a computation of the original selected field, using at most the still-pending
+outer projection on the right. No confluence or termination theorem is assumed.
+
+`ConstructorEtaCompletion.lean` assembles these independent field completions.
+For arbitrary parameter and field expressions and any field count, a finite
+PrefixCompute path after eta expansion of an existing saturated constructor
+joins a computation of the original constructor. The expansion must use that
+constructor's original parameter prefix and universe instance. All computations
+inside duplicated majors and fields are unrestricted finite paths. The theorem
+also gives the corresponding CompletedEtaPhase from source typing. A narrower
+inert-variable prototype was superseded by this general proof and was not kept.
+
+That matching-parameter restriction matters. The actual structEta rule allows a
+convertible parameter. `EtaParameterCompletionBoundary.lean` considers an outer
+one-parameter, one-field structure and an inner zero-parameter structure. With
+an inner variable v and a sort-typed field w, the source is
+
+    Outer.mk (innerExpand v) w.
+
+Inner structure eta types this source at Outer v, by ordinary conversion from
+its canonical constructor type Outer (innerExpand v). Outer structure eta at
+that converted parameter, followed by its field projection, reaches
+
+    Outer.mk v w.
+
+Both families have never-zero result universes. Their declaration reconstruction
+supplies the expansion typings and non-propositionality. The formal corollary
+assumes only the displayed registered structures, the original variable typings,
+and the source's canonical constructor typing. It uses the environment's actual
+stored declaration collection. No environment satisfying these premises is newly
+constructed, so the result is a conditional representation obstruction, not a
+canonical-Eq counterexample to strengthening.
+
+The target cannot compute because its arguments are variables and its head is a
+registered constructor. `EtaAtomicConstructorReflection.lean` proves that, at a
+non-propositional family type with at least one field, terminal eta/normal
+comparison to a constructor of non-proof, non-function variables forces the
+original constant spine's arguments to be exactly those variables. Head-beta
+exposure excludes hidden lambda intermediates. A constructor introduced by eta
+would have a projected field, which cannot become an atomic variable. Therefore
+a hypothetical completed phase would have to compute the nested constructor
+parameter to v before eta. Rigid spine preservation makes this impossible.
+
+`nested_structure_eta_completion_boundary` pairs the actual FullReduction with
+negation of every CompletedEtaPhase witness. Thus arbitrary right computational
+completion is insufficient, despite the positive matching-parameter theorem.
+`constructor_parameter_reverse_eta` checks the missing direction explicitly:
+eta expansion of the target's parameter returns the source. A symmetric join
+with eta and computation on both sides remains a candidate. General coverage,
+head repair for that relation, the witnessed front, and opaque-domain descent
+remain unproved; none of the original goal's completion criteria is reached.
+
+Validation: the combined targeted build passes (387 jobs). All thirty-seven
+public theorem audits in `/tmp/eta-completion-audit.log` contain no sorryAx and
+use only propext, Classical.choice and Quot.sound or subsets. No executable
+changed, and the original UniqueTyping sorry remains.
