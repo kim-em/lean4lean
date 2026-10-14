@@ -2235,3 +2235,28 @@ The target builds with 272 dependency jobs. Four axiom audits have no sorryAx;
 only propext, Classical.choice and Quot.sound occur. The executable is unchanged,
 and the strengthening goal stays active. Concurrent recovery-core and staged-eta
 work was preserved without modification.
+
+### Recovery-certified arguments preserve exact substitution
+
+`CertifiedRecoverySubstitution.lean` proves the first live repair of the preceding
+counterexample. `TypeRecovery.lookup_instN` replaces the substituted variable by
+its supplied argument-recovery certificate and weakens it beneath subsequent
+binders. `TypeRecovery.instN_of_recovery` extends this to every recovery rule,
+including projection field types and conversion by certified K computation.
+The source term's well-formedness supplies the intermediate recovered-type typing
+used by computational substitution. The selected output type is preserved exactly.
+
+`RecoveredComparison.instN_of_recovery` preserves both comparison modes with the
+same argument hypothesis. It derives the endpoint typings required by recovery
+substitution from the common-mode child. Arguments may be lambdas and may create
+redexes; no normalization or syntactic restriction is imposed. This is homogeneous
+substitution with explicit recovery at the argument's declared source type.
+The captured-type counterexample shows why ordinary typing cannot replace that
+premise. General re-synthesis, heterogeneous substitution, and comparison
+completeness remain separate live obligations.
+
+The substitution target builds with 255 dependency jobs; the combined loop,
+boundary, and substitution targets build with 296. Three substitution axiom audits
+contain only propext, Classical.choice and Quot.sound. The existing loop and
+boundary results still build after the concurrent recovery-core refactor.
+No executable changed and no final strengthening deliverable is claimed.
