@@ -5711,3 +5711,44 @@ guard transport, typed erased confluence and strengthening remain open.
 Validation: the target builds (301 jobs); all six public theorems pass
 `/tmp/typed-eta-beta-audit.log`, using only propext, Classical.choice and Quot.sound.
 No sorryAx, strengthening inverse or executable edit was introduced.
+
+### Constructor-exposing eta overlaps reduce to parameter certificates
+
+`SymmetricSpineCompatibility.lean` extends terminal eta joins and symmetric
+computational phases over dependent application spines. Both original spine
+typings supply each argument's typing; soundness of the shorter comparison
+aligns the displayed function and argument types. No mixed phase transitivity
+is assumed.
+
+`StructureEtaParameterReduction.lean` removes the exact-parameter and
+exact-universe assumptions from the field part of structure-eta completion.
+If the major reaches a constructor at any parameters and universes, each
+original projected field has a path to that constructor's selected field.
+Computational confluence joins this path with the independently supplied field
+path. Thus all fields have exact common computational reducts. Typing supplies
+the universe comparison, which is an ordinary normal constant comparison.
+
+The resulting `structure_eta_compute_parameter_phase` requires symmetric phase
+certificates only for the exposed constructor parameters versus the final
+output parameters. It then supplies the entire root eta/computation phase.
+`constructor_parameters_defeq` separately derives their ordinary definitional
+conversions from common constructor typing, explicitly distinguishing that
+conversion evidence from the still-needed phase certificates. Combining the
+neutral and constructor cases closes every parameterless structure-eta root
+followed by arbitrary finite PrefixCompute, with no fixed-major restriction.
+
+`StructureEtaProofParameters.lean` also discharges the parameter certificates
+when the original eta parameters are proofs. Common typing aligns both the
+exposed constructor's parameters and the output parameters with the originals;
+proof irrelevance makes both alignments ordinary normal comparisons. Every
+root eta/computation overlap in this class therefore has a symmetric phase,
+including converted parameters and universe syntax, arbitrary majors and
+arbitrary field types. No canonical Eq, normalization or witnessed front is used.
+
+Validation: the final target builds (428 jobs). All eight public results pass
+`/tmp/structure-eta-parameter-audit.log` with only propext, Classical.choice and
+Quot.sound, and no sorryAx. No executable changes or strengthening inverses were
+used. Data-valued parameter conversions still lack general phase certificates;
+full compatible eta/computation composition and the original strengthening
+sorry remain open. This local reduction is not claimed to be a strictly smaller
+sufficient strengthening front.

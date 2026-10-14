@@ -584,3 +584,5 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   restores the same erased body, and common lambda checking accepts the residual
   even with a distinct outer annotation. General typed guard transport remains
   open; no confluence or strengthening conclusion is asserted.
+
+| Reduce constructor-exposing structure-eta overlaps to parameter phase certificates | **Checked.** `StructureEtaParameterReduction` joins every independently computed field using a computational constructor exposure at arbitrary parameters and universe syntax. Typing supplies the universe comparison; only pointwise symmetric phases for constructor/output parameters remain. `SymmetricSpineCompatibility` assembles these without assuming mixed transitivity. This closes all parameterless roots. `StructureEtaProofParameters` additionally closes every root whose original parameters are proofs, using typing-derived conversion and normal proof irrelevance. Data-valued parameter certificates and full compatible composition remain open; no smaller sufficient strengthening front is claimed. |
