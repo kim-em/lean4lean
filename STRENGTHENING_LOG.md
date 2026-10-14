@@ -6079,3 +6079,46 @@ the original PrefixEtaJoin completeness theorem is not claimed.
 Validation: the root-completion target builds (430 jobs). Its eight public
 results are included in `/tmp/reconstruction-audit.log` and use no sorryAx.
 No executable changes or strengthening inverses were used.
+
+## Reconstruction terminal with validated head repair
+
+`TypedReconstruction` closes existing typed eta and ConstructorParameterChange
+under finite composition and every expression constructor. Source typing gives
+an actual FullReduction for the entire path. More significantly for this route,
+the relation embeds in the existing syntactic ConstructorObservation.EtaCompute
+model: a new root is precisely structure eta plus ordinary projection
+computation, with no prefix reduction in that interpretation. It cannot create
+Pi syntax.
+
+`ReconstructionHeads` places reconstruction on both sides of the ordinary
+normal comparison. Pi head reflection and registered-family exposure survive.
+A sort-typed reconstructed family still head-beta normalizes its eta spine;
+normal beta simulation and the observation model recover the opposite family
+head with equivalent universes and matching arity. `PrefixReconstructionPhase`
+adds computation before both terminals, retains the old PrefixEtaJoin as a
+special case, and proves soundness and both computational head exposures.
+The earlier witnessed-front lower Pi/family type repair also works for this
+larger phase, without requiring intermediate parameters to be scoped below.
+
+Combining the new phase with the preceding root-completion theorem represents
+every structure-eta root followed by arbitrary finite computation, including
+all data parameters, without a family-phase or parameter-phase premise. This
+changes the terminal representation; it does not prove the corresponding
+statement for the old PrefixEtaJoin. General compatible mixed composition and
+terminal confluence remain open. In particular, moving normal comparison past
+a parameter-change root may expose a head beta redex; pure eta/normal terminal
+composition should not be assumed to transfer unchanged. That transport case
+is a concrete next test for the extended representation.
+
+The universe-compatibility module also now reuses the pre-existing
+ProofFields.level_congr lemma in place of its duplicate context-transport proof;
+its public interface is retained.
+
+Validation: the extended phase and actual normal-simulation targets build
+(436 jobs). All 28 new public theorems across these five reconstruction/root
+modules pass `/tmp/reconstruction-audit.log` with only propext, Classical.choice
+and Quot.sound and no sorryAx. The prior 31-interface normal-simulation audit
+also passes after the proof-field cleanup. No executable changes or
+strengthening inverses were used. The original strengthening sorry remains
+open; neither completeness of full phases nor a smaller sufficient front has
+been established.

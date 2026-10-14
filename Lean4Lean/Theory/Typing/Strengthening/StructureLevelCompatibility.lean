@@ -11,15 +11,6 @@ open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params
 open PureObservation
 variable [Params]
 
-private theorem levels_context (henv : env.WF)
-    (he : List.Forall₂ (EqUpToLevels U) Γ Γ') (hc : OnCtx Γ (env.IsType U)) :
-    IsDefEqCtx env U [] Γ Γ' := by
-  induction he with
-  | nil => exact .zero
-  | cons hd hs ih =>
-    obtain ⟨u, ht⟩ := hc.2
-    exact .succ (ih hc.1) (ht.eqUpToLevels henv.orderedStrong hc.1 hd)
-
 /-- Closed proof-field certificates survive equivalent universe instances,
 including the conversion of every preceding field domain in their contexts. -/
 theorem StructureReplay.ProofFields.congr_levels
@@ -27,28 +18,8 @@ theorem StructureReplay.ProofFields.congr_levels
     (hw : ∀ l ∈ ls, l.WF univs) (hw' : ∀ l ∈ ls', l.WF univs)
     (hl : ls.length = info.uvars) (he : List.Forall₂ (· ≈ ·) ls ls')
     (H : StructureReplay.ProofFields env univs info ls) :
-    StructureReplay.ProofFields env univs info ls' := by
-  intro doms result hshape hlen j hj hp
-  have hc := HasType.const (Γ := []) (henv.ordered.projectionConstructor hi) hw hl
-  rw [hshape, instL_wrapForalls] at hc
-  have hctx := (IsType.wrapForalls_inv henv (by trivial) (hc.isType henv (by trivial))).1
-  simp only [List.append_nil] at hctx
-  have hprefix : OnCtx ((doms.map (instL ls)).take j).reverse (env.IsType univs) := by
-    have heq : (doms.map (instL ls)).reverse =
-        ((doms.map (instL ls)).drop j).reverse ++ ((doms.map (instL ls)).take j).reverse := by
-      rw [← List.reverse_append, List.take_append_drop]
-    rw [heq] at hctx
-    exact hctx.of_append
-  have hds : List.Forall₂ (EqUpToLevels univs) (doms.map (instL ls)) (doms.map (instL ls')) :=
-    by
-      apply List.forall₂_of_getElem (by simp)
-      intro i hi hi'
-      simp only [List.getElem_map]
-      exact .instL_expr _ hw hw' he
-  have hW := levels_context henv ((List.Forall₂.reverse.mpr (List.forall₂_take hds j))) hprefix
-  have hf := (H doms result hshape hlen j hj hp).eqUpToLevels henv.orderedStrong hprefix
-    (EqUpToLevels.instL_expr doms[j] hw hw' he)
-  exact hf.hasType.2.defeqDFC henv hW
+    StructureReplay.ProofFields env univs info ls' :=
+  H.level_congr henv hi hw hw' hl he
 
 /-- Equivalent levels preserve the enabling guard of every concrete pattern.
 Parameter alignment checks are reconstructed from the new occurrence's typing. -/
