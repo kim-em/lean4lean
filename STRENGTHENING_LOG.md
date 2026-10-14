@@ -3987,3 +3987,36 @@ Validation: the combined targeted build passes (309 jobs). Eighteen public
 axiom audits in `/tmp/normal-prefix-audit.log` use only propext,
 Classical.choice and Quot.sound, with no sorryAx. No executable changed; the
 original UniqueTyping sorry remains.
+
+### Type recovery on proof-erased syntax
+
+The typed composition barrier identifies the cost of using eta without an
+explicit domain certificate. The next construction records how to obtain the
+short endpoint's function type from its retained syntax, so domain comparison
+can be checked before inferred eta is admitted.
+
+`ProofErasureTypeRecovery.lean` introduces a raw variable-type oracle and proves
+that every well-formed original context supplies one. Binding a displayed domain
+lifts the new variable type and all old oracle entries. Recovery traverses
+variables, sorts, constants, lambdas, applications and Pis; conversion computes
+on an already recovered type. A standalone proof marker has no recovery rule.
+Projection recovery is not implemented by this core relation.
+
+Replay needs only a typed original source. In the application case, recovery
+exposes the function's Pi type, and ordinary uniqueness supplies the argument's
+typing at that domain. Typed erasure/substitution commutation then identifies the
+recovered codomain even when the raw argument is a marker. It never treats the
+marker as an original inhabitant.
+
+`ProofErasureRecoveryDescent.lean` proves the stronger block-insertion theorem.
+An upper oracle need agree with the lower context only at retained variables.
+That agreement extends under binders. Induction reconstructs a lower original
+result type whose erasure lifts exactly to the upper recovered shape; type
+computations use existing primitive descent at their reconstructed sort typing.
+The canonical upper context oracle supplies the agreement automatically.
+
+The combined dependent eta build passes (268 jobs). Seven public core/descent
+axiom audits in `/tmp/erasure-recovery-audit.log` use only propext,
+Classical.choice and Quot.sound, with no sorryAx. Projection recovery, general
+coverage, and raw weakening/substitution closure of this context-indexed recovery
+remain open. No executable changed; strengthening remains unresolved.
