@@ -5985,3 +5985,31 @@ Validation: the target builds (314 jobs); all 23 public declarations pass
 `/tmp/recursive-eta-boundary-audit.log` using only propext, Classical.choice and
 Quot.sound, with no sorryAx. No executable edits or strengthening inverses were
 used. The original strengthening sorry remains open.
+
+## Context-indexed computation and recursive guards
+
+The raw recursive-eta boundary motivates a contextual computational relation.
+`ProofErasureScopedComputation` indexes each primitive occurrence by an erased
+context. A binder's domain computes in the outer context, and its body computes
+in the context extended by the source domain. `ErasedScopedPrimitiveDescent`
+requires reconstruction below insertion specifically from that ambient context.
+Compatible closure preserves this property. Ordinary context conversion aligns
+the reconstructed body's erasure with a changed target domain.
+
+`ProofErasureScopedComparison` retains contextual sort witnesses, recursive eta,
+sorted binders, common lambda checking, and inferred lambda-headed eta. Its
+computational paths use the new context-indexed relation. The base embeds the
+existing contextual relation with no primitives. Descent handles all constructors
+without strengthening inverses or an arbitrary typed intermediate bridge.
+
+`ProofErasureScopedTransport` proves typed contextual substitution, monotonicity,
+and mode promotion. Earlier raw and contextual certificates embed whenever every
+old primitive has a scoped computational simulation at every context. The raw
+syntax and executable remain unchanged. Unrestricted raw substitution is not
+claimed for contextual witnesses: substitutions carry their existing typed
+context interpretations, which extend under raw binder domains.
+
+Validation: the three modules build, and all 17 public declarations pass the
+combined `/tmp/scoped-erasure-audit.log` using only propext, Classical.choice,
+and Quot.sound, with no sorryAx. This supplies the infrastructure for contextual
+stages; full composition and equality completeness are still unproved.

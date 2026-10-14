@@ -648,3 +648,12 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   for every closed-definition collection and every finite stage, so further
   stage iteration cannot make the current raw guard language complete. A
   contextual or suitably annotated recursive guard extension is required.
+
+- **Carry contextual eta guards inside context-indexed computation.** **Checked**
+  in `ProofErasureScopedComputation`, `ProofErasureScopedComparison`, and
+  `ProofErasureScopedTransport`. Primitive occurrences retain their erased
+  ambient contexts; binder bodies extend by the source domain. Both computation
+  and recursive comparison descend through arbitrary inserted blocks. Typed
+  context substitutions preserve every constructor, including changed domains.
+  Earlier comparison layers embed whenever their primitives have contextual
+  simulations. No transitive intermediate representatives are assumed.
