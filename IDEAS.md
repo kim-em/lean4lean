@@ -657,3 +657,14 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   context substitutions preserve every constructor, including changed domains.
   Earlier comparison layers embed whenever their primitives have contextual
   simulations. No transitive intermediate representatives are assumed.
+
+- **Feed recursive contextual comparisons back into finite prefix stages.**
+  **Checked** in `ProofErasureScopedPrefixStages` and `ProofErasureScopedCoverage`.
+  Guards decrease the stage; every stage has typed block descent, same-stage
+  substitution and weakening. Existing prefix-only primitives and full K paths
+  embed without stage growth. Full K with new recursive guards factors through
+  prefix unfolding and beta. `ProofErasureScopedEtaRepair` accepts the previously
+  rejected nested-eta pair and executes a concrete typed constant-motive prefix
+  at stage one. This repairs that coverage gap, but neither general composition
+  nor declarative completeness follows. Recursive structure-eta coverage and
+  arbitrary paired substitution are additional cases to investigate.

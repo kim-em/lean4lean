@@ -6013,3 +6013,39 @@ Validation: the three modules build, and all 17 public declarations pass the
 combined `/tmp/scoped-erasure-audit.log` using only propext, Classical.choice,
 and Quot.sound, with no sorryAx. This supplies the infrastructure for contextual
 stages; full composition and equality completeness are still unproved.
+
+## Recursive contextual guards in finite prefix stages
+
+`ProofErasureScopedPrefixStages` defines finite core-plus-prefix stages whose
+endpoint guards are scoped comparisons from the preceding stage. Typed block
+descent follows by induction on the stage and the generic comparison theorem.
+Typed contextual substitution preserves the stage bound. The prefix still
+produces the exact canonical equality-domain lambda with its lifted minor.
+Full K requires no separate primitive: prefix unfolding followed by beta handles
+all new guards, including proof collapse of the complete original application.
+
+`ProofErasureScopedCoverage` supplies ordinary typed simultaneous substitution,
+single-binder instantiation, thinning, recursive eta coverage, and the complete
+bidirectional normal fragment. Earlier full K/prefix paths and contextual
+comparisons embed at exactly the same stage. These are conservative inclusions;
+no existing raw theorem has been weakened or replaced.
+
+`ProofErasureScopedEtaRepair` verifies the motivating witness. The nested-eta
+pair rejected by every old raw stage has a scoped guard already at stage zero.
+That guard unfolds a corresponding prefix at stage one. A concrete original
+prefix with a constant sort-valued motive and minor `Prop` is well typed under
+canonical Eq and computes to the exact erased canonical original lambda; no
+proof-major inhabitant or hypothetical source-typing premise remains in the
+concrete example.
+
+Validation: the final target builds (321 jobs). All 46 public declarations in
+the six scoped modules pass `/tmp/scoped-erasure-audit.log`, with only propext,
+Classical.choice and Quot.sound and no sorryAx. Of these, 29 belong to this stage
+and coverage increment. No executable edits or strengthening inverses were used.
+
+Remaining work: general scoped comparison composition, paired substitution with
+merely compared arguments, and guard transport through higher prefix paths are
+unproved. Recursive structure eta also needs a coverage audit before asserting
+completeness of this larger language. The repaired function-eta boundary alone
+does not imply PropFront or provide a strictly smaller sufficient obligation.
+The original strengthening sorry remains open.
