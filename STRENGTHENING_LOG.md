@@ -3726,3 +3726,45 @@ audits, including the updated recursive descent and earlier core coverage, conta
 no sorryAx, only propext, Classical.choice and Quot.sound. Inferred structure eta,
 raw singleton primitive integration and comparison completeness remain open. No
 executable changed; weakN_iff and the original goal remain unresolved.
+
+### Contracting a fresh binder against a residual prefix domain
+
+The root-prefix result left a concrete immediate-function case: a prefix can
+contract on `f↑` while its fresh argument `#0` is retained. The existing pattern
+proof reflects that function computation by raw lift inversion; actual prefix
+checks are contextual, so the same invocation was unavailable.
+
+`PrefixFreshContraction.lean` supplies typed reflection when the new ambient
+binder is the first residual prefix domain. In the fully opened context there
+are two copies of this domain. Instantiate the residual copy by the ambient
+variable, rather than deleting an uninhabited assumption. The exact context
+substitution is `opened_fresh_contraction`; telescope syntax cancels by
+`instDomains_rename_fresh`, and all lifted checking terms cancel by the ordinary
+fresh-variable substitution identity.
+
+`unfoldingCheck_contract_fresh` reflects the whole generated check. Capture
+schemas and equation left-hand sides use their existing closure bounds; the
+major type itself need not omit the duplicated binder, since its typing and
+inhabitants are substituted together. The check's source typing is supplied
+below. `unfoldingCheck_fresh_domain_iff` combines this contraction with ordinary
+weakening. Neither direction invokes general strengthening or canonical Eq.
+
+`PrefixFreshFunction.lean` connects the contraction to both actual generators.
+Generate the same prefix below, identify the upper program with its renaming,
+and use uniqueness of Pi typing to convert the ambient domain to the first
+residual domain. The contracted check then gives an actual lower prefix step,
+with the original upper output exactly its lift. Both rules also have normal
+eta-body corollaries for a step in the immediate function of `f↑ #0`.
+
+This extends the previous root lemmas to the immediate-function prefix case.
+It is not arbitrary compatible fresh-argument reflection: a deeper function
+subterm can have a different first domain, and computation in an argument need
+not have any Pi typing with the ambient domain. Those cases, structure eta,
+and opaque comparison-domain conversions remain outstanding. The new result is
+not claimed to be a smaller sufficient front. The full goal remains active.
+
+Validation: the targeted build passes (202 jobs), and eight public axiom audits
+in `/tmp/prefix-contraction-audit.log` contain no sorryAx. The two context/syntax
+lemmas use propext and Quot.sound; the typing and rule theorems additionally use
+Classical.choice. No executable changed, and the original UniqueTyping sorry
+remains.
