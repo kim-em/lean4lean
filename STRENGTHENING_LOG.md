@@ -2177,3 +2177,33 @@ updated recovery weakening/soundness/descent, eta descent and both boundary
 examples; none contains sorryAx. No executable changed. The final strengthening
 result and a strictly smaller sufficient obligation remain open. Independent
 worktree files were left untouched; the goal stays active.
+
+### Recovered types unlock independent comparison of eta bodies
+
+The previous goal turn was progress: 913d4ca6 is present and pushed. The new
+`RecoveredComparison.lean` tests type recovery inside comparison rather than
+requiring an eta computation first. A common-mode comparison can enter an
+independent function slot if the two endpoint types are recovered and compared
+recursively. A separate shared-type constructor omits the redundant type
+comparison. Application nodes compose these certificates; BiNormal remains the
+base relation. This does not claim arbitrary compatible or transitive closure.
+
+The descent proof reconstructs each endpoint type below using TypeRecovery.
+Those types are themselves typed below, so the independent type-comparison
+child descends; its equality supplies the common-mode child premise. In the
+shared-type case, injectivity of weakening identifies the two recovered types
+syntactically. Soundness and weakening are also checked.
+
+`RecoveredComparisonLoop.lean` recovers exactly the same Pi type for the ordinary
+and eta-expanded diagonals. Their already available common-mode comparison can
+therefore be used independently in the loop's function position. Both original
+loops, and their proposition-valued applications, compare directly. The actual
+canonical-Eq extension pairs this certificate with the old no-finite-beta-join
+theorem. Thus it handles the existing guarded-loop obstruction without any root
+normalization or preliminary change of either endpoint.
+
+The target builds with 292 dependency jobs. Five axiom audits contain only
+propext, Classical.choice and Quot.sound. General comparison/recovery completeness
+and substitution of these new certificates remain open. No executable changed;
+no final strengthening deliverable is claimed. Concurrent projection-recovery
+edits were left untouched.
