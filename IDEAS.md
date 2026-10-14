@@ -683,3 +683,25 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   structure with a function field checks function eta inside structure eta, with
   the modified constructor typing reconstructed from the ordinary expansion.
   General composition is not supplied by this additional recursive rule.
+
+| Transport normal comparison across compatible constructor parameter changes | **Checked for one compatible step.** `NormalParameterTransport` exposes a left constructor by head beta and retains its normal-related fields in one derived parameter root. `ReconstructionTransport.fresh_beta_reconstruction` reflects only beta at a fresh argument and leaves reconstruction under a typed lambda. `NormalParameterSimulation.normal_parameter_step` covers all normal constructors and compatible positions as beta, reconstruction, normal. Finite iteration still requires mixed postponement; structure eta's duplicated major prevents assuming directed compatible beta exchange from the head-only result. No strengthening consequence is claimed. |
+
+- **Preserve scoped function guards under shared-argument application.**
+  **Checked** in `ProofErasureScopedApplicationSupport` and
+  `ProofErasureScopedApplication`. Typed substitution handles common lambda
+  bodies and recursive eta; computation replays at the common Pi type; saturated
+  structure constructors are excluded by rigid-family inversion. Every finite
+  contextual prefix stage supports the result without increasing its bound.
+- **Use joined arguments with recursive scoped function guards.** **Checked**
+  in `ProofErasureScopedJoinedApplication`. Literal scoped computational joins
+  supply typed argument representatives with equal erasures, including prefix
+  computations. Inferred function guards also accept arbitrary common-compared
+  arguments. Arbitrary common function guards with merely compared arguments
+  still need a composition or paired-substitution argument.
+- **Consume recursive structure guards by projection.** **Checked** in
+  `ProofErasureScopedStructureProjection`: the source's saturated constructor
+  computes to the selected field, whose smaller recursive guard compares it
+  with the short major's projection. Typed replay handles proof collapse and
+  excludes a hidden field when the original projection is a non-proof. Every
+  finite contextual stage supports this root case at the same bound. General
+  projection closure for arbitrary scoped certificates is not yet proved.

@@ -6155,3 +6155,73 @@ All 50 public declarations in the affected scoped closure and new field helpers
 pass `/tmp/scoped-structure-audit.log` with only propext, Classical.choice and
 Quot.sound and no sorryAx. No executable changes or strengthening inverses were
 used. The original strengthening obligation remains unresolved.
+
+## Normal transport through compatible constructor parameter changes
+
+`NormalParameterTransport.normal_parameter_change` moves one derived root past
+normal comparison as head beta, at most one field-preserving parameter change,
+and normal comparison. Rigid spine exposure supplies the left constructor;
+normal comparisons of its fields type the changed-parameter intermediate.
+Proof-valued endpoints close by irrelevance. The result embeds in the extended
+computational phase. This is a directional transport theorem: a weak symmetric
+join alone could instead reverse the right parameter change.
+
+`ReconstructionTransport` proves weakening and ambient context conversion for
+the root and finite reconstruction. Its `fresh_beta_reconstruction` uses the
+exact syntactic fresh-argument beta split: preserve the application boundary,
+or expose a lambda with the exact computed body. In the second case ordinary
+Pi injectivity converts the reconstruction's binder context. Neither case
+requires reconstruction descent or a strengthening inverse.
+
+`ParameterStep` exposes one parameter change at any compatible position.
+`NormalParameterSimulation.normal_parameter_step` handles every normal rule,
+including all extensional cases, and returns beta followed by reconstruction
+followed by normal comparison. Lambda annotations remain opaque normal
+conversions. The theorem covers one compatible step, not a finite path:
+iteration would introduce beta after previous reconstruction, requiring the
+still-open mixed postponement/composition argument. In particular existing
+structure eta can duplicate a major into projections, so a directed beta
+exchange must not be assumed from the head-beta theorem alone.
+
+Validation: all four modules build with the normal simulation target (437 jobs).
+All 11 public theorem interfaces pass `/tmp/normal-parameter-audit.log` with
+only propext, Classical.choice and Quot.sound, and no sorryAx. The executable
+and original strengthening sorry are unchanged. This closes the compatible
+normal/parameter-step case but does not establish a smaller sufficient front.
+
+## Scoped application and projection elimination cases
+
+`ProofErasureScopedApplicationSupport` carries typed application support into
+the contextual computational relation. Common lambda bodies substitute along
+actual typed context interpretations; recursive eta bodies instantiate at the
+same argument and beta-compute the long application. Whole-proof result cases
+collapse consistently at the dependent result type.
+
+`ProofErasureScopedApplication` proves shared-argument application for every
+scoped certificate, including the new recursive structure-field constructor.
+That constructor cannot occur at a supplied Pi type: its saturated source has
+a rigid registered family type. Computation nodes reconstruct both function
+intermediates at the supplied Pi type before continuing the induction. No
+inferred-mode structure eta or arbitrary comparison transitivity is introduced.
+
+`ProofErasureScopedJoinedApplication` accepts distinct arguments with a literal
+scoped computational join. Descent reconstructs both terminal arguments at their
+common original type; equal erasures then identify the two application erasures.
+The result applies at every contextual prefix stage without stage growth.
+Inferred function guards independently accept arbitrary common-compared arguments.
+Common function guards with arbitrary compared arguments remain outside these
+results, as does general heterogeneous paired substitution.
+
+`ProofErasureScopedStructureProjection` consumes a recursive structure guard
+at a selected field. Ordinary projection computation exposes the field, and its
+smaller guard compares it against the short major's projection. Reflection aligns
+the original projection types, and typed replay excludes a proof-marker field
+when the original result is not a proof. Proof results collapse on both sides.
+This proves the structure-root case at every finite contextual stage; it does
+not yet prove projection closure over arbitrary scoped comparison trees.
+
+Validation: application and projection targets build (322 and 317 jobs). All
+16 new public theorems pass `/tmp/scoped-application-audit.log`, with only propext,
+Classical.choice and Quot.sound and no sorryAx. No executable edits or
+strengthening inverses were used. General composition, higher-prefix guard
+transport, full coverage, and the original strengthening obligation remain open.
