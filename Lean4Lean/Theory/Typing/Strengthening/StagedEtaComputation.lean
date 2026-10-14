@@ -107,6 +107,21 @@ theorem StagedEtaCompute.refl : StagedEtaCompute D kdepth stage Γ e e := by
   | zero => exact .base .refl
   | succ stage ih => exact ih.next
 
+/-- Same-stage paths compose without increasing either depth bound. -/
+theorem StagedEtaCompute.trans (R₁ : StagedEtaCompute D kdepth stage Γ a b)
+    (R₂ : StagedEtaCompute D kdepth stage Γ b c) :
+    StagedEtaCompute D kdepth stage Γ a c := by
+  cases stage with
+  | zero => exact GuardedKCompute.trans R₁ R₂
+  | succ stage => exact RecoveredEtaWith.trans R₁ R₂
+
+/-- Every stage contains ordinary beta contraction. -/
+theorem StagedEtaCompute.beta :
+    StagedEtaCompute D kdepth stage Γ (.app (.lam A b) x) (b.inst x) := by
+  have R : StagedEtaCompute D kdepth 0 Γ (.app (.lam A b) x) (b.inst x) :=
+    .base (.base (.base (.base .beta)))
+  exact R.mono (Nat.zero_le _)
+
 /-- The original eta computation is included at stage one. -/
 theorem StagedEtaCompute.ofRecovered (R : RecoveredEtaCompute D kdepth Γ e out) :
     StagedEtaCompute D kdepth 1 Γ e out := R.mono (fun H => Or.inl H)

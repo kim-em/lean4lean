@@ -2330,3 +2330,36 @@ specialization. The existing TypeRecovery lookup and substitution theorems now
 specialize the generic proof, and RecoveredComparison substitution still builds.
 No executable changed. The all-stage bound and its exact boundary are recorded
 in the next entry.
+
+### Additive-stage beta substitution and its exact-output boundary
+
+`StagedRecoverySubstitution` proves the bound r+n: a stage-n computation survives
+substitution of an argument whose declared type is recovered at stage r.
+Induction transforms both alternatives of the next computational base. The K
+alternative substitutes its endpoint computations and hybrid normal comparison;
+the eta alternative maps argument recovery into the larger base before applying
+the generic substitution theorem. Type recovery itself satisfies the same bound.
+No finite-interaction depth is assumed sufficient for arbitrary typed arguments.
+
+`StagedEtaCompute.beta_inst` prepends a displayed beta contraction to the
+substituted body path. `StagedBetaLoop.loopCast_beta_eta` checks the nonzero-bound
+case: the argument is a variable declared at the recursive cast type, recovered
+at Prop → Prop using stage-two eta-dependent K. The body is a stage-one eta
+expansion of an ordinary function variable. Substitution and beta give the exact
+stage-three output, whose typed equality is replayed at Prop → Prop.
+
+`StagedSubstitutionBoundary.staged_exact_substitution_failure` tests the possible
+shortcut of dropping recovery while allowing any larger stage. A variable at a
+captured Pi declaration has a stage-one eta certificate. The lifted identity is
+a valid typed substitution argument. Its exact substituted target is the old
+captured eta expansion, excluded by every stage's source-typed scope reflection.
+Thus unbounded finite stage growth cannot give arbitrary exact typed
+substitution. Choosing a different scoped output remains necessary for that
+route; this is not a strengthening counterexample.
+
+The combined old-substitution, staged-beta and boundary build succeeds with
+302 dependency jobs. Ten axiom audits contain only propext, Classical.choice and
+Quot.sound, with no sorryAx. Both new arguments and the original specialized
+substitution theorems are covered. No executable changed. General comparison
+coverage, indexed-prefix coverage and the final strengthening deliverable remain
+open; the goal stays active. Independent worktree files were left untouched.
