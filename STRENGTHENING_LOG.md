@@ -5593,3 +5593,25 @@ Quot.sound or subsets, with no sorryAx. No executable changes or strengthening
 inverses were used. This resolves the extra-equation computational-confluence
 prerequisite for eta composition, not the eta/computation composition itself;
 the original strengthening sorry and the sufficient-front question remain open.
+
+### Exact confluence of PrefixCompute itself
+
+`PrefixConfluence.lean` identifies the typed endpoints of the finite mixed
+presentation with the existing compatible `PrefixCompute` relation. Projection
+source typing forces constructor saturation, by rigid-family telescope arity;
+this removes the apparent mismatch between DeltaPar's typed projection and the
+raw saturated projection constructor. Parallel actual-prefix steps then
+serialize directly. Conversely, compatible PrefixCompute paths embed in the
+finite mixed relation; binder paths serialize body-first and need no context
+conversion for that syntactic embedding.
+
+`PrefixCompute.confluent` now gives a literal common computational endpoint for
+any two source-typed paths over the stored/selected-structure collection. This
+is the exact relation used by the symmetric eta-phase work. It assumes the
+concrete-pattern interface, but no canonical Eq, normalization or witnessed
+front. It does not assert eta/computation phase composition.
+
+Validation: the target builds (371 jobs), and all six public results pass
+`/tmp/prefix-confluence-audit.log` with only propext, Classical.choice and
+Quot.sound or subsets. The executable and original strengthening sorry are
+unchanged; no strengthening inverse was used.
