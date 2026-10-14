@@ -1656,3 +1656,27 @@ the exact bare-constructor boundary, contain only propext, Classical.choice,
 and Quot.sound, or subsets. No sorryAx occurs and no executable changed. The
 original strengthening proof, canonical-Eq counterexample, or strictly smaller
 sufficient irreducible obligation is not established; the goal remains active.
+
+### General canonical K replay from source typing
+
+The preceding goal turn is progress: 9a3f03e0 and 2b91a49b are present and pushed,
+and the worktree was initially clean. Testing computation through the retained
+family cast requires distinguishing general equality elimination from the
+special identity motive of a type cast.
+
+`EqRecReplay.lean` recovers every argument typing of a canonical Eq.rec source:
+its carrier, both endpoints, dependent motive, minor, and proof. Given endpoint
+conversion, `eqRecApp_simAt` replaces the major by reflexivity using proof
+irrelevance and invokes the actual registered iota rule. The equality is replayed
+at every supplied source type, even when the motive depends on the proof.
+`reflexive_eqRec_simAt` requires only source typing when the endpoints are
+syntactically identical.
+
+`CastCompute.eqRec` integrates this general K rule into the existing compatible
+computation relation. Raw substitution preserves it; applying a lift retraction
+recovers the source shape and repeated endpoint. Consequently the relation's
+substitution, lift inversion, source-only replay, and descent theorems now cover
+general dependent motives, in addition to the earlier identity-motive casts.
+The combined build, including both existing cast head-exposure wrappers and the
+family reconstruction target, succeeds (292 jobs). The replay/descent audits
+contain only propext, Classical.choice, and Quot.sound, or subsets; no sorryAx.

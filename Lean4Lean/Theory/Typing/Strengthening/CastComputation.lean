@@ -1,8 +1,9 @@
-import Lean4Lean.Theory.Typing.Strengthening.ReflexiveCastReplay
+import Lean4Lean.Theory.Typing.Strengthening.EqRecReplay
 
 /-! # Context-free computation with syntactically reflexive casts
 
-The nonlinear K rule repeats its endpoint type. It is preserved by arbitrary
+The nonlinear K rules repeat their endpoints, for casts and general Eq.rec
+motives. They are preserved by arbitrary
 substitution and reflected by injective binder renaming. Source typing suffices
 to replay the entire extended computational path in any smaller context.
 -/
@@ -32,6 +33,25 @@ theorem lift'_eq_reflexive_cast (h : e.lift' ρ = typeCast u X X p x) :
   simp only [typeCast, eqRecApp, VExpr.app.injEq] at hh
   exact hh.1.1.2
 
+/-- General Eq.rec syntax commutes with raw substitution. -/
+theorem eqRecApp_subst : (eqRecApp v w α a M m b p).subst σ =
+    eqRecApp v w (α.subst σ) (a.subst σ) (M.subst σ) (m.subst σ) (b.subst σ) (p.subst σ) := rfl
+
+/-- General Eq.rec syntax commutes with binder insertion. -/
+theorem eqRecApp_lift' : (eqRecApp v w α a M m b p).lift' ρ =
+    eqRecApp v w (α.lift' ρ) (a.lift' ρ) (M.lift' ρ) (m.lift' ρ) (b.lift' ρ) (p.lift' ρ) := rfl
+
+/-- Binder insertion reflects the repeated endpoint in general K computation. -/
+theorem lift'_eq_reflexive_eqRec (h : e.lift' ρ = eqRecApp v w α a M m a p) :
+    ∃ α₀ a₀ M₀ m₀ p₀, e = eqRecApp v w α₀ a₀ M₀ m₀ a₀ p₀ ∧ m = m₀.lift' ρ := by
+  have he := congrArg (fun e => e.subst ρ.inv) h
+  simp only [subst_lift', lift_l_inv, subst_id, eqRecApp_subst] at he
+  refine ⟨_, _, _, _, _, he, ?_⟩
+  have hh := h.symm.trans (congrArg (fun e => e.lift' ρ) he)
+  rw [eqRecApp_lift'] at hh
+  simp only [eqRecApp, VExpr.app.injEq] at hh
+  exact hh.1.1.2
+
 variable [Params]
 
 /-- Ordinary concrete computation extended by reflexive type-cast contraction.
@@ -39,6 +59,7 @@ The endpoint equality is raw syntax, not an ambient definitional-equality guard.
 inductive CastCompute (D : Definitions) : VExpr → VExpr → Prop where
   | base : PatternCompute D e out → CastCompute D e out
   | cast : CastCompute D (typeCast u X X p x) x
+  | eqRec : CastCompute D (eqRecApp v w α a M m a p) m
   | trans : CastCompute D a b → CastCompute D b c → CastCompute D a c
   | app : CastCompute D f f' → CastCompute D a a' → CastCompute D (.app f a) (.app f' a')
   | lam : CastCompute D A A' → CastCompute D b b' → CastCompute D (.lam A b) (.lam A' b')
@@ -54,6 +75,7 @@ theorem CastCompute.subst (R : CastCompute D e out) :
   induction R generalizing σ with
   | base h => exact .base h.subst
   | cast => simpa only [typeCast_subst] using CastCompute.cast
+  | eqRec => simpa only [eqRecApp_subst] using CastCompute.eqRec
   | trans _ _ ih1 ih2 => exact .trans ih1 ih2
   | app _ _ ih1 ih2 => exact .app ih1 ih2
   | lam _ _ ih1 ih2 => exact .lam ih1 ih2
@@ -67,6 +89,7 @@ theorem CastCompute.simAt (R : CastCompute D e out) (heq : Params.env.HasCanonic
   induction R generalizing Γ with
   | base h => exact h.simAt hs hΓ
   | cast => exact reflexive_cast_simAt Params.henv heq hΓ
+  | eqRec => exact reflexive_eqRec_simAt Params.henv heq hΓ
   | trans _ _ ih1 ih2 => exact .trans (ih1 hΓ) (ih2 hΓ)
   | app _ _ ih1 ih2 => exact .app Params.henv.orderedStrong hΓ (ih1 hΓ) (ih2 hΓ)
   | lam _ _ ih1 ih2 => exact .lam Params.henv.orderedStrong hΓ (ih1 hΓ) ih2
@@ -86,6 +109,9 @@ theorem CastCompute.lift_inv (R : CastCompute D (e.lift' ρ) out) :
   | cast =>
     obtain ⟨X, p, x, rfl, hx⟩ := lift'_eq_reflexive_cast hsrc
     exact ⟨x, .cast, hx⟩
+  | eqRec =>
+    obtain ⟨α, a, M, m, p, rfl, hm⟩ := lift'_eq_reflexive_eqRec hsrc
+    exact ⟨m, .eqRec, hm⟩
   | trans _ _ ih1 ih2 =>
     obtain ⟨e1, R1, h1⟩ := ih1 hsrc
     obtain ⟨e2, R2, h2⟩ := ih2 h1.symm
