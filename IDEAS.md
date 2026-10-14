@@ -705,3 +705,14 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   excludes a hidden field when the original projection is a non-proof. Every
   finite contextual stage supports this root case at the same bound. General
   projection closure for arbitrary scoped certificates is not yet proved.
+
+- **Close projection over arbitrary scoped certificates.** **Checked** in
+  `ProofErasureScopedProjection`. Primitive-free base certificates are flattened
+  into atomic leaves and explicit compatible/computational constructors, with
+  the old `ScopedCompare.base` interface retained as a proved embedding.
+  Projection typing excludes lambda-headed function eta and identifies an exposed
+  constructor's actual family and valid field index. Recursive structure guards
+  then select their smaller field guard; computation replays and projects.
+  Every finite contextual prefix stage preserves the comparison at the same
+  bound. Only one original projection typing is required. This closes general
+  projection congruence, not arbitrary paired substitution or transitivity.

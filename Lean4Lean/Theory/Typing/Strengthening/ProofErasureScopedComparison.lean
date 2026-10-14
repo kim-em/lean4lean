@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureScopedComputation
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStructureFields
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureScopedLeaves
 
 /-! # Recursive contextual checking with context-indexed computation
 
@@ -22,7 +23,7 @@ explicit finite rule; inference is replayed at independently typed non-proofs.
 No transitive intermediate witness or declarative completeness is assumed. -/
 inductive ScopedCompare (Step : List ProofShape → ProofShape → ProofShape → Prop) :
     List ProofShape → Bool → ProofShape → ProofShape → Prop where
-  | base : ContextCompare (fun _ _ => False) Δ mode a b → ScopedCompare Step Δ mode a b
+  | leaf : ScopedLeaf mode a b → ScopedCompare Step Δ mode a b
   | app : ScopedCompare Step Δ false f f' → ScopedCompare Step Δ true a a' →
       ScopedCompare Step Δ mode (.app f a) (.app f' a')
   | proj : ScopedCompare Step Δ false m m' →
@@ -66,6 +67,74 @@ inductive ScopedCompare (Step : List ProofShape → ProofShape → ProofShape �
   | compute : ScopedCompute Step Δ a a' → ScopedCompute Step Δ b b' → ScopedCompare Step Δ mode a' b' →
       ScopedCompare Step Δ mode a b
   | symm : ScopedCompare Step Δ mode a b → ScopedCompare Step Δ mode b a
+
+omit [Params] in
+private theorem empty_compute_beta (H : Compute (fun _ _ => False) a b) : BetaRed a b := by
+  induction H with
+  | base H => exact H.elim
+  | beta H => exact H
+  | trans _ _ ih₁ ih₂ => exact .trans ih₁ ih₂
+  | app _ _ ih₁ ih₂ => exact .app ih₁ ih₂
+  | proj _ ih => exact .proj ih
+  | lam _ _ ih₁ ih₂ => exact .lam ih₁ ih₂
+  | forallE _ _ ih₁ ih₂ => exact .forallE ih₁ ih₂
+
+/-- Literal structure heads are a special case of recursive field guards. -/
+theorem ScopedCompare.structure_head (H : StructureEtaHead a b) : ScopedCompare Step Δ true a b := by
+  cases H with
+  | intro hi hx hp hf hadm H =>
+    apply ScopedCompare.structFields hi hx hp hf hadm
+    intro i hj hn
+    rcases H i hj with H | H
+    · exact (hn H).elim
+    · rw [H]; exact .leaf .refl
+
+private theorem compare_base (H : Compare (fun _ _ => False) mode a b) :
+    ScopedCompare Step Δ mode a b := by
+  induction H generalizing Δ with
+  | refl => exact .leaf .refl
+  | sort H => exact .leaf (.sort H)
+  | const H => exact .leaf (.const H)
+  | app _ _ ih₁ ih₂ => exact .app ih₁ ih₂
+  | proj _ ih => exact .proj ih
+  | lam _ _ ih₁ ih₂ => exact .lam ih₁ ih₂
+  | forallE _ _ ih₁ ih₂ => exact .forallE ih₁ ih₂
+  | etaL H => exact .leaf (.etaL H)
+  | etaR H => exact .leaf (.etaR H)
+  | structL H => exact .structure_head H
+  | structR H => exact .symm (.structure_head H)
+  | etaLams _ H ih => exact .etaLams ih H
+  | compute Ra Rb _ ih => exact .compute (.beta (empty_compute_beta Ra)) (.beta (empty_compute_beta Rb)) ih
+
+private theorem raw_base (H : RawCheckedCompare (fun _ _ => False) mode a b) :
+    ScopedCompare Step Δ mode a b := by
+  induction H generalizing Δ with
+  | base H => exact compare_base H
+  | app _ _ ih₁ ih₂ => exact .app ih₁ ih₂
+  | proj _ ih => exact .proj ih
+  | lam _ _ ih₁ ih₂ => exact .lam ih₁ ih₂
+  | lamCommon _ ih => exact .lamCommon ih
+  | forallE _ _ ih₁ ih₂ => exact .forallE ih₁ ih₂
+  | compute Ra Rb _ ih => exact .compute (.beta (empty_compute_beta Ra)) (.beta (empty_compute_beta Rb)) ih
+
+/-- The earlier primitive-free base still embeds unchanged, now with every
+compatible, eta, and computational case exposed in the scoped derivation. -/
+theorem ScopedCompare.base (H : ContextCompare (fun _ _ => False) Δ mode a b) :
+    ScopedCompare Step Δ mode a b := by
+  induction H with
+  | base H => exact raw_base H
+  | app _ _ ih₁ ih₂ => exact .app ih₁ ih₂
+  | proj _ ih => exact .proj ih
+  | lam _ _ ih₁ ih₂ => exact .lam ih₁ ih₂
+  | forallE _ _ ih₁ ih₂ => exact .forallE ih₁ ih₂
+  | lamSorted S S' _ _ ih₁ ih₂ => exact .lamSorted S S' ih₁ ih₂
+  | forallSorted S S' _ T T' _ ih₁ ih₂ => exact .forallSorted S S' ih₁ T T' ih₂
+  | lamCommon _ ih => exact .lamCommon ih
+  | etaBodyL S _ ih => exact .etaBodyL S ih
+  | etaBodyR S _ ih => exact .etaBodyR S ih
+  | compute Ra Rb _ ih => exact .compute (.beta (empty_compute_beta Ra)) (.beta (empty_compute_beta Rb)) ih
+  | symm _ ih => exact .symm ih
+
 end ProofShape
 
 /-- Contextual comparison descends. Common endpoint types justify checking;
@@ -82,9 +151,9 @@ theorem proofErase_scoped_compare_descend (hstep : ErasedScopedPrimitiveDescent 
   generalize Ea : (proofErase Γ a).liftN n k = sa at H
   generalize Eb : (proofErase Γ b).liftN n k = sb at H
   induction H generalizing Γ Γ' k a b A B with
-  | base H =>
+  | leaf H =>
     exact proofErase_context_compare_descend (Step := fun _ _ => False) (by intro Γ Γ' n k e T out hΓ hΓ' W ht H; exact H.elim)
-      hΓ hΓ' W hΔ ha hb (by simpa only [Ea, Eb] using H)
+      hΓ hΓ' W hΔ ha hb (by simpa only [Ea, Eb] using H.context)
   | app Hf Hx ihf ihx =>
     obtain ⟨_, _, haE, Eaf, Eax⟩ := ProofShape.liftN_app_inv Ea
     obtain ⟨_, _, hbE, Ebf, Ebx⟩ := ProofShape.liftN_app_inv Eb

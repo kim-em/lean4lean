@@ -84,11 +84,11 @@ theorem proofErase_scoped_apply_same
   generalize Ef : proofErase Γ f = sf at H
   generalize Eg : proofErase Γ g = sg at H
   induction H generalizing f g A B with
-  | base H =>
+  | leaf H =>
     rw [← EΔ]
     exact .base (proofErase_context_apply_same (Step := fun _ _ => False)
       (by intro Γ Γ' n k e T out hΓ hΓ' W ht H; exact H.elim)
-      (by intros; contradiction) hΓ hf hg hx (by rwa [Ef, Eg, EΔ]))
+      (by intros; contradiction) hΓ hf hg hx (by simpa only [Ef, Eg, EΔ] using H.context))
   | app Hf Hx =>
     rw [← EΔ]
     exact proofErase_scoped_apply_inferred hΓ hf hg hx (by rw [EΔ, Ef, Eg]; exact .app Hf Hx)

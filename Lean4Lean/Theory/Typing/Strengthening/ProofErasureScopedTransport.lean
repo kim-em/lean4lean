@@ -48,7 +48,7 @@ theorem ScopedCompare.subst
     (H : ScopedCompare Step Δ mode a b) (W : ContextSubstitution Δ Δ' τ) :
     ScopedCompare Step Δ' mode (a.subst τ) (b.subst τ) := by
   induction H generalizing Δ' τ with
-  | base H => exact .base (H.subst (by intros; contradiction) W)
+  | leaf H => exact .leaf H.subst
   | app _ _ ihf iha => exact .app (ihf W) (iha W)
   | proj _ ih => exact .proj (ih W)
   | lam _ _ ihA ihb => exact .lam (ihA W) (ihb W.cons)
@@ -81,7 +81,7 @@ theorem ScopedCompare.subst
 theorem ScopedCompare.mono (hstep : ∀ {Δ a b}, Step Δ a b → Step' Δ a b)
     (H : ScopedCompare Step Δ mode a b) : ScopedCompare Step' Δ mode a b := by
   induction H with
-  | base H => exact .base H
+  | leaf H => exact .leaf H
   | app _ _ ihf iha => exact .app ihf iha
   | proj _ ih => exact .proj ih
   | lam _ _ ihA ihb => exact .lam ihA ihb
@@ -99,7 +99,7 @@ theorem ScopedCompare.mono (hstep : ∀ {Δ a b}, Step Δ a b → Step' Δ a b)
 theorem ScopedCompare.common (H : ScopedCompare Step Δ mode a b) :
     ScopedCompare Step Δ true a b := by
   induction H with
-  | base H => exact .base H.common
+  | leaf H => exact .leaf H.common
   | app Hf Ha => exact .app Hf Ha
   | proj H => exact .proj H
   | lam HA _ _ ih => exact .lam HA ih

@@ -6225,3 +6225,40 @@ Validation: application and projection targets build (322 and 317 jobs). All
 Classical.choice and Quot.sound and no sorryAx. No executable edits or
 strengthening inverses were used. General composition, higher-prefix guard
 transport, full coverage, and the original strengthening obligation remain open.
+
+## General projection closure for scoped comparisons
+
+`ProofErasureScopedLeaves` exposes the atomic leaves of scoped comparison:
+reflexivity, equivalent sort/constant universes, and displayed function eta.
+The former primitive-free contextual base is now a proved `ScopedCompare.base`
+embedding. Its compatible constructors and beta paths become visible in the
+scoped derivation, while literal structure heads use `structFields`. Existing
+base construction sites retain their interface, and all earlier scoped descent,
+transport, stage, eta and application results rebuild.
+
+`ProofErasureScopedProjectionSupport` proves the typing facts needed to eliminate
+a major comparison. Inferred major guards project directly. Computations of
+typed majors extend to projections with exact erasures, including proof collapse.
+A typed projection cannot have a lambda major because its rigid registered
+family cannot be a Pi type. An exposed saturated unindexed constructor determines
+the actual projection family by rigid-head inversion, and projection typing gives
+the selected index bound.
+
+`ProofErasureScopedProjection` inducts over arbitrary scoped certificates.
+Compatible non-lambda cases reconstruct inferred major guards; lambda/function-eta
+cases contradict projection typing. Structure fields reduce to the previously
+checked root case after recovering the family and index. Computation nodes replay
+both intermediates at the common major type and project their paths. Symmetry
+uses the common field typings. The public wrapper requires only the first
+original projection typing: scoped reflection constructs the second at that same
+type. The theorem specializes to every contextual prefix stage without increasing
+its bound or adding inferred structure eta.
+
+Validation: the combined projection, joined-application, and eta-repair targets
+build (334 jobs). All 79 public declarations in the affected scoped closure pass
+`/tmp/scoped-projection-audit.log`, using only propext, Classical.choice and
+Quot.sound, with no sorryAx. No executable edits or strengthening inverses were
+used. General projection congruence is now covered. Application of common-compared
+functions to merely compared arguments, arbitrary paired substitution, higher
+prefix transport, and full comparison composition remain unresolved. This is not
+a proof of strengthening or a strictly smaller sufficient front.
