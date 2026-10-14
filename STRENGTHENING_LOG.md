@@ -3355,3 +3355,26 @@ forbids that), nor establish recursive eta comparison, arbitrary eta replay,
 confluence, or full equality coverage. The build passes with 254 jobs. Eight
 axiom audits contain no sorryAx, using only propext, Classical.choice and
 Quot.sound. No executable changed; the original goal remains active.
+
+### Recursive erased comparison with common and inferred type modes
+
+`ProofErasureComparison.lean` extends terminal head eta to a recursive comparison
+relation. Common-type mode admits eta; inferred mode recovers equality between
+non-proof endpoints without a supplied type conversion and excludes unsupported
+eta at that position. Application functions and binder domains use inferred mode.
+Arguments use common mode after function-type injectivity aligns their domains.
+Lambda bodies preserve the enclosing mode; in common mode, Pi injectivity supplies
+the body-type conversion. Pi bodies use inferred mode. Universe-equivalent sort
+and constant leaves are included, and computations may occur at every node.
+
+proofErase_compare_descend reconstructs every intermediate below insertion and
+proves both modes simultaneously. It does not import ambient endpoint typings.
+Comparison is symmetric, weakens, substitutes and embeds inferred comparisons in
+common mode. The concrete finite K-stage wrapper permits recursive eta comparison
+inside aligned subterms. Eta in an inferred function position still requires
+further computational exposure or type information; arbitrary transitive erased
+witnesses are not admitted. Full declarative comparison coverage remains open.
+
+The build passes with 255 jobs. Seven axiom audits contain no sorryAx, using only
+propext, Classical.choice and Quot.sound. No executable changed; the original
+goal remains active.
