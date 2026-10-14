@@ -3190,3 +3190,39 @@ PropositionFront is asserted.
 The targeted build passes with 253 jobs. Six axiom audits contain no sorryAx;
 only propext, Classical.choice and Quot.sound occur. No executable changed. The
 original goal remains active.
+
+### Refute common-type lambda-annotation erasure under canonical Eq
+
+The recursive-loop candidate is now fully verified. `RecursiveLoopComparison`
+proves that a normal comparison between hereditary bodies at two separated
+recursive domains has no recursive-typed computational node on its left. The
+proof includes both eta directions and extensionality. It weakens the original
+body witnesses into the fresh binder and removes binders only from the negative
+node predicate, so it does not use declarative strengthening.
+
+`RecursiveLoopObservation` completes the complementary operational argument.
+In a context of proposition variables, a body with no recursive nodes admits the
+finite observation of its remaining simple role. Applying that observation to a
+literal sort exposes a sort by beta reduction. The self-application loop applied
+to a beta-normal argument instead has only itself as a beta reduct. Backward
+soundness of finite observations for beta/function-eta paths therefore shows
+that every full reduct of the closed loop retains a recursive node. This uses no
+normalization theorem for the ambient recursive calculus.
+
+`RecursiveLoopSeparation.recursive_loop_separation` combines these two facts with
+full canonical-Eq confluence. `canonical_loop_erasure_counterexample` installs two
+fresh checked recursive definitions in any canonical-Eq base and gives closed
+loops with the same result type, identical lambda-annotation erasures, and no
+full conversion. `canonical_proposition_erasure_counterexample` strengthens the
+boundary to proposition endpoints: Eq R omega_c omega_c and Eq R omega_c omega_d
+have identical erased syntax, while Eq-family rigidity would turn their
+conversion into the impossible loop conversion.
+
+This refutes the ledger's common-type annotation-erasure reflection proposal,
+even restricted to propositions. It does not refute annotated proof erasure,
+which retains the distinguishing domains. It is not a strengthening
+counterexample: no equality after context extension is asserted. The original
+strengthening goal remains open and active.
+
+The targeted build passes with 293 jobs. Seven axiom audits contain only propext,
+Classical.choice and Quot.sound, with no sorryAx. No executable changed.
