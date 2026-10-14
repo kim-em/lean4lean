@@ -6545,3 +6545,36 @@ three modules and use only propext, Classical.choice and Quot.sound, with no
 sorryAx. No executable changes or strengthening inverses were used. This gives
 an exact output description, not a full raw primitive, coverage, or strengthening
 proof. Residual-telescope reconstruction and general guard coverage remain open.
+
+## Fixed erased templates for singleton family guards
+
+`ProofErasureSingletonFamilyTemplate` uses the generic occurrence telescope of
+parameters, indices and major proof. The transported family with its casts is
+well typed there, independently of family conversion. Exact substitution
+naturality identifies its generic instance with the actual transported family.
+The requested rigid family has the analogous specialization. Typed erasure then
+expresses both endpoints using fixed closed templates applied only to erased
+parameters, erased indices, and one proof marker. The marker follows from actual
+major typing; no equality between distinct original major proofs is required.
+
+The provider-congruence theorem shows that equal erased parameter and index
+lists determine both erased endpoints across arbitrary well-formed occurrence
+contexts. Context erasure equality itself is unnecessary for this endpoint
+identity, though a scoped comparison still carries its own actual ambient
+context.
+
+`ProofErasureScopedSingletonTemplates` defines the raw contextual guard directly
+on those two template instances. It proves exact equivalence with contextual
+family comparison at any typed occurrence, and then with the existing generated
+prefix `FamilyGuard` under the raw residual telescope extension. The generated
+prefix equivalence assumes only lower source typing and generation; it does not
+assume an unfolding check or the validity of the guard being compared.
+
+Validation: the two final targets build (367 jobs), logged in
+`/tmp/scoped-singleton-templates-build.log`. All 24 public declarations across the
+five new modules pass `/tmp/singleton-erased-templates-audit.log`, using only
+propext, Classical.choice and Quot.sound, with no sorryAx. No executable changes
+or strengthening inverses were used. The next missing construction is a raw
+primitive with uniform residual-telescope reconstruction and operational replay;
+coverage of ambient family guards and `IsDefEqU.weakN_iff` remain open. No smaller
+sufficient front is claimed, and the full goal remains active.

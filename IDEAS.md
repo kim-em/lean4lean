@@ -847,3 +847,16 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   dependent data/proof layouts and indexed families are included. The check is
   retained where it supplies bare-field typing. Uniform reconstruction of the
   erased residual telescope from raw inputs remains to be proved.
+
+- **Represent both singleton family guards by fixed erased occurrence templates.**
+  **Checked** in `ProofErasureSingletonFamilyTemplate` and
+  `ProofErasureScopedSingletonTemplates`. Unlike bare fields, the cast-bearing
+  transported family is typed in the generic parameter/index/major telescope.
+  Both it and the requested family therefore erase by substituting erased
+  parameters and indices into fixed templates; the major contributes a proof
+  marker. Equal erased providers give identical endpoints across arbitrary
+  well-formed occurrence contexts, without relating the major proofs. The raw
+  scoped template guard is equivalent to the original contextual generated
+  family guard under the erased residual telescope. This identifies a uniform
+  guard interface but does not prove guard coverage or define a complete
+  general-prefix stage.
