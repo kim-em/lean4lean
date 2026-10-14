@@ -908,3 +908,17 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   typed family endpoints, `ProofErasureSingletonGuardSubstitution` transports
   the recursive family certificate before checking bare fields. No claim about
   unrealizable raw contexts is needed or proved.
+
+- **Require existence of a typed source realization for the general raw primitive.**
+  **Checked** in `ProofErasureTypedSingletonSubstitution`: the fixed code, guard
+  and output remain unchanged; source realizability enables exact simultaneous
+  substitution under every interpreted context map. Actual checked prefix
+  sources satisfy it automatically. This avoids relying on any unproved global
+  property of the semantic selector at unrealizable raw contexts.
+- **Build general finite stages with descent, replay and substitution together.**
+  **Checked** in `ProofErasureScopedTypedSingletonStages`. Guards recurse into
+  the previous stage; every stage is substitution-stable and has exact original
+  operational replay and block descent. Forward erasure admits all actual
+  checked singleton layouts with preceding family certificates. Coverage of
+  those certificates and raw confluence are the remaining substantive tasks;
+  no strengthening or sufficient-front result follows yet.

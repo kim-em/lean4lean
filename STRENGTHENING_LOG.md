@@ -6681,3 +6681,38 @@ Validation: the three targets build; all 16 public declarations are audited in
 the first 16 entries of `/tmp/typed-singleton-substitution-audit.log`, with only
 propext, Classical.choice and Quot.sound and no sorryAx. No executable changes
 or strengthening inverses were used. General guard coverage remains open.
+
+## Substitution-stable general stages with typed source realizability
+
+`ProofErasureTypedSingletonSubstitution` proves exact raw primitive substitution
+at every typed original source. Reflect the original family certificate to type
+its checked RHS, substitute the actual generated program, transport the family
+certificate, and identify the new exact raw output using typed erasure. The
+proof uses descent and substitution only for the recursive guard relation.
+
+`ProofShape.TypedSource` records existence of a well-formed typed realization,
+without selecting an input representative in the primitive's definition. The
+new `ScopedTypedSingletonPrimitive` pairs this condition with the existing raw
+primitive. Its code, guard and prescribed output are unchanged. The existence
+witness can be interpreted by any `ContextSubstitution`, giving an unconditional
+context-substitution theorem for this relation. Original block descent and
+exact operational replay are inherited. No failure of the unrestricted earlier
+raw primitive's substitution law has been claimed or used.
+
+`ProofErasureScopedTypedSingletonStages` now supplies finite general singleton
+stages with all three properties: block descent, exact operational replay, and
+substitution stability without increasing the stage. Compatible raw paths
+replay to typed original prefix-computation paths. The forward theorem proves
+that every actual checked singleton prefix automatically supplies the source
+realization, for arbitrary indexed/dependent layouts; its only recursive
+premise remains a preceding-stage family certificate. Thus this requirement
+does not exclude actual checked prefix steps covered by such certificates.
+
+Validation: the full target builds (421 jobs), logged in
+`/tmp/erased-scoped-typed-singleton-stages-build.log`. All 30 public declarations
+across the five new modules pass `/tmp/typed-singleton-substitution-audit.log`,
+with only propext, Classical.choice and Quot.sound and no sorryAx. No executable
+changes or strengthening inverses were used. The next substantive tasks are
+family-certificate coverage and confluence/transport of original joins in the
+new substitution-stable stages. `IsDefEqU.weakN_iff` remains open; no strictly
+smaller sufficient front or completed goal is claimed.
