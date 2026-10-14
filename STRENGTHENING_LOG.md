@@ -2890,3 +2890,24 @@ The new target builds with 292 jobs; the boundary target with 316 jobs. The
 combined recovery, comparison and substitution build passed with 346 jobs,
 followed by the combined loop and family-trace client check. Thirteen axiom audits
 contain no sorryAx. No executable changed; the original goal remains active.
+
+### Close guarded indexed prefix computation under recovered eta stages
+
+`GuardedSingletonWeakening.lean` proves raw transported-field length and family
+naturality using only provider lengths. This removes occurrence typing from the
+renaming argument. FamilyGuard and the complete generated PrefixStep now preserve
+arbitrary context lifting and finite binder insertion. ComputeWeakening also has
+a generic arbitrary-lift extension; prefix guards admit monotone replacement.
+
+`IndexedEtaComputation.lean` combines predecessor computation, recovered guarded
+K, and arbitrary indexed PrefixStep as the computational base of recovered eta.
+Finite-stage induction establishes exact scope reflection, typed source replay
+and weakening. The earlier ComparedEtaCompute model embeds at the same stage;
+indexed prefix, recovered eta and recovered K constructors are available, and
+finite collections can share a larger stage. No completeness assumption is used
+in these descent results.
+
+The targeted build passes with 282 jobs. Eight axiom audits exclude sorryAx,
+using only propext, Classical.choice and Quot.sound. No executable changed.
+Family-certificate completeness and general equality coverage remain open; the
+original strengthening goal is still unresolved.
