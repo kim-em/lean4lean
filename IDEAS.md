@@ -445,3 +445,21 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
 | Decompose arbitrary finite projection paths before completing eta | **Checked.** `ProjectionComputationTrace` retains either a major-only path with the projection intact, or the first saturated constructor exposure, selected field and full subsequent field path. No source typing or confluence is assumed. A fixed nonconstructor major consequently has fixed projections. |
 
 | Absorb computation after eta of a fixed neutral or empty structure | **Checked root cases.** `NeutralEtaCompletion` shows that fixed projected fields leave only parameter computation. Actual family-type conversion validates those computed parameters for a new eta root of the original major, using the unchanged closed admissibility certificate. This covers computationally fixed neutral majors (including variables), and every zero-field structure with no major-fixedness premise. Duplicated majors that compute differently and compatible substitutions remain outside these results; general mixed composition is still open. |
+
+- **Treat erased sort recovery as structural inference:** ruled out as a
+  simplification by an exact checked characterization. For substitution-stable
+  computation with typed descent, its sort clause is equivalent to universe
+  head exposure on original types. A variable at an arbitrary declaration tests
+  necessity; raw retraction removes it without an inhabitant. Canonical-Eq
+  confluence gives full universe exposure, making the missing clause exactly
+  repair of full reductions ending in a universe. Recovery existence therefore
+  already implies literal-sort strengthening. No reduction of the full
+  proposition front to this fragment is known.
+- **Use an ambient sort witness just to classify recursive eta's fresh argument:**
+  checked and needs no computational recovery. Equal erasures of independently
+  sort-typed terms have equivalent universe levels. Comparing a typed ambient
+  representative with the weakened lower domain transfers its sort below, then
+  determines the synthetic eta body. This avoids making the full sort-exposure
+  premise a prerequisite for eta classification. Integration into a contextual
+  certificate is still open; the existing raw checked eta rules continue to use
+  recovered sorts.

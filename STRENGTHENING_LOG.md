@@ -4969,3 +4969,49 @@ successfully (391 jobs). All sixteen public theorem audits in
 `/tmp/eta-composition-roots-audit.log` use only propext, Classical.choice and
 Quot.sound or subsets; no sorryAx occurs. The original strengthening gap and
 executable are unchanged.
+
+### Exact content of sort recovery, and a weaker eta classification witness
+
+The previous turn established recursive checked eta with recovered domain
+sorts. This turn inspected the missing recovery premise itself rather than
+assuming that its sort clause would follow by structural synthesis.
+
+`ProofErasureSortRecovery.lean` proves `TypeRecovery.bvar_compute`: a variable
+can only recover a type by computation from its oracle assignment. This yields
+an exact equivalence between `ErasedSortRecovery` and `ErasedSortExposure` for
+primitive computation with typed descent and raw substitution. Necessity tests
+an arbitrary declaration convertible to a universe using a fresh variable at
+that declaration. Sort recovery for the variable forces computation from the
+lifted declaration to a universe. Raw retraction removes the fresh variable;
+no original inhabitant of the declaration is used below. Sufficiency replays
+the given recovery to an actual original type, then exposes that type's sort.
+
+Recovery existence thus implies universe head exposure and, through typed
+computation descent, original strengthening for a literal-sort endpoint.
+Universe uniqueness aligns the computed level with the prescribed upper level.
+This is a conditional strengthening fragment, not the full proposition front
+and not a sufficient smaller front.
+
+`ProofErasureSortExposure.lean` proves that full reduction fixes a typed literal
+universe, and normal comparison with one retains a universe head. Canonical-Eq
+confluence therefore supplies actual full universe exposure. The missing erased
+sort-recovery clause is exactly `ErasedFullSortRepair`: replacing such full
+reductions by erased computation, allowing an equivalent output universe.
+This equivalence does not prove repair; function/structure eta and indexed
+prefix guards still have to be handled by a complete computational model.
+
+There is a useful distinction for the eta work. `ProofErasureSortWitness.lean`
+shows that independently sort-typed terms with identical erasures have equal
+universe levels. Any ambient typed representative of a lifted erased domain
+therefore determines the lower domain's sort, using only ordinary weakening,
+erasure reflection and uniqueness. The exact synthetic eta-body erasure follows
+without computational sort recovery. Such contextual witnesses can avoid the
+stronger recovery premise for classification alone. They have not yet been
+integrated into `CheckedCompare`, whose current eta rules still require a
+recovered sort. General recovery, computational composition and the original
+strengthening theorem remain open.
+
+Validation: the combined new targets build (333 jobs). All eighteen public
+results are axiom-audited in `/tmp/erasure-sort-audit.log`; they use only propext,
+Classical.choice and Quot.sound or subsets, with no sorryAx. No executable was
+changed. The active goal is unchanged.
