@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Typing.Strengthening.DeclarationLevelTransport
 import Lean4Lean.Theory.Typing.Strengthening.DeclarationStep
 import Lean4Lean.Theory.Typing.Strengthening.NormalBetaReflection
 
@@ -10,7 +11,7 @@ No completeness of a descending comparison relation is asserted here.
 namespace Lean4Lean.VEnv.Strengthening.PureObservation
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params
 variable [Params] {D : Definitions}
-variable (hs : D.Sound env univs) (hl : D.LevelStable univs)
+variable (hs : D.Sound env univs) (hl : D.LevelCompatible univs)
 include hs hl
 
 omit hl in
@@ -25,7 +26,7 @@ private theorem compute_type (hΓ : OnCtx Γ (env.IsType univs)) (R : Compute D 
 
 /-- One compatible contraction on the right can be mirrored by a finite beta/delta
 path on the left. In particular, the etaBoth case adds no eta step. -/
-theorem normal_compute_step (hΓ : OnCtx Γ (env.IsType univs))
+theorem normal_compute_step_compatible (hΓ : OnCtx Γ (env.IsType univs))
     (H : NormalEqN η n Γ a b) (R : ComputeStep D b b') :
     ∃ a', Compute D a a' ∧ NormalEq Γ a' b' := by
   induction H generalizing b' with
@@ -34,9 +35,9 @@ theorem normal_compute_step (hΓ : OnCtx Γ (env.IsType univs))
   | constDF hc hw1 hw2 hlen hlevels =>
     cases R with
     | delta HR =>
-      have HR' := hl HR hw1 (hlevels.flip.imp (fun _ _ h => h.symm))
-      obtain ⟨T, HT⟩ := hs _ _ _ _ HR'
-      exact ⟨_, .delta HR', .refl HT.hasType.2⟩
+      obtain ⟨rhs', HR', HE⟩ := hl HR hw1 (hlevels.flip.imp (fun _ _ h => h.symm))
+      obtain ⟨T, HT⟩ := hs _ _ _ _ HR
+      exact ⟨rhs', .delta HR', (NormalEq.of_levelEquiv hΓ HE HT.hasType.2).symm hΓ⟩
   | appDF hf1 hf2 ha1 ha2 Hf Ha ihf iha =>
     cases R with
     | beta =>
@@ -104,7 +105,7 @@ theorem normal_compute_step (hΓ : OnCtx Γ (env.IsType univs))
 /-- Every finite compatible beta/delta path can be mirrored through ordinary normal
 comparison by beta and closed unfolding. Both eta directions, extensionality, and annotation
 reductions are covered; the final comparison still has opaque domain equalities. -/
-theorem normal_compute_simulation (hΓ : OnCtx Γ (env.IsType univs))
+theorem normal_compute_simulation_compatible (hΓ : OnCtx Γ (env.IsType univs))
     (H : NormalEqF η Γ a b) (R : Compute D b b') :
     ∃ a', Compute D a a' ∧ NormalEq Γ a' b' := by
   obtain ⟨n, H⟩ := H
@@ -112,7 +113,23 @@ theorem normal_compute_simulation (hΓ : OnCtx Γ (env.IsType univs))
   · exact ⟨_, .refl, _, H.toTrue⟩
   · intro x y R H
     obtain ⟨a1, R1, _, H1⟩ := H
-    obtain ⟨a2, R2, H2⟩ := normal_compute_step hs hl hΓ H1 R
+    obtain ⟨a2, R2, H2⟩ := normal_compute_step_compatible hs hl hΓ H1 R
     exact ⟨a2, R1.trans R2, H2⟩
+
+omit hs hl in
+/-- Exact level stability specializes the universe-compatible transport theorem. -/
+theorem normal_compute_step (hs : D.Sound env univs) (hl : D.LevelStable univs)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (H : NormalEqN η n Γ a b) (R : ComputeStep D b b') :
+    ∃ a', Compute D a a' ∧ NormalEq Γ a' b' :=
+  normal_compute_step_compatible hs hl.compatible hΓ H R
+
+omit hs hl in
+/-- Finite transport with the original exact stability interface. -/
+theorem normal_compute_simulation (hs : D.Sound env univs) (hl : D.LevelStable univs)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (H : NormalEqF η Γ a b) (R : Compute D b b') :
+    ∃ a', Compute D a a' ∧ NormalEq Γ a' b' :=
+  normal_compute_simulation_compatible hs hl.compatible hΓ H R
 
 end Lean4Lean.VEnv.Strengthening.PureObservation

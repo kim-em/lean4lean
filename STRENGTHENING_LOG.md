@@ -5909,3 +5909,48 @@ prefix confluence remain open.
 Validation: the final target builds (314 jobs). All 16 new public theorems pass
 `/tmp/raw-application-audit.log` with only propext, Classical.choice and Quot.sound,
 and no sorryAx. No executable edits or strengthening inverses were used.
+
+## Normal transport without universe saturation of the equations
+
+The previous normal simulation interface required `Definitions.LevelStable`:
+changing a constant's universe syntax had to preserve its exact unfolding result.
+Actual deterministic stored and selected structure equations instead instantiate
+their results at the new universes. Passing to levelClosure supported simulation
+but lost the literal determinism used by the exact computational confluence
+proof. This was an interface mismatch, not evidence against the route.
+
+`DeclarationLevelTransport` replaces that requirement with `LevelCompatible`:
+equivalent well-formed source universes enable an unfolding whose result is
+structurally level-equivalent. Exact stability implies this condition.
+`DeclarationLevelCompatibility` proves it for actual stored equations, using
+the definition registry and the value's universe instantiation. Recursive
+values require no additional condition.
+
+`StructureLevelCompatibility` proves the same property for registry-selected
+structure programs. Closed proof-field typings transport through equivalent
+universes together with every preceding domain in their dependent contexts.
+Never-zero admissibility transports by universe equivalence. The old uniform
+pattern check is realized in the fresh complete recursor telescope; concrete
+pattern guard transport supplies a uniform check at the new universes. The
+selected program's domains and body differ only in their universe annotations.
+The resulting union of stored and structure equations therefore remains the
+original deterministic collection.
+
+Normal declaration, pattern, and checked-prefix simulations now have variants
+using LevelCompatible, with the old LevelStable interfaces retained as wrappers.
+Only the constant-unfolding case changes: the two actual results are compared
+by NormalEq.of_levelEquiv. PrefixNormal composition and TypedPrefixEta
+factorization have corresponding variants. `RegisteredNormalSimulation`
+instantiates these with exactly the collection used by PrefixCompute.confluent.
+Pattern transport needs no canonical Eq or front. Checked-prefix transport and
+function-eta factorization still explicitly assume canonical Eq and the witnessed
+proposition front; no front has been proved here. Structure eta and opaque-domain
+descent remain unresolved.
+
+Validation: the actual simulation and prior structure-family-phase targets build
+(434 jobs), exercising the retained interfaces through their downstream modules.
+All 31 new or affected public theorem interfaces audited in
+`/tmp/registered-normal-audit.log` have only propext, Classical.choice and
+Quot.sound, with no sorryAx. No executable changes or strengthening inverses were
+introduced. This removes an obstruction to combining existing results; it does
+not establish the requested strengthening deliverable.

@@ -45,14 +45,14 @@ theorem PrefixNormal.defeq (hs : D.Sound env univs) (hΓ : OnCtx Γ (env.IsType 
   have hax := compute_eq hs hΓ R ht
   exact hax.trans ((N.defeq hΓ).of_l henv hΓ hax.hasType.2)
 
-theorem PrefixNormal.trans (heq : env.HasCanonicalEq)
+theorem PrefixNormal.trans_compatible (heq : env.HasCanonicalEq)
     (hfront : GuardedSingleton.WitnessedPropDescent (fun Δ a b => env.IsDefEqU univs Δ a b))
-    (hs : D.Sound env univs) (hl : D.LevelStable univs)
+    (hs : D.Sound env univs) (hl : D.LevelCompatible univs)
     (hcon : ∀ {p r}, Pat p r → ConcretePattern env p r) (hΓ : OnCtx Γ (env.IsType univs))
     (H1 : PrefixNormal D Γ a b) (H2 : PrefixNormal D Γ b c) : PrefixNormal D Γ a c := by
   obtain ⟨x, R1, N1⟩ := H1
   obtain ⟨y, R2, N2⟩ := H2
-  obtain ⟨z, R3, N3⟩ := normal_prefix_simulation heq hs hl hfront hcon hΓ N1 R2
+  obtain ⟨z, R3, N3⟩ := normal_prefix_simulation_compatible heq hs hl hfront hcon hΓ N1 R2
   exact ⟨z, R1.trans R3, N3.trans hΓ N2⟩
 
 theorem PrefixNormal.app (hs : D.Sound env univs) (hΓ : OnCtx Γ (env.IsType univs))
@@ -121,9 +121,9 @@ theorem TypedPrefixEta.mono
 /-- Under the witnessed front, every typed path in this fragment factors into
 pattern and prefix computation followed by normal equality. No normalization
 assumption is used, and the final domain comparisons remain opaque. -/
-theorem TypedPrefixEta.factor (heq : env.HasCanonicalEq)
+theorem TypedPrefixEta.factor_compatible (heq : env.HasCanonicalEq)
     (hfront : GuardedSingleton.WitnessedPropDescent (fun Δ a b => env.IsDefEqU univs Δ a b))
-    (hs : D.Sound env univs) (hl : D.LevelStable univs)
+    (hs : D.Sound env univs) (hl : D.LevelCompatible univs)
     (hcon : ∀ {p r}, Pat p r → ConcretePattern env p r) (hΓ : OnCtx Γ (env.IsType univs))
     (R : TypedPrefixEta D Γ a b) (ht : env.HasType univs Γ a T) : PrefixNormal D Γ a b := by
   induction R generalizing T with
@@ -131,7 +131,7 @@ theorem TypedPrefixEta.factor (heq : env.HasCanonicalEq)
   | eta hf => exact .normal (.etaR hf (.refl (HasType.app (hf.weak henv) (.bvar .zero))))
   | trans _ _ ih1 ih2 =>
     have H1 := ih1 hΓ ht
-    exact H1.trans heq hfront hs hl hcon hΓ (ih2 hΓ (H1.defeq hs hΓ ht).hasType.2)
+    exact H1.trans_compatible heq hfront hs hl hcon hΓ (ih2 hΓ (H1.defeq hs hΓ ht).hasType.2)
   | app _ _ ihf iha =>
     obtain ⟨_, _, hf, ha⟩ := ht.app_inv henv hΓ
     exact .app hs hΓ hf ha (ihf hΓ hf) (iha hΓ ha)
@@ -144,6 +144,22 @@ theorem TypedPrefixEta.factor (heq : env.HasCanonicalEq)
   | proj _ ihm =>
     obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ := ht.proj_inv henv hΓ
     exact .proj hs hΓ ht (ihm hΓ hm.hasType.2)
+
+/-- Composition with the original exact stability interface. -/
+theorem PrefixNormal.trans (heq : env.HasCanonicalEq)
+    (hfront : GuardedSingleton.WitnessedPropDescent (fun Δ a b => env.IsDefEqU univs Δ a b))
+    (hs : D.Sound env univs) (hl : D.LevelStable univs)
+    (hcon : ∀ {p r}, Pat p r → ConcretePattern env p r) (hΓ : OnCtx Γ (env.IsType univs))
+    (H1 : PrefixNormal D Γ a b) (H2 : PrefixNormal D Γ b c) : PrefixNormal D Γ a c :=
+  H1.trans_compatible heq hfront hs hl.compatible hcon hΓ H2
+
+/-- Factorization with the original exact stability interface. -/
+theorem TypedPrefixEta.factor (heq : env.HasCanonicalEq)
+    (hfront : GuardedSingleton.WitnessedPropDescent (fun Δ a b => env.IsDefEqU univs Δ a b))
+    (hs : D.Sound env univs) (hl : D.LevelStable univs)
+    (hcon : ∀ {p r}, Pat p r → ConcretePattern env p r) (hΓ : OnCtx Γ (env.IsType univs))
+    (R : TypedPrefixEta D Γ a b) (ht : env.HasType univs Γ a T) : PrefixNormal D Γ a b :=
+  R.factor_compatible heq hfront hs hl.compatible hcon hΓ ht
 
 /-- Saturation supplies the level-stability hypothesis for every sound collection.
 The input path may use the original equations; the output retains actual

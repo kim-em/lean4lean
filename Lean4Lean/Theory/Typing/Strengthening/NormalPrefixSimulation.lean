@@ -16,17 +16,17 @@ private theorem compute_type (hs : D.Sound env univs) (hΓ : OnCtx Γ (env.IsTyp
     (R : PrefixCompute D Γ a b) (ht : env.HasType univs Γ a T) : env.HasType univs Γ b T :=
   (R.simAt hs hΓ _ ht).hasType.2
 
-private theorem normal_base (hs : D.Sound env univs) (hl : D.LevelStable univs)
+private theorem normal_base (hs : D.Sound env univs) (hl : D.LevelCompatible univs)
     (hΓ : OnCtx Γ (env.IsType univs)) (H : NormalEq Γ a b) (R : PatternStep D b b') :
     ∃ a', PrefixCompute D Γ a a' ∧ NormalEq Γ a' b' := by
   obtain ⟨n, H⟩ := H
-  obtain ⟨a', R, H⟩ := normal_pattern_step hs hl hΓ H R
+  obtain ⟨a', R, H⟩ := normal_pattern_step_compatible hs hl hΓ H R
   exact ⟨a', .base R, H⟩
 
 /-- One compatible checked contraction transports through normal comparison.
 Context conversion under binders retains every original prefix check. -/
-theorem normal_prefix_step (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
-    (hl : D.LevelStable univs)
+theorem normal_prefix_step_compatible (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hl : D.LevelCompatible univs)
     (hfront : GuardedSingleton.WitnessedPropDescent (fun Δ a b => env.IsDefEqU univs Δ a b))
     (hΓ : OnCtx Γ (env.IsType univs))
     (H : NormalEqN η n Γ a b) (R : PrefixStep D Γ b b') :
@@ -158,8 +158,8 @@ theorem normal_prefix_step (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
 
 /-- Under the witnessed front, every finite compatible pattern-and-prefix path
 commutes with ordinary normal comparison. No eta computation is introduced. -/
-theorem normal_prefix_simulation (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
-    (hl : D.LevelStable univs)
+theorem normal_prefix_simulation_compatible (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hl : D.LevelCompatible univs)
     (hfront : GuardedSingleton.WitnessedPropDescent (fun Δ a b => env.IsDefEqU univs Δ a b))
     (hcon : ∀ {p r}, Pat p r → ConcretePattern env p r) (hΓ : OnCtx Γ (env.IsType univs))
     (H : NormalEqF η Γ a b) (R : PrefixCompute D Γ b b') :
@@ -169,7 +169,26 @@ theorem normal_prefix_simulation (heq : env.HasCanonicalEq) (hs : D.Sound env un
   · exact ⟨_, .refl, _, H.toTrue⟩
   · intro x y R H
     obtain ⟨a1, R1, _, H1⟩ := H
-    obtain ⟨a2, R2, H2⟩ := normal_prefix_step heq hs hl hfront hΓ H1 R
+    obtain ⟨a2, R2, H2⟩ := normal_prefix_step_compatible heq hs hl hfront hΓ H1 R
     exact ⟨a2, R1.trans R2, H2⟩
+
+/-- Prefix transport with the original exact universe stability interface. -/
+theorem normal_prefix_step (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hl : D.LevelStable univs)
+    (hfront : GuardedSingleton.WitnessedPropDescent (fun Δ a b => env.IsDefEqU univs Δ a b))
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (H : NormalEqN η n Γ a b) (R : PrefixStep D Γ b b') :
+    ∃ a', PrefixCompute D Γ a a' ∧ NormalEq Γ a' b' :=
+  normal_prefix_step_compatible heq hs hl.compatible hfront hΓ H R
+
+/-- Prefix transport with the original exact universe stability interface. -/
+theorem normal_prefix_simulation (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hl : D.LevelStable univs)
+    (hfront : GuardedSingleton.WitnessedPropDescent (fun Δ a b => env.IsDefEqU univs Δ a b))
+    (hcon : ∀ {p r}, Pat p r → ConcretePattern env p r)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (H : NormalEqF η Γ a b) (R : PrefixCompute D Γ b b') :
+    ∃ a', PrefixCompute D Γ a a' ∧ NormalEq Γ a' b' :=
+  normal_prefix_simulation_compatible heq hs hl.compatible hfront hcon hΓ H R
 
 end Lean4Lean.VEnv.Strengthening.PureObservation
