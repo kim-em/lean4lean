@@ -1935,3 +1935,26 @@ The target builds with 247 dependency jobs. Four audits have no sorryAx, only
 propext, Classical.choice and Quot.sound. The requested full strengthening result,
 a canonical-Eq counterexample, or a strictly smaller sufficient front has still
 not been established. The goal stays active.
+
+### Ambient substitution squares for delayed comparisons
+
+`SuspendedSubstitution.lean` supplies the previously missing proofness bridge:
+a typed substitution from the original comparison context into an ambient target
+commutes with the raw template substitution and the actual weakening below.
+`SubstLiftSquare.proof_reflect` then reflects proofness for any independently
+typed smaller instance. No typing for an open smaller template is assumed.
+
+The square extends under a chosen lower domain using only its ambient alignment,
+and can add an ambient-only binder. `DomainNormal.suspended_reflect` descends
+recursive domain certificates through two such squares and a ProofSubstRel.
+`suspended_proof_inst` pushes a pair of proof arguments onto these delayed
+substitutions, without requiring their propositions to agree below.
+`suspended_eta_left` handles one-sided eta with a recursively certified body;
+type uniqueness aligns the short function's ambient domain with the lower choice.
+
+The target builds with 218 dependency jobs. Six axiom audits contain only
+propext, Classical.choice and Quot.sound, with no sorryAx. The executable is
+unchanged. Full bidirectional suspension descent, including eta on both sides,
+and arbitrary lambda-argument repair remain open. This is progress on the
+existing delayed-substitution route, not yet a sufficient smaller front.
+The independently appearing CertifiedKApplication file was left untouched.
