@@ -716,3 +716,28 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   Every finite contextual prefix stage preserves the comparison at the same
   bound. Only one original projection typing is required. This closes general
   projection congruence, not arbitrary paired substitution or transitivity.
+
+- **Replay manual canonical Eq prefixes as actual generated prefix computation.**
+  **Open metadata bridge.** `HasCanonicalEq.recursorRegistration` supplies the
+  installed entry and index count. Applying `PrefixCompute.confluent` still
+  requires identifying `singletonUnfolding`'s generated telescope, captures,
+  and RHS with the manual before-major lambda. `eqRecBeforeMajor_simAt` proves
+  declarative equality only. Registration alone does not supply those identities;
+  no impossibility result or computational replay theorem is claimed here.
+- **Compute substituted images beneath dependent scoped binders.** **Checked**
+  in `ProofErasureScopedSubstitutionImages`. A typed source substitution and its
+  retained-variable agreement suffice to extend pointwise raw computation
+  through any typed template. Binder bodies compute under the source-substituted
+  domain. Computed image outputs need no separately supplied representatives.
+- **Reconstruct a dependent substitution from computed raw images.** **Checked**
+  in `ProofErasureScopedSubstitutionRealization`. Induction on the finite source
+  context replays retained images and builds a related typed output map; erased
+  proof variables impose no image agreement. Consequently contextual
+  substitution interpretations are closed under pointwise scoped computation.
+- **Close paired scoped substitution for computationally joined images.**
+  **Checked** in `ProofErasureScopedJoinedSubstitution`, both for one binder and
+  simultaneous dependent substitutions. All comparison modes and finite prefix
+  stages are preserved. `ProofErasureScopedSubstitutionSquare` also constructs
+  all four edges commuting a typed template computation with pointwise image
+  computation, with an identical raw output. These laws do not establish
+  paired substitution for merely compared images or general confluence.

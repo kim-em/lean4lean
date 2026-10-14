@@ -6262,3 +6262,49 @@ used. General projection congruence is now covered. Application of common-compar
 functions to merely compared arguments, arbitrary paired substitution, higher
 prefix transport, and full comparison composition remain unresolved. This is not
 a proof of strengthening or a strictly smaller sufficient front.
+
+## Scoped computation through dependent substitution images
+
+`ProofErasureScopedSubstitutionImages` proves raw pointwise image computation
+under a typed source substitution. The source map has a retained-variable
+agreement with its raw map; computed target images need no supplied typings.
+A typed domain gives a contextual raw shift, which lifts every image computation
+under the source-substituted binder. Induction on the original template handles
+all dependent annotations and proof collapse. The specialization computes a
+single argument throughout an arbitrary typed body.
+
+`ProofErasureScopedSubstitutionRealization` reconstructs a related typed output
+substitution by induction on the finite source context. Retained images replay
+at their source-substituted types. Proof-valued source variables retain an
+original image without constraining their arbitrary raw image. Related tail
+substitutions provide the dependent type conversions through the existing
+ordinary substitution theorem. Thus `ContextSubstitution.compute_images`
+preserves the interpretation after pointwise scoped computation.
+
+`ProofErasureScopedJoinedSubstitution` uses these results to substitute two
+computationally joined image maps into a scoped body comparison. Both instantiated
+bodies compute to substitution by the shared raw map; that map's reconstructed
+context interpretation transports the original guard. This preserves inferred
+and common modes and every finite contextual prefix stage. The single-argument
+wrapper reconstructs only one common argument realization.
+
+`ProofErasureScopedSubstitutionSquare` gives the corresponding computational
+square: substituting the original images and then computing the template, or
+first computing the images and then the template, have an identical raw output.
+Typed replay reconstructs the template output needed to compute its substituted
+images. All four paths stay in the same finite stage. No normalization,
+comparison-composition premise, or computational-confluence premise is used.
+
+The actual-prefix replay investigation remains open: canonical registration is
+available, but its generated unfolding program has not yet been identified with
+the manually specified before-major K lambda. The existing manual replay theorem
+provides declarative equality, so it cannot simply be passed to actual-prefix
+computational confluence.
+
+Validation: both final substitution targets build together (320 jobs), logged
+in `/tmp/scoped-substitution-build.log`. All 15 public declarations in the four
+new modules pass `/tmp/scoped-substitution-audit.log`, using only propext,
+Classical.choice and Quot.sound, with no sorryAx. No executable edits or
+strengthening inverses were used. Arbitrary merely compared image substitution,
+comparison composition, and the original strengthening theorem remain open;
+these results are not a strictly smaller sufficient front.
