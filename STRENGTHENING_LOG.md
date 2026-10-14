@@ -2042,3 +2042,31 @@ that reconstruct the chosen Pi type below; arbitrary ambient typing annotations
 remain insufficient. No executable changed, and the original goal remains open.
 The independently appearing suspended/heterogeneous-substitution files were
 left untouched.
+
+### Opaque lower equalities in suspended comparisons
+
+`HeterogeneousSubstitutionEquality.lean` separates preserving a comparison
+certificate from preserving its declarative consequence. DefEqProofSubstRel
+allows arbitrary already-proved lower equalities, as well as unrelated proof
+pairs and literally identical unused entries. Structural comparison of two
+independently typed instances of a shared raw template yields lower equality;
+the raw template still needs no open smaller-context typing.
+
+`BiNormal.suspended_defeq` extends this to distinct source templates with a
+mode-indexed certificate. The independent ambient contexts, sort uniqueness,
+and eta-prefix extension from the previous result still apply. Substituted
+arguments are used as opaque equality leaves, so their lambda domains need
+not acquire new recursive certificates. `suspended_beta_eq` packages contraction
+of distinct bodies with already-convertible arguments of any syntactic form.
+
+The qualifier is essential: the argument conversion must already hold below.
+This does not derive equality for independently typed lambda arguments whose
+types have not aligned. Nor does the equality conclusion claim unrestricted
+BiNormal substitution closure, which the existing boundary refutes. Producing
+adequate source comparisons and resolving the original matched-lambda pair
+remain open; no final strengthening deliverable is claimed.
+
+The target builds with 220 dependency jobs. Five axiom audits contain only
+propext, Classical.choice and Quot.sound, with no sorryAx. No executable changed.
+Independent workspace commits through 64bcd094 were preserved. The goal remains
+active.
