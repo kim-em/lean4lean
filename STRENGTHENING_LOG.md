@@ -5455,3 +5455,43 @@ Validation: the target builds (212 jobs); both public theorems pass
 `/tmp/exact-computation-audit.log` with only propext, Classical.choice and
 Quot.sound. No executable or strengthening inverse was used. Finite prefix
 computation and eta still require separate assembly results.
+
+### Exact computational confluence with actual indexed prefixes
+
+`ExactPrefixCoreDiamond.lean` proves a literal DeltaPar/ParRed diamond from a
+typed source. Here DeltaPar is the original parallel relation with actual
+singleton/quotient occurrence checks and constructor projections. Smaller
+capture diamonds, complementary ordinary-iota/prefix guards, and the new
+full-program congruence assemble the prefix cases. Beta uses typed parallel
+substitution; binder bodies move to their changed source contexts by conversion.
+The proof no longer has the old proof-type collapse or any NormalEq remainder.
+The exact diamond extends to commutation of both finite closures.
+
+`ExactPrefixPeaks.lean` strengthens DeltaPar self-peaks. On each side, one further
+DeltaPar step followed only by finite core computation reaches one literal
+endpoint. Argument joins lift through complete generated RHSs, including their
+lambda domains. A contraction at a shorter spine prefix specializes by beta to
+the contraction at the longer prefix. Projection peaks select the same field,
+and ordinary context conversion handles dependent compatible positions. Neither
+normal comparison nor proof irrelevance is used to close a peak.
+
+`ExactComputationalConfluence.lean` assembles these diagrams with the exact core
+triangle using the existing levelled decreasing-diagram theorem. The finite
+union `PrefixCoreReduction` of ParRed and DeltaPar is exactly confluent from any
+typed source in a well-formed context. The result includes arbitrary interleaving
+of beta, ordinary stored/case patterns, actual indexed singleton and quotient
+prefixes, and constructor projections. It needs neither canonical Eq nor
+normalization nor a strengthening premise.
+
+The scope here is the original computational presentation. The separately added
+closed structure programs, eta expansion, and equivalent-universe/normal
+comparison are not constructors of this relation. Exact finite confluence does
+not by itself solve prefix-check descent or arbitrary mixed eta/computation
+composition. The original UniqueTyping sorry remains; no strictly smaller
+sufficient strengthening front or canonical-Eq counterexample is claimed.
+
+Validation: the confluence target builds (364 jobs). The seven public results
+in these three modules pass `/tmp/exact-computation-audit.log`; together with
+the core triangle and ordinary-root exchange, all nineteen new public results
+use only propext, Classical.choice and Quot.sound or subsets, with no sorryAx.
+No executable was changed, and no strengthening inverse was used.
