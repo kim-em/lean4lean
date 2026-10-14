@@ -5537,3 +5537,31 @@ Validation: the repair target builds successfully (315 jobs). All 28 new public
 declarations pass `/tmp/prefix-k-audit.log` with only propext, Classical.choice,
 and Quot.sound (or subsets); no sorryAx or forbidden strengthening inverse is
 used. No executable changed.
+
+### Full K is redundant once proof-major prefix K is present
+
+`ProofErasureComputationSimulation` translates primitive steps to arbitrary
+finite computations through the computational closure, raw comparison, raw
+checking and contextual comparison. Endpoints, modes and erased contexts are
+preserved; contextual sort witnesses need no changes.
+
+`ProofErasurePrefixOnly` proves that each full K step factors into one prefix
+step at its function position followed by beta. The raw proof argument is
+arbitrary, including a proof marker. It then removes full K from the finite
+stage presentation entirely: `ErasedPrefixOnlyStage` contains core primitives
+and prefix K only. Every enriched primitive simulates at the same stage, with
+its endpoint guard translated recursively at the preceding stage. Conversely,
+every prefix-only primitive embeds in the enriched presentation.
+
+Thus finite computations, raw checking guards and contextual comparisons are
+exactly equivalent between the two stage presentations, without increasing the
+bound. The smaller primitive presentation retains typed descent and unrestricted
+raw substitution. It removes the explicit full-K/prefix overlap from future
+confluence work. This is an equivalent computational presentation, not a strictly
+smaller sufficient obligation for strengthening. Guard transport, further prefix
+coverage and general contextual composition remain open.
+
+Validation: the new target builds successfully (309 jobs). All thirteen public
+declarations pass `/tmp/prefix-only-audit.log`, using only propext,
+Classical.choice and Quot.sound or subsets, with no sorryAx. No executable or
+forbidden strengthening inverse is used.

@@ -542,3 +542,10 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   recursors from `ContextPrefixWitness` at stage one, including a raw checking
   guard usable by later K steps. Other indexed prefixes and general composition
   remain open; arbitrary contextual guards have not been added.
+
+- **Replace full K by proof-major prefix unfolding and beta.** **Checked exact
+  equivalence** in `ProofErasurePrefixOnly`. Both primitive presentations have
+  the same finite computations, raw checking guards and contextual comparisons
+  at every stage. Prefix-only primitives retain descent and substitution. This
+  removes one redundant critical overlap, but does not settle guard transport,
+  general composition or the full strengthening goal.
