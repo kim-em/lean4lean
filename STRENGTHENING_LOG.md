@@ -3624,3 +3624,34 @@ strengthening or a smaller sufficient obligation. The targeted build passes
 (246 jobs). Ten axiom audits contain no sorryAx, using only propext,
 Classical.choice and Quot.sound. The executable and original UniqueTyping sorry
 are unchanged; the full goal remains active.
+
+### Full concrete core coverage by erased computation
+
+`ProofErasurePatternForward` proves forward matching for typed non-proof constant
+spines and then every enabled core pattern. The essential case is the iota major:
+Params.major_proof shows a proof major would make the whole source a proof, since
+large elimination at zero source level is excluded by the core guard. Thus the
+entire visible pattern survives whenever the source does. Proof-valued captures
+remain markers. Fixed-template roots then simulate forwards with the existing
+TemplatePrimitive, while whole-proof steps collapse to identity.
+
+`ProofErasureCoreForward.erased_stored_template` reads each installed iota rule
+back through declaration history to its compiled equation. This supplies the
+closed template typing independently of the occurrence, including nested compiled
+rules. Definitions supply their stored equation typing; quotient computation uses
+the existing capture-application primitive. Consequently every concrete enabled
+root pattern simulates with no extra template coverage assumption.
+
+Using the checked PatternStep decomposition, forward simulation extends through
+all compatible positions and arbitrary finite PatternCompute paths. Source typing
+reconstructs intermediate typings, and context conversion aligns erasure when an
+annotation changes. `proofErase_parRed_forward` instantiates the actual environment
+parameters and covers every original core parallel step, including capture
+computation. Together with existing erased replay this covers both operational
+directions of the entire concrete core fragment.
+
+The targeted build passes (269 jobs); eight axiom audits contain only propext,
+Classical.choice and Quot.sound, with no sorryAx. Singleton/quotient prefixes,
+structure eta and recursive comparison completeness remain open. This is not a
+proof of strengthening or a strictly smaller sufficient front. No executable
+changed; the original goal remains active.
