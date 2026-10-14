@@ -2861,3 +2861,32 @@ exclude sorryAx (only propext, Classical.choice and Quot.sound). No executable
 changed. Family certificate completeness, closure of the new raw prefix rule
 under the full computational staging interfaces, and general equality coverage
 remain open. The active goal remains unresolved.
+
+### Admit cast-head computations through sort-source recovery replay
+
+The recovery induction only invokes its computation premise on already inferred
+types. `TypeComputeDescent` therefore restricts scoped replay to sort-typed
+sources. `TypeRecoveryWith.descend_of_types` proves the full reconstruction result
+with that premise; the old descent theorem is now a wrapper. Ambient typing and
+both modes of recovered comparison also follow from this weaker interface.
+Existing public interfaces remain available.
+
+`TypeHeadComputation.lean` makes this distinction concrete. Its base is CastCompute;
+it additionally computes an outer cast to a Pi or fully saturated registered
+family when its payload has the corresponding computational exposure. Neither
+syntactic endpoint matching nor an endpoint equality certificate is required.
+The cast source must be a type at replay, which licenses the previously checked
+cast-type argument. The relation has raw substitution, weakening, composition,
+and exact scope reflection. Its type descent supplies recovered endpoint
+comparisons, and those comparisons safely guard compatible K computations with
+ordinary arbitrary-source descent. The type-restricted cast rules themselves
+are not inserted as arbitrary compatible term rewrites.
+
+This does not make full reduction descend: the existing sort-typed Pi-target
+capture example now explicitly refutes TypeComputeDescent FullRecoveryCompute.
+Thus arbitrary full head-path repair and comparison completeness remain open.
+
+The new target builds with 292 jobs; the boundary target with 316 jobs. The
+combined recovery, comparison and substitution build passed with 346 jobs,
+followed by the combined loop and family-trace client check. Thirteen axiom audits
+contain no sorryAx. No executable changed; the original goal remains active.

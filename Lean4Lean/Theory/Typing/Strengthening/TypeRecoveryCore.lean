@@ -27,6 +27,18 @@ def ComputeDescent (C : List VExpr → VExpr → VExpr → Prop) : Prop :=
     env.HasType univs Γ e T →
     ∃ out, target = out.lift' ρ ∧ env.IsDefEq univs Γ e out T
 
+/-- Recovery computes inferred types, so scoped replay only needs to hold at
+sort-typed sources. This permits rules whose validity depends on being types. -/
+def TypeComputeDescent (C : List VExpr → VExpr → VExpr → Prop) : Prop :=
+  ∀ {ρ Γ Γ' e target u}, C Γ' (e.lift' ρ) target → Ctx.Lift' ρ Γ Γ' →
+    OnCtx Γ (env.IsType univs) → OnCtx Γ' (env.IsType univs) →
+    env.HasType univs Γ e (.sort u) →
+    ∃ out, target = out.lift' ρ ∧ env.IsDefEq univs Γ e out (.sort u)
+
+/-- Ordinary computation descent supplies the restricted type interface. -/
+theorem ComputeDescent.types (H : ComputeDescent C) : TypeComputeDescent C :=
+  fun R W hΓ hΓ' ht => H R W hΓ hΓ' ht
+
 /-- Typed replay is the identity-insertion instance of scoped descent. -/
 theorem ComputeDescent.simAt (hc : ComputeDescent C) (R : C Γ e out)
     (hΓ : OnCtx Γ (env.IsType univs)) : env.SimAt univs Γ e out := by
@@ -94,8 +106,8 @@ theorem application_at_recovered_pi (hΓ : OnCtx Γ (env.IsType univs))
 /-- A type-recovery certificate above a binder insertion reconstructs its
 entire output type below, as well as its typing. Lambda annotations come from
 the source syntax; computation steps supply their own scoped result and replay. -/
-theorem TypeRecoveryWith.descend (R : TypeRecoveryWith C Γ' (e.lift' ρ) T)
-    (hcompute : ComputeDescent C)
+theorem TypeRecoveryWith.descend_of_types (R : TypeRecoveryWith C Γ' (e.lift' ρ) T)
+    (hcompute : TypeComputeDescent C)
     (W : Ctx.Lift' ρ Γ Γ') (hΓ : OnCtx Γ (env.IsType univs))
     (hΓ' : OnCtx Γ' (env.IsType univs)) (ht : VExpr.WF env univs Γ e) :
     ∃ T₀, T = T₀.lift' ρ ∧ env.HasType univs Γ e T₀ := by
@@ -153,6 +165,24 @@ theorem TypeRecoveryWith.descend (R : TypeRecoveryWith C Γ' (e.lift' ρ) T)
     obtain ⟨u, hT⟩ := heT.isType henv hΓ
     obtain ⟨T', hT', H⟩ := hcompute R W hΓ hΓ' hT
     exact ⟨T', hT', H.defeq heT⟩
+
+/-- Ordinary computation descent is a sufficient special case of the weaker
+type-only interface used by the recovery induction. -/
+theorem TypeRecoveryWith.descend (R : TypeRecoveryWith C Γ' (e.lift' ρ) T)
+    (hcompute : ComputeDescent C)
+    (W : Ctx.Lift' ρ Γ Γ') (hΓ : OnCtx Γ (env.IsType univs))
+    (hΓ' : OnCtx Γ' (env.IsType univs)) (ht : VExpr.WF env univs Γ e) :
+    ∃ T₀, T = T₀.lift' ρ ∧ env.HasType univs Γ e T₀ :=
+  R.descend_of_types hcompute.types W hΓ hΓ' ht
+
+/-- Sort-typed computational replay already suffices for ambient recovery. -/
+theorem TypeRecoveryWith.hasType_of_types (R : TypeRecoveryWith C Γ e T)
+    (hc : TypeComputeDescent C) (hΓ : OnCtx Γ (env.IsType univs))
+    (ht : VExpr.WF env univs Γ e) : env.HasType univs Γ e T := by
+  have R' : TypeRecoveryWith C Γ (e.lift' .refl) T := by simpa using R
+  obtain ⟨T₀, hT, H⟩ := R'.descend_of_types hc .refl hΓ hΓ ht
+  simp only [lift'_refl] at hT
+  exact hT.symm ▸ H
 
 /-- A recovered Pi typing determines scoped eta annotations below. -/
 theorem TypeRecoveryWith.pi_below (R : TypeRecoveryWith C Γ' (e.lift' ρ) (.forallE A B))

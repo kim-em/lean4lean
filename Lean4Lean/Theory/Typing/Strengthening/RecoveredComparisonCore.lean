@@ -51,9 +51,9 @@ theorem RecoveredComparisonWith.promote (H : RecoveredComparisonWith C false Γ 
 /-- Both modes descend. Recovery reconstructs the lower endpoint typings before
 using the common-mode child. Its chosen type may be computed from the term; no
 common lower type is assumed in independent mode. -/
-theorem RecoveredComparisonWith.descend
+theorem RecoveredComparisonWith.descend_of_types
     (H : RecoveredComparisonWith C mode Γ' (a.lift' ρ) (b.lift' ρ))
-    (hc : ComputeDescent C)
+    (hc : TypeComputeDescent C)
     (W : Ctx.Lift' ρ Γ Γ') (hΓ : OnCtx Γ (env.IsType univs))
     (hΓ' : OnCtx Γ' (env.IsType univs)) (ha : Γ ⊢ a : A) (hb : Γ ⊢ b : B)
     (hmode : if mode then Γ ⊢ A ≡ B else ¬ IsProof Γ a) : Γ ⊢ a ≡ b := by
@@ -79,21 +79,31 @@ theorem RecoveredComparisonWith.descend
     exact ⟨_, IsDefEq.appDF hfPi (hxy.of_l henv hΓ hx₀)⟩
   | recover Ra Rb HT Hab ihT ihab =>
     subst hl hr
-    obtain ⟨T₁, hT₁, haT⟩ := Ra.descend hc W hΓ hΓ' ⟨_, ha⟩
-    obtain ⟨T₂, hT₂, hbT⟩ := Rb.descend hc W hΓ hΓ' ⟨_, hb⟩
+    obtain ⟨T₁, hT₁, haT⟩ := Ra.descend_of_types hc W hΓ hΓ' ⟨_, ha⟩
+    obtain ⟨T₂, hT₂, hbT⟩ := Rb.descend_of_types hc W hΓ hΓ' ⟨_, hb⟩
     obtain ⟨_, hT₁s⟩ := haT.isType henv hΓ
     obtain ⟨_, hT₂s⟩ := hbT.isType henv hΓ
     have hTT := ihT W hΓ hΓ' hT₁s hT₂s (not_isProof_of_sort hΓ hT₁s) hT₁.symm hT₂.symm
     exact ihab W hΓ hΓ' haT hbT hTT rfl rfl
   | sameType Ra Rb Hab ih =>
     subst hl hr
-    obtain ⟨T₁, hT₁, haT⟩ := Ra.descend hc W hΓ hΓ' ⟨_, ha⟩
-    obtain ⟨T₂, hT₂, hbT⟩ := Rb.descend hc W hΓ hΓ' ⟨_, hb⟩
+    obtain ⟨T₁, hT₁, haT⟩ := Ra.descend_of_types hc W hΓ hΓ' ⟨_, ha⟩
+    obtain ⟨T₂, hT₂, hbT⟩ := Rb.descend_of_types hc W hΓ hΓ' ⟨_, hb⟩
     have hTT := lift'_inj.1 (hT₁.symm.trans hT₂)
     subst T₂
     obtain ⟨_, hT⟩ := haT.isType henv hΓ
     exact ih W hΓ hΓ' haT hbT ⟨_, hT⟩ rfl rfl
 
+
+/-- General computation descent supplies the type-only replay needed by both
+comparison modes. Existing clients retain this stronger-interface wrapper. -/
+theorem RecoveredComparisonWith.descend
+    (H : RecoveredComparisonWith C mode Γ' (a.lift' ρ) (b.lift' ρ))
+    (hc : ComputeDescent C)
+    (W : Ctx.Lift' ρ Γ Γ') (hΓ : OnCtx Γ (env.IsType univs))
+    (hΓ' : OnCtx Γ' (env.IsType univs)) (ha : Γ ⊢ a : A) (hb : Γ ⊢ b : B)
+    (hmode : if mode then Γ ⊢ A ≡ B else ¬ IsProof Γ a) : Γ ⊢ a ≡ b :=
+  H.descend_of_types hc.types W hΓ hΓ' ha hb hmode
 
 /-- Binder insertion preserves both modes of the base comparison. -/
 theorem BiNormal.weakN (W : Ctx.LiftN k j Γ Γ') (H : BiNormal mode n Γ a b) :

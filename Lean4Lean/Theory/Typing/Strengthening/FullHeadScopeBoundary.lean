@@ -43,4 +43,18 @@ theorem full_pi_target_scope_failure :
     (skips_iff.1 hdom).2 |> skips_iff.2
   exact EtaScope.captured_not_lift harg
 
+/-- Even the weaker sort-source replay interface excludes full reduction.
+The captured annotation occurs in a reduction between actual Pi types. -/
+theorem FullRecoveryCompute.not_typeComputeDescent :
+    ¬ TypeComputeDescent FullRecoveryCompute := by
+  intro hc
+  obtain ⟨A, B, target, ht, R, _, hscope⟩ := full_pi_target_scope_failure
+  rw [lift_eq_lift'] at R
+  have hΓ : OnCtx [.sort .zero] (env.IsType univs) :=
+    ⟨trivial, _, HasType.sort (by trivial)⟩
+  obtain ⟨out, he, _⟩ := hc R (.skip .refl) trivial hΓ ht
+  apply hscope
+  rw [he, ← lift_eq_lift']
+  exact .liftN
+
 end Lean4Lean.VEnv.Strengthening
