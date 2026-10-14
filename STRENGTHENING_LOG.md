@@ -1958,3 +1958,30 @@ unchanged. Full bidirectional suspension descent, including eta on both sides,
 and arbitrary lambda-argument repair remain open. This is progress on the
 existing delayed-substitution route, not yet a sufficient smaller front.
 The independently appearing CertifiedKApplication file was left untouched.
+
+### Application of computational certificates through displayed beta redexes
+
+The previous goal turn was progress: recursive certificate replay and typed
+substitution are committed and pushed. The current application test preserves
+the distinction between common-type hybrid comparisons and the independent
+function comparisons needed by direct application congruence.
+
+`CertifiedKApplication.lean` proves `HybridNormal.apply_domain_arg`. When its
+function comparison displays lambdas, it beta-contracts those applications and
+uses heterogeneous substitution of domain-certified arguments in the body
+comparison. Eta cases instantiate the same body certificates. Other function
+shapes use direct congruence; proof-valued functions use proof irrelevance.
+There is no normalization of recursively unfolding terms.
+
+`KCertificate.apply_domain_arg` first replays the two function computations to
+recover their common Pi typing and then applies this local rule. Prepending
+those computations preserves the same positive certificate depth. The extension
+`apply_computed_domain_args` permits arguments to compute through nested K steps
+before their DomainNormal comparison; replay supplies their result typings.
+`apply_same_arg` requires only the shared argument's typing, even for a lambda.
+
+The target builds with 248 dependency jobs. Four axiom audits have no sorryAx.
+The remaining different-lambda-argument case still has only a hybrid comparison,
+not a domain certificate. Thus these application laws are not full application
+closure or completeness, and no requested final strengthening deliverable is
+claimed. No executable changed; the goal remains active.
