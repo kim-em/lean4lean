@@ -4811,3 +4811,44 @@ Validation: the combined SymmetricFullStep target builds successfully (397 jobs)
 All 46 new public theorems were audited in `/tmp/symmetric-eta-audit.log`, with
 only propext, Classical.choice and Quot.sound or subsets; no sorryAx appears.
 The executable and original UniqueTyping gap are unchanged.
+
+### Size-bounded normal certificate descent and a composition refutation
+
+`BidirectionalCertificateDescent.lean` strengthens the existing semantic
+BiNormal descent theorem: the lower equality has a BiNormal certificate in
+the same mode with index no larger than the upper certificate. The proof
+reconstructs every constructor with lower typings. In the eta-both case,
+fresh-spine inversion yields an inferred comparison at a smaller index;
+recursive certificate descent lowers it and promotion finishes. The corollary
+`etaBoth_inferred` cancels the two fresh applications without exceeding the
+body certificate's index. Neither result assumes canonical Eq or a front.
+
+The intended next use was a composition induction.
+`BidirectionalComposition.lean` verifies that inferred composition would follow
+structurally from common-mode composition in domains and arguments. Testing
+that common premise produced a concrete refutation, so it is now explicitly
+documented as a rejected obligation rather than a live smaller front.
+
+`BidirectionalCompositionBoundary.lean` proves the boundary. A normal
+comparison from a sort must end at a literal sort. Inferred lambda comparison
+retains a domain certificate, and the size-bounded eta-both cancellation
+extends that extraction to comparison of a constant-body probe with another
+probe's eta expansion. Thus common normal composition would provide normal
+certificates for every sort-typed conversion (and would imply PropositionFront).
+Taking the domains to be Prop and a beta-expanded copy of Prop refutes this
+claim outright. `bidirectional_typed_nontransitivity` supplies all three terms
+at one original type in the empty context, input normal certificates of indices
+1 and 2, and excludes every finite composite normal certificate.
+
+This does not refute the new computation-aware checking relation. The same
+theorem includes its raw checking certificate: beta contraction of the eta
+body returns the second probe, after which common-mode lambda checking applies.
+Consequently the next composition attempt must include computation from the
+start; proving computation-free normal transitivity first cannot work. This is
+a checked representation boundary, not a strengthening counterexample or a
+smaller sufficient front.
+
+Validation: the combined boundary target builds (291 jobs). All eleven public
+theorem audits in `/tmp/bidirectional-composition-audit.log` contain no sorryAx
+and use only propext, Classical.choice and Quot.sound or subsets. No executable
+changed. The original strengthening gap remains and the goal stays active.

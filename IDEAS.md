@@ -410,3 +410,20 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   declarative completeness is claimed.
 
 | Strengthen the eta/eta peak to an exact eta-only diamond | **Checked.** `EtaParallelDiamond` joins two parallel eta expansions by one parallel step on each side. Root copies replay at the opposite typed endpoint, including differently parameterized structure expansions; compatible binder bodies convert through the original domain. `EtaFiniteConfluence` derives a strip lemma and exact finite typed eta confluence. No computation, normal comparison, canonical Eq or front is needed. |
+
+- **Reconstruct BiNormal certificates below thinning with a size bound:**
+  checked. `certificate_descend` produces a certificate at the original mode
+  with index at most the original index, using the same common-type/non-proof
+  replay premise. Fresh-spine inversion and this bound replace an eta-both
+  node by a strictly smaller inferred certificate plus promotion. No front or
+  canonical-Eq assumption is needed.
+- **Prove common-mode composition first for computation-free BiNormal:**
+  refuted, even with all three original terms at one type in the empty context.
+  Common checking relates constant-body probes at convertible domains; eta
+  expansion of the second probe is a second normal certificate. A composite
+  would force a normal certificate between the domains. Choose Prop and its
+  beta-expanded copy: normal sort/app separation excludes that certificate.
+  The two input indices are 1 and 2, and every finite output index is excluded.
+  The new raw checking relation repairs the exact pair by beta computation, so
+  this refutes the computation-free intermediate plan, not its computational
+  replacement. General computational common-mode composition remains open.
