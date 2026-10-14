@@ -493,3 +493,11 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
 | Eliminate declaration/pattern overlaps before attempting ordinary computational confluence | **Checked reduction of the presentation.** `SeparatedPatternRoots` and `SeparatedPatternComputation` retain only roots whose heads have no closed unfolding at their exact universes. Stored constant rules and enabled structure rules are simulated by beta/delta/projection. Every typed finite ordinary-pattern path translates with identical endpoints; the restricted presentation is substitution-stable. Its raw confluence would imply typed ordinary-pattern confluence, but that remaining theorem, indexed prefixes, universe closure and mixed eta composition are still open. No smaller sufficient strengthening front is claimed. |
 
 | Prove ordinary-pattern confluence after removing closed-delta overlaps | **Checked.** `SeparatedParallel`, `SeparatedPatternMatching` and `SeparatedConfluence` establish raw parallel and finite confluence of the separated presentation. Fixed pattern positions exclude delta, proper subpatterns exclude competing rules by pattern uniqueness, and strict capture subterms provide the induction. Typed path translation gives exact confluence of the original stored/selected-structure ordinary-pattern relation. Actual prefixes, equivalent-universe closure and mixed eta composition remain open; no strengthening front is assumed or proved. |
+
+- **Apply a contextual common-mode function comparison without inferred-mode
+  promotion.** Checked in `ProofErasureContextApplication`: both functions may
+  receive the same typed argument, even with recursive computations, contextual
+  eta-body certificates and distinct displayed lambda domains. Typed body
+  substitution and beta contraction cover lambda/eta cases; typed replay covers
+  computation. Distinct compared arguments and general composition remain open;
+  this is not claimed to be a smaller sufficient strengthening front.

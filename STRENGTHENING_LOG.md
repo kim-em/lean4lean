@@ -5289,3 +5289,25 @@ Validation: the three modules build together (358 jobs). All fifteen public
 theorems are axiom-audited at `/tmp/separated-confluence-audit.log`; only propext,
 Classical.choice and Quot.sound or subsets occur, with no sorryAx. No executable
 was changed.
+
+### Contextual application with a shared argument
+
+`ProofErasureContextApplicationSupport`, `ProofErasureContextApplicationBase`
+and `ProofErasureContextApplication` prove that a contextual function comparison
+in either mode applies to any shared typed argument at a common Pi type.
+This includes recursive computation, common lambda checking, contextual sorted
+binders, recursive eta bodies and symmetry. Lambda bodies are instantiated by
+the established typed substitution theorem. Head eta yields a bidirectional
+normal certificate; saturated structure eta is excluded at a function type by
+rigid-family/Pi separation. Computation intermediates are replayed at the actual
+common Pi type, and common application typing synchronizes proof collapse.
+
+This extends the earlier normal-certificate application result to the entire
+contextual computational relation. It proves neither computational composition
+nor substitution of distinct compared arguments, and does not establish a
+smaller sufficient strengthening front. The main goal remains open.
+
+Validation: the complete target builds successfully (303 jobs). All fifteen
+new public results pass the axiom audit in `/tmp/context-app-audit.log`, using
+only propext, Classical.choice and Quot.sound; no sorryAx or strengthening
+inverse was used. No executable was changed.
