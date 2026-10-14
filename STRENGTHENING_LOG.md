@@ -4233,3 +4233,69 @@ audits in `/tmp/erasure-thinning-audit.log` use at most propext, Classical.choic
 and Quot.sound. Contextual recovery and recovered comparison still need their
 arbitrary-thinning interfaces. No completeness or smaller sufficient front has
 been established, and the original UniqueTyping sorry remains.
+
+### Root contraction after finite typed eta paths
+
+The terminal eta phase now has checked root exchanges beyond pointwise prefix
+arguments. Six new modules keep the exchanges separate from the still-unproved
+global postponement theorem.
+
+`EtaSubstitution.lean` proves typed substitution for finite function/structure
+eta, retaining each root's actual typing witnesses. Compatible expansion of a
+substituted argument follows from the generic congruence interface. Together
+these exchange beta with body and argument expansion, including beta consuming
+a lambda introduced by function eta.
+
+`EtaStructureExchange.lean` extends compatible eta to pattern RHS captures. The
+existing closed structure equation computes directly on the original major's
+projections. Eta paths in the supplied recursor arguments and those projections
+then reach the ordinary iota result. The checked rule ignores constructor
+parameter captures, so final parameters and constructor universes need not
+match the closed program's dummy captures. A selected final field likewise
+retains its eta path from the original major's projection.
+
+`EtaConstructorExposure.lean` proves the required classification for arbitrary
+finite eta paths, including transitivity. A final constant spine either has an
+original spine with pointwise eta-related arguments, or was created by a
+registered unindexed structure expansion. In the latter case source family
+typing, closed eta admissibility, saturation, and paths from the original
+source's projections to every final field are retained. Earlier eta steps are
+pushed into these projections; later argument expansions compose on their
+field suffixes. Function-position typing rules out structure creation in the
+application case. Consequently every finite eta path before a saturated
+constructor projection exchanges with that projection: either project the
+original constructor first, or keep the selected residual eta path alone.
+
+`EtaIotaExchange.lean` uses that classification for registered structure
+recursors. Existing constructors fire the actual checked pattern before eta.
+An eta-created constructor instead enables the closed projection unfolding.
+The original recursor application's typing supplies its canonical family
+instance. Type uniqueness aligns this with the eta-created constructor's
+instance, and universe transport moves the closed admissibility certificate.
+Thus no additional never-zero/proof-fields premise is imposed on the caller.
+The theorem covers arbitrary finite eta paths in the major and supplied
+arguments, with the actual pattern and uniform checking certificate explicit.
+
+`EtaPrefixRoot.lean` extends the prior pointwise exchange to an arbitrary finite
+eta path before either actual prefix root. Every UnfoldingCheck retains a
+nonempty residual telescope, hence a Pi typing of the source. This excludes
+eta creation of its constant head and recovers pointwise argument paths.
+
+`EtaLambdaExposure.lean` similarly classifies arbitrary finite eta paths ending
+in a lambda, as an existing lambda or an expanded function. When intermediate
+domains change, body paths are converted back to the original domain's context.
+This proves beta exchange for arbitrary eta paths in function position and in
+the supplied argument, using the original application's typing.
+
+All nineteen public theorems are free of the witnessed-front and canonical-Eq
+premises. These are root results, not a full simulation theorem: arbitrary eta
+paths of a whole redex, compatible contractions, normal-comparison/eta exchange,
+and finite composition into PrefixEtaNormal still require work. Ordinary iota
+outside the registered structure case also needs integration. The witnessed
+front and opaque-domain descent remain open; no smaller sufficient obligation
+or strengthening proof is claimed.
+
+Validation: the combined targeted build passes (343 jobs). Nineteen public
+axiom audits in `/tmp/eta-exchange-audit.log` contain no sorryAx and use only
+propext, Classical.choice and Quot.sound or a subset. No executable changed;
+the original UniqueTyping sorry remains.
