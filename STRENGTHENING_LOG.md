@@ -3134,3 +3134,30 @@ The build passes with 237 jobs. Nine axiom audits contain no sorryAx, using only
 propext, Classical.choice and Quot.sound. General recursor-template assembly,
 proof-valued major computation, eta repair and full equality coverage remain
 open. No executable changed; the original goal remains active.
+
+### Instantiate erased recursor templates and replay their visible rules
+
+`ProofErasureTemplates.lean` connects TelInst with simultaneous typed erasure.
+proofErase_instOuter computes the erased result from the erased closed template
+and its erased captures, and proofErase_instOuter_congr allows different target
+contexts. erasedTemplate_iota_captures discharges TelInst for the actual stored
+recursor captures using VIotaRuleTyped.args_typing. proofErase_iota_body then
+covers arbitrary instantiated RHS bodies, including dependent proof fields and
+restored constructor parameters.
+
+`ProofErasureIota.lean` uses the stored lambda-wrapped RHS directly for operational
+replay. A non-proof application spine erases structurally even when its head is
+an arbitrary template. Its closed declaration typing makes head erasure context
+independent. Visible erased matching reconstructs the original captures, so every
+registered fixed-template capture spine replays exactly without normalizing the
+RHS. The generated iotaRHS and iotaRHS' forms instantiate this interface;
+erased_iota_rule_step obtains template typing from the real rule, and the concrete
+wrapper derives the uniform check from one enabled concrete check. Combining these
+rules with the earlier primitives gives proofErase_iota_join_descend.
+
+This removes general stored RHS assembly from the visible-computation fragment's
+open list. Proof-valued majors, eta repair and global equality coverage remain
+open; this is not a new sufficient front obligation. The targeted build passes
+with 243 jobs. Eleven axiom audits contain no sorryAx, using only propext,
+Classical.choice and Quot.sound. No executable changed. The original goal remains
+active.
