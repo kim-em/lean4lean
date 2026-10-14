@@ -2669,3 +2669,26 @@ The targeted build passes with 234 dependency jobs. Nine new/refactored theorem
 axiom audits exclude sorryAx (only propext, Classical.choice and Quot.sound).
 The executable is unchanged. General data indices and equality completeness are
 still open; this is not claimed to settle the strengthening deliverable.
+
+### Proof-index prefix replay and strengthening
+
+`ProofIndexHeadComputation.lean` puts the new closed equations into the raw
+computational model. The added declaration-level evidence is a proposition
+index telescope after the parameters. Soundness follows from the checked closed
+equation, and the registered iota pattern preserves constructor rigidity.
+`Unfolds.of_unindexed` includes the previous unindexed class as the empty
+proposition telescope.
+
+`generated_compute` simulates the exact generated program at every supplied
+arity, on arbitrary raw arguments, by a closed delta step followed by finite
+beta specialization. `prefix_descend` therefore lowers the output from a lifted
+source with only source typing below; `prefix_reflect_ofEnv` reflects an exact
+pair of supplied endpoints with all definition assumptions discharged. The
+mixed model's Pi exposure theorem also accepts the enriched definitions. No
+ambient occurrence alignment certificate is strengthened in this argument.
+
+The targeted build passes with 287 dependency jobs. Nine exported theorem axiom
+audits exclude sorryAx and use only propext, Classical.choice and Quot.sound.
+No executable changed. This closes proof-index prefix replay, but leaves
+arbitrary data-index prefixes and general equality coverage open, so the active
+strengthening goal is not marked complete.
