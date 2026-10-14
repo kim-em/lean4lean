@@ -2363,3 +2363,40 @@ Quot.sound, with no sorryAx. Both new arguments and the original specialized
 substitution theorems are covered. No executable changed. General comparison
 coverage, indexed-prefix coverage and the final strengthening deliverable remain
 open; the goal stays active. Independent worktree files were left untouched.
+
+### Re-synthesis existence has exactly two local head obligations
+
+The previous goal turn was progress: the three commits through 3d38bb54 are
+present and pushed. This turn follows the remaining arbitrary-argument route
+without assuming the refuted exact-output substitution property.
+
+`RecoveryExistence.lean` defines RecoveryExists for recovery at some chosen
+output, rather than at every supplied typing. Its RecoveryHeads structure has
+two explicit unresolved clauses: recover a Pi for the function of a well-formed
+application, given some recovery of that function; and recover a usable family
+and selected field for the major of a well-formed projection, given some recovery
+of that major. All other expression constructors synthesize directly from source
+well-formedness.
+
+The characterization is exact. Structural induction proves sufficiency;
+`TypeRecoveryWith.app_inv` and `proj_inv` strip trailing output conversions to
+prove necessity from recovery of the whole application/projection. Thus
+`recoveryExists_iff_heads` neither assumes exact typing completeness nor hides
+additional syntax cases. The application clause may choose a different Pi,
+and the projection clause may choose different family parameters and levels.
+
+`TypeRecoveryWith.resynthesize_instN` uses these clauses after ordinary typed
+substitution, then uniqueness identifies the new output with the old substituted
+type up to definitional equality. No argument-recovery certificate is required.
+`RecoveryHeads.of_type_exposure` supplies a more operational sufficient condition:
+compute an inferred type to some Pi or usable projection family. The original
+Pi at the application is used only to establish the inferred-type equation by
+uniqueness. These computational completeness premises are still unproved for
+the staged model. This is a characterization of the re-synthesis gap, not a
+claim that either premise alone suffices for full strengthening or is a strictly
+smaller sufficient front.
+
+The target builds with 243 dependency jobs. Five axiom audits have no sorryAx;
+only propext, Classical.choice and Quot.sound occur. No executable changed.
+Concurrent staged computation/substitution work was preserved without modification.
+The original strengthening deliverable remains unresolved and the goal active.
