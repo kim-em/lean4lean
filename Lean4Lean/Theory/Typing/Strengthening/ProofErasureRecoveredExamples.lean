@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureRecoveredWeakening
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureRecoveredThinning
 
 /-! # Inferred recovered eta beneath a retained binder
 
@@ -62,6 +62,19 @@ theorem weakened_descends (stage : Nat) (heq : env.HasCanonicalEq) (hs : D.Sound
   have H := (inferred_comparison (D := D) (stage := stage) hΓ hF).weakN
     hΓ hΓ' W HE.hasType.1 HE.hasType.2
   exact ErasedRecoveredComparison.common_descendN heq hs hΓ hΓ' W HE.hasType.1 HE.hasType.2
+    (ProofShape.RecoveredCompare.common H)
+
+/-- The nested inferred-eta certificate also weakens and descends through an
+arbitrary thinning, including several interleaved inserted declarations. -/
+theorem thinned_descends (stage : Nat) (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hΓ : OnCtx Γ (env.IsType univs)) (hΓ' : OnCtx Γ' (env.IsType univs))
+    (W : Ctx.Lift' ρ Γ Γ') (hF : env.HasType univs Γ (VExpr.forallE A B) (.sort u)) :
+    env.IsDefEq univs Γ (expanded A B) (identity A B)
+      (.forallE (VExpr.forallE A B) (VExpr.forallE A B).lift) := by
+  have HE := originals hF
+  have H := (inferred_comparison (D := D) (stage := stage) hΓ hF).weak'
+    hΓ hΓ' W HE.hasType.1 HE.hasType.2
+  exact ErasedRecoveredComparison.common_descend heq hs hΓ hΓ' W HE.hasType.1 HE.hasType.2
     (ProofShape.RecoveredCompare.common H)
 
 end Lean4Lean.VEnv.Strengthening.ErasedRecoveredExamples

@@ -310,3 +310,12 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   contextual recovery/comparison and completeness remain separate obligations.
 
 | Exchange root contractions with finite typed eta paths | **Constructor/lambda exposure and root exchanges proved.** `EtaConstructorExposure` classifies every finite eta path exposing a constant spine: the head either existed already or comes from registered structure eta, with every final field expanding from a projection of the original source. This gives projection exchange. `EtaIotaExchange` handles registered structure-recursion roots after arbitrary eta paths in the major and supplied arguments, deriving closed unfolding admissibility at the actual recursor universes from source typing. `EtaLambdaExposure` handles arbitrary eta paths in function position before beta, and `EtaPrefixRoot` covers actual singleton/quotient roots using their nonempty checking telescopes. All these root exchanges need no canonical Eq or front. Compatible simulation, whole-path phase composition, and opaque-domain descent remain unproved; this is not strengthening or a smaller sufficient obligation. |
+
+- **Retained typed oracles under arbitrary thinning:** checked. The oracle can
+  retain any assigned variable type convertible to its literal lookup type;
+  binder extension preserves distinct endpoint annotations. Recovery reconstructs
+  exact lower type erasures through arbitrary `Lift'`, then compatible recovered
+  comparison descends in both modes. Same-stage weakening follows by factoring
+  the thinning into single insertions. The concrete relation now supplies guarded
+  K and singleton-prefix descent. Equality completeness and recursive feedback
+  into erased computational stages remain open.

@@ -114,6 +114,57 @@ theorem lift'_consN_skipN (e : ProofShape) :
   | forallE A b ihA ihb =>
     exact congr (congrArg ProofShape.forallE ihA) (ihb (k := k+1))
 
+/-- General thinning is injective, witnessed by its raw substitution retraction. -/
+theorem lift'_inj {a b : ProofShape} (H : a.lift' ρ = b.lift' ρ) : a = b := by
+  simpa only [subst_retract_lift'] using congrArg (·.subst (Subst.retract ρ)) H
+
+/-- Thinning commutes with shifting under one retained binder. -/
+theorem lift'_liftN_one (e : ProofShape) :
+    (e.lift' ρ).liftN 1 = (e.liftN 1).lift' ρ.cons := by
+  rw [← lift'_consN_skipN (n := 1) (k := 0),
+    ← lift'_consN_skipN (e := e) (n := 1) (k := 0)]
+  simp only [Lift.consN, Lift.skipN_one, ← lift'_comp, Lift.comp, Lift.refl_comp]
+
+/-- Renaming commutes with beta instantiation, including proof-marker images. -/
+theorem lift'_inst (B a : ProofShape) :
+    (B.inst a).lift' ρ = (B.lift' ρ.cons).inst (a.lift' ρ) := by
+  have Hσ : (fun i => bvar (ρ.cons.liftVar i)) =
+      Subst.lift (fun i => bvar (ρ.liftVar i)) := by
+    funext i
+    cases i <;> simp [Lift.liftVar, Subst.lift, ProofShape.liftN, _root_.Lean4Lean.liftVar] <;> omega
+  simp only [lift'_eq_subst, subst_inst, Hσ]
+
+/-- Invert an application after arbitrary thinning. -/
+theorem lift'_app_inv {e : ProofShape} (H : e.lift' ρ = .app f a) :
+    ∃ f₀ a₀, e = .app f₀ a₀ ∧ f₀.lift' ρ = f ∧ a₀.lift' ρ = a := by
+  cases e <;> simp_all [lift']
+  exact ⟨_, _, ⟨rfl, rfl⟩, H⟩
+
+/-- Invert a projection after arbitrary thinning. -/
+theorem lift'_proj_inv {e : ProofShape} (H : e.lift' ρ = .proj s i m) :
+    ∃ m₀, e = .proj s i m₀ ∧ m₀.lift' ρ = m := by
+  cases e <;> simp_all [lift']
+
+/-- Invert a lambda after arbitrary thinning. -/
+theorem lift'_lam_inv {e : ProofShape} (H : e.lift' ρ = .lam A b) :
+    ∃ A₀ b₀, e = .lam A₀ b₀ ∧ A₀.lift' ρ = A ∧ b₀.lift' ρ.cons = b := by
+  cases e <;> simp_all [lift']
+  exact ⟨_, _, ⟨rfl, rfl⟩, H⟩
+
+/-- Invert a Pi after arbitrary thinning. -/
+theorem lift'_forallE_inv {e : ProofShape} (H : e.lift' ρ = .forallE A B) :
+    ∃ A₀ B₀, e = .forallE A₀ B₀ ∧ A₀.lift' ρ = A ∧ B₀.lift' ρ.cons = B := by
+  cases e <;> simp_all [lift']
+  exact ⟨_, _, ⟨rfl, rfl⟩, H⟩
+
+/-- Thinning cannot create a sort head. -/
+theorem lift'_sort_inv {e : ProofShape} (H : e.lift' ρ = .sort u) : e = .sort u := by
+  cases e <;> simp_all [lift']
+
+/-- Thinning cannot create a constant head. -/
+theorem lift'_const_inv {e : ProofShape} (H : e.lift' ρ = .const c ls) : e = .const c ls := by
+  cases e <;> simp_all [lift']
+
 /-- Raw substitution stability also reflects a single inserted block. -/
 theorem relation_liftN_reflect {R : ProofShape → ProofShape → Prop} {a b : ProofShape}
     (hsubst : ∀ {a b} (σ : Subst), R a b → R (a.subst σ) (b.subst σ))

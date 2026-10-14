@@ -4299,3 +4299,33 @@ Validation: the combined targeted build passes (343 jobs). Nineteen public
 axiom audits in `/tmp/eta-exchange-audit.log` contain no sorryAx and use only
 propext, Classical.choice and Quot.sound or a subset. No executable changed;
 the original UniqueTyping sorry remains.
+
+### Contextual recovery and compatible comparison through arbitrary thinning
+
+`ProofErasureRecoveryThinning.lean` generalizes typed oracle agreement to retained
+indices of arbitrary `Lift'` maps. Its convertible-domain binder extension keeps
+both annotations intact. Source typing reconstructs the full recovered type
+below, including types obtained by instantiating hidden proof arguments or by
+computation. Exposed-Pi recovery reconstructs both lower annotations exactly.
+
+`ProofErasureRecoveredThinning.lean` gives the corresponding compatible
+comparison induction, its canonical-oracle specialization, and common-type
+endpoint descent. Head eta reflects by raw substitution retraction. The prior
+context-free base reflects in the same way, while contextual recovery and
+computational intermediates use their typed replay proofs. Same-stage weakening
+uses the checked context factorization and existing block weakening. The nested
+eta example now checks weakening followed by descent across arbitrary thinning.
+
+`ProofErasureRecoveredPrefix.lean` supplies the stronger concrete relation to the
+existing EndpointDescent interface, guarded canonical Eq computation, and actual
+registered singleton-prefix replay. These consumers can therefore use recovered
+inferred eta at compatible positions of their guards. This does not yet feed
+those computations back into the finite erased stage definition, and supplies
+no certificate for arbitrary declarative equality.
+
+Validation: the combined build passes (313 jobs). All 38 audited public raw,
+recovery, comparison, consumer and example theorems in
+`/tmp/erasure-recovered-thinning-audit.log` use only propext, Classical.choice and
+Quot.sound or a subset; none uses sorryAx. Projection type recovery, general
+contextual substitution, recursive computational feedback and completeness
+remain open. The executable and original UniqueTyping sorry are unchanged.
