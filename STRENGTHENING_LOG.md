@@ -1616,3 +1616,43 @@ imply closed syntax. No occurrence typing is needed for this naturality result.
 constructor occurrence, family proposition typing, and specialization of the
 generic transported fields. The target builds (175 jobs); the naturality axiom
 audit contains only propext, Classical.choice, and Quot.sound, or subsets.
+
+### Reconstruction at the original family by propositional transport
+
+`SingletonFamilyTransport.lean` completes the proposed family-transport test.
+`transportedFamily_at_constructor_eq` instantiates the existing symbolic
+constructor-branch cast computation at the new witness list, then transports the
+closed constructor-family typing along the resulting equal field substitution.
+It establishes actual definitional family conversion in the constructor branch.
+No global field-slot length condition is needed: the proof uses `tel_branch`
+only at valid field positions, rather than assuming alignment at unused slots.
+
+`familyWitness_typed` uses this branch to extract an Eq proof between the
+reconstructed family's proposition and the original family's proposition.
+`familyWitness_at_typed` specializes it to arbitrary well-typed occurrence
+indices. The outer cast is at universe zero: its payload is the reconstructed
+constructor proof, and its target is the original major's proposition.
+`castedConstructor_typed` supplies this typing without alignment assumptions.
+Proof irrelevance then proves `transported_singleton_eta`: every major is
+definitionally equal to its casted reconstructed constructor at the original
+family. Thus the former result-index gap in *typing a reconstructed proof* is
+closed when the outer cast is retained.
+
+The computational distinction remains exact.
+`bare_constructor_iff_family_conversion` proves that equality of the major to
+the bare reconstructed constructor is equivalent to definitional conversion of
+the reconstructed and original family propositions. The forward implication
+uses typing uniqueness; the reverse uses proof irrelevance after conversion.
+The newly extracted propositional equality cannot simply replace this condition.
+In particular, this work supplies neither a bare constructor for ordinary iota
+nor an unconditional closed equation replacing an indexed recursor. The next
+live obligation is computation of indexed recursors through the retained family
+cast, or a typed head-observation mechanism that accounts for that cast. The
+full matched-lambda comparison remains open too.
+
+The combined target builds (176 dependency jobs). Seven axiom audits, including
+family witness typing, casted constructor typing, transported singleton eta, and
+the exact bare-constructor boundary, contain only propext, Classical.choice,
+and Quot.sound, or subsets. No sorryAx occurs and no executable changed. The
+original strengthening proof, canonical-Eq counterexample, or strictly smaller
+sufficient irreducible obligation is not established; the goal remains active.
