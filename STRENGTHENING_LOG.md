@@ -3329,3 +3329,29 @@ using only propext, Classical.choice and Quot.sound. This closes substitution
 stability, not confluence or completeness of the erased relation. General
 singleton integration, eta repair and full declarative coverage remain open.
 No executable changed; the original goal remains active.
+
+### Forward beta simulation and typed head-eta reflection
+
+`ProofErasureBetaForward.lean` proves that every typed original beta path erases
+to a beta path. Whole-proof paths collapse to identity; non-proof applications,
+projections and binder bodies are preserved, with context conversion after domain
+reduction. Typed substitution commutation handles the contracting beta case.
+Together with existing beta replay, both simulation directions are now checked.
+
+`ProofErasureEtaHead.lean` isolates a positive eta result compatible with the
+existing exact-replay obstruction. EtaHead relates a retained lambda/application
+to its short endpoint, with the final argument either bvar 0 or the proof marker.
+When both originals have a common type, source inversion types the short endpoint
+at the long endpoint's Pi type. Exact erased reflection aligns the body function,
+and the argument is either literally the fresh variable or equal to it by proof
+irrelevance. This proves typed head-eta reflection without inventing an original
+for an arbitrary erased contractum. The relation weakens, reflects through binder
+insertion, and survives substitution. Actual typed function eta erases to identity
+or EtaHead. Two descending erased computation paths may now finish with EtaHead
+instead of a literally shared target.
+
+This does not drop lambda annotations (the checked recursive-loop separation
+forbids that), nor establish recursive eta comparison, arbitrary eta replay,
+confluence, or full equality coverage. The build passes with 254 jobs. Eight
+axiom audits contain no sorryAx, using only propext, Classical.choice and
+Quot.sound. No executable changed; the original goal remains active.
