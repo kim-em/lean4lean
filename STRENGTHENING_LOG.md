@@ -3841,3 +3841,17 @@ Validation: the targeted build passes (204 jobs). Ten public axiom audits in
 Classical.choice and Quot.sound (the quotient record identity omits choice).
 No executable changed; UniqueTyping's original sorry and the full goal remain
 open.
+
+### Sort-typed erased comparisons need no common-type mode
+
+`ProofErasureSortMode.lean` proves that any recursive comparison between
+independently sort-typed originals yields an inferred-mode certificate at the
+same stage. The universes need not be assumed equal. A lambda cannot have a
+sort type, while a saturated registered constructor has a rigid family type.
+These head exclusions remove common-only eta at the root. Typed replay carries
+the original sort typings through every computational intermediate, so the
+argument does not require normalization or a computation bound.
+
+The targeted build passes (264 jobs), and four axiom audits use only propext,
+Classical.choice and Quot.sound. This is promotion of existing certificates,
+not their completeness or transitivity. The strengthening goal remains open.
