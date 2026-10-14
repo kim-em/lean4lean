@@ -6396,3 +6396,37 @@ subsets of propext, Classical.choice and Quot.sound, with no sorryAx. No executa
 edits or strengthening inverses were used. General recursive field-guard
 transport, independent two-endpoint eta transport, merely-compared paired
 substitution, comparison composition, and `IsDefEqU.weakN_iff` remain open.
+
+## Scoped guards reconstruct actual indexed singleton prefixes
+
+`ProofErasureScopedSingletonPrefix` connects the contextual erased comparison
+model to generated singleton programs. `ScopedFamilyComparison` reads a common
+comparison of the two erased family endpoints in their actual erased context.
+For block insertion, `renameDomains_context` yields insertion at depth
+`k + program.domains.length` beneath the entire residual telescope. The existing
+registered-argument theorem types the transported and requested families below
+that insertion. Their exact renaming equations identify the upper guard with
+lifted erasures, allowing `proofErase_scoped_compare_descend` to reconstruct the
+lower proposition conversion.
+
+`scoped_prefix_descend` then regenerates the lower program from arity, proves its
+renaming is the upper program, rebuilds the full lower check, and returns an
+actual `PrefixUnfold` whose output lifts exactly to the upper generated RHS.
+It needs lower source typing and an upper scoped family certificate, but neither
+an upper unfolding check nor lower output typing. There is no proof-only-field
+restriction; indexed singleton layouts with retained data fields are included.
+
+`scoped_prefix_rule_descend` extracts the metadata from any actual checked upper
+prefix, assuming family-certificate coverage. The finite-stage specialization
+returns actual lower `PrefixCompute` using the registered singleton constructor.
+This strengthens the operational conclusion of the earlier guarded-prefix
+bridge while allowing the newer contextual comparison guards under single-block
+insertion. It does not assert arbitrary-thinning descent, encode general prefix
+rules in the raw scoped stages, or discharge family-certificate coverage. No
+strictly smaller sufficient front or solution to `IsDefEqU.weakN_iff` is claimed.
+
+Validation: the new target builds (361 jobs), logged in
+`/tmp/scoped-singleton-prefix-build.log`. All five public declarations pass
+`/tmp/scoped-singleton-prefix-audit.log`, using only propext, Classical.choice,
+and Quot.sound, with no sorryAx. No executable changes or strengthening inverses
+were used. The main goal remains open.

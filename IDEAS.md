@@ -789,3 +789,16 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   projection primitive. No endpoint typings or confluence premise are supplied.
   This does not establish transport of arbitrary recursive field comparisons
   through independent computations of both fields.
+
+- **Use contextual erased guards for all generated singleton prefix layouts.**
+  **Checked** in `ProofErasureScopedSingletonPrefix`. A block insertion extends
+  through the generated residual telescope at depth `k + domains.length`.
+  Both transported and requested families are typed propositions below, so
+  scoped comparison descends their guard and rebuilds the actual lower
+  `UnfoldingCheck`. The result is an actual `PrefixUnfold` with exactly renamed
+  output, including data-field and indexed singleton layouts. At every finite
+  scoped K stage, family-certificate coverage consequently gives actual lower
+  `PrefixCompute` replay. **Still open:** coverage of ambient family guards and
+  an erased primitive encoding all such prefixes. The theorem does not extend
+  the raw stage or prove arbitrary-thinning replay, and is not a smaller-front
+  result.
