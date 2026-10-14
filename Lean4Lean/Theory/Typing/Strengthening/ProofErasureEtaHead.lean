@@ -149,6 +149,43 @@ theorem proofErase_eta_head_reflect (hΓ : OnCtx Γ (env.IsType univs))
   have Heta := (IsDefEq.lamDF hA Hbody').trans (IsDefEq.eta hfPi)
   exact (show env.IsDefEqU univs Γ _ _ from ⟨_, Heta⟩).of_l henv hΓ he
 
+/-- Head eta needs only a lower Pi typing of the short endpoint and alignment
+of its domain with the long endpoint's displayed domain. The original result
+types need not be supplied as convertible. -/
+theorem proofErase_eta_head_infer (hΓ : OnCtx Γ (env.IsType univs))
+    (he : env.HasType univs Γ (.lam A body) T)
+    (hf : env.HasType univs Γ f (.forallE D C))
+    (hAD : env.IsDefEqU univs Γ A D)
+    (H : ProofShape.EtaHead (proofErase Γ (.lam A body)) (proofErase Γ f)) :
+    env.IsDefEqU univs Γ (.lam A body) f := by
+  obtain ⟨_, arg, HE, Harg⟩ := H.shape
+  obtain ⟨A₀, body₀, heq, _, _, Hb⟩ := erase_lam_inv HE
+  cases heq
+  obtain ⟨g, a, rfl, hnb, Hg, Ha⟩ := erase_app_inv Hb
+  obtain ⟨⟨u, hA⟩, _, hb⟩ := he.lam_inv henv hΓ
+  obtain ⟨⟨_, hD⟩, _, hC⟩ := (hf.isType henv hΓ).forallE_inv henv
+  have hDA := hAD.symm.of_l henv hΓ hD
+  have hfA := (IsDefEq.forallEDF hDA hC).defeq hf
+  have hΓA : OnCtx (A :: Γ) (env.IsType univs) := ⟨hΓ, u, hA⟩
+  have hfw := hfA.weak henv (B := A)
+  have Ef := proofErase_liftN hΓ hΓA Ctx.LiftN.one hfA
+  have Eg : proofErase (A :: Γ) g = proofErase (A :: Γ) f.lift := Hg.trans Ef.symm
+  obtain ⟨_, _, hg, ha⟩ := HasType.app_inv henv hΓA hb
+  obtain ⟨_, HC⟩ := (proofErase_reflect hΓA hg hfw Eg).2 (not_isProof_fn hΓA hg ha hnb)
+  have Hgf := (HC.defeq hΓA).of_r henv hΓA hfw
+  have hg' := Hgf.hasType.1
+  obtain ⟨⟨_, hXA⟩, _⟩ := (hg.uniqU henv hΓA hg').forallE_inv henv hΓA
+  have haA := hXA.defeq ha
+  have Hax := eta_argument hΓ hA haA
+    (Harg.elim (fun h => .inl (Ha.trans h)) (fun h => .inr (Ha.trans h)))
+  have Hbody := IsDefEq.appDF Hgf (Hax.of_l henv hΓA haA)
+  have hx : env.HasType univs (A :: Γ) (.bvar 0) A.lift := .bvar .zero
+  have hfx := HasType.app hfw hx
+  have Hbody' := (show env.IsDefEqU univs (A :: Γ) _ _ from ⟨_, Hbody⟩).of_r henv hΓA hfx
+  simp only [Nat.zero_add, inst_liftN_bvar] at Hbody'
+  have Heta := (IsDefEq.lamDF hA Hbody').trans (IsDefEq.eta hfA)
+  exact ⟨_, Heta⟩
+
 /-- Head eta matching of lifted erasures reflects below whenever both originals
 already have a common type there. Exact contraction replay is not required. -/
 theorem proofErase_eta_head_descend

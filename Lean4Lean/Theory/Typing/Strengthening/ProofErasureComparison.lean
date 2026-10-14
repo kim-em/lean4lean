@@ -2,9 +2,10 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEtaHead
 
 /-! # Recursive erased comparison with explicit type modes
 
-Common-type mode admits eta. Inferred mode instead reconstructs equality between
-non-proof endpoints without a supplied type conversion. Function positions and
-domains use inferred mode; arguments use common-type mode after alignment.
+Common-type mode admits eta. Inferred mode reconstructs equality between
+non-proof endpoints without a supplied type conversion, including eta between
+lambda-shaped endpoints whose displayed domains compare recursively. Function
+positions and domains use inferred mode; arguments use common-type mode after alignment.
 Both modes admit computations at every node. No completeness claim is made.
 -/
 namespace Lean4Lean.VEnv.Strengthening
@@ -31,6 +32,11 @@ inductive Compare (Step : ProofShape → ProofShape → Prop) : Bool → ProofSh
       Compare Step mode (.forallE A B) (.forallE A' B')
   | etaL : EtaHead e f → Compare Step true e f
   | etaR : EtaHead f e → Compare Step true e f
+  /-- Lambda-shaped short endpoints expose their Pi type below. Comparing the
+  displayed domains suffices for eta even in inferred function positions. -/
+  | etaLams : Compare Step false A D →
+      (EtaHead (.lam A b) (.lam D f) ∨ EtaHead (.lam D f) (.lam A b)) →
+      Compare Step mode (.lam A b) (.lam D f)
   | compute : Compute Step a a' → Compute Step b b' → Compare Step mode a' b' → Compare Step mode a b
 
 /-- Comparison is symmetric without introducing untyped transitive witnesses. -/
@@ -49,6 +55,7 @@ theorem Compare.symm (H : Compare Step mode a b) : Compare Step mode b a := by
   | forallE _ _ ihA ihB => exact .forallE ihA ihB
   | etaL h => exact .etaR h
   | etaR h => exact .etaL h
+  | etaLams _ h ih => exact .etaLams ih h.symm
   | compute Ra Rb _ ih => exact .compute Rb Ra ih
 
 /-- An inferred comparison also works when endpoint types are supplied. -/
@@ -63,6 +70,7 @@ theorem Compare.common (H : Compare Step mode a b) : Compare Step true a b := by
   | forallE HA HB => exact .forallE HA HB
   | etaL h => exact .etaL h
   | etaR h => exact .etaR h
+  | etaLams HD h => exact .etaLams HD h
   | compute Ra Rb _ ih => exact .compute Ra Rb ih
 
 /-- The two modes both weaken when their underlying computations weaken. -/
@@ -79,6 +87,7 @@ theorem Compare.liftN
   | forallE _ _ ihA ihB => exact .forallE ihA ihB
   | etaL h => exact .etaL h.liftN
   | etaR h => exact .etaR h.liftN
+  | etaLams _ h ih => exact .etaLams ih (h.elim (fun h => .inl h.liftN) (fun h => .inr h.liftN))
   | compute Ra Rb _ ih => exact .compute (Ra.liftN hstep) (Rb.liftN hstep) ih
 
 /-- Raw substitution preserves modes and all displayed eta comparisons. -/
@@ -95,6 +104,7 @@ theorem Compare.subst
   | forallE _ _ ihA ihB => exact .forallE ihA ihB
   | etaL h => exact .etaL h.subst
   | etaR h => exact .etaR h.subst
+  | etaLams _ h ih => exact .etaLams ih (h.elim (fun h => .inl h.subst) (fun h => .inr h.subst))
   | compute Ra Rb _ ih => exact .compute (Ra.subst hstep) (Rb.subst hstep) ih
 
 private theorem liftN_sort_inv {e : ProofShape} (H : e.liftN n k = .sort u) : e = .sort u := by
@@ -229,6 +239,22 @@ theorem proofErase_compare_descend (hstep : ErasedPrimitiveDescent Step)
     rw [← Ea, ← Eb] at Hη
     refine ⟨fun hAB => ?_, fun h => by cases h⟩
     exact ⟨_, (proofErase_eta_head_reflect hΓ hb (ha.defeqU_r henv hΓ hAB) Hη.of_liftN).symm⟩
+  | etaLams HD Hη ihD =>
+    rw [← Ea, ← Eb] at Hη
+    obtain ⟨_, _, haE, EaD, _⟩ := ProofShape.liftN_lam_inv Ea
+    obtain ⟨_, _, hbE, EbD, _⟩ := ProofShape.liftN_lam_inv Eb
+    obtain ⟨D, body, rfl, _, ED, _⟩ := erase_lam_inv haE
+    obtain ⟨D', body', rfl, _, ED', _⟩ := erase_lam_inv hbE
+    rw [← ED] at EaD
+    rw [← ED'] at EbD
+    obtain ⟨⟨_, hD⟩, _, hbody⟩ := ha.lam_inv henv hΓ
+    obtain ⟨⟨_, hD'⟩, _, hbody'⟩ := hb.lam_inv henv hΓ
+    have HDD := (ihD hΓ hΓ' W hD hD' EaD EbD).2 rfl (not_isProof_of_sort hΓ hD)
+    have HH : env.IsDefEqU univs Γ (.lam D body) (.lam D' body') := by
+      rcases Hη with Hη | Hη
+      · exact proofErase_eta_head_infer hΓ ha (HasType.lam hD' hbody') HDD Hη.of_liftN
+      · exact (proofErase_eta_head_infer hΓ hb (HasType.lam hD hbody) HDD.symm Hη.of_liftN).symm
+    exact ⟨fun _ => HH, fun _ _ => HH⟩
   | compute Ra Rb HC ih =>
     rw [← Ea] at Ra
     rw [← Eb] at Rb

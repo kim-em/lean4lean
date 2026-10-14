@@ -40,6 +40,7 @@ theorem Compare.mono (hstep : ∀ {a b}, Step a b → Step' a b)
   | forallE _ _ ih1 ih2 => exact .forallE ih1 ih2
   | etaL h => exact .etaL h
   | etaR h => exact .etaR h
+  | etaLams _ h ih => exact .etaLams ih h
   | compute Ra Rb _ ih => exact .compute (Ra.mono hstep) (Rb.mono hstep) ih
 
 /-- Earlier common-target guards are recursive comparisons ending in reflexivity. -/

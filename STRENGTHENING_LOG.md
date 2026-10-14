@@ -3499,3 +3499,27 @@ repair, comparison descent, or strengthening. The targeted build passes (224
 jobs); twelve axiom audits contain no sorryAx and use only propext,
 Classical.choice and Quot.sound. No executable changed; the original goal stays
 active and the UniqueTyping sorry remains.
+
+### Inferred erased eta with exposed function domains
+
+`proofErase_eta_head_infer` replaces common endpoint typing by a lower Pi typing
+of the short endpoint and equality of its domain with the long lambda domain.
+Exact reflection identifies the body function; the aligned domain then validates
+the final argument, including a hidden proof marker. Result-type equality is not
+assumed. `Compare.etaLams` uses lambda inversion and recursive domain comparison
+to make this available in inferred function positions. Symmetry, mode promotion,
+weakening, substitution, primitive monotonicity and all finite K stages extend.
+
+`ProofErasureEtaDomains` proves the domain premise is necessary for the proposed
+unrestricted erased eta rule: the erasures of `fun p : P => (fun x : Q => Prop) q`
+and `fun x : Q => Prop` have eta shape for any q : Q, whereas their conversion is
+exactly P ≡ Q. The module supplies fixed inhabited domains under canonical Eq:
+Eq at Prop and the identity-function proposition over it. Rigid-head separation
+proves these domains differ, so both endpoints are typed yet not convertible.
+This refutes unrestricted inferred eta, not strengthening.
+
+The targeted build passes (273 jobs), and ten axiom audits contain no sorryAx,
+only propext, Classical.choice and Quot.sound. General inferred short endpoints,
+singleton primitive integration and equality completeness remain open. The
+result is not a sufficient strictly smaller front. No executable changed and
+the original goal remains active.
