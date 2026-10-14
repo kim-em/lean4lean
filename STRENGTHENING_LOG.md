@@ -2613,3 +2613,35 @@ Seven axiom audits have no sorryAx and contain only propext, Classical.choice
 and Quot.sound. The combined existing-model/closed-Eq-unfolding build passed
 with 354 dependency jobs at this checkpoint. No executable changed; concurrent
 proof-index reconstruction work was preserved.
+
+### Recovery is complete over full reduction; exact type-head descent is false
+
+`RecoveryReplay.lean` separates ambient ComputeReplay from scoped ComputeDescent.
+A direct induction replays TypeRecoveryWith using only the former. The local
+head-exposure construction likewise requires ambient replay alone. This avoids
+assuming strengthening merely to prove existence of a synthesized type.
+
+`FullRecoveryExistence.lean` instantiates that weaker interface with actual full
+reduction. Canonical confluence supplies Pi exposure; the new rigid-spine theorem
+supplies family exposure, and field totality supplies selection. Consequently
+`full_recovery_exists` is unconditional under canonical Eq and well-formedness.
+`full_recovery_complete_up_to_conversion` returns a recovery certificate, its
+actual typing, and equality of its output with any originally supplied type.
+The output is chosen, not required to equal an arbitrary original annotation.
+
+This establishes a complete synthesis baseline, but its computational base
+cannot be used directly for strengthening. `not_computeDescent` refutes exact
+scope reflection with the checked captured eta step. `FullHeadScopeBoundary`
+sharpens this beyond function terms: a sort-typed Pi source fully reduces to a
+Pi target whose domain captures the added binder inside a beta-erased argument.
+`full_pi_target_scope_failure` proves this exact target is not a lift. Restricting
+sources to types, or both endpoints to Pi heads, therefore does not rescue exact
+replay. Head repair must be allowed to choose different annotations.
+
+The final combined build passes with 358 dependency jobs. Eight additional axiom
+audits cover ambient replay, full recovery completeness, and both scope failures;
+none contains sorryAx (only propext, Classical.choice and Quot.sound). No
+executable changed. Concurrent proof-index files were left untouched. The open
+work is to repair the full-reduction recovery into a descending computational
+model and establish sufficient comparison coverage. The original strengthening
+sorry and requested final deliverable remain unresolved; the goal stays active.
