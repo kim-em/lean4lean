@@ -828,3 +828,22 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   applied to the reconstructed paths. **Remaining:** its joins can use general
   indexed singleton prefixes absent from the raw stages, so raw confluence and
   recursive guard transport do not follow from operational replay alone.
+
+- **Type the actual generated captures before checking their family guard.**
+  **Rejected proof attempt:** `transportedFields_typed` types the cast-bearing
+  `transportedFields` list, while `singletonUnfolding` captures the bare
+  `occ(...).2` list. They are not definitionally the same. In a data slot, the
+  bare field is the selected index; its declared field type may require the
+  alignment supplied by the family guard. No unconditional capture-typing
+  theorem was proved; the unproved scratch module was removed. This finding
+  rejects that inference, not a general impossibility theorem for every layout.
+- **Describe the exact erased output of arbitrary checked singleton prefixes.**
+  **Checked** in `ProofErasureSingletonSlots`, `ProofErasureTelescope`, and
+  `ProofErasureSingletonPrefixBody`. Typed bare fields erase to a raw slot vector
+  selecting retained indices and replacing proof slots by markers. The vector
+  commutes with arbitrary raw substitution. The actual checked captures feed
+  the fixed closed equation-body template; a non-proof output retains the exact
+  residual annotations, each erased in its preceding-binder context. Mixed
+  dependent data/proof layouts and indexed families are included. The check is
+  retained where it supplies bare-field typing. Uniform reconstruction of the
+  erased residual telescope from raw inputs remains to be proved.

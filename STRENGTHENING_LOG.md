@@ -6506,3 +6506,42 @@ module, plus all 15 new canonical-prefix declarations, pass
 `/tmp/canonical-scoped-operational-audit.log`; their axioms are subsets of
 propext, Classical.choice and Quot.sound, with no sorryAx. No executable edits
 or strengthening inverses were used. The full goal remains active.
+
+## Exact erased slots and outputs for general singleton prefixes
+
+The initial attempt to prove unconditional typing of actual generated captures
+failed for a substantive reason: the always-typed `transportedFields` retain
+type casts, whereas `singletonUnfolding` uses the bare `occ(...).2` fields. The
+existing comparison theorem requires alignment to remove those casts. The
+unproved `SingletonPrefixCaptureTyping` scratch module was removed; no claim of
+unconditional bare-capture typing is retained. The closed equation body itself
+is typed independently, but applying it to actual captures uses their check.
+
+`ProofErasureSingletonSlots` defines the raw field vector as selected index
+providers or proof markers and proves its arbitrary-substitution law. A local
+proof-slot lemma applies inside mixed dependent telescopes. For any typed bare
+occurrence, data-slot readout is literal and proof-slot erasure follows from the
+instantiated field proposition. Thus the entire erased occurrence is exactly
+the raw vector, with no proof-only restriction. Typed slot bounds ensure that
+its out-of-range raw fallback is never used by actual occurrences.
+
+`ProofErasureTelescope` records residual annotation erasure in each preceding
+binder context, proves arity preservation and exact erased-context extension,
+and erases non-proof lambda telescopes without changing any displayed domain.
+
+`ProofErasureSingletonPrefixBody` recovers the closed typed equation-body
+context from genuine registration and extraction. For an actual checked
+prefix, family conversion reconstructs the typed bare fields. Its captures
+therefore erase to the opened visible prefix followed by the raw field slots.
+The instantiated RHS body is the fixed erased equation template supplied with
+that capture vector. The whole non-proof RHS is exactly the raw lambda telescope
+around this instantiated body. General indexed layouts with dependent data and
+proof fields are included; no unconditional capture-typing premise is smuggled
+into the result.
+
+Validation: combined targets build in `/tmp/scoped-singleton-templates-build.log`.
+The first 13 entries of `/tmp/singleton-erased-templates-audit.log` audit these
+three modules and use only propext, Classical.choice and Quot.sound, with no
+sorryAx. No executable changes or strengthening inverses were used. This gives
+an exact output description, not a full raw primitive, coverage, or strengthening
+proof. Residual-telescope reconstruction and general guard coverage remain open.
