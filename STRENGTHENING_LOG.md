@@ -6308,3 +6308,49 @@ Classical.choice and Quot.sound, with no sorryAx. No executable edits or
 strengthening inverses were used. Arbitrary merely compared image substitution,
 comparison composition, and the original strengthening theorem remain open;
 these results are not a strictly smaller sufficient front.
+
+## Scoped binder inversion, head beta exchange, and eta residuals
+
+The next guard-transport investigation isolates two different cases. A
+computational path through a lambda can be inverted using typed annotation
+replay. A matched application comparison can instead present merely compared
+arguments, and the joined-substitution theorem does not cover those. No general
+endpoint-guard transport or composition theorem follows from the former case.
+
+`ProofErasureScopedContextConversion` interprets original context conversion as
+the identity raw substitution. This transports scoped paths and comparisons
+with unchanged raw endpoints, even when the erased contexts differ. Endpoint
+representatives are not required for this transport.
+
+`ProofErasureScopedBinderComputation` inverts every finite scoped path starting
+at a displayed lambda with a typed annotation. The annotation path replays at
+its original sort. At a transitive node its reconstructed endpoint converts the
+later body context back to the initial binder context, where the two body paths
+concatenate. The raw body needs no supplied original typing. Scoped prefix
+roots have constant or projection heads at every stage, so the theorem applies
+to every finite contextual prefix relation without increasing the stage.
+
+`ProofErasureScopedBetaExchange` combines lambda inversion with the previous
+dependent substitution square. Head beta before independent finite function
+and argument computations reaches exactly the result of beta after those
+computations. The second residual is one beta step. Computations in the lambda
+annotation and K steps inside bodies/arguments are allowed. No computational
+confluence assumption or normalization is used.
+
+`ProofErasureScopedEtaResidual` exploits the recursive eta-body rule directly.
+After an expanded lambda computes, its computed body still checks against the
+original opened short function by the reversed orientation of that known
+computational path. Annotation replay gives its exact sort witness and context
+conversion. The raw theorem requires only the original domain-sort witness,
+not original typings for the body or short function. Typed displayed eta is a
+corollary by fresh-argument classification. Every finite prefix stage retains
+the residual guard at the same bound. This avoids the fresh-application
+reflection needed by older raw-head-only residual statements, but does not
+supply a join for independent computations of both eta endpoints.
+
+Validation: the beta-exchange and eta-residual targets build together (326 jobs)
+in `/tmp/scoped-exchange-build.log`. All 11 public declarations in the four new
+modules pass `/tmp/scoped-exchange-audit.log`, with only propext, Classical.choice
+and Quot.sound and no sorryAx. No executable changes or strengthening inverses
+were used. General scoped guard transport, merely-compared paired substitution,
+comparison composition, and `IsDefEqU.weakN_iff` remain open.

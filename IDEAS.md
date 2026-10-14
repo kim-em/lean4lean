@@ -741,3 +741,28 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   all four edges commuting a typed template computation with pointwise image
   computation, with an identical raw output. These laws do not establish
   paired substitution for merely compared images or general confluence.
+
+- **Reindex scoped paths when a binder annotation computes.** **Checked** in
+  `ProofErasureScopedContextConversion`. Actual original context conversion
+  interprets the identity raw substitution, so both scoped computation and
+  comparison retain their endpoints and modes in the converted erased context.
+- **Invert finite scoped lambda computation without typing its raw body.**
+  **Checked** in `ProofErasureScopedBinderComputation`. Only the annotation has
+  a supplied original sort typing. Replay of annotation paths provides the
+  context conversion needed to concatenate later body paths in the initial
+  binder context. All finite contextual prefix stages satisfy the head test.
+- **Join head beta against finite function and argument computation.**
+  **Checked** in `ProofErasureScopedBetaExchange`. Lambda inversion and the
+  dependent substitution square produce a literal common contractum. The
+  competing residual is one beta step, with no confluence premise and no stage
+  growth. This handles computationally related arguments, not arbitrary
+  common-compared arguments in a comparison derivation.
+- **Retain computed eta bodies instead of reflecting them into the short
+  function.** **Checked** in `ProofErasureScopedEtaResidual`. A domain-sort
+  witness suffices: arbitrary finite computation of its expanded lambda leaves
+  a recursive scoped guard against the unchanged short raw function. Computed
+  annotations are replayed and the body path is converted to their context.
+  This holds at all finite prefix stages, without original representatives of
+  the raw body/function or a computational-confluence premise. Independent
+  computation of both endpoints and arbitrary recursive-body guard transport
+  remain open; earlier raw eta/probe barriers do not themselves decide them.
