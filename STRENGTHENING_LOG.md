@@ -3252,3 +3252,20 @@ propext, Classical.choice and Quot.sound. General singleton primitive integratio
 eta repair, and completeness of erased computation for the original family
 conversions remain open. No executable changed; the strengthening goal remains
 active.
+
+### Weaken the complete finite erased K fragment
+
+`ProofErasureWeakening.lean` proves raw binder-insertion laws for annotated proof
+shapes, including substitution through beta. Finite erased beta computation and
+compatible computation therefore weaken whenever their primitive steps do.
+Visible pattern matches preserve every shifted capture. Closed declaration and
+RHS-template erasures keep their fixed heads, while projection selection and
+capture rules shift their arguments. These facts cover the entire visible iota
+fragment. K primitives weaken both common-target guard computations, and induction
+on ErasedKStage gives same-stage weakening of every finite erased computation.
+
+This establishes raw weakening alongside the preceding typed-descent result. It
+does not establish arbitrary substitution, eta repair, general singleton primitive
+coverage, or completeness for declarative equality. The targeted build passes
+with 250 jobs; eight axiom audits contain no sorryAx. No executable changed, and
+the original strengthening goal remains active.
