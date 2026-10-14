@@ -408,3 +408,5 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   one without an input domain comparison; source typing supplies their common
   type. No general comparison composition, arbitrary singleton primitive, or
   declarative completeness is claimed.
+
+| Strengthen the eta/eta peak to an exact eta-only diamond | **Checked.** `EtaParallelDiamond` joins two parallel eta expansions by one parallel step on each side. Root copies replay at the opposite typed endpoint, including differently parameterized structure expansions; compatible binder bodies convert through the original domain. `EtaFiniteConfluence` derives a strip lemma and exact finite typed eta confluence. No computation, normal comparison, canonical Eq or front is needed. |

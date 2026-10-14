@@ -4742,3 +4742,25 @@ of 36 new public theorem axiom audits passes in
 `/tmp/erasure-checked-audit.log`; only propext, Classical.choice and Quot.sound
 or subsets occur. Diff whitespace checks pass. The strengthening goal remains
 active, with its original UniqueTyping gap unchanged.
+
+### Exact finite eta confluence
+
+`EtaParallelDiamond.lean` strengthens the existing eta/eta peak result to an
+exact parallel eta diamond. Instead of introducing a normal-comparison tail,
+the root cases replay an expansion at the opposite endpoint and expand each
+copy beneath the existing root. Original typing supplies the root's unchanged
+domain or structure parameters. Different root annotations therefore need not
+be aligned syntactically. Compatible binder cases convert both body paths
+through the original source domain.
+
+`EtaFiniteConfluence.lean` serializes compatible eta steps into the original
+parallel relation, proves a strip lemma, and obtains finite confluence. The
+parallel closure converts back to TypedEtaExpansion using propagated source
+typing. The resulting common target is literally identical on both sides and
+both outgoing paths contain only eta expansions. This needs neither canonical
+Eq nor a strengthening front.
+
+Validation: both modules are included in the successful 397-job symmetric
+phase build. All public results occur in the 46-theorem audit at
+`/tmp/symmetric-eta-audit.log`; their only axioms are propext, Classical.choice
+and Quot.sound or subsets. The original strengthening gap remains open.
