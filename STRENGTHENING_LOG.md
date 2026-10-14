@@ -4329,3 +4329,22 @@ recovery, comparison, consumer and example theorems in
 Quot.sound or a subset; none uses sorryAx. Projection type recovery, general
 contextual substitution, recursive computational feedback and completeness
 remain open. The executable and original UniqueTyping sorry are unchanged.
+
+### The composition boundary survives recovered inferred eta
+
+After adding arbitrary-thinning descent, the stronger relation was checked
+against the existing typed eta/beta probe. `ProofErasureRecoveredCompositionBarrier.lean`
+proves domain extraction for RecoveredCompare with arbitrary endpoint oracles.
+A constant-sort body excludes both recovered head-eta rules. Base comparison
+uses the earlier probe theorem; compatible computation only computes the domain.
+Consequently a commonly typed stage-zero comparison followed by beta, if it
+could always yield a recovered comparison at any finite stage, would certify
+every sort-typed domain conversion. The new contextual thinning theorem then
+implies PropositionFront. Full common-typed composition implies the same rule.
+
+Thus the added recovered eta and typed oracles have not made the composition
+obligation strictly smaller. This is a checked lower bound on that proposed
+obligation, not a counterexample to typed composition or to strengthening.
+The targeted build passes (282 jobs), and all five theorem axiom audits in
+`/tmp/erasure-recovered-composition-audit.log` contain only propext,
+Classical.choice and Quot.sound. No goal completion criterion is reached.

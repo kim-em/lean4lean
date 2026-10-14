@@ -319,3 +319,10 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   the thinning into single insertions. The concrete relation now supplies guarded
   K and singleton-prefix descent. Equality completeness and recursive feedback
   into erased computational stages remain open.
+
+- **Does contextual recovered eta remove the typed composition barrier?** No:
+  checked `RecoveredCompare.probe_inv` extracts inferred domain comparison from
+  constant-sort lambda probes with arbitrary endpoint oracles. Recovered head
+  eta is excluded by the probe body, and compatible computation preserves it.
+  Typed forward beta transport into the stronger relation, even with any finite
+  output stage, still implies PropositionFront. This is not a smaller front.
