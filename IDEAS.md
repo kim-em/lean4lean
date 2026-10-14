@@ -441,3 +441,7 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   together. Inferred lambda-domain reflection and its full-front instantiation
   barrier survive. Concrete recovery existence and computational composition
   remain open; this is not a smaller sufficient front.
+
+| Decompose arbitrary finite projection paths before completing eta | **Checked.** `ProjectionComputationTrace` retains either a major-only path with the projection intact, or the first saturated constructor exposure, selected field and full subsequent field path. No source typing or confluence is assumed. A fixed nonconstructor major consequently has fixed projections. |
+
+| Absorb computation after eta of a fixed neutral or empty structure | **Checked root cases.** `NeutralEtaCompletion` shows that fixed projected fields leave only parameter computation. Actual family-type conversion validates those computed parameters for a new eta root of the original major, using the unchanged closed admissibility certificate. This covers computationally fixed neutral majors (including variables), and every zero-field structure with no major-fixedness premise. Duplicated majors that compute differently and compatible substitutions remain outside these results; general mixed composition is still open. |

@@ -4938,3 +4938,34 @@ and the forward-eta target builds (280 jobs). All 56 new and affected public
 theorem audits in `/tmp/erasure-checked-eta-audit.log` use only propext,
 Classical.choice and Quot.sound or subsets, with no sorryAx. No executable
 changed. Strengthening remains open and the goal stays active.
+
+### Projection traces and neutral structure-eta completion
+
+`ProjectionComputationTrace.lean` classifies arbitrary finite prefix computation
+from a projection. Either the projection persists over a computed major, or
+there is a major path to a saturated registered constructor, an actual field
+selection, and a remaining computational path from that field to the endpoint.
+The proof serializes single compatible steps and retains the first selection.
+No typing, normalization or confluence assumption is required. A computationally
+fixed major that is not a constructor therefore has computationally fixed
+projections, extending the previous variable-only result.
+
+`NeutralEtaCompletion.lean` applies that classification to the duplicated fields
+of a structure expansion. When every projected field is fixed, only the explicit
+parameter prefix can compute. Source family typing supplies the types needed
+to convert the original major to the computed parameter instance. The original
+eta-admissibility certificate then reconstructs the constructor at those new
+parameters. Thus a single new typed eta root reaches the final endpoint.
+
+This proves the fixed neutral-major case without a front or computational
+confluence, and yields an exact EtaNormal phase for variable majors. Zero-field
+structures need no fixedness condition on the major at all. These are root
+completion cases: they do not assert that the fixedness premise survives
+arbitrary substitution, or that differing computations in duplicated majors
+can be joined. The general mixed composition problem remains open.
+
+Validation: the combined root-completion and registered-equation targets build
+successfully (391 jobs). All sixteen public theorem audits in
+`/tmp/eta-composition-roots-audit.log` use only propext, Classical.choice and
+Quot.sound or subsets; no sorryAx occurs. The original strengthening gap and
+executable are unchanged.
