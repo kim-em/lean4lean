@@ -1985,3 +1985,30 @@ The remaining different-lambda-argument case still has only a hybrid comparison,
 not a domain certificate. Thus these application laws are not full application
 closure or completeness, and no requested final strengthening deliverable is
 claimed. No executable changed; the goal remains active.
+
+### Separate ambient realizations close suspended eta descent
+
+`SuspendedBidirectional.lean` generalizes the two-square invariant: the left and
+right instances may use different ambient contexts and weakenings. This permits
+an arbitrary typed source prefix to be realized independently on each side.
+`SubstLiftSquare.extend` constructs those realizations. The smaller context and
+its substitution stay fixed. Sort uniqueness in each target, via `sort_level`
+and `suspended_sort_types`, supplies the common-mode universe comparisons.
+
+`BiNormal.suspended_reflect` now preserves every mode-indexed constructor,
+including common lambdas and all three eta cases. Eta on both sides uses source
+spine inversion, then independently extends both ambient realizations over the
+resulting source-only prefix. It requires no Pi exposure below and no open
+smaller typing for the template. The conclusion is a BiNormal certificate,
+not merely declarative equality.
+
+`BiNormal.suspended_proof_inst` extends the result over another proof-argument
+pair. `suspended_beta_proofs` combines it with beta subject reduction for distinct
+bodies and arbitrary lower lambda annotations. The proofs can inhabit different
+propositions below, provided their lifted ambient instances have the source
+binder types. Arbitrary lambda-argument repair and completeness remain open.
+This is not yet one of the requested final deliverables.
+
+The target builds with 219 dependency jobs; six axiom audits contain only
+propext, Classical.choice and Quot.sound. The executable is unchanged. Independent
+workspace work through 3cb66fee and the PureBodyComputation file was preserved.
