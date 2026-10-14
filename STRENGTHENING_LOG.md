@@ -5422,3 +5422,20 @@ Validation: the complete target builds successfully (310 jobs). All 38 new or
 affected public declarations are axiom-audited in `/tmp/context-prefix-audit.log`,
 with only propext, Classical.choice and Quot.sound (or subsets), no sorryAx.
 No executable or strengthening inverse was used. The main goal remains open.
+
+### Ordinary finite paths commute with checked prefix roots
+
+`PrefixOrdinaryExchange.lean` proves head preservation at a fixed universe
+instance, without imposing non-unfolding at other universe lists. A successful
+singleton check supplies an owned constructor and excludes stored delta; the
+zero-source guard excludes selected structure equations. Quotient registration
+excludes both parts of the same collection. The existing prefix-arity lemmas
+exclude ordinary patterns at every shorter spine. Thus any finite ordinary path
+from an actual prefix only changes its supplied arguments. Full-program
+congruence gives a checked residual prefix and an ordinary residual path with a
+literal common endpoint, including all lambda annotations.
+
+Validation: the target builds (364 jobs), and all ten public results pass the
+axiom audit in `/tmp/exact-computation-audit.log`, without sorryAx. No executable
+or strengthening inverse was used. This root exchange alone does not assert
+confluence of the augmented prefix relation.

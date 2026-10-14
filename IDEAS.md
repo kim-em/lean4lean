@@ -526,3 +526,5 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   operation already supported by the original staged prefix model. Add typed
   descent and substitution-stable erased prefix rules before retrying generic
   composition. Do not assume the new contextual sort witnesses alone solve it.
+
+| Move an entire ordinary path past an actual unsaturated prefix root | **Checked.** `PrefixOrdinaryExchange` excludes stored and selected-structure delta at the checked head and exact universes. Prefix arity excludes ordinary pattern roots at every shorter spine, so ordinary paths only compute supplied arguments. Full-program congruence replays the actual prefix and yields an ordinary residual path with the same endpoint. This includes indexed singletons and quotients. |
