@@ -3897,3 +3897,47 @@ Validation: the combined mode/probe/barrier build passes (272 jobs). Fourteen
 public axiom audits in `/tmp/erasure-mode-composition-audit.log` contain no
 sorryAx; all use only propext, Classical.choice and Quot.sound or a subset. No
 executable changed. The original UniqueTyping sorry and the goal remain open.
+
+### Compatible prefix replay and conditional finite eta reflection
+
+`WitnessedPrefixReplay.lean` upgrades the existing witnessed singleton descent
+argument to produce the actual lower PrefixUnfold rule, together with exact
+equality of the upper target to its lift. The generated program, registration
+and complete UnfoldingCheck are retained. The witnessed proposition front is
+an explicit hypothesis throughout; this does not prove that front.
+
+`QuotPrefixReplay.lean` removes a front premise entirely for quotient prefixes.
+Every typed admissible prefix at a Prop source has an actual checked rule.
+The proof opens fresh arguments until the five-argument rule applies, then
+reabstracts them using the generator identities and fresh-argument theorem.
+Uniqueness of generation recovers the exact generated target. Consequently
+quotient prefixes replay through arbitrary renamings from lower source typing
+alone, without a relation between the upper and lower contexts.
+
+`PrefixComputation.lean` defines finite compatible computation with concrete
+patterns and both actual prefix rules. Source typing reconstructs every
+intermediate typing, including computations under binders with changing
+domains. Under the witnessed proposition front, every path from a lifted
+source reflects to an actual lower path with exactly the lifted output.
+Conversion of the ambient context also preserves these paths.
+
+`FreshPrefixReflection.lean` uses this exact reflection to cover arbitrary
+finite computation from a typed function applied to a fresh argument. An
+actual prefix at the root reabstracts directly. Compatible function steps use
+the conditional replay theorem; the fresh variable itself cannot compute.
+After a lambda is exposed, unique typing aligns its domain with the ambient
+fresh domain, and context conversion lets subsequent computation continue in
+the lower lambda. Thus the final output either retains the fresh application
+boundary or is the body of a computed lower lambda. The resulting ordinary
+NormalEq supplies the finite eta-postponement interface.
+
+Unlike the earlier bounded-spine beta join, this conditional result includes
+supplied-major and argument-position steps. It does not prove the witnessed
+front, general normal/prefix simulation, structure-eta coverage or descent of
+opaque lambda-domain conversions. No claim of full strengthening or a smaller
+sufficient obligation follows.
+
+Validation: the targeted build passes (294 jobs). Ten public theorem axiom
+audits in `/tmp/prefix-reflection-audit.log` contain no sorryAx and use only
+propext, Classical.choice and Quot.sound, or a subset. No executable changed.
+The original UniqueTyping sorry and the goal remain open.
