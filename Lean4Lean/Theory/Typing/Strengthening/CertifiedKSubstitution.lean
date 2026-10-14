@@ -25,21 +25,25 @@ def EndpointSubstitution (Cmp : List VExpr → VExpr → VExpr → Prop) : Prop 
     env.HasType univs Γ₁ a α → env.HasType univs Γ₁ b α → Cmp Γ₁ a b →
     Cmp Γ (a.inst e₀ k) (b.inst e₀ k)
 
-/-- Compatible computation inherits typed substitution of its guards. The
-transitive case uses replay to type its intermediate source before substitution. -/
-theorem GuardedKCompute.instN (R : GuardedKCompute D Cmp Γ₁ e out)
+/-- Substitution may change the guard relation, as needed when a staged
+argument requires a larger certificate depth. Replay types intermediate sources. -/
+theorem GuardedKCompute.instN_to {Cmp' : List VExpr → VExpr → VExpr → Prop}
+    (R : GuardedKCompute D Cmp Γ₁ e out)
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs) (hc : EndpointDescent Cmp)
-    (hsub : EndpointSubstitution Cmp)
-    (hΓ₁ : OnCtx Γ₁ (env.IsType univs)) (h₀ : env.HasType univs Γ₀ e₀ A₀)
+    (hsub : ∀ {k Γ₁ Γ a b α}, OnCtx Γ₁ (env.IsType univs) →
+      Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ → env.HasType univs Γ₁ a α →
+      env.HasType univs Γ₁ b α → Cmp Γ₁ a b →
+      Cmp' Γ (a.inst e₀ k) (b.inst e₀ k))
+    (hΓ₁ : OnCtx Γ₁ (env.IsType univs))
     (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (ht : VExpr.WF env univs Γ₁ e) :
-    GuardedKCompute D Cmp Γ (e.inst e₀ k) (out.inst e₀ k) := by
+    GuardedKCompute D Cmp' Γ (e.inst e₀ k) (out.inst e₀ k) := by
   induction R generalizing k Γ with
   | base R =>
     apply GuardedKCompute.base
     simpa only [instN_eq] using R.subst (σ := .liftN (.one e₀) k)
   | eqRec H =>
     obtain ⟨_, _, _, ha, _, _, hb, _⟩ := eqRecApp_typings henv heq hΓ₁ ht
-    exact .eqRec (hsub hΓ₁ h₀ W ha hb H)
+    exact .eqRec (hsub hΓ₁ W ha hb H)
   | trans R1 _ ih1 ih2 =>
     obtain ⟨T, ht⟩ := ht
     have hmid := (R1.simAt heq hs hc hΓ₁ T ht).hasType.2
@@ -60,6 +64,15 @@ theorem GuardedKCompute.instN (R : GuardedKCompute D Cmp Γ₁ e out)
     obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ :=
       HasType.proj_inv henv hΓ₁ ht
     exact .proj (ih hΓ₁ W ⟨_, hm.hasType.2⟩)
+
+/-- Compatible computation inherits typed substitution of its guards. -/
+theorem GuardedKCompute.instN (R : GuardedKCompute D Cmp Γ₁ e out)
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs) (hc : EndpointDescent Cmp)
+    (hsub : EndpointSubstitution Cmp)
+    (hΓ₁ : OnCtx Γ₁ (env.IsType univs)) (h₀ : env.HasType univs Γ₀ e₀ A₀)
+    (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (ht : VExpr.WF env univs Γ₁ e) :
+    GuardedKCompute D Cmp Γ (e.inst e₀ k) (out.inst e₀ k) :=
+  R.instN_to heq hs hc (fun hΓ W ha hb H => hsub hΓ h₀ W ha hb H) hΓ₁ W ht
 
 /-- Homogeneous substitution preserves every finite certificate depth. A
 HybridNormal comparison's own index may grow; it is existentially stored. -/

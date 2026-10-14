@@ -2312,3 +2312,21 @@ staged recovery, the actual three-stage example, both scope exclusions, and old
 consumer theorems. Only propext, Classical.choice and Quot.sound occur. No
 executable changed. General indexed-prefix and comparison coverage, and the
 final strengthening deliverable, remain open. The goal stays active.
+
+### Substitution across computational bases
+
+The previous goal turn made progress: generic recovery and finite eta/K staging
+were committed and pushed as 3571316a and f1cfe4eb. This turn addresses substitution
+through those stages. `ComputeSubstitutionTo` fixes an argument and its declared
+type, allowing computation to move from one relation to another after typed
+substitution. `RecoverySubstitutionCore` proves exact recovery and compatible eta
+preservation when the argument recovers its declaration in the target base.
+Lookup uses that certificate; conversion uses the computation transformation;
+transitive eta paths use source replay to type their intermediate terms.
+
+`GuardedKCompute.instN_to` likewise permits the endpoint comparison relation to
+change. Its original same-relation substitution theorem is retained as a
+specialization. The existing TypeRecovery lookup and substitution theorems now
+specialize the generic proof, and RecoveredComparison substitution still builds.
+No executable changed. The all-stage bound and its exact boundary are recorded
+in the next entry.
