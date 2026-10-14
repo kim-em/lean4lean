@@ -6049,3 +6049,33 @@ unproved. Recursive structure eta also needs a coverage audit before asserting
 completeness of this larger language. The repaired function-eta boundary alone
 does not imply PropFront or provide a strictly smaller sufficient obligation.
 The original strengthening sorry remains open.
+
+## Constructor parameter change as a derived terminal root
+
+Requiring a phase certificate for every converted data parameter was stronger
+than the local structure-eta rule itself needs. `ConstructorParameterChange`
+records the precise alternative: two saturated unindexed constructors at a
+common type, with literally the same fields, possibly different parameter
+prefixes and universe syntax, and projection admissibility at the right
+instance. `constructor_unindexed_family` removes hidden result indices from
+the intrinsic type of such a constructor. The new root is then derived by
+one actual structure eta expansion followed by its field projections.
+It is not an additional axiom or generic conversion of arguments.
+
+The root is symmetric, including transport of proof-field admissibility across
+universe equivalence, and cannot occur at a sort or function type. Every finite
+PrefixCompute after it can move before it: preserve the left parameter prefix,
+compute exactly the fields computed by the right path, and retain one residual
+parameter change. This needs no phase certificate for any parameter.
+
+`StructureEtaParameterCompletion` combines this rule with exact field confluence
+and the prior neutral-major theorem. Every actual structure-eta root followed
+by arbitrary finite computation now has either the old symmetric phase or a
+computational join whose only residual is this explicit parameter change.
+This covers constructor exposure at arbitrary converted data parameters and
+universes. A compatible terminal calculus and its composition are still needed;
+the original PrefixEtaJoin completeness theorem is not claimed.
+
+Validation: the root-completion target builds (430 jobs). Its eight public
+results are included in `/tmp/reconstruction-audit.log` and use no sorryAx.
+No executable changes or strengthening inverses were used.

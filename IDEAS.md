@@ -668,3 +668,5 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   at stage one. This repairs that coverage gap, but neither general composition
   nor declarative completeness follows. Recursive structure-eta coverage and
   arbitrary paired substitution are additional cases to investigate.
+
+| Absorb reparameterized constructor eta as an explicit field-preserving root | **Checked root completion and computation transport.** `ConstructorParameterChange` records two commonly typed saturated constructors with identical fields, potentially different data parameters and universes, and an actual projection-admissibility certificate. The rule is derived by one structure eta followed by field projections, is symmetric, and transports subsequent finite PrefixCompute by computing the same fields on the left. `StructureEtaParameterCompletion` reduces every structure-eta root followed by arbitrary computation to an existing symmetric phase or exactly this residual root, with no parameter-phase assumption. Compatible terminal composition is a separate task; this is not a smaller sufficient strengthening front. |
