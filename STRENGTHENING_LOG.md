@@ -3269,3 +3269,41 @@ does not establish arbitrary substitution, eta repair, general singleton primiti
 coverage, or completeness for declarative equality. The targeted build passes
 with 250 jobs; eight axiom audits contain no sorryAx. No executable changed, and
 the original strengthening goal remains active.
+
+### Identify the exact lower-witness assumption for K and indexed prefixes
+
+`WitnessedTermDescent.lean` extends the previously isolated proposition premise
+to arbitrary typed endpoints. Given a lower witness of Eq A a b, canonical Eq.rec
+constructs a lower witness of Eq Prop (Eq A a a) (Eq A a b). Both family propositions
+are inhabited below, by reflexivity and the original witness. Ambient endpoint
+conversion converts these families above; witnessed proposition descent lowers
+that conversion, and Eq-family rigidity recovers the endpoint conversion below.
+The reverse implication is immediate, so the two local fronts are equivalent.
+
+`GuardedKComputation` now proves compatible replay under WitnessedTermDescent.
+The root source typing supplies the lower carrier, endpoint typings, and Eq proof.
+All composition and binder cases retain their previous argument. The old public
+EndpointDescent theorem remains a specialization. Consequently the single
+witnessed proposition premise descends both arbitrary-source compatible K and
+all actual registered singleton-prefix checks, without requiring completeness
+of a finite certificate relation.
+
+Two exact characterizations sharpen the remaining local question.
+ReflexivityProofFront asks only to lower a comparison between a supplied Eq proof
+and reflexivity at its fixed left endpoint; it is equivalent to the witnessed
+front. `WitnessedKCharacterization` proves that source-typed descent of compatible
+K is itself equivalent to that front. For the converse, a single root Eq.rec with
+the equality-family motive has type Eq A a b below. If its K step replays below,
+reflexivity acquires that type, and rigid Eq injectivity forces a ≡ b. Adding all
+registered prefix steps to the computation-descent requirement adds no further
+assumption.
+
+This does not prove the local front, its strictness relative to PropositionFront,
+or sufficiency for all strengthening. Full equality coverage, including recovery
+of intermediate function domains, remains outside these computation statements.
+No new model stage or certificate-completeness claim is introduced. The original
+goal remains open and active.
+
+The combined new-module and TypedIndexedSubstitution build passes with 332 jobs.
+Eleven axiom audits contain no sorryAx; only propext, Classical.choice and
+Quot.sound occur. No executable changed.

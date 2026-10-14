@@ -51,6 +51,20 @@ def EndpointDescent (Cmp : List VExpr → VExpr → VExpr → Prop) : Prop :=
     OnCtx Γ' (env.IsType univs) → env.HasType univs Γ a α → env.HasType univs Γ b α →
     Cmp Γ' (a.lift' ρ) (b.lift' ρ) → env.IsDefEqU univs Γ a b
 
+/-- Endpoint descent restricted to pairs with a canonical Eq witness already
+available below the insertion. For arbitrary conversion this is an unproved
+front; typing of an Eq.rec source supplies precisely this extra witness. -/
+def WitnessedTermDescent (Cmp : List VExpr → VExpr → VExpr → Prop) : Prop :=
+  ∀ {ρ Γ Γ' u A a b witness}, Ctx.Lift' ρ Γ Γ' →
+    OnCtx Γ (env.IsType univs) → OnCtx Γ' (env.IsType univs) →
+    u.WF univs → env.HasType univs Γ A (.sort u) →
+    env.HasType univs Γ a A → env.HasType univs Γ b A →
+    env.HasType univs Γ witness (eqApp u A a b) →
+    Cmp Γ' (a.lift' ρ) (b.lift' ρ) → env.IsDefEqU univs Γ a b
+
+theorem WitnessedTermDescent.of_endpoint (H : EndpointDescent Cmp) : WitnessedTermDescent Cmp :=
+  fun W hΓ hΓ' _ _ ha hb _ Hcmp => H W hΓ hΓ' ha hb Hcmp
+
 variable {Cmp : List VExpr → VExpr → VExpr → Prop}
 
 /-- Weakening of the matching certificates extends to the whole compatible
@@ -111,8 +125,8 @@ theorem GuardedKCompute.lift_shape (R : GuardedKCompute D Cmp Γ (e.lift' ρ) ou
 /-- Replay a whole compatible path below a binder insertion. The root K case
 recovers endpoint typings from the source, then descends its comparison guard.
 No equality or typing of the result is assumed below. -/
-theorem GuardedKCompute.simAt_below (R : GuardedKCompute D Cmp Γ' source target)
-    (heq : env.HasCanonicalEq) (hs : D.Sound env univs) (hcmp : EndpointDescent Cmp)
+theorem GuardedKCompute.simAt_below_witnessed (R : GuardedKCompute D Cmp Γ' source target)
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs) (hcmp : WitnessedTermDescent Cmp)
     (W : Ctx.Lift' ρ Γ Γ') (hΓ : OnCtx Γ (env.IsType univs))
     (hΓ' : OnCtx Γ' (env.IsType univs))
     (hsource : e.lift' ρ = source) (htarget : out.lift' ρ = target) :
@@ -130,8 +144,8 @@ theorem GuardedKCompute.simAt_below (R : GuardedKCompute D Cmp Γ' source target
     have hm := lift'_inj.1 htarget
     subst out
     intro T ht
-    obtain ⟨_, _, _, ha, _, _, hb, _⟩ := eqRecApp_typings henv heq hΓ ⟨_, ht⟩
-    have hab := hcmp W hΓ hΓ' ha hb H
+    obtain ⟨_, hu, hA, ha, _, _, hb, hp⟩ := eqRecApp_typings henv heq hΓ ⟨_, ht⟩
+    have hab := hcmp W hΓ hΓ' hu hA ha hb hp H
     exact eqRecApp_simAt henv heq hΓ hab T ht
   | trans R1 _ ih1 ih2 =>
     have R1' := R1
@@ -158,6 +172,25 @@ theorem GuardedKCompute.simAt_below (R : GuardedKCompute D Cmp Γ' source target
     obtain ⟨m, rfl, rfl⟩ := lift'_eq_proj hsource
     obtain ⟨m', rfl, rfl⟩ := lift'_eq_proj htarget
     exact SimAt.proj henv.orderedStrong hΓ (ih W hΓ hΓ' rfl rfl)
+
+/-- The original stronger interface is a specialization of witnessed replay. -/
+theorem GuardedKCompute.simAt_below (R : GuardedKCompute D Cmp Γ' source target)
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs) (hcmp : EndpointDescent Cmp)
+    (W : Ctx.Lift' ρ Γ Γ') (hΓ : OnCtx Γ (env.IsType univs))
+    (hΓ' : OnCtx Γ' (env.IsType univs))
+    (hsource : e.lift' ρ = source) (htarget : out.lift' ρ = target) :
+    env.SimAt univs Γ e out :=
+  R.simAt_below_witnessed heq hs (WitnessedTermDescent.of_endpoint hcmp) W hΓ hΓ' hsource htarget
+
+/-- Source typing supplies the lower equality proof required by witnessed
+matching at every K node, including under binders and through composition. -/
+theorem GuardedKCompute.descend_witnessed (R : GuardedKCompute D Cmp Γ' (e.lift' ρ) target)
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs) (hcmp : WitnessedTermDescent Cmp)
+    (W : Ctx.Lift' ρ Γ Γ') (hΓ : OnCtx Γ (env.IsType univs))
+    (hΓ' : OnCtx Γ' (env.IsType univs)) :
+    ∃ out, target = out.lift' ρ ∧ env.SimAt univs Γ e out := by
+  obtain ⟨out, hout⟩ := R.lift_shape
+  exact ⟨out, hout, R.simAt_below_witnessed heq hs hcmp W hΓ hΓ' rfl hout.symm⟩
 
 /-- Every guarded computation from a lifted source has a typed replay below. -/
 theorem GuardedKCompute.descend (R : GuardedKCompute D Cmp Γ' (e.lift' ρ) target)
