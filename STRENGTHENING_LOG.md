@@ -3028,3 +3028,33 @@ sufficiency for arbitrary equality strengthening is claimed. The two targeted
 builds pass with 255 and 281 jobs. No executable changed; the goal remains active.
 Seven axiom audits for these results contain no sorryAx; their only axioms are
 propext, Classical.choice and Quot.sound.
+
+### Separate the recursive types in the annotation-erasure candidate
+
+`RecursiveTypeSeparation.lean` checks the previously missing type-level part of
+the loop-erasure candidate against full reduction. RecursiveTypeShape follows
+Pi domains to one marked constant; the bodies are unrestricted. Core parallel
+reduction preserves it when the marked constant's installed unfolding does.
+Singleton and quotient prefix rules cannot fire at an ordinary definition head,
+and sort typing rules out both eta expansions at the marked spine. Compatible
+Pi reductions preserve the marker, giving invariance along every finite full
+path. Sort-typed normal comparison preserves the same marker. Canonical-Eq
+confluence therefore separates distinct markers.
+
+The syntactic rule hypothesis is discharged for actual installed declarations
+`D := D → (Prop → Prop)`: uniqueness of the concrete constant-head pattern fixes
+its output, and registration excludes singleton-prefix reduction at that name.
+`canonical_distinct_recursive_types` installs two fresh copies in one arbitrary
+canonical-Eq environment and proves their non-convertibility in every well-formed
+context. This rules out identifying these types solely by their identical
+infinite unfolding trees.
+
+This is not yet non-convertibility of the corresponding self-application loops.
+Those loops share a result type and can eta-expand at function positions;
+separating their recursive domain constants alone does not settle their full
+conversion. The annotation-erasure candidate stays explicitly unverified, and
+no strengthening counterexample is claimed.
+
+The targeted build passes with 264 jobs, and the combined loop and typed-indexed
+substitution build passes with 352 jobs. Eight axiom audits contain no sorryAx.
+No executable changed. The original strengthening goal remains open and active.
