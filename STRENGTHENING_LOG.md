@@ -2584,3 +2584,32 @@ The targeted build passes with 177 dependency jobs. All nine new theorem axiom
 audits contain only propext, Classical.choice and Quot.sound, with no sorryAx.
 No executable changed. This is a checked fragment theorem, not a solution or a
 new sufficient irreducible front for the strengthening goal, which stays active.
+
+### Confluence supplies literal projection-family heads
+
+The previous goal turn was checked progress through c1155c3b. This turn addresses
+the declarative side of head exposure. `RigidFullExposure.lean` proves that a
+sort-typed term equal to a rigid, sort-headed family application fully reduces
+to a literal application of the same head. It normalizes eta expansions of the
+family side with EtaSpine, transports that reduction through the confluence
+join, and applies normal-comparison spine exposure. Sort typing excludes both
+the proof-irrelevance and lambda alternatives. Levels and arguments may change.
+
+`StructureReplay.family_head_telescope` extracts the normalized sort telescope
+from projection metadata uniformly in the context. The earlier `family_arity`
+now follows from that helper, preserving its statement without duplicating the
+declaration-shape proof. This discharges the sort-headed premise for projection
+families. `projection_type_full_exposure` therefore covers every inferred major
+type at a well-formed projection, with no syntactic header assumption.
+
+`RecoveryFullHeads.lean` identifies the remaining operational requirements:
+repair a full Pi-exposing path to some certified Pi, and repair a full family
+path at a projection to some certified family. Under canonical Eq these are
+exactly equivalent to the previous exposure premises. Confluence supplies all
+required full paths. Neither repair clause is proved for the staged models;
+this is not asserted to be a smaller sufficient strengthening front.
+
+Seven axiom audits have no sorryAx and contain only propext, Classical.choice
+and Quot.sound. The combined existing-model/closed-Eq-unfolding build passed
+with 354 dependency jobs at this checkpoint. No executable changed; concurrent
+proof-index reconstruction work was preserved.

@@ -11,12 +11,14 @@ namespace Lean4Lean.VEnv.Strengthening.StructureReplay
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr
 variable {env : VEnv}
 
-/-- A registered family used as a type is fully saturated at its parameter and
-index count, even when the original stored header needs conversion to expose it. -/
-theorem family_arity (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+/-- A registered family has a normalized telescope ending in a sort, uniformly
+in every well-formed context at the levels of a known family instance. -/
+theorem family_head_telescope (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     (hinfo : env.projections name info)
     (H : env.IsType U Γ (mkApps (.const name levels) args)) :
-    args.length = info.nparams + info.nindices := by
+    ∃ doms w, doms.length = info.nparams + info.nindices ∧
+      ∀ {Δ}, OnCtx Δ (env.IsType U) →
+        env.HasType U Δ (.const name levels) (wrapForalls doms (.sort w)) := by
   obtain ⟨decl, family, ctor, _, _, hname, _, huvars, hnparams, hindices, _, _, hctorType,
     hlookup, hwf, ⟨common, Hshape, _⟩, Hraw, _⟩ := henv.ordered.projectionShape hinfo
   obtain ⟨doms, result, hshape, _, _, hhead, _⟩ := Hraw.forallArity
@@ -49,14 +51,25 @@ theorem family_arity (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
   obtain ⟨ci, hci, hlevels, hlen⟩ := HasType.const_inv henv hΓ hheadTyped
   rw [hlookup] at hci
   cases Option.some.inj hci
-  have hconst := HasType.const (Γ := Γ) hlookup hlevels hlen
-  have he := (hheader.instL hlevels).weak0 henv.ordered (Γ := Γ)
-  have hc := hconst.defeqU_r henv hΓ he
-  simp only [instL_wrapForalls, instL] at hc
-  have hlenArgs := HasType.mkApps_sort_arity henv hΓ hc H
-  have hp := takeForalls_domains_length hown
-  have hi := takeForalls_domains_length hidx
-  simp only [List.length_map, List.length_append] at hlenArgs
-  omega
+  refine ⟨(ownParams ++ indices).map (·.instL levels), family.resultLevel.inst levels, ?_, ?_⟩
+  · have hp := takeForalls_domains_length hown
+    have hi := takeForalls_domains_length hidx
+    simp only [List.length_map, List.length_append]
+    omega
+  · intro Δ hΔ
+    have hconst := HasType.const (Γ := Δ) hlookup hlevels hlen
+    have he := (hheader.instL hlevels).weak0 henv.ordered (Γ := Δ)
+    have hc := hconst.defeqU_r henv hΔ he
+    simpa only [instL_wrapForalls, instL] using hc
+
+/-- A registered family used as a type is fully saturated at its parameter and
+index count, even when the original stored header needs conversion to expose it. -/
+theorem family_arity (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+    (hinfo : env.projections name info)
+    (H : env.IsType U Γ (mkApps (.const name levels) args)) :
+    args.length = info.nparams + info.nindices := by
+  obtain ⟨doms, w, hlen, hhead⟩ := family_head_telescope henv hΓ hinfo H
+  obtain ⟨_, ht⟩ := H
+  exact (HasType.mkApps_sort_arity henv hΓ (hhead hΓ) ht).trans hlen
 
 end Lean4Lean.VEnv.Strengthening.StructureReplay
