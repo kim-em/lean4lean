@@ -2477,3 +2477,28 @@ and the prefix before the endpoint when the carrier is a proposition. In the
 latter case the fresh endpoint comparison follows from proof irrelevance.
 These results require certificates for data endpoint alignment and do not claim
 complete simulation of every registered singleton prefix program.
+
+### A closed indexed unfolding at propositional carrier universes
+
+`ClosedProofEqUnfolding` strengthens the concrete prefix result: if the carrier
+universe w is equivalent to zero, the bare Eq.rec.{v,w} constant itself unfolds.
+The fresh carrier variable has type Prop, so its two fresh inhabitants are
+proof-irrelevant. Staged telescope opening followed by K produces the closed
+six-binder value that returns the minor premise. `equation` proves this equality
+at the original canonical recursor type in the empty context.
+
+The new definition collection adjoins exactly these universe-restricted
+indexed equations to any preceding collection. Its soundness follows by
+weakening the closed proof. Its constructor rigidity follows from the canonical
+Eq.rec iota pattern, which excludes that head from projection constructors.
+The equation therefore works in both the staged computations and the earlier
+constructor-sensitive head model. Every supplied argument arity inherits a raw
+compatible unfolding to the closed value applied to those arguments.
+
+The final target builds with 278 dependency jobs. Nine axiom audits cover
+residual recovery, telescope opening, both concrete prefixes, the closed
+equation, soundness and rigidity. No sorryAx occurs; only propext,
+Classical.choice and Quot.sound are present. No executable changed. General
+data-index alignment, complete registered singleton-prefix simulation and the
+final strengthening deliverable remain open. The goal stays active. Independent
+comparison-core edits were preserved without modification.
