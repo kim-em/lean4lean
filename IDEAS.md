@@ -363,3 +363,20 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   and exact-substitution obstructions survive the enlarged relation.
 
 | Replace exact three-phase endpoints by computational completion | **Live; selective-projection test repaired.** `selective_projection_computes_back` contracts the remaining field projection and returns the mixed target to its original constructor using actual PrefixCompute. Thus the checked exact-factorization obstruction does not refute a representation up to a further computational join. General finite residual completion, preservation of demanded Pi/family heads, and a sufficient connection to strengthening remain unproved. |
+
+- **Characterize erased recovery at some output:** checked. For every typed
+  non-proof source, existence is equivalent to three local clauses selecting
+  sort, Pi, and family outputs from already recoverable immediate subterms.
+  Pi formation forces the sort clause, witnessed by a Pi with the tested source
+  as domain. Under these explicit unproved clauses, ordinary typed substitution
+  re-synthesizes an output convertible to the substituted old type; exact chosen
+  output recovery is not needed. This is a completeness characterization, not a
+  smaller sufficient strengthening front.
+- **Use re-synthesis to obtain unrestricted substitution of recovered
+  comparisons:** retains the full front. Checked that even one typed binder
+  instantiation of an inferred stage-zero certificate, allowing any finite
+  output stage, implies PropositionFront. Instantiate a variable's recovered
+  eta certificate with a constant-body lambda at a converted Pi type. Inferred
+  lambda comparison reflects the displayed domains, including every recovered
+  eta case. Exact image recovery in the existing substitution law therefore
+  cannot simply be replaced by ordinary argument typing as a smaller lemma.

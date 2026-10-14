@@ -4557,3 +4557,42 @@ Validation: the combined targeted build passes (381 jobs). All thirty-four
 public theorem axiom audits in `/tmp/eta-duplication-audit.log` contain no sorryAx
 and use only propext, Classical.choice and Quot.sound or subsets. No executable
 changed; the original UniqueTyping sorry remains.
+
+### Recovery existence and the comparison-instantiation boundary
+
+`ProofErasureRecoveryExistence.lean` characterizes existence of some recovered
+output for every typed non-proof source. The exact local clauses are sort
+recovery for a sort-typed source, Pi recovery for a retained application
+function, and family recovery for a retained projection major. Each clause
+starts with recovery at some output and permits choosing another. Sufficiency
+is structural, using the new dependent projection recipe. Necessity follows
+by inversion; a Pi with the tested term as domain forces sort recovery. These
+clauses remain unproved for the concrete finite computational stages.
+
+The same file proves conditional re-synthesis after arbitrary typed binder
+substitution: existence supplies a fresh output, and replay plus uniqueness
+aligns it with the substituted old type. No recovery of the argument at its
+selected declaration is assumed. This distinguishes re-synthesis from the
+refuted exact-output substitution law.
+
+`ProofErasureRecoveredLambdaDomains.lean` proves raw domain reflection for
+inferred comparison of arbitrary lambdas, extending the constant-body probe
+lemma. A literal lambda always recovers a Pi with a computational reduct of
+its displayed domain, independently of its oracle. This handles recovered
+eta without assuming comparison transitivity.
+
+`ProofErasureRecoveredInstantiationBarrier.lean` uses that reflection to prove
+a new obstruction to a tempting next step: unrestricted typed instantiation of
+inferred comparison, even from stage zero into any finite output stage,
+implies the entire PropositionFront. The input is merely the recovered eta
+certificate of a variable. Its substitution image is a constant-body lambda
+whose displayed domain has been converted in its assigned Pi type. After
+instantiation, inferred lambda comparison must supply the original domain
+equality. Thus re-synthesis existence does not discharge comparison
+substitution by itself, and that substitution principle is not a smaller
+front. No strengthening completion is claimed.
+
+Validation: targeted builds pass (271, 287 and 288 jobs). All fourteen public
+theorem audits in `/tmp/erasure-recovery-existence-audit.log` use only propext,
+Classical.choice and Quot.sound or subsets, with no sorryAx. The executable
+and the original UniqueTyping gap remain unchanged.
