@@ -3768,3 +3768,31 @@ in `/tmp/prefix-contraction-audit.log` contain no sorryAx. The two context/synta
 lemmas use propext and Quot.sound; the typing and rule theorems additionally use
 Classical.choice. No executable changed, and the original UniqueTyping sorry
 remains.
+
+### Raw transitivity loses the common-type guard
+
+`ProofErasureTransitivityBoundary.lean` records a concrete obstruction to adding
+raw transitivity to Compare. In any environment with a registered unindexed
+empty structure, its constructor at zero universe arguments and proof-marker
+parameters has a guarded StructureEtaHead comparison with every raw shape. The
+empty field condition makes the projection guard vacuous. This supplies two raw
+comparison links through the constructor, without a typing of that intermediate.
+
+The endpoints are chosen to be the canonical Eq proposition and Pi proposition
+of the existing eta-domain obstruction. Both are typed at Prop in the original
+context. An identity application wrapper puts the bridge in common argument mode
+while allowing either mode at the outer node. A direct finite-stage comparison
+would reflect to original equality, contradicting rigid Eq/Pi separation. Thus
+unrestricted raw transitivity fails in both modes even when the two outer
+endpoints have a common original type. No globally instantiated empty-structure
+environment is constructed; the theorem takes its registration as a hypothesis.
+
+This does not refute composition whose intermediate is also the erasure of an
+original term typed at the same type. That is the condition supplied by typed
+original transitivity before retraction, and it remains a live route to finite
+certificate completeness. The result rules out the untyped shortcut, not the
+original strengthening goal.
+
+Validation: the targeted module build passes. All three public axiom audits in
+`/tmp/erasure-transitivity-audit.log` use only propext, Classical.choice and
+Quot.sound, with no sorryAx. No executable changed. The goal remains unresolved.
