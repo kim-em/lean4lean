@@ -44,9 +44,11 @@ theorem proofErase_context_apply_independent
       show proofErase Γ (.app g y) = .app _ _ from if_neg hp']
     exact .app HF HX
 
-/-- Remaining typed common-composition obligation for contextual certificates.
-The middle original must share the endpoint type. This is not asserted here,
-and no strict reduction from the proposition front is claimed. -/
+/-- Candidate typed common-composition law for contextual certificates.
+The middle original must share the endpoint type. `ContextPrefixWitness`
+refutes the uniform law even for a fragment with typed descent and substitution
+closure. Richer computational fragments require separate investigation; no
+strict reduction from the proposition front is claimed. -/
 def ContextCommonComposition (Step : ProofShape → ProofShape → Prop) : Prop :=
   ∀ {Γ a b c T}, OnCtx Γ (env.IsType univs) →
     env.HasType univs Γ a T → env.HasType univs Γ b T → env.HasType univs Γ c T →

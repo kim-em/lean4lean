@@ -513,3 +513,16 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
 | Compare generated prefix programs through a shared syntactic template | **Checked, then strengthened to direct congruence.** `PrefixProgramJoins` gives a common zero-prefix beta ancestor, even for indexed singletons, and exact separated-computation joins. `PrefixProgramCongruence` instead generates at fresh variables of the supplied arity: simultaneous substitution literally recovers each entire RHS. Any weakening-stable congruence relation on supplied arguments therefore relates the full programs, including dependent lambda domains. No check or typing of the fresh template, confluence, canonical Eq or strengthening front is required for this congruence. |
 
 | Remove residual normal-domain comparison from prefix argument exchange | **Checked.** `PrefixArgumentExchange` supplies the congruence/replay interfaces for finite actual-prefix computation and instantiates the full-program theorem for both computation and typed eta expansion. Actual singleton and quotient checks replay after argument changes, and their outputs are directly related. Backward eta/root exchange is now exact, without a NormalEq remainder. General prefix confluence, equivalent-universe closure and arbitrary eta/computation composition remain open; this is not yet a smaller sufficient front. |
+
+- **Derive contextual common composition from primitive descent and substitution
+  closure alone.** **Refuted** by `ContextPrefixWitness.no_uniform_composition`.
+  Two closed partial Eq.rec applications with different motives share a type
+  and compare through the same lambda, but fixed-spine inversion forces any
+  direct comparison to equate the unequal motives. The beta/full-K fragment
+  has both primitive properties. This refutes the generic certificate law,
+  not strengthening; composition for richer fragments remains to be tested.
+- **Integrate indexed prefix computation into the erased contextual relation.**
+  Live. The checked partial-recursion counterexample identifies an exact missing
+  operation already supported by the original staged prefix model. Add typed
+  descent and substitution-stable erased prefix rules before retrying generic
+  composition. Do not assume the new contextual sort witnesses alone solve it.

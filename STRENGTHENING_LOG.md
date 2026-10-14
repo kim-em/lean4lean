@@ -5378,3 +5378,47 @@ Validation: all three modules build together (362 jobs). All twenty-four public
 results pass `/tmp/prefix-program-audit.log`: their axioms are only propext,
 Classical.choice and Quot.sound or subsets, with no sorryAx. The direct program
 congruence and its applications need no normalization or strengthening inverse.
+
+### Typed contextual composition fails without prefix computation
+
+The generic composition proposal now has a checked counterexample, not merely
+an outstanding proof case. `ContextPrefixWitness.Step` contains full Eq.rec
+contractions guarded by the original beta/eta comparison, with beta supplied by
+compatible computation. It satisfies `ErasedPrimitiveDescent` under canonical
+Eq and arbitrary raw substitution closure. Nevertheless
+`ContextPrefixWitness.not_common_composition` refutes
+`ContextCommonComposition Step` in every canonical-Eq environment.
+
+The closed endpoints partially apply Eq.rec through the requested endpoint but
+omit its proof major. They share the carrier `Sort 2`, endpoint `Sort 1`, and
+payload `Sort 0`. One uses the cast motive returning the variable endpoint; the
+other uses the constant motive returning `Sort 1`. Both have the same Pi type
+and compare through the same lambda returning `Sort 0`: under that lambda's
+proof binder, full K contracts. All three original terms are typed at this
+common type in the empty context.
+
+Both short prefixes are computationally fixed. The new generic
+`ContextCompare.fixed_app_inv` strips their three outer application positions,
+so a direct certificate would compare the two motives. Ambient soundness would
+then equate those motives. Applying them at a Pi endpoint in a well-formed
+context with an assumed propositional equality yields a forbidden definitional
+Pi/Sort equality. Thus the direct certificate does not exist.
+
+Modules: `ProofErasureContextSpineInversion`,
+`ProofErasureContextPrefixWitness`, `ProofErasureContextPrefixFixed`, and
+`ProofErasureContextPrefixBoundary`. The last also proves
+`no_uniform_composition`: typed descent and substitution stability alone cannot
+justify common composition. Earlier conditional application/substitution results
+remain valid, but this assumption cannot be discharged generically. This is a
+certificate-completeness obstruction, not a strengthening counterexample.
+
+The existing `EqRecPrefixComputation` already constructs the missing original
+prefix unfolding in the staged recovered-eta model. The next live direction is
+to integrate analogous prefix computation with erased contextual certificates
+and prove its descent. This result does not yet refute composition for every
+richer actual iota/K stage or for fragments already containing such prefix rules.
+
+Validation: the complete target builds successfully (310 jobs). All 38 new or
+affected public declarations are axiom-audited in `/tmp/context-prefix-audit.log`,
+with only propext, Classical.choice and Quot.sound (or subsets), no sorryAx.
+No executable or strengthening inverse was used. The main goal remains open.
