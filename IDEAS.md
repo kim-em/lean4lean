@@ -555,3 +555,23 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
 | Transfer augmented confluence to the existing compatible PrefixCompute relation | **Checked.** `PrefixConfluence` derives constructor saturation from projection source typing, embeds typed DeltaPar steps in PrefixCompute, and embeds every PrefixCompute path in the finite augmented union. `PrefixCompute.confluent` supplies exact joins for the relation already used by symmetric eta phases, without canonical Eq or a front. General eta/computation composition remains open. |
 
 | Align independently computed copies of a neutral structure major by finite confluence | **Checked.** `NeutralEtaConfluence` joins every finite family of typed-source reducts. If the major cannot expose its constructor, projection traces retain each independently computed copy; their common reduct reconstructs one eta root after computation on both sides. This removes the prior fixed-major premise without normalization or a front. A complementary exact computational join handles any constructor exposure at the eta root's exact parameters and universes. Constructor exposure at converted parameters/universes and general mixed phase composition remain open. |
+
+- **Transport raw endpoint guards forward through beta without typed sources.**
+  **Refuted** by `ProofErasureGuardBetaBoundary`, for every primitive relation
+  whose sources have computational roots, hence at every finite enriched K/prefix
+  stage. The marker eta guard compares `λ x. (λ y. y) proof` with `λ y. y`;
+  beta leaves `λ x. proof`, which cannot compare with the retained-variable
+  identity. `expanded_not_typed` proves the bad endpoint has no typed original.
+  A typed-source transport theorem remains live.
+- **Prove unrestricted raw confluence of the prefix-only presentation.**
+  **Refuted** already for one prefix stage over beta. In
+  `ProofErasurePrefixRawConfluenceBoundary`, contracting the guarded prefix first
+  reaches a fixed lambda; reducing its endpoint first reaches a distinct fixed
+  prefix whose guard is impossible. The branches have no common endpoint.
+  This does not refute typed-erasure confluence or strengthening.
+- **Transfer original exact computational confluence to erased prefix stages.**
+  Live, with an explicit missing bridge: typed replay must produce actual
+  generated prefix computation, not only `IsDefEq`. Canonical Eq supplies its
+  registry entry, but the entry's generated program must still be identified
+  with the canonical proof-domain lambda used by the erased rule. The new raw
+  counterexample prevents dropping typed-source invariants in this transfer.

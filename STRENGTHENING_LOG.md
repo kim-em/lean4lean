@@ -5650,3 +5650,41 @@ claimed counterexample to the symmetric phase or to strengthening.
 Validation: the target builds (421 jobs). All seven public results pass
 `/tmp/neutral-eta-confluence-audit.log`, with only propext, Classical.choice and
 Quot.sound and no sorryAx. No executable or strengthening inverse was used.
+
+## Raw prefix confluence requires typed-source invariants
+
+`ProofErasureNormalSyntax` gives a local normality predicate excluding primitive
+and beta roots at every position, including annotations. Its fixed-point theorem
+applies to arbitrary finite compatible computation.
+
+`ProofErasureGuardBetaBoundary` refutes forward beta transport of unrestricted
+raw checking guards. Let `I = λ (x : Sort 0). x` in erased syntax. Marker eta
+accepts `λ (x : Sort 0). I proof` against `I`; one beta contraction gives
+`λ (x : Sort 0). proof`. Neither that lambda nor `I` can compute when primitives
+have computational roots. Their terminal bodies, marker and retained variable,
+can never compare in the raw checking relation. This applies to every finite
+`ErasedPrefixKStage`, independent of the definitions collection. Increasing the
+stage does not repair the certificate. The separate `expanded_not_typed` theorem
+proves the bad expanded endpoint has no typed original, in any well-formed
+context, without canonical Eq. Consequently typed guard transport remains open.
+
+`ProofErasurePrefixRawConfluenceBoundary` turns the guard failure into an actual
+computational peak for `RawCheckedPrefixKPrimitive False`. Place the two raw
+endpoints in a five-argument Eq.rec prefix. Prefix contraction first, followed by
+beta in the generated annotation, reaches a fixed lambda. Endpoint beta first
+reaches a fixed five-argument prefix: its only possible root contraction would
+need the impossible guard. The fixed endpoints differ literally, so the finite
+compatible relation is not confluent on arbitrary raw syntax. This is not a
+canonical-Eq counterexample to strengthening and does not refute the typed
+computational confluence route.
+
+The original `AugmentedCompute.confluent` theorem does include indexed singleton
+prefixes. Transferring it to these erased stages still requires computational
+replay through the actual registry-generated program. The existing erased replay
+proves source-typed definitional equality, which is insufficient for that transfer.
+No strictly smaller sufficient front is claimed.
+
+Validation: the final target builds (313 jobs); all 25 public declarations pass
+`/tmp/prefix-raw-boundary-audit.log`, with only propext, Classical.choice and
+Quot.sound and no sorryAx. No executable edits or strengthening inverses were
+used. The original strengthening goal remains active.
