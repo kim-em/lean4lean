@@ -3226,3 +3226,29 @@ strengthening goal remains open and active.
 
 The targeted build passes with 293 jobs. Seven axiom audits contain only propext,
 Classical.choice and Quot.sound, with no sorryAx. No executable changed.
+
+### Typed erased descent and canonical Eq computation with hidden proof majors
+
+`ProofErasureTypedReplay.lean` defines ErasedPrimitiveDescent: from a typed source
+below insertion and a primitive step on its lifted erasure, construct an equal
+original below with exactly the requested lifted erasure. Unlike the older
+interface, its witness need not be reached by PatternCompute. Every earlier
+syntactic replay certificate satisfies this interface by raw path inversion.
+The new property extends through finite composition, beta and all compatible
+syntax constructors. Binder cases convert the reconstructed body's context after
+changing its domain. Common erased results give equality below insertion.
+
+`ProofErasureK.lean` supplies a first proof-major primitive: canonical Eq.rec can
+compute when its endpoints have a common erased computation. Source inversion
+retains all six arguments, including the actual term behind the erased proof
+marker. Typed endpoint descent then validates replacement by reflexivity and
+registered iota at the source's original type. ErasedKStage iterates this rule
+using only preceding-stage computations as guards; every finite stage descends.
+This operationally integrates proof-irrelevant reconstruction for canonical Eq,
+without demanding a visible constructor at its major.
+
+The build passes with 249 jobs. Seven axiom audits contain no sorryAx, using only
+propext, Classical.choice and Quot.sound. General singleton primitive integration,
+eta repair, and completeness of erased computation for the original family
+conversions remain open. No executable changed; the strengthening goal remains
+active.
