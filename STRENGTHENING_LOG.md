@@ -2788,3 +2788,27 @@ and compared-substitution build also passes. Nine axiom audits have no sorryAx.
 The executable is unchanged. This is checked fragment coverage, not a claim that
 confluence chooses covered paths or that arbitrary data-index prefixes embed.
 The canonical-Eq strengthening goal remains open and active.
+
+### The complete prefix check is exactly its family guard
+
+`SingletonPrefixArguments.lean` derives a `TelInst` from the typed syntactic
+application walk and identifies the generator's complete opened argument spine.
+The supplied arguments may stop at any permitted prefix arity. The fresh major
+is last; parameter, motive/minor and dependent index slices have their declared
+lengths. Removing the motive/minor slots gives the extraction occurrence without
+requiring an already aligned constructor instance.
+
+`GuardedSingletonPrefix.check_of_family_conversion` derives the actual generated
+`UnfoldingCheck` from source typing, registration, and the single conversion
+between the transported and requested families. Typed reconstructed fields
+supply the equation captures; rigid family injectivity matches the recursor's
+indices; registration supplies the installed equation. Its converse,
+`family_conversion_of_check`, recovers the same guard from the original check's
+capture typing and major proposition. This is exact at all arities and includes
+data indices. It is not a closed unfolding of arbitrary data-index recursors.
+
+The combined build passes with 279 dependency jobs. Nine theorem axiom audits
+exclude sorryAx and contain only propext, Classical.choice and Quot.sound. No
+executable changed. The next step is to transport the guard through the actual
+renamed residual telescope using a descending comparison certificate; general
+certificate/equality coverage remains open and the goal stays active.
