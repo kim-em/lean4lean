@@ -5688,3 +5688,26 @@ Validation: the final target builds (313 jobs); all 25 public declarations pass
 `/tmp/prefix-raw-boundary-audit.log`, with only propext, Classical.choice and
 Quot.sound and no sorryAx. No executable edits or strengthening inverses were
 used. The original strengthening goal remains active.
+
+## Typed support closes the exposed marker eta/beta root case
+
+`ProofErasureTypedEtaBeta` supplies the positive local counterpart to the raw
+counterexample. `proofErase_subst_retained` specializes simultaneous substitution
+to the identity on originals: any raw map fixing retained variables fixes the
+entire typed erasure, including annotations, with arbitrary images at proof
+variables. `proofErase_proof_binder_eta_inst` then shows that after lifting past
+the eta binder, substitution of any raw argument restores a body originally
+typed under a proof binder. The bound-variable version is purely syntactic.
+
+Combining the two gives `proofErase_eta_inst`: the argument selected by the
+actual binder sort, `etaArgument u`, always restores that erased body literally.
+`proofErase_eta_lambda_beta` contracts the corresponding inner lambda application
+under any outer annotation. `proofErase_eta_lambda_beta_guard` supplies the
+residual raw checking certificate by common lambda checking. Thus the particular
+root eta/beta case responsible for the untyped failure is repaired by a concrete
+typed support invariant. The theorem handles root beta only; arbitrary forward
+guard transport, typed erased confluence and strengthening remain open.
+
+Validation: the target builds (301 jobs); all six public theorems pass
+`/tmp/typed-eta-beta-audit.log`, using only propext, Classical.choice and Quot.sound.
+No sorryAx, strengthening inverse or executable edit was introduced.

@@ -575,3 +575,12 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   registry entry, but the entry's generated program must still be identified
   with the canonical proof-domain lambda used by the erased rule. The new raw
   counterexample prevents dropping typed-source invariants in this transfer.
+
+- **Repair the raw marker eta/beta obstruction using typed erasure support.**
+  **Checked locally** in `ProofErasureTypedEtaBeta`. Substitutions fixing all
+  retained variables fix a typed erasure; images of proof variables are arbitrary.
+  Consequently `(erase(body).liftN 1 1).inst etaArgument(u) = erase(body)` for
+  the body's typed binder domain at sort `u`. Root beta in a lambda eta guard
+  restores the same erased body, and common lambda checking accepts the residual
+  even with a distinct outer annotation. General typed guard transport remains
+  open; no confluence or strengthening conclusion is asserted.
