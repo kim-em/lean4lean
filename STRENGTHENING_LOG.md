@@ -2812,3 +2812,26 @@ exclude sorryAx and contain only propext, Classical.choice and Quot.sound. No
 executable changed. The next step is to transport the guard through the actual
 renamed residual telescope using a descending comparison certificate; general
 certificate/equality coverage remains open and the goal stays active.
+
+### Family head replay through a typed outer cast
+
+`StructureFamilyArity.lean` now derives the normalized family telescope from
+well-formedness of the family constant alone. The old interface remains a
+wrapper. `family_isType_of_arity` reconstructs sort typing of any well-formed
+fully saturated registered family application, even if its supplied typing has
+an opaque result type.
+
+`CastFamilyExposure.lean` uses that reconstruction to extend the earlier root
+cast/Pi bridge to registered families. A computational family exposure of the
+payload lowers exactly. Its preserved arity supplies payload sort typing, and
+cast_type_eq then aligns the outer endpoints by uniqueness. Mixed payload paths
+are repaired first using family observations, preserving their argument count.
+The resulting family conversion supplies a projection's field typing below.
+No syntactic equality of cast endpoints or lower endpoint equation is assumed;
+the explicit full-arity premise is essential to this proof. The theorem is about
+an outer cast, not arbitrary compatible cast erasure or nested cast cancellation.
+
+The new target builds with 285 jobs; the combined covered-path, full-recovery,
+family-trace and compared-substitution build passes with 346 jobs. Six axiom
+audits contain no sorryAx. No executable changed, and the original strengthening
+goal remains active.

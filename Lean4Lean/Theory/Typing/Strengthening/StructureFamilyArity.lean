@@ -11,11 +11,11 @@ namespace Lean4Lean.VEnv.Strengthening.StructureReplay
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr
 variable {env : VEnv}
 
-/-- A registered family has a normalized telescope ending in a sort, uniformly
-in every well-formed context at the levels of a known family instance. -/
-theorem family_head_telescope (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+/-- A well-formed registered family constant has its normalized telescope in
+every well-formed context. No sort typing of a supplied application is needed. -/
+theorem family_head_telescope_of_wf (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     (hinfo : env.projections name info)
-    (H : env.IsType U Γ (mkApps (.const name levels) args)) :
+    (H : VExpr.WF env U Γ (.const name levels)) :
     ∃ doms w, doms.length = info.nparams + info.nindices ∧
       ∀ {Δ}, OnCtx Δ (env.IsType U) →
         env.HasType U Δ (.const name levels) (wrapForalls doms (.sort w)) := by
@@ -46,8 +46,7 @@ theorem family_head_telescope (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     rwa [hfamilyUvars] at ht
   have hheader := IsDefEq.close_sort_header henv htypeWF hnorm
     (by simpa only [List.reverse_append] using hres)
-  obtain ⟨u, H⟩ := H
-  obtain ⟨_, hheadTyped⟩ := VExpr.WF.of_mkApps henv hΓ ⟨_, H⟩
+  obtain ⟨_, hheadTyped⟩ := H
   obtain ⟨ci, hci, hlevels, hlen⟩ := HasType.const_inv henv hΓ hheadTyped
   rw [hlookup] at hci
   cases Option.some.inj hci
@@ -61,6 +60,29 @@ theorem family_head_telescope (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     have he := (hheader.instL hlevels).weak0 henv.ordered (Γ := Δ)
     have hc := hconst.defeqU_r henv hΔ he
     simpa only [instL_wrapForalls, instL] using hc
+
+/-- A registered family has a normalized telescope ending in a sort, uniformly
+in every well-formed context at the levels of a known family instance. -/
+theorem family_head_telescope (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+    (hinfo : env.projections name info)
+    (H : env.IsType U Γ (mkApps (.const name levels) args)) :
+    ∃ doms w, doms.length = info.nparams + info.nindices ∧
+      ∀ {Δ}, OnCtx Δ (env.IsType U) →
+        env.HasType U Δ (.const name levels) (wrapForalls doms (.sort w)) := by
+  obtain ⟨_, ht⟩ := H
+  exact family_head_telescope_of_wf henv hΓ hinfo (VExpr.WF.of_mkApps henv hΓ ⟨_, ht⟩)
+
+/-- A well-formed fully saturated registered family is a type, even if its
+available typing has an opaque result type. -/
+theorem family_isType_of_arity (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+    (hinfo : env.projections name info)
+    (H : VExpr.WF env U Γ (mkApps (.const name levels) args))
+    (hlen : args.length = info.nparams + info.nindices) :
+    env.IsType U Γ (mkApps (.const name levels) args) := by
+  obtain ⟨doms, w, hd, hh⟩ := family_head_telescope_of_wf henv hΓ hinfo
+    (VExpr.WF.of_mkApps henv hΓ H)
+  have ht := (HasType.mkApps_wrapForalls henv hΓ (hh hΓ) H (hlen.trans hd.symm)).2
+  exact ⟨w, by simpa using ht⟩
 
 /-- A registered family used as a type is fully saturated at its parameter and
 index count, even when the original stored header needs conversion to expose it. -/
