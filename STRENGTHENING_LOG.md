@@ -3161,3 +3161,32 @@ open; this is not a new sufficient front obligation. The targeted build passes
 with 243 jobs. Eleven axiom audits contain no sorryAx, using only propext,
 Classical.choice and Quot.sound. No executable changed. The original goal remains
 active.
+
+### Reconstruct proof-major constructors from erased family certificates
+
+`ProofErasureSingleton.lean` connects annotated erasure to canonical-Eq field
+extraction. Every typed field instance of a layout with only proof slots erases
+to a list of proof markers. Its constructor-family erasure is consequently the
+stored branch-family template instantiated by the erased parameters and those
+markers. This applies both to original constructor instances and to the fields
+extracted from an arbitrary major. The indices may themselves be data.
+
+An exact erased-family match now yields a bare reconstructed constructor at the
+major's requested indices. A common finite computation in ErasedIotaPrimitive
+also suffices. A third theorem descends such family computations from above
+inserted binders; that theorem allows data fields, retaining their transports in
+the compared family. All constructors and family typings are supplied below by
+canonical extraction before the comparison is reflected.
+
+This is typed reconstruction, not PatternCompute replay: exposing the constructor
+uses proof irrelevance, whereas the existing exact primitive replay interface
+returns a syntactic computation. Extending that interface to these reconstructed
+proof-major steps remains work. Also, original iota source typing supplies a
+family conversion, not necessarily an exact erased-family match or one of these
+finite computational certificates. Certificate completeness therefore remains
+open, alongside eta repair and full equality coverage. No strict reduction of
+PropositionFront is asserted.
+
+The targeted build passes with 253 jobs. Six axiom audits contain no sorryAx;
+only propext, Classical.choice and Quot.sound occur. No executable changed. The
+original goal remains active.
