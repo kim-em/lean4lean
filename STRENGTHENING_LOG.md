@@ -2533,3 +2533,26 @@ clients build with 297. Seven axiom audits contain no sorryAx, only propext,
 Classical.choice and Quot.sound. Concurrent closed Eq-prefix work was preserved.
 No executable changed. Head-exposure completeness and the original strengthening
 deliverable remain open; the goal remains active.
+
+### Substitution transforms recovered comparison guards
+
+`ComparedRecoverySubstitution.lean` proves the generic comparison transformation
+`RecoveredComparisonWith.instN_to`: a source computational base may change under
+a fixed typed substitution, provided the argument recovers its declaration in
+the target base. This transforms every recovered type inside independent and
+common comparison modes. The original certified comparison substitution theorem
+is now a specialization rather than a second induction.
+
+The transformation extends through computed endpoints and both alternatives of
+the new K guard. A simultaneous stage induction proves the same additive bound
+as before: substituting an argument recovered at stage r into a stage-n path
+produces a stage-(r+n) path. `beta_inst` carries a displayed beta contraction and
+its body computation through that substitution. Recovery inside a K endpoint
+comparison is included; it is not treated as a frozen ambient certificate.
+
+The combined new-substitution, old-specialization, canonical-loop and finite-union
+build passes with 308 dependency jobs. Five further axiom audits contain only
+propext, Classical.choice and Quot.sound, with no sorryAx. The argument-recovery
+premise is retained, so this does not evade the exact-output counterexample or
+prove arbitrary re-synthesis. No executable changed; the strengthening goal stays
+active. General head exposure and equality coverage remain the substantive gaps.
