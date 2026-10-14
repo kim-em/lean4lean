@@ -4677,3 +4677,37 @@ Validation: the combined targeted build passes (387 jobs). All thirty-seven
 public theorem audits in `/tmp/eta-completion-audit.log` contain no sorryAx and
 use only propext, Classical.choice and Quot.sound or subsets. No executable
 changed, and the original UniqueTyping sorry remains.
+
+### Checking common-type erased lambdas
+
+The existing BiNormal relation distinguishes checking a lambda at a common type
+from independently inferring equality of lambda endpoints. The contextual
+proof-erased relation previously required a domain certificate in both cases.
+`ProofErasureCheckedComparison.lean` restores that distinction: `lamCommon`
+compares only the bodies, and lower endpoint type conversion supplies domain
+alignment during replay. Each body retains its own oracle annotation; typed
+oracle conversion places both in the lower left context. A separate `recover`
+rule compares recovered endpoint types before using a common certificate.
+
+Block descent is checked for every constructor.
+`ProofErasureCheckedTransport.lean` adds symmetry, mode promotion, same-stage
+weakening and substitution with exactly recoverable images.
+`ProofErasureCheckedDomains.lean` proves that Pi domains and inferred lambda
+domains still reflect through the enlarged relation. In a recovered-type mode
+switch, the recovered Pi comparison supplies the domain certificate.
+
+`ProofErasureCheckedBoundary.lean` separates the effects. Common constant-body
+probes compare immediately, including a concrete pair of independently typed
+probes excluded by the older recovered relation at every finite stage. Their
+types differ; common-mode replay still requires endpoint type conversion and
+does not equate those probes. Thus the old common-probe extraction argument
+cannot simply be reused. Unrestricted typed instantiation in inferred mode,
+however, still implies the entire PropositionFront by the original variable
+eta test and the new inferred domain-reflection theorem. This is an enlargement
+of the candidate certificate relation, not a smaller sufficient obligation or
+a strengthening proof. General common-mode composition remains open.
+
+Validation: the checked-boundary target builds (292 jobs). Its public results
+and the following raw checking integration are covered by all 36 axiom audits
+in `/tmp/erasure-checked-audit.log`, using only propext, Classical.choice and
+Quot.sound or subsets. No sorryAx or executable changes were introduced.

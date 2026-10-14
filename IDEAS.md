@@ -384,3 +384,16 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   lambda comparison reflects the displayed domains, including every recovered
   eta case. Exact image recovery in the existing substitution law therefore
   cannot simply be replaced by ordinary argument typing as a smaller lemma.
+
+- **Use endpoint types to check common-mode erased lambdas:** checked.
+  `CheckedCompare` imports the original BiNormal distinction into contextual
+  proof-erased comparison: common-mode lambda domains follow from supplied
+  endpoint type conversion, while bodies compare under the two retained
+  oracles. A recovery rule aligns inferred endpoint types before checking.
+  Block descent, symmetry, promotion, weakening and recoverable-image
+  substitution hold. Common constant-body probes now compare without a domain
+  certificate, strictly enlarging the earlier relation; its common-probe
+  extraction obstruction therefore does not transfer unchanged. Inferred
+  lambda comparison still reflects domains, and unrestricted inferred typed
+  instantiation still implies PropositionFront. General common-mode
+  composition and declarative coverage remain open.
