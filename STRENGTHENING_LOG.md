@@ -5337,3 +5337,44 @@ Validation: both new modules build in the 305-job target. All seven new public
 declarations pass `/tmp/context-composition-audit.log` with only propext,
 Classical.choice and Quot.sound. No sorryAx, strengthening inverse or executable
 change is involved.
+
+### Full generated-program congruence and exact prefix argument exchange
+
+`PrefixProgramJoins.lean` first compares any two actual prefix outputs by a
+shared generated zero-prefix template. Every prefix is its beta specialization,
+even for indexed singleton recursors. The template is only syntax: its zero
+prefix need not pass an occurrence check or provide a closed unfolding equation.
+Raw separated confluence joins the outputs when supplied arguments compute in
+the separated ordinary-pattern relation.
+
+`PrefixProgramCongruence.lean` strengthens this to a direct relation between
+outputs, with no confluence premise. Repeated single-variable generator
+substitution gives exact simultaneous substitution of the entire RHS. Generation
+at the fresh variables of a fixed prefix arity provides a shared template whose
+substitution literally equals each generated program. The generic CongrRel
+substitution lemma then relates the complete RHSs, including their remaining
+lambda domains, along any weakening-stable congruence on supplied arguments.
+This works for indexed singleton and primitive quotient programs. The contexts
+of the two occurrence checks may differ; the raw template itself needs no check
+or typing. Combining this syntax theorem with the existing typed replay
+interface re-checks the changed prefix and returns a directly related output.
+
+`PrefixArgumentExchange.lean` establishes unconditional weakening and the
+congruence interface for finite actual-prefix computation. Soundness of the
+chosen definition collection supplies its typed argument interface. Both kinds
+of prefix therefore commute exactly with finite computations of supplied
+arguments, including computations containing further checked prefixes. The
+same generic result applies to typed eta expansion. The previous eta/prefix
+root exchange can now return a direct eta path between full outputs, without
+its residual NormalEq comparison of lambda annotations.
+
+These are root/argument exchange results. They do not yet give confluence of
+all actual-prefix paths, equivalent-universe closure, or composition of
+arbitrary mixed eta/computation phases. No canonical-Eq strengthening proof or
+strictly smaller sufficient front is claimed. The original UniqueTyping sorry
+remains, and the executable is unchanged.
+
+Validation: all three modules build together (362 jobs). All twenty-four public
+results pass `/tmp/prefix-program-audit.log`: their axioms are only propext,
+Classical.choice and Quot.sound or subsets, with no sorryAx. The direct program
+congruence and its applications need no normalization or strengthening inverse.
