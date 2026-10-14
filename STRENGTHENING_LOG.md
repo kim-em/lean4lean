@@ -4095,3 +4095,59 @@ Validation: both targeted builds pass (312 jobs for the boundary, 355 for head
 repair). Eleven public axiom audits in `/tmp/prefix-head-boundary-audit.log`
 contain no sorryAx, using only propext, Classical.choice and Quot.sound or a
 subset. No executable changed, and the original UniqueTyping sorry remains.
+
+### A terminal phase for both eta forms
+
+The structure boundary motivates retaining an explicit final eta phase rather
+than putting every expansion into ordinary NormalEq. Function eta is retained
+too, so structure expansion beneath a fresh function binder has a place in the
+phase. `EtaExpansion.lean` defines finite compatible TypedEtaExpansion with
+actual Pi typing at function roots and both original endpoint typings at
+structure roots. It embeds in FullReduction, preserves source typing, weakens,
+converts ambient contexts, and satisfies CongrRel and ArgRel.
+
+`EtaExpansionHeads.lean` proves that this phase cannot create a Pi head. At a
+sort-typed or Pi-typed source it cannot create a constant spine either: a root
+structure expansion would force its source type to be both a rigid family and
+a sort or Pi, contradicting head inversion. The existing head, levels and
+arity are preserved, with actual eta paths retained on the arguments.
+
+`EtaPrefixExchange.lean` handles a concrete postponement interaction. Suppose
+an actual singleton or quotient prefix fires after its supplied arguments have
+undergone compatible function/structure expansions. Lower source typing makes
+those expansions pointwise conversions, which re-check the prefix on the
+earlier arguments. Generic checked prefix congruence then shows that the
+earlier generated output expands by eta to a term normally equal to the later
+output. Generator uniqueness identifies the given later rule exactly. Neither
+canonical Eq nor the witnessed proposition front is needed for this root
+exchange. Residual domain conversions remain in the final ordinary comparison.
+
+`PrefixEtaPhase.lean` defines PrefixEtaNormal as PrefixCompute, followed by
+TypedEtaExpansion, followed by NormalEq. It contains the previous PrefixNormal
+interface and every typed expansion. Every original parallel EtaPar step also
+embeds, including changes to its displayed function domain, structure
+parameters and projected major.
+
+The eta phase embeds in the already checked finite observation model with an
+empty declaration collection. This use does not request indexed-prefix replay
+from that model: all actual prefixes have already occurred in PrefixCompute.
+For Pi exposure, direct shape reflection removes the remaining eta phase.
+For a registered family, beta-only normal exposure combines with the eta-only
+observation path to produce an actual pattern computation of the same family
+head and equivalent universe list, retaining arity. These computations combine
+with the original prefix path. Exact reflection under the witnessed front then
+reconstructs lower Pi and family typings, without scope conditions on the eta
+annotations or structure parameters.
+
+Global coverage of arbitrary FullReduction interleavings by these three phases
+is still missing. The proved root exchange handles prefix contraction after
+argument eta; it does not yet handle every beta, projection or ordinary-iota
+interaction, in particular contraction of an eta-created structure constructor.
+The existing closed structure-unfolding equations remain available for that
+case. Full coverage, the witnessed front itself and opaque-domain descent are
+still open, so this is neither strengthening nor a smaller sufficient front.
+
+Validation: the combined targeted build passes (361 jobs). Twenty-two public
+axiom audits in `/tmp/eta-phase-audit.log` contain no sorryAx and use only
+propext, Classical.choice and Quot.sound or a subset. No executable changed;
+the original UniqueTyping sorry remains.
