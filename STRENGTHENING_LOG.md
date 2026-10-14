@@ -3655,3 +3655,42 @@ Classical.choice and Quot.sound, with no sorryAx. Singleton/quotient prefixes,
 structure eta and recursive comparison completeness remain open. This is not a
 proof of strengthening or a strictly smaller sufficient front. No executable
 changed; the original goal remains active.
+
+### Fresh-argument reflection for actual singleton and quotient prefix roots
+
+`PrefixFreshAbstraction.lean` proves a distinction needed by eta postponement.
+An actual singleton prefix contracting at `f↑ #0` does not require its guard to
+descend through an unused binder. The generator at the shorter prefix retains
+that binder as the first domain of its remaining telescope. Both checks thus
+use literally the same fully opened context and the same generated constructor,
+captures, equation, and result.
+
+`singletonUnfolding_open_one` proves equality of the entire generator records,
+not just their right-hand sides up to beta. It uses closedness of the registered
+recursor type and cancellation of fresh-variable supply. The generic
+`unfoldingCheck_prepend_fresh` restores the residual binder; source typing uses
+eta, while every guard and capture typing keeps its checking context.
+`prefixUnfold_fresh_argument` reconstructs the earlier actual PrefixUnfold rule.
+Its generated first domain need not equal the user's domain syntactically:
+unique typing supplies their conversion and transports the later check first.
+The theorem covers indexed singletons without an alignment-descent premise.
+
+`QuotPrefixFreshAbstraction.lean` supplies the same complete-record opening
+identity and actual-rule reflection for Quot.lift, with a residual prefix typing
+lemma derived directly from its registered declaration.
+`PrefixFreshReflection.lean` turns both actual-rule results into one original
+prefix contraction followed by NormalEq to the proposed eta-body lambda. The
+final comparison changes only the displayed lambda domain and retains the body.
+
+This closes the root-prefix case of fresh-argument reflection, not reflection
+for arbitrary compatible paths. In particular, the earlier pattern proof uses
+raw lift inversion for computation inside the function; actual contextual prefix
+checks do not automatically have that property. Structure eta is also still
+outside the established factorization, and NormalEq retains opaque domain
+conversions. No complete strengthening proof or smaller sufficient obligation is
+claimed. The executable and UniqueTyping sorry are unchanged.
+
+Validation: the targeted build passes (199 jobs). Nine public-theorem axiom
+audits in `/tmp/prefix-fresh-audit.log` contain no sorryAx, using only propext,
+Classical.choice, and Quot.sound (the quotient generation identity needs only
+propext and Quot.sound). The full goal remains active.
