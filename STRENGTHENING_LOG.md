@@ -1772,3 +1772,41 @@ sorryAx, only propext, Quot.sound, and (where used) Classical.choice. Commit
 5eae047a contains the preceding constructor-exposure boundary and is pushed.
 Two independently appearing workspace changes, SingletonIndexAlignmentBoundary
 and UnalignedEqMajor, are left untouched and excluded from this commit.
+
+### The full current indexed-prefix replay premise is false
+
+`CanonicalEqHeadBoundary.lean` completes the previously missing analysis of the
+closed-equation additions. Constructor provenance identifies any projection
+constructor of Eq with Eq.refl. Its two-argument telescope, compared with the
+three-argument family arity, forces nonzero projection indices. Separately,
+reading the sixth domain of the installed Eq.rec telescope identifies its
+registered major family as Eq. Therefore the closed structure equations, which
+require an unindexed family, cannot unfold Eq.rec. Combined with the stored-rule,
+Quot-name, and singleton-index exclusions, `eqRec_no_full_unfold` covers the
+entire `FullHead.definitions` collection.
+
+`canonical_cast_full_boundary` now excludes every Pi exposure of a reflexive
+cast through a free proof major in the complete current mixed head model.
+The actual typed K equation still holds. To connect this semantic equation to
+that exact proposed simulation premise, `normal_pi_right` checks normal-comparison
+head shape and `defeq_pi_full_exposure` applies canonical confluence and Pi
+reduction inversion. It obtains an actual finite full reduction from the cast
+to some Pi, without an explicit singleton-prefix generation calculation.
+
+If `FullHead.IndexedPrefixReplay` held, the existing full-reduction bridge would
+simulate that path in the model, contradicting the observation obstruction.
+`not_indexedPrefixReplay` proves its negation in every well-formed canonical-Eq
+environment, with no additional registration, typing, or existence premises.
+The FullHeadExposure documentation and idea ledger now mark this premise as
+refuted. Its conditional theorems remain valid, but cannot establish full head
+recovery for the present model.
+
+This rejects one model obligation, not strengthening or a smaller sufficient
+front. A model with a new indexed computation mechanism remains live; the
+existing nonlinear K replay provides one ingredient, while its eta/observation
+adequacy and matched-lambda comparison remain unresolved. The executable is
+unchanged. Six axiom audits, including the final refutation and its confluence
+dependency, contain no sorryAx.
+The final target build succeeds with 299 dependency jobs. The independently
+appearing CanonicalEqHeadMetadata file is also left untouched, together with
+the two earlier unrelated workspace changes.

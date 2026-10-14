@@ -4,8 +4,11 @@ import Lean4Lean.Theory.Typing.Strengthening.SingletonHeadComputation
 /-! # Full typed head exposure, with indexed prefixes isolated
 
 Every actual computation and eta rule is covered except indexed singleton-prefix
-replay. The remaining hypothesis names exactly those registered prefix steps;
-it does not assume arbitrary conversion, head exposure, or strengthening.
+replay. The remaining hypothesis names exactly those registered prefix steps.
+`CanonicalEqHeadBoundary.not_indexedPrefixReplay` proves that this hypothesis is
+false for the present model in every canonical-Eq environment. The conditional
+bridge is retained to locate the missing computational capability; the model
+must be extended before it can supply full head exposure.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr
@@ -136,10 +139,12 @@ theorem unindexed (henv : env.WF) (heq : env.HasCanonicalEq)
   letI := henv.params U
   exact ClosedSingleton.prefix_etaCompute heq hl hn H
 
-/-- Missing indexed-prefix obligation: simulate each actual checked singleton
+/-- Indexed-prefix obligation: simulate each actual checked singleton
 prefix at a registered recursor with at least one index in the sound finite head
 model. All ordinary iota, unindexed prefixes, quotient prefixes, and etas are
-proved separately. This hypothesis is not claimed smaller than PropFront. -/
+proved separately. `not_indexedPrefixReplay` in CanonicalEqHeadBoundary refutes
+this premise for the current model under canonical Eq. It is not a smaller
+strengthening obligation. -/
 def IndexedPrefixReplay {env : VEnv} (henv : env.WF) (heq : env.HasCanonicalEq) (U : Nat) : Prop :=
   ∀ Γ name levels args rhs data, env.recursorRegistry name = some data → data.numIndices ≠ 0 →
     OnCtx Γ (env.IsType U) →
