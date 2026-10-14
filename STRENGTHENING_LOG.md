@@ -6468,3 +6468,41 @@ in `/tmp/canonical-scoped-operational-audit.log` cover these three modules and
 use only propext, Classical.choice and Quot.sound, with no sorryAx. No executable
 edits or strengthening inverses were used. General family-certificate coverage,
 forward erasure of general indexed prefixes, and `IsDefEqU.weakN_iff` remain open.
+
+## Exact operational replay for all finite scoped K stages
+
+`ProofErasureScopedOperationalReplay` strengthens the previous declarative
+reconstruction result to actual original computation. Its
+`ErasedScopedPrefixReplay` interface reconstructs a `PrefixCompute` path from
+any typed source of a contextual primitive and preserves its exact erased
+output. Compatible closure follows by induction over `ScopedCompute`, including
+annotation computation, dependent binder bodies at the source annotation,
+context conversion of their final erasures, and typed finite composition.
+
+For each K primitive, scoped comparison reflection supplies the original
+endpoint equation. The newly proved actual canonical prefix theorem supplies
+the original operational step. Its output erasure is exactly the raw lambda,
+including the source-derived Eq annotation and lifted minor. Ordinary primitives
+replay through their existing pattern-computation implementation. Induction on
+the finite stage gives operational replay for every primitive and therefore for
+every complete finite scoped-stage path. The result also returns target typing
+at the source's original type.
+
+The abstract Params interface permits partial or alternate recursor registries,
+so this theorem explicitly requires agreement with `env.recursorRegistry` at
+Eq.rec. It imposes no global registry agreement; the actual environment Params
+instance discharges the premise by reflexivity. Soundness of the selected
+ordinary definition collection remains explicit as before.
+
+This enables use of original `PrefixCompute` confluence on reconstructed scoped
+paths. It does not yet transfer the resulting joins back to scoped stages:
+general singleton prefix rules may occur in those joins, and their forward
+raw encoding and family-guard coverage remain open. No raw confluence,
+normalization, strengthening, or strictly smaller-front result is claimed.
+
+Validation: the combined final target builds (405 jobs), logged in
+`/tmp/scoped-operational-replay-build.log`. All five public declarations in this
+module, plus all 15 new canonical-prefix declarations, pass
+`/tmp/canonical-scoped-operational-audit.log`; their axioms are subsets of
+propext, Classical.choice and Quot.sound, with no sorryAx. No executable edits
+or strengthening inverses were used. The full goal remains active.

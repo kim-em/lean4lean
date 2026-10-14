@@ -816,3 +816,15 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   that actual program, and canonical Eq supplies its registry entry without an
   additional metadata hypothesis. This removes an operational replay gap; it
   does not supply general family-certificate coverage or raw prefix confluence.
+
+- **Replay complete scoped stages through actual original prefix computation.**
+  **Checked** in `ProofErasureScopedOperationalReplay`, using the newly identified
+  actual Eq.rec program. The generic compatible replay theorem reconstructs
+  typed intermediates and handles annotations and bodies in their source
+  contexts. Every finite scoped K stage replays to `PrefixCompute` with exactly
+  the same erased target. For an abstract Params presentation, agreement with
+  the environment's registry is required only at Eq.rec; actual environment
+  Params satisfies this by reflexivity. Original prefix confluence can now be
+  applied to the reconstructed paths. **Remaining:** its joins can use general
+  indexed singleton prefixes absent from the raw stages, so raw confluence and
+  recursive guard transport do not follow from operational replay alone.
