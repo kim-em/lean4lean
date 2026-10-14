@@ -895,3 +895,16 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   a typed-realizability wrapper and prove stability there. Existing context
   substitution supplies interpretations once a realization is available. No
   impossibility claim or checked counterexample has been established.
+
+- **Lift simultaneous substitution through actual generated programs.**
+  **Checked** in `PrefixUnfolding/Simultaneous`: literal supply, telescope,
+  constructor, captures and scoped RHS commute exactly. Generation itself
+  requires no typing or guard. This supplies the missing simultaneous version
+  of the earlier one-variable naturality theorem.
+- **Transport fresh proof markers using a realized residual telescope.**
+  **Checked** in `ProofErasureTelescopeSubstitution`: typed substitution and
+  retained-variable agreement extend through every binder, proving exact
+  annotation, fresh-variable and raw-opening transport. Together with both
+  typed family endpoints, `ProofErasureSingletonGuardSubstitution` transports
+  the recursive family certificate before checking bare fields. No claim about
+  unrealizable raw contexts is needed or proved.

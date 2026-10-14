@@ -6652,3 +6652,32 @@ No counterexample to stability is claimed. Guard-certificate coverage and raw
 confluence/transport of original joins also remain open. Exact replay alone does
 not establish any of these. `IsDefEqU.weakN_iff` is still open, and no strictly
 smaller sufficient front or completed goal is claimed.
+
+## Simultaneous generator substitution and fresh-marker transport
+
+`PrefixUnfolding/Simultaneous` proves exact substitution of the actual generated
+program under arbitrary simultaneous substitutions. Supply and telescope
+peeling commute with substitution, annotations are substituted at their own
+binder depth, and reconstruction fixes the fresh major under the lifted map.
+The program's literal type and scoped RHS commute exactly. This extends the
+previous one-variable substitution theorem and requires neither source typing
+nor a family guard for generation itself.
+
+`ProofErasureTelescopeSubstitution` extends a typed substitution and retained
+variable erasure agreement beneath an entire well-formed residual telescope.
+Its annotations erase by the corresponding lifted raw substitutions. The fresh
+variable vector, including proof markers, then transports exactly. Raw opening
+commutes at such a realized telescope even for arbitrary raw supplied providers.
+This establishes the semantic-selector transport needed at actual typed sources;
+it makes no assertion about unrealizable raw contexts.
+
+`ProofErasureSingletonGuardSubstitution` transports the actual contextual family
+certificate through that extended interpretation. Both transported/requested
+family endpoints are typed before comparison. Their simultaneous substitution
+laws and erasure agreement identify the target certificate exactly, without an
+unfolding check or premature typing of bare reconstructed fields.
+
+Validation: the three targets build; all 16 public declarations are audited in
+the first 16 entries of `/tmp/typed-singleton-substitution-audit.log`, with only
+propext, Classical.choice and Quot.sound and no sorryAx. No executable changes
+or strengthening inverses were used. General guard coverage remains open.
