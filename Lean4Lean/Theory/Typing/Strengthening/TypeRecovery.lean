@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.CertifiedKSubstitution
+import Lean4Lean.Theory.Typing.Strengthening.ProjectionTypeRecovery
 
 /-! # Recovering a particular type from source well-formedness
 
@@ -6,8 +7,8 @@ These certificates reconstruct a chosen type from the term's syntax, variable
 lookup, constant declarations, and certified computation on already recovered
 types. They require only source well-formedness at replay. Application recovers
 its argument type by uniqueness, so it needs no assumed conversion check below.
-The current syntax covers sorts, constants, variables, lambdas, applications and
-Pis. Projection recovery and completeness for arbitrary typing are not asserted.
+The syntax covers all expression constructors, including projections with
+recovered major families. Completeness for arbitrary typing is not asserted.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params
@@ -27,6 +28,10 @@ inductive TypeRecovery (D : Definitions) (depth : Nat) : List VExpr → VExpr �
       TypeRecovery D depth Γ (.app f a) (B.inst a)
   | forallE : env.HasType univs Γ A (.sort u) → env.HasType univs (A :: Γ) B (.sort v) →
       TypeRecovery D depth Γ (.forallE A B) (.sort (.imax u v))
+  | proj : env.projections s info →
+      TypeRecovery D depth Γ m (mkApps (.const s ls) args) →
+      info.fieldType s ls (args.take info.nparams) i m = some F →
+      TypeRecovery D depth Γ (.proj s i m) F
   | convert : TypeRecovery D depth Γ e T → CertifiedKCompute D depth Γ T T' →
       TypeRecovery D depth Γ e T'
 
@@ -44,6 +49,15 @@ theorem TypeRecovery.weakN (W : Ctx.LiftN n k Γ Γ') (R : TypeRecovery D depth 
   | app _ ih =>
     simpa only [liftN, liftN_inst_hi] using TypeRecovery.app (ih W)
   | forallE hA hB => exact .forallE (hA.weakN henv.ordered W) (hB.weakN henv.ordered W.succ)
+  | @proj s info Γ m ls args i F hi _ hf ih =>
+    have hclosed := henv.ordered.closedC (henv.ordered.projectionConstructor hi)
+    have hf' := (VProjectionInfo.fieldType_liftN info hclosed (n := n) (k := k)
+      (typeName := s) (levels := ls) (params := args.take info.nparams) (index := i) (major := m))
+    rw [hf] at hf'
+    simp only [Option.map_some, List.map_take] at hf'
+    have hm := ih W
+    simp only [liftN_mkApps, liftN] at hm
+    exact TypeRecovery.proj hi hm hf'
   | convert _ R ih => exact .convert (ih W) (R.weakN (fun W H => KCertificate.weakN W H) W)
 
 /-- A known function type retypes the argument of a well-formed application,
@@ -73,6 +87,11 @@ theorem TypeRecovery.hasType (R : TypeRecovery D depth Γ e T)
     obtain ⟨_, _, hf, _⟩ := ht.app_inv henv hΓ
     exact application_at_recovered_pi hΓ ht (ih hΓ ⟨_, hf⟩)
   | forallE hA hB => exact .forallE hA hB
+  | proj hi _ hf ih =>
+    obtain ⟨_, ht'⟩ := ht
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ :=
+      HasType.proj_inv henv hΓ ht'
+    exact projection_at_recovered_family henv hΓ hi ⟨_, ht'⟩ (ih hΓ ⟨_, hm.hasType.2⟩) hf
   | convert _ R ih =>
     have ht := ih hΓ ht
     obtain ⟨u, hT⟩ := ht.isType henv hΓ
@@ -124,6 +143,17 @@ theorem TypeRecovery.descend (R : TypeRecovery D depth Γ' (e.lift' ρ) T)
     have hBv₀ := (IsDefEq.sortDF (hB.sort_r henv hΓA)
       (hBv.sort_r henv hΓA') hv).defeq hB
     exact ⟨_, rfl, .forallE hAu₀ hBv₀⟩
+  | proj hi _ hf ih =>
+    obtain ⟨m, rfl, rfl⟩ := lift'_eq_proj hsource
+    obtain ⟨_, ht'⟩ := ht
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ :=
+      HasType.proj_inv henv hΓ ht'
+    obtain ⟨T, hT, hm⟩ := ih W hΓ hΓ' ⟨_, hm.hasType.2⟩ rfl
+    obtain ⟨args, rfl, rfl⟩ := PureObservation.lift'_eq_const_spine hT.symm
+    rw [← List.map_take] at hf
+    have hclosed := henv.ordered.closedC (henv.ordered.projectionConstructor hi)
+    obtain ⟨F, hF, hf⟩ := fieldType_lift'_inv hclosed hf
+    exact ⟨F, hF, projection_at_recovered_family henv hΓ hi ⟨_, ht'⟩ hm hf⟩
   | convert _ R ih =>
     obtain ⟨T, rfl, heT⟩ := ih W hΓ hΓ' ht hsource
     obtain ⟨T', hT', H⟩ := CertifiedKCompute.descend R heq hs W hΓ hΓ'

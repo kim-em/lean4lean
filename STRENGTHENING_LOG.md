@@ -2150,3 +2150,30 @@ The two targets build with 250 and 221 dependency jobs. Five axiom audits have
 only propext, Classical.choice and Quot.sound, with no sorryAx. No executable
 changed. The original strengthening result and a strictly smaller sufficient
 obligation remain unproved; the goal stays active.
+
+### Projection recovery completes expression-constructor coverage
+
+`ProjectionTypeRecovery.lean` reconstructs a well-formed projection's typing
+from a recovered type of its major, provided that type is the registered family
+applied to arguments and the field-selection query succeeds. The original source
+typing supplies its own parameters, source major, field type and elimination
+guard. Typing uniqueness and rigid-family injectivity align the two family
+applications. Field congruence then transports the original projection typing
+to the recovered field type. Neither a new elimination guard nor the target
+field's typing is assumed.
+
+Field selection commutes with arbitrary binder insertion and reflects it using
+a raw syntactic retraction. The new `TypeRecovery.proj` case combines this with
+major-type descent. The complete field type and its projection typing are
+reconstructed below. Recovery now covers every expression constructor, while
+conversion remains restricted to its explicit certified computation relation.
+In particular this closes projection as a syntactic gap, not the completeness
+or indexed-computation gaps.
+
+The RecoveredEtaLoop target builds with 289 dependency jobs, preserving both the
+recursive-loop eta repair and the exclusion of captured ambient annotations.
+Eight axiom audits cover the projection helper, field-selection reflection,
+updated recovery weakening/soundness/descent, eta descent and both boundary
+examples; none contains sorryAx. No executable changed. The final strengthening
+result and a strictly smaller sufficient obligation remain open. Independent
+worktree files were left untouched; the goal stays active.
