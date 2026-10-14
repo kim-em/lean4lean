@@ -3941,3 +3941,49 @@ Validation: the targeted build passes (294 jobs). Ten public theorem axiom
 audits in `/tmp/prefix-reflection-audit.log` contain no sorryAx and use only
 propext, Classical.choice and Quot.sound, or a subset. No executable changed.
 The original UniqueTyping sorry and the goal remain open.
+
+### Conditional finite eta postponement with actual prefix rules
+
+`NormalPrefixTransport.lean` proves root and arbitrary-spine transport for
+actual singleton and quotient prefixes. A generic constant-rule lemma uses
+the already proved normal argument and universe congruence of the checked
+rules. Beta-only spine exposure has four alternatives: whole-proof equality,
+an exposed constant spine, an exposed lambda, and an unexpanded function with
+a smaller extensional comparison. The first two are direct. The last two
+recurse at the fresh argument with a strictly smaller comparison bound; the
+extensional case then uses finite fresh reflection under the witnessed front.
+No eta expansion enters the resulting PrefixCompute path. Arbitrary extra
+arguments, including a supplied major, are retained.
+
+`PrefixStep.lean` gives single compatible contractions, weakening, ambient
+context conversion, and serialization of every PrefixCompute path. Unlike
+context-independent pattern paths, actual prefix checks remember the context
+in which they were checked. Binder bodies are therefore serialized before
+their domain computation, preserving that checking context throughout.
+
+`NormalPrefixSimulation.lean` combines the root theorem with compatible
+transport. Lambda and Pi cases convert the incoming body step into the
+comparison's central context and convert the resulting path into the left
+binder's context. These conversions use existing typing and retain the actual
+checks. Both eta directions and extensionality are covered. Iterating single
+steps transports arbitrary finite pattern-and-prefix computation through an
+ordinary normal comparison.
+
+`NormalPrefixFactorization.lean` closes the resulting computation-then-normal
+relation under composition and every syntax constructor. Every source-typed
+path in TypedPrefixEta consequently factors into PrefixCompute followed by
+one NormalEq. Sound universe closure supplies level stability for arbitrary
+closed equations; the stored-environment specialization includes recursive
+equations without a normalization premise.
+
+This closes the conditional function-eta postponement interface for actual
+prefixes, rather than just isolated roots or bounded prefix spines. It does
+not prove the witnessed proposition front, cover structure eta, or descend
+the opaque lambda-domain equalities in the final NormalEq. In particular,
+the factorization is not claimed to supply a smaller sufficient obligation
+for strengthening. Those gaps remain part of the original goal.
+
+Validation: the combined targeted build passes (309 jobs). Eighteen public
+axiom audits in `/tmp/normal-prefix-audit.log` use only propext,
+Classical.choice and Quot.sound, with no sorryAx. No executable changed; the
+original UniqueTyping sorry remains.
