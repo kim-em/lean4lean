@@ -2556,3 +2556,31 @@ propext, Classical.choice and Quot.sound, with no sorryAx. The argument-recovery
 premise is retained, so this does not evade the exact-output counterexample or
 prove arbitrary re-synthesis. No executable changed; the strengthening goal stays
 active. General head exposure and equality coverage remain the substantive gaps.
+
+### Dependent proof indices remove singleton family transport
+
+`ProofIndexReconstruction.lean` extends the propositional-carrier Eq observation
+to arbitrary singleton layouts whose dependent index telescope consists of
+propositions. Parameters remain arbitrary and may include data. The new suffix
+substitution theorem compares typed index lists after the same parameter
+instance, using previous proof equalities to align each subsequent domain.
+
+`WF.specializedCtorIndices` substitutes a typed field instance through the
+constructor's declared indices. Together these facts prove
+`proof_indices_family_conversion`: the transported reconstruction's family is
+definitionally the requested family. Thus `proof_indices_bare_constructor`
+removes the outer family cast at an arbitrary typed major occurrence, without
+assuming a preexisting aligned constructor instance.
+
+The result also reaches the original generated occurrence. Componentwise index
+equality and literal-slot typing align the transported fields with the requested
+indices; `proof_indices_singleton_eta` invokes the checked original singleton
+eta theorem with these derived premises. Its slot-bound premise is the ordinary
+layout condition already proved for registered singletons. It assumes neither
+aligned fields nor ambient index equations. The general data-index family
+conversion obstruction and full registered-prefix replay remain open.
+
+The targeted build passes with 177 dependency jobs. All nine new theorem axiom
+audits contain only propext, Classical.choice and Quot.sound, with no sorryAx.
+No executable changed. This is a checked fragment theorem, not a solution or a
+new sufficient irreducible front for the strengthening goal, which stays active.
