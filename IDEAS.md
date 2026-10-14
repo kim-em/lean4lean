@@ -874,3 +874,24 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   vector from erased ambient context, residual domains and supplied arguments.
   This is a mathematical selector, not an executable propositionhood decision.
   General primitive construction and recursive guard coverage remain next.
+
+- **Turn the uniform templates into a general raw singleton primitive.**
+  **Checked** in `ProofErasureSingletonCode` and
+  `ProofErasureScopedSingletonPrimitive`. Fixed declaration metadata and arity
+  determine raw telescope, providers, guard and output. One arbitrary generated
+  prefix certifies only structural feasibility. Every typed realization of the
+  raw input reconstructs its own actual checked prefix from the recursive family
+  certificate, with exact erased output. Block descent holds for arbitrary
+  inserted binders, indexed families and dependent data/proof fields.
+- **Replace Eq.rec-only finite stages by general certified singleton stages.**
+  **Checked** in `ProofErasureScopedSingletonStages`: all finite stages descend
+  and replay operationally, including compatible computation. A checked original
+  prefix erases forward at the next stage when its family guard has a preceding
+  certificate. Guard coverage, substitution stability, and transfer of original
+  confluence joins are still unproved; this is not a sufficient-front reduction.
+- **Transport the semantic fresh-variable selector under typed substitutions.**
+  **Next:** the general raw primitive currently allows raw sources without an
+  explicit typed realization. Establish the required stability theorem, or add
+  a typed-realizability wrapper and prove stability there. Existing context
+  substitution supplies interpretations once a realization is available. No
+  impossibility claim or checked counterexample has been established.

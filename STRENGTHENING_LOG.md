@@ -6606,3 +6606,49 @@ audited in the corresponding `*-audit.log` files, with only propext,
 Classical.choice and Quot.sound and no sorryAx. No executable changes or
 strengthening inverses were used. This closes residual/provider uniformity,
 not the general primitive's descent, guard coverage, or strengthening itself.
+
+## General raw singleton code, exact replay, and block descent
+
+`ProofErasureSingletonCode` packages fixed registered declaration metadata and a
+supplied arity. Its validity includes generation at one arbitrary original list
+of that arity; this list is not required to represent the raw inputs, be typed,
+or pass a family check. Same-arity generation supplies every actual input's own
+program. Raw supply computes the residual telescope, raw opening determines the
+providers, and fixed templates determine the family guard and output. The
+identification lemmas hold for every typed realization. Output identification
+retains the actual check where bare-field typing is needed.
+
+`ProofErasureScopedSingletonPrimitive` defines the general primitive using that
+code, raw arguments, a successful raw telescope calculation, and one recursive
+scoped family guard. It does not store an original representative of its input.
+Guard reflection reconstructs the full original check. Every typed realization
+therefore has an actual registered prefix step with the exact prescribed erased
+output. Arbitrary block descent also holds: recover the lower source spine,
+realize the upper raw program, descend its family guard through the exactly
+renamed telescope, and use the original prefix descent theorem. Ordinary
+weakening erases the resulting literal output exactly. Indexed layouts and
+mixed dependent data/proof fields are included.
+
+`ProofErasureScopedSingletonStages` layers these general primitives over core
+iota computation. Every finite stage has block descent and exact operational
+replay through compatible original prefix computation; the reconstructed target
+retains the original source's type. Forward erasure of an actual checked prefix
+holds whenever its family guard has a certificate in the previous stage.
+Whole-proof prefixes erase to identity. The new stages cover arbitrary singleton
+layouts at their certified guards, unlike the earlier Eq.rec-only stages.
+
+Validation: all three modules build (417 jobs), logged in
+`/tmp/erased-scoped-singleton-stages-build.log`. All 22 public declarations were
+checked by `/tmp/erased-general-singleton-audit.log`; dependencies are limited to
+propext, Classical.choice and Quot.sound, with no sorryAx. Together with the
+preceding two modules, this turn audits 36 new public declarations. There are no
+executable changes or uses of strengthening inverses.
+
+Remaining work is explicit: unrestricted typed-context substitution stability
+has not been proved for the new general primitive/stages. Their semantic fresh
+variable selector must be controlled under substitution; a typed-realizability
+restriction or wrapper is a possible route if unconditional raw stability fails.
+No counterexample to stability is claimed. Guard-certificate coverage and raw
+confluence/transport of original joins also remain open. Exact replay alone does
+not establish any of these. `IsDefEqU.weakN_iff` is still open, and no strictly
+smaller sufficient front or completed goal is claimed.
