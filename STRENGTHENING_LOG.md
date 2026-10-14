@@ -2454,3 +2454,26 @@ No executable changed, and concurrent prefix-computation files were untouched.
 The original goal remains unresolved and active. The next question is coverage
 of the finite union, particularly whether its computed-comparison guards need
 the stronger recovered application comparisons already checked for looping terms.
+
+### Recoverable telescope opening for indexed Eq prefixes
+
+The previous goal turn made progress: c7dd0d52 and fc3f4256 are committed and
+pushed. This turn inspected the indexed-prefix replay boundary. Generated prefix
+syntax already reflects finite binder insertion in GeneratedScope; the hard
+part is replaying occurrence-specific typing and alignment. The new work first
+handles the canonical Eq telescope through staged eta and K.
+
+`StagedPrefixComputation` proves that supplying a literal telescope preserves
+recovery of its residual type. Recovery also opens the remaining telescope with
+fresh variables. The corresponding eta computation costs one additional stage
+regardless of the number of binders. A body computation can then be closed under
+the displayed domains. No arbitrary ambient eta annotation is copied.
+
+`eqRec_prefix` uses the canonical declaration, its syntactic supply calculation,
+and the exact six opened arguments. A preceding-stage comparison of the two
+opened endpoints supplies K inside the telescope. `EqRecPrefixComputation`
+checks the concrete prefix before the major at an arbitrary carrier universe,
+and the prefix before the endpoint when the carrier is a proposition. In the
+latter case the fresh endpoint comparison follows from proof irrelevance.
+These results require certificates for data endpoint alignment and do not claim
+complete simulation of every registered singleton prefix program.
