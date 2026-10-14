@@ -2979,3 +2979,24 @@ trace and covered-path checks pass with 378 jobs. Nine axiom audits contain no
 sorryAx. No executable changed. The enlarged fragment's substitution closure is
 now checked; arbitrary re-synthesis, head-path repair and guard completeness
 remain open, and the original strengthening goal remains active.
+
+### Audit the claimed reduction from propositions to family guards
+
+`EqFamilyFrontBarrier.lean` proves that conversion between the diagonal canonical
+family Eq Prop P P and Eq Prop P Q is exactly conversion between P and Q.
+Both family propositions have independent typings. `EqDiagonalFront` restricts
+reflection to this pair shape, yet `eqDiagonalFront_iff_propositionFront` proves
+it equivalent to the original proposition front. `EqDiagonalCoverage` records
+ambient certificate completeness on just these pairs; together with any checked
+EndpointDescent relation it implies PropositionFront.
+
+This rules out using a rigid head, fixed carrier, or diagonal endpoint alone as
+evidence of a strictly smaller obligation. It does not prove the same equivalence
+for FamilyCertificateCoverage: the latter retains actual generated-prefix data,
+a typed major in the residual telescope, and the installed replay check. Any
+further coverage proof must exploit that extra structure or supply an independent
+completeness argument.
+
+The targeted build passes with 253 jobs. Three axiom audits contain no sorryAx,
+using only propext, Classical.choice and Quot.sound. No executable changed. The
+original goal remains unresolved.
