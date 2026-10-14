@@ -3796,3 +3796,48 @@ original strengthening goal.
 Validation: the targeted module build passes. All three public axiom audits in
 `/tmp/erasure-transitivity-audit.log` use only propext, Classical.choice and
 Quot.sound, with no sorryAx. No executable changed. The goal remains unresolved.
+
+### Checked supply and fresh-prefix joins along function spines
+
+The immediate-function contraction requires the prefix's first residual domain
+to match the ambient eta binder. A shorter prefix inside a larger application
+spine need not satisfy that premise. Supplying the already present arguments
+moves to the longer prefix, whose first domain can match the whole function's
+Pi typing. This requires a check-preserving supply theorem, not merely the
+existing generator right-hand-side beta identity.
+
+`PrefixCheckedSupply.lean` proves `unfoldingCheck_supply_first`: instantiate the
+first residual binder with a typed argument while retaining the final major.
+Capture typing, the major proposition and its inhabitants, and the exact
+recursor-left-hand-side comparison all substitute in the opened telescope.
+The eta-opening identity accounts for the source changing from `f` to `f a`.
+Source application well-formedness alone recovers the argument's actual domain
+by uniqueness (`unfoldingCheck_supply_first_of_wf`).
+
+The same file proves complete-record supply identities for both generators by
+combining their fresh-opening identity with ordinary outer substitution. These
+identify the checked specialized record with the actual generator output.
+`prefixUnfold_supply_one` and `quotPrefixUnfold_supply_one` therefore retain the
+actual rules and return a one-beta join of their outputs. Their admissibility
+bounds explicitly require the major to remain unsupplied.
+
+`PrefixSpineSupply.lean` iterates checked supply across arbitrary finite typed
+spines. The fresh-spine join theorems then supply the upper spine, invoke the
+previous exact fresh-function contraction at that longer prefix, and obtain an
+actual lower prefix whose lift is a beta reduct of the original upper output
+applied to the remaining arguments. Only the whole application needs the Pi
+typing with the ambient domain; its shorter prefix need not have that domain.
+
+The result repairs this prefix overlap by a finite beta join. It does not claim
+that the unreduced upper output already reflects by the same original rule, or
+that it is normally equal to the lower result without beta specialization.
+Function spines reaching or passing the major are outside this admissibility
+argument. Argument-position computation, structure eta in this factorization,
+and opaque normal-comparison domains remain open. There is no new claim of a
+complete strengthening proof or a smaller sufficient front.
+
+Validation: the targeted build passes (204 jobs). Ten public axiom audits in
+`/tmp/prefix-spine-audit.log` contain no sorryAx, using only propext,
+Classical.choice and Quot.sound (the quotient record identity omits choice).
+No executable changed; UniqueTyping's original sorry and the full goal remain
+open.
