@@ -2502,3 +2502,34 @@ Classical.choice and Quot.sound are present. No executable changed. General
 data-index alignment, complete registered singleton-prefix simulation and the
 final strengthening deliverable remain open. The goal stays active. Independent
 comparison-core edits were preserved without modification.
+
+### Recovered application comparison can guard staged K
+
+The previous turn made checked progress through 8b6b23bc. This turn factors the
+existing application comparison into `RecoveredComparisonWith C` in
+`RecoveredComparisonCore.lean`. Its descent needs only ComputeDescent C; its
+weakening needs ComputeWeakening C. The old fixed-K relation is a specialization
+with its public interface retained. The looping comparison and certified
+substitution clients still build; the latter uses explicit specialization names
+for recovered argument substitution after the refactor.
+
+`ComparedEtaComputation.lean` allows computed endpoints to be compared with
+recovered types at application nodes. Reconstructing both computed endpoints at
+the source common type supplies the premises for generic comparison descent.
+The new stage operation retains old hybrid guards and adds this guard. Every
+finite stage descends and weakens; `of_staged` embeds the preceding staged model
+without changing either depth bound. This does not prove strict enlargement
+over the old union or coverage of arbitrary equality.
+
+`ComparedEtaLoop.lean` checks a concrete use: the recursive loop pair directly
+guards K at stage one, without endpoint computation. The resulting cast-type
+recovery enables variable eta at stage two in an actual canonical-Eq-preserving
+extension and a well-formed context. The preceding example used a stage-one eta
+computation, stage-two K, and stage-three variable eta. The new certificate is
+shorter, rather than evidence that the old finite union missed the equation.
+
+The example builds with 300 dependency jobs; the original comparison/substitution
+clients build with 297. Seven axiom audits contain no sorryAx, only propext,
+Classical.choice and Quot.sound. Concurrent closed Eq-prefix work was preserved.
+No executable changed. Head-exposure completeness and the original strengthening
+deliverable remain open; the goal remains active.

@@ -52,11 +52,11 @@ theorem RecoveredComparison.instN_of_recovery
       (hb.instN henv W hx) (ihf hΓ₁ W) (iha hΓ₁ W)
   | recover Ra Rb HT Hab ihT ihab =>
     obtain ⟨_, hab⟩ := Hab.defeq hΓ₁
-    exact .recover (Ra.instN_of_recovery heq hs hΓ₁ hx Rx W ⟨_, hab.hasType.1⟩)
-      (Rb.instN_of_recovery heq hs hΓ₁ hx Rx W ⟨_, hab.hasType.2⟩) (ihT hΓ₁ W) (ihab hΓ₁ W)
+    exact .recover (TypeRecovery.instN_of_recovery Ra heq hs hΓ₁ hx Rx W ⟨_, hab.hasType.1⟩)
+      (TypeRecovery.instN_of_recovery Rb heq hs hΓ₁ hx Rx W ⟨_, hab.hasType.2⟩) (ihT hΓ₁ W) (ihab hΓ₁ W)
   | sameType Ra Rb Hab ih =>
     obtain ⟨_, hab⟩ := Hab.defeq hΓ₁
-    exact .sameType (Ra.instN_of_recovery heq hs hΓ₁ hx Rx W ⟨_, hab.hasType.1⟩)
-      (Rb.instN_of_recovery heq hs hΓ₁ hx Rx W ⟨_, hab.hasType.2⟩) (ih hΓ₁ W)
+    exact .sameType (TypeRecovery.instN_of_recovery Ra heq hs hΓ₁ hx Rx W ⟨_, hab.hasType.1⟩)
+      (TypeRecovery.instN_of_recovery Rb heq hs hΓ₁ hx Rx W ⟨_, hab.hasType.2⟩) (ih hΓ₁ W)
 
 end Lean4Lean.VEnv.Strengthening
