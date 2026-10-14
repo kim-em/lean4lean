@@ -766,3 +766,26 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   the raw body/function or a computational-confluence premise. Independent
   computation of both endpoints and arbitrary recursive-body guard transport
   remain open; earlier raw eta/probe barriers do not themselves decide them.
+
+- **Invert scoped computation of rigid constructor spines.** **Checked** in
+  `ProofErasureScopedSpines` and `ProofErasureScopedRigidRoots`. Visible matching
+  preserves its stored pattern head; rigid heads exclude those rules. Canonical
+  Eq.rec's installed pattern also excludes K prefixes at rigid heads. If the
+  chosen delta collection does not unfold the constructor, every finite scoped
+  path retains its name, universes and arity and gives pointwise argument paths.
+  Soundness of arbitrary delta equations alone is not used as constructor
+  rigidity. The actual stored/registry-selected collection has the needed fact.
+- **Retain structure-eta fields after computing the expanded constructor.**
+  **Checked** in `ProofErasureScopedStructureResidual`. Every initially visible
+  field is a projection of the unchanged short major; its extracted computation
+  supplies the recursive field guard in the reverse comparison orientation.
+  Proof-marker fields remain markers, and computed parameters retain their
+  length. Raw residuals require no original endpoint representatives. The typed
+  wrapper handles whole-proof collapse. All finite contextual prefix stages are
+  preserved, including for the actual stored/selected structure definitions.
+- **Join projection iota against finite constructor-major computation.**
+  **Checked** in `ProofErasureScopedProjectionExchange`. Both orders reach the
+  selected output field, using the extracted pointwise field path and one final
+  projection primitive. No endpoint typings or confluence premise are supplied.
+  This does not establish transport of arbitrary recursive field comparisons
+  through independent computations of both fields.

@@ -6354,3 +6354,45 @@ modules pass `/tmp/scoped-exchange-audit.log`, with only propext, Classical.choi
 and Quot.sound and no sorryAx. No executable changes or strengthening inverses
 were used. General scoped guard transport, merely-compared paired substitution,
 comparison composition, and `IsDefEqU.weakN_iff` remain open.
+
+## Scoped structure-eta residuals and projection exchange
+
+`ProofErasureScopedSpines` adds constant-head readout and proves that visible
+pattern matches retain their pattern heads. Beta and scoped computation preserve
+constant spines when no primitive contracts that head; the result contains a
+pointwise argument path and preserves exact universes and arity. Proof markers
+are fixed when primitives require visible constant/projection heads.
+
+`ProofErasureScopedRigidRoots` excludes all ordinary primitives at rigid heads
+using actual stored-rule provenance and absence of selected delta equations.
+Canonical Eq.rec's installed rule excludes K-prefix primitives at those same
+heads, at every finite stage. Registered projection constructors are rigid, so
+constructor-spine inversion applies at every stage. No original typing of the
+raw argument list is required. The delta exclusion is explicit, since arbitrary
+sound invented equations need not respect constructor rigidity.
+
+`ProofErasureScopedStructureResidual` inverts a path from a literal structure-eta
+expansion. Splitting the pointwise paths at the parameter boundary preserves
+parameter and field counts. Every visible source field is the corresponding
+projection of the unchanged major; its path supplies a recursive common guard
+between the computed field and that projection. Hidden proof fields remain
+markers. The raw residual requires no separately typed endpoint realization.
+A typed original expansion wrapper handles whole-proof collapse as well.
+The actual stored-definition plus registry-selected structure collection
+satisfies constructor exclusion, so its finite K stages need no extra rigidity
+premise for this result.
+
+`ProofErasureScopedProjectionExchange` uses the same spine inversion to join
+projection iota against arbitrary finite computation of its saturated constructor
+major. The selected source field computes to the selected target field, and the
+computed projection contracts to that identical target. All paths remain in the
+same finite contextual prefix stage, without a confluence or normalization
+premise.
+
+Validation: both final targets build (419 jobs), logged in
+`/tmp/scoped-structure-exchange-build.log`. All 15 public declarations in the four
+new modules pass `/tmp/scoped-structure-residual-audit.log`; their axioms are
+subsets of propext, Classical.choice and Quot.sound, with no sorryAx. No executable
+edits or strengthening inverses were used. General recursive field-guard
+transport, independent two-endpoint eta transport, merely-compared paired
+substitution, comparison composition, and `IsDefEqU.weakN_iff` remain open.
