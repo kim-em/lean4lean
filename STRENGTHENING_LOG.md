@@ -1680,3 +1680,35 @@ general dependent motives, in addition to the earlier identity-motive casts.
 The combined build, including both existing cast head-exposure wrappers and the
 family reconstruction target, succeeds (292 jobs). The replay/descent audits
 contain only propext, Classical.choice, and Quot.sound, or subsets; no sorryAx.
+
+### Common result typing cannot recover general Eq.rec endpoints
+
+`EqRecResultBoundary.lean` checks the proposed extension of the special type-cast
+argument. `constantEqMotive_typed` and `constantEqMotive_app` build and beta-reduce
+a constant motive independently of endpoint alignment. `constant_eqRec_typed`
+then types the complete recursor at its minor's type using any well-typed major
+proof; it does not use definitional equality of the endpoints.
+
+The test endpoints are Prop and (Prop -> Prop), both at Type. In the context
+containing a variable proof of their propositional equality, the recursor with
+constant Type motive and minor (Prop -> Prop) is itself a type at Type. The
+context is well formed by canonical Eq typing. Nevertheless, existing head
+separation proves that Prop and (Prop -> Prop) are not definitionally equal,
+even in this context. `common_result_does_not_align` packages the context,
+source and minor typings, and that nonequality.
+
+Thus source/minor common typing cannot discharge the endpoint premise of
+`eqRecApp_simAt` for arbitrary motives. This is a checked refutation of the
+endpoint-alignment argument, not a nonequality theorem about the recursor and
+its minor, and not a strengthening counterexample. The special cast argument
+remains valid because its identity motive exposes the endpoints as the two
+result types. The retained family cast in singleton reconstruction still needs
+a computation argument that keeps track of indices or a different observation
+invariant. General K descent alone cannot lower an ambient endpoint-conversion
+premise, and eta can still create nonlinear matches.
+
+The boundary is included in the 292-job combined build. Eight audits across the
+new inversion/replay, extended computation, constant-motive boundary, and existing
+cast head recovery have no sorryAx dependency. Only metatheory and the two
+research logs changed. Full strengthening and every requested alternative final
+deliverable remain unestablished; the goal stays active.
