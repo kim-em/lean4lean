@@ -4170,3 +4170,43 @@ The earlier exact agreement interfaces delegate to it, preserving their
 statements. Seven new or affected recovery/eta axiom audits pass without sorryAx;
 they use only propext, Classical.choice and Quot.sound. The dependent compatible
 comparison build also passes. No executable changed.
+
+### Compatible recovered comparison and same-stage weakening
+
+`ProofErasureRecoveredComparison.lean` introduces RecoveredCompare with one
+erased type oracle for each endpoint. All old context-free Compare certificates
+embed. Applications compare functions in inferred mode and arguments in common
+mode; lambdas preserve the enclosing mode in their bodies. Recovered eta can
+occur on either side at any compatible position, and its domain alignment is
+recursively compared in the new relation. Both body oracles retain their own
+displayed annotations. Symmetry exchanges them instead of rewriting one raw
+annotation into the other.
+
+The descent induction reconstructs recovered Pis and computational intermediates
+below the removed binder block. At each binder, domain comparison gives the
+conversion needed to validate the right oracle in the left original context.
+Erasure is invariant under that original context conversion, so the two raw
+body certificates keep their exact shapes. The two result modes retain the
+previous interfaces: convertible endpoint types, or an inferred certificate
+with a non-proof left endpoint. Canonical context oracles give the concrete
+ErasedRecoveredComparison relation at every existing finite K stage.
+
+`ProofErasureRecoveredWeakening.lean` proves raw oracle renaming, recovery
+weakening, and compatible comparison weakening. Canonical context oracles satisfy
+the pointwise renaming law even outside the context: those entries stay the
+default marker. No stage or mode changes.
+
+`ProofErasureRecoveredExamples.lean` compares `fun f => fun x => f x` with
+`fun f => f` in inferred mode at both lambda depths. The short inner endpoint is
+a variable, whose Pi is recovered from the extended oracle. The example handles
+proof collapse, weakens through insertion at any depth, and descends using the
+new concrete common-type interface.
+
+Validation: the combined build passes (271 jobs), and all 21 public new/affected
+axiom audits in `/tmp/erasure-recovered-compatible-audit.log` contain no sorryAx,
+using only propext, Classical.choice and Quot.sound or a subset. Projection
+compatibility is present, but projection type recovery is still absent. General
+substitution and arbitrary thinning for the contextual relation, feedback of
+these stronger guards into K computation, and equality completeness remain
+open. No transitivity constructor or completeness premise was silently added.
+The executable and the original UniqueTyping sorry remain unchanged.
