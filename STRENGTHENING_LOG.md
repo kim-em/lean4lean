@@ -5615,3 +5615,38 @@ Validation: the target builds (371 jobs), and all six public results pass
 `/tmp/prefix-confluence-audit.log` with only propext, Classical.choice and
 Quot.sound or subsets. The executable and original strengthening sorry are
 unchanged; no strengthening inverse was used.
+
+### Aligning duplicated structure majors by computational confluence
+
+`NeutralEtaConfluence.lean` first extends binary confluence to any finite list
+of reducts of a typed source. The projection trace then shows that, if a major
+cannot expose its registered constructor, each computed field remains a
+projection of some computed major. All those independently computed major
+copies have one common reduct. Computing every field to the corresponding
+projection of that reduct and converting the separately computed parameters
+reconstructs one actual typed eta root.
+
+Thus `neutral_eta_compute_join` and `neutral_eta_compute_symmetric_phase`
+remove the earlier requirement that the neutral major be computationally fixed.
+Arbitrary finite computation inside each copy is allowed, including in a
+non-normalizing calculus. The only exclusion is a computational path from the
+major to its registered constructor. No canonical Eq or witnessed front is used.
+
+The complementary `structure_eta_compute_join_of_constructor` handles a major
+that can compute to a constructor at the eta root's exact parameters and
+universes. It computes all copies along that path, uses the earlier saturated
+constructor completion, and joins the resulting computation against the given
+path by PrefixCompute confluence. The constructor exposure need not be one of
+the paths actually taken by the duplicated copies.
+
+Remaining scope: exposing a constructor at converted parameters or different
+universe syntax is not covered by that second theorem. Typing uniqueness gives
+definitional equality of the family instances, but computational confluence
+alone supplies no computational path between their parameters. General mixed
+eta/computation composition, the sufficient-front question, and the original
+strengthening sorry remain open. This is a remaining proof obligation, not a
+claimed counterexample to the symmetric phase or to strengthening.
+
+Validation: the target builds (421 jobs). All seven public results pass
+`/tmp/neutral-eta-confluence-audit.log`, with only propext, Classical.choice and
+Quot.sound and no sorryAx. No executable or strengthening inverse was used.
