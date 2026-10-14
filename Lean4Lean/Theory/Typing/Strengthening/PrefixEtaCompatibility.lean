@@ -5,7 +5,8 @@ import Lean4Lean.Theory.Typing.Strengthening.PrefixEtaPhase
 
 The existing three-phase representation is closed under every compatible
 expression constructor and under appending the complete eta/normal terminal
-phase. Transitivity across a later computation remains a postponement problem.
+phase. `EtaDuplicationPhaseBoundary` obstructs transitivity across a later
+computation even with a commonly typed intermediate term.
 -/
 namespace Lean4Lean.VEnv.Strengthening.PureObservation
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params

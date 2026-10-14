@@ -4497,3 +4497,63 @@ examples build passes (275 jobs). All 54 new/affected public theorem audits in
 `/tmp/erasure-projection-integration-audit.log` use only propext,
 Classical.choice and Quot.sound or subsets; none uses sorryAx. Diff whitespace
 checks pass. No executable changed, and UniqueTyping's original gap remains.
+
+### Selective projection obstructs the full three-phase representation
+
+The earlier pure-eta test now excludes both the initial computational phase and
+the final normal comparison. The result remains conditional on explicit
+registration and typing data: a zero-parameter, two-field constructor c, a
+sort-typed variable v, and a non-propositional family typing of c v v.
+`EtaDuplicationPhaseBoundary.selective_projection_phase_boundary` pairs the
+actual FullReduction to c v (proj_1 (c v v)) with the negation of every
+PrefixEtaNormal witness. The environment-declaration specialization derives
+constructor rigidity automatically. The never-zero-universe version also
+derives non-propositionality and the expanded constructor typing. No new
+environment satisfying these hypotheses is constructed here, and this is not
+a canonical-Eq counterexample to strengthening.
+
+The main difficulty was arbitrary eta-created lambdas in the proposed middle.
+`EtaHeadBeta` defines contraction restricted to the function spine and proves
+that one such contraction after finite typed eta exchanges to at most one
+contraction before it. A contraction consuming a lambda created by function
+eta disappears. A literal constant spine has no head contraction, so any finite
+head-beta path from its eta expansion remains an eta expansion of the same
+source. `NormalHeadBetaExposure` strengthens normal spine exposure to use only
+these head contractions. Rigid family/Pi separation excludes its extensional
+alternatives, reducing every terminal witness to a literal constructor spine.
+
+`EtaNormalHeadReflection`, `BetaSpineShape`, `NormalConstructorFields`, and
+`EtaDuplicationSpineBoundary` distinguish the fields of that spine. If its head
+comes from the original constructor, the second sort-typed variable remains a
+variable through eta, beta and normal comparison; it cannot become the target
+projection. If its head comes from structure eta, the first sort-typed
+projection retains its projection head; it cannot become the target variable.
+`EtaDuplicationNormalBoundary` combines these with head-beta exposure to rule
+out every EtaNormal witness.
+
+`PrefixConstructorFixed` excludes initial computation. A non-unfolding constant
+applied only to variables is fixed by compatible beta/delta, projection, and
+pattern computation. Actual singleton prefixes cannot have a registered
+projection-constructor head: their stored iota equation contradicts constructor
+rigidity. Quotient prefixes are excluded by their stored equation as well.
+Thus every PrefixCompute path from this source is the identity.
+
+The two pieces of the obstructing path separately have PrefixEtaNormal
+representations, and their intermediate structure expansion has the same family
+typing. `selective_projection_phase_nontransitive` therefore excludes repairing
+phase transitivity merely by requiring a commonly typed middle. Normal/eta
+exchange and all compatibility results from the previous checkpoint remain
+valid; it is moving later computation before all eta that fails.
+
+The next possibility is completion rather than exact endpoint factorization.
+`selective_projection_computes_back` checks that one further projection
+contraction returns this mixed target to the original constructor. Consequently
+this example does not refute a finite computational completion theorem or
+head-focused repair. A general completion theorem, the witnessed proposition
+front, and the opaque-domain descent problem all remain unproved. None of the
+goal's completion criteria has been reached.
+
+Validation: the combined targeted build passes (381 jobs). All thirty-four
+public theorem axiom audits in `/tmp/eta-duplication-audit.log` contain no sorryAx
+and use only propext, Classical.choice and Quot.sound or subsets. No executable
+changed; the original UniqueTyping sorry remains.

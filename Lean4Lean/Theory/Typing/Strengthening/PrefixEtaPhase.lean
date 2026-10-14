@@ -76,7 +76,8 @@ theorem TypedEtaExpansion.of_etaPar (R : EtaPar Γ e out)
 
 
 /-- Actual computation followed by finite typed eta and one normal comparison.
-FullReduction coverage remains an unproved postponement problem. -/
+Exact FullReduction coverage has a selective-projection obstruction; see
+`EtaDuplicationPhaseBoundary`. Factorization up to a further join remains open. -/
 def PrefixEtaNormal (D : Definitions) (Γ : List VExpr) (a b : VExpr) : Prop :=
   ∃ x y, PrefixCompute D Γ a x ∧ TypedEtaExpansion Γ x y ∧ NormalEq Γ y b
 
