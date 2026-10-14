@@ -2421,3 +2421,36 @@ The combined target builds successfully (245 dependency jobs). Five axiom audits
 contain only propext, Classical.choice and Quot.sound. No executable changed;
 the original strengthening sorry remains unresolved. Concurrent staged-prefix
 work was left untouched. The goal remains active.
+
+### Nonuniform finite recovery and closure of all eta/K stages
+
+`FiniteRecovery.lean` takes the existential union of StagedEtaCompute stages at
+a fixed original K-depth. ComputeDescent and ComputeWeakening survive this union.
+`TypeRecoveryWith.finite_stage` proves compactness: every recovery certificate
+whose computations individually choose finite stages can be collected into one
+finite stage. Conversion takes a maximum; all other recovery constructors retain
+the stage of their recovery premise. `finite_recovery_iff` records both directions.
+
+The union admits compatible application, lambda, Pi and projection computation,
+composition, eta from union-based recovery, and K guarded by union-based computed
+comparisons. `finite_staged_fixedPoint` proves closure under the entire next-stage
+operation, RecoveredEtaWith (NextComputation D ...). Thus no further finite
+alternation of those same rules provides an additional capability beyond the
+union. This statement does not assert coverage of arbitrary equality, eta
+annotations, indexed prefixes, or computational heads.
+
+The head-exposure premises can now be stated without requiring a global stage
+bound. `finite_recovery_of_head_exposure` yields a stage and an output depending
+on the typed expression. `resynthesize_finite_instN` then supplies a finite-stage
+recovery at a type convertible to the original substituted output under arbitrary
+typed substitution. It does not require recovery of the argument at its declared
+type. The two exposure premises are explicit and still open; no unconditional
+substitution result or strengthening front is claimed.
+
+The combined build with the existing substitution boundary and recovered looping
+comparison passes (304 dependency jobs). Seven further axiom audits contain no
+sorryAx; only propext, Quot.sound and, in replay results, Classical.choice occur.
+No executable changed, and concurrent prefix-computation files were untouched.
+The original goal remains unresolved and active. The next question is coverage
+of the finite union, particularly whether its computed-comparison guards need
+the stronger recovered application comparisons already checked for looping terms.
