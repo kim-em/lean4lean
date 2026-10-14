@@ -4711,3 +4711,34 @@ Validation: the checked-boundary target builds (292 jobs). Its public results
 and the following raw checking integration are covered by all 36 axiom audits
 in `/tmp/erasure-checked-audit.log`, using only propext, Classical.choice and
 Quot.sound or subsets. No sorryAx or executable changes were introduced.
+
+### Recursive K guards from raw lambda checking
+
+`ProofErasureRawChecking.lean` isolates the oracle-free checking fragment. It
+contains the older raw comparison, compatible syntax and computation, and the
+new common-type lambda rule. Its arbitrary raw substitution law needs no
+recoverable-image premise; the soundness proof embeds it in CheckedCompare
+under the canonical upper oracle. This permits computational feedback without
+assuming the inferred substitution principle shown to contain PropositionFront.
+
+`ProofErasureRawCheckedK.lean` defines finite stages whose new Eq.rec guards
+use predecessor-stage raw checking. Every stage has typed block descent, raw
+weakening and raw substitution. Retraction gives comparison descent through
+arbitrary thinning. All older compared-K stages embed at the same bound, and
+actual typed Eq.rec applications simulate forwards with the new guards.
+
+`ProofErasureRawCheckedExamples.lean` checks the new rule on actual Eq.rec
+sources with constant-body lambda endpoints. Stage one computation needs no
+separate certificate of their displayed domains: source typing gives the
+common endpoint type, whose Pi inversion supplies domain alignment during
+replay. The computation also descends below insertion with exact result
+erasure. The raw guard fragment strictly extends the older recovered
+comparison on independently typed probes, as established by the earlier
+separation theorem. This does not assert new equality between differently
+typed probes or resolve global certificate coverage.
+
+Validation: the combined example target builds (295 jobs). The complete set
+of 36 new public theorem axiom audits passes in
+`/tmp/erasure-checked-audit.log`; only propext, Classical.choice and Quot.sound
+or subsets occur. Diff whitespace checks pass. The strengthening goal remains
+active, with its original UniqueTyping gap unchanged.

@@ -397,3 +397,14 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   lambda comparison still reflects domains, and unrestricted inferred typed
   instantiation still implies PropositionFront. General common-mode
   composition and declarative coverage remain open.
+
+- **Feed common-type lambda checking into recursive erased K guards:** checked.
+  The oracle-free `RawCheckedCompare` fragment retains arbitrary raw
+  substitution, embeds in contextual checking under any oracles, and descends.
+  `ErasedRawCheckedKStage` adds predecessor-stage checking guards and includes
+  every old compared-K stage at the same bound. Weakening, substitution,
+  arbitrary-thinning comparison descent and actual typed forward K simulation
+  hold. An Eq.rec source with constant-body lambda endpoints computes at stage
+  one without an input domain comparison; source typing supplies their common
+  type. No general comparison composition, arbitrary singleton primitive, or
+  declarative completeness is claimed.
