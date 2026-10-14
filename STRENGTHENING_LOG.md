@@ -2260,3 +2260,21 @@ boundary, and substitution targets build with 296. Three substitution axiom audi
 contain only propext, Classical.choice and Quot.sound. The existing loop and
 boundary results still build after the concurrent recovery-core refactor.
 No executable changed and no final strengthening deliverable is claimed.
+
+### Generic recovery and eta descent interfaces
+
+The preceding goal turn was progress: projection recovery was committed and
+pushed as 8ed15568. This turn factors its recovery proof into `TypeRecoveryCore`.
+`ComputeDescent` requires exact target reconstruction and typed replay from a
+lower source typing. `ComputeWeakening` requires finite binder insertion. These
+are interfaces for concrete computation relations whose instances are proved;
+neither supplies descent of arbitrary equality. `TypeRecoveryWith` retains all
+syntax rules, with conversion parameterized by the computation. Its monotonicity,
+weakening, soundness and descent are checked.
+
+`RecoveredEtaCore` similarly parameterizes compatible recovered eta. The existing
+`TypeRecovery` and `RecoveredEtaCompute` names specialize these constructions to
+certified K computation, retaining their theorem interfaces and constructor
+aliases. Existing loop, recovered-comparison and recovery-substitution boundary
+modules build after the refactor. New staged clients and their audits are
+recorded next. No executable changed.
