@@ -473,3 +473,17 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
 | Use complete developments for recursive closed beta/delta computation | **Checked base confluence.** `DeclarationConfluence` proves parallel substitution stability, a triangle through complete development, and exact finite confluence for any deterministic closed definition collection. It instantiates the stored/selected-structure union without typing, normalization or a front. Projection/iota/prefix compatible peaks and equivalent-universe closure remain outside this theorem, so it does not yet supply general phase composition. |
 
 | Extend raw complete-development confluence through constructor projections | **Checked.** `ProjectionParallel` and `ProjectionConfluence` prove exact finite beta/delta/projection confluence for deterministic closed definitions whose constructor heads do not unfold. Spine preservation and metadata uniqueness reduce the new projection overlaps to the same smaller original field. The actual stored/selected-structure collection satisfies the premises. Ordinary iota, singleton prefixes, universe closure and mixed eta composition remain to be handled. |
+
+- **Carry sort witnesses in erased contexts rather than recover their types:**
+  integrated and checked. Equal erased contexts have convertible well-formed
+  realizations. `ContextCompare` uses contextual domain-sort witnesses for
+  recursive eta and sorted lambda/Pi comparison, with both bodies interpreted
+  in one binder context. It descends through block insertion, covers every
+  `BiNormal` certificate, and strictly includes that fragment by the existing
+  beta/probe witness. Its oracle-free base and absence of recovered inferred
+  eta permit ordinary typed simultaneous substitution, single-binder
+  instantiation, arbitrary typed weakening and same-argument beta transport.
+  None of these needs recovery completeness. General computational composition,
+  substitution of distinct compared arguments, and declarative coverage remain
+  open. Existing indexed guards still use their original raw comparison base;
+  no contextual-guard completeness is claimed.

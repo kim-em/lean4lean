@@ -5142,3 +5142,61 @@ symmetric phase composition remain open; strengthening is not proved.
 Validation: the combined target builds (348 jobs). All ten public results are
 axiom-audited in `/tmp/projection-confluence-audit.log`, with no sorryAx and only
 propext, Classical.choice and Quot.sound or subsets. No executable changed.
+
+### Contextual sort witnesses close recursive eta coverage and typed substitution
+
+This turn integrates the preceding ambient sort-witness result into a
+computation-aware comparison rather than making eta depend on the still-open
+sort-recovery/exposure premise.
+
+`ProofErasureContext.lean` erases each context domain at its declaration scope.
+Equal erased contexts have definitionally convertible well-formed original
+realizations, by induction on the context and ordinary erasure reflection.
+`DomainSort` stores a sort-typed original representative in any such realization;
+it can be reinterpreted in another realization and lowered at a separately
+typed source domain. No original representative of an arbitrary proof marker
+is invented.
+
+`ProofErasureContextComparison.lean` defines `ContextCompare`. Its base is
+`RawCheckedCompare`; it retains compatible computation, common lambda checking,
+and explicit symmetry. Recursive eta uses `DomainSort`, while sorted lambda
+and Pi rules use shared witnessed universe levels to justify common-mode
+comparison of their type subterms. Binder bodies use one left-domain context;
+endpoint typing and domain comparison provide the necessary original context
+conversion during replay. Block descent is checked for common-type endpoints
+and for independently typed non-proofs on both sides in inferred mode.
+
+`ProofErasureContextEta.lean` gives unconditional typed forward coverage of
+recursive eta. `ProofErasureContextCoverage.lean` embeds every `BiNormal`
+certificate at its original mode. Strong induction and the previously checked
+bounded fresh-spine cancellation handle eta-both. These coverage theorems do
+not assume recovery existence, sort exposure, primitive descent, or canonical
+Eq. `ProofErasureContextBeta.lean` exhibits strict inclusion of the normal
+fragment using the existing common-typed beta/probe nontransitivity witness.
+
+`ProofErasureContextSubstitution.lean` proves ordinary typed simultaneous
+substitution in both modes. Its `ContextSubstitution` interpretation maps every
+well-formed realization of the source raw context into a realization of the
+target. Equal erased contexts convert the source of an ordinary typed
+substitution; the support agreement only constrains retained variables. Under
+a raw binder, a realized extended source supplies its actual domain and the
+ordinary lifted substitution. This avoids requiring a representative when the
+raw context has no well-formed realization. Domain-sort witnesses transport,
+and structural induction then substitutes the whole comparison certificate.
+Single-binder instantiation, arbitrary typed weakening, and same-argument beta
+transport follow, without recovery certificates for substitution images.
+
+This does not contradict the earlier typed-instantiation full-front barriers.
+The new base is oracle-free and the new relation has no recovered inferred-eta
+rule. It covers the bidirectional normal fragment, not every earlier recovered
+certificate or every declarative equality. General common-mode computational
+composition, transport with distinct compared arguments, and declarative
+coverage remain open. Existing finite indexed computation stages still use
+their original raw guards; integrating contextual guards is not established.
+The original strengthening gap is unchanged, and no smaller sufficient front
+has been claimed.
+
+Validation: all six new modules build together through the beta target (299
+jobs). All 25 public theorem audits in `/tmp/erasure-context-audit.log` use only
+propext, Classical.choice and Quot.sound or subsets, with no sorryAx. No
+executable changed. The full goal remains active.
