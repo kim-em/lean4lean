@@ -5565,3 +5565,31 @@ Validation: the new target builds successfully (309 jobs). All thirteen public
 declarations pass `/tmp/prefix-only-audit.log`, using only propext,
 Classical.choice and Quot.sound or subsets, with no sorryAx. No executable or
 forbidden strengthening inverse is used.
+
+### Exact confluence including selected structure programs
+
+`SeparatedParallelSpines.lean` gives separated parallel computation its typed
+soundness and congruence interfaces, plus a fixed-universe constant-spine
+inversion theorem. `SeparatedPrefixDiamond.lean` then proves an exact mixed
+DeltaPar/separated-parallel diamond over the actual stored/selected-structure
+collection. Prefix heads cannot unfold in that collection; complementary guards
+exclude ordinary roots. Full-program congruence handles the prefix outputs.
+Projection overlaps join the same selected field, including the distinct
+projection constructors in the two parallel presentations. Dependent binder
+contexts use source typing and conversion only.
+
+`SeparatedPrefixPaths.lean` extends the diamond to finite ordinary paths and to
+commutation of both finite closures. It also embeds generic concrete core paths
+in ordinary computation. `AugmentedComputationalConfluence.lean` uses separated
+ordinary computation as level zero and DeltaPar as level one. Prefix self-peaks
+have only core residual paths, which embed in level zero. The resulting finite
+union `AugmentedCompute` is exactly confluent from typed sources, including all
+selected closed structure equations. The concrete-pattern interface is supplied
+by the standard environment Params instance.
+
+Validation: the final target builds (370 jobs). All ten public theorems pass
+`/tmp/augmented-computation-audit.log`, using only propext, Classical.choice and
+Quot.sound or subsets, with no sorryAx. No executable changes or strengthening
+inverses were used. This resolves the extra-equation computational-confluence
+prerequisite for eta composition, not the eta/computation composition itself;
+the original strengthening sorry and the sufficient-front question remain open.

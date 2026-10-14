@@ -549,3 +549,5 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   at every stage. Prefix-only primitives retain descent and substitution. This
   removes one redundant critical overlap, but does not settle guard transport,
   general composition or the full strengthening goal.
+
+| Extend exact computational confluence to the selected structure programs | **Checked.** `SeparatedPrefixDiamond` gives an exact DeltaPar/separated-parallel diamond over the actual stored/structure collection, including both projection presentations. `SeparatedPrefixPaths` extends this to finite ordinary paths. `AugmentedComputationalConfluence` combines that exchange, ordinary confluence and exact prefix self-peaks by decreasing diagrams. The finite augmented union is confluent from typed sources, with no canonical Eq or strengthening premise. The remaining eta/computation composition is not supplied by this result. |
