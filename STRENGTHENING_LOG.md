@@ -2692,3 +2692,45 @@ audits exclude sorryAx and use only propext, Classical.choice and Quot.sound.
 No executable changed. This closes proof-index prefix replay, but leaves
 arbitrary data-index prefixes and general equality coverage open, so the active
 strengthening goal is not marked complete.
+
+### Repair literal family exposure through both eta forms
+
+The previous turn was checked progress through 8bdc6592. The new full-recovery
+baseline leaves an operational repair problem, not a missing declarative path.
+This turn fills a gap in the existing observation model: it previously exported
+Pi and sort exposure, but not projection-family exposure.
+
+`FamilyHeadRepair.lean` uses its existing constructor tuple observations for
+registered family heads. WF.projStatic proves that such a head is never any
+projection constructor, so the tuple is admissible at all levels. Empty demands
+on every argument record only the head, levels, and argument count. Backwards
+observation through the mixed EtaCompute relation then gives PatternCompute to
+the same family and levels with replacement arguments of the same count. Both
+function eta and structure eta are covered; original eta annotations and family
+arguments need not avoid a removed binder.
+
+`family_exposure_below` combines this repair with syntactic lift inversion.
+`major_type_below` reconstructs the lower family typing by replay from the major's
+original typing. `projection_type_below` then derives field selection and the
+projection's typing using the earlier totality theorem. The recovered parameters
+are not required to equal the ambient path's parameters.
+
+`FamilyTraceRecovery.lean` compiles mixed Pi/family traces into TypeRecoveryWith
+for any computational base containing PatternCompute. Thus intermediate eta
+annotations do not need their own recovery certificates when they can be removed
+by this head-model argument. The family case uses only ambient computation
+replay, source projection well-formedness, and the registered family. The model's
+uncovered indexed singleton operations remain outside this theorem; no bridge
+from arbitrary full paths is claimed.
+
+The new target builds with 269 dependency jobs, and the combined full-recovery,
+compared-eta and substitution build passes with 355 jobs. Eight axiom audits have
+no sorryAx, only propext, Classical.choice and Quot.sound. No executable changed;
+concurrent proof-index/singleton work was left untouched. The original goal stays
+active, with full head repair and comparison coverage still open.
+
+An annotation-erasure counterexample idea was also examined: loops at two
+separately declared recursive fixed-point types have the same raw unannotated
+shape. No non-convertibility proof was obtained. Finite beta stability alone
+would not exclude full delta/eta joins, so this remains an unverified candidate,
+not a rejection of annotation-erasure repair and not a strengthening counterexample.
