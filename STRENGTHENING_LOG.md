@@ -1743,3 +1743,32 @@ The target builds with 248 dependency jobs. Seven axiom audits contain only
 propext, Classical.choice, and Quot.sound; no sorryAx appears. No executable
 changed. The requested final deliverable is still unresolved and the goal
 remains active.
+
+### Remove metadata and typing side assumptions from the stored-model test
+
+`CanonicalEqRegistry.lean` derives the registry entry of Eq.rec directly from
+its canonical iota pattern, including its major offset of five. Independently,
+`RecursorRegistered.eqRec_numIndices` compares the installed recursor type with
+the generated result spine: canonical Eq's motive has two arguments, so every
+registration at that name has exactly one index. This also proves that no added
+unindexed singleton unfolding can have Eq.rec as its head.
+
+`canonical_cast_boundary_registered` removes the registration and offset
+premises from the previous stored-model boundary. `canonical_cast_counterexample`
+constructs all remaining context and argument typings: a free proof of reflexive
+type equality casts a Pi type to itself. Canonical K gives the actual typed
+equation, while the stored-equation/guarded-iota/projection/eta head model cannot
+expose its Pi. Thus this model's inadequacy holds in every well-formed
+canonical-Eq environment without additional existence assumptions.
+
+This still concerns the stored-equation collection. Excluding unindexed
+singleton unfoldings does not exclude the structure-unfolding extension; no
+refutation of the full `IndexedPrefixReplay` hypothesis is claimed here. Neither
+the strengthening theorem nor an alternative requested final deliverable has
+been established.
+
+The target builds with 278 dependency jobs. Five axiom audits contain no
+sorryAx, only propext, Quot.sound, and (where used) Classical.choice. Commit
+5eae047a contains the preceding constructor-exposure boundary and is pushed.
+Two independently appearing workspace changes, SingletonIndexAlignmentBoundary
+and UnalignedEqMajor, are left untouched and excluded from this commit.
