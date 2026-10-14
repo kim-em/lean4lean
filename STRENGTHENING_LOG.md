@@ -4348,3 +4348,36 @@ obligation, not a counterexample to typed composition or to strengthening.
 The targeted build passes (282 jobs), and all five theorem axiom audits in
 `/tmp/erasure-recovered-composition-audit.log` contain only propext,
 Classical.choice and Quot.sound. No goal completion criterion is reached.
+
+### Exact substitution boundary and recoverable-image substitution
+
+`ProofErasureRecoverySubstitutionBoundary.lean` checks that erasure does not
+repair the earlier exact selected-type substitution failure. Choose the extra
+binder to be `Prop`, so its variable is a proposition rather than a proof. The
+captured Pi erases to `forall ((fun _ : Prop => Prop) #0), Prop`; its visible
+index zero prevents it from being any shape's thinning image. The scoped identity
+is ordinarily typed at that Pi by conversion. Recovery descent therefore excludes
+recovery of the exact captured erasure at every finite compared-K stage.
+
+The full counterexample includes a well-formed source context, a correctly typed
+substitution, and an erased variable recovery certificate before substitution.
+The identity still recovers its plain Pi afterward, and the captured erased type
+beta-computes to that plain type. Thus changing the recovered output remains a
+possible repair; exact preservation for arbitrary typed images is no longer an
+open candidate.
+
+`ProofErasureRecoveredSubstitution.lean` proves the restricted positive law.
+`TypeOracle.RecoverableSubst` requires each raw image to recover its substituted
+oracle assignment. This invariant extends under retained binders by weakening
+old images, and supports simultaneous substitution for TypeRecovery and both
+RecoveredCompare modes. One-variable instantiation requires argument recovery
+at each endpoint's selected binder type. Finite compared-K stages preserve their
+stage under this law. It does not assert recovery for standalone proof markers,
+heterogeneous substitutions, or arbitrary typed images.
+
+Validation: both targeted builds pass (300 and 271 jobs). Six boundary theorem
+and seven substitution theorem axiom audits pass, with no sorryAx and only
+propext, Classical.choice, Quot.sound or subsets (the raw beta repair uses no
+axioms). Logs: `/tmp/erasure-recovery-substitution-audit.log` and
+`/tmp/erasure-recovered-substitution-audit.log`. Full strengthening remains open;
+no executable changed and no goal completion criterion was reached.

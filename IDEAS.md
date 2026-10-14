@@ -326,3 +326,15 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   eta is excluded by the probe body, and compatible computation preserves it.
   Typed forward beta transport into the stronger relation, even with any finite
   output stage, still implies PropositionFront. This is not a smaller front.
+
+- **Exact contextual recovery after arbitrary typed substitution, despite proof
+  erasure:** refuted at every finite output stage. The extra variable can be a
+  proposition, so it survives erasure in the selected captured Pi. Substituting
+  a correctly typed scoped identity leaves an output erasure outside the thinning
+  image, contradicting checked recovery descent. The identity recovers its plain
+  Pi, to which the selected captured type beta-reduces. Re-synthesis remains live.
+- **Substitution with exactly recoverable erased images:** checked. An oracle
+  invariant requiring each image to recover its substituted assignment extends
+  under binders. It preserves recovery and both comparison modes at the same
+  stage, including one-variable beta instantiation. This is a restricted lawful
+  interface, not a claim about arbitrary typed arguments or proof markers.
