@@ -3589,3 +3589,38 @@ The combined targeted build passes (304 jobs). Twelve axiom audits contain only
 propext, Classical.choice and Quot.sound, with no sorryAx. This improves the
 certificate route but neither proves weakN_iff nor establishes a sufficient
 strictly smaller obligation. No executable changed; the original goal is active.
+
+### Compatible pattern simulation and factorization
+
+`PatternProjectionTransport.normal_projection_compute` supplies the remaining
+projection root case. Normal comparison of its major either beta-exposes the
+registered constructor spine or forces a proof result; the two function
+alternatives contradict its rigid family typing. The selected fields retain
+normal comparison, and projection replay uses the actual registry and saturation.
+
+`PatternStep.lean` packages one compatible beta, closed-delta, concrete-pattern
+or projection contraction, proves lifting, and decomposes arbitrary finite
+PatternCompute paths. Its pattern roots retain concrete registration together
+with the uniform CheckFromTyping certificate; this supplies each actual guard
+from the source typing when simulation needs it.
+
+`NormalPatternSimulation.normal_pattern_step` assembles the root cases with the
+comparison induction. The constant-pattern case changes levels using const_levels
+and re-establishes the uniform check; applied roots use normal_iota_compute, and
+projection roots use the new lemma above. Eta cases use pattern fresh-argument
+reflection. `normal_pattern_simulation` covers arbitrary finite compatible paths.
+`normal_core_computation` instantiates the original environment's concrete Params
+and ParRed, without any additional premise about pattern completeness.
+
+`NormalPatternFactorization.lean` establishes transitivity and compatibility of
+pattern computation followed by ordinary normal comparison. TypedPatternEta.factor
+then postpones all function eta from this fragment into one final comparison.
+Sound universe closure admits the original closed-equation collection as input;
+projection and concrete pattern steps are preserved when enlarging that collection.
+
+Prefixes and structure eta remain explicit missing computation cases. The final
+NormalEq still contains opaque domain conversions, so this is not a proof of
+strengthening or a smaller sufficient obligation. The targeted build passes
+(246 jobs). Ten axiom audits contain no sorryAx, using only propext,
+Classical.choice and Quot.sound. The executable and original UniqueTyping sorry
+are unchanged; the full goal remains active.
