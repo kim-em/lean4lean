@@ -2070,3 +2070,47 @@ The target builds with 220 dependency jobs. Five axiom audits contain only
 propext, Classical.choice and Quot.sound, with no sorryAx. No executable changed.
 Independent workspace commits through 64bcd094 were preserved. The goal remains
 active.
+
+### Compatible body eta with source-typed function-type recovery
+
+The preceding turn made checked progress by showing that stronger K guards cannot
+supply the recursive loop's body eta. This turn constructs a distinct mechanism
+for the missing step, without permitting arbitrary ambient eta annotations.
+
+`TypeRecovery.lean` records a finite reconstruction of a particular type from
+variables, constants, sorts, lambdas, applications, Pis, and certified computation
+on an already recovered type. Its replay premise is only source well-formedness.
+For application, recovering the function's Pi type and using ordinary typing
+uniqueness supplies the argument typing; there is no separate argument-conversion
+hypothesis. Lambda domains come from source syntax. Pi universe choices descend
+by sort uniqueness, which does not require equality strengthening.
+
+`TypeRecovery.descend` reconstructs both the entire output type syntax and its
+typing below arbitrary binder insertion. The relation also weakens. The present
+syntax has no projection-recovery constructor, and makes no claim to reproduce
+every arbitrary declarative typing.
+
+`RecoveredEtaComputation.lean` adds eta steps whose Pi typings carry those recovery
+certificates to the existing certified K computation. Its compatible closure
+includes applications, domains and bodies of lambdas/Pis, projections, and finite
+transitivity. `descend` produces an exact lower result and equality at the original
+source type. In an eta step, it reconstructs the chosen domain below instead of
+assuming the expanded result was typed there. Intermediate typings follow from
+replay. Pi exposure and weakening are also checked.
+
+`RecoveredEtaLoop.lean` recovers the recursive loop body's function type by a
+variable lookup, one stored delta step at D, and application. Two compatible eta
+expansions give exactly the earlier repair. The canonical environment test pairs
+this new computation and its replayed equality with the old theorem excluding
+that target under every guarded-K matching predicate. Conversely,
+`captured_eta_not_recovered` excludes the known ambient eta step whose domain
+captures the removed binder. Thus arbitrary exact-target simulation remains
+impossible; general coverage must choose scoped repairs rather than copy every
+ambient eta annotation.
+
+The final target builds with 288 dependency jobs. Six final axiom audits, plus
+the earlier soundness/Pi-recovery audits, contain no sorryAx. Projection recovery,
+recursive staging with these new eta computations, and full comparison/indexed
+prefix coverage remain open. No executable changed, and no requested final
+strengthening deliverable is claimed. Independent suspended-substitution files
+were preserved without modification; the goal remains active.
