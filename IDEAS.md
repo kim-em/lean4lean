@@ -620,3 +620,19 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   and higher-stage prefix interactions remain open; this is not full confluence.
 
 | Recover data-parameter phases from a family phase using head beta | **Checked.** `NormalSortHeadBeta` mirrors finite head beta through NormalEq when the whole source is sort-typed, carrying pending arguments through eta cases without reducing under lambdas. `SymmetricFamilyArguments` retains eta paths from both original family spines and extracts pointwise EtaJoin or PrefixEtaJoin, including data arguments and differing universe syntax. `StructureEtaFamilyPhase` uses this to discharge the parameter premise of the constructor-exposing eta/computation overlap from a phase between its family instances. Arbitrary typing-derived conversion still does not provide that family phase; general mixed composition and strengthening remain open. |
+
+- **Retain raw guards when common-compared functions are applied.** **Checked**
+  in `ProofErasureRawApplication`: both raw comparison layers, in either input
+  mode, preserve common raw checking under a shared typed argument. Lambda bodies
+  substitute directly; displayed eta applications actually beta-compute to the
+  short application; typed replay handles arbitrary computation nodes. This
+  works for any substitution-stable primitive relation with typed descent,
+  including all finite prefix/K stages, without contextual composition.
+- **Use computationally joined arguments to avoid comparison transitivity.**
+  **Checked** in `ProofErasureRawJoinedApplication` and
+  `ProofErasureRawJoinedSubstitution`. Common-compared functions accept distinct
+  arguments with a literal erased join. Paired typed bodies instantiate at such
+  arguments with raw certificates in either mode, at the same prefix-only stage.
+  Exact erasure equality handles proof captures and dependent result proofness.
+  Arbitrarily compared arguments without a literal join remain outside these
+  results; no general transitivity or smaller sufficient front is claimed.

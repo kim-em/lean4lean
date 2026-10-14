@@ -5870,3 +5870,42 @@ Validation: the final target builds (430 jobs). All eight public declarations
 pass `/tmp/symmetric-family-audit.log` with only propext, Classical.choice and
 Quot.sound and no sorryAx. No executable changes or strengthening inverses were
 used. The original strengthening sorry remains open.
+
+## Raw application closure and joined-argument paired instantiation
+
+`ProofErasureRawApplicationSupport` strengthens the earlier contextual application
+support. Common lambda-body checking substitutes directly in raw syntax, using
+beta on both applications. For a displayed eta guard between common-typed
+functions, typed classification determines the correct proof-marker/variable
+argument. Substituting a typed argument into that slot yields its exact erasure;
+consequently the long application has an actual finite erased beta path to the
+short application. This handles proof collapse at the dependent result type.
+
+`ProofErasureRawApplication` inducts over both `Compare` and `RawCheckedCompare`.
+Every input mode supports application to a shared typed argument, with a raw
+common-mode certificate as output. Structure eta is excluded at function types;
+computation nodes replay at the supplied Pi type and use the induction hypothesis.
+The only primitive hypotheses are typed descent and raw substitution stability.
+The result therefore applies at every existing finite prefix/K stage, without
+promoting common function comparison to inferred mode or adding contextual rules.
+
+`ProofErasureRawJoinedApplication` extends this to distinct arguments with a
+literal erased computational join. Typed replay reconstructs the two reducts.
+Their exact erasure equality gives equal application erasures, including
+dependent proof classification, and the shared-argument theorem supplies the
+terminal raw guard. No confluence or transitivity premise is used.
+
+`ProofErasureRawJoinedSubstitution` gives a direct syntactic counterpart: pointwise
+argument computation computes a substituted raw body. Two different argument
+paths to a common raw target therefore combine with any raw body certificate by
+substituting the common target, preserving the original mode. Typed erasure
+commutation then yields paired original-body instantiation. All prefix-only
+stages satisfy the needed substitution and weakening properties, so neither
+application nor paired instantiation increases the stage. The argument join is
+still an explicit computational premise; arbitrary compared arguments are not
+claimed to satisfy it. Strengthening, full comparison composition, and higher
+prefix confluence remain open.
+
+Validation: the final target builds (314 jobs). All 16 new public theorems pass
+`/tmp/raw-application-audit.log` with only propext, Classical.choice and Quot.sound,
+and no sorryAx. No executable edits or strengthening inverses were used.
