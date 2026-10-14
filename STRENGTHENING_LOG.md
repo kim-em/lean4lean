@@ -5077,3 +5077,38 @@ open; the original strengthening theorem is unchanged.
 Validation: the new module builds (342 jobs). All seven public theorems are
 axiom-audited in `/tmp/structure-prefix-disjoint-audit.log`, using only propext,
 Classical.choice and Quot.sound or subsets. No executable changes or sorryAx.
+
+### Deterministic declaration union and finite beta/delta confluence
+
+`DeclarationDeterminism.lean` recovers the actual definition registry entry
+from every `Definitions.ofEnv` bare-constant equation. The quotient equation
+cannot contribute one because its left side is a lambda. The definition's
+universe identity instance identifies its stored value at the displayed levels,
+so the existing collection is functional at fixed name and universe syntax.
+A registered recursor with an owned constructor has an actual installed iota
+rule; environment head separation excludes every stored constant equation at
+that head. This proves disjointness for the selected structure programs and
+exact determinism of their union with `Definitions.ofEnv`.
+
+`DeclarationConfluence.lean` proves raw beta/delta confluence for any deterministic
+collection of closed definitions. Parallel contraction is stable under lifting
+and simultaneous parallel substitution. A complete development contracts each
+source beta redex and chooses a single source delta value, without recursively
+developing a chosen value. Every partial parallel contraction reaches that
+complete development in one further parallel step. The resulting diamond, strip
+lemma and finite closure give an exact common reduct for arbitrary finite
+`Compute` paths. Recursive and looping definitions require no termination
+assumption; neither typing, canonical Eq nor a strengthening front is used.
+
+The combined actual stored definitions and selected structure programs satisfy
+the premise, yielding their beta/delta confluence as a checked instance. This
+is the base computation component only. Projection, ordinary iota and prefix
+computation still require their compatible peaks to be joined. Saturating
+definitions by equivalent universes retains different raw values, so literal
+determinism is not claimed for that closure. Full symmetric phase composition
+and the original strengthening theorem remain open.
+
+Validation: both modules build in the successful 343-job target. All fourteen
+public results are audited at `/tmp/declaration-confluence-audit.log`, with only
+propext, Classical.choice and Quot.sound or subsets, and no sorryAx. No executable
+was changed.
