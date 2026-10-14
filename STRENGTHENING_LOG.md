@@ -1600,3 +1600,19 @@ the Eq boundary contain only propext, Classical.choice, and Quot.sound. There is
 no sorryAx dependency and no executable change. The requested strengthening
 proof, canonical-Eq counterexample, or strictly smaller sufficient irreducible
 front is still unestablished; the goal remains active.
+
+### Substitution of transported reconstruction
+
+The previous goal turn is progress: commit 81a5501d and its predecessors are
+present, pushed, and the initial worktree was clean. The next experiment is to
+transport the reconstructed constructor between its own family proposition and
+the requested one, using another propositional elimination from the major.
+
+`SingletonTransportNaturality.lean` proves raw substitution of witness lists and
+reconstructed fields. `substHat_subst` handles the casts and dependent field
+substitutions; the witness functions are fixed because their closed typings
+imply closed syntax. No occurrence typing is needed for this naturality result.
+`SingletonOccurrenceContexts.lean` supplies the generic identity occurrence,
+constructor occurrence, family proposition typing, and specialization of the
+generic transported fields. The target builds (175 jobs); the naturality axiom
+audit contains only propext, Classical.choice, and Quot.sound, or subsets.
