@@ -2,10 +2,11 @@ import Lean4Lean.Theory.Typing.Strengthening.CastComputation
 
 /-! # Nonlinear cast matching and raw eta elimination
 
-Beta plus syntactically reflexive cast contraction does not admit the raw eta
+Beta plus syntactically reflexive K contraction does not admit the raw eta
 elimination theorem used by the finite-demand head model. Eta may make two
 endpoints identical and thereby enable K. This is a syntax counterexample for
 that fragment, not a typed counterexample or a boundary for all CastCompute rules.
+EqRecEtaBoundary gives a separate typed example using the general K rule.
 -/
 namespace Lean4Lean.VEnv.Strengthening.CastEtaBoundary
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr
@@ -16,6 +17,7 @@ inductive Compute : Bool → VExpr → VExpr → Prop where
   | trans : Compute eta a b → Compute eta b c → Compute eta a c
   | beta : Compute eta (.app (.lam A b) a) (b.inst a)
   | cast : Compute eta (typeCast u X X p x) x
+  | eqRec : Compute eta (eqRecApp v w α a motive minor a proof) minor
   | eta : Compute true e (.lam A (.app e.lift (.bvar 0)))
   | app : Compute eta f f' → Compute eta a a' → Compute eta (.app f a) (.app f' a')
   | lam : Compute eta A A' → Compute eta b b' → Compute eta (.lam A b) (.lam A' b')
@@ -45,6 +47,7 @@ theorem Compute.eq_of_normal (R : Compute false e out) (hn : normal e = true) : 
     exact (ih2 (h.symm ▸ hn) hm).trans h
   | beta => simp [normal, rootRedex] at hn
   | cast => simp [normal, rootRedex, typeCast, eqRecApp] at hn
+  | eqRec => simp [normal, rootRedex, eqRecApp] at hn
   | eta => cases hm
   | app _ _ ihf iha =>
     simp only [normal, Bool.and_eq_true] at hn

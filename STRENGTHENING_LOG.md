@@ -1820,3 +1820,24 @@ unaligned-major scratch files were redundant with the now-committed registry
 and arbitrary-constructor boundary, and have been removed. The complete head
 boundary target builds; audits of rigidity, the simplified iff, and the full
 model refutation have no sorryAx. The strengthening goal remains open.
+
+### Source typing does not repair beta/K eta removal
+
+`CastEtaBoundary.Compute` now includes general syntactically reflexive Eq.rec
+computation. The existing certified-normality proof and untyped cast test remain
+valid for this larger fragment. `EqRecEtaBoundary` supplies a typed test: a
+neutral function and its eta expansion are the endpoints, a constant motive
+returns Type, and the minor is a Pi type. A free equality assumption supplies the
+major in a well-formed context. All typings follow from canonical Eq.
+
+Expanding the short endpoint enables K without changing the motive. Without eta,
+the source is beta/K-normal and every path is the identity. Thus source typing
+alone cannot restore this raw Pi-exposure theorem, even for type-valued sources.
+The counterexample applies to the specified beta/K fragment, not every rule of
+CastCompute or FullReduction. `source_eq_minor` also checks the positive typed
+repair using endpoint eta, so this is not a strengthening counterexample.
+
+The target builds with 243 dependency jobs. Four audits, including both old and
+new eta-removal failures, contain no sorryAx. No executable changed. A typed
+alignment mechanism, or a raw model with additional adequate matching, is still
+needed; the requested strengthening deliverable remains unresolved.
