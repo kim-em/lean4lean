@@ -2911,3 +2911,22 @@ The targeted build passes with 282 jobs. Eight axiom audits exclude sorryAx,
 using only propext, Classical.choice and Quot.sound. No executable changed.
 Family-certificate completeness and general equality coverage remain open; the
 original strengthening goal is still unresolved.
+
+### Substitution through arbitrary indexed prefix guards
+
+`IndexedRecoverySubstitution.lean` proves opened-provider substitution under the
+exact residual binder count. Source typing supplies both family propositions;
+the generic guard transformer applies under the substituted telescope. Raw family
+naturality identifies its endpoints, and generator substitution plus closed RHS
+specialization preserves the exact output of PrefixStep.
+
+The resulting next-stage substitution theorem extends the earlier recovered K
+argument. `IndexedEtaCompute.substitution` has the additive bound r + stage when
+the argument recovers its declaration at stage r. `beta_inst` composes displayed
+beta contraction with the transformed indexed body computation. This handles
+arbitrary data-index prefixes carrying certificates; it does not establish those
+certificates for arbitrary ambient family conversions.
+
+The new target passes with 287 jobs. Six axiom audits exclude sorryAx, using only
+propext, Classical.choice and Quot.sound. No executable changed. The original
+strengthening goal and general certificate coverage remain open.
