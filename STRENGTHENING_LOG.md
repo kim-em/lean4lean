@@ -2114,3 +2114,39 @@ recursive staging with these new eta computations, and full comparison/indexed
 prefix coverage remain open. No executable changed, and no requested final
 strengthening deliverable is claimed. Independent suspended-substitution files
 were preserved without modification; the goal remains active.
+
+### Computational joins and a checked conditional-entry obstruction
+
+The previous goal turn was progress: its three commits, ending at 1c618b20,
+are present and pushed. This turn first extends the suspension invariant over
+concrete computational joins. `SuspendedCastJoin.lean` combines CastCompute's
+scope inversion and raw substitution with typed replay and the preceding
+bidirectional reflection theorem. Reduct typings below are derived, not supplied.
+Proof substitutions preserve a CastBiJoin certificate; arbitrary known lower
+equalities give declarative equality. This includes the current sound closed
+pattern equations and syntactic K, without asserting full reduction coverage.
+
+The central lambda-argument residue suggests weakening entry equality to
+agreement only when lower types align. `ConditionalSubstitutionBoundary.lean`
+refutes that proposal concretely. Let D = Prop → Prop and E = D → Prop.
+The left argument is λP : Prop. P : D; the right is λf : D. (∀P : Prop, P) : E.
+The two functions are λx : D. Prop and λy : E. D. Their applications both have
+sort 1, but beta-reduce to Prop and D, which sort/Pi disjointness separates.
+
+A source context has a hidden variable T : sort 1, a function T → sort 1, and
+an argument of type T. Its application has a reflexive common-mode BiNormal
+certificate. The two typed ambient substitutions realize T as D and E. The
+raw template renaming skips T. Both resulting squares commute and are fully
+typed. For each used substitution entry, having convertible lower types is
+impossible by uniqueness and Pi inversion, so CommonEntryRel holds. Unused
+entries agree literally. `common_entry_descent_failure` packages the complete
+counterexample. It works for every Params environment and therefore also under
+canonical Eq. It is not a strengthening counterexample: the hidden source type
+is instantiated differently. It rules out this specific way of avoiding the
+unconditional argument-equality premise, even when both arguments are lambdas
+and the whole result types agree.
+
+The two targets build with 250 and 221 dependency jobs. Five axiom audits have
+only propext, Classical.choice and Quot.sound, with no sorryAx. No executable
+changed. The original strengthening result and a strictly smaller sufficient
+obligation remain unproved; the goal stays active.
