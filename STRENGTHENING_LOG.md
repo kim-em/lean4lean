@@ -1810,3 +1810,13 @@ dependency, contain no sorryAx.
 The final target build succeeds with 299 dependency jobs. The independently
 appearing CanonicalEqHeadMetadata file is also left untouched, together with
 the two earlier unrelated workspace changes.
+
+### Consolidate canonical Eq rigidity
+
+Canonical rigidity now lives in SingletonIndexAlignmentBoundary, allowing
+`eqRefl_typed_iff_endpoint_eq` to drop its separate rigidity premise.
+EqConstructorBoundary reuses the same theorem. The parallel metadata and
+unaligned-major scratch files were redundant with the now-committed registry
+and arbitrary-constructor boundary, and have been removed. The complete head
+boundary target builds; audits of rigidity, the simplified iff, and the full
+model refutation have no sorryAx. The strengthening goal remains open.

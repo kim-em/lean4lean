@@ -15,19 +15,6 @@ namespace Lean4Lean.VEnv
 open _root_.Lean4Lean.VExpr
 variable {env : VEnv}
 
-/-- Canonical Eq is rigid in every well-formed environment: its registered
-recursor constructor returns Eq, whose head is rigid by declaration provenance. -/
-theorem HasCanonicalEq.rigid (heq : env.HasCanonicalEq) (henv : env.WF) : env.Rigid ``Eq := by
-  obtain ⟨doms, hc, _, hp⟩ := heq.2.2.2
-  have hctor : IsPatCtor env ``Eq.refl := ⟨canonicalEqRecPattern,
-    (canonicalEqRecRHS doms hc, .true), ``Eq.rec, 5, 2, hp, rfl⟩
-  obtain ⟨ci, hci, F, ls, hF, _, hr⟩ := henv.patCtor_resultRigid hctor
-  rw [heq.2.1] at hci
-  cases Option.some.inj hci
-  change VExpr.const ``Eq [.param 0] = .const F ls at hF
-  obtain ⟨rfl, _⟩ := VExpr.const.inj hF
-  exact hr
-
 namespace Strengthening
 
 /-- Invert the two canonical constructor arguments at any typing of Eq.refl. -/
