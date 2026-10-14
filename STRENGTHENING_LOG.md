@@ -4047,3 +4047,51 @@ Validation: the targeted build passes (268 jobs). All five eta/recovered-Pi
 public audits pass, completing twelve core/descent/eta audits in
 `/tmp/erasure-recovery-audit.log`; only propext, Classical.choice and Quot.sound
 occur, with no sorryAx. No executable changed. The strengthening goal is open.
+
+### Structure-eta boundary and conditional inferred-type head repair
+
+The preceding factorization cannot simply be asserted for FullReduction.
+`PrefixStructureBoundary.lean` gives a checked obstruction. PrefixCompute
+cannot change a bare variable. Ordinary NormalEq also fixes a variable when
+it is not a proof and cannot have a Pi type: the syntax constructors do not
+apply, proof irrelevance is excluded, and both applicable eta constructors
+would supply the forbidden Pi typing. Their composition therefore fixes it.
+An actual structure eta step, however, expands the variable to a constructor
+spine, which cannot be syntactically that variable.
+
+The obstruction retains registration, saturation and both original endpoint
+typings. Its stronger specialization derives the expanded typing from the
+registered never-zero source universe and source typing alone. Universe
+uniqueness proves that the variable is not a proof. Finally, any well-formed
+unindexed family at such a universe supplies the variable in its fresh context,
+so neither an original inhabitant nor an assumed expansion typing is needed.
+This does not refute strengthening, and it does not rule out an extension with
+structure expansion in computation or a richer terminal comparison. It rules
+out unchanged PrefixCompute/NormalEq factorization of the full presentation.
+
+`PrefixEtaHeadExposure.lean` extracts the useful head-recovery consequence of
+the factorization that does hold. A normal comparison to a Pi already has a
+Pi on its other side. For a sort-typed constant spine, beta-only exposure
+cannot use proof irrelevance, expose a lambda, or leave an extensional function:
+the available sort typing excludes each alternative. Thus a typed
+pattern/prefix/function-eta path exposing either head can be replaced by
+actual PrefixCompute. Constant names, equivalent levels and arity are retained.
+
+Exact computational reflection under the witnessed front then repairs these
+head exposures below arbitrary Lift'. Unlike exact descent of the original
+eta path, this places no scope condition on its annotations. Applying the
+repaired lower equation to an original term's inferred type reconstructs an
+actual lower Pi or family typing. All checked indexed singleton prefixes in
+the stated fragment are covered, without the earlier proof-index restriction.
+
+Structure-eta paths remain outside these head-repair theorems. Their coverage,
+the witnessed front and the original opaque-domain descent problem remain
+open; this is not a smaller sufficient obligation or a proof of strengthening.
+The structure boundary changes the next step: a full head-repair argument must
+handle structure expansion explicitly rather than invoking the current finite
+factorization unchanged.
+
+Validation: both targeted builds pass (312 jobs for the boundary, 355 for head
+repair). Eleven public axiom audits in `/tmp/prefix-head-boundary-audit.log`
+contain no sorryAx, using only propext, Classical.choice and Quot.sound or a
+subset. No executable changed, and the original UniqueTyping sorry remains.
