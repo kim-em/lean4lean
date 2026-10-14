@@ -1841,3 +1841,42 @@ The target builds with 243 dependency jobs. Four audits, including both old and
 new eta-removal failures, contain no sorryAx. No executable changed. A typed
 alignment mechanism, or a raw model with additional adequate matching, is still
 needed; the requested strengthening deliverable remains unresolved.
+
+### Recursive typed endpoint certificates for K computation
+
+The previous turn made progress by refuting raw beta/K eta removal even with
+source typing. This turn follows its positive repair: preserve a finite typed
+comparison certificate instead of requiring literal equality after eta removal.
+
+`GuardedKComputation.lean` defines a compatible computation relation with an
+explicit endpoint-matching predicate. It contains every CastCompute path and
+adds general Eq.rec contraction guarded by that predicate. Its syntactic
+`lift_shape` theorem shows all intermediate and final terms remain lifts.
+`simAt_below` then replays the entire compatible path below an arbitrary binder
+insertion if common-typed matching certificates descend. In the K case, source
+inversion supplies endpoint typings; in transitivity, the first replay supplies
+the intermediate typing. Applications, lambda domains/bodies, Pi domains/bodies,
+and projections are all covered. Output typing below is never postulated.
+
+`CertifiedKComputation.lean` supplies an explicit family of certificates that
+satisfies this premise. Depth zero is HybridNormal. At each successor depth,
+both endpoints may compute using previous-depth certificates before their final
+HybridNormal comparison. Induction on depth replays those two computations below
+and invokes hybrid descent at their now-typed results. Thus finite nesting of
+K guards, beta/delta/iota/projection computations, and eta-aware endpoint matching
+is supported; the depth does not bound ordinary path length. Certificates and
+computations also survive finite binder insertion.
+
+`CertifiedKExamples.lean` checks the earlier typed eta counterexample with a
+depth-zero guard. That source itself becomes an endpoint of an enclosing,
+well-typed Eq.rec, which computes with a depth-one certificate. Its proof is
+constructed from the checked inner equation; no additional endpoint-alignment
+hypothesis is supplied. The nested path weakens through arbitrary binder
+insertions.
+
+The target builds with 249 dependency jobs. Six audits, including general replay,
+recursive certificate descent, Pi exposure, and the typed nested example, have
+no sorryAx. The executable is unchanged. Full indexed-prefix coverage and hybrid
+comparison completeness are not proved, and this is not a smaller sufficient
+obligation than PropFront. The strengthening goal remains active. An independently
+appearing HeterogeneousProofSubstitution file was left untouched.
