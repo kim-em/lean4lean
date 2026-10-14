@@ -5245,3 +5245,47 @@ Validation: all three modules build in the successful 355-job target. All
 fourteen public results are axiom-audited at
 `/tmp/separated-pattern-computation-audit.log`, using only propext, Classical.choice
 and Quot.sound or subsets, with no sorryAx. No executable was changed.
+
+### Exact confluence for separated ordinary patterns
+
+`SeparatedParallel.lean` extends parallel beta/delta/projection development by
+ordinary registered patterns carrying the head-separation certificate. Parallel
+lifting, simultaneous substitution and RHS capture development are checked.
+Every rigid head preserves its complete argument spine, and every parallel
+step serializes into the separated finite relation.
+
+`SeparatedPatternMatching.lean` records non-unfolding at precisely the fixed
+constant positions of a match. The root's separation certificate protects the
+recursor position at its actual universes; environmental rigidity protects the
+constructor positions. Pattern uniqueness excludes an enabled registered rule
+strictly inside another rule's fixed structure. Therefore a parallel step in a
+proper fixed subpattern preserves its match and computes only its captures.
+Each capture is a strict subterm of the original matching source.
+
+`SeparatedConfluence.lean` uses those facts in an exact parallel diamond by
+source size. A compatible reduction competing with a pattern root preserves
+the root's match and supplies competing capture steps. Two root rules are
+identified by pattern intersection/uniqueness and deterministic matching. In
+both cases, smaller capture joins assemble into the RHS and the residual root
+step. Declaration overlaps are excluded by head separation; beta and projection
+overlaps retain the preceding exact joins. Serialization and the strip lemma
+then prove raw finite confluence of the separated presentation for deterministic
+closed definitions preserving all rigid heads.
+
+The checked translation of typed ordinary-pattern paths now yields
+`PatternCompute.registeredStructure_confluent`: exact confluence of the original
+augmented ordinary-pattern relation over actual stored definitions and selected
+structure programs, from a typed source. This discharges the explicit premise
+of the preceding entry's conditional theorem. The raw separated proof itself
+needs neither typing, normalization, canonical Eq nor any strengthening front.
+
+This still does not establish confluence with actual singleton/quotient prefixes,
+or comparison at equivalent universe syntax, nor arbitrary eta/computation
+phase composition. Prefix guards require typed replay and cannot simply be
+inserted into the raw-substitution proof. Full strengthening remains open; no
+sufficient strictly smaller front is claimed.
+
+Validation: the three modules build together (358 jobs). All fifteen public
+theorems are axiom-audited at `/tmp/separated-confluence-audit.log`; only propext,
+Classical.choice and Quot.sound or subsets occur, with no sorryAx. No executable
+was changed.
