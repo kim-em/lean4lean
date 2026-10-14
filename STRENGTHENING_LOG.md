@@ -1712,3 +1712,34 @@ new inversion/replay, extended computation, constant-motive boundary, and existi
 cast head recovery have no sorryAx dependency. Only metatheory and the two
 research logs changed. Full strengthening and every requested alternative final
 deliverable remain unestablished; the goal stays active.
+
+### Arbitrary equality-constructor exposure has the same endpoint boundary
+
+The previous checkpoint consists of pushed commits c88f362c and 4ce20a72.
+`EqConstructorBoundary.lean` closes a possible escape from the fixed-constructor
+boundary: changing the reconstructed constructor's carrier, universe, or endpoint.
+
+First, `HasCanonicalEq.rigid` derives Eq rigidity from its registered canonical
+iota pattern and constructor-result provenance. No independent rigidity premise
+is needed. `eqReflApp_typings` recovers the constructor's supplied argument
+typings, and `eqRefl_typed_endpoint_conversion` compares its own reflexive result
+with an arbitrary requested equality type. Rigid family injectivity then forces
+conversion of the requested endpoints.
+
+`eqProof_constructor_iff` gives the exact characterization: a typed equality
+proof converts to some reflexivity constructor if and only if its endpoints
+convert. Full subject reduction gives `eqProof_no_constructor_reduction`, which
+covers every finite actual full reduction, including generated prefixes,
+projections, and both eta expansions. The constant-motive test specializes both
+results to every proof of its equality; transported reconstructions are included
+whenever they have that same type.
+
+This refutes constructor exposure as a way to bypass nonconvertible endpoints.
+It does not show that the enclosing recursor cannot convert to its minor by
+some other argument, nor does it refute strengthening. Indexed-prefix replay
+and matched-lambda comparison remain open.
+
+The target builds with 248 dependency jobs. Seven axiom audits contain only
+propext, Classical.choice, and Quot.sound; no sorryAx appears. No executable
+changed. The requested final deliverable is still unresolved and the goal
+remains active.
