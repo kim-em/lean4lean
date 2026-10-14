@@ -10,6 +10,8 @@ namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params
 open private isProof_congr from Lean4Lean.Theory.Typing.Strengthening.ProofErasurePrimitives
 
+variable [Params]
+
 namespace ProofShape
 /-- Common-mode endpoint comparison guards canonical Eq computation. -/
 inductive ComparedKPrimitive (Step : ProofShape → ProofShape → Prop) : ProofShape → ProofShape → Prop where
@@ -40,6 +42,8 @@ theorem Compare.mono (hstep : ∀ {a b}, Step a b → Step' a b)
   | forallE _ _ ih1 ih2 => exact .forallE ih1 ih2
   | etaL h => exact .etaL h
   | etaR h => exact .etaR h
+  | structL h => exact .structL h
+  | structR h => exact .structR h
   | etaLams _ h ih => exact .etaLams ih h
   | compute Ra Rb _ ih => exact .compute (Ra.mono hstep) (Rb.mono hstep) ih
 
@@ -69,7 +73,6 @@ theorem ComparedKPrimitive.subst
         (HC.subst hstep (σ := σ)))
 end ProofShape
 
-variable [Params]
 
 /-- Source inversion gives common endpoint types below. Recursive comparison
 then validates K, even if its major has no visible constructor shape. -/
@@ -185,5 +188,37 @@ theorem proofErase_compared_K_eta (hΓ : OnCtx Γ (env.IsType univs))
   rcases proofErase_eta_forward hΓ hf with H | H
   · rw [H]; exact .refl
   · exact .etaR H
+
+/-- Every actual structure eta equation is available to the recursive common
+comparison at every finite stage, including proof-field structures. -/
+theorem proofErase_compared_K_structureEta (hΓ : OnCtx Γ (env.IsType univs))
+    (hi : env.projections family info) (hp : ps.length = info.nparams)
+    (hx : info.nindices = 0)
+    (hm : env.HasType univs Γ m (mkApps (.const family ls) ps))
+    (hexp : env.HasType univs Γ (structExpand family info ls ps m)
+      (mkApps (.const family ls) ps)) :
+    ProofShape.Compare (ErasedComparedKStage D stage) true (proofErase Γ m)
+      (proofErase Γ (structExpand family info ls ps m)) := by
+  rcases proofErase_structure_eta_forward hΓ hi hp hx hm hexp with H | H
+  · rw [H]
+    exact .refl
+  · exact .structR H
+
+/-- Canonical Eq computation accepts an endpoint's typed structure expansion as
+a guard, even when the equality proof major has disappeared under erasure. -/
+theorem proofErase_compared_K_structure_guard (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (hi : env.projections family info) (hp : ps.length = info.nparams)
+    (hx : info.nindices = 0)
+    (ha : env.HasType univs Γ a (mkApps (.const family ls) ps))
+    (hexp : env.HasType univs Γ (structExpand family info ls ps a)
+      (mkApps (.const family ls) ps))
+    (ht : env.HasType univs Γ
+      (eqRecApp v w α a M m (structExpand family info ls ps a) p) T) :
+    ProofShape.Compute (ErasedComparedKStage D (stage+1))
+      (proofErase Γ (eqRecApp v w α a M m (structExpand family info ls ps a) p))
+      (proofErase Γ m) :=
+  proofErase_compared_K_forward heq hs hΓ ht
+    (proofErase_compared_K_structureEta hΓ hi hp hx ha hexp)
 
 end Lean4Lean.VEnv.Strengthening

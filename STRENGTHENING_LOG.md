@@ -3694,3 +3694,35 @@ Validation: the targeted build passes (199 jobs). Nine public-theorem axiom
 audits in `/tmp/prefix-fresh-audit.log` contain no sorryAx, using only propext,
 Classical.choice, and Quot.sound (the quotient generation identity needs only
 propext and Quot.sound). The full goal remains active.
+
+### Guarded structure eta in recursive erased comparison
+
+`ProofErasureStructureEta` adds a raw structure head relation carrying actual
+projection registry membership, unindexed saturation, and the closed criterion
+that the source universe is never zero or every field is a proof field. Each
+retained field is its matching projection of the short endpoint; hidden fields
+are proof markers. These conditions are stable under arbitrary raw substitution.
+
+Typed reflection first recovers the constructor's canonical family from its
+declaration and exact family arity. The common endpoint type then types the short
+endpoint at that family, and the retained guard reconstructs its projected
+constructor. A dependent-spine lemma aligns successive domains before comparing
+fields. Hidden proofs use common-type proof irrelevance; visible projections use
+exact erased reflection of their majors. No homogeneous field premise is assumed
+before the preceding spine has been compared.
+
+Every actual typed structure expansion supplies the closed guard through the
+existing expansion_typed_iff theorem, so forward head coverage is unrestricted
+within the original structure-eta rule. Recursive Compare now includes the rule
+in common mode; symmetry, substitution, insertion descent, raw thinning reflection
+and all finite K stages extend. Generic forward theorems also compute Eq.rec when
+one endpoint is the other's typed structure expansion.
+
+The syntax-only retraction algebra moved into ProofShapeRetraction so head rules
+can use it without depending on the comparison they extend. Declaration metadata
+makes Compare and ComparedKPrimitive depend on Params, while raw substitutions
+remain unrestricted. The combined targeted build passes (324 jobs). Fifteen axiom
+audits, including the updated recursive descent and earlier core coverage, contain
+no sorryAx, only propext, Classical.choice and Quot.sound. Inferred structure eta,
+raw singleton primitive integration and comparison completeness remain open. No
+executable changed; weakN_iff and the original goal remain unresolved.

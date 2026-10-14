@@ -1,11 +1,12 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEtaHead
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStructureEta
 
 /-! # Recursive erased comparison with explicit type modes
 
-Common-type mode admits eta. Inferred mode reconstructs equality between
+Common-type mode admits function eta and guarded structure eta. Inferred mode reconstructs equality between
 non-proof endpoints without a supplied type conversion, including eta between
 lambda-shaped endpoints whose displayed domains compare recursively. Function
 positions and domains use inferred mode; arguments use common-type mode after alignment.
+The structure guard retains the registry and closed projection admissibility.
 Both modes admit computations at every node. No completeness claim is made.
 -/
 namespace Lean4Lean.VEnv.Strengthening
@@ -15,6 +16,8 @@ open private erase_app_inv erase_proj_inv erase_lam_inv erase_forallE_inv
 open private erase_const_inv isProof_congr from Lean4Lean.Theory.Typing.Strengthening.ProofErasurePrimitives
 open private ProofShape.liftN_app_inv ProofShape.liftN_proj_inv ProofShape.liftN_lam_inv
   ProofShape.liftN_forallE_inv from Lean4Lean.Theory.Typing.Strengthening.ProofErasureTypedReplay
+
+variable [Params]
 
 namespace ProofShape
 /-- `true` requests common endpoint types. `false` permits type inference at a
@@ -32,6 +35,8 @@ inductive Compare (Step : ProofShape → ProofShape → Prop) : Bool → ProofSh
       Compare Step mode (.forallE A B) (.forallE A' B')
   | etaL : EtaHead e f → Compare Step true e f
   | etaR : EtaHead f e → Compare Step true e f
+  | structL : StructureEtaHead e f → Compare Step true e f
+  | structR : StructureEtaHead f e → Compare Step true e f
   /-- Lambda-shaped short endpoints expose their Pi type below. Comparing the
   displayed domains suffices for eta even in inferred function positions. -/
   | etaLams : Compare Step false A D →
@@ -55,6 +60,8 @@ theorem Compare.symm (H : Compare Step mode a b) : Compare Step mode b a := by
   | forallE _ _ ihA ihB => exact .forallE ihA ihB
   | etaL h => exact .etaR h
   | etaR h => exact .etaL h
+  | structL h => exact .structR h
+  | structR h => exact .structL h
   | etaLams _ h ih => exact .etaLams ih h.symm
   | compute Ra Rb _ ih => exact .compute Rb Ra ih
 
@@ -70,6 +77,8 @@ theorem Compare.common (H : Compare Step mode a b) : Compare Step true a b := by
   | forallE HA HB => exact .forallE HA HB
   | etaL h => exact .etaL h
   | etaR h => exact .etaR h
+  | structL h => exact .structL h
+  | structR h => exact .structR h
   | etaLams HD h => exact .etaLams HD h
   | compute Ra Rb _ ih => exact .compute Ra Rb ih
 
@@ -87,6 +96,8 @@ theorem Compare.liftN
   | forallE _ _ ihA ihB => exact .forallE ihA ihB
   | etaL h => exact .etaL h.liftN
   | etaR h => exact .etaR h.liftN
+  | structL h => exact .structL h.liftN
+  | structR h => exact .structR h.liftN
   | etaLams _ h ih => exact .etaLams ih (h.elim (fun h => .inl h.liftN) (fun h => .inr h.liftN))
   | compute Ra Rb _ ih => exact .compute (Ra.liftN hstep) (Rb.liftN hstep) ih
 
@@ -104,6 +115,8 @@ theorem Compare.subst
   | forallE _ _ ihA ihB => exact .forallE ihA ihB
   | etaL h => exact .etaL h.subst
   | etaR h => exact .etaR h.subst
+  | structL h => exact .structL h.subst
+  | structR h => exact .structR h.subst
   | etaLams _ h ih => exact .etaLams ih (h.elim (fun h => .inl h.subst) (fun h => .inr h.subst))
   | compute Ra Rb _ ih => exact .compute (Ra.subst hstep) (Rb.subst hstep) ih
 
@@ -114,7 +127,6 @@ private theorem liftN_const_inv {e : ProofShape} (H : e.liftN n k = .const c ls)
   cases e <;> simp_all [liftN]
 end ProofShape
 
-variable [Params]
 
 private theorem erase_sort_inv (H : proofErase Γ e = .sort u) : e = .sort u := by
   cases e <;> simp only [proofErase] at H <;> split at H <;> simp_all
@@ -239,6 +251,14 @@ theorem proofErase_compare_descend (hstep : ErasedPrimitiveDescent Step)
     rw [← Ea, ← Eb] at Hη
     refine ⟨fun hAB => ?_, fun h => by cases h⟩
     exact ⟨_, (proofErase_eta_head_reflect hΓ hb (ha.defeqU_r henv hΓ hAB) Hη.of_liftN).symm⟩
+  | structL Hη =>
+    rw [← Ea, ← Eb] at Hη
+    refine ⟨fun hAB => ?_, fun h => by cases h⟩
+    exact ⟨_, proofErase_structure_eta_reflect hΓ ha (hb.defeqU_r henv hΓ hAB.symm) Hη.of_liftN⟩
+  | structR Hη =>
+    rw [← Ea, ← Eb] at Hη
+    refine ⟨fun hAB => ?_, fun h => by cases h⟩
+    exact ⟨_, (proofErase_structure_eta_reflect hΓ hb (ha.defeqU_r henv hΓ hAB) Hη.of_liftN).symm⟩
   | etaLams HD Hη ihD =>
     rw [← Ea, ← Eb] at Hη
     obtain ⟨_, _, haE, EaD, _⟩ := ProofShape.liftN_lam_inv Ea

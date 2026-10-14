@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureComparedK
+import Lean4Lean.Theory.Typing.Strengthening.ProofShapeRetraction
 
 /-! # Raw retraction of erased certificates through arbitrary thinning
 
@@ -10,81 +11,6 @@ This does not assert that arbitrary declarative equalities have certificates.
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params
 
-namespace ProofShape
-/-- General variable thinning on annotated proof shapes. -/
-def lift' : ProofShape → Lift → ProofShape
-  | .proof, _ => .proof
-  | .bvar i, ρ => .bvar (ρ.liftVar i)
-  | .sort u, _ => .sort u
-  | .const c ls, _ => .const c ls
-  | .app f a, ρ => .app (f.lift' ρ) (a.lift' ρ)
-  | .proj s i m, ρ => .proj s i (m.lift' ρ)
-  | .lam A b, ρ => .lam (A.lift' ρ) (b.lift' ρ.cons)
-  | .forallE A B, ρ => .forallE (A.lift' ρ) (B.lift' ρ.cons)
-
-/-- General thinning is a raw substitution by renamed variables. -/
-theorem lift'_eq_subst (e : ProofShape) (ρ : Lift) :
-    e.lift' ρ = e.subst (fun i => .bvar (ρ.liftVar i)) := by
-  induction e generalizing ρ with
-  | proof | bvar | sort | const => rfl
-  | app f a ihf iha => simp only [lift', subst, ihf, iha]
-  | proj s i m ih => simp only [lift', subst, ih]
-  | lam A b ihA ihb | forallE A b ihA ihb =>
-    have HH : (fun i => bvar (ρ.cons.liftVar i)) =
-        Subst.lift (fun i => bvar (ρ.liftVar i)) := by
-      funext i
-      cases i <;> simp [Lift.liftVar, Subst.lift, ProofShape.liftN, _root_.Lean4Lean.liftVar] <;> omega
-    simp only [lift', subst, ihA, ihb, HH]
-
-/-- A raw left inverse uses a proof marker at skipped variables. No typing is
-claimed for these images, which never occur in a thinned source endpoint. -/
-def Subst.retract : Lift → Subst
-  | .refl => .id
-  | .skip ρ => (retract ρ).cons .proof
-  | .cons ρ => (retract ρ).lift
-
-/-- Retained variables are recovered exactly by the raw inverse. -/
-theorem Subst.retract_liftVar (ρ : Lift) (i : Nat) :
-    Subst.retract ρ (ρ.liftVar i) = .bvar i := by
-  induction ρ generalizing i with
-  | refl => rfl
-  | skip ρ ih => simpa only [retract, Lift.liftVar, cons] using ih i
-  | cons ρ ih =>
-    cases i <;> simp [retract, Lift.liftVar, Subst.lift, ih, ProofShape.liftN, _root_.Lean4Lean.liftVar] <;> omega
-
-/-- Substitution absorbs general thinning whenever it agrees on retained variables. -/
-theorem subst_lift'_agree (e : ProofShape) {σ τ : Subst}
-    (H : ∀ i, τ (ρ.liftVar i) = σ i) :
-    (e.lift' ρ).subst τ = e.subst σ := by
-  induction e generalizing ρ σ τ with
-  | proof | sort | const => rfl
-  | bvar i => exact H i
-  | app f a ihf iha => simp only [lift', subst, ihf H, iha H]
-  | proj s i m ih => simp only [lift', subst, ih H]
-  | lam A b ihA ihb | forallE A b ihA ihb =>
-    have HB : ∀ i, τ.lift (ρ.cons.liftVar i) = σ.lift i := by
-      intro i
-      cases i <;> simp only [Lift.liftVar, Subst.lift, H]
-    simp only [lift', subst, ihA H, ihb HB]
-
-/-- Retraction removes all inserted variables from every original proof shape. -/
-theorem subst_retract_lift' (e : ProofShape) (ρ : Lift) :
-    (e.lift' ρ).subst (Subst.retract ρ) = e := by
-  rw [subst_lift'_agree e (Subst.retract_liftVar ρ)]
-  exact ProofShape.subst_id e
-
-/-- Any relation stable under raw substitution reflects through thinning. -/
-theorem relation_lift'_reflect {R : ProofShape → ProofShape → Prop} {a b : ProofShape} {ρ : Lift}
-    (hsubst : ∀ {a b} (σ : Subst), R a b → R (a.subst σ) (b.subst σ))
-    (H : R (a.lift' ρ) (b.lift' ρ)) : R a b := by
-  simpa only [subst_retract_lift'] using hsubst (Subst.retract ρ) H
-/-- Substitution-stable relations are invariant under arbitrary thinning. -/
-theorem relation_lift'_iff {R : ProofShape → ProofShape → Prop} {a b : ProofShape} {ρ : Lift}
-    (hsubst : ∀ {a b} (σ : Subst), R a b → R (a.subst σ) (b.subst σ)) :
-    R (a.lift' ρ) (b.lift' ρ) ↔ R a b := by
-  refine ⟨relation_lift'_reflect hsubst, fun H => ?_⟩
-  simpa only [lift'_eq_subst] using hsubst (fun i => .bvar (ρ.liftVar i)) H
-end ProofShape
 
 variable [Params]
 local notation:65 Γ " ⊢ " e " : " A:36 => HasType Params.env univs Γ e A
