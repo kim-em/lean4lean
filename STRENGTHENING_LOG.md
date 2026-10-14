@@ -3307,3 +3307,25 @@ goal remains open and active.
 The combined new-module and TypedIndexedSubstitution build passes with 332 jobs.
 Eleven axiom audits contain no sorryAx; only propext, Classical.choice and
 Quot.sound occur. No executable changed.
+
+### Close finite erased K computation under simultaneous substitution
+
+`ProofShapeSubstitution.lean` develops the raw simultaneous substitution laws:
+absorption of binder insertion, image lifting, composition, identity, one-variable
+instantiation and substitution through beta. The proof marker stays fixed and is
+never assigned an object-language type.
+
+`ProofErasureStageSubstitution.lean` proves substitution stability of erased beta,
+compatible finite paths, visible pattern matching and all existing concrete
+primitives. A syntactically closed original has a substitution-invariant erasure,
+so declaration bodies and stored RHS heads remain fixed. Induction through the
+K-stage guards gives same-stage substitution for the entire fragment. Pointwise
+computations of substitution images can be combined with a body computation at
+that same stage. proofErase_K_subst connects this raw result with actual typed
+substitutions using the earlier erasure commutation theorem.
+
+The targeted build passes with 252 jobs. Nine axiom audits contain no sorryAx,
+using only propext, Classical.choice and Quot.sound. This closes substitution
+stability, not confluence or completeness of the erased relation. General
+singleton integration, eta repair and full declarative coverage remain open.
+No executable changed; the original goal remains active.
