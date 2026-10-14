@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureRecoveredComparison
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEtaArguments
 
 /-! # Erased comparison checked against endpoint types
 
@@ -38,6 +39,17 @@ inductive CheckedCompare (Step : ProofShape → ProofShape → Prop) :
   /-- Common endpoint types already align lambda domains during replay. -/
   | lamCommon : CheckedCompare Step (σ.cons A) (τ.cons A') true b b' →
       CheckedCompare Step σ τ true (.lam A b) (.lam A' b')
+  /-- Recursive eta checks its body using the fresh argument selected by a
+  recovered domain sort. Endpoint types supply the short function's Pi type. -/
+  | etaBodyL : TypeRecovery Step σ A (.sort u) →
+      CheckedCompare Step (σ.cons A) (τ.cons A) true b
+        (.app (f.liftN 1) (etaArgument u)) →
+      CheckedCompare Step σ τ true (.lam A b) f
+  /-- Symmetric recursive eta, with sort recovery in the long endpoint oracle. -/
+  | etaBodyR : TypeRecovery Step τ A (.sort u) →
+      CheckedCompare Step (σ.cons A) (τ.cons A) true
+        (.app (f.liftN 1) (etaArgument u)) b →
+      CheckedCompare Step σ τ true f (.lam A b)
   /-- Recovered result types allow a common-mode certificate in inferred mode. -/
   | recover : TypeRecovery Step σ a A → TypeRecovery Step τ b B →
       CheckedCompare Step σ τ false A B → CheckedCompare Step σ τ true a b →
@@ -200,6 +212,62 @@ theorem proofErase_checked_compare_descend (hstep : ErasedPrimitiveDescent Step)
       have HI := ihbody hΓD hΓD' W.succ
         (EaD ▸ hσ.cons hΓ hD) (EbD ▸ hτ.cons_convert hΓ hD hD' HDU) hbody hbody'' Eab Ebb
       exact ⟨_, IsDefEq.lamDF (HDU.of_l henv hΓ hD) ((HI.1 ⟨_, hCC⟩).of_l henv hΓD hbody)⟩
+    · intro hmode; cases hmode
+  | etaBodyL HR Hbody ihbody =>
+    constructor
+    · intro hAB
+      obtain ⟨_, _, Elam, ED, Ebody⟩ := ProofShape.liftN_lam_inv Ea
+      obtain ⟨D, body, rfl, hn, ED', Ebody'⟩ := erase_lam_inv Elam
+      rw [← ED'] at ED
+      rw [← Ebody'] at Ebody
+      obtain ⟨⟨_, hD₀⟩, C, hbody⟩ := ha.lam_inv henv hΓ
+      have hD := proofErase_recovered_sort_descend hstep hΓ hΓ' W hσ hD₀ (ED ▸ HR)
+      have hΓD : OnCtx (D :: Γ) (env.IsType univs) := ⟨hΓ, _, hD⟩
+      have hΓD' : OnCtx (D.liftN n k :: Γ') (env.IsType univs) := ⟨hΓ', _, hD.weakN henv W⟩
+      have hfPi : env.HasType univs Γ b (.forallE D C) :=
+        hb.defeqU_r henv hΓ (hAB.symm.trans henv hΓ (ha.uniqU henv hΓ (HasType.lam hD hbody)))
+      have hnf : ¬ IsProof Γ b := by
+        rintro ⟨P, hfP, hP⟩
+        exact hn ⟨P, ha.defeqU_r henv hΓ (hAB.trans henv hΓ (hb.uniqU henv hΓ hfP)), hP⟩
+      have hηbody : env.HasType univs (D :: Γ) (.app b.lift (.bvar 0)) C := by
+        have H := HasType.app (hfPi.weak henv (B := D)) (.bvar .zero)
+        simpa only [lift, liftN, inst_liftN_bvar] using H
+      have Eη := proofErase_eta_body_liftN (n := n) (k := k) hΓ hD hfPi hnf
+      rw [Eb] at Eη
+      have HI := (ihbody hΓD hΓD' W.succ
+        (ED ▸ hσ.cons hΓ hD) (ED ▸ hτ.cons hΓ hD)
+        hbody hηbody Ebody Eη).1 ⟨_, hηbody.isType henv hΓD |>.choose_spec⟩
+      have HH : env.IsDefEqU univs Γ (.lam D body) b :=
+        ⟨_, (IsDefEq.lamDF hD (HI.of_l henv hΓD hbody)).trans (IsDefEq.eta hfPi)⟩
+      exact HH
+    · intro hmode; cases hmode
+  | etaBodyR HR Hbody ihbody =>
+    constructor
+    · intro hAB
+      obtain ⟨_, _, Elam, ED, Ebody⟩ := ProofShape.liftN_lam_inv Eb
+      obtain ⟨D, body, rfl, hn, ED', Ebody'⟩ := erase_lam_inv Elam
+      rw [← ED'] at ED
+      rw [← Ebody'] at Ebody
+      obtain ⟨⟨_, hD₀⟩, C, hbody⟩ := hb.lam_inv henv hΓ
+      have hD := proofErase_recovered_sort_descend hstep hΓ hΓ' W hτ hD₀ (ED ▸ HR)
+      have hΓD : OnCtx (D :: Γ) (env.IsType univs) := ⟨hΓ, _, hD⟩
+      have hΓD' : OnCtx (D.liftN n k :: Γ') (env.IsType univs) := ⟨hΓ', _, hD.weakN henv W⟩
+      have hfPi : env.HasType univs Γ a (.forallE D C) :=
+        ha.defeqU_r henv hΓ (hAB.trans henv hΓ (hb.uniqU henv hΓ (HasType.lam hD hbody)))
+      have hnf : ¬ IsProof Γ a := by
+        rintro ⟨P, hfP, hP⟩
+        exact hn ⟨P, hb.defeqU_r henv hΓ (hAB.symm.trans henv hΓ (ha.uniqU henv hΓ hfP)), hP⟩
+      have hηbody : env.HasType univs (D :: Γ) (.app a.lift (.bvar 0)) C := by
+        have H := HasType.app (hfPi.weak henv (B := D)) (.bvar .zero)
+        simpa only [lift, liftN, inst_liftN_bvar] using H
+      have Eη := proofErase_eta_body_liftN (n := n) (k := k) hΓ hD hfPi hnf
+      rw [Ea] at Eη
+      have HI := (ihbody hΓD hΓD' W.succ
+        (ED ▸ hσ.cons hΓ hD) (ED ▸ hτ.cons hΓ hD)
+        hηbody hbody Eη Ebody).1 ⟨_, hηbody.isType henv hΓD |>.choose_spec⟩
+      have HH : env.IsDefEqU univs Γ (.lam D body) a :=
+        ⟨_, (IsDefEq.lamDF hD (HI.symm.of_l henv hΓD hbody)).trans (IsDefEq.eta hfPi)⟩
+      exact HH.symm
     · intro hmode; cases hmode
   | recover RA RB HT HC ihT ihC =>
     obtain ⟨TA, haT, ETA⟩ := proofErase_typeRecovery_descend_of_oracleTyping

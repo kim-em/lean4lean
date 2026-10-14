@@ -431,3 +431,13 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
 | Compose symmetric phases without completing structure recursor equations | **Conditional obstruction checked.** `NeutralRecursorFixed` fixes actual nonzero-source recursor spines with fixed, non-constant-headed arguments. `SymmetricNeutralBoundary` reflects sort-typed projection heads and fixes projections of variables. `StructureReadoutBoundary` combines these with an actual checked identity-branch iota rule: eta/iota/beta reaches a projection, but no symmetric phase connects the endpoints; the two input phases and all three terms are typed at the same sort. Registration, matching, checks, argument fixedness and typing remain explicit; no example environment is constructed. |
 
 | Complete the neutral readout using the existing closed structure program | **Checked exact repair.** `StructureEtaReadout.suppliedBody_eq_eta_rhs` identifies the program with iota on the exact eta expansion, using the registered rule's independence from constructor parameters. The identity-branch program then computes directly to the original major's field projection by beta. The enlarged closed equation collection repairs this root obstruction without a front, but its general mixed phase composition remains unproved. |
+
+- **Admit recursive eta in checked erasure using a recovered domain sort:**
+  checked. A synthetic fresh argument cannot be assigned a proof marker merely
+  by choice; recovering the displayed domain at a literal sort determines its
+  exact erasure. The new common-mode eta rules descend and preserve symmetry,
+  weakening and exactly recoverable substitution. Typed forward eta follows
+  from any-output recovery existence, with whole-proof endpoints collapsing
+  together. Inferred lambda-domain reflection and its full-front instantiation
+  barrier survive. Concrete recovery existence and computational composition
+  remain open; this is not a smaller sufficient front.

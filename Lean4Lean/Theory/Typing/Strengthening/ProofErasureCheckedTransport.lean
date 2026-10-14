@@ -23,6 +23,8 @@ theorem CheckedCompare.symm (H : CheckedCompare Step σ τ mode a b) :
   | forallE _ _ ihA ihB => exact .forallE ihA ihB
   | etaL HR _ HE ih => exact .etaR HR ih HE
   | etaR HR _ HE ih => exact .etaL HR ih HE
+  | etaBodyL HR _ ih => exact .etaBodyR HR ih
+  | etaBodyR HR _ ih => exact .etaBodyL HR ih
   | lamCommon _ ih => exact .lamCommon ih
   | recover RA RB _ _ ihT ihC => exact .recover RB RA ihT ihC
   | compute Ra Rb _ ih => exact .compute Rb Ra ih
@@ -38,6 +40,8 @@ theorem CheckedCompare.common (H : CheckedCompare Step σ τ mode a b) :
   | forallE HA HB => exact .forallE HA HB
   | etaL HR HD HE => exact .etaL HR HD HE
   | etaR HR HD HE => exact .etaR HR HD HE
+  | etaBodyL HR H => exact .etaBodyL HR H
+  | etaBodyR HR H => exact .etaBodyR HR H
   | lamCommon H => exact .lamCommon H
   | recover RA RB HT HC => exact .recover RA RB HT HC
   | compute Ra Rb _ ih => exact .compute Ra Rb ih
@@ -56,6 +60,14 @@ theorem CheckedCompare.liftN
   | forallE _ _ ihA ihB => exact .forallE (ihA hσ hτ) (ihB hσ.cons hτ.cons)
   | etaL HR _ HE ih => exact .etaL (HR.liftN hstep hτ) (ih hσ hτ) HE.liftN
   | etaR HR _ HE ih => exact .etaR (HR.liftN hstep hσ) (ih hσ hτ) HE.liftN
+  | etaBodyL HR _ ih =>
+    apply CheckedCompare.etaBodyL (HR.liftN hstep hσ)
+    simpa only [ProofShape.liftN, etaArgument_liftN,
+      liftN_comm _ n 1 k 0 (Nat.zero_le _)] using ih hσ.cons hτ.cons
+  | etaBodyR HR _ ih =>
+    apply CheckedCompare.etaBodyR (HR.liftN hstep hτ)
+    simpa only [ProofShape.liftN, etaArgument_liftN,
+      liftN_comm _ n 1 k 0 (Nat.zero_le _)] using ih hσ.cons hτ.cons
   | lamCommon _ ih => exact .lamCommon (ih hσ.cons hτ.cons)
   | recover RA RB _ _ ihT ihC =>
     exact .recover (RA.liftN hstep hσ) (RB.liftN hstep hτ) (ihT hσ hτ) (ihC hσ hτ)
@@ -78,6 +90,14 @@ theorem CheckedCompare.subst_of_recovery
   | forallE _ _ ihA ihB => exact .forallE (ihA hκ hτ) (ihB (hκ.cons hweak) (hτ.cons hweak))
   | etaL HR _ HE ih => exact .etaL (HR.subst_of_recovery hweak hsubst hτ) (ih hκ hτ) HE.subst
   | etaR HR _ HE ih => exact .etaR (HR.subst_of_recovery hweak hsubst hκ) (ih hκ hτ) HE.subst
+  | etaBodyL HR _ ih =>
+    apply CheckedCompare.etaBodyL (HR.subst_of_recovery hweak hsubst hκ)
+    simpa only [ProofShape.subst, etaArgument_subst, lift_subst_lift] using
+      ih (hκ.cons hweak) (hτ.cons hweak)
+  | etaBodyR HR _ ih =>
+    apply CheckedCompare.etaBodyR (HR.subst_of_recovery hweak hsubst hτ)
+    simpa only [ProofShape.subst, etaArgument_subst, lift_subst_lift] using
+      ih (hκ.cons hweak) (hτ.cons hweak)
   | lamCommon _ ih => exact .lamCommon (ih (hκ.cons hweak) (hτ.cons hweak))
   | recover RA RB _ _ ihT ihC =>
     exact .recover (RA.subst_of_recovery hweak hsubst hκ)

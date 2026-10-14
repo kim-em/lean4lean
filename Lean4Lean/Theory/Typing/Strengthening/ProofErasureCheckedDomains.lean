@@ -67,14 +67,14 @@ theorem CheckedCompare.forallE_domains (hroot : ∀ {a b}, Step a b → Computat
   induction H generalizing A B C D with
   | base H => cases Ea; cases Eb; exact .base (H.forallE_domains hroot)
   | forallE HA _ => cases Ea; cases Eb; exact HA
-  | etaR => cases Eb
+  | etaR | etaBodyR => cases Eb
   | recover _ _ _ _ _ ihC => exact ihC Ea Eb
   | compute Ra Rb _ ih =>
     cases Ea; cases Eb
     obtain ⟨_, _, EA, HA⟩ := Ra.forallE_shape hroot
     obtain ⟨_, _, EB, HB⟩ := Rb.forallE_shape hroot
     exact .compute HA HB (ih EA.symm EB.symm)
-  | app | proj | lam | etaL | lamCommon => cases Ea
+  | app | proj | lam | etaL | lamCommon | etaBodyL => cases Ea
 
 /-- Inferred comparison still reflects lambda domains. Common-mode comparison
 alone cannot be promoted without recovered type alignment. -/
@@ -97,7 +97,7 @@ theorem CheckedCompare.lam_domains (hroot : ∀ {a b}, Step a b → Computationa
     obtain ⟨_, _, E, RD⟩ := HR.lam_shape hroot
     cases E
     exact .compute RD .refl HD
-  | lamCommon => cases Em
+  | lamCommon | etaBodyL | etaBodyR => cases Em
   | recover RA RB HT HC =>
     cases Em; cases Ea; cases Eb
     obtain ⟨_, _, rfl, RA'⟩ := RA.lam_shape hroot

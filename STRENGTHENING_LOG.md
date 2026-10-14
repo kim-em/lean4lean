@@ -4902,3 +4902,39 @@ Validation: the combined boundary/repair build passes (402 jobs). All ten new
 public theorems are audited in `/tmp/structure-phase-boundary-audit.log`, using
 only propext, Classical.choice and Quot.sound or subsets. No sorryAx or executable
 changes were introduced; the original UniqueTyping gap remains open.
+
+### Recursive checked eta with recovered fresh-argument classification
+
+The preceding turn's common-mode normal composition counterexample rules out
+using computation-free transitivity as an intermediate lemma. The computational
+checked relation now admits recursive eta bodies, which its previous exact
+head-eta constructors could not express directly.
+
+`ProofErasureEtaArguments.lean` defines the synthetic fresh argument from a
+universe level. Type uniqueness proves that a fresh variable is a proof exactly
+when its domain's sort is equivalent to zero. A literal recovered sort descends
+to that exact original sort typing. Consequently the erased eta body, including
+its fresh argument, commutes with binder insertion. No inhabitant of the domain
+is needed below the binder.
+
+`CheckedCompare.etaBodyL` and `etaBodyR` use this sort recovery in the long
+endpoint's oracle and recursively compare bodies in common mode. The endpoint
+type equality supplies the short function's Pi type during descent; the body
+certificate then replays at the shared codomain. Both rules preserve symmetry,
+common-mode promotion, weakening, and substitution whose images have the
+required recovery certificates. They leave inferred lambda-domain reflection
+intact, so the typed-instantiation full-front barrier still applies.
+
+`ProofErasureCheckedEta.lean` establishes typed forward coverage of these rules,
+including whole-proof collapse. Any-output recovery existence suffices: its
+sort-head clause selects some literal sort, and checked replay gives the domain
+at that sort. This avoids demanding recovery at a preselected universe. The
+existence hypothesis is still unproved at the concrete computational stages;
+no declarative coverage or common-mode computational composition has been
+assumed or obtained.
+
+Validation: the affected boundary/example targets build together (301 jobs),
+and the forward-eta target builds (280 jobs). All 56 new and affected public
+theorem audits in `/tmp/erasure-checked-eta-audit.log` use only propext,
+Classical.choice and Quot.sound or subsets, with no sorryAx. No executable
+changed. Strengthening remains open and the goal stays active.
