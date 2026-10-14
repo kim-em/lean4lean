@@ -5311,3 +5311,29 @@ Validation: the complete target builds successfully (303 jobs). All fifteen
 new public results pass the axiom audit in `/tmp/context-app-audit.log`, using
 only propext, Classical.choice and Quot.sound; no sorryAx or strengthening
 inverse was used. No executable was changed.
+
+### Distinct arguments reduce to typed contextual composition
+
+`ProofErasureContextMixedApplication` proves unconditional application of an
+inferred function certificate to distinct common-compared arguments, in either
+output mode. Zero-insertion contextual soundness aligns the dependent result
+types and synchronizes proof collapse. Together with shared-argument application,
+this reduces common-function application to the explicitly named, still open
+`ContextCommonComposition` obligation. Its middle original must have the common
+endpoint type; it is not unrestricted raw transitivity.
+
+`ProofErasureContextComposition` proves three consequences of that obligation:
+transport to both typed computation targets; congruence of one typed body under
+two compared arguments; and substitution of distinct compared arguments into a
+common-typed body certificate. The single-body congruence uses inferred reflexive
+lambda application and two beta paths, and does not require substitution closure
+of the primitive relation. Paired-body substitution also uses the already proved
+ordinary typed substitution law. These are conditional theorems, not proofs of
+composition or new independent assumptions added to the certificate definition.
+No strict reduction from PropositionFront is claimed. Computational composition,
+declarative coverage and contextual indexed guards remain open.
+
+Validation: both new modules build in the 305-job target. All seven new public
+declarations pass `/tmp/context-composition-audit.log` with only propext,
+Classical.choice and Quot.sound. No sorryAx, strengthening inverse or executable
+change is involved.

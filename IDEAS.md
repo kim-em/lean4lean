@@ -501,3 +501,11 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   substitution and beta contraction cover lambda/eta cases; typed replay covers
   computation. Distinct compared arguments and general composition remain open;
   this is not claimed to be a smaller sufficient strengthening front.
+
+- **Unify the distinct-argument and computational-transport gaps under typed
+  contextual composition.** Checked conditional reduction in
+  `ProofErasureContextMixedApplication` and `ProofErasureContextComposition`.
+  Inferred function application to distinct compared arguments is unconditional.
+  Common function application, transport to typed computation targets, and
+  paired-body instantiation follow from `ContextCommonComposition`. This law
+  remains unproved, and no strict reduction from PropositionFront is claimed.
