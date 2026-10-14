@@ -4764,3 +4764,50 @@ Validation: both modules are included in the successful 397-job symmetric
 phase build. All public results occur in the 46-theorem audit at
 `/tmp/symmetric-eta-audit.log`; their only axioms are propext, Classical.choice
 and Quot.sound or subsets. The original strengthening gap remains open.
+
+### Symmetric eta phases: heads, terminal composition, and full-step coverage
+
+`EtaSpineHeadBeta.lean` refines rigid eta-spine normalization: the normalization
+path uses only head beta, while original argument metadata retains full paths.
+`SymmetricEtaHeads.lean` defines EtaJoin by separate eta expansions followed by
+ordinary normal comparison. Pi heads survive directly. For family heads, the
+right eta expansion normalizes by head beta; normal/beta simulation transports
+that path across the normal comparison. The existing observation argument then
+recovers actual computation from the original left source, with equivalent
+levels and the same family arity.
+
+`SymmetricEtaAlgebra.lean` proves terminal transitivity through an originally
+typed middle. Exact eta confluence aligns its two expansions, and normal/eta
+exchange transports the endpoint comparisons to that common expansion. It also
+proves weakening, context conversion and all compatible constructors. Lambda
+and Pi body comparisons retain their explicit common original domain and opaque
+domain conversions; no domain descent is inferred.
+
+`SymmetricPrefixEtaPhase.lean` puts a computational path from each endpoint
+before this terminal join. It contains the previous completed phase and covers
+both checked phase obstructions: selective field contraction and reverse eta
+in a converted constructor parameter. Pi and family head exposure remain valid.
+Lower function/family type repair reflects only the recovered computational
+path and still assumes WitnessedPropDescent. The right endpoint's typing is
+explicit; it is never inferred backwards through arbitrary computation.
+
+`SymmetricPrefixCompatibility.lean` proves compatible application, projection,
+lambda and Pi constructions plus context conversion and direct computation
+coverage. `SymmetricFullStep.lean` embeds every individual typed full step for
+the actual environment parameters, including core parallel reduction, singleton
+prefixes, quotient prefixes, projection iota, both eta roots and compatible
+combinations. Projection typing supplies the saturation needed by the raw
+computational relation. No restriction to proof-index singleton occurrences is
+used here.
+
+The remaining phase-coverage issue is mixed computation/eta composition across
+finite full paths. Pure terminal composition is now proved, but it does not
+commute computation past eta. Together with the still-assumed witnessed front
+and unresolved opaque-domain descent, this prevents a strengthening conclusion.
+No canonical-Eq countermodel or strictly smaller sufficient obligation has been
+obtained.
+
+Validation: the combined SymmetricFullStep target builds successfully (397 jobs).
+All 46 new public theorems were audited in `/tmp/symmetric-eta-audit.log`, with
+only propext, Classical.choice and Quot.sound or subsets; no sorryAx appears.
+The executable and original UniqueTyping gap are unchanged.
