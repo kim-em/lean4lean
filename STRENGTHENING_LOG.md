@@ -5047,3 +5047,33 @@ composition and the original strengthening theorem are still unproved.
 Validation: both modules are included in the successful 391-job combined build
 and sixteen-theorem axiom audit at `/tmp/eta-composition-roots-audit.log`. No
 sorryAx or executable changes were introduced.
+
+### Structure equations exclude actual singleton prefixes
+
+`StructurePrefixDisjoint.lean` realizes the uniform ordinary-pattern check of
+a closed structure unfolding in the fresh complete recursor telescope. The
+generic major has a typed structure reconstruction by the unfolding's existing
+admissibility certificate, and this reconstruction supplies a real matching
+occurrence. Thus the check is non-vacuous even if no suitable major is available
+in a caller's context.
+
+An enabled ordinary iota check excludes the actual singleton prefix at the
+same recursor: the latter requires a zero source universe and a large target,
+whereas the former then requires a nonzero source universe. This also holds
+when the prefix uses an equivalent universe list. The proof transports only
+the source-level guard, with no intermediate equality descent. Both the
+original closed structure collection and its registry-selected restriction
+inherit the exclusion. The selected restriction also cannot have the head
+`Quot.lift` when quotient declarations are registered.
+
+This closes the actual singleton-prefix overlap left open in the preceding
+entry by disjointness, rather than a computational join. Proof-field
+admissibility does not override the ordinary iota guard. It does not yet show
+that arbitrary closed singleton certificates choose the same registration data,
+or that arbitrary base equations are disjoint. Compatible computational peaks,
+equivalent-universe output comparison and symmetric phase composition remain
+open; the original strengthening theorem is unchanged.
+
+Validation: the new module builds (342 jobs). All seven public theorems are
+axiom-audited in `/tmp/structure-prefix-disjoint-audit.log`, using only propext,
+Classical.choice and Quot.sound or subsets. No executable changes or sorryAx.
