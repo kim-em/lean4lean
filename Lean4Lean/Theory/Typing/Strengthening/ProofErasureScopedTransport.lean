@@ -63,6 +63,17 @@ theorem ScopedCompare.subst
   | etaBodyR S _ ih =>
     apply ScopedCompare.etaBodyR (W.sort S)
     simpa only [ProofShape.subst, etaArgument_subst, lift_subst_lift] using ih W.cons
+  | @structFields Δ family info ls ps fields m hi hx hp hf hadm H ih =>
+    simp only [ProofShape.subst_mkApps, List.map_append]
+    apply ScopedCompare.structFields hi hx (by simpa only [List.length_map] using hp)
+      (by simpa only [List.length_map] using hf) hadm
+    intro i hj hn
+    have hj' : i < fields.length := by simpa only [List.length_map] using hj
+    have hn' : fields[i] ≠ .proof := by
+      intro E
+      apply hn
+      simp only [List.getElem_map, E, ProofShape.subst]
+    simpa only [List.getElem_map, ProofShape.subst] using ih i hj' hn' W
   | etaLams _ H ih => exact .etaLams (ih W) (H.elim (fun H => .inl H.subst) (fun H => .inr H.subst))
   | compute Ra Rb _ ih => exact .compute (Ra.subst hsubst W) (Rb.subst hsubst W) (ih W)
   | symm _ ih => exact (ih W).symm
@@ -80,6 +91,7 @@ theorem ScopedCompare.mono (hstep : ∀ {Δ a b}, Step Δ a b → Step' Δ a b)
   | lamCommon _ ih => exact .lamCommon ih
   | etaBodyL SA _ ih => exact .etaBodyL SA ih
   | etaBodyR SA _ ih => exact .etaBodyR SA ih
+  | structFields hi hx hp hf hadm _ ih => exact .structFields hi hx hp hf hadm ih
   | etaLams _ H ih => exact .etaLams ih H
   | compute Ra Rb _ ih => exact .compute (Ra.mono hstep) (Rb.mono hstep) ih
   | symm _ ih => exact .symm ih
@@ -97,6 +109,7 @@ theorem ScopedCompare.common (H : ScopedCompare Step Δ mode a b) :
   | lamCommon H => exact .lamCommon H
   | etaBodyL S H => exact .etaBodyL S H
   | etaBodyR S H => exact .etaBodyR S H
+  | structFields hi hx hp hf hadm H => exact .structFields hi hx hp hf hadm H
   | etaLams H E => exact .etaLams H E
   | compute Ra Rb _ ih => exact .compute Ra Rb ih
   | symm _ ih => exact ih.symm

@@ -6122,3 +6122,36 @@ also passes after the proof-field cleanup. No executable changes or
 strengthening inverses were used. The original strengthening sorry remains
 open; neither completeness of full phases nor a smaller sufficient front has
 been established.
+
+## Recursive structure fields in the scoped stages
+
+The scoped comparison relation now has `structFields`: a saturated registered
+constructor checks against a major when each non-proof field recursively checks
+against the corresponding projection of that major. The closed projection guard
+and zero-index condition are retained. This avoids treating a recursive field
+comparison as a literal head test or requiring a transitive untyped bridge.
+
+`ProofErasureStructureFields` reconstructs the original constructor parameters
+from a lifted erased source. Common endpoint typing gives the major that family
+instance, and declaration admissibility types its canonical projected expansion.
+Dependent spine comparison aligns fields in order. At each aligned type, proof
+fields close by irrelevance; retained fields invoke the smaller recursive guard.
+This proves descent of the new rule without a supplied lower expansion typing.
+
+Typed contextual substitution preserves the rule even when a retained variable
+substitutes to a proof marker. The target rule simply omits such a field; every
+field still retained has a retained source and uses the substitution induction
+hypothesis. Existing scoped-stage descent, substitution, and conservative
+inclusions rebuild unchanged.
+
+`ProofErasureScopedStructureCoverage` gives typed coverage from aligned field
+certificates and checks a one-field structure whose function field is eta
+expanded. Its altered constructor typing is built from the typed original
+expansion using ordinary congruence. No equality-completeness or general
+composition assertion is made.
+
+Validation: scoped eta repair and structure coverage build (322 and 316 jobs).
+All 50 public declarations in the affected scoped closure and new field helpers
+pass `/tmp/scoped-structure-audit.log` with only propext, Classical.choice and
+Quot.sound and no sorryAx. No executable changes or strengthening inverses were
+used. The original strengthening obligation remains unresolved.

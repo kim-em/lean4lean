@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureScopedComputation
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStructureFields
 
 /-! # Recursive contextual checking with context-indexed computation
 
@@ -48,6 +49,16 @@ inductive ScopedCompare (Step : List ProofShape → ProofShape → ProofShape �
   | etaBodyR : DomainSort Δ A u →
       ScopedCompare Step (A :: Δ) true (.app (f.liftN 1) (etaArgument u)) b →
       ScopedCompare Step Δ true f (.lam A b)
+  /-- Source constructor parameters determine a typed projected expansion.
+  Every retained field recursively checks against its projection of the major. -/
+  | structFields {family : Name} {info : VProjectionInfo} {ls : List VLevel}
+      {ps fields : List ProofShape} {m : ProofShape}
+      (hi : env.projections family info) (hx : info.nindices = 0)
+      (hp : ps.length = info.nparams) (hf : fields.length = info.numFields)
+      (hadm : (info.resultLevel.inst ls).IsNeverZero ∨ StructureReplay.ProofFields env univs info ls)
+      (H : ∀ i (h : i < fields.length), fields[i] ≠ .proof →
+        ScopedCompare Step Δ true fields[i] (.proj family i m)) :
+      ScopedCompare Step Δ true (mkApps (.const info.ctorName ls) (ps ++ fields)) m
   /-- Displayed lambda domains align lambda-headed eta in inferred mode. -/
   | etaLams : ScopedCompare Step Δ false A D →
       (EtaHead (.lam A b) (.lam D f) ∨ EtaHead (.lam D f) (.lam A b)) →
@@ -312,6 +323,29 @@ theorem proofErase_scoped_compare_descend (hstep : ErasedScopedPrimitiveDescent 
         ⟨_, (IsDefEq.lamDF hD (HI.symm.of_l henv hΓD hbody)).trans (IsDefEq.eta hfPi)⟩
       exact HH.symm
     · intro hmode; cases hmode
+  | @structFields Δ family info ls ps fields major hi hx hp hf hadm Hfields ihfields =>
+    constructor
+    · intro hAB
+      apply Exists.intro _
+      apply proofErase_structure_fields_reflect hΓ ha (hb.defeqU_r henv hΓ hAB.symm)
+        hi hx hp hf hadm Ea
+      intro i hj x X hxt hpt Ex
+      by_cases hpx : IsProof Γ x
+      · exact proofErase_structure_field hΓ hb hxt hpt (.inl (proofErase_eq_proof.2 hpx))
+      have hnp : ¬ IsProof Γ (.proj family i b) := by
+        rintro ⟨P, hpP, hP⟩
+        exact hpx ⟨P, hxt.defeqU_r henv hΓ (hpt.uniqU henv hΓ hpP), hP⟩
+      have hnraw : fields[i] ≠ ProofShape.proof := by
+        intro H
+        apply hpx
+        apply proofErase_eq_proof.1
+        exact ProofShape.liftN_inj.1 (Ex.trans H)
+      have Eproj : (proofErase Γ (.proj family i b)).liftN n k = .proj family i major := by
+        rw [show proofErase Γ (.proj family i b) = .proj family i (proofErase Γ b) from if_neg hnp]
+        simp only [ProofShape.liftN, Eb]
+      exact (ihfields i hj hnraw hΓ hΓ' W hΔ hxt hpt Ex Eproj).1
+        ⟨_, hxt.isType henv hΓ |>.choose_spec⟩
+    · intro hm; cases hm
   | etaLams HD Hη ihD =>
     rw [← Ea, ← Eb] at Hη
     obtain ⟨_, _, haE, EaD, _⟩ := ProofShape.liftN_lam_inv Ea
