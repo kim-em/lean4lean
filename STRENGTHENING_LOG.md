@@ -4438,3 +4438,31 @@ Validation: the combined targeted build passes (369 jobs). All thirty-five
 public theorem axiom audits in `/tmp/normal-eta-audit.log` contain no sorryAx
 and use only propext, Classical.choice and Quot.sound or subsets. No executable
 changed; the original UniqueTyping sorry remains.
+
+### Closed erased recipes for dependent projection types
+
+`ProjectionParameterTyping.lean` derives the constructor parameter walk from a
+major's recovered family typing. It retains arbitrary family indices and uses the
+registered declaration's parameter-context equality to align the family and
+constructor annotations. This removes an extra parameter-typing premise from
+projection replay without any strengthening.
+
+`ProofErasureProjectionTemplate.lean` proves exact erasure of the selected field
+domain instantiated by parameters and preceding projections. The template is
+erased in its closed constructor-prefix context. Agreement of raw substitution
+images is required only at retained variables: proof-valued field variables have
+already disappeared from the template, so their images may remain ordinary raw
+projections. No separate field-proofness mask is needed.
+
+The dynamic interface starts with a typed non-proof source projection and any
+recovered major-family typing. Source inversion supplies the field bound and the
+never-zero result-universe guard; family injectivity transfers the guard and
+arity to the recovered universe instance. The resulting field typing has exactly
+the raw template erasure. Earlier field typings are derived, not assumed. This is
+the missing projection recipe needed to extend erased recovery; that integration
+and its raw substitution/renaming algebra remain to be completed.
+
+Validation: the combined targeted build passes (248 jobs), and all eight public
+theorem audits in `/tmp/erasure-projection-template-audit.log` use only propext,
+Classical.choice and Quot.sound or a subset. No sorryAx, executable change, or
+strengthening completion is claimed.

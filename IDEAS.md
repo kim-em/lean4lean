@@ -342,3 +342,12 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
 | Move finite compatible eta before ordinary normal comparison | **Full exchange and terminal composition proved.** `EtaStep` serializes finite typed eta with original binder contexts. `NormalEtaRoot` reconstructs structure expansion at the normally related left endpoint; `NormalEtaSimulation` handles every compatible position and extensional comparison, giving normal–eta → eta–normal without a front. `EtaNormal` is therefore transitive and compatible, and `PrefixEtaCompatibility` proves every constructor closure plus terminal-phase appending for the three-phase representation. Moving later computation before eta remains open, as do the witnessed front and opaque-domain descent. |
 
 | Test selective contraction after structure eta duplicates its major | **Pure-eta invariant refuted; full phase test remains open.** `EtaDuplicationBoundary` uses a registered zero-parameter, two-field constructor with a variable in both fields. Actual structure eta followed by contraction of only the first projection reaches a constructor containing that variable and the unreduced second projection. No finite TypedEtaExpansion reaches this mixed target from the original constructor: an existing head cannot create the second projection, and a newly eta-created head cannot turn its first projection back into a variable. Original endpoint typings are explicit. This does not exclude an earlier computation or a final NormalEq, and is not a strengthening counterexample. Whether non-proof instances refute full PrefixEtaNormal coverage must be checked before relying on global postponement. |
+
+- **Recover dependent projection types by a closed erased field template:**
+  checked the source-typing interface, including indexed families. The constructor
+  parameter walk follows from the family's actual typing and declaration parameter
+  agreement. Earlier projection fields instantiate the closed constructor context.
+  Erasure need only agree on retained variables, so proof-valued fields require no
+  proofness mask or synthetic inhabitant. A non-proof source projection and a
+  recovered major family supply the exact raw result recipe. Integration into
+  erased recovery and its transport laws remains the next step toward full syntax.
