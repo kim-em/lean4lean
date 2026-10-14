@@ -3000,3 +3000,31 @@ completeness argument.
 The targeted build passes with 253 jobs. Three axiom audits contain no sorryAx,
 using only propext, Classical.choice and Quot.sound. No executable changed. The
 original goal remains unresolved.
+
+### Distinguish ambient witnesses from witnesses available below
+
+`InhabitedFrontBarrier.lean` uses the proposition P → P and its identity proof
+to show InhabitedPropositionFront is equivalent to PropositionFront. Conversion
+of the probes recovers domain conversion by Pi injectivity. Neither canonical Eq
+nor an inhabitant of P is needed for this equivalence.
+
+`WitnessedCertificateBarrier.lean` adds the second boundary: any ambient
+proposition conversion types Eq.refl at Eq Prop P Q. Thus ambient completeness
+restricted to inhabited propositions with an Eq witness still implies the full
+proposition front whenever the certificate relation has EndpointDescent. The
+mere existence of an ambient witness is not a reduction of the open problem.
+
+`WitnessedPrefixDescent.lean` instead places the Eq witness in the lower context.
+Its WitnessedPropDescent premise is used only after the generated transported
+constructor, original major and family extractor have all been typed below the
+insertion. This replays the exact generated prefix and supplies ComputeDescent
+for the raw PrefixStep. Specializing to actual conversion proves
+prefix_rule_descend_witnessed for every original registered singleton prefix,
+without assuming a finite comparison model's certificate completeness.
+
+This is a local sufficiency result, not the requested global deliverable. The
+restricted witnessed descent premise remains unproved; neither strictness nor
+sufficiency for arbitrary equality strengthening is claimed. The two targeted
+builds pass with 255 and 281 jobs. No executable changed; the goal remains active.
+Seven axiom audits for these results contain no sorryAx; their only axioms are
+propext, Classical.choice and Quot.sound.
