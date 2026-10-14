@@ -3464,3 +3464,38 @@ reflection or descending-certificate completeness has been proved. The targeted
 build passes (197 jobs). Nine axiom audits contain no sorryAx, only propext,
 Classical.choice and Quot.sound. The executable and original UniqueTyping sorry
 are unchanged; the full goal remains active.
+
+### Closed declaration unfolding in normal-comparison simulation
+
+`FreshDeclarationReflection.lean` extends fresh-argument reflection from beta
+to the existing PureObservation.Compute relation: beta plus arbitrary closed
+constant equations, including recursive ones. The application decomposition is
+unchanged because delta has a constant source. Lift reflection uses the checked
+closedness of every declaration body. Its typed corollary uses the collection's
+uniform Sound interface and introduces no eta steps into computation.
+
+Universe congruence requires care: a normal comparison may change a constant's
+level arguments, whereas Definitions.ofEnv need not literally contain the same
+equation at every equivalent instance. `DeclarationLevelClosure.lean` saturates
+a collection with equivalent well-formed source levels, retaining the exact
+closed RHS. The closure is level-stable and sound. Soundness is proved at the
+empty context using constant-level conversion, then weakened to arbitrary
+contexts; no context well-formedness is smuggled into the uniform Sound premise.
+All original equations of a sound collection are retained.
+
+`DeclarationStep.lean` provides single compatible beta/delta contractions and
+finite-path induction. `NormalDeclarationSimulation.lean` mirrors arbitrary
+finite computation through ordinary normal comparison with computation alone.
+The new constant-comparison branch uses level stability; etaBoth uses the new
+fresh-argument reflection. `NormalDeclarationFactorization.lean` proves the
+compatible computation/normal algebra and factors every TypedComputeEta path.
+The theorem `factor_ofEnv` instantiates this for actual stored equations whose
+left-hand side is a constant, using their sound universe closure for the output.
+
+The output comparison remains ordinary NormalEq with opaque domain conversions.
+Applied-pattern rules, singleton/quotient prefixes, projection-iota and structure
+eta remain explicit missing capabilities. This does not establish full head
+repair, comparison descent, or strengthening. The targeted build passes (224
+jobs); twelve axiom audits contain no sorryAx and use only propext,
+Classical.choice and Quot.sound. No executable changed; the original goal stays
+active and the UniqueTyping sorry remains.
