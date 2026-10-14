@@ -5015,3 +5015,35 @@ Validation: the combined new targets build (333 jobs). All eighteen public
 results are axiom-audited in `/tmp/erasure-sort-audit.log`; they use only propext,
 Classical.choice and Quot.sound or subsets, with no sorryAx. No executable was
 changed. The active goal is unchanged.
+
+### Deterministic structure programs and their iota critical pair
+
+`RegisteredStructureEquations.lean` selects closed structure programs using the
+actual recursor lookup. The registry fixes the recursor datum, environment
+uniqueness fixes its projection metadata, and pattern uniqueness fixes the
+RHS. Two selected unfoldings at the same name and universe list therefore have
+literally equal outputs. The selected collection embeds into the earlier closed
+structure collection, remains sound and preserves constructor rigidity. Its
+saturated and fully supplied projection-program computations are checked, so
+this restriction retains the required registered roots.
+
+`StructureUnfoldingCriticalPair.lean` closes the saturated root overlap with
+ordinary iota. Starting from the already unfolded program applied to the
+matching source's arguments, beta reaches the projection program. Projecting
+the constructor recovers the actual fields; the rule's parameter-independence
+law removes the dummy parameter captures. The resulting term is exactly the
+direct iota RHS. A second registered RHS for the same pattern is equal by
+pattern uniqueness, so the result is independent of that certificate choice.
+This outgoing join uses only beta and projections, with arbitrary raw arguments
+and no eta, normal comparison, front or confluence premise.
+
+These results prepare augmented computational joining; they do not establish
+it. Registry-selected root uniqueness is at fixed universe syntax and concerns
+only the new equations, not an arbitrary supplied base collection. Interactions
+with actual singleton prefixes, base equations and equivalent-universe closure,
+as well as compatible computational peaks, remain open. General symmetric phase
+composition and the original strengthening theorem are still unproved.
+
+Validation: both modules are included in the successful 391-job combined build
+and sixteen-theorem axiom audit at `/tmp/eta-composition-roots-audit.log`. No
+sorryAx or executable changes were introduced.

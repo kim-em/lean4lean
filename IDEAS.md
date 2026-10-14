@@ -463,3 +463,5 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   premise a prerequisite for eta classification. Integration into a contextual
   certificate is still open; the existing raw checked eta rules continue to use
   recovered sorts.
+
+| Select closed structure equations from the actual registry before proving computational joins | **Determinism and the saturated iota overlap checked.** `RegisteredStructureEquations` restricts the previous sound collection by actual recursor lookup. Fixed-name, fixed-universe unfoldings have literally equal programs, using metadata and pattern uniqueness; soundness, constructor rigidity and supplied computation remain valid. `StructureUnfoldingCriticalPair` joins the already unfolded program to direct iota by beta/projection computation alone. Overlaps with actual singleton prefixes, base equations, equivalent-universe closure and arbitrary compatible reductions are still needed for augmented confluence; none is assumed. |
