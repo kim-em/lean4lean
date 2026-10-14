@@ -5752,3 +5752,47 @@ used. Data-valued parameter conversions still lack general phase certificates;
 full compatible eta/computation composition and the original strengthening
 sorry remain open. This local reduction is not claimed to be a strictly smaller
 sufficient strengthening front.
+
+## Exact erased core confluence and finite function-eta transport
+
+`ProofErasureCoreConfluence` transfers the original
+`PatternCompute.registeredStructure_confluent` theorem to `ErasedCore.Step`, the
+existing erased iota relation over all stored definitions and selected closed
+structure programs. A typed original of the source is sufficient: replay
+constructs typed representatives of both raw targets, original confluence joins
+them, and forward erasure gives a literal raw join. The same property holds after
+any finite raw path from that source. It transports guards witnessed by literal
+common reducts through independent ordinary computations of both endpoints.
+The standard concrete-pattern interface is the only pattern coverage premise;
+no canonical Eq or strengthening front is needed.
+
+`ProofErasureBinderComputation` inverts finite compatible beta/computation under
+a lambda when primitives have computational roots. Both annotation and body
+paths are retained. `ProofErasureEtaClassification` proves that every raw
+`EtaHead` guard between common-typed originals uses exactly the fresh-argument
+classification dictated by its recovered domain sort. In the marker branch,
+source typing aligns the supplied proof argument with the fresh variable and
+proof classification transfers to that variable. Thus the untyped mismatch from
+the preceding counterexample cannot enter this theorem.
+
+`ProofErasureCoreEtaTransport` now transports an actual function eta pair through
+arbitrary finite core computations on both sides. This is not restricted to the
+single beta root handled earlier. Inverting the long lambda gives an annotation
+path and a body path. The short path lifts into its opened application. These two
+body paths start from the same typed original, so erased core confluence supplies
+a common reduct. Replay retains the exact sort of the computed annotation, and
+`ContextCompare.etaBodyL` closes the resulting residual certificate. The theorem
+also covers a lambda body initially joined to the opened short function,
+whole-proof functions, every displayed raw EtaHead guard at a common original
+type, and arbitrary earlier computations leading to such a head guard.
+
+The output is contextual comparison. It has not been silently promoted to a
+`RawCheckedCompare` guard usable by the context-independent K stages. Transport
+of every recursive contextual comparison, and computational replay of indexed
+prefix stages, remain unresolved. This is verified progress on those cases, not
+a sufficient smaller front or a completion of strengthening.
+
+Validation: the final target builds (402 jobs). All 17 new public declarations
+pass `/tmp/erased-core-eta-audit.log`, with only propext, Classical.choice and
+Quot.sound and no sorryAx. No executable changes or strengthening inverses were
+used.

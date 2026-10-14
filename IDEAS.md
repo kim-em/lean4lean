@@ -586,3 +586,19 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   open; no confluence or strengthening conclusion is asserted.
 
 | Reduce constructor-exposing structure-eta overlaps to parameter phase certificates | **Checked.** `StructureEtaParameterReduction` joins every independently computed field using a computational constructor exposure at arbitrary parameters and universe syntax. Typing supplies the universe comparison; only pointwise symmetric phases for constructor/output parameters remain. `SymmetricSpineCompatibility` assembles these without assuming mixed transitivity. This closes all parameterless roots. `StructureEtaProofParameters` additionally closes every root whose original parameters are proofs, using typing-derived conversion and normal proof irrelevance. Data-valued parameter certificates and full compatible composition remain open; no smaller sufficient strengthening front is claimed. |
+
+- **Transfer exact ordinary confluence through typed erasure.** **Checked** in
+  `ProofErasureCoreConfluence`, for the actual stored-definition and selected
+  structure collection. Both raw branches replay to original computations;
+  original confluence and forward erasure give a literal raw join. Reducts retain
+  reconstructed typed representatives. Common-reduct endpoint guards transport
+  through independent ordinary computation. No canonical Eq or front is needed.
+- **Transport displayed function eta through arbitrary ordinary computation.**
+  **Checked** in `ProofErasureCoreEtaTransport`. Typed classification forces a raw
+  eta guard's marker/variable choice to match its actual domain sort. Lambda
+  inversion separates annotation and body paths. Typed confluence joins the
+  opened body against the independently computed short function, and contextual
+  recursive eta closes the residual pair. This covers both raw EtaHead cases,
+  whole-proof collapse, and guards with arbitrary earlier core computations.
+  The output is contextual comparison, not necessarily a raw K guard. General
+  recursive-comparison transport and indexed-prefix computation remain open.
