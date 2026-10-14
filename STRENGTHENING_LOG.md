@@ -3410,3 +3410,28 @@ not a smaller sufficient obligation or a solution to strengthening.
 The targeted build passes (194 jobs). Five axiom audits contain no sorryAx;
 only propext, Classical.choice and Quot.sound occur. No executable changed.
 The original UniqueTyping sorry remains and the goal is active.
+
+### Feed recursive erased comparison into finite K stages
+
+`ProofErasureComparedK.lean` introduces ComparedKPrimitive, whose guard is the
+common-type mode of recursive erased comparison. Source typing supplies the
+canonical Eq endpoints' common type below, so comparison descent validates the
+proof-irrelevant replacement of an arbitrary major by reflexivity. Finite
+ErasedComparedKStage stages use only predecessor computations inside their guards.
+Every stage descends, weakens and substitutes. The earlier common-target K stages
+embed at identical bounds. The actual typed Eq.rec step also simulates forwards
+from its erased comparison certificate; a whole-proof result becomes identity.
+
+`ProofErasureComparedExamples.lean` checks this against the existing typed
+eta-removal obstruction. The function/eta-expansion endpoint pair computes at
+stage one without an assumed endpoint conversion. The existing type-valued nested
+Eq.rec example computes at stage two, using the first computation in its recursive
+guard. The certificate weakens through arbitrary insertion and gives equality
+below by the new descent theorem.
+
+The targeted build passes with 265 jobs. Ten axiom audits contain no sorryAx;
+only propext, Classical.choice and Quot.sound occur. General singleton primitive
+integration and declarative coverage remain open, particularly eta where an
+inferred function comparison lacks a lower common type. This is checked closure
+and handling of a known obstruction, not a sufficient strictly smaller front or
+a solution of weakN_iff. No executable changed; the original goal remains active.
