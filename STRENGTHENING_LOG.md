@@ -4381,3 +4381,60 @@ propext, Classical.choice, Quot.sound or subsets (the raw beta repair uses no
 axioms). Logs: `/tmp/erasure-recovery-substitution-audit.log` and
 `/tmp/erasure-recovered-substitution-audit.log`. Full strengthening remains open;
 no executable changed and no goal completion criterion was reached.
+
+### Normal/eta exchange and a selective-projection test
+
+`EtaStep.lean` serializes every finite TypedEtaExpansion into single compatible
+steps. Binder bodies expand before their domains, preserving every root typing's
+original context. The steps weaken and convert ambient contexts.
+
+`NormalEtaRoot.lean` moves a root eta expansion before normal comparison.
+Function eta is already represented by NormalEq. At a structure root, normal
+comparison reconstructs the left source's family typing at the right root's
+exact parameters and levels. The expanded right typing supplies its closed
+admissibility certificate, which reconstructs the expanded left typing. The
+resulting constructors are normally compared field-by-field through their
+major projections.
+
+`NormalEtaSimulation.lean` extends this exchange to every compatible position
+and every finite eta path. Its induction includes all ordinary normal comparison
+constructors. Opaque lambda-domain changes remain in NormalEq, and binder-body
+steps use context conversion. In the extensional cases the left function is
+actually eta-expanded under its original Pi domain; no computational reflection
+or front premise is needed. Thus normal followed by finite typed eta factors as
+finite typed eta followed by normal.
+
+`EtaNormal.lean` packages these terminal phases, proves their transitivity,
+weakening, context conversion and all expression-constructor closures.
+`PrefixEtaCompatibility.lean` connects this to PrefixEtaNormal: computation may
+be prepended and a complete terminal phase appended, and the three-phase
+representation is compatible with application, lambda, Pi and projection.
+After computational changes to a binder domain, the eta/normal body witnesses
+are converted to the resulting domain context. These results do not prove
+transitivity across a later computational phase.
+
+While examining that missing exchange, selective computation in duplicated
+fields emerged as a potential obstruction. `EtaDuplicationBoundary.lean`
+checks the pure-eta version precisely. Let c be a registered zero-parameter,
+two-field constructor and v a variable. Starting at c v v, actual structure eta
+followed by contraction of only its first projection yields
+c v (proj_1 (c v v)). Both source and expanded typing premises are retained.
+No finite TypedEtaExpansion alone reaches this target: constant-spine exposure
+either preserves the original fields, which cannot acquire a projection head,
+or creates a structure constructor, whose first projected field cannot become
+a variable by eta alone. The supporting variable/projection-head reflection
+lemmas are purely syntactic.
+
+This checked boundary does NOT refute PrefixEtaNormal: the theorem does not
+exclude an earlier computation or the final ordinary normal comparison. In
+particular proof-valued fields may allow that comparison to absorb the
+selective contraction. A non-proof instance of the larger boundary still needs
+analysis before global three-phase coverage can be assumed. Head-focused
+repair may remain possible even if exact whole-term factorization fails.
+The witnessed proposition front and opaque-domain descent are also unproved;
+none of the goal's completion criteria has been reached.
+
+Validation: the combined targeted build passes (369 jobs). All thirty-five
+public theorem axiom audits in `/tmp/normal-eta-audit.log` contain no sorryAx
+and use only propext, Classical.choice and Quot.sound or subsets. No executable
+changed; the original UniqueTyping sorry remains.
