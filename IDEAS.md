@@ -602,3 +602,19 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   whole-proof collapse, and guards with arbitrary earlier core computations.
   The output is contextual comparison, not necessarily a raw K guard. General
   recursive-comparison transport and indexed-prefix computation remain open.
+
+- **Strengthen core eta transport from contextual to raw checking guards.**
+  **Checked** in `ProofErasureCoreRawEtaTransport`. Replay at the opened typed
+  function followed by `PatternCompute.fresh_application` reflects its entire
+  computation into the short function. The residual is displayed eta or two
+  lambdas sharing an erased body; both are raw checking guards and can follow
+  any computation of the short endpoint. Typed core confluence aligns that path
+  with the independent short path. This covers arbitrary earlier core paths and
+  recursive eta bodies witnessed by literal common reducts.
+- **Close prefix versus core-argument peaks for join/eta endpoint guards.**
+  **Checked** in `ProofErasureCorePrefixPeaks`: a typed non-proof five-argument
+  Eq.rec prefix whose endpoints have a core join or displayed-eta guard forms a
+  literal commuting square at prefix-only stage one. All five arguments may
+  compute independently, including the data used in the generated annotation.
+  Guards are transported as raw checking certificates. General recursive guards
+  and higher-stage prefix interactions remain open; this is not full confluence.

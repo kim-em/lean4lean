@@ -5796,3 +5796,44 @@ Validation: the final target builds (402 jobs). All 17 new public declarations
 pass `/tmp/erased-core-eta-audit.log`, with only propext, Classical.choice and
 Quot.sound and no sorryAx. No executable changes or strengthening inverses were
 used.
+
+## Raw eta transport and a literal first-stage prefix/core square
+
+`ProofErasureEtaResidual` records the two syntactic outcomes of fresh-application
+reflection: displayed eta, or lambdas sharing a body with arbitrary annotations.
+Each is a raw common-mode checking certificate. Any further computation of the
+short endpoint can be mirrored by computation of the long endpoint, preserving
+this residual form. This direction is raw and uses only weakening stability and
+exclusion of lambda primitive roots.
+
+`ProofErasureCoreRawEtaTransport.fresh_application_raw` replays a finite erased
+path from the canonical opened body to an original ordinary path, then applies
+`PatternCompute.fresh_application`. Unlike the earlier normal-equality wrapper,
+the syntactic alternatives directly yield `EtaResidual`: the retained-application
+case uses the domain's exact proof classification, while the lambda case uses
+context conversion to identify its erased body under the recovered domain.
+This requires neither strengthening nor untyped eta contraction replay.
+
+Typed ordinary confluence joins the reflected short path against the independent
+short path. Mirroring its residual gives raw checking transport for canonical
+eta shapes, every raw head-eta guard between common-typed originals, and arbitrary
+preceding ordinary computations ending at such a guard. The same argument covers
+a recursively opened body initially related by a literal common computational
+reduct. These results strengthen the preceding contextual-only output and can
+actually guard the existing context-independent K primitives.
+
+`ProofErasureCorePrefixPeaks.EndpointGuard` identifies literal joins, displayed
+eta after core computation, and their symmetric forms. Its typed forward theorem
+returns an ordinary raw checking guard. `prefix_core_square` uses that theorem at
+a typed non-proof Eq.rec prefix and permits independent finite core computation
+of all five arguments. Contracting first then computing the generated annotation
+and lifted minor, or computing arguments first then contracting with the
+transported guard, reaches exactly the same raw lambda at prefix-only stage one.
+The source is the erasure of the actual typed prefix, not a freely assumed raw
+redex. Higher-stage prefixes, arbitrary recursive guards, structure eta and full
+comparison composition are not asserted to be covered. Strengthening remains
+open; no smaller sufficient front is claimed.
+
+Validation: the final target builds (427 jobs). All 12 public declarations pass
+`/tmp/core-raw-eta-audit.log`, with only propext, Classical.choice and Quot.sound
+and no sorryAx. No executable edits or strengthening inverse was introduced.
