@@ -1226,3 +1226,22 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   More singleton stages cannot repair it. A live next direction is carrier-aware
   application checking with a domain justified below insertion, while avoiding
   the already-refuted exact-type-recovery substitution requirement.
+- **Use one recovered function domain to check application arguments by their
+  carriers.** **Root descent and strict local repair checked** in
+  `ProofErasureCarrierApplication` and its example module. Inferred comparison
+  aligns the functions; recovery of one function supplies the actual lower Pi
+  and argument domain. A carrier comparison then licenses application
+  congruence. The exact three-variable neutral counterexample receives a
+  lookup-only root certificate, while the previous carrier relation still fails
+  at every singleton stage. This is a separate root relation, not yet integrated
+  into the recursively substitution-stable singleton stages.
+- **Re-synthesize a domain and argument guard together after substitution.**
+  **Precise open obligation and conditional transport checked** in
+  `ProofErasureCarrierDomainResynthesis`. Neither the recovered domain nor
+  codomain must equal its old substituted syntax; the new domain must support
+  the transported argument guard. The captured-Pi identity test accepts the
+  ordinary re-synthesized domain although exact recovery of its assigned type
+  remains impossible at every old compared-K stage. This repairs that test,
+  not arbitrary substitution. CarrierDomainResynthesis is unproved for the
+  concrete stages and is not claimed sufficient for strengthening or strictly
+  smaller than the proposition front.

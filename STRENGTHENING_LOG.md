@@ -7485,3 +7485,67 @@ All 78 axiom reports use only propext, Classical.choice and Quot.sound. Opaque
 dependency traversal visits 11,443 declarations with no weakN_iff, weakN_inv
 or sorryAx; /tmp/function-carrier-audit.log. No executable changes, extraction,
 PR creation, agents or coordination.
+
+## Recovered argument carriers repair the neutral application root
+
+The previous turn refuted full paired closure of the structure/function carrier
+wrapper: ordinary application checking still cannot compare the distinct
+empty-structure arguments of a neutral function into Prop. This turn checks a
+replacement application root and identifies its exact remaining substitution
+obligation without assuming the refuted exact-recovery law.
+
+`ProofErasureCarrierApplication` defines RecoveredCarrierApplication. It contains
+an inferred ScopedCompare of the two functions, TypeRecovery of a Pi on just the
+left function, and a StructureCarrierGuard for the arguments at that recovered
+domain. Its codomain is existential bookkeeping, not a prescribed output type.
+This is a separate local relation; it has not been inserted into ScopedCompare
+or the existing singleton-stage definition.
+
+The descent theorem handles arbitrary block insertion and independently typed
+application endpoints. Application-shape inversion recovers the original
+functions and arguments. The existing Pi-recovery theorem reconstructs an
+actual lower domain and codomain from the left function. Inferred function
+comparison aligns the functions, uniqueness assigns both arguments the
+recovered domain, and carrier descent supplies argument equality. Application
+congruence finishes. At no point is an upper argument typing strengthened or an
+arbitrary upper witness used as a lower term. Original-context reflection and
+typed forward root coverage are also checked.
+
+`ProofErasureCarrierApplicationExample.recovered_unit_neutral_application`
+gives the strict local repair. A lookup for f : S → Prop and two distinct
+variables of a positive empty structure S yield the new root certificate with
+no recovery computation. The theorem includes original definitional equality
+and all-stage failure of the old carrier relation. Its companion
+recovered_neutral_application_context constructs the exact context
+[S, S, S → Prop] from the previous paired-closure refutation, with both actual
+application typings. It assumes the registered empty structure and its closed
+typing; it does not construct a new base environment. The old refutation remains
+valid because the new certificate belongs to a distinct, larger root language.
+
+The re-synthesis example deliberately revisits the old captured-Pi failure.
+The substituted identity has a valid typing at the captured Pi, whose erased
+selected type remains unrecoverable at every compared-K stage. Nevertheless,
+its ordinary synthesized domain Prop supplies a recovered application root for
+arguments with an existing scoped comparison. The result does not preserve the
+captured domain syntax, and does not claim to transport every old argument guard.
+It checks that exact selected-type preservation is unnecessary for this test.
+
+`ProofErasureCarrierDomainResynthesis` names the live missing law. Given a typed
+substitution, a recovered function Pi and an argument carrier certificate,
+CarrierDomainResynthesis asks for some newly recovered Pi together with a
+certificate for the substituted arguments at its new domain. Both its domain
+and codomain may change. The conditional transport theorem proves that this
+joint law suffices for typed substitution of the recovered application root;
+the inferred function comparison transports independently using existing
+contextual substitution. The law is unproved for the concrete stages. It is
+neither claimed to be a strictly smaller front nor to suffice alone for the
+main strengthening theorem. Recursive integration and general coverage remain
+open, and exact chosen-type recovery remains a refuted substitute for this law.
+
+Validation: the example and domain-re-synthesis targets build together
+(519 jobs), /tmp/carrier-application-final-build.log. The audit covers all nine
+new public declarations and repeats the previous 78 roots. All 87 axiom reports
+use only propext, Classical.choice and Quot.sound. The opaque-value dependency
+audit visits 11,539 declarations, with no weakN_iff, weakN_inv or sorryAx;
+/tmp/carrier-application-audit.lean and /tmp/carrier-application-audit.log.
+No executable changes, extraction, PR creation, agents or coordination.
