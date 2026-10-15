@@ -1140,3 +1140,37 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   itself still lacks the neutral rule. General structure carriers with recursive
   fields are a live extension: the displayed carrier may similarly avoid
   endpoint type recovery, but field guards and stage transport must be proved.
+- **Extend explicit-carrier Eq guards to individual proof fields.** **Checked**
+  in `StructureProofField`: a closed specialized constructor-telescope
+  certificate for one field is equivalent to proofness of that projection at
+  any typed expansion. The converse uses universe uniqueness after telescope
+  instantiation, not inverse substitution. Mixed data/proof records can skip
+  exactly their proof fields with certificates unchanged by substitution.
+- **Carry field types recursively through neutral structure comparison.**
+  **Checked and integrated** in `ProofErasureStructureCarrier`,
+  `ProofErasureStructurePrefix` and `ProofErasureStructureSingletonStages`.
+  Merely delegating every data field to ScopedCompare would leave nested empty
+  structures unsupported. The new finite inductive guard instead uses closed
+  projection-type recipes as recursive carriers; proof fields are skipped.
+  Ordinary scoped checking, symmetry and computation of the carrier are also
+  admitted. All cases descend with common lower endpoint types and survive typed
+  context substitution. Actual registered Eq prefixes use these guards in the
+  general singleton stages, with exact operational replay. Old typed singleton,
+  unit-augmented and scoped K-prefix stages embed at the same bound.
+- **Exercise nested data fields and mixed proof fields.** **Checked** in
+  `ProofErasureNestedStructureExample`. A registered outer structure with one
+  empty-structure data field admits a guard for arbitrary neutral majors. In
+  the actual context [Outer, Outer], a typed constant-motive Eq recursor exposes
+  Prop at stage one despite all-stage failure of direct variable comparison.
+  The theorem assumes the displayed registered structures and closed typings;
+  it does not construct an environment extension. A separate mixed schema with
+  P : Prop and h : P compares the first field and skips the second.
+- **Determine whether the new carrier guard directly enlarges proposition
+  comparison.** **No at a literal universe carrier.**
+  `StructureCarrierGuard.sort_checked` reduces every such guard to the existing
+  ScopedCompare at the same computational relation. Primitive-head exclusion
+  fixes the universe, ruling out the structure constructors. Any benefit for
+  the proposition front must therefore come through richer computation, not
+  terminal carrier syntax alone. Complete exposure/guard coverage and
+  comparison composition remain live obligations; no smaller sufficient front
+  or solution of strengthening is asserted.

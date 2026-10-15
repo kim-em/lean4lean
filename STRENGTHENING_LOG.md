@@ -7263,3 +7263,87 @@ Classical.choice and Quot.sound occur. The transitive audit includes opaque
 values, traverses 11,046 dependencies, and finds no weakN_iff, weakN_inv or
 sorryAx; output /tmp/unit-prefix-audit.log. Work was performed without agents
 or coordination.
+
+## Recursive structure carriers, individual proof fields, and actual prefix stages
+
+The preceding turn was progress: 4cc6d249 integrated the empty-structure carrier
+rule into singleton computation and checked an actual typed head-exposure
+example. This turn revalidated that HEAD and a clean worktree, then addressed
+the nonempty and nested structure cases without assuming endpoint recovery is
+complete or substitution-stable.
+
+`StructureProofField` identifies one field using its closed specialized
+constructor telescope. At a typed projected expansion, this certificate is
+EQUIVALENT to proofness of that projection. For the forward direction, substitute
+the typed parameter/earlier-field spine into the closed proposition domain. For
+the converse, compare the instantiated field domain's sort with Prop, then apply
+the resulting universe equivalence to its closed typing. This uses ordinary
+universe uniqueness and forward telescope instantiation, not inverse weakening
+or inverse substitution. Individual certificates therefore handle mixed records,
+and contain no occurrence parameters to transport under substitution.
+
+`ProofErasureStructureCarrier` introduces a finite carrier-indexed comparison.
+The flat structure constructor admits a static proof certificate or an existing
+scoped comparison for each field. Ordinary common-mode scoped checking is also
+a leaf, and symmetry is explicit. Carrier computation is permitted: descent
+first reconstructs the computed lower type and converts both endpoints to it.
+
+A flat extension alone would still delegate a nested empty-structure data field
+to the comparison language that cannot compare its neutral majors. The final
+implementation therefore also has a recursive structure constructor. It retains
+a closed ProjTele and uses the existing proof-erased projectionType recipe for
+each retained field's carrier. These recipes ignore earlier proof variables
+and commute with substitution and block insertion. At replay, dependent spine
+comparison aligns the current field types, the field recipe reconstructs an
+actual lower type, and both projected endpoints are converted to that type
+before applying the induction hypothesis. Thus nested carriers descend without
+an endpoint TypeRecovery premise. The complete guard has checked typed-context
+substitution and monotonicity as well as block descent and reflection.
+
+`ProofErasureStructurePrefix` feeds the guard into Eq.rec's displayed common
+carrier. Source inversion supplies the actual carrier and endpoint typings;
+carrier reflection then licenses the ordinary proof-domain prefix lambda.
+Descent, context substitution, monotonicity, typed forward erasure and actual
+registered singleton-prefix replay are checked. Registry agreement is exactly
+the existing operational Eq-prefix interface. The earlier UnitPrefixPrimitive
+embeds as the zero-field instance.
+
+`ProofErasureStructureSingletonStages` iterates general typed singleton
+primitives and these structure-carrier prefixes. Every stage has descent,
+typed-context substitution and exact operational replay. Old general typed
+singleton stages, unit-augmented stages, and ordinary scoped K-prefix stages
+all embed at the same finite bound. Both partial and fully applied Eq recursors
+with the new guards compute one stage later. These are actual finite stages,
+not just an isolated proposed replay rule.
+
+`ProofErasureNestedStructureExample` checks the nested case explicitly. Its
+hypotheses describe a registered empty inner structure and a registered outer
+structure with one data field of that inner type, with closed positive-universe
+typings. The nested guard compares arbitrary raw outer majors by recursively
+using the field's inner carrier. In the concrete well-formed context
+[Outer, Outer], reflection yields equality of the two variables. A converted
+reflexivity proof types a constant-motive Eq recursor whose payload is Prop;
+the new stage-one computation exposes Prop. Direct ScopedCompare of these two
+variables still fails in either mode at every augmented stage. As in the prior
+example, this is not a separation theorem for all old computational paths and
+not a freshly constructed inductive environment. The same module checks a mixed
+schema P : Prop, h : P: only its retained proposition-valued data field needs a
+comparison, while the second field supplies its own static proof certificate.
+
+A terminal-language boundary was also checked rather than assumed away.
+`ScopedCompute.sort_fixed` fixes literal universes for constant/projection-headed
+primitive relations. By induction, `StructureCarrierGuard.sort_checked` reduces
+any new guard at a literal universe carrier to ordinary ScopedCompare using the
+same primitive relation. Consequently this extension cannot itself discharge
+proposition comparison at Prop: progress toward that front must use its added
+computational paths. Full computational exposure, guard coverage and comparison
+composition remain unproved. The full goal remains active; no strictly smaller
+sufficient obligation or canonical-Eq counterexample is claimed.
+
+Validation: the final example target builds all five modules (504 jobs), log
+/tmp/nested-structure-example-build.log. All 34 public declarations are checked
+by #print axioms in /tmp/structure-carrier-audit.lean, using only propext,
+Classical.choice and Quot.sound. The transitive audit includes opaque values,
+visits 11,088 dependencies, and finds no weakN_iff, weakN_inv or sorryAx;
+output /tmp/structure-carrier-audit.log. No executable changes, extraction,
+PR creation, agents or coordination.
