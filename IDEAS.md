@@ -1554,3 +1554,22 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   This rejects literal type joins and unconstrained variable-image transport;
   it does not refute re-synthesis or canonical-Eq strengthening. Further type
   alignment must retain comparison/conversion evidence, not just computation.
+
+- **Transport guards across the neutral recovered-type join obstructions.**
+  **Proved without joins or type-comparison evidence.**
+  ProofErasureJointCarrierExposure factors every joint carrier guard into either
+  ordinary common-mode endpoint comparison or a computation to a registered
+  unindexed structure/Pi carrier, retaining the endpoint guard there. A
+  variable-headed application spine cannot expose either shape: computation
+  keeps its head/index/arity and supplies paths for its arguments, without
+  normality or termination assumptions on those arguments. All guards at such
+  carriers therefore yield common-mode comparison and transfer to any newly
+  selected carrier (whose endpoint typings are still required for sound use).
+  ProofErasureJointNeutralAlignment applies this to the actual eta example:
+  x : F f also has assigned type F (fun p => f p), lookup recovers F f at stage
+  zero, and the two types have no literal join in the entire union, yet their
+  carrier guards are equivalent for every pair of raw endpoints at every finite
+  stage. Together with sort_reindex, this bypasses both recent literal-join
+  obstructions for guard alignment. General non-proof substitution, recovery
+  exposure, and transport at exposed structure/Pi carriers remain open. The
+  factorization is not a smaller sufficient strengthening front.

@@ -8645,3 +8645,66 @@ explicit carrier guard across such type evidence, together with full type
 exposure, remains open. No smaller sufficient front is claimed. weakN_iff
 remains unproved and the full goal stays active. No executable changes,
 extraction, PR creation, agents, or coordination.
+
+## 2026-10-15: neutral carrier alignment bypasses the type-join obstructions
+
+The preceding user-facing turn was no progress: it acknowledged the instruction
+not to extract work. The subsequent explicit goal continuation resumed research;
+no extraction or PR work was performed. Revalidated the clean 1cbea4aa checkpoint
+and its matching remote SHA before proceeding.
+
+Investigated comparison/conversion transport after literal recovered-type joins
+were refuted. The first useful distinction is that the two checked failures of
+literal joins do not themselves require new carrier checking rules. Universe
+carriers were already handled by sort_reindex. The stronger eta example uses
+variable-headed types, and every guard at such a type reduces to ordinary
+common-mode endpoint checking. Hence it transports to any selected recovered
+carrier without a join, or even a comparison certificate between the two types.
+This is a statement about raw certificates: applications still need actual
+endpoint typings at the selected carrier for their sound interpretation.
+
+ProofErasureJointCarrierExposure establishes the general factorization. Every
+JointCarrierGuard either gives JointCompare true on its original endpoints, or
+its carrier computes to a CarrierExposure shape, with a guard at that shape for
+the same endpoints. CarrierExposure is exactly a displayed Pi or a registered
+unindexed structure application with the declared parameter arity. In the
+induction, successive carrier computations concatenate; symmetry and endpoint
+computation stay inside the final guard. The factorization requires neither
+primitive soundness nor confluence. It is a necessary shape characterization,
+not a claim that every exposed guard adds checking power.
+
+Also proved beta and contextual computation inversion for arbitrary
+variable-headed application spines: the head variable and arity survive, with
+one computation path per argument. The contextual theorem only requires the
+existing constant/projection primitive-head condition. No normality, fixedness,
+or termination assumption on the arguments is needed. These spines cannot
+reach either exposed carrier shape, so their entire carrier grammar collapses
+to common-mode checking. The resulting reindexing theorem is valid for any
+target carrier, including a different selected recovery output.
+
+ProofErasureJointNeutralAlignment checks the intended typed use. In the earlier
+context f : Prop -> Prop, F : (Prop -> Prop) -> Type, x : F f, the variable x is
+typed at both F f and F (fun p => f p), with their original eta equality and its
+stage-zero lookup recovery supplied. The two type erasures have no common
+computational reduct in ErasedJointUnion D for any core D. Nevertheless their
+carrier guards are equivalent on every pair of raw endpoints at every finite
+joint stage. This positive alignment result coexists with the previous stronger
+failure of a join for every recoverable output; it does not weaken or retract
+that counterexample.
+
+Validation: lake build of ProofErasureJointNeutralAlignment succeeded, 541 jobs,
+/tmp/joint-neutral-alignment-build.log. All eleven new public declarations,
+including the two CarrierExposure constructors, have checked axiom reports.
+The cumulative opaque dependency audit /tmp/joint-neutral-alignment-audit.lean
+checks 368 roots and 14,280 dependencies, rejecting weakN_iff, weakN_inv and
+sorryAx. The axiom parser verifies all 368 reports against propext,
+Classical.choice and Quot.sound (including names ending in an apostrophe).
+The independent new-root audit checks 11 roots and 8,176 dependencies and also
+rejects JointCarrierDomainResynthesis and every name in that namespace.
+
+The next substantial alignment work concerns exposed structure/Pi carriers,
+including dependent projection carriers and changing binder contexts; general
+non-proof substitution and recovery/type exposure remain unproved. This does
+not establish joint confluence, a canonical-Eq counterexample, a proof of
+weakN_iff, or a strictly smaller sufficient front. The main goal is active and
+unachieved. No executable changes, extraction, PR creation, agents or coordination.
