@@ -1094,3 +1094,29 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   comparison repair from cases where negative recursion supplies inhabitants
   of the deleted context. Arbitrary nontermination alone does not justify the
   universal-inhabitation argument.
+- **Test finite-stage composition using a commonly typed empty-structure
+  intermediate.** **Refuted for the current ScopedCompare at every stage.**
+  `ProofErasureScopedUnitBoundary` proves that constant/projection-headed
+  primitive steps fix variables, so scoped comparisons of two variables force
+  their indices equal. Distinct variables of a positive-universe registered
+  empty structure nevertheless have an original unitLike equality, and each
+  compares at stage zero with the same constructor at their common original
+  type. This is not the earlier untyped-intermediate obstruction. More stages
+  alone cannot give full composition/coverage. It does not refute the finite
+  paired-instantiation law or canonical-Eq strengthening.
+- **Recover a family type to justify neutral empty-structure equality below
+  insertion.** **Checked root repair** in `ProofErasureScopedUnitGuard`.
+  TypeRecovery reconstructs the exact lower family and parameters, and common
+  endpoint typing permits unitLike. Variable lookup supplies this guard in the
+  two-neutral example; `scoped_unit_guard_strict` exhibits its strict extension
+  over every old stage, conditional on a closed registered empty structure.
+  This is certificate-extension strictness, not a strictly smaller front.
+- **Extend the recovered-family repair to arbitrary structure fields.**
+  **Checked sufficient root rule** in `ProofErasureNeutralStructure`. Both
+  majors expand at the recovered lower family. Dependent-spine comparison aligns
+  each field's type before applying the recursive premise; existing scoped
+  certificates on raw projections suffice, with proof projections handled by
+  irrelevance. Neither major needs a constructor head. Integration into the
+  recursively closed comparison, substitution stability of recovery, and full
+  coverage/composition remain open. The sufficient all-projection premise is
+  not claimed complete for mixed proof/data fields.

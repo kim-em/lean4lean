@@ -7125,3 +7125,70 @@ actual declaration constructors and unconditional front theorems, are audited in
 The scan traverses 11,150 transitive dependencies with opaque theorem values
 included and finds no weakN_iff, weakN_inv, or sorryAx. No executable changes,
 extraction, PRs, or coordination. The full goal remains active and unachieved.
+
+## Typed neutral-structure composition gap and recovered-family root repair
+
+The previous acknowledgement turn made no research progress. This continuation
+revalidated the actual worktree: HEAD 3ab0771a and two pending unit-boundary/guard
+modules. Their checked content is now audited and recorded, together with a
+new extension to structures with fields. No extraction or PR is involved.
+
+`ProofErasureScopedUnitBoundary` checks a simpler completeness obstruction than
+negative recursion. Any scoped primitive with a constant/projection head leaves
+bare variables fixed throughout finite compatible computation. Constructor
+analysis of ScopedCompare then shows that a comparison of two bare variables,
+in either mode, forces their indices equal. This applies to every actual general
+typed singleton stage, irrespective of the stage bound.
+
+Two distinct variables of a registered positive-universe empty structure are
+originally equal by unitLike. The actual constructor is typed at exactly their
+common family instance, and there are stage-zero scoped comparisons from the
+first variable to that constructor and from it to the second variable. Thus the
+missing direct comparison is a genuinely typed common-intermediate composition
+gap. Additional finite stages cannot fix it. Unlike the older raw transitivity
+counterexample, the intermediate here is well typed at the endpoints' type.
+This does not itself refute finite paired instantiation, and is not a
+counterexample to strengthening.
+
+`ProofErasureScopedUnitGuard` supplies a safe root repair. A TypeRecovery
+certificate on the left endpoint recovers an unindexed zero-field family.
+Recovery descent and constant-spine inversion reconstruct the exact original
+family parameters below insertion. Uniqueness and the supplied common-type
+equality give the same family to the right endpoint, so original unitLike
+applies. Variable lookup supplies the certificate without primitive computation.
+For a closed zero-parameter registered positive-universe empty structure, the
+module constructs the concrete context [S, S] and proves that the new guard
+succeeds where every old finite-stage comparison fails. The theorem is
+conditional on that registered structure; it does not construct a fresh Unit
+inductive environment. Its strictness claim concerns root certificates only.
+
+`ProofErasureNeutralStructure` generalizes the reconstruction beyond empty
+structures. `structure_neutral_fields` expands both arbitrary majors, using the
+existing exact expansion-admissibility criterion. The dependent constructor
+spine aligns each pair of projection types sequentially, then invokes comparison
+at that common type. `proofErase_structure_recovery_descend` reconstructs lower
+parameters independently of the number of fields. Combining these gives
+`proofErase_neutral_structure_descend`, whose explicit remaining premise is
+comparison of the lower projections. Finally,
+`proofErase_scoped_neutral_structure_descend` discharges that premise from
+existing scoped certificates on corresponding raw projections. Non-proof
+projections retain their erased projection heads; proof projections compare by
+common-type irrelevance.
+
+These are sufficient root rules, not an integration into ScopedCompare or its
+singleton stages. In particular, the all-raw-projection premise is not claimed
+complete for mixed proof/data fields. Recovery substitution, recursively closed
+neutral-structure certificates, and full comparison coverage/composition remain
+open. This fixes a precise missing replay case and rules out repairing the old
+comparison system by stage increases alone; it is not a smaller sufficient
+front and does not finish GOAL.md. The fixed-data-result recursive test remains
+an unimplemented live direction, with the prior Curry-collapse caveat intact.
+
+Validation: `lake build
+Lean4Lean.Theory.Typing.Strengthening.ProofErasureNeutralStructure` succeeds
+(497 jobs), including both pending modules; log /tmp/neutral-structure-build.log.
+#print axioms for all 13 public declarations reports only propext,
+Classical.choice, and Quot.sound. The audit in
+/tmp/neutral-structure-audit.lean traverses 8,824 dependencies, including opaque
+values, and rejects weakN_iff, weakN_inv, and sorryAx; it passes, with output in
+/tmp/neutral-structure-audit.log. No executable changes or coordination.
