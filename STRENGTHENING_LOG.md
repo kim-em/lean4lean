@@ -8407,3 +8407,44 @@ Validation: both new modules build; the final build has 533 dependency jobs,
 weakN_inv, or sorryAx. Only propext, Classical.choice, and Quot.sound occur;
 a separate parser verifies all 300 axiom reports. No executable changes,
 extraction, PR creation, agents, or coordination.
+
+
+## 2026-10-15: quotient-enriched ordinary confluence
+
+The previous user-facing turn made no research progress. On explicit goal
+continuation, revalidated the clean pushed quotient-repair checkpoint and
+continued its outstanding confluence check. No extraction or PR was requested
+or performed.
+
+ProofErasureQuotCoreConfluence proves confluence for the enlarged ordinary core.
+The declaration split is old core versus the added proposition-source Quot.lift
+value. The old collection has no declaration at that head, so fixed-universe
+uniqueness is preserved. The actual stored quotient equation excludes the new
+head from every rigid class. For pattern overlap, definition patterns cannot
+have this head; ordinary inductive recursors cannot either, because Quot.lift
+has no recursor-registry entry. The remaining quotient pattern requires its
+source universe to be nonzero. Its universal CheckFromTyping certificate,
+instantiated at the typed source, contradicts the added equation's zero-source
+guard. This is the exact critical case, not an assumption of disjointness.
+
+A typed induction now maps all enlarged ordinary PatternCompute paths into the
+existing separated presentation. Intermediate typings are obtained by forward
+soundness. Raw separated confluence yields pattern_confluent. Exact erased
+replay and forward erasure yield ErasedQuotCore.confluent from a typed source,
+with literal endpoint joins and no type-recovery premise. The new module adds
+seven public declarations and no executable changes.
+
+Validation: lake build of the new module passes (534 jobs), recorded at
+/tmp/quot-core-confluence-build.log. /tmp/quot-core-confluence-audit.lean extends
+the prior audit to 307 public roots and 14,153 transitive declarations, including
+opaque bodies. No weakN_iff, weakN_inv, or sorryAx dependency occurs. A separate
+parser checks all 307 axiom reports against propext, Classical.choice, Quot.sound.
+
+This closes ordinary-core confluence after the quotient repair. It does not
+close the main goal: weakN_iff remains unproved, no canonical-Eq counterexample
+has been established, and no strictly smaller sufficient front has been proved.
+The next substantive step remains joint type exposure/re-synthesis, including
+arbitrary singleton-family conversions. Ordinary confluence supplies joins only
+for paths already in this core; it cannot by itself supply those missing paths
+or transport all JointCarrierGuard certificates. Use the repaired core in that
+investigation; the old core's re-synthesis instance is still refuted.

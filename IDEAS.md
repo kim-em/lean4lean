@@ -1489,3 +1489,15 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   their re-synthesis premise remains open for it. Future re-synthesis work in
   environments with Quot must use ErasedQuotCore.definitions (or a collection
   containing the same equation), not the refuted old concrete instance.
+
+- **Preserve ordinary confluence when restoring quotient prefixes.**
+  **Proved for the repaired ordinary core, including typed erasures.**
+  ProofErasureQuotCoreConfluence shows that the added closed Quot.lift equation
+  preserves fixed-universe declaration determinism and rigid-head separation.
+  A typed ordinary pattern at that head requires a nonzero source universe,
+  whereas the added equation requires the same universe to equal zero. Thus
+  every typed ordinary path still translates to SeparatedPatternCompute, whose
+  raw confluence yields an exact join. Replay and forward erasure give exact
+  typed-source confluence for ErasedQuotCore.Step. This removes the confluence
+  regression risk from the quotient repair; it does not establish confluence
+  for arbitrary joint singleton stages or discharge joint re-synthesis.
