@@ -1174,3 +1174,28 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   terminal carrier syntax alone. Complete exposure/guard coverage and
   comparison composition remain live obligations; no smaller sufficient front
   or solution of strengthening is asserted.
+- **Retest recursive annotation alignment with a fixed data result.**
+  **Actual admitted family checked** in `RecursiveDataEnvironment` and
+  `RecursiveDataTyping`: R P := R P → (P → S), for an existing monomorphic
+  data constant S. The actual mutual-definition extension preserves WF and
+  canonical Eq; Pi injectivity recovers P from equality of family applications
+  by substituting the diagonal inhabitant. If S is registered, the literal Pi
+  body used by the earlier Curry collapse cannot have type S. This excludes
+  that construction only; consistency and other collapse mechanisms remain open.
+- **Compare recursive outputs through subsingleton result carriers.**
+  **Checked and integrated** in `ProofErasureSubsingletonCarrier` and
+  `ProofErasureStructureCarrier`: empty structures and dependent functions into
+  certified carriers admit equality of any common-typed endpoints. The shape
+  certificate survives arbitrary raw substitution and reflects below insertion.
+  For S an empty structure, P → S certifies the non-proof loop results without
+  requiring comparison of their internal recursive annotations. The actual
+  extension example is checked in `RecursiveDataExample`. This demonstrates a
+  repair for this test, not inequivalence of its annotations.
+- **Close paired instantiation using a subsingleton result certificate.**
+  **Restricted carrier-aware law proved** in `ProofErasureSubsingletonPaired`.
+  A carrier comparison of the arguments and a structural subsingleton certificate
+  for the dependent result suffice; body comparison is unnecessary. The result
+  is a StructureCarrierGuard, deliberately not the older ScopedCompare output.
+  It therefore does not prove ScopedFinitePairedInstantiation or general paired
+  closure. Literal universes still reduce to ordinary scoped checking, so the
+  general proposition front remains open.

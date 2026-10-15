@@ -7347,3 +7347,63 @@ Classical.choice and Quot.sound. The transitive audit includes opaque values,
 visits 11,088 dependencies, and finds no weakN_iff, weakN_inv or sorryAx;
 output /tmp/structure-carrier-audit.log. No executable changes, extraction,
 PR creation, agents or coordination.
+
+## Fixed-data recursion and a subsingleton fragment of paired instantiation
+
+The earlier universe-result recursion supplied its own Curry collapse, so its
+annotation test did not establish a strengthening obstruction. The new family
+in `RecursiveDataEnvironment` has equation R P := R P → (P → S), where S is an
+existing monomorphic constant of Type. This is checked with the actual
+mutual-definition declaration rule, including typing the value before installing
+the equation. The extension preserves WF and canonical Eq. `RecursiveDataTyping`
+checks the equation, self-application and diagonal typings, and recovery of P
+from equality of R P and R Q. Binder removal in that recovery substitutes the
+diagonal inhabitant; it uses no strengthening inverse.
+
+The fixed result is intentionally more restrictive than a universe result.
+`RecursiveDataCarrier.no_pi_at_data` proves that a Pi expression cannot have a
+registered rigid data carrier as its type. This blocks the literal
+proposition-producing body in the earlier Curry construction. It is not a
+consistency theorem and does not exclude every possible collapse argument.
+
+For an empty structure S, the result P → S suggests a positive repair rather
+than another annotation comparison obligation. `ProofErasureSubsingletonCarrier`
+defines a finite grammar of empty structure carriers closed under dependent
+function codomains. It is stable under arbitrary raw substitution. Its descent
+theorem compares any two lower originals at a common type whenever the lifted
+erased type has this certificate: unitLike handles empty structures, and function
+eta plus induction handles dependent functions. No comparison of the endpoints'
+internal annotations is required. The grammar excludes literal universes.
+
+`ProofErasureStructureCarrier` now includes this certificate as a leaf. Existing
+substitution, monotonicity, descent, reflection, prefix replay and singleton
+stage results continue to build. In particular sort_checked still reduces a
+guard at a literal universe to ordinary ScopedCompare; this change does not
+silently introduce arbitrary proposition equality.
+
+`ProofErasureSubsingletonPaired` proves paired instantiation for a structurally
+subsingleton dependent result. Both bodies need only their common typing;
+the arguments have a carrier comparison. Reflection compares the arguments,
+subsingleton descent compares the bodies, and ordinary typed instantiation gives
+the result equality. Raw stability of the result certificate supplies the output
+carrier guard. A specialization covers P → S with P depending on the substituted
+argument. This is a law for the carrier-aware output relation, not a proof of
+the older ScopedFinitePairedInstantiation statement and not general paired
+closure. Full exposure/comparison coverage remains open.
+
+`RecursiveDataExample.canonical_data_loop_carrier` ties the test to the actual
+canonical-Eq-preserving extension. The original recursive domain and its
+unfolding yield two loops typed at P → S, both non-proofs, with actual equality
+and a stage-zero carrier guard. Their annotations are not asserted unequal.
+The base environment is assumed to contain the stated registered empty structure;
+the theorem constructs the recursive extension, not that base environment.
+
+Validation: the new example and the existing nested-structure example build
+together (511 jobs), log /tmp/recursive-data-example-build.log. The audit in
+/tmp/recursive-data-audit.lean covers all 31 new public declarations, including
+the abbreviation, and repeats the 34 public roots from the preceding carrier
+checkpoint. All 65 axiom reports use only propext, Classical.choice and Quot.sound.
+Traversal through opaque values visits 11,405 dependencies, with no weakN_iff,
+weakN_inv or sorryAx; log /tmp/recursive-data-audit.log. The main strengthening
+goal remains open. No executable changes, extraction, PR creation, agents or
+coordination.

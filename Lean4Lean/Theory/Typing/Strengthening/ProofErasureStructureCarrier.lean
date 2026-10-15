@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.StructureProofField
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureSubsingletonCarrier
 
 /-! # Comparison guarded by an explicit structure carrier
 
@@ -25,6 +26,7 @@ inductive StructureCarrierGuard (Step : List ProofShape → ProofShape → Proof
         ScopedCompare Step Δ true (.proj family i a) (.proj family i b)) :
       StructureCarrierGuard Step Δ (mkApps (.const family ls) ps) a b
   | checked : ScopedCompare Step Δ true a b → StructureCarrierGuard Step Δ A a b
+  | subsingleton : SubsingletonCarrier A → StructureCarrierGuard Step Δ A a b
   | symm : StructureCarrierGuard Step Δ A a b → StructureCarrierGuard Step Δ A b a
   | compute : ScopedCompute Step Δ A A' → StructureCarrierGuard Step Δ A' a b →
       StructureCarrierGuard Step Δ A a b
@@ -56,6 +58,7 @@ theorem StructureCarrierGuard.subst
     · exact .inl HP
     · exact .inr (HC.subst hstep W)
   | checked H => exact .checked (H.subst hstep W)
+  | subsingleton H => exact .subsingleton (H.subst τ)
   | symm H ih => exact .symm (ih W)
   | compute R H ih => exact .compute (R.subst hstep W) (ih W)
   | nested hi hx hp hadm HT H ih =>
@@ -76,6 +79,7 @@ theorem StructureCarrierGuard.mono
     intro i hj
     exact (H i hj).imp id (ScopedCompare.mono hstep)
   | checked H => exact .checked (H.mono hstep)
+  | subsingleton H => exact .subsingleton H
   | symm H ih => exact .symm ih
   | compute R H ih => exact .compute (R.mono hstep) ih
   | nested hi hx hp hadm HT H ih => exact .nested hi hx hp hadm HT ih
@@ -95,6 +99,7 @@ theorem StructureCarrierGuard.sort_checked
   generalize E : ProofShape.sort u = A at H
   induction H generalizing u with
   | checked H => exact H
+  | subsingleton H => exact (H.not_sort E.symm).elim
   | symm H ih => exact (ih E).symm
   | compute R H ih => exact ih ((E ▸ R).sort_fixed hhead).symm
   | intro | nested =>
@@ -121,6 +126,9 @@ theorem proofErase_structure_carrier_descend (hstep : ErasedScopedPrimitiveDesce
     rw [← Ea, ← Eb] at HC
     obtain ⟨_, hA⟩ := ha.isType henv hΓ
     exact (proofErase_scoped_compare_descend hstep hΓ hΓ' W rfl ha hb HC).1 (.refl ⟨_, hA⟩)
+  | subsingleton H =>
+    rw [← Eα] at H
+    exact ⟨_, proofErase_subsingleton_carrier_descend hΓ ha hb H⟩
   | symm H ih => exact (ih hb ha Eα Eb Ea).symm
   | compute R H ih =>
     rw [← Eα] at R
