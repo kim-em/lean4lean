@@ -1516,3 +1516,20 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   or dependency is used. This removes a contextual-transport obligation from
   future joint confluence diagrams. It does not transport beta substitution
   by arbitrary expressions, expose missing types, or prove strengthening.
+
+- **Remove re-synthesis from substitution of proof arguments.**
+  **Proved throughout every concrete joint stage, at the same finite bound.**
+  Exact ContextRenaming unnecessarily constrains erased proof variables.
+  RetainedRenaming requires exact variable/oracle transport only at non-proof
+  lookups in typed realizations. It extends beneath arbitrary displayed binders
+  and is satisfied by substituting any actual proof for a proposition-valued
+  binder. Source-typed replay supplies the types of intermediate computations
+  and recovered types, so selected recovery outputs transport exactly. The
+  shared JointCheck transport induction then transports the complete carrier
+  grammar without re-synthesis. General singleton guards preserve this invariant
+  under their full generated telescope, and Eq prefixes use source-typed carrier
+  reflection. Stage induction discharges the primitive condition. Computations,
+  selected recovery, comparisons at independent proof arguments, and explicit
+  carriers all instantiate at the original stage. This handles proof-argument
+  beta transport; it does not handle arbitrary non-proof substitution images
+  such as the lambda arguments in the original matched-beta residue.

@@ -8506,3 +8506,76 @@ sort/Pi exposure. Next work can use same-stage renaming under fresh binders
 without carrying re-synthesis as a hypothesis; beta substitution, conversion
 of recovered domains, and completeness of singleton-family guards remain the
 substantive unresolved parts of those diagrams.
+
+
+## 2026-10-15: proof substitution without domain re-synthesis
+
+Revalidated the clean pushed b20de3ce checkpoint. The preceding goal turn was
+progress. Continued from exact context renaming by investigating the proof
+argument case of beta substitution. The earlier invariant constrained all raw
+variable indices, including variables that typed proof erasure removes. That
+constraint is unnecessary and would incorrectly demand recovery of the proof
+marker after substituting a proof.
+
+ProofErasureRetainedRenaming records exact oracle transport only for retained
+non-proof lookups in any well-formed realization of the erased source context.
+It retains an ordinary typed context-substitution interpretation. The condition
+extends under every displayed binder. Equal context erasures let one check it
+in a single original source context. Substitution of an actual proof p : P,
+with P : Prop, satisfies the invariant: the deleted newest variable cannot be
+retained, and each older variable's oracle assignment is exactly restored by
+substitution through its one-binder lift. No inhabitant is invented and no
+arbitrary raw marker is assigned an original typing.
+
+Source-typed compatible computation transports under a corresponding primitive
+simulation. Forward replay realizes every transitive intermediate. Exact
+ScopedTypeRecovery transport uses the retained lookup property at variables,
+the actual typed source to enter binders, and recovery replay to supply the
+actual type at conversion steps. The chosen output is preserved, not merely
+replaced by some recoverable type. Proof markers need no recovery rule.
+
+Factored the existing 24-constructor joint checking induction into
+ProofErasureJointTransport. Context transport, sort-witness transport, compatible
+computation, and the recovered-application case are explicit inputs. The latter
+receives the inductively transported guard at the exact substituted carrier.
+ProofErasureJointSubstitution now specializes that shared induction to the old
+arbitrary-substitution/re-synthesis assumptions. Its existing public declaration
+text is unchanged, checked by comparison with the pre-refactor file.
+ProofErasureJointRetainedTransport specializes the same induction using exact
+retained recovery; it uses the already transported carrier guard and has no
+re-synthesis premise.
+
+ProofErasureJointRetainedPrimitives extends retained transport through actual
+residual telescopes. The generic singleton's family certificate transports with
+its source typings, and forward semantic replay identifies its exact generated
+raw output. Specialized Eq prefixes transport via actual source endpoint
+typings. Induction discharges RetainedPrimitiveTransport for each concrete
+ErasedJointStage into itself; the union follows by choosing the source stage.
+All core, general singleton, and specialized Eq branches are included. Any sound
+core is allowed, including the repaired quotient collection.
+
+ProofErasureJointProofInstantiation gives concrete same-stage theorems for typed
+body computations and their exact endpoints, exact selected recovered types,
+comparison of two bodies instantiated at independently supplied proofs p and q
+of the same proposition, and explicit carrier guards. This establishes the
+proof-argument substitution case without assuming the still-open general law.
+It does not settle substitution of non-proof data/functions or supply new
+sort/Pi exposure paths. In particular the original matched-beta lambda-argument
+residue is not eliminated by this result.
+
+Validation: the new proof-instantiation module and the old downstream joint
+substitution/quotient confluence modules rebuild successfully (547 jobs),
+/tmp/joint-proof-inst-final-build.log. The cumulative audit at
+/tmp/joint-proof-inst-audit.lean checks 350 public roots and 14,222 dependencies,
+including opaque bodies, with no weakN_iff, weakN_inv, or sorryAx. A separate
+parser verifies every axiom report against propext, Classical.choice, Quot.sound.
+The independent new-root audit at /tmp/joint-proof-inst-independent-audit.lean
+checks all 25 new public declarations and 10,893 dependencies, additionally
+rejecting JointCarrierDomainResynthesis and every name in its namespace.
+
+No executable changes, extraction, PR creation, agents, or coordination. The
+main goal remains active and unachieved: no proof of weakN_iff, canonical-Eq
+counterexample, or strictly smaller sufficient front has been obtained. Future
+joint confluence work can use proof substitution and variable renaming without
+re-synthesis. Non-proof substitution, conversion of recovered domains, and full
+singleton-family type exposure remain substantive open work.
