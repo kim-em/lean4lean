@@ -1625,3 +1625,31 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   exact recovery is therefore not an unconditional solution to substitution.
   General converted-type alignment and recovery/comparison coverage remain
   open. This supporting result is not a smaller sufficient strengthening front.
+
+
+- **Use annotation computation to transport joint certificates between contexts.**
+  **Contravariant transport proved; exact covariant transport refuted.**
+  ProofErasureJointDomainPullback constructs recoverable identity substitutions
+  from target-to-source oracle computations. Thus A computing to B lets body
+  computations, exact recoveries, joint comparisons and carrier guards under B
+  pull back under A, with additive domain/body stages. The actual typed domain
+  conversion follows from reflection. ProofErasureJointDomainDirection shows
+  that reversing exact recovery already fails for the typed annotation
+  (fun X : Type => X) Prop reducing to Prop: the fresh non-proof variable's old
+  redex-shaped output cannot be recovered from the new normal sort oracle,
+  even in the whole joint union. Binder confluence therefore cannot simply
+  reuse exact recovery in both context directions.
+
+- **Allow recovered outputs to compute further when an oracle reduces.**
+  **Fresh-variable case proved for the repaired ordinary core.**
+  ProofErasureCoreOracleReduction joins the original variable recovery and the
+  weakened annotation reduction using typed core confluence. The new oracle
+  recovers a shared output to which the original selected output computes.
+  Hence a recovered Pi remains exposed, with a possibly different domain and
+  codomain. Composite recovery remains a live induction: application needs
+  codomain computation under instantiation, projection needs field-recipe
+  computation after rigid family-spine reduction, and conversion needs a typed
+  confluence join. The result does not give argument guards at the newly chosen
+  Pi domain. The guarded joint stages still have no proved confluence or full
+  re-synthesis theorem; their extension is not implied by the ordinary-core
+  variable result. No smaller sufficient front is claimed.

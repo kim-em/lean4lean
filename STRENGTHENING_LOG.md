@@ -8850,3 +8850,71 @@ No canonical-Eq counterexample or strictly smaller sufficient obligation has
 been obtained. Exact image recovery handles a useful class of substitutions,
 but cannot replace the remaining general converted-type alignment problem.
 No executable changes, extraction, PR creation, agents or coordination.
+
+
+## Direction of annotation transport and forward core oracle recovery
+
+The preceding goal turn made verified progress: b6370450 committed the exact
+recoverable-image theorem and its boundary, with a clean matching remote head.
+Started this turn by revalidating the worktree and inspecting the remaining
+joint re-synthesis, recovery-exposure and carrier-exposure interfaces. No
+extraction or PR work was undertaken.
+
+Tested whether exact recoverable images solve context conversion when a binder
+annotation computes. ProofErasureJointDomainPullback proves the contravariant
+orientation. An interpreted identity whose target oracles compute to its source
+oracles is a RecoveringSubstitution. In particular, when A computes to B, the
+fresh variable declared at A recovers B. Renaming weakens the domain computation
+under the original binder; older lookup assignments are identical. Typed
+reflection supplies domain conversion from an actual joint computation, so the
+concrete theorem does not assume that conversion separately. Computations,
+selected recoveries, both joint comparison modes and explicit carrier guards
+under B pull back under A with exact raw endpoints. A domain path at stage r
+and a certificate at stage n yield stage r+n, for any sound core including the
+quotient repair. No JointCarrierDomainResynthesis premise is used.
+
+Checked the reverse direction rather than assuming that this closes binder
+confluence. ProofErasureJointDomainDirection uses the actual annotation
+(fun X : Type => X) Prop, which beta-reduces to Prop and has type Type. Its fresh
+variable is non-proof. Before reduction the variable recovers the redex-shaped
+oracle; afterwards its oracle is literal Prop. Every joint-union computation
+fixes literal sorts, so no recovery can return the old redex-shaped output.
+forward_recovery_failure states the direct selected-recovery failure for an
+actual typed variable, uniformly over the whole union. forward_not_recovering
+also exhibits the stage-zero pullback invariant and excludes its reversal.
+This refutes forward *exact-output* recovery transport, not forward computation
+transport, recovery with a new output, joint re-synthesis, or strengthening.
+
+Pursued the resulting weaker invariant concretely in
+ProofErasureCoreOracleReduction. For the repaired ordinary core, reducing a
+fresh variable's annotation preserves recovery after further computation of the
+selected output. The original recovery is a path from the old oracle. Weakening
+the annotation reduction gives another path from that oracle. Both paths replay
+from the old annotation, typed in the new context. The already proved typed
+core confluence joins them, giving recovery from the new oracle and a path from
+the old selected output to the new one. The Pi consequence retains an exposed
+Pi while permitting a changed domain and codomain. This uses no canonical-Eq
+hypothesis beyond the existing parameters; it assumes the actual quotient
+registration and concrete pattern coverage used by repaired-core confluence.
+It supplies no argument-guard transport at the changed domain.
+
+Validation: the final build through ProofErasureCoreOracleReduction and
+ProofErasureJointDomainDirection passes (548 jobs;
+/tmp/core-oracle-reduction-final-build.log). The final cumulative opaque audit
+/tmp/core-oracle-reduction-audit.lean checks 424 public roots and 14,385
+dependencies, excluding weakN_iff, weakN_inv and sorryAx. All 424 axiom reports
+were parsed and restricted to propext, Classical.choice and Quot.sound. The
+independent audit checks the 11 new public roots and 11,517 dependencies,
+additionally excluding JointCarrierDomainResynthesis and its namespace.
+
+Next live task: extend the forward result from a fresh variable to composite
+recovery in the ordinary core, keeping an output computation rather than output
+equality. Application must track the changed recovered Pi and codomain
+instantiation; projection must track the changed family arguments and field
+recipe. Core raw substitution and rigid-spine decomposition are available.
+Lifting this to guarded joint stages would additionally need their confluence
+or a suitable guard-stability argument; ordinary-core confluence is not evidence
+for that extension. General converted-type carrier alignment remains open.
+No proof of weakN_iff, canonical-Eq counterexample, or strictly smaller
+sufficient front has been obtained. No executable changes, extraction, PRs,
+agents or coordination. The goal remains active.
