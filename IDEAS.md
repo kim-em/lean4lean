@@ -939,3 +939,28 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   realizability witness, and allows different recursive guard relations. No
   zero-prefix typing, new family certificate, or computational confluence is
   required. Argument-computation overlaps and complete guard coverage remain.
+
+- **Rebuild directed original program congruence from lambda supply.**
+  **Redundant:** `PrefixProgramCongruence.singleton_substitution_template` and
+  `singleton_program_congr` already give the stronger result for all
+  weakening-stable congruence relations, including every residual annotation.
+  The experimental duplicate was removed; the new erased bridge reuses those
+  checked results. A generic syntax template still does not supply its own
+  family-guard certificate.
+- **Compute the prescribed raw singleton output after ordinary argument computation.**
+  **Checked** in `ProofErasureSingletonCoreResidual`. Replay reconstructs the
+  changed original arguments and occurrence check, original full program
+  congruence computes the output, and forward erasure identifies the new raw
+  telescope and exact prescribed output. Its residual-root constructor still
+  explicitly requires the new family guard. This isolates guard transport from
+  output computation without assuming guard completeness.
+- **Transport joined family guards and close general prefix/core argument peaks.**
+  **Checked** in `ProofErasureSingletonJoinedGuard`. Both typed family endpoints
+  compute by fixed-template specialization of the opened providers. Conversion
+  between old and new residual telescopes preserves the target erasures; typed
+  core confluence preserves their existing common reduct. The final theorem
+  builds all four sides of the square for arbitrary raw core argument paths,
+  with both prefix edges at general singleton stage one and both horizontal
+  edges in the core relation. Arbitrary indexed/dependent layouts and whole-proof
+  sources are included. Recursive contextual guards beyond common-reduct
+  certificates, and computations using higher singleton stages, remain open.

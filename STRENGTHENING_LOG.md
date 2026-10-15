@@ -6759,3 +6759,52 @@ Classical.choice and Quot.sound. The transitive scan of 10,581 dependencies
 finds no strengthening inverses or sorryAx. No executable changes,
 extraction, or PR creation. The goal remains open: no strengthening proof,
 canonical-Eq counterexample, or strictly smaller sufficient front is claimed.
+
+## General singleton/core squares with joined family guards
+
+The preceding goal turn was progress: `3e9608bb` is the clean, pushed starting
+checkpoint and proves the different-prefix-length overlap. This turn addresses
+ordinary computation of the supplied arguments. An initial attempt to rebuild
+original generated-output congruence was discarded after inspecting the existing
+`PrefixProgramCongruence`: its fixed-arity substitution-template theorem already
+provides the stronger result. No duplicate module is retained.
+
+`ProofErasureSingletonCoreResidual` now connects that original theorem to raw
+computation. Starting with valid declaration code, a typed raw source, and its
+scoped family guard, arbitrary core argument paths replay to original arguments.
+Full original prefix congruence reconstructs the new check and computes the
+complete generated output. Forward erasure gives the exact code output beneath
+the newly computed raw telescope. The theorem returns a realizable new source
+and a constructor of the residual primitive conditional only on the new family
+guard. It does not turn the actual new check into an erased certificate.
+
+`ProofErasureSingletonJoinedGuard` closes that remaining premise for family
+endpoints with a literal core common reduct. The opened providers compute
+pointwise. Both transported and requested families are instances of their fixed
+generic templates, so original core computation carries both endpoints forward.
+The source types determine conversion of the entire residual telescope; this
+identifies the changed endpoints' erasures in the new opened context. Existing
+typed core confluence then preserves the old common-reduct witness. The guard
+transport theorem needs source typing but no unfolding check at either program.
+
+`Valid.joined_prefix_core_peak` assembles a complete commuting square from raw
+core computations of the supplied arguments. It reconstructs the original
+argument outputs and their generated program, certifies both prefix edges at
+`ErasedScopedTypedSingletonStage ErasedCore.definitions 1`, and provides core
+paths between the sources and between the generated outputs. Both checks are
+reconstructed from the joined guards; no new guard premise is imposed. This
+includes indexed/dependent singleton layouts, changing residual annotations,
+and whole-proof source collapse. It uses the actual stored-definition/selected-
+structure collection and the usual concrete-pattern hypothesis.
+
+Validation: the raw output bridge builds (469 jobs), and the complete joined-
+guard target builds (472 jobs). Logs are `/tmp/singleton-core-residual-build.log`
+and `/tmp/singleton-joined-guard-build.log`. All five public declarations are
+checked by `/tmp/singleton-core-guard-audit.log`: only propext, Classical.choice
+and Quot.sound. The transitive scan covers 11,326 dependencies and finds no
+strengthening inverses or sorryAx. No executable edits, extraction, or PR creation.
+
+This closes a specific class of general prefix/argument peaks, not full
+confluence. Recursive scoped guards beyond common-reduct certificates and
+higher-stage computations remain unresolved. `IsDefEqU.weakN_iff` is still open;
+no counterexample or strictly smaller sufficient front is claimed.
