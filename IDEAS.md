@@ -1025,3 +1025,30 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   instantiation for the full core relation. Future attempts must use equation
   coverage and account for annotation conversion hidden by common lambda
   checking; a uniform structural proof from descent/substitution is impossible.
+
+- **Read diagonal annotations despite arbitrary finite computation.** **Checked**
+  in `ProofErasureScopedLoopReadout`. Computation preserves the self-application
+  body and two diagonal heads while changing, discarding, or duplicating their
+  annotations. A scoped loop comparison in either mode recovers a common-mode
+  comparison of the original annotations. No normality/fixedness premise is
+  used, so installed recursive equations no longer invalidate this readout.
+- **Test the actual ordinary core with canonical-Eq casts.** **Refuted closure**
+  in `ScopedCorePairedBoundary.canonical_core_paired_failure`. The unfolded
+  recursive Pi `P` satisfies `P ≡ P → Prop`. Cast `P` reflexively along a fresh
+  free equality proof. Its diagonal lambda shares a type and common-body check
+  with the original diagonal. Paired instantiation would compare their loops,
+  hence the two domains; typed scoped Pi exposure would then force a core Pi
+  reduct of the cast. Actual core replay into the existing head model forbids
+  that reduct. The environment is well formed and preserves canonical Eq;
+  every installed definition and registered structure equation is included.
+  This refutes stage-zero paired instantiation, not strengthening.
+- **Repair the full-core counterexample with one singleton-prefix layer.**
+  **Checked** in `ErasedCore.reflexive_cast_stage_one` and
+  `ErasedCore.cast_loop_stage_one`. The endpoint guard is reflexive at stage
+  zero; a contextual K prefix and beta remove the cast at stage one. Compatible
+  computation changes both loop annotations without normalizing the loop.
+  Thus this witness does not refute positive stages or the union of finite
+  stages. A general paired-substitution proof must account for hidden domain
+  conversions that can demand additional singleton computation. Whether a
+  fixed positive stage suffices, whether an increased finite stage suffices,
+  and how such closure would yield full coverage/confluence remain open.

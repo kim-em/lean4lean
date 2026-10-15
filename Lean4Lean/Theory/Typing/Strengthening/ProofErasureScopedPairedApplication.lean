@@ -17,8 +17,11 @@ variable [Params]
 same well-formed binder context, and both arguments have its declared domain.
 Their input comparisons need not have literal computational joins. This property
 is not proved here or claimed strictly smaller than PropositionFront. Its
-beta-only instance is refuted in `ProofErasureScopedLoopBoundary`; a viable
-instance must supply sufficient computation of the installed equations. -/
+beta-only instance is refuted in `ProofErasureScopedLoopBoundary`, and its full
+ordinary-core instance in `ProofErasureScopedCorePairedBoundary`. The latter
+obstruction is repaired by a contextual K-prefix stage; coverage of installed
+equations alone is insufficient. Higher-stage or stage-increasing instances
+remain open. -/
 def ScopedPairedInstantiation (Step : List ProofShape → ProofShape → ProofShape → Prop) : Prop :=
   ∀ {Γ A b b' B x y}, OnCtx (A :: Γ) (env.IsType univs) →
     env.HasType univs (A :: Γ) b B → env.HasType univs (A :: Γ) b' B →

@@ -6970,3 +6970,79 @@ or strictly smaller sufficient front is claimed. The next investigation must
 use the actual core/general singleton stages, in particular annotation
 conversions that require more than the equation coverage available at a chosen
 stage. The newly refuted uniform beta-only route must not be retried.
+
+## Full ordinary-core paired instantiation fails; one K-prefix stage repairs the witness
+
+The immediately preceding response only acknowledged the user's stop/extraction
+preference and made no research progress. On explicit goal continuation, the
+worktree was inspected: HEAD was `aeba3508`, with the unfinished generic loop
+readout as the only untracked file. Research resumed without extraction, PRs,
+coordination, or executable changes.
+
+The beta-only counterexample in the previous checkpoint is repaired by delta,
+so it cannot refute the actual core. This turn replaces its fixed-annotation
+argument with `ProofErasureScopedLoopReadout`. A diagonal's body is fixed even
+when its annotation computes. Every finite self-loop computation retains two
+diagonals whose annotations are reachable from the original one. A beta step
+may discard the left annotation and duplicate the right; the invariant tracks
+both. Inferred comparison of diagonals reads their annotations, and comparison
+of loops in either mode therefore yields common comparison of the original
+annotations. This handles computation throughout the certificate, including
+symmetry, sorted lambda forms, and the exclusions of eta/structure alternatives.
+
+`ProofErasureScopedRecursiveCoverage` applies this syntactic theorem to typed
+terms. If `D ≡ D → Prop` and `D ≡ D'`, the diagonals at `D` and `D'` share type
+`D` and a common-lambda certificate. Substituting them into the identical body
+`z z` exposes the hidden domain conversion. Consequently
+`ScopedPairedInstantiation.recursive_type_coverage` forces a scoped comparison
+of every type convertible to such a recursive domain. This necessary condition
+is substantially stronger than coverage of the installed recursive equation.
+
+`ProofErasureScopedPiExposure` proves the specific head consequence needed to
+test that condition. For two sort-typed originals, a scoped comparison with a
+displayed erased Pi forces computation of the other endpoint to a Pi in exactly
+the same relation. Primitive heads preserve a Pi. Typed replay supplies sort
+typings at intermediate endpoints, excluding lambda/eta and saturated structure
+constructor alternatives. The proof carries both directions through symmetry;
+it uses no completeness or confluence assumption for the scoped relation.
+
+`ProofErasureCoreHeadBoundary` embeds actual `PatternCompute` paths using stored
+and registered structure definitions into the existing constructor head model.
+Every concrete pattern's check is recovered from its typed source. Erased core
+replay then transfers the already checked canonical cast boundary: a reflexive
+Pi cast along a free equality proof cannot expose a Pi by scoped ordinary-core
+computation. This is a statement about the real core, not about an intentionally
+restricted equation collection.
+
+`ProofErasureScopedCorePairedBoundary` completes the test. Take the admitted
+recursive family `R f ≡ R f → Prop`, but use its unfolded Pi `P` as the recursive
+domain. Congruence gives `P ≡ P → Prop`. Extend the context by a free proof of
+reflexive equality of `Sort 1`, and let `P'` be the corresponding reflexive cast
+of `P`. Canonical Eq makes `P' ≡ P`. Paired instantiation would compare `P` with
+`P'` by the generic recursive coverage theorem, and typed Pi exposure would
+contradict the cast boundary. `canonical_core_paired_failure` realizes this in
+the actual well-formed recursive extension preserving canonical Eq. The full
+ordinary-core instance of the proposed paired law is therefore false.
+
+The limit is checked as well. `ErasedCore.reflexive_cast_stage_one` uses a
+reflexive stage-zero endpoint guard, contextual K-prefix unfolding, and beta to
+remove the cast at stage one. `cast_loop_stage_one` computes both diagonal
+annotations accordingly. This particular obstruction disappears with one
+singleton layer; it does not refute paired substitution at higher stages or
+with an increased finite stage bound. The paired-law documentation now records
+both refutations and this distinction.
+
+Validation: the final target builds (473 jobs), log
+`/tmp/scoped-core-paired-boundary-build.log`. The audit of all 16 new public
+declarations is `/tmp/scoped-core-paired-audit.log`: only propext,
+Classical.choice and Quot.sound. Traversal of 11,294 transitive dependencies,
+including opaque theorem proofs (`allowOpaque := true`), finds no weakN_iff,
+weakN_inv, or sorryAx. The pre-existing imported strengthening sorry is not a
+dependency of these results.
+
+The full goal remains open. This is a concrete refutation of a proposed closure
+law, not a canonical-Eq strengthening counterexample or a strictly smaller
+sufficient front. The next useful question is closure allowing extra finite
+singleton computation: fixed positive-stage closure must be tested rather than
+assumed, and arbitrary hidden recursive-domain conversion must be handled.
+Merely adding further ordinary-core rigid cases cannot repair the refuted law.
