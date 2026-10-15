@@ -1707,3 +1707,29 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   no-join examples prevent identifying conversion with computational alignment.
   Beta/capture residual transport and guarded-singleton integration remain
   live tasks, with no smaller sufficient strengthening front claimed.
+
+
+- **Extend full joint checking through a single endpoint beta step in the same repaired core.**
+  **Refuted, even when the environment already has PropositionFront.**
+  ProofErasureJointEndpointBoundary uses a recursive Pi D and its reflexive
+  canonical-Eq cast D'. Common checking compares (diagonal D)(diagonal D)
+  with (diagonal D)(diagonal D'), since the functions are identical and common
+  lambda checking ignores the argument annotations. Contracting only the right
+  endpoint yields (diagonal D')(diagonal D'). Full joint loop readout now forces
+  comparison of D and D'; sort-typed inferred checking forces a Pi exposure of
+  the cast, contradicted by the full head model. ProofErasureQuotCoreCastBoundary
+  includes the repaired quotient equations, and ProofErasureJointLoopReadout
+  covers the full joint grammar, including recovered application. The actual
+  extension preserves canonical Eq and quotient registration and separately
+  satisfies PropositionFront. Thus no strengthening counterexample is claimed.
+
+- **Allow a singleton-stage increase for the endpoint beta obstruction.**
+  **Exact witness repaired at stage one; general transport remains open.**
+  The reflexive cast computes to its original annotation at repaired joint
+  stage one, restoring the resulting loop comparison without normalizing the
+  recursive loops. This checks the positive boundary in the same repaired
+  definition collection. Same-core endpoint closure cannot be a prerequisite
+  for the current transport route. The remaining live alternative is transport
+  allowing later joint stages (or their union), together with the recovery and
+  guard alignment needed for captured substitutions. No universal later-stage
+  endpoint closure, full re-synthesis, or smaller sufficient front is proved.

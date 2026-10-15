@@ -9061,3 +9061,74 @@ singleton primitives; their recovery/guard choices must not silently assume
 literal type joins or full re-synthesis. There is still no proof of weakN_iff,
 canonical-Eq counterexample, or strictly smaller sufficient front. No executable
 changes, extraction, PRs, agents or coordination. The goal remains active.
+
+
+## Full joint endpoint beta obstruction and its stage-one repair
+
+The preceding response only acknowledged the user's restriction on extraction;
+by the goal continuation's classification it made no research progress. This
+continuation inspected the authoritative worktree and found three uncommitted
+modules, with the endpoint construction unfinished. Completed that construction
+and tested the precise next step suggested by the preceding core-context and
+carrier-transport result: closure when a raw endpoint itself beta-contracts.
+No extraction or PR creation was performed.
+
+ProofErasureJointLoopReadout extends the existing diagonal/loop readout from
+scoped comparison to all joint comparison constructors. The appCarrier case
+still compares its function in inferred mode, so its extra argument guard does
+not conceal the diagonal domain. JointCompare.common changes either comparison
+mode to common mode; diagonal_annotations reads inferred diagonal comparisons;
+selfLoop_annotations reads either mode's loop comparison. Their computation
+cases account for all residuals, rather than assuming normal loops.
+
+ProofErasureQuotCoreCastBoundary embeds typed quotient-repaired core pattern
+computation in the FullHead model. That model already contains the quotient
+extension, so the earlier free-major canonical-Eq cast boundary survives the
+repair. Replay plus erased Pi inversion rules out any repaired-core scoped
+computation from a reflexive cast of a Pi to a raw Pi.
+
+ProofErasureJointEndpointBoundary defines the proposed closure law
+JointCommonBetaStability with well-formed source contexts and actual common
+source typings. For recursive D = (D -> Prop), compare the self-loop on D with
+the mixed loop whose function uses D and whose argument uses a convertible D'.
+The input check uses identical functions and common lambda checking, so it
+requires no comparison of D and D'. One right-endpoint beta step produces the
+self-loop on D'. If the proposed closure law held, full joint loop readout
+would supply a comparison of D and D'. This is the general
+recursive_type_coverage consequence, independent of the selected cast.
+
+Choose D' to be the reflexive canonical-Eq cast of a recursive Pi along a free
+equality proof. Both annotations are sort-typed. Joint type-mode conversion
+and Pi exposure turn the demanded annotation comparison into a core Pi reduct
+of the cast, contradicting the checked full-head boundary. The concrete
+canonical_core_beta_failure theorem states canonical Eq, PropositionFront,
+and failure of this closure law together for the well-formed recursive
+extension; quotient registration is inherited from the base environment.
+PropositionFront uses the already checked Curry argument. The obstruction is
+therefore to the certificate method's same-core closure, not to strengthening.
+
+The same file also proves reflexive_cast_joint_stage_one and
+cast_loop_joint_stage_one in the quotient-repaired definition collection.
+The earlier typed Eq-prefix forward rule at scoped stage one embeds through
+the existing stage inclusions into joint stage one. Compatible annotation
+reduction restores the exact two self-loop endpoints. This neither normalizes
+the loops nor assumes any endpoint-transport theorem. It verifies that this
+counterexample does not rule out transport allowing a larger joint stage.
+
+Validation: lake build through ProofErasureJointEndpointBoundary passes
+(561 jobs; /tmp/joint-endpoint-build.log). The cumulative opaque audit in
+/tmp/joint-endpoint-audit.lean checks 454 public roots and 14,491 dependencies,
+rejecting weakN_iff, weakN_inv and sorryAx. All 454 axiom reports were accounted
+for and use only propext, Classical.choice and Quot.sound. The independent
+audit in /tmp/joint-endpoint-independent-audit.lean checks the 12 new public
+roots and 11,497 dependencies, additionally excluding every name containing
+JointCarrierDomainResynthesis. Its 12 axiom reports also pass. Both audit
+processes exited successfully. The source weakN_iff still contains its sorry.
+
+Judgment: this is a checked obstruction to the next proposed transport law,
+with an exact stage-one repair. It is not one of GOAL.md's completion outcomes.
+The main goal remains open. The next live research task is endpoint/capture
+transport with stage growth, or a different route avoiding this certificate
+closure law. Existing computational carrier alignment alone cannot supply it;
+fixed-stage ordinary-core beta stability must not be assumed. No executable
+changes, extraction, PRs, agents, or coordination.
