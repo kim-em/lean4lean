@@ -1438,3 +1438,18 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   The target relation can be a union larger than the source stage. Actual
   joint-stage primitive simulation and the re-synthesis law remain unproved;
   this is not unconditional substitution closure or a strengthening front.
+
+- **Close actual joint-stage substitution without assuming primitive closure.**
+  **Conditional finite-stage transport checked; re-synthesis remains open.**
+  ProofErasureJointUnion proves finite bounds for the complete mutually recursive
+  checker and closes the joint stage union under its own singleton and Eq guards.
+  ProofErasureJointPrimitiveSubstitution transports the actual generated family
+  guard under its residual telescope and preserves the literal generated output;
+  specialized Eq prefixes retain their exact proof-domain lambda. Stage induction
+  in ProofErasureJointUnionSubstitution discharges typed primitive simulation
+  into the union from preceding-stage simulation. Thus canonical Eq, sound core
+  definitions, and JointCarrierDomainResynthesis at the union imply finite-later-
+  stage substitution of computations, common/inferred comparisons, and carriers.
+  There is no primitive-substitution assumption left in these concrete results.
+  This proves sufficiency for substitution only, not re-synthesis, heterogeneous
+  paired closure, coverage/confluence, or a smaller sufficient strengthening front.

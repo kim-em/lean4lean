@@ -8216,3 +8216,75 @@ and Quot.sound. Opaque traversal checks 13,823 declarations and excludes
 weakN_iff, weakN_inv, and sorryAx; a separate parser verifies all 266 axiom reports.
 Artifacts: /tmp/joint-substitution-audit.lean and /tmp/joint-substitution-audit.log.
 No executable changes, extraction, PR creation, agents, or coordination.
+
+
+## Actual joint-stage primitive simulation is discharged by stage induction
+
+The previous goal turn made progress through ebedff49: full typed joint checking
+transport was proved conditional on source primitive simulation and target joint
+re-synthesis. This turn revalidated the clean checkpoint and discharged that
+simulation premise for the actual joint stage family.
+
+ProofErasureJointUnion proves finite bounds by a single induction over JointCheck,
+including all comparison/carrier alternations, contextual type recovery, ordinary
+computation, retained constructor fields, and recursively typed carrier fields.
+The bounded field families are gathered with a common finite maximum. Both views
+of the joint grammar therefore have exactly existential finite-stage meaning.
+The typed general singleton primitive also chooses a finite predecessor stage
+without changing its source realization or generated code. ErasedJointUnion is
+exactly core primitives plus general joint singleton and specialized joint Eq
+prefixes guarded by the union itself. Every union guard fits at some finite
+successor stage. Arbitrary-block descent, head restriction, and exact original
+operational replay survive passage to the union.
+
+ProofErasureJointPrimitiveSubstitution transports the actual generic singleton
+family guard under its complete residual telescope. Both family endpoints have
+original proposition typings before reflection; erasedSubst_telescope supplies
+the extended typed substitution and retained-variable agreement. The preceding
+full joint transport theorem then supplies the target family certificate. The
+original generated program substitutes naturally, and source/target checks
+identify its raw output exactly. The non-proof source realization is preserved;
+no result type or output syntax is chosen ad hoc. Source and target comparison
+relations may differ. The specialized joint Eq prefix similarly transports its
+carrier certificate using actual endpoint typings, with raw substitution
+preserving the exact Eq proof-domain lambda and lifted payload.
+
+ProofErasureJointUnionSubstitution inducts on the source stage, transporting
+into the full union. Stage zero uses the existing raw core substitution theorem.
+At successor stages the previous induction hypothesis supplies the typed primitive
+simulation needed by recursive guard transport. Source-stage inclusion into the
+union supplies the other generic checker premise. The general singleton result
+is rewrapped with its transported TypedSource; the specialized prefix result
+uses its actual typed source. The union closure theorem then inserts either
+transported guarded primitive at a finite stage. The induction does not assume
+union substitution or recursive primitive closure in its own step.
+
+Consequently, under canonical Eq and sound core definitions, the single additional
+semantic premise JointCarrierDomainResynthesis (ErasedJointUnion D)
+(ErasedJointUnion D) yields source-typed primitive simulation of the union into
+itself. Compatible union computations then substitute by the earlier typed
+simulation theorem. Every finite source computation has an exact substituted
+raw target at a finite later stage. Common-typed joint comparisons, inferred
+comparisons of independently typed non-proof endpoints, and explicit joint
+carrier checks likewise have finite substituted certificates. The selected
+output bound is raised above the source bound without changing syntax. Recovery
+choices inside application checking may change; no false exact selected-type
+substitution law is introduced.
+
+This removes primitive simulation and finite-bound alignment as independent
+assumptions from the concrete substitution results. It does not prove the union
+re-synthesis law, full heterogeneous paired-instantiation closure, or the
+comparison/operational coverage and joins needed for strengthening. The main
+semantic task is still constructing the compatible new recovered domain and
+its argument carrier guard. The result is not asserted to be a sufficient
+strengthening front, let alone one strictly smaller than PropFront. The goal
+remains active and unachieved.
+
+Validation: ProofErasureJointUnionSubstitution builds with 532 dependency jobs,
+/tmp/joint-union-subst-build.log. The combined audit imports the prior examples
+and all three new modules. All 18 new public declarations plus 266 earlier roots
+pass #print axioms using only propext, Classical.choice, and Quot.sound. Opaque
+transitive traversal checks 13,848 declarations, excluding weakN_iff, weakN_inv,
+and sorryAx; a separate parser verifies all 284 reports. Audit artifacts:
+/tmp/joint-union-substitution-audit.lean and /tmp/joint-union-substitution-audit.log.
+No executable changes, extraction, PR creation, agents, or coordination.
