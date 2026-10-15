@@ -1653,3 +1653,30 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   Pi domain. The guarded joint stages still have no proved confluence or full
   re-synthesis theorem; their extension is not implied by the ordinary-core
   variable result. No smaller sufficient front is claimed.
+
+
+- **Extend forward oracle-reduction recovery to all expression constructors.**
+  **Proved for the repaired ordinary core with source typing.**
+  ProofErasureCoreRecoveryReduction transports every ScopedTypeRecovery rule
+  when old oracle entries compute pointwise to new entries. The raw expression
+  is fixed and its selected output may compute further. The target raw context
+  needs no original realization for this certificate result. Application tracks
+  both recovered Pi components and substitutes the codomain path; projection
+  tracks the actual dependent field recipe through computed family parameters;
+  conversion joins two paths using typed core confluence and recovery replay.
+  An actual typed-binder wrapper uses context conversion to express the result
+  at the body's new-context erasure. Pi recovery records separate computation
+  paths for the newly selected domain and codomain. This closes the composite
+  recovery task from the preceding entry, not guarded joint-stage confluence or
+  arbitrary context conversion.
+
+- **Rebuild the new-domain argument guard for structural subsingletons.**
+  **Proved under computational oracle reduction in the repaired ordinary core.**
+  ProofErasureCoreCarrierReduction preserves structural subsingleton carriers
+  through arbitrary repaired-core paths, including recursive Pi codomains.
+  Combined with composite Pi recovery, this chooses a new Pi and a joint guard
+  at its newly recovered domain. General field/function guards remain open.
+  A live next step is simultaneous forward joint-check/carrier transport with
+  computed oracles and computed carriers. The earlier eta no-join examples
+  still prevent treating computational alignment as arbitrary type conversion;
+  no smaller sufficient strengthening front is claimed.

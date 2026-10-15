@@ -8918,3 +8918,76 @@ for that extension. General converted-type carrier alignment remains open.
 No proof of weakN_iff, canonical-Eq counterexample, or strictly smaller
 sufficient front has been obtained. No executable changes, extraction, PRs,
 agents or coordination. The goal remains active.
+
+
+## Composite ordinary-core recovery under oracle reduction
+
+The previous goal turn was progress: a7a6419e contains the checked annotation
+pullback, the exact-forward-recovery counterexample and the fresh-variable core
+repair. Revalidated the clean worktree before extending that repair. This turn
+completes the composite recovery induction that the preceding entry left open.
+
+ProofErasureCoreRecoveryReduction uses a stronger induction invariant than
+single-binder context conversion: every old context-oracle entry computes to
+the corresponding new raw entry. The source expression has an actual typing;
+the new raw context need not have a separately supplied original realization.
+The expression's raw syntax stays fixed. The theorem produces a recovery in
+the new raw context and a repaired-core computation from the original selected
+output to the newly selected output. It is a raw certificate theorem, not a
+claim that arbitrary target contexts are well formed.
+
+The induction covers every ScopedTypeRecovery constructor. Oracle computation
+extends under a displayed binder by shifting old entries and fixing the fresh
+entry. Lambda recovery computes its output codomain; literal sort recovery is
+fixed. For application, computation of the recovered Pi is inverted into
+separate domain and codomain paths, and raw substitution transports the
+codomain path through the argument. For projection, rigid-head exclusion in
+the repaired core exposes the same registered family, universe syntax and
+arity with pointwise computed arguments. Computation of the actual erased
+projection recipe follows from pointwise computation of its parameter captures;
+preceding projections of the unchanged major stay fixed. No dummy dependent
+field typing or proofness mask is substituted for the recipe.
+
+In the conversion case, source-typed recovery replay supplies a typed original
+representative of the old selected type. Typed repaired-core confluence joins
+its original conversion with the induction hypothesis's newly selected output.
+The resulting join extends the new recovery and is reached from the original
+final output. This uses only the existing ordinary-core confluence theorem;
+it does not assume confluence of guarded singleton stages.
+
+The public recovery_domain_reduce wrapper applies the general result to an
+actual typed annotation A computing to B. Reflection supplies A = B, and typed
+context conversion identifies the body's erasure in the new context, so the
+conclusion is stated using that actual new-context erasure. The Pi wrapper
+retains explicit computation paths for both its newly recovered domain and
+codomain, for arbitrary typed composite expressions rather than only variables.
+
+ProofErasureCoreCarrierReduction then closes one argument-guard case at the
+newly selected domain. Structural SubsingletonCarrier certificates survive all
+repaired ordinary-core computation: rigid empty-structure heads keep their
+parameter arity, while Pi computation preserves the recursively subsingleton
+codomain. Combining this with composite Pi recovery chooses a new Pi and builds
+a joint argument guard at its new domain. This is joint domain/guard selection
+for structural subsingletons under oracle reduction, not the general
+JointCarrierDomainResynthesis law or arbitrary typed substitution.
+
+Validation: lake build through ProofErasureCoreCarrierReduction passes (558
+jobs; /tmp/core-carrier-reduction-final-build.log). The cumulative opaque audit
+/tmp/core-carrier-reduction-audit.lean checks 429 public roots and 14,406
+dependencies and rejects weakN_iff, weakN_inv and sorryAx. All 429 axiom reports
+were accounted for and restricted to propext, Classical.choice and Quot.sound.
+The independent audit checks the five new public declarations and 9,707
+dependencies, additionally excluding JointCarrierDomainResynthesis and its
+namespace. No executable changes, extraction, PR creation or agents.
+
+Remaining: forward transport of arbitrary joint carrier guards along the newly
+computed domain, coupled with context-oracle reduction under function binders.
+The current subsingleton proof does not handle a general checked, field or
+function carrier certificate. A simultaneous induction on joint checking and
+carrier checking is a live next route; recovered applications can now obtain
+their new domain and its computational relation to the old domain. Guarded
+joint-stage confluence/stability and arbitrary converted-type alignment remain
+separate open tasks. In particular, the previous eta-converted type examples
+have no computational join, so computational oracle reduction cannot stand in
+for unrestricted conversion. The main goal remains open: no strengthening
+proof, canonical-Eq counterexample or strictly smaller sufficient front.
