@@ -1501,3 +1501,18 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   typed-source confluence for ErasedQuotCore.Step. This removes the confluence
   regression risk from the quotient repair; it does not establish confluence
   for arbitrary joint singleton stages or discharge joint re-synthesis.
+
+- **Separate binder-insertion transport from arbitrary substitution re-synthesis.**
+  **Proved for every concrete joint stage and its union.** Exact interpreted
+  variable renamings preserve the context oracle, hence the selected recovered
+  type transports structurally, including beneath dependent binders. Actual
+  well-formed block insertions supply this invariant without inhabitants of
+  the inserted declarations. The entire mutually recursive JointCheck grammar
+  transports, with the appCarrier rule retaining both the recovered Pi and
+  its carrier guard. General singleton guards transport under their full
+  generated residual telescope; specialized Eq prefixes transport directly.
+  Stage induction therefore proves exact renaming at the same finite stage,
+  for every sound core (including ErasedQuotCore). No joint re-synthesis premise
+  or dependency is used. This removes a contextual-transport obligation from
+  future joint confluence diagrams. It does not transport beta substitution
+  by arbitrary expressions, expose missing types, or prove strengthening.

@@ -8448,3 +8448,61 @@ arbitrary singleton-family conversions. Ordinary confluence supplies joins only
 for paths already in this core; it cannot by itself supply those missing paths
 or transport all JointCarrierGuard certificates. Use the repaired core in that
 investigation; the old core's re-synthesis instance is still refuted.
+
+
+## 2026-10-15: unconditional renaming of the concrete joint stages
+
+Revalidated the clean 7b27ea2b confluence checkpoint; the preceding goal turn
+was progress. Investigating the remaining recovery/exposure requirement led to
+separating binder insertion from the arbitrary-expression substitution problem.
+The latter may change which Pi can be recovered; the former preserves variable
+syntax and exact context-oracle assignments. Proved that distinction throughout
+the actual joint computation hierarchy, without adding a new restricted stage.
+
+ProofErasureJointRenaming introduces ContextRenaming: an interpreted raw
+substitution whose images are variables and whose oracle assignments substitute
+exactly (also outside the context, where the oracle returns the proof marker).
+The invariant extends under every raw binder. Every actual well-formed block
+insertion supplies it via forward typing weakening and erased oracle renaming;
+no inserted binder is assumed inhabited. ScopedCompute and ScopedTypeRecovery
+transport under a primitive-renaming simulation. Recovery keeps its exact
+chosen output. One induction on all 24 JointCheck constructors transports both
+comparison modes and explicit carriers. Its appCarrier case uses exact recovery
+transport and the carrier induction hypothesis, with no re-synthesis premise.
+
+ProofErasureJointPrimitiveRenaming extends the invariant through actual residual
+telescopes, with substitutions lifted to each annotation's depth. The general
+singleton family's compared propositions then rename under the entire generated
+telescope. Forward semantic replay identifies the exact prescribed raw output.
+The existing TypedSource witness supplies realizability; specialized Eq prefixes
+transport directly through their carrier guards. Induction on ErasedJointStage
+now gives primitive renaming at the SAME stage. The union follows without any
+stage-growth or arbitrary-substitution assumption. This proof includes every
+previous core, generic singleton, and specialized Eq rule. It is parameterized
+by a sound core, so applies to the repaired quotient collection as well.
+
+ProofErasureJointWeakening supplies the actual binder-insertion interfaces for
+finite-stage computation, selected type recovery, both comparison modes, and
+explicit-carrier checking. The inserted block may occur at arbitrary depth;
+recovered result syntax and finite bounds are preserved exactly. No executable
+changes, extraction, PR creation, agents, or coordination were involved.
+
+Validation: all three modules build (529 dependency jobs after removing an
+unnecessary import), /tmp/joint-weakening-build.log. The cumulative audit at
+/tmp/joint-renaming-audit.lean covers 325 public roots and 14,192 transitive
+declarations including opaque bodies, rejecting weakN_iff, weakN_inv, sorryAx.
+A separate parser verifies all 325 axiom reports against propext,
+Classical.choice, Quot.sound. An independent new-root audit at
+/tmp/joint-renaming-independent-audit.lean checks all 18 new public roots and
+10,879 dependencies, additionally rejecting JointCarrierDomainResynthesis and
+its namespace. This confirms independence from the unresolved re-synthesis law.
+
+The main goal remains unachieved: weakN_iff is still open, and neither a
+canonical-Eq counterexample nor a strictly smaller sufficient front is proved.
+The new result supplies forward contextual transport for joint confluence and
+recovery diagrams; it does not retract arbitrary contextual certificates,
+transport substitution images that are non-variable terms, or supply missing
+sort/Pi exposure. Next work can use same-stage renaming under fresh binders
+without carrying re-synthesis as a hypothesis; beta substitution, conversion
+of recovered domains, and completeness of singleton-family guards remain the
+substantive unresolved parts of those diagrams.
