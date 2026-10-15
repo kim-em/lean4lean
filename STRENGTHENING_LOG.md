@@ -7674,3 +7674,73 @@ Classical.choice and Quot.sound. The opaque dependency audit visits 12,099
 declarations with no weakN_iff, weakN_inv or sorryAx;
 /tmp/carrier-domain-join-audit.lean and /tmp/carrier-domain-join-audit.log.
 No executable changes, extraction, PR creation, agents or coordination.
+
+
+## Neutral-unit Pi exposure refutes all old compared-K recovery stages
+
+The previous goal turn was a status-only response, with no research progress.
+On continuation, the clean worktree at 17a8f2ff and the pending neutral-unit test
+were revalidated. This turn resolves that test, including the alternate-path
+question that the earlier direct endpoint incomparability result left open.
+
+`ProofErasureNeutralKNormal` introduces NeutralKGuards: at every subterm,
+including annotations, any full Eq recursor has distinct bare-variable endpoints.
+All old compared-K primitives have constant or projection heads. Embedding their
+comparison into ScopedCompare therefore proves variable-index injectivity at
+every stage. A structural normality argument then shows that a core-normal term
+satisfying NeutralKGuards remains normal at every finite compared-K stage. Every
+compatible computation from it has literally its original endpoint.
+
+`ProofErasureNeutralKCore` verifies the core root conditions. Pattern simplicity
+reduces matching to definition or iota patterns. The Eq.rec registry excludes a
+definition pattern and fixes the major offset of every iota pattern to five.
+Hence none of the shorter prefixes can match. At the full application the proof
+marker cannot match a constructor major. These arguments cover capture selectors,
+capture applications, and arbitrary stored RHS templates, not only one installed
+rule spelling. Normality of all five earlier captures plus the root exclusions
+gives whole-rec normality. Distinct variable endpoints and the recursive guards
+on the other captures then exclude every old-stage computation path.
+
+`ProofErasureNeutralKExample.unit_neutral_pi_exposure_separation` supplies an
+actual typed witness. For a closed positive empty structure S, use context
+[S,S], endpoints bvar 0 and bvar 1, and a constant motive returning Type 1. The
+payload is Type -> Type. UnitLike makes the endpoints definitionally equal, so
+refl can be converted to a proof between them and the full recursor equals the
+payload. Its proof major erases. Its carrier, motive (including its Eq annotation),
+and payload have checked core normality and recursive K guards. The complete
+source is fixed at every old compared-K stage, while the new unit stage one
+computes it to the literal erased Pi.
+
+The separation first allows an explicit equation collection leaving S, Eq and
+Eq.rec unopened. The final theorem removes that collection-side hypothesis for
+the actual ErasedCore.definitions, containing all stored definitions and selected
+closed structure equations. S and Eq are rigid; Eq.rec has no stored definition,
+and Eq's nonzero index count excludes the added structure unfolding. Canonical
+Eq supplies the actual registry entry and offset. The theorem still assumes an
+actual registered closed positive empty structure; it does not assert every
+canonical-Eq environment already contains one.
+
+`not_finite_carrier_domain_resynthesis_comparedK` combines this witness with the
+previous finite positive-Pi-exposure necessity theorem. It refutes
+FiniteCarrierDomainResynthesis (ErasedComparedKStage ErasedCore.definitions)
+Stages for arbitrary comparison stages in such environments. Merely increasing
+the old recovery stage, or enriching only the comparison stages, cannot repair
+this family. This is stronger than the prior constant-core refutation and the
+exact-selected-type substitution boundary: there is no Pi exposure at all from
+the chosen positive type, even with an existential output stage and arbitrary
+recovered domain/codomain representatives.
+
+Next direction: contextual recovery using the explicit-carrier computation
+stages. The existing new unit computation repairs this witness, but general
+recovery substitution, joint domain re-synthesis and integration remain open.
+No strengthening counterexample or strictly smaller sufficient front is claimed;
+weakN_iff and the goal remain open.
+
+Validation: the new example, domain-join results and prior application examples
+build together (532 jobs), /tmp/neutral-k-final-build.log. All 12 new public
+declarations plus the prior 99 roots pass #print axioms using only propext,
+Classical.choice and Quot.sound. The dependency traversal uses
+ci.value? (allowOpaque := true), visits 13,543 declarations, and finds no
+weakN_iff, weakN_inv or sorryAx; /tmp/neutral-k-audit.lean and
+/tmp/neutral-k-audit.log. No executable changes, extraction, PR creation, agents
+or coordination.

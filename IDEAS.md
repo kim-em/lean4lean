@@ -1284,9 +1284,23 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   function comparison and a supplied new Pi recovery. It does not construct
   the new recovery or the join, nor cover arbitrary structure/function guards.
 - **Check old compared-K recovery against the newer neutral-unit guards.**
-  **Live, unverified test.** An Eq.rec guarded by two distinct empty-structure
-  variables can expose a type in the new carrier stages, while the older
-  comparison language cannot directly compare those indices. Determine whether
-  this prevents Pi exposure at every old recovery stage, or whether another
-  computational path repairs it. Direct endpoint incomparability alone does
-  not establish an all-path exposure obstruction.
+  **Refuted as a recovery family for finite joint re-synthesis**, checked in
+  `ProofErasureNeutralKNormal`, `ProofErasureNeutralKCore`, and
+  `ProofErasureNeutralKExample`. Every core-normal shape whose full Eq recursors
+  have distinct bare-variable endpoints stays literally fixed at every old
+  compared-K stage. Canonical registration excludes iota at shorter prefixes;
+  the erased proof major excludes visible constructor matching at the full root.
+  A typed constant-motive recursor over two variables of a positive closed empty
+  structure is equal to a Pi and exposes it at new unit stage one, while all old
+  stages leave its entire erasure fixed. This includes motive annotations and all
+  stored/selected core equations. Finite Pi-exposure necessity therefore refutes
+  joint re-synthesis with this old recovery family, for arbitrary comparison
+  stages. This is a certificate-family refutation, not a strengthening counterexample.
+- **Replace old recovery computation with contextual carrier computation.**
+  **Live, not proved.** The neutral-unit obstruction requires a recovery family
+  able to use the explicit Eq carrier, rather than more bounds on the old family.
+  Context-indexed recovery could use the new structure-singleton computations
+  under the recovery binder contexts. Its substitution/descent and joint domain
+  adaptation would still need proofs; the existing raw recovery descent does not
+  reconstruct a lower recovery certificate. The new stage-one witness reduction
+  establishes the needed local coverage, not completeness or a smaller front.
