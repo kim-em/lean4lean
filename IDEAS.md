@@ -1733,3 +1733,29 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   allowing later joint stages (or their union), together with the recovery and
   guard alignment needed for captured substitutions. No universal later-stage
   endpoint closure, full re-synthesis, or smaller sufficient front is proved.
+
+
+- **Invert full joint lambda computation while returning bodies to the original binder.**
+  **Proved with a finite later stage and typed non-proof source lambda.**
+  ProofErasureJointBinderComputation replays intermediate lambdas in transitive
+  paths, then pulls their later body computations back along the annotation
+  path. The previously proved contravariant domain transport discharges this
+  step. Finite-stage extraction synchronizes the resulting annotation and body
+  paths. This handles arbitrary joint guards and changing annotations without
+  assuming joint confluence, arbitrary substitution, or re-synthesis. Unlike
+  the old scoped-prefix inversion, a same-stage bound is not asserted.
+
+- **Close the head-beta/function-argument computation overlap for joint stages.**
+  **Proved for exactly recoverable original arguments, with finite stage growth.**
+  ProofErasureJointImageComputation observes that computing images through a
+  typed template only needs primitive renaming, not primitive substitution.
+  It preserves the image-computation stage without any recovery premise.
+  ProofErasureJointBetaExchange uses the new binder inversion, instantiates the
+  recovered body path at the original argument, replays its body output, then
+  computes argument occurrences through that output. The other arm is one beta
+  step. No recovery of the computed argument is needed. This is a computational
+  overlap, not arbitrary endpoint comparison transport or paired substitution.
+  The original non-proof argument's exact assigned-type recovery remains a
+  genuine restriction, already known not to follow from arbitrary typing.
+  Removing or replacing it and handling guarded primitive overlaps remain live;
+  no strictly smaller sufficient front or strengthening proof is claimed.

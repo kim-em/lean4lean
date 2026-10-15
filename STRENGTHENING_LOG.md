@@ -9132,3 +9132,74 @@ transport with stage growth, or a different route avoiding this certificate
 closure law. Existing computational carrier alignment alone cannot supply it;
 fixed-stage ordinary-core beta stability must not be assumed. No executable
 changes, extraction, PRs, agents, or coordination.
+
+
+## Full joint binder inversion and a recoverable beta overlap
+
+Classified the preceding goal turn as progress: commit 70990f38 checked the
+same-core beta closure obstruction and its exact stage-one repair. Revalidated
+that commit and a clean worktree. Continued with the live stage-growing route,
+rather than assuming the refuted same-core comparison closure.
+
+The direct comparison problem still exposes paired substitution. A separate
+necessary computational overlap can be attacked using the existing exact-image
+substitution theorem and contravariant binder-domain transport: head beta
+versus arbitrary finite computation of its lambda and argument. The old scoped
+prefix result used unconditional primitive substitution, which is unavailable
+for the joint stages. The new proof does not inherit that assumption.
+
+ProofErasureJointImageComputation proves that pointwise computation of images
+through an actual typed template needs only primitive renaming. The induction
+on the original expression weakens image paths beneath substituted binders;
+this is the only primitive transport involved. The full joint stages supply
+that renaming law. Hence computing an argument through a typed body preserves
+the image path's stage, including occurrences in dependent annotations. Neither
+the original image nor the computed raw image needs type recovery for this
+operation. This does not substitute those images into primitive certificates.
+
+ProofErasureJointBinderComputation inverts finite computation of a typed
+non-proof lambda. In a transitive path, source-typed descent realizes the
+intermediate raw lambda as an actual typed lambda. Erasure inversion supplies
+its actual domain and body. The induction hypothesis inverts the next path at
+that intermediate domain. The original-to-intermediate domain computation
+licenses contravariant pullback of this later body path to the initial binder.
+Composing there gives a body path under the original annotation. The internal
+proof uses the joint union to avoid artificial intermediate numerical bounds;
+finite-stage extraction supplies one later bound for both annotation and body
+paths, at least as large as the input stage. There is no joint confluence or
+re-synthesis premise, and no arbitrary raw context-conversion assumption.
+
+ProofErasureJointBetaExchange combines these results. Invert the computed
+lambda; instantiate its body path at the original argument using the existing
+exact-recovery substitution theorem. Replay the raw body output as an actual
+typed body, then compute argument occurrences through that body using the new
+image theorem. Both arms end at exactly bodyOut.inst argumentOut. From the
+computed function/argument application, the residual is one beta step. From
+the original beta reduct, the path has finite bound imageStage + bodyStage,
+where bodyStage comes from binder inversion and dominates the original stage.
+The computed argument is never required to recover its assigned type.
+
+The remaining exact-recovery premise is stated explicitly and cannot be
+silently replaced by arbitrary typing: the existing eta-converted assigned-type
+boundary rules out that inference. This result covers a computational overlap
+under recoverable substitution, not arbitrary paired substitution or transport
+of comparisons through endpoint beta. The preceding same-core counterexample
+therefore remains consistent with this positive result. Captured arguments
+with only converted assigned types and the full guarded-primitive overlap
+problem remain live tasks.
+
+Validation: lake build through ProofErasureJointBetaExchange passes (542 jobs;
+/tmp/joint-beta-exchange-build.log). The cumulative opaque audit in
+/tmp/joint-beta-exchange-audit.lean checks 458 public roots and 14,500
+dependencies, with no weakN_iff, weakN_inv or sorryAx. All 458 axiom reports
+were accounted for and use only propext, Classical.choice and Quot.sound.
+The independent audit in /tmp/joint-beta-exchange-independent-audit.lean checks
+all four new public roots and 10,956 dependencies and additionally rejects
+JointCarrierDomainResynthesis. Its four axiom reports also pass. Both audit
+processes exited successfully.
+
+Judgment against GOAL.md: a specific computational beta overlap now works for
+the full joint computation family with finite stage growth. This supports the
+remaining route but is not a proof of weakN_iff, a canonical-Eq counterexample,
+or a strictly smaller sufficient strengthening front. The original objective
+remains active. No executable changes, extraction, PRs, agents or coordination.
