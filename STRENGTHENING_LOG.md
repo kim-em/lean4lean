@@ -7616,3 +7616,61 @@ Classical.choice and Quot.sound. Opaque-value traversal visits 12,090
 dependencies with no weakN_iff, weakN_inv or sorryAx;
 /tmp/carrier-resynthesis-audit.log. No executable changes, extraction, PR creation,
 agents or coordination.
+
+## Finite-stage exposure necessity and beta-joined subsingleton domains
+
+This turn checked that the existential later stage does not hide the strength
+of the joint re-synthesis obligation, then proved a positive domain-adaptation
+case that does not preserve the selected domain syntax.
+
+`ProofErasureCarrierFiniteStrength` transfers both necessary-condition tests to
+FiniteCarrierDomainResynthesis. Substituting an arbitrary non-proof function for
+a freshly declared function variable forces some finite-stage Pi recovery when
+an argument is available. The argument comparison is reflexive. Introducing the
+two fresh binders and retracting raw computation then forces finite-stage Pi
+exposure for any positive-universe type convertible to a Pi, even if its domain
+has no inhabitant below. Retraction stays at the output stage chosen by the
+law; primitive substitution closure is required separately at each stage.
+
+The free-proof cast boundary consequently refutes the finite law whenever its
+recovery family is constantly the ordinary core. Comparison stages may grow
+arbitrarily: they do not affect this contradiction, since every proposed output
+stage would still expose the same cast using ordinary core computation. The
+proof constructs the reflexive-universe proof context in every WF canonical-Eq
+environment, as before. This is stronger than just rejecting an input bound of
+zero, but it does not refute growing compared-K or other recovery families.
+
+`ProofErasureCarrierDomainJoin` proves that SubsingletonCarrier survives beta
+computation. Constant-spine inversion preserves an empty structure's head,
+levels and parameter count; Pi inversion and induction preserve its certified
+codomain while allowing arbitrary domain computation. Consequently, if an old
+structural subsingleton domain beta-computes to a shared shape and a new domain
+has a scoped computation to that shape, the new domain supports the argument
+carrier guard. Its syntax need not equal the old domain or itself visibly
+belong to the structural grammar.
+
+The application transport theorem uses this at substituted domains. A supplied
+new Pi recovery, a beta path from the substituted old subsingleton domain, and a
+scoped path from the newly recovered domain to the same result construct the
+substituted recovered-application certificate. Function comparison transports
+by ordinary contextual substitution. This proves the guard-adaptation step
+under those explicit paths; it does not assert general recovery, existence of
+the paths, or adaptation of all recursive structure/function guards.
+
+The next recovery-family test is now explicit in the ledger. The old unscoped
+compared-K stages have weaker endpoint comparison than the new carrier stages.
+An Eq.rec with two neutral empty-structure indices is a candidate obstruction to
+all-stage old recovery, despite having a new carrier computation. This has not
+been established: failure of direct endpoint comparison is not by itself failure
+of every possible computational exposure path. It must be checked before treating
+the old compared-K family as an adequate concrete recovery component of the
+finite joint law. The full goal and the finite re-synthesis law remain open;
+no strictly smaller sufficient front is claimed.
+
+Validation: the domain-join target and prior application examples build together
+(528 jobs), /tmp/carrier-domain-join-final-build.log. All six new public
+declarations plus the prior 93 roots pass #print axioms, using only propext,
+Classical.choice and Quot.sound. The opaque dependency audit visits 12,099
+declarations with no weakN_iff, weakN_inv or sorryAx;
+/tmp/carrier-domain-join-audit.lean and /tmp/carrier-domain-join-audit.log.
+No executable changes, extraction, PR creation, agents or coordination.

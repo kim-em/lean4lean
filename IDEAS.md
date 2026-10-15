@@ -1268,3 +1268,25 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   to that bound. The concrete finite-stage law, general exposure/guard
   adaptation and recursive integration remain unproved. The stage-one cast
   repair is a witness repair, not finite-stage completeness or a smaller front.
+- **Test whether existential output stages remove the exposure requirement.**
+  **No: finite Pi recovery/exposure is still necessary**, checked in
+  `ProofErasureCarrierFiniteStrength`. The fresh-variable/reflexive-argument
+  test now selects an output stage, and raw retraction preserves that stage.
+  In every WF canonical-Eq environment, finite joint re-synthesis is false if
+  recovery remains ordinary core at every stage, regardless of how comparison
+  primitives grow. Both sides of the staged interface must therefore be tested.
+- **Adapt subsingleton argument guards through a beta join of domains.**
+  **Checked** in `ProofErasureCarrierDomainJoin`. Structural subsingleton
+  certificates survive arbitrary beta paths: empty structure heads and arities
+  remain, while dependent Pi codomains recurse. A different recovered domain
+  computing to the same reduct inherits the argument guard. The application
+  transport lemma combines this with typed contextual substitution of the
+  function comparison and a supplied new Pi recovery. It does not construct
+  the new recovery or the join, nor cover arbitrary structure/function guards.
+- **Check old compared-K recovery against the newer neutral-unit guards.**
+  **Live, unverified test.** An Eq.rec guarded by two distinct empty-structure
+  variables can expose a type in the new carrier stages, while the older
+  comparison language cannot directly compare those indices. Determine whether
+  this prevents Pi exposure at every old recovery stage, or whether another
+  computational path repairs it. Direct endpoint incomparability alone does
+  not establish an all-path exposure obstruction.
