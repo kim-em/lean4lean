@@ -982,3 +982,27 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   guard is a raw/scoped comparison, not necessarily another `RecursiveGuard`;
   this is not closure sufficient to iterate a full stage-confluence argument.
   Complete guard coverage and higher-stage computation remain unresolved.
+
+- **Apply a displayed/computed eta function guard to merely compared arguments.**
+  **Checked** in `ProofErasureScopedEtaApplication`. Contract the long application
+  first, then compare the two arguments beneath the identical short function.
+  Typed replay extends the result to finite computations before the displayed
+  eta pair. Arguments need no literal common reduct; the output permits either
+  mode. This does not solve paired substitution into arbitrary lambda bodies.
+- **Cover a single eta expansion at any compatible position.** **Checked** in
+  `ProofErasureScopedEtaStep`. Shared-argument application consumes function
+  eta; inferred reflexive functions accept an expanded argument; projection
+  closure consumes structure eta. Common lambda checking and sorted Pi rules
+  handle annotation changes and dependent bodies with context conversion.
+  Every finite general singleton stage, including zero, supports the certificate
+  at the same bound. Finite eta paths still need composition, and arbitrary
+  computation after the certificate is not covered by this theorem.
+- **Reduce all common function application to one explicit paired-body law.**
+  **Checked conditional reduction** in `ProofErasureScopedPairedApplication`.
+  `ScopedPairedInstantiation` requires compared bodies at one common type in
+  one binder context and compared arguments at its domain. Assuming that law
+  and primitive descent, every scoped comparison constructor applies to distinct
+  compared arguments. It is needed only for lambda and recursive eta bodies;
+  literal eta, inferred forms, symmetry and computational wrappers are handled
+  directly. The law itself is unproved, and neither its sufficiency for the full
+  goal nor strict weakness relative to PropositionFront is claimed.

@@ -6857,3 +6857,56 @@ new or affected public declarations are audited in
 `/tmp/core-recursive-guard-audit.log`: only propext, Classical.choice, Quot.sound.
 The transitive scan with opaque theorem values traverses 11,360 dependencies
 and finds no weakN_iff, weakN_inv, or sorryAx dependency. No executable changes.
+
+## Eta application, compatible eta coverage, and the paired-body obligation
+
+The previous goal turn was progress: `cd8607df` was revalidated as the clean,
+pushed checkpoint. This turn investigated the application case beyond rigid
+heads. Existing inferred-beta and raw-marker obstructions were read before
+choosing a closure statement: unrestricted preservation of inferred mode and
+untyped eta transport must not be assumed. No agents, extraction or PRs.
+
+`ProofErasureScopedEtaApplication` proves that a displayed eta function pair
+accepts distinct commonly compared arguments. Beta contraction of the long
+application leaves the identical short function on both sides, so the existing
+inferred-application rule applies. Finite computations before the eta pair are
+also covered: replay supplies both original functions at the original Pi type,
+and their paths extend under the two respective arguments. This is independent
+of paired body instantiation and comparison transitivity, requires no joined
+arguments, and permits either output comparison mode.
+
+`ProofErasureScopedEtaStep` proves coverage of one actual typed function or
+structure eta expansion at every compatible position. In a function position,
+shared-argument application consumes the recursive certificate; in an argument
+position the unchanged function has inferred reflexivity. Projection closure
+handles structure eta. Common lambda checking and sorted Pi comparison handle
+binder annotations and bodies, with conversion of erased binder contexts when
+the annotation changes. The final corollary instantiates every finite general
+singleton stage, including zero, without increasing guard depth. This covers
+one compatible step; it does not compose a finite path of such certificates or
+transport them through arbitrary later computation.
+
+`ProofErasureScopedPairedApplication` names the remaining substitution law as
+`ScopedPairedInstantiation`: two bodies typed at one common type in a single
+well-formed binder context compare, and two arguments typed at its domain
+compare; the two separately instantiated bodies should then compare. This is
+an explicit hypothesis, not an axiom or a proved theorem. The module proves
+that this law plus primitive descent supplies common application for every
+constructor of `ScopedCompare`. The law is used only for compared lambda bodies
+and recursive eta bodies. Common Pi typing aligns both displayed lambda domains
+and codomains before invoking it; literal eta and inferred forms are handled
+without it, saturated structure constructors cannot be functions, and arbitrary
+computation nodes replay at the same Pi type. No transitivity assumption is
+smuggled into the reduction.
+
+The full goal remains open. In particular the paired-instantiation law has not
+been proved, it has not been shown strictly smaller than PropositionFront, and
+these results do not establish full scoped confluence or guard coverage. The
+next hard step is proving or sharply testing that common-mode paired law; merely
+adding more rigid cases does not discharge it.
+
+Validation: both final targets build (457 jobs), log
+`/tmp/scoped-eta-paired-build.log`. All six public declarations are audited in
+`/tmp/scoped-eta-paired-audit.log`: only propext, Classical.choice and Quot.sound.
+The transitive scan traverses 11,016 dependencies (including opaque theorem
+proofs) and finds no weakN_iff, weakN_inv or sorryAx. No executable changes.
