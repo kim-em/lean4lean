@@ -1052,3 +1052,45 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   conversions that can demand additional singleton computation. Whether a
   fixed positive stage suffices, whether an increased finite stage suffices,
   and how such closure would yield full coverage/confluence remain open.
+
+- **Allow arbitrary finite output stages in common paired instantiation.**
+  **Necessary coverage test checked** in `ProofErasureScopedFinitePaired`.
+  Stage-zero body and argument certificates suffice for the test; no bound is
+  imposed on the output stage. Function-result recursive loops expose every
+  conversion of their annotations at some output stage, including computations
+  throughout the certificate. This leaves finite-stage closure itself open.
+- **Retain an arbitrary proposition in a recursive family to test the cost of
+  finite paired closure.** **Front implication checked, but its interpretation
+  is superseded by logical collapse below.** `RecursiveProbeEnvironment` admits
+  `R P := R P → (P → Prop)` in an actual well-formed extension preserving Eq.
+  `parameter_injective` reads `P` from equality of family applications by Pi
+  injectivity and substitution of the diagonal inhabitant. Consequently
+  `ProofErasureScopedFinitePairedFront` derives PropositionFront from the finite
+  paired law, also for the actual general singleton stages. This is NOT evidence
+  of a new irreducible obligation: the same environment has the front without
+  the law, as proved independently in `RecursiveFunctionInhabitants`.
+- **Exploit canonical Eq after the negative universe recursion, rather than
+  using that recursion only to obstruct normalization.** **Proved positive
+  fragment** in `RecursiveTypeInhabitants`. `D ≡ D → Prop` yields, for every
+  proposition `T`, a Curry proposition `Q ≡ Q → T`, hence a term of `T` by
+  diagonal self-application. From inhabitants of all propositions, canonical Eq
+  casts the identity on any type `A` from `A → A` to `A`. Every type is therefore
+  inhabited in each well-formed context. Substitute an actual inhabitant of the
+  removed binder to prove PropositionFront. `canonical_recursiveDomain_front`
+  applies to the exact recursive extension used by the full-core counterexample.
+  Thus that certificate-closure failure coexists with a proved proposition front.
+- **Check whether retaining a function-result parameter avoids that collapse.**
+  **No, for the universe-valued result used here.**
+  `RecursiveType.inhabit_prop_function` proves the Curry construction for
+  `D ≡ D → (P → Prop)` whenever `P` is inhabited. Choose a reflexive Eq proposition
+  as the parameter of `R`; `canonical_recursiveProbe_front` proves the front in
+  this second actual extension too. The finite paired-law implication is retained
+  with this explicit limitation, not advertised as a hardness/equivalence result.
+- **Use a fixed data result instead of a universe result for the next recursive
+  closure test.** **Open, not yet implemented.** A family returning `P → Unit`
+  would retain the proposition parameter while avoiding the particular Curry
+  construction above; its loops must remain non-proofs. Do not assume this gives
+  a consistency or strictness result. More generally, distinguish genuine
+  comparison repair from cases where negative recursion supplies inhabitants
+  of the deleted context. Arbitrary nontermination alone does not justify the
+  universal-inhabitation argument.

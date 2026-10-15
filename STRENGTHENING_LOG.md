@@ -7046,3 +7046,82 @@ sufficient front. The next useful question is closure allowing extra finite
 singleton computation: fixed positive-stage closure must be tested rather than
 assumed, and arbitrary hidden recursive-domain conversion must be handled.
 Merely adding further ordinary-core rigid cases cannot repair the refuted law.
+
+## Finite paired closure tested; negative universe recursion proves the front outright
+
+The preceding goal turn was progress: `e05bf504` was revalidated as the clean
+checkpoint. It refuted full ordinary-core paired instantiation and checked the
+one-stage K repair of that witness. This turn investigated arbitrary finite
+output stages rather than assuming that allowing a larger bound settles the
+closure problem.
+
+`ScopedFinitePairedInstantiation` records only the stage-zero input special case
+of common paired instantiation, with any existential finite output stage.
+`recursive_function_coverage` extends the loop readout to recursive types with a
+function-valued result: the body, diagonal functions and whole self-applications
+are all retained by erasure. It forces finite-stage comparison of arbitrary
+converted annotations, without prescribing an output bound or assuming that
+annotations are fixed.
+
+The initial test family is `R P := R P → (P → Prop)`. It is a genuine admitted
+mutual definition checked before its own equation is installed and can extend
+any well-formed canonical-Eq environment at a fresh name. `RecursiveProbeTyping`
+proves its recursive equation, diagonal inhabitant, and proposition-parameter
+injectivity. For the latter, Pi injectivity produces a parameter equation under
+one recursive-domain binder; ordinary substitution of the diagonal inhabitant
+removes that binder. No inverse weakening is involved.
+
+`ProofErasureScopedFinitePairedFront` derives PropositionFront in such an
+environment from the finite paired law, for any stages with primitive-head
+exclusion and descent. The actual typed general singleton stages satisfy those
+premises. Their primitive-head theorem is now checked at every finite stage.
+The conclusion is instantiated in the actual extended environment with the full
+stored/registered ordinary core. HOWEVER, interpreting this as a new irreducible
+front or as evidence that the paired law has the full goal's difficulty would
+be unjustified. Investigating the negative recursive type exposed a stronger,
+independent positive result in these environments.
+
+`RecursiveTypeInhabitants.inhabit_result` proves the usual diagonal inhabitant
+of `T` from `D ≡ D → T`. For the special universe result `D ≡ D → Prop`, construct
+`f := fun x : D => (x x → T)` for an arbitrary proposition `T`. The recursive
+equation types `f : D`; beta gives `Q := f f ≡ Q → T`. Applying the diagonal
+construction again yields a term of `T`. This Curry argument is checked without
+canonical Eq. With canonical Eq, inhabitants of all propositions provide a proof
+of equality between any type `A` and `A → A` at their common sort. The existing
+cast typing theorem transports the identity function to a term of `A`. This is
+ordinary Eq elimination, not equality reflection.
+
+Every well-typed context binder therefore has an inhabitant in its original
+context. `RecursiveType.propositionFront` removes the binder by ordinary typed
+instantiation. `RecursiveDomain.propositionFront` chooses the closed identity
+on Prop as the original recursive family's parameter, and
+`canonical_recursiveDomain_front` proves the front for the very extension used
+in the preceding full-core paired-law counterexample. The closure counterexample
+remains valid; its ambient proposition front is now positively proved.
+
+`RecursiveFunctionInhabitants` checks the same issue for the new family. Given
+an inhabitant `p : P`, take
+`f := fun x : D => fun z : P => (x x z → T)`.
+The recursive type `D ≡ D → (P → Prop)` types `f : D`; two beta contractions give
+`Q := f f p ≡ Q → T`. The diagonal again inhabits every proposition. A reflexive
+canonical-Eq proposition supplies an inhabited parameter, so
+`canonical_recursiveProbe_front` proves the front in this new extension without
+assuming finite paired closure. The front-implication module explicitly records
+this limitation and does not claim equivalence, hardness, or strict weakness.
+
+This is a positive fragment result and a correction to how the recursive tests
+should be interpreted. It does not prove the front for every canonical-Eq
+environment, and does not show arbitrary nontermination implies universal
+inhabitation. A useful next test can use a fixed data result (for example Unit)
+instead of a proposition universe, while checking that loop outputs remain
+non-proofs. Another live direction is separating finite comparison repair from
+negative-recursion cases where deleted-binder inhabitants are constructible.
+Neither direction is assumed solved.
+
+Validation: both final targets build together (496 jobs), log
+`/tmp/recursive-front-build.log`. All 34 new public declarations, including the
+actual declaration constructors and unconditional front theorems, are audited in
+`/tmp/recursive-front-audit.log`: only propext, Classical.choice and Quot.sound.
+The scan traverses 11,150 transitive dependencies with opaque theorem values
+included and finds no weakN_iff, weakN_inv, or sorryAx. No executable changes,
+extraction, PRs, or coordination. The full goal remains active and unachieved.

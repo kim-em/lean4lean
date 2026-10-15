@@ -7,6 +7,10 @@ A recursive Pi domain and its reflexive cast along a free equality proof are
 convertible by canonical Eq. Common lambda checking hides that conversion.
 Paired instantiation would reveal it in self-application, forcing a core Pi
 exposure that the checked cast boundary forbids.
+
+`RecursiveTypeInhabitants.canonical_recursiveDomain_front` separately proves the
+proposition front in this extension using Curry's diagonal and canonical Eq.
+Thus this certificate-closure failure coexists with a proved proposition front.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation
