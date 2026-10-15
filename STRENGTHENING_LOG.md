@@ -8708,3 +8708,84 @@ non-proof substitution and recovery/type exposure remain unproved. This does
 not establish joint confluence, a canonical-Eq counterexample, a proof of
 weakN_iff, or a strictly smaller sufficient front. The main goal is active and
 unachieved. No executable changes, extraction, PR creation, agents or coordination.
+
+## 2026-10-15: comparison-directed exposure, empty structures, and the coverage barrier
+
+The preceding goal turn was progress: checked neutral-carrier alignment and
+pushed 59f052bf. Revalidated that clean local checkpoint and the unchanged goal.
+Continued with exposed carriers rather than assuming the neutral argument would
+extend to structures or functions.
+
+ProofErasureJointRigidExposure establishes rigid-head exclusion for every joint
+stage and its union. The actual stored singleton equation behind each Valid
+code excludes a rigid name; the Eq prefix is excluded by canonical registration.
+The core must separately exclude the rigid head, as ErasedQuotCore already does.
+A structural induction on inferred JointCheck then proves that comparison with
+a primitive-inert constant spine exposes that same constant and argument count
+on the other side. Computation of the known spine retains its head and arity;
+ordinary and recovered-carrier applications recurse through their inferred
+function comparisons. No confluence or substitution theorem is used. Universe
+lists and actual argument syntax are deliberately not asserted identical.
+
+ProofErasureJointTypeExposure removes a mode restriction for actual type
+comparisons. Independently sort-typed endpoints cannot be lambdas or fully
+applied structure constructors; typed replay preserves that fact after every
+computation. Thus either comparison mode gives inferred comparison with the
+same endpoints and primitive relation. Combining this with rigid family
+exposure constructs empty-structure carrier guards at the compared target type.
+The concrete quotient-repaired-stage wrapper discharges both descent and rigid
+head exclusion and keeps the original finite stage. This uses an existing type
+comparison; it does not produce comparison certificates for arbitrary original
+type equality.
+
+ProofErasureJointRecoveryExposure handles the other recovery heads as well.
+Inferred comparison with a displayed sort or Pi exposes a sort or Pi on the
+other side, using the same computation relation. Along with rigid-spine
+exposure, these give conversion of an existing selected recovery to each of the
+heads consumed by syntax-directed recovery. Output syntax may change freely.
+A Pi output is exposed, but its new domain's argument guard is not thereby
+aligned; a family output has the right arity, but its dependent projection
+carriers are not thereby aligned. These distinctions remain part of the open
+re-synthesis problem.
+
+The typed test in ProofErasureJointUnitAlignment goes beyond the preceding
+neutral-carrier example. Assume an existing empty registered structure
+S : (Prop -> Prop) -> Type with the displayed constant declaration. In a context
+with f : Prop -> Prop, the carriers S f and S (fun p => f p) are definitionally
+equal by eta/application congruence. Both erased types are fixed at all raw
+contexts by the entire quotient-repaired joint union. Their different parameter
+syntax therefore has no literal computational join. Nevertheless their joint
+type comparison constructs arbitrary target carrier guards at every finite
+stage via the new conversion theorem. This is a conditional registration schema,
+not a constructed environment or a strengthening counterexample.
+
+Finally tested the apparent next simplification: assume every non-proof variable
+has some recovered type comparable with its assigned type. The named missing
+law JointVariableComparedRecovery even permits common-mode type comparison and
+an arbitrary selected recovery output. ProofErasureJointComparedRecoveryBarrier
+shows that this law already entails all of PropositionFront under primitive
+descent. The probe declares a fresh function variable at P -> Prop and assigns
+it R -> Prop from the upper proposition equation. Variable recovery computes
+from its declared oracle; composing that path into the comparison yields a joint
+certificate for the two Pi types. Both inserted binders descend at once, and
+ordinary Pi injectivity supplies P = R below. This is an encoding of the original
+front, not a smaller remaining task. The result does not refute universal
+coverage; proving coverage would still be a legitimate route to the main goal.
+
+Validation: the positive modules build through ProofErasureJointUnitAlignment
+(552 jobs, /tmp/joint-unit-alignment-build.log); the final common-mode barrier
+builds through ProofErasureJointComparedRecoveryBarrier (551 jobs,
+/tmp/joint-compared-recovery-barrier-build.log). The final cumulative opaque
+visit at /tmp/joint-type-exposure-audit.lean checks 385 public roots and 14,323
+dependencies, rejecting weakN_iff, weakN_inv and sorryAx. All 385 axiom reports
+were parsed and checked against propext, Classical.choice and Quot.sound.
+The independent audit checks all 17 new public roots and 11,032 dependencies,
+additionally rejecting JointCarrierDomainResynthesis and its namespace.
+
+Remaining: general dependent structure-field and function-binder carrier
+transport, arbitrary non-proof substitution, and comparison/recovery coverage.
+The constructive head-exposure lemmas help once a type comparison is available;
+the checked variable probe prevents disguising universal availability as a
+smaller front. No proof of weakN_iff, canonical-Eq counterexample, or strictly
+smaller sufficient front has been obtained. The goal remains active. No
+executable changes, extraction, PR creation, agents or coordination.

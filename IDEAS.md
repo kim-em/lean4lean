@@ -1573,3 +1573,37 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   obstructions for guard alignment. General non-proof substitution, recovery
   exposure, and transport at exposed structure/Pi carriers remain open. The
   factorization is not a smaller sufficient strengthening front.
+
+- **Use joint type comparison to expose recovered heads and align empty structures.**
+  **Proved from existing comparison certificates.**
+  ProofErasureJointRigidExposure excludes all rigid heads from every joint stage
+  and the union when the core excludes them; singleton exclusion follows from
+  the generated code's actual stored equation. Inferred comparison against an
+  inert constant spine exposes the same family and arity on the other side,
+  including carrier-aware application rules. ProofErasureJointTypeExposure
+  converts either comparison mode between actual sort-typed endpoints into
+  inferred mode by typed replay, then transfers empty-structure guards at the
+  same quotient-repaired stage. ProofErasureJointRecoveryExposure also exposes
+  sorts and Pis; a selected recovery plus a comparison to any of these three
+  heads yields a newly selected recovery with that head, without exact domain,
+  codomain, universe or parameter syntax. No arbitrary coverage is assumed in
+  these constructive lemmas. ProofErasureJointUnitAlignment tests an existing
+  empty S : (Prop -> Prop) -> Type: S f and S (fun p => f p) are typed equal and
+  fixed by all repaired-union computation, hence have no literal join, yet their
+  type comparison supplies target guards at every stage. The example assumes
+  the displayed registration; it does not build an environment extension.
+  Dependent nonempty-field and general Pi carrier conversion remain open.
+
+- **Package universal compared recovery as the remaining smaller front.**
+  **Rejected as a simplification, not refuted as a theorem.**
+  ProofErasureJointComparedRecoveryBarrier proves that compared recovery for
+  non-proof variables alone already implies the entire PropositionFront under
+  the existing primitive descent theorem. Recovery may freely choose its output,
+  and the type comparison only needs common mode. In the probe, a fresh variable
+  declared at P -> Prop is assigned R -> Prop using the upper equation. Its
+  recovered output computes from the declared lookup, so the type comparison
+  composes with that path; joint descent removes both fresh binders and Pi
+  injectivity returns the desired lower P = R. Thus proving coverage remains a
+  live direct route to the main goal, but treating it as a routine subsidiary
+  obligation hides the whole original front. No converse or impossibility of
+  coverage is claimed, and no strictly smaller sufficient front is obtained.
