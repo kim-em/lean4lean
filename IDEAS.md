@@ -1533,3 +1533,24 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   carriers all instantiate at the original stage. This handles proof-argument
   beta transport; it does not handle arbitrary non-proof substitution images
   such as the lambda arguments in the original matched-beta residue.
+
+- **Replace non-proof re-synthesis with a literal join of assigned and recovered types.**
+  **Refuted for the full joint union, even after the quotient repair.**
+  ProofErasureRecoveryJoinBoundary gives an actual typed substitution of Prop
+  at a universe syntactically max 1 0: its only recoverable type is Sort 1,
+  while computation fixes both literal sorts. The native and assigned types
+  already compare at stage zero. ProofErasureEtaRecoveryJoinBoundary removes
+  universe syntax as the explanation: in context f : Prop → Prop,
+  F : (Prop → Prop) → Type, x : F f, the variable x may be assigned
+  F (fun p => f p). Both neutral types are fixed by every joint computation,
+  and every recovery of x has its native type F f. They cannot have a literal
+  computational join at any stage, but compare at stage zero by eta at the
+  argument. Thus universe normalization alone cannot repair the proposed
+  invariant. The same example gives an actual typed substitution by a variable
+  that fails RetainedRenaming because its oracle assignment changes by eta.
+  Joint carrier checking at a literal sort is also proved equivalent in power
+  to its ordinary common-mode checking component, allowing raw sort-carrier
+  reindexing with endpoint typings still required by sound interpretation.
+  This rejects literal type joins and unconstrained variable-image transport;
+  it does not refute re-synthesis or canonical-Eq strengthening. Further type
+  alignment must retain comparison/conversion evidence, not just computation.

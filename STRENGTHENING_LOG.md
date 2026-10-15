@@ -8579,3 +8579,69 @@ counterexample, or strictly smaller sufficient front has been obtained. Future
 joint confluence work can use proof substitution and variable renaming without
 re-synthesis. Non-proof substitution, conversion of recovered domains, and full
 singleton-family type exposure remain substantive open work.
+
+
+## 2026-10-15: literal recovered-type joins fail, including beyond universes
+
+Revalidated the clean pushed 51f1ca48 checkpoint; the prior goal turn was
+progress. Tested the proposed next route for non-proof substitution: replace
+exact selected-type preservation by a common computational reduct of the
+assigned type and some recovered type of the substituted image. This stronger
+invariant would have made carrier alignment a computational problem. It is
+false, even for the complete joint union with any core.
+
+ProofErasureRecoveryJoinBoundary first isolates the universe discrepancy. Prop
+is typed at Sort (max 1 0), but its recovery can only start at Sort 1. Every
+primitive in every joint stage has a constant/projection head, so every finite
+computation from either literal sort is identity. No recovered output of Prop
+can have a literal common reduct with its assigned type. The theorem includes
+an actual typed substitution from a context with a variable at that declared
+type, whose source variable has an exact recovery certificate. The output types
+already compare by the joint sort leaf at stage zero; this is a failure of the
+literal-join proposal, not of the current checking grammar. Also proved that
+recovery from any displayed sort computes only from its successor, and that
+a joint guard at a literal universe yields ordinary common-mode JointCompare.
+Consequently raw sort-carrier guards can be reindexed; applying them still
+requires actual endpoint typings at the new carrier, and no arbitrary universe
+conversion is derived.
+
+ProofErasureEtaRecoveryJoinBoundary supplies a stronger example with identical
+universe syntax throughout. Extend any well-formed context by
+f : Prop → Prop, F : (Prop → Prop) → Type, and x : F f. By ordinary eta and
+application congruence, x also has assigned type F (fun p : Prop => f p).
+Both erased types have a bound-variable head and no beta redex anywhere. They
+are fixed at EVERY raw context by all computations in ErasedJointUnion D for
+any D. Every recovery of x starts at the context oracle's native F f and can
+only compute from it. Hence no recovered output joins the assigned type.
+Nevertheless stage-zero joint checking relates the two types by reflexive
+function comparison and common-mode eta at the argument. No universe-equivalence
+step is used to establish their original equality. Normalizing universes alone
+therefore cannot repair the literal-join invariant.
+
+The eta example also sharpens the limit of the last two transport results.
+Substituting this variable x for a fresh variable declared at its eta-converted
+type is an actual typed substitution, but its raw map cannot satisfy
+RetainedRenaming. Otherwise the already proved retained transport would recover
+the assigned type exactly, contradicting the no-join result. Thus non-proof
+variable images are not by themselves enough: their oracle types must still
+align. This is not a failure of the renaming theorem, whose exact oracle
+condition is explicit and holds for binder insertions.
+
+Validation: both modules build, 539 dependency jobs,
+/tmp/eta-recovery-join-build.log. The cumulative opaque dependency audit at
+/tmp/recovery-join-audit.lean checks 357 public roots and 14,259 declarations,
+with no weakN_iff, weakN_inv, or sorryAx. A separate parser verifies all 357
+axiom reports against propext, Classical.choice, Quot.sound. The independent
+new-root audit at /tmp/recovery-join-independent-audit.lean checks the seven
+new public roots and 10,948 dependencies and additionally excludes
+JointCarrierDomainResynthesis and its namespace.
+
+These are checked counterexamples to proposed auxiliary invariants, not to
+canonical-Eq strengthening. They apply to the repaired quotient core and do
+not reopen its soundness/confluence results. The next non-proof transport
+attempt must use type-comparison or conversion certificates; raw confluence
+alone cannot align merely definitionally equal recovered types. Moving an
+explicit carrier guard across such type evidence, together with full type
+exposure, remains open. No smaller sufficient front is claimed. weakN_iff
+remains unproved and the full goal stays active. No executable changes,
+extraction, PR creation, agents, or coordination.
