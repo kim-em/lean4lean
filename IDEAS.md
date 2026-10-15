@@ -1680,3 +1680,30 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   computed oracles and computed carriers. The earlier eta no-join examples
   still prevent treating computational alignment as arbitrary type conversion;
   no smaller sufficient strengthening front is claimed.
+
+
+- **Transport general joint checking and carriers simultaneously through computed contexts and carriers.**
+  **Proved for the repaired ordinary core and the full joint grammar.**
+  ProofErasureCoreContextReduction combines actual context-conversion
+  realizations with pointwise forward oracle computation and extends beneath
+  a computed binder annotation. ProofErasureCoreCheckReduction performs one
+  induction over all 24 comparison/carrier constructors. Recovered application
+  uses the new Pi domain's computation path to invoke its argument-guard IH;
+  function carriers change the fresh binder and codomain together; dependent
+  nested structure fields compute their actual projection recipes. Typed core
+  confluence joins the two carrier paths in carrierCompute. No re-synthesis
+  premise is assumed. The endpoints stay fixed, so this does not establish
+  stability under arbitrary endpoint reduction or substitution.
+
+- **Align arbitrary joint guards at computationally joined recovered domains.**
+  **Proved for the repaired ordinary core, removing the subsingleton restriction.**
+  ProofErasureCoreGuardAlignment transports any typed joint carrier guard
+  forward along carrier computation and then backward along another path to
+  the same reduct. Its context-transport result also chooses a new recovered
+  Pi and a joint argument guard at its new domain under computed oracles.
+  General function and dependent nonempty-structure carriers are covered in
+  this computational setting. Guarded joint stages, arbitrary non-proof
+  substitution and arbitrary conversion are not covered; the existing eta
+  no-join examples prevent identifying conversion with computational alignment.
+  Beta/capture residual transport and guarded-singleton integration remain
+  live tasks, with no smaller sufficient strengthening front claimed.

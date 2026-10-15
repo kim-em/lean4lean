@@ -8991,3 +8991,73 @@ separate open tasks. In particular, the previous eta-converted type examples
 have no computational join, so computational oracle reduction cannot stand in
 for unrestricted conversion. The main goal remains open: no strengthening
 proof, canonical-Eq counterexample or strictly smaller sufficient front.
+
+
+## General joint carrier alignment through ordinary-core computation
+
+The previous goal turn was verified progress: abd543cb completed composite
+recovery under computed oracles and the structural-subsingleton guard case.
+Revalidated the clean worktree and continued with the general guard case rather
+than adding another subsingleton wrapper.
+
+ProofErasureCoreContextReduction packages two properties of a raw context
+change: every well-formed source realization has an actual context-converted
+target realization, and each source oracle entry computes to the corresponding
+target entry. Actual context conversion supplies the interpretation through
+transitivity of empty-base context equality and equality of erased contexts.
+Sort witnesses transport unchanged. The crucial cons_compute operation extends
+this invariant from Delta -> Delta' to A::Delta -> B::Delta' when A computes to
+B in the repaired core. Source realization supplies an actual A; core replay
+supplies an actual B and its typing. Thus the changed target binder requires
+no invented original representative of raw syntax.
+
+ProofErasureCoreCheckReduction proves one simultaneous induction over all 24
+joint-checking constructors. Comparison modes keep raw endpoints and transport
+the context. Carrier mode additionally permits an arbitrary computation of the
+supplied carrier. Recovered application invokes the composite Pi-recovery
+result to choose a new domain, then invokes its carrier induction hypothesis
+at that new domain using the recorded domain path. This avoids preserving the
+old domain or assuming re-synthesis. Function carriers invert the carrier Pi
+path, transport the domain's sort, extend context reduction under the changed
+domain, and apply the body guard induction at the computed codomain.
+
+General structure fields use their actual source projection typings. For a
+computed structure carrier, rigid-spine inversion retains the family, levels
+and parameter count. The nested-field case passes the pointwise computed
+parameters through the actual projection type recipe before invoking its
+carrier induction hypothesis. Carrier conversion resolves the fork between
+its stored carrier reduction and the new target reduction using typed core
+confluence. Endpoint computations themselves are merely transported between
+raw contexts because this core is context independent; no theorem that joint
+checking survives arbitrary endpoint reduction is claimed.
+
+ProofErasureCoreGuardAlignment provides direct consequences. Both comparison
+modes transport along actual context conversion with computed oracles, stated
+at the actual target erasures. Every typed joint carrier guard survives forward
+core computation of its carrier. Combining that with carrierCompute transfers
+a guard to any raw carrier with a common computational reduct, including general
+function and dependent nonempty-structure carriers. Finally,
+recovery_guard_oracle_reduce chooses a new recovered Pi and an arbitrary joint
+argument guard at its new domain. Source argument typings are aligned to the
+old recovered domain by recovery replay before applying simultaneous transport.
+The previous structural-subsingleton restriction is removed for this problem.
+
+Validation: lake build through ProofErasureCoreGuardAlignment passes (561 jobs;
+/tmp/core-guard-alignment-build.log). The cumulative opaque audit
+/tmp/core-guard-alignment-audit.lean checks 442 public roots and 14,424
+dependencies, rejecting weakN_iff, weakN_inv and sorryAx. All 442 axiom reports
+were accounted for and restricted to propext, Classical.choice and Quot.sound.
+The independent audit checks all 13 new public roots and 9,740 dependencies,
+additionally excluding JointCarrierDomainResynthesis and its namespace.
+
+Scope and remaining work: the entire recursive checker is covered, but its
+computations here are the quotient-repaired ordinary core only. This is context
+and carrier transport, not arbitrary non-proof substitution, arbitrary endpoint
+reduction, guarded-singleton-stage confluence, or comparison completeness. The
+eta-converted carrier examples without computational joins still lie outside
+computational alignment. The next live semantic tasks are beta/capture residual
+transport (where endpoints change) and extension across actual guarded
+singleton primitives; their recovery/guard choices must not silently assume
+literal type joins or full re-synthesis. There is still no proof of weakN_iff,
+canonical-Eq counterexample, or strictly smaller sufficient front. No executable
+changes, extraction, PRs, agents or coordination. The goal remains active.
