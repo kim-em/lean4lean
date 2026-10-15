@@ -46,20 +46,25 @@ private theorem core_opened_arguments {data : RecursorData}
 namespace SingletonPrefixCode
 variable {C : SingletonPrefixCode}
 
-/-- A joined family guard survives arbitrary ordinary computation of supplied
-arguments. The old and new generated telescopes may differ. Source typing and
-ordinary congruence align those contexts; no unfolding check at either program
-or erased guard-transport assumption is required. -/
-theorem Valid.joined_guard_core (V : C.Valid) (heq : env.HasCanonicalEq)
+/-- Computation of supplied arguments transports both family endpoints in the
+old opened context. Any typed core residual theorem for a raw certificate can
+therefore transport the family guard, including across changing telescopes. -/
+theorem Valid.family_core_transport (V : C.Valid) (heq : env.HasCanonicalEq)
     (hcon : ∀ {p r}, Pat p r → ConcretePattern env p r)
+    {Cmp Cmp' : ProofShape → ProofShape → Prop}
+    (transport : ∀ {Γ a A b B a' b'}, OnCtx Γ (env.IsType univs) →
+      env.HasType univs Γ a A → env.HasType univs Γ b B →
+      Cmp (proofErase Γ a) (proofErase Γ b) →
+      ProofShape.Compute ErasedCore.Step (proofErase Γ a) a' →
+      ProofShape.Compute ErasedCore.Step (proofErase Γ b) b' → Cmp' a' b')
     (hΓ : OnCtx Γ (env.IsType univs))
     (hg : C.data.singletonUnfolding env univs C.levels args = some program)
     (hg' : C.data.singletonUnfolding env univs C.levels args' = some program')
     (ht : VExpr.WF env univs Γ (mkApps (.const C.data.name C.levels) args))
     (HA : List.Forall₂ (PatternCompute ErasedCore.definitions) args args')
-    (HG : GuardedSingleton.FamilyGuard CoreFamilyJoin
+    (HG : GuardedSingleton.FamilyGuard (fun Γ a b => Cmp (proofErase Γ a) (proofErase Γ b))
       Γ C.data C.levels args program C.layout C.elim) :
-    GuardedSingleton.FamilyGuard CoreFamilyJoin
+    GuardedSingleton.FamilyGuard (fun Γ a b => Cmp' (proofErase Γ a) (proofErase Γ b))
       Γ C.data C.levels args' program' C.layout C.elim := by
   have hs : ErasedCore.definitions.Sound env univs :=
     RegisteredStructure.definitions_sound (Definitions.ofEnv_sound henv)
@@ -117,13 +122,35 @@ theorem Valid.joined_guard_core (V : C.Valid) (heq : env.HasCanonicalEq)
   have hP := WF.family_prop henv hps hargs
   have EF := proofErase_defeqCtx hctx Wctx (RF.simAt hs hctx _ hF).hasType.2
   have EP := proofErase_defeqCtx hctx Wctx (RP.simAt hs hctx _ hP).hasType.2
-  obtain ⟨shared, HF, HP⟩ := HG
-  obtain ⟨out, HL, HR⟩ := ErasedCore.join_forward hcon hctx hF hP HF HP
+  have H := transport hctx hF hP HG
     (proofErase_pattern_compute_forward hs hcon hctx hF RF)
     (proofErase_pattern_compute_forward hs hcon hctx hP RP)
-  rw [EF] at HL
-  rw [EP] at HR
-  exact ⟨out, HL, HR⟩
+  rw [EF, EP] at H
+  exact H
+
+/-- A joined family guard survives arbitrary ordinary computation of supplied
+arguments. The old and new generated telescopes may differ. Source typing and
+ordinary congruence align those contexts; no unfolding check at either program
+or erased guard-transport assumption is required. -/
+theorem Valid.joined_guard_core (V : C.Valid) (heq : env.HasCanonicalEq)
+    (hcon : ∀ {p r}, Pat p r → ConcretePattern env p r)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (hg : C.data.singletonUnfolding env univs C.levels args = some program)
+    (hg' : C.data.singletonUnfolding env univs C.levels args' = some program')
+    (ht : VExpr.WF env univs Γ (mkApps (.const C.data.name C.levels) args))
+    (HA : List.Forall₂ (PatternCompute ErasedCore.definitions) args args')
+    (HG : GuardedSingleton.FamilyGuard CoreFamilyJoin
+      Γ C.data C.levels args program C.layout C.elim) :
+    GuardedSingleton.FamilyGuard CoreFamilyJoin
+      Γ C.data C.levels args' program' C.layout C.elim := by
+  apply V.family_core_transport heq hcon (Cmp := fun a b =>
+    ∃ shared, ProofShape.Compute ErasedCore.Step a shared ∧
+      ProofShape.Compute ErasedCore.Step b shared)
+    (Cmp' := fun a b => ∃ shared, ProofShape.Compute ErasedCore.Step a shared ∧
+      ProofShape.Compute ErasedCore.Step b shared) ?_ hΓ hg hg' ht HA HG
+  intro Γ a A b B a' b' hΓ ha hb H RA RB
+  obtain ⟨shared, HA, HB⟩ := H
+  exact ErasedCore.join_forward hcon hΓ ha hb HA HB RA RB
 
 /-- General singleton unfolding with a joined family guard commutes with
 arbitrary finite raw core computation of all supplied arguments. Both prefix

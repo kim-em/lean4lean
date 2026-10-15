@@ -6808,3 +6808,52 @@ This closes a specific class of general prefix/argument peaks, not full
 confluence. Recursive scoped guards beyond common-reduct certificates and
 higher-stage computations remain unresolved. `IsDefEqU.weakN_iff` is still open;
 no counterexample or strictly smaller sufficient front is claimed.
+
+## Recursive eta-bearing family guards under core argument computation
+
+Resume audit: the acknowledgement of the user's stop/extraction instruction
+made no mathematical progress. The subsequent goal continuation explicitly
+resumed work. The clean, pushed checkpoint was revalidated as `abda2669`;
+no extraction or PR creation is performed.
+
+`ProofErasureCoreRecursiveTransport` introduces a concrete inductive fragment,
+`ErasedCore.RecursiveGuard`. Its constructors are typed literal joins, typed
+head-eta after finite computations, rigid constant spines with recursive index
+certificates, lambda congruence and common checking, symmetry, and typed
+computation before any recursive certificate. The constructors do not assume
+forward stability. `RecursiveGuard.forward` proves it, producing an ordinary
+raw checking certificate after arbitrary independent core computations of both
+endpoints. Rigid spine inversion supplies the argument paths; lambda inversion
+supplies body and annotation paths; typed confluence handles computations before
+the recursive certificate. The existing typed eta residual theorem handles the
+leaves, so eta may occur inside nested indices and lambda bodies.
+
+The earlier family template argument is factored into
+`SingletonPrefixCode.Valid.family_core_transport` in
+`ProofErasureSingletonJoinedGuard`. It transports any raw relation for which a
+typed core residual theorem is supplied, including conversion to the newly
+generated residual telescope. The old joined-guard theorem and square retain
+their statements and are rechecked through this helper.
+
+`ProofErasureSingletonRecursiveGuard` instantiates that transport theorem and
+builds the complete singleton/core argument square for the recursive fragment.
+The old guard supplies the old unfolding check; its residual supplies the new
+one. Both prefix edges remain at general singleton stage one, and both
+horizontal paths use only core computation. Arbitrary indexed/dependent
+layouts, changing residual annotations, and whole-proof sources are included.
+
+Limits: this does not cover arbitrary reducible function positions, projection
+comparison, Pi congruence, or recursive structure eta. The residual is a raw
+checking certificate and is not claimed to remain in `RecursiveGuard`. Thus this
+is an expanded class of closed prefix/core peaks, not full stage confluence or
+complete guard coverage. No strengthening proof, canonical-Eq counterexample,
+or strictly smaller sufficient front has been established. The next substantive
+problem remains paired substitution/application residuals and the extension
+from core computation to singleton stages.
+
+Validation: the final target builds successfully (487 jobs), including the
+refactored joined square; `/tmp/singleton-recursive-guard-build.log`. The nine
+new or affected public declarations are audited in
+`/tmp/core-recursive-guard-audit.log`: only propext, Classical.choice, Quot.sound.
+The transitive scan with opaque theorem values traverses 11,360 dependencies
+and finds no weakN_iff, weakN_inv, or sorryAx dependency. No executable changes.

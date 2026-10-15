@@ -964,3 +964,21 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   edges in the core relation. Arbitrary indexed/dependent layouts and whole-proof
   sources are included. Recursive contextual guards beyond common-reduct
   certificates, and computations using higher singleton stages, remain open.
+
+- **Close a recursive core-stable fragment rather than only top-level joined guards.**
+  **Checked** in `ProofErasureCoreRecursiveTransport`: typed join and head-eta
+  leaves, rigid constant spines with recursively compared arguments, lambda
+  congruence/common checking, symmetry, and typed computation before a recursive
+  certificate all have two-sided residual raw checking certificates. Rigidity
+  excludes primitive contractions at each spine; finite computation is inverted
+  pointwise. This admits eta inside nested indices without assuming that those
+  indices have literal common reducts. It does not cover arbitrary reducible
+  function positions, projections, Pi congruence, or recursive structure eta.
+- **Use recursive residuals in the full singleton/core argument square.**
+  **Checked** in `ProofErasureSingletonRecursiveGuard`. The original family
+  endpoint transport is factored into `Valid.family_core_transport`, retaining
+  the previous joined-guard result. The recursive fragment supplies the new
+  transport instance, with both prefix edges still at stage one. The output
+  guard is a raw/scoped comparison, not necessarily another `RecursiveGuard`;
+  this is not closure sufficient to iterate a full stage-confluence argument.
+  Complete guard coverage and higher-stage computation remain unresolved.
