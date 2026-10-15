@@ -1120,3 +1120,23 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   recursively closed comparison, substitution stability of recovery, and full
   coverage/composition remain open. The sufficient all-projection premise is
   not claimed complete for mixed proof/data fields.
+- **Use the carrier already present in an Eq prefix instead of recovering an
+  endpoint's selected type.** **Checked and integrated for empty structures.**
+  `ProofErasureUnitPrefix` admits a prefix whenever its explicit carrier is a
+  registered unindexed zero-field family. Typed-source inversion reconstructs
+  the lower carrier and endpoint typings; unitLike supplies equality. The raw
+  rule substitutes unconditionally and replays through the actual registered
+  singleton program. This avoids the known exact-recovery substitution failure
+  at this guard, without asserting that recovery itself is substitution-complete.
+- **Feed carrier-based unit prefixes into general singleton computation.**
+  **Checked** in `ProofErasureUnitSingletonStages`: every old typed singleton
+  stage embeds at the same bound; new stages preserve typed context substitution,
+  block descent and exact operational replay. Both partial prefixes and fully
+  applied Eq recursors over explicit empty-structure carriers compute at stage
+  one. `unit_neutral_sort_exposure` constructs a typed type-valued recursor in
+  [S, S] which computes to Prop even though ScopedCompare cannot compare its
+  two neutral indices at any augmented stage. This is forward coverage, not a
+  proof that no old computational path reaches Prop. The comparison language
+  itself still lacks the neutral rule. General structure carriers with recursive
+  fields are a live extension: the displayed carrier may similarly avoid
+  endpoint type recovery, but field guards and stage transport must be proved.

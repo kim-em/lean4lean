@@ -7192,3 +7192,74 @@ Classical.choice, and Quot.sound. The audit in
 /tmp/neutral-structure-audit.lean traverses 8,824 dependencies, including opaque
 values, and rejects weakN_iff, weakN_inv, and sorryAx; it passes, with output in
 /tmp/neutral-structure-audit.log. No executable changes or coordination.
+
+## Explicit unit carriers bypass recovery in actual Eq-prefix computation
+
+The preceding goal turn was progress: f0f2dba9 recorded the typed neutral
+composition gap and a checked recovery-based root repair. This turn started by
+confirming that commit and a clean worktree. Re-reading the existing recovery
+substitution boundary matters here: selected-output recovery is already refuted
+at every compared-K stage by a captured Pi annotation. The root unit guard
+existentially chooses its family parameters, so that old counterexample is not
+a refutation of the guard's own substitution law. No such claim is made.
+
+A more direct operational repair is available at Eq.rec. Its explicit carrier
+argument already provides the type information needed for unitLike. When this
+carrier is syntactically a registered unindexed empty-structure family, there
+is no need to recover either endpoint's type or demand a ScopedCompare between
+them. `ProofErasureUnitPrefix` defines the raw UnitPrefixPrimitive, whose output
+is the ordinary proof-domain lambda with lifted payload.
+
+The primitive is stable under arbitrary raw substitution: family registration
+and parameter arity survive, and all captures substitute literally. For descent,
+Eq-prefix inversion recovers the lower original carrier and arguments. Inverting
+the lifted carrier spine reconstructs its exact lower family parameters. Source
+typing gives both endpoint typings at that family, so unitLike supplies their
+original equality. The existing canonical prefix replay then gives the exact
+lower lambda. This uses neither endpoint type recovery nor inverse weakening.
+An operational replay theorem additionally reconstructs the actual registered
+singleton PrefixUnfold step, assuming the chosen Eq.rec registry agrees with
+the environment's registry, as in the existing operational K replay interface.
+
+`ProofErasureUnitSingletonStages` adds the new primitive to the finite general
+singleton stages. Later family guards use the augmented preceding stage, so the
+repair is available inside recursively certified singleton computations. Every
+old typed singleton stage embeds at the same bound; none of the old general
+singleton layouts or ordinary core rules is discarded. Every new stage has
+block descent, typed-context substitution and exact original prefix replay.
+The new primitive itself needs no typed source witness for substitution because
+its guard is entirely structural. Compatible computations reconstruct original
+type-preserving paths with exactly the displayed erased result.
+
+Forward erasure is proved for both five-argument unit-carrier prefixes and fully
+applied Eq recursors with arbitrary dependent motives. A full application uses
+the prefix at stage one and then beta. Whole-proof sources erase to identity.
+No comparison certificate for the unit-valued indices is required.
+
+`ProofErasureUnitPrefixExample.unit_neutral_sort_exposure` supplies an actual
+use of this computation. Given a closed, zero-parameter registered empty
+structure S in a positive universe, form the well-formed context [S, S]. Its
+variables 0 and 1 are originally unitLike-equal. A reflexivity proof converts to
+Eq S 0 1, so a constant-motive Eq recursor with payload Prop is genuinely typed
+at Type. The new stage-one computation exposes Prop. Nonetheless, the two
+neutral indices still cannot compare in ScopedCompare at ANY augmented stage:
+all new primitive sources remain constant/projection-headed. This is not an
+assertion that every old computational path fails, nor a counterexample to the
+finite paired law. It shows that a type-bearing computational guard can avoid
+an otherwise impossible comparison premise on a real typed source.
+
+The original goal remains open. Direct neutral comparison, complete guard
+coverage, and confluence of the augmented computation are not established.
+A live next extension is the same explicit-carrier strategy for structures with
+fields, using recursive projection comparisons and dependent field alignment;
+that may avoid the recovery-substitution problem more broadly. No strict
+smaller sufficient front or strengthening counterexample is claimed. No changes
+have been extracted, no PRs opened, and no executable files changed.
+
+Validation: the final example target builds all three new modules successfully
+(498 jobs), with log /tmp/unit-prefix-example-build.log. All 17 public declarations
+are checked with #print axioms in /tmp/unit-prefix-audit.lean; only propext,
+Classical.choice and Quot.sound occur. The transitive audit includes opaque
+values, traverses 11,046 dependencies, and finds no weakN_iff, weakN_inv or
+sorryAx; output /tmp/unit-prefix-audit.log. Work was performed without agents
+or coordination.
