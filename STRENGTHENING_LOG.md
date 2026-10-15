@@ -7966,3 +7966,78 @@ declarations, excluding weakN_iff, weakN_inv, and sorryAx. Audit artifacts:
 /tmp/application-union-audit.lean and /tmp/application-union-audit.log; a separate
 parser checked all 181 axiom reports. No executable changes, extraction, PRs,
 agents, or coordination. The main goal remains unachieved and active.
+
+
+## Recovered application comparisons now guard arbitrary singleton programs
+
+The preceding goal turn was progress: 940f3df4 proved finite bounds, the closed
+application union, and the exact finite/union re-synthesis equivalence. The clean
+checkpoint was revalidated before this continuation. The investigation returned
+to the semantic re-synthesis gap rather than adding further bound machinery.
+
+Inspection identified an incomplete integration in ErasedApplicationStage. Its
+special Eq prefix uses ApplicationCompare, but the general typed singleton rule
+still compares the transported/requested families with old ScopedCompare. Thus
+new recursive application certificates could not be directly supplied to general
+family guards. A potential non-Eq indexed-singleton obstruction was considered,
+but no complete registered witness or exclusion of all alternate computational
+paths was established. This is not a refutation of the old re-synthesis law.
+
+ProofErasureSingletonComparison extracts the comparator-independent content of
+the existing general singleton proofs. ErasedFamilyDescent is explicitly a
+proposition-comparison interface: both propositions have lower typings, and a
+raw comparison of their lifts at the actual upper erased context yields their
+lower equality. Its zero-insertion specialization gives ordinary reflection.
+ErasedFamilyComparison and SingletonFamilyGuardWith interpret an arbitrary raw
+comparator on the same original endpoints and closed erased templates. Template
+specialization and Valid.guardWith_iff require only source typing, not a guard
+or unfolding check. Valid.checkWith then uses the supplied reflection interface
+to reconstruct the original generated check. Valid.realizeWith and replayWith
+retain the original program, fields, captures, and output erasure.
+
+The arbitrary-block theorem preserves the actual generated residual telescope.
+The lower endpoints are typed before reflection; provider renaming and template
+naturality identify the upper guard as their lifted erasures. This reconstructs
+the lower registered prefix and its exact lifted output. SingletonPrimitiveWith
+uses the same valid code, arity check, computed telescope, and literal output as
+the earlier primitive. Only its raw family comparator changes. General primitive
+descent and operational replay are proved from ErasedFamilyDescent, with no
+inverse weakening, comparator completeness, or primitive substitution premise.
+
+ProofErasureApplicationSingleton proves that both the old scoped comparator and
+the new ApplicationCompare meet that family interface. The latter proof uses
+the established arbitrary-block application comparison descent. The new
+ApplicationSingletonPrimitive retains a TypedSource witness and uses recursive
+application checking for the entire generated family comparison, including its
+index expressions. Primitive inclusion transports all recursive computations,
+and every old typed singleton primitive embeds. Constant-headed source shape,
+block descent, and exact registered-prefix replay are proved.
+
+ProofErasureRecursiveSingletonStages replaces the general singleton component
+of the stage grammar by ApplicationSingletonPrimitive. The stage also retains
+previous-stage computation, structure-prefix rules, and the specialized Eq
+application prefix. Every prior ErasedApplicationStage embeds at the same bound.
+The entire new family is monotone, admits block descent and operational replay,
+and retains primitive-head restriction. Specialized Eq forward computation and
+fully applied Eq reduction are retained. The general forward theorem handles
+arbitrary registered indexed/dependent singleton programs: given the actual
+unfolding check and an ApplicationCompare family guard at stage n, the original
+generated output computes at stage n+1. Proof-valued whole sources collapse to
+identity; non-proof sources carry an explicit typed realization.
+
+Remaining work is semantic. No arbitrary singleton family-certificate coverage,
+substitution closure, compatible domain/guard re-synthesis, or sufficient global
+join theorem has been proved. StructureCarrierGuard still uses ScopedCompare
+internally, and its paired-instantiation obstruction is unaffected by this new
+computation family, whose primitive heads remain restricted. The generic union
+bound results continue to apply by the new stage monotonicity theorem. The main
+strengthening goal is still unachieved; no smaller sufficient front is claimed.
+
+Validation: ProofErasureRecursiveSingletonStages builds with all dependencies
+(520 jobs), /tmp/recursive-singleton-build.log. The combined audit includes the
+previous union modules and examples. All 35 new public declarations and the
+preceding 181 roots pass #print axioms with only propext, Classical.choice, and
+Quot.sound. Opaque dependency traversal visits 13,723 declarations and excludes
+weakN_iff, weakN_inv, and sorryAx. A separate parser verified every axiom report.
+Artifacts: /tmp/recursive-singleton-audit.lean and /tmp/recursive-singleton-audit.log.
+No executable changes, PR extraction/creation, agents, or coordination.

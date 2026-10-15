@@ -1366,3 +1366,24 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   the neutral-application paired-instantiation obstruction. The next semantic
   task is compatible domain/guard re-synthesis or richer mutual checking, not
   additional stage bookkeeping. No smaller sufficient front is claimed.
+
+- **Test joint re-synthesis against the remaining old general-singleton guards.**
+  **An integration gap was identified; no counterexample established.** The
+  application-stage family's special Eq prefix used ApplicationCompare while
+  its general singleton family guard still used ScopedCompare. This prevented
+  directly using newly recovered application certificates in arbitrary generated
+  family checks. This mismatch alone does not refute re-synthesis or exclude
+  alternative computations. No registered non-Eq separation witness was proved.
+- **Use recovered application checking in all generated singleton family guards.**
+  **Generic descent/replay interface and recursive integration checked.**
+  ProofErasureSingletonComparison parameterizes only the family comparator,
+  retaining the fixed templates, metadata, residual telescope, and output.
+  ErasedFamilyDescent asks for typed proposition comparison below an inserted
+  block; it suffices for the actual lower unfolding check and exact replay.
+  ProofErasureApplicationSingleton discharges this interface with ApplicationCompare
+  and retains typed source realizations. ProofErasureRecursiveSingletonStages
+  integrates the upgraded general primitive at every stage, embeds every prior
+  application stage at its original bound, and proves arbitrary indexed-prefix
+  forward computation when supplied the new family guard. Descent and operational
+  replay hold throughout. This repairs the integration mismatch, not completeness,
+  joint re-synthesis, or the unchanged StructureCarrierGuard paired-law boundary.
