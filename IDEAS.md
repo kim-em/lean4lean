@@ -1607,3 +1607,21 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   live direct route to the main goal, but treating it as a routine subsidiary
   obligation hides the whole original front. No converse or impossibility of
   coverage is claimed, and no strictly smaller sufficient front is obtained.
+
+
+- **Transport all joint stages through exactly recoverable non-proof images.**
+  **Proved conditionally, with a strict-extension witness and a checked limit.**
+  RecoveringSubstitution retains typed interpretation but permits arbitrary
+  non-proof images when they recover their exact substituted oracle types.
+  The invariant extends under binders and residual telescopes. Computation,
+  selected recovery, joint comparison and recursive carriers transport through
+  both singleton primitive families at stage imageStage + sourceStage, without
+  assuming JointCarrierDomainResynthesis. The proposition identity is a native
+  stage-zero non-proof lambda image outside RetainedRenaming and therefore
+  preserves the body's stage. A displayed beta redex can prefix the transported
+  body computation. These are diagonal substitution results, not a theorem for
+  two different non-proof images. The earlier eta-converted variable example
+  fails even this enlarged invariant with image recovery in the whole union;
+  exact recovery is therefore not an unconditional solution to substitution.
+  General converted-type alignment and recovery/comparison coverage remain
+  open. This supporting result is not a smaller sufficient strengthening front.

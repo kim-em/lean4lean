@@ -8789,3 +8789,64 @@ the checked variable probe prevents disguising universal availability as a
 smaller front. No proof of weakN_iff, canonical-Eq counterexample, or strictly
 smaller sufficient front has been obtained. The goal remains active. No
 executable changes, extraction, PR creation, agents or coordination.
+
+
+## Exact recoverable non-proof images through joint computation
+
+Resumed from the requested stop only after the explicit goal continuation. The
+preceding conversational turn made no research progress. Revalidated the six
+untracked modules and the saved build result rather than assuming that the
+pending validation had succeeded: the boundary module still had an ambiguous
+simplification, followed by an unreduced raw substitution lookup. Qualified the
+raw lemmas and included raw Subst.cons; the complete module chain now builds.
+
+ProofErasureRecoveringSubstitution generalizes RetainedRenaming to an interpreted
+typed substitution whose non-proof images recover their exact substituted
+oracle assignments. Proof images impose no recovery premise. Actual source
+realizations let this invariant extend under arbitrary displayed binders and
+realized dependent telescopes. Source-typed compatible computation and selected
+recovery then transport with their exact substituted outputs. This is an
+explicit image condition, not recovery completeness.
+
+ProofErasureJointRecoveringTransport applies the shared 24-constructor joint
+transport induction to that invariant. The selected function Pi transports
+exactly; the carrier induction hypothesis supplies its substituted argument
+guard. ProofErasureJointRecoveringPrimitives handles both singleton primitive
+families, including the full residual telescope. Induction on the source stage
+proves the additive bound: image recoveries at stage r transport stage-n
+certificates into stage r+n. The union theorem still has a fixed finite image
+stage; it does not assert a uniform bound for arbitrary union image premises.
+The definitions parameter is arbitrary and sound, so the result also applies
+to the quotient-repaired core with its proved soundness theorem.
+
+ProofErasureJointRecoverableInstantiation packages computation, exact recovery,
+diagonal comparison, explicit carriers, and a beta redex followed by a body
+computation. ProofErasureJointRecoverableLambda discharges the image premise
+for the identity on propositions: it is non-proof, recovers its native Pi at
+stage zero, and cannot be a retained renaming image. Its body computations
+therefore instantiate at the original stage. This verifies strict extension of
+the previous transport invariant; it does not establish paired substitution
+with two distinct non-proof arguments.
+
+ProofErasureJointRecoverableBoundary tests the exact premise against the prior
+eta-converted variable example. An actual typed substitution by bvar 0 can fail
+the new invariant even when image recovery may use the entire joint union.
+Its assigned type and its native recovered type have no computational join.
+Thus arbitrary non-proof substitution still requires converted-type alignment
+or re-synthesis. This is a checked boundary of the premise, not a refutation of
+the conditional transport theorem or of strengthening.
+
+Validation: lake build through ProofErasureJointRecoverableBoundary completes
+successfully (545 jobs; /tmp/joint-recoverable-final-build.log). The cumulative
+opaque dependency audit /tmp/joint-recoverable-audit.lean checks 413 public
+roots and 14,364 dependencies, rejecting weakN_iff, weakN_inv and sorryAx. All
+413 axiom reports were accounted for and checked against propext,
+Classical.choice and Quot.sound. The independent audit checks all 28 new public
+roots and 10,985 dependencies and additionally rejects
+JointCarrierDomainResynthesis and its namespace.
+
+The main goal is still open: UniqueTyping.lean retains the strengthening sorry.
+No canonical-Eq counterexample or strictly smaller sufficient obligation has
+been obtained. Exact image recovery handles a useful class of substitutions,
+but cannot replace the remaining general converted-type alignment problem.
+No executable changes, extraction, PR creation, agents or coordination.
