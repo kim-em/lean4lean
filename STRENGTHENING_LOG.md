@@ -8217,7 +8217,6 @@ weakN_iff, weakN_inv, and sorryAx; a separate parser verifies all 266 axiom repo
 Artifacts: /tmp/joint-substitution-audit.lean and /tmp/joint-substitution-audit.log.
 No executable changes, extraction, PR creation, agents, or coordination.
 
-
 ## Actual joint-stage primitive simulation is discharged by stage induction
 
 The previous goal turn made progress through ebedff49: full typed joint checking
@@ -8288,3 +8287,53 @@ transitive traversal checks 13,848 declarations, excluding weakN_iff, weakN_inv,
 and sorryAx; a separate parser verifies all 284 reports. Audit artifacts:
 /tmp/joint-union-substitution-audit.lean and /tmp/joint-union-substitution-audit.log.
 No executable changes, extraction, PR creation, agents, or coordination.
+
+## Joint re-synthesis also forces universe exposure and sort-front descent
+
+The preceding conversational turn made no research progress. This continuation
+revalidated the clean pushed checkpoint 8c49b289 and the goal, then returned to
+the remaining semantic assumption instead of extending stage infrastructure.
+The recursive-domain example was inspected as a possible obstruction: its
+installed delta equation already repairs the beta-only obstruction, so it
+cannot refute re-synthesis for the actual stored-definition core.
+
+ProofErasureJointSortExposure checks a different necessary consequence. Given
+any e : Sort u, construct the function lambda (_ : Sort 1), Pi (_ : e.lift),
+Sort 0. This function is a non-proof, its dummy domain is inhabited by Sort 0,
+and pi_of_inhabited applies using only the reflexive argument guard. Two
+structural recovery inversions, valid through any trailing conversions, recover
+a sort for e.lift in the dummy-extended context. No recovery certificate for e
+was assumed and no substitution closure of the primitive relation was used.
+
+Next, for T convertible to Sort v, add x : T and use x : Sort v as this test's
+domain. Variable recovery is exactly computation from its declaration, so
+re-synthesis forces a sort-headed computation from the twice-lifted erasure of
+T in Sort 1 :: T :: Gamma. Both added binders remain in this statement. In
+particular, a raw proof marker is not silently used to remove the uninhabited
+T binder.
+
+For a front insertion Gamma -> Gamma', these two binders and the existing
+inserted block form a single front block. Primitive descent therefore removes
+the whole block in one step, reconstructing a lower equation T = Sort w.
+Sort injectivity in Gamma' aligns w with the original upper endpoint v and
+gives T = Sort v below. This uses source typing below, forward weakening, and
+the established computational descent theorem; it uses no inverse weakening.
+For insertion at positive depth the fresh front binders are separate from the
+original block, so this proof does not establish the arbitrary-depth variant.
+
+This is a checked necessary strengthening fragment of the re-synthesis law,
+not a proof of that law or a new sufficient front. It rules out treating the
+remaining premise as just Pi selection plus carrier adaptation: arbitrary
+universe recovery is already required. The next semantic investigation must
+account for sort exposure as well as Pi exposure, including the operational
+coverage of singleton conversions. No reduction of PropFront to the new
+literal-sort fragment, canonical-Eq counterexample, or main strengthening proof
+has been obtained. The original goal remains active and unachieved.
+
+Validation: the module builds with 519 dependency jobs,
+/tmp/joint-sort-exposure-build.log. All five new public theorems are included
+with the previous 284 roots in /tmp/joint-sort-exposure-audit.lean. The audit
+checks 289 roots and 13,853 transitive declarations, including opaque bodies;
+only propext, Classical.choice, and Quot.sound occur, with no weakN_iff,
+weakN_inv, or sorryAx. A separate parser checks all 289 axiom reports. No
+executable changes, extraction, PR creation, agents, or coordination.

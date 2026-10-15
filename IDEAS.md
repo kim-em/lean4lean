@@ -1453,3 +1453,17 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   There is no primitive-substitution assumption left in these concrete results.
   This proves sufficiency for substitution only, not re-synthesis, heterogeneous
   paired closure, coverage/confluence, or a smaller sufficient strengthening front.
+
+- **Test whether joint Pi re-synthesis avoids universe recovery.**
+  **It does not; a literal-sort strengthening fragment is necessary.**
+  ProofErasureJointSortExposure tests re-synthesis on a non-proof lambda returning
+  a Pi whose domain is an arbitrary type. Recovery inversion forces a sort for
+  that domain under one inhabited dummy binder, with no initial recovery premise.
+  A fresh variable declared at T then forces computation from the twice-lifted
+  erasure of every T convertible to a sort. These are contextual computations;
+  no untyped retraction is used. With primitive descent, front-block insertion
+  can include both fresh binders in one block, proving literal-sort strengthening
+  below the entire block. The result does not cover arbitrary insertion depth,
+  and no reduction of PropFront to this fragment is known here. Re-synthesis
+  therefore includes a universe-exposure obligation as well as its already
+  checked Pi-exposure obligation; it is not merely argument-guard transport.
