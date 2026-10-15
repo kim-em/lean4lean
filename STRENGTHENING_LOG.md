@@ -7907,3 +7907,62 @@ using only propext, Classical.choice and Quot.sound. Opaque dependency traversal
 visits 13,631 declarations and excludes weakN_iff, weakN_inv and sorryAx;
 /tmp/application-stages-audit.lean and /tmp/application-stages-audit.log.
 No executable changes, extraction, PR creation, agents or coordination.
+
+
+## Finite stage bounds and the closed application union
+
+The immediately preceding conversational turn made no research progress: the
+user declined extraction, and work remained stopped. The explicit goal
+continuation resumed research without extraction or PR creation. Revalidation
+found checkpoint 323f2aa8 and one untracked StageUnion file from the earlier
+research turn. UniqueTyping.lean still contains the original weakN_iff gap.
+
+ProofErasureStageUnion proves that computation, contextual recovery, scoped
+comparison, structure carrier guards, and recursive application comparison over
+monotone unions are exactly their existential finite-stage versions. Induction
+collects binary and ternary premises with maxima. Bounded field families also
+have a uniform maximum, including nested carrier fields and branches whose
+proof marker/static proof-field witness makes recursive comparison unnecessary.
+No infinite computation or recovery is introduced by the union notation.
+
+ProofErasureScopedResynthesisUnion states the still-open fixed-relation joint
+re-synthesis law and proves it equivalent to the existing finite law for any
+two monotone families. In the forward direction the input recovery and carrier
+may choose separate bounds; their maximum supplies one finite-law input. In the
+reverse direction output certificates are bounded independently and then raised
+to a common bound also above the original stage. The new domain and codomain
+remain existential and are not equated to the substituted original selection.
+This removes stage alignment as a separate semantic obstacle, but does not
+establish either re-synthesis law or reduce it to a smaller sufficient front.
+
+ProofErasureApplicationUnion specializes to the actual application-stage family.
+Its union is exactly core plus typed general singleton, structure-prefix, and
+application-prefix primitives whose guards/recovery use the union itself. The
+new finite-bound lemma for the typed singleton primitive leaves its source
+realization untouched. Thus each union-guarded primitive belongs at a finite
+successor stage. Conversely every finite stage embeds into those same rules
+with union guards. Induction also proves leastness among relations containing
+core and closed under the three guarded constructors. Block descent, original
+operational replay, and constant/projection head restriction survive the union.
+The generic re-synthesis equivalence specializes to this closed relation.
+
+What this changes next: a re-synthesis proof may reason over the single least
+closed union, without managing natural-number bounds at every node. A successful
+proof there automatically gives finite bounds; a failure cannot be attributed
+to independent stage choices. The semantic gaps remain the construction of a
+new recovered domain with a compatible argument guard, typed transport through
+recursive binder cases, and eventual coverage/joins sufficient for strengthening.
+StructureCarrierGuard still uses old ScopedCompare internally. Its known paired
+instantiation obstruction still applies, since the closed union retains the
+primitive-head restriction. No further stage extension alone repairs that
+unchanged guard grammar. No substitution or completeness theorem is asserted.
+
+Validation: ProofErasureApplicationUnion builds with its complete dependency
+closure (521 jobs), /tmp/application-union-build.log. The combined audit imports
+the previous examples and all three new modules. All 24 new public declarations
+plus the preceding 157 roots pass #print axioms, with only propext,
+Classical.choice, and Quot.sound. Opaque dependency traversal visits 13,677
+declarations, excluding weakN_iff, weakN_inv, and sorryAx. Audit artifacts:
+/tmp/application-union-audit.lean and /tmp/application-union-audit.log; a separate
+parser checked all 181 axiom reports. No executable changes, extraction, PRs,
+agents, or coordination. The main goal remains unachieved and active.

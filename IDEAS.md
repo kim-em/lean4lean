@@ -1345,3 +1345,24 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   the carrier/checking recursion, or avoiding full paired closure via actual
   joins, remains necessary for any route relying on that law. Neither integration
   nor the current exposure witness is a smaller sufficient strengthening front.
+- **Remove stage alignment from contextual joint re-synthesis.**
+  **Exact equivalence checked, not a solution of re-synthesis.**
+  `ProofErasureStageUnion` collects all primitive bounds in a computation,
+  recovery, scoped comparison, carrier guard, or application comparison into
+  one finite stage, including bounded structure-field families.
+  `ProofErasureScopedResynthesisUnion` proves finite joint re-synthesis iff
+  re-synthesis over the two monotone unions. Inputs and outputs may initially
+  choose different bounds; maxima align them without prescribing a domain.
+  Consequently bound alignment is no longer a separate open semantic task.
+- **Treat the application-stage union as a closed recursive computation relation.**
+  **Least fixed point, descent, and replay checked.**
+  `ProofErasureApplicationUnion` proves the union is exactly core primitives
+  plus general typed singleton, structure-prefix, and application-prefix rules
+  guarded by the union itself. Every such guard fits at a finite predecessor
+  stage. Any relation containing core and closed under these constructors
+  contains the union. This licenses stage-free reasoning about this exact
+  computation family; it does not give substitution, join closure, or comparison
+  completeness. The old carrier grammar is unchanged and remains subject to
+  the neutral-application paired-instantiation obstruction. The next semantic
+  task is compatible domain/guard re-synthesis or richer mutual checking, not
+  additional stage bookkeeping. No smaller sufficient front is claimed.
