@@ -16,7 +16,9 @@ variable [Params]
 /-- Missing common-mode paired instantiation. Both bodies have one type in the
 same well-formed binder context, and both arguments have its declared domain.
 Their input comparisons need not have literal computational joins. This property
-is not proved here or claimed strictly smaller than PropositionFront. -/
+is not proved here or claimed strictly smaller than PropositionFront. Its
+beta-only instance is refuted in `ProofErasureScopedLoopBoundary`; a viable
+instance must supply sufficient computation of the installed equations. -/
 def ScopedPairedInstantiation (Step : List ProofShape → ProofShape → ProofShape → Prop) : Prop :=
   ∀ {Γ A b b' B x y}, OnCtx (A :: Γ) (env.IsType univs) →
     env.HasType univs (A :: Γ) b B → env.HasType univs (A :: Γ) b' B →

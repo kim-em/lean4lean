@@ -6910,3 +6910,63 @@ Validation: both final targets build (457 jobs), log
 `/tmp/scoped-eta-paired-audit.log`: only propext, Classical.choice and Quot.sound.
 The transitive scan traverses 11,016 dependencies (including opaque theorem
 proofs) and finds no weakN_iff, weakN_inv or sorryAx. No executable changes.
+
+## A typed beta-only refutation of paired instantiation, with core repair
+
+The previous turn was progress: `83b80f2d` was revalidated as the clean, pushed
+checkpoint. This turn tested the newly isolated `ScopedPairedInstantiation`
+instead of assuming a generic closure law. Existing inferred-mode, marker-eta,
+and recursive-domain boundaries were inspected. The older recursive-loop
+example with eta-related family parameters is already accepted by recursive
+comparison, so it was not reused as a counterexample to the new relation.
+
+`ProofErasureScopedLoopBoundary` uses the existing admitted recursive family
+with its parameter fixed. Let `D` be the family application and `D'` its
+unfolding `D → Prop`. Both are beta-normal but definitionally equal. In the
+well-formed context, the two diagonal lambdas `λ z : D, z z` and
+`λ z : D', z z` share the domain type `D`; common lambda checking compares them
+by their identical bodies. Substitute these two arguments into the identical,
+well-typed body `z z`. The resulting self-applications are propositions, so
+proof erasure retains them.
+
+The raw proof establishes that every finite beta path fixes each loop exactly.
+A scoped comparison of the loops must compare their function positions in
+inferred mode. These diagonal functions are not eta expansions: the head use
+of bound variable zero cannot be the lift of a short function. Inferred lambda
+comparison must therefore compare their annotations. The annotations have
+application and Pi heads, both fixed by beta. Structure-eta alternatives are
+excluded using the recursive family's non-constructor status, obtained from
+rigid head inversion and its actual recursive equation. Thus no scoped
+certificate exists for the two loop outputs, in either outer mode.
+
+`same_body_beta_failure` exposes all typings and the accepted argument
+certificate together with the rejected instantiated outputs. `not_paired_beta`
+refutes the beta-only instance of the named law. `no_uniform_paired` formally
+refutes deriving that law from primitive descent and interpreted substitution
+stability alone (the empty primitive relation satisfies both). Finally,
+`canonical_beta_paired_failure` realizes the obstruction in an actual well-formed
+extension preserving canonical Eq. This is a counterexample to the certificate
+closure law, not a canonical-Eq counterexample to strengthening.
+
+The limitation is checked constructively. `delta_repair` uses the actual stored
+recursive equation in the complete stored-definition collection: delta followed
+by beta changes `D` to `D → Prop` in the two annotations and gives a directed
+path between the original loops. `erased_delta_repair` gives the exact erased
+core path under the usual concrete-pattern premise. No normalization of the
+self-application bodies is required. This test therefore leaves the full core
+paired-instantiation question open, while ruling out a uniform proof that uses
+only descent and substitution stability. The obligation's docstring now records
+this boundary.
+
+Validation: the final target builds (452 jobs), log
+`/tmp/scoped-loop-boundary-build.log`. The six new public declarations and two
+related declarations are audited in `/tmp/scoped-loop-boundary-audit.log`: only
+propext, Classical.choice, Quot.sound. The transitive scan includes opaque proofs
+and traverses 9,955 dependencies, with no weakN_iff, weakN_inv or sorryAx.
+No executable changes, extraction, PRs, or coordination.
+
+The full goal remains open: no strengthening proof, strengthening counterexample,
+or strictly smaller sufficient front is claimed. The next investigation must
+use the actual core/general singleton stages, in particular annotation
+conversions that require more than the equation coverage available at a chosen
+stage. The newly refuted uniform beta-only route must not be retried.

@@ -1006,3 +1006,22 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   literal eta, inferred forms, symmetry and computational wrappers are handled
   directly. The law itself is unproved, and neither its sufficiency for the full
   goal nor strict weakness relative to PropositionFront is claimed.
+
+- **Prove common paired instantiation uniformly from descent and substitution stability.**
+  **Refuted** in `ProofErasureScopedLoopBoundary.no_uniform_paired`. In the
+  beta-only instance, use the admitted recursive type `D ≡ D → Prop` and its
+  beta-normal unfolded Pi `D'`. The diagonals `λ z : D, z z` and
+  `λ z : D', z z` share a type and a common-lambda certificate, but substituting
+  them into the identical body `z z` produces loops whose comparison would
+  require comparing `D` and `D'`. Beta fixes both loops, and the app/Pi domain
+  heads cannot compare. Every context and argument is typed; the construction
+  is realized in a well-formed extension preserving canonical Eq. This refutes
+  a closure theorem for the chosen fragment, not strengthening.
+- **Use the actual installed equation to repair that paired-substitution test.**
+  **Checked** in `ScopedLoopBoundary.delta_repair` and `erased_delta_repair`.
+  Delta/beta computation changes the two diagonal annotations from `D` to
+  `D → Prop` while retaining the looping bodies. Both original and erased core
+  paths are checked. Thus the beta-only counterexample does not refute paired
+  instantiation for the full core relation. Future attempts must use equation
+  coverage and account for annotation conversion hidden by common lambda
+  checking; a uniform structural proof from descent/substitution is impossible.
