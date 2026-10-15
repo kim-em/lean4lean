@@ -1242,6 +1242,29 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   the transported argument guard. The captured-Pi identity test accepts the
   ordinary re-synthesized domain although exact recovery of its assigned type
   remains impossible at every old compared-K stage. This repairs that test,
-  not arbitrary substitution. CarrierDomainResynthesis is unproved for the
-  concrete stages and is not claimed sufficient for strengthening or strictly
-  smaller than the proposition front.
+  not arbitrary substitution. Ordinary-core CarrierDomainResynthesis is refuted
+  below; higher-stage variants remain open. None is claimed sufficient for
+  strengthening or strictly smaller than the proposition front.
+- **Test the strength of joint domain re-synthesis using reflexive arguments.**
+  **Necessary Pi recovery and positive Pi exposure proved** in
+  `ProofErasureCarrierResynthesisStrength`. Substituting any non-proof function
+  for a fresh function variable forces recovery of a Pi whenever an argument
+  is available, even with a reflexive carrier guard. Two fresh binders plus raw
+  computational retraction then expose any positive-universe type convertible
+  to a Pi, without assuming its domain inhabited below. Joint re-synthesis is
+  therefore not merely a structural substitution lemma.
+- **Use ordinary-core recovery with arbitrarily strong carrier comparisons.**
+  **Refuted** in `ProofErasureCarrierResynthesisBoundary`. In every WF
+  canonical-Eq environment, a free reflexive equality proof permits a Pi cast
+  which ordinary core cannot expose. Necessary Pi exposure contradicts this
+  checked boundary, independently of the comparison primitive relation. No
+  recursive extension or registered empty structure is required. A compared-K
+  stage-one recovery theorem repairs variable declarations at these reflexive
+  Pi casts, so this does not refute later-stage or finite-stage re-synthesis.
+- **Permit joint recovery and carrier re-synthesis at an existential later
+  stage.** **Open law; conditional application transport checked** in
+  `ProofErasureCarrierFiniteResynthesis`. The new domain, codomain, and guard
+  share a later stage; monotonicity moves the substituted function comparison
+  to that bound. The concrete finite-stage law, general exposure/guard
+  adaptation and recursive integration remain unproved. The stage-one cast
+  repair is a witness repair, not finite-stage completeness or a smaller front.

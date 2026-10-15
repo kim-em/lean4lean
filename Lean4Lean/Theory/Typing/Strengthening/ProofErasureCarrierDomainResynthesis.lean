@@ -3,10 +3,12 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCarrierApplication
 /-! # The coupled re-synthesis obligation for application substitution
 
 Exact chosen-type recovery is not stable under arbitrary typed substitution.
-The application rule needs less: some recovered Pi whose domain supports the
-substituted argument comparison. This file names that unproved obligation and
-checks that it suffices for typed substitution of the recovered application
-root. It is not claimed strictly smaller than the proposition front.
+The application rule needs some recovered Pi whose domain supports the
+substituted argument comparison. This file names that obligation and checks
+its use for application substitution. `ProofErasureCarrierResynthesisBoundary`
+refutes it for ordinary-core recovery, independently of comparison strength.
+Higher and finite-stage variants remain open; none is claimed strictly smaller
+than the proposition front.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params
@@ -14,8 +16,9 @@ variable [Params]
 
 /-- Missing joint re-synthesis law. A typed substitution may change both the
 recovered domain and codomain; the resulting argument guard must use the new
-domain. This is unproved for the concrete recovery/comparison stages. It neither
-requires nor asserts exact preservation of the original selected type. -/
+domain. Ordinary-core recovery is refuted in
+`ProofErasureCarrierResynthesisBoundary`; higher stages remain unproved. This
+law neither requires nor asserts exact preservation of the selected type. -/
 def CarrierDomainResynthesis
     (Recovery : ProofShape → ProofShape → Prop)
     (Step : List ProofShape → ProofShape → ProofShape → Prop) : Prop :=

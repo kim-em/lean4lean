@@ -7549,3 +7549,70 @@ use only propext, Classical.choice and Quot.sound. The opaque-value dependency
 audit visits 11,539 declarations, with no weakN_iff, weakN_inv or sorryAx;
 /tmp/carrier-application-audit.lean and /tmp/carrier-application-audit.log.
 No executable changes, extraction, PR creation, agents or coordination.
+
+## Joint re-synthesis requires Pi exposure; ordinary-core recovery is refuted
+
+Before trying to prove CarrierDomainResynthesis structurally, this turn tested
+what it implies in the simplest input case. The result shows that the obligation
+already contains a computational head-exposure problem. It also refutes its
+ordinary-core recovery instance independently of the comparison language.
+
+`ProofErasureCarrierResynthesisStrength.pi_of_inhabited` substitutes an arbitrary
+non-proof function into a fresh function-variable declaration. An existing
+argument is weakened into that source context and compared with itself. The
+input recovery certificate is lookup only and its carrier guard is reflexive.
+Joint re-synthesis consequently supplies a recovered Pi for the arbitrary
+function. This necessity uses no nontrivial structure or function comparison.
+
+`CarrierDomainResynthesis.positive_pi_exposure` removes the inhabited-domain
+restriction for the corresponding type-exposure consequence. Given a positive-
+universe type T convertible to a Pi, introduce a fresh variable of T, convert its
+typing to that Pi, and introduce a fresh argument of its domain. The preceding
+theorem supplies Pi recovery of the now-inhabited function. Recovery of a
+variable can only compute from its context-oracle type. Raw substitution retracts
+the two fresh binders from that computational path, leaving a Pi-headed reduct
+of the original erased T. No typed inhabitant of either removed binder is
+provided below, and the raw output domain/codomain need not match the original
+Pi. Primitive raw substitution closure is the computational hypothesis. This
+is a necessary condition, not a proof or equivalence for joint re-synthesis.
+
+`ProofErasureCarrierResynthesisBoundary.not_carrier_domain_resynthesis_core`
+uses that consequence to refute recovery by the full ordinary core. It works in
+every WF canonical-Eq environment and at every universe-bound parameter, with
+an arbitrary choice of scoped comparison primitives. The witness context
+contains a free proof of a reflexive equality of universes. The function type
+Type → Type, reflexively cast along that proof, is definitionally equal to its
+Pi minor and remains in a positive universe. Re-synthesis would force ordinary
+erased core computation to expose a Pi from the cast, contradicting the checked
+ErasedCore.cast_no_pi boundary. The proof includes actual context and typing
+construction; it requires neither a recursive environment extension nor a
+registered empty structure. It refutes this certificate law, not strengthening.
+
+The obstruction also has a checked repair. A variable whose declaration is such
+a reflexive Pi cast recovers the displayed Pi at compared-K stage one. The rule
+uses lookup followed by the existing reflexive endpoint-guarded cast computation;
+the free equality proof itself need not compute. The theorem retains an explicit
+non-proof source premise, as TypeRecovery has no standalone proof-marker rule.
+Thus the zero-stage failure does not establish failure at every later stage.
+
+`ProofErasureCarrierFiniteResynthesis` names the live finite-stage replacement.
+FiniteCarrierDomainResynthesis allows a common later recovery/comparison stage
+and allows both the domain and codomain to change. The argument guard must use
+that new domain. Its conditional substitution theorem is checked: the existing
+function comparison first substitutes at its input stage, then monotonicity
+raises it to the stage selected by re-synthesis. The application root is then
+assembled using the new recovery and argument certificate. This is not a proof
+of the concrete finite-stage law. General type exposure and compatible argument-
+guard adaptation remain open, as does recursive integration of the root rule.
+The ordinary-core status in the earlier definition documentation is corrected.
+No new sufficient front, strict reduction of PropositionFront, or completion of
+the main strengthening goal is claimed.
+
+Validation: the finite-stage target and prior application examples build together
+(526 jobs), /tmp/carrier-resynthesis-final-build.log. All six new public
+declarations plus the prior 87 roots are audited in
+/tmp/carrier-resynthesis-audit.lean. All 93 axiom reports use only propext,
+Classical.choice and Quot.sound. Opaque-value traversal visits 12,090
+dependencies with no weakN_iff, weakN_inv or sorryAx;
+/tmp/carrier-resynthesis-audit.log. No executable changes, extraction, PR creation,
+agents or coordination.
