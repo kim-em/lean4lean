@@ -8337,3 +8337,73 @@ checks 289 roots and 13,853 transitive declarations, including opaque bodies;
 only propext, Classical.choice, and Quot.sound occur, with no weakN_iff,
 weakN_inv, or sorryAx. A separate parser checks all 289 axiom reports. No
 executable changes, extraction, PR creation, agents, or coordination.
+
+## Quotient omission refutes old joint re-synthesis; closed equation repairs it
+
+The previous goal turn made progress through 7603cdd2: joint re-synthesis was
+shown to force sort exposure under two fresh binders and literal-sort front
+strengthening. This turn revalidated that checkpoint and investigated actual
+operational coverage rather than adding another conditional transport result.
+
+The old ErasedCore.definitions contains stored constant definitions and selected
+structure programs. Its ordinary quotient pattern is guarded at a nonzero
+source universe and needs a visible constructor major. The separate
+proposition-source quotient prefix is absent from ErasedJointStage: Quot.lift
+is not a registered inductive recursor, and the specialized prefix rule is for
+Eq.rec. Increasing the stage or strengthening its guards cannot insert this
+missing root rule.
+
+ProofErasureJointQuotBoundary proves the absence for all paths. Pattern
+provenance excludes definitions at Quot.lift and fixes its ordinary iota major
+offset at five. No prefix of at most five arguments matches it; a final proof
+marker cannot match its constructor. Registry separation excludes all generated
+singleton prefixes at that head, and name inequality excludes Eq prefixes.
+Simple captures (variables, sorts, proof markers, lambdas and Pis recursively)
+are normal under every joint stage. Together these facts fix the full quotient
+application at any raw context, not merely at its outer root.
+
+The typed witness is constructed, not postulated. Start with P : Prop and
+r : P -> P -> Prop, add the compatibility proof for the constant function
+fun (_ : P) => Prop into Type, and add q : Quot r. The term
+Quot.lift r (fun (_ : P) => Prop) compatibility q has type Type. The actual
+checked atFive quotient prefix and two beta steps prove it definitionally equal
+to Prop. Its first five erased captures lie in the simple fragment and its
+major erases to the proof marker. Every front lift remains fixed by the old
+joint union, so no such computation can expose any universe. This uses the
+full actual stored/selected core, whose exclusion of an added closed Quot.lift
+equation is proved from environment provenance.
+
+The preceding sort_exposure_above consequence now gives a direct contradiction
+to JointCarrierDomainResynthesis (ErasedJointUnion ErasedCore.definitions) Step,
+for arbitrary Step, in every canonical-Eq environment with QuotRegistered.
+This is a concrete refutation of the old candidate semantic assumption. It is
+not a counterexample to canonical-Eq strengthening. The previous conditional
+substitution theorems remain valid, but their old concrete premise is unavailable
+in these environments.
+
+ProofErasureJointQuotRepair uses the already proved ClosedQuot equation rather
+than changing the joint grammar. ErasedQuotCore.definitions hq consists of the
+stored definitions, that closed proposition-source Quot.lift equation, and all
+previous selected structure programs. Soundness and inclusion of every old core
+equation are checked. Every actual proposition-source quotient prefix has exact
+forward erasure at stage zero, without comparison or re-synthesis premises.
+The very same witness that is fixed at all old stages now computes to Prop at
+repaired stage zero; the separation statement retains both sides. The generic
+joint stages, descent, union, and conditional substitution results already take
+an arbitrary sound core and therefore apply to the new collection. No assertion
+of re-synthesis, full sort exposure, or confluence for the new core is made.
+
+The next semantic investigation must use the repaired core when Quot is present.
+It must still address arbitrary singleton-family conversion and recovery, as
+well as the remaining coverage/join obligations. The main strengthening theorem
+is unproved, there is no canonical-Eq strengthening counterexample, and no
+strictly smaller sufficient front has been established. The original goal
+remains active and unachieved.
+
+Validation: both new modules build; the final build has 533 dependency jobs,
+/tmp/joint-quot-repair-build.log. All 11 new public declarations join the previous
+289 audit roots in /tmp/joint-quot-audit.lean. The audit checks 300 roots and
+13,980 transitive declarations, including opaque bodies, with no weakN_iff,
+weakN_inv, or sorryAx. Only propext, Classical.choice, and Quot.sound occur;
+a separate parser verifies all 300 axiom reports. No executable changes,
+extraction, PR creation, agents, or coordination.

@@ -1467,3 +1467,25 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   and no reduction of PropFront to this fragment is known here. Re-synthesis
   therefore includes a universe-exposure obligation as well as its already
   checked Pi-exposure obligation; it is not merely argument-guard transport.
+
+- **Test quotient-prefix coverage in the actual joint stages.**
+  **The old concrete re-synthesis premise is refuted; the omitted rule is repaired.**
+  ProofErasureJointQuotBoundary constructs a well-formed context and an actual
+  type T : Type with T definitionally equal to Prop, using Quot.lift at source
+  universe zero and the constant function returning Prop. Its major is a proof
+  and erases to the proof marker. Every finite joint stage based on
+  ErasedCore.definitions fixes the entire erased source, including after any
+  front lift and at any raw context. Ordinary iota cannot match the marker;
+  Quot.lift has no recursor-registry entry, so neither general singleton nor
+  specialized Eq prefixes repair it. Thus JointCarrierDomainResynthesis with
+  this recovery union is false whenever canonical Eq and Quot are present,
+  independently of the carrier comparison relation. All actual stored and
+  selected structure equations were included. This is not a strengthening
+  counterexample. ProofErasureJointQuotRepair adds the existing proved closed
+  Quot.lift equation to the parameterized core, preserves its old equations
+  and soundness, and covers every actual quotient prefix at stage zero. The
+  identical witness now computes to Prop at stage zero. The generic joint
+  grammar and conditional substitution results accept this new core unchanged;
+  their re-synthesis premise remains open for it. Future re-synthesis work in
+  environments with Quot must use ErasedQuotCore.definitions (or a collection
+  containing the same equation), not the refuted old concrete instance.
