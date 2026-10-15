@@ -1417,3 +1417,24 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   inhabited domain, and Pi exposure above added function/argument binders.
   No general re-synthesis, paired-substitution closure, or smaller sufficient
   strengthening front has been proved.
+
+- **Use typed primitive simulation for recursive substitution.**
+  **Compatible transport checked.** ErasedPrimitiveSubstitutionTo requires
+  transport only at actual typed sources, and permits a full target computation.
+  ProofErasureTypedComputeSubstitution lifts this to compatible computations,
+  using source descent to realize transitive intermediates and source domains
+  under binders. No unconditional raw primitive substitution premise is needed.
+- **Supply local typings under every joint-checking constructor.**
+  **Full conditional joint transport checked.** Source reflection aligns lambda
+  bodies and inferred applications. ProofErasureJointFieldRealization obtains
+  actual common typings for projections and retained constructor fields from
+  equality of their majors, typed expansion, and projection reduction.
+  ProofErasureJointSubstitution covers every JointCheck constructor by one
+  induction. Given source descent, primitive inclusion, source-typed primitive
+  simulation into Target, and JointCarrierDomainResynthesis Target Target, it
+  transports common-typed comparisons and explicit-carrier checks. Inferred
+  non-proof endpoints may start with independent types. Re-synthesis is used
+  at appCarrier; no separate field/binder realization assumption is added.
+  The target relation can be a union larger than the source stage. Actual
+  joint-stage primitive simulation and the re-synthesis law remain unproved;
+  this is not unconditional substitution closure or a strengthening front.

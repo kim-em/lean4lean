@@ -8132,3 +8132,87 @@ transitive traversal checks 13,798 declarations, excluding weakN_iff, weakN_inv,
 and sorryAx; a separate parser verifies all 254 axiom reports. Artifacts:
 /tmp/joint-checking-audit.lean and /tmp/joint-checking-audit.log. No executable
 changes, extraction, PR creation, agents, or coordination. Main goal still active.
+
+
+## Full typed joint transport reduces recursive cases to primitive simulation and re-synthesis
+
+The preceding turn made progress through 1e6fdb64: simultaneous joint descent,
+stage integration, and the concrete repaired carrier witness. This continuation
+revalidated the clean checkpoint and investigated whether domain re-synthesis
+can actually be used throughout recursive checking, rather than only at a root.
+
+An unconditional raw primitive substitution premise is unnecessarily strong for
+this task: a primitive certificate may have no typed original source. The new
+ErasedPrimitiveSubstitutionTo interface only quantifies over an actual typed
+source, a diagonal typed substitution, and agreement of its raw substitution on
+retained variables. It permits a finite computation in the target relation,
+not only a single target primitive. ProofErasureTypedComputeSubstitution lifts
+this source-typed simulation through the entire compatible closure. Source
+descent reconstructs the exact intermediate term at transitive nodes. Original
+source inversion provides actual typings at applications, projections, lambda
+annotations/bodies, and Pi annotations/bodies. ContextSubstitution.cons transports
+the raw binder substitution at every such realized source. No lower output
+typing or arbitrary raw inhabitant is assumed.
+
+The recursive joint proof requires local common typings, especially because
+common-mode lambda checking does not compare its annotations and because field
+types may depend on earlier fields. ProofErasureJointFieldRealization supplies
+the needed structure facts without an additional premise: a typed expansion
+contains typed projections, equal majors give a common projection type, and a
+constructor field has the same type as its projection by projIota_field. For a
+constructor-shaped erased source, the selected original field has exactly the
+requested raw erasure. Source joint reflection supplies equality of the majors
+before these facts are used; this is already proved independently of substitution.
+
+ProofErasureJointSubstitution proves one simultaneous typed transport theorem
+for the complete JointCheck grammar. Its exact premises are source primitive
+block descent, source-to-target primitive inclusion, source-typed primitive
+simulation into target computation, and JointCarrierDomainResynthesis Target
+Target. The source and target relations can differ, which allows a future
+stage-induction proof to transport into a larger closed union.
+
+At appCarrier, source reflection and contextual Pi recovery reconstruct actual
+function/domain typings. The interpreted substitution supplies an original
+substitution at this realization. Source recovery and its joint argument guard
+embed into Target, and the assumed target re-synthesis law chooses a new Pi and
+its compatible new guard. The function comparison recursively transports using
+its common original type. No exact preservation of the old selected recovery
+domain is requested. This is the only rule that invokes re-synthesis.
+
+Every other constructor is handled explicitly. Common typings align lambda
+annotations and codomains in the source context; original erasure is invariant
+under the resulting context conversion. Domain-sort witnesses align sorted Pi
+and eta cases. Eta bodies retain their exact proof-marker/fresh-variable choice.
+Retained constructor fields use the new original realization lemma, and carrier
+fields use common projection typings at equal majors. Nested field carriers
+retain their closed projection recipe through raw substitution. Computation
+nodes use the typed compatible simulation; source descent realizes their
+intermediate endpoints or carrier. Whole-proof function-carrier endpoints use
+reflexivity after proof erasure. Symmetry and static subsingleton cases are
+preserved directly.
+
+Public wrappers cover raw interpreted substitution with an actual common-typed
+source, ordinary typed substitution of common-mode or inferred-mode comparisons,
+and exact substitution of the supplied carrier and endpoints. The inferred
+wrapper permits independently typed non-proof endpoints and aligns their types
+by source reflection. No additional local-realizability hypothesis remains in
+these statements. In particular the result covers all binder, eta, dependent
+structure-field, carrier, and compatible-computation cases, not just the local
+recovered application root.
+
+Still open: establish source-typed primitive simulation for the actual joint
+stage family into a suitable target (using generic singleton and joint-prefix
+transport), close the joint union at finite certificate bounds, and prove the
+target joint re-synthesis law. The new theorem does not assume the actual stages
+already have substitution closure, nor prove re-synthesis. General paired
+substitution, computational joins/coverage, and the strengthening goal remain
+unachieved. No strictly smaller sufficient front is claimed.
+
+Validation: ProofErasureJointSubstitution builds with its complete dependency
+closure (521 jobs), /tmp/joint-subst-final-build.log. The combined audit imports
+all preceding examples and all three new modules. All 12 new public declarations
+plus 254 earlier roots pass #print axioms with only propext, Classical.choice,
+and Quot.sound. Opaque traversal checks 13,823 declarations and excludes
+weakN_iff, weakN_inv, and sorryAx; a separate parser verifies all 266 axiom reports.
+Artifacts: /tmp/joint-substitution-audit.lean and /tmp/joint-substitution-audit.log.
+No executable changes, extraction, PR creation, agents, or coordination.
