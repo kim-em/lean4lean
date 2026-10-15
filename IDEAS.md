@@ -890,11 +890,10 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   certificate. Guard coverage, substitution stability, and transfer of original
   confluence joins are still unproved; this is not a sufficient-front reduction.
 - **Transport the semantic fresh-variable selector under typed substitutions.**
-  **Next:** the general raw primitive currently allows raw sources without an
-  explicit typed realization. Establish the required stability theorem, or add
-  a typed-realizability wrapper and prove stability there. Existing context
-  substitution supplies interpretations once a realization is available. No
-  impossibility claim or checked counterexample has been established.
+  **Checked at typed sources**, using the realized residual telescope and the
+  typed-source wrapper described below. The unrestricted raw primitive still
+  allows sources without an explicit typed realization; no impossibility claim
+  or checked counterexample for its global substitution law is established.
 
 - **Lift simultaneous substitution through actual generated programs.**
   **Checked** in `PrefixUnfolding/Simultaneous`: literal supply, telescope,
@@ -922,3 +921,21 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   checked singleton layouts with preceding family certificates. Coverage of
   those certificates and raw confluence are the remaining substantive tasks;
   no strengthening or sufficient-front result follows yet.
+
+- **Transport joined-body eta through contextual computation on both sides.**
+  **Checked conditionally** in `ProofErasureScopedEtaConfluence`. Exact typed
+  confluence for the same relation joins the computed body and opened short
+  function. Replay of the changing annotation supplies the context conversion
+  needed for the residual eta rule. Earlier computations before displayed eta
+  are included. `ErasedScopedTypedConfluent` names the still-missing confluence
+  obligation for general singleton stages; this does not establish arbitrary
+  recursive guard transport or allow a guard's stage to increase.
+- **Join different certified prefix lengths without constructing a generic guard.**
+  **Checked unconditionally relative to primitive descent** in
+  `ProofErasureScopedSingletonSupply`. Both existing certificates replay at the
+  same original source. Checked spine supply beta-reduces the shorter output
+  applied to the tail to the longer output. The final theorem applies directly
+  to typed raw primitives, recovers the shared original from the longer source's
+  realizability witness, and allows different recursive guard relations. No
+  zero-prefix typing, new family certificate, or computational confluence is
+  required. Argument-computation overlaps and complete guard coverage remain.

@@ -6716,3 +6716,46 @@ changes or strengthening inverses were used. The next substantive tasks are
 family-certificate coverage and confluence/transport of original joins in the
 new substitution-stable stages. `IsDefEqU.weakN_iff` remains open; no strictly
 smaller sufficient front or completed goal is claimed.
+
+## Contextual eta residuals and certified prefix supply overlaps
+
+The preceding checkpoint added substitution stability but did not resolve the
+argument-computation overlap. A certificate at particular supplied arguments
+does not give a certificate at abstract variables, so the generic substitution
+square cannot by itself transport that instance's guard. Moreover, the guard
+and the competing computation may have different stage bounds. Neither issue
+is silently discharged here.
+
+`ProofErasureScopedEtaConfluence` names `ErasedScopedTypedConfluent` and proves
+two-sided transport for literal common-reduct and joined-body eta certificates,
+plus arbitrary earlier computations before displayed eta. Every path uses the
+same relation. In the scoped setting, a computed lambda annotation also changes
+the body's raw context: replay of its annotation path supplies an original
+context conversion, which reindexes the residual certificate. These results
+are conditional on typed computational confluence, which remains open for
+general singleton stages. They do not cover arbitrary recursive comparison.
+
+`ProofErasureScopedSingletonSupply` closes a separate overlap without that
+confluence hypothesis. Two certified singleton contractions at shorter and
+longer prefixes of one typed source replay as actual generated prefix rules.
+Checked spine supply and deterministic generation give a directed original
+beta path from the applied shorter output to the longer output. Its source is
+typed by the shorter prefix equation under the trailing application spine, so
+typed forward beta erasure gives the exact raw path. The two certificates may
+use different guard relations.
+
+The raw `ScopedTypedSingletonPrimitive.supply_peak` theorem requires no chosen
+original source as input: the longer primitive's realizability witness recovers
+the whole original argument list, and take/drop recover its shorter prefix and
+tail. Nonproofness of the whole spine implies nonproofness of the function
+prefix, making its erasure exact. The joining path uses beta alone, independent
+of both guard depths. Indexed and dependent singleton layouts are included.
+
+Validation: the eta target builds (324 jobs) and the supply target builds
+(423 jobs), with logs `/tmp/scoped-eta-confluence-build.log` and
+`/tmp/scoped-singleton-supply-build.log`. The eight public declarations are
+audited in `/tmp/scoped-prefix-overlaps-audit.log`: only propext,
+Classical.choice and Quot.sound. The transitive scan of 10,581 dependencies
+finds no strengthening inverses or sorryAx. No executable changes,
+extraction, or PR creation. The goal remains open: no strengthening proof,
+canonical-Eq counterexample, or strictly smaller sufficient front is claimed.
