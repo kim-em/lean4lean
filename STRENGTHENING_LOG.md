@@ -7407,3 +7407,81 @@ Traversal through opaque values visits 11,405 dependencies, with no weakN_iff,
 weakN_inv or sorryAx; log /tmp/recursive-data-audit.log. The main strengthening
 goal remains open. No executable changes, extraction, PR creation, agents or
 coordination.
+
+## Recursive function carriers, joined substitution, and a full-closure refutation
+
+The previous checkpoint closed paired instantiation only at structurally
+subsingleton result carriers. This turn first extended the carrier language to
+general dependent functions, then tested the resulting full paired law against
+neutral empty-structure arguments. That test refutes the unrestricted law for
+the current language, identifying an application-checking gap that stage growth
+cannot address.
+
+`ProofErasureStructureCarrier` now indexes its erased context, so a function
+constructor can recurse beneath the displayed Pi binder. Its DomainSort witness
+selects the exact erased fresh argument, including proof domains. Descent
+reconstructs the lower Pi carrier, extends both contexts beneath the insertion,
+and applies the recursive hypothesis to the actual fresh applications. Function
+eta returns equality of the original endpoints. Proof-valued functions are
+handled directly by irrelevance. A second new constructor computes both
+endpoints while retaining their common carrier. Substitution, monotonicity,
+reflection, and every existing prefix/singleton-stage result still build.
+The literal-universe boundary sort_checked is preserved: neither constructor
+introduces arbitrary proposition comparison.
+
+`ProofErasureFunctionCarrier` gives forward coverage from actual fresh
+applications and from commonly typed lambda bodies. Lambda coverage uses the
+new endpoint computation to beta-reduce both fresh applications to the original
+bodies. No subsingleton codomain is assumed. Typed simultaneous substitution
+and single-binder instantiation are also exposed for the full recursive carrier
+guard, including its new function binders.
+
+`ProofErasureCarrierJoinedSubstitution` closes paired substitution when the
+argument images have literal erased computational joins. This is the existing
+scoped joined-substitution method extended to a dependent carrier index: the
+left carrier must compute along the shared image map as well as both endpoints.
+Typed replay realizes the shared context interpretation, after which ordinary
+carrier substitution supplies the middle certificate. The theorem handles
+simultaneous substitutions and arbitrary dependent result carriers. Every
+actual structure/function singleton stage satisfies the single-binder law at
+the same bound. Distinct proofs of a proposition instantiate arbitrary guarded
+bodies because both erasures are the same proof marker.
+
+The decisive boundary is in `ProofErasureCarrierPairedBoundary`.
+CarrierFinitePairedInstantiation spells out the unrestricted proposed law:
+stage-zero carrier guards for bodies and arguments should yield some finite
+output carrier guard. Assume a registered empty structure S of positive sort.
+Use the actual well-formed context [S, S, S → Prop], the common body f z under
+one more S binder, and the two distinct S variables as arguments. Body
+comparison is reflexive. Argument comparison uses the subsingleton carrier.
+The resulting propositions f x and f y cannot compare at any output stage.
+
+The raw obstruction is checked uniformly: constant/projection-headed primitives
+leave variable-headed applications of variables fixed; ScopedCompare of two
+such applications forces literal equality of their argument indices. The result
+carrier here is Prop, so sort_checked reduces any proposed carrier certificate
+to precisely this impossible comparison. The counterexample thus survives all
+actual general structure/function singleton stages, not just the ordinary core.
+It needs no recursive declaration, no normalization assertion and no assumption
+that canonical Eq is absent. The stated environment hypothesis is a registered
+positive empty structure with its closed typing, not a constructed base
+environment. The original equations follow from unitLike and application
+congruence; the failure is in the certificate language, not in strengthening.
+
+Consequently general carrier paired closure is no longer merely an open lemma
+for this language: it is false. The proved joined fragment remains useful, but
+cannot be extended to arbitrary carrier-compared arguments by increasing stages.
+The next live change must reach application argument comparison itself and
+justify the domain below insertion. Reusing exact chosen-type recovery would
+meet the earlier substitution counterexample, so that condition cannot simply
+be assumed stable. No strictly smaller sufficient front or solution of the
+main goal is claimed.
+
+Validation: the boundary, existing nested-structure example and actual fixed-data
+recursive example build together (517 jobs), /tmp/function-carrier-final-build.log.
+The audit /tmp/function-carrier-audit.lean covers all 13 new public declarations
+and repeats the 65 prior roots affected by the changed carrier inductive.
+All 78 axiom reports use only propext, Classical.choice and Quot.sound. Opaque
+dependency traversal visits 11,443 declarations with no weakN_iff, weakN_inv
+or sorryAx; /tmp/function-carrier-audit.log. No executable changes, extraction,
+PR creation, agents or coordination.

@@ -1,24 +1,28 @@
 import Lean4Lean.Theory.Typing.Strengthening.StructureProofField
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureSubsingletonCarrier
 
-/-! # Comparison guarded by an explicit structure carrier
+/-! # Comparison guarded by explicit structure and function carriers
 
 The supplied common type determines the family and parameters below insertion.
 Each field has a closed proof certificate, an ordinary scoped comparison, or
-a recursive carrier comparison using its closed field-type recipe. Carrier types
+a recursive carrier comparison using its closed field-type recipe. Functions
+compare at a fresh argument selected by the domain's sort. Carriers and endpoints
 may compute before inspection. No endpoint type recovery is needed.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params
 open private scoped_normal_fixed
   from Lean4Lean.Theory.Typing.Strengthening.ProofErasureScopedLoopReadout
+open private erase_forallE_inv from Lean4Lean.Theory.Typing.Strengthening.ProofErasureBeta
+open private ProofShape.liftN_forallE_inv from Lean4Lean.Theory.Typing.Strengthening.ProofErasureTypedReplay
 variable [Params]
 
 namespace ProofShape
-/-- A structure carrier supplies the typing information missing from an
-unindexed neutral comparison. Individual proof fields need no raw comparison. -/
+/-- A common carrier supplies the typing information missing from an unindexed
+neutral comparison. Structure fields and fresh function applications recurse;
+individual proof fields need no raw comparison. -/
 inductive StructureCarrierGuard (Step : List ProofShape → ProofShape → ProofShape → Prop)
-    (Δ : List ProofShape) : ProofShape → ProofShape → ProofShape → Prop where
+    : List ProofShape → ProofShape → ProofShape → ProofShape → Prop where
   | intro (hi : env.projections family info) (hx : info.nindices = 0)
       (hp : ps.length = info.nparams)
       (hadm : (info.resultLevel.inst ls).IsNeverZero ∨ StructureReplay.ProofFields env univs info ls)
@@ -27,9 +31,18 @@ inductive StructureCarrierGuard (Step : List ProofShape → ProofShape → Proof
       StructureCarrierGuard Step Δ (mkApps (.const family ls) ps) a b
   | checked : ScopedCompare Step Δ true a b → StructureCarrierGuard Step Δ A a b
   | subsingleton : SubsingletonCarrier A → StructureCarrierGuard Step Δ A a b
+  /-- A displayed Pi carrier aligns both fresh applications. Its domain sort
+  determines whether the fresh argument erases to a proof marker. -/
+  | function : DomainSort Δ A u →
+      StructureCarrierGuard Step (A :: Δ) B
+        (.app (a.liftN 1) (etaArgument u)) (.app (b.liftN 1) (etaArgument u)) →
+      StructureCarrierGuard Step Δ (.forallE A B) a b
   | symm : StructureCarrierGuard Step Δ A a b → StructureCarrierGuard Step Δ A b a
   | compute : ScopedCompute Step Δ A A' → StructureCarrierGuard Step Δ A' a b →
       StructureCarrierGuard Step Δ A a b
+  /-- Endpoint computation retains the supplied common carrier. -/
+  | reduce : ScopedCompute Step Δ a a' → ScopedCompute Step Δ b b' →
+      StructureCarrierGuard Step Δ A a' b' → StructureCarrierGuard Step Δ A a b
   /-- Recursive fields retain their carrier from the closed projection recipe.
   This permits nested structures, including empty structures in data fields. -/
   | nested (hi : env.projections family info) (hx : info.nindices = 0)
@@ -59,10 +72,14 @@ theorem StructureCarrierGuard.subst
     · exact .inr (HC.subst hstep W)
   | checked H => exact .checked (H.subst hstep W)
   | subsingleton H => exact .subsingleton (H.subst τ)
+  | function S H ih =>
+    apply StructureCarrierGuard.function (W.sort S)
+    simpa only [ProofShape.subst, etaArgument_subst, lift_subst_lift] using ih W.cons
   | symm H ih => exact .symm (ih W)
   | compute R H ih => exact .compute (R.subst hstep W) (ih W)
+  | reduce Ra Rb H ih => exact .reduce (Ra.subst hstep W) (Rb.subst hstep W) (ih W)
   | nested hi hx hp hadm HT H ih =>
-    rename_i family info ls doms result ps a b
+    rename_i family info ls doms result Δ ps a b
     simp only [subst_mkApps, ProofShape.subst]
     apply StructureCarrierGuard.nested hi hx (by simpa only [List.length_map] using hp) hadm HT
     intro i hj hn
@@ -80,8 +97,10 @@ theorem StructureCarrierGuard.mono
     exact (H i hj).imp id (ScopedCompare.mono hstep)
   | checked H => exact .checked (H.mono hstep)
   | subsingleton H => exact .subsingleton H
+  | function S H ih => exact .function S ih
   | symm H ih => exact .symm ih
   | compute R H ih => exact .compute (R.mono hstep) ih
+  | reduce Ra Rb H ih => exact .reduce (Ra.mono hstep) (Rb.mono hstep) ih
   | nested hi hx hp hadm HT H ih => exact .nested hi hx hp hadm HT ih
 
 /-- Constant/projection-headed primitives cannot compute a literal universe. -/
@@ -100,8 +119,10 @@ theorem StructureCarrierGuard.sort_checked
   induction H generalizing u with
   | checked H => exact H
   | subsingleton H => exact (H.not_sort E.symm).elim
+  | function => cases E
   | symm H ih => exact (ih E).symm
   | compute R H ih => exact ih ((E ▸ R).sort_fixed hhead).symm
+  | reduce Ra Rb H ih => exact .compute Ra Rb (ih E)
   | intro | nested =>
     have HE := congrArg ProofShape.constHead E
     simp only [ProofShape.constHead_mkApps, ProofShape.constHead] at HE
@@ -110,33 +131,70 @@ theorem StructureCarrierGuard.sort_checked
 end ProofShape
 
 /-- Carrier and endpoint erasures descend together. Dependent field alignment
-precedes recursive comparison; proof-field certificates supply irrelevance
-without a comparison of raw projection heads. -/
+precedes recursive comparison; function eta extends both contexts beneath the
+insertion. Proof-field certificates supply irrelevance without comparing raw
+projection heads. -/
 theorem proofErase_structure_carrier_descend (hstep : ErasedScopedPrimitiveDescent Step)
     (hΓ : OnCtx Γ (env.IsType univs)) (hΓ' : OnCtx Γ' (env.IsType univs))
     (W : Ctx.LiftN n k Γ Γ') (ha : env.HasType univs Γ a A) (hb : env.HasType univs Γ b A)
     (H : ProofShape.StructureCarrierGuard Step (proofEraseCtx Γ')
       ((proofErase Γ A).liftN n k) ((proofErase Γ a).liftN n k) ((proofErase Γ b).liftN n k)) :
     env.IsDefEqU univs Γ a b := by
+  generalize EΔ : proofEraseCtx Γ' = Δ at H
   generalize Eα : (proofErase Γ A).liftN n k = α at H
   generalize Ea : (proofErase Γ a).liftN n k = sa at H
   generalize Eb : (proofErase Γ b).liftN n k = sb at H
-  induction H generalizing A a b with
+  induction H generalizing Γ Γ' n k A a b with
   | checked HC =>
     rw [← Ea, ← Eb] at HC
     obtain ⟨_, hA⟩ := ha.isType henv hΓ
-    exact (proofErase_scoped_compare_descend hstep hΓ hΓ' W rfl ha hb HC).1 (.refl ⟨_, hA⟩)
+    exact (proofErase_scoped_compare_descend hstep hΓ hΓ' W EΔ ha hb HC).1 (.refl ⟨_, hA⟩)
   | subsingleton H =>
     rw [← Eα] at H
     exact ⟨_, proofErase_subsingleton_carrier_descend hΓ ha hb H⟩
-  | symm H ih => exact (ih hb ha Eα Eb Ea).symm
+  | function S H ih =>
+    obtain ⟨_, _, ET, ED, EB⟩ := ProofShape.liftN_forallE_inv Eα
+    obtain ⟨D, B, rfl, _, ED', EB'⟩ := erase_forallE_inv ET
+    rw [← ED'] at ED
+    rw [← EB'] at EB
+    obtain ⟨_, hT⟩ := ha.isType henv hΓ
+    obtain ⟨⟨_, hD₀⟩, _, _⟩ := hT.forallE_inv henv
+    have hD := ProofShape.DomainSort.descend (by simpa only [EΔ, ED] using S) hΓ hΓ' W hD₀
+    by_cases hpa : IsProof Γ a
+    · obtain ⟨P, haP, hP⟩ := hpa
+      exact ⟨_, IsDefEq.proofIrrel hP haP (hb.defeqU_r henv hΓ (ha.uniqU henv hΓ haP))⟩
+    have hpb : ¬ IsProof Γ b := by
+      rintro ⟨P, hbP, hP⟩
+      exact hpa ⟨P, ha.defeqU_r henv hΓ (hb.uniqU henv hΓ hbP), hP⟩
+    have hΓD : OnCtx (D :: Γ) (env.IsType univs) := ⟨hΓ, _, hD⟩
+    have hΓD' : OnCtx (D.liftN n k :: Γ') (env.IsType univs) := ⟨hΓ', _, hD.weakN henv W⟩
+    have hfa : env.HasType univs (D :: Γ) (.app a.lift (.bvar 0)) B := by
+      simpa only [lift, liftN, inst_liftN_bvar] using HasType.app (ha.weak henv) (HasType.bvar .zero)
+    have hfb : env.HasType univs (D :: Γ) (.app b.lift (.bvar 0)) B := by
+      simpa only [lift, liftN, inst_liftN_bvar] using HasType.app (hb.weak henv) (HasType.bvar .zero)
+    have Efa := proofErase_eta_body_liftN (n := n) (k := k) hΓ hD ha hpa
+    have Efb := proofErase_eta_body_liftN (n := n) (k := k) hΓ hD hb hpb
+    rw [Ea] at Efa
+    rw [Eb] at Efb
+    have HI := ih hΓD hΓD' W.succ hfa hfb
+      (by simp only [proofEraseCtx, proofErase_liftN hΓ hΓ' W hD, EΔ, ED]) EB Efa Efb
+    exact ⟨_, (IsDefEq.eta ha).symm.trans
+      ((IsDefEq.lamDF hD (HI.of_l henv hΓD hfa)).trans (IsDefEq.eta hb))⟩
+  | symm H ih => exact (ih hΓ hΓ' W hb ha EΔ Eα Eb Ea).symm
   | compute R H ih =>
     rw [← Eα] at R
     obtain ⟨u, hA⟩ := ha.isType henv hΓ
-    obtain ⟨A', HE, EA'⟩ := proofErase_scoped_compute_descend hstep hΓ hΓ' W hA rfl R
-    exact ih (HE.defeq ha) (HE.defeq hb) EA' Ea Eb
+    obtain ⟨A', HE, EA'⟩ := proofErase_scoped_compute_descend hstep hΓ hΓ' W hA EΔ R
+    exact ih hΓ hΓ' W (HE.defeq ha) (HE.defeq hb) EΔ EA' Ea Eb
+  | reduce Ra Rb H ih =>
+    rw [← Ea] at Ra
+    rw [← Eb] at Rb
+    obtain ⟨a', HA, EA⟩ := proofErase_scoped_compute_descend hstep hΓ hΓ' W ha EΔ Ra
+    obtain ⟨b', HB, EB⟩ := proofErase_scoped_compute_descend hstep hΓ hΓ' W hb EΔ Rb
+    have HI := ih hΓ hΓ' W HA.hasType.2 HB.hasType.2 EΔ Eα EA EB
+    exact ((show env.IsDefEqU univs Γ a a' from ⟨_, HA⟩).trans henv hΓ HI).trans henv hΓ ⟨_, HB.symm⟩
   | intro hi hx hp hadm Hfields =>
-    rename_i family info ls ps sa sb
+    rename_i family info ls Δ sa sb ps
     rw [← Ea, ← Eb] at Hfields
     obtain ⟨rawArgs, Es, Eargs⟩ := ProofShape.liftN_const_spine_inv Eα
     obtain ⟨args, rfl, Eoriginal⟩ := proofErase_const_spine_inv Es
@@ -162,11 +220,11 @@ theorem proofErase_structure_carrier_descend (hstep : ErasedScopedPrimitiveDesce
     have Eb : proofErase Γ (.proj family i b) = .proj family i (proofErase Γ b) := if_neg hpb
     have HC' : ProofShape.ScopedCompare Step (proofEraseCtx Γ') true
         ((proofErase Γ (.proj family i a)).liftN n k) ((proofErase Γ (.proj family i b)).liftN n k) := by
-      simpa only [Ea, Eb, ProofShape.liftN] using HC
+      simpa only [Ea, Eb, ProofShape.liftN, EΔ] using HC
     obtain ⟨_, hT⟩ := hia.isType henv hΓ
     exact (proofErase_scoped_compare_descend hstep hΓ hΓ' W rfl hia hib HC').1 (.refl ⟨_, hT⟩)
   | nested hi hx hp hadm HT Hfields ihfields =>
-    rename_i family info ls doms result ps sa sb
+    rename_i family info ls doms result Δ ps sa sb
     obtain ⟨rawArgs, Es, Eargs⟩ := ProofShape.liftN_const_spine_inv Eα
     obtain ⟨args, rfl, Eoriginal⟩ := proofErase_const_spine_inv Es
     rw [Eoriginal] at Eargs
@@ -199,7 +257,7 @@ theorem proofErase_structure_carrier_descend (hstep : ErasedScopedPrimitiveDesce
     have Epb : (proofErase Γ (.proj family i b)).liftN n k = .proj family i sb := by
       rw [show proofErase Γ (.proj family i b) = .proj family i (proofErase Γ b) from if_neg hpb]
       simp only [ProofShape.liftN, Eb]
-    exact ihfields i hj HP hiaF hibF EFlift Epa Epb
+    exact ihfields i hj HP hΓ hΓ' W hiaF hibF EΔ EFlift Epa Epb
 
 /-- At the original context the carrier guard reflects to equality at the
 supplied common type, without any type-recovery premise. -/

@@ -1199,3 +1199,30 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   It therefore does not prove ScopedFinitePairedInstantiation or general paired
   closure. Literal universes still reduce to ordinary scoped checking, so the
   general proposition front remains open.
+- **Extend recursive carrier comparison to general functions.** **Checked**
+  in `ProofErasureStructureCarrier` and `ProofErasureFunctionCarrier`. A displayed
+  Pi carrier compares the actual fresh applications recursively; a domain-sort
+  witness selects a variable or proof marker. Descent extends both contexts
+  beneath insertion, with proof-valued functions handled by irrelevance. Endpoint
+  computation and lambda-body coverage are integrated. Typed substitution and
+  the actual singleton stages still hold. This needs no subsingleton codomain.
+- **General paired substitution with computationally joined carrier arguments.**
+  **Checked for arbitrary dependent result carriers** in
+  `ProofErasureCarrierJoinedSubstitution`, including simultaneous substitutions
+  and a same-stage singleton instance. The left carrier and both endpoints
+  compute along the common raw image map, whose context interpretation comes
+  from typed replay. Distinct proofs are a direct corollary. This extends the
+  previously checked scoped joined law to recursive carrier outputs.
+- **Obtain full paired closure by wrapping scoped comparison in recursive
+  structure/function carriers.** **Refuted** in
+  `ProofErasureCarrierPairedBoundary`, uniformly over every actual singleton
+  stage. In a context with x,y : S and f : S → Prop, for positive empty structure
+  S, the body f z has a reflexive carrier guard and x,y have a subsingleton
+  carrier guard. Their instantiated outputs f x and f y have no carrier guard
+  at any stage: the Prop carrier reduces to ScopedCompare, variable-headed
+  applications cannot compute, and application checking forces x=y syntactically.
+  The originals are equal by unitLike and application congruence; this is a
+  certificate-closure counterexample, not a strengthening counterexample.
+  More singleton stages cannot repair it. A live next direction is carrier-aware
+  application checking with a domain justified below insertion, while avoiding
+  the already-refuted exact-type-recovery substitution requirement.
