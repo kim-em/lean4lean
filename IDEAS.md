@@ -1318,12 +1318,30 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   context substitution. The checked necessity theorem keeps those binders;
   lower-context computational exposure requires a separate argument.
 - **Integrate recovered applications into recursive computational guards.**
-  **Live, not implemented.** The new recovered application root still sits
-  outside ScopedCompare and StructureCarrierGuard. The existing neutral
-  application boundary (f x versus f y for distinct unit variables) therefore
-  still blocks direct carrier comparison at a universe. An Eq recursor using
-  these proposition endpoints is a candidate next exposure test. Excluding its
-  direct structure-prefix guard alone would not exclude alternate general
-  singleton computations; do not claim an all-path failure without that check.
-  Alternatively integrate the recovered root recursively with descent and
-  substitution, rather than assuming the current stage family is complete.
+  **Descent, operational replay and a concrete exposure repair checked.**
+  `ProofErasureApplicationComparison` retains the full scoped checking grammar
+  and adds an application rule with contextual Pi recovery, recursive inferred
+  function comparison and an argument carrier guard. Old comparison and local
+  recovered roots embed. `ApplicationPrefix` uses this recursive language in
+  actual Eq prefixes. `ApplicationStages` adds finite layers while preserving
+  every old structure-singleton stage at the same bound. `ApplicationStageExample`
+  uses f x / f y for distinct unit variables as proposition endpoints: stage-zero
+  recovered checking now makes the Eq recursor expose its Pi payload at stage one.
+  Old direct carrier guards fail at every old stage; alternative old computation
+  paths have not been excluded, so no all-path computation separation is claimed.
+- **Substitute the new application-checked stage family.**
+  **Open.** Same-stage primitive substitution cannot be inferred from descent or
+  operational replay: a recovered domain may need re-synthesis. The scoped finite
+  joint law addresses the local application rule, but recursive checking and
+  computational stages need a finite-stage transport proof that aligns the
+  chosen bounds. No substitution/completeness theorem for ErasedApplicationStage
+  has been asserted.
+- **Use the new endpoint checker throughout explicit carrier guards.**
+  **Open integration choice.** StructureCarrierGuard still internally uses
+  ScopedCompare. Its full paired closure remains refuted even with the enlarged
+  computation family, by not_carrier_finite_paired and the new stage-head theorem.
+  ApplicationCompare fixes the neutral-application comparison in the enlarged
+  language and Eq guard, not in the unchanged carrier relation. Generalizing
+  the carrier/checking recursion, or avoiding full paired closure via actual
+  joins, remains necessary for any route relying on that law. Neither integration
+  nor the current exposure witness is a smaller sufficient strengthening front.

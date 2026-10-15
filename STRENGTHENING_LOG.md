@@ -7827,3 +7827,83 @@ propext, Classical.choice and Quot.sound. The opaque dependency traversal visits
 13,586 declarations and rejects weakN_iff, weakN_inv and sorryAx;
 /tmp/scoped-recovery-audit.lean and /tmp/scoped-recovery-audit.log.
 No executable changes, extraction, PR creation, agents or coordination.
+
+
+## Recursive recovered-application checking now drives Eq prefix stages
+
+The prior goal turn was progress, with contextual recovery and its strict local
+coverage witness committed through f79c555f. This continuation revalidated the
+clean checkpoint and pursued recursive integration, rather than assuming the
+local application root was already available in computational guards.
+
+`ProofErasureApplicationComparison` defines ApplicationCompare. It preserves
+the complete scoped grammar: leaf equality, ordinary applications, projections,
+lambdas and Pis, sorted binder rules, common-mode lambdas, both recursive eta
+bodies, retained structure fields, inferred lambda eta, computation and symmetry.
+The added appCarrier rule recovers a Pi for the left function, recursively
+compares the functions in inferred mode, and compares the arguments using the
+recovered domain's StructureCarrierGuard. The function comparison itself uses
+the enlarged relation; this is not a root restricted to old function certificates.
+Every ScopedCompare certificate and every same-Step local recovered application
+root embeds. Primitive inclusion transports the enlarged grammar, recovery and
+carrier guards together.
+
+Full block-insertion descent is checked for the enlarged relation in both
+modes. The new application case reconstructs a lower Pi from contextual recovery,
+uses recursive inferred comparison to align the functions at that Pi, and then
+reflects the argument carrier at the reconstructed lower domain. All pre-existing
+binder, eta, computation and field cases retain their actual-context and
+source-typing requirements. Original-context reflection follows. No inverse
+weakening or certificate completeness premise is used.
+
+`ProofErasureApplicationPrefix` uses ApplicationCompare as the common-mode
+endpoint guard of Eq's before-major prefix. The exact proof-domain annotation
+comes from the typed original source. Descent reconstructs that annotation below
+insertion; forward computation handles whole-proof collapse; operational replay
+uses canonical Eq's actual registry entry and singleton prefix rule. The added
+primitive retains a constant-headed source. No substitution theorem is asserted
+for this recovered-domain guard.
+
+`ProofErasureApplicationStages` defines a finite family containing previous-stage
+steps, general typed singleton primitives, old structure-carrier prefixes, and
+the new application-checked prefix. Every guard and recovery uses the preceding
+stage, so the recursion is finite. Each stage has block descent and exact
+original operational replay, with type preservation and the displayed erased
+output. Stages are monotone in the bound. Every previous structure-singleton
+stage embeds at the same bound, including all its existing computations. The
+new typed prefix and fully applied Eq.rec have forward computation theorems.
+
+`ProofErasureApplicationStageExample.neutral_application_pi_exposure` constructs
+an actual typed example from a positive closed empty structure. In context
+[S,S,S -> Prop], P = f x and Q = f y are propositions with distinct unit-variable
+arguments. The earlier local recovered application root embeds at stage zero
+in ApplicationCompare. Reflection supplies P = Q; refl converts to a proof of
+Eq Prop P Q. A constant-motive Eq recursor with payload Type -> Type then computes
+to that Pi at stage one. The theorem also retains the prior all-stage failure
+of the direct StructureCarrierGuard for P/Q in the old family. It does not claim
+all old computation paths fail: alternate general-singleton paths were not
+excluded in this turn. A separate formation lemma checks that recovered roots
+can occur under both Pi annotations, retaining the codomain's binder context.
+
+Remaining issues are explicit. First, no finite or same-stage substitution
+closure has been proved for the enlarged stages. The prior scoped joint
+re-synthesis law only supplies a local application transport step; recursive
+comparisons and computations need compatible finite bounds and their own typed
+transport argument. Operational replay is not a substitute for that proof.
+Second, StructureCarrierGuard itself still uses old ScopedCompare internally.
+Its full paired-substitution law remains refuted for the enlarged computational
+family by the already checked general not_carrier_finite_paired theorem and
+new erased_application_stage_head. The new language fixes this application
+comparison and Eq guard; it does not make the unchanged carrier grammar complete.
+A richer carrier/checker recursion or an argument using actual joins is still
+needed wherever that paired law was proposed. General coverage, finite joint
+re-synthesis and the full strengthening goal remain open. No strictly smaller
+sufficient front is claimed.
+
+Validation: the new stage example, prior scoped recovery example, scoped joint
+law and domain joins build together (541 jobs), /tmp/application-stages-final-build.log.
+All 24 new public declarations plus the preceding 133 roots pass #print axioms,
+using only propext, Classical.choice and Quot.sound. Opaque dependency traversal
+visits 13,631 declarations and excludes weakN_iff, weakN_inv and sorryAx;
+/tmp/application-stages-audit.lean and /tmp/application-stages-audit.log.
+No executable changes, extraction, PR creation, agents or coordination.
