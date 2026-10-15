@@ -1387,3 +1387,33 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   forward computation when supplied the new family guard. Descent and operational
   replay hold throughout. This repairs the integration mismatch, not completeness,
   joint re-synthesis, or the unchanged StructureCarrierGuard paired-law boundary.
+
+- **Make application comparison and explicit-carrier checking recurse together.**
+  **Unbounded finite grammar, simultaneous descent, and staged computation checked.**
+  ProofErasureJointChecking uses one inductive relation with comparison and
+  carrier modes. Its recovered application rule invokes joint carrier checking;
+  carrier checked/field rules invoke joint comparison. Arbitrarily many such
+  alternations are permitted in a finite certificate. All old scoped/application
+  comparisons and old carrier guards embed. ProofErasureJointDescent proves
+  simultaneous block descent, including dependent projection recipes and fresh
+  function applications. JointPrefix and JointStages use this grammar throughout
+  general singleton families and specialized Eq carriers; all preceding recursive
+  singleton stages embed at the same bounds and operational replay is preserved.
+- **Repair the actual neutral-application paired-instantiation witness.**
+  **Strict carrier-language improvement checked at identical computation stages.**
+  ProofErasureJointExample gives a stage-zero joint carrier at Prop for f x/f y
+  with distinct positive empty-structure variables. Old StructureCarrierGuard
+  still rejects these endpoints at every ErasedJointStage, since its internal
+  ScopedCompare retains neutral-argument injectivity. This refutes the claim
+  that more computation alone fixes the old grammar, and shows the new grammar
+  fixes this witness. It does not establish unrestricted paired instantiation.
+- **Re-state domain re-synthesis for the corrected joint carrier grammar.**
+  **Open, with necessary Pi recovery/exposure checked.**
+  JointCarrierDomainResynthesis requires a newly recovered Pi and a new joint
+  argument guard at its domain after typed diagonal substitution. The older
+  ScopedCarrierDomainResynthesis, which mentions StructureCarrierGuard, cannot
+  silently discharge this obligation. A fresh-variable/reflexive-argument input
+  proves the new law requires Pi recovery of every non-proof function with an
+  inhabited domain, and Pi exposure above added function/argument binders.
+  No general re-synthesis, paired-substitution closure, or smaller sufficient
+  strengthening front has been proved.

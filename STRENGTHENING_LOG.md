@@ -8041,3 +8041,94 @@ Quot.sound. Opaque dependency traversal visits 13,723 declarations and excludes
 weakN_iff, weakN_inv, and sorryAx. A separate parser verified every axiom report.
 Artifacts: /tmp/recursive-singleton-audit.lean and /tmp/recursive-singleton-audit.log.
 No executable changes, PR extraction/creation, agents, or coordination.
+
+
+## Mutual comparison/carrier checking repairs the known paired-law witness
+
+The prior goal turn made progress through 97234772, integrating recovered
+application comparison into all general singleton family guards. This turn
+revalidated that clean checkpoint and addressed the still-refuted old carrier
+language rather than extending only its computation stages.
+
+ProofErasureJointChecking defines JointCheckKind with ordinary comparison mode
+and explicit carrier mode, and one inductive JointCheck family indexed by that
+kind. JointCompare and JointCarrierGuard are its two views. The ordinary rules
+retain all of ApplicationCompare: both checking modes, both eta-body rules,
+common-mode lambdas, witnessed sorts, structure fields, lambda eta, computation,
+and symmetry. The appCarrier rule now recurses into JointCarrierGuard. The
+carrier rules retain all previous structure/function/subsingleton guards,
+carrier and endpoint computation, dependent nested fields, and symmetry; their
+checked and retained-field cases recurse into JointCompare. The carrier field
+constructor skips statically certified proof fields using a negative premise,
+which permits direct structural induction over the unified relation. There is
+no fixed bound on alternations between the two checking forms. ScopedCompare,
+StructureCarrierGuard, and ApplicationCompare all embed; primitive inclusion
+transports the full grammar.
+
+ProofErasureJointDescent proves sound descent by one structural induction. Its
+private result family distinguishes the original two-mode comparison conclusion
+from the common-carrier conclusion, retaining lower source typings and actual
+upper erased contexts in both cases. The application case recovers a lower Pi
+and invokes the carrier induction hypothesis at its recovered domain. Carrier
+checked/field cases invoke comparison induction hypotheses. Dependent nested
+fields use their closed projection recipes and actual typed representatives;
+function carriers extend both contexts and use the domain sort to select the
+fresh erased argument. The old binder alignment and proof-irrelevance cases
+remain explicit. Public block-descent and original-context reflection theorems
+are provided for both views. No strengthening inverse or comparison completeness
+premise is introduced.
+
+ProofErasureJointPrefix uses a JointCarrierGuard at the actual Eq carrier. Both
+previous specialized prefix languages embed: the structure guard maps to its
+joint carrier, and the application guard maps through carrierChecked. The new
+rule descends, has the same constant-headed source, replays the original actual
+Eq singleton prefix, and has a typed forward computation theorem. No generic
+substitution theorem is claimed.
+
+ProofErasureJointStages uses typed general singleton code guarded by JointCompare
+and specialized prefixes guarded by JointCarrierGuard, with preceding-stage
+recovery/computation. Its general primitive uses the comparator interface from
+the previous turn, and every old application-singleton guard embeds. Every
+ErasedRecursiveSingletonStage embeds at its exact original bound. All stages
+are monotone, admit arbitrary-block descent and exact operational replay, and
+retain constant/projection primitive heads. General registered indexed/dependent
+singleton forward computation and typed joint Eq-prefix forward computation
+are proved. A proof-valued whole singleton source erases to identity, as before.
+
+ProofErasureJointExample checks the concrete old paired-instantiation obstruction
+inside the new carrier language. In the same three-variable context with two
+positive empty-structure variables and f : S -> Prop, the propositions f x and
+f y have a stage-zero JointCarrierGuard at Prop. Recovery is lookup only. The
+old StructureCarrierGuard cannot certify those same endpoints at any stage of
+the new ErasedJointStage family: its universe guard still reduces to old
+ScopedCompare, and primitive-head restriction forces neutral argument identity.
+This is a strict carrier-grammar separation using identical computation families,
+not an all-path computation separation or a proof of unrestricted paired closure.
+
+ProofErasureJointResynthesis records the exact new open obligation. It requires
+simultaneous selection of a recovered Pi and a JointCarrierGuard at its new
+domain after typed diagonal substitution. The existing old-carrier re-synthesis
+interface does not supply this statement. The fresh-variable/reflexive-argument
+necessity proof carries over: the new law implies Pi recovery for every non-proof
+function whose domain has an inhabitant. It also forces computational Pi exposure
+in the context extended by a function and argument binder. Those extra binders
+are retained; no arbitrary raw filler is used to remove them. These consequences
+confirm that semantic type exposure remains part of the task despite repairing
+the known carrier-language failure.
+
+Remaining: construct the new domain and its joint argument guard after typed
+substitution; prove the needed recursive comparison/paired substitution and
+computational join properties; connect coverage to full strengthening. None is
+claimed here. JointCheck's finite stage-bound analogue has not been asserted
+merely from the earlier theorem about ApplicationCompare. No smaller sufficient
+front, canonical-Eq counterexample, or proof of weakN_iff has been obtained.
+
+Validation: JointExample builds with 525 dependency jobs; JointResynthesis builds
+with 518. Logs: /tmp/joint-example-build.log and /tmp/joint-resynthesis-build.log.
+The combined audit includes all six new modules plus the preceding examples and
+union results. All 38 new public declarations plus 216 earlier roots pass
+#print axioms with only propext, Classical.choice, and Quot.sound. Opaque
+transitive traversal checks 13,798 declarations, excluding weakN_iff, weakN_inv,
+and sorryAx; a separate parser verifies all 254 axiom reports. Artifacts:
+/tmp/joint-checking-audit.lean and /tmp/joint-checking-audit.log. No executable
+changes, extraction, PR creation, agents, or coordination. Main goal still active.
