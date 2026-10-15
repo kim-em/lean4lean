@@ -1297,10 +1297,33 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   joint re-synthesis with this old recovery family, for arbitrary comparison
   stages. This is a certificate-family refutation, not a strengthening counterexample.
 - **Replace old recovery computation with contextual carrier computation.**
-  **Live, not proved.** The neutral-unit obstruction requires a recovery family
-  able to use the explicit Eq carrier, rather than more bounds on the old family.
-  Context-indexed recovery could use the new structure-singleton computations
-  under the recovery binder contexts. Its substitution/descent and joint domain
-  adaptation would still need proofs; the existing raw recovery descent does not
-  reconstruct a lower recovery certificate. The new stage-one witness reduction
-  establishes the needed local coverage, not completeness or a smaller front.
+  **Descent and strict local improvement checked; completeness remains open.**
+  `ProofErasureScopedRecovery` retains all syntax-directed recovery rules and
+  runs conversion in the actual context, extending it beneath binders. Old raw
+  certificates embed under contextual simulation. Arbitrary block descent and
+  the carrier-aware application root are checked in `ScopedRecoveryDescent`
+  and `ScopedCarrierApplication`. `ScopedRecoveryExample` recovers a Pi at new
+  structure stage one for a typed variable for which no old compared-K stage
+  recovers any Pi, including with the actual core equation collection.
+- **Preserve exact selected types using the richer contextual recovery.**
+  **Refuted for every computation family admitting contextual descent.** The
+  captured-Pi identity example still fails: descent would make its fresh-variable
+  annotation a lift of lower syntax. Joint re-synthesis must still choose a new
+  recovered domain and its argument guard together. `ScopedCarrierResynthesis`
+  states this open finite law and proves its conditional application transport.
+- **Reuse raw retraction for contextual recovery's exposure necessity.**
+  **Not justified.** The finite scoped law forces Pi recovery with an available
+  argument, and Pi exposure in the context extended by a function and argument
+  binder. Arbitrary raw proof-marker substitution need not interpret a typed
+  context substitution. The checked necessity theorem keeps those binders;
+  lower-context computational exposure requires a separate argument.
+- **Integrate recovered applications into recursive computational guards.**
+  **Live, not implemented.** The new recovered application root still sits
+  outside ScopedCompare and StructureCarrierGuard. The existing neutral
+  application boundary (f x versus f y for distinct unit variables) therefore
+  still blocks direct carrier comparison at a universe. An Eq recursor using
+  these proposition endpoints is a candidate next exposure test. Excluding its
+  direct structure-prefix guard alone would not exclude alternate general
+  singleton computations; do not claim an all-path failure without that check.
+  Alternatively integrate the recovered root recursively with descent and
+  substitution, rather than assuming the current stage family is complete.

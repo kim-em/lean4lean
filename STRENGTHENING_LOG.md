@@ -7744,3 +7744,86 @@ ci.value? (allowOpaque := true), visits 13,543 declarations, and finds no
 weakN_iff, weakN_inv or sorryAx; /tmp/neutral-k-audit.lean and
 /tmp/neutral-k-audit.log. No executable changes, extraction, PR creation, agents
 or coordination.
+
+
+## Contextual recovery: descent, strict coverage improvement, and remaining obligations
+
+The previous goal turn was progress: fe653172 proved and audited the all-stage
+old compared-K obstruction. This continuation revalidated that clean checkpoint
+and implemented the contextual-recovery response. The full strengthening goal
+remains unchanged and open.
+
+`ProofErasureScopedRecovery` defines ScopedTypeRecovery indexed by an erased
+context. It keeps the bvar, sort, declaration, lambda, application, Pi and closed
+projection-recipe rules. Conversion uses ScopedCompute at the context of the
+current expression, and binder rules extend that context by the displayed
+domain. There is still no rule recovering a type for a standalone proof marker.
+Primitive inclusion preserves certificates; every old raw recovery embeds when
+its primitive computations have simulations at all contextual occurrences.
+Variable recovery is precisely a computation from the context oracle entry.
+Typed computational substitution and thinning, plus lookup recovery after such
+computation, are also checked.
+
+`ProofErasureScopedRecoveryDescent` proves recovery descent through arbitrary
+binder-block insertion. The upper context must be the actual erasure of the
+upper realization. At each lambda or Pi, the source's typed domain identifies
+the extended context required by the body certificate. Converted recovered
+types use contextual computational descent. The result is a genuine lower
+source typing with exactly the displayed lifted result erasure. Original-context
+replay and exposed-Pi domain/codomain reconstruction follow. None of these
+claims a recovery certificate in the lower context.
+
+`ProofErasureScopedCarrierApplication` uses this recovery in the existing local
+carrier-aware application rule. Independently typed original endpoints suffice
+for descent: inferred function comparison aligns the function types, the
+recovered Pi supplies the common argument domain, and the carrier guard then
+reflects the arguments. Reflection and forward formation are checked, and old
+recovered application roots embed under contextual recovery simulation. This
+is still a local root, not yet a constructor of the recursive comparison language.
+
+`ProofErasureScopedRecoveryExample` upgrades the prior computational separation
+to a strict recovery separation. Introduce a variable whose declaration is the
+positive unit-index Eq recursor. Typed thinning transports its new unit-stage
+computation into that declaration context; structure stage one includes the
+unit stage and recovers the literal Type -> Type Pi. Any old-stage Pi recovery
+of that same variable would compute from its lifted declaration. Raw retraction
+for the old family contradicts the prior all-path no-Pi-exposure theorem. A
+canonical-environment specialization uses the actual ErasedCore.definitions,
+including all stored and selected structure equations; it assumes a registered
+positive closed empty structure, as the previous obstruction did.
+
+The richer recovery still cannot preserve arbitrary selected types exactly.
+`scoped_identity_captured_not_recovered` applies to every contextual primitive
+family admitting descent. The lifted identity's proposed captured-Pi annotation
+contains the fresh proposition variable. Recovery descent would express that
+annotation as a lift of lower syntax, contradicting the existing syntactic
+captured-not-thinned theorem. No stage choice removes this contradiction when
+the selected output remains fixed.
+
+`ProofErasureScopedCarrierResynthesis` therefore retains the existential joint
+choice of a new recovered Pi and argument carrier guard at a common later stage.
+The finite law is explicitly unproved. Assuming it, typed substitution of the
+local application root follows. The fresh-function substitution test still
+forces some Pi recovery for any non-proof function with an available argument.
+A second necessary-condition theorem forces Pi exposure after adding a function
+variable and an argument variable. It deliberately keeps that context: the old
+proof's arbitrary raw proof-marker retraction is not a justified contextual
+substitution. This prevents silently transferring an overly strong necessity
+statement to the new interface.
+
+Remaining work is substantive. The local recovered root is not integrated into
+ScopedCompare or StructureCarrierGuard. In particular, the existing neutral
+application pair f x / f y with unit arguments still fails direct comparison at
+a universe carrier. Such a pair inside Eq.rec is a candidate next computational
+coverage test; other general-singleton paths must be excluded before claiming
+an all-path obstruction. Recursive integration, concrete finite joint
+re-synthesis, and overall coverage remain open. No smaller sufficient front or
+proof of strengthening is claimed.
+
+Validation: the new example, scoped re-synthesis interface and earlier domain
+join build together (536 jobs), /tmp/scoped-recovery-final-build.log. All 22 new
+public declarations plus the prior 111 roots pass #print axioms with only
+propext, Classical.choice and Quot.sound. The opaque dependency traversal visits
+13,586 declarations and rejects weakN_iff, weakN_inv and sorryAx;
+/tmp/scoped-recovery-audit.lean and /tmp/scoped-recovery-audit.log.
+No executable changes, extraction, PR creation, agents or coordination.
