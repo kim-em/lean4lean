@@ -14342,3 +14342,55 @@ singleton root output ambiguity is eliminated. General nested and mixed-root
 forks remain open. Keep the goal active. Only theory modules and actual EOF
 ledger additions change; no executable edits, PRs, extraction, subagents or
 coordination.
+
+
+## 2026-10-21 17:41 UTC — Saturated output residuals and the general telescope component
+
+ProofErasureTemplateComputation proves application-spine congruence, pointwise
+computation of singleton slots, and computation through a fixed typed equation
+body from a typed old capture vector. Only primitive renaming is needed beneath
+dependent binders. The target capture vector may be entirely raw reducts.
+
+ProofErasureSaturatedSingletonComputation reflects the old singleton guard to
+obtain the actual capture telescope and its body typing. Empty residual domains
+make the opened providers exactly the supplied arguments. Their selected-slot
+paths instantiate the fixed equation-body template, yielding an exact directed
+output path. The certified specialization constructs the new source typing by
+replay, then creates the new primitive from the independently supplied target
+guard and telescope. It returns both that primitive and the old-output path to
+its output. The target guard is an explicit premise, not derived from the old
+one. Source typing alone does not silently supply guard persistence.
+
+ProofErasureComputedTelescope addresses the nonsaturated case's annotations.
+ScopedTelescopeCompute stores all paths in their original preceding contexts,
+preserves telescope length and wraps a full-context body path into lambda
+computation. proofErase_takeForalls_compute uses existing typed Pi inversion
+to extract a telescope and body path from a whole type computation.
+proofErase_computed_residual_telescope connects this with the existing native
+supply theorem: a typed telescope walk and pointwise argument computations
+produce the annotation paths for any successfully peeled target residual type.
+This includes arbitrary dependent changes, not just literal-sort or rigid
+results. Fresh-variable providers and the capture body across the changed
+residual telescope remain to be integrated for general singleton prefixes.
+
+Validation: three modules, 308 lines, ten public roots (nine theorems and one
+inductive relation). Final consuming build exits zero in 601 jobs; new modules
+are warning-free after removing unused simp arguments. Existing dependency
+warnings are replayed. Log: /tmp/singleton-output-final-build.log. Both final
+audit processes exit zero after the last edit. Independent opaque DFS covers
+10 roots and 10,947 dependencies, excluding JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport, .weakN_iff, .weakN_inv and
+sorryAx. Cumulative opaque DFS covers 1,143 roots and 16,329 dependencies,
+excluding strengthening inverses and sorryAx. Exact-name axiom parsing covers
+every root exactly once and allows only propext, Classical.choice and Quot.sound.
+Opaque values are traversed with ci.value? (allowOpaque := true). Audit sources,
+logs and inventories: /tmp/singleton-output-{audit,independent-audit}.{lean,log}
+and -roots.txt files.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+None of GOAL.md's three success conditions is proved. This turn is progress:
+a concrete singleton/argument residual is proved under explicit target-guard
+availability, and the dependent telescope part of general output transport is
+constructed. Keep the full goal active. Only theory modules and actual EOF
+ledger additions change; no executable edits, PR extraction, PRs, subagents
+or coordination.

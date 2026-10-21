@@ -4373,3 +4373,42 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   supplied; persistence of an arbitrary guard through primitive computation
   must not be silently assumed. Neither these local criteria nor root
   determinism prove full certified confluence or any GOAL.md success condition.
+
+
+## 2026-10-21 17:41 UTC — Singleton output transport and computed residual telescopes
+
+- Revalidation: the previous turn made progress on exact binder join criteria
+  and singleton root determinism. HEAD 963a6147 was clean. The next target was
+  singleton output congruence under argument computation, separating it from
+  the unproved persistence of an arbitrary family guard.
+- Use the actual equation-body capture telescope rather than posit a globally
+  typed template over all recursor arguments. Verdict: constructive. The source
+  guard types the fixed equation-body captures. Pointwise computation of those
+  erased captures extends through the typed body using primitive renaming only;
+  new captures need no chosen typed representatives. Slot selection preserves
+  these paths, including proof markers and default slots.
+- Saturated singleton output computation. Verdict: proved with an empty
+  residual telescope. The source guard and raw argument paths give a directed
+  path from the old output to the exact new output formula. No new family guard
+  is needed for this output path. If a new full future guard and its empty
+  telescope are supplied, certified_saturated_residual constructs the new
+  certified primitive and the old-output residual to its output. The new
+  source typing is replayed from the old typed source and argument paths.
+- General prefix telescope computation. Verdict: proved. ScopedTelescopeCompute
+  indexes each dependent annotation path by its original prefix context. It
+  preserves length and combines with a body path to compute wrapped lambdas.
+  Typed finite Pi inversion extracts all these annotation paths and the final
+  body path from a whole residual-type computation. The existing native supply
+  theorem constructs that whole path from a typed argument walk and pointwise
+  argument computations, including changed later dependent domains.
+
+  Judgment: the saturated singleton/argument fork is closed conditional on
+  an independently supplied new guard. The general prefix proof now has its
+  annotation paths but still needs the fresh provider vector and capture-body
+  path through the changed residual telescope. This is not full singleton
+  output congruence, guard persistence, confluence, or a GOAL.md deliverable.
+  A concrete next route is to replay the residual-type path, recover actual
+  target Pi binders from their erasures, and use actual forall-context equality
+  to preserve contextVariable's proof classification. Interpreted raw identity
+  substitution alone must not be assumed to preserve proof-variable status:
+  its erasure agreement constrains retained variables, not hidden proof images.
