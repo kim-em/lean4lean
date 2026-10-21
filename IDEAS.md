@@ -2503,3 +2503,27 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   from ordinary assigned typings. General carrier-compared paired images need
   not have a literal join. Both limitations remain part of the open endpoint
   application problem, and no smaller sufficient front is claimed.
+
+- **Read native argument guards out of neutral proposition applications before
+  attempting paired substitution.** **Exact readout and necessary conversion
+  consequence proved.** `ProofErasureJointNeutralCarrierReadout` shows that
+  comparison of f x and f y, for a variable f with literal oracle Pi A B, is
+  equivalent to a carrier guard at A in either comparison mode. Recovery's
+  directed domain conversions become carrierCompute; argument computations
+  become carrierReduce. The result covers the entire joint grammar, not only
+  the application constructor. An eta wrapper displayed at an assigned domain
+  A recovers A -> Prop even when its internal variable f is declared B -> Prop.
+  Comparing wrapper x and wrapper y uses only the supplied source guard at A.
+  Their head-beta contracta expose f x and f y, so any proposition endpoint-beta
+  transport law necessarily supplies a target guard at the native B.
+  Introducing a fresh observer and removing it with an exactly recovered
+  constant function strengthens this: beta transport from any fixed finite
+  source stage into the union entails transport of that stage's guards along
+  every ordinary typed equation A = B. This includes source stage zero; it
+  cannot be deferred solely to strictly lower primitive stages. No comparison
+  certificate for A and B, exact recovery of x/y, or literal join is assumed.
+  This is a necessary condition, not a proved conversion law, a refutation of
+  proposition beta stability, or a strictly smaller sufficient front. Next:
+  the paired-image invariant must account for this native-domain conversion;
+  diagonal recovery alone cannot discharge it. General dependent record/Pi
+  carrier conversion remains open with the quotient-repaired full core.

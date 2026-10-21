@@ -11055,3 +11055,72 @@ canonical-Eq strengthening counterexample or strictly smaller sufficient
 irreducible front exists from this turn. Goal remains active. Only theory and
 the two research ledgers changed. No executable changes, extraction, PRs,
 subagents or coordination.
+
+## Native neutral carriers force ordinary type-conversion transport
+
+Previous completed goal research turn: progress, commit 9051a0cb (recovered
+and joined-image head beta). The intervening discussion about stopping did not
+change the worktree. This continuation rechecked GOAL.md and authoritative git
+state. The unfinished neutral-carrier file had two terminal elaboration errors,
+not a running compiler. Both were simplification issues (instantiating a sort
+and normalizing a lifted variable index); they are now fixed.
+
+ProofErasureJointNeutralCarrierReadout proves an exact readout for neutral unary
+applications. For a raw context whose oracle at f is Pi A B, JointCompare f x
+f y in either mode is equivalent to JointCarrierGuard A x y. The forward
+induction handles every joint constructor. In appCarrier, variable recovery
+computes from the native oracle; Pi computation exposes its domain path,
+which carrierCompute retains. In compute, the existing variable-spine theorem
+shows that only the arguments change, and carrierReduce retains those paths.
+The reverse is the native bvar recovery and appCarrier constructor. The unary
+computation helper specializes the existing spine theorem, avoiding another
+raw beta induction.
+
+The first typed consequence assumes an arbitrary source-to-target proposition
+beta law. A function variable declared at B -> Prop may be assigned A -> Prop
+by ordinary typing. The eta wrapper lambda z:A, f z has exact syntax-directed
+recovery at A -> Prop: its body application recovers Prop from the native B
+oracle without requiring a guard relating the domains. Therefore two wrapper
+applications compare using any supplied source guard at A. Actual head beta
+contracts them to f x and f y. The readout forces a target guard at B. No
+source primitive closure, endpoint recovery, or comparison of A and B is used.
+
+The second consequence removes the observer assumption. For an arbitrary
+ordinary typed equation A = B and a finite-stage carrier guard at A, introduce
+f:B -> Prop. Forward weakening transports the source guard; the equation
+assigns f the converted A -> Prop type. The preceding theorem gives a union
+guard at B under this fresh binder. Extract its finite stage and substitute
+the already-constructed exactly recovered inhabitant of B -> Prop. Since the
+carrier and endpoints are lifted from below, the resulting certificate is the
+requested guard at B in the original context, with no stage increase during
+retraction. Canonical Eq is used for the recovered inhabitant and existing
+concrete transport machinery, never for an assumed inverse weakening.
+
+Consequence for the current route: even proposition beta transport from stage
+zero must handle arbitrary semantic carrier conversion for its input guards.
+This issue is present in a reflexively compared function with one head-beta
+step on each side; it is not confined to recursive singleton guards or to
+higher source stages. A paired-image proof may solve that conversion internally,
+but cannot justify it solely by the preceding diagonal head-beta lemma or by
+an induction hypothesis at a strictly lower primitive stage. We have not shown
+that carrier conversion implies PropositionFront, nor proved its sufficiency
+for the endpoint law. No smaller front or counterexample is claimed. Existing
+neutral, literal-sort, empty-record, and restricted function alignment results
+remain applicable; general dependent record/Pi conversion remains open. Use
+the quotient-repaired full core for any general constructive attempt; soundness
+of an arbitrary incomplete definition collection is not a coverage premise.
+
+Validation: the new module, common-beta boundary, and joint beta-commutation
+build successfully (602 jobs), /tmp/joint-neutral-carrier-build.log. Independent
+opaque dependency DFS covers all five new public roots and 10,984 dependencies,
+excluding JointCarrierDomainResynthesis, weakening inverses, and sorryAx.
+Cumulative audit covers 688 public roots and 15,506 dependencies, excluding
+weakening inverses and sorryAx. Parsed #print axioms reports match all requested
+names exactly (five and 688); only propext, Classical.choice, and Quot.sound
+occur. Audit sources/logs: /tmp/joint-neutral-carrier-{audit,independent-audit}.
+{lean,log}. The source elaboration log is /tmp/joint-neutral-carrier-compile.log.
+
+Completion audit: UniqueTyping.lean still has its original weakN_iff sorry.
+This turn supplies neither a canonical-Eq counterexample nor a strictly smaller
+sufficient irreducible front. The goal remains active. Only theory and these
+research ledgers change; PR extraction remains deferred.
