@@ -5018,3 +5018,24 @@ a joint comparison certificate. This is not FullReduction coverage: eta inside
 arbitrary arguments, structure eta, and prefixes consuming unrecoverable retained
 arguments remain outside the proved fragment. The proposition-index argument
 case is not solved by the initial universe-argument example.
+
+
+## 2026-10-21 20:44 UTC — Read a displayed lambda domain without recovering its codomain
+
+Verdict: the local rule and its exact certificate descent are proved. An
+application whose left function is a displayed lambda can read its argument
+carrier from that annotation, compare the functions in inferred mode, and
+check the arguments at the displayed carrier. Independent lower endpoint
+typings suffice to reconstruct the actual domain and align the right argument.
+Complete Pi recovery of the lambda is not needed. The rule also guards actual
+canonical-Eq prefix computation, and finite layers above the full joint union
+preserve exact computation certificates under arbitrary binder insertion.
+
+This is a candidate for replacing the full-recovery application rule in a
+larger checker, not a proved coverage improvement. The recursive function and
+carrier premises still use the existing joint grammar. Inspection of
+JointCheck.subst_recovering_typed confirms that nested ordinary appCarrier
+cases still require recovery transport. Thus this local result does not
+establish substitution by arbitrary proposition images, and no strict
+comparison-coverage separation from the existing union is claimed. The
+inhabited-proposition-recovery barrier remains in force.

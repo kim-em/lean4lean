@@ -15337,3 +15337,44 @@ canonical-Eq counterexample or strictly smaller sufficient irreducible front
 has been established. GOAL.md stays active. Only the four new Theory modules
 and actual-EOF ledger entries changed; no executable changes, PRs, extraction,
 or coordination.
+
+
+## 2026-10-21 20:44 UTC — Exact descent for displayed-domain applications and Eq prefixes
+
+Added ProofErasureDisplayedLambdaApplication.lean (105 lines) and
+ProofErasureDisplayedLambdaPrefix.lean (153 lines), with 14 audited public
+roots including the two inductive constructors. The first module proves
+semantic equality together with retention of the actual lower application
+certificate. It reconstructs the lambda annotation from lower syntax and
+uses independently supplied endpoint typings; no full Pi recovery or common
+endpoint type is assumed. When complete recovery happens to be available,
+the local certificate embeds in the existing appCarrier rule.
+
+The second module uses these endpoint certificates to execute canonical Eq
+prefixes with the original exact lambda output. Every finite added primitive
+layer, beginning with the entire old joint union, has exact certificate
+descent and retains constant/projection-headed primitive sources. This is
+a finite computation extension, not a recursively enlarged joint comparison
+grammar. Arbitrary proposition substitution and strict extra comparison
+coverage have not been proved. In particular the existing nested recovery
+transport obligation has not disappeared.
+
+Validation: the pending consuming build completed successfully (538 jobs,
+/tmp/displayed-lambda-final-build.log). Both new modules compiled without
+warnings; dependency warnings are pre-existing. Cumulative opaque DFS:
+1,315 public roots / 16,585 dependencies. Independent new-root audit:
+14 public roots / 10,854 dependencies. Both exclude weakN_iff, weakN_inv
+and sorryAx; independent additionally excludes JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport and JointPropBetaStability.
+Exact root inventories agree with all printed axiom reports; only propext,
+Classical.choice and Quot.sound occur. Both audit logs are warning-free.
+Artifacts: /tmp/displayed-lambda-{audit,independent-audit}.lean and .log,
+with -roots.txt inventories.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+Neither a canonical-Eq counterexample nor a strictly smaller sufficient
+irreducible obligation has been established. GOAL.md remains active.
+The preceding discussion-only turn made no research progress; this turn
+revalidated the pending work, completed its build/audit verification, and
+recorded the checked result. No executable changes, PR extraction, PRs,
+subagents or coordination.
