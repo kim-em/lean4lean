@@ -13611,3 +13611,68 @@ conditional implication is not a genuinely strictly smaller sufficient
 irreducible obligation. Leave GOAL.md active. Only theory modules and actual
 EOF ledger additions change; no executable changes, PR extraction, PRs,
 subagents or coordination.
+
+
+## 2026-10-21 15:41 UTC — Future record guards through supplied type comparison
+
+Previous goal turn: progress (ca1d1dca showed proposition-only future application
+still implies the original front). This turn revalidated clean HEAD and tested
+constructive record conversion using the already available certificates. The
+initial general dependent-field question remains open; the checked results
+cover common field comparisons and converted structural-subsingleton fields.
+
+ProofErasureFutureComparedRecord lifts the ordinary compared-record theorem to
+a full future carrier certificate. The input type comparison retains all beta
+and interpreted substitution paths, as do the common comparisons of retained
+projections. For each target-carrier beta reduct, forward replay gives an
+actual sort-typed target. Left-major beta replay gives an actual source-typed
+major; its source type stays the displayed registered record. The ordinary
+record theorem exposes the target family, transfers proof-field metadata using
+actual typings, and combines the field comparisons at their independently
+reduced majors. The right major may remain raw. After an interpreted
+substitution, its actual realization types the substituted source carrier,
+target carrier and left major. The source's parameter list is mapped by the
+raw substitution, and the stored field/type certificates substitute directly.
+The result supports every future carrier and endpoint path at the target.
+The union wrapper discharges descent and head inertia with canonical Eq,
+sound declarations and a local exclusion of the record family from unfolding.
+
+ProofErasureFutureConvertedFields addresses recursive carrier fields that do
+not provide common value comparisons. The Box theorem starts from an ordinary
+certified type comparison T ~ U with a structural subsingleton certificate at
+T. The existing constructive certified exposure theorem supplies a full future
+guard at U. The Box rule embeds that guard at the exact field parameter and
+actual erasure of Box U. Because Box has one field, its whole carrier is not
+recognized by the structural subsingleton grammar. The dependent-pair theorem
+uses an actual sort-typed U whose erasure is projection zero of the left major;
+certified conversion supplies the value guard at that exact dependency. A
+separate future comparison handles the type fields, and dependent_pair assembles
+the full future record certificate. Arbitrary endpoint typings are not inferred
+by either raw construction; sound reflection must still receive them.
+
+Judgment: these positive results retain full future information through target
+record exposure and through two forms of recursive field checking. They do not
+transport arbitrary recursive guards merely from ordinary type equality, and
+do not resolve the proposition-front conversion gap. No computational join is
+required by the statements, but this turn adds no new explicit nonjoining
+example. A useful next constructive question is inversion of an already
+supplied future Box guard to recover its recursive field certificate; the
+source guard should not have to be rebuilt from common field checks.
+
+Validation: two new modules, 188 lines, four public theorems. The dependent
+build succeeds in 624 jobs, with no new-module warnings:
+/tmp/future-compared-record-build.log. Independent opaque DFS covers all four
+roots and 11,255 dependencies, excluding JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport, .weakN_iff, .weakN_inv and
+sorryAx. Cumulative opaque DFS covers 1,016 roots and 16,108 dependencies,
+excluding strengthening inverses and sorryAx. Exact-name axiom parsing covers
+every root once and allows only propext, Classical.choice and Quot.sound.
+Both audit processes completed successfully. Sources, logs and inventories:
+/tmp/future-compared-record-{audit,independent-audit}.{lean,log} and the
+corresponding -roots.txt files.
+
+Completion audit: UniqueTyping.lean:94 retains the original sorry. No
+canonical-Eq strengthening proof, canonical-Eq counterexample or genuinely
+strictly smaller sufficient irreducible obligation has been established.
+Leave GOAL.md active. Only theory modules and actual EOF ledger additions
+change; no executable changes, PR extraction, PRs, subagents or coordination.

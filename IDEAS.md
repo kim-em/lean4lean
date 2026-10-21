@@ -3896,3 +3896,36 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   return to the original confluence residue), rather than introduce another
   outer future certificate and assume its application closure. None of the
   three GOAL.md outcomes is established.
+
+
+## 2026-10-21 15:41 UTC — Construct future record conversion in supported cases
+
+- **Retain the whole future record guard through an actual future type
+  comparison. Verdict: proved for stored common field certificates.**
+  proofErase_future_compared_record_guard replays independent target-carrier
+  and left-major beta paths, then applies the existing ordinary compared-record
+  construction to the residual typings. Future field comparisons handle both
+  major paths. After interpreted substitution, the source remains the same
+  registered family with mapped parameters. Universe-dependent proof-field
+  flags are transferred using actual typings at each target exposure. The
+  concrete union specialization needs only local family unfolding exclusion,
+  not arbitrary primitive substitution or general carrier conversion.
+
+- **Use certified type conversion inside recursive record fields.
+  Verdict: constructed for converted structural-subsingleton fields.**
+  proofErase_future_box_compared_subsingleton obtains the target parameter's
+  full future guard from an ordinary certified type comparison, then builds a
+  nonempty Box guard. The whole Box carrier is proved outside the structural
+  subsingleton grammar. proofErase_future_dependent_pair_compared_field uses
+  the same conversion where the carrier is the first projection of the left
+  major, and combines it with a stored future comparison of the type fields.
+  Value-field common comparison and source/target type joins are not premises.
+  Actual endpoint typings remain necessary for reflecting the raw guards.
+
+  Judgment: these are constructive conversion cases with explicit stronger
+  input certificates, not general dependent-field conversion. In particular,
+  ordinary type equality alone supplies none of the required type comparison
+  certificates. The main goal remains open. Next investigate extracting a
+  future field-carrier certificate from an already supplied future Box guard,
+  so non-subsingleton field conversion can be used without reconstructing the
+  source guard from common field comparisons.
