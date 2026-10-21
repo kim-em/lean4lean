@@ -4967,3 +4967,27 @@ partial exchange lemmas, not arbitrary eta postponement: the carrier result
 cannot be silently used as an inferred function comparison, and the general
 application result still requires original-argument recovery. Full reduction
 coverage, arbitrary retained arguments and strengthening remain open.
+
+
+## 2026-10-21 20:26 UTC — Remove the final proof-argument eta detour, retaining the complete tail
+
+Verdict: proved for arbitrary subsequent full-joint computation. A first-head
+beta decomposition of a lambda application retains the separate function and
+argument computations, the exact beta contractum, and the entire remaining
+path. Literal-sort output rules out the uncontracted application alternative.
+The preceding eta-body instantiation can therefore reach that exact contractum
+from the short application and compose the original tail. No confluence or
+comparison transitivity is needed. The reverse direction is the typed eta/beta
+identity followed by the supplied short path.
+
+Original-argument recovery is sufficient in general and automatic at a proof
+domain. Applying this to the Eq probe's last five-argument prefix proves that
+eta expansion followed by arbitrary joint computation reaches the original
+literal universe iff the original proposition indices have a joint comparison.
+The equivalence also descends across arbitrary binder insertion with an equality
+major supplied only upstairs; no lower proof major is assumed.
+
+This removes a concrete eta detour from the probe route, rather than assuming
+all eta can be postponed. It does not cover eta at earlier prefixes, new eta
+steps inside the subsequent full reduction, structure eta, or the unrecoverable
+retained-argument case. General semantic coverage and strengthening remain open.

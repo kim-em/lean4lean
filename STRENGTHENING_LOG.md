@@ -15239,3 +15239,47 @@ canonical-Eq counterexample, or strictly smaller sufficient irreducible front
 has been established. GOAL.md remains active. Only this Theory module and
 actual-EOF ledger entries changed; no executable edits, PR extraction, PRs,
 or coordination.
+
+
+## 2026-10-21 20:26 UTC — Exact universe exposure after the final-prefix eta detour
+
+Added two modules, six public theorems:
+- ProofErasureScopedFirstBeta.lean: a raw first-head-beta decomposition for
+  ScopedCompute with constant/projection primitive heads. Either a lambda
+  application survives with separately computed function and argument, or the
+  witness retains the exact head contractum and full computation tail. Its
+  literal-sort corollary selects the contracted alternative. No typing,
+  substitution closure, confluence or normalization premise is used.
+- ProofErasureJointEtaSortExposure.lean: a typed eta-expanded application has
+  exactly the short application's literal-universe outputs when its original
+  argument recovers the original domain. The first-head decomposition composes
+  with exact computed-body instantiation; both the function and argument may
+  compute before beta and the entire remaining tail is retained. This requires
+  an exact contractum, so the previous existential application join alone was
+  insufficient. The proof-domain corollary removes recovery entirely. The
+  concrete Eq-probe theorem then characterizes exposure after eta expansion of
+  its final five-argument prefix by the original index comparison certificate.
+  A final equivalence descends that certificate across arbitrary binder insertion
+  while allowing the equality major to exist only in the upper context.
+
+This is not a FullReduction adequacy theorem: the path after the selected eta
+step is ScopedCompute in the actual full joint union. Earlier-prefix eta, new
+eta interleavings, structure eta and arbitrary unrecoverable arguments are not
+covered. In particular this does not supply a certificate from arbitrary
+semantic proposition equality or prove a smaller sufficient front.
+
+Validation: consuming build succeeds in 662 jobs (/tmp/eta-sort-final-build.log).
+Both new modules compile without warnings; pre-existing dependency warnings
+remain. Cumulative opaque DFS: 1,288 public roots / 16,545 dependencies.
+Independent audit: six public roots / 11,387 dependencies. Both exclude
+weakN_iff, weakN_inv and sorryAx; independent also excludes
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport and JointPropBetaStability. Exact root inventories match
+all printed axiom results. Only propext, Classical.choice and Quot.sound are
+permitted, and both audit outputs have no errors or warnings. Artifacts:
+/tmp/eta-sort-{audit,independent-audit}.lean and .log, with -roots.txt inventories.
+
+Completion audit: UniqueTyping.lean:94 retains the original sorry. No canonical-Eq
+counterexample or strictly smaller sufficient irreducible obligation has been
+established. GOAL.md remains active. Only these Theory modules and actual-EOF
+ledger entries changed; no executable changes, PR extraction, PRs or coordination.
