@@ -2294,3 +2294,29 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   The stage-zero comparison law into the joint union remains open as well.
   Establish a simultaneous comparison/carrier invariant rather than applying
   the computation theorem as though it already proved comparison stability.
+
+- **Extend proposition beta transport to general common-mode comparisons for
+  a simultaneous induction.** **Refuted even with a larger target union** in
+  `ProofErasureJointCommonBetaBoundary`. Let S be a registered positive empty
+  structure and x,y distinct variables at S. At stage zero, the two applications
+  `(fun z : S => z) x` and `(fun z : S => z) y` compare using recovered carrier
+  checking of x,y. Beta gives the bare variables. A new joint bvar-injectivity
+  theorem proves that they cannot compare in either mode under any primitive
+  relation obeying the existing head restriction, hence not in the whole joint
+  union. The two-variable context is constructed from the closed typing of S.
+  Their actual carrier guard at S survives. Two uses of one-sided stability
+  would give the forbidden comparison, so general common-mode stability of the
+  union is false as well. This is stronger than the earlier same-core cast
+  obstruction: stage growth cannot fix it, and no recursion or cast is needed.
+  It does not refute the proposition-only law or declarative strengthening.
+
+- **Keep carrier output in the beta induction for arbitrary terms.** **Live,
+  not proved.** The preceding checked peak forces this change of invariant.
+  Type/proposition conclusions may still demand common/inferred comparison;
+  ordinary term conclusions must allow a carrier guard at the relevant type.
+  The identity peak already has that guard. A simultaneous comparison/carrier
+  proof must still justify application, substitution and conversion of supplied
+  carriers, rather than silently turning a carrier guard into ordinary common
+  comparison. The new computation commutation theorems remain available for
+  finite computation-prefix cases. No claim of a smaller sufficient front is
+  made by this candidate invariant.

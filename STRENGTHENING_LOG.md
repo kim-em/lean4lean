@@ -10536,3 +10536,64 @@ Completion audit: UniqueTyping.lean:94 still contains the original sorry.
 No canonical-Eq counterexample or strictly smaller sufficient strengthening
 front has been established. The goal remains active. There are no executable
 changes, extraction, PRs, agents or coordination.
+
+## Refuting general common-mode beta transport into the full union
+
+Previous-turn classification: progress. At clean HEAD d6b1310a, finite beta
+commutation from lower-stage guard transport had been proved and audited.
+This turn inspected the actual joint comparison grammar and tested the broader
+comparison invariant suggested by the next simultaneous induction.
+
+A concrete failure was found and proved. For a registered positive empty
+structure S and two distinct variables x,y at S, the identity applications
+(fun z : S => z) x and (fun z : S => z) y have a common-mode joint comparison
+with no primitive computation at all. The function recovery is a literal
+lambda/bvar derivation, and the argument certificate is the empty-structure
+carrier rule. Both original applications are typed at S, and their erasures
+are exactly the displayed applications; no proof marker hides either variable.
+
+Beta reduces these endpoints to x and y. ProofErasureJointCommonBetaBoundary
+proves JointCompare.bvar_injective for the full mutual grammar: compatible
+computation fixes bare variables, and no carrier-aware application, structure
+or eta constructor has two variable endpoints. Consequently no target with
+constant/projection-headed primitives can compare the resulting variables,
+even though the actual carrier guard at S persists.
+
+The typed witness theorem allows distinct source and target primitive
+relations. Its specialization constructs the context [S,S] from a closed
+typing of S, places the source comparison at actual stage zero, and excludes
+the reduct comparison in ErasedJointUnion. Thus arbitrary output-stage growth
+does not repair this failure. A separate theorem refutes the existing
+JointCommonBetaStability of the whole union by applying a purported one-sided
+law twice; forward beta replay supplies the intermediate endpoint typing.
+The assumptions describe an existing positive empty structure; no new
+registered environment is asserted or constructed. Canonical Eq is compatible
+with the witness and is not needed for the obstruction.
+
+This changes the next proof action: do not attempt a structural induction whose
+ordinary-term conclusion is general common-mode beta stability, even with
+stage-n inputs and union outputs. That conclusion is false. A live replacement
+must retain carrier information for ordinary terms, while type/proposition
+conclusions can continue to request comparison. The tested identity peak
+already has an actual carrier output. General carrier beta transport, its
+interaction with supplied-type conversion, and application/body instantiation
+remain unproved. The existing computation commutation theorem is unaffected.
+This negative result does not refute JointPropBetaTransport: the failing
+endpoints are values of positive S, not propositions typed at Prop. Nor does it
+refute canonical-Eq strengthening or establish a smaller sufficient front.
+
+Validation: the new boundary and prior stage-beta-commutation targets build
+successfully (591 jobs), log /tmp/joint-common-beta-boundary-build.log.
+Independent opaque dependency DFS covers all 4 new public roots: 8,314
+dependencies, excluding carrier-domain re-synthesis, strengthening inverses
+and sorryAx. Cumulative audit: 625 public roots, 15,420 dependencies, no
+strengthening inverses or sorryAx. All 625 and 4 requested axiom reports were
+parsed and matched exactly; only propext, Classical.choice and Quot.sound
+occur. Templates/logs:
+/tmp/joint-common-beta-boundary-{audit,independent-audit}.{lean,log}.
+
+Completion audit: the original sorry remains in UniqueTyping.lean:94. The
+negative result concerns a proposed comparison invariant, not the goal's
+strengthening theorem. No canonical-Eq strengthening counterexample or strictly
+smaller sufficient front is established. The goal remains active. No
+executable changes, extraction, PRs, agents or coordination.
