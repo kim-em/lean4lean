@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureFamilySpines
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureFutureConstructor
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureJointTypedCompositionBoundary
 
 /-! # Future common certificates still do not compose at arbitrary carriers
@@ -16,27 +16,14 @@ open private not_proof_at_positive_type
   from Lean4Lean.Theory.Typing.Strengthening.ProofErasureScopedUnitBoundary
 variable [Params]
 
-omit [Params] in
-private theorem beta_const_fixed (R : ProofShape.BetaRed (.const c ls) out) :
-    out = .const c ls := by
-  obtain ⟨args, E, H⟩ := (show ProofShape.BetaRed (ProofShape.mkApps (.const c ls) []) out from R).const_spine
-  cases H
-  exact E
-
 /-- An empty structure constructor compares with every future residual of the
 other endpoint. Its null field telescope needs no recursive comparisons. -/
 theorem unit_constructor_family
     (hi : env.projections family info) (hp : info.nparams = 0)
     (hx : info.nindices = 0) (hf : info.numFields = 0) :
-    BetaStableFamily (fun Δ => JointCompare Step Δ true) Δ (.const info.ctorName ls) a := by
-  have HC {Δ a} : JointCompare Step Δ true (.const info.ctorName ls) a :=
-    JointCheck.structFields (ls := ls) hi hx (ps := []) hp.symm (fields := []) hf.symm
-      (.inr (StructureReplay.ProofFields.of_no_fields hf)) (by intro i h; simp at h)
-  refine ⟨fun R _ => ?_, fun W R _ => ?_⟩
-  · obtain rfl := beta_const_fixed R
-    exact HC
-  · obtain rfl := beta_const_fixed R
-    exact HC
+    BetaStableFamily (fun Δ => JointCompare Step Δ true) Δ (.const info.ctorName ls) a :=
+  BetaStableFamily.struct_fields hi hx (ps := []) hp.symm (fields := []) hf.symm
+    (.inr (StructureReplay.ProofFields.of_no_fields hf)) (by intro i h; simp at h)
 
 /-- Two future certificates with an actual common typed intermediate need
 not compose, even though every input certificate retains arbitrary future

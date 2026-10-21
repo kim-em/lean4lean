@@ -13311,3 +13311,72 @@ Completion audit: UniqueTyping.lean:94 still contains the original sorry.
 None of the three GOAL.md outcomes is established. Keep the goal active. Only
 new theory modules and actual EOF ledger additions changed; no executable
 changes, PR extraction, PRs, subagents or coordination.
+
+### 2026-10-21 15:06 UTC — All typed structure eta has future certificates
+
+Previous goal turn: progress (39c7951d constructed full future record checking,
+including Box and an earlier-field-dependent Pack). This turn revalidated clean
+HEAD 39c7951d, the objective and ledger, then examined constructor-spine residuals
+and actual structure-field typing to address the other side of structure eta.
+
+ProofErasureFutureConstructor supplies BetaStableFamily.struct_fields. A beta
+path of the constructor is inverted as a constant spine. Taking/dropping the
+parameter prefix isolates field beta paths with unchanged field count. Each
+retained field certificate is applied to that field's path and the projection
+of the independent major path. If the original field is a proof marker, beta
+fixedness contradicts a proposed retained output. Under future interpreted
+substitution, original proof markers remain erased and fields newly erased may
+be skipped; retained fields use their substituted certificates. No constructor
+rigidity or primitive substitution/confluence law is needed, because these
+future paths are beta paths.
+
+The same module proves proofErase_structure_eta_family for every actual typed
+admissible structure expansion. Whole-proof erasure gives a beta-join family.
+Otherwise the erasure is the constructor spine with its original parameters
+and projected fields. The typed expansion supplies actual typings of all those
+projections. Each retained projection compares with itself at every future
+beta/substitution residual by typed beta confluence, and the new constructor
+rule assembles the full future comparison. Dependent fields, proof fields and
+parameterized structures are included. This is forward coverage of the actual
+structure-eta rule, not a premise asking callers for its recursive certificates.
+It does not require canonical Eq.
+
+ProofErasureFutureStructureEta establishes a separate limit on replacing that
+certificate by a computational join. For a typed retained variable and its
+actual structure expansion, the expansion's constructor head survives full-
+union computation under the local constructor unfolding exclusion. The variable
+is computationally fixed. Hence the future certificate exists, but the two
+endpoints have no union computational join. Parameters and projected fields may
+still compute arbitrarily; their normalization is not required by the proof.
+
+unit_constructor_family in ProofErasureFamilyCompositionBoundary now specializes
+struct_fields to zero fields. Its original public statement and all composition
+barrier results remain unchanged; the separate beta_const_fixed helper was
+removed. Affected composition, probe, application and type examples were rebuilt.
+
+Judgment: the actual structure-eta rule is covered constructively by the full
+future invariant. General application/paired instantiation and typed composition
+remain open, as does construction of dependent field-conversion certificates
+from arbitrary type comparison. A concrete next interaction is projection
+reduction of a displayed constructor whose fields already carry future
+certificates: certified computation prefixes should connect the projected
+constructor to the retained field without assuming a join of the majors.
+This does not establish full equality coverage or a smaller sufficient front.
+
+Validation: two new modules, 153 lines, three new public theorems and one changed
+public proof. The dependent build succeeds in 686 jobs, without warnings from
+new/touched modules: /tmp/future-constructor-build.log. Independent opaque DFS
+covers all four roots and 8,581 dependencies, excluding
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport,
+.weakN_iff, .weakN_inv and sorryAx. Cumulative opaque DFS covers 993 roots and
+16,071 dependencies, excluding strengthening inverses and sorryAx. Exact-name
+axiom parsing accounts for every root once and permits only propext,
+Classical.choice and Quot.sound. Sources/logs:
+/tmp/future-constructor-{audit,independent-audit}.{lean,log}; inventories:
+/tmp/future-constructor-{audit,independent-audit}-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+No canonical-Eq strengthening proof, canonical-Eq counterexample or genuinely
+strictly smaller sufficient irreducible obligation is established. Keep the
+full goal active. Only theory modules and actual EOF ledger additions changed;
+no executable changes, PR extraction, PRs, subagents or coordination.

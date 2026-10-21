@@ -3749,3 +3749,36 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   comparison of record carrier parameters/majors has not been shown to supply
   the corresponding dependent-field conversion checks. General composition
   and paired instantiation remain open; no GOAL.md outcome is established.
+
+### Future constructor comparison and full typed structure eta (2026-10-21 15:06 UTC)
+
+- **Retain constructor-to-major comparison through independent futures.
+  Verdict: proved for arbitrary retained fields.**
+  BetaStableFamily.struct_fields splits a constructor beta path into its
+  parameter and field paths. Each retained field's future certificate compares
+  the new field with the corresponding projection of the new major. Original
+  proof markers remain proof markers under beta and substitution; newly erased
+  fields may be skipped. The result requires no primitive closure law.
+
+- **Cover the actual structure-eta rule, rather than merely request future
+  field checks. Verdict: proved for every typed admissible expansion.**
+  proofErase_structure_eta_family obtains typings of each projected field from
+  the actual typed expansion. Its reflexive field certificate follows from
+  typed beta confluence, and struct_fields assembles the expansion's full future
+  comparison. The proof includes dependent field telescopes, proof fields and
+  whole-proof erasure. No canonical Eq or primitive-confluence hypothesis is
+  needed for this forward coverage theorem.
+
+- **Is the resulting structure-eta certificate just a computation join?
+  Verdict: refuted for retained variables.** Under the stated constructor
+  unfolding exclusion, a typed variable's expansion preserves its constructor
+  head throughout full-union computation, while the variable remains fixed.
+  structure_eta_future_without_join proves the full future certificate and
+  absence of a union join without normalizing parameters or projected fields.
+
+  Judgment: actual structure eta is now covered by the future relation, and
+  the earlier empty-constructor certificate is a specialization of the general
+  constructor rule. General compatible application/paired instantiation and
+  typed composition remain unresolved. Projection reduction of displayed
+  constructors is a concrete next interaction to test using the retained field
+  certificates and certified computation prefixes. No GOAL.md outcome is claimed.
