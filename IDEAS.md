@@ -2868,3 +2868,44 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   comparison transitivity from the new equivalence: same-stage typed
   transitivity was already refuted. No strengthening theorem, canonical-Eq
   counterexample, or strictly smaller sufficient front is claimed.
+
+
+## 2026-10-21 — Transport exposed record checks by actual type comparison
+
+- **Use lossless Eq encoding to bypass carrier conversion.
+  Verdict: composition remains missing; no closure theorem obtained.**
+  An actual carrier comparison can be inserted into the carrier argument of
+  an Eq expression by application congruence. Connecting that comparison to
+  an encoded endpoint guard still asks for composition of proposition
+  comparisons. The preceding decoder does not supply that composition, and
+  same-stage typed proposition transitivity was already refuted. Do not use
+  this encoding as an implicit transitivity or forward-computation rule.
+
+- **Transport ordinary field comparisons directly at an exposed record.
+  Verdict: proved, including changed levels and parameters and any number of
+  dependent fields.** `proofErase_joint_compared_record_guard` uses an actual
+  typed comparison from a displayed record family to the target type. Rigid
+  family exposure supplies a target computation to that same family. Forward
+  replay realizes its actual type; the type comparison and replay let the
+  left endpoint be typed at both family instances. Existing record metadata
+  transport then preserves admissibility and maps source proof fields to
+  target proof fields. All retained common projection comparisons are reused
+  unchanged. No primitive substitution or semantic head-exposure law is needed.
+
+- **Consume this result at the application's recovered domain.
+  Verdict: constructed at the original relation.** Compared Pi recovery
+  supplies the selected domain and an actual assigned/selected-domain
+  comparison. The record theorem produces its argument guard, and appCarrier
+  closes the application comparison. Finite-stage and full-union record
+  corollaries discharge family inertness when D does not unfold that family;
+  they need no beta-stability premise or stage increase.
+
+  This handles carrierIntro with ordinary field comparisons. It does not
+  convert carrierNested's dependent field carriers, carrierFunction's binder
+  checks, or a guard whose source carrier first computes to a family. Those
+  cases still require new compatibility evidence. In particular, ordinary
+  field comparison is not interchangeable with a carrier guard at a field's
+  type. Next retain the actual family-comparison subderivations to investigate
+  comparisons of the dependent projection carrier recipes; the source
+  computation/type-comparison reconciliation remains open. No goal outcome
+  or smaller sufficient irreducible front is claimed.

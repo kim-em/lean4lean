@@ -11769,3 +11769,73 @@ Completion audit: UniqueTyping.lean:94 still contains the original sorry.
 None of the three allowed goal outcomes has been established. The goal remains
 active. Only two theory modules and appended ledgers are changed; no executable
 changes, PR extraction, or coordination.
+
+
+## 2026-10-21 11:20 UTC — Actual type comparison transports record field checks
+
+Previous goal turn: progress, committed/pushed as
+6f1180654cbb1328aed4e43ba5957fbae155c2ce. Revalidated the clean worktree and
+its exact baseline before proceeding. The new Eq decoder suggested a route
+through Eq expressions with changed carriers, but composing their comparison
+with the encoded guard still requires an unproved proposition composition
+rule. No general transport or transitivity assertion was added from that
+observation. The direct carrierIntro case admits a constructive proof instead.
+
+ProofErasureComparedRecord has five public roots. The central theorem takes
+an actual comparison between independently sort-typed A and U, with erase A
+already a registered unindexed record family. It accepts the carrierIntro
+field comparisons at that family, plus one left-endpoint typing. Typed mode
+conversion permits rigid family exposure on U. Forward computation replay
+realizes the exposed family as an actual original type. Erasure inversion
+recovers original source and target parameter lists and their exact arities.
+Reflection of the supplied type comparison, followed by forward replay,
+assigns the left endpoint both family types.
+
+The existing record_conversion_metadata lemma then transports the expansion
+admissibility condition and proof-field flags to the target universe instance.
+Each target non-proof field was also non-proof at the source, so its original
+common projection comparison is directly reusable. carrierIntro constructs
+the guard at the exposed target, and carrierCompute wraps the actual target
+path. There is no context change, substitution, field-type re-synthesis, or
+comparison composition hidden in this proof. The helper is imported privately
+from the semantic conversion module, but the new proofs do not depend on
+that module's semantic-head assumption or its global conversion theorem.
+
+The recovered-domain corollary consumes an existing function recovery and its
+actual comparison with the assigned Pi. Existing compared Pi exposure yields
+a new recovery with an actual comparison of domains, exactly the input needed
+by record transport. The application corollary consumes that domain guard in
+appCarrier and retains the original function, argument, and target relation.
+Two concrete corollaries establish direct record transport at every finite
+joint stage and in the full joint union. Family inertness follows from
+registration rigidity and the explicit condition that D does not unfold this
+family. These corollaries require no primitive substitution or beta-stability
+hypothesis, unlike the earlier arbitrary-Pi subsingleton argument.
+
+Judgment: this closes the ordinary-field record branch of the proposed
+application invariant beyond empty structures. It permits arbitrary parameter
+syntax, universe changes, and dependent record fields, provided the retained
+field checks are common comparisons. It does not establish that all endpoint
+equalities have those checks. Nested field guards retain their own carriers;
+transporting them needs compatibility of dependent projection recipes with
+the actual family comparison. Function guards need binder/oracle transport.
+A source carrierCompute still needs compatibility between its separate
+computation and the comparison of the original carrier. Recovery and type
+comparison coverage for all strong derivations also remain unproved.
+
+Validation: the module and dependencies build successfully (602 jobs),
+/tmp/compared-record-build.log, with no warnings from the new module.
+Independent opaque DFS covers all five new roots and 10,890 dependencies,
+excluding JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv, and sorryAx. Cumulative opaque
+DFS covers 794 roots and 15,668 dependencies, excluding strengthening inverses
+and sorryAx. Exact-name axiom parsing accounts for every root in both
+inventories and permits only propext, Classical.choice, and Quot.sound.
+Audit sources/logs: /tmp/compared-record-{audit,independent-audit}.{lean,log};
+inventories: /tmp/compared-record-{audit,independent-audit}-roots.txt.
+
+Completion audit: the original UniqueTyping.lean:94 sorry remains. No
+canonical-Eq strengthening proof or counterexample and no strictly smaller
+sufficient irreducible front has been obtained. Keep the goal active. Changes
+are one theory module and EOF ledger additions only; no executable changes,
+extraction, PRs, or coordination.
