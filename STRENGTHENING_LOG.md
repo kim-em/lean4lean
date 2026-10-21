@@ -13167,3 +13167,81 @@ canonical-Eq proof, canonical-Eq counterexample, or genuinely strictly smaller
 sufficient irreducible obligation has been established. Keep the goal active.
 Changes are limited to theory modules and EOF ledger additions. No executable
 changes, PR extraction, PRs, subagents or coordination.
+
+### 2026-10-21 14:49 UTC — Type comparison supplies future carrier checking
+
+Previous goal turn: progress (52218885 proved full future pullback through
+certified carrier computation and repaired a unit/probe composition with
+non-joining indices). This turn revalidated clean HEAD 52218885, GOAL.md and
+the current ledger, then inspected existing type exposure and recursive
+subsingleton comparison before implementing the next transport step.
+
+ProofErasureFutureTypeComparison adds four constructions. First,
+BetaStableFamily.types_inferred promotes the whole future relation between
+independently sort-typed actual types into inferred mode. Each beta residual
+is replayed at its original sort; interpreted substitutions give the new
+actual typed context. The theorem needs primitive descent, not a primitive
+substitution law or a global endpoint-beta transport assumption.
+
+Second, BetaStableFamily.unit_carrier exposes an empty registered family from
+the target type comparison at each future carrier residual. The source family
+parameters are substituted but need not normalize. Every endpoint pair receives
+a guard at the target carrier, so endpoint future paths require no additional
+comparison. proofErase_future_unit_carrier supplies this result from either
+mode of actual future type comparison. The output stays in the same primitive
+relation; only family-head inertness is required in the raw exposure step.
+
+Third, proofErase_certified_compared_subsingleton_future needs only an ordinary
+certified type comparison, not a future comparison of the types. The earlier
+recursive structural-subsingleton comparison theorem extracts a certified path
+from the target to a structural subsingleton. The new certified carrier prefix
+then retains that guard at all future carrier/endpoint beta paths and context
+substitutions. This includes arbitrary dependent Pi telescopes, with the stated
+family-head unfolding exclusion. No unrestricted type-conversion or typed-
+composition law is used.
+
+ProofErasureFutureTypeExample tests both apparent restrictions of that result.
+In a function-variable context, take P = Eq f f and Q = Eq f (fun x => f x).
+Their future eta certificate is now available at any primitive relation; their
+full-union no-join proof is unchanged. Compare P → Unit with Q → K(Unit), where
+K is a closed reflexive Eq type probe. In the common left binder context,
+certified codomain computation and the domain comparison give ordinary
+certified Pi comparison. Actual context conversion equates the two codomain
+erasures without weakening inversion. The source type is structurally
+subsingleton, but the target is not: its codomain has Eq.rec head, excluded
+from structure/function carrier exposure. Any computational join of the full
+types would join their domains by Pi-domain inversion, contradicting the
+eta-index no-join result. Nevertheless the ordinary comparison produces a full
+future carrier certificate for the target and every endpoint pair.
+
+EtaCertifiedProbe.no_join_indices was generalized to provide its future
+certificate at an arbitrary Step while retaining the same no-join claim in the
+full union. Its two callers explicitly select the previous union relation;
+no_join_probe_computes and future_unit_probe_composition_nonjoining_indices
+keep their public statements. Both and the directly dependent application
+example were rebuilt.
+
+Judgment: the next comparison-based transport test succeeds for structural
+subsingletons, even when target syntax hides the subsingleton and the compared
+types have no common computational reduct. The general data-field case still
+needs transport of dependent field checks along compared parameters and majors.
+Non-subsingleton function results, arbitrary paired instantiation and general
+composition remain open. This fragment is not a strictly smaller sufficient
+strengthening obligation; full comparison coverage is not established.
+
+Validation: two new modules, 214 lines, five new public theorems, plus three
+touched public roots. Build of the new example and both affected examples
+succeeds in 680 jobs, without warnings from new/touched modules:
+/tmp/future-type-build.log. Independent opaque DFS covers all eight roots and
+11,527 dependencies, excluding JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport, .weakN_iff, .weakN_inv and
+sorryAx. Cumulative opaque DFS covers 983 roots and 16,050 dependencies,
+excluding strengthening inverses and sorryAx. Exact-name axiom parsing accounts
+for every root once and permits only propext, Classical.choice and Quot.sound.
+Sources/logs: /tmp/future-type-{audit,independent-audit}.{lean,log}; inventories:
+/tmp/future-type-{audit,independent-audit}-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 retains the original sorry. None of the
+three GOAL.md outcomes is established. Keep the goal active. Changes are
+restricted to theory modules and actual EOF ledger additions; no executable
+changes, PR extraction, PRs, subagents or coordination.

@@ -86,6 +86,7 @@ private theorem normal_forms (heq : env.HasCanonicalEq)
 /-- Typed proposition indices with a future eta certificate and no full-union
 computational join. Their exact context is exposed for carrier/conversion tests. -/
 theorem no_join_indices
+    {Step : List ProofShape → ProofShape → ProofShape → Prop}
     (heq : env.HasCanonicalEq)
     (hEq : ∀ levels rhs, ¬ D.unfolds ``Eq levels rhs)
     (hΓ : OnCtx Γ (env.IsType univs)) :
@@ -93,7 +94,7 @@ theorem no_join_indices
       env.HasType univs (functionType :: Γ) P (.sort .zero) ∧
       env.HasType univs (functionType :: Γ) Q (.sort .zero) ∧
       env.HasType univs (functionType :: Γ) q (eqApp (.succ .zero) (.sort .zero) P Q) ∧
-      BetaStableFamily (fun Δ => JointCompare (ErasedJointUnion D) Δ true)
+      BetaStableFamily (fun Δ => JointCompare Step Δ true)
         (proofEraseCtx (functionType :: Γ)) (proofErase (functionType :: Γ) P) (proofErase (functionType :: Γ) Q) ∧
       ¬ ∃ shared,
         ScopedCompute (ErasedJointUnion D) (proofEraseCtx (functionType :: Γ)) (proofErase (functionType :: Γ) P) shared ∧
@@ -101,7 +102,7 @@ theorem no_join_indices
   have hC : OnCtx (functionType :: Γ) (env.IsType univs) := ⟨hΓ, _, function_type⟩
   have hf : env.HasType univs (functionType :: Γ) (.bvar 0) functionType := .bvar .zero
   have HE := IsDefEq.eta hf
-  have Hη := (proofErase_function_eta_family (Step := ErasedJointUnion D) hC hf).joint_symm
+  have Hη := (proofErase_function_eta_family (Step := Step) hC hf).joint_symm
   have HPQ := proofErase_stable_eq_family heq (by trivial) hC function_type hf HE.hasType.1 Hη
   have hP := HasType.eqApp heq (by trivial) function_type hf hf
   have hQ := HasType.eqApp heq (by trivial) function_type hf HE.hasType.1
@@ -137,7 +138,7 @@ theorem no_join_probe_computes
         ScopedCompute (ErasedJointUnion D) (proofEraseCtx Γ') (proofErase Γ' Q) shared) ∧
       ScopedCompute (ErasedBetaStableJoint D) (proofEraseCtx Γ')
         (proofErase Γ' (eqTypeProbe (.succ .zero) (.sort .zero) P Q q)) (proofErase Γ' (.sort .zero)) := by
-  obtain ⟨P, Q, q, hP, hQ, hq, HF, Hno⟩ := no_join_indices heq hEq hΓ
+  obtain ⟨P, Q, q, hP, hQ, hq, HF, Hno⟩ := no_join_indices (Step := ErasedJointUnion D) heq hEq hΓ
   have hC : OnCtx (functionType :: Γ) (env.IsType univs) := ⟨hΓ, _, function_type⟩
   have hS : env.HasType univs (functionType :: Γ) (.sort .zero) (.sort (.succ .zero)) := .sort (by trivial)
   exact ⟨_, P, Q, q, hC, hP, hQ, hq, HF, Hno,

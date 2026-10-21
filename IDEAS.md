@@ -3672,3 +3672,42 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   that transport can be derived from comparison syntax. Simply wrapping the
   existing structural/beta paths was rejected as duplicate work. No GOAL.md
   outcome is established.
+
+### Future carrier checking from type comparison (2026-10-21 14:49 UTC)
+
+- **Read every future type comparison in inferred mode. Verdict: proved.**
+  BetaStableFamily.types_inferred replays the endpoint beta paths at their
+  independent actual sort types and uses interpreted substitution for later
+  contexts. It consumes the comparisons already retained by the input rather
+  than a global primitive substitution or endpoint-beta transport law.
+
+- **Replace prescribed carrier computation by future comparison with an
+  empty family. Verdict: proved at the same primitive relation.**
+  BetaStableFamily.unit_carrier exposes the target family independently at
+  every future target-carrier beta residual, including after substitution.
+  proofErase_future_unit_carrier derives its inferred comparison from actual
+  type typings. Parameters may contain redexes. No global primitive
+  substitution closure or literal type join is needed.
+
+- **Must a certified comparison itself retain futures to transfer a structural
+  subsingleton? Verdict: no.** An ordinary certified type comparison already
+  extracts a certified computation to a structural subsingleton, by the prior
+  recursive comparison theorem. The new carrier-prefix operation turns that
+  path into a full future output certificate. This covers arbitrary dependent
+  Pi telescopes ending in an empty structure, not only a displayed unit.
+
+- **Does this construction merely hide a join of the carrier types, or require
+  an already structural target? Verdict: both limitations refuted.** The
+  checked example compares P → Unit with Q → K(Unit), where K is a closed
+  reflexive Eq type probe. The domains P = Eq f f and Q = Eq f (fun x => f x)
+  have no union computation join, and Pi-domain inversion rules out a join of
+  the full carrier types. Eq.rec at the target codomain excludes a structural
+  subsingleton certificate there. An ordinary certified type comparison still
+  supplies its full future guard.
+
+  Judgment: comparison-based carrier transport closes constructively for this
+  subsingleton fragment. General carriers with data fields still require
+  transport of their dependent field checks; arbitrary type comparison has
+  not been shown to supply that transport. Function domains/bodies with
+  genuinely non-subsingleton results and general composition remain open.
+  No full equality coverage or GOAL.md outcome is claimed.

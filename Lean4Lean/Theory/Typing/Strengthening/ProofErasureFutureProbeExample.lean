@@ -49,7 +49,7 @@ theorem future_unit_probe_composition_nonjoining_indices
         ScopedCompute (ErasedJointUnion D) (proofEraseCtx Γ) (proofErase Γ Q) shared := by
   let S := VExpr.const family ls
   have hΓ : OnCtx [S, S] (env.IsType univs) := ⟨⟨trivial, _, hS⟩, _, hS.weak0 henv.ordered⟩
-  obtain ⟨P, Q, q, hP, hQ, hq, HF, Hno⟩ := EtaCertifiedProbe.no_join_indices heq hEq hΓ
+  obtain ⟨P, Q, q, hP, hQ, hq, HF, Hno⟩ := EtaCertifiedProbe.no_join_indices (Step := ErasedJointUnion D) heq hEq hΓ
   let Γ := functionType :: [S, S]
   have hC : OnCtx Γ (env.IsType univs) := ⟨hΓ, _, function_type⟩
   have hSC : env.HasType univs Γ S (.sort (.succ u)) := hS.weak0 henv.ordered
