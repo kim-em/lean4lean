@@ -14704,3 +14704,65 @@ computed native telescopes, without mistaking identity-cover expansions for
 directed reductions from the original argument or assuming the unresolved
 union beta-join law. Only Theory files and actual-EOF ledger additions change;
 no executable edits, PR extraction, PRs, subagents or coordination.
+
+
+## 2026-10-21 18:47 UTC — Full-union Eq decoding through nondependent anchor covers
+
+Previous goal turn is progress: 86409831 was committed, pushed and audited.
+Revalidated clean HEAD 86409831. Inspected identity-cover and dependent
+recovering-cover results and their existing confluence/beta-stability limits.
+The general dependent native-walk cover shortcut remains unsupported, but
+Eq's native final type is independent of its fixed anchor. That independence
+allows the previous directed square to eliminate the recovery premise.
+
+Added three modules, 372 lines, 11 public theorems:
+
+- ProofErasureJointEqNativeCover first proves computed instantiation of any
+  typed nondependent arrow in the full union, without recovery of the original
+  or computed argument. Expand x to (fun z : A => z) x, use the proven square,
+  and simplify B.lift.inst cover to B. Eq α has the nondependent function type
+  α → (α → Prop); its selected recovery therefore computes from α → Prop for
+  arbitrary typed anchors. A domain projection gives α → selectedDomain.
+  This requires only canonical Eq and sound definitions, not Eq inertness
+  beyond the existing native constant-recovery theorem's head reasoning.
+- ProofErasureJointUnionEqDecode uses that result in the complete inferred
+  comparison induction. Eq heads are inert, source Eq spines have actual
+  typings, and both carriers may have computed from a common ancestor.
+  Actual typed replay is performed after every computation prefix. It proves
+  the raw decoder, the either-mode typed decoder, and base full-union
+  equivalence between repeated-anchor Eq comparison and carrier checking.
+- ProofErasureFutureUnionEqCarrierDecode applies the decoder to every
+  independent carrier and endpoint beta residual, then again after each
+  interpreted substitution. The substituted propositions are typed original
+  terms; no union primitive substitution closure is used. Full future Eq and
+  carrier certificates are equivalent under canonical Eq, sound D and no Eq
+  unfolding. Repeated anchors can be replaced arbitrarily at their assigned
+  carrier. Any such future Eq family guard constructs the actual certified
+  Eq-prefix primitive with its literal generated output.
+
+No earlier theorem was weakened or replaced. In particular the previous
+recoverable-anchor/variable-anchor results remain valid special cases, and
+the certified-only future equivalence remains valid. The new theorem removes
+the missing full-union decoder premise that limited those earlier results.
+It does not prove arbitrary forward guard transport, comparison composition,
+primitive substitution, or certificate completeness for actual equalities.
+
+Validation: final consuming build exits zero in 637 jobs. All three modules
+are warning-free; prior dependency warnings replay. Log:
+/tmp/union-eq-final-build.log. Both opaque DFS audits exit zero. Cumulative:
+1,219 roots / 16,426 dependencies, excluding .weakN_iff, .weakN_inv and
+sorryAx. Independent: 11 roots / 11,303 dependencies, additionally excluding
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure and
+JointPropBetaTransport. Both traverse ci.value? (allowOpaque := true).
+Exact-name axiom inventories cover all roots exactly once and contain only
+propext, Classical.choice and Quot.sound. Artifacts:
+/tmp/union-eq-cover-{audit,independent-audit} with .lean, .log and -roots.txt
+suffixes. Direct module checks also pass without warnings or admissions.
+
+Completion audit: original UniqueTyping.lean:94 sorry remains. No actual
+canonical-Eq counterexample and no strictly smaller sufficient irreducible
+obligation have been established. Keep GOAL.md active. Next exploit the
+lossless Eq encoding in the proposition/carrier beta-transport proof with
+explicit stage/derivation bookkeeping, without assuming that transport
+circularly. Only Theory files and actual-EOF ledger additions changed; no
+executable edits, PR extraction, PRs, subagents or coordination.

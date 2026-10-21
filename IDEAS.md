@@ -4640,3 +4640,55 @@ Next investigate the remaining converted-argument case using explicitly
 computed native telescopes/identity covers, keeping track of the direction
 of beta paths: a cover computes to its argument, and its existence alone
 cannot reverse computation or supply the missing union beta-join law.
+
+
+## 2026-10-21 18:47 UTC — Identity covers remove the full-union Eq decoder gap
+
+- Remove original-argument recovery from the previous native telescope
+  theorem by an identity cover. Verdict: not justified for general dependent
+  codomains: instantiation leaves cover occurrences in the native result, and
+  reversing their beta paths would require an unproved transport/join law.
+  The earlier recovering-substitution-cover and confluence-conditional
+  instantiation results already isolate this issue; no repetition is claimed.
+- Use a cover only where the native result is independent of the argument.
+  Verdict: proved for all typed nondependent arrows in the full union.
+  proofErase_joint_union_computed_arrow_inst covers the original argument,
+  invokes the directed computed-Pi square, then computes the cover to the
+  requested argument image. Instantiation of a lifted result is literally the
+  original result, so no path has to be reversed. Neither the original nor the
+  computed argument needs exact assigned-type recovery.
+- Apply that nondependent arrow lemma to Eq's fixed anchor. Verdict: proved.
+  The type of Eq α is α → (α → Prop), and its final result type is independent
+  of the anchor. Every selected type recovery of Eq α z therefore computes
+  from α → Prop in the entire union, with no recovery premise on z and no
+  unrestricted union substitution law. Its selected argument domain is
+  reached by a path from α. This resolves the earlier general native Eq
+  recovery gap, rather than merely another variable-anchor special case.
+- Decode arbitrary full-union Eq comparisons. Verdict: proved. Actual source
+  replay supplies the carrier/anchor typings at each computation node; the
+  new native result handles appCarrier. The decoder retains independently
+  computed carriers, changing anchors and endpoints, symmetry, and a common
+  ancestor carrier. Either comparison mode of typed Eq propositions yields
+  the endpoint carrier guard. This is lossless at base union checking.
+- Decode the entire future Eq certificate. Verdict: proved, including every
+  interpreted substitution and independent carrier/endpoint beta residual.
+  Each substituted occurrence is decoded afresh, so no union primitive
+  substitution theorem is smuggled in. Under canonical Eq, sound D and no
+  Eq unfolding, proofErase_union_future_carrier_eq_iff identifies full future
+  Eq guards with full future carrier certificates at arbitrary typed carriers.
+- Change the repeated Eq anchor without relating the two anchors. Verdict:
+  proved for complete future union certificates. Both encodings express the
+  same carrier guard. A future Eq guard at any repeated typed anchor now
+  constructs the actual certified Eq-prefix step and its exact generated
+  output, by decoding and re-encoding at the prefix's own anchor.
+
+Judgment: the full-union arbitrary-anchor Eq decoder and its full future
+version are now proved. Earlier ledger entries naming these as open are
+superseded by these theorems. General dependent native-walk recovery and
+unrestricted union substitution remain open; the new proofs do not require
+either. This is not forward persistence under arbitrary primitive computation:
+the preceding conditional PropositionFront barrier for that law remains.
+No GOAL.md success condition is met. Next use the lossless full-union Eq
+encoding in the simultaneous proposition/carrier beta-transport argument,
+tracking source stages and proof dependencies explicitly so that decoding is
+not confused with a proof of the transport law being encoded.
