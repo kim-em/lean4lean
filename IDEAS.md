@@ -4854,3 +4854,40 @@ at every finite stage. The displayed lambda domain is exactly the unrecoverable
 assigned type. This closes the unused-argument branch, not all nonjoining paired
 substitution. The retained-occurrence case, including the primitive-free Eq
 peak, remains open. No smaller sufficient irreducible front is asserted.
+
+
+## 2026-10-21 19:57 UTC — Actual universe-context transport and retained-argument beta
+
+Revalidated the current worktree after the discussion-only turn. The original
+semantic-sort carrier readout already exists; re-proving it would not advance
+the goal. The existing universe-binder transport, however, requires arbitrary
+primitive context substitution, unavailable for the actual joint union.
+Tested removing that assumption by a simultaneous finite-stage argument.
+
+Verdict: successful. Typed primitive transport through universe oracle changes
+closes at every original stage. Source semantic replay realizes intermediate
+computations; recovery conversion replays the changed result and transfers its
+path using its actual typing. The shared joint checking induction preserves
+exact application domains. The general singleton case extends the context
+relation through its actual generated dependent telescope, retaining the
+family comparison certificate; specialized Eq prefixes retain their carrier
+certificate. No arbitrary substitution, semantic head exposure, carrier
+re-synthesis, or proposition beta transport is assumed. The union follows
+without a uniform stage bound.
+
+Applied this to the retained-argument head-beta branch: move each displayed
+lambda domain to its semantically equal literal universe before instantiating
+body comparisons and body computations. The argument need recover only the
+literal universe, not either displayed annotation. The whole inferred-lambda
+induction includes computation and eta; the proposition-valued paired theorem
+allows two arguments with the same erasure. A fresh proposition variable under
+a beta-expanded Prop annotation cannot recover that displayed annotation in
+the full union, yet all compared proposition bodies under that annotation
+satisfy the new result, including bodies retaining the variable.
+
+Boundary: recovery at the literal universe is still required; arbitrary
+universe-valued expressions are not asserted to have this exact recovery.
+Distinct nonjoining argument erasures and the primitive-free Eq peak remain
+open. This is a strictly stronger checked beta case, not a proof of PropFront
+or a new strictly smaller sufficient irreducible obligation. Keep the original
+goal active; no PR extraction.

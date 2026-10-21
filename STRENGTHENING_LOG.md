@@ -15073,3 +15073,47 @@ has been established. The hard paired-beta case with retained argument
 occurrences remains open, including the primitive-free Eq peak. Keep GOAL.md
 active and its full scope unchanged. Only Theory and actual-EOF ledger
 additions changed; no executable edits, PR extraction, PRs or coordination.
+
+
+## 2026-10-21 19:57 UTC — Universe context conversion at actual stages
+
+Added three Theory modules (743 lines, 12 public theorems):
+
+- ProofErasureJointUniverseStage.lean: source-typed computation transport,
+  universe-result recovery, shared checking transport, generated-telescope
+  family guard transport, and both singleton/Eq-prefix primitive cases close
+  the finite-stage induction. Public computation, recovery, both checking
+  modes, and literal-universe binder replacement hold at the original finite
+  stage and at the full joint union. Binder replacement requires actual type
+  equality, not a computation to the universe. Recovery outputs may change
+  universe terminals, preserving typed Pi domains and registered record heads.
+- ProofErasureJointUniverseHeadBeta.lean: arbitrary typed body comparison can
+  be instantiated through a converted universe binder using recovery only at
+  the literal universe. The inferred-lambda proof transports body computation
+  in the compute branch before substitution, retaining the actual original
+  argument. Paired proposition head beta follows for equal-erasure arguments;
+  no recovery at either displayed lambda annotation is assumed.
+- ProofErasureJointUniverseBetaExample.lean: the fresh proposition variable
+  recovers Prop but provably cannot recover an application-shaped beta expansion
+  of Prop, since sort computation is fixed. Nevertheless every inferred
+  comparison of proposition lambdas at that expanded annotation satisfies the
+  new diagonal beta result, without an unused-variable restriction on bodies.
+
+Validation: consuming build passes in 639 jobs
+(/tmp/universe-final-build.log). All three new modules compile without warnings;
+pre-existing dependency warnings remain. Cumulative opaque DFS audit:
+1,268 public roots / 16,515 dependencies. Independent audit: 12 public roots /
+11,040 dependencies. Both exclude weakN_iff, weakN_inv and sorryAx;
+independent also excludes JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure and JointPropBetaTransport. Exact-name inventories
+cover every root once and permit only propext, Classical.choice and Quot.sound.
+Audit artifacts: /tmp/universe-{audit,independent-audit}.lean and .log, with
+-roots.txt inventories. Audit outputs have no warnings or errors.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+No canonical-Eq counterexample or strictly smaller sufficient irreducible
+front has been established. The new theorem retains literal-universe argument
+recovery and equal argument erasure; it does not resolve the arbitrary
+nonjoining retained-argument case or primitive-free Eq peak. No executable,
+verification, or existing proof files changed. No PRs, extraction or coordination.
+GOAL.md remains active with its full original scope.
