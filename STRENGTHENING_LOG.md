@@ -14001,3 +14001,53 @@ Artifacts: /tmp/rigid-oracle-{audit,independent-audit}.{lean,log}, matching
 This is the recovery prerequisite, not joint guard transport or a GOAL.md
 success. UniqueTyping.lean:94 retains its original sorry. No executable edits,
 PR extraction, PRs, subagents or coordination.
+
+
+## 2026-10-21 16:41 UTC — Transport complete typed guards and read closed function targets
+
+Timestamp correction: the preceding recovery entry was recorded at 16:40 UTC,
+not its prematurely written 16:42 heading.
+
+ProofErasureJointRigidContext adds a simultaneous typed result for comparison
+and carrier modes. The full induction covers every joint constructor without
+semantic head exposure or carrier-domain re-synthesis. In appCarrier the new
+recovery has exactly the old domain, so the smaller argument guard transports
+at that domain. Computations move through actual equal contexts, function
+bodies extend the same binder, and dependent record recipes stay exact. Both
+modes specialize to replacing one binder by an equal closed rigid type, with
+an unconditional certified-primitive specialization.
+
+ProofErasureClosedFunctionReadout uses that result for target Pi types with a
+closed rigid domain and a ClosedBoxCarrier codomain. Actual source endpoints
+must be typed. Arbitrary source computation prefixes replay; exposed source
+records are excluded by head separation; structural Pi subsingletons produce
+body guards. For function guards, actual Pi equality changes the binder and
+relates codomains. The supplied ordinary body guard moves through the changed
+context and existing Box readout handles its codomain. No future-body inversion
+is used. The target is beta fixed, and realizing future endpoint beta paths
+and interpreted substitutions proves full future readout, including for the
+certified relation. This does not assert substitution closure for the whole
+ErasedJointUnion relation or arbitrary target function types.
+
+Validation: these two modules add 624 lines and eight public roots (seven
+theorems and one definition). Together with the preceding recovery commit,
+this milestone has 954 lines and twenty public roots. The dependent build
+terminates successfully in 630 jobs; new modules emit no warnings. Existing
+dependency warnings, including the original UniqueTyping sorry, are replayed.
+Log: /tmp/closed-function-readout-build.log. Both audit processes exit zero.
+Independent opaque DFS checks all twenty new roots and 10,986 dependencies,
+excluding JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv and sorryAx. Cumulative opaque DFS
+checks 1,074 roots and 16,208 dependencies, excluding strengthening inverses
+and sorryAx. Exact-name axiom parsing covers each root exactly once, permitting
+only propext, Classical.choice and Quot.sound. Artifacts:
+/tmp/closed-function-{audit,independent-audit}.{lean,log} and matching
+-roots.txt inventories. The DFS explicitly traverses opaque declaration values.
+
+Completion audit: inspected UniqueTyping.lean:94; the original sorry remains.
+There is still no canonical-Eq strengthening proof, canonical-Eq counterexample,
+or strictly smaller sufficient irreducible obligation. This turn is progress:
+full typed context transport and function future readout are new checked
+results. GOAL.md stays active. Only theory modules and actual EOF ledger
+additions change. No executable edits, PR extraction, PRs, subagents or
+coordination.

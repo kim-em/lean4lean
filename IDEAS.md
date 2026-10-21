@@ -4115,3 +4115,37 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   transport. Recovery alone does not move argument guards or prove function
   carrier conversion. Full joint transport is the next step; all three GOAL.md
   success conditions remain open.
+
+
+## 2026-10-21 16:41 UTC — Full typed context transport and closed function readout
+
+- Timestamp correction: the preceding recovery entry was recorded at 16:40 UTC;
+  its 16:42 heading was ahead of the wall clock.
+- Idea: exploit the exact recovered domain in a typed induction over the full
+  joint judgment. Verdict: proved. JointCheck.rigid_oracles transports both
+  checking modes, retaining raw endpoints and carrier syntax. Actual context
+  equality supplies forward typing and erasure compatibility. Applications
+  reuse their argument guard at the exact domain; function bodies extend the
+  same binder on both sides; nested records retain their exact field recipes.
+  The single closed rigid binder replacement is proved for both modes and
+  specialized to certified primitives.
+- Idea: use this transport to read a function guard at an actually equal target
+  Pi whose domain is closed rigid and codomain lies in ClosedBoxCarrier.
+  Verdict: proved for arbitrary typed source endpoints and source carriers,
+  including carrier computation prefixes and all guard constructors. Pi
+  equality supplies domain/codomain equalities. The ordinary function rule
+  supplies a body guard, which moves through the equal binder and is read at
+  the target codomain. Structural Pi subsingletons supply body guards directly.
+  This does not invert a future lambda certificate.
+- Full future readout also holds: the closed function target is beta fixed,
+  endpoint beta paths replay with their typings, and interpreted substitutions
+  preserve the target syntax. A certified specialization discharges every
+  primitive premise. No unrestricted union substitution theorem is claimed.
+
+  Judgment: function carriers now enter the constructive target fragment.
+  Source types are unrestricted but targets still have one closed rigid domain
+  and a closed nested-Box codomain. Arbitrary function domains, dependent target
+  codomains and general semantic head exposure remain unresolved. Recursive
+  function codomains are a live extension; the general argument must eventually
+  handle changes of recovered domains, rather than merely accumulate closed
+  examples. These results do not establish any GOAL.md success condition.
