@@ -4766,3 +4766,30 @@ for an actual function join while dropping the shared-image recovery premise;
 it is not an unconditional strengthening of the previous theorem. Arbitrary
 carrier-related arguments still need not join, so the converted-unit peak
 and the main strengthening obligation remain open.
+
+
+## 2026-10-21 19:22 UTC — Retain certificates when descending computation and recovery
+
+The existing joint descent results reconstruct actual lower typing/equality
+but do not return lower checking certificates. This loses reusable evidence
+when trying to localize later conversion and body checks. Investigated a
+stronger certificate-preserving induction rather than assuming semantic
+descent also proves this stronger property.
+
+`ProofErasureCertificateDescent` defines the precise primitive interface and
+proves compatible computation and selected recovery retain lower certificates
+under arbitrary block insertion. Changing lambda/Pi annotations use actual
+context conversion only to identify the output erasure; the lower body path
+retains its original binder. The recovery induction reconstructs the exact
+selected output, including projected field recipes and type computation.
+
+Verdict: generic closure checked, and an unconditional stage-zero instance
+checked. Core primitive descent first establishes a lower typed representative
+and a lifted output; raw retraction then constructs the lower core step.
+Computation and exact selected recovery have literal lift iff theorems at
+stage zero. No removed binder is inhabited, and no inverse typing weakening
+is used. Higher joint stages still require certificate-preserving descent of
+their comparison/carrier guards. Next extend the mutual joint-check induction
+using these computation/recovery results, then reconstruct singleton guards.
+This is a reusable induction tool, not completeness or a smaller sufficient
+strengthening front.

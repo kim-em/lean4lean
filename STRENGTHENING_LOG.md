@@ -14918,3 +14918,51 @@ No canonical-Eq counterexample or strictly smaller sufficient irreducible
 obligation is established. Keep GOAL.md active. Only Theory and actual-EOF
 ledger additions changed; no executable edits, PR extraction, PRs or
 coordination.
+
+
+## 2026-10-21 19:22 UTC — Certificate-preserving descent for computation and recovery
+
+Previous goal turn is progress: 9c9f9b35 committed, pushed and audited the
+paired computational join result. Revalidated clean HEAD 9c9f9b35. Reviewed
+the strong-derivation and selective-development constraints and the current
+contextual descent interfaces. Existing sound descent yields ordinary lower
+equalities/typings; it explicitly does not preserve a recovery certificate.
+The older raw thinning theorem applies to substitution-stable unscoped
+relations, so it cannot simply be invoked for contextual joint stages.
+
+Added ProofErasureCertificateDescent, 345 lines, one definition and six
+theorems. ErasedScopedPrimitiveCertificateDescent records actual lower typing
+equality, a Target computation, and exact lifted output. Forgetting the
+certificate supplies the old semantic interface. The compatible computation
+induction retains a lower path in every constructor, including under changing
+binder annotations. The selected-recovery induction retains its full lower
+certificate in all cases: variables, universes, constants, lambdas,
+applications, Pis, projection recipes and computed result types. The selected
+type is reconstructed rather than assumed to be the originally assigned type.
+
+The actual ordinary core satisfies this stronger primitive property at stage
+zero. Typed semantic descent proves the output has the required lifted form;
+only then is raw substitution by the thinning retraction applied to the core
+primitive. The resulting compute_lift_iff and recovery_lift_iff preserve both
+the exact prescribed raw output and stage. They need sound definitions and
+source typing below, but no canonical-Eq hypothesis, inserted inhabitants, or
+reverse typing weakening. Higher-stage primitive certificate descent is not
+claimed: its family/carrier guard certificates must still be reconstructed.
+The next concrete step is the mutual joint-check certificate induction, using
+the new computation/recovery lemmas, followed by the stage induction.
+
+Validation: clean direct Lean check; consuming build succeeds in 528 jobs
+(/tmp/certificate-descent-final-build.log). Cumulative opaque DFS audit:
+1,236 roots / 16,448 dependencies. Independent audit: 7 roots / 8,690
+dependencies. Both exclude weakN_iff, weakN_inv and sorryAx; independent also
+excludes JointCarrierDomainResynthesis, ScopedSemanticHeadExposure and
+JointPropBetaTransport. Exact-name inventories cover all roots once and allow
+only propext, Classical.choice and Quot.sound. Artifacts:
+/tmp/certificate-descent-{audit,independent-audit} with .lean, .log and
+-roots.txt suffixes. New module and audit outputs have no warnings.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+No canonical-Eq counterexample or strictly smaller sufficient irreducible
+obligation is established. Keep GOAL.md active. Only Theory and actual-EOF
+ledger additions changed; no executable edits, PR extraction, PRs or
+coordination.
