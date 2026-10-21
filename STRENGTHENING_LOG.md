@@ -15568,3 +15568,49 @@ established. The goal remains active. This turn completes the unfinished
 short/motive-spine work and a genuine additional eta case, not the goal itself.
 Only Theory modules and actual-EOF ledgers change; no executable changes,
 PR extraction, subagents or coordination.
+
+
+## 2026-10-21 21:24 UTC — Final-index eta via exact singleton-guard separation
+
+Added ProofErasureEqSeparatedSpine.lean and ProofErasureEqEndpointEta.lean.
+The first shows that a retained five-argument Prop-carrier Eq prefix with no
+comparison of its original proposition indices computes only its arguments.
+The proof decomposes a first-head occurrence, excludes core steps by arity,
+forces general singleton arity to five, and reads its exact original-index
+comparison certificate to contradict the separation assumption.
+
+For the actual probe's eta body before its final proposition index, typed
+fresh-variable separation supplies that assumption. This handles the arity
+where singleton elimination is otherwise available. Earlier proposition and
+motive computations descend exactly; the fresh index and literal universe
+minor are fixed. First-head beta then transfers arbitrary consumed-image and
+pending-argument paths, retaining the exact continuation to any universe.
+The actual probe and arbitrary inserted-context version preserve comparison
+of the original proposition indices as the exact criterion. No argument
+recovery or strengthening inverse is used.
+
+Extended JointSpineEtaCompute with eqEndpointEta, keeping the continuation
+induction, universe equivalence and lower probe criterion valid for finite
+interleavings. Arbitrary contextual eta, structure eta and general paired
+substitution remain uncovered. The minor-premise eta case is still live;
+its canonical motive-application domain prevents directly reusing the existing
+literal-domain lemma, despite the minor itself being a literal universe.
+
+Validation: consuming build passes in 673 jobs
+(/tmp/eq-endpoint-interleaving-build.log). The new and changed modules have no
+warnings; dependency warnings predate these edits. Cumulative opaque DFS:
+1,348 public roots / 16,634 dependencies. Independent audit: all 15 public
+roots of the three affected modules, including all six relation constructors,
+with 11,429 dependencies. Both exclude weakN_iff, weakN_inv and sorryAx;
+independent additionally excludes JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport and JointPropBetaStability.
+Exact root inventories and the propext/Classical.choice/Quot.sound axiom
+whitelist pass; audit logs have no errors or warnings. Artifacts:
+/tmp/endpoint-eta-{audit,independent-audit}.lean and .log, with -roots.txt inventories.
+
+Completion audit: UniqueTyping.lean:94 still has the original sorry. No
+canonical-Eq counterexample or strictly smaller sufficient irreducible
+obligation has been established. GOAL.md remains active. This turn makes
+verified progress on the exceptional five-argument eta body, not a complete
+strengthening proof. Only Theory files and actual-EOF ledger entries change;
+no executable changes, PR extraction, subagents or coordination.

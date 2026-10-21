@@ -5154,3 +5154,40 @@ body has five arguments and may enable a singleton guard. Excluding or
 descending that guard needs an argument about comparison against the fresh
 index, not merely proper-prefix arity. Eta inside arguments and general
 paired substitution still remain beyond these spine results.
+
+
+## 2026-10-21 21:24 UTC — Exclude the five-argument guard by fresh-index separation
+
+Verdict: proved eta removal before the final proposition index of the actual
+Eq type probe, including exact lower comparison certificates and finite
+interleavings. Proper-prefix arity alone stops at five supplied arguments.
+However, every singleton head occurrence after arbitrary argument computation
+retains a comparison certificate of the original proposition indices. Thus a
+retained five-argument prefix with noncomparable original indices computes
+only its arguments. This is proved for the full joint union, not only core
+reduction or a selected singleton rule.
+
+In the final-index eta body, the first proposition is lifted from below and
+the final index is the fresh proposition variable. Existing typed fresh-variable
+readout excludes their comparison by exact computation descent and the range
+of lifting. Applying the separated-prefix theorem retains all earlier argument
+paths. The fresh index and literal minor universe stay fixed; the proposition
+and motive paths descend across the binder. The short application therefore
+reproduces the exact first-beta contractum for any raw consumed index and any
+pending arguments. No recovery of the index or motive is assumed.
+
+The actual probe theorem preserves its original index-comparison criterion,
+and the inserted-context version requires the equality major only upstairs.
+JointSpineEtaCompute now includes this endpoint eta rule; its universe criterion
+survives the extension. This covers the formerly exceptional five-argument
+eta body but does not cover arbitrary eta inside arguments or full semantic
+reduction. No strictly smaller sufficient irreducible front is established.
+
+The minor-premise case remains live. Although the concrete minor is a literal
+universe, its canonical assigned domain is a motive application that computes
+to a universe, not a literal universe annotation. The existing literal-domain
+eta lemma therefore does not directly cover it. A fresh minor variable should
+instead allow proper-prefix decomposition and descent of the earlier arguments.
+After that, all individual direct prefixes of the probe must still be connected
+to arbitrary contextual eta and structure eta; finite spine coverage alone is
+not the goal's missing semantic coverage theorem.

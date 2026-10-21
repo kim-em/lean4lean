@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqMotiveEta
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqEndpointEta
 
 /-! # Finite computation with removable function-spine eta
 
@@ -6,7 +6,8 @@ Ordinary joint computation may interleave with function eta at any nonempty
 application prefix whose consumed argument is exactly recoverable, or whose
 eta function is scoped-normal. The latter includes the first proposition
 index of Eq.rec without recovery of that proposition. A third rule handles
-its motive prefix by descending the computed index certificate. All pending arguments
+its motive prefix by descending the computed index certificate. The probe's
+final index uses fresh-variable separation to exclude singleton computation. All pending arguments
 are retained. Such finite paths expose exactly the same literal universes as
 ordinary joint computation. Eta inside arbitrary arguments, structure eta,
 and other prefixes consuming unrecoverable arguments are not covered.
@@ -18,7 +19,8 @@ variable [Params]
 /-- Finite interleavings of full-joint computation and certified function-spine eta.
 An eta step records recovery of its consumed argument at its original
 domain, scoped normality of the eta function, or the canonical Eq motive-prefix
-typings that permit exact descent of earlier index computations. Proof arguments meet recovery
+typings that permit exact descent of earlier index computations. The type
+probe also admits endpoint eta by fresh-variable separation. Proof arguments meet recovery
 vacuously. This is a proved fragment, not an assertion that arbitrary
 FullReduction paths have these certificates. -/
 inductive JointSpineEtaCompute (D : PureObservation.Definitions) :
@@ -58,6 +60,20 @@ inductive JointSpineEtaCompute (D : PureObservation.Definitions) :
           (.forallE (eqApp (.succ .zero) (.sort .zero) P.lift (.bvar 0)) (.sort (.succ v)))))
           (.app ((mkApps (.const ``Eq.rec [.succ v,.succ .zero])
             [.sort .zero,proofErase Γ P]).liftN 1) (.bvar 0))) (x :: xs))
+  | eqEndpointEta
+      (hregistry : recursorData ``Eq.rec = env.recursorRegistry ``Eq.rec)
+      (hEq : ∀ levels rhs, ¬ D.unfolds ``Eq levels rhs)
+      (hRec : ∀ levels rhs, ¬ D.unfolds ``Eq.rec levels rhs)
+      (hv : v.WF univs) (hΓ : OnCtx Γ (env.IsType univs))
+      (hP : env.HasType univs Γ P (.sort .zero)) :
+      JointSpineEtaCompute D (proofEraseCtx Γ)
+        (mkApps (.app (mkApps (.const ``Eq.rec [.succ (.succ v),.succ .zero])
+          [.sort .zero,proofErase Γ P,
+            proofErase Γ (constantEqMotive (.succ .zero) (.sort .zero) P (.sort (.succ v))),.sort v]) x) xs)
+        (mkApps (.lam (.sort .zero) (.app ((mkApps (.const ``Eq.rec [.succ (.succ v),.succ .zero])
+          [.sort .zero,proofErase Γ P,
+            proofErase Γ (constantEqMotive (.succ .zero) (.sort .zero) P (.sort (.succ v))),.sort v]).liftN 1)
+          (.bvar 0))) (x :: xs))
   | trans : JointSpineEtaCompute D Δ a b → JointSpineEtaCompute D Δ b c →
       JointSpineEtaCompute D Δ a c
 
@@ -78,6 +94,8 @@ theorem JointSpineEtaCompute.sort_continuation
       (fun R => R.fixed_of_scoped_normal H)).1 RT
   | eqMotiveEta hregistry hEq hRec hv hΓ hP hA hf hn =>
     exact (eqRec_motive_eta_spine_sort_iff heq hs hregistry hEq hRec hv hΓ hP hA hf hn).1 RT
+  | eqEndpointEta hregistry hEq hRec hv hΓ hP =>
+    exact (eqTypeProbe_endpoint_eta_spine_sort_iff heq hs hregistry hEq hRec hv hΓ hP).1 RT
   | trans _ _ ih₁ ih₂ => exact ih₁ (ih₂ RT)
 
 /-- Allowing any finite interleaving of the certified function-spine eta rules does
