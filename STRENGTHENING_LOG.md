@@ -14394,3 +14394,59 @@ availability, and the dependent telescope part of general output transport is
 constructed. Keep the full goal active. Only theory modules and actual EOF
 ledger additions change; no executable edits, PR extraction, PRs, subagents
 or coordination.
+
+
+## 2026-10-21 17:50 UTC — General singleton outputs through computed arguments
+
+The previous research turn was progress (edb5760f); the intervening user
+clarification changed no research state. Revalidated the clean worktree and
+GOAL.md, then completed the general prefix output path left open there.
+
+ProofErasureComputedProviders supplies six checked public theorems. Raw
+peeling of a typed type has an actual telescope realization. Typed finite
+computation preserves successful peeling of the original number of binders.
+Whole-type replay followed by forall-context inversion yields an actual
+IsDefEqCtx of the full residual contexts. Proof status of every bvar is
+therefore unchanged, independently of whether its raw declaration annotation
+changed or the bvar itself has an explicit typing premise. The opened provider
+vector computes in the original full context: argument paths lift through
+that well-formed context and the fresh suffix agrees exactly.
+
+ProofErasureSingletonOutputComputation integrates this with the actual
+singleton generator. A private typed supply walk connects successful native
+supply to InstForallsC. Native computed supply constructs the residual-type
+path; typed Pi inversion gives all dependent annotation paths and successful
+target peeling, and actual context realization gives fresh-provider equality.
+Valid.telescope_compute_exists needs no family guard. Valid.output_compute
+uses the old guard only to type the fixed equation-body capture vector; taking,
+dropping, and selecting slots preserves its computation. Template substitution
+computes the body, then wrapLams computes the whole generated output.
+Valid.output_compute_exists removes the target telescope-success premise and
+produces the new telescope and output path together. It assumes no target
+guard, target argument typing, or supplied carrier re-synthesis law.
+Valid.certified_residual closes a singleton/argument fork for arbitrary residual
+telescopes when the changed arguments supply their own full future union
+guard. Its target source typing is replayed from the old typed source.
+
+Validation: two theory modules, 373 lines, ten new public theorems. Final
+consuming build exits zero in 603 jobs; both new modules are warning-free
+(existing dependency warnings replay). Log:
+/tmp/singleton-general-final-build.log. Both opaque dependency audit processes
+exit zero. Cumulative audit: 1,153 public roots, 16,343 dependencies, excluding
+.weakN_iff, .weakN_inv and sorryAx. Independent audit: 10 roots, 10,965
+dependencies, additionally excluding JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure and JointPropBetaTransport. Both traverse
+ci.value? (allowOpaque := true). Exact-name axiom inventory matches every root
+exactly once and allows only propext, Classical.choice, Quot.sound. Sources,
+logs and root inventories: /tmp/singleton-general-{audit,independent-audit}
+with .lean, .log and -roots.txt suffixes.
+
+Completion audit: the original sorry at UniqueTyping.lean:94 is still present.
+No canonical-Eq counterexample or strictly smaller sufficient obligation has
+been proved. GOAL.md remains active. This turn is progress because the full
+nonsaturated output branch is now checked and target telescope existence is
+proved. The remaining guard availability question is distinct; global future
+common transport and arbitrary supplied-carrier transport must not be used to
+fill it. Next examine the actual singleton family's dependent parameter/index
+carriers across these paths. Only theory and actual EOF ledger additions
+change; no executable edits, PR extraction, PRs, subagents or coordination.

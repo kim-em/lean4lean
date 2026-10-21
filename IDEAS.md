@@ -4412,3 +4412,39 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   to preserve contextVariable's proof classification. Interpreted raw identity
   substitution alone must not be assumed to preserve proof-variable status:
   its erasure agreement constrains retained variables, not hidden proof images.
+
+
+## 2026-10-21 17:50 UTC — General singleton output computation
+
+- Realize computed residual telescopes as actual converted contexts. Verdict:
+  proved in ProofErasureComputedProviders. Successful raw takeForalls of a
+  typed type has an actual telescope realization. Replay of the whole type
+  computation and forall-context inversion give actual IsDefEqCtx between
+  source and target full telescope contexts. Every fresh contextVariable is
+  unchanged, by isProof_defeqCtx, even when raw annotations differ. This
+  avoids the invalid inference from interpreted identity substitution alone.
+- Preserve successful residual peeling under argument computation. Verdict:
+  proved. Typed Pi computation retains enough displayed binders; native supply
+  transports the argument vector first. Valid.telescope_compute_exists needs
+  neither an old nor a new family guard. Target telescope success is no longer
+  an independent premise of the existential output theorem.
+- Assemble general prefix output congruence. Verdict: proved. Opened argument
+  computation combines lifted supplied paths with the unchanged fresh suffix;
+  the old guard types the fixed body captures. Selected capture computation,
+  template substitution, and ScopedTelescopeCompute.wrapLams give the entire
+  output path, including arbitrary dependent residual annotations.
+  Valid.output_compute_exists produces both the new telescope and output path
+  from the old guard and argument computations, without a new guard.
+- Close the singleton/argument fork when its target guard is available.
+  Verdict: proved by Valid.certified_residual for ErasedBetaStableJoint. Target
+  source typing is replayed. A new full future family guard remains explicit.
+
+  Judgment: this closes the previously missing nonsaturated output side of
+  the fork, not its target-guard side. No global future common-comparison or
+  fixed-carrier forward-transport law has been assumed; previous refutations
+  and PropositionFront reductions still apply. Next investigate the guard at
+  the actual singleton family after computed parameters/indices, retaining
+  their native dependent carriers and the converted residual context. Do not
+  replace this with the already refuted arbitrary common guard transport.
+  This is progress toward the route, not a GOAL.md success condition or a
+  proved strictly smaller sufficient obligation.
