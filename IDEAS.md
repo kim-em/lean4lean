@@ -2096,3 +2096,29 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   residuals also retain one parallel output step, with no typing or stability
   premise. This supplies the step control missing from the earlier arbitrary
   finite-beta residual theorem.
+
+- **Strengthen all joint primitive residuals to parallel beta.**
+  **Conditional theorem checked** in `ProofErasureJointParallelSingleton` and
+  `ProofErasureJointParallelPrimitive`. Exact parallel argument replay and
+  parallel congruence of generated programs retain one parallel step between
+  the old and new outputs. The existing proposition beta-stability premise
+  transports the family guard using serialization of argument developments.
+  Specialized Eq again uses its general singleton presentation. Every typed
+  joint primitive now has a single parallel residual; no additional guard
+  stability or confluence premise is introduced.
+
+- **Lift beta residuals to arbitrary compatible joint paths.**
+  **Conditional full commutation proved** in `ProofErasureJointParallelStrip`
+  and `ProofErasureJointBetaCommutation`. Induction on a full joint path moves
+  one parallel development across it. Typed replay supplies each sequential
+  intermediate; proposition-derived context transport handles the two binder
+  cases. In the application/root-beta case, component residuals and lambda
+  inversion supply the inputs to the previously checked exact head-beta
+  exchange, so argument duplication needs no recovery premise or fixed stage
+  bound. Serializing an arbitrary beta path then proves joint/beta commutation:
+  the joint output has a beta path to a common term, and the beta output has an
+  actual joint path to it. Finite-stage input admits a finite later-stage
+  residual. This closes the path-lifting gap, not proposition beta stability
+  itself or confluence of two arbitrary joint paths. The stability premise is
+  used in primitive guard and context/substitution transport, so this result
+  cannot establish it circularly.

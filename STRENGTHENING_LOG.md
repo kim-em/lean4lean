@@ -10095,3 +10095,66 @@ audit, which passes with no strengthening inverses, sorryAx, or carrier-domain
 re-synthesis. The cumulative audit passes for 549 roots; exact counts and logs
 are recorded with the integrated commutation result below. No executable or
 PR changes. The original strengthening goal remains open.
+
+## 2026-10-21 — Full joint/beta commutation from proposition stability
+
+ProofErasureJointParallelSingleton strengthens the singleton residual diagram
+from finite beta to one parallel beta step on the output side. It replays raw
+parallel argument developments exactly, uses the original empty-declaration
+parallel relation as a congruence relation on generated programs, and applies
+the existing family-guard beta transport to their serialized beta paths. Thus
+the new guard still uses only JointPropBetaStability for the full union, while
+the entire generated output, including its annotations, develops in one step.
+The specialized Eq branch retains its exact raw output by its general-singleton
+presentation. ProofErasureJointParallelPrimitive combines this with the
+ordinary parallel residual theorem for every joint-union primitive branch.
+
+ProofErasureJointParallelStrip lifts that invariant to the entire compatible
+joint computation relation. Its induction handles all constructors. Primitive
+roots use the new parallel residual. Ordinary beta segments use the typed
+parallel strip theorem. Sequential paths replay their intermediate term and
+pass the single residual parallel step to the next segment. Projection and
+application congruence combine component residuals. Lambda and Pi use typed
+identity context transport to move body residuals to the annotation produced
+by the parallel step.
+
+The application/root-beta case is the critical use of the earlier work.
+Unconditional lambda inversion fixes the function output's shape. A parallel
+comparison of the original function with the lambda whose body has developed
+produces component residuals. Exact parallel replay gives typed body and
+argument representatives at the parallel endpoint. The previously established
+head-beta exchange then constructs the actual right residual, including every
+copy of the computed argument. No assigned-type recovery, raw confluence,
+normalization, or fixed development-round bound is assumed.
+
+ProofErasureJointBetaCommutation serializes any finite raw beta path through
+its typed original replay into original parallel developments. Iterating the
+parallel strip theorem yields a shared raw term: the original joint output
+reaches it using beta alone, and the beta output reaches it by actual joint
+computation. The finite-stage corollary extracts a later stage at least as large
+as the input stage; it does not assume a uniform stage bound. Both residuals
+use the exact original endpoints and the original ambient context.
+
+Scope: this proves full joint/beta commutation, conditional on canonical Eq,
+sound definitions, Eq registry agreement and full-union proposition beta
+stability. It does not prove joint/joint confluence or proposition comparison
+stability. The same stability premise supplies earlier guard substitution and
+context transport, so commutation cannot be used circularly to discharge it.
+A next comparison-closure argument can use this result for its computation
+cases, but must independently justify the remaining comparison cases or use
+a well-founded simultaneous construction. The proposition front and its
+sufficiency/strictness judgment have not been obtained.
+
+Validation: the combined target builds successfully (566 jobs), log
+/tmp/joint-beta-commutation-build.log. The cumulative opaque dependency audit
+passes for 549 public declarations and 15,314 dependencies. The independent
+audit passes for all 20 new public declarations and 11,407 dependencies,
+additionally excluding JointCarrierDomainResynthesis. Both reject weakN_iff,
+weakN_inv and sorryAx. Every requested axiom report was parsed and accounted
+for; all use only propext, Classical.choice and Quot.sound. Sources/logs:
+/tmp/joint-beta-commutation-{audit,independent-audit}.{lean,log}.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+No canonical-Eq strengthening counterexample or strictly smaller sufficient
+front is proved. The goal remains active. No executable changes, extraction,
+PRs, agents or coordination.
