@@ -12661,3 +12661,68 @@ There is no canonical-Eq strengthening proof, canonical-Eq counterexample or
 proved strictly smaller sufficient irreducible obligation. Keep the full goal
 active. Only theory modules and actual EOF ledger additions changed; no
 executable changes, extraction, PRs, subagents or coordination.
+
+
+## 2026-10-21 13:39 UTC — Structural type conversion saturated by finite beta paths
+
+Previous goal turn classification: progress. Current-state inspection confirms
+68685675 and a clean worktree. The general local-law theorem gave full checking
+transport but kept displayed type shapes exact. This turn establishes the
+appropriate finite path closure and checks that raw shape-preserving coverage
+is impossible even for a simple typed beta equality.
+
+ProofErasureTypeChangePaths defines TypeChangePath at a fixed context and sort.
+Edges are structural changes with actual type equality and the proposed erased
+relation, typed beta reductions, typed beta expansions, and finite composition.
+The path's actual equality is derived by beta reflection and transitivity.
+Symmetric structural relations give reversible paths. Full certified carrier
+and context comparison transport is proved for every finite mixed path.
+Forward beta applies the existing certified oracle/carrier result; reverse
+carrier beta wraps a carrier computation. Reverse context beta uses exact
+recovery of the old annotation from the expanded variable declaration. A new
+generic computation-pullback theorem establishes this direction in the same
+primitive relation whenever its primitives are substitution closed; it works
+for arbitrary annotation computation, not only beta. Term endpoints are fixed.
+
+ProofErasureTypeChangePathExample first proves a limitation of the entire
+local-law interface: for any relation satisfying TypeChangeLaws, Prop and its
+identity-wrapper expansion are typed equal and connected by a TypeChangePath,
+but cannot be related directly, by exact sort exposure. Thus the prior idea of
+covering arbitrary equality with the same raw relation is definitively too
+strong. A mixed path closure or a weaker interface is required.
+
+The second example wraps one carrier of the existing inhabited function-field
+Box example in a typed identity beta redex. The wrapped source and target are
+outside BoxTypeChange and have no computational join in ErasedBetaStableJoint.
+Nevertheless a beta edge followed by the old structural edge connects them,
+and all certified typed guards and body comparisons transport. The no-join
+proof commutes a hypothetical certified source computation past the wrapper's
+beta contraction, then contradicts the old unwrapped full-union no-join
+example. It does not assert full-union non-joinability of the wrapped endpoints.
+Existing Box registration and signature hypotheses remain explicit.
+
+Judgment: finite pure-beta exposure and hiding of carriers now compose with
+recursive structural conversion, including arbitrary mixtures, while keeping
+the future transport certificates. This is stronger than either raw structural
+conversion or a computational-join condition. It does not prove forward
+transport through arbitrary primitive computation, general dependent-field
+closure, or coverage of strong derivations. No strictly smaller sufficient
+irreducible front is established, and the raw structural coverage proposal is
+replaced by the still-live mixed typed-path coverage question.
+
+Validation: two new theory modules, 301 lines, eight explicit public roots.
+Final example and dependencies build (635 jobs), without new-module warnings:
+/tmp/type-path-example-build.log. Independent opaque DFS covers all eight
+roots and 11,402 dependencies, excluding JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport, .weakN_iff, .weakN_inv and
+sorryAx. Cumulative opaque DFS covers 915 roots and 15,941 dependencies,
+excluding strengthening inverses and sorryAx. Exact-name axiom parsing accounts
+for every root once and permits only propext, Classical.choice and Quot.sound.
+Sources/logs: /tmp/type-path-{audit,independent-audit}.{lean,log}; inventories:
+/tmp/type-path-{audit,independent-audit}-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 retains the original sorry. No
+canonical-Eq strengthening proof, canonical-Eq counterexample or genuinely
+strictly smaller sufficient irreducible obligation is established. Keep the
+full goal active. Only theory modules and actual EOF ledger additions changed;
+no executable changes, extraction, PRs, subagents or coordination.

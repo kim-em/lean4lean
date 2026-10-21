@@ -3375,3 +3375,43 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   strong derivations. Heads, universe instances and record arities still stay
   fixed. No strictly smaller sufficient PropositionFront obligation is claimed;
   the full strengthening goal remains open.
+
+
+### 2026-10-21 13:39 UTC — Typed beta paths around structural conversion
+
+- **Make the raw local-law relation cover all typed equality. Verdict:
+  refuted by a checked typed beta example.** TypeChangeLaws.sort_inv forces a
+  related literal sort to remain that exact sort. Prop and its typed identity
+  wrapper are definitionally equal, but the wrapper erases to an application.
+  type_change_laws_miss_typed_beta proves that every relation satisfying the
+  local laws misses this conversion. Broadening the same raw relation cannot
+  supply full coverage; a path closure or weaker exposure interface is needed.
+
+- **Interleave structural changes with beta reduction and expansion.
+  Verdict: full certified carrier/context transport proved.** TypeChangePath
+  records actual types at one sort, structural equality plus the proposed
+  relation, beta paths in either direction with typed endpoints, and finite
+  composition. Its actual equality is derived. TypeChangePath.carrier and
+  TypeChangePath.context transport every certified checking constructor along
+  any such path. Forward beta uses certified oracle/carrier transport;
+  reverse beta uses exact recovered annotations. Every intermediate guard
+  remains certified, allowing arbitrary finite iteration. No proposition
+  endpoint-beta assumption or strengthening inverse is used.
+
+- **Does this merely disguise a computational-join criterion? Verdict:
+  checked inhabited counterexample to that interpretation.** A typed identity
+  beta redex hides the source carrier of the eta-different function-field Box
+  example. The resulting endpoints are not BoxTypeChange-related and have no
+  certified computational join. A beta edge followed by the structural edge
+  nevertheless transports all certified typed guards and body comparisons.
+  No-join follows from certified computation/beta commutation and the old
+  full-union no-join result. The new claim is specifically no certified join,
+  not a stronger full-union no-join claim for the wrapped endpoints.
+
+  Judgment: hidden pure-beta type shapes and finite mixtures of structural
+  changes are now covered constructively. A same-relation computation-pullback
+  lemma also handles arbitrary backward annotation computation when primitives
+  are substitution closed. General forward primitive computation, arbitrary
+  dependent field recipes and coverage of strong derivations remain open.
+  The raw-local-relation coverage idea is rejected; mixed typed-path coverage
+  remains live. No goal outcome or strictly smaller sufficient front is claimed.
