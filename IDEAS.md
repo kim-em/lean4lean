@@ -4692,3 +4692,24 @@ No GOAL.md success condition is met. Next use the lossless full-union Eq
 encoding in the simultaneous proposition/carrier beta-transport argument,
 tracking source stages and proof dependencies explicitly so that decoding is
 not confused with a proof of the transport law being encoded.
+
+
+## 2026-10-21 18:56 UTC — Explicit primitive-free Eq beta peak
+
+`ProofErasurePrimitiveFreeEqPeak` constructs, for every actual proposition-front
+instance, four typed Eq propositions with a primitive-free source comparison
+and two beta paths contracting only the final identity-application arguments.
+Both carrier and anchor stay fixed along those paths. A full-union comparison
+of the resulting pair descends that exact original proposition equation.
+The source comparison has a fixed structural skeleton; the arbitrary lifted
+equation enters through the endpoint typings at the converted Eq-probe carrier.
+
+Verdict: checked localization of the existing beta-transport barrier, not a
+new discovery that global proposition beta transport implies PropositionFront
+(the latter was already proved in ProofErasureJointUnitBetaBarrier). Removing
+source primitive steps or fixing the carrier and anchor does not remove that
+barrier. No declared identity unfolding, global beta law, or strengthening
+inverse is used. No target certificate is supplied, no nonconvertibility is
+asserted, and no strictly smaller sufficient obligation is established. A
+structural transport proof must still account for the typing conversion;
+primitive-stage descent alone does not supply the missing base case.

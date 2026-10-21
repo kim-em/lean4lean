@@ -14766,3 +14766,52 @@ lossless Eq encoding in the proposition/carrier beta-transport proof with
 explicit stage/derivation bookkeeping, without assuming that transport
 circularly. Only Theory files and actual-EOF ledger additions changed; no
 executable edits, PR extraction, PRs, subagents or coordination.
+
+
+## 2026-10-21 18:56 UTC — Checked primitive-free Eq peak for every front instance
+
+The preceding conversational turn made no research progress. Revalidated HEAD
+f6ab76f3 and its untracked pending module; polled the specific previous Lean
+process (3354), which had exited with an incorrect private-helper module path.
+Corrected that path to the already imported JointUnitBetaBarrier module. The
+previous research commit f6ab76f3 remains genuine progress: its unrestricted
+full-union Eq decoder now makes the following pointwise test possible.
+
+Added ProofErasurePrimitiveFreeEqPeak with two public theorems. The first
+constructs Eq K i ((fun z : S => z) i) and Eq K i ((fun z : S => z) j),
+where S is a positive empty structure and K is the converted Eq-type probe.
+Their raw source comparison uses False as its primitive relation. Contracting
+only the displayed identity applications gives Eq K i i and Eq K i j. The
+new full-union decoder turns a hypothetical target comparison into a carrier
+guard at K. Distinct variables exclude direct comparison; carrier exposure
+then reads out the original proposition equality below the inserted block.
+The second theorem constructs the full context for any front instance using
+two S variables and an Eq-proof variable above the original binder. All four
+propositions are actually typed, and both raw beta paths are proved.
+
+This does not rediscover the previously known global beta-law implication.
+It identifies a fixed primitive-free comparison skeleton whose external
+typing evidence contains the arbitrary front instance. Consequently, the
+recent lower-stage primitive certification results cannot by themselves
+settle the structural beta base case. A source-stage/shape induction needs
+a further argument about its carrier conversion; simply making the source
+smaller leaves the full front hidden in that supplied typing. This is a
+conditional pointwise reduction, not an actual canonical-Eq counterexample
+or a proof that no typing-sensitive induction can work.
+
+Validation: direct Lean check clean; consuming build successful, 629 jobs,
+/tmp/primitive-free-eq-final-build.log. Opaque dependency DFS audits pass:
+cumulative 1,221 roots / 16,428 dependencies; independent 2 roots / 11,367
+dependencies. Both exclude weakN_iff, weakN_inv and sorryAx; independent
+also excludes JointCarrierDomainResynthesis, ScopedSemanticHeadExposure and
+JointPropBetaTransport. Exact-name axiom inventories cover every root once
+and contain only propext, Classical.choice and Quot.sound. Artifacts:
+/tmp/primitive-free-eq-{audit,independent-audit} with .lean, .log and
+-roots.txt suffixes. No warnings in the new module or audit outputs.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+No canonical-Eq counterexample and no strictly smaller sufficient irreducible
+obligation is established. GOAL.md stays active. Next proof work must address
+converted-carrier typing in the structural beta case, rather than assuming
+that primitive certification closes it. Only Theory and actual-EOF ledger
+additions changed; no executable edits, PR extraction, PRs or coordination.
