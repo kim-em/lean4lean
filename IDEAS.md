@@ -2192,3 +2192,36 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   A simultaneous residual/substitution construction retaining that derivation
   remains live. Also needed is the source-stage-zero-to-union comparison case;
   the known failure with the ordinary core as target does not refute this case.
+
+- **Carry substitution closure on each residual primitive.** **Checked** in
+  `ProofErasureStablePrimitives`. An enriched primitive is an actual step plus
+  an actual primitive after every interpreted context substitution. Context
+  interpretations compose by forward typed substitution, so this subtype is
+  itself substitution closed. It introduces no new primitive equality. The
+  preceding stage-substitution proof was sharpened to retain one actual
+  primitive; lower-stage beta transport therefore embeds every typed source
+  primitive and source path in this enriched relation. This assertion concerns
+  source paths, not yet their beta residuals.
+
+- **Lift local parallel squares into a substitution-closed target.**
+  **Checked** in `ProofErasureSubstitutableParallelStrip`. The source and
+  target relations remain distinct. Typed source replay handles sequential
+  composition. Target substitution and context conversion handle binders.
+  At an application/root-beta peak, invert the target lambda residual in its
+  initial domain, instantiate its body at the replayed beta argument, and
+  compute the argument through the typed residual body. No beta-stability
+  assumption about target certificates is required. The shared output still
+  has one parallel beta step from the original output.
+
+- **Use the enriched target for actual source stages.** **Local obligation
+  isolated, core case checked** in `ProofErasureJointStableParallelResidual`.
+  `JointStageStableParallelResidual` asks actual primitive beta residuals to
+  retain substitution certificates. Stage zero has the property syntactically.
+  The generic strip theorem then covers a full source-stage path against one
+  parallel beta development. Nonzero singleton/Eq primitive certification
+  remains open; the proposed construction must combine the original guard's
+  beta and substitution transport before discarding its source stage. Further
+  beta iterations also need retained primitive origins or an additional
+  proved residual-closure property: substitution stability alone does not
+  give beta closure of the enriched target. No smaller sufficient front for
+  strengthening is claimed.

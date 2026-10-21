@@ -10302,3 +10302,80 @@ Completion audit: UniqueTyping.lean:94 still contains the original sorry.
 Neither a canonical-Eq counterexample nor a strictly smaller sufficient front
 has been established. The goal remains active. No executable changes,
 extraction, PRs, agents or coordination.
+
+## 2026-10-21 — Parallel path lifting with substitution-stable residuals
+
+Previous goal turn: progress (eebf124d, lower-stage substitution and direct
+head-beta exchange). Revalidated its clean worktree and investigated the
+application case that previously required substitution of union residuals.
+
+ProofErasureSubstitutableParallelStrip proves a generic lifting theorem with
+distinct source and target relations. Both have sound typed replay and the
+primitive-head restriction; target primitives additionally transport under
+interpreted substitutions. The only beta-square premise concerns typed source
+primitives. Every compatible source path then commutes with one raw parallel
+beta development, with a single parallel step on the old-output side and a
+target computation on the beta-output side. No target beta stability or
+confluence hypothesis is used.
+
+In the application/root-beta case, source lambda shape is preserved by the
+primitive-head restriction. The component induction gives a target lambda
+residual. Its body path can be returned to the initial annotation using the
+existing generic lambda inversion theorem, because target substitution closure
+now supplies context conversion. Replay the beta-reduced argument, instantiate
+that body path, and propagate the argument's target computation through the
+typed residual body. The one parallel body/argument developments combine into
+a single root-beta residual. Thus the earlier target-path substitution gap
+is handled by an explicit invariant on the target relation, rather than by
+reintroducing full-union proposition beta stability.
+
+ProofErasureStablePrimitives defines that invariant as a subtype of actual
+primitives: an actual step plus an actual primitive at its substituted endpoints
+for every interpreted context substitution. Forward composition of original
+typed substitutions proves ContextSubstitution.comp, including retained-variable
+erasure agreement. Composing interpretations proves that the enriched relation
+is substitution closed. Its semantic descent is inherited by forgetting the
+extra certificate; this relation does not add equations to the joint union.
+
+The preceding stage substitution theorem was strengthened internally to retain
+one actual primitive, and a new public theorem exposes that fact. The old
+computation-substitution APIs retain their signatures. Under stage-n proposition
+beta transport, each typed stage-n+1 primitive has the new stable certificate.
+Every typed source path consequently embeds into computation in the enriched
+target. Neither argument recovery nor an inverse weakening theorem is used.
+
+JointStageStableParallelResidual names the remaining local beta obligation:
+a source-stage primitive's parallel residual must itself carry the substitution
+certificate. The actual stage-zero primitives satisfy this without canonical
+Eq, declaration soundness or proposition beta stability, using their existing
+syntactic parallel residual and raw substitution laws. The generic lifting
+result specializes to the actual joint stages whenever this local certificate
+is supplied, retaining the enriched relation in the output path.
+
+Limits and next action: for nonzero stages, lower-stage proposition transport
+has not yet been used to certify the singleton/Eq beta residuals under *all*
+future substitutions. The source-path embedding does not prove that result.
+The candidate construction must retain the original lower-stage family guard
+while combining beta, context conversion and arbitrary substitution. Iterating
+the resulting one-parallel-step strip along an arbitrary finite beta path would
+also feed an enriched target path into the next strip; substitution stability
+alone does not establish its beta residual closure. Preserve source guard
+origins or prove an adequate target residual invariant before doing that.
+The comparison beta law, including its stage-zero-to-union case, remains open.
+This is a checked path-lifting theorem with a local premise, not a new smaller
+sufficient strengthening front or completion of the simultaneous induction.
+
+Validation: the new stable-residual target, previous stage-beta-exchange target
+and full joint/beta-commutation target build successfully (573 jobs), log
+/tmp/substitutable-parallel-strip-build.log. Independent opaque dependency
+audit covers 11 new roots and the 2 existing substitution APIs: 13 roots,
+11,295 dependencies, excluding carrier-domain re-synthesis, strengthening
+inverses and sorryAx. Cumulative audit: 584 public roots, 15,369 dependencies,
+no strengthening inverses or sorryAx. All requested axiom reports were parsed
+and matched exactly; only propext, Classical.choice and Quot.sound occur.
+Sources/logs: /tmp/substitutable-parallel-strip-{audit,independent-audit}.{lean,log}.
+
+Completion audit: the original sorry remains at UniqueTyping.lean:94. No
+canonical-Eq strengthening counterexample or strictly smaller sufficient front
+is established. The goal remains active. No executable changes, extraction,
+PRs, agents or coordination.
