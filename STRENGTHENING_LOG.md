@@ -14639,3 +14639,68 @@ avoid requiring it in the computation join. Typed union binder inversion and
 recoverable anchor instantiation are now available for that attempt. Only
 Theory files and actual-EOF ledger additions changed. No executable edits,
 PR extraction, PRs, subagents or coordination.
+
+
+## 2026-10-21 18:38 UTC — Full-union native joins with retained original recoveries
+
+Previous goal turn is progress: 91f878fb was committed, pushed and audited.
+Revalidated clean HEAD 91f878fb before this turn. Read the existing operational
+join, computed-recovery, binder-inversion, domain-direction, native-supply and
+native-readout results. The forward binder-context gap remains: typed Pi
+inversion pulls computations backward, whereas assembling residual binder
+joins requires forward reindexing. Exact forward recovery is already refuted.
+
+Implemented four modules, 398 lines, 12 public theorems plus the
+RecoverableNativeWalk inductive and its generated declaration family:
+
+- ProofErasureJointRecoverableSupply extracts the original-recovery
+  substitution square for union paths. Instantiate the body path at the
+  original argument, replay the output, and compute argument occurrences
+  using only renaming. This ordering is reused from the existing finite-stage
+  head-beta exchange proof. Typed union Pi inversion then gives computed-Pi
+  instantiation. RecoverableNativeWalk stores each original argument typing
+  and its conditional non-proof exact recovery, and forgets to InstForallsC.
+  Induction constructs successful raw supply and the native residual path
+  for arbitrary independently computed arguments; deterministic supply gives
+  a common residual for two walks with joined arguments.
+- ProofErasureJointNativeTelescope proves that every selected recovery of a
+  computed prefix is reachable from its original native residual. Original
+  recoveries suffice despite conversions before applications. The constant
+  specialization starts from the stored declaration type. A joined-constant
+  theorem constructs a shared recovered residual, paths from both original
+  residuals and their actual full-union comparison.
+- ProofErasureJointNativeGuardReadout retains the path to a selected next
+  domain and extracts an argument carrier guard from inferred comparison of
+  two independently computed prefixes. The native walk is recoverable and
+  the constant head is inert; final raw arguments need no typing/recovery
+  premise. No global resynthesis, substitution closure or confluence is used.
+- ProofErasureJointInstSquareBoundary gives a non-proof typed identity-cover
+  example where the computed argument has no exact assigned-type recovery
+  in the union but the square still transports every typed body path. It
+  also proves that a one-argument ordinary typed native walk need not be
+  recoverable, using the existing eta-converted neutral variable obstruction.
+
+Validation: consuming build exits zero, 604 jobs; all four new modules are
+warning-free and earlier dependency warnings replay. Log:
+/tmp/recoverable-native-final-build.log. Both opaque DFS audits exit zero.
+Cumulative 1,208 roots / 16,412 dependencies excludes .weakN_iff, .weakN_inv and
+sorryAx. Independent 24 roots / 11,029 dependencies also excludes
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure and
+JointPropBetaTransport. The 24 roots include every declaration under the new
+RecoverableNativeWalk prefix, inventoried from the environment, including
+constructors and generated recursors/below machinery. Both audit scripts
+traverse ci.value? (allowOpaque := true); exact-name axiom inventories cover
+all roots once and permit only propext, Classical.choice and Quot.sound.
+Artifacts: /tmp/recoverable-native-{audit,independent-audit} with .lean, .log
+and -roots.txt suffixes; the inductive inventory is
+/tmp/recoverable-native-inventory.{lean,log}.
+
+Completion audit: the original sorry in UniqueTyping.lean:94 remains. No
+canonical-Eq strengthening counterexample or strictly smaller sufficient
+irreducible obligation has been proved. The new walk invariant is not
+asserted sufficient for strengthening and is explicitly not automatic from
+typing. Keep GOAL.md active. Next test the converted-argument case with
+computed native telescopes, without mistaking identity-cover expansions for
+directed reductions from the original argument or assuming the unresolved
+union beta-join law. Only Theory files and actual-EOF ledger additions change;
+no executable edits, PR extraction, PRs, subagents or coordination.

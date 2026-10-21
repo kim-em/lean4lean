@@ -4589,3 +4589,54 @@ condition is met. Next use typed union binder inversion/recoverable
 instantiation in the computation-join argument itself, retaining native
 recovery evidence, rather than installing forward guard transport as an
 unproved supposedly smaller repair.
+
+
+## 2026-10-21 18:38 UTC — Native residual joins from original recoverable walks
+
+- Assemble a union binder join using the new typed Pi inversion and ordinary
+  component confluence. Verdict: inversion provides contravariant body
+  pullback, while assembling a binder join needs the forward direction.
+  Existing DomainDirection.forward_not_recovering refutes exact recovery in
+  that direction. The existing certified binder criterion has substitution
+  closure and cannot be specialized silently to the union. No new binder
+  confluence theorem is claimed.
+- Instantiate at the original recoverable argument, then compute its images
+  in the output. Verdict: this ordering already occurs in the finite-stage
+  head-beta exchange proof. Extracted the union square for arbitrary typed
+  bodies and combined it with typed Pi inversion. The resulting computed-Pi
+  instantiation theorem needs recovery only of the original argument, never
+  of its computed image. No confluence or forward context law is assumed.
+- Carry original argument recoveries through a dependent native telescope.
+  Verdict: proved using RecoverableNativeWalk. Computed arguments supply any
+  computed initial native type, and the original residual computes to the
+  deterministic raw supply result. Two such walks with pointwise joined
+  arguments therefore have a full-union residual join. This generalizes the
+  existing substitution-closed native-supply theorem in a different direction:
+  the relation is now the entire union, with retained original recoveries.
+- Control selected recovery after all prefix arguments compute. Verdict:
+  proved for the recoverable walk. Every selected recovered type is reachable
+  from the original native residual, even with conversions before successive
+  applications. An inert constant's selected next domain is consequently
+  reachable from its original native domain. Inferred comparison of two
+  independently computed copies of that prefix reads out an actual carrier
+  guard at the original native domain. No computed-image recovery is needed.
+- Is original recovery secretly forcing computed-image recovery? Verdict:
+  no, with a checked typed example. The identity expansion of the existing
+  eta-converted neutral variable recovers its assigned type and beta-reduces
+  to that variable, which cannot recover that type anywhere in the union.
+  The directed square nevertheless transports every typed body path through
+  this computation.
+- Can every ordinary typed native walk supply the new invariant? Verdict:
+  false. The same eta-converted variable gives a one-argument literal typed
+  telescope walk with no RecoverableNativeWalk certificate. This is an exact
+  premise boundary, not a strengthening counterexample.
+
+Judgment: retained original recovery suffices for concrete union native type
+joins and argument-guard extraction without the earlier unrestricted
+substitution assumption. This does not solve arbitrary converted arguments,
+forward binder-context computation, general guard persistence or confluence.
+No strictly smaller sufficient irreducible obligation has been established.
+Next investigate the remaining converted-argument case using explicitly
+computed native telescopes/identity covers, keeping track of the direction
+of beta paths: a cover computes to its argument, and its existence alone
+cannot reverse computation or supply the missing union beta-join law.
