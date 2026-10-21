@@ -10451,3 +10451,88 @@ Completion audit: the original sorry remains in UniqueTyping.lean:94. There
 is no canonical-Eq counterexample or strictly smaller sufficient front. The
 local residual certification is real checked progress, and the full goal
 remains active. No executable changes, extraction, PRs, agents or coordination.
+
+## Finite beta commutation from lower-stage guards
+
+Previous-turn classification: progress. The preceding commit 341ac69a proved
+nonzero singleton/Eq parallel residual certification and a source-stage strip
+for one parallel development. This turn began by verifying that HEAD and a
+clean worktree, then tackled the explicitly recorded finite-iteration gap.
+
+ProofErasureBetaStableFamily retains the missing information on individual
+family guards. BetaStableFamily Cmp requires the underlying comparator at all
+beta reducts of both endpoints, and again at all beta reducts after every
+interpreted context substitution. Its first component also handles raw
+contexts with no chosen typed realization. Forgetting future paths gives the
+actual underlying comparison, so family descent is inherited directly.
+
+Beta reduction preserves this certificate by composing both endpoint paths.
+Substitution preserves it by composing interpreted context substitutions;
+future beta paths are unrestricted and may contract redexes newly created by
+substitution. Typed proposition substitution and family beta/context transport
+therefore preserve the enriched comparator itself. Lower-stage proposition
+transport constructs these certificates by applying subst_beta_stage to the
+original finite-stage guard with the composed endpoint paths. There is no
+transport invocation on the resulting higher-stage comparison.
+
+ProofErasureBetaStableJoint defines a subset of actual joint primitives:
+ordinary core steps, or typed general singletons with the enriched union-family
+comparator. It is not recursively defined through its own comparison language,
+and no new computation equation is introduced. Forgetting certificates maps it
+pointwise into ErasedJointUnion. Descent and the primitive-head condition then
+follow from the existing union laws. Substitution of a singleton retains its
+entire generated residual telescope, exact output and enriched family guard.
+Parallel beta residuals likewise remain in the same subset by the generic
+family transport and singleton parallel residual theorems.
+
+The generic compatible-path strip now has this subset as both source and
+target. Its residual therefore retains the invariants needed for the next
+iteration. Typed beta replay and serialization into parallel developments then
+prove arbitrary finite beta commutation for the enriched relation, without a
+global proposition beta-stability premise. Each iteration uses the stored
+certificates, and all resulting computations remain actual union paths.
+
+ProofErasureJointStageBetaCommutation connects this closed target to the
+original source stages. Stage-n+1 general singletons get the stronger guard
+certificate using stage-n proposition transport. Specialized Eq roots first
+use their exact general singleton presentation in the original guard stage.
+Inherited primitives restrict the same source-stage bound by monotonicity.
+The compatible strip consequently sends source-stage paths into the enriched
+relation. Applying it first to a reflexive parallel development produces a
+certified path; finite beta commutation then handles any supplied beta path.
+The original output's initial parallel residual composes with the later beta
+residuals, and the final path embeds in a finite later joint stage. A separate
+base-stage theorem embeds core computation directly and needs no proposition
+transport hypothesis.
+
+Thus proofErase_joint_stage_beta_commute_of_lower_beta and its finite-later-stage
+corollary close the finite computation/beta commutation gap under a strictly
+lower source-stage comparison premise. This is stronger than the prior
+full-union-Hbeta conditional theorem, while preserving actual output paths.
+It does not itself establish the lower-stage premise, full comparison beta
+transport, or a strictly smaller sufficient front for strengthening.
+
+Next task: inspect a simultaneous induction on JointCheck comparisons and
+carrier guards. The compute and carrierReduce constructors have finite
+computation prefixes, now handled without target-stage inflation. Application
+head-beta cases still require comparison after body instantiation, and the
+recovery/domain information in appCarrier, lambda and carrier constructors is
+not supplied by computation commutation alone. The stage-zero proposition
+comparison law into the union is also still open. The exact JointCheck grammar
+was inspected this turn; no proof or refutation of those remaining cases is
+claimed. The live next task is recorded at EOF of IDEAS.md.
+
+Validation: new stage-beta-commutation, previous stable-parallel-residual and
+full joint-beta-commutation targets build successfully (575 jobs), log
+/tmp/stage-beta-commutation-build.log. Independent opaque dependency DFS covers
+all 22 new public roots: 11,406 dependencies, excluding carrier-domain
+re-synthesis, strengthening inverses and sorryAx. Cumulative audit: 621 public
+roots, 15,415 dependencies, no strengthening inverses or sorryAx. All 621 and
+22 requested axiom reports were parsed and matched exactly; only propext,
+Classical.choice and Quot.sound occur. Sources and logs:
+/tmp/stage-beta-commutation-{audit,independent-audit}.{lean,log}.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+No canonical-Eq counterexample or strictly smaller sufficient strengthening
+front has been established. The goal remains active. There are no executable
+changes, extraction, PRs, agents or coordination.

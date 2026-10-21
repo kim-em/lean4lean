@@ -2254,3 +2254,43 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   strip theorem without feeding arbitrary union comparisons back into the
   lower-stage hypothesis. The comparison beta law, including its stage-zero
   case into the union, would still require a separate argument.
+
+- **Retain future beta paths as well as substitutions in family certificates.**
+  **Checked**, resolving the iteration gap in the preceding entry.
+  `ProofErasureBetaStableFamily` quantifies over both endpoint beta paths after
+  every interpreted substitution. Beta paths compose and substitutions compose,
+  including beta redexes created by substitution. Lower-stage transport supplies
+  the certificate using the original finite-stage guard; no enlarged target
+  guard is fed back into that hypothesis.
+
+- **Iterate within a certified subset of the existing union.** **Checked** in
+  `ProofErasureBetaStableJoint`. The subset consists of core primitives and
+  general singletons carrying the stronger family certificates. Forgetting
+  certificates gives an actual union primitive. The subset is closed under
+  interpreted substitution and has primitive parallel residuals in itself.
+  The generic strip therefore has the same enriched relation as source and
+  target, and finite iteration becomes valid. This is a restriction used to
+  retain evidence, not a new computation rule or an assumed closure law for
+  the whole union.
+
+- **Close finite computation/beta commutation from a strictly lower guard
+  stage.** **Checked** in `ProofErasureJointStageBetaCommutation`.
+  Every stage-n+1 primitive, including specialized Eq, has a parallel residual
+  in the enriched relation from stage-n proposition beta transport. An initial
+  reflexive parallel development equips a whole source path with certificates;
+  arbitrary subsequent beta steps can then be iterated. The exact residual
+  embeds in a finite later joint stage. Stage-zero computation needs no beta
+  transport premise. This removes both the local residual and finite-iteration
+  gaps from this computation route, but does not prove proposition comparison
+  transport or a strictly smaller sufficient strengthening front.
+
+- **Use the computation result in a source-stage comparison induction.**
+  **Next unproved task.** `JointCheck.compute` and `carrierReduce` expose finite
+  computation prefixes; the new theorem can commute those prefixes with beta
+  using only lower-stage guard transport. This does not automatically handle
+  the remaining syntactic comparison cases: beta at application heads must
+  preserve a comparison through body instantiation, and carrier recovery and
+  lambda-domain comparison carry information beyond computation endpoints.
+  The stage-zero comparison law into the joint union remains open as well.
+  Establish a simultaneous comparison/carrier invariant rather than applying
+  the computation theorem as though it already proved comparison stability.
