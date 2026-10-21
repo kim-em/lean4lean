@@ -4095,3 +4095,23 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   assume that the current ambient future certificate supplies a future body
   certificate (that inversion was previously refuted). This is the next live
   structural extension to test. All GOAL.md success conditions remain open.
+
+
+## 2026-10-21 16:42 UTC — Typed recovery through rigid terminal replacements
+
+- Idea: changing a binder to an equal closed rigid type can alter a recovered
+  result, while typed head separation still forces every recovered Pi domain
+  to remain exact. Verdict: proved for all scoped recovery constructors.
+  RigidResultChange permits arbitrary source-to-closed-rigid replacement and
+  recursive changes only in Pi codomains. Its raw relation has no unconditional
+  Pi inversion; actual equality and source typing exclude the wrong-head case.
+  Typed sort and record inversion likewise preserve the exact exposed carrier.
+- Computation transport mirrors domain computation and discards a replaced
+  terminal computation. Typed recovery handles lambdas, applications,
+  projections and arbitrary result computation prefixes. A concrete single
+  binder replacement and a certified specialization discharge the primitive
+  premises. No inverse weakening or general head-exposure axiom is used.
+- Judgment: this supplies the recovery ingredient for typed joint context
+  transport. Recovery alone does not move argument guards or prove function
+  carrier conversion. Full joint transport is the next step; all three GOAL.md
+  success conditions remain open.

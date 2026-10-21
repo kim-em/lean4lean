@@ -13969,3 +13969,35 @@ canonical-Eq strengthening proof or counterexample, and no strictly smaller
 sufficient irreducible obligation, has been established. GOAL.md stays active.
 Only theory modules and actual EOF ledger additions change. No executable
 changes, PR extraction, PRs, subagents or coordination.
+
+
+## 2026-10-21 16:42 UTC — Preserve recovered domains across a rigid binder change
+
+The preceding research turn made progress: it produced the two recovery
+modules, whose completed audit logs were recovered and checked this turn.
+The intervening status clarification made no research changes. Current-state
+inspection confirmed the two untracked modules and the original open sorry.
+
+ProofErasureRigidResultChange defines rigid terminal replacement and proves
+closure under lifting, instantiation, beta and scoped computation. Actual
+head injectivity recovers exact Pi domains, sort levels and record carriers.
+ProofErasureRigidOracleRecovery transports every typed recovery constructor
+through actual equal contexts with related type oracles. In particular, one
+binder may be replaced by an equal closed rigid constant while every recovered
+Pi keeps its domain. The certified wrapper discharges primitive soundness,
+head shape and interpreted substitution; its conclusion remains certified.
+
+Validation: 330 lines in two modules, twelve public roots (eleven theorems and
+one inductive). The original dependent build completed in 628 jobs, and the
+later consuming build also succeeds. Completed audit logs were checked against
+exact root inventories. Independent opaque DFS: 12 roots, 10,917 dependencies,
+excluding JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv and sorryAx. Cumulative opaque DFS:
+1,066 roots, 16,193 dependencies, excluding strengthening inverses and sorryAx.
+Every root's axiom report allows only propext, Classical.choice and Quot.sound.
+Artifacts: /tmp/rigid-oracle-{audit,independent-audit}.{lean,log}, matching
+-roots.txt files, and /tmp/rigid-oracle-recovery-build.log.
+
+This is the recovery prerequisite, not joint guard transport or a GOAL.md
+success. UniqueTyping.lean:94 retains its original sorry. No executable edits,
+PR extraction, PRs, subagents or coordination.
