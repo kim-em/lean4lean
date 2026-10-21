@@ -3552,3 +3552,51 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   Coverage of such applications, broader compatible eta, and strong derivations
   remains live, as does general forward primitive transport. No GOAL.md outcome
   or strictly smaller sufficient irreducible front is claimed.
+
+
+### 2026-10-21 14:25 UTC — Future certificates under binders and application
+
+- **Retain body certificates when a binder annotation beta-reduces. Verdict:
+  proved for lambdas and dependent Pi.** BetaStableFamily.lam_common inverts
+  both lambda beta paths and uses an interpreted identity into the left residual
+  domain. The body certificate is reindexed before lamCommon is applied.
+  BetaStableFamily.forall_sorted additionally transports the actual domain/body
+  sort witnesses and their independent future comparisons. Both constructions
+  retain all future substitutions, including new annotation and body redexes.
+
+- **Apply future-related lambda bodies to joined arguments. Verdict: proved,
+  with the computational-join restriction on the arguments explicit.**
+  proofErase_family_inst retains the whole certificate at any typed image.
+  proofErase_family_inst_joined realizes the shared argument output as a typed
+  term, instantiates the body certificate there, and uses certified image
+  computation to connect both original instantiations to those residuals.
+  proofErase_family_apply_lams_joined then handles the two displayed beta
+  redexes. The resulting certificate includes arbitrary future substitutions
+  and beta paths; it is not just a comparison before the application contracts.
+  This does not settle paired instantiation at arbitrary non-joining arguments.
+
+- **Does the application construction merely supply an application join?
+  Verdict: refuted by a typed eta example.** Apply the identity lambda to a
+  function variable f, and the eta-expanding lambda to an identity-redex copy
+  of f. The arguments beta-join; the bodies have a future eta certificate.
+  The applications receive a future certificate, but beta-reduce to f and
+  fun x => f x, respectively. These distinct normal residuals exclude a
+  certified computational join of the original applications, by certified
+  beta commutation and typed beta confluence at any proposed shared output.
+
+- **Can future common certificates compose through arbitrary commonly typed
+  intermediates? Verdict: refuted, even in the full joint union.** For a closed
+  registered positive empty structure, its constructor has a future comparison
+  against either of two distinct variables: the null field telescope needs no
+  residual premises. Symmetry gives both links through the actual typed
+  constructor, while bare-variable injectivity excludes their composite.
+  Beta and arbitrary future substitution certificates do not repair this
+  failure. Proposition-only or carrier-indexed composition is not refuted.
+
+  Judgment: binder handling and displayed application at joined arguments are
+  constructive additions to the future-certificate fragment. Arbitrary paired
+  instantiation and application after function substitution remain open. Reject
+  unrestricted common-certificate transitivity as an induction invariant for
+  strong derivations; the counterexample carries all actual typings and future
+  certificates. A carrier-indexed future invariant or proposition-specific
+  composition is still live. No GOAL.md outcome is established.

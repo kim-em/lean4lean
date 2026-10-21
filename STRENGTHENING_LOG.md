@@ -12948,3 +12948,84 @@ Completion audit: UniqueTyping.lean:94 retains the original sorry. None of the
 three GOAL.md outcomes is established. Keep the full goal active. Only new
 theory modules and actual EOF ledger additions changed; no executable changes,
 extraction, PRs, subagents or coordination.
+
+
+## 2026-10-21 14:25 UTC — Binder/application closure and a composition boundary
+
+Previous goal turn classification: progress. Current-state inspection confirms
+clean HEAD 6aad2b11, whose non-joining eta families extend certified Eq
+computation beyond computational joins. The next action was to investigate
+application after substitution creates beta redexes, respecting the previously
+checked failures of general common-mode beta transport and paired instantiation
+for ordinary core.
+
+ProofErasureFamilyBinders constructs future common lambda certificates from
+future body certificates, even with distinct displayed domains. Inverting the
+two beta paths separates residual domains and bodies. An interpreted identity
+from the source binder to its left beta residual reindexes the body certificate;
+lamCommon then compares the residual lambdas. Dependent Pi uses the same
+operation with actual domain/body sort witnesses and their future certificates.
+Both retain arbitrary interpreted substitutions. No general endpoint-beta law
+or inverse typing weakening is used.
+
+ProofErasureFamilyInstantiation instantiates a stored future body certificate
+at any typed argument. For two arguments joined by certified computation, typed
+realization supplies one actual common output. Instantiating the original body
+certificate there gives the residual comparison. A new certified specialization
+of the existing image-computation theorem propagates each argument path through
+all body occurrences, and certified-prefix closure produces a future comparison
+of the two original instantiated bodies. Applying the two displayed beta steps
+proves the corresponding lambda-application theorem. Body result types can be
+dependent and distinct; each is supplied with its actual typing. The argument
+join is a hypothesis, so this is not arbitrary paired instantiation or a proof
+of general application coverage.
+
+ProofErasureFamilyApplicationExample applies the identity function to a
+function variable f and applies the eta-expanding function to an identity-redex
+copy of f. The argument paths join constructively, and the non-joining eta body
+certificate supplies a future comparison of the applications. Their beta
+reducts are the distinct normal shapes f and fun x => f x. A hypothetical
+certified computational join of the applications would, by computation/beta
+commutation, give two beta reducts of the same typed shared output equal to
+those two normal shapes. Typed beta confluence contradicts their distinction.
+Thus the application result is not an implicit computational-join criterion.
+No new environment declaration is assumed in this example.
+
+ProofErasureFamilyCompositionBoundary tests a proposed extension of the future
+invariant through strong-derivation transitivity. A registered empty-structure
+constructor has a future common certificate against any endpoint: beta fixes
+the constructor and its empty field telescope compares every residual. In a
+two-variable context of a closed positive unit, both links through that actual
+constructor are therefore future certificates at one common actual type.
+Distinct bare variables cannot have even the base comparison in the full
+joint union, so the composite future certificate is absent. This refutes
+unrestricted common-mode composition despite all future beta/substitution
+certificates and all original typings. It does not refute proposition-only
+composition, carrier checking, or declarative strengthening.
+
+Judgment: lambda/Pi binders and application with certified joined arguments
+are covered constructively. Arbitrary non-joining argument comparisons and
+function substitutions creating new beta redexes remain unresolved in general.
+The strengthened future invariant still cannot be used with unrestricted
+common-mode transitivity; reject that candidate by the new checked counterexample.
+Carrier-indexed future certificates or proposition-specific composition remain
+live directions, alongside stronger application coverage. No strictly smaller
+sufficient irreducible obligation is established.
+
+Validation: four new theory modules, 348 lines, ten public roots. The application
+example and all its new dependencies build (654 jobs); composition boundary
+builds separately (622 jobs), without new-module warnings. Logs:
+/tmp/family-application-build.log and /tmp/family-composition-build.log.
+Independent opaque DFS covers all ten roots and 11,219 dependencies, excluding
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv and sorryAx. Cumulative opaque
+DFS covers 959 roots and 16,024 dependencies, excluding strengthening inverses
+and sorryAx. Exact-name axiom parsing accounts for every root once and permits
+only propext, Classical.choice and Quot.sound. Sources/logs:
+/tmp/family-application-{audit,independent-audit}.{lean,log}; inventories:
+/tmp/family-application-{audit,independent-audit}-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 retains the original sorry. None of the
+three GOAL.md outcomes is established. Keep the full goal active. Only new
+theory modules and actual EOF ledger additions changed; no executable changes,
+extraction, PRs, subagents or coordination.
