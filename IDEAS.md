@@ -3110,3 +3110,41 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   next unresolved case is where a parameter comparison cannot be replaced by
   either of these explicit joins; the previous native-congruence barrier still
   applies. No strictly smaller sufficient front or goal outcome is claimed.
+
+
+## 2026-10-21 — Consume native result-parameter changes without joins
+
+- **Does a native application really require a parameter join when its
+  parameter changes only a function result? Verdict: no, for neutral source
+  results.** The new declaration shape is `(R : Sort u) → (Prop → R) → Prop`.
+  Its parameter is absent from the function argument's displayed domain.
+  `proofErase_neutral_function_result_guard` derives the two actual carrier
+  erasures and transfers every joint guard, including carrier computation,
+  endpoint reduction, and nested checking, by the existing neutral-result
+  theorem. Ordinary R ≡ S supplies the target argument typings separately.
+  `proofErase_native_neutral_result_propositions` recovers the actual target
+  constant prefix and constructs comparison of its two actual proposition
+  applications. No native type comparison, argument join, or transported
+  guard is an input. The primitive head invariant suffices, including for
+  the unrestricted joint union. The displayed observer type has a checked
+  closed lambda inhabitant, so its signature needs no recursive type axiom.
+
+- **Is this merely the previous join construction in disguise? Verdict:
+  excluded by a checked example.** `native_neutral_result_without_join`
+  specializes the earlier neutral eta example: R = F (fun p => f p), S = F f.
+  These parameters compare at stage zero, yet neither the parameters nor
+  the native argument types Prop → R and Prop → S have a computational join
+  anywhere in the union. The source function type is explicitly inhabited.
+  Nonetheless every finite-stage source guard produces the actual target
+  proposition comparison at that same stage. The example assumes a named
+  declaration with the displayed, inhabited observer type; it does not
+  assert that every environment already contains such a declaration.
+
+  Judgment: a concrete non-joining native application case is now consumed
+  by the checking rule. The neutral-result reindexing itself was already
+  known; the addition is actual native recovery, conversion of argument
+  typings, proposition endpoints, and their combined no-join witness.
+  This does not address parameter occurrences in function input domains,
+  arbitrary dependent native templates, comparison composition, or coverage
+  of arbitrary strong derivations. It is not a strictly smaller sufficient
+  front and does not close any of the three success conditions in GOAL.md.

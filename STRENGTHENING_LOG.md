@@ -12228,3 +12228,65 @@ No canonical-Eq strengthening proof or counterexample and no genuinely
 strictly smaller sufficient irreducible front has been established. Keep the
 full goal active. Changes are two theory modules and actual EOF ledger
 additions only; no executable changes, extraction, PRs, or coordination.
+
+
+## 2026-10-21 12:30 UTC — Native result parameters without computational joins
+
+Previous research goal turn: progress, committed and pushed as 492e769f.
+The intervening clarification performed no research work. Revalidated the
+clean worktree and GOAL.md before continuing. No extraction or PRs requested
+or performed; the original strengthening goal remains unchanged.
+
+Added ProofErasureNativeNeutralResult.lean, with five public declarations.
+The observer signature (R : Sort u) → (Prop → R) → Prop is closed and has a
+checked lambda implementation returning the proposition ∀ P : Prop, P.
+That is a term of Prop, not an assumed proof of this proposition. The
+implementation neither assumes inhabitation of R nor introduces an axiom.
+
+The new transport theorem derives erasures of actual Prop → R and Prop → S
+types, retaining their displayed Prop domain exactly. If erase R is a
+variable-headed spine, the existing full neutral-result carrier theorem
+transfers an arbitrary guard to the target. No parameter comparison or join
+is needed for that raw step. The actual application theorem separately uses
+ordinary typed R ≡ S to construct both target argument typings. Direct
+native constant/application recovery constructs the target Pi certificate;
+appCarrier then proves comparison of two actual terms of literal type Prop.
+Only the primitive head invariant is required of Step. This therefore works
+in the full joint union as well as each finite stage and the certified
+relation, without assuming their open global beta or conversion properties.
+
+The no-join example connects these pieces at the earlier eta obstruction.
+Both parameters are typed at Sort 1 and compare at stage zero. Their erased
+normal forms are distinct; so are those of the resulting Prop → R and
+Prop → S native argument types. Normal-form readout excludes a shared reduct
+in the whole union for both pairs. The source argument type has an explicit
+lambda inhabitant. For arbitrary endpoints typed there and any supplied
+finite-stage guard, the theorem constructs actual target proposition typings
+and their comparison at the same stage. The named observer lookup/type is an
+explicit premise; the checked closed inhabitant validates its signature.
+
+Judgment: the previous computational-join requirement can be removed in
+this concrete native case. The previously proved raw neutral-result
+reindexing is reused, not claimed as new. What is added is its consumption
+by actual recovered declaration prefixes and the proof that the combined
+case lies outside computational parameter joins. Parameter dependence in
+function input domains is still untouched; arbitrary native congruence is
+still subject to the existing full-front barrier. General strong-derivation
+coverage and strict-smallness remain open.
+
+Validation: lake build of the new module succeeds (608 jobs), with no new
+module warnings; /tmp/native-neutral-result-build.log. Independent opaque
+DFS covers all five public roots and 8,296 dependencies, excluding
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv, and sorryAx. Cumulative opaque
+DFS covers 845 roots and 15,743 dependencies and excludes strengthening
+inverses and sorryAx. Exact-name axiom parsing accounts for each root once;
+only propext, Classical.choice, and Quot.sound occur. Audit sources/logs:
+/tmp/native-neutral-result-{audit,independent-audit}.{lean,log}; exact root
+inventories: /tmp/native-neutral-result-{audit,independent-audit}-roots.txt.
+
+Completion audit: the original UniqueTyping.lean:94 sorry remains. No
+canonical-Eq strengthening proof, canonical-Eq counterexample, or genuinely
+strictly smaller sufficient irreducible front has been established. Keep
+the goal active. Only a theory module and actual EOF ledger additions changed;
+no executable changes, extraction, PRs, or coordination.
