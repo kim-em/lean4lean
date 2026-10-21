@@ -2422,3 +2422,37 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   another reduces a typed carrier in the unchanged context. Endpoint beta
   transport, paired body instantiation and the proposition front remain open.
   No strictly smaller sufficient strengthening obligation is claimed.
+
+- **Retain certified primitives through the whole checking transport, rather
+  than forgetting them into the union.** **Proved.** The previous context/type
+  theorem could not be reapplied to its union output using only the original
+  lower-stage hypothesis. `ProofErasureJointStageCertification` now embeds
+  every typed stage-n+1 primitive and path in ErasedBetaStableJoint at its exact
+  original endpoints. In the singleton case a reflexive parallel development
+  supplies the stronger guard, and deterministic telescope evaluation identifies
+  the residual output with the original output. Typed path substitution extends
+  this through sequential intermediates and binders. The existing finite-beta
+  commutation theorem now uses this exact embedding directly, eliminating its
+  preliminary reflexive-strip output reduction. `ProofErasureJointCertifiedChecking`
+  proves recovery and the full comparison/carrier context-type transport with
+  certified source and certified target, without a proposition beta hypothesis.
+  It also upgrades the original finite-stage transport to certified output,
+  using only strictly lower-stage proposition beta transport (none at zero).
+  Hence both modes and carrier guards can retain exact endpoints and future
+  context/type transport. Endpoint beta stability itself is not established.
+
+- **Bootstrap finite stages from proposition beta transport on certified
+  comparisons alone.** **Equivalence proved; not a smaller front.**
+  `joint_prop_beta_transport_certified_iff` proves that two-sided proposition
+  endpoint beta from ErasedBetaStableJoint to the union is equivalent to
+  JointPropBetaStability of the union. The forward implication inducts on the
+  source stage: stage zero certifies unconditionally, and at n+1 the induction
+  hypothesis certifies the input comparison before applying the supplied law.
+  The reverse implication uses certified primitive inclusion. This moves the
+  remaining proof to one source relation with unconditional exact substitution,
+  finite beta commutation, and full context/type transport, while honestly
+  retaining the entire original endpoint obligation. A same-mode induction on
+  arbitrary function comparisons is still refuted by the unit example. The
+  next attempt must retain explicit carriers through application and paired
+  body instantiation, potentially tracking a typed elimination spine whose
+  final result is a universe; no such spine theorem is assumed here.

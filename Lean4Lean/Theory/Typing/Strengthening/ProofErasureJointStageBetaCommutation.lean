@@ -1,11 +1,11 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureBetaStableJoint
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureJointStageCertification
 
 /-! # Finite beta commutation from strictly lower source-stage transport
 
-The first parallel square equips every general singleton residual with future
-beta and substitution certificates. Those certificates are preserved by all
-later squares, so finite iteration never needs transport of an arbitrary
-higher-stage target comparison.
+The original typed path can be equipped with future beta and substitution
+certificates without changing its endpoints. Those certificates are preserved
+by every parallel square, so finite iteration never needs transport of an
+arbitrary higher-stage target comparison.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape
@@ -94,8 +94,8 @@ theorem proofErase_joint_stage_beta_stable_parallel_strip
   exact ⟨shared, PB, .base HR⟩
 
 /-- Arbitrary finite beta commutes with stage-n+1 computation using only
-stage-n proposition beta transport. An initial reflexive development equips
-the residual path with future certificates; all later iterations preserve
+stage-n proposition beta transport. Exact certification first embeds the
+original path in the internally stable target; every iteration preserves
 those certificates without invoking transport on enlarged target guards. -/
 theorem proofErase_joint_stage_beta_commute_of_lower_beta
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
@@ -105,11 +105,9 @@ theorem proofErase_joint_stage_beta_commute_of_lower_beta
     (R : ScopedCompute (ErasedJointStage D (stage + 1)) (proofEraseCtx Γ) (proofErase Γ e) out)
     (B : ProofShape.BetaRed (proofErase Γ e) reduced) :
     ∃ shared, ProofShape.BetaRed out shared ∧
-      ScopedCompute (ErasedBetaStableJoint D) (proofEraseCtx Γ) reduced shared := by
-  obtain ⟨middle, PM, RM⟩ := proofErase_joint_stage_beta_stable_parallel_strip
-    heq hs hregistry Hbeta hΓ ht R (.refl _)
-  obtain ⟨shared, BS, RS⟩ := proofErase_beta_stable_joint_beta_commute heq hs hΓ ht RM B
-  exact ⟨shared, PM.toBeta.trans BS, RS⟩
+      ScopedCompute (ErasedBetaStableJoint D) (proofEraseCtx Γ) reduced shared :=
+  proofErase_beta_stable_joint_beta_commute heq hs hΓ ht
+    (proofErase_joint_stage_compute_certify_of_lower_beta heq hs hregistry Hbeta hΓ ht R) B
 
 /-- The certified finite-beta residual is an actual finite later-stage joint
 path. There is no full-union beta-stability premise or recovery requirement on

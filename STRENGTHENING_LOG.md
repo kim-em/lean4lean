@@ -10825,3 +10825,79 @@ canonical-Eq counterexample or strictly smaller sufficient irreducible front
 has been established. The full goal remains active. This turn changes only
 theory and the two research ledgers; no executable changes, extraction, PRs,
 subagents or coordination.
+
+## Exact certification and internally closed checking (2026-10-21)
+
+Previous-goal-turn classification: progress. The authoritative clean baseline
+was 0a40d81392bfea1c858b58151059f77f1944340a. It completed context-oracle and
+carrier-type beta transport but forgot the output into the joint union. This
+turn checked the paired-instantiation boundaries and identified a concrete
+composition issue: the original lower-stage beta hypothesis cannot be applied
+to arbitrary enlarged union outputs. The resulting construction retains the
+certificates needed for subsequent context and carrier transport.
+
+ProofErasureJointStageCertification proves exact typed primitive certification
+from source stage n+1 under proposition beta transport only at stage n. For a
+general singleton, the existing parallel residual theorem is specialized to a
+reflexive argument development. Both telescope evaluations have the identical
+input, so their domains and result are equal; consequently the new certified
+primitive has exactly the original output. Specialized Eq prefixes are handled
+by their existing general-singleton presentation. Induction over inherited
+stages uses monotonicity of the lower-source transport hypothesis. The primitive
+result then substitutes into the certified target, and the existing typed
+path substitution induction certifies every compatible path exactly.
+
+The finite-beta theorem in ProofErasureJointStageBetaCommutation now uses this
+exact path embedding before applying the certified relation's finite-beta
+commutation. Its statement is unchanged, and its proof no longer introduces an
+initial reflexive parallel strip with an unspecified beta-reduced intermediate
+output. The certification module depends only on ProofErasureBetaStableJoint,
+so the import graph remains acyclic and the construction is used by existing
+commutation, recovery and context/type checking results.
+
+ProofErasureJointCertifiedChecking proves the previously missing self-closure:
+certified recovery transports through oracle beta back to certified recovery,
+and all certified JointCheck constructors transport back to the same certified
+relation with fixed expressions and beta-reduced carrier types. Both results
+are unconditional on proposition beta stability because the primitive guard
+certificates already store their future beta/substitution facts. The source
+stage n+1 version now retains certified output, using exact source computation
+substitution plus the already certified commutation and recovery outputs. Stage
+zero needs no proposition beta premise. Specializations certify a typed source
+comparison or carrier guard at exactly its original context and endpoints.
+
+A final theorem closes the stage bookkeeping for the remaining endpoint law:
+JointPropBetaTransport ErasedBetaStableJoint ErasedJointUnion is equivalent to
+JointPropBetaStability ErasedJointUnion. Forward, induct on the original finite
+source stage. At zero certify the comparison unconditionally. At n+1 use the
+preceding stage's beta transport to certify the comparison, then apply the
+assumed certified-source law. Reverse, include the certified input in the union.
+This is explicitly an equivalence, not a smaller sufficient strengthening front.
+No endpoint beta law is smuggled into the new self-context/type theorem.
+
+Next task: work on proposition endpoint beta with the now internally closed
+certified source relation. The remaining application/body-instantiation step
+must retain carrier information: arbitrary common or inferred endpoint beta
+comparison is still false. A typed elimination-spine invariant ending in a
+universe is a candidate to test, alongside paired body instantiation. No
+arbitrary assigned-type recovery or carrier-domain re-synthesis hypothesis is
+available. The new certificate induction removes stage growth from context and
+carrier transport, but does not itself transport an arbitrary endpoint beta
+reduction or substitute an arbitrary non-recoverable checking image.
+
+Validation after the commutation refactor: certified checking, the prior full
+common-beta boundary and full joint beta-commutation targets build (614 jobs),
+/tmp/joint-certified-checking-build.log. Independent opaque DFS checks the ten
+new public roots plus the changed commutation root: 11 roots and 11,451
+dependencies, excluding JointCarrierDomainResynthesis, strengthening inverses
+and sorryAx. Cumulative audit: 672 public declarations, 15,485 dependencies,
+no strengthening inverses or sorryAx. Exact report names and counts were parsed
+and matched for both audits; axioms are limited to propext, Classical.choice
+and Quot.sound. Audit sources/logs:
+/tmp/joint-certified-checking-{audit,independent-audit}.{lean,log}.
+
+Completion audit: UniqueTyping.lean:94 still has the original sorry. There is
+no canonical-Eq strengthening counterexample or strictly smaller sufficient
+irreducible front. The goal remains active. Only theory and the two research
+ledgers changed; extraction and PRs remain deferred, with no executable changes,
+subagents or coordination.
