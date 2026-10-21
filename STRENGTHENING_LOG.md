@@ -15656,3 +15656,51 @@ canonical-Eq counterexample or strictly smaller sufficient irreducible
 obligation has been proved. GOAL.md remains active. Only the new Theory module,
 the finite relation module and actual-EOF ledger entries change; no executable
 changes, PR extraction, subagents or coordination.
+
+
+## 2026-10-21 21:37 UTC — Arbitrary typed motive replacement preserves the probe criterion
+
+Added ProofErasureEqMotiveReplacement.lean (five public theorems). A retained
+typed Eq recursor over Prop with literal universe minor computes to that exact
+universe iff the original proposition indices compare. The proof retains the
+full first-head argument computations, excludes core through the proof-marker
+major, and decodes the general singleton guard. The reverse direction uses
+the explicit carrier prefix primitive and beta. No condition is imposed on
+the motive beyond the source's actual typing and retention.
+
+Consequently two arbitrary typed retained motives have the same observation
+at the specified minor universe. A canonical positive-universe typing version
+derives retention by typing the recursor's result type. An inserted-context
+version allows the motive and major only upstairs, retaining the lower index
+certificate. A semantic conversion of the original constant motive explicitly
+transports the minor's assigned domain and supplies the criterion for the new
+motive. This includes eta inside the motive argument without invoking a general
+contextual eta/computation law, recovery completeness, or global confluence.
+
+Added ProofErasureJointMotiveComputation.lean (seven public roots including
+three constructors). It interleaves arbitrary typed retained motive replacement
+with JointSpineEtaCompute and transitivity, indexed by the specified universe.
+The continuation theorem and lower original-index criterion hold for all finite
+paths. This is an observation-preserving extension at that universe; it neither
+asserts equality of unrelated motives nor closure under arbitrary term contexts.
+The existing finite spine relation is unchanged.
+
+Validation: consuming build succeeds in 676 jobs
+(/tmp/joint-motive-computation-build.log). Both new modules compile without
+warnings; dependency warnings predate these changes. Cumulative opaque DFS:
+1,364 public roots / 16,652 dependencies. Independent audit covers all 12 new
+public roots, including the three constructors, with 11,430 dependencies.
+Both exclude weakN_iff, weakN_inv and sorryAx. Independent additionally excludes
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport
+and JointPropBetaStability. Exact root inventories and the
+propext/Classical.choice/Quot.sound axiom whitelist pass. Audit logs contain
+no errors or warnings. Artifacts:
+/tmp/motive-replacement-{audit,independent-audit}.lean and .log, with -roots.txt inventories.
+
+Completion audit: UniqueTyping.lean:94 still has the original sorry. No
+canonical-Eq counterexample or strictly smaller sufficient irreducible
+obligation is established. The motive slot is now covered under arbitrary
+typed replacement, but comparison-certificate preservation for changes inside
+proposition indices remains open. GOAL.md stays active. Only the two Theory
+modules and actual-EOF ledgers change; no executable changes, PR extraction,
+subagents or coordination.

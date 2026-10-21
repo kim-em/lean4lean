@@ -5227,3 +5227,44 @@ readout survive eta/computation interleavings inside a supplied argument, so
 that the finite spine relation has a typed contextual extension? This must
 preserve original guards and outputs, not merely give semantic equality or
 postulate a recovery condition already equivalent to PropositionFront.
+
+
+## 2026-10-21 21:37 UTC — Bypass contextual eta transport for the entire motive slot
+
+Verdict: proved a stronger replacement theorem for the motive argument.
+An initial attempt to extend the finite spine relation through arbitrary
+argument contexts has no ready transport lemma: the existing image-substitution
+result transports ordinary computation, and full guarded-joint confluence is
+still conditional. A comparison of two argument endpoints alone also does
+not supply preservation of a subsequent universe-exposing continuation.
+Those observations change the approach but do not refute contextual coverage.
+
+For a retained typed Prop-carrier Eq recursor with literal universe minor,
+first-head readout supplies an exact comparison of its original proposition
+indices independently of its motive. Conversely that comparison enables the
+prefix primitive and beta, returning the exact literal minor. This proves
+universe exposure iff the original index certificate for an arbitrary motive,
+not just the constant probe motive. Any two typed retained motives therefore
+have identical exposure of this specified universe, with no equality between
+the motives required. The recursor universes and proof majors may differ too.
+
+Positive-universe canonical motive typing implies retention; the theorem has
+a version with those explicit typings instead of an abstract retention premise.
+An arbitrary semantic conversion of the original probe motive supplies both
+the changed motive typing and the minor-domain conversion, so eta anywhere
+inside that motive is covered without erased recovery or a semantic exposure
+assumption. An inserted-context version permits the motive to exist only
+upstairs, still retaining the original lower-index comparison certificate.
+
+Added finite interleavings of these replacements, the certified spine eta
+rules and full joint computations at a specified minor universe. The new
+relation is an observation-preserving fragment, not an assertion that arbitrary
+motive replacements are semantic reductions or that all universe observations
+are interchangeable. Its lower Eq-probe criterion is unchanged.
+
+This closes the entire motive-argument replacement case. It does not close
+changes inside either proposition index: those are precisely the values read
+by the guard. Arbitrary contextual eta and structure eta on the indices still
+need preservation of original comparison certificates. General paired
+substitution and the original strengthening theorem remain open. No strictly
+smaller sufficient irreducible front has been established.
