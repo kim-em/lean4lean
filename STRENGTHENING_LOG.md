@@ -15853,3 +15853,59 @@ Completion audit: UniqueTyping.lean:94 retains the original sorry. There is no
 canonical-Eq counterexample or strictly smaller sufficient irreducible
 obligation. GOAL.md remains active. Only these two Theory modules and actual-EOF
 ledgers change. No executable changes, PR extraction, subagents or coordination.
+
+
+## 2026-10-21 22:23 UTC — Full recursive transport for the computed-domain extension
+
+Added four Theory modules (1,320 lines). ProofErasureComputedJointChecking
+defines ComputedJointCheck with all original joint constructors plus a fully
+recursive appComputed rule. JointCheck.computed embeds the old grammar;
+ComputedLambdaApplication.recursive embeds the earlier local rule. Primitive
+inclusion is proved for every constructor.
+
+ProofErasureComputedJointDescent extends the complete simultaneous semantic
+descent induction. The new application case descends the function computation,
+reconstructs its actual lower lambda and domain, aligns the two functions using
+the recursive inferred comparison, and applies the recursive carrier equality
+at that domain. Public comparison/carrier descent and original-context
+reflection are proved. No inverse weakening is used. These results do not
+claim exact lower certificates for the enlarged checker.
+
+ProofErasureComputedJointTransport gives the full dependent-field/binder
+transport induction for the enlarged checker. Native applications accept exact
+substituted recovery or a computed lambda at the exact substituted domain;
+computed applications transport their computation and both subderivations.
+No target subcomparison or subguard remains an external premise in the
+specialized recursive theorem.
+
+ProofErasureComputedJointTypeSubstitution interprets exact-sort/recovering image
+substitutions across all typed source realizations and extends them under
+binders. It discharges every transport input at stage zero using core raw
+substitution and the previous selected-domain classification. Public theorems
+cover common-typed comparison in either mode, exact-carrier transport, single
+substitution of any type/proposition for both views, and beta-redex comparison
+from compared bodies at a shared type argument. The source may already contain
+arbitrarily nested computed-domain applications.
+
+Scope: arbitrary non-proof function/structure images and higher joint stages
+remain open. The body-certificate beta theorem is not arbitrary endpoint beta
+stability. There is no assertion that the enlarged checker embeds back into
+the old one or is complete for declarative equality. In particular, lambda
+arguments in the original matched-beta obstruction still need treatment.
+
+Validation: consuming build succeeds in 570 jobs
+(/tmp/computed-joint-type-substitution-build.log), with no new-module warnings.
+Opaque DFS covers all 46 new public declarations, including every constructor,
+and 9,098 dependencies. It excludes weakN_iff, weakN_inv, sorryAx,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport
+and JointPropBetaStability. Exact axiom/root inventories match, with only
+propext, Classical.choice and Quot.sound. The audit log has no errors/warnings.
+Artifacts: /tmp/computed-joint-independent-audit.lean, .log and -roots.txt.
+This audit covers the new roots and their full dependencies; it is not a rerun
+of the earlier cumulative root inventory.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry. No
+canonical-Eq counterexample or strictly smaller sufficient irreducible
+obligation is proved. GOAL.md remains active. Only these four Theory modules
+and actual-EOF ledgers change; no executable changes, PR extraction, subagents
+or coordination.

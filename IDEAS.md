@@ -5378,3 +5378,41 @@ into existing comparison, or make it a recursive checking rule with proved
 descent and transport. Higher joint-stage primitive transport also remains
 open. This is not a proof of JointPropBetaStability or a new strictly smaller
 sufficient obligation for PropositionFront.
+
+
+## 2026-10-21 22:23 UTC — Recursive computed-domain checker closes type-image transport
+
+Idea: make the computed-domain application rule recursive, rather than leave
+its target comparison and carrier premises as external assumptions. Verdict:
+proved for the full enlarged grammar at stage zero under exact-sort or native
+recovering images; arbitrary type/proposition single substitution is covered.
+No embedding of the enlarged checker back into the old one is asserted.
+
+ComputedJointCheck retains every old joint checking constructor and adds
+appComputed. Both its function comparison and carrier guard recurse in the
+same family, with no bound on nesting or alternation. Old joint certificates
+and the earlier local ComputedLambdaApplication embed. A full semantic binder
+descent proof reconstructs the exposed lambda below inserted binders and then
+uses the recursive function and carrier induction hypotheses. This is semantic
+descent, not yet exact lower-certificate descent for the enlarged family.
+
+The shared transport induction now permits exact native Pi recovery OR lambda
+computation at the exact substituted domain. The appComputed case transports
+its function computation and both recursive premises directly. At stage zero,
+the previous selected-domain theorem discharges the native application's
+alternative. Exact-sort image conditions extend through arbitrary binders and
+are invariant across equal-erasure source realizations. Consequently both
+comparison modes at common typed endpoints and explicit-carrier checking
+transport in the same enlarged grammar. Single substitution of any type, and
+paired beta-redex comparison from a supplied body certificate at a type
+argument, require no recovery of that argument.
+
+Remaining scope: this does not prove arbitrary endpoint beta stability,
+substitution by arbitrary non-proof function/structure values, higher-stage
+primitive substitution, or completeness of this checker. In particular the
+original matched-beta obstruction can involve lambda-valued arguments; they
+are not silently included among type images. Next live task: extend the image
+criterion to the needed lambda/function arguments or isolate a concrete
+obstruction there, while retaining sound binder descent. GOAL.md's proof,
+canonical-Eq counterexample, and strictly smaller sufficient obligation
+alternatives remain unachieved.
