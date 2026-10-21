@@ -11493,3 +11493,68 @@ Completion audit: the original sorry at UniqueTyping.lean:94 remains. No
 canonical-Eq counterexample or strictly smaller sufficient irreducible front
 has been established. The goal stays active. Changes are theory and appended
 research ledgers only; no executable changes, extraction, PRs, or coordination.
+
+
+## Stage-zero proposition beta transport carries the front (2026-10-21)
+
+Authoritative start: b71714ffa4921a4887d082c45041f785af560a40, clean worktree.
+The previous research goal turn made progress through the checked finite probe
+computation and full-union adequacy reduction. The intervening clarification
+made no research progress; current source inspection revalidated that state.
+No extraction or PR work was performed.
+
+ProofErasureEqTypeProbe generalizes the fixed sort probe to return any type S
+of universe u, with the constant motive returning Sort u. Typing does not need
+endpoint conversion. Under endpoint conversion the recursor equals S. The
+exact erasure retains S and replaces the Eq proof with the proof marker.
+The public head-descent theorem accepts any output whose constant head differs
+from Eq.rec and any inserted front block. Its proof uses the actual typed
+first-head witness, excludes core at every prefix, and reads the general
+singleton guard below the inserted block. The five-prefix nonproof argument
+uses forward weakening to a fresh equality-proof binder, never inverse typing
+weakening. Specialized union prefixes are covered by the existing typed
+conversion to general singleton primitives.
+
+ProofErasureJointUnitBetaBarrier proves two public consequences of proposition
+beta transport from any finite source stage into the union. The first descends
+endpoint equality when the larger context contains an Eq major and two distinct
+variables at a positive empty structure. The initial carrier guard is available
+without any primitive computation. The existing carrier_conversion_stage law
+moves it along the semantic equation between the structure type and its Eq
+probe. Distinct variable injectivity excludes common checking, forcing an
+actual carrier exposure. A registered structure is rigid and cannot have the
+Eq.rec head; a Pi has no constant head. The generalized first-head theorem
+therefore descends the original proposition equality.
+
+The second theorem supplies all the auxiliary binders explicitly from a closed
+positive empty structure: above A :: Gamma insert two structure variables and
+one proof of Eq Prop (P lifted three times) (Q lifted three times). Original
+endpoint conversion weakens forward through those three binders. A four-binder
+readout returns equality in Gamma, establishing PropositionFront. In particular
+this works when the proposed beta law starts at stage zero.
+
+Judgment: this is a conditional sufficiency/barrier result, not a counterexample,
+not an equivalence, and not a proof of the beta law. Canonical Eq alone has not
+been shown to supply the required structure; no conservativity of adding it is
+assumed. In environments that contain it, proposition beta transport cannot be
+treated as an independent routine closure while claiming to have bypassed
+strengthening. The direct probe-computation route remains open. Next investigate
+whether actual original type-conversion subderivations support a decreasing
+guard construction through application and transitivity; the global carrier
+conversion law supplies no such decrease.
+
+Validation: both new modules build successfully, including their dependencies
+(617 jobs), /tmp/eq-unit-beta-build.log. Neither new module emits warnings.
+Independent opaque DFS covers all seven public roots and 11,351 dependencies;
+it excludes JointCarrierDomainResynthesis, .weakN_iff, .weakN_inv and sorryAx.
+Cumulative opaque DFS covers 766 roots and 15,624 dependencies, excluding both
+strengthening inverses and sorryAx. Exact-name axiom parsing accounts for every
+root in both inventories; only propext, Classical.choice and Quot.sound occur.
+Audit sources/logs: /tmp/eq-unit-beta-{audit,independent-audit}.{lean,log}.
+New root inventory: /tmp/eq-unit-beta-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+No canonical-Eq counterexample or strictly smaller sufficient irreducible front
+has been established. The active goal remains unfinished. Changes are confined
+to theory modules and these appended research ledgers; no executable changes,
+PR extraction, or coordination.

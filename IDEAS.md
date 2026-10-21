@@ -2710,3 +2710,40 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   evidence can be tracked as a genuinely smaller original derivation; neither
   replacing it by semantic equality nor simply invoking confluence resolves
   the missing erased certificate.
+
+
+## Test proposition beta transport with a unit-valued Eq probe (2026-10-21)
+
+- **Use finite-stage proposition beta transport as a local induction closure.
+  Verdict: it already implies PropositionFront when a closed positive empty
+  structure is present.** The checked theorem
+  `JointPropBetaTransport.propositionFront_of_closed_unit` works from any one
+  finite source stage, including zero, into the full joint union. The source
+  carrier guard is just the empty-structure rule on two distinct variables;
+  no source primitive computation is needed. Existing carrier conversion
+  moves that guard to an Eq recursor returning the structure type. Common
+  comparison cannot relate the two bare variables, so the converted guard
+  must expose a structure or Pi carrier. Either output changes the Eq.rec
+  head. Its first primitive then yields comparison of the original proposition
+  indices below the inserted block, exactly as the sort probe does.
+
+  This conditional implication does not refute proposition beta transport or
+  strengthening. It does not assert that canonical Eq entails existence of
+  a closed positive empty structure, or that such a structure may be added
+  conservatively. It does rule out treating this transport law as an already
+  justified local closure lemma in environments with such a structure. No
+  strictly smaller sufficient front has been established.
+
+- **Depend on the sort probe's literal result to obtain the barrier.
+  Verdict: unnecessary.** `proofErase_joint_union_type_probe_head_descend`
+  permits any lower type as the minor and any output whose head differs from
+  Eq.rec. Actual typed first-head classification and the computed five-prefix
+  guard provide the descent; semantic identification of the output is unused.
+
+  Next: return to the original equality derivation and construct the particular
+  probe computation directly. Any induction invariant that transports arbitrary
+  carriers must account for the full strengthening content identified here.
+  The present result gives no decreasing measure for that obligation. A useful
+  next test is to retain the actual type-conversion subderivation as part of
+  the guard construction and inspect the application and transitivity cases,
+  rather than installing global beta transport as a premise.
