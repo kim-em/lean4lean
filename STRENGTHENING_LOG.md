@@ -9203,3 +9203,77 @@ the full joint computation family with finite stage growth. This supports the
 remaining route but is not a proof of weakN_iff, a canonical-Eq counterexample,
 or a strictly smaller sufficient strengthening front. The original objective
 remains active. No executable changes, extraction, PRs, agents or coordination.
+
+
+## Computed-image recovery: strict lambda extension and remaining eta boundary
+
+The previous goal turn made progress before the user pause: two new modules
+compiled and passed their final audits. The pause interrupted ledger updates
+and the commit. On resumption, revalidated HEAD 8c9c35f1, the two untracked
+modules, the audit reports, and the current build. No background process was
+being awaited; the earlier build and audit processes had all exited.
+
+ProofErasureJointComputedRecovery weakens the operational use of exact image
+recovery. The original argument may first compute to a raw image that recovers
+its assigned type. Typed descent realizes that image as an actual argument of
+the same type. Exact-recovery substitution then acts on that new argument,
+while the image-computation theorem moves the old argument's occurrences to
+the new image through any typed template, without a recovery requirement.
+
+For a body computation b -> out, the result is a join: both the erasure of
+b.inst x and out instantiated by the original erased x compute to out
+instantiated by the new image. Replaying out supplies the actual typed template
+needed for the latter arm. The bound is max(argumentStage,
+recoveryStage + bodyStage). This is deliberately not a directed substitution
+law ending at out instantiated by the original x.
+
+The new beta-overlap theorem combines this construction with finite-later-stage
+lambda inversion. Its other arm remains one beta step from the computed
+function/argument application. This is an alternative to the preceding theorem:
+recovery of the computed argument can suffice even when recovery of the
+original argument is unavailable. Neither alternative assumes joint confluence.
+
+Both joint comparison modes and the complete joint carrier grammar also
+transport under the new condition. Compare after substituting the computed
+argument, then use the endpoint compute constructor to retain the exact
+original substituted endpoints. For carriers, compute the substituted carrier
+and both endpoints together, then use carrierCompute and carrierReduce. The
+conclusions retain the original substituted carrier as well. All recursive
+field and function guards are included through the existing full exact-recovery
+transport theorem; no re-synthesis premise is added.
+
+ProofErasureComputedRecoveryBoundary checks that this is a strict extension
+for lambda images, not only a differently packaged hypothesis. The witness is
+lambda p : Prop => ((lambda X : Sort(max(1,0)) => X) Prop), assigned type
+Prop -> Sort 1 by universe equivalence. Every recovery of the original lambda
+ends at Prop -> Sort(max(1,0)); ordinary/joint computation fixes that raw Pi
+of literal sorts. Hence exact recovery of the assigned type is impossible in
+the full joint union. Stage-zero computation reduces its body to Prop, and
+the resulting lambda recovers Prop -> Sort 1 directly. This has the lambda
+shape relevant to the original matched-beta residue, without claiming to solve
+that residue for arbitrary lambda arguments.
+
+The same module records the surviving limit: the eta-converted variable from
+ProofErasureEtaRecoveryJoinBoundary is fixed by every joint computation.
+Consequently no computed image of it recovers its assigned type either. Allowing
+preliminary term computation cannot silently supply universal recovery coverage.
+The next live issue remains comparison-based assigned-type alignment, or an
+alternative proof avoiding universal recovery; literal computational joins and
+computed-image exact recovery both have checked boundaries.
+
+Validation: lake build through ProofErasureComputedRecoveryBoundary passes
+(549 jobs; /tmp/computed-recovery-boundary-build.log), and the resumed build
+also passes (/tmp/computed-recovery-resume-build.log). The final cumulative
+opaque audit /tmp/computed-recovery-audit.lean checks 464 public roots and
+14,514 dependencies with no weakN_iff, weakN_inv or sorryAx. All 464 axiom
+reports were accounted for and restricted to propext, Classical.choice and
+Quot.sound. The independent audit /tmp/computed-recovery-independent-audit.lean
+checks all six new public roots and 11,009 dependencies, additionally rejecting
+JointCarrierDomainResynthesis. Its six axiom reports pass the same check.
+The audits were run after strengthening the strict witness to a lambda.
+
+Judgment: conditional substitution and beta-overlap transport now cover a
+strictly larger class of actual lambda arguments. This does not satisfy any
+completion alternative in GOAL.md: weakN_iff remains open, and no canonical-Eq
+counterexample or strictly smaller sufficient front has been established.
+No executable changes, extraction, PRs, agents or coordination. Goal active.

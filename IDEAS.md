@@ -1759,3 +1759,27 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   genuine restriction, already known not to follow from arbitrary typing.
   Removing or replacing it and handling guarded primitive overlaps remain live;
   no strictly smaller sufficient front or strengthening proof is claimed.
+
+
+- **Compute substitution images before requiring exact assigned-type recovery.**
+  **Checked for substitution joins, beta overlaps, both joint comparison modes,
+  and full joint carrier checks.** ProofErasureJointComputedRecovery first
+  replays the computed image as a typed original, applies exact-recovery
+  transport there, and computes occurrences of the original image through the
+  typed template. Computation endpoints meet at the old output instantiated by
+  the computed image; a directed path to the old instantiated output is not
+  asserted. Comparison and carrier constructors absorb these computations and
+  retain the exact original substituted endpoints and carrier. The finite bound
+  is max(argumentStage, recoveryStage + bodyStage).
+
+- **Check whether computed recovery actually enlarges the useful image class.**
+  **Strict extension proved for a non-proof lambda; still not arbitrary typing.**
+  ProofErasureComputedRecoveryBoundary uses a lambda containing an identity beta
+  redex at the syntactic universe max(1,0), assigned the equivalent universe 1.
+  Every recovery of the original lambda retains max(1,0), even in the entire
+  joint union. Its stage-zero beta reduct recovers the assigned type exactly.
+  The eta-converted neutral variable example remains fixed by all computation
+  and defeats computed recovery too. Thus reduction repairs some converted
+  lambda images but cannot replace comparison-based type alignment in general.
+  This is a strict improvement to conditional transport, not a smaller
+  sufficient strengthening front or a solution of the matched-beta residue.
