@@ -3782,3 +3782,39 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   typed composition remain unresolved. Projection reduction of displayed
   constructors is a concrete next interaction to test using the retained field
   certificates and certified computation prefixes. No GOAL.md outcome is claimed.
+
+
+## 2026-10-21 15:18 UTC — Full future comparison through typed projection
+
+- **Select a retained future constructor field across projection iota.
+  Verdict: proved without a join of the majors.**
+  BetaStableFamily.primitive_prefix uses an ordinary primitive's exact beta
+  residual and raw substitution theorem. project_constructor selects the
+  indexed field and preserves its complete future certificate. These raw
+  theorems need neither typing nor primitive confluence.
+
+- **Extend projection beyond the displayed-constructor branch.
+  Verdict: proved for arbitrary typed joint comparisons.**
+  proofErase_joint_project_typed inducts over the whole joint comparison
+  grammar. Inferred cases include applications with recursively checked carrier
+  arguments. A lambda cannot type as a projection major; a displayed constructor
+  selects its smaller field guard; computation replays and projects at the
+  original major and field types. Carrier-only conclusion cases are impossible
+  by the comparison index. proofErase_joint_project needs only the left field
+  typing and obtains the right one by sound reflection.
+
+- **Retain arbitrary future major certificates through projection.
+  Verdict: proved, including iteration.** proofErase_future_project splits
+  future beta paths of retained projections into major paths, types their
+  residuals by forward beta replay, and applies joint projection closure.
+  Proof-valued projections collapse on both sides. Interpreted substitution
+  supplies new actual typings and the input's substituted future certificate.
+  proofErase_future_union_project discharges all primitive premises in the
+  concrete canonical-Eq joint union. Its output can be projected again.
+
+  Judgment: general typed projection is no longer an open compatibility case
+  for this future invariant. This does not prove compatibility with arbitrary
+  application, arbitrary paired instantiation, general carrier conversion or
+  typed composition. Those remain substantive gaps; no smaller sufficient
+  front or GOAL.md success is claimed. Next investigate application of a future
+  function comparison to an unchanged typed argument before unequal arguments.

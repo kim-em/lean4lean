@@ -13380,3 +13380,73 @@ No canonical-Eq strengthening proof, canonical-Eq counterexample or genuinely
 strictly smaller sufficient irreducible obligation is established. Keep the
 full goal active. Only theory modules and actual EOF ledger additions changed;
 no executable changes, PR extraction, PRs, subagents or coordination.
+
+
+## 2026-10-21 15:18 UTC — Close the general typed projection case
+
+Previous research goal turn: progress (b992d960 constructed future certificates
+for all typed structure eta). The intervening conversational clarification made
+no repository change. This continuation revalidated clean HEAD b992d960, GOAL.md
+and the ledger, then pursued the recorded projection interaction. The user's
+restriction on PR extraction remains in force; research continues.
+
+ProofErasureFutureProjection first establishes raw primitive_prefix and
+project_constructor. An ordinary primitive commutes with an arbitrary beta
+path by its exact residual theorem; the old output's future certificate handles
+that residual. Raw substitution preserves the primitive. Projection iota is a
+specialization with exact parameter/field indexing. No computational join of
+the compared majors is assumed.
+
+The investigation then goes beyond that constructor-specific construction.
+ProofErasureJointProjection supplies proofErase_joint_project_typed for the
+entire mutually recursive comparison grammar. Carrier checking inside an
+application is preserved by reusing its inferred application comparison.
+Lambda/eta-lambda cases are excluded by the actual projection typing. In the
+structure case, actual typing identifies the constructor's family and field
+index; projection iota consumes that smaller field comparison. Typed primitive
+replay excludes an erased selected field when the projected result is retained.
+Computational prefixes replay at the common major type, induce equalities of
+projections at their common original field type, and recurse on the residual
+comparison. Symmetry exchanges both actual field typings. Carrier-mode
+conclusions cannot match the comparison index. No comparison transitivity or
+carrier-conversion premise is introduced. The single-field-typing wrapper uses
+joint soundness to obtain the other field typing.
+
+proofErase_future_project then preserves the full future certificate for any
+actual typed joint comparison, in either input mode. For retained projections,
+beta inversion yields the major beta paths. Forward beta replay realizes their
+actual typed residuals, and the ordinary joint projection theorem compares
+their projections. For proof-valued results, both erasures are the proof marker
+and typed beta-join stability supplies the future comparison. After an
+interpreted context substitution, its realization supplies actual substituted
+major and projection typings; the original input's future certificate supplies
+the substituted comparison. This argument does not need a primitive
+substitution law for the ambient comparison collection. The concrete union
+wrapper discharges descent and ordinary primitive inclusion using canonical Eq
+and sound declarations. The result may be iterated at further typed projections.
+
+Judgment: this closes general typed projection compatibility for the future
+invariant, rather than merely adding another constructor case. General
+application, paired instantiation, carrier conversion and typed composition
+remain open. A useful next target is compatibility with application to the
+same typed argument, using the retained future function certificate and typed
+beta residuals; unequal arguments require their own carrier certificates.
+There is still no full equality coverage or strictly smaller sufficient front.
+
+Validation: two new modules, 319 lines, six public theorems. The final dependent
+build succeeds in 569 jobs; no warnings from either new module:
+/tmp/future-projection-build.log. Independent opaque dependency DFS covers all
+six roots and 10,900 dependencies, excluding JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport, .weakN_iff, .weakN_inv and
+sorryAx. Cumulative opaque DFS covers 999 roots and 16,085 dependencies, excluding
+strengthening inverses and sorryAx. Exact-name axiom parsing accounts for every
+root once and permits only propext, Classical.choice and Quot.sound. Sources,
+logs and root inventories: /tmp/future-projection-{audit,independent-audit}.lean,
+/tmp/future-projection-{audit,independent-audit}.log and corresponding
+-roots.txt files. Both audit processes completed successfully.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry. None
+of the three GOAL.md outcomes is established: no canonical-Eq strengthening
+proof, no canonical-Eq counterexample, and no genuinely strictly smaller
+sufficient irreducible obligation. Leave the goal active. Only theory modules
+and actual EOF ledger additions change; no executable changes or PR extraction.
