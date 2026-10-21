@@ -14239,3 +14239,61 @@ a proposed stronger invariant is checked false and the carrier distinction is
 verified, narrowing the next available proof step. The goal remains active.
 Only a theory module and actual EOF ledger additions change; no executable
 changes, PR extraction, PRs, subagents or coordination.
+
+
+## 2026-10-21 17:22 UTC — Arbitrary domain changes and dependent application for future body recipes
+
+ProofErasureFutureComputeFront names the unproved forward endpoint-computation
+law at an actually supplied carrier and proves its conditional PropositionFront
+consequence. Inputs already retain all carrier/endpoint beta paths and future
+interpreted substitutions, at source False. The conclusion asks only for a base
+union guard after certified computations. The checked identity-unit example
+supplies the paths. Assigning its applications an equal unit-valued Eq-probe
+carrier forces the output to expose that probe. The usual typed head readout
+then descends the lower proposition equality. The closed-unit corollary builds
+the required context. This is neither a refutation nor a strictly smaller front;
+its declaration/unfolding and Eq-inertness hypotheses remain explicit.
+
+ProofErasureFutureFunctionDomain supplies the positive alternative when the
+body recipe is retained. Future family and carrier certificates transport
+through equal actual contexts by their stored interpreted substitutions.
+A full future eta-body certificate therefore reconstructs a function certificate
+after arbitrary equal-domain changes. Any sound primitive domain computation
+supplies the equality by typed replay, so its output may have any shape. The
+computation and checking relations can differ. This does not infer a body
+certificate from an arbitrary whole-function certificate.
+
+ProofErasureFutureCarrierInstantiation consumes such dependent body recipes.
+Typed instantiation retains the actual instantiated carrier and both endpoints.
+For two arguments with a certified join, replay obtains their shared typed
+representative. Instantiating there and pulling back endpoint computations
+retains their full future guards. A separate computation of the dependent
+carrier restores the actual left result type; no constant-codomain assumption
+is used. Displayed lambda application follows by explicit beta prefixes. The
+final theorem first changes the lambda domain by arbitrary actual equality,
+transports its actual body typings and future recipe, and then performs the
+paired application. This is constructive recipe transport, not general
+certificate extraction or equality coverage.
+
+Validation: three new modules, 276 lines, eleven public roots (ten theorems and
+one explicitly unproved-law definition). The final consuming build exits zero
+in 675 jobs; all new modules are warning-free, with old dependency warnings
+replayed. Log: /tmp/future-recipe-final-build.log. Both opaque dependency audit
+processes exit zero. The independent audit covers 11 roots and 11,548
+dependencies, excluding JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv and sorryAx. The cumulative audit
+covers 1,126 roots and 16,294 dependencies, excluding strengthening inverses and
+sorryAx. Exact-name axiom parsing covers all roots exactly once and permits only
+propext, Classical.choice and Quot.sound. Opaque values are traversed using
+ci.value? (allowOpaque := true). Sources/logs/inventories:
+/tmp/future-recipe-{audit,independent-audit}.{lean,log} and -roots.txt files.
+The new forward-computation law is an explicit hypothesis of its strength
+implications; none of the positive recipe transport theorems assumes it.
+
+Completion audit: the original UniqueTyping.lean:94 sorry remains. None of the
+three GOAL.md success conditions is proved. This turn is progress: arbitrary
+function-domain changes and dependent joined application are verified under a
+retained-body premise, and unrestricted forward carrier computation is shown
+conditionally to contain the original front. Keep the goal active. Only theory
+modules and actual EOF ledger additions change; no executable edits, PRs,
+PR extraction, subagents or coordination.

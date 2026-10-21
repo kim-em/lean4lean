@@ -4287,3 +4287,49 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   constructed, and no strictly smaller sufficient front is claimed. General
   carrier-aware forward primitive transport remains live; semantic head
   exposure must not be assumed as its solution.
+
+
+## 2026-10-21 17:22 UTC — Retained future bodies versus arbitrary forward carrier computation
+
+- Revalidation: the preceding turn made progress by checking unrestricted
+  common future transport false under identity delta. HEAD 82e591a2 was clean.
+  Literal unit carrier futures survive that example; arbitrary supplied carrier
+  conversion remained the next premise to test before using it for forks.
+- Does retaining a full future carrier certificate make unrestricted endpoint
+  computation a smaller obligation? Verdict: no such strictness claim is
+  available. TypedFutureCarrierForwardCompute requests only source-False future
+  carrier certificates, certified endpoint paths and a base output guard in
+  the union. It implies PropositionFront given a closed positive unit and a
+  declared identity unfolding, canonical Eq, sound definitions and the usual
+  Eq/Eq.rec inertness and registry assumptions. Convert the two constant-unit
+  applications to a unit-valued Eq probe; delta/beta exposes distinct variables,
+  whose guard must expose the probe and descend its proposition indices. This
+  is a conditional strength result, not a refutation of the carrier law.
+- Retain the future eta-body recipe before changing a function domain.
+  Verdict: constructive for arbitrary actual equal domains. The stored future
+  substitutions include the interpreted identity between equal contexts.
+  BetaStableCarrier.function_defeq_domain moves the body and reconstructs the
+  full function certificate. function_computed_domain replays any sound domain
+  computation, with no restriction on its result shape and with independent
+  computation and checking relations. The whole-function certificate is not
+  used as a substitute for the required body certificate.
+- Can the retained recipe be consumed at dependent applications? Verdict:
+  proved. Typed instantiation transports carrier and endpoints together.
+  Certified computationally joined arguments instantiate the body at a shared
+  typed realization; endpoint prefixes pull back its comparisons and a separate
+  carrier prefix restores the left dependent result type. The bodies need not
+  join, and the codomain need not be independent of the argument or beta fixed.
+- Combine arbitrary domain conversion with paired application. Verdict:
+  proved for displayed lambdas supplied with the old future body certificate.
+  Equal-context erasure transports the actual body typings and recipe before
+  instantiating at the new-domain arguments. No recovery re-synthesis, semantic
+  head exposure or inverse weakening premise is introduced.
+
+  Judgment: retained body recipes now support arbitrary primitive domain
+  changes and dependent application at joined arguments. This is not coverage
+  of arbitrary whole-function certificates or declarative equality. A general
+  forward endpoint law at freely converted carriers already contains the
+  proposition front, so it cannot be treated as an independently discharged
+  shortcut for primitive forks. The live next step must preserve the particular
+  body recipe or address the competing computations directly, rather than
+  postulate that general law. GOAL.md's success conditions remain open.
