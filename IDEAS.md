@@ -1976,3 +1976,29 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   Existing general-law theorems remain as wrappers. This does not refute
   full-union stability: the known cast repair at joint stage one remains.
   Thus the restriction does not by itself produce a smaller sufficient front.
+
+
+- **Expand all images of a dependent substitution with exact recovery.**
+  **Checked unconditionally** in `ProofErasureRecoveringCover`. Induction on
+  the source context builds the older images first. Each new image is an
+  identity wrapper whose annotation uses those already expanded older images;
+  forward paired substitution converts the original image to this exact type.
+  The resulting substitution is definitionally equal to the original and has
+  exact recovery for every retained image in any primitive relation. Every
+  image beta contracts to its original image, including proof images. This
+  does not claim recovery survives contraction.
+
+- **Extend proposition beta stability through actual generated telescopes.**
+  **Conditional substitution checked** in `ProofErasureJointPropSubstitution`
+  and `ProofErasureJointPropSingleton`. The dependent recovering cover removes
+  the earlier top-binder restriction: union proposition comparison now survives
+  every typed simultaneous substitution under the same unproved proposition
+  beta-stability premise. Applying this to the two typed family propositions
+  under the entire generated residual telescope transports the general
+  singleton guard, its literal output, and its typed source. The target is an
+  actual step of the existing joint union, by finite guard extraction. No
+  primitive-substitution or domain re-synthesis premise is used. Specialized
+  carrier-guarded Eq primitives remain outside this theorem. A next concrete
+  target is identifying their encoded Eq proposition comparison with the
+  actual generated family guard, avoiding a general carrier decoder. The
+  proposition beta-stability premise itself remains open for the full union.

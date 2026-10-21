@@ -9817,3 +9817,73 @@ input-certificate provenance or permit the extra singleton computations on
 residual guards. The original strengthening sorry remains; no canonical-Eq
 counterexample or completion claim. No executable changes, extraction, PRs,
 agents or coordination. Goal remains active.
+
+
+## 2026-10-21: Dependent recovery covers and actual singleton guard substitution
+
+The previous turn was progress: fd9ca560 introduced the proposition-only
+stability obligation, checked its top-binder instantiation consequence and
+carrier encoding, and narrowed the ordinary-core counterexample. This turn
+revalidated that clean commit and addressed its stated telescope limitation.
+
+ProofErasureRecoveringCover constructs an exactly recoverable expansion of an
+arbitrary typed simultaneous substitution. The construction inducts on the
+source context, producing the older images first. Paired forward substitution
+relates a domain instantiated by those expanded images to the domain
+instantiated by the original images. It therefore types the original next
+image at the expanded domain. The existing identity recovery cover supplies
+an image at exactly that domain, its beta contraction to the original image,
+and exact recovery whenever it is non-proof. The new paired substitution and
+lookup cases provide recovery at every substituted oracle assignment. Images
+outside the source context are left unchanged. The public theorem returns the
+paired typed substitution, pointwise erased beta paths, and the existing
+RecoveringSubstitution interface. It uses no canonical Eq or recovery-completeness
+premise and does not preserve recovery after contraction.
+
+ProofErasureJointPropSubstitution uses that cover at image stage zero. Existing
+union transport under recoverable images gives the comparison of propositions
+at the expanded substitution. Raw beta image congruence contracts every copy
+of every image. Assuming JointPropBetaStability for the union, two uses with
+symmetry return the exact original substituted endpoints. All intermediate
+propositions are typed by forward substitution. The result handles arbitrary
+typed simultaneous substitutions between arbitrary well-formed contexts, so
+it applies directly to the substitution extended beneath a generated telescope.
+
+ProofErasureJointPropSingleton integrates this with the actual singleton code.
+The reconstructed and requested families are both propositions under the full
+opened residual context. Substitution extends through that context using the
+existing erased telescope theorem. The new proposition theorem transports the
+family comparison there; existing syntax equalities identify the transported
+and requested families of the substituted program. Guard realization/checking
+then gives the original source and output substitution identities. The final
+theorem interprets any raw context substitution using the primitive's typed
+source witness and returns an actual ErasedJointUnion step. Finite extraction
+of the new guard supplies its stage, with no uniform stage bound assumed.
+
+Scope: this handles general singleton primitives with joint family guards.
+It does not yet handle specialized JointPrefixPrimitive steps whose input is a
+carrier guard, prove full typed substitution of the whole union, or prove the
+proposition beta-stability assumption. The previous carrier-to-Eq-proposition
+encoding suggests checking its exact relation to the canonical generated Eq
+family guard; that would avoid demanding a general decoder for arbitrary
+carrier certificates. No such identification is claimed in this commit.
+
+Validation: lake builds of RecoveringCover (541 jobs), JointPropSubstitution
+(543 jobs), and JointPropSingleton (544 jobs) pass. Logs:
+/tmp/recovering-cover-build.log, /tmp/joint-prop-substitution-build.log, and
+/tmp/joint-prop-singleton-build.log. The cumulative opaque audit checks 508
+public declarations and 15,184 dependencies. The independent audit checks all
+five new declarations and 10,957 dependencies, additionally excluding
+JointCarrierDomainResynthesis. Both exclude weakN_iff, weakN_inv and sorryAx,
+exit successfully, and account for every requested axiom report with only
+propext, Classical.choice and Quot.sound. Sources/logs:
+/tmp/joint-prop-singleton-audit.* and
+/tmp/joint-prop-singleton-independent-audit.*.
+
+Judgment: the prior conditional guard-substitution reduction now reaches
+actual general singleton steps under full dependent telescopes. Its premise
+is still unproved, and the specialized Eq branch remains. No strictly smaller
+sufficient front for strengthening has been established. The original sorry
+remains; no canonical-Eq strengthening counterexample or completion claim.
+No executable changes, extraction, PRs, agents or coordination. Goal remains
+active.
