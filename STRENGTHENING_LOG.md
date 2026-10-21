@@ -14870,3 +14870,51 @@ canonical-Eq counterexample or strictly smaller sufficient irreducible
 obligation is established. GOAL.md remains active. Only Theory and actual-EOF
 ledger additions changed; no executable edits, PR extraction, PRs, subagents
 or coordination.
+
+
+## 2026-10-21 19:11 UTC — Paired computational head beta with unrecoverable shared images
+
+Previous goal turn is progress: 0af57e8f proved direct full-union inferred
+lambda head beta with recovery at a shared argument. Revalidated clean HEAD
+0af57e8f. Tested replacing shared-image recovery by original recoveries. The
+general comparison induction stalls at the structural body-comparison case:
+instantiating before the image computes yields a comparison at the original
+image, and moving it forward is the unproved comparison transport. The
+existing computation square cannot be used as if it proved that law.
+
+Added ProofErasureJointOriginalRecoveryJoins, 116 lines / three theorems.
+First, two body computations under independently typed domains A and E, ending
+at the same raw body, instantiate at original recoverable arguments x and y
+that compute to one image. Applying the original-recovery square separately
+produces exact paths from both instantiated bodies to body.inst image, hence
+a joint comparison in either mode. Second, typed inversion of a computational
+join between two non-proof lambdas supplies those body paths, giving paired
+head beta with recovery only at each original argument's own displayed domain.
+Third, the existing eta-converted neutral-variable example verifies that the
+shared image can have no assigned-type recovery anywhere in the union. The
+example retains both exact instantiated paths for every pair of joined body
+computations, rather than merely asserting declarative equality.
+
+This does not claim all inferred comparisons have computational joins. The
+new and previous head-beta results have different hypotheses: the previous
+accepts general inferred function comparison and needs shared-image recovery;
+the new accepts function computation joins and only needs original recoveries.
+Neither covers arbitrary non-joining carrier-related data arguments. The
+primitive-free converted-unit Eq peak remains a necessary test of any proposed
+generalization. No unrestricted union substitution or confluence is assumed.
+
+Validation: clean direct Lean check and consuming build, 614 jobs; log
+/tmp/original-recovery-joins-final-build.log. Opaque DFS cumulative audit:
+1,229 roots / 16,438 dependencies. Independent audit: 3 roots / 10,990
+dependencies. Both exclude weakN_iff, weakN_inv and sorryAx; independent also
+excludes JointCarrierDomainResynthesis, ScopedSemanticHeadExposure and
+JointPropBetaTransport. Exact-name inventories cover every root once with only
+propext, Classical.choice and Quot.sound. Artifacts:
+/tmp/original-recovery-joins-{audit,independent-audit} with .lean, .log and
+-roots.txt suffixes. New module and audits have no warnings.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+No canonical-Eq counterexample or strictly smaller sufficient irreducible
+obligation is established. Keep GOAL.md active. Only Theory and actual-EOF
+ledger additions changed; no executable edits, PR extraction, PRs or
+coordination.

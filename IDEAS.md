@@ -4740,3 +4740,29 @@ arguments or contextual beta transport at a converted supplied carrier. The
 primitive-free Eq peak of f9104d62 is therefore still unresolved. Neither
 completeness of ordinary typing conversion nor a smaller sufficient front
 has been established.
+
+
+## 2026-10-21 19:11 UTC — Retain original recoveries across paired computational joins
+
+Tested removing recovery of the shared computed argument from the previous
+paired lambda theorem. For arbitrary inferred function comparison, its
+structural lambda case still requires instantiating a body comparison at that
+image; the original-recovery computation square does not provide comparison
+transport. No general extension or refutation of that extension is claimed.
+
+A computational join of the functions gives a constructive alternative.
+`ProofErasureJointOriginalRecoveryJoins` inverts both typed lambda paths under
+their original binders, then instantiates each body path at its own original
+recoverable argument before computing the copies to the shared image. Both
+contracta reach the same literal raw output. Only each argument's own displayed
+domain is recovered; no cross-domain or shared-image recovery is required.
+The domains may differ. A checked eta-converted-variable example has no exact
+assigned-type recovery at the shared image anywhere in the full union, yet
+every pair of joined typed body paths still yields the two exact output paths.
+
+Verdict: three theorems proved; a constructive computational subcase, not
+full paired substitution. This trades the previous inferred-function premise
+for an actual function join while dropping the shared-image recovery premise;
+it is not an unconditional strengthening of the previous theorem. Arbitrary
+carrier-related arguments still need not join, so the converted-unit peak
+and the main strengthening obligation remain open.
