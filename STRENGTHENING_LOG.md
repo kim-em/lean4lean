@@ -10976,3 +10976,82 @@ canonical-Eq strengthening counterexample or strictly smaller sufficient
 irreducible front. The active goal is unchanged. Only theory and these two
 ledgers were edited; no executable changes, extraction, PRs, agents or
 coordination.
+
+## Recovered diagonal and joined-image head beta (2026-10-21)
+
+Previous-goal-turn classification: progress. The clean pushed baseline was
+62b3d1b90f663af773c96ac68c65e477c13c48b1, containing the checked inferred-lambda
+proof-argument critical pair. This turn tested how that induction behaves on
+non-proof images rather than assuming the retained-proof substitution argument
+continues to apply.
+
+ProofErasureJointRecoveredHeadBeta now proves diagonal head beta for an
+arbitrary typed argument whose erasure, when retained, recovers both displayed
+lambda domain annotations. This is a local certificate premise, not a global
+recovery-completeness principle. The same inferred-mode restriction excludes
+the problematic common-mode eta-body and lambda-common rules. In the lambda
+cases, exact recoverable substitution transports the body comparison under
+the left domain. In the computation case, typed lambda inversion provides
+both domain paths and both body paths at their original contexts. Appending
+each domain path to the corresponding argument recovery supplies the two
+recoveries at the intermediate lambdas. Body computations substitute exactly,
+source replay supplies their original typings, and the induction continues at
+the same primitive relation. Symmetry swaps the two recovery certificates.
+
+The erased eta case needed an additional typed argument, not just raw syntax.
+For a retained-bound-variable eta shape, ordinary beta substitution suffices
+at any image. For a proof-marker eta shape, inversion of the actual long
+endpoint gives a hidden proof argument. Erasure reflection against the actual
+short function aligns that argument with the long lambda's domain. Substituting
+the supplied argument into this hidden proof gives a proof below the binder;
+uniqueness then shows the supplied argument is also a proof. Its erasure is
+therefore the required marker. This uses forward typed substitution and never
+assumes a proof representative or inverse weakening.
+
+The proposition-valued specialization allows distinct original arguments p
+and q with equal erasure. Another theorem permits unequal erasures with beta
+paths to a typed shared image z that recovers both displayed domains. It first
+constructs the comparison of bodies instantiated at z, then prefixes the
+pointwise body beta paths induced by p -> z and q -> z. Recovery is required
+at z, not inferred to persist from p or q. Both results have concrete certified
+specializations. The finite-stage diagonal specialization uses only lower-stage
+proposition beta transport to certify the input function comparison; the actual
+head-beta proof has no global endpoint-beta premise.
+
+The older ProofErasureJointProofHeadBeta theorem is now a corollary of this
+recovered-image induction. For a proof argument, both conditional recovery
+premises are vacuous and its erasure is the proof marker. Its public statements
+and concrete specializations are unchanged. The duplicate private body/eta/
+inferred-lambda induction was removed. The import graph is acyclic: the new
+general module imports certified checking and loop readout; the old proof
+specialization imports the new module.
+
+Limits and next action: the two exact domain recoveries cannot be filled from
+ordinary converted typings. The existing eta-converted neutral-oracle example
+already disproves that inference. Their presence is needed by this proof's
+symmetry and body-substitution steps, not claimed logically necessary for all
+head-beta comparisons. Likewise arbitrary carrier-compared images need not
+have a literal beta join (the unit variables remain a concrete obstruction).
+The unresolved task is a proposition-result paired-image invariant handling
+those retained, non-joined images and the native domains of applications in
+instantiated bodies. Further endpoint beta inside the contracted bodies and
+functions that first reduce to lambda heads are also outside these theorems.
+No full proposition endpoint law, arbitrary assigned-type recovery, or strictly
+smaller sufficient front is asserted.
+
+Validation after the refactor: proof-head beta (including recovered head beta),
+full common-beta boundary and full joint beta-commutation build successfully
+(616 jobs), /tmp/joint-recovered-head-beta-build.log. Independent opaque DFS
+covers six new public roots plus the changed proof specialization root: seven
+roots and 11,460 dependencies, excluding carrier-domain re-synthesis,
+strengthening inverses and sorryAx. Cumulative DFS: 683 public declarations,
+15,500 dependencies, excluding strengthening inverses and sorryAx. Requested
+axiom reports were parsed and matched exactly (seven and 683); only propext,
+Classical.choice and Quot.sound occur. Audit sources/logs:
+/tmp/joint-recovered-head-beta-{audit,independent-audit}.{lean,log}.
+
+Completion audit: the original sorry remains at UniqueTyping.lean:94. No
+canonical-Eq strengthening counterexample or strictly smaller sufficient
+irreducible front exists from this turn. Goal remains active. Only theory and
+the two research ledgers changed. No executable changes, extraction, PRs,
+subagents or coordination.

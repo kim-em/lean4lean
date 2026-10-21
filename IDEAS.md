@@ -2480,3 +2480,26 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   paired-image case and further beta paths inside the resulting bodies remain
   open. Simply dropping the proof restriction for arbitrary result types is
   already refuted by the unit identity example.
+
+- **Carry exact recovery at both displayed lambda domains through diagonal
+  head beta.** **Proved, including non-proof arguments and typed erased eta.**
+  `ProofErasureJointRecoveredHeadBeta` generalizes the inferred-lambda proof to
+  an arbitrary supplied argument. A retained argument explicitly recovers both
+  displayed domains. Lambda body substitution consumes the left recovery;
+  computation extends both recoveries by its directed domain paths, and
+  symmetry exchanges them. The erased proof-marker eta case is handled using
+  the actual typed short endpoint: erasure reflection aligns its function type,
+  and forward substitution of the supplied argument into the hidden proof
+  shows that the argument must itself erase to proof. Thus neither proof
+  inhabitation nor inverse weakening is assumed. Actual proposition applications
+  may use different original arguments with equal erasure. A further theorem
+  allows different erasures when both beta-reduce to a typed shared image that
+  recovers both displayed domains. The output stays certified when the source
+  is certified, without any endpoint-beta law; finite source comparisons use
+  lower-stage transport only to enter the certified relation. The previous
+  proof-argument theorem is now a corollary, eliminating the duplicate induction.
+  These exact-recovery premises are local evidence, not asserted coverage:
+  the eta-converted neutral-oracle boundary still forbids deducing them merely
+  from ordinary assigned typings. General carrier-compared paired images need
+  not have a literal join. Both limitations remain part of the open endpoint
+  application problem, and no smaller sufficient front is claimed.
