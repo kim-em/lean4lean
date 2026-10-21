@@ -4944,3 +4944,26 @@ This is a lossless replacement for the earlier semantic-only readout. It does
 not establish checker coverage of arbitrary semantic equality, full-reduction
 head factorization through eta expansions, or a strictly smaller sufficient
 front. The original strengthening obligation remains open.
+
+
+## 2026-10-21 20:21 UTC — Keep the computed eta body at the original function carrier
+
+Verdict: a local eta/computation exchange is proved for the full joint union.
+The older PrefixEtaHeadExposure/NormalPrefixFactorization route assumes the
+witnessed proposition front and cannot supply it. The older scoped eta residual
+uses arbitrary primitive substitution to transport the body to a changed
+annotation. Instead, joint lambda inversion retains the entire body computation
+under the original binder. Opening the computed lambda at that original carrier
+beta-contracts to the retained body, including the proof-marker case by typed
+erasure. This constructs a JointCarrierGuard relating the actual computed
+output to the short function without forward annotation transport.
+
+An independently computed argument also gives an exact application join if the
+original argument recovers the original domain. The computed image and computed
+lambda annotation need no recovery. When the output annotation is a literal
+universe, actual universe-context transport supplies an ordinary common
+comparison of the computed output and short function. These are concrete
+partial exchange lemmas, not arbitrary eta postponement: the carrier result
+cannot be silently used as an inferred function comparison, and the general
+application result still requires original-argument recovery. Full reduction
+coverage, arbitrary retained arguments and strengthening remain open.

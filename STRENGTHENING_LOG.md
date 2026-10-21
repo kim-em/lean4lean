@@ -15193,3 +15193,49 @@ exposure must supply, but does not supply it for arbitrary semantic equality.
 The full reduction's eta-prefix factorization remains unresolved. GOAL.md stays
 active. Only the two new Theory modules and actual-EOF ledger additions changed;
 no executable changes, PRs, extraction, or coordination.
+
+
+## 2026-10-21 20:21 UTC — Full-joint local eta residuals without a global beta premise
+
+Added ProofErasureJointEtaResidual.lean (145 lines, three public theorems):
+- proofErase_joint_eta_carrier_residual: arbitrary full-joint computation after
+  canonical typed function eta retains an explicit guard at the original Pi
+  carrier. The proof inverts the computed lambda, realizes its body under the
+  original binder, and uses the typed eta/beta identity to open the actual
+  output. It handles both proof-marker and retained-variable arguments.
+- proofErase_joint_eta_application_join: the eta expansion and argument may
+  compute independently. Applying the computed expansion to the computed
+  argument joins the original short-function application at the exact body
+  instantiated by that computed argument. Only the original argument's recovery
+  at the original domain is required; the changed annotation and computed
+  argument require no new recovery. Typed replay supports computing every
+  occurrence in the residual body.
+- proofErase_joint_eta_universe_residual: if the actual output annotation is a
+  literal universe, the retained body path transports to that output binder
+  and gives an ordinary common comparison with the short function. Equality
+  of the original annotation and universe is reconstructed from its actual
+  computation, not assumed as a semantic completeness premise.
+
+The initial attempt to reuse scoped eta residuals exposed their global
+primitive-substitution premise. The carrier proof avoids that premise, and
+only the literal-universe comparison case invokes the already proved actual
+universe-context transport. No full eta factorization, arbitrary comparison
+transitivity, confluence, or proposition beta stability is assumed.
+
+Validation: consuming build succeeds in 640 jobs (/tmp/joint-eta-final-build.log),
+with no warnings in the new module and only pre-existing dependency warnings.
+Cumulative opaque DFS: 1,282 public roots / 16,536 dependencies. Independent:
+three public roots / 11,009 dependencies. Both exclude weakN_iff, weakN_inv and
+sorryAx; independent additionally excludes JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport and JointPropBetaStability.
+Exact printed-root inventories pass, and axioms are restricted to propext,
+Classical.choice and Quot.sound. Audit files: /tmp/joint-eta-{audit,independent-audit}
+.lean and .log, with -roots.txt inventories. Both audit outputs are warning-free.
+
+Completion audit: the original sorry remains at UniqueTyping.lean:94. General
+eta-prefix factorization still lacks inferred comparison through arbitrary
+changed annotations and handling of unrecoverable retained arguments. No proof,
+canonical-Eq counterexample, or strictly smaller sufficient irreducible front
+has been established. GOAL.md remains active. Only this Theory module and
+actual-EOF ledger entries changed; no executable edits, PR extraction, PRs,
+or coordination.
