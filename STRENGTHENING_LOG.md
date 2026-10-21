@@ -11987,3 +11987,83 @@ strengthening proof or counterexample and no genuinely strictly smaller
 sufficient irreducible front has been established. Keep the goal active.
 Changes are two theory modules and EOF ledger additions only. No executable
 changes, extraction, PRs, or coordination.
+
+
+## 2026-10-21 11:58 UTC — Nonrecursive native congruence entails PropositionFront
+
+Previous goal turn: progress, committed and pushed as
+5f272de809c364df41520ea8a413d30013536ee7. Revalidated the clean worktree and
+GOAL.md. The ordinary-core counterexample left native type congruence into
+richer joint stages open. Tested whether allowing the full union makes this
+a local compatibility problem or recovers the original front obligation.
+
+ProofErasureNativeTypeFront adds one observer-type definition and five proved
+theorems. nativePropObserverType is the closed telescope
+(A : Sort u) -> (f : A -> Prop) -> (x : A) -> (f x -> Prop).
+nativePropObserverType_inhabited constructs a closed lambda inhabitant for
+every well-formed universe u: its final body is f x weakened under the final
+proof binder. This observer requires no recursive type or extra logical axiom.
+The subsequent theorems explicitly assume a constant with this declared type;
+no claim is made that canonical Eq alone guarantees such a named constant.
+
+JointNativePrefixTypeComparison.native_domain_guard starts from a variable
+f whose context oracle is B -> Prop and which is actually typed A -> Prop.
+A source carrier guard at A compares the observer applications to x and y.
+The constant and its first two applications recover their exact native types
+by typed erasure/substitution; no primitive computations are needed in that
+recovery. Both fully supplied observer applications are non-proofs. The
+assumed native-prefix congruence compares their result types, which are
+Pi (f x) Prop and Pi (f y) Prop. Typed Pi-domain readout preserves any target
+computation path, giving comparison of f x and f y. Neutral-application
+readout then yields the target carrier guard at B. Source and target are
+arbitrary relations; only the target has descent and primitive-head premises.
+
+carrier_conversion_stage uses this result with an auxiliary B -> Prop binder
+to transport a finite-stage guard along arbitrary ordinary type conversion.
+It then removes the binder by forward typed substitution of the previously
+proved exactly recoverable proposition-producing function. A union certificate
+has a finite stage, so the existing typed recoverable-instantiation theorem
+applies. No inverse weakening, unrestricted union substitution, or proposition
+beta-transport law is assumed.
+
+unit_probe_descend transfers the structural guard between distinct variables
+of a positive empty structure to the type-valued Eq probe. Ordinary checking
+cannot identify their indices. A structural guard must expose a function or
+record head, changing the probe's Eq.rec head. The established first-head
+readout descends the original proposition equation. Finally,
+propositionFront_of_closed_unit builds the needed context and equality major
+from an arbitrary PropositionFront instance. Thus native-prefix congruence
+from any single finite stage (in particular zero) into the full union implies
+PropositionFront in environments with this observer and a closed positive
+empty structure, sound primitives, the stated registry agreement, and no
+Eq/Eq.rec unfolding.
+
+Judgment: this is a conditional full-front sufficiency barrier, not a
+counterexample to union congruence, not a converse, and not a strictly smaller
+sufficient irreducible front. The recursive ordinary-core witness did not
+establish this: its environment already had PropositionFront for unrelated
+reasons. The new observer is inhabited and nonrecursive. Unrestricted native
+congruence and ordinary carrier conversion cannot be silently used as local
+compatibility lemmas in the dependent-field proof. A simultaneous proof must
+construct the particular conversion certificates from source derivations;
+proving the universal congruence property is itself a full-front route under
+the stated environment assumptions.
+
+Validation: the module and dependencies built successfully (621 jobs),
+/tmp/native-type-front-build.log; the new module emitted no warnings.
+Independent opaque DFS covers all six new public declarations and 11,354
+dependencies, excluding JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport, .weakN_iff, .weakN_inv,
+and sorryAx. In particular, importing the earlier beta barrier does not use
+its unproved beta-transport property: only its proved head-exclusion helper
+is reused. Cumulative opaque DFS covers 824 roots and 15,716 dependencies,
+excluding strengthening inverses and sorryAx. Exact-name axiom parsing
+accounts for every root once, with only propext, Classical.choice, and
+Quot.sound. Audit sources/logs: /tmp/native-type-front-{audit,independent-audit}.{lean,log};
+root inventories: /tmp/native-type-front-{audit,independent-audit}-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 still has the original sorry. No
+canonical-Eq strengthening proof or counterexample, and no genuinely strictly
+smaller sufficient irreducible front, has been obtained. Keep the goal active.
+Changes are one theory module and actual EOF ledger additions only; no
+executable changes, extraction, PRs, or coordination.

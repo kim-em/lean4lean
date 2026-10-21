@@ -2989,3 +2989,44 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   Test or construct that conversion-sensitive target before using native
   congruence to transport dependent record-field carriers. No smaller
   sufficient irreducible front or goal outcome is claimed.
+
+
+## 2026-10-21 — Full-union native congruence already carries the front
+
+- **Repair native type congruence by allowing an arbitrary target stage.
+  Verdict: a conditional full-front implication, not a routine local helper.**
+  `JointNativePrefixTypeComparison.propositionFront_of_closed_unit` proves
+  that native congruence from any fixed finite stage, including zero, into
+  the full joint union implies PropositionFront when a closed positive empty
+  structure and a nonrecursive dependent observer are declared. This is not
+  a refutation of union congruence. It excludes treating that unrestricted
+  congruence as an independently easy compatibility lemma in these environments.
+
+- **Find the obstruction without the recursive domain that already implied
+  PropositionFront. Verdict: an inhabited nonrecursive observer suffices.**
+  The observer type is `(A : Sort u) -> (f : A -> Prop) -> (x : A) ->
+  (f x -> Prop)`. It has a checked closed lambda inhabitant: under its last
+  proof binder return `f x`. Choose a variable f whose native type is B -> Prop
+  but whose supplied type is A -> Prop by ordinary conversion. A guard at A
+  compares the two fully supplied observer prefixes. Comparing their native
+  result types forces a guard at B by Pi-domain and neutral-application readout.
+  The observer needs no recursion, normalization, or extra logical axiom.
+
+- **Can the fresh function binder be removed without strengthening?
+  Verdict: yes, by forward substitution of an exactly recovered inhabitant.**
+  The derived native-domain guard yields arbitrary ordinary carrier conversion
+  from the chosen finite stage into the union. A closed positive empty
+  structure supplies distinct guarded variables. Moving that guard to the
+  type-valued Eq probe forces a head change and hence descends the original
+  proposition equation. All inserted binders are handled by forward operations;
+  no beta-transport or semantic-head-exposure assumption is used.
+
+  The implication requires the stated observer and unit declarations, sound
+  primitives, registry agreement, and exclusion of Eq/Eq.rec unfolding. It
+  does not prove a converse, an unconditional equivalence, or strict smallness.
+  The earlier recursive counterexample only ruled out the ordinary-core
+  target; this stronger diagnostic shows why unrestricted union congruence
+  itself must be treated as a full-front proof route. Continue the simultaneous
+  derivation approach only with explicit source-derived conversion certificates;
+  do not invoke native type congruence or ordinary carrier conversion as free
+  closure lemmas when transporting dependent fields. The main goal remains open.
