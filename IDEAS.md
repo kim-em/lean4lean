@@ -4926,3 +4926,21 @@ call it a simpler auxiliary lemma. It is a sufficient coverage obligation,
 not proved coverage and not a proven strictly smaller irreducible front.
 Direct comparison/paired-development arguments that avoid generic recovery
 remain live. The original strengthening goal is unchanged and still open.
+
+
+## 2026-10-21 20:14 UTC — Preserve the full certificate at the Eq probe's first head change
+
+Verdict: proved. The computed general-singleton guard now returns an actual
+lower JointCompare certificate for the original proposition indices, including
+the index computation paths. Exact certificate descent removes both the added
+context block and generated proof major. The checker compute rule restores the
+original endpoints; comparison transitivity is not assumed. In the actual full
+joint union, any changed probe head yields that certificate. Conversely a
+certificate computes the probe to its original minor, giving exact head-exposure
+and literal-universe computation equivalences under the recorded Eq/Eq.rec
+inertness and registry hypotheses.
+
+This is a lossless replacement for the earlier semantic-only readout. It does
+not establish checker coverage of arbitrary semantic equality, full-reduction
+head factorization through eta expansions, or a strictly smaller sufficient
+front. The original strengthening obligation remains open.

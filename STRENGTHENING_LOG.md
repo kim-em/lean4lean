@@ -15155,3 +15155,41 @@ canonical-Eq counterexample or strictly smaller sufficient irreducible front
 has been established. GOAL.md stays active. Only one new Theory module and
 actual-EOF ledger entries changed; no executable edits, PR extraction, PRs,
 or coordination.
+
+
+## 2026-10-21 20:14 UTC — Retained computed Eq guard certificates and characterized probe computation
+
+Added ProofErasureEqComputedGuardCertificate.lean and
+ProofErasureEqTypeProbeCertificate.lean (six public theorems). The first module
+retains the actual comparison certificate when decoding general singleton
+steps on five-argument Eq prefixes, including componentwise computations before
+the first head step. Exact primitive-certificate descent removes the context
+block and generated major binder. Reconstructed lower index paths restore the
+original endpoints with JointCompare.compute, without transitivity.
+
+The second module applies this to the actual full joint union. A changed head
+of a lifted type probe yields a comparison of its original lower proposition
+indices. In a single context, a minor with non-Eq.rec erased head gives an iff
+between any head exposure and that index comparison. With a literal universe
+minor, computation to that exact universe is equivalent to the comparison.
+The reverse direction uses the finite stage of the supplied certificate and
+computes the actual minor at the next stage; no semantic completeness is used.
+
+Validation: consuming build succeeds in 602 jobs
+(/tmp/probe-certificate-final-build.log). Both new modules are warning-free;
+pre-existing dependency warnings remain. Cumulative opaque dependency audit:
+1,279 public roots / 16,527 dependencies. Independent audit: six public roots /
+11,323 dependencies. Both exclude weakN_iff, weakN_inv and sorryAx; independent
+also excludes JointCarrierDomainResynthesis, ScopedSemanticHeadExposure and
+JointPropBetaTransport. Exact-name inventories match all printed axiom results,
+whose only axioms are propext, Classical.choice and Quot.sound. Neither audit
+has errors or warnings. Artifacts: /tmp/probe-certificate-{audit,independent-audit}
+.lean and .log, with -roots.txt inventories.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+No canonical-Eq counterexample or strictly smaller sufficient irreducible
+obligation has been established. The exact equivalence sharpens what probe
+exposure must supply, but does not supply it for arbitrary semantic equality.
+The full reduction's eta-prefix factorization remains unresolved. GOAL.md stays
+active. Only the two new Theory modules and actual-EOF ledger additions changed;
+no executable changes, PRs, extraction, or coordination.
