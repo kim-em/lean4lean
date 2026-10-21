@@ -15751,3 +15751,54 @@ counterexample or strictly smaller sufficient irreducible obligation is proved.
 GOAL.md remains active. Only the two new Theory modules, the finite-path module
 and actual-EOF ledgers change; no executable changes, PR extraction, subagents
 or coordination.
+
+
+## 2026-10-21 21:59 UTC — Computed domains and recovery-or-lambda at stage zero
+
+Added three Theory modules (420 lines total):
+
+- ProofErasureComputedLambdaApplication.lean: a local application certificate
+  with computation f -> lambda A body, inferred comparison of the ORIGINAL
+  f/g, and an argument guard at A. It embeds displayed-lambda applications and
+  preserves exact certificates and semantic equality through binder removal,
+  including at the full joint union. No forward comparison transport or full
+  Pi recovery is assumed.
+- SortRootedHeadExposure.lean: rank-indexed sort-rooted paths through lambda
+  bodies, function positions and projection receivers. Typed substitution
+  preserves rank. Strong induction proves sort typing or beta exposure of a
+  lambda with strictly smaller body rank. Function typing excludes the first
+  alternative; retained functions yield literal erased lambda computations.
+  Arbitrary type leaves and arguments need not normalize.
+- ProofErasureSortImageRecovery.lean: exact selected recovery or a sort-rooted
+  expression after typed substitution, assuming each retained image recovers
+  its assigned type or is sort-typed. The image condition extends under binders.
+  The induction covers every recovery constructor and uses source-typed
+  primitive substitution for conversion. A function therefore retains exact
+  recovery or beta-exposes a lambda. The stage-zero single-type-substitution
+  corollary discharges primitive transport and the image condition, with only
+  D.Sound and ordinary context/endpoint typing premises. Canonical Eq is not
+  needed for this lowest-stage classification.
+
+Important scope: the exposed lambda branch does not yet preserve the selected
+recovery domain, nor an argument guard at that domain. The new computed-domain
+rule needs the guard at the actual exposed annotation. Mere semantic domain
+equality does not supply that guard. Retaining annotation computation through
+the recovery classification is the next concrete task. Full comparison
+substitution, proposition beta stability, and the paired lambda/body case
+remain open; the theorem does not assert recursive checker coverage.
+
+Validation: consuming build succeeds (542 jobs, /tmp/sort-image-build.log).
+No new-module warnings. Cumulative opaque DFS covers 1,388 public roots /
+16,685 dependencies, excluding weakN_iff, weakN_inv and sorryAx. Independent
+audit covers all 20 new public declarations, including constructors: 10,905
+dependencies, additionally excluding JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport and JointPropBetaStability.
+Exact axiom inventories match all roots and use only propext, Classical.choice
+and Quot.sound. Both audit logs contain no errors or warnings. Artifacts:
+/tmp/sort-image-{audit,independent-audit}.lean and .log, with -roots.txt inventories.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+Neither a canonical-Eq counterexample nor a strictly smaller sufficient
+irreducible obligation has been proved. GOAL.md stays active. Only these
+Theory modules and the actual-EOF ledgers change; no executable changes, PR
+extraction, subagents or coordination.

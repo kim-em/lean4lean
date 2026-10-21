@@ -5304,3 +5304,43 @@ beta transport induction. Stage-zero oracle and carrier-type beta transport
 is already proved, but its statements keep compared endpoints fixed; it does
 not discharge endpoint beta stability. The paired lambda/body substitution
 case with unrecovered arguments remains the relevant unresolved case.
+
+
+## 2026-10-21 21:59 UTC — Sort-image recovery failures have finite head exposure
+
+Idea: replace full Pi recovery, when substituting arbitrary propositions, by
+computation exposing a lambda domain. Verdict: the local rule and the
+lowest-stage recovery-or-lambda classification are now proved; application
+guard coverage and proposition beta stability remain open.
+
+ProofErasureComputedLambdaApplication.lean compares the original function
+endpoints and reads the left argument domain from a computation to a lambda.
+Exact binder descent reconstructs that lambda below and retains all three
+certificates. No forward comparison transport is used. This extends the
+previous syntactically displayed-lambda rule without recovering its codomain.
+
+SortRootedHeadExposure.lean supplies a finite path measure: follow lambda
+bodies, function positions and projection receivers until reaching any
+sort-typed leaf. Typed substitution preserves the measure. A typed expression
+in this fragment either is sort-typed or beta-exposes a lambda whose body has
+smaller rank. The leaf and arguments need not normalize. Projection is ruled
+out by rigid-head separation. This is a checked finite head-reduction argument
+for this fragment, not normalization of arbitrary functions or propositions.
+
+ProofErasureSortImageRecovery.lean classifies every native recovery under
+substitution whose retained images either recover exactly or are types. The
+result has exact substituted recovery or belongs to the sort-rooted fragment.
+For functions the latter branch exposes a lambda. At stage zero, substituting
+any type, including an arbitrary proposition, meets these conditions without
+any image recovery premise: core primitive transport is supplied explicitly.
+
+The classification does NOT retain the selected domain on its lambda branch.
+That branch currently supplies an annotation only semantically aligned with
+the old recovered domain; a carrier guard at the latter cannot yet be used at
+the former. Next live task: refine the recovery induction to retain annotation
+computation from the exposed lambda domain to the selected substituted domain,
+or find a concrete obstruction to that refinement. The conversion and
+application cases must retain their original recovery evidence. Even after
+that refinement, recursive comparison transport and higher joint stages need
+proof. No full beta stability, counterexample, strictly smaller sufficient
+obligation, or completion of GOAL.md is claimed.
