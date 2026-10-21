@@ -12378,3 +12378,98 @@ Neither canonical-Eq strengthening nor a canonical-Eq counterexample nor a
 genuinely strictly smaller sufficient irreducible obligation is proved.
 Keep the full goal active. Changes are theory and actual EOF ledger additions
 only; no executable changes, extraction, PRs, or coordination.
+
+
+## 2026-10-21 13:00 UTC — Recursive neutral conversion and simultaneous checking
+
+Previous goal turn: progress (ecd3bd2f, complete neutral-input guard transport).
+Revalidated GOAL.md and the clean committed worktree before this turn. The
+new work removes the previous invariant's requirement that recovered Pi
+domains stay literally equal. No extraction, PRs, or coordination.
+
+Added ProofErasureNeutralTypeChange.lean. NeutralTypeChange k has reflexivity
+for arbitrary syntax, changes between neutral spines whose heads are at least
+k, and recursive Pi congruence in both domains and codomains. The codomain
+uses k+1. Symmetry, depth weakening, lifting, instantiation, Pi inversion,
+and structural-subsingleton preservation are checked. This protects the
+changed neutral head when recovery applies a function: the removed binder
+cannot be substituted for that head.
+
+The typed compute theorem uses both the syntactic relation and actual type
+equality. In the Pi case, actual injectivity supplies equal domain and body
+types. Existing typed computation inversion exposes a domain path and a body
+path in the original binder context. Recursive simulation constructs both
+target paths, and primitive substitution along the actual context conversion
+moves the body path under the target domain. Thus arbitrary computation
+preserves the relation without assuming confluence, joins, normalization, or
+a global native-type comparison law. Equal subtrees need no shape restriction;
+changed non-Pi leaves must be protected neutral spines.
+
+ProofErasureRecursiveNeutralRecovery checks all recovery constructors between
+actual convertible contexts with related oracle entries. Lambda recovery
+raises the protected depth, application instantiates the related body, and
+sort/registered-family outputs remain exact. For conversion, the source and
+target recovery certificates replay to actual typings of the same expression.
+Uniqueness gives equality of their selected types, after transporting the
+target typing back to the source context. The new computation simulation
+therefore applies without assuming that arbitrary assigned types recover or
+that comparison determines native result types.
+
+ProofErasureJointRecursiveNeutral proves a full simultaneous induction over
+comparison and carrier checking. Its result keeps comparison endpoints fixed,
+permits recursive carrier changes, and transports between actual convertible
+contexts. The appCarrier case reconstructs the target Pi recovery, replays it,
+reads domain equality using Pi injectivity, and invokes the smaller argument
+carrier derivation at that new domain. This is the previously missing
+interaction when recovered domains are allowed to change. The carrierFunction
+case converts its binder and dependent codomain together; its extended oracle
+relation retains the depth condition. carrierCompute simulates the target
+carrier path and applies the smaller guard at the two related computed types.
+Nested record fields retain their actual projection typings and recurse with
+unchanged field carriers. All constructors are included.
+
+The generic theorem explicitly requires primitive descent, head shape, and
+substitution closure. Certified body-comparison and carrier corollaries
+supply those interfaces from proved results and stay in the same certified
+relation. They do not assume JointPropBetaTransport, unrestricted joint-union
+substitution, recovery completeness, or general carrier conversion. Both
+source endpoints have actual typings; the theorem is not claimed for arbitrary
+untyped raw endpoints as in the previous flat neutral context lemma.
+
+ProofErasureRecursiveNeutralExample gives a typed, inhabited pair of function
+binder types with eta-different neutral domains and literal Prop results.
+They are definitionally equal and related by NeutralTypeChange, but not by
+NeutralResultChange: the old Pi invariant forces their different domains to
+be literally equal. Neither type has a shared computational reduct with the
+other in the full union. Nonetheless their certified typed carrier guards
+are equivalent and typed body comparisons transport across the binder change.
+The actual native-prefix corollary constructs target recovery, converts both
+argument typings, and checks actual proposition applications from any typed
+recursively related source carrier. No join or native congruence is supplied.
+
+Judgment: a recursive structural conversion fragment now closes the full
+recovery/checking cycle, including non-neutral function binders with changing
+inputs and arbitrary carrier computations. This is a substantive extension
+of the previous neutral-input theorem, with a checked separating example.
+It is still not coverage for arbitrary strong derivations. Changed registered
+record parameters, hidden type shapes outside literal Pi/neutral structure,
+and general joint-union substitution remain unresolved. No strictly smaller
+sufficient irreducible front has been established.
+
+Validation: four new theory modules, 868 lines and 17 explicit public roots.
+The final module and dependencies build (622 jobs), without new-module
+warnings: /tmp/recursive-neutral-example-build.log. Independent opaque DFS
+covers every new root and 11,015 dependencies, excluding
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv, and sorryAx. Cumulative opaque
+DFS covers 876 roots and 15,838 dependencies, excluding strengthening inverses
+and sorryAx. Exact-name axiom parsing accounts for every root once, with only
+propext, Classical.choice, and Quot.sound. Audit sources/logs:
+/tmp/recursive-neutral-{audit,independent-audit}.{lean,log}; inventories:
+/tmp/recursive-neutral-{audit,independent-audit}-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+No canonical-Eq strengthening proof, canonical-Eq counterexample, or genuinely
+strictly smaller sufficient irreducible obligation has been established.
+Keep the full goal active. Only theory modules and actual EOF ledger additions
+changed; no executable changes, extraction, PRs, or coordination.

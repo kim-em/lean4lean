@@ -3203,3 +3203,57 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   dependent native parameter templates, composition, full-union substitution,
   and strong-derivation coverage remain open. No goal success or strictly
   smaller sufficient front is claimed.
+
+
+## 2026-10-21 — Simultaneous checking with recursively changing Pi domains
+
+- **Can the exact-domain invariant be replaced by recursively related
+  domains? Verdict: yes for protected neutral changes through Pi structure.**
+  NeutralTypeChange relates identical subtrees, arbitrary neutral spines
+  whose heads lie outside a protected depth, and Pis with recursively related
+  domains and codomains. The depth increases under Pi bodies. Unlike
+  NeutralResultChange, it permits input domains themselves to change.
+  Checked lifting and instantiation preserve the protection condition.
+  Structural subsingleton certificates survive this relation as well.
+
+- **Can carrier computation preserve this larger relation without assuming
+  arbitrary type congruence? Verdict: proved using actual equality.**
+  Typed Pi injectivity supplies equality of domains and codomains; typed Pi
+  computation inversion retains the body path in the original domain's
+  context. The domain and body simulations recurse on the structural
+  relation, then primitive context transport moves the body path to the new
+  domain. Neutral leaves discard source argument computations; identical
+  subtrees replay them exactly. Neither computational joins nor general
+  comparison transport are premises.
+
+- **Can recovery and application checking adapt together when a selected
+  domain changes? Verdict: the complete simultaneous induction checks.**
+  Typed recovery in convertible contexts produces recursively related
+  outputs. In conversion, replay of both recovery certificates yields their
+  actual type equality, enabling the preceding simulation. JointCheck's
+  appCarrier case replays the new Pi recovery, uses typed Pi injectivity to
+  establish equality of the selected domains, and invokes the smaller carrier
+  subderivation at the new domain. The carrierFunction case changes the body
+  context and codomain together. Every comparison and carrier constructor,
+  including nested dependent fields and arbitrary carrier computations, is
+  included. Certified specializations need no open union substitution or
+  proposition beta premise.
+
+- **Does this actually cover non-neutral binder types? Verdict: checked
+  example outside the previous invariant.** Binder types
+  `(F (fun p => f p)) → Prop` and `(F f) → Prop` are typed, inhabited, and
+  definitionally equal. They have no computational join in the full union.
+  The old result-only relation cannot relate them because their domains
+  differ; the new recursive relation does. All certified typed carrier guards
+  transport in both directions, and all certified typed body comparisons
+  transport to the new binder context. The native-prefix corollary consumes
+  any recursively related typed source carrier to compare actual proposition
+  applications, constructing recovery and converted argument typings.
+
+  Judgment: this replaces a flat neutral-input fragment by a recursive Pi
+  invariant and closes its recovery/checking interaction. It remains a
+  sufficient structural criterion for particular conversions, not a coverage
+  theorem for arbitrary strong derivations. Changed record parameters,
+  non-displayed type shapes, and arbitrary union primitive substitution are
+  not established. No smaller sufficient PropositionFront or goal outcome is
+  claimed; the original strengthening sorry remains.
