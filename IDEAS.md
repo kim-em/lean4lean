@@ -4211,3 +4211,45 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   handle actual primitive type steps or a stronger invariant covering them,
   while respecting the earlier Eq-probe/PropFront barrier. All GOAL.md success
   conditions remain open; no strictly smaller sufficient front is claimed.
+
+
+## 2026-10-21 17:04 UTC — Forward primitive binder transport when the result is a universe
+
+- Revalidation: the previous turn made progress by proving recursive domain
+  transport and refuting completeness of its beta closure. The Eq probe's
+  certified computation itself was already constructed in earlier work,
+  including non-joining future index certificates. The missing operation is
+  forward checking transport through the primitive type change, not another
+  construction of the same probe reduction.
+- Idea: permit a recovered terminal to become a universe while retaining exact
+  recovered Pi domains. Verdict: proved. UniverseResultChange allows changed
+  sort levels; typed Pi/sort and sort/rigid separation rule out incompatible
+  application and projection carriers. Pi recovery remains exact in its domain.
+  The forall-recovery case rebuilds its result using the newly recovered levels.
+- Can exact sort recovery be retained instead? Verdict: refuted in typed equal
+  contexts. A fresh variable declared at Sort 0 recovers Sort 0, whereas after
+  changing that binder to Sort (max 0 0), no recovery has the old literal output.
+  The binder types are definitionally equal. Variable recovery must compute
+  from its oracle, and sort computation preserves its literal level. This is
+  a recovery-invariance counterexample, not a strengthening counterexample.
+- Instantiate the existing shared JointCheck.transport induction with equal
+  context realizations and universe-related oracles. Verdict: both typed
+  checking modes transport from any actual binder type equal to a literal sort.
+  No duplicate full checking induction or unproved re-synthesis premise is
+  introduced. The certified specialization discharges primitive assumptions.
+- Combine this forward result with recovery-based backward computation.
+  Verdict: both checking modes are equivalent before and after any sound,
+  substitution-closed primitive computation of a typed binder annotation to
+  a literal sort. No confluence or beta-only restriction is required. A future
+  proposition-index certificate constructs the Eq type probe computation, so
+  its universe-valued binder and its minor have the same certified body
+  comparisons and carrier guards. Its indices need not have a computational
+  join, and its equality major is arbitrary.
+
+  Judgment: the universe-valued primitive probe now has constructive two-way
+  ordinary checking transport. This does not supply future certificates for
+  arbitrary proposition equality, nor handle arbitrary primitive result types.
+  The latter remains the live forward-transport problem; the earlier head
+  exposure/PropFront barrier still prevents treating semantic equality as a
+  general computational exposure theorem. All GOAL.md success conditions remain
+  open, with the original strengthening sorry unchanged.

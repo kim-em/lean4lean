@@ -14140,3 +14140,61 @@ has been established. This goal turn is progress: new full transport results
 and a checked coverage obstruction change the next research action. GOAL.md
 remains active. Only theory modules and actual EOF ledger additions change.
 No executable edits, PR extraction, PRs, subagents or coordination.
+
+
+## 2026-10-21 17:04 UTC — Universe oracle recovery and primitive computation of binders
+
+The previous goal turn was progress; this turn began from its clean pushed
+worktree. Inspection of the earlier Eq-probe construction confirmed that the
+primitive computation was already available when its index comparison carries
+a future certificate. Work therefore targeted the missing forward binder
+checking operation for universe-valued results.
+
+ProofErasureUniverseResultChange allows terminal results to become a sort,
+including a changed syntactic universe level, while retaining every Pi domain.
+Typed head separation supplies Pi and exact registered-record inversion.
+ProofErasureUniverseOracleRecovery handles all recovery constructors; forall
+recovery uses the newly recovered domain/body levels. It also proves
+universe_context_exact_recovery_false: the equal binders Sort 0 and
+Sort (max 0 0) admit different exact recovery outputs for their fresh variable.
+Thus preservation of the old literal recovered sort is genuinely unavailable.
+
+ProofErasureJointUniverseContext instantiates the existing shared typed
+JointCheck.transport theorem. Its private context relation is realizable at
+every well-formed source erasure, extends under binders and interprets the raw
+identity substitution. Exact Pi-domain recovery supplies its application case.
+Both comparison and carrier modes survive replacing an actual binder by an
+equal literal sort. The certified specialization supplies soundness, head
+shape and interpreted primitive substitution independently.
+
+ProofErasureUniverseComputationContext combines forward universe transport
+with exact-recovery backward transport. Any typed annotation computation to a
+sort yields equivalence of both body-checking modes. The source path may use
+arbitrary sound, substitution-closed primitives; neither primitive confluence
+nor normalization is assumed. The Eq-probe specialization constructs this path
+from an explicit future index certificate and concludes certified equivalence
+for both checking modes. No computational join of indices or chosen equality
+major is required. General index-certificate coverage and arbitrary primitive
+result types are not concluded.
+
+Validation: four new modules, 559 lines, fifteen public roots (fourteen theorems
+and one inductive). The consuming build exits zero in 673 jobs; all new modules
+are warning-free, while existing dependency warnings are replayed. Log:
+/tmp/universe-computation-context-build.log. Both audit processes exit zero.
+Independent opaque DFS covers all 15 roots and 11,283 dependencies, excluding
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv and sorryAx. Cumulative opaque DFS
+covers 1,112 roots and 16,277 dependencies, excluding strengthening inverses and
+sorryAx. Exact-name axiom parsing covers every root exactly once, allowing only
+propext, Classical.choice and Quot.sound. Sources explicitly traverse opaque
+values with ci.value? (allowOpaque := true). Sources/logs/inventories:
+/tmp/universe-context-{audit,independent-audit}.{lean,log} and -roots.txt files.
+
+Completion audit: inspected UniqueTyping.lean:94; its original sorry remains.
+No canonical-Eq strengthening proof or strengthening counterexample, and no
+strictly smaller sufficient irreducible obligation, has been established.
+This turn is progress: forward primitive checking transport is now proved for
+universe-valued results, and exact recovery's level restriction is checked
+false. GOAL.md remains active. Only theory modules and actual EOF ledger
+additions change. No executable edits, PR extraction, PRs, subagents or
+coordination.
