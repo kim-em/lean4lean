@@ -3504,3 +3504,51 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   comparisons (especially typed eta), using the same Eq-prefix construction.
   General forward primitive transport, strong-derivation coverage and the full
   strengthening goal remain open. No strictly smaller sufficient front is claimed.
+
+
+### 2026-10-21 14:13 UTC — Certify eta indices without computational joins
+
+- **Build a future certificate directly for typed head eta. Verdict: proved.**
+  proofErase_eta_head_beta specializes the scoped eta residual theorem to the
+  primitive-free relation; typed beta confluence supplies its confluence
+  premise. EtaHead.subst and interpreted typed substitution then give
+  proofErase_eta_head_family. proofErase_function_eta_family also handles
+  proof-valued functions by their reflexive erased certificate. This does not
+  assume endpoint-beta transport of arbitrary joint comparisons.
+
+- **Place non-join certificates inside the generated Eq family. Verdict:
+  proved through constant-headed spines.** BetaStableFamily.const_spine uses
+  beta spine inversion and the independent future certificates of all arguments.
+  A future index certificate therefore gives the reflexive/requested Eq family,
+  and proofErase_stable_eq_prefix constructs the actual certified primitive.
+  The certificate's base comparison supplies actual index equality by reflection;
+  separate semantic equality and computational-join premises are unnecessary.
+
+- **Combine primitive paths with non-join residuals. Verdict: proved.**
+  BetaStableFamily.certified_prefixes retains a future residual comparison
+  after preceding certified computations on both sides. Beta commutation
+  supplies residual paths at the exact original outputs; the stored family
+  certificate compares those outputs after their future beta paths. Interpreted
+  substitution preserves this construction. Residual equality or a common
+  computational output is not required.
+
+- **Could these certificates still conceal a join requirement? Verdict:
+  checked counterexample to that interpretation.** EtaCertifiedProbe adds a
+  single function variable f : Prop → Prop. The proposition indices Eq f f and
+  Eq f (fun x => f x) have different syntactically normal erasures, fixed by
+  every full-union computation when D does not explicitly unfold Eq. Hence
+  they have no full-union join. Their future eta-family certificate nevertheless
+  computes the type probe to Prop in ErasedBetaStableJoint. The proof major is
+  constructed from Eq.refl by actual eta conversion, not assumed as new data.
+  No extra environment declaration is needed.
+
+  Judgment: certified Eq computation now constructively includes non-joining
+  eta indices and certified prefixes before those comparisons. Carrier and
+  typed-body checking pull back from a minor to such a probe with certificates
+  retained. This solves the specific join restriction of the preceding turn,
+  not coverage of arbitrary typed equality. Constant-headed congruence does
+  not cover variable-headed applications after arbitrary substitution: a new
+  beta redex can expose an argument comparison inside the substituted body.
+  Coverage of such applications, broader compatible eta, and strong derivations
+  remains live, as does general forward primitive transport. No GOAL.md outcome
+  or strictly smaller sufficient irreducible front is claimed.

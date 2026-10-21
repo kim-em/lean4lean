@@ -12868,3 +12868,83 @@ Completion audit: UniqueTyping.lean:94 retains the original sorry. None of the
 three GOAL.md outcomes is established; the full goal remains active. Only
 theory modules and actual EOF ledger additions changed. No executable changes,
 extraction, PRs, subagents or coordination.
+
+
+## 2026-10-21 14:13 UTC — Future eta families and non-joining Eq indices
+
+Previous goal turn classification: progress. Current-state inspection confirms
+clean HEAD 71b66a07, which constructs certified Eq computation from certified
+computational joins. The next action was to remove that join restriction for
+actual eta comparisons rather than assume joins are complete.
+
+ProofErasureEtaFamily proves future certificates for all common-typed displayed
+function eta pairs. The existing two-sided scoped eta residual theorem is
+specialized to a relation with no primitive steps. Every computation in that
+relation is beta, so the previously checked typed beta confluence theorem
+supplies its confluence premise. The resulting scoped comparison embeds into
+joint checking with any primitive relation. Syntactic EtaHead substitution and
+actual typed substitution extend this to all future interpreted substitutions.
+The original function eta theorem handles both retained functions and erased
+proof-valued functions, covering the latter by reflexive beta-join certificates.
+
+ProofErasureFamilySpines supplies symmetry and constant-headed application
+closure for future certificates. Beta paths preserve a constant spine and
+independently reduce its arguments; each argument's stored certificate compares
+its two residuals. Substitution preserves the constant head. This is not
+closure under arbitrary application, where substitution can introduce a
+lambda head and contract an argument into its body.
+
+ProofErasureStableEqComputation uses that spine closure to build the exact
+reflexive/requested Eq family from a future certificate for the indices. The
+base comparison reflects actual index equality, and the existing generated
+prefix construction supplies a certified Eq primitive at its original exact
+endpoints. A type probe then computes to its exact minor with an arbitrary
+typed equality major. No computational join is required. The new generic
+family premise is constructively inhabited by the typed eta results; no
+claim is made that it covers arbitrary typed definitional equality.
+
+ProofErasureCertifiedFamilyPrefixes places certified computations before any
+future family certificate. It uses computation/beta commutation on each source,
+then invokes the residual certificate at the beta-reduced original outputs.
+Certified substitution makes the same argument available after every future
+interpreted substitution. Unlike the preceding join lemma, the residual
+outputs can be distinct, non-joining eta endpoints. This closure combines
+primitive computation, eta certificates and constant-headed congruence.
+ProofErasureStableProbeTransport transports all carrier guards and all typed
+body comparisons from a minor to a probe guarded by any such family certificate,
+retaining certified checking. It proves the reverse-computation direction only.
+
+ProofErasureEtaCertifiedProbe supplies a checked non-join example. Over any
+well-formed context, add f : Prop → Prop. Compare P = Eq f f and
+Q = Eq f (fun x => f x). Their erasures are distinct normal constant spines;
+canonical Eq rigidity and the exclusion of explicit D-unfolding of Eq make
+both fixed under all full-union computations. Thus there is no computational
+join even in ErasedJointUnion. Function eta and Eq-family spine congruence
+nevertheless construct a BetaStableFamily certificate for P and Q. The
+actual eta equality converts Eq.refl P into the outer proof major, and the
+resulting type probe returning Prop computes in ErasedBetaStableJoint. This
+needs no new environment declaration or assumed proof-major variable.
+
+Judgment: the prior construction's join restriction is removed for typed
+function eta and combinations through constant heads and certified computation
+prefixes. The no-join example is a strict expressive advance, not a
+strengthening counterexample. Arbitrary application coverage, including beta
+redexes created by substitution, broader compatible eta and strong-derivation
+coverage remain live. General forward primitive checking transport remains
+open. There is no new strictly smaller sufficient irreducible front.
+
+Validation: six new theory modules, 442 lines, 12 public roots. Final example
+and all new dependencies build (651 jobs), without new-module warnings:
+/tmp/eta-certified-probe-build.log. Independent opaque DFS covers all 12 roots
+and 11,471 dependencies, excluding JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport, .weakN_iff, .weakN_inv and
+sorryAx. Cumulative opaque DFS covers 949 roots and 16,009 dependencies,
+excluding strengthening inverses and sorryAx. Exact-name axiom parsing covers
+every root once and allows only propext, Classical.choice and Quot.sound.
+Sources/logs: /tmp/eta-family-{audit,independent-audit}.{lean,log}; inventories:
+/tmp/eta-family-{audit,independent-audit}-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 retains the original sorry. None of the
+three GOAL.md outcomes is established. Keep the full goal active. Only new
+theory modules and actual EOF ledger additions changed; no executable changes,
+extraction, PRs, subagents or coordination.
