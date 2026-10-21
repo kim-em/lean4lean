@@ -11124,3 +11124,79 @@ Completion audit: UniqueTyping.lean still has its original weakN_iff sorry.
 This turn supplies neither a canonical-Eq counterexample nor a strictly smaller
 sufficient irreducible front. The goal remains active. Only theory and these
 research ledgers change; PR extraction remains deferred.
+
+## Semantic head recovery and conversion of structural subsingletons
+
+Previous goal turn: progress, verified by pushed commit 151df7e4 and its native
+carrier readout/type-conversion consequence. This continuation began from its
+clean worktree. GOAL.md still requires a full canonical-Eq strengthening proof,
+a counterexample, or a strictly smaller sufficient irreducible front.
+
+Investigation of the function case: the existing neutral-result function
+alignment retains all displayed domains. It does not supply conversion between
+two arbitrary domains. A proposed universe-result shortcut also does not follow
+directly from the grammar. Decoding the result-sort guard supplies comparison
+of fresh applications, but recovering the outer function comparison must deal
+with computations of those applications. Two eta expansions alone do not
+provide the missing composition/cancellation theorem. This idea is unproved,
+not refuted; no conditional example is being represented as a countermodel.
+
+The constructive step is ProofErasureScopedSemanticRecovery. Its explicit
+unproved premise, ScopedSemanticHeadExposure, asks for three computational head
+clauses on typed convertible types: sorts, Pis, and registered projection
+families. No output Pi annotation, parameter list, or universe list is prescribed.
+The Pi/family outputs are typed original expressions at the source universe,
+so their erasures have the advertised head. The premise does not include a
+JointCompare certificate between the full requested and computed types.
+Soundness of the primitive collection alone does not establish this premise.
+
+Given primitive descent and those clauses, recover_sort, recover_pi, and
+recover_family upgrade any existing selected recovery to the needed head.
+Recovery replay supplies its actual original type; uniqueness relates it to
+the assigned type; the exposure computation extends that recovery. Family
+recovery additionally reflects the computed type equality to obtain the actual
+major typing at the newly selected parameters. The recovery_exists theorem
+then inducts on original syntax. Non-proof lambdas have non-proof bodies;
+applications recover a Pi for their retained function; Pi formation recovers
+sorts for both parts; retained projections recover a family and construct the
+actual registered telescope and field recipe. This is some-output recovery,
+not recovery at every convertible assigned type. The older raw existence/head
+characterization was reused conceptually, rather than treating exact recovery
+or literal joins as viable again.
+
+The new conversion theorem covers all structural subsingletons. Starting from
+SubsingletonCarrier (erase T) and an arbitrary ordinary equation T = U, it
+constructs a computation erase U -> out and SubsingletonCarrier out. Empty
+structures use family exposure and registered family arity. For a Pi, exposure
+of U yields an actual Pi D C. Pi injectivity relates the source and target
+domains and codomains. The smaller structural-subsingleton induction computes
+C to a subsingleton in the original domain's context. Exact primitive context
+transport moves this computation into D's context; a Pi computation lifts it
+and SubsingletonCarrier.forallE closes the result. Only computations, not
+arbitrary joint checking certificates, are transported between these contexts.
+This avoids assuming the general carrier-conversion law inside its own Pi case.
+A corollary supplies a guard at U for any raw endpoints. The hsubst premise is
+already available for the certified primitive relation; head exposure is not.
+
+Remaining: general carrierFunction and dependent carrierNested guards require
+checking transport across converted contexts as well as codomain/field carrier
+conversion. The recovered-application case needs a freshly selected Pi; the
+some-output recovery result now supplies that conditional on the same head
+exposure premise. No mutual general conversion theorem, paired endpoint-beta
+law, or head-exposure adequacy proof has been supplied this turn. No equivalence
+with PropositionFront or strict reduction below it is claimed.
+
+Validation: semantic recovery, native neutral carrier readout, and certified
+checking build successfully (609 jobs), /tmp/scoped-semantic-recovery-build.log.
+Independent opaque DFS covers the new structure, its constructor and three
+fields, and six theorems: 11 roots and 8,405 dependencies. It excludes
+JointCarrierDomainResynthesis, strengthening inverses, and sorryAx. Cumulative
+DFS covers 699 roots and 15,519 dependencies, excluding strengthening inverses
+and sorryAx. Exact-name axiom-report parsing matched all 11/699 requested roots;
+only propext, Classical.choice, and Quot.sound occur. Audit sources and logs:
+/tmp/scoped-semantic-recovery-{audit,independent-audit}.{lean,log}.
+
+Completion audit: the original sorry remains in UniqueTyping.lean. There is
+no canonical-Eq counterexample and no strictly smaller sufficient irreducible
+front from this turn. The goal remains active. Only theory and the two research
+ledgers change. No executable changes, extraction, PRs, or agent coordination.

@@ -2527,3 +2527,39 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   the paired-image invariant must account for this native-domain conversion;
   diagonal recovery alone cannot discharge it. General dependent record/Pi
   carrier conversion remains open with the quotient-repaired full core.
+
+- **Collapse universe-result function carriers to ordinary function comparison.**
+  **Not established; no counterexample claimed.** The function rule gives a
+  comparison of applications under a fresh binder after sort-carrier decoding.
+  Extracting a comparison of the functions still requires cancellation through
+  computations of those applications. Merely wrapping the body comparison in
+  two eta expansions would require composition not supplied by JointCheck.
+  The existing function alignment theorem retains displayed domains and does
+  not justify changing them by arbitrary semantic conversion. This shortcut
+  therefore does not discharge the native-domain requirement on its own.
+
+- **Use semantic head exposure to recover arbitrary retained syntax and to
+  transport structural subsingletons through type conversion.** **Conditional
+  reduction proved for contextual computation.**
+  `ProofErasureScopedSemanticRecovery` isolates `ScopedSemanticHeadExposure`:
+  a typed type convertible to a sort, Pi, or registered family computes to that
+  kind of head. Computation freely chooses Pi annotations and family universes
+  and arguments. Pi/family outputs retain actual typed representatives, without
+  an additional full-type comparison certificate. The three clauses suffice
+  for some-output recovery of every retained expression, including dependent
+  projections. This extends the earlier raw `ErasedRecoveryHeads` approach to
+  the contextual recovery used by the joint checker; exact assigned recovery
+  remains unnecessary and is not claimed. A new induction on SubsingletonCarrier
+  proves more: any type convertible to a structural subsingleton computes to a
+  structural subsingleton. For Pi telescopes the codomain induction runs in the
+  old domain context; primitive context transport moves the resulting path to
+  the newly exposed domain, and Pi congruence completes the path. Thus all
+  carrierSubsingleton cases, including arbitrary function telescopes ending in
+  an empty structure, have semantic carrier conversion under this exposure
+  premise. No checker-context conversion or global carrier-conversion law is
+  used to prove that case. Head exposure itself remains open for the full
+  quotient-repaired joint relation. This is not claimed a strictly smaller
+  sufficient strengthening obligation. Next: extend the actual conversion
+  argument to general function and dependent-record guards by a mutual
+  checking/context-conversion induction, using some-output head recovery at
+  recovered applications rather than exact assigned-type recovery.
