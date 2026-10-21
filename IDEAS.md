@@ -3711,3 +3711,41 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   not been shown to supply that transport. Function domains/bodies with
   genuinely non-subsingleton results and general composition remain open.
   No full equality coverage or GOAL.md outcome is claimed.
+
+### Full future certificates for nonempty dependent records (2026-10-21 14:57 UTC)
+
+- **Preserve record checks while parameters, majors and earlier-field recipes
+  change. Verdict: proved for both field-checking constructors.**
+  BetaStableCarrier.record_fields lifts future common projection comparisons.
+  BetaStableCarrier.record_nested lifts full future carrier checks at the exact
+  dependent field recipes. The prior projectionType_beta and
+  projectionType_subst lemmas identify the residual recipes after parameter
+  and left-major beta paths and arbitrary interpreted substitution. No global
+  type-conversion, endpoint transport or primitive substitution law is used.
+  BetaStableFamily.proj separately preserves future inferred major comparison
+  under projection.
+
+- **Does recursive future checking add anything beyond empty structures or
+  common future comparison? Verdict: checked separation at Box Unit.**
+  BetaStableCarrier.box uses the actual one-field constructor recipe, whose
+  field carrier is its type parameter. Two distinct actual variables of Box
+  Unit have a full future guard from the unit field certificate. The registered
+  Box has one field, so the original SubsingletonCarrier grammar rejects it;
+  bare-variable injectivity excludes their common future comparison. The
+  variables are definitionally equal by the checked reflection theorem. This
+  is a distinction between checking certificates, not a strengthening failure.
+
+- **Test dependence on an earlier field rather than just a parameter. Verdict:
+  proved for a registered Pack constructor (A : Type) → A → Pack.** Its first
+  projection carrier is Type, and its second is the first projection of the
+  left major. BetaStableCarrier.dependent_pair consumes a future comparison of
+  the type fields and a future value check at that changing first projection.
+  The exact recipes and their full future record assembly are checked; no
+  constant-field approximation or subsingleton premise is used.
+
+  Judgment: record assembly and preservation through beta/substitution no
+  longer require a separate general transport assumption. The input recursive
+  field certificates still have to be constructed. In particular, arbitrary
+  comparison of record carrier parameters/majors has not been shown to supply
+  the corresponding dependent-field conversion checks. General composition
+  and paired instantiation remain open; no GOAL.md outcome is established.

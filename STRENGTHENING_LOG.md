@@ -13245,3 +13245,69 @@ Completion audit: UniqueTyping.lean:94 retains the original sorry. None of the
 three GOAL.md outcomes is established. Keep the goal active. Changes are
 restricted to theory modules and actual EOF ledger additions; no executable
 changes, PR extraction, PRs, subagents or coordination.
+
+### 2026-10-21 14:57 UTC — Future checking of nonempty dependent records
+
+Previous goal turn: progress (d65654d5 constructed future carrier checks from
+type comparison for the structural-subsingleton fragment). This turn revalidated
+clean HEAD d65654d5, the objective and current ledger, then inspected the exact
+projection-recipe beta/substitution lemmas and existing record transport before
+extending the future invariant to nonempty records.
+
+ProofErasureFutureRecord constructs both full future record rules.
+record_fields uses future common comparisons of each retained projection;
+record_nested uses future carrier certificates at the precise dependent field
+recipes. Carrier beta is inverted as a constant spine, obtaining reduced
+parameters with the same arity. The endpoint beta paths induce projection paths
+and a path for the dependent carrier recipe, including all earlier projections
+of the left major. After interpreted substitution, the closed constructor
+telescope supplies projectionType_subst; the recursive certificate then handles
+all later beta paths. Nothing assumes old and new field carriers are identical
+or reverses a computation path. A separate projection constructor lifts future
+inferred major comparison to future projection comparison in either mode.
+
+ProofErasureFutureBox specializes the recursive rule to an explicitly registered
+one-field Box with constructor (A : Type) → A → Box A. The actual projection
+recipe is exactly its parameter, so every future field carrier certificate
+lifts to the whole Box. Its test instantiates that parameter with a closed
+positive unit and uses two distinct actual Box variables. The full future Box
+guard exists, while ordinary future common comparison fails by bare-variable
+injectivity. The old structural subsingleton grammar also fails: the new
+record_numFields inversion shows it recognizes a displayed record only if the
+registered field count is zero. Box's field count is one. The example includes
+an actual definitional equality proof obtained by reflection of the new guard,
+so it is explicitly not a counterexample to strengthening.
+
+ProofErasureFutureDependentRecord tests a genuinely dependent field recipe
+for an explicitly registered Pack constructor (A : Type) → A → Pack. The closed
+telescope identifies the first field carrier as Type and the second as the
+first projection of the left major. dependent_pair accepts a future comparison
+of the first projections and a future carrier check of the second projections
+at that first projection. The general record rule combines them while retaining
+all future major reductions and substitutions. This uses neither a static
+field-type approximation nor a subsingleton requirement on the data fields.
+
+Judgment: the future invariant now has constructive nonempty-record and exact
+dependent-field assembly. The remaining difficulty is producing its recursive
+field certificates from general type comparison or paired instantiation, not
+preserving the closed field recipes under beta/substitution. This does not
+establish arbitrary record type conversion, general composition, or equality
+coverage. The previous common-comparison transitivity refutation remains in
+force; the Box example further demonstrates why carrier certificates retain
+information that ordinary common comparison loses.
+
+Validation: three new theory modules, 268 lines, seven public roots. Build of
+both record examples and all new dependencies succeeds in 613 jobs, with no
+new-module warnings: /tmp/future-record-build.log. Independent opaque DFS covers
+all seven roots and 10,866 dependencies, excluding JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport, .weakN_iff, .weakN_inv and
+sorryAx. Cumulative opaque DFS covers 990 roots and 16,068 dependencies,
+excluding strengthening inverses and sorryAx. Exact-name axiom parsing accounts
+for every root once and permits only propext, Classical.choice and Quot.sound.
+Sources/logs: /tmp/future-record-{audit,independent-audit}.{lean,log}; inventories:
+/tmp/future-record-{audit,independent-audit}-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+None of the three GOAL.md outcomes is established. Keep the goal active. Only
+new theory modules and actual EOF ledger additions changed; no executable
+changes, PR extraction, PRs, subagents or coordination.
