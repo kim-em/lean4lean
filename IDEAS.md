@@ -3415,3 +3415,47 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   dependent field recipes and coverage of strong derivations remain open.
   The raw-local-relation coverage idea is rejected; mixed typed-path coverage
   remains live. No goal outcome or strictly smaller sufficient front is claimed.
+
+
+### 2026-10-21 13:49 UTC — Mixed Pi/Box/beta coverage fails at primitive Eq
+
+- **Do finite beta expansions make the Pi/Box paths complete for type
+  conversion? Verdict: refuted under canonical Eq by a closed typed example.**
+  TypeChangePath.box_sort_reduct proves that beta reducibility to a literal
+  sort is preserved along every Pi/Box/beta path. The analogous bare-constant
+  invariant is also proved. Structural Pi/Box edges cannot introduce either
+  atomic reduct, and typed beta confluence handles arbitrary beta expansions.
+  An Eq type probe preserves its Eq.rec head under beta, so it cannot be
+  reached from its sort or non-Eq.rec constant minor by these paths.
+
+- **Could the failure depend on an unsolved proposition equality or empty
+  context? Verdict: no.** box_beta_paths_not_complete constructs the closed
+  proposition ∀ P : Prop, P and uses Eq.refl at that proposition. The probe
+  returning Prop is definitionally equal to Prop in the empty context by
+  canonical Eq, but no mixed Pi/Box/beta path connects them. No inhabitant of
+  the proposition, extra record registration or environment extension is
+  assumed. This refutes coverage of the fragment, not strengthening.
+
+- **Is unit-probe path coverage a routine remaining lemma? Verdict: it already
+  suffices for PropositionFront, conditionally on a closed positive unit.**
+  UnitProbePathCoverage asks only for paths from the fixed constant minor to
+  its type-valued Eq probe whenever the proposition indices are definitionally
+  equal. Given the local transport laws, a path transports a two-variable unit
+  guard to the probe; target carrier exposure reads the original proposition
+  equality below the inserted binders. The full proposition front follows by
+  the checked fresh-unit-variable construction. Neither strictness nor an
+  unconditional converse is established.
+
+- **Does the existing Pi/Box relation at least satisfy that restricted
+  coverage? Verdict: refuted even at reflexive closed indices.**
+  UnitProbePathCoverage.not_box uses the bare-constant invariant for any closed
+  positive constant type other than Eq.rec. Thus the restricted sufficient
+  coverage condition is not solved by the existing relation.
+
+  Judgment: retain the proved transport fragment, but reject its unrestricted
+  or unit-probe completeness as a live route without primitive extensions.
+  The necessary extension must handle actual Eq singleton/recursor computation,
+  already at reflexive indices; more beta closure or additional visible Box
+  nesting cannot remove this obstruction. General primitive transport and
+  coverage remain live research tasks. No strictly smaller sufficient
+  irreducible front or other goal outcome is claimed.

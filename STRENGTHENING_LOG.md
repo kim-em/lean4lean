@@ -12726,3 +12726,70 @@ canonical-Eq strengthening proof, canonical-Eq counterexample or genuinely
 strictly smaller sufficient irreducible obligation is established. Keep the
 full goal active. Only theory modules and actual EOF ledger additions changed;
 no executable changes, extraction, PRs, subagents or coordination.
+
+
+## 2026-10-21 13:49 UTC — Refute mixed-path completeness and isolate probe coverage
+
+Previous goal turn classification: progress. Current-state inspection confirms
+4267036f and a clean worktree. That result transported checking along finite
+structural/beta paths but left their coverage open. This turn gives a decisive
+negative answer for the existing Pi/Box relation and a conditional sufficiency
+boundary for possible broader relations.
+
+ProofErasureTypePathProbeBoundary proves beta-normal atomic-reduct invariants
+for every mixed Pi/Box/beta path. Typed beta confluence is reconstructed by
+replaying both erased beta paths, using the existing empty-definition
+computation confluence theorem, and erasing the residuals. Structural edges
+preserve a literal-sort or bare-constant reduct: neutral, Pi and applied Box
+heads cannot beta-reduce to those atoms. These invariants persist through
+arbitrary finite composition and beta expansions.
+
+An Eq type probe cannot beta-reduce to its literal sort minor or to a bare
+constant other than Eq.rec, because beta preserves the Eq.rec spine head.
+Consequently no current path connects either minor to that probe. The theorem
+box_beta_paths_not_complete gives a closed canonical-Eq example: use the
+proposition ∀ P : Prop, P, Eq.refl at that proposition, and Prop as the minor.
+Canonical Eq gives actual definitional equality in the empty context, but the
+path does not exist. The proposition is not assumed inhabited. This is a
+counterexample to completeness of the proposed path fragment, not to the
+strengthening theorem, and needs no new registered Box or unit.
+
+ProofErasureTypePathUnitFront defines the explicit remaining condition
+UnitProbePathCoverage for any proposed relation. It only asks for a path from
+a fixed positive constant type to its Eq probe at definitionally equal
+proposition indices. With TypeChangeLaws for certified primitives and a closed
+registered positive empty structure, this coverage implies PropositionFront.
+Two distinct variables supply a source unit guard; path transport gives a
+certified probe guard, and inclusion into the union plus carrier exposure
+reads out the lower-context proposition equality. The four-binder construction
+then yields the full front. No observer declaration, endpoint-beta law, or
+strengthening inverse is assumed. Finally UnitProbePathCoverage.not_box
+refutes this restricted coverage for the existing Pi/Box paths whenever its
+minor is a closed positive constant other than Eq.rec, again with reflexive
+closed indices.
+
+Judgment: the existing mixed-path coverage candidate is refuted, not merely
+unproved. The transport theorems remain valid. Extending them toward coverage
+requires primitive Eq singleton/recursor computation; beta expansion and
+more visible Pi/Box nesting cannot suffice. UnitProbePathCoverage is a named
+conditional sufficient coverage requirement, not an established strictly
+smaller irreducible obligation. Its truth for a broader relation, primitive
+transport, general dependent-field closure and strong-derivation coverage
+remain open.
+
+Validation: two new theory modules, 334 lines, nine explicit public roots.
+Both modules and dependencies build (657 jobs), without new-module warnings:
+/tmp/type-path-unit-build.log. Independent opaque DFS covers all nine roots
+and 11,605 dependencies, excluding JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport, .weakN_iff, .weakN_inv and
+sorryAx. Cumulative opaque DFS covers 924 roots and 15,959 dependencies,
+excluding strengthening inverses and sorryAx. Exact-name axiom parsing accounts
+for every root once and permits only propext, Classical.choice and Quot.sound.
+Sources/logs: /tmp/type-path-probe-{audit,independent-audit}.{lean,log};
+inventories: /tmp/type-path-probe-{audit,independent-audit}-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 retains the original sorry. No
+canonical-Eq strengthening proof, canonical-Eq strengthening counterexample or
+genuinely strictly smaller sufficient irreducible obligation is established.
+Keep the full goal active. Only theory modules and actual EOF ledger additions
+changed; no executable changes, extraction, PRs, subagents or coordination.
