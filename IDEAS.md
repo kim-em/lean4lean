@@ -4713,3 +4713,30 @@ inverse is used. No target certificate is supplied, no nonconvertibility is
 asserted, and no strictly smaller sufficient obligation is established. A
 structural transport proof must still account for the typing conversion;
 primitive-stage descent alone does not supply the missing base case.
+
+
+## 2026-10-21 19:03 UTC — Paired lambda head beta without union substitution closure
+
+The previous proof-argument/recovered-image head-beta results used primitive
+substitution closure, or lower-stage proposition beta transport to certify
+their inputs. That premise is unnecessary when the target is the full union.
+`ProofErasureJointUnionHeadBeta` replaces raw lambda inversion with typed
+inversion retaining both body paths under their original annotations, then
+instantiates those paths through the proven recovering-substitution theorem.
+The original argument's recovery extends along each computed domain path.
+
+Verdict: five theorems checked. Full-union comparisons instantiate at an
+original recoverable argument; inferred lambda comparisons close diagonal
+head beta; proposition-valued applications close at same-erasure arguments;
+proof arguments need no recovery; and distinct data arguments are accepted
+when full-union computation takes both to a typed shared value recovering
+both displayed domains. The last result allows primitive argument paths,
+not only the beta paths of the earlier joined-argument interface.
+
+No global primitive substitution, certification, semantic head exposure, or
+proposition beta transport is assumed. This removes a real premise from the
+paired head-beta subcase, but does not cover arbitrary carrier-related data
+arguments or contextual beta transport at a converted supplied carrier. The
+primitive-free Eq peak of f9104d62 is therefore still unresolved. Neither
+completeness of ordinary typing conversion nor a smaller sufficient front
+has been established.

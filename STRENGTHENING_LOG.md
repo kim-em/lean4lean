@@ -14815,3 +14815,58 @@ obligation is established. GOAL.md stays active. Next proof work must address
 converted-carrier typing in the structural beta case, rather than assuming
 that primitive certification closes it. Only Theory and actual-EOF ledger
 additions changed; no executable edits, PR extraction, PRs or coordination.
+
+
+## 2026-10-21 19:03 UTC — Direct full-union paired lambda head beta
+
+Previous goal turn is progress: f9104d62 committed, pushed and audited the
+explicit primitive-free Eq peak. Revalidated clean HEAD f9104d62. Inspected
+existing semantic conversion, compared subsingleton/record transport, typed
+binder pullback and compared-context obstructions. The arbitrary converted
+binder problem is not solved by simply supplying actual endpoint typings.
+However, the paired lambda case has stronger local information: the supplied
+argument can recover both displayed domains, and typed lambda inversion can
+retain each computed body path under its original binder.
+
+Added ProofErasureJointUnionHeadBeta, 245 lines and five public theorems.
+The key induction is over the existing inferred lambda comparison. Structural
+lambda cases instantiate their actual typed body comparison via recoverable
+substitution at independently bounded finite stages. In a computation case,
+lam_inv_aux returns domain/body paths in the full union, with body paths in
+the original contexts. proofErase_joint_union_compute_inst substitutes those
+paths at the retained argument recovery. Recovery extends along the domain
+paths before the recursive call. Typed eta instantiation handles eta cases;
+symmetry exchanges the two domain recoveries. No arbitrary union primitive
+substitution law is used.
+
+Public interfaces cover: full-union recoverable comparison instantiation;
+raw inferred-lambda diagonal head beta; actual proposition-valued applications
+at same-erasure arguments; arbitrary proof arguments (the recovery premises
+are vacuous); and arguments that compute by full-union paths to a typed shared
+recoverable value. The latter prefixes body computations obtained from the
+argument paths and needs no stability theorem for the completed comparison.
+
+This removes the certification/lower-stage beta-law prerequisite of the old
+full-stage proof-argument route when the target is the union. It does not
+claim the stronger certified target of the old theorem, so those earlier
+theorems are preserved. It also does not remove the two exact displayed-domain
+recoveries for retained data, or prove that carrier-related arguments have a
+common computational value. Thus the previous converted-unit Eq peak is not
+closed by these lemmas. General paired carrier substitution and coverage of
+strong typing conversions remain the substantive next obligations.
+
+Validation: direct Lean check clean; consuming build successful in 607 jobs
+(/tmp/union-head-beta-final-build.log). Both opaque dependency DFS audits pass.
+Cumulative: 1,226 roots / 16,435 dependencies. Independent: 5 roots / 10,985
+dependencies. Both exclude weakN_iff, weakN_inv and sorryAx; independent also
+excludes JointCarrierDomainResynthesis, ScopedSemanticHeadExposure and
+JointPropBetaTransport. Exact-name axiom inventories cover every root once
+and contain only propext, Classical.choice and Quot.sound. Audit artifacts:
+/tmp/union-head-beta-{audit,independent-audit} with .lean, .log and -roots.txt
+suffixes. New module and audit outputs have no warnings.
+
+Completion audit: UniqueTyping.lean:94 still has the original sorry; no actual
+canonical-Eq counterexample or strictly smaller sufficient irreducible
+obligation is established. GOAL.md remains active. Only Theory and actual-EOF
+ledger additions changed; no executable edits, PR extraction, PRs, subagents
+or coordination.
