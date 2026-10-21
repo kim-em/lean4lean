@@ -10747,3 +10747,81 @@ Completion audit: UniqueTyping.lean:94 still contains the original sorry.
 No canonical-Eq strengthening counterexample or strictly smaller sufficient
 front is established. The goal remains active. No executable changes,
 extraction, PRs, agents or coordination.
+
+## Full joint context-oracle and carrier-type beta transport (2026-10-21)
+
+Previous-goal-turn classification: progress. The clean pushed baseline was
+68edd899333112be51839123336fc660c82ffbdc, whose dependent recipe and recovery
+results are checked. The intervening conversational clarification made no
+research change. The user reactivated research; extraction and PRs remain
+deferred. This turn implements the baseline's stated next construction.
+
+ProofErasureContextOracleBeta supplies the missing binder extension. Given an
+interpreted identity Δ -> Δ' and raw domain beta A -> A', it constructs an
+interpreted identity A :: Δ -> A' :: Δ'. Each well-formed source realization
+provides the domain typing; beta replay supplies the new actual domain and
+forward context conversion interprets the first change. Composition then
+moves the older context. No inverse weakening or arbitrary representative of
+a proof marker is used. DomainSort witnesses survive beta, and the paired
+ContextOracleBeta evidence extends under the changed binder with lifted
+oracle paths.
+
+ProofErasureJointCheckingOracleBeta proves the full mutual JointCheck
+induction. The comparison result retains its mode and both expression
+endpoints while the context oracle beta-reduces. The carrier result also
+permits any pure beta reduct of its original carrier. There are no missing
+constructor cases. In particular:
+
+* appCarrier uses the previously proved forward recovery result to select a
+  new Pi. Its domain is a beta reduct of the old selected domain, so the
+  recursive carrier hypothesis adapts the original argument guard directly.
+* carrierFunction splits the carrier's Pi beta path, uses the new binder
+  extension for the domain, and applies the recursive carrier result to the
+  codomain under that context. The eta applications remain fixed expressions.
+* carrierNested realizes the original dependent projection typings and uses
+  projectionType_beta to update the target field carriers with new parameters.
+* carrierCompute commutes the original carrier computation with its requested
+  beta path and wraps the recursively transported guard with the target path
+  in the proper direction. Ordinary compute and carrierReduce use exact
+  source-typed computation substitution, so their outputs stay unchanged.
+
+The generic theorem has concrete implementations of all three computation,
+commutation and recovery inputs. At source n+1 these use proposition beta
+transport only at stage n. The target is the existing joint union; commutation
+residuals first retain beta/substitution certificates, move to the new context,
+then forget their certificates into the union. At source zero the full result
+needs no proposition beta transport. Specialized public theorems give carrier
+beta transport in the unchanged context and comparison of actual typed bodies
+in the context obtained by beta-reducing their binder domain.
+
+This closes the combined context/type gap from the previous entry. It does
+not close endpoint beta transport. The previously checked unit obstruction
+still rules out arbitrary common endpoint-beta comparison, including simply
+using that false law for the carrierChecked case of a stronger induction.
+Next work is the proposition-only endpoint application critical pair: paired
+body instantiation must preserve relevant carrier information without asking
+for arbitrary inferred comparison of beta-reduced functions. The new result
+can now handle changing binder annotations and selected carrier domains in
+that construction. It cannot be invoked on an enlarged union guard using only
+the original lower-stage beta hypothesis; the source-stage accounting remains
+part of the unresolved argument.
+
+Validation: the new full transport target, prior common-beta boundary and
+full joint beta-commutation targets build successfully (612 jobs), log
+/tmp/joint-checking-oracle-beta-build.log. Independent opaque dependency DFS
+covers all 11 new public declarations and 11,454 dependencies; it excludes
+JointCarrierDomainResynthesis, strengthening inverses and sorryAx. Cumulative
+DFS covers 662 public declarations and 15,470 dependencies, excluding
+strengthening inverses and sorryAx. Exact requested axiom-report name/count
+matching passed for both reports; only propext, Classical.choice and Quot.sound
+occur. Audit sources/logs:
+/tmp/joint-checking-oracle-beta-{audit,independent-audit}.{lean,log}.
+An initial cumulative audit script dropped the apostrophe in one existing
+root name; the root-list parser was corrected, and the full audit was rerun
+successfully with all original names preserved.
+
+Completion audit: the original sorry remains at UniqueTyping.lean:94. No
+canonical-Eq counterexample or strictly smaller sufficient irreducible front
+has been established. The full goal remains active. This turn changes only
+theory and the two research ledgers; no executable changes, extraction, PRs,
+subagents or coordination.

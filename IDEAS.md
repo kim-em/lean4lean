@@ -2398,3 +2398,27 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   must not be mistaken for general endpoint beta comparison, which the unit
   example refutes. Application head-beta and paired body instantiation remain
   separate tasks. No smaller sufficient strengthening front is claimed.
+
+- **Simultaneous context-oracle and carrier-type beta transport for all joint
+  constructors.** **Proved, under strictly lower-stage proposition beta
+  transport; unconditional at source stage zero.**
+  `ProofErasureContextOracleBeta` constructs identity context interpretation
+  beneath a beta-reduced binder using forward beta replay at each realized
+  source domain. It also transports the domain-sort witness and all oracle
+  entries. `ProofErasureJointCheckingOracleBeta` completes the mutual induction
+  over the full JointCheck grammar with fixed expression endpoints and a
+  beta-reduced carrier. In appCarrier, forward oracle recovery supplies a new
+  Pi and a pure beta path of its domain; the recursive carrier hypothesis
+  applies at that domain. In carrierFunction the context extension changes
+  the binder and the recursive carrier changes the codomain. In carrierNested
+  the dependent projection recipe beta-reduces with its parameters. Carrier
+  computation uses a directed commutation square, and ordinary comparison
+  computation uses the existing exact typed substitution theorem. Thus this
+  is the full formerly proposed context/type transport construction, not
+  another application re-synthesis assumption. The target is the existing
+  union. At n+1 only stage-n proposition beta transport is needed, and no
+  target-stage guard is fed back into that hypothesis. A specialization gives
+  comparison in the actual context after reducing a typed binder domain;
+  another reduces a typed carrier in the unchanged context. Endpoint beta
+  transport, paired body instantiation and the proposition front remain open.
+  No strictly smaller sufficient strengthening obligation is claimed.
