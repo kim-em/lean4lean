@@ -1887,3 +1887,32 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   The existing arbitrary-term beta-composition barrier does not directly
   apply to this sort-typed endpoint law. No implication to PropositionFront,
   converse, or strict reduction of a sufficient strengthening front is claimed.
+
+- **Recover every assigned type before developing a typed identity redex.**
+  **Constructive for every typed argument.**
+  ProofErasureIdentityRecoveryCover wraps x : A as (fun z : A => z) x.
+  The result is typed at A, is equal to x, beta-contracts to it, and exactly
+  recovers A whenever non-proof, at stage zero in any computation relation.
+  This is a recoverable expansion of x, not a computation from x to a
+  recoverable image; no canonical-Eq or recovery-coverage premise is needed.
+
+- **Preserve assigned-type recovery, even up to computational joins, through
+  finite developments.** **Refuted by one identity contraction at all stages.**
+  ProofErasureRecoveryDevelopmentBoundary applies the expansion to the existing
+  eta-converted variable. Before contraction its assigned type recovers exactly.
+  Afterwards, even after any joint-union computation, no recovered type has a
+  computational join with that assigned type. A stage-zero inferred comparison
+  between the assigned and native recovered types still exists. This rules out
+  the proposed recovery invariant, not finite developments in general, compared
+  recovery, computational confluence, or strengthening.
+
+- **Use recoverable expansions to obtain arbitrary substitution joins from
+  typed confluence.** **Conditional theorem proved.**
+  ProofErasureJointConfluentInstantiation transports the body computation at the
+  identity expansion, then contracts its occurrences. The two requested
+  substituted endpoints have a common typed computational ancestor. Assumed
+  typed confluence of the joint union gives a common reduct at a finite later
+  stage. There is no recovery premise on the original argument, but the result
+  gives a join, not a directed substituted path. This does not prove confluence
+  and cannot supply its substitution case circularly. Full joint confluence
+  and the comparison/guard stability needed for the original goal remain open.

@@ -9610,3 +9610,76 @@ arguments. There is still no proof of the original strengthening theorem,
 canonical-Eq strengthening counterexample, or strictly smaller sufficient
 front. No executable changes, extraction, PRs, agents or coordination. Goal
 remains active.
+
+## 2026-10-21 — Exact recovery before an identity development, and its boundary
+
+The preceding turn was progress: dc57bfbf constructed exactly recovered
+proposition-producing functions and removed the auxiliary binder from a
+necessary transport consequence. This turn began from the clean committed
+state and revisited the finite-development route. Earlier marked development
+termination and no-uniform-round results do not address whether the new
+exact-recovery invariant survives contraction of the marked redexes.
+
+ProofErasureIdentityRecoveryCover proves that every typed x : A has a typed
+identity-redex expansion y = (fun z : A => z) x. It supplies actual typing,
+definitional equality y = x, erased beta reduction to x, and exact recovery of
+A whenever y is non-proof. The fresh variable in the identity body is retained
+in that case by typed proof-classification substitution. Its lookup recovers
+the lifted annotation; applying the identity instantiates that annotation back
+to A. No recovery of x itself is used. Proof-valued images simply do not need
+the recovery premise. The construction uses no canonical-Eq hypothesis and
+works at stage zero for every primitive relation.
+
+The direction matters. This is a recoverable expansion reducing to x, not a
+reduct of x that recovers A. ProofErasureRecoveryDevelopmentBoundary applies it
+to the existing eta-converted variable. The expansion has exact assigned-type
+recovery at stage zero. The variable after the head identity contraction is
+fixed by the whole joint union. Every recovered type is separated from the
+assigned type by the existing no-computational-join theorem, even allowing
+further computation of the expression and both types. Nevertheless the native
+recovered type and assigned type have an inferred comparison at stage zero.
+Thus the failure persists for recovery up to computational joins, while this
+example does not obstruct re-synthesis up to comparison or use-site guards.
+
+This refutes using assigned-type recovery or computational alignment of its
+outputs as a preserved invariant of complete developments. It does not refute
+selective developments with a different invariant. It is also not a failure of
+computational confluence: recovery is a separate judgment, and the theorem
+does not exhibit a computational peak with unjoinable expression endpoints.
+
+ProofErasureJointConfluentInstantiation supplies a positive conditional use of
+the same expansion. At its exactly recovered image, the full body computation
+instantiates using the existing stage-additive theorem; the image stage is
+zero, so the body stage does not grow. Contracting copies of the expansion in
+the original body gives its ordinary substitution by x. Contracting copies in
+the replayed body output gives the raw output instantiated by x. These two
+requested endpoints therefore have a common actual typed computational
+ancestor. Assuming ErasedScopedTypedConfluent for the full joint union joins
+the two paths; finite-stage extraction gives a common reduct at a later stage.
+No recovery or computed-recovery premise on x remains. A common ancestor could
+also be approached from the original uncontracted body beta redex; the cover
+construction reuses the already checked substitution interface uniformly,
+including proof collapse. No claim of a new confluence proof is made.
+
+Validation: lake builds of the identity cover (540 jobs), development boundary
+(546 jobs), and confluent instantiation (543 jobs) pass. Logs are
+/tmp/identity-recovery-cover-build.log,
+/tmp/recovery-development-boundary-build.log, and
+/tmp/joint-confluent-instantiation-build.log. The cumulative opaque audit
+checks 489 public declarations and 14,593 dependencies. The independent audit
+checks all three new declarations and 10,978 dependencies, additionally
+excluding JointCarrierDomainResynthesis. Both exclude weakN_iff, weakN_inv
+and sorryAx and exited successfully. All 489 cumulative and three independent
+axiom reports were accounted for and use only propext, Classical.choice and
+Quot.sound. Audit sources/logs: /tmp/identity-recovery-cover-audit.* and
+/tmp/identity-recovery-cover-independent-audit.*.
+
+Judgment: finite developments remain a live route, but exact or computationally
+joined assigned-type recovery cannot be its invariant, even for one identity
+contraction. Typed confluence would remove the argument-recovery requirement
+for computational substitution joins, but confluence is still unproved and
+this consequence cannot be used circularly to establish it. Neither arbitrary
+directed substitution nor comparison/guard transport follows from the result.
+The original strengthening sorry remains; no canonical-Eq strengthening
+counterexample or strictly smaller sufficient front was obtained. No
+executable changes, extraction, PRs, agents or coordination. Goal stays active.
