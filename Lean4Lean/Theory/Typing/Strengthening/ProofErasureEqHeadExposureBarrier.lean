@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqComputedGuardReadout
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureTypedHeadOccurrence
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqHeadProbe
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureNeutralKCore
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureBetaStableJoint
@@ -74,10 +75,11 @@ private theorem core_computed_probe_prefix_excluded
               cases HP.proof_fixed hhead
               exact .inr ⟨_, rfl⟩
 
-/-- Semantic head exposure for a replayable core/general-singleton relation
-already implies proposition strengthening. Only its sort component is used.
-The guard comparator may be a larger relation with its own descent law. -/
-theorem ScopedSemanticHeadExposure.propositionFront_of_core_singleton
+/-- A single probe computation above any inserted front block forces the
+original proposition endpoints to be definitionally equal below that block.
+No semantic head-exposure premise or prior endpoint conversion is assumed;
+the computation itself supplies the needed general singleton guard. -/
+theorem proofErase_eq_probe_compute_descend
     (heq : env.HasCanonicalEq)
     (hsource : ErasedScopedPrimitiveDescent Source)
     (hsourcehead : ∀ {Δ a b}, Source Δ a b → PrimitiveHead a)
@@ -86,9 +88,64 @@ theorem ScopedSemanticHeadExposure.propositionFront_of_core_singleton
     (hinert : ∀ {Δ ls args out}, ¬ Target Δ (mkApps (.const ``Eq ls) args) out)
     (hreg : recursorData ``Eq.rec = some data) (hoff : data.majorOffset = 5)
     (hD : ∀ levels rhs, ¬ D.unfolds ``Eq.rec levels rhs)
-    (hcover : ∀ {Δ a b}, Source Δ a b → ErasedIotaPrimitive D a b ∨
+    (hcover : ∀ {Δ a b}, TypedSource Δ a → Source Δ a b → ErasedIotaPrimitive D a b ∨
       SingletonPrimitiveWith (fun Δ => JointCompare Target Δ true) Δ a b)
-    (Hheads : ScopedSemanticHeadExposure Source) : PropositionFront := by
+    (hΓ : OnCtx Γ (env.IsType univs)) (hΓ' : OnCtx Γ' (env.IsType univs))
+    (W : Ctx.LiftN n 0 Γ Γ')
+    (hP : env.HasType univs Γ P (.sort .zero))
+    (hQ : env.HasType univs Γ Q (.sort .zero))
+    (hq : env.HasType univs Γ' q (eqApp (.succ .zero) (.sort .zero) (P.liftN n) (Q.liftN n)))
+    (R : ScopedCompute Source (proofEraseCtx Γ')
+      (proofErase Γ' (eqSortProbe (P.liftN n) (Q.liftN n) q)) (.sort w)) :
+    env.IsDefEqU univs Γ P Q := by
+  have hPw := hP.weakN henv W
+  have hQw := hQ.weakN henv W
+  have R' := R
+  rw [eqSortProbe_erase heq hΓ' hPw hQw hq] at R'
+  have HO := R'.head_occurrence (by simp only [constHead, ne_eq, reduceCtorEq, not_false_eq_true])
+  have HT : TypedSource (proofEraseCtx Γ')
+      (mkApps (.const ``Eq.rec [.succ (.succ .zero), .succ .zero])
+        [.sort .zero, proofErase Γ' (P.liftN n),
+          proofErase Γ' (constantEqMotive (.succ .zero) (.sort .zero) (P.liftN n) (.sort (.succ .zero))),
+          .sort .zero, proofErase Γ' (Q.liftN n), .proof]) :=
+    ⟨_, _, _, hΓ', rfl, eqSortProbe_typed heq hΓ' hPw hQw hq,
+      eqSortProbe_erase heq hΓ' hPw hQw hq⟩
+  obtain ⟨k, changed, out, _, HA, HT, H⟩ := HO.with_typed_source hsource HT
+  rcases hcover HT H with Hcore | Hsingleton
+  · exact (core_computed_probe_prefix_excluded hsourcehead hreg hoff hD HA Hcore).elim
+  obtain ⟨T, ht, hn⟩ := probe_prefix_typed heq hΓ hP hQ
+  have hM := constantEqMotive_typed henv.ordered heq (by trivial)
+    (HasType.sort (env := env) (U := univs) (Γ := Γ) (l := .zero) (by trivial)) hP
+    (HasType.sort (l := .succ .zero) (by trivial))
+  have EM : proofErase Γ'
+      (constantEqMotive (.succ .zero) (.sort .zero) (P.liftN n) (.sort (.succ .zero))) =
+      (proofErase Γ (constantEqMotive (.succ .zero) (.sort .zero) P (.sort (.succ .zero)))).liftN n := by
+    rw [← proofErase_liftN hΓ hΓ' W hM]
+    congr 1
+    simpa only [VExpr.liftN] using (constant_motive_lift (n := n)
+      (w := VLevel.succ .zero) (α := VExpr.sort .zero) (a := P) (T := VExpr.sort (.succ .zero))).symm
+  rw [proofErase_liftN hΓ hΓ' W hP, proofErase_liftN hΓ hΓ' W hQ, EM] at HA
+  have HS : proofErase Γ (.sort .zero) = .sort .zero :=
+    if_neg (not_isProof_of_sort hΓ (HasType.sort (by trivial)))
+  apply proofErase_singleton_eq_prop_computed_prefix_descend heq hsource hsourcehead
+    htarget htargethead hinert hΓ hΓ' W ht hn (k := k) (H := Hsingleton)
+  simpa only [List.map_cons, List.map_nil, List.cons_append, List.nil_append, HS, ProofShape.liftN] using HA
+
+/-- The restricted Eq probe obligation for a replayable core/general-singleton
+relation suffices for proposition strengthening.
+The guard comparator may be a larger relation with its own descent law. -/
+theorem EqProbeSortExposure.propositionFront_of_typed_core_singleton
+    (heq : env.HasCanonicalEq)
+    (hsource : ErasedScopedPrimitiveDescent Source)
+    (hsourcehead : ∀ {Δ a b}, Source Δ a b → PrimitiveHead a)
+    (htarget : ErasedScopedPrimitiveDescent Target)
+    (htargethead : ∀ {Δ a b}, Target Δ a b → PrimitiveHead a)
+    (hinert : ∀ {Δ ls args out}, ¬ Target Δ (mkApps (.const ``Eq ls) args) out)
+    (hreg : recursorData ``Eq.rec = some data) (hoff : data.majorOffset = 5)
+    (hD : ∀ levels rhs, ¬ D.unfolds ``Eq.rec levels rhs)
+    (hcover : ∀ {Δ a b}, TypedSource Δ a → Source Δ a b → ErasedIotaPrimitive D a b ∨
+      SingletonPrimitiveWith (fun Δ => JointCompare Target Δ true) Δ a b)
+    (Hheads : EqProbeSortExposure Source) : PropositionFront := by
   intro Γ A P Q hΓ hA hP hQ HPQ
   have hΓA : OnCtx (A :: Γ) (env.IsType univs) := ⟨hΓ, hA⟩
   have hPw := hP.weak henv (B := A)
@@ -107,27 +164,47 @@ theorem ScopedSemanticHeadExposure.propositionFront_of_core_singleton
   have HPQ2 : env.IsDefEqU univs (E :: A :: Γ) (P.liftN 2) (Q.liftN 2) := by
     obtain ⟨T, HT⟩ := HPQ
     exact ⟨T.lift, by simpa only [VExpr.lift, VExpr.liftN_liftN] using HT.weakN henv (Ctx.LiftN.one (A := E))⟩
-  obtain ⟨k, changed, out, _, HA, H⟩ :=
-    Hheads.eq_probe_head_occurrence heq hΓE hP2 hQ2 hq HPQ2
-  rcases hcover H with Hcore | Hsingleton
-  · exact (core_computed_probe_prefix_excluded hsourcehead hreg hoff hD HA Hcore).elim
-  obtain ⟨T, ht, hn⟩ := probe_prefix_typed heq hΓ hP hQ
-  have hM := constantEqMotive_typed henv.ordered heq (by trivial)
-    (HasType.sort (env := env) (U := univs) (Γ := Γ) (l := .zero) (by trivial)) hP
-    (HasType.sort (l := .succ .zero) (by trivial))
-  have EM : proofErase (E :: A :: Γ)
-      (constantEqMotive (.succ .zero) (.sort .zero) (P.liftN 2) (.sort (.succ .zero))) =
-      (proofErase Γ (constantEqMotive (.succ .zero) (.sort .zero) P (.sort (.succ .zero)))).liftN 2 := by
-    rw [← proofErase_liftN hΓ hΓE W hM]
-    congr 1
-    simpa only [VExpr.liftN] using (constant_motive_lift (n := 2)
-      (w := VLevel.succ .zero) (α := VExpr.sort .zero) (a := P) (T := VExpr.sort (.succ .zero))).symm
-  rw [proofErase_liftN hΓ hΓE W hP, proofErase_liftN hΓ hΓE W hQ, EM] at HA
-  have HS : proofErase Γ (.sort .zero) = .sort .zero :=
-    if_neg (not_isProof_of_sort hΓ (HasType.sort (by trivial)))
-  apply proofErase_singleton_eq_prop_computed_prefix_descend heq hsource hsourcehead
-    htarget htargethead hinert hΓ hΓE W ht hn (k := k) (H := Hsingleton)
-  simpa only [List.map_cons, List.map_nil, List.cons_append, List.nil_append, HS, ProofShape.liftN] using HA
+  obtain ⟨w, R⟩ := Hheads hΓE hP2 hQ2 hq HPQ2
+  exact proofErase_eq_probe_compute_descend heq hsource hsourcehead htarget htargethead
+    hinert hreg hoff hD hcover hΓ hΓE W hP hQ hq R
+
+/-- Semantic head exposure for a replayable core/general-singleton relation
+already implies proposition strengthening. Only its sort component is used.
+The guard comparator may be a larger relation with its own descent law. -/
+theorem ScopedSemanticHeadExposure.propositionFront_of_typed_core_singleton
+    (heq : env.HasCanonicalEq)
+    (hsource : ErasedScopedPrimitiveDescent Source)
+    (hsourcehead : ∀ {Δ a b}, Source Δ a b → PrimitiveHead a)
+    (htarget : ErasedScopedPrimitiveDescent Target)
+    (htargethead : ∀ {Δ a b}, Target Δ a b → PrimitiveHead a)
+    (hinert : ∀ {Δ ls args out}, ¬ Target Δ (mkApps (.const ``Eq ls) args) out)
+    (hreg : recursorData ``Eq.rec = some data) (hoff : data.majorOffset = 5)
+    (hD : ∀ levels rhs, ¬ D.unfolds ``Eq.rec levels rhs)
+    (hcover : ∀ {Δ a b}, TypedSource Δ a → Source Δ a b → ErasedIotaPrimitive D a b ∨
+      SingletonPrimitiveWith (fun Δ => JointCompare Target Δ true) Δ a b)
+    (Hheads : ScopedSemanticHeadExposure Source) : PropositionFront :=
+  EqProbeSortExposure.propositionFront_of_typed_core_singleton heq hsource hsourcehead
+    htarget htargethead hinert hreg hoff hD hcover (Hheads.eq_probe_sort heq)
+
+/-- Semantic head exposure for a replayable core/general-singleton relation
+already implies proposition strengthening. Only its sort component is used.
+The guard comparator may be a larger relation with its own descent law. -/
+theorem ScopedSemanticHeadExposure.propositionFront_of_core_singleton
+    (heq : env.HasCanonicalEq)
+    (hsource : ErasedScopedPrimitiveDescent Source)
+    (hsourcehead : ∀ {Δ a b}, Source Δ a b → PrimitiveHead a)
+    (htarget : ErasedScopedPrimitiveDescent Target)
+    (htargethead : ∀ {Δ a b}, Target Δ a b → PrimitiveHead a)
+    (hinert : ∀ {Δ ls args out}, ¬ Target Δ (mkApps (.const ``Eq ls) args) out)
+    (hreg : recursorData ``Eq.rec = some data) (hoff : data.majorOffset = 5)
+    (hD : ∀ levels rhs, ¬ D.unfolds ``Eq.rec levels rhs)
+    (hcover : ∀ {Δ a b}, Source Δ a b → ErasedIotaPrimitive D a b ∨
+      SingletonPrimitiveWith (fun Δ => JointCompare Target Δ true) Δ a b)
+    (Hheads : ScopedSemanticHeadExposure Source) : PropositionFront := by
+  refine Hheads.propositionFront_of_typed_core_singleton heq hsource hsourcehead
+    htarget htargethead hinert hreg hoff hD ?_
+  intro Δ a b _ H
+  exact hcover H
 
 /-- In particular the certified beta/substitution-stable joint relation does
 not make semantic head adequacy a smaller sufficient front. For any sound

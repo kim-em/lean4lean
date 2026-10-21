@@ -11424,3 +11424,72 @@ Completion audit: UniqueTyping.lean:94 still contains the original weakN_iff
 sorry. No canonical-Eq counterexample or strictly smaller sufficient front is
 proved. The goal stays active. Changes are theory and research ledgers only;
 no executable changes, extraction, PRs, or coordination.
+
+
+## Finite probe computation and full-union adequacy (2026-10-21)
+
+Previous goal turn: progress, committed and pushed through 2c88a644. This turn
+revalidated that clean worktree and pursued the actual missing sort computation.
+Reading the existing full-sort repair and native-domain guard theorems confirmed
+that original confluence and generic substitution stability do not themselves
+construct the needed erased guard. No new obstruction to strengthening was
+claimed from that inspection.
+
+The positive construction is now explicit in ProofErasureEqProbeComputation.
+A JointCompare of the proposition endpoints at stage n supplies the canonical
+generated family guard and the actual general singleton primitive at the
+five-argument prefix. The full probe computes exactly to Prop at stage n+1:
+apply that primitive to its erased proof major and contract the resulting
+constant lambda. A union certificate first selects a finite n. This path
+needs no future beta/substitution stability certificate and no head-exposure
+hypothesis. It still requires an actual endpoint comparison certificate;
+ordinary endpoint definitional equality alone has not been translated to one.
+
+ProofErasureTypedHeadOccurrence supplies the missing typed classification
+invariant. Any computed initial segment of a typed raw spine has a typed
+realization, by typing inversion at the prefix and forward computation replay.
+The first-head witness can therefore retain its length, component paths,
+primitive, and actual typed source simultaneously. No inverse weakening occurs.
+
+ProofErasureEqHeadProbe now names the exact source erasure and the open
+EqProbeSortExposure property. The latter requests only a sort computation for
+the fixed Eq probe under ordinary endpoint conversion. Its definition and
+all earlier public interfaces remain sorry-free; it is an unproved premise,
+not an assertion of adequacy. ProofErasureEqHeadExposureBarrier factors the
+readout through proofErase_eq_probe_compute_descend: an individual computation
+above any front block suffices to establish equality of the original endpoints
+below it. This readout assumes no prior endpoint equality and no global head
+adequacy. The old global-head corollaries retain their statements.
+
+ProofErasureJointUnionHeadExposure classifies typed union primitives as core
+or general singleton. The specialized Eq-prefix case is converted at its
+actual source using the existing same-endpoint theorem and registry agreement.
+Consequently EqProbeSortExposure for the full joint union suffices for
+PropositionFront. The stronger certified relation is no longer required for
+this route, and the unrelated Pi/family exposure fields are unnecessary.
+Soundness of D is still separate from explicit Eq/Eq.rec inertness; no blanket
+claim for arbitrary sound definition collections has been introduced.
+
+Judgment and next step: this isolates a concrete sufficient target and supplies
+the computation whenever its checking guard is known. It does not establish
+that target, its strictness relative to PropFront, or a converse. Global beta
+transport is not refuted; it is unnecessary as a preliminary requirement for
+this direct probe path. Next research should construct the guard or an
+alternative computation from original endpoint conversion, testing a derivation
+measure on the guard evidence instead of assuming comparison completeness.
+
+Validation: all affected modules plus semantic-head-beta regression build
+successfully (618 jobs), /tmp/eq-probe-union-build.log; no warnings in the changed
+modules. Independent opaque DFS covers 22 public declarations in the five
+changed/new theory modules, including all 16 new roots, and 11,308 dependencies.
+It excludes JointCarrierDomainResynthesis, .weakN_iff, .weakN_inv and sorryAx.
+Cumulative opaque DFS covers 759 roots and 15,615 dependencies, excluding
+strengthening inverses and sorryAx. Exact-name axiom parsing matches all 22/759
+roots; only propext, Classical.choice, and Quot.sound occur. Audit sources/logs:
+/tmp/eq-probe-union-{audit,independent-audit}.{lean,log}; root inventory:
+/tmp/eq-probe-union-roots.txt.
+
+Completion audit: the original sorry at UniqueTyping.lean:94 remains. No
+canonical-Eq counterexample or strictly smaller sufficient irreducible front
+has been established. The goal stays active. Changes are theory and appended
+research ledgers only; no executable changes, extraction, PRs, or coordination.

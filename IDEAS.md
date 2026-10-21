@@ -2666,3 +2666,47 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   singleton family comparison. If pursuing the full union instead, its extra
   specialized Eq-prefix alternative still needs to be connected explicitly;
   the current theorem already covers the certified core/general relation.
+
+
+## Construct the probe computation before demanding global stability (2026-10-21)
+
+- **Use ordinary joint endpoint checking to compute the probe directly.
+  Verdict: constructed at the immediate successor stage.**
+  `eqSortProbe_general_prefix` turns a stage-n endpoint comparison into the
+  actual generated general singleton at that same guard stage. The full probe
+  then computes exactly to Prop at stage n+1 by compatible application and one
+  beta contraction. This works for a neutral proof major. No semantic head
+  exposure, endpoint beta transport, or BetaStableFamily certificate is used.
+  The construction does not produce its input comparison from arbitrary
+  ordinary definitional equality. That remains the substantive adequacy gap.
+
+- **Drop certification and the unrelated Pi/family head obligations from the
+  sufficient target. Verdict: full-union sufficiency checked.**
+  `TypedSource.computed_prefix` proves that a first-head primitive reached by
+  component computation has an actual typed realization. The specialized Eq
+  branch of ErasedJointUnion can therefore use the existing exact conversion
+  to a general singleton, preserving its source, output and comparator.
+  The prior core/general argument now covers the full union, with canonical
+  registry agreement and explicit Eq/Eq.rec unfolding exclusions. A single
+  computation of the lifted probe to any sort yields equality of the original
+  proposition endpoints below an arbitrary inserted front block.
+
+  The missing property is named `EqProbeSortExposure`: only this one fixed
+  constant-motive Eq.rec probe must expose a sort when its endpoints are
+  ordinarily definitionally equal. It suffices for PropositionFront in the
+  full joint union, without the other semantic head fields or future beta
+  certificates. This is a narrower proof target than the previously pursued
+  global head/stability package, not a demonstrated strictly smaller
+  irreducible front. No converse or strictness result is claimed.
+
+  Re-examination of the substitution route found no automatic way around
+  arbitrary native-domain conversion: the existing
+  JointPropBetaTransport.native_domain_guard and carrier_conversion_stage
+  already show that the required transport is semantic, not merely syntactic
+  substitution of the old certificate. The direct probe construction avoids
+  making that global closure law a prerequisite for the current route. Next:
+  attack construction of the missing guard/computation from the original
+  equality derivation. In particular inspect whether the guard's conversion
+  evidence can be tracked as a genuinely smaller original derivation; neither
+  replacing it by semantic equality nor simply invoking confluence resolves
+  the missing erased certificate.
