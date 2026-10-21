@@ -4490,3 +4490,46 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   coverage, and the original strengthening objective remain unproved. The
   narrowed operational case is not claimed strictly smaller than PropFront or
   sufficient by itself for GOAL.md.
+
+
+## 2026-10-21 18:12 UTC — Native unit Eq guards and a certified transport barrier
+
+- Rebuild future Eq family guards at a literal unit carrier after arbitrary
+  index computation. Verdict: proved in ProofErasureFutureEqUnit. Native Eq
+  recovery yields the literal unit domain at the final application, where
+  carrierSubsingleton checks arbitrary raw endpoints. Independent beta futures
+  of the repeated anchor use its reflexive future certificate. Arbitrary
+  interpreted substitution preserves the constant head and unit carrier.
+  A typed anchor supplies the reflexive certificate; certified computation
+  replays to a typed new anchor. No common comparison between final endpoints
+  is needed, so distinct variables exposed by the earlier delta example are
+  allowed. proofErase_unit_eq_prefix constructs the actual certified Eq
+  singleton step at every typed non-proof literal-unit prefix, without an old
+  guard, index comparison, computational join, or guard-transport hypothesis.
+- Forward diagonal Eq guard computation into certified checking. Verdict:
+  conditionally contains PropositionFront. TypedFutureEqFamilyForwardCompute
+  is explicitly an unproved law. Source guards use no primitives, the supplied
+  carrier is unchanged, both target indices are already typed there, and only
+  base target checking is requested. A declared unit identity gives source
+  future common index comparisons and certified delta/beta paths to distinct
+  variables. Put an Eq type probe in the supplied carrier; certified Eq
+  decoding reads out its carrier guard and exposure descends the hidden
+  proposition equality. The closed positive unit/identity assumptions are
+  explicit. This is a strength implication, not a counterexample or a proof
+  of transport.
+- Restrict that certified law to diagonal Eq guards over literal Prop.
+  Verdict: the same conditional PropositionFront barrier remains. Nest the
+  arbitrary-carrier Eq propositions as the two Prop indices; stable Eq
+  encoding gives the outer source guard, and literal-sort decoding removes
+  the outer target Eq. TypedFutureEqPropFamilyForwardCompute.eq_family proves
+  this reduction and its closed-unit corollary proves PropositionFront.
+
+  Judgment: literal native unit guards now have constructive non-beta
+  coverage. Freely converted supplied carriers still carry the original
+  difficulty at the certified target, even when the outer guard has carrier
+  Prop. Do not infer the corresponding full-union result: arbitrary-carrier
+  decoding uses primitive substitution, available for certified computation
+  but not established for the full union. The actual singleton guard uses
+  future full-union comparison; its general non-beta persistence remains
+  unresolved. A base certified result and a full-future union result must not
+  be conflated. No GOAL.md success condition is met.

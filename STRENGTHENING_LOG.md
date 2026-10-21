@@ -14510,3 +14510,69 @@ required the new guard as a premise. Next focus on non-beta computation of
 family parameters/indices, respecting the difference between certified and
 full-union substitution. Only theory and actual EOF ledger additions change;
 no executable changes, PR extraction, PRs, subagents or coordination.
+
+
+## 2026-10-21 18:12 UTC — Separate literal-unit guard coverage from converted-carrier transport
+
+Previous goal turn: progress, cada01b5. Confirmed clean worktree and inspected
+the Eq native recovery and decoder proofs. The full-union issue is concrete:
+recovery can convert the first Eq Pi under its binder and then instantiate the
+anchor. proofErase_eq_prefix_native_compute invokes interpreted primitive
+substitution at that point. Certified computation provides it; the full union
+currently does not without an additional unresolved hypothesis. No union
+substitution, context conversion, or strengthening inverse was silently added.
+
+ProofErasureFutureEqUnit proves four public theorems. Literal-unit Eq recovery
+selects the exact native final argument domain. A raw future Eq family guard
+then permits arbitrary final endpoints while the anchors carry a future
+comparison. Beta inversion retains the constant unit carrier, and
+carrierSubsingleton handles the last application. A typed repeated anchor has
+its reflexive future certificate by typed beta confluence; certified replay
+provides the same certificate for any computed anchor. Finally
+proofErase_unit_eq_prefix constructs a certified Eq singleton for every typed
+non-proof Eq prefix over the literal registered unit, with arbitrary actual
+indices. It needs no earlier guard, index common comparison or join. This
+explains why the unit-identity delta example refutes arbitrary common-index
+transport but does not refute the actual Eq guard at its literal unit carrier.
+
+ProofErasureFutureEqComputeFront defines two named, explicitly unproved
+transport laws and proves four implications. The first law is diagonal Eq
+family forward computation at one unchanged supplied carrier, from a full
+future source-False guard to base certified target checking. All source and
+target index typings are supplied. The unit identity example builds the old
+guard and index paths. Assign the endpoints an Eq probe definitionally equal
+to the unit; certified arbitrary-carrier Eq decoding yields a guard at that
+probe. Distinct variable endpoints force carrier exposure and the existing
+probe readout descends its lower proposition equality. Adding the standard
+closed-unit context construction gives PropositionFront, under explicit closed
+positive-unit/declared-identity, soundness, canonical-Eq, registry and inertness
+assumptions. The second law restricts the outer carrier to literal Prop. Nested
+Eq propositions encode the arbitrary carrier, and the literal-sort decoder
+recovers the first law; its PropositionFront consequence follows. These are
+conditional strength results, not transport proofs, strictness results, or a
+canonical-Eq strengthening counterexample. In particular a base certified
+target is not being identified with the actual full-future union target.
+
+Validation: two new theory modules, 330 lines, ten public roots (eight theorems
+and two missing-law definitions with explicit docstrings). Final consuming
+build exits zero in 680 jobs; new modules are warning-free and existing
+dependency warnings replay. Log: /tmp/future-eq-final-build.log. Both opaque
+DFS audit processes exit zero. Cumulative: 1,166 roots / 16,361 dependencies,
+excluding .weakN_iff, .weakN_inv and sorryAx. Independent: 10 roots / 11,417
+dependencies, additionally excluding JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure and JointPropBetaTransport. Each traverses
+ci.value? (allowOpaque := true). Exact-name axiom inventories cover every root
+exactly once and allow only propext, Classical.choice and Quot.sound. Sources,
+logs and roots: /tmp/future-eq-{audit,independent-audit} with .lean, .log and
+-roots.txt suffixes.
+
+Completion audit: the original sorry at UniqueTyping.lean:94 remains. Neither
+an actual canonical-Eq counterexample nor a strictly smaller sufficient
+irreducible obligation has been proved. Keep GOAL.md active. This is progress:
+we have concrete non-beta literal-unit Eq coverage and a checked conditional
+barrier for two certified forward-guard laws, including the Prop-only case.
+Next address the full-union arbitrary-carrier readout without assuming its
+missing substitution theorem, or construct target guards through explicit
+native carrier recipes as the literal-unit proof does. Only theory and actual
+EOF ledger additions change; no executable changes, PR extraction, PRs,
+subagents or coordination.
