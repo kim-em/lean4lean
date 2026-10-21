@@ -14,42 +14,48 @@ open private isProof_congr from Lean4Lean.Theory.Typing.Strengthening.ProofErasu
 variable [Params]
 
 /-- A typed joint carrier certificate supplies exactly the family comparison
-of the canonical generated Eq prefix, including its fresh proof-major context. -/
-theorem proofErase_joint_eq_family_guard
-    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+of the canonical generated Eq prefix, including its fresh proof-major context.
+The primitive relation is preserved, in particular at any fixed finite stage. -/
+theorem proofErase_joint_eq_family_guard_with
+    (heq : env.HasCanonicalEq)
+    (hrename : ∀ {Δ Δ' a b τ}, Step Δ a b → ContextRenaming Δ Δ' τ →
+      Step Δ' (a.subst τ) (b.subst τ))
     (hΓ : OnCtx Γ (env.IsType univs)) (hw : w.WF univs)
     (hα : env.HasType univs Γ α (.sort w)) (ha : env.HasType univs Γ a α)
     (hb : env.HasType univs Γ b α)
     (hr : RecursorRegistered env data) (hn : data.name = ``Eq.rec)
     (hz : data.sourceLevel [v,w] ≈ .zero)
     (hS : data.singletonLayout env [v,w] = some S) (hE : data.propElim [v,w] = some E)
-    (H : JointCarrierGuard (ErasedJointUnion D) (proofEraseCtx Γ)
+    (H : JointCarrierGuard Step (proofEraseCtx Γ)
       (proofErase Γ α) (proofErase Γ a) (proofErase Γ b)) :
     GuardedSingleton.FamilyGuard
-      (ErasedFamilyComparison (fun Δ => JointCompare (ErasedJointUnion D) Δ true))
+      (ErasedFamilyComparison (fun Δ => JointCompare Step Δ true))
       Γ data [v,w] [α,a,M,m,b] (canonicalEqPrefixProgram v w α a M m b reconstructed) S E := by
   apply (eqRec_family_guard_iff heq hr hn hz hS hE).2
   have hP := HasType.eqApp heq hw hα ha ha
   have hQ := HasType.eqApp heq hw hα ha hb
   have hΓQ : OnCtx (eqApp w α a b :: Γ) (env.IsType univs) := ⟨hΓ, _, hQ⟩
   have HP := proofErase_joint_carrier_propositions (mode := true) heq hw hΓ hα ha ha hb H
-  have HL := HP.rename (erased_joint_union_rename heq hs)
+  have HL := HP.rename hrename
     (ContextRenaming.of_liftN hΓ hΓQ Ctx.LiftN.one)
-  change JointCompare (ErasedJointUnion D) (proofEraseCtx (eqApp w α a b :: Γ)) true
+  change JointCompare Step (proofEraseCtx (eqApp w α a b :: Γ)) true
     (proofErase (eqApp w α a b :: Γ) (eqApp w α a a).lift)
     (proofErase (eqApp w α a b :: Γ) (eqApp w α a b).lift)
   rw [proofErase_liftN hΓ hΓQ Ctx.LiftN.one hP, proofErase_liftN hΓ hΓQ Ctx.LiftN.one hQ]
   simpa only [subst_bvar_liftN, JointCheckKind.subst] using HL
 
 private theorem eq_general
-    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (heq : env.HasCanonicalEq)
+    (hstep : ErasedScopedPrimitiveDescent Step)
+    (hrename : ∀ {Δ Δ' a b τ}, Step Δ a b → ContextRenaming Δ Δ' τ →
+      Step Δ' (a.subst τ) (b.subst τ))
     (hregistry : recursorData ``Eq.rec = env.recursorRegistry ``Eq.rec)
     (hΓ : OnCtx Γ (env.IsType univs))
     (ht : env.HasType univs Γ (eqRecBeforeMajor v w α a M m b) T)
     (hnp : ¬ IsProof Γ (eqRecBeforeMajor v w α a M m b))
-    (H : JointCarrierGuard (ErasedJointUnion D) (proofEraseCtx Γ)
+    (H : JointCarrierGuard Step (proofEraseCtx Γ)
       (proofErase Γ α) (proofErase Γ a) (proofErase Γ b)) :
-    JointSingletonPrimitive (ErasedJointUnion D) (proofEraseCtx Γ)
+    JointSingletonPrimitive Step (proofEraseCtx Γ)
       (proofErase Γ (eqRecBeforeMajor v w α a M m b))
       (proofErase Γ (.lam (eqApp w α a b) m.lift)) := by
   obtain ⟨data, hlookup, hr, hn, _⟩ := heq.recursorRegistration henv
@@ -64,10 +70,10 @@ private theorem eq_general
   obtain ⟨S, E, hS, hE, _⟩ := RecursorData.propElim_wf henv hr hl hz hlevels hlen ⟨i, ho⟩
   have hg := eqRec_prefix_generated (U := univs) (α := α) (a := a) (M := M) (m := m) (b := b)
     heq hr hn hz hS hE
-  have hab := proofErase_joint_carrier_reflect (erased_joint_union_descent heq hs) hΓ ha hb H
+  have hab := proofErase_joint_carrier_reflect hstep hΓ ha hb H
   have HC := canonicalEqPrefixProgram_check henv heq hΓ hpat ⟨_, ht⟩ ⟨_, hab⟩
-  have HG := proofErase_joint_eq_family_guard (M := M) (m := m)
-    (reconstructed := eqReflApp w α.lift a.lift) heq hs hΓ hw hα ha hb hr hn hz hS hE H
+  have HG := proofErase_joint_eq_family_guard_with (M := M) (m := m)
+    (reconstructed := eqReflApp w α.lift a.lift) heq hrename hΓ hw hα ha hb hr hn hz hS hE H
   obtain ⟨recType, hrec⟩ := hr.recursorType_exists
   let args := [α,a,M,m,b]
   let program := canonicalEqPrefixProgram v w α a M m b (eqReflApp w α.lift a.lift)
@@ -83,7 +89,7 @@ private theorem eq_general
   have HT : TypedSource (proofEraseCtx Γ)
       (ProofShape.mkApps (.const data.name [v,w]) (args.map (proofErase Γ))) :=
     ⟨Γ, _, _, hΓ, rfl, HC.source_typed, HE⟩
-  change JointSingletonPrimitive (ErasedJointUnion D) (proofEraseCtx Γ)
+  change JointSingletonPrimitive Step (proofEraseCtx Γ)
     (proofErase Γ (mkApps (.const ``Eq.rec [v,w]) args)) (proofErase Γ program.rhs)
   rw [← hn, HE, V.output_eq heq hΓ hg HC hnp]
   exact ⟨HT, .intro V (by simp only [List.length_map, C])
@@ -93,12 +99,15 @@ private theorem eq_general
 is already a general singleton primitive with a joint proposition guard. Both
 raw endpoints are retained literally. This uses registry agreement, but no
 beta stability, arbitrary carrier decoding, or substitution hypothesis. -/
-theorem proofErase_joint_prefix_as_general
-    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+theorem proofErase_joint_prefix_as_general_with
+    (heq : env.HasCanonicalEq)
+    (hstep : ErasedScopedPrimitiveDescent Step)
+    (hrename : ∀ {Δ Δ' a b τ}, Step Δ a b → ContextRenaming Δ Δ' τ →
+      Step Δ' (a.subst τ) (b.subst τ))
     (hregistry : recursorData ``Eq.rec = env.recursorRegistry ``Eq.rec)
     (hΓ : OnCtx Γ (env.IsType univs)) (ht : env.HasType univs Γ e T)
-    (R : JointPrefixPrimitive (ErasedJointUnion D) (proofEraseCtx Γ) (proofErase Γ e) out) :
-    JointSingletonPrimitive (ErasedJointUnion D) (proofEraseCtx Γ) (proofErase Γ e) out := by
+    (R : JointPrefixPrimitive Step (proofEraseCtx Γ) (proofErase Γ e) out) :
+    JointSingletonPrimitive Step (proofEraseCtx Γ) (proofErase Γ e) out := by
   generalize hsrc : proofErase Γ e = source at R
   cases R with
   | @intro α a b v w M m HC =>
@@ -106,13 +115,13 @@ theorem proofErase_joint_prefix_as_general
     rw [← Hα, ← Ha, ← Hb] at HC
     obtain ⟨_, hw, hα, ha, _, hm, hb⟩ := eqRecBeforeMajor_typings henv heq hΓ ⟨_, ht⟩
     have hab : env.IsDefEqU univs Γ a₀ b₀ :=
-      ⟨_, proofErase_joint_carrier_reflect (erased_joint_union_descent heq hs) hΓ ha hb HC⟩
+      ⟨_, proofErase_joint_carrier_reflect hstep hΓ ha hb HC⟩
     have HH := eqRecBeforeMajor_simAt henv heq hΓ hab T ht
     have hn : ¬ IsProof Γ (eqRecBeforeMajor v w α₀ a₀ M₀ m₀ b₀) := by
       intro hp
       rw [proofErase_eq_proof.2 hp] at hsrc
       cases hsrc
-    have HG := eq_general heq hs hregistry hΓ ht hn HC
+    have HG := eq_general heq hstep hrename hregistry hΓ ht hn HC
     have hn' := mt (isProof_congr hΓ HH).2 hn
     have hE := HasType.eqApp heq hw hα ha hb
     have hΓE : OnCtx (eqApp w α₀ a₀ b₀ :: Γ) (env.IsType univs) := ⟨hΓ, _, hE⟩
@@ -122,5 +131,33 @@ theorem proofErase_joint_prefix_as_general
       proofErase_eqProofType heq hw hΓ hα ha hb,
       proofErase_liftN hΓ hΓE Ctx.LiftN.one hm, Hα, Ha, Hb, Hm] at HG
     simpa only [hsrc] using HG
+
+/-- The full-union specialization of the same-relation Eq family encoding. -/
+theorem proofErase_joint_eq_family_guard
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hΓ : OnCtx Γ (env.IsType univs)) (hw : w.WF univs)
+    (hα : env.HasType univs Γ α (.sort w)) (ha : env.HasType univs Γ a α)
+    (hb : env.HasType univs Γ b α)
+    (hr : RecursorRegistered env data) (hn : data.name = ``Eq.rec)
+    (hz : data.sourceLevel [v,w] ≈ .zero)
+    (hS : data.singletonLayout env [v,w] = some S) (hE : data.propElim [v,w] = some E)
+    (H : JointCarrierGuard (ErasedJointUnion D) (proofEraseCtx Γ)
+      (proofErase Γ α) (proofErase Γ a) (proofErase Γ b)) :
+    GuardedSingleton.FamilyGuard
+      (ErasedFamilyComparison (fun Δ => JointCompare (ErasedJointUnion D) Δ true))
+      Γ data [v,w] [α,a,M,m,b] (canonicalEqPrefixProgram v w α a M m b reconstructed) S E :=
+  proofErase_joint_eq_family_guard_with heq
+    (erased_joint_union_rename heq hs) hΓ hw hα ha hb hr hn hz hS hE H
+
+/-- Preserve the full-union interface while the generic theorem also retains
+any fixed source stage in the generated general singleton guard. -/
+theorem proofErase_joint_prefix_as_general
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hregistry : recursorData ``Eq.rec = env.recursorRegistry ``Eq.rec)
+    (hΓ : OnCtx Γ (env.IsType univs)) (ht : env.HasType univs Γ e T)
+    (R : JointPrefixPrimitive (ErasedJointUnion D) (proofEraseCtx Γ) (proofErase Γ e) out) :
+    JointSingletonPrimitive (ErasedJointUnion D) (proofEraseCtx Γ) (proofErase Γ e) out :=
+  proofErase_joint_prefix_as_general_with heq (erased_joint_union_descent heq hs)
+    (erased_joint_union_rename heq hs) hregistry hΓ ht R
 
 end Lean4Lean.VEnv.Strengthening

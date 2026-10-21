@@ -10223,3 +10223,82 @@ Completion audit: the original sorry remains at UniqueTyping.lean:94. There
 is no proved canonical-Eq counterexample or strictly smaller sufficient front.
 The goal remains active. No executable changes, extraction, PRs, agents or
 coordination.
+
+## 2026-10-21 — Strictly lower source-stage substitution and head-beta exchange
+
+Previous goal turn: progress (ecca8ae3, checked canonical Eq decoder and guard
+stability equivalences). Revalidated the clean worktree and began a stage-
+indexed simultaneous-proof attempt. Extraction and PRs remain deferred.
+
+JointPropBetaTransport separates the input primitive relation from its target
+and transports both proposition endpoints at once. This distinction matters:
+using a one-sided source-to-target law twice would make the second call on a
+target certificate and lose the smaller source-stage hypothesis. The family
+of finite-stage-to-union laws is proved equivalent to full-union proposition
+beta stability; this is an induction formulation, not a new smaller front.
+
+The recovering cover uses image stage zero. The existing additive recovering
+transport therefore leaves an input stage n certificate at stage n. The new
+subst_beta_stage theorem contracts both expanded images and any subsequent
+endpoint beta paths in one source-stage invocation. Its substitution-only
+specialization and defeqCtx_beta_stage avoid assuming stability of target
+certificates. The latter combines context conversion with beta instead of
+transporting a certificate first and then asking for target beta closure.
+
+ProofErasureJointEqGeneral now exposes generic same-relation family encoding
+and prefix-as-general theorems. They preserve an arbitrary fixed finite stage;
+the original union theorems remain wrappers with their existing signatures.
+ProofErasureJointPropSingleton now transports from a specified source guard
+relation to a target using the JointPropSubstitution interface. The dependent
+generated telescope, typed source realization and exact generated output are
+retained. Its three original full-union APIs remain checked specializations.
+
+ProofErasureJointStageSubstitution proves typed primitive substitution from
+stage n+1 into the union using proposition beta transport only from stage n.
+An induction on the primitive stage handles inherited steps. Each newly
+introduced singleton or specialized Eq guard uses a strictly lower source
+stage. Specialized Eq is first encoded without changing that stage. The
+compatible computation theorem then substitutes entire finite paths, realizing
+every sequential intermediate in the original source relation. No stability
+of a produced union certificate is used.
+
+The older lambda-body inversion theorem could increase the stage while
+pulling successive body paths back to the first domain. The new generic
+proofErase_scoped_lambda_inst_compute avoids that operation. It realizes each
+intermediate lambda, uses uniqueness of its Pi type to convert the fixed
+argument to that intermediate domain, and instantiates each body segment in
+its own context. Composing those target paths preserves the original source
+relation as the only input to the substitution premise. The beta branch uses
+raw beta substitution; no exact argument recovery or inverse weakening occurs.
+
+ProofErasureJointStageBetaExchange applies this construction to a stage n+1
+function path. The final lambda's actual typed body supplies argument-compute
+congruence, including all copies of the argument. Thus the full original
+head-beta/function/argument peak closes in the union using only stage-n
+proposition beta transport. Both lambda annotations and arguments may compute.
+
+Remaining gap: this does not prove the stage-indexed parallel strip or the
+comparison beta law. In the existing parallel_app_beta proof, component
+induction first yields residual paths in the union and then the residual
+lambda path is instantiated. The new source-stage law cannot be applied to
+that arbitrary union path. Retaining its original source derivation through
+residual construction, together with substitution before that information is
+lost, is still required. This is an identified limitation of directly reusing
+the existing proof, not a refutation of the simultaneous route. The stage-zero
+comparison-to-union case also remains; failure of core-to-core stability is
+not failure of this larger-target base case.
+
+Validation: combined new beta-exchange target, previous full commutation
+and Eq guard-boundary targets build successfully (587 jobs), log
+/tmp/joint-stage-beta-build.log. All 16 new and 5 changed public declarations
+were independently audited: 21 roots, 11,206 dependencies, excluding
+JointCarrierDomainResynthesis, strengthening inverses and sorryAx. Cumulative
+opaque dependency audit: 573 public roots, 15,351 dependencies, no strengthening
+inverses or sorryAx. All requested axiom reports were parsed and matched;
+only propext, Classical.choice and Quot.sound occur. Audit sources/logs:
+/tmp/joint-stage-beta-{audit,independent-audit}.{lean,log}.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+Neither a canonical-Eq counterexample nor a strictly smaller sufficient front
+has been established. The goal remains active. No executable changes,
+extraction, PRs, agents or coordination.

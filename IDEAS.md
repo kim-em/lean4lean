@@ -2152,3 +2152,43 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   are canonical Eq, sound declarations and explicit exclusion of Eq unfolding.
   Soundness alone is not used to infer the exclusion. This rules out a guard-
   restriction shortcut, not a constructive proof of beta stability itself.
+
+- **Induct on the source stage rather than assume full-union beta stability.**
+  **Partially realized** in `ProofErasureJointStageBetaTransport` and
+  `ProofErasureJointStageSubstitution`. Two-sided beta transport from stage n
+  into the union suffices for arbitrary simultaneous substitution of stage
+  n+1 computations. Recoverable image expansions use stage-zero recovery and
+  leave the source comparison at n. Both endpoints contract in one invocation,
+  avoiding a second stability call on a target certificate. Substitution plus
+  extra endpoint beta and converted-context beta are also combined in one
+  source-stage call. The family of these stage laws is proved equivalent to
+  full-union stability; no individual stage law is asserted without a premise.
+
+- **Preserve the source relation while encoding specialized Eq guards.**
+  **Checked by generalizing** `ProofErasureJointEqGeneral`. Renaming within
+  the source relation is enough for the actual family encoding. Typed replay
+  also gives the specialized-prefix-to-general-singleton presentation in that
+  same relation. The full-union APIs remain as specializations. Generalizing
+  `ProofErasureJointPropSingleton` to directed proposition substitution then
+  transports generated guards and primitives into a distinct target relation.
+
+- **Instantiate a lambda computation before body-path stage inflation.**
+  **Checked** in `ProofErasureLambdaInstantiation`. Realize each intermediate
+  lambda, convert the fixed argument forward to its actual domain, and
+  instantiate that segment's body computation. Only substitution of the
+  original source relation is needed. There is no common-domain pullback or
+  exact argument recovery. `ProofErasureJointStageBetaExchange` consequently
+  closes stage-n+1 head-beta/function/argument peaks from stage-n proposition
+  transport, including changes to the lambda annotation and duplication of
+  the computed argument.
+
+- **Use these lower-stage laws directly in the existing parallel strip proof.**
+  **Still incomplete at a precise point.** Its application/root-beta case
+  first constructs component residuals in the target union and then
+  instantiates the residual lambda path. The source-stage substitution law
+  cannot apply to an arbitrary target residual. The new direct lambda theorem
+  fixes inflation while instantiating an original source path, but does not
+  retain the originating source derivation of such a component residual.
+  A simultaneous residual/substitution construction retaining that derivation
+  remains live. Also needed is the source-stage-zero-to-union comparison case;
+  the known failure with the ordinary core as target does not refute this case.
