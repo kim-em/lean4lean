@@ -11839,3 +11839,81 @@ canonical-Eq strengthening proof or counterexample and no strictly smaller
 sufficient irreducible front has been obtained. Keep the goal active. Changes
 are one theory module and EOF ledger additions only; no executable changes,
 extraction, PRs, or coordination.
+
+
+## 2026-10-21 11:32 UTC — Native telescope paths and general argument readout
+
+Previous goal turn: progress at committed/pushed baseline
+23c4b3f9a546363c4cdcbb979df82460824fd761. Revalidated the clean worktree and
+GOAL.md before addressing the remaining dependent-field case. The earlier
+family exposure theorem preserves the head and arity but discards parameter
+checks. Recovering useful parameter evidence requires accounting for the
+native domains selected by each declaration prefix.
+
+ProofErasureNativeTelescopeRecovery establishes seven public theorems.
+ScopedTypeRecovery.const_compute starts from the actual stored declaration
+type without a normalization assumption. proofErase_computed_pi_inst moves a
+computed codomain path back into the original domain context using the proved
+typed Pi inversion, then substitutes the original typed argument. This handles
+arbitrary conversions before each application. A telescope induction propagates
+the resulting native path through all supplied arguments. The declaration's
+closed type erases identically in the local context, so the constant-prefix
+corollary starts at its actual native residual type.
+
+The stronger computed-telescope theorem permits an independent scoped
+computation of every supplied argument. At one binder, forward replay realizes
+the computed argument at the original domain. The existing argument-image
+computation theorem computes every occurrence in the original codomain to that
+new argument. Native recovery of the computed application then completes the
+path. This invariant is preserved through subsequent dependent binders without
+retyping the remaining original argument list at a manufactured new telescope.
+Both fixed and computed constant-prefix corollaries are proved; Pi inversion
+extracts the selected-domain path. The complete selected type is reachable,
+not just semantically equal or compatible at its head.
+
+ProofErasureNativeSpineReadout adds six public theorems. A computed inert
+constant prefix followed by recovery retains computation from its original
+native Pi domain. const_app_prefix retains inferred comparison after deleting
+the last arguments of two constant spines, even through computation prefixes
+and symmetry. The main argument readout takes two independently computed copies
+of one original typed constant prefix. In appCarrier, its native-domain path
+wraps the selected-domain guard. Ordinary application yields carrierChecked.
+Computation extends both prefix paths and retains final-argument computations;
+symmetry swaps the two ancestors. The final raw arguments need no separate
+typing or recovery certificates. The original prefix has an actual declaration
+telescope walk and a sort-typed residual Pi. Stage-zero and certified-relation
+corollaries use their established primitive substitution laws and rigid-head
+exclusion when D does not unfold the chosen constant.
+
+Judgment and precise next obligation: this extends native Eq readout to arbitrary
+typed declaration prefixes and preserves the evidence needed to revisit
+parameter comparisons. It does not reconstruct comparisons of dependent field
+types for unrelated parameter substitutions. Added the explicit unproved
+proposition JointNativePrefixTypeComparison Source Target: actual comparison
+of two non-proof constant prefixes, each with its native typed telescope walk,
+should yield comparison of their native residual types. This is a named target,
+not an axiom, a premise of the new theorems, or a proved sufficient front. Its
+application case needs to transport the actual parameter guard through the
+dependent codomain. Source/Target are distinct so the property makes no
+stage-preserving closure assumption. Existing transitivity and semantic-head
+barriers still apply. A simultaneous derivation argument must retain the prefix
+comparison, native domain computations, and parameter guards rather than
+replacing them by ordinary semantic equality.
+
+Validation: both modules and dependencies build successfully (595 jobs),
+/tmp/native-spine-build.log; the new modules have no warnings. Independent
+opaque DFS covers all 14 new public declarations (13 theorems and one unproved
+property definition), with 10,963 dependencies. It excludes
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv, and sorryAx. Cumulative opaque
+DFS covers 808 roots and 15,689 dependencies, excluding strengthening inverses
+and sorryAx. Exact-name axiom parsing accounts for every root in both
+inventories; only propext, Classical.choice, and Quot.sound occur. Audit sources
+and logs: /tmp/native-spine-{audit,independent-audit}.{lean,log}; inventories:
+/tmp/native-spine-{audit,independent-audit}-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+There is no completed canonical-Eq strengthening proof or counterexample,
+and no strictly smaller sufficient irreducible front. Keep the full goal
+active. Changes are two theory modules and EOF ledger additions only; no
+executable changes, extraction, PRs, or coordination.

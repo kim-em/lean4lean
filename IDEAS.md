@@ -2909,3 +2909,47 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   comparisons of the dependent projection carrier recipes; the source
   computation/type-comparison reconciliation remains open. No goal outcome
   or smaller sufficient irreducible front is claimed.
+
+
+## 2026-10-21 — Retain native declaration domains through computed prefixes
+
+- **Recover parameter evidence discarded by rigid family exposure.
+  Verdict: prefix comparison and shared-native-domain readout proved.**
+  `JointCompare.const_app_prefix` removes the final arguments of two inert
+  constant spines while retaining their inferred prefix comparison, including
+  all prefix computations. Family exposure alone did not retain this evidence.
+
+- **Generalize native Eq recovery to arbitrary dependent telescopes.
+  Verdict: proved, even after every argument computes independently.**
+  `ProofErasureNativeTelescopeRecovery` starts recovery at the stored constant
+  declaration and traverses an actual `InstForallsC` walk. Typed Pi inversion
+  retains codomain computation in the original domain context. Substitution
+  of the original typed argument gives the next native residual path. If that
+  argument computes first, forward replay types its output, and computation
+  of argument images transports all occurrences in the codomain. Every later
+  dependent binder still uses the original native residual as its ancestor.
+  No argument must recover its assigned type, and no normal forms are needed.
+
+- **Read the last guard after independently computing a shared prefix.
+  Verdict: constructed at the original relation.**
+  `proofErase_joint_computed_native_argument_guard` takes a common original
+  typed declaration prefix and two arbitrary computation paths from it. An
+  inferred comparison of the resulting applications yields the final argument
+  guard at the original native domain. The two final raw arguments need no
+  independent typing or recovery certificate. Symmetry swaps both prefix paths;
+  computation extends each path and retains the final-argument computations.
+  Stage-zero and certified specializations discharge primitive assumptions for
+  a rigid constant excluded from D's unfolding relation.
+
+  This does not assume two unrelated parameter substitutions share a native
+  computational ancestor. Comparing their native residual types is the next
+  missing declaration-type congruence, named
+  `JointNativePrefixTypeComparison Source Target`. Its non-proof prefix
+  endpoints have actual declaration telescope walks and an actual comparison;
+  the requested result compares the native residual types. Source and Target
+  may differ. The property is explicitly unproved and is not claimed to be a
+  smaller sufficient front. In the application case the residual types contain
+  two different substitutions into a dependent codomain; the supplied parameter
+  guard does not yet give that codomain comparison. Retain the actual prefix
+  comparison and argument guards in a simultaneous proof instead of replacing
+  them with semantic equality. Full dependent-field transport remains open.
