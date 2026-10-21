@@ -2023,3 +2023,23 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   annotation and argument compute, with no argument-recovery premise. The
   proposition beta-stability hypothesis remains unproved. This is not yet
   global joint confluence, completeness, or a smaller sufficient front.
+
+- **Use computational substitution to remove the direction restriction on
+  binder-context transport.** **Conditional theorem checked** in
+  `ProofErasureJointContextBeta`. A typed raw source and an interpreted context
+  substitution suffice for exact transport of the full path. Applying this to
+  identity substitution along arbitrary original context conversion preserves
+  both raw endpoints, in either direction. The premise remains proposition
+  beta stability. This does not transport exact type recovery or arbitrary
+  joint comparison, so it does not contradict the earlier recovery barriers.
+
+- **Assemble full lambda-path joins from joins of the original components.**
+  **Conditional theorem checked** in `ProofErasureJointLambdaJoins`. Inversion
+  gives annotation and body paths in their original contexts. Component joins
+  are then assembled after realizing the output annotation and body and
+  transporting each body residual to its own output context. Only confluence
+  at the two fixed original component sources is assumed, in addition to
+  proposition beta stability; global confluence is not assumed. This closes
+  the changing-binder lambda assembly case. It does not settle primitive
+  overlaps, stability of guards under full computation, or a well-founded
+  construction of joins for all terms.

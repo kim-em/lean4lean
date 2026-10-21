@@ -9934,3 +9934,47 @@ unproved, and its sufficiency for the original proposition front is not
 established. The original UniqueTyping.lean:94 sorry remains. No counterexample
 under canonical Eq or strictly smaller sufficient front is claimed. No
 executable changes, extraction, PRs, agents or coordination.
+
+## 2026-10-21 — Context conversion and lambda join assembly
+
+After the full-substitution result, this continuation checked its consequence
+for the binder obstruction rather than assuming that all context transport was
+now automatic. ProofErasureJointContextBeta interprets a context substitution
+at a typed representative of any raw source, applies exact typed computation
+substitution, and returns the literal substituted raw endpoints. Interpreted
+identity substitution then transports paths along arbitrary original context
+conversion, in either direction. No raw output typing is assumed; no claim is
+made about preserving selected type recovery or arbitrary joint comparison.
+Both theorems still assume full-union JointPropBetaStability.
+
+ProofErasureJointLambdaJoins proves the lambda assembly case for two arbitrary
+full-union paths, not just one congruence step. Existing unconditional inversion
+returns each body's path to the original annotation context. Joins at the
+original annotation and body supply common raw component outputs. Replay
+realizes each output annotation and body; the new context transport moves each
+body residual to the corresponding output annotation. The ScopedCompute.lam
+constructor then gives the two paths to exactly the same raw lambda.
+
+The public theorem requires component confluence only at the two original
+fixed sources, plus proposition beta stability. It does not assume global
+joint confluence. In particular, it does not provide the missing induction for
+all applications/primitive heads, prove proposition beta stability, or propagate
+general singleton guards through arbitrary joint computation. These remain
+live obligations before this route can yield the original front. The next
+substantive confluence work must address those primitive/guard residuals; the
+lambda context-direction issue is now handled under the stated premise.
+
+Validation: ContextBeta builds (553 jobs) and LambdaJoins builds (554 jobs),
+logs /tmp/joint-context-beta-build.log and /tmp/joint-lambda-joins-build.log.
+The expanded cumulative opaque audit passes for 520 public roots and 15,215
+dependencies. The independent audit passes for all 12 new public roots from
+this continuation and 11,203 dependencies, additionally excluding
+JointCarrierDomainResynthesis. Both reject weakN_iff, weakN_inv and sorryAx.
+Every requested axiom report was parsed and checked against propext,
+Classical.choice and Quot.sound. Audit sources/logs:
+/tmp/joint-lambda-joins-{audit,independent-audit}.{lean,log}.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry; no
+canonical-Eq counterexample or strictly smaller sufficient front is proved.
+The goal remains active. These are checked conditional results on the existing
+research branch, with no executable changes, extraction or PRs.
