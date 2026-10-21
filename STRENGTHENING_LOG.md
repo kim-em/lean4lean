@@ -9538,3 +9538,75 @@ arbitrary carrier alignment and assigned-type coverage remain open. The
 original strengthening sorry remains, with no strictly smaller sufficient
 front or canonical-Eq strengthening counterexample. Goal stays active. No
 executable changes, extraction, PRs, agents or coordination.
+
+## 2026-10-21 — Remove the auxiliary binder from the transport consequence
+
+The previous turn was progress: d4dc7fb3 refuted compared-output variable
+recovery transport for the quotient-repaired ordinary core. This turn started
+from that clean commit and investigated whether arbitrary finite stage growth
+makes the invariant a smaller route to strengthening. The existing
+TypedErasedBetaTransport barrier concerns arbitrary commonly typed terms;
+its lambda probes are not themselves types. It therefore does not directly
+classify the type-only consequence of compared-context recovery transport.
+
+A useful independent construction removes the extra binder in that consequence.
+ProofErasureRecoverablePropFunction constructs an exactly recoverable inhabitant
+of A -> Prop for every typed A. The closed proposition is Eq Type Prop Prop.
+Its recovery starts at the stored canonical Eq type and applies three arguments,
+leaving the literal sort Prop. This avoids relying on universe normalization:
+recovering a closed quantified proposition could instead yield an imax-shaped
+sort that is semantically zero but syntactically different. The constant lambda
+with domain A therefore recovers exactly the assigned Pi, without recovering A
+or choosing an inhabitant of A. It is non-proof and works in every computation
+relation, so in particular at stage zero.
+
+Two private native-recovery lemmas carry the construction. A retained constant
+recovers its assigned declaration type using closed-type erasure invariance.
+An actually typed retained application with exact function recovery recovers
+the instantiated result type using typed erasure/substitution compatibility.
+These require no new computation rule or recovery coverage assumption.
+
+Substituting the resulting function into an unused A -> Prop binder preserves
+both modes of the full joint checker at the original finite stage. The lower
+endpoints are supplied with a common actual typing. The result preserves an
+actual comparison certificate; it does not merely reflect declarative equality
+and then assume certificate completeness. No inverse weakening is used.
+
+The private boundary argument was generalized from proposition endpoints and
+beta reduction to endpoints at any common sort and arbitrary contextual
+computation. Replay supplies the actual computed type. The old beta-based
+counterexample remains a specialization and was rebuilt and independently
+audited again.
+
+ProofErasureComparedContextConsequence consumes both results. Assume the union
+version of JointVariableRecoveryContextComparison. Given a finite comparison
+of two sort-typed terms and any finite joint computation of the right endpoint,
+the generalized argument first compares the left endpoint with that exact
+output beneath an auxiliary proposition-producing function binder. Finite-stage
+extraction and the exact recovered inhabitant remove this binder. Actual output
+typing upgrades the resulting certificate to inferred mode. The conclusion is
+at a finite later stage at least as large as both input stages, in the original
+context and at the exact requested endpoints.
+
+Validation: lake build through ProofErasureComparedContextConsequence passes
+(574 jobs; /tmp/compared-context-consequence-build.log), including the changed
+boundary module. The cumulative opaque dependency audit checks 486 public
+declarations and 14,586 dependencies. The independent audit checks three new
+public declarations plus all four roots of the changed boundary module: seven
+roots and 11,989 dependencies. Both exclude weakN_iff, weakN_inv and sorryAx;
+the independent audit additionally excludes JointCarrierDomainResynthesis.
+Both completed successfully. All 486 cumulative and seven independent axiom
+reports were accounted for and use only propext, Classical.choice and
+Quot.sound. Audit sources/logs are /tmp/compared-context-consequence-audit.*
+and /tmp/compared-context-consequence-independent-audit.*.
+
+Judgment: allowing stage growth leaves a genuine endpoint-computation
+obligation in the original context; the auxiliary binder cannot explain it
+away. This is a necessary consequence of the candidate, not its proof or a
+converse. Whether this type-only law entails PropositionFront is still open;
+the arbitrary-term probe argument cannot simply be reused. The exact
+certificate retraction is independently available for future transport
+arguments. There is still no proof of the original strengthening theorem,
+canonical-Eq strengthening counterexample, or strictly smaller sufficient
+front. No executable changes, extraction, PRs, agents or coordination. Goal
+remains active.

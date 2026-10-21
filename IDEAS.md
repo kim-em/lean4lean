@@ -1865,3 +1865,25 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   invariant, not use-site recovery/guard re-synthesis or transport allowing
   later singleton stages. The raw computational retraction used at the end
   is substitution closure of the core, not inverse typing weakening.
+
+- **Retract a proposition-producing function binder using exact recovery.**
+  **Proved at the same finite joint stage for every typed domain.**
+  ProofErasureRecoverablePropFunction uses the closed proposition Eq Type Prop
+  Prop, whose syntax-directed recovered sort is literally Prop. A constant
+  function returning it exactly recovers A -> Prop for arbitrary typed A,
+  without any inhabitant or recovery certificate for A. Substitution of this
+  stage-zero image removes an unused A -> Prop binder from a joint comparison
+  with independently supplied common endpoint typing below. This preserves
+  the certificate, not just the declarative equality it denotes.
+
+- **Allow arbitrary stage growth in compared-output context transport.**
+  **A stronger necessary consequence is checked; equivalence with the front
+  remains unproved.** ProofErasureComparedContextConsequence shows that the
+  union version of JointVariableRecoveryContextComparison implies inferred
+  type comparison after every finite computation of its right endpoint, in
+  the original context, at some later stage. The earlier auxiliary-binder
+  argument now works for every universe and full contextual computation;
+  exact recovered inhabitants remove its binder without stage increase.
+  The existing arbitrary-term beta-composition barrier does not directly
+  apply to this sort-typed endpoint law. No implication to PropositionFront,
+  converse, or strict reduction of a sufficient strengthening front is claimed.

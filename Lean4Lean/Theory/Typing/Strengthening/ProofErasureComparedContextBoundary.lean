@@ -40,7 +40,7 @@ private theorem pi_domains
   exact .compute .refl RC HD
 
 private theorem erase_pi_prop (hΓ : OnCtx Γ (env.IsType univs))
-    (hA : env.HasType univs Γ A (.sort .zero)) :
+    (hA : env.HasType univs Γ A (.sort u)) :
     proofErase Γ (.forallE A (.sort .zero)) = .forallE (proofErase Γ A) (.sort .zero) := by
   have hPi := HasType.forallE hA (HasType.sort (l := .zero) (by trivial))
   have hΓA : OnCtx (A :: Γ) (env.IsType univs) := ⟨hΓ, _, hA⟩
@@ -49,23 +49,23 @@ private theorem erase_pi_prop (hΓ : OnCtx Γ (env.IsType univs))
   rw [show proofErase (A :: Γ) (.sort .zero) = .sort .zero from
     if_neg (not_isProof_of_sort hΓA (HasType.sort (by trivial)))]
 
-private theorem beta_above
+private theorem compute_above
     (hstep : ErasedScopedPrimitiveDescent Step)
     (hhead : ∀ {Δ a b}, Step Δ a b → PrimitiveHead a)
     (hrename : ∀ {Δ Δ' a b τ}, Step Δ a b → ContextRenaming Δ Δ' τ →
       Step Δ' (a.subst τ) (b.subst τ))
     (Hctx : JointVariableRecoveryContextComparison Step)
     (hΓ : OnCtx Γ (env.IsType univs))
-    (ha : env.HasType univs Γ a (.sort .zero)) (hb : env.HasType univs Γ b (.sort .zero))
+    (ha : env.HasType univs Γ a (.sort u)) (hb : env.HasType univs Γ b (.sort u))
     (H : JointCompare Step (proofEraseCtx Γ) true (proofErase Γ a) (proofErase Γ b))
-    (R : BetaRed (proofErase Γ b) out) :
+    (R : ScopedCompute Step (proofEraseCtx Γ) (proofErase Γ b) out) :
     JointCompare Step (proofEraseCtx (.forallE a (.sort .zero) :: Γ)) true
       ((proofErase Γ a).liftN 1) (out.liftN 1) := by
   let A := VExpr.forallE b (.sort .zero)
   let B := VExpr.forallE a (.sort .zero)
-  have hA : env.HasType univs Γ A (.sort (.imax .zero (.succ .zero))) :=
+  have hA : env.HasType univs Γ A (.sort (.imax u (.succ .zero))) :=
     .forallE hb (.sort (by trivial))
-  have hB : env.HasType univs Γ B (.sort (.imax .zero (.succ .zero))) :=
+  have hB : env.HasType univs Γ B (.sort (.imax u (.succ .zero))) :=
     .forallE ha (.sort (by trivial))
   have hΓA : OnCtx (A :: Γ) (env.IsType univs) := ⟨hΓ, _, hA⟩
   have hΓB : OnCtx (B :: Γ) (env.IsType univs) := ⟨hΓ, _, hB⟩
@@ -77,7 +77,7 @@ private theorem beta_above
   have hv : env.HasType univs (A :: Γ) (.bvar 0) A.lift := .bvar .zero
   have hn := not_isProof_function_to_sort hΓA hv
   have RP : ScopedCompute Step (proofEraseCtx Γ) (proofErase Γ A) (.forallE out (.sort .zero)) := by
-    rw [EA]; exact .beta (.forallE R .refl)
+    rw [EA]; exact .forallE R .refl
   have RL := RP.rename hrename (ContextRenaming.of_liftN hΓ hΓA Ctx.LiftN.one)
   simp only [subst_bvar_liftN] at RL
   have HR : ScopedTypeRecovery Step (proofEraseCtx (A :: Γ)) (.bvar 0)
@@ -87,10 +87,10 @@ private theorem beta_above
   have HT : JointCompare Step (proofEraseCtx (B :: Γ)) true
       ((ProofShape.forallE out (.sort .zero)).liftN 1) ((proofErase Γ B).liftN 1) :=
     .compute .refl RR.bvar_compute HH
-  obtain ⟨b', Hb, Eb⟩ := proofErase_beta_replay hΓ hb R
-  have hb' := (Hb.simAt henv.orderedStrong henv.betaSubjectReduction hΓ _ hb).hasType.2
+  obtain ⟨b', Hb, Eb⟩ := proofErase_scoped_compute_realize hstep hΓ hb rfl rfl R
+  have hb' := Hb.hasType.2
   have hP : env.HasType univs Γ (.forallE b' (.sort .zero))
-      (.sort (.imax .zero (.succ .zero))) := .forallE hb' (.sort (by trivial))
+      (.sort (.imax u (.succ .zero))) := .forallE hb' (.sort (by trivial))
   have EP := erase_pi_prop hΓ hb'
   rw [← Eb, ← EP] at HT
   rw [← proofErase_liftN hΓ hΓB Ctx.LiftN.one hP,
@@ -99,6 +99,20 @@ private theorem beta_above
   rw [proofErase_liftN hΓ hΓB Ctx.LiftN.one hP,
     proofErase_liftN hΓ hΓB Ctx.LiftN.one hB, EP, EB, Eb] at HI
   exact .symm (pi_domains hhead HI)
+
+private theorem beta_above
+    (hstep : ErasedScopedPrimitiveDescent Step)
+    (hhead : ∀ {Δ a b}, Step Δ a b → PrimitiveHead a)
+    (hrename : ∀ {Δ Δ' a b τ}, Step Δ a b → ContextRenaming Δ Δ' τ →
+      Step Δ' (a.subst τ) (b.subst τ))
+    (Hctx : JointVariableRecoveryContextComparison Step)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (ha : env.HasType univs Γ a (.sort u)) (hb : env.HasType univs Γ b (.sort u))
+    (H : JointCompare Step (proofEraseCtx Γ) true (proofErase Γ a) (proofErase Γ b))
+    (R : BetaRed (proofErase Γ b) out) :
+    JointCompare Step (proofEraseCtx (.forallE a (.sort .zero) :: Γ)) true
+      ((proofErase Γ a).liftN 1) (out.liftN 1) :=
+  compute_above hstep hhead hrename Hctx hΓ ha hb H (.beta R)
 
 private theorem recursive_coverage_above
     (hstep : ErasedScopedPrimitiveDescent Step)
