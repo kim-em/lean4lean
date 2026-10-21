@@ -11917,3 +11917,73 @@ There is no completed canonical-Eq strengthening proof or counterexample,
 and no strictly smaller sufficient irreducible front. Keep the full goal
 active. Changes are two theory modules and EOF ledger additions only; no
 executable changes, extraction, PRs, or coordination.
+
+
+## 2026-10-21 11:49 UTC — Concrete failure of ordinary-core native type congruence
+
+Previous goal turn: progress. It created and built the two pending theory
+modules at baseline c7dbd2791ce2cb163e8cf25e789e6dc76ec8b6f5. Resumed by
+revalidating GOAL.md, the actual untracked files, the completed 603-job build,
+and the original UniqueTyping.lean:94 sorry. The intervening conversation
+clarified that declining extraction does not cancel research. No extraction
+or PR is authorized by this continuation.
+
+ProofErasureNativeTypeBoundary tests the previously named obligation
+JointNativePrefixTypeComparison Source Target. A declaration with native type
+(x : D) -> (x x -> Prop), where D is recursively equal to D -> Prop, observes
+the self-application of its argument in a non-proof result type. Two diagonal
+lambdas with ordinarily convertible annotations check by lamCommon with a
+reflexive body. Applying the same constant produces an inferred comparison
+with no primitive computation, at any source relation. Native type congruence
+would compare the resulting Pi types. Typed Pi readout, target domain
+computation, and self-loop annotation readout then recover a target comparison
+of the original annotations. This theorem retains the actual ordinary
+annotation conversion as an input; it does not derive that input from the
+common check.
+
+Choose D to be a literal recursive Pi and its alternative annotation to be a
+reflexive canonical-Eq cast with a free equality-proof major. The existing
+cast obstruction excludes ordinary-core computation of that annotation to a
+Pi. Consequently native congruence into the repaired ordinary core is false,
+even if the source primitive relation is arbitrary. The source certificate
+has fixed shape and no primitive computations; the target must account for
+conversions used in typing the source arguments, which the certificate alone
+does not record.
+
+ProofErasureNativeTypeCounterexample realizes this test in an actual
+well-formed environment. The observer has a checked closed type and is added
+as an ordinary calculus axiom, adding no reduction equations. The previously
+constructed negative recursive family supplies a closed literal Pi D with
+D = D -> Prop. Adding that family and then the observer at fresh names yields
+canonical_recursive_extension_failure. Canonical Eq and quotient registration
+are preserved. The same theorem explicitly includes PropositionFront in its
+conclusion: the recursive type already supplies the inhabitants needed for
+forward substitution. This is not a counterexample to canonical-Eq
+strengthening, nor a new Lean axiom.
+
+The boundary module also proves the exact cast witness's native result shapes
+compare at joint stage one. The existing reflexive-cast computation propagates
+through the two loop annotations and their enclosing Pi. Neither loop is
+normalized. This rules out interpreting the example as a failure of the
+full union target. The remaining route must use original typing/conversion
+derivations to build a sufficiently rich target certificate, while retaining
+the native residual paths. No general stage bound or native type congruence
+is proved. Dependent record-field transport remains open.
+
+Validation: the new modules and dependencies built successfully (603 jobs),
+/tmp/native-type-counterexample-build.log. New modules emitted no warnings;
+the build replays existing dependency linter warnings. Independent opaque DFS
+covers all 10 new public declarations and 11,509 dependencies, excluding
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv, and sorryAx. Cumulative opaque
+DFS covers 818 roots and 15,710 dependencies, excluding strengthening inverses
+and sorryAx. Both audits completed successfully. Exact-name axiom parsing
+accounts for every root once, with only propext, Classical.choice, and
+Quot.sound. Sources/logs: /tmp/native-type-counterexample-{audit,independent-audit}.{lean,log};
+root inventories: /tmp/native-type-counterexample-{audit,independent-audit}-roots.txt.
+
+Completion audit: the original strengthening sorry remains. No canonical-Eq
+strengthening proof or counterexample and no genuinely strictly smaller
+sufficient irreducible front has been established. Keep the goal active.
+Changes are two theory modules and EOF ledger additions only. No executable
+changes, extraction, PRs, or coordination.

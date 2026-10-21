@@ -2953,3 +2953,39 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   guard does not yet give that codomain comparison. Retain the actual prefix
   comparison and argument guards in a simultaneous proof instead of replacing
   them with semantic equality. Full dependent-field transport remains open.
+
+
+## 2026-10-21 — Native declaration-type comparison has a recursive annotation barrier
+
+- **Derive native result-type comparison from the ordinary core prefix check.
+  Verdict: refuted in an actual well-formed canonical-Eq extension.**
+  For a recursive domain D = (D -> Prop), install a constant with type
+  `(x : D) -> (x x -> Prop)`. Its applications to two diagonal lambdas have
+  a common prefix comparison consisting only of constant reflexivity and
+  common lambda checking. Both applications are non-proofs. Comparing their
+  native result types forces comparison of the original lambda annotations,
+  even when their ordinary conversion was absent from the prefix certificate.
+  A reflexive Eq cast of a literal Pi supplies an annotation that the ordinary
+  core cannot expose as a Pi. Thus `JointNativePrefixTypeComparison Source core`
+  fails for every source relation in this observer environment.
+
+- **Check that the recursive observer really can be declared.
+  Verdict: constructed with two fresh declarations, retaining canonical Eq.**
+  `NativeLoopObserver.canonical_recursive_extension_failure` first installs
+  the existing recursive family, derives a closed literal recursive Pi from
+  it, and installs the observer as an axiom with a checked closed type. Both
+  extensions are well formed and preserve canonical Eq and quotient
+  registration. The resulting environment also satisfies PropositionFront:
+  this counterexample refutes the certificate rule, not strengthening.
+
+- **Does the same example refute the richer joint stages or their union?
+  Verdict: no; its native result shapes compare at stage one.**
+  `ErasedQuotCore.cast_native_observer_results_stage_one` computes the reflexive
+  cast out of both self-application annotations, without normalizing the loops.
+  This repairs this particular example only. Native result-type congruence
+  with a richer target remains open. The next proof must use the original
+  typing/conversion evidence to recover annotation comparisons; induction
+  on the shallow prefix certificate alone does not provide that evidence.
+  Test or construct that conversion-sensitive target before using native
+  congruence to transport dependent record-field carriers. No smaller
+  sufficient irreducible front or goal outcome is claimed.
