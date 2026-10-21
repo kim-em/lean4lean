@@ -14198,3 +14198,44 @@ universe-valued results, and exact recovery's level restriction is checked
 false. GOAL.md remains active. Only theory modules and actual EOF ledger
 additions change. No executable edits, PR extraction, PRs, subagents or
 coordination.
+
+
+## 2026-10-21 17:14 UTC — Checked obstruction to future common delta transport
+
+Added ProofErasureFutureDeltaBoundary.lean. A reusable constructor builds a
+full future common certificate for constant-headed applications whose recovered
+domain is a registered unit. The arguments may differ arbitrarily: the unit
+carrier supplies their guard, and beta plus ambient substitution preserve the
+constant head. The typed specialization uses an actual declaration c : S → S
+and an unfolding to the identity, with S a closed positive registered unit.
+Certified delta followed by beta takes the two applications to distinct unit
+variables. Those variables have no common comparison in the entire joint union,
+but retain a full future carrier certificate. A final theorem constructs the
+actual two-variable context from the closed unit typing.
+
+This is a conditional boundary theorem for the proposed proof invariant. The
+declaration, unfolding and unit registration are explicit hypotheses. It does
+not construct a canonical-Eq environment or refute strengthening. In particular,
+it does not refute carrier-aware or proposition-only endpoint transport. The
+next primitive-fork argument must retain carriers rather than posit unrestricted
+common future stability. Earlier shared-application and ordinary beta boundaries
+were reused, not mistaken for this stronger future-input computation claim.
+
+Validation: one new module, 164 lines, three public theorems. Consuming build
+exits zero in 671 jobs; the new module is warning-free. Existing dependency
+warnings are replayed. Log: /tmp/future-delta-build.log. Both audit processes
+exit zero. Independent opaque DFS covers 3 roots and 8,187 dependencies,
+excluding JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv and sorryAx. Cumulative opaque DFS
+covers 1,115 roots and 16,283 dependencies, excluding strengthening inverses and
+sorryAx. Exact-name axiom parsing covers each root exactly once and permits only
+propext, Classical.choice and Quot.sound. Opaque values are traversed with
+ci.value? (allowOpaque := true). Audit sources, logs and inventories are at
+/tmp/future-delta-{audit,independent-audit}.{lean,log} and -roots.txt files.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+None of GOAL.md's three success conditions is established. This turn is progress:
+a proposed stronger invariant is checked false and the carrier distinction is
+verified, narrowing the next available proof step. The goal remains active.
+Only a theory module and actual EOF ledger additions change; no executable
+changes, PR extraction, PRs, subagents or coordination.

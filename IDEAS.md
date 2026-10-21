@@ -4253,3 +4253,37 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   exposure/PropFront barrier still prevents treating semantic equality as a
   general computational exposure theorem. All GOAL.md success conditions remain
   open, with the original strengthening sorry unchanged.
+
+
+## 2026-10-21 17:14 UTC — Future common certificates fail forward delta transport
+
+- Revalidation: the preceding exchange clarified the user's instructions and
+  made no technical progress. The clean worktree remained at 31c85f5e. The
+  previous research milestone transported checking through universe-valued
+  primitive binder computation; arbitrary primitive result types remain open.
+- Idea: resolve competing primitive type computations by preserving full future
+  common comparisons along arbitrary endpoint computations. Verdict: refuted
+  conditionally on a registered closed positive unit and a declared constant
+  unfolding to its identity. constant_unit_application_family proves that c x
+  and c y retain common checking after every beta path and every interpreted
+  substitution, even with no checking primitives. Unit carrier checking handles
+  the argument positions while beta leaves the constant head intact.
+- unit_constant_future_compute_failure constructs certified delta-plus-beta
+  paths from the actual typed applications to distinct unit variables. No
+  ordinary common comparison relates these reducts, even in the full joint
+  union. unit_constant_future_compute_context supplies the actual context
+  [Unit, Unit]; ambient typings are not extra existence assumptions.
+- The reducts retain a full BetaStableCarrier certificate at their unit type,
+  including carrier/endpoint beta and interpreted substitution. Thus this
+  obstruction rules out unrestricted common-certificate endpoint transport,
+  not carrier-aware endpoint transport or proposition-only transport. This is
+  stronger than the earlier ordinary common beta boundary: the inputs here
+  already satisfy all beta futures. It differs from the shared-application
+  boundary because existing endpoints are computed through a declared delta.
+
+  Judgment: keep carrier information when investigating primitive computation
+  forks; the unrestricted common future law cannot supply their induction
+  invariant. No canonical-Eq environment or strengthening counterexample is
+  constructed, and no strictly smaller sufficient front is claimed. General
+  carrier-aware forward primitive transport remains live; semantic head
+  exposure must not be assumed as its solution.
