@@ -2081,3 +2081,18 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   pending argument computation, so simply iterating root diagrams is not a
   justified proof of the path theorem. Parallel reduction/developments remains
   the live route to that lifting; proposition beta stability remains unproved.
+
+- **Retain one parallel beta step while moving past computation.**
+  **Raw infrastructure and exact typed replay checked** in
+  `ProofErasureParallelBeta`, `ProofErasureParallelBetaReplay`,
+  `ProofErasureParallelBetaStrip`, and `ProofErasureParallelPrimitiveResidual`.
+  Parallel beta develops selected source redexes, with parallel body and
+  argument development at contracted roots. Simultaneous substitution copies
+  the selected developments; the complete-development triangle gives its
+  diamond without normalization. Original ComputePar with empty declarations
+  replays and erases exactly one step, including proof markers and changed
+  binder annotations. The original parallel strip theorem therefore gives a
+  single parallel residual across a finite typed beta path. Ordinary primitive
+  residuals also retain one parallel output step, with no typing or stability
+  premise. This supplies the step control missing from the earlier arbitrary
+  finite-beta residual theorem.

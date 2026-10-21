@@ -10057,3 +10057,41 @@ Completion audit: the original sorry is still present at UniqueTyping.lean:94.
 No canonical-Eq strengthening counterexample or strictly smaller sufficient
 front has been proved. Goal remains active. No executable changes, extraction,
 PRs, agents or coordination.
+
+## 2026-10-21 — Parallel beta steps and exact typed replay
+
+Previous-turn classification: progress. Commit bffa3f51 established primitive
+residuals with finite beta paths on the output side. The current continuation
+revalidated its clean state and examined the path-lifting induction. Its
+sequential case needs a parallel residual that can be passed directly to the
+next computation segment; an arbitrary finite beta residual does not supply
+that induction invariant.
+
+ProofErasureParallelBeta defines a raw parallel beta development on annotated
+proof shapes. It proves reflexivity, insertion, simultaneous substitution,
+instantiation, serialization into finite beta, the complete-development diamond,
+and constant-spine inversion with parallel argument paths. The complete
+development contracts source redexes; it does not normalize created redexes or
+assume a bound on repeated development rounds.
+
+ProofErasureParallelBetaReplay uses the existing original ComputePar relation
+with empty declarations. One raw parallel step replays to one original parallel
+step, and one typed original parallel step erases to one raw step. Proof sources
+collapse to the proof marker; converted binder contexts preserve body erasure.
+At a root beta step, both the body and argument may develop before substitution.
+The intermediate typings come only from forward beta subject reduction.
+
+ProofErasureParallelBetaStrip transfers the original parallel strip theorem to
+typed erasures, retaining one parallel step on the finite beta path's output
+side. ProofErasureParallelPrimitiveResidual refines the ordinary primitive
+residual theorem similarly: visible matches preserve parallel capture paths,
+and declarations, projections, selections and fixed templates retain a single
+parallel output residual. This latter result requires no source typing,
+confluence or proposition stability.
+
+These four modules have 13 new public declarations. They build as part of the
+full commutation target and are included in the session's independent 20-root
+audit, which passes with no strengthening inverses, sorryAx, or carrier-domain
+re-synthesis. The cumulative audit passes for 549 roots; exact counts and logs
+are recorded with the integrated commutation result below. No executable or
+PR changes. The original strengthening goal remains open.
