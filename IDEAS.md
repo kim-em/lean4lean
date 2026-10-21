@@ -3600,3 +3600,42 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   strong derivations; the counterexample carries all actual typings and future
   certificates. A carrier-indexed future invariant or proposition-specific
   composition is still live. No GOAL.md outcome is established.
+
+### Future carrier certificates and the composition front (2026-10-21 14:33 UTC)
+
+- **Retain the supplied carrier through every future beta/substitution path.
+  Verdict: constructed, with independent closure lemmas.** BetaStableCarrier
+  quantifies over independent carrier and endpoint beta paths, both locally
+  and after every interpreted context substitution. It is closed under beta,
+  substitution, symmetry, subsingleton carriers, and dependent function
+  checking. The function case reindexes its body certificate into the residual
+  domain. At literal sorts it is equivalent to BetaStableFamily. Thus it
+  repairs the previous distinct-unit-variable counterexample at the literal
+  unit carrier without weakening the proposition observation.
+
+- **Does this repair make typed composition a smaller front? Verdict: no
+  reduction in difficulty established; a conditional full-front implication
+  is checked.** TypedFutureCarrierComposition requests only an ordinary target
+  guard after composing two full future certificates through an actual common
+  typed intermediate. For any source relation, even False, composition into
+  ErasedJointUnion implies PropositionFront when a closed positive empty
+  structure is available (with the stated Eq registry/unfolding assumptions).
+  Its constructor supplies both future input certificates at the Eq probe
+  carrier. Upper proposition conversion supplies all actual typings there;
+  distinct variables force exposure of that carrier, reading out the lower
+  proposition equality. No general beta-transport assumption is used.
+
+- **Can the source primitive stage bound such composition? Verdict: refuted
+  even for these full future certificates.** A reflexive-index Eq probe in a
+  two-variable unit context gives a checked negation of composition from any
+  source relation into stage zero. The input certificates may have no
+  primitive computation at all; stage zero cannot expose the probe carrier.
+  This is not a failure of composition into the union or of strengthening.
+
+  Judgment: future paths alone do not discharge the type-conversion work
+  hidden in typed composition. A remaining direction is to require explicit
+  certificates for the typing conversions that assign the intermediate and
+  endpoints their supplied carrier, then test closure through those conversion
+  certificates. Free carrierChecked embedding of constructor comparisons is
+  exactly what admits the hard probe here. This direction remains unproved;
+  no strictly smaller sufficient obligation or other GOAL.md outcome is claimed.

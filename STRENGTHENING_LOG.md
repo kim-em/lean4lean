@@ -13029,3 +13029,68 @@ Completion audit: UniqueTyping.lean:94 retains the original sorry. None of the
 three GOAL.md outcomes is established. Keep the full goal active. Only new
 theory modules and actual EOF ledger additions changed; no executable changes,
 extraction, PRs, subagents or coordination.
+
+### 2026-10-21 14:33 UTC — Future carrier composition retains the front
+
+Previous goal turn: progress (committed binder/application certificates and
+an actual typed failure of unrestricted future common composition). This turn
+revalidated clean HEAD 1821292a, GOAL.md, OPEN_PROOFS.md, the current ledger,
+and the carrier/probe constructions. Research continues without PR extraction.
+
+ProofErasureFutureCarrier defines BetaStableCarrier: carrier and endpoints
+retain independent beta paths, locally and after arbitrary interpreted context
+substitution. Base, beta, substitution, symmetry, common-certificate embedding,
+subsingleton, sort equivalence, and dependent-function constructions are proved.
+For a function, carrier beta changes its domain and codomain; the body future
+certificate is transported through the interpreted identity into the residual
+domain before carrierFunction is applied. Substitution composes with that same
+argument and accounts for newly created redexes. Literal unit carriers now
+compare arbitrary endpoints throughout their futures, repairing the preceding
+counterexample, while literal sorts recover exactly the common future relation.
+
+ProofErasureFutureCarrierFront names TypedFutureCarrierComposition as an
+unproved law with full future input certificates, actual common typings for
+both endpoints and intermediate, and only an ordinary target guard as output.
+Even this law for an arbitrary source relation (including False) into the full
+joint union implies PropositionFront, conditional on a closed positive unit
+and the explicit canonical Eq, registry, and unfolding assumptions. The unit
+constructor compares with each variable at every future endpoint residual,
+and carrierChecked embeds both certificates at any supplied carrier. An
+upper equality between proposition indices types all three terms at the unit-
+valued Eq probe. Composing there and excluding ordinary comparison of distinct
+variables forces carrier exposure. The existing first-head readout yields the
+original proposition equality below the inserted context. Four binders give
+the full one-binder proposition front. No inverse typing weakening is used.
+
+The same module proves composition into stage zero false for every source
+relation, using reflexive probe indices and an actual two-unit-variable context.
+Thus retaining arbitrary future carrier beta and substitution paths does not
+make source primitive stages bound the work required by typed composition.
+This is a concrete refutation of the stage-zero target law, not a refutation
+of union composition or a canonical-Eq strengthening counterexample.
+
+Judgment: the carrier repair is valid, but its unrestricted typed composition
+still hides full proposition conversion in the supplied typings. It is not
+established as a strictly smaller obligation. The next unrefuted direction is
+to retain explicit certificates for those typing conversions and test their
+composition, rather than admit arbitrary carrier reassignment solely from an
+actual declarative typing. In particular the freely carrierChecked unit-
+constructor bridge must not silently bypass that obligation. General paired
+instantiation/application at non-joining arguments remains open as well.
+
+Validation: two new theory modules, 269 lines, 13 public declarations (including
+the two definitions). Build succeeds in 666 jobs, with no warnings from the new
+modules: /tmp/future-carrier-build.log. Independent opaque DFS covers all 13
+roots and 11,329 dependencies, excluding JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport, .weakN_iff, .weakN_inv and
+sorryAx. Cumulative opaque DFS covers 972 roots and 16,038 dependencies,
+excluding strengthening inverses and sorryAx. Exact-name axiom parsing accounts
+for every root once and permits only propext, Classical.choice and Quot.sound.
+Sources/logs: /tmp/future-carrier-{audit,independent-audit}.{lean,log}; inventories:
+/tmp/future-carrier-{audit,independent-audit}-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+No canonical-Eq proof, canonical-Eq counterexample, or genuinely strictly
+smaller sufficient irreducible obligation has been established. Keep the goal
+active. Only theory modules and actual EOF ledger additions changed; no
+executable changes, PR extraction, PRs, subagents or coordination.
