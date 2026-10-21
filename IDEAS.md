@@ -4173,3 +4173,41 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   semantic head exposure or carrier-domain re-synthesis. The full joint
   induction must still consume the related domain and adapt the argument
   guard. Coverage of arbitrary actual type equality is not assumed.
+
+
+## 2026-10-21 16:52 UTC — Changed argument guards, full futures, and the primitive boundary
+
+- Idea: let the smaller carrier branch of the full joint induction adapt a
+  recovered argument domain, using typed recursive rigid recovery. Verdict:
+  proved for every joint constructor. Context oracles and carrier types may
+  change simultaneously; actual type equality is supplied separately. The
+  application case replays both recovered Pis, obtains their actual domain
+  equality, and invokes the smaller argument guard at the related new domain.
+  Function guards extend the equal contexts by related changed domains.
+  Record field recipes remain exact. Certified context transport follows.
+- Concrete higher-order consequence: a binder of type Pi A B may become
+  Pi K B whenever A equals the closed rigid type K. B may be an arbitrary
+  dependent codomain; the whole binder need not be closed. Its body checking
+  remains certified. This goes beyond retaining recovered domains.
+- Full future carrier transport is also proved for the recursive relation.
+  Target carrier beta paths need not be trivial: match them on the source,
+  replay both carriers and endpoint paths with actual typings, and transport
+  the residual guard. Arbitrary interpreted substitutions preserve the raw
+  relation, so the same argument handles all futures. The certified wrapper
+  assumes no whole-union substitution or proposition beta principle.
+- Does recursive domain change plus finite beta closure now cover arbitrary
+  type equality? Verdict: refuted by a checked closed canonical-Eq example.
+  Every typed TypeChangePath over RigidTypeChange that starts with a literal
+  sort beta reduct retains that exact reduct. Closed replacement cannot break
+  this invariant: typed beta replay and sort/rigid separation exclude it.
+  The reflexive closed Eq type probe is definitionally that sort but has an
+  Eq.rec head that beta cannot remove. rigid_beta_paths_not_complete proves
+  the missing path; this is not a strengthening counterexample.
+
+  Judgment: changed argument domains and full future carrier transport are
+  constructive for this larger recursive relation, but beta closure cannot
+  make it complete. Adding further closed target examples cannot address this
+  established primitive Eq-computation gap. The next research step should
+  handle actual primitive type steps or a stronger invariant covering them,
+  while respecting the earlier Eq-probe/PropFront barrier. All GOAL.md success
+  conditions remain open; no strictly smaller sufficient front is claimed.

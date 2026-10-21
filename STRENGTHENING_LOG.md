@@ -14085,3 +14085,58 @@ and Quot.sound. Both processes exit zero. Artifacts:
 No goal success is claimed: the original UniqueTyping sorry remains. This
 commit records recovery; simultaneous checking and its coverage boundary are
 recorded in the next entry. Only theory and actual EOF ledger additions change.
+
+
+## 2026-10-21 16:52 UTC — Simultaneous recursive transport and a closed coverage refutation
+
+ProofErasureJointRecursiveRigid proves full typed comparison/carrier transport
+through recursively rigid oracle and carrier changes. In appCarrier, actual
+replay and Pi injectivity identify equal but potentially different recovered
+domains; the smaller argument guard changes its carrier accordingly. This is
+not an exact-domain transport theorem. Function guards extend contexts by
+related domains. Computations and all dependent record field cases are covered.
+Certified context transport discharges the primitive premises. The concrete
+function-domain wrapper changes Pi A B to Pi K B for A equal to closed rigid K,
+retaining an arbitrary dependent B and certified checking in the outer body.
+
+ProofErasureFutureRecursiveRigid proves full future guard transport. Each beta
+path of the target carrier has a matching source path; actual beta replay
+supplies residual typings and equalities. Endpoint paths are independent.
+Interpreted substitutions preserve the recursive relation and the future
+certificate, so the same ordinary transport applies afterward. Targets need
+not be beta fixed. The certified corollary retains ErasedBetaStableJoint D;
+unrestricted ErasedJointUnion substitution is not assumed or concluded.
+
+ProofErasureRigidPathBoundary tests completeness instead of inferring it from
+these positive results. A typed recursive rigid edge preserves any literal
+sort beta reduct; the only extra closed-replacement case is excluded using
+actual typed beta replay and sort/rigid head separation. Typed beta confluence
+extends the invariant to arbitrary finite beta reductions/expansions and path
+composition. A closed reflexive canonical-Eq type probe then proves that these
+paths miss actual definitional equality. This is a coverage counterexample,
+not a canonical-Eq strengthening counterexample. It rules out beta closure
+alone as the next step toward completion; primitive type computation remains
+necessary to address.
+
+Validation: these three modules add 674 lines and eleven public roots (ten
+theorems and one result definition). Across both commits, five modules add 987
+lines and 23 roots. The dependent boundary build exits zero in 678 jobs; the
+future module build exits zero in 654 jobs. New modules emit no warnings;
+existing dependency warnings are replayed. Logs:
+/tmp/rigid-path-boundary-build.log and /tmp/future-recursive-rigid-build.log.
+Both opaque DFS audit processes exit zero. Independent scope: all 23 new roots,
+11,031 dependencies; excludes JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport, .weakN_iff, .weakN_inv and
+sorryAx. Cumulative scope: 1,097 roots, 16,245 dependencies; excludes
+strengthening inverses and sorryAx. All exact-name axiom reports are present
+once, with only propext, Classical.choice and Quot.sound. Audit sources use
+ci.value? (allowOpaque := true). Sources/logs/inventories:
+/tmp/recursive-rigid-{audit,independent-audit}.{lean,log} and -roots.txt files.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+Neither a canonical-Eq strengthening proof nor a strengthening counterexample
+has been produced, and no strictly smaller sufficient irreducible obligation
+has been established. This goal turn is progress: new full transport results
+and a checked coverage obstruction change the next research action. GOAL.md
+remains active. Only theory modules and actual EOF ledger additions change.
+No executable edits, PR extraction, PRs, subagents or coordination.
