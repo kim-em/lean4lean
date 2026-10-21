@@ -12530,3 +12530,70 @@ canonical-Eq strengthening proof, canonical-Eq counterexample, or genuinely
 strictly smaller sufficient irreducible obligation. Keep the full goal active.
 Only theory modules and actual EOF ledger additions changed. No executable
 changes, extraction, PRs, subagents, or coordination.
+
+
+## 2026-10-21 13:23 UTC — Recursive Pi/Box recovery and checking together
+
+Previous goal turn classification: progress. Current-state inspection confirms
+174a9614 committed the full typed Box guard lemma and inhabited no-join example,
+with a clean worktree. That result left changing whole Box binders outside the
+recovery/context theorem. This turn closes that specific gap.
+
+ProofErasureBoxTypeChange defines the recursive Pi/Box relation, embeds the old
+NeutralTypeChange fragment, and proves protected-depth weakening,
+instantiation, Pi exposure and structural-subsingleton preservation. Rigid
+spines either remain exact or are the selected Box with a recursively related
+parameter. All selected projection recipes stay related. Actual erased Box
+inversion obtains a parameter typed at Type using the native family signature.
+Typed rigid-family injectivity recovers equality of the parameters, allowing
+source computation to be simulated through arbitrarily nested Box and Pi
+nodes. Neither a shared computational reduct nor carrier completeness is used.
+
+ProofErasureRecursiveBoxRecovery transports arbitrary typed recovery through
+actually convertible contexts with related oracles. Projection recovery now
+returns related field types, rather than requiring identical record parameters.
+The convert case replays both recovery certificates, uses actual typing
+uniqueness, and invokes the recursive computation simulation. No equality is
+strengthened out of a context.
+
+ProofErasureJointRecursiveBox extends the simultaneous checking/carrier proof
+to every joint constructor. Application checking adapts its guard to the newly
+recovered Pi domain. Function guards change both the binder context and the
+codomain relation. Nested record guards reify the selected field type at each
+carrier, derive their equality by uniqueness for the same actual projection,
+and use the recipe relation in the smaller carrier subderivation. This covers
+arbitrary alternation of Pi and the chosen Box, including carrier computations
+and projection recovery between those nodes. Generic interfaces are explicit;
+certified context and carrier corollaries discharge them from canonical Eq,
+sound unfolding and exclusion of explicit unfolding at the registered family.
+
+ProofErasureRecursiveBoxContextExample consumes the new theorem on the
+inhabited no-join Box types from 174a9614. They are outside the old recursive
+Pi/neutral relation, yet every certified typed carrier guard is equivalent and
+every certified typed body comparison transports under the changed whole Box
+binder. The Box registration and signature remain explicit hypotheses.
+
+Judgment: this closes the recovery/checking cycle for the expanded structural
+fragment, rather than merely adding another standalone carrier case. It does
+not handle changing arbitrary registered record parameters or dependent field
+recipes. Hidden computational type shapes and coverage of general strong
+derivations remain unresolved. There is no proved strictly smaller sufficient
+irreducible PropositionFront obligation.
+
+Validation: four new theory modules, 945 lines, 20 explicit public roots.
+The final example and dependencies build (630 jobs) without new-module
+warnings: /tmp/box-context-example-build.log. Independent opaque DFS covers
+20 roots and 11,105 dependencies, excluding JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport, .weakN_iff, .weakN_inv and
+sorryAx. Cumulative opaque DFS covers 900 roots and 15,906 dependencies,
+excluding strengthening inverses and sorryAx. Exact-name axiom parsing
+accounts for every public root once, permitting only propext,
+Classical.choice and Quot.sound. Sources/logs:
+/tmp/box-context-{audit,independent-audit}.{lean,log}; inventories:
+/tmp/box-context-{audit,independent-audit}-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+No canonical-Eq strengthening proof, canonical-Eq counterexample or genuinely
+strictly smaller sufficient irreducible obligation has been established.
+Keep the full goal active. Only theory modules and actual EOF ledger additions
+changed; no executable changes, extraction, PRs, subagents or coordination.

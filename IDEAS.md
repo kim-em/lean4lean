@@ -3291,3 +3291,47 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   arbitrary record-template theorem, and no general coverage of strong
   derivations. This does not establish a strictly smaller sufficient front.
   The original strengthening goal remains open.
+
+
+### 2026-10-21 13:23 UTC — Close recursive Box recovery and context conversion
+
+- **Extend the recursive type relation through Box, instead of stopping at
+  a standalone carrier lemma. Verdict: proved, including arbitrary Pi/Box
+  nesting.** BoxTypeChange embeds NeutralTypeChange and adds recursive closure
+  under the selected registered Box. It preserves protected-depth weakening,
+  instantiation, Pi exposure and structural subsingletons. Literal erased Box
+  exposure recovers an actual parameter at Type from the family signature;
+  rigid-family injectivity gives equality of actual parameters. Those facts
+  let the relation simulate all source carrier computations recursively.
+
+- **Can projection recovery survive a changed record parameter? Verdict:
+  proved for the registered Box, without exact recovery output.** A related
+  recovered rigid spine either retains its parameters or is the selected Box
+  with a recursively changed parameter. Its closed projection recipes remain
+  related. The sole Box field recipe is the parameter itself. Typed recovery
+  therefore produces a related output after projection, and the convert case
+  uses actual recovery replay and uniqueness to justify computation simulation.
+
+- **Does recovery transport close the checking interaction? Verdict: proved
+  simultaneously for every joint constructor.** Changed recovered application
+  domains are handled by the smaller carrier derivation. Changed function
+  domains extend the convertible contexts and related context oracles. Nested
+  record fields are reified at both carriers; uniqueness of the same actual
+  projection supplies their type equality, and the recipe relation supplies
+  the recursive carrier premise. Source endpoint typings suffice. Certified
+  specializations discharge primitive descent/head/substitution and family
+  inertness and remain in the same certified relation.
+
+- **Does the extension move an actual whole Box binder? Verdict: checked on
+  the previous inhabited no-join example.** The Box types with eta-different
+  function parameters are outside NeutralTypeChange, but BoxTypeChange relates
+  them. All certified typed body comparisons survive the binder change, as do
+  all certified carrier guards. The example uses the new general theorem,
+  not an assumed context-conversion law.
+
+  Judgment: the whole-Box recovery/context gap recorded at 174a9614 is closed
+  for this structural fragment, even with arbitrary alternation of Pi and Box
+  nodes. Only one explicitly registered monomorphic Box is allowed to change;
+  other record parameters remain exact. Arbitrary dependent field recipes,
+  non-displayed type shapes and coverage of strong derivations are unresolved.
+  No goal outcome or strictly smaller sufficient front has been established.
