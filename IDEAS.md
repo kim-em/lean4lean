@@ -4991,3 +4991,30 @@ This removes a concrete eta detour from the probe route, rather than assuming
 all eta can be postponed. It does not cover eta at earlier prefixes, new eta
 steps inside the subsequent full reduction, structure eta, or the unrecoverable
 retained-argument case. General semantic coverage and strengthening remain open.
+
+
+## 2026-10-21 20:33 UTC — Retain pending arguments and remove finite recoverable spine-eta interleavings
+
+Verdict: proved. First-head-beta decomposition now applies to an entire lambda
+application spine. Its witness retains the exact contractum, the computations
+of every pending argument, and the complete remaining path. The typed eta
+instantiation reaches that exact contractum from the short application; applying
+the retained argument paths then composes the original tail. Only the consumed
+argument needs recovery at the original domain, not any pending argument.
+
+A literal-universe consumed argument supplies recovery directly. Consequently,
+eta at the bare Eq recursor before its Prop carrier preserves the probe's exact
+index-certificate criterion, including below arbitrary binder insertion with
+an equality major available only upstairs. This extends the final-proof-prefix
+case to an actual earlier prefix without assuming recovery of the pending
+proposition indices or motive.
+
+The local theorem also composes: the new explicitly bounded JointSpineEtaCompute
+fragment allows any finite interleaving of full joint computation and typed
+recoverable spine-eta steps. A continuation induction removes all such eta
+steps before a literal universe, preserving that exact universe. Eq probes in
+this fragment still expose their original universe iff the lower indices have
+a joint comparison certificate. This is not FullReduction coverage: eta inside
+arbitrary arguments, structure eta, and prefixes consuming unrecoverable retained
+arguments remain outside the proved fragment. The proposition-index argument
+case is not solved by the initial universe-argument example.

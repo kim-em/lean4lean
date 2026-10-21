@@ -15283,3 +15283,57 @@ Completion audit: UniqueTyping.lean:94 retains the original sorry. No canonical-
 counterexample or strictly smaller sufficient irreducible obligation has been
 established. GOAL.md remains active. Only these Theory modules and actual-EOF
 ledger entries changed; no executable changes, PR extraction, PRs or coordination.
+
+
+## 2026-10-21 20:33 UTC — First-beta decomposition along spines and finite eta elimination
+
+Added four Theory modules (395 lines). Nine public theorems plus one inductive
+relation and its three constructors give 13 new audited public roots.
+
+ProofErasureScopedSpineFirstBeta.lean generalizes first-head-beta decomposition
+to a lambda followed by any list of arguments. The exact tail preserves all
+pending applications, including independently computed suffix arguments. The
+raw decomposition uses only the primitive-head restriction, with no typing,
+substitution closure, confluence or normalization premise.
+
+ProofErasureJointEtaSpine.lean removes a selected function eta from a nonempty
+spine while preserving literal-universe exposure. It consumes the original
+first argument's recovery certificate and requires no recovery or typing of
+the raw pending suffix. A literal-universe first argument meets the recovery
+premise by the sort rule. ProofErasureEqInitialEta.lean applies this concretely
+to eta expansion of the bare Eq recursor before its Prop carrier, retaining
+all five later arguments. Same-context and arbitrary-insertion equivalences
+recover exactly the original proposition-index certificate; the major may
+exist only in the upper context.
+
+ProofErasureJointSpineEtaComputation.lean proves the finite composition result.
+The explicitly defined fragment interleaves ordinary full-joint computation
+with typed function eta at recoverable nonempty application prefixes. A
+continuation induction removes any finite number of these steps before a
+literal universe. No normalization bound or comparison transitivity is used.
+The Eq-probe equivalence then extends to this whole fragment, with the same
+lower index certificate and no lower equality proof requirement.
+
+This fragment is not asserted to cover FullReduction. Eta inside arbitrary
+arguments, structure eta, and eta prefixes consuming unrecoverable arguments
+remain outside it. In particular generic recovery of proposition indices is
+still unavailable; the previously checked inhabited-proposition-recovery
+barrier remains relevant. No strictly smaller sufficient front is claimed.
+
+Validation: consuming build succeeds in 666 jobs
+(/tmp/spine-eta-composition-build.log), with no warnings in the new modules.
+Pre-existing dependency warnings remain. Cumulative opaque DFS: 1,301 public
+roots / 16,565 dependencies. Independent: 13 public roots / 11,399 dependencies,
+including the new relation and all three constructors. Both exclude weakN_iff,
+weakN_inv and sorryAx. Independent also excludes JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport and JointPropBetaStability.
+Exact printed-root inventories pass; axioms are restricted to propext,
+Classical.choice and Quot.sound. Both audit outputs are warning-free. Artifacts:
+/tmp/spine-eta-composition-{audit,independent-audit}.lean and .log, with
+-roots.txt inventories. Preliminary six-root audits are in /tmp/eta-spine-*.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry. No
+canonical-Eq counterexample or strictly smaller sufficient irreducible front
+has been established. GOAL.md stays active. Only the four new Theory modules
+and actual-EOF ledger entries changed; no executable changes, PRs, extraction,
+or coordination.
