@@ -2043,3 +2043,41 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   the changing-binder lambda assembly case. It does not settle primitive
   overlaps, stability of guards under full computation, or a well-founded
   construction of joins for all terms.
+
+- **Transport an arbitrary joint singleton guard after argument beta.**
+  **Conditional theorem checked** in `ProofErasureJointPropContext` and
+  `ProofErasureJointSingletonBeta`. One-sided proposition beta stability gives
+  independent endpoint residuals by beta replay. Its substitution consequence
+  also transports proposition comparisons along arbitrary converted contexts.
+  Supplied-argument beta computes the two actual family templates under the
+  old residual telescope; the two results then move to the new telescope.
+  Thus the new family guard follows from the same proposition beta-stability
+  premise, without an additional guard-completeness or recovery assumption.
+
+- **Close actual singleton/beta root peaks, not just their operational images.**
+  **Conditional exact residual checked** in
+  `ProofErasureJointSingletonBetaResidual`. Replay raw argument beta, regenerate
+  the same prefix code, transport its guard, and use beta congruence of the
+  entire generated program. The reduced raw source has an actual general
+  joint singleton primitive to a beta reduct of the old output. Constant-spine
+  inversion covers every finite beta path from the source. Specialized Eq
+  steps use their general singleton presentation, with registry agreement.
+
+- **Cover all ordinary primitive/beta roots syntactically.** **Unconditional
+  raw theorem checked** in `ProofErasurePrimitiveBetaResidual`. Beta preserves
+  each visible pattern match and reduces its captures pointwise. Declaration,
+  projection, selection, capture application, and fixed-template primitives
+  consequently all retain one primitive residual and beta-related outputs.
+  No source typing, declaration soundness, confluence, or concrete-pattern
+  completeness is required for this raw result.
+
+- **Combine all primitive branches into one beta residual interface.**
+  **Conditional theorem checked** in `ProofErasureJointPrimitiveBetaResidual`.
+  Every joint-union primitive at a typed source, competing with any finite beta
+  path, has one primitive residual whose output is a beta reduct of the old
+  output. Canonical Eq, sound declarations, Eq registry agreement and full-union
+  proposition beta stability suffice. This is not arbitrary compatible-path
+  commutation or global confluence. A root-beta contraction may duplicate
+  pending argument computation, so simply iterating root diagrams is not a
+  justified proof of the path theorem. Parallel reduction/developments remains
+  the live route to that lifting; proposition beta stability remains unproved.

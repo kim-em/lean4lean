@@ -9978,3 +9978,82 @@ Completion audit: UniqueTyping.lean:94 still contains the original sorry; no
 canonical-Eq counterexample or strictly smaller sufficient front is proved.
 The goal remains active. These are checked conditional results on the existing
 research branch, with no executable changes, extraction or PRs.
+
+## 2026-10-21 — Exact beta residuals for every joint primitive
+
+Previous-turn classification: progress. Commits 231ade51 and b05c053f checked
+full substitution, context transport, and lambda component-join assembly under
+proposition beta stability. This continuation revalidated their clean worktree
+state and examined the actual singleton/core residual theorem. Its output-side
+path was already available, but a new family guard was still an explicit
+premise. The new work discharges that premise for beta argument computation.
+
+ProofErasureJointPropContext first derives two consequences of the existing
+JointPropBetaStability premise. Independent beta paths of both proposition
+endpoints preserve comparison; replay gives the intermediate typing needed for
+the second application. Proposition comparisons also move along arbitrary
+original context conversion with unchanged raw endpoints. This uses typed
+identity substitution and the earlier dependent recovering cover, not recovery
+of the identity substitution itself. It does not transport arbitrary comparison
+modes or selected type-recovery outputs.
+
+ProofErasureJointSingletonBeta computes the actual reconstructed/requested
+family propositions when all supplied arguments beta reduce. The proof uses
+the generic family templates and ordinary beta congruence. Source subject
+reduction aligns the generated function types; wrapForalls_context aligns the
+entire residual telescope. Both family endpoints remain typed propositions in
+the old opened context. Two-sided beta stability preserves their comparison,
+and proposition context transport moves that certificate to the new opened
+context. No additional guard-transport hypothesis is introduced.
+
+ProofErasureJointSingletonBetaResidual turns this into a raw primitive square.
+It replays raw argument beta, realizes and regenerates the prefix program,
+certifies the new guard, and uses full generated-program beta congruence for
+the output side, including dependent lambda annotations. The right residual is
+an actual JointSingletonPrimitive, not merely an operational prefix path or a
+declarative equation. Constant-spine inversion handles arbitrary finite beta
+paths from the primitive's source. Specialized Eq primitives enter through the
+previous exact general-singleton presentation; their residual may use the
+general branch. Both raw endpoints of the initial primitive are retained.
+
+ProofErasurePrimitiveBetaResidual separately handles ordinary primitives without
+any stability premise. A raw induction proves preservation of visible pattern
+matches under beta, with pointwise beta paths on captures. Projection selects
+the same field after constructor arguments beta reduce; fixed templates apply
+the same template to the new captures. Declaration, projection, selection,
+capture-application and fixed-template branches all retain one primitive
+residual with beta-related outputs. This result needs no source typing,
+declaration soundness, confluence or concrete-pattern completeness.
+
+ProofErasureJointPrimitiveBetaResidual combines those results. Assuming
+canonical Eq, declaration soundness, Eq registry agreement and proposition
+beta stability of the full union, any one joint primitive at a typed source
+commutes with any finite raw beta path from that source. The old primitive
+output beta reduces to a shared term; the beta-reduced source has one actual
+joint-union primitive to that term. There is no separate root-overlap or guard
+stability assumption left in this theorem.
+
+Scope and next step: this closes the primitive/beta root diagrams. It does not
+prove proposition beta stability or commutation of arbitrary compatible joint
+paths with beta. The application case of a path lifting must account for root
+beta duplicating pending computations in its argument; an unchecked iteration
+of these primitive squares is insufficient. A parallel-reduction/developments
+construction can now use the exact primitive residual law alongside the
+previous substitution/head-beta and context-transport results. General
+primitive/primitive guard residuals and the route to the proposition front
+remain open as well.
+
+Validation: the final combined target builds successfully (554 jobs), log
+/tmp/joint-primitive-beta-residual-build.log. The ordinary primitive module
+also builds independently (324 jobs). The cumulative opaque audit passes for
+529 public declarations and 15,234 dependencies. The independent audit checks
+all nine new public declarations and 11,282 dependencies, additionally excluding
+JointCarrierDomainResynthesis. Both reject weakN_iff, weakN_inv and sorryAx.
+All requested axiom reports were parsed and accounted for, allowing only
+propext, Classical.choice and Quot.sound. Sources/logs:
+/tmp/joint-primitive-beta-residual-{audit,independent-audit}.{lean,log}.
+
+Completion audit: the original sorry is still present at UniqueTyping.lean:94.
+No canonical-Eq strengthening counterexample or strictly smaller sufficient
+front has been proved. Goal remains active. No executable changes, extraction,
+PRs, agents or coordination.
