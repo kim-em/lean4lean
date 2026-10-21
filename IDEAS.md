@@ -3929,3 +3929,33 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   future field-carrier certificate from an already supplied future Box guard,
   so non-subsingleton field conversion can be used without reconstructing the
   source guard from common field comparisons.
+
+
+## 2026-10-21 15:53 UTC — Recover full future field guards from typed Box guards
+
+- **Invert an arbitrary supplied Box carrier certificate. Verdict: proved.**
+  proofErase_box_field_guard handles every constructor of the joint checking
+  grammar. Common checking projects using actual typings; endpoint computation
+  replays both majors; carrier computation exposes and replays the single
+  parameter. The nonempty registration excludes structural-subsingleton
+  checking. Both record introduction forms select the retained field, and the
+  exact constructor recipe identifies its carrier with the parameter.
+
+- **Keep all future information during this readout. Verdict: proved.**
+  proofErase_future_box_field_guard replays independent parameter and major
+  beta paths, converts the residual majors and their projections using those
+  actual equalities, and applies ordinary readout. Interpreted substitution
+  realizes the new context and preserves all supplied typings. Combined with
+  the existing Box constructor, proofErase_future_box_iff is an equivalence.
+  The concrete union wrapper derives projection typings from registration and
+  discharges primitive descent using canonical Eq and sound declarations.
+
+  Judgment: nonempty Box checking now exposes its recursive field certificate
+  without requiring common comparison of the values. This is an exact
+  decomposition at a fixed parameter, not general carrier conversion and not
+  a strictly smaller sufficient strengthening obligation. All GOAL.md success
+  conditions remain open. The next dependency to examine is the two-field
+  dependent record: symmetry swaps the major supplying the value-field type,
+  unlike Box symmetry, which keeps the parameter. A readout there must account
+  for transport between the two first projections; simply copying this Box
+  induction would leave that conversion step unproved.

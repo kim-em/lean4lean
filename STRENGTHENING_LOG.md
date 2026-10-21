@@ -13676,3 +13676,62 @@ canonical-Eq strengthening proof, canonical-Eq counterexample or genuinely
 strictly smaller sufficient irreducible obligation has been established.
 Leave GOAL.md active. Only theory modules and actual EOF ledger additions
 change; no executable changes, PR extraction, PRs, subagents or coordination.
+
+
+## 2026-10-21 15:53 UTC — Exact future Box field readout
+
+The previous research turn made progress (4ff32106); the intervening discussion
+clarified that postponing PR extraction does not stop research. This turn
+revalidated HEAD, GOAL.md and the two untracked proof modules, then completed
+the projection-typing wrapper and checked the complete Box readout.
+
+ProofErasureBoxFieldReadout proves box_projection_typed from the displayed
+one-field registration. Typed structure expansion supplies projection
+well-formedness and the constructor's universe argument count; the recovered
+family field type simplifies to the Box parameter. The ordinary readout
+inducts over every joint checking constructor, not just carrierNested.
+Common checking uses the general typed projection theorem. Symmetry swaps
+actual major and projection typings at the same parameter. Endpoint
+computation replays actual major equalities and projects them. Carrier
+computation exposes the inert family spine, replays its single argument and
+converts the actual major and field typings to the residual parameter. A
+one-field record cannot use structural-subsingleton checking. Actual positive
+field typing excludes erased proof fields in record introductions; the exact
+constructor recipe returns the parameter for recursive field checking.
+
+ProofErasureFutureBoxReadout retains the entire future certificate. Independent
+beta paths of the parameter and both projected majors are replayed as actual
+typed paths. The original whole guard is evaluated at the corresponding Box
+carrier and major residuals, and ordinary readout recovers the field guard.
+For interpreted substitution, its actual context realization supplies all
+substituted typings, and the substituted whole certificate repeats that same
+argument. Existing future Box construction provides the reverse implication.
+The union iff uses canonical Eq, sound declarations and exclusion of the Box
+family from unfolding, and derives both projection typings automatically.
+
+Judgment: this removes reconstruction of a source Box guard from common field
+comparisons. It supplies the actual recursive field certificate needed for
+further conversion work, but does not transport that certificate to an
+arbitrary equal parameter. Inspection of the existing dependent-pair rule and
+future symmetry identifies the next issue: its field carrier depends on the
+left major's first projection, so reversing the majors changes the intended
+readout carrier. No dependent-record inversion or conversion is claimed here.
+
+Validation: two new modules, 292 lines, five public theorems. The dependent
+build completes successfully in 618 jobs; the new modules emit no warnings
+(existing dependency warnings are replayed). Log:
+/tmp/future-box-readout-build.log. Independent opaque DFS audits five roots and
+10,883 dependencies, excluding JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport, .weakN_iff, .weakN_inv and
+sorryAx. Cumulative opaque DFS audits 1,021 roots and 16,118 dependencies,
+excluding strengthening inverses and sorryAx. Exact-name axiom parsing covers
+each root once and permits only propext, Classical.choice and Quot.sound.
+Both audit processes terminate successfully. Sources, logs and root lists:
+/tmp/future-box-readout-{audit,independent-audit}.{lean,log} and corresponding
+-roots.txt files.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+No canonical-Eq strengthening proof, canonical-Eq counterexample or genuinely
+strictly smaller sufficient irreducible obligation has been established.
+GOAL.md remains active. Only theory modules and EOF ledger additions change;
+no executable changes, PR extraction, PRs, subagents or coordination.
