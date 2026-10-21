@@ -9887,3 +9887,50 @@ sufficient front for strengthening has been established. The original sorry
 remains; no canonical-Eq strengthening counterexample or completion claim.
 No executable changes, extraction, PRs, agents or coordination. Goal remains
 active.
+
+## 2026-10-21 — Canonical Eq generalization closes the substitution branches
+
+Continuation audit: the preceding conversational acknowledgment did not change
+research state. This continuation revalidated the three pending modules against
+commit 3b955046 and rebuilt their combined target successfully. The user's
+instruction not to extract work or create PRs remains in effect.
+
+CanonicalEqFamilyGuard identifies the actual generated family propositions,
+using registered Eq.rec metadata and the canonical iota equation. It proves
+that the extraction family is Eq with the original universe, its constructor
+index is the second parameter, and empty reconstruction fields leave Eq A a a.
+The five-argument prefix guard is exactly the comparison with Eq A a b under
+the fresh proof major. These are syntax identities for any comparison relation.
+
+ProofErasureJointEqGeneral weakens the existing carrier-to-Eq comparison under
+that proof major, supplies the actual generated singleton code and checks,
+and identifies its raw output. Every specialized carrier-guarded Eq primitive
+at a typed source is a general singleton primitive with the same raw source
+and output. This uses canonical Eq, sound declarations, and agreement between
+Params' Eq.rec registration and the environment registry. It does not assume
+proposition beta stability or decode arbitrary proposition comparisons.
+
+ProofErasureJointBetaSubstitution uses this presentation to discharge the last
+branch of typed primitive substitution. Assuming JointPropBetaStability for
+the full union, arbitrary typed simultaneous substitution preserves all joint
+computation with its exact substituted output. Lambda inversion returns the
+body path to the original binder; directed substitution and argument-image
+computation then close the head-beta exchange, even if the lambda annotation
+and argument both compute. Neither the original argument nor its computed
+image needs assigned-type recovery. No raw confluence premise is used.
+
+Validation: the combined target builds (552 jobs), rechecked in
+/tmp/joint-beta-substitution-recheck.log. The cumulative opaque dependency
+audit checks 517 public roots and 15,210 dependencies. The independent audit
+checks all nine new roots and 11,198 dependencies, additionally excluding
+JointCarrierDomainResynthesis. Both reject strengthening inverses and sorryAx;
+all requested axiom reports were accounted for and use only propext,
+Classical.choice and Quot.sound. Audit sources/logs are
+/tmp/joint-beta-substitution-{audit,independent-audit}.{lean,log}.
+
+Judgment: all primitive substitution branches and the head-beta residual are
+now conditional on one proposition-only stability law. That law is still
+unproved, and its sufficiency for the original proposition front is not
+established. The original UniqueTyping.lean:94 sorry remains. No counterexample
+under canonical Eq or strictly smaller sufficient front is claimed. No
+executable changes, extraction, PRs, agents or coordination.

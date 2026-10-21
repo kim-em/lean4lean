@@ -2002,3 +2002,24 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   target is identifying their encoded Eq proposition comparison with the
   actual generated family guard, avoiding a general carrier decoder. The
   proposition beta-stability premise itself remains open for the full union.
+
+- **Identify the carrier encoding with the actual canonical Eq family guard.**
+  **Checked without beta stability** in `CanonicalEqFamilyGuard` and
+  `ProofErasureJointEqGeneral`. Registered metadata fixes the extraction family
+  to Eq at its original universe and its sole constructor index to the second
+  parameter. The reconstructed family is literally Eq A a a; the requested
+  family is Eq A a b, both opened under the fresh proof major. The earlier
+  carrier encoding supplies exactly this guard. Every specialized Eq primitive
+  at a typed source is consequently an actual general singleton primitive with
+  identical raw endpoints. This uses Eq registry agreement, not a decoder for
+  arbitrary proposition comparisons or assigned-type recovery.
+
+- **Complete directed joint substitution and the head-beta exchange using
+  proposition beta stability.** **Conditional theorems checked** in
+  `ProofErasureJointBetaSubstitution`. Replacing specialized Eq steps by their
+  general singleton presentation closes the last primitive branch. Existing
+  compatible typed substitution then handles the entire union. Lambda inversion
+  and image computation give the exact head-beta residual even when both the
+  annotation and argument compute, with no argument-recovery premise. The
+  proposition beta-stability hypothesis remains unproved. This is not yet
+  global joint confluence, completeness, or a smaller sufficient front.
