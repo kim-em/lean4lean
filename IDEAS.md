@@ -3639,3 +3639,36 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   certificates. Free carrierChecked embedding of constructor comparisons is
   exactly what admits the hard probe here. This direction remains unproved;
   no strictly smaller sufficient obligation or other GOAL.md outcome is claimed.
+
+### Explicit type computation in future carrier certificates (2026-10-21 14:40 UTC)
+
+- **Carry a certified type computation into every future check. Verdict:
+  proved in the pullback direction.** BetaStableCarrier.certified_carrier_prefix
+  transports a future certificate at a computation's output to its actually
+  typed input carrier. Commutation with arbitrary carrier beta paths and
+  interpreted substitutions retains the entire certificate, including endpoint
+  futures. BetaStableCarrier.certified_prefixes separately handles certified
+  computation of both endpoints at independently supplied actual types. Neither
+  theorem assumes arbitrary typed composition or general type conversion.
+
+- **Use explicit proposition-conversion evidence to repair the unit/probe
+  composition. Verdict: constructed, including non-joining indices.**
+  eqTypeProbe_future_carrier_of_family uses the index future certificate to
+  compute the carrier, then pulls back the full future certificate at the
+  minor. The subsingleton specialization handles every pair of endpoints.
+  future_unit_probe_composition_nonjoining_indices supplies actual common
+  typings, two primitive-free future links through the unit constructor, an
+  absent stage-zero composite, and a full future composite in the union.
+  Its indices are the eta-related propositions Eq f f and Eq f (fun x => f x),
+  whose erasures have no union computational join. Thus the explicit conversion
+  evidence is sufficient in a case beyond a joined-index criterion.
+
+  Judgment: this discharges a concrete instance of the last turn's composition
+  barrier by retaining the missing conversion evidence. It does not derive
+  that evidence from arbitrary declarative conversion, transport certificates
+  forward through arbitrary primitive computation, or establish general
+  composition. The next substantive test is whether future comparison of two
+  actual carrier types suffices for carrier transport, and which branches of
+  that transport can be derived from comparison syntax. Simply wrapping the
+  existing structural/beta paths was rejected as duplicate work. No GOAL.md
+  outcome is established.

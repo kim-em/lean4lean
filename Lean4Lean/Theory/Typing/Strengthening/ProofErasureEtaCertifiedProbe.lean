@@ -83,6 +83,43 @@ private theorem normal_forms (heq : env.HasCanonicalEq)
       (by intro a ha; simp only [List.mem_cons, List.not_mem_nil, or_false] at ha
           rcases ha with rfl | rfl | rfl <;> first | exact hfun | exact hv 0 | exact hη)
 
+/-- Typed proposition indices with a future eta certificate and no full-union
+computational join. Their exact context is exposed for carrier/conversion tests. -/
+theorem no_join_indices
+    (heq : env.HasCanonicalEq)
+    (hEq : ∀ levels rhs, ¬ D.unfolds ``Eq levels rhs)
+    (hΓ : OnCtx Γ (env.IsType univs)) :
+    ∃ P Q q,
+      env.HasType univs (functionType :: Γ) P (.sort .zero) ∧
+      env.HasType univs (functionType :: Γ) Q (.sort .zero) ∧
+      env.HasType univs (functionType :: Γ) q (eqApp (.succ .zero) (.sort .zero) P Q) ∧
+      BetaStableFamily (fun Δ => JointCompare (ErasedJointUnion D) Δ true)
+        (proofEraseCtx (functionType :: Γ)) (proofErase (functionType :: Γ) P) (proofErase (functionType :: Γ) Q) ∧
+      ¬ ∃ shared,
+        ScopedCompute (ErasedJointUnion D) (proofEraseCtx (functionType :: Γ)) (proofErase (functionType :: Γ) P) shared ∧
+        ScopedCompute (ErasedJointUnion D) (proofEraseCtx (functionType :: Γ)) (proofErase (functionType :: Γ) Q) shared := by
+  have hC : OnCtx (functionType :: Γ) (env.IsType univs) := ⟨hΓ, _, function_type⟩
+  have hf : env.HasType univs (functionType :: Γ) (.bvar 0) functionType := .bvar .zero
+  have HE := IsDefEq.eta hf
+  have Hη := (proofErase_function_eta_family (Step := ErasedJointUnion D) hC hf).joint_symm
+  have HPQ := proofErase_stable_eq_family heq (by trivial) hC function_type hf HE.hasType.1 Hη
+  have hP := HasType.eqApp heq (by trivial) function_type hf hf
+  have hQ := HasType.eqApp heq (by trivial) function_type hf HE.hasType.1
+  have Hactual := IsDefEq.eqApp_r heq (by trivial) function_type hf HE.symm
+  have hS : env.HasType univs (functionType :: Γ) (.sort .zero) (.sort (.succ .zero)) := .sort (by trivial)
+  have hq := (IsDefEq.eqApp_r heq (by trivial) hS hP Hactual).defeq
+    (HasType.eqReflApp heq (by trivial) hS hP)
+  refine ⟨_, _, _, hP, hQ, hq, HPQ, ?_⟩
+  rintro ⟨shared, RP, RQ⟩
+  obtain ⟨Eα, Ef, Eη⟩ := erasures hΓ
+  rw [proofErase_eqProofType heq (by trivial) hC function_type hf hf, Eα, Ef] at RP
+  change proofErase (functionType :: Γ)
+    (.lam (.sort .zero) (.app (VExpr.bvar 0).lift (.bvar 0))) = etaRaw at Eη
+  rw [proofErase_eqProofType heq (by trivial) hC function_type hf HE.hasType.1, Eα, Ef, Eη] at RQ
+  have EP := scoped_normal_fixed RP (fun Δ => (normal_forms heq hEq Δ).1)
+  have EQ := scoped_normal_fixed RQ (fun Δ => (normal_forms heq hEq Δ).2)
+  cases EP.symm.trans EQ
+
 /-- A type probe computes with a certified eta-family guard even though its
 well-typed proposition indices have no join in the full joint union. The
 context adds only a function variable; no extra environment declaration is needed. -/
@@ -100,28 +137,11 @@ theorem no_join_probe_computes
         ScopedCompute (ErasedJointUnion D) (proofEraseCtx Γ') (proofErase Γ' Q) shared) ∧
       ScopedCompute (ErasedBetaStableJoint D) (proofEraseCtx Γ')
         (proofErase Γ' (eqTypeProbe (.succ .zero) (.sort .zero) P Q q)) (proofErase Γ' (.sort .zero)) := by
+  obtain ⟨P, Q, q, hP, hQ, hq, HF, Hno⟩ := no_join_indices heq hEq hΓ
   have hC : OnCtx (functionType :: Γ) (env.IsType univs) := ⟨hΓ, _, function_type⟩
-  have hf : env.HasType univs (functionType :: Γ) (.bvar 0) functionType := .bvar .zero
-  have HE := IsDefEq.eta hf
-  have Hη := (proofErase_function_eta_family (Step := ErasedJointUnion D) hC hf).joint_symm
-  have HPQ := proofErase_stable_eq_family heq (by trivial) hC function_type hf HE.hasType.1 Hη
-  have hP := HasType.eqApp heq (by trivial) function_type hf hf
-  have hQ := HasType.eqApp heq (by trivial) function_type hf HE.hasType.1
-  have Hactual := IsDefEq.eqApp_r heq (by trivial) function_type hf HE.symm
   have hS : env.HasType univs (functionType :: Γ) (.sort .zero) (.sort (.succ .zero)) := .sort (by trivial)
-  have hq := (IsDefEq.eqApp_r heq (by trivial) hS hP Hactual).defeq
-    (HasType.eqReflApp heq (by trivial) hS hP)
-  refine ⟨_, _, _, _, hC, hP, hQ, hq, HPQ, ?_,
-    eqTypeProbe_compute_certified_of_family heq hs hregistry hC hS hP hQ hq HPQ⟩
-  rintro ⟨shared, RP, RQ⟩
-  obtain ⟨Eα, Ef, Eη⟩ := erasures hΓ
-  rw [proofErase_eqProofType heq (by trivial) hC function_type hf hf, Eα, Ef] at RP
-  change proofErase (functionType :: Γ)
-    (.lam (.sort .zero) (.app (VExpr.bvar 0).lift (.bvar 0))) = etaRaw at Eη
-  rw [proofErase_eqProofType heq (by trivial) hC function_type hf HE.hasType.1, Eα, Ef, Eη] at RQ
-  have EP := scoped_normal_fixed RP (fun Δ => (normal_forms heq hEq Δ).1)
-  have EQ := scoped_normal_fixed RQ (fun Δ => (normal_forms heq hEq Δ).2)
-  cases EP.symm.trans EQ
+  exact ⟨_, P, Q, q, hC, hP, hQ, hq, HF, Hno,
+    eqTypeProbe_compute_certified_of_family heq hs hregistry hC hS hP hQ hq HF⟩
 
 end EtaCertifiedProbe
 end Lean4Lean.VEnv.Strengthening

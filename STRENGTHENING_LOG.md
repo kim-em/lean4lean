@@ -13094,3 +13094,76 @@ No canonical-Eq proof, canonical-Eq counterexample, or genuinely strictly
 smaller sufficient irreducible obligation has been established. Keep the goal
 active. Only theory modules and actual EOF ledger additions changed; no
 executable changes, PR extraction, PRs, subagents or coordination.
+
+### 2026-10-21 14:40 UTC — Explicit type computation repairs a future composition
+
+Previous goal turn: progress (8bdbca23 constructed future carrier certificates
+and proved their unrestricted typed composition entails PropositionFront under
+the stated unit assumptions). This turn revalidated clean HEAD 8bdbca23, the
+objective, and the conversion/path/future certificate code. Existing structural
+and beta TypeChangePath transport already covers finite mixtures of those
+edges, so merely adding another path wrapper would duplicate checked work.
+
+ProofErasureFutureCarrierPrefixes supplies the missing certified-computation
+prefix operations on BetaStableCarrier. Endpoint prefixes use actual typings
+independently and commute each certified computation with its future endpoint
+beta path; the carrier path is passed to the retained certificate. Carrier
+prefixes commute certified computation of the actually typed supplied carrier
+with its future carrier beta path, then use carrierCompute at the resulting
+shared carrier. Every interpreted substitution retains the computation and
+stored certificate; actual typed substitution supplies the commutation theorem
+in the new context. Both conclusions keep the full future invariant. These
+operations are independent of JointPropBetaTransport and do not infer arbitrary
+carrier conversion from declarative equality.
+
+ProofErasureFutureProbeConversion uses a future comparison of proposition
+indices to construct certified computation of the Eq type probe and pulls back
+the full future carrier certificate at its minor. Its subsingleton specialization
+relates every endpoint pair at that probe. This retains all later carrier and
+endpoint beta paths and substitutions, unlike the earlier base-guard probe
+transport. The direction is explicitly from a certificate at the computation's
+output to one at its input; arbitrary forward primitive transport is not proved.
+
+ProofErasureFutureProbeExample gives a typed composition example using a closed
+positive unit. Add two unit variables and a function variable f : Prop → Prop.
+Use the eta-related proposition indices Eq f f and Eq f (fun x => f x), with
+their actual Eq major. Each unit variable has a primitive-free full future link
+through the actual unit constructor at the probe carrier. Stage zero has no
+composite, by distinct-variable injectivity and the Eq.rec head restriction.
+The retained proposition-conversion evidence constructs a full future composite
+in the union. The two proposition indices have no computational join even in
+that union. This repairs a concrete instance of the preceding barrier without
+assuming unrestricted composition or replacing eta evidence by a join premise.
+
+The existing EtaCertifiedProbe example was refactored to expose no_join_indices
+at its exact context, reusing its checked eta/family construction and normal-form
+separation. no_join_probe_computes retains its original public statement and is
+now a wrapper over those indices. The directly dependent application example
+was rebuilt after this change.
+
+Judgment: explicit type computation gives a constructive repair of this probe
+case and retains the invariant for later use. Arbitrary declarative conversion
+does not yet supply the needed future certificate; general composition and
+paired application at non-joining arguments remain open. The next substantive
+transport question is whether a future comparison of two actual carrier types
+can replace the stronger explicit computation premise, with the proof split
+by comparison syntax. No strict reduction of the proposition front is claimed.
+
+Validation: three new modules, 208 lines, six new public theorems including the
+factored index example; one existing public theorem changed internally. Build
+of the new example and the existing application example succeeds in 668 jobs,
+with no warnings from new/touched modules: /tmp/future-probe-build.log.
+Independent opaque DFS covers all seven new/touched roots and 11,492
+dependencies, excluding JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv and sorryAx. Cumulative opaque DFS
+covers 978 roots and 16,044 dependencies, excluding strengthening inverses and
+sorryAx. Exact-name axiom parsing accounts for every root once and permits only
+propext, Classical.choice and Quot.sound. Sources/logs:
+/tmp/future-probe-{audit,independent-audit}.{lean,log}; root inventories:
+/tmp/future-probe-{audit,independent-audit}-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry; no
+canonical-Eq proof, canonical-Eq counterexample, or genuinely strictly smaller
+sufficient irreducible obligation has been established. Keep the goal active.
+Changes are limited to theory modules and EOF ledger additions. No executable
+changes, PR extraction, PRs, subagents or coordination.
