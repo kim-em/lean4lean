@@ -2563,3 +2563,24 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   argument to general function and dependent-record guards by a mutual
   checking/context-conversion induction, using some-output head recovery at
   recovered applications rather than exact assigned-type recovery.
+
+- **Transport joint checking through ordinary context and carrier conversion,
+  using semantic head exposure; then transport through arbitrary substitution.**
+  **Proved conditionally, including dependent records.**
+  `ProofErasureJointSemanticConversion` gives the full mutual checking/carrier
+  induction. Recovered applications select a fresh Pi and convert the smaller
+  argument guard to its domain. Function guards expose a target Pi, align the
+  domains and codomains by injectivity, and move the smaller body guard through
+  the converted binder context. Dependent records reconstruct the target
+  projection telescope, transfer admissibility and proof-field classification
+  across equivalent universe arguments, and align each smaller field guard by
+  actual projection type uniqueness. `ProofErasureJointSemanticSubstitution`
+  uses this result on the recursively substituted argument guard to prove
+  arbitrary diagonal typed substitution. It needs no exact image recovery and
+  no `JointCarrierDomainResynthesis` assumption or dependency. The certified
+  primitive relation discharges descent and primitive substitution closure;
+  semantic head exposure remains open. This removes the separate domain
+  re-synthesis premise from these transport results but does not yet prove a
+  strictly smaller sufficient strengthening front. Next: use this substitution
+  law to remove exact-recovery premises from diagonal head beta, and investigate
+  head exposure and genuinely paired argument substitution.

@@ -11200,3 +11200,55 @@ Completion audit: the original sorry remains in UniqueTyping.lean. There is
 no canonical-Eq counterexample and no strictly smaller sufficient irreducible
 front from this turn. The goal remains active. Only theory and the two research
 ledgers change. No executable changes, extraction, PRs, or agent coordination.
+
+## Semantic conversion and arbitrary typed substitution (2026-10-21)
+
+The previous research turn made progress: the two new modules were written and
+compiled. After the intervening clarification, this turn rechecked the current
+files and completed their builds and dependency audits. Research continues;
+extraction and PRs remain deferred.
+
+ProofErasureJointSemanticConversion proves simultaneous transport of all 24
+JointCheck constructors through an actual IsDefEqCtx, allowing the carrier to
+change by any ordinary typed equality in the target context. Its premises are
+primitive descent, primitive closure under ContextSubstitution, and the explicit
+ScopedSemanticHeadExposure premise introduced in the preceding entry.
+
+The appCarrier case recovers some Pi in the target context, replays it, and
+uses Pi injectivity to align its domain with the original supplied domain.
+The smaller argument-guard induction then converts the guard to that selected
+domain. carrierFunction exposes a Pi from the requested new carrier, aligns
+both binders and codomains, and invokes the smaller guard in the converted
+binder context. carrierSubsingleton uses the preceding structural theorem.
+carrierNested reconstructs the newly exposed family's dependent projection
+telescope. Actual projection type uniqueness aligns old and new field types;
+each smaller field guard is then transported to the new recipe. A metadata
+helper uses typed constructor levels to transfer admissibility and proof-field
+classification even when family universe arguments change syntactically.
+
+ProofErasureJointSemanticSubstitution instantiates the shared transport
+induction with arbitrary ContextSubstitution. In the recovered-application
+callback, the supplied argument guard has already been recursively substituted.
+Some-output recovery selects a new Pi for the substituted function. Replaying
+it and applying uniqueness supplies the domain equality; semantic carrier
+conversion changes the recursively obtained guard to that new domain. This
+proves arbitrary diagonal typed substitution for both comparison modes and
+carrier checking. Exact recovery of substituted images is not required, and
+the proof does not depend on JointCarrierDomainResynthesis. Specializations
+to certified primitives discharge descent and primitive substitution closure.
+
+Validation: the two new modules and recovered head beta build successfully
+(602 jobs), /tmp/joint-semantic-transport-build.log. Independent opaque DFS
+covers all nine new public declarations and 10,960 dependencies, excluding
+JointCarrierDomainResynthesis, weakening inverses, and sorryAx. Cumulative DFS
+covers 708 roots and 15,534 dependencies, excluding
+weakening inverses and sorryAx. Exact-name axiom parsing matched all 9/708
+requested roots; only propext, Classical.choice, and Quot.sound occur. Sources
+and logs: /tmp/joint-semantic-transport-{audit,independent-audit}.{lean,log}.
+
+Completion audit: UniqueTyping.lean still contains the original weakN_iff
+sorry. Semantic head exposure has not been proved for certified checking or
+the joint union. General paired substitution and endpoint-beta stability also
+remain open. No canonical-Eq counterexample or strictly smaller sufficient
+irreducible front has been established. The goal remains active; no executable
+changes, PR extraction, or agent coordination.
