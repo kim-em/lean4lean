@@ -15704,3 +15704,50 @@ typed replacement, but comparison-certificate preservation for changes inside
 proposition indices remains open. GOAL.md stays active. Only the two Theory
 modules and actual-EOF ledgers change; no executable changes, PR extraction,
 subagents or coordination.
+
+
+## 2026-10-21 21:42 UTC — Directed index computation and a checked forward-beta boundary
+
+Added ProofErasureEqIndexComputation.lean. If both original proposition indices
+compute to changed indices, exposure of a typed retained changed probe implies
+exposure of the original probe. Both sources have the same literal universe
+minor; motives, recursor result universes and proof majors may differ. The proof
+uses the exact arbitrary-motive criterion and JointCheck.compute, without
+comparison transitivity or proposition beta stability.
+
+Extended JointProbeMotiveCompute with indices. Directed index computation can
+now interleave with arbitrary typed motive replacements, the certified direct
+spine eta cases and ordinary joint computations. Its continuation, literal
+minor observation equivalence and lower original-index criterion still hold.
+The relation's soundness here is backward preservation of this observation;
+no forward confluence or arbitrary contextual closure is asserted.
+
+Added ProofErasureEqIndexBetaBoundary.lean. EqProbeRightIndexBeta names the
+missing forward law only for beta contraction of the right index of the fixed
+Prop probe. Its equivalence with JointPropBetaStability is proved. The converse
+realizes an arbitrary raw beta output, derives semantic equality from the input
+comparison, constructs both proof majors using canonical Eq.refl and endpoint
+conversion, and reads back the output certificate. Neither side is asserted
+unconditionally. This identifies an existing obstruction behind a proposed
+stronger index-replacement rule; it is not a smaller sufficient obligation.
+
+Validation: consuming build succeeds in 677 jobs
+(/tmp/eq-index-interleaving-build.log); the boundary module also builds
+(/tmp/eq-index-beta-boundary-build.log). New and changed modules have no
+warnings. Cumulative opaque DFS covers 1,368 public roots / 16,656 dependencies,
+including both new boundary declarations. It excludes weakN_iff, weakN_inv and
+sorryAx and checks the propext/Classical.choice/Quot.sound whitelist.
+Independent audit covers all nine constructive roots of the computation and
+changed finite-path modules, including all four constructors: 11,429
+dependencies. It additionally excludes JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport and JointPropBetaStability.
+The two boundary declarations intentionally mention JointPropBetaStability and
+are covered by the cumulative audit, not misreported as independent of it.
+Exact inventories pass; audit logs contain no errors or warnings. Artifacts:
+/tmp/index-beta-boundary-{audit,independent-audit}.lean and .log, with -roots.txt inventories.
+
+Completion audit: UniqueTyping.lean:94 retains the original sorry. No canonical-Eq
+counterexample or strictly smaller sufficient irreducible obligation is proved.
+GOAL.md remains active. Only the two new Theory modules, the finite-path module
+and actual-EOF ledgers change; no executable changes, PR extraction, subagents
+or coordination.

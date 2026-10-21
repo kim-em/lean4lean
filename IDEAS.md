@@ -5268,3 +5268,39 @@ by the guard. Arbitrary contextual eta and structure eta on the indices still
 need preservation of original comparison certificates. General paired
 substitution and the original strengthening theorem remain open. No strictly
 smaller sufficient irreducible front has been established.
+
+
+## 2026-10-21 21:42 UTC — Index transport has two distinct directions
+
+Verdict: backward observation transport along directed index computation is
+proved; the stronger forward beta law is exactly the existing missing
+JointPropBetaStability obligation. A comparison of the computed indices lifts
+back to the originals by JointCheck.compute. Combined with the arbitrary-motive
+criterion, this allows both indices to compute while motives, recursor universe
+arguments and proof majors change independently, provided both complete sources
+are typed and retained. Added that step to the fixed-universe finite path
+fragment. Its continuation theorem and lower-index criterion remain valid.
+
+This does not license the converse implication. Defined EqProbeRightIndexBeta
+as the missing forward law for beta contraction of just the right index, using
+only the fixed literal minor Prop and the original constant motive. Proved it
+equivalent to JointPropBetaStability of the full union. In the hard direction,
+realize an arbitrary raw beta output as a typed proposition and construct both
+proof majors from reflection of the input comparison; the exposure law then
+returns the beta-contracted comparison certificate. No extra inhabitation or
+lower equality major premise is hiding in the equivalence.
+
+The equivalence is a checked boundary, not a proof of either law and not a
+new smaller sufficient front. Forward stability is stronger than the pullback
+needed for the new finite path rule. This finding does not refute a direct
+contextual-eta argument; it rules out silently treating index replacement as
+the already-settled motive replacement, or assuming forward exposure stability
+as routine bookkeeping. Raw untyped comparison transitivity is already refuted
+by the earlier empty-structure boundary, so it cannot fill the gap either.
+
+Next live task: preserve an eta change inside an index through the actual
+comparison/continuation derivation, or attack the existing proposition-only
+beta transport induction. Stage-zero oracle and carrier-type beta transport
+is already proved, but its statements keep compared endpoints fixed; it does
+not discharge endpoint beta stability. The paired lambda/body substitution
+case with unrecovered arguments remains the relevant unresolved case.
