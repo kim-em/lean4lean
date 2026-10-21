@@ -11558,3 +11558,74 @@ No canonical-Eq counterexample or strictly smaller sufficient irreducible front
 has been established. The active goal remains unfinished. Changes are confined
 to theory modules and these appended research ledgers; no executable changes,
 PR extraction, or coordination.
+
+
+## Typed proposition composition forces primitive-stage growth (2026-10-21)
+
+Authoritative start: 7d4320c73ceab491a8742c34bf1411e1ad7d751c, clean worktree.
+The preceding goal turn made progress: its checked unit-probe result showed
+that finite-source proposition beta transport already implies the front under
+an explicit closed-unit hypothesis. This turn re-read the strong equality
+constructors and tested the transitivity step with a fully typed intermediate.
+
+ProofErasureEqTypeProbeComputation proves two complementary facts. Any actual
+stage-n proposition endpoint certificate computes the type-valued Eq probe to
+its arbitrary minor at stage n+1. The proof constructs the generated general
+singleton prefix, applies it to the erased equality major, then uses forward
+beta erasure on the actual typed lambda application. It neither assumes a
+semantic exposure law nor upgrades ordinary endpoint conversion to a guard.
+In the other direction, stage-zero computation always retains the probe's
+Eq.rec head. The first-head decomposition covers argument computation at every
+prefix; core cannot fire at at most five arguments or at the final proof marker.
+The head exclusion only needs canonical registry agreement and Eq.rec unfolding
+exclusion, not normality of any supplied argument.
+
+ProofErasureJointTypedCompositionBoundary first combines that head invariant
+with carrier-guard exposure and bare-variable injectivity: a type probe cannot
+guard two distinct raw variables at zero. A registered positive empty structure
+supplies an actual constructor intermediate, whose typing is reconstructed
+using structure_constructor_proofFields and the empty-field certificate. The
+constructor compares to either variable through structFields. All three terms
+are assigned the same Eq probe type by ordinary conversion at reflexive indices.
+Both carrier links therefore exist at zero even though their composite does
+not. The stage-one probe computation supplies the missing composite exactly.
+A closed positive empty structure supplies a full two-variable context; the
+probe's proposition index is the closed proposition Eq Type Prop Prop and its
+major is an actual reflexivity proof.
+
+The obstruction also occurs with all three original terms typed at literal
+Prop. A neutral variable declared probe -> Prop observes the two unit variables
+and the actual unit constructor. The two adjacent comparisons use plain app
+and the constructor comparisons at zero. Native argument-carrier readout shows
+that an outer comparison at zero would give the forbidden probe carrier guard.
+The explicit stage-one guard gives the outer comparison at one. A separate
+context theorem constructs [unit, unit, observerType] from the closed unit
+hypothesis; there is no ill-typed intermediate and no hypothetical equation
+between distinct original proposition endpoints.
+
+Judgment: these are concrete conditional counterexamples to same-stage typed
+composition, with an exact repair at the immediate successor. They rule out a
+transitivity construction that preserves max(input stages), including when all
+three endpoints have literal type Prop. They do not refute union composition,
+a growing stage bound, or the original strengthening statement. In particular,
+this is not an impossibility theorem for induction on IsDefEqStrong: its typing
+subderivations contain conversion evidence missing from a bare pair of stage
+certificates. The next construction must retain and consume that evidence,
+with this witness as the first nontrivial transitivity case. No general rank
+or closure theorem has been established.
+
+Validation: both new modules and their dependencies build successfully (619
+jobs), /tmp/joint-typed-composition-build.log; neither new module emits warnings.
+Independent opaque DFS covers all seven public roots and 11,185 dependencies,
+excluding JointCarrierDomainResynthesis, .weakN_iff, .weakN_inv and sorryAx.
+Cumulative opaque DFS covers 773 roots and 15,632 dependencies, excluding both
+strengthening inverses and sorryAx. Exact-name axiom parsing covers every root
+in each inventory; only propext, Classical.choice and Quot.sound occur.
+Audit sources/logs: /tmp/joint-typed-composition-{audit,independent-audit}.{lean,log}.
+New root inventory: /tmp/joint-typed-composition-roots.txt.
+
+Completion audit: the original UniqueTyping.lean:94 sorry remains unchanged.
+No proof under canonical Eq, canonical-Eq strengthening counterexample, or
+strictly smaller sufficient irreducible front has been obtained. The goal stays
+active. Only theory and appended research ledgers changed; no executable
+changes, PR extraction, or coordination.

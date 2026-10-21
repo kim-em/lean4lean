@@ -2747,3 +2747,43 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   next test is to retain the actual type-conversion subderivation as part of
   the guard construction and inspect the application and transitivity cases,
   rather than installing global beta transport as a premise.
+
+
+## Test typed composition before choosing a strong-derivation rank (2026-10-21)
+
+- **Compose two same-stage certificates once the intermediate is typed.
+  Verdict: stage-preserving composition is false even for propositions.**
+  `joint_unit_probe_proposition_composition_context` constructs a well-formed
+  three-variable context containing a neutral observer and two unit variables.
+  Its three propositions are observer x, observer unitConstructor, observer y.
+  They all have literal type Prop; both adjacent comparisons exist at stage
+  zero, but the outer comparison does not. The observer's native domain is a
+  constant-motive Eq probe returning the unit type, with literally reflexive
+  proposition indices and an actual Eq.refl proof. Thus neither an untyped
+  middle nor an assumed endpoint equation explains the failure.
+
+  A companion witness gives the same failure for explicit carrier guards with
+  all three terms assigned that very same probe type. The constructor's typing
+  is reconstructed from the unit metadata and an existing unit variable; no
+  constructor-typing premise is smuggled into the witness. This refutes keeping
+  the maximum of the two input stages in the transitivity case. It does not
+  refute composition in the full union, any bound that increases the stage,
+  or induction on the original strong derivation and its typing subproofs.
+
+- **Account for the exact extra guard needed by this composition.
+  Verdict: stage one repairs the witness.** `eqTypeProbe_compute_stage` returns
+  an arbitrary type-valued probe's minor from an actual stage-n endpoint
+  comparison at n+1. At reflexive indices the guard is already stage-zero
+  reflexivity, so the carrier and proposition composites are constructed at
+  stage one. Conversely `eqTypeProbe_zero_head` excludes every core path that
+  changes the probe's head, including paths that first compute any arguments.
+  This gives both the lower and upper bound for this particular example.
+
+  The remaining induction must retain information from the assigned typing
+  conversions, rather than only the two input comparison stages. Strong.appDF
+  and Strong.defeqDF contain explicit conversion subderivations, but translating
+  those into the required native-carrier guards remains open. Next test a
+  simultaneous invariant that retains these subderivations when translating
+  transitivity and application; the current result supplies a minimal case
+  that any proposed stage bound must accommodate. No general decreasing rank
+  or strictly smaller sufficient front is asserted.
