@@ -1916,3 +1916,29 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   gives a join, not a directed substituted path. This does not prove confluence
   and cannot supply its substitution case circularly. Full joint confluence
   and the comparison/guard stability needed for the original goal remain open.
+
+
+- **Reuse exact operational confluence with the quotient-repaired joint core.**
+  **Checked** in `ClosedQuotPrefix` and `QuotPrefixConfluence`. Reabstracting
+  the five fresh arguments of `QuotPrefixUnfold.atFive` constructs the actual
+  zero-argument checked prefix; generator uniqueness fixes its RHS literally
+  to `ClosedQuot.value`. Weakening its empty-context checks works in every
+  context. Replacing declaration equations by prefix paths proves that the
+  repaired and original actual-prefix relations are literally equivalent,
+  without source typing. Existing typed prefix confluence therefore applies
+  to the repaired collection, without a normalization or strengthening front.
+  This is a presentation bridge, not a new proof of general raw confluence.
+
+- **Use an original beta redex as the substitution peak's common ancestor.**
+  **Operational join checked**, in `ProofErasureJointOperationalJoins`. Replay
+  the joint body path to an actual path b to b'. The original redex (lambda A
+  b) x computes both to b[x] directly and to b'[x] by computing under lambda
+  before beta. Repaired prefix confluence joins them, and typed substitution
+  proves erasure of b'[x] is exactly the raw output instantiated by erase(x).
+  No recovery premise on x, identity expansion, or assumed raw confluence is
+  used. The same module joins original representatives of any two finite-stage
+  joint paths from one typed source. **Remaining:** the residual actual prefix
+  paths have no proved joint certificates. The earlier conditional raw-join
+  theorem is not discharged. Next useful target is certificate propagation
+  through the existing exact peak constructions, using their input guards;
+  unrestricted assigned-type recovery preservation has already been refuted.

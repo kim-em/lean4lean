@@ -9683,3 +9683,69 @@ directed substitution nor comparison/guard transport follows from the result.
 The original strengthening sorry remains; no canonical-Eq strengthening
 counterexample or strictly smaller sufficient front was obtained. No
 executable changes, extraction, PRs, agents or coordination. Goal stays active.
+
+
+## 2026-10-21: Repaired operational confluence and arbitrary substitution joins
+
+The preceding user-facing turn only acknowledged the pause and made no research
+progress. On the explicit goal continuation, the clean worktree at 7e61b21d was
+revalidated. No extraction or PR work was resumed. The strengthening sorry is
+still present in UniqueTyping.lean:94.
+
+The route investigated is the gap between the actual operational relation and
+the raw guarded joint relation. Exact prefix confluence was already available
+for the stored/selected-structure collection, whereas joint computations now
+use the quotient-enriched collection. Ordinary repaired-core confluence alone
+did not cover these singleton paths.
+
+ClosedQuotPrefix proves the added equation is an actual checked zero-argument
+quotient prefix. A private telescope induction reabstracts supplied fresh
+arguments using quotPrefixUnfold_fresh_argument. Applying it to the checked
+atFive rule constructs the zero prefix, whose generation fixes the output
+literally to ClosedQuot.value. The empty-context check weakens into an arbitrary
+context, so no context-WF or source-typing hypothesis is needed in zero_prefix.
+No inverse weakening, normalization or new occurrence-check assumption is used.
+
+QuotPrefixConfluence proves a general declaration replacement lemma for actual
+prefix paths, then literal equivalence between the original and repaired
+prefix relations. The added declaration is replaced by zero_prefix; reverse
+inclusion is the existing declaration inclusion. This transfers the existing
+confluence theorem to the repaired collection, with typing only at the source.
+This is reuse of established exact confluence, not a claim that the raw joint
+rules themselves are now confluent.
+
+ProofErasureJointOperationalJoins has two applications. Two finite joint paths
+from one typed erasure replay to typed original representatives and join by
+actual prefix computation. For arbitrary typed substitution x:A, replay a body
+path b to b'. The typed original redex (lambda A b) x has one path to b[x] and
+another to b'[x], by computing the body and then beta-contracting. Actual prefix
+confluence supplies a literal common reduct, while proofErase_instN identifies
+the second endpoint with the exact raw instantiated output. This does not need
+argument recovery, an identity cover, or a raw-joint-confluence hypothesis.
+
+The limitation is essential: the residual paths are actual checked prefixes.
+They do not carry the raw joint guards needed to return their erasures to the
+joint relation. Consequently proofErase_joint_inst_join_of_confluence still
+has its original unproved raw-confluence premise. No computationally joined
+recovery is inferred. The next target is residual guard propagation through
+the exact peak constructions, retaining provenance from the input certificates;
+the previously refuted recovery-preservation invariant must not be reused.
+
+Validation: lake build of QuotPrefixConfluence passes (547 jobs); lake build of
+ProofErasureJointOperationalJoins passes (548 jobs). Logs are
+/tmp/quot-prefix-confluence-build.log and /tmp/joint-operational-joins-build.log.
+The cumulative opaque audit checks 495 public declarations and 15,165
+dependencies; the independent audit checks all six new declarations and 12,023
+dependencies, additionally excluding JointCarrierDomainResynthesis. Both
+exclude weakN_iff, weakN_inv and sorryAx, exit successfully, and account for every
+requested axiom report with only propext, Classical.choice and Quot.sound.
+Sources/logs: /tmp/joint-operational-joins-audit.* and
+/tmp/joint-operational-joins-independent-audit.*.
+
+Judgment: operational computational joins, including the unrestricted typed
+substitution peak, are now available on precisely the repaired collection used
+by joint stages. The unresolved issue is retaining or reconstructing joint
+certificates on residual paths. This remains supporting progress: no canonical-Eq
+strengthening proof or counterexample, and no proved strictly smaller sufficient
+front. No executable changes, extraction, PRs, agents or coordination. Goal
+remains active.
