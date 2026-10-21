@@ -3860,3 +3860,39 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   counterexample does not refute proposition-only/sort-typed application;
   investigate that restriction and which hereditary body information it needs,
   without assuming the disproved inversion of lam_common. GOAL.md remains open.
+
+
+## 2026-10-21 15:35 UTC — Proposition-only application retains the full front
+
+- **Restrict future shared application to proposition-valued functions.
+  Verdict: it still implies PropositionFront under the closed-unit hypotheses.**
+  unit_prop_selector_family constructs full future certificates for
+  `fun f : S → Prop => f x` versus `fun f : S → Prop => f y`. The bound predicate
+  remains neutral after ambient substitution and beta, so the unit carrier
+  accepts arbitrary residual arguments. The source relation can be False.
+  TypedFuturePropositionApplication asks only for proposition-valued results,
+  yet native_unit_guard reads out a unit-value guard at the shared predicate's
+  declared domain B when ordinary typing assigns it S → Prop.
+
+- **Does using a neutral predicate merely introduce a context artifact?
+  Verdict: no; the target guard returns to the original context.**
+  unit_carrier_conversion adds a fresh predicate declared B → Prop and assigns
+  it S → Prop using S ≡ B. After native readout, an exactly recovered predicate
+  inhabitant removes that binder by forward typed substitution at a finite
+  stage. No inverse weakening or general recovery re-synthesis is assumed.
+
+- **Test the restricted application law against the unit-valued Eq probe.
+  Verdict: the original front is recovered.** unit_probe_descend transports
+  distinct actual unit variables to the probe carrier. Bare-variable
+  injectivity rules out common checking; carrier exposure must change the
+  Eq.rec head, reading the lower proposition equality. The closed-unit wrapper
+  derives PropositionFront even with source False. This is a conditional
+  implication, not a converse or a strict reduction.
+
+  Judgment: proposition-only future application remains an unproved,
+  full-strength route; it is not rejected as false or too difficult. Restricting
+  the result sort alone does not eliminate converted native domains. The next
+  constructive work must address that conversion/exposure step itself (or
+  return to the original confluence residue), rather than introduce another
+  outer future certificate and assume its application closure. None of the
+  three GOAL.md outcomes is established.

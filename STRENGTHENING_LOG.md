@@ -13532,3 +13532,82 @@ to candidate comparison laws, not a canonical-Eq strengthening counterexample
 or a genuinely smaller sufficient front. Leave GOAL.md active. Changes are
 confined to theory modules and actual EOF ledger additions; no executable
 change, PR extraction, PR creation, subagents or coordination.
+
+
+## 2026-10-21 15:35 UTC — Proposition-valued shared application implies PropFront
+
+Previous goal turn: progress (4d0ebf45 refuted general future common application
+and located the future-carrier repair at the proposition front). This turn
+revalidated clean HEAD and the recorded next direction, restricting application
+results to propositions. The main strengthening statement is unchanged.
+
+ProofErasureFuturePropositionApplication supplies unit_prop_selector_family.
+The input lambdas bind a predicate with domain the literal positive unit and
+codomain Prop. Their bodies apply that bound predicate to arbitrary raw
+arguments. The closed domain cannot beta-reduce, and the body's bound variable
+head remains fixed. A recovered unit domain accepts both residual arguments,
+so the entire lambda comparison survives every beta path and every ambient
+interpreted substitution. Actual selector typings and exact erasures are
+constructed separately for arbitrary actual unit values, not just variables;
+function-to-sort nonproofness handles the retained lambda and predicate heads.
+
+TypedFuturePropositionApplication is the explicit unproved application law
+restricted to functions of type A → Prop and one shared typed argument. Its
+output is a full future common certificate, so one head-beta step on each
+application may be consumed. native_unit_guard applies it to the selectors
+and a predicate variable that is declared B → Prop but typed S → Prop. The
+residual propositions are f x and f y. Exact oracle lookup and neutral
+application inversion recover an argument carrier guard at B, the native
+domain. The input selector certificate still works at Source=False. This
+construction does not use the earlier missing JointPropBetaTransport law.
+
+unit_carrier_conversion removes the extra observer rather than leaving an
+upper-context statement. For an ordinary typed equality S ≡ B, introduce a
+fresh predicate declared B → Prop and convert its type to S → Prop. Native
+readout gives the guard at lifted B. Finite-stage extraction and forward
+instantiation with recoverable_prop_function remove the new binder while
+preserving the guard. This uses actual exact recovery of that inhabitant and
+the existing recoverable-substitution theorem, not inverse weakening, general
+carrier conversion or arbitrary recovery re-synthesis.
+
+ProofErasureFuturePropositionFront specializes the result to the unit-valued
+Eq probe. Under an upper-context equality between lifted proposition indices,
+the probe is definitionally the unit. The application law therefore supplies a
+guard for two distinct unit variables at the probe carrier. They cannot have a
+common comparison. Carrier exposure must remove the Eq.rec head, and the
+existing head-descent theorem recovers equality of the original lower
+propositions. The closed-unit wrapper constructs the value and proof binders
+and establishes PropositionFront. This implication retains the explicit
+canonical-Eq, sound-definition, registry and no-unfolding hypotheses. It is
+conditional on a closed positive empty-structure registration; no extension
+of an arbitrary environment is constructed.
+
+Judgment: the proposed proposition-result restriction does not furnish a
+smaller application obligation. Even a full future source certificate with no
+primitive computation contains the converted-native-domain problem when
+applied to an ordinarily typed shared predicate. The restricted law remains
+unrefuted and may still be a full-strength route to the goal. It has not been
+proved, disproved in the full union, or shown equivalent unconditionally to
+PropositionFront. Constructive progress now needs the carrier conversion/head
+exposure step itself or the original confluence residue; another generic
+outer future wrapper cannot be assumed to supply it.
+
+Validation: two new modules, 277 lines, six public roots (five theorems and one
+named missing-law definition). The dependent build succeeds in 673 jobs with
+no warnings from either new module: /tmp/future-prop-application-build.log.
+Independent opaque DFS covers all six roots and 11,355 dependencies, excluding
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv and sorryAx. Cumulative opaque DFS
+covers 1,012 roots and 16,102 dependencies, excluding strengthening inverses
+and sorryAx. Exact-name axiom parsing covers every root once and allows only
+propext, Classical.choice and Quot.sound. Both audit processes completed
+successfully. Sources, logs and inventories:
+/tmp/future-prop-application-{audit,independent-audit}.{lean,log} and the
+corresponding -roots.txt files.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+No canonical-Eq strengthening proof or counterexample is obtained, and the new
+conditional implication is not a genuinely strictly smaller sufficient
+irreducible obligation. Leave GOAL.md active. Only theory modules and actual
+EOF ledger additions change; no executable changes, PR extraction, PRs,
+subagents or coordination.
