@@ -12473,3 +12473,60 @@ No canonical-Eq strengthening proof, canonical-Eq counterexample, or genuinely
 strictly smaller sufficient irreducible obligation has been established.
 Keep the full goal active. Only theory modules and actual EOF ledger additions
 changed; no executable changes, extraction, PRs, or coordination.
+
+
+## 2026-10-21 13:14 UTC — Typed recursive Box guards beyond Pi/neutral carriers
+
+Previous goal turn classification: progress. Commit 35494a62 established the
+recursive Pi/neutral recovery and checking interaction. Current-state
+inspection found two pending Box theory modules; this turn completed the
+explicit inhabitant, verified both modules, and audited their dependencies.
+
+ProofErasureRecursiveBoxGuard proves full typed carrier transport from Box A
+to Box B for actually equal parameters related by NeutralTypeChange. In the
+nested-field case, actual projection typing and the closed constructor recipe
+identify the field type with the parameter, so the preceding recursive
+carrier theorem applies even to function-valued fields with changing domains.
+The carrierCompute case simulates the parameter computation, realizes both
+computed parameter types, converts the source endpoint typings, and recurses.
+All carrier constructors are covered. The generic result requires primitive
+descent/head/substitution and inertness of the registered family; the certified
+result discharges these using canonical Eq, sound unfolding and exclusion of
+explicit unfolding at the family. Native proposition application recovery and
+converted argument typings are derived from a literal target declaration walk.
+
+ProofErasureRecursiveBoxExample separates this extension from the preceding
+Pi/neutral criterion: Box ((F (fun p => f p)) → Prop) and Box ((F f) → Prop)
+are typed equal but are not themselves NeutralTypeChange-related and have no
+shared computational reduct in the full joint union. Every certified typed
+carrier guard transfers in both directions. A concrete constructor inhabitant
+is supplied; its field is the function returning the proposition ∀ P : Prop, P.
+The proof derives the constructor's zero universe arity from the registered
+constructor's typed result and the explicit family signature. It assumes an
+existing registered Box, not a proved environment-extension construction.
+
+Judgment: progress on the changed-record-parameter gap left by 35494a62, with
+full nested guards and arbitrary carrier computation rather than a weakened
+field-comparison assumption. Whole-Box context/recovery transport, arbitrary
+record templates, hidden type shapes, and coverage of strong derivations are
+still unresolved. No smaller sufficient irreducible front is claimed.
+
+Validation: two theory modules, 376 lines, four explicit public roots. Final
+module and dependencies build successfully (626 jobs), with no new-module
+warnings: /tmp/recursive-box-example-build.log. Independent opaque DFS covers
+four roots and 11,051 dependencies, excluding JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport, .weakN_iff, .weakN_inv, and
+sorryAx. Cumulative opaque DFS covers 880 roots and 15,847 dependencies,
+excluding strengthening inverses and sorryAx. Exact-name axiom parsing
+accounts for every root once and permits only propext, Classical.choice and
+Quot.sound. An initial audit-script name parser dropped a trailing apostrophe
+from an existing root; preserving complete names fixed the harness, and the
+full cumulative audit then passed. Sources/logs:
+/tmp/recursive-box-{audit,independent-audit}.{lean,log}; inventories:
+/tmp/recursive-box-{audit,independent-audit}-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 retains the original sorry. There is no
+canonical-Eq strengthening proof, canonical-Eq counterexample, or genuinely
+strictly smaller sufficient irreducible obligation. Keep the full goal active.
+Only theory modules and actual EOF ledger additions changed. No executable
+changes, extraction, PRs, subagents, or coordination.

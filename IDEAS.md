@@ -3257,3 +3257,37 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   non-displayed type shapes, and arbitrary union primitive substitution are
   not established. No smaller sufficient PropositionFront or goal outcome is
   claimed; the original strengthening sorry remains.
+
+
+### 2026-10-21 13:14 UTC — Recursive guards through a registered Box
+
+- **Use the actual field recipe to cross a changed record parameter. Verdict:
+  proved for the one-field Box, including function-valued fields.**
+  ProofErasureRecursiveBoxGuard transports every typed carrier-guard
+  constructor from Box A to Box B when A and B are typed equal and related by
+  NeutralTypeChange. The nested-field case realizes actual projection types,
+  identifies the closed field recipe with A, and invokes recursive carrier
+  transport at the field. Carrier computation simulates the parameter path
+  on B and recurses at the realized types. The proof retains nested checking;
+  it does not assume ordinary comparison of projections. The certified
+  specialization discharges descent, head shape and substitution, and an
+  actual native proposition application consumes the converted guard.
+
+- **Is this just the preceding Pi/neutral theorem applied to Box? Verdict:
+  no, with a checked inhabited separating example.** For explicitly registered
+  Box, the parameter functions `(F (fun p => f p)) → Prop` and `(F f) → Prop`
+  are related by NeutralTypeChange, but their Box carriers are not. The Box
+  carriers have no computational join even in the full joint union. Their
+  certified typed guards are nevertheless equivalent. The example constructs
+  a Box inhabitant by applying the registered constructor to the constant
+  function returning the proposition `∀ P : Prop, P`; no proof of that
+  proposition is claimed. Constructor universe arity follows from the
+  registered declaration's typed result and the supplied family signature.
+
+  Judgment: this removes one concrete record-field obstruction left by the
+  recursive Pi criterion. Registration and the Box signature remain explicit
+  hypotheses; no canonical-Eq environment extension is constructed. There is
+  no new recovery/context invariant for changing whole Box binders, no
+  arbitrary record-template theorem, and no general coverage of strong
+  derivations. This does not establish a strictly smaller sufficient front.
+  The original strengthening goal remains open.
