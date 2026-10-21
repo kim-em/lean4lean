@@ -14051,3 +14051,37 @@ full typed context transport and function future readout are new checked
 results. GOAL.md stays active. Only theory modules and actual EOF ledger
 additions change. No executable edits, PR extraction, PRs, subagents or
 coordination.
+
+
+## 2026-10-21 16:51 UTC — Recursive rigid type changes and native recovery
+
+The previous goal turn was progress: two pushed commits established exact-domain
+context transport and closed function readout. Current-state inspection began
+with a clean worktree. The next missing case is a recovered function whose
+argument domain changes after its context oracle changes.
+
+ProofErasureRigidTypeChange permits recursive changes in both Pi components,
+with arbitrary identical subtrees and arbitrary-source-to-closed-rigid leaves.
+Typed head separation supplies Pi, sort and exact registered-record inversion;
+structural subsingletons transport using actual Pi equality. Arbitrary raw
+substitution and matching beta paths in both directions preserve the relation.
+Scoped computation simulation is typed: the recursive codomain path moves
+through actual equal binder contexts using primitive substitution closure.
+ProofErasureRecursiveRigidRecovery handles every recovery constructor and
+returns a related result rather than requiring the old Pi domain to persist.
+
+Validation: 313 lines in two modules, twelve public roots (eleven theorems and
+one inductive). Recovery build succeeds in 652 jobs; subsequent consuming
+builds also succeed. These roots are included in the completed 23-root
+independent milestone audit (11,031 dependencies), excluding
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv and sorryAx. The cumulative audit
+covers 1,097 roots and 16,245 dependencies, excluding strengthening inverses
+and sorryAx. Exact-name axiom parsing permits only propext, Classical.choice
+and Quot.sound. Both processes exit zero. Artifacts:
+/tmp/recursive-rigid-{audit,independent-audit}.{lean,log} and matching
+-roots.txt inventories; /tmp/recursive-rigid-recovery-build.log.
+
+No goal success is claimed: the original UniqueTyping sorry remains. This
+commit records recovery; simultaneous checking and its coverage boundary are
+recorded in the next entry. Only theory and actual EOF ledger additions change.

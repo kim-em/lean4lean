@@ -4149,3 +4149,27 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   function codomains are a live extension; the general argument must eventually
   handle changes of recovered domains, rather than merely accumulate closed
   examples. These results do not establish any GOAL.md success condition.
+
+
+## 2026-10-21 16:51 UTC — Recovery with recursively changing Pi domains
+
+- Idea: fixed recovered domains are unnecessary if the actual type relation
+  exposes related new domains and the smaller argument guard can transport.
+  Verdict: recovery proved for RigidTypeChange. It retains arbitrary identical
+  subtrees, replaces arbitrary source subtrees by closed rigid constants, and
+  recursively changes both the domain and body of a Pi. Unlike the preceding
+  RigidResultChange, Pi domains may change at every depth.
+- Raw Pi/sort inversion is deliberately not imposed: raw closed replacements
+  allow incompatible source heads. Actual equality and source typing exclude
+  those cases. Registered record carriers remain exact. Typed structural
+  subsingletons transport recursively using Pi equality and equal contexts.
+- The relation survives arbitrary raw substitutions. Both source and target
+  beta paths have matching paths preserving the relation. Typed scoped
+  computation also simulates, moving recursive body computation through the
+  changed domain context. All scoped recovery constructors now preserve this
+  relation, including projections and computed recovered results.
+
+  Judgment: this supplies genuinely changed recovered argument domains without
+  semantic head exposure or carrier-domain re-synthesis. The full joint
+  induction must still consume the related domain and adapt the argument
+  guard. Coverage of arbitrary actual type equality is not assumed.
