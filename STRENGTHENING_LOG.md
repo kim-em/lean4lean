@@ -13816,3 +13816,80 @@ canonical-Eq proof or counterexample to strengthening, and no strictly smaller
 sufficient irreducible obligation, has been established. GOAL.md remains active.
 Only new theory modules and actual EOF ledger additions change. No executable
 changes, PR extraction, PRs, subagents or coordination.
+
+
+## 2026-10-21 16:11 UTC — Forward guard readout using actual target shape
+
+Previous goal turn: progress (725909cd established symmetric dependent-pair
+readout and backward transport of arbitrary closed-carrier guards). This turn
+revalidated the clean worktree and examined the missing forward direction.
+A direct induction avoids transporting the supplied type comparison when the
+target is already a closed rigid constant or a literal sort.
+
+ProofErasureClosedCarrierReadout proves semantic readout at a closed rigid
+constant from ordinary actual carrier equality. For an exposed source record,
+actual rigid-head injectivity equates its head with the target and forces both
+its universe list and its term argument list to be empty. Its original whole
+carrier introduction can therefore be reused verbatim, including recursive
+dependent fields. Function carriers cannot equal the rigid target. Structural
+subsingleton checking splits into these same record/function possibilities.
+A carrierCompute node is replayed at its actual sort-typed source, yielding a
+new actual source still equal to the target, and induction discards that
+prefix. Endpoint reductions and symmetry are retained. The proof uses no
+endpoint typings, general head exposure or carrier-conversion premise.
+
+The full future theorem reads the supplied guard at each endpoint beta
+residual with the source carrier unchanged. Interpreted substitutions realize
+actual contexts and carry the original type equality into them, so the same
+ordinary readout applies. The target constant has no nontrivial beta path.
+An arbitrary sound scoped computation to the target provides the required
+actual equality by forward replay and constant-spine inversion. Hence full
+future forward carrier transport in this case needs no primitive substitution
+law or beta-commutation square. It tolerates a different computation prefix
+inside the original guard.
+
+The generic future-comparison iff combines that forward result with the prior
+backward closed-carrier theorem. The canonical-Eq certified-comparison iff
+weakens the comparison input to an ordinary certified comparison: exact
+exposure yields a certified computation to the constant, and the existing
+certified_carrier_prefix theorem supplies backward full future transport.
+Forward transport uses the path's inclusion in the union and sound replay.
+This covers arbitrary guards, including the prior dependent-record guards;
+it is not restricted to common fields or structural subsingletons.
+
+ProofErasureSemanticSortReadout handles actual equality of the source carrier
+to a sort. Head separation excludes every function, empty-record and general
+record carrier node. Replaying carrier computations preserves this equality,
+so the remaining derivation is common comparison with endpoint computations
+and symmetry. Full future carrier checking is therefore equivalent to full
+future common checking at the same endpoints. Its reverse implication is
+carrierChecked. Ordinary actual equality suffices; neither a supplied type
+comparison, semantic sort-exposure path nor primitive-head condition is needed.
+
+Judgment: these prove forward readout through arbitrary source computation
+prefixes for two target shapes, without proving comparison propagation in
+general. They do not produce guards from original definitional equalities.
+For a parameterized Box target, matching the exposed source head leaves equal
+but potentially different field parameters; recursive field conversion is the
+next necessary step. Closed rigid and sort readouts are constructive candidate
+base cases for a nested-Box fragment. Function targets still introduce context
+conversion. No strict-smallness or full strengthening claim is made.
+
+Validation: two new modules, 301 lines, eight public theorems. The final build
+succeeds in 611 jobs with no new-module warnings; existing dependency warnings
+are replayed. Log: /tmp/closed-sort-readout-build.log. Independent opaque DFS
+covers all eight roots and 11,190 dependencies, excluding
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv and sorryAx. Cumulative opaque DFS
+covers 1,044 roots and 16,154 dependencies and excludes strengthening inverses
+and sorryAx. Exact-name axiom parsing covers every root once, allowing only
+propext, Classical.choice and Quot.sound. Both audit processes terminate
+successfully. Sources, logs and inventories:
+/tmp/closed-sort-readout-{audit,independent-audit}.{lean,log} and the matching
+-roots.txt files.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+There is no canonical-Eq strengthening proof, canonical-Eq counterexample or
+strictly smaller sufficient irreducible obligation. GOAL.md remains active.
+Only new theory modules and actual EOF ledger additions change; no executable
+changes, PR extraction, PRs, subagents or coordination.

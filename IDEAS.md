@@ -4007,3 +4007,47 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   that computation. Next address that missing propagation while retaining the
   actual supplied type comparison. None of the GOAL.md success conditions is
   established; these are constructive cases, not a smaller sufficient front.
+
+
+## 2026-10-21 16:11 UTC — Semantic readout at closed rigid carriers and sorts
+
+- **Move a guard forward to an equal closed rigid carrier despite source
+  computation prefixes. Verdict: proved without type-comparison transport.**
+  proofErase_joint_carrier_to_closed_rigid inducts over the supplied guard.
+  Actual head injectivity identifies each exposed registered carrier with the
+  exact target constant: both universe and term argument lists are empty.
+  Function carriers are separated from the target; carrier computation is
+  replayed and eliminated. Endpoint computations and common checking survive
+  unchanged. Only the carrier needs an actual typing; endpoints may stay raw.
+  proofErase_future_carrier_to_closed_rigid retains the full future certificate
+  using substitutable actual equality in every realized context.
+
+- **Consume an arbitrary sound computation to that constant. Verdict: forward
+  ordinary and full future transport proved.** Computation replay produces the
+  actual carrier equality, so proofErase_future_carrier_compute_closed does
+  not require primitive substitution or beta commutation. The computation
+  establishing exposure may differ from those internal to the supplied guard.
+  Combining this readout with backward transport gives a future-guard iff from
+  a future type comparison. With certified primitives, an ordinary certified
+  comparison already suffices: its exposure path provides backward future
+  transport, and only soundness is needed for the forward direction.
+
+- **Read an arbitrary guard at a type equal to a universe. Verdict: exactly
+  common checking, including full future certificates.**
+  proofErase_joint_carrier_semantic_sort separates a sort from every exposed
+  function or registered-record carrier. Replaying source carrier computations
+  leaves only common checking, endpoint computation and symmetry.
+  proofErase_future_carrier_semantic_sort_iff needs ordinary actual equality
+  only, not a type-comparison certificate, primitive-head condition or a path
+  exposing the sort. This supplies a semantic target-sort decoder but does not
+  generate a carrier guard from arbitrary original equality.
+
+  Judgment: source computation prefixes are discharged for already exposed
+  closed rigid and sort targets. This is a stronger direction than the preceding
+  backward conversion result, but not general semantic head exposure or
+  strengthening. The live next case is a parameterized Box target: exposed
+  source/target parameters are actually equal, and converting its recursive
+  field guard remains necessary. Test whether the closed-carrier and sort
+  readouts can serve as constructive base cases for nested Box conversion.
+  Function targets additionally change binder contexts. None of the three
+  GOAL.md success conditions is established.
