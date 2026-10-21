@@ -3148,3 +3148,58 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   arbitrary dependent native templates, comparison composition, or coverage
   of arbitrary strong derivations. It is not a strictly smaller sufficient
   front and does not close any of the three success conditions in GOAL.md.
+
+
+## 2026-10-21 — Neutral input changes through recovery and full carrier checking
+
+- **Must context transport preserve every recovered type exactly? Verdict:
+  no; preserving its function domains suffices for the application rule.**
+  Added NeutralResultChange k. It permits changes at variable-headed terminal
+  results, keeps every displayed Pi domain exact, and requires the changed
+  heads to lie outside k protected binders. Pi descent increments k. The
+  checked lifting, instantiation, and computation lemmas retain this condition;
+  in particular, applying a recovered function cannot substitute an arbitrary
+  term for a changed head. ScopedTypeRecovery.neutral_oracle reconstructs
+  recovery after an interpreted context change, with only this controlled
+  variation of its selected output. Sort and registered-family outputs stay
+  exact; application consumes the unchanged Pi domain.
+
+- **Does this repair the whole body judgment, including carrier-aware
+  applications? Verdict: proved for substitution-closed primitive relations.**
+  JointCheck.neutral_oracle transports every comparison/carrier constructor
+  together, with identical endpoints and carrier. The computation paths and
+  sort witnesses use the identity context interpretation. Actual convertible
+  neutral binder types provide that interpretation and the oracle evidence.
+  This gives unconditional same-relation transport for certified checking;
+  it assumes neither general comparison completeness nor a proposition beta
+  law. It is not an unconditional theorem for the full joint union, whose
+  required primitive substitution closure is still open.
+
+- **Can function input types change without restricting the guard to one
+  displayed function rule? Verdict: all guard constructors are covered.**
+  JointCarrierGuard.neutral_domain changes a neutral input A to convertible
+  neutral B while retaining an arbitrary dependent codomain. In the carrier
+  computation case, typed Pi inversion retains the codomain path in the
+  original binder context; primitive context transport replays that path
+  under B. The computed source input remains neutral, and the recursive
+  guard transfers there. Endpoint reductions, subsingletons, symmetry, and
+  nested function/field checking are included. The certified specialization
+  has no open closure premise. The native-prefix corollary recovers its
+  actual target function type, constructs the converted argument typings,
+  and consumes the resulting guard to compare actual propositions.
+
+- **Is allowing different recovery outputs essential here? Verdict:
+  checked separation.** The eta-different neutral binders F (fun p => f p)
+  and F f have no computational join in the entire union. Nonetheless all
+  certified body judgments and all dependent function guards transport in
+  both directions between them. A source bvar-0 recovery cannot keep its
+  exact output in the target context even if target recovery is enlarged to
+  the entire union. Thus the new positive result genuinely bypasses the
+  previously refuted exact-recovery invariant.
+
+  Judgment: this closes the neutral input-domain case left by the preceding
+  result-only observer work. It is a new recovery/context invariant, not a
+  proof of arbitrary context conversion. Non-neutral domain changes, arbitrary
+  dependent native parameter templates, composition, full-union substitution,
+  and strong-derivation coverage remain open. No goal success or strictly
+  smaller sufficient front is claimed.

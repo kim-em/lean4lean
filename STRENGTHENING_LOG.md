@@ -12290,3 +12290,91 @@ canonical-Eq strengthening proof, canonical-Eq counterexample, or genuinely
 strictly smaller sufficient irreducible front has been established. Keep
 the goal active. Only a theory module and actual EOF ledger additions changed;
 no executable changes, extraction, PRs, or coordination.
+
+
+## 2026-10-21 12:44 UTC — Recovery and full guards under neutral input changes
+
+Previous goal turn: progress (6fbf09d1, native result parameters without
+joins). Revalidated the clean committed worktree and GOAL.md before working.
+This turn tackles input-domain changes rather than adding another observer
+with fixed input types. No extraction, PRs, or coordination.
+
+ProofErasureNeutralOracleRecovery introduces NeutralResultChange k, a raw
+relation with exact reflexivity, replacement of neutral spines whose heads
+are at indices at least k, and Pi congruence with an identical domain and
+codomain relation at k+1. That scope condition is essential: after applying
+a recovered function, the changed head remains outside the removed binder.
+The new liftN and inst lemmas check the arithmetic at arbitrary cutoffs.
+The compute lemma simulates source computation in the target type without
+joining the two neutral spines. Pi domains follow the same source path;
+neutral terminal arguments may remain unchanged on the target side.
+
+ScopedTypeRecovery.neutral_oracle is an induction over every recovery rule.
+Changed context lookups supply the relation directly. Lambda recovery raises
+the protected depth, and application lowers it using the inst lemma. A
+recovered sort or registered-family spine must be unchanged. Conversion uses
+the new computation simulation. The resulting Pi may have a different
+codomain but always has the identical domain. This proof needs primitive
+head shape and primitive substitution along interpreted contexts, not any
+strengthening or type-recovery completeness principle.
+
+ProofErasureJointNeutralContext consumes that recovery result in the full
+JointCheck induction. The appCarrier rule needs exactly the retained domain;
+its carrier subderivation transports recursively. Every other constructor,
+including nested dependent carrier fields, transports in the same relation.
+Actual A ≡ B at a sort supplies an identity context interpretation. When
+both A and B erase to neutral spines, the changed lookup satisfies the new
+oracle invariant while the context tail stays exact. Certified comparison
+and carrier checking consequently transport unconditionally between these
+binder contexts. The generic theorem states primitive substitution explicitly;
+it does not silently assume that property for the unrestricted joint union.
+
+ProofErasureNeutralDomainGuard proves transport of an arbitrary full guard
+at Pi A body to Pi B body for convertible neutral A and B. The function rule
+uses the new context transport. For carrierCompute, the existing typed Pi
+inversion recovers both the domain path and the codomain path in A's original
+context. Primitive descent realizes the computed domain as an actual A',
+with A' ≡ B and a neutral erased head. The codomain path transports under B,
+and the recursive guard handles the computed Pi. This includes all endpoint
+reductions and nested guards, not just a displayed carrierFunction rule.
+Actual dependent Pi erasures and the certified specialization are checked.
+The native-prefix corollary constructs exact recovery from a supplied literal
+declaration walk, converts both argument typings, and compares actual
+propositions using the transported function guard. Neither a parameter join
+nor a compared-recovery certificate is supplied to this construction.
+
+ProofErasureNeutralContextExample proves a separation at the existing eta
+witness. The two actual neutral binder types have no computational join in
+the full union. All certified body judgments nevertheless agree, and all
+dependent function guards transfer in both directions. Exact recovery output
+preservation still fails for the fresh variable: the target's native neutral
+oracle is a distinct normal form, so no union computation can reach the
+source output. The positive theorem thus avoids an invariant that is actually
+false, rather than assuming a new global repair for it.
+
+Judgment: the neutral input-domain case is now closed in the certified
+relation, including arbitrary carrier computation and dependent codomains.
+This is stronger than the previous terminal-result replacement fragment.
+It does not solve non-neutral input changes, arbitrary native-template
+congruence, general comparison composition, or strong-derivation coverage.
+For the full union, primitive substitution remains an open named obligation;
+none of the new certified conclusions assumes it. No strictly smaller
+sufficient front has been established.
+
+Validation: four new theory modules, 576 lines, 14 explicit public roots.
+The final target and dependencies build successfully (620 jobs), with no
+warnings from any new module: /tmp/neutral-context-example-build.log.
+Independent opaque DFS covers all 14 roots and 10,994 dependencies, excluding
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv, and sorryAx. Cumulative opaque
+DFS covers 859 roots and 15,784 dependencies, excluding strengthening inverses
+and sorryAx. Exact-name axiom parsing accounts for every root once, with only
+propext, Classical.choice, and Quot.sound. Audit sources/logs are
+/tmp/neutral-context-{audit,independent-audit}.{lean,log}; exact inventories:
+/tmp/neutral-context-{audit,independent-audit}-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+Neither canonical-Eq strengthening nor a canonical-Eq counterexample nor a
+genuinely strictly smaller sufficient irreducible obligation is proved.
+Keep the full goal active. Changes are theory and actual EOF ledger additions
+only; no executable changes, extraction, PRs, or coordination.
