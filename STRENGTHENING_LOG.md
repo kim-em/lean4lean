@@ -15802,3 +15802,54 @@ Neither a canonical-Eq counterexample nor a strictly smaller sufficient
 irreducible obligation has been proved. GOAL.md stays active. Only these
 Theory modules and the actual-EOF ledgers change; no executable changes, PR
 extraction, subagents or coordination.
+
+
+## 2026-10-21 22:15 UTC — Exact selected-domain exposure after type substitution
+
+Added SortRootedRecovery.lean (143 lines) and
+ProofErasureSelectedDomainSubstitution.lean (249 lines).
+
+SortRootedRecovery records a selected raw type on the previous finite path
+fragment, including ordinary-core conversion nodes. Its typed substitution
+theorem retains both rank and exact output without image recovery. Its head
+exposure theorem returns sort typing or a beta-exposed lambda, a smaller body
+path, and computation from that lambda's recovered Pi to the selected output.
+For a retained function with selected Pi A B, selected_domain consequently
+computes to a literal lambda at exactly A. This uses Pi-domain computation and
+a final annotation computation, not semantic conversion of a carrier guard.
+
+ExactSortOrRecoveringImages states the needed image condition precisely:
+exact native recovery, or a literal assigned sort with matching actual image
+typing. It extends under binders and holds for substitution of any type. The
+full recovery induction returns exact native recovery or SortRootedRecovery
+at the exact substituted output. The projection failure branch is impossible
+by rigid-head separation; the forall branch obtains its exact universe from
+native recovery replay. No assumption that semantically equal sorts are
+syntactically identical is made.
+
+proofErase_joint_zero_function_inst_type_selected_domain discharges the image
+condition for arbitrary types, including arbitrary propositions. No image
+recovery, canonical-Eq, beta-stability, semantic-head-exposure or domain
+resynthesis assumption is required beyond core soundness and the stated
+typings/retention. proofErase_joint_zero_application_subst_domain_cover consumes
+the exact target guard and function comparison to produce ordinary comparison
+or the computed-domain certificate. Those two target premises are NOT proved
+to transport recursively here. The result closes the preceding stage-zero
+annotation-alignment gap, not full checker substitution or proposition beta
+stability.
+
+Validation: consuming build succeeds in 566 jobs
+(/tmp/selected-domain-build.log), with no new-module warnings. Opaque DFS
+covers all 16 new public declarations including all four constructors, reaching
+8,760 dependencies. It excludes weakN_iff, weakN_inv, sorryAx,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport and JointPropBetaStability. Exact root/axiom inventories
+match, with only propext, Classical.choice and Quot.sound. The audit log has
+no errors or warnings. Artifacts: /tmp/selected-domain-independent-audit.lean,
+.log and -roots.txt. Earlier /tmp cumulative inventories were absent in this
+environment; this turn does not claim to have rerun the prior 1,388-root audit.
+
+Completion audit: UniqueTyping.lean:94 retains the original sorry. There is no
+canonical-Eq counterexample or strictly smaller sufficient irreducible
+obligation. GOAL.md remains active. Only these two Theory modules and actual-EOF
+ledgers change. No executable changes, PR extraction, subagents or coordination.

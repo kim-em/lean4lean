@@ -5344,3 +5344,37 @@ application cases must retain their original recovery evidence. Even after
 that refinement, recursive comparison transport and higher joint stages need
 proof. No full beta stability, counterexample, strictly smaller sufficient
 obligation, or completion of GOAL.md is claimed.
+
+
+## 2026-10-21 22:15 UTC — Selected domains survive sort-image recovery failure
+
+Idea from the previous entry: retain annotation computation through the
+recovery classification instead of appealing to semantic carrier conversion.
+Verdict: proved at stage zero, including arbitrary proposition substitution.
+The exposed-domain alignment gap from that entry is closed at this stage.
+
+SortRootedRecovery retains the selected raw type and its ordinary-core
+conversion paths. Typed substitution preserves its rank and exact output.
+Head exposure retains a computation from the exposed lambda's Pi to that
+output. In the application case, the smaller body path is instantiated and
+receives one conversion node; its rank is still smaller than the source
+application's. Pi decomposition gives computation of the annotation to the
+selected domain, which can be performed on the lambda itself. No semantic
+carrier-conversion premise or normalization of type leaves is used.
+
+The substitution classification needs an exact-sort image alternative:
+retained images recover their assigned type, or that assigned raw type is a
+literal sort with actual image typing at the same universe. Mere semantic
+equality of an assigned type with a sort is not silently substituted for this
+condition. Single substitution of any type satisfies the condition, and it
+extends through all typed binders. All recovery constructors are covered.
+
+The final application corollary uses the original substituted-domain guard
+unchanged. It returns an ordinary joint application comparison or a local
+ComputedLambdaApplication certificate at identical endpoints. Target function
+comparison and argument guard remain premises; the theorem does not establish
+their recursive transport. Next live task: absorb the computed-domain branch
+into existing comparison, or make it a recursive checking rule with proved
+descent and transport. Higher joint-stage primitive transport also remains
+open. This is not a proof of JointPropBetaStability or a new strictly smaller
+sufficient obligation for PropositionFront.
