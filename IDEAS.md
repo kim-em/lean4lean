@@ -1942,3 +1942,37 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   theorem is not discharged. Next useful target is certificate propagation
   through the existing exact peak constructions, using their input guards;
   unrestricted assigned-type recovery preservation has already been refuted.
+
+
+- **Reduce guard substitution to beta stability of proposition comparisons.**
+  **Conditional reduction checked** in `ProofErasureJointPropBeta`.
+  `JointPropBetaStability` restricts the endpoint stability law to P,Q:Prop.
+  Assuming it for the full joint union, exact recovery of the identity
+  expansion of any x:A permits instantiating a finite proposition comparison;
+  beta contraction of the expansion in both endpoints then gives the exact
+  desired substituted comparison at a finite later stage. No recovery of x,
+  raw computational confluence, or carrier-domain re-synthesis is assumed.
+  **Limitation:** the stability law is unproved for the union. This covers
+  one top-binder instantiation, not automatically arbitrary simultaneous
+  substitution beneath a generated residual telescope.
+
+- **Encode carrier guards by canonical equality propositions.**
+  **Checked** in `ProofErasureJointCarrierPropositions`. Every typed guard for
+  a,b:A gives a joint comparison of Eq A z a and Eq A z b, for any typed z:A,
+  in either comparison mode and at the same stage. Exact recovery of Eq's
+  declared argument domain licenses appCarrier; no recovery of A,a,b,z is
+  required. Proposition beta stability then conditionally transports this
+  encoding through arbitrary typed top-binder instantiation. This is a
+  forward encoding only: a carrier decoder and use of the encoded comparison
+  as the actual generated family guard are not proved.
+
+- **Avoid the recursive-loop obstruction by restricting endpoint stability
+  to propositions.** **Refuted for the repaired ordinary core.** The previous
+  mixed-loop fixture already has P,Q:Prop. Refactoring
+  `ProofErasureJointEndpointBoundary` proves that proposition-only stability
+  would still recover every conversion out of a recursive Pi domain. The
+  canonical recursive extension preserves Eq and quotient registration and
+  satisfies PropositionFront, yet fails this restricted stability law.
+  Existing general-law theorems remain as wrappers. This does not refute
+  full-union stability: the known cast repair at joint stage one remains.
+  Thus the restriction does not by itself produce a smaller sufficient front.

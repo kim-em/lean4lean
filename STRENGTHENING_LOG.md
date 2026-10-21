@@ -9749,3 +9749,71 @@ certificates on residual paths. This remains supporting progress: no canonical-E
 strengthening proof or counterexample, and no proved strictly smaller sufficient
 front. No executable changes, extraction, PRs, agents or coordination. Goal
 remains active.
+
+
+## 2026-10-21: Proposition beta stability, carrier encoding, and its core boundary
+
+The prior goal turn was progress: a2dda11f checked repaired actual-prefix
+confluence and operational substitution joins. This continuation revalidated
+that commit and the clean worktree, then inspected certificate transport in
+ExactPrefixPeaks and the erased joint/core interfaces. Existing carrier/oracle
+transport keeps endpoints fixed, while the singleton common-reduct result
+covers joined guards rather than the entire joint comparison grammar. These
+facts cannot be silently substituted for residual endpoint stability.
+
+ProofErasureJointPropBeta names the narrower proposed law
+JointPropBetaStability: common comparison of two actual propositions P,Q:Prop
+survives beta reduction of the right endpoint. The law is a proposition, not an
+axiom or an asserted theorem. Assuming it for ErasedJointUnion D, its inst theorem
+removes argument recovery from top-binder instantiation of any finite joint
+proposition comparison. The proof substitutes the exactly recoverable identity
+expansion y of x, then contracts copies of y to x in both compared propositions.
+Raw beta image congruence supplies these contractions, and the stability law is
+used twice with symmetry. All intermediate propositions are independently typed
+by ordinary forward substitution. Finite-stage extraction supplies a later
+stage bounded below by the original stage. No computational-confluence or
+JointCarrierDomainResynthesis premise is used.
+
+ProofErasureJointCarrierPropositions encodes any typed carrier guard a,b:A as
+comparison of Eq A z a and Eq A z b. Eq's constant declaration and its first two
+applications recover the final argument domain literally as A. The appCarrier
+constructor therefore consumes the supplied guard without needing recovery of
+any supplied endpoint. The result works in both comparison modes, with the same
+primitive relation and stage. Combining it with the proposition instantiation
+theorem gives conditional transport of the encoded propositions. It does not
+produce a carrier guard at A[x], decode an arbitrary Eq comparison, or construct
+the exact family guard of a generated prefix.
+
+The core boundary was tested rather than assuming propositions avoid it. The
+mixed diagonal loops in JointEndpointBoundary already have type Prop. Its
+recursive_type_coverage proof now takes only JointPropBetaStability. Therefore
+this narrower law still forces comparison coverage of every conversion out of
+a recursive Pi. The cast-no-Pi obstruction refutes it for the repaired ordinary
+core; the existing recursive extension gives a well-formed canonical-Eq,
+quotient-registered environment with PropositionFront and failure of this law.
+All four previous JointCommonBetaStability theorem interfaces are retained as
+wrappers around the narrower statements. The known stage-one cast repair is
+unchanged, so this is not a refutation of full-joint-union stability.
+
+Validation: builds of JointPropBeta and JointCarrierPropositions pass (541 and
+543 jobs). Rebuilding all modules imported by the cumulative audit, including
+dependents of the refactored endpoint boundary, passes (641 jobs). Logs:
+/tmp/joint-prop-beta-build.log, /tmp/joint-carrier-propositions-build.log,
+/tmp/joint-prop-beta-boundary-build.log, /tmp/joint-prop-beta-all-build.log.
+The cumulative opaque audit checks 503 public declarations and 15,175
+dependencies. The independent audit checks all eight new declarations and all
+four changed theorem roots, with 11,977 dependencies; it additionally excludes
+JointCarrierDomainResynthesis. Both exclude weakN_iff, weakN_inv and sorryAx,
+exit successfully, and account for all requested axiom reports using only
+propext, Classical.choice and Quot.sound. Audit sources/logs:
+/tmp/joint-prop-beta-audit.* and /tmp/joint-prop-beta-independent-audit.*.
+
+Judgment: the proposition-only law is a concrete sufficient premise for the
+specified guard-instantiation task, not a proved smaller sufficient front for
+strengthening. Its full-union proof, transport beneath generated telescopes,
+and decoding/using the carrier encoding remain open. Restriction to propositions
+alone does not avoid the established core obstruction. Further work must retain
+input-certificate provenance or permit the extra singleton computations on
+residual guards. The original strengthening sorry remains; no canonical-Eq
+counterexample or completion claim. No executable changes, extraction, PRs,
+agents or coordination. Goal remains active.

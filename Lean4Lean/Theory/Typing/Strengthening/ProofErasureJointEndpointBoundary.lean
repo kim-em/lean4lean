@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureJointPropBeta
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureJointLoopReadout
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureQuotCoreCastBoundary
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureScopedRecursiveCoverage
@@ -28,8 +29,8 @@ def JointCommonBetaStability (Step : List ProofShape → ProofShape → ProofSha
 /-- Even right-endpoint beta closure must recover every conversion out of a
 recursive Pi domain. The input compares a loop with a mixed-annotation loop;
 its functions are identical, and common lambda checking relates its arguments. -/
-theorem JointCommonBetaStability.recursive_type_coverage
-    (Hbeta : JointCommonBetaStability Step)
+theorem JointPropBetaStability.recursive_type_coverage
+    (Hbeta : JointPropBetaStability Step)
     (hhead : ∀ {Δ a b}, Step Δ a b → PrimitiveHead a)
     (hΓ : OnCtx Γ (env.IsType univs))
     (Hrec : env.IsDefEq univs Γ D (.forallE D (.sort .zero)) (.sort u))
@@ -86,18 +87,30 @@ theorem JointCommonBetaStability.recursive_type_coverage
   exact JointCompare.selfLoop_annotations hhead Hout
 
 
+/-- General common endpoint beta stability includes the proposition-only
+instance used by the recursive-domain obstruction. -/
+theorem JointCommonBetaStability.recursive_type_coverage
+    (Hbeta : JointCommonBetaStability Step)
+    (hhead : ∀ {Δ a b}, Step Δ a b → PrimitiveHead a)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (Hrec : env.IsDefEq univs Γ D (.forallE D (.sort .zero)) (.sort u))
+    (HD : env.IsDefEq univs Γ D D' (.sort u)) :
+    JointCompare Step (proofEraseCtx Γ) true (proofErase Γ D) (proofErase Γ D') :=
+  JointPropBetaStability.recursive_type_coverage
+    (fun hΓ hP hQ H R => Hbeta hΓ hP hQ H R) hhead hΓ Hrec HD
+
 omit [Params] in
 /-- A recursive Pi and a free reflexive equality proof refute single-endpoint
 beta closure for full joint checking over the quotient-repaired ordinary core.
 This is a certificate obstruction, not a failure of declarative strengthening. -/
-theorem JointCommonBetaStability.not_beta_of_recursive_pi {env : VEnv}
+theorem JointPropBetaStability.not_beta_of_recursive_pi {env : VEnv}
     (henv : env.WF) (U : Nat) (hquot : QuotRegistered env) :
     letI := henv.params U
     ∀ {Γ A B u v i}, env.HasCanonicalEq → u.WF U →
       OnCtx Γ (env.IsType U) → env.HasType U Γ (.sort v) (.sort u) →
       env.HasType U Γ (.bvar i) (eqApp (.succ u) (.sort u) (.sort v) (.sort v)) →
       env.IsDefEq U Γ (.forallE A B) (.forallE (.forallE A B) (.sort .zero)) (.sort v) →
-      ¬ JointCommonBetaStability (fun _ => ErasedQuotCore.Step hquot) := by
+      ¬ JointPropBetaStability (fun _ => ErasedQuotCore.Step hquot) := by
   letI := henv.params U
   intro Γ A B u v i heq hu hΓ hX hq Hrec Hbeta
   have hs := ErasedQuotCore.sound hquot
@@ -117,13 +130,29 @@ theorem JointCommonBetaStability.not_beta_of_recursive_pi {env : VEnv}
   exact ErasedQuotCore.cast_no_pi henv U hquot heq hu hΓ hX hq Hrec.hasType.1 R
 
 omit [Params] in
+/-- The proposition-only obstruction also refutes general common endpoint
+beta stability for the repaired core. -/
+theorem JointCommonBetaStability.not_beta_of_recursive_pi {env : VEnv}
+    (henv : env.WF) (U : Nat) (hquot : QuotRegistered env) :
+    letI := henv.params U
+    ∀ {Γ A B u v i}, env.HasCanonicalEq → u.WF U →
+      OnCtx Γ (env.IsType U) → env.HasType U Γ (.sort v) (.sort u) →
+      env.HasType U Γ (.bvar i) (eqApp (.succ u) (.sort u) (.sort v) (.sort v)) →
+      env.IsDefEq U Γ (.forallE A B) (.forallE (.forallE A B) (.sort .zero)) (.sort v) →
+      ¬ JointCommonBetaStability (fun _ => ErasedQuotCore.Step hquot) := by
+  letI := henv.params U
+  intro Γ A B u v i heq hu hΓ hX hq Hrec Hbeta
+  exact JointPropBetaStability.not_beta_of_recursive_pi henv U hquot heq hu hΓ hX hq Hrec
+    (fun hΓ hP hQ H R => Hbeta hΓ hP hQ H R)
+
+omit [Params] in
 /-- The installed recursive family supplies the recursive Pi obstruction to
 endpoint beta closure, retaining every repaired ordinary-core equation. -/
-theorem JointCommonBetaStability.not_beta_recursive {env : VEnv} (henv : env.WF) (U : Nat) (hquot : QuotRegistered env) (heq : env.HasCanonicalEq)
+theorem JointPropBetaStability.not_beta_recursive {env : VEnv} (henv : env.WF) (U : Nat) (hquot : QuotRegistered env) (heq : env.HasCanonicalEq)
     (hδ : ∀ Γ, env.IsDefEq U Γ (.const c []) (RecursiveDomain.familyValue c)
       RecursiveDomain.familyType) :
     letI := henv.params U
-    ¬ JointCommonBetaStability (fun _ => ErasedQuotCore.Step hquot) := by
+    ¬ JointPropBetaStability (fun _ => ErasedQuotCore.Step hquot) := by
   letI := henv.params U
   have Hrec := RecursiveDomain.domain_recursive hδ
   let D := RecursiveDomain.domainL c
@@ -153,10 +182,41 @@ theorem JointCommonBetaStability.not_beta_recursive {env : VEnv} (henv : env.WF)
 
 
 omit [Params] in
+/-- Preserve the general-law interface to the recursive family obstruction. -/
+theorem JointCommonBetaStability.not_beta_recursive {env : VEnv}
+    (henv : env.WF) (U : Nat) (hquot : QuotRegistered env) (heq : env.HasCanonicalEq)
+    (hδ : ∀ Γ, env.IsDefEq U Γ (.const c []) (RecursiveDomain.familyValue c)
+      RecursiveDomain.familyType) :
+    letI := henv.params U
+    ¬ JointCommonBetaStability (fun _ => ErasedQuotCore.Step hquot) := by
+  letI := henv.params U
+  intro Hbeta
+  exact JointPropBetaStability.not_beta_recursive henv U hquot heq hδ
+    (fun hΓ hP hQ H R => Hbeta hΓ hP hQ H R)
+
+omit [Params] in
 /-- A well-formed extension preserving canonical Eq and quotient registration
-has the proposition front but fails common joint endpoint beta closure for its
+has the proposition front but fails proposition-only joint endpoint beta closure for its
 repaired ordinary core. Hence this closure law is stronger than necessary in
 this environment and its failure is not a strengthening counterexample. -/
+theorem JointPropBetaStability.canonical_core_beta_failure
+    (hbase : base.WF) (heq : base.HasCanonicalEq) (hquot : QuotRegistered base)
+    (hfresh : base.constants c = none) :
+    let henv' := RecursiveDomain.extended_wf hbase hfresh
+    let hquot' := hquot.mono (RecursiveDomain.extended_le hfresh)
+    letI := henv'.params 0
+    (RecursiveDomain.extended base c).HasCanonicalEq ∧ PropositionFront ∧
+      ¬ JointPropBetaStability (fun _ => ErasedQuotCore.Step hquot') := by
+  letI := (RecursiveDomain.extended_wf hbase hfresh).params 0
+  have heq' := RecursiveDomain.extended_canonicalEq heq hfresh
+  refine ⟨heq', canonical_recursiveDomain_front hbase heq hfresh, ?_⟩
+  apply not_beta_recursive (RecursiveDomain.extended_wf hbase hfresh) 0
+    (hquot.mono (RecursiveDomain.extended_le hfresh)) heq' (c := c)
+  exact fun Γ => RecursiveDomain.equation 0 Γ
+
+omit [Params] in
+/-- Preserve the general-law counterexample, now derived from failure of the
+restricted proposition-only stability law in the same environment. -/
 theorem JointCommonBetaStability.canonical_core_beta_failure
     (hbase : base.WF) (heq : base.HasCanonicalEq) (hquot : QuotRegistered base)
     (hfresh : base.constants c = none) :
@@ -166,11 +226,9 @@ theorem JointCommonBetaStability.canonical_core_beta_failure
     (RecursiveDomain.extended base c).HasCanonicalEq ∧ PropositionFront ∧
       ¬ JointCommonBetaStability (fun _ => ErasedQuotCore.Step hquot') := by
   letI := (RecursiveDomain.extended_wf hbase hfresh).params 0
-  have heq' := RecursiveDomain.extended_canonicalEq heq hfresh
-  refine ⟨heq', canonical_recursiveDomain_front hbase heq hfresh, ?_⟩
-  apply not_beta_recursive (RecursiveDomain.extended_wf hbase hfresh) 0
-    (hquot.mono (RecursiveDomain.extended_le hfresh)) heq' (c := c)
-  exact fun Γ => RecursiveDomain.equation 0 Γ
+  obtain ⟨HE, HF, HN⟩ := JointPropBetaStability.canonical_core_beta_failure hbase heq hquot hfresh
+  refine ⟨HE, HF, fun Hbeta => HN ?_⟩
+  exact fun hΓ hP hQ H R => Hbeta hΓ hP hQ H R
 
 /-- The precise cast hidden by the beta obstruction computes away at repaired
 joint stage one. This verifies that the obstruction needs additional singleton
