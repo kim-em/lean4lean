@@ -10901,3 +10901,78 @@ no canonical-Eq strengthening counterexample or strictly smaller sufficient
 irreducible front. The goal remains active. Only theory and the two research
 ledgers changed; extraction and PRs remain deferred, with no executable changes,
 subagents or coordination.
+
+## Paired head beta at proof arguments (2026-10-21)
+
+Previous-goal-turn classification: progress. The clean pushed baseline was
+49f35b64cf68b3cde79f7fb11c917c7d9ea1cb1f. Exact certification and internal
+context/carrier transport were available. This turn returned to the endpoint
+application case rather than adding another context-transport interface.
+
+The function subderivation of app/appCarrier is inferred-mode comparison.
+When both functions are displayed lambdas, that fact excludes lamCommon and
+both common eta-body constructors. This matters: attempting to eliminate an
+eta-body common comparison would produce another application beta problem
+inside its premise. The inferred displayed-lambda induction instead has only
+reflexive leaves, lam/lamSorted, etaLams, computation and symmetry cases.
+
+ProofErasureJointProofHeadBeta proves simultaneous contraction at proof
+arguments in this setting. Its general theorem assumes primitive descent,
+identity/interpreted substitution closure and the constant/projection head
+restriction, all already provided by the certified relation. The functions
+have a shared assigned Pi with proposition domain P and an actual proof p:P.
+Their displayed domain annotations may differ arbitrarily by conversion.
+Typed Pi injectivity aligns each actual displayed domain with P and therefore
+supplies its Prop typing; the proof argument is converted to that domain by
+forward typing conversion.
+
+For lam and lamSorted, the existing common-context realization supplies both
+original body typings under the left annotation. Retained-variable proof
+substitution transports the body comparison at exactly the same relation.
+For etaLams, both the retained-variable and proof-marker EtaHead forms reduce
+to the same application after proof instantiation, so one direct beta path
+suffices. In compute, typed lambda inversion keeps both body paths under their
+original annotations. Those paths substitute exactly at the proof marker.
+Original source replay supplies typed intermediate functions at the shared
+assigned Pi, and the induction gives comparison of their instantiated bodies.
+The exact instantiated prefixes wrap this comparison. Neither general nor
+proposition endpoint-beta stability is used in these cases.
+
+A typed specialization gives common comparison of b[p] and c[q] for actual
+proposition-valued lambdas (lambda A b) and (lambda D c) with an inferred
+function comparison. The actual proofs p and q may differ; both erase to the
+same marker after conversion to the respective displayed domains. At the
+certified relation this result has no Hbeta premise and retains certified
+output. At stage n+1, lower-stage proposition beta transport is used only to
+certify the input function comparison, after which the unconditional theorem
+applies. Source stage zero closes in stage zero itself without certification
+or any endpoint stability premise.
+
+Scope and next work: this is the displayed-lambda/proof-argument application
+head-beta critical pair. It is not full proposition endpoint-beta transport:
+functions may first beta-reduce to lambda heads, non-proof arguments can have
+different retained erasures, and the contracted bodies may undergo additional
+beta reductions. The inferred-lambda proof now isolates where proof arguments
+were essential: retained proof substitution and the coincidence of their raw
+images. A non-proof paired-image invariant must keep carrier information and
+handle the native domain of applications in the instantiated body. It cannot
+replace those requirements with arbitrary assigned-type recovery or with the
+refuted common-mode endpoint law. The typed elimination-spine idea remains to
+be tested beyond this checked critical pair; no general spine theorem or
+strictly smaller sufficient strengthening front is claimed.
+
+Validation: the new head-beta target, full common-beta boundary and full joint
+beta-commutation targets build successfully (615 jobs), log
+/tmp/joint-proof-head-beta-build.log. Independent opaque DFS covers all five
+new public declarations: 11,471 dependencies, excluding carrier-domain
+re-synthesis, strengthening inverses and sorryAx. Cumulative DFS covers 677
+public declarations and 15,494 dependencies, excluding strengthening inverses
+and sorryAx. All five and 677 axiom reports were parsed and matched against
+exact requested names/counts; only propext, Classical.choice and Quot.sound
+occur. Sources/logs: /tmp/joint-proof-head-beta-{audit,independent-audit}.{lean,log}.
+
+Completion audit: UniqueTyping.lean:94 retains the original sorry. There is no
+canonical-Eq strengthening counterexample or strictly smaller sufficient
+irreducible front. The active goal is unchanged. Only theory and these two
+ledgers were edited; no executable changes, extraction, PRs, agents or
+coordination.

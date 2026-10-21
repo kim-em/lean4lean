@@ -2456,3 +2456,27 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   next attempt must retain explicit carriers through application and paired
   body instantiation, potentially tracking a typed elimination spine whose
   final result is a universe; no such spine theorem is assumed here.
+
+- **Use inferred function comparison to close paired head beta at proof
+  arguments.** **Proved, including changing computation annotations and erased
+  eta.** `ProofErasureJointProofHeadBeta` inducts over a full JointCheck
+  certificate whose mode is inferred and whose endpoints are displayed
+  lambdas. This rules out common-mode lambda-common and eta-body constructors;
+  app/projection/type heads cannot be the displayed lambda endpoints. The
+  surviving lambda cases instantiate their body comparisons by retained proof
+  substitution. Typed Pi injectivity shows that each actual displayed domain
+  is a proposition even when its syntax differs from the assigned domain.
+  Both raw eta forms contract after substitution of the proof marker. In the
+  computation case, typed lambda inversion returns body paths in the original
+  annotation contexts; exact primitive substitution instantiates those paths,
+  and source replay supplies the intermediate lambdas for the induction.
+  Thus the conclusion compares the two contracted bodies directly, without
+  appealing to any endpoint-beta stability law. Actual proposition-valued
+  applications may use different proofs of the shared proposition. The
+  certified relation stays certified without Hbeta, and source zero stays at
+  zero. Stage n+1 uses only stage-n transport to certify the inferred function
+  input. This closes the displayed-lambda/proof-argument head-beta critical
+  pair, not all beta reductions of proposition applications. The non-proof
+  paired-image case and further beta paths inside the resulting bodies remain
+  open. Simply dropping the proof restriction for arbitrary result types is
+  already refuted by the unit identity example.
