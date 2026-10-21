@@ -10597,3 +10597,70 @@ negative result concerns a proposed comparison invariant, not the goal's
 strengthening theorem. No canonical-Eq strengthening counterexample or strictly
 smaller sufficient front is established. The goal remains active. No
 executable changes, extraction, PRs, agents or coordination.
+
+## Carrier-preserving residual cases and their proposition consequence
+
+Previous-turn classification: progress. Clean HEAD 841cb62f contained the
+checked counterexample to general common-mode beta transport into the full
+union. This turn pursued the carrier-preserving replacement and inspected the
+actual joint carrier, recovery and equality-decoder interfaces.
+
+ProofErasureJointCarrierBetaResidual names a local residual property and the
+missing global typed carrier transport law. The local property requires an
+actual JointCarrierGuard at the original supplied carrier after any finite
+beta paths on the two endpoints. The global law starts from a typed joint
+carrier guard. Ordinary source comparison enters via carrierChecked, but the
+output does not assert general common comparison, which the preceding unit
+example refutes. At the literal Prop sort, the existing sort_checked theorem
+converts the output carrier guard to ordinary common comparison. Thus the
+proposition-transport consequence is proved exactly, with no general carrier
+decoder and no new semantic re-synthesis premise. The global carrier law itself
+remains explicitly unproved and is not claimed a smaller sufficient front.
+
+Several cases for that simultaneous proof are now checked. Subsingleton
+carriers give every endpoint residual immediately, including the distinct-unit-
+variable peak. Symmetry swaps future paths. A function carrier takes beta paths
+under lift and application to its unchanged eta argument, then invokes its body
+residual certificate and reconstructs carrierFunction. A fixed target carrier
+computation wraps every endpoint residual by carrierCompute. Reflexive typed
+comparison joins the two beta paths through the unconditional core computation
+commutation theorem, then uses a reflexive guard at the shared term. It needs
+no independent type recovery for the supplied output carrier.
+
+For two finite endpoint-computation prefixes, commute each prefix with its
+endpoint beta path. The recursively supplied residual property is invoked on
+the two beta paths starting at the original prefix outputs. Its actual carrier
+guard is then wrapped with the two target computations using carrierReduce.
+The source and target relations may differ. The concrete stage-n+1 wrapper
+uses the preceding finite commutation theorem under stage-n proposition
+transport only; the stage-zero wrapper has no proposition-transport premise.
+These lemmas discharge the computation-prefix part of compute/carrierReduce
+once the recursive case is available, without invoking a stability law on an
+arbitrary enlarged target guard.
+
+Remaining scope is explicit. Application comparison still needs inferred
+function/domain information, which cannot be recovered merely by forgetting
+the new carrier output. Dependent record fields also reveal a necessary
+extension of the induction invariant: carrierNested indexes a field carrier
+using the new left major, while the local endpoint-only residual property
+retains the old supplied carrier. The existing carrierCompute rule pulls a
+guard back along carrier computation; it does not push an old guard forward
+onto the beta-reduced field carrier. A simultaneous carrier/context transport
+argument or retained dependent origins is still needed. The existing general
+carrier proposition encoding was inspected; its decoder currently applies to
+literal sort carriers only and does not discharge this gap.
+
+Validation: new carrier-residual, prior common-beta-boundary and full joint
+beta-commutation targets build successfully (600 jobs), log
+/tmp/joint-carrier-beta-residual-build.log. Independent opaque dependency DFS
+checks all 12 new public roots: 11,433 dependencies, excluding carrier-domain
+re-synthesis, strengthening inverses and sorryAx. Cumulative audit: 637 public
+roots, 15,432 dependencies, no strengthening inverses or sorryAx. All 637 and
+12 requested axiom reports were parsed and matched exactly; only propext,
+Classical.choice and Quot.sound occur. Templates/logs:
+/tmp/joint-carrier-beta-residual-{audit,independent-audit}.{lean,log}.
+
+Completion audit: the original sorry at UniqueTyping.lean:94 remains. No
+canonical-Eq counterexample or strictly smaller sufficient strengthening front
+has been established. The goal remains active. No executable changes,
+extraction, PRs, agents or coordination.

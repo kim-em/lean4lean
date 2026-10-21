@@ -2320,3 +2320,36 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   comparison. The new computation commutation theorems remain available for
   finite computation-prefix cases. No claim of a smaller sufficient front is
   made by this candidate invariant.
+
+- **Formulate typed beta transport with carrier-preserving output.**
+  **Interface and proposition consequence checked** in
+  `ProofErasureJointCarrierBetaResidual`. JointCarrierBetaResidual retains an
+  actual guard at the original supplied carrier after both finite endpoint
+  beta paths. JointCarrierBetaTransport names the still-missing global law for
+  typed input carrier guards. Its literal-Prop instance recovers exactly
+  JointPropBetaTransport using carrierChecked on input and sort_checked on
+  output. It does not imply the false general common-mode conclusion and is
+  not claimed to be a smaller sufficient strengthening front.
+
+- **Discharge recursive carrier cases using the new computation commutation.**
+  **Checked cases:** subsingleton carriers, symmetry, function carriers given
+  their body residual, a fixed target computation of the carrier, reflexive
+  typed comparison, and two finite endpoint-computation prefixes given the
+  inner residual. Prefixes at stage n+1 use only stage-n proposition transport;
+  core prefixes need none. The body/function result uses beta under lift and
+  application to the same eta argument. The unit identity obstruction is
+  handled by its subsingleton carrier instead of ordinary common comparison.
+  These are constructor-case lemmas, not a proof of the global transport law.
+
+- **Handle application domains and changing dependent field carriers.**
+  **Remaining live task.** An ordinary-term residual cannot simply be used as
+  the inferred function comparison required by app/appCarrier. A replacement
+  must retain enough type/domain information, or eliminate the application
+  before requesting that comparison. For carrierNested, the field carrier is
+  computed from the new left major, whereas the current endpoint residual
+  retains the old supplied carrier. Carrier-computation pullback alone goes in
+  the wrong direction to replace that old field carrier by its beta reduct.
+  Simultaneous carrier/context transport or an invariant retaining the original
+  dependent derivation must be tested; the endpoint-only residual property
+  does not silently settle this. The earlier Eq-sort decoder handles literal
+  universes only and must not be treated as a general carrier decoder.
