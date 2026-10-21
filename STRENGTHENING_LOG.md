@@ -14450,3 +14450,63 @@ common transport and arbitrary supplied-carrier transport must not be used to
 fill it. Next examine the actual singleton family's dependent parameter/index
 carriers across these paths. Only theory and actual EOF ledger additions
 change; no executable edits, PR extraction, PRs, subagents or coordination.
+
+
+## 2026-10-21 18:00 UTC — Construct guards for mixed singleton argument computation
+
+Previous goal turn: progress, commit 670d0725. Verified clean HEAD and inspected
+actual singleton guard definitions and current future-certificate boundaries.
+The guard's only argument inputs are its family parameter and index slices.
+The full union is not currently known to preserve interpreted substitutions,
+so the arbitrary-carrier Eq decoder cannot be used to turn the existing unit
+identity example into an exact target-union guard obstruction without adding
+an unresolved hypothesis. Recorded that test as unresolved.
+
+Completed a positive residual case instead of assuming that missing law.
+The private singleton_compute_telescope helper in
+ProofErasureSingletonOutputComputation now retains the actual target domains,
+the IsDefEqCtx of full telescope contexts, and their exact raw erasure. Existing
+public statements are unchanged. ProofErasureSingletonGuardComputation adds
+three public theorems. Valid.guard_compute_of_provider_beta transports a
+future guard when opened parameter/index vectors beta reduce: fixed template
+instantiation supplies both endpoint beta paths, BetaStableFamily.beta keeps
+all future certificates, and defeqCtx changes the raw context using the actual
+witness. Valid.guard_compute_of_family_args_beta derives these opened paths
+from beta paths in the supplied family slices. The take/drop/append proof
+handles slices crossing from the supplied prefix into the fresh suffix; no
+saturation bound is needed. Fresh variables agree under changed telescope
+annotations and argument paths preserve the supplied prefix length.
+
+Valid.certified_residual_of_family_args_beta constructs the complete mixed
+fork residual for ErasedBetaStableJoint. Family parameters and indices have
+beta paths to their new values; every other argument may compute by arbitrary
+certified primitives. The target telescope, full future union guard, target
+certified singleton, and complete old-output computation are conclusions.
+No target guard or target telescope success is assumed. This includes arbitrary
+dependent residual binders and covers unchanged family arguments as a special
+case. Remaining argument forks genuinely change a parameter or index by more
+than beta; the new theorem is not presented as solving those forks.
+
+Validation: one new theory module (160 lines), three new public theorems;
+one existing theory helper extended (10 inserted/5 removed lines) and its
+consumer pattern adjusted. Consuming build exits zero in 614 jobs, new/touched
+modules warning-free; existing dependency warnings replay. Log:
+/tmp/singleton-guard-build.log. Both dependency audit processes exit zero.
+Cumulative opaque DFS: 1,156 roots / 16,349 dependencies, excluding .weakN_iff,
+.weakN_inv and sorryAx. Independent opaque DFS: all seven new/touched public
+roots / 10,978 dependencies, additionally excluding
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure and
+JointPropBetaTransport. Opaque values are traversed with
+ci.value? (allowOpaque := true). Exact-name axiom inventories cover every root
+exactly once, allowing only propext, Classical.choice and Quot.sound. Audit
+sources, logs and root lists: /tmp/singleton-guard-{audit,independent-audit}
+with .lean, .log and -roots.txt suffixes.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+No canonical-Eq counterexample or strictly smaller sufficient obligation has
+been proved. Keep GOAL.md active. This is progress: a mixed argument fork now
+has its guard and both residual branches constructed, whereas the prior turn
+required the new guard as a premise. Next focus on non-beta computation of
+family parameters/indices, respecting the difference between certified and
+full-union substitution. Only theory and actual EOF ledger additions change;
+no executable changes, PR extraction, PRs, subagents or coordination.

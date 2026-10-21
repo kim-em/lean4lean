@@ -4448,3 +4448,45 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   replace this with the already refuted arbitrary common guard transport.
   This is progress toward the route, not a GOAL.md success condition or a
   proved strictly smaller sufficient obligation.
+
+
+## 2026-10-21 18:00 UTC — Mixed singleton argument forks
+
+- Recover a full future singleton guard through arbitrary computation outside
+  the family parameter/index slices. Verdict: proved, then generalized below.
+  The previous output theorem already realizes the changed residual telescope
+  by actual context conversion. Retain that witness in its private helper;
+  use BetaStableFamily.defeqCtx to transport the old guard. No ordinary union
+  context-conversion law is assumed.
+- Permit beta reduction in the parameter/index slices while all other supplied
+  arguments compute arbitrarily. Verdict: proved in
+  ProofErasureSingletonGuardComputation. Slice beta paths lift through the
+  equal-length residual telescopes; the fresh suffix agrees exactly. The
+  fixed family templates beta reduce under their changed captures, and the
+  guard's stored beta future composes with those paths before actual context
+  conversion. This covers unsaturated dependent telescopes and does not ask
+  for a target family guard.
+- Close the mixed singleton/argument fork completely. Verdict: proved by
+  Valid.certified_residual_of_family_args_beta. It constructs the new telescope,
+  full future union guard, certified target primitive, and old-output path.
+  The family-relevant slices need beta paths to their target values; unchanged
+  slices are included. Other arguments may use all certified primitives.
+
+- Test a stronger Eq-family forward-computation obstruction using declared
+  unit identities at a converted supplied carrier. Verdict: unresolved, not
+  refuted. Existing stable Eq encoding produces the source guard, but decoding
+  an arbitrary target union Eq guard at its supplied carrier currently needs
+  interpreted substitution closure (ProofErasureEqCarrierDecode). That closure
+  is proved for the certified relation, not for the full union without an
+  additional unresolved hypothesis. Thus the existing supplied-carrier
+  PropositionFront barrier does not by itself establish the exact general
+  singleton-guard barrier. Do not silently add union substitution or conclude
+  that the actual target-union guard question has been settled.
+
+  Judgment: the remaining argument forks on this route require genuinely
+  non-beta changes in the family parameters or indices. Motive/minor and other
+  family-irrelevant computations, even mixed with beta family changes, now have
+  a complete checked residual. General guard persistence, certified confluence,
+  coverage, and the original strengthening objective remain unproved. The
+  narrowed operational case is not claimed strictly smaller than PropFront or
+  sufficient by itself for GOAL.md.

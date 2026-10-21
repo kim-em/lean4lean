@@ -46,8 +46,10 @@ private theorem singleton_compute_telescope
       ProofShape.residualTelescope (data.majorOffset + 1 - args.length) args'
         (proofErase [] (recType.instL levels)) = some (ds', result') ∧
     ScopedTelescopeCompute Step (proofEraseCtx Γ) (proofEraseDomains Γ program.domains) ds' ∧
-      ∀ n below, contextVars ((proofEraseDomains Γ program.domains).reverse ++ proofEraseCtx Γ)
-        n below = contextVars (ds'.reverse ++ proofEraseCtx Γ) n below := by
+      (∀ n below, contextVars ((proofEraseDomains Γ program.domains).reverse ++ proofEraseCtx Γ)
+        n below = contextVars (ds'.reverse ++ proofEraseCtx Γ) n below) ∧
+      ∃ domains', IsDefEqCtx env univs [] (program.domains.reverse ++ Γ) (domains'.reverse ++ Γ) ∧
+        proofEraseDomains Γ domains' = ds' := by
   unfold RecursorData.singletonUnfolding at hg
   dsimp only at hg
   split at hg <;> try contradiction
@@ -75,9 +77,12 @@ private theorem singleton_compute_telescope
     proofErase_takeForalls_compute_exists hstep hsubst hhead hΓ hres htake R
   refine ⟨ds', result', ?_, ?_⟩
   · simpa only [ProofShape.residualTelescope, HS, bind, Option.bind_some] using HO
-  exact ⟨(proofErase_takeForalls_compute hstep hsubst hhead hΓ hres R
+  refine ⟨(proofErase_takeForalls_compute hstep hsubst hhead hΓ hres R
     (proofErase_takeForalls hΓ ⟨w, hres⟩ htake) HO).1,
-    fun _ _ => proofErase_computed_telescope_providers hstep hΓ hres htake R HO⟩
+    (fun _ _ => proofErase_computed_telescope_providers hstep hΓ hres htake R HO), ?_⟩
+  obtain ⟨domains', _, W, HD, _⟩ :=
+    proofErase_computed_telescope_context hstep hΓ hres htake R HO
+  exact ⟨domains', W, HD⟩
 
 /-- Computing a typed prefix's arguments preserves successful construction of
 its residual telescope. This requires no source or target family guard. -/
@@ -123,7 +128,7 @@ theorem SingletonPrefixCode.Valid.output_compute
   have hlen : args.length = args'.length := by simpa only [List.length_map] using RA.length_eq
   have HO := hcalc'
   simp only [SingletonPrefixCode.telescope, ← hlen] at HO
-  obtain ⟨ds₀, result₀, HO₀, RT, HV⟩ := singleton_compute_telescope hstep hsubst hhead hΓ
+  obtain ⟨ds₀, result₀, HO₀, RT, HV, _⟩ := singleton_compute_telescope hstep hsubst hhead hΓ
     V.registered V.levels_wf V.recType_eq hg ht RA
   cases Option.some.inj (HO₀.symm.trans HO)
   have hctx := ((V.registered.prefixType henv hΓ V.levels_wf hg ht).etaOpen_wf henv hΓ).1
