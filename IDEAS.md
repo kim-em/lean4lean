@@ -1833,3 +1833,19 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   registered extension was constructed. Function/structure-headed field types,
   changed function domains and universal compared-type alignment remain open.
   The result is a new alignment case, not a smaller sufficient front.
+
+- **Retain domain comparison when exposing a selected recovered Pi.**
+  **Proved, and consumed by the empty-structure application case.**
+  ProofErasureJointDomainExposure strengthens head exposure with a common
+  comparison between the assigned domain and the newly selected domain.
+  Compatible Pi computation preserves a domain computation in the original
+  ambient context, so full joint comparison induction can retain this evidence
+  without codomain-context transport. Actual recovery replay supplies a new Pi
+  typing and upgrades the domain comparison to inferred mode. When the assigned
+  domain is an empty registered structure, this supplies the recovered argument
+  guard and closes the actual appCarrier rule at the same stage and endpoints.
+  The input recovery and assigned-type comparison remain supplied certificates;
+  universal variable compared-recovery is already known to imply PropositionFront.
+  Codomain comparison would additionally require transport between compared
+  binder domains, including the reverse orientation of forallE. This batch
+  neither supplies that transport nor makes the sufficient front smaller.

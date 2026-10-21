@@ -9416,3 +9416,59 @@ General compared-context transport and assigned-type coverage remain open.
 There is no strengthening proof, canonical-Eq counterexample, or strictly
 smaller sufficient front. No executable changes, extraction, PRs, agents or
 coordination. Goal remains active.
+
+## 2026-10-21 — Preserve domain comparison through selected Pi exposure
+
+The preceding goal turn was no progress: it acknowledged the user's instruction
+not to extract work and made no changes. The subsequent goal continuation
+resumed research. The worktree was clean at cebc386b. No extraction or PR work
+was resumed.
+
+ProofErasureJointDomainExposure closes a specific loss of evidence in the
+existing exposure route. Scoped computation from a displayed Pi retains the
+domain computation in its original ambient context. A paired induction over
+the complete joint checking grammar then exposes a Pi on the other side of
+an inferred type comparison while preserving common comparison between the
+original displayed domain and the selected domain. In a compute case, compose
+the target computation and prepend the source domain computation to its domain
+comparison. Symmetry exchanges the two induction properties. This avoids any
+claim that codomain computations remain in an unchanged binder context.
+
+For a function actually typed at an assigned Pi, replay the existing recovered
+type and use its sort typing to read the supplied type comparison in inferred
+mode. Expose the new Pi with its domain comparison, replay that recovery to
+obtain an actual Pi typing, and use the two actual domain typings to upgrade
+their comparison to inferred mode too. This works even if the initial supplied
+comparison used common mode. It does not synthesize the initial recovery or
+assigned-type comparison.
+
+The empty-structure case now consumes this evidence end to end. If the assigned
+domain erases to an inert registered empty family, its inferred comparison with
+the newly recovered domain supplies a guard at that domain. Together with the
+supplied inferred function comparison, the appCarrier constructor checks the
+original application endpoints at the same stage. No literal type join or exact
+recovery of the assigned Pi is required. The raw application conclusion does
+not assert typings for arbitrary raw argument endpoints; those remain necessary
+for sound typed interpretation as usual.
+
+Validation: lake build of ProofErasureJointDomainExposure passes (561 jobs;
+/tmp/joint-domain-exposure-build.log). The cumulative opaque dependency audit
+checks 479 public declarations and 14,566 dependencies. The independent audit
+checks all six new declarations and 8,447 dependencies, additionally excluding
+JointCarrierDomainResynthesis. Both exclude weakN_iff, weakN_inv and sorryAx,
+and both completed successfully. All 479 cumulative and six independent axiom
+reports were accounted for and contain only propext, Classical.choice and
+Quot.sound. Audit sources and logs are /tmp/joint-domain-exposure-audit.* and
+/tmp/joint-domain-exposure-independent-audit.*.
+
+Judgment: this connects supplied compared recovery to a complete application
+case, rather than merely exposing a head. It remains a supporting result.
+Universal compared-recovery coverage already implies PropositionFront by the
+existing variable barrier; it cannot be presented as a strictly smaller front.
+Arbitrary carrier alignment and compared-context transport remain open.
+In particular, retaining codomain comparison through the symmetric forallE
+case requires moving its check from the old left domain to the compared right
+domain; preserving domain computation alone does not supply this. The original
+weakN_iff still contains its sorry at UniqueTyping.lean:94. No canonical-Eq
+counterexample or strictly smaller sufficient front was obtained. Goal remains
+active; no executable changes, extraction, PRs, agents or coordination.
