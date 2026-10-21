@@ -11354,3 +11354,73 @@ Completion audit: the original weakN_iff sorry remains. No canonical-Eq
 counterexample or strictly smaller sufficient irreducible front has been
 established. The goal stays active. Only theory files and research ledgers
 change; no executable changes, extraction, PRs, or coordination.
+
+
+## Closing the Eq probe first-head analysis (2026-10-21)
+
+Previous conversational turn: no research progress; it clarified that declining
+extraction did not mean ending research. Revalidation found committed baseline
+cc46a74b and three untracked partial modules. This turn completed those modules
+and connected them to a full semantic-head-to-PropositionFront implication.
+No extraction or PRs were requested or performed.
+
+ProofErasureJointFreshVariableReadout reads a computation to a bare variable
+from inferred checking and proves that either checking mode distinguishes
+bare variable indices. Typed descent then excludes a fresh variable as the
+comparison result of a lifted sort-typed expression. ProofErasureEqVariableGuardReadout
+calculates native recovery for Eq at a variable carrier and decodes its final
+argument, using carrier exposure rather than carrier-domain re-synthesis.
+ProofErasureEqEarlyGuard applies these facts to the literal generated family
+guards for arities zero through four. The zero-argument result is uniform over
+positive carrier universes; the other exclusions use the Prop carrier.
+
+ProofErasureEqPrefixArity combines these exclusions with valid-code generation:
+an actual singleton step on an initial segment of a typed five-argument probe
+must supply all five arguments. ProofErasureEqComputedPrefixArity pads a
+computed initial segment with unchanged remaining arguments, replays the whole
+source at its original type, and applies this arity result. This avoids
+attempting to strengthen a computed argument typing in isolation.
+ProofErasureEqComputedGuardReadout aligns the computed endpoints with the
+original lower propositions and descends the five-argument guard. Its final
+theorem handles any chosen prefix of the six raw probe arguments, including
+the proof marker, without a caller-supplied arity choice.
+
+ProofErasureEqHeadExposureBarrier completes the argument. It constructs the
+lower typed non-proof prefix, adds the assumed front and a fresh Eq proof
+binder, invokes semantic sort exposure on the full probe, and extracts the
+first head primitive. Existing erased_iota_eqRec_no_root rules out core steps:
+short prefixes cannot match the registered major offset, and the saturated
+major stays the proof marker under computation. The remaining general
+singleton case gives the original endpoint equality below both binders.
+The theorem is generic in source and guard-target relations; the concrete
+ErasedBetaStableJoint corollary uses its existing inclusion and descent laws.
+It assumes sound core definitions, explicit Eq/Eq.rec unfolding exclusions,
+and canonical Eq.rec registration/major offset, not arbitrary core inertness
+inferred from soundness.
+
+Interpretation: semantic head exposure is sufficient for PropositionFront
+without the separate generic substitution and head-beta closure results.
+This is not a converse, an impossibility theorem for head exposure, or a
+strictness proof. The sort-exposure premise remains unproved. It therefore
+cannot yet be counted as the goal's strictly smaller irreducible front.
+The useful next target is a direct construction of sort exposure for the
+constant-motive probe from original conversion, with no circular appeal to
+singleton-guard completeness. Full-union specialization, if needed, also
+requires its specialized Eq-prefix branch; this does not affect the proved
+certified-relation implication.
+
+Validation: all seven new modules and semantic-head-beta regression build
+successfully, 615 jobs, /tmp/eq-head-barrier-build.log. Independent opaque DFS
+covers all 18 new public roots and 11,125 dependencies; it rejects
+JointCarrierDomainResynthesis, .weakN_iff, .weakN_inv, and sorryAx. Cumulative
+opaque DFS covers 743 roots and 15,595 dependencies, rejecting strengthening
+inverses and sorryAx. Exact-name axiom parsing matches every requested root;
+only propext, Classical.choice, and Quot.sound occur. Sources and logs:
+/tmp/eq-head-barrier-{audit,independent-audit}.{lean,log}. New roots are listed
+in /tmp/eq-head-barrier-new-roots.txt. There are no new-module warnings in the
+final build; previously imported modules retain their existing warnings.
+
+Completion audit: UniqueTyping.lean:94 still contains the original weakN_iff
+sorry. No canonical-Eq counterexample or strictly smaller sufficient front is
+proved. The goal stays active. Changes are theory and research ledgers only;
+no executable changes, extraction, PRs, or coordination.

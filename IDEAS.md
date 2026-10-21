@@ -2625,3 +2625,44 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   argument computations must also be prefixed to the decoded comparison.
   Next: connect those cases to the five-argument decoder before deciding
   whether head exposure is genuinely weaker than the full proposition front.
+
+
+## Eq probe: computed prefixes and the semantic-head implication (2026-10-21)
+
+- **Finish all first-head alternatives for the certified relation. Verdict:
+  checked sufficiency, not a strictly smaller-front deliverable.**
+  `ProofErasureEqHeadExposureBarrier` now proves
+  `ScopedSemanticHeadExposure.propositionFront_of_core_singleton`. Its source
+  relation has typed descent and constant/projection primitive heads; every
+  primitive is ordinary core or a general singleton whose family guard uses
+  a target joint comparator with typed descent and inert Eq spines. Canonical
+  Eq.rec registration and exclusion of Eq.rec unfolding from the core are
+  explicit. The proof uses only semantic sort exposure, with the constant
+  motive probe from the preceding entry. It assumes one ordinary front binder
+  and then a fresh equality-proof binder; neither needs an inhabitant below.
+  The certified `ErasedBetaStableJoint D` corollary discharges the coverage and
+  descent hypotheses using the existing union. Core soundness alone is not
+  mistaken for syntactic Eq/Eq.rec inertness: both exclusions remain explicit.
+
+  The previous gaps are now covered. Zero-argument singleton guards compare
+  distinct fresh endpoints at a fresh variable carrier; native recovery and
+  carrier inversion expose the contradiction. At one argument the carrier is
+  Prop and the endpoints are distinct fresh proposition variables. At two,
+  three, or four arguments the supplied proposition cannot compute/compare to
+  the fresh requested index. Generation bounds arity by five. Padding a
+  computed prefix with untouched arguments reconstructs a typed whole source,
+  so the same exclusions apply after arbitrary argument computations. At five
+  arguments, component paths and the decoded guard yield equality of the
+  original propositions below all inserted binders. Existing core exclusion
+  handles shorter prefixes and the full proof-marker-major application.
+
+  This establishes an implication, not an equivalence or a proof that semantic
+  head exposure is impossible. It also eliminates the need for the later
+  generic substitution/head-beta arguments in this particular sufficiency
+  proof. No strictly smaller irreducible obligation has been established;
+  direct proof of sort exposure remains a live route to strengthening. The
+  next substantive question is how to construct this probe's sort computation
+  from its original-syntax conversion without assuming completeness of its
+  singleton family comparison. If pursuing the full union instead, its extra
+  specialized Eq-prefix alternative still needs to be connected explicitly;
+  the current theorem already covers the certified core/general relation.
