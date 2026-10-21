@@ -14576,3 +14576,66 @@ missing substitution theorem, or construct target guards through explicit
 native carrier recipes as the literal-unit proof does. Only theory and actual
 EOF ledger additions change; no executable changes, PR extraction, PRs,
 subagents or coordination.
+
+
+## 2026-10-21 18:28 UTC — Recoverable union Eq decoding closes the target-relation gap
+
+The previous conversational turn only clarified the pause and made no research
+progress. Revalidated the worktree: HEAD 737e1549, two untracked future Eq
+encoding/decoding modules from the interrupted research, no live process.
+Continued that work and tested the typed-body alternative to unrestricted
+union substitution against the existing domain-pullback implementation.
+
+Six new modules, 742 lines, 18 public roots (16 theorems and two explicitly
+unproved missing-law definitions):
+
+- ProofErasureFutureEqCarrier: raw future carrier-to-Eq encoding, typed
+  encoding, and an actual certified Eq-prefix constructor consuming the
+  full future union carrier certificate.
+- ProofErasureFutureEqCarrierDecode: future decoding and equivalence under
+  primitive substitution closure, with the certified relation as an
+  unconditional specialization of those closure premises.
+- ProofErasureJointTypedBinderComputation: typed domain pullback for the
+  union via two independent finite stage bounds; typed Pi inversion with
+  body computation in the original binder context. Transitivity replays
+  both components, converts the actual body typing and pulls computation
+  back along the domain path. No inverse typing weakening is used.
+- ProofErasureJointNativeEqRecovery: union computation instantiation at a
+  recoverable anchor; native Eq prefix recovery; supplied-carrier-to-selected-
+  domain computation. A finite anchor recovery bound suffices for an entire
+  union body path. Proof anchors need no recovery.
+- ProofErasureJointVariableEqDecode: full-union inferred Eq decoding with
+  variable anchors recovering a common ancestor carrier. Computation leaves
+  anchors fixed, and recovery converts along the two carrier paths. Typed
+  source replay supplies each subsequent Eq spine's argument typings.
+- ProofErasureFutureEqUnionFront: the base full-union target version of
+  diagonal Eq forward transport still implies PropositionFront under the
+  closed-unit identity assumptions. The context is now K.lift :: K :: E ::
+  A :: Γ, where E is Eq Prop P.lift Q.lift and K is its unit-valued Eq probe.
+  This supplies native recovery for the anchor, unlike the prior context
+  with unit-declared variables. A second reduction gives the same implication
+  for outer Eq over literal Prop. Both laws are definitions of missing
+  properties, not assumptions smuggled into an unconditional proof.
+
+Final consuming build: 684 jobs, exit zero, new modules warning-free; existing
+warnings replay. Log /tmp/future-eq-union-final-build.log. Both opaque DFS
+processes exit zero. Cumulative 1,184 roots / 16,386 dependencies excludes
+.weakN_iff, .weakN_inv and sorryAx. Independent 18 roots / 11,476 dependencies
+also excludes JointCarrierDomainResynthesis, ScopedSemanticHeadExposure and
+JointPropBetaTransport. Both traverse ci.value? (allowOpaque := true).
+Exact-name axiom inventories cover each root exactly once; only propext,
+Classical.choice and Quot.sound occur. Audit sources/logs/root inventories:
+/tmp/future-eq-union-{audit,independent-audit} with .lean, .log and -roots.txt
+suffixes. Direct module checks and the consuming build have no new warnings.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+There is no actual canonical-Eq counterexample and no proven strictly smaller
+sufficient irreducible obligation. Keep GOAL.md active. The full-union target
+barrier is new evidence against treating arbitrary non-beta future-guard
+persistence as an automatic repair; it does not prove that persistence false.
+Actual full-future output would in particular supply the base union output
+used here. Remaining constructive work must establish the difficult law or
+avoid requiring it in the computation join. Typed union binder inversion and
+recoverable anchor instantiation are now available for that attempt. Only
+Theory files and actual-EOF ledger additions changed. No executable edits,
+PR extraction, PRs, subagents or coordination.

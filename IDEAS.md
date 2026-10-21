@@ -4533,3 +4533,59 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   future full-union comparison; its general non-beta persistence remains
   unresolved. A base certified result and a full-future union result must not
   be conflated. No GOAL.md success condition is met.
+
+
+## 2026-10-21 18:28 UTC — Future Eq encoding and the full-union transport barrier
+
+- Encode a retained future carrier certificate as a future Eq family guard.
+  Verdict: proved for arbitrary raw carriers and anchors with their retained
+  future comparisons. At actual typed occurrences, reflexive carrier/anchor
+  families suffice. A full future carrier certificate in ErasedJointUnion
+  constructs an actual ErasedBetaStableJoint Eq-prefix step. This consumes
+  the certificate; it does not synthesize or transport it forward.
+- Decode the whole future Eq certificate, including independent carrier beta
+  reduction and every interpreted substitution. Verdict: proved when the
+  primitive relation is sound, head-preserving, Eq-inert and substitution
+  closed; certified computation satisfies these premises. Future Eq and
+  future carrier certificates are equivalent there. No general union
+  substitution theorem is inferred.
+- Replace unrestricted substitution in native Eq recovery with existing
+  recoverable substitutions and contravariant domain pullback. Verdict:
+  proved. Typed union Pi inversion retains the body computation in the
+  original context. A recoverable anchor instantiates the body path, giving
+  native Eq prefix recovery and a path from the supplied carrier to the
+  selected last-argument domain. Actual body typing is required.
+- Preserve the anchor recovery through arbitrary union Eq comparison by
+  choosing a variable anchor. Verdict: proved. Variables remain fixed through
+  computation; their recovery follows the computed carrier by conversion.
+  The resulting decoder handles all inferred comparison constructors and
+  returns a guard at a common ancestor carrier. This removes the missing
+  unrestricted-substitution premise for the case needed by the probe test.
+- Weaken the earlier diagonal Eq forward-transport law's target from base
+  certified comparison to base full-union comparison. Verdict: still implies
+  PropositionFront, conditionally on the same closed positive unit, declared
+  unit identity/unfolding, canonical Eq, sound definitions, Eq registry
+  agreement and inert Eq/Eq.rec heads. Declare the probe before the two fresh
+  variables, and declare both variables at the probe itself. Their native
+  recovery is then available, while actual conversion types them at unit.
+  The source has a primitive-free future guard and the paths only unfold
+  the identity; union target decoding exposes the probe or contradicts
+  distinct-variable comparison. This closes the limitation explicitly left
+  by the preceding certified-target result.
+- Restrict the new union-target law to diagonal Eq over literal Prop.
+  Verdict: the same conditional PropositionFront implication is proved by
+  nested Eq encoding and literal-sort decoding. Restricting the outer
+  supplied carrier to Prop does not remove arbitrary inner carriers.
+
+Judgment: future carrier recipes now construct actual Eq guards, and typed
+union binder computation has a constructive substitute for unrestricted
+substitution. But generic non-beta forward persistence of actual future Eq
+family guards is not a demonstrated smaller obligation: even its base union
+output contains the original front under the stated environment assumptions.
+This is not a refutation of transport or a canonical-Eq counterexample. The
+full arbitrary-anchor union decoder and unrestricted substitution remain
+open; neither is needed for the new conditional barrier. No GOAL.md success
+condition is met. Next use typed union binder inversion/recoverable
+instantiation in the computation-join argument itself, retaining native
+recovery evidence, rather than installing forward guard transport as an
+unproved supposedly smaller repair.
