@@ -5120,3 +5120,37 @@ proposition-index case explicitly left out by the earlier universe-argument
 example. It does not cover arbitrary eta inside arguments, structure eta,
 other unrecoverable prefixes or arbitrary paired body substitution.
 FullReduction coverage and strengthening remain open.
+
+
+## 2026-10-21 21:18 UTC — Remove motive-prefix eta by descending earlier argument paths
+
+Verdict: proved for the positive-universe Prop-carrier Eq motive prefix,
+including the actual type probe and arbitrary insertion of binders. The earlier
+proposition index may compute, so scoped normality of the entire eta function
+is unavailable. Instead, the typed proper-prefix arity exclusion applies after
+argument computation and preserves an exact path for every argument.
+
+A motive need not have a minor inhabitant below. Introduce a fresh minor
+variable, complete a typed retained five-argument prefix upstairs, decompose
+the computation there, and descend the proposition and motive certificates.
+This requires only forward typing weakening and proved exact certificate
+descent. It neither invents an inhabitant below nor invokes inverse typing
+weakening. In the fresh motive context, the motive argument is a fixed bvar;
+only the earlier index path needs descending across that binder. The short
+application can then reproduce the exact beta contractum for any raw motive
+image, with every pending argument and the entire continuation retained.
+
+The actual Eq probe has precisely its original index-comparison criterion
+after this eta detour. Its lower-context version needs the equality major only
+upstairs. Added the explicit motive case to JointSpineEtaCompute; finite
+interleavings preserve the existing universe-exposure theorem. This removes
+another local recovery requirement but supplies no FullReduction coverage,
+strictly smaller sufficient front, or proof of weakN_iff.
+
+Next unrefuted extension: eta before the minor should permit decomposition
+using the fresh minor itself, followed by descent of the earlier proposition
+and motive paths. Eta before the final proposition index is different: its
+body has five arguments and may enable a singleton guard. Excluding or
+descending that guard needs an argument about comparison against the fresh
+index, not merely proper-prefix arity. Eta inside arguments and general
+paired substitution still remain beyond these spine results.

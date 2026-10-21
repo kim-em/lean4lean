@@ -15524,3 +15524,47 @@ No canonical-Eq counterexample or strictly smaller sufficient irreducible
 front has been established. GOAL.md stays active. Only the three Theory
 modules and actual-EOF ledger entries changed; no executable changes, PRs,
 extraction, subagents or coordination.
+
+
+## 2026-10-21 21:18 UTC — Exact motive-prefix computation and recovery-free eta
+
+Added ProofErasureEqShortSpine.lean, ProofErasureEqMotiveSpine.lean and
+ProofErasureEqMotiveEta.lean. A retained proper Eq prefix computes only its
+arguments, including after arbitrary argument computation. A fresh minor
+binder makes that decomposition available at a motive prefix without an
+existing minor; exact argument certificates descend to the original context.
+
+Using the original-binder body path of a computed eta expansion, specialize
+this decomposition to a fresh motive variable. Its path is fixed, while the
+earlier proposition path descends exactly. First-head beta then permits the
+short application to reproduce the contractum for any raw consumed motive.
+All pending arguments and the exact final universe are preserved. The actual
+Eq probe and arbitrary inserted-context variant retain comparison of their
+original proposition indices as the exact criterion. Neither motive recovery
+nor index recovery is assumed. Canonical prefix/domain typings for the probe
+are explicitly proved from the canonical recursor telescope.
+
+Extended ProofErasureJointSpineEtaComputation with eqMotiveEta. Its continuation
+induction, literal-universe equivalence and lower Eq-probe criterion compile
+for the enlarged finite fragment. This is still not arbitrary FullReduction
+coverage: eta inside arguments, structure eta, other unrecoverable prefixes
+and general paired substitution remain outside the result.
+
+Validation: consuming build succeeds in 671 jobs
+(/tmp/eq-motive-interleaving-build.log). New and changed modules have no
+warnings; existing dependency warnings remain. Cumulative opaque dependency
+DFS covers 1,343 public roots / 16,628 dependencies. Independent audit covers
+all 15 public roots of the four affected modules, including all five relation
+constructors, with 11,427 dependencies. Both exclude weakN_iff, weakN_inv and
+sorryAx; the independent audit additionally excludes JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport and JointPropBetaStability.
+Exact root inventories and the propext/Classical.choice/Quot.sound axiom
+whitelist pass. Audit logs have no errors or warnings. Artifacts are
+/tmp/motive-eta-{audit,independent-audit}.lean and .log with -roots.txt inventories.
+
+Completion audit: UniqueTyping.lean:94 retains the original sorry. No canonical-Eq
+counterexample or strictly smaller sufficient irreducible obligation has been
+established. The goal remains active. This turn completes the unfinished
+short/motive-spine work and a genuine additional eta case, not the goal itself.
+Only Theory modules and actual-EOF ledgers change; no executable changes,
+PR extraction, subagents or coordination.
