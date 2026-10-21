@@ -12597,3 +12597,67 @@ No canonical-Eq strengthening proof, canonical-Eq counterexample or genuinely
 strictly smaller sufficient irreducible obligation has been established.
 Keep the full goal active. Only theory modules and actual EOF ledger additions
 changed; no executable changes, extraction, PRs, subagents or coordination.
+
+
+## 2026-10-21 13:30 UTC — Factor the general dependent-field transport criterion
+
+Previous goal turn classification: progress. Current-state inspection confirms
+4836b967 and a clean worktree. It closed recovery/context conversion for a
+particular recursive Pi/Box relation, while arbitrary dependent record fields
+remained outside its parameter-change cases. This turn factors the completed
+induction into a general conditional theorem and retains the concrete fragment
+as a fully proved instance.
+
+ProofErasureTypeChangeLaws defines the precise requirements on a proposed
+relation on erased types. They are reflexivity, one-binder shifting,
+instantiation, Pi introduction/exposure, exact universe-output exposure,
+registered record head/level/arity preservation, related closed projection
+recipes, structural subsingletons, and typed computation simulation. The
+projection requirement retains dependence on parameters and prior projections
+of the same major. No field assumes recovery, comparison or carrier transport.
+The laws do not assert coverage of all type equality. Fixed universe instances
+and rigid heads are explicit limits of this version.
+
+ProofErasureRelatedRecovery derives transport of all typed recovery
+constructors from those laws, including projection and conversion. Actual
+recovery replay and uniqueness provide the equality needed by the computation
+law. ProofErasureJointRelatedTypes derives simultaneous comparison and carrier
+transport for every joint constructor. Changed recovered application domains
+and dependent nested field types invoke smaller carrier subderivations. Field
+recipes are reified at both actual carriers; typing uniqueness supplies their
+equality. Generic carrier/context corollaries follow. Relation symmetry,
+transitivity and depth monotonicity are unnecessary; the context corollary
+starts the shifted oracle relation at depth k+1.
+
+BoxTypeChange.transport_laws proves the full interface from the previous Box
+lemmas with the same hypotheses. The existing Box recovery theorem and joint
+checking theorem now invoke the generic implementation. Their public input and
+output statements are retained (JointRecursiveBoxResult is now a definitionally
+equal specialization). This replaces their duplicated inductions and keeps all
+existing certified corollaries and the inhabited no-join binder example.
+
+Judgment: any record family whose changing parameters preserve the selected
+field recipes can now use the same recovery/checking proof. This is a general
+conditional transport result, not an assertion that arbitrary dependent field
+templates satisfy the laws. Constructing a relation broad enough for arbitrary
+record parameters and proving coverage of strong derivations are still open.
+No new strictly smaller sufficient irreducible PropositionFront is established.
+
+Validation: three new theory modules (601 lines) and three modified theory
+modules; seven new explicit public roots. The final existing Box binder
+example and dependencies build (633 jobs), with no new/touched-module warnings:
+/tmp/type-change-instance-build.log. Independent opaque DFS covers every new
+and touched public root (26 roots, 11,041 dependencies), excluding
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv and sorryAx. Cumulative opaque DFS
+covers 907 roots and 15,920 dependencies, excluding strengthening inverses and
+sorryAx. Exact-name axiom parsing accounts for every root once and permits only
+propext, Classical.choice and Quot.sound. Sources/logs:
+/tmp/type-change-laws-{audit,independent-audit}.{lean,log}; inventories:
+/tmp/type-change-laws-{audit,independent-audit}-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+There is no canonical-Eq strengthening proof, canonical-Eq counterexample or
+proved strictly smaller sufficient irreducible obligation. Keep the full goal
+active. Only theory modules and actual EOF ledger additions changed; no
+executable changes, extraction, PRs, subagents or coordination.

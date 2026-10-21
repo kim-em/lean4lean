@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureRecursiveBoxGuard
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureTypeChangeLaws
 
 /-! # Recursive type changes through Pi and registered Box structure
 
@@ -241,5 +242,37 @@ theorem BoxTypeChange.compute
         cases RT
         obtain ⟨y', RY, HP'⟩ := ih hΓ HXY EX EY RX
         exact ⟨_, .app .refl RY, Eout ▸ BoxTypeChange.box HP'⟩
+
+/-- The recursive Pi/Box relation discharges every local law used by the
+general recovery/checking theorem. This instance assumes neither of those
+transport conclusions, and retains all the preceding concrete hypotheses. -/
+theorem BoxTypeChange.transport_laws
+    (hstep : ErasedScopedPrimitiveDescent Step)
+    (hhead : ∀ {Δ a b}, Step Δ a b → PrimitiveHead a)
+    (hsubst : ∀ {Δ Δ' a b τ}, Step Δ a b → ContextSubstitution Δ Δ' τ →
+      Step Δ' (a.subst τ) (b.subst τ))
+    (hiBox : env.projections family infoBox) (hpBox : infoBox.nparams = 1)
+    (hfBox : infoBox.numFields = 1)
+    (hshapeBox : infoBox.ctorType.instL [] = .forallE (.sort (.succ .zero))
+      (.forallE (.bvar 0) (.app (.const family []) (.bvar 1))))
+    (hcBox : env.constants family = some ⟨0, .forallE (.sort (.succ .zero)) (.sort (.succ .zero))⟩)
+    (hinert : ∀ {Δ args out}, ¬ Step Δ (mkApps (.const family []) args) out) :
+    TypeChangeLaws Step (BoxTypeChange family) where
+  refl := .refl
+  shift H := H.liftN (by omega)
+  inst H := H.inst (by omega)
+  pi := BoxTypeChange.forallE
+  pi_inv := BoxTypeChange.forallE_inv
+  sort_inv := BoxTypeChange.sort
+  record _ H := by
+    rcases H.const_spine with E | ⟨a, b, rfl, rfl, rfl, rfl, _⟩
+    · exact ⟨_, E, rfl⟩
+    · exact ⟨[b], rfl, rfl⟩
+  field hi HT H := by
+    obtain ⟨ps', E, _, HF⟩ := H.projection_recipes hiBox hpBox hfBox hshapeBox hi HT
+    obtain ⟨_, _, rfl⟩ := const_spine_inj E
+    exact HF
+  subsingleton H := H.subsingleton hiBox hfBox
+  compute H := H.compute hstep hhead hsubst hiBox hcBox hinert
 
 end Lean4Lean.VEnv.Strengthening.ProofShape

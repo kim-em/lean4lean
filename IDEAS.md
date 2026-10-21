@@ -3335,3 +3335,43 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   other record parameters remain exact. Arbitrary dependent field recipes,
   non-displayed type shapes and coverage of strong derivations are unresolved.
   No goal outcome or strictly smaller sufficient front has been established.
+
+
+### 2026-10-21 13:30 UTC — General transport from local type-relation laws
+
+- **Separate the checking induction from the selected record family.
+  Verdict: proved, with the Pi/Box fragment as a checked instance.**
+  TypeChangeLaws gives explicit local requirements on a depth-indexed relation:
+  reflexivity, one-binder shifting, result instantiation, Pi introduction and
+  exposure, exact sort exposure, fixed registered record heads/levels/arity,
+  preservation of actual closed field recipes, structural subsingletons, and
+  simulation of computations of actually equal typed carriers. None of its
+  fields assumes recovery transport, comparison transport or carrier transport.
+  No symmetry, transitivity, or depth-monotonicity law is required.
+
+- **Are dependent fields enough to force another bespoke checking proof?
+  Verdict: no, once the selected field recipes stay related.** Generic recovery
+  and the full simultaneous joint-checking theorem now work for every relation
+  satisfying those local laws. Record parameters may change for any registered
+  family; dependencies on earlier projections are retained in projectionType.
+  Actual projection typing and uniqueness supply equality of the selected
+  field types, so the smaller carrier derivation discharges nested checking.
+  The record-specific work is establishing the relation and its laws, not
+  repeating the entire recovery/application/context induction.
+
+- **Does the abstraction smuggle in a global transport premise?
+  Verdict: checked instance and rebuilt separating example.**
+  BoxTypeChange.transport_laws proves all requirements from the existing
+  syntactic/typed Box lemmas. The old Box recovery and simultaneous checking
+  proofs now invoke the generic theorem; their public hypotheses and outputs
+  are preserved. The inhabited, no-join whole-Box binder example rebuilds.
+  The substitution and primitive descent interfaces remain explicit, and
+  the existing certified Box corollaries still discharge them independently.
+
+  Judgment: this gives a general sufficient criterion for recovery and
+  checking transport, with a concrete implementation, and isolates the
+  dependent-field obligation. It is not a proof that arbitrary record recipes
+  preserve a suitable relation, nor coverage of arbitrary type equality or
+  strong derivations. Heads, universe instances and record arities still stay
+  fixed. No strictly smaller sufficient PropositionFront obligation is claimed;
+  the full strengthening goal remains open.
