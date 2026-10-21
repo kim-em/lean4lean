@@ -4793,3 +4793,32 @@ their comparison/carrier guards. Next extend the mutual joint-check induction
 using these computation/recovery results, then reconstruct singleton guards.
 This is a reusable induction tool, not completeness or a smaller sufficient
 strengthening front.
+
+
+## 2026-10-21 19:33 UTC — Exact certificate descent for all joint stages and the union
+
+Completed the pending mutual comparison/carrier induction. Actual semantic
+source descent aligns recursive lower typings; the new induction retains the
+Target checker derivation. This includes selected application recovery,
+changing lambda/Pi domains, witnessed sorts, eta bodies, constructor fields,
+structural subsingletons and dependent carrier projection recipes. For records,
+source semantic equality realizes the lower fields at common types; it is not
+used as a substitute for the recursive Target certificate.
+
+General singleton family guards now descend beneath their actual generated
+telescope with their comparison certificate intact. The lower unfolding check
+is reconstructed separately using source semantic descent. Specialized Eq
+prefixes retain their exact lower carrier guard. Together these close the
+certificate-descent stage induction and its full-union instance. Computation,
+selected recovery, common-typed comparison and carrier checking all have exact
+lift iff theorems at the original stage and at the union.
+
+Verdict: the previous entry's higher-stage task is proved, with no Target
+soundness assumption in the generic construction and no carrier resynthesis,
+semantic head exposure, global beta transport or inverse typing weakening.
+This closes loss of checking evidence during descent. It does not establish
+checker completeness, the nonjoining carrier-argument beta case, a canonical-Eq
+counterexample, or a strictly smaller sufficient front. The next substantive
+use is to retain these lower certificates when revisiting paired lambda-body
+transport; obtaining certificates for arbitrary declarative conversions remains
+an explicit outstanding problem, not a consequence of the new iff theorems.

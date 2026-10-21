@@ -14966,3 +14966,52 @@ No canonical-Eq counterexample or strictly smaller sufficient irreducible
 obligation is established. Keep GOAL.md active. Only Theory and actual-EOF
 ledger additions changed; no executable edits, PR extraction, PRs or
 coordination.
+
+
+## 2026-10-21 19:33 UTC — Preserve every joint certificate through binder insertion
+
+No-progress check: the previous goal work was progress (a82f1aac, committed
+and audited computation/recovery certificate descent). The intervening response
+only clarified the user's stopping/extraction instructions and made no research
+changes. Revalidated clean HEAD a82f1aac; there was no live process to wait on.
+Continued the pending mutual checker and singleton-stage induction. No PR
+extraction or coordination was performed.
+
+Added three modules, 999 lines and 14 public theorems:
+- ProofErasureJointCertificateDescent: full mutual induction retaining Target
+  comparison and carrier certificates. Common comparison uses the supplied
+  type equality; inferred comparison uses independently typed nonproof
+  endpoints. Exact selected recovery handles appCarrier. Record cases realize
+  lower common field typings from source semantic equality, then use the
+  recursive certificate hypothesis. Dependent recipes retain their actual
+  projectionType, with no arbitrary assigned-type recovery.
+- ProofErasureJointStageCertificateDescent: general singleton guards descend
+  below the generated residual telescope. The lower semantic unfolding check
+  and the lower Target guard are constructed separately; Target soundness is
+  not assumed. Eq prefixes keep the lower carrier guard. Primitive certificate
+  descent follows at every original finite stage and for the full union.
+- ProofErasureJointCertificateStrengthening: exact lift iff statements for
+  computation, selected recovery, common-typed comparison and explicit-carrier
+  checking, at finite stages and at the union. No stage increase is needed.
+  The computation/recovery outputs are arbitrary prescribed raw shapes; no
+  lower original realization of those outputs is a premise.
+
+Validation: consuming build succeeds in 536 jobs
+(/tmp/joint-certificate-final-build.log). Direct module checks are clean.
+Cumulative opaque dependency audit: 1,250 public roots / 16,476 dependencies.
+Independent audit: 14 public roots / 10,922 dependencies. Both exclude
+weakN_iff, weakN_inv and sorryAx. Independent also excludes
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure and
+JointPropBetaTransport. Exact-name inventories cover all roots once and allow
+only propext, Classical.choice and Quot.sound. Audit files:
+/tmp/joint-certificate-{audit,independent-audit}.lean and .log, with
+-roots.txt inventories. Audit outputs have no warnings or errors.
+
+Completion audit: the original sorry remains at UniqueTyping.lean:94. No
+canonical-Eq proof/counterexample or strictly smaller sufficient irreducible
+obligation has been established. GOAL.md stays active. Certificate existence
+for the remaining declarative beta/conversion case is still missing; exact
+certificate strengthening does not supply completeness. These results remove
+the separate loss-of-certificates problem from subsequent descent arguments.
+Only Theory and actual-EOF ledger additions changed; no executable changes,
+PR extraction, PRs or coordination.
