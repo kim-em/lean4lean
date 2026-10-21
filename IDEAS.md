@@ -4333,3 +4333,43 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   shortcut for primitive forks. The live next step must preserve the particular
   body recipe or address the competing computations directly, rather than
   postulate that general law. GOAL.md's success conditions remain open.
+
+
+## 2026-10-21 17:29 UTC — Certified binder forks and singleton root uniqueness
+
+- Revalidation: the previous turn made progress by proving retained-body
+  transport/application and the conditional strength of unrestricted forward
+  carrier endpoint computation. The worktree at 1f6255fd was clean. The next
+  investigation returned to actual computational forks, avoiding that global
+  endpoint law as an unproved shortcut.
+- Existing evidence: DeclarationConfluence already proves deterministic closed
+  beta/delta confluence; repaired ordinary-core and actual prefix confluence
+  also exist. JointOperationalJoins already returns exact original joins for
+  the repaired definition collection. These do not supply erased residual
+  guards, and must not be presented as new certified confluence results.
+- Does a changing binder add an independent confluence obligation? Verdict:
+  no, for a sound relation closed under interpreted substitutions with primitive
+  constant/projection heads. ScopedConfluentAt at a displayed lambda or Pi is
+  equivalent to confluence at its annotation and body in the original context.
+  Existing typed binder inversion gives the forward paths. Annotation replay
+  reindexes residual body paths to each output domain. Conversely, forks in
+  either component embed into the binder and project from any common reduct.
+  Only the initial annotation needs typing; the raw body may be unrealized.
+- Certified specialization: proved both equivalences for ErasedBetaStableJoint
+  without any global proposition beta law or whole-union substitution premise.
+  This improves on the earlier conditional union-lambda join theorem but does
+  not prove component confluence, application joins or full confluence.
+- Can two certified singleton choices at one source disagree on their output?
+  Verdict: no. Registration, exact universe instance and supplied arity uniquely
+  determine all fields of valid singleton code. Telescope calculation then
+  fixes its residual domains and exact output. SingletonPrimitiveWith is
+  deterministic even when the two guards use different comparators, without
+  source typing, canonical Eq or a transport law.
+
+  Judgment: binder compatibility and singleton/singleton root overlaps are
+  now isolated constructively. The remaining confluence work includes nested
+  argument computations and singleton/ordinary-root overlaps. A useful next
+  test is output congruence when the guards at both argument states are actually
+  supplied; persistence of an arbitrary guard through primitive computation
+  must not be silently assumed. Neither these local criteria nor root
+  determinism prove full certified confluence or any GOAL.md success condition.

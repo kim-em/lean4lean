@@ -14297,3 +14297,48 @@ retained-body premise, and unrestricted forward carrier computation is shown
 conditionally to contain the original front. Keep the goal active. Only theory
 modules and actual EOF ledger additions change; no executable edits, PRs,
 PR extraction, subagents or coordination.
+
+
+## 2026-10-21 17:29 UTC — Exact binder confluence criteria and deterministic singleton roots
+
+Added ProofErasureCertifiedBinderJoins. ScopedConfluentAt records finite-fork
+joinability at one fixed raw source. A shared private proof factors confluence
+of a displayed binder into its domain and original-context body. The forward
+implication embeds component forks and projects their common output. The
+reverse implication inverts the original binder paths, joins both components,
+then replays each annotation to move the joined body paths into the two output
+contexts. Existing lambda/Pi inversion and interpreted context conversion are
+reused. No new inversion induction, body typing, general comparison transport
+or global confluence is assumed. Certified specializations discharge soundness,
+head shape and substitution, leaving exactly the two local component criteria.
+
+Added ProofErasureSingletonDeterminism. SingletonPrefixCode.Valid.unique proves
+that the registered name, exact universe list and supplied arity determine all
+code fields. Lookup fixes metadata; the generated-type/equation/body/layout/
+eliminator equations fix the remaining fields. SingletonPrimitiveWith then has
+a unique literal output at a fixed raw source and context, independently of the
+guard comparator. This resolves coincident singleton roots only. It does not
+prove preservation of a guard when its arguments compute, or confluence with
+ordinary delta/projection/template roots.
+
+Validation: two new modules, 195 lines, seven public roots (six theorems and one
+fixed-source confluence definition). Consuming build exits zero in 596 jobs;
+new modules have no warnings, while existing dependency warnings are replayed.
+Log: /tmp/certified-local-joins-build.log. Both audit processes exit zero.
+Independent opaque DFS covers 7 roots and 10,908 dependencies, excluding
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport,
+.weakN_iff, .weakN_inv and sorryAx. Cumulative opaque DFS covers 1,133 roots and
+16,304 dependencies, excluding strengthening inverses and sorryAx. Exact-name
+axiom parsing covers every root exactly once, allowing only propext,
+Classical.choice and Quot.sound. Opaque values are traversed with
+ci.value? (allowOpaque := true). Sources/logs/inventories:
+/tmp/certified-local-joins-{audit,independent-audit}.{lean,log} and -roots.txt.
+
+Completion audit: the original sorry remains at UniqueTyping.lean:94. No proof
+of canonical-Eq strengthening, canonical-Eq strengthening counterexample, or
+strictly smaller sufficient irreducible obligation is established. This turn
+is progress: certified binder joins have an exact component criterion, and
+singleton root output ambiguity is eliminated. General nested and mixed-root
+forks remain open. Keep the goal active. Only theory modules and actual EOF
+ledger additions change; no executable edits, PRs, extraction, subagents or
+coordination.
