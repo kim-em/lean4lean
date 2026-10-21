@@ -3069,3 +3069,44 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   confluence, carrier conversion, or proposition beta law has been assumed or
   proved. The original strengthening goal and strict-smallness question remain
   open; this is a constructive case feeding the simultaneous derivation route.
+
+
+## 2026-10-21 — Consume native joins in actual application checking
+
+- **Move an arbitrary argument guard to the joined native domain.
+  Verdict: the repaired-core application case is closed.**
+  The existing `ErasedQuotCore.carrier_compute_forward` already handles every
+  joint guard constructor, including functions and nested dependent fields.
+  `joined_native_prefix_guard` now combines it with the constructed native
+  residual joins. A literal typed declaration walk supplies exact native
+  recovery; converting that recovery to the common Pi and transporting the
+  supplied guard produces the actual appCarrier premises. No new recovery,
+  native-type comparison, or converted guard is assumed. The parameters must
+  have an explicit ordinary-core join, and the source guard is in that core.
+
+- **Check actual proposition endpoints, not only raw application shapes.
+  Verdict: both literal Prop typings and their comparison are constructed.**
+  `ErasedQuotCore.joined_native_propositions` reflects the constructed domain
+  comparison to type the original arguments at the target prefix's domain.
+  Applying that proposition-valued prefix to the two arguments yields actual
+  propositions and a joint comparison of their erasures. It does not assume
+  the target-domain typings or any strengthening principle.
+
+- **Retain enough path information to allow certified singleton guards too.
+  Verdict: the beta-joined parameter case is closed in the certified relation.**
+  `ProofShape.supplyType_beta` is a raw, environment-independent theorem:
+  successful literal telescope supply survives simultaneous beta reduction of
+  the type and arguments, and its output only beta-reduces. Typed native walks
+  therefore retain beta joins of their residuals and next domains. The existing
+  certified oracle/carrier-beta theorem transports every certified guard along
+  those paths. The resulting Pi recovery, guard, and application comparison
+  stay in ErasedBetaStableJoint; no stage-wide proposition beta law is assumed.
+
+  These cases have distinct premises: general ordinary-core joins with core
+  guards, or pure beta joins with certified guards. They do not establish
+  carrier transport along arbitrary certified computation, coverage of the
+  unrestricted union, or joins for merely compared parameters. Both prefixes
+  use the same instantiated declaration type and actual native walks. The
+  next unresolved case is where a parameter comparison cannot be replaced by
+  either of these explicit joins; the previous native-congruence barrier still
+  applies. No strictly smaller sufficient front or goal outcome is claimed.

@@ -12144,3 +12144,87 @@ No canonical-Eq strengthening proof or counterexample, and no genuinely
 strictly smaller sufficient irreducible front, has been established. Keep the
 full goal active. Changes are one theory module and actual EOF ledger additions
 only; no executable changes, extraction, PRs, or coordination.
+
+
+## 2026-10-21 12:19 UTC — Application checking from native joins and supplied guards
+
+Previous goal turn: progress at committed/pushed baseline
+47b9da417abd34e6e046fb09ddbd24fe025fcd4c. Revalidated the clean worktree,
+GOAL.md, and current native supply results. Checked the existing forward
+carrier transport before adding new infrastructure: the repaired ordinary
+core already has full joint carrier/context transport, and the certified
+relation already has full carrier/context beta transport. Used those proved
+results to consume the new native domain joins.
+
+ProofErasureJoinedNativeGuard proves five public theorems. The exact raw
+supply lemma specializes a literal typed native walk with unchanged arguments:
+its output is exactly the erasure of the native residual. The constant-prefix
+recovery theorem obtains an actual recovery of that residual for a non-proof
+prefix. This says nothing about arbitrary semantically assigned types; the
+input is the declaration's own InstForallsC walk. A private typing induction
+also supplies the original application spine's typing from that walk.
+
+ErasedQuotCore.joined_native_prefix_guard takes two walks from one instantiated
+declaration type, ending at Pis, and pointwise ordinary-core computations of
+their arguments to a common list. The earlier native supply theorem gives a
+common residual Pi and directed paths from both native domains. Exact recovery
+of the second original prefix converts to this common Pi. The existing proved
+carrier_compute_forward theorem transports the supplied typed argument guard
+along the first domain path. Every joint carrier constructor is supported,
+including nested dependent record fields and function guards. This use needs
+the repaired core's concrete-pattern/confluence interface; it does not assume
+confluence of any guarded singleton stage.
+
+application_of_joined_native_prefixes constructs the appCarrier comparison
+from the supplied inferred function comparison and the new recovery/guard.
+joined_native_propositions additionally checks the actual original terms.
+For a proposition-valued target prefix, reflection of the domain-join
+comparison yields ordinary type conversion, which types both original
+arguments at the target native domain. Both applications are then typed at
+literal Prop and their erasures compare. Target-domain argument typings and
+native type comparison are derived, not additional assumptions.
+
+ProofErasureNativeBetaGuard extends this construction to certified guards in
+a stronger-path case. The raw theorem supplyType_beta needs no Params or
+original typing: beta reduction preserves successful literal raw supply,
+and the original supply output beta-reduces to the new output. Its proof
+tracks Pi bodies and both substituted arguments, rather than forgetting the
+paths into general computation. proofErase_native_residuals_beta_join combines
+this syntactic fact with the exact erased supply of both typed walks, yielding
+pure beta paths to a common native residual.
+
+proofErase_certified_beta_joined_native_guard reads both domain beta paths,
+recovers the target prefix exactly, converts recovery along the beta path,
+and applies the already proved certified oracle/carrier-beta transport with
+a reflexive context change. The resulting arbitrary guard remains in the
+same certified relation. The final application theorem consumes it directly.
+This includes guards containing certified singleton steps, functions, and
+nested dependent fields. No global JointPropBetaTransport property is used;
+the future certificates of existing certified primitives are retained.
+
+Judgment: the native joins are now consumed by actual checking rules, instead
+of leaving guard adaptation as an extra premise. Two constructive cases are
+closed: general ordinary-core argument joins with ordinary-core guards, and
+pure beta argument joins with certified guards. Neither case turns arbitrary
+parameter comparisons into joins. Arbitrary certified carrier computations,
+full-union guard transport, and the general native-congruence/coverage problem
+remain open. The earlier full-front implication still prevents using those
+missing global properties as routine compatibility lemmas.
+
+Validation: both modules and dependencies build successfully (613 jobs for
+the final target), /tmp/native-beta-guard-build.log; neither new module emits
+warnings. Independent opaque DFS covers all nine public declarations and
+11,767 dependencies, excluding JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport, .weakN_iff, .weakN_inv,
+and sorryAx. Cumulative opaque DFS covers 840 roots and 15,736 dependencies,
+excluding strengthening inverses and sorryAx. Exact-name axiom parsing
+accounts for every root once, with only propext, Classical.choice, and
+Quot.sound. Final audit sources/logs:
+/tmp/native-beta-guard-{audit,independent-audit}.{lean,log}; inventories:
+/tmp/native-beta-guard-{audit,independent-audit}-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+No canonical-Eq strengthening proof or counterexample and no genuinely
+strictly smaller sufficient irreducible front has been established. Keep the
+full goal active. Changes are two theory modules and actual EOF ledger
+additions only; no executable changes, extraction, PRs, or coordination.
