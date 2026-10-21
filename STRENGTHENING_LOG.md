@@ -15015,3 +15015,61 @@ certificate strengthening does not supply completeness. These results remove
 the separate loss-of-certificates problem from subsequent descent arguments.
 Only Theory and actual-EOF ledger additions changed; no executable changes,
 PR extraction, PRs or coordination.
+
+
+## 2026-10-21 19:45 UTC — Use certificate descent in the paired head-beta induction
+
+Previous goal turn is progress: 35e96263 committed, pushed and audited exact
+certificate strengthening for all stages and the union. Revalidated clean HEAD
+35e96263. Re-read the existing nonjoining unit, Eq-probe and exact-recovery
+obstructions before choosing the next proof step. General comparison-directed
+context conversion remains unproved; the existing compared-subsingleton theorem
+cannot simply be instantiated at the union because it assumes primitive
+substitution. Did not introduce that assumption implicitly.
+
+Added two modules, 326 lines and six public theorems. In
+ProofErasureJointUnusedBodyBeta, a generic source-typed lambda computation
+inversion retains a lower body path whenever the initial body erasure is a
+lift. The two original typed representatives need not be syntactically lifted
+bodies: erasure may remove actual proof-dependent syntax. Intermediate domain
+annotations can change. Each computation arm descends with its own actual
+binder and lower typed source, rather than transporting its body path along
+arbitrary type conversion. The primitive hypotheses are same-relation
+certificate descent and the ordinary primitive-head restriction.
+
+The inferred lambda-comparison induction handles every constructor. Direct
+lambda rules use the new comparison-certificate descent, eta-lambda rules
+contract the lower raw body, and compute rules use the new same-relation
+inversion before recursing. The resulting paired proposition head-beta theorem
+has no argument recovery, common-image, equal-erasure, or argument-equality
+premise. It requires both initial erased bodies to omit the bound argument.
+Actual substitution supplies lower typed proposition representatives. The
+finite-stage and union instances use 35e96263 and preserve the original stage.
+
+ProofErasureJointUnusedBodyExample duplicates the eta-converted neutral-variable
+example at two insertion positions. Exact recovery strengthening transfers its
+negative recovery result to both variables at the same assigned type. Both
+are retained nonproof variables, and bvar computation invariance excludes a
+common output. All unused-body proposition lambda comparisons at that exact
+unrecoverable domain still survive paired beta, at every original finite stage.
+This witnesses applicability beyond the earlier exact-recovery/join premises.
+It does not supply a carrier relation between these two arbitrary variables;
+none is needed for argument-free bodies.
+
+Validation: consuming build succeeds in 558 jobs
+(/tmp/unused-body-final-build.log); direct new-module checks are clean.
+Cumulative opaque DFS audit: 1,256 public roots / 16,486 dependencies.
+Independent audit: 6 public roots / 10,978 dependencies. Both exclude
+weakN_iff, weakN_inv and sorryAx; independent also excludes
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure and
+JointPropBetaTransport. Exact-name inventories cover every root once and
+allow only propext, Classical.choice and Quot.sound. Audit artifacts:
+/tmp/unused-body-{audit,independent-audit}.lean and .log, with -roots.txt
+inventories. Audit outputs have no warnings or errors.
+
+Completion audit: UniqueTyping.lean:94 still has the original sorry. No proof,
+canonical-Eq counterexample or strictly smaller sufficient irreducible front
+has been established. The hard paired-beta case with retained argument
+occurrences remains open, including the primitive-free Eq peak. Keep GOAL.md
+active and its full scope unchanged. Only Theory and actual-EOF ledger
+additions changed; no executable edits, PR extraction, PRs or coordination.

@@ -4822,3 +4822,35 @@ counterexample, or a strictly smaller sufficient front. The next substantive
 use is to retain these lower certificates when revisiting paired lambda-body
 transport; obtaining certificates for arbitrary declarative conversions remains
 an explicit outstanding problem, not a consequence of the new iff theorems.
+
+
+## 2026-10-21 19:45 UTC — Paired head beta with argument-free erased bodies
+
+Revisited nonjoining carrier arguments and comparison-directed type transport.
+The general common-mode beta rule is already refuted by the unit identity
+example, and the primitive-free Eq peak still carries the original front.
+The old compared-subsingleton Pi proof uses arbitrary context substitution;
+replacing that assumption by semantic type equality would merely hide the
+unresolved carrier/recovery conversion problem. The existing eta-converted
+neutral type also rules out retaining exact assigned recovery by such a step.
+No general converted-context transport was assumed or claimed.
+
+A genuine use of exact certificate descent does avoid that problem when both
+erased lambda bodies omit the argument. Proved direct computation inversion:
+a typed lambda with a body erasure lifted from a lower typed term retains that
+form through every computation, and its lower body path stays at the same
+relation. The trans case descends each residual body independently, so changing
+lambda annotations require no body-context conversion or primitive substitution.
+The full inferred-comparison induction then descends to the two lower bodies,
+including eta-lambda and computation cases. Proposition-valued paired head beta
+follows for arbitrary typed arguments at the original stage or full union.
+
+Verdict: the argument-free case needs neither argument recovery, equal erasures,
+a common computational image, nor even a carrier relation between the arguments.
+A checked two-variable context witnesses simultaneous failure of both exact
+assigned recoveries in the entire union and absence of an argument join; the
+new theorem still applies to all its argument-free proposition lambda checks
+at every finite stage. The displayed lambda domain is exactly the unrecoverable
+assigned type. This closes the unused-argument branch, not all nonjoining paired
+substitution. The retained-occurrence case, including the primitive-free Eq
+peak, remains open. No smaller sufficient irreducible front is asserted.
