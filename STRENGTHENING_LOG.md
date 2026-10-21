@@ -12067,3 +12067,80 @@ canonical-Eq strengthening proof or counterexample, and no genuinely strictly
 smaller sufficient irreducible front, has been obtained. Keep the goal active.
 Changes are one theory module and actual EOF ledger additions only; no
 executable changes, extraction, PRs, or coordination.
+
+
+## 2026-10-21 12:08 UTC — Constructive native supply and dependent-domain joins
+
+Previous goal turn: progress, committed and pushed as
+dd1c264520b34adf1503c09ce8e89e4d14d2366c. Revalidated the clean worktree,
+current ledger, and original strengthening gap. The new full-front implication
+precludes using unrestricted native type congruence as a free local helper.
+Continued with explicit computational joins of the argument lists.
+
+ProofErasureNativeSupplyJoin proves seven public theorems. First,
+ScopedTypeRecovery.supply turns successful raw literal telescope supply into
+recovery of the resulting raw application spine. No argument recovery is
+required. proofErase_computed_native_supply proves successful raw supply from
+an actual typed InstForallsC walk, a computation of its initial type, and
+computations of all argument erasures. At each binder, Pi inversion identifies
+the computed type's literal Pi shape. Forward replay realizes the computed
+argument at its original domain. Typed Pi instantiation and computation of
+argument images give a directed path from the original native residual to
+the raw substituted codomain. The induction retains the original typed walk,
+so later dependent arguments never need to be retyped against a newly chosen
+raw telescope. Arbitrary source argument computation and dependent annotations
+are supported, without normalizing the arguments or the residual types.
+
+proofErase_native_residuals_join applies this construction twice from the same
+initial type. When both argument lists compute pointwise to the same raw list,
+determinism of supplyType identifies the outputs. Both native residual types
+compute to that literal common output. proofErase_computed_const_prefix_recovery
+constructs an actual recovery of the raw constant spine with computed arguments,
+and a path from its original native residual to the recovered type. This is
+an existence result, strengthening the previous native-telescope theorems that
+constrained a separately supplied recovery. It covers computation in arguments,
+not arbitrary unfolding of the constant head.
+
+proofErase_joined_const_native_types packages the shared recovery, both native
+residual paths, and a joint comparison in either mode. It needs no comparison
+certificate for the original prefixes: the explicit argument joins are the
+stronger evidence used by this case. proofErase_joined_native_domains applies
+Pi-domain inversion to retain a common reduct and both paths for the next
+native domains. For constructor-prefix walks, these are the dependent field
+carriers after the earlier parameters and fields have been supplied. The
+walks and their argument joins are explicit inputs; arbitrary compared record
+parameters and preceding projections are not thereby known to join.
+
+The general theorems require proved source descent, primitive head shape,
+and primitive substitution closure. proofErase_certified_joined_native_types
+discharges these premises for ErasedBetaStableJoint using its existing proved
+interfaces. No semantic head adequacy or proposition beta-transport premise
+is introduced. This does not assert these primitive closure laws for the
+unrestricted joint union or all finite joint stages.
+
+Judgment and remaining work: actual joins now give native type comparisons
+and next-domain joins constructively, with no full-strength native-congruence
+black box. The broader dependent-field conversion proof still must explain
+why its particular parameter evidence supplies the needed joins, or construct
+comparison certificates by another derivation-sensitive method. In addition,
+a guard at an old carrier does not automatically move forward to its reduct;
+carrierCompute only wraps a guard already at that reduct. Do not reverse the
+new paths to claim general guard conversion. Retaining or constructing guards
+at the common domains remains the next substantive issue.
+
+Validation: the new module and dependencies built successfully (596 jobs),
+/tmp/native-supply-join-build.log; the new module emitted no warnings.
+Independent opaque DFS covers all seven public declarations and 10,910
+dependencies, excluding JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport, .weakN_iff, .weakN_inv,
+and sorryAx. Cumulative opaque DFS covers 831 roots and 15,724 dependencies,
+excluding strengthening inverses and sorryAx. Exact-name axiom parsing accounts
+for every root once; only propext, Classical.choice, and Quot.sound occur.
+Audit sources/logs: /tmp/native-supply-join-{audit,independent-audit}.{lean,log};
+root inventories: /tmp/native-supply-join-{audit,independent-audit}-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+No canonical-Eq strengthening proof or counterexample, and no genuinely
+strictly smaller sufficient irreducible front, has been established. Keep the
+full goal active. Changes are one theory module and actual EOF ledger additions
+only; no executable changes, extraction, PRs, or coordination.

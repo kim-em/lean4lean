@@ -3030,3 +3030,42 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   derivation approach only with explicit source-derived conversion certificates;
   do not invoke native type congruence or ordinary carrier conversion as free
   closure lemmas when transporting dependent fields. The main goal remains open.
+
+
+## 2026-10-21 — Construct native residual joins from actual argument joins
+
+- **Use computationally joined parameters instead of unrestricted native
+  congruence. Verdict: the native residual join is constructed.**
+  `proofErase_computed_native_supply` proves that a typed telescope still
+  admits literal raw supply after its starting type and all supplied arguments
+  compute. It produces the raw supply output and a directed path from the
+  original native residual. Two walks from the same declaration, whose
+  arguments compute pointwise to one list, consequently have a shared raw
+  residual and an actual joint comparison at the same relation. Determinism
+  of raw supply identifies the two outputs. No normalization is assumed.
+
+- **Can computed constant spines actually recover a type, rather than merely
+  constrain hypothetical recoveries? Verdict: explicit recovery constructed.**
+  Successful raw supply builds a recovery certificate along the entire spine.
+  The new existence theorem combines it with the native supply result, without
+  requiring any supplied argument to recover its assigned type. Only argument
+  computations are included here; unfolding the constant head is a separate
+  case. This strengthens the preceding native-recovery results, which took an
+  existing recovery as an input.
+
+- **Retain the dependent field-domain paths. Verdict: both paths constructed.**
+  When both native residuals are Pis, typed Pi readout gives a common reduct
+  of their next domains. Applied to a constructor telescope, this covers the
+  next field after the actual preceding argument lists have been joined. The
+  theorem takes the typed walks and explicit joins; it does not manufacture
+  joins for merely compared parameters or preceding projections. The certified
+  joint-relation corollary discharges primitive descent, head shape, and
+  substitution closure with the existing proved interfaces.
+
+  Arbitrary carrier guards cannot simply be moved forward along these domain
+  computations: carrierCompute supports the opposite direction. The next
+  dependent-field step must retain a guard at the common reduct, or prove its
+  transport with explicit evidence. No unrestricted native congruence,
+  confluence, carrier conversion, or proposition beta law has been assumed or
+  proved. The original strengthening goal and strict-smallness question remain
+  open; this is a constructive case feeding the simultaneous derivation route.
