@@ -13735,3 +13735,84 @@ No canonical-Eq strengthening proof, canonical-Eq counterexample or genuinely
 strictly smaller sufficient irreducible obligation has been established.
 GOAL.md remains active. Only theory modules and EOF ledger additions change;
 no executable changes, PR extraction, PRs, subagents or coordination.
+
+
+## 2026-10-21 16:02 UTC — Dependent pair decomposition and arbitrary closed guards
+
+Previous goal turn: progress (48508970 completed and audited full future Box
+field readout). This turn revalidated the clean worktree and tested the actual
+dependent-record symmetry case. Keeping either possible field carrier yields
+an exact decomposition without assuming the missing conversion law.
+
+ProofErasureDependentFieldReadout defines DependentPairFieldCheck: common
+comparison of the type fields, and carrier checking of the value fields at
+either type field. It is symmetric and pulls back through major computation,
+including computation of the chosen dependent carrier. Either orientation
+reconstructs the ordinary pair guard through carrierNested and carrierSymm.
+The registration with constructor (A : Type) -> A -> Pack determines both
+actual projection typings. The readout inducts through all joint constructors.
+Common checking uses typed projection closure; the nonempty field count rules
+out structural-subsingleton checking; inert constant carrier computation stays
+at that same constant. Both record introduction forms select the two fields,
+with positive actual typing excluding erased proof-field metadata. For nested
+checking, sort decoding recovers common comparison of the type fields.
+
+ProofErasureFutureDependentReadout lifts this exact result to all beta paths
+of the majors and interpreted substitutions, using forward typed replay.
+Conversely each residual symmetric field check reconstructs its whole guard;
+the nullary constant has no nontrivial beta carrier path. The resulting iff
+therefore preserves the original full future guard. The choice of field carrier
+may vary with the residual and substitution. The theorem deliberately does not
+claim a disjunction of two uniform full future value guards, nor independent
+future reduction of the chosen field carrier apart from its major. A separate
+projection theorem extracts the full future common comparison of type fields.
+The concrete union iff discharges descent, primitive inclusion, primitive head
+shape and family inertia using canonical Eq and sound declarations.
+
+ProofErasureFutureClosedCarrier gives constructive conversion for arbitrary
+stored guards at a rigid constant with no universe or term arguments. A typed
+comparison first becomes inferred comparison, exposing the same constant head
+and zero term arguments in the target. Forward computation replay supplies an
+actual typed target constant. Comparing the source and target environment
+lookups forces its universe list to be empty, so the target computes to the
+exact source carrier. This path transports any supplied source guard, not just
+common field checks or structural-subsingleton evidence. Full future transport
+repeats the argument at each target beta reduct and each realized interpreted
+substitution, retaining arbitrary endpoint paths. Its union specialization
+uses registered-family rigidity and local unfolding exclusion.
+
+The application theorem consumes an actual recovery of the function, a
+comparison with its assigned Pi over the closed carrier, an ordinary source
+argument guard and an inferred function comparison. Recovered-domain exposure
+produces the domain comparison; exact closed-carrier computation then builds
+the native argument guard and closes appCarrier. This constructs that
+application case without claiming recovery/type-comparison coverage for all
+original typing derivations.
+
+Judgment: the dependent-pair readout avoids prematurely demanding a left-field
+conversion; the closed-carrier theorem genuinely transports arbitrary recursive
+guards through a supplied type comparison. Parameter-changing and arbitrary
+source-computation cases remain open. A computation from a target to a source
+only gives backward guard transport, so reverse transport cannot be inferred
+from the checked result. The next question is propagation of the supplied type
+comparison through source carrier computation, not another assumed semantic
+head-exposure or global conversion law.
+
+Validation: three new modules, 507 lines, 15 public roots (14 theorems and one
+definition). The final dependent build succeeds in 628 jobs, with no new-module
+warnings; existing dependency warnings are replayed. Build log:
+/tmp/dependent-readout-build.log. Independent opaque DFS covers 15 roots and
+10,925 dependencies and excludes JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport, .weakN_iff, .weakN_inv and
+sorryAx. Cumulative opaque DFS covers 1,036 roots and 16,142 dependencies and
+excludes strengthening inverses and sorryAx. Exact-name axiom parsing checks
+each root once, allowing only propext, Classical.choice and Quot.sound. Both
+audit processes terminate successfully. Sources, logs and root inventories:
+/tmp/dependent-readout-{audit,independent-audit}.{lean,log} and the corresponding
+-roots.txt files.
+
+Completion audit: UniqueTyping.lean:94 retains the original sorry. No
+canonical-Eq proof or counterexample to strengthening, and no strictly smaller
+sufficient irreducible obligation, has been established. GOAL.md remains active.
+Only new theory modules and actual EOF ledger additions change. No executable
+changes, PR extraction, PRs, subagents or coordination.

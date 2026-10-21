@@ -3959,3 +3959,51 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   unlike Box symmetry, which keeps the parameter. A readout there must account
   for transport between the two first projections; simply copying this Box
   induction would leave that conversion step unproved.
+
+
+## 2026-10-21 16:02 UTC — Dependent readout and closed-carrier transport
+
+- **Read a dependent value guard at one of the two type fields.
+  Verdict: exact ordinary and future decompositions proved.**
+  DependentPairFieldCheck stores common checking of projection zero and a
+  disjunction of value-field guards at the left or right projection zero.
+  Ordinary readout handles all joint constructors: symmetry exchanges the
+  alternatives, and endpoint computation pulls back both the chosen field
+  carrier and the value projections. Either alternative reconstructs the pair
+  guard. Actual projection typings come directly from registration.
+  proofErase_future_dependent_pair_iff retains these field checks at every
+  future major residual and interpreted substitution. Orientation may vary
+  between residuals; no quantifier is exchanged with the disjunction. Type
+  fields separately retain a full future common comparison. No independent
+  future carrier path or uniform left-field value certificate is asserted.
+
+- **Transport an arbitrary whole guard from a rigid carrier with no arguments.
+  Verdict: constructed, including full future certificates.**
+  proofErase_compared_closed_carrier_compute uses an actual supplied type
+  comparison to expose the same head and zero term arguments in the target.
+  Source and residual target typings force zero universe arguments too, so
+  the exposure reaches the exact source constant. This preserves any stored
+  source guard by carrierCompute. proofErase_future_compared_closed_carrier
+  repeats exact exposure after each target beta path and interpreted
+  substitution, retaining arbitrary endpoint paths and recursive field checks.
+  The union wrapper needs canonical Eq, sound declarations, record registration
+  and local unfolding exclusion. It does not require common value comparisons
+  or a structural-subsingleton certificate.
+
+- **Use that exposure in an actual recovered application domain.
+  Verdict: the application comparison is constructed.**
+  proofErase_joint_application_of_compared_recovery_closed_carrier extracts
+  the recovered Pi domain and its comparison with the assigned constant type.
+  Exact target exposure transports the supplied argument guard into that native
+  domain, and appCarrier closes the application comparison. Recovery and its
+  actual type comparison remain inputs, not consequences of arbitrary typing.
+
+  Judgment: arbitrary dependent-value guards can now pass through conversion
+  from a closed rigid carrier; this goes beyond common-field reconstruction.
+  It does not settle parameter-changing conversion, arbitrary source-carrier
+  computation prefixes, or production of the comparison certificates from
+  original typing derivations. In particular, the one-way target-to-source
+  computation does not justify pushing an existing target guard forward along
+  that computation. Next address that missing propagation while retaining the
+  actual supplied type comparison. None of the GOAL.md success conditions is
+  established; these are constructive cases, not a smaller sufficient front.
