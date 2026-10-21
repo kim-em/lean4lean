@@ -4051,3 +4051,47 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   readouts can serve as constructive base cases for nested Box conversion.
   Function targets additionally change binder contexts. None of the three
   GOAL.md success conditions is established.
+
+
+## 2026-10-21 16:20 UTC — Semantic Box closure and a finite target fragment
+
+- **Lift parameter readout through a nonempty Box. Verdict: proved.**
+  CarrierReadoutAt records the local property at a fixed actual context and
+  target: any guard at an actually equal sort-typed source reads at that target.
+  CarrierReadoutAt.box derives the property for Box C from the property for C.
+  Actual rigid-head injectivity identifies the source family, empty universe
+  list and sole parameter B; native family typing gives B : Type, and the head
+  argument equation gives B ≡ C. Recursive field checking uses the supplied
+  parameter readout at B. Common-field introductions need no field conversion.
+  Carrier computation prefixes are replayed, function cases are impossible,
+  and nonempty registration excludes the structural-subsingleton source case.
+
+- **Discharge the recursive parameter property at arbitrary finite Box depth.
+  Verdict: ordinary and full future readout constructed.** ClosedBoxCarrier
+  consists of sorts and closed rigid constants, closed under explicitly
+  registered Box constructors. Actual typing is checked separately, enforcing
+  the parameter's Type level at every nesting. Its readout theorem uses the
+  proved sort and closed-carrier bases, then Box closure. Targets contain no
+  context variables and their typed erasures are beta fixed. Actual source
+  equality and full future guards therefore transport into these targets
+  after every interpreted substitution and independent endpoint beta path.
+  No type-comparison certificate or source computation path is required.
+
+- **Consume a recovered domain in the fragment in an actual application.
+  Verdict: constructed without a separate type-comparison certificate.**
+  ClosedBoxCarrier.application replays the supplied Pi recovery, reflects the
+  equal erased domains to identify its actual domain with the fragment target,
+  and uses uniqueness to relate the originally assigned domain to that target.
+  Readout transfers the source argument guard and appCarrier closes checking.
+  Existence of the displayed recovery remains an input; arbitrary original
+  functions are not claimed to recover into this fragment.
+
+  Judgment: parameter-changing conversion is now constructive for this finite
+  nested-Box target grammar, including arbitrary source computation prefixes.
+  The grammar is a sufficient fragment, not a strictly smaller sufficient
+  strengthening obligation. Targets outside it, notably arbitrary neutral or
+  computed parameters and function carriers, remain open. Adding function
+  targets must address changed binder contexts and recovery there, rather than
+  assume that the current ambient future certificate supplies a future body
+  certificate (that inversion was previously refuted). This is the next live
+  structural extension to test. All GOAL.md success conditions remain open.

@@ -13893,3 +13893,79 @@ There is no canonical-Eq strengthening proof, canonical-Eq counterexample or
 strictly smaller sufficient irreducible obligation. GOAL.md remains active.
 Only new theory modules and actual EOF ledger additions change; no executable
 changes, PR extraction, PRs, subagents or coordination.
+
+
+## 2026-10-21 16:20 UTC — Parameter readout lifts through Box
+
+Previous goal turn: progress (8617990e proved semantic guard readout at closed
+rigid carriers and sorts). This turn revalidated the clean worktree and used
+those readouts as constructive bases for parameter-changing Box conversion.
+
+ProofErasureSemanticBoxReadout defines CarrierReadoutAt at one actual context
+and target type. Its source may be any sort-typed type ordinarily equal to the
+target; endpoints remain raw and no type-comparison certificate is required.
+The sort and closed-rigid cases use the preceding semantic readout theorems.
+The Box closure theorem inducts over all source guard constructors. At an
+exposed record source, actual rigid-head injectivity recovers the same Box
+family, empty universe arguments and one actual source parameter B. The
+registered family declaration types B at Type, and injectivity gives actual
+B ≡ C for the target parameter. Common checking and common-field introduction
+transfer directly. Nested field checking identifies the field recipe as B,
+uses CarrierReadoutAt for C, then reconstructs the target nested Box guard.
+Source carrier computations replay at their sort-typed carriers and are
+eliminated recursively. Function heads are separated from Box and structural
+subsingleton checking cannot match its one-field registration.
+
+ProofErasureClosedBoxCarriers introduces a finite target grammar of sorts,
+closed rigid constants and registered Box nesting. Actual sort typing is a
+separate premise; its inversion enforces Type-level parameters throughout the
+Box chain. Structural induction proves readout for every target in this
+grammar. A second induction proves its typed erasure beta fixed, and a direct
+syntax induction proves term substitution leaves it unchanged. Consequently
+full future guards at any actually equal source transport to the target:
+ordinary readout applies at every endpoint beta residual, and interpreted
+substitution realizes a context where the same closed target and its actual
+equality are available. Carrier future paths add no new target forms. This
+requires no primitive substitution law, general carrier conversion, or supplied
+type-comparison certificate.
+
+The application theorem consumes an actual function typing, a supplied recovery
+whose displayed native domain is the erasure of a typed fragment target, a
+source argument guard and an inferred function comparison. Typed recovery
+replay yields the actual native Pi. Equal erasures of its domain and the target
+reflect to ordinary domain equality; uniqueness relates the assigned argument
+type to the recovered type. Target readout builds the required native argument
+guard, and appCarrier finishes. Unlike the earlier compared-recovery consumer,
+this theorem does not ask for a comparison certificate between assigned and
+recovered function types. It does still require the displayed recovery and
+fragment membership of its domain.
+
+Judgment: this constructively settles parameter-changing Box conversion into
+arbitrary finite nested targets of the given shape. It does not establish
+coverage for all original typing derivations or target types, and the grammar
+is not presented as a smaller sufficient front. Function targets remain live:
+source/target domain equality changes binder contexts, and the prior future
+lambda-body inversion counterexample forbids assuming a future body certificate
+from the ambient one. The next extension must account for that context and
+native recovery explicitly. Arbitrary computed or neutral target parameters
+also remain outside the proved grammar.
+
+Validation: two new modules, 294 lines, ten public roots (eight theorems, one
+local-property definition and one inductive target grammar). The dependent
+build succeeds in 625 jobs; new modules emit no warnings, while existing
+dependency warnings are replayed. Log: /tmp/closed-box-carriers-build.log.
+Independent opaque DFS covers all ten roots and 8,742 dependencies, excluding
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv and sorryAx. Cumulative opaque DFS
+covers 1,054 roots and 16,174 dependencies and excludes strengthening inverses
+and sorryAx. Exact-name axiom parsing covers every root once and allows only
+propext, Classical.choice and Quot.sound. Both audit processes terminate
+successfully. Sources, logs and inventories:
+/tmp/semantic-box-readout-{audit,independent-audit}.{lean,log} and matching
+-roots.txt files.
+
+Completion audit: UniqueTyping.lean:94 retains the original sorry. No
+canonical-Eq strengthening proof or counterexample, and no strictly smaller
+sufficient irreducible obligation, has been established. GOAL.md stays active.
+Only theory modules and actual EOF ledger additions change. No executable
+changes, PR extraction, PRs, subagents or coordination.
