@@ -1808,3 +1808,28 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   or establish general comparison-based carrier alignment. Those cases still
   require compared-context transport and dependent field-carrier alignment.
   No sufficient strengthening front has been made strictly smaller here.
+
+
+- **Align nonempty record parameters through persistent neutral field recipes.**
+  **Proved for the full joint carrier grammar.**
+  ProofErasureJointRecordAlignment states NeutralRecordFields using the actual
+  projectionType recipes after every reachable parameter computation, for all
+  majors and retained fields. A nested field guard then yields ordinary field
+  comparison. The record guard reindexes to any new parameter list of the
+  correct length, retaining family and levels. Carrier computation preserves
+  the inert family spine and composes parameter paths; projection metadata is
+  aligned by its checked uniqueness. Actual target endpoint typings remain a
+  separate requirement for sound use. Arbitrary field recipes are not assumed
+  to meet this criterion.
+
+- **Test the record criterion on Box A with a retained parameter-dependent field.**
+  **Checked for an existing registered one-field Box, including a typed no-join
+  eta example.** ProofErasureJointBoxAlignment derives its field recipe from the
+  constructor telescope (A : Type) -> A -> Box A. At a variable-headed parameter,
+  every reachable recipe is still neutral. The full guards at Box (F f) and
+  Box (F (eta f)) are equivalent at each repaired joint stage although those
+  typed, equal carriers have no joint-union computational join. Registration,
+  constant typing and the constructor shape are explicit hypotheses; no fresh
+  registered extension was constructed. Function/structure-headed field types,
+  changed function domains and universal compared-type alignment remain open.
+  The result is a new alignment case, not a smaller sufficient front.

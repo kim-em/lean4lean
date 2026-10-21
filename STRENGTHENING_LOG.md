@@ -9348,3 +9348,71 @@ alignment of dependent projection carriers; neither can be assumed from raw
 head exposure alone. The goal remains open: no weakN_iff proof, canonical-Eq
 counterexample or strictly smaller sufficient front. No executable changes,
 extraction, PRs, agents or coordination.
+
+
+## Nonempty record alignment through neutral retained fields
+
+The preceding turn was progress: 67e3b874 proved neutral-terminal function
+carrier reindexing and its typed eta no-join example. Revalidated that commit
+and a clean worktree, then continued with the dependent projection-carrier
+alignment gap identified in the log.
+
+ProofErasureJointRecordAlignment gives a checked criterion for record parameter
+transport. NeutralRecordFields quantifies over every parameter list reached by
+pointwise scoped computation and the actual registered constructor telescopes.
+Every retained projectionType recipe, for every raw major, must have a variable
+head. Proof fields are excluded from the requirement. The quantification over
+majors includes occurrences of preceding-field projections in a dependent
+recipe; it does not replace the recipe by a syntactic approximation.
+
+Under this criterion, JointCarrierGuard.record_reindex_neutral_fields transports
+the entire carrier grammar to a new parameter list of the correct length, at
+the same family and universe levels. Checked guards already ignore carriers.
+Direct record guards keep their field comparisons. Nested guards turn their
+neutral-carrier field guards into ordinary projection comparisons and use the
+direct record constructor at the new parameters. An empty-structure case
+retains its checked metadata. Function cases are excluded by the family head.
+Carrier computation preserves the inert family spine and composes the parameter
+paths in the criterion; symmetry and endpoint computations remain intact.
+Checked projection-metadata uniqueness aligns constructors encountered during
+the induction. No type-comparison completeness or re-synthesis law is used.
+
+ProofErasureJointBoxAlignment discharges the criterion for a nonempty record
+shape. Assume an existing projection registration with one parameter and one
+field, constructor telescope (A : Type) -> A -> Box A. Its actual ProjTele
+length and shape determine the two domain entries. Erasing and instantiating
+the selected projection template then proves projectionType [parameter] major
+is exactly parameter. If the parameter is variable-headed, every parameter
+reduct retains that head, so the neutral-field criterion holds. All joint Box
+guards therefore reindex to any raw target parameter. As with the generic
+result, actual endpoint typings at the target carrier are needed for sound use.
+
+The typed test uses the existing context f : Prop -> Prop,
+F : (Prop -> Prop) -> Type, x : F f. Box (F f) and Box (F (eta f)) are actually
+typed and definitionally equal. Their raw shapes are distinct and normal for
+the full quotient-repaired joint union: the Box head is a registered rigid
+family, while both neutral argument shapes are fixed. Thus no computational
+join exists. Nevertheless the complete carrier guards are equivalent for all
+raw endpoints at every finite repaired joint stage. This is conditional on
+the explicit existing Box registration, constant typing and constructor shape;
+it does not claim an independently constructed registered environment.
+
+Validation: lake build through ProofErasureJointBoxAlignment passes (550 jobs;
+/tmp/joint-box-alignment-build.log). The cumulative opaque audit
+/tmp/joint-record-alignment-audit.lean checks 473 public roots and 14,559
+dependencies with no weakN_iff, weakN_inv or sorryAx. All 473 axiom reports were
+accounted for and use only propext, Classical.choice and Quot.sound. The
+independent audit checks all four new public roots and 8,693 dependencies,
+additionally excluding JointCarrierDomainResynthesis. Its four axiom reports
+pass the same restriction. Both audits exited successfully.
+
+Judgment and next gap: this extends parameter alignment beyond empty structures
+to nonempty structures with retained neutral parameter-dependent fields. It
+covers arbitrary existing guards but not arbitrary field-type shapes. Function
+fields with changed domains and structural field carriers require richer field
+alignment; the preceding neutral-terminal function theorem may cover a further
+fixed-domain subcase but is not yet integrated into this record criterion.
+General compared-context transport and assigned-type coverage remain open.
+There is no strengthening proof, canonical-Eq counterexample, or strictly
+smaller sufficient front. No executable changes, extraction, PRs, agents or
+coordination. Goal remains active.
