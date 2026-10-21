@@ -9277,3 +9277,74 @@ strictly larger class of actual lambda arguments. This does not satisfy any
 completion alternative in GOAL.md: weakN_iff remains open, and no canonical-Eq
 counterexample or strictly smaller sufficient front has been established.
 No executable changes, extraction, PRs, agents or coordination. Goal active.
+
+
+## Function-carrier alignment at neutral terminal results
+
+Classified the preceding turn as progress: d29fcb3e completed and committed the
+computed-image transport results and their strict lambda witness. Revalidated
+that commit, the clean worktree, and GOAL.md. Its original strengthening
+completion alternatives remain unchanged.
+
+The remaining eta example prevents using computation alone for all assigned
+and recovered types. Investigated comparison-based carrier alignment. The
+existing results already handle neutral carrier spines and empty structures;
+general function carriers additionally involve context changes at their
+binders, while dependent structure fields require alignment of the actual
+projection recipes. Neither of those general operations is proved by the
+computed-image result. A function telescope with unchanged domains and a
+neutral terminal result has a separate direct argument, implemented here.
+
+ProofErasureJointFunctionAlignment introduces the raw NeutralResult predicate:
+a variable-headed application, or any finite Pi telescope ending in one.
+The replaceResult operation retains all displayed Pi domains and replaces the
+terminal result by supplied raw syntax in the final binder scope. There is no
+normality or termination restriction on domains or neutral arguments.
+
+ScopedCompute.replace_neutral_result proves both preservation of NeutralResult
+and a mirrored computation under replacement. Variable-headed spines retain
+their heads through all primitives, so computations of their arguments are
+irrelevant once that entire terminal result is replaced. Pi computation keeps
+its full domain path and recursively mirrors the codomain path in the same
+source binder context. Transitive paths preserve the telescope invariant at
+every intermediate term. This needs only the primitive-head property, not
+source typing, joint confluence, substitution closure or re-synthesis.
+
+JointCarrierGuard.replace_neutral_result covers the entire carrier grammar.
+A checked guard directly reindexes. A function guard recurses under its retained
+domain. Carrier computations use the mirrored path; symmetry and endpoint
+reductions are retained. Structural subsingleton and record constructors cannot
+occur at a neutral-result carrier. Thus changing the terminal result is valid
+for any supplied target syntax with the same telescope. The conclusion is a
+raw certificate; sound application still supplies endpoint typings at the
+target carrier. No equality between arbitrary replacement types is asserted.
+
+ProofErasureJointFunctionAlignmentExample supplies an actual typed test. In the
+existing eta context, form Prop -> F f and Prop -> F (lambda p => f p).
+Congruence and eta prove their original definitional equality. Their erased Pi
+forms are distinct and fixed by every joint computation, so no joint-union
+common reduct exists. Nevertheless the full carrier guards transfer in both
+directions for every finite stage and every pair of raw endpoints. This does
+not need a hypothetical registration of a new family or an environment
+extension; it holds over any well-formed base context and any core collection.
+
+Validation: lake build through ProofErasureJointFunctionAlignmentExample passes
+(552 jobs; /tmp/joint-function-alignment-example-build.log). The cumulative
+opaque audit /tmp/joint-function-alignment-audit.lean checks 469 public roots
+and 14,540 dependencies, rejecting weakN_iff, weakN_inv and sorryAx. All 469
+axiom reports were accounted for and restricted to propext, Classical.choice
+and Quot.sound. The independent audit checks all five new public roots and
+8,178 dependencies, additionally excluding JointCarrierDomainResynthesis;
+its five axiom reports pass the same restriction. Both final audits exited
+successfully. An initial audit invocation encountered the example's missing
+compiled module while its proof was being corrected; only the final successful
+audits are evidence for this commit.
+
+Scope: this proves a function-telescope carrier alignment case beyond literal
+computational joins. Every domain remains shared, and terminal structure
+carriers and arbitrary converted binder contexts remain outside the theorem.
+The next general step still needs comparison-directed context transport and
+alignment of dependent projection carriers; neither can be assumed from raw
+head exposure alone. The goal remains open: no weakN_iff proof, canonical-Eq
+counterexample or strictly smaller sufficient front. No executable changes,
+extraction, PRs, agents or coordination.

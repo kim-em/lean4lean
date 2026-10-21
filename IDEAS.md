@@ -1783,3 +1783,28 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   lambda images but cannot replace comparison-based type alignment in general.
   This is a strict improvement to conditional transport, not a smaller
   sufficient strengthening front or a solution of the matched-beta residue.
+
+
+- **Align function carriers beyond computational joins by their terminal guard.**
+  **Proved for arbitrary finite telescopes with variable-headed terminal results.**
+  ProofErasureJointFunctionAlignment defines NeutralResult and replaces only
+  the terminal result, retaining every displayed binder domain. Compatible
+  computation preserves this class and mirrors all domain computations under
+  replacement; neutral argument computations disappear at the replaced leaf.
+  Full joint carrier checking then transports by induction, including function
+  guards, carrier conversion, symmetry and endpoint computations. No raw type
+  comparison or computational join is required. Actual endpoint typings at the
+  chosen target carrier remain necessary for sound interpretation.
+
+- **Test neutral-result function alignment on actual eta-converted Pi types.**
+  **Checked at every finite joint stage, with no join in the whole union.**
+  ProofErasureJointFunctionAlignmentExample puts the existing F f / F (eta f)
+  neutral types beneath a shared Prop domain. Both resulting Pi types are
+  actually typed and definitionally equal. Their raw forms are distinct and
+  fixed by all joint computation, yet their full carrier guards are equivalent
+  for all raw endpoints at every stage. This advances the function-carrier
+  case beyond the previous neutral and empty-structure cases. It does not
+  transport across changed function domains, cover structural terminal results,
+  or establish general comparison-based carrier alignment. Those cases still
+  require compared-context transport and dependent field-carrier alignment.
+  No sufficient strengthening front has been made strictly smaller here.
