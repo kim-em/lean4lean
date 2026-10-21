@@ -10664,3 +10664,86 @@ Completion audit: the original sorry at UniqueTyping.lean:94 remains. No
 canonical-Eq counterexample or strictly smaller sufficient strengthening front
 has been established. The goal remains active. No executable changes,
 extraction, PRs, agents or coordination.
+
+## Dependent carrier beta and forward oracle recovery
+
+Previous-turn classification: progress. Clean HEAD 8c87c073 supplied the
+carrier-preserving residual interface and checked prefix/function cases.
+This turn addressed the recorded dependent-field carrier mismatch, then used
+the same computation commutation theorem to move recovery through reduced
+binder annotations.
+
+ProofErasureJointDependentCarrierBeta introduces a local residual property
+allowing all three raw paths: the carrier and both endpoints may beta-reduce.
+It specializes to the preceding endpoint-only property. Projection-type beta
+congruence is proved on the actual erased template: instOuter respects a
+pointwise beta relation on capture lists, parameters are taken at the existing
+metadata bound, and every preceding projection follows the major's beta path.
+No field-type equality is postulated and no closed-template restriction is
+needed for this congruence result.
+
+The carrierNested constructor now has a checked recursive case under this
+stronger local hypothesis. A beta-reduced record carrier retains the registered
+family and arity while its parameter list reduces pointwise. The target field
+recipe uses those new parameters and the new left major. The template theorem
+supplies exactly the beta path required by each recursive carrier certificate,
+and projection congruence supplies both endpoint paths. This reconstructs the
+actual nested carrier guard at its changed dependent field types. Structural
+subsingleton certificates, symmetry, reflexive typed endpoints and finite
+endpoint-computation prefixes also have checked cases for this invariant.
+
+Carrier computation has a separate constructive case. The source carrier
+computation and its beta path are commuted to a shared carrier. The recursive
+certificate moves the old computation output by beta to that carrier, and the
+actual target computation wraps the resulting guard at the requested new
+carrier. This uses carrierCompute in its proper direction. The stage-n+1
+specialization assumes only stage-n proposition transport; the core case
+assumes none. The global carrier law remains unproved.
+
+ProofErasureJointOracleBetaTransport proves a further useful forward result:
+under an interpreted identity context change whose oracle entries beta-reduce,
+source-typed recovery survives, with its old selected type beta-reducing to
+its newly selected type. The expression itself is unchanged. The induction
+covers every ScopedTypeRecovery constructor. Applications read the Pi shape
+of the pure beta residual; forall recovery retains literal sorts; projections
+retain their registered spine and reduce the exact dependent field recipe.
+For conversion, replay supplies the original selected type's typing, finite
+computation/beta commutation joins its conversion fork, and the certified
+target's substitution closure moves that target path to the new context.
+Thus neither general joint confluence nor exact recovery output preservation
+is assumed. Arbitrary beta reduction of the recovered expression is not part
+of this theorem.
+
+The concrete theorem uses stage-n proposition transport for source recovery
+at n+1, and the stage-zero theorem needs no such premise. A specialization to
+an original typed domain path A ->beta B constructs the interpreted identity
+context change, supplies the fresh oracle's lifted beta path, and identifies
+the fixed body's erasure in the actual B :: Γ context by forward context
+conversion. This is a full recovery theorem, not just a fresh-variable case.
+
+Next task: combine the recovery result with simultaneous context-oracle and
+carrier-type transport for JointCheck, keeping expressions fixed initially.
+The changed recovery Pi now has domains reachable by beta, which fits a
+recursive carrier-type transport hypothesis. Entering a changed binder still
+needs an interpreted context extension between its old and beta-reduced
+domains; typed substitution and beta replay can be tested for that construction.
+The remaining endpoint-beta application cases cannot simply forget carrier
+information or assert inferred comparison of arbitrary function residuals.
+Paired body instantiation and the full proposition comparison law remain open.
+The checked local nested-field case does not imply global dependent-carrier
+transport without the other recursive cases.
+
+Validation: new oracle-transport, prior common-beta-boundary and full joint
+beta-commutation targets build successfully (610 jobs), log
+/tmp/joint-dependent-oracle-beta-build.log. Independent opaque dependency DFS
+covers all 14 new public roots: 11,439 dependencies, excluding carrier-domain
+re-synthesis, strengthening inverses and sorryAx. Cumulative audit: 651 public
+roots, 15,453 dependencies, no strengthening inverses or sorryAx. All 651 and
+14 requested axiom reports were parsed and matched exactly; only propext,
+Classical.choice and Quot.sound occur. Sources/logs:
+/tmp/joint-dependent-oracle-beta-{audit,independent-audit}.{lean,log}.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+No canonical-Eq strengthening counterexample or strictly smaller sufficient
+front is established. The goal remains active. No executable changes,
+extraction, PRs, agents or coordination.

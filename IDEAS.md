@@ -2353,3 +2353,48 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   dependent derivation must be tested; the endpoint-only residual property
   does not silently settle this. The earlier Eq-sort decoder handles literal
   universes only and must not be treated as a general carrier decoder.
+
+- **Allow the supplied carrier to beta-reduce with the endpoints.**
+  **Local cases checked** in `ProofErasureJointDependentCarrierBeta`.
+  JointCarrierTypeBetaResidual strengthens the previous endpoint-only property
+  and specializes back to it. The actual projectionType recipe beta-reduces
+  when its parameters and left major do; this includes all preceding dependent
+  fields. Consequently carrierNested reconstructs every field guard at the
+  new parameters and new left major under the stronger recursive hypothesis.
+  Subsingleton, symmetry, reflexive endpoints and endpoint-computation prefixes
+  also preserve this property. This is not a global carrier-transport proof.
+
+- **Commute carrier computation instead of reversing it.** **Checked.**
+  Given an old carrier computation A -> B and a requested beta path A -> A',
+  the finite commutation theorem supplies B ->beta C and A' ->compute C.
+  Apply the recursive carrier/type residual at C, then wrap it by actual
+  carrierCompute at A'. Stage-n+1 carrier computation needs only stage-n
+  proposition transport; the stage-zero case needs none. This resolves the
+  orientation problem recorded in the previous entry without inverting a path.
+
+- **Recover through forward beta changes of context oracles.** **Checked** in
+  `ProofErasureJointOracleBetaTransport`. Under an interpreted identity context
+  change and pointwise beta reduction of oracle entries, every source-typed
+  stage-n+1 recovery has a recovery in the certified target, with a pure beta
+  path from its old selected type to the new selected type. Conversion forks
+  use lower-stage computation commutation, and the target computation moves
+  to the new context through its existing substitution certificate. Application
+  recovery keeps beta-reduced Pi components; projection recovery uses the exact
+  dependent recipe theorem. Stage-zero recovery needs no proposition transport.
+  A typed binder-domain beta specialization preserves the original expression
+  and gives its erasure in the actual new context. This changes the oracle,
+  not the recovered expression; arbitrary expression-beta recovery remains
+  outside the claim, as required by the earlier exact-recovery counterexamples.
+
+- **Combine context-oracle beta with carrier-type transport before endpoint
+  beta.** **Live next construction.** The new recovery result supplies the
+  changed native Pi at a fixed application expression. A simultaneous context
+  and carrier-type transport proof for JointCheck could use the recursive
+  carrier guard at the beta-reduced selected domain, retaining ordinary
+  comparison modes while the expressions stay fixed. Entering a beta-reduced
+  binder needs an interpreted identity between A :: Δ and A' :: Δ', together
+  with the new oracle beta paths; typed forward substitution and beta replay
+  are candidates for constructing this extension. This context-only stage
+  must not be mistaken for general endpoint beta comparison, which the unit
+  example refutes. Application head-beta and paired body instantiation remain
+  separate tasks. No smaller sufficient strengthening front is claimed.
