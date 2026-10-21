@@ -2584,3 +2584,21 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   strictly smaller sufficient strengthening front. Next: use this substitution
   law to remove exact-recovery premises from diagonal head beta, and investigate
   head exposure and genuinely paired argument substitution.
+
+- **Use semantic substitution to remove exact-recovery restrictions from
+  diagonal head beta.** **Proved under the same head-exposure premise.**
+  `ProofErasureJointSemanticHeadBeta` proves inferred-lambda instantiation at
+  every typed argument, proposition head beta for equal argument erasures,
+  and the shared typed beta-image extension. Both displayed lambda annotations
+  may differ from the assigned domain and neither needs an exact recovery
+  certificate for the argument. The recovered-argument module now factors its
+  private structural induction through an image predicate and a body
+  instantiation callback. Its original theorem uses exact recovery, while the
+  new theorem uses True and semantic substitution. Computation of bodies needs
+  only typed ContextSubstitution, independently of image recovery. The original
+  public exact-recovery results retain their statements and assumptions.
+  Certified and finite-stage wrappers also compile. This addresses diagonal
+  arguments and literal beta joins, not arbitrary carrier-related pairs.
+  Head exposure remains open. Next: establish computational head adequacy or
+  identify a concrete obstruction, and solve paired carrier substitution for
+  the nonjoined critical pair; diagonal substitution alone cannot settle it.

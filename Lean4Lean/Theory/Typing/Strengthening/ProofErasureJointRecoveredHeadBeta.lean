@@ -73,10 +73,22 @@ private theorem eta_inst_typed
       ProofShape.Subst.cons, ProofShape.Subst.id_lift] using
       (ProofShape.BetaRed.beta (A := rawD) (b := rawC) (a := .proof))
 
-private theorem inferred_lambdas_recovered
+-- The structural argument is shared by exact recovery and semantic head
+-- exposure. The image predicate records precisely what body instantiation needs.
+private theorem inferred_lambdas_with_image
+    (Image : List ProofShape → ProofShape → ProofShape → Prop)
     (hstep : ErasedScopedPrimitiveDescent Step)
     (hsubst : ∀ {Δ Δ' a b τ}, Step Δ a b → ContextSubstitution Δ Δ' τ → Step Δ' (a.subst τ) (b.subst τ))
     (hhead : ∀ {Δ a b}, Step Δ a b → PrimitiveHead a)
+    (himage : ∀ {Δ p A A'}, Image Δ p A → ScopedCompute Step Δ A A' → Image Δ p A')
+    (hbody : ∀ {Γ p P a b A Δ sa sb mode},
+      OnCtx Γ (env.IsType univs) → env.HasType univs Γ p P →
+      Image (proofEraseCtx Γ) (proofErase Γ p) (proofErase Γ P) →
+      env.HasType univs (P :: Γ) a A → env.HasType univs (P :: Γ) b A →
+      proofEraseCtx (P :: Γ) = Δ → proofErase (P :: Γ) a = sa →
+      proofErase (P :: Γ) b = sb → JointCompare Step Δ mode sa sb →
+      JointCompare Step (proofEraseCtx Γ) mode
+        (sa.inst (proofErase Γ p)) (sb.inst (proofErase Γ p)))
     (H : JointCheck Step Δ kind sa sb)
     (hk : kind = .compare false)
     (hΓ : OnCtx Γ (env.IsType univs))
@@ -84,8 +96,8 @@ private theorem inferred_lambdas_recovered
     (hf : env.HasType univs Γ f (.forallE P B)) (hg : env.HasType univs Γ g (.forallE P B))
     (EΓ : proofEraseCtx Γ = Δ) (Ef : proofErase Γ f = sa) (Eg : proofErase Γ g = sb)
     (EL : sa = .lam A b) (ER : sb = .lam D c)
-    (RA : ¬ IsProof Γ p → ScopedTypeRecovery Step Δ (proofErase Γ p) A)
-    (RD : ¬ IsProof Γ p → ScopedTypeRecovery Step Δ (proofErase Γ p) D) :
+    (RA : Image Δ (proofErase Γ p) A)
+    (RD : Image Δ (proofErase Γ p) D) :
     JointCompare Step Δ false (b.inst (proofErase Γ p)) (c.inst (proofErase Γ p)) := by
   induction H generalizing Γ P p B f g A b D c with
   | leaf H =>
@@ -104,7 +116,7 @@ private theorem inferred_lambdas_recovered
     obtain ⟨u, C, hA, hD, hb, hc, Ectx⟩ := lambda_common_context hΓ hf hg
     have hpA := argument_at_displayed_domain hΓ hf (HasType.lam hA hb) hp
     rw [Ectx] at Ec
-    have HC := body_inst_recovered hstep hsubst hΓ hpA (fun hn => by simpa only [EΓ, EA] using RA hn) hb hc
+    have HC := hbody hΓ hpA (by simpa only [EΓ, EA] using RA) hb hc
       (by simp only [proofEraseCtx, EΓ, EA]) Eb Ec HB
     simpa only [EΓ] using HC
   | etaLams HD Heta ihD =>
@@ -129,10 +141,14 @@ private theorem inferred_lambdas_recovered
       (by simpa only [ER, ED] using RG)
     have WB : ContextSubstitution (proofEraseCtx (A₀ :: Γ)) (proofEraseCtx Γ)
         (ProofShape.Subst.one (proofErase Γ p)) :=
-      (RecoveringSubstitution.inst hΓ hpA (fun hn => by simpa only [EΓ, EA] using RA hn)).interpretation
+      ContextSubstitution.of_typed hΓ
+        (Ctx.InstN.zero.substEq (show OnCtx (A₀ :: Γ) (env.IsType univs) from ⟨hΓ, _, hA⟩) hpA)
+        (erasedSubstAgreement_one ⟨hΓ, _, hA⟩ hpA)
     have WC : ContextSubstitution (proofEraseCtx (D₀ :: Γ)) (proofEraseCtx Γ)
         (ProofShape.Subst.one (proofErase Γ p)) :=
-      (RecoveringSubstitution.inst hΓ hpD (fun hn => by simpa only [EΓ, ED] using RD hn)).interpretation
+      ContextSubstitution.of_typed hΓ
+        (Ctx.InstN.zero.substEq (show OnCtx (D₀ :: Γ) (env.IsType univs) from ⟨hΓ, _, hD⟩) hpD)
+        (erasedSubstAgreement_one ⟨hΓ, _, hD⟩ hpD)
     simp only [proofEraseCtx, EΓ] at WB WC
     have RB' := RB.subst hsubst WB
     have RC' := RC.subst hsubst WC
@@ -142,8 +158,8 @@ private theorem inferred_lambdas_recovered
     · simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN, EΓ] using RB'
     · simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN, EΓ] using RC'
     · exact ih hk hΓ hp HF.hasType.2 HG.hasType.2 EΓ Ef' Eg' ELF ERG
-        (fun hn => (RA hn).convert (by simpa only [EA] using RAA))
-        (fun hn => (RD hn).convert (by simpa only [ED] using RDD))
+        (himage RA (by simpa only [EA] using RAA))
+        (himage RD (by simpa only [ED] using RDD))
   | symm HC ih => exact (ih hk hΓ hp hg hf EΓ Eg Ef ER EL RD RA).symm
   | structFields =>
     have E := congrArg ProofShape.constHead EL
@@ -171,7 +187,14 @@ theorem proofErase_joint_inferred_lambdas_inst_recovered
     (H : JointCompare Step (proofEraseCtx Γ) false (.lam A b) (.lam E c)) :
     JointCompare Step (proofEraseCtx Γ) false
       (b.inst (proofErase Γ p)) (c.inst (proofErase Γ p)) :=
-  inferred_lambdas_recovered hstep hsubst hhead H rfl hΓ hp hf hg rfl Ef Eg rfl rfl RA RE
+  inferred_lambdas_with_image
+    (fun Δ p A => p ≠ .proof → ScopedTypeRecovery Step Δ p A)
+    hstep hsubst hhead (fun HR R hn => (HR hn).convert R)
+    (fun hΓ hp HR ha hb EΓ Ea Eb H => body_inst_recovered hstep hsubst hΓ hp
+      (fun hn => HR (fun E => hn (proofErase_eq_proof.1 E))) ha hb EΓ Ea Eb H)
+    H rfl hΓ hp hf hg rfl Ef Eg rfl rfl
+    (fun hn => RA (fun hp => hn (proofErase_eq_proof.2 hp)))
+    (fun hn => RE (fun hp => hn (proofErase_eq_proof.2 hp)))
 
 /-- Actual proposition-valued applications close under head beta when the two
 arguments have the same erasure and that erasure recovers both displayed lambda

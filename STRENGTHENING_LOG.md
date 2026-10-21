@@ -11252,3 +11252,42 @@ the joint union. General paired substitution and endpoint-beta stability also
 remain open. No canonical-Eq counterexample or strictly smaller sufficient
 irreducible front has been established. The goal remains active; no executable
 changes, PR extraction, or agent coordination.
+
+## Diagonal head beta without exact image recovery (2026-10-21)
+
+ProofErasureJointSemanticHeadBeta applies arbitrary semantic substitution to
+the inferred-lambda critical pair. Its six public results cover inferred
+lambda instantiation, actual proposition head beta at equal argument erasures,
+certified checking, finite source-stage certification from lower-stage beta
+transport, and arguments beta-reducing to a shared typed image (generic and
+certified). All require ScopedSemanticHeadExposure; none requires exact image
+recovery at either displayed annotation. These are conditional results, not a
+proof of head adequacy or of arbitrary proposition endpoint-beta stability.
+
+The existing recovered-argument module shares its structural induction with
+the new theorem rather than duplicating the JointCheck case analysis. The
+private inferred_lambdas_with_image takes an image predicate, its preservation
+along domain computation, and a body-instantiation callback. The original
+public theorem supplies conditional exact recovery; its type and hypotheses
+are unchanged. The new theorem supplies the predicate True and the semantic
+substitution theorem. In the compute case, direct typed ContextSubstitution
+replaces the unnecessarily stronger recovering substitution used just to
+instantiate body computations. The eta argument and actual proofness checks
+remain shared and unchanged.
+
+Validation: semantic head beta, the original proof-argument specialization,
+native carrier readout, and the common-beta boundary build successfully
+(614 jobs), /tmp/joint-semantic-head-beta-build.log. Independent opaque DFS
+covers the six new declarations and six refactored public roots: 12 roots,
+11,517 dependencies, excluding JointCarrierDomainResynthesis, weakening
+inverses, and sorryAx. Cumulative DFS covers 714 roots and 15,541 dependencies,
+excluding weakening inverses and sorryAx. Exact-name axiom reports match all
+12/714 requested declarations, using only propext, Classical.choice, and
+Quot.sound. Sources/logs: /tmp/joint-semantic-head-beta-{audit,independent-audit}.{lean,log}.
+
+Completion audit: weakN_iff remains open at UniqueTyping.lean:94. Neither a
+canonical-Eq counterexample nor a strictly smaller sufficient irreducible front
+has been established. The next substantial obligations are head exposure and
+the critical pair for arguments related by a carrier guard without a shared
+literal beta image. The goal remains active. This change touches only theory
+and the research ledgers; no executable changes, extraction, PRs, or agents.
