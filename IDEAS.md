@@ -5062,3 +5062,30 @@ a possible use, and their substitution/coverage problem is still open.
 Do not add further universe-domain stages expecting extra checking power from
 this rule alone. A useful next test must address those nested structural
 applications or the recovery demanded inside their function subderivations.
+
+
+## 2026-10-21 20:54 UTC — Any-output lambda recovery is sufficient, but not a free coverage lemma
+
+Verdict: checked the exact recovery requirement in the remaining structural
+case. Any recovered output of the left displayed lambda suffices to embed its
+local application certificate in the old joint checker: recovery inversion
+returns a body certificate, and rebuilding the lambda recovers a Pi at its
+original annotation. A prescribed full Pi output is unnecessary.
+
+Uniformly supplying even this weaker-looking premise is still a major
+obligation. In the full joint union, a constant lambda returning a proposition
+has some recovery iff that proposition itself has some recovery. The forward
+direction removes the unused binder with exact recovery-certificate descent;
+the reverse direction is ordinary renaming. This holds at any typed domain,
+without inhabitation or recovery of the domain. Consequently, recovery only
+for constant predicates over the fixed closed function domain Prop -> Prop,
+returning inhabited propositions, already implies PropositionFront. No unit
+structure or extra environment declaration is required.
+
+This is not a strictness witness for displayed-domain checking. Applications
+of constant lambdas returning the same body compare in the old checker by
+beta for arbitrary arguments and annotations, without any body recovery.
+The checked contrast rules out using recovery-completeness as a routine way
+to settle comparison coverage. Direct comparison/paired-beta reasoning for
+retained argument occurrences remains the live task; no smaller sufficient
+irreducible front or proof of strengthening is obtained.

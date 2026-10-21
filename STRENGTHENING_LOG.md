@@ -15421,3 +15421,52 @@ No canonical-Eq counterexample or strictly smaller sufficient irreducible
 obligation has been established. GOAL.md stays active. Only the new Theory
 module and actual-EOF ledger entries changed; no executable changes, PRs,
 extraction, subagents or coordination.
+
+
+## 2026-10-21 20:54 UTC — Structural-domain recovery barrier and its comparison limitation
+
+Previous goal turn: progress, with a checked universe-domain redundancy result.
+This turn inspected the remaining structural case and added
+ProofErasureDisplayedLambdaRecovery.lean (117 lines, six public roots: five
+theorems and one explicitly unproved coverage predicate).
+
+DisplayedLambdaApplication.joint_of_recovery accepts any lambda recovery
+output. It inverts that certificate and reconstructs the original displayed
+domain, so neither a chosen codomain nor a chosen converted Pi is needed.
+proofErase_joint_constant_lambda_recovery_iff proves that some-output
+recovery of a constant proposition-valued lambda is equivalent to some-output
+recovery of its lower body. Exact certificate descent preserves the lower
+recovery even when the upper selected output is not given as a lift. The
+reverse uses the existing exact renaming/lift theorem.
+
+ConstantStructuralPredicateRecovery restricts the proposed coverage premise
+to constant lambdas at one fixed structural domain, Prop -> Prop, returning
+inhabited propositions. The new implication recovers every inhabited
+proposition, then applies the existing Eq-probe argument to obtain the original
+PropositionFront. This conditional result does not establish the coverage
+premise and is not claimed to be strictly smaller.
+
+A separate raw beta theorem verifies that these same constant-lambda
+applications already compare without recovery or related arguments. Thus the
+recovery barrier does not establish extra comparison power for the new rule.
+The next substantive step must handle retained occurrences directly, not
+replace comparison coverage by recovery of every displayed function.
+
+Validation: consuming build succeeds in 634 jobs
+(/tmp/displayed-recovery-build.log), with no warnings in the new module.
+Cumulative opaque DFS: 1,326 public roots / 16,596 dependencies. Independent:
+six public roots / 11,350 dependencies. Both exclude weakN_iff, weakN_inv
+and sorryAx; independent additionally excludes JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport and JointPropBetaStability.
+The new conditional coverage predicate is explicit in the barrier theorem;
+no old missing coverage assumption is used internally. Exact root inventories
+and the propext/Classical.choice/Quot.sound axiom whitelist pass. Audit logs
+have no errors or warnings. Artifacts: /tmp/displayed-recovery-
+{audit,independent-audit}.lean and .log, with -roots.txt inventories.
+Pre-existing dependency build warnings remain.
+
+Completion audit: UniqueTyping.lean:94 retains the original sorry. No
+canonical-Eq counterexample or strictly smaller sufficient irreducible
+obligation has been established. GOAL.md remains active. Only the new Theory
+module and actual-EOF ledgers changed; no executable changes, PR extraction,
+PRs, subagents or coordination.
