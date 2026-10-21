@@ -9472,3 +9472,69 @@ domain; preserving domain computation alone does not supply this. The original
 weakN_iff still contains its sorry at UniqueTyping.lean:94. No canonical-Eq
 counterexample or strictly smaller sufficient front was obtained. Goal remains
 active; no executable changes, extraction, PRs, agents or coordination.
+
+## 2026-10-21 — Compared binder transport cannot preserve arbitrary selected outputs
+
+The previous turn was progress: 17a34ae6 supplied audited domain-preserving Pi
+exposure and consumed it in the empty-structure application case. The present
+turn started from that clean commit and tested the next proposed invariant for
+compared-context transport before attempting its full structural induction.
+
+ProofErasureComparedContextBoundary defines the restricted candidate
+JointVariableRecoveryContextComparison. The source and target binder
+annotations have actual typings at the same sort and an inferred joint type
+comparison. The fresh variable is non-proof. Given any selected recovery for
+that variable in the source context, the candidate asks for some recovery in
+the target context whose output commonly compares with the old output. It
+does not demand exact recovery of the old type. Even this restricted candidate
+fails over the quotient-repaired ordinary core.
+
+The proof isolates why. Given a common comparison of propositions a and b,
+wrap them as b -> Prop and a -> Prop. The variable at the former annotation is
+non-proof and its oracle can select the Pi whose domain is any beta reduct of
+b. The supplied type comparison of the two Pis licenses the candidate context
+change. Composing the target variable's lookup computation with the promised
+output comparison would compare the reduced b with a, under the new binder.
+Recovery replay types the compared Pi outputs, and domain exposure plus its
+domain-computation inverse reads the domain comparison from those Pis.
+
+Instantiate this consequence with the existing recursive self-application
+example: a = diagonal D applied to diagonal D, and
+b = diagonal D applied to diagonal D', where D' is the free reflexive Eq cast
+of D. The original application comparison uses identical inferred functions
+and common lambda comparison of its arguments. One beta step on b exposes
+the self-loop at D'. The derived loop comparison reads a common comparison
+between the lifted D and D'. Their independent sort typings upgrade it to
+inferred comparison; since D is a displayed Pi, the cast must compute to a Pi.
+The final raw computational path retracts the fresh variable by substitution
+closure of the context-independent core. The checked free-major cast boundary
+forbids that path. No inverse typing weakening is used.
+
+The public results include the recursive-Pi refutation, its instantiated
+recursive-family version, and an actual well-formed recursive extension
+preserving canonical Eq and quotient registration. In that extension the
+existing Curry argument proves PropositionFront while this recovery-transport
+candidate fails. Thus the refutation is explicitly not a counterexample to
+strengthening, and the candidate invariant is stronger than necessary there.
+
+Validation: lake build of ProofErasureComparedContextBoundary passes (571 jobs;
+/tmp/compared-context-boundary-build.log). The cumulative opaque audit checks
+483 public declarations and 14,574 dependencies. The independent audit checks
+all four new declarations and 11,137 dependencies, additionally excluding
+JointCarrierDomainResynthesis. Both exclude weakN_iff, weakN_inv and sorryAx;
+both exited successfully. All 483 cumulative and four independent axiom
+reports were accounted for and contain only propext, Classical.choice and
+Quot.sound. Audit sources/logs: /tmp/compared-context-boundary-audit.* and
+/tmp/compared-context-boundary-independent-audit.*.
+
+Judgment and next route: compared-context transport remains live, but not via
+this same-core invariant retaining comparison to every previously selected
+output. A proof must allow stronger computation or reconstruct the recovery
+and carrier guard together at their use site, without that universal output
+comparison requirement. The existing stage-one reflexive-cast computation
+already repairs the cast obstruction used here; this batch makes no claim
+against a later-stage or union transport law. General use-site transport,
+arbitrary carrier alignment and assigned-type coverage remain open. The
+original strengthening sorry remains, with no strictly smaller sufficient
+front or canonical-Eq strengthening counterexample. Goal stays active. No
+executable changes, extraction, PRs, agents or coordination.

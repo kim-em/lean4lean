@@ -1849,3 +1849,19 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   Codomain comparison would additionally require transport between compared
   binder domains, including the reverse orientation of forallE. This batch
   neither supplies that transport nor makes the sufficient front smaller.
+
+- **Transport recovery through compared binder annotations, comparing new and
+  old selected outputs instead of preserving the old output exactly.**
+  **Refuted at the repaired ordinary core, already for a fresh non-proof
+  variable.** ProofErasureComparedContextBoundary supplies a canonical-Eq,
+  quotient-registered recursive extension in which PropositionFront holds but
+  JointVariableRecoveryContextComparison fails. The annotations have the same
+  actual sort and an inferred joint comparison before the change. Wrapping
+  the existing mixed self-application loop comparison in proposition-domain
+  Pis keeps the fresh variable non-proof. A selected recovery performs beta
+  inside its oracle. The proposed transport would compare the two reduced
+  loops, expose their annotations, and incorrectly expose a Pi from the free
+  reflexive Eq cast in the ordinary core. This rules out that output-comparison
+  invariant, not use-site recovery/guard re-synthesis or transport allowing
+  later singleton stages. The raw computational retraction used at the end
+  is substitution closure of the core, not inverse typing weakening.
