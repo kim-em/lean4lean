@@ -11629,3 +11629,77 @@ No proof under canonical Eq, canonical-Eq strengthening counterexample, or
 strictly smaller sufficient irreducible front has been obtained. The goal stays
 active. Only theory and appended research ledgers changed; no executable
 changes, PR extraction, or coordination.
+
+
+## Compared structural subsingletons through dependent function types (2026-10-21)
+
+Authoritative start: 6c67ed0a41d6e67369e4374e80685a6ce37f890c, clean worktree.
+The previous goal turn made progress by checking same-stage typed composition
+failure and its exact stage-one repair. This turn inspected the conversion
+requirements of an application invariant that retains actual type comparison.
+The existing exposed-unit conversion theorem was found and reused rather than
+reported as new work.
+
+ProofErasureComparedSubsingleton establishes seven public roots. First,
+SubsingletonCarrier.scoped_compute preserves structural subsingletons through
+arbitrary scoped computation, with registered-family inertness and the usual
+primitive-head restriction. Parameters may compute freely; function domains
+may change; the structural codomain certificate is preserved recursively.
+
+The central comparison proof handles both orientations simultaneously and
+accepts either comparison mode at independently sort-typed original endpoints.
+For a non-Pi structural subsingleton, existing rigid-family exposure supplies
+an output of the same family and arity. Sort typing rules out common-mode
+lambda and structure-eta alternatives. In the forallE and forallSorted cases,
+typing inversion recovers actual domains and codomains. Domain comparison
+reflects to ordinary equality, allowing the right codomain's typing to be
+viewed in the left-domain context. The smaller body-comparison result supplies
+a computation to a structural subsingleton. Primitive interpreted substitution
+then moves that path to the target-domain context, and Pi compatibility wraps
+it. In computation cases, forward typed replay realizes both intermediate
+types and the preserved source subsingleton supplies the smaller induction.
+Symmetry exchanges the two simultaneous results.
+
+The public compute theorem yields an actual target path and a structural
+subsingleton output; the guard theorem rebuilds the target carrier guard.
+Compared recovered-domain exposure then gives both a newly selected function
+Pi and its argument guard for any structurally subsingleton assigned domain.
+The application theorem consumes those certificates directly. This extends
+the earlier exposed-unit application case through arbitrary dependent function
+telescopes. It needs no exact assigned-type recovery and no literal join of
+the assigned and selected domains.
+
+Two specializations make primitive assumptions concrete: stage zero uses
+ordinary core substitution, and ErasedBetaStableJoint uses its established
+interpreted substitution law. They retain the input relation. The definitions
+must leave registered structure-family heads unopened, as stated explicitly.
+No new global semantic exposure, proposition beta transport, or carrier-domain
+re-synthesis premise is introduced. Recovery and selected-type comparison are
+actual local inputs; neither their existence for all typings nor a translation
+of all strong equality derivations has been proved.
+
+Judgment and next step: this is constructive progress in the application case
+of the proposed invariant. It does not handle a general carrierCompute source
+whose original carrier is not syntactically structurally subsingleton. That
+case needs to reconcile a comparison at the original carrier with a separate
+computation to an exposed carrier. General dependent record-field guards and
+non-subsingleton function guards remain open too. Next retain the original
+conversion subderivations while addressing that computational-prefix case,
+without assuming the full-strength global exposure or beta laws.
+
+Validation: the final module and its dependencies build successfully (592
+jobs), /tmp/compared-subsingleton-build.log; the new module emits no warnings.
+Independent opaque DFS covers seven public roots and 10,970 dependencies. It
+excludes JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv and sorryAx. Cumulative opaque DFS
+covers 780 roots and 15,646 dependencies, excluding strengthening inverses and
+sorryAx. Exact-name axiom parsing accounts for all roots in both inventories;
+only propext, Classical.choice and Quot.sound occur. Sources/logs:
+/tmp/compared-subsingleton-{audit,independent-audit}.{lean,log}; root inventory:
+/tmp/compared-subsingleton-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+No canonical-Eq proof or counterexample, or strictly smaller sufficient
+irreducible front, has been established. The goal remains active. Changes are
+one theory module and appended research ledgers only; no executable changes,
+PR extraction, or coordination.

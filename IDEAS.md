@@ -2787,3 +2787,46 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   transitivity and application; the current result supplies a minimal case
   that any proposed stage bound must accommodate. No general decreasing rank
   or strictly smaller sufficient front is asserted.
+
+
+## Consume an actual type comparison in the subsingleton application case (2026-10-21)
+
+- **Replace arbitrary semantic carrier conversion by a supplied type comparison.
+  Verdict: structural subsingletons, including dependent Pi telescopes, now
+  transport constructively.** The exposed empty-structure case was already
+  `proofErase_joint_unit_carrier_target`; it was not reimplemented. The new
+  `proofErase_joint_compared_subsingleton_compute` extends this to all of
+  SubsingletonCarrier: empty registered structures with arbitrary parameters,
+  closed under arbitrary dependent Pi domains. Either typed comparison mode
+  suffices. The target computes to a structural subsingleton using exactly the
+  same primitive relation. The proof requires primitive descent, family-head
+  inertness, and interpreted primitive substitution for changing binder
+  contexts. It assumes no global semantic head exposure or beta-transport law.
+
+  Both orientations of the comparison are proved together. Computation
+  preserves source structural subsingleton certificates. In the Pi cases,
+  actual source and target body typings are placed in the original left-domain
+  context, where the smaller body comparison applies. Reflection of the domain
+  comparison justifies moving the resulting computation to the right-domain
+  context. No unrelated carrier-conversion theorem is invoked recursively.
+
+- **Use this conversion evidence to build the application's native guard.
+  Verdict: constructed for structurally subsingleton assigned domains.**
+  `proofErase_joint_compared_recovery_subsingleton_guard` consumes an existing
+  recovery and an actual comparison of its selected type with the assigned Pi.
+  It chooses a new recovered Pi and supplies its argument guard together.
+  `proofErase_joint_application_of_compared_recovery_subsingleton` then closes
+  the application constructor. Stage-zero and certified-relation specializations
+  discharge the primitive transport assumptions and stay at their source
+  relation. Existence of the starting recovery and type comparison remains an
+  input, not a coverage assertion about arbitrary original typing derivations.
+
+  Remaining: source guards with a computation prefix need conversion of a type
+  comparison at the unreduced carrier into information at the exposed carrier;
+  arbitrary dependent-field and function endpoint guards also remain open.
+  The new result handles literal structural subsingletons and actual supplied
+  type comparisons, not all semantic subsingletons or arbitrary conversion.
+  Next attack that computation-prefix case while retaining the original typing
+  conversion evidence; do not replace it by the already-strong global head or
+  beta laws. No proof of PropositionFront or strictly smaller sufficient front
+  is claimed.
