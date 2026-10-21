@@ -2830,3 +2830,41 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   conversion evidence; do not replace it by the already-strong global head or
   beta laws. No proof of PropositionFront or strictly smaller sufficient front
   is claimed.
+
+
+## 2026-10-21 — Decode Eq guards at arbitrary computed carriers
+
+- **Keep native recovery paths instead of freezing the Eq carrier.
+  Verdict: proved.** `ProofErasureEqNativeCarrierRecovery` inverts a typed Pi
+  computation while retaining its body path in the original domain context.
+  For an actual prefix `Eq α z`, every recovered final Pi is reachable from
+  its native Pi, and its selected domain is reachable from `erase α`.
+  Forward typed replay and interpreted substitution suffice; no inverse
+  weakening or global recovery coverage is used.
+
+- **Read endpoint guards from arbitrary typed Eq proposition comparisons.
+  Verdict: proved with primitive descent, head restrictions, and interpreted
+  primitive substitution.** The two carriers can compute independently from
+  a common ancestor. The decoder retains both paths so symmetry can exchange
+  the branches; it returns the guard at the ancestor. Primitive computation
+  must preserve Eq heads. Actual typed realizations of both Eq spines survive
+  computation by forward replay. Native recovery accounts for the domain
+  selected by the carrier-aware application rule.
+
+- **Make the existing Eq proposition encoding lossless.
+  Verdict: proved in either comparison mode, with stage-zero and certified
+  specializations.** `proofErase_joint_carrier_propositions_iff` extends the
+  old forward encoding to an equivalence for arbitrary typed carriers and
+  proof-valued endpoints. Stage zero and `ErasedBetaStableJoint` discharge the
+  primitive substitution premise using established laws, assuming Eq is not
+  unfolded. No semantic head-exposure or proposition beta-transport premise
+  is needed for either specialization.
+
+  This closes the earlier decoder gap but not the general computed-source
+  carrier-conversion case. A common computational ancestor is directed
+  evidence; an arbitrary type comparison supplies no such ancestor by itself.
+  The next application-invariant step still needs to reconcile the guard's
+  computation with the assigned/selected-type comparison. Do not infer
+  comparison transitivity from the new equivalence: same-stage typed
+  transitivity was already refuted. No strengthening theorem, canonical-Eq
+  counterexample, or strictly smaller sufficient front is claimed.

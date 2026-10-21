@@ -11703,3 +11703,69 @@ No canonical-Eq proof or counterexample, or strictly smaller sufficient
 irreducible front, has been established. The goal remains active. Changes are
 one theory module and appended research ledgers only; no executable changes,
 PR extraction, or coordination.
+
+
+## 2026-10-21 11:12 UTC — Native Eq recovery and lossless carrier decoding
+
+Resumed from committed baseline b15bc97310866fb1ee93e843a4dcc54a2372bbbb,
+whose preceding research goal turn made progress. The intervening clarification
+reply changed no research state; current-state inspection revalidated the
+original goal, original sorry, and the unfinished native-recovery module.
+No prior compile remained live. Extraction and PRs remain deferred.
+
+ProofErasureEqNativeCarrierRecovery establishes three public roots. Typed Pi
+inversion retains both the domain path and a codomain path in the original
+binder context. At a transitive step, forward typed replay realizes the
+intermediate domain; interpreted substitution transports the second body path
+back along domain conversion. Recovery of `Eq α` starts at its canonical
+native type. Applying the anchor uses typed substitution in the original α
+context, so every recovery of `Eq α z` computes from `Π (_ : erase α), Prop`.
+Pi inversion then extracts computation from erase α to the selected domain.
+
+ProofErasureEqCarrierDecode adds six public roots. Native telescope inversion
+first recovers the typings of all three arguments from any typing of an Eq
+proposition. The raw decoder accepts typed realizations of both propositions,
+whose carriers may have independent computation paths from a common ancestor.
+An ordinary application comparison yields a checked guard. A carrier-aware
+application yields a selected-domain guard, which is transported backwards
+along the retained native recovery path and the ancestor path. Computation
+preserves Eq spines and replays both typed sources; their carrier paths extend,
+and endpoint paths wrap the recursive result. Symmetry exchanges both typed
+sources and both ancestor paths. Keeping only the left ancestry would fail
+at that symmetry case.
+
+The typed wrapper first uses sort typing to reduce either comparison mode to
+inferred comparison. Its two carriers start at the same actual type and need
+no normalization or exact recovery hypothesis. Combined with the existing
+forward encoding, it proves Eq proposition comparison iff the original typed
+carrier guard. Stage-zero and certified-relation corollaries stay at precisely
+their input relation; primitive substitution and head restrictions are supplied
+by existing proved laws. Both require that D does not unfold Eq. Neither needs
+a global beta-transport, semantic head-exposure, or domain re-synthesis law.
+
+Judgment: the Eq encoding now loses no carrier-guard information under the
+stated computational assumptions. This is a concrete closure of the decoder
+gap left by ProofErasureJointCarrierPropositions, including arbitrary carrier
+syntax and proof-valued endpoints. It does not establish arbitrary union
+primitive substitution, comparison transitivity, or conversion of guards along
+an arbitrary actual type comparison. The computed-source application case
+still needs compatibility between its carrier computation and the separate
+assigned/selected-type comparison. The two ancestor paths here are actual
+inputs, not an asserted confluence theorem. General dependent-field and
+function guard transport and recovery coverage also remain open.
+
+Validation: both modules and dependencies build successfully (594 jobs),
+/tmp/eq-carrier-decode-build.log; neither new module emits warnings.
+Independent opaque DFS covers all nine public roots and 10,972 dependencies,
+excluding JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv, and sorryAx. Cumulative opaque
+DFS covers 789 roots and 15,661 dependencies, excluding strengthening inverses
+and sorryAx. Exact-name axiom parsing accounts for every root in both
+inventories; only propext, Classical.choice, and Quot.sound occur. Audit
+sources/logs: /tmp/eq-carrier-decode-{audit,independent-audit}.{lean,log};
+inventories: /tmp/eq-carrier-decode-{audit,independent-audit}-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+None of the three allowed goal outcomes has been established. The goal remains
+active. Only two theory modules and appended ledgers are changed; no executable
+changes, PR extraction, or coordination.
