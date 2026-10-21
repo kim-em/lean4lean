@@ -5191,3 +5191,39 @@ instead allow proper-prefix decomposition and descent of the earlier arguments.
 After that, all individual direct prefixes of the probe must still be connected
 to arbitrary contextual eta and structure eta; finite spine coverage alone is
 not the goal's missing semantic coverage theorem.
+
+
+## 2026-10-21 21:28 UTC — Minor eta at the actual motive-application domain
+
+Verdict: proved for arbitrary positive-universe Prop-carrier Eq motives,
+with a typed retained three-argument prefix and its canonical minor domain.
+The fresh minor variable completes a typed retained five-argument prefix in
+the original minor context. Proper-prefix decomposition at four arguments
+keeps all earlier computations. The fresh minor is fixed; the proposition
+and motive paths descend with exact certificates. First-head beta then
+replays the computed contractum for any raw consumed image and any pending
+arguments. Neither recovery of the minor nor conversion of its annotation
+to a literal universe is required.
+
+Instantiated the result at the actual type probe, proving its canonical
+three-argument prefix typing directly from the recursor telescope. The exact
+original index-comparison criterion persists, including arbitrary insertion
+of binders with an equality major only upstairs. Added eqMinorEta to the
+finite interleaving relation, whose continuation and universe-exposure
+criterion remain proved.
+
+This closes the last individual direct-prefix eta position of the six-argument
+probe: carrier, first proposition, motive, minor, final proposition, proof.
+It does not prove arbitrary contextual eta coverage, or closure of the finite
+relation under application arguments or binder bodies. The local theorems
+use ordinary computation paths for supplied arguments. Replacing those paths
+by arbitrary contextual eta/computation paths still requires a new argument;
+it is not licensed by the spine continuation theorem. Structure eta and the
+general paired-substitution/native-domain alignment problem remain open.
+No smaller sufficient irreducible front has been established.
+
+Next live question: can exact argument-path decomposition and primitive guard
+readout survive eta/computation interleavings inside a supplied argument, so
+that the finite spine relation has a typed contextual extension? This must
+preserve original guards and outputs, not merely give semantic equality or
+postulate a recovery condition already equivalent to PropositionFront.
