@@ -3459,3 +3459,48 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   nesting cannot remove this obstruction. General primitive transport and
   coverage remain live research tasks. No strictly smaller sufficient
   irreducible front or other goal outcome is claimed.
+
+
+### 2026-10-21 14:03 UTC — Construct certified Eq computation from joins
+
+- **Certify reflexive or beta-joined Eq indices directly. Verdict: proved.**
+  proofErase_beta_join_family builds every future beta/substitution comparison
+  from typed beta confluence, without JointPropBetaTransport. The literal Eq
+  family has a beta join when its indices do. Lifting this certificate under
+  the generated proof-major binder constructs the exact certified singleton
+  prefix and computes a type probe to its minor. The equality major is arbitrary.
+
+- **Allow primitive computation inside the compared indices. Verdict:
+  proved for certified computational joins.** proofErase_certified_join_family
+  commutes both source computations with future beta paths, realizes their
+  common output as a typed term, and uses beta confluence at that output.
+  Substitution closure of certified computation handles all future interpreted
+  substitutions. No confluence of arbitrary primitive computation is assumed.
+  proofErase_certified_join_eq_prefix consequently builds a new certified Eq
+  primitive from indices joined by existing certified primitives. This can
+  iterate through nested Eq computation without a fixed depth bound.
+
+- **Does this cover the primitive obstacle from the preceding turn?
+  Verdict: yes, constructively.** certified_probe_beyond_box_beta_paths gives
+  the same closed reflexive Eq probe, its certified computation to Prop, and
+  the checked exclusion from every Pi/Box/beta path. Carrier guards and typed
+  body comparisons pull back from any minor to its probe when the indices have
+  a certified join. This is reverse-computation transport, not general forward
+  primitive transport or completeness of the old path relation.
+
+- **Is the primitive-index extension merely beta in disguise? Verdict:
+  refuted by a closed nested example.** certified_nested_probe_without_beta_join
+  compares the proposition ∀ P : Prop, P with a type-valued Eq probe returning
+  that proposition. Their erasures have incompatible beta heads and no beta
+  join. An inner certified Eq computation nevertheless joins them, providing
+  the certificate for the outer probe. The outer equality proof is obtained
+  by converting Eq.refl with the inner actual type equality.
+
+  Judgment: the reflexive primitive obstacle is now discharged, with closure
+  under certified computational joins and reusable reverse-computation checking
+  transport. Equal indices without such joins remain outside this construction;
+  existing eta/no-join examples already rule out assuming join completeness.
+  A live next step is to construct future family certificates from non-join
+  comparisons (especially typed eta), using the same Eq-prefix construction.
+  General forward primitive transport, strong-derivation coverage and the full
+  strengthening goal remain open. No strictly smaller sufficient front is claimed.

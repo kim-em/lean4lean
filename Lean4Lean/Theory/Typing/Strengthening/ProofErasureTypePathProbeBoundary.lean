@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureTypeChangePaths
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureBoxTypeChange
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqTypeProbe
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureParallelBetaStrip
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureBetaJoinFamily
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureRecoveredLambdaDomains
 
 /-! # A primitive Eq reduction outside structural/beta type paths
@@ -13,25 +13,9 @@ although canonical Eq makes it definitionally equal to its sort-valued minor.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape
-open private beta_eq
-  from Lean4Lean.Theory.Typing.Strengthening.ProofErasureBeta
 open private BetaRed.forallE_shape
   from Lean4Lean.Theory.Typing.Strengthening.ProofErasureRecoveredLambdaDomains
 variable [Params]
-
-private theorem typed_beta_confluent
-    (hΓ : OnCtx Γ (env.IsType univs)) (ht : env.HasType univs Γ e T)
-    (R : ProofShape.BetaRed (proofErase Γ e) a)
-    (S : ProofShape.BetaRed (proofErase Γ e) b) :
-    ∃ out, ProofShape.BetaRed a out ∧ ProofShape.BetaRed b out := by
-  obtain ⟨eR, RR, ER⟩ := proofErase_beta_replay hΓ ht R
-  obtain ⟨eS, RS, ES⟩ := proofErase_beta_replay hΓ ht S
-  have hd : PureObservation.Definitions.empty.Deterministic := fun H => H.elim
-  obtain ⟨out, HR, HS⟩ := (PureObservation.Compute.of_beta (D := .empty) RR).confluent hd
-    (PureObservation.Compute.of_beta (D := .empty) RS)
-  exact ⟨proofErase Γ out,
-    ER ▸ proofErase_beta_forward hΓ (beta_eq hΓ ht RR).hasType.2 HR.to_beta,
-    ES ▸ proofErase_beta_forward hΓ (beta_eq hΓ ht RS).hasType.2 HS.to_beta⟩
 
 omit [Params] in
 private theorem beta_sort_fixed (R : ProofShape.BetaRed (.sort u) out) : out = .sort u := by
@@ -75,7 +59,7 @@ theorem TypeChangePath.box_sort_reduct
   | refl => exact R
   | related _ H => exact box_change_sort_reduct H R
   | beta hA hB RB =>
-    obtain ⟨out, RS, RT⟩ := typed_beta_confluent hΓ hA R RB
+    obtain ⟨out, RS, RT⟩ := proofErase_beta_confluent hΓ hA R RB
     obtain rfl := beta_sort_fixed RS
     exact RT
   | beta_back hA hB RB => exact RB.trans R
@@ -119,7 +103,7 @@ theorem TypeChangePath.box_const_reduct
   | refl => exact R
   | related _ H => exact box_change_const_reduct H R
   | beta hA hB RB =>
-    obtain ⟨out, RS, RT⟩ := typed_beta_confluent hΓ hA R RB
+    obtain ⟨out, RS, RT⟩ := proofErase_beta_confluent hΓ hA R RB
     obtain rfl := beta_const_fixed RS
     exact RT
   | beta_back hA hB RB => exact RB.trans R

@@ -12793,3 +12793,78 @@ canonical-Eq strengthening proof, canonical-Eq strengthening counterexample or
 genuinely strictly smaller sufficient irreducible obligation is established.
 Keep the full goal active. Only theory modules and actual EOF ledger additions
 changed; no executable changes, extraction, PRs, subagents or coordination.
+
+
+## 2026-10-21 14:03 UTC — Certified Eq primitives from computational joins
+
+Previous goal turn classification: progress. Revalidation found clean HEAD
+5a8350c6, whose mixed-path coverage counterexample changed the next action to
+primitive Eq computation. Its pending push was completed before new research.
+The intervening clarification about stopping did not change the worktree or
+research goal. No extraction or PR work is authorized by this continuation.
+
+ProofErasureBetaJoinFamily makes the preceding turn's private typed beta
+confluence lemma reusable and constructs BetaStableFamily certificates from
+any typed beta join. After two future beta paths, confluence on each source
+and then at the common typed output supplies an ordinary computational
+comparison. The same construction applies after any interpreted substitution.
+ProofErasureTypePathProbeBoundary now uses the shared confluence lemma; its
+five public statements and its negative result are unchanged.
+
+ProofErasureBetaJoinEqComputation propagates an index beta join through the
+literal reflexive/requested Eq family. A common prefix construction transports
+that future certificate under the fresh proof-major binder and uses the actual
+registered generated singleton program. The result is the exact original
+prefix primitive in ErasedBetaStableJoint, not a primitive with a beta-changed
+output. Applying the arbitrary proof major and beta-reducing gives certified
+computation of the Eq type probe to its exact minor. This beta-only entry point
+needs canonical Eq and registry agreement, but no soundness premise on D.
+
+ProofErasureCertifiedJoinFamily generalizes the certificate to two typed terms
+with a certified computational join. Certified computation/beta commutation
+moves future endpoint beta paths past the original paths. The two residual
+outputs are beta reducts of the same original common output; typed realization
+and beta confluence join those residuals. Certified primitive substitution
+preserves the whole construction. This does not assume primitive/primitive
+confluence or normalization. ProofErasureCertifiedJoinEqComputation then
+certifies the next Eq primitive when its indices join through arbitrary
+existing certified computations. The construction can therefore iterate
+through nested primitive Eq computations, retaining future certificates.
+
+ProofErasureCertifiedProbeTransport proves all carrier guards and all typed
+body comparisons at the minor also hold at its probe, using carrierCompute
+and exact recovered-annotation pullback. This is the reverse-computation
+direction. A closed reflexive example proves that these certified computations
+reach the type conversion excluded by all old Pi/Box/beta paths. A second,
+closed nested example proves that the outer indices have no beta join:
+one is a Pi proposition and the other has an Eq.rec head preserved by beta.
+The inner certified primitive supplies their computational join, and the
+outer Eq probe computes using the resulting new certificate. The equality
+proof is constructed from Eq.refl by the actual inner conversion.
+
+Judgment: the precise reflexive primitive obstruction identified last turn is
+resolved constructively, and the result supports genuinely nested primitive
+indices. This does not prove arbitrary index comparisons have certified joins;
+existing eta/no-join examples preclude that shortcut. Future family certificates
+for non-join comparisons are a live next target. General forward primitive
+transport, dependent-field closure and strong-derivation coverage remain open.
+No canonical-Eq strengthening proof, strengthening counterexample or strictly
+smaller sufficient irreducible front is claimed.
+
+Validation: five new theory modules, 485 lines, 13 new public roots; one old
+module refactored to share confluence. Final build including the old unit-front
+consumer succeeds (663 jobs), without new/touched-module warnings:
+/tmp/certified-probe-transport-build.log. Independent opaque DFS covers all
+18 new/touched roots and 11,423 dependencies, excluding
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv and sorryAx. Cumulative opaque
+DFS covers 937 roots and 15,975 dependencies, excluding strengthening inverses
+and sorryAx. Exact-name axiom parsing accounts for each root once and permits
+only propext, Classical.choice and Quot.sound. Sources/logs:
+/tmp/certified-probe-{audit,independent-audit}.{lean,log}; inventories:
+/tmp/certified-probe-{audit,independent-audit}-roots.txt.
+
+Completion audit: UniqueTyping.lean:94 retains the original sorry. None of the
+three GOAL.md outcomes is established; the full goal remains active. Only
+theory modules and actual EOF ledger additions changed. No executable changes,
+extraction, PRs, subagents or coordination.
