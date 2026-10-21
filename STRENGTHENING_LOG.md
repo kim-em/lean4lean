@@ -15378,3 +15378,46 @@ The preceding discussion-only turn made no research progress; this turn
 revalidated the pending work, completed its build/audit verification, and
 recorded the checked result. No executable changes, PR extraction, PRs,
 subagents or coordination.
+
+
+## 2026-10-21 20:49 UTC — Checked coverage boundary of the displayed-domain extension
+
+The previous goal turn was progress: it committed and pushed the local descent
+and finite-prefix extension. This turn tested that extension against its
+intended proposition-substitution use instead of treating its successful
+descent as evidence of coverage. Added ProofErasureDisplayedLambdaCoverage.lean
+(93 lines, five public theorems).
+
+The new rule embeds in ordinary joint comparison whenever its guard has no
+structural exposure. Every guard factors as ordinary comparison or an exact
+path to a structure/function carrier, so any possible extra comparison must
+lie in the latter case. With actual domain equality to a universe, existing
+semantic-sort readout proves ordinary comparison directly. This includes
+converted domains with no supplied sort-exposure path. Its Eq prefix is
+already an old JointPrefixPrimitive, and over ErasedJointUnion it is already
+an old atomic primitive with exactly the same source and output. No extra
+displayed-lambda stage or simulation is needed.
+
+This rules out a direct universe-domain benefit from the local extension.
+It does not show the whole extension redundant: nested structure/function
+carriers remain possible sources of extra power, without a strict coverage
+witness or arbitrary proposition-substitution proof. Future work on this
+route must confront those nested cases rather than just remove recovery at
+the outer universe application.
+
+Validation: consuming build succeeds in 618 jobs
+(/tmp/displayed-coverage-build.log); the new module has no warnings.
+Cumulative opaque DFS: 1,320 public roots / 16,590 dependencies. Independent:
+five public roots / 10,832 dependencies. Both exclude weakN_iff, weakN_inv
+and sorryAx; independent additionally excludes JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport and JointPropBetaStability.
+Exact printed-root inventories and the propext/Classical.choice/Quot.sound
+axiom whitelist pass. Audit logs have no errors or warnings. Artifacts:
+/tmp/displayed-coverage-{audit,independent-audit}.lean and .log, with
+-roots.txt inventories. Pre-existing dependency build warnings remain.
+
+Completion audit: the original sorry is still present at UniqueTyping.lean:94.
+No canonical-Eq counterexample or strictly smaller sufficient irreducible
+obligation has been established. GOAL.md stays active. Only the new Theory
+module and actual-EOF ledger entries changed; no executable changes, PRs,
+extraction, subagents or coordination.

@@ -5039,3 +5039,26 @@ cases still require recovery transport. Thus this local result does not
 establish substitution by arbitrary proposition images, and no strict
 comparison-coverage separation from the existing union is claimed. The
 inhabited-proposition-recovery barrier remains in force.
+
+
+## 2026-10-21 20:49 UTC — Test displayed-domain checking at the missing universe binder
+
+Verdict: the immediate proposed gain is redundant, even for converted universe
+annotations. A displayed-domain application certificate whose actual argument
+domain is definitionally equal to a universe already gives ordinary joint
+comparison at the same primitive relation. The existing semantic-sort carrier
+readout removes the carrier guard, and the old app rule then suffices without
+any function recovery. Its exact Eq-prefix step already belongs to the old
+full joint union. No computation of the annotation to a sort is required.
+
+More generally the local rule either already gives ordinary joint comparison,
+or its argument domain computes to an exposed structure or function carrier;
+the latter alternative retains the exact carrier guard. This is a necessary
+condition for extra power, not a strictness witness. It rules out the direct
+universe-domain application as the way this extension could fix arbitrary
+proposition substitution. Nested applications at structural carriers remain
+a possible use, and their substitution/coverage problem is still open.
+
+Do not add further universe-domain stages expecting extra checking power from
+this rule alone. A useful next test must address those nested structural
+applications or the recovery demanded inside their function subderivations.
