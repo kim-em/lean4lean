@@ -15117,3 +15117,41 @@ recovery and equal argument erasure; it does not resolve the arbitrary
 nonjoining retained-argument case or primitive-free Eq peak. No executable,
 verification, or existing proof files changed. No PRs, extraction or coordination.
 GOAL.md remains active with its full original scope.
+
+
+## 2026-10-21 20:05 UTC — Checked the cost of weakening argument recovery
+
+Added ProofErasureInhabitedRecoveryFront.lean (99 lines, five public
+declarations: one explicit missing-coverage definition and four theorems).
+The constructive test builds an actual inhabited proposition for every typed
+domain and inverts any output recovery to sort recovery of that domain. The
+coverage implication then obtains universe exposure in the actual joint union
+using exact computation-certificate descent, not primitive substitution or an
+untyped retraction. The existing Eq probe converts this exposure into
+PropositionFront under its sound-core, Eq/Eq.rec exclusion and registry
+hypotheses. No positive unit is required.
+
+This strengthens the diagnostic boundary for the preceding universe-domain
+beta result: even restricting generic recovery completeness to inhabited
+propositions and allowing any output does not remove the front obligation.
+It does not prove that direct diagonal substitution without recovery is false,
+that all sort recovery is impossible, or that the sufficient coverage
+obligation is strictly smaller than the front. The semantic literal-sort
+strengthening implication remains distinct from computational exposure.
+
+Validation: direct module check is clean; consuming build succeeds in 599
+jobs (/tmp/inhabited-recovery-build.log), with only pre-existing dependency
+warnings. Cumulative opaque DFS: 1,273 public roots / 16,520 dependencies.
+Independent opaque DFS: five public roots / 11,336 dependencies. Both exclude
+weakN_iff, weakN_inv and sorryAx; independent additionally excludes
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure and
+JointPropBetaTransport. Exact root inventories pass; axiom whitelist is
+propext, Classical.choice and Quot.sound. Audit artifacts:
+/tmp/inhabited-recovery-{audit,independent-audit}.lean and .log, with -roots.txt
+inventories. No audit warnings or errors.
+
+Completion audit: UniqueTyping.lean:94 retains the original sorry. No proof,
+canonical-Eq counterexample or strictly smaller sufficient irreducible front
+has been established. GOAL.md stays active. Only one new Theory module and
+actual-EOF ledger entries changed; no executable edits, PR extraction, PRs,
+or coordination.

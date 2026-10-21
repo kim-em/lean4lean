@@ -4891,3 +4891,38 @@ Distinct nonjoining argument erasures and the primitive-free Eq peak remain
 open. This is a strictly stronger checked beta case, not a proof of PropFront
 or a new strictly smaller sufficient irreducible obligation. Keep the original
 goal active; no PR extraction.
+
+
+## 2026-10-21 20:05 UTC — Inhabited proposition recovery already carries the full front
+
+Investigated removing the exact-universe recovery premise from the new
+universe-domain paired-beta theorem. Universe oracle transport is directed:
+it can replace a native result by a literal universe, but does not synthesize
+recovery of an arbitrary substituted proposition. A proposed ambient-sort
+recovery constructor would not inherit the existing recovery descent proof:
+DomainSort.descend requires the lower source already be sort-typed, whereas
+recovery descent starts with arbitrary lower typing. The older sort-recovery
+and Eq-probe results confirm that general universe exposure is not a free
+structural inference lemma. Literal-sort semantic strengthening alone has not
+been shown here to imply the full front; do not conflate it with computational
+sort exposure, whose Eq-probe implication was already proved.
+
+Tested the much weaker fallback: request any recovered output only for
+inhabited propositions. Verdict: it still suffices for PropositionFront in the
+actual joint union (with the existing sound-core/registry hypotheses).
+For any A : Sort u, the explicit inhabited proposition Pi (_ : A), E, where
+E is the closed reflexive equality of Prop, tests universe recovery of A:
+any recovery of that Pi must recover a universe for its domain. Next test a
+fresh variable declared at T but converted to Sort v. Variable recovery gives
+a computation from the lifted declaration to a universe; exact certificate
+descent removes the fresh binder, retaining the computation. Applying this
+exposure to the Eq sort probe yields the original front without a closed unit
+assumption. No arbitrary primitive substitution or head-exposure premise is
+used in the implication.
+
+This checked reduction changes the next action: do not replace the missing
+argument recovery by generic inhabited-proposition recovery completeness and
+call it a simpler auxiliary lemma. It is a sufficient coverage obligation,
+not proved coverage and not a proven strictly smaller irreducible front.
+Direct comparison/paired-development arguments that avoid generic recovery
+remain live. The original strengthening goal is unchanged and still open.
