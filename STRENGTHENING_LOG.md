@@ -10158,3 +10158,68 @@ Completion audit: UniqueTyping.lean:94 still contains the original sorry.
 No canonical-Eq strengthening counterexample or strictly smaller sufficient
 front is proved. The goal remains active. No executable changes, extraction,
 PRs, agents or coordination.
+
+## 2026-10-21 — Literal-sort Eq decoder and the family-guard beta boundary
+
+The previous research goal turn was progress (the checked full joint/beta
+commutation theorem). The intervening acknowledgement made no research
+progress. This continuation revalidated the clean worktree at 4f46bdba and
+resumed research while keeping extraction and PRs deferred.
+
+ProofErasureJointEqDecode proves a decoder without proposition beta stability.
+Canonical Eq's declared erased type consists solely of Pis, sorts and bound
+variables, all fixed under constant/projection-headed primitives. Recovery
+through conversion therefore preserves that exact type. After a literal sort
+carrier and one endpoint are supplied, its final recovered domain is literally
+that sort. The existing sort-carrier guard theorem then turns the final
+appCarrier case into ordinary common comparison. Primitive-inert Eq-spine
+inversion handles computation, retaining paths for each argument. Symmetry
+and ordinary application are direct; typed sort-mode conversion handles the
+extra common-mode rules. No arbitrary-carrier decoder is claimed.
+
+The first equivalence shows that beta stability restricted to the diagonal
+comparison Eq Prop P P versus Eq Prop P Q is equivalent to general proposition
+beta stability. ProofErasureJointEqGuardBetaBoundary strengthens this result
+to the actual family-comparison shape under the fresh equality-proof major,
+including the change of context after Q beta-reduces. The raw syntax agrees
+with eqRec_family_guard_iff at carrier Prop; no general singleton guard or
+arbitrary carrier is needed to obtain the implication.
+
+For the nontrivial reverse implication, encode an arbitrary supplied lower
+proposition comparison and weaken it into the major context. Apply the
+restricted family stability premise. Independently reflect the original lower
+comparison to semantic equality and compose with forward beta subject
+reduction; canonical Eq.refl, converted along that equality, inhabits the new
+major type. Extract a finite stage from the transported guard and instantiate
+at this explicit proof using the existing proof-substitution theorem. The
+literal-sort decoder then gives the desired lower comparison. This is not
+inverse weakening, and it does not use carrier-domain re-synthesis. The
+forward implication uses the already established proposition beta stability
+and its context-conversion consequence. The actual-union equivalence requires
+explicit exclusion of Eq from declaration unfolding, besides canonical Eq and
+sound declarations. The repaired quotient core provides that exclusion via
+ErasedQuotCore.no_rigid; soundness alone does not imply it.
+
+Judgment: restricting the remaining assumption to canonical Eq family guards,
+even at Prop carrier and only for requested-index beta reduction, is not a
+strictly smaller obligation. This is a checked limitation of the proposed
+simplification, not a proof of beta stability or a counterexample to it. The
+previous commutation theorem therefore still depends on an unresolved law.
+A live next direction is a simultaneous construction of comparison beta
+stability and computation residuals indexed by the input derivations; a
+well-founded measure must account for the recovery expansions used by the
+substitution construction. The equivalence here supplies no such measure.
+
+Validation: the target builds successfully (564 jobs), log
+/tmp/joint-eq-guard-beta-build.log. Cumulative opaque dependency audit: 557
+public roots, 15,330 dependencies. Independent audit: all 8 new public roots,
+11,069 dependencies, additionally excluding JointCarrierDomainResynthesis.
+Both reject weakN_iff, weakN_inv and sorryAx. All 557 and 8 requested axiom
+reports respectively were parsed and matched exactly; only propext,
+Classical.choice and Quot.sound occur. Sources and logs:
+/tmp/joint-eq-guard-beta-{audit,independent-audit}.{lean,log}.
+
+Completion audit: the original sorry remains at UniqueTyping.lean:94. There
+is no proved canonical-Eq counterexample or strictly smaller sufficient front.
+The goal remains active. No executable changes, extraction, PRs, agents or
+coordination.

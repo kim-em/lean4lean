@@ -2122,3 +2122,33 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   itself or confluence of two arbitrary joint paths. The stability premise is
   used in primitive guard and context/substitution transport, so this result
   cannot establish it circularly.
+
+- **Decode canonical Eq comparisons at literal sort carriers.** **Checked** in
+  `ProofErasureJointEqDecode`. Native recovery of `Eq` and its first two
+  applications is fixed syntactically when the carrier is a literal sort.
+  Thus inferred comparison of two primitive-inert Eq spines gives ordinary
+  common comparison of their final arguments; typed sort endpoints extend
+  this to either mode. The initial endpoints and universes may differ in the
+  raw theorem. No beta stability, confluence or argument recovery is assumed.
+  This decoder does not cover arbitrary computational carrier expressions.
+
+- **Replace proposition beta stability by diagonal equality propositions.**
+  **Rejected as a strict reduction** by `joint_eq_prop_beta_stability_iff`.
+  Even restricting to comparisons of `Eq Prop P P` with `Eq Prop P Q`, and
+  beta reduction of Q alone, retains the entire proposition beta-stability
+  obligation. The existing carrier encoding and the new sort decoder are
+  independent of that stability assumption.
+
+- **Restrict stability to the actual Eq family guard under its fresh major.**
+  **Rejected as a strict reduction** by
+  `joint_eq_prop_family_beta_stability_iff` in
+  `ProofErasureJointEqGuardBetaBoundary`. This includes the changing context
+  `Eq Prop P Q :: Γ` and is exactly the Prop-carrier family-comparison shape
+  described by `eqRec_family_guard_iff`. For the reverse direction, the input
+  lower comparison reflects to definitional equality; beta subject reduction
+  then supplies an explicit proof of the new major type. Proof substitution
+  removes that binder from the transported guard, and the decoder recovers
+  the lower proposition comparison. No inverse weakening is used. Hypotheses
+  are canonical Eq, sound declarations and explicit exclusion of Eq unfolding.
+  Soundness alone is not used to infer the exclusion. This rules out a guard-
+  restriction shortcut, not a constructive proof of beta stability itself.
