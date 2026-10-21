@@ -43,21 +43,22 @@ private theorem parallel_arguments_replay
 namespace SingletonPrefixCode
 variable {C : SingletonPrefixCode}
 
-/-- Under proposition beta stability, one parallel beta development of the
-supplied raw arguments leaves an actual general joint singleton primitive. Its exact new output is a
-parallel beta reduct of the original generated output. No new guard is assumed. -/
-theorem Valid.joint_parallel_beta_residual (V : C.Valid)
-    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
-    (Hbeta : JointPropBetaStability (ErasedJointUnion D))
+/-- Directed family transport gives a singleton residual under one parallel
+argument development. The exact new output is a parallel beta reduct of the
+old generated output, with a guard in the specified target comparator. -/
+theorem Valid.parallel_beta_residual_with (V : C.Valid)
+    (heq : env.HasCanonicalEq) (hcmp : ErasedFamilyDescent Cmp)
+    (Htransport : ErasedFamilyContextBetaTransport Cmp Cmp')
     (HT : ProofShape.TypedSource Δ (ProofShape.mkApps (.const C.data.name C.levels) args))
     (ha : args.length = C.arity)
     (hcalc : C.telescope args = some (domains, result))
-    (HG : C.guardWith (fun Δ => ProofShape.JointCompare (ErasedJointUnion D) Δ true) Δ domains args)
+    (HG : C.guardWith Cmp Δ domains args)
     (HA : List.Forall₂ ProofShape.BetaPar args args') :
     ∃ domains' result', C.telescope args' = some (domains', result') ∧
       ProofShape.BetaPar (C.output Δ domains args) (C.output Δ domains' args') ∧
-      ProofShape.JointSingletonPrimitive (ErasedJointUnion D) Δ
-        (ProofShape.mkApps (.const C.data.name C.levels) args') (C.output Δ domains' args') := by
+      (ProofShape.TypedSource Δ (ProofShape.mkApps (.const C.data.name C.levels) args') ∧
+        ProofShape.SingletonPrimitiveWith Cmp' Δ
+          (ProofShape.mkApps (.const C.data.name C.levels) args') (C.output Δ domains' args')) := by
   obtain ⟨Γ, source, T, hΓ, rfl, ht, Es⟩ := HT
   obtain ⟨original, rfl, Eargs⟩ := proofErase_const_spine_inv Es
   have hn : ¬ IsProof Γ (mkApps (.const C.data.name C.levels) original) := by
@@ -66,7 +67,7 @@ theorem Valid.joint_parallel_beta_residual (V : C.Valid)
   rw [Eargs] at ha hcalc HG HA ⊢
   simp only [List.length_map] at ha
   obtain ⟨program, hg, hd, HG₀⟩ := V.realizeWith heq hΓ ha ⟨_, ht⟩ hcalc HG
-  have HC := V.checkWith heq (erased_joint_family_descent (erased_joint_union_descent heq hs))
+  have HC := V.checkWith heq hcmp
     hΓ hg ⟨_, ht⟩ HG₀
   obtain ⟨newArgs, Hargs, Enew⟩ := parallel_arguments_replay hΓ
     (mkApps_arguments_wf henv hΓ ⟨_, ht⟩).2 HA
@@ -86,7 +87,7 @@ theorem Valid.joint_parallel_beta_residual (V : C.Valid)
         (ProofShape.mkApps (.const C.data.name C.levels) args') := by
       refine ⟨Γ, _, _, hΓ, rfl, HC'.source_typed, ?_⟩
       rw [proofErase_const_spine hΓ HC'.source_typed hn', Enew]
-    have HG' := V.joint_family_guard_beta heq hs Hbeta hΓ hg hg' ⟨_, ht⟩ (Hargs.imp (fun _ _ R => R.toCompute.to_beta)) HG₀
+    have HG' := V.family_guard_beta_with heq Htransport hΓ hg hg' ⟨_, ht⟩ (Hargs.imp (fun _ _ R => R.toCompute.to_beta)) HG₀
     have HG' := (V.guardWith_iff heq hΓ hg' ⟨_, HC'.source_typed⟩).2 HG'
     rw [Enew] at HG'
     have Hout := proofErase_parallel_beta_forward hΓ (HC.defeq henv hΓ).hasType.2 Rout
@@ -94,6 +95,25 @@ theorem Valid.joint_parallel_beta_residual (V : C.Valid)
     refine ⟨_, _, hcalc', Hout, HT', .intro V ?_ hcalc' HG'⟩
     rw [← Enew, List.length_map, ← Hargs.length_eq]
     exact ha
+
+/-- Under proposition beta stability, one parallel beta development of the
+supplied raw arguments leaves an actual general joint singleton primitive. Its exact new output is a
+parallel beta reduct of the original generated output. No new guard is assumed. -/
+theorem Valid.joint_parallel_beta_residual (V : C.Valid)
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (Hbeta : JointPropBetaStability (ErasedJointUnion D))
+    (HT : ProofShape.TypedSource Δ (ProofShape.mkApps (.const C.data.name C.levels) args))
+    (ha : args.length = C.arity)
+    (hcalc : C.telescope args = some (domains, result))
+    (HG : C.guardWith (fun Δ => ProofShape.JointCompare (ErasedJointUnion D) Δ true) Δ domains args)
+    (HA : List.Forall₂ ProofShape.BetaPar args args') :
+    ∃ domains' result', C.telescope args' = some (domains', result') ∧
+      ProofShape.BetaPar (C.output Δ domains args) (C.output Δ domains' args') ∧
+      ProofShape.JointSingletonPrimitive (ErasedJointUnion D) Δ
+        (ProofShape.mkApps (.const C.data.name C.levels) args') (C.output Δ domains' args') :=
+  V.parallel_beta_residual_with heq
+    (erased_joint_family_descent (erased_joint_union_descent heq hs))
+    (Hbeta.family_transport heq hs) HT ha hcalc HG HA
 
 end SingletonPrefixCode
 

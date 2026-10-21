@@ -22,21 +22,31 @@ def JointPropSubstitution
     ProofShape.JointCompare Target (proofEraseCtx Γ₀) true
       (proofErase Γ₀ (P.subst σ)) (proofErase Γ₀ (Q.subst σ))
 
+/-- Typed proposition substitution between arbitrary erased family comparators.
+This transports the supplied certificate only, without closing either relation. -/
+def ErasedFamilySubstitution
+    (Cmp Cmp' : List ProofShape → ProofShape → ProofShape → Prop) : Prop :=
+  ∀ {Γ Γ₀ σ P Q}, OnCtx Γ₀ (env.IsType univs) →
+    Ctx.SubstEq env univs Γ₀ σ σ Γ →
+    env.HasType univs Γ P (.sort .zero) → env.HasType univs Γ Q (.sort .zero) →
+    Cmp (proofEraseCtx Γ) (proofErase Γ P) (proofErase Γ Q) →
+    Cmp' (proofEraseCtx Γ₀) (proofErase Γ₀ (P.subst σ)) (proofErase Γ₀ (Q.subst σ))
+
 namespace SingletonPrefixCode
 variable {C : SingletonPrefixCode}
 
 /-- A family certificate transports through any typed simultaneous substitution
 from the source to the target comparison relation. No unfolding check or
 typing of the reconstructed bare fields is assumed. -/
-theorem Valid.joint_family_guard_subst_with (V : C.Valid) (heq : env.HasCanonicalEq)
-    (Hsubst : JointPropSubstitution Step Target)
+theorem Valid.family_guard_subst_with (V : C.Valid) (heq : env.HasCanonicalEq)
+    (Hsubst : ErasedFamilySubstitution Cmp Cmp')
     (hΓ₀ : OnCtx Γ₀ (env.IsType univs)) (W : Ctx.SubstEq env univs Γ₀ σ σ Γ)
     (E : ErasedSubstAgreement Γ Γ₀ σ τ)
     (hg : C.data.singletonUnfolding env univs C.levels args = some program)
     (ht : VExpr.WF env univs Γ (mkApps (.const C.data.name C.levels) args))
-    (HG : GuardedSingleton.FamilyGuard (ErasedFamilyComparison (fun Δ => ProofShape.JointCompare Step Δ true))
+    (HG : GuardedSingleton.FamilyGuard (ErasedFamilyComparison Cmp)
       Γ C.data C.levels args program C.layout C.elim) :
-    GuardedSingleton.FamilyGuard (ErasedFamilyComparison (fun Δ => ProofShape.JointCompare Target Δ true))
+    GuardedSingleton.FamilyGuard (ErasedFamilyComparison Cmp')
       Γ₀ C.data C.levels (args.map (·.subst σ)) (program.subst σ) C.layout C.elim := by
   obtain ⟨_, hnon, hl, hll, he, _, _⟩ := RecursorData.singletonUnfolding_spec hg
   have hlen : C.levels.length = C.data.uvars := by
@@ -69,19 +79,35 @@ theorem Valid.joint_family_guard_subst_with (V : C.Valid) (heq : env.HasCanonica
   exact HC
 
 
+/-- A family certificate transports through any typed simultaneous substitution
+from the source to the target comparison relation. No unfolding check or
+typing of the reconstructed bare fields is assumed. -/
+theorem Valid.joint_family_guard_subst_with (V : C.Valid) (heq : env.HasCanonicalEq)
+    (Hsubst : JointPropSubstitution Step Target)
+    (hΓ₀ : OnCtx Γ₀ (env.IsType univs)) (W : Ctx.SubstEq env univs Γ₀ σ σ Γ)
+    (E : ErasedSubstAgreement Γ Γ₀ σ τ)
+    (hg : C.data.singletonUnfolding env univs C.levels args = some program)
+    (ht : VExpr.WF env univs Γ (mkApps (.const C.data.name C.levels) args))
+    (HG : GuardedSingleton.FamilyGuard (ErasedFamilyComparison (fun Δ => ProofShape.JointCompare Step Δ true))
+      Γ C.data C.levels args program C.layout C.elim) :
+    GuardedSingleton.FamilyGuard (ErasedFamilyComparison (fun Δ => ProofShape.JointCompare Target Δ true))
+      Γ₀ C.data C.levels (args.map (·.subst σ)) (program.subst σ) C.layout C.elim :=
+  V.family_guard_subst_with heq Hsubst hΓ₀ W E hg ht HG
+
+
 end SingletonPrefixCode
 /-- General raw singleton computation transports exactly through a typed source
 substitution when proposition comparisons transport from source to target.
 Both the residual telescope and literal output are transported; there is no
 primitive-substitution or re-synthesis premise. -/
-theorem proofErase_joint_singleton_subst_with (heq : env.HasCanonicalEq)
-    (hstep : ErasedScopedPrimitiveDescent Step)
-    (htarget : ErasedScopedPrimitiveDescent Target)
-    (Hsubst : JointPropSubstitution Step Target)
+theorem proofErase_singleton_subst_with (heq : env.HasCanonicalEq)
+    (hcmp : ErasedFamilyDescent Cmp)
+    (htarget : ErasedFamilyDescent Cmp')
+    (Hsubst : ErasedFamilySubstitution Cmp Cmp')
     (hΓ₀ : OnCtx Γ₀ (env.IsType univs)) (W : Ctx.SubstEq env univs Γ₀ σ σ Γ)
     (E : ErasedSubstAgreement Γ Γ₀ σ τ) (ht : env.HasType univs Γ e T)
-    (R : ProofShape.SingletonPrimitiveWith (fun Δ => ProofShape.JointCompare Step Δ true) (proofEraseCtx Γ) (proofErase Γ e) out) :
-    ProofShape.SingletonPrimitiveWith (fun Δ => ProofShape.JointCompare Target Δ true) (proofEraseCtx Γ₀)
+    (R : ProofShape.SingletonPrimitiveWith Cmp (proofEraseCtx Γ) (proofErase Γ e) out) :
+    ProofShape.SingletonPrimitiveWith Cmp' (proofEraseCtx Γ₀)
       ((proofErase Γ e).subst τ) (out.subst τ) := by
   generalize hsrc : proofErase Γ e = source at R
   cases R with
@@ -92,14 +118,14 @@ theorem proofErase_joint_singleton_subst_with (heq : env.HasCanonicalEq)
     obtain ⟨original, rfl, rfl⟩ := proofErase_const_spine_inv hsrc
     simp only [List.length_map] at ha
     obtain ⟨program, hg, hd, HG⟩ := V.realizeWith heq W.wf ha ⟨_, ht⟩ hcalc HG
-    have HC := V.checkWith heq (erased_joint_family_descent hstep) W.wf hg ⟨_, ht⟩ HG
+    have HC := V.checkWith heq hcmp W.wf hg ⟨_, ht⟩ HG
     have hg' := RecursorData.singletonUnfolding_subst henv V.registered V.large V.zero
       V.recType_eq (V.registered.recursorType_closed henv V.recType_eq) hg (σ := σ)
     have ht' : env.HasType univs Γ₀
         (mkApps (.const C.data.name C.levels) (original.map (·.subst σ))) (T.subst σ) := by
       simpa only [VExpr.subst_mkApps, VExpr.subst_const] using ht.subst henv.orderedStrong W hΓ₀
-    have HG' := V.joint_family_guard_subst_with heq Hsubst hΓ₀ W E hg ⟨_, ht⟩ HG
-    have HC' := V.checkWith heq (erased_joint_family_descent htarget) hΓ₀ hg' ⟨_, ht'⟩ HG'
+    have HG' := V.family_guard_subst_with heq Hsubst hΓ₀ W E hg ⟨_, ht⟩ HG
+    have HC' := V.checkWith heq htarget hΓ₀ hg' ⟨_, ht'⟩ HG'
     have hn' : ¬ IsProof Γ₀
         (mkApps (.const C.data.name C.levels) (original.map (·.subst σ))) := by
       simpa only [VExpr.subst_mkApps, VExpr.subst_const] using
@@ -113,6 +139,22 @@ theorem proofErase_joint_singleton_subst_with (heq : env.HasCanonicalEq)
       proofErase_const_spine hΓ₀ ht' hn', ← HS]
     exact .intro V (by simpa only [List.length_map] using ha) (V.telescope_eq hΓ₀ hg' ⟨_, ht'⟩)
       ((V.guardWith_iff heq hΓ₀ hg' ⟨_, ht'⟩).2 HG')
+
+/-- General raw singleton computation transports exactly through a typed source
+substitution when proposition comparisons transport from source to target.
+Both the residual telescope and literal output are transported; there is no
+primitive-substitution or re-synthesis premise. -/
+theorem proofErase_joint_singleton_subst_with (heq : env.HasCanonicalEq)
+    (hstep : ErasedScopedPrimitiveDescent Step)
+    (htarget : ErasedScopedPrimitiveDescent Target)
+    (Hsubst : JointPropSubstitution Step Target)
+    (hΓ₀ : OnCtx Γ₀ (env.IsType univs)) (W : Ctx.SubstEq env univs Γ₀ σ σ Γ)
+    (E : ErasedSubstAgreement Γ Γ₀ σ τ) (ht : env.HasType univs Γ e T)
+    (R : ProofShape.SingletonPrimitiveWith (fun Δ => ProofShape.JointCompare Step Δ true) (proofEraseCtx Γ) (proofErase Γ e) out) :
+    ProofShape.SingletonPrimitiveWith (fun Δ => ProofShape.JointCompare Target Δ true) (proofEraseCtx Γ₀)
+      ((proofErase Γ e).subst τ) (out.subst τ) :=
+  proofErase_singleton_subst_with heq (erased_joint_family_descent hstep)
+    (erased_joint_family_descent htarget) Hsubst hΓ₀ W E ht R
 
 /-- An interpreted context substitution transports a general singleton step
 between specified guard relations, given typed proposition substitution.

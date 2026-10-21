@@ -53,24 +53,55 @@ private theorem beta_opened_arguments {data : RecursorData}
     exact beta_subst R
   · exact Lean4Lean.List.Forall₂.rfl (fun _ _ => .refl)
 
+/-- Transport a family comparison through original beta paths and a converted
+context in one invocation. The source and target comparators may differ. -/
+def ErasedFamilyContextBetaTransport
+    (Cmp Cmp' : List ProofShape → ProofShape → ProofShape → Prop) : Prop :=
+  ∀ {Γ Γ₁ Γ₂ P Q P' Q'}, OnCtx Γ (env.IsType univs) →
+    IsDefEqCtx env univs Γ Γ₁ Γ₂ →
+    env.HasType univs Γ₁ P (.sort .zero) → env.HasType univs Γ₁ Q (.sort .zero) →
+    Cmp (proofEraseCtx Γ₁) (proofErase Γ₁ P) (proofErase Γ₁ Q) →
+    VExpr.BetaRed P P' → VExpr.BetaRed Q Q' →
+    Cmp' (proofEraseCtx Γ₂) (proofErase Γ₂ P') (proofErase Γ₂ Q')
+
+/-- Full-union proposition beta stability supplies combined beta and context
+transport for family guards. -/
+theorem JointPropBetaStability.family_transport
+    (Hbeta : JointPropBetaStability (ErasedJointUnion D))
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs) :
+    ErasedFamilyContextBetaTransport (fun Δ => ProofShape.JointCompare (ErasedJointUnion D) Δ true)
+      (fun Δ => ProofShape.JointCompare (ErasedJointUnion D) Δ true) := by
+  intro Γ Γ₁ Γ₂ P Q P' Q' hΓ W hP hQ H RP RQ
+  have hΓ₁ : OnCtx Γ₁ (env.IsType univs) := by
+    clear hP hQ H
+    induction W with
+    | zero => exact hΓ
+    | succ _ hA ih => exact ⟨ih, _, hA.hasType.1⟩
+  have hP' := (beta_eq hΓ₁ hP RP).hasType.2
+  have hQ' := (beta_eq hΓ₁ hQ RQ).hasType.2
+  have H' := Hbeta.defeqCtx heq hs hΓ W hP' hQ'
+    (Hbeta.forward hΓ₁ hP hQ H
+      (proofErase_beta_forward hΓ₁ hP RP) (proofErase_beta_forward hΓ₁ hQ RQ))
+  rwa [proofErase_defeqCtx hΓ₁ W hP', proofErase_defeqCtx hΓ₁ W hQ'] at H'
+
 namespace SingletonPrefixCode
 variable {C : SingletonPrefixCode}
 
-/-- Proposition beta stability transports every general joint family guard
-through beta reduction of all supplied arguments, including conversion of the
-entire generated residual telescope. No extra guard-transport premise is used. -/
-theorem Valid.joint_family_guard_beta (V : C.Valid) (heq : env.HasCanonicalEq)
-    (hs : D.Sound env univs) (Hbeta : JointPropBetaStability (ErasedJointUnion D))
+/-- Combined family transport lifts to beta reduction of all supplied
+arguments, including conversion of the entire generated residual telescope.
+The source and target family comparators may differ. -/
+theorem Valid.family_guard_beta_with (V : C.Valid) (heq : env.HasCanonicalEq)
+    (Htransport : ErasedFamilyContextBetaTransport Cmp Cmp')
     (hΓ : OnCtx Γ (env.IsType univs))
     (hg : C.data.singletonUnfolding env univs C.levels args = some program)
     (hg' : C.data.singletonUnfolding env univs C.levels args' = some program')
     (ht : VExpr.WF env univs Γ (mkApps (.const C.data.name C.levels) args))
     (HA : List.Forall₂ VExpr.BetaRed args args')
     (HG : GuardedSingleton.FamilyGuard
-      (ErasedFamilyComparison (fun Δ => ProofShape.JointCompare (ErasedJointUnion D) Δ true))
+      (ErasedFamilyComparison Cmp)
       Γ C.data C.levels args program C.layout C.elim) :
     GuardedSingleton.FamilyGuard
-      (ErasedFamilyComparison (fun Δ => ProofShape.JointCompare (ErasedJointUnion D) Δ true))
+      (ErasedFamilyComparison Cmp')
       Γ C.data C.levels args' program' C.layout C.elim := by
   have Rsource : VExpr.BetaRed
       (mkApps (.const C.data.name C.levels) args)
@@ -124,14 +155,25 @@ theorem Valid.joint_family_guard_beta (V : C.Valid) (heq : env.HasCanonicalEq)
     requestedFamily_generic_inst WF hps' hidx'] at RP
   have hF := (transportedFamily_typings henv heq WF hctx hps hargs).1
   have hP := WF.family_prop henv hps hargs
-  have EF := proofErase_defeqCtx hctx Wctx (beta_eq hctx hF RF).hasType.2
-  have EP := proofErase_defeqCtx hctx Wctx (beta_eq hctx hP RP).hasType.2
-  have H := Hbeta.forward hctx hF hP HG
-    (proofErase_beta_forward hctx hF RF) (proofErase_beta_forward hctx hP RP)
-  have H' := Hbeta.defeqCtx heq hs hΓ Wctx
-    (beta_eq hctx hF RF).hasType.2 (beta_eq hctx hP RP).hasType.2 H
-  rw [EF, EP] at H'
-  exact H'
+  exact Htransport hΓ Wctx hF hP HG RF RP
+
+/-- Proposition beta stability transports every general joint family guard
+through beta reduction of all supplied arguments, including conversion of the
+entire generated residual telescope. No extra guard-transport premise is used. -/
+theorem Valid.joint_family_guard_beta (V : C.Valid) (heq : env.HasCanonicalEq)
+    (hs : D.Sound env univs) (Hbeta : JointPropBetaStability (ErasedJointUnion D))
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (hg : C.data.singletonUnfolding env univs C.levels args = some program)
+    (hg' : C.data.singletonUnfolding env univs C.levels args' = some program')
+    (ht : VExpr.WF env univs Γ (mkApps (.const C.data.name C.levels) args))
+    (HA : List.Forall₂ VExpr.BetaRed args args')
+    (HG : GuardedSingleton.FamilyGuard
+      (ErasedFamilyComparison (fun Δ => ProofShape.JointCompare (ErasedJointUnion D) Δ true))
+      Γ C.data C.levels args program C.layout C.elim) :
+    GuardedSingleton.FamilyGuard
+      (ErasedFamilyComparison (fun Δ => ProofShape.JointCompare (ErasedJointUnion D) Δ true))
+      Γ C.data C.levels args' program' C.layout C.elim :=
+  V.family_guard_beta_with heq (Hbeta.family_transport heq hs) hΓ hg hg' ht HA HG
 
 end SingletonPrefixCode
 end Lean4Lean.VEnv.Strengthening

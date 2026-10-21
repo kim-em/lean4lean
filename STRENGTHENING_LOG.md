@@ -10379,3 +10379,75 @@ Completion audit: the original sorry remains at UniqueTyping.lean:94. No
 canonical-Eq strengthening counterexample or strictly smaller sufficient front
 is established. The goal remains active. No executable changes, extraction,
 PRs, agents or coordination.
+
+## Lower-stage singleton/Eq residual certification
+
+Resumption audit: the preceding goal turn paused work and made no mathematical
+progress. The user explicitly reactivated the goal. The current worktree was
+clean at 3af59335961b805540d2876d4515a94ce7cec5dc; GOAL.md and the last recorded
+local gap were re-read before editing. Extraction and PRs remain deferred.
+
+The nonzero-stage local residual obligation is now proved from lower-stage
+proposition beta transport. This removes a premise from the previously checked
+source-stage parallel strip: under stage-n proposition beta transport, every
+typed stage-n+1 computation commutes with one raw parallel beta development,
+and the output path retains all future typed substitutions.
+
+ProofErasureStableFamilyBeta first gives each beta-reduced source-stage family
+comparison a substitution-stable certificate. For an arbitrary future raw
+context substitution, interpret it at the original typed context and apply
+JointPropBetaTransport.subst_beta_stage to the original stage-n comparison,
+with the substituted endpoint beta paths. Neither an enlarged output-stage
+comparison nor a global union stability hypothesis is used. Context conversion
+is the interpreted identity substitution; composition preserves the future
+substitution certificate while keeping the exact raw endpoints. Forward
+context conversion then identifies the actual beta-reduced family erasures.
+
+The singleton substitution, family beta and parallel residual proofs now have
+interfaces for arbitrary family comparators. The four existing joint APIs are
+preserved as wrappers, and their changed bodies are independently audited.
+The richer comparator still reflects only actual union family comparisons.
+A raw singleton with this comparator is an actual union primitive, and each
+of its future substitutions is also one actual union primitive. The proof
+uses the exact generated residual telescope and exact substituted output;
+there is no argument-recovery or carrier-domain re-synthesis assumption.
+
+The parallel singleton theorem constructs the enriched guard at the reduced
+arguments and retains one parallel development of the original output. The
+specialized Eq branch is converted to its general singleton presentation at
+the original lower stage before invoking that theorem. Inherited primitives
+are handled inductively, with source monotonicity restricting the same stage-n
+transport hypothesis to smaller guard stages. Stage zero uses the existing
+unconditional syntactic core residual and substitution laws.
+
+The public result proofErase_joint_stage_parallel_strip_of_lower_beta combines
+this primitive theorem with the generic substitution-closed-target strip.
+It assumes stage-n proposition transport only, with no further primitive
+residual premise. All forward typed replay and context conversion remain
+independent of strengthening inverses.
+
+Remaining work: one parallel development is not an arbitrary finite beta
+path. The present enriched target is closed under substitution, but its guards
+no longer retain certificates for future beta paths. A candidate stronger
+invariant is recorded at the actual EOF of IDEAS.md: quantify over future beta
+paths after every future substitution, then use the original lower-stage guard
+to discharge that combined quantifier. This should be tested as a primitive
+relation closed under both substitution and parallel residuals before invoking
+finite-beta iteration. Even that would not by itself prove the proposition
+comparison beta law or its stage-zero-to-union base case. No strictly smaller
+sufficient strengthening front is claimed.
+
+Validation: affected stable-residual, stage-beta-exchange and full joint/beta
+commutation targets build successfully (574 jobs), log
+/tmp/stable-family-residual-build.log. Independent opaque dependency DFS checks
+15 new public roots and 4 changed existing APIs: 19 roots, 11,407 dependencies,
+excluding JointCarrierDomainResynthesis, strengthening inverses and sorryAx.
+Cumulative audit: 599 public roots, 15,388 dependencies, no strengthening
+inverses or sorryAx. All 599 and 19 requested axiom reports were parsed and
+matched exactly; only propext, Classical.choice and Quot.sound occur.
+Templates/logs: /tmp/stable-family-residual-{audit,independent-audit}.{lean,log}.
+
+Completion audit: the original sorry remains in UniqueTyping.lean:94. There
+is no canonical-Eq counterexample or strictly smaller sufficient front. The
+local residual certification is real checked progress, and the full goal
+remains active. No executable changes, extraction, PRs, agents or coordination.

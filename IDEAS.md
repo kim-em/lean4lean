@@ -2225,3 +2225,32 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   proved residual-closure property: substitution stability alone does not
   give beta closure of the enriched target. No smaller sufficient front for
   strengthening is claimed.
+
+- **Certify singleton/Eq beta residuals from their original lower-stage
+  guards.** **Checked**, closing the nonzero local obligation left immediately
+  above. `ProofErasureStableFamilyBeta` applies the original stage-n comparison
+  to beta-reduced endpoints and all future typed substitutions; substitution
+  composition carries this certificate across the changed residual context.
+  Generic family substitution and parallel residual proofs retain this richer
+  comparator. Forgetting the certificate gives the actual union guard, while
+  transporting it gives one actual union primitive at every substituted pair
+  of endpoints. Specialized Eq roots first use their exact general singleton
+  presentation at the original guard stage. Thus
+  `joint_stage_stable_parallel_residual_of_lower_beta` and
+  `proofErase_joint_stage_parallel_strip_of_lower_beta` handle every stage-n+1
+  primitive/path against one parallel development using only stage-n beta
+  transport. No full-union target stability is assumed. This is conditional
+  progress, not a smaller sufficient front or a strengthening proof.
+
+- **Retain future beta paths as well as substitutions in family certificates.**
+  **Live next step, not yet implemented.** The present certificate quantifies
+  over future typed substitutions but discards beta closure. Enrich it to
+  retain comparisons after arbitrary future beta paths on both substituted
+  endpoints. The original lower-stage `subst_beta_stage` theorem appears to
+  supply these certificates by composing the beta paths before transporting
+  the original guard. A target relation consisting of ordinary core primitives
+  and general singletons with those certificates could then be closed under
+  both substitution and parallel residuals. That would allow iteration of the
+  strip theorem without feeding arbitrary union comparisons back into the
+  lower-stage hypothesis. The comparison beta law, including its stage-zero
+  case into the union, would still require a separate argument.
