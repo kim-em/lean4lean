@@ -3818,3 +3818,45 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   typed composition. Those remain substantive gaps; no smaller sufficient
   front or GOAL.md success is claimed. Next investigate application of a future
   function comparison to an unchanged typed argument before unequal arguments.
+
+
+## 2026-10-21 15:29 UTC — Shared application refutes the outer future invariant
+
+- **Apply arbitrary future common function comparisons to one shared typed
+  argument. Verdict: refuted by fully typed selector lambdas.** For distinct
+  variables x,y of a positive empty structure S, compare `fun f : S → S => f x`
+  and `fun f : S → S => f y`. unit_selector_family supplies their full future
+  certificate at any source primitive collection, including False. Ambient
+  substitution preserves the bound neutral head f; beta changes only its
+  argument, which is accepted by the unit carrier guard. Applying both to the
+  typed identity beta-reduces to x and y. Bare-variable injectivity excludes a
+  future common output even in the full joint union. The closed-unit context
+  theorem supplies the actual context and all typings, conditional on the
+  specified registration; no environment-extension construction is claimed.
+
+- **Invert a future lambda certificate to get a future body certificate.
+  Verdict: refuted for the same selectors.** unit_selector_body_not_future
+  instantiates a proposed body certificate with the actual identity, using the
+  already-proved family instantiation theorem. Beta again exposes the distinct
+  variables. Ambient future substitution is therefore not a hereditary binder
+  invariant. Existing lam_common is a construction rule, not an equivalence.
+
+- **Repair shared application by retaining a future result carrier.
+  Verdict: already implies PropositionFront under the closed-unit hypotheses.**
+  TypedFutureCarrierApplication requests a future carrier certificate for the
+  applications at their actual result type. Assign the selector lambdas a Pi
+  whose result is an Eq probe definitionally equal to S. Their source future
+  certificate still uses no primitive computation. The output's stored beta
+  paths expose x,y at the probe carrier; carrier exposure must reduce its
+  Eq.rec head and therefore descends the hidden proposition equation.
+  propositionFront_of_closed_unit packages the full implication, including
+  when Source=False. This is not a strict reduction or a strengthening
+  counterexample; it demonstrates that this proposed general repair retains
+  the original difficulty.
+
+  Judgment: the general shared-application route for outer common future
+  certificates is closed by a concrete counterexample. Arbitrary future
+  carrier output is not a demonstrated smaller substitute. The data-valued
+  counterexample does not refute proposition-only/sort-typed application;
+  investigate that restriction and which hereditary body information it needs,
+  without assuming the disproved inversion of lam_common. GOAL.md remains open.

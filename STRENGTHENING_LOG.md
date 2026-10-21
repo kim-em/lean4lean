@@ -13450,3 +13450,85 @@ of the three GOAL.md outcomes is established: no canonical-Eq strengthening
 proof, no canonical-Eq counterexample, and no genuinely strictly smaller
 sufficient irreducible obligation. Leave the goal active. Only theory modules
 and actual EOF ledger additions change; no executable changes or PR extraction.
+
+
+## 2026-10-21 15:29 UTC — Shared application fails; carrier repair contains PropFront
+
+Previous goal turn: progress (9cc06e2e closed general typed projection for the
+future invariant). This turn revalidated clean HEAD, the objective and ledger,
+then tested the recorded next target, application to an unchanged typed
+argument. Projection closure does not extend to this operation.
+
+ProofErasureFutureApplicationBoundary constructs selector lambdas
+`fun f : S → S => f x` and `fun f : S → S => f y`, for distinct variables of a
+positive empty structure S. unit_selector_family is raw and works for arbitrary
+argument shapes and any source primitive relation, including False. Beta
+inversion fixes the closed domain S → S and preserves the bound variable head
+of each body's application. The residual arguments need not compare: the
+recovered bound function domain is S and a structural unit carrier accepts
+both. Under arbitrary ambient substitution the bound function remains bvar 0,
+so the identical argument works after all further beta paths. This is a full
+future certificate, not just an ordinary common comparison.
+
+selector_typing provides actual function typings and exact erasures, accounting
+for positivity and proof status. unit_family_shared_application_failure applies
+both functions to the same typed identity. Two beta steps expose x and y.
+Any proposed future common application certificate would compare those bare
+variables, contradicting injectivity for primitive-head collections. The
+closed-unit context theorem uses [S,S], gives every actual typing, takes source
+False, and excludes the output in the entire joint union. It is conditional on
+a registered closed positive empty structure and does not construct a new
+environment. No canonical Eq assumption or declaration soundness is needed for
+this negative common-certificate result.
+
+unit_selector_body_not_future separately rules out the tempting inversion of
+a future lambda comparison into future body comparisons. A putative body
+certificate instantiates at the typed identity by proofErase_family_inst,
+then exposes the same two variables by beta. Retaining all ambient
+substitutions does not retain arbitrary instantiations of an internal binder.
+The earlier lam_common construction uses genuinely stronger premises.
+
+ProofErasureFutureApplicationFront tests the carrier repair instead of stopping
+at the data-valued counterexample. TypedFutureCarrierApplication is a named,
+documented missing law: a common future function certificate and a shared
+actual typed argument should give a full future carrier certificate at the
+actual result type. unit_probe_descend shows this law already descends an
+arbitrary lifted proposition equation. Convert the selector bodies' result
+from S to the Eq type probe using the given upper-context proposition equality,
+then abstract over the unchanged S → S domain. The actual lambda syntax and its
+source future certificate do not change. The shared argument is still the
+identity. The hypothesized result's stored beta paths expose the distinct
+variables at the probe carrier. Common checking is impossible, so carrier
+exposure must remove the probe's Eq.rec head; the existing head-descent theorem
+recovers the proposition equality below the added binders. The closed-unit
+wrapper builds the two value binders and equality-proof binder and derives
+PropositionFront. Source may be False; the target is the full joint union.
+
+Judgment: general same-argument common application is false even with full
+future inputs. The natural future-carrier repair contains the full proposition
+front under the explicit closed-unit, canonical-Eq, registry and unfolding
+hypotheses. This does not prove a strictly smaller obligation, a converse, or
+a declarative strengthening counterexample. It identifies why ambient future
+stability alone cannot support the desired application induction. The data
+result failure leaves proposition-only/sort-typed application unrefuted; that
+restriction and its hereditary body requirements are the next useful target.
+Do not retry the disproved general closure or assume inverse lam_common.
+
+Validation: two new modules, 334 lines, seven public roots (six theorems and one
+explicit missing-law definition). The final dependent build succeeds in 671
+jobs, with no new-module warnings: /tmp/future-application-build.log.
+Independent opaque DFS covers all seven roots and 11,309 dependencies, excluding
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, .weakN_iff, .weakN_inv and sorryAx. Cumulative opaque DFS
+covers 1,006 roots and 16,094 dependencies, excluding strengthening inverses and
+sorryAx. Exact-name axiom parsing covers every root once and allows only
+propext, Classical.choice and Quot.sound. Both audit processes completed:
+/tmp/future-application-{audit,independent-audit}.{lean,log}, with corresponding
+-roots.txt inventories.
+
+Completion audit: the original sorry remains in UniqueTyping.lean:94. None of
+the three requested outcomes is established. These are checked obstructions
+to candidate comparison laws, not a canonical-Eq strengthening counterexample
+or a genuinely smaller sufficient front. Leave GOAL.md active. Changes are
+confined to theory modules and actual EOF ledger additions; no executable
+change, PR extraction, PR creation, subagents or coordination.
