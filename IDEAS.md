@@ -2602,3 +2602,26 @@ declaration discipline from arbitrary looping `VDecl.WF.mutualDef` declarations.
   Head exposure remains open. Next: establish computational head adequacy or
   identify a concrete obstruction, and solve paired carrier substitution for
   the nonjoined critical pair; diagonal substitution alone cannot settle it.
+
+- **Test whether semantic head exposure hides full proposition comparison by
+  forcing a canonical Eq.rec probe to expose Prop.** **The probe and the
+  five-argument decoding branch are proved; the full implication is open.**
+  `ProofErasureEqHeadProbe` uses a constant motive returning Type, with minor
+  Prop. The recursor is typed whenever its equality major is supplied, and
+  ordinary definitional equality of its proposition endpoints makes its result
+  definitionally Prop. Semantic sort exposure therefore forces a primitive at
+  some computed prefix of its erased Eq.rec spine. The major is literally the
+  proof marker, and the carrier and minor are literally Prop.
+  `ProofErasureScopedFirstHeadStep` proves this first-prefix extraction for
+  arbitrary contextual computation, retaining every preceding argument path.
+  `ProofErasureEqPrefixGuardReadout` inverts the general singleton code at five
+  arguments, realizes its exact generated telescope, and decodes its Eq-family
+  guard to a comparison of proposition endpoints. If these endpoints come from
+  below a front block, that certificate descends below the block and the fresh
+  major binder together. No binder inhabitant or inverse typing weakening is
+  used. This is evidence for a hidden-strength barrier, not yet proof of one:
+  the first primitive can occur at an earlier prefix, and core alternatives
+  must be excluded for the actual repaired definition collection. Preceding
+  argument computations must also be prefixed to the decoded comparison.
+  Next: connect those cases to the five-argument decoder before deciding
+  whether head exposure is genuinely weaker than the full proposition front.

@@ -11291,3 +11291,66 @@ has been established. The next substantial obligations are head exposure and
 the critical pair for arguments related by a carrier guard without a shared
 literal beta image. The goal remains active. This change touches only theory
 and the research ledgers; no executable changes, extraction, PRs, or agents.
+
+## Testing the strength of semantic head exposure with Eq.rec (2026-10-21)
+
+Previous goal turn: progress, with semantic transport and diagonal head-beta
+results committed at 61954a6a and 9184c34c. This turn began from the clean pushed
+9184c34c and examined head adequacy itself. Existing original-syntax confluence
+already exposes sort and Pi heads (ProofErasureSortExposure and
+CanonicalEqHeadBoundary); repeating that construction would not settle erased
+computational repair. The existing raw sort-recovery/full-repair equivalence
+also does not assert sufficiency for PropositionFront.
+
+The new test is eqSortProbe P Q q: canonical Eq.rec over carrier Prop, a
+constant motive returning Type, minor Prop, requested endpoint Q, and a proof
+q : Eq Prop P Q. It is typed at Type for arbitrary proposition endpoints, even
+without their definitional equality. If P and Q are definitionally equal,
+eqRecApp_simAt makes the probe definitionally Prop. Semantic sort exposure
+then forces its erasure to compute to a sort. The erased source has exactly
+six arguments: Prop, erase P, the erased constant motive, Prop, erase Q, proof.
+
+ProofErasureScopedFirstHeadStep gives the actual computational inversion needed
+here. ScopedCompute.const_spine_or_head either preserves the initial constant
+spine by componentwise argument computation, or witnesses a primitive at a
+prefix of the initial argument list after componentwise computation. The
+prefix can be empty or shorter than the full application; its length and all
+preceding argument paths are retained. head_occurrence rules out the preserved
+spine alternative when the final constant head differs. No normalization,
+typing, inertness, or primitive closure hypothesis enters this inversion.
+
+ProofErasureEqPrefixGuardReadout handles the general singleton branch at five
+supplied arguments. Valid code, its computed telescope, and its raw comparator
+guard determine the canonical generated Eq prefix; the family guard is
+literally Eq Prop P P versus Eq Prop P Q under the fresh equality major. The
+existing literal-sort Eq decoder extracts a JointCompare of P and Q in that
+context. The theorem also inverts an existential SingletonPrimitiveWith,
+without requiring callers to supply the code. For endpoint propositions lifted
+from a lower context, proofErase_singleton_eq_prop_five_descend removes an
+arbitrary front block and the fresh proof-major binder simultaneously using
+joint certificate descent. No inhabitant is supplied and no inverse typing
+weakening is invoked.
+
+Limits and next steps: this does NOT yet prove that head exposure implies
+PropositionFront. The first-head witness permits earlier prefixes and any
+primitive in Step. For certified/full joint computation, core alternatives
+must be excluded at the Eq.rec probe, and all valid earlier singleton prefixes
+must be accounted for. In addition, the recorded argument paths need to be
+prefixed to the decoded endpoint comparison before descending the original
+propositions. The five-argument result is not being presented as covering those
+cases. Resolving them will test whether the head premise is only a repackaging
+of the original front, rather than claiming a strict reduction prematurely.
+
+Validation: all three new modules and semantic head beta build successfully
+(608 jobs), /tmp/eq-head-readout-build.log. Independent opaque DFS covers all
+11 new public declarations and 10,314 dependencies, excluding
+JointCarrierDomainResynthesis, strengthening inverses, and sorryAx. Cumulative
+DFS covers 725 roots and 15,553 dependencies, excluding strengthening inverses
+and sorryAx. Exact-name axiom parsing matches all 11/725 requested roots;
+only propext, Classical.choice, and Quot.sound occur. Audit sources/logs:
+/tmp/eq-head-readout-{audit,independent-audit}.{lean,log}.
+
+Completion audit: the original weakN_iff sorry remains. No canonical-Eq
+counterexample or strictly smaller sufficient irreducible front has been
+established. The goal stays active. Only theory files and research ledgers
+change; no executable changes, extraction, PRs, or coordination.
