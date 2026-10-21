@@ -15470,3 +15470,57 @@ canonical-Eq counterexample or strictly smaller sufficient irreducible
 obligation has been established. GOAL.md remains active. Only the new Theory
 module and actual-EOF ledgers changed; no executable changes, PR extraction,
 PRs, subagents or coordination.
+
+
+## 2026-10-21 21:03 UTC — Recovery-free eta at the first proposition index
+
+Previous goal turn: progress, recording the checked recovery barrier and its
+comparison limitation. This turn returned to direct application/beta reasoning.
+General carrier-related instantiation still exposes the known neutral native
+domain problem. The selected Eq-recursion eta case instead admits a direct
+syntactic exclusion proof, with no new coverage assumption.
+
+Added ProofErasureScopedNormalSyntax.lean (76 lines). Scoped normality excludes
+primitives at each subterm's actual raw context, including the annotated binder
+context. It implies beta normality and fixes every ScopedCompute path. A second
+result uses the existing exact first-head-beta decomposition: if the eta
+function is fixed, the short application reproduces the exact contractum
+after the original argument computations and retains the complete tail.
+No typing or recovery premise is imposed on the consumed or pending arguments.
+
+Added ProofErasureEqPropositionEta.lean (180 lines). A proper prefix of a typed
+retained Prop-carrier Eq recursor has no joint primitive step: typed source
+reconstruction splits core/general-singleton cases, core arity excludes the
+first, and the earlier exact singleton-arity theorem excludes the second.
+Under a fresh Prop binder this certifies scoped normality of eta(Eq.rec Prop).
+Consequently eta before the first proposition index can be removed for any
+raw image. On the actual type probe it preserves the literal original
+universe iff the original proposition indices compare. The lower-certificate
+version permits arbitrary insertion n,k and an equality major only upstairs.
+
+Extended ProofErasureJointSpineEtaComputation.lean with normalEta and a concrete
+Eq.rec Prop instance. Finite interleavings now cover this recovery-free case
+together with all earlier recoverable spine eta and full-joint computations.
+The continuation induction and lower Eq-probe certificate equivalence still
+hold for the enlarged fragment. This is not full semantic reduction coverage;
+eta inside arguments, structure eta, other unrecoverable prefixes and general
+paired substitution remain outside the proved result.
+
+Validation: consuming build succeeds in 668 jobs
+(/tmp/eq-prop-eta-build.log). Both new modules and the changed module compile
+without warnings; pre-existing dependency warnings remain. Cumulative opaque
+DFS: 1,337 public roots / 16,617 dependencies. Independent audit covers all
+18 public roots of the three affected modules, including all four constructors
+of the changed relation: 11,417 dependencies. There are 11 new roots overall.
+Both audits exclude weakN_iff, weakN_inv and sorryAx; independent additionally
+excludes JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport and JointPropBetaStability. Exact root inventories and
+the propext/Classical.choice/Quot.sound whitelist pass. Audit outputs have no
+errors or warnings. Artifacts: /tmp/prop-index-eta-{audit,independent-audit}.lean
+and .log, with -roots.txt inventories.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+No canonical-Eq counterexample or strictly smaller sufficient irreducible
+front has been established. GOAL.md stays active. Only the three Theory
+modules and actual-EOF ledger entries changed; no executable changes, PRs,
+extraction, subagents or coordination.

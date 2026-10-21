@@ -5089,3 +5089,34 @@ The checked contrast rules out using recovery-completeness as a routine way
 to settle comparison coverage. Direct comparison/paired-beta reasoning for
 retained argument occurrences remains the live task; no smaller sufficient
 irreducible front or proof of strengthening is obtained.
+
+
+## 2026-10-21 21:03 UTC — Remove eta before an arbitrary proposition index without recovery
+
+Verdict: proved for the first proposition index of the actual Eq type probe,
+and integrated into finite eta interleavings. General paired carrier
+substitution still encounters the existing native-domain alignment problem.
+A more specific application case avoids it: eta of Eq.rec Prop has a body
+containing only Eq.rec, Prop and its fresh proposition variable. Existing
+typed arity exclusion rules out every root primitive at its zero-, one- and
+two-argument prefixes. This includes general singleton rules, not only core
+reduction. The eta function is therefore fixed in its actual binder context.
+
+Added scoped syntactic normality, whose primitive exclusions are indexed by
+the actual occurrence context. A fixed eta function admits first-head-beta
+elimination while retaining all consumed/pending argument computations and
+the complete continuation. No recovery of the consumed image is needed.
+For the Eq prefix that image may be any raw term; the actual probe theorem
+therefore covers every typed proposition P without recovery of P at Prop.
+The result preserves the exact original universe and the original lower
+index-comparison certificate, including arbitrary binder insertion with the
+proof major supplied only upstairs.
+
+The existing finite JointSpineEtaCompute fragment now also admits scoped-normal
+eta functions. Its continuation theorem and Eq-probe criterion survive this
+extension, so the new case can interleave finitely with the previous recovered
+eta cases and arbitrary full-joint computation. This closes the first
+proposition-index case explicitly left out by the earlier universe-argument
+example. It does not cover arbitrary eta inside arguments, structure eta,
+other unrecoverable prefixes or arbitrary paired body substitution.
+FullReduction coverage and strengthening remain open.
