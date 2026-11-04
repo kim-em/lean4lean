@@ -18738,3 +18738,59 @@ canonical-Eq strengthening nor a counterexample nor a sufficient strictly
 smaller irreducible front has been established. Only the six new theory modules
 and these ledger appendices belong to this change. No executable changed and
 no agents were contacted; independent native-recovery work was preserved.
+
+## 2026-11-04 17:44:57 UTC — full computed checking through joined native image types
+
+Added ComputedCoreCheckReduction: every ComputedJointCheck constructor survives
+forward context-oracle computation and forward carrier computation, with typed
+endpoints. The extra appComputed case replays its lambda exposure to obtain the
+actual selected argument domain, retains its context-independent core path,
+and invokes both recursive checking hypotheses. ComputedCoreGuardAlignment
+supplies comparison-context transport, forward and common-reduct carrier
+alignment, and joint Pi/argument-guard re-synthesis for this enlarged checker.
+
+JoinedNativeSubstitution defines Images by native recovery at an output to which
+the substituted assigned carrier computes. Images.cons handles fresh and old
+variables under arbitrary typed binders. recovery_subst covers every native
+constructor: Pi components compute through application; rigid parameter spines
+and field recipes compute through projection; converted selections join by typed
+core confluence at the actual substituted source type. No backwards recovery
+at the unreduced assigned syntax or semantic comparison completeness is assumed.
+
+JoinedNativeTransport proves the complete ComputedJointCheck substitution
+induction. Each recovered application computes its selected Pi to a new native
+Pi and forwards the recursively transported argument guard to its new domain.
+The output comparison/carrier retains the exact substituted endpoints and
+carrier. JoinedNativeInstantiation provides comparison and carrier consumers
+for a single value whose native and assigned types have a common reduct.
+JoinedNativeContext provides ordinary carrier equality from a typed join and
+full checker transport between joined binder annotations, with no finite shape
+condition or required computation direction between the two annotations.
+
+JoinedNativeExample checks arbitrary Type-valued beta expansions and transports
+all carrier certificates from their expanded binder to the original binder.
+For a generic type variable, variable_not_aligned proves that no old finite
+Alignment certificate can select its beta expansion, for any input predicate.
+This is a boundary of that alignment grammar, not a claim that the new image law
+includes every old family certificate or that no earlier specialized consumer
+could handle the same example.
+
+Validation: 762-job build of 88 explicit modules passed. All 682 exact audit
+roots passed the opaque/constructor/recursor dependency audit, including 30 new
+roots; maximum closure 11,514. Only propext, Classical.choice and Quot.sound
+occur. No sorry sources or excluded weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport
+or JointPropBetaStability occur. All 30 new roots also pass the existing framework
+independence gate. The seven source files match their pre-build SHA256 snapshot
+and have no build warnings. Artifacts: /tmp/joined-native-{full-build.log,
+audit.lean,audit.log,roots.txt,new-roots.txt,independent-roots.txt,files.txt,
+build-targets.txt,source-before.json,validation.json}; preparation and verifier:
+/tmp/prepare-joined-native-audit.py and /tmp/verify-joined-native-audit.py.
+
+The actual weakN_iff still has its original sorry at UniqueTyping.lean:94.
+The new image condition requires a core join and native recovery, and the proofs
+require QuotRegistered plus concrete patterns; arbitrary semantic carrier
+conversion and guarded-stage confluence remain outside the result. No proof,
+canonical-Eq counterexample, or sufficient strictly smaller irreducible front
+has been obtained. Only these seven new theory files and ledger appendices
+belong to this change. No executable changes, PR extraction, or agent contact.

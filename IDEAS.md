@@ -7020,3 +7020,33 @@ term syntax, beyond universe annotations, so neither general native completeness
 nor the original strengthening front follows. Next: transport typed singleton
 family guards under structural context conversion, including their generated
 residual telescopes, then examine higher-stage structural endpoint simulation.
+
+## 2026-11-04 17:44:57 UTC — Substitute native values whose assigned carriers join their outputs
+
+Verdict: **proved full repaired-core substitution and a concrete boundary of
+forward exact-result alignment**. Extend simultaneous carrier/oracle reduction
+to ComputedJointCheck, including appComputed. Require each retained variable
+image to natively recover a reduct of its substituted assigned carrier; native
+output conversion also admits any common reduct of assigned and native types.
+This image law lifts through arbitrary binders. Induction on every native
+recovery constructor preserves it; the conversion case uses typed core
+confluence, while application and projection propagate computed components.
+The complete recursive checker then transports, using forward carrier reduction
+for each recovered application's already-transported argument guard. This gives
+single-instantiation consumers and unrestricted-shape binder conversion when
+both annotations compute to a common carrier.
+
+A beta-expanded generic type binder transports to the type variable itself.
+The old NativeFamilyFramework.Alignment cannot align that variable to its
+expansion, for any input predicate: its shape theorem forces forward computation
+from a bare variable, which is fixed. This distinguishes the new computational
+image method from that grammar, without claiming inclusion of every old family
+certificate or completeness for arbitrary ordinary equality.
+
+The scope remains ErasedQuotCore.Step with QuotRegistered and concrete-pattern
+hypotheses. Exact native recovery of arbitrary non-proof images, arbitrary
+ordinary-equality carrier joins, and confluence at guarded singleton stages have
+not been proved. A useful next step is to combine this common-reduct image law
+with the independently proved finite-family alignment cases, then determine
+which source singleton-stage substitutions still lack certificates. No smaller
+sufficient irreducible strengthening obligation is claimed; GOAL.md stays open.
