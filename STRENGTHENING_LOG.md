@@ -19843,3 +19843,43 @@ Pi-component cases, and arbitrary computed binders admit exact backward context
 transport. General compatible-path coverage, application-shaped origins and
 unrestricted native comparison coverage remain open. UniqueTyping.lean:94 still
 has the original weakN_iff sorry; GOAL.md is active. No PRs extracted.
+
+
+## Native eta application paths without argument recovery (2026-11-04)
+
+ProofErasureCarrierAlignedEtaApplicationSquare (70 Lean lines) records a
+stronger eta-specific construction using only rules already present in the
+eta-expanded stages. Given function recovery at stage k, its domain-sort
+witness, body computation at stage n and argument computation at stage m,
+first expand the function inside the application, then compute under the new
+lambda, then beta-contract. The output is exactly outBody.inst outArgument
+at max(k+1,max(n,m)). No native argument recovery or substitution theorem is
+used. The arbitrary final lambda annotation contracts to the same endpoint.
+
+The union theorem composes these steps directly with the existing finite-bound
+eta guard constructor. An actual type-valued application wrapper identifies
+the raw source with its exact erasure; the recovered domain need not equal
+the assigned domain. No new primitive, semantic assumption, or completeness
+premise is introduced. This avoids an unnecessary proposed contextual
+argument-expansion rule.
+
+The construction starts at the original application. It does not provide a
+path from an independently beta-reduced source, so it does not resolve the
+remaining beta/eta critical-pair or general confluence obligation. General
+body substitution still requires retained native-image evidence. These
+limitations distinguish the direct eta path from the earlier substitution
+square and prevent an unsupported claim of common-reduct selection.
+
+Validation: main and isolated targeted builds pass 712 jobs. Three exact
+public roots pass type/opaque-body/constructor/recursor dependency auditing,
+maximum closure 8,247. Standard logical axioms only; no sorry source or
+forbidden strengthening/framework dependency. All 687 transitive local
+sources match their pre-build hashes and isolated copies; no new-source
+warnings. Artifacts /tmp/carrier-eta-application-square-{all-build.log,
+isolated-build.log,audit.lean,audit.log,audit-roots.txt,files.txt,targets.txt,
+validation.json,closure-source-hashes.json}; preparation script
+/tmp/prepare-carrier-eta-application-square.py.
+
+Only this module and ledger appends are staged. Independent dff97a88 is
+preserved. Original weakN_iff remains sorry at UniqueTyping.lean:94 and the
+goal remains active; no executable changes, coordination or PR extraction.

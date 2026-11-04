@@ -7825,3 +7825,29 @@ No general coverage theorem or smaller sufficient strengthening front is claimed
 Validation: five modules, 722-job build, 30 exact roots with opaque-body,
 constructor and recursor audit; maximum closure 11,222; standard logical
 axioms only, no forbidden dependency or warning in the new sources. Goal active.
+
+
+## Compute eta bodies before substitution using the existing expansion (2026-11-04)
+
+- Add an enclosing-application primitive to recover an argument at the domain
+  selected by its function: **unnecessary for the local eta-body path**.
+  Existing native eta expansion already exposes that binder at the enclosing
+  application. Compute the body under it, independently compute the argument,
+  then beta-contract. No transport of the body certificate by substitution and
+  no native argument recovery are needed. The finite bound is
+  max(k+1,max(n,m)); a direct union theorem needs no chosen image bound. The
+  actual type-valued application starts at its exact erasure even when the
+  recovered domain differs from its assigned one.
+
+Judgment: this removes the image premise from the eta-specific path at the
+cost of eta expansion, whereas general body-substitution transport still needs
+retained native images. It is a composition of existing computation rules,
+not a new primitive or a confluence theorem. In particular it starts at the
+original application, not at an independently chosen beta reduct. Joining
+that reduct with the computed eta body is still unresolved. Do not mistake
+this construction for general beta stability or a smaller sufficient front.
+
+Validation: main and isolated 712-job builds; three exact public roots audited
+through opaque bodies, constructors and recursor rules, maximum closure 8,247;
+standard axioms only, no forbidden dependencies. All 687 transitive source
+hashes match isolated copies. No new-source warnings; weakN_iff remains open.
