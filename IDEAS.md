@@ -9319,3 +9319,28 @@ isolated-identical; standard axioms only, no forbidden dependencies or sorry
 sources. Artifacts `/tmp/carrier-dependent-neutral-head-*`; preparation
 `/tmp/prepare-carrier-dependent-neutral-head.py`. No new warnings, executable
 changes, coordination or uncommitted independent imports. Goal remains active.
+
+
+## Observing arbitrary sort-typed arguments (2026-11-04 23:23:00 UTC)
+
+Verdict: marked arguments no longer need variable, universe or literal-Pi
+syntax. A new typed observation carries an arbitrary lower argument with its
+sort assignment through temporary control prefixes. Interpreted renaming and
+substitution fix the original payload context, and beta control frames supply
+only their finite demanded observations. The operational interpretation reads
+both the argument and a fixed family applied to it.
+
+Whole-argument computations update their lower certificates through the explicit
+TypeArgumentClosure interface. All full static structure/function-eta primitives
+preserve nonpayload control frames; compatible computation handles payloads,
+beta, transitive intermediates and changing binder annotations. The next commit
+instantiates this interface with complete actual argument histories. No native
+image assumption or whole-language confluence is built into this machinery.
+
+Validation: two foundation modules, 404 Lean lines, 28 public roots. Combined
+four-module 779-job build and full 47-root audit; this commit's maximum
+dependency closure 11,065. Standard axioms only; no configured forbidden
+dependencies. All 754 local import sources hash-stable. Artifacts:
+`/dev/shm/type-argument-origin-*`; preparation
+`/dev/shm/prepare-type-argument-origin-audit.py`. Executable unchanged, no PR
+extraction or coordination. Strengthening remains open; goal active.
