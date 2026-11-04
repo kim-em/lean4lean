@@ -19790,3 +19790,56 @@ Original weakN_iff remains sorry at UniqueTyping.lean:94; GOAL.md stays active.
 Only these four modules and these ledger appends are staged; independent
 PiReadout and backward-context work is preserved. No executable changes,
 coordination or PR extraction.
+
+## 2026-11-04 20:06:01 UTC: dependent Pi readout, application and backward binder transport
+
+ProofErasurePiReadout introduces PiReadout with exact component computation
+paths in their original scopes and a raw beta-exposure path. It is preserved
+by raw beta predecessors and reducts (using confluence), controlled constant
+expansion, arbitrary expanded roots, root/beta sequences, computed identity
+functions and their instantiated computed bodies. It supplies both component
+comparisons, and existing native recovery at the assigned Pi reconstructs the
+selected Pi using only component computation, independent of wrapper stages.
+
+ProofErasurePiReadoutSelection reifies native selected Pis at the actual function
+and retains the domain and dependent codomain paths. Uniqueness and context
+conversion move the selected C erasure to the original A binder. The comparison
+consumer returns both inferred component comparisons. The application helper
+uses actual domain equality to type the supplied argument at the selected D;
+its native result is exactly the actual C.inst x, without native evidence for x.
+
+ProofErasurePiReadoutApplication instantiates the retained codomain path. Its
+generic substitutive-primitive theorem and ordinary-core specialization need
+only actual typing of x. The guarded expanded specialization uses native x:A
+at stage k to transport a component path at stage n to n+k. It does not demand
+native x:D after selection, and the function recovery relation is independent.
+
+ProofErasureExpansionBackwardContext constructs exact native identity images
+from a computed binder back to its predecessor. The newest variable converts
+its lookup type along the weakened A→D path; older lookups already agree.
+An actual equality A≡D gives the typed identity interpretation. Computation,
+recovery, common-typed computed comparison and full CarrierAlignedCompare all
+pull back with exact outputs/modes and the additive stage bound. A full-union
+computation wrapper permits independent finite bounds for domain and body.
+Neither domain syntax nor the context is required to be pure.
+
+ProofErasurePiReadoutContinuation uses that transport to compose component paths
+across a changed binder. A later codomain path in D::Γ is pulled back into A::Γ
+before composition; the recorded bound is max (max k m) (max r (n+k)). Subsequent
+outer-root and beta paths retain this bound. This resolves literal-Pi dependent
+continuation, not the general application-congruence branch of a full origin proof.
+
+Validation: 722-job build; all 30 exact roots pass full opaque-body,
+constructor/recursor traversal, maximum closure 11,222. Only propext,
+Classical.choice and Quot.sound; no sorry or forbidden strengthening/framework
+dependency and no warnings in the new files. Source hashes verified. Artifacts:
+/tmp/pi-readout-{full-build.log,audit.lean,audit.log,roots.txt,files.txt,
+source-before.json,validation.json} with preparation and verification scripts.
+Development logs use pi-readout-*, backward-context-dev.log. Only these five
+modules and these ledger appendices are staged; independent work is preserved.
+
+Judgment: dependent codomain information now survives the proved wrapper and
+Pi-component cases, and arbitrary computed binders admit exact backward context
+transport. General compatible-path coverage, application-shaped origins and
+unrestricted native comparison coverage remain open. UniqueTyping.lean:94 still
+has the original weakN_iff sorry; GOAL.md is active. No PRs extracted.

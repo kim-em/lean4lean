@@ -7778,3 +7778,50 @@ Validation: main and isolated 711-job targeted builds; 13 exact public roots
 pass type/opaque-body/constructor/recursor audits, maximum closure 11,114,
 standard logical axioms only. All 686 transitive local source hashes and isolated
 copies agree. No new-source warnings or forbidden strengthening dependencies.
+
+## 2026-11-04 20:06:01 UTC: retained Pi components and exact backward context transport
+
+**Proved:** PiReadout records a raw beta path to Pi X Y together with computation
+from the assigned A to X and from B to Y under the original A binder. Raw beta
+confluence preserves it through further beta steps. Constant expansion, every
+outer-root expanded primitive, arbitrary root/beta sequences, and whole computed
+identity functions or contracted identity bodies preserve the component paths.
+Existing native evidence at the assigned Pi can recover the exposed Pi using
+just these paths, without paying for the surrounding wrapper guard depths.
+
+**Dependent consumer proved:** native readout reifies actual D,C and retains
+both component computation paths. Type uniqueness aligns the selected binder;
+erasure invariance moves C back to the original A scope. This gives inferred
+comparisons for both components, including the dependent codomain. Application
+then recovers C.inst x and a path from the assigned B.inst x. Ordinary substitutive
+component primitives admit every typed argument; expanded guarded components
+use native recovery at the original A only, with the existing additive bound.
+No native recovery at the newly selected D is required.
+
+**New context step proved:** if A computes to D, the variable in context A can
+recover the lookup type used in context D by the weakened domain path. Older
+lookups agree. These exact native identity images transport computation, native
+recovery, computed comparison and the full aligned checker backward from D::Γ
+to A::Γ, preserving raw outputs and checking modes, at stage n+k. This uses
+actual domain equality and requires no purity or finite-family restriction.
+Full-union computation transport is also proved. The direction matters: this
+does not prove forward native recovery through a reduced binder.
+
+**Continuation proved:** a second codomain computation under the newly selected
+domain can now be pulled back and appended to the original codomain path. Both
+component histories survive two phases and any subsequent outer-root/beta path.
+This closes the literal-Pi continuation case of the proposed origin invariant.
+
+**Remaining live obligation:** cover arbitrary compatible expanded computation
+from an original Pi with such component histories. Root steps, beta steps,
+computed identity wrappers and successive literal-Pi component phases are now
+handled. General application-shaped intermediate terms still require tracking
+the originating payload through computed constant-function wrappers. The local
+constant-wrapper certificate-descent square is available, but no full mutual
+head-normalization/origin proof has been established. These are results for the
+controlled beta-expansion stages, not a claim about arbitrary eta-expanded stages.
+No general coverage theorem or smaller sufficient strengthening front is claimed.
+
+Validation: five modules, 722-job build, 30 exact roots with opaque-body,
+constructor and recursor audit; maximum closure 11,222; standard logical
+axioms only, no forbidden dependency or warning in the new sources. Goal active.
