@@ -8384,3 +8384,48 @@ Validation: eight modules, 737 jobs, 49 public roots including context-record
 constructor, recursors and projections, maximum closure 11,580; standard
 axioms only, exclusions clean, no new-module warnings. All 712 local imported-source
 hashes checked unchanged. Goal remains active; no PR extraction.
+
+
+## Nested literal-lambda eta is core-joinable at every finite depth (2026-11-04)
+
+- Strengthen the literal-lambda eta residual to a common ordinary/level-core
+  reduct: **proved generically**. If native-guard computations are core-joinable
+  and the core cannot reduce a Pi root, lambda-recovery inversion supplies an
+  actual typed initial Pi path. Inverting both common-reduct branches yields
+  a core join of the displayed and selected domains. Typed eta beta restores
+  exactly the original body, including proof-marker argument cases.
+- Close repeated native eta guards by induction on finite guard depth:
+  **proved for literal-lambda sources**. Stage zero mixes ordinary primitives,
+  universe changes and controlled constant/identity expansions. Each next
+  stage allows native eta on a literal lambda with guards using the complete
+  preceding stage. Every stage and their union have source-typed descent,
+  core joinability, confluence and ordinary substitution up to a core join.
+  No native evidence for substitution images is needed. Base identity guards
+  may independently use the full descending eta union. The new stages embed
+  into the existing full eta union, rather than adding unsound computation.
+- Commute whole nested-lambda-eta function paths with head beta:
+  **proved with arbitrary full-eta argument computation**. Core lambda readout
+  gives separate original-domain/body histories; the latter substitutes freely.
+  Neither original nor computed arguments require native recovery. The
+  computed-application branch uses only level-core computation. Stored
+  definitions discharge compatibility/confluence premises, and an explicit
+  actual-environment theorem needs only WF and canonical Eq for confluence.
+- Extend that same core-join invariant to neutral eta roots:
+  **refuted structurally**. A variable remains fixed under level-core
+  computation, while its native eta output retains a lambda head. Their
+  common level-core reduct is impossible. Neutral eta therefore needs a
+  different target invariant; it cannot be added to the stage induction as
+  one more core-joinable primitive.
+
+Judgment: this closes whole paths and arbitrarily nested guard depth for the
+literal-lambda eta fragment, removing its native-image hypothesis rather than
+merely checking one root. The checked variable boundary identifies why it does
+not prove full eta confluence. Neutral eta, singleton/Eq-prefix function paths,
+general common native coverage and strengthening remain open. No sufficient
+strictly smaller irreducible front is established; GOAL.md remains active.
+
+Validation: three new modules, 411 Lean lines, 21 public roots. Both explicit
+builds pass 759 jobs. Structural audit covers 43 roots including four newly
+synchronized dependency modules; maximum closure 11,569, standard axioms only,
+all exclusions clean. All 734 local imported sources are hash-stable and match
+the isolated checkout. No new-module warnings.

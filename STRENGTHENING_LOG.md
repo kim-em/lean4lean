@@ -20565,3 +20565,71 @@ assumption, semantic head exposure, selected-domain/structural-image recovery,
 or excluded native-alignment interface appears. All 712 local imported-source hashes
 were checked stable; no new-module warnings. Artifacts:
 `/dev/shm/level-core-native-*`.
+
+
+## Core confluence for arbitrarily nested literal-lambda eta (2026-11-04)
+
+ProofErasureLambdaEtaCoreJoin strengthens the previous one-step lambda eta
+residual. A generic Pi-component inversion theorem applies to any core without
+Pi-root primitives. Native recovery of a literal lambda starts with its
+written domain and a recovered body type; replay of the latter types that
+initial Pi. If the guard relation's typed computations have core common
+reducts, Pi inversion on both branches gives a core common domain. Actual
+Pi uniqueness classifies the selected eta argument, and typed beta restores
+the original body, including proof-valued domains. The original lambda and
+selected eta expansion therefore have a common core reduct, with no native
+image assumption or assigned-to-native type path premise.
+
+ProofErasureLambdaEtaStages defines a concrete finite-stage fragment of the
+full eta system. Its base is ordinary computation plus universe conversion,
+constant expansion and native identity expansion, with an independent
+descending identity-guard relation. Each successor admits native eta on literal
+lambda sources, with recovery over the entire previous stage. Guard-depth
+induction proves ordinary source-typed descent and level-core joinability at
+all finite stages. Typed core confluence composes the root joins through every
+compatible computation and transitive intermediate. Finite-stage extraction
+then proves full-union joinability, confluence and substitution up to exact
+level-core common reducts. Substitution requires only ordinary typing and
+erasure agreement, not native evidence for its images. Embedding theorems
+verify that all these stages are subrelations of the existing eta union when
+the base guards are. This fragment is explicitly limited to literal-lambda
+eta; it is not presented as the full strengthening goal.
+
+ProofErasureLambdaEtaBetaSquare reads both component histories from the core
+common reduct of any retained lambda path in this union. The body history
+substitutes freely in the level core. Arbitrary full-eta argument computation
+can run through the original typed body at its own finite stage. The resulting
+whole-function/head-beta square needs no recovery of either the original or
+computed argument; its computed-application residual is entirely level-core.
+Stored-definition instances discharge universe compatibility and ordinary
+core confluence. An explicit actual-environment confluence theorem introduces
+hE.params and discharges abstract pattern correctness, leaving only actual
+well-formedness and canonical Eq. No quotient registration is imposed there.
+
+The same module checks the precise obstruction to adding neutral eta to this
+core-join proof: every level-core computation from a variable leaves it fixed,
+whereas every one from the lambda introduced by native eta retains a lambda
+head. Thus a variable and its native eta output have no common level-core
+reduct. Further full-eta progress must use an eta-aware common-target invariant
+or demand-indexed residuals, not a false ordinary-core root join. General
+singleton/Eq-prefix function computation and universal native coverage are
+also outside the current theorem. The original strengthening conclusion and
+strictly-smaller-sufficient-front alternative remain unproved.
+
+Validation: three modules, 411 Lean lines, 21 new public declarations. Main
+and isolated explicit-target builds pass 759 jobs. All 43 selected public roots
+(including four synchronized imported modules) pass dependency audit through
+types, opaque values, inductive constructors and recursor rules. Maximum
+closure 11,569; only propext, Classical.choice and Quot.sound. No sorryAx,
+weakN_iff, weakN_inv, JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability dependency is reachable. All
+734 transitive local source hashes are stable and byte-identical to isolated
+copies. No new-module warnings. Artifacts:
+/tmp/carrier-lambda-eta-{main-build.log,isolated-build.log,audit.lean,audit.log,
+audit-roots.txt,files.txt,targets.txt,validation.json,closure-source-hashes.json};
+/tmp/prepare-carrier-lambda-eta.py.
+
+Only these three modules and ledger appends are staged. Ongoing independent
+level-core native/checker transport files are preserved. No executable changes,
+coordination or PR extraction. Original weakN_iff remains sorry at
+UniqueTyping.lean:94; GOAL.md remains active.
