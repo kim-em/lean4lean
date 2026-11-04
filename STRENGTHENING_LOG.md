@@ -15909,3 +15909,122 @@ canonical-Eq counterexample or strictly smaller sufficient irreducible
 obligation is proved. GOAL.md remains active. Only these four Theory modules
 and actual-EOF ledgers change; no executable changes, PR extraction, subagents
 or coordination.
+
+## 2026-11-04 — Selected recovery paths as substitution images (in progress)
+
+The previous completed turn made progress: its committed stage-zero recursive
+transport theorem handles exact-sort or native-recovering images. This turn
+extends the candidate image condition to finite SortRootedRecovery paths with
+the exact assigned output. The two new candidate files are
+ProofErasurePathImageSubstitution.lean and
+ProofErasureComputedJointPathSubstitution.lean. They include weakening, binder
+extension, selected-domain recovery, recursive comparison/carrier transport,
+single instantiation, and a proposed certificate for arbitrary typed
+lambda bodies that are types. They have not yet been checked by Lean.
+
+The .lake build cache was absent. Dependency reconstruction is running via
+`lake build Lean4Lean.Theory.Typing.Strengthening.ProofErasureComputedJointTypeSubstitution`,
+output /tmp/rooted-deps-build.log, exec session 34980. Re-poll that handle;
+do not restart it merely because observation times out. After completion,
+build the two Path modules, fix errors, audit dependencies, then commit and
+push only this turn's files and ledger additions with the required trailer.
+An independently appearing untracked ProofErasureRootedImageRecovery.lean was
+left untouched; the Path names avoid collisions. No agents were contacted.
+
+No proof of strengthening, canonical-Eq counterexample, or strictly smaller
+sufficient obligation has been obtained. UniqueTyping.lean:94 still has the
+original sorry. The goal remains active, and the candidate statements do not
+assert arbitrary function-image transport or higher-stage completeness.
+
+Continuation: previous turn was progress plus a verified wait (session 34980).
+Added candidate single-family instantiation and paired beta comparison
+corollaries to the Path transport module. The beta theorem takes a body
+certificate and one shared selected-path argument; it does not assert
+heterogeneous substitution or unrestricted endpoint beta stability. Prepared
+/tmp/path-image-audit.lean and /tmp/path-image-audit-roots.txt for all 18 public
+declarations; audit execution awaits successful compilation. Dependency build
+remains live in NestedArgs.lean, observed at 147/570 jobs. No build restart,
+commit, or push has occurred; do not describe these candidates as checked.
+
+
+## 2026-11-04 11:13 UTC — Checked eta obstruction to selected-domain coverage
+
+The preceding conversational reply was no technical progress. Revalidated the
+worktree and the dependency process: PID 3179259 was live, then completed its
+570-job build successfully. Existing Path candidate files and their ledger
+entries were left under their existing ownership. This turn independently
+built the committed eta-boundary dependencies and checked a new Theory module,
+`ProofErasureSelectedDomainEtaBoundary.lean`.
+
+Its public theorem `SelectedDomainEtaBoundary.typed_lambda_domain_failure`
+provides, over every well-formed base context, an actual non-proof lambda with
+body Prop and a rank-one native SortRootedRecovery certificate. Eta conversion
+changes its assigned Pi domain from F f to F (fun x => f x). There is no exact
+native recovery at the assigned Pi, even in ErasedJointUnion, no computation to
+a lambda at that assigned domain, and no SortRootedRecovery at that assigned
+Pi at any rank. The last conclusion uses the checked selected_domain theorem
+and the normal-form computation obstruction. Thus the current exact-domain
+coverage strategy cannot include arbitrary typed lambda images merely by
+allowing longer selected paths. This does not refute conditional transport,
+and is not a counterexample to canonical-Eq strengthening.
+
+Validation: the new module builds successfully (571 jobs, new module 1.1s),
+and an opaque dependency DFS of its one public root visits 8,560 declarations.
+It rejects weakN_iff, weakN_inv, sorryAx, JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport and JointPropBetaStability.
+The exact root/axiom inventories match #print axioms; only propext,
+Classical.choice and Quot.sound occur. The audit log has no errors/warnings.
+Artifacts: /tmp/selected-domain-boundary-build.log and
+/tmp/selected-domain-boundary-audit.lean/.log. This is an audit of the new root
+and all its dependencies, not a rerun of the old cumulative root inventory.
+An earlier, more complicated neutral-body draft remains only in /tmp; it is
+not a checked result or part of this change.
+
+Next live direction: permit comparison between written and assigned domains
+while retaining sound binder descent. A bare extra comparison premise does
+not by itself supply a lower-context realization of its intermediate carrier;
+that realization must be established without the excluded resynthesis or
+strengthening assumptions. UniqueTyping.lean:94 still contains the original
+sorry. No proof, canonical-Eq counterexample, or strictly smaller sufficient
+irreducible obligation has been obtained; GOAL.md remains active. No executable
+changes, PR extraction, subagents, or coordination.
+
+## 2026-11-04 — Finite-path image transport checked
+
+The two Path modules now compile in a 571-job consuming build. The general
+image predicate admits native recovery or a selected SortRootedRecovery path.
+It extends under binders, preserves exact selected-domain recovery/exposure,
+and discharges the entire recursive ComputedJointCheck transport induction.
+Single substitution and body-certificate paired beta comparison are included.
+The explicit family corollary covers any typed type-valued lambda at its
+DISPLAYED Pi type; it does not cover that lambda at arbitrary convertible
+assigned Pi types. No executable files changed.
+
+Validation: /tmp/path-image-build.log reports success, with no warnings in the
+new modules. /tmp/path-image-audit.lean audits all 18 public declarations and
+opaque bodies, rejecting weakN_iff, weakN_inv, sorryAx,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport and JointPropBetaStability anywhere in each closure.
+The largest closure has 9,354 declarations. All 18 expected roots appear;
+axioms are exactly propext, Classical.choice, Quot.sound, with no sorry sources
+or audit warnings/errors. Logs and root inventory are /tmp/path-image-audit.log
+and /tmp/path-image-audit-roots.txt.
+
+A separate untracked ProofErasureSelectedDomainEtaBoundary.lean appeared during
+this work. It was left unmodified and is not included in this change. Its
+consuming build and independent opaque audit also pass
+(/tmp/path-eta-boundary-{build,audit}.log). It proves that even a type-valued
+lambda, assigned a Pi with an eta-converted domain, may have neither exact
+native recovery nor any selected sort-rooted path at that assigned type, nor
+computation exposing the assigned domain. This is a concrete limit on extending
+our image criterion to arbitrary typings; it does not refute strengthening.
+No agents were contacted or coordinated with.
+
+Next research step: account for comparison between native and assigned domains
+in the application guard, with sound binder descent. CarrierCompute only pulls
+certificates back along computation, so forward transport or semantic domain
+conversion cannot be assumed. The exact-path fragment is proved; coverage of
+all typed images by it is refuted by the checked boundary. Higher joint stages
+and completeness remain open. UniqueTyping.lean:94 still contains the original
+sorry, and no canonical-Eq counterexample or strictly smaller sufficient
+irreducible obligation has been established. GOAL.md remains active.

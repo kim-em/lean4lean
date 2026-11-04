@@ -5416,3 +5416,23 @@ criterion to the needed lambda/function arguments or isolate a concrete
 obstruction there, while retaining sound binder descent. GOAL.md's proof,
 canonical-Eq counterexample, and strictly smaller sufficient obligation
 alternatives remain unachieved.
+
+| Finite selected recovery paths for function substitution | **Checked (2026-11-04).** `ProofErasurePathImageSubstitution` replaces literal-sort exceptional images by `SortRootedRecovery` paths at the exact assigned output; `ProofErasureComputedJointPathSubstitution` transports the recursive checker. Type-valued lambdas are covered at their displayed Pi type, including body-certificate paired beta comparisons. Arbitrary assigned types are not covered: the separately appearing, independently checked `SelectedDomainEtaBoundary.typed_lambda_domain_failure` refutes exact-domain coverage after eta conversion. General carrier alignment, higher stages, and completeness remain open. |
+
+
+## 2026-11-04 11:13 UTC — Exact selected lambda domains fail under eta conversion
+
+Checked `SelectedDomainEtaBoundary.typed_lambda_domain_failure` in
+`ProofErasureSelectedDomainEtaBoundary.lean`. In the existing eta context,
+let A = F f and B = F (fun x => f x). The non-proof lambda `fun (_ : A) => Prop`
+has assigned type `B → Sort 1`, and a rank-one sort-rooted path at its native
+`A → Sort 1`. Nevertheless it has neither native recovery nor a sort-rooted
+path at the assigned erased Pi. No computation in the entire joint union can
+expose this lambda at erased domain B: the lambda and both domains are fixed
+normal forms. **Verdict:** exact selected-path coverage for arbitrary typed
+lambda images is false, even with a type-valued constant body. This does not
+refute the conditional Path substitution statements or strengthening. A live
+next route must account for comparison of written and assigned domains, with
+binder descent proved rather than assumed; extending path length alone cannot
+repair this example. The prospective compared-domain rule must also explain
+how its intermediate carrier is realized below removed binders.
