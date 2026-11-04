@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureRecursiveNeutralRecovery
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureNeutralContextRecovery
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureComputedJointTransport
 
 /-! # Computed checking through recursive neutral type conversion
@@ -26,12 +26,13 @@ private theorem sort_context (_hΓ : OnCtx Γ (env.IsType univs))
   have H := ContextSubstitution.sort (ContextSubstitution.of_defeqCtx (by trivial) W) (EΓ ▸ S)
   simpa only [ProofShape.subst_id] using H
 
-private theorem compute_context
-    (hsubst : ∀ {Δ Δ' a b τ}, Step Δ a b → ContextSubstitution Δ Δ' τ →
-      Step Δ' (a.subst τ) (b.subst τ))
-    (W : IsDefEqCtx env univs [] Γ Γ') (EΓ : proofEraseCtx Γ = Δ)
-    (R : ScopedCompute Step Δ A B) : ScopedCompute Step (proofEraseCtx Γ') A B := by
-  exact (EΓ ▸ R).defeqCtx hsubst (by trivial) W
+private theorem compute_context (HC : RecursiveNeutralComputeContext Step)
+    (hΓ : OnCtx Γ (env.IsType univs)) (ht : env.HasType univs Γ e T)
+    (W : IsDefEqCtx env univs [] Γ Γ')
+    (HO : ∀ i, NeutralTypeChange k (contextOracle Δ i) (contextOracle (proofEraseCtx Γ') i))
+    (EΓ : proofEraseCtx Γ = Δ) (Ee : proofErase Γ e = source)
+    (R : ScopedCompute Step Δ source out) : ScopedCompute Step (proofEraseCtx Γ') source out :=
+  HC.raw hΓ ht W HO EΓ Ee R
 
 private theorem oracle_cons_typed
     (hΓ : OnCtx Γ (env.IsType univs)) (W : IsDefEqCtx env univs [] Γ Γ')
@@ -65,13 +66,13 @@ def ComputedJointRecursiveNeutralResult
 /-- All joint constructors transport simultaneously through recursive neutral
 oracle and carrier changes. Actual recovery replay determines the new
 application domain and its equality; the smaller carrier derivation adapts
-there. Primitive descent, head shape, and substitution are the only closure
-premises. -/
-theorem ProofShape.ComputedJointCheck.recursive_neutral
+there. Primitive descent, head shape, and typed recursive-neutral computation
+context transport are the only closure premises. Arbitrary primitive
+substitution is not required. -/
+theorem ProofShape.ComputedJointCheck.recursive_neutral_of_context
     (hstep : ErasedScopedPrimitiveDescent Step)
     (hhead : ∀ {Δ a b}, Step Δ a b → PrimitiveHead a)
-    (hsubst : ∀ {Δ Δ' a b τ}, Step Δ a b → ContextSubstitution Δ Δ' τ →
-      Step Δ' (a.subst τ) (b.subst τ))
+    (hctx : RecursiveNeutralComputeContext Step)
     (H : ComputedJointCheck Step Δ kind sa sb) : ComputedJointRecursiveNeutralResult Step Δ kind sa sb := by
   induction H with
   | leaf H =>
@@ -101,7 +102,7 @@ theorem ProofShape.ComputedJointCheck.recursive_neutral
     have hgPi := (show env.IsDefEqU univs Γ f g from ⟨_, HE⟩).of_l henv hΓ hfPi |>.hasType.2
     have hxD := argument_at_displayed_domain hΓ hf hfPi hx
     have hyD := argument_at_displayed_domain hΓ hg hgPi hy
-    obtain ⟨out', R', RT⟩ := proofErase_recovery_recursive_neutral hstep hhead hsubst R
+    obtain ⟨out', R', RT⟩ := proofErase_recovery_recursive_neutral_of_context hstep hhead hctx R
       hΓ hfPi EΓ Ef W HO
     obtain ⟨A', B', rfl, RA, _⟩ := RT.forallE_inv
     have hΓ' := (W.symm henv.ordered).isType
@@ -132,7 +133,7 @@ theorem ProofShape.ComputedJointCheck.recursive_neutral
     have hgPi := HE.toU.of_l henv hΓ hfPi |>.hasType.2
     have hxD := argument_at_displayed_domain hΓ hf hfPi hx
     have hyD := argument_at_displayed_domain hΓ hg hgPi hy
-    exact .appComputed (compute_context hsubst W EΓ RF)
+    exact .appComputed (compute_context hctx hΓ hf W HO EΓ Ef RF)
       (ihf hΓ hf HE.hasType.2 EΓ Ef Eg W HO)
       (by simpa only [ED] using (ihx hΓ hxD hyD EΓ ED Ex Ey W HO
         ⟨_, hD⟩ (ED ▸ NeutralTypeChange.refl)))
@@ -281,8 +282,8 @@ theorem ProofShape.ComputedJointCheck.recursive_neutral
     intro Γ Γ' a b A k hΓ ha hb EΓ Ea Eb W HO
     obtain ⟨a', HA, EA⟩ := proofErase_scoped_compute_realize hstep hΓ ha EΓ Ea Ra
     obtain ⟨b', HB, EB⟩ := proofErase_scoped_compute_realize hstep hΓ hb EΓ Eb Rb
-    exact .compute (compute_context hsubst W EΓ Ra)
-      (compute_context hsubst W EΓ Rb)
+    exact .compute (compute_context hctx hΓ ha W HO EΓ Ea Ra)
+      (compute_context hctx hΓ hb W HO EΓ Eb Rb)
       (ih hΓ HA.hasType.2 HB.hasType.2 EΓ EA EB W HO)
   | symm HC ih =>
     intro Γ Γ' a b A k hΓ ha hb EΓ Ea Eb W HO
@@ -301,18 +302,18 @@ theorem ProofShape.ComputedJointCheck.recursive_neutral
     obtain ⟨u, hA⟩ := ha.isType henv hΓ
     have HAB := HAB.of_l henv hΓ hA
     obtain ⟨A', HE, EA⟩ := proofErase_scoped_compute_realize hstep hΓ hA EΓ Eα RC
-    obtain ⟨target, RB, HR⟩ := HT.compute hstep hhead hsubst hΓ HAB Eα rfl
+    obtain ⟨target, RB, HR⟩ := HT.compute_of_context hstep hhead hctx hΓ HAB rfl Eα rfl
       (by simpa only [EΓ] using RC)
     obtain ⟨B', HB, EB⟩ := proofErase_scoped_compute_realize hstep hΓ HAB.hasType.2 rfl rfl RB
     have HC' := ih hΓ (HE.defeq ha) (HE.defeq hb) EΓ EA Ea Eb W HO
       ((HE.symm.trans HAB).trans HB).toU (EB.symm ▸ HR)
     rw [EB] at HC'
-    exact .carrierCompute (compute_context hsubst W rfl RB) HC'
+    exact .carrierCompute (compute_context hctx hΓ HAB.hasType.2 W (by simpa only [EΓ] using HO) rfl rfl RB) HC'
   | carrierReduce Ra Rb HC ih =>
     intro Γ Γ' a b A k hΓ ha hb EΓ Eα Ea Eb W HO B HAB HT
     obtain ⟨a', HA, EA⟩ := proofErase_scoped_compute_realize hstep hΓ ha EΓ Ea Ra
     obtain ⟨b', HB, EB⟩ := proofErase_scoped_compute_realize hstep hΓ hb EΓ Eb Rb
-    exact .carrierReduce (compute_context hsubst W EΓ Ra) (compute_context hsubst W EΓ Rb)
+    exact .carrierReduce (compute_context hctx hΓ ha W HO EΓ Ea Ra) (compute_context hctx hΓ hb W HO EΓ Eb Rb)
       (ih hΓ HA.hasType.2 HB.hasType.2 EΓ Eα EA EB W HO HAB HT)
   | carrierFunction SD HC ih =>
     intro Γ Γ' a b A k hΓ ha hb EΓ Eα Ea Eb W HO B HAB HT
@@ -419,6 +420,18 @@ theorem ProofShape.ComputedJointCheck.recursive_neutral
       rw [show proofErase Γ (.proj family i b) = .proj family i (proofErase Γ b) from if_neg hpb, Eb]
     simpa only [EF'] using ihfields i hj hn hΓ hiaF hibF EΓ EF' Epa Epb W HO
       ⟨_, (hiaF.isType henv hΓ).choose_spec⟩ (EF' ▸ NeutralTypeChange.refl)
+
+/-- The former substitution-closed interface is a specialization of typed
+context transport. Existing callers keep the same public contract. -/
+theorem ProofShape.ComputedJointCheck.recursive_neutral
+    (hstep : ErasedScopedPrimitiveDescent Step)
+    (hhead : ∀ {Δ a b}, Step Δ a b → PrimitiveHead a)
+    (hsubst : ∀ {Δ Δ' a b τ}, Step Δ a b → ContextSubstitution Δ Δ' τ →
+      Step Δ' (a.subst τ) (b.subst τ))
+    (H : ComputedJointCheck Step Δ kind sa sb) : ComputedJointRecursiveNeutralResult Step Δ kind sa sb := by
+  apply H.recursive_neutral_of_context hstep hhead
+  intro Γ Γ' e T out k hΓ ht W HO R
+  exact R.defeqCtx hsubst (by trivial) W
 
 /-- In a fixed context, arbitrary typed carrier guards transport through a
 recursive neutral type change. Both function domains and codomains may change

@@ -24,23 +24,17 @@ private theorem erase_pi_sort
     show proofErase (A :: Γ) (.sort v) = .sort v from
       if_neg (not_isProof_of_sort hΓA (HasType.sort hv))]
 
-/-- The Pi-wrapped eta lambda transports every common-typed stage-zero body
-comparison, including all nested carriers and computed-domain applications.
-Its assigned-type recovery/exposure failures remain valid. This proves shared
-argument instantiation for this example, not unrestricted endpoint beta stability. -/
-theorem proofErase_computed_joint_structural_eta_lambda_inst
-    (hs : D.Sound env univs) (hΓ : OnCtx Γ (env.IsType univs))
-    (ha : env.HasType univs
-      (.forallE (.forallE assigned (.sort .zero)) (.sort (.succ .zero)) :: context Γ) a A)
-    (hb : env.HasType univs
-      (.forallE (.forallE assigned (.sort .zero)) (.sort (.succ .zero)) :: context Γ) b A)
-    (H : ComputedJointCompare (ErasedJointStage D 0)
-      (proofEraseCtx (.forallE (.forallE assigned (.sort .zero)) (.sort (.succ .zero)) :: context Γ)) mode
-      (proofErase (.forallE (.forallE assigned (.sort .zero)) (.sort (.succ .zero)) :: context Γ) a)
-      (proofErase (.forallE (.forallE assigned (.sort .zero)) (.sort (.succ .zero)) :: context Γ) b)) :
-    ComputedJointCompare (ErasedJointStage D 0) (proofEraseCtx (context Γ)) mode
-      (proofErase (context Γ) (a.inst (.lam (.forallE native (.sort .zero)) (.sort .zero))))
-      (proofErase (context Γ) (b.inst (.lam (.forallE native (.sort .zero)) (.sort .zero)))) := by
+private theorem image_conversion (hΓ : OnCtx Γ (env.IsType univs)) :
+    ∃ u, env.IsDefEq univs (context Γ)
+      (.forallE (.forallE assigned (.sort .zero)) (.sort (.succ .zero)))
+      (.forallE (.forallE native (.sort .zero)) (.sort (.succ .zero))) (.sort u) ∧
+    NeutralTypeChange 0
+      (proofErase (context Γ) (.forallE (.forallE assigned (.sort .zero)) (.sort (.succ .zero))))
+      (proofErase (context Γ) (.forallE (.forallE native (.sort .zero)) (.sort (.succ .zero)))) ∧
+    env.HasType univs (context Γ) (.lam (.forallE native (.sort .zero)) (.sort .zero))
+      (.forallE (.forallE native (.sort .zero)) (.sort (.succ .zero))) ∧
+    AnchoredFamilyRecovery D 0 (context Γ) (.lam (.forallE native (.sort .zero)) (.sort .zero))
+      (proofErase (context Γ) (.forallE (.forallE native (.sort .zero)) (.sort (.succ .zero)))) 1 := by
   have hC := context_wf hΓ
   have hX := HasType.forallE (Γ := context Γ) native_typed (HasType.sort (l := .zero) (by trivial))
   have hY := HasType.forallE (Γ := context Γ) types_equal.hasType.1 (HasType.sort (l := .zero) (by trivial))
@@ -61,6 +55,43 @@ theorem proofErase_computed_joint_structural_eta_lambda_inst
     exact .forallE (.forallE (.neutral (k := 0) (i := 1) (j := 1)
       (args := [.lam (.sort .zero) (.app (.bvar 3) (.bvar 0))]) (args' := [.bvar 2])
       (by omega) (by omega)) .refl) .refl
-  exact proofErase_computed_joint_zero_compare_inst_converted_anchored hs hC HTU HT hp HR ha hb H
+  exact ⟨_, HTU, HT, hp, HR⟩
+
+/-- The Pi-wrapped eta lambda transports every common-typed stage-zero body
+comparison, including all nested carriers and computed-domain applications.
+Its assigned-type recovery/exposure failures remain valid. This proves shared
+argument instantiation for this example, not unrestricted endpoint beta stability. -/
+theorem proofErase_computed_joint_structural_eta_lambda_inst
+    (hs : D.Sound env univs) (hΓ : OnCtx Γ (env.IsType univs))
+    (ha : env.HasType univs
+      (.forallE (.forallE assigned (.sort .zero)) (.sort (.succ .zero)) :: context Γ) a A)
+    (hb : env.HasType univs
+      (.forallE (.forallE assigned (.sort .zero)) (.sort (.succ .zero)) :: context Γ) b A)
+    (H : ComputedJointCompare (ErasedJointStage D 0)
+      (proofEraseCtx (.forallE (.forallE assigned (.sort .zero)) (.sort (.succ .zero)) :: context Γ)) mode
+      (proofErase (.forallE (.forallE assigned (.sort .zero)) (.sort (.succ .zero)) :: context Γ) a)
+      (proofErase (.forallE (.forallE assigned (.sort .zero)) (.sort (.succ .zero)) :: context Γ) b)) :
+    ComputedJointCompare (ErasedJointStage D 0) (proofEraseCtx (context Γ)) mode
+      (proofErase (context Γ) (a.inst (.lam (.forallE native (.sort .zero)) (.sort .zero))))
+      (proofErase (context Γ) (b.inst (.lam (.forallE native (.sort .zero)) (.sort .zero)))) := by
+  obtain ⟨_, HTU, HT, hp, HR⟩ := image_conversion (D := D) hΓ
+  exact proofErase_computed_joint_zero_compare_inst_converted_anchored hs (context_wf hΓ) HTU HT hp HR ha hb H
+
+/-- The same structural eta image instantiates first-layer computations,
+including generated singleton and Eq prefixes with recursive guards. -/
+theorem proofErase_computed_joint_converted_structural_eta_compute_inst
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (he : env.HasType univs
+      (.forallE (.forallE assigned (.sort .zero)) (.sort (.succ .zero)) :: context Γ) e A)
+    (R : ScopedCompute (ErasedComputedJointStage D 1)
+      (proofEraseCtx (.forallE (.forallE assigned (.sort .zero)) (.sort (.succ .zero)) :: context Γ))
+      (proofErase (.forallE (.forallE assigned (.sort .zero)) (.sort (.succ .zero)) :: context Γ) e) out) :
+    ScopedCompute (ErasedComputedJointStage D 1) (proofEraseCtx (context Γ))
+      (proofErase (context Γ) (e.inst (.lam (.forallE native (.sort .zero)) (.sort .zero))))
+      (out.inst (proofErase (context Γ) (.lam (.forallE native (.sort .zero)) (.sort .zero)))) := by
+  obtain ⟨_, HTU, HT, hp, HR⟩ := image_conversion (D := D) hΓ
+  exact proofErase_computed_joint_one_compute_inst_converted_anchored
+    heq hs (context_wf hΓ) HTU HT hp HR he R
 
 end Lean4Lean.VEnv.Strengthening

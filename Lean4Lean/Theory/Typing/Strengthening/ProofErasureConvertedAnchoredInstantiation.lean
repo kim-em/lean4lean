@@ -1,4 +1,5 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureComputedJointRecursiveNeutral
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureComputedNeutralStageContext
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureComputedJointFirstStageSubstitution
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureComputedJointAnchoredSubstitution
 
 /-! # Instantiate through a convertible anchored selected type
@@ -35,5 +36,24 @@ theorem proofErase_computed_joint_zero_compare_inst_converted_anchored
   have W : IsDefEqCtx env univs [] (T :: Γ) (U :: Γ) := .succ (.refl hΓ) HTU
   exact proofErase_computed_joint_zero_compare_inst_anchored hs hΓ hp HR
     (ha.defeqDFC henv W) (hb.defeqDFC henv W) HC
+
+/-- The converted anchored-image criterion also transports complete first-layer
+computations. Recursive neutral context conversion retains the exact output;
+the existing anchored substitution then instantiates that output literally. -/
+theorem proofErase_computed_joint_one_compute_inst_converted_anchored
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (HTU : env.IsDefEq univs Γ T U (.sort u))
+    (HT : NeutralTypeChange 0 (proofErase Γ T) (proofErase Γ U))
+    (hp : env.HasType univs Γ p U)
+    (HR : AnchoredFamilyRecovery D cut Γ p (proofErase Γ U) n)
+    (he : env.HasType univs (T :: Γ) e A)
+    (R : ScopedCompute (ErasedComputedJointStage D 1) (proofEraseCtx (T :: Γ))
+      (proofErase (T :: Γ) e) out) :
+    ScopedCompute (ErasedComputedJointStage D 1) (proofEraseCtx Γ)
+      (proofErase Γ (e.inst p)) (out.inst (proofErase Γ p)) := by
+  have RC := proofErase_computed_joint_stage_compute_neutral_context heq hs hΓ HTU HT he R
+  have W : IsDefEqCtx env univs [] (T :: Γ) (U :: Γ) := .succ (.refl hΓ) HTU
+  exact proofErase_computed_joint_one_compute_inst_anchored heq hs hΓ hp HR (he.defeqDFC henv W) RC
 
 end Lean4Lean.VEnv.Strengthening

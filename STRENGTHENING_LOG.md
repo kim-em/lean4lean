@@ -16644,3 +16644,70 @@ stability and completeness are not proved. UniqueTyping.lean:94 still has the
 original sorry. None of GOAL.md's three completion alternatives is established.
 The goal remains active; only Theory and ledgers change, with no PR extraction,
 executable changes, subagents or coordination.
+
+## 2026-11-04 — Recursive neutral conversion at every computed stage and its union
+
+Previous turn was progress: 8c84e010 and a178b1a8 are committed and pushed.
+Inspection found that the earlier recursive-neutral proof demanded arbitrary
+primitive substitution only to transport computation between contexts. This
+would obstruct its use at higher stages, where arbitrary image coverage is
+still open. The new proof removes that unnecessary demand.
+
+ProofErasureNeutralComputationSimulation defines the explicit typed
+RecursiveNeutralComputeContext interface and proves NeutralTypeChange
+simulation from it. The induction is on the actual ScopedCompute path.
+Transitivity reconstructs both actual intermediate types and their equality.
+The Pi branch compares the original source/target domains, simulates both
+components, and transports the target codomain computation once between those
+related contexts. It never extracts a whole codomain path and then moves it
+backwards across an arbitrary computed intermediate domain. Beta simulation
+is structural. ProofErasureNeutralContextRecovery uses the same interface for
+native recovery; actual source and target replay supply the equal types.
+
+The existing ComputedJointCheck simultaneous induction now has a stronger
+recursive_neutral_of_context entry point. Its former substitution-closed API
+is retained as a proved specialization, so old callers keep their contracts.
+ProofErasureComputedNeutralStageContext closes the interface at every finite
+ErasedComputedJointStage. At a successor stage, general singleton guards are
+realized at the actual source, transported at the preceding stage under the
+complete generated dependent telescope, and rebuilt with their exact output.
+Eq prefixes transport their actual carrier guard directly. The compatible
+computation induction reconstructs transitive intermediates and extends the
+actual context equality and oracle relation under binders. There is no
+unrestricted substitution hypothesis in this stage theorem.
+
+The same property is proved for ErasedComputedJointUnion by retaining each
+primitive's finite stage. Complete comparison and carrier conversion therefore
+hold at every finite stage, with no increase, and in the closed union. Public
+corollaries cover whole carrier retargeting, binder/body comparison, and exact
+computation outputs. These still require actual equality and recursive
+NeutralTypeChange; they do not identify arbitrary equal types.
+
+ConvertedAnchoredInstantiation now composes first-layer context conversion
+with anchored first-layer computation substitution. Its selected type may
+be any recursively neutral-related equal type with an anchored path. The
+concrete ConvertedStructuralEtaInstantiation client verifies this composition
+for the exact Pi-wrapped eta image, in addition to its existing complete
+stage-zero body comparison theorem. This is shared-image substitution, not
+heterogeneous endpoint beta stability.
+
+Validation: isolated detached checkout at 8c84e010 with only the six proposed
+source files copied in; all source bytes match the validation checkout. The
+consuming build succeeds in 653 jobs with no changed/new-module warnings
+(/tmp/neutral-all-stages-isolated-build.log). Opaque audit covers all 21 explicit
+public roots in these modules plus the structural negative theorem. The largest
+closure has 11,194 declarations. Expected roots match exactly; only propext,
+Classical.choice and Quot.sound occur, with no sorry sources, weakN_iff,
+weakN_inv, JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability. Artifacts:
+/tmp/neutral-all-stages-audit.lean, .log, -roots.txt. git diff --check passes.
+
+Next: exploit all-stage context conversion inside a compositional interpreted
+substitution class, or in higher-stage selected recovery paths. The remaining
+substitution difficulty is recovery conversion instantiated by intermediate
+arguments outside the covered image class; the context-only theorem does not
+supply that missing coverage. Arbitrary carriers, unrestricted endpoint beta
+stability and completeness remain open. Original UniqueTyping.lean:94 sorry
+remains, and no GOAL.md completion alternative has been established. Concurrently
+appearing structural-family/instantiation edits were excluded and left alone.
+Only Theory and ledgers change; no coordination, subagents or executable edits.
