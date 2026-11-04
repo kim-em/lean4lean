@@ -17662,3 +17662,52 @@ substitution are still open. UniqueTyping.lean:94 remains the original sorry;
 no canonical-Eq counterexample or strictly smaller sufficient irreducible
 obligation is claimed. GOAL.md remains active. Only Theory and these ledger
 appendices were changed by this work; no agents, coordination or executable edits.
+
+
+## 2026-11-04 14:39:52 UTC — Recursive substitution through type-input calls
+
+The previous goal turn made concrete proof progress. Its pending full opaque
+audit has now completed with exit status zero and independently verified root
+and axiom reports. This turn records and commits that verified extension.
+
+ProofErasureTypeInputTree and ProofErasureTypeInputImage add finite trees with
+universe-input function nodes and callable record fields. Application follows
+the dependent result after argument substitution. Retained projection uses the
+original actual record instance and reconstructs the native projected typing.
+Older non-function classes remain unchanged and embed into the new class.
+
+proofErase_scoped_function_recovery_arguments replays the source function's
+selected recovery and obtains actual typings of both arguments at its exact
+domain. ProofErasureStructuralImageSubstitution uses that readout before
+substitution. StructuralFamilyRecovery gains typeInput and exposes the new
+image class; application_checked consumes the actual selected-carrier readout
+and applies the committed carrier-types checking theorem. The public recursive
+substitution and computation consumers acquire no additional assumptions.
+
+ProofErasureTypeInputInstantiation supplies complete stage-zero comparison and
+exact first-layer computation consumers at any actual assigned image type.
+ProofErasureTypeInputBox proves the generic callable parameter-box rule, actual
+projection/application typings and certificates, and exclusion from the old
+image class. ProofErasureTypeInputConvertedExample proves ordinary typing with
+equal but syntactically different written/assigned input universes, failure of
+exact assigned recovery in the full computed union, and successful recursive
+comparison/computation instantiation for the same image.
+
+Validation: 631-job build of 38 explicit modules completed successfully; no
+warnings or errors in the seven changed source files. The exact 291-root audit
+traverses opaque values, types, constructor parents and recursor rules; separate
+#print axioms reports match the manifest. Maximum per-root closure 11,317; only
+propext, Classical.choice and Quot.sound. No sorry sources, weakN_iff,
+weakN_inv, JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability. This is an explicit manifest,
+not a cumulative coverage claim. Artifacts: /tmp/type-input-build.log,
+/tmp/type-input-audit.lean and .log, /tmp/type-input-roots.txt, -files.txt,
+-build-targets.txt, /tmp/verify-type-input-audit.py and
+/tmp/type-input-validation.json (audited source hashes).
+
+UniqueTyping.lean's original sorry remains. No canonical-Eq counterexample or
+strictly smaller sufficient irreducible obligation is claimed. Higher-order
+input guards must retain their carrier information: arbitrary promotion is
+already refuted by the committed unit-image witness. Actual dependent carrier
+conversion/body exposure remains the next live obligation. No executable edits,
+PR extraction, agents or coordination; independent changes are preserved.

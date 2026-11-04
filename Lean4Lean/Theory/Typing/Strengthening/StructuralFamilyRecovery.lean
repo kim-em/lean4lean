@@ -1,11 +1,11 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureSelectedLambdaDomain
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureInstanceProjectionImage
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureTypeInputImage
 
 /-! # Selected recovery with convertible structural family domains
 
 A structural family leaf retains its beta-exposed lambda at a dependent
 function domain. Other function leaves may return values at protected neutral
-types. Structure leaves may carry finite trees of retained record fields after parameter instantiation.
+types. Structure leaves may carry finite trees of retained fields and type-input calls after parameter instantiation.
 Applications end at terminal typing or protected neutral output, so exposure
 terminates even when assigned and written domains have no exact recovery join.
 -/
@@ -28,7 +28,7 @@ private theorem beta_subst (H : VExpr.BetaRed e out) :
   | forallE _ _ ih₁ ih₂ => exact .forallE ih₁ ih₂
   | beta => rw [VExpr.subst_inst]; exact .beta
 
-/-- A path ending in a projection-closed image, a protected neutral
+/-- A path ending in a typed elimination tree, a protected neutral
 output, or a type family with a neutral or convertible structural domain.
 The cutoff counts local binders; the selected output retains core conversions. -/
 inductive StructuralFamilyRecovery (D : PureObservation.Definitions) :
@@ -46,6 +46,9 @@ inductive StructuralFamilyRecovery (D : PureObservation.Definitions) :
   /-- Occurrence-specific trees classify fields after parameter instantiation,
   permitting finite polymorphic record nesting. -/
   | instanceProjection : InstanceProjectionImage Γ e → StructuralFamilyRecovery D cut Γ e out 0
+  /-- A finite typed elimination tree may contain callable fields with universe
+  inputs and dependent certified results. -/
+  | typeInput : TypeInputImage Γ e → StructuralFamilyRecovery D cut Γ e out 0
   /-- A neutral selected output cannot feed a function or structure recovery.
   No native recovery or normalization of the expression is required. -/
   | neutral : AnchoredCarrier cut out → StructuralFamilyRecovery D cut Γ e out 0
@@ -95,6 +98,7 @@ theorem StructuralFamilyRecovery.subst (H : StructuralFamilyRecovery D cut Γ e 
   | projectable H => exact .projectable (H.subst hΓ₀ W)
   | projectionClosed H => exact .projectionClosed (H.subst hΓ₀ W)
   | instanceProjection H => exact .instanceProjection (H.subst hΓ₀ W)
+  | typeInput H => exact .typeInput (H.subst hΓ₀ W)
   | neutral HA => exact .neutral (HA.subst WH)
   | family h HA =>
     obtain ⟨_, hPi⟩ := h.isType henv W.wf
@@ -152,13 +156,13 @@ theorem StructuralFamilyRecovery.subst (H : StructuralFamilyRecovery D cut Γ e 
   | convert H R ih =>
     exact .convert (ih hΓ₀ W ES ht WH) (R.subst (fun H => erased_iota_primitive_subst H))
 
-/-- Head exposure stops at a projection-closed image or protected neutral output,
+/-- Head exposure stops at a typed elimination tree or protected neutral output,
 or retains computation from a family/exposed Pi to the selected output.
 Application consumes a smaller body path and one conversion node;
 the rank remains strictly below the original application path. -/
 theorem StructuralFamilyRecovery.expose (H : StructuralFamilyRecovery D cut Γ e out n)
     (hΓ : OnCtx Γ (env.IsType univs)) (ht : env.HasType univs Γ e T) :
-    InstanceProjectionImage Γ e ∨ AnchoredCarrier cut out ∨
+    TypeInputImage Γ e ∨ AnchoredCarrier cut out ∨
       (∃ C u, env.HasType univs Γ e (.forallE C (.sort u)) ∧
         AnchoredCarrier cut (proofErase Γ C) ∧
         Compute (ErasedIotaPrimitive D) (.forallE (proofErase Γ C) (.sort u)) out) ∨
@@ -178,11 +182,12 @@ theorem StructuralFamilyRecovery.expose (H : StructuralFamilyRecovery D cut Γ e
   induction n using Nat.strongRecOn generalizing cut Γ e out T with
   | ind n ih =>
     cases H with
-    | type h => exact .inl (.closed (.terminal (.type h)))
-    | terminal H => exact .inl (.closed (.terminal H))
-    | projectable H => exact .inl (.closed H.closed)
-    | projectionClosed H => exact .inl (.closed H)
-    | instanceProjection H => exact .inl H
+    | type h => exact .inl (.projection (.closed (.terminal (.type h))))
+    | terminal H => exact .inl (.projection (.closed (.terminal H)))
+    | projectable H => exact .inl (.projection (.closed H.closed))
+    | projectionClosed H => exact .inl (.projection (.closed H))
+    | instanceProjection H => exact .inl (.projection H)
+    | typeInput H => exact .inl H
     | neutral HA => exact .inr (.inl HA)
     | family h HA => exact .inr (.inr (.inl ⟨_, _, h, HA, .refl⟩))
     | neutralFamily h HA HC => exact .inr (.inr (.inr (.inl ⟨_, _, h, HA, HC, .refl⟩)))
@@ -212,17 +217,17 @@ theorem StructuralFamilyRecovery.expose (H : StructuralFamilyRecovery D cut Γ e
     | @app cut Γ f X Y k a H =>
       obtain ⟨_, _, hf, hx⟩ := ht.app_inv henv hΓ
       rcases ih k (by omega) H hΓ hf with HT | HN | ⟨C, u, hfPi, _, _⟩ | ⟨X, Y, _, _, HC, RT⟩ | ⟨X, Y, b, u, K, hfStruct, _, _, _⟩ | ⟨A, b, B, m, raw, hm, HB, RF, HD, RT⟩
-      · exact (HT.not_function hΓ hf).elim
+      · exact .inl (HT.application hΓ ht)
       · exact (HN.not_exposed .function).elim
       · have hxC := argument_at_displayed_domain hΓ hf hfPi hx
-        exact .inl (.closed (.terminal (.type (by simpa only [VExpr.inst] using HasType.app hfPi hxC))))
+        exact .inl (.projection (.closed (.terminal (.type (by simpa only [VExpr.inst] using HasType.app hfPi hxC)))))
       · obtain ⟨_, _, EE, _, RC⟩ := core_forall_parts RT
         obtain ⟨rfl, rfl⟩ := ProofShape.forallE.inj EE
         have HN := (HC.core_compute RC).subst (PreservesCarrierHeads.one (proofErase Γ a))
         apply Or.inr; apply Or.inl
         simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using HN
       · have hxK := argument_at_displayed_domain hΓ hf hfStruct hx
-        exact .inl (.closed (.terminal (.type (by simpa only [VExpr.inst] using HasType.app hfStruct hxK))))
+        exact .inl (.projection (.closed (.terminal (.type (by simpa only [VExpr.inst] using HasType.app hfStruct hxK)))))
       obtain ⟨_, _, EE, _, RB⟩ := core_forall_parts RT
       obtain ⟨rfl, rfl⟩ := ProofShape.forallE.inj EE
       have HE := RF.simAt henv.orderedStrong henv.betaSubjectReduction hΓ _ hf
@@ -280,6 +285,7 @@ private theorem erase_function_sort
 /-- The selected recovery path repairs an application from its existing finite
 argument guard. A structural-family leaf converts the whole guard to the
 written domain; the other leaves use exact exposure or neutral inertness.
+The selected raw domain has an actual typed readout, supplied by source recovery.
 No target comparison or guard beyond the recursive premises is assumed. -/
 theorem StructuralFamilyRecovery.application
     (hs : D.Sound env univs)
@@ -287,6 +293,7 @@ theorem StructuralFamilyRecovery.application
     (hΓ : OnCtx Γ (env.IsType univs))
     (hf : env.HasType univs Γ f (.forallE C E)) (hn : ¬ IsProof Γ f)
     (hx : env.HasType univs Γ x C) (hy : env.HasType univs Γ y C)
+    (EC : proofErase Γ C = A)
     (HF : ComputedJointCompare (ErasedJointStage D 0) (proofEraseCtx Γ) false
       (proofErase Γ f) g)
     (HX : ComputedJointCarrierGuard (ErasedJointStage D 0) (proofEraseCtx Γ)
@@ -295,7 +302,9 @@ theorem StructuralFamilyRecovery.application
       (.app (proofErase Γ f) (proofErase Γ x)) (.app g (proofErase Γ y)) := by
   rcases H.expose hΓ hf with HT | HN | ⟨X, u, _, HA, RT⟩ |
       ⟨X, Y, _, HA, _, RT⟩ | ⟨X, Y, b, u, K, hstruct, HA, RF, RT⟩ | ⟨X, b, Y, _, raw, _, _, RF, HD, RT⟩
-  · exact (HT.not_function hΓ hf).elim
+  · exact HT.application_checked
+      (ErasedScopedPrimitiveCertificateDescent.descent (erased_joint_zero_certificate_descent hs))
+      hΓ hf hx hy EC HF HX
   · exact (HN.not_exposed .function).elim
   · obtain ⟨_, _, EE, RA, _⟩ := core_forall_parts RT
     obtain ⟨rfl, rfl⟩ := ProofShape.forallE.inj EE

@@ -6214,3 +6214,48 @@ invoke the desired substitution theorem on a newly produced residual whose
 size is uncontrolled. Nor can arbitrary comparison-based carrier conversion be
 added without addressing whether its intermediate carrier descends. These are
 live proof obligations, not new axioms or a completed smaller sufficient front.
+
+
+## 2026-11-04 14:39:52 UTC — Callable fields with type inputs
+
+Verdict: checked extension of recursive substitution to finite typed trees of
+universe-input calls and instantiated record projections. TypeInputTree embeds
+the previous non-functional instance tree, adds functions from a universe with
+a certified dependent result, and allows callable children in positive
+unindexed record instances. Typed application substitutes the argument into
+the result certificate; retained projection selects the instantiated child.
+TypeInputImage preserves these trees under ordinary typed substitution and
+backward equality replay.
+
+The missing selected-carrier readout is now proved, not assumed by the public
+substitution theorem. Source native recovery replays to an actual typed Pi;
+uniqueness types both source arguments at its exact erased domain. Substitution
+preserves that readout. Callable input typings then show both arguments are
+types, allowing proofErase_computed_carrier_types_checked to discharge their
+entire supplied guard, including computation and reduction cases. This repairs
+application without requiring native recovery for the substituted function.
+
+Two strictness witnesses: a positive polymorphic box may contain a function
+from Type to Type, whose retained projection can be applied to Prop; the old
+InstanceProjectionImage class cannot certify that box. A lambda written with
+input Sort 1 may be assigned input Sort (max 1 0); exact assigned-type recovery
+fails in the full computed union, but its tree instantiates recursive stage-zero
+comparison and exact first-layer computation. The generic callable-box consumer
+also instantiates full body comparisons.
+
+Boundary: this is not arbitrary-domain application or higher-stage substitution.
+Free type-variable result heads need additional certificates; mixed proof/data
+field schemas and new indexed/non-positive record nodes remain unsupported.
+GOAL.md's strengthening theorem and smaller-sufficient-front deliverable remain
+open. The preceding goal work was progress; the pending audit now completed
+successfully (291 explicit roots, maximum closure 11,317).
+
+Next live direction: preserve carrier-mode guards for function-valued inputs
+and compare their dependent results under the actual selected carrier. Do not
+blindly promote arbitrary guards to plain comparison: the existing checked
+carrier_recovered_nonjoining_unit_images witness has a unit carrier guard
+between distinct retained variables but no original ComputedJointCompare.
+The new type-input proof succeeds because its endpoints have sort typings;
+removing that premise is refuted. A higher-order extension needs a proved
+carrier conversion or typed lambda/body exposure, including dependent codomain
+alignment, rather than assuming the desired substituted body comparison.

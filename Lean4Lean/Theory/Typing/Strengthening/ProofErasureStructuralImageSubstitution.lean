@@ -121,18 +121,18 @@ theorem StructuralOrRecoveringImages.inst
     exact .bvar
 
 /-- A retained projection whose major lost exact native recovery still has a
-projection-closed result along a finite structural path. The selected raw major type
+typed elimination tree along a finite structural path. The selected raw major type
 is required not to be a protected neutral; projection recovery supplies this
 from its rigid owner head. -/
 theorem StructuralFamilyRecovery.projection_image (H : StructuralFamilyRecovery D cut Γ e out n)
     (hΓ : OnCtx Γ (env.IsType univs))
     (ht : env.HasType univs Γ (.proj s i e) T)
     (hn : ¬ IsProof Γ (.proj s i e))
-    (Hout : ¬ AnchoredCarrier cut out) : InstanceProjectionImage Γ (.proj s i e) := by
+    (Hout : ¬ AnchoredCarrier cut out) : TypeInputImage Γ (.proj s i e) := by
   obtain ⟨_, _, _, _, _, _, _, hi, _, _, _, _, _, _, hm, _, _⟩ := ht.proj_inv henv hΓ
   have htMajor := hm.hasType.2
   rcases H.expose hΓ htMajor with HT | HN | ⟨A, u, hf, _, _⟩ | ⟨X, Y, hfN, _, _, _⟩ | ⟨X, Y, b, u, v, hf, _, _, _⟩ | ⟨A, b, _, _, _, _, _, R, _, _⟩
-  · exact HT.projection hΓ ht hn
+  · exact HT.projection_image hΓ ht hn
   · exact (Hout HN).elim
   · have HE := hf.uniqU henv hΓ htMajor
     obtain ⟨_, hPi⟩ := hf.isType henv hΓ
@@ -224,7 +224,7 @@ theorem proofErase_joint_zero_recovery_subst_structuralImages
       rw [projectionType_subst HT hj (by omega)]
       exact .proj hi HT hj (by simpa only [List.length_map] using hlen) R
     · apply Or.inr
-      refine ⟨0, .instanceProjection ?_⟩
+      refine ⟨0, .typeInput ?_⟩
       exact H.projection_image hΓ₀ (ht.subst henv.orderedStrong W hΓ₀)
         (mt (isProof_subst hΓ₀ W ht).1 hn) (by
           rintro ⟨i, args, _, HE⟩
@@ -260,8 +260,15 @@ theorem proofErase_joint_zero_function_subst_structural_application
   rcases proofErase_joint_zero_recovery_subst_structuralImages hs R hΓ₀ W ES hf rfl rfl HI with
     HR | ⟨n, H⟩
   · exact .appCarrier (by simpa only [proofErase_subst_with hΓ₀ W hf ES, ProofShape.subst] using HR) HF HX
-  · exact H.application hs hΓ₀ (hf.subst henv.orderedStrong W hΓ₀)
+  · have hstep : ErasedScopedPrimitiveDescent (ErasedJointStage D 0) :=
+      ErasedScopedPrimitiveCertificateDescent.descent (erased_joint_zero_certificate_descent hs)
+    obtain ⟨C', E', hf', hx', hy', EC, _⟩ :=
+      proofErase_scoped_function_recovery_arguments hstep W.wf hf hx hy R
+    obtain ⟨_, hPi⟩ := hf'.isType henv W.wf
+    obtain ⟨⟨_, hC'⟩, _, _⟩ := hPi.forallE_inv henv
+    exact H.application hs hΓ₀ (hf'.subst henv.orderedStrong W hΓ₀)
       (mt (isProof_subst hΓ₀ W hf).1 hn)
-      (hx.subst henv.orderedStrong W hΓ₀) (hy.subst henv.orderedStrong W hΓ₀) HF HX
+      (hx'.subst henv.orderedStrong W hΓ₀) (hy'.subst henv.orderedStrong W hΓ₀)
+      (by rw [proofErase_subst_with hΓ₀ W hC' ES, EC]) HF HX
 
 end Lean4Lean.VEnv.Strengthening
