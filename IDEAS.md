@@ -9086,3 +9086,31 @@ configured forbidden dependencies absent. All 747 local import sources
 hash-stable. Artifacts: `/dev/shm/static-sort-context-*`; preparation
 `/dev/shm/prepare-static-sort-context-audit.py`. No executable changes, PR
 extraction or coordination. Goal remains active.
+
+
+## Returning computed control types before binder transport (2026-11-04)
+
+A full enriched computation from any well-formed closed control type (universes
+and arbitrary nested arrows) now has a path back to its EXACT initial type.
+The key general lemma is dependent: if a Pi domain and codomain admit return
+paths in their original contexts, so does the whole Pi. Marked readout exposes
+both histories; restoring the domain FIRST puts the codomain return in exactly
+the context where it was established. No forward binder premise is needed for
+this composition, and intermediate syntax is unrestricted.
+
+Consequences: all forks at control types join; common native evidence at such
+a type restores its exact assigned output; binders computed from control types
+admit exact forward native transport for arbitrary bodies and selected types;
+and common-native application extends to arbitrary higher-order control
+arguments. A generic backward-context recovery theorem is also explicit.
+This is a proved family of forward-binder cases, not general type confluence,
+universal common coverage, strengthening, or a sufficient smaller front. The
+next extension uses neutral observations to admit dependent type variables.
+
+Validation: one new module, 157 Lean lines, seven public roots; isolated explicit
+747-job build and complete seven-root audit (maximum closure 11,543), standard
+axioms only and no forbidden dependencies or sorry sources. All 722 local closure
+sources hash-stable and isolated-identical. Artifacts:
+`/tmp/carrier-static-control-return-*`; prep
+`/tmp/prepare-carrier-static-control-return.py`. No new warnings, executable
+changes or coordination. Independent untracked files preserved. Goal active.
