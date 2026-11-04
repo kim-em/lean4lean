@@ -20678,3 +20678,51 @@ strengthening, joint beta-front/stability, semantic head exposure, excluded
 selected-domain/structural-image recovery, or excluded native alignment
 dependency. All 747 imported local sources were hash-stable; no new-module warnings.
 Artifacts: `/dev/shm/eta-level-native-*`. Independent files and index preserved.
+
+
+## Neutral eta diamonds on arbitrary application spines (2026-11-04)
+
+Added five modules: `ProofErasureNativeEtaDiamond`, `ProofErasureVariableEtaDiamond`,
+`ProofErasureConstantEtaDiamond`, `ProofErasureSpineEtaDiamond`, and
+`ProofErasureNeutralEtaPeaks` (471 Lean lines, 19 public roots).
+
+The generic domain diamond realizes each native Pi guard at the actual source,
+uses ordinary type uniqueness to equate the selected domain sort levels, and
+therefore proves identical erased fresh arguments. A common core reduct of the
+selected domains joins the long forms by annotation computation alone. If the
+core has no Pi-root primitive, a join of the native Pi outputs supplies that domain
+join. This part allows any typed short source, subject to the explicit type join.
+
+The native-output join premise is discharged for all variable/constant application
+spines when each guard relation has core-joinable typed paths. Variables use their
+common context lookup, constants their common registered declaration. Applications
+join the recovered function Pis, invert the core paths to common codomains, and
+instantiate by raw core substitution. Typed replay then composes both outer
+conversion histories. Arguments are unrestricted, including proofs and impure or
+non-normalizing terms; no argument native certificate is requested.
+
+The concrete guard language permits arbitrarily nested literal-lambda eta, mixed
+ordinary/universe core computation, and controlled constant/native-identity
+expansion. Two independently guarded neutral eta expansions have a level-core
+common reduct, and independent lambda-eta-union continuations on each long branch
+preserve that join. All four base identity-guard relations may differ. The actual
+environment wrapper needs only well-formedness and canonical Eq, with stored
+definitions and full eta-union base identity guards; there is no additional
+quotient-registration assumption.
+
+Research judgment: the earlier variable/eta core nonjoin obstruction is respected;
+this proof compares the long branches directly. It resolves a real neutral
+root/root peak with arbitrary application arguments, but does not establish full
+eta-union confluence or coverage. Arbitrary neutral eta and singleton-prefix paths
+inside guards or continuations remain outside this theorem. Source-changing native
+comparison and projection-headed sources are still open. No strictly smaller
+sufficient strengthening obligation, strengthening proof, or counterexample is
+claimed. The original `UniqueTyping.lean` sorry is unchanged; executable unchanged.
+
+Validation: both explicit five-target builds passed (764 jobs). The isolated audit
+checked all 19 public declarations, transitive types and opaque proof values,
+inductive constructors and recursor RHSs. Maximum closure 11,605; axioms restricted
+to `propext`, `Classical.choice`, `Quot.sound`; all configured forbidden dependencies
+absent. Every one of the 739 imported local sources remained hash-stable and byte
+identical to its isolated copy. No new-module warnings. Artifacts:
+`/tmp/carrier-neutral-eta-*`, prep `/tmp/prepare-carrier-neutral-eta.py`.

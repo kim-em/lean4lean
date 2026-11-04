@@ -8472,3 +8472,40 @@ eta-aware common-native coverage, and the strengthening conclusion remain open.
 Validation: two modules, 772 jobs, 10 public roots, maximum dependency closure
 11,960; standard axioms only and exclusions clean. All 747 imported local sources
 were hash-stable and no new-module warnings occurred. Goal active; no PR extraction.
+
+
+### Neutral eta: compare the two long branches (2026-11-04)
+
+**Proved for variable/constant application spines.** The prior checked obstruction
+says a variable cannot core-join its eta expansion. That does not prevent two
+independently selected eta expansions from core-joining each other. Typed native
+replay and sort uniqueness first align the fresh argument's proof classification.
+A core join of the selected Pi types then joins the two domains, leaving identical
+long-form bodies. Native recoveries of a variable start from the same lookup;
+constant recoveries start from the same declaration; application recovery joins
+codomains and substitutes the same unrestricted argument. Thus independent native
+guards with core-joinable typed paths yield joined native outputs on every
+variable/constant-headed application spine. No argument native evidence, purity,
+termination, or assigned-type recovery is required.
+
+The guard relations may be independent unions with arbitrarily nested eta on
+literal lambdas. Two root neutral eta expansions remain core-joined after
+independent lambda-eta-union paths on their long branches. All four base identity
+guard relations may differ and need only source descent. Actual well-formed
+environments with canonical Eq instantiate the theorem using stored definitions
+and full-eta-union base identity guards, without quotient registration.
+
+**Boundary:** this is a long/long root-peak result, not full neutral-eta confluence.
+It neither core-joins the short source to a long form nor permits arbitrary neutral
+eta and singleton-prefix computations inside the guards or continuations. Changed
+neutral sources, projection-headed recovery, full eta-aware coverage, and the
+remaining global confluence/strengthening argument are still open. This result is
+not a new sufficient obligation strictly smaller than PropFront. Next live step:
+relate independently recovered guards across a changing source, rather than demand
+an impossible core join between that source and its eta expansion.
+
+Validation: five modules, 471 Lean lines; both explicit builds completed 764 jobs;
+19 public-root audits (including the new spine inductive's constructors and recursor
+rules), maximum closure 11,605, standard axioms only and forbidden dependencies
+absent. All 739 imported local sources were hash-stable and identical to the isolated
+copy. No new-module warnings. Artifacts: `/tmp/carrier-neutral-eta-*`. Goal active.
