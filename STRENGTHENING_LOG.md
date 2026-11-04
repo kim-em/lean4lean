@@ -17455,3 +17455,58 @@ obligation is claimed. Next investigate finite recursive projection-field
 certificates, while preserving the separate unresolved function-domain and
 higher-stage substitution obligations. Only Theory and these ledger additions
 change; no executable changes, agents, coordination, or PR extraction.
+
+
+### 2026-11-04 14:09 UTC — finite nested projection coverage and its parameter boundary
+
+Previous goal turn classified as progress, revalidated from 6169cb5a and the
+current sources. Continued the documented nested-projection direction. No live
+process from the preceding turn required waiting or restarting; independent
+untracked work was preserved.
+
+ProofErasureProjectionClosedImage adds the finite declaration tree, its
+substitution and universe-specialization laws, telescope constructor, embedding
+of prior terminal-field certificates, actual image typing, backward equality
+replay, non-functionality, and closure under retained typed projection. This
+permits an intermediate projected image to be another record rather than a
+terminal value. The tree's rigid type arguments may depend on earlier fields;
+the current declaration-only schema still excludes free parameter heads.
+
+StructuralFamilyRecovery gains projectionClosed and exposes the larger image
+class. ProofErasureStructuralImageSubstitution returns another projectionClosed
+leaf when projected majors lose exact native recovery. The old public
+StructuralFamilyRecovery.projection_terminal is deliberately replaced by
+projection_closed because immediate terminality no longer follows. Existing
+ProjectionTerminalImage APIs and old instantiation consumers are preserved by
+an explicit embedding; no source claims terminality of nested record results.
+
+ProofErasureProjectionClosedInstantiation supplies all recursive comparison and
+first-layer computation consumers, retaining exact outputs and comparison mode.
+ProofErasureProjectionClosedExamples proves the repeatable nested-record field
+rule, a typed two-projection separation from ProjectionTerminalImage, and the
+nested-record body-instantiation theorem. ProofErasureProjectionClosedParameterBoundary
+then proves that a parameter-field box at Type still has no ProjectionClosedImage
+certificate, even through an alternate convertible type. Its projection is
+actually typed and retained. This is a limitation of this image class; it does
+not refute the substitution theorem, declarative strengthening, or all alternate
+recovery certificates.
+
+Validation: 621-job build of 29 explicit affected/consuming modules; no warnings
+or errors in the six changed source modules. Exact 238-root full opaque
+dependency traversal, plus independent #print axioms output, covers the new and
+modified public declarations, constructors, prior consumers and both boundaries.
+The manifest removes the replaced projection_terminal root and includes
+projection_closed. Maximum per-root closure 11,267; only propext,
+Classical.choice and Quot.sound. No sorry sources, weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability. No cumulative inventory claim.
+Artifacts: /tmp/projection-closed-build.log; /tmp/projection-closed-audit.lean
+and .log; /tmp/projection-closed-roots.txt, -files.txt, -build-targets.txt;
+/tmp/projection-closed-validation.json, including audited source hashes.
+
+GOAL.md is still open. The original strengthening sorry remains; no canonical-Eq
+counterexample or strictly smaller sufficient irreducible obligation has been
+delivered. The parameter-field boundary changes the next action from merely
+adding record depth to investigating occurrence-specific field certificates
+with actual projection typing and guards. No executable edits, agents,
+coordination, or PR extraction; independent work remains untouched.

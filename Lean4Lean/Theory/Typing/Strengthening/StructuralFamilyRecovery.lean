@@ -1,11 +1,11 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureSelectedLambdaDomain
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureProjectionTerminalImage
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureProjectionClosedImage
 
 /-! # Selected recovery with convertible structural family domains
 
 A structural family leaf retains its beta-exposed lambda at a dependent
 function domain. Other function leaves may return values at protected neutral
-types. Structure leaves may have retained fields with terminal results.
+types. Structure leaves may carry finite trees of retained record fields.
 Applications end at terminal typing or protected neutral output, so exposure
 terminates even when assigned and written domains have no exact recovery join.
 -/
@@ -28,7 +28,7 @@ private theorem beta_subst (H : VExpr.BetaRed e out) :
   | forallE _ _ ih₁ ih₂ => exact .forallE ih₁ ih₂
   | beta => rw [VExpr.subst_inst]; exact .beta
 
-/-- A path ending in a terminal or terminal-field image, a protected neutral
+/-- A path ending in a projection-closed image, a protected neutral
 output, or a type family with a neutral or convertible structural domain.
 The cutoff counts local binders; the selected output retains core conversions. -/
 inductive StructuralFamilyRecovery (D : PureObservation.Definitions) :
@@ -40,6 +40,9 @@ inductive StructuralFamilyRecovery (D : PureObservation.Definitions) :
   /-- A structure may have retained fields when each valid projection has a
   terminal result; the selected raw output need not be recovered exactly. -/
   | projectable : ProjectionTerminalImage Γ e → StructuralFamilyRecovery D cut Γ e out 0
+  /-- A finite declaration tree permits repeated retained projections through
+  nested records, without recovering the selected raw output. -/
+  | projectionClosed : ProjectionClosedImage Γ e → StructuralFamilyRecovery D cut Γ e out 0
   /-- A neutral selected output cannot feed a function or structure recovery.
   No native recovery or normalization of the expression is required. -/
   | neutral : AnchoredCarrier cut out → StructuralFamilyRecovery D cut Γ e out 0
@@ -87,6 +90,7 @@ theorem StructuralFamilyRecovery.subst (H : StructuralFamilyRecovery D cut Γ e 
   | type h => exact .type (h.subst henv.orderedStrong W hΓ₀)
   | terminal H => exact .terminal (H.subst hΓ₀ W)
   | projectable H => exact .projectable (H.subst hΓ₀ W)
+  | projectionClosed H => exact .projectionClosed (H.subst hΓ₀ W)
   | neutral HA => exact .neutral (HA.subst WH)
   | family h HA =>
     obtain ⟨_, hPi⟩ := h.isType henv W.wf
@@ -144,13 +148,13 @@ theorem StructuralFamilyRecovery.subst (H : StructuralFamilyRecovery D cut Γ e 
   | convert H R ih =>
     exact .convert (ih hΓ₀ W ES ht WH) (R.subst (fun H => erased_iota_primitive_subst H))
 
-/-- Head exposure stops at a terminal/terminal-field image or protected neutral output,
+/-- Head exposure stops at a projection-closed image or protected neutral output,
 or retains computation from a family/exposed Pi to the selected output.
 Application consumes a smaller body path and one conversion node;
 the rank remains strictly below the original application path. -/
 theorem StructuralFamilyRecovery.expose (H : StructuralFamilyRecovery D cut Γ e out n)
     (hΓ : OnCtx Γ (env.IsType univs)) (ht : env.HasType univs Γ e T) :
-    ProjectionTerminalImage Γ e ∨ AnchoredCarrier cut out ∨
+    ProjectionClosedImage Γ e ∨ AnchoredCarrier cut out ∨
       (∃ C u, env.HasType univs Γ e (.forallE C (.sort u)) ∧
         AnchoredCarrier cut (proofErase Γ C) ∧
         Compute (ErasedIotaPrimitive D) (.forallE (proofErase Γ C) (.sort u)) out) ∨
@@ -172,7 +176,8 @@ theorem StructuralFamilyRecovery.expose (H : StructuralFamilyRecovery D cut Γ e
     cases H with
     | type h => exact .inl (.terminal (.type h))
     | terminal H => exact .inl (.terminal H)
-    | projectable H => exact .inl H
+    | projectable H => exact .inl H.closed
+    | projectionClosed H => exact .inl H
     | neutral HA => exact .inr (.inl HA)
     | family h HA => exact .inr (.inr (.inl ⟨_, _, h, HA, .refl⟩))
     | neutralFamily h HA HC => exact .inr (.inr (.inr (.inl ⟨_, _, h, HA, HC, .refl⟩)))

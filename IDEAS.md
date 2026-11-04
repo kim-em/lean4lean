@@ -6022,3 +6022,52 @@ through the finite declaration certificate, rather than assuming normalization
 or a future comparison law. This extension has not yet been implemented or
 proved. Mixed proof/data fields and general function-valued fields need further
 arguments; the existing all-proof-field case remains available separately.
+
+
+### 2026-11-04 14:09 UTC — finite nested projection coverage and its parameter boundary
+
+Verdict: finite recursive projection-field coverage is proved and connected to
+full stage-zero comparison and exact first-layer computation instantiation.
+ProjectionClosedType is an inductive tree with TerminalFieldShape leaves and
+registered record nodes whose declared field domains carry child trees. The
+record premise is declaration syntax, not a future comparison or transport law.
+Substitution and universe specialization change occurrence arguments while
+preserving the declared tree. ProjectionClosedImage combines actual typing at
+such a tree with the earlier terminal-image cases, including proof-only images.
+
+The projection theorem uses actual projection inversion and the constructor
+field-type equation to instantiate the child tree at the native source's
+parameters, universe levels and earlier projections. Its result belongs to
+ProjectionClosedImage again. StructuralFamilyRecovery gains a projectionClosed
+leaf; its exposure and recovery-substitution proof carry that closed class
+through repeated projections. The former projection_terminal theorem is
+replaced by projection_closed: immediate terminality would be false for the
+enlarged class. Earlier terminal-field APIs embed through
+ProjectionTerminalImage.closed and their consumers still compile.
+
+Positive separation: a positive wrapper record around the preceding retained
+type/data record has two actually typed retained projections. Its first result
+is not terminal, so its major cannot satisfy ProjectionTerminalImage, but it
+has a ProjectionClosedImage certificate. The wrapping constructor rule is
+repeatable, and the full recursive comparison consumer handles nested records
+without fixing a projection path in advance.
+
+New checked boundary: a polymorphic box whose field type is its type parameter
+has no declaration-only field tree even at the concrete occurrence Box Type.
+The actual projection is typed at Type and retained. The major has no
+ProjectionClosedImage certificate, including via another ordinarily convertible
+type: terminal alternatives contradict the retained projection, and rigid-owner
+injectivity forces any record alternative back to the same parameter-field
+schema. This refutes universal image coverage by this certificate alone, not
+strengthening or coverage by every other native/structural alternative.
+
+Next live direction: occurrence-specific field certificates, initially for
+positive unindexed structures. Specializing constructor parameters before
+classifying the remaining field domains could cover Box Type. Actual field
+typing must be reconstructed from the original major and projection guards;
+positive result universes make those guards available, and existing structure
+reconstruction may supply the needed telescope typing. Typed substitution must
+transport the specialized field syntax and its certificate. No such law has
+been assumed or proved here. General function-valued fields, mixed proof/data
+fields and arbitrary higher-stage substitution remain separate gaps. No
+strictly smaller sufficient strengthening obligation has been established.
