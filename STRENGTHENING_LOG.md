@@ -21429,3 +21429,32 @@ dependencies. All 743 local import sources hash-stable. Artifacts:
 `/dev/shm/static-proof-context-*`; preparation
 `/dev/shm/prepare-static-proof-context-audit.py`. No executable changes, PR
 extraction or coordination. Goal remains active.
+
+
+## Exact transport at computed universe binders (2026-11-04 22:53:05 UTC)
+
+Verdict: the literal-universe branch of forward binder transport is now
+proved with exact outputs and no stage increase. The newly committed sort
+readout supplies beta reduction from every full-union reduct of sort u to an
+equivalent literal sort. A stage-zero level step returns to the original u.
+The existing backward-context image theorem then runs in the needed forward
+direction, yielding stage-zero exact native identity images for the computed
+binder. Its original domain path may have arbitrary guard depth.
+
+A CommonNativeArgument assigned sort u also yields exact recovery of sort u,
+using the committed exact-sort readout. Consequently beta contraction at a
+commonly recovered type argument preserves every selected native result
+exactly, including its final conversion tail. No general forward-binder,
+common-instantiation, confluence, or data-coverage premise is used. Together
+with proof-context transport this closes two concrete branches of the native
+transport problem. General retained data arguments (and arbitrary nonliteral
+annotations merely convertible to universes) remain open; these results do not
+close strengthening or establish a sufficient strictly smaller PropFront.
+
+Validation: one module, 109 Lean lines, six public roots; explicit 772-job
+build and complete dependency audit (types, opaque bodies, constructors and
+recursor rules), maximum closure 11,530, standard axioms only and all
+configured forbidden dependencies absent. All 747 local import sources
+hash-stable. Artifacts: `/dev/shm/static-sort-context-*`; preparation
+`/dev/shm/prepare-static-sort-context-audit.py`. No executable changes, PR
+extraction or coordination. Goal remains active.
