@@ -8753,3 +8753,32 @@ dependencies absent. All 688 imported local sources were hash-stable. Artifacts:
 `/dev/shm/static-structure-eta-*`. Concurrent alternate structure-expansion files
 were preserved; distinct module names avoid the observed untracked filename
 collision. No coordination or PR extraction.
+
+
+## Closed telescope masks and projection residuals (2026-11-04)
+
+Added an independent constructor-telescope formulation of general native
+structure expansion. Proof status of every supplied telescope argument is
+exactly proof status of its variable in the closed full telescope; this fixes
+masks even for dependent proof fields. The raw recipe commutes with arbitrary
+substitution. Native family recovery then supports arbitrary-block descent,
+renaming and typed native-image substitution of the whole expansion.
+
+Projection of the expanded constructor computes in the primitive core to the
+original field erasure. This includes proof fields and needs no native
+certificates for parameters, fields or the expanded major. A separate residual
+module connects this result directly to the committed static-mask structure-eta
+language. The two mask presentations coexist; no parallel stage hierarchy was
+introduced. These are local source-change cases, not general confluence,
+coverage, strengthening or a sufficient smaller front.
+
+Validation: four new modules, 386 Lean lines, 20 public roots; isolated explicit
+715-job build covering ten changed modules; all 71 public roots in those modules
+audited through types, opaque values, constructors and recursor RHSs, maximum
+closure 11,121. Only propext/Classical.choice/Quot.sound and no configured
+forbidden dependencies. All 690 imported local sources hash-stable and identical
+to the isolated copies. Artifacts `/tmp/carrier-native-structure-*`; preparation
+`/tmp/prepare-carrier-native-structure.py`. Next live question: native recovery
+of the expanded constructor at its original family, then its interaction with
+source computation and independently selected family instances. The original
+strengthening sorry remains open.
