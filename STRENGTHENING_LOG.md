@@ -17188,3 +17188,41 @@ is its instantiated-endpoints theorem at 11,195; standard axioms only and no
 forbidden dependencies. The original strengthening sorry remains at
 UniqueTyping.lean:94. No full beta stability, completeness, strict-smallness
 judgment or canonical-Eq counterexample is claimed.
+
+## 2026-11-04 — A new typed beta boundary survives recovered-carrier saturation
+
+6de41367 is pushed. Testing the enlarged relation revealed a sharper obstruction
+than the earlier unit-variable peak. RecoveryBoundary proves that comparison
+of distinct variable endpoints forces a common raw computational result of their
+native context lookup types. The proof covers base, recovered, computation and
+symmetry branches; all structural heads are impossible. A conditional typed
+identity peak then isolates nonjoining native lookup types at a positive common
+subsingleton carrier as sufficient for common-mode beta failure.
+
+ConvertedUnitBoundary supplies that missing typed instance. In a context with
+p,q:S and F:S→Type, unit eta gives equality between the domains F p and F q.
+The positive function types A=(F p)→S and B=(F q)→S are therefore convertible.
+After adjoining x:A and y:B, both variables have actual type A. Their native
+lookup types erase to Pi types with distinct neutral variable-application
+domains. ScopedCompute.forallE_domain_inv and bvar_app_fixed prove these types
+have no common computational result even in the full recovered-carrier union.
+Yet the two identity applications at annotation A compare at stage zero using
+the explicit subsingleton function carrier. Their beta reducts are the distinct
+variables and fail the new comparison at every stage.
+
+This establishes a conditional certificate-language counterexample to general
+common-mode beta stability, not a counterexample to strengthening. The sole
+environment-specific premise is a closed positive empty structure with its
+projection registration; the construction requires no absence of canonical Eq
+and no definitions restrictions. It does not refute proposition-only beta
+stability. A next repair would compare the two recovered native types rather
+than demand a computational join; that repair is not assumed or implemented.
+
+Validation: both modules rebuilt in the isolated baseline used above, excluding
+all independent concurrent source changes. 659 jobs pass, no new-module warnings.
+All four public roots pass the opaque inductive/recursor audit, largest closure
+8,368, only standard axioms and no forbidden dependencies. Exact source bytes
+match. Artifacts: /tmp/carrier-converted-unit-isolated-build.log and
+/tmp/carrier-converted-unit-audit.lean, .log, -roots.txt. Original
+UniqueTyping.lean:94 remains open; GOAL.md remains active. Only Theory and
+ledgers change, with no coordination or subagents.

@@ -5813,3 +5813,32 @@ Eq prefix computation for endpoints q[x] and q[y], without requiring x and y
 to have a common reduct. This uses actual source typing and registry agreement;
 it does not decode an arbitrary proposition guard into an old carrier guard.
 Global beta stability and the original front remain open.
+
+## 2026-11-04 — Converted native carriers refute unrestricted recovered beta closure
+
+**Verdict: concrete typed obstruction checked, conditional only on a closed
+positive empty structure.** CarrierRecoveredCompare.bvar_lookup_join proves
+that distinct compared variables have computationally joining native lookup
+types. Take p,q:S and F:S→Type at the same positive universe, where S is a
+closed empty structure. Unit eta gives p=q, hence P=F p and Q=F q are convertible.
+Let A=P→S and B=Q→S, and add x:A and y:B. Conversion types both at A. Their raw
+native types cannot join: Pi computation retains a domain computation, and the
+neutral domains F p and F q are distinct and fixed in every primitive relation
+with constant/projection heads. This includes the entire recovered-carrier union.
+
+The identity applications (λz:A.z) x and (λz:A.z) y nevertheless compare already
+at stage zero through the subsingleton carrier A. Their beta reducts x and y
+cannot compare in the full new union. The previous bare-unit witness was
+repaired, but unrestricted common-mode beta stability is still false after
+exact-recovery promotion and recursive singleton saturation. Canonical Eq does
+not invalidate this conditional certificate-language obstruction; no claim is
+made that canonical Eq alone supplies S. Proposition-only beta stability and
+declarative strengthening are not refuted.
+
+Live refinement: allow the two natively recovered types to be compared in
+inferred mode instead of requiring a common computational type. The present
+witness's native domains already admit carrier-aware application comparison.
+Any such refinement must separately prove semantic and certificate descent
+using the actual recovered types' sort typings; no completeness assumption may
+be smuggled in. Alternatively pursue proposition-only stability without the
+refuted unrestricted common-mode induction invariant.
