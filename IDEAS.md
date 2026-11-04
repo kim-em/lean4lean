@@ -8107,3 +8107,45 @@ alternative remain unproved. Goal active; no PR extraction.
 Validation: two modules, 731 jobs, 16 audited public roots, maximum closure
 11,099; standard axioms only, no excluded dependencies or new-source
 warnings. All 706 local imported sources stayed unchanged during validation.
+
+
+## Closed control types preserve Pi origins through native eta (2026-11-04)
+
+- Type the marked control frames by closed universes and nondependent arrows:
+  **proved and sufficient for all eta-stage roots**. Constant wrappers add
+  the fixed Type domain; native identity wrappers reuse the payload's assigned
+  control type. Their displayed annotations may differ: uniqueness supplies
+  the conversion. Every control type has a positive canonical universe.
+- Exclude the bad untyped eta valuation without restricting payload purity:
+  **proved**. A sort-assigned source cannot recover a Pi type. At a control
+  arrow, every selected eta domain has positive universe and the fresh
+  argument is retained. Finite demands follow the assigned control type, so
+  function variables cannot receive Pi-head demands.
+- Preserve these observations under ordinary substitution and compatible
+  computation: **proved**. Valuations retain assigned control types. Beta
+  uses ordinary typed argument substitution, without native argument images.
+  Identity context substitution transports observations across changed lambda
+  annotations; exact oracle preservation is unnecessary for that transport.
+- Close the marked Pi component condition for eta-aware computation:
+  **proved**. Same-stage certificate descent removes temporary prefixes;
+  eta-stage native identity images pull codomain histories backward across
+  previously computed domains. Full eta-union PiReadout now holds for every
+  typed Pi source, including impure and non-normalizing component paths.
+  Finite input stages have finite later bounds for the component histories.
+- Repair assigned eta against a native output reached by an eta-aware
+  assigned-Pi computation: **proved**, with no separate component-readout
+  premise. This extends the earlier controlled-beta type-path square. It
+  still assumes the assigned-Pi-to-native computation itself; this is not
+  general assigned-type coverage, confluence, or equality completeness.
+
+Judgment: the previously live typed-observer idea closes the entire eta-aware
+Pi-origin gap, not merely another primitive case. General native coverage and
+residual joins for guarded computation remain live obligations. No proof or
+counterexample of strengthening, or strictly smaller sufficient irreducible
+front, is established here. GOAL.md remains active.
+
+Validation: six new modules, 896 Lean lines, 61 public roots. Main and isolated
+builds pass 738 jobs. All 87 selected roots, including two newly synchronized
+import modules, pass structural dependency audit; maximum closure 11,464,
+standard axioms only. All 713 local imported sources are hash-stable and match
+the isolated checkout. No new-source warnings or forbidden dependencies.

@@ -20210,3 +20210,75 @@ framework dependencies occur. No new-source warnings. All 706 local imported
 source hashes remained stable. Artifacts: `/dev/shm/transparent-residual-*` and
 `/dev/shm/prepare-transparent-residual-audit.py`. The goal's original sorry at
 `UniqueTyping.lean:94` remains. Goal active; no PR extraction.
+
+
+## Full Pi origin through native eta expansion (2026-11-04)
+
+The typed control-observation route now closes PiReadout for arbitrary typed
+Pi computations in ErasedEtaExpansionUnion. This extends the earlier complete
+controlled-beta origin proof to native eta, rather than assuming an eta root
+invariant that is false for untyped valuations.
+
+ProofErasureControlTyping defines closed ControlType values from universes
+and nondependent arrows, with ordinary typed representatives of erased
+expressions. Their canonical universes are always positive. Witnesses survive
+ordinary interpreted substitution and source-typed computational replay.
+Pi injectivity recovers typed bodies and fresh variables under the displayed
+lambda domain, even when it differs from the closed assigned control domain.
+Native eta at a sort-assigned source is impossible; at a control arrow its
+selected domain has positive universe, hence the eta argument is bvar 0.
+The module also constructs typed constant and native identity control frames,
+ordinary beta substitution, and identity substitution across equal contexts.
+None of these witnesses presupposes native recovery at the closed control type.
+
+ProofErasureControlObservation decorates the finite marked observations with
+these control types. Finite demands follow the sort/arrow structure, and free
+valuations record their assigned types. Observations rename and substitute
+along ordinary context interpretations. They forget to the existing raw Pi
+observer for exact beta readout. Native eta, constant expansion, native
+identity expansion, and root beta all preserve the typed observer; root beta
+uses only the actual argument typing and the typed free valuation.
+
+ProofErasureControlObservationTransport checks every finite eta-stage root
+and its union, then proves compatible preservation under the original marked
+Pi component closure law. Transitive intermediates use typed replay. Under a
+lambda, body computation takes place in the original displayed domain; after
+it finishes, identity context substitution transports the observer into the
+computed domain. This avoids demanding exact oracle-preserving renaming for
+definitionally equal but syntactically different annotations.
+
+ProofErasureEtaBackwardContext supplies the missing component-history tool.
+A domain path A to B gives exact native identity images from B::Gamma back to
+A::Gamma. Computations transport with the additive finite-stage bound, and
+independent finite bounds give the union theorem. ProofErasureEtaPiOrigin
+combines this with same-stage eta certificate descent to close the component
+condition under every temporary prefix. It proves actual lower Pi origins,
+full PiReadout in the original domain/codomain scopes, and finite later stage
+bounds. Payload components may be impure, divergent, and arbitrarily wrapped.
+
+ProofErasureEtaPiOriginRepair consumes that full readout: an assigned-Pi path
+to an existing recovered native output gives a common eta target. Both the
+short source and assigned eta expansion compute to it in the eta union; the
+finite theorem retains max(k+1,later). The assigned type path may now itself
+contain native eta. The path remains an explicit premise. No arbitrary
+assigned-to-native path construction, general native coverage, comparison
+completeness, or strengthening theorem follows just from this result.
+
+Validation: six modules, 896 Lean lines, 61 new public declarations. Main and
+isolated explicit-target builds pass 738 jobs. The audit includes 87 roots
+(the six modules plus two synchronized imported observer modules), traversing
+types, opaque values, inductive constructors and recursor rules. Maximum
+closure 11,464; only propext, Classical.choice and Quot.sound. No sorryAx,
+weakN_iff, weakN_inv, JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability dependency. All 713 local
+transitive source hashes remain stable and match the isolated checkout. No
+warnings in the six new modules. Artifacts:
+/tmp/carrier-eta-control-origin-{main-build.log,isolated-build.log,audit.lean,
+audit.log,audit-roots.txt,files.txt,targets.txt,validation.json,
+closure-source-hashes.json}; /tmp/prepare-carrier-eta-control-origin.py.
+
+Only the six new modules and these ledger appends are staged. Independent
+16aa1860 and ongoing typed-core-join work are preserved. No executable changes,
+coordination or PR extraction. Original weakN_iff remains sorry at
+UniqueTyping.lean:94. The strengthening goal remains active; this progress is
+not a completed GOAL.md deliverable.
