@@ -18685,3 +18685,56 @@ framework edits, two new theory modules, and these ledger appendices belong to
 this change. General differing dependent-result alignment is still open;
 GOAL.md is not complete. No executable files or independent worker files were
 changed, no PRs extracted, and no agents contacted.
+
+## Explicit universe computation repairs literal recovered carrier alignment
+
+Added LevelComputation, SimulationClosure, LevelCore, RecoveredVariants,
+LevelStages and LevelRecoveryExample. StructuralVariant is now proved symmetric
+and transitive. LevelPrimitive changes only equivalent sort/constant levels and
+requires well-formed target levels. Its semantic descent constructs the lower
+actual target by LEquiv.defeq, preserving retained-constant proof status. An
+induction over structural variants builds a compatible level-only path using
+target typing. No normalization theorem, semantic conversion oracle, or
+executable change is used.
+
+SimulationClosure proves a reusable finite-computation theorem from primitive
+simulation and typed replay. LevelCore combines old core primitives with these
+level steps and discharges descent, exact context transport, and structural
+computation simulation. The existing full joint transport theorem applies to
+this extended core without changing its comparison or carrier judgments.
+
+RecoveredVariants repairs the exact-native-output boundary from the previous
+entry: independently varied outputs are related structurally, and an explicit
+level path converts the right output to the left output's typed representative.
+Full carrier transport supplies the guard there. The result still uses the old
+CarrierRecoveredCompare.recovered constructor. The full recovered comparison
+language now transports across structural context variants over the extended
+core. The concrete regression proves no common native output exists for sorts
+at max 0 0 and 0 in the old recovered union, then constructs one in the new base
+and uses it in a recovered comparison. It asserts failure of common native
+output, not failure of the old ordinary sort comparison.
+
+LevelStages embeds every old recovered stage at its original index and proves
+semantic arbitrary-block descent for all new stages and their union. Higher-
+stage context/variant interfaces are explicitly not claimed. In particular,
+semantic descent alone cannot be substituted for transport of generated family
+guard certificates, and the added sort primitive does not satisfy the old
+PrimitiveHead interface. These remain concrete next obligations.
+
+Validation: 47 explicit modules built in both the shared worktree and isolated
+checkout (765 jobs each). The exact 165-root opaque-body, constructor and
+recursor audit passed, with maximum closure 11,285. Only propext,
+Classical.choice and Quot.sound occur; there are no sorry sources or excluded
+weakN_iff, weakN_inv, JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability dependencies. All 47 sources
+are byte-identical to the isolated build inputs, and the six new modules have
+no build warnings. Artifacts:
+/tmp/carrier-level-recovery-{all-build.log,isolated-build.log,audit.lean,audit.log,
+audit-roots.txt,files.txt,targets.txt,validation.json}; preparation script
+/tmp/prepare-carrier-level-recovery.py and validator /tmp/verify-carrier-audit.py.
+
+The original UniqueTyping.weakN_iff sorry remains. GOAL.md is active: neither
+canonical-Eq strengthening nor a counterexample nor a sufficient strictly
+smaller irreducible front has been established. Only the six new theory modules
+and these ledger appendices belong to this change. No executable changed and
+no agents were contacted; independent native-recovery work was preserved.

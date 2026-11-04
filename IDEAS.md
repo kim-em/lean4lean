@@ -6984,3 +6984,39 @@ native coverage for every dependent function or eliminate the original front
 obligation. General alignment of differing dependent results remains live;
 no strengthening proof, canonical-Eq counterexample, or strictly smaller
 sufficient irreducible front is claimed. GOAL.md remains active.
+
+## Repair exact native carriers by explicit universe computation
+
+Verdict: proved for the level-extended core, without changing the recovered
+comparison judgment. Rather than requiring two structural variants to have an
+old computational join, add theory-only primitives at sort and constant nodes
+for equivalent target universes with proved well-formedness. Their arbitrary-
+block descent follows from LEquiv.defeq and exact erasure/proof-status arguments.
+Compatible closure computes from any structural variant to a typed target.
+These rules do not change the executable and do not normalize terms.
+
+A generic finite simulation lemma uses typed semantic replay at composition
+points, so the operational PatternCompute representation is no longer required.
+The old iota/delta primitives simulate as before; a universe step simulates by
+an empty path, composing structural variants. Thus the level-extended core has
+both exact context transport and structural computation simulation. Full native
+recovery and ComputedJointCheck transport remain available over that base.
+
+At a recovered comparison node, simulate both native recoveries, select the
+left output's actual typed representative, convert the right output to it using
+explicit universe computation, and transport the full carrier guard to that
+output. This retains CarrierRecoveredCompare.recovered with one literal common
+carrier. Induction covers the entire recovered comparison language under
+structural context conversion. The regression theorem exhibits sorts at max 0 0
+and 0: they have no common native output even in the old recovered union, but
+one successor-level conversion gives a shared output in the new base.
+
+Finite recovered singleton/Eq-prefix stages over the new base embed all old
+stages at the same indices; their union has proved arbitrary-block semantic
+descent. This does not yet prove higher-stage context/variant certificate closure.
+The new sort primitive also means the old constant-or-projection PrimitiveHead
+interface cannot be reused unchanged. Arbitrary equal carriers can differ in
+term syntax, beyond universe annotations, so neither general native completeness
+nor the original strengthening front follows. Next: transport typed singleton
+family guards under structural context conversion, including their generated
+residual telescopes, then examine higher-stage structural endpoint simulation.
