@@ -18840,3 +18840,39 @@ recovery completeness, or coverage of all declarative equality. No proof,
 canonical-Eq counterexample or sufficient strictly smaller irreducible front
 has been obtained. Only six new theory files, the LevelStages comment and these
 ledger appendices belong to this change; no executable edits or agent contact.
+
+## Exact native outputs and full aligned comparison through universe contexts
+
+Added ProofErasureCarrierAlignedFullContext. The exact native recovery theorem
+realizes the original native carrier, transports its typing to the new context,
+and converts the simulated variant output back to that carrier using explicit
+universe computation. Thus the conclusion preserves the original raw recovery
+output, beyond the previous existential variant-output interface.
+
+CarrierAlignedCompare.structural_context covers every constructor of the
+existing full aligned language. The aligned and recover cases retain both
+literal native outputs; uniqueness of actual source typings puts their types
+at a common sort for the recursive inferred comparison. Other cases transport
+sorted binders, eta bodies, recursive fields and finite computations. No new
+comparison or recovery constructor is introduced. structural_endpoints supplies
+finite level paths from variant endpoints back to the typed originals. Closed
+finite-stage and union consumers combine both laws, and the exact stage-native
+consumer retains the literal recovery output with all interfaces discharged.
+
+Validation: main and isolated builds both passed, 772 jobs for 54 explicit
+modules. All 200 exact roots passed the opaque-body, constructor and recursor
+dependency audit; maximum closure 11,285. Only propext, Classical.choice
+and Quot.sound occur. No sorry source or excluded weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport
+or JointPropBetaStability occurs. All 54 sources match the isolated build
+byte-for-byte; the new module has no build warnings. Artifacts:
+/tmp/carrier-full-context-{all-build.log,isolated-build.log,audit.lean,audit.log,
+audit-roots.txt,files.txt,targets.txt,validation.json}; preparation:
+/tmp/prepare-carrier-full-context.py; verifier: /tmp/verify-carrier-audit.py.
+
+Only the new full-context theory module and these ledger appendices belong to
+this change. The executable is unchanged. Original weakN_iff still contains its
+sorry at UniqueTyping.lean:94. Source certificates and structural universe
+variation remain real premises; arbitrary beta-context transport, general
+native recovery and comparison completeness have not been established. No
+canonical-Eq counterexample or strictly smaller sufficient front is claimed.

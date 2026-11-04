@@ -7072,3 +7072,24 @@ arbitrary beta-related annotations and general semantic carrier conversion are
 not covered. Next, restore exact native recovery outputs by the same backwards
 universe path and transport the entire aligned comparison language. Original
 PropFront and weakN_iff remain open; no smaller sufficient front is claimed.
+
+## Restore exact native outputs and transport full aligned checking
+
+Verdict: **proved without enlarging the comparison or recovery grammars**.
+After structural context transport, native recovery initially returns a universe
+variant of its old output. The old actual carrier is still typed in the new
+context, so explicit level computation converts the new native output back to
+that literal original output. This removes even the existential output variant
+from context transport. The entire CarrierAlignedCompare induction then closes:
+its independently recovered type endpoints remain fixed; actual uniqueness
+puts them at a common sort for recursive type comparison. Sorted binders, eta
+bodies, structure fields and both native-promotion rules are included.
+
+A separate endpoint law converts arbitrary structural variants back to the
+typed original comparison endpoints. Combined with the proved stage/union laws,
+this yields full aligned checking across structural context and endpoint
+variation at every finite stage and the closed union. It needs an existing
+source comparison certificate and common actual source endpoint typings; it
+is not declarative comparison completeness. Arbitrary beta-shaped changes of
+context annotations and guarded-stage joins remain outside this result. The
+original strengthening question and its required deliverables remain open.
