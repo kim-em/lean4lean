@@ -18579,3 +18579,59 @@ not established by this root-family substitution theorem. GOAL.md remains active
 Only four new theory modules, the selected-domain extension, and these ledger
 appendices belong to this change; independent worker edits are preserved. No
 executable files were changed, no PRs extracted, and no agents contacted.
+
+## Native recovery and full joint transport across universe variants
+
+Added four modules: RecoveryVariants, JointVariants, CoreJoint and
+FunctionVariantExample. RecoveryVariants proves variant context lookup, scoped
+core path erasure, complete native recovery simulation, and full projection
+recipe variation including changed majors. Its typed computation interface
+requires structurally related erased contexts; the previous concrete core
+simulation discharges it without any further assumption.
+
+JointVariants proves simultaneous transport for every constructor of the
+existing ComputedJointCheck. Comparison keeps its raw endpoints and changes the
+actual ambient context. Carrier checking additionally changes the assigned
+carrier structurally. Native appCarrier recovery selects the target domain and
+the carrier induction transports its argument guard there. carrierFunction
+extends the actual context conversion with the changed domain; nested records
+reconstruct dependent recipes at the target universes and parameters. Ordinary
+eta, computed application, sorted binders, structure fields, symmetry, endpoint
+computation and carrier computation all remain supported. No new judgment rule
+or substituted-futures hypothesis is introduced.
+
+CoreJoint discharges both computation interfaces for concrete iota/delta/beta
+computation. It also proves that well-formed structural variants of erased
+contexts reconstruct actual context conversion, giving a context consumer with
+no actual-equality premise. The actual-environment carrier specialization has no
+declaration-level compatibility or pattern provenance inputs. The function-to-
+record example consumes ordinary retained-field checks under the source binder,
+which may themselves contain native applications and arbitrarily nested guards,
+and reconstructs the full guard at the changed domain. Metadata and endpoint
+typings are explicit assumptions; it is not a constructed environment model.
+
+Validation: 41 explicit modules built in both the shared worktree and the
+isolated checkout (711 jobs each). The exact 139-root opaque-body, constructor
+and recursor audit passed, with maximum closure 11,285. Only propext,
+Classical.choice and Quot.sound occur; no sorry sources or excluded weakN_iff,
+weakN_inv, JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability dependencies occur. All 41
+source files match the isolated build inputs byte for byte, and all four new
+modules have no build warnings. Artifacts:
+/tmp/carrier-joint-variant-{all-build.log,isolated-build.log,audit.lean,audit.log,
+audit-roots.txt,files.txt,targets.txt,validation.json}; preparation script
+/tmp/prepare-carrier-joint-variant.py and validator /tmp/verify-carrier-audit.py.
+
+For the next stage, inspect CarrierRecoveredCompare.recovered: it requires both
+native recoveries to have exactly the same raw carrier. Separate simulations
+of those recoveries give structurally related outputs, not automatically one
+literal common output. Thus transporting full recovered family checking needs
+an additional argument or an explicitly wider judgment; it must not be inferred
+from the new ComputedJointCheck transport. Primitive structural simulation also
+changes endpoint syntax and is not just the proved context transport.
+
+UniqueTyping.weakN_iff still has its original sorry at line 94. GOAL.md remains
+active; neither a counterexample nor a sufficient strictly smaller irreducible
+front is claimed. Only these four new theory modules and the ledger appendices
+belong to this change. No executable changed, no agents were contacted, and the
+independent DependentValue work was preserved.

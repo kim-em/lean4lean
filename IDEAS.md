@@ -6903,3 +6903,42 @@ value itself. Tracking selected/native alignment through dependent parameter
 instantiation, or integrating additional projectable result classes, remains
 live. No general strengthening proof, canonical-Eq counterexample, or strictly
 smaller sufficient irreducible front is claimed; GOAL.md remains active.
+
+## Full core joint checking across universe variants of binder contexts
+
+Verdict: proved, including function carriers. The record-only transport boundary
+is no longer needed for the context-independent core. Native recovery now
+simulates StructuralVariant changes of both the context and term, covering all
+constructors: variable oracle, sorts, constants, lambdas, applications, Pis,
+projections and conversion. The projection result varies the major as well as
+universes and family arguments, so preceding-field captures remain related.
+Actual recovery replay reconstructs the types at conversion points.
+
+A simultaneous induction over the existing ComputedJointCheck transports ordinary
+comparison through equal actual contexts with structural variants of their raw
+entries, and transports full carrier checking through structural variants of the
+assigned carrier. Application recovery can select a changed domain; its argument
+guard is rebuilt by the carrier induction. Function guards extend both actual
+contexts with their changed domains; their recursive child is handled by the
+same induction. Nested record recipes use the proved paired-parameter universe
+transport and source/target projection typings. Every existing constructor is
+covered; no new comparison constructor or future-stability certificate is used.
+
+The generic theorem names two computation requirements: exact endpoint context
+transport and typed structural simulation. Both are proved for the entire
+concrete ErasedIotaPrimitive core. Well-formed structural context variants imply
+actual IsDefEqCtx, so the core context consumer does not need that equality as
+an input. Actual WF.params/ofEnv carrier transport discharges declaration and
+pattern compatibility. A function-to-record example builds its source guard
+from ordinary finite retained-field checks under the source domain and obtains
+the target guard under the varied domain.
+
+Remaining: the two computation requirements are not yet proved for recovered
+singleton or Eq-prefix stages. Context transport of those rules must transport
+their family/argument certificates; structural simulation additionally changes
+captured endpoint syntax. The current theorem transports comparison endpoints
+unchanged across context conversion, and is not itself arbitrary endpoint-
+variant closure. Native recovery and checking completeness for arbitrary terms,
+parameterized aligned head exposure, and the original strengthening front all
+remain open. This is a closed core-fragment theorem, not a sufficient strictly
+smaller irreducible front.
