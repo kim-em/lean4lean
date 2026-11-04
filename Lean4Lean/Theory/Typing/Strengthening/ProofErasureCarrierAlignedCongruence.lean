@@ -23,6 +23,15 @@ theorem ProofShape.CarrierAlignedCompare.mono
   | base H => exact .base (H.mono hstep)
   | commonCarrier RA H => exact .commonCarrier (RA.mono hstep) (H.mono hstep)
   | aligned RA RB HT H ihT => exact .aligned (RA.mono hstep) (RB.mono hstep) ihT (H.mono hstep)
+  | recover RA RB HT HC ihT ihC => exact .recover (RA.mono hstep) (RB.mono hstep) ihT ihC
+  | lamSorted S S' _ _ ihA ihB => exact .lamSorted S S' ihA ihB
+  | forallSorted S S' _ T T' _ ihA ihB =>
+    exact .forallSorted S S' ihA T T' ihB
+  | structFields hi hx hp hf hadm _ ih => exact .structFields hi hx hp hf hadm ih
+  | lamCommon _ ih => exact .lamCommon ih
+  | etaBodyL S _ ih => exact .etaBodyL S ih
+  | etaBodyR S _ ih => exact .etaBodyR S ih
+  | etaLams _ H ih => exact .etaLams ih H
   | app _ _ ihf ihx => exact .app ihf ihx
   | proj _ ih => exact .proj ih
   | lam _ _ ihA ihb => exact .lam ihA ihb
@@ -42,6 +51,29 @@ theorem ProofShape.CarrierAlignedCompare.rename
   | commonCarrier RA H => exact .commonCarrier (RA.rename hrename W) (H.rename hrename W)
   | aligned RA RB HT H ihT =>
     exact .aligned (RA.rename hrename W) (RB.rename hrename W) (ihT W) (H.rename hrename W)
+  | recover RA RB HT HC ihT ihC => exact .recover (RA.rename hrename W) (RB.rename hrename W) (ihT W) (ihC W)
+  | lamSorted S S' _ _ ihA ihB => exact .lamSorted (ContextSubstitution.sort W.interpretation S) (ContextSubstitution.sort W.interpretation S') (ihA W) (ihB W.cons)
+  | forallSorted S S' _ T T' _ ihA ihB =>
+    exact .forallSorted (ContextSubstitution.sort W.interpretation S) (ContextSubstitution.sort W.interpretation S') (ihA W)
+      (ContextSubstitution.sort W.cons.interpretation T) (ContextSubstitution.sort W.cons.interpretation T') (ihB W.cons)
+  | @structFields Δ family info ls ps fields major hi hx hp hf hadm _ ih =>
+    simp only [ProofShape.subst_mkApps, ProofShape.subst, List.map_append]
+    apply CarrierAlignedCompare.structFields hi hx (by simpa using hp) (by simpa using hf) hadm
+    intro i hj hn
+    have hj₀ : i < fields.length := by simpa only [List.length_map] using hj
+    have hn₀ : fields[i] ≠ .proof := by
+      intro HE
+      apply hn
+      simp only [List.getElem_map, HE, ProofShape.subst]
+    simpa only [List.getElem_map, ProofShape.subst] using ih i hj₀ hn₀ W
+  | lamCommon _ ih => exact .lamCommon (ih W.cons)
+  | etaBodyL S _ ih =>
+    apply CarrierAlignedCompare.etaBodyL (ContextSubstitution.sort W.interpretation S)
+    simpa only [ProofShape.subst, etaArgument_subst, lift_subst_lift] using ih W.cons
+  | etaBodyR S _ ih =>
+    apply CarrierAlignedCompare.etaBodyR (ContextSubstitution.sort W.interpretation S)
+    simpa only [ProofShape.subst, etaArgument_subst, lift_subst_lift] using ih W.cons
+  | etaLams _ H ih => exact .etaLams (ih W) (H.elim (fun H => .inl H.subst) (fun H => .inr H.subst))
   | app HF HX ihf ihx => exact .app (ihf W) (ihx W)
   | proj H ih => exact .proj (ih W)
   | lam HA HB ihA ihB => exact .lam (ihA W) (ihB W.cons)

@@ -10,7 +10,7 @@ native outputs have literal sort syntax or that they join computationally.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape
-open private sort_not_lam from Lean4Lean.Theory.Typing.Strengthening.ProofErasureScopedPiExposure
+open private sort_not_lam sort_not_constructor from Lean4Lean.Theory.Typing.Strengthening.ProofErasureScopedPiExposure
 open private ProofShape.typeHead ProofShape.typeHead_compute
   from Lean4Lean.Theory.Typing.Strengthening.ProofErasureJointRecoveryExposure
 open private computed_type_exposure_pair types_inferred_raw
@@ -76,9 +76,12 @@ private theorem aligned_type_exposure_pair
   | base H => exact recovered_type_exposure_pair hstep hhead H hΓ ha hb EΓ Ea Eb
   | commonCarrier RA HC => exact recovered_carrier_exposure hstep hhead RA HC hΓ ha hb EΓ Ea Eb
   | aligned RA RB HT HC ihT => exact recovered_carrier_exposure hstep hhead RA HC hΓ ha hb EΓ Ea Eb
+  | recover RA RB HT HC ihT ihC => exact ihC hΓ ha hb EΓ Ea Eb
   | app | proj => constructor <;> intro _ E <;> cases E
-  | lam => exact (sort_not_lam hΓ ha Ea).elim
-  | forallE => exact ⟨fun _ E => ⟨_, .refl, E⟩, fun _ E => ⟨_, .refl, E⟩⟩
+  | lam | lamSorted | lamCommon | etaBodyL | etaLams => exact (sort_not_lam hΓ ha Ea).elim
+  | etaBodyR => exact (sort_not_lam hΓ hb Eb).elim
+  | structFields hi hx hp hf => exact (sort_not_constructor hΓ ha hi hx hp hf Ea).elim
+  | forallE | forallSorted => exact ⟨fun _ E => ⟨_, .refl, E⟩, fun _ E => ⟨_, .refl, E⟩⟩
   | compute RA RB H ih =>
     obtain ⟨a', HA, EA⟩ := proofErase_scoped_compute_realize hstep hΓ ha EΓ Ea RA
     obtain ⟨b', HB, EB⟩ := proofErase_scoped_compute_realize hstep hΓ hb EΓ Eb RB
@@ -130,10 +133,14 @@ private theorem aligned_types_inferred
     have H := proofErase_computed_joint_types_inferred hstep hΓ ha hb H
     exact .base (.base (by simpa only [EΓ, Ea, Eb] using H))
   | aligned RA RB HT HC ihT => exact .aligned RA RB HT HC
+  | recover RA RB HT HC ihT ihC => exact .recover RA RB HT HC
   | app HF HX => exact .app HF HX
   | proj H => exact .proj H
-  | lam => exact (sort_not_lam hΓ ha Ea).elim
+  | lam | lamSorted | lamCommon | etaBodyL | etaLams => exact (sort_not_lam hΓ ha Ea).elim
+  | etaBodyR => exact (sort_not_lam hΓ hb Eb).elim
+  | structFields hi hx hp hf => exact (sort_not_constructor hΓ ha hi hx hp hf Ea).elim
   | forallE HA HB => exact .forallE HA HB
+  | forallSorted S S' HA T T' HB => exact .forallSorted S S' HA T T' HB
   | compute RA RB H ih =>
     obtain ⟨a', HA, EA⟩ := proofErase_scoped_compute_realize hstep hΓ ha EΓ Ea RA
     obtain ⟨b', HB, EB⟩ := proofErase_scoped_compute_realize hstep hΓ hb EΓ Eb RB

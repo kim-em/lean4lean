@@ -10,7 +10,7 @@ an existing certificate, not beta stability of arbitrary comparisons.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape
-open private sort_not_lam from Lean4Lean.Theory.Typing.Strengthening.ProofErasureScopedPiExposure
+open private sort_not_lam sort_not_constructor from Lean4Lean.Theory.Typing.Strengthening.ProofErasureScopedPiExposure
 open private erase_forallE_inv from Lean4Lean.Theory.Typing.Strengthening.ProofErasureBeta
 open private ProofShape.typeHead ProofShape.typeHead_compute
   from Lean4Lean.Theory.Typing.Strengthening.ProofErasureJointRecoveryExposure
@@ -112,10 +112,16 @@ private theorem aligned_type_residual_pair
   | aligned RA RB HT HC ihT =>
     exact TypeResidualPair.map
       (recovered_carrier_residual hstep hhead RA HC hΓ ha hb EΓ Ea Eb) (fun H => CarrierAlignedCompare.base (.base H))
+  | recover RA RB HT HC ihT ihC => exact ihC hΓ ha hb EΓ Ea Eb
   | app | proj => constructor <;> intro _ E <;> cases E
-  | lam => exact (sort_not_lam hΓ ha Ea).elim
+  | lam | lamSorted | lamCommon | etaBodyL | etaLams => exact (sort_not_lam hΓ ha Ea).elim
+  | etaBodyR => exact (sort_not_lam hΓ hb Eb).elim
+  | structFields hi hx hp hf => exact (sort_not_constructor hΓ ha hi hx hp hf Ea).elim
   | forallE HA HB =>
     exact ⟨fun _ E => ⟨_, .refl, E, .forallE HA HB⟩, fun _ E => ⟨_, .refl, E, .forallE HA HB⟩⟩
+  | forallSorted S S' HA T T' HB =>
+    exact ⟨fun _ E => ⟨_, .refl, E, .forallSorted S S' HA T T' HB⟩,
+      fun _ E => ⟨_, .refl, E, .forallSorted S S' HA T T' HB⟩⟩
   | compute RA RB H ih =>
     obtain ⟨a', HA, EA⟩ := proofErase_scoped_compute_realize hstep hΓ ha EΓ Ea RA
     obtain ⟨b', HB, EB⟩ := proofErase_scoped_compute_realize hstep hΓ hb EΓ Eb RB

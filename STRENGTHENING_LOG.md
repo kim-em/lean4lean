@@ -17711,3 +17711,37 @@ input guards must retain their carrier information: arbitrary promotion is
 already refuted by the committed unit-image witness. Actual dependent carrier
 conversion/body exposure remains the next live obligation. No executable edits,
 PR extraction, agents or coordination; independent changes are preserved.
+
+
+## 2026-11-04 — Extend native alignment through recursive eta and structure checking
+
+Previous goal turn classified as verified progress: abe7a737, 05fee7be and
+a442da05 are committed/pushed with their proved residual and paired-beta results.
+The original strengthening sorry is still present. This turn first removes a
+concrete closure limitation of CarrierAlignedCompare: its old eta/structure
+checks could not recursively consume the new image comparisons.
+
+The relation now supports recursive sorted/common binders, eta bodies, inferred
+lambda eta and structure fields. A new recover constructor promotes a recursive
+common check after comparing both native outputs. Existing common mode conversion,
+primitive inclusion, renaming, semantic binder descent, exact certificate descent,
+typed sort/Pi exposure and retained inferred residuals all cover these additions.
+CarrierAlignedSubstitution proves two typed maps lift into either substituted
+binder; conversion of the other map uses proved image congruence and ordinary
+semantic type equality. Exact native image recovery is not assumed.
+
+Validation: 13 explicit aligned modules and all existing consumers build in the
+main worktree and isolated carrier scratch (678 jobs). The 33-root opaque audit
+includes changed inductive constructors and every public consumer in that
+manifest; maximum closure 11,042, only propext, Classical.choice and Quot.sound.
+No sorry sources or forbidden strengthening/recovery/beta-stability dependencies;
+exact source bytes match and no new module warnings. Artifacts:
+/tmp/carrier-eta-core-build.log, /tmp/carrier-eta-core-isolated-build.log,
+/tmp/carrier-eta-core-audit.lean and .log, -audit-roots.txt, -files.txt,
+-targets.txt and -validation.json. This is not a whole-repository audit.
+
+Next implement and check transport of the full primitive-free ScopedCompare
+under the paired maps, including eta/proof markers and recursive structure fields.
+The full goal still needs guarded primitive substitution, arbitrary carrier
+transport and coverage; no GOAL.md completion alternative is claimed. Independent
+working files are preserved and no executable changes or agent coordination occur.

@@ -6259,3 +6259,28 @@ The new type-input proof succeeds because its endpoints have sort typings;
 removing that premise is refuted. A higher-order extension needs a proved
 carrier conversion or typed lambda/body exposure, including dependent codomain
 alignment, rather than assuming the desired substituted body comparison.
+
+
+## 2026-11-04 — Recursive extensional checking over native alignment
+
+**Verdict: checked closure with full binder descent, not raw eta replay.**
+CarrierAlignedCompare now recursively admits sorted binders, common lambda
+bodies, left/right eta bodies, inferred lambda eta and structure-field checks.
+The new recover rule aligns two native outputs and then consumes a recursive
+common comparison, so new eta-body certificates can participate in inferred
+promotion. Each rule retains both semantic and exact certificate descent.
+Renaming, typed head exposure and inferred type residuals remain proved.
+
+CarrierAlignedSubstitution supplies two actual typed image maps and pointwise
+inferred comparison. Its binder extension proves equality of the two substituted
+domains by the existing typed image congruence, converts the right map into the
+left binder, and retains both erasure agreements. The symmetric extension uses
+the right binder for right eta. This resolves the previously identified paired
+binder-context problem without claiming exact native recovery of right images.
+
+Raw erased eta contraction remains unsuitable: the existing ErasedEta boundary
+shows that it can hide an inhabitance dependency. The active next proof instead
+transports complete primitive-free ScopedCompare certificates using these paired
+maps, classifying eta arguments from actual common typings and keeping the typed
+short original. Guarded primitive substitution and recursive carrier transport
+remain separate, unproved obligations for the full strengthening problem.
