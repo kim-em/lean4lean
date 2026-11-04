@@ -21344,3 +21344,33 @@ configured forbidden dependencies. All 743 imported local sources hash-stable.
 Artifacts: `/dev/shm/common-native-binder-*`; preparation
 `/dev/shm/prepare-common-native-binder-audit.py`. Goal remains active; no PR
 extraction or executable changes.
+
+
+## Exact universe readout for common native recovery (2026-11-04)
+
+Implemented typed finite observations of a marked universe, preserving its
+level certificate under every finite stage of the full static structure/function
+eta language. Arbitrary compatible computations from a well-formed sort have a
+beta readout at an equivalent well-formed sort. Constant and identity wrappers,
+function eta in control positions, changed lambda annotations, arbitrary guard
+depths and level conversion are included. Ordinary control typing excludes
+structure expansion and function eta at the universe payload; no confluence,
+normalization, native coverage or strengthening is assumed.
+
+A native certificate meeting an assigned sort at a shared computed output can
+therefore append beta cleanup and a final universe conversion to recover the
+EXACT assigned sort. Dependent function formation follows from common native
+certificates for the domain and codomain in their original contexts. This closes
+the sort-demand/formation case of common-native substitution; it does not solve
+forward binder transport, rigid-family exposure with retained parameters,
+general common-native coverage, strengthening or a sufficient smaller front.
+
+Validation: four new modules, 592 Lean lines, 45 new public roots. Isolated
+explicit 744-job build and 65-root audit, including three changed committed
+imports, maximum dependency closure 11,480. All configured forbidden dependencies
+absent, no sorry sources, standard axioms only. All 719 local closure sources
+hash-stable and byte-identical to isolated copies. Artifacts:
+`/tmp/carrier-static-structure-sort-*`; preparation
+`/tmp/prepare-carrier-static-structure-sort.py`. Own new modules have no warnings.
+Other untracked files/index preserved; no coordination or executable changes.
+Goal remains active.
