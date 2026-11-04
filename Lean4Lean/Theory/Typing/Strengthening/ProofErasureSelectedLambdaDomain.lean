@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureDependentNeutralFunctionCarrierConversion
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureDependentTerminalFunctionCarrierConversion
 
 /-! # Written lambda domains related to finite selected domains
 
@@ -11,7 +12,7 @@ variable [Params]
 
 /-- A selected raw domain is the written domain itself, a protected neutral
 carrier, or a dependent function domain obtained by converting its protected
-neutral input. Every branch has a proved guard-transfer law. -/
+neutral or terminal-valued input. Every branch has a proved guard-transfer law. -/
 inductive SelectedLambdaDomain (cut : Nat) (Γ : List VExpr) : ProofShape → VExpr → Prop where
   | exact : SelectedLambdaDomain cut Γ (proofErase Γ A) A
   /-- A neutral selected carrier supplies ordinary checking regardless of the
@@ -20,6 +21,12 @@ inductive SelectedLambdaDomain (cut : Nat) (Γ : List VExpr) : ProofShape → VE
   | dependent : env.IsDefEq univs Γ A B (.sort u) →
       AnchoredCarrier cut (proofErase Γ A) →
       SelectedLambdaDomain cut Γ (proofErase Γ (.forallE A C)) (.forallE B C)
+  /-- Whole dependent function guards also transfer when the converted inner
+  input domain classifies all its values as terminal images. -/
+  | dependentTerminal : env.IsDefEq univs Γ A B (.sort u) →
+      TerminalDomain Γ A →
+      SelectedLambdaDomain cut Γ (proofErase Γ (.forallE A C)) (.forallE B C)
+
 
 /-- Typed substitution preserves the selected and written annotations while
 keeping protected input heads outside the local binder suffix. -/
@@ -45,6 +52,17 @@ theorem SelectedLambdaDomain.subst
     apply SelectedLambdaDomain.dependent (by
       simpa only [VExpr.subst] using HAB.subst henv.orderedStrong W hΓ₀)
     simpa only [proofErase_subst_with hΓ₀ W HAB.hasType.1 ES] using HA.subst WH
+
+  | @dependentTerminal A B u C HAB HA =>
+    obtain ⟨_, _, hC⟩ := hA.forallE_inv henv
+    have HC : IsDefEqCtx env univs [] (B :: Γ) (A :: Γ) :=
+      .succ (.refl W.wf) HAB.symm
+    have hC' := hC.defeqDFC henv HC
+    have hAC := HasType.forallE HAB.hasType.1 hC'
+    rw [← proofErase_subst_with hΓ₀ W hAC ES]
+    apply SelectedLambdaDomain.dependentTerminal (by
+      simpa only [VExpr.subst] using HAB.subst henv.orderedStrong W hΓ₀)
+    exact HA.subst hΓ₀ W HAB.hasType.1
 
 /-- A guard at the selected domain transfers to the actual written lambda
 domain. Only finite supplied guards and actual endpoint typings are used. -/
@@ -74,6 +92,23 @@ theorem SelectedLambdaDomain.guard
       obtain ⟨i, args, _, EE⟩ := HA
       exact ⟨i, args, by omega, EE⟩
     have HX' := proofErase_computed_joint_dependent_neutral_function_carrier_convert hs hΓ HAB HA₀ hx' hy'
+      (by simpa only [show proofErase Γ (.forallE A C) = .forallE _ _ from
+        if_neg (not_isProof_of_sort hΓ HPi.hasType.1)] using HX)
+    rw [show proofErase Γ (.forallE B C) = .forallE _ _ from if_neg (not_isProof_of_sort hΓ hBC),
+      proofErase_defeqCtx hΓB HC hC]
+    exact HX'
+
+  | @dependentTerminal A B u C HAB HA =>
+    obtain ⟨_, hBC⟩ := hx.isType henv hΓ
+    obtain ⟨_, _, hC⟩ := hBC.forallE_inv henv
+    have hΓB : OnCtx (B :: Γ) (env.IsType univs) := ⟨hΓ, _, HAB.hasType.2⟩
+    have HC : IsDefEqCtx env univs [] (B :: Γ) (A :: Γ) :=
+      .succ (.refl hΓ) HAB.symm
+    have hC' := hC.defeqDFC henv HC
+    have HPi := IsDefEq.forallEDF HAB hC'
+    have hx' := HPi.symm.defeq hx
+    have hy' := HPi.symm.defeq hy
+    have HX' := proofErase_computed_joint_dependent_terminal_function_carrier_convert hs hΓ HAB HA hx' hy'
       (by simpa only [show proofErase Γ (.forallE A C) = .forallE _ _ from
         if_neg (not_isProof_of_sort hΓ HPi.hasType.1)] using HX)
     rw [show proofErase Γ (.forallE B C) = .forallE _ _ from if_neg (not_isProof_of_sort hΓ hBC),

@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.SortRootedRecovery
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureTerminalImage
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureAnchoredCarrier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureSortImageRecovery
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCoreOracleReduction
@@ -6,9 +7,10 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCarrierDomainJoin
 
 /-! # Selected recovery paths with protected type-family domains
 
-The finite path carries its selected output through type-valued leaves, neutral
-selected-output leaves, and type families whose heads lie outside local binders. Head exposure
-returns either a lambda at the selected domain or a protected neutral domain.
+The finite path carries its selected output through terminal typed leaves, neutral
+selected-output leaves, and type families whose heads lie outside local binders.
+For a function, head exposure returns either a lambda at the selected domain
+or a protected neutral domain.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape
@@ -17,11 +19,13 @@ open private beta_forallE_parts
 open private isProof_congr from Lean4Lean.Theory.Typing.Strengthening.ProofErasurePrimitives
 variable [Params]
 
-/-- A path ending in a type, a protected neutral output, or a type family.
+/-- A path ending in a terminal typed image, a protected neutral output, or a type family.
 The cutoff counts local binders; the selected output retains core conversions. -/
 inductive AnchoredFamilyRecovery (D : PureObservation.Definitions) :
     Nat → List VExpr → VExpr → ProofShape → Nat → Prop where
   | type : env.HasType univs Γ e (.sort u) → AnchoredFamilyRecovery D cut Γ e (.sort u) 0
+  /-- Actual terminal typing excludes function and retained-projection use. -/
+  | terminal : TerminalImage Γ e → AnchoredFamilyRecovery D cut Γ e out 0
   /-- A neutral selected output cannot feed a function or structure recovery.
   No native recovery or normalization of the expression is required. -/
   | neutral : AnchoredCarrier cut out → AnchoredFamilyRecovery D cut Γ e out 0
@@ -44,6 +48,7 @@ theorem AnchoredFamilyRecovery.subst (H : AnchoredFamilyRecovery D cut Γ e out 
     AnchoredFamilyRecovery D cut' Γ₀ (e.subst σ) (out.subst τ) n := by
   induction H generalizing Γ₀ σ τ T cut' with
   | type h => exact .type (h.subst henv.orderedStrong W hΓ₀)
+  | terminal H => exact .terminal (H.subst hΓ₀ W)
   | neutral HA => exact .neutral (HA.subst WH)
   | family h HA =>
     obtain ⟨_, hPi⟩ := h.isType henv W.wf
@@ -90,13 +95,13 @@ theorem ProofShape.AnchoredCarrier.core_compute
   have RC : ScopedCompute (ErasedJointStage D 0) [] A B := R.scoped (fun H => .base H)
   exact H.compute (erased_joint_stage_head 0) RC
 
-/-- Head exposure either stops at type typing or a protected neutral output,
+/-- Head exposure either stops at terminal typing or a protected neutral output,
 or retains computation from a family/exposed Pi to the selected output.
 Application consumes a smaller body path and one conversion node;
 the rank remains strictly below the original application path. -/
 theorem AnchoredFamilyRecovery.expose (H : AnchoredFamilyRecovery D cut Γ e out n)
     (hΓ : OnCtx Γ (env.IsType univs)) (ht : env.HasType univs Γ e T) :
-    env.IsType univs Γ e ∨ AnchoredCarrier cut out ∨
+    TerminalImage Γ e ∨ AnchoredCarrier cut out ∨
       (∃ C u, env.HasType univs Γ e (.forallE C (.sort u)) ∧
         AnchoredCarrier cut (proofErase Γ C) ∧
         Compute (ErasedIotaPrimitive D) (.forallE (proofErase Γ C) (.sort u)) out) ∨
@@ -106,7 +111,8 @@ theorem AnchoredFamilyRecovery.expose (H : AnchoredFamilyRecovery D cut Γ e out
   induction n using Nat.strongRecOn generalizing cut Γ e out T with
   | ind n ih =>
     cases H with
-    | type h => exact .inl ⟨_, h⟩
+    | type h => exact .inl (.type h)
+    | terminal H => exact .inl H
     | neutral HA => exact .inr (.inl HA)
     | family h HA => exact .inr (.inr (.inl ⟨_, _, h, HA, .refl⟩))
     | lam H => exact .inr (.inr (.inr ⟨_, _, _, _, by omega, H, .refl, .refl⟩))
@@ -118,11 +124,11 @@ theorem AnchoredFamilyRecovery.expose (H : AnchoredFamilyRecovery D cut Γ e out
       · exact .inr (.inr (.inr ⟨A, b, B, m, by omega, HB, RB, RT.trans R⟩))
     | @app cut Γ f X Y k a H =>
       obtain ⟨_, _, hf, hx⟩ := ht.app_inv henv hΓ
-      rcases ih k (by omega) H hΓ hf with ⟨_, hs⟩ | HN | ⟨C, u, hfPi, _, _⟩ | ⟨A, b, B, m, hm, HB, RF, RT⟩
-      · exact ((hs.uniqU henv hΓ hf).sort_forallE_inv henv hΓ).elim
+      rcases ih k (by omega) H hΓ hf with HT | HN | ⟨C, u, hfPi, _, _⟩ | ⟨A, b, B, m, hm, HB, RF, RT⟩
+      · exact (HT.not_function hΓ hf).elim
       · exact (HN.not_exposed .function).elim
       · have hxC := argument_at_displayed_domain hΓ hf hfPi hx
-        exact .inl ⟨u, by simpa only [VExpr.inst] using HasType.app hfPi hxC⟩
+        exact .inl (.type (by simpa only [VExpr.inst] using HasType.app hfPi hxC))
       obtain ⟨_, _, EE, _, RB⟩ := core_forall_parts RT
       obtain ⟨rfl, rfl⟩ := ProofShape.forallE.inj EE
       have HE := RF.simAt henv.orderedStrong henv.betaSubjectReduction hΓ _ hf
@@ -143,8 +149,8 @@ theorem AnchoredFamilyRecovery.expose (H : AnchoredFamilyRecovery D cut Γ e out
       have R : VExpr.BetaRed (.app f a) (b.inst a) := (VExpr.BetaRed.app RF .refl).trans .beta
       have HE' := R.simAt henv.orderedStrong henv.betaSubjectReduction hΓ _ ht
       rcases ih (m + 1) (by omega) (Hinst.convert RBinst) hΓ HE'.hasType.2 with
-        ⟨v, hv⟩ | HN | ⟨C, u, hfFamily, HC, RT'⟩ | ⟨C, body, B', j, hj, Hbody, RB', RT'⟩
-      · exact .inl ⟨v, (HE'.toU.of_r henv hΓ hv).hasType.1⟩
+        HT | HN | ⟨C, u, hfFamily, HC, RT'⟩ | ⟨C, body, B', j, hj, Hbody, RB', RT'⟩
+      · exact .inl (HT.back hΓ HE')
       · exact .inr (.inl HN)
       · exact .inr (.inr (.inl ⟨C, u, (HE'.toU.of_r henv hΓ hfFamily).hasType.1, HC, RT'⟩))
       · exact .inr (.inr (.inr ⟨C, body, B', j, by omega, Hbody, R.trans RB', RT'⟩))
@@ -169,8 +175,8 @@ theorem AnchoredFamilyRecovery.selected_domain_or_anchored
     (hn : ¬ IsProof Γ f) :
     (∃ body, ScopedCompute (ErasedJointStage D 0) (proofEraseCtx Γ)
       (proofErase Γ f) (.lam A body)) ∨ AnchoredCarrier cut A := by
-  rcases H.expose hΓ hf with ⟨_, hs⟩ | HN | ⟨X, u, _, HX, RT⟩ | ⟨X, b, Y, _, _, _, RF, RT⟩
-  · exact ((hs.uniqU henv hΓ hf).sort_forallE_inv henv hΓ).elim
+  rcases H.expose hΓ hf with HT | HN | ⟨X, u, _, HX, RT⟩ | ⟨X, b, Y, _, _, _, RF, RT⟩
+  · exact (HT.not_function hΓ hf).elim
   · exact (HN.not_exposed .function).elim
   · obtain ⟨_, _, EE, RA, _⟩ := core_forall_parts RT
     obtain ⟨rfl, rfl⟩ := ProofShape.forallE.inj EE

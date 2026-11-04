@@ -111,14 +111,13 @@ theorem AnchoredOrRecoveringImages.inst
       ProofShape.lift_subst_cons, ProofShape.subst_id]
     exact .bvar
 
-private theorem rooted_not_structure (H : AnchoredFamilyRecovery D cut Γ e out n)
+private theorem rooted_not_projectable (H : AnchoredFamilyRecovery D cut Γ e out n)
     (hΓ : OnCtx Γ (env.IsType univs)) (hi : env.projections s info)
+    (HTerm : TerminalImage Γ e → False)
     (ht : env.HasType univs Γ e (VExpr.mkApps (.const s ls) args))
     (Hout : ¬ AnchoredCarrier cut out) : False := by
-  rcases H.expose hΓ ht with ⟨u, hu⟩ | HN | ⟨A, u, hf, _, _⟩ | ⟨A, b, _, _, _, _, R, _⟩
-  · have HE := hu.uniqU henv hΓ ht
-    exact henv.headInversion.sort_rigid hΓ (henv.projectionRigid hi)
-      (HE.typeChain henv hΓ (HasType.sort (hu.isType henv hΓ |>.choose_spec.sort_inv henv)))
+  rcases H.expose hΓ ht with HT | HN | ⟨A, u, hf, _, _⟩ | ⟨A, b, _, _, _, _, R, _⟩
+  · exact HTerm HT
   · exact Hout HN
   · have HE := hf.uniqU henv hΓ ht
     obtain ⟨_, hPi⟩ := hf.isType henv hΓ
@@ -194,14 +193,16 @@ theorem proofErase_joint_zero_recovery_subst_anchoredImages
     obtain rfl := erase_sort_inv ET
     exact .inr ⟨0, .type (heT.subst henv.orderedStrong W hΓ₀)⟩
   | proj hi HT hj hlen _ ih =>
-    obtain ⟨m, rfl, _, Em⟩ := erase_proj_inv Ee
+    obtain ⟨m, rfl, hn, Em⟩ := erase_proj_inv Ee
     obtain ⟨_, _, _, _, _, _, _, hjInfo, _, _, _, _, _, _, hm, _, _⟩ := ht.proj_inv henv W.wf
     rcases ih hΓ₀ W ES hm.hasType.2 EΓ Em HI with R | ⟨n, H⟩
     · apply Or.inl
       simp only [ProofShape.subst_mkApps, ProofShape.subst] at R
       rw [projectionType_subst HT hj (by omega)]
       exact .proj hi HT hj (by simpa only [List.length_map] using hlen) R
-    · exact (rooted_not_structure H hΓ₀ hjInfo (by
+    · exact (rooted_not_projectable H hΓ₀ hjInfo
+        (fun HTerm => HTerm.not_projection hΓ₀
+          (ht.subst henv.orderedStrong W hΓ₀) (mt (isProof_subst hΓ₀ W ht).1 hn)) (by
         simpa only [VExpr.subst_mkApps, VExpr.subst] using
           hm.hasType.2.subst henv.orderedStrong W hΓ₀) (by
           rintro ⟨i, args, _, HE⟩

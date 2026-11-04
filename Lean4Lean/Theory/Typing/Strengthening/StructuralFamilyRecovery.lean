@@ -244,6 +244,7 @@ theorem AnchoredFamilyRecovery.structural (H : AnchoredFamilyRecovery D cut Γ e
     StructuralFamilyRecovery D cut Γ e out n := by
   induction H with
   | type h => exact .type h
+  | terminal H => exact .terminal H
   | neutral h => exact .neutral h
   | family h HA => exact .family h HA
   | lam _ ih => exact .lam ih
