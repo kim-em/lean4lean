@@ -8069,3 +8069,41 @@ Validation: five modules, 740 jobs, 44 exact roots (opaque bodies, constructors,
 recursors), maximum closure 11,402; standard axioms only, no excluded
 dependencies or new-source warnings. All 715 local imported sources stayed
 unchanged through validation. Goal active; no PR extraction.
+
+
+## 2026-11-04 20:52:09 UTC — Common carriers do not repair exact expansion residuals
+
+**Verdict: replacing exact native argument recovery by a common native carrier
+while retaining the exact directed output is refuted already by plain controlled
+identity expansion.** The witness has an actually typed argument and body. Its
+argument has beta-only native recovery, and its assigned type beta-reduces to
+that same recovered carrier. Nevertheless, expanding the bound variable at its
+captured declaration and then substituting retains a fresh proposition inside
+the annotation. The original instantiated term is a lifted closed identity.
+Every source-typed descending target relation forbids a path to that exact
+captured output, including the entire controlled expansion union under canonical
+Eq. The counterexample does not use native eta expansion or recursive definitions.
+Its failed endpoint beta-contracts to the instantiated source, so it does not
+refute confluence or strengthening.
+
+**Positive repair:** universe conversion, constant expansion and native identity
+expansion have raw beta/universe joins regardless of source syntax or context
+purity. Their entire compatible closure substitutes up to a common reduct, with
+no native image premise and no restrictions on how the source identity guards
+were recovered. The same method closes whole-function head-beta squares for
+these paths against arbitrary controlled expanded argument computation. It
+allows impure bodies and annotations, unlike the earlier pure-source joined
+native transport result. Both residuals are explicit computations; the function
+branch requires only beta/universe steps.
+
+**Next:** exact recovery remains a valid sufficient hypothesis for exact
+transport, but common-carrier transport must allow common reducts. Transparent
+expansion steps no longer need image recovery in that weaker conclusion. General
+paths involving singleton/Eq-prefix guards (and ordinary non-beta primitive
+computation) still need residual transport and composition with beta cleanup.
+The original strengthening theorem and the sufficient-smaller-obligation
+alternative remain unproved. Goal active; no PR extraction.
+
+Validation: two modules, 731 jobs, 16 audited public roots, maximum closure
+11,099; standard axioms only, no excluded dependencies or new-source
+warnings. All 706 local imported sources stayed unchanged during validation.

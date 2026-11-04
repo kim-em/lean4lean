@@ -20169,3 +20169,44 @@ recursor dependency traversal; maximum closure 11,402; propext,
 Classical.choice and Quot.sound only, no forbidden dependencies. All 715 local
 import-source hashes remained unchanged; no new-source warnings. Artifacts:
 /dev/shm/lambda-origin-*. Goal active.
+
+
+## 2026-11-04 20:52:09 UTC — Exact residual boundary and transparent-path repair
+
+Added `ProofErasureExpansionExactResidualBoundary.lean`. A variable at the
+captured Pi admits native identity expansion at stage one. Substitution of the
+closed identity produces a raw wrapper that cannot be a lift. Certificate
+descent therefore forbids reproducing it from the closed beta contractum in
+*any* source-typed descending relation. The witness retains actual typings,
+beta-only argument recovery, and a directed beta path from the assigned type
+to the same native carrier. Its exact output beta-contracts back to the source.
+`expansion_union_exact_instantiation_failure` specializes the obstruction to the
+full controlled expansion union under canonical Eq. This sharpens the existing
+native-recovery and eta-expansion boundaries to plain computation itself.
+
+Added `ProofErasureTransparentExpansionResidual.lean`. `ErasedTransparentExpansion`
+is the existing universe/constant/native-identity portion of the expanded union;
+its native guards may use the full union. `ScopedCompute.raw_level_join` transports
+root raw joins through all compatible constructors and transitivity without a
+purity hypothesis. `proofErase_transparent_compute_subst_join` realizes both
+substituted endpoints at a common beta/universe reduct using actual substitution
+and erasure agreement, with no native images. `proofErase_transparent_function_beta_square`
+combines a whole transparent function path with arbitrary expanded argument
+computation and the original head beta. It constructs the two residual paths
+without assuming recovery of either the original or final argument. Arbitrary
+non-beta primitive function steps are not included in this theorem.
+
+The next generalization must preserve joins through singleton/Eq-prefix guards
+and their composition, rather than attempting the now-refuted exact endpoint
+substitution from merely common native carriers. No completeness, general
+confluence, PropFront, or strengthening result is claimed.
+
+Validation: `lake build` of both modules completed (731 jobs). The audit
+checked all 16 public declarations through opaque proof bodies, constructors,
+and recursor rules, maximum dependency closure 11,099; only propext,
+Classical.choice and Quot.sound occur. No strengthening, sorry, semantic
+head-exposure, proposition-beta, resynthesis, or excluded native-alignment
+framework dependencies occur. No new-source warnings. All 706 local imported
+source hashes remained stable. Artifacts: `/dev/shm/transparent-residual-*` and
+`/dev/shm/prepare-transparent-residual-audit.py`. The goal's original sorry at
+`UniqueTyping.lean:94` remains. Goal active; no PR extraction.
