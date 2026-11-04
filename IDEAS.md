@@ -8809,3 +8809,27 @@ axioms only, all configured forbidden dependencies absent. All 689 imported
 local sources hash-stable and isolated-identical. Artifacts:
 `/tmp/carrier-structure-projection-type-*`; preparation
 `/tmp/prepare-carrier-structure-projection-type.py`. Goal remains open.
+
+
+### 2026-11-04 22:32:05 UTC — Exact selected-family recovery at eta expansion targets
+
+**Verdict: checked, no post-step native premise.** Every actually typed saturated
+constructor of an unindexed registered structure follows its literal declaration
+telescope to the exact family at its own parameters. The parameters and fields
+need no independent native certificates. Consequently a masked structure-eta
+target recovers the exact family chosen by its guard, already at stage zero.
+This includes mixed proof/data and dependent fields. Every later conversion
+from that selected family can be retained at its original relation.
+
+Function eta likewise preserves its exact selected Pi at the previous guard
+stage. Lift the native function certificate, apply it to the correctly erased
+fresh variable, and use the typed eta-instantiation identity for proof domains.
+All subsequent conversions from that Pi remain available. The source may be
+neutral and all prior structure/function-eta guards may occur in its recovery.
+These results cover selected eta guards, not arbitrary independently selected
+source types and not arbitrary source computation.
+
+Validation: two modules, 220 Lean lines, eight public roots in the combined
+789-job source-recovery build; audited maximum closure 11,050; standard
+axioms only and forbidden dependencies absent. Artifacts:
+`/dev/shm/masked-source-recovery-*`. Strengthening remains open.

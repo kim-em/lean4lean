@@ -21154,3 +21154,35 @@ axioms only, all configured forbidden dependencies absent. All 689 imported
 local sources hash-stable and isolated-identical. Artifacts:
 `/tmp/carrier-structure-projection-type-*`; preparation
 `/tmp/prepare-carrier-structure-projection-type.py`. Goal remains open.
+
+
+### 2026-11-04 22:32:05 UTC — Recovering eta targets from declarations and lifted guards
+
+Added `ProofErasureMaskedConstructorRecovery` and
+`ProofErasureExpansionTargetRecovery` (220 Lean lines). The constructor theorem
+extracts its literal telescope from projection registration, recovers a typed
+argument walk from the actual saturated application, and computes the raw
+constructor result to the exact unindexed family at the supplied parameters.
+Native recovery uses only that declaration walk. Neither field nor parameter
+native certificates occur, and the original assigned type is arbitrary.
+
+This proves native recovery of a masked structure expansion at precisely its
+selected family, for any target computation relation. In the full enriched
+stage language the expansion step uses finite-union guards, but its target
+recovers that family already at stage zero. A separate theorem retains every
+further conversion from the family. Function eta recovers its selected Pi by
+native renaming under the recovered domain and one application to the fresh
+eta argument. The proof-domain case uses the checked typed erased substitution
+identity. This preserves the original guard depth and every later conversion.
+
+The results remove the after-expansion native guard premise for these two root
+rules at their selected guard type. They do not establish preservation of every
+independently selected native type or general source-computation stability.
+No strengthening proof or sufficient strictly smaller front is claimed.
+
+Validation: combined 789-job build; all eight new public roots audited through
+types, opaque bodies, inductive constructors and recursor RHSs; maximum closure
+11,050; only propext, Classical.choice and Quot.sound; forbidden dependencies
+absent. New modules have no warnings. Combined import/source hashes were stable.
+Artifacts `/dev/shm/masked-source-recovery-*`. Executable unchanged, independent
+files/index preserved, no coordination or PR extraction.
