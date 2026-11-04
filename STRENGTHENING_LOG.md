@@ -16754,3 +16754,53 @@ conversion so an image need only recover at a suitable equal type. Original
 UniqueTyping.lean:94 sorry remains and no GOAL.md completion alternative is
 proved. Other appearing structural-image work is excluded. No coordination,
 subagents or executable changes.
+
+## 2026-11-04 — Converted recovery instantiates the structural eta image at every stage
+
+17cdb67b is committed and pushed. ConvertedRecoverableInstantiation composes
+all-stage recursive neutral context conversion with additive-stage recovering
+substitution. An image p may recover at U instead of its assigned type T,
+provided actual T=U and NeutralTypeChange relates their erased types. Body
+computation, comparison and carrier checking all transport, with stage bound
+imageStage+bodyStage. The carrier theorem retains the literal substituted
+carrier as well as both endpoints. The three union corollaries extract finite
+bounds for the supplied certificates and embed the additive result in the
+closed union; no global uniform bound is assumed.
+
+ConvertedStructuralEtaAllStages checks the exact Pi-wrapped eta lambda from
+the existing boundary. At its written type, its literal sort body supplies
+native stage-zero recovery. The already checked recursive neutral equality
+moves its body context there first. Consequently every common-typed body
+comparison and every computation instantiates at every finite computed stage,
+without increasing that stage. Earlier results covered stage-zero checking
+and first-layer computation; this removes those bounds for this witness.
+
+ComputedStructuralDomainBoundary upgrades the negative recovery/exposure
+statement to ErasedComputedJointUnion itself. Primitive-head preservation and
+normal annotation syntax still force native lambda recovery to select the
+written domain, so exact assigned-type recovery/exposure remain impossible.
+The old anchored-path failure remains in the statement. This rules out
+explaining the positive result by accidental extra recovery in the enlarged
+checker. It is not a strengthening counterexample.
+
+Validation: isolated consuming build at 0a0b9275 plus the eight proposed source
+modules succeeds in 661 jobs, with no new-module warnings. All bytes match the
+isolated checkout. The final nine roots of the 30-root opaque audit cover
+these converted finite/union clients, the two concrete all-stage witnesses,
+and the computed-union negative theorem. Largest closure is 11,129. All
+expected roots match; only propext, Classical.choice and Quot.sound are axioms;
+no sorry sources or forbidden dependencies occur. See
+/tmp/computed-recovering-isolated-build.log and
+/tmp/computed-recovering-all-audit.lean, .log, -roots.txt.
+
+Next: the remaining coverage gap is an image with no native recovery at any
+accessible recursively neutral-related equal type. In particular, the new
+result does not turn arbitrary sort-typed images into exact recoverable ones;
+the inhabited-proposition recovery barrier already in IDEAS.md still applies.
+The stage-zero selected-path classes and converted native-recovery class have
+complementary coverage. A compositional transport class can combine their
+proved cases, but must not assume missing recovery/instantiation of arbitrary
+intermediate arguments. Heterogeneous substitution, unrestricted endpoint
+beta stability and completeness remain open. Original UniqueTyping.lean:94
+sorry remains and none of the three GOAL.md completion alternatives is proved.
+Only Theory and ledgers change; no coordination, subagents or executable edits.
