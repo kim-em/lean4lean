@@ -6712,3 +6712,36 @@ not provide a LevelCompatible certificate by definition. Existing ofEnv
 compatibility and levelClosure remain live routes, not refuted alternatives.
 No strengthening proof, counterexample or strictly smaller sufficient irreducible
 front is claimed.
+
+## 2026-11-04 16:29:27 UTC — actual native carriers aligned to selected outputs
+
+**Verdict: proved complete recursive transport for this image fragment.**
+The backward-native-recovery gap in beta exposure is avoided by retaining the
+original term's recovered actual carrier, with a finite alignment to the source
+selection. NativeCarrierAlignment has actual NativeFamilyTree leaves, dependent
+Pi wrappers with their written domains, and forward computation on the selected
+side. Its typed substitution theorem requires no recovery of substituted values.
+Application retains native recovery at the original application; its actual
+input is either a certified polymorphic family or computes to the selected raw
+input. Whole-guard family conversion or carrierCompute discharges that input.
+
+AlignedNativeRecovery now passes every source recovery constructor under
+NativeAlignedOrRecoveringImages. The forall case recovers actual sort levels on
+both children and reconstructs a new native sort; aligned structure majors are
+excluded by actual sort/Pi-versus-rigid head inversion. The exact branch handles
+ordinary projections. The resulting full ComputedJointCheck transport covers
+recursive comparison and carrier guards, and gives identity binder conversion
+to any NativeFamilyTree target with higher-order inputs. No protected-head
+condition is required. A checked higher-order lambda both lacks exact assigned
+recovery in the full union and violates RecoveryHeadsAbove 0, yet satisfies the
+new image condition and transports every common-typed body comparison.
+
+This is still a sufficient image fragment, not a proof of native coverage for
+arbitrary actual terms. Its family leaves use the existing PolymorphicTypeFamily
+readout; they do not certify all dependent inputs or arbitrary structure-valued
+native results. Live next direction: stratify the family grammar using the newly
+proved native-family context conversion as an additional input readout layer,
+or extend aligned actual carrier trees to genuinely projectable result leaves.
+The ordinary TypeInputRecovery beta-exposure route remains independently useful;
+no general NativeFamilyImage.back or general guard-to-comparison promotion has
+been established. GOAL.md's original strengthening problem remains open.

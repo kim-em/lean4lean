@@ -18349,3 +18349,42 @@ transfer, parameterized exposure, and native coverage remain live. GOAL.md is
 not complete. Only these four new source files and these ledger appendices
 belong to this change; independent changes are preserved and no executable
 files are edited. No agents or external sessions were contacted.
+
+## 2026-11-04 16:29:27 UTC — recursive substitution through aligned actual native carriers
+
+Five theory modules now prove a direct native-carrier route through the full
+stage-zero checker. NativeCarrierAlignment substitutes actual dependent carrier
+trees independently of substitution-image recovery. AlignedNativeRecovery keeps
+actual typing and exact native recovery, while the alignment remembers the
+selected output. Lambda, application, conversion, sort exposure, and exclusion
+of impossible structure majors are proved. The source-recovery induction covers
+all constructors, including rebuilding forall recovery with the recovered sort
+levels. NativeAlignedImageSubstitution then transports the full recursive
+ComputedJointCheck relation and its comparison/whole-carrier interfaces.
+
+Binder conversion to a NativeFamilyTree is a concrete consumer: the fresh
+variable recovers the target binder's actual type, and its alignment preserves
+the old source selection. NativeAlignedExample reuses the converted higher-order
+lambda from TypeFunctionExample, proves native alignment at its unrecoverable
+assigned output, proves failure of both exact assigned recovery and the old
+protected-head footprint, and transports arbitrary common-typed body comparison
+through its instantiation. It does not assume backward native recovery or
+ordinary comparison of guarded function arguments.
+
+Validation: 741-job build of 67 explicit modules passed. The exact 520-root
+opaque/inductive/recursor audit passed, including 35 new public declarations and
+constructors; maximum closure 11,427. Only propext, Classical.choice and
+Quot.sound occur. No sorry sources or excluded weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport
+or JointPropBetaStability. The prior 31 lower callable-layer independence checks
+also remain enforced. All five new sources match their pre-build SHA256 snapshot
+and have no build warnings. Artifacts: /tmp/native-alignment-{full-build.log,
+audit.lean,audit.log,roots.txt,new-roots.txt,files.txt,build-targets.txt,
+source-before.json,validation.json}; preparation and verification scripts are
+/tmp/prepare-native-alignment-audit.py and /tmp/verify-native-alignment-audit.py.
+
+The original weakN_iff sorry remains in UniqueTyping.lean:94. These theorems
+remove the protected-head restriction for a concrete native image fragment;
+they do not establish full coverage, a canonical-Eq counterexample, or a strictly
+smaller sufficient irreducible front. GOAL.md remains active. No executable
+files, PRs, or independent worker files were changed.
