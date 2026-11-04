@@ -24,6 +24,16 @@ theorem CallableDomain.subst (H : CallableDomain Γ A)
     ⟨hΓ₀, u, hA.subst henv.orderedStrong W hΓ₀⟩
   exact (show TypeInputImage (A :: Γ) (.bvar 0) from H).subst (σ := σ.lift) hΓA (W.lift henv.ordered hA)
 
+/-- Ordinary domain equality transfers the generic call/projection tree. -/
+theorem CallableDomain.convert (H : CallableDomain Γ A)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (HAB : env.IsDefEq univs Γ A B (.sort u)) : CallableDomain Γ B := by
+  have hΓB : OnCtx (B :: Γ) (env.IsType univs) := ⟨hΓ, u, HAB.hasType.2⟩
+  have HC : IsDefEqCtx env univs [] (A :: Γ) (B :: Γ) := .succ (.refl hΓ) HAB
+  have W : Ctx.SubstEq env univs (B :: Γ) VExpr.Subst.id VExpr.Subst.id (A :: Γ) :=
+    substEq_source_convert hΓB (HC.symm henv.ordered) (Ctx.SubstEq.id henv.ordered hΓB)
+  exact (show TypeInputImage (A :: Γ) (.bvar 0) from H).subst hΓB W
+
 /-- A finite tree on the actual domain certifies its generic value. -/
 theorem CallableDomain.of_tree (H : TypeInputTree env A) : CallableDomain Γ A :=
   .typed (HasType.bvar .zero) H.lift

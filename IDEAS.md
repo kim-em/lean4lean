@@ -6617,3 +6617,55 @@ Parameterized family exposure and initial native recovery/type-comparison covera
 also remain open. Do not identify this fieldwise constructor case with arbitrary
 ComputedJointCarrierGuard transport or general re-synthesis. Original strengthening
 and a strictly smaller sufficient irreducible front are still unproved.
+
+
+## 2026-11-04 16:12:47 UTC — Preserve native higher-order heads instead of promoting their arguments
+
+Verdict: exact protected recovery, native family-image closure, and higher-order
+application reconstruction are proved. General carrier-guard promotion at
+function-family endpoints remains unresolved; no counterexample to that
+promotion is claimed. Merely reindexing a carrier is insufficient for ordinary
+application, so this turn develops the alternative native-domain premise.
+
+RecoveryHeadsAbove records a conservative syntactic footprint: recovery follows
+application functions and projection majors, not application arguments or lambda
+domains. ProtectedOracleSubstitution interprets the whole substitution but
+requires exact variable/oracle transport only at the protected heads. Its local
+binder extension, whole-renaming introduction, and one-binder instantiation are
+proved. ScopedTypeRecovery.subst_protected preserves exact outputs using the
+footprint and primitive transport; inst_protected retains both recovery and the
+footprint. The erased actual-typing wrapper needs no assigned recovery of the
+replacement image.
+
+NativeFamilyTree permits finite dependent functions whose inputs have the
+already proved PolymorphicTypeFamily readout. NativeFamilyImage combines actual
+typing, that tree, native recovery at its own actual carrier, and the footprint.
+It survives protected typed substitution and local beta instantiation; actual
+application follows the dependent result tree without querying the argument's
+native type. application_checked converts the supplied full argument guard from
+its source-selected carrier to the native image's actual domain and uses
+appCarrier. Ordinary guard-to-comparison promotion is not used.
+
+The concrete ProtectedNativeExample accepts TypeFunctionExample.image, whose
+assigned input contains a beta-expanded function type and whose exact assigned
+recovery is impossible even in the full computed union. A local application
+body queries only its protected function variable. Exact recovery of that body
+at Prop survives instantiation by the unrecoverable argument, with its footprint
+retained. The same protected native head accepts arbitrary full argument guards
+at any ordinarily equal input carrier. Actual typings and the argument family's
+certificate are constructed, not assumed as recovery completeness.
+
+Next live step: integrate NativeFamilyImage as a finite selected-output recovery
+leaf. Path substitution must carry ProtectedOracleSubstitution, unlike the old
+unrestricted callable-image substitution. Its actual weakening and local beta
+instances have exact oracle transport; the new typed instantiation law is ready.
+A naive copy of the earlier exposure proof is insufficient: its backward
+ordinary-equality replay does not supply native recovery of the original term.
+One candidate invariant instead pairs an actual native carrier with the source's
+selected raw output. A family-tree leaf handles arbitrary equal selected types;
+a Pi wrapper retains exact domain syntax and recursive codomain alignment.
+Application would instantiate that codomain alignment while retaining native app
+recovery directly, avoiding backward replay after beta. This invariant and full
+checker transport/binder-conversion integration are not yet proved.
+Arbitrary function-image coverage, general guarded-stage transport, PropFront,
+and canonical-Eq strengthening remain open.

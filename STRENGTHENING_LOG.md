@@ -18221,3 +18221,75 @@ carrier transport, parameterized head exposure, and recovery/comparison coverage
 remain live work; this is not a sufficient new front or completion of GOAL.md.
 Only these four source files and these ledger appendices belong to this change.
 No executable edits or coordination; independent changes are preserved.
+
+
+## 2026-11-04 16:12:47 UTC — Exact protected recovery through unrecoverable higher-order arguments
+
+The previous goal turn was progress: 56279a64 committed and pushed independent
+callable binder conversion. This turn investigates the next higher-order
+application premise. No proof or refutation of unrestricted function-family
+guard promotion is claimed. Instead, the function's own native recovery can be
+preserved when local arguments never occur at queried recovery heads.
+
+ProofErasureProtectedNativeRecovery defines RecoveryHeadsAbove and the interpreted
+ProtectedOracleSubstitution relation. Only protected indices require exact
+variable/oracle agreement; lower images may be arbitrary. Binder extension,
+ordinary-renaming inclusion, and local one-binder substitution are proved.
+The footprint survives protected substitution. ScopedCompute.subst_between
+allows source and target primitive relations to differ under interpreted
+substitution. ScopedTypeRecovery.subst_protected transports every recovery
+constructor, retaining the exact selected output; inst_protected also retains
+the footprint. The actual typed-erasure wrapper commutes single substitution
+without asking for recovery of the substituted argument.
+
+ProofErasureNativeFamilyImage defines a finite dependent tree whose input types
+have the existing stable PolymorphicTypeFamily certificate. Images carry their
+actual typing and exact native recovery at that actual carrier, separately from
+any source-selected carrier. Protected variables introduce such images.
+Protected typed substitution and local beta instantiation preserve them; actual
+application follows the child tree and uses native app recovery, without
+querying the argument's type. application_checked recovers the actual input Pi,
+converts the entire supplied source argument guard to that native domain using
+family readout, and rebuilds appCarrier. It does not assume ordinary comparison
+of higher-order arguments. CallableDomain.convert is added using actual identity
+context conversion, so beta-expanded callable domains have certificates too.
+
+ProofErasureProtectedNativeExample constructs a native generic function whose
+input is the assigned type of the earlier TypeFunctionExample.image. This is a
+higher-order argument with failed exact assigned recovery in the full computed
+union. The source body is a local application whose recovery queries only the
+protected function variable. Instantiation by that image still recovers Prop
+exactly and retains the footprint. A second public theorem rebuilds the native
+head's application from an arbitrary full argument guard at any ordinarily
+equal selected carrier. Both tests use actual typing and an explicit input
+family certificate. The negative argument-recovery theorem is retained, not
+weakened or replaced by a native-recovery assumption.
+
+Validation: 736-job build of 62 explicit modules; no warnings or errors in the
+four changed/new source files. The exact 485-root full opaque traversal and
+independent #print axioms reports passed; maximum closure 11,427; only
+propext, Classical.choice and Quot.sound. No sorry sources, weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport
+or JointPropBetaStability. The prior lower callable-layer independence exclusions
+still hold, now for 31 explicit roots including CallableDomain.convert. Source
+hashes match the pre-build snapshot. This is not a whole-repository audit.
+Artifacts: /tmp/protected-native-full-build.log, -audit.lean, -audit.log,
+-roots.txt, -independent-roots.txt, -files.txt, -build-targets.txt,
+-source-before.json, -validation.json and /tmp/verify-protected-native-audit.py.
+
+GOAL.md remains open. UniqueTyping.lean:94 still has the original sorry; no
+canonical-Eq counterexample or strictly smaller sufficient irreducible front
+is claimed. The new native images still need finite recovery-path exposure,
+weakening, full recursive checker transport, and binder-conversion integration.
+Their substitution theorem explicitly requires exact oracle agreement at
+protected heads; it is not arbitrary typed-substitution closure. Moreover,
+backward ordinary-equality replay alone does not supply native recovery for the
+original function. A candidate next invariant records actual-native-carrier to
+selected-output alignment directly, with family-tree leaves and dependent Pi
+wrappers; application could instantiate the codomain while retaining native app
+recovery instead of replaying recovery backwards after beta. This is a live
+proof direction, not an established theorem. General image
+coverage and the guarded-stage argument sufficient for PropFront remain open.
+No executable changes, agents, coordination or PR extraction. Independent worker
+files and commits are preserved; only the four listed source files and these
+ledger appendices belong to this change.
