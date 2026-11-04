@@ -8197,3 +8197,46 @@ families are not equated with core joins. No sufficient smaller front is claimed
 Validation: five modules, 733 jobs, 35 public roots, maximum closure
 11,720; standard axioms only and all exclusions clean. All 708 local imported
 source hashes remained stable; no new-source warnings. Goal active; no PR extraction.
+
+
+## Native eta residuals at lambda endpoints (2026-11-04)
+
+- Derive a type path from native recovery of a literal lambda instead of
+  assuming assigned-type coverage: **proved**. Recovery first selects a body
+  type under the displayed binder, then computes from the corresponding Pi.
+  Full eta-aware Pi readout joins the original domain to every selected native
+  Pi domain: the original domain computes in the eta union, and the selected
+  domain needs only beta cleanup.
+- Join native eta of a retained actual lambda with the original lambda:
+  **proved without an assigned-type path premise**. The original side computes
+  only its annotation; the eta side beta-reduces to the same annotation and
+  exactly the original body. Actual uniqueness classifies the eta argument,
+  including a proof marker when the selected domain is a proposition. Finite
+  guards give a finite later annotation bound.
+- Commute native eta with arbitrary function computation ending in a lambda:
+  **the entire body residual is proved generically**. Run the function path
+  under the selected domain by exact weakening, replay its lambda endpoint,
+  and beta restore that endpoint's exact body. The selected annotation stays
+  fixed. Neither native recovery of the computed function nor native images
+  for its fresh argument are required. In finite eta stages, the long residual
+  retains exactly the function path's bound, independently of the guard depth.
+  A join of the final and selected annotations then joins the whole peak.
+  Construction of that annotation join for arbitrary paths remains open.
+- Require a common type reduct instead of an assigned-Pi-to-literal-native
+  path for general eta repair: **proved**. Follow the native branch by native
+  conversion, then use full Pi readout on the assigned branch. Both branches
+  may use eta-aware computation, with independent finite bounds. This changes
+  the remaining coverage target to existence of a common reduct; it does not
+  prove that such reducts always exist.
+
+Judgment: literal-lambda native eta is now an unconditional checked residual
+case. General function/eta residuals isolate annotation joining rather than
+body transport or proof-marker substitution. These are concrete steps toward
+confluence, not a sufficient strictly smaller strengthening front. General
+native coverage, annotation joins, equality completeness, and GOAL.md remain
+open. The previous turn was verified progress; this turn adds new proofs.
+
+Validation: three modules, 285 Lean lines, 11 public roots; main and isolated
+742-job builds. Structural audit maximum closure 11,470, standard axioms only,
+all exclusions clean. All 717 local imported sources stayed unchanged and
+match isolated copies; no new-source warnings.

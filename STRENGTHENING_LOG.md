@@ -20337,3 +20337,64 @@ local imported source hashes remained stable. Artifacts are
 `/dev/shm/core-expansion-guards-*` and
 `/dev/shm/prepare-core-expansion-guards-audit.py`. The original `weakN_iff` sorry
 remains at `UniqueTyping.lean:94`; no goal-completion or smaller-front claim.
+
+
+## Removing body obligations from native eta/function peaks (2026-11-04)
+
+ProofErasureEtaLambdaResidual uses the newly proved eta-aware Pi origin theorem
+to obtain a native-domain residual without an assigned-to-native type path
+assumption. Syntactic inversion of lambda recovery yields a recovered body
+type and a path from the Pi with the original displayed domain. Replaying the
+body recovery supplies an actual typed Pi source for the full readout theorem.
+When the recovered output is another literal Pi, its beta readout gives a
+common domain: original-domain computation on one side, selected-domain beta
+on the other. No purity, normalization, or native argument image is used.
+
+The retained actual lambda and its native eta expansion consequently share a
+lambda reduct with the original body's exact erasure. The source computes
+only its annotation. The eta branch beta-reduces, including in proof-domain
+cases: actual Pi uniqueness identifies the original domain's universe with
+the selected eta domain's universe before the existing typed eta-instantiation
+lemma restores the body. A finite guard produces a finite later annotation
+stage, while the long branch remains beta-only.
+
+ProofErasureEtaFunctionResidual handles arbitrary function computation ending
+at a lambda, with separate source, target, and recovery relations. The function
+path weakens under the selected actual domain and runs inside the eta body.
+Source-typed replay supplies the final actual lambda at the original type;
+uniqueness gives its domain the selected eta universe. Beta then restores
+exactly the final body's erasure. This does not transport the native guard
+through function computation and does not demand native images of its argument.
+Finite eta stages retain the function path's own stage on the long residual,
+regardless of the independently chosen recovery depth. The union version has
+no uniform depth requirement. A generic whole-peak square requires only paths
+from the final and selected annotations to a common annotation; it adds no
+body-conversion or body-context-transport premise. Existence of those domain
+paths for arbitrary competing function computation is still missing.
+
+ProofErasureEtaJoinedTypeRepair removes an unnecessarily directed premise
+from the prior general assigned eta square. It suffices that the assigned Pi
+and some existing native output compute to a common raw type. Native conversion
+follows its side to that common output, then full Pi readout on the assigned
+side supplies the annotation path. Finite recovery and native-continuation
+bounds combine as max(k,m), followed by one eta guard; the assigned Pi branch
+has its own finite later component bound. Existence of native evidence and a
+common type reduct remain explicit, and no universal coverage is claimed.
+
+Validation: three modules, 285 Lean lines and 11 public declarations. Both
+explicit-target builds pass 742 jobs. The structural dependency audit traverses
+types, opaque proof values, inductive constructors and recursor rules; maximum
+closure 11,470. Only propext, Classical.choice and Quot.sound occur. No sorryAx,
+weakN_iff, weakN_inv, JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability dependency is reachable.
+All 717 local transitive source hashes are stable and byte-identical to the
+isolated checkout. No warnings in the new modules. Artifacts:
+/tmp/carrier-eta-lambda-residual-{main-build.log,isolated-build.log,audit.lean,
+audit.log,audit-roots.txt,files.txt,targets.txt,validation.json,
+closure-source-hashes.json}; /tmp/prepare-carrier-eta-lambda-residual.py.
+
+Only these three modules and ledger appends are staged. Independent b1199af4
+is preserved. No executable changes, coordination, or PR extraction. The
+original strengthening sorry remains at UniqueTyping.lean:94. GOAL.md remains
+active: no strengthening proof, canonical-Eq counterexample, or strictly
+smaller sufficient irreducible front is established by these residuals.
