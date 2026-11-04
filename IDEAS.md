@@ -7278,3 +7278,35 @@ maximum closure 12,797; standard axioms only. These are checked transport
 and boundary results, not a strengthening proof or a sufficient smaller front.
 The next unresolved repair must handle assigned domains beyond forward native
 computation and structural universe variation. GOAL.md remains active.
+
+## Full aligned native-image transport and certified eta instantiation
+
+Verdict: **proved for exact native images, including sort-selected images**.
+The shared native-image transport previously stopped at CarrierRecoveredCompare.
+A typed induction now covers every CarrierAlignedCompare constructor: recursive
+native-type alignment, recover/common-carrier promotion, sorted binders, eta
+bodies, eta-lambda guards and retained structure fields. Existing recovery,
+computed-carrier and recovered-comparison transport discharge all callbacks.
+Actual source typings align independently recovered types before recursively
+transporting their comparison; literal substituted outputs remain unchanged.
+
+Finite-stage full aligned certificates transport from n to n+k for stage-k
+native images. The union transports without choosing one global finite bound
+for the aligned derivation: existing computation transport collects the needed
+image bounds locally. Actual-erasure substitution and single instantiation
+follow. The previous exact-sort selection now supplies image recovery from an
+existing native output plus its aligned comparison to the assigned universe.
+Thus arbitrary full aligned bodies under a type binder can be instantiated at
+such certified arguments. Explicit eta consumers replace the fresh eta argument
+and return comparison with the actual application, including proof-valued
+instantiations.
+
+This closes full aligned eta instantiation for certified native arguments, not
+unrestricted substitution. The committed TypeFunctionExample level-union
+boundary still excludes a higher-order image whose assigned input is a beta
+expansion of its written Pi domain. Sort selection does not eliminate that
+counterexample or produce native evidence for arbitrary type arguments.
+General full aligned parameterized-family exposure still needs analysis of
+partial-function carrier checking and the available supplied-argument images;
+it is not implied merely by the new substitution theorem. Original weakN_iff
+and PropFront remain open, with no smaller sufficient irreducible front claimed.

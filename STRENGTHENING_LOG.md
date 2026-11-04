@@ -19187,3 +19187,45 @@ completeness remain open, with the beta-expanded input now explicitly checked
 against the enlarged computation system. GOAL.md stays active. Only eleven new
 theory modules, two refactored exact-stage modules and these appendices belong to
 this change. No executable changes, PR extraction or agent coordination.
+
+## Full aligned certificates through native-image substitution
+
+Added NativeTransport: a typed induction through the complete aligned grammar,
+using explicit computation, native-recovery, computed-carrier and recovered-
+comparison transport callbacks. Native promotions replay their actual source
+carriers and use uniqueness to align their sort typings. Sorted binders and
+eta bodies lift the interpreted substitution; structure fields are realized
+at actual common types before recursive transport. No semantic completeness
+or untyped carrier-substitution assumption is added.
+
+NativeImages discharges the induction callbacks with the generic exact-native-
+image transport from commit 5bd2fbd9. NativeInstantiation closes all relation
+interfaces for the level-extended recovered stages, with the n+k bound and
+actual-erasure substitution/instantiation consumers. NativeUnion closes the
+same grammar over the union by transporting each computation with the existing
+finite-image-bound argument. NativeEtaApplication instantiates full eta-body
+certificates and identifies the actual application endpoint. Sort-specialized
+consumers derive the exact native image using the previously proved aligned
+sort-selection theorem.
+
+Validation: main and isolated builds passed, 799 jobs for 80 explicit modules
+(the five new modules plus existing modules and newly imported dependencies).
+All 306 exact roots passed the opaque-body, constructor and recursor dependency
+audit; maximum closure 11,285. Only propext, Classical.choice and Quot.sound
+occur. No sorry source, weakN_iff, weakN_inv, JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport or JointPropBetaStability
+occurs. All 80 source files match the isolated build byte-for-byte. The five
+new modules have no build warnings. Artifacts:
+/tmp/carrier-native-instantiation-{all-build.log,isolated-build.log,audit.lean,
+audit.log,audit-roots.txt,files.txt,targets.txt,validation.json}; preparation:
+/tmp/prepare-carrier-native-instantiation.py; verifier: /tmp/verify-carrier-audit.py.
+
+Judgment: full aligned eta instantiation is now available for exactly recovered
+arguments, including type arguments selected from aligned native evidence.
+Exact-image coverage remains false for the checked beta-expanded higher-order
+input, and no unrestricted native coverage or general parameterized exposure
+is claimed. The next exposure analysis must account for partial-function
+carrier checking and supplied-argument images. Original weakN_iff remains sorry
+at UniqueTyping.lean:94; GOAL.md stays active. Only the five new theory modules
+and these ledger appendices belong to this change. Shared committed work was
+preserved; no executable changes or agent coordination.
