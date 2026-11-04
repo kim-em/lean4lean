@@ -17271,3 +17271,38 @@ terminal-domain conversion using an independent earlier path-transport layer;
 retained data projections and arbitrary function domains remain unresolved.
 Only Theory and these ledger additions change. No executable changes, subagents,
 coordination, or PR extraction; independently appearing work is preserved.
+
+## 2026-11-04 — Native type alignment with exact binder descent
+
+The preceding goal turn was progress: d93f2218 established a typed obstruction
+to unrestricted common beta stability of exact-recovery promotion. The current
+work addresses that particular obstruction with CarrierAlignedCompare. Its
+commonCarrier rule requires only a left native recovery; common actual endpoint
+typings align the carrier by uniqueness. Its aligned rule takes two independent
+native outputs, a recursive inferred comparison between them, and a computed
+carrier guard at the left output. Actual sort typings of recovered types make
+the recursive semantic descent valid. The earlier checker embeds as a base.
+
+CarrierAlignedCertificateDescent reconstructs each native recovery, the recursive
+type comparison and the exact carrier guard below an arbitrary binder block.
+It assumes primitive certificate descent, not soundness of the target relation.
+CarrierAlignedCongruence supplies interpreted renaming, inclusion and arbitrary
+shared-template substitution at distinct inferred-related images. A generic
+lift iff packages exact certificate strengthening and weakening without fixing
+a particular stage system.
+
+Validation for all eight modules in this work batch, including the example and
+typed exposure results recorded next: isolated checkout at 1dae2fdf plus only
+our previously validated carrier-recovered additions and these eight modules.
+All new artifacts were removed before rebuilding. 669 jobs pass with no warnings
+in the new modules. All 19 public roots, including the new inductive, pass the
+opaque inductive/recursor audit; largest closure 11,033, standard axioms only,
+no sorry or dependencies on weakN_iff, weakN_inv, JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport or JointPropBetaStability.
+Exact source bytes match. Artifacts: /tmp/carrier-aligned-isolated-build.log and
+/tmp/carrier-aligned-audit.lean, .log, -roots.txt. Independent b8d50453 and current
+concurrent edits are preserved and excluded from this isolated validation.
+
+Original UniqueTyping.lean:94 remains open. The new comparison does not yet have
+its own saturated singleton stages, global beta stability or completeness.
+Only Theory and ledgers change; no coordination, subagents or executable edits.

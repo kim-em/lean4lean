@@ -5881,3 +5881,22 @@ binders independently of selected-domain guard conversion. This is a plan, not
 a proved carrier-conversion law. Retained projections may separately propagate
 a typed terminal result (e.g. a sort-valued field) instead of being excluded;
 that requires a new proved recovery alternative, not the present terminal rule.
+
+## 2026-11-04 — Compare native recovered types instead of joining them
+
+**Verdict: checked descending extension, including exact certificates.**
+CarrierAlignedCompare retains the previous checker and adds two distinct rules.
+Common mode needs only the left native recovery and a guard at that carrier:
+the supplied common actual endpoint typings and uniqueness align the right
+endpoint. Inferred mode retains both native recoveries and recursively compares
+their selected types in inferred mode before using the left carrier guard.
+During descent those recovered types have actual sort typings, so the recursive
+comparison safely aligns them. No computational join or semantic recovery rule
+is assumed. Interpreted renaming, primitive inclusion, exact certificate descent,
+arbitrary shared-template image congruence, and generic lift iff are proved.
+
+This targets the converted-native-type obstruction without claiming global
+beta closure. The new relation is currently parameterized over existing
+primitive relations; it has not been saturated into a new singleton stage
+system. Arbitrary comparison substitution, recovery coverage and declarative
+completeness remain open.
