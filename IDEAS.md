@@ -6588,3 +6588,32 @@ certificates and actual selected carrier typings; merely adding an arbitrary
 function leaf would assume the missing argument-guard transport. General typed
 image coverage, guarded-stage transport, and PropFront remain open. No smaller
 sufficient irreducible front or canonical-Eq counterexample is claimed.
+
+
+### Fieldwise native-carrier transfer across universe variants (2026-11-04)
+
+Verdict: proved beyond the empty-field case. Nullary aligned exposure now retains
+pointwise equivalence of the original and exposed universe lists. Individual
+closed proof-field certificates transport in both directions through equivalent
+well-formed universes; dependent preceding constructor domains are converted
+explicitly. Actual family typings reconstruct universe well-formedness and arity.
+The selected carrier therefore retains projection admissibility and every static
+proof-field omission, while reusing all supplied recursive projection comparisons.
+
+Native Pi selection returns its actual typing, exact recovery, inferred domain
+comparison and rebuilt fieldwise guard together. Raw and actual-erasure application
+consumers close the computed application rule. A concrete full-union consumer
+discharges primitive descent, head and inertness premises from the environment.
+The example telescope P : Prop, h : P compares projection zero and skips projection
+one; its source universe is [max 0 0], while its selected carrier beta-expands
+an instance at [0]. The two actual carrier types provably have no computation
+join, yet the selected carrier guard is obtained. This tests universe comparison
+and proof-field transport, not merely a shared-reduct workaround.
+
+Remaining boundary: source guards whose fields themselves carry recursive carrier
+guards require transport of their dependent projection-type recipes. Current
+consumers explicitly require ordinary computed comparisons of retained fields.
+Parameterized family exposure and initial native recovery/type-comparison coverage
+also remain open. Do not identify this fieldwise constructor case with arbitrary
+ComputedJointCarrierGuard transport or general re-synthesis. Original strengthening
+and a strictly smaller sufficient irreducible front are still unproved.

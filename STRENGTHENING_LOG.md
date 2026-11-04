@@ -18177,3 +18177,47 @@ General guarded-stage transport and coverage sufficient for PropFront remain
 unproved. No executable edits, subagents, coordination, or PR extraction.
 Independent worker changes and commits are preserved. Only the seven listed
 source files and these appended ledger entries belong to this change.
+
+
+### Native fieldwise guards with universe and proof-field transport (2026-11-04)
+
+Strengthened the internal nullary exposure invariant in
+ProofErasureCarrierAlignedNullaryExposure to retain List.Forall₂ universe
+equivalence; the previous public exposure result remains available. Added
+StructureProofFieldUniverses: individual proof fields transport in both directions
+through equivalent universes, and actual family-instance typing supplies the
+constructor universe arity and well-formed arguments. No inverse substitution or
+binder strengthening is used in the dependent prefix-context conversion.
+
+Added ProofErasureCarrierAlignedFieldTransfer. Its raw level-congruence result
+preserves fieldwise guards with arbitrary unchanged parameters. Typed nullary
+exposure reconstructs source/target universe facts and transfers the guard to the
+selected carrier. Native Pi selection, raw application, actual-erasure application
+and concrete recovered-union consumers cover structures with nonempty fields,
+including mixed proof/data fields. The source still supplies computed common-mode
+comparisons of all retained projections; nested carrier-valued field guards are
+not silently treated as such comparisons.
+
+Added ProofErasureCarrierAlignedFieldExample. A P : Prop, h : P constructor
+supplies the second-field proof certificate at every universe instance. The
+selected type is a typed identity-redex expansion at [0], compared against the
+family instance at [max 0 0]. Both proof-field certificates, the aligned type
+comparison and the rebuilt carrier guard are retained. Primitive-head and rigid
+constant assumptions prove the two carrier types have no computational join.
+Projection zero remains an explicit recursive comparison premise.
+
+Validation: main and isolated 694-job builds of 26 explicit modules passed.
+Exact 80-root opaque/inductive/recursor audit passed; maximum closure 11,285;
+only propext, Classical.choice and Quot.sound. No sorry sources or excluded
+weakN_iff, weakN_inv, JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability. All source bytes match the
+isolated worktree; no warnings in changed modules. Artifacts:
+/tmp/carrier-fields-{all-build.log,isolated-build.log,audit.lean,audit.log,
+audit-roots.txt,files.txt,targets.txt,validation.json}; preparation script
+/tmp/prepare-carrier-fields.py and validator /tmp/verify-carrier-audit.py.
+
+The original UniqueTyping.weakN_iff sorry remains at line 94. Full recursive
+carrier transport, parameterized head exposure, and recovery/comparison coverage
+remain live work; this is not a sufficient new front or completion of GOAL.md.
+Only these four source files and these ledger appendices belong to this change.
+No executable edits or coordination; independent changes are preserved.
