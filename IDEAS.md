@@ -8509,3 +8509,31 @@ Validation: five modules, 471 Lean lines; both explicit builds completed 764 job
 rules), maximum closure 11,605, standard axioms only and forbidden dependencies
 absent. All 739 imported local sources were hash-stable and identical to the isolated
 copy. No new-module warnings. Artifacts: `/tmp/carrier-neutral-eta-*`. Goal active.
+
+### 2026-11-04 21:43:51 UTC — Augmented environment core and lambda-eta native guards
+
+- **Finish universe compatibility for the repaired quotient collection.**
+  Accepted and proved: the closed quotient value is a fixed two-universe
+  template; equivalent universes preserve its source-zero guard and structural
+  value. Selected structure compatibility was already proved in
+  `StructureLevelCompatibility`; the missing component was the quotient branch.
+- **Require quotient registration globally to use the enlarged core.**
+  Unnecessary: reuse `FullHead.quotDefinitions` and add selected structure
+  programs. The resulting collection has soundness, rigidity, level compatibility,
+  typed ordinary/level confluence, and exact actual quotient-prefix replay in
+  every environment. A prefix certificate supplies its own registration.
+- **Transport native guards through nested literal-lambda eta.**
+  Accepted and proved: the existing lambda-eta common-core theorem discharges
+  `LevelCoreNative.recovery_of_compute_join`; the recovered output retains an
+  ordinary residual. This yields native eta substitution under joined images
+  and a first-stage body/full-eta argument square. The concrete augmented core
+  discharges all declaration interfaces, including quotient/structure equations.
+- **Infer universal native coverage from the broader lambda-eta guard grammar.**
+  Rejected: the guard paths still collapse to level-core native recovery, so
+  the previous neutral assigned-eta common-carrier obstruction remains. These
+  are conditional transport tools, not a smaller sufficient strengthening front.
+
+Validation: four modules, 397 Lean lines, 24 public roots; 777-job build;
+transitive dependency audit maximum 12,236; only standard Lean axioms.
+No strengthening, sorryAx, or excluded recovery/front dependencies. No executable
+changes or PR extraction. The full GOAL.md deliverable remains open.

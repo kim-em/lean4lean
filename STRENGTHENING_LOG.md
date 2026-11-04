@@ -20726,3 +20726,58 @@ to `propext`, `Classical.choice`, `Quot.sound`; all configured forbidden depende
 absent. Every one of the 739 imported local sources remained hash-stable and byte
 identical to its isolated copy. No new-module warnings. Artifacts:
 `/tmp/carrier-neutral-eta-*`, prep `/tmp/prepare-carrier-neutral-eta.py`.
+
+### 2026-11-04 21:43:51 UTC — Restore augmented-core coverage and transport lambda-eta native guards
+
+Added four checked modules (397 Lean lines):
+
+`QuotLevelCompatibility` proves that the proposition-source closed quotient
+value is a fixed two-universe template, hence structurally level-equivalent at
+equivalent well-formed universe arguments. The source-zero guard is preserved.
+The result composes with selected structure compatibility. Correction to the
+previous next-step summary: selected structure compatibility was already present;
+only compatibility of the quotient branch was missing.
+
+`ProofErasureEnvironmentCore` reuses `FullHead.quotDefinitions` to include the
+quotient equation exactly when its registration is present, then adds selected
+structure programs. The collection equals the repaired quotient core when
+registered and the earlier stored/structure core otherwise. Soundness, rigid-head
+disjointness, universe compatibility, ordinary/level typed-source confluence,
+and exact actual quotient-prefix computation are proved without a global
+QuotRegistered premise. A concrete well-formed-environment theorem discharges
+the abstract pattern interface too.
+
+`ProofErasureLambdaEtaNativeTransport` extends native recovery from mixed
+core/expansion paths to the whole nested literal-lambda eta union. Existing
+common-level-core joins feed the recovery transfer, preserving an ordinary
+output residual for exact Pi/sort/projection handling. Native eta substitution
+then allows these broader guards and actual joined substitution images.
+A separate theorem combines an entire first-stage singleton/Eq body path with
+arbitrary full-eta argument computation. The original argument may recover
+through lambda eta and need only meet its assigned type at a common level-core
+carrier; the computed argument needs no recovery evidence.
+
+`ProofErasureEnvironmentCoreTransport` instantiates nested lambda-eta confluence,
+whole-function beta joining, native eta substitution, and the body/argument
+square for the same augmented environment collection. Thus quotient-prefix
+coverage and selected structure equations are retained throughout, rather than
+using only stored definitions for the concrete instances. Identity guards may
+use the entire eta union.
+
+Research judgment: this closes a real compatibility omission and broadens
+conditional guard transport. It does not establish universal common-native
+coverage; native lambda-eta guards collapse to level-core recovery, so the
+previous neutral assigned-eta obstruction still applies. General neutral eta
+requires eta-aware targets, and higher singleton guard stability/confluence
+remains open. Neither strengthening nor a strictly smaller sufficient front
+has been proved. IsDefEqU.weakN_iff retains its original sorry.
+
+Validation: 777-job explicit-target build; all 24 public roots audited through
+types, opaque bodies, constructors and recursor RHSs. Maximum dependency closure
+12,236; only propext, Classical.choice and Quot.sound. No sorryAx,
+weakN_iff/weakN_inv, excluded joint fronts, semantic head exposure, selected-domain,
+structural-image, or native-alignment dependency. Imported local source hashes
+remain stable; no warnings in the new modules. Artifacts:
+`/dev/shm/augmented-lambda-native-*` and preparation/commit scripts with that stem.
+Only these four files and ledger appendices are staged; independent committed
+work is preserved. No executable changes, coordination or PR extraction.
