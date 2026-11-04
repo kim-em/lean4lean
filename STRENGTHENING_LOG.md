@@ -21716,3 +21716,40 @@ dependencies. All 754 local import sources hash-stable. Artifacts:
 `/dev/shm/type-argument-origin-*`; preparation
 `/dev/shm/prepare-type-argument-origin-audit.py`. Executable unchanged, no PR
 extraction or coordination. Strengthening remains open; goal active.
+
+
+## Arbitrary type-argument origins and nested neutral return trees (2026-11-04 23:23:06 UTC)
+
+Verdict: every full-union computation of F A, for F a variable assigned
+Sort u -> Sort v and arbitrary A : Sort u, beta-reads as F A'. The output
+includes an actual equality A = A' and a lower computation from A to A'.
+Certificate descent discharges the entire payload-update interface, so neither
+argument syntax, native recovery nor normalization is assumed. Local fork
+joining at A lifts to every fork at F A by beta readout followed by congruence.
+The argument-joining premise remains explicit; global type confluence is not
+asserted.
+
+NeutralTypeTree closes the exact-return fragment recursively under universes,
+type variables, dependent Pis and neutral universe-to-universe applications.
+This includes arbitrarily nested constructors such as F (G A), as well as such
+applications inside dependent Pi domains and codomains. Whole argument histories
+let the application case use its recursive return theorem regardless of the
+shape of computed intermediates. Common native evidence at any tree assignment
+therefore recovers that assignment exactly; computed tree binders transport
+native certificates forward exactly; root beta preserves every selected native
+result for arguments commonly recovered at these types.
+
+The result does not cover arbitrary data-indexed families, merely convertible
+function profiles, or general common-native coverage. A next concrete case is
+proof-parameter applications: the independently committed dependent head/arity
+readout may combine with typed telescope inversion to force every exposed proof
+argument back to the literal proof marker. General retained data histories and
+the original strengthening/front obligation remain open.
+
+Validation: two result modules, 235 Lean lines, 19 public roots (including the
+return-tree constructors and recursors). Combined explicit 779-job build and
+47-root full dependency audit, maximum closure 11,663; standard axioms
+only and no configured forbidden dependencies. All 754 local import sources
+hash-stable. Artifacts: `/dev/shm/type-argument-origin-*`; preparation
+`/dev/shm/prepare-type-argument-origin-audit.py`. No executable changes, PR
+extraction or coordination. Goal remains active.
