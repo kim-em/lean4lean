@@ -7980,3 +7980,47 @@ Validation: four modules, 731-job build, 41 exact roots including every new
 observer constructor and recursor, maximum closure 11,383; standard axioms
 only and no forbidden dependency. All 706 local transitive source hashes were
 unchanged through build/audit. No warnings in the new files. Goal active; no PRs.
+
+
+## Retain eta certificates and Pi histories below wrapper binders (2026-11-04)
+
+- Extend ordinary eta-stage descent to retain the exact lower certificate:
+  **proved at the same stage**. Native Pi recovery descends together with its
+  domain/codomain erasures and its native certificate. The lower domain-sort
+  witness then reconstructs a genuine native eta guard. All finite eta stages
+  and their union retain primitive and compatible computation certificates.
+  Compute and native recovery at prescribed lifted outputs reflect through
+  arbitrary inserted binder blocks without increasing the stage.
+- Descend full PiReadout histories rather than only their selected head:
+  **proved generically from primitive certificate descent**. The domain and
+  codomain paths descend in their original scopes. Once both selected
+  components are known lifts, raw beta retraction gives the lower readout.
+  The selected raw endpoint need not have a supplied lower typing. Exact
+  renaming gives the converse, hence same-stage and union readout lift iff
+  theorems for eta-aware computation.
+- Remove constant-wrapper control binders after arbitrary eta-aware body
+  computation: **proved**. A generic certificate-descent theorem reads the
+  output as an exact lift of a lower computed term. Every final annotation
+  and argument beta-returns that term. Raw beta confluence joins any further
+  beta continuation with the lower path. Eta stages retain the original
+  finite bound; the union version needs no uniform bound or native image.
+- Use unrestricted raw observations to preserve eta-aware Pi origins:
+  **not justified**. A raw valuation can assign a Pi/sort demand to a function
+  variable; eta expansion hides that demand. Proof-domain eta slots also
+  require typed argument information. A live next approach is a typed control
+  observation that constrains the demands of temporary wrapper variables.
+  Closed simple control types built from sorts and arrows may supply such an
+  invariant, or fulfilled typed demands may suffice. No such observer or
+  eta-aware head-persistence theorem is claimed here.
+
+Judgment: these results supply exact binder removal for eta-aware origin
+tracking and close its unused-body beta residual. The newly committed full
+controlled-beta Pi origin theorem c43e9bb1 does not yet cover eta primitives;
+its typed preservation step needs an additional invariant for those roots.
+General native coverage, comparison completeness and strengthening remain
+open. This is not a sufficient smaller front or a completed GOAL.md result.
+
+Validation: three modules, 300 Lean lines, 14 new public roots. Main and
+isolated 727-job builds; 49 roots audited including changed dependencies,
+maximum closure 11,114, standard axioms only. All 702 transitive local source
+hashes match isolated copies; no forbidden dependency or new-source warning.

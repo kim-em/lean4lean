@@ -20051,3 +20051,68 @@ constructors and recursor rules; maximum closure 11,383; only propext,
 Classical.choice and Quot.sound. All 706 local imported source hashes remained
 unchanged during validation; no new-source warnings. Artifacts and source hashes
 are /dev/shm/pi-origin-*. Goal active; no PR extraction or coordination.
+
+
+## Eta-aware certificate descent and lower Pi readouts (2026-11-04)
+
+Three modules retain the operational evidence needed to remove temporary
+control binders from eta-aware component histories. Ordinary source-typed
+replay alone supplied only a lower equality, which was insufficient for this
+origin-tracking use.
+
+ProofErasureCarrierAlignedEtaCertificateDescent first strengthens recovered
+Pi descent: the lower actual Pi typing comes with its native certificate in
+the target relation and the exact lifted domain/codomain erasures. Native eta
+expansion can therefore descend with a genuine lower guard. Its domain-sort
+witness is realized at the recovered lower annotation; no assigned-type
+coverage is assumed. The existing singleton, prefix and identity certificate
+proofs close every finite eta stage at the same stage and the entire union.
+Computation and native recovery at prescribed lifted outputs satisfy exact
+lift iff theorems under arbitrary binder-block insertion.
+
+ProofErasurePiReadoutDescent is generic in source and target relations.
+Primitive certificate descent lowers both component computations. The body
+path uses the original A binder, independently of the selected domain D.
+The readout's beta path is retracted only after its source and selected Pi
+components are all known lifts. No actual typing of the selected raw output
+is required. Exact interpreted renaming supplies the forward direction.
+Consequently both finite eta stages and their union preserve and reflect
+PiReadout at the unchanged stage or union.
+
+ProofErasureUnusedBinderReadout abstracts the constant-body argument over any
+primitive certificate-descent pair. Computation under an arbitrary unused
+well-formed binder yields an exact lifted output, an actual lower equality,
+and a retained lower computation. Any raw application argument and final
+lambda annotation beta-return that lower output. A further arbitrary beta
+path joins it by raw beta confluence. Specializations cover every eta stage
+at its original bound and the full eta union, with no native argument image
+or exact body-substitution requirement.
+
+The current c43e9bb1 commit independently establishes full controlled-beta Pi
+origin coverage. Extending that observer directly to native eta is not
+justified: arbitrary raw valuations can demand type heads of function
+variables, and proof-domain eta erases the fresh argument. A typed control
+observation is a live next candidate. The source Pi payloads have sort types;
+closed simple sort/arrow types for introduced control frames, or observations
+whose finite demands are fulfilled by typed arguments, may exclude the bad
+raw valuations. That invariant and full eta-aware observation preservation
+remain unproved. The present certificate results address its binder-removal
+component, not its root eta case or general completeness.
+
+Validation: three modules, 300 Lean lines and 14 new public declarations.
+Main and isolated builds pass 727 jobs. The exact audit includes 49 roots,
+covering these declarations plus four changed transitive modules. Types,
+opaque bodies, constructors and recursor rules were traversed; maximum closure
+11,114. Only propext, Classical.choice and Quot.sound occur. No sorry source,
+weakN_iff, weakN_inv, JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability dependency is reachable.
+All 702 transitive local sources match pre-build hashes and isolated copies.
+No warnings in the three new modules. Artifacts:
+/tmp/carrier-eta-certificate-{all-build.log,isolated-build.log,audit.lean,
+audit.log,audit-roots.txt,files.txt,targets.txt,validation.json,
+closure-source-hashes.json}; /tmp/prepare-carrier-eta-certificate.py.
+
+Only the three new modules and these ledger appends are staged. Independent
+c43e9bb1 and ongoing lambda-origin work are preserved. No executable changes,
+coordination or PR extraction. Original weakN_iff remains sorry at
+UniqueTyping.lean:94; the strengthening goal remains active.
