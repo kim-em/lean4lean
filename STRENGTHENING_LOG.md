@@ -19229,3 +19229,55 @@ carrier checking and supplied-argument images. Original weakN_iff remains sorry
 at UniqueTyping.lean:94; GOAL.md stays active. Only the five new theory modules
 and these ledger appendices belong to this change. Shared committed work was
 preserved; no executable changes or agent coordination.
+
+## 2026-11-04 19:03:21 UTC — expanded native recovery with controlled beta steps
+
+Added eight theory modules: ConstantExpansion and NativeIdentityExpansion
+establish the actual equalities, exact erasures, arbitrary-block descent and
+renaming/substitution laws for two controlled expansions. The constant rule
+uses the fixed closed argument Prop and excludes proof sources. The identity
+rule reconstructs its annotation from preceding-stage native recovery, then
+uses uniqueness to replay the equality at the original source type. Its bound
+variable remains retained by reflection of proofness under typed substitution.
+
+ExpansionStages adds these rules to the universe-converted recovered grammar,
+with inclusion of every previous stage, monotonicity, descent, exact renaming
+and finite-union closure under all its guards. ExpansionNativeTransport,
+Instantiation and Union reuse the shared native-image transport infrastructure
+to preserve computation, selected recovery, full joint carrier checking and
+recovered-family checking. The bound remains n+k for stage-k native images.
+Composition and arbitrary finite source/image bounds are covered.
+
+ExpansionNativeExample repairs the previous beta-expanded higher-order domain
+obstruction: exact assigned recovery now holds at stage zero although it fails
+in the entire previous level-recovered union. The actual image therefore
+instantiates computation and full recursive comparison at every finite stage.
+ExpansionIdentityExample proves another strict increase: an actual generic
+Type variable computes to its identity expansion at stage one, whereas the old
+full union leaves that variable fixed. The general identity-forward consumer
+allows dependent native annotations.
+
+Validation: 774-job build for eight selected new modules. All 69 exact roots,
+including both new inductives' constructors and recursors, passed the opaque
+body, constructor and recursor dependency audit; maximum closure 11,096.
+Only propext, Classical.choice and Quot.sound occur. No sorry source, weakN_iff,
+weakN_inv, JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability occurs. Every root also passes
+the framework independence exclusions. All eight source hashes match the
+pre-build snapshot; no new-source warnings. Artifacts:
+/tmp/expansion-full-build.log, /tmp/expansion-audit.lean,
+/tmp/expansion-audit.log, /tmp/expansion-roots.txt,
+/tmp/expansion-files.txt, /tmp/expansion-build-targets.txt,
+/tmp/expansion-source-before.json, /tmp/expansion-validation.json;
+scripts /tmp/prepare-expansion-audit.py and /tmp/verify-expansion-audit.py.
+
+Judgment: this removes two concrete forward-computation restrictions. It does
+not establish completeness of native recovery, general declarative comparison,
+a canonical-Eq counterexample, or a sufficient irreducible obligation strictly
+smaller than PropFront. Original weakN_iff remains sorry at UniqueTyping.lean:94.
+The new system deliberately lacks the old no-Pi-root invariant, so exposure
+results relying on it require a different argument. GOAL.md remains active.
+A transient full filesystem prevented one initial example write; space became
+available again and no cleanup or deletion was needed. Independent work was
+preserved. Only the eight new theory modules and these appendices belong to
+this change; no executable modifications or PR extraction.

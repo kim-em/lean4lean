@@ -7310,3 +7310,50 @@ General full aligned parameterized-family exposure still needs analysis of
 partial-function carrier checking and the available supplied-argument images;
 it is not implied merely by the new substitution theorem. Original weakN_iff
 and PropFront remain open, with no smaller sufficient irreducible front claimed.
+
+## 2026-11-04 19:03:21 UTC — controlled backward beta expansion
+
+Verdict: checked positive progress. Replace the forward-only computation
+restriction by two source-reconstructible expansion rules. ConstantExpansion
+wraps a retained source in a lambda with an unused Type binder and applies it
+to the closed argument Prop. NativeIdentityExpansion wraps a source in an
+identity lambda whose annotation is supplied by preceding-stage native recovery.
+The former introduces no free variables; the latter descends its annotation
+using the existing source-typed native recovery theorem. Both primitives have
+arbitrary-block descent without strengthening. Proof markers cannot undergo
+the displayed constant expansion; typed substitution preserves that necessary
+non-proof guard. Native recovery already excludes proof-marker sources.
+
+ErasedExpansionStage retains universe conversion, core computation, recovered
+singleton-family guards and full computed Eq-prefix guards. Identity expansion
+uses the preceding stage. All old level-recovered stages embed at the same
+index. The union is closed under its own guards by finite-certificate bounds.
+Exact native-image substitution transports computation, native recovery, full
+joint checking and recovered-family comparison from n to n+k; composition and
+union consumers are included. New primitive transport uses the shared native
+recovery theorem rather than a semantic annotation-completeness assumption.
+
+Two strict checked improvements: TypeFunctionExample.expansion_repair pairs the
+old full level-union failure with new stage-zero recovery at the beta-expanded
+assigned Pi domain. Its actual higher-order image now instantiates every finite
+expanded computation and full recursive comparison at the unchanged stage.
+The generic_type_identity_repair theorem pairs old full-union computation
+failure with a new stage-one identity expansion of an actual generic Type
+variable. The identity-forward theorem also admits dependent annotations when
+native recovery supplies them; it is not limited to literal universe domains.
+
+Limits: this does not authorize arbitrary backward beta expansion, whose
+redex can introduce variables not present in its reduct. The controlled rules
+do not establish arbitrary assigned-type recovery or declarative comparison
+completeness. Previous no-Pi-root exposure lemmas cannot be applied to the new
+system: constant expansion intentionally sends a Pi to an application.
+Next investigate native recovery and exposure with these source-reconstructible
+expansions, retaining the exact guard-transport invariant. Original weakN_iff
+and PropFront remain open; no smaller sufficient irreducible front is claimed.
+
+Validation: 774-job build, eight new modules, 69 audited roots including
+primitive constructors and recursors, maximum dependency closure 11,096.
+Opaque bodies and recursor rules were traversed; all global and framework
+independence exclusions passed. Only propext, Classical.choice and Quot.sound
+occur. Artifacts and hashes: /tmp/expansion-validation.json and associated
+/tmp/expansion-* files. No executable change, PR extraction or coordination.
