@@ -17164,3 +17164,27 @@ one implementation gap in the new descending relation; it does not establish
 beta stability, recovery coverage, completeness, a canonical-Eq counterexample,
 or a strictly smaller sufficient front. Only Theory and ledgers change; no
 coordination, subagents or executable changes.
+
+## 2026-11-04 — Canonical Eq uses the enlarged family comparison
+
+347f7dd5 establishes the recursive stage system. CarrierRecoveredEqGeneral
+connects it to actual Eq computation: structural application comparison forms
+the literal Eq α a a / Eq α a b family pair, and interpreted renaming places
+the comparison beneath the fresh proof major. The generated registered
+singleton program then supplies the exact raw primitive. This route accepts
+the enlarged comparison directly and does not require a common native carrier
+for the final endpoints or a decoder to the old computed carrier language.
+
+The finite-stage forward law uses stage n+1 for a guard at n; the full-union
+law uses finite bounds. The instantiated-endpoints law combines arbitrary
+shared-body congruence with this guard, so related distinct images can enable
+canonical Eq computation even without a common image reduct. Actual typed
+source and Eq registry agreement remain explicit premises. Whole-proof
+sources are handled by proof erasure and semantic equality, giving identity.
+
+Validation: the same isolated 657-job build and 45-root opaque audit described
+above cover all five public Eq integration declarations. The largest closure
+is its instantiated-endpoints theorem at 11,195; standard axioms only and no
+forbidden dependencies. The original strengthening sorry remains at
+UniqueTyping.lean:94. No full beta stability, completeness, strict-smallness
+judgment or canonical-Eq counterexample is claimed.

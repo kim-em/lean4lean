@@ -5799,3 +5799,17 @@ types: old application carrier checking can ignore this native-recovery
 mismatch, while a beta reduct may expose it. This is a proposed boundary to
 test, not a proved obstruction. Arbitrary distinct-body transport and recovery
 coverage remain open.
+
+## 2026-11-04 — Feed shared-template comparisons into canonical Eq computation
+
+**Verdict: checked end-to-end guard feedback.** A common-mode recovered-carrier
+comparison of a and b extends structurally to Eq α a a versus Eq α a b. Exact
+renaming places it under the fresh proof major of the generated family guard.
+Semantic reflection supplies the actual unfolding check, and the existing
+singleton registry builds the exact primitive. At stage n the guard enables the
+Eq prefix at n+1; the union is closed under this feedback. The whole-proof case
+erases to identity. Shared-template image congruence therefore enables actual
+Eq prefix computation for endpoints q[x] and q[y], without requiring x and y
+to have a common reduct. This uses actual source typing and registry agreement;
+it does not decode an arbitrary proposition guard into an old carrier guard.
+Global beta stability and the original front remain open.
