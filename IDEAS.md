@@ -6832,3 +6832,35 @@ tracking through new native-input telescopes, and integrating genuinely
 projectable native results, remain live routes. No sufficient strictly smaller
 irreducible front or canonical-Eq counterexample has been established, and the
 original strengthening theorem remains open.
+
+## Concrete carrier computation across universe variants
+
+Verdict: proved beyond beta-only record transport. StructuralVariant now
+simulates each context-independent ErasedIotaPrimitive: actual declaration
+unfolding uses the existing level-compatibility theorem; projections select
+corresponding captures; concrete quotient/capture and fixed-template iota rules
+rebuild their checks from actual typed matches. Templates vary both their own
+universe annotations and all captures. Finite compatible computation follows
+by induction, replaying both sides at composition points to recover intermediate
+typings. Lambda and Pi bodies may have different actual contexts. No termination,
+normal forms, arbitrary primitive stability, or intermediate typing assumption
+is introduced.
+
+RecordCarrierGuard.core stores a finite core path and the concrete compatibility
+evidence. Its embedding uses the existing carrierCompute rule; recursive record
+variant transport simulates the path, realizes its endpoints, and continues at
+the reducts. Existing native record application consumers inherit the extension.
+For WF.params and Definitions.ofEnv, declaration soundness, level compatibility,
+concrete pattern provenance, and core inclusion in the recovered union are all
+discharged. The stored-type-alias theorem transfers a record guard between
+universe-equivalent instances even when their unfolded bodies have different
+universe syntax.
+
+Remaining: general function-carrier guards change the context of their recursive
+child, whereas this record transport keeps endpoint checks in their original
+context. Context conversion of the record certificate itself is a concrete next
+step; transporting only its old ComputedJointCarrierGuard image loses the
+recursive certificate needed for another carrier variant. General parameterized
+native head exposure and arbitrary recovery coverage also remain open. This is
+a verified fragment extension, not a sufficient smaller front or a solution of
+UniqueTyping.weakN_iff.

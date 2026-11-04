@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCarrierAlignedRecordVariants
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCarrierAlignedComputeVariants
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCarrierAlignedNestedTransfer
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureJointFieldRealization
 
@@ -6,20 +6,19 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureJointFieldRealization
 
 Record guards recurse through dependent field recipes at arbitrary depth. Leaves
 may use the entire computed comparison language or structural subsingletons;
-endpoint computations, carrier beta computation and symmetry are retained.
-Primitive carrier computation and general function-carrier checking remain
-separate obligations. All its
-certificates embed in the existing computed carrier grammar.
+endpoint computations, concrete carrier computation and symmetry are retained.
+General function-carrier checking remains a separate obligation. All certificates
+embed in the existing computed carrier grammar.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape
 variable [Params]
 
 namespace ProofShape
-/-- Recursive record checking with computed endpoint leaves and finite carrier
-beta paths. Primitive carrier computation and function guards require separate
-transport arguments; neither
-is implicitly assumed by this certificate. -/
+/-- Recursive record checking with computed endpoint leaves and finite concrete
+carrier paths. Universe compatibility is explicit for declarations; concrete
+pattern checks are reconstructed from typing. General function guards remain
+outside this certificate. -/
 inductive RecordCarrierGuard (Step : List ProofShape → ProofShape → ProofShape → Prop) :
     List ProofShape → ProofShape → ProofShape → ProofShape → Prop where
   | checked : ComputedJointCompare Step Δ true a b → RecordCarrierGuard Step Δ A a b
@@ -44,6 +43,11 @@ inductive RecordCarrierGuard (Step : List ProofShape → ProofShape → ProofSha
       RecordCarrierGuard Step Δ A a' b' → RecordCarrierGuard Step Δ A a b
   | beta : ProofShape.BetaRed A A' → RecordCarrierGuard Step Δ A' a b →
       RecordCarrierGuard Step Δ A a b
+  | core (hs : D.Sound env univs) (hlevels : D.LevelCompatible univs)
+      (hcon : ∀ {p r}, Pat p r → ConcretePattern env p r)
+      (hincl : ∀ {Δ a b}, ErasedIotaPrimitive D a b → ScopedCompute Step Δ a b)
+      (R : Compute (ErasedIotaPrimitive D) A A') (H : RecordCarrierGuard Step Δ A' a b) :
+      RecordCarrierGuard Step Δ A a b
 
 /-- Recursive record certificates are ordinary computed carrier certificates,
 not new primitive equality or recovery rules. -/
@@ -57,6 +61,7 @@ theorem RecordCarrierGuard.computed (H : RecordCarrierGuard Step Δ A a b) :
   | symm _ ih => exact .carrierSymm ih
   | reduce RA RB _ ih => exact .carrierReduce RA RB ih
   | beta R _ ih => exact .carrierCompute (.beta R) ih
+  | core _ _ _ hincl R _ ih => exact .carrierCompute (R.scoped hincl) ih
 end ProofShape
 
 private theorem variant_family_levels
@@ -113,6 +118,14 @@ private theorem record_variant_transport
     have HG := ih hΓ (ha.defeqU_r henv hΓ ⟨_, HA⟩) (hb.defeqU_r henv hΓ ⟨_, HA⟩)
       HB.hasType.2 EΓ EA' Ea Eb (by simpa only [EB'] using VB)
     exact .beta RB (by simpa only [EB'] using HG)
+  | core hs hlevels hcon hincl R H ih =>
+    obtain ⟨_, hA⟩ := ha.isType henv hΓ
+    obtain ⟨rawB', RB, VB⟩ := proofErase_carrier_aligned_compute_variant hs hlevels hcon R hΓ hΓ hA hB EA V
+    obtain ⟨A', HA, EA'⟩ := proofErase_scoped_compute_realize hstep hΓ hA EΓ EA (R.scoped hincl)
+    obtain ⟨B', HB, EB'⟩ := proofErase_scoped_compute_realize hstep hΓ hB EΓ rfl (RB.scoped hincl)
+    have HG := ih hΓ (ha.defeqU_r henv hΓ ⟨_, HA⟩) (hb.defeqU_r henv hΓ ⟨_, HA⟩)
+      HB.hasType.2 EΓ EA' Ea Eb (by simpa only [EB'] using VB)
+    exact .core hs hlevels hcon hincl RB (by simpa only [EB'] using HG)
   | fields hi hx hp hadm Hfields =>
     obtain ⟨_, hA⟩ := ha.isType henv hΓ
     obtain ⟨ls', ps', EB, HP, hw, hw', hl, HL⟩ := variant_family_levels hi hΓ hA hB EA V
@@ -172,9 +185,9 @@ private theorem record_variant_transport
     rwa [EFt'] at HF
 
 /-- Arbitrarily deep dependent record guards survive structural variants of
-their assigned carrier, including arbitrary finite beta paths at nested carrier
-types. Endpoint computations remain in the same context, so no universe-
-compatibility premise on primitive computation is needed. -/
+their assigned carrier, including arbitrary finite concrete iota and beta paths
+at nested carrier types. Declaration compatibility and concrete pattern evidence
+are stored at core-computation nodes; endpoint computation needs no such premise. -/
 theorem proofErase_carrier_aligned_record_variant
     (hstep : ErasedScopedPrimitiveDescent Step)
     (hΓ : OnCtx Γ (env.IsType univs))

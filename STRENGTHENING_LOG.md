@@ -18494,3 +18494,41 @@ canonical-Eq terms or all dependent types. GOAL.md remains active. Only the eigh
 new theory modules, the selected-domain extension, and these ledger appendices
 belong to this change. No executable or independent worker files were changed,
 and no PRs were extracted or agents contacted.
+
+## Concrete core computation in recursive record guards
+
+Extended the carrier-aligned route with PrimitiveVariants, ComputeVariants and
+CoreRecords, and added RecordCarrierGuard.core in RecordTransfer. Primitive
+simulation covers delta, projection, capture selection/application, and arbitrary
+registered closed RHS templates. Concrete pattern checks use the original typed
+match and concrete_check_levels; source and target matches supply well-formed
+universe instances for templates. The finite-computation induction reconstructs
+both intermediate actual terms by replay, including when the contexts of binder
+bodies differ. It does not assume normalization or arbitrary erased intermediates
+are typed.
+
+The core guard constructor embeds into the old computed grammar and is stable
+under structural carrier variants. Existing nested record and native application
+results still build. Actual-environment wrappers remove all declaration/pattern
+compatibility premises and embed core computation at recovered stage zero. The
+stored-type-alias consumer transfers a recursive record guard across equivalent
+universe instances without equating the unfolded RHS syntax. No general
+function-carrier constructor or arbitrary scoped-primitive simulation is claimed.
+
+Validation: 37 explicit modules built successfully in both the shared worktree
+and isolated checkout (707 jobs each). The exact 121-root opaque-body,
+constructor and recursor audit passed, with maximum closure 11,285. Only
+propext, Classical.choice and Quot.sound occur; no sorry sources or excluded
+weakN_iff, weakN_inv, JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability dependencies occur. All 37
+source files are byte-identical to the isolated build inputs, and the four
+changed modules have no new warnings. Artifacts:
+/tmp/carrier-core-record-{all-build.log,isolated-build.log,audit.lean,audit.log,
+audit-roots.txt,files.txt,targets.txt,validation.json}; preparation script
+/tmp/prepare-carrier-core-record.py and validator /tmp/verify-carrier-audit.py.
+
+The original UniqueTyping.weakN_iff sorry remains at line 94; GOAL.md remains
+active. No executable changed, no agents were contacted, and independent edits
+to SelectedLambdaDomain and the DependentValue modules were preserved. Only the
+three new carrier-aligned modules, RecordTransfer, and these ledger appendices
+belong to this change.
