@@ -9284,3 +9284,38 @@ adds three modules, 352 Lean lines and 27 public roots. Artifacts:
 `/tmp/prepare-carrier-dependent-neutral-head.py`. No new warnings or executable
 changes; independent untracked files preserved and not imported. No coordination.
 Goal remains active.
+
+
+## Neutral head and arity readout with dependent data parameters (2026-11-04)
+
+Dependent-profile finite observations now survive every stage of the full
+static structure/function-eta language, including beta, guarded singleton/Eq
+steps, arbitrary control wrappers and changed binder annotations. An operational
+interpretation with a beta-closed atomic predicate reads a fixed variable head
+and arity while deliberately ignoring the exposed argument expressions.
+
+For any saturated variable-headed application whose actual type profile is a
+universe-ending dependent telescope, every full-union output beta-reduces to
+that same variable head with exactly the original argument count. The telescope
+may have arbitrary dependent proof/data parameter domains; arguments need no
+native certificates. A literal dependent telescope ending in a universe supplies
+the profile directly. Common native evidence against such a neutral type can
+append beta cleanup to select a native type with the same head and arity.
+
+This removes a head-exposure assumption for this class of neutral type
+applications, but does NOT return retained arguments or provide their computation
+histories. Parameter joining, rigid-family heads, and result kinds whose universe
+shape emerges only after particular argument instantiation remain outside the
+result. The next step must retain argument histories or construct their joins;
+head/arity preservation alone cannot solve forward binder transport. General
+common-native coverage, full type-fork confluence, strengthening and a sufficient
+strictly smaller front remain open.
+
+Validation: four consumer modules, 511 Lean lines, 40 public roots; together
+with the preceding three foundation modules and changed committed import, the
+explicit isolated build completed 747 jobs and the audit checked all 88 selected
+roots (maximum closure 11,301). All 722 local closure sources hash-stable and
+isolated-identical; standard axioms only, no forbidden dependencies or sorry
+sources. Artifacts `/tmp/carrier-dependent-neutral-head-*`; preparation
+`/tmp/prepare-carrier-dependent-neutral-head.py`. No new warnings, executable
+changes, coordination or uncommitted independent imports. Goal remains active.
