@@ -8833,3 +8833,39 @@ Validation: two modules, 220 Lean lines, eight public roots in the combined
 789-job source-recovery build; audited maximum closure 11,050; standard
 axioms only and forbidden dependencies absent. Artifacts:
 `/dev/shm/masked-source-recovery-*`. Strengthening remains open.
+
+
+### 2026-11-04 22:32:11 UTC — Exact beta recovery where possible; general exact coverage refuted
+
+**Verdict: exact root-beta transport checked for native retained arguments and
+unconditionally for proof arguments; universal exact coverage is impossible.**
+Extended certificate descent, backward binder transport and marked Pi-origin
+readout to the full masked-structure/function-eta stages. A new literal Pi
+endpoint extraction gives exact component histories, without a residual beta
+normalization of the selected Pi. Thus a native lambda body can recover the
+selected codomain in its original written-domain context. Substituting an
+argument natively recovered at that written domain preserves the redex's exact
+selected result, including all final conversions. Proof arguments impose no
+recovery condition. No confluence premise is used.
+
+The condition cannot simply be erased: for *every* primitive relation with
+binder descent, a lower-typed source cannot natively recover a type containing
+a retained fresh binder. A concrete three-to-four-variable unit-indexed context
+assigns p:F x also F y after adding the unused unit binder y. Hence universal
+exact assigned-type recovery is incompatible with descent itself, independently
+of the chosen computation grammar. The same witness has a common native type
+at unit-eta stage one. In the full structure language, an identity wrapper has
+exact stage-zero recovery at F y; one beta contraction loses exact recovery at
+F y at every finite union depth, while stage-one common recovery survives.
+
+This is not a strengthening counterexample. It rules out universal *exact*
+native source stability even after adding all structure eta. Future source
+stability must retain common native types (or adequate comparisons); the
+remaining task is common-native argument substitution and joins for independently
+selected native carriers, allowing genuine eta. Existing exact transport remains
+useful locally, especially for proof beta, but cannot be the universal invariant.
+
+Validation: five modules, 640 Lean lines, 26 public roots in the combined
+789-job build; maximum audited closure 11,480; standard axioms only,
+forbidden dependencies absent. Artifacts `/dev/shm/masked-source-recovery-*`.
+Original strengthening sorry remains; no final deliverable or PR extraction.

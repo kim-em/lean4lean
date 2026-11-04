@@ -21186,3 +21186,58 @@ types, opaque bodies, inductive constructors and recursor RHSs; maximum closure
 absent. New modules have no warnings. Combined import/source hashes were stable.
 Artifacts `/dev/shm/masked-source-recovery-*`. Executable unchanged, independent
 files/index preserved, no coordination or PR extraction.
+
+
+### 2026-11-04 22:32:11 UTC — Full Pi origins, proof beta and the descent obstruction to exact recovery
+
+Added five modules: `ProofErasureStaticStructureCertificateDescent`,
+`ProofErasureStaticStructureBackwardContext`, `ProofErasureStaticStructurePiOrigin`,
+`ProofErasureStaticStructureBetaRecovery`, `ProofErasureNativeFreshTypeBoundary`
+(640 Lean lines).
+
+Masked structure expansion descends with its lower native family certificate,
+not just an actual equality. Every enriched stage and its union retain full
+certificates, and computation/recovery reflect through exact binder lifts at
+the unchanged stage. Computing a binder domain supplies exact native identity
+images in the reverse context direction, with the additive guard-depth bound.
+Closed typed control frames cannot be structure majors by rigid-family
+separation from sorts and arrows; therefore the marked Pi-origin proof extends
+to all enriched primitives. Both component histories remain in their original
+scopes. At a literal Pi endpoint the observation is already a payload, so its
+exact components can be extracted without a residual beta cleanup.
+
+This gives `static_structure_root_beta_native_recovery`: a beta contraction
+preserves every selected native type when a retained argument recovers the
+lambda's written domain. The function's selected native Pi may have computed
+domain/codomain components. Exact Pi-to-Pi histories convert the original body
+certificate to that selected codomain before substitution; the final application
+conversion tail is then reused unchanged. Proof arguments discharge the image
+condition, yielding `static_structure_proof_beta_native_recovery` with no native
+argument premise. General confluence is not assumed.
+
+`native_recovery_no_inserted_argument` gives the sharp general boundary: a
+source actually typed below insertion cannot recover an upper type with a fresh
+binder as a retained application argument, for any primitive relation satisfying
+descent. The fully constructed unit-indexed witness demonstrates an actual
+assignment p:F y above an unused unit binder y, while p already has type F x
+below. Exact native coverage at F y fails for every such relation, independent
+of its grammar. The witness also explicitly has common native recovery in
+unit-eta stage one for every declaration collection. The final theorem packages
+the same typed identity beta contraction, exact stage-zero wrapper recovery,
+failed exact recovery of the contractum in the entire full structure union,
+and successful common recovery at full-structure stage one.
+
+Judgment: universal exact native source stability cannot be repaired by adding
+more descending primitives. Common-native recovery, or adequate comparisons,
+is indispensable; the next live problem is common-native substitution and
+joining independently selected carriers with genuine eta. This does not refute
+strengthening or establish a sufficient strictly smaller front. The original
+`UniqueTyping.lean` sorry remains and the executable is unchanged.
+
+Validation: combined 789-job explicit build and 26 public-root dependency
+audits through types, opaque values, constructors and recursor RHSs; maximum
+closure 11,480; standard axioms only, all configured forbidden dependencies
+absent. New modules have no warnings; source/import hashes stable. Artifacts
+`/dev/shm/masked-source-recovery-*`; prep
+`/dev/shm/prepare-masked-source-recovery-audit.py`. Independent files/index were
+preserved, with no coordination or PR extraction.
