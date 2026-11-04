@@ -8782,3 +8782,30 @@ to the isolated copies. Artifacts `/tmp/carrier-native-structure-*`; preparation
 of the expanded constructor at its original family, then its interaction with
 source computation and independently selected family instances. The original
 strengthening sorry remains open.
+
+
+## Dependent projection-type residuals through structure eta (2026-11-04)
+
+The projection critical pair now extends through the entire dependent field-type
+recipe. After expanding a major, every preceding projected capture computes to
+its original erased field. Typed telescope substitution identifies raw recipes
+with their masked capture vectors, so erased proof dependencies require no
+reverse computation from a proof marker. This yields primitive-core computation
+from the expanded-major projection type to the original type, for arbitrary
+dependent fields and parameters.
+
+Consequently, a retained projected field recovers at its original selected type
+and reuses every original guard conversion tail, given native recovery of the
+expanded major at the selected family. No field or parameter recovery is assumed.
+This is a local source-change theorem, not general confluence or coverage. The
+next issue is composing this result with exact constructor recovery, then handling
+independently selected family instances. A literal constructor walk was checked
+locally; the overlapping untracked constructor-recovery work was left untouched
+and was not imported or committed by this work.
+
+Validation: one new module, 152 Lean lines, five public roots; isolated 714-job
+build; complete transitive dependency audit, maximum closure 8,370, standard
+axioms only, all configured forbidden dependencies absent. All 689 imported
+local sources hash-stable and isolated-identical. Artifacts:
+`/tmp/carrier-structure-projection-type-*`; preparation
+`/tmp/prepare-carrier-structure-projection-type.py`. Goal remains open.
