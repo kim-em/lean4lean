@@ -20835,3 +20835,61 @@ closure 11,611; only `propext`, `Classical.choice`, `Quot.sound`; all configured
 forbidden dependencies absent. All 741 imported local sources were hash-stable
 and byte-identical to the isolated copies; no new-module warnings. Artifacts:
 `/tmp/carrier-spine-eta-square-*`; prep `/tmp/prepare-carrier-spine-eta-square.py`.
+
+
+## Native eta before finite lambda-exposing beta wrappers (2026-11-04)
+
+Added `ProofErasureBetaLambdaReadout`, `ProofErasureBetaLambdaEtaCoreJoin`,
+`ProofErasureBetaLambdaEtaStages`, and `ProofErasureBetaLambdaEtaInstances`
+(363 Lean lines, 19 public roots).
+
+The raw readout grammar begins with any literal lambda and permits an explicit
+lambda application whenever its body already has a readout. The resulting domain
+and body are instantiated exactly, including the lifted body substitution under
+the exposed binder. `beta_path` verifies the finite beta computation. The raw
+native-domain theorem proves that every core-native output of such a source is
+a Pi and that its selected domain is a forward core reduct of the exposed domain.
+Only absence of Pi-root core primitives and raw substitution closure are used;
+no actual typing or recovery of substituted arguments is needed for this lemma.
+
+At a typed original native eta step, the existing native-collapse theorem turns
+arbitrary descending typed-core-joinable guard computations into core recovery
+with an ordinary output residual. Pi inversion combines that residual with the
+readout domain theorem. Typed function-to-lambda eta replay gives exactly the
+exposed body on the long branch, including erased proof arguments. Both branches
+therefore meet in the level core. Native evidence is assumed only at the original
+source; this does not claim recovery for every typed source or preserve arbitrary
+native outputs across all beta reductions.
+
+`ErasedBetaLambdaEtaStage` and its union permit these eta roots at every guard
+depth. The guard-depth induction proves whole-path core joins, confluence for
+independent base identity guards, and actual substitution up to core joins with
+no native image premise. The former literal-lambda stages embed without changing
+indices, and the new stages remain subrelations of the full eta union. The whole
+function beta square extends to this larger language; the argument still uses
+arbitrary full-eta computation and needs no native certificate at either endpoint.
+Concrete instances use the augmented actual environment collection, including
+its optional quotient and selected structure equations, with no extra quotient
+registration or declaration assumptions beyond WF and canonical Eq.
+
+Research judgment: this is a proved head-changing beta/eta case that fits the
+core-join invariant, not a general beta-exposure theorem. It requires the lambda
+to be syntactically exposed in the wrapper body before substitution; creation of
+a lambda by substituting into a neutral head remains outside the grammar. Head
+delta, projection, general neutral eta within guards, higher singleton-prefix
+computation, and full eta-aware coverage/confluence remain unresolved. The next
+identity-wrapper test should use a Pi with eta-converted domain to distinguish
+mere native Pi existence from the stronger domain core join. Strengthening and
+its original `UniqueTyping.lean` sorry are unchanged; no new sufficient smaller
+obligation or counterexample is claimed. No executable changes.
+
+Validation: main and isolated explicit builds passed, each with 772 jobs. Audited
+41 public roots, including four newly imported modules and the noncomputable
+`EnvironmentCore.definitions` root, plus all transitive types and opaque values,
+inductive constructors and recursor RHSs. Maximum closure 11,912; axioms only
+`propext`, `Classical.choice`, `Quot.sound`; all configured forbidden dependencies
+absent. The declaration collector now recognizes noncomputable and other public
+modifiers, in addition to stripping nested comments. All 747 imported local
+sources remained hash-stable and byte-identical to the isolated copies, with no
+new-module warnings. Artifacts: `/tmp/carrier-beta-lambda-eta-*`; prep:
+`/tmp/prepare-carrier-beta-lambda-eta.py`. Independent files and index preserved.

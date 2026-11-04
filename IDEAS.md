@@ -8576,3 +8576,46 @@ completed 766 jobs; all 15 public roots audited, including inductive constructor
 and recursor RHSs. Maximum closure 11,611, standard axioms only, forbidden paths
 absent. All 741 imported local sources stayed hash-stable and byte-identical to
 the isolated copy. No new-module warnings. Artifacts: `/tmp/carrier-spine-eta-square-*`.
+
+
+### Head beta with an explicit lambda readout (2026-11-04)
+
+**Proved:** `BetaLambdaReadout` records a literal lambda or a finite nest of
+literal-lambda applications whose body has a readout before substitution. Its
+indices give the exact exposed domain and body, and a checked finite beta path
+reaches them. Arguments and the final body are unrestricted. Any core-native
+certificate for such a source selects a Pi whose domain is a forward core reduct
+of the exposed domain. This follows by syntactic native inversion, Pi preservation,
+and raw substitution of codomain paths; no argument native certificate is used.
+
+Collapse descending core-joinable native guards to core recovery, apply this
+readout, and use typed eta's function-to-lambda residual to restore the exact
+exposed body. The original short source and its native eta expansion then share
+a level-core reduct. This handles eta before these head-beta steps, including
+arbitrary finite wrapper depth, without separately recovering the contractum.
+Starting native eta evidence remains required; this is not universal recovery.
+
+The resulting beta-lambda eta stages allow this broader source grammar at every
+native guard depth. Whole typed paths core-join, independent paths are confluent,
+and arbitrary actual substitutions preserve paths up to core joins without native
+image evidence. The literal-lambda stages embed at the same index; the broader
+stages embed into the full eta union. Whole-function beta squares accept these
+paths while their arguments compute in the full eta union. The augmented actual
+environment core discharges the interfaces under WF and canonical Eq, retaining
+its optional quotient and registered structure equations.
+
+**Boundary:** a lambda created by substitution into a variable/neutral body is
+not a `BetaLambdaReadout`; neither are arbitrary head delta or projection paths.
+Do not infer general head-beta core joins. The next concrete test is an identity
+wrapper carrying an eta-converted Pi annotation: its contractum has a lambda
+readout, but comparing the two selected domains may require genuine eta in the
+annotations rather than this core invariant. General neutral eta and higher
+singleton-prefix guards, eta-aware native coverage, whole-union confluence, and
+strengthening remain open. No smaller sufficient obligation is claimed.
+
+Validation: four new modules, 363 Lean lines, 19 own public roots. Both explicit
+builds passed (772 jobs). The complete isolated audit checked 41 roots including
+newly imported public definitions, transitive types, opaque proof values,
+constructors and recursor RHSs; maximum closure 11,912 and standard axioms only.
+All 747 local source imports were hash-stable and byte-identical to isolated
+copies. No new-module warnings. Artifacts: `/tmp/carrier-beta-lambda-eta-*`.
