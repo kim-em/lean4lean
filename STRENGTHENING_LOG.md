@@ -21589,3 +21589,41 @@ forbidden dependencies, and all 747 local import sources hash-stable. Artifacts:
 `/dev/shm/static-type-app-readout-*`; preparation
 `/dev/shm/prepare-static-type-app-readout-audit.py`. No executable changes,
 PR extraction or coordination. Goal remains active.
+
+
+## Neutral application retains its Pi-argument history (2026-11-04 23:12:05 UTC)
+
+Verdict: every full-union computation of F (Pi A B), for a neutral variable
+F at the corresponding universe-to-universe function type, beta-reads as
+F (Pi X Y). Its payload retains the actual representatives and complete
+computational histories of X and Y in the ORIGINAL component contexts. A and
+B are arbitrary typed components, including data-indexed types. They need not
+return to their original syntax, have native certificates, or normalize.
+The proof adds a second sort demand to marked-Pi control observations and
+interprets it as the fixed family applied to the same lower payload.
+
+A checked local consequence reduces every computational fork at F (Pi A B)
+to a fork of the argument Pi A B itself. Reassemble the retained component
+histories as computations of the original argument, apply the explicitly
+supplied argument-joining premise, and lift the join under F after beta
+readout. This is a local congruence reduction, not whole-language confluence
+or a claimed smaller sufficient front. The established dependent return
+theorem discharges the premise for variable/universe/Pi arguments and gives
+an unconditional exact return for F applied to those dependent Pi types.
+
+Next direction: replace the literal-Pi marker with an arbitrary sort-typed
+argument marker, using certificate descent to update its complete lower
+computation history. This would remove the syntactic argument restriction
+from the neutral-family congruence reduction. Data arguments at non-universe
+domains still expose the native-image/eta difficulty; general common coverage,
+forward binder transport and strengthening remain open.
+
+Validation: one new 194-line module with six public roots, and a two-line
+extension of the existing marked-Pi demand grammar and its eta proof. All 45
+affected tracked modules rebuilt (840 jobs); all 40 public roots in both
+changed modules audited, including constructors, recursors, types and opaque
+values. Maximum closure 11,614; standard axioms only and no configured
+forbidden dependencies. All 725 local import sources hash-stable. Artifacts:
+`/dev/shm/static-pi-app-origin-*`; preparation
+`/dev/shm/prepare-static-pi-app-origin-audit.py`. Independent untracked work
+preserved; no coordination, executable changes or PR extraction. Goal active.
