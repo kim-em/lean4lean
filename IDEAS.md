@@ -7357,3 +7357,44 @@ Opaque bodies and recursor rules were traversed; all global and framework
 independence exclusions passed. Only propext, Classical.choice and Quot.sound
 occur. Artifacts and hashes: /tmp/expansion-validation.json and associated
 /tmp/expansion-* files. No executable change, PR extraction or coordination.
+
+## Demand-shaped recovery versus native common reducts in the guarded union
+
+- Restrict exact image transport to Pi-shaped recovery demands: **refuted**.
+  The actual higher-order TypeFunctionExample image remains typed at its
+  beta-expanded assigned type. A fresh variable at that type natively recovers
+  a Pi; substituting the image cannot recover the instantiated demand even in
+  the complete level-extended recovered union. The checked
+  level_pi_demand_instantiation_failure makes the source demand and failed
+  substituted output explicit. Thus inspecting the outer recovery head alone
+  does not avoid the old exact-output obstruction.
+- Postpone explicit universe steps until after beta: **proved**. Every mixed
+  finite path factors into a beta path followed by StructuralVariant. Existing
+  beta/variant simulation handles composition and redex creation. Typed beta
+  confluence then supplies an exact beta/universe join; replay of one residual
+  provides the level well-formedness needed for the final explicit conversion.
+  No normalization or general guarded confluence is assumed.
+- Identify guarded paths for which this confluence applies: **proved** for
+  PureLambda, the raw grammar without constants or projections, retaining
+  arbitrary applications, lambdas, Pis, sorts, variables and proof markers.
+  Beta and level conversion preserve the grammar. The stage-root classifier
+  excludes every old primitive head at every intermediate node. Consequently
+  all finite-stage and union computations from this syntax use only beta and
+  universe steps, even after created redexes are contracted. Typed confluence
+  follows for paths from different stages, with pure beta/universe residuals.
+- Repair selection by a common reduct instead of the exact expanded output:
+  **proved at all guarded stages for typed pure carriers**. An existing native
+  output reached from the assigned carrier joins every later selected reduct.
+  The residual uses only beta/universe steps, so native recovery stays at its
+  original stage. The higher-order counterexample has such native evidence
+  already at stage zero and retains it through every later guarded selection,
+  while its exact assigned recovery remains impossible.
+
+This closes a concrete forward-selection join case beyond the prior core-only
+native-join framework. It is not unrestricted image substitution. Substituting
+an arbitrary actual argument into a dependent pure codomain can introduce
+constants or projections, leaving the proved confluence class; the resulting
+guarded beta residuals still need justification. Generic function-carrier
+reindexing also still needs binder transport. No reduction of arbitrary
+PropositionFront to this grammar, canonical-Eq counterexample or sufficient
+strictly smaller irreducible obligation is claimed. GOAL.md remains open.

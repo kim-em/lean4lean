@@ -19281,3 +19281,58 @@ A transient full filesystem prevented one initial example write; space became
 available again and no cleanup or deletion was needed. Independent work was
 preserved. Only the eight new theory modules and these appendices belong to
 this change; no executable modifications or PR extraction.
+
+## Beta/universe confluence and pure-carrier native selection repair
+
+Added BetaLevelJoin. A raw ScopedCompute path using LevelPrimitive factors as
+BetaRed followed by StructuralVariant; in a transitive path, beta/variant
+simulation moves the second beta segment before the accumulated variation.
+Typed beta confluence joins the factored paths. Simulating its residuals from
+the actual level-varied endpoints leaves one structural variant, converted to
+an exact path using actual replay of the target residual. No termination or
+untyped level-well-formedness assumption is used.
+
+PureComputation defines syntax without constants or projections and proves its
+closure under lifting, instantiation, beta and level conversion. Every finite
+level-recovered root is an old PrimitiveHead or a LevelPrimitive. The former
+is excluded throughout pure computation, yielding an exact collapse to the
+beta/universe relation. Finite-stage and union confluence at actual typed pure
+sources follow; their residual paths contain no singleton or Eq guards.
+
+PureNativeJoin repairs a native common-reduct selection after another forward
+computation from the same typed pure carrier. Even when the competing path is
+from a later guarded stage, the native certificate stays at its original stage.
+ExpandedNativeJoin checks the existing higher-order beta-expanded input: it
+has a pure assigned carrier and stage-zero native common-reduct evidence,
+retained after every later finite-stage selection. The exact union recovery
+failure is preserved. An additional explicit fresh-variable witness proves
+that restricting exact recovery demands to Pi-shaped outputs still fails.
+
+Validation: main and isolated builds passed, 867 jobs for 130 selected modules
+and dependencies. All 648 exact roots passed the opaque-body, constructor and
+recursor dependency audit; maximum closure 11,507. Only propext,
+Classical.choice and Quot.sound occur. No sorry source, weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport
+or JointPropBetaStability occurs. All 130 source files match the isolated build
+byte-for-byte; the four new modules have no build warnings. Artifacts:
+/tmp/carrier-pure-join-{all-build.log,isolated-build.log,audit.lean,audit.log,
+audit-roots.txt,files.txt,targets.txt,validation.json}; preparation:
+/tmp/prepare-carrier-pure-join.py; verifier: /tmp/verify-carrier-audit.py.
+
+Infrastructure: the initial expanded dependency-manifest parser missed two
+older section blocks. Its shell fallback inadvertently ran a default build,
+which failed because the filesystem was full (recorded in
+/tmp/carrier-pure-join-unintended-full-build.log). The parser now tracks sections;
+build invocation asserts the explicit target list before running. The isolated
+checkout's generated build artifacts were relocated to /dev/shm through a
+symlink to free disk space, preserving sources and artifact paths. The intended
+main and isolated checks above then passed.
+
+Judgment: exact Pi-demand recovery is refuted; native common-reduct selection
+is stable for pure assigned carriers in every guarded stage. Arbitrary actual
+argument substitution can introduce guarded heads into a dependent codomain,
+so full guarded confluence, unrestricted image transport and general function
+carrier conversion remain open. Original weakN_iff is still sorry at
+UniqueTyping.lean:94; no GOAL.md deliverable is claimed. Only these four theory
+files and ledger appendices are part of this change. Independent files were
+preserved; no executable changes or agent coordination.
