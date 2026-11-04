@@ -16230,3 +16230,40 @@ original sorry persists at UniqueTyping.lean:94. No canonical-Eq counterexample
 or strictly smaller sufficient irreducible obligation has been established;
 GOAL.md remains active. Independently appearing untracked Theory files were
 left untouched. No coordination, subagents, or executable changes.
+
+## 2026-11-04 — Pi-wrapping defeats universal three-way image coverage
+
+Previous turn made progress: bebabf14 was checked and pushed. To test whether
+its native-recovery/computed-domain/inert-domain criterion might cover every
+typed function, this turn wraps the eta boundary's two neutral domains in Pi.
+The new domain still has an eta-converted inner annotation, but now exposes a
+function carrier immediately.
+
+StructuralDomainBoundary.typed_structural_domain_failure is checked for every
+well-formed environment/context in Params, hence also when canonical Eq is
+available. Its function is a lambda returning Prop, assigned a Pi through type
+conversion. Native recovery in the full ErasedJointUnion stays at the written
+Pi; beta/core computation cannot change its normal annotation to the assigned
+one. The assigned domain is itself a Pi, so the inert alternative is false by
+reflexivity. selected_domain_or_inert additionally rules out every anchored
+family path at the assigned type, for every cutoff and rank. This is a concrete
+refutation of universal coverage by the current image criterion, not a
+canonical-Eq counterexample to strengthening or recursive checking transport.
+
+Validation: consuming build succeeds in 577 jobs with no new-module warnings
+(/tmp/structural-domain-build.log). Opaque audit of the public theorem reaches
+8,594 declarations; only propext, Classical.choice and Quot.sound occur as
+axioms. No sorry sources or forbidden strengthening/transport dependencies
+are present. Artifacts: /tmp/structural-domain-audit.lean and .log.
+
+Next live idea: a terminal neutral SELECTED output need not have native
+recovery. Adding such leaves to the recovery-path invariant may cover neutral-
+typed values needed for context conversion inside function carrier guards.
+It requires changing projection exclusion to retain the rigid selected output:
+with a neutral leaf, the existing helper for arbitrary outputs would be false.
+The head-exposure induction can exclude neutral selected Pi outputs directly,
+and ordinary computation preserves their variable heads. This is an unproved
+next step, not a claim of full structural carrier conversion. Arbitrary
+structural carriers, heterogeneous arguments, higher stages for the current
+image class, and strengthening remain open. UniqueTyping.lean:94 still has the
+original sorry. GOAL.md remains active; only Theory and ledger files change.
