@@ -21927,3 +21927,53 @@ dependencies. All 746 closure hashes were stable and matched isolated copies.
 Artifacts /tmp/carrier-type-beta-residual-*; preparation
 /tmp/prepare-carrier-type-beta-residual.py. No new warnings, executable changes
 or coordination. The strengthening goal remains active.
+
+
+## Variable native coverage is type-conversion joining (2026-11-04 23:47:07 UTC)
+
+Verdict: checked a sharper classification of the common-coverage route. A common
+canonical target of a domain's descendants does not directly transport an
+arbitrary native body certificate from its original binder to that target:
+existing exact image transport needs a reverse domain computation. Substituting
+uniform common native coverage for this missing transport has a precise cost.
+
+`NativeVariableCommonCoverage` allows an arbitrary converted assignment at a
+variable, not just literal lookup. It is equivalent, under canonical Eq and
+sound definitions, to `StaticStructureTypeConversionJoin`: every pair of ordinarily
+equal typed types has a common full-union computational target. A retained
+variable tests its declared and assigned types; both paths descend through that
+fresh test binder. Wrapping arbitrary types as function-to-sort domains retains
+the test variable even for propositions, and full Pi component extraction
+recovers the original domain join. Conversely, type uniqueness joins a variable's
+literal lookup type to its assigned type and supplies common native coverage.
+
+The joining property implies PropositionFront directly: join the lifted
+propositions, descend both computations, reflect their common erased syntax,
+and compose the lower actual equalities. Consequently variable-only common
+coverage already suffices for PropositionFront. No converse from PropositionFront
+to this computation-completeness law is asserted. Restricting the source to a
+variable is not evidence of a strictly smaller front.
+
+Uniform common native coverage factors exactly into variable common coverage
+and bare retained-source native existence. Type equality joins any selected
+native type to its assignment. Uniform coverage transports arbitrary native
+certificates across actually equal contexts with a forward residual on the
+selected output; computed forward-binder transport is a special case. Thus using
+coverage to establish that transport leaves type-conversion completeness as an
+explicit obligation. None of these open obligations is proved by the reductions.
+
+This changes the next action: separate bare native existence from the equality
+conversion case, and do not treat variable coverage as a routine base case or
+substitute it silently for forward transport. Canonicalizable caller fragments
+remain valid local joining results. General retained-argument joining, full
+coverage, strengthening and a sufficient strictly smaller irreducible front are
+still open. Original weakN_iff sorry unchanged; goal active.
+
+Validation: two modules, 230 Lean lines, explicit 769-job build; all 14 public
+roots (including the four obligation definitions) audited through types, opaque
+bodies, constructors and recursor rules. Maximum closure 11,488; only
+propext, Classical.choice and Quot.sound, no strengthening, sorry or configured
+circular-framework dependency. All 744 local import sources hash-stable. Artifacts
+`/dev/shm/variable-coverage-join-*`; preparation
+`/dev/shm/prepare-variable-coverage-join-audit.py`. Executable unchanged; no PR
+extraction or coordination.
