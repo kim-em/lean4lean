@@ -17226,3 +17226,48 @@ match. Artifacts: /tmp/carrier-converted-unit-isolated-build.log and
 /tmp/carrier-converted-unit-audit.lean, .log, -roots.txt. Original
 UniqueTyping.lean:94 remains open; GOAL.md remains active. Only Theory and
 ledgers change, with no coordination or subagents.
+
+
+## 2026-11-04 13:27 UTC — Fieldless and proof-only structure instantiation
+
+Extended TerminalImage with fieldless and proofStructure constructors. The
+former admits any registered zero-field owner, including indexed owners. The
+latter uses actual structure typing, parameter arity, zero indices, and the
+existing closed ProofFields certificate. Both constructors survive actual typed
+substitution and backward equality replay and exclude function typing.
+
+Replaced the now-overstrong TerminalImage.not_structure theorem with
+projection_isProof and not_projection. A terminal structure may have typed proof
+projections. The new theorem proves that every actual projection of a terminal
+image is a proof; its corollary excludes only retained projections. Fieldless
+cases use proj_index_lt and unique projection metadata. Proof-only cases build
+an actual typed expansion from the closed certificate and extract its field
+proof. Family-head injectivity resolves competing owner names without requiring
+literal equality of universe lists or occurrence parameters.
+
+The projection branch of proofErase_joint_zero_recovery_subst_structuralImages
+now supplies the actual substituted projection typing and non-proofness to the
+terminal exclusion. Existing finite path exposure/application and all recursive
+checking consumers rebuild unchanged. ProofErasureProofStructureInstantiation
+adds complete stage-zero comparison and exact first-layer computation consumers
+for fieldless and proof-only images at arbitrary convertible assigned types.
+The two-proof-field telescope example discharges the field certificate from
+syntax, with no condition on the structure's result universe. Existing terminal
+lambda-body and sequential-substitution consumers inherit the larger class.
+
+Validation: 609-job build of 16 affected/consuming modules, no new/modified-module
+warnings. Exact 125-root full opaque dependency audit covers every new/modified
+public root, both new constructors, and prior recursive consumers. Maximum
+per-root closure 11,217; only propext, Classical.choice and Quot.sound. No sorry
+source or forbidden weakN_iff, weakN_inv, JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport or JointPropBetaStability.
+Independent #print axioms output matches every expected root. Artifacts:
+/tmp/fieldless-image-build.log; /tmp/fieldless-image-audit.lean and .log;
+/tmp/fieldless-image-roots.txt, -files.txt, and -build-targets.txt.
+
+Original strengthening is still open. No canonical-Eq counterexample or strictly
+smaller sufficient irreducible obligation has been established. Next investigate
+terminal-domain conversion using an independent earlier path-transport layer;
+retained data projections and arbitrary function domains remain unresolved.
+Only Theory and these ledger additions change. No executable changes, subagents,
+coordination, or PR extraction; independently appearing work is preserved.

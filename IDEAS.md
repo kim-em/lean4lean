@@ -5842,3 +5842,42 @@ Any such refinement must separately prove semantic and certificate descent
 using the actual recovered types' sort typings; no completeness assumption may
 be smuggled in. Alternatively pursue proposition-only stability without the
 refuted unrestricted common-mode induction invariant.
+
+
+## 2026-11-04 13:27 UTC — Structures with no retained projection fields
+
+Fieldless structures were tested against the terminal-image substitution route.
+The existing HasType.proj_index_lt theorem supplies the needed strict field-count
+bound from an actual projection typing. Rigid owner injectivity plus projection
+metadata uniqueness rules out any competing nonempty owner for the same value.
+Verdict: proved and integrated, including indexed fieldless structures; no
+constructor exposure or native recovery is needed for their images.
+
+The same argument extends beyond fieldlessness. Existing closed ProofFields
+certificates reconstruct an unindexed structure's typed projection expansion.
+ProofFields.field extracts a single closed field certificate; its projection
+is a proof. TerminalImage now includes arbitrary typed values at such proof-only
+structures. Projection recovery excludes a retained projection using source
+non-proofness transported by isProof_subst, rather than falsely excluding all
+projection typing. Verdict: full recursive checking and first-layer computation
+transport are proved for this larger class. Actual family-head equality aligns
+the owner; metadata uniqueness aligns the projection information, and the proof
+projection is constructed at the original image's universe instance.
+
+The conjunction-shaped two-parameter/two-proof-field constructor telescope
+supplies the certificate directly from declaration syntax. Its result universe
+is unrestricted, so the major itself need not be a proof. Named consumers cover
+both checking and exact first-layer computations for general proof-only images;
+a concrete telescope consumer instantiates all common-typed recursive bodies.
+This does not cover indexed proof-only structures with fields or retained data
+fields, and it does not assume their projections vanish.
+
+Next live direction: use terminal-domain binder conversion to enlarge lambda
+input-domain alignment. To avoid a dependency cycle through SelectedLambdaDomain
+and StructuralImageSubstitution, first investigate adding terminal leaves to the
+older SortRootedRecovery/PathImageSubstitution layer, whose exposed lambda domains
+are exact. That lower transport could supply conversion for terminal-valued
+binders independently of selected-domain guard conversion. This is a plan, not
+a proved carrier-conversion law. Retained projections may separately propagate
+a typed terminal result (e.g. a sort-valued field) instead of being excluded;
+that requires a new proved recovery alternative, not the present terminal rule.

@@ -2,9 +2,10 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureConvertedBodyInstantiat
 
 /-! # Instantiation by terminal values and terminal-valued lambda bodies
 
-Rigid data without projections needs no native image recovery, regardless of
-the computation or conversions used to type the image. The same terminal
-criterion can close any finite lambda-body recovery path.
+Rigid data without projections and structures with no retained fields need no
+native image recovery, regardless of the computation or conversions used to
+type the image. The same terminal criterion can close any finite lambda-body
+recovery path.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape
