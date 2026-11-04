@@ -6367,3 +6367,47 @@ the explicit inferred image comparison. It does not prove higher guarded-stage
 primitive simulation, paired transport of ComputedJointCheck carrier rules, or
 coverage by the enlarged target checker. Those are the remaining live steps;
 no canonical-Eq counterexample or strictly smaller sufficient obligation is claimed.
+
+
+## 2026-11-04 15:13:22 UTC — Typed specialization detects inert generic values
+
+Verdict: checked whole-guard promotion at values of a generic type parameter,
+even when their actual source carrier is only ordinarily equal to that parameter
+and is not syntactically neutral. SortSpecialization records an actual typed
+interpretation of the whole context in which the image has a sort type. The
+witness can retain arbitrarily many local binders above a successor-universe
+type parameter. It is existential, not a semantic equality under all valuations.
+No inhabitance assumption is introduced.
+
+Such an image cannot currently be a proof, function or structure major:
+substitution would preserve that typing, contradicting its actual sort typing.
+Weakening extends the same interpretation and ordinary equality replays it.
+Induction on the full ComputedJointCarrierGuard excludes its structural cases,
+replays carrier computation, and preserves the witness across endpoint reduction.
+Either endpoint suffices. The result is ordinary comparison in exactly the same
+primitive relation, followed by carrier reindexing and an actual application
+consumer. This works for any primitive relation with typed descent, including
+the full computed union under canonical Eq and sound definitions.
+
+Concrete evidence: the generic value rejected by TerminalDomain has a checked
+specialization. Two fresh values of a generic Type parameter remain separated
+at a beta-expanded parameter carrier, even by the full computed-union guard.
+The carrier has an application head, so raw neutral-source classification does
+not supply this result. Actual endpoint typings and beta equality are proved.
+
+Rejected shortcut: treating SortSpecialization as an arbitrary-substitution-
+stable terminal leaf is false. Substituting Prop → Prop for the type parameter
+turns the same specializable generic value into a function. The explicit typed
+substitution and the negation of target specialization are checked. Therefore
+adding this case to the previous recovery tree's unrestricted subst theorem
+would be unsound; no such change was made.
+
+Next live route: index recovery paths by a shared actual test interpretation.
+Under a lambda its test must be the lift of the parent's test, rather than a
+new independent existential witness. inst_of_lifted_test already proves the
+required local beta-substitution law using the actual interpreted argument.
+Build a path exposure/instantiation proof retaining this coherent test and its
+selected raw output, then use it for generic-parameter binder conversion. That
+full context transport is still unproved. The terminal-family coverage boundary
+for ∀ A : Type, A → Prop is not claimed repaired by guard promotion alone.
+Global strengthening and a strictly smaller sufficient front remain open.

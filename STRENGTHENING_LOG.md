@@ -17853,3 +17853,58 @@ maximum closure 11,158; exact isolated source bytes; no forbidden dependencies.
 Artifacts /tmp/carrier-scoped-*. The original strengthening sorry remains.
 Full joint carrier checking and higher guarded stages are not covered. No
 executable changes, external coordination, or completion claim.
+
+
+## 2026-11-04 15:13:22 UTC — Generic argument guards through actual type specialization
+
+The previous goal turn was progress (f57af9d9 committed and pushed). This turn
+investigates arbitrary source annotations equal to a generic type parameter.
+The earlier neutral-source context theorem cannot simply be run backwards.
+
+ProofErasureSortSpecialization defines an actual typed-context interpretation
+making an expression sort-typed. It proves identity introduction, equality replay,
+binder weakening, proof/function/structure exclusion, and construction at a
+successor-universe type parameter beneath any local telescope. It also proves
+inst_of_lifted_test: local beta substitution preserves a test when the body's
+interpretation is the lift of the enclosing one. Arbitrary substitution closure
+is deliberately not asserted.
+
+ProofErasureSpecializedCarrierChecking proves by complete carrier induction that
+either common-typed endpoint's specialization makes its guard an ordinary
+comparison. Carrier and endpoint computations are realized with actual typings;
+structural alternatives contradict the specialization. Reindexing, an arbitrary
+source carrier equal to a generic parameter, and application all have public
+consumers. The primitive relation is arbitrary with typed descent; the theorem
+is not restricted to stage zero.
+
+ProofErasureSpecializationBoundary repairs the earlier generic value's missing
+terminal classification with a specialization witness, but proves an actual
+typed substitution turning that value into a function without such a witness.
+This refutes the tempting unrestricted-subst leaf extension. The required next
+invariant must retain the same test through local binders and beta contractions.
+
+ProofErasureSpecializedCarrierExample gives two actual generic values and a
+beta-expanded parameter carrier. Both are typed at the expanded source. Their
+full computed-union carrier guard is impossible by the new promotion theorem
+and raw variable injectivity. This is separation of a checking certificate,
+not a declarative strengthening counterexample.
+
+Validation: 720-job build of 46 explicit modules, no warnings/errors in the four
+new sources. The exact 340-root full opaque audit plus independent #print axioms
+reports passed; maximum closure 11,326; only propext, Classical.choice and
+Quot.sound. No sorry sources, weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport
+or JointPropBetaStability. Explicit roots include all new public declarations,
+the coherent-beta lemma, the generic positive/negative pair and full-union
+separation, plus the preceding selected consumer manifest. This is not a
+whole-repository audit. Artifacts: /tmp/sort-specialization-build.log,
+/tmp/sort-specialization-audit.lean and .log, -roots.txt, -files.txt,
+-build-targets.txt, -source-before.json, -validation.json and
+/tmp/verify-sort-specialization-audit.py.
+
+GOAL.md remains open: UniqueTyping.lean:94 still has the original sorry; no
+canonical-Eq counterexample or strictly smaller sufficient irreducible obligation
+is claimed. Generic-parameter binder conversion still requires a recovery path
+with a coherent shared interpretation, not just this argument-guard theorem.
+No executable edits, agents, coordination or PR extraction. Independent changes
+are preserved; only the four new files and these ledger appendices are ours.
