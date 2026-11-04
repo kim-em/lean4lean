@@ -5617,3 +5617,32 @@ certificate, and continues there. No body path is pulled back through a changed
 annotation. It returns the exact instantiated output and the image certificate
 at the new annotation. Verdict: checked; next use is the full inferred-lambda
 comparison induction, including its computation and symmetry cases.
+
+
+## 2026-11-04 — Paired head beta with converted image recovery
+
+ProofErasureComputedConvertedHeadBeta completes the inferred-lambda comparison
+induction for the full computed union. Both displayed annotations carry a
+NeutralRecoveringImage certificate. Structural lambda cases instantiate the
+common-typed body comparison; computation cases contract both actual paths
+with ConvertedLambdaComputation and continue with their new certificates;
+symmetry swaps the certificates; typed eta supplies the ordinary beta path.
+The recursive checker includes appComputed throughout. Verdict: proved,
+without exact recovery at either displayed annotation or unrestricted beta
+transport. Common-mode promotion for the computed grammar is also proved.
+
+Proposition-valued paired head beta follows for equal-erasure arguments, and
+for distinct arguments computing to a typed shared image with the two converted
+recovery certificates. Compatible argument computation uses primitive renaming
+only and requires no recovery on the original arguments. The structural eta
+boundary's lambda satisfies the new image invariant via its written type, so
+every inferred computed-union lambda comparison at its assigned structural
+annotation now has paired head beta. Its known assigned recovery failure still
+applies. Verdict: checked generalization of the recoverable joined-argument
+branch, not arbitrary heterogeneous substitution or global beta stability.
+
+Validation: 665-job isolated build, 14 exact opaque audit roots, largest closure
+11,171, only standard axioms and no forbidden dependency or sorry. Arbitrary
+carrier-related data arguments need not join, and image coverage remains
+restricted. No proof of PropositionFront, canonical-Eq counterexample, or
+strictly smaller sufficient irreducible front is established.

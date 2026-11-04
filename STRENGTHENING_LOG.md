@@ -16907,3 +16907,48 @@ occur. All source bytes match isolated validation. Artifacts:
 Original UniqueTyping.lean:94 remains open. Only Theory and ledgers change;
 no executable edits, coordination, or subagents. Concurrent independent commit
 90c5b0e6 is excluded from this validation baseline and preserved.
+
+
+## 2026-11-04 — Paired computation at convertible recovered argument types
+
+bec18a87 is committed and pushed. ComputedConvertedHeadBeta uses its forward
+image invariant and direct contracted-lambda computation in the complete
+inferred-lambda checking induction. The structural case instantiates the body
+at the converted recoverable image. The computation case contracts the two
+paths independently, retains their actual intermediate lambda typings, and
+recurses with the advanced annotation certificates. Typed eta and symmetry
+close without new assumptions. Neither displayed domain must be exactly
+recoverable, and arbitrary computed-union paths may occur in the certificate.
+
+The public proposition head-beta theorem accepts two actual arguments with the
+same erasure. A further theorem accepts distinct arguments computing in the
+full computed union to a typed shared value carrying both image certificates.
+Argument computation through a typed template uses only primitive renaming;
+the original arguments need no native recovery. These are actual checking
+certificates for the two contracta, not merely semantic equalities.
+
+StructuralEtaPairedBeta instantiates the theorem at the exact structural eta
+boundary from the preceding turn. The witness has stage-zero native recovery
+at its written type and satisfies NeutralRecoveringImage at its assigned
+structural type. Every inferred proposition-valued lambda comparison at that
+assigned annotation therefore admits paired head beta. The already proved
+computed-union negative theorem still rules out exact assigned recovery for
+this image; the positive result is not relying on accidental enlarged recovery.
+
+Validation: isolated checkout at 8536736d plus only the four new modules;
+665-job build with no new-module warnings. Every public theorem and the image
+definition is one of 14 explicit opaque-audit roots; exact expected root set
+verified. Largest closure 11,171. Only propext, Classical.choice and Quot.sound;
+no sorry source, weakN_iff, weakN_inv, JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport or JointPropBetaStability.
+Exact source bytes match the checkout; git diff --check passes. Artifacts:
+/tmp/converted-head-isolated-build.log and
+/tmp/converted-head-audit.lean, .log, -roots.txt.
+
+Next: this closes more of the joined-image branch, but the main residue still
+includes carrier-related arguments with no computation join. Extending the
+image invariant to arbitrary selected recovery paths also still needs control
+of intermediate argument instantiation. Neither coverage nor heterogeneous
+substitution is assumed here. Original UniqueTyping.lean:94 remains open and
+none of GOAL.md's completion alternatives is established. Keep the goal active.
+Only Theory and ledgers change; no coordination, subagents, or executable edits.
