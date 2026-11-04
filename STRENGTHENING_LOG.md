@@ -16711,3 +16711,46 @@ stability and completeness remain open. Original UniqueTyping.lean:94 sorry
 remains, and no GOAL.md completion alternative has been established. Concurrently
 appearing structural-family/instantiation edits were excluded and left alone.
 Only Theory and ledgers change; no coordination, subagents or executable edits.
+
+## 2026-11-04 — Additive-stage recoverable substitution for computed checking
+
+Previous turn was progress: 0a0b9275 is committed and pushed. The older joint
+checker already had an additive-stage theorem for exact recoverable images;
+the computed grammar lacked that theorem. The new ComputedJointRenaming and
+ComputedJointPrimitiveRenaming modules preserve exact renaming throughout the
+computed grammar, including appComputed and all recursive singleton/Eq guards.
+Renaming keeps the finite stage unchanged.
+
+ComputedJointRecoveringTransport instantiates the shared typed transport
+induction with exact native recovery of non-proof images. Computed applications
+transport their actual computation; recovered applications transport their
+selected Pi exactly and reuse the recursively transported argument guard.
+ComputedJointRecoveringPrimitives extends the existing generated-telescope
+argument and closes primitive substitution by induction on the source stage.
+Image recovery at r and source computation at n give target stage r+n. The
+entire union transports under images with a finite recovery bound. No general
+recovery completeness or selected-domain re-synthesis is assumed.
+
+ComputedJointRecoverableInstantiation supplies concrete same-image laws for
+computation, exact selected recovery, both comparison modes, whole carrier
+guards and displayed beta followed by body computation. Proof images require
+no recovery certificate. This removes the higher-stage limitation for exact
+recoverable images, including all computed-domain rules; it does not cover
+all sort-typed or structural-family images from the separate stage-zero path
+classes.
+
+Validation together with the converted clients recorded next: isolated checkout
+at 0a0b9275 with only eight proposed new modules. Consuming build succeeds in
+661 jobs without new-module warnings. Exact source bytes match that checkout.
+Opaque audit covers all 30 explicit public roots in those modules; the first
+21 cover this checkpoint, with largest closure 11,012. No sorry sources or
+forbidden strengthening/transport dependencies; axioms are propext,
+Classical.choice and Quot.sound only. Artifacts:
+/tmp/computed-recovering-isolated-build.log,
+/tmp/computed-recovering-all-audit.lean, .log, -roots.txt.
+
+Next checked application: combine this theorem with recursive neutral binder
+conversion so an image need only recover at a suitable equal type. Original
+UniqueTyping.lean:94 sorry remains and no GOAL.md completion alternative is
+proved. Other appearing structural-image work is excluded. No coordination,
+subagents or executable changes.
