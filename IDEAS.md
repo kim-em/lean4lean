@@ -8287,3 +8287,49 @@ Validation: four modules, 730 jobs, 22 public roots, maximum dependency closure
 11,511; standard axioms only, all forbidden dependencies absent, 705 local
 import-source hashes unchanged, and no new-source warnings. Goal active; no PR
 extraction.
+
+
+## Joined native guards transport eta; beta need not preserve core recovery (2026-11-04)
+
+- Replace exact transport of an eta guard's selected Pi by joined native
+  transport: **proved for arbitrary source guard relations with descent**.
+  Reconstruct its actual Pi and domain sort, substitute them ordinarily,
+  then use full eta-aware Pi readout at a common target type. Both residuals
+  start at the exact substituted short and long raw shapes. No source/target
+  purity, exact assigned-type recovery, or native argument image is imposed
+  by this generic eta step once the joined guard image is supplied.
+- Obtain that joined guard image for mixed ordinary-core and controlled-beta
+  native recovery on arbitrary typed sources: **proved using the committed
+  mixed-core recovery transport**. Common native images suffice, with no pure
+  source/context restriction. Guards can interleave ordinary reductions,
+  constant expansion and native identity expansion. The recovery relation
+  inside identity guards need only descend. The quotient-repaired core's
+  QuotRegistered and concrete-pattern hypotheses remain explicit.
+- Apply the result to a beta cut: **proved**. An original argument whose
+  assigned carrier computes to a core native output transports a complete
+  native eta body primitive to a common eta-union reduct. The two starting
+  points are the exact erased instantiated short body and expanded body.
+- Preserve native recovery modulo beta/universe joins through arbitrary
+  ordinary beta reduction, to recover computed arguments automatically:
+  **refuted, not used**. Every retained typed p:A has an identity wrapper
+  (lambda x:A. x) p with exact native A, independently of p's native evidence.
+  In the pure eta-assigned neutral example, one beta step returns p, which has
+  no native output beta/universe-joined to A even in the entire old expansion
+  union. Thus source reduction can lose joined evidence, not just exact
+  syntax. This is not a negative result about eta-aware joins, which repair
+  the underlying eta-assigned example.
+
+Judgment: eta primitive substitution now consumes common guard reducts and is
+instantiated for arbitrary typed mixed-core guards. The new beta boundary rules
+out an unsound source-reduction shortcut for extending it. Higher eta/singleton
+guard transport and universal eta-aware common native coverage remain live.
+No strengthening proof, canonical-Eq counterexample or sufficient strictly
+smaller front is claimed; GOAL.md remains active.
+
+Validation: three new modules, 184 Lean lines, six public roots. Main and
+isolated 762-job builds pass; 54 roots audited including eight synchronized
+import modules, maximum closure 12,060. All 737 local imported sources remain
+hash-stable and match isolated copies. Standard axioms only; exclusions clean;
+no new-source warnings. The audit parser now excludes nested comments before
+collecting declaration roots, after a documentation line was misidentified as
+a structure declaration; the corrected complete audit passes.

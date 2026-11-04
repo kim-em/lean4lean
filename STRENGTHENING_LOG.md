@@ -20446,3 +20446,63 @@ head exposure, selected-domain or structural-image recovery interfaces, or the
 excluded native alignment interfaces occurs. All 705 local imported sources
 were hash-stable through validation; no warning was emitted for a new module.
 Artifacts: `/dev/shm/level-core-mixed-*`. No executable changes or PR extraction.
+
+
+## Impure eta substitution via joined guard images (2026-11-04)
+
+ProofErasureEtaJoinedGuardSubstitution isolates the actual native requirement
+for a substituted eta primitive. The source guard may use any relation with
+typed descent. Recovered-Pi replay supplies actual A and B at the source;
+DomainSort fixes A's universe, then ordinary typed substitution and erasure
+agreement identify the substituted selected Pi. If that Pi and an independently
+recovered target type have a common eta-aware reduct, the joined-type repair
+constructs a common reduct of the exact substituted short source and long eta
+shape. No purity or exact target recovery at the substituted Pi is needed.
+The proof includes the erased proof-argument case via the selected domain sort.
+
+ProofErasureEtaCoreJoinedSubstitution discharges the joined guard premise for
+native recovery over ErasedCoreExpansion using the committed ordinary-core
+recovery transport. Both context and source may be impure and dependent; native
+identity guards may use any descending recovery relation. JoinedNative.Images
+supplies common assigned/native core carriers for the original substitution
+images. Their target core outputs and forward core type reductions embed into
+the eta union, where the generic eta square applies. A single-binder theorem
+then joins the erased beta contractum and exact instantiated eta-expanded body
+when the original argument has a native core common carrier. QuotRegistered,
+canonical Eq, concrete-pattern correctness and the guard relation's descent
+are explicit assumptions, not asserted for every GOAL.md environment.
+
+The tempting next extension was to preserve native evidence while independently
+computing an argument. ProofErasureBetaJoinedRecoveryBoundary rejects the
+unrestricted core version of that step. An identity wrapper at any retained
+actual assigned type recovers that exact type using only the fresh-variable,
+lambda and application recipes; recovery does not inspect its argument. It
+beta-contracts to the argument. Specializing to the already checked pure
+eta-assigned neutral example yields exact stage-zero native evidence before
+one typed beta contraction, but no old-expansion-union native output joined to
+the assigned type by beta/universe computation afterward. This strengthens the
+previous exact-recovery warning to the joined-core case. It is not a failure
+of eta-aware coverage or a strengthening counterexample. Any future computed
+image argument must retain eta-aware common carriers or another stronger
+invariant, rather than infer core-native stability from ordinary typing.
+
+Validation: three modules, 184 Lean lines, six new public declarations. Main
+and isolated explicit-target builds pass 762 jobs. The complete audit checks
+54 public roots, including eight synchronized imported modules, through types,
+opaque values, inductive constructors and recursor rules. Maximum closure
+12,060; axioms only propext, Classical.choice and Quot.sound. No sorryAx,
+weakN_iff, weakN_inv, JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability dependency is reachable. All
+737 local transitive source hashes are stable and isolated copies match.
+No new-module warnings. The first audit-root collection incorrectly treated
+'doc-comment structure fields' as a declaration; the parser was corrected to
+skip nested comments, and complete main and isolated audits both pass.
+Artifacts: /tmp/carrier-eta-joined-guard-{main-build.log,isolated-build.log,
+audit.lean,audit.log,audit-main.log,audit-isolated.log,audit-roots.txt,files.txt,
+targets.txt,validation.json,closure-source-hashes.json};
+/tmp/prepare-carrier-eta-joined-guard.py.
+
+Only the three new modules and these ledger appends are staged. Independent
+516462e5 and any ongoing work are preserved. No executable changes,
+coordination or PR extraction. The original strengthening sorry remains at
+UniqueTyping.lean:94, and the full GOAL.md deliverable remains open.
