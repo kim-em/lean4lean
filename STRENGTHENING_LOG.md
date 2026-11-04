@@ -20633,3 +20633,48 @@ Only these three modules and ledger appends are staged. Ongoing independent
 level-core native/checker transport files are preserved. No executable changes,
 coordination or PR extraction. Original weakN_iff remains sorry at
 UniqueTyping.lean:94; GOAL.md remains active.
+
+### 2026-11-04 21:35:21 UTC — Reject full non-eta coverage and connect universe-native eta repair
+
+Added two checked modules (264 Lean lines).
+
+`ProofErasureExpandedNativeJoinBoundary` strengthens the pure eta-assigned
+neutral obstruction from raw beta/universe joins to common reducts in the
+entire controlled expansion union. The proof explicitly establishes purity of
+every recovered native type, then collapses both common-reduct branches to
+beta/universe joins. Consequently universal level-core common native coverage
+fails even when recovery itself uses all expanded stages. A typed single
+substitution supplies erasure agreement but fails `LevelCoreNative.Images`.
+One beta contraction from an exactly recovering identity wrapper loses even
+full-expanded common-native evidence. The same concrete witness has exact
+assigned-type recovery at eta stage one, via the existing eta repair theorem.
+No environment-specific declaration assumptions or noncanonical-Eq hypothesis
+are needed for the obstruction.
+
+`ProofErasureEtaLevelCoreJoinedSubstitution` uses the committed universe-native
+recovery transport to discharge joined guard images for a native eta primitive.
+Native guards may interleave ordinary core, explicit universes, constant and
+native identity expansion. Arbitrary actual simultaneous substitutions with
+joined level-core images yield a common eta-union reduct of the exact short
+and long substituted outputs. The single beta-cut theorem also permits mixed
+native recovery of the original argument with only a level-core common carrier.
+The concrete stored-definition wrapper discharges every core interface and
+uses full-expanded native guards. No purity or exact assigned-output recovery
+is imposed; the original argument still needs the stated common-native evidence.
+
+Research judgment: more non-eta singleton stages cannot establish universal
+coverage for the previous common-image invariant. Eta-aware native coverage,
+or a genuinely stronger replacement, is necessary for this route. These
+conditional transport results remain useful tools; they are not a sufficient
+smaller strengthening obligation. Native eta guards with arbitrary higher
+eta/singleton computations and whole-union confluence remain unresolved.
+`IsDefEqU.weakN_iff` and its original sorry are unchanged. No strengthening
+counterexample is claimed. No executable changes or PR extraction.
+
+Validation: 772-job build and 10 public-root audits, including transitive
+types, opaque bodies, inductive constructors and recursor RHSs. Maximum closure
+11,960; only `propext`, `Classical.choice`, `Quot.sound`. No `sorryAx`,
+strengthening, joint beta-front/stability, semantic head exposure, excluded
+selected-domain/structural-image recovery, or excluded native alignment
+dependency. All 747 imported local sources were hash-stable; no new-module warnings.
+Artifacts: `/dev/shm/eta-level-native-*`. Independent files and index preserved.

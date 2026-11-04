@@ -8429,3 +8429,46 @@ builds pass 759 jobs. Structural audit covers 43 roots including four newly
 synchronized dependency modules; maximum closure 11,569, standard axioms only,
 all exclusions clean. All 734 local imported sources are hash-stable and match
 the isolated checkout. No new-module warnings.
+
+### 2026-11-04 21:35:21 UTC — Full-expanded coverage boundary and universe-native eta transport
+
+**Verdict: universal non-eta common-native coverage is refuted, even with the
+entire expanded union on both join branches. Eta-aware coverage remains live.**
+The earlier boundary excluded beta/universe joins. Purity of native recovery
+now promotes it to a counterexample for exact common reducts using every
+controlled-beta singleton stage. The typed source, assigned type and context
+are pure; every recovered native type stays pure; both expanded join paths
+would imply the forbidden beta/universe join. This works for every declaration
+collection without additional environment registrations, so it also applies
+under canonical Eq and to actual stored definitions.
+
+The new level-core common-image invariant is therefore not universally
+inhabited: an explicit well-typed single substitution with erasure agreement
+fails `LevelCoreNative.Images`. Increasing non-eta singleton depth cannot fix
+that example. Likewise, an exact-native typed identity wrapper beta-reduces to
+a value with no native type common-joined to its assigned type even in the full
+expanded union. Native evidence cannot be propagated through arbitrary source
+reduction by replacing exact syntax with these stronger non-eta joins.
+
+The same witness is positively repaired by eta-expanded stage one, which
+recovers the assigned type exactly. This is a strict comparison of certificate
+languages, not a counterexample to strengthening. The earlier ledgers' phrase
+"universal common-native coverage" must henceforth mean an eta-aware (or otherwise
+strictly stronger) notion; it is not an outstanding conjecture for the old
+non-eta union or the level-core image invariant.
+
+**Positive bridge proved:** native eta primitive substitution now accepts type
+guards that mix ordinary computation, explicit universe conversion, constant
+expansion and native identity expansion. Joined level-core images transport
+those native certificates to ordinary output residuals; the existing eta-aware
+Pi readout then joins the exact substituted short and long expressions. At a
+beta cut the original argument may itself have a mixed native certificate merely
+level-core-joined to its assigned carrier. Neither exact assigned-type recovery
+nor purity is required. Actual stored definitions discharge soundness, rigidity,
+ordinary confluence and universe compatibility, with no quotient-registration
+hypothesis. General eta/singleton computations in the native guards, full
+eta-aware common-native coverage, and the strengthening conclusion remain open.
+
+Validation: two modules, 772 jobs, 10 public roots, maximum dependency closure
+11,960; standard axioms only and exclusions clean. All 747 imported local sources
+were hash-stable and no new-module warnings occurred. Goal active; no PR extraction.
