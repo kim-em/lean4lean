@@ -6182,3 +6182,35 @@ and carry it rather than assuming arbitrary guard conversion. Then investigate
 function-valued record fields using the same typed elimination tree. This is
 an unproved next route, not a claimed generic application-transport law or a
 strictly smaller sufficient front.
+
+
+## 2026-11-04 — Paired beta through structural body variants
+
+**Verdict: checked heterogeneous substitution and paired beta without a literal
+body join.** StructuralVariant permits recursive universe conversion in sorts,
+constant levels, applications, projections, lambda annotations and Pi types.
+CarrierAlignedStructuralBodies transports this relation through two pointwise
+inferred-related image maps. Only the left original/map supplies an actual typed
+interpretation. Under a binder its substituted domain types the left context;
+the right lifted raw map is not falsely required to recover or inhabit that
+left domain. This yields paired head-beta comparison with different written
+lambda domains and structural variants of the finite body reducts.
+
+Checked strictness: CarrierAlignedStructuralBodyExample gives actual typed
+bodies Pi (Sort (max 1 0)) #1 and Pi (Sort 1) #1 under [Sort 1], instantiated
+at Sort 0 and Sort (max 0 0). The bodies have no common beta reduct; the argument
+images have no computation join in the full carrier-recovered union. The Pi
+codomains retain those respective images after instantiation. The new theorem
+nevertheless supplies inferred comparison. Thus the preceding literal-body-join
+premise genuinely cannot be used for this example.
+
+Boundary: StructuralVariant contains no carrier or eta rules, and body paths
+are beta paths. This does not substitute arbitrary recursive body comparisons
+or guarded primitive computations. Existing native recovery plus an inferred
+comparison with an assigned type remains an input, not coverage. For an
+application, weakened recovery must expose a native Pi, move its argument guard
+to that domain, and compare instantiated codomains. The latter cannot simply
+invoke the desired substitution theorem on a newly produced residual whose
+size is uncontrolled. Nor can arbitrary comparison-based carrier conversion be
+added without addressing whether its intermediate carrier descends. These are
+live proof obligations, not new axioms or a completed smaller sufficient front.

@@ -17625,3 +17625,40 @@ recovery replay, then try callable result trees at universe inputs. The
 committed carrier-types checking theorem may discharge those argument guards,
 but only after its actual typing premises are proved. No executable edits,
 agents, coordination, or PR extraction; independent files are preserved.
+
+
+## 2026-11-04 — Structural body variants at independently related images
+
+05fee7be (paired beta for joining bodies) is pushed. The next extension replaces
+a literal common body reduct by StructuralVariant, a finite compatible universe
+conversion certificate with retained annotations. CarrierAlignedStructuralBodies
+proves arbitrary paired substitution of this certificate from a typed left
+original/map and pointwise inferred comparison of the images. It then derives
+body and head-beta comparison after independent finite beta paths. Under changed
+binders the proof needs only the actual left substituted domain to weaken the
+image relation; it does not assert exact recovering right images there.
+
+CarrierAlignedStructuralBodyExample gives typed dependent Pi bodies with
+different universe-equivalent domains and a retained variable codomain. It
+proves both absence of a body-beta join and absence of an argument computation
+join, then invokes the new paired-beta theorem. The result is still a finite
+certificate in the existing aligned checker at the same primitive union.
+
+Validation: both modules build in the main worktree and isolated carrier
+scratch (656 jobs). The five-root opaque audit includes StructuralVariant and
+its constructor dependencies, all three transport consumers, and the example.
+Maximum closure 11,024; only propext, Classical.choice and Quot.sound, no sorry
+sources or forbidden strengthening/recovery/beta-stability dependencies. Source
+bytes match exactly; no warnings in the two new modules; git diff --check passes.
+Artifacts: /tmp/carrier-structural-isolated-build.log,
+/tmp/carrier-structural-audit.lean and .log,
+/tmp/carrier-structural-audit-roots.txt, /tmp/carrier-structural-files.txt,
+/tmp/carrier-structural-validation.json (source hashes).
+
+The whole turn adds seven modules with thirteen distinct audited public roots.
+Native Pi residuals, paired beta with a body join, and its structural-variant
+extension are proved; arbitrary carrier/eta body transport and guarded primitive
+substitution are still open. UniqueTyping.lean:94 remains the original sorry;
+no canonical-Eq counterexample or strictly smaller sufficient irreducible
+obligation is claimed. GOAL.md remains active. Only Theory and these ledger
+appendices were changed by this work; no agents, coordination or executable edits.
