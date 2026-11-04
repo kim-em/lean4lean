@@ -9473,3 +9473,50 @@ and no configured forbidden dependencies. All 721 closure source hashes were
 stable and matched isolated copies. Artifacts /tmp/carrier-static-lambda-residual-*;
 preparation /tmp/prepare-carrier-static-lambda-residual.py. Executable unchanged;
 no coordination. The strengthening goal remains active.
+
+
+## Caller canonicalization joins retained singleton parameters (2026-11-04 23:38:36 UTC)
+
+Verdict: a whole-call joining invariant works where individual retained-argument
+origins fail. Rechecked the existing caller-eta origin counterexample with a
+source-stable build (now commit 3b3f1f99); do not pursue a forward-history law for
+arbitrary retained arguments. Its obstruction does not prevent canonicalizing
+an argument through the caller's declared binder type.
+
+`static_structure_caller_constant_argument` eta-expands a natively recovered
+caller, computes its generic argument to a binder-independent value, and beta
+supplies the original argument. The whole application reaches the canonical
+application without a native certificate or computation of the supplied value.
+A proof-only structure's generic variable reaches its masked constructor; open
+parameters, dependent proof fields and empty units are supported. Proof binders
+already have the proof marker as their generic eta argument.
+
+`CallerCanonicalTelescope` iterates this construction through dependent domains
+instantiated by earlier canonical values. Its computation theorem handles every
+raw argument vector of the right length; only the caller and its applications to
+canonical values use native recovery. The proof and proof-structure constructors
+supply explicit finite computations, not an assumed normalization principle.
+
+Neutral head/arity readout now gives a fixed common target for EVERY full-union
+computation from a saturated variable-headed family with such a declared caller
+telescope. Lookup supplies the head's native certificate. Arbitrary forks join
+at that target, and a common native certificate against the family converts to
+the canonical assigned type. A concrete unary theorem discharges the telescope
+premise for positive proof-only structures with arbitrary occurrence parameters.
+The target is a shared reduct, not a claimed normal form: its parameters may
+still compute. No separate argument histories or exact argument coverage occur.
+
+General retained data and function-valued parameters need additional joining
+invariants; the canonical telescope does not classify all types. Forward binder
+transport at arbitrary noncanonical source types is still open. This proves a
+new retained-data case of type-fork joining, not strengthening or a sufficient
+strictly smaller front. The original weakN_iff sorry remains; goal active.
+
+Validation: two modules, 244 Lean lines, explicit 751-job build; all 17 public
+roots including inductive constructors and recursors audited transitively through
+types, opaque bodies, constructors and recursor rules. Maximum closure
+11,339; only propext, Classical.choice and Quot.sound, no strengthening,
+sorry or configured circular-framework dependency. All 726 local import sources
+hash-stable. Artifacts `/dev/shm/caller-canonical-*`; preparation
+`/dev/shm/prepare-caller-canonical-audit.py`. Executable unchanged; no PR extraction
+or coordination.
