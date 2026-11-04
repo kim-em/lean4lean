@@ -19336,3 +19336,51 @@ carrier conversion remain open. Original weakN_iff is still sorry at
 UniqueTyping.lean:94; no GOAL.md deliverable is claimed. Only these four theory
 files and ledger appendices are part of this change. Independent files were
 preserved; no executable changes or agent coordination.
+
+## 2026-11-04 19:14:38 UTC — certificate descent and expansion beta interactions
+
+ExpansionCertificateDescent strengthens the previous semantic descent to
+retain a lower computation certificate. The identity annotation retains its
+native recovery guard below arbitrary inserted binder blocks. All expanded
+stages and the union satisfy the interface, including recovered singleton
+family guards. Exact computation and native-recovery certificates reflect
+through lifting at the unchanged finite stage.
+
+ExpansionBetaSquares proves the local interaction between contracting a
+wrapper and computing its body/argument first. The constant case removes the
+unused binder using certificate descent and accepts any final raw annotation
+and argument. The identity case instantiates the computed body using the
+original native image, then propagates the argument computation through the
+realized body using primitive renaming. The precise bound is max(n+k,m), and
+the original image is the only one requiring native recovery. Full-union body/
+argument and identity squares also follow. These proofs do not require the
+false no-Pi-root interface for the expanded system.
+
+ExpansionBetaBoundary checks a fatal flaw of unrestricted reverse beta. Even
+requiring a typed upper target does not ensure a lower representative: an
+expanded constant function can retain the newly inserted Type variable as an
+unused argument. The actual beta equality, exact erasure and absence of any
+lifted raw preimage are all checked. This is a primitive-descent counterexample
+in every Params environment, not a counterexample to canonical-Eq strengthening.
+
+Validation: 710-job build for three new modules. All 18 exact roots passed
+opaque-body, constructor and recursor auditing; maximum closure 11,089.
+Only propext, Classical.choice and Quot.sound occur. No sorry source, weakN_iff,
+weakN_inv, JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability occurs. All roots pass the
+framework independence exclusions. Source hashes match the pre-build snapshot;
+no new-source warnings. Artifacts: /tmp/expansion-squares-full-build.log,
+/tmp/expansion-squares-audit.lean, /tmp/expansion-squares-audit.log,
+/tmp/expansion-squares-roots.txt, /tmp/expansion-squares-files.txt,
+/tmp/expansion-squares-build-targets.txt, /tmp/expansion-squares-source-before.json,
+/tmp/expansion-squares-validation.json; scripts
+/tmp/prepare-expansion-squares-audit.py and /tmp/verify-expansion-squares-audit.py.
+
+Judgment: local expansion/beta interactions and preservation of their lower
+certificates are now proved. General head exposure through arbitrary guarded
+interleavings, preservation of selected domain comparisons, native coverage and
+declarative comparison completeness remain open. The finite-observation route
+recorded in IDEAS.md is the next live exposure candidate. Original weakN_iff
+remains sorry at UniqueTyping.lean:94, so GOAL.md stays active. Independent
+commit f16ef976 was preserved. Only these three new modules and the ledger
+appendices belong to this change; no executable changes or PR extraction.

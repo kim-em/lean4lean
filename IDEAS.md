@@ -7398,3 +7398,53 @@ guarded beta residuals still need justification. Generic function-carrier
 reindexing also still needs binder transport. No reduction of arbitrary
 PropositionFront to this grammar, canonical-Eq counterexample or sufficient
 strictly smaller irreducible obligation is claimed. GOAL.md remains open.
+
+## 2026-11-04 19:14:38 UTC — retaining expansion certificates and local beta squares
+
+Verdict: checked progress on the exposure problem created by controlled
+expansion. Added arbitrary-block certificate descent for every expanded stage
+and its full union. Universe steps use raw retraction only after semantic
+descent has reconstructed a lifted target. Identity expansion descends its
+native annotation certificate as well as its actual typing. Singleton guards
+retain their lower generated-telescope certificates. Computation and native
+recovery at prescribed lifted outputs are invariant under insertion of unused
+binders, at the same finite stage.
+
+The constant-wrapper square now deletes its unused binder after arbitrary
+expanded body computation, retaining a lower computation of the original
+payload. Any resulting annotation and argument beta-contract to that lower
+payload. The identity-wrapper square handles arbitrary expanded body and
+argument computations using only the ORIGINAL argument's native certificate.
+Reify the computed body, instantiate its computation using the original image,
+and then compute all argument occurrences using primitive renaming. The join
+bound is max(n+k,m), for body stage n, original native image stage k and argument
+stage m. Neither native recovery of the computed argument nor a no-Pi-root
+hypothesis is needed. Full-union consumers collect finite bounds separately.
+
+Concrete rejection: arbitrary reverse beta, even restricted to typed upper
+endpoints, does not satisfy source-typed primitive descent. A closed Prop
+expands above one inserted Type variable to (fun _ : Type => Prop) x. The
+redex is actually typed, and its erasure retains x; no lifted lower proof shape
+has that raw target. erased_typed_reverse_beta_descent_failure formalizes this
+for every Params environment, including canonical-Eq environments. This is
+NOT a counterexample to strengthening: it refutes the proposed expansion rule.
+
+Exposure remains open: local body/argument squares do not by themselves show
+that an arbitrary interleaving of guarded roots and expansions has a Pi reduct,
+and they do not retain the domain comparison needed by native Pi selection.
+Next live approach: a forward finite-observation invariant at the empty
+constant interpretation. PrimitiveHead sources (constant/projection-headed
+spines) have no such observation, so their root cases should be vacuous;
+universe steps preserve head observations and the controlled expansions are
+beta-reversible. Adapt PureObservation to proof shapes, or encode proof shapes
+into VExpr with an opaque constant for the proof marker, proving beta reflection
+and forward observation transport. Operational adequacy could then give Pi/sort
+head persistence without guarded confluence. This is an unimplemented idea,
+not a proven exposure theorem. The observation model's known failure as an
+equality-reflection model does not reject its narrower operational use here.
+
+Validation: 710-job build of three new modules; all 18 exact roots passed
+the opaque-body/constructor/recursor dependency audit and framework exclusions,
+maximum closure 11,089. Only propext, Classical.choice and Quot.sound
+occur. Original weakN_iff remains open; no smaller sufficient irreducible
+obligation is claimed. No executable modification, PR extraction or coordination.
