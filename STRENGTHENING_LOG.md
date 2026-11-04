@@ -16132,3 +16132,51 @@ alternatives is established. The goal stays active. No executable changes,
 PR extraction, subagents or coordination. Independently appearing untracked
 AnchoredFamilyRecovery.lean and ProofErasureAnchoredCarrier.lean were left
 untouched and are excluded from this change.
+
+## 2026-11-04 — Protected neutral heads survive the local beta induction
+
+Previous turn made progress: 00f53516 was checked and pushed. The next obstacle
+was that arbitrary substitution can turn a variable-headed domain into a Pi
+or structure. Instead of assuming neutral carriers remain neutral under every
+substitution, the new AnchoredCarrier invariant explicitly separates local
+binders from protected outer variables. Only the head index is restricted;
+arguments may mention locals and compute arbitrarily. PreservesCarrierHeads
+extends through binders, and single instantiation of a local binder satisfies
+it for every argument, including lambdas and structural types.
+
+AnchoredFamilyRecovery extends the old selected paths with a type-family leaf
+at an actual assigned Pi whose domain has a protected head. Unlike a lambda
+exposure witness, that leaf permits arbitrary functions and converted assigned
+typings. The cutoff increases under lambdas. Typed substitution preserving
+protected heads retains the exact selected output and rank. Finite head
+exposure returns type typing, a family typing with the protected domain and
+retained Pi computation, or a beta-exposed lambda with a smaller body path.
+The application/family case uses typing to conclude that the application is a
+type; no normalization of the family is needed. The application/lambda case
+instantiates the smaller path, using the protected-head single-substitution
+lemma, then carries the codomain computation as before.
+
+selected_domain_or_anchored and selected_domain_or_inert give precisely the
+computed-lambda or inert alternatives accepted by transport_or_inert. Every
+previous SortRootedRecovery path embeds at every cutoff. of_family constructs
+a rank-zero path at the erasure of an actual assigned Pi, including converted
+family typings at neutral domains. These are transport witnesses, not new
+checker constructors, and do not assert strengthening or recovery completeness.
+
+Validation: consuming build succeeds in 574 jobs with no new-module warnings
+(/tmp/anchored-recovery-build.log). /tmp/anchored-family-audit.lean audits all
+20 public declarations, including the five inductive constructors and all
+opaque dependencies. The largest closure has 8,559 declarations. Exact root
+inventory matches; only propext, Classical.choice, Quot.sound occur as axioms.
+No sorry sources or forbidden dependencies (weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, JointPropBetaStability) occur. Audit log and root list:
+/tmp/anchored-family-audit.log and /tmp/anchored-family-audit-roots.txt.
+
+Next: replace the earlier path-image recovery classification by native recovery
+or AnchoredFamilyRecovery, proving binder extension and ruling out the family
+branch at structure projections. Then specialize recursive transport to these
+images. This classification is not proved in this commit. Arbitrary structural
+carrier cases, higher stages, and checker completeness remain open. The original
+sorry at UniqueTyping.lean:94 remains; no GOAL.md completion alternative is yet
+achieved. Only Theory files and ledgers change; no coordination or subagents.

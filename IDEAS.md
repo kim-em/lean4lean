@@ -5460,3 +5460,5 @@ and stage-zero results; it does not supply arbitrary image recovery, general
 domain conversion, beta stability, or completeness. The next substantive gap
 is substitution/repair of these recursive primitive guards while retaining
 conversion information, not another assumed assigned-type coverage law.
+
+| Protect neutral domain heads through local beta exposure | **Checked foundation (2026-11-04).** `AnchoredCarrier cut A` places the head variable outside the first `cut` binders; arbitrary local instantiation and protected-head substitutions preserve it. `AnchoredFamilyRecovery` extends selected sort-rooted paths with type families at neutral assigned domains. Its rank-preserving substitution and finite head-exposure theorem yield exact lambda-domain computation OR a protected neutral selected domain. `of_family` accepts converted family typings at their assigned Pi; exact annotation computation is not required. Classification of all substituted native recoveries into this larger invariant, and its full recursive checker specialization, remain open. |
