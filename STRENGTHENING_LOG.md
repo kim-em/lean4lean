@@ -19612,3 +19612,50 @@ still contains sorry at UniqueTyping.lean:94; GOAL.md stays active. Only these
 seven modules and ledger appendices belong to this change. Independent commit
 80b39fda and ongoing independent files are preserved; no executable changes,
 agent coordination or PR extraction.
+
+## 2026-11-04 19:49:23 UTC: exact variables and identity behavior through expanded computation
+
+NeutralObservation defines finite lambda/application demands with no rules for
+constants, projections, Pi or sort expressions. Its operational interpretation
+allows the base demand to denote beta reduction to an arbitrary target term.
+Renaming, substitution and forward beta preserve demands; interpretation under
+a realizing substitution gives exact operational readout. The existing demand
+grammar is reused, but its pi tag is a symbolic leaf in this interpretation.
+
+ProofErasureExpansionVariableExposure proves preservation for compatible
+computation, every expanded primitive stage and the full union. A variable
+source therefore beta-reduces back to that exact variable after arbitrary
+expanded computation. A computed identity function beta-returns every raw
+argument, with no purity or typing assumption on the intermediate expressions.
+This handles root computation of the function as well as its children.
+Substituting into a computed bound-variable body also beta-returns the argument.
+
+These readouts close the function/argument wrapper square without stage growth,
+canonical Eq, definition soundness or native evidence for the changed argument.
+Two final lemmas supply ComputedJointCompare in either mode between the source
+argument and the computed wrapper or its already-contracted body. Their target
+computation relation is exactly the argument's relation; the function or body
+can have computed in the full expanded union at unrelated scopes and depths.
+The raw beta paths are what make this independence sound.
+
+ProofShapeObservationEncoding now tags genuine constants, preserving the opaque
+proof marker while making the encoding syntactically injective. Exact encoded
+beta endpoint reflection follows. Because this changes a shared interpretation,
+the seven existing head-observation/native-exposure/boundary/repair modules and
+the two new modules were rebuilt and their roots reaudited together.
+
+Validation: 706-job build; 94 exact declaration/constructor/recursor roots
+pass opaque-body dependency traversal, maximum closure 11,200, standard
+propext/Classical.choice/Quot.sound only. No sorry or forbidden strengthening
+or framework dependency, no warnings in the nine audited sources, source hashes
+verified. Artifacts: /tmp/neutral-readout-{full-build.log,audit.lean,audit.log,
+roots.txt,files.txt,source-before.json,validation.json} and matching preparation
+and verification scripts. An initial source-linter warning was fixed before
+the final audit. Only the encoding change, two new modules and these appendices
+are staged; independent work is preserved.
+
+Judgment: exact identity-wrapper residuals are now proved independently of the
+false exact-native beta-preservation premise. The next domain-origin/transport
+step remains open; these results do not prove general comparison completeness
+or a smaller sufficient front. UniqueTyping.lean:94 still has the original
+weakN_iff sorry. GOAL.md remains active; no PR extraction.

@@ -10,17 +10,23 @@ reflect back to the exact source proof shape, including all annotations.
 namespace Lean4Lean.VEnv.Strengthening.ProofShape
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr
 
-/-- Syntax encoding with an opaque proof marker. No declaration interpretation
-or actual typing is assigned to that marker. -/
+/-- Syntax encoding with an opaque proof marker. Actual constant names receive
+a tag to distinguish them from the marker. Neither has an interpretation here. -/
 def toObservationExpr : ProofShape → VExpr
   | .proof => .const .anonymous []
   | .bvar i => .bvar i
   | .sort u => .sort u
-  | .const c ls => .const c ls
+  | .const c ls => .const (.str c "observation") ls
   | .app f a => .app f.toObservationExpr a.toObservationExpr
   | .proj s i m => .proj s i m.toObservationExpr
   | .lam A b => .lam A.toObservationExpr b.toObservationExpr
   | .forallE A B => .forallE A.toObservationExpr B.toObservationExpr
+
+/-- The constant tag makes this a syntactically injective encoding, including
+at the proof marker. This does not assert reflection of semantic equality. -/
+theorem toObservationExpr_injective : Function.Injective toObservationExpr := by
+  intro a b H
+  induction a generalizing b <;> cases b <;> simp_all [toObservationExpr] <;> grind
 
 /-- Encoding commutes with arbitrary binder insertion. -/
 theorem toObservationExpr_liftN (a : ProofShape) :
@@ -111,5 +117,15 @@ theorem beta_of_toObservationExpr (R : VExpr.BetaRed a.toObservationExpr out) :
     obtain ⟨A', RA, EA'⟩ := ihA EA
     obtain ⟨B', RB, EB'⟩ := ihB EB
     exact ⟨.forallE A' B', .forallE RA RB, congr (congrArg VExpr.forallE EA') EB'⟩
+
+/-- Operational beta paths between encoded endpoints reflect exactly, using
+the constant tag to keep proof markers distinct from genuine constants. -/
+theorem beta_toObservationExpr_iff :
+    VExpr.BetaRed a.toObservationExpr b.toObservationExpr ↔ BetaRed a b := by
+  constructor
+  · intro R
+    obtain ⟨out, RB, E⟩ := beta_of_toObservationExpr R
+    exact toObservationExpr_injective E ▸ RB
+  · exact BetaRed.toObservationExpr
 
 end Lean4Lean.VEnv.Strengthening.ProofShape

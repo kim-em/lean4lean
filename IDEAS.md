@@ -7645,3 +7645,47 @@ Validation: 789-job main and isolated builds, 33 exact new roots across seven
 modules, maximum audited dependency closure 8,736, standard logical axioms
 only. All 764 transitive local import sources match the pre-build snapshot and
 isolated checkout. No sorry or forbidden strengthening/framework dependency.
+
+## 2026-11-04 19:49:23 UTC: exact neutral readout removes the identity-wrapper stage cost
+
+**Candidate checked and rejected:** add unrestricted erased eta contraction to
+make computed-type coverage handle eta. Existing ErasedEta.target_representative_iff
+shows that an apparent eta contractum can require an unavailable proof below;
+ErasedEtaDomains.canonical_domain_obstruction separately shows that inferred
+contraction needs domain alignment even when both endpoints are represented.
+The current joined-native eta boundary also rules out beta/universe joins as a
+universal assigned-type interface. No unrestricted eta primitive was added.
+
+**Proved:** a new neutral finite-demand interpretation tracks an exact variable
+instead of only a Pi/sort head. It has no literal type-head or constant rules;
+the base demand can denote beta reduction to any chosen expression. Every
+expanded stage and the union preserve its demands. Consequently every expanded
+computation starting at bvar i has an exact raw beta path back to bvar i, and
+that path survives arbitrary raw substitution without native image evidence.
+
+**Stronger identity result:** every expanded descendant of lambda A (bvar 0)
+beta-returns any supplied argument. This allows computation of the entire
+identity function, including outer expansions, not only its body. Independent
+argument computation therefore closes the identity-wrapper square at the
+argument's unchanged stage, even when the argument has lost native recovery.
+After the wrapper beta step, a computed bound-variable body instantiated by the
+changed argument still beta-returns it. Both results supply ComputedJointCompare
+in either mode using only the argument computation relation; the function/body
+may have evolved in the full expanded union.
+
+The proof-shape observation encoding now tags genuine constant names, separating
+them from its opaque proof marker. Its new syntactic injectivity gives exact
+beta reflection at arbitrary targets, including proof markers; this is not
+semantic equality reflection. All earlier head-exposure consumers were rebuilt
+and reaudited after this representation change.
+
+**Next live step:** retain the marked Pi origin and its domain computations
+through arbitrary interleavings of expansion-generated wrappers. Exact identity
+readout closes one residual case without the false premise of beta preservation
+of native recovery. It does not yet transport domain comparisons through a whole
+computed checker certificate, prove general compared native coverage, or give a
+strictly smaller sufficient front. The strengthening goal remains unchanged.
+
+Validation: nine affected modules, 706-job build, 94 audited declaration and
+constructor/recursor roots; maximum closure 11,200. Only standard logical
+axioms, no excluded dependency, new-source warning or source hash discrepancy.
