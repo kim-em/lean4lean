@@ -16180,3 +16180,53 @@ images. This classification is not proved in this commit. Arbitrary structural
 carrier cases, higher stages, and checker completeness remain open. The original
 sorry at UniqueTyping.lean:94 remains; no GOAL.md completion alternative is yet
 achieved. Only Theory files and ledgers change; no coordination or subagents.
+
+## 2026-11-04 — Full recursive substitution at the eta-domain boundary
+
+Previous turn made progress: c5f641d7 was checked and pushed. This turn connects
+its protected-family paths to the complete native recovery and recursive
+checker inductions, without adding any checker constructors.
+
+AnchoredOrRecoveringImages carries a cutoff on its exceptional image paths.
+Binder extension increments that cutoff and preserves the exact selected type;
+ordinary finite-path images embed at any cutoff. All native recovery cases
+classify into exact native recovery or AnchoredFamilyRecovery. For projections,
+both type and family alternatives contradict the receiver's rigid structure
+head, and the exposed-lambda alternative does likewise. A retained function
+therefore has native Pi recovery, exact computed lambda domain, or an inert
+selected domain after substitution.
+
+AnchoredImageSubstitution interprets that condition in all equal-erasure
+source realizations, with an existential cutoff. It extends under arbitrary
+typed binders and instantiates transport_or_inert. Comparison and carrier
+checking transport recursively at stage zero, with no residual target guard
+or target comparison assumption. Single instantiation and body-certificate
+paired beta comparison are included. The neutral-family specialization accepts
+ANY actual function typed at a Pi returning a sort whose assigned domain is
+variable-headed; the function need not be a displayed lambda or have native
+recovery at that Pi.
+
+ProofErasureAnchoredEtaInstantiation applies the specialization to the exact
+lambda/context/domain definitions used in SelectedDomainEtaBoundary. It proves
+transport of every common-typed stage-zero body comparison by that lambda at
+its eta-converted assigned Pi. This crosses the earlier exact-recovery boundary;
+it does not invalidate that boundary, prove arbitrary endpoint beta stability,
+or assert coverage of arbitrary functions or structure-valued images.
+
+Validation: consuming build succeeds in 583 jobs with no new-module warnings
+(/tmp/anchored-eta-build.log). Opaque audit of all 18 new public declarations
+passes with a largest dependency closure of 9,403 declarations. Exact root
+inventory matches; only propext, Classical.choice, Quot.sound occur as axioms.
+No sorry sources, weakN_iff, weakN_inv, JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport or JointPropBetaStability
+are reachable. Artifacts: /tmp/anchored-transport-audit.lean, .log, -roots.txt.
+
+Next work remains coverage beyond sort-returning neutral-domain families and
+transport at higher primitive stages for this enlarged image class. The family
+application case currently relies on its result being a type; arbitrary
+function or structural results cannot be silently included. The new theorem
+also has one shared substitution, not heterogeneous paired arguments. The
+original sorry persists at UniqueTyping.lean:94. No canonical-Eq counterexample
+or strictly smaller sufficient irreducible obligation has been established;
+GOAL.md remains active. Independently appearing untracked Theory files were
+left untouched. No coordination, subagents, or executable changes.
