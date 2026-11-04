@@ -8906,3 +8906,32 @@ hash-stable and byte-identical to isolated copies. Artifacts:
 `/tmp/prepare-carrier-structure-universe-join.py`. The earlier changed import was
 retained explicitly when regeneration followed the proof-parameter extension.
 Other untracked work was preserved; no coordination. Goal remains active.
+
+
+## Closing the native projected-structure square (2026-11-04)
+
+Combined the now-committed exact constructor recovery with the dependent
+projection-type residual. A retained projection of an expanded constructor
+recovers the original field recipe and reuses its complete conversion tail,
+without any target-major, parameter or field native premise. In the full static
+structure union, the source major's family certificate admits the compatible
+expansion below the projection; the new projected expression returns to the old
+field erasure in primitive-core computation and retains the selected native type.
+This handles arbitrary dependent fields and parameters at the chosen family.
+
+The newly committed fresh-binder boundary rules out universal exact native
+coverage for every descending primitive relation, not only the current grammar.
+The local projection square does not contradict it: expansion preserves the
+chosen family and contracts its projected captures back. Next general work must
+retain common-native recovery/comparison and join independently selected retained
+parameters; universal exact source stability and universal core joining are both
+refuted routes. Strengthening and a sufficient smaller front remain open.
+
+Validation: one new module, 86 Lean lines, two public roots. Isolated explicit
+718-job build covering the new module and changed committed constructor-recovery
+import; all seven public roots audited transitively, maximum closure 10,961,
+standard axioms only and no configured forbidden dependencies. All 693 imported
+local sources hash-stable and isolated-identical. Artifacts:
+`/tmp/carrier-projected-structure-native-square-*`; preparation
+`/tmp/prepare-carrier-projected-structure-native-square.py`. No executable changes,
+coordination or PR extraction. Goal remains active.
