@@ -21627,3 +21627,32 @@ forbidden dependencies. All 725 local import sources hash-stable. Artifacts:
 `/dev/shm/static-pi-app-origin-*`; preparation
 `/dev/shm/prepare-static-pi-app-origin-audit.py`. Independent untracked work
 preserved; no coordination, executable changes or PR extraction. Goal active.
+
+
+## Dependent demand profiles with ignored domains (2026-11-04)
+
+The closed-control observation restriction was preventing telescope readout at
+retained data and dependent parameter domains. Introduced ordinary type profiles
+with ignored domains, universe results and dependent arrows. A profile retains
+actual well-formed type representatives and ordinary type equality. It transports
+through arbitrary typed substitution and context conversion without any native
+image premise. Visible profiles have positive universes; ignored profiles supply
+no observations and may denote propositions or arbitrary dependent data types.
+
+The typed-node layer now handles lambda inversion, beta interpretation, native
+Pi selection and both controlled wrappers with these profiles. Function eta
+retains a fresh argument only WHEN its profile is observed; ignored proof
+arguments need not survive erasure. Visible profile heads exclude native
+structure expansion. This supplies the dependent typing mechanism for neutral
+head readout, not common coverage, type confluence or strengthening.
+
+Validation for this foundation and its following observation/readout consumer:
+eight selected modules, explicit isolated 747-job build, all 88 public roots
+audited (including a changed committed control-observation import), maximum
+closure 11,301. Standard axioms only, no forbidden dependencies or sorry sources.
+All 722 local closure sources hash-stable and isolated-identical. This foundation
+adds three modules, 352 Lean lines and 27 public roots. Artifacts:
+`/tmp/carrier-dependent-neutral-head-*`; preparation
+`/tmp/prepare-carrier-dependent-neutral-head.py`. No new warnings or executable
+changes; independent untracked files preserved and not imported. No coordination.
+Goal remains active.
