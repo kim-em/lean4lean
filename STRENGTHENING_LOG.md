@@ -19442,3 +19442,38 @@ smaller sufficient irreducible obligation or GOAL.md deliverable is claimed.
 Only these four modules and ledger appendices are staged. Independent commit
 c4a15977 and ongoing independent files are preserved; no executable changes,
 agent coordination or PR extraction.
+
+## Expanded native Pi selection retains its domain comparison
+
+ProofErasureCarrierAlignedExpansionPiJoin closes the concrete Pi specialization
+recorded in the preceding entry. BetaLevelJoin.pi_exposure returns a beta path
+to Pi X Y and raw joins X~A and Y~B from a join against Pi A B. The existing
+beta_forallE_parts and variant_forallE_inv lemmas retain both components.
+
+proofErase_carrier_aligned_raw_join_compare converts a raw join against an
+actual typed endpoint into ComputedJointCompare in any mode, using the exact
+beta/universe common reduct and explicit inclusion of level primitives.
+proofErase_carrier_aligned_joined_pi_selection applies this to the exposed
+domain, preserving existing native evidence by its beta conversion. Its
+finite expanded-stage and union wrappers accept paths from a pure assigned Pi
+in a pure context and return native Pi recovery plus an inferred-mode domain
+comparison at the original native stage. The raw codomain join is retained
+explicitly. The native and selection stages need not agree; exact assigned-Pi
+recovery and the false expanded no-Pi-root premise are unnecessary.
+
+Validation: the 86-line new module passes main and isolated 709-job builds.
+Its five exact public roots pass the full dependency audit through opaque
+bodies, constructors and recursor rules; maximum closure 8,696, only propext,
+Classical.choice and Quot.sound, no sorry source or any excluded strengthening
+or framework dependency. No new-source warnings; source bytes match. Artifacts:
+/tmp/carrier-expansion-pi-{dev.log,isolated-build.log,audit.lean,audit.log,
+audit-roots.txt,files.txt,targets.txt,validation.json}; preparation script
+/tmp/prepare-carrier-expansion-pi.py. The preceding four-module validation
+covers its new supporting imports, and these five audits traverse their bodies.
+
+Judgment: the pure expanded fragment now has Pi exposure with a usable domain
+comparison, not just a head witness. This is still conditional on existing
+native common-reduct evidence. General coverage and transport of dependent
+carrier certificates across computationally related selected domains remain
+open. Original weakN_iff remains sorry; GOAL.md is active. Only this module
+and these ledger appendices are staged; independent work is preserved.

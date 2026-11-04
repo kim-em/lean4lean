@@ -7490,3 +7490,41 @@ Validation: main and isolated 874-job builds; 137 source modules byte-identical;
 708 exact roots audited through opaque bodies, constructors and recursor rules,
 maximum closure 11,507. Only standard logical axioms; no sorry or forbidden
 strengthening/framework dependency. Original weakN_iff remains open.
+
+## Pi/domain selection from expanded raw joins
+
+The specialization proposed in the preceding entry is now **proved**.
+BetaLevelJoin.pi_exposure uses beta reduction of both components of a Pi and
+structural-variant inversion to return a beta Pi reduct with joins of its
+domain and codomain against the displayed Pi components. Typed replay of the
+domain join supplies an inferred-mode ComputedJointCompare whenever the target
+relation includes explicit level steps. Existing native evidence can therefore
+select this Pi while retaining its domain comparison at the original native
+stage. Finite expanded paths and union paths from a pure assigned Pi instantiate
+the result in pure contexts; the selection path can use an unrelated stage.
+No canonical-Eq hypothesis is required for this specialization: only raw
+expanded join certificates and typed beta/universe replay are used.
+
+The returned codomain is raw-beta/universe-joined to the original codomain;
+it is not asserted to recover the exact original Pi annotation. Nor is native
+coverage produced for arbitrary typed sources. To use this in a full carrier
+transport, the remaining question is how to transport dependent argument and
+codomain certificates when the newly selected domain is related by computation
+rather than structural universe variation. Existing exact-native-image
+transport does not automatically discharge that obligation.
+
+Next concrete candidate: transport pure native recovery between contexts whose
+lookup types have BetaLevelJoin certificates, allowing the transported native
+output to be joined to the original output instead of equal to it. For an
+application, the Pi-exposure lemma would select the transported function's Pi;
+raw join compatibility with instantiation would then retain the output join.
+For conversion, pure expanded computation already supplies a raw join. This
+requires lifting and substitution lemmas for BetaLevelJoin and a paired context
+lookup lemma; it is not yet proved. It may avoid reproducing expanded guards
+in the target context, but using joined outputs inside full carrier comparison
+still needs a separate argument.
+
+Validation: 709-job main and isolated builds of the new module; all five exact
+roots pass opaque-body/constructor/recursor auditing with standard logical
+axioms only, maximum closure 8,696. Source bytes match across the two checkouts.
+No forbidden dependency or new-source warning. Strengthening remains open.
