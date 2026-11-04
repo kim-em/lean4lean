@@ -9628,3 +9628,39 @@ build and full 22-root audit described in the preceding entry; maximum closure
 forbidden dependencies or nonstandard axioms. Artifacts
 /tmp/carrier-type-beta-residual-*. Executable unchanged; no coordination.
 Strengthening remains open and the goal remains active.
+
+
+## Exact type computation substitution fails for every descending target (2026-11-04 23:54:05 UTC)
+
+Verdict: refuted the proposed strengthening of TypeInstantiationJoin to an
+exact forward computation. The counterexample already has a sort-typed body.
+In a canonical-Eq environment with a positive empty unindexed structure S,
+declare an old index z:S, K:S->Type, and an old caller H whose function parameter
+has domain K z. Add fresh y:S, then a generic function g with converted domain
+K y. The type body H g is well typed by unit equality. One native eta expansion
+of g computes it to H (fun a:K y => g a).
+
+Substitute the old constant function fun a:K z => Prop for g. The initial type
+H (fun a:K z => Prop) is typed below y. The instantiated computed endpoint
+beta-reduces to H (fun a:K y => Prop), which retains fresh y in its annotation.
+Descent therefore excludes every forward computation between the instantiated
+endpoints. The theorem quantifies over every descending primitive relation,
+not just the current structure/function-eta union: adding descending rules
+cannot repair exact substitution transport. A generic call/lambda annotation
+scope lemma supplies the contradiction.
+
+Both instantiated outputs nevertheless compute to the same type by replacing
+y and z with S's registered constructor inside the annotations. The witness
+therefore preserves the explicitly requested type-instantiation join. It is not
+a confluence or strengthening counterexample. This closes the exact-forward
+alternative even for type-valued bodies, and directs the next work toward joins
+or caller-based repair rather than universal primitive substitution. The already
+proved vacuous-codomain case remains valid; this body genuinely uses g.
+
+Validation: one 192-line module, two public roots; isolated explicit 771-job
+build and full dependency audit, maximum closure 10,969. Only standard axioms,
+no configured forbidden dependencies or new warnings. All 746 closure source
+hashes were stable and matched isolated copies. Artifacts
+/tmp/carrier-type-inst-boundary-*; preparation
+/tmp/prepare-carrier-type-inst-boundary.py. Executable unchanged, no coordination.
+The original strengthening sorry remains and the goal remains active.
