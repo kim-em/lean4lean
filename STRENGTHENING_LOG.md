@@ -16420,3 +16420,47 @@ stages remain open. The original sorry remains at UniqueTyping.lean:94; no
 GOAL.md completion alternative is proved. A separately appearing untracked
 ProofErasureComputingFunctionCarrierConversion.lean was left untouched and is
 not included here. No coordination, subagents, or executable changes.
+
+## 2026-11-04 — Dependent codomains in whole function-carrier conversion
+
+Confirmed 980f3244 is pushed. The next obstruction in that proof was its literal
+sort codomain. ProofErasureDependentNeutralFunctionCarrierConversion removes
+this restriction while retaining the neutral source domain hypothesis. It
+consumes a whole finite stage-zero guard at Pi A C and actual domain equality
+A = B, and returns a guard at Pi (erase B) (erase under A of C).
+
+The carrierCompute branch realizes the entire computed Pi at its actual sort,
+inverts its erasure and actual equality, transports endpoint typings to the
+new Pi, and recursively converts its neutral domain. The codomain computation
+is retained and replayed under B to reconstruct the original target carrier.
+This replay uses only stage-zero context-independent core primitives. It does
+not assume that the dependent codomain is fixed or that the carrier is normal.
+The carrierFunction branch collapses proof-valued endpoints when necessary;
+otherwise its actual body certificate is transported using neutral context
+conversion. Function subsingletons are preserved. No body certificate is
+extracted from an arbitrary carrierChecked node.
+
+The prior fixed-sort conversion now specializes this theorem instead of
+repeating the induction. The new dependent application corollary consumes a
+computed lambda at the converted carrier and the whole original argument
+guard. The concrete structural eta application remains a consuming client.
+The raw codomain stays at its original erasure; no unrelated codomain equality
+or arbitrary structural carrier conversion is claimed.
+
+Validation: consuming build succeeds in 587 jobs, with no warnings from the
+new/changed modules (/tmp/dependent-repair-build.log). Opaque audit covers six
+exact public roots: the new conversion/application, old conversion/application,
+structural eta repair and structural failure theorem. Largest closure: 9,420.
+Only propext, Classical.choice and Quot.sound occur; no sorry sources or
+forbidden strengthening/transport dependencies. Artifacts:
+/tmp/dependent-repair-audit.lean, .log, -roots.txt. git diff --check passes.
+
+Next: integrate carrier retargeting into interpreted image transport, where
+exact selected-domain exposure is too strong. This theorem handles a change
+inside a Pi's neutral domain, not every pair of equal carriers. In particular,
+distinct dependent codomains and arbitrary structural selected outputs still
+need a proved invariant. The original UniqueTyping.lean:94 sorry remains; no
+GOAL.md completion alternative is established. Independently appearing changes
+to ProofErasureComputedJointTransport and the untracked computing-conversion
+module were left untouched and are excluded from this commit. No coordination,
+subagents, or executable changes.
