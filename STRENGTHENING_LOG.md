@@ -20398,3 +20398,51 @@ is preserved. No executable changes, coordination, or PR extraction. The
 original strengthening sorry remains at UniqueTyping.lean:94. GOAL.md remains
 active: no strengthening proof, canonical-Eq counterexample, or strictly
 smaller sufficient irreducible front is established by these residuals.
+
+### 2026-11-04 21:18:19 UTC — Universe-core confluence and mixed whole-function beta residuals
+
+Implemented and checked four modules:
+
+- `ProofErasureLevelCoreConfluence`: typed ordinary/level factorization and
+  confluence of `ErasedLevelCore D` from ordinary confluence, soundness, concrete
+  patterns, and proved universe compatibility. Replay provides both actual
+  intermediate typings in the factorization composition case. Residual universe
+  variation is realized using the actual typed common endpoint.
+- `ProofErasureStoredCoreConfluence`: a separated presentation and exact typed
+  confluence for `Definitions.ofEnv`; no enlarged declaration collection is used
+  in the residual. The actual-environment theorem discharges every parameter
+  for level-core confluence and requires neither canonical Eq nor quotient
+  registration. Canonical Eq is needed later for full-union native guard descent.
+- `ProofErasureLevelCoreExpansion`: adds the two controlled beta expansions to
+  the level core, proves descent, inclusion in the existing union, whole-path
+  common reducts, confluence, substitution modulo common reduct, and forward
+  preservation of common-core guards. Native recovery relations on the two
+  branches may differ; their descent is enough. Stored definitions provide a
+  concrete instance with full-expanded-union native guards.
+- `ProofErasureLevelCoreBetaSquare`: inverts level-core lambda computation and
+  obtains a lambda common reduct of the entire mixed function path. Its original
+  body history substitutes with no native-image premise. Together with existing
+  argument computation, this joins the original beta contractum and computed
+  function applied to computed argument. The latter residual uses only level-core
+  computation. The argument can compute at arbitrary expanded singleton depth.
+
+This removes explicit universe conversion from the list of unresolved mixed
+ordinary/expansion peaks and removes the original native-argument premise for
+this larger whole-function fragment. It does not extend the first recovered
+singleton-stage substitution theorem to all higher guards. The new concrete
+instance covers stored definitions; the earlier recovered-native results used
+the augmented quotient/selected-structure collection. No unsupported universe
+compatibility for that larger collection, or universal native coverage, has
+been inferred. No proof of `PropFront`, strengthening, canonical-Eq counterexample,
+or strictly smaller sufficient obligation has been obtained. The original
+`UniqueTyping.lean` sorry remains unchanged.
+
+Validation: `lake build` completed 730 jobs; 22 public declarations passed a
+transitive dependency audit including types, opaque bodies, constructors, and
+recursor rule RHSs (maximum 11,511 declarations). Only `propext`,
+`Classical.choice`, and `Quot.sound` occur. No dependency on `sorryAx`,
+`weakN_iff`, `weakN_inv`, the joint beta-stability/front obligations, semantic
+head exposure, selected-domain or structural-image recovery interfaces, or the
+excluded native alignment interfaces occurs. All 705 local imported sources
+were hash-stable through validation; no warning was emitted for a new module.
+Artifacts: `/dev/shm/level-core-mixed-*`. No executable changes or PR extraction.

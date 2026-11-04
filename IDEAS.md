@@ -8240,3 +8240,50 @@ Validation: three modules, 285 Lean lines, 11 public roots; main and isolated
 742-job builds. Structural audit maximum closure 11,470, standard axioms only,
 all exclusions clean. All 717 local imported sources stayed unchanged and
 match isolated copies; no new-source warnings.
+
+### 2026-11-04 21:18:19 UTC — Postpone universes, then join mixed function paths
+
+**Verdict: proved for the universe-extended ordinary core and its controlled
+beta expansions; singleton roots in the function path remain open.** The
+previous common-core argument omitted explicit universe conversion. Every
+source-typed finite level-core computation now factors into ordinary core
+computation followed by structural universe variation. The transitive case
+replays both intermediate terms and uses the already proved concrete structural
+simulation; it does not assume normalization or guarded-stage confluence.
+Ordinary typed confluence therefore extends to the level core.
+
+A concrete instance uses precisely actual stored definitions. Definition
+patterns replay as stored unfolding; iota patterns have disjoint heads. The
+separated confluence theorem then gives ordinary typed confluence in this exact
+collection, and stored-body universe compatibility supplies the new extension.
+This avoids needing a universe-compatibility theorem for the extra selected
+structure and proposition-source quotient equations. It does not prove such a
+theorem for that larger collection or replace its native-recovery coverage.
+
+Ordinary computation, explicit universe conversion, constant expansion, and
+native identity expansion can now interleave arbitrarily and still have exact
+level-core common reducts. Native guards may use any descending relation,
+including the entire expanded union. Whole-path actual substitution needs
+only erasure agreement, not native images, when the output is requested up to
+common reduct. Common level-core guards also survive independent mixed
+endpoint paths. These statements concern core joins, not arbitrary recursive
+carrier comparisons.
+
+For a retained lambda, its common reduct is again a lambda with separate
+level-core histories of the original annotation and body. The latter substitutes
+freely. Consequently a whole mixed function path and arbitrary full-expanded
+argument path join the original beta contractum **without native certificates
+for either original or computed argument**. This extends the transparent
+function square to ordinary definitions, iota, and projection computation
+interleaved with universe changes and controlled expansion. The function path
+still excludes singleton/Eq-prefix roots; the argument path can include them.
+
+Remaining: higher guarded function computations and recursive carrier-family
+forward stability; general native-image coverage; universe compatibility for
+the augmented declaration collection if that native route is used; and the
+strengthening conclusion. No new strictly smaller sufficient front is claimed.
+
+Validation: four modules, 730 jobs, 22 public roots, maximum dependency closure
+11,511; standard axioms only, all forbidden dependencies absent, 705 local
+import-source hashes unchanged, and no new-source warnings. Goal active; no PR
+extraction.
