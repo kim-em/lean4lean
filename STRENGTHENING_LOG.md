@@ -17543,3 +17543,28 @@ PropFront. Guard conversion, paired substitution under changed binders,
 arbitrary compared-body beta transport and native-recovery coverage remain
 unproved. UniqueTyping.lean:94 is unchanged. No executable edits, agents or
 coordination. Independent working files are preserved.
+
+
+## 2026-11-04 — Paired beta without joining argument images
+
+abe7a737 (native Pi residuals) is pushed. CarrierAlignedPairedBeta proves
+inferred comparison of beta contracta for two finite beta-joining bodies and
+distinct inferred-related arguments, including different written lambda
+domains. The actual left reduct supplies the shared typed template. Compatible
+beta substitution and existing image congruence suffice; no general beta
+stability or primitive-substitution assumption enters.
+
+CarrierAlignedPairedBetaExample instantiates this with the converted-unit
+witness. Its images have no computation join in the full old union and no old
+carrier-recovered comparison, but all finite body-beta joins instantiate in the
+new checker. This checks the nonjoining-image hypothesis against a concrete
+boundary, under the previously stated positive fieldless-structure assumption.
+
+Validation: both new modules build in the main worktree and in the isolated
+carrier scratch (671 jobs including the three residual modules). The exact
+eight-public-root audit has maximum closure 11,034, standard axioms only and no
+forbidden dependencies or sorry sources. Exact source bytes match. Artifacts:
+/tmp/carrier-paired-isolated-build.log, /tmp/carrier-paired-audit.lean and .log,
+/tmp/carrier-paired-audit-roots.txt, /tmp/carrier-paired-files.txt,
+/tmp/carrier-paired-validation.json. Original strengthening remains open;
+these certificates do not supply arbitrary compared-body substitution.

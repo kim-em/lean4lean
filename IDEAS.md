@@ -6103,3 +6103,28 @@ Recursive carrier guards still contain the old comparison language. General
 transitivity is not justified by native recovery alone, which does not certify
 all raw argument typings. Original strengthening and every GOAL.md completion
 alternative remain open.
+
+
+## 2026-11-04 — Paired beta with joining bodies and nonjoining images
+
+**Verdict: checked paired beta beyond one shared body template.**
+CarrierAlignedPairedBeta compares two beta contracta when their erased bodies
+have a finite common beta reduct and their argument images compare in inferred
+mode. The written lambda domains may differ; common actual function typing
+aligns the argument typings. The proof replays the left body path to a typed
+shared template, applies the proved image congruence there, and instantiates
+both beta paths. It needs no native recovery at the written annotations,
+argument computation join, arbitrary primitive substitution, or comparison
+transitivity.
+
+CarrierAlignedPairedBetaExample uses the converted-fieldless-structure witness.
+The two common-typed variable images provably have no computational join in the
+full carrier-recovered primitive union, and the old checker cannot compare them.
+Nevertheless every finite body-beta join instantiates at those images in the
+aligned checker. The positive fieldless-structure declaration is an explicit
+hypothesis, not a consequence asserted from canonical Eq alone.
+
+The explicit body join remains a restriction. Live extension: permit distinct
+body reducts with recursively universe-equivalent annotations, then investigate
+carrier and eta comparisons without replacing the entire missing substitution
+law by a premise. This paired-beta fragment does not close PropFront.
