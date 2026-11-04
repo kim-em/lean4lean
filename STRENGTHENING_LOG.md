@@ -21486,3 +21486,38 @@ sources hash-stable and isolated-identical. Artifacts:
 `/tmp/carrier-static-control-return-*`; prep
 `/tmp/prepare-carrier-static-control-return.py`. No new warnings, executable
 changes or coordination. Independent untracked files preserved. Goal active.
+
+
+## Opaque type-variable readout and exact data demands (2026-11-04 22:58:38 UTC)
+
+Verdict: every full structure/function-eta computation from a variable assigned
+a universe returns to that exact variable by pure beta. Reinterpret the existing
+sort observation with no literal universe payloads and one selected free-variable
+demand. The typed transport theorem already rules out structure eta at sort
+assignments and prevents a function observation replacing the marked sort
+demand. A small parametric realization proof gives the exact variable readout;
+no unrestricted normalization or confluence hypothesis is introduced.
+
+This supplies stage-zero exact identity images from an opaque type-variable
+binder to any of its computed annotations. Both computations and native recovery
+therefore transport forward at the same finite stage and with exact outputs.
+Common native evidence for an argument assigned an opaque type variable restores
+that exact type, so root beta retains every selected native result without
+assuming general common-native instantiation. Proof arguments retain their
+vacuous image demand. This extends the exact-demand result to retained data at
+opaque types, not only arguments assigned literal universes.
+
+The function-type investigation now has the missing variable leaf for dependent
+Pi return trees (including bound type variables). Neutral type applications
+such as F x remain outside this return argument: their arguments can undergo
+structure eta, so returning to the original index would conflict with the
+existing exact-coverage obstruction. General common-native recovery, the full
+forward-binder law, and strengthening remain open. No sufficient strictly
+smaller front is claimed.
+
+Validation: two modules, 193 Lean lines, nine public roots; explicit 772-job
+build and full transitive dependency audit, maximum closure 11,526; only
+standard axioms and no configured forbidden dependencies. All 747 local import
+sources hash-stable. Artifacts: `/dev/shm/static-variable-context-*`;
+preparation `/dev/shm/prepare-static-variable-context-audit.py`. No executable
+changes, PR extraction or coordination. Goal remains active.
