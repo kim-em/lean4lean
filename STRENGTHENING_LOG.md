@@ -16952,3 +16952,39 @@ of intermediate argument instantiation. Neither coverage nor heterogeneous
 substitution is assumed here. Original UniqueTyping.lean:94 remains open and
 none of GOAL.md's completion alternatives is established. Keep the goal active.
 Only Theory and ledgers change; no coordination, subagents, or executable edits.
+
+
+## 2026-11-04 12:57 UTC — Sequential certified substitutions and type specialization
+
+Added ProofErasureSequentialSubstitution and ProofErasureSequentialInstantiation.
+The first proves actual substitution composition and erasure agreement, then
+closes ComputedZeroGuardSubstitution under nonempty finite composition. Both
+checking views are handled, with typed intermediate terms in the induction;
+its binder rule composes lifted maps and correctly substitutes annotations at
+each step. Existing generated-telescope first-stage transport consumes the new
+instance, preserving the exact composed output without increasing the stage.
+
+The second module supplies actual two-binder instantiation consumers: substitute
+a finite structural-path image, then substitute an arbitrary type for the
+ambient type variable. A family typed at Pi (bvar 0) (Sort v) in Sort u :: Γ
+satisfies the initial path condition from typing alone. Its specialized image
+needs no fresh certificate. A checked negative lemma shows that substituting a
+sort for the abstract variable does not preserve protected neutral heads.
+This establishes sequential transport across that restriction, not unrestricted
+image coverage or backward abstraction of arbitrary body certificates.
+
+Validation: 594-job consuming build succeeds, with no new-module warnings.
+Every explicit public definition/theorem and both new constructors is included
+in an exact 18-root opaque dependency audit; maximum per-root closure 11,182.
+Only propext, Classical.choice, and Quot.sound occur. No sorry source or forbidden
+weakN_iff, weakN_inv, JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, or JointPropBetaStability dependency. Exact root counts
+also match the independent #print axioms output. Artifacts:
+/tmp/sequential-subst-build.log; /tmp/sequential-subst-audit.lean and .log;
+/tmp/sequential-subst-roots.txt and /tmp/sequential-subst-files.txt.
+
+UniqueTyping.lean:94 still contains the original strengthening sorry. No
+canonical-Eq counterexample or strictly smaller sufficient irreducible
+obligation is established. Goal remains active. Only the two new Theory files
+and these ledger additions are included; independently appearing files are
+preserved. No executable changes, coordination, subagents, or PR extraction.

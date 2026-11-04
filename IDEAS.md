@@ -5646,3 +5646,32 @@ Validation: 665-job isolated build, 14 exact opaque audit roots, largest closure
 carrier-related data arguments need not join, and image coverage remains
 restricted. No proof of PropositionFront, canonical-Eq counterexample, or
 strictly smaller sufficient irreducible front is established.
+
+
+## 2026-11-04 12:57 UTC — Compose transport before replacing protected heads
+
+Finite sequential substitution was tested as an alternative to closing the
+structural-family image predicate under arbitrary substitution. Verdict: proved.
+SequentialSubstitution stores individual certified maps and their finite
+compositions. Context interpretation, binder extension, complete stage-zero
+comparison and carrier checking, and first-layer computation transport all
+compose. Intermediate actual typed endpoints are realized before applying the
+next checking theorem. No final composite-image recovery certificate is assumed.
+
+The concrete consumer first substitutes a structural-path image in a context
+with an abstract type variable, then specializes that variable to any typed
+type. For a type-valued family over that variable, ordinary typing supplies
+the initial path; no beta exposure or native recovery premise is necessary.
+Recursive comparisons and exact first-layer outputs survive both steps.
+Replacing the variable by a sort provably violates global protected-head
+preservation, so this is a valid way to discharge that restriction between
+successive transport steps. It does not prove the final map lies outside every
+existing image class, nor that every typed substitution factors this way.
+
+Universal abstraction of an existing monomorphic body remains unproved: the
+consumer requires its checking derivation in the abstract source context.
+Changing a concrete domain to an unrelated variable does not itself provide
+such a derivation. Verdict: finite-factorization is a live route, with this
+source-certificate issue explicit; no universal coverage or strict-smallness
+claim. Next investigate which existing comparison constructors can be lifted
+to an abstract context, especially those using native projection readout.
