@@ -7093,3 +7093,39 @@ source comparison certificate and common actual source endpoint typings; it
 is not declarative comparison completeness. Arbitrary beta-shaped changes of
 context annotations and guarded-stage joins remain outside this result. The
 original strengthening question and its required deliverables remain open.
+
+## 2026-11-04 18:02:08 UTC — Combine computational joins with finite native family alignment
+
+Verdict: **proved a single substitution law containing both earlier methods,
+with a checked inhabited case requiring their combination**. NativeJoinFramework
+retains a core computation from the selected type to an intermediate type
+already covered by NativeFamilyFramework.Recovery. Typed confluence closes
+forward selection conversion; backward selection just composes paths. Application
+first reduces the selected Pi and its full argument guard, then applies the
+finite input-family readout. Projection exposes a rigid intermediate carrier
+and computes its field recipe. All recovery and full checker constructors
+transport. Both earlier image and interpreted-substitution laws explicitly embed.
+
+The law also discharges ComputedZeroGuardSubstitution: all generated singleton
+and Eq-prefix guards transport beneath their residual telescopes. Complete
+first-stage computations retain the exact substituted output at stage one;
+paired beta-redex comparison and single-instantiation consumers are supplied.
+No higher-stage confluence premise or semantic checking oracle was introduced.
+
+The source example combines a max 0 0 universe annotation with a beta-expanded
+generic result. The target uses universe 0 and the unexpanded result. A concrete
+well-formed context contains the generic type and its value; one function
+inhabits both annotations. The combined intermediate certificate is proved,
+while direct finite Alignment fails for every input predicate and the complete
+annotations have no common ordinary-core reduct. Thus this is not merely an
+external disjunction of the previous methods. This boundary is specifically
+about the original core and these two earlier certificates, not all alternative
+methods or independently enlarged universe-computation cores.
+
+Remaining: arbitrary well-typed substitution images still need coverage by the
+combined Recovery relation. The native-recovery induction remains at repaired
+core stage zero; the stage-one computation result uses transported base guards
+and does not establish stage-one native recovery or arbitrary-stage confluence.
+Next, examine which singleton-stage recovery conversions can preserve this
+invariant without assuming a confluence law for the full guarded computation.
+GOAL.md remains open; no sufficient strictly smaller irreducible front is claimed.

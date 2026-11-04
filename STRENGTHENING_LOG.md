@@ -18876,3 +18876,62 @@ sorry at UniqueTyping.lean:94. Source certificates and structural universe
 variation remain real premises; arbitrary beta-context transport, general
 native recovery and comparison completeness have not been established. No
 canonical-Eq counterexample or strictly smaller sufficient front is claimed.
+
+## 2026-11-04 18:02:08 UTC — family alignment at computed selections and first-stage transport
+
+NativeJoinFramework defines Recovery by finite NativeFamilyFramework recovery
+at an intermediate output reached by core computation from the selected type.
+Previously aligned and computationally joined native recoveries both embed.
+Backward selection composes paths; forward typed selection uses core confluence.
+Lambda, sort, weakening, application, and projection readout are proved. The
+application checker replays the selected Pi computation to obtain actual typed
+intermediate domains, forwards the entire argument guard, then applies the
+existing finite-family conversion law. It needs no native recovery for arguments.
+
+NativeJoinSubstitution proves all recovery cases under the combined Images law,
+including generated binders, projection parameter computation and field recipes,
+and conversion at the actual substituted selected carrier. Images.of_aligned
+and Images.of_joined embed both prior laws. NativeJoinTransport supplies the
+full ComputedJointCheck induction and both interpreted-substitution embeddings.
+These results work with every proved InputLaws instance, including the previously
+constructed arbitrary finite family hierarchies, rather than fixing one rank.
+
+NativeJoinContext transports comparison and carrier checking across binder
+annotations when the source computes to a carrier finitely aligned with the
+target. NativeJoinInstantiation supplies exact single-substitution consumers.
+NativeJoinFirstStage instantiates the generic telescope-stable guard interface
+and preserves whole first-stage singleton/Eq-prefix computation paths, including
+transitive intermediates and dependent binders, without changing their stage
+or substituted output. It also proves paired beta-redex comparison from a
+common-typed body certificate and a combined image certificate.
+
+NativeJoinExample combines an input universe max 0 0 with a beta-expanded generic
+result, versus input universe 0 and an unexpanded result. It supplies actual
+typing/equality, the intermediate certificate, full carrier and first-stage
+context consumers, and two exclusions: no common original-core reduct of the
+annotations, and no direct old Alignment for any input predicate at a generic
+result. inhabited_boundary realizes these claims in a well-formed context with
+a generic type and a value, producing one function inhabiting both annotations.
+The exclusions concern those two methods; no claim is made about all alternative
+certificates or the separately enlarged universe-computation core.
+
+Validation: 769-job build of 95 explicit modules passed. All 732 exact audit
+roots passed the opaque/constructor/recursor audit, including 50 new roots;
+maximum closure 11,978. Only propext, Classical.choice and Quot.sound occur.
+No sorry sources or excluded weakN_iff, weakN_inv, JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport or JointPropBetaStability.
+All 50 new roots pass the framework independence gate, including the first-stage
+consumers. The seven sources match their pre-build SHA256 snapshot and introduce
+no build warnings. Artifacts: /tmp/native-join-{full-build.log,audit.lean,audit.log,
+roots.txt,new-roots.txt,independent-roots.txt,files.txt,build-targets.txt,
+source-before.json,validation.json}; scripts /tmp/prepare-native-join-audit.py
+and /tmp/verify-native-join-audit.py.
+
+The original weakN_iff sorry remains at UniqueTyping.lean:94. These results retain
+QuotRegistered, concrete-pattern and proved input-law hypotheses, and first-stage
+computation additionally uses canonical Eq. Neither arbitrary image coverage nor
+native-recovery transport at higher guarded stages is proved. No strengthening
+proof, canonical-Eq counterexample, or strictly smaller sufficient irreducible
+obligation is claimed. GOAL.md remains active. Only seven new theory modules and
+these ledger appendices belong to this change; no executable changes, PR
+extraction, independent-worker file changes, or agent contact.
