@@ -6942,3 +6942,45 @@ variant closure. Native recovery and checking completeness for arbitrary terms,
 parameterized aligned head exposure, and the original strengthening front all
 remain open. This is a closed core-fragment theorem, not a sufficient strictly
 smaller irreducible front.
+
+## 2026-11-04 17:27:34 UTC — exact dependent result alignment resumes unrestricted native recovery
+
+**Verdict: proved recursive transport with arbitrary aligned result carriers.**
+The previous native Tree/Alignment grammar stopped at sort results. Merely adding
+a generic parameter leaf would lose its specialization when an application
+instantiates that parameter. Instead, preserve exact agreement of the selected
+and actual dependent result. Added Alignment.exact for any actual carrier and
+Alignment.input for a certified changed input plus an aligned dependent child.
+Substitution preserves exact agreement even when the result becomes a function,
+structure, or another arbitrary typed carrier; no specialization witness needs
+to survive that change.
+
+Exposure now returns either a finite native tree, actual-carrier computation to
+selection, or a Pi with its retained input route and child alignment. Application
+uses the exact-computation branch to resume ordinary native recovery; typed
+forward replay embeds that exact recovery back into the relation. The forall
+case still recovers an actual sort, and the projection case now recovers the
+selected structure major exactly instead of excluding all structure results.
+The complete source-recovery induction and recursive checker transport pass
+with this enlarged relation. The old shape and not_projection APIs were updated
+to expose the exact branch and require exclusion of exact recovery, respectively.
+
+ImageSubstitution.aligned_context and both full checking consumers now convert
+binders using an alignment rather than a sort-ending tree. In particular, equal
+input annotations with identical dependent codomain syntax suffice with no
+shape restriction on that codomain. A more general constructor also permits
+forward core computation from the actual result erasure to the selected one.
+The concrete example converts a polymorphic identity binder whose universe
+input was beta-expanded. Its target is outside Tree F for every input predicate
+F, yet all recursive carrier guards transport. Applying the native identity
+parameter at an arbitrary Type resumes exact recovery at that actual type; a
+concrete instance recovers Prop → Prop after both applications, with no recovery
+premise for the argument.
+
+Still missing: arbitrary result annotation change known only by ordinary
+semantic equality. Exact erasure or retained forward core computation is a real
+restriction, not a general equality-to-computation theorem. This does not prove
+native coverage for every dependent function or eliminate the original front
+obligation. General alignment of differing dependent results remains live;
+no strengthening proof, canonical-Eq counterexample, or strictly smaller
+sufficient irreducible front is claimed. GOAL.md remains active.

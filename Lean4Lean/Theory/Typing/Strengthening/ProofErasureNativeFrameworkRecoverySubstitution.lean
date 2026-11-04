@@ -118,7 +118,7 @@ private theorem native_or_aligned_sort (hs : D.Sound env univs)
     obtain ⟨T, he, ET⟩ := proofErase_scoped_typeRecovery_replay hstep hΓ ht R
     obtain rfl := erase_sort_inv ET
     exact ⟨u, he, R⟩
-  · exact H.sort hΓ ht
+  · exact H.sort hs hΓ ht
 
 /-- Recovery at stage zero survives exactly, or its selected output is retained
 by an aligned actual native carrier. This includes all recovery constructors. -/
@@ -174,7 +174,7 @@ theorem recovery_subst
       exact .app R
     · apply Or.inr
       simpa only [VExpr.subst, ProofShape.subst_inst, proofErase_subst_with hΓ₀ W ha ES, Ea] using
-        Recovery.app H hΓ₀ (ht.subst henv.orderedStrong W hΓ₀)
+        Recovery.app H hs hΓ₀ (ht.subst henv.orderedStrong W hΓ₀)
           (mt (isProof_subst hΓ₀ W ht).1 (by intro hp; rw [proofErase_eq_proof.2 hp] at Ee; cases Ee))
   | @forallE Δ A u B v RA RB ihA ihB =>
     obtain ⟨X, Y, rfl, _, EX, EY⟩ := erase_forallE_inv Ee
@@ -214,7 +214,12 @@ theorem recovery_subst
       simp only [ProofShape.subst_mkApps, ProofShape.subst] at R
       rw [projectionType_subst HT hj (by omega)]
       exact .proj hi HT hj (by simpa only [List.length_map] using hlen) R
-    · exact (H.not_projection hΓ₀ (ht.subst henv.orderedStrong W hΓ₀)).elim
+    · have R := H.projection_recovery hΓ₀ (ht.subst henv.orderedStrong W hΓ₀)
+      apply Or.inl
+      simp only [proofErase_subst_with hΓ₀ W hm.hasType.2 ES, Em,
+        ProofShape.subst_mkApps, ProofShape.subst] at R
+      rw [projectionType_subst HT hj (by omega)]
+      exact .proj hi HT hj (by simpa only [List.length_map] using hlen) R
   | convert R RC ih =>
     have RC' := (forget_scope RC).subst (σ := τ) (fun H => erased_iota_primitive_subst H)
     rcases ih hΓ₀ W ES ht EΓ Ee HI with R' | H

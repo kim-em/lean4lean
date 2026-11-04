@@ -18635,3 +18635,53 @@ active; neither a counterexample nor a sufficient strictly smaller irreducible
 front is claimed. Only these four new theory modules and the ledger appendices
 belong to this change. No executable changed, no agents were contacted, and the
 independent DependentValue work was preserved.
+
+## 2026-11-04 17:27:34 UTC — exact dependent outputs across application and projection
+
+Expanded the central NativeFamilyFramework.Alignment relation with exact and
+input constructors. Exact leaves retain arbitrary actual carriers; input nodes
+allow a certified changed input while preserving a dependent aligned child.
+Substitution is proved for both constructors. Exposure and function_parts now
+retain a native output-computation branch. Recovery.of_native uses forward typed
+replay, and Recovery.app consumes that branch before following structured child
+alignment. application_checked likewise uses exact selected native recovery
+when available. The sort helper now takes literal sort selection and soundness;
+projection_recovery proves exact selected recovery for actual structure majors.
+The older not_projection statement explicitly requires exclusion of that exact
+recovery. The recovery-substitution projection case now reconstructs native
+projection recovery, and the full recursive checker transport remains proved.
+
+ExactNativeContext constructs identity binder substitutions from arbitrary
+actual carrier alignment and supplies full comparison and carrier consumers.
+Alignment.equal_input_exact_result certifies equal input annotations with an
+identical arbitrary dependent codomain; input_computed_result also accepts
+forward core computation of the actual result erasure. No finite result-shape,
+argument-recovery, backward-native-recovery, or assumed guard-promotion premise
+is introduced.
+
+ExactNativeExample changes the universe annotation in a polymorphic identity
+binder, proves its target excluded from Tree F for every F, and transports every
+common-typed recursive carrier guard across the binder change. It reconstructs
+exact native recovery after applying the polymorphic parameter at an arbitrary
+actual Type and an argument of that type. A concrete Type argument Prop → Prop
+checks the result-head change from a generic variable to a function carrier.
+
+Validation: 755-job build of 81 explicit modules passed. The exact 652-root
+opaque/constructor/recursor audit passed, including the changed framework and
+all prior hierarchy/instantiation roots, with 18 new roots and maximum closure
+11,514. Only propext, Classical.choice and Quot.sound occur. No sorry
+sources or excluded weakN_iff, weakN_inv, JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport or JointPropBetaStability.
+All 18 new roots also pass the existing framework independence gate, alongside
+the prior 68 framework and 30 dependent-family roots and 31 lower callable-layer
+checks. All four source files match their pre-build SHA256 snapshot and have no
+build warnings. Artifacts: /tmp/exact-native-{full-build.log,audit.lean,audit.log,
+roots.txt,new-roots.txt,independent-roots.txt,files.txt,build-targets.txt,
+source-before.json,validation.json}; scripts /tmp/prepare-exact-native-audit.py
+and /tmp/verify-exact-native-audit.py.
+
+The original UniqueTyping.weakN_iff sorry remains at line 94. Only the two
+framework edits, two new theory modules, and these ledger appendices belong to
+this change. General differing dependent-result alignment is still open;
+GOAL.md is not complete. No executable files or independent worker files were
+changed, no PRs extracted, and no agents contacted.
