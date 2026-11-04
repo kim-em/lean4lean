@@ -5737,3 +5737,43 @@ sufficient front. The next substantive tasks are retaining its certificates
 through descent and testing recursive guard saturation/transport; the original
 strengthening obligation remains open. Validation: 655-job isolated build,
 10 exact opaque audit roots, largest closure 10,998, no forbidden dependencies.
+
+
+## 2026-11-04 13:13 UTC — Refute uniform abstraction; cover typed terminal images
+
+Uniformly replacing a concrete type by a type variable while retaining the
+body was tested in ProofErasureTypeAbstractionBoundary. At Type → Type the
+body f Prop is typed and reflexively checked. In [x : S, S : Sort 2] the same
+body has no type: substitute Type for S and Prop for x, and a putative typing
+would make a sort a function, contradicting proved head separation. Both
+contexts are well formed. Native Pi recovery also fails in the abstract
+context for every primitive language with the established head restriction.
+Verdict: this unrestricted abstraction step is false. It does not refute
+sequential specialization, shape-preserving abstractions, or strengthening.
+
+Instead, extend the finite-path image class by actual terminal typing.
+TerminalImage covers types and values at rigid constant-headed types with no
+registered projections. Such values cannot occupy either elimination position
+inspected by native recovery: function application or projection major.
+The new StructuralFamilyRecovery.terminal constructor needs no prescribed raw
+output shape. Actual endpoint typing excludes any invalid subsequent
+elimination. The property survives arbitrary typed substitution and backward
+replay of an actual equality, so all finite path cases remain proved.
+Verdict: complete recursive stage-zero comparison/carrier transport and exact
+first-layer computation transport rebuild with this leaf. Ordinary data images
+and terminal-valued lambda bodies need no native recovery or normalization.
+
+ProofErasureExpandedSortInstantiation provides a concrete positive/negative
+pair: Prop has an actual beta-expanded Type annotation; exact native recovery
+of that annotation fails even in the full computed union, but arbitrary typed
+body comparisons and first-layer computations instantiate at that binder.
+Unlike a literal universe alias, its assigned raw type is an application,
+not a sort. Terminal typing removes that syntactic restriction.
+
+Next live refinement: a fieldless structure still has projection metadata and
+is excluded by the current terminal criterion. Replace absence of metadata by
+absence of valid projection readouts, using the actual projection typing or
+its telescope/index bound. For structures with usable dependent fields, the
+projection-result alignment problem remains. General function-domain
+conversion, higher-stage finite-path transport, and checker completeness
+remain open; no strict-smallness claim or GOAL.md completion alternative.

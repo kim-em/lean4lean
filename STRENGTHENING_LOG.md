@@ -17077,3 +17077,53 @@ bvar-injectivity against the enlarged relation. Original UniqueTyping.lean:94
 remains open. No canonical-Eq counterexample or strictly smaller sufficient
 irreducible front is claimed. Only Theory and ledgers change; no coordination,
 subagents, or executable edits.
+
+
+## 2026-11-04 13:13 UTC — Terminal data images and an abstraction obstruction
+
+ProofErasureTerminalImage proves stability under actual typed substitution and
+backward equality replay, and excludes Pi typing and projection-owner typing
+for terminal images. Its data case requires a rigid type head with no
+registered projections, and may use a different actual type from the selected
+assigned annotation. No recovery or normalization is assumed.
+
+StructuralFamilyRecovery gains a terminal leaf, and its exposure theorem now
+returns TerminalImage in the first branch. Beta replay retains terminality;
+application rules reject an actually terminal function. Projection recovery
+uses the terminal image's proved exclusion of registered projection types.
+The complete recovery, recursive checking, finite-sequence substitution and
+first-layer computation consumers were rebuilt. Existing neutral, dependent
+structural-domain and finite-body paths remain available.
+
+ProofErasureTerminalInstantiation supplies complete comparison and first-layer
+computation consumers for terminal images, rigid data without projections,
+and beta-exposed lambdas with terminal-valued bodies and the existing explicit
+selected-domain certificate. ProofErasureExpandedSortInstantiation proves
+both full-computed-union exact-recovery failure and successful recursive body
+instantiation for Prop assigned a beta-expanded Type. This tests a nonliteral
+assigned universe, not just a renamed literal universe.
+
+ProofErasureTypeAbstractionBoundary refutes unrestricted syntax-preserving type
+abstraction before any dependent projection is involved. A concrete function
+application loses all typing when its function's type becomes an arbitrary
+type variable. The proof uses typed substitution and sort/Pi separation only.
+This disqualifies that universal reverse step of the sequential-factorization
+idea; it is not a counterexample to canonical-Eq strengthening.
+
+Validation: 607-job build of 15 affected/consuming modules, no new/modified-module
+warnings. Exact 114-root full opaque dependency audit, including every new public
+definition/theorem, constructors, modified recovery roots, and prior recursive
+consumers; maximum per-root closure 11,208. Only propext, Classical.choice and
+Quot.sound. No sorry source or forbidden weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport,
+or JointPropBetaStability. Independent #print axioms output matches every root.
+Artifacts: /tmp/terminal-image-build.log; /tmp/terminal-image-audit.lean and .log;
+/tmp/terminal-image-roots.txt, -files.txt, and -build-targets.txt.
+
+Original UniqueTyping.lean:94 remains open; no proof, canonical-Eq counterexample,
+or strictly smaller sufficient irreducible obligation is established. Next
+investigate valid-index exclusion for fieldless structures; usable dependent
+projection fields and unrestricted function-domain alignment remain outside
+this terminal argument. Only Theory and these ledger additions change. No
+executable edits, coordination, subagents, or PR extraction. Concurrent files
+and independently committed work are preserved; goal remains active.
