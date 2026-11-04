@@ -9030,3 +9030,30 @@ All 721 local closure sources hash-stable and isolated-identical. Artifacts:
 `/tmp/prepare-carrier-static-common-app.py`. No new warnings or executable
 changes; independent committed work reused read-only, no coordination.
 Goal remains active.
+
+
+## Exact transport across erased proof binders (2026-11-04 22:51:11 UTC)
+
+Verdict: the proof-variable branch of forward native binder transport is
+closed unconditionally. Definitionally equal proof binders provide exact native
+identity images for any image relation: the newest lookup is erased, while
+older lookups recover directly from the unchanged tail. The full static
+structure/function-eta grammar therefore transports both computations and native
+recoveries at the same finite stage and with the exact original output. No
+computation in either direction between the binder annotations is required.
+
+This removes a proved branch from the existing obligation: NativeForwardBinder
+is equivalent to its restriction to retained generic variables. That remaining
+restriction is not asserted, and the previous function-to-sort test means it
+still entails all typed type-fork joins. General retained-argument substitution
+and the original strengthening theorem remain open; this is not a sufficient
+strictly smaller front. The application investigation continues to expose the
+uncertified-argument gap when a function's native codomain changes.
+
+Validation: one module, 135 Lean lines, seven public roots; explicit 768-job
+build, full transitive audit including opaque values and recursor rules,
+maximum closure 11,111, standard axioms only and no configured forbidden
+dependencies. All 743 local import sources hash-stable. Artifacts:
+`/dev/shm/static-proof-context-*`; preparation
+`/dev/shm/prepare-static-proof-context-audit.py`. No executable changes, PR
+extraction or coordination. Goal remains active.
