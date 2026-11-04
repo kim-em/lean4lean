@@ -18067,3 +18067,43 @@ it is meant to prove. General guarded-stage transport and PropFront coverage
 still require proof. No executable changes, agents, coordination or PR
 extraction. Independent worker files and commits remain untouched; only the
 four listed source files and these ledger appendices belong to this change.
+
+
+### Selected native domains and nullary unit argument guards (2026-11-04)
+
+Added ProofErasureCarrierAlignedDomainExposure. The full aligned checker now
+exposes an actual selected Pi and retains inferred comparison of its assigned
+and selected domains. Unlike the earlier whole-Pi residual, this certificate is
+usable directly by domain-specific carrier transfer. The proof covers every
+aligned constructor, including recursive recovery, sorted binders and finite
+computation. Carrier promotions at sort-typed endpoints reduce to ordinary
+computed comparison using the existing proved type-checking theorem.
+
+Added ProofErasureCarrierAlignedNullaryExposure. A primitive-inert nullary type
+constant is exposed through typed aligned comparison. For a zero-parameter,
+zero-index, zero-field structure this constructs the selected domain's computed
+carrier guard. Native selection returns the actual Pi typing, exact native Pi
+recovery, inferred domain comparison and carrier guard together. Raw application
+and actual-erasure application consumers use this guard, while still requiring
+the supplied computed inferred function comparison. Full recovered-stage and
+union rigid-head exclusion discharge the inertness premise from environment
+facts in the concrete union consumer.
+
+Added ProofErasureCarrierAlignedDomainExample, preserving the existing concrete
+negative exact-assigned-Pi recovery result while obtaining the new inferred
+selected-domain certificate. This is not a counterexample to strengthening.
+
+Validation: main and isolated 691-job builds of 23 aligned modules passed.
+Exact 68-root opaque/inductive/recursor audit passed, maximum closure 11,285;
+standard propext/Classical.choice/Quot.sound only. No sorry sources or excluded
+weakN_iff, weakN_inv, JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability. Source bytes match the isolated
+worktree. No warnings in the three changed modules. Artifacts:
+/tmp/carrier-selected-{all-build.log,isolated-build.log,audit.lean,audit.log,
+audit-roots.txt,files.txt,targets.txt,validation.json}; preparation script
+/tmp/prepare-carrier-selected.py and validator /tmp/verify-carrier-audit.py.
+
+Remaining work: initial recovery/comparison coverage, parameterized family
+exposure, nontrivial carrier transfer, and substitution for the full joint checker.
+The original UniqueTyping.weakN_iff sorry remains. No executable edits or goal
+completion claim; independent worktree changes are preserved.

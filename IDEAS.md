@@ -6516,3 +6516,32 @@ an explicit mutual/staged argument is required. General guarded-stage transport,
 unrestricted typed image coverage, and the implication to PropFront remain
 unproved. This is not a smaller sufficient irreducible front or a solution of
 canonical-Eq strengthening.
+
+
+### Native Pi selection retaining domain evidence (2026-11-04)
+
+Verdict: proved for the enlarged CarrierAlignedCompare. Actual sort typings
+reduce native carrier promotions to computed type checking; structural Pi
+exposure then retains common domain comparison through finite computations.
+Actual selected Pi replay upgrades that domain certificate to inferred mode.
+The assigned Pi need not be recovered exactly. The existing identity-redex and
+universe-alias witness now has the selected-domain certificate while exact
+assigned-Pi recovery still fails in the entire recovered-carrier union.
+
+Nullary unit transfer is also constructive. Typed aligned comparison with a
+primitive-inert nullary family exposes that family at the selected type, so its
+unit guard can be rebuilt there. The selected Pi, actual function typing,
+inferred assigned-to-selected domain comparison and argument guard are returned
+together. Raw and actual-erasure application consumers close the computed
+application rule; the latter also handles proof-marker erasure. Rigid-head
+exclusion is proved for the full recovered-carrier union from environment
+rigidity and exclusion from the definition table.
+
+Boundary: arbitrary parameterized family exposure does not follow from the
+nullary proof. Applications of type-valued functions expose recursive function
+comparison, including native carrier promotion; the current root-shape argument
+cannot simply discard that case. Arbitrary carrier transfer and the existence
+of initial native recovery/type comparison remain open. Next live extension:
+retain universe equivalence during nullary exposure, then transfer nonempty
+structure-field guards and their proof-field admissibility. This is not claimed
+to solve general re-synthesis or furnish a smaller sufficient PropFront.
