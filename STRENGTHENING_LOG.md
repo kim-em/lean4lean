@@ -19541,3 +19541,74 @@ passes this obstruction at stage zero and remains a live route, with general
 coverage and dependent domain transport still open. No claim of a smaller
 sufficient front is made. UniqueTyping.lean:94 still contains the original
 weakN_iff sorry; GOAL.md remains active. No PR extraction.
+
+## Joined context and image transport, with the eta coverage boundary
+
+Seven modules (589 Lean lines) close the joined-native transport candidate
+recorded after expanded Pi selection and test its proposed generalization.
+
+ProofErasureCarrierAlignedJoinSubstitution adds lifting, common and paired
+substitution, paired instantiation, beta-only sort exposure modulo universe
+equivalence, and BetaLevelContext with its joined oracle lookup theorem.
+ProofErasureCarrierAlignedJoinedNativeContext transports native recovery from
+pure syntax in a pure context to any joined target context, preserving a raw
+join of output types. The target primitive relation is arbitrary: the proof
+uses beta conversions alone. Pi formation selects equivalent sorts rather than
+requiring exact universe syntax. Finite expanded stages and the union specialize
+this result to beta-only recovery, including at the unchanged source context.
+
+ProofErasureCarrierAlignedBetaNativeRenaming separates exact raw oracle
+renaming from interpreted substitution for beta-only recovery. Its weakening
+lemma allows arbitrary inserted annotations and arbitrary target expression
+syntax. ProofErasureCarrierAlignedJoinedNativeImages uses this to close joined
+images under binders. Every image carries beta-only native recovery joined to
+its substituted oracle type. The complete pure-source native recovery induction
+then transports through these images; old conversion certificates become raw
+output joins, rather than target computations. Source guard depth disappears
+from the target native evidence. Instantiation is a closed corollary.
+
+ProofErasureCarrierAlignedJoinedNativeApplication gives typed consumers:
+expanded pure images can supply joined instantiation, exact demanded sorts are
+selected at expanded stage zero, actual assigned types retain joins and inferred
+computed comparisons after typed substitution, and native Pi demands retain Pi
+selection with a computed domain comparison and a joined dependent codomain.
+ProofErasureCarrierAlignedJoinedNativeExample checks the existing higher-order
+exact-recovery obstruction: the old level union still cannot select the literal
+assigned type, while JoinedNativeImages succeeds with beta-only native evidence
+and instantiates pure certificates from every expanded guard depth.
+
+ProofErasureCarrierAlignedJoinedNativeBoundary rejects universal joined
+coverage even on this pure fragment. It reuses the actual eta-converted variable
+example and its verified beta-normal forms. F f and F (fun x => f x) have no
+BetaLevelJoin because their fixed normal forms differ in a variable-versus-lambda
+argument. Pure expanded computation forces every native output of the variable
+to remain joined to F f, so transitivity excludes any join to its assigned type.
+The context, source and assigned type all have pure erasures. The obstruction
+exists over the empty base in every Params environment. The theorem also
+supplies stage-zero native recovery and a full CarrierAlignedCompare against
+the assigned type, explicitly demonstrating that richer type comparison still
+works. This strengthens the old literal-join boundary to universe-aware joins
+and the entire controlled-expansion union; it does not refute strengthening.
+
+Validation: targeted main and isolated builds both pass 789 jobs. All 33 exact
+public roots in the seven modules pass auditing of types, opaque bodies,
+inductive constructors and recursor rules; maximum closure 8,736. Only propext,
+Classical.choice and Quot.sound occur. No sorry source, weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport
+or JointPropBetaStability is reachable. All 764 transitive local import sources
+match their pre-build hashes and the isolated checkout; no new-source warnings.
+Artifacts: /tmp/carrier-joined-native-{all-build.log,isolated-build.log,audit.lean,
+audit.log,audit-roots.txt,files.txt,targets.txt,validation.json,
+closure-source-hashes.json}. Preparation: /tmp/prepare-carrier-joined-native.py.
+
+Judgment: computational context changes and nonexact image types no longer
+block native substitution inside the stated fragment. The image invariant is
+strictly more permissive than exact old-level recovery, yet provably incomplete
+for ordinary eta conversion even in pure contexts. Future generalization must
+use eta-aware carrier alignment and preserve dependent codomain certificates;
+purity alone cannot make BetaLevelJoin cover every assigned type. Native
+coverage and full aligned carrier transport remain open. Original weakN_iff
+still contains sorry at UniqueTyping.lean:94; GOAL.md stays active. Only these
+seven modules and ledger appendices belong to this change. Independent commit
+80b39fda and ongoing independent files are preserved; no executable changes,
+agent coordination or PR extraction.

@@ -7589,3 +7589,59 @@ shown to imply or be strictly smaller than, PropositionFront. Goal unchanged.
 Validation: two modules, 703-job build, eight audited exact roots through
 opaque bodies/constructors/recursors, maximum closure 9,943; standard
 logical axioms only, no forbidden dependency or warning in the new sources.
+
+## Joined native outputs survive context change and substitution
+
+- Transport existing native recovery through computationally related context
+  entries, retaining a joined output: **proved** for pure source syntax and a
+  pure source context. The target context need not be pure. BetaLevelContext
+  gives joined lifted variable-type lookups; application uses Pi exposure;
+  Pi formation exposes equivalent sorts and uses imax congruence; conversion
+  composes raw joins. The transported recovery uses beta alone. Thus arbitrary
+  pure expanded native evidence has a beta-only native representative modulo
+  BetaLevelJoin, even after context change.
+- Extend this to genuinely substituted expressions: **proved**. Raw oracle
+  renaming preserves beta-only native recovery without an interpreted context
+  substitution premise. This proves weakening under arbitrary annotations and
+  closes JoinedNativeImages under binders. Every raw image recovers a type
+  joined to its substituted oracle assignment. Source recovery at any expanded
+  stage or the union then substitutes to beta-only recovery with a joined
+  output. Images and target contexts may contain constants/projections; only
+  the original source context and source syntax must be pure. The raw image
+  condition explicitly quantifies over every variable index.
+- Retain usable demands and actual assigned types: **proved**. Joined-image
+  substitution selects demanded sorts exactly at expanded stage zero; native
+  Pi demands retain a selected Pi and inferred-mode domain comparison. Typed
+  substitution retains a join and computed comparison to the actual substituted
+  assigned type. A pure expanded image can itself be converted to beta-only
+  joined evidence before instantiation. These results still require supplied
+  native evidence; they do not assert universal native coverage.
+- Test whether the image condition really improves on exact recovery:
+  **strict improvement checked**. TypeFunctionExample's actual higher-order
+  image has no exact assigned recovery in the old full level union, but its
+  beta-only native output satisfies JoinedNativeImages. It instantiates every
+  pure expanded native certificate, retaining the joined dependent output.
+- Claim universal joined coverage merely by imposing purity: **refuted**,
+  including for the new expansion union. The existing eta example has native
+  type F f and assigned type F (fun x => f x). Their beta-normal raw shapes
+  cannot be StructuralVariant. Every expanded native output of the variable is
+  joined to F f by pure-context computation, so none can be joined to the
+  assigned type. The actual context, source and assigned erasures are all pure,
+  and an empty base context suffices in every Params environment, including
+  canonical Eq. Nevertheless the full aligned checker compares the native
+  output and assigned type at stage zero. This is a limitation of raw joins,
+  not a counterexample to strengthening or to native type comparison.
+
+Judgment: the proposed joined context/substitution transport is closed, but
+using beta/universe joins as the universal image invariant is now decisively
+excluded. General carrier transport needs eta-aware alignment, such as the
+existing full checker or a stronger finite NativeCarrierAlignment certificate.
+The older NativeAlignedImageSubstitution already handles a finite carrier
+fragment; do not repackage that result as unrestricted coverage. A subsequent
+extension must retain dependent codomain alignment and selected-domain
+transport, not just a Pi head. Full strengthening remains open.
+
+Validation: 789-job main and isolated builds, 33 exact new roots across seven
+modules, maximum audited dependency closure 8,736, standard logical axioms
+only. All 764 transitive local import sources match the pre-build snapshot and
+isolated checkout. No sorry or forbidden strengthening/framework dependency.
