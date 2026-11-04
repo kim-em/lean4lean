@@ -5777,3 +5777,25 @@ its telescope/index bound. For structures with usable dependent fields, the
 projection-result alignment problem remains. General function-domain
 conversion, higher-stage finite-path transport, and checker completeness
 remain open; no strict-smallness claim or GOAL.md completion alternative.
+
+## 2026-11-04 — Saturate singleton guards with recovered-carrier comparison
+
+**Verdict: checked finite-stage closure and exact certificate descent.** The
+new comparison's recovered branch descends both native recovery certificates,
+aligns their actual lower types through literal erasure reflection, and retains
+the explicit computed carrier guard. No semantic recovery or target soundness
+premise is added. General singleton family guards now use this comparison in
+ErasedCarrierRecoveredStage; the specialized Eq branch keeps the old computed
+carrier guard. The old stages embed at their original bounds. Finite bounds,
+union closure, interpreted renaming, head preservation, and actual prefix
+replay all hold. Eight lift iff theorems retain exact compute/recovery outputs,
+comparison modes and supplied carriers at finite stages and their union.
+
+The enlargement does not yet prove beta stability. In particular, recovered
+carrier promotion requires the two native recoveries to reach one literal raw
+type. Actual convertible types need not supply that certificate. A live test
+is a pair of variables at distinct but convertible parameterized empty-structure
+types: old application carrier checking can ignore this native-recovery
+mismatch, while a beta reduct may expose it. This is a proposed boundary to
+test, not a proved obstruction. Arbitrary distinct-body transport and recovery
+coverage remain open.

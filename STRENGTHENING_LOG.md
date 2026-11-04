@@ -17127,3 +17127,40 @@ projection fields and unrestricted function-domain alignment remain outside
 this terminal argument. Only Theory and these ledger additions change. No
 executable edits, coordination, subagents, or PR extraction. Concurrent files
 and independently committed work are preserved; goal remains active.
+
+## 2026-11-04 — Exact recovered-carrier certificates and recursive singleton stages
+
+CarrierRecoveredCertificateDescent reconstructs comparison certificates below
+arbitrary inserted blocks. Its recovered branch retains both native type
+recoveries, uses erasure injectivity and DomainNormal reflection to align their
+actual lower types, then descends the supplied computed carrier guard. Structural
+cases retain the left binder annotation; the base embeds existing computed
+certificate descent. No completeness or target semantic soundness is assumed.
+
+CarrierRecoveredStages feeds the enlarged comparison into general generated
+singleton family guards. The separate specialized Eq branch uses the existing
+computed carrier guard. Old computed stages embed at the same stage. Descent,
+head preservation, exact original registered-prefix replay and monotonicity
+are established. StageCertificateDescent retains source realizations and exact
+generated outputs, PrimitiveRenaming preserves interpreted renamings, and Union
+chooses finite bounds for all recursive recovery/compute/compare certificates.
+CertificateStrengthening proves eight exact lift iff results at finite stages
+and the union for computation, native recovery, comparison and explicit carriers.
+
+Validation, also including the subsequent Eq integration module: isolated
+checkout at 1dae2fdf plus the three previously validated carrier-recovered
+modules and these seven additions. All seven new modules were rebuilt there:
+657 jobs pass, no new-module warnings. All 45 public roots pass the opaque
+inductive/recursor dependency audit (largest closure 11,195), with only propext,
+Classical.choice and Quot.sound; no sorry, weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport
+or JointPropBetaStability dependencies. Exact source bytes match. Artifacts:
+/tmp/carrier-stages-isolated-build.log and /tmp/carrier-stages-audit.lean, .log,
+-roots.txt. Concurrent independent commit 9fbae110 is preserved and excluded
+from the isolated validation, as is the earlier independent 19f8e688.
+
+Original UniqueTyping.lean:94 remains open. Recursive guard saturation closes
+one implementation gap in the new descending relation; it does not establish
+beta stability, recovery coverage, completeness, a canonical-Eq counterexample,
+or a strictly smaller sufficient front. Only Theory and ledgers change; no
+coordination, subagents or executable changes.
