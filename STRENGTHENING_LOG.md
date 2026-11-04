@@ -19505,3 +19505,39 @@ files.txt,source-before.json,validation.json} and preparation/verification scrip
 Judgment: expanded head exposure is now proved without a purity restriction;
 domain comparison and native coverage remain separate outstanding obligations.
 The original weakN_iff sorry is unchanged; GOAL.md is not complete. No PRs extracted.
+
+## 2026-11-04 19:34:30 UTC: distinguish exact coverage from computed-carrier coverage
+
+ProofErasureExpansionNativeBoundary proves native lambda outputs cannot have
+primitive heads, then instantiates this with RecursiveDomain's actual retained
+diagonal at its assigned constant-headed carrier. The failure quantifies over
+all definition sets and the full expanded union. The identity recovery cover
+produces a typed beta step with stage-zero exact native evidence at the source
+and no exact native evidence at the reduct in the union. The canonical wrapper
+includes actual environment well-formedness, context well-formedness, both
+endpoint typings, canonical Eq and a separately proved PropositionFront.
+
+ProofErasureExpansionRecursiveRecovery supplies the positive test on that same
+obstruction. Stored-definition unfolding and beta give the exact erased carrier
+path R f → (R f → Prop). Substitution of that ordinary core path supplies the
+native bvar Pi selection in the diagonal's body. Consequently the unchanged
+diagonal has stage-zero native recovery at the unfolded Pi, shared by a forward
+computation of its actual assigned type. The final canonical wrapper packages
+this repair with the full-union exact-coverage failure and PropositionFront.
+No definition folding, arbitrary reverse beta, or purity assumption is added.
+
+Validation: 703-job build; all eight exact declarations pass the full audit
+through opaque bodies, constructors and recursor rules, maximum closure
+9,943; axioms only propext, Classical.choice and Quot.sound. No excluded
+strengthening/framework dependencies, sorry or new-source warnings. Source
+hashes match the audited build. Artifacts: /tmp/expansion-native-boundary-
+{full-build.log,audit.lean,audit.log,roots.txt,files.txt,validation.json};
+/tmp/head-boundary-dev.log and /tmp/recursive-recovery-dev.log hold development
+builds. Preparation and verification scripts use the same audit stem.
+
+Judgment: exact native-image coverage and its beta-preservation bridge are now
+concretely ruled out for the expanded relation. Common computed-carrier recovery
+passes this obstruction at stage zero and remains a live route, with general
+coverage and dependent domain transport still open. No claim of a smaller
+sufficient front is made. UniqueTyping.lean:94 still contains the original
+weakN_iff sorry; GOAL.md remains active. No PR extraction.

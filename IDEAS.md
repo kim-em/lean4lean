@@ -7555,3 +7555,37 @@ rather than exact coverage. Strengthening itself remains open.
 Validation: 701-job build, 42 exact declaration roots audited through opaque
 bodies, constructors and recursors; maximum closure 11,200. Only standard
 logical axioms; no excluded strengthening/framework dependency or new warning.
+
+## 2026-11-04 19:34:30 UTC: exact native coverage refuted; computed-carrier repair checked
+
+**Refuted, including for the full expanded union:** every retained typed term
+has native recovery at its exact assigned carrier. A native lambda always has
+a Pi observation at its output. A constant/projection-headed output has none.
+The recursive family R f := (R f → Prop) types its retained diagonal at R f,
+so no choice of definitions or finite expanded guard depth yields exact native
+recovery of that assignment. The actual extension preserves canonical Eq and
+has a separately proved proposition front: this is an interface obstruction,
+not a strengthening counterexample.
+
+**Also refuted:** exact assigned native evidence survives typed beta contraction.
+The typed identity cover of that diagonal has exact recovery already at stage
+zero; its beta reduct has none even in the full union. Recovering substitution
+covers therefore cannot establish exact-image coverage by contracting afterward.
+
+**Concrete weaker repair proved:** with the actual recursive equation installed,
+the assigned carrier computes to its unfolded Pi and the diagonal recovers that
+same Pi at stage zero. The native source is unchanged. This succeeds in the
+same canonical extension where exact coverage fails, without purity or a
+normalization assumption. It validates common computed outputs as a candidate
+interface for this obstruction, not a general coverage theorem.
+
+**Next live obligation:** obtain native recovery together with computation of
+the assigned carrier to the selected output for general retained typed terms,
+and preserve dependent argument/domain certificates when Pi exposure changes
+the selected binder. The new head-observation theorems provide exposure but do
+not retain domain comparison. This remains distinct from, and has not been
+shown to imply or be strictly smaller than, PropositionFront. Goal unchanged.
+
+Validation: two modules, 703-job build, eight audited exact roots through
+opaque bodies/constructors/recursors, maximum closure 9,943; standard
+logical axioms only, no forbidden dependency or warning in the new sources.
