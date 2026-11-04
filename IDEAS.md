@@ -6330,3 +6330,21 @@ live route is a stratified input-image class extending terminal inputs to
 callable certified images; its context-conversion proof must avoid circularly
 using the very selected-domain theorem being defined. Global higher-stage
 substitution, arbitrary dependent carriers and PropFront remain open.
+
+
+### Full scoped comparison under paired aligned images (2026-11-04)
+
+Verdict: proved, including all recursive eta, sorted-binder and structure-field
+cases of ScopedCompare. This replaces the earlier restriction to shared beta
+reducts or StructuralVariant bodies. CarrierAlignedSubstitution lifts both actual
+maps into one converted target binder; the right eta-body case uses its symmetric
+right-binder construction. Typed eta classification supplies the fresh argument,
+and two lambda endpoints of a common-typed eta guard have beta-related bodies.
+No raw eta contractum is replayed without a typed original.
+
+The generic theorem explicitly requires typed source primitive simulation; its
+primitive-free corollary discharges that interface. It assumes inferred-related
+image maps, not arbitrary common-related maps. Full joint carrier checking,
+higher guarded-stage substitution, and sufficient coverage for PropFront remain
+open. This is progress on the live paired-substitution route, not a new sufficient
+irreducible obligation or completion of GOAL.md.

@@ -17802,3 +17802,28 @@ stratified callable-input extension with no cyclic substitution premise. No
 executable edits, PR extraction, agents or coordination. Independent work is
 preserved; only the five listed source files and these ledger appendices belong
 to this change.
+
+
+### Paired transport of full scoped bodies (2026-11-04)
+
+Added ProofErasureCarrierAlignedEtaSubstitution and
+ProofErasureCarrierAlignedScopedPairedSubstitution. The first proves typed eta
+transport under independently related maps and finite beta reduction of bodies
+when both eta endpoints are lambdas. The second proves paired substitution by
+induction over every ScopedCompare constructor. The maps preserve actual source
+typing; source inference aligns child typings before recursion, and converted
+binder maps preserve the exact target erasure. One-term instantiation is a proved
+specialization. No body join, native image recovery, or domain re-synthesis oracle
+is assumed. Generic primitive simulation remains explicit; the primitive-free
+corollaries discharge it by contradiction.
+
+Validation of these modules and their next consumers: main 673-job build and
+isolated 685-job rebuild of 18 aligned modules, followed by the exact 46-root
+opaque dependency audit. Maximum closure 11,158; only propext, Classical.choice
+and Quot.sound; no sorry sources or excluded strengthening/substitution names.
+Exact source bytes match the independent validation worktree. Artifacts:
+/tmp/carrier-scoped-{build.log,isolated-build.log,audit.lean,audit.log,audit-roots.txt,
+files.txt,targets.txt,validation.json}; validator /tmp/verify-carrier-audit.py.
+This commit contains only these two source modules and these ledger appendices;
+the separately validated head-beta/core/example consumers follow in the next
+commit. Original UniqueTyping.weakN_iff remains open; executable unchanged.
