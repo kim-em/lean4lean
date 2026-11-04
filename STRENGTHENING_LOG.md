@@ -20893,3 +20893,71 @@ modifiers, in addition to stripping nested comments. All 747 imported local
 sources remained hash-stable and byte-identical to the isolated copies, with no
 new-module warnings. Artifacts: `/tmp/carrier-beta-lambda-eta-*`; prep:
 `/tmp/prepare-carrier-beta-lambda-eta.py`. Independent files and index preserved.
+
+### 2026-11-04 21:59:30 UTC — Refute common-native coverage even with the full function-eta union
+
+The previous proposed coverage target is still too weak. The newly checked
+obstruction uses a closed positive empty structure, two distinct variables
+x,y at that structure, F : Unit → Type, and p : F x. Declarative unitLike equality
+assigns p the type F y too. Nevertheless, every full function-eta computation
+from either family application preserves the identity of its opaque argument.
+Thus those applications have no common reduct, and no native output of p can
+share a reduct with its assigned F y. The theorem allows every singleton stage
+and arbitrary finite function-eta/native-identity guard depth. A specialization
+uses EnvironmentCore.definitions, so actual stored definitions, selected
+structure equations and the repaired quotient equation are all retained.
+
+Six modules (894 Lean lines) implement the argument:
+
+`ProofErasureAtomicControlTyping` extends closed control types with a positive
+opaque atom. Its interface contains ordinary closed typing and separation from
+Pi types; `Atom.ofRigid` later discharges it from actual rigid-family typing.
+Typed substitution, context conversion, wrapper typings and native eta
+classification follow without native-image or strengthening assumptions.
+
+`ProofErasureAtomicControlObservation` tracks finite neutral demands at those
+types. It proves interpreted renaming/substitution, beta preservation, erasure
+to the raw neutral observation semantics, and preservation by controlled beta
+and native function-eta expansion. Ordinary typing handles erased argument
+classification and changing annotations.
+
+`ProofErasureAtomicEtaObservation` proves preservation through arbitrary
+compatible paths of the entire eta union. A variable at the opaque atom has a
+beta readout to itself after every such path; distinct atomic variables cannot
+join. No purity or bound on intermediate control syntax is imposed.
+
+`ProofErasureAtomicFamilySeparation` interprets the family variable by a raw
+identity test. Every computed F x then beta-reads x under that test. Independent
+paths from F x and F y cannot meet, by raw beta confluence. The test is an
+untyped operational interpretation of the erased paths, not an asserted actual
+typed substitution or a semantic interpretation of declarative equality.
+
+`ProofErasureEtaUnitNativeBoundary` supplies the atom from the actual positive
+rigid unit family, proves the family no-join theorem, and constructs the complete
+four-variable context. Lookup inversion makes every native certificate for p a
+path from F x, yielding failure of common-native coverage. The only environment
+assumptions beyond well-formedness/canonical Eq are the stated closed positive
+empty-structure registration and typing. No complete environment witness is
+constructed in this change.
+
+`ProofErasureEtaUnitBetaBoundary` shows that an identity wrapper at the assigned
+F y has exact native recovery at eta stage zero and beta-contracts to p, which
+has no common-native certificate in the whole eta union. Therefore the proposed
+source-computation stability law is false even after adding function eta.
+
+Research judgment: this is a certificate-language obstruction, not a canonical-Eq
+strengthening counterexample. The next extension must include native unit/structure
+eta or comparisons that account for it. More function-eta or singleton guard depth
+cannot fix this witness. The stronger extension remains a live direction; no
+sufficient strictly smaller strengthening front or general confluence is claimed.
+IsDefEqU.weakN_iff and its original sorry remain unchanged.
+
+Validation: 751-job explicit-target build, all 89 selected public roots audited,
+including new class fields, inductive constructors, recursors, opaque proof values
+and transitive types. Maximum closure 11,467; only propext, Classical.choice,
+Quot.sound. No sorryAx, weakN_iff/weakN_inv, excluded joint front/stability, semantic
+head exposure, selected-domain, structural-image or native-alignment dependency.
+All local import hashes remain stable; no new-module warnings. Artifacts:
+`/dev/shm/eta-unit-native-*`, preparation and commit scripts with that stem.
+Only these six modules and these ledger appendices are staged. Independent work,
+the executable and PR state are preserved; no coordination or PR extraction.

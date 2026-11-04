@@ -8619,3 +8619,36 @@ newly imported public definitions, transitive types, opaque proof values,
 constructors and recursor RHSs; maximum closure 11,912 and standard axioms only.
 All 747 local source imports were hash-stable and byte-identical to isolated
 copies. No new-module warnings. Artifacts: `/tmp/carrier-beta-lambda-eta-*`.
+
+### 2026-11-04 21:59:30 UTC — Function eta still omits unit/structure eta
+
+- **Prove universal common-native coverage after adding function eta.**
+  Rejected for the present language by a checked conditional obstruction: in
+  every canonical-Eq environment with a closed positive empty structure, take
+  distinct unit variables x,y, a variable F : Unit → Type, and p : F x. Unit-like
+  equality also types p at F y, but full function-eta computations from F x and
+  F y have no common reduct. Native recovery of p starts at F x. All singleton
+  stages, explicit universes, controlled beta expansions and native function eta
+  are allowed. The actual augmented core retains quotient/structure equations.
+- **Use typed neutral observations with an opaque carrier.**
+  Accepted and proved. Extend closed control types by a positive closed atom
+  separated from Pi types. This excludes native function eta at the atom while
+  admitting it at control arrows. Beta, changed binder contexts and every eta
+  stage preserve neutral demands. A raw identity test at F reads the exact
+  opaque variable, and raw beta confluence separates the two family outputs.
+- **Hope beta preserves common-native evidence in the function-eta union.**
+  Rejected by the same witness: (λ z : F y, z) p has exact stage-zero native
+  assigned-type recovery, but one typed beta contraction loses all full-union
+  common-native evidence. The example needs no recursive definitions.
+- **Repair the computation language with native unit/structure eta.**
+  Live next direction. The missing operation is expansion of opaque unit or
+  record inhabitants to their constructors, not more function-eta guard depth.
+  Native family recovery could guard a descending unit expansion; general
+  structure expansion additionally needs its admissible projected field recipe.
+  No repair or general confluence theorem for that extension is claimed here.
+
+The theorem assumes actual positive empty-structure registration; it constructs
+all four context variables and their typings. It does not construct a complete
+canonical-Eq environment, refute declarative strengthening, or supply a smaller
+sufficient front. Validation: six modules, 894 Lean lines, 89 audited public
+roots, 751-job build, maximum closure 11,467; standard axioms only.
