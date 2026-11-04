@@ -8149,3 +8149,51 @@ builds pass 738 jobs. All 87 selected roots, including two newly synchronized
 import modules, pass structural dependency audit; maximum closure 11,464,
 standard axioms only. All 713 local imported sources are hash-stable and match
 the isolated checkout. No new-source warnings or forbidden dependencies.
+
+
+## 2026-11-04 21:06:43 UTC — Common native carriers through the first recovered guard stage
+
+**Verdict: common-carrier substitution is now constructive for the entire first
+recovered singleton/Eq-prefix stage, with no purity or exact assigned-image
+recovery premise.** This is the existing `ErasedCarrierRecoveredStage D 1`,
+whose guards compute in the ordinary core. It is not the expanded stage one
+that also admits universe conversion and native identity expansion. The exact
+identity-expansion residual refutation from the previous turn therefore remains
+consistent with this result.
+
+The main bridge is typed core joinability. Every contextual path whose primitive
+roots have core common reducts retains a core common reduct; source replay gives
+the typed middle terms required by core confluence. Thus arbitrary ordinary-core
+computation mixed with constant/native identity expansion is core-joinable,
+without purity or normalization. Source native guards may use the entire
+controlled expansion union. This is a concrete confluence result for that mixed
+fragment, not an assumption about the whole guarded union.
+
+Native recovery over mixed paths can then be replaced by ordinary-core recovery
+whose output is a forward core reduct of the old selected output. Common native
+images transport this recovery on arbitrary typed sources. Independently
+transported recoveries in a recovered-family comparison are aligned by typed
+core confluence, and their full dependent carrier guard follows the forward
+carrier path. This closes the complete recovered-family checker transport and
+discharges both general singleton and specialized Eq-prefix guard substitution
+under their generated dependent telescopes. All finite first-stage compatible
+paths substitute exactly. A whole first-stage body path commutes with arbitrary
+expanded argument computation; only the original argument needs a mixed native
+output core-joined to its assigned type.
+
+The concrete native/guard results use the quotient-repaired ordinary core, its
+`QuotRegistered` hypothesis, and concrete-pattern correctness, as exposed in
+their statements. Generic mixed-path join results accept any sound core with
+proved typed-source confluence. Neither result asserts these conditions cover
+all environments of GOAL.md or that all terms supply common native images.
+
+**Remaining:** explicit universe-conversion roots in mixed core paths; recovered
+guards whose computations use higher singleton stages; general common-reduct
+composition when guarded steps and identity expansion interleave; universal
+image coverage; and the strengthening conclusion. General core-family joins
+transport through mixed endpoint computation, but arbitrary recursively checked
+families are not equated with core joins. No sufficient smaller front is claimed.
+
+Validation: five modules, 733 jobs, 35 public roots, maximum closure
+11,720; standard axioms only and all exclusions clean. All 708 local imported
+source hashes remained stable; no new-source warnings. Goal active; no PR extraction.

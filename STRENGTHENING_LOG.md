@@ -20282,3 +20282,58 @@ Only the six new modules and these ledger appends are staged. Independent
 coordination or PR extraction. Original weakN_iff remains sorry at
 UniqueTyping.lean:94. The strengthening goal remains active; this progress is
 not a completed GOAL.md deliverable.
+
+
+## 2026-11-04 21:06:43 UTC — Core joins, native repair, and first-stage guarded substitution
+
+`ProofErasureTypedCoreJoin.lean` defines exact context-independent `ComputeJoin`
+and typed-source confluence. The compatible-path theorem composes primitive
+joins by replaying the actual intermediate source; lambda and Pi components keep
+ordinary core paths without requiring a normalization or source confluence theorem.
+
+`ProofErasureCoreExpansionConfluence.lean` combines ordinary core primitives with
+constant/native identity expansion. Every such typed path has a common ordinary
+core reduct. Different native guard relations may be used on the two branches.
+Actual substitution preserves a whole mixed path up to a common core reduct
+without native image hypotheses. Existing core-joined family guards survive
+independent mixed endpoint paths. The concrete quotient-repaired instance uses
+its proved confluence and permits native guards from the full expanded union.
+Explicit universe steps and singleton roots are excluded from this mixed relation.
+
+`ProofErasureCoreExpansionRecovery.lean` transfers a source native certificate
+whose conversions have core joins to a core native certificate, retaining a
+forward core path from the old selected output to the new one. Applications
+expose the computed Pi; projections retain their dependent field recipe; the
+conversion case uses actual type replay and typed core confluence. Mixed native
+outputs core-joined to an assigned type supply a common core carrier. Existing
+joined-image substitution now applies to mixed recovery on non-pure sources and
+contexts, preserving a directed residual of the substituted selected type.
+
+`ProofErasureJoinedNativeRecoveredTransport.lean` extends joined-image transport
+from the computed checker to the full recovered-family checker. A recovered node
+first transports both native outputs, joins their reducts from the same actual
+carrier, converts each recovery forward, and moves the dependent carrier guard
+to that common reduct. Compatible and computed comparison nodes are transported
+recursively. This discharges `RecoveredGuardSubstitution` with the actual
+joined-image interpretation and its binder extension.
+
+`ProofErasureJoinedNativeGuardPrimitives.lean` applies that interface under the
+complete generated singleton telescope and directly at specialized Eq prefixes.
+Both preserve exact substituted outputs with joined native images. All first
+recovered-stage roots and finite compatible paths therefore substitute exactly.
+`stage_one_compute_inst_mixed` accepts an original argument recovered through
+mixed core/expansion computation and merely core-joined to its assigned type;
+neither join branch must be empty. `stage_one_body_argument_square_mixed` also
+allows arbitrary subsequent expanded argument computation, with no recovery of
+its endpoint. These are concrete root/path repairs, not a proof that all native
+images or all higher guarded stages satisfy the needed hypotheses.
+
+Validation: 733 build jobs, 35 exact public audit roots, maximum transitive
+closure 11,720. The audit follows opaque bodies, constructors and recursor
+rules and excludes strengthening, sorry, proposition-beta assumptions, semantic
+head exposure, resynthesis and the excluded native-alignment frameworks. Only
+propext, Classical.choice and Quot.sound occur. No new-source warnings; all 708
+local imported source hashes remained stable. Artifacts are
+`/dev/shm/core-expansion-guards-*` and
+`/dev/shm/prepare-core-expansion-guards-audit.py`. The original `weakN_iff` sorry
+remains at `UniqueTyping.lean:94`; no goal-completion or smaller-front claim.
