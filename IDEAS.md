@@ -8935,3 +8935,40 @@ local sources hash-stable and isolated-identical. Artifacts:
 `/tmp/carrier-projected-structure-native-square-*`; preparation
 `/tmp/prepare-carrier-projected-structure-native-square.py`. No executable changes,
 coordination or PR extraction. Goal remains active.
+
+
+## Common-native instantiation and computed binders (2026-11-04 22:45:25 UTC)
+
+Verdict: common-native single instantiation is equivalent to forward native
+recovery transport across one computed binder. Both remain open obligations;
+the reduction does not establish a strictly smaller sufficient front. The
+argument's assigned type computes to its selected native type. Realize that
+type as an actual binder, transport the body's certificate forward, and apply
+exact native substitution. Conversely, insert the new binder below the old
+one and substitute its generic variable; typed erasure substitution handles
+proof arguments without identifying their erasures with raw variables.
+
+A checked necessary consequence explains why the binder problem is substantial:
+it implies joining every pair of computations from any typed type in the full
+static structure/function-eta union. A retained generic variable tests a fork
+at its binder type, and certificate descent removes the generic binder from
+both output paths. Wrapping an arbitrary type A as the domain of A -> Prop
+makes that generic variable a retained function even when A is a proposition.
+Marked Pi readout then extracts a common reduct of the original domains. No
+normalization, universal exact coverage, or confluence premise was used in
+these implications.
+
+Next direction: establish common-native source recovery together with the
+necessary type-fork joins; forward binder transport cannot be treated as a
+free context-conversion lemma. Its application case must transport codomain
+computations through arguments that native application recovery does not itself
+certify. Exact native coverage remains refuted. These results do not close
+strengthening or supply the requested strictly smaller sufficient obligation.
+
+Validation: two modules, 301 Lean lines, ten public roots; explicit 768-job
+build and full dependency audit (types, opaque bodies, inductive constructors,
+and recursor RHSs), maximum closure 11,483; only standard axioms and no
+configured forbidden dependencies. All 743 imported local sources hash-stable.
+Artifacts: `/dev/shm/common-native-binder-*`; preparation
+`/dev/shm/prepare-common-native-binder-audit.py`. Goal remains active; no PR
+extraction or executable changes.
