@@ -18006,3 +18006,64 @@ larger recursive guard/substitution argument and establish general coverage.
 No executable changes, subagents, coordination, or PR extraction. Independent
 worker changes and commits are preserved; only the six listed source files and
 these appended ledger entries belong to this change.
+
+
+## 2026-11-04 15:39:43 UTC — Substitution-stable polymorphic family inputs
+
+The preceding goal turn was progress: 4739a768 committed and pushed shared-test
+recovery, generic binder conversion, and specialized-family carrier readout.
+This turn resolves its stated substitution gap for families whose generic
+parameters are bound inside the family itself.
+
+ProofErasurePolymorphicTypeFamily defines ParameterizedTypeFamily with an
+explicit finite list of local universe parameters. Its constructors are sort,
+terminal function input, successor-universe parameter binding, and an input
+referring to a recorded parameter. TypeParametersRealized constructs actual
+context-instantiation witnesses; its binder extension and new-universe methods
+support the recursive SpecializedTypeFamily readout. The substitution theorem
+requires only syntactic preservation of recorded variables. Root certificates
+start with an empty list, giving arbitrary actual typed substitution for
+PolymorphicTypeFamily. No existential specialization witness is assumed to
+survive arbitrary substitution. All earlier terminal families embed, and actual
+well-typed strict extension is proved. The binary parameter example checks
+references to older parameters through intervening binders.
+
+SelectedLambdaDomain.polymorphicFamily now has proved substitution and guard
+conversion cases. Existing structural recovery, full recursive comparison
+transport, and first-layer guarded computation rebuild against this extended
+constructor set. ProofErasurePolymorphicInstantiation exposes the corresponding
+public instantiation theorems; their result type and finite body path are not
+restricted to sort results.
+
+ProofErasurePolymorphicExample supplies an actual higher-order image in the
+context x : X, X : Type. Its body calls the polymorphic predicate argument at
+X and x. The selected input beta-expands ∀ A : Type, A → Prop, so it differs
+syntactically from the written annotation. Actual equality and typing, the new
+input certificate and old-class exclusion, a finite body path, full comparison
+instantiation, and exact first-layer computation are proved. Exact assigned
+native recovery fails even over the full computed union, by preservation of
+the normal written family domain. The positive results therefore exercise the
+new converted-domain route rather than relying on assigned native recovery.
+
+Validation: 728-job build of 54 explicit modules; no warnings or errors in the
+four changed/new source files. The exact 408-root full opaque traversal and
+independent #print axioms checks passed; maximum closure 11,392; only
+propext, Classical.choice and Quot.sound. No sorry sources, weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport
+or JointPropBetaStability. Source hashes match the pre-build snapshot. The roots
+include all new public declarations and constructors plus the preceding 373-root
+consumer manifest; this is not a whole-repository audit. Artifacts:
+/tmp/polymorphic-family-full-build.log, -audit.lean, -audit.log, -roots.txt,
+-files.txt, -build-targets.txt, -source-before.json, -validation.json and
+/tmp/verify-polymorphic-family-audit.py.
+
+GOAL.md remains open. UniqueTyping.lean:94 still contains the original sorry;
+there is no canonical-Eq counterexample or new strictly smaller sufficient
+irreducible obligation. The stable grammar covers locally bound universe
+parameters, not all arbitrary specialized inputs or all typed function images.
+The next live path is callable/projectable binder conversion with an independent
+recovery invariant, avoiding circular use of the selected-domain transport that
+it is meant to prove. General guarded-stage transport and PropFront coverage
+still require proof. No executable changes, agents, coordination or PR
+extraction. Independent worker files and commits remain untouched; only the
+four listed source files and these ledger appendices belong to this change.

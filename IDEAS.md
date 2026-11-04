@@ -6476,3 +6476,43 @@ outer substitution; alternatively extend the shared-test interpretation through
 the guarded stages themselves. Neither global computed-guard transport nor
 PropFront coverage follows merely from the present stage-zero theorem. The
 original strengthening goal and a strictly smaller sufficient front remain open.
+
+
+## 2026-11-04 15:39:43 UTC — Preserve locally bound specialization parameters under substitution
+
+Verdict: proved and integrated into recursive instantiation. The earlier
+SpecializedTypeFamily was intentionally not arbitrary-substitution stable.
+ParameterizedTypeFamily instead records only the universe parameters introduced
+by its own finite target tree. Terminal input nodes shift this list; a universe
+node adds its fresh parameter; a generic input references a recorded parameter.
+A separate TypeParametersRealized invariant constructs actual InstN witnesses
+for replacing each recorded parameter by its predecessor universe. This proves
+specialized carrier readout without putting a checking law in the grammar.
+
+Substitution only needs to fix the recorded variables, and lifting proves that
+condition under every new binder. The public PolymorphicTypeFamily starts with
+an empty parameter list, so every actual typed outer substitution is admitted.
+Actual specialization witnesses are rebuilt in the target context; the refuted
+unrestricted substitution principle for existential SortSpecialization is never
+used. The grammar includes every TerminalTypeFamily and strictly extends it on
+the well-typed ∀ X : Type, X → Prop target. A second example records two separate
+universe parameters and references the older one through subsequent binders.
+
+SelectedLambdaDomain now has a polymorphicFamily constructor with proved subst
+and guard methods. The unchanged structural recovery and recursive checker
+transport proofs therefore yield complete stage-zero comparison instantiation
+and exact first-layer guarded computation through such lambda inputs.
+PolymorphicExample's image applies its polymorphic predicate argument to an
+external X : Type and x : X. Its assigned input beta-expands its written family,
+and exact assigned recovery fails even in the full computed union. Both positive
+instantiation consumers are checked from actual typing and a finite body path.
+
+Next live route: extend the shared-test path to finite callable/projectable
+images and use that independently for higher-order binder conversion. Existing
+TypeInputImage already preserves actual typed call/projection trees, but using
+the whole StructuralImageSubstitution theorem inside its own selected-domain
+carrier proof would create a dependency cycle. A lower recovery invariant or
+an explicit mutual/staged argument is required. General guarded-stage transport,
+unrestricted typed image coverage, and the implication to PropFront remain
+unproved. This is not a smaller sufficient irreducible front or a solution of
+canonical-Eq strengthening.

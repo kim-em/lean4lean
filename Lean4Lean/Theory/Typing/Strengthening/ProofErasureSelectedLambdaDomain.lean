@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureDependentNeutralFunctionCarrierConversion
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureDependentTerminalFunctionCarrierConversion
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureTypeFunctionCarrierConversion
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePolymorphicTypeFamily
 
 /-! # Written lambda domains related to finite selected domains
 
@@ -14,7 +14,8 @@ variable [Params]
 /-- A selected raw domain is the written domain itself, a protected neutral
 carrier, or a dependent function domain obtained by converting its protected
 neutral or terminal-valued input, or a finite dependent family ending in a
-universe. Every branch has a proved guard-transfer law. -/
+universe with terminal inputs or locally bound type parameters. Every branch
+has a proved guard-transfer law. -/
 inductive SelectedLambdaDomain (cut : Nat) (Γ : List VExpr) : ProofShape → VExpr → Prop where
   | exact : SelectedLambdaDomain cut Γ (proofErase Γ A) A
   /-- A neutral selected carrier supplies ordinary checking regardless of the
@@ -33,6 +34,10 @@ inductive SelectedLambdaDomain (cut : Nat) (Γ : List VExpr) : ProofShape → VE
   | typeFamily : env.IsDefEq univs Γ S B (.sort u) → TerminalTypeFamily Γ B →
       SelectedLambdaDomain cut Γ (proofErase Γ S) B
 
+  /-- Local universe parameters in this target are preserved by outer
+  substitution, so specialized generic inputs have a proved guard-transfer law. -/
+  | polymorphicFamily : env.IsDefEq univs Γ S B (.sort u) → PolymorphicTypeFamily Γ B →
+      SelectedLambdaDomain cut Γ (proofErase Γ S) B
 
 /-- A single type-valued function is a one-binder instance of the general
 terminal-input family target. -/
@@ -81,6 +86,10 @@ theorem SelectedLambdaDomain.subst
   | typeFamily HE HT =>
     rw [← proofErase_subst_with hΓ₀ W HE.hasType.1 ES]
     exact .typeFamily (HE.subst henv.orderedStrong W hΓ₀) (HT.subst hΓ₀ W HE.hasType.2)
+
+  | polymorphicFamily HE HT =>
+    rw [← proofErase_subst_with hΓ₀ W HE.hasType.1 ES]
+    exact .polymorphicFamily (HE.subst henv.orderedStrong W hΓ₀) (HT.subst hΓ₀ W HE.hasType.2)
 
 /-- A guard at the selected domain transfers to the actual written lambda
 domain. Only finite supplied guards and actual endpoint typings are used. -/
@@ -134,6 +143,9 @@ theorem SelectedLambdaDomain.guard
     exact HX'
 
   | typeFamily HE HT =>
+    exact HT.carrier_convert hs hΓ (HE.symm.defeq hx) (HE.symm.defeq hy) HE.toU HX
+
+  | polymorphicFamily HE HT =>
     exact HT.carrier_convert hs hΓ (HE.symm.defeq hx) (HE.symm.defeq hy) HE.toU HX
 
 end Lean4Lean.VEnv.Strengthening
