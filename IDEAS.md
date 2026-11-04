@@ -7156,3 +7156,33 @@ guard grammar for nullary domains. Parameterized families, arbitrary Pi carriers
 and general comparison/native completeness remain open. In particular the
 new theorem does not supply arbitrary beta-context transport or a sufficient
 strictly smaller front. Original weakN_iff and GOAL.md remain unresolved.
+
+## 2026-11-04 18:22:43 UTC — Exact native images through every guarded stage
+
+- Replace the mixed native/family framework's core conversion paths by guarded
+  paths: still open. The conversion case would need a suitable join, and a
+  path inside a dependent codomain must survive argument substitution. Actual
+  prefix confluence alone does not supply erased residual guard certificates.
+- Use exact native image recovery at finite stage k and transport a source
+  certificate at stage n to n+k: proved. Forward replay types each selected
+  source carrier before transporting its conversion; no guarded confluence or
+  backward recovery is needed. Both full computed-joint checking views, native
+  recovery and computation are covered, including singleton and Eq guards
+  below their generated telescopes.
+- Collect per-image union bounds and compose certified images: proved. Finite
+  source contexts give one common bound. Image composition adds bounds; union
+  images are closed under typed composition. A previously established
+  neutral-unit Eq-recursion image recovers its function type at stage one,
+  cannot do so in any old compared-K stage, and now instantiates arbitrary
+  finite computed-joint computations with the n+1 bound.
+- Make exact image recovery universal: rejected by existing checked converted
+  input examples (ProofErasureTypeInputConvertedExample.assigned_recovery_failure
+  and ProofErasureTerminalDomainExample.assigned_recovery_failure), which already
+  obstruct exact recovery over the computed union. This is a complementary
+  higher-stage transport theorem, not a replacement for mixed native/family
+  alignment or an unrestricted substitution theorem.
+
+Validation: 785-job build, 102 selected modules, 773 dependency roots (41 new),
+maximum closure 12,790; standard axioms only. The original strengthening
+sorry remains. No GOAL.md deliverable is claimed; extending higher-stage repair
+to images without exact assigned-type recovery remains an open mathematical step.

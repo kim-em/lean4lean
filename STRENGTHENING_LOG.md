@@ -18983,3 +18983,59 @@ original sorry remains at UniqueTyping.lean:94. Parameterized carrier transport,
 arbitrary Pi-domain conversion and general native/comparison completeness are
 not proved; neither a canonical-Eq counterexample nor a strictly smaller
 sufficient irreducible obligation has been obtained. GOAL.md stays active.
+
+## 2026-11-04 18:22:43 UTC — Additive-stage transport for exact native images
+
+Added ComputedGuardTransport, ExactStageImages, ExactStageRecovery,
+ExactStageTransport, ExactStageInstantiation, ExactStageUnion and ExactStageExample.
+
+The generic guard interface permits different source and target relations.
+Its singleton proof transports the full comparison under the generated dependent
+telescope; its Eq-prefix proof transports the explicit carrier check. The
+concrete image predicate requires exact recovery of each retained variable image
+at the substituted context-oracle type at a common stage k. Proof variables and
+out-of-range oracle defaults do not require native recovery. The predicate
+extends under binders using the existing all-stage renaming theorem.
+
+The central induction proves primitive substitution from stage n to n+k. At a
+successor, the preceding induction hypothesis supplies typed computation
+transport, then exact recovery transport, then full checker transport. These
+rebuild the singleton and Eq guards at stage n+k, producing their primitive at
+(n+1)+k. Every native recovery constructor is included. Its conversion case
+replays the selected source type and transports the forward conversion at that
+actual typing. Its application case keeps the exact selected Pi, so the already
+transported carrier guard applies directly. No confluence or re-synthesis law
+is used.
+
+Consumers cover actual simultaneous substitution and single instantiation for
+computation, native recovery, full comparison and full carrier checking. Exact
+image certificates themselves compose with additive bounds. UnionImages collects
+individual recovery bounds across the finite source context; it gives all four
+union consumers and is closed under composition. The example reuses the checked
+neutral-unit Eq-recursion separation to construct a stage-one image beyond every
+old compared-K recovery stage and applies it to arbitrary finite computed-joint
+computations. This is a coverage witness under its explicit empty-structure and
+definition-table hypotheses, not a universal image theorem.
+
+Validation: 785-job build for 102 selected modules. All 773 roots, including
+41 new roots (the guard structure and its constructor/projections included),
+passed the opaque-body, constructor and recursor dependency audit. Maximum
+closure 12,790; only propext, Classical.choice and Quot.sound occur.
+No sorry source, weakN_iff, weakN_inv, JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport or JointPropBetaStability
+occurs. All 41 new roots pass the framework independence exclusions as well.
+The seven sources match their pre-build SHA256 snapshot with no new-source
+build warnings. Artifacts: /tmp/exact-stage-{full-build.log,audit.lean,audit.log,
+roots.txt,new-roots.txt,independent-roots.txt,files.txt,build-targets.txt,
+source-before.json,validation.json}; scripts /tmp/prepare-exact-stage-audit.py
+and /tmp/verify-exact-stage-audit.py.
+
+Judgment: this closes higher-stage transport for explicitly exact native images,
+including images whose recovery needs singleton/Eq computation. It does not
+cover the existing converted-input examples with no exact union recovery,
+transport the mixed native/family framework through all guarded conversions,
+or prove arbitrary guard/recovery completeness. The original weakN_iff sorry
+remains at UniqueTyping.lean:94. No canonical-Eq counterexample or strictly
+smaller sufficient irreducible obligation has been obtained; GOAL.md stays active.
+Only seven new theory modules and these appendices are part of this change.
+No executable changes, PR extraction or agent coordination.
