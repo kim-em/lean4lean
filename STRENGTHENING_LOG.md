@@ -18388,3 +18388,61 @@ remove the protected-head restriction for a concrete native image fragment;
 they do not establish full coverage, a canonical-Eq counterexample, or a strictly
 smaller sufficient irreducible front. GOAL.md remains active. No executable
 files, PRs, or independent worker files were changed.
+
+
+### Recursive records, dependent parameters and carrier beta paths (2026-11-04)
+
+Added ProofErasureCarrierAlignedRecordVariants. Structural variants commute with
+paired substitution, capture-list instantiation and beta instantiation. Constant
+spine inversion retains universe equivalence and pointwise parameter variants.
+Finite beta paths admit matching paths from structural variants and retain
+structurally variant reducts. The dependent projection recipe theorem now permits
+changed parameters as well as changed constructor universes.
+
+Added ProofErasureCarrierAlignedRecordTransfer. RecordCarrierGuard is a finite
+recursive record fragment of the existing computed carrier grammar, with full
+computed comparison leaves, subsingleton leaves, ordinary fieldwise guards,
+recursive record fields, symmetry, arbitrary endpoint computations and carrier
+beta computation. The embedding adds no primitive equality or recovery rule.
+Typed transport through StructuralVariant handles every constructor by induction.
+The record case obtains actual common source projection typings and target
+recipes; the beta case replays matching beta paths at actual source and target
+types. Source/target admissibility and proof-field status follow from universe
+transport. Primitive carrier computation and non-subsingleton function guards
+remain explicit exclusions, not hidden conversion assumptions.
+
+Added ProofErasureCarrierAlignedRecordApplication. Aligned nullary exposure
+transfers a typed recursive record guard to a selected computed carrier. Native
+Pi selection returns the chosen domain guard alongside its actual typing,
+recovery and inferred comparison. The actual application consumer uses the
+existing appCarrier rule and handles proof erasure of the result. Its concrete
+full recovered-union version supplies all primitive interfaces from canonical
+Eq, sound declarations and projection-family rigidity. Initial native function
+recovery and its type comparison remain explicit requirements.
+
+Added ProofErasureCarrierAlignedRecordExample. The outer constructor's field
+is a beta expansion of Inner (Sort u). Inner is a one-parameter, one-field box
+whose field type is that parameter. Both source fields are proved non-proof
+from positive field-domain typings, so the nested branches are not vacuous.
+At u = max 0 0 and u = 0 the source and target record guards are constructed
+from an ordinary comparison only of the deepest projections. This exercises
+carrier beta simulation and the changing inner parameter. The two outer carrier
+instances have no computational join. Actual endpoint typings, registrations
+and admissibility are supplied; this is a conditional metatheory example.
+
+Validation: main and isolated 702-job builds of 34 explicit modules passed.
+The exact 111-root opaque/inductive/recursor audit passed; maximum closure
+11,285; only propext, Classical.choice and Quot.sound. There are no sorry
+sources or excluded weakN_iff, weakN_inv, JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport or JointPropBetaStability.
+Every audited source matches the isolated worktree byte for byte. The four
+new modules have no build warnings. Artifacts:
+/tmp/carrier-record-{all-build.log,isolated-build.log,audit.lean,audit.log,
+audit-roots.txt,files.txt,targets.txt,validation.json}; preparation script
+/tmp/prepare-carrier-record.py and validator /tmp/verify-carrier-audit.py.
+
+UniqueTyping.weakN_iff remains sorry at line 94. No executable changes, agent
+coordination, strengthening completion or sufficient new irreducible front is
+claimed. Primitive carrier paths, function-binder conversion, parameterized
+exposure and native coverage remain live work. Only these four source files
+and these ledger appendices belong to this change; independent work is preserved.

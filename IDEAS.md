@@ -6745,3 +6745,52 @@ or extend aligned actual carrier trees to genuinely projectable result leaves.
 The ordinary TypeInputRecovery beta-exposure route remains independently useful;
 no general NativeFamilyImage.back or general guard-to-comparison promotion has
 been established. GOAL.md's original strengthening problem remains open.
+
+
+### Recursive record transport with beta-exposed carriers (2026-11-04)
+
+Verdict: proved transport at arbitrary finite record depth, rather than only
+one layer of structural-subsingleton fields. RecordCarrierGuard embeds in the
+existing ComputedJointCarrierGuard. Its leaves can use the full computed
+comparison language or structural subsingletons; recursive records, ordinary
+field checks, symmetry, arbitrary endpoint computation and finite carrier beta
+paths are included. Primitive computation of the carrier and general function
+carrier guards are the explicit remaining constructor cases.
+
+StructuralVariant now supports paired raw substitution and telescope captures.
+Spine inversion retains both equivalent universe lists and pointwise variants
+of family parameters. Consequently dependent projection recipes vary correctly
+when both constructor universes and their parameters change. Finite beta paths
+also have matching paths from a structural variant, with variant reducts;
+this includes annotations and newly created redexes, without normalization.
+
+Typed recursive carrier transport reflects the original majors' equality,
+reconstructs source and target projection recipes from actual typings, and
+recurses on the field guard. Beta carrier paths are replayed on both actual
+types. Endpoint computations keep their context and raw paths unchanged, so
+no universe-stability assumption on arbitrary primitive declarations is needed.
+This proves a real recursive case while leaving primitive carrier simulation
+and function-binder context conversion visible.
+
+Native Pi selection now consumes these recursive record argument guards at a
+selected nullary domain. The result includes the actual Pi typing, exact native
+recovery, inferred domain comparison and reconstructed argument guard. Actual
+application erasures close the existing computed application rule, including
+proof-valued results. A full recovered-union consumer discharges primitive
+descent, head and family inertness; initial function recovery/alignment remains
+an input rather than a completeness assertion.
+
+The checked example has an outer beta-expanded field type Inner (Sort u),
+where Inner is a parameterized one-field box whose field type is its parameter.
+Both source fields are proved non-proof. Changing u from max 0 0 to 0 changes
+both the inner universe and its dependent parameter; beta exposure precedes
+the second record check. Only the deepest projections supply an ordinary
+comparison. Both guards exist despite the outer carrier types having no
+computation join. Source typings and valid environment metadata are explicit.
+
+Still open: primitive carrier computation, general function-carrier conversion,
+parameterized family head exposure, and the required native coverage interfaces.
+The original strengthening theorem and a strictly smaller sufficient irreducible
+front remain unproved. The next structural route is universe-compatible primitive
+simulation for carrier paths, or function-binder transport retaining native
+outputs; neither has been rejected merely because it is larger.
