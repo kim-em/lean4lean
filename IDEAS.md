@@ -7448,3 +7448,45 @@ the opaque-body/constructor/recursor dependency audit and framework exclusions,
 maximum closure 11,089. Only propext, Classical.choice and Quot.sound
 occur. Original weakN_iff remains open; no smaller sufficient irreducible
 obligation is claimed. No executable modification, PR extraction or coordination.
+
+## Pure-context confluence with controlled beta expansions
+
+- Extend the pure beta/universe argument to the expanded stages: **proved**,
+  with a pure-context hypothesis. Constant and native identity expansions
+  beta-contract back to their source. A forward-only factorization is no
+  longer appropriate, so use BetaLevelJoin: beta reducts related by structural
+  universe variation. Raw annotated beta confluence follows by lifting the
+  parallel-development diamond to its reflexive-transitive closure. This makes
+  BetaLevelJoin transitive, symmetric and congruent at every constructor.
+- Keep expanded computations inside the pure grammar: **proved** when every
+  context entry is PureLambda. Scoped native recovery then returns a pure
+  output whenever the source is pure and the primitive roots preserve purity.
+  Induction on expanded stages closes this premise, including identity
+  expansion's recovered annotation. The context hypothesis is explicit;
+  pure source syntax alone does not constrain variable-type lookups.
+- Join arbitrary expanded paths in this fragment: **proved** at every pair
+  of finite stages and at the union. Contextual paths yield raw join
+  certificates; typed endpoint replay turns the final structural variation
+  into an explicit level path. Both residuals use only forward beta and level
+  conversion, although the original paths may contain arbitrarily many
+  expansions and nested guard certificates. No normalization is used.
+- Preserve native selection under these paths: **proved**. Existing native
+  common-reduct evidence stays at the same native stage. A raw join to a
+  well-formed sort yields a forward path to that exact sort, so an expanded
+  computation from an assigned sort to an existing native output can be
+  reversed for exact native sort selection. This does not create native
+  evidence where none was supplied.
+
+Next live specialization: extract a Pi head and raw domain join from a
+BetaLevelJoin against a displayed Pi. Beta reduction preserves Pi heads and
+reduces both components, while StructuralVariant preserves their constructors.
+Typed domain replay should turn the domain join into a computed comparison.
+This could retain a selected Pi domain through arbitrary expanded paths in
+this fragment, without the false no-Pi-root law. It is not yet implemented.
+General guarded head exposure, image coverage and declarative comparison
+completeness remain open; these fragment results do not complete GOAL.md.
+
+Validation: main and isolated 874-job builds; 137 source modules byte-identical;
+708 exact roots audited through opaque bodies, constructors and recursor rules,
+maximum closure 11,507. Only standard logical axioms; no sorry or forbidden
+strengthening/framework dependency. Original weakN_iff remains open.

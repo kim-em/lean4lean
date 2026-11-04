@@ -19384,3 +19384,61 @@ recorded in IDEAS.md is the next live exposure candidate. Original weakN_iff
 remains sorry at UniqueTyping.lean:94, so GOAL.md stays active. Independent
 commit f16ef976 was preserved. Only these three new modules and the ledger
 appendices belong to this change; no executable changes or PR extraction.
+
+## Controlled expansions have forward common reducts in pure contexts
+
+Four modules (447 Lean lines) extend the earlier pure forward-computation
+results to ErasedExpansionStage and ErasedExpansionUnion.
+
+ProofErasureCarrierAlignedRawBetaJoin proves raw annotated beta confluence
+from BetaPar.diamond via reflexive-transitive parallel developments. The new
+BetaLevelJoin certificate records beta reducts differing only by structural
+universe variation. Raw confluence and the existing beta/variant simulation
+prove its transitivity; symmetry, beta inclusion and all congruences follow.
+Unlike a forward factorization, this relation handles reverse beta steps.
+
+ProofErasureCarrierAlignedExpansionPurity defines PureContext, proves purity
+of context lookups and scoped native recovery, then closes root purity by
+induction on expanded stages. Native identity expansion needs this recovery
+lemma because its inserted binder annotation comes from the preceding stage.
+Scoped computations at every finite stage and the union preserve PureLambda.
+
+ProofErasureCarrierAlignedExpansionJoin proves both expansion roots contract
+back by beta. Pure expanded computations therefore have raw join certificates.
+At a typed right endpoint, source replay realizes a certificate as an exact
+forward beta/universe common reduct. This gives confluence for arbitrary
+finite-stage pairs and for union paths at a typed pure source in a pure
+context. Canonical Eq and definition soundness are used for expanded endpoint
+replay, not for raw beta confluence or raw certificates. Residual paths use
+only forward beta/universe conversion; no expansion guard survives in them.
+
+ProofErasureCarrierAlignedExpansionSelection preserves native common-reduct
+evidence under arbitrary such selections without raising the native stage.
+It also proves BetaLevelJoin.sort_compute: a join to a well-formed sort gives
+a forward computation to that exact sort. This yields exact native sort
+selection from an existing native output reached by an expanded computation
+from the sort, at the original native stage or union. No native coverage or
+full aligned-comparison completeness is assumed or concluded.
+
+Validation: targeted main and isolated builds both pass 874 jobs. All 708
+exact public roots across 137 byte-identical source modules pass the audit of
+types, opaque bodies, inductive constructors and recursor rules; maximum
+closure 11,507. Only propext, Classical.choice and Quot.sound occur. No
+sorry source, weakN_iff, weakN_inv, JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport or JointPropBetaStability.
+No warnings in the four new modules. Artifacts:
+/tmp/carrier-expansion-join-{all-build.log,isolated-build.log,audit.lean,audit.log,
+audit-roots.txt,files.txt,targets.txt,validation.json}; preparation script
+/tmp/prepare-carrier-expansion-join.py. Dependency discovery adds changed local
+imports recursively; explicit build target lists are checked before execution.
+
+Judgment: controlled expansion is compatible with native common-reduct repair
+on pure terms in pure contexts. This removes the forward-only restriction
+for that fragment, but not its purity restrictions. Pi/domain selection from
+these raw joins is the next concrete specialization. Arbitrary guarded
+confluence, native coverage and general function-carrier conversion remain
+open. Original weakN_iff still has its sorry at UniqueTyping.lean:94, and no
+smaller sufficient irreducible obligation or GOAL.md deliverable is claimed.
+Only these four modules and ledger appendices are staged. Independent commit
+c4a15977 and ongoing independent files are preserved; no executable changes,
+agent coordination or PR extraction.
