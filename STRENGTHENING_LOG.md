@@ -16374,3 +16374,49 @@ body certificate can always be extracted. This is unproved next work, not
 universal structural conversion. The original sorry at UniqueTyping.lean:94
 remains, and no GOAL.md success alternative is yet achieved. Only Theory and
 ledgers change; no coordination, subagents, or executable changes.
+
+## 2026-11-04 — Whole finite guards repair the Pi-wrapped application
+
+Previous turn made progress: 3fa404e4 was checked and pushed. This turn proves
+whole function-carrier conversion for Pis returning a sort, with neutral source
+domains related to their new domains by actual typing equality. The proof
+initially used normal source domains; that hypothesis was removed before
+committing. No normality restriction remains in the public result.
+
+The induction handles the complete ComputedJointCheck carrier grammar.
+carrierChecked reindexes directly. carrierFunction reconstructs typed eta-body
+applications and uses neutral context conversion; a body certificate is taken
+from this actual constructor, not presumed extractable from arbitrary common
+comparison. carrierCompute decomposes the stage-zero Pi computation, keeps its
+literal sort codomain, replays the domain computation to an actual typed new
+domain, and composes its equality with the requested conversion. Its variable
+head remains neutral through computation. carrierReduce realizes both reduced
+endpoints at their original function type. Symmetry is retained. Record and
+subsingleton cases are excluded by the source Pi/sort shape.
+
+The application corollary combines the converted whole guard with computation
+of the function to a lambda at its written carrier. It has no supplied target
+guard premise. The concrete corollary uses the exact private context and domain
+definitions of StructuralDomainBoundary: the Pi-wrapped eta example now admits
+application comparison despite all three earlier recovery alternatives failing.
+Those failure theorems remain valid. This repair does not establish arbitrary
+body substitution by the example, general endpoint beta stability, or universal
+structural carrier conversion.
+
+Validation: consuming build succeeds in 586 jobs with no new-module warnings
+(/tmp/structural-repair-build.log). Opaque audit covers all three new public
+roots plus the existing structural failure theorem; private induction bodies
+are included. Largest dependency closure: 9,426 declarations. Expected roots
+match exactly; only propext, Classical.choice and Quot.sound occur as axioms.
+No sorry sources or forbidden strengthening/transport dependencies occur.
+Artifacts: /tmp/structural-repair-audit.lean, .log, -roots.txt.
+
+Next: extend this carrier conversion beyond a fixed sort codomain and integrate
+retargeted guards into image transport, rather than demand exact assigned-domain
+exposure. For dependent codomains, carrierCompute must preserve/replay its
+codomain computation in the converted binder context; it cannot discard that
+path as in the literal-sort case. Arbitrary image/body coverage and higher
+stages remain open. The original sorry remains at UniqueTyping.lean:94; no
+GOAL.md completion alternative is proved. A separately appearing untracked
+ProofErasureComputingFunctionCarrierConversion.lean was left untouched and is
+not included here. No coordination, subagents, or executable changes.
