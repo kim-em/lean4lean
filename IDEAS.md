@@ -8693,3 +8693,27 @@ builds passed (789 jobs). Audited 47 public roots including newly imported modul
 maximum closure 12,050, standard axioms only and forbidden dependencies absent.
 All 764 imported local sources were hash-stable and byte-identical to the isolated
 copy. No new-module warnings. Artifacts: `/tmp/carrier-eta-beta-limit-*`.
+
+
+### 2026-11-04 22:07:28 UTC — Recovered unit eta repairs the full-function-eta obstruction
+
+**Verdict: checked positive repair, not universal coverage.** Added native unit
+expansion for arbitrary parameterized unindexed empty structures. Its native
+family guard determines the entire retained parameter spine; arbitrary-block
+descent reconstructs that spine and the registered constructor below insertion
+at the source's original assigned type. Integrated it with prior singleton, Eq,
+identity and function eta stages, proved renaming and finite-union admission,
+and transported exact native-image substitutions with the additive stage bound.
+
+The exact four-variable unit-indexed context now simultaneously witnesses failure
+of every old function-eta depth and a stage-one common native type in the new
+system. Both indices compute to the constructor. The identity-wrapper beta step
+has exact stage-zero native recovery before contraction and repaired common
+native recovery afterward. No global native coverage hypothesis was introduced.
+
+Next live direction: general structure eta, with proof-field masks certified
+from the closed constructor telescope. General source-computation stability and
+confluence remain open; this does not establish strengthening or a sufficient
+strictly smaller obligation. Validation: four modules, 30 audited public roots,
+757 build jobs, maximum dependency closure 11,343; standard axioms only,
+forbidden dependencies absent. Artifacts: `/dev/shm/unit-eta-repair-*`.

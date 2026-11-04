@@ -21013,3 +21013,39 @@ configured forbidden dependencies absent. All 764 imported local sources stayed
 hash-stable and byte-identical to the isolated copy. No new-module warnings.
 Artifacts: `/tmp/carrier-eta-beta-limit-*`; prep `/tmp/prepare-carrier-eta-beta-limit.py`.
 Independent files and index preserved; no coordination or PR extraction.
+
+
+### 2026-11-04 22:07:28 UTC — Native unit eta and strict stage-one repair
+
+Added `ProofErasureNativeUnitExpansion`, `ProofErasureUnitEtaStages`,
+`ProofErasureUnitEtaNativeTransport`, and `ProofErasureUnitEtaNativeRepair`.
+The primitive recovers an unindexed zero-field structure family with its exact
+parameters and emits the registered constructor. It supports open/dependent
+parameters. Descent reconstructs the family below arbitrary inserted binder
+blocks, proves actual unitLike equality, and preserves the original assignment.
+Renaming and exact native-image substitution transport the complete guard.
+
+The stage hierarchy embeds every old function-eta stage, adds unit eta as a
+sixth successor alternative, and retains descent, monotonicity, renaming and
+finite guard admission. Exact-image computation, recovery, both checking views,
+recovered-family checking and aligned comparison transport from n to n+k.
+These are conditional transport laws, not a universal image coverage assertion.
+
+`unit_eta_strict_native_repair_context` builds the same four-variable context
+used in the previous impossibility theorem. It includes the actual typed beta
+step removing an identity wrapper, exact stage-zero wrapper recovery, stage-one
+common native recovery of its contractum, and impossibility of a common native
+type in the entire old function-eta union. The shared type is F applied to the
+registered empty constructor. Thus this is a strict repair of the diagnosed
+language omission, with no hypothesized native family guards.
+
+Remaining work: general structures with fields and full source-change/confluence
+invariants. The original strengthening sorry remains; no final deliverable is
+claimed. Executable unchanged. No PR extraction or coordination.
+
+Validation: explicit 757-job build, all 30 public roots audited through types,
+opaque bodies, inductive constructors and recursor RHSs, maximum closure
+11,343. Only propext, Classical.choice and Quot.sound; every configured
+circular/strengthening dependency excluded. New modules have no warnings.
+All local imported sources were hash-stable through validation. Artifacts:
+`/dev/shm/unit-eta-repair-*`; prep `/dev/shm/prepare-unit-eta-repair-audit.py`.
