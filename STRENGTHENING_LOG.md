@@ -21977,3 +21977,26 @@ circular-framework dependency. All 744 local import sources hash-stable. Artifac
 `/dev/shm/variable-coverage-join-*`; preparation
 `/dev/shm/prepare-variable-coverage-join-audit.py`. Executable unchanged; no PR
 extraction or coordination.
+
+
+## Nondependent common application without argument recovery (2026-11-04 23:47:08 UTC)
+
+Verdict: proved unconditionally in the full static structure/function-eta union.
+A codomain type lifted through an unused binder has a lower computation history
+and lower endpoint by certificate descent. Instantiating that endpoint at any
+raw argument cancels the lift. Thus the type-instantiation residual is an exact
+forward computation in this case, without native images or any confluence law.
+
+Consequently, common native evidence for f:A->B propagates to f x:B for every
+typed x:A. A and B may be arbitrary types, and all computed intermediates are
+unrestricted. B's well-formedness below the binder follows from the ordinary
+application typing, so it is not an additional premise. This closes the entire
+nondependent application case of common coverage; the dependent retained case
+still requires its explicit beta-instantiation join.
+
+Validation: one 78-line module, three public roots. Combined isolated 771-job
+build and full 22-root audit described in the preceding entry; maximum closure
+11,493, all 746 source hashes stable and equal to isolated copies. No new warnings,
+forbidden dependencies or nonstandard axioms. Artifacts
+/tmp/carrier-type-beta-residual-*. Executable unchanged; no coordination.
+Strengthening remains open and the goal remains active.
