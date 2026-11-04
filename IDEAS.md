@@ -6441,3 +6441,38 @@ missing theorem. Native Pi residuals retain comparisons when the assigned type
 already has a certificate; they do not yet supply that certificate for all typed
 images or transport the entire recursive carrier guard. This remains the next
 live step. PropFront and the original strengthening goal remain open.
+
+
+## 2026-11-04 15:29:02 UTC — Shared test interpretations repair generic binder conversion
+
+Verdict: proved through the complete stage-zero computed checker. A recovery
+path indexed by one actual typed interpretation lifts that same interpretation
+under every lambda. A typed commuting substitution square transports the path;
+local beta contraction constructs the square by substituting the interpreted
+argument in the test context. Rank decreases through head exposure, retaining
+the original selected raw output and exposing exactly its Pi domain.
+
+The source-variable image invariant is native recovery or such a path. It
+extends through arbitrary typed local binders and transports the whole recursive
+stage-zero comparison/carrier checker. It therefore converts any source binder
+to an ordinarily equal target whose generic value has a SortSpecialization.
+There is no assumed target comparison, native recovery, semantic head exposure,
+or unrestricted substitution closure of existential specialization.
+
+SpecializedTypeFamily combines the previous terminal inputs with specializable
+generic inputs. Its carrier readout consumes arbitrary equal actual source
+carriers and recursively converts both binder contexts and codomains. The
+previous negative target, ∀ A : Type, A → Prop, now has a certificate and full
+carrier conversion. A checked strict-extension theorem combines its actual
+formation, new certificate, and the old TerminalTypeFamily impossibility.
+
+Boundary: this target grammar is not asserted arbitrary-substitution stable.
+The fresh parameter's specialization can disappear if an external parameter is
+instantiated by a function type (the earlier checked counterexample remains).
+Thus adding this grammar directly to SelectedLambdaDomain.subst would require
+another invariant. A live next step is to track which specializing parameters
+are local to a closed family, so tests on those parameters can be rebuilt after
+outer substitution; alternatively extend the shared-test interpretation through
+the guarded stages themselves. Neither global computed-guard transport nor
+PropFront coverage follows merely from the present stage-zero theorem. The
+original strengthening goal and a strictly smaller sufficient front remain open.

@@ -33,8 +33,21 @@ theorem TerminalTypeFamily.subst (H : TerminalTypeFamily Γ T)
     exact .function (HA.subst hΓ₀ W hA)
       (ih ⟨hΓ₀, _, hA.subst henv.orderedStrong W hΓ₀⟩ (W.lift henv.ordered hA) hB)
 
+/-- A helper interface for converting the binder of a function carrier guard.
+Concrete terminal and shared-test domains discharge this interface; it is not
+assumed as a new strengthening principle. -/
+def ComputedCarrierBinderTransport (D : PureObservation.Definitions)
+    (Γ : List VExpr) (T : VExpr) : Prop :=
+  ∀ {A u f g C}, OnCtx Γ (env.IsType univs) →
+    env.IsDefEq univs Γ A T (.sort u) →
+    env.HasType univs (A :: Γ) f C → env.HasType univs (A :: Γ) g C →
+    ComputedJointCarrierGuard (ErasedJointStage D 0) (proofEraseCtx (A :: Γ))
+      (proofErase (A :: Γ) C) (proofErase (A :: Γ) f) (proofErase (A :: Γ) g) →
+    ComputedJointCarrierGuard (ErasedJointStage D 0) (proofEraseCtx (T :: Γ))
+      (proofErase (A :: Γ) C) (proofErase (A :: Γ) f) (proofErase (A :: Γ) g)
+
 private theorem function_body_readout
-    (hs : D.Sound env univs) (HT : TerminalDomain Γ T)
+    (transport : ComputedCarrierBinderTransport D Γ T)
     (readout : ∀ {f g A}, OnCtx (T :: Γ) (env.IsType univs) →
       env.HasType univs (T :: Γ) f A → env.HasType univs (T :: Γ) g A →
       env.IsDefEqU univs (T :: Γ) A K →
@@ -70,8 +83,7 @@ private theorem function_body_readout
     simpa only [lift, VExpr.liftN, inst_liftN_bvar, VExpr.inst] using HasType.app (hg.weak henv) (.bvar .zero)
   have Ef := proofErase_eta_body hΓ hA hf hp
   have Eg := proofErase_eta_body hΓ hA hg hq
-  have HB := proofErase_computed_joint_zero_carrier_terminal_context hs hΓ HA
-    (HT.convert hΓ HA.symm) hfa hga (by simpa only [Ef, Eg] using H)
+  have HB := transport hΓ HA hfa hga (by simpa only [Ef, Eg] using H)
   have HC' := HC.defeqDFC henv W
   have HB' := readout hΓT (hfa.defeqDFC henv W) (hga.defeqDFC henv W) HC'.toU
     (by simpa only [← proofErase_defeqCtx hΓA W HC.hasType.1,
@@ -82,7 +94,7 @@ private theorem function_body_readout
   exact .carrierFunction (DomainSort.of_typed hΓ HA.hasType.2) HB'
 
 private theorem convert_raw
-    (hs : D.Sound env univs) (HT : TerminalDomain Γ T)
+    (hs : D.Sound env univs) (transport : ComputedCarrierBinderTransport D Γ T)
     (readout : ∀ {f g A}, OnCtx (T :: Γ) (env.IsType univs) →
       env.HasType univs (T :: Γ) f A → env.HasType univs (T :: Γ) g A →
       env.IsDefEqU univs (T :: Γ) A K →
@@ -118,7 +130,7 @@ private theorem convert_raw
     obtain ⟨_, hPi⟩ := hf.isType henv hΓ
     obtain ⟨⟨_, hB⟩, _, _⟩ := hPi.forallE_inv henv
     have hB := domain_sort_raw SD hΓ hB EΓ EB
-    have HG := function_body_readout hs HT readout hΓ hB hf hg HE
+    have HG := function_body_readout transport readout hΓ hB hf hg HE
       (by simpa only [proofEraseCtx, EΓ, EB, EC, Ef, Eg] using H)
     simpa only [EΓ, Ef, Eg] using HG
   | carrierSubsingleton HS =>
@@ -132,7 +144,7 @@ private theorem convert_raw
       obtain ⟨B, C, rfl, _, EB, EC⟩ := erase_forallE_inv (JointCheckKind.carrier.inj E)
       obtain ⟨_, hPi⟩ := hf.isType henv hΓ
       obtain ⟨⟨_, hB⟩, _, _⟩ := hPi.forallE_inv henv
-      have HG := function_body_readout hs HT readout hΓ hB hf hg HE
+      have HG := function_body_readout transport readout hΓ hB hf hg HE
         (.carrierSubsingleton (EC.symm ▸ HS))
       simpa only [EΓ, Ef, Eg] using HG
   | carrierIntro hi hz hp hadm HF | carrierNested hi hz hp hadm HT' HF =>
@@ -164,7 +176,10 @@ theorem TerminalTypeFamily.carrier_convert (HT : TerminalTypeFamily Γ T)
     exact .carrierChecked (proofErase_computed_carrier_types_checked hstep hΓ
       (HE.defeq hf) (HE.defeq hg) (.inl hf) H)
   | function HA HC ih =>
-    exact convert_raw hs HA (fun hΓ hf hg HE H => ih hΓ hf hg HE H)
+    exact convert_raw hs
+      (fun hΓ HAB hf hg H => proofErase_computed_joint_zero_carrier_terminal_context
+        hs hΓ HAB (HA.convert hΓ HAB.symm) hf hg H)
+      (fun hΓ hf hg HE H => ih hΓ hf hg HE H)
       hΓ H hf hg HE rfl rfl rfl rfl
 
 /-- Every finite computed guard at an arbitrary actual source carrier transfers

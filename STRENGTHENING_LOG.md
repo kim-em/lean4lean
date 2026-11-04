@@ -17945,3 +17945,64 @@ and no canonical-Eq counterexample or strictly smaller sufficient obligation has
 been established. Full recovered/joint carrier substitution remains the next
 boundary. Only these three aligned source files and these ledger appendices are
 part of this change; independent work is preserved. Executable unchanged.
+
+
+## 2026-11-04 15:29:02 UTC — Shared tests through beta and generic dependent binder conversion
+
+The preceding implementation goal turn was progress (240a14b2 committed and
+pushed); the intervening clarification made no implementation changes. On
+resumption the pending tested-substitution build was authoritatively complete
+and successful. No process was restarted on the basis of an observation timeout.
+
+SortTestedRecovery supplies a finite selected-output path indexed by an actual
+test context and substitution. subst_square transports it along a typed commuting
+square. inst constructs that square for local beta, preserving the parent's test;
+expose uses the decreasing path rank, and selected_domain computes to a lambda
+with exactly the raw selected domain. Native recovery may fail, but the failure
+branch retains this path instead of replacing the selected type semantically.
+
+ProofErasureTestedImageSubstitution proves binder extension of this image class,
+full native-recovery substitution with the tested alternative, and exact
+selected-domain exposure. ProofErasureComputedJointTestedSubstitution wraps this
+in an interpreted substitution and proves full recursive stage-zero comparison
+and carrier transport, including both native and computed applications.
+
+ProofErasureSpecializedDomainContext then converts a source binder to any equal
+target whose fresh variable has a SortSpecialization. The arbitrary selected
+output at a tested leaf is sound because a type-specializing variable cannot
+actually be a function or structure major; enclosing lambda and application
+paths still retain their original selected output. The context theorem preserves
+raw endpoint and carrier syntax while changing the context oracle.
+
+ProofErasureSpecializedTypeFamily uses that context theorem recursively for
+finite dependent targets ending in a universe. Inputs may use the previous
+TerminalDomain or a specialization of their generic value. Its public readout
+accepts an arbitrary typed equal source carrier, including computed source
+carriers and changed codomain annotations. The previously excluded polymorphic
+predicate family ∀ A : Type, A → Prop is explicitly covered. Its strict-extension
+witness includes actual formation and the previous terminal-family negation.
+The existing type-function conversion proof now factors its binder-transport
+helper, so the old and new readouts share the full carrier induction; previous
+public terminal-family theorem statements are unchanged.
+
+Validation: 725-job build of 51 explicit modules, with no warnings or errors in
+the six changed/new sources. The exact 373-root full opaque dependency traversal
+and independent #print axioms reports passed; maximum closure 11,327; only
+propext, Classical.choice and Quot.sound. No sorry sources, weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport
+or JointPropBetaStability. Source hashes match the pre-build snapshot. Explicit
+roots cover the new declarations and constructors plus the preceding 340-root
+consumer manifest. This is not a whole-repository audit. Artifacts:
+/tmp/shared-test-build.log, -audit.lean, -audit.log, -roots.txt, -files.txt,
+-build-targets.txt, -source-before.json, -validation.json and
+/tmp/verify-shared-test-audit.py.
+
+GOAL.md is still open: UniqueTyping.lean:94 retains the original sorry. This is
+neither a canonical-Eq counterexample nor a new smaller sufficient irreducible
+front. The new family is not claimed globally substitution stable, and it has
+not been inserted into the unrestricted SelectedLambdaDomain substitution
+invariant. The remaining task is to preserve local test parameters through the
+larger recursive guard/substitution argument and establish general coverage.
+No executable changes, subagents, coordination, or PR extraction. Independent
+worker changes and commits are preserved; only the six listed source files and
+these appended ledger entries belong to this change.
