@@ -21374,3 +21374,31 @@ hash-stable and byte-identical to isolated copies. Artifacts:
 `/tmp/prepare-carrier-static-structure-sort.py`. Own new modules have no warnings.
 Other untracked files/index preserved; no coordination or executable changes.
 Goal remains active.
+
+
+## Common native application at proof and type arguments (2026-11-04)
+
+Full Pi readout plus exact retained-image computation transport now propagates
+a common native function certificate through application. The output retains a
+forward path from the original dependent result type; the selected native Pi
+may have changed both components. Proof arguments need no image certificate.
+For type arguments, common native recovery suffices because the preceding sort
+readout restores the exact universe demand. These close two application cases
+without confluence or exact coverage for arbitrary data arguments.
+
+The attempted unrestricted declaration-telescope extension still requires native
+images to substitute its codomain histories. Ordinary typed substitution alone
+does not transport native guards. The newly committed forward-binder/type-fork
+reduction independently makes the broader requirement precise: general common
+native instantiation contains joining every computational fork at a typed type.
+No general telescope transport, type confluence, strengthening, or sufficient
+smaller front is claimed here.
+
+Validation: one new module, 124 Lean lines, four public roots; isolated explicit
+746-job build, all four roots audited through dependency closure (maximum
+11,542), standard axioms only, no sorry sources or forbidden dependencies.
+All 721 local closure sources hash-stable and isolated-identical. Artifacts:
+`/tmp/carrier-static-common-app-*`; preparation
+`/tmp/prepare-carrier-static-common-app.py`. No new warnings or executable
+changes; independent committed work reused read-only, no coordination.
+Goal remains active.
