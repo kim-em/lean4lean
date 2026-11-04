@@ -21049,3 +21049,52 @@ opaque bodies, inductive constructors and recursor RHSs, maximum closure
 circular/strengthening dependency excluded. New modules have no warnings.
 All local imported sources were hash-stable through validation. Artifacts:
 `/dev/shm/unit-eta-repair-*`; prep `/dev/shm/prepare-unit-eta-repair-audit.py`.
+
+
+### 2026-11-04 22:15:01 UTC — Full masked structure expansion, replay and source squares
+
+Added five `ProofErasureStaticStructure*` modules (627 Lean lines). The primitive
+`NativeMaskedStructureExpansion` reconstructs an unindexed registered structure
+from a natively recovered family with its complete parameter spine. Its output
+uses a static closed-telescope proof-field mask, exactly justified by the existing
+`structure_proofField_iff` theorem. The projection-admissibility condition is
+never-zero result universe or a closed proof-fields certificate, matching the
+necessary-and-sufficient criterion for actual typed expansion.
+
+Proved exact erasure, mask/output commutation with raw substitution and binder
+insertion, and primitive descent at the original assigned type. Recovered family
+parameters descend first; actual `structEta` then supplies the lower equality.
+No projection typing is guessed. Primitive renaming and exact native-image
+substitution retain the entire mask. Empty structures embed the committed unit
+rule. The stage language retains singleton/Eq/identity/function eta, embeds the
+unit and function-only stages, and supports monotonicity, descent, renaming,
+finite-union admission and native-image transport from stage n to n+k, including
+recovery, checking, recovered-family and aligned comparison.
+
+The actual structure-eta replay theorem covers proof majors by erasure and
+retained majors by explicit native family recovery; the actual expansion typing
+discharges admissibility. A closed all-proof-fields certificate supplies each
+individual static mask entry, giving a common masked constructor for two opaque
+majors of arbitrary nonempty proof-only structures. No parameter-closedness or
+field-independence restriction is imposed.
+
+The final module proves output computation under simultaneous source and
+parameter computation. It produces the structure-eta/source-change square in
+the finite union when both selected family instances are natively recovered and
+the first parameter spine computes to the second. Those latter premises remain
+explicit. This is not general native source-stability, confluence, universal
+coverage, strengthening, a canonical-Eq counterexample, or a sufficient strictly
+smaller front. The next work must establish adequate recovery/alignment under
+source changes in this stronger language; the earlier core-only invariant was
+refuted and is not reused as a universal premise.
+
+Validation: 713-job explicit build; 43 new public roots audited transitively
+through types, opaque values, inductive constructors and recursor RHSs; maximum
+closure 11,121. Only propext, Classical.choice and Quot.sound; configured
+forbidden dependencies absent. All 688 imported local sources were hash-stable.
+No warnings in the new modules. Artifacts: `/dev/shm/static-structure-eta-*`;
+prep `/dev/shm/prepare-static-structure-eta-audit.py`. The initial general-structure
+module name collided with a concurrent untracked edit; that alternate module and
+its template were preserved, this implementation moved to distinct names, and
+all final validation was rerun on the renamed sources. Executable and original
+strengthening sorry unchanged; no coordination or PR extraction.

@@ -8717,3 +8717,39 @@ confluence remain open; this does not establish strengthening or a sufficient
 strictly smaller obligation. Validation: four modules, 30 audited public roots,
 757 build jobs, maximum dependency closure 11,343; standard axioms only,
 forbidden dependencies absent. Artifacts: `/dev/shm/unit-eta-repair-*`.
+
+
+### 2026-11-04 22:15:01 UTC — General structure eta from a static proof-field mask
+
+**Verdict: checked for all admissible unindexed structures with native family
+recovery, including dependent mixed proof/data fields.** The closed constructor
+certificate `StructureReplay.ProofField` is equivalent to proofness of each
+projection at every typed expansion. Therefore the output mask can be chosen
+from the closed telescope alone: proof fields become proof markers, other fields
+remain projections of the retained major. No occurrence-dependent mask guess,
+new semantic guard, inverse typing weakening or full native coverage is needed.
+
+Implemented the masked expansion, exact erasure theorem, arbitrary-block descent,
+renaming and exact native-image substitution. The new stage language embeds both
+old function eta and unit eta at the same index and supports recursive guards,
+finite-union admission, and additive-stage native/checker/aligned substitution.
+Actual typed structure-eta steps replay whenever the retained major has native
+family recovery; proof majors need no recovery. Nonempty proof-only structures
+join opaque majors at a constructor with all proof fields erased. Output
+computation respects parameter and source computation, producing a source-change
+square under explicit native family recoveries at both endpoints.
+
+The square does NOT supply the second native family guard or the parameter path.
+Those remain part of the general source-change problem. Common-native coverage
+and confluence of the enriched language remain unproved, as does strengthening.
+The extension removes a diagnosed omission and supports arbitrary field counts;
+it is not a sufficient smaller obligation. Next live work: native recovery under
+source computation and comparison of independently selected family instances,
+allowing genuine eta joins rather than the refuted core-only join invariant.
+
+Validation: five modules, 627 Lean lines, 43 public roots, 713 build jobs,
+maximum dependency closure 11,121, standard axioms only and forbidden
+dependencies absent. All 688 imported local sources were hash-stable. Artifacts:
+`/dev/shm/static-structure-eta-*`. Concurrent alternate structure-expansion files
+were preserved; distinct module names avoid the observed untracked filename
+collision. No coordination or PR extraction.
