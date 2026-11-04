@@ -16869,3 +16869,41 @@ endpoint beta stability, or completeness. UniqueTyping.lean:94 retains the
 original sorry, and none of GOAL.md's three success alternatives is proved.
 The goal stays active. Only Theory and ledgers change; no executable changes,
 PR extraction, coordination or subagents.
+
+
+## 2026-11-04 — Forward image certificates replace backward lambda-body transport
+
+Confirmed 8536736d is pushed. Investigated higher-stage selected-path coverage:
+its application exposure still needs substitution of arbitrary intermediate
+arguments into retained conversion paths, so exact recovering substitution
+alone does not close that route. This remains a concrete missing premise,
+not a refutation of the route or a newly assumed theorem.
+
+NeutralRecoveringImage packages converted native recovery at a raw annotation.
+The actual recovered type is existential; a consumer's actual image typing at
+the assigned type supplies their equality by uniqueness. Its compute theorem
+simulates annotation computation through recursive neutral type conversion,
+realizes the simulated result, and extends the native recovery there. The
+certificate is thus forward stable even when its recovered type changes.
+Whole body comparison and exact computation instantiation consume it directly.
+
+ConvertedLambdaComputation proves exact contracted-body computation by
+induction on the lambda's computation. At transitivity, actual replay realizes
+the intermediate lambda, uniqueness gives argument typing at its annotation,
+and the recursive computation uses the advanced image certificate. Every body
+path is instantiated in its own current binder context. No contravariant
+pullback to the original binder and no unrestricted primitive substitution is
+used. This is the ingredient for the paired head-beta theorem recorded next.
+
+Validation with the consuming modules: isolated checkout at 8536736d plus only
+four new modules, 665-job build succeeds with no new-module warnings. The
+14-root opaque audit includes every public theorem and the new image definition;
+no sorry source or forbidden strengthening, semantic-head, carrier-resynthesis,
+or global beta-transport dependency. Only propext, Classical.choice and Quot.sound
+occur. All source bytes match isolated validation. Artifacts:
+/tmp/converted-head-isolated-build.log,
+/tmp/converted-head-audit.lean, .log, -roots.txt.
+
+Original UniqueTyping.lean:94 remains open. Only Theory and ledgers change;
+no executable edits, coordination, or subagents. Concurrent independent commit
+90c5b0e6 is excluded from this validation baseline and preserved.

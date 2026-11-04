@@ -5589,3 +5589,31 @@ possible gaps, as do heterogeneous substitution and endpoint beta stability.
 Next: extend the domain evidence compositionally or add structural-result
 paths with justified projection readout, rather than assume every value has
 a path at its assigned type. Strengthening and strict-smallness remain open.
+
+
+## 2026-11-04 — Carry converted recovery forward through lambda computation
+
+Tested extending selected sort-rooted recovery paths to higher computed stages.
+The existing exposure proof substitutes an arbitrary actual application argument
+into a retained type-conversion path. Core paths support that operation, but
+higher-stage paths require the very missing image coverage. The new exact
+recovering substitution theorem does not discharge that premise. Verdict:
+this direct extension remains open; no impossibility claim or assumed closure.
+
+A different induction avoids backward transport of lambda body paths.
+NeutralRecoveringImage records actual image typing at some recovered type,
+recursive NeutralTypeChange from the selected raw annotation, and exact native
+recovery at that recovered type (vacuous for proof images). When the image is
+also typed at the selected annotation, uniqueness supplies actual type equality.
+Forward annotation computation simulates on the recovered type; the image's
+recovery extends along the simulated path. Verdict: forward closure, body
+comparison instantiation and exact body-computation instantiation are proved
+for the full computed union.
+
+ProofErasureConvertedLambdaComputation follows each actual lambda computation
+and contracts its body at the chosen image in the current binder context.
+The transitive case realizes the intermediate lambda, advances the image
+certificate, and continues there. No body path is pulled back through a changed
+annotation. It returns the exact instantiated output and the image certificate
+at the new annotation. Verdict: checked; next use is the full inferred-lambda
+comparison induction, including its computation and symmetry cases.
