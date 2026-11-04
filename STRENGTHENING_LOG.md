@@ -16464,3 +16464,61 @@ GOAL.md completion alternative is established. Independently appearing changes
 to ProofErasureComputedJointTransport and the untracked computing-conversion
 module were left untouched and are excluded from this commit. No coordination,
 subagents, or executable changes.
+
+
+## 2026-11-04 12:08 UTC — Recursive substitution beyond the structural-domain boundary
+
+Previous conversational turn: no technical progress; it clarified the user's
+instructions. Revalidation found the pending carrier-conversion build complete.
+An independent whole dependent-carrier conversion is now committed in a178b1a8;
+the duplicate local draft was removed, and this work consumes that committed
+result. No PRs were extracted.
+
+ComputedJointCheck.transport_application exposes a typed application callback
+receiving both recursive target guards. The previous transport_or_inert and
+transport APIs are proved specializations, so their callers retain the same
+statements. StructuralFamilyRecovery adds a beta-exposed structural-family
+leaf to the earlier neutral/type/family paths. Substitution preserves its rank
+and selected output under protected-head substitutions. Exposure terminates
+after applying such a family because its result is a type. The application
+repair pulls the existing guard back through the selected domain's recorded
+computation, derives equality of the written/assigned inner domains from
+typing, and uses whole dependent-function carrier conversion.
+
+ProofErasureStructuralImageSubstitution carries the new paths through every
+native recovery constructor and through binder insertion. The full previous
+anchored image class embeds. ProofErasureComputedJointStructuralSubstitution
+discharges the new callback for this class and proves full recursive stage-zero
+common comparison and exact-carrier substitution, single instantiation, and
+paired beta-redex comparison from a body certificate. No target application
+guard or future-body assumption remains beyond the recursive premises.
+
+ProofErasureComputedStructuralFirstStage supplies a proved
+ComputedZeroGuardSubstitution instance and preserves all first-layer computations
+under these substitutions, including exact substituted outputs.
+ProofErasureStructuralEtaInstantiation consumes both results at the concrete
+Pi-wrapped eta-domain witness from the old three-way coverage obstruction.
+This proves arbitrary typed body instantiation there, rather than only the
+earlier single-application repair.
+
+Validation: the consuming structural eta-instantiation build succeeds in 595
+jobs, with no warnings in changed/new modules. The opaque dependency audit
+covers all 40 explicit new/changed public roots and constructors, including
+the old structural-domain negative theorem. Every expected root has a matching
+axiom report; the largest complete closure contains 11,177 declarations.
+Only propext, Classical.choice and Quot.sound occur. No sorryAx, weakN_iff,
+weakN_inv, JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability is reachable. This audits
+the listed roots and complete closures, not a historical cumulative inventory.
+Artifacts: /tmp/structural-eta-inst-build.log,
+/tmp/structural-substitution-audit.lean, .log, -roots.txt.
+
+Scope remains finite structural-family image paths at stage zero and
+first-layer computations with recursive stage-zero guards. The new leaf's
+inner function codomain is currently a literal sort. Arbitrary images,
+higher-stage recovery/comparison transport, heterogeneous substitution,
+endpoint beta stability and completeness remain unproved. The original sorry
+at UniqueTyping.lean:94 remains. No proof of strengthening, canonical-Eq
+counterexample, or strictly smaller sufficient irreducible obligation has
+been established. GOAL.md remains active. Only Theory and ledgers change;
+no executable changes, PR extraction, coordination or subagents.

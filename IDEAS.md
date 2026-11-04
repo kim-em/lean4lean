@@ -5495,3 +5495,27 @@ is assumed by the new theorems.
 | Whole finite function-carrier conversion over neutral domains | **Checked (2026-11-04).** `proofErase_computed_joint_neutral_function_carrier_convert` transports an entire finite guard at a Pi returning a sort along actual equality of its neutral source domain. No normality or retained-body premise is needed: source carrier computation retains/replays Pi-domain reduction, and endpoint computation retains actual typing. `proofErase_structural_eta_application_repair` handles the exact Pi-wrapped recovery boundary by moving the argument guard to the written carrier. This is a checked application repair, not arbitrary body substitution or general structural carrier conversion. |
 
 | Dependent whole function-carrier conversion | **Checked (2026-11-04).** The fixed-sort restriction is removed. `proofErase_computed_joint_dependent_neutral_function_carrier_convert` transports whole finite guards at `Pi A C` along actual equality from neutral `A`, for arbitrary dependent `C`. Carrier computation reconstructs the whole computed Pi, inverts its actual equality, and retains/replays the raw codomain path under the new binder. Proof-valued endpoints and function subsingletons are handled rather than excluded. The old fixed-sort theorem is a specialization. The application corollary needs no target argument guard. Arbitrary domain conversion, structural image coverage, and higher stages remain open. |
+
+
+## 2026-11-04 12:08 UTC — Consume converted guards in structural-family substitution
+
+Verdict: proved for a new finite structural-family image class. Refactoring the
+recursive transport induction to pass already transported function/argument
+guards and actual source argument typings avoids demanding exact selected-domain
+exposure. StructuralFamilyRecovery retains a beta-exposed sort-valued function
+whose assigned domain is Pi A (Sort v), with A protected neutral, and whose
+written lambda domain is Pi B (Sort v). The family becomes a type after an
+application, so its exposure induction terminates using the existing rank.
+Carrier conversion consumes the recursive argument guard, including its
+computation prefixes; no future-body oracle is introduced.
+
+The complete stage-zero comparison/carrier transport and first-layer computation
+transport now admit these images. The actual Pi-wrapped eta-domain obstruction
+instantiates arbitrary typed body comparisons and first-layer computations.
+Thus the former three-way coverage failure is repaired for this image class,
+not merely for one isolated application. The old negative recovery theorem is
+unchanged and still builds. This does not establish arbitrary image coverage,
+higher-stage recovery transport, endpoint beta stability, completeness, or
+strengthening. Next: extend the structural leaf to dependent inner codomains
+and investigate the still-unjustified substitution of arbitrary intermediate
+arguments into higher-stage converted body paths.

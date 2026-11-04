@@ -74,11 +74,13 @@ def ComputedJointTransportResult (Transport : List ProofShape → List ProofShap
       proofErase Γ A = α → proofErase Γ a = sa → proofErase Γ b = sb →
       Transport Δ Δ' τ → ComputedJointCarrierGuard Target Δ' (α.subst τ) (sa.subst τ) (sb.subst τ)
 
-/-- One induction handles every joint checking constructor. The supplied
-application case preserves the selected domain by native recovery or lambda
-computation, or proves that the carrier cannot expose a structural checking rule. Both comparison and carrier premises are transported recursively,
-including beneath arbitrarily many computed-domain applications. -/
-theorem ProofShape.ComputedJointCheck.transport_or_inert
+/-- Recursive transport with a typed application repair. The callback receives
+both already transported guards and actual source argument typings at the
+selected domain. It may convert the argument carrier before rebuilding the
+application. Every other constructor, including computed-domain applications,
+transports recursively without a new premise. This is an induction interface;
+its application callback must be proved for the chosen substitution class. -/
+theorem ProofShape.ComputedJointCheck.transport_application
     (Transport : List ProofShape → List ProofShape → ProofShape.Subst → Prop)
     (hstep : ErasedScopedPrimitiveDescent Step)
     (hcons : ∀ {Δ Δ' τ A}, Transport Δ Δ' τ → Transport (A :: Δ) (A.subst τ :: Δ') τ.lift)
@@ -87,14 +89,17 @@ theorem ProofShape.ComputedJointCheck.transport_or_inert
       OnCtx Γ (env.IsType univs) → env.HasType univs Γ e T →
       proofEraseCtx Γ = Δ → proofErase Γ e = source → Transport Δ Δ' τ →
       ScopedCompute Target Δ' (source.subst τ) (out.subst τ))
-    (happ : ∀ {Γ Δ' τ f D C A B}, OnCtx Γ (env.IsType univs) →
-      env.HasType univs Γ f (.forallE D C) → ¬ IsProof Γ f →
+    (happ : ∀ {Γ Δ' τ f x y D C A B g mode}, OnCtx Γ (env.IsType univs) →
+      env.HasType univs Γ f (.forallE D C) →
+      env.HasType univs Γ x D → env.HasType univs Γ y D → ¬ IsProof Γ f →
       ScopedTypeRecovery Step (proofEraseCtx Γ) (proofErase Γ f) (.forallE A B) →
       Transport (proofEraseCtx Γ) Δ' τ →
-      ScopedTypeRecovery Target Δ' ((proofErase Γ f).subst τ)
-        (.forallE (A.subst τ) (B.subst τ.lift)) ∨
-      (∃ body, ScopedCompute Target Δ' ((proofErase Γ f).subst τ) (.lam (A.subst τ) body)) ∨
-      (∀ {out}, ScopedCompute Target Δ' (A.subst τ) out → ¬ CarrierExposure out))
+      ComputedJointCompare Target Δ' false ((proofErase Γ f).subst τ) g →
+      ComputedJointCarrierGuard Target Δ' (A.subst τ)
+        ((proofErase Γ x).subst τ) ((proofErase Γ y).subst τ) →
+      ComputedJointCompare Target Δ' mode
+        (.app ((proofErase Γ f).subst τ) ((proofErase Γ x).subst τ))
+        (.app g ((proofErase Γ y).subst τ)))
     (H : ComputedJointCheck Step Δ kind sa sb) : ComputedJointTransportResult Transport Target Δ kind sa sb := by
   induction H with
   | leaf H =>
@@ -126,12 +131,11 @@ theorem ProofShape.ComputedJointCheck.transport_or_inert
     have hyD := argument_at_displayed_domain hΓ hg hgPi hy
     have HX' := ihx hΓ hxD hyD EΓ (by simpa only [ProofShape.liftN_zero] using ED) Ex Ey W
     have HF' := ihf hΓ hf HE.hasType.2 EΓ Ef Eg W
-    rcases happ hΓ hfPi (not_isProof_fn hΓ hf hx hna)
-        (by simpa only [EΓ, Ef] using R) (by simpa only [EΓ] using W) with
-      HR | ⟨body, RF⟩ | Hnone
-    · exact .appCarrier (by simpa only [Ef] using HR) HF' HX'
-    · exact .appComputed (by simpa only [Ef] using RF) HF' HX'
-    · exact .app HF' (HX'.checked_of_no_exposure Hnone)
+    simpa only [Ef, Ex, Ey, ProofShape.subst] using
+      happ hΓ hfPi hxD hyD (not_isProof_fn hΓ hf hx hna)
+        (by simpa only [EΓ, Ef] using R) (by simpa only [EΓ] using W)
+        (by simpa only [Ef] using HF')
+        (by simpa only [Ex, Ey] using HX')
   | appComputed RF HF HX ihf ihx =>
     intro Γ a b A Δ' τ hΓ ha hb EΓ Ea Eb W
     obtain ⟨f, x, rfl, hna, Ef, Ex⟩ := erase_app_inv Ea
@@ -398,6 +402,35 @@ theorem ProofShape.ComputedJointCheck.transport_or_inert
     simpa only [projectionType_subst (args := ps) HT _ (by omega), ProofShape.subst] using
       ihfields i hj hn hΓ hiaF hibF EΓ EF' Epa Epb W
 
+
+/-- One induction handles every joint checking constructor. The supplied
+application case preserves the selected domain by native recovery or lambda
+computation, or proves that the carrier cannot expose a structural checking rule. Both comparison and carrier premises are transported recursively,
+including beneath arbitrarily many computed-domain applications. -/
+theorem ProofShape.ComputedJointCheck.transport_or_inert
+    (Transport : List ProofShape → List ProofShape → ProofShape.Subst → Prop)
+    (hstep : ErasedScopedPrimitiveDescent Step)
+    (hcons : ∀ {Δ Δ' τ A}, Transport Δ Δ' τ → Transport (A :: Δ) (A.subst τ :: Δ') τ.lift)
+    (hsort : ∀ {Δ Δ' τ A u}, Transport Δ Δ' τ → DomainSort Δ A u → DomainSort Δ' (A.subst τ) u)
+    (hcompute : ∀ {Γ Δ Δ' τ e T source out}, ScopedCompute Step Δ source out →
+      OnCtx Γ (env.IsType univs) → env.HasType univs Γ e T →
+      proofEraseCtx Γ = Δ → proofErase Γ e = source → Transport Δ Δ' τ →
+      ScopedCompute Target Δ' (source.subst τ) (out.subst τ))
+    (happ : ∀ {Γ Δ' τ f D C A B}, OnCtx Γ (env.IsType univs) →
+      env.HasType univs Γ f (.forallE D C) → ¬ IsProof Γ f →
+      ScopedTypeRecovery Step (proofEraseCtx Γ) (proofErase Γ f) (.forallE A B) →
+      Transport (proofEraseCtx Γ) Δ' τ →
+      ScopedTypeRecovery Target Δ' ((proofErase Γ f).subst τ)
+        (.forallE (A.subst τ) (B.subst τ.lift)) ∨
+      (∃ body, ScopedCompute Target Δ' ((proofErase Γ f).subst τ) (.lam (A.subst τ) body)) ∨
+      (∀ {out}, ScopedCompute Target Δ' (A.subst τ) out → ¬ CarrierExposure out))
+    (H : ComputedJointCheck Step Δ kind sa sb) : ComputedJointTransportResult Transport Target Δ kind sa sb := by
+  apply H.transport_application Transport hstep hcons hsort hcompute
+  intro Γ Δ' τ f x y D C A B g mode hΓ hf _ _ hn R W HF HX
+  rcases happ hΓ hf hn R W with HR | ⟨body, RF⟩ | Hnone
+  · exact .appCarrier HR HF HX
+  · exact .appComputed RF HF HX
+  · exact .app HF (HX.checked_of_no_exposure Hnone)
 
 /-- Backward-compatible specialization: native recovery or computed-domain
 exposure suffices without the additional inert-carrier alternative. -/
