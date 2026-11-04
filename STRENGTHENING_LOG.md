@@ -17510,3 +17510,36 @@ delivered. The parameter-field boundary changes the next action from merely
 adding record depth to investigating occurrence-specific field certificates
 with actual projection typing and guards. No executable edits, agents,
 coordination, or PR extraction; independent work remains untouched.
+
+
+## 2026-11-04 — Native Pi exposure with an inferred residual
+
+The previous turn's carrier-alignment and typed-exposure results were verified
+as progress. This turn adds ComputedTypeResidual and CarrierAlignedTypeResidual:
+sort-typed head exposure preserves an inferred comparison with the original
+other endpoint. Existing native recovery plus comparison with an assigned Pi
+therefore produces an actually typed native Pi, exact recovery at that Pi and
+the retained inferred comparison. The proof does not assume contraction
+stability, a computational join, transitivity, or recovery completeness.
+
+CarrierAlignedNativePiExample checks strict usefulness against exact assigned-Pi
+recovery: a variable declared at an identity-redex type computes to a written Pi
+whose domain is universe-equivalent but syntactically distinct from the assigned
+one. The written Pi has the residual certificate; exact assigned-Pi recovery
+is impossible for the entire carrier-recovered union. Canonical Eq is used to
+instantiate the union's proved descent, not to claim a special cast computation.
+
+Validation: the three new modules build in the main worktree and an isolated
+scratch at 1dae2fdf plus only the previously validated carrier modules (658 jobs).
+The opaque dependency audit covers exactly five public roots, maximum closure
+10,965; only propext, Classical.choice and Quot.sound, no sorry sources or
+forbidden strengthening/recovery/beta-stability dependencies. Isolated source
+bytes match. Artifacts: /tmp/pi-residual-isolated-build.log,
+/tmp/pi-residual-audit.lean and .log, /tmp/pi-residual-audit-roots.txt,
+/tmp/pi-residual-files.txt, /tmp/pi-residual-validation.json (source hashes).
+
+This is residual certificate transport, not a sufficient replacement for
+PropFront. Guard conversion, paired substitution under changed binders,
+arbitrary compared-body beta transport and native-recovery coverage remain
+unproved. UniqueTyping.lean:94 is unchanged. No executable edits, agents or
+coordination. Independent working files are preserved.

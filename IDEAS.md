@@ -6071,3 +6071,35 @@ transport the specialized field syntax and its certificate. No such law has
 been assumed or proved here. General function-valued fields, mixed proof/data
 fields and arbitrary higher-stage substitution remain separate gaps. No
 strictly smaller sufficient strengthening obligation has been established.
+
+
+## 2026-11-04 — Pi exposure retaining the inferred type residual
+
+**Verdict: checked residual exposure; exact assigned-type recovery is unnecessary.**
+ComputedTypeResidual and CarrierAlignedTypeResidual strengthen the earlier
+head-exposure lemmas. Given an existing native recovery and an inferred or
+common comparison with an actual assigned Pi, they expose a native Pi and
+retain an inferred comparison with the original assigned Pi. A typed replay
+returns actual original domain/codomain expressions, a typing of the function
+at that Pi, and the exact native recovery together. This uses the computation
+constructors already present; no transitivity or beta-stability premise is
+added. In the computed-comparison case the reduced left endpoint is compared
+with the original right endpoint by retaining its right computation.
+
+A checked witness in CarrierAlignedNativePiExample declares a variable at an
+identity-beta expansion of a Pi. The written and assigned domain universes are
+equivalent but syntactically distinct. Native recovery exposes the written Pi
+and retains its comparison, although exact recovery of the assigned Pi fails
+in the full old carrier-recovered primitive union. This is a type-level identity
+computation, not a canonical-Eq cast or a strengthening counterexample.
+
+Next live obligation: transport an application argument guard from the assigned
+domain to the exposed native domain and instantiate the changed codomains.
+The new residual supplies the comparison that was previously discarded, but
+neither native recovery nor that comparison follows here from arbitrary typing.
+Paired substitutions also change binder annotations: a right image typed at the
+right substituted domain cannot silently be treated as typed at the left one.
+Recursive carrier guards still contain the old comparison language. General
+transitivity is not justified by native recovery alone, which does not certify
+all raw argument typings. Original strengthening and every GOAL.md completion
+alternative remain open.
