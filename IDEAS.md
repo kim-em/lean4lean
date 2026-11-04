@@ -5913,3 +5913,65 @@ therefore compares the two beta reducts in inferred mode at stage zero. The
 result extends through every shared typed body via interpreted renaming in the
 existing recovered-carrier union. No common computational native type is
 manufactured, and no old negative theorem is applied to the enlarged grammar.
+
+
+### 2026-11-04 13:44 UTC — terminal-valued input domains and whole function guards
+
+Verdict: proved terminal-domain context conversion and whole dependent function
+carrier conversion at stage zero, then integrated them into selected lambda
+domains and actual comparison/first-layer computation instantiation. The lower
+anchored path layer, rather than SortRootedRecovery, accepts terminal leaves;
+this avoids a dependency cycle without weakening the earlier sort-rooted API.
+TerminalDomain means the actual generic variable is a TerminalImage. It is
+stable under typed substitution and ordinary type equality; universes, rigid
+data without projections, fieldless structures, and unindexed structures with
+all proof fields supply it. Terminal projection exclusion uses actual typing
+and proofness, not the false claim that terminal images cannot be structures.
+
+The carrier proof consumes the entire finite guard. In its computation case,
+ordinary type equality transports terminality to the reduced input while the
+codomain computation is replayed under the target binder. In its function case,
+the independent anchored substitution law transfers the eta-body check across
+the converted context. No future body-comparison oracle or native recovery law
+is assumed. SelectedLambdaDomain.dependentTerminal then supports arbitrary
+finite structural lambda-body paths and their existing substitution consumers.
+
+Checked witness: a lambda written with input (Sort 1 -> Prop) but assigned an
+input (Sort (imax 1 1) -> Prop). The universe input is terminal and is not a
+protected variable-headed carrier. The image preserves all common-typed
+stage-zero comparisons and exact first-layer computation outputs. Exact native
+recovery at its assigned type nevertheless fails in the full computed union:
+the written normal annotation cannot compute to the syntactically different
+assigned annotation. This is a recovery obstruction, not a strengthening
+counterexample. Existing structural-domain recovery obstructions still compile.
+
+Boundary: this converts whole Pi carriers with a terminal-valued inner input
+and the same dependent codomain expression. It does not prove direct arbitrary
+carrier conversion between terminal data types, arbitrary function-valued input
+conversion, or arbitrary higher-stage substitution. The original theorem is
+still open, and no strictly smaller sufficient irreducible obligation follows.
+Live next direction: extend recovery through retained projections whose actual
+field result is terminal, or establish a recursive domain-conversion invariant
+for function-valued inputs. Neither may be replaced by a blanket transport
+assumption. The previous converted-unit beta obstruction remains relevant to
+any proposal requiring computational joins of native annotations.
+
+## 2026-11-04 — Type endpoints retain sort and Pi exposure after alignment
+
+**Verdict: checked typed head exposure, with no recovery completeness premise.**
+ComputedCarrierTypeChecking turns a carrier guard between independently
+sort-typed endpoints into ordinary computed comparison if either endpoint has
+that actual carrier. Structure and function carrier cases contradict the
+endpoint's sort typing; compatible carrier and endpoint computations replay
+at actual originals. This prevents the new promotion rules from hiding a
+sort or Pi head in typed comparison. CarrierAlignedTypedExposure proves
+common-to-inferred mode conversion at type endpoints, sort/Pi exposure, and
+Pi exposure from an existing native recovery whose selected output compares
+with an actual assigned Pi. The recovered Pi may have a different literal
+domain; no equality of erased domains or computational join is inferred.
+
+Next live problem: transport the guards and body certificates through the
+newly exposed domain and changed native outputs. Existing recovery plus a type
+comparison is still an explicit input, not a consequence of arbitrary typing.
+This head-exposure result does not supply full substitution, beta stability or
+a strictly smaller sufficient front by itself.

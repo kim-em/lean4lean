@@ -17323,3 +17323,84 @@ alone is not claimed to provide one. It proves that the new rule repairs this
 specific typed beta obstruction, not that all common or proposition beta peaks
 close. Both declarations are included in the isolated 669-job build and 19-root
 opaque audit recorded above. Original strengthening remains open.
+
+
+### 2026-11-04 13:44 UTC — terminal-domain conversion reaches recursive instantiation
+
+Revalidated the worktree after the clarification-only turn (no mathematical
+progress in that turn). The remembered build handle was absent; its authoritative
+log showed a successful 596-job build. Continued the existing unfinished source
+changes without restarting a live process or touching independently appearing
+files. The preceding committed research step was b8d50453.
+
+AnchoredFamilyRecovery now admits actual terminal-image leaves and exposes a
+TerminalImage alternative. Its substitution, selected-domain, and recursive
+recovery consumers handle that alternative through typing-based function and
+retained-projection exclusion. The structural embedding gains the corresponding
+case. SortRootedRecovery is unchanged.
+
+ProofErasureTerminalDomainContext defines TerminalDomain and proves typed
+substitution, ordinary equality conversion, concrete universe/data/structure
+constructors, an interpreted anchored identity substitution between equal
+domains, and full stage-zero comparison and carrier-guard context conversion.
+ProofErasureDependentTerminalFunctionCarrierConversion proves whole finite
+function-carrier conversion, including computation and endpoint-reduction
+branches. SelectedLambdaDomain.dependentTerminal connects that law to existing
+finite structural body recovery. ProofErasureTerminalDomainInstantiation gives
+both common-typed recursive comparison and exact first-layer computation
+consumers for beta-exposed higher-order lambdas.
+
+ProofErasureTerminalDomainExample uses distinct equal universe syntax in the
+assigned versus written higher-order input. Its image is actually typed; all
+stage-zero comparison and first-layer computation certificates instantiate;
+exact assigned native recovery fails even in ErasedComputedJointUnion. This
+witness exercises the new terminal input case rather than protected neutral
+input conversion, and supplies an explicit negative theorem alongside the
+positive consumers.
+
+Validation: 614-job build of 22 explicit affected/consuming modules; no warnings
+or errors in the eight changed source modules. Full opaque dependency traversal
+and independent #print axioms outputs match exactly 181 named public roots and
+constructors, including earlier anchored and structural consumers and recovery
+boundaries. Maximum per-root closure: 11,226. Only propext, Classical.choice,
+Quot.sound; no sorry sources or forbidden weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport, or JointPropBetaStability. This is an explicit root
+manifest, not a claim about every theorem in the worktree. Artifacts:
+/tmp/terminal-domain-build.log; /tmp/terminal-domain-audit.lean and .log;
+/tmp/terminal-domain-roots.txt, -files.txt, -build-targets.txt;
+/tmp/terminal-domain-validation.json (including source hashes).
+
+GOAL.md remains unfulfilled: UniqueTyping.lean:94 still contains the original
+sorry. No canonical-Eq counterexample or proved strictly smaller sufficient
+irreducible obligation has been delivered. The next live directions and their
+limits are recorded in IDEAS.md. No executable edits, agents, coordination,
+or PR extraction; independent working files are preserved.
+
+## 2026-11-04 — Typed exposure survives native carrier alignment
+
+de2549ad is pushed. The native-type repair was checked against another necessary
+invariant before any new recursive stage saturation: typed comparison against
+a sort or Pi must still expose that head computationally. The key new lemma is
+proofErase_computed_carrier_types_checked. If both endpoints have independent
+sort typings and either also has the supplied carrier typing, the computed
+carrier guard yields ordinary common comparison with exactly the same endpoints
+and primitive relation. Rigid-family carriers and Pi carriers contradict the
+sort typing. Carrier conversion and endpoint reduction preserve the condition
+by typed replay; carrier symmetry swaps the one-sided carrier witness.
+
+ComputedTypedExposure ports mode conversion and typed Pi exposure to the
+computed-domain grammar. CarrierAlignedTypedExposure then handles exact-recovery,
+one-sided common promotion, and recursively aligned promotion through the
+carrier lemma. It proves inferred mode at type endpoints, same-relation sort
+and Pi exposure, and native Pi recovery when an existing native output compares
+with an actual assigned Pi. This chooses a newly exposed Pi; it does not require
+literal agreement with the assigned domain, and does not assert that the input
+recovery or comparison always exists.
+
+All seven public exposure declarations are covered by the isolated 669-job
+build and 19-root opaque audit. Largest dependency closure across the whole
+batch: 11,033, standard axioms only, no forbidden dependencies. Exact bytes match
+and git diff --check passes. Arbitrary domain/context transport, global beta
+stability, recovery coverage and the original UniqueTyping.lean:94 front remain
+open. No GOAL.md completion alternative is claimed.
