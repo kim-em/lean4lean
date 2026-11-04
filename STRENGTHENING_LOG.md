@@ -19999,3 +19999,55 @@ The original sorry stays at UniqueTyping.lean:94; GOAL.md remains active.
 Only these four modules and ledger appends are staged. Independent 35559229
 and its changed observation dependencies are preserved; no executable changes,
 coordination or PR extraction.
+
+
+## 2026-11-04 20:32:56 UTC — Close arbitrary expanded PiReadout coverage
+
+Previous goal turn: verified progress in 35559229. This turn proves the complete
+Pi origin invariant for arbitrary compatible controlled-expanded computations,
+including the previously open application-shaped intermediate cases.
+
+ProofErasurePiOriginObservation defines an observer whose Pi leaves carry a
+lower payload predicate and whose depth counts temporary control binders. A
+FixedTail substitution fixes original variables below that prefix. Exact payload
+transport, variable renaming, arbitrary observed control substitution, root beta
+preservation, both wrapper expansions, and finite operational realization are
+proved directly on proof shapes. There is no assumed normalization, native image
+coverage, or untyped stability of guarded primitives under arbitrary substitution.
+
+ProofErasurePiOriginTransport gives computational induction with a single root
+beta case, retaining the original child certificates for typed replay. It proves
+expanded-root preservation of marked observations and generic typed transport
+under one explicit literal-Pi component closure law. Lambda control binders add
+to the temporary prefix; the original payload binder is handled separately.
+
+ProofErasureExpansionPiOrigin discharges that closure law. The concrete payload
+retains actual domain equality, an actual selected codomain typing, and domain
+and codomain computations in their original scopes. Exact certificate descent
+removes every temporary prefix from the child paths; backward context transport
+appends the codomain computation after a selected domain changes. This yields
+proofErase_expansion_union_pi_origin and full PiReadout coverage, plus a finite
+later-stage version. It is coverage of every typed Pi input and every compatible
+expanded path, not just root/beta traces or literal-Pi phases.
+
+ProofErasureExpansionPiOriginApplication supplies native Pi selection with both
+inferred component comparisons from an assigned-type path, and native application
+with a path from the assigned result carrier to the selected result. The original
+argument has an exact native image at its assigned type; no native image at the
+new selected domain or at a computed argument is requested. The native function
+relation is independent and remains unchanged. The consumers no longer assume
+a separate readout certificate.
+
+The earlier general lambda-factorization attempt was bypassed by marking Pi
+payloads directly. No full lambda origin theorem is asserted. The main goal is
+still incomplete: arbitrary native outputs need not come with a controlled
+expanded path from their assigned type; eta-containing conversions and general
+comparison coverage are not settled by these theorems. No new irreducible
+obligation is claimed strictly smaller than PropFront. The original weakN_iff
+sorry remains, and no downstream verifier or executable was changed.
+
+Validation: 731 jobs; 41 exact dependency roots traversing opaque bodies,
+constructors and recursor rules; maximum closure 11,383; only propext,
+Classical.choice and Quot.sound. All 706 local imported source hashes remained
+unchanged during validation; no new-source warnings. Artifacts and source hashes
+are /dev/shm/pi-origin-*. Goal active; no PR extraction or coordination.

@@ -7935,3 +7935,48 @@ Main and isolated 732-job builds; 104 exact roots audited including changed
 transitive dependencies, maximum closure 11,092, standard logical axioms only.
 All 707 transitive local source hashes and isolated copies agree. No forbidden
 dependency or new-source warning. Goal stays active.
+
+
+## 2026-11-04 20:32:56 UTC — Full dependent Pi origin by marked finite observations
+
+**Verdict: full PiReadout coverage proved for the controlled expanded union.**
+The application-shaped gap left by dff97a88 and 35559229 is closed. Rather than
+first factor arbitrary lambda computations, mark each Pi payload with its
+actual lower component representatives and both computation histories. The
+observer's depth counts only temporary control binders. Its payload rule lifts
+the entire marked Pi past that prefix. FixedTail substitutions may change all
+control variables but fix original variables, so beta contraction transports
+the exact payload certificate. Finite realization returns a raw beta path to
+one marked Pi; no normalization of components is assumed.
+
+**Typed computation preservation proved.** A root-beta induction principle
+exposes individual contractions while retaining the child computation proofs.
+All expanded roots preserve the marked demand. Application and lambda control
+frames use typed replay and the observation substitution law. At a literal Pi,
+certificate descent removes the temporary prefix independently from each child
+path. The retained domain path and actual equality pull subsequent codomain
+computation back into the initial binder. This is the only payload-specific
+closure law, and it is proved for the concrete origin invariant.
+
+**Consumers proved.** Every expanded union path from a typed Pi yields its full
+PiReadout. Finite input stages yield a finite later component bound. An assigned
+Pi path to an existing native output now supplies both inferred component
+comparisons automatically. Native application obtains an exact selected-result
+certificate plus an expanded path from its assigned result carrier, using native
+recovery only at the original argument type. Recovery's relation/stage remains
+independent of the component histories. No purity restriction or assumed Pi
+readout remains in these consumers.
+
+**Remaining main-goal gap.** Existence of an expanded assigned-Pi path to an
+arbitrary native output is not established by this theorem; neither is general
+native coverage or checker completeness for declarative equality. Eta-containing
+conversions remain outside this controlled-beta observation proof. The general
+lambda endpoint factorization target was bypassed for Pi coverage, not proved.
+Do not claim a sufficient smaller strengthening front from this result alone.
+The next task is to use the full readout in native carrier alignment and assess
+the remaining type-conversion/eta cases against the known coverage boundaries.
+
+Validation: four modules, 731-job build, 41 exact roots including every new
+observer constructor and recursor, maximum closure 11,383; standard axioms
+only and no forbidden dependency. All 706 local transitive source hashes were
+unchanged through build/audit. No warnings in the new files. Goal active; no PRs.
