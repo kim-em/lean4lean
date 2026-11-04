@@ -8333,3 +8333,54 @@ hash-stable and match isolated copies. Standard axioms only; exclusions clean;
 no new-source warnings. The audit parser now excludes nested comments before
 collecting declaration roots, after a documentation line was misidentified as
 a structure declaration; the corrected complete audit passes.
+
+### 2026-11-04 21:30:39 UTC — Ordinary output residuals inside universe-native recovery
+
+**Verdict: proved; full common-image guard substitution now includes the first
+universe-extended recovered singleton stage.** Trying to replace every old core
+path directly with a level-core path loses literal sort and projection-universe
+inversion. Instead factor the path from the assigned type into an ordinary
+path followed by structural universe variation. Replay supplies the ordinary
+intermediate's actual typing, so reverse the structural variation with a
+proved level path and convert the native certificate to that intermediate.
+The new native certificate uses the level core, but its output is an ordinary
+reduct of the old selected output. This stronger asymmetric invariant closes
+all native recovery constructors, including dependent applications and projections.
+
+The same construction gives asymmetric confluence: two typed level-core paths
+have a common reduct with an ordinary residual on the chosen right branch.
+This is enough for the simultaneous recursive checker induction. Its carrier
+conversion case joins the requested ordinary carrier reduct with the original
+level computation, then recurses along the ordinary right residual. Native
+applications choose new ordinary-reduced domains; full carrier guards follow
+them. Context oracle reduction is derived from the new joined-image identity
+substitution instead of reproving native recovery under context changes.
+
+Consequences now checked: mixed ordinary/universe/controlled-expansion recovery
+collapses to level-native recovery with an ordinary output residual; arbitrary
+simultaneous images may use mixed native certificates joined to their assigned
+carriers; all computed and recovered comparison/carrier constructors substitute;
+and general singleton plus specialized Eq-prefix roots transport through their
+whole generated telescopes. Arbitrary finite `ErasedLevelRecoveredStage D 1`
+paths preserve exact substituted outputs. An entire such body path combines
+with arbitrary expanded argument computation. Only the original argument needs
+a mixed native output joined to its assigned carrier; its computed endpoint
+needs no native certificate.
+
+The concrete instance uses actual stored definitions. Soundness, rigidity,
+universe compatibility and ordinary confluence are all discharged, with no
+quotient-registration requirement. Generic statements permit any collection
+satisfying these proved interfaces; no compatibility theorem for the earlier
+augmented quotient/selected-structure collection is silently assumed.
+
+Remaining: higher singleton-stage carrier computation, endpoint forward
+stability of arbitrary recursive guards, whole guarded/expanded confluence,
+and universal native/common-carrier coverage. The new stage is the existing
+level-recovered stage one, not expanded stage one (whose native identity roots
+still have the exact-substitution obstruction). No strengthening proof,
+canonical-Eq counterexample, or strictly smaller sufficient front is claimed.
+
+Validation: eight modules, 737 jobs, 49 public roots including context-record
+constructor, recursors and projections, maximum closure 11,580; standard
+axioms only, exclusions clean, no new-module warnings. All 712 local imported-source
+hashes checked unchanged. Goal remains active; no PR extraction.

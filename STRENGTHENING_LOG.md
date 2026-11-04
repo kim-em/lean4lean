@@ -20506,3 +20506,62 @@ Only the three new modules and these ledger appends are staged. Independent
 516462e5 and any ongoing work are preserved. No executable changes,
 coordination or PR extraction. The original strengthening sorry remains at
 UniqueTyping.lean:94, and the full GOAL.md deliverable remains open.
+
+### 2026-11-04 21:30:39 UTC — Joined native transport through universe-core singleton guards
+
+Closed the universe-native version of common-carrier substitution, including
+all recursive checker constructors and the entire first level-recovered stage.
+The key invariant is deliberately asymmetric: native certificates compute in
+the level core, while changes to their selected output are ordinary-core paths.
+
+- `ProofErasureLevelCoreNativePullback`: postpone universe changes and reverse
+  the final structural variant at an actual typed ordinary reduct. A common
+  level reduct of assigned/native types therefore supplies a native ordinary
+  reduct of the assigned type. Asymmetric typed confluence produces an ordinary
+  residual on either chosen recursive branch (by exchanging branches).
+- `ProofErasureLevelCoreNativeReduction`: transfer all native constructors from
+  a source relation whose paths have level-core joins, with an ordinary output
+  residual. Applies to mixed core, universe and controlled beta expansion.
+  Applications use ordinary Pi inversion; projections retain their exact
+  registered universe instance; sort recovery retains its original syntax.
+- `ProofErasureLevelCoreJoinedSubstitution`: binder-stable native images,
+  simultaneous construction from level joins or mixed-native joins, full native
+  substitution, and composition with mixed recovery replacement. Neither exact
+  assigned-type recovery nor native coverage of all terms is assumed.
+- `ProofErasureLevelCoreContextReduction`: actual context conversion with
+  ordinary forward oracles; native and Pi recovery transport follows from the
+  joined-image identity substitution.
+- `ProofErasureLevelCoreCheckReduction`: simultaneous transport of every
+  computed checker constructor under context reduction and ordinary carrier
+  reduction. Its carrier-conversion case uses asymmetric level confluence;
+  arbitrary function/structure nesting and computed-domain applications remain.
+- `ProofErasureLevelCoreJoinedTransport`: complete recursive comparison/carrier
+  substitution through joined native images, using the simultaneous carrier
+  theorem to move application guards to newly selected domains.
+- `ProofErasureLevelCoreRecoveredTransport`: align two independent recovered
+  outputs by ordinary typed confluence and transport their dependent carrier
+  guard. Discharges the full recovered-guard substitution interface.
+- `ProofErasureLevelCoreGuardPrimitives`: general singleton and specialized
+  Eq-prefix substitution through generated telescopes; arbitrary finite paths
+  at `ErasedLevelRecoveredStage D 1`; mixed-native argument instantiation and
+  full-expanded argument/body square. The actual stored-definition instance
+  discharges all soundness, rigidity, universe compatibility and core confluence
+  premises. Canonical Eq and concrete patterns remain as explicitly stated.
+
+The first-stage result allows explicit universe conversions throughout its
+native and carrier guards. It does not assert exact substitution of native
+identity expansion, nor confluence/forward stability of guards computed at
+higher singleton stages. Universal common-native coverage and the final
+strengthening theorem remain open. No new sufficient smaller front is claimed.
+The original `UniqueTyping.lean` sorry remains unchanged. No executable changes
+or PR extraction were made; independent worktree changes were preserved.
+
+Validation: eight modules, 737-job build, 49 public audit roots (including
+`ContextReduction` constructors, recursors and field projections). The audit
+walks transitive types, opaque bodies, inductive constructors and recursor rule
+RHSs. Maximum closure: 11,580; only `propext`, `Classical.choice`, and
+`Quot.sound`. No `sorryAx`, strengthening theorem, joint front/beta-stability
+assumption, semantic head exposure, selected-domain/structural-image recovery,
+or excluded native-alignment interface appears. All 712 local imported-source hashes
+were checked stable; no new-module warnings. Artifacts:
+`/dev/shm/level-core-native-*`.
