@@ -19926,3 +19926,76 @@ audit artifacts are /dev/shm/lambda-readout-*. The disk briefly exhausted both
 space and inodes; 41 prior session audit artifacts were preserved under
 /dev/shm/lean4lean-strength-audit-archive, and capacity subsequently recovered.
 No independent source edits were removed. Goal active; no PR extraction.
+
+
+## Eta critical peak and common-reduct annotation repair (2026-11-04)
+
+The preceding turn proved a computation from an original application through
+its computed eta body, without native argument recovery. It did not produce
+a path from an independently beta-contracted source. This turn checks a sharp
+failure of exact residual transport and proves two constructive repairs that
+allow the eta endpoint to change.
+
+ProofErasureCarrierAlignedEtaBetaPeak defines the captured-domain identity
+wrapper, the ordinary identity, and its captured eta expansion. The wrapper
+has an actual typed representative in every well-formed base context. Its
+ordinary beta branch reaches the identity. Its other branch eta-expands the
+bound variable using its declared Pi and a genuine domain-sort witness at
+stage one, then contracts the wrapper. The resulting annotation retains the
+fresh proposition. long_not_lift plus arbitrary-block computation descent
+excludes every computation from the ordinary identity to this exact endpoint
+for any source-typed descending relation. The explicit typed substitution
+counterexample applies even when the target relation is the whole eta union.
+Both annotation and eta body beta-clean back to the identity, proving this
+peak joinable. No claim of nonconfluence or strengthening failure is made.
+
+ProofErasureCarrierAlignedEtaJoinedRepair starts from existing native evidence
+whose output has a BetaLevelJoin to the actual assigned Pi. Raw Pi exposure
+selects native domain X and its join to the assigned A. Native replay and
+actual Pi uniqueness give X's exact domain-sort witness at A's universe.
+The eta bodies are then identical, so their annotation join gives a raw join
+of the long terms. Typed realization supplies exact beta/universe residuals
+on both sides. A stage-k native guard realizes the short branch at stage k+1;
+the assigned eta branch uses only beta and universe changes. The union theorem
+collects only the existing native certificate's finite bound. No purity or
+exact assigned-Pi recovery is required by these repair theorems.
+
+ProofErasureCarrierAlignedEtaJoinedSubstitution connects this repair with the
+existing joined-native image transport. A pure source native certificate in a
+pure context may use arbitrary old controlled-beta guard depth. Substitution
+by joined native images yields beta-only native evidence joined to the actual
+substituted Pi, and eta stage one supplies a common reduct with the actual
+substituted eta expansion. Target contexts and images are unrestricted by
+purity. Source purity and joined-image evidence remain essential hypotheses;
+this does not assert arbitrary eta-aware native substitution.
+
+ProofErasureCarrierAlignedEtaReadoutRepair instead uses the committed PiReadout
+selection theorem. Its retained domain path computes the assigned eta
+annotation directly to the selected native annotation; the raw eta body is
+unchanged. It returns a native eta guard and the exact long-side component
+path for independently chosen recovery and component relations. Finite eta
+stages give a common target at max(k+1,n), and the entire eta union is covered.
+Guarded component computations and impure sources are allowed. The actual
+readout remains a premise; arbitrary-path readout coverage is not inferred.
+
+Validation: four new modules, 416 Lean lines, 21 new public declarations.
+Main and isolated builds pass 732 jobs. The audit includes 104 exact roots:
+the new declarations plus public declarations of seven changed transitive
+modules copied into the isolated checkout. Types, opaque bodies, constructors
+and recursor rules were traversed; maximum closure 11,092. Only propext,
+Classical.choice and Quot.sound occur. No sorry source, weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability dependency is reachable.
+All 707 local transitive sources match their pre-build hashes and isolated
+copies. No warnings in the four new modules. Artifacts:
+/tmp/carrier-eta-joined-repair-{all-build.log,isolated-build.log,audit.lean,
+audit.log,audit-roots.txt,files.txt,targets.txt,validation.json,
+closure-source-hashes.json}; /tmp/prepare-carrier-eta-joined-repair.py.
+
+Judgment: exact typed computation substitution is refuted, while common-reduct
+eta repair is proved from joined native evidence or retained Pi components.
+General readout coverage and the beta/eta confluence argument remain open.
+The original sorry stays at UniqueTyping.lean:94; GOAL.md remains active.
+Only these four modules and ledger appends are staged. Independent 35559229
+and its changed observation dependencies are preserved; no executable changes,
+coordination or PR extraction.

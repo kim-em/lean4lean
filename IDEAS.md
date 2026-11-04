@@ -7885,3 +7885,53 @@ Validation: three modules, 722-job build, 41 exact dependency roots including
 all new observation constructors and recursors; maximum closure 11,140;
 only propext, Classical.choice and Quot.sound, with no excluded dependency or
 warning in these sources. Goal active; no PR extraction.
+
+
+## Exact eta substitution fails; joined and readout repairs succeed (2026-11-04)
+
+- Transport an arbitrary typed eta-body computation to its exact substituted
+  endpoint, allowing any target guard depth: **refuted**. NativeEtaBetaPeak
+  uses the existing captured Pi assignment for the closed identity. A variable
+  of that declared type eta-expands at stage one. After substituting the
+  identity, the eta endpoint retains the fresh proposition in its annotation.
+  No source-typed descending computation from the closed identity reaches that
+  exact raw endpoint, even over the whole eta union. The witness includes
+  actual body/argument typings and a well-formed source context. This is now
+  a computation counterexample, beyond failure of exact native recovery alone.
+- Interpret that failure as nonconfluence: **excluded for this witness**.
+  A typed identity-wrapper application beta-reduces to the ordinary identity
+  or eta-expands its bound variable and then beta-reduces to the captured eta
+  endpoint. The latter beta-cleans its annotation and body back to the ordinary
+  identity. Exact forward residual transport fails; a common reduct exists.
+- Repair an assigned eta annotation using joined native evidence: **proved**.
+  BetaLevelJoin of a native output with the assigned Pi exposes a native Pi
+  and a domain join. Actual uniqueness fixes its domain sort. The two eta
+  expansions have a beta/universe common reduct. Eta stage k+1 realizes the
+  short branch; the assigned long branch uses only beta/universe conversion.
+  Exact recovery of the assigned Pi, purity, and native argument images are
+  not premises of this local repair.
+- Substitute joined native images before eta repair: **proved for the existing
+  pure controlled-beta source recovery**. The prior joined-image transport
+  gives beta-only native evidence after substitution; the new repair then
+  gives a common target at eta stage one. Target contexts and images need not
+  be pure. Source purity and the joined-image evidence remain explicit; this
+  is not transport of arbitrary eta-stage recovery.
+- Use retained Pi components instead of raw beta/universe joins: **proved**.
+  PiReadout selects an actual native Pi and retains a computation from the
+  assigned domain to its selected domain. That path moves the assigned eta
+  expansion to the native eta target directly. This works for arbitrary
+  guarded component computation and impure sources, at max(k+1,n), and over
+  the full eta union. Recovery and component relations may differ.
+
+Judgment: exact endpoint substitution is definitively the wrong general
+closure law. Both positive repairs permit the assigned eta endpoint to change.
+Pi readout now has a concrete eta consumer as well as its application consumer.
+Arbitrary readout coverage, full aligned-image transport and beta/eta confluence
+remain open; none of these results is a smaller sufficient irreducible front
+or a strengthening counterexample. Original weakN_iff remains sorry.
+
+Validation: four modules, 416 Lean lines and 21 new public declarations.
+Main and isolated 732-job builds; 104 exact roots audited including changed
+transitive dependencies, maximum closure 11,092, standard logical axioms only.
+All 707 transitive local source hashes and isolated copies agree. No forbidden
+dependency or new-source warning. Goal stays active.
