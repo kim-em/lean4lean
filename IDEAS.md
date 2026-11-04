@@ -8024,3 +8024,48 @@ Validation: three modules, 300 Lean lines, 14 new public roots. Main and
 isolated 727-job builds; 49 roots audited including changed dependencies,
 maximum closure 11,114, standard axioms only. All 702 transitive local source
 hashes match isolated copies; no forbidden dependency or new-source warning.
+
+
+## 2026-11-04 20:41:41 UTC — Full lambda origins and whole-function beta exchange
+
+**Verdict: the general controlled-expansion lambda-origin gap is now closed.**
+Extend the marked finite-observation method to lambda payloads. A payload lambda
+satisfies the base demand, while a control lambda introduced by expansion has a
+functional demand on its body. Beta inversion selects only the functional case;
+compatible lambda computation either updates a payload's component histories or
+transports a control-body observation. FixedTail substitution and root-beta
+induction are reused from the Pi-origin development. Actual payloads may have
+arbitrary body types, with no normalization or purity assumption.
+
+**Proved:** full lambda readout for every retained typed lambda under arbitrary
+controlled expanded computation; a finite later component bound; and literal
+lambda endpoint factorization into original-scope component paths meeting beta
+residuals of the final components. This is the factorization previously bypassed
+for Pi coverage, rather than a mere lambda-head exposure result.
+
+**Beta consumers proved:** the body/argument square now needs native evidence
+only for the original non-proof argument. Full lambda readout supplies the body
+history automatically after arbitrary whole-function computation. Proof arguments
+need no native certificate; computed arguments need no recovery. An arbitrarily
+computed constant function beta-returns the same lower computed payload for every
+raw argument, without any typing or recovery assumption on that argument. This
+closes the whole constant-function wrapper case originally left open.
+
+**Eta connection proved:** full Pi readout discharges the readout hypothesis in
+the native eta-annotation repair when there is a controlled expanded assigned-type
+path. The short function uses the eta union; its assigned eta expansion reaches
+the same target using only the controlled beta-expansion union. A finite-stage
+version exposes the max(k+1,later) bound. No purity or beta/universe join is assumed.
+
+**Remaining:** neither all native outputs nor all original non-proof arguments
+have exact assigned-type recovery; known boundaries prohibit asserting that
+coverage. General beta strip therefore still requires residual repair for
+arguments with only joined/common native carriers. The new origin invariants
+cover controlled beta expansion, not arbitrary native eta stages. General guarded
+confluence/checker completeness and the original strengthening goal remain open;
+no sufficient strictly smaller front is claimed.
+
+Validation: five modules, 740 jobs, 44 exact roots (opaque bodies, constructors,
+recursors), maximum closure 11,402; standard axioms only, no excluded
+dependencies or new-source warnings. All 715 local imported sources stayed
+unchanged through validation. Goal active; no PR extraction.

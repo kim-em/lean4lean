@@ -20116,3 +20116,56 @@ Only the three new modules and these ledger appends are staged. Independent
 c43e9bb1 and ongoing lambda-origin work are preserved. No executable changes,
 coordination or PR extraction. Original weakN_iff remains sorry at
 UniqueTyping.lean:94; the strengthening goal remains active.
+
+
+## 2026-11-04 20:41:41 UTC — Recover lambda histories through arbitrary expansion
+
+Previous goal turn: verified progress in c43e9bb1. Five new modules extend the
+marked-origin method to lambdas and consume both lambda and Pi histories.
+
+ProofErasureLambdaOriginObservation distinguishes payload lambdas carrying lower
+component histories from control lambdas discharging finite argument demands.
+It shares the FixedTail invariant with PiOriginObservation. Its substitution and
+realization theorems preserve exact payload certificates; functional lambda
+inversion cannot select a payload at the base demand. This distinction handles
+root beta without reducing a payload's arbitrary body.
+
+ProofErasureLambdaOriginTransport reuses root-beta computational induction and
+proves primitive-root and typed compatible preservation. In the lambda case,
+payloads use a component closure law while control bodies add one temporary
+binder. ProofErasureExpansionLambdaOrigin proves that closure using exact
+certificate descent and backward context transport. Its concrete payload stores
+actual domain equality, an actual body typing, and both original-scope computation
+histories. Full union readout, finite later bounds, and literal-lambda component
+residuals are proved. No assumed lambda factorization remains.
+
+ProofErasureExpansionLambdaBetaExchange first proves union instantiation and the
+body/argument square with retained-only native images. It then uses full lambda
+readout to join original head beta against arbitrary independent whole-function
+and argument computations. The selected residual is the exact exposed body
+instantiated by the computed argument. Proof arguments require no native image;
+non-proof arguments still require one at the original assigned type. This is a
+head-beta/children square, not general beta strip through arbitrary future tails.
+The constant-function theorem is stronger on arguments: any whole computed
+constant function beta-returns an actual lower computed payload for every raw
+argument, with no argument typing or native evidence.
+
+ProofErasureExpansionPiOriginEtaRepair removes the separate readout hypothesis
+from eta repair whenever an expanded assigned-Pi path reaches the existing native
+output. The assigned eta side uses the beta-expanded union, and the short side
+uses native eta. A finite-stage version retains the max(k+1,later) bound. The type
+path remains a real hypothesis; it is not supplied for arbitrary declarative
+conversion by this theorem.
+
+The original weakN_iff gap remains. General non-proof argument recovery at exact
+assigned types is refuted, so the next beta-stability work must repair residuals
+using joined/common native carriers rather than assume universal exact images.
+No eta-stage origin theorem, general guarded confluence, or smaller sufficient
+PropFront obligation is claimed. All edits are theory-only; no PR extraction or
+coordination occurred, and independent untracked work was preserved.
+
+Validation: 740 jobs; 44 roots with complete opaque-body, constructor and
+recursor dependency traversal; maximum closure 11,402; propext,
+Classical.choice and Quot.sound only, no forbidden dependencies. All 715 local
+import-source hashes remained unchanged; no new-source warnings. Artifacts:
+/dev/shm/lambda-origin-*. Goal active.
