@@ -16582,3 +16582,65 @@ complete comparison conversion. Arbitrary equal carriers are not necessarily
 NeutralTypeChange-related, so the result does not supply universal image
 coverage. Original UniqueTyping.lean:94 sorry remains; no GOAL.md completion
 alternative is established. No coordination, subagents, or executable changes.
+
+
+## 2026-11-04 12:21 UTC — Extend image substitution to dependent domains and value results
+
+Previous goal turn made progress: 3170bc77 proved full recursive structural
+image substitution and was pushed. Revalidation found a clean worktree at
+8c84e010, with additional committed recursive neutral binder conversion. This
+turn extends the existing StructuralFamilyRecovery and its consuming transport
+theorems; it does not assume the new conversion theorem gives arbitrary image
+coverage.
+
+The structural constructor formerly fixed its inner codomain to Sort v. It now
+uses any actual C typed under its source domain A. Its beta-exposed lambda keeps
+the same C under an ordinarily equal domain B. Substitution reconstructs the
+inner dependent context and its erased substitution agreement. Application
+repair reconstructs actual domain equality and uses proofErase_defeqCtx to
+align codomain erasures before consuming whole dependent-carrier conversion.
+of_dependent_structural and dedicated comparison/computation instantiation
+wrappers expose the general result; of_structural preserves the previous
+literal-sort API. ProofErasureDependentStructuralEtaInstantiation checks both
+full-body and first-layer consumers at any typed inner codomain C.
+
+The new neutralFamily constructor covers functions with protected neutral
+input and output types, rather than requiring a universe result. The output
+head is protected at cut+1, so an arbitrary local argument cannot replace it.
+The rank-preserving substitution proof lifts the protected-head condition
+under the domain binder. In the exposure induction, applying this leaf follows
+the retained codomain computation, preserves the neutral head, and removes
+the local binder through PreservesCarrierHeads.one. The result is the existing
+terminal neutral-output case. Projection exclusion and application rebuilding
+handle this additional leaf, and every recursive transport consumer rebuilds.
+
+proofErase_computed_joint_zero_compare_inst_neutralResultFamily covers the
+whole new function-image class without a beta-exposure or native-recovery
+premise. ProofErasureNeutralResultEtaInstantiation supplies a concrete lambda
+with eta-converted assigned input and body bvar 1, returning the retained
+context value at native.lift. It instantiates arbitrary typed body comparisons
+and first-layer computations. This exercises a value result instead of a
+supplied universe result; it is not merely a root application certificate.
+
+Validation: both new consuming modules and the old structural eta-instantiation
+module build successfully in 597 jobs, without changed/new-module warnings.
+The opaque audit covers 50 exact public roots, including every constructor
+of the modified recovery class, all recursive consumers, the old fixed-sort
+example and negative recovery theorem. Expected roots and axiom reports match
+exactly. The largest complete dependency closure contains 11,179 declarations;
+only propext, Classical.choice and Quot.sound occur. No sorryAx, weakN_iff,
+weakN_inv, JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability is reachable. This is an audit
+of the listed roots and their full closures, not a cumulative historical audit.
+Artifacts: /tmp/dependent-neutral-image-build.log,
+/tmp/dependent-neutral-image-audit.lean, .log and -roots.txt.
+
+Scope: full stage-zero recursive checking and first-layer computations for
+the enlarged finite image paths. The dependent structural leaf still returns
+a sort, and the new protected neutral-result leaf requires a neutral input.
+Combining arbitrary structural inputs and results, unrestricted conversion,
+higher-stage recovery/comparison, heterogeneous substitution, endpoint beta
+stability and completeness are not proved. UniqueTyping.lean:94 still has the
+original sorry. None of GOAL.md's three completion alternatives is established.
+The goal remains active; only Theory and ledgers change, with no PR extraction,
+executable changes, subagents or coordination.

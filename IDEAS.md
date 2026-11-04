@@ -5521,3 +5521,31 @@ and investigate the still-unjustified substitution of arbitrary intermediate
 arguments into higher-stage converted body paths.
 
 | Convert recursive neutral binders before anchored instantiation | **Checked (2026-11-04).** `ComputedJointCheck.recursive_neutral` extends the older simultaneous comparison/carrier conversion proof to every computed checking constructor. Actual recovery supplies the changed application domain; the smaller argument guard converts with it. Computed-lambda applications retain their written domains and realized argument typings. `proofErase_computed_joint_zero_compare_inst_converted_anchored` first converts the binder to a recursively neutral-related equal type, then instantiates using an anchored path there. `proofErase_computed_joint_structural_eta_lambda_inst` covers every common-typed stage-zero body for the exact Pi-wrapped eta boundary, although no anchored path exists at its assigned type. This improves the previous root-only repair to recursive body substitution. Arbitrary images and unrestricted endpoint beta stability are not established. |
+
+
+## 2026-11-04 12:21 UTC — Dependent structural domains and neutral result values
+
+Verdict: checked extensions of the complete structural-image substitution
+induction. The structural leaf now admits Pi A C with arbitrary dependent C,
+retained as syntax in the written Pi B C annotation. Actual equality of A and B
+converts the binder context and proves codomain erasure unchanged. No inner
+codomain normality, neutral-head condition or sort shape is needed. The older
+literal-sort interface is a specialization. Parametric eta-domain consumers
+exercise both arbitrary body comparison and first-layer computation.
+
+A second leaf admits arbitrary functions at Pi A C when A and C have protected
+neutral heads (C's head lies outside the function binder). No native recovery
+or beta-exposed lambda is required. Under application, the recorded codomain
+computation preserves that head and substituting the argument cannot replace
+it, so exposure terminates at the existing neutral-output case. The image may
+return a retained value instead of a type. A concrete eta-converted input
+example returning the original context value now supports full recursive
+body instantiation and first-layer computation.
+
+These remove two separate restrictions of the previous class, not the entire
+image-coverage gap. Structural leaves still have sort-valued outer results;
+the new neutral-result leaf has a neutral input. Arbitrary structural results,
+arbitrary domain conversions and higher-stage recovery remain open. Next:
+combine converted structural input with protected neutral result, or generalize
+finite path classification to recursively convertible selected types while
+retaining justified substitution of converted body computations.

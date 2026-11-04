@@ -47,4 +47,22 @@ theorem proofErase_computed_joint_one_compute_inst_structural
       (erasedSubstAgreement_one hΓT hp) (StructuralOrRecoveringImages.inst HR) he R
 
 
+/-- A beta-exposed family at a dependent structural domain instantiates all
+first-layer computations. No shape restriction is imposed on the inner
+codomain, and the exact substituted output is preserved. -/
+theorem proofErase_computed_joint_one_compute_inst_dependentStructuralFamily
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (hp : env.HasType univs Γ p (.forallE (.forallE C K) (.sort w)))
+    (HC : AnchoredCarrier 0 (proofErase Γ C))
+    (RP : VExpr.BetaRed p (.lam (.forallE E K) body))
+    (he : env.HasType univs (.forallE (.forallE C K) (.sort w) :: Γ) e A)
+    (R : ScopedCompute (ErasedComputedJointStage D 1)
+      (proofEraseCtx (.forallE (.forallE C K) (.sort w) :: Γ))
+      (proofErase (.forallE (.forallE C K) (.sort w) :: Γ) e) out) :
+    ScopedCompute (ErasedComputedJointStage D 1) (proofEraseCtx Γ)
+      (proofErase Γ (e.inst p)) (out.inst (proofErase Γ p)) :=
+  proofErase_computed_joint_one_compute_inst_structural heq hs hΓ hp
+    (StructuralFamilyRecovery.of_dependent_structural hΓ hp HC RP) he R
+
 end Lean4Lean.VEnv.Strengthening

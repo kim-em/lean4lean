@@ -135,6 +135,43 @@ theorem proofErase_computed_joint_zero_compare_inst_structural
     proofErase_computed_joint_zero_compare_subst_structural hs hΓ W
       (erasedSubstAgreement_one hΓT hp) (StructuralOrRecoveringImages.inst HR) ha hb H
 
+/-- A function with protected neutral input and result types instantiates
+all recursive stage-zero body comparisons. Its body need not produce a type,
+and no beta exposure or native recovery is required for the function image. -/
+theorem proofErase_computed_joint_zero_compare_inst_neutralResultFamily
+    (hs : D.Sound env univs) (hΓ : OnCtx Γ (env.IsType univs))
+    (hp : env.HasType univs Γ p (.forallE C K))
+    (HC : AnchoredCarrier 0 (proofErase Γ C))
+    (HK : AnchoredCarrier 1 (proofErase (C :: Γ) K))
+    (ha : env.HasType univs (.forallE C K :: Γ) a A)
+    (hb : env.HasType univs (.forallE C K :: Γ) b A)
+    (H : ComputedJointCompare (ErasedJointStage D 0)
+      (proofEraseCtx (.forallE C K :: Γ)) mode
+      (proofErase (.forallE C K :: Γ) a) (proofErase (.forallE C K :: Γ) b)) :
+    ComputedJointCompare (ErasedJointStage D 0) (proofEraseCtx Γ) mode
+      (proofErase Γ (a.inst p)) (proofErase Γ (b.inst p)) :=
+  proofErase_computed_joint_zero_compare_inst_structural hs hΓ hp
+    (StructuralFamilyRecovery.of_neutral_result hΓ hp HC HK) ha hb H
+
+/-- A type-valued family at a dependent structural domain substitutes through
+all stage-zero recursive checking. The inner codomain is arbitrary and may
+depend on its bound argument; it is retained in both lambda annotations. -/
+theorem proofErase_computed_joint_zero_compare_inst_dependentStructuralFamily
+    (hs : D.Sound env univs) (hΓ : OnCtx Γ (env.IsType univs))
+    (hp : env.HasType univs Γ p (.forallE (.forallE C K) (.sort w)))
+    (HC : AnchoredCarrier 0 (proofErase Γ C))
+    (RP : VExpr.BetaRed p (.lam (.forallE E K) body))
+    (ha : env.HasType univs (.forallE (.forallE C K) (.sort w) :: Γ) a A)
+    (hb : env.HasType univs (.forallE (.forallE C K) (.sort w) :: Γ) b A)
+    (H : ComputedJointCompare (ErasedJointStage D 0)
+      (proofEraseCtx (.forallE (.forallE C K) (.sort w) :: Γ)) mode
+      (proofErase (.forallE (.forallE C K) (.sort w) :: Γ) a)
+      (proofErase (.forallE (.forallE C K) (.sort w) :: Γ) b)) :
+    ComputedJointCompare (ErasedJointStage D 0) (proofEraseCtx Γ) mode
+      (proofErase Γ (a.inst p)) (proofErase Γ (b.inst p)) :=
+  proofErase_computed_joint_zero_compare_inst_structural hs hΓ hp
+    (StructuralFamilyRecovery.of_dependent_structural hΓ hp HC RP) ha hb H
+
 /-- A structural family whose written lambda domain differs from its assigned
 function domain now substitutes through every recursive comparison at stage
 zero. The supplied path is finite beta computation; no body-checking oracle
