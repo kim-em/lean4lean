@@ -7186,3 +7186,37 @@ Validation: 785-job build, 102 selected modules, 773 dependency roots (41 new),
 maximum closure 12,790; standard axioms only. The original strengthening
 sorry remains. No GOAL.md deliverable is claimed; extending higher-stage repair
 to images without exact assigned-type recovery remains an open mathematical step.
+
+## Separate parameterized computed exposure from aligned eta instantiation
+
+Verdict: **proved exposure and parameterized fieldwise application checking
+for the complete computed grammar**. SpineRootLevels allows primitive universe
+conversion at a rigid family while preserving its term arguments. Finite
+computation then retains the family, equivalent universe list, and one scoped
+computation for every argument. These root laws hold at every level-extended
+recovered stage and at the union.
+
+ComputedJointCompare.const_spine_levels_exposure covers every constructor,
+including appCarrier and appComputed. All three application rules retain an
+inferred function comparison; its exposure path supplies the head computation.
+The appComputed case does not need to instantiate its chosen lambda or assume
+confluence of that path with the exposed function path. Typed mode conversion
+extends this to either mode at type endpoints. Exposure retains universe
+equivalence and arity even when both parameter lists change through computation.
+
+Native Pi selection retains a domain comparison in the computed grammar.
+Family exposure plus the existing universe/proof-field theorem then transfers
+all ordinary retained field comparisons to the selected parameterized carrier.
+No equality of parameter syntax, literal carrier join or semantic head premise
+is required. Actual application erasures are handled at every finite stage and
+the union; the actual registry discharges soundness and rigid-head exclusion.
+
+Full CarrierAlignedCompare still adds a distinct issue at partial family heads:
+its native carrier promotions can lead to function guards or eta bodies under
+a fresh binder. The raw spine induction alone does not instantiate those bodies
+at arbitrary supplied parameters. This is an unresolved proof case, not a
+counterexample to full aligned exposure. Carrier-valued dependent field guards
+also remain beyond the new fieldwise consumer. Next investigate native sort
+selection for typed family arguments and the image evidence needed to instantiate
+these eta bodies. General native/comparison completeness and original PropFront
+remain unproved; no strictly smaller sufficient irreducible obligation is claimed.

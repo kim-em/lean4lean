@@ -19039,3 +19039,50 @@ remains at UniqueTyping.lean:94. No canonical-Eq counterexample or strictly
 smaller sufficient irreducible obligation has been obtained; GOAL.md stays active.
 Only seven new theory modules and these appendices are part of this change.
 No executable changes, PR extraction or agent coordination.
+
+## Parameterized family exposure and computed fieldwise application checking
+
+Added SpineRoot: primitive rigid spines preserve term arguments while allowing
+equivalent universe arguments. ScopedCompute.const_spine_levels supplies the
+resulting family instance, universe equivalence and every argument computation.
+The existing rigid-root theorem discharges the primitive interface at every
+finite level-extended stage and the union, independently of source typing.
+
+ComputedSpineExposure proves the paired exposure induction for the entire
+ComputedJointCheck grammar. app, appCarrier and appComputed use their inferred
+function comparison to expose a head. No native-argument recovery, primitive
+substitution or computation confluence is assumed. Computation composes both
+universe equivalences and parameter paths. The public inferred theorem retains
+family, universe equivalence and arity; actual sort typings permit either mode.
+The union consumer supplies its precise root and descent laws.
+
+ParameterizedFields retains a computed domain comparison during native Pi
+selection, then transfers retained field checks to the selected parameterized
+family. Actual source and exposed target head typings supply well-formedness
+and universe arity. The exposure's level equivalence preserves static proof-field
+metadata; existing projection comparisons remain unchanged even when parameters
+change syntax. ParameterizedApplication supplies actual-erasure application
+consumers for generic roots, each finite stage, the union and the actual registry.
+Proof-valued results are handled explicitly. Source native recovery and its
+computed comparison to the assigned Pi remain inputs.
+
+Validation: main and isolated builds passed, 781 jobs for 63 explicit modules.
+All 238 exact roots passed the opaque-body, constructor and recursor dependency
+audit; maximum closure 11,285. Only propext, Classical.choice and Quot.sound
+occur. No sorry sources or excluded weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport
+or JointPropBetaStability occur. All 63 sources match the isolated build exactly;
+the four new modules have no build warnings. Artifacts:
+/tmp/carrier-parameterized-{all-build.log,isolated-build.log,audit.lean,audit.log,
+audit-roots.txt,files.txt,targets.txt,validation.json}; preparation:
+/tmp/prepare-carrier-parameterized.py; verifier: /tmp/verify-carrier-audit.py.
+
+Scope: the supplied native type comparison is ComputedJointCompare, not the
+larger CarrierAlignedCompare; retained fields require ordinary common comparison,
+not arbitrary dependent field carrier guards. The full aligned parameterized
+case reaches fresh-binder function/eta checking and still needs justified
+instantiation there. This is not a refutation of its exposure theorem. Original
+weakN_iff remains sorry at UniqueTyping.lean:94; no canonical-Eq counterexample,
+proof, or sufficient smaller irreducible front has been obtained. Only four new
+theory files and these ledger appendices belong to this change. No executable
+edits, new axioms, agent contact or claim that GOAL.md is complete.
