@@ -7851,3 +7851,37 @@ Validation: main and isolated 712-job builds; three exact public roots audited
 through opaque bodies, constructors and recursor rules, maximum closure 8,247;
 standard axioms only, no forbidden dependencies. All 687 transitive source
 hashes match isolated copies. No new-source warnings; weakN_iff remains open.
+
+
+## 2026-11-04 20:16:56 UTC — Lambda exposure before body-origin factorization
+
+**Verdict: proved operational exposure, origin factorization remains open.**
+An arbitrary expanded computation starting at a literal lambda beta-exposes a
+lambda, even with unrestricted annotations and a divergent body. The finite
+observer gives lambda heads a base demand independent of body observations;
+substitution, beta preservation, and operational realization are proved. Opaque
+primitive roots cannot consume this demand, and both controlled expansion roots
+preserve it. Finite stages and the full union are covered, without source typing
+or native argument recovery. A typed retained source additionally reconstructs
+an actual lambda at its original type and unchanged computation stage.
+
+**Constant-body improvement: proved at the unchanged stage.** Any well-formed
+unused binder can be discharged from a computation of a lifted typed payload.
+The exact body output is a lift of a lower computed term. This works directly
+under a changed annotation: no comparison or computation back to the wrapper's
+original binder is needed. Arbitrary final annotations and arguments beta-return
+the lower term. Further beta paths have a common residual with its lower path.
+
+**Next live target: literal-lambda endpoint factorization.** Exposure reduces
+the whole-function problem to a computation from an original literal lambda to
+a selected literal lambda. What is still missing is factorization into domain
+and body computation (possibly after further beta), with the body path in its
+original scope. For a constant wrapper, that body history would feed the exact
+unused-binder readout. Typed equality of the two lambdas does not provide this
+operational history. No arbitrary PiReadout coverage, sufficient smaller front,
+or proof of strengthening follows yet. The original sorry remains.
+
+Validation: three modules, 722-job build, 41 exact dependency roots including
+all new observation constructors and recursors; maximum closure 11,140;
+only propext, Classical.choice and Quot.sound, with no excluded dependency or
+warning in these sources. Goal active; no PR extraction.

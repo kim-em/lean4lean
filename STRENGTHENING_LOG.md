@@ -19883,3 +19883,46 @@ validation.json,closure-source-hashes.json}; preparation script
 Only this module and ledger appends are staged. Independent dff97a88 is
 preserved. Original weakN_iff remains sorry at UniqueTyping.lean:94 and the
 goal remains active; no executable changes, coordination or PR extraction.
+
+
+## 2026-11-04 20:16:56 UTC — Expose computed functions and discharge arbitrary unused binders
+
+The previous proof turn made verified progress (dff97a88). This turn adds
+LambdaObservation, ProofErasureExpansionLambdaExposure, and
+ProofErasureExpansionConstantReadout.
+
+The lambda observer separates a head demand from functional demands. A head
+requires no observation of the body, so the adequacy proof does not assume
+normalization. Forward beta preservation handles the two lambda observation
+cases explicitly; realizing substitutions give a finite beta path to a lambda.
+Every controlled expansion stage preserves all its demands. Thus any whole
+expanded computation from a lambda has a beta-exposed lambda, including paths
+that expand at the function's outer root. One exposed body works uniformly at
+every raw argument. Independently computed arguments give an application
+residual at max(n,m), with no native image assumption. Typed replay reconstructs
+an actual lambda equal at the original type and retains the same-stage path.
+
+Constant-body certificate descent was generalized from the fixed sort binder
+to every well-formed unused binder. It returns the exact lifted body, actual
+lower equality, and a lower computation at the original body stage. An initially
+considered backward-context step is unnecessary here: the payload is independent
+of this binder, so direct descent is stronger and needs no annotation path.
+Raw beta confluence supplies residuals after any further beta interleaving.
+The full expanded union also retains the exact lifted body certificate.
+
+The remaining origin problem has not been closed. New exposure gets arbitrary
+computed functions to literal lambda endpoints, but does not factor the path
+between those endpoints into component histories. That factorization, together
+with unused-binder descent for constant frames and exact identity behavior, is
+the next live standardization target. These results concern controlled beta
+expansion, not arbitrary eta stages; no smaller sufficient strengthening
+obligation is claimed. UniqueTyping.lean still contains its original gap.
+
+Validation: 722 build jobs; 41 roots audited through types, opaque bodies,
+inductive constructors and recursor rules; maximum closure 11,140; standard
+logical axioms only; exact source hashes checked; no new-source warnings or
+forbidden strengthening/resynthesis/native-coverage dependencies. Build and
+audit artifacts are /dev/shm/lambda-readout-*. The disk briefly exhausted both
+space and inodes; 41 prior session audit artifacts were preserved under
+/dev/shm/lean4lean-strength-audit-archive, and capacity subsequently recovered.
+No independent source edits were removed. Goal active; no PR extraction.
