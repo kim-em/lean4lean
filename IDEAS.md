@@ -7248,3 +7248,33 @@ result can supply exact type-argument images only when its native and alignment
 inputs are already available. It does not yet instantiate arbitrary eta bodies,
 cover arbitrary supplied family parameters, or establish a sufficient strictly
 smaller front. Original weakN_iff and GOAL.md remain open.
+
+## 2026-11-04 18:39:45 UTC — Universe-converted native images through recovered guarded stages
+
+- Generalize native-image transport over the computation relation instead of
+  treating the old computed stages as fixed: proved and factored into shared
+  NativeImages/NativeImageRecovery modules. All nine original public signatures
+  of ExactStageImages/ExactStageRecovery remain unchanged and their clients build.
+- Combine the shared induction with explicit universe conversion and recovered
+  singleton-family guards: proved. LevelRecovered stages transport computation,
+  native recovery, full joint checking and CarrierRecoveredCompare from n to n+k
+  for stage-k native images. The new family case preserves the literal common
+  native output of both endpoints and transports the existing full carrier guard.
+  The image class composes; finite-context bounds give union consumers.
+- Permit a structural universe variant of the assigned native output: proved.
+  Typed universe computation converts the native output to the exact assigned
+  type at the same stage. Both TypeInputConvertedExample and TerminalDomainExample
+  now have stage-zero native recovery and unchanged-stage instantiation at every
+  guarded layer, despite their checked old-computed-union recovery failures.
+- Infer arbitrary image coverage from these repairs: refuted. The new
+  TypeFunctionExample.level_assigned_recovery_failure proves that the genuinely
+  higher-order image with a beta-expanded assigned input still has no exact
+  recovery in the entire level-extended recovered union. A Pi written domain
+  remains Pi-shaped under its forward domain computation; the assigned input
+  has an application head. This survives universe conversion and recovered guards.
+
+Validation: 839-job build, 113 selected modules, 831 audited roots (58 new),
+maximum closure 12,797; standard axioms only. These are checked transport
+and boundary results, not a strengthening proof or a sufficient smaller front.
+The next unresolved repair must handle assigned domains beyond forward native
+computation and structural universe variation. GOAL.md remains active.

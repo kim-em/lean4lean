@@ -19121,3 +19121,69 @@ aligned exposure still needs justified eta instantiation. The original sorry
 at UniqueTyping.lean:94 remains, and no GOAL.md deliverable is claimed. Only
 these three theory files and ledger appendices belong to this change. Existing
 independent edits and new files were preserved; executable code was untouched.
+
+## 2026-11-04 18:39:45 UTC — All-stage transport with universe conversion and recovered guards
+
+Factored the exact native image invariant and recovery/checking induction into
+NativeImages and NativeImageRecovery, parameterized by the image computation
+relation, source relation and target relation. The two old ExactStage modules
+now instantiate those proofs; all nine original public signatures are preserved.
+Their definitions remain definitionally the same image predicates.
+
+NativeRecoveredTransport covers the complete CarrierRecoveredCompare grammar.
+At its recovered node both selected outputs transport literally. Source replay
+provides an actual common type for the full carrier check, which is transported
+by the shared computed-joint checker induction. RecoveredGuardTransport extends
+the existing guard interface and transports actual singleton-family guards
+through their generated dependent telescopes. The specialized Eq-prefix proof
+is reused unchanged. LevelStageRenaming supplies exact renaming for the existing
+level-extended recovered stages, including their explicit universe primitives.
+
+LevelNativeTransport proves the additive n+k bound at every finite stage of
+ErasedLevelRecoveredStage, for compatible computation, native recovery, both full
+joint checking modes and recovered-family comparison. LevelNativeInstantiation
+supplies simultaneous and single substitutions, plus image composition with
+additive bounds. LevelNativeUnion collects image bounds over the finite source
+context and lifts the consumers, including recovered comparison, to the union.
+No target comparison, guarded confluence or native-recovery completeness oracle
+remains in these concrete theorems.
+
+LevelNativeVariants accepts selected native outputs structurally differing from
+the assigned type by equivalent universes, including nested Pi domains and
+projection arguments. Actual target typing supplies the universe well-formedness
+needed for explicit conversion; this yields exact assigned recovery at the same
+stage. LevelNativeExample applies it to the existing first-order and higher-order
+universe-converted input examples. Each combines the old computed-union negative
+recovery result with a new stage-zero positive recovery, then instantiates any
+finite level-extended guarded computation at its unchanged source stage.
+
+LevelNativeBoundary records a remaining obstruction in the enlarged system.
+A generic native-lambda lemma tracks forward computation of the written domain
+under the precise no-primitive-Pi-root hypothesis. TypeFunctionExample has an
+actual typed function-valued input whose assigned annotation beta-expands a Pi
+into an application. That image still has no exact assigned recovery in the full
+level-recovered union. Thus the new results address universe-converted native
+images but do not establish arbitrary substitution or subsume all mixed
+native/family alignment results.
+
+Validation: 839-job build for 113 selected modules. All 831 dependency roots,
+including 58 new roots and the extended guard structure's constructor/projections,
+passed the opaque-body, constructor and recursor audit. Maximum closure
+12,797; only propext, Classical.choice and Quot.sound occur. No sorry
+source, weakN_iff, weakN_inv, JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport or JointPropBetaStability
+occurs. All new roots pass the framework independence exclusions. All 13 changed
+sources match the pre-build SHA256 snapshot and have no source build warnings.
+Original-signature comparisons are saved in /tmp/level-native-api.json.
+Artifacts: /tmp/level-native-{full-build.log,audit.lean,audit.log,roots.txt,
+new-roots.txt,independent-roots.txt,files.txt,build-targets.txt,source-before.json,
+validation.json}; scripts /tmp/prepare-level-native-audit.py and
+/tmp/verify-level-native-audit.py.
+
+Judgment: the original weakN_iff sorry remains at UniqueTyping.lean:94. No
+canonical-Eq counterexample, strengthening proof or strictly smaller sufficient
+irreducible obligation is claimed. General assigned-domain repair and comparison
+completeness remain open, with the beta-expanded input now explicitly checked
+against the enlarged computation system. GOAL.md stays active. Only eleven new
+theory modules, two refactored exact-stage modules and these appendices belong to
+this change. No executable changes, PR extraction or agent coordination.
