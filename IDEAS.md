@@ -6348,3 +6348,22 @@ image maps, not arbitrary common-related maps. Full joint carrier checking,
 higher guarded-stage substitution, and sufficient coverage for PropFront remain
 open. This is progress on the live paired-substitution route, not a new sufficient
 irreducible obligation or completion of GOAL.md.
+
+
+### Core paired head beta with nonjoining images (2026-11-04)
+
+Verdict: proved for the entire core ScopedCompare source grammar. Delta/iota
+primitive simulation follows from raw core substitution. The inferred-lambda
+head-beta proof handles finite source computations that change the written
+annotations, using typed lambda-instantiation replay rather than assuming raw
+primitive substitution along untyped intermediate terms. Every recursive eta
+and structure-field body case is included. Converted positive fieldless-structure
+variables still fail the old checker and have no computation join, but instantiate
+all common-typed core scoped body checks; a concrete eta-expanded body returns
+the substituted parameter beneath a lambda.
+
+This removes the primitive-free restriction for the core source, while retaining
+the explicit inferred image comparison. It does not prove higher guarded-stage
+primitive simulation, paired transport of ComputedJointCheck carrier rules, or
+coverage by the enlarged target checker. Those are the remaining live steps;
+no canonical-Eq counterexample or strictly smaller sufficient obligation is claimed.

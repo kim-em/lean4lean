@@ -17827,3 +17827,29 @@ files.txt,targets.txt,validation.json}; validator /tmp/verify-carrier-audit.py.
 This commit contains only these two source modules and these ledger appendices;
 the separately validated head-beta/core/example consumers follow in the next
 commit. Original UniqueTyping.weakN_iff remains open; executable unchanged.
+
+
+### Core paired head-beta consumers and strict examples (2026-11-04)
+
+Added ProofErasureCarrierAlignedScopedHeadBeta,
+ProofErasureCarrierAlignedCorePairedSubstitution and
+ProofErasureCarrierAlignedScopedExample. The generic head-beta consumer preserves
+inferred scoped lambda checking across paired application at inferred-related
+arguments. It accepts proved source primitive head preservation and typed
+simulation; the concrete core consumers discharge both. Source computations can
+change either written lambda domain. The output is a common aligned comparison
+of actual proposition-valued contracta, with no image-join or image-recovery premise.
+
+The strict example retains actual common typing, failure of the older recovered
+checker, and absence of a computation join for the two images. It now quantifies
+over all common-typed core scoped bodies and both modes. A concrete eta-expanded
+body returning the parameter demonstrates recursive extensional substitution.
+The positive fieldless-structure hypotheses remain explicit.
+
+Validation: the same exact 18-module/46-root isolated audit recorded above covers
+all three new modules, their public roots and all prior aligned consumers. The
+685-job isolated build and main 673-job build passed. Standard axioms only;
+maximum closure 11,158; exact isolated source bytes; no forbidden dependencies.
+Artifacts /tmp/carrier-scoped-*. The original strengthening sorry remains.
+Full joint carrier checking and higher guarded stages are not covered. No
+executable changes, external coordination, or completion claim.
