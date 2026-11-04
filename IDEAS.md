@@ -5975,3 +5975,50 @@ newly exposed domain and changed native outputs. Existing recovery plus a type
 comparison is still an explicit input, not a consequence of arbitrary typing.
 This head-exposure result does not supply full substitution, beta stability or
 a strictly smaller sufficient front by itself.
+
+
+### 2026-11-04 13:56 UTC — recursive substitution through retained terminal fields
+
+Verdict: proved recursive checking and exact first-layer computation
+instantiation for structures whose retained projections have terminal results.
+This advances the retained-data-field gap without assuming forward conversion
+of the dependent field carrier. TerminalFieldShape is a concrete declaration
+shape: a universe, a rigid constant application with no projections, or a
+fieldless registered structure. Its arguments may depend on parameters and
+prior fields. It survives arbitrary term substitution and universe
+specialization. StructureReplay.TerminalFields requires that shape for each
+field in the registered finite constructor telescope.
+
+The crucial proof uses a projection's own typing inversion, including its
+actual universe instance, parameters, source major and admissibility guard.
+It reconstructs the native field typing at that source and applies the static
+field-head certificate. Owner injectivity aligns a separately certified major
+with the actual projection owner. No projected constructor expansion is assumed,
+no assigned type is resynthesized, and no forward computation of a dependent
+field type is required. Indexed structures are allowed when the projection is
+actually typed; there is no blanket projection-admissibility claim.
+
+ProjectionTerminalImage includes the old terminal images and typed majors
+with this telescope certificate. StructuralFamilyRecovery.projectable retains
+this case at an arbitrary selected raw output. In native recovery transport,
+a retained projection whose major loses exact recovery now returns a terminal
+result certificate instead of deriving a contradiction. The full recursive
+stage-zero comparison and first-layer computation consumers inherit the case.
+
+Checked dependent telescope: a Type field followed by a value of a rigid data
+family applied to that earlier type. Its declaration satisfies TerminalFields.
+For a positive registered record with that telescope, an actual projection is
+typed at Type and is not erased, hence its major cannot satisfy TerminalImage.
+This proves the image extension is genuine relative to the previous class.
+Concrete and generic body-comparison consumers use the new certificate.
+
+Boundary: arbitrary function-valued fields and fields whose instantiated types
+have unprotected variable heads remain outside this class. Global higher-stage
+substitution and strengthening remain open; this is not a smaller sufficient
+front. Live next direction: replace the one-projection terminal condition by
+an inductive finite field certificate, allowing a projection to return another
+certified record. Substitution preserves the rigid head while recursion proceeds
+through the finite declaration certificate, rather than assuming normalization
+or a future comparison law. This extension has not yet been implemented or
+proved. Mixed proof/data fields and general function-valued fields need further
+arguments; the existing all-proof-field case remains available separately.

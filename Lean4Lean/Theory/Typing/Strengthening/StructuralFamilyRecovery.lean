@@ -1,11 +1,12 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureSelectedLambdaDomain
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureTerminalImage
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureProjectionTerminalImage
 
 /-! # Selected recovery with convertible structural family domains
 
 A structural family leaf retains its beta-exposed lambda at a dependent
 function domain. Other function leaves may return values at protected neutral
-types. Applications end at terminal typing or protected neutral output, so exposure
+types. Structure leaves may have retained fields with terminal results.
+Applications end at terminal typing or protected neutral output, so exposure
 terminates even when assigned and written domains have no exact recovery join.
 -/
 namespace Lean4Lean.VEnv.Strengthening
@@ -27,15 +28,18 @@ private theorem beta_subst (H : VExpr.BetaRed e out) :
   | forallE _ _ ih₁ ih₂ => exact .forallE ih₁ ih₂
   | beta => rw [VExpr.subst_inst]; exact .beta
 
-/-- A path ending in a terminal typed image, a protected neutral output, or a type family
-with a neutral or convertible structural domain.
+/-- A path ending in a terminal or terminal-field image, a protected neutral
+output, or a type family with a neutral or convertible structural domain.
 The cutoff counts local binders; the selected output retains core conversions. -/
 inductive StructuralFamilyRecovery (D : PureObservation.Definitions) :
     Nat → List VExpr → VExpr → ProofShape → Nat → Prop where
   | type : env.HasType univs Γ e (.sort u) → StructuralFamilyRecovery D cut Γ e (.sort u) 0
-  /-- Actual typing excludes both function and projection elimination. No
+  /-- Actual typing excludes function and retained-projection elimination. No
   native readout or prescribed output shape is needed at this terminal leaf. -/
   | terminal : TerminalImage Γ e → StructuralFamilyRecovery D cut Γ e out 0
+  /-- A structure may have retained fields when each valid projection has a
+  terminal result; the selected raw output need not be recovered exactly. -/
+  | projectable : ProjectionTerminalImage Γ e → StructuralFamilyRecovery D cut Γ e out 0
   /-- A neutral selected output cannot feed a function or structure recovery.
   No native recovery or normalization of the expression is required. -/
   | neutral : AnchoredCarrier cut out → StructuralFamilyRecovery D cut Γ e out 0
@@ -82,6 +86,7 @@ theorem StructuralFamilyRecovery.subst (H : StructuralFamilyRecovery D cut Γ e 
   induction H generalizing Γ₀ σ τ T cut' with
   | type h => exact .type (h.subst henv.orderedStrong W hΓ₀)
   | terminal H => exact .terminal (H.subst hΓ₀ W)
+  | projectable H => exact .projectable (H.subst hΓ₀ W)
   | neutral HA => exact .neutral (HA.subst WH)
   | family h HA =>
     obtain ⟨_, hPi⟩ := h.isType henv W.wf
@@ -139,13 +144,13 @@ theorem StructuralFamilyRecovery.subst (H : StructuralFamilyRecovery D cut Γ e 
   | convert H R ih =>
     exact .convert (ih hΓ₀ W ES ht WH) (R.subst (fun H => erased_iota_primitive_subst H))
 
-/-- Head exposure either stops at terminal typing or a protected neutral output,
+/-- Head exposure stops at a terminal/terminal-field image or protected neutral output,
 or retains computation from a family/exposed Pi to the selected output.
 Application consumes a smaller body path and one conversion node;
 the rank remains strictly below the original application path. -/
 theorem StructuralFamilyRecovery.expose (H : StructuralFamilyRecovery D cut Γ e out n)
     (hΓ : OnCtx Γ (env.IsType univs)) (ht : env.HasType univs Γ e T) :
-    TerminalImage Γ e ∨ AnchoredCarrier cut out ∨
+    ProjectionTerminalImage Γ e ∨ AnchoredCarrier cut out ∨
       (∃ C u, env.HasType univs Γ e (.forallE C (.sort u)) ∧
         AnchoredCarrier cut (proofErase Γ C) ∧
         Compute (ErasedIotaPrimitive D) (.forallE (proofErase Γ C) (.sort u)) out) ∨
@@ -165,8 +170,9 @@ theorem StructuralFamilyRecovery.expose (H : StructuralFamilyRecovery D cut Γ e
   induction n using Nat.strongRecOn generalizing cut Γ e out T with
   | ind n ih =>
     cases H with
-    | type h => exact .inl (.type h)
-    | terminal H => exact .inl H
+    | type h => exact .inl (.terminal (.type h))
+    | terminal H => exact .inl (.terminal H)
+    | projectable H => exact .inl H
     | neutral HA => exact .inr (.inl HA)
     | family h HA => exact .inr (.inr (.inl ⟨_, _, h, HA, .refl⟩))
     | neutralFamily h HA HC => exact .inr (.inr (.inr (.inl ⟨_, _, h, HA, HC, .refl⟩)))
@@ -199,14 +205,14 @@ theorem StructuralFamilyRecovery.expose (H : StructuralFamilyRecovery D cut Γ e
       · exact (HT.not_function hΓ hf).elim
       · exact (HN.not_exposed .function).elim
       · have hxC := argument_at_displayed_domain hΓ hf hfPi hx
-        exact .inl (.type (by simpa only [VExpr.inst] using HasType.app hfPi hxC))
+        exact .inl (.terminal (.type (by simpa only [VExpr.inst] using HasType.app hfPi hxC)))
       · obtain ⟨_, _, EE, _, RC⟩ := core_forall_parts RT
         obtain ⟨rfl, rfl⟩ := ProofShape.forallE.inj EE
         have HN := (HC.core_compute RC).subst (PreservesCarrierHeads.one (proofErase Γ a))
         apply Or.inr; apply Or.inl
         simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using HN
       · have hxK := argument_at_displayed_domain hΓ hf hfStruct hx
-        exact .inl (.type (by simpa only [VExpr.inst] using HasType.app hfStruct hxK))
+        exact .inl (.terminal (.type (by simpa only [VExpr.inst] using HasType.app hfStruct hxK)))
       obtain ⟨_, _, EE, _, RB⟩ := core_forall_parts RT
       obtain ⟨rfl, rfl⟩ := ProofShape.forallE.inj EE
       have HE := RF.simAt henv.orderedStrong henv.betaSubjectReduction hΓ _ hf

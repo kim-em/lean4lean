@@ -120,32 +120,38 @@ theorem StructuralOrRecoveringImages.inst
       ProofShape.lift_subst_cons, ProofShape.subst_id]
     exact .bvar
 
-private theorem rooted_not_projectable (H : StructuralFamilyRecovery D cut Γ e out n)
-    (hΓ : OnCtx Γ (env.IsType univs)) (hi : env.projections s info)
-    (HTerm : TerminalImage Γ e → False)
-    (ht : env.HasType univs Γ e (VExpr.mkApps (.const s ls) args))
-    (Hout : ¬ AnchoredCarrier cut out) : False := by
-  rcases H.expose hΓ ht with HT | HN | ⟨A, u, hf, _, _⟩ | ⟨X, Y, hfN, _, _, _⟩ | ⟨X, Y, b, u, v, hf, _, _, _⟩ | ⟨A, b, _, _, _, _, _, R, _, _⟩
-  · exact HTerm HT
-  · exact Hout HN
-  · have HE := hf.uniqU henv hΓ ht
+/-- A retained projection whose major lost exact native recovery still has a
+terminal result along a finite structural path. The selected raw major type
+is required not to be a protected neutral; projection recovery supplies this
+from its rigid owner head. -/
+theorem StructuralFamilyRecovery.projection_terminal (H : StructuralFamilyRecovery D cut Γ e out n)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (ht : env.HasType univs Γ (.proj s i e) T)
+    (hn : ¬ IsProof Γ (.proj s i e))
+    (Hout : ¬ AnchoredCarrier cut out) : TerminalImage Γ (.proj s i e) := by
+  obtain ⟨_, _, _, _, _, _, _, hi, _, _, _, _, _, _, hm, _, _⟩ := ht.proj_inv henv hΓ
+  have htMajor := hm.hasType.2
+  rcases H.expose hΓ htMajor with HT | HN | ⟨A, u, hf, _, _⟩ | ⟨X, Y, hfN, _, _, _⟩ | ⟨X, Y, b, u, v, hf, _, _, _⟩ | ⟨A, b, _, _, _, _, _, R, _, _⟩
+  · exact HT.projection hΓ ht hn
+  · exact (Hout HN).elim
+  · have HE := hf.uniqU henv hΓ htMajor
     obtain ⟨_, hPi⟩ := hf.isType henv hΓ
-    exact henv.headInversion.forallE_rigid hΓ (henv.projectionRigid hi)
-      (HE.typeChain henv hΓ hPi)
-  · have HE := hfN.uniqU henv hΓ ht
+    exact (henv.headInversion.forallE_rigid hΓ (henv.projectionRigid hi)
+      (HE.typeChain henv hΓ hPi)).elim
+  · have HE := hfN.uniqU henv hΓ htMajor
     obtain ⟨_, hPi⟩ := hfN.isType henv hΓ
-    exact henv.headInversion.forallE_rigid hΓ (henv.projectionRigid hi)
-      (HE.typeChain henv hΓ hPi)
-  · have HE := hf.uniqU henv hΓ ht
+    exact (henv.headInversion.forallE_rigid hΓ (henv.projectionRigid hi)
+      (HE.typeChain henv hΓ hPi)).elim
+  · have HE := hf.uniqU henv hΓ htMajor
     obtain ⟨_, hPi⟩ := hf.isType henv hΓ
-    exact henv.headInversion.forallE_rigid hΓ (henv.projectionRigid hi)
-      (HE.typeChain henv hΓ hPi)
-  · have HE := R.simAt henv.orderedStrong henv.betaSubjectReduction hΓ _ ht
+    exact (henv.headInversion.forallE_rigid hΓ (henv.projectionRigid hi)
+      (HE.typeChain henv hΓ hPi)).elim
+  · have HE := R.simAt henv.orderedStrong henv.betaSubjectReduction hΓ _ htMajor
     obtain ⟨⟨_, hA⟩, _, hb⟩ := HE.hasType.2.lam_inv henv hΓ
     have HC := (HasType.lam hA hb).uniqU henv hΓ HE.hasType.2
     obtain ⟨_, hPi⟩ := (HasType.lam hA hb).isType henv hΓ
-    exact henv.headInversion.forallE_rigid hΓ (henv.projectionRigid hi)
-      (HC.typeChain henv hΓ hPi)
+    exact (henv.headInversion.forallE_rigid hΓ (henv.projectionRigid hi)
+      (HC.typeChain henv hΓ hPi)).elim
 
 /-- Recovery at stage zero survives exactly, or its selected output is retained
 by a finite structural-family recovery. This includes all recovery constructors. -/
@@ -211,22 +217,21 @@ theorem proofErase_joint_zero_recovery_subst_structuralImages
     exact .inr ⟨0, .type (heT.subst henv.orderedStrong W hΓ₀)⟩
   | proj hi HT hj hlen _ ih =>
     obtain ⟨m, rfl, hn, Em⟩ := erase_proj_inv Ee
-    obtain ⟨_, _, _, _, _, _, _, hjInfo, _, _, _, _, _, _, hm, _, _⟩ := ht.proj_inv henv W.wf
+    obtain ⟨_, _, _, _, _, _, _, _hjInfo, _, _, _, _, _, _, hm, _, _⟩ := ht.proj_inv henv W.wf
     rcases ih hΓ₀ W ES hm.hasType.2 EΓ Em HI with R | ⟨n, H⟩
     · apply Or.inl
       simp only [ProofShape.subst_mkApps, ProofShape.subst] at R
       rw [projectionType_subst HT hj (by omega)]
       exact .proj hi HT hj (by simpa only [List.length_map] using hlen) R
-    · exact (rooted_not_projectable H hΓ₀ hjInfo
-        (fun HTerm => HTerm.not_projection hΓ₀
-          (ht.subst henv.orderedStrong W hΓ₀) (mt (isProof_subst hΓ₀ W ht).1 hn)) (by
-        simpa only [VExpr.subst_mkApps, VExpr.subst] using
-          hm.hasType.2.subst henv.orderedStrong W hΓ₀) (by
+    · apply Or.inr
+      refine ⟨0, .terminal ?_⟩
+      exact H.projection_terminal hΓ₀ (ht.subst henv.orderedStrong W hΓ₀)
+        (mt (isProof_subst hΓ₀ W ht).1 hn) (by
           rintro ⟨i, args, _, HE⟩
           have HC := congrArg ProofShape.constHead HE
           simp only [ProofShape.subst_mkApps, ProofShape.subst,
             ProofShape.constHead_mkApps, ProofShape.constHead] at HC
-          cases HC)).elim
+          cases HC)
   | convert R RC ih =>
     have RC' := (forget_scope RC).subst (σ := τ) (fun H => erased_iota_primitive_subst H)
     rcases ih hΓ₀ W ES ht EΓ Ee HI with R' | ⟨n, H⟩

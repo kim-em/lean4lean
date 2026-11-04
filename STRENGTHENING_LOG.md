@@ -17404,3 +17404,54 @@ batch: 11,033, standard axioms only, no forbidden dependencies. Exact bytes matc
 and git diff --check passes. Arbitrary domain/context transport, global beta
 stability, recovery coverage and the original UniqueTyping.lean:94 front remain
 open. No GOAL.md completion alternative is claimed.
+
+
+### 2026-11-04 13:56 UTC — recursive substitution through retained terminal fields
+
+Previous goal turn: progress, verified from committed/pushed 11fc304a and its
+source files. Began from a clean tracked worktree; independently appearing new
+files were neither edited nor coordinated with.
+
+ProofErasureProjectionTerminalImage defines the substitution-stable static
+TerminalFieldShape and constructor-telescope TerminalFields certificate. The
+field-type equation from actual projection inversion supplies a terminal
+projection typing even when its source major and universe parameters differ
+syntactically from another typing of the image. ProjectionTerminalImage is
+stable under typed substitution and backward replay of ordinary equality;
+its images cannot be functions, and every retained typed projection has a
+TerminalImage result.
+
+StructuralFamilyRecovery gains projectable leaves and a widened exposure
+alternative. The old terminal leaves and anchored embedding are preserved.
+StructuralFamilyRecovery.projection_terminal replaces the previous private
+projection-impossibility lemma. The recursive native recovery proof now returns
+a terminal path at the exact selected output in the new retained-projection
+case. Full checking transport and exact first-layer computation consumers
+compile with that stronger image coverage.
+
+ProofErasureTerminalFieldInstantiation supplies generic comparison/computation
+consumers. ProofErasureTerminalFieldExamples certifies a dependent type/data
+record telescope and reconstructs an actual retained projection under its
+positive projection guard. The projection's non-proofness refutes the old
+TerminalImage certificate for the major; a concrete recursive body-instantiation
+theorem uses the enlarged class. This is a coverage separation, not a
+counterexample to strengthening.
+
+Validation: 617-job build of 25 explicit affected/consuming modules; no warnings
+or errors in the five changed source modules. Full opaque dependency traversal
+and independent #print axioms outputs match 208 named public roots and
+constructors. Maximum per-root closure: 11,250. Only propext,
+Classical.choice and Quot.sound. No sorry sources, weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability. This is an explicit root
+manifest, not a cumulative audit of all worktree theorems. Artifacts:
+/tmp/projection-terminal-build.log; /tmp/projection-terminal-audit.lean and .log;
+/tmp/projection-terminal-roots.txt, -files.txt, -build-targets.txt;
+/tmp/projection-terminal-validation.json, including exact source hashes.
+
+GOAL.md remains open: the original strengthening sorry is unchanged, and no
+canonical-Eq counterexample or strictly smaller sufficient irreducible
+obligation is claimed. Next investigate finite recursive projection-field
+certificates, while preserving the separate unresolved function-domain and
+higher-stage substitution obligations. Only Theory and these ledger additions
+change; no executable changes, agents, coordination, or PR extraction.
