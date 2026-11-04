@@ -9520,3 +9520,38 @@ sorry or configured circular-framework dependency. All 726 local import sources
 hash-stable. Artifacts `/dev/shm/caller-canonical-*`; preparation
 `/dev/shm/prepare-caller-canonical-audit.py`. Executable unchanged; no PR extraction
 or coordination.
+
+
+## Type beta forks remove native argument demands from conditional application (2026-11-04 23:46:49 UTC)
+
+Verdict: an arbitrary under-binder type computation produces a concrete typed
+beta fork after any typed argument is supplied. One branch contracts beta first;
+the other computes beneath the lambda and then contracts beta. No primitive
+substitution theorem or native argument certificate is used to construct either
+path. TypeInstantiationJoin names the remaining joining law explicitly, without
+assuming it as a theorem. Type-fork confluence implies it; the existing open
+NativeForwardBinder obligation therefore implies it as well.
+
+Given this joining law, common native evidence for a function propagates through
+an application with an arbitrary typed argument. Full Pi readout supplies the
+original codomain history; the beta fork joins its instantiated output to the
+assigned result, and native conversion finishes. The argument needs neither
+exact nor common native evidence. The result iterates along arbitrary dependent
+literal telescopes. The local theorem requests only the particular codomain's
+instantiation law, rather than global type joining.
+
+This removes the exact-argument requirement from the application case under the
+already named forward-binder obligation. It does not prove that obligation,
+TypeInstantiationJoin, general common-native coverage, or strengthening, and it
+is not claimed strictly smaller than PropFront. A further concrete test is
+whether exact forward transport of type computations is refuted by using a
+fresh converted generic function binder inside a lower-declared neutral caller;
+only joining, rather than a forward path, is presently requested here.
+
+Validation: two modules, 196 Lean lines, nine public roots. Combined isolated
+five-module 771-job build and complete 22-root audit (including changed imports),
+maximum dependency closure 11,493; standard axioms only and no forbidden
+dependencies. All 746 closure hashes were stable and matched isolated copies.
+Artifacts /tmp/carrier-type-beta-residual-*; preparation
+/tmp/prepare-carrier-type-beta-residual.py. No new warnings, executable changes
+or coordination. The strengthening goal remains active.
