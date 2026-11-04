@@ -5900,3 +5900,16 @@ beta closure. The new relation is currently parameterized over existing
 primitive relations; it has not been saturated into a new singleton stage
 system. Arbitrary comparison substitution, recovery coverage and declarative
 completeness remain open.
+
+## 2026-11-04 — The converted-function peak is repaired in inferred mode
+
+**Verdict: checked on the same actual typed witness, already at stage zero.**
+CarrierAlignedConvertedUnit retains the previous negative result: after beta,
+the two distinct variables cannot compare in the entire exact-recovery union.
+Both variables nevertheless have native recoveries. Their function types
+compare by Pi congruence; the neutral domain applications use the unit guard at
+their arguments and native recovery of the family variable. The aligned rule
+therefore compares the two beta reducts in inferred mode at stage zero. The
+result extends through every shared typed body via interpreted renaming in the
+existing recovered-carrier union. No common computational native type is
+manufactured, and no old negative theorem is applied to the enlarged grammar.

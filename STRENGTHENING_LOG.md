@@ -17306,3 +17306,20 @@ concurrent edits are preserved and excluded from this isolated validation.
 Original UniqueTyping.lean:94 remains open. The new comparison does not yet have
 its own saturated singleton stages, global beta stability or completeness.
 Only Theory and ledgers change; no coordination, subagents or executable edits.
+
+## 2026-11-04 — Converted function carriers admit aligned image congruence
+
+e48d2265 is committed and pushed. CarrierAlignedConvertedUnit reconstructs the
+same typed unit-family witness used in d93f2218. The source identity applications
+still compare at stage zero, and their variable reducts still fail the previous
+exact-recovery checker in its entire union. The new positive certificate retains
+both distinct native Pi types. Their neutral domains F p and F q compare using
+native recovery of F and the unit guard for p,q. Pi congruence compares the native
+types, and aligned carrier promotion compares the variables in inferred mode at
+stage zero. A second theorem instantiates every shared typed body at these images.
+
+The example assumes a closed positive empty structure, as before; canonical Eq
+alone is not claimed to provide one. It proves that the new rule repairs this
+specific typed beta obstruction, not that all common or proposition beta peaks
+close. Both declarations are included in the isolated 669-job build and 19-root
+opaque audit recorded above. Original strengthening remains open.
