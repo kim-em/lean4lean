@@ -6669,3 +6669,46 @@ recovery directly, avoiding backward replay after beta. This invariant and full
 checker transport/binder-conversion integration are not yet proved.
 Arbitrary function-image coverage, general guarded-stage transport, PropFront,
 and canonical-Eq strengthening remain open.
+
+
+### Dependent projection recipes and nested subsingleton fields (2026-11-04)
+
+Verdict: proved universe transport for complete dependent projection recipes,
+and used it for native projection recovery and a nested-carrier fragment.
+Actual level-equivalent terms erase to StructuralVariant shapes. Binder contexts
+are converted explicitly, so proof classification remains justified; arbitrary
+common raw substitution preserves the variants. Two ProjTele witnesses for
+one constructor at equivalent universes have pointwise level-equivalent domains.
+Their erased field recipes therefore compare structurally after the same raw
+parameters and preceding projections are substituted, including dependent fields.
+
+A major's native type, aligned with its assigned nullary family, computes to
+an actual family instance while retaining pointwise universe equivalence. Native
+projection recovery at that instance returns an actual field type and an inferred
+comparison with the source projection recipe. If the assigned field already
+has that recipe, the comparison can feed another native projection step. This
+does not synthesize initial native recovery or align an arbitrary converted field
+type without its source-recipe certificate.
+
+Structural subsingleton carriers survive raw structural variants, including
+parameterized empty structures and dependent functions into them. Thus a retained
+field can use either ordinary computed comparison or a structural-subsingleton
+carrier. These mixed nested guards transport to an exposed nullary carrier and
+then to a selected native Pi domain. Concrete full recovered-union consumers
+supply primitive descent, heads and inertness from canonical Eq, sound declaration
+computation and the projection family's rigidity.
+
+The checked example has a single retained field Prop → Inner, where Inner is an
+empty structure in Sort 1. The outer instances [max 0 0] and [0] have no
+computational join. The field is proved non-proof at both instances, yet the new
+carrier guard needs no projection comparison premise. This tests recursive
+function-carrier checking rather than an omitted proof field.
+
+Still open: arbitrary computed and recursively nested record field guards,
+parameterized family head exposure, and initial native recovery/type-alignment
+coverage. General universe transport of primitive computation must account for
+Definitions.unfolds being indexed by exact level syntax; arbitrary sound D does
+not provide a LevelCompatible certificate by definition. Existing ofEnv
+compatibility and levelClosure remain live routes, not refuted alternatives.
+No strengthening proof, counterexample or strictly smaller sufficient irreducible
+front is claimed.

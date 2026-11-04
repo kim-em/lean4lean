@@ -18293,3 +18293,59 @@ coverage and the guarded-stage argument sufficient for PropFront remain open.
 No executable changes, agents, coordination or PR extraction. Independent worker
 files and commits are preserved; only the four listed source files and these
 ledger appendices belong to this change.
+
+
+### Native dependent projections and nested subsingleton transfer (2026-11-04)
+
+Added ProofErasureCarrierAlignedLevelVariants. Structural variants support raw
+common substitution and ordinary computed comparison in either mode. Typed
+LEquiv preserves erasure up to this relation, with actual context conversion
+under every binder and at telescope prefixes. Equivalent universe instances of
+a projection constructor have pointwise variant domains, and their complete
+projectionType recipes remain structurally variant after instantiation. This
+recipe theorem permits arbitrary unchanged parameters and dependent earlier
+fields; it transports no primitive computations.
+
+Added ProofErasureCarrierAlignedProjectionRecovery. Nullary aligned exposure
+returns an actual family instance together with native recovery and universe
+alignment. A retained projection then recovers its selected actual field type,
+with a structural comparison against the source telescope recipe. An inferred
+native-to-assigned comparison is returned when the assigned field erasure is
+that recipe. The full recovered union discharges the primitive interface; the
+family's rigidity follows from projection registration. Initial major recovery,
+major type alignment, and source field-recipe identification remain explicit.
+
+Added ProofErasureCarrierAlignedNestedTransfer. Structural subsingleton carriers
+are invariant under structural universe variants. Fieldwise ordinary checks may
+now be mixed with carrier-valued fields checked by that grammar, including
+function fields with structural-subsingleton codomains. Transport compares the
+whole dependent recipe and preserves static proof-field omission and projection
+admissibility. Nullary target reconstruction, native Pi selection and a concrete
+full recovered-union consumer return the selected domain guard. Arbitrary
+carrier computations and deeper recursive record guards remain outside this
+fragment; no all-carrier conversion premise is hidden in the result.
+
+Added ProofErasureCarrierAlignedNestedExample. Its source constructor has one
+field Prop → Inner, with Inner an empty positive structure. The field is proved
+non-proof at both [max 0 0] and [0]. The two actual outer family instances have
+no computation join, but the target carrier guard is reconstructed without any
+ordinary field-comparison input. Environment registrations, actual family
+typings and admissibility are explicit; this is a conditional metatheory
+example, not a constructed canonical-Eq countermodel.
+
+Validation: main and isolated 698-job builds of 30 explicit modules passed.
+The exact 96-root audit traversed opaque bodies, inductive constructors and
+recursor rules; maximum closure 11,285. Only propext, Classical.choice and
+Quot.sound occur. No sorry sources or excluded weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport
+or JointPropBetaStability. All audited source bytes match the isolated worktree,
+and the four new modules have no build warnings. Artifacts:
+/tmp/carrier-nested-{all-build.log,isolated-build.log,audit.lean,audit.log,
+audit-roots.txt,files.txt,targets.txt,validation.json}; preparation script
+/tmp/prepare-carrier-nested.py and validator /tmp/verify-carrier-audit.py.
+
+UniqueTyping.weakN_iff remains sorry at line 94. Full recursive/computed carrier
+transfer, parameterized exposure, and native coverage remain live. GOAL.md is
+not complete. Only these four new source files and these ledger appendices
+belong to this change; independent changes are preserved and no executable
+files are edited. No agents or external sessions were contacted.
