@@ -9448,3 +9448,28 @@ dependencies. All 761 closure source hashes were stable and matched isolated
 copies. Artifacts /tmp/carrier-retained-origin-boundary-*; preparation
 /tmp/prepare-carrier-retained-origin-boundary.py. Executable unchanged; no
 coordination. Strengthening remains open and the goal remains active.
+
+
+## Native literal-lambda eta retains its exact selected domain (2026-11-04 23:34:10 UTC)
+
+Verdict: the caller-side annotation obstruction does not occur when eta's
+native certificate belongs to the supplied literal lambda itself. Native lambda
+inversion starts with its written annotation. Full Pi component extraction
+therefore gives a forward computation from that annotation to the exact selected
+native domain, with no beta cleanup. The guard may use every finite earlier
+structure/function-eta stage; no common-native coverage is assumed.
+
+A native eta step on a retained typed literal lambda consequently meets a path
+changing only that annotation. The expanded branch needs only beta, and the
+original erased body is retained, including proof-domain eta. This upgrades the
+older function-eta residual to the full static structure language and sharpens
+its annotation result from a beta join to an exact selected-domain history.
+It is a local square, not arbitrary beta/native stability or whole-language
+confluence. Caller-side domains still need separate joining evidence.
+
+Validation: one 85-line module, three public roots; isolated explicit 746-job
+build; complete dependency audit maximum closure 11,348, standard axioms only
+and no configured forbidden dependencies. All 721 closure source hashes were
+stable and matched isolated copies. Artifacts /tmp/carrier-static-lambda-residual-*;
+preparation /tmp/prepare-carrier-static-lambda-residual.py. Executable unchanged;
+no coordination. The strengthening goal remains active.
