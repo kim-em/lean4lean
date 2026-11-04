@@ -21521,3 +21521,38 @@ standard axioms and no configured forbidden dependencies. All 747 local import
 sources hash-stable. Artifacts: `/dev/shm/static-variable-context-*`;
 preparation `/dev/shm/prepare-static-variable-context-audit.py`. No executable
 changes, PR extraction or coordination. Goal remains active.
+
+
+## Dependent variable/universe/Pi return paths (2026-11-04)
+
+Reused marked-Pi control observations with an EMPTY payload predicate to obtain
+neutral demands. Their existing beta interpretation proves exact variable
+readout through the full static structure/function-eta language whenever the
+variable is assigned a universe, including proposition variables. This avoids
+building another observation calculus.
+
+The new UniversePiSyntax grammar admits variables, universes and dependent Pi
+binders. Every full-union computation from a typed member returns to its exact
+initial erasure, with no restriction on intermediate terms or guard depths.
+The Pi case restores the domain first and then the codomain in its original
+context. Thus all forks rooted at these types join, common native evidence
+restores the exact assigned type, computed binders admit exact forward native
+transport for arbitrary bodies/outputs, and common-native application works at
+these dependent domains. This strictly extends the closed-control cases.
+
+This is not a claim of general return paths: the existing fresh-argument reverse
+beta boundary already prevents that generalization even for a typed pure beta
+redex. General joining must allow new common results. Applications and rigid
+family types remain outside this return argument; universal common-native
+coverage, type-fork confluence, strengthening and a sufficient smaller front
+remain open. Independent uncommitted work was preserved, and a source-name
+collision was avoided by retaining the neutral-demand proof in its own module;
+no uncommitted independent code was imported or coordinated with.
+
+Validation: two new modules, 170 Lean lines, eight public roots (including the
+syntax inductive); isolated explicit 749-job build and complete eight-root
+audit, maximum closure 11,599, standard axioms only and no forbidden dependencies
+or sorry sources. All 724 local closure sources hash-stable and isolated-identical.
+Artifacts `/tmp/carrier-dependent-return-*`; prep
+`/tmp/prepare-carrier-dependent-return.py`. No new warnings or executable changes.
+Goal remains active.
