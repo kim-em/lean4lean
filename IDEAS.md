@@ -7528,3 +7528,30 @@ Validation: 709-job main and isolated builds of the new module; all five exact
 roots pass opaque-body/constructor/recursor auditing with standard logical
 axioms only, maximum closure 8,696. Source bytes match across the two checkouts.
 No forbidden dependency or new-source warning. Strengthening remains open.
+
+## 2026-11-04 19:28:25 UTC: finite observations restore expanded head exposure
+
+**Proved:** beta-only finite observations at the empty constant interpretation
+survive every expanded primitive and compatible computation, at every finite
+stage and in the full union. Opaque primitive heads have no observations to
+destroy; controlled expansions preserve them by reverse beta. Operational
+adequacy and an exact beta replay through the proof-shape encoding yield
+literal raw Pi/sort reducts. The encoding is not an equality reflection model.
+
+Native lambda recovery consequently reselects a Pi after arbitrary conversions,
+including whole-type expansions and without purity assumptions on domains.
+Existing native Pi certificates can follow arbitrary expanded type computation
+and select a Pi again at the same stage. Existing native certificates for actual
+Pi types recover their exact assigned sort using universe equality. A typed
+whole-Pi expansion example verifies applicability beyond literal-head persistence.
+
+**Still open:** observations do not retain domain comparisons. These results
+neither prove arbitrary native coverage nor comparison completeness. Next test:
+a lambda typed at a constant-headed recursive carrier may refute exact assigned
+native coverage even for the full expanded union, because its native outputs
+always retain a Pi observation. This would require a common-reduct interface
+rather than exact coverage. Strengthening itself remains open.
+
+Validation: 701-job build, 42 exact declaration roots audited through opaque
+bodies, constructors and recursors; maximum closure 11,200. Only standard
+logical axioms; no excluded strengthening/framework dependency or new warning.

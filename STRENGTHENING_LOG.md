@@ -19477,3 +19477,31 @@ native common-reduct evidence. General coverage and transport of dependent
 carrier certificates across computationally related selected domains remain
 open. Original weakN_iff remains sorry; GOAL.md is active. Only this module
 and these ledger appendices are staged; independent work is preserved.
+
+## 2026-11-04 19:28:25 UTC: expanded head persistence and native head selection
+
+Added PureObservationForward, ProofShapeObservationEncoding,
+ProofErasureExpansionObservations, ProofErasureExpansionNativeExposure and
+ProofErasureExpansionSortSelection. Forward observation substitution proves
+compatible beta preservation. The proof-shape encoding commutes with lift and
+instantiation and reflects beta paths with exact output, without requiring
+encoding injectivity. Empty-constant observations survive every expanded stage
+and its union; operational adequacy returns actual raw beta paths to Pi/sort.
+
+Native lambda and Pi outputs can therefore reselect literal Pis at their
+unchanged stage after arbitrary expanded conversions, for arbitrary domains.
+Typed replay reifies selected Pis for actual retained lambdas. Sort observation
+plus replay and universe uniqueness selects the exact assigned sort; existing
+native Pi-formation certificates instantiate this result. The actual whole-Pi
+expansion example has a non-Pi output and a recovered Pi, documenting the gain.
+
+Validation: all five modules built (701 jobs). The 42 exact roots pass the
+full opaque-body/constructor/recursor audit, maximum closure 11,200; only
+propext, Classical.choice and Quot.sound. No sorry or forbidden strengthening
+or framework dependency, no new-source warnings. Source hashes verified.
+Artifacts: /tmp/head-observation-{full-build.log,audit.lean,audit.log,roots.txt,
+files.txt,source-before.json,validation.json} and preparation/verification scripts.
+
+Judgment: expanded head exposure is now proved without a purity restriction;
+domain comparison and native coverage remain separate outstanding obligations.
+The original weakN_iff sorry is unchanged; GOAL.md is not complete. No PRs extracted.
