@@ -16267,3 +16267,60 @@ next step, not a claim of full structural carrier conversion. Arbitrary
 structural carriers, heterogeneous arguments, higher stages for the current
 image class, and strengthening remain open. UniqueTyping.lean:94 still has the
 original sorry. GOAL.md remains active; only Theory and ledger files change.
+
+
+## 2026-11-04 11:40 UTC — First-layer substitution, including the eta-domain boundary
+
+Previous goal turn: progress, committed and pushed f50fb2b9 with exact
+certificate descent and a closed finite union for computed-domain checking.
+This turn checked the current tree, then proved transport of the first actual
+recursive primitive layer. During the work the committed protected-family
+image transport became available (bebabf14); the new primitive transport was
+generalized to consume either proved image invariant, rather than retain the
+older selected-path restriction alone. No agents were contacted.
+
+Three Theory modules are added:
+
+* ProofErasureConstrainedComputeTransport: generic typed transport of a whole
+  compatible computation under an explicit binder-stable constraint. The
+  primitive simulation field is source-typed. Transitive intermediates are
+  reconstructed by source descent, not assumed to satisfy an extra image law.
+* ProofErasureComputedJointFirstStageSubstitution: ComputedZeroGuardSubstitution
+  packages the actual guard-transport requirements. Selected paths and
+  protected neutral-family paths both instantiate it. The constraint extends
+  under generated telescopes; family guard transport reconstructs the actual
+  singleton programs and preserves their exact outputs. Specialized Eq guards
+  transport directly from the actual typed endpoints. Every stage-one primitive
+  and every finite compatible stage-one computation then substitutes at stage
+  one. Public corollaries include arbitrary types/propositions, type-valued
+  lambdas at displayed Pis, and type families at protected neutral assigned Pis.
+* ProofErasureComputedFirstStageEtaInstantiation: the actual lambda returning
+  Prop with written domain F f and eta-converted assigned domain F (fun x => f x)
+  instantiates every supplied typed first-layer computation. Its exact target
+  erasure and computation stage are preserved. This uses the committed neutral
+  carrier criterion, not the impossible exact-domain recovery/exposure.
+
+Validation: consuming build passes in 588 jobs with no warnings in the three
+new modules. Opaque DFS covers all 22 explicit public roots, including the
+transport-package constructor and fields, with a largest closure of 11,118
+declarations. It rejects weakN_iff, weakN_inv, sorryAx,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport and JointPropBetaStability. Exact root/axiom inventories
+match #print axioms; the only axioms are propext, Classical.choice and
+Quot.sound. The audit log has no warnings/errors. Artifacts:
+/tmp/computed-first-stage-build.log, /tmp/computed-first-stage-audit.lean/.log,
+and /tmp/computed-first-stage-roots.txt. This audits the new roots and complete
+dependency closures, not the historical cumulative inventory.
+
+Remaining scope: these are substitution theorems for first-layer computations,
+whose guards may contain arbitrary nesting of stage-zero computed-domain
+checking. They do not prove transport of every stage-one recovery/comparison,
+or of arbitrary higher stages. A naive extension of SortRootedRecovery's
+selected-output proof would instantiate a converted body-type path by an
+intermediate argument without a proved image condition; that operation has
+not been justified and is not silently used. Arbitrary function/structure
+images, general carrier conversion, heterogeneous paired substitution,
+endpoint beta stability and completeness remain open. UniqueTyping.lean:94
+still contains the original sorry. No canonical-Eq counterexample or strictly
+smaller sufficient irreducible obligation is established. GOAL.md stays active;
+no executable changes, PR extraction, subagents or coordination.

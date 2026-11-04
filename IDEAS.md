@@ -5467,3 +5467,25 @@ conversion information, not another assumed assigned-type coverage law.
 
 | Universal native/computed/inert image coverage | **Refuted (2026-11-04).** `StructuralDomainBoundary.typed_structural_domain_failure` wraps the eta-converted neutral domains in Pi. The typed type-valued lambda has no exact native recovery in the full joint union and no computation exposing its assigned lambda domain; that domain is already a Pi, so it is not inert. No `AnchoredFamilyRecovery` at the assigned type exists at any cutoff/rank. This refutes universal coverage by the current three alternatives, not strengthening. |
 | Stop a selected recovery path at neutral output types | **Open.** A neutral selected output cannot feed recovery's function or structure-projection branches. A terminal-neutral path constructor could therefore admit arbitrary neutral-typed images and context conversion between neutral binder types. Projection exclusion must use the selected output's rigid shape: its present statement for arbitrary outputs would become false. This does not by itself handle arbitrary structural assigned domains. |
+
+
+## 2026-11-04 11:40 UTC — Substitute recursive primitive guards using proved image transport
+
+**Checked:** first-layer computations of ErasedComputedJointStage now preserve
+exact outputs under both selected-path images and protected neutral-family
+images. ComputedZeroGuardSubstitution packages interpretation, binder extension
+and transport of both complete stage-zero checking views; both image criteria
+supply those fields by existing proofs. General singleton guards transport
+under their generated dependent telescope. Eq guards transport directly at
+their actual carrier, without a registry-agreement or Eq-to-general encoding
+hypothesis. A typed compatible-computation induction realizes each sequential
+intermediate in the source relation and extends the constraint only at binders.
+The concrete eta-assigned lambda from SelectedDomainEtaBoundary therefore
+instantiates every typed first-layer computation, even though it has no exact
+assigned-domain recovery/exposure. Verdict: the previous negative example is
+now positively covered at a recursive computation layer; this does not restore
+the refuted recovery criterion. Higher-stage recovery remains a separate gap:
+a selected output conversion under a lambda may need instantiation by an
+intermediate argument not covered by the available image invariant. No such
+unrestricted instantiation, arbitrary endpoint beta stability or completeness
+is assumed by the new theorems.
