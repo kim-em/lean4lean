@@ -21241,3 +21241,40 @@ absent. New modules have no warnings; source/import hashes stable. Artifacts
 `/dev/shm/masked-source-recovery-*`; prep
 `/dev/shm/prepare-masked-source-recovery-audit.py`. Independent files/index were
 preserved, with no coordination or PR extraction.
+
+
+## Native structure diamonds with proof parameters (2026-11-04)
+
+Equivalent well-formed universe instances have identical static field masks.
+Simultaneous parameter/major computations therefore lift to structure outputs
+across different selected constructor universes. Two outputs join at any explicit
+common parameter vector and major, without typing or recovery of that shared raw
+constructor. For two native family recoveries of the same actual typed source,
+replay plus family injectivity proves universe equivalence; it is not a further
+confluence hypothesis. General retained parameters still require explicit common
+computations. This does not restore the refuted universal core-join invariant.
+
+The proof-parameter case discharges that remaining local premise. If every
+parameter in the source's assigned registered family is a proof, actual family
+injectivity forces any native selected family to have the same name and the same
+literal erased parameter vector. Hence any two native masked structure expansions
+of that source join by directed level-core computation alone. Their guard
+relations can differ and may have arbitrary depth, provided they have source
+descent. The theorem admits nonempty dependent proof parameters and arbitrary
+mixed proof/data fields. The nullary-family special case is also explicit.
+
+This closes a family of same-source structure-expansion peaks, not whole-language
+confluence, universal native coverage, strengthening, or a sufficient smaller
+front. Remaining general peak work includes retained parameter joins and
+recovery under source changes; the committed dependent projection-type residual
+handles one such compatible source-change case.
+
+Validation: one new module, 244 Lean lines, ten new public roots; two-module
+isolated explicit 714-job build and complete audit of all 13 selected public
+roots, maximum dependency closure 10,963. Standard axioms only and every
+configured forbidden dependency absent. All 689 imported local sources were
+hash-stable and byte-identical to isolated copies. Artifacts:
+`/tmp/carrier-structure-universe-join-*`; preparation
+`/tmp/prepare-carrier-structure-universe-join.py`. The earlier changed import was
+retained explicitly when regeneration followed the proof-parameter extension.
+Other untracked work was preserved; no coordination. Goal remains active.
