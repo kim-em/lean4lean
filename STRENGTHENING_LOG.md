@@ -19086,3 +19086,38 @@ weakN_iff remains sorry at UniqueTyping.lean:94; no canonical-Eq counterexample,
 proof, or sufficient smaller irreducible front has been obtained. Only four new
 theory files and these ledger appendices belong to this change. No executable
 edits, new axioms, agent contact or claim that GOAL.md is complete.
+
+## Native sort selection under explicit level conversion
+
+Added three theory modules. SortRoot proves primitive and finite-computation
+sort stability with retained universe equivalence, then discharges the root
+law for every finite level-extended recovered stage and its union. SortExposure
+proves the paired exposure induction for the full computed/recovered/aligned
+grammars at actual sort-typed endpoints. All native promotion and common-carrier
+cases use checked recovery replay and typed carrier inversion; the compute
+case composes universe equivalences and the opposite endpoint's path.
+
+SortSelection turns an existing native recovery and aligned comparison with
+the actual assigned sort into exact recovery of that sort. It first realizes
+the selected native type, exposes its sort, and then uses an explicit universe
+step whose target well-formedness comes from the original typing. No stage
+increase is needed. A generic equivalence characterizes the supplied evidence;
+finite-stage and closed-union consumers discharge all root/descent hypotheses.
+
+Validation: main and isolated builds passed, 784 jobs for 66 explicit modules.
+All 247 exact roots passed the opaque-body, constructor and recursor dependency
+audit; maximum closure 11,285. Only propext, Classical.choice and Quot.sound
+occur. No sorry source, weakN_iff, weakN_inv, JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport or JointPropBetaStability
+occurs. The 66 source files match the isolated build byte-for-byte. The three
+new modules have no build warnings. Artifacts:
+/tmp/carrier-sort-selection-{all-build.log,isolated-build.log,audit.lean,audit.log,
+audit-roots.txt,files.txt,targets.txt,validation.json}; preparation:
+/tmp/prepare-carrier-sort-selection.py; verifier: /tmp/verify-carrier-audit.py.
+
+Judgment: this selects exact universe images from existing certificates; it
+does not prove their availability for all typed arguments. Full parameterized
+aligned exposure still needs justified eta instantiation. The original sorry
+at UniqueTyping.lean:94 remains, and no GOAL.md deliverable is claimed. Only
+these three theory files and ledger appendices belong to this change. Existing
+independent edits and new files were preserved; executable code was untouched.

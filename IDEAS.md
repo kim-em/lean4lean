@@ -7220,3 +7220,31 @@ also remain beyond the new fieldwise consumer. Next investigate native sort
 selection for typed family arguments and the image evidence needed to instantiate
 these eta bodies. General native/comparison completeness and original PropFront
 remain unproved; no strictly smaller sufficient irreducible obligation is claimed.
+
+## Exact universe selection from native aligned evidence
+
+Verdict: **proved certificate selection, with coverage still explicit**.
+SortRootLevels captures the root law actually satisfied by the level-extended
+stages: a sort may move to a syntactically different equivalent universe.
+Finite computation preserves that equivalence. A paired induction over the
+complete computed, recovered and aligned comparison grammars then exposes a
+sort with equivalent level at the other actual type endpoint. Actual typings
+exclude function/structure carriers; native promotions reduce to the existing
+typed computed checker. Neither the false old PrimitiveHead interface nor a
+semantic head-exposure premise is used.
+
+An existing native recovery of e : Sort u, together with an existing aligned
+comparison of its output to Sort u, now selects exactly Sort u at the same
+finite stage. The exposed sort's equivalent universe is repaired by one explicit
+level primitive. The closed union has the same consumer. In fact existence of
+such aligned native evidence is equivalent to exact assigned-sort recovery;
+this is a certificate equivalence, not universal native coverage.
+
+The earlier inhabited-proposition recovery test was checked before introducing
+this interface: even that restricted any-output coverage forces sort recovery
+and yields PropositionFront in the old joint union. Thus a universal recovery
+premise cannot be silently substituted for the remaining problem. The present
+result can supply exact type-argument images only when its native and alignment
+inputs are already available. It does not yet instantiate arbitrary eta bodies,
+cover arbitrary supplied family parameters, or establish a sufficient strictly
+smaller front. Original weakN_iff and GOAL.md remain open.
