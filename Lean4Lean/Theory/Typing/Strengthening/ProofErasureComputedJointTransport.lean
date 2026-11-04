@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureComputedCarrierExposure
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureJointFieldRealization
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureComputedJointDescent
 
@@ -75,9 +76,9 @@ def ComputedJointTransportResult (Transport : List ProofShape → List ProofShap
 
 /-- One induction handles every joint checking constructor. The supplied
 application case preserves the selected domain by native recovery or lambda
-computation. Both comparison and carrier premises are transported recursively,
+computation, or proves that the carrier cannot expose a structural checking rule. Both comparison and carrier premises are transported recursively,
 including beneath arbitrarily many computed-domain applications. -/
-theorem ProofShape.ComputedJointCheck.transport
+theorem ProofShape.ComputedJointCheck.transport_or_inert
     (Transport : List ProofShape → List ProofShape → ProofShape.Subst → Prop)
     (hstep : ErasedScopedPrimitiveDescent Step)
     (hcons : ∀ {Δ Δ' τ A}, Transport Δ Δ' τ → Transport (A :: Δ) (A.subst τ :: Δ') τ.lift)
@@ -92,7 +93,8 @@ theorem ProofShape.ComputedJointCheck.transport
       Transport (proofEraseCtx Γ) Δ' τ →
       ScopedTypeRecovery Target Δ' ((proofErase Γ f).subst τ)
         (.forallE (A.subst τ) (B.subst τ.lift)) ∨
-      ∃ body, ScopedCompute Target Δ' ((proofErase Γ f).subst τ) (.lam (A.subst τ) body))
+      (∃ body, ScopedCompute Target Δ' ((proofErase Γ f).subst τ) (.lam (A.subst τ) body)) ∨
+      (∀ {out}, ScopedCompute Target Δ' (A.subst τ) out → ¬ CarrierExposure out))
     (H : ComputedJointCheck Step Δ kind sa sb) : ComputedJointTransportResult Transport Target Δ kind sa sb := by
   induction H with
   | leaf H =>
@@ -126,9 +128,10 @@ theorem ProofShape.ComputedJointCheck.transport
     have HF' := ihf hΓ hf HE.hasType.2 EΓ Ef Eg W
     rcases happ hΓ hfPi (not_isProof_fn hΓ hf hx hna)
         (by simpa only [EΓ, Ef] using R) (by simpa only [EΓ] using W) with
-      HR | ⟨body, RF⟩
+      HR | ⟨body, RF⟩ | Hnone
     · exact .appCarrier (by simpa only [Ef] using HR) HF' HX'
     · exact .appComputed (by simpa only [Ef] using RF) HF' HX'
+    · exact .app HF' (HX'.checked_of_no_exposure Hnone)
   | appComputed RF HF HX ihf ihx =>
     intro Γ a b A Δ' τ hΓ ha hb EΓ Ea Eb W
     obtain ⟨f, x, rfl, hna, Ef, Ex⟩ := erase_app_inv Ea
@@ -395,5 +398,30 @@ theorem ProofShape.ComputedJointCheck.transport
     simpa only [projectionType_subst (args := ps) HT _ (by omega), ProofShape.subst] using
       ihfields i hj hn hΓ hiaF hibF EΓ EF' Epa Epb W
 
+
+/-- Backward-compatible specialization: native recovery or computed-domain
+exposure suffices without the additional inert-carrier alternative. -/
+theorem ProofShape.ComputedJointCheck.transport
+    (Transport : List ProofShape → List ProofShape → ProofShape.Subst → Prop)
+    (hstep : ErasedScopedPrimitiveDescent Step)
+    (hcons : ∀ {Δ Δ' τ A}, Transport Δ Δ' τ → Transport (A :: Δ) (A.subst τ :: Δ') τ.lift)
+    (hsort : ∀ {Δ Δ' τ A u}, Transport Δ Δ' τ → DomainSort Δ A u → DomainSort Δ' (A.subst τ) u)
+    (hcompute : ∀ {Γ Δ Δ' τ e T source out}, ScopedCompute Step Δ source out →
+      OnCtx Γ (env.IsType univs) → env.HasType univs Γ e T →
+      proofEraseCtx Γ = Δ → proofErase Γ e = source → Transport Δ Δ' τ →
+      ScopedCompute Target Δ' (source.subst τ) (out.subst τ))
+    (happ : ∀ {Γ Δ' τ f D C A B}, OnCtx Γ (env.IsType univs) →
+      env.HasType univs Γ f (.forallE D C) → ¬ IsProof Γ f →
+      ScopedTypeRecovery Step (proofEraseCtx Γ) (proofErase Γ f) (.forallE A B) →
+      Transport (proofEraseCtx Γ) Δ' τ →
+      ScopedTypeRecovery Target Δ' ((proofErase Γ f).subst τ)
+        (.forallE (A.subst τ) (B.subst τ.lift)) ∨
+      ∃ body, ScopedCompute Target Δ' ((proofErase Γ f).subst τ) (.lam (A.subst τ) body))
+    (H : ComputedJointCheck Step Δ kind sa sb) : ComputedJointTransportResult Transport Target Δ kind sa sb := by
+  apply H.transport_or_inert Transport hstep hcons hsort hcompute
+  intro Γ Δ' τ f D C A B hΓ hf hn R W
+  rcases happ hΓ hf hn R W with HR | HC
+  · exact .inl HR
+  · exact .inr (.inl HC)
 
 end Lean4Lean.VEnv.Strengthening

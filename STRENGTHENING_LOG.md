@@ -16028,3 +16028,44 @@ all typed images by it is refuted by the checked boundary. Higher joint stages
 and completeness remain open. UniqueTyping.lean:94 still contains the original
 sorry, and no canonical-Eq counterexample or strictly smaller sufficient
 irreducible obligation has been established. GOAL.md remains active.
+
+## 2026-11-04 — Inert carrier readout bypasses local exact-domain failure
+
+The previous turn made progress: commit 1a0640a8 was checked and pushed. Current
+HEAD also contains the independently created, checked eta-domain boundary
+296eeb4c. This turn changes only the computed checker transport proof and adds
+ProofErasureComputedCarrierExposure.lean; no checker grammar or executable
+change is involved.
+
+The existing carrier exposure argument extends to ComputedJointCheck. Every
+carrier certificate yields ordinary common comparison or computation to an
+exposed record/Pi with a guard there. Variable-headed carriers cannot expose
+those shapes, even when their arguments compute arbitrarily. Consequently
+application at such an assigned domain uses the existing app rule; neither
+native recovery nor computation of the function to a lambda at that domain is
+required. This applies locally to the neutral assigned domain of the checked
+eta boundary. It does not prove arbitrary body substitution by that boundary's
+function, since other recovered applications must still be handled.
+
+transport_or_inert extends the full existing dependent transport induction.
+The recovered-application branch now accepts native Pi recovery, exact lambda
+domain exposure, OR absence of any record/Pi exposure of the substituted
+carrier. In the third case the recursively transported guard is read as common
+comparison. The original transport API is retained as a proved specialization;
+type-image and finite-path-image callers are rebuilt unchanged.
+
+Validation: consuming builds of both callers pass in 578 jobs, with no warnings
+in changed/new modules (/tmp/inert-carrier-build.log). Opaque audits cover all
+29 public roots in the new readout, modified transport, and both callers; the
+largest closure has 9,365 declarations. All expected roots are present; only
+propext, Classical.choice and Quot.sound occur as axioms. No sorry sources,
+weakN_iff, weakN_inv, JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability are reachable. Audit artifacts:
+/tmp/inert-carrier-audit.lean, .log, and -roots.txt.
+
+Next live task: classify substituted recoveries using the third alternative,
+starting with type-family images assigned a Pi whose domain is neutral. Reading
+the final application guard is solved; maintaining that distinction through
+recovery applications, conversions, and binders is not yet proved. Structural
+carrier cases and higher stages remain open. The original sorry remains at
+UniqueTyping.lean:94, and no GOAL.md success alternative is yet achieved.

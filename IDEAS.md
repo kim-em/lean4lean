@@ -5436,3 +5436,5 @@ next route must account for comparison of written and assigned domains, with
 binder descent proved rather than assumed; extending path length alone cannot
 repair this example. The prospective compared-domain rule must also explain
 how its intermediate carrier is realized below removed binders.
+
+| Bypass selected-domain recovery at carriers with no structural exposure | **Checked (2026-11-04).** `ComputedJointCarrierGuard.checked_or_exposed` factors guards of the enlarged recursive checker into ordinary comparison or a computation to a record/Pi. Variable-headed carriers yield ordinary comparison and hence application certificates without function recovery or exact lambda exposure. `ComputedJointCheck.transport_or_inert` integrates this third alternative into the complete recursive transport induction. The eta-assigned boundary's neutral domain meets the local readout criterion; arbitrary whole-body substitution is not thereby proved. Remaining recovery failures with exposed structural carriers and higher stages remain open. |
