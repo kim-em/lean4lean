@@ -16522,3 +16522,63 @@ at UniqueTyping.lean:94 remains. No proof of strengthening, canonical-Eq
 counterexample, or strictly smaller sufficient irreducible obligation has
 been established. GOAL.md remains active. Only Theory and ledgers change;
 no executable changes, PR extraction, coordination or subagents.
+
+## 2026-11-04 — Recursive neutral binder conversion covers the structural eta image
+
+Committed and pushed a178b1a8. The next step reuses the earlier simultaneous
+neutral type/context conversion argument for JointCheck and extends it to
+ComputedJointCheck, including appComputed. The new module
+ProofErasureComputedJointRecursiveNeutral preserves both checking views under
+actual context equality and recursive NeutralTypeChange in the context oracle.
+In the carrier view, the target carrier may change at any finite Pi depth with
+actual equality supplied. The recovery branch constructs the target selected
+Pi, reconstructs its typed domain and equality, and invokes the smaller
+argument-carrier induction at that domain. The appComputed branch realizes the
+computed lambda to recover its written domain and actual argument typings;
+its computation transports to the converted context while that domain stays
+fixed. All other comparison/carrier cases retain the existing typed induction.
+The theorem is generic in primitive descent, head shape and context substitution.
+
+ProofErasureConvertedAnchoredInstantiation composes this proved context
+conversion with the existing anchored-image substitution theorem at stage
+zero. Its image only needs an anchored path at a recursively neutral-related
+convertible selected type, not at the original assigned type. The source and
+target binder typings are constructed from actual equality. The source body
+comparison is transported in full before substituting the shared image.
+
+ProofErasureConvertedStructuralEtaInstantiation applies this composition to
+the exact lambda of StructuralDomainBoundary. Its written type is
+Pi (Pi native Prop) Type, and its assigned type uses the eta-converted neutral
+assigned domain instead of native. Recursive NeutralTypeChange relates those
+types; the literal lambda body supplies an anchored path at the written type.
+Every common-typed stage-zero body comparison now instantiates by this lambda,
+including nested carriers and computed-domain applications. The theorem that
+no anchored path exists at its assigned type remains checked. This is stronger
+than the earlier root application repair, but it is still shared-argument
+substitution for a covered image class, not arbitrary endpoint beta stability.
+
+Validation was repeated in an isolated detached checkout at a178b1a8 with only
+these three proposed modules added. This excludes independently appearing
+changes in the shared worktree. The consuming build (also including the prior
+dependent application repair) succeeds in 648 jobs, without new-module warnings:
+/tmp/recursive-inst-isolated-build.log. Opaque audit covers seven exact roots,
+including the generic result/induction, both public views, converted image
+instantiation, concrete example, and existing structural failure theorem.
+Largest closure is 9,463; no sorry sources or forbidden dependencies; only
+propext, Classical.choice and Quot.sound are axioms. Artifacts:
+/tmp/recursive-structural-inst-audit.lean, -roots.txt and
+/tmp/recursive-inst-isolated-audit.log. The prior six dependent-conversion roots
+were also re-audited against the committed transport module in isolation
+(/tmp/dependent-repair-isolated-audit.log; largest closure 9,419).
+
+An independently written StructuralEtaInstantiation module appeared under the
+initial concrete filename; it was left untouched. This proof uses the distinct
+ConvertedStructuralEtaInstantiation filename. All other independently appearing
+transport/structural recovery files remain excluded from this commit.
+
+Next: make the converted-image criterion stable under dependent telescope
+extension/substitution, or extend first-layer computation transport using this
+complete comparison conversion. Arbitrary equal carriers are not necessarily
+NeutralTypeChange-related, so the result does not supply universal image
+coverage. Original UniqueTyping.lean:94 sorry remains; no GOAL.md completion
+alternative is established. No coordination, subagents, or executable changes.
