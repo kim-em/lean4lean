@@ -1,19 +1,20 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCarrierAlignedCorePairedSubstitution
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCarrierAlignedGuardedSubstitution
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCarrierAlignedConvertedUnit
 
 /-! # Full scoped body checking at nonjoining aligned images
 
 The converted-unit images still fail the previous checker and have no
-computation join. Every common-typed core scoped body comparison now
+computation join. Every common-typed guarded scoped body comparison now
 instantiates at them, including a body that eta-expands a function returning
-the substituted parameter.
+the substituted parameter. Source computation permits every finite
+structure-singleton stage, including recursively guarded Eq prefixes.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape
 variable [Params]
 
 /-- Under the positive fieldless-structure hypothesis, the nonjoining image
-witness supports every core scoped body comparison, in either mode.
+witness supports every guarded scoped body comparison, in either mode.
 This includes all recursive eta and structure-field checks, not just bodies
 with a shared reduct or recursively equivalent universe annotations. -/
 theorem carrier_aligned_nonjoining_images_scoped_bodies
@@ -28,7 +29,7 @@ theorem carrier_aligned_nonjoining_images_scoped_bodies
       (¬ CarrierRecoveredCompare (ErasedCarrierRecoveredUnion D) (proofEraseCtx Γ) true
         (proofErase Γ x) (proofErase Γ y)) ∧
       (∀ {mode b c T}, env.HasType univs (A :: Γ) b T → env.HasType univs (A :: Γ) c T →
-        ScopedCompare (ErasedJointStage D 0) (proofEraseCtx (A :: Γ)) mode
+        ScopedCompare (ErasedStructureSingletonUnion D) (proofEraseCtx (A :: Γ)) mode
           (proofErase (A :: Γ) b) (proofErase (A :: Γ) c) →
         CarrierAlignedCompare (ErasedCarrierRecoveredUnion D) (proofEraseCtx Γ) mode
           (proofErase Γ (b.inst x)) (proofErase Γ (c.inst y))) := by
@@ -39,7 +40,7 @@ theorem carrier_aligned_nonjoining_images_scoped_bodies
   · rintro ⟨out, RX, RY⟩
     exact Hno (.base (.compute RX RY (.leaf .refl)))
   · intro mode b c T hb hc HC
-    exact proofErase_carrier_aligned_core_paired_inst heq hs
+    exact proofErase_carrier_aligned_guarded_paired_inst heq hs
       ⟨hΓ, v, hA⟩ hiT hjT hb hc (Hnew.mono (fun H => ⟨0, H⟩)) HC
 
 /-- A concrete eta-expanded body returns the substituted parameter beneath a
@@ -70,7 +71,7 @@ theorem carrier_aligned_nonjoining_images_eta_body
   have hf : env.HasType univs (A :: Γ) f (.forallE (.sort .zero) A.lift.lift) :=
     .lam (.sort (by trivial)) (.bvar (.succ .zero))
   have hη := (IsDefEq.eta hf).hasType.1
-  have HC : ScopedCompare (ErasedJointStage D 0) (proofEraseCtx (A :: Γ)) true
+  have HC : ScopedCompare (ErasedStructureSingletonUnion D) (proofEraseCtx (A :: Γ)) true
       (proofErase (A :: Γ) (.lam (.sort .zero) (.app f.lift (.bvar 0)))) (proofErase (A :: Γ) f) := by
     rcases proofErase_eta_forward hΓA hf with E | HE
     · rw [E]; exact .leaf .refl

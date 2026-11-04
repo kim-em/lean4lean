@@ -6411,3 +6411,33 @@ selected raw output, then use it for generic-parameter binder conversion. That
 full context transport is still unproved. The terminal-family coverage boundary
 for ∀ A : Type, A → Prop is not claimed repaired by guard promotion alone.
 Global strengthening and a strictly smaller sufficient front remain open.
+
+
+### Arbitrary finite structure-singleton computation in paired bodies (2026-11-04)
+
+Verdict: proved. The primitive interface in the paired scoped theorem is not
+limited to delta/iota. Existing structure-singleton stages already preserve
+interpreted substitutions at their original bounds, including nested general
+singleton family checks and explicit structure-carrier Eq prefixes. Their union
+embeds stage-for-stage through the application, recursive-singleton, joint and
+computed stages into the recovered-carrier union. This discharges the paired
+primitive interface for arbitrary finite nesting without defining a new oracle
+or assuming substitution of the larger recovered-carrier union.
+
+The nonjoining-image witness now instantiates every common-typed scoped body
+comparison over this guarded source union. A second explicit consumer constructs
+actual common typings and an inferred scoped certificate for lambdas whose
+annotation computes to Prop and whose body returns the parameter. A canonical-Eq
+unit-prefix example supplies that annotation computation at structure stage one.
+It establishes actual guarded coverage, not exclusion of all alternative core
+computation paths.
+
+Remaining boundary: recovered-application and mutually recursive carrier guards
+are not members of this source union. Their selected Pi/domain must survive
+substitution together with its argument guard. The existing fresh-variable test
+for JointCarrierDomainResynthesis requires recovery of arbitrary non-proof
+function images, so merely reusing its interface would reintroduce a substantive
+missing theorem. Native Pi residuals retain comparisons when the assigned type
+already has a certificate; they do not yet supply that certificate for all typed
+images or transport the entire recursive carrier guard. This remains the next
+live step. PropFront and the original strengthening goal remain open.

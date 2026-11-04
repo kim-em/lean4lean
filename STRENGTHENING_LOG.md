@@ -17908,3 +17908,40 @@ is claimed. Generic-parameter binder conversion still requires a recovery path
 with a coherent shared interpretation, not just this argument-guard theorem.
 No executable edits, agents, coordination or PR extraction. Independent changes
 are preserved; only the four new files and these ledger appendices are ours.
+
+
+### Paired checking over all finite structure-singleton computations (2026-11-04)
+
+Added ProofErasureCarrierAlignedGuardedSubstitution. ErasedStructureSingletonUnion
+collects the existing finite structure-singleton stages, and its descent, head
+preservation, exact interpreted substitution and inclusion in the recovered
+union are proved. The generic paired scoped substitution and head-beta results
+therefore have concrete consumers with no remaining primitive-simulation premise
+for this source. The source includes arbitrary finite nesting of general
+singleton family guards and structure-carrier Eq prefixes; it does not include
+the later recovered-application or joint-carrier stages.
+
+Strengthened ProofErasureCarrierAlignedScopedExample from core computation to
+this entire guarded union, retaining the two nonjoining images and failure of
+the old recovered checker. Added ProofErasureCarrierAlignedGuardedExample:
+actual common typings and a full inferred scoped certificate are constructed for
+lambda bodies that return the parameter while their annotation computes to Prop.
+Paired instantiation retains either supplied image beneath the respective domain.
+A concrete canonical-Eq unit prefix supplies a stage-one annotation computation.
+No claims of exclusion from every possible core computation are made.
+
+Validation: 688-job isolated rebuild of all 20 aligned modules and main build
+passed. All 57 public roots passed exact opaque-body/inductive/recursor dependency
+traversal, maximum closure 11,285, standard propext/Classical.choice/Quot.sound only.
+No sorry sources, weakN_iff, weakN_inv, JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport or JointPropBetaStability.
+Source bytes match the isolated worktree exactly; no warnings in changed modules.
+Artifacts /tmp/carrier-guarded-{all-build.log,isolated-build.log,audit.lean,audit.log,
+audit-roots.txt,files.txt,targets.txt,validation.json}; preparation script
+/tmp/prepare-carrier-guarded.py and validator /tmp/verify-carrier-audit.py.
+
+GOAL.md remains unfulfilled: UniqueTyping.lean still contains the original sorry,
+and no canonical-Eq counterexample or strictly smaller sufficient obligation has
+been established. Full recovered/joint carrier substitution remains the next
+boundary. Only these three aligned source files and these ledger appendices are
+part of this change; independent work is preserved. Executable unchanged.
