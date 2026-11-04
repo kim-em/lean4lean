@@ -8537,3 +8537,42 @@ Validation: four modules, 397 Lean lines, 24 public roots; 777-job build;
 transitive dependency audit maximum 12,236; only standard Lean axioms.
 No strengthening, sorryAx, or excluded recovery/front dependencies. No executable
 changes or PR extraction. The full GOAL.md deliverable remains open.
+
+
+### Reconstruct native eta after neutral arguments compute (2026-11-04)
+
+**Proved, without target or argument native evidence.** The preceding neutral
+long/long diamond supplied independent recoveries at both endpoints. A stronger
+source-changing result now constructs the new recovery when a fixed variable or
+constant head's arguments have independent core common reducts. Induction on the
+original native certificate transports the selected output to a forward core
+reduct. In an application, Pi inversion supplies the codomain residual, and both
+argument paths instantiate it at their common reduct. In a conversion, typed
+core confluence at the original recovered type joins the transported output and
+the guard's core readout. No arbitrary assigned-type coverage premise occurs.
+
+For an original native eta guard, the transported output remains a Pi; its domain
+is a forward core reduct of the original selected domain and retains that domain's
+sort witness. Thus native eta is reconstructed on the changed short branch, and
+the two long forms core-join. Typed spine computations with arbitrary lambda-eta
+paths in every argument supply the needed structural argument joins. The original
+guard and argument paths may use independent unbounded lambda-eta unions. The
+computed short branch closes at eta stage one, independent of those depths;
+the original long branch uses only level-core computation. Arbitrary lambda-eta
+continuations of that long branch can be absorbed too. The actual-environment
+wrapper needs only WF and canonical Eq, with full-eta base identity guards.
+
+**Boundary and next live case:** the spine head and application structure are
+preserved; argument internals are unrestricted by purity or native recovery.
+This does not cover head beta/delta contraction, projections, arbitrary neutral
+eta inside guards/arguments, or higher singleton-prefix steps. Unrestricted native
+source stability is already refuted, so the next head-changing case must keep
+its specific Pi/eta demand explicit rather than assume general output stability.
+The result is a new critical square, not full confluence, a strengthening proof,
+or a sufficient smaller obligation. Goal remains active.
+
+Validation: three modules, 300 Lean lines; explicit main and isolated builds each
+completed 766 jobs; all 15 public roots audited, including inductive constructors
+and recursor RHSs. Maximum closure 11,611, standard axioms only, forbidden paths
+absent. All 741 imported local sources stayed hash-stable and byte-identical to
+the isolated copy. No new-module warnings. Artifacts: `/tmp/carrier-spine-eta-square-*`.

@@ -20781,3 +20781,57 @@ remain stable; no warnings in the new modules. Artifacts:
 `/dev/shm/augmented-lambda-native-*` and preparation/commit scripts with that stem.
 Only these four files and ledger appendices are staged; independent committed
 work is preserved. No executable changes, coordination or PR extraction.
+
+
+## Source-changing eta square for computed neutral arguments (2026-11-04)
+
+Added `ProofErasureSpineRecoveryTransport`, `ProofErasureSpineEtaResidual`, and
+`ProofErasureSpineEtaSquare` (300 Lean lines, 15 public roots).
+
+`NativeSpineJoin Core` fixes a variable/constant head and permits independent
+core joins in every argument. `proofErase_spine_native_transport` starts with
+one actual source typing and one native certificate whose guard conversions
+have typed core joins. It constructs core-native recovery at the changed spine,
+with a forward core path from the original selected output. There is no recovery
+premise for the target or any argument. Application transport instantiates joined
+codomains at common argument reducts. Conversion transport uses confluence only
+at the original actual recovered type. The generic core needs typed confluence,
+raw substitution closure, and absence of Pi-root primitives.
+
+A recovered Pi stays a Pi along this forward output path. Source replay transports
+its domain-sort witness, so `proofErase_spine_native_eta_residual` constructs a
+native eta expansion of the changed short source. Both long forms then core-join
+by their domain paths and the spine join lifted beneath the new lambda. There is
+no need to compare independently selected universe classifications or to supply
+an assigned-type recovery path at the target.
+
+`NativeSpineCompute` records actual compatible paths in every argument and is
+closed under successive such paths. Source typing and the existing lambda-eta
+core-join theorem turn these paths into structural spine joins. The resulting
+eta/argument-computation square uses only level core on the original long branch
+and eta stage one on the computed short branch. Native guard conversions and
+argument computations may independently range over unbounded lambda-eta unions;
+the stage-one closing bound does not grow with their depths. A further theorem
+absorbs arbitrary independent lambda-eta computation on the original long branch.
+Stored-definition and actual-WF-environment wrappers use full-eta identity guards
+and discharge the core interfaces without extra quotient registration.
+
+Research judgment: this closes a source-changing neutral eta/congruence peak
+without target native evidence, beyond the preceding same-source long/long
+result. It deliberately preserves the head and application structure; arguments
+can contain arbitrary syntax and are not required to normalize. Head-changing
+beta/delta steps, projection-headed terms, general neutral eta in guards or
+arguments, higher singleton-prefix computation, full eta-aware coverage, and
+whole-union confluence are not proved. The unrestricted native-stability
+counterexample remains respected. The next head-changing investigation should
+retain its exact Pi demand; generic assigned-type stability is not a viable
+replacement. No completion of strengthening or new sufficient smaller obligation
+is claimed. `UniqueTyping.lean` and its original sorry are unchanged.
+
+Validation: explicit three-target main and isolated builds passed (766 jobs each).
+All 15 public declarations, their transitive types and opaque proof values,
+inductive constructors and recursor RHSs passed the isolated audit. Maximum
+closure 11,611; only `propext`, `Classical.choice`, `Quot.sound`; all configured
+forbidden dependencies absent. All 741 imported local sources were hash-stable
+and byte-identical to the isolated copies; no new-module warnings. Artifacts:
+`/tmp/carrier-spine-eta-square-*`; prep `/tmp/prepare-carrier-spine-eta-square.py`.
