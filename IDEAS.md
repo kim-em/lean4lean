@@ -6864,3 +6864,42 @@ recursive certificate needed for another carrier variant. General parameterized
 native head exposure and arbitrary recovery coverage also remain open. This is
 a verified fragment extension, not a sufficient smaller front or a solution of
 UniqueTyping.weakN_iff.
+
+## 2026-11-04 17:01:18 UTC — locally generic values as dependent family results
+
+**Verdict: proved a dependent result extension outside every previous finite level.**
+The earlier Ranked hierarchy increased input depth but every certificate still
+ended in a literal sort. A locally introduced successor-universe parameter can
+instead serve as the final result carrier. The existing actual specialization
+lemma reads a full guard at any ordinarily equal source carrier as ordinary
+comparison when the target is that parameter. No existential-specialization
+substitution closure is assumed: DependentFamily records local parameters and
+its substitution theorem explicitly fixes them; empty-parameter roots rebuild
+the witnesses under their own binders after arbitrary outer substitution.
+
+DependentFamily combines old parameterized leaves, generic result leaves,
+terminal/callable/native inputs, universe binders, and parameter inputs.
+ValueRanked iterates this grammar using the generic native InputLaws framework.
+Its complete laws are proved by finite induction, it is monotone, and every old
+Ranked n certificate embeds in ValueRanked n. The inhabited identity carrier
+∀ X : Type, X → X has a level-one certificate but is proved outside Ranked n
+for every n, using the old grammar's final-sort invariant. Whole-carrier readout
+and native binder conversion for functions accepting such identity values are
+concrete consumers. SelectedLambdaDomain.valueFamily connects the new laws to
+complete comparison and first-layer computation through selected body paths.
+
+The checked example accepts a polymorphic identity function, applies it to Prop
+and an ambient proposition, and has a beta-expanded assigned input. Exact native
+assigned recovery is refuted in the full computed union; comparison and exact
+first-layer computation nevertheless transport through the image. This extends
+both the previous finite input hierarchy and its actual substitution consumers.
+
+Still open: native coverage for arbitrary dependent applications. The proved
+outer-substitution law does not assert that a generic result's specialization
+survives instantiating its own universe parameter by an arbitrary type. Native
+Tree certificates still require sort-ending actual result trees. Consequently
+this result is not a native context-conversion theorem for every polymorphic
+value itself. Tracking selected/native alignment through dependent parameter
+instantiation, or integrating additional projectable result classes, remains
+live. No general strengthening proof, canonical-Eq counterexample, or strictly
+smaller sufficient irreducible front is claimed; GOAL.md remains active.

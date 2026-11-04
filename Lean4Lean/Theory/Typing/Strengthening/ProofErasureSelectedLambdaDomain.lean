@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureDependentNeutralFunctionCarrierConversion
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureDependentTerminalFunctionCarrierConversion
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureRankedTypeFamily
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureDependentValueFamily
 
 /-! # Written lambda domains related to finite selected domains
 
@@ -42,6 +42,11 @@ inductive SelectedLambdaDomain (cut : Nat) (Γ : List VExpr) : ProofShape → VE
   /-- Every finite level of native higher-order input readout is available.
   The rank bounds the certificate's construction, not the substituted terms. -/
   | rankedFamily : env.IsDefEq univs Γ S B (.sort u) → NativeFamilyFramework.Ranked n Γ B →
+      SelectedLambdaDomain cut Γ (proofErase Γ S) B
+
+  /-- A family may return a locally bound type parameter as an actual value
+  carrier, with the specialization readout proved inside the finite certificate. -/
+  | valueFamily : env.IsDefEq univs Γ S B (.sort u) → NativeFamilyFramework.ValueRanked n Γ B →
       SelectedLambdaDomain cut Γ (proofErase Γ S) B
 
 /-- A single type-valued function is a one-binder instance of the general
@@ -100,6 +105,11 @@ theorem SelectedLambdaDomain.subst
     rw [← proofErase_subst_with hΓ₀ W HE.hasType.1 ES]
     exact .rankedFamily (HE.subst henv.orderedStrong W hΓ₀)
       (NativeFamilyFramework.ranked_subst HT hΓ₀ W HE.hasType.2)
+
+  | valueFamily HE HT =>
+    rw [← proofErase_subst_with hΓ₀ W HE.hasType.1 ES]
+    exact .valueFamily (HE.subst henv.orderedStrong W hΓ₀)
+      (NativeFamilyFramework.valueRanked_subst HT hΓ₀ W HE.hasType.2)
 
 /-- A guard at the selected domain transfers to the actual written lambda
 domain. Only finite supplied guards and actual endpoint typings are used. -/
@@ -160,6 +170,10 @@ theorem SelectedLambdaDomain.guard
 
   | rankedFamily HE HT =>
     exact NativeFamilyFramework.ranked_carrier_convert HT hs hΓ
+      (HE.symm.defeq hx) (HE.symm.defeq hy) HE.toU HX
+
+  | valueFamily HE HT =>
+    exact NativeFamilyFramework.valueRanked_carrier_convert HT hs hΓ
       (HE.symm.defeq hx) (HE.symm.defeq hy) HE.toU HX
 
 end Lean4Lean.VEnv.Strengthening

@@ -18532,3 +18532,50 @@ active. No executable changed, no agents were contacted, and independent edits
 to SelectedLambdaDomain and the DependentValue modules were preserved. Only the
 three new carrier-aligned modules, RecordTransfer, and these ledger appendices
 belong to this change.
+
+## 2026-11-04 17:01:18 UTC — dependent generic-value outputs and recursive instantiation
+
+Added DependentFamily with explicit locally bound type parameters and a result
+constructor for those parameters. Typed substitution preserves its recorded
+parameter list when the substitution fixes those variables. Its full carrier
+readout uses the checked type-parameter specialization theorem at generic
+results, existing terminal/callable/specialized binder conversion at corresponding
+inputs, and generic native context conversion at native inputs. Empty-list
+roots supply both InputLaws. ValueRanked iterates those proved laws, embeds all
+old Ranked certificates at the same level, and is monotone under level increases.
+
+DependentValueBoundary proves actual typing and inhabitation of ∀ X : Type,
+X → X, constructs its new level-one certificate, and refutes membership in every
+old finite Ranked level via parameterized_sortResult and ranked_sortResult.
+It supplies full guard conversion at that dependent target and recursive binder
+conversion for native functions consuming its values. The result is about
+actual carriers and arbitrary ordinarily equal source carriers, not only syntax.
+
+SelectedLambdaDomain.valueFamily has proved substitution and full guard transfer.
+DependentValueInstantiation exposes its complete recursive comparison and exact
+first-layer computation consumers. DependentValueExample applies a polymorphic
+identity parameter to Prop and an ambient proposition. The image is actually
+typed with a beta-expanded assigned input; exact recovery of that assignment is
+proved impossible even in the full computed union. Both complete consumers
+are instantiated without adding any recovery or future-comparison premise.
+
+Validation: 753-job build of 79 explicit modules passed. The exact 634-root
+opaque/constructor/recursor audit passed, with 43 new roots and maximum closure
+11,511. Only propext, Classical.choice and Quot.sound occur, with no sorry
+sources or excluded weakN_iff, weakN_inv, JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport or JointPropBetaStability.
+The 30 new family/boundary roots additionally pass the same independence gate
+as the prior 68 framework roots: no SelectedLambdaDomain, StructuralFamilyRecovery
+or its transport, or previous concrete native alignment/substitution types.
+The prior 31 lower callable-layer checks remain enforced. All five source files
+match the pre-build SHA256 snapshot and have no new build warnings. Artifacts:
+/tmp/dependent-value-{full-build.log,audit.lean,audit.log,roots.txt,new-roots.txt,
+independent-roots.txt,files.txt,build-targets.txt,source-before.json,validation.json};
+scripts /tmp/prepare-dependent-value-audit.py and /tmp/verify-dependent-value-audit.py.
+
+The theorem at UniqueTyping.lean:94 still contains the original sorry. General
+native dependent-application coverage and arbitrary parameter instantiation are
+not established by this root-family substitution theorem. GOAL.md remains active.
+Only four new theory modules, the selected-domain extension, and these ledger
+appendices belong to this change; independent worker edits are preserved. No
+executable files were changed, no PRs extracted, and no agents contacted.
