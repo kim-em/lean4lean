@@ -9184,3 +9184,36 @@ or sorry sources. All 724 local closure sources hash-stable and isolated-identic
 Artifacts `/tmp/carrier-dependent-return-*`; prep
 `/tmp/prepare-carrier-dependent-return.py`. No new warnings or executable changes.
 Goal remains active.
+
+
+## Returning a neutral type application (2026-11-04 23:05:20 UTC)
+
+Verdict: the first neutral-application return case is proved. For variables
+F : Sort u -> Sort v and A : Sort u, every computation of the erased F A in
+the full structure/function-eta union beta-reduces back to the exact F A.
+Extend the typed sort-demand grammar with a second atomic key; both keys retain
+a sort assignment and exclude root structure/function eta. The function demand
+uses one key for its argument and the other for its result. A two-target
+realization of the existing empty-payload observations then retains both free
+variables through beta, eta, constant/identity frames and changed annotations.
+No variable-distinctness, normalization or confluence premise is needed.
+
+Common native evidence for any retained value assigned this F A now restores
+the exact assigned type. This provides the image certificate used by the
+existing exact native substitution and root-beta preservation laws; it does
+not assume the general forward-binder obligation. Universes u and v may include
+Prop. The argument here is a type variable, not a proof or an arbitrary data
+index. General F x with data arguments remains outside this return law, as do
+arbitrary type arguments and general dependent constructor spines. Common
+coverage, type confluence and strengthening remain open; no sufficient strictly
+smaller front is claimed.
+
+Validation: one new 150-line module, five new public roots, and a two-line
+extension of the existing typed-demand grammar and its eta proof. Rebuilt all
+11 affected source modules (779 jobs). Audited all 39 public roots including
+both modified inductives, constructors, recursors, types and opaque bodies;
+maximum dependency closure 11,248. Standard axioms only, no configured
+forbidden dependencies, and all 747 local import sources hash-stable. Artifacts:
+`/dev/shm/static-type-app-readout-*`; preparation
+`/dev/shm/prepare-static-type-app-readout-audit.py`. No executable changes,
+PR extraction or coordination. Goal remains active.

@@ -17,6 +17,7 @@ open private subst_bvar_liftN from Lean4Lean.Theory.Typing.Strengthening.ProofEr
 /-- A finite demand follows its closed control type. -/
 inductive Demand : ControlType → Ob → Prop where
   | payload : Demand (.sort u) .sort
+  | neutral : Demand (.sort u) .pi
   | fn : (∀ key ∈ keys, Demand A key) → Demand B o → Demand (.arrow A B) (.app keys o)
 
 /-- Control valuations remember both a demand and its assigned type. -/
@@ -154,7 +155,7 @@ theorem Obs.native_eta (hstep : ErasedScopedPrimitiveDescent Step)
     Obs P n Δ S out t o := by
   have HD := H.demand
   cases HD with
-  | payload => exact (H.typing.no_eta_sort hstep R).elim
+  | payload | neutral => exact (H.typing.no_eta_sort hstep R).elim
   | @fn keys A B o HK HO =>
     obtain ⟨D, rfl, HT, HB, HX, u, SD⟩ := H.typing.eta_parts hstep R
     apply Obs.lam HT HK
