@@ -6794,3 +6794,41 @@ The original strengthening theorem and a strictly smaller sufficient irreducible
 front remain unproved. The next structural route is universe-compatible primitive
 simulation for carrier paths, or function-binder transport retaining native
 outputs; neither has been rejected merely because it is larger.
+
+## 2026-11-04 16:44:19 UTC — finite native-input hierarchy without a fixed higher-order bound
+
+**Verdict: proved at every finite level, with a uniform syntax coverage theorem.**
+One more hard-coded family constructor would repeat the previous proof at each
+higher-order input. Instead, NativeFamilyFramework.InputLaws packages precisely
+typed substitution and whole-carrier guard conversion for an input predicate F.
+The complete native alignment, recovery substitution, recursive checker transport,
+and binder-context conversion are now proved once with those explicit laws.
+The generic theorems are conditional on InputLaws; the final ranked results
+supply all of those laws by finite induction, rather than assuming completeness.
+
+Extension F admits old polymorphic targets and telescopes whose inputs are native
+Tree F certificates. Its substitution law uses F's substitution law; its carrier
+readout uses the proved native binder conversion for F, then recurses on its
+codomain. Ranked 0 is PolymorphicTypeFamily and Ranked (n+1) is Extension (Ranked n).
+ranked_inputLaws proves both laws at every level. Monotone embeddings allow a
+single uniform level for every finite SortPiTree (universe leaves and Pi nodes
+nested on both input and result sides). Thus there is no fixed bound on
+higher-order depth in this fragment; neither normalization of terms nor a
+native recovery completeness hypothesis is used.
+
+The actual typed target (((Type → Prop) → Prop) → Prop) has a level-one certificate
+and is proved outside PolymorphicTypeFamily: its generic input is a function
+whose own input is a Pi, excluded by the old literal-sort callable readout, and
+it is not terminal. SelectedLambdaDomain.rankedFamily consumes the new readout,
+so the existing structural recovery route now supports arbitrary finite levels
+for complete recursive comparison and exact first-layer guarded computation.
+
+Still missing: coverage of arbitrary dependent type syntax and general native
+recovery. SortPiTree has no variable, constant, or application leaves; the larger
+Ranked grammar retains earlier polymorphic leaves and dependent telescopes but
+is not proved to cover all types. The generic framework can now accept further
+proved input laws without redoing the checker induction. Extending parameter
+tracking through new native-input telescopes, and integrating genuinely
+projectable native results, remain live routes. No sufficient strictly smaller
+irreducible front or canonical-Eq counterexample has been established, and the
+original strengthening theorem remains open.

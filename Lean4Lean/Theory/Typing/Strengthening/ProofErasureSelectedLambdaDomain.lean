@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureDependentNeutralFunctionCarrierConversion
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureDependentTerminalFunctionCarrierConversion
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePolymorphicTypeFamily
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureRankedTypeFamily
 
 /-! # Written lambda domains related to finite selected domains
 
@@ -37,6 +37,11 @@ inductive SelectedLambdaDomain (cut : Nat) (Γ : List VExpr) : ProofShape → VE
   /-- Local universe parameters in this target are preserved by outer
   substitution, so specialized generic inputs have a proved guard-transfer law. -/
   | polymorphicFamily : env.IsDefEq univs Γ S B (.sort u) → PolymorphicTypeFamily Γ B →
+      SelectedLambdaDomain cut Γ (proofErase Γ S) B
+
+  /-- Every finite level of native higher-order input readout is available.
+  The rank bounds the certificate's construction, not the substituted terms. -/
+  | rankedFamily : env.IsDefEq univs Γ S B (.sort u) → NativeFamilyFramework.Ranked n Γ B →
       SelectedLambdaDomain cut Γ (proofErase Γ S) B
 
 /-- A single type-valued function is a one-binder instance of the general
@@ -90,6 +95,11 @@ theorem SelectedLambdaDomain.subst
   | polymorphicFamily HE HT =>
     rw [← proofErase_subst_with hΓ₀ W HE.hasType.1 ES]
     exact .polymorphicFamily (HE.subst henv.orderedStrong W hΓ₀) (HT.subst hΓ₀ W HE.hasType.2)
+
+  | rankedFamily HE HT =>
+    rw [← proofErase_subst_with hΓ₀ W HE.hasType.1 ES]
+    exact .rankedFamily (HE.subst henv.orderedStrong W hΓ₀)
+      (NativeFamilyFramework.ranked_subst HT hΓ₀ W HE.hasType.2)
 
 /-- A guard at the selected domain transfers to the actual written lambda
 domain. Only finite supplied guards and actual endpoint typings are used. -/
@@ -147,5 +157,9 @@ theorem SelectedLambdaDomain.guard
 
   | polymorphicFamily HE HT =>
     exact HT.carrier_convert hs hΓ (HE.symm.defeq hx) (HE.symm.defeq hy) HE.toU HX
+
+  | rankedFamily HE HT =>
+    exact NativeFamilyFramework.ranked_carrier_convert HT hs hΓ
+      (HE.symm.defeq hx) (HE.symm.defeq hy) HE.toU HX
 
 end Lean4Lean.VEnv.Strengthening

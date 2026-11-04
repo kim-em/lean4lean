@@ -18446,3 +18446,51 @@ coordination, strengthening completion or sufficient new irreducible front is
 claimed. Primitive carrier paths, function-binder conversion, parameterized
 exposure and native coverage remain live work. Only these four source files
 and these ledger appendices belong to this change; independent work is preserved.
+
+## 2026-11-04 16:44:19 UTC — stratified native-input readout and finite higher-order coverage
+
+Generalized the actual-native-carrier proof to an explicit InputLaws interface:
+substitution and whole-carrier conversion for the chosen input predicate. The
+framework includes native type trees, actual/selected carrier alignment, every
+recovery constructor under substitution, full recursive stage-zero checker
+transport, and binder conversion to native trees. No native completeness,
+backward native recovery, or general guard promotion is included in InputLaws.
+
+Proved Extension's two input laws from the previous level, defined Ranked by
+finite iteration starting at PolymorphicTypeFamily, and proved ranked_inputLaws
+by natural-number induction. Certificates embed monotonically between levels.
+SortPiTree.coverage gives one level uniformly in every context for every finite
+universe/Pi syntax tree, with arbitrary input-side and output-side nesting.
+Its concrete consumers prove whole-carrier and binder-context conversion.
+RankedFamilyBoundary supplies actual typing for the level-one target
+(((Type → Prop) → Prop) → Prop), proves exclusion from the entire old polymorphic
+grammar, and consumes arbitrary supplied carrier guards at equal source types.
+
+SelectedLambdaDomain now has rankedFamily, with proved substitution and guard
+transfer. The two RankedFamilyInstantiation theorems connect every finite level
+to the existing complete recursive comparison and exact first-layer computation
+consumers. Their result type and body expression need not be finite sort/Pi
+trees; the existing finite StructuralFamilyRecovery body certificate is explicit.
+
+Validation: 749-job build of 75 explicit modules passed. The exact 591-root
+opaque/constructor/recursor audit passed, with 71 new roots and maximum closure
+11,489. Only propext, Classical.choice and Quot.sound occur, with no sorry
+sources or excluded weakN_iff, weakN_inv, JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport or JointPropBetaStability.
+In addition to the prior 31 callable-layer checks, all 68 new framework/rank/
+coverage/boundary roots are checked independent of SelectedLambdaDomain,
+StructuralFamilyRecovery and its transport, and the previous concrete native
+alignment/substitution types. This verifies the required dependency direction
+before the new selected-domain constructor consumes ranked readout. All nine
+source files match the pre-build SHA256 snapshot and have no new build warnings.
+Artifacts: /tmp/ranked-family-{full-build.log,audit.lean,audit.log,roots.txt,
+new-roots.txt,framework-roots.txt,files.txt,build-targets.txt,source-before.json,
+validation.json}; scripts /tmp/prepare-ranked-family-audit.py and
+/tmp/verify-ranked-family-audit.py.
+
+UniqueTyping.weakN_iff still contains the original sorry at line 94. The new
+coverage theorem concerns the stated finite syntax fragment, not arbitrary
+canonical-Eq terms or all dependent types. GOAL.md remains active. Only the eight
+new theory modules, the selected-domain extension, and these ledger appendices
+belong to this change. No executable or independent worker files were changed,
+and no PRs were extracted or agents contacted.
