@@ -17027,3 +17027,53 @@ Original UniqueTyping.lean:94 remains open. Concurrent independent sequential
 substitution work, committed as 19f8e688, is preserved and excluded from the
 validation baseline. Only Theory and ledgers change; no coordination, agents,
 or executable edits.
+
+
+## 2026-11-04 — Shared-template congruence closes a nonjoining image fragment
+
+7635deb8 is committed and pushed. CarrierRecoveredCongruence preserves the
+new comparison under interpreted renaming, retaining both native recoveries
+and the exact supplied carrier guard. A typed syntax induction extends
+pointwise inferred image comparison through an arbitrary template. The left
+substitution supplies actual dependent binder typings, and the renaming theorem
+lifts both image certificates beneath them. This uses neither primitive
+substitution nor comparison completeness. The concrete single-instantiation
+law returns the exact erased instances at two distinct typed images.
+
+CarrierRecoveredUnitImages tests the new rule on the actual old common-beta
+obstruction. In a context of two variables at a closed positive empty structure,
+both images recover the same literal carrier and its unit guard relates them.
+The computed-union variable-head invariant proves that there is no common
+computational result. A ported computed-checker bvar-injectivity proof also
+shows that the old checker still cannot compare them. Every typed body's two
+instances do compare in CarrierRecoveredCompare, including bodies retaining
+the argument at arbitrary depth and within dependent annotations.
+
+A second witness makes the images lambdas: constant functions on a literal
+universe returning those unit variables. Actual positive-result typing prevents
+proof erasure, and their displayed lambda shapes are normal. Hence no common
+computed-union reduct exists. Inferred recovered-carrier comparison beneath
+the lambda still supplies the image relation, which instantiates every typed
+body. This is a nonjoining lambda-image case, beyond the preceding joined-image
+head-beta results, using a larger independently descending certificate language.
+
+Validation: isolated checkout at 1dae2fdf plus only the three source modules.
+Their generated Lean artifacts were removed and rebuilt there; 655 jobs pass
+with no new-module warnings. Exact source bytes match. All 10 public declarations,
+including the inductive family, pass the opaque dependency audit. Largest
+closure 10,998; only propext, Classical.choice and Quot.sound; no sorry,
+weakN_iff, weakN_inv, JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability. Artifacts:
+/tmp/carrier-recovered-isolated-build.log,
+/tmp/carrier-recovered-audit.lean, .log, -roots.txt. git diff --check passes.
+
+The full objective remains active. Arbitrary comparisons between different
+bodies do not reduce to the shared-template theorem without a separate
+composition/transport argument. The new comparison has no established global
+beta stability or completeness, and its new guard is not yet fed back into
+singleton primitives. Certificate-preserving descent and recursive guard
+saturation are live next steps; do not silently reuse the old grammar's
+bvar-injectivity against the enlarged relation. Original UniqueTyping.lean:94
+remains open. No canonical-Eq counterexample or strictly smaller sufficient
+irreducible front is claimed. Only Theory and ledgers change; no coordination,
+subagents, or executable edits.

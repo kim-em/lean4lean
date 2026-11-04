@@ -5702,3 +5702,38 @@ No strengthening inverse, arbitrary substitution, or beta stability is used.
 This changes the certificate language; it does not assert a missing closure
 property of the old computed checker. Next test: arbitrary shared templates at
 nonjoining unit images, including lambda-valued images.
+
+
+## 2026-11-04 — Heterogeneous shared bodies at nonjoining unit and lambda images
+
+CarrierRecoveredCongruence proves exact interpreted renaming of the enlarged
+comparison. Pointwise inferred image comparison then extends through every
+typed syntactic template. The left typed substitution builds each dependent
+binder context; renaming lifts both compared images there. At variable leaves
+the new recovered-carrier rule is usable in inferred mode, avoiding the old
+failed promotion from an arbitrary carrier guard. Actual single instantiation
+accepts distinct images and preserves exact erased endpoints. Shared native
+recovery plus an old computed carrier guard is a sufficient image criterion.
+
+Verdict: checked for arbitrary typed bodies, including dependent annotations,
+not merely argument-free or first-order templates. CarrierRecoveredUnitImages
+constructs two distinct variables at a closed positive empty structure, proves
+they cannot compute to any shared shape in ErasedComputedJointUnion, and proves
+they have no common comparison in the old computed grammar. Every typed body's
+two instances nevertheless compare in the enlarged relation.
+
+The images may themselves be lambdas: two constant functions with literal
+universe domains return the two distinct unit variables. Their raw lambda
+forms are normal and unequal, so they do not join. The new inferred image
+comparison descends and still instantiates every typed body. This addresses a
+nonjoining lambda-argument fragment without claiming a computational join or
+native recovery of arbitrary images.
+
+Limits: the source is one shared typed body. This is not heterogeneous transport
+of an arbitrary existing comparison between different bodies. The new relation
+has no proved global beta closure, composition, declarative completeness, or
+feedback into singleton primitive guards. It is not a strictly smaller
+sufficient front. The next substantive tasks are retaining its certificates
+through descent and testing recursive guard saturation/transport; the original
+strengthening obligation remains open. Validation: 655-job isolated build,
+10 exact opaque audit roots, largest closure 10,998, no forbidden dependencies.
