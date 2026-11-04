@@ -113,11 +113,13 @@ theorem AnchoredOrRecoveringImages.inst
 
 private theorem rooted_not_structure (H : AnchoredFamilyRecovery D cut Γ e out n)
     (hΓ : OnCtx Γ (env.IsType univs)) (hi : env.projections s info)
-    (ht : env.HasType univs Γ e (VExpr.mkApps (.const s ls) args)) : False := by
-  rcases H.expose hΓ ht with ⟨u, hu⟩ | ⟨A, u, hf, _, _⟩ | ⟨A, b, _, _, _, _, R, _⟩
+    (ht : env.HasType univs Γ e (VExpr.mkApps (.const s ls) args))
+    (Hout : ¬ AnchoredCarrier cut out) : False := by
+  rcases H.expose hΓ ht with ⟨u, hu⟩ | HN | ⟨A, u, hf, _, _⟩ | ⟨A, b, _, _, _, _, R, _⟩
   · have HE := hu.uniqU henv hΓ ht
     exact henv.headInversion.sort_rigid hΓ (henv.projectionRigid hi)
       (HE.typeChain henv hΓ (HasType.sort (hu.isType henv hΓ |>.choose_spec.sort_inv henv)))
+  · exact Hout HN
   · have HE := hf.uniqU henv hΓ ht
     obtain ⟨_, hPi⟩ := hf.isType henv hΓ
     exact henv.headInversion.forallE_rigid hΓ (henv.projectionRigid hi)
@@ -201,7 +203,12 @@ theorem proofErase_joint_zero_recovery_subst_anchoredImages
       exact .proj hi HT hj (by simpa only [List.length_map] using hlen) R
     · exact (rooted_not_structure H hΓ₀ hjInfo (by
         simpa only [VExpr.subst_mkApps, VExpr.subst] using
-          hm.hasType.2.subst henv.orderedStrong W hΓ₀)).elim
+          hm.hasType.2.subst henv.orderedStrong W hΓ₀) (by
+          rintro ⟨i, args, _, HE⟩
+          have HC := congrArg ProofShape.constHead HE
+          simp only [ProofShape.subst_mkApps, ProofShape.subst,
+            ProofShape.constHead_mkApps, ProofShape.constHead] at HC
+          cases HC)).elim
   | convert R RC ih =>
     have RC' := (forget_scope RC).subst (σ := τ) (fun H => erased_iota_primitive_subst H)
     rcases ih hΓ₀ W ES ht EΓ Ee HI with R' | ⟨n, H⟩

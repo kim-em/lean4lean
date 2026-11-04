@@ -16324,3 +16324,53 @@ endpoint beta stability and completeness remain open. UniqueTyping.lean:94
 still contains the original sorry. No canonical-Eq counterexample or strictly
 smaller sufficient irreducible obligation is established. GOAL.md stays active;
 no executable changes, PR extraction, subagents or coordination.
+
+## 2026-11-04 — Terminal neutral outputs support finite context conversion
+
+Previous turn made progress: 75775d53 refuted universal three-way image coverage
+and was checked/pushed. This turn adds a terminal neutral selected-output leaf
+to AnchoredFamilyRecovery. It is a path-classification witness, not an assertion
+that the selected type is the image's native recovered type. The protected
+output cannot compute to Pi or a constant-headed structure, which is precisely
+why it can safely terminate the relevant recovery branches.
+
+Head exposure now also returns a protected neutral output. Its substitution
+and conversion cases preserve that output's head; an application's selected Pi
+excludes this case syntactically. Projection exclusion now explicitly retains
+that the selected output is not neutral. The old helper for arbitrary outputs
+would be false with the new leaf and was not retained. The full image recovery
+classification, three-way function cover, and recursive checker transport all
+rebuild successfully. The Pi-wrapped structural boundary also still compiles;
+the terminal extension has not silently erased that obstruction.
+
+ProofErasureNeutralImageTransport proves substitution by arbitrary values at
+neutral assigned types, without native recovery. It constructs an interpreted
+identity substitution between contexts whose binder annotations are actually
+equal, provided the source annotation is neutral. Its exceptional variable
+image uses the new terminal case, while all older variables recover natively.
+Both common-typed comparison and explicit-carrier checking transport with raw
+endpoints unchanged. A retained finite function-body guard can then change its
+domain along that equality. This uses ordinary finite certificates, not an
+assumption of all future substitutions. The body certificate and its typed
+realizations remain explicit premises; arbitrary whole-function coverage is
+not asserted.
+
+Validation: consuming build succeeds in 585 jobs with no changed/new-module
+warnings (/tmp/terminal-neutral-build.log). Opaque audit covers all 38 public
+roots in the modified recovery, image classification, recursive callers, new
+transport, both eta/structural boundary results, and all six constructors.
+The largest closure has 9,410 declarations. Exact expected roots match; axioms
+are propext, Classical.choice, Quot.sound only. No sorry sources, weakN_iff,
+weakN_inv, JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability occur. Artifacts:
+/tmp/terminal-neutral-audit.lean, .log, -roots.txt.
+
+Next: transport whole function-carrier guards over equal neutral domains,
+starting with the normal neutral domains and fixed sort codomain of the
+Pi-wrapped boundary. A carrierChecked node reindexes directly; a carrierFunction
+node can use the new neutral context theorem. CarrierCompute and carrierReduce
+must retain their actual computations/typed endpoints rather than assume a
+body certificate can always be extracted. This is unproved next work, not
+universal structural conversion. The original sorry at UniqueTyping.lean:94
+remains, and no GOAL.md success alternative is yet achieved. Only Theory and
+ledgers change; no coordination, subagents, or executable changes.

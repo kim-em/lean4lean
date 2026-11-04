@@ -5489,3 +5489,5 @@ a selected output conversion under a lambda may need instantiation by an
 intermediate argument not covered by the available image invariant. No such
 unrestricted instantiation, arbitrary endpoint beta stability or completeness
 is assumed by the new theorems.
+
+| Terminal neutral selected outputs and neutral binder conversion | **Checked (2026-11-04).** `AnchoredFamilyRecovery.neutral` stops at protected neutral selected outputs without requiring native image recovery. The full recovery/transport induction remains checked after projection exclusion is tightened to the selected output's rigid shape. Arbitrary values at neutral assigned types now substitute through recursive checking. `AnchoredImageSubstitution.neutral_context` transports comparison/carrier guards under actual equal-domain conversion from a neutral source binder; a retained finite function-body guard can change its domain accordingly. Extraction/transport of arbitrary whole-function guards and structural image coverage remain open. |
