@@ -20961,3 +20961,55 @@ All local import hashes remain stable; no new-module warnings. Artifacts:
 `/dev/shm/eta-unit-native-*`, preparation and commit scripts with that stem.
 Only these six modules and these ledger appendices are staged. Independent work,
 the executable and PR state are preserved; no coordination or PR extraction.
+
+
+## Identity-wrapper Pi peak refutes general beta-exposure core joining (2026-11-04)
+
+Added `ProofErasureEtaBetaPiBoundary` and `ProofErasureEtaBetaCoreJoinLimit`
+(240 Lean lines, four public roots).
+
+The typed witness uses the earlier pure eta-assigned family domains, but lifts
+the mismatch to a genuine Pi demand. Let the value be a lambda returning Prop
+with domain `F f`; assign it a Pi with domain `F (fun x => f x)`, and wrap it in
+an identity lambda at that assigned Pi. Both the wrapper and the value have
+stage-zero native Pi certificates. The wrapper's native eta expansion retains
+the assigned domain, while head beta exposes the value's different written
+domain. Both long and short expressions beta-reduce to constant-body lambdas.
+Their domains are beta-normal and not structurally universe-equivalent, so a
+beta/universe join is impossible. Pure-path readout transfers that separation
+to every level-core definition collection.
+
+The public witness records the original typings and typed beta equality, exact
+literal-lambda erasure of the contractum, the beta path, both native Pi recoveries,
+the original native eta step, and the failed core join. It also gives a positive
+repair of precisely the same peak: a stage-one eta path in the contractum's domain
+meets the beta reduct of the long branch. No additional environment declaration
+is required. This is not merely a loss of arbitrary non-Pi native recovery, and
+it does not refute common-reduct confluence in the full eta language.
+
+The generic common-path lemma uses replay to type the shared endpoint and then
+composes the two core joins there. Applying it to the beta-lambda eta union proves
+that arbitrary finite readout and guard depths cannot join the witness. The
+actual-environment theorem uses the augmented collection and full function-eta
+base identity guards, with only WF and canonical Eq. Hence replacing the readout
+grammar by arbitrary beta exposure of a lambda would invalidate the established
+core-join invariant even on these finite, pure, natively callable terms.
+
+Research judgment: the next domain-transport invariant must permit genuine eta
+joins, not merely core joins at independently native Pi endpoints. Current
+committed evidence `a4d2a59a` strengthens the global boundary again: positive
+unit-indexed families refute common-native coverage even for the full function-eta
+union, under its explicit unit registration/typing assumptions. More function-eta
+or singleton depth cannot repair that language; unit/structure eta or adequate
+comparisons remain necessary live extensions. No strengthening proof, canonical-Eq
+counterexample, or sufficient strictly smaller front is claimed. The original
+`UniqueTyping.lean` sorry and executable are unchanged.
+
+Validation: explicit main and isolated builds each passed 789 jobs. Audited all
+47 selected public roots, including the four new roots and newly imported
+modules, transitive types, opaque proof values, inductive constructors and recursor
+RHSs. Maximum closure 12,050; only `propext`, `Classical.choice`, `Quot.sound`;
+configured forbidden dependencies absent. All 764 imported local sources stayed
+hash-stable and byte-identical to the isolated copy. No new-module warnings.
+Artifacts: `/tmp/carrier-eta-beta-limit-*`; prep `/tmp/prepare-carrier-eta-beta-limit.py`.
+Independent files and index preserved; no coordination or PR extraction.

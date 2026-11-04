@@ -8652,3 +8652,44 @@ all four context variables and their typings. It does not construct a complete
 canonical-Eq environment, refute declarative strengthening, or supply a smaller
 sufficient front. Validation: six modules, 894 Lean lines, 89 audited public
 roots, 751-job build, maximum closure 11,467; standard axioms only.
+
+
+### Native Pi at both beta endpoints still does not give core joining (2026-11-04)
+
+**Refuted the proposed generalization from readout to arbitrary beta exposure.**
+Use the existing eta-equal pure domains `F f` and `F (fun x => f x)`. A literal
+lambda with the former domain is assigned a Pi with the latter domain, then
+wrapped by the identity at that assigned Pi. The wrapper natively recovers its
+exact assigned Pi; its beta contractum also natively recovers a Pi at stage zero.
+Native eta at the wrapper uses the assigned domain. Beta cleanup of this long
+branch and of the wrapper produces two lambdas with the same constant body and
+the two different domains. Those pure beta-normal domains do not join even up
+to universe variants. Thus the original short source and its native eta expansion
+have no level-core common reduct, despite a literal-lambda beta contractum and
+native Pis at both endpoints.
+
+The same typed peak has an explicit eta-stage-one repair: native eta inside the
+contractum's domain changes `F f` to `F (fun x => f x)`; the original long branch
+needs only beta. The obstruction is to the core-join invariant, not confluence.
+A general replay lemma also shows that common endpoints of typed core-joinable
+paths force core joins of the sources. Consequently no finite depths of the
+beta-lambda eta union can join this peak, even with full-eta base identity guards.
+An actual-environment wrapper discharges all interfaces under WF and canonical Eq.
+
+**Research update:** beta reduction creating a lambda by substituting into a
+neutral body cannot be added to the previous grammar merely by requiring native
+Pi availability. Its domain join must allow genuine eta. The newly committed
+`a4d2a59a` additionally refutes universal common-native coverage for the entire
+function-eta union using positive unit-indexed families (with explicit unit
+registration/typing assumptions). Therefore full function-eta coverage is no
+longer an open conjecture for that language. Unit/structure eta or a comparison
+system accounting for it is required; the beta/domain transport problem must be
+addressed in that stronger language. Strengthening remains open, and neither
+obstruction is a canonical-Eq strengthening counterexample or a sufficient
+smaller obligation.
+
+Validation: two modules, 240 Lean lines, four own public roots; both explicit
+builds passed (789 jobs). Audited 47 public roots including newly imported modules,
+maximum closure 12,050, standard axioms only and forbidden dependencies absent.
+All 764 imported local sources were hash-stable and byte-identical to the isolated
+copy. No new-module warnings. Artifacts: `/tmp/carrier-eta-beta-limit-*`.
