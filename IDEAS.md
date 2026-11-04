@@ -6545,3 +6545,46 @@ of initial native recovery/type comparison remain open. Next live extension:
 retain universe equivalence during nullary exposure, then transfer nonempty
 structure-field guards and their proof-field admissibility. This is not claimed
 to solve general re-synthesis or furnish a smaller sufficient PropFront.
+
+
+## 2026-11-04 15:49:32 UTC — Independent callable recovery breaks the binder-conversion dependency cycle
+
+Verdict: proved and integrated. Reusing StructuralImageSubstitution to prove a
+new SelectedLambdaDomain guard case would be circular. TypeInputRecovery is a
+lower finite path whose leaves carry actual TypeInputImage call/projection trees
+and whose other nodes are lambda, application, and core selected-output
+conversion. It has ordinary typed substitution, decreasing-rank exposure, exact
+selected-domain lambda exposure, and typed projection closure. Callable leaves
+consume the existing argument guard using actual source-selected carrier typing;
+no target comparison or semantic head-exposure principle is assumed.
+
+CallableOrRecoveringImages extends through every typed binder and transports all
+native recovery constructors, including retained projections. The interpreted
+CallableImageSubstitution then transports the entire stage-zero comparison and
+carrier checker. CallableDomain classifies the generic value by an actual finite
+call/projection tree, is typed-substitution stable, and yields full identity
+context conversion to an ordinarily equal target binder. The lower theorem
+closures are explicitly checked not to reach the selected-domain or structural
+recovery layer, nor SpecializedTypeFamily or PolymorphicTypeFamily.
+
+SpecializedTypeFamily and ParameterizedTypeFamily now admit callable inputs.
+Full carrier readout and PolymorphicTypeFamily.subst extend with the proved lower
+context theorem. Existing selected-lambda recovery, complete recursive comparison
+instantiation, and exact first-layer guarded computation rebuild unchanged.
+CallableFamilyExample uses the input (Type → Type) → Prop. Its generic inner
+value is callable and is proved neither terminal nor sort-specializable. The
+image actually passes a type-valued lambda to its higher-order parameter; the
+assigned input is beta-expanded, exact assigned recovery fails in the full
+computed union, and both positive instantiation consumers hold.
+
+Remaining boundary: callable-tree function nodes accept universe inputs. The
+new family grammar permits those callable values as arguments, but the lower
+image tree does not yet classify functions accepting arbitrary certified
+higher-order or generic inputs. A live next route is a finite hierarchy of
+image trees and carrier-family readouts. Its next callable level needs either
+argument comparison promotion or exact function-domain recovery after input
+conversion; carrier reindexing alone is insufficient. That hierarchy must retain dependent result
+certificates and actual selected carrier typings; merely adding an arbitrary
+function leaf would assume the missing argument-guard transport. General typed
+image coverage, guarded-stage transport, and PropFront remain open. No smaller
+sufficient irreducible front or canonical-Eq counterexample is claimed.

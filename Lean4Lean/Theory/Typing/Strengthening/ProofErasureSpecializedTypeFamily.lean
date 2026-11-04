@@ -1,11 +1,12 @@
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCallableDomainContext
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureSpecializedDomainContext
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureTypeFunctionCarrierConversion
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureSpecializationBoundary
 
 /-! # Dependent type-family carrier conversion with generic parameters
 
-Finite target families may use terminal domains or domains whose generic value
-admits a sort specialization. The latter uses a shared test through each whole
+Finite target families may use callable/projectable domains, terminal domains,
+or domains whose generic value admits a sort specialization. The latter uses a shared test through each whole
 recursive context conversion. This covers the polymorphic predicate family
 excluded by TerminalTypeFamily. No arbitrary substitution closure is asserted.
 -/
@@ -21,6 +22,8 @@ inductive SpecializedTypeFamily : List VExpr → VExpr → Prop where
   | sort : SpecializedTypeFamily Γ (.sort u)
   | function : (TerminalDomain Γ A ∨ SortSpecialization (A :: Γ) (.bvar 0)) →
       SpecializedTypeFamily (A :: Γ) B → SpecializedTypeFamily Γ (.forallE A B)
+  | callable : CallableDomain Γ A → SpecializedTypeFamily (A :: Γ) B →
+      SpecializedTypeFamily Γ (.forallE A B)
 
 /-- Every earlier terminal-input target is included in the new grammar. -/
 theorem TerminalTypeFamily.specialized (H : TerminalTypeFamily Γ T) :
@@ -51,6 +54,11 @@ theorem SpecializedTypeFamily.carrier_convert (HT : SpecializedTypeFamily Γ T)
       · exact proofErase_computed_joint_zero_carrier_specialized_context hs hΓ HAB HA hf hg H
     exact convert_raw hs transport (fun hΓ hf hg HE H => ih hΓ hf hg HE H)
       hΓ H hf hg HE rfl rfl rfl rfl
+  | callable HA _ ih =>
+    exact convert_raw hs
+      (fun hΓ HAB hf hg H => proofErase_computed_joint_zero_carrier_callable_context
+        hs hΓ HAB HA hf hg H)
+      (fun hΓ hf hg HE H => ih hΓ hf hg HE H) hΓ H hf hg HE rfl rfl rfl rfl
 
 /-- The generic predicate family now has an explicit certificate, although its
 inner input was proved outside the earlier terminal-domain grammar. -/

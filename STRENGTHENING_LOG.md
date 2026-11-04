@@ -18107,3 +18107,73 @@ Remaining work: initial recovery/comparison coverage, parameterized family
 exposure, nontrivial carrier transfer, and substitution for the full joint checker.
 The original UniqueTyping.weakN_iff sorry remains. No executable edits or goal
 completion claim; independent worktree changes are preserved.
+
+
+## 2026-11-04 15:49:32 UTC — Callable/projectable binder conversion below selected-domain recovery
+
+The preceding goal turn was progress: 47e5da30 committed and pushed stable
+polymorphic family certificates and their comparison/first-stage instantiation
+consumers. This turn addresses callable inputs without using the structural
+transport whose selected-domain guard case is being extended.
+
+TypeInputRecovery is an independent finite selected-output path over actual
+TypeInputImage leaves. Typed substitution preserves its rank and exact raw
+output. Exposure either retains a typed call/projection image or yields a
+smaller lambda body path and core computation from its Pi to the selected
+output. Local beta substitution decreases the rank. Projection closure follows
+a typed field child; a lambda major contradicts rigid typing. Application uses
+actual selected-carrier argument typings to promote guards at callable leaves,
+or computes a lambda at exactly the selected domain.
+
+ProofErasureCallableImageSubstitution proves weakening, binder extension,
+single-substitution introduction, full native-recovery substitution with the
+path alternative, and application reconstruction. Projection failure branches
+produce typed image leaves instead of assuming projections are impossible.
+ProofErasureComputedJointCallableSubstitution transports the complete recursive
+stage-zero checker, including native and computed applications. The exposed
+public comparison and carrier conclusions preserve exact substituted erasures.
+
+ProofErasureCallableDomainContext defines a substitution-stable generic-value
+certificate, constructs it from an actual TypeInputTree, and embeds terminal
+domains. Its interpreted identity substitution proves full comparison and
+carrier context conversion at any equal callable/projectable target binder.
+This theorem is independent of SelectedLambdaDomain, StructuralFamilyRecovery,
+StructuralImageSubstitution, their transport consumer, SpecializedTypeFamily,
+and PolymorphicTypeFamily; the audit checks these exclusions for 30 explicit
+lower-layer roots in addition to the ordinary forbidden dependency checks.
+
+SpecializedTypeFamily and ParameterizedTypeFamily gain callable input nodes.
+Their carrier readout and typed substitution proofs extend using the lower
+context theorem. The previous polymorphic selected-domain constructor and its
+recursive comparison/first-layer computation consumers therefore work unchanged.
+ProofErasureCallableFamilyExample constructs the higher-order input
+(Type → Type) → Prop, proves its inner generic value is neither terminal nor
+sort-specializable, and supplies the new family certificate. Its image calls
+that parameter with an actual type-valued lambda. Its assigned input is
+beta-expanded: actual equality and typing hold, exact native recovery fails
+even in the full computed union, and full comparison plus exact first-layer
+computation instantiation are proved.
+
+Validation: 733-job build of 59 explicit modules with no warnings or errors in
+the seven changed/new source files. Exact 455-root full opaque traversal and
+independent #print axioms reports passed; maximum closure 11,427; only
+propext, Classical.choice and Quot.sound. No sorry sources, weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport
+or JointPropBetaStability. The 30 lower-layer roots additionally pass the stated
+independence check. All source hashes match the pre-build snapshot. This is an
+explicit consumer audit, not a whole-repository audit. Artifacts:
+/tmp/callable-family-full-build.log, -audit.lean, -audit.log, -roots.txt,
+-independent-roots.txt, -files.txt, -build-targets.txt, -source-before.json,
+-validation.json and /tmp/verify-callable-family-audit.py.
+
+GOAL.md remains open: UniqueTyping.lean:94 still has the original sorry, and no
+canonical-Eq counterexample or strictly smaller sufficient irreducible front
+has been proved. The lower callable trees still have universe input nodes;
+functions accepting arbitrary higher-order/generic inputs require a further
+hierarchy or mutual argument connecting image closure to argument comparison
+promotion or exact function-domain recovery. Input-carrier reindexing alone
+does not supply either application premise.
+General guarded-stage transport and coverage sufficient for PropFront remain
+unproved. No executable edits, subagents, coordination, or PR extraction.
+Independent worker changes and commits are preserved. Only the seven listed
+source files and these appended ledger entries belong to this change.

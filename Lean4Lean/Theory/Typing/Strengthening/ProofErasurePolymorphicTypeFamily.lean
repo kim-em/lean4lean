@@ -16,11 +16,14 @@ def shiftTypeParameters (ps : List (Nat × VLevel)) : List (Nat × VLevel) :=
   ps.map fun (k, u) => (k + 1, u)
 
 /-- A finite target tree with explicit locally bound universe parameters.
-Terminal inputs may depend on the entire context. Generic inputs must refer to
-one of the parameters recorded by a surrounding universe constructor. -/
+Terminal and callable inputs may depend on the entire context. Generic inputs
+must refer to one of the parameters recorded by a surrounding universe constructor. -/
 inductive ParameterizedTypeFamily : List VExpr → List (Nat × VLevel) → VExpr → Prop where
   | sort : ParameterizedTypeFamily Γ ps (.sort u)
   | function : TerminalDomain Γ A →
+      ParameterizedTypeFamily (A :: Γ) (shiftTypeParameters ps) B →
+      ParameterizedTypeFamily Γ ps (.forallE A B)
+  | callable : CallableDomain Γ A →
       ParameterizedTypeFamily (A :: Γ) (shiftTypeParameters ps) B →
       ParameterizedTypeFamily Γ ps (.forallE A B)
   | forallUniverse : u.WF univs →
@@ -65,6 +68,9 @@ theorem ParameterizedTypeFamily.specialized (H : ParameterizedTypeFamily Γ ps T
   | function HA HB ih =>
     obtain ⟨⟨u, hA⟩, _, hB⟩ := hT.forallE_inv henv
     exact .function (.inl HA) (ih HP.cons ⟨hΓ, u, hA⟩ hB)
+  | callable HA HB ih =>
+    obtain ⟨⟨u, hA⟩, _, hB⟩ := hT.forallE_inv henv
+    exact .callable HA (ih HP.cons ⟨hΓ, u, hA⟩ hB)
   | @forallUniverse w Γ ps B hu HB ih =>
     obtain ⟨⟨u, hA⟩, _, hB⟩ := hT.forallE_inv henv
     exact .function (.inl .sort) (ih (HP.universe hu) ⟨hΓ, u, hA⟩ hB)
@@ -100,6 +106,11 @@ theorem ParameterizedTypeFamily.subst (H : ParameterizedTypeFamily Γ ps T)
   | function HA HB ih =>
     obtain ⟨⟨u, hA⟩, _, hB⟩ := hT.forallE_inv henv
     exact .function (HA.subst hΓ₀ W hA)
+      (ih ⟨hΓ₀, u, hA.subst henv.orderedStrong W hΓ₀⟩
+        (W.lift henv.ordered hA) hB (preserves_shift HP))
+  | callable HA HB ih =>
+    obtain ⟨⟨u, hA⟩, _, hB⟩ := hT.forallE_inv henv
+    exact .callable (HA.subst hΓ₀ W hA)
       (ih ⟨hΓ₀, u, hA.subst henv.orderedStrong W hΓ₀⟩
         (W.lift henv.ordered hA) hB (preserves_shift HP))
   | @forallUniverse w Γ ps B hu HB ih =>
