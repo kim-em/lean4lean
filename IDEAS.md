@@ -6284,3 +6284,49 @@ transports complete primitive-free ScopedCompare certificates using these paired
 maps, classifying eta arguments from actual common typings and keeping the typed
 short original. Guarded primitive substitution and recursive carrier transport
 remain separate, unproved obligations for the full strengthening problem.
+
+
+## 2026-11-04 14:55:25 UTC — Arbitrary source carriers at dependent type-family targets
+
+Verdict: checked target-structural recursion converts whole computed guards to
+finite dependent function families ending in a universe. TerminalTypeFamily
+records a TerminalDomain at each input binder and recursively certifies its
+codomain in that actual extended context. It survives typed substitution.
+The source carrier may have arbitrary syntax, arbitrary computed prefixes,
+and a codomain different from the target's; only actual type equality and
+source endpoint typings are required.
+
+The function case replays source carrier/endpoint computation, exposes a typed
+source Pi, uses Pi injectivity to align the input and result typings, and moves
+the entire eta-body carrier guard into the target input context. The recursive
+readout hypothesis comes from the strictly smaller target codomain certificate,
+not the size of a newly generated comparison. The sort case consumes the guard
+using proofErase_computed_carrier_types_checked. No future body comparison or
+generic carrier transport is assumed. This extends the earlier conversion that
+required a displayed source Pi and identical written codomain syntax.
+
+SelectedLambdaDomain.typeFamily integrates the result into existing structural
+image substitution. General and one-function wrappers preserve every recursive
+stage-zero body comparison and exact first-layer computation. The checked image
+lambda f : (Type → Prop) => f Prop retains and calls its higher-order input.
+Its assigned input beta-expands a Pi with different but equivalent syntax in
+both universe annotations. It has no exact assigned recovery in the full
+computed union, yet the new consumers instantiate it. The source is not a
+literal Pi and its beta reduct does not retain the target's result annotation.
+
+Checked boundary: ∀ A : Type, A → Prop is well typed but has no
+TerminalTypeFamily certificate. A hypothetical TerminalDomain for the generic
+A could be specialized to Prop → Prop, contradicting TerminalImage.not_function
+at the fresh function value. Thus increasing the finite telescope depth alone
+cannot obtain arbitrary polymorphic predicates. This is a coverage obstruction,
+not a counterexample to the goal or to all alternative image certificates.
+
+Next live direction: permit generic type-parameter inputs while preserving the
+actual selected-carrier guard. The prior neutral-source context converter cannot
+be reversed merely because the target is neutral: ordinary equality permits a
+non-neutral beta-expanded source. Prove binder transport into a neutral target,
+or a typed exposure invariant supplying the source evidence it needs. Another
+live route is a stratified input-image class extending terminal inputs to
+callable certified images; its context-conversion proof must avoid circularly
+using the very selected-domain theorem being defined. Global higher-stage
+substitution, arbitrary dependent carriers and PropFront remain open.

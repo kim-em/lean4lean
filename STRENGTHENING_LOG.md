@@ -17745,3 +17745,60 @@ under the paired maps, including eta/proof markers and recursive structure field
 The full goal still needs guarded primitive substitution, arbitrary carrier
 transport and coverage; no GOAL.md completion alternative is claimed. Independent
 working files are preserved and no executable changes or agent coordination occur.
+
+
+## 2026-11-04 14:55:25 UTC — Dependent target recursion for higher-order argument guards
+
+The previous goal turn was progress (0358df68 committed and pushed). This turn
+proves the missing carrier readout for arbitrary source types equal to finite
+dependent terminal-input type families, then connects it to actual substitution.
+
+ProofErasureTypeFunctionCarrierConversion defines TerminalTypeFamily, proves its
+typed substitution law, and proves carrier_convert by target-tree induction.
+Within each function target, a second induction consumes the complete computed
+source guard. Actual Pi injectivity supplies the changed binder and codomain
+conversion; terminal context transport moves the eta-body guard, and the
+strictly smaller target codomain supplies its readout. The base universe case
+uses the existing typed carrier-checking theorem. The private readout parameter
+is discharged by that induction; no public theorem assumes a readout law.
+
+SelectedLambdaDomain gains typeFamily, with proved substitution and guard
+transfer. The one-input typeFunction convenience theorem is an instance of it.
+ProofErasureTypeFunctionInstantiation exposes full stage-zero comparison and
+exact first-layer computation for arbitrary selected types equal to these
+family targets. Existing public structural transport signatures remain intact.
+
+ProofErasureTypeFunctionExample supplies an actual higher-order lambda whose
+body calls its retained parameter on Prop. Its assigned input has a beta-expanded
+head and both input/result universe annotations differ from the written input.
+The file proves actual typing, the two syntactic boundaries, failure of native
+assigned recovery across the full computed union, and successful recursive
+comparison/computation instantiation. A generic normal-domain recovery argument
+allows the negative theorem to cover this nonconstant lambda body.
+
+ProofErasureTypeFamilyBoundary proves actual typing of ∀ A : Type, A → Prop
+and exclusion from TerminalTypeFamily. The key contradiction specializes a
+hypothetical terminal generic A to Prop → Prop. This records a real remaining
+coverage gap rather than silently identifying the fragment with arbitrary
+polymorphic predicates.
+
+Validation: 635-job build of 42 explicit modules, no warnings/errors in the five
+changed sources. Exact 320-root full opaque audit and independent #print axioms
+reports passed; maximum per-root closure 11,326, only propext,
+Classical.choice and Quot.sound. No sorry sources, weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport
+or JointPropBetaStability. Roots include the new constructors, every new public
+consumer, the positive example and the negative polymorphic boundary, plus the
+previous explicit consumer manifest. This is not a whole-repository audit.
+Artifacts: /tmp/type-family-build.log, /tmp/type-family-audit.lean and .log,
+/tmp/type-family-roots.txt, -files.txt, -build-targets.txt, -source-before.json,
+/tmp/verify-type-family-audit.py and /tmp/type-family-validation.json.
+
+GOAL.md remains unfulfilled: UniqueTyping.lean retains the original sorry; no
+canonical-Eq counterexample or strictly smaller sufficient irreducible obligation
+has been established. The next task is context conversion for generic parameter
+inputs (including neutral targets with arbitrary equal source annotations), or a
+stratified callable-input extension with no cyclic substitution premise. No
+executable edits, PR extraction, agents or coordination. Independent work is
+preserved; only the five listed source files and these ledger appendices belong
+to this change.

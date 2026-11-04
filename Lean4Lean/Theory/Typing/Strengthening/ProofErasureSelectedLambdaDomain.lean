@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureDependentNeutralFunctionCarrierConversion
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureDependentTerminalFunctionCarrierConversion
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureTypeFunctionCarrierConversion
 
 /-! # Written lambda domains related to finite selected domains
 
@@ -12,7 +13,8 @@ variable [Params]
 
 /-- A selected raw domain is the written domain itself, a protected neutral
 carrier, or a dependent function domain obtained by converting its protected
-neutral or terminal-valued input. Every branch has a proved guard-transfer law. -/
+neutral or terminal-valued input, or a finite dependent family ending in a
+universe. Every branch has a proved guard-transfer law. -/
 inductive SelectedLambdaDomain (cut : Nat) (Γ : List VExpr) : ProofShape → VExpr → Prop where
   | exact : SelectedLambdaDomain cut Γ (proofErase Γ A) A
   /-- A neutral selected carrier supplies ordinary checking regardless of the
@@ -26,7 +28,19 @@ inductive SelectedLambdaDomain (cut : Nat) (Γ : List VExpr) : ProofShape → VE
   | dependentTerminal : env.IsDefEq univs Γ A B (.sort u) →
       TerminalDomain Γ A →
       SelectedLambdaDomain cut Γ (proofErase Γ (.forallE A C)) (.forallE B C)
+  /-- An arbitrary selected type converts to a dependent family ending in a
+  universe. The target's finite terminal input tree controls guard readout. -/
+  | typeFamily : env.IsDefEq univs Γ S B (.sort u) → TerminalTypeFamily Γ B →
+      SelectedLambdaDomain cut Γ (proofErase Γ S) B
 
+
+/-- A single type-valued function is a one-binder instance of the general
+terminal-input family target. -/
+theorem SelectedLambdaDomain.typeFunction
+    (HE : env.IsDefEq univs Γ S (.forallE B (.sort v)) (.sort u))
+    (HT : TerminalDomain Γ B) :
+    SelectedLambdaDomain cut Γ (proofErase Γ S) (.forallE B (.sort v)) :=
+  .typeFamily HE (.function HT .sort)
 
 /-- Typed substitution preserves the selected and written annotations while
 keeping protected input heads outside the local binder suffix. -/
@@ -63,6 +77,10 @@ theorem SelectedLambdaDomain.subst
     apply SelectedLambdaDomain.dependentTerminal (by
       simpa only [VExpr.subst] using HAB.subst henv.orderedStrong W hΓ₀)
     exact HA.subst hΓ₀ W HAB.hasType.1
+
+  | typeFamily HE HT =>
+    rw [← proofErase_subst_with hΓ₀ W HE.hasType.1 ES]
+    exact .typeFamily (HE.subst henv.orderedStrong W hΓ₀) (HT.subst hΓ₀ W HE.hasType.2)
 
 /-- A guard at the selected domain transfers to the actual written lambda
 domain. Only finite supplied guards and actual endpoint typings are used. -/
@@ -114,5 +132,8 @@ theorem SelectedLambdaDomain.guard
     rw [show proofErase Γ (.forallE B C) = .forallE _ _ from if_neg (not_isProof_of_sort hΓ hBC),
       proofErase_defeqCtx hΓB HC hC]
     exact HX'
+
+  | typeFamily HE HT =>
+    exact HT.carrier_convert hs hΓ (HE.symm.defeq hx) (HE.symm.defeq hy) HE.toU HX
 
 end Lean4Lean.VEnv.Strengthening
