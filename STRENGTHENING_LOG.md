@@ -16069,3 +16069,66 @@ the final application guard is solved; maintaining that distinction through
 recovery applications, conversions, and binders is not yet proved. Structural
 carrier cases and higher stages remain open. The original sorry remains at
 UniqueTyping.lean:94, and no GOAL.md success alternative is yet achieved.
+
+
+## 2026-11-04 11:26 UTC — Exact recursive descent and computed-checking primitive stages
+
+Previous goal turn: progress. Commit 296eeb4c formally refuted exact selected
+assigned-domain coverage for typed lambdas and passed its independent audit.
+This turn revalidated that clean tracked state before editing. Existing
+compared-recovery and reannotation barriers rule out presenting arbitrary
+assigned-domain comparison coverage as a strictly smaller remaining front.
+The older recovery-guided eta route and its exact-substitution obstruction
+were inspected rather than duplicated.
+
+Added five Theory modules:
+
+* ProofErasureComputedJointCertificateDescent: exact lower certificates for
+  both views of ComputedJointCheck, through arbitrary inserted binder blocks
+  and arbitrary source/target primitive relations satisfying certificate
+  descent. The appComputed case reconstructs the lower exposed lambda and its
+  actual domain, types both arguments there, and recursively lowers the
+  function comparison and carrier guard. All other cases retain their mode,
+  eta bodies, recovered domains and dependent projection recipes. This
+  strengthens the previously semantic-only descent theorem for this grammar.
+* ProofErasureComputedJointPrefix: Eq.rec prefixes guarded by enlarged carrier
+  checking, with semantic descent, forward coverage and operational replay.
+  Existing joint prefixes embed by recursively embedding their guards.
+* ProofErasureComputedJointStages: general singleton family guards and Eq
+  carrier guards use the enlarged checker at every finite successor stage.
+  Original joint stages embed at exactly their old bounds. Semantic descent,
+  monotonicity, primitive-head control, actual registered-prefix replay and
+  forward prefix coverage are proved; the finite-stage union is defined.
+* ProofErasureComputedJointStageCertificateDescent: generated family guards
+  descend under their actual opened telescopes; Eq guards retain their lower
+  carrier certificates. Every stage and the union preserve exact computation
+  certificates, without a completeness or substitution hypothesis.
+* ProofErasureComputedJointUnion: full mutual checking has a finite bound,
+  including every computed-function path and every dependent field family.
+  Consequently the union is closed under its own singleton and Eq guards;
+  semantic descent, head control and operational replay follow.
+
+Validation: the consuming build succeeds in 545 jobs. The five new modules
+produce no warnings. Independent opaque DFS audits all 36 explicitly declared
+public roots, including the new primitive constructor, with a largest closure
+of 11,055 dependencies. It rejects weakN_iff, weakN_inv, sorryAx,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport and JointPropBetaStability. Exact root and #print axioms
+inventories match; only propext, Classical.choice and Quot.sound occur. The
+audit log has no warnings/errors. Artifacts:
+/tmp/computed-joint-union-build.log,
+/tmp/computed-joint-stage-independent-audit.lean/.log and
+/tmp/computed-joint-stage-independent-roots.txt. This covers these new roots
+and their entire closures, not the old cumulative inventory.
+
+Scope and next action: the new stages permit arbitrary nesting of the
+computed-domain rule inside recursive primitive guards. They do not prove
+arbitrary substitution, general carrier conversion, endpoint beta stability,
+or completeness for declarative equality. The earlier exact-domain boundary
+continues to apply to that image criterion. Substitution/repair must retain
+actual conversion evidence rather than assuming its coverage. The original
+sorry remains at UniqueTyping.lean:94; none of GOAL.md's three completion
+alternatives is established. The goal stays active. No executable changes,
+PR extraction, subagents or coordination. Independently appearing untracked
+AnchoredFamilyRecovery.lean and ProofErasureAnchoredCarrier.lean were left
+untouched and are excluded from this change.

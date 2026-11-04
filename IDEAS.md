@@ -5438,3 +5438,25 @@ repair this example. The prospective compared-domain rule must also explain
 how its intermediate carrier is realized below removed binders.
 
 | Bypass selected-domain recovery at carriers with no structural exposure | **Checked (2026-11-04).** `ComputedJointCarrierGuard.checked_or_exposed` factors guards of the enlarged recursive checker into ordinary comparison or a computation to a record/Pi. Variable-headed carriers yield ordinary comparison and hence application certificates without function recovery or exact lambda exposure. `ComputedJointCheck.transport_or_inert` integrates this third alternative into the complete recursive transport induction. The eta-assigned boundary's neutral domain meets the local readout criterion; arbitrary whole-body substitution is not thereby proved. Remaining recovery failures with exposed structural carriers and higher stages remain open. |
+
+
+## 2026-11-04 11:26 UTC — Computed-domain checking survives recursive primitive guards
+
+The arbitrary compared-domain shortcut is not a new smaller obligation:
+`JointVariableComparedRecovery.implies_propositionFront` and the existing
+reannotation barrier already explain its cost. Recovery-guided eta expansion
+also has prior exact-substitution obstructions; it was not reimplemented here.
+Instead, completed the missing exact certificate descent for the existing
+ComputedJointCheck grammar, then integrated that grammar into general singleton
+family guards and specialized Eq-recursion carrier guards at every finite
+stage. **Verdict: checked.** Computed lambda domains are reconstructed below
+inserted binders, while recursive function comparisons and argument-carrier
+certificates descend in the enlarged grammar. All old joint stages embed at
+the same bounds. The union is closed under its own guards because every full
+comparison/carrier certificate admits a finite stage bound. Exact certificate
+descent, semantic descent, primitive-head control, and actual registered-prefix
+replay hold throughout. This removes a real restriction of the previous local
+and stage-zero results; it does not supply arbitrary image recovery, general
+domain conversion, beta stability, or completeness. The next substantive gap
+is substitution/repair of these recursive primitive guards while retaining
+conversion information, not another assumed assigned-type coverage law.
