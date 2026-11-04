@@ -19659,3 +19659,72 @@ false exact-native beta-preservation premise. The next domain-origin/transport
 step remains open; these results do not prove general comparison completeness
 or a smaller sufficient front. UniqueTyping.lean:94 still has the original
 weakN_iff sorry. GOAL.md remains active; no PR extraction.
+
+## Recovered eta expansion and its exact-image dependent transport
+
+Six modules (631 Lean lines) add a source-typed eta expansion primitive, close
+its finite guarded system, and test it against the eta and capture obstructions.
+
+ProofErasureCarrierAlignedNativeEtaExpansion defines NativeEtaExpansion from
+native Pi recovery and a DomainSort witness. The raw target is the recovered
+lambda annotation with the lifted short source applied to etaArgument u.
+The binder-descent proof reconstructs the lower Pi using existing recovery
+descent, realizes its witnessed sort, and uses the actual short source's eta
+expansion. Proof status and the erased fresh argument follow the established
+typed erasure lemmas. No lower eta contractum is invented. Monotonicity, exact
+renaming and typed exact-image substitution are proved for the primitive.
+
+ProofErasureCarrierAlignedEtaStages defines ErasedEtaExpansionStage with the
+previous controlled-beta base and all previous recovered guards, plus native
+eta expansion using the preceding layer. All old expansion stages embed at
+the same index. Monotonicity, arbitrary-block descent and exact renaming are
+closed for every layer. ErasedEtaExpansionUnion retains descent, contains the
+old union, and admits native eta guards using union recovery via finite bounds.
+
+ProofErasureCarrierAlignedEtaNativeTransport closes exact native-image
+transport at n+k for primitives, computation, native recovery, computed checking,
+recovered-family comparison and full CarrierAlignedCompare. Its eta case uses
+the same native-image transport and interpreted DomainSort substitution as the
+primitive proof. ProofErasureCarrierAlignedEtaNativeInstantiation supplies
+actual typed substitution and instantiation for full aligned comparisons,
+computation and recovery, retaining their exact dependent endpoint erasures.
+
+ProofErasureCarrierAlignedEtaNativeExample reuses the existing actual eta
+boundary. A variable declared at F f recovers F (fun x => f x) exactly at stage
+one. The domain of f is recovered and its sort witness is actual; no coverage
+assumption is introduced. native_eta_expansion_strict_repair pairs this recovery
+with the previous union's failure of every beta/universe-joined native output
+in the same pure context. The new exact image instantiates any finite-stage
+full aligned dependent comparison and computation, at source stage plus one.
+
+ProofErasureCarrierAlignedEtaNativeLimits specializes the pre-existing general
+capture theorem to the new union. The lifted identity still has its actual
+captured-Pi assignment, but cannot recover that exact erasure. This is forced
+by source-typed descent and the lack of a raw lower preimage; it is not a
+shortcoming that further descending primitive rules can remove. Base-stage
+native common-reduct evidence is proved for the same example. This explicitly
+separates the useful eta repair from the impossible universal exact-coverage
+claim. No new general capture obstruction is claimed beyond the earlier theorem.
+
+Validation: main and isolated targeted builds pass 737 jobs. All 36 exact
+public roots, including the two native-image abbreviations, pass dependency
+auditing through types, opaque bodies, inductive constructors and recursor
+rules; maximum closure 11,133. Only propext, Classical.choice and Quot.sound
+occur. No sorry source, weakN_iff, weakN_inv, JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport or JointPropBetaStability is
+reachable. All 712 transitive local import sources match their pre-build hashes
+and isolated copies. No warnings in the six new modules. Artifacts:
+/tmp/carrier-native-eta-{all-build.log,isolated-build.log,audit.lean,audit.log,
+audit-roots.txt,files.txt,targets.txt,validation.json,closure-source-hashes.json};
+preparation script /tmp/prepare-carrier-native-eta.py.
+
+Judgment: native eta expansion safely repairs the eta-assigned input and gives
+it usable dependent transport. Common-reduct selection remains essential for
+captured assignments. No confluence or pure BetaLevelJoin factorization is
+asserted for the new eta-aware system, and no unrestricted native coverage or
+comparison completeness follows. Transport of eta-aware common-reduct or full
+aligned native evidence, retaining dependent selected-domain and codomain
+comparisons, is still live. Original weakN_iff remains sorry at
+UniqueTyping.lean:94; GOAL.md stays active. Only these six modules and the ledger
+appendices are staged. Independent commit 1b35e0a1 and ongoing independent work
+are preserved; no executable changes, agent coordination or PR extraction.

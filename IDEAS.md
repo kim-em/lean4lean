@@ -7689,3 +7689,56 @@ strictly smaller sufficient front. The strengthening goal remains unchanged.
 Validation: nine affected modules, 706-job build, 94 audited declaration and
 constructor/recursor roots; maximum closure 11,200. Only standard logical
 axioms, no excluded dependency, new-source warning or source hash discrepancy.
+
+## Native eta expansion repairs the eta-assigned input
+
+- Extend computation by eta expansion with a recovered binder: **proved safe**.
+  NativeEtaExpansion requires native Pi recovery of its short source and a
+  DomainSort witness for that recovered domain. Recovered-Pi descent produces
+  an actual lower domain; DomainSort.descend fixes its universe and therefore
+  the retained/proof-marker fresh argument. The actual short source already
+  exists below, so its ordinary eta expansion gives the required lower target.
+  This avoids the hidden-proof-dependency problem of reconstructing an erased
+  eta contractum. Exact renaming and exact native-image substitution preserve
+  the complete expansion recipe.
+- Close finite recovered stages over this additional guard: **proved**.
+  ErasedEtaExpansionStage contains every previous expansion stage at the same
+  index and retains singleton, Eq-prefix and identity guards. Every layer has
+  arbitrary-block source-typed descent and exact renaming. The union descends;
+  native eta guards over the union have finite bounds. Computation, recovery,
+  both computed checking views, recovered comparison and full aligned comparison
+  transport with bound n+k for exact native images at stage k. Actual typed
+  instantiation wrappers preserve exact dependent erasures.
+- Repair the checked eta-coverage failure concretely: **proved**. In the
+  existing EtaRecoveryJoinBoundary context, native F f computes to the assigned
+  F (fun x => f x) by one native eta expansion of f. The variable at F f now
+  recovers its exact assigned type at stage one, in every well-formed base.
+  In the same pure context, the previous controlled-beta union still has no
+  native output beta/universe-joined to that assigned type. The repaired image
+  instantiates arbitrary full aligned dependent comparisons and computations,
+  with one additional stage. This is a strict repair of that obstruction.
+- Infer universal exact coverage from increasingly rich primitives:
+  **already excluded by a general earlier theorem**, now explicitly specialized
+  to the eta-expanded union. scoped_identity_captured_not_recovered applies to
+  every source-typed descending relation: a lifted identity can be assigned a
+  beta-expanded Pi retaining a fresh proposition, but its exact raw annotation
+  has no lower preimage. EtaNativeLimits preserves the actual assigned typing
+  and proves failure in the new union. The same identity and assigned type
+  have base-stage native common-reduct evidence. Do not attempt to defeat this
+  capture theorem by adding more descent-preserving computation rules.
+
+Judgment: controlled native eta expansion is an available constructive tool
+for eta-aware type alignment and dependent application. It repairs the eta
+example while the capture example still requires common-reduct selection.
+The previous pure beta/universe confluence invariant is not claimed for this
+larger system: eta expansion is not generally a BetaLevelJoin. The live work
+is transport of native common-reduct or full aligned evidence in the eta-aware
+system, including dependent selected domains and codomains. General confluence,
+coverage modulo comparison, and checker completeness remain open. This is not
+a smaller sufficient irreducible obligation or a GOAL.md deliverable.
+
+Validation: main and isolated 737-job builds; 36 exact public roots, including
+two abbreviations, pass opaque-body/constructor/recursor auditing; maximum
+closure 11,133, standard logical axioms only. All 712 transitive local import
+sources match their pre-build hashes and isolated counterparts. No forbidden
+strengthening/framework dependency or new-source warning. weakN_iff remains open.
