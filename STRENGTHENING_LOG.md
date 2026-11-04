@@ -21753,3 +21753,40 @@ only and no configured forbidden dependencies. All 754 local import sources
 hash-stable. Artifacts: `/dev/shm/type-argument-origin-*`; preparation
 `/dev/shm/prepare-type-argument-origin-audit.py`. No executable changes, PR
 extraction or coordination. Goal remains active.
+
+
+## Exact return of dependent proof-parameter families (2026-11-04 23:30:03 UTC)
+
+Verdict: proved, without native argument recovery. A saturated variable-headed
+family whose literal dependent telescope contains only proposition domains and
+ends in a universe has exact return under the full static structure/function-eta
+union. Head-and-arity readout gives an exposed raw spine. Ordinary typed replay
+realizes that spine, and typed telescope inversion at the original head forces
+every argument to be a proof. All those arguments erase to the same proof marker,
+so beta cleanup alone returns to the original erasure. Dependencies between
+successive proposition domains are unrestricted. Intermediates are unrestricted.
+
+`ProofErasureProofParameterReturn.lean` proves substitution stability of the
+proof telescope, its typed argument-erasure property, variable-spine inversion,
+exact return, exact assigned-type recovery from common native evidence, exact
+forward binder transport, and preservation of the selected native result across
+root beta. `NeutralTypeTree` now includes these families as leaves, retaining all
+its recursive Pi/application return, binder transport and beta-recovery results.
+Thus nested constructors can take proof-parameter families as type arguments.
+
+This is a proved fragment extension, not a sufficient smaller obligation and not
+a solution of strengthening. Arbitrary retained data parameters, merely
+convertible telescope profiles and general common-native coverage remain open.
+A direct extension of the argument would need more than head-and-arity readout:
+typing no longer determines retained argument erasures. The next substantive
+step is to recover computation histories or a joining invariant for those
+retained arguments, rather than assume their exact native coverage.
+
+Validation: explicit 787-job build of both affected tracked modules; all 30
+public roots (including constructors and recursors) transitively audited through
+types, opaque bodies, constructor lists and recursor rules; maximum closure
+11,812. Only propext, Classical.choice and Quot.sound; no strengthening,
+sorry or configured circular-framework dependency. All 762 local import sources
+hash-stable. Artifacts: `/dev/shm/proof-parameter-return-*`, preparation
+`/dev/shm/prepare-proof-parameter-return-audit.py`. Executable unchanged; no PRs
+extracted and no coordination. The original weakN_iff sorry remains; goal active.

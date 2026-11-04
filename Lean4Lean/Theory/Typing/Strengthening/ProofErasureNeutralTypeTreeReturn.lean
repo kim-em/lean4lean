@@ -1,19 +1,21 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStaticStructureTypeArgumentOrigin
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCommonNativeBinder
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureProofParameterReturn
 
 /-! # Return trees with nested neutral type constructors
 
 Universe-to-universe variables may be applied recursively to arbitrary members
-of the tree. Dependent Pi components may use the same constructors. The return
-property constrains only initial syntax, not any computed intermediate.
+of the tree, including neutral families with dependent proof parameters.
+Dependent Pi components may use the same constructors. The return property
+constrains only initial syntax, not any computed intermediate.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape
 variable [Params] {D : PureObservation.Definitions}
 
 /-- A typed return tree contains universes, opaque type variables, dependent
-Pis and recursively nested neutral universe-to-universe applications. This
-does not classify all types: arbitrary data-indexed families are excluded. -/
+Pis, proof-parameter families and recursively nested neutral universe-to-universe
+applications. Arbitrary data-indexed families remain outside this fragment. -/
 inductive NeutralTypeTree : List VExpr → VExpr → VLevel → Prop where
   | sort : u.WF univs → NeutralTypeTree Γ (.sort u) (.succ u)
   | bvar : env.HasType univs Γ (.bvar i) (.sort u) → NeutralTypeTree Γ (.bvar i) u
@@ -21,6 +23,10 @@ inductive NeutralTypeTree : List VExpr → VExpr → VLevel → Prop where
       NeutralTypeTree Γ (.forallE A B) (.imax u v)
   | app : env.HasType univs Γ (.bvar f) (.forallE (.sort u) (.sort v)) →
       NeutralTypeTree Γ A u → NeutralTypeTree Γ (.app (.bvar f) A) v
+  | proofApp : env.HasType univs Γ (.bvar f) T →
+      ProofSortTelescope Γ T args.length u →
+      InstForallsC env univs Γ T args (.sort u) →
+      NeutralTypeTree Γ (VExpr.mkApps (.bvar f) args) u
 
 /-- Every tree carries ordinary typing at its indexed universe. -/
 theorem NeutralTypeTree.typed (H : NeutralTypeTree Γ A u) : env.HasType univs Γ A (.sort u) := by
@@ -29,6 +35,7 @@ theorem NeutralTypeTree.typed (H : NeutralTypeTree Γ A u) : env.HasType univs �
   | bvar h => exact h
   | forallE _ _ ihA ihB => exact .forallE ihA ihB
   | app hf _ ih => exact hf.app ih
+  | proofApp hf _ HW => exact typed_telescope_application hf HW
 
 /-- All computations from a return tree return to its exact original type.
 The application case reads the complete argument history and uses its recursive
@@ -54,6 +61,8 @@ theorem NeutralTypeTree.compute_return
     rw [E] at R ⊢
     obtain ⟨_, _, RA, RB⟩ := static_structure_neutral_type_argument_origin heq hs hΓ HA.typed hf R
     exact (ScopedCompute.beta RB).trans (.app .refl (ih hΓ RA))
+  | proofApp hf HP HW =>
+    exact .beta (static_structure_neutral_proof_parameter_return heq hs hΓ hf HP HW R)
 
 /-- Common native evidence at any return-tree assignment meets the exact
 assigned-type demand for retained values. Coverage itself is not asserted. -/
