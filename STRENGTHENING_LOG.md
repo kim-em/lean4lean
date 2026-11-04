@@ -16988,3 +16988,42 @@ canonical-Eq counterexample or strictly smaller sufficient irreducible
 obligation is established. Goal remains active. Only the two new Theory files
 and these ledger additions are included; independently appearing files are
 preserved. No executable changes, coordination, subagents, or PR extraction.
+
+
+## 2026-11-04 — A descending comparison for recovered carrier-related images
+
+Previous turn was verified progress: 1dae2fdf and bec18a87 are committed/pushed.
+Current authoritative state starts from their converted-image paired-beta
+result; no completion alternative is established. Re-read the common-beta
+counterexample and earlier recovery-promotion work before extending anything.
+Distinct unit variables remain impossible to compare in the old computed
+language, regardless of argument recovery. Thus another old-grammar beta
+transport claim would repeat a refuted invariant.
+
+CarrierRecoveredCompare extends comparison with a recovered-carrier rule.
+It requires two native recoveries with the same literal output and an existing
+ComputedJointCarrierGuard at that output. Syntax-compatible closure permits
+this rule in inferred function and recursive body positions, while embedding
+all existing ComputedJointCompare certificates. No primitive relation changes.
+
+Proved semantic descent through arbitrary binder-block insertion. Recovery
+descent constructs two actual lower types. Their lifted erasures agree;
+lift injectivity and proof-erasure reflection align the actual types. The
+existing carrier descent theorem then proves the lower equality. Applications,
+projections, both binders, computation and symmetry use the normal typed
+structural induction. Common-mode promotion is also checked. This is a safe
+extension of the descending certificate language, not completeness or a proof
+of a beta-transport property for that new language.
+
+Validation with its two consuming modules: isolated checkout at 1dae2fdf plus
+only three new modules, forcibly rebuilt their Lean artifacts, 655 jobs pass
+with no new-module warnings. All 10 public roots (including the new inductive)
+pass the opaque dependency audit; largest closure 10,998, standard axioms only,
+no sorry or forbidden dependencies. Exact source bytes match the isolated
+checkout. Artifacts: /tmp/carrier-recovered-isolated-build.log and
+/tmp/carrier-recovered-audit.lean, .log, -roots.txt.
+
+Original UniqueTyping.lean:94 remains open. Concurrent independent sequential
+substitution work, committed as 19f8e688, is preserved and excluded from the
+validation baseline. Only Theory and ledgers change; no coordination, agents,
+or executable edits.

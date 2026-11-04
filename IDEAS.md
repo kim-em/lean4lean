@@ -5675,3 +5675,30 @@ such a derivation. Verdict: finite-factorization is a live route, with this
 source-certificate issue explicit; no universal coverage or strict-smallness
 claim. Next investigate which existing comparison constructors can be lifted
 to an abstract context, especially those using native projection readout.
+
+
+## 2026-11-04 — Promote explicit carrier checking with two native type recoveries
+
+Revisited the nonjoining-argument residue. The old common-mode beta invariant
+is genuinely false: unit-valued identity applications compare, while their
+distinct-variable reducts do not. The previous converted-recovery head-beta
+result still needs equal erasures or a computational join. A stronger image
+criterion alone cannot make those variables compare in the old grammar.
+
+CarrierRecoveredCompare therefore adds a different, checked operation: recover
+both endpoints at one literal raw carrier and use an explicit carrier guard
+there, in either checking mode. Compatible application/projection/lambda/Pi,
+computation and symmetry close this enlarged relation; all existing computed
+comparisons embed. This revisits the earlier recovered-type promotion idea
+with the full contextual explicit-carrier checker, whose unit case supplies
+the missing nonjoining leaf. No old grammar or primitive is silently changed.
+
+Verdict: full arbitrary-block semantic descent proved. Both native recoveries
+reconstruct actual lower types. Injectivity of erasure lifting gives the same
+lower erased type; existing erasure reflection aligns their actual types.
+The original computed carrier certificate then descends at that lower carrier.
+The compatible induction retains the usual inferred/common typing conditions.
+No strengthening inverse, arbitrary substitution, or beta stability is used.
+This changes the certificate language; it does not assert a missing closure
+property of the old computed checker. Next test: arbitrary shared templates at
+nonjoining unit images, including lambda-valued images.
