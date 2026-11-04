@@ -4,8 +4,8 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCarrierAlignedRecovered
 
 The level-extended base preserves the existing singleton and Eq-prefix guards.
 All old recovered stages embed at the same finite index, and every new stage
-has typed binder descent. Context/variant closure above the base remains a
-separate obligation; semantic descent does not imply certificate transport.
+has typed binder descent. Context/variant closure is proved separately in LevelStageClosure; semantic
+descent alone does not imply certificate transport.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean Params ProofShape PureObservation

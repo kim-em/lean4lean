@@ -7050,3 +7050,25 @@ not been proved. A useful next step is to combine this common-reduct image law
 with the independently proved finite-family alignment cases, then determine
 which source singleton-stage substitutions still lack certificates. No smaller
 sufficient irreducible strengthening obligation is claimed; GOAL.md stays open.
+
+## Close every guarded stage by converting structural variants back first
+
+Verdict: **proved exact context transport and structural simulation at every
+finite level-extended recovered stage and at their union**. A typed structural
+variant converts by explicit universe steps back to the original raw term.
+Exact context transport can then replay the original computation with literally
+the same output. Consequently stage-n context transport implies its simulation;
+the full recovered checker transports singleton family guards through generated
+residual telescopes, and joint checking transports Eq-prefix guards, supplying
+stage-(n+1) context transport. This closes the induction with canonical Eq and
+sound declarations alone, without level-compatible declarations, concrete
+patterns, or a per-stage simulation assumption. Finite certificate bounds prove
+that the union is closed under its own singleton and Eq-prefix guards.
+
+The literal binder example changes Sort (max 0 0) to Sort 0, proves the raw
+contexts unequal, and transports arbitrary finite-stage computation without
+raising its stage. Structural variation still preserves term constructors:
+arbitrary beta-related annotations and general semantic carrier conversion are
+not covered. Next, restore exact native recovery outputs by the same backwards
+universe path and transport the entire aligned comparison language. Original
+PropFront and weakN_iff remain open; no smaller sufficient front is claimed.

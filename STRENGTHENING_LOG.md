@@ -18794,3 +18794,49 @@ conversion and guarded-stage confluence remain outside the result. No proof,
 canonical-Eq counterexample, or sufficient strictly smaller irreducible front
 has been obtained. Only these seven new theory files and ledger appendices
 belong to this change. No executable changes, PR extraction, or agent contact.
+
+## Closed structural transport through all level-extended guarded stages
+
+SingletonContext transports the general singleton family comparison through
+actual context equality with structural universe variants. It extends both
+context equality and the raw variant relation through generated residual
+prefixes, then rebuilds the existing singleton certificate at exactly its old
+raw output. ContextClosure lifts typed root transport to finite scoped
+computation and transports Eq-prefix guards using the full joint checker.
+StageContext assembles these laws at successor stages.
+
+LevelStageClosure closes the induction without a remaining simulation premise.
+The crucial lemma derives structural simulation from exact context transport
+and explicit level steps: the target source first converts back to the original
+raw source, then follows the transported original computation. The selected
+output is literally the original output. This works for arbitrary sound
+declarations and pattern relations; it does not need level compatibility or
+concrete patterns. Every finite stage now supplies full joint-check transport
+and the original recovered-comparison context law, including literal common
+native carriers.
+
+LevelUnionClosure proves monotonicity, finite-bound closure under the union's
+own singleton/Eq guards, and the corresponding computation, recovery, joint
+checking and recovered-comparison transport laws. The actual-environment
+consumer discharges declaration soundness. LevelContextExample distinguishes
+raw contexts with binders Sort (max 0 0) and Sort 0 and transports every typed
+finite-stage computation between them at its original stage and exact output.
+The LevelStages module's introductory comment now points to the proved closure.
+
+Validation: main and isolated builds passed, each 771 jobs for 53 explicit
+modules. All 194 exact roots passed the opaque-body, constructor and recursor
+dependency audit; maximum closure 11,285. Only propext, Classical.choice and
+Quot.sound occur. No sorry sources or excluded weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport
+or JointPropBetaStability occur. All 53 source files match the isolated build
+byte-for-byte. The six new modules have no build warnings. Artifacts:
+/tmp/carrier-stage-closure-{all-build.log,isolated-build.log,audit.lean,audit.log,
+audit-roots.txt,files.txt,targets.txt,validation.json}; preparation:
+/tmp/prepare-carrier-stage-closure.py; verifier: /tmp/verify-carrier-audit.py.
+
+The original sorry remains at UniqueTyping.lean:94. These results establish
+structural universe transport, not arbitrary beta-context transport, native
+recovery completeness, or coverage of all declarative equality. No proof,
+canonical-Eq counterexample or sufficient strictly smaller irreducible front
+has been obtained. Only six new theory files, the LevelStages comment and these
+ledger appendices belong to this change; no executable edits or agent contact.
