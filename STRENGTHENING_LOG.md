@@ -19728,3 +19728,65 @@ comparisons, is still live. Original weakN_iff remains sorry at
 UniqueTyping.lean:94; GOAL.md stays active. Only these six modules and the ledger
 appendices are staged. Independent commit 1b35e0a1 and ongoing independent work
 are preserved; no executable changes, agent coordination or PR extraction.
+
+
+## Native eta application squares and proof-image transport (2026-11-04)
+
+Four new modules, 309 Lean lines, close the local application interaction of
+native eta expansion without asserting general common-reduct selection.
+
+ProofErasureNativeRetainedInstantiation supplies Images.inst_retained and
+Images.inst_proof for arbitrary image relations. The fresh variable's
+non-proof hypothesis reflects along the actual typed substitution. Thus only
+a retained argument needs exact native recovery; proof arguments require no
+certificate for the erased proof marker. Other variables retain ordinary
+context-oracle recovery.
+
+ProofErasureCarrierAlignedEtaApplication proves a raw beta square for native
+eta expansion applied to any actual argument of the original function. Native
+Pi replay recovers an actual domain D, which need not be the assigned A. Pi
+injectivity moves the argument's typing to D, and the recovered domain-sort
+witness determines the eta slot. The existing typed eta-slot instantiation
+lemma proves exact beta contraction in both the proof and non-proof cases.
+A second theorem permits arbitrary argument computation with source-typed
+primitive descent, reifying its output at the original argument type.
+
+ProofErasureCarrierAlignedEtaRetainedInstantiation transports computation,
+native recovery and full CarrierAlignedCompare with the weaker retained-only
+image premise at n+k. Proof instantiation uses k=0. The paired-proof theorem
+instantiates the two compared bodies with independently chosen proofs of the
+same domain at the original stage; proof erasure gives the identical raw
+substitution without a proof-comparison premise.
+
+ProofErasureCarrierAlignedEtaBetaSquares passes eta-stage argument computation
+through all occurrences of a typed template, including annotations. The
+body/argument square joins at outBody.inst outArgument at max(n+k,m), with
+recovery only for the original retained argument. Computed outputs need no new
+native certificate. Its eta-body specialization gives a computation from the
+original typed application to the exact contractum of the computed eta body
+and argument; every final lambda annotation beta-contracts to that endpoint.
+The arbitrary finite-stage union version chooses an image bound only in the
+non-proof case and otherwise uses zero.
+
+Validation: main and isolated targeted builds both pass 711 jobs. All 13 exact
+public roots pass dependency auditing through types, opaque bodies, inductive
+constructors and recursor rules, with maximum closure 11,114. Only propext,
+Classical.choice and Quot.sound occur; no sorry source or forbidden weakN_iff,
+weakN_inv, JointCarrierDomainResynthesis, ScopedSemanticHeadExposure,
+JointPropBetaTransport or JointPropBetaStability dependency is reachable.
+All 686 transitive local import sources match their pre-build hashes and
+isolated copies. No warnings in the four new modules. Artifacts:
+/tmp/carrier-eta-squares-{all-build.log,isolated-build.log,audit.lean,audit.log,
+audit-roots.txt,files.txt,targets.txt,validation.json,closure-source-hashes.json};
+preparation script /tmp/prepare-carrier-eta-squares.py.
+
+Judgment: native eta expansion now has checked typed application squares,
+including computations inside its body, and proof arguments do not obstruct
+native-image transport. General eta-aware common-reduct selection retaining
+dependent Pi domains remains open. Exact native recovery for arbitrary
+non-proof assigned types is not asserted and is already refuted in general.
+No confluence or full comparison completeness follows from these local squares.
+Original weakN_iff remains sorry at UniqueTyping.lean:94; GOAL.md stays active.
+Only these four modules and these ledger appends are staged; independent
+PiReadout and backward-context work is preserved. No executable changes,
+coordination or PR extraction.

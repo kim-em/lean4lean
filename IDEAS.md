@@ -7742,3 +7742,39 @@ two abbreviations, pass opaque-body/constructor/recursor auditing; maximum
 closure 11,133, standard logical axioms only. All 712 transitive local import
 sources match their pre-build hashes and isolated counterparts. No forbidden
 strengthening/framework dependency or new-source warning. weakN_iff remains open.
+
+
+## Native eta application squares and retained image instantiation (2026-11-04)
+
+- Apply native eta expansion at an actual argument, allowing the recovered Pi
+  domain to differ from the assigned domain: **proved**. Forward native replay
+  reconstructs the recovered domain; Pi injectivity types the original argument
+  there. The erased fresh eta slot instantiates to the actual argument erasure,
+  also for proof domains. The long raw application beta-contracts to the short
+  one. Argument computation preserves this exact beta square by typed replay.
+- Demand native recovery of proof arguments for substitution: **unnecessary**.
+  The image invariant only covers retained variables. Typed substitution
+  reflects proofness, so the fresh proof variable is excluded. Generic
+  Images.inst_retained requires recovery only under a non-proof hypothesis;
+  Images.inst_proof discharges that requirement vacuously. No native recovery
+  of `.proof` is constructed or assumed.
+- Compute inside eta bodies before application: **proved with explicit retained
+  image evidence**. Eta-stage body and argument computations meet at the exact
+  substituted outputs, at max(n+k,m), with no native evidence for the computed
+  argument. The union version collects finite bounds. Full aligned comparison
+  also instantiates two independently chosen proofs of the same domain at the
+  original stage, without comparing the proofs or recovering their types.
+
+Judgment: these local squares handle native eta expansion in function position
+and dependent proof substitution. They do not establish eta-aware confluence,
+Pi-domain persistence through arbitrary compatible paths, non-proof native
+coverage, or comparison completeness. The non-proof body square still requires
+exact native recovery at the selected domain; the known captured-assignment
+obstruction prohibits treating this premise as universally available. General
+common-reduct/full-alignment transport remains live. This is intermediate work,
+not a GOAL.md deliverable; weakN_iff remains open.
+
+Validation: main and isolated 711-job targeted builds; 13 exact public roots
+pass type/opaque-body/constructor/recursor audits, maximum closure 11,114,
+standard logical axioms only. All 686 transitive local source hashes and isolated
+copies agree. No new-source warnings or forbidden strengthening dependencies.
