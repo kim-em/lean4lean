@@ -18935,3 +18935,51 @@ proof, canonical-Eq counterexample, or strictly smaller sufficient irreducible
 obligation is claimed. GOAL.md remains active. Only seven new theory modules and
 these ledger appendices belong to this change; no executable changes, PR
 extraction, independent-worker file changes, or agent contact.
+
+## Native selection and full nullary argument guards in level-extended stages
+
+Added PiRoot and ConstantRoot. Scoped Pi domain inversion now requires only
+absence of primitive Pi roots. ConstantRootLevels describes roots preserving
+the same family at equivalent universe lists; finite scoped computation inherits
+that property by transitivity of universe equivalence. Generalized the existing
+DomainExposure and NullaryExposure proof inductions to these weaker interfaces.
+Their original public theorem names and signatures remain proved corollaries,
+so previous consumers continue to build.
+
+LevelExposure classifies stage roots, proves Pi exclusion, and shows that a rigid
+family root excluded from the definition table must be an explicit universe
+step. These give finite-stage/union native Pi selection retaining the domain
+comparison, plus union nullary-family exposure. LevelExposureExample supplies a
+nonliteral typed sort step at every finite stage and formally refutes the old
+PrimitiveHead hypothesis for those stages.
+
+LevelGuardTransfer combines nullary-family exposure with the complete joint
+structural-variant theorem. It transports any existing full argument guard to
+the exposed selected family, then back along its carrier computation. Native
+Pi selection therefore returns the selected-domain guard alongside its native
+recovery and inferred domain comparison. The actual application consumer covers
+both retained and proof-valued results. The actual environment-registry consumer
+discharges soundness and rigid-family exclusion from a registered structure.
+There is no new comparison/recovery constructor and no record-only guard premise.
+The assigned domain is still required to erase to a nullary family, and native
+recovery/type comparison remain supplied certificates.
+
+Validation: 777-job main and isolated builds passed for 59 explicit modules.
+All 224 exact roots passed the opaque-body, constructor and recursor dependency
+audit; maximum closure 11,285. Only propext, Classical.choice and Quot.sound
+occur. No sorry sources or excluded weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport
+or JointPropBetaStability occur. All 59 sources match the isolated build exactly;
+none of the seven changed theory modules has build warnings. A source comparison
+also verifies all 11 original public exposure signatures are unchanged
+(/tmp/carrier-level-exposure-api.json). Artifacts:
+/tmp/carrier-level-exposure-{all-build.log,isolated-build.log,audit.lean,audit.log,
+audit-roots.txt,files.txt,targets.txt,validation.json}; preparation:
+/tmp/prepare-carrier-level-exposure.py; verifier: /tmp/verify-carrier-audit.py.
+
+Only five new theory modules, two generalized exposure modules and these ledger
+appendices belong to this change. No executable edits or agent contact. The
+original sorry remains at UniqueTyping.lean:94. Parameterized carrier transport,
+arbitrary Pi-domain conversion and general native/comparison completeness are
+not proved; neither a canonical-Eq counterexample nor a strictly smaller
+sufficient irreducible obligation has been obtained. GOAL.md stays active.

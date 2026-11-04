@@ -1,17 +1,16 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCarrierAlignedDomainExposure
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureScopedLoopReadout
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCarrierAlignedConstantRoot
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCarrierRecoveredUnion
 
 /-! # Nullary family exposure and selected unit-carrier guards
 
-At type endpoints, aligned checking against a primitive-inert nullary constant
-exposes that constant on the other side. No parameter-spine or arbitrary
+At type endpoints, aligned checking against a universe-stable nullary constant
+exposes the same family at equivalent levels on the other side. No parameter-spine or arbitrary
 function-extensionality claim is made. This transfers a nullary unit guard to a
 newly recovered domain, with the domain comparison retained by Pi exposure.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape
-open private scoped_normal_fixed from Lean4Lean.Theory.Typing.Strengthening.ProofErasureScopedLoopReadout
 open private sort_not_lam sort_not_constructor from Lean4Lean.Theory.Typing.Strengthening.ProofErasureScopedPiExposure
 variable [Params]
 
@@ -21,7 +20,7 @@ private def ConstantExposurePair (Step : List ProofShape → ProofShape → Proo
   (∀ ls, sb = .const family ls → ∃ ls', ScopedCompute Step Δ sa (.const family ls') ∧ List.Forall₂ (· ≈ ·) ls ls')
 
 private theorem computed_constant_pair
-    (hn : ∀ {Δ ls out}, ¬ Step Δ (.const family ls) out)
+    (hn : ConstantRootLevels Step family)
     (H : ComputedJointCheck Step Δ kind sa sb) (hm : kind = .compare false) :
     ConstantExposurePair Step family Δ sa sb := by
   induction H with
@@ -37,13 +36,13 @@ private theorem computed_constant_pair
   | compute RA RB H ih =>
     constructor
     · intro ls E
-      have EA := scoped_normal_fixed (Step := Step) (a := .const family ls) (E ▸ RA) (fun _ => ⟨fun _ H => hn H, trivial⟩)
-      obtain ⟨ls', R, HL⟩ := (ih hm).1 ls EA
-      exact ⟨ls', RB.trans R, HL⟩
+      obtain ⟨ls₁, EA, HL₁⟩ := (E ▸ RA).const_levels_inv hn
+      obtain ⟨ls', R, HL⟩ := (ih hm).1 ls₁ EA
+      exact ⟨ls', RB.trans R, HL₁.trans (fun _ _ _ H K => H.trans K) HL⟩
     · intro ls E
-      have EB := scoped_normal_fixed (Step := Step) (a := .const family ls) (E ▸ RB) (fun _ => ⟨fun _ H => hn H, trivial⟩)
-      obtain ⟨ls', R, HL⟩ := (ih hm).2 ls EB
-      exact ⟨ls', RA.trans R, HL⟩
+      obtain ⟨ls₁, EB, HL₁⟩ := (E ▸ RB).const_levels_inv hn
+      obtain ⟨ls', R, HL⟩ := (ih hm).2 ls₁ EB
+      exact ⟨ls', RA.trans R, HL₁.trans (fun _ _ _ H K => H.trans K) HL⟩
   | symm H ih => exact (ih hm).symm
   | app | appCarrier | appComputed | proj | lam | forallE | lamSorted | forallSorted | etaLams =>
     constructor <;> intro ls E <;> cases E
@@ -53,7 +52,7 @@ private theorem computed_constant_pair
 
 private theorem computed_constants
     (hstep : ErasedScopedPrimitiveDescent Step)
-    (hn : ∀ {Δ ls out}, ¬ Step Δ (.const family ls) out)
+    (hn : ConstantRootLevels Step family)
     (H : ComputedJointCompare Step Δ mode sa sb)
     (hΓ : OnCtx Γ (env.IsType univs))
     (ha : env.HasType univs Γ a (.sort u)) (hb : env.HasType univs Γ b (.sort v))
@@ -66,7 +65,7 @@ private theorem computed_constants
 
 private theorem carrier_constants
     (hstep : ErasedScopedPrimitiveDescent Step)
-    (hn : ∀ {Δ ls out}, ¬ Step Δ (.const family ls) out)
+    (hn : ConstantRootLevels Step family)
     (RA : ScopedTypeRecovery Step Δ sa rawC)
     (HC : ComputedJointCarrierGuard Step Δ rawC sa sb)
     (hΓ : OnCtx Γ (env.IsType univs))
@@ -82,7 +81,7 @@ private theorem carrier_constants
 
 private theorem recovered_constants
     (hstep : ErasedScopedPrimitiveDescent Step)
-    (hn : ∀ {Δ ls out}, ¬ Step Δ (.const family ls) out)
+    (hn : ConstantRootLevels Step family)
     (H : CarrierRecoveredCompare Step Δ mode sa sb)
     (hΓ : OnCtx Γ (env.IsType univs))
     (ha : env.HasType univs Γ a (.sort u)) (hb : env.HasType univs Γ b (.sort v))
@@ -99,18 +98,18 @@ private theorem recovered_constants
     have IH := ih hΓ HA.hasType.2 HB.hasType.2 EΓ EA EB
     constructor
     · intro ls E
-      have EF := scoped_normal_fixed (Step := Step) (a := .const family ls) (E ▸ RA) (fun _ => ⟨fun _ H => hn H, trivial⟩)
-      obtain ⟨ls', R, HL⟩ := IH.1 ls EF
-      exact ⟨ls', RB.trans R, HL⟩
+      obtain ⟨ls₁, EF, HL₁⟩ := (E ▸ RA).const_levels_inv hn
+      obtain ⟨ls', R, HL⟩ := IH.1 ls₁ EF
+      exact ⟨ls', RB.trans R, HL₁.trans (fun _ _ _ H K => H.trans K) HL⟩
     · intro ls E
-      have EF := scoped_normal_fixed (Step := Step) (a := .const family ls) (E ▸ RB) (fun _ => ⟨fun _ H => hn H, trivial⟩)
-      obtain ⟨ls', R, HL⟩ := IH.2 ls EF
-      exact ⟨ls', RA.trans R, HL⟩
+      obtain ⟨ls₁, EF, HL₁⟩ := (E ▸ RB).const_levels_inv hn
+      obtain ⟨ls', R, HL⟩ := IH.2 ls₁ EF
+      exact ⟨ls', RA.trans R, HL₁.trans (fun _ _ _ H K => H.trans K) HL⟩
   | symm H ih => exact (ih hΓ hb ha EΓ Eb Ea).symm
 
 private theorem aligned_constants
     (hstep : ErasedScopedPrimitiveDescent Step)
-    (hn : ∀ {Δ ls out}, ¬ Step Δ (.const family ls) out)
+    (hn : ConstantRootLevels Step family)
     (H : CarrierAlignedCompare Step Δ mode sa sb)
     (hΓ : OnCtx Γ (env.IsType univs))
     (ha : env.HasType univs Γ a (.sort u)) (hb : env.HasType univs Γ b (.sort v))
@@ -130,18 +129,44 @@ private theorem aligned_constants
     have IH := ih hΓ HA.hasType.2 HB.hasType.2 EΓ EA EB
     constructor
     · intro ls E
-      have EF := scoped_normal_fixed (Step := Step) (a := .const family ls) (E ▸ RA) (fun _ => ⟨fun _ H => hn H, trivial⟩)
-      obtain ⟨ls', R, HL⟩ := IH.1 ls EF
-      exact ⟨ls', RB.trans R, HL⟩
+      obtain ⟨ls₁, EF, HL₁⟩ := (E ▸ RA).const_levels_inv hn
+      obtain ⟨ls', R, HL⟩ := IH.1 ls₁ EF
+      exact ⟨ls', RB.trans R, HL₁.trans (fun _ _ _ H K => H.trans K) HL⟩
     · intro ls E
-      have EF := scoped_normal_fixed (Step := Step) (a := .const family ls) (E ▸ RB) (fun _ => ⟨fun _ H => hn H, trivial⟩)
-      obtain ⟨ls', R, HL⟩ := IH.2 ls EF
-      exact ⟨ls', RA.trans R, HL⟩
+      obtain ⟨ls₁, EF, HL₁⟩ := (E ▸ RB).const_levels_inv hn
+      obtain ⟨ls', R, HL⟩ := IH.2 ls₁ EF
+      exact ⟨ls', RA.trans R, HL₁.trans (fun _ _ _ H K => H.trans K) HL⟩
   | symm H ih => exact (ih hΓ hb ha EΓ Eb Ea).symm
 
 /-- Nullary exposure retains pointwise universe equivalence. This supplies
 the universe evidence needed to transport structure admissibility and static
 proof-field certificates to the selected carrier. -/
+theorem proofErase_carrier_aligned_nullary_levels_exposure_of_stable_root
+    (hstep : ErasedScopedPrimitiveDescent Step)
+    (hn : ConstantRootLevels Step family)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (ha : env.HasType univs Γ a (.sort u)) (hb : env.HasType univs Γ b (.sort v))
+    (H : CarrierAlignedCompare Step (proofEraseCtx Γ) mode (proofErase Γ a) (proofErase Γ b))
+    (Ea : proofErase Γ a = .const family ls) :
+    ∃ ls', ScopedCompute Step (proofEraseCtx Γ) (proofErase Γ b) (.const family ls') ∧
+      List.Forall₂ (· ≈ ·) ls ls' :=
+  (aligned_constants hstep hn H hΓ ha hb rfl rfl rfl).1 ls Ea
+
+/-- Typed aligned comparison exposes a universe-stable nullary type constant.
+This theorem does not assert exposure of parameterized constant spines. -/
+theorem proofErase_carrier_aligned_nullary_exposure_of_stable_root
+    (hstep : ErasedScopedPrimitiveDescent Step)
+    (hn : ConstantRootLevels Step family)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (ha : env.HasType univs Γ a (.sort u)) (hb : env.HasType univs Γ b (.sort v))
+    (H : CarrierAlignedCompare Step (proofEraseCtx Γ) mode (proofErase Γ a) (proofErase Γ b))
+    (Ea : proofErase Γ a = .const family ls) :
+    ∃ ls', ScopedCompute Step (proofEraseCtx Γ) (proofErase Γ b) (.const family ls') := by
+  obtain ⟨ls', R, _⟩ := proofErase_carrier_aligned_nullary_levels_exposure_of_stable_root hstep hn hΓ ha hb H Ea
+  exact ⟨ls', R⟩
+
+
+/-- The original inert-root interface implies universe-stable root exposure. -/
 theorem proofErase_carrier_aligned_nullary_levels_exposure
     (hstep : ErasedScopedPrimitiveDescent Step)
     (hn : ∀ {Δ ls out}, ¬ Step Δ (.const family ls) out)
@@ -151,10 +176,10 @@ theorem proofErase_carrier_aligned_nullary_levels_exposure
     (Ea : proofErase Γ a = .const family ls) :
     ∃ ls', ScopedCompute Step (proofEraseCtx Γ) (proofErase Γ b) (.const family ls') ∧
       List.Forall₂ (· ≈ ·) ls ls' :=
-  (aligned_constants hstep hn H hΓ ha hb rfl rfl rfl).1 ls Ea
+  proofErase_carrier_aligned_nullary_levels_exposure_of_stable_root hstep (fun H => (hn H).elim) hΓ ha hb H Ea
 
-/-- Typed aligned comparison exposes a primitive-inert nullary type constant.
-This theorem does not assert exposure of parameterized constant spines. -/
+
+/-- The original inert-root interface implies universe-stable root exposure. -/
 theorem proofErase_carrier_aligned_nullary_exposure
     (hstep : ErasedScopedPrimitiveDescent Step)
     (hn : ∀ {Δ ls out}, ¬ Step Δ (.const family ls) out)
@@ -162,9 +187,8 @@ theorem proofErase_carrier_aligned_nullary_exposure
     (ha : env.HasType univs Γ a (.sort u)) (hb : env.HasType univs Γ b (.sort v))
     (H : CarrierAlignedCompare Step (proofEraseCtx Γ) mode (proofErase Γ a) (proofErase Γ b))
     (Ea : proofErase Γ a = .const family ls) :
-    ∃ ls', ScopedCompute Step (proofEraseCtx Γ) (proofErase Γ b) (.const family ls') := by
-  obtain ⟨ls', R, _⟩ := proofErase_carrier_aligned_nullary_levels_exposure hstep hn hΓ ha hb H Ea
-  exact ⟨ls', R⟩
+    ∃ ls', ScopedCompute Step (proofEraseCtx Γ) (proofErase Γ b) (.const family ls') :=
+  proofErase_carrier_aligned_nullary_exposure_of_stable_root hstep (fun H => (hn H).elim) hΓ ha hb H Ea
 
 /-- A nullary unit-carrier guard transfers along an actual aligned type
 comparison. Only the selected type computes to the exposed family; a literal

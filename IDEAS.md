@@ -7129,3 +7129,30 @@ and does not establish stage-one native recovery or arbitrary-stage confluence.
 Next, examine which singleton-stage recovery conversions can preserve this
 invariant without assuming a confluence law for the full guarded computation.
 GOAL.md remains open; no sufficient strictly smaller irreducible front is claimed.
+
+## Recover native head exposure and full argument guards after universe steps
+
+Verdict: **proved precise root laws and full nullary-domain guard transfer**.
+The old PrimitiveHead interface is false at every level-extended stage: a typed
+Sort (max 0 0) to Sort 0 primitive is a checked witness. Pi domain exposure only
+needs exclusion of Pi roots, which all these stages satisfy. Rigid nullary
+families are not inert under explicit universe conversion, but their roots
+preserve family and pointwise equivalent levels. Generalizing the existing
+exposure inductions to these exact laws retains both old public APIs as
+corollaries and recovers native Pi/domain selection in every stage and union.
+
+After exposing a selected nullary family, full joint structural transport moves
+an arbitrary existing carrier guard to the exposed universe instance. A final
+carrier computation lifts it to the selected domain. Thus the argument premise
+is the complete existing ComputedJointCarrierGuard, not a separate finite record
+grammar. The selected domain may have different term syntax; it must have an
+existing aligned comparison with the assigned nullary family. Actual application
+erasures, including proof results, are covered. For actual environment
+registries and registered structures, soundness and rigid-family exclusion are
+discharged. Native recovery and its type comparison remain source premises.
+
+This removes the old head-interface incompatibility and the restricted argument
+guard grammar for nullary domains. Parameterized families, arbitrary Pi carriers
+and general comparison/native completeness remain open. In particular the
+new theorem does not supply arbitrary beta-context transport or a sufficient
+strictly smaller front. Original weakN_iff and GOAL.md remain unresolved.
