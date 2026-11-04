@@ -9418,3 +9418,33 @@ sorry or configured circular-framework dependency. All 762 local import sources
 hash-stable. Artifacts: `/dev/shm/proof-parameter-return-*`, preparation
 `/dev/shm/prepare-proof-parameter-return-audit.py`. Executable unchanged; no PRs
 extracted and no coordination. The original weakN_iff sorry remains; goal active.
+
+
+## Caller eta refutes forward histories for retained function arguments (2026-11-04 23:32:42 UTC)
+
+Verdict: the dependent neutral-head/arity theorem cannot be strengthened to
+forward histories for every exposed retained argument, even with arbitrary
+beta cleanup. In a canonical-Eq environment with a positive empty unindexed
+structure S, take old x:S, fresh y:S and K:S->Type. A constant lambda annotated
+K x is supplied to a caller H expecting a function annotated K y. Unit equality
+makes this application well typed. Eta on H, eta on its newly bound argument,
+and beta produce H (fun z:K y => Prop). That endpoint is beta-normal, while
+computation of the supplied argument alone cannot introduce the fresh y.
+The checked witness rejects every beta-readout argument with such a forward
+history, not just the displayed endpoint.
+
+Both original and changed arguments nevertheless compute to the same lambda,
+using unit eta to replace x and y by S's registered constructor. This is a
+refutation of the proposed argument-origin invariant, not of confluence or
+strengthening. Sort-typed payload histories remain unaffected: the obstruction
+uses a function-valued parameter. The caller-side eta construction needs no
+native recovery of the supplied argument at the caller's selected domain.
+A generic no-fresh-index theorem applies to every descending computation.
+
+Validation: two modules, 261 Lean lines, four public roots. Isolated explicit
+12-module build succeeded (786 jobs); full 82-root audit includes all changed
+imports, maximum dependency closure 11,467, only standard axioms and no forbidden
+dependencies. All 761 closure source hashes were stable and matched isolated
+copies. Artifacts /tmp/carrier-retained-origin-boundary-*; preparation
+/tmp/prepare-carrier-retained-origin-boundary.py. Executable unchanged; no
+coordination. Strengthening remains open and the goal remains active.
