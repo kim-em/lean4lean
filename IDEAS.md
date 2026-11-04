@@ -6128,3 +6128,57 @@ The explicit body join remains a restriction. Live extension: permit distinct
 body reducts with recursively universe-equivalent annotations, then investigate
 carrier and eta comparisons without replacing the entire missing substitution
 law by a premise. This paired-beta fragment does not close PropFront.
+
+
+### 2026-11-04 14:23 UTC — instantiated field trees repair polymorphic boxes
+
+Verdict: the parameter-box boundary is repaired by an occurrence-specific,
+inductive field tree. InstanceProjectionType.record stores exact native field
+readouts at a fresh major variable with the occurrence parameters already
+lifted and instantiated. Each valid field has a child tree of the same type.
+The finite table and recursive children contain no comparison or transport law.
+The new record case requires a positive result universe and zero indices; prior
+ProjectionClosedType leaves preserve the earlier indexed/declaration-only cases.
+
+Arbitrary term substitution transports the entire tree under the fresh major
+binder using fieldType_subst_some. InstanceProjectionImage supplies actual
+image typing, equality replay, non-functionality and closure under retained
+projection. StructureReplay.positive_projection_native reconstructs the actual
+constructor expansion from the original major and its positive projection
+guard, then extracts the native field typing. Thus a competing projection may
+use another convertible parameter instance or source major: owner injectivity
+aligns its owner, and reconstruction uses the original certified instance.
+No field typing or expanded-constructor typing is assumed.
+
+StructuralFamilyRecovery.instanceProjection carries the enlarged image class
+at the selected raw output. Its expose result and recursive projection recovery
+return InstanceProjectionImage. The old generic projection_closed conclusion
+would now be false for Box Type and is replaced by projection_image; all earlier
+image classes and instantiation consumers remain available through embeddings.
+
+The exact earlier Box Type witness now has InstanceProjectionImage while
+retaining the proved negation of ProjectionClosedImage and its actual retained
+projection. The parameterBox rule inherits any actual parameter tree, and its
+iteration proves arbitrary finite nesting of the same polymorphic wrapper.
+Actual nested image typings feed full stage-zero comparison and exact
+first-layer computation instantiation. No normalization or native readout of
+the image is required.
+
+Remaining boundary: callable fields are still excluded by the non-function
+image invariant; mixed proof/data field schemas and non-positive/indexed new
+instance schemas are not supplied by this constructor. Global higher-stage
+substitution and declarative strengthening remain open.
+
+Next live direction: preserve actual selected-carrier typing through native
+recovery replay before repairing an application. Replaying the source function
+recovery yields a typed Pi whose erasure is the selected raw Pi; its domain can
+then type both original arguments before substitution. This could support a
+new callable-image case with universe-valued inputs and a certified result tree.
+At such type-valued arguments, the existing committed theorem
+proofErase_computed_carrier_types_checked converts a carrier guard to ordinary
+comparison, provided the selected carrier has the required actual typing.
+The current application helper does not retain that readout explicitly. Prove
+and carry it rather than assuming arbitrary guard conversion. Then investigate
+function-valued record fields using the same typed elimination tree. This is
+an unproved next route, not a claimed generic application-transport law or a
+strictly smaller sufficient front.

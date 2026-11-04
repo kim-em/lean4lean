@@ -124,11 +124,11 @@ theorem StructuralOrRecoveringImages.inst
 projection-closed result along a finite structural path. The selected raw major type
 is required not to be a protected neutral; projection recovery supplies this
 from its rigid owner head. -/
-theorem StructuralFamilyRecovery.projection_closed (H : StructuralFamilyRecovery D cut Γ e out n)
+theorem StructuralFamilyRecovery.projection_image (H : StructuralFamilyRecovery D cut Γ e out n)
     (hΓ : OnCtx Γ (env.IsType univs))
     (ht : env.HasType univs Γ (.proj s i e) T)
     (hn : ¬ IsProof Γ (.proj s i e))
-    (Hout : ¬ AnchoredCarrier cut out) : ProjectionClosedImage Γ (.proj s i e) := by
+    (Hout : ¬ AnchoredCarrier cut out) : InstanceProjectionImage Γ (.proj s i e) := by
   obtain ⟨_, _, _, _, _, _, _, hi, _, _, _, _, _, _, hm, _, _⟩ := ht.proj_inv henv hΓ
   have htMajor := hm.hasType.2
   rcases H.expose hΓ htMajor with HT | HN | ⟨A, u, hf, _, _⟩ | ⟨X, Y, hfN, _, _, _⟩ | ⟨X, Y, b, u, v, hf, _, _, _⟩ | ⟨A, b, _, _, _, _, _, R, _, _⟩
@@ -224,8 +224,8 @@ theorem proofErase_joint_zero_recovery_subst_structuralImages
       rw [projectionType_subst HT hj (by omega)]
       exact .proj hi HT hj (by simpa only [List.length_map] using hlen) R
     · apply Or.inr
-      refine ⟨0, .projectionClosed ?_⟩
-      exact H.projection_closed hΓ₀ (ht.subst henv.orderedStrong W hΓ₀)
+      refine ⟨0, .instanceProjection ?_⟩
+      exact H.projection_image hΓ₀ (ht.subst henv.orderedStrong W hΓ₀)
         (mt (isProof_subst hΓ₀ W ht).1 hn) (by
           rintro ⟨i, args, _, HE⟩
           have HC := congrArg ProofShape.constHead HE

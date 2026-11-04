@@ -17568,3 +17568,60 @@ forbidden dependencies or sorry sources. Exact source bytes match. Artifacts:
 /tmp/carrier-paired-audit-roots.txt, /tmp/carrier-paired-files.txt,
 /tmp/carrier-paired-validation.json. Original strengthening remains open;
 these certificates do not supply arbitrary compared-body substitution.
+
+
+### 2026-11-04 14:23 UTC — instantiated field trees repair polymorphic boxes
+
+Previous goal turn classified as progress and revalidated from 07310d19 and the
+parameter-box boundary sources. Independently staged work was present at turn
+start and later committed independently; none of it was edited, staged, reset,
+or coordinated with.
+
+ProofErasureInstanceProjectionType defines the finite occurrence-specific tree
+and proves arbitrary substitution plus lifting. A record node's field readouts
+are computed at the fresh major with lifted occurrence parameters, so children
+already reflect parameter instantiation. Positive result levels and zero indices
+are explicit in the new node. Old declaration-only trees embed as leaves.
+
+ProofErasureInstanceProjectionImage proves positive_projection_native by actual
+structure reconstruction and constructor-spine typing. Its image class retains
+ordinary typed substitution, backward equality replay, non-functionality and
+closure under retained projection. The proof uses the original certified
+parameter instance, not a syntactic equality with the competing projection
+instance. Field typings and constructor expansion are reconstructed, never
+assumed as new obligations.
+
+StructuralFamilyRecovery gains instanceProjection, and exposure uses the new
+image class. The recursive recovery proof's projection case returns another
+instanceProjection leaf. The generic public projection_closed helper is
+replaced by projection_image, reflecting the larger result class. Earlier
+terminal, terminal-field and declaration-tree APIs embed and all prior audited
+consumers rebuild.
+
+ProofErasureInstanceProjectionInstantiation supplies full recursive comparison
+and first-layer exact-output consumers. ProofErasureInstanceProjectionBox proves
+the generic polymorphic-box tree rule, repairs the same typed Box Type boundary
+while retaining its old negative theorem, and iterates the rule to arbitrary
+finite box nesting. Both comparison and computation consumers instantiate
+actual typed nested values at any of their assigned types.
+
+Validation: 625-job build of 33 explicit affected/consuming modules; no warnings
+or errors in the six changed modules. Exact 260-root full opaque dependency
+traversal and independent #print axioms outputs cover all new/modified public
+roots, constructors, prior consumers and the positive/negative box pair. The
+manifest replaces projection_closed by projection_image. Maximum per-root
+closure 11,289; only propext, Classical.choice and Quot.sound. No sorry
+sources, weakN_iff, weakN_inv, JointCarrierDomainResynthesis,
+ScopedSemanticHeadExposure, JointPropBetaTransport or JointPropBetaStability.
+This is an explicit manifest, not a cumulative audit claim. Artifacts:
+/tmp/instance-projection-build.log; /tmp/instance-projection-audit.lean and .log;
+/tmp/instance-projection-roots.txt, -files.txt, -build-targets.txt;
+/tmp/instance-projection-validation.json including audited source hashes.
+
+GOAL.md is still unfulfilled. No canonical-Eq counterexample or strictly smaller
+sufficient irreducible obligation is claimed; UniqueTyping's original sorry
+remains. The next route is to retain actual selected-carrier typings from source
+recovery replay, then try callable result trees at universe inputs. The
+committed carrier-types checking theorem may discharge those argument guards,
+but only after its actual typing premises are proved. No executable edits,
+agents, coordination, or PR extraction; independent files are preserved.
