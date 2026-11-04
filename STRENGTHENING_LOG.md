@@ -16804,3 +16804,68 @@ intermediate arguments. Heterogeneous substitution, unrestricted endpoint
 beta stability and completeness remain open. Original UniqueTyping.lean:94
 sorry remains and none of the three GOAL.md completion alternatives is proved.
 Only Theory and ledgers change; no coordination, subagents or executable edits.
+
+
+## 2026-11-04 12:35 UTC — Converted domains with arbitrary finite body paths
+
+Previous goal turn made progress: 94d64c67 was built, audited and pushed.
+Revalidation retained independently changed files untouched. The planned
+combination of structural input and neutral output was generalized to a
+finite-body construction, avoiding another hard-coded terminal result leaf.
+
+ProofErasureSelectedLambdaDomain defines three explicit selected/written
+domain cases: exact erasure, protected neutral selected carrier, and equal
+protected-neutral input conversion within a dependent Pi. Substitution is
+proved from typed erased agreement and protected-head preservation. Its guard
+theorem consumes an existing finite carrier guard and actual endpoint typing
+at the written domain. The dependent case reconstructs the source endpoint
+types, transports the whole guard, and aligns dependent codomain erasures;
+the neutral case extracts ordinary comparison from carrier inertness.
+
+StructuralFamilyRecovery gains lamDomain and beta constructors. The exposure
+theorem now returns a written lambda, a smaller body path, a separate selected
+domain certificate, and the original type-computation path. The application
+exposure induction still strictly decreases: it substitutes the argument into
+the smaller body path and retains one conversion node. A finite beta prefix
+composes with the exposed lambda path or retypes terminal results. The whole
+rank-preserving substitution proof and projection exclusion were updated.
+
+Application rebuilding no longer needs to change the lambda annotation to the
+selected domain. Instead it pulls the existing argument guard back along the
+retained selected-domain computation, uses SelectedLambdaDomain.guard, and
+constructs appComputed at the written domain. Exact-domain paths are included
+as the exact case. of_selected_body derives actual binder equality from the
+supplied lambda typing and uses it to preserve body-type erasure; finite beta
+exposure and converted-dependent-domain specializations are also proved.
+
+ProofErasureConvertedBodyInstantiation exposes full stage-zero body comparison
+and first-layer computation instantiation for this criterion, with arbitrary
+selected body-result shape and exact target erasures. The body recovery is a
+finite supplied path, not an assumption about all future body comparisons.
+ProofErasureFunctionResultEtaInstantiation consumes the result for a concrete
+lambda with Pi-wrapped eta-converted input whose body is another lambda
+returning the retained context value. Its selected result is itself a Pi;
+its body path has rank one and complete image path rank two.
+
+Validation: the function-result eta consumer, previous dependent structural
+consumer and neutral-result consumer build successfully together in 600 jobs,
+with no changed/new-module warnings. The opaque audit covers 68 exact public
+roots, including every selected-domain and recovery constructor, all affected
+recursive consumers, the previous examples and the old negative recovery
+theorem. Expected root and axiom reports match exactly. The largest complete
+dependency closure contains 11,198 declarations; only propext, Classical.choice
+and Quot.sound occur. No sorryAx, weakN_iff, weakN_inv,
+JointCarrierDomainResynthesis, ScopedSemanticHeadExposure, JointPropBetaTransport
+or JointPropBetaStability is reachable. This audits the named roots and full
+closures, not a historical cumulative inventory. Artifacts:
+/tmp/selected-body-inst-build.log, /tmp/selected-body-inst-audit.lean, .log
+and -roots.txt.
+
+Remaining scope: the result covers finite body paths and the three proved
+domain-transfer cases, not arbitrary typed images. It does not justify
+substitution of arbitrary intermediate values through higher-stage converted
+body paths, unrestricted carrier conversion, heterogeneous substitution,
+endpoint beta stability, or completeness. UniqueTyping.lean:94 retains the
+original sorry, and none of GOAL.md's three success alternatives is proved.
+The goal stays active. Only Theory and ledgers change; no executable changes,
+PR extraction, coordination or subagents.

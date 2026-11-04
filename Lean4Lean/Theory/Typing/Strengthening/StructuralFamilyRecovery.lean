@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureDependentNeutralFunctionCarrierConversion
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureSelectedLambdaDomain
 
 /-! # Selected recovery with convertible structural family domains
 
@@ -55,8 +55,16 @@ inductive StructuralFamilyRecovery (D : PureObservation.Definitions) :
         (.forallE (.forallE (proofErase Γ A) (proofErase (A :: Γ) C)) (.sort u)) 0
   | lam : StructuralFamilyRecovery D (cut + 1) (A :: Γ) b B n →
       StructuralFamilyRecovery D cut Γ (.lam A b) (.forallE (proofErase Γ A) B) (n + 1)
+  /-- A finite body path may be retained at the written domain while the
+  selected domain carries a separately proved guard-conversion certificate. -/
+  | lamDomain : SelectedLambdaDomain cut Γ raw A →
+      StructuralFamilyRecovery D (cut + 1) (A :: Γ) b B n →
+      StructuralFamilyRecovery D cut Γ (.lam A b) (.forallE raw B) (n + 1)
   | app : StructuralFamilyRecovery D cut Γ f (.forallE A B) n →
       StructuralFamilyRecovery D cut Γ (.app f a) (B.inst (proofErase Γ a)) (n + 1)
+  /-- A finite beta prefix exposes an already certified recovery path. -/
+  | beta : VExpr.BetaRed e e' → StructuralFamilyRecovery D cut Γ e' out n →
+      StructuralFamilyRecovery D cut Γ e out (n + 1)
   | convert : StructuralFamilyRecovery D cut Γ e T n → Compute (ErasedIotaPrimitive D) T U →
       StructuralFamilyRecovery D cut Γ e U (n + 1)
 
@@ -109,10 +117,20 @@ theorem StructuralFamilyRecovery.subst (H : StructuralFamilyRecovery D cut Γ e 
       ES.lift hΓ₀ W hA
     simpa only [VExpr.subst, ProofShape.subst, proofErase_subst_with hΓ₀ W hA ES] using
       StructuralFamilyRecovery.lam (ih ⟨hΓ₀, u, hA'⟩ (W.lift henv.ordered hA) ES' hb WH.lift)
+  | @lamDomain cut Γ raw A b B n HD H ih =>
+    obtain ⟨⟨u, hA⟩, _, hb⟩ := ht.lam_inv henv W.wf
+    have hΓA₀ : OnCtx (A.subst σ :: Γ₀) (env.IsType univs) :=
+      ⟨hΓ₀, u, hA.subst henv.orderedStrong W hΓ₀⟩
+    simpa only [VExpr.subst, ProofShape.subst] using
+      StructuralFamilyRecovery.lamDomain (HD.subst hΓ₀ W ES hA WH)
+        (ih hΓA₀ (W.lift henv.ordered hA) (ES.lift hΓ₀ W hA) hb WH.lift)
   | @app cut Γ f A B n a H ih =>
     obtain ⟨_, _, hf, ha⟩ := ht.app_inv henv W.wf
     simpa only [VExpr.subst, ProofShape.subst_inst, proofErase_subst_with hΓ₀ W ha ES] using
       StructuralFamilyRecovery.app (a := a.subst σ) (ih hΓ₀ W ES hf WH)
+  | beta R H ih =>
+    have HE := R.simAt henv.orderedStrong henv.betaSubjectReduction W.wf _ ht
+    exact .beta (beta_subst R) (ih hΓ₀ W ES HE.hasType.2 WH)
   | convert H R ih =>
     exact .convert (ih hΓ₀ W ES ht WH) (R.subst (fun H => erased_iota_primitive_subst H))
 
@@ -136,9 +154,9 @@ theorem StructuralFamilyRecovery.expose (H : StructuralFamilyRecovery D cut Γ e
         VExpr.BetaRed e (.lam (.forallE B C) b) ∧
         Compute (ErasedIotaPrimitive D)
           (.forallE (.forallE (proofErase Γ A) (proofErase (A :: Γ) C)) (.sort u)) out) ∨
-      ∃ A b B m, m < n ∧ StructuralFamilyRecovery D (cut + 1) (A :: Γ) b B m ∧
-        VExpr.BetaRed e (.lam A b) ∧
-        Compute (ErasedIotaPrimitive D) (.forallE (proofErase Γ A) B) out := by
+      ∃ A b B m raw, m < n ∧ StructuralFamilyRecovery D (cut + 1) (A :: Γ) b B m ∧
+        VExpr.BetaRed e (.lam A b) ∧ SelectedLambdaDomain cut Γ raw A ∧
+        Compute (ErasedIotaPrimitive D) (.forallE raw B) out := by
   induction n using Nat.strongRecOn generalizing cut Γ e out T with
   | ind n ih =>
     cases H with
@@ -147,18 +165,31 @@ theorem StructuralFamilyRecovery.expose (H : StructuralFamilyRecovery D cut Γ e
     | family h HA => exact .inr (.inr (.inl ⟨_, _, h, HA, .refl⟩))
     | neutralFamily h HA HC => exact .inr (.inr (.inr (.inl ⟨_, _, h, HA, HC, .refl⟩)))
     | structural h HA R => exact .inr (.inr (.inr (.inr (.inl ⟨_, _, _, _, _, h, HA, R, .refl⟩))))
-    | lam H => exact .inr (.inr (.inr (.inr (.inr ⟨_, _, _, _, by omega, H, .refl, .refl⟩))))
+    | lam H => exact .inr (.inr (.inr (.inr (.inr ⟨_, _, _, _, _, by omega, H, .refl, .exact, .refl⟩))))
+    | lamDomain HD H => exact .inr (.inr (.inr (.inr (.inr ⟨_, _, _, _, _, by omega, H, .refl, HD, .refl⟩))))
+    | beta R H =>
+      have HE := R.simAt henv.orderedStrong henv.betaSubjectReduction hΓ _ ht
+      rcases ih _ (by omega) H hΓ HE.hasType.2 with
+        ⟨u, hu⟩ | HN | ⟨A, u, hf, HA, RT⟩ | ⟨A, C, hf, HA, HC, RT⟩ |
+        ⟨A, B, b, u, C, hf, HA, RF, RT⟩ | ⟨A, b, B, m, raw, hm, HB, RF, HD, RT⟩
+      · exact .inl ⟨u, (HE.toU.of_r henv hΓ hu).hasType.1⟩
+      · exact .inr (.inl HN)
+      · exact .inr (.inr (.inl ⟨A, u, (HE.toU.of_r henv hΓ hf).hasType.1, HA, RT⟩))
+      · exact .inr (.inr (.inr (.inl ⟨A, C, (HE.toU.of_r henv hΓ hf).hasType.1, HA, HC, RT⟩)))
+      · exact .inr (.inr (.inr (.inr (.inl ⟨A, B, b, u, C,
+          (HE.toU.of_r henv hΓ hf).hasType.1, HA, R.trans RF, RT⟩))))
+      · exact .inr (.inr (.inr (.inr (.inr ⟨A, b, B, m, raw, by omega, HB, R.trans RF, HD, RT⟩))))
     | @convert cut Γ e source k out H R =>
-      rcases ih k (by omega) H hΓ ht with HS | HN | ⟨C, u, hf, HA, RT⟩ | ⟨X, Y, hfN, HA, HC, RT⟩ | ⟨X, Y, b, u, K, hf, HA, RF, RT⟩ | ⟨A, b, B, m, hm, HB, RB, RT⟩
+      rcases ih k (by omega) H hΓ ht with HS | HN | ⟨C, u, hf, HA, RT⟩ | ⟨X, Y, hfN, HA, HC, RT⟩ | ⟨X, Y, b, u, K, hf, HA, RF, RT⟩ | ⟨A, b, B, m, raw, hm, HB, RB, HD, RT⟩
       · exact .inl HS
       · exact .inr (.inl (HN.core_compute R))
       · exact .inr (.inr (.inl ⟨C, u, hf, HA, RT.trans R⟩))
       · exact .inr (.inr (.inr (.inl ⟨X, Y, hfN, HA, HC, RT.trans R⟩)))
       · exact .inr (.inr (.inr (.inr (.inl ⟨X, Y, b, u, K, hf, HA, RF, RT.trans R⟩))))
-      · exact .inr (.inr (.inr (.inr (.inr ⟨A, b, B, m, by omega, HB, RB, RT.trans R⟩))))
+      · exact .inr (.inr (.inr (.inr (.inr ⟨A, b, B, m, raw, by omega, HB, RB, HD, RT.trans R⟩))))
     | @app cut Γ f X Y k a H =>
       obtain ⟨_, _, hf, hx⟩ := ht.app_inv henv hΓ
-      rcases ih k (by omega) H hΓ hf with ⟨_, hs⟩ | HN | ⟨C, u, hfPi, _, _⟩ | ⟨X, Y, _, _, HC, RT⟩ | ⟨X, Y, b, u, K, hfStruct, _, _, _⟩ | ⟨A, b, B, m, hm, HB, RF, RT⟩
+      rcases ih k (by omega) H hΓ hf with ⟨_, hs⟩ | HN | ⟨C, u, hfPi, _, _⟩ | ⟨X, Y, _, _, HC, RT⟩ | ⟨X, Y, b, u, K, hfStruct, _, _, _⟩ | ⟨A, b, B, m, raw, hm, HB, RF, HD, RT⟩
       · exact ((hs.uniqU henv hΓ hf).sort_forallE_inv henv hΓ).elim
       · exact (HN.not_exposed .function).elim
       · have hxC := argument_at_displayed_domain hΓ hf hfPi hx
@@ -190,7 +221,7 @@ theorem StructuralFamilyRecovery.expose (H : StructuralFamilyRecovery D cut Γ e
       have R : VExpr.BetaRed (.app f a) (b.inst a) := (VExpr.BetaRed.app RF .refl).trans .beta
       have HE' := R.simAt henv.orderedStrong henv.betaSubjectReduction hΓ _ ht
       rcases ih (m + 1) (by omega) (Hinst.convert RBinst) hΓ HE'.hasType.2 with
-        ⟨v, hv⟩ | HN | ⟨C, u, hfFamily, HC, RT'⟩ | ⟨X, Y, hfN, HA, HC, RT'⟩ | ⟨X, Y, b, u, K, hfStruct, HA, RF, RT'⟩ | ⟨C, body, B', j, hj, Hbody, RB', RT'⟩
+        ⟨v, hv⟩ | HN | ⟨C, u, hfFamily, HC, RT'⟩ | ⟨X, Y, hfN, HA, HC, RT'⟩ | ⟨X, Y, b, u, K, hfStruct, HA, RF, RT'⟩ | ⟨C, body, B', j, raw', hj, Hbody, RB', HD', RT'⟩
       · exact .inl ⟨v, (HE'.toU.of_r henv hΓ hv).hasType.1⟩
       · exact .inr (.inl HN)
       · exact .inr (.inr (.inl ⟨C, u, (HE'.toU.of_r henv hΓ hfFamily).hasType.1, HC, RT'⟩))
@@ -198,7 +229,7 @@ theorem StructuralFamilyRecovery.expose (H : StructuralFamilyRecovery D cut Γ e
           (HE'.toU.of_r henv hΓ hfN).hasType.1, HA, HC, RT'⟩)))
       · exact .inr (.inr (.inr (.inr (.inl ⟨X, Y, b, u, K,
           (HE'.toU.of_r henv hΓ hfStruct).hasType.1, HA, R.trans RF, RT'⟩))))
-      · exact .inr (.inr (.inr (.inr (.inr ⟨C, body, B', j, by omega, Hbody, R.trans RB', RT'⟩))))
+      · exact .inr (.inr (.inr (.inr (.inr ⟨C, body, B', j, raw', by omega, Hbody, R.trans RB', HD', RT'⟩))))
 
 
 
@@ -240,7 +271,7 @@ theorem StructuralFamilyRecovery.application
     ComputedJointCompare (ErasedJointStage D 0) (proofEraseCtx Γ) mode
       (.app (proofErase Γ f) (proofErase Γ x)) (.app g (proofErase Γ y)) := by
   rcases H.expose hΓ hf with ⟨_, hsort⟩ | HN | ⟨X, u, _, HA, RT⟩ |
-      ⟨X, Y, _, HA, _, RT⟩ | ⟨X, Y, b, u, K, hstruct, HA, RF, RT⟩ | ⟨X, b, Y, _, _, _, RF, RT⟩
+      ⟨X, Y, _, HA, _, RT⟩ | ⟨X, Y, b, u, K, hstruct, HA, RF, RT⟩ | ⟨X, b, Y, _, raw, _, _, RF, HD, RT⟩
   · exact ((hsort.uniqU henv hΓ hf).sort_forallE_inv henv hΓ).elim
   · exact (HN.not_exposed .function).elim
   · obtain ⟨_, _, EE, RA, _⟩ := core_forall_parts RT
@@ -282,11 +313,17 @@ theorem StructuralFamilyRecovery.application
   · obtain ⟨_, _, EE, RA, _⟩ := core_forall_parts RT
     obtain ⟨rfl, rfl⟩ := ProofShape.forallE.inj EE
     have HE := RF.simAt henv.orderedStrong henv.betaSubjectReduction hΓ _ hf
+    obtain ⟨⟨_, hX⟩, _, hb⟩ := HE.hasType.2.lam_inv henv hΓ
+    have hfNative := (HE.toU.of_r henv hΓ (HasType.lam hX hb)).hasType.1
+    have hxNative := argument_at_displayed_domain hΓ hf hfNative hx
+    have hyNative := argument_at_displayed_domain hΓ hf hfNative hy
+    have RDA : ScopedCompute (ErasedJointStage D 0) (proofEraseCtx Γ) raw _ :=
+      RA.scoped (fun H => .base H)
+    have HC := HD.guard hs hΓ hxNative hyNative (.carrierCompute RDA HX)
     have hn' := mt (isProof_congr hΓ HE).2 hn
     have RB := proofErase_beta_forward hΓ hf RF
     rw [show proofErase Γ (.lam X b) = .lam _ _ from if_neg hn'] at RB
-    exact .appComputed ((ScopedCompute.beta RB).trans
-      (.lam (RA.scoped (fun H => .base H)) .refl)) HF HX
+    exact .appComputed (.beta RB) HF HC
 
 /-- Any function with protected neutral input and output types supplies a
 selected path, including functions producing ordinary non-type values. -/
@@ -326,5 +363,65 @@ theorem StructuralFamilyRecovery.of_structural
     StructuralFamilyRecovery D cut Γ f
       (proofErase Γ (.forallE (.forallE A (.sort v)) (.sort u))) 0 :=
   of_dependent_structural hΓ hf HA R
+
+/-- Any certified selected/written domain pair supports a finite lambda
+body path. Equality of the actual binder annotations follows from the supplied
+lambda typing and preserves the selected body-type erasure. -/
+theorem StructuralFamilyRecovery.of_selected_body
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (hp : env.HasType univs Γ (.lam A body) (.forallE S E))
+    (HD : SelectedLambdaDomain cut Γ (proofErase Γ S) A)
+    (HB : StructuralFamilyRecovery D (cut + 1) (A :: Γ) body (proofErase (A :: Γ) E) n) :
+    StructuralFamilyRecovery D cut Γ (.lam A body) (proofErase Γ (.forallE S E)) (n + 1) := by
+  obtain ⟨_, hT⟩ := hp.isType henv hΓ
+  obtain ⟨⟨v, hS⟩, _, hE⟩ := hT.forallE_inv henv
+  obtain ⟨⟨_, hA⟩, _, hbody⟩ := hp.lam_inv henv hΓ
+  obtain ⟨⟨_, HSA⟩, _⟩ := (hp.uniqU henv hΓ (HasType.lam hA hbody)).forallE_inv henv hΓ
+  have hΓS : OnCtx (S :: Γ) (env.IsType univs) := ⟨hΓ, v, hS⟩
+  have HC : IsDefEqCtx env univs [] (S :: Γ) (A :: Γ) := .succ (.refl hΓ) HSA
+  rw [show proofErase Γ (.forallE S E) = .forallE _ _ from
+    if_neg (not_isProof_of_sort hΓ hT), proofErase_defeqCtx hΓS HC hE]
+  exact .lamDomain HD HB
+
+/-- Finite beta exposure preserves a selected-domain body certificate without
+any restriction on its selected result shape. -/
+theorem StructuralFamilyRecovery.of_beta_selected_body
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (hp : env.HasType univs Γ p (.forallE S E))
+    (RP : VExpr.BetaRed p (.lam A body))
+    (HD : SelectedLambdaDomain cut Γ (proofErase Γ S) A)
+    (HB : StructuralFamilyRecovery D (cut + 1) (A :: Γ) body (proofErase (A :: Γ) E) n) :
+    StructuralFamilyRecovery D cut Γ p (proofErase Γ (.forallE S E)) (n + 2) := by
+  have HE := RP.simAt henv.orderedStrong henv.betaSubjectReduction hΓ _ hp
+  exact .beta RP (of_selected_body hΓ HE.hasType.2 HD HB)
+
+/-- A lambda with a convertible dependent function domain retains any finite
+body recovery path at its written domain. No sort or neutral-result condition
+is imposed on the body path's selected output. -/
+theorem StructuralFamilyRecovery.of_converted_body
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (HAB : env.IsDefEq univs Γ A B (.sort u))
+    (HA : AnchoredCarrier cut (proofErase Γ A))
+    (hp : env.HasType univs Γ (.lam (.forallE B C) body) (.forallE (.forallE A C) E))
+    (HB : StructuralFamilyRecovery D (cut + 1) (.forallE B C :: Γ) body
+      (proofErase (.forallE B C :: Γ) E) n) :
+    StructuralFamilyRecovery D cut Γ (.lam (.forallE B C) body)
+      (proofErase Γ (.forallE (.forallE A C) E)) (n + 1) := by
+  exact of_selected_body hΓ hp (.dependent HAB HA) HB
+
+/-- Finite beta exposure may precede the converted-domain lambda. The body
+path remains a finite certificate, and its rank gives the exposure induction
+its decreasing argument. -/
+theorem StructuralFamilyRecovery.of_beta_converted_body
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (HAB : env.IsDefEq univs Γ A B (.sort u))
+    (HA : AnchoredCarrier cut (proofErase Γ A))
+    (hp : env.HasType univs Γ p (.forallE (.forallE A C) E))
+    (RP : VExpr.BetaRed p (.lam (.forallE B C) body))
+    (HB : StructuralFamilyRecovery D (cut + 1) (.forallE B C :: Γ) body
+      (proofErase (.forallE B C :: Γ) E) n) :
+    StructuralFamilyRecovery D cut Γ p (proofErase Γ (.forallE (.forallE A C) E)) (n + 2) := by
+  have HE := RP.simAt henv.orderedStrong henv.betaSubjectReduction hΓ _ hp
+  exact .beta RP (of_converted_body hΓ HAB HA HE.hasType.2 HB)
 
 end Lean4Lean.VEnv.Strengthening

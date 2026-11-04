@@ -5555,3 +5555,37 @@ retaining justified substitution of converted body computations.
 | Additive-stage exact-image substitution for computed checking | **Checked (2026-11-04).** Extended the earlier JointCheck exact-renaming and recovering-substitution proofs to ComputedJointCheck, including appComputed. Images recovered at stage r transport every source computation, selected recovery, comparison and carrier guard at stage n to stage r+n; union primitive transport follows. Generated singleton telescopes and specialized Eq carrier guards use the preceding source stage. Native image recovery remains an explicit premise, not completeness. |
 
 | Higher-stage substitution through a convertible recovered type | **Checked (2026-11-04).** `proofErase_computed_joint_*_inst_converted_recoverable` first transports the whole body across actual recursive neutral binder conversion, then substitutes using exact recovery at the new type. Computation, comparison and carrier guards have the additive stage bound; all three closed-union corollaries are proved. The exact structural eta lambda recovers at its written type at stage zero and consequently instantiates every finite-stage body comparison/computation at the same stage. Its assigned-type recovery/exposure failure is separately proved for the enlarged computed union. Universal image coverage, heterogeneous substitution and strengthening remain open. |
+
+
+## 2026-11-04 12:35 UTC — Retain finite bodies across selected lambda-domain changes
+
+Verdict: proved. Rather than adding another terminal image leaf for each
+combination of structural input and output, SelectedLambdaDomain separates
+the domain's finite guard-transfer evidence from the body's finite recovery
+path. Exact domains, protected neutral carriers, and dependent function
+domains with equal protected-neutral inputs have proved transfer laws. The
+neutral case uses ordinary comparison extracted from its inert carrier; the
+dependent case uses whole carrier conversion with actual endpoint typings.
+The relation survives protected-head substitution.
+
+StructuralFamilyRecovery.lamDomain stores this domain evidence and an arbitrary
+smaller body path. Application instantiates that path in the written context;
+it need not assert exact recovery at the assigned domain. The exposure theorem
+retains the separate selected domain and its original computation. Rebuilding
+an application pulls its supplied guard back through that computation and
+transfers it to the written domain. A beta constructor also retains finite
+beta prefixes. Neither constructor assumes a future-body checking oracle.
+
+This removes the outer sort/neutral-result restriction for covered finite
+lambda bodies. A concrete structural eta-domain image returning another
+function now instantiates arbitrary typed body comparisons and first-layer
+computations. The result type is a Pi, and its body path has positive finite
+rank. Actual typing supplies equality of assigned/written annotations when
+assembling the exact assigned-type erasure.
+
+No universal finite-body recovery or unrestricted domain transfer is proved.
+Arbitrary structure-valued bodies and guarded higher-stage conversions remain
+possible gaps, as do heterogeneous substitution and endpoint beta stability.
+Next: extend the domain evidence compositionally or add structural-result
+paths with justified projection readout, rather than assume every value has
+a path at its assigned type. Strengthening and strict-smallness remain open.

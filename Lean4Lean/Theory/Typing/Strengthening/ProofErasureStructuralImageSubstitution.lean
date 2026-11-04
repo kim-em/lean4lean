@@ -124,7 +124,7 @@ private theorem rooted_not_structure (H : StructuralFamilyRecovery D cut Γ e ou
     (hΓ : OnCtx Γ (env.IsType univs)) (hi : env.projections s info)
     (ht : env.HasType univs Γ e (VExpr.mkApps (.const s ls) args))
     (Hout : ¬ AnchoredCarrier cut out) : False := by
-  rcases H.expose hΓ ht with ⟨u, hu⟩ | HN | ⟨A, u, hf, _, _⟩ | ⟨X, Y, hfN, _, _, _⟩ | ⟨X, Y, b, u, v, hf, _, _, _⟩ | ⟨A, b, _, _, _, _, R, _⟩
+  rcases H.expose hΓ ht with ⟨u, hu⟩ | HN | ⟨A, u, hf, _, _⟩ | ⟨X, Y, hfN, _, _, _⟩ | ⟨X, Y, b, u, v, hf, _, _, _⟩ | ⟨A, b, _, _, _, _, _, R, _, _⟩
   · have HE := hu.uniqU henv hΓ ht
     exact henv.headInversion.sort_rigid hΓ (henv.projectionRigid hi)
       (HE.typeChain henv hΓ (HasType.sort (hu.isType henv hΓ |>.choose_spec.sort_inv henv)))
