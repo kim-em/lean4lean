@@ -22631,3 +22631,40 @@ rules, maximum closure 11,069. Only propext, Classical.choice and Quot.sound;
 no configured forbidden dependencies or new warnings. All 764 local imported
 source hashes remained stable. Artifacts /dev/shm/typed-substitution-*. Independent
 work preserved. No executable changes, coordination or PR extraction; goal active.
+
+
+### 2026-11-05 — Ordinary constructor coverage for typed computation chains
+
+Verdict: verified progress. Five modules (370 lines) cover projection congruence,
+projection selection, sort/constant universe conversion, selected delta, concrete
+pattern traces, quotient prefixes, and every stored declaration. Projection
+saturation is derived from actual major typing. Proposition-source quotient
+applications unfold the repaired prefix, beta-contract, and identify the extracted
+inhabitant with the constructor payload by proof irrelevance; lambda-telescope
+congruence closes the full stored quotient equation. Nonzero quotient sources use
+the registered pattern trace. No fork-joining premise occurs in these constructions.
+
+The conditional ordinary-equality completeness theorem now has one missing
+constructor interface, TypedPatternChainClosure. It receives chains for realized
+checks, without building ordinary completeness into the chain relation. Together
+with the still-open TypeForkJoin, it yields common erased reducts of type equalities.
+This is an intermediate interface, not a strictly smaller sufficient strengthening
+obligation. Neither the canonical-Eq strengthening theorem nor confluence is proved.
+
+Further inspection sharpens the next task: WF.pats_true shows that the actual
+stored recursor patterns have empty checks. WF.pats_guarded separates the enabled
+ordinary core from large-target elimination at zero source level. Thus arbitrary
+checked-capture alignment is not the immediate raw-pattern residue; the remaining
+work is the proposition-source singleton case and the typing equalities needed to
+license its erased guarded computation. Next isolate that case, then establish its
+chain coverage without assuming type-fork joining.
+
+Validation: isolated builds of seven modules/27 public roots (including three
+newly copied committed telescope dependencies), followed by completeness/three
+roots; 797 and 798 jobs. Full transitive audits include declaration types, opaque
+values, generated constructor/recursor dependencies and recursor RHSs. Maximum
+closure 11,538; only propext, Classical.choice, Quot.sound; no configured forbidden
+dependencies, sorry sources, or new-module warnings. All 772/773 closure source
+hashes stayed stable and matched isolated copies. Artifacts:
+/tmp/carrier-typed-primitives-* and /tmp/carrier-typed-completeness-*.
+Independent work preserved; executable unchanged; original sorry remains; goal active.
