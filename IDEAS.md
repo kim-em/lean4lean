@@ -14681,3 +14681,32 @@ is not a strictly smaller sufficient replacement for PropFront.
 
 **Evidence:** 811 build jobs; 11 audited roots; maximum closure
 11,054; 786 frozen source/import hashes; only the three standard axioms.
+
+## 2026-11-05 20:45:13 UTC — Use canonical endpoint callers for function-carrier exposure
+
+**Idea:** Ordinary endpoint typing does not supply native Pi recovery. The
+canonical Eq.rec declaration does supply the carrier as the selected domain of
+both endpoint callers, so eta can open the endpoints inside those callers.
+
+**Verdict:** Checked. Literal declaration walks recover both endpoint-call
+Pi domains in any primitive language. At stage one the two callers eta-expand
+arbitrary ordinarily typed function endpoints, with no endpoint recovery
+premise. Given stage-one codomain/body computations to a stage-zero body guard,
+the exposed lambdas have a stage-zero carrierFunction guard and the prefix
+contracts. Typed body replay proves exact eta/beta restoration even for proof
+domains. Propositional function carriers use equal proof erasures directly.
+The original prefix domain is retained by the outer eta frame. A carrier may
+first compute to the Pi: typed whole-prefix replay and annotation retention
+handle that case too.
+
+**Limit / next:** This handles function-carrier exposure once recursive body
+exposure is available, not arbitrary carrierFunction certificates. Recursively
+assuming standalone function-body exposure would reintroduce the missing
+native guard. Investigate retaining generic endpoint callers/identity covers
+through recursive exposure before beta substitution, so declared types stay
+available. Singleton simulation and type-rooted first-stage confluence remain
+open. No strictly smaller sufficient obligation or canonical-Eq counterexample
+is established.
+
+**Evidence:** 813 isolated build jobs, 7 audited roots, maximum closure
+11,069, 788 frozen hashes; standard axioms only, no forbidden dependencies.

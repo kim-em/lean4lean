@@ -27801,3 +27801,49 @@ Completion audit: UniqueTyping.lean:94 retains the original weakN_iff sorry.
 No canonical-Eq counterexample or genuinely strictly smaller sufficient
 obligation has been proved. Executable unchanged; no PR extraction or agent
 coordination. GOAL.md remains active at its full original scope.
+
+## 2026-11-05 20:45:13 UTC — Function-carrier exposure through canonical Eq endpoint callers
+
+Added EqFunctionCarrierSimulation (193 lines, four theorems) and
+EqComputedFunctionCarrierSimulation (100 lines, three theorems).
+
+The literal canonical declaration walk supplies native Pi recovery at both
+endpoint argument positions, with exactly the carrier as selected domain.
+Codomains are existential and unused. Caller eta first opens the right
+endpoint, then the left, so both original caller guards remain available.
+This stage-one construction does not ask either endpoint for native recovery.
+
+The function-body theorem takes codomain and applied-body computations at
+stage one to a stage-zero body carrier guard. The endpoint lambdas compute
+inside their bodies; typed replay proves the exact beta restoration required
+by carrierFunction, including erased proof arguments. The resulting function
+guard is stage zero, so the prefix contracts at stage one. An outer eta frame
+retains its original proof-domain annotation and minor. Propositional carriers
+are handled separately by their equal endpoint proof erasures, without opening
+proof-valued functions.
+
+The second module states this at the TypedSource boundary of the new stage
+induction. The DomainSort witness fixes the actual recovered domain's sort.
+A general annotation-retention lemma for typed raw prefixes then permits an
+initial carrier computation to expose a Pi: whole-prefix replay constructs
+the new typed realization, the function-body result contracts it, and the
+outer frame restores the old annotation. This covers computed function
+carriers without changing the required final raw output.
+
+Open: recursively obtaining the supplied body exposure, general singleton
+simulation, and confluence at sort-typed stage-one roots. This does not prove
+all carrierFunction cases by structural induction, since an arbitrary nested
+function body can again lack native recovery. A promising next invariant
+retains generic callers or written identity covers through recursive checking
+before instantiating their arguments. No confluence or ordinary-type-to-native
+coverage premise has been smuggled into the new results.
+
+Validation: 813 isolated build jobs; 7 roots audited through types,
+opaque bodies, constructors and recursor RHSs; maximum closure 11,069;
+788 frozen source/import hashes. Only propext, Classical.choice, Quot.sound;
+no forbidden dependencies and no own warnings. No executable changes.
+
+Completion audit: the original weakN_iff sorry remains in UniqueTyping.lean:94.
+No canonical-Eq counterexample or genuinely strictly smaller sufficient
+obligation has been proved. No PR extraction or coordination. The full
+GOAL.md objective remains active.
