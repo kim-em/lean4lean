@@ -13338,3 +13338,17 @@ simply be treated as opaque under application congruence: computation of its
 function prefix can expose nonliteral control syntax. The new ground laws
 supply the annotation part of that observer without claiming its term closure.
 General HF/HJ, a strictly smaller sufficient front, and GOAL.md remain open.
+
+
+### 2026-11-05 12:14:25 UTC — Constructor payloads inside typed higher-order control
+
+Verdict: checked native-type extraction and full compatible beta preservation.
+Constructor payloads carry a lower family-type history while fields remain
+arbitrary typed syntax. Control lambdas record recursive type demands on their
+annotations. Ordinary substitution transports those demands; native application
+uses ordinary argument typing rather than an assumed native image certificate.
+The construction covers higher-order control terms and independent annotation
+histories. It does not yet give full computation preservation. The companion
+prefix counterexample, checked in the same validation batch, shows that the
+current grammar cannot be extended to arbitrary computations unchanged.
+General HF/HJ and GOAL.md remain open.

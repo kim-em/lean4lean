@@ -26399,3 +26399,24 @@ plus TypeForkJoin, TypeInstantiationJoin, StaticStructureCommonCoverage and
 StaticStructureTypeConversionJoin were rejected. Only propext/Classical.choice/
 Quot.sound; no own-module warning or sorry. Artifacts
 `/dev/shm/ground-type-history-*`.
+
+
+### 2026-11-05 12:14:25 UTC — Typed constructor control and native output histories
+
+Added ConstructorTypePayload, ConstructorControlObservation,
+ConstructorControlNative, ConstructorControlBeta and LowerFamilyShape modules.
+They establish substitution of arbitrary constructor fields, recursive control
+annotation transport, extraction of lower histories from every selected native
+output, and preservation by arbitrary compatible beta reduction. Lower history
+realization also excludes Pi shape and identifies rigid family heads using
+ordinary typing. No exact native argument-image hypothesis is introduced.
+
+Validation was joint with the four companion frame/primitive/boundary modules:
+882-job isolated build, 48 public roots, maximum audited closure 11,866,
+857 stable own/frozen source hashes. Types, opaque values, constructors and
+recursor RHSs were inspected. Standard forbidden dependencies plus TypeForkJoin,
+TypeInstantiationJoin, StaticStructureCommonCoverage and
+StaticStructureTypeConversionJoin were rejected. Only propext/Classical.choice/
+Quot.sound; no own-module warning or sorry. Artifacts: /dev/shm/constructor-control-*.
+Full computation closure is not established; the companion boundary refutes
+its proposed prefix premise. Original sorry and executable unchanged, no PRs.
