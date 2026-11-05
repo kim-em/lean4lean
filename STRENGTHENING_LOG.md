@@ -23734,3 +23734,64 @@ forbidden dependencies and no new-module warnings. All 793 closure source hashes
 stable and equal authoritative own sources or committed dependencies at staging.
 Artifacts /dev/shm/native-beta-local-*. Executable unchanged, independent work
 preserved, no coordination or PR extraction.
+
+## 2026-11-05 — Proved rigid argument readout with opaque value demands
+
+Verdict: checked progress. Rigid argument histories are now proved for actual
+universe-ending dependent telescope assignments, including arbitrary retained
+data, function-valued arguments and proof slots. The proof needs canonical Eq,
+sound definitions, head rigidity and the explicit non-unfolding condition on
+that head; it does not assume TypeForkJoin or native recovery of arguments.
+
+Ten modules implement the observer. ValueDemandProfile distinguishes proof
+domains, opaque retained data, universes and dependent arrows. Opaque data needs
+a sort not definitionally zero, not the stronger IsNeverZero condition, so
+variable universe levels are supported. Ordinary substitution and context
+conversion preserve the profiles. The observer has finite value/head/function
+keys. Value labels remain in the original context while scoped value histories
+live in the current control context. Typed substitution transports those chains;
+opaque computation appends to them. Full structure/function-eta computation
+preserves the observer, including beta, changed binder annotations, identity and
+constant frames, and caller eta. Head restrictions apply to control keys only;
+opaque data may undergo structure expansion.
+
+The operational interpretation tests function demands only at actually typed
+applications. This is essential: matching profiles alone does not type an
+application. A proof-domain argument is therefore forced to erase to the proof
+marker; a data-domain argument supplies its labelled scoped chain. Beta
+predecessors are interpreted using reversed value chains where necessary.
+Closed head observations beta-read a literal rigid spine with a pointwise value
+history. Ordinary telescope typing supplies the initial observation by
+classifying domain sorts and labelling the actual argument erasures.
+
+static_structure_rigid_value_readout proves the resulting full-union readout.
+TypedComputationEq.rigid_spine_inv then derives pairwise exact typed argument
+chains from a computation chain between two rigid type applications, under
+TypeForkJoin and universe-ending telescope typings at both heads. It no longer
+assumes RigidSpineValueHistory. The first common-reduct readout supplies a literal
+spine; the second readout beta-computes that spine's arguments. The first vector's
+histories append those component beta paths, so both vectors compare with the
+same final arguments. Ordinary rigid injectivity supplies endpoint typings only.
+
+Scope and remaining work: the new unconditional readout is for telescope
+assignments ending syntactically in a universe, with actual InstForallsC
+arguments. It does not claim the older unrestricted RigidSpineValueHistory for
+all rigid constants whose result kind might emerge only after particular
+instantiation. Registered family telescope typings are the intended consumers.
+The next work is integrating the proved injectivity into singleton-instance
+alignment and obtaining constructor normalization and generic index certificates
+from earlier declaration history. TypeForkJoin and the original strengthening
+sorry remain open. No strictly smaller sufficient strengthening obligation or
+canonical-Eq counterexample is claimed.
+
+Validation: isolated 823-job build of all ten modules; 252 public/generated
+roots, including all profile/key/observer constructors, recursors, below types,
+matchers and generated equations, passed complete transitive declaration-type,
+opaque-value and recursor-RHS audit. Maximum closure 11,514; only propext,
+Classical.choice and Quot.sound; no sorry or configured forbidden dependencies,
+no audited-module warnings. All 798 closure source hashes stable and identical
+to isolated copies; non-task dependencies matched committed HEAD. Artifacts
+/tmp/carrier-value-observer-*. Commits split into profile foundations, observer
+preservation and readout/results. Independent committed lambda-history progress
+preserved and not needed by these modules. Executable unchanged; GOAL.md active.
+Previous goal turn classified as progress.

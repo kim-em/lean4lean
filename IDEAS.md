@@ -11189,3 +11189,18 @@ Validation: five modules, 28 public/constructor/recursor roots, 818-job build;
 full dependency audit maximum closure 11,629, allowed axioms only, no
 forbidden dependencies or new-module warnings, 793 stable local source hashes.
 Artifacts /dev/shm/native-beta-local-*; no PR extraction.
+
+### Finite rigid observer with opaque value keys — proved for typed telescopes
+
+The scoped-chain invariant now has a finite dependent observer, full-union
+preservation and operational readout. Proof versus data profiles follow ordinary
+domain sorts; data requires only a universe not definitionally zero. Function
+demands are interpreted at actually typed applications. This yields argument
+histories for rigid heads assigned universe-ending dependent telescopes, with
+arbitrary data/function arguments and proof slots, without native recovery or
+TypeForkJoin. Under TypeForkJoin, TypedComputationEq.rigid_spine_inv now derives
+exact argument chains without a separate history premise. Remaining: consume
+this theorem in actual singleton alignment, obtain declaration-history
+normalization/index certificates, and prove TypeForkJoin. The broader arbitrary
+rigid-kind history predicate is not claimed. Original strengthening remains open;
+no strictly smaller sufficient obligation is asserted.
