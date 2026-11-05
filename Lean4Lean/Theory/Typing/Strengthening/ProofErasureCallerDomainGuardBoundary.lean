@@ -1,6 +1,7 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCallerDomainGuards
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureNativeFreshTypeBoundary
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureWrapperNativeOrigin
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureTypeInstantiationBoundary
 
 /-! # Domain guards survive a failure of exact caller-type recovery
 
@@ -120,5 +121,40 @@ theorem static_structure_caller_beta_preserves_domain_not_assigned_type
     proofErase_beta_forward hΓ hf RB, proofErase_identity_wrapper_native hΓ hg hng, RNg, ?_⟩
   intro H
   exact Hno (static_structure_constant_caller_exact_reflects heq hs hΓ hb hx hn H)
+
+/-- Domain-only guards are still not universally preserved by caller beta
+reduction. The target is an ordinarily typed family ending in Sort 1, and its
+input is a nonempty literal Pi telescope. It cannot recover any Pi with that
+domain, regardless of codomain or descending primitive language. The identity
+cover has the complete assigned Pi at stage zero before its one contraction.
+This excludes replacing full guard transfer by universal domain-only transfer;
+common or changed-domain pivots remain possible and are not refuted. -/
+theorem static_structure_type_caller_beta_loses_domain_guard
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hi : env.projections family info) (hp : info.nparams = 0)
+    (hix : info.nindices = 0) (hz : info.numFields = 0)
+    (hS : env.HasType univs [] (.const family []) (.sort (.succ u))) :
+    ∃ Γ f g A, OnCtx Γ (env.IsType univs) ∧
+      let Q := VExpr.forallE A (.sort (.succ .zero))
+      env.HasType univs Γ f (.forallE Q (.sort (.succ .zero))) ∧
+      env.HasType univs Γ g (.forallE Q (.sort (.succ .zero))) ∧
+      VExpr.BetaRed f g ∧ BetaRed (proofErase Γ f) (proofErase Γ g) ∧
+      ScopedTypeRecovery (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ)
+        (proofErase Γ f) (proofErase Γ (.forallE Q (.sort (.succ .zero)))) ∧
+      ∀ Step, ErasedScopedPrimitiveDescent Step → ∀ selected,
+        ¬ ScopedTypeRecovery Step (proofEraseCtx Γ) (proofErase Γ g)
+          (.forallE (proofErase Γ Q) selected) := by
+  obtain ⟨Γ, Q, g, _, _, _, hΓ, _, hg, ⟨A, rfl⟩, _, Hno, _⟩ :=
+    static_structure_generic_family_domain_instantiation_beta_residual_failure heq hs hi hp hix hz hS
+  let Q := VExpr.forallE A (.sort (.succ .zero))
+  let F := VExpr.forallE Q (.sort (.succ .zero))
+  let f := VExpr.app (.lam F (.bvar 0)) g
+  have hng := not_isProof_function_to_sort hΓ hg
+  have hf := (nativeIdentityExpansion_equal hg).hasType.1
+  have RB : VExpr.BetaRed f g := by
+    simpa only [VExpr.inst, VExpr.instVar_zero] using
+      (VExpr.BetaRed.beta (A := F) (b := .bvar 0) (a := g))
+  exact ⟨Γ, f, g, A, hΓ, hf, hg, RB, proofErase_beta_forward hΓ hf RB,
+    proofErase_identity_wrapper_native hΓ hg hng, Hno⟩
 
 end Lean4Lean.VEnv.Strengthening

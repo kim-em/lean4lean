@@ -12192,3 +12192,39 @@ All 801 source hashes matched frozen committed dependencies and own sources;
 only allowed axioms, no forbidden dependency, sorry, or audited-module warning.
 Artifacts /tmp/carrier-caller-domain-guards-*. Independent native-Pi history
 changes were preserved and not imported while uncommitted.
+
+### 2026-11-05 — Domain-only caller guards also have a sharp beta boundary
+
+**Verdict: universal preservation of the new domain-only guard is refuted,
+even for sort-ending callers with nonempty literal input telescopes.** The
+existing generic-family instantiation witness is strengthened: its family head
+cannot recover any Pi with the converted argument domain, regardless of the
+selected codomain, for every primitive relation satisfying binder descent.
+The nonempty literal shape of that argument domain is now exported explicitly.
+The original generic-family theorem remains as a corollary with its original
+interface, as do all earlier instantiation and beta-residual boundaries.
+
+ProofErasureCallerDomainGuardBoundary applies an identity recovery cover to that
+family head. Before one actual/erased beta contraction the cover recovers its
+complete assigned Pi already at stage zero. After contraction the sort-ending
+family cannot recover even the domain-only guard, with any native codomain.
+This is stronger than the earlier exact assigned-Pi failure and checks the
+precise transfer claim suggested by the preceding weaker caller interface.
+The preceding positive example is still valid: some caller beta computations
+lose only the assigned codomain, and those remain covered by the new interface.
+
+Thus retaining just the original domain is not a universal invariant through
+caller computation either. A general continuation must allow changed-domain
+pivots with joins, or preserve more structured historical information; it
+cannot simply discard the native codomain and assume the remaining guard is
+stable. The witness's type-instantiation branches still have their explicit
+full-union common reduct. TypeInstantiationJoin, common-native coverage, and
+strengthening are not refuted. No strictly smaller sufficient global obligation
+has been established. Executable and original sorry remain unchanged.
+
+Validation: isolated build succeeded (828 jobs); all public/generated roots of
+both changed modules audited (14 roots, maximum closure 11,373). All 803 source
+hashes match own source and frozen committed dependencies. Only allowed axioms,
+no forbidden dependency, sorry, or audited-module warnings. Artifacts
+/tmp/carrier-caller-domain-transfer-boundary-*. Independent committed unary
+literal-history coverage was preserved; it is not imported by this change.
