@@ -29010,3 +29010,68 @@ possibility of comparisons between evolving reference types. General forward
 comparison, eta-stage joining, paired exposure and singleton simulation remain
 live. Executable unchanged; independent untracked files preserved; no coordination
 or PR extraction. The original GOAL.md objective remains active.
+
+
+### 2026-11-05 23:56:57 UTC — Recursive forward comparison and native references that evolve
+
+Previous goal-turn classification: the instruction-clarification exchange made
+no technical progress. Revalidated HEAD 0a434503 and the two independently
+untracked files before resuming the active GOAL.md objective. No PR extraction.
+
+ProofErasureLevelRecursiveTransport.lean introduces LevelRecursiveGuard. Its
+join leaves contain actual typed endpoint witnesses and an exact level-core
+join. Fixed leaves contain actual endpoint typings, ordinary-core fixedness and
+RawCheckedCompare; enclosing Pi/lambda nodes need not be fixed. Typed compute
+prefixes and symmetry complete the fragment. There is deliberately no general
+application constructor: the function-head beta overlap remains unresolved.
+The forward theorem uses typed confluence at join/compute leaves, the existing
+universe-aware fixed-return theorem at fixed leaves, and component inversion
+under binders. of_joins compares arbitrary endpoints joined to the references
+by allowing both references to evolve to their respective joining points.
+
+ProofErasureRecursiveNativeReferences.lean applies this to every complete
+stage-zero native output of two independently typed sources. Same-source native
+coherence is used separately on each side, so there is no core-join premise
+between the references. The application theorem uses independent native Pi
+references, arbitrary complete application recoveries and argument computations
+to one actual shared argument. Its explicit recursive codomain-comparison premise
+is not derived from arbitrary Pi comparison. EnvironmentCore discharges the
+soundness, level compatibility, no-rigid-unfolding and typed-confluence premises.
+
+ProofErasureRecursiveEtaReferences.lean demonstrates the distinction in actual
+native outputs. The sources are lambda D (lambda N Sort 0) and lambda D
+(lambda A Sort 0), with N/A lifted under D. The existing neutral family eta
+example supplies N/A, their typing, ordinary fixedness and raw inferred
+comparison. D is the admitted recursive type from GuardedEta. The recursive
+guard has a joining D leaf, a fixed eta-comparison leaf and a sort leaf. Native
+recovery explicitly supplies both Pi references; all subsequent native choices
+and tails are quantified without restriction within stage zero.
+
+The negative properties apply to every output, not just the references.
+A reference join of the two Pis would expose a join of N/A via two Pi inversions;
+raw substitution retracts the shift and contradicts the checked eta/no-core-join
+example. Native coherence and typed join transitivity extend this impossibility
+to every native-output pair. Returning from every ordinary reduct would turn the
+reference/output join into a reference-to-output path. Pi inversion then induces
+the refuted return property for a reduct of D. Hence neither output is returning
+(and therefore neither is ordinary-fixed). The canonical corollary installs the
+actual recursive declaration over a fresh canonical-Eq base and proves all
+well-formedness and definition conditions.
+
+Validation: isolated full build passed (926 jobs); 18 public and
+constructor/recursor roots audited through types, opaque values, inductive
+constructors and recursor RHSs; maximum closure 12,132; all 901 frozen
+source/import hashes unchanged. Allowed axioms only: propext, Classical.choice,
+Quot.sound. No forbidden dependencies or own-module warnings. The final audit
+uses the scratch tree with dependencies read from the pinned HEAD. A development
+compile mistakenly invoked from the worktree failed on a missing new-module
+olean; the correct scratch compilation and complete build subsequently passed.
+
+Completion audit: the original sorry remains at UniqueTyping.lean:94. This
+result supplies neither canonical-Eq strengthening, a strengthening counterexample,
+nor a strictly smaller sufficient irreducible obligation. It establishes that
+comparison through evolving references handles a checked recursive/eta case
+excluded by both universal return and common-reduction approaches. Coverage of
+arbitrary comparisons, especially reducible applications, is the next substantive
+problem. The full GOAL.md remains active. Executable unchanged; independent
+untracked files preserved; no coordination or PR extraction.

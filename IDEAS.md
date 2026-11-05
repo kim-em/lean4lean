@@ -15401,3 +15401,45 @@ higher eta-stage joining, paired exposure and singleton simulation remain open.
 Validation: 819 build jobs, 19 audited roots including constructor and
 recursor roots, maximum closure 11,967, 794 frozen source hashes; standard
 axioms only, no forbidden dependencies or own-module warnings.
+
+
+### 2026-11-05 23:56:57 UTC — Evolving recursive references compare beyond return and core joining
+
+Verdict: checked for a recursive certificate fragment, with an actual canonical-Eq
+separation example. The failure of universally returning native references does
+not prevent all-output comparison: a reference can instead move forward to its
+join with each independently chosen output. The comparison must survive these
+independent reference computations. This is not yet universal guard coverage or
+a sufficient reduction of strengthening to a smaller irreducible obligation.
+
+LevelRecursiveGuard combines typed core-join leaves, typed ordinary-fixed raw
+comparison leaves, lambda/Pi frames, typed computational prefixes and symmetry.
+Only the fixed leaves return; a join leaf can retain recursive computation
+forever. Typed level-core confluence and binder path inversion prove the
+forward theorem by induction. No forward-stability oracle is a constructor.
+Joining each output to its respective reference then yields raw comparison,
+which embeds in the existing computed joint checker at stage zero.
+
+Two applications may select completely independent native Pis and conversion
+tails. A recursive certificate for the selected codomains at one shared actual
+argument compares all complete native application outputs, provided the original
+arguments compute to that shared argument. This explicitly requires the recursive
+result certificate; arbitrary selected-Pi comparison does not yet construct it.
+
+The separation example combines D := D -> (Prop -> Prop) with the existing
+eta-separated neutral types N = F v and A = F (fun x => v x). Two nested lambdas
+have a common actual assigned type and inferred comparison. Their selected
+native types are Pi D (Pi N Sort 1) and Pi D (Pi A Sort 1), with the appropriate
+binder shifts. Every pair of complete stage-zero native outputs compares; no
+pair has a level-core common reduct; neither output can return from every
+ordinary reduct. Thus no alternate native selection rescues either excluded
+method. A fresh recursive declaration over any well-formed canonical-Eq base
+realizes the example with all concrete-pattern/definition assumptions discharged.
+
+Next: extend or replace the fragment at reducible applications and nonfixed eta
+leaves, and connect reference construction to the existing Pi-instantiation
+comparison theorem. Do not assume that an arbitrary raw or computed comparison
+has a LevelRecursiveGuard. Higher eta stages, paired exposure and singleton
+simulation remain open. Validation: 926 build jobs, 18 audited roots
+including constructors/recursors, maximum closure 12,132, 901 unchanged
+frozen source hashes; only standard axioms and no forbidden dependencies.
