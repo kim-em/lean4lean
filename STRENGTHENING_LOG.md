@@ -23855,3 +23855,31 @@ no sorry or configured forbidden dependencies and no new-module warnings.
 All 799 closure source hashes stable and identical to authoritative own sources
 or committed dependencies before staging. Artifacts /dev/shm/cut-history-*.
 Executable unchanged, independent work preserved, no coordination or PR extraction.
+
+### 2026-11-05 — Actual data-index alignment via computational typings
+
+Added ProofErasureComputationalEquality (existential common assignments and
+source replay), ProofErasureComputationalTelescopePeel (dependent body chains
+from telescope chains), ProofErasureComputationalRigidSpine (the normalized
+sort-headed family interface to the value observer), and
+ProofErasureComputationalSingletonAlignment. The latter derives parameter and
+index chains from the recursor major and constructor assignment certificates,
+peels the constructor declaration normalization chain, and composes those
+chains with universe congruence and beta reduction to the generic equation
+instance. The earlier-environment premise supplies general computation chains;
+actual type well-formedness retags the particular constructor comparison at a
+universe before telescope peeling. It does not require all earlier equations
+to be equations between types.
+
+Remaining: combine this alignment with the stored singleton equation, supply
+generic constructor-index computational typings and earlier declaration chains
+by environment induction, and prove TypeForkJoin. No strengthening proof,
+canonical-Eq counterexample, or strict-reduction claim. GOAL.md remains active.
+
+Validation: four modules / 629 lines; isolated lake build passed (836 jobs).
+Complete declaration-type, opaque-value and recursor-RHS audits of 58 roots
+(including generated declarations) passed, maximum closure 11,976, only
+propext/Classical.choice/Quot.sound, no sorry or configured forbidden dependency.
+All 811 closure source hashes were stable; isolated copies and committed
+non-task dependencies matched; no task-module warnings. Artifacts:
+/tmp/carrier-computational-alignment-*. Executable and original sorry unchanged.

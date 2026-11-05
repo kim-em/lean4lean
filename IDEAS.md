@@ -11237,3 +11237,20 @@ Validation: five modules, 824-job build, 19 public roots; full transitive
 audit maximum closure 11,634, only allowed axioms, no forbidden dependencies
 or new-module warnings; all 799 local source hashes stable and equal own sources
 or committed dependencies at staging. Artifacts /dev/shm/cut-history-*.
+
+### 2026-11-05 — Computational singleton instance alignment from value histories
+
+**Verdict: proved conditional alignment, replacing the arbitrary-index alignment gap.**
+`TypedComputationEqU.rigid_spine_inv` supplies argument chains from the proved
+value observer for sort-headed rigid families. `singletonInstance_alignC` uses
+structural application typings (`HasTypeC`), computational telescope peeling and
+earlier declaration chains to align every actual singleton recursor instance
+with its generic equation, including arbitrary dependent data indices. No
+ordinary uniqueness equation is promoted to a computation chain.
+
+Type-fork joining and earlier declaration chains remain assumptions; generic
+data-domain certificates are still needed for the stored equation. This does
+not complete strengthening or establish a strictly smaller sufficient obligation.
+Validation: four modules, 836-job isolated build, 58 public/generated roots,
+maximum closure 11,976; 811 stable source hashes and committed dependencies;
+only allowed axioms, no forbidden dependencies or task-module warnings.
