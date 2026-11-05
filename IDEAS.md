@@ -14655,3 +14655,29 @@ and first-stage confluence remain open as well.
 Validation: 808 isolated jobs, 5 roots, maximum closure 11,052,
 783 frozen hashes; types, opaque bodies, constructors and recursor RHSs audited;
 standard axioms only, no forbidden dependencies or own warnings.
+
+## 2026-11-05 20:34:47 UTC — Restrict stage simulation to typed sources
+
+**Idea:** The raw first-stage simulation interface asks for witnesses that
+Eq-prefix annotation retention can only derive from actual typing. Carry a
+TypedSource witness through the stage induction and through native recovery.
+
+**Verdict:** Proved the typed simulation framework. Source descent realizes
+transitive intermediates; typing inversion supplies compatible subterms and
+binder contexts. Every conversion in native recovery starts at a replayed
+sort-typed type, so typed lower-stage simulation suffices to materialize the
+whole guard. All three native rule families then simulate in stage one. The
+remaining singleton and Eq-prefix cases are explicitly typed hypotheses.
+Operational carrier/endpoint exposure to a stage-zero guard discharges the
+Eq-prefix case with exact original annotation; a lower-stage endpoint join is
+a sufficient special case. No claim that arbitrary carrier certificates expose
+such a guard, or that the two remaining cases are proved.
+
+**Next:** Address recursive carrier comparisons, especially carrierFunction,
+through a caller whose declaration supplies its function-domain guard. An
+arbitrary function endpoint's ordinary typing still supplies no native guard.
+Stage collapse would still leave type-rooted first-stage confluence, so this
+is not a strictly smaller sufficient replacement for PropFront.
+
+**Evidence:** 811 build jobs; 11 audited roots; maximum closure
+11,054; 786 frozen source/import hashes; only the three standard axioms.

@@ -27758,3 +27758,46 @@ Completion audit: the original weakN_iff sorry remains at UniqueTyping.lean:94.
 No canonical-Eq counterexample or genuinely smaller sufficient obligation has
 been proved. Executable unchanged; no PR extraction or coordination. GOAL.md
 remains active with the full original objective.
+
+## 2026-11-05 20:34:47 UTC — Typed first-stage simulation and its Eq-prefix application
+
+Added TypedNativeGuardMaterialization, TypedFirstStageSimulation, and
+TypedEqPrefixSimulation (339 lines, eleven theorems). The raw simulation
+framework remains available, but the new framework only requires computation
+simulation at sources with actual typed realizations in the actual erased
+context. This matches the hypotheses available for canonical Eq prefixes.
+
+Compatible simulation uses source descent to realize each transitive
+intermediate and actual typing inversion for subterms and binder bodies.
+Native materialization replays the recovery certificate at every conversion,
+obtaining a sort-typed representative of the conversion's source. Its remaining
+constructors keep the original construction, including backward beta transport
+of context lookups and the dependent projection recipe. Thus typed computation
+simulation suffices for exact stage-zero recovery of the computed beta-cover.
+Native identity, function eta, and structure eta all simulate in stage one.
+
+The conditional stage induction and full-union path theorem now quantify only
+over typed singleton and Eq-prefix sources. Neither missing comparison case is
+asserted as a theorem without its hypothesis. A separate application derives
+the actual canonical argument typings from a typed raw Eq prefix and uses the
+lower-stage simulation hypothesis on its carrier and endpoints. Exposure to a
+stage-zero guard gives exact first-stage contraction with the original domain;
+lower-stage endpoint joins are a sufficient case. This connects the previous
+annotation-retention result to the typed stage induction without requiring
+sort witnesses for arbitrary raw terms.
+
+Remaining: recursive comparison guard exposure, singleton simulation, then
+first-stage confluence for sort-typed roots. In particular carrierFunction
+cannot be handled by assuming native recovery from ordinary endpoint typing;
+the caller-based route remains live. This framework is conditional, not a new
+strictly smaller sufficient obligation.
+
+Validation: 811 isolated build jobs; 11 roots audited through types,
+opaque bodies, constructors and recursor RHSs; maximum closure 11,054;
+786 frozen hashes unchanged. Only propext, Classical.choice, Quot.sound;
+no forbidden strengthening/coverage dependencies and no warnings in new files.
+
+Completion audit: UniqueTyping.lean:94 retains the original weakN_iff sorry.
+No canonical-Eq counterexample or genuinely strictly smaller sufficient
+obligation has been proved. Executable unchanged; no PR extraction or agent
+coordination. GOAL.md remains active at its full original scope.
