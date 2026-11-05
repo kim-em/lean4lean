@@ -25531,3 +25531,52 @@ dependency, sorry, or own-module warning. Artifacts `/tmp/carrier-instantiation-
 Old `/tmp/carrier-*.log` files outside the two current instantiation validations
 were losslessly gzip-archived to recover space when the filesystem filled;
 their contents remain in the corresponding `.log.gz` files.
+
+
+### 2026-11-05 — Fresh neutral callers remove the post-instantiation type restriction
+
+**Verdict: HJ now joins generic computations whose source becomes a type only
+after substitution; no cast-removal premise is needed for this extension.**
+`ProofErasurePostInstantiationTypes.lean` proves three results.
+
+`static_structure_neutral_type_argument_join_reflect` extracts a common reduct
+of two arbitrary type arguments from a common reduct of calls to the same
+neutral universe-to-universe variable. Read the first call's retained argument
+history and beta-clean its output, append that cleanup to the second call's
+path, and read the second history. Pure beta spine inversion aligns the two
+argument outputs. This uses no transitivity of arbitrary joins or confluence
+of the full primitive relation.
+
+`TypeInstantiationJoin.instN_of_instantiated_type` allows b : T generically,
+with only b.inst x k : Sort v after substitution. Derive formation of T and
+introduce a fresh caller F : T → Prop. Its call to b is type-valued generically,
+so HJ applies below that dependent caller binder. Realize the old computational
+output as b', substitute both actual applications, and use typing uniqueness
+to assign the instantiated caller Sort v → Prop. The preceding readout gives
+payload paths under the fresh caller. Certificate descent moves BOTH paths
+back below it; injectivity of lifting identifies their common output. The
+substitution is arbitrary Ctx.InstN, including buried dependent prefixes.
+Neither x nor its computed image has a native certificate premise. No fixed
+universe for the original assigned T is assumed.
+
+`TypeInstantiationJoin.type_valued_beta_body_join` specializes this to any
+type-valued beta redex with an ordinarily typed generic body and argument.
+Direct contraction joins generic body computation followed by contraction,
+even when the body was not generically a type. This bypasses the preceding
+cast-template gap for this exact task; it does not prove a general cast
+reflection or cast-elimination theorem.
+
+HJ remains open. Arbitrary argument histories, composition of separate joins,
+HJ sufficiency and strict-smallness versus PropFront, global type-fork joining,
+and canonical-Eq strengthening are unresolved. The earlier failed extraction
+through function-valued caller arguments is not repaired in general: this
+readout specifically uses a sort assignment for the actual payload. Original
+sorry and executable unchanged; no GOAL.md completion claimed.
+
+Validation: isolated 810-job build; all 61 public/generated roots of the new
+module and three synchronized committed observation dependencies audited
+through types, opaque values, constructors and recursor equations. Maximum
+closure 11,644; all 785 frozen source hashes stable. Allowed axioms only; no
+forbidden dependency, sorry, or audited-module warning. Artifacts
+`/tmp/carrier-post-instantiation-types-*`. Independent uncommitted files were
+preserved and not imported or staged.
