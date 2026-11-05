@@ -11351,3 +11351,47 @@ from typed type roots, including computation-created cuts and binder histories.
 Validation: eight-module integration build (859 jobs), all 48 public/generated
 roots audited, maximum closure 12,810; 834 stable source hashes, only allowed
 axioms, no forbidden dependencies or audited-module warnings.
+
+### 2026-11-05 04:23:31 UTC — Monotone pivots and recursive wrapper developments
+
+**Verdict: proved a finite development invariant through repeated constant and
+identity frame creation, evolution and contraction.** The previous existential
+pivot was insufficient for iterating an already-created wrapper: subsequent
+rounds must advance that same pivot. native_pivot_body now fixes it explicitly
+as the computed actual body instantiated at the original argument.
+CutPivotHistory.advance and .rounds prove the required forward pivot paths.
+The existing uniform and single-output APIs remain corollaries.
+
+WrapperTypeWitness retains ordinary typing at an old annotation after the
+argument loses native recovery. Identity frames with that annotation transfer
+all native outputs independently of their current arguments; constant frames
+transfer the inner outputs. WrappedCutStep uses native guards only at frame
+creation. It permits arbitrary leaf component rounds, nested frame creation and
+removal, identity-annotation computation, marked-leaf contraction and then
+unrestricted computation of the contracted result inside the surviving frames.
+Every step advances both source and selected pivot by computation. The final
+pivot and source join at a common readout.
+
+The final square also permits independently computed pending arguments, any
+full-union primitive at the surrounding application root, and arbitrary beta
+continuation afterward. The positive empty-structure guard-loss example verifies
+that a genuinely created frame remains valid and contractible after its argument
+no longer recovers its annotation. This crosses the exact-certificate boundary;
+it is not a confluence counterexample.
+
+Angles checked while developing this: the existing lambda observer deliberately
+forgets bodies and cannot supply the missing application residual; the earlier
+identity/eta peak work rules out treating all expanded controls as beta-only
+return wrappers. The monotone-pivot construction handles the literal-frame
+part without making either assumption. Still open: arbitrary computation of
+wrapper control functions, continuing unrestrictedly after eta/structure changes
+while the mark remains active, other marked contexts and initial/created cut
+coverage. The new committed type-fork sufficiency theorem sharpens the overall
+target but does not establish TypeForkJoin or strict smallness. No GOAL.md
+completion is claimed.
+
+Validation: seven modules, 832-job isolated build, 69 public/generated roots;
+full transitive audit maximum closure 11,505, only allowed axioms, no
+forbidden dependencies or audited-module warnings; 807 stable source hashes,
+checked against own sources and committed dependencies at staging. Artifacts
+/dev/shm/wrapped-cut-*.

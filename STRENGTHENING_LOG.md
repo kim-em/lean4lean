@@ -24025,3 +24025,50 @@ propext/Classical.choice/Quot.sound, no sorry or forbidden dependency and no
 audited-module warnings. All 834 source hashes stable and isolated copies
 identical; dependencies outside own edits committed. Artifacts
 /tmp/carrier-index-formation-*. Original sorry and executable unchanged.
+
+### 2026-11-05 04:23:31 UTC — Historical pivots now advance through recursive wrappers
+
+Extracted CutComponentHistory.native_pivot_body, whose pivot is the chosen
+actual body instantiated at the original native argument. CutPivotHistory stores
+that choice; advance and rounds prove forward computation between successive
+pivots. This supplies the compatibility needed by guards that were used before
+later component rounds. native_pivot_uniform and native_pivot retain their APIs.
+
+Added WrapperTypeWitness and its term/type computation laws. Native output
+transfer through identity frames uses the stored ordinary annotation witness;
+constant frames transfer inner outputs by typed-scope weakening. The paired
+pivot need not itself be given an ordinary representative for these frame laws.
+WrappedCut records historical leaves, literal constant/identity frames and
+completed leaves. Valid histories supply a typed retained source, a retained
+pivot, complete native-output transfer and a common readout reached by source
+beta and pivot computation.
+
+WrappedCutStep and wrapped_cut_steps_simulate give an actual finite development
+invariant: component rounds, native frame creation, nested evolution, annotation
+computation, frame contraction, marked-leaf contraction, and unrestricted
+computation of completed leaves all have forward simulations on both sides.
+CutPivotHistory.wrapper_round constructs the selected-body successor for every
+component round; the cut constructor's pivot path is discharged by that theorem.
+No exact native guard is renewed when a wrapper argument computes.
+
+native_cut_wrapper_development proves the resulting join. The stronger
+native_cut_wrapper_development_primitive_beta_square adds arbitrary pending
+argument computations, a final full-union primitive (including eta/structure),
+and arbitrary beta continuation. wrapped_cut_development_outlives_native_guard
+instantiates the positive empty-structure obstruction: create an identity frame
+with a native guard, contract the marked leaf, compute its result to a value
+without that native type, and retain a valid, contractible outer frame.
+
+Limit: wrapper control functions remain literal; unrestricted continuation
+after active-mark eta/structure changes is not included. Arbitrary marked
+contexts and initial/created cut coverage also remain. Neither TypeForkJoin,
+weakN_iff, a canonical-Eq counterexample nor strict smallness of a sufficient
+obligation is proved. The executable and original sorry are unchanged.
+
+Validation: 832 build jobs, 69 public/generated roots across seven modules.
+The audit traversed declaration types and values, opaque bodies, inductive
+constructors and recursor RHSs (maximum closure 11,505); only propext,
+Classical.choice and Quot.sound occur, with no forbidden dependencies or
+new-module warnings. All 807 imported local sources were hash-stable and
+rechecked against committed dependencies and own sources before staging.
+Artifacts: /dev/shm/wrapped-cut-*.
