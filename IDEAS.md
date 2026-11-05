@@ -14280,3 +14280,27 @@ Result: Readout, Input and Return, 348 lines; complete batch 758 lines across si
 modules. Validation: 894 isolated jobs, 46 audited roots, maximum closure
 11,581, 869 frozen source hashes, standard axioms only, no own warnings or
 forbidden dependencies. No prior files or executable changed; no PRs extracted.
+
+## 2026-11-05 19:01:46 UTC — Factor joint native induction through independent family evidence
+
+Verdict: checked reusable induction interface, not a smaller sufficient front.
+CertifiedRecordDemand generalizes the joint observer's record-type leaf to a
+FamilyEvidence package. The package supplies a predicate on actual erased
+contexts/types and only interpreted-substitution and beta closure. Computation
+preservation is an explicit independent FamilyPreserves law. Ordinary carrier
+equality remains separate. No native coverage, type-fork join, or arbitrary
+conversion-to-observation field is added to the package.
+
+The native application and lambda cases, exact oracle valuation, typed
+substitution, constant/identity/function-eta frames, and actual constructor
+header are proved uniformly for this interface. This makes the alias integration
+reuse one joint induction instead of requiring another specialized observer for
+each future independent family grammar. The existing DependentRecordDemand
+proofs are preserved; the result commit verifies exact equivalence when the
+new interface is instantiated with the old rigid evidence.
+
+Core: seven modules, 563 lines. Complete batch: 907 isolated build jobs,
+76 audited roots including new structure fields, constructors and recursors,
+maximum dependency closure 11,840, 882 frozen hashes. Standard axioms
+only; all configured strengthening/circular-front dependencies excluded; no own
+warnings. The goal remains open and PR extraction stays deferred.

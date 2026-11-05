@@ -27439,3 +27439,19 @@ still use the older rigid observer. Integration into a reusable joint family
 interface is the next open step; polymorphic aliases and EnvironmentCore's
 additional equations also remain. The original UniqueTyping.weakN_iff sorry and
 executable are unchanged. No PR extraction, no coordination, goal still active.
+
+## 2026-11-05 19:01:46 UTC — Reusable family evidence in joint value/type observations
+
+Added CertifiedRecordDemand FamilyEvidence and the generic observation,
+substitution, native application/lambda, transport, native induction and actual
+constructor registration modules (seven modules, 563 lines). Independent family
+computation preservation is explicit, and the next commit supplies both rigid
+and alias implementations. All original observation sources remain unchanged.
+
+Validation of the complete batch: 907 isolated jobs; 76 audited roots;
+maximum closure 11,840; 882 frozen source hashes; only propext,
+Classical.choice and Quot.sound. The audit traverses types, opaque values,
+constructors and recursor RHSs, rejecting the original strengthening sorry and
+all configured circular recovery/front interfaces. No own warnings or executable
+changes. This is an intermediate interface, not a new sufficient irreducible
+obligation. No PRs; goal active.
