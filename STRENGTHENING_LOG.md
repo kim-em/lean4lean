@@ -27060,3 +27060,58 @@ propext/Classical.choice/Quot.sound and no prohibited strengthening, sorry,
 circular framework or general join/coverage dependencies. No owned warnings.
 The original weakN_iff sorry/executable are unchanged; independent untracked
 modules preserved. GOAL.md remains open. Artifacts: /dev/shm/function-record-*.
+
+## 2026-11-05 16:37:32 UTC — Whole-constructor common-output readout
+
+Added HeterogeneousControlWorlds (68 lines), FunctionRecordWorlds (121),
+FunctionRecordCanonical (130) and FunctionRecordReturn (172). With the preceding
+core commit, this batch is 15 new Lean modules / 1,577 lines. No previous Lean
+sources changed.
+
+HeterogeneousControlWorlds transports ordinary control witnesses at multiple
+positive carriers, including actual lambda-body substitution; it reuses exact
+context worlds from ControlWorlds. WorldComputes records ground unit/record/
+record-type computation and higher-order demands across exact renamings.
+Obs.world_computes uses ordinary substitution for beta and exact renaming for
+already supplied computational evidence. Opaque annotation equality leaves
+cannot manufacture record or family value leaves in this interpretation.
+
+The canonical record target is Ctor (lambda S unitCtor). The family target is
+Family (lambda A unitCtor), where A comes from one actual closed family native
+exposure. caller_function_return uses actual caller eta and the empty-input
+function demand in a fresh unit world. constructor_world obtains the guard from
+actual stored metadata. family_world translates just the unit-function demand
+to the previously checked selected-family world theorem; its domain A need not
+normalize to S. Exact closedness of A comes from closed native replay.
+
+initial_observation obtains ordinary free typing, native oracle observation and
+the saturated constructor observation from actual function lookup. Full-union
+whole-term computation, full native recovery and later full type computation
+retain the joint type key. canonical_native_return then returns the result to
+the fixed family target. canonical_term_return gives the constructor target.
+native_assigned_join joins with an independent whole-family continuation at a
+second lookup. environment_stored_native_return uses actual environment
+unfolding exclusions and an instantiated stored nested-Pi family header to
+remove the selected-exposure premise. The final concrete theorem has no
+FunctionHeadExpansion, NativeHeaderHistory, user-supplied observation or native
+argument premise. All constructor beta/structure/eta/identity interleavings
+are allowed by the actual full union.
+
+Remaining scope: one registered positive empty unit, one fieldless record with
+one Unit -> Unit parameter, original function lookup at that literal type, and
+one available closed native family nested-Pi exposure (discharged for displayed
+stored nested Pis). Arbitrary higher-order/dependent parameter profiles, hidden
+family exposure, a sufficient strictly smaller irreducible obligation and
+strengthening itself remain open. This closes the stated fragment gap; it does
+not prove GOAL.md or general type-fork/native coverage. Original weakN_iff sorry
+and executable unchanged. No PRs or coordination; independent untracked modules
+preserved.
+
+Validation: 855-job isolated build; 75 roots including the new observer's
+11 constructors and recursor; maximum transitive closure 11,690; all 830
+own/frozen source hashes unchanged. Audit recursively checks types, opaque
+bodies, constructor types and recursor RHSs and rejects the standard
+strengthening/sorry/circular framework dependencies plus TypeForkJoin,
+TypeInstantiationJoin, StaticStructureCommonCoverage and
+StaticStructureTypeConversionJoin. Only propext/Classical.choice/Quot.sound;
+no owned-module diagnostics. Artifacts: /dev/shm/function-record-*.

@@ -13869,3 +13869,43 @@ Validation for the complete staged batch: 855-job isolated build, 75 roots
 including all new observer constructors and recursor, maximum dependency closure
 11,690, 830 unchanged own/frozen sources, only the three standard axioms.
 No strengthening/sorry/circular framework or general fork/coverage dependencies.
+
+## 2026-11-05 16:37:32 UTC — Full native return and assigned join for retained function records
+
+Verdict: the whole-constructor computation restriction from 04fc6fde is removed
+for this registered function-parameter fragment. After ANY full-union path from
+Ctor #i, ANY native recovery of its image, and ANY later type computation, the
+output computes to Family (lambda A unitCtor). A is selected by one actual
+closed native family exposure. An independently computed assigned family at
+another function lookup reaches that same output. The stored-header/environment
+wrapper discharges exposure and unfolding premises from concrete declaration
+data; the stored family domain may be merely convertible to Unit.
+
+WorldComputes interprets joint keys across exact future contexts and ordinary
+typed arguments. Unit, record and record-family outputs have separate targets;
+other type keys constrain the syntactic observer but have trivial computational
+readout. HeterogeneousControlWorlds supplies ordinary realization/application/
+beta substitution. The actual constructor's native parameter header lets caller
+eta install S before computing the retained function body. The family world
+reuses the preceding selected-domain theorem through the empty-input function
+key, so its target can instead retain a convertible A. No native certificate for
+a currently computed argument and no general native-substitution theorem is used.
+
+Concrete initial lookup initializes both the ordinary free valuation and its
+native type observation. Full compute/native preservation followed by world
+readout proves term return, native return and native-versus-assigned join. The
+previous root-only head-expansion relation is absent from the final statements.
+The unchanged original sorry and the registered Unit -> Unit scope still
+prevent claiming GOAL.md achieved or strict smallness.
+
+Next live directions: generalize the special function_type key to finite pure
+unit-arrow profiles, with caller-selected dependent eta annotations; or connect
+this complete fragment to a reduction of the general fork obligation. Ordinary
+header equality alone still does not supply a native Pi exposure. Neither
+extension/reduction is proved here; do not assume general coverage or resurrect
+NativeHeaderHistory beta closure.
+
+Validation: 855-job isolated build, 75 roots, maximum closure 11,690,
+830 unchanged own/frozen source hashes. Only standard axioms; all existing
+strengthening/sorry/circular and general join/coverage exclusions passed.
+No PR extraction or coordination.
