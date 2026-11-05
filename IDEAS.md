@@ -11980,3 +11980,45 @@ Validation: 788-job isolated build; 13 public roots, maximum transitive
 closure 11,514; all 763 own/committed source hashes stable. Only allowed
 axioms; no forbidden dependencies, sorry, or own-module warnings. Artifacts:
 /dev/shm/native-pi-telescope-reification-*.
+
+### 2026-11-05 — Caller transformations commute with later argument histories
+
+**Verdict: a four-sided forward square proved for arbitrary argument
+computation and generic transformations under a computed domain.**
+ProofErasureCallerArgumentHistories first reifies any computation of the
+caller's generic eta argument at every raw supplied image. Unlike the earlier
+constant-argument theorem, the generic result may depend on its bound variable.
+Only the caller's selected native Pi and its domain sort are required; the
+raw supplied value needs neither typing nor native recovery in this raw lemma.
+
+The typed history theorem allows A to compute to C before the generic variable
+computes under C. Backward context transport moves that generic history to A,
+where the caller's original native guard applies. Typed replay realizes its
+result as a template, and compatible image computation transports any actual
+argument history through that template. The four explicit paths go from the
+original call through either the transformed original argument or the computed
+argument, meeting at the same transformed computed image. The original argument
+needs ordinary typing only, and the final raw image has no native premise.
+
+The caller itself stays fixed. This is not transfer of its guard after a caller
+computation, nor a strip theorem after arbitrary beta simplification of the
+instantiated generic template. In particular it does not yet transport a body
+history after a written lambda prefix has been beta-cancelled under a different
+assigned binder. These are still live historical-context obligations, along
+with general type-fork joining and strengthening.
+
+Also inspected canonical-Eq sort/type probes for a converse from
+TypeInstantiationJoin. Probe computation still needs a checked comparison of
+its endpoints; the attempted generic instantiation encoding did not construct
+that comparison or force a probe head change. No converse, counterexample, or
+strict-smallness claim was established. This is an unfinished encoding attempt,
+not evidence that the converse is false. Executable and original sorry remain
+unchanged.
+
+Validation: 790-job isolated build. Both new public roots and all public/generated
+roots of the newly synchronized committed caller-canonicalization dependency
+were audited (21 total, including inductive generated declarations); maximum
+closure 11,119. All 765 source hashes match frozen committed dependencies and
+own source. Only allowed axioms, no forbidden dependency, sorry or audited-module
+warning. Artifacts /tmp/carrier-caller-argument-histories-*. Independent committed
+Pi-telescope work was preserved and was not imported while uncommitted.
