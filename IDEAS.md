@@ -12463,3 +12463,48 @@ generated roots of the new module and newly copied committed imports audited
 Only allowed axioms, no forbidden dependency, sorry, or audited-module warning.
 Artifacts /tmp/carrier-observed-declaration-headers-*. Independent in-progress
 family/field work was preserved. Executable and original sorry unchanged.
+
+
+### 2026-11-05 07:46:35 UTC — Keep the parameter family below ignored fields
+
+**Verdict: mixed parameter-plus-dependent-field ancestry proved.**
+
+The two formerly separate observers now compose without a literal residual
+field checkpoint. `NativeFamilyFieldObservation` retains a native parameter
+family and its current body below all pending fields. Terminal full-union
+computation descends through the fields, then advances the original family
+through the resulting body computation. Ordinary field-domain conversion
+leaves that family fixed. Directed parameter-domain conversion advances its
+exact native header and converts the field controls.
+
+Supplying the oldest parameter substitutes below all pending parameters and
+fields. At terminal payloads, the retained family computation runs before
+application; no native certificate for the parameter image or computed lambda
+is substituted. The erased substitution commutes with the unused field lift.
+An existing ignored-field history can be attached to a native family, and
+once all parameters have been supplied, the combined observer becomes the
+existing ignored-field observer with the applied family as its lower origin.
+
+`MixedFamilyPiObservation` keeps recursive parameter controls around those
+field observations. Its computation, pending-context conversion, parameter
+supply, initialization, and witness theorems preserve arbitrary opaque residuals.
+The mixed selected-history theorem follows parameters and fields in order,
+realizes independently computed argument images at the selected actual domain,
+and reaches the exact final selected native output from the original family
+applied to the original parameter values. The declaration corollary discharges
+both origin premises for paired literal constants and ordinary dependent
+argument vectors. Field types may depend on parameters and earlier fields;
+proof and higher-order argument values require no extra recovery premise.
+
+This closes the parameter/field composition gap recorded after eb308f7c. It
+assumes a result independent of fields and literal paired declaration headers
+in the unconditional declaration corollary. Arbitrary ordinary header
+conversion, field-dependent result indices, global joining and the sufficiency
+of the remaining obligations for canonical-Eq strengthening remain open. This
+is not a strengthening proof or a strictly smaller sufficient obligation.
+
+Validation: 797-job isolated build; 22 public roots audited through transitive
+types, values including opaque values, constructors and recursor RHSs; maximum
+closure 11,592; 772 unchanged committed/own sources. Only allowed axioms,
+no forbidden dependency, sorry, or own-module warning. Artifacts
+`/dev/shm/native-family-fields-*`.

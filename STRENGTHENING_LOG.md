@@ -25234,3 +25234,54 @@ generated roots of the new module and newly copied committed imports audited
 Only allowed axioms, no forbidden dependency, sorry, or audited-module warning.
 Artifacts /tmp/carrier-observed-declaration-headers-*. Independent in-progress
 family/field work was preserved. Executable and original sorry unchanged.
+
+
+### 2026-11-05 07:46:35 UTC — Exact native ancestry through mixed parameters and fields
+
+Added three modules closing the mixed-history gap from eb308f7c.
+`ProofErasureNativeFamilyFields` retains the original native parameter family
+below a recursive ignored-field observation. Terminal computation descends
+all field binders and advances the family using a wrapped parameter-body path.
+Field-domain conversion changes ordinary controls only. Parameter-domain
+conversion carries the directed prefix computation into every retained family.
+Parameter supply substitutes through both pending telescopes; the family path
+runs before application and its body substitution commutes with the field lift.
+The module also attaches existing ignored-field histories to a family and
+recovers the ignored-field observer after the parameter telescope is exhausted.
+
+`ProofErasureMixedFamilyObservation` adds recursive parameter layers above the
+field phase. Arbitrary full-union computation preserves both phases, including
+opaque control frames between applications. Its initialization accepts a native
+family history and a well-formed dependent field suffix. Its witness theorem
+retains the exact family parameter header needed for ordinary argument typing.
+
+`ProofErasureMixedFamilySupply` follows complete selected native histories.
+Replay and erasure reflection identify the selected constructor Pi, while the
+retained family header validates the same parameter domain. Argument computation
+is realized at that domain, both the constructor and family applications are
+updated, and the original family application's computation is prefixed to the
+recursive result. At the parameter/field boundary, the existing ignored-field
+supply theorem finishes the same selected history. No residual telescope is
+normalized or replaced by a fresh fixed-origin assumption.
+
+The final declaration corollary takes actual family and constructor constants,
+a literal shared parameter telescope, an arbitrary dependent field suffix,
+ordinary telescope instantiations, and independently computed argument images.
+It proves that the original family application computes to the exact final
+native type selected for the constructor application. Fields may depend on all
+preceding arguments, while the result ignores fields. No native argument,
+native computed-lambda, beta-strip, or type-instantiation-join premise occurs.
+
+Remaining scope: arbitrary ordinary declaration-header conversion, results
+whose indices depend on fields, global type-fork joining, and canonical-Eq
+strengthening. The result does not discharge GOAL.md or establish a strictly
+smaller sufficient obligation. The executable and original weakN_iff sorry are
+unchanged. PR extraction remains deferred. Independent committed header work
+was preserved; no uncommitted dependency was imported or coordinated with.
+
+Validation: 797-job isolated build; all 22 public roots audited through types,
+values including opaque bodies, constructors and recursor RHSs; maximum closure
+11,592. All 772 source hashes matched own source or committed dependencies
+and remained stable. Only propext/Classical.choice/Quot.sound; no forbidden
+dependency, sorry, or own-module warning. Artifacts
+`/dev/shm/native-family-fields-*`.
