@@ -22763,3 +22763,49 @@ forbidden dependencies, sorry sources, or new-module warnings. All 775/774 closu
 source hashes were stable and byte-identical to isolated copies. Artifacts:
 /tmp/carrier-typed-singleton-* and /tmp/carrier-typed-unindexed-*.
 Independent work preserved; no executable changes or coordination; goal active.
+
+
+## Native recovery coherence and first-stage expansion overlaps (2026-11-05 01:22:06 UTC)
+
+Verdict: proved coherence of every native recovery over the universe-extended
+ordinary core at the same typed source. The earlier result covered variable and
+constant application spines. The new theorem covers all syntax, including
+lambdas, Pis and dependent projections, without a native premise on arguments.
+Mixed guard relations inherit coherence whenever their typed paths have common
+level-core reducts. This is a checked critical-pair advance, not strengthening
+or a strictly smaller sufficient irreducible obligation.
+
+The projection case follows the complete selected field recipe. Factor the
+family path into ordinary computation and structural universe variation, carry
+all parameter computations through the recipe, and use the actual target native
+projection to justify the final universe conversion. Preceding-field captures
+and dependent telescope domains remain present. Native output conversion is
+composed only at replayed typed intermediate types. Pi-source outputs are sorts;
+ordinary uniqueness supplies equivalent levels rather than assuming literal
+universe equality.
+
+Two applications close same-source expansion overlaps. Function eta now joins
+for arbitrary short sources, including projections and lambda-headed terms.
+Structure eta now joins arbitrary selected parameter vectors: native coherence
+joins the families, rigid spine readout recovers the parameter paths, and the
+universe/mask theorem joins the expanded constructors. These results permit
+mixed proof/data fields and differing universe instances. Concrete theorems for
+actual stored environments discharge the core hypotheses for both overlaps at
+the first guarded stage, whose guards include ordinary computation, universe
+conversion and constant beta expansion.
+
+The proposed stage induction remains open. These theorems handle two eta roots
+or two structure roots, not an expansion against an arbitrary contextual path,
+beta substitution at non-native arguments, or all higher guarded stages. In
+particular, neutral eta paths cannot simply be assumed level-core joinable to
+invoke the mixed-guard theorem recursively. No global confluence, native
+coverage, or TypeForkJoin premise is used to prove the new overlap cases.
+
+Validation: one module, eight public roots; isolated 770-job build against
+committed dependency sources, with full transitive declaration audits through
+types, opaque values, constructors and recursor rules (maximum 11,520).
+Only propext, Classical.choice and Quot.sound; no configured forbidden
+dependencies or new-module warnings. Dependency source hashes checked against
+the committed tree before committing. Artifacts /dev/shm/native-level-coherence-*.
+Independent work preserved; no executable changes, coordination or PR extraction.
+The original strengthening sorry remains and GOAL.md stays active.
