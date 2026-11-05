@@ -28885,3 +28885,66 @@ general native-output comparison, eta-containing tails, paired exposure and
 singleton simulation remain open. This is concrete progress on the stated
 restrict-then-generalize route, not completion of GOAL.md. Executable unchanged;
 no coordination or PR extraction. The original goal remains active.
+
+
+### 2026-11-05 23:33:02 UTC — Purity-free reference return for complete native control outputs
+
+Previous turn: progress, checked local commit 51e0c62b. Revalidation confirmed
+that HEAD and the two independent untracked files were intact; the remote still
+pointed at 9d4351a3. A fresh push attempt again failed with GitHub's server-side
+commit_refs_rules error. Work continued locally without changing branch targets,
+rewriting commits, opening PRs, or treating the push failure as a research block.
+
+ProofErasureCoreFixedTailReturn proves return from a core join using universe
+postponement and an explicit ordinary-reduct return premise. Replay provides
+the actual typed ordinary reduct needed to reverse structural universe changes.
+ComputeFixed of the reference in ErasedIotaPrimitive discharges the return premise;
+ordinary syntactic normality is a sufficient criterion through NormalSyntax.fixed.
+Stage-zero tails therefore return to such references without any purity condition.
+Native coherence further shows that a single fixed native reference type receives
+every complete native recovery of the same expression, including all independently
+chosen native selections and conversion tails. The general return premise is
+conditional, not an assertion that all ordinary reductions can be reversed.
+
+ProofErasureNativeControlReferenceReturn first joins an arbitrary complete native
+application output with the instantiated codomain of one independent function Pi
+reference. It extracts the actual Pi and final tail from the supplied application
+recovery, derives a core join with the reference Pi by same-function native
+coherence, and uses argument computation to the shared actual argument. There is
+no requirement to recover a native type of the shared application. The result-type
+realization theorem gives the reference's actual type for core return.
+
+For two different functions, a comparison of their reference Pis at a common
+terminal assigned domain yields the existing inferred comparison of reference
+codomains at the shared argument. Fixedness of those two results supplies return
+paths from arbitrary complete native outputs. Computed comparison then follows
+by independent backward computation. The EnvironmentCore specialization derives
+shared-argument paths from two checks against a fixed literal sort and discharges
+all core soundness, universe compatibility, rigid-head and confluence conditions.
+Only one compared native Pi reference per function is required; the arbitrary
+output recoveries may select entirely different Pis. Neither terms nor context
+need be pure. Reference result fixedness and comparison remain explicit premises.
+
+ProofErasureComparedControlNativeRepair checks this on the previous eta-domain
+example. Both actual applications have native recoveries, and every pair of
+complete stage-zero native outputs compares. A hypothetical core join between
+any pair would compose through typed native outputs to contradict the original
+reference nonjoinability theorem. Thus the comparison/core-join distinction
+survives arbitrary internal native selection. This does not replace the earlier
+higher non-eta tail theorem; the new universal native recovery claim is stage zero.
+
+Validation: 900 isolated build jobs; 9 public roots audited through types,
+opaque values, inductive constructors and recursor RHSs; maximum closure
+12,399; 875 frozen source/import hashes unchanged. Only propext,
+Classical.choice and Quot.sound; no forbidden dependencies or own-module warnings.
+An explicit level-core Step annotation fixed the development replay elaboration.
+A final docstring clarified the stage-zero/native-selection versus higher-tail
+scope; the final frozen-source build and audit include that correction.
+
+Completion audit: UniqueTyping.lean:94 still contains the original weakN_iff
+sorry. No canonical-Eq strengthening counterexample or strictly smaller sufficient
+irreducible obligation has been established. Arbitrary functions are not proved
+to admit compared fixed references, and general endpoint transport, eta-stage
+confluence, paired exposure and singleton simulation remain open. Executable
+unchanged; independent untracked research preserved; no coordination or PR
+extraction. GOAL.md remains active with its original objective.

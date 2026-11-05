@@ -15315,3 +15315,49 @@ and the global strengthening obligation. The return proof does not establish
 normalization, and cannot simply erase its normality premise. Validation:
 900 build jobs, 6 audited roots, maximum closure 11,713, 875 frozen
 source hashes; standard axioms only, no forbidden dependencies or own warnings.
+
+
+### 2026-11-05 23:33:02 UTC — Complete native outputs return through fixed ordinary-core references
+
+Verdict: proved without purity assumptions. One independently chosen native Pi
+per function suffices when the instantiated reference result types at a shared
+actual argument are fixed by ordinary-core computation. Arbitrary complete
+stage-zero native application recoveries may use different internal Pi choices
+and final tails. The references only need to compare, not have a core join.
+
+Universe postponement factors a core join branch from a typed reference into an
+ordinary reduction and structural universe variation. Typed replay realizes the
+ordinary reduct, so the universe variation reverses by explicit level steps.
+If the ordinary reduct can return to the reference, the whole join returns.
+This conditional return interface does not presume universal recurrence. Ordinary
+ComputeFixed supplies it directly; NormalSyntax supplies ComputeFixed. No claim
+is made that arbitrary recursive types have either property.
+
+Native coherence joins all recoveries of one expression to a chosen reference.
+For an application, app-origin inversion exposes its actual native Pi and tail;
+coherence aligns that Pi with the reference function Pi. The earlier argument
+and tail join theorem then relates the complete output to the reference codomain
+at a shared argument, without requiring a native certificate for the shared
+application. Fixedness is needed only at that reference result, not at the
+original argument, selected intermediate types, or complete output.
+
+Compared reference Pis at a terminal assigned domain already give comparison of
+their codomains instantiated at the shared argument. Each complete output returns
+to its own reference, yielding the desired output comparison. EnvironmentCore
+supplies all soundness, universe compatibility, rigid-head and confluence facts;
+control argument checks against one literal sort supply the shared-argument
+paths. The result is independent of purity of both terms and contexts.
+
+The existing compared-control obstruction now quantifies over every complete
+stage-zero native recovery on both sides. Every output pair compares and no pair
+has a common core reduct. This adds internal native selection to the previous
+example; it does not subsume the separate theorem allowing arbitrary higher
+non-eta tails from fixed outputs.
+
+Remaining: coverage by compared fixed references for arbitrary functions,
+references whose ordinary reducts cannot return, eta-containing tails, and the
+original strengthening goal. Validation: 900 build jobs, 9 audited
+roots, maximum closure 12,399, 875 frozen source hashes; standard axioms
+only, no forbidden dependencies or own-module warnings. The prior commit
+51e0c62b remained local at turn start because GitHub rejected pushes with
+commit_refs_rules; this did not block mathematical work.
