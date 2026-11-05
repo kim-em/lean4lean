@@ -28053,3 +28053,51 @@ Completion audit: the original weakN_iff sorry at UniqueTyping.lean:94 remains.
 No canonical-Eq counterexample or genuinely strictly smaller sufficient
 obligation is proved. Executable unchanged; no PR extraction or coordination.
 GOAL.md remains active with its original objective.
+
+
+## 2026-11-05 21:38:54 UTC — Sort exposure supplies exact control-argument substitution
+
+Previous goal work made progress: the four pending proof modules compiled and
+passed their final audit. The intervening conversational clarification made
+no technical progress. On resumption, the validation process was terminal and
+its successful build/audit records were inspected; it was not restarted.
+
+Generalized IgnoredPiTrace to IgnoredTypeHeadTrace, indexed by Pi versus sort.
+Both specializations ignore application arguments and lambda annotations.
+The existing stage-zero Pi exposure contracts are preserved. Sort exposure
+uses the same inferred-check induction, with level roots preserving the sort
+trace. For actual sort-typed endpoints, comparison reflection and typed
+computation replay show that the exposed universe equals the original up to
+level equivalence. An explicit level step gives an exact return computation.
+
+stage_zero_compared_constant_frame uses that result for Prop. It contracts the
+right argument to literal Prop, then beta-contracts the frame. The independent
+body-check premise is substituted using Prop's exact native typing at Type;
+the left lifted body returns to the original term, and the right body returns
+to its actual Prop instantiation. The arbitrary right lambda annotation is
+discarded by beta. No generic beta stability or arbitrary native typing
+conversion is assumed.
+
+stage_zero_compared_sort_context derives exact native images for identity
+substitution from a literal-universe binder to a compared binder, using the
+backward-context theorem and the new exact sort-return computation.
+proofErase_check_compared_sort_context transports actual body comparisons
+across those binders without increasing their finite stage. This result is
+one-directional and restricted to original literal-universe binders.
+
+Still missing: extracting the supplied body comparison from arbitrary computed
+function comparison, retaining general Pi domain/codomain residual checks,
+full paired identity exposure, singleton simulation and type-rooted stage-one
+confluence. The present result makes the fixed control argument tractable but
+does not settle the general recursive exposure problem.
+
+Validation: 848 isolated build jobs; 31 roots audited through types,
+opaque bodies, inductive constructors and recursor RHSs; maximum closure
+11,337; 823 frozen source/import hashes. Only propext, Classical.choice,
+Quot.sound; no forbidden dependencies or own warnings. Source hashes are
+checked against the worktree and committed import closure before committing.
+
+Completion audit: UniqueTyping.lean:94 still contains the original weakN_iff
+sorry. No canonical-Eq counterexample or genuinely strictly smaller sufficient
+obligation is proved. Executable unchanged; no PR extraction or coordination.
+GOAL.md remains active with its original objective.

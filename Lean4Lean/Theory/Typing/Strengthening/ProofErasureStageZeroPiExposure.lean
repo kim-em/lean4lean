@@ -14,16 +14,17 @@ variable [Params]
 
 private theorem inferred_trace_pair
     (hctx : ∀ {Δ Δ' a b}, Step Δ a b → Step Δ' a b)
-    (htrace : ∀ {Δ a b n}, Step Δ a b → IgnoredPiTrace a n → IgnoredPiTrace b n)
+    (htrace : ∀ {Δ a b n}, Step Δ a b → IgnoredTypeHeadTrace isPi a n → IgnoredTypeHeadTrace isPi b n)
     (H : ComputedJointCheck Step Δ kind a b) (hk : kind = .compare false) :
-    (∀ n, IgnoredPiTrace a n → ∃ out, ScopedCompute Step Δ b out ∧ IgnoredPiTrace out n) ∧
-    (∀ n, IgnoredPiTrace b n → ∃ out, ScopedCompute Step Δ a out ∧ IgnoredPiTrace out n) := by
+    (∀ n, IgnoredTypeHeadTrace isPi a n → ∃ out, ScopedCompute Step Δ b out ∧ IgnoredTypeHeadTrace isPi out n) ∧
+    (∀ n, IgnoredTypeHeadTrace isPi b n → ∃ out, ScopedCompute Step Δ a out ∧ IgnoredTypeHeadTrace isPi out n) := by
   induction H with
   | leaf H =>
     cases hk
     cases H with
     | refl => constructor <;> intro n HT <;> exact ⟨_, .refl, HT⟩
-    | sort | const => constructor <;> intro n HT <;> cases HT
+    | sort => constructor <;> intro n HT <;> cases HT <;> exact ⟨_, .refl, .sort⟩
+    | const => constructor <;> intro n HT <;> cases HT
   | app HF HX ihF _ | appCarrier _ HF HX ihF _ | appComputed _ HF HX ihF _ =>
     constructor
     · intro n HT
@@ -59,15 +60,15 @@ private theorem inferred_trace_pair
       | zero => cases HT
       | succ n =>
         rcases HE with HE | HE
-        · exact ⟨_, .refl, (IgnoredPiTrace.eta_iff HE).1 HT⟩
-        · exact ⟨_, .refl, (IgnoredPiTrace.eta_iff HE).2 HT⟩
+        · exact ⟨_, .refl, (IgnoredTypeHeadTrace.eta_iff HE).1 HT⟩
+        · exact ⟨_, .refl, (IgnoredTypeHeadTrace.eta_iff HE).2 HT⟩
     · intro n HT
       cases n with
       | zero => cases HT
       | succ n =>
         rcases HE with HE | HE
-        · exact ⟨_, .refl, (IgnoredPiTrace.eta_iff HE).2 HT⟩
-        · exact ⟨_, .refl, (IgnoredPiTrace.eta_iff HE).1 HT⟩
+        · exact ⟨_, .refl, (IgnoredTypeHeadTrace.eta_iff HE).2 HT⟩
+        · exact ⟨_, .refl, (IgnoredTypeHeadTrace.eta_iff HE).1 HT⟩
   | compute RA RB _ ih =>
     constructor
     · intro n HT
@@ -81,25 +82,27 @@ private theorem inferred_trace_pair
       carrierSubsingleton | carrierFunction | carrierSymm | carrierCompute | carrierReduce |
       carrierNested => cases hk
 
-/-- Inferred comparison transfers an ignored Pi trace up to computation.
+/-- Inferred comparison transfers an ignored type-head trace up to computation.
 Only context independence and primitive trace preservation are required;
 neither typed substitution nor guard alignment is an assumption. -/
-theorem ProofShape.ComputedJointCompare.ignored_pi_trace
+theorem ProofShape.ComputedJointCompare.ignored_type_head_trace
     (hctx : ∀ {Δ Δ' a b}, Step Δ a b → Step Δ' a b)
-    (htrace : ∀ {Δ a b n}, Step Δ a b → IgnoredPiTrace a n → IgnoredPiTrace b n)
-    (H : ComputedJointCompare Step Δ false a b) (HT : IgnoredPiTrace a n) :
-    ∃ out, ScopedCompute Step Δ b out ∧ IgnoredPiTrace out n :=
+    (htrace : ∀ {Δ a b n}, Step Δ a b → IgnoredTypeHeadTrace isPi a n → IgnoredTypeHeadTrace isPi b n)
+    (H : ComputedJointCompare Step Δ false a b) (HT : IgnoredTypeHeadTrace isPi a n) :
+    ∃ out, ScopedCompute Step Δ b out ∧ IgnoredTypeHeadTrace isPi out n :=
   (inferred_trace_pair (Step := Step) hctx htrace H rfl).1 n HT
 
-/-- Every primitive at stage zero preserves ignored Pi traces, including
+/-- Every primitive at stage zero preserves ignored type-head traces, including
 constant beta expansion. Ordinary roots have incompatible heads; explicit
-universe-conversion roots also cannot occur at a traced head. -/
-theorem stage_zero_ignored_pi_trace
-    (R : ErasedStaticStructureEtaExpansionStage D 0 Δ a b) (H : IgnoredPiTrace a n) :
-    IgnoredPiTrace b n := by
+universe conversion retains the sort head and changes only its level. -/
+theorem stage_zero_ignored_type_head_trace
+    (R : ErasedStaticStructureEtaExpansionStage D 0 Δ a b) (H : IgnoredTypeHeadTrace isPi a n) :
+    IgnoredTypeHeadTrace isPi b n := by
   rcases R with (R | R) | R
   · exact (H.not_primitiveHead (erased_iota_primitive_head R)).elim
-  · cases R <;> cases H
+  · cases R with
+    | sort => cases H; exact .sort
+    | const => cases H
   · cases R; exact H.constantExpansion
 
 /-- A stage-zero inferred comparison against a displayed Pi exposes the
@@ -109,8 +112,8 @@ theorem stage_zero_inferred_pi_exposure
     (H : ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D 0) Δ false
       (.forallE A B) T) :
     ∃ C E, ScopedCompute (ErasedStaticStructureEtaExpansionStage D 0) Δ T (.forallE C E) := by
-  obtain ⟨out, R, HO⟩ := H.ignored_pi_trace (fun H => H) stage_zero_ignored_pi_trace .pi
-  obtain ⟨C, E, RB⟩ := HO.expose
+  obtain ⟨out, R, HO⟩ := H.ignored_type_head_trace (fun H => H) stage_zero_ignored_type_head_trace .pi
+  obtain ⟨C, E, RB⟩ := IgnoredPiTrace.expose HO
   exact ⟨C, E, R.trans (.beta RB)⟩
 
 /-- Independent sort typings upgrade common comparison before Pi exposure.

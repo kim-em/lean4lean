@@ -14855,3 +14855,35 @@ No strictly smaller sufficient replacement for PropFront is claimed.
 **Evidence:** 846 isolated build jobs; 22 audited roots including trace
 constructors and recursors; maximum closure 11,192; 821 frozen hashes.
 Only standard axioms, no forbidden dependencies or own warnings.
+
+
+## 2026-11-05 21:38:54 UTC — Exact sort return and compared constant-frame contraction
+
+**Idea:** Constant expansion applies a function under a Type binder to Prop.
+A comparison with that fixed argument may supply the exact native substitution
+needed to retain a body check through beta, without general beta stability.
+
+**Verdict:** Proved under the explicit body-check premise. Generalized the
+ignored-argument Pi trace to a shared Pi/sort trace. The inferred checker
+transfers the sort trace and exposes a literal sort at stage zero. Typed
+reflection and sort injectivity identify the universe up to level equivalence;
+an allowed level step returns the compared argument to the exact original
+sort. Native-image substitution of Prop in both bodies then retains the
+supplied inferred comparison while the right constant frame contracts.
+
+**Further consequence:** A binder compared with a literal universe has exact
+stage-zero native images for identity substitution from the universe context
+to the compared context. Actual body comparisons at any finite stage transport
+in that direction with the same endpoints and stage. This uses the checked
+sort-return path, not a general context-conversion principle.
+
+**Limit / next:** Extracting the body-check premise from an arbitrary computed
+function comparison remains open. No complete Pi component residual theorem,
+paired-exposure induction, singleton simulation, or type-rooted stage-one
+confluence follows yet. These are building blocks, not a strictly smaller
+sufficient replacement for PropFront.
+
+**Evidence:** 848 isolated build jobs; 31 audited roots including the
+shared trace constructors and recursors; maximum closure 11,337; 823
+frozen source/import hashes. Standard axioms only, no forbidden dependencies
+or own warnings.
