@@ -24809,3 +24809,40 @@ constructors and recursor RHSs; maximum closure 11,379. All 764 committed/own
 source hashes match and stayed stable. Only propext/Classical.choice/Quot.sound;
 no forbidden dependencies, sorry, or own-module warnings. Artifacts
 /dev/shm/native-pi-history-*.
+
+### 2026-11-05 — Historical caller guards preserve body histories after reannotation
+
+**Verdict: forward square proved for a fixed caller whose original guard uses
+the written telescope.** ProofErasureHistoricalCallerBodies first transports
+ordinary caller typing and exact native recovery through a forward computation
+of the assigned argument type. The dependent codomain stays unchanged as syntax;
+its erasure agrees across the actual binder conversion. The old guard remains
+available at this same caller, without a reverse domain computation.
+
+The main theorem combines an arbitrary body computation under the original
+written dependent telescope with an arbitrary whole computation of its assigned
+Pi type to another literal telescope of equal arity. Target type formation is
+the only extra ordinary type premise: replay and erasure reflection derive the
+actual equality of the two argument types. Four forward paths form a square:
+reannotate, compute the old body, compute through the reannotated call, and
+reannotate the computed body. The difficult side begins after administrative
+beta has already cancelled the written prefix. It uses the historical caller
+guard to restore that prefix, runs the body path in its original context, then
+uses the derived new guard to reannotate again. Only the original caller needs
+native recovery; neither lambda argument or body output does. Body-output
+realization and the target lambda typings are derived.
+
+This closes that post-cancellation body-history case when the original guard
+matches the written telescope. It does not furnish such a historical guard for
+an arbitrary lambda merely typed at a different assigned Pi, transport guards
+to a computed caller, or establish unrestricted beta stripping. General native
+history coverage, type-fork joining, and canonical-Eq strengthening remain open;
+no strictly smaller sufficient obligation or counterexample is claimed.
+Executable and original sorry are unchanged.
+
+Validation: isolated build succeeded (796 jobs), both public roots and full
+dependency closures audited (maximum closure 11,105), 771 source hashes matched
+own source and frozen committed dependencies. Only allowed axioms, no forbidden
+dependency, sorry, or audited-module warning. Artifacts
+/tmp/carrier-historical-caller-bodies-*. The independent committed literal-Pi
+history development was preserved and is not a dependency of these theorems.
