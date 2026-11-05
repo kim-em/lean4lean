@@ -27396,3 +27396,24 @@ recursor RHSs; maximum closure 11,850; 863 source hashes unchanged. Only
 propext/Classical.choice/Quot.sound, no own warnings, and all forbidden dependency
 exclusions passed. Original sorry/executable unchanged; independent untracked
 files excluded. No PR extraction or coordination.
+
+## 2026-11-05 18:50:38 UTC — Finite alias observations and primitive preservation
+
+Added ProofErasureAliasDemandObservation, Roots and Transport (410 lines).
+The new observer embeds RigidDemandProfile.Obs and adds finite, actual stored,
+monomorphic sort-valued aliases. Both erased presentations of a stored constant
+step select the same body. Rename/substitution/beta closure, identity/function
+eta frames, compatible context conversion, and all enriched stages are checked.
+Singleton and Eq prefix exclusion uses actual environment head separation.
+
+The computational collection is Definitions.ofEnv, not an arbitrary sound
+collection or the enlarged EnvironmentCore collection. Soundness alone would
+not fix competing alias unfoldings. No general normalization, native completeness,
+or strengthening theorem follows from this observer extension. The next commit
+supplies raw-substitution readout and concrete canonical family returns.
+
+Complete batch validation: 894 isolated jobs, 46 roots, maximum dependency
+closure 11,581, 869 frozen hashes. Only propext, Classical.choice and
+Quot.sound; original strengthening sorry excluded from every audited dependency
+closure, along with all configured circular recovery/front interfaces. All new
+constructors/recursors audited. No own warnings, executable changes or PRs.

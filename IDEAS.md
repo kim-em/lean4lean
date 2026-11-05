@@ -14210,3 +14210,37 @@ Result commit: five modules, 641 lines. Complete batch: 12 modules, 1,193 lines;
 888 isolated build jobs, 62 audited roots, maximum closure 11,850,
 863 frozen source hashes. Only standard axioms; no own warnings or forbidden
 dependencies. No PRs, executable changes or coordination. GOAL.md remains open.
+
+## 2026-11-05 18:50:38 UTC — Observe finite stored aliases through the full enriched union
+
+Verdict: checked operational extension of the independent dependent-family
+observer, not a strictly smaller sufficient strengthening obligation. The old
+observer could not admit a bare alias, although its stored body was observed.
+AliasDemandProfile.Obs adds a recursive delta constructor with an actual stored
+unfolding, ordinary sort typing and an observation of the closed erased body.
+Finite alias chains and arbitrary dependent beta wrappers can alternate. This
+batch handles monomorphic sort-valued aliases; it makes no blanket normalization
+or conversion-to-observation claim.
+
+The actual definition collection is Definitions.ofEnv. erased_stored_constant_root
+handles both direct delta and concrete fixed-template patterns. A bare constant
+cannot match capture/iota roots; actual registration and stored-definition
+uniqueness identify the selected body. Substitution preserves the alias body
+because its erasure is closed. Full stage preservation includes universe steps,
+constant/native identity expansion, function eta and structure eta, and the
+singleton/Eq prefixes. Registered singleton heads and canonical Eq.rec are
+separated from actual stored definition heads. No native-image transport premise
+is added. Compatible computation transports actual node typings under changed
+binders, as in the earlier dependent observer.
+
+The considered alternative of taking arbitrary core predecessors of the old
+observer would require additional preservation through the enriched union:
+ordinary core confluence alone does not cover all those roots. This batch takes
+finite explicit unfolding evidence and proves full-stage preservation directly;
+it does not assert a general predecessor-closure theorem.
+
+Core: Observation, Roots and Transport, 410 Lean lines. Complete six-module
+batch validation: 894 isolated build jobs, 46 audited roots including every
+new constructor and recursor, maximum dependency closure 11,581, 869 frozen
+source hashes, standard axioms only. No forbidden dependencies or own warnings.
+Existing observers and their counterexamples are unchanged. No PR extraction.
