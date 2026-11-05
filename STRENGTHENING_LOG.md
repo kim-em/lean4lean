@@ -27417,3 +27417,25 @@ closure 11,581, 869 frozen hashes. Only propext, Classical.choice and
 Quot.sound; original strengthening sorry excluded from every audited dependency
 closure, along with all configured circular recovery/front interfaces. All new
 constructors/recursors audited. No own warnings, executable changes or PRs.
+
+## 2026-11-05 18:50:50 UTC — Stored alias readout and concrete canonical return
+
+Added ProofErasureAliasDemandReadout, Input and Return (348 lines). Full enriched
+descendants of finitely observed monomorphic aliases compute to the designated
+family with exact arity after arbitrary raw substitution. Readout uses actual
+stored delta plus beta; it no longer assumes beta alone can expose an alias.
+Ordinary replay fixes the family universe instance using actual registration.
+The canonical return and two-history join use an actual stored target header;
+the concrete alias theorem has no source observation or target native premise.
+
+All new sources passed 894 isolated build jobs and a 46-root dependency audit
+covering types, opaque bodies, inductive constructors and recursor rules. Maximum
+closure 11,581; 869 frozen source hashes; allowed standard axioms only;
+no configured circular/front/strengthening dependencies and no own warnings.
+
+This is an independently checked annotation-computation result, not a theorem
+about every term/native history. The old DependentRecordDemand native proofs
+still use the older rigid observer. Integration into a reusable joint family
+interface is the next open step; polymorphic aliases and EnvironmentCore's
+additional equations also remain. The original UniqueTyping.weakN_iff sorry and
+executable are unchanged. No PR extraction, no coordination, goal still active.

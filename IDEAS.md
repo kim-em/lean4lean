@@ -14244,3 +14244,39 @@ batch validation: 894 isolated build jobs, 46 audited roots including every
 new constructor and recursor, maximum dependency closure 11,581, 869 frozen
 source hashes, standard axioms only. No forbidden dependencies or own warnings.
 Existing observers and their counterexamples are unchanged. No PR extraction.
+
+## 2026-11-05 18:50:50 UTC — Canonical family joins for alias-bearing type computations
+
+Verdict: checked type-computation join for finite aliases, still not general
+strengthening. AliasDemandProfile.Obs.realizes/head_readout now return a path in
+the actual stored erased core, rather than promising pure beta cleanup. The
+cleanup survives any raw substitution without typing or native evidence for
+its images. stored_alias initializes recursive alias evidence from actual
+stored unfolding and ordinary body typing; typed_wrapper admits arbitrary
+proof/open/dependent domains. stored_alias_not_rigid_observation verifies that
+an actual stored alias is outside the previous independent rigid grammar.
+
+family_head combines operational evidence with ordinary carrier equality to
+fix the monomorphic universe instance before raw substitution. Actual replay of
+the core path and registered-family injectivity justify that step. Full type
+computation preserves both pieces independently. family_computation_return uses
+the target's actual stored header and unit-arrow caller telescope to canonicalize
+the exposed argument. family_computations_join gives a common canonical family
+application for independent type histories and unrelated raw substitutions.
+stored_family_computation_return discharges all source observation and target
+native premises from actual declarations and ordinary parameter typing.
+
+Boundary/next action: this batch resolves finite monomorphic type-alias unfolding
+for the independent observer over Definitions.ofEnv. It has not integrated that
+observer into arbitrary term/native histories of DependentRecordDemand, generalized
+the alias universe instance, or proved preservation for the extra selected equations
+of EnvironmentCore. General conversion-to-observation coverage remains open.
+Next, expose a reusable family-evidence interface in the joint observer and
+instantiate it with the checked alias preservation/readout laws; any extension
+of the equation collection must retain actual alias determinism. GOAL.md remains
+open; none of its three final deliverables has been established here.
+
+Result: Readout, Input and Return, 348 lines; complete batch 758 lines across six
+modules. Validation: 894 isolated jobs, 46 audited roots, maximum closure
+11,581, 869 frozen source hashes, standard axioms only, no own warnings or
+forbidden dependencies. No prior files or executable changed; no PRs extracted.
