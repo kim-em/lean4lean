@@ -14523,3 +14523,34 @@ maximum closure 11,594, 779 frozen hashes; standard axioms only, no own
 warnings, no strengthening/sorry/semantic-exposure/circular-recovery/general-fork
 or general-coverage dependencies. The new open predicates are explicit premises
 in conditional barrier theorems, never asserted as established. Goal remains open.
+
+## 2026-11-05 19:58:00 UTC — Keep the first identity peak type-valued and measure its caller repair
+
+**Idea.** The standalone first-stage identity-beta/eta peak carries the full
+ordinary domain-conversion problem, but an enclosing caller may replace its
+function argument's annotation without joining the domains. Check the actual
+guard depth of that repair rather than importing unrestricted typed confluence.
+
+**Verdict: proved for a retained native caller, not a general fork theorem.**
+StagedCallerEta proves that a stage-n caller guard and the fresh argument's
+stage-n variable guard suffice for both eta expansions at stage n+1. Their
+nesting does not increase guard depth again. Constant functions, including
+functions on erased proofs, then acquire the caller's domain by beta alone.
+The explicit identity peak consequently joins in stage one under any caller
+with the required stage-zero displayed Pi. Its selected domain can differ from
+both domains in the original ordinary conversion.
+
+The ordinary typed corollary discharges every native/domain premise: wrap any
+type-valued caller in identity at its assigned Pi. The resulting sort-typed
+source has both peak branches and both residual paths in stage one, with an
+explicit common reduct. Arbitrary ordinary A=B is allowed; no computational
+join of A and B is used. The wrapper remains present during repair. Contracting
+that wrapper first is a separate mixed peak; existing CallerDomainGuardBoundary
+shows why simply transferring its old domain guard is invalid. This result does
+not prove general type-only first-stage joining or a smaller sufficient goal.
+
+Validation: 802 isolated build jobs, 4 dependency-audit roots,
+maximum closure 11,456, 777 frozen source hashes. Only standard allowed
+axioms, no forbidden strengthening/coverage dependencies, no own warnings.
+Next: resolve the mixed caller-history peak or derive a conversion-aware
+induction that supplies its repair; avoid re-proving the retained-caller case.

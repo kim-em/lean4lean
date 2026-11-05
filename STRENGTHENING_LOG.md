@@ -27633,3 +27633,36 @@ restricted syntax. Previous fragment proofs and executable unchanged, no PR
 extraction or coordination. GOAL.md remains active. Next: inspect conversion-aware
 induction or genuinely type-only critical pairs rather than assume the first
 native-guard layer supplies a smaller base case.
+
+## 2026-11-05 19:58:00 UTC — Bound the type-valued caller repair at the first guarded stage
+
+Added ProofErasureStagedCallerEta.lean (152 lines, four theorems). The existing
+full-union caller construction is sharpened to a stage bound: recovery in stage
+n supplies both nested eta expansions in stage n+1. A fresh bound variable uses
+its own stage-n lookup guard, so no second stage increase occurs. Proof-domain
+inputs are included. Constant-function reannotation follows by beta.
+
+Applied this construction to FullIdentityEtaPeak. A stage-zero native caller
+joins its two observed residuals in stage one, using any selected displayed
+domain and no domain join. The final theorem has only ordinary source typing,
+canonical Eq and definition soundness as premises: it retains the caller's
+assigned Pi in an explicit identity wrapper, derives all domain-sort and native
+certificates, and gives a sort-typed source, two stage-one branches, and two
+stage-one paths to an explicit common reduct.
+
+This separates the positive observed case from the prior standalone-function
+necessity result. It does not solve the competing branch that contracts the
+caller's wrapper before the repair. Existing domain-guard loss examples rule
+out transferring the same guard blindly; the broader mixed-history repair is
+still open. No universal stage-one or type-only confluence is claimed.
+
+Validation: 802 isolated jobs; 4 audited roots; maximum closure
+11,456; 777 frozen import/source hashes. Types, opaque bodies, inductive
+constructors and recursor RHSs traversed. Only propext, Classical.choice and
+Quot.sound; no forbidden dependencies or own warnings.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+Neither a canonical-Eq counterexample nor a genuinely smaller sufficient
+obligation is established. Executable unchanged; no PR extraction, no agent
+coordination. GOAL.md remains active, with mixed caller-history forks as the
+next unresolved case rather than the now-checked retained-caller peak.
