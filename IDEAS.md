@@ -12946,3 +12946,30 @@ joining those selected histories remain open. This is not a sufficient strictly
 smaller strengthening obligation; the strictly weaker comparison here concerns
 only the two declaration-alignment conditions. GOAL.md remains open and PR
 extraction remains deferred.
+
+
+### 2026-11-05 09:21:33 UTC — Join selected histories from their stored constant type
+
+**Verdict: the pre-checkpoint branching gap is closed conditionally on
+TypeForkJoin, without any family-header alignment assumption.** The new
+selected-supply induction compares two actual histories, retaining every
+conversion before, between and after applications. Their ordinarily typed Pi
+exposures join; Pi readout and type-instantiation joining compare the codomains
+under their respective binder contexts. Ordinary argument typing suffices.
+Neither argument native certificates nor normalization is required.
+
+Every native constant-head history computes from its fixed stored type, so the
+induction covers all selected native outputs of the same computed constant
+spine. Separately, replaying arguments one at a time supplies an exact raw
+constructor family guard, even when the whole constructor term is a proof.
+These results join any selected constructor output to the original family,
+and transfer a pivot's original-family recovery to a common native output.
+The registered constructor may have arbitrary independently computed parameters
+and fields. No literal, directed, or common family-header premise remains.
+
+This replaces the preceding conditional checkpoint route for **common-output
+transfer**, not for exact-output ancestry. TypeForkJoin itself is still an
+open premise. Its uses here include forks at realized intermediate types;
+no decreasing measure justifies those uses in a prospective proof of
+TypeForkJoin. Thus this is checked conditional progress, not a new sufficient
+strictly smaller obligation, a confluence proof, or GOAL.md completion.

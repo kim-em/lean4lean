@@ -25777,3 +25777,51 @@ types, opaque values, constructors and recursor RHSs; maximum closure
 and stayed stable. Only propext/Classical.choice/Quot.sound; no forbidden
 dependency, sorry, or own-module warning. Artifacts
 `/dev/shm/common-header-checkpoint-*`.
+
+
+### 2026-11-05 09:21:33 UTC — All selected constant-spine histories join under type-fork joining
+
+Added `ProofErasureSelectedSupplyJoining.lean` and
+`ProofErasureConstantNativeJoining.lean`. The first proves that computations
+from already joined typed types remain joined under TypeForkJoin, then compares
+instantiated codomains of joined Pi types with different written domains.
+Pi-origin readout exposes a common raw codomain while retaining both original
+binder contexts. Type-instantiation joining supplies two joins; realization
+of the shared codomain supplies the typed middle fork needed to compose them.
+
+The main selected-supply induction follows both histories through all their
+Pi exposures, argument applications and final conversions. Whole-spine typing
+recovers each argument's ordinary domain; realization of its independent
+computation preserves whole-spine typing. Pi-assignment uniqueness types the
+same realized argument at the other selected domain. No native argument
+hypothesis, fixed checkpoint, or equal written binder annotation is used.
+Constant-head native inversion then prefixes both histories with their actual
+stored-type computations, giving common-output coherence for every selected
+native output of one raw computed constant spine.
+
+The second module also realizes independent argument computations without
+requiring that the entire application survive proof erasure. The registered
+constructor walk consequently supplies an exact raw native family guard even
+for proof-valued constructors. Joining this guard with an arbitrary selected
+constructor output, then lifting the original parameter computations, joins
+that output to the original family. A pivot's native original-family recovery
+converts to the shared result. These constructor theorems need registration,
+zero indices, actual total arity and ordinary whole-spine typing, but no
+LiteralStructureFamilyHeader, ComputedStructureFamilyHeader or
+CommonStructureFamilyHeader assumption. Parameters and fields may both compute.
+
+The preceding pre-checkpoint gap is therefore handled under TypeForkJoin.
+This is a conditional common-output result, not unconditional exact ancestry.
+TypeForkJoin remains unproved; its recursive-looking uses are not backed by a
+well-founded measure, so these theorems cannot simply be substituted into a
+proof of that hypothesis. Canonical-Eq strengthening, strict-smallness and
+GOAL.md remain open. Original weakN_iff sorry and executable unchanged;
+PR extraction remains deferred. Independent working files were preserved and
+were not used as dependencies.
+
+Validation: 847-job isolated build, all eight public roots audited through
+types, opaque values, constructors and recursor RHSs; maximum closure
+11,513. All 822 source hashes matched own source or frozen committed
+dependencies and stayed stable. Only propext/Classical.choice/Quot.sound;
+no forbidden dependency, sorry, or own-module warning. Artifacts
+`/dev/shm/selected-supply-joining-*`.
