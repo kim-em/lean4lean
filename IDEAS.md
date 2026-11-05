@@ -12228,3 +12228,38 @@ hashes match own source and frozen committed dependencies. Only allowed axioms,
 no forbidden dependency, sorry, or audited-module warnings. Artifacts
 /tmp/carrier-caller-domain-transfer-boundary-*. Independent committed unary
 literal-history coverage was preserved; it is not imported by this change.
+
+
+### 2026-11-05 06:51:16 UTC — Preserve hidden Pi observations through argument supply
+
+**Verdict: exact binary native family ancestry proved, including opaque
+intermediate residuals.** The earlier normalization problem can be bypassed
+at two arguments. Retain the typed control observation of the inner Pi instead
+of contracting its wrappers. `ControlObservation.Obs.subst_lower` transports
+that observation through arbitrary ordinary lower-context substitution while
+transforming its marked payload. Temporary control variables stay fixed; no
+native-image certificate or substitution of computation paths is assumed.
+
+The payload records a native unary family and its lambda computation.
+`reified_unary_pi_payload_inst` establishes its substitution case by running
+component computations under the original outer binder, then supplying the
+argument to the whole reified family. Certificate descent and the literal
+family conversion theorem close subsequent payload component computation.
+`NativeFamilyPiHistory.inner_inst_selected_pi` can therefore run the exact
+post-substitution computation from the still-opaque residual to its selected Pi.
+`native_binary_application_origin` applies this to any native recovery of
+`app (app f imageX) imageZ`, and reaches its exact final selected output from
+`g x z`. Both argument images may compute independently; neither needs native
+recovery. The initial term head's fixed type-origin property remains explicit.
+
+This removes the hidden-checkpoint obstruction for two arguments without proving
+literal-history coverage or an unrestricted beta-strip law. The next live step
+is a recursive payload observation for arbitrary remaining telescope length.
+The present unary payload is insufficient for that induction because a newly
+exposed Pi may itself retain an opaque codomain with more binders. General
+ancestry, arbitrary family-header alignment, type-fork joining, and strengthening
+remain open; no strictly smaller sufficient obligation is claimed.
+
+Validation: 790 build jobs, seven public roots, maximum closure 11,386,
+765 unchanged committed/own source hashes; only allowed axioms, no forbidden
+dependency or own-module warning. Artifacts `/dev/shm/pi-history-observation-*`.

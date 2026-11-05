@@ -24960,3 +24960,46 @@ hashes match own source and frozen committed dependencies. Only allowed axioms,
 no forbidden dependency, sorry, or audited-module warnings. Artifacts
 /tmp/carrier-caller-domain-transfer-boundary-*. Independent committed unary
 literal-history coverage was preserved; it is not imported by this change.
+
+
+### 2026-11-05 06:51:16 UTC — Exact native ancestry across a hidden intermediate Pi
+
+`ProofErasurePiHistoryObservation` closes the two-argument case of the
+interleaved native-history problem. Starting with a reified family `g` over
+`[A,B]` and body `C`, every native selected output of
+`app (app f imageX) imageZ` is reached by computation from `g x z`, assuming
+the original head `f` retains the fixed origin `Pi A (Pi B C)`. Arguments `x`
+and `z` have ordinary dependent typings and independent computation paths to
+the two images. No argument-native premises occur. The native derivation may
+convert arbitrarily before, between, and after its two applications. In
+particular the intermediate codomain need not be a literal Pi.
+
+The proof inverts both native applications, retaining all conversion tails.
+Pi-component origin gives the pre-substitution inner-Pi computation. Its typed
+control observation carries the original Pi payload through arbitrary wrapper
+and control-function computations. The new `Obs.subst_lower` transforms that
+payload when an ordinary argument is supplied, leaving temporary controls
+unchanged. Each resulting payload contains a unary native family with a path
+to its matching lambda; that certificate is obtained by running the generic
+component histories before applying the original whole family. No computation
+substitution theorem is used. Further component computation descends temporary
+control binders and advances the retained family state. The observation then
+runs the selected middle conversion from its actual opaque source and exposes
+the required unary family at its literal Pi endpoint. Ordinary argument
+realization, dependent typing conversion, and the preserved final tail finish
+the exact output ancestry proof.
+
+This establishes a new way around the beta-readout fork for two arguments.
+It does not establish general literal-history coverage, unrestricted beta
+stripping, or arbitrary-arity family ancestry. Extending the observation with
+recursive payloads for the remaining telescope is the next unrefuted step.
+The original strengthening goal remains open: no proof, canonical-Eq
+counterexample, or strictly smaller sufficient obligation is claimed here.
+The executable and original weakN_iff sorry are unchanged; no PR extraction.
+
+Validation: 790-job isolated build; all seven public roots audited through
+transitive types, values including opaque values, constructors and recursor RHSs;
+maximum closure 11,386. All 765 source hashes matched own source or frozen
+committed dependencies and remained stable. Only propext/Classical.choice/Quot.sound;
+no forbidden dependencies, sorry, or own-module warnings. Artifacts
+`/dev/shm/pi-history-observation-*`.
