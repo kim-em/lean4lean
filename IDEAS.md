@@ -10869,3 +10869,49 @@ Classical.choice and Quot.sound, no configured forbidden dependencies or sorry
 sources, and no new-module warnings. All 782 closure source hashes were stable
 and byte-identical to isolated copies. Artifacts /tmp/carrier-data-domain-chain-*.
 Executable unchanged; independent work preserved; no coordination; GOAL.md active.
+
+
+## Generic declaration-domain comparisons suffice at all literal occurrences (2026-11-05)
+
+Verdict: the new data-domain premise can be supplied once per data slot in the
+closed declaration's generic field context, instead of separately at every
+actual parameter/field instance. This is a finite collection for a fixed layout
+and universe instance; the generic computational comparisons remain open.
+
+SingletonGenericDataDomainChains names those comparisons. Their left sides are
+the declared index domains instantiated at generic parameters and constructor
+indices; their right sides are the field domains at the preceding literal field
+variables. singleton_generic_data_domains_defeq proves the corresponding
+ordinary equalities without assuming any computation chains. The generic index
+and field declarations type the same literal field variable, so ordinary type
+uniqueness gives the equality at the specified field universe.
+
+SingletonGenericDataDomainChains.specialize uses typed simultaneous substitution
+to supply SingletonLiteralDataDomainChains at any actual typed field instance.
+Closed-template composition, generic parameter specialization and finite variable
+range specialization give the exact endpoints. The ordinary substitution needs
+no native image recovery or type-fork joining. family_chain combines this with
+the preceding dependent reconstruction theorem for any major proof at the
+literal constructor indices.
+
+Remaining scope: constructing these generic domain chains is still an open
+computational completeness problem. Proving ordinary domain equality, as done
+here, does not solve it. The general singleton stored-equation trace also needs
+prefix coverage beyond literal occurrences. Full-union TypeForkJoin and the
+original strengthening theorem remain open. No strict-smaller/sufficient-goal
+claim is made. Inspection of the existing lambda-origin observer also confirms
+that an unrestricted native-output readout cannot simply be inserted: control
+frames do not retain generated-wrapper guard provenance, and the already checked
+caller-domain boundary rules out the straightforward forward-origin assertion.
+The provenance/common-reduct route remains live and unproved.
+
+Validation: one new 120-line module with four public roots, plus three roots of
+the committed beta-recovery dependency restored in the isolated checkout. The
+shared working-tree version of that dependency is being independently edited;
+it was neither reused nor staged. Isolated 809-job build; exact seven-root full
+transitive audit, maximum closure 11,344; only propext, Classical.choice and
+Quot.sound, no configured forbidden dependencies, sorry sources or audited-module
+warnings. All 784 closure hashes match isolated copies and committed dependencies
+at db693ba1 (with the one new source checked against its working copy). Artifacts
+/tmp/carrier-generic-data-domains-*. Executable unchanged; independent edits
+preserved; no coordination; GOAL.md active, not complete or blocked.
