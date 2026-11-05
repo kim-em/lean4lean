@@ -14744,3 +14744,38 @@ first-stage confluence remain separate unfinished work.
 **Evidence:** 841 isolated build jobs; 14 audited declarations; maximum
 closure 11,060; 816 frozen hashes; standard axioms only and no forbidden
 dependencies. This is supporting progress on the original goal, not completion.
+
+## 2026-11-05 21:09:14 UTC — Preserve separate record-field recipes and compare typed templates
+
+**Idea:** Move a record major's identity annotation into its fields before
+contracting the major wrapper. Keep the two dependent recipes distinct, and
+propagate inferred comparisons of earlier fields through the shared typed
+constructor telescope.
+
+**Verdict:** Checked. A stage-one projection of an identity-covered major can
+write the original major's exact projection recipe using native recovery and
+beta-only recipe conversion. Masked structure expansion consequently produces
+an annotated field vector. Independently supplied vector computations ending
+in stage-zero common comparisons suffice for record exposure. Inferred
+computed comparisons extend through typed substitutions and closed templates
+at the same stage, requiring typing only for the left image map. Applying
+this to both actual telescope instances compares dependent projection recipes
+from inferred comparisons of preceding actual fields, including proof masks.
+Exposed same-carrier endpoints also give actual typed outputs whose instances
+in any shared typed body compare at stage zero.
+
+**Limit / next:** The record assembly theorem explicitly assumes the paired
+field paths and their final comparisons. These are not discharged by the
+single-carrier induction: the left field begins at its left-major recipe,
+while the right field begins at its right-major recipe. Ordinary equality or
+an inferred recipe comparison is not a forward computation or an exact native
+certificate transfer. Investigate a paired annotation invariant with explicit
+type-comparison histories, including its function-head and context cases;
+do not silently assume the right recipe computes to the left recipe. The
+common-comparison exposure case, singleton simulation, and type-rooted
+first-stage confluence remain open. No claim of a strictly smaller sufficient
+obligation or completed strengthening.
+
+**Evidence:** 843 isolated build jobs, 10 audited declarations, maximum
+closure 11,054, 818 frozen source/import hashes. Only standard axioms;
+no forbidden dependencies or own warnings.

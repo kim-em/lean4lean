@@ -27898,3 +27898,49 @@ Completion audit: UniqueTyping.lean:94 still contains the original weakN_iff
 sorry. No canonical-Eq counterexample or genuinely strictly smaller sufficient
 obligation has been established. Executable unchanged; no PR extraction or
 agent coordination. GOAL.md remains active with its original objective.
+
+## 2026-11-05 21:09:14 UTC — Record expansion retains dependent field annotations
+
+Added ProofErasureComputedTemplateCongruence and
+ProofErasureIdentityRecordExposure. The former proves structural congruence
+for the original ComputedJointCheck in inferred mode through a shared typed
+term, typed single substitution, and closed telescope instantiation. Primitive
+renaming supplies binder scopes; no carrier resynthesis or common computation
+reduct is assumed. IdentityCarrierExposure.native_compared_outputs then yields
+actual typed outputs whose instances in a shared body compare at stage zero.
+
+The record module preserves each major's own dependent projection recipe.
+For a projected identity-wrapped major, native recovery first gives the field
+recipe at the wrapped major. Beta congruence converts that recipe to the one
+at the original major, permitting stage-one identity expansion at precisely
+that annotation before the major wrapper contracts. Masked structure eta
+therefore produces a constructor with individually annotated retained fields.
+Parameters and proof masks remain fixed. Separate field-vector computations
+to stage-zero common comparisons assemble IdentityCarrierExposure for the
+record. Those vector computations are explicit unfinished premises.
+
+A further theorem connects the template result to the exact projectionType
+recipe: inferred comparisons of preceding actual projections give inferred
+comparison of the two dependent field types. Both actual telescope instances
+are supplied. proofErase_projection_template and proofErase_instOuter justify
+the passage between raw projection images and masked actual erased captures;
+proof-valued captures are not incorrectly required to compare to raw projections.
+
+The unresolved record issue is now explicit: the same-carrier exposure IH
+expects both identity wrappers to use the left selected field type, whereas
+record expansion naturally writes a different recipe on each side. A comparison
+of these recipes does not provide a forward join or transfer a native type
+certificate. A paired annotation invariant is a live next direction, but it
+must handle different function heads and binder contexts rather than assume
+the missing alignment. Common-comparison exposure, general singleton
+simulation, and type-rooted stage-one confluence are still unfinished.
+
+Validation: 843 isolated build jobs; 10 public declarations audited
+through types, opaque bodies, constructors and recursor RHSs; maximum closure
+11,054; 818 frozen hashes. Only propext, Classical.choice, Quot.sound;
+no forbidden strengthening/coverage dependencies and no own warnings.
+
+Completion audit: the original sorry remains at UniqueTyping.lean:94. No
+canonical-Eq counterexample or genuinely strictly smaller sufficient
+obligation has been proved. Executable unchanged. No PR extraction or agent
+coordination. GOAL.md remains active with its original objective.
