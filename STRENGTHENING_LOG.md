@@ -22078,3 +22078,43 @@ audit (types, opaque values, constructors and recursor rules), maximum closure
 forbidden dependencies or new warnings. All 760 imported-source hashes remained stable.
 Artifacts /dev/shm/rigid-native-existence-*. No executable changes or PR extraction.
 The original strengthening sorry remains; the goal stays active.
+
+## Generic-variable eta in arbitrary type contexts (2026-11-05)
+
+Verdict: proved conditional contextual function and structure eta without native
+certificates for the actual substituted values. TypeInstantiationJoin remains
+an explicit open premise. This is progress toward contextual completeness, not
+a strengthening proof or a strictly smaller sufficient obligation.
+
+A fresh variable has its exact native declared type. Perform guarded eta on that
+variable, propagate the computation through a typed type context using primitive
+renaming, then apply TypeInstantiationJoin to substitute the actual value. This
+covers function eta, including proposition-valued domains, and every admissible
+registered unindexed structure expansion, including retained or erased fields
+and arbitrary dependent parameters. Proof values are handled directly by
+erasure. Unlike exact substitution transport, refuted in the preceding entry,
+this construction requests only a common reduct of the instantiated types.
+
+TypeContextJoin records these observations. Its transitivity follows from fork
+joining at typed types: the middle observation C[b] is a type even when b is data.
+Existing computational data joins lift through any typed context with no joining
+assumption, because only renaming is needed to compute substitution images.
+Equal erasures give contextual joins directly. No confluence at data terms or
+native certificate for a raw common reduct is assumed by these lemmas.
+
+Remaining boundary: these cases do not establish contextual completeness for
+ordinary equality. In particular a pointwise contextual observation of a body
+under A does not yet give a join of observations of its enclosing lambda, and
+changing a binder domain does not automatically make the same body typable under
+a generic replacement domain. Thus the straightforward equality induction still
+needs a binder-congruence argument, as well as the remaining primitive cases.
+No refutation of that route or claim that type-only fork joining is sufficient
+is made. TypeInstantiationJoin itself has not been proved or refuted.
+
+Validation: three modules, 280 lines, ten public roots including the relation
+definition. Explicit isolated 773-job build and full transitive audit, maximum
+closure 11,056; only propext, Classical.choice and Quot.sound, no configured
+forbidden dependencies or new warnings. All 748 closure source hashes remained
+stable and matched isolated copies. Artifacts /tmp/carrier-type-context-*;
+preparation /tmp/prepare-carrier-type-context.py. Executable unchanged, no
+coordination. The original strengthening sorry remains; the goal stays active.
