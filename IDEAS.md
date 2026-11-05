@@ -14304,3 +14304,49 @@ Core: seven modules, 563 lines. Complete batch: 907 isolated build jobs,
 maximum dependency closure 11,840, 882 frozen hashes. Standard axioms
 only; all configured strengthening/circular-front dependencies excluded; no own
 warnings. The goal remains open and PR extraction stays deferred.
+
+## 2026-11-05 19:02:06 UTC — Close native histories from actual alias-bearing record lookups
+
+Verdict: checked alias integration through full term/native/type histories.
+The independent FamilyPreserves law handles the record-type leaf at primitive
+roots and compatible frames. Registered constructor/value heads retain their
+previous exclusions. Every enriched stage, full compatible computation and
+selected native recovery is now proved uniformly for FamilyEvidence.
+
+TypeRealizes is parameterized by a beta-backward-closed result predicate, so
+actual stored-delta cleanup can replace pure beta cleanup without changing the
+joint native induction. rigidEvidence and aliasEvidence implement the package;
+rigid_observation_iff proves that the rigid specialization is exactly the old
+DependentRecordDemand grammar. The alias implementation discharges full
+preservation from the independent AliasDemandProfile theorem. Its readout comes
+from the already checked actual stored-core family_head, not from an assumption
+about the native derivation being analyzed.
+
+program_alias_native_head_readout and program_alias_native_assigned_join cover
+arbitrary term computation, any subsequently selected native type, its full
+conversion history, and arbitrary raw substitution. The target uses actual
+stored family metadata and a canonical unit-arrow telescope. No computational
+observation or native recovery is required for the family parameter.
+
+stored_alias_record_input derives the exact oracle valuation and unknown record
+observation from an actual lookup at an annotation computationally descended
+from a stored family alias. stored_alias_record_native_assigned_join discharges
+all observation, valuation, family-preservation and target-native premises from
+those ordinary inputs. stored_alias_not_dependent_record_observation verifies
+that the same literal stored-alias annotation lies outside the previous joint
+grammar. This is a grammar extension, not a strengthening counterexample.
+
+Boundary: the alias instance still uses Definitions.ofEnv, monomorphic
+sort-valued finite aliases, and the registered single ignored unit-arrow
+parameter family. Arbitrary source coverage and conversion completeness remain
+unproved. Next remove the actual-collection restriction by using coherent
+inclusion of stored definitions into EnvironmentCore: its quotient branch has
+ErasedQuotCore.deterministic, and its nonquotient branch has
+RegisteredStructure.definitions_ofEnv_unique. The extra equations must preserve
+actual alias bodies. Polymorphic aliases remain a separate live extension.
+None of GOAL.md's final deliverables is established by this batch.
+
+Result: six modules, 706 lines; total 13 modules, 1,269 lines. Validation:
+907 isolated jobs, 76 audited roots, maximum closure 11,840, 882 frozen
+hashes, standard axioms only, no own warnings or forbidden dependencies. Original
+sources and executable unchanged; no PRs, no coordination; goal active.

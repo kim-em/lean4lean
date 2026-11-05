@@ -27455,3 +27455,30 @@ constructors and recursor RHSs, rejecting the original strengthening sorry and
 all configured circular recovery/front interfaces. No own warnings or executable
 changes. This is an intermediate interface, not a new sufficient irreducible
 obligation. No PRs; goal active.
+
+## 2026-11-05 19:02:06 UTC — Concrete alias oracle/native join and conservative specialization
+
+Added generic registered-native/stage preservation, parametric type-only
+readout, rigid/alias implementations, and concrete actual-lookup joins (six
+modules, 706 lines). All arbitrary term/native/type histories of an observed
+record preserve its family evidence. stored_alias_record_native_assigned_join
+initializes the observer from actual lookup and stored unfolding data, leaving
+no abstract family-preservation, observation or native-coverage premise. An
+independent assigned-family path meets its arbitrary substituted native history
+at the family applied to the canonical unit-arrow argument.
+
+The old observer is exactly the rigid specialization (rigid_observation_iff),
+and stored aliases are checked to be outside the old joint grammar. The new
+interface admits the independent alias observer with its existing actual-core
+readout. No circular use of joint native induction discharges the family law.
+
+Complete batch: 1,269 Lean lines in 13 modules; 907 isolated jobs; 76 roots;
+maximum dependency closure 11,840; 882 frozen hashes; standard axioms only;
+all forbidden strengthening/front/recovery dependencies excluded; no own warnings.
+The original weakN_iff sorry and executable remain unchanged. No PR extraction.
+
+Next: generalize independent alias preservation to coherent extensions of the
+stored definition collection and instantiate EnvironmentCore determinism, then
+reuse this generic native induction unchanged. Polymorphic aliases, arbitrary
+ordinary conversion coverage and general strengthening are still open. GOAL.md
+remains active; this is verified progress, not completion of a final deliverable.
