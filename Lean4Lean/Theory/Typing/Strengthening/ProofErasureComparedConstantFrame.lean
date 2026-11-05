@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStageZeroSortExposure
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureComputedControlFrame
 
 /-! # Remove a compared constant control frame while retaining its body check
 
@@ -34,32 +34,13 @@ theorem stage_zero_compared_constant_frame
         (proofErase Γ a) (proofErase Γ (b.inst (.sort .zero))) := by
   have hP : env.HasType univs Γ (.sort .zero) (.sort (.succ .zero)) := .sort (by trivial)
   have hS : env.HasType univs Γ (.sort (.succ .zero)) (.sort (.succ (.succ .zero))) := .sort (by trivial)
-  have hΓS : OnCtx (.sort (.succ .zero) :: Γ) (env.IsType univs) := ⟨hΓ, _, hS⟩
   have EP : proofErase Γ (.sort .zero) = .sort .zero := if_neg (not_isProof_of_sort hΓ hP)
   have ES : proofErase Γ (.sort (.succ .zero)) = .sort (.succ .zero) :=
     if_neg (not_isProof_of_sort hΓ hS)
-  have RN : ScopedTypeRecovery (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ)
-      (proofErase Γ (.sort .zero)) (proofErase Γ (.sort (.succ .zero))) := by
-    rw [EP, ES]; exact .sort (by trivial)
-  have W := (Ctx.InstN.zero (Γ₀ := Γ) (e₀ := VExpr.sort .zero)
-    (A₀ := VExpr.sort (.succ .zero))).substEq hΓS hP
-  have WI : StaticStructureEtaNativeSubstitution.ImageSubstitution D 0
-      (proofEraseCtx (.sort (.succ .zero) :: Γ)) (proofEraseCtx Γ)
-      (ProofShape.Subst.one (proofErase Γ (.sort .zero))) :=
-    NativeImageTransport.ImageSubstitution.of_typed hΓ W
-      (erasedSubstAgreement_one hΓS hP) (NativeImageTransport.Images.inst RN)
-  have HC := StaticStructureEtaNativeSubstitution.check heq hs (k := 0) HB
-    hΓS (ha.weak henv) hb rfl rfl rfl WI
-  have HC' : ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ) false
-      (proofErase Γ (a.lift.inst (.sort .zero))) (proofErase Γ (b.inst (.sort .zero))) := by
-    rw [proofErase_instN hΓS hP Ctx.InstN.zero (ha.weak henv), proofErase_instN hΓS hP Ctx.InstN.zero hb]
-    simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using HC
-  have RX := stage_zero_compared_sort_returns heq hs hΓ (by trivial) hx HX
-  have EB : proofErase Γ (b.inst (.sort .zero)) =
-      (proofErase (.sort (.succ .zero) :: Γ) b).inst (.sort .zero) := by
-    rw [proofErase_instN hΓS hP Ctx.InstN.zero hb, EP]
-  refine ⟨(ScopedCompute.app .refl RX).trans (.beta ?_), ?_⟩
-  · rw [EB]; exact .beta
-  · simpa only [VExpr.inst_lift] using HC'
+  have HP : ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ) false
+      (.sort .zero) (proofErase Γ (.sort .zero)) := by rw [EP]; exact .leaf .refl
+  obtain ⟨_, R, H⟩ := computed_universe_control_frame_pair (K := .sort (.succ .zero)) (L := L)
+    heq hs hΓ (by trivial) hS (by rw [ES]; exact .refl) (ha.weak henv) hb hP hx HB HP HX
+  exact ⟨R, by simpa only [VExpr.inst_lift] using H⟩
 
 end Lean4Lean.VEnv.Strengthening

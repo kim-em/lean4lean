@@ -14887,3 +14887,36 @@ sufficient replacement for PropFront.
 shared trace constructors and recursors; maximum closure 11,337; 823
 frozen source/import hashes. Standard axioms only, no forbidden dependencies
 or own warnings.
+
+
+## 2026-11-05 21:45:01 UTC — Retain dependent control-body checks after annotation computation
+
+**Idea:** A control binder created as a universe may compute before its body
+is compared. Retain the original forward annotation history to recover the
+fixed sort argument at the changed binder, rather than requiring that binder
+to stay literally Type.
+
+**Verdict:** Proved. computed_universe_control_images derives the exact native
+substitution from sort(succ u) → erase C and actual universe/domain equality.
+The native sort typing followed by this forward computation recovers sort u
+at C. This image construction itself needs neither canonical Eq nor soundness.
+computed_universe_control_frame_pair then contracts both sort-compared control
+arguments, substitutes sort u into both dependent bodies, and retains their
+comparison at the original arbitrary finite stage and in its original mode.
+Both displayed lambda annotations are discarded by beta. The previous fixed
+Prop/Type constant-frame theorem is now a short specialization.
+
+**Remaining obstruction to the planned full extraction:** Inferred lambda
+checking stores its body premise under one domain, while symmetry can put it
+under the other domain. A mere comparison of that domain with a universe
+supplies the reverse sort-return computation, not the forward history used
+here. No impossibility theorem for full body-check extraction is claimed.
+The existing terminal-domain context transport is for the older stage-zero
+system; its import contract does not cover these constant expansions.
+Extending that transport or retaining a stronger comparison history remains
+live. No smaller sufficient strengthening obligation has been established.
+
+**Evidence:** 849 isolated build jobs; 3 public roots audited through
+types, bodies, constructors and recursor equations; maximum closure
+11,334; 824 frozen source/import hashes. Allowed axioms only and no
+forbidden dependencies or warnings in the changed modules.

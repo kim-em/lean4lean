@@ -28101,3 +28101,55 @@ Completion audit: UniqueTyping.lean:94 still contains the original weakN_iff
 sorry. No canonical-Eq counterexample or genuinely strictly smaller sufficient
 obligation is proved. Executable unchanged; no PR extraction or coordination.
 GOAL.md remains active with its original objective.
+
+
+## 2026-11-05 21:45:01 UTC — Paired control contraction with computed binder history
+
+Previous goal turn: progress, committed and pushed as 8c5da869. The current
+worktree and the comparison constructors were inspected before continuing.
+
+The attempted general body-comparison extraction must account for both
+computation and symmetry. Inferred lambda comparison places its body check
+under the selected left domain; symmetry swaps which annotation owns that
+context. Constant expansion and compatible computation also change the
+annotation before the subcheck. The earlier fixed-Type contraction result
+therefore cannot be applied to every body premise directly.
+
+The computation case now has a checked repair. Given an actual domain C equal
+to sort(succ u) and its forward stage-zero computation from that universe,
+computed_universe_control_images converts native typing of sort u along the
+stored path. The resulting exact image substitution interprets the actual
+sort at C. The construction does not need canonical Eq or definition soundness.
+
+computed_universe_control_frame_pair uses that substitution to transport a
+supplied body comparison at any finite stage without increasing the stage.
+The common body type may depend on the control variable. Both independently
+compared sort-typed arguments return at stage zero to the original sort u;
+those computations lift to the body's stage, and beta contracts both frames.
+The conclusion includes both exact contractum computations and their original
+mode comparison. Lambda annotations K and L are unrestricted because beta
+discards them. The old fixed Prop/Type theorem now specializes this construction,
+removing its duplicated native-substitution proof.
+
+Still open: deriving the body-check premise through arbitrary computed
+function comparison. In particular, comparison alone supplies the reverse
+path from a compared binder to its universe, whereas the new substitution
+uses a forward path from the universe. Symmetry need not retain such a path.
+The older terminal-domain context theorem was inspected; it concerns the
+older primitive-only stage zero and cannot simply be applied to the expansion
+base. Extending terminal-domain transport remains a possible next route.
+No counterexample to full extraction or confluence is claimed.
+
+Validation: 849 isolated build jobs; all 3 public roots audited through
+declaration types, opaque bodies, inductive constructors and recursor RHSs;
+maximum closure 11,334; 824 frozen source/import hashes unchanged.
+Only propext, Classical.choice and Quot.sound; no forbidden dependencies or
+warnings in either changed module. The first specialization build exposed a
+missing explicit erasure rewrite for Type; that rewrite was added and the
+final build and audit succeeded.
+
+Completion audit: the original weakN_iff sorry remains in UniqueTyping.lean:94.
+Full paired exposure, singleton simulation and type-rooted stage-one confluence
+remain open. No canonical-Eq counterexample or genuinely strictly smaller
+sufficient obligation is proved. Executable unchanged; no PR extraction or
+coordination. GOAL.md remains active with its original objective.
