@@ -23433,3 +23433,43 @@ and no new-module warnings. All 769 local source hashes remained stable during
 validation and were checked against committed dependencies before staging.
 Artifacts /dev/shm/lambda-wrapper-*. Executable unchanged, independent work
 preserved, no coordination or PR extraction. GOAL.md remains active.
+
+## 2026-11-05 — Strong derivations retain computational application typing
+
+Verdict: checked progress, not a completed strengthening proof or a strictly
+smaller sufficient obligation. Five new modules recover information discarded
+by the earlier term-chain completeness induction. HasTypeC records structural
+constant/application typings and requires computation chains at every assignment
+conversion; other syntax may retain ordinary typing. Strong equality induction
+simultaneously constructs term chains and HasTypeC certificates for both actual
+endpoints. The sole explicit pattern premise, ComputationallyTypedPatternClosure,
+now receives those certificates as well as the realized checked chains. No
+TypeForkJoin premise is needed for this simultaneous induction. Neither ordinary
+type uniqueness nor arbitrary ordinary typings are silently treated as chains.
+
+TypedComputationEq.of_join realizes two raw paths to a shared erased endpoint
+and reflects equality of the actual representatives. Under TypeForkJoin, full-
+union Pi readout then gives computational Pi injectivity: the codomain comparison
+stays under the original left binder, using actual context transport. HasTypeC
+application and constant inversion retain their type chains. Telescope inversion
+uses this Pi injectivity and typed substitution to compare declared result types
+with actual assignments; major_join supplies the actual recursor major's
+certificate and a chain from its instantiated declared domain.
+
+Remaining: full-union rigid family argument readout must extract individual
+computational index comparisons from the family-type chain. The existing rigid
+observer preserves only head and arity. Constructor normalization and generic
+data-domain equations also still need chains from earlier environment history.
+The general data-indexed ComputationallyTypedPatternClosure is not established,
+and TypeForkJoin itself remains open. The new induction prevents throwing away
+available smaller-derivation evidence; it does not discharge these obligations.
+
+Validation: isolated build completed 804 jobs; all 39 public roots, including
+HasTypeC constructors, generated below declarations, recursors and matcher,
+passed full transitive type/opaque-value/recursor-RHS audit (maximum closure
+11,552). Only propext, Classical.choice and Quot.sound; no sorry or configured
+forbidden dependencies, no audited-module warnings. All 779 closure source hashes
+remained stable, matched isolated copies and, except these five new modules,
+matched committed dependencies. Artifacts: /tmp/carrier-computational-typing-*.
+Executable unchanged. Independent committed wrapper-history work preserved and
+not used by these modules. GOAL.md remains active.

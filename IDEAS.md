@@ -11061,3 +11061,16 @@ and no new-module warnings. All 769 local source hashes remained stable during
 validation and were checked against committed dependencies before staging.
 Artifacts /dev/shm/lambda-wrapper-*. Executable unchanged, independent work
 preserved, no coordination or PR extraction. GOAL.md remains active.
+
+### Strong-derivation computational typing — checked progress, open
+
+Retain structural constant/application certificates together with term chains
+in the IsDefEqStrong induction. Conversion subderivations supply actual chains;
+the pattern obligation receives the resulting certificates for source and
+reduct. This avoids asking arbitrary ordinary typings to expose computational
+conversions. Five modules now check: raw join realization, Pi chain injectivity
+under TypeForkJoin, HasTypeC inversion, simultaneous strong induction, and
+computational telescope/major inversion. Remaining: rigid family argument
+readout, earlier-environment chains for declaration normalization and generic
+data domains, and TypeForkJoin. No strictly smaller sufficient obligation is
+claimed; the original strengthening sorry is unchanged.
