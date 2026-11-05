@@ -13038,3 +13038,36 @@ observer must not be promoted to such a theorem. The general case still needs
 full computational joining or another invariant permitting structural residuals;
 TypeInstantiationJoin, TypeForkJoin and strengthening remain open. No sufficient
 strictly smaller obligation or GOAL.md completion is claimed.
+
+
+### 2026-11-05 10:12:43 UTC — Structural terminal observations close the demanded-unit fragment
+
+**Verdict: complete continuation joining is proved for a demanded unit data
+argument, including a type-valued beta cut with a converted annotation.** The
+old atomic observation excluded structure expansion and could only preserve
+a variable. Adding the registered empty constructor as an atomic leaf allows
+the value to change structurally. Ordinary type uniqueness forces every
+structure guard at this profile to select the same nullary family, empty
+parameter vector, and empty universe instance. Sort and arrow profiles still
+exclude structure guards.
+
+The operational interpretation distinguishes atomic leaves from type-valued
+family results. Every full-union continuation of a unit variable beta-reads
+that variable or its constructor; every continuation of F x beta-reads F x or
+F constructor. Source lookup provides the one remaining structural step.
+Therefore arbitrary continuations of F x and F y meet at F constructor, not
+merely the two initial unit-eta steps. The actual environment core supplies
+constructor rigidity automatically. The same result holds for the entire
+beta cut `(lambda z : L, F z) x` when L is ordinarily equal to the unit family;
+there is no directed annotation-alignment or native lambda premise.
+
+This validates structural residuals in a demanded-data case beyond the
+previous type-payload and discarded-input results. It does NOT prove the
+unrestricted beta strip: the argument here is a looked-up inhabitant of a
+closed positive family with no parameters, indices, fields or universes, and
+the caller is a neutral variable returning a sort. In particular the existing
+generic-family instantiation counterexample has a different argument type and
+cannot be instantiated into this theorem. Extending the invariant to structure
+fields, arbitrary dependent types and dynamically selected caller histories
+remains open. HJ/HF and their sufficiency or strict-smallness questions remain
+as recorded previously; canonical-Eq strengthening is not solved.

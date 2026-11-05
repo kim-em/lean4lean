@@ -25929,3 +25929,54 @@ The audit additionally rejects TypeInstantiationJoin, TypeForkJoin,
 StaticStructureCommonCoverage and StaticStructureTypeConversionJoin.
 Only propext/Classical.choice/Quot.sound; no forbidden dependency, sorry or
 own-module warning. Artifacts `/dev/shm/dependent-payload-*`.
+
+
+### 2026-11-05 10:12:43 UTC — Full continuation return for demanded unit arguments
+
+Added four modules. `ProofErasureAtomicUnitObservation.lean` extends the
+existing atomic control typing and finite demands with one terminal nullary
+constructor. Ordinary interpreted substitution and context conversion preserve
+the observer, including beta, identity/constant wrappers and native function
+eta. A typed operational interpretation assigns different leaf predicates to
+atomic values and sort-typed results; it reads whole programs after arbitrary
+substitution of their demanded variables.
+
+`ProofErasureAtomicUnitTransport.lean` proves the new structural branch:
+replay the native guard, identify the nullary family by actual head
+injectivity, identify its registered entry, and force the selected universe
+list to be empty using the typed original family. With zero fields the raw
+output is the fixed constructor. Sort/arrow control assignments rule out
+structure expansion. Constructor rigidity excludes opaque primitives on the
+terminal leaf. Root preservation extends through arbitrary compatible paths,
+including annotation changes in temporary binders. No stage bound, common
+native output or type-fork hypothesis is imposed on those paths.
+
+`ProofErasureAtomicUnitReadout.lean` gives two-way pure-beta readouts for a
+unit variable and a neutral type-family application, and for an entire beta
+cut applying that family to its demanded input. The latter permits an ordinary
+converted written binder annotation. `ProofErasureAtomicUnitReturn.lean`
+constructs the final structural step directly from actual source lookup and
+proves that every such output computes to the same constructor/application.
+Two independent complete continuations of F x and F y join at F constructor.
+The beta-cut specialization derives all control witnesses from actual ordinary
+typings and a domain equality; native recovery of the lambda is not a premise.
+The environment-core specialization discharges the declaration exclusion.
+
+The earlier unit-eta repair only exhibited a common immediate output. This
+result additionally absorbs all subsequent computation on either branch and
+arbitrary interleaving around a demanded-data beta cut. It is still a fragment:
+closed positive nullary unit family, looked-up unit argument, neutral caller
+returning a sort. It neither proves the general dependent strip nor refutes
+the checked universal pure-beta obstruction. The next difficulty is retaining
+structural field/parameter histories and dependent caller outputs without
+assuming global type joining. GOAL.md remains open. Original sorry and
+executable unchanged; PR extraction deferred. Independent files preserved.
+
+Validation: 759-job isolated build; all public declarations and observation
+constructors/recursors audited through types, opaque values, constructor
+arguments and recursor RHSs; maximum closure 11,453. The audit also
+rejects TypeInstantiationJoin, TypeForkJoin, StaticStructureCommonCoverage and
+StaticStructureTypeConversionJoin, in addition to the standard forbidden
+dependencies. Only propext/Classical.choice/Quot.sound; no sorry or own-module
+warning. Source/import stability and root counts are recorded in
+`/dev/shm/atomic-unit-validation.json` and `/dev/shm/atomic-unit-sync.json`.
