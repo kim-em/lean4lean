@@ -10660,3 +10660,57 @@ sorry sources or audited-module warnings. All 780 closure source hashes stayed
 stable and were byte-identical to isolated copies. Artifacts:
 /tmp/carrier-proof-index-equation-*. Independent work preserved; executable
 unchanged; no coordination; goal active, not complete or blocked.
+
+
+## Native cut provenance gives head-beta/expansion residuals (2026-11-05 01:51:58 UTC)
+
+Verdict: proved exact native recovery preservation through finite certified
+head-beta computations, then used it to construct commuting residuals with
+function eta, masked structure eta and native identity expansion. This is a
+positive case of the beta/eta joining problem identified by the preceding
+identity-peak obstruction. It uses the full static structure/function-eta
+union, without assuming TypeForkJoin or core-joinability of its guard paths.
+
+NativeHeadBeta retains actual domain, body and argument typings at each beta
+cut. A retained argument must natively recover the cut's written domain; proof
+arguments need no recovery. The relation includes function-position computation
+and composition, so beta may create later redexes or expose a lambda by
+substituting into a variable. beta_path forgets the certificates. recovery
+preserves every selected native output exactly across the whole head path,
+using the existing root-beta recovery theorem at cuts and application inversion
+in function positions. It does not normalize bodies or substituted arguments.
+
+Every actual native identity expansion reconstructs a typed wrapper with a
+NativeHeadBeta contraction, at the source's original assigned type. Its own
+generated guard supplies the cut certificate, so no new coverage assumption is
+needed for that construction. This is the relevant difference from a wrapper
+whose annotation was selected by arbitrary ordinary type conversion.
+
+eta_residual, identity_residual and structure_residual retain the originally
+selected native type at the computed source. They rebuild the same expansion
+there, and a beta-only residual from the old expansion reaches it. Structure
+parameters, universe instance and static proof-field mask stay fixed. If the
+head path exposes a literal lambda, lambda_domain additionally constructs a
+forward computation from its written annotation to the old selected Pi domain;
+eta_square joins by changing just that annotation on the short branch and using
+only beta on the long branch, retaining the original body exactly.
+
+Scope: this is not arbitrary beta stability or a native coverage theorem.
+Changing an application argument can change the initially recovered codomain;
+joining that changed type with a later conversion is still a type fork.
+Preservation of cut certificates through arbitrary compatible computations and
+unrestricted head-beta coverage remain open. The earlier core obstruction is
+not contradicted: cut certificates here may themselves require eta at later
+stages. Next track generated-wrapper provenance through those compatible paths,
+with explicit residuals on selected types instead of assuming exact recovery.
+No strictly smaller sufficient strengthening obligation, canonical-Eq proof or
+counterexample is claimed. The original weakN_iff sorry remains; goal active.
+
+Validation: one new module; 17 audit roots including every constructor and the
+recursor interfaces; isolated 772-job build; full transitive audit of types,
+opaque values, constructors and recursor RHS (maximum 11,365). Only
+propext, Classical.choice and Quot.sound; no configured forbidden dependencies,
+sorry sources or new-module warnings. All 747 local dependency source hashes
+stayed stable and are checked against committed sources before committing.
+Artifacts /dev/shm/native-head-beta-*. Independent work preserved; executable
+unchanged; no coordination or PR extraction.
