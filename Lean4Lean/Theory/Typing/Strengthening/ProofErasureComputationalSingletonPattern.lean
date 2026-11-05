@@ -24,11 +24,16 @@ def SingletonDeclarationChains (D : PureObservation.Definitions) : Prop :=
 /-- A structurally certified actual singleton pattern has a computation chain
 for arbitrary dependent data indices. Type-fork joining, earlier declaration
 chains and the generic layout's data-domain chains remain explicit premises. -/
-theorem TypedComputationEq.computational_singleton_pattern
+theorem TypedComputationEq.computational_singleton_pattern_of_stage
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs) (HF : TypeForkJoin D)
     (hRigid : ∀ c, env.Rigid c → ∀ levels rhs, ¬ D.unfolds c levels rhs)
     (hregistry : recursorData = env.recursorRegistry)
-    (HN : SingletonDeclarationChains D)
+    (HN : ∀ {decl env₀ env₁ rec}, RecursorRegisteredAt env data decl env₀ env₁ →
+      env₀ ∈ env.stages → rec ∈ decl.recs → rec.name = p.headConst →
+      ∀ {base E : VEnv}, base ≤ env₀ → base.addConstVals decl.typeConstants = some E →
+        ∀ {A B : VExpr}, E.IsDefEqU decl.uvars [] A B → ∀ {Γ' : List VExpr} {cls : List VLevel},
+          OnCtx Γ' (env.IsType univs) → (∀ l ∈ cls, l.WF univs) → cls.length = decl.uvars →
+          TypedComputationEqU D Γ' (A.instL cls) (B.instL cls))
     (hΓ : OnCtx Γ (env.IsType univs)) (hp : env.pats p r)
     (hreg : env.recursorRegistry p.headConst = some data)
     (hlarge : data.largeTarget = true)
@@ -41,7 +46,7 @@ theorem TypedComputationEq.computational_singleton_pattern
     TypedComputationEq D Γ t (r.1.apply m1 m2) T := by
   have ht := hJ.hasType
   have hentry := recursorRegistry_entry hreg
-  obtain ⟨decl, env₀, env₁, rec, hAt, _, hrec, _, hdname, _, covers⟩ := hentry
+  obtain ⟨decl, env₀, env₁, rec, hAt, hstage, hrec, hrname, hdname, _, covers⟩ := hentry
   obtain ⟨index, equation, ru, howner, hgen, hru, hof, hc, e, he⟩ := covers p r hp rfl
   subst e
   have he' : r = _ := he
@@ -77,7 +82,27 @@ theorem TypedComputationEq.computational_singleton_pattern
   rw [hrhs] at hr ⊢
   have HR := HE.symm.mkApps_fn hΓ hr
   have HA := singletonInstance_alignC heq hs HF hRigid hΓ hAt hdn.symm hrec hru hgen hof
-    hlarge hzero h1 h2 ht hJ HR.defeq.hasType.2 (HN hAt)
+    hlarge hzero h1 h2 ht hJ HR.defeq.hasType.2 (HN hAt hstage hrec hrname)
   exact (HA.at_source_type hΓ ht).trans HR.symm
+
+/-- Uniform declaration chains specialize to the selected installation stage.
+The stage-specific version above permits induction on the actual rule history. -/
+theorem TypedComputationEq.computational_singleton_pattern
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs) (HF : TypeForkJoin D)
+    (hRigid : ∀ c, env.Rigid c → ∀ levels rhs, ¬ D.unfolds c levels rhs)
+    (hregistry : recursorData = env.recursorRegistry)
+    (HN : SingletonDeclarationChains D)
+    (hΓ : OnCtx Γ (env.IsType univs)) (hp : env.pats p r)
+    (hreg : env.recursorRegistry p.headConst = some data)
+    (hlarge : data.largeTarget = true)
+    (hzero : (data.schema.sourceLevel data.owner data.levels).inst m1 ≈ .zero)
+    (HD : (∀ l ∈ m1, l.WF univs) → m1.length = data.uvars →
+      ∀ S E, data.singletonLayout env m1 = some S → data.propElim m1 = some E →
+      SingletonGenericDataDomainChains D S (data.propParams m1) E)
+    (hm : p.Matches t m1 m2) (hJ : HasTypeC D Γ t T)
+    (hr : env.HasType univs Γ (r.1.apply m1 m2) T) :
+    TypedComputationEq D Γ t (r.1.apply m1 m2) T := by
+  exact TypedComputationEq.computational_singleton_pattern_of_stage heq hs HF hRigid hregistry
+    (fun hAt _ _ _ => HN hAt) hΓ hp hreg hlarge hzero HD hm hJ hr
 
 end Lean4Lean.VEnv.Strengthening

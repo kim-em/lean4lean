@@ -11296,3 +11296,24 @@ transitive audit maximum closure 11,650; only allowed axioms, no forbidden
 dependencies or task-module warnings; 789 stable local source hashes, checked
 against own sources and committed dependencies at staging. Artifacts
 /dev/shm/cut-spine-*.
+
+### 2026-11-05 — Discharge declaration chains by actual stage induction
+
+**Verdict: earlier declaration-chain assumption removed from integrated completeness.**
+`computational_typing_of_strong_earlier` interprets an earlier environment's
+strong derivations directly in ambient chains and computational typings, with
+coverage only for its pattern registry. The type-former extension preserves
+that registry. `computational_pattern_closure_of_history` uses the chosen
+installation history and strict stage rank to supply the declaration chains
+needed by the stage-specific actual singleton theorem.
+
+`computational_typing_of_history` now assumes TypeForkJoin and
+RegisteredSingletonDomainChains, not SingletonDeclarationChains. Those two
+assumptions and the original strengthening problem remain open; no strict
+reduction claim. Next: generic index typing can be extracted from formation
+of the recursor type before its rules are installed, then interpreted using
+the same earlier-registry induction.
+
+Validation: five-module integration build (851 jobs), 18 public/generated
+roots, maximum closure 12,633, 826 stable source hashes, only allowed axioms,
+no forbidden dependencies or task-module warnings.

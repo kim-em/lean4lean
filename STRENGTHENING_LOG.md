@@ -23939,3 +23939,36 @@ forbidden dependencies or task-module warnings. All 789 imported local sources
 remained hash-stable and were rechecked against the staging HEAD (own edits read
 from the working tree). Executable files unchanged. /dev/shm/cut-spine-* contains
 the source manifests, audit, logs and validation record.
+
+### 2026-11-05 — Earlier declaration chains are supplied by history
+
+Added ProofErasureComputationalStageTyping, ProofErasureComputationalStageChains
+and ProofErasureComputationalHistory. The earlier strong interpreter constructs
+all chains in the ambient environment, carrying ordinary premises by environment
+monotonicity; it does not assume erased-step transport between environments.
+The type-former stage is well formed and retains the earlier pattern registry.
+Closed declaration equations specialize and weaken as actual chains.
+
+Refactored the actual singleton theorem to expose a stage-specific callback
+that also receives the installed recursor and head name, retaining the original
+uniform theorem as a wrapper. This permits the checked strict rank induction
+over the chosen history. The resulting `computational_typing_of_history`
+produces chains and both endpoint HasTypeC certificates from ordinary equality
+under TypeForkJoin and RegisteredSingletonDomainChains. No earlier declaration
+completeness premise remains in this result.
+
+Remaining: generic data-domain chains and TypeForkJoin. A concrete next route
+is to extract ordinary generic constructor-index telescope typing directly from
+well-formedness of the generated recursor type in the environment before its
+rules are installed, then apply the earlier strong interpreter and the existing
+computational-index-to-domain-chain theorem. The normalized family telescope
+is deliberately not definitionally tied to the source family header, so that
+shortcut must not be assumed. No completed strengthening proof, counterexample
+or strictly smaller sufficient obligation is claimed. GOAL.md remains active.
+
+Validation: five-module integration build, 851 jobs, 18 roots including all
+generated declarations under public roots. Full transitive audit maximum
+closure 12,633; only propext/Classical.choice/Quot.sound, no sorry or configured
+forbidden dependency; no task-module warnings. All 826 closure hashes stable,
+isolated copies identical and non-task dependencies committed. Artifacts
+/tmp/carrier-computational-stage-*. Original sorry and executable unchanged.
