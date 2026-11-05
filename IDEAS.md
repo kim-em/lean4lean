@@ -13109,3 +13109,30 @@ For arbitrary bodies the new result is an instantiation/component square;
 it does not absorb unrestricted continuations after its contracta. General HJ,
 HF, their unresolved strict-smallness/sufficiency questions as previously
 recorded, and canonical-Eq strengthening remain open. No GOAL.md completion.
+
+
+### 2026-11-05 10:37:36 UTC — Can more constructor computation align retained parameters exactly?
+
+Verdict: **refuted, even for a positive saturated fieldless constructor**.
+`computed_native_recovery_no_inserted_argument` composes source-computation
+and native-recovery descent, allowing two different descending languages.
+A term typed below an insertion cannot reach any image that natively recovers
+a retained type argument naming the inserted binder. This is an obstruction
+to eventual exact recovery, not just recovery at the original source.
+
+`constructor_retained_parameter_no_exact_pivot` instantiates it with a
+registered positive phantom family Tag over a positive closed unit S. In
+context q:S,p:S, mk p has assigned type Tag q by unit equality, but no future
+computed image recovers that exact assignment. The source is already the
+literal constructor, with one retained parameter and no fields or indices.
+Its native type Tag p and assigned type Tag q still compute to Tag unitCtor.
+`exists_registered_constructor_without_exact_pivot` constructs the actual
+projection-stage extension of any canonical-Eq WF base carrying S, using two
+fresh names. Canonical Eq persists. The positive registration helper checks
+actual declarations and all source-parameter/raw-constructor obligations.
+
+Thus the proof-parameter restriction in e1e230e6 cannot simply be deleted by
+waiting for a later exactly recoverable constructor image. Keep common native
+type joining as the candidate invariant; transport of dependent bodies and
+arbitrary continuations through such common types remains unresolved. This
+is neither a strengthening counterexample nor a sufficient smaller obligation.

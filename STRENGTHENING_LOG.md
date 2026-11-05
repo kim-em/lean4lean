@@ -26032,3 +26032,52 @@ rejects TypeInstantiationJoin, TypeForkJoin, StaticStructureCommonCoverage and
 StaticStructureTypeConversionJoin in addition to the standard forbidden names.
 Only propext/Classical.choice/Quot.sound; no sorry or own-module warning.
 Artifacts `/dev/shm/constructor-instantiation-*`.
+
+
+### 2026-11-05 10:37:36 UTC — Retained constructor parameters defeat eventual exact recovery
+
+Added three fully proved modules. `ProofErasureComputedFreshTypeBoundary.lean`
+extends the native fresh-binder obstruction through an arbitrary complete
+source computation. Source and native relations can differ; descent of each
+suffices. Typed realization below the insertion and native descent rule out
+an exact application type whose retained argument names the fresh binder.
+
+`ProofErasurePositiveHeaderRegistration.lean` adapts the checked fieldless
+registration construction to a positive result sort, Type. It checks the
+literal parameter telescope, family shape, constructor shape, source-parameter
+alignment, constant additions and actual WF.inductProjections installation.
+Its imports are ordinary metatheory rather than the earlier header obstruction.
+
+`ProofErasureConstructorParameterBoundary.lean` constructs the concrete typed
+configuration q:S,p:S with mk p : Tag q, where S is an existing closed positive
+empty family and Tag is the new positive phantom family over S. Unit equality
+justifies the assignment; the constructor and its parameter survive erasure.
+No future computed image can natively recover Tag q in any descending source
+and target languages, because mk p was already typed before q was inserted.
+Nevertheless constructor-native recovery supplies Tag p, and both Tag p and
+Tag q compute to Tag unitCtor. Thus common coverage is explicit in exactly
+the example defeating eventual exact coverage.
+
+The extension theorem assumes a WF canonical-Eq base with the positive unit
+and two fresh distinct names, performs both constant additions, and registers
+the projection entry. It preserves the base and canonical Eq, and specializes
+the negative and common-output facts to the full EnvironmentCore computation
+union under the resulting actual Params instance. It does not construct an
+entire canonical-Eq base from the empty environment or a generated recursor.
+
+This closes the proposed retained-parameter extension of the exact-pivot
+repair from e1e230e6: the counterexample already starts at a constructor, and
+arbitrary further computation cannot fix its exact assignment. Common type
+joining survives. The remaining positive route must handle dependent bodies
+under that common alignment and arbitrary continuations; no general HJ/HF
+proof or strict-smaller sufficient obligation has been established. GOAL.md
+remains open, original sorry and executable unchanged, PR extraction deferred.
+Independent untracked files were preserved and excluded from imports/staging.
+
+Validation: 797-job isolated build; ten public roots audited through types,
+opaque values, constructor arguments and recursor RHSs; maximum closure
+11,386. All 772 own/frozen dependency hashes stayed stable. The audit
+also rejects TypeInstantiationJoin, TypeForkJoin, StaticStructureCommonCoverage
+and StaticStructureTypeConversionJoin, besides the standard forbidden names.
+Only propext/Classical.choice/Quot.sound; no own-module warning or sorry.
+Artifacts `/dev/shm/constructor-parameter-boundary-*`.
