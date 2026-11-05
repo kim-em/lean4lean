@@ -27482,3 +27482,29 @@ stored definition collection and instantiate EnvironmentCore determinism, then
 reuse this generic native induction unchanged. Polymorphic aliases, arbitrary
 ordinary conversion coverage and general strengthening are still open. GOAL.md
 remains active; this is verified progress, not completion of a final deliverable.
+
+## 2026-11-05 19:08:57 UTC — Extend concrete alias/native joins to EnvironmentCore
+
+Added ProofErasureAliasCoreExtension, ProofErasureEnvironmentAliasNative and
+ProofErasureEnvironmentAliasInput (341 lines). A collection that agrees exactly
+with actual stored bodies preserves finite alias observations through the full
+enriched union. EnvironmentCore's quotient and nonquotient branches are proved
+deterministic, and stored inclusion gives the required agreement. Stored erased
+primitive cleanup embeds directly in the full target collection.
+
+The generic joint native proof is unchanged. Its independent family law is now
+instantiated for EnvironmentCore, and the concrete actual-lookup theorem covers
+annotation provenance, arbitrary term computation, selected native recovery,
+native conversion and independent assigned-family computation in that same
+larger collection. Arbitrary raw substitution is retained; no argument native
+certificate or post-step observation is assumed.
+
+Validation passed 910 isolated jobs and 16 dependency roots, maximum closure
+12,006, with 885 frozen hashes. Audit traversed types, opaque bodies,
+constructors and recursor RHSs; only propext, Classical.choice and Quot.sound;
+no strengthening/front/circular-recovery dependencies and no own warnings.
+
+Remaining: polymorphic alias instances require observation transport across
+universe conversion; the concrete family-parameter signature and arbitrary
+source coverage are still restricted. General strengthening remains open.
+No executable or previous source changes, no PRs, no coordination; goal active.

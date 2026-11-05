@@ -14350,3 +14350,51 @@ Result: six modules, 706 lines; total 13 modules, 1,269 lines. Validation:
 907 isolated jobs, 76 audited roots, maximum closure 11,840, 882 frozen
 hashes, standard axioms only, no own warnings or forbidden dependencies. Original
 sources and executable unchanged; no PRs, no coordination; goal active.
+
+## 2026-11-05 19:08:57 UTC — Alias-native preservation for the full actual environment core
+
+Verdict: checked removal of the stored-definition-only computation restriction.
+StoredAgreement records exact agreement of a collection's unfolding bodies at
+actual stored instances. Deterministic inclusion implies this property.
+EnvironmentCore.deterministic is proved by the actual optional quotient split:
+ErasedQuotCore.deterministic handles the registered quotient branch, while
+RegisteredStructure.definitions_ofEnv_unique handles the branch without Quot.
+EnvironmentCore.storedAgreement and stored_primitive discharge agreement and
+inclusion without an extra environment hypothesis.
+
+AliasDemandProfile.alias_root_of_agreement handles a new selected delta root
+using exact body agreement; the pattern alternatives use the existing stored
+constant-root theorem. iota_of_agreement, coherent_stage_observation and
+coherent_union preserve the same finite alias observer through all enriched
+stages. EnvironmentCore supplies soundness and rigid-head non-unfolding as well
+as stored-body agreement. No confluence of the enriched relation, native
+coverage, or ordinary conversion completeness is assumed.
+
+The previous generic CertifiedRecordDemand induction is reused unchanged.
+coherent_alias_family_preserves implements its independent family law;
+program_coherent_alias_native_head_readout permits arbitrary coherent sound
+source collections while its cleanup remains in the actual stored erased core.
+program_environment_alias_native_assigned_join embeds that cleanup into the
+full target collection and uses the actual family header/caller telescope.
+environment_alias_record_native_assigned_join starts from an ordinary lookup
+with annotation provenance from a stored family alias. Its annotation, term,
+native-type and assigned-family histories all use EnvironmentCore, including
+selected structure equations and the optional repaired quotient equation.
+All agreement, family-preservation, observation, valuation and target-native
+premises are discharged from the actual inputs and environment metadata.
+
+Boundary: finite aliases are still monomorphic and sort-valued; concrete record
+joins still use the single ignored unit-arrow parameter signature. Arbitrary
+source coverage and conversion-to-observation completeness remain open. This
+batch does not prove PropFront, strengthening, a canonical-Eq counterexample,
+or a strictly smaller sufficient obligation. The next live alias extension is
+universe-polymorphic instances: stage-zero universe conversion can change the
+instance, so its body observation must transport across equivalent universe
+arguments rather than treating an instance as frozen. The family-parameter
+restriction and general coverage still need substantive work beyond that.
+
+Validation: three modules, 341 Lean lines, 910 isolated build jobs, 16 audited
+roots, maximum closure 12,006, 885 frozen hashes, standard axioms only,
+no own warnings and no forbidden dependencies. Original strengthening sorry,
+previous observers and executable unchanged. No PR extraction or coordination;
+GOAL.md remains active.
