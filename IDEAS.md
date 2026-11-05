@@ -11204,3 +11204,36 @@ this theorem in actual singleton alignment, obtain declaration-history
 normalization/index certificates, and prove TypeForkJoin. The broader arbitrary
 rigid-kind history predicate is not claimed. Original strengthening remains open;
 no strictly smaller sufficient obligation is asserted.
+
+## 2026-11-05 03:47:15 UTC — Historical cuts and a native pivot before argument computation
+
+Verdict: checked progress. Replace renewed exact native certificates at residual
+cuts by actual domain/body/argument computation histories from one originally
+certified cut. Body history stays under the original binder. Backward native
+context transport appends computations performed under later annotations.
+The histories survive arbitrarily many interleaved component rounds and supply
+an exact contraction residual from the original contractum, even when the final
+argument lacks native recovery at the written domain.
+
+The stronger step is native_pivot: every native type selected by the evolved
+redex is recovered at a typed intermediate reachable from the original
+contractum, which then computes to the current raw contractum. Recover the
+computed body under the old binder and instantiate the original native argument;
+argument computation then propagates through the selected type and its final
+conversion tail. Native eta and structure guards can fire at this pivot before
+argument computation runs through their outputs. Thus all primitive competitors
+of the historical cut join without certifying its current beta contraction.
+Every one-occurrence competitor is covered as well.
+
+The previous exact-certificate-loss example now has the required history; its
+current identity cut remains provably outside NativeHeadBeta. This verifies that
+the new invariant actually crosses that boundary. Remaining: root expansions
+followed by arbitrary continuation, nested marked contexts and created cuts.
+The proved composition is finite component rounds followed by one arbitrary
+step, not a strip theorem for all paths. No TypeForkJoin, strengthening proof,
+canonical-Eq counterexample or strict reduction of PropFront is claimed.
+
+Validation: five modules, 824-job build, 19 public roots; full transitive
+audit maximum closure 11,634, only allowed axioms, no forbidden dependencies
+or new-module warnings; all 799 local source hashes stable and equal own sources
+or committed dependencies at staging. Artifacts /dev/shm/cut-history-*.

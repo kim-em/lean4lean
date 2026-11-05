@@ -23795,3 +23795,63 @@ to isolated copies; non-task dependencies matched committed HEAD. Artifacts
 preservation and readout/results. Independent committed lambda-history progress
 preserved and not needed by these modules. Executable unchanged; GOAL.md active.
 Previous goal turn classified as progress.
+
+## 2026-11-05 03:47:15 UTC — Historical beta squares beyond exact residual certification
+
+Verdict: checked progress. Five modules extend the preceding local beta square
+through arbitrary interleaving of marked-cut components, and through any final
+one-occurrence step, without assuming exact recovery at the intermediate cuts.
+
+ProofErasureCutComponentHistory records actual typed forward histories for the
+annotation, body and argument. The body remains in its original A-binder context.
+A component round can compute all children in the current context; its body path
+is transported backward along the recorded domain computation before being
+appended. Finite rounds preserve the invariant by induction on the real round
+sequence. The original native argument instantiates the accumulated body path,
+and its argument history follows afterward. This yields the exact final raw
+contractum without native evidence for the current argument.
+
+ProofErasureCutHistoryNativePivot is the main additional result. Given native
+recovery from an evolved redex, factor it into native recovery of the current
+body plus instantiated-type computation. Pull the body recovery back from the
+current binder to the original one, then instantiate the original native
+argument. The pivot is the computed body applied to that original argument.
+Argument computation propagates through the selected body type, so conversion
+recovers exactly the output selected by the evolved redex. The original
+contractum computes to this pivot; the pivot computes to the current contractum.
+This neither recovers the selected type from the current contractum nor assumes
+that arbitrary native recovery survives beta.
+
+ProofErasureCutHistoryPrimitiveSquare uses that pivot for native eta and masked
+structure expansion: expand before the argument computation, then run that path
+inside the primitive output. The competing expanded redex reaches the same
+output by beta. Constant and identity expansions beta-return the current
+contractum directly. All four primitive families therefore join contraction of
+the original cut after arbitrary component evolution. A typed raw domain witness
+is enough to weaken the pivot path under a selected eta binder.
+
+ProofErasureCutHistoryLocalSquare handles every ScopedStep competitor at the
+evolved cut. Component steps extend the histories. A primitive at the literal
+function root beta-restores the same applied body; a whole-redex primitive uses
+the pivot square. Hence finite component rounds followed by an arbitrary single
+step join the original beta contractum with no renewed intermediate certificate.
+ProofErasureCutHistoryBoundary verifies that the prior positive empty-structure
+example actually has this history after its argument beta step, while its
+current identity contraction is still not NativeHeadBeta. The environment data
+remain explicit. This is a broader proved invariant, not a confluence or
+strengthening counterexample.
+
+Remaining: an invariant for arbitrary continuation after root expansion, with
+nested marked contexts and newly created cuts. Component rounds preserve a
+literal outer application/lambda; no completeness of those rounds for arbitrary
+whole-function paths is asserted. General strip composition, body readout,
+TypeForkJoin and the original strengthening sorry remain open. No new strictly
+smaller sufficient obligation is claimed. GOAL.md remains active.
+
+Validation: five modules, 426 lines; 824-job isolated build and 19 public roots
+passed complete transitive declaration-type, opaque-value and recursor-RHS
+audit. Maximum closure 11,634; only propext, Classical.choice and Quot.sound,
+no sorry or configured forbidden dependencies and no new-module warnings.
+All 799 closure source hashes stable and identical to authoritative own sources
+or committed dependencies before staging. Artifacts /dev/shm/cut-history-*.
+Executable unchanged, independent work preserved, no coordination or PR extraction.
