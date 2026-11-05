@@ -11635,3 +11635,29 @@ roots (including inductive machinery), maximum closure 11,393; all 804 source
 hashes stable against own files and committed dependencies. Only allowed axioms,
 no forbidden dependencies, sorry, or own-module warnings. Artifacts:
 /tmp/carrier-structure-native-walk-*.
+
+### 2026-11-05 — Parameterized structure walks isolate the original parameter certificates
+
+**Verdict: generalized the field-history theorem to all parameter arities,
+conditional only on native recovery of original retained parameters.**
+Every retained field certificate is derived from the selected major family and
+the actual typed expansion. This includes dependent later fields and erased
+proof fields. The extra certificates concern precisely the original parameters
+at their literal constructor domains, not any later argument images. With them,
+independent computations of both parameters and fields leave the original family
+assignment as an ancestor of every recovered constructor output. A pivot at
+that original family preserves every selected output and conversion tail.
+
+For proof parameters the extra native premise is discharged, extending the
+unconditional parameter-free result to arbitrary proof-parameter telescopes.
+The theorem does not identify original and computed parameter assignments or
+infer native parameter coverage from the major guard. This sufficient interface
+is not claimed necessary, universally inhabited, or strictly smaller than the
+strengthening front. A direct fixed-parameter transfer argument that avoids
+parameter recovery remains live. General continuation and created-cut coverage,
+TypeForkJoin and strengthening remain open.
+
+Validation: one new module, 830-job isolated build; 11 public/generated roots,
+maximum closure 11,379; 805 stable source hashes against own and committed files.
+Only allowed axioms, no forbidden dependencies, sorry or own-module warnings.
+Artifacts /tmp/carrier-parameterized-structure-*.
