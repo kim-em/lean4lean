@@ -24510,3 +24510,40 @@ closure 11,370. Only allowed axioms; no forbidden dependencies, sorry,
 or own-module warnings. All 761 source hashes match own source and committed
 dependencies and remained stable. Independent structure-history commits were
 preserved. Artifacts: /dev/shm/native-telescope-reification-*.
+
+### 2026-11-05 — Type instantiation already transports changed and buried binders
+
+**Verdict: two reductions proved from TypeInstantiationJoin alone; no proof or
+strict-smallness claim for that remaining obligation.**
+ProofErasureTypeInstantiationBinders proves that a type computation transports,
+up to a common reduct, from A :: Γ to C :: Γ whenever A and C are ordinarily
+definitionally equal. Unlike the previous TypeForkJoin transport theorem, this
+needs neither full type-fork joining nor any forward domain computation A → C.
+Insert C below A, weaken the computation, and apply the single-instantiation
+obligation with the new variable at the old converted type. Actual replay and
+erasure invariance identify the instantiated raw output with the old output.
+
+The same obligation also handles Ctx.InstN at every depth, including arbitrary
+dependent prefixes. Package each preceding binder and the computed type as a
+Pi, use the induction hypothesis on that Pi, then expose the common Pi head.
+Exact component readout yields both codomain paths in their original common
+binder context. This avoids composing two independent joins and therefore adds
+no confluence or native-argument hypothesis. The supplied argument has only
+ordinary typing. Both results cover arbitrary full-union computation tails.
+
+The hoped-for reduction of retained parameter-chain joining is still missing.
+Two independent transported joins still require a way to compose their middle
+fork. Replacing joins by chains makes transitivity immediate, but the current
+proposition-front proof needs forward paths from both lifted endpoints to use
+typed descent; it does not descend arbitrary reverse steps or guarantee that
+intermediate chain representatives omit the fresh binder. This observation is
+a gap in that proposed proof, not a counterexample to TypeInstantiationJoin or
+to its possible sufficiency. The original strengthening sorry is unchanged.
+
+Validation: one new module, 771-job isolated build; two public theorems plus the
+generated matcher audited transitively through types, values, opaque values,
+constructors and recursor RHSs. Maximum closure 11,479; all 746 source hashes
+match frozen committed dependencies and own source, including against current
+HEAD after the independent commit. Only allowed axioms, no forbidden dependency,
+sorry or own-module warnings. Artifacts /tmp/carrier-type-instantiation-binders-*.
+Independent telescope-reification work was preserved and not imported here.
