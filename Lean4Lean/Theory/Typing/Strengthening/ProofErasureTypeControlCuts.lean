@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStaticStructureTypeArgumentOrigin
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureDependentPayloadReadout
 
 /-! # Complete continuations of constant and identity cuts on types
 
@@ -52,37 +52,8 @@ theorem static_structure_constant_type_cut_readout
       (proofErase Γ (.app (.lam L A.lift) x)) out) :
     ∃ A', env.IsDefEq univs Γ A A' (.sort u) ∧
       ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
-        (proofErase Γ A) (proofErase Γ A') ∧ BetaRed out (proofErase Γ A') := by
-  have hL := HL.hasType.1
-  have hΓL : OnCtx (L :: Γ) (env.IsType univs) := ⟨hΓ, z, hL⟩
-  have hb : env.HasType univs (L :: Γ) A.lift (.sort u) := hA.weak henv.ordered
-  have hf := HasType.lam hL hb
-  have hxL := HL.symm.defeq hx
-  have ht : env.HasType univs Γ (.app (.lam L A.lift) x) (.sort u) := hf.app hxL
-  have hu := (hA.isType henv hΓ).choose_spec.sort_inv henv.ordered
-  have hfS : env.HasType univs Γ (.lam L A.lift) (.forallE (.sort w) (.sort u)) :=
-    (IsDefEq.forallEDF HL (HasType.sort hu)).defeq hf
-  have EF : proofErase Γ (.lam L A.lift) =
-      .lam (proofErase Γ L) ((proofErase Γ A).liftN 1) := by
-    rw [show proofErase Γ (.lam L A.lift) = .lam _ _ from
-      if_neg (not_isProof_function_to_sort hΓ hf), proofErase_liftN hΓ hΓL Ctx.LiftN.one hA]
-  have EE : proofErase Γ (.app (.lam L A.lift) x) =
-      .app (proofErase Γ (.lam L A.lift)) (proofErase Γ x) :=
-    if_neg (not_isProof_of_sort hΓ ht)
-  have HB : Obs (TypeArgumentOrigin (ErasedStaticStructureEtaExpansionUnion D) Γ A u)
-      1 (proofEraseCtx (L :: Γ)) (ControlObservation.Sets.cons (.sort w) [] (fun _ _ _ => False))
-      ((proofErase Γ A).liftN 1) (.sort u) .pi := by
-    apply Obs.payload
-    · exact ⟨L :: Γ, A.lift, hΓL, rfl, hb, proofErase_liftN hΓ hΓL Ctx.LiftN.one hA⟩
-    · exact TypeArgumentOrigin.refl hA
-  have HF : Obs (TypeArgumentOrigin (ErasedStaticStructureEtaExpansionUnion D) Γ A u)
-      0 (proofEraseCtx Γ) (fun _ _ _ => False) (proofErase Γ (.lam L A.lift))
-      (.arrow (.sort w) (.sort u)) (.app [] .pi) := by
-    rw [EF]
-    exact .lam ⟨Γ, _, hΓ, rfl, hfS, EF⟩ (by intro _ H; cases H) HB
-  apply static_structure_type_payload_program_readout heq hs hΓ ht ?_ R
-  rw [EE]
-  exact .app ⟨Γ, _, hΓ, rfl, ht, EE⟩ HF (by intro _ H; cases H)
+        (proofErase Γ A) (proofErase Γ A') ∧ BetaRed out (proofErase Γ A') :=
+  static_structure_constant_cut_readout heq hs hΓ hA (HL.symm.defeq hx) R
 
 /-- Identity cuts at arbitrary written annotations convertible to a universe
 retain the actual type argument as their payload through every continuation.

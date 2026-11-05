@@ -25874,3 +25874,58 @@ the audit rejects TypeInstantiationJoin, TypeForkJoin,
 StaticStructureCommonCoverage and StaticStructureTypeConversionJoin. Only
 propext/Classical.choice/Quot.sound; no sorry or own-module warning.
 Artifacts `/dev/shm/type-control-cuts-*`.
+
+
+### 2026-11-05 09:47:23 UTC — Full constant-cut continuations with dependent ignored inputs
+
+Added three modules and replaced the old restricted constant-cut proof by a
+corollary. `ProofErasureDependentPayloadObservation.lean` combines arbitrary
+sort-typed lower payloads with DemandProfile's actual dependent types. Its
+finite input demands distinguish ignored data/proof arguments from demanded
+observable values. Ordinary interpreted substitution transports node typings
+and fixes the lower payload. Native eta consults visibility only when an input
+is demanded, so proposition-valued ignored domains remain valid. Constant and
+identity frames preserve the invariant. The operational semantics beta-reads a
+lower payload; its neutral-result demand is impossible in this profile grammar.
+
+`ProofErasureDependentPayloadTransport.lean` lifts these observations through
+all full-union compatible computation. Opaque primitive heads and level steps
+act only inside a whole payload, where certificate descent updates the lower
+forward history. Other root frames preserve finite demands. Compatible beta
+uses actual ordinary context interpretation, while lambda annotation changes
+transport the body observation through the corresponding context conversion.
+Neither native argument certificates nor fork joining appear.
+
+`ProofErasureDependentPayloadReadout.lean` extracts actual typed payload
+representatives with forward lower computations and pure-beta residuals from
+arbitrary final outputs. Its constant-cut theorem permits any argument type,
+including data and propositions, and its whole-root version derives the lower
+body typing by typed beta. Application inversion and Pi uniqueness supply the
+argument's written-domain typing. This avoids inverse weakening entirely.
+The previous sort-argument-only constant-cut proof is now a direct corollary,
+with its public statement unchanged.
+
+The dependent-selector theorem handles the whole two-argument program
+`(lambda x : Sort u, lambda y : Q x, x) A a`, where Q is an arbitrary typed
+domain dependent on x and a may be a proof. Its result is a forward computation
+of A and a pure-beta residual from the final output, despite arbitrary full
+computation interleaved before, between and after both cuts. No phase ordering
+or retained native recovery is assumed for either argument.
+
+This resolves the discarded-data limitation recorded in 7b65e632 and adds
+an actual dependent frame. It does not handle an arbitrary demanded data body.
+The existing generic-family instantiation counterexample already excludes the
+unrestricted pure-beta residual conclusion; the general route must allow full
+computational residuals. HJ and its sufficiency/strict-smallness questions, HF itself and its
+strict-smallness, and canonical-Eq strengthening remain open. No GOAL.md completion is
+claimed. Original sorry and executable unchanged; PR extraction deferred.
+Independent working files were preserved and were not imported or staged.
+
+Validation: 761-job isolated build; 35 roots covering public declarations plus observation
+constructors and recursors audited through types, opaque values, constructor
+arguments and recursor RHSs; maximum closure 11,390. All 736 source
+hashes matched own sources or frozen committed dependencies and stayed stable.
+The audit additionally rejects TypeInstantiationJoin, TypeForkJoin,
+StaticStructureCommonCoverage and StaticStructureTypeConversionJoin.
+Only propext/Classical.choice/Quot.sound; no forbidden dependency, sorry or
+own-module warning. Artifacts `/dev/shm/dependent-payload-*`.

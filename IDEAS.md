@@ -13004,3 +13004,37 @@ it does not supply observations for arbitrary dependent beta bodies or constant
 cuts at arbitrary data domains. Those are still needed for the general strip
 argument. No global fork joining, HJ sufficiency/strict-smallness, or GOAL.md
 completion is claimed.
+
+
+### 2026-11-05 09:47:23 UTC — Dependent payload observations remove the discarded-data restriction
+
+**Verdict: complete constant-cut readout now covers arbitrary ordinary data
+and proof arguments, using only whole-root typing.** The earlier closed
+control types unnecessarily required a discarded argument to be a type.
+Combining lower payload histories with the existing dependent demand profiles
+removes that restriction. An ignored input has an arbitrary well-formed type;
+only an input with a nonempty demand must remain observable and retained.
+
+`DependentPayloadObservation.Obs` tracks a fixed lower type through dependent
+control programs. Typed substitution, native eta, identity wrappers, changing
+annotations and arbitrary compatible computation preserve this invariant.
+Whole payload updates use certificate descent. Operational interpretation
+produces a pure-beta residual to a computed representative of the lower type.
+For `(lambda x : A, b.lift) a`, whole-root sort typing supplies lower typing of
+b by typed beta, so no inverse weakening or native input recovery is used.
+The restricted constant-cut theorem from 7b65e632 is now a direct corollary.
+
+A genuinely dependent selector is also checked: bind a type x, then a value
+in any domain Q depending on x, and return x. Every full-union computation of
+both supplied applications reads a forward history of the original type
+argument. Computation may interleave the two cuts, their annotations and their
+arguments. The dependent second argument may be a proof. This validates the
+new binder machinery beyond a single constant wrapper.
+
+**Remaining gap:** a demanded arbitrary data argument is not a type payload.
+The already checked generic-family instantiation boundary rules out a universal
+PURE-BETA residual theorem for all dependent type-valued cuts. Thus this
+observer must not be promoted to such a theorem. The general case still needs
+full computational joining or another invariant permitting structural residuals;
+TypeInstantiationJoin, TypeForkJoin and strengthening remain open. No sufficient
+strictly smaller obligation or GOAL.md completion is claimed.
