@@ -10494,3 +10494,37 @@ Classical.choice, Quot.sound; no configured forbidden dependencies, sorry source
 or audited-module warnings. All 777 closure source hashes remained stable and
 byte-identical to isolated copies. Artifacts /tmp/carrier-typed-equation-*.
 Independent work preserved; executable unchanged; no coordination; goal active.
+
+### 2026-11-05: actual unindexed singleton pattern coverage — proved
+
+Verdict: the remaining unindexed equation-instance alignment is now discharged.
+`singletonInstance_unindexed_beta` derives the rule counts from the registered
+compilation and its stored equation, then beta-reduces the left equation at the
+actual captures to the original recursor prefix applied to a reconstructed major.
+There is no comparison of constructor parameters or constructor universe syntax.
+`registered_major_isProof` obtains the original major's proposition typing from
+the restored family head and the zero source universe. Combining these with the
+full equation chain and right-instance typing proves
+`TypedComputationEq.unindexed_singleton_pattern` in the presentation selecting
+the actual environment registry. No HasTypeJ, earlier-stage type joins, prefix
+coverage assumption, or computational confluence premise is used.
+
+`TypedIndexedSingletonPatternChainClosure` records the remaining raw pattern
+case with a nonempty index telescope. Its `singleton_closure` discharges every
+unindexed branch using the new proof; ordinary chain completeness therefore now
+needs only indexed singleton coverage. This is an intermediate narrowing of one
+component, not a strictly smaller sufficient strengthening obligation. Indexed
+singleton coverage and TypeForkJoin remain open, and the original sorry remains.
+
+Next live route: specialize transported-field computation to literal constructor
+indices, using typed computation of Eq casts and proof irrelevance for extracted
+proof fields. A direct appeal to ordinary conversion for arbitrary indexed
+families would be circular; the proposed argument must build the field chains.
+
+Validation: two new modules, six public roots, isolated 806-job build and full
+transitive declaration audit (types, opaque values, constructors and recursor
+RHS included). Maximum closure 11,762; only propext, Classical.choice, Quot.sound;
+no configured forbidden dependencies, sorry sources or new module warnings.
+All 781 closure source hashes stayed stable and matched isolated copies byte for
+byte. Artifacts: /tmp/carrier-unindexed-pattern-*. Independent work preserved;
+executable unchanged; no coordination. Goal active, not complete or blocked.
