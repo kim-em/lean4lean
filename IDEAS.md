@@ -12022,3 +12022,33 @@ closure 11,119. All 765 source hashes match frozen committed dependencies and
 own source. Only allowed axioms, no forbidden dependency, sorry or audited-module
 warning. Artifacts /tmp/carrier-caller-argument-histories-*. Independent committed
 Pi-telescope work was preserved and was not imported while uncommitted.
+
+### 2026-11-05 — Restart and supply for reified telescope checkpoints
+
+**Verdict: checked continuation through argument supply, with literal checkpoint
+coverage still open.** ProofErasureReifiedTelescopeContinuation proves three
+lemmas. An already reified family expression can follow any further whole type
+computation: finite Pi-prefix cleanup gives matching new lambda domains and an
+exact native guard. The body need not be a syntactic generic application, and
+the family may already be a raw partial application. Supplying an ordinarily
+typed argument derives the residual type formation, the instantiated lambda
+computation, and the exact residual guard together. No native premise is needed
+for that argument. A combined theorem follows this supply with another arbitrary
+whole residual-type computation, retaining the remaining telescope arity.
+
+This supplies the local restart operation missing from the earlier one-shot
+whole-telescope result. It does not show that every native recovery derivation
+can be rearranged into these checkpoints. In particular, beta-cleaning a whole
+type before supply changes its selected intermediate output; a later conversion
+segment cannot silently be commuted across that cleanup. Opaque intermediate
+codomains and the coverage/standardization of interleaved conversions remain
+open. No arbitrary-output origin theorem, type-fork join, strengthening proof,
+or strictly smaller sufficient obligation is claimed. Executable and original
+sorry are unchanged.
+
+Validation: isolated build succeeded (789 jobs); all three public roots and their
+full dependency closures passed the inductive audit (maximum closure 11,489).
+All 764 source hashes match own source and frozen committed dependencies. Only
+propext/Classical.choice/Quot.sound, no forbidden dependency, sorry, or warning
+in the audited module. Artifacts /tmp/carrier-reified-telescope-continuation-*.
+Independent uncommitted native-history work was neither imported nor changed.
