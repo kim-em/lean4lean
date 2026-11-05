@@ -25382,3 +25382,49 @@ values including opaque bodies, constructors and recursor RHSs; maximum closure
 and remained stable. Only propext/Classical.choice/Quot.sound; no forbidden
 dependency, sorry, or own-module warning. Artifacts
 `/dev/shm/registered-mixed-header-*`.
+
+
+### 2026-11-05 08:05:37 UTC — Registered native histories from closed computed family headers
+
+Added `ProofErasureComputedStructureHeader`. Its named header condition replaces
+literal equality of the stored family type with a closed full-union computation
+to a well-formed sort-ending telescope on the raw constructor parameter prefix.
+`realize` replays that path, reflects its exact erased target, and converts the
+ordinary constant typing. It weakens the complete closed path into the ambient
+context and appends it to the constant's native declaration recovery, obtaining
+the exact family header needed by the mixed observer.
+
+`LiteralStructureFamilyHeader.computed` embeds the preceding literal case.
+`of_beta` derives the certificate from an ordinary beta computation, including
+inside header domains; subject reduction supplies target typing automatically.
+`of_constant_wrapper` contracts a beta wrapper around the whole parameter
+header. A separate syntactic theorem proves that a stored outer beta application
+cannot satisfy the literal header condition. These lemmas demonstrate a
+nonliteral header case under actual declaration lookups, without asserting a
+new concrete environment construction or strict-smallness for strengthening.
+
+The registered constructor proof derives its raw telescope and ordinary
+argument vectors exactly as before, then initializes the family history with
+the computed header's native guard. Arbitrary parameter and ignored-field
+histories follow unchanged. The original family application reaches every
+selected constructor output, even for ordinarily proof-valued constructors.
+Raw-family ancestry, transfer to a recovering pivot, and transfer between
+independently computed fields at fixed arbitrary parameters are proved under
+the same closed condition. No native parameter/image premise is introduced.
+
+The family and constructor header directions are distinct: the family guard
+is constructed by forward computation from its stored type, while constructor
+ancestry starts from its unchanged original declaration. No backwards header
+path is inferred from ordinary equality. General TypeShape/ParamsDefEq header
+alignment, field-dependent result indices, global joining and canonical-Eq
+strengthening remain unresolved. No sufficient strictly smaller obligation or
+GOAL.md completion is claimed. Executable and original weakN_iff sorry unchanged;
+PR extraction remains deferred. Independent worktree additions were preserved
+and no uncommitted dependency was imported.
+
+Validation: 849-job isolated build; all 10 public roots audited through types,
+values including opaque bodies, constructors and recursor RHSs; maximum closure
+11,616. All 824 source hashes matched own source or committed dependencies
+and remained stable. Only propext/Classical.choice/Quot.sound; no forbidden
+dependency, sorry, or own-module warning. Artifacts
+`/dev/shm/computed-structure-header-*`.

@@ -12606,3 +12606,48 @@ values including opaque bodies, constructors and recursor RHSs; maximum closure
 11,615; 823 stable committed/own source hashes. Only allowed axioms; no
 forbidden dependency, sorry, or own-module warning. Artifacts
 `/dev/shm/registered-mixed-header-*`.
+
+
+### 2026-11-05 08:05:37 UTC — Compute the family header before mixed native histories
+
+**Verdict: the literal registered-header condition extends to closed directed
+family-header computation; beta-normalized nonliteral headers are covered.**
+
+`ComputedStructureFamilyHeader` retains a closed computation from the actual
+stored family type to a well-formed sort-ending telescope on the constructor's
+raw parameter domains. Replay and erasure reflection supply ordinary family
+typing at that endpoint. Weakening the whole closed computation and converting
+the constant's original native declaration supplies the exact family guard in
+any well-formed context. No actual parameter is substituted through that guard.
+The stored constructor type remains the ancestry source throughout.
+
+Literal agreement implies the new condition. Any ordinary beta reduction of
+the stored header to the chosen telescope supplies it too, with endpoint typing
+derived by subject reduction rather than assumed separately. This includes
+beta computations inside parameter domains. A constant beta wrapper around the
+whole family header is an explicit nonliteral case: its certificate is proved,
+and the stored outer application is checked incompatible with the literal
+header condition. This is a conditional result for actual declared headers;
+no new environment or registered declaration is constructed here.
+
+The registered mixed-history theorem now uses the computed certificate to
+initialize the retained native family. It keeps arbitrary parameter and field
+histories and reaches each exact selected native result from the original
+family application. Raw origin, transfer to a same-family pivot, and transfer
+between independently computed field histories all extend to these headers.
+There are still no parameter/image native premises. The fixed-parameter field
+corollary derives the pivot guard from its target constructor history.
+
+The direction is specifically stored FAMILY header to constructor-parameter
+sort header. It does not reverse a constructor-header simplification or claim
+that a chosen constructor result reaches every previous native output merely
+from ordinary header equality. General ordinary header alignment remains open,
+as do global joining, field-dependent result indices, and strengthening. The
+nonliteral example is not a strict-smallness result about PropFront, and no
+GOAL.md completion is claimed.
+
+Validation: 849-job isolated build; all 10 public roots audited through types,
+values including opaque bodies, constructors and recursor RHSs; maximum closure
+11,616; 824 stable committed/own source hashes. Only allowed axioms; no
+forbidden dependency, sorry, or own-module warning. Artifacts
+`/dev/shm/computed-structure-header-*`.
