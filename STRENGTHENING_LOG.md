@@ -24311,3 +24311,37 @@ and checked against own source and current committed dependencies before staging
 Original exact-failure API compared against HEAD and unchanged. Concurrent
 native-walk/structure-field files were preserved and excluded. Artifacts
 /dev/shm/type-beta-strip-*.
+
+### 2026-11-05 — Parameter-free structure fields retain a common native origin
+
+**Verdict: discharged native output transfer for independently computed fields
+of parameter-free structure expansions, including dependent later fields.**
+RetainedNativeWalk records exact native recovery only for original non-proof
+arguments in the literal declaration telescope. Pi component readout and the
+body/argument square extend native telescope origin to the full structure and
+function eta union. Every native output after arbitrary independent argument
+computations is reachable from the original residual type. Computed arguments
+need no recovery, and conversions at intermediate prefixes are included.
+
+For a structure with no parameters, the original major's family certificate
+supplies every retained projection at its exact literal field domain. Typed
+expansion supplies all prefix substitutions, including raw proof projections;
+there is no field-native coverage assumption. The constructor residual is the
+same parameter-free family regardless of its fields. It therefore computes to
+every selected output after independent field computation, and any pivot
+recovering that family preserves those outputs exactly. The four expansion
+squares follow with a pure beta residual. A public origin wrapper derives all
+telescope, level and field-typing witnesses from the actual guarded expansion.
+
+This does not extend exact transfer to arbitrary dependent argument contexts.
+Parameterized structures still need recoverable original parameter domains
+for this telescope argument; those are not inferred from a major certificate.
+Arbitrary mixed continuations, general marked-context coverage, created-cut
+coverage and TypeForkJoin remain open. No strengthening proof or strictly
+smaller sufficient obligation is claimed.
+
+Validation: three new modules, 829-job isolated build; 29 public/generated
+roots (including inductive machinery), maximum closure 11,393; all 804 source
+hashes stable against own files and committed dependencies. Only allowed axioms,
+no forbidden dependencies, sorry, or own-module warnings. Artifacts:
+/tmp/carrier-structure-native-walk-*.
