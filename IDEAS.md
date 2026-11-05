@@ -12557,3 +12557,52 @@ committed dependencies. Only allowed axioms; no forbidden dependency, sorry,
 or audited-module warning. Artifacts /tmp/carrier-header-ancestry-boundary-*.
 Independent mixed-family and registered-header work was preserved; no
 uncommitted dependency was used. Executable and original sorry unchanged.
+
+
+### 2026-11-05 07:58:13 UTC — Registered constructor histories under literal header agreement
+
+**Verdict: registration supplies the mixed constructor shape; matching literal
+family headers remove parameter-native premises, but general header alignment
+is not supplied by registration.**
+
+Inspection of `Ordered.projectionShape` and `VInductDecl.TypeShape` identifies
+the exact distinction. The constructor retains a raw syntactic telescope and
+literal common-parameter variables in its result. The family header may first
+normalize, and its own parameters agree with the constructor parameters only
+by ordinary definitional equality. Therefore the mixed-family theorem cannot
+be applied unconditionally by treating those headers as syntactically equal.
+
+`registered_constructor_mixed_shape` now derives the parameter/field split and
+the exact result `etaOpen parameters family`, lifted past all fields, for every
+registered unindexed structure. It uses raw result shape, uniqueness of family
+names, universe instantiation, and the recorded arities. No family-header
+normalization or argument recovery is assumed in this shape theorem.
+
+`LiteralStructureFamilyHeader` states the remaining syntactic match solely in
+terms of the stored declarations and universe instance. Its introduction rule
+checks the match before universe instantiation, independently of context and
+argument values. Under that condition, ordinary typing of a saturated registered
+constructor derives both telescope argument vectors required by the mixed
+observer. The original family application reaches every selected native result
+after arbitrary independent parameter and field computations. No parameter or
+field needs a native certificate, including proof and higher-order values.
+
+The resulting native-output transfer applies to any pivot recovering the
+original family. For two independently computed field histories at fixed
+arbitrary parameters, even the pivot recovery is derived from the target
+constructor history. This removes the parameter-native, major-native, explicit
+ProjTele and proof-parameter premises of the earlier field-history interface
+for declarations satisfying the literal header condition. It does not subsume
+that earlier theorem for arbitrary nonmatching headers.
+
+General family-header alignment, field-dependent result indices, global joining
+and canonical-Eq strengthening remain open. This is not a proof of GOAL.md or a
+strictly smaller sufficient obligation. The direction of the remaining header
+problem must be respected; ordinary equality alone does not establish the
+exact-output ancestry interface.
+
+Validation: 848-job isolated build; all 7 public roots audited through types,
+values including opaque bodies, constructors and recursor RHSs; maximum closure
+11,615; 823 stable committed/own source hashes. Only allowed axioms; no
+forbidden dependency, sorry, or own-module warning. Artifacts
+`/dev/shm/registered-mixed-header-*`.

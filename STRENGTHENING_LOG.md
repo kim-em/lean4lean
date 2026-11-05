@@ -25334,3 +25334,51 @@ committed dependencies. Only allowed axioms; no forbidden dependency, sorry,
 or audited-module warning. Artifacts /tmp/carrier-header-ancestry-boundary-*.
 Independent mixed-family and registered-header work was preserved; no
 uncommitted dependency was used. Executable and original sorry unchanged.
+
+
+### 2026-11-05 07:58:13 UTC — Connect mixed histories to registered structure declarations
+
+The previous mixed observer required paired literal declarations and explicit
+telescope instantiations. `ProofErasureRegisteredMixedHeader` now derives the
+constructor side of that interface from registration and ordinary spine typing.
+`registered_constructor_mixed_shape` extracts the raw telescope, identifies its
+unindexed result with the unique registered family, instantiates universes,
+and splits the telescope into the recorded parameters and fields. The result
+is exactly the eta-opened family lifted through the field suffix.
+
+The family side is a real remaining restriction: `TypeShape` permits ordinary
+normalization of the stored family header and ordinary equality of parameter
+domains. It does not assert literal agreement with the constructor prefix.
+`LiteralStructureFamilyHeader` names the sufficient syntactic condition; an
+introduction theorem establishes it at every universe instance from matching
+uninstantiated declarations. It contains no context or argument-value premise.
+
+Under that condition, `registered_mixed_constructor_native_origin` derives
+both ordinary argument vectors from saturated constructor typing and invokes
+the checked mixed observer. Its raw-origin corollary exposes the original
+family spine as an ancestor of every selected native output. Parameters and
+fields may compute independently, with arbitrary conversions between supplied
+arguments. No argument requires native recovery, and the raw-origin theorem
+also admits ordinarily proof-valued constructors.
+
+`native_transfer_registered_mixed_constructor` transfers every such output to
+any pivot recovering the original family. The field-history corollary derives
+the pivot guard from the independently computed target field vector. For
+matching headers it therefore needs no native parameter or major certificate,
+no explicit ProjTele, and no proof-only restriction on parameters. Its retained
+constructor hypothesis is the one used to realize that target field history.
+
+This makes the mixed result usable with actual registered declarations while
+keeping the unsolved header condition visible. Arbitrary ordinary header
+alignment, field-dependent result indices, global type-fork joining and the
+original canonical-Eq strengthening problem remain unresolved. No strictly
+smaller sufficient obligation or GOAL.md completion is claimed. Executable and
+original weakN_iff sorry unchanged; PR extraction remains deferred. Independent
+header-boundary work was preserved and no uncommitted dependency was imported.
+
+Validation: 848-job isolated build; all 7 public roots audited through types,
+values including opaque bodies, constructors and recursor RHSs; maximum closure
+11,615. All 823 source hashes matched own source or committed dependencies
+and remained stable. Only propext/Classical.choice/Quot.sound; no forbidden
+dependency, sorry, or own-module warning. Artifacts
+`/dev/shm/registered-mixed-header-*`.
