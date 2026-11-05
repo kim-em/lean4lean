@@ -27508,3 +27508,20 @@ Remaining: polymorphic alias instances require observation transport across
 universe conversion; the concrete family-parameter signature and arbitrary
 source coverage are still restricted. General strengthening remains open.
 No executable or previous source changes, no PRs, no coordination; goal active.
+
+## 2026-11-05 19:22:36 UTC — Preserve polymorphic stored aliases through universe conversion
+
+Added PolyAliasObservation, PolyAliasCompute, PolyAliasTransport and
+PolyAliasReadout (558 Lean lines). Unlike the old empty-list case, a universe
+step can select a syntactically different body. The new observer stores
+independent recursive evidence for each equivalent actual instance. Registry
+compatibility supplies the unfolding and equivalence transitivity supplies its
+body observation. Closed-body erasure handles interpreted substitutions.
+
+Full enriched computation, including native wrappers, structure and quotient
+extensions, preserves this evidence. Operational readout uses genuine stored
+delta and beta after arbitrary raw substitution. The monomorphic embedding and
+nonempty-instance exclusion are checked. Validation of the whole seven-module
+batch passed 915 jobs and 49 roots, maximum closure 12,012, with
+890 frozen source hashes, standard axioms only and no new-source warnings.
+The original sorry and executable remain unchanged; final goal remains open.

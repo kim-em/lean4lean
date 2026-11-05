@@ -14398,3 +14398,21 @@ roots, maximum closure 12,006, 885 frozen hashes, standard axioms only,
 no own warnings and no forbidden dependencies. Original strengthening sorry,
 previous observers and executable unchanged. No PR extraction or coordination;
 GOAL.md remains active.
+
+## 2026-11-05 19:22:36 UTC — Observe actual bodies across polymorphic alias instances
+
+**Verdict: checked extension, not a reduction of PropFront.** Replace the
+monomorphic alias leaf by a well-founded family of independent observations of
+actual stored bodies at equivalent universe lists. A level step selects the new
+registered body via ofEnv_levelCompatible and reindexes the recursive evidence
+by transitivity. It does not turn ordinary equality into an observation.
+The universal branching is not claimed finite. Every old monomorphic derivation
+embeds; a stored alias at a nonempty universe list is excluded by the old grammar
+when the designated family is rigid.
+
+Four modules (558 lines) prove structural substitution, full coherent and
+EnvironmentCore preservation, and actual stored-core head readout after arbitrary
+raw substitution. Concrete registry initialization and joint native integration
+are validated with this core and committed separately. Whole batch: 915 jobs,
+49 audited roots, maximum dependency closure 12,012; standard axioms
+only and all forbidden strengthening/front/recovery dependencies excluded.
