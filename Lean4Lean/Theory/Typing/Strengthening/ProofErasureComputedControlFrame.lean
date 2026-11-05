@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStageZeroSortExposure
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStageZeroTerminalTransport
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureComputedLambdaBody
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureLambdaTraceComparison
 
 /-! # Contract control frames after computation of their binder annotation
 
@@ -8,8 +8,8 @@ The comparison's binder need not remain a literal universe. Its forward
 history from the original universe supplies exact native typing of the fixed
 sort argument at the changed annotation. This retains dependent body checks
 at every finite stage. At stage zero, terminal-image transport removes the forward-history premise
-entirely. Extracting the body check from arbitrary computed function comparison
-remains open.
+entirely. Inferred function comparison at stage zero now supplies the body
+check by the pending-control trace theorem.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation
@@ -133,7 +133,7 @@ theorem stage_zero_converted_control_frame_pair
 /-- Function computations with a common endpoint supply the body comparison
 needed to contract both universe control frames. The common endpoint can
 contain wrappers, and no body comparison is assumed. This covers computation
-joins; extracting bodies from arbitrary function comparisons remains open. -/
+joins; the full inferred case is supplied by the final theorem below. -/
 theorem stage_zero_control_frame_pair_of_function_join
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hΓ : OnCtx Γ (env.IsType univs)) (hu : u.WF univs)
@@ -164,8 +164,8 @@ theorem stage_zero_control_frame_pair_of_function_join
 /-- Independently computed function domains and bodies need not meet. A body
 comparison under the left computed domain pulls back to the original binder
 and supplies the check for paired control-frame contraction. All computation
-prefixes may use generated wrappers; arbitrary function-comparison extraction
-beyond a structural lambda boundary remains open. -/
+prefixes may use generated wrappers. The final theorem below removes this
+structural-boundary restriction for inferred function comparisons. -/
 theorem stage_zero_control_frame_pair_of_computed_bodies
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hΓ : OnCtx Γ (env.IsType univs)) (hu : u.WF univs)
@@ -192,6 +192,39 @@ theorem stage_zero_control_frame_pair_of_computed_bodies
     ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ) mode
       (proofErase Γ (a.inst (.sort u))) (proofErase Γ (b.inst (.sort u))) := by
   have HB := stage_zero_computed_lambda_body_compare heq hs hΓ HC.hasType.2 ha hb hna hnb RFA RFB Hbody
+  exact stage_zero_converted_control_frame_pair heq hs hΓ hu HC ha hb hx hy HB HX HY
+
+/-- Arbitrary inferred comparison of the two original control functions now
+supplies their body comparison. Both paired control frames contract and retain
+a comparison in either mode, without a body-check or computation-join premise. -/
+theorem stage_zero_control_frame_pair_of_inferred_functions
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hΓ : OnCtx Γ (env.IsType univs)) (hu : u.WF univs)
+    (HC : env.IsDefEq univs Γ (.sort (.succ u)) C (.sort v))
+    (ha : env.HasType univs (C :: Γ) a T) (hb : env.HasType univs (C :: Γ) b T)
+    (hx : env.HasType univs Γ x (.sort w)) (hy : env.HasType univs Γ y (.sort z))
+    (hna : ¬ IsProof Γ (.lam C a)) (hnb : ¬ IsProof Γ (.lam C b))
+    (HF : ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ) false
+      (.lam (proofErase Γ C) (proofErase (C :: Γ) a))
+      (.lam (proofErase Γ C) (proofErase (C :: Γ) b)))
+    (HX : ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ) xMode
+      (.sort u) (proofErase Γ x))
+    (HY : ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ) yMode
+      (.sort u) (proofErase Γ y)) :
+    ScopedCompute (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ)
+      (.app (.lam K (proofErase (C :: Γ) a)) (proofErase Γ x))
+      (proofErase Γ (a.inst (.sort u))) ∧
+    ScopedCompute (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ)
+      (.app (.lam L (proofErase (C :: Γ) b)) (proofErase Γ y))
+      (proofErase Γ (b.inst (.sort u))) ∧
+    ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ) mode
+      (proofErase Γ (a.inst (.sort u))) (proofErase Γ (b.inst (.sort u))) := by
+  have HB₀ := stage_zero_inferred_lambda_body_compare heq hs hΓ HC.hasType.2 ha hb hna hnb HF
+  have HB : ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D 0)
+      (proofEraseCtx (C :: Γ)) mode (proofErase (C :: Γ) a) (proofErase (C :: Γ) b) := by
+    cases mode with
+    | false => exact HB₀
+    | true => exact HB₀.common
   exact stage_zero_converted_control_frame_pair heq hs hΓ hu HC ha hb hx hy HB HX HY
 
 end Lean4Lean.VEnv.Strengthening

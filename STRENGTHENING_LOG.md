@@ -28405,3 +28405,86 @@ strictly smaller sufficient irreducible obligation has been established.
 Higher-stage transport, full paired exposure and remaining collapse/confluence
 work are not discharged. Executable unchanged. GOAL.md remains active with its
 original objective, and no PRs were extracted.
+
+### 2026-11-05 22:29:40 UTC — Prove full inferred lambda-body extraction at stage zero
+
+Previous goal turn: checked progress in 66e0afad. Current HEAD and worktree were
+inspected before editing. The application's history mismatch identified there
+is resolved by changing the induction invariant, not by assuming a new
+comparison transport or recursing on a newly produced certificate.
+
+ProofErasureIgnoredLambdaTrace defines a marked trace indexed by temporary
+binder depth and pending ignored-argument count. Payload lambdas have arity
+zero; control lambdas consume one pending argument; applications demand one
+more from the function. The invariant has no variable or argument branch.
+FixedTail substitution preserves every lower payload. It gives lifting,
+removal of a fresh control binder, root beta and constant expansion. Two traces
+of the same syntax and arity select identical lower components. Displayed eta
+preserves positive pending demands, for either retained variables or markers.
+
+Its typed compatible-computation theorem uses the existing lambda component
+closure to update exact lower histories. The full root-beta induction handles
+arbitrary constant expansions, beta interleavings and annotation computation.
+The application branch follows only the function; payload components descend
+through temporary prefixes, while control lambdas extend those prefixes. The
+stage-zero instance starts from each original lambda with no pending demand.
+
+ProofErasureLambdaTracePayload discharges comparison at payload boundaries.
+The two exact body histories are replayed at the original common dependent
+type. Ordinary context conversion realizes them under the left payload's
+computed binder. Full comparison certificate descent removes the temporary
+prefix at cutoff one. The earlier native backward-context result then returns
+the body check to the original binder. Identical payloads give a common body
+computation directly. Lifted displayed eta descends syntactically and uses the
+previous typed eta/body-beta extraction proof. No strengthening is used.
+
+ProofErasureLambdaTraceComparison proves the complete inferred-checking
+induction. Application, appCarrier and appComputed follow their smaller
+inferred function premise at one greater pending count; no argument guard is
+needed by this invariant. Positive-arity structural lambdas are control frames:
+ordinary inferred reflection aligns their actual typings, common lambda-context
+inversion types both bodies in the left binder, and the induction extends the
+temporary prefix. At arity zero both sides are marked payloads, so the preceding
+payload comparison theorem applies. Reflexivity selects identical payloads.
+At positive arity, displayed eta transfers the long-side trace to the short
+side; syntactic common-payload selection finishes. At zero arity typed eta/body
+beta applies. Sort, constant, Pi and projection boundaries contradict the trace.
+Computation replays actual endpoints and transports both traces. Symmetry
+exchanges both original payload predicates and reverses the result. Common-only
+and carrier constructors cannot have inferred mode.
+
+The public result stage_zero_computed_inferred_lambda_body_compare accepts
+arbitrary stage-zero histories of two original retained lambdas and an inferred
+comparison of their outputs, then compares their original bodies. The original
+binder is shared and the bodies have a common dependent type; it need not be a
+universe or terminal-valued domain. stage_zero_inferred_lambda_body_compare is
+the direct theorem with reflexive initial histories. The previously hypothetical
+StageZeroLambdaApplicationExtraction is now proved by
+stage_zero_lambda_application_extraction. Boundary documentation now points to
+that proof instead of describing the interface as unresolved.
+
+ProofErasureComputedControlFrame integrates the direct theorem in
+stage_zero_control_frame_pair_of_inferred_functions. Arbitrary inferred function
+checking supplies the original body comparison, which can also be promoted to
+common mode. Compared fixed-sort arguments and terminal instantiation then
+contract both frames and retain the instantiated check. The body-check,
+function-join and structural-boundary premises of earlier variants are removed.
+The earlier variants remain available with their original scopes.
+
+Validation: 875 isolated build jobs; 41 public/generated roots audited
+through types, opaque bodies, inductive constructors and recursor RHSs, including
+all three trace constructors and its recursors; maximum closure 11,682.
+All 850 frozen source/import hashes unchanged. Only propext, Classical.choice
+and Quot.sound; no forbidden dependencies or own-module warnings. Development
+corrected an explicit lifting rewrite and a reflexive type-equality witness;
+the full induction's symmetry case was then completed by generalizing both
+original payload terms. No new sorry remains. All validation processes finished.
+
+Completion audit: UniqueTyping.lean:94 still contains the original weakN_iff
+sorry. The inferred stage-zero body-extraction/application subproblem is solved,
+but general common-mode extraction, higher-stage extraction, remaining paired
+identity exposure, singleton simulation and type-rooted confluence are not
+established by this change. No canonical-Eq counterexample or genuinely strictly
+smaller sufficient irreducible obligation is claimed. Executable unchanged,
+independent untracked modules preserved, no coordination or PR extraction.
+GOAL.md remains active unchanged.

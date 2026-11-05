@@ -5,18 +5,20 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureComputedLambdaBody
 Literal structural and displayed-eta boundaries have already been discharged.
 An induction on the complete comparison grammar isolates the three application
 constructors; outer computation and symmetry retain the original histories.
-This is a conditional reduction, not a proof of its application premise or a
-claim of a strictly smaller sufficient obligation for strengthening.
+This conditional reduction is completed by `stage_zero_lambda_application_extraction`
+in ProofErasureLambdaTraceComparison. It is not a claim of a strictly smaller
+sufficient obligation for strengthening.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape
 variable [Params] {D : PureObservation.Definitions}
 
-/-- The unresolved application case of inferred lambda-body extraction.
+/-- The application interface isolated by inferred lambda-body extraction.
 Two original lambdas compute to applications. Their functions compare in
 inferred mode, and arguments have one of the grammar's three exact checks.
-What remains to prove is a comparison of the original bodies under their
-original common binder, allowing arbitrary generated wrappers and interleavings.
+The conclusion compares the original bodies under their original common
+binder, allowing arbitrary generated wrappers and interleavings.
+`stage_zero_lambda_application_extraction` discharges this interface.
 This interface is not asserted to be strictly smaller than PropFront. -/
 def StageZeroLambdaApplicationExtraction (D : PureObservation.Definitions) : Prop :=
   ∀ {Γ C u a b T f g x y}, OnCtx Γ (env.IsType univs) →
@@ -82,8 +84,9 @@ private theorem inferred_body_of_application_boundary
 
 /-- The application boundary suffices for all inferred comparisons between
 computed original lambdas. The proof handles every constructor, including
-arbitrary outer computation and symmetry; the application premise remains
-unproved and carries precisely the remaining three structural application cases. -/
+arbitrary outer computation and symmetry; the application premise
+contains precisely the three structural application cases. Its proof is supplied
+by `stage_zero_lambda_application_extraction` in ProofErasureLambdaTraceComparison. -/
 theorem stage_zero_inferred_lambda_body_of_applications
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (happ : StageZeroLambdaApplicationExtraction D)

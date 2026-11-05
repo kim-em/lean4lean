@@ -60,8 +60,9 @@ theorem stage_zero_computed_body_pullback
 the left computed domain, their original bodies compare under the original
 common binder. All computations may use control wrappers and beta interleavings.
 The final body check is arbitrary and keeps its stage and mode. This covers
-structural lambda comparison after computation; general computed function
-comparisons may instead end in applications or recursive eta and remain unresolved. -/
+structural lambda comparison after computation; general common-mode function
+comparisons may instead end in applications or recursive eta. The inferred
+case is completed in ProofErasureLambdaTraceComparison. -/
 theorem stage_zero_computed_lambda_body_compare
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hΓ : OnCtx Γ (env.IsType univs)) (hC : env.HasType univs Γ C (.sort u))

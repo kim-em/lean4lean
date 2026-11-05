@@ -15063,3 +15063,41 @@ available to discharge control arguments once that invariant supplies a check.
 Validation: 872 isolated build jobs, 10 public roots, maximum audited
 closure 11,635, 847 frozen source/import hashes; allowed axioms only,
 no forbidden dependencies or own-module warnings. Original strengthening open.
+
+### 2026-11-05 22:29:40 UTC — Pending ignored arguments discharge inferred lambda-body extraction
+
+Verdict: proved, including the application interface isolated in 66e0afad.
+IgnoredLambdaTrace distinguishes payload lambdas at pending arity zero from
+control lambdas at positive arity. Application increases the pending demand
+when following its function position; control lambda decreases it while adding
+a temporary binder. No variable or argument is used along this marked path.
+Fixed-tail substitution preserves lower payloads, so constant expansion and
+beta preserve both the pending count and exact lower component histories.
+
+The full inferred comparison induction can consequently recurse on the smaller
+function comparison in all three application constructors. It no longer needs
+a computation history from the original lambda directly to that function.
+Control lambda comparison uses ordinary typed reflection and common-context
+inversion to extend the temporary prefix. Payload lambda comparison descends
+its supplied body check through that prefix, then pulls it back to the original
+binder. Reflexivity finds a common payload syntactically. Displayed eta at zero
+arity uses typed payload beta; at positive arity it transfers the trace to its
+short side and finds a common payload. Computation preserves traces and symmetry
+exchanges both payload predicates. Every inferred constructor is covered.
+
+stage_zero_computed_inferred_lambda_body_compare and its direct corollary
+prove original-body comparison for arbitrary inferred comparisons of computed
+original lambdas. Original lambdas share a written binder and their bodies have
+a common dependent type; both are retained non-proofs. No terminality,
+normalisation, joinability or application-extraction premise remains.
+stage_zero_lambda_application_extraction proves the earlier named interface.
+Control-frame contraction now consumes an arbitrary inferred function check
+instead of an assumed original-body comparison or a restricted final boundary.
+
+Validation: 875 isolated build jobs; 41 public/generated audit roots,
+maximum closure 11,682; 850 frozen source/import hashes unchanged. Only
+allowed axioms, no forbidden dependencies, no own-module warnings. This closes
+the inferred stage-zero body-extraction subproblem, not strengthening. Next work
+must integrate the result through the remaining paired-exposure and guard
+contraction arguments; arbitrary common-mode and higher-stage extraction are
+not asserted. The original weakN_iff sorry remains.
