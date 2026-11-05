@@ -11156,3 +11156,36 @@ Validation: two modules, eight roots, 793-job build; full transitive audit
 maximum closure 11,522, only allowed axioms, no forbidden dependencies or
 new-module warnings. All 768 closure source hashes stable and committed
 outside these modules. Artifacts /dev/shm/lambda-history-peaks-*.
+
+## 2026-11-05 03:36:04 UTC — Complete local square at an initially certified beta cut
+
+Verdict: checked progress plus a checked boundary on iteration. The full static
+structure/function-eta body/argument square uses native recovery only before
+argument computation. Instantiate the body path first, then compute the argument
+through the realized body. Backward context transport covers bodies computed
+after the original domain changes. No new native output for the computed
+argument is required; loss of exact recovery does not invalidate this square.
+
+ScopedStep specifies one primitive or beta contraction at one compatible
+occurrence. Its reflexive-transitive closure is proved exactly equivalent to
+ScopedCompute; simultaneous binder computation decomposes body first, domain
+second. native_root_beta_step_square now joins every such one-step competitor
+of a retained beta redex whose original argument has its written native type.
+Whole-redex primitives commute by native recovery, function-root primitives
+beta-return the same applied body, and child steps use the body/argument square.
+
+The next naive step is refuted: an outer cut initially certified by a native
+identity-wrapper argument loses its certificate after one beta step inside that
+argument, using the existing positive empty-structure boundary. The two branches
+happen to coincide, so this is not a confluence counterexample. It rules out
+iterating the local result by assuming every marked residual remains
+NativeHeadBeta. A development invariant must instead retain historical body and
+argument paths, or otherwise join without exact certification of each residual.
+
+Remaining: compose these local squares through arbitrary paths, including newly
+created cuts and full body-history/readout. No unrestricted local confluence,
+TypeForkJoin, strengthening proof, or strict reduction of PropFront is claimed.
+Validation: five modules, 28 public/constructor/recursor roots, 818-job build;
+full dependency audit maximum closure 11,629, allowed axioms only, no
+forbidden dependencies or new-module warnings, 793 stable local source hashes.
+Artifacts /dev/shm/native-beta-local-*; no PR extraction.

@@ -23670,3 +23670,67 @@ no sorry or configured forbidden dependencies and no new-module warnings. All
 768 closure source hashes stable and byte-identical to authoritative own sources
 or committed dependencies before staging. Artifacts /dev/shm/lambda-history-peaks-*.
 Executable unchanged, independent work preserved, no coordination or PR extraction.
+
+## 2026-11-05 03:36:04 UTC — Certified root beta versus every single-step competitor
+
+Verdict: checked progress. Five modules establish a complete local square and
+verify why exact native certificates alone cannot be the iteration invariant.
+
+ProofErasureScopedSteps defines the nine one-occurrence constructors: primitive,
+root beta, left/right application, projection, lambda domain/body, and Pi
+domain/body. ScopedCompute is proved equivalent to their reflexive-transitive
+closure. In decomposing a simultaneous binder computation, the body computes
+before the annotation. This preserves the original context of its body path
+without assuming forward native context transport. The presentation covers the
+full compatible relation, not a restricted test reduction system.
+
+ProofErasureStaticStructureBetaSquares proves the full-union body/argument
+square. Exact native recovery is needed only for the original retained argument.
+After instantiating the body computation, its endpoint is realized as an actual
+typed body; primitive renaming propagates the argument computation through all
+occurrences, including annotations. A second theorem pulls a body path from a
+computed binder back to the original binder before applying the same square.
+This corrects any overly broad reading of the previous warning about changed
+arguments: exact residual-cut certification can fail, but this computational
+square does not need it.
+
+ProofErasureNativeBetaPrimitiveResidual classifies primitive roots of a literal
+raw beta redex as constant, identity, function eta or structure eta. It completes
+the constant-expansion residual for NativeHeadBeta and collects finite identity
+guards into the full union. Every primitive competitor of an initially certified
+retained root beta cut then has an exact commuting residual: a primitive from the
+contractum and beta from the expanded branch. No fork joining is used.
+
+ProofErasureNativeBetaLocalSquare covers all remaining single-step positions.
+A primitive at the literal function root beta-restores the same applied body,
+including native eta with its independently selected annotation. This statement
+accepts an arbitrary raw argument. A domain step is discarded by beta; a body
+step uses the original native argument; an argument step propagates through the
+typed body. Thus native_root_beta_step_square joins the root contractum with
+every ScopedStep competitor at the same source, without native recovery of the
+computed argument or body.
+
+ProofErasureNativeBetaResidualBoundary supplies a concrete limitation using the
+previous positive empty-structure example. For x:A without exact recovery at A,
+let w=(fun y:A => y) x. The outer identity cut applied to w is certified because
+w recovers A. One beta step inside its argument produces the cut applied to x,
+which is provably not NativeHeadBeta. The two original one-step branches both
+end at w, so they already join. This refutes preservation of exact marked-cut
+certificates, not local confluence or strengthening; the environment premises
+remain explicit. Simply iterating the new local theorem under an assumption
+that each residual cut remains certified would therefore be invalid.
+
+Remaining: a history-aware development or another valid composition argument
+for arbitrary paths and created cuts. Full body readout and TypeForkJoin remain
+open. No unrestricted local-confluence theorem, complete strengthening proof,
+canonical-Eq counterexample or strictly smaller sufficient obligation is claimed.
+GOAL.md remains active and the original strengthening sorry is unchanged.
+
+Validation: five modules, 386 lines; 818-job isolated build and 28 public roots,
+including all ScopedStep constructors and recursors, passed full transitive
+declaration-type, opaque-value and recursor-RHS audit. Maximum closure
+11,629; only propext, Classical.choice and Quot.sound, no sorry or configured
+forbidden dependencies and no new-module warnings. All 793 closure source hashes
+stable and equal authoritative own sources or committed dependencies at staging.
+Artifacts /dev/shm/native-beta-local-*. Executable unchanged, independent work
+preserved, no coordination or PR extraction.
