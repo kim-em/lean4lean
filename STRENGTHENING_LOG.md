@@ -23509,3 +23509,54 @@ stable and byte-identical to isolated copies; dependencies outside the six
 audited modules equal committed HEAD. Artifacts /tmp/carrier-computational-domains-*.
 Independent uncommitted observer work untouched. Executable and original
 strengthening sorry unchanged; GOAL.md remains active.
+
+## 2026-11-05 — Substitution-stable erased value histories for rigid arguments
+
+Verdict: checked progress. The prior caller-eta boundary already refutes forward
+histories for arbitrary retained arguments, so a rigid argument observer must
+retain chains rather than directed paths. Four new modules establish this
+replacement's laws and its exact connection to computational rigid injectivity.
+
+TypedComputationEq.representative replays a chain from any typed term with the
+same source erasure, at that term's actual assignment. For nonproofs, typed
+erasure reflection aligns representatives. For proofs, it keeps the source
+proof and the target proof erasure, never equating unrelated proof propositions.
+ErasedValueChain therefore composes across different middle representatives.
+ScopedValueChain additionally hides the well-formed realization of the erased
+context; actual context conversion reinterprets it in any other realization.
+It supports symmetry, composition, arbitrary interpreted typed substitution,
+full-union computation of its current endpoint, and application-spine congruence
+from a typed source. Native guards need not survive substitution as forward
+steps. At specified same-assignment endpoints it reifies as an exact typed chain.
+
+The checked caller-eta counterexample now has a ScopedValueChain between its
+retained arguments, stable under every ContextSubstitution, while still lacking
+any forward argument history even after beta readout. Thus the new invariant
+survives that concrete refutation; this is not a proof of arbitrary readout.
+
+RigidSpineValueHistory explicitly names what remains: a full-union computation
+from a typed rigid type spine to a literal spine of the same head must yield
+pointwise ScopedValueChain histories. Assuming that statement and TypeForkJoin,
+TypedComputationEq.rigid_spine_inv_of_value_history derives exact typed chains
+for every argument. Existing head/arity readout supplies beta cleanup. Both
+paths into the shared reduct append the same cleanup, and the literal-endpoint
+history premise supplies their pointwise comparisons. Ordinary rigid injectivity
+is used only for the argument endpoint typings and universe-level comparison.
+
+Remaining: build the finite dependent observer carrying these value histories,
+including opaque data and higher-order argument demands through caller eta.
+The old head observer ignores argument demands, and the existing sort-payload
+observer does not cover arbitrary retained data. Declaration-history index and
+normalization certificates and TypeForkJoin remain open. No strictly smaller
+sufficient obligation, canonical-Eq counterexample or strengthening proof is
+claimed; the original sorry is unchanged.
+
+Validation: explicit isolated 832-job build; 70 public/generated roots across
+seven audited modules (four new, three committed rigid-observer dependencies)
+passed complete transitive type, opaque-value and recursor-RHS audit; maximum
+closure 11,416, only propext/Classical.choice/Quot.sound, no sorry or forbidden
+dependencies and no audited-module warnings. All 807 closure source hashes were
+stable and matched isolated copies; every dependency outside the four new
+modules matched committed HEAD. Artifacts /tmp/carrier-value-history-*.
+Independent uncommitted observer work untouched and unused. Executable unchanged;
+GOAL.md remains active. Previous goal turn classified as progress.

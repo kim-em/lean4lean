@@ -11084,3 +11084,16 @@ computational constructor-index typing into SingletonGenericDataDomainChains.
 Remaining: obtain the index certificates from earlier declaration history;
 ordinary typing alone does not supply them. Actual rigid argument readout and
 TypeForkJoin remain open. No strict reduction or complete strengthening result.
+
+### Rigid arguments carry scoped value chains — checked foundation, readout open
+
+Forward retained-argument origins are already refuted by caller eta. Replace
+them with existentially typed ScopedValueChain histories. Representative replay,
+context realization, composition, arbitrary typed substitution, endpoint
+computation and application-spine congruence now check without TypeForkJoin.
+The known caller-eta forward-origin counterexample has these histories, even
+after arbitrary interpreted substitution. A literal-endpoint RigidSpineValueHistory
+premise plus TypeForkJoin now yields exact computational rigid-spine injectivity.
+Remaining: prove that history premise with a finite observer for opaque and
+higher-order data arguments; obtain declaration-history certificates and prove
+TypeForkJoin. No strict reduction or full strengthening result is asserted.
