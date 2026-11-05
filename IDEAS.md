@@ -10212,3 +10212,50 @@ Quot.sound; no configured forbidden dependencies or new warnings. All 763 local
 imported-source hashes remained stable. Artifacts /dev/shm/typed-binder-transport-*.
 Only these modules and the EOF ledger appendices are staged; independent work
 is preserved. No executable changes, coordination or PR extraction; goal active.
+
+
+## Arbitrary paired substitution for typed computation chains (2026-11-05 00:56:37 UTC)
+
+Verdict: typed computation equality now supports arbitrary simultaneous typed
+substitution, including two different maps whose corresponding images are related
+by typed computation chains. No native recovery, common image reduct, fork joining,
+or ordinary-equality completeness assumption is required. The two maps may differ
+at every dependent source declaration, including retained data and proof images.
+The existing Ctx.SubstEq witness records ordinary typing of the related maps;
+lookup-indexed chain witnesses provide their computational content.
+
+The proof inducts on the source context, not on native certificates. At a cons,
+close the source chain under its head domain, recursively substitute the two tail
+maps into that function chain, and apply the related head images. Dependent
+application keeps the common left-hand result assignment. Beta contraction on
+both endpoints identifies the results with the original simultaneous substitutions.
+The nil case weakens the closed chain into the target context; closedness makes
+both arbitrary maps irrelevant. This transports finite chains even where exact
+forward substitution of an enriched primitive was previously refuted.
+
+Ordinary one-map substitution follows because every image has a reflexive chain
+at its lookup type. An InstN corollary handles replacement at arbitrary binder
+depth, with the actual dependent target context provided by its typed witness.
+A separate instDF theorem changes both body and argument at once by dependent
+application of the abstracted body chain; it needs no extra canonical-Eq or
+soundness premises beyond those already embodied by the supplied chains.
+
+The raw-output bridge starts from any actual typed full-union computation.
+Source-typed replay supplies a typed representative of its initially raw output,
+and general substitution relates all actual instances of the source and that
+representative by a chain. It does not claim a forward path to the substituted
+raw output or preserve an original guard certificate.
+
+Scope judgment: this supplies the simultaneous substitution interface for the
+remaining registered primitive cases of chain completeness. It does not itself
+prove that every ordinary IsDefEq has a chain, nor does it establish TypeForkJoin.
+No strictly smaller sufficient strengthening obligation is claimed; the original
+weakN_iff sorry remains. Next: use related typed capture maps in the remaining
+primitive cases, then separate chain completeness from type-rooted joining.
+
+Validation: one new module, 110 lines, five public roots. Explicit 789-job build;
+full transitive audits through types, opaque values, constructors and recursor
+rules, maximum closure 11,069. Only propext, Classical.choice and Quot.sound;
+no configured forbidden dependencies or new warnings. All 764 local imported
+source hashes remained stable. Artifacts /dev/shm/typed-substitution-*. Independent
+work preserved. No executable changes, coordination or PR extraction; goal active.
