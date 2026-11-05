@@ -24271,3 +24271,43 @@ roots, maximum transitive closure 11,500; all 785 closure-source hashes checked
 against own files and committed dependencies. Only allowed axioms, no forbidden
 dependencies, sorry, or own-module warnings. Artifacts:
 /tmp/carrier-projection-recipe-*.
+
+### 2026-11-05 05:05:26 UTC — A stage-one obstruction to pure-beta residuals at typed type forks
+
+Strengthened ProofErasureTypeInstantiationBoundary without changing its previous
+public exact-failure signature. The main construction now lives in
+static_structure_type_instantiation_beta_residual_failure. Its generic body path
+uses stage-zero variable recovery and one stage-one native eta expansion. The
+instantiated path beta-normalizes to an old neutral caller applied to a lambda
+whose domain retains the newly inserted unit variable.
+
+HnoNormal applies the existing binder-descent exclusion to that beta-normal
+endpoint. Raw beta confluence plus NormalSyntax excludes a common residual with
+any descending computation on the contracted branch and pure beta on the
+computed branch. The same construction now proves the argument lacks exact
+native recovery at the cut's assigned Pi: selected-type descent would make that
+fresh-variable Pi a lift, contradicted by its retained domain argument.
+The original theorem remains a corollary with exactly its previous statement.
+
+static_structure_type_beta_strip_failure packages the witness as a typed type
+T : Type with one root-beta branch and one stage-one computation branch, no
+pure-beta residual square against any descending target relation, and an
+explicit common reduct using full-union computation on both sides. It uses the
+existing positive empty-structure environment hypotheses, with canonical Eq
+permitted. It does not refute strengthening, type-fork joining, or the restricted
+certified-cut beta-output-transfer route. It prevents using unrestricted typed
+type/beta strip as a hidden premise in the pending conversion-tail proof.
+
+The viable next directions retain cut provenance or use common native output
+with general computation on the residual side. No universal closure theorem,
+new strictly smaller sufficient front, or solution of weakN_iff is claimed.
+GOAL.md remains active; executable and original sorry unchanged.
+
+Validation: 772 isolated build jobs; four public roots audited through all
+transitive types, values, opaque values, constructors and recursor RHSs;
+maximum closure 11,023. Only propext/Classical.choice/Quot.sound, no sorry,
+forbidden dependency or own-module warning. All 747 closure sources hash-stable
+and checked against own source and current committed dependencies before staging.
+Original exact-failure API compared against HEAD and unchanged. Concurrent
+native-walk/structure-field files were preserved and excluded. Artifacts
+/dev/shm/type-beta-strip-*.

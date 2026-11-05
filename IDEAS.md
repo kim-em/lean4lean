@@ -11565,3 +11565,39 @@ roots, maximum transitive closure 11,500; all 785 closure-source hashes checked
 against own files and committed dependencies. Only allowed axioms, no forbidden
 dependencies, sorry, or own-module warnings. Artifacts:
 /tmp/carrier-projection-recipe-*.
+
+### 2026-11-05 05:05:26 UTC — Unrestricted typed type/beta strip is false already at stage one
+
+**Verdict: refuted the proposed universal conversion-tail shortcut.**
+NativeOutputBetaTransfer supplies the expansion squares from the preceding turn,
+but proving its dependent-context closure by assuming arbitrary typed type/beta
+commutation would require a false law. The earlier type-instantiation example
+was checked again and strengthened rather than merely cited as an exact-output
+obstruction. Its computed branch beta-normalizes to a neutral caller with a
+fresh variable retained in its lambda annotation. Raw beta confluence makes
+every pure-beta residual return to that same normal form. The contracted branch
+was typed below the fresh binder, so no binder-descending computation language
+can reach the normal form. This excludes every such target language, not only
+the current union.
+
+The entire competing computation needs only stage one. The construction is
+conditional on the existing closed positive empty-structure data and allows
+canonical Eq. Both branches still have the explicit full-union common reduct
+from unit structure expansion. Thus it is not a counterexample to strengthening
+or TypeInstantiationJoin. The new theorem also proves that the supplied argument
+cannot natively recover the written cut domain. This matters: the example does
+not refute beta-output histories for certified cuts, and does not invalidate
+the preceding expansion squares.
+
+Judgment: an unrestricted pure-beta strip cannot discharge the pending recipe
+conversion tails or justify a stage induction covering all typed beta steps.
+Retain a restricted cut/history hypothesis, or allow non-beta computation on
+the residual side and prove common-native-output joins. These remain live;
+their general closure and TypeForkJoin are still open. No strict-smallness
+claim. The original exact-instantiation theorem's statement is preserved as a
+corollary, with its explicit common reduct intact.
+
+Validation: 772-job isolated build; four public audit roots; maximum closure
+11,023; all 747 source hashes stable and matched to own/committed sources;
+only allowed axioms, no forbidden dependency or own-module warning. Artifacts
+/dev/shm/type-beta-strip-*.

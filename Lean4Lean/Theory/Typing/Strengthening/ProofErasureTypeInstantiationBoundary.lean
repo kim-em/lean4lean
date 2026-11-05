@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureTypeBetaResidual
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCallerEtaAnnotation
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCarrierAlignedRawBetaJoin
 
 /-! # Type computations require a join after arbitrary instantiation
 
@@ -10,7 +11,7 @@ in the computed annotation. Exact computation transport is impossible by descent
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape
-open private ProofShape.liftN_app_inv ProofShape.liftN_lam_inv
+open private ProofShape.liftN_app_inv ProofShape.liftN_lam_inv ProofShape.liftN_forallE_inv
   from Lean4Lean.Theory.Typing.Strengthening.ProofErasureTypedReplay
 open private not_proof_at_positive_type from Lean4Lean.Theory.Typing.Strengthening.ProofErasureScopedUnitBoundary
 variable [Params]
@@ -37,8 +38,13 @@ theorem compute_no_inserted_call_lambda_domain
 paths under arbitrary typed instantiation. A generic eta guard copies a fresh
 converted domain into a type caller whose declaration is older. Both beta-fork
 outputs nevertheless have an explicit common reduct by unit eta, so this
-refutes exact substitution transport, not TypeInstantiationJoin or strengthening. -/
-theorem static_structure_type_instantiation_exact_failure
+refutes exact substitution transport and even a pure-beta residual square
+against any descending target computation. The source computation needs only
+stage one. TypeInstantiationJoin and strengthening
+are not refuted: the displayed common reduct uses structure computation. The
+argument explicitly lacks native recovery at the cut domain, so this does not
+refute the restricted certified-cut route. -/
+theorem static_structure_type_instantiation_beta_residual_failure
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hi : env.projections family info) (hp : info.nparams = 0)
     (hx : info.nindices = 0) (hz : info.numFields = 0)
@@ -46,13 +52,19 @@ theorem static_structure_type_instantiation_exact_failure
     ∃ Γ Q x B out,
       OnCtx Γ (env.IsType univs) ∧ env.HasType univs Γ x Q ∧
       env.HasType univs (Q :: Γ) B (.sort (.succ .zero)) ∧
-      ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx (Q :: Γ))
+      ScopedCompute (ErasedStaticStructureEtaExpansionStage D 1) (proofEraseCtx (Q :: Γ))
         (proofErase (Q :: Γ) B) out ∧
       (¬ ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
         (proofErase Γ (B.inst x)) (out.inst (proofErase Γ x))) ∧
       (∀ Step, ErasedScopedPrimitiveDescent Step →
         ¬ ScopedCompute Step (proofEraseCtx Γ)
           (proofErase Γ (B.inst x)) (out.inst (proofErase Γ x))) ∧
+      (∀ Step, ErasedScopedPrimitiveDescent Step →
+        ¬ ∃ shared, ScopedCompute Step (proofEraseCtx Γ)
+            (proofErase Γ (B.inst x)) shared ∧
+          ProofShape.BetaRed (out.inst (proofErase Γ x)) shared) ∧
+      (¬ ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+        (proofErase Γ x) (proofErase Γ Q)) ∧
       ∃ shared, ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
           (proofErase Γ (B.inst x)) shared ∧
         ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
@@ -134,20 +146,21 @@ theorem static_structure_type_instantiation_exact_failure
       if_neg (not_isProof_function_to_sort hΓQ (hf.weakN henv Ctx.LiftN.one)),
       show proofErase (Q :: Γ) (.bvar 0) = .bvar 0 from
       if_neg (not_isProof_function_to_sort hΓQ hg)]
-  have RN : ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D)
+  have RN : ScopedTypeRecovery (ErasedStaticStructureEtaExpansionStage D 0)
       (proofErase Γ Q :: proofEraseCtx Γ) (.bvar 0)
       ((proofErase Γ Q).liftN 1) := .bvar
   rw [EQ] at RN
   have SA := DomainSort.of_typed hΓQ (hA.weakN henv Ctx.LiftN.one)
   rw [proofErase_liftN hΓ hΓQ Ctx.LiftN.one hA, EA, proofEraseCtx, EQ] at SA
-  have RE := ScopedCompute.base (erased_static_structure_eta_expansion_union_eta (.intro RN SA))
-  have RE' : ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx (Q :: Γ))
+  have RE : ScopedCompute (ErasedStaticStructureEtaExpansionStage D 1) _ _ _ :=
+    .base (.inr (.inr (.inr (.inr (.inl (.intro RN SA))))))
+  have RE' : ScopedCompute (ErasedStaticStructureEtaExpansionStage D 1) (proofEraseCtx (Q :: Γ))
       (.bvar 0) (.lam (.app (.bvar 3) (.bvar 1)) (.app (.bvar 1) (.bvar 0))) := by
     simpa only [proofEraseCtx, EQ, etaArgument, show ¬ VLevel.succ .zero ≈ .zero from by
       intro E; have H := congrFun E []; simp [VLevel.eval] at H,
       ↓reduceIte, ProofShape.liftN, liftVar, Nat.not_lt_zero, Nat.reduceAdd] using RE
   let out := ProofShape.app (.bvar 2) (.lam (.app (.bvar 3) (.bvar 1)) (.app (.bvar 1) (.bvar 0)))
-  have RB : ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx (Q :: Γ))
+  have RB : ScopedCompute (ErasedStaticStructureEtaExpansionStage D 1) (proofEraseCtx (Q :: Γ))
       (proofErase (Q :: Γ) B) out := by rw [EB]; exact .app .refl RE'
   have EI : proofErase Γ (B.inst x) = .app (.bvar 1) (proofErase Γ x) := by
     rw [proofErase_instN hΓQ hxQ Ctx.InstN.zero hB, EB]
@@ -172,21 +185,104 @@ theorem static_structure_type_instantiation_exact_failure
       (.bvar 3) (.const info.ctorName []) := .intro hi hx hz (ps := []) hp.symm RZ
   have CY := ScopedCompute.base (erased_static_structure_eta_expansion_union_structure UY.maskedStructure)
   have CZ := ScopedCompute.base (erased_static_structure_eta_expansion_union_structure UZ.maskedStructure)
-  have Hno {Step} (hstep : ErasedScopedPrimitiveDescent Step) :
-      ¬ ScopedCompute Step (proofEraseCtx Γ)
-        (proofErase Γ (B.inst x)) (out.inst (proofErase Γ x)) := by
+  have HnoNormal {Step} (hstep : ErasedScopedPrimitiveDescent Step) :
+      ¬ ScopedCompute Step (proofEraseCtx Γ) (proofErase Γ (B.inst x))
+        (.app (.bvar 1) (.lam (.app (.bvar 2) (.bvar 0)) (.sort .zero))) := by
     intro R
     have EN := proofErase_liftN hΔ hΓ Ctx.LiftN.one hc₀
-    have RR := R.trans (.beta Rβ)
     change proofErase Γ (B.inst x) = _ at EN
-    rw [EN] at RR
+    rw [EN] at R
     exact compute_no_inserted_call_lambda_domain hstep
-      hΔ hΓ Ctx.LiftN.one hc₀ (j := 0) (by decide) (by decide) RR
+      hΔ hΓ Ctx.LiftN.one hc₀ (j := 0) (by decide) (by decide) R
+  have Hno {Step} (hstep : ErasedScopedPrimitiveDescent Step) :
+      ¬ ScopedCompute Step (proofEraseCtx Γ)
+        (proofErase Γ (B.inst x)) (out.inst (proofErase Γ x)) :=
+    fun R => HnoNormal hstep (R.trans (.beta Rβ))
+  have HnoBeta {Step} (hstep : ErasedScopedPrimitiveDescent Step) :
+      ¬ ∃ shared, ScopedCompute Step (proofEraseCtx Γ)
+          (proofErase Γ (B.inst x)) shared ∧
+        ProofShape.BetaRed (out.inst (proofErase Γ x)) shared := by
+    rintro ⟨shared, RL, RR⟩
+    obtain ⟨last, RN, RS⟩ := Rβ.raw_confluent RR
+    have Hnormal : NormalSyntax (fun _ _ => False)
+        (.app (.bvar 1) (.lam (.app (.bvar 2) (.bvar 0)) (.sort .zero))) := by
+      simp [NormalSyntax]
+    obtain rfl := RN.fixed_of_normal Hnormal
+    exact HnoNormal hstep (RL.trans (.beta RS))
+  have HnoNative : ¬ ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D)
+      (proofEraseCtx Γ) (proofErase Γ x) (proofErase Γ Q) := by
+    intro R
+    have EW := proofErase_liftN hΔ hΓ Ctx.LiftN.one hq₀
+    change proofErase Γ x = _ at EW
+    rw [EW, EQ] at R
+    obtain ⟨C, _, EC⟩ := proofErase_scoped_typeRecovery_descend
+      (erased_static_structure_eta_expansion_union_descent heq hs)
+      hΔ hΓ Ctx.LiftN.one hq₀ rfl R
+    obtain ⟨F, _, _, EF, _⟩ := ProofShape.liftN_forallE_inv EC
+    obtain ⟨_, arg, _, _, Earg⟩ := ProofShape.liftN_app_inv EF
+    cases arg <;> simp [ProofShape.liftN, liftVar] at Earg
   refine ⟨Γ, Q, x, B, out, hΓ, hxQ, hB, RB,
-    Hno (erased_static_structure_eta_expansion_union_descent heq hs), fun _ => Hno, ?_⟩
+    Hno (erased_static_structure_eta_expansion_union_descent heq hs), fun _ => Hno,
+    fun _ => HnoBeta, HnoNative, ?_⟩
   refine ⟨.app (.bvar 1) (.lam (.app (.bvar 2) (.const info.ctorName [])) (.sort .zero)), ?_, ?_⟩
   · rw [EI, Ex]
     exact .app .refl (.lam (.app .refl CZ) .refl)
   · exact (ScopedCompute.beta Rβ).trans (.app .refl (.lam (.app .refl CY) .refl))
+
+/-- The original exact-instantiation boundary follows from the stronger
+pure-beta-residual obstruction. This preserves the earlier interface, including
+its explicit full-computation common reduct. -/
+theorem static_structure_type_instantiation_exact_failure
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hi : env.projections family info) (hp : info.nparams = 0)
+    (hx : info.nindices = 0) (hz : info.numFields = 0)
+    (hS : env.HasType univs [] (.const family []) (.sort (.succ u))) :
+    ∃ Γ Q x B out,
+      OnCtx Γ (env.IsType univs) ∧ env.HasType univs Γ x Q ∧
+      env.HasType univs (Q :: Γ) B (.sort (.succ .zero)) ∧
+      ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx (Q :: Γ))
+        (proofErase (Q :: Γ) B) out ∧
+      (¬ ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+        (proofErase Γ (B.inst x)) (out.inst (proofErase Γ x))) ∧
+      (∀ Step, ErasedScopedPrimitiveDescent Step →
+        ¬ ScopedCompute Step (proofEraseCtx Γ)
+          (proofErase Γ (B.inst x)) (out.inst (proofErase Γ x))) ∧
+      ∃ shared, ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+          (proofErase Γ (B.inst x)) shared ∧
+        ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+          (out.inst (proofErase Γ x)) shared := by
+  obtain ⟨Γ, Q, x, B, out, hΓ, hxQ, hB, RB, Hno, Hall, _, _, Hjoin⟩ :=
+    static_structure_type_instantiation_beta_residual_failure heq hs hi hp hx hz hS
+  exact ⟨Γ, Q, x, B, out, hΓ, hxQ, hB, RB.mono (fun H => ⟨1, H⟩), Hno, Hall, Hjoin⟩
+
+/-- An ordinarily typed type-valued root beta fork need not have a pure-beta
+residual on its computed branch, even if its other branch may use any primitive
+language satisfying binder descent. Both branches do have a full-union common
+reduct. Thus unrestricted type/beta strip is not an available premise for proving
+native output histories. A proof must restrict the beta branch or allow non-beta
+computation in the residual; the underlying witness has an uncertified argument. The computed branch already exists at stage one. The example assumes a closed
+positive empty structure, as in the original instantiation boundary. -/
+theorem static_structure_type_beta_strip_failure
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hi : env.projections family info) (hp : info.nparams = 0)
+    (hx : info.nindices = 0) (hz : info.numFields = 0)
+    (hS : env.HasType univs [] (.const family []) (.sort (.succ u))) :
+    ∃ Γ T left right, OnCtx Γ (env.IsType univs) ∧
+      env.HasType univs Γ T (.sort (.succ .zero)) ∧
+      ProofShape.BetaRed (proofErase Γ T) left ∧
+      ScopedCompute (ErasedStaticStructureEtaExpansionStage D 1) (proofEraseCtx Γ)
+        (proofErase Γ T) right ∧
+      (∀ Step, ErasedScopedPrimitiveDescent Step →
+        ¬ ∃ shared, ScopedCompute Step (proofEraseCtx Γ) left shared ∧
+          ProofShape.BetaRed right shared) ∧
+      ∃ shared, ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+          left shared ∧
+        ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ) right shared := by
+  obtain ⟨Γ, Q, x, B, out, hΓ, hxQ, hB, RB, _, _, Hno, _, Hjoin⟩ :=
+    static_structure_type_instantiation_beta_residual_failure heq hs hi hp hx hz hS
+  obtain ⟨_, hQ⟩ := hxQ.isType henv hΓ
+  obtain ⟨ht, _, RR⟩ := type_instantiation_compute_peak hΓ hQ hB hxQ RB
+  exact ⟨Γ, .app (.lam Q B) x, _, _, hΓ, ht,
+    proofErase_beta_forward hΓ ht .beta, RR, Hno, Hjoin⟩
 
 end Lean4Lean.VEnv.Strengthening
