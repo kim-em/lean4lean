@@ -22118,3 +22118,48 @@ forbidden dependencies or new warnings. All 748 closure source hashes remained
 stable and matched isolated copies. Artifacts /tmp/carrier-type-context-*;
 preparation /tmp/prepare-carrier-type-context.py. Executable unchanged, no
 coordination. The original strengthening sorry remains; the goal stays active.
+
+
+## Repair generic-function eta through the caller's selected domain (2026-11-05 00:09:37 UTC)
+
+Verdict: proved a computational join for the annotation-changing eta/beta peak,
+without TypeInstantiationJoin, native coverage of the supplied function, or a
+join between the competing annotations. A caller with native type
+Pi (Pi A B) C eta-expands any supplied x at A. If its argument has first acquired
+an eta wrapper at any other domain L, the same caller expansion followed by
+beta contracts the inner wrapper and reaches the identical eta expansion at A.
+The proof works both for retained function inputs and erased proof inputs.
+The caller's function-argument type must have a nonzero sort; the inner domain
+may have sort zero. Matching inner proof-erasure mode is explicit.
+
+The full generic-function eta/beta peak has four checked paths: beta first
+produces F x; eta on the bound generic function before beta produces
+F (fun y:L => x y); both compute to F (fun y:A => x y). No supplied-argument
+native certificate is used. This isolates and closes the annotation discrepancy
+in the exact-instantiation counterexample without relying on its unit-structure
+assumption or normalizing x. The raw computation theorem is conditional on the
+caller's native Pi and the displayed domain-sort witnesses; it is not a claim
+that every caller has such a native certificate.
+
+Two typed consequences retain arbitrary lambda bodies, not just constant
+functions. The caller can replace the supplied lambda's displayed domain by its
+selected domain while preserving its entire erased body. If that body was
+originally annotated at the caller's domain, the mismatched eta-expanded branch
+returns to the exact original call. Typed proof-erasure stability handles the
+proof-input case. These are whole-call computations; no isolated reannotation
+path between the function arguments or domains is asserted.
+
+Remaining boundary: arbitrary body computation can alter more than a root eta
+wrapper, and arbitrary typed contexts need not expose a caller with the required
+native function domain. Full TypeInstantiationJoin, type-conversion joining and
+strengthening remain open. This is a solved residual case supporting caller-based
+repair, not a strictly smaller sufficient obligation. Next: extend repair across
+typed enclosing contexts and changing binders without assuming common coverage.
+
+Validation: one 168-line module, seven public roots. Explicit 743-job build;
+full transitive audit through types, opaque values, constructors and recursor
+rules, maximum closure 8,358. Only propext, Classical.choice and Quot.sound;
+no configured forbidden dependencies or new warnings. All 718 imported-source
+hashes remained stable. Artifacts /dev/shm/caller-eta-repair-*.
+No executable changes or PR extraction. The original strengthening sorry remains;
+the goal stays active.
