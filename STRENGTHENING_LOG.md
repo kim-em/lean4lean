@@ -23560,3 +23560,62 @@ stable and matched isolated copies; every dependency outside the four new
 modules matched committed HEAD. Artifacts /tmp/carrier-value-history-*.
 Independent uncommitted observer work untouched and unused. Executable unchanged;
 GOAL.md remains active. Previous goal turn classified as progress.
+
+## 2026-11-05 03:13:25 UTC — Full lambda-domain transport through computed controls
+
+Verdict: checked progress. The earlier LambdaWrapperHistory grammar covered
+literal identity/constant frames but not arbitrary computation inside control
+functions. Nine new modules close that domain-only gap with a finite observer
+and recursive native-type interpretation.
+
+IndexedControlObservation generalizes the typed Pi observer to payloads indexed
+by control depth and raw context, with an unrestricted dependent codomain.
+NativeTypeDemand interprets each finite term demand as a positive-sort Pi
+observation: functional demands recursively observe demanded input domains and
+the dependent result type. These observations survive ordinary interpreted
+substitution and full-union type computation. LowerDomainHistory anchors only
+the domain to a typed term below temporary controls and retains its actual
+forward computation path. Domain component computation descends by the existing
+certificate-descent theorem.
+
+LambdaDomainObservation distinguishes literal lambda payloads from control
+lambdas. A control annotation stores every demanded input's recursive type
+history; the argument supplies its term observation independently. In the native
+application case the selected function Pi supplies its result observation, which
+is instantiated by ordinary typed argument substitution. No exact native image
+coverage or substitution of a native recovery derivation is needed. The sort
+witnesses exclude Prop for demanded inputs, so native eta's fresh variable is
+retained when required; an empty input demand may ignore an erased argument.
+Native structure expansion is excluded by the observed type's head.
+
+The full compatible computation induction handles computed annotations, bodies,
+beta interleavings and every finite primitive stage. A changed control binder
+transports the body observation by ordinary context substitution. The operational
+interpretation gives a finite beta readout with the historical domain and an
+arbitrary body. Three public consequences now compile and pass the dependency
+audit:
+- literal lambda-to-lambda computation preserves a forward domain path;
+- two retained lambdas with a common computed endpoint have joinable domains;
+- any native Pi selected after arbitrary computation of a retained lambda has a
+  domain reachable from the original written domain.
+
+These are unconditional relative to the stated canonical-Eq, sound-definitions
+and source-typing premises. TypeForkJoin, native-cut stability, normalization and
+body-history recovery are not additional hypotheses. The domain-join proof uses
+one beta readout of the common endpoint, then transports the other source to
+that literal lambda. It does not assume confluence of the full computation.
+
+Remaining: full body histories and general type-fork joining. An application to
+a fresh binder creates a beta/function-computation fork; lifting a computation
+alone supplies no residual from the original body. This is not a proof of
+strengthening, a canonical-Eq counterexample, or a strict reduction of PropFront.
+The original sorry is unchanged, and GOAL.md remains active.
+
+Validation: nine new modules, 776-job isolated build; 79 public roots including
+both observer inductives' constructors and recursors. Complete transitive type,
+opaque-value and recursor-RHS audit: maximum closure 11,435; only propext,
+Classical.choice and Quot.sound, no sorry or configured forbidden dependencies,
+no new-module warnings. All 751 closure source hashes stable, own sources equal
+the authoritative worktree and remaining dependencies equal committed HEAD at
+staging. Artifacts /dev/shm/lambda-domain-*. Executable unchanged, independent
+work preserved, no coordination or PR extraction.

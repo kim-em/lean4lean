@@ -11097,3 +11097,33 @@ premise plus TypeForkJoin now yields exact computational rigid-spine injectivity
 Remaining: prove that history premise with a finite observer for opaque and
 higher-order data arguments; obtain declaration-history certificates and prove
 TypeForkJoin. No strict reduction or full strengthening result is asserted.
+
+## 2026-11-05 03:13:25 UTC — Recursive native-type observations close full lambda-domain readout
+
+Verdict: checked progress. Replace the literal wrapper grammar by a finite
+control observer with separate recursive histories for written annotations.
+An indexed Pi observer allows arbitrary dependent codomains while fixing only
+the lower domain. NativeTypeDemand interprets finite term demands in native
+types; ordinary interpreted substitution preserves these demands without exact
+native recovery of argument images. This supplies the previously missing
+application case, including arbitrary computation in control-function bodies.
+
+The resulting lambda-domain observer survives every compatible full static
+structure/function-eta union computation. A finite beta readout exposes a lambda
+whose domain has a forward computation from the original written domain.
+Consequently, a common computed endpoint for two retained lambdas gives a common
+computed endpoint for their domains, and every later native Pi selection retains
+a forward history of its domain. No TypeForkJoin premise or body-origin claim.
+
+Remaining: this does not join arbitrary forks or preserve the lambda body's
+history. Applying the endpoint to a fresh variable does not itself close that
+gap: comparing with the original body requires a beta residual across the
+function computation. Do not silently infer this from ordinary typed
+substitution or domain readout. The strengthening sorry remains open; no new
+strictly smaller sufficient obligation is claimed.
+
+Validation: nine modules, 776-job build, 79 public/constructor/recursor roots;
+full type/opaque-value/recursor-RHS audit, maximum closure 11,435, only the
+three allowed axioms, no forbidden dependencies or new-module warnings. All 751
+local dependency sources stayed stable and were checked against committed
+sources before staging. Artifacts /dev/shm/lambda-domain-*. No PR extraction.
