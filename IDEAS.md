@@ -10296,3 +10296,53 @@ dependencies, sorry sources, or new-module warnings. All 772/773 closure source
 hashes stayed stable and matched isolated copies. Artifacts:
 /tmp/carrier-typed-primitives-* and /tmp/carrier-typed-completeness-*.
 Independent work preserved; executable unchanged; original sorry remains; goal active.
+
+
+## Closed inhabited proposition forks retain all type forks (2026-11-05 01:05:28 UTC)
+
+Verdict: checked an exact equivalence between TypeForkJoin and fork joining
+restricted to closed inhabited propositions. Closed here means an empty term
+context; the ambient universe parameters are unchanged. Thus restricting the
+source to propositions, requiring an explicit inhabitant, and removing all free
+term variables still retains the complete type-fork obligation. This is a
+boundary result for the proposed restriction, not confluence or a strictly
+smaller sufficient strengthening obligation.
+
+First, a join of two Pis with the same original domain yields a join of their
+codomains in the original binder context. Marked full-union Pi origin supplies
+one literal Pi endpoint after finite beta cleanup. Exact Pi components on the
+other branch recover the second codomain history at that same endpoint. Neither
+source annotations nor the exposed common domain must remain unchanged.
+
+Second, proposition fork joining in Gamma implies the same property in A::Gamma.
+Realize each raw proposition output, close the fork as forall A P, and close the
+supplied proof by lambda abstraction. Impredicativity makes the whole wrapper a
+proposition, and the closed proof does not require an inhabitant of A. Apply the
+assumed joining in Gamma and read the two codomain histories back out. Induction
+on the ambient context therefore derives all inhabited-proposition forks from
+closed inhabited-proposition forks.
+
+Finally, any type T embeds as the domain of forall _:T, truth, where truth is the
+closed proposition forall P:Prop, P -> P with its literal identity proof. The two
+T-computations give a fork of this inhabited proposition. Ordinary context
+conversion identifies the unchanged truth body's erasure at changed domains.
+Pi readout recovers the original domain join. The construction requires neither
+T nor Gamma to be inhabited. Combining the two reductions gives the equivalence
+for the full structure/function-eta union, under canonical Eq and sound D.
+
+Joining investigation: deriving coverage from type joins and then using coverage
+to obtain joins is still circular. A prospective local binder argument would
+need to handle the native application case, where a changed recovered Pi brings
+an instantiated codomain computation at an arbitrary, potentially non-native
+argument. The present results do not bound that new joining obligation by the
+changed domain's syntax. This local argument remains unproved. The closed-root
+restriction cannot itself remove it, as the new equivalence demonstrates.
+
+Validation: one module, 177 lines, seven public roots including the two explicit
+open-property definitions. Explicit 775-job build; full transitive audits
+through types, opaque values, constructors and recursor rules, maximum closure
+11,489. Only propext, Classical.choice and Quot.sound; no configured forbidden
+dependencies or new warnings. All 750 local imported-source hashes remained
+stable. Artifacts /dev/shm/closed-prop-forks-*. Independent work preserved; no
+executable changes, coordination or PR extraction. The original strengthening
+sorry remains and GOAL.md stays active.
