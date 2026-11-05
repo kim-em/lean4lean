@@ -25003,3 +25003,48 @@ maximum closure 11,386. All 765 source hashes matched own source or frozen
 committed dependencies and remained stable. Only propext/Classical.choice/Quot.sound;
 no forbidden dependencies, sorry, or own-module warnings. Artifacts
 `/dev/shm/pi-history-observation-*`.
+
+### 2026-11-05 — Changed native domains join caller computation with reannotation
+
+**Verdict: a complete forward caller/reannotation square from common native
+output, with a checked repair of the fresh-domain guard-transfer boundary.**
+ProofErasureCommonCallerTelescope first inverts a literal erased Pi telescope
+into its actual domains and body. It then proves that computation between two
+literal assigned Pi telescopes computes the corresponding lambda annotations
+with the body unchanged. Actual type equality, dependent-context conversion,
+and equality of the body's erasure across those contexts are derived; no native
+certificate for the lambda is assumed.
+
+The common-output readout starts with a native output of the computed caller
+and a computation of the old assigned caller Pi to that same output. Outer Pi
+readout followed by finite argument-telescope cleanup derives a new actual
+argument telescope, caller typing at it, a native domain guard, and the forward
+whole argument-type path. No old-domain recovery at the computed caller is
+required. The square then joins caller computation with reannotation of an
+arbitrarily long dependent lambda argument. Its long side follows the derived
+annotation paths; its other side uses the computed caller's new domain guard.
+All four paths are forward, including proof-valued cases. The body is unchanged.
+
+The existing generic-family boundary now also exports the common native head
+output constructed by unit eta and the supplied lambda's literal shape. Its
+previous interfaces and negative results remain as corollaries unchanged.
+ProofErasureCommonCallerTelescopeExample applies the new square to this witness:
+one erased caller beta step loses every native Pi with the old argument domain,
+yet the caller/reannotation fork joins at a derived one-binder telescope. No
+common-output, joining, or coverage hypothesis is added to the example beyond
+its original positive-empty-structure environment premises. This directly
+repairs the checked obstruction instead of asserting stability of its old guard.
+
+Common output for arbitrary caller histories remains an explicit premise of
+the general square. Combining changed-domain reannotation with arbitrary body
+histories in the earlier written context is also still open. The result does
+not prove general common coverage, TypeInstantiationJoin, type-fork joining,
+or canonical-Eq strengthening, and no strictly smaller sufficient obligation
+is claimed. Executable and original sorry remain unchanged.
+
+Validation: isolated build succeeded (819 jobs); all public/generated roots of
+all three changed/new modules audited (15 roots, maximum closure 11,581). All
+794 source hashes matched frozen committed dependencies and own source. Only
+allowed axioms, no forbidden dependency, sorry, or audited-module warning.
+Artifacts /tmp/carrier-common-caller-telescope-*. Independent hidden-Pi and
+recursive-observation work was preserved; no uncommitted dependency was used.

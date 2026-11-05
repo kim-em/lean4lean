@@ -48,8 +48,10 @@ application of an ordinarily typed family head. That head cannot natively recove
 any Pi with its converted domain, irrespective of the selected codomain,
 for any descending primitive language. The argument domain is explicitly a
 nonempty literal Pi telescope. Thus ordinary family typing cannot replace the exact native-head premise of generic telescope
-reification, even for a single argument. -/
-theorem static_structure_generic_family_domain_instantiation_beta_residual_failure
+reification, even for a single argument. A common native output of this family
+head and its converted Pi is nevertheless constructed explicitly by unit eta;
+thus exact-domain failure does not prevent a changed-domain pivot. -/
+theorem static_structure_generic_family_common_domain_instantiation_beta_residual_failure
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hi : env.projections family info) (hp : info.nparams = 0)
     (hx : info.nindices = 0) (hz : info.numFields = 0)
@@ -58,6 +60,11 @@ theorem static_structure_generic_family_domain_instantiation_beta_residual_failu
       OnCtx Γ (env.IsType univs) ∧ env.HasType univs Γ x Q ∧
       env.HasType univs Γ g (.forallE Q (.sort (.succ .zero))) ∧
       (∃ A, Q = .forallE A (.sort (.succ .zero))) ∧
+      (∃ L, x = .lam L (.sort .zero)) ∧
+      (∃ common, ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+          (proofErase Γ g) common ∧
+        ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+          (proofErase Γ (.forallE Q (.sort (.succ .zero)))) common) ∧
       B = .app g.lift (.bvar 0) ∧
       (∀ Step, ErasedScopedPrimitiveDescent Step → ∀ selected,
         ¬ ScopedTypeRecovery Step (proofEraseCtx Γ) (proofErase Γ g)
@@ -198,6 +205,35 @@ theorem static_structure_generic_family_domain_instantiation_beta_residual_failu
       (.bvar 3) (.const info.ctorName []) := .intro hi hx hz (ps := []) hp.symm RZ
   have CY := ScopedCompute.base (erased_static_structure_eta_expansion_union_structure UY.maskedStructure)
   have CZ := ScopedCompute.base (erased_static_structure_eta_expansion_union_structure UZ.maskedStructure)
+  have hQL : env.HasType univs Γ (.forallE L (.sort (.succ .zero)))
+      (.sort (.imax (.succ .zero) (.succ (.succ .zero)))) := .forallE hL (.sort (by trivial))
+  have EQL : proofErase Γ (.forallE L (.sort (.succ .zero))) =
+      .forallE (.app (.bvar 2) (.bvar 3)) (.sort (.succ .zero)) := by
+    rw [show proofErase Γ (.forallE L (.sort (.succ .zero))) = .forallE _ _ from
+      if_neg (not_isProof_of_sort hΓ hQL), EL, ES (L :: Γ) ⟨hΓ, _, hL⟩ (.succ .zero) (by trivial)]
+  have EoldF : proofErase Γ (.forallE (.forallE L (.sort (.succ .zero))) (.sort (.succ .zero))) =
+      .forallE (.forallE (.app (.bvar 2) (.bvar 3)) (.sort (.succ .zero))) (.sort (.succ .zero)) := by
+    rw [show proofErase Γ (.forallE (.forallE L (.sort (.succ .zero))) (.sort (.succ .zero))) =
+      .forallE _ _ from if_neg (not_isProof_of_sort hΓ
+        (HasType.forallE hQL (HasType.sort (l := .succ .zero) (by trivial)))),
+      EQL, ES (.forallE L (.sort (.succ .zero)) :: Γ) ⟨hΓ, _, hQL⟩ (.succ .zero) (by trivial)]
+  have EnewF : proofErase Γ (.forallE Q (.sort (.succ .zero))) =
+      .forallE (.forallE (.app (.bvar 2) (.bvar 0)) (.sort (.succ .zero))) (.sort (.succ .zero)) := by
+    rw [show proofErase Γ (.forallE Q (.sort (.succ .zero))) = .forallE _ _ from
+      if_neg (not_isProof_of_sort hΓ (HasType.forallE hQ (HasType.sort (l := .succ .zero) (by trivial)))),
+      EQ, ES _ hΓQ _ (by trivial)]
+  have HcommonHead : ∃ common,
+      ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+        (proofErase Γ (.bvar 1)) common ∧
+      ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+        (proofErase Γ (.forallE Q (.sort (.succ .zero)))) common := by
+    have RNF := proofErase_scoped_lookup_recovery (Step := ErasedStaticStructureEtaExpansionUnion D)
+      hΓ (show Lookup Γ 1 (.forallE (.forallE L (.sort (.succ .zero))) (.sort (.succ .zero))) from
+        .succ .zero) (not_isProof_function_to_sort hΓ hf) ScopedCompute.refl
+    rw [EoldF] at RNF
+    rw [EnewF]
+    exact ⟨_, RNF.convert (.forallE (.forallE (.app .refl CZ) .refl) .refl),
+      .forallE (.forallE (.app .refl CY) .refl) .refl⟩
   have HnoNormal {Step} (hstep : ErasedScopedPrimitiveDescent Step) :
       ¬ ScopedCompute Step (proofEraseCtx Γ) (proofErase Γ (B.inst x))
         (.app (.bvar 1) (.lam (.app (.bvar 2) (.bvar 0)) (.sort .zero))) := by
@@ -247,13 +283,52 @@ theorem static_structure_generic_family_domain_instantiation_beta_residual_failu
     obtain ⟨A', _, _, EA', _⟩ := ProofShape.liftN_forallE_inv EF
     obtain ⟨_, arg, _, _, Earg⟩ := ProofShape.liftN_app_inv EA'
     cases arg <;> simp [ProofShape.liftN, liftVar] at Earg
-  refine ⟨Γ, Q, .bvar 1, x, B, out, hΓ, hxQ, hfQ, ⟨A, rfl⟩, rfl, fun _ => HnoHead, hB, RB,
+  refine ⟨Γ, Q, .bvar 1, x, B, out, hΓ, hxQ, hfQ, ⟨A, rfl⟩, ⟨L, rfl⟩, HcommonHead, rfl, fun _ => HnoHead, hB, RB,
     Hno (erased_static_structure_eta_expansion_union_descent heq hs), fun _ => Hno,
     fun _ => HnoBeta, HnoNative, ?_⟩
   refine ⟨.app (.bvar 1) (.lam (.app (.bvar 2) (.const info.ctorName [])) (.sort .zero)), ?_, ?_⟩
   · rw [EI, Ex]
     exact .app .refl (.lam (.app .refl CZ) .refl)
   · exact (ScopedCompute.beta Rβ).trans (.app .refl (.lam (.app .refl CY) .refl))
+
+/-- Forgetting the common native-head witness gives the domain-only
+instantiation boundary with its original interface. -/
+theorem static_structure_generic_family_domain_instantiation_beta_residual_failure
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hi : env.projections family info) (hp : info.nparams = 0)
+    (hx : info.nindices = 0) (hz : info.numFields = 0)
+    (hS : env.HasType univs [] (.const family []) (.sort (.succ u))) :
+    ∃ Γ Q g x B out,
+      OnCtx Γ (env.IsType univs) ∧ env.HasType univs Γ x Q ∧
+      env.HasType univs Γ g (.forallE Q (.sort (.succ .zero))) ∧
+      (∃ A, Q = .forallE A (.sort (.succ .zero))) ∧
+      B = .app g.lift (.bvar 0) ∧
+      (∀ Step, ErasedScopedPrimitiveDescent Step → ∀ selected,
+        ¬ ScopedTypeRecovery Step (proofEraseCtx Γ) (proofErase Γ g)
+          (.forallE (proofErase Γ Q) selected)) ∧
+      env.HasType univs (Q :: Γ) B (.sort (.succ .zero)) ∧
+      ScopedCompute (ErasedStaticStructureEtaExpansionStage D 1) (proofEraseCtx (Q :: Γ))
+        (proofErase (Q :: Γ) B) out ∧
+      (¬ ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+        (proofErase Γ (B.inst x)) (out.inst (proofErase Γ x))) ∧
+      (∀ Step, ErasedScopedPrimitiveDescent Step →
+        ¬ ScopedCompute Step (proofEraseCtx Γ)
+          (proofErase Γ (B.inst x)) (out.inst (proofErase Γ x))) ∧
+      (∀ Step, ErasedScopedPrimitiveDescent Step →
+        ¬ ∃ shared, ScopedCompute Step (proofEraseCtx Γ)
+            (proofErase Γ (B.inst x)) shared ∧
+          ProofShape.BetaRed (out.inst (proofErase Γ x)) shared) ∧
+      (¬ ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+        (proofErase Γ x) (proofErase Γ Q)) ∧
+      ∃ shared, ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+          (proofErase Γ (B.inst x)) shared ∧
+        ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+          (out.inst (proofErase Γ x)) shared := by
+  obtain ⟨Γ, Q, g, x, B, out, hΓ, hxQ, hg, HQ, _, _, EB, HnoHead, hB, RB,
+    Hno, Hall, Hbeta, Hnative, Hjoin⟩ :=
+    static_structure_generic_family_common_domain_instantiation_beta_residual_failure heq hs hi hp hx hz hS
+  exact ⟨Γ, Q, g, x, B, out, hΓ, hxQ, hg, HQ, EB, HnoHead, hB, RB,
+    Hno, Hall, Hbeta, Hnative, Hjoin⟩
 
 /-- The domain obstruction in the stronger boundary also excludes recovery
 of the whole assigned Pi. This retains the earlier generic-family interface. -/
