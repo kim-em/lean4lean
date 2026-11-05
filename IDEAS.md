@@ -14143,3 +14143,29 @@ Validation: 876 isolated build jobs, 18 audited roots, maximum dependency
 closure 11,836, 851 frozen source hashes, only standard axioms. No own
 warnings or forbidden strengthening/sorry/framework/exposure/coverage/fork
 dependencies. GOAL.md remains open; no PR extraction or executable changes.
+
+## 2026-11-05 18:23:33 UTC — Extend native type observations by independent dependent family evidence
+
+Verdict: checked core extension, addressing the proof-domain obstruction rather
+than weakening its conclusion. DependentRecordDemand.Obs adds record_type with
+TWO premises: ordinary equality to the record carrier AND an empty-demand
+RigidDemandProfile observation at the registered family head. The independent
+observer permits arbitrary dependent domains, including Prop. Ordinary equality
+alone remains insufficient. The earlier observer embeds without modification,
+so its checked noncoverage theorem remains valid for that earlier grammar.
+
+The new leaf substitutes through ordinary interpreted substitutions; its empty
+free-demand set needs no variable evidence. Beta closure follows from the
+independent observer. Generic compatible computation now exposes FamilyPreserves
+as a named premise; the result commit discharges it independently for every
+actual enriched stage. Native induction, Pi instantiation and identity/eta
+annotation disciplines are retained. Actual constructor registration is reused
+through the embedding, without copying or altering its ordinary metatheory.
+
+The core comprises seven modules (552 lines): Observation, Substitution,
+Application, Frames, Transport, Native and Registration. Complete-batch
+validation passed 888 isolated build jobs, 62 audited roots including all
+constructors/recursors, maximum closure 11,850, 863 frozen hashes,
+standard axioms only, and no own warnings or forbidden dependencies.
+The next commit supplies the closed stage induction and concrete wrapped-oracle
+join. General strengthening is still open. No PRs or executable changes.

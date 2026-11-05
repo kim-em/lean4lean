@@ -27334,3 +27334,25 @@ semantic exposure, general coverage or fork dependencies. Original sorry and
 executable unchanged. Independent untracked files excluded; no PRs or
 coordination. Next: support proof-domain beta predecessors in the joint native
 invariant, rather than assert the now-refuted seed-coverage premise.
+
+## 2026-11-05 18:23:33 UTC — Dependent record observation core
+
+Added seven core modules, 552 Lean lines. The only new observation constructor
+is record_type, requiring ordinary carrier equality and independent
+RigidDemandProfile.Obs family 1 with no free demands. It permits internal
+proof-domain lambda frames while the outer record/value key discipline remains
+unchanged. Obs.of_ignored embeds every previous observation.
+
+Renaming, substitution, beta preservation and native-type induction handle the
+new leaf directly. TypeEquality transports ordinary equality; the independent
+observer transports the family evidence. FamilyPreserves is explicit in generic
+compatible computation and is not accepted as an unresolved global premise in
+the final result. Constructor metadata and its stored header are reused from
+the previous registered observer through Obs.of_ignored.
+
+Complete-batch validation: 888 isolated build jobs, 62 audited roots,
+maximum closure 11,850, 863 unchanged source hashes, only standard axioms.
+No own warnings or forbidden strengthening/sorry/framework/exposure/coverage/fork
+dependencies. The result commit supplies stage preservation, monomorphic head
+readout and concrete dependent beta-wrapped oracle inputs. Existing sources,
+original strengthening sorry, and executable are unchanged.
