@@ -15361,3 +15361,43 @@ roots, maximum closure 12,399, 875 frozen source hashes; standard axioms
 only, no forbidden dependencies or own-module warnings. The prior commit
 51e0c62b remained local at turn start because GitHub rejected pushes with
 commit_refs_rules; this did not block mathematical work.
+
+
+### 2026-11-05 23:43:56 UTC — Recursive control results refute fixed and returning reference coverage
+
+Verdict: refuted in an actual well-formed canonical-Eq extension, using the
+existing admitted declaration D := D -> (Prop -> Prop). The successful reference
+return results of a9a8d35d are conditional tools; neither fixed references nor
+the weaker references that can return from every ordinary reduct are universally
+available. This is not a strengthening counterexample.
+
+RecursiveDomainChain follows Pi domains to the same nullary constant. Every
+finite level-core reduct of D retains this marker. Ordinary computation can
+always unfold the remaining occurrence, strictly increasing the chain's depth;
+compatible core computation cannot decrease that depth. Thus no reachable type
+is fixed, and every reachable type has an ordinary reduct that cannot compute
+back to it in the level core. Codomains and their computations are unrestricted.
+
+Native coherence makes every stage-zero native output of a variable of type D
+core-joinable with D. If any selected output were a returning reference, the
+previous typed return theorem would give a core path from D to that output,
+contradicting the depth argument. This rules out all selected outputs, not just
+the variable's initial lookup. Fixedness is excluded as a special case.
+
+The same obstruction is placed in the exact terminal-control setting: a constant
+caller accepts Sort 0 at domain Sort 1 and returns the recursive-typed variable.
+It has a native Pi. Every possible native Pi selection, after its codomain is
+instantiated by Sort 0, fails both fixedness and the weaker ordinary-reduct
+return condition. The canonical-extension theorem installs the actual recursive
+declaration and discharges all rule/definition hypotheses, preserving canonical
+Eq from the base environment.
+
+Next viable direction: compare independently changing native results, or use
+reference families that evolve with computation. A universal requirement to
+return every result to one chosen native reference is now ruled out, even at
+stage zero and with the literal shared sort argument. The same-function join
+results remain valid and do not need such references. General strengthening,
+higher eta-stage joining, paired exposure and singleton simulation remain open.
+Validation: 819 build jobs, 19 audited roots including constructor and
+recursor roots, maximum closure 11,967, 794 frozen source hashes; standard
+axioms only, no forbidden dependencies or own-module warnings.

@@ -28948,3 +28948,65 @@ to admit compared fixed references, and general endpoint transport, eta-stage
 confluence, paired exposure and singleton simulation remain open. Executable
 unchanged; independent untracked research preserved; no coordination or PR
 extraction. GOAL.md remains active with its original objective.
+
+
+### 2026-11-05 23:43:56 UTC — No fixed or returning native references for recursive control results
+
+Previous turn: progress, checked and pushed a9a8d35d. Current branch, GOAL.md and
+worktree were revalidated. The new question was whether its remaining reference
+coverage condition could hold universally. Existing recursive environment and
+finite recursive-type separation proofs were inspected before constructing a
+new witness. The admitted GuardedEta declaration D := D -> (Prop -> Prop)
+already provides the needed canonical-Eq-preserving environment extension.
+
+ProofErasureRecursiveFixedReferenceBoundary introduces the raw
+RecursiveDomainChain invariant and recursiveDomainDepth. Beta preserves the
+left-domain chain and its depth. Compatible computation preserves the chain
+whenever constant roots retain the marker and Pi roots are excluded; it never
+decreases the chain's depth. One unfold at the remaining constant increases
+depth strictly, regardless of the surrounding Pi frames. These are finite
+syntactic arguments and make no normalization assumption.
+
+The actual EnvironmentCore includes the stored recursive equation. Determinism
+of the optional quotient/structure-augmented definition collection and the typed
+bare-constant root theorem show that both delta presentations select the same
+recursive body. Its exact erasure is Pi D (Pi (Sort 0) (Sort 0)). Level conversion
+retains the nullary constant, while no core root rewrites a Pi. Consequently
+every level-core reduct of D still has a strict ordinary-core step. The depth
+invariant further shows that this step cannot return in the level core, refuting
+the weaker recurrence premise as well as ordinary ComputeFixed.
+
+For any typed expression with a stage-zero native recovery of D, native coherence
+joins every other selected output to D. Native replay realizes that output as
+an actual typed type. If it were returning, proofErase_returning_core_join_return
+would yield a level-core path from D to it, contradicting the preceding result.
+The fixed-output variant uses the corresponding fixed-return theorem. This
+handles arbitrary internal native choices and final stage-zero tails.
+
+A variable in context [D] supplies the first concrete witness. The exact
+control-setting witness wraps it in a constant caller with literal domain Sort 1
+and applies Sort 0. Its native Pi is explicitly constructed. Any other native
+Pi produces an application-native output after codomain instantiation, so both
+fixedness and returnability are impossible for every selected result reference.
+The final theorem installs the declaration above any well-formed canonical-Eq
+base at a fresh name. Environment well-formedness and canonical Eq are proved;
+actual Params discharge all concrete-pattern assumptions. The witness has native
+Pi recovery, so failure of reference coverage is not missing initial recovery.
+
+Validation: 819 isolated build jobs; 19 roots audited through types, opaque
+values, inductive constructors and recursor RHSs; constructor/recursor roots
+explicitly included; maximum closure 11,967; 794 frozen source/import
+hashes unchanged. Only propext, Classical.choice and Quot.sound; no forbidden
+dependencies or own-module warnings. Development fixes qualified the raw Compute
+relation, unfolded the Prop abbreviation before rewriting erasures, exposed the
+actual environment lookup for simp, and used explicit Nat order lemmas.
+
+Completion audit: UniqueTyping.lean:94 still contains the original weakN_iff
+sorry. No canonical-Eq strengthening counterexample or strictly smaller
+sufficient irreducible obligation is established. The counterexample concerns
+universal fixed/returning native-reference coverage. It does not invalidate the
+proved conditional reference theorems, same-function native coherence or the
+possibility of comparisons between evolving reference types. General forward
+comparison, eta-stage joining, paired exposure and singleton simulation remain
+live. Executable unchanged; independent untracked files preserved; no coordination
+or PR extraction. The original GOAL.md objective remains active.
