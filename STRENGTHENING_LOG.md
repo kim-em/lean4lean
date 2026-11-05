@@ -22355,3 +22355,70 @@ Classical.choice and Quot.sound; no configured forbidden dependencies or new
 warnings. All 756 local imported-source hashes remained stable. Artifacts
 /dev/shm/contextual-structure-telescope-*. Independent untracked work was
 preserved. No executable changes, coordination or PR extraction; goal active.
+
+## Contextual application cases and observed data-instantiation forks (2026-11-05)
+
+Verdict: proved more contextual equality cases and removed the generic-type-body
+restriction from contextual instantiation of computational joins. TypeForkJoin
+remains an open premise wherever joins must compose. No strengthening proof,
+confluence proof, or strictly smaller sufficient obligation is claimed.
+
+Composing type observers with a typed template of fixed result type preserves
+TypeContextJoin without confluence or native coverage. This proves function-side
+congruence for dependent application, argument-side congruence for nondependent
+application, and both-sided nondependent congruence under type-only fork joining.
+A raw computational argument join also lifts through dependent application:
+ordinary equality synchronizes the actual result assignments and proof erasure.
+Hence type arguments are covered by extracting their join with the identity
+observer, including converted assignments whose domains are not literal sorts.
+Proof arguments are covered by their common erasure. Ordinary assigned-type
+conversion, proof irrelevance, and arbitrary typed beta paths are also covered.
+
+The generic-type-body restriction really cannot be inferred from an instance:
+in the well-formed context f : (X : Type) -> X, the actual application f Prop is
+a proposition, while f X under fresh X : Type has no sort typing at any level.
+The checked contradiction uses uniqueness, substitutes a Pi type for X, and
+applies sort/Pi separation. It holds in every well-formed environment, hence
+also with canonical Eq. This refutes only that inference, not application
+congruence. In fact the positive type-argument lemma covers this example.
+
+The boundary led to a stronger construction. Every computation of an arbitrary
+typed body e under A supplies two paths from (fun z:A => e) x: beta first reaches
+e[x], while computing the body first reaches the raw computed output instantiated
+at erased x. For proof bodies, source-typed replay proves that the output remains
+the proof marker; retained bodies use the explicit compatible lambda/beta paths.
+No native argument certificate or substitution transport of guards is required.
+
+Observe that beta redex in an actual typed type context C over E[x]. Its entire
+observation is a type, even if e has a genuinely dependent data type E in the
+generic context. TypeForkJoin therefore joins the two observed branches. A
+common raw body output can be realized as a same-typed actual body, and a second
+observed type fork composes the joins. Consequently any computational join of
+same-typed data bodies survives arbitrary typed instantiation in every type
+observer. This strictly broadens the earlier lemma's body-typing scope; it is
+not a claim of a strictly smaller sufficient strengthening obligation.
+
+Remaining boundary: a merely contextual comparison of retained data arguments
+still does not supply the raw join used by the general dependent-application
+lemma. Arbitrary data-valued lambda-body congruence, the remaining primitive
+cases and TypeForkJoin itself remain open. The new instantiation result does
+not assume that an arbitrary enclosing generic term template is well typed.
+
+Live next angle: use typed chains of forward and backward computations as the
+induction relation for ordinary equality. Generic identity beta wrappers give
+native guards and common computational ancestors for eta; compatible steps may
+then lift through actual typed terms without genericizing their entire observer.
+Dependent application can retag each intermediate result by ordinary conversion.
+Only the final type-valued chain would need fork joining. Primitive completeness
+and the dependent congruence proofs for this chain relation still need checking;
+this paragraph records a live proof strategy, not a proved reduction.
+
+Validation: four new modules, 385 lines, sixteen public roots. Two explicit
+isolated 777-job builds and full transitive audits of thirteen and three roots;
+maximum closure 11,057. Only propext, Classical.choice and Quot.sound, no
+configured forbidden dependencies or new warnings. All 753 sources in the
+combined closures remained hash-stable and matched isolated copies. Artifacts
+/tmp/carrier-type-context-app-* and /tmp/carrier-contextual-inst-fork-*;
+preparation scripts use the corresponding /tmp/prepare-carrier-*.py names.
+Executable unchanged, no coordination. The original strengthening sorry remains
+and the goal stays active.
