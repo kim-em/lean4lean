@@ -10586,3 +10586,37 @@ the committed tree before committing. Artifacts /dev/shm/identity-eta-peak-*.
 Independent work preserved; executable unchanged; no coordination or PR extraction.
 GOAL.md remains active; this is evidence changing the confluence strategy, not
 one of the goal's completed deliverables.
+
+### 2026-11-05: proof-telescope witness independence — exact erasure equality
+
+Verdict: proved a stronger property than the planned computation chain. Every
+retained variable below a dependent telescope of propositions belongs to the
+original context. The two witness substitutions agree there, so typed erasure
+commutes with substitution to give literally equal erased bodies, even for data
+bodies in an arbitrary surrounding context. This requires neither canonical Eq
+nor soundness of a chosen definition system. Ordinary telescope proof irrelevance
+then supplies a typed chain whose raw computation is reflexive.
+
+Specializing to singleton cast telescopes proves identical erasures (and typed
+chains) for each reconstructed field under any two typed witness lists. Fields
+may contain dependent data and indices may be arbitrary. Canonical Eq is used
+only by existing cast-telescope typing in this specialization. The earlier
+simultaneous-chain-substitution proof was superseded by this simpler retained
+support argument; no fork joining or native recovery premise was introduced.
+
+Remaining scope: witness replacement does not remove the data-slot casts.
+The aligned occurrence theorem uses ordinary type uniqueness to equate an
+index domain with its field domain; computational alignment must still be
+constructed rather than inferred from that ordinary equality. A live next
+fragment is all-propositional index telescopes: fixed parameters and erased
+proof indices should make the entire transported/requested family guard
+reflexive. General indexed singleton coverage and TypeForkJoin remain open;
+no requested final deliverable is claimed and the original sorry remains.
+
+Validation: one new 105-line module, five public roots, isolated 779-job build
+and full transitive declaration audit including opaque values, declaration
+types and generated dependencies. Maximum closure 8,479; only propext,
+Classical.choice, Quot.sound; no forbidden dependencies, sorry sources or new
+module warnings. All 754 closure sources remained hash-stable and identical
+to isolated copies. Artifacts /tmp/carrier-proof-telescope-*.
+Independent work preserved; executable unchanged; no coordination; goal active.
