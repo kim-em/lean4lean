@@ -27020,3 +27020,43 @@ strengthening/sorry/circular framework dependencies and TypeForkJoin,
 TypeInstantiationJoin, StaticStructureCommonCoverage and
 StaticStructureTypeConversionJoin. Only propext/Classical.choice/Quot.sound;
 no owned-module diagnostics. Artifacts: /dev/shm/function-parameter-cut-*.
+
+## 2026-11-05 16:37:22 UTC — Full-stage preservation for function-parameter records
+
+Added the eleven FunctionRecordDemand core modules: Observation, Substitution,
+Application, Frames, Transport, Native, Registration, Structure,
+RegisteredNative, Primitives and Stages (1,086 Lean lines). Reused the old
+ConstructorDemand Key/TypeEquality/Sets APIs and their ordinary conversion
+lemmas; did not change the previous unit-parameter grammar or its theorems.
+
+The constructor and family demand a Unit -> Unit function at the empty-input
+key. The added function_type rule is an ordinary equality witness ONLY for the
+type of that key. Its literal-Pi inversion gives an ordinary unit-domain equality
+and a unit_type codomain. It supplies the fresh function demand under a native
+eta/identity binder without requiring the annotation to compute to literal Unit.
+There is no rule that observes an arbitrary record-family type from equality.
+
+Typed substitution moves both bodies and demanded annotation observations.
+Beta, changed lambda/Pi domains, native application and arbitrary native
+conversion tails preserve the dependent function parameter. unit_function_equal
+uses ordinary eta/unit equality to type the constructor at a closed record
+carrier. registered_header_observation still records Family #0 under the actual
+fresh function binder. constructor_native reads the actual stored declaration.
+The record structure case obtains its selected parameter from the native type
+observation and rebuilds the constructor at THAT parameter. It does not infer
+parameter provenance from ordinary record-type equality.
+
+stage_preserves discharges all enriched primitive stages by induction;
+Obs.full_compute and Obs.full_native cover arbitrary full-union histories,
+including whole-constructor beta/structure interleavings. All interim header/
+type-evolution hypotheses in the generic lemmas are discharged in Stages.
+No claim of general NativeHeaderHistory beta stability is made. Computational
+common-output readout is in the next commit of the same audited batch.
+
+Complete batch validation before staging: 855-job isolated build, 75 roots,
+maximum transitive closure 11,690, all 830 own/frozen hashes unchanged.
+Audit checks types, opaque bodies, constructors and recursor RHSs; only
+propext/Classical.choice/Quot.sound and no prohibited strengthening, sorry,
+circular framework or general join/coverage dependencies. No owned warnings.
+The original weakN_iff sorry/executable are unchanged; independent untracked
+modules preserved. GOAL.md remains open. Artifacts: /dev/shm/function-record-*.

@@ -13832,3 +13832,40 @@ Validation: 825-job isolated build, 14 roots, maximum transitive closure
 constructors and recursor RHSs audited; only propext/Classical.choice/Quot.sound,
 with all existing strengthening/sorry/circular and general join/coverage
 exclusions. Original weakN_iff sorry and executable unchanged.
+
+## 2026-11-05 16:37:22 UTC — Joint function-parameter demands survive whole computation
+
+Verdict: checked full-union value/type observation preservation for a registered
+fieldless record retaining a Unit -> Unit parameter. The preceding goal turn
+was progress (04fc6fde committed/pushed); its root-head restriction is now
+removed at the observation level. Computational readout follows in the next
+commit of this already validated batch.
+
+Reuse the existing ConstructorDemand.Key, ordinary TypeEquality lemmas, free
+Sets and heterogeneous control carriers. The new FunctionRecordDemand grammar
+changes the retained constructor/family parameter to `.fn (.atom unit) [] .unit`.
+An opaque function_type rule admits ordinary equality to Unit -> Unit ONLY at
+that empty-input-demand key. Pi inversion provides its ordinary unit domain and
+unit-result equality. Record-family types still have no opaque equality rule:
+their function parameter is retained by the operational family application.
+This is the distinction needed to preserve fresh function-parameter demands
+under native identity/eta, beta substitution and record structure expansion.
+
+Ordinary function eta plus unit equality gives the closed record control
+carrier Family (lambda S unitCtor). It does not replace parameter provenance.
+Actual projection metadata supplies the dependent constructor header
+Pi (S -> S) (Family #0), with a function_type demand for its fresh binder.
+Finite-stage induction discharges native conversions and all six enriched
+primitive cases. Obs.full_compute and Obs.full_native have no hypothetical
+header-preservation or arbitrary type-coverage premise. Existing unit-parameter
+modules are unchanged; shared keys/type lemmas are reused.
+
+Boundary: this is the registered Unit -> Unit parameter fragment, not arbitrary
+dependent parameters or a sufficient strictly smaller strengthening obligation.
+The companion readout will use one actual closed family native exposure.
+General HF/HJ, strict smallness and GOAL.md remain open. No PRs or coordination.
+
+Validation for the complete staged batch: 855-job isolated build, 75 roots
+including all new observer constructors and recursor, maximum dependency closure
+11,690, 830 unchanged own/frozen sources, only the three standard axioms.
+No strengthening/sorry/circular framework or general fork/coverage dependencies.
