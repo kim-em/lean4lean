@@ -11535,3 +11535,33 @@ Validation: two new modules, 825 build jobs, nine public audit roots,
 maximum transitive closure 11,363; all 800 imported source hashes stable,
 only allowed axioms, no forbidden dependencies or own-module warnings.
 Artifacts /dev/shm/argument-transfer-*.
+
+### 2026-11-05 — Dependent projection recipes follow arbitrary major computations
+
+**Verdict: proved full recipe transport and localized the remaining eta fork.**
+The previous beta-only recipe transport is strengthened to arbitrary scoped
+computations whose primitives admit typed context renaming. A source telescope
+substitution suffices; raw projections of earlier proof fields are permitted
+because substitution agreement is needed only at retained template variables.
+For an actual retained projection, all source parameter and preceding-field
+typing is derived from projection inversion and registration, including indexed
+families. The common major output needs neither typing nor native recovery.
+
+Two typed majors at the same family assignment which compute to a common raw
+major therefore have field recipes with a common output. A native conversion
+tail adds a fork at the source recipe. If that particular recipe is confluent,
+its selected tail and the other projection have common native coverage. A
+separate Pi-origin lemma proves that common native type output suffices for an
+eta square: its annotation may compute to the pivot annotation. Combining them
+gives a conditional eta square for every retained dependent projection.
+
+The source-recipe joining premise remains open. Exact native-output transfer
+is not assumed, no strictly smaller sufficient obligation is claimed, and the
+result does not cover structure eta with arbitrary parameter histories. General
+TypeForkJoin, marked-context coverage and created-cut coverage remain live.
+
+Validation: five new modules, 810-job isolated build; 22 public/generated audit
+roots, maximum transitive closure 11,500; all 785 closure-source hashes checked
+against own files and committed dependencies. Only allowed axioms, no forbidden
+dependencies, sorry, or own-module warnings. Artifacts:
+/tmp/carrier-projection-recipe-*.
