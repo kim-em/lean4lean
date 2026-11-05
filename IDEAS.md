@@ -14957,3 +14957,52 @@ beta preservation without image evidence is claimed.
 types, opaque bodies, constructors and recursor RHSs; maximum closure
 11,365; 745 frozen source/import hashes. Standard axioms only, no
 forbidden dependencies or warnings in the new modules.
+
+
+## 2026-11-05 22:02:26 UTC — Terminal-image transport through the expansion base
+
+**Idea:** Replace the old primitive-only terminal recovery path by a typed
+path retaining an actual assigned type at every node. Use stage-zero Pi
+readout to consume applications without losing the selected domain.
+
+**Verdict:** Proved through the full recursive checker. StageZeroTerminalPath
+has terminal, lambda, application and typed conversion nodes. Actual typing
+is intrinsic; arbitrary typed substitution preserves its rank. Strong induction
+on the recovery-path rank exposes a terminal image or a lambda with a smaller
+body path and a stage-zero conversion from its written Pi. In the application
+case the smaller body path and its exact codomain computation instantiate,
+then one conversion node is added below the original rank. A retained function
+therefore computes to a lambda at its exact selected domain.
+
+Native recovery under exact-native-or-terminal images now preserves exact
+recovery or produces this typed path. All constructors are covered, including
+projection exclusion and arbitrary conversion through constant expansion.
+The existing complete comparison/carrier transport induction uses exact native
+recovery or the computed-domain rule to discharge its application case.
+No guard/body transport premise remains at stage zero.
+
+**Concrete consequence:** Any terminal typed image instantiates a whole
+stage-zero body comparison, independently of its assigned type's syntax.
+Ordinarily equal terminal-valued binders also transport comparison without a
+forward annotation path. This includes universe-convertible binders in either
+direction, using preservation of terminality under conversion. The new
+stage_zero_converted_control_frame_pair contracts both compared sort arguments
+and preserves a supplied dependent body check under any universe-convertible
+binder, with the earlier forward-history premise removed at stage zero.
+
+**Integration repair:** TerminalImage and StaticStructureEtaReplay independently
+defined StructureReplay.ProofFields.field. Their first joint import exposed
+the duplicate. StaticStructureEtaReplay now imports the existing TerminalImage
+lemma; its duplicate proof was removed and its dependents rebuilt.
+
+**Limit / next:** This closes the terminal/universe-binder transport gap at the
+expanded base. It does not yet extract a body check from arbitrary computed
+function comparison, nor transport arbitrary nonterminal function/record
+images. Higher-stage terminal transport, full paired exposure, singleton
+simulation and type-rooted stage-one confluence remain open. No strictly
+smaller sufficient replacement for PropFront is claimed.
+
+**Evidence:** 863 isolated build jobs; 30 audited public/generated roots,
+including the new path constructors and recursors; maximum closure
+11,562; 838 frozen source/import hashes. Standard axioms only, no
+forbidden dependencies or warnings in the five changed modules.

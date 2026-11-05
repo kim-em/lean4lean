@@ -28207,3 +28207,71 @@ Completion audit: UniqueTyping.lean:94 still has the original weakN_iff sorry.
 No canonical-Eq counterexample or genuinely strictly smaller sufficient
 obligation is proved. Executable unchanged; no PR extraction or coordination.
 GOAL.md remains active with its original objective.
+
+
+## 2026-11-05 22:02:26 UTC — Close terminal-image and universe-binder transport at stage zero
+
+Previous goal turn: progress, committed and pushed as 9723b96c. Current HEAD,
+worktree state, typed substitution, terminal-image elimination and the old
+recovery-path implementation were inspected before editing.
+
+The expansion base now has ordinary typed primitive substitution: core and
+level steps substitute syntactically, while constant expansion uses the typed
+interpretation to retain its non-proof condition. StageZeroTerminalPath stores
+actual assigned types, unlike the earlier untyped output-path representation.
+Its terminal/lambda/application/conversion nodes give actual typing directly.
+Typed substitution preserves both the rank and selected assigned type.
+
+The main exposure proof uses strong induction on that rank. A lambda returns
+its smaller body path. Conversion appends the raw type computation. Application
+exposes its function; terminality excludes a function. In the lambda case,
+exact stage-zero Pi readout supplies the original-context codomain path. The
+smaller body path and that path instantiate at the actual argument. Ordinary
+uniqueness supplies the type equality for one new conversion node; the result
+still has smaller rank than the original application path. Thus a retained
+function computes to the exact selected raw domain, not merely some lambda.
+
+StageZeroTerminalImages admits either exact native recovery or terminal typing
+at each retained substitution image. Its binder closure is proved. Induction
+on native recovery then returns exact recovery or a typed terminal path at the
+exact substituted output. All cases are included: lambda/application,
+terminality of types, retained-projection exclusion, and conversion replay at
+the actual selected type. No exact native recovery is demanded of a terminal
+image at a convertible assigned type.
+
+StageZeroTerminalSubstitution packages these images across source realizations.
+The existing complete comparison/carrier transport induction now discharges
+its native-application obligation by exact recovery or the path's computed
+lambda. The resulting theorem covers every recursive constructor at unchanged
+stage zero and preserves mode and endpoint syntax. Both terminal instantiation
+and conversion of terminal-valued binders are derived. Universes are terminal
+and terminality transfers across ordinary domain equality, so the latter
+allows either direction of universe-binder conversion without computation.
+
+stage_zero_converted_control_frame_pair integrates this result. Both supplied
+sort-compared arguments compute to the original literal sort, then beta
+contracts their frames. The dependent body comparison instantiates under any
+ordinarily universe-convertible binder; no forward history from the literal
+universe is required. The earlier arbitrary-finite-stage theorem remains with
+its stronger native-history premise. Extracting the supplied body comparison
+from arbitrary computed function comparisons is still unfinished.
+
+The combined import graph revealed duplicate declarations of
+StructureReplay.ProofFields.field in TerminalImage and StaticStructureEtaReplay.
+The latter now imports the former's existing lemma and no longer redeclares it.
+Both consumers use the same proof, and the affected closure was rebuilt.
+
+Validation: 863 isolated build jobs; 30 public/generated roots audited
+through types, opaque bodies, inductive constructors and recursor RHSs;
+maximum closure 11,562; 838 frozen source/import hashes unchanged.
+Only propext, Classical.choice and Quot.sound; no forbidden dependencies or
+warnings in the five changed modules. Local development also checked the
+path, every recovery constructor, and the full transport theorem individually.
+
+Completion audit: UniqueTyping.lean:94 still contains the original weakN_iff
+sorry. General body-check extraction, arbitrary nonterminal image transport,
+higher-stage terminal transport, full paired identity exposure, singleton
+simulation and type-rooted stage-one confluence remain open. No canonical-Eq
+counterexample or genuinely strictly smaller sufficient obligation is proved.
+Executable unchanged; no PR extraction or coordination. GOAL.md remains active
+with its original objective.

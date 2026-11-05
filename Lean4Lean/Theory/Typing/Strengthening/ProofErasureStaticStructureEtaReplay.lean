@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStaticStructureEtaNativeTransport
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureTerminalImage
 
 /-! # Replay and proof-only joins for native structure eta
 
@@ -36,21 +37,6 @@ theorem proofErase_static_structure_eta_native
     exact .base (.inr (.inr (.inr (.inr (.inr (.intro hi hx
       ((StructureReplay.expansion_typed_iff henv hΓ hi hp hx hm).1 hc)
       (by simpa only [List.length_map] using hp) (RN hn)))))))
-
-/-- A global closed proof-field certificate certifies each individual field.
-This uses the registered constructor shape, with no occurrence typing premise. -/
-theorem StructureReplay.ProofFields.field
-    (hi : env.projections family info) (H : ProofFields env univs info ls)
-    (hj : j < info.numFields) : ProofField env univs info ls j := by
-  obtain ⟨decl, family', ctor, _, _, _, _, _, hnparams, _, _, _, hctorType,
-    _, _, _, hraw, _⟩ := henv.ordered.projectionShape hi
-  obtain ⟨doms, result, hshape, hle, _, _, harity⟩ := hraw.forallArity
-  have hlen : doms.length = info.nparams + info.numFields := by
-    change doms.length = info.nparams + (info.ctorType.forallArity - info.nparams)
-    rw [← hctorType, ← harity]
-    omega
-  have hs : info.ctorType = wrapForalls doms result := hctorType.symm.trans hshape
-  exact ⟨doms, result, by omega, hs, hlen, H doms result hs hlen _ (by omega) (by omega)⟩
 
 /-- Proof-only expansions have no remaining reference to their major. This
 includes nonempty structures and arbitrary open or dependent parameters. -/
