@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStageZeroSortExposure
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStageZeroTerminalTransport
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureLambdaTraceComparison
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureTerminalLambdaTrace
 
 /-! # Contract control frames after computation of their binder annotation
 
@@ -226,5 +226,46 @@ theorem stage_zero_control_frame_pair_of_inferred_functions
     | false => exact HB₀
     | true => exact HB₀.common
   exact stage_zero_converted_control_frame_pair heq hs hΓ hu HC ha hb hx hy HB HX HY
+
+/-- Common actual Pi typing suffices for control functions with independent
+written annotations. Inferred function comparison supplies the reference-body
+check, and compared sort arguments let both original raw applications contract.
+No equality or computation between the written domains is a separate premise. -/
+theorem stage_zero_control_frame_pair_at_common_pi
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hΓ : OnCtx Γ (env.IsType univs)) (hu : u.WF univs)
+    (HC : env.IsDefEq univs Γ (.sort (.succ u)) C (.sort v))
+    (hf : env.HasType univs Γ (.lam A a) (.forallE C T))
+    (hg : env.HasType univs Γ (.lam B b) (.forallE C T))
+    (hna : ¬ IsProof Γ (.lam A a)) (hnb : ¬ IsProof Γ (.lam B b))
+    (hx : env.HasType univs Γ x C) (hy : env.HasType univs Γ y C)
+    (HF : ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ) false
+      (proofErase Γ (.lam A a)) (proofErase Γ (.lam B b)))
+    (HX : ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ) xMode
+      (.sort u) (proofErase Γ x))
+    (HY : ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ) yMode
+      (.sort u) (proofErase Γ y)) :
+    ScopedCompute (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ)
+      (.app (proofErase Γ (.lam A a)) (proofErase Γ x)) (proofErase Γ (a.inst (.sort u))) ∧
+    ScopedCompute (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ)
+      (.app (proofErase Γ (.lam B b)) (proofErase Γ y)) (proofErase Γ (b.inst (.sort u))) ∧
+    ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ) mode
+      (proofErase Γ (a.inst (.sort u))) (proofErase Γ (b.inst (.sort u))) := by
+  have HT : TerminalDomain Γ C := TerminalDomain.sort.convert hΓ HC
+  obtain ⟨HCA, ha⟩ := lambda_body_at_reference_pi hΓ HC.hasType.2 hf
+  obtain ⟨HCB, hb⟩ := lambda_body_at_reference_pi hΓ HC.hasType.2 hg
+  have HB₀ := stage_zero_terminal_lambda_bodies_at_pi heq hs hΓ HC.hasType.2 HT hf hg hna hnb HF
+  have HB : ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D 0)
+      (proofEraseCtx (C :: Γ)) mode (proofErase (C :: Γ) a) (proofErase (C :: Γ) b) := by
+    cases mode with
+    | false => exact HB₀
+    | true => exact HB₀.common
+  have hΓC : OnCtx (C :: Γ) (env.IsType univs) := ⟨hΓ, v, HC.hasType.2⟩
+  have EA := proofErase_defeqCtx hΓC (IsDefEqCtx.succ .zero HCA) ha
+  have EB := proofErase_defeqCtx hΓC (IsDefEqCtx.succ .zero HCB) hb
+  have R := stage_zero_converted_control_frame_pair (K := proofErase Γ A) (L := proofErase Γ B)
+    heq hs hΓ hu HC ha hb (HC.symm.defeq hx) (HC.symm.defeq hy) HB HX HY
+  simpa only [EA, EB, show proofErase Γ (.lam A a) = .lam _ _ from if_neg hna,
+    show proofErase Γ (.lam B b) = .lam _ _ from if_neg hnb] using R
 
 end Lean4Lean.VEnv.Strengthening

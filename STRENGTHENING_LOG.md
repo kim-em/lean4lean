@@ -28488,3 +28488,91 @@ established by this change. No canonical-Eq counterexample or genuinely strictly
 smaller sufficient irreducible obligation is claimed. Executable unchanged,
 independent untracked modules preserved, no coordination or PR extraction.
 GOAL.md remains active unchanged.
+
+### 2026-11-05 22:40:02 UTC — Extract across terminal annotations and contract all control-application rules
+
+Previous goal turn: progress in 0267ef21, confirmed in the current worktree.
+The inferred extraction theorem there required identical original written
+lambda domains. This turn removes that requirement for a terminal reference
+binder and connects the resulting body check to all three structural
+application premises. The two independent untracked modules were preserved.
+
+ProofErasureTerminalLambdaPayload reads each original body history at a fixed
+ordinarily equal reference binder. Stage-zero context independence transports
+the raw computation, while proofErase_defeqCtx identifies its source erasure.
+For structural payload comparison, both computed bodies are replayed at their
+common dependent type in the reference context. They are then interpreted under
+the left computed payload binder. Certificate descent removes temporary
+prefixes; terminal-context transport returns the body check to the reference
+binder. No computation from that binder to either written domain is needed.
+Common payloads yield common body histories directly. For displayed eta, actual
+lambda domain conversion gives both functions the same reference Pi; typed
+replay and the existing eta/body-beta theorem give the exposed body check.
+
+ProofErasureTerminalLambdaTrace extends the complete pending-control induction
+to two independently written domains. The reference binder stays fixed through
+symmetry, and each payload keeps its own origin relation. Application follows
+the smaller function comparison; positive-arity control lambdas extend the
+temporary prefix via ordinary reflection and common-context inversion. Payload
+lambdas use the new terminal boundary results; computation transports both
+traces; displayed eta and identical syntax select or compare payloads. All
+inferred constructors remain covered. The direct and computed public theorems
+retain both independently supplied annotation conversions, common reference
+body typing, original non-proofness and stage zero.
+
+lambda_body_at_reference_pi derives ordinary written-domain equality and actual
+body typing in a supplied reference Pi from a lambda's actual typing there.
+stage_zero_terminal_lambda_bodies_at_pi uses this to expose a caller-facing
+statement with common actual Pi typings, rather than explicit domain alignment
+premises. The original written annotations can differ arbitrarily subject to
+those typings; the reference domain is terminal.
+
+ProofErasureComputedControlFrame integrates that statement in
+stage_zero_control_frame_pair_at_common_pi. The reference binder is ordinarily
+equal to a universe. Both arguments have that binder as their actual type and
+compare with the fixed sort. Inferred comparison of the actual differently
+annotated lambda erasures supplies the reference body check. Both original raw
+applications compute to the fixed-sort body instantiations, which compare in
+either requested mode. No body comparison, annotation join or forward
+annotation history is assumed.
+
+ProofErasureControlApplicationPair adds selected-carrier argument checking.
+For native Pi recovery, typed recovery replay gives an actual selected Pi and
+type uniqueness transports the left argument to its domain. For computed lambda
+selection, typed computation replay and lambda inversion give the corresponding
+actual domain and argument typing. Both arguments remain sort-typed via the
+reference-universe equality. The existing complete sort-typed carrier theorem
+therefore turns the carrier guard into ordinary common comparison, without a
+literal-sort restriction on the selected raw domain.
+
+stage_zero_control_application_pair covers ordinary application argument
+comparison, native Pi selection with a carrier guard, and computed lambda
+selection with a carrier guard. Its retained computation from the fixed sort
+to the left argument prefixes the common argument check, yielding checks of
+both arguments against the fixed sort. The preceding paired-contraction theorem
+then contracts both applications and retains their instantiated comparison.
+The right argument needs no supplied history, and the original functions may
+use different written annotations.
+
+The local theorem still assumes literal original control lambdas and the left
+fixed-sort history. It does not yet remove arbitrary outer computation from an
+application comparison or provide one-sided function exposure with a transported
+comparison. A head-exposure theorem alone would not justify moving the original
+check forward to the exposed lambda. These are integration obligations for the
+remaining exposure work, not grounds for claiming strengthening or a strictly
+smaller sufficient replacement for PropFront.
+
+Validation: 878 isolated build jobs; 17 public roots audited through
+types, opaque bodies, inductive constructors and recursor RHSs; maximum closure
+11,682; all 853 frozen source/import hashes unchanged. Only propext,
+Classical.choice and Quot.sound occur, with no forbidden dependencies or
+own-module warnings. The temporary-prefix eta proof required explicit reduction
+of the empty-prefix length before liftN_zero; final builds and audits passed.
+All validation processes terminated normally.
+
+Completion audit: UniqueTyping.lean:94 retains the original weakN_iff sorry.
+No canonical-Eq counterexample or genuinely strictly smaller sufficient
+irreducible obligation is established. General common-mode/higher-stage
+extraction, remaining paired exposure, singleton simulation and type-rooted
+confluence are not closed by this change. Executable unchanged; no coordination
+or PR extraction. GOAL.md remains active with its original objective.

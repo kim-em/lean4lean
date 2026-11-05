@@ -15101,3 +15101,37 @@ the inferred stage-zero body-extraction subproblem, not strengthening. Next work
 must integrate the result through the remaining paired-exposure and guard
 contraction arguments; arbitrary common-mode and higher-stage extraction are
 not asserted. The original weakN_iff sorry remains.
+
+### 2026-11-05 22:40:02 UTC — Independent terminal lambda annotations and complete control-application premises
+
+Verdict: checked extension of the inferred extraction proof. The two original
+functions no longer need the same written annotation. A fixed terminal reference
+binder types their bodies, while each marked payload retains its own original
+domain and component history. Context-independent stage-zero computation moves
+body histories to the reference binder; ordinary conversion identifies their
+erasures. Payload comparison first descends temporary controls and then uses
+terminal-context transport, requiring no forward history from the reference
+domain to either written annotation. Symmetry exchanges the two payloads while
+keeping the reference context fixed.
+
+A common actual Pi typing derives the needed domain equalities and reference
+body typings by uniqueness and Pi injectivity. Paired control-frame contraction
+therefore accepts independently annotated actual lambdas at the same Pi, not
+separately supplied annotation equality or body-comparison premises.
+
+All three structural application rules now feed this contraction. Native Pi
+recovery or computed lambda exposure gives actual typing of the left argument
+at the selected raw carrier. The existing sort-typed carrier-check theorem
+then supplies ordinary argument comparison. A retained forward history from
+the fixed sort to the left argument prefixes that comparison, so both arguments
+return to the fixed sort. No right argument history or selected-domain literal
+sort assumption is needed.
+
+Remaining boundary: both control functions in the contraction theorem are actual
+lambdas, and the left argument's fixed-sort history is supplied. Arbitrary outer
+computation may hide function heads or make the required history unavailable to
+this local theorem. One-sided head exposure alone would not transport the
+comparison to its exposed endpoint; that integration is still needed. Full
+strengthening, general common-mode extraction and higher-stage extraction remain
+open. Validation: 878 jobs; 17 roots; maximum closure 11,682; 853
+frozen hashes; standard axioms only, no forbidden dependencies or own warnings.
