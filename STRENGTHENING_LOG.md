@@ -22036,3 +22036,45 @@ hashes were stable and matched isolated copies. Artifacts
 /tmp/carrier-type-inst-boundary-*; preparation
 /tmp/prepare-carrier-type-inst-boundary.py. Executable unchanged, no coordination.
 The original strengthening sorry remains and the goal remains active.
+
+
+## Rigid family readout removes the separate native-existence premise (2026-11-05 00:01:03 UTC)
+
+Verdict: proved a conditional reduction, not strengthening. Under canonical Eq
+and sound selected definitions that do not unfold registered family heads,
+StaticStructureTypeConversionJoin implies StaticStructureNativeExistence and
+StaticStructureCommonCoverage. Consequently variable-only common coverage is
+equivalent to uniform common coverage. The non-unfolding condition is automatic
+for EnvironmentCore.definitions. Thus the previous variable-plus-existence split
+has no independent existence obligation once type-conversion joining is given.
+
+The new ingredient is a finite dependent demand observation for a fixed rigid
+constant and spine length. Ordinary typed substitution transports demanded
+variables; ignored parameters need no native certificates. All stages of the
+structure/function-eta union preserve the observation. Rigidness excludes iota,
+singleton and computed-Eq heads, while visible control profiles exclude structure
+expansion at the observed node. Realizability reads out a beta reduction to the
+same constant name with the same arity. Universe instances and arguments may
+change. Actual registered families supply their normalized telescope from the
+environment; no literal stored declaration shape is assumed.
+
+Join the assigned type with the replayed native type, then use sort, Pi or rigid
+family readout. Syntax induction now supplies recovery for every retained term.
+For projections, the exposed family's actual typing supplies its constructor
+telescope, field index bound and argument count. The proof does not use the
+open ScopedSemanticHeadExposure interface or assume coverage to prove existence.
+
+Scope judgment: type-conversion joining remains open and already implies
+PropositionFront. This result does not prove a strictly smaller sufficient
+obligation, confluence, exact substitution transport, or weakN_iff. Future work
+must construct the missing joins rather than treat native existence as an
+independent easy premise. Rigid head readout is available unconditionally under
+its stated environment assumptions for such joining arguments.
+
+Validation: four new modules, 603 lines, 41 public roots including the observation
+constructors and recursors. Explicit 785-job build; full transitive dependency
+audit (types, opaque values, constructors and recursor rules), maximum closure
+11,860. Only propext, Classical.choice and Quot.sound; no configured
+forbidden dependencies or new warnings. All 760 imported-source hashes remained stable.
+Artifacts /dev/shm/rigid-native-existence-*. No executable changes or PR extraction.
+The original strengthening sorry remains; the goal stays active.
