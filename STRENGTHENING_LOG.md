@@ -24767,3 +24767,45 @@ All 764 source hashes match own source and frozen committed dependencies. Only
 propext/Classical.choice/Quot.sound, no forbidden dependency, sorry, or warning
 in the audited module. Artifacts /tmp/carrier-reified-telescope-continuation-*.
 Independent uncommitted native-history work was neither imported nor changed.
+
+### 2026-11-05 06:22:20 UTC — Repeated conversions after argument supply, with literal checkpoints
+
+Added ProofErasureNativePiHistory. NativePiHistory stores the actual family head
+at its exact sort-ending native telescope and a path to the current lambda
+implementation. Computation can be opened through fresh variables at arbitrary
+dependent arity, then administratively contracted; this produces the current
+body history without demanding native recovery of the computed implementation.
+Whole literal type conversion advances this state. Type replay and erasure
+reflection derive ordinary telescope-header congruence, retain the original head,
+and recover the new body's exact universe assignment. Application instantiates
+the remaining dependent domains together and retains both the native guard and
+the lambda path. Argument-native evidence is absent, including for independently
+computed arguments realized at their ordinary assigned domain.
+
+LiteralPiHistory is a finite record of selected type conversions and argument
+supply. Conversions can repeat at every prefix, and supplied arguments can compute
+independently. Its recovery theorem constructs a native derivation from an
+initial native telescope. Its family_origin theorem proves a forward path from
+the original family application to the final selected output; the final tail may
+be any full-union computation and need not be literal. The typed-source corollary
+uses actual erasure of a sort-typed family application. This connects the finite
+history class to both the actual native recovery judgment and the required
+family-ancestry conclusion.
+
+The unproved step is coverage of arbitrary native derivations by these literal
+residual checkpoints (or a suitable joining normalization). Native application
+requires only the next Pi; its deeper residual may still contain beta wrappers.
+Normalizing that residual before supply can fork against later conversion.
+Neither that normalization law nor common native completeness is assumed here.
+The checked interleaving result has no argument-native, TypeForkJoin, or
+TypeInstantiationJoin premise. The independent raw continuation module was
+preserved and is not an uncommitted dependency. Strengthening, arbitrary-history
+coverage, field suffixes, and nonliteral family headers remain open. The original
+weakN_iff sorry and executable are unchanged; no PR extraction was performed.
+
+Validation: 789-job isolated build; 12 public roots including the two history
+types audited through all transitive types, values including opaque values,
+constructors and recursor RHSs; maximum closure 11,379. All 764 committed/own
+source hashes match and stayed stable. Only propext/Classical.choice/Quot.sound;
+no forbidden dependencies, sorry, or own-module warnings. Artifacts
+/dev/shm/native-pi-history-*.

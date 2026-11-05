@@ -12052,3 +12052,39 @@ All 764 source hashes match own source and frozen committed dependencies. Only
 propext/Classical.choice/Quot.sound, no forbidden dependency, sorry, or warning
 in the audited module. Artifacts /tmp/carrier-reified-telescope-continuation-*.
 Independent uncommitted native-history work was neither imported nor changed.
+
+### 2026-11-05 06:22:20 UTC — Finite interleaved literal Pi histories retain family ancestry
+
+**Verdict: checked for arbitrarily many conversion/application phases with
+literal residual telescope checkpoints; arbitrary recovery coverage remains
+open.** NativePiHistory retains ordinary typing of the original family head,
+its exact native sort-ending header, the terminal body's typing, and a forward
+path from that head to the corresponding lambda telescope. Fresh opening of a
+function computation recovers the body history without native recovery of the
+computed lambda. A whole literal Pi conversion can therefore update all domains
+and the terminal body while preserving the original head's exact native guard.
+Ordinary header congruence is derived from the actual type computation, rather
+than requested as an extra family-typing premise.
+
+Application preserves this invariant at the literal instantiated residual,
+without native evidence for the argument. Independently computed arguments have
+actual typed representatives and retain a forward path from the original family
+application. LiteralPiHistory records any finite interleaving of these operations
+and a final arbitrary conversion tail. Its recovery theorem constructs the actual
+native recovery of a supplied head; its family_origin theorem reaches that same
+selected output from the original family application. The typed-source corollary
+identifies this raw spine with the actual type erasure.
+
+This advances beyond conversion solely before all argument supply. It does not
+assert that every native derivation has literal checkpoints throughout its
+remaining telescope. If an intermediate residual hides later Pis behind beta
+wrappers, exposing them can create a fork against the next chosen conversion.
+Coverage or a joining normalization argument for those histories remains missing.
+Field suffixes and ordinary normalized family headers are not silently covered.
+The new result is not a proof of strengthening or a strictly smaller sufficient
+front. GOAL.md remains open.
+
+Validation: 789-job isolated build; 12 public roots including both history
+types, maximum transitive closure 11,379; all 764 own/committed source hashes
+stable. Only allowed axioms, no forbidden dependencies, sorry, or own warnings.
+Artifacts /dev/shm/native-pi-history-*.
