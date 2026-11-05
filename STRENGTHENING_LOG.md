@@ -22264,3 +22264,50 @@ copies. Artifacts /tmp/carrier-type-fork-binder-* and /tmp/carrier-type-fork-ins
 preparation /tmp/prepare-carrier-type-fork-binder.py and
 /tmp/prepare-carrier-type-fork-inst.py. Executable unchanged, no coordination.
 The original strengthening sorry remains and the goal stays active.
+
+
+## Generic eta at arbitrary dependent binder depth (2026-11-05 00:28:51 UTC)
+
+Verdict: generalized the preceding one-lambda construction to every finite
+dependent lambda telescope. Under the explicit type-only fork-joining premise,
+all typed type contexts join observations of wrapLams ds f and
+wrapLams ds (fun x:A => f x), whenever f : Pi A B in ds.reverse ++ Gamma.
+No native certificate for f or its enclosing abstraction is assumed. The prefix
+length is unrestricted; domains may depend on all preceding binders, proof
+domains are allowed, and proof-valued functions are included. A companion theorem
+joins every ordinary finite dependent eta expansion of an arbitrary typed
+function in every typed type context.
+
+The native part is unconditional under canonical Eq and sound definitions:
+exact assigned recovery weakens, application retains exact recovery using only
+ordinary argument typing, and induction opens the entire displayed telescope.
+A fresh generic function therefore supplies all native guards before the actual
+function is substituted. The actual terms are typed with the existing ordinary
+eta-opening metatheory. There is no recursive assumption of native coverage or
+an argument-normalization hypothesis.
+
+The syntax part proves finite administrative beta cleanup independently of
+typing. Instantiating the shifted generic telescope restores its original
+annotations and eta-opens the supplied function. Opening a supplied lambda
+prefix cancels that entire prefix, leaving the arbitrary body untouched. Opening
+one additional binder yields eta of that body. Lifting and closing beta paths
+then give the required cleanup at arbitrary depth. These lemmas inspect neither
+the residual body nor its termination behavior.
+
+The type-valued beta-fork construction from the preceding turn uses this generic
+computation and cleanup inside arbitrary typed observations. Thus the proof has
+no fixed binder-depth bound and no additional joining premise beyond type forks.
+Scope judgment: this solves the function-eta case beneath arbitrary dependent
+lambda prefixes, not general congruence for data-valued lambda bodies or arbitrary
+dependent term templates. TypeForkJoin itself and the original strengthening
+problem remain open. No strictly smaller sufficient obligation is claimed.
+Next: use the generic telescope to handle other primitive equations, while
+checking that any enclosing template really admits the generic replacement.
+
+Validation: three new modules, 312 lines, 18 public roots. Explicit 778-job
+build; full transitive audit through types, opaque values, constructors and
+recursor rules, maximum closure 11,089. Only propext, Classical.choice and
+Quot.sound; no configured forbidden dependencies or new warnings. All 753
+imported-source hashes remained stable. Artifacts /dev/shm/contextual-eta-telescope-*.
+No executable changes, coordination or PR extraction. The original strengthening
+sorry remains and the goal stays active.
