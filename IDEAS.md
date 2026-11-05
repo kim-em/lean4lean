@@ -11254,3 +11254,17 @@ not complete strengthening or establish a strictly smaller sufficient obligation
 Validation: four modules, 836-job isolated build, 58 public/generated roots,
 maximum closure 11,976; 811 stable source hashes and committed dependencies;
 only allowed axioms, no forbidden dependencies or task-module warnings.
+
+### 2026-11-05 — Actual singleton chains close the strong pattern case
+
+**Verdict: conditional chain completeness now integrated.**
+`TypedComputationEq.computational_singleton_pattern` composes actual index
+alignment with the stored singleton equation for arbitrary dependent data
+indices. `computational_pattern_closure_of_declarations` covers every stored
+pattern; `computational_typing_of_declarations` supplies chains and both endpoint
+`HasTypeC` certificates for ordinary equality. The assumptions are TypeForkJoin,
+SingletonDeclarationChains and RegisteredSingletonDomainChains, plus the
+concrete presentation. Declaration certificates and fork joining remain open.
+No strict-reduction or completed-strengthening claim. Two modules / 150 lines,
+848-job build, five audited roots (maximum closure 12,617), 823 stable source
+hashes; only allowed axioms and no forbidden dependencies or task warnings.

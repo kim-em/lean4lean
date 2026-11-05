@@ -23883,3 +23883,28 @@ propext/Classical.choice/Quot.sound, no sorry or configured forbidden dependency
 All 811 closure source hashes were stable; isolated copies and committed
 non-task dependencies matched; no task-module warnings. Artifacts:
 /tmp/carrier-computational-alignment-*. Executable and original sorry unchanged.
+
+### 2026-11-05 — Stored equations and actual alignment compose
+
+ProofErasureComputationalSingletonPattern applies the stored arbitrary-data
+singleton equation backwards to type its generic left instance, aligns the
+actual `HasTypeC` source with that instance, then composes the two chains.
+ProofErasureComputationalPatternClosure handles nonzero patterns through their
+existing guarded core traces and uses the new singleton result in the exceptional
+branch. The established strong induction consequently yields term chains and
+structural endpoint typings for every ordinary equality under TypeForkJoin and
+the named declaration certificates. No arbitrary-index alignment, all-prefix
+coverage or rigid-argument-history premise remains in this conditional result.
+
+The declaration assumptions remain unproved: earlier type-former environments
+must supply chains, and registered generic data domains must supply their
+finite chains (already obtainable from generic constructor-index certificates).
+The next step is to interpret earlier-stage strong derivations in the ambient
+computation system and use environment history for these certificates. TypeForkJoin
+and the original strengthening sorry remain open; GOAL.md remains active.
+
+Validation: two modules / 150 lines, isolated 848-job build, five public roots
+(checked against generated declarations), maximum transitive closure 12,617,
+only propext/Classical.choice/Quot.sound; no sorry, forbidden dependencies or
+task warnings. All 823 closure hashes stable and isolated copies matched;
+non-task imports matched committed sources. Artifacts /tmp/carrier-computational-pattern-*.
