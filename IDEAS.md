@@ -11661,3 +11661,41 @@ Validation: one new module, 830-job isolated build; 11 public/generated roots,
 maximum closure 11,379; 805 stable source hashes against own and committed files.
 Only allowed axioms, no forbidden dependencies, sorry or own-module warnings.
 Artifacts /tmp/carrier-parameterized-structure-*.
+
+
+### 2026-11-05 05:23:37 UTC — Registered proof-argument families return through arbitrary substitution
+
+**Verdict: proved a substitution-stable return case and its structure-eta square.**
+Rigid registered-family readout previously left both exposed arguments and
+universe instances unconstrained. Actual typed replay and family injectivity
+now show that, when every original parameter and index is a proof, beta cleanup
+exposes exactly the original erased argument vector at equivalent universes.
+This includes nullary families and requires no native parameter certificates.
+As in rigid head readout, the selected definition relation must not unfold the
+registered family name.
+
+The stronger result transports this return through every raw substitution,
+in every raw target context, using only beta and level conversion. Hence a
+computed proof-argument family body has an exact backward instantiation
+residual for every ordinarily typed argument, even an argument without native
+recovery at its assigned cut domain. This settles that case of
+TypeInstantiationJoin without common coverage or global fork joining. It does
+not extend the refuted universal pure-beta strip law: level conversion remains
+available and the source family has no retained argument information.
+
+Common native coverage at such a family now gives its exact assigned guard.
+This discharges the common-native structure-eta pivot square for proof-only
+parameters, allowing arbitrary dependent data/proof fields and a pure-beta
+residual on the expanded side. The common native type is still an explicit
+input; its construction is not inferred from ordinary typing.
+
+Judgment: this is a checked return/instantiation case, not a proof of general
+marked-context closure or a strictly smaller sufficient front. Arbitrary data
+and function parameters remain outside the return theorem. The live next work
+is to handle their nontrivial argument histories and conversion tails, or to
+close the general historical-cut development invariant. GOAL.md remains open.
+
+Validation: 783-job isolated build; six public roots, maximum transitive
+closure 11,329; 758 committed/own closure-source hashes stable. Only
+propext/Classical.choice/Quot.sound, no forbidden dependency, sorry, or own-module
+warning. Artifacts: /dev/shm/registered-proof-return-*.

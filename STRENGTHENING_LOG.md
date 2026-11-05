@@ -24371,3 +24371,39 @@ Validation: one new module, 830-job isolated build; 11 public/generated roots,
 maximum closure 11,379; 805 stable source hashes against own and committed files.
 Only allowed axioms, no forbidden dependencies, sorry or own-module warnings.
 Artifacts /tmp/carrier-parameterized-structure-*.
+
+
+### 2026-11-05 05:23:37 UTC — Exact registered-family return and uncertified instantiation residuals
+
+Added ProofErasureRegisteredProofFamilyReturn. Its readout theorem combines
+registered-family head exposure with ordinary computation replay and
+IsDefEqU.structApp_inv. The resulting argument equalities preserve proof status,
+so exposed argument erasures equal the original vector; the universe instances
+are equivalent. All intermediate computations remain unrestricted full-union
+computations, subject to soundness and non-unfolding of the rigid family.
+
+The raw-substitution theorem beta-cleans the substituted output and changes
+only the exposed constant's universe instance. Its target is arbitrary
+ErasedLevelCore, in an arbitrary context, and it needs no target typing or native
+image certificates. The ordinary instantiation corollary identifies this target
+with the erased instantiated original family using proofErase_instN. It proves
+a backward residual directly, without assuming TypeInstantiationJoin. Both
+parameters and indices may depend on the binder provided they erase to proofs.
+
+The same return theorem converts common native evidence to the exact original
+family. The structure-eta pivot square then expands the pivot with that exact
+guard and follows the major computation through every retained projection.
+The other side follows the beta major history only. Structure fields may be
+dependent or proofs; no native evidence at the common raw major is requested.
+The supplied common native type still has to be constructed by future work.
+
+This does not settle arbitrary retained family arguments, general type forks,
+created-cut coverage, or strengthening. No strictly smaller sufficient
+obligation is claimed. The original weakN_iff sorry and executable are unchanged.
+
+Validation: 783 isolated build jobs; six public roots checked through
+transitive types, values, opaque values, constructors and recursor RHSs; maximum
+closure 11,329. Only allowed axioms and no forbidden dependency, sorry,
+or own-module warning. All 758 source hashes matched committed dependencies
+and own source and remained stable. Independent parameterized-structure work
+was preserved. Artifacts: /dev/shm/registered-proof-return-*.
