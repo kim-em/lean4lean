@@ -12346,3 +12346,40 @@ Validation: 792 isolated build jobs; 15 public roots, maximum transitive
 closure 11,558; all 767 committed/own source hashes unchanged. Only allowed
 axioms, no forbidden dependency, sorry, or own-module warning. Artifacts
 `/dev/shm/recursive-pi-observation-*`.
+
+
+### 2026-11-05 — One changed binder below a prefix, with historical type bodies
+
+**Verdict: conditional body/caller square proved from TypeInstantiationJoin;
+no proof of that premise or global strict-smallness claim.**
+
+ProofErasureHistoricalTypeBodies transports a type computation across an
+ordinarily equal binder below any unchanged dependent prefix. It packages the
+prefix and body into one Pi, invokes the existing single-binder context join
+once, then reads out both body paths. Replaying the old body output and ordinary
+context conversion identify its erasure in the new context. No forward path
+between the changed binder types, native argument certificate, or TypeForkJoin
+premise is required.
+
+The caller square uses this transported body join and the caller's new-domain
+native guard. Its native codomain is arbitrary; no old-domain native guard is
+assumed. For arguments lambda (A :: pre) B and lambda (C :: pre) B, with A=C
+ordinarily and B type-valued, it supplies all four forward edges joining
+reannotation with arbitrary old-context body computation. The computed body is
+realized as an actual B'; proof-valued calls are included. The common target may
+be raw syntax and is not asserted to be the original reannotated B'.
+
+Sequentially transporting through several independently changed binders would
+produce separate joins whose composition needs a further confluence argument.
+This construction avoids that gap by changing exactly one binder, with an
+arbitrary unchanged prefix. General multi-binder transport, arbitrary data
+bodies, TypeInstantiationJoin itself, and its sufficiency/strict-smallness for
+canonical-Eq strengthening remain unresolved. This does not discharge GOAL.md.
+
+Validation: isolated 810-job build; both public roots and all generated
+extensions enumerated and audited (2 roots, maximum closure 11,528). All 785
+source hashes matched own source and frozen committed dependencies, with only
+allowed axioms and no forbidden dependency, sorry, or audited-module warning.
+Artifacts /tmp/carrier-historical-type-bodies-*. Independent recursive native
+Pi work was preserved and not used as an uncommitted dependency. Executable and
+original strengthening sorry remain unchanged.
