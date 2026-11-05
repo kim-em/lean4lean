@@ -10620,3 +10620,43 @@ Classical.choice, Quot.sound; no forbidden dependencies, sorry sources or new
 module warnings. All 754 closure sources remained hash-stable and identical
 to isolated copies. Artifacts /tmp/carrier-proof-telescope-*.
 Independent work preserved; executable unchanged; no coordination; goal active.
+
+### 2026-11-05: proof-indexed singleton prefixes and stored equations — proved
+
+Verdict: the all-propositional index fragment has an unconditional raw family
+guard. A dependent proof suffix can be changed beneath fixed parameters without
+changing the erasure of any typed closed template: retained variables refer only
+to the common parameter prefix. Apply this to the singleton family template at
+the requested index list and the transported constructor's index list. Both lists
+are typed, so `proof_indices_family_erasure` makes the two family erasures
+literally identical. This is stronger than ordinary family conversion and needs
+neither type-fork joining nor a native recovery certificate.
+
+`SingletonPrefixCode.Valid.proof_indices_guard` proves the actual raw guard
+beneath every generated residual telescope. `proof_indices_prefix` and
+`generated_proof_indices_prefix` realize it as a typed computation chain for
+all typed prefix sources. `proof_indices_singleton_equation` then interprets the
+full extraction trace and proves the entire lambda-wrapped stored equation.
+The proof-index telescope may depend on parameters and earlier proofs; it is
+not required to be empty or syntactically constant. No missing prefix/guard
+coverage assumption remains in this fragment.
+
+Remaining scope: actual raw proof-indexed pattern instances still require
+alignment with their generic equation instances. Next specialize the existing
+beta-shape argument to return the common parameter/motive/minor prefix followed
+by the reconstructed indices. `ProofIndexedSingleton.type_shape` and
+`GuardedSingleton.full_major_args` expose the index and major typings of both
+actual full spines; proposition indices and majors erase identically. The
+ordinary equality needed alongside this erased equality can be composed from
+the actual pat rule, the proved equation chain, and beta. This should bypass
+HasTypeJ for the fragment, but is not yet proved. Data-indexed singleton coverage
+and TypeForkJoin remain open; no strictly smaller sufficient strengthening
+obligation, canonical-Eq proof or counterexample is claimed. Original sorry remains.
+
+Validation: two new modules (121 and 63 lines), six public roots, isolated
+805-job build and full transitive declaration audit. Maximum closure 11,269;
+only propext, Classical.choice, Quot.sound; no configured forbidden dependencies,
+sorry sources or audited-module warnings. All 780 closure source hashes stayed
+stable and were byte-identical to isolated copies. Artifacts:
+/tmp/carrier-proof-index-equation-*. Independent work preserved; executable
+unchanged; no coordination; goal active, not complete or blocked.
