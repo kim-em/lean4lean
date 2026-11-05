@@ -12973,3 +12973,34 @@ open premise. Its uses here include forks at realized intermediate types;
 no decreasing measure justifies those uses in a prospective proof of
 TypeForkJoin. Thus this is checked conditional progress, not a new sufficient
 strictly smaller obligation, a confluence proof, or GOAL.md completion.
+
+
+### 2026-11-05 09:34:51 UTC — Complete continuation readout for type-valued identity cuts
+
+**Verdict: the entire identity-cut case of type-valued beta stripping is
+proved without TypeInstantiationJoin or TypeForkJoin.** If the ordinarily typed
+root is `(lambda x : L, x) a` and has a sort type, every full-union continuation
+from its erasure beta-reads a computed representative of the actual argument a.
+Only typing of the whole root and a well-formed context are needed. Argument
+sort typing and conversion of L to that sort are derived. There is no native
+argument certificate, native identity-expansion premise, computational domain
+alignment, or restriction to steps before the initial beta contraction.
+
+The common mechanism is an explicit finite type-payload observation. Its
+transport theorem retains a forward history of the payload through arbitrary
+control computation; readout gives a PURE BETA residual from the final output.
+The same argument handles constant cuts `(lambda x : L, A.lift) a` when a is
+sort-typed and L is ordinarily equal to its universe. These cuts may have an
+arbitrary type argument and converted written annotation, extending the fixed
+administrative wrappers. The old wrapper theorem now uses the shared readout
+lemma instead of duplicating the observation/readout proof.
+
+**Unresolved:** the selected-history proof from 619b2db9 still asks for forks
+at realized types without a decreasing measure. Trying to derive type joining
+from contextual lambda reannotation does not give domain reflection: the
+already checked caller-eta construction can replace a supplied lambda's domain
+using the caller's domain. The type-payload observer handles sort arguments;
+it does not supply observations for arbitrary dependent beta bodies or constant
+cuts at arbitrary data domains. Those are still needed for the general strip
+argument. No global fork joining, HJ sufficiency/strict-smallness, or GOAL.md
+completion is claimed.

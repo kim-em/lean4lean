@@ -25825,3 +25825,52 @@ types, opaque values, constructors and recursor RHSs; maximum closure
 dependencies and stayed stable. Only propext/Classical.choice/Quot.sound;
 no forbidden dependency, sorry, or own-module warning. Artifacts
 `/dev/shm/selected-supply-joining-*`.
+
+
+### 2026-11-05 09:34:51 UTC — Unconditional readout after complete type-control cuts
+
+Added `ProofErasureTypeControlCuts.lean` with four theorems. The shared
+`static_structure_type_payload_program_readout` transports a supplied finite
+observation of an original type through an arbitrary full-union computation.
+Its output is an actual type A' ordinarily equal to A, a lower forward path
+from erase A to erase A', and a pure-beta path from the final arbitrary output
+to erase A'. The observation premise is explicit and is not asserted for
+general type-valued cuts.
+
+The constant-cut theorem constructs that observation for a type-valued
+constant function supplied with any sort-typed argument. The written binder
+need only be ordinarily equal to the argument's universe. Its control demand
+is empty, so changes to the discarded argument need no native evidence. The
+identity-cut theorem uses one type-payload demand; ordinary annotation
+conversion types the generic bound variable at the argument's universe.
+A final theorem derives all these premises from ordinary typing of the whole
+identity cut at a sort, using application inversion, Pi-assignment uniqueness
+and typed beta. Thus every type-valued identity cut, at every written
+annotation allowed by its typing, has the full continuation readout.
+
+Unlike local cut squares or component histories, these theorems cover every
+step in the continuation, including function-root expansions, changed
+annotations, introduced control frames, and steps after contraction of the
+original cut. They do not require that insertion of the original identity or
+constant cut was an admissible native primitive. Their type arguments need
+no native certificate. This is an unconditional beta strip for these precise
+cuts; it does not cover arbitrary dependent bodies or discarded data arguments.
+
+Refactored `ProofErasureTypeWrapperReadout.lean` to use the shared payload
+readout theorem. Its statements are unchanged. The investigation of the
+remaining general fork premise found no decreasing measure for the realized
+intermediate types used in selected-history joining. Existing caller-eta
+reannotation also prevents the proposed shortcut from contextual lambda joins
+to written-domain joins. General type-fork joining and canonical-Eq
+strengthening remain open; no new sufficient strictly smaller irreducible
+obligation or GOAL.md completion is claimed. Original sorry and executable
+unchanged; PR extraction deferred. Independent working files preserved.
+
+Validation: 795-job isolated build, all nine public roots across the two
+modules audited through types, opaque values, constructors and recursor RHSs;
+maximum closure 11,376; 770 stable hashes from own sources and frozen
+committed dependencies. In addition to the standard forbidden dependencies,
+the audit rejects TypeInstantiationJoin, TypeForkJoin,
+StaticStructureCommonCoverage and StaticStructureTypeConversionJoin. Only
+propext/Classical.choice/Quot.sound; no sorry or own-module warning.
+Artifacts `/dev/shm/type-control-cuts-*`.

@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStaticStructureTypeArgumentOrigin
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureTypeControlCuts
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureNativeBetaPrimitiveResidual
 
 /-! # Arbitrary computation after administrative wrappers of a type
@@ -81,17 +81,8 @@ theorem static_structure_type_wrappers_readout
   have HW := wrapper_observation heq hs W H
   obtain ⟨e, HE, Ee⟩ := proofErase_scoped_compute_realize
     (erased_static_structure_eta_expansion_union_descent heq hs) hΓ hA rfl rfl (wrapper_compute W)
-  have HO := proofErase_scoped_compute_typeArgumentObservation
-    (erased_static_structure_eta_expansion_union_descent heq hs)
-    (erased_static_structure_union_argument_control heq hs)
-    (typeArgumentOrigin_closure (erased_static_structure_eta_expansion_union_certificate_descent heq hs) hΓ)
-    R hΓ (Ctx.LiftN.zero []) HE.hasType.2 rfl Ee (by intro _ _ _ H; exact H.elim) HW
-  have HR := HO.realizes (head := .proof)
-    (show PiOriginObservation.FixedTail 0 0 ProofShape.Subst.id from fun _ => rfl)
-    (fun _ _ _ H => H.elim)
-  simp only [ProofShape.subst_id, Realizes, ProofShape.liftN_zero] at HR
-  obtain ⟨_, ⟨A', HA', rfl, RA⟩, RB⟩ := HR
-  exact ⟨A', HA', RA, RB⟩
+  exact static_structure_type_payload_program_readout heq hs hΓ HE.hasType.2
+    (Ee.symm ▸ HW) (Ee.symm ▸ R)
 
 /-- A primitive at a type-valued literal beta redex can only introduce a
 constant or native identity wrapper. Arbitrary computation after that expansion
