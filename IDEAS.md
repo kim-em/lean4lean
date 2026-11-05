@@ -15215,3 +15215,37 @@ proof, canonical-Eq counterexample or strictly smaller sufficient irreducible
 obligation is claimed. Validation: 888 build jobs; 9 public roots; maximum
 audited closure 11,606; 863 unchanged frozen source/import hashes; standard
 axioms only, no forbidden dependencies or own-module warnings.
+
+### 2026-11-05 23:08:51 UTC — Complete native application outputs through independent tails
+
+Verdict: proved for one fixed function with arguments computing to a shared
+typed argument; specialized to control arguments checked against a fixed sort.
+Inspection found that the library already relates stage-zero computation to
+level-core joins and proves generic coherence of native recovery when its
+conversion relations admit those joins. Reusing those facts discharges native
+output selection for a fixed expression, including all conversion tails.
+It does not turn arbitrary computed comparison into core joinability.
+
+A level-core join of selected Pis gives a codomain join after one shared raw
+argument is substituted. Actual native replay realizes each selected result as
+a typed type, even when the whole application would erase as a proof. Original
+argument computations pass through those codomains and supply joins with their
+shared-argument instances. Typed transitive composition then carries the result
+through independent final stage-zero conversion tails. Different functions are
+allowed if a core join of their selected Pis is supplied.
+
+For applications of the same function, native coherence derives that selected
+Pi join. No selected-Pi or result-type comparison premise remains. Actual
+environment definitions discharge core confluence, universe compatibility and
+rigid-head preservation; the concrete-pattern condition remains explicit. Sort
+return turns two fixed-sort argument checks into the required shared argument
+paths, yielding both an exact common reduct and checking in either mode for
+complete native application outputs. This advances past the final-tail boundary
+of 94b6c9cc in this case.
+
+Remaining boundary: two arbitrarily compared functions need not come with a
+core join of their selected Pis. Their computed Pi comparison alone is not a
+justification for transporting it forward. Higher-stage tails and general
+strengthening remain open. Validation: 897 isolated jobs, 11 public roots,
+maximum audited closure 12,071, 872 unchanged frozen source/import hashes;
+standard axioms only and no forbidden dependencies or own-module warnings.

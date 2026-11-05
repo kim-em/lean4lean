@@ -28721,3 +28721,64 @@ argument; these theorems do not assert forward transport of comparison. No
 canonical-Eq counterexample or strictly smaller sufficient irreducible obligation
 is established. Executable unchanged, no coordination, no PR extraction.
 GOAL.md remains active with its original objective.
+
+### 2026-11-05 23:08:51 UTC — Native application coherence with independently chosen final tails
+
+ProofErasureStageZeroNativeCoherence exposes stage-zero specializations of the
+existing typed level-core join and mixed native-coherence theorems. No new
+confluence assumption for guarded stages is introduced. Native replay supplies
+a typed type representative for a raw selected output, so core joins compose
+through that output. An arbitrary stage-zero tail from a selected native output
+joins with its source in the level core. Consequently a supplied core join of
+two independently selected types survives both final conversion tails, even
+when their typed expressions and assigned types differ. This is a theorem about
+core joins, not forward transport of arbitrary computed comparison.
+
+ProofErasureNativeApplicationTailJoin extracts a codomain join from a core Pi
+join and substitutes one shared raw argument. Its result-type realization lemma
+uses replay of native function recovery and uniqueness of actual function types
+to type the argument at the selected domain. The instantiated selected codomain
+is therefore exactly the erasure of an actual type, regardless of whether the
+whole application is a proof. No unsupported native recovery of an erased proof
+application is introduced.
+
+stage_zero_native_application_tails_join combines those results with the previous
+argument-template computation theorem. Each original argument may compute to a
+shared actual argument along an independent stage-zero path. The two selected
+result types join their shared-argument instances, which join each other by Pi
+component extraction. Typed middle representatives justify composing these joins
+with the arbitrary final native conversion tails. This theorem accepts different
+functions but requires a core join of their chosen native Pi outputs.
+
+stage_zero_same_function_native_application_outputs_join consumes complete native
+recoveries of f x and f y. Native app-origin inversion exposes each independent
+Pi selection and final tail. Coherence at the common function f derives the
+selected Pi join internally. The argument paths to the shared typed argument
+then suffice for an exact common level-core reduct of the complete outputs.
+No selected-Pi comparison, result-type check or final-tail join is an input.
+
+ProofErasureEnvironmentNativeControlJoin specializes to actual environment
+definitions, including their existing optional quotient repair and registered
+structure equations. The previously proved core confluence, universe compatibility
+and non-unfolding of rigid heads discharge those premises; concrete patterns
+remain explicit. Two argument checks against the fixed sort supply shared
+argument computation by sort return. Public theorems give a common level-core
+reduct and a stage-zero computed checking certificate in either requested mode.
+No literal lambda head or normalization is required.
+
+Validation: 897 isolated build jobs; 11 public roots audited through
+types, opaque bodies, inductive constructors and recursor RHSs; maximum closure
+12,071; 872 frozen source/import hashes unchanged. Only propext,
+Classical.choice and Quot.sound; no forbidden dependencies or own-module warnings.
+Development fixes supplied an explicit confluence function type and used the
+existing HasType.instN API. Final build and audit passed; validation processes
+terminated normally.
+
+Completion audit: the original weakN_iff sorry remains at UniqueTyping.lean:94.
+The result closes independent final tails for the fixed-function/common-argument
+case, not for two arbitrary compared functions. An arbitrary computed comparison
+of their selected Pis still supplies no core join. Higher-stage tails, general
+paired exposure, singleton simulation and type-rooted confluence remain open.
+No canonical-Eq counterexample or genuinely strictly smaller sufficient
+irreducible obligation is established. Executable unchanged; no coordination or
+PR extraction. GOAL.md remains active with its original objective.
