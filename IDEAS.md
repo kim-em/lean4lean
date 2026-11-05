@@ -9835,3 +9835,60 @@ Quot.sound; no configured forbidden dependencies or new warnings. All 750
 imported-source hashes remained stable. Artifacts /dev/shm/generic-binder-eta-*.
 No executable changes, coordination or PR extraction. The original strengthening
 sorry remains and the goal stays active.
+
+## Type-only forks align Pi binders and type instantiation (2026-11-05)
+
+Verdict: proved conditional forward binder transport up to joining for type
+computations, dependent Pi congruence, lambda reannotation, type-valued lambda
+congruence, and instantiation of type joins. All use the explicit open
+TypeForkJoin premise. They do not prove confluence, contextual completeness,
+strengthening, or a strictly smaller sufficient obligation.
+
+A literal lambda assigned Pi A B can be changed to the annotation A inside any
+typed type context: generic eta supplies the chosen domain, beta restores the
+entire body, and a type-rooted fork composes the two joins. Ordinary typing of
+the original lambda suffices; the reannotated lambda's typing is derived. There
+is no native certificate or separate computational domain-join premise. For
+type-valued lambda bodies, contextual body comparison yields a direct body join
+via the identity type context. This closes contextual congruence for those
+lambdas even when their written annotations differ.
+
+The deeper binder step packages a type computation C -> out under A together
+with a domain computation A -> B into a fork at Pi A C. The branches have the
+same new domain B and respective codomains C and out. TypeForkJoin joins them;
+full Pi readout then extracts a codomain join in the B context. Thus forward
+transport of type computation is available up to a join, although exact forward
+transport of arbitrary native evidence remains open. Realizing a raw middle
+endpoint as a typed type allows two such transported joins to compose.
+
+For dependent Pi congruence, realize a common domain reduct E, transport the
+codomain join from A to E, then pull the two resulting paths back along A -> E
+and A' -> E. Compatible Pi computation reaches the same Pi E sharedB on both
+sides. The original codomain join is required only in the A context. Consequently
+the ordinary forallEDF case closes from contextual induction premises for its
+domain and codomain under TypeForkJoin; no native coverage is assumed.
+
+Type joins also survive arbitrary typed instantiation: apply TypeInstantiationJoin
+(which follows from TypeForkJoin) to each branch, realize the common body's raw
+output as a type, and join the two computations from its instance. Combining this
+with the contextual observation of two data arguments gives simultaneous
+substitution of distinct compared arguments into distinct compared type bodies.
+The argument needs no native certificate, and only types are fork roots.
+
+Remaining boundary: arbitrary data-valued lambda bodies still need a binder
+congruence argument. A contextual comparison of a data body does not directly
+supply a computational join under its binder. Dependent application also remains:
+a body whose result is a type only at a particular argument is not automatically
+a type-valued template at a generic argument. The new instantiation theorem does
+not erase that distinction. The remaining primitive cases and TypeForkJoin itself
+are still open. These are live proof obligations, not refutations of the route.
+
+Validation: four new modules, 343 lines, eleven public roots including the open
+premise definition. Two explicit isolated 776-job builds; full transitive audits
+of nine and two roots, maximum closure 11,488. Only propext, Classical.choice and
+Quot.sound, no configured forbidden dependencies or new warnings. All 752 sources
+in the combined dependency closures remained hash-stable and matched isolated
+copies. Artifacts /tmp/carrier-type-fork-binder-* and /tmp/carrier-type-fork-inst-*;
+preparation /tmp/prepare-carrier-type-fork-binder.py and
+/tmp/prepare-carrier-type-fork-inst.py. Executable unchanged, no coordination.
+The original strengthening sorry remains and the goal stays active.
