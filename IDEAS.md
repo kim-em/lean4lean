@@ -15029,3 +15029,37 @@ extraction, including independently computed control applications and eta.
 Validation: 868 isolated build jobs; 14 audited roots, maximum closure
 11,615; 843 frozen source/import hashes; only the three allowed axioms,
 no forbidden dependencies. Original strengthening remains open; no PR extraction.
+
+### 2026-11-05 22:19:56 UTC — Structural/eta body extraction and the remaining application boundary
+
+Verdict: checked. Stage-zero binder and body histories pull an arbitrary
+finite-stage computed body comparison back to the original binder without
+increasing its stage. Typed replay gives both computed bodies at the original
+common dependent type; ordinary binder conversion aligns their interpretations;
+the forward binder computation supplies exact backward native images. No
+terminal-domain restriction is needed. Consequently independently computed
+lambda endpoints with different annotations and bodies now supply the original
+body comparison whenever their exposed bodies compare. Displayed eta at the
+computed lambda boundary is also discharged by typed replay and the existing
+typed eta/body beta theorem, including its proof-marker case.
+
+The complete inferred-checking induction now isolates exactly app, appCarrier
+and appComputed. Reflexivity uses the previous common-endpoint readout;
+structural lambda and displayed eta use the new results; marked observations
+exclude incompatible literal heads; computation accumulates histories and
+symmetry swaps them. StageZeroLambdaApplicationExtraction names the missing
+application proof. This is a conditional case reduction, not a claimed strictly
+smaller sufficient obligation for PropFront or completion of GOAL.md.
+
+Next obstruction: in an application case, the smaller function comparison is
+between control functions, while the original lambda histories end at their
+applications. The current induction hypothesis cannot be applied to those
+functions directly. A stronger invariant must retain pending control arguments
+and the marked payload comparison through function positions; simply reusing
+the body extraction theorem on a newly produced comparison gives no justified
+decrease. The existing sort-return and terminal-instantiation theorems remain
+available to discharge control arguments once that invariant supplies a check.
+
+Validation: 872 isolated build jobs, 10 public roots, maximum audited
+closure 11,635, 847 frozen source/import hashes; allowed axioms only,
+no forbidden dependencies or own-module warnings. Original strengthening open.

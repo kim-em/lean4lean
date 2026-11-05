@@ -28327,3 +28327,81 @@ obligation has been proved. General comparison extraction, arbitrary
 nonterminal image transport and the remaining stage-collapse/confluence work
 are still unresolved. Executable unchanged; independent untracked files
 preserved; no coordination or PR extraction. GOAL.md remains active unchanged.
+
+### 2026-11-05 22:19:56 UTC — Pull back computed structural/eta lambda bodies; isolate applications
+
+Previous goal turn: progress, committed and pushed as 69f5f1d2. Current worktree
+and original open-proof state were revalidated before editing. The two independent
+untracked modules were preserved. No subagents, coordination or PR extraction.
+
+ProofErasureComputedLambdaBody adds stage_zero_computed_body_pullback. Given
+stage-zero computations of a typed binder and two bodies at a common dependent
+type, it pulls a comparison of the computed bodies from the computed binder to
+the original binder. The comparison may be at any finite stage n, and remains
+at n with the same mode. Replaying the binder computation obtains ordinary
+binder equality; replaying both bodies preserves their original assigned type.
+Context conversion gives common-typed representatives under the computed
+binder. Its retained forward history supplies exact native identity images for
+backward comparison transport. Prefixing the two body computations finishes.
+No terminality, purity, normalisation or computation-join hypothesis is needed.
+
+stage_zero_computed_lambda_body_compare obtains those exact histories from the
+previous stage-zero lambda-component theorem. The two computed lambda domains
+and bodies can differ. The body comparison under the left computed annotation
+is sufficient, including arbitrary recursive checking in that supplied check.
+The computed whole-function paths may contain arbitrary constant wrappers and
+beta interleavings. The original functions have a common written binder and
+bodies at a common dependent type, as used by the control-frame application.
+
+stage_zero_computed_lambda_eta_body_compare also handles either orientation of
+displayed eta between the computed literal lambdas. Whole-function typed replay
+keeps both originals at their common Pi. Erasure inversion and the existing
+proofErase_eta_lambda_bodies_beta theorem give a directed beta path between
+computed bodies, including the proof-marker case. That supplies the body check
+for the preceding pullback theorem. No eta completeness is assumed.
+
+ProofErasureComputedControlFrame integrates the structural result in
+stage_zero_control_frame_pair_of_computed_bodies. Compared fixed-sort arguments
+and a comparison of the independently computed function bodies now suffice for
+paired contraction. The original-body check is derived, not assumed; arbitrary
+ordinarily universe-convertible binders are allowed at stage zero.
+
+ProofErasureLambdaApplicationBoundary names the remaining interface
+StageZeroLambdaApplicationExtraction. It takes original typed lambda histories
+to two applications, an inferred comparison of their functions, and precisely
+one of the three grammar premises: ordinary common argument comparison, native
+Pi recovery plus a carrier guard, or computed lambda exposure plus a carrier
+guard. Its missing conclusion is inferred comparison of the original bodies.
+The file states this as a Prop hypothesis, not an axiom or a proved result.
+
+stage_zero_inferred_lambda_body_of_applications proves that this interface
+suffices for every inferred comparison after arbitrary computation of the
+original lambdas. Its full joint-grammar induction handles reflexivity by the
+previous common-endpoint result, structural lambda comparison by pullback, and
+displayed eta by the typed beta path. Marked lambda observations rule out sort,
+constant, projection and Pi boundaries. Outer compute composes the original
+histories and symmetry exchanges the original pair. Common-only and carrier
+constructors cannot inhabit the inferred mode. Only the three named application
+constructors call the missing interface. This reduction does not assert a
+strictly smaller sufficient obligation than PropFront.
+
+The next application proof needs an invariant retaining pending control arguments
+and the payload comparison. Its smaller function-check premise does not have
+histories from the current original lambdas: those histories end at applications.
+Calling extraction again on a derived comparison lacks a decreasing measure.
+This precise mismatch remains; ordinary equality or the current head trace alone
+does not supply the missing syntactic body comparison.
+
+Validation: 872 isolated build jobs; 10 public roots audited through
+types, opaque bodies, inductive constructors and recursor RHSs; maximum closure
+11,635; all 847 frozen source/import hashes unchanged. Only propext,
+Classical.choice and Quot.sound; no forbidden dependencies or warnings in the
+three changed modules. The complete conditional induction and eta branch were
+also compiled during development. All validation processes terminated normally.
+
+Completion audit: UniqueTyping.lean:94 retains the original weakN_iff sorry.
+The application interface is unproved; no canonical-Eq counterexample or new
+strictly smaller sufficient irreducible obligation has been established.
+Higher-stage transport, full paired exposure and remaining collapse/confluence
+work are not discharged. Executable unchanged. GOAL.md remains active with its
+original objective, and no PRs were extracted.
