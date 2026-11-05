@@ -25048,3 +25048,58 @@ all three changed/new modules audited (15 roots, maximum closure 11,581). All
 allowed axioms, no forbidden dependency, sorry, or audited-module warning.
 Artifacts /tmp/carrier-common-caller-telescope-*. Independent hidden-Pi and
 recursive-observation work was preserved; no uncommitted dependency was used.
+
+
+### 2026-11-05 07:16:19 UTC — Remove the arbitrary-length native-history coverage gap
+
+The two-argument retained-observation method now works at arbitrary finite
+arity. `ProofErasureRecursivePiObservation` defines a recursive observation with
+two indices: the pending telescope still abstracted by the original family,
+and the number of remaining Pi layers. A terminal payload stores an actual
+`NativeFamilyPiHistory`; each preceding Pi layer stores typed control frames and
+a recursive codomain observation. The codomain may remain opaque.
+
+Three operations establish the invariant. `convert_pending` changes the pending
+binder context along a directed telescope computation, advancing every terminal
+family through that same history. `compute` preserves the invariant under an
+arbitrary full-union type computation: component certificates descend temporary
+control binders, the recursive body computes in its old pending context, and a
+forward domain path transports it to the new context. `supply` instantiates an
+ordinary argument through all observation layers; only the terminal stored
+lambda computation is applied, so arbitrary native-certificate substitution is
+not needed. `of_history` constructs the initial recursive observation from a
+literal reified telescope. `witness`, `selected_pi`, and `finish` expose the
+ordinary typings, exact selected payloads, and final family path used by supply.
+
+`ProofErasureRecursiveNativePiSupply` extracts a `SelectedPiSupply` sequence
+from every native recovery of a raw application spine. Each node records its
+actual next Pi and all conversions preceding that application; its codomain
+need not be literal until the next node requires it. `supply_history` follows
+this exact sequence with the recursive observation. Ordinary whole-family-spine
+typing validates each chosen argument by Pi inversion and uniqueness; each
+computed argument image is realized at that selected domain. The resulting
+`NativeFamilyPiHistory.native_spine_application_origin` reaches the exact final
+selected native type from the original family application. No argument-native,
+literal-checkpoint, beta-strip, TypeForkJoin, or TypeInstantiationJoin premise
+occurs. Its initial native family header and fixed term-head type origin remain
+explicit, and the number of arguments must match the displayed telescope.
+
+The declaration corollary discharges both initial premises for paired literal
+family and fieldless-constructor telescopes, using actual constant recovery and
+an ordinary `TelInst` argument vector. This closes arbitrary interleaving of
+conversions and applications for that declaration class. General literal-history
+coverage is neither proved nor needed by this argument. Field suffixes, general
+header alignment, and the global joining/strengthening argument remain open.
+A family wrapper that ignores fields cannot simply be beta-contracted at the
+source of the new ancestry path: unrestricted type beta stripping is refuted.
+Descending terminal histories through ignored fields is an unrefuted next step.
+The original weakN_iff sorry and executable remain unchanged. No PR extraction
+or completion of GOAL.md is claimed.
+
+Validation: 792-job isolated build; all 15 public roots, including the
+recursive observation and selected-supply inductive, audited through transitive
+types, values including opaque values, constructors, and recursor RHSs. Maximum
+closure 11,558. All 767 source hashes matched own source or frozen committed
+dependencies and stayed stable. Only propext/Classical.choice/Quot.sound;
+no forbidden dependency, sorry, or own-module warning. Artifacts
+`/dev/shm/recursive-pi-observation-*`.

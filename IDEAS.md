@@ -12308,3 +12308,41 @@ all three changed/new modules audited (15 roots, maximum closure 11,581). All
 allowed axioms, no forbidden dependency, sorry, or audited-module warning.
 Artifacts /tmp/carrier-common-caller-telescope-*. Independent hidden-Pi and
 recursive-observation work was preserved; no uncommitted dependency was used.
+
+
+### 2026-11-05 07:16:19 UTC — Arbitrary native spine histories via pending-family observations
+
+**Verdict: arbitrary-arity reified family ancestry proved.** The binary result
+extends to a recursive observation indexed by the number of Pi layers still
+unobserved and a telescope of pending arguments. Terminal payloads retain the
+whole native family and its lambda computation. Supplying a pending argument
+therefore runs that computation first; it never substitutes an arbitrary
+argument into a native guard. Intermediate observations use ordinary typed
+substitution, preserving their opaque control frames and transforming payloads.
+
+The invariant is closed under arbitrary full-union computation and directed
+pending-domain changes. Component certificates descend temporary controls;
+inner observations compute under the old domain, then transport to the new
+pending context. A raw `SelectedPiSupply` history is extracted from every native
+recovery of an application spine, so no separately assumed history witness is
+needed. Following that exact history reaches its final selected output from
+the original family application, at any finite arity and with independently
+computed ordinary arguments. The initial exact family header and the term
+head's fixed type-origin property remain explicit in the general theorem.
+
+`static_structure_declared_constructor_spine_origin` discharges those initial
+premises for paired literal family/fieldless-constructor declarations and an
+ordinary dependent argument telescope. This supersedes the earlier open
+interleaved-history gap for that declaration class. It does not prove general
+literal-history coverage; retaining observations makes that normalization step
+unnecessary. Constructor field suffixes, general/nonliteral declaration-header
+alignment, and the global joining argument still require work. The ignored-field
+case cannot be inferred merely by beta-contracting a reified wrapper; that would
+reintroduce the unrestricted beta-strip law. A live next approach is to descend
+terminal histories through ignored field binders before supplying their values.
+Strengthening remains open; no smaller sufficient obligation is claimed.
+
+Validation: 792 isolated build jobs; 15 public roots, maximum transitive
+closure 11,558; all 767 committed/own source hashes unchanged. Only allowed
+axioms, no forbidden dependency, sorry, or own-module warning. Artifacts
+`/dev/shm/recursive-pi-observation-*`.
