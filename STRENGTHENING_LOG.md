@@ -24431,3 +24431,39 @@ Validation: one new module, 831-job isolated build; five public/generated roots,
 maximum closure 11,388; 806 stable closure-source hashes against own and committed
 files, only allowed axioms, no forbidden dependencies, sorry or own-module
 warnings. Artifacts /tmp/carrier-computed-constructor-*.
+
+### 2026-11-05 — Common native structure pivots with retained parameter histories
+
+**Verdict: registered-family value readout and conditional structure pivot square
+proved; joining the parameter chains remains explicit and open.**
+ProofErasureCommonNativeStructurePivot combines rigid value observation with
+actual computation replay. Any full-union computation of a registered family
+beta-cleans to the same family head, equivalent well-formed universe instances,
+and a scoped computation chain from each original parameter/index to its exposed
+image. It derives the family arity and universe facts without native argument
+certificates. Retained data and function arguments are included.
+
+For an unindexed structure, a common native pivot output now supplies its own
+new literal family guard. Pointwise joins of the original parameter histories
+assemble a common vector; universe transport preserves admissibility and every
+closed field mask. The original major path and the beta major path then join at
+a constructor over that common vector. No exact original-family pivot recovery
+or recovery at the shared major is assumed. Both residuals allow full computation.
+The remaining hypothesis joins scoped value chains at the supplied parameters;
+readout does not turn those zigzags into forward paths. Common native coverage
+also remains a premise. This is not strengthening, general TypeForkJoin, or a
+strictly smaller sufficient front.
+
+Also tested a possible converse from TypeInstantiationJoin to TypeForkJoin by
+placing differently annotated functions under a type-valued caller. The intended
+extraction is unsupported: caller eta can change retained function annotations
+without forward argument origins, as the existing boundary results show. This
+invalidates that proposed extraction, not the converse itself; no equivalence
+or strictness claim follows. Other encodings remain unrefuted.
+
+Validation: one new module, 825-job isolated build; all three public/generated
+roots audited through types, values, opaque values, constructors and recursor
+RHSs; maximum dependency closure 11,520, 800 stable committed/own source hashes.
+Only allowed axioms, no forbidden dependencies, sorry or own-module warnings.
+Artifacts /tmp/carrier-common-structure-pivot-*. Executable and original sorry
+unchanged; independent uncommitted work was neither imported nor staged.
