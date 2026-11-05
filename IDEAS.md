@@ -11471,3 +11471,27 @@ maximum transitive closure 11,524; only allowed axioms, no forbidden
 dependencies or own-module warnings. All 809 local closure hashes remained
 stable and were checked against own sources and committed dependencies before
 staging. Artifacts /dev/shm/eta-wrapped-*.
+
+### 2026-11-05 — First-field projection contexts preserve historical cut squares
+
+**Verdict: this marked projection context is discharged without type-fork joining.**
+The native recipe for field zero contains no earlier projections of its major.
+NativeOutputTransfer.proj_zero therefore preserves every selected output and
+its conversion tail. A projection above a nonopaque major cannot contract at
+its root; its full-union primitives are the four expansion kinds. A generalized
+native-pivot expansion square supplies their residuals.
+
+The first-projection development theorem includes evolving wrapped cuts, now
+including the committed eta-frame developments, a final primitive and arbitrary
+beta continuation. The local-square theorem handles every ScopedStep competitor
+at or beneath the projection after arbitrary component rounds. No new native
+certificate for a computed argument is required. Later dependent fields remain
+open: their recipes contain earlier projections of the changed major. Tracking
+those recipe histories is live; treating them as literally unchanged is not
+justified by the field-zero argument. Arbitrary full-union path coverage and
+TypeForkJoin remain open, with no strict-smallness claim.
+
+Validation: current-HEAD integration build (823 jobs), 150 public/generated
+roots across six modules, maximum closure 11,647; 798 stable source hashes,
+all dependencies committed, only allowed axioms, no forbidden dependencies,
+sorry or audited-module warnings.

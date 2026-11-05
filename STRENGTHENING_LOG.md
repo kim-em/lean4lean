@@ -24165,3 +24165,37 @@ type/value/opaque/constructor/recursor dependency audit had maximum closure
 no sorry and no own-module warning. All 809 closure sources were hash-stable
 and checked against committed dependencies and own sources at staging.
 Artifacts /dev/shm/eta-wrapped-*.
+
+### 2026-11-05 — Historical cut joins under a first-field projection
+
+Added ProofErasureFirstProjectionPivot and ProofErasureFirstProjectionLocalSquare.
+NativeOutputTransfer.proj_zero uses the empty preceding-field vector in the
+projection recipe, preserving every native output exactly. The primitive
+classifier excludes projection contraction when the major has no opaque head;
+singleton/Eq/definition/universe roots are also impossible at that projection.
+The remaining constant, identity, function-eta and structure-eta roots use
+native_pivot_expansion_square, which exposes the expansion classification as
+its premise rather than excluding projection syntax wholesale.
+
+WrappedCut.Valid.first_projection_primitive_square and
+native_cut_first_projection_development_square extend whole wrapped-cut
+developments beneath field zero, through one root primitive and arbitrary
+beta continuation. CutComponentHistory.first_projection_step_square handles
+every ScopedStep competitor: root primitives use exact native transfer, and
+steps in the major use the existing historical cut square. The rounds wrapper
+permits arbitrary prior domain/body/argument component rounds.
+
+Rebuilt against committed 5d667cff, so the wrapped-cut result includes its new
+eta-frame and synchronized-development constructors. No uncommitted dependency
+was reused in final validation. Later dependent fields, more general marked
+contexts and unrestricted full-union continuations remain open. Recipe-history
+residuals are a live route for later fields; no unconditional transfer through
+their changing dependent recipes is claimed. TypeForkJoin, strict smallness
+and the original strengthening goal remain unproved; GOAL.md stays active.
+
+Validation: six-module integration, 823 jobs; 150 public/generated roots with
+full transitive declaration traversal, maximum closure 11,647. Only
+propext/Classical.choice/Quot.sound; no sorry, forbidden dependency or audited
+module warning. All 798 source hashes stable, isolated copies identical and
+non-own sources committed at staging. Artifacts /tmp/carrier-first-projection-*.
+Original sorry and executable unchanged.
