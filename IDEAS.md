@@ -13657,3 +13657,44 @@ smaller sufficient strengthening gap is claimed; GOAL.md remains open.
 Validation: 833-job isolated build; 29 roots including UnitArrows constructors
 and recursor; maximum closure 11,529; 808 fixed source hashes. Only the
 three standard axioms and no forbidden strengthening/join dependencies.
+
+
+## 2026-11-05 15:00:31 UTC — A retained function parameter returns through its caller
+
+Verdict: checked a direct common output for retained unit endofunction
+parameters, beyond the preceding unit-valued-result fragment. For any two actual
+lookups f,g : S -> S and arbitrary full-union paths f -> p and g -> q, one caller
+with native type Pi (Pi S S) C sends both caller p and caller q to
+caller (lambda S unitCtor). C may be dependent. No native recovery of p or q,
+no annotation-return path and no type-fork/conversion-joining premise is used.
+
+The previous fixed-context pointwise interpretation alone does not provide a
+path for the annotated function VALUE. The successful construction instead
+uses the existing caller eta rule to choose S as the lambda domain, and reads
+the preserved function demand in the actual fresh S context. A new computational
+interpretation for AtomicUnitObservation supplies a full structural path for
+the body to unitCtor. Its free original function lookup has a native Pi, so
+native application followed by unit structure realizes the free function demand.
+The computed function itself need not retain that exact Pi certificate.
+
+This proof requires only the registered positive empty unit, not the auxiliary
+phantom record of the joint-constructor observer. It supports any positive unit
+universe. unit_function_family_lookup_return derives the caller native guard
+from an actual family lookup ((S -> S) -> Sort v), leaving no externally supplied
+observation/header/native-argument premise in that concrete theorem.
+
+Boundary: the caller is fixed during this return. Computation of the parameter
+is completely unrestricted, but arbitrary later computation of the WHOLE family
+application is not covered. This is not yet full family-parameter observation
+preservation or native constructor return for function parameters. The next live
+extension is a joint observer whose family demands a function key, together with
+a readout retaining its fresh-context body demand. A fixed-context pointwise
+realizer must not be treated as if it already supplies that fresh-world fact.
+Family stored headers may also be merely ordinarily equal to the selected
+arrow; PositiveHeaderRegistration permits this, so exact family-header recovery
+cannot be silently inferred from assigned typing. General HF/HJ and GOAL.md
+remain open; no strengthening proof, counterexample or strict-smallness claim.
+
+Validation: 772-job isolated build; eight roots; maximum closure 11,307;
+747 own/frozen source hashes; only the three standard axioms and no forbidden
+strengthening, coverage or joining dependencies.

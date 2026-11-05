@@ -26810,3 +26810,49 @@ weakN_iff/weakN_inv/sorryAx, the prior circular frameworks, TypeForkJoin,
 TypeInstantiationJoin, StaticStructureCommonCoverage and
 StaticStructureTypeConversionJoin. Only propext/Classical.choice/Quot.sound;
 no own-module diagnostics. Artifacts: /dev/shm/constructor-demand-semantics-*.
+
+
+## 2026-11-05 15:00:31 UTC — Caller-selected annotation for a retained function parameter
+
+Added AtomicUnitComputes and UnitFunctionParameter. AtomicUnitObservation.Computes
+interprets terminal demands by actual compatible computation to the unit
+constructor and function demands by pointwise computation. Beta predecessors
+and observed substitution preserve this interpretation without assuming general
+primitive-substitution closure or confluence. This mirrors the successful joint
+readout while avoiding an irrelevant auxiliary registered record assumption.
+
+unit_function_future_body starts from an actual lookup of S -> S and an
+arbitrary full-union computation to p. The existing full-union atomic observer
+preserves its function demand. Lift that observation to the actual fresh S
+binder. The original function lookup and fresh unit lookup supply computational
+free realizations there; native application and unit structure realize them.
+Readout yields p.lift #0 -> unitCtor in that binder. No native certificate is
+required for p, and none is asserted.
+
+unit_function_parameter_return combines this body path with existing caller
+eta at a selected Pi (Pi S S) C, giving caller p -> caller (lambda S unitCtor).
+The selected C may depend on the function argument. unit_function_parameter_join
+returns two independently computed function lookups to that SAME literal
+function-valued argument. unit_function_family_lookup_return derives the caller
+certificate from literal type-family lookup, for arbitrary family result sort.
+Both input annotation drift and nontrivial parameter histories are allowed;
+normalization of the original functions is not assumed.
+
+Scope audit: this is now a genuinely retained FUNCTION parameter, not just a
+function-produced unit value. However, the caller head remains fixed. It does
+not cover arbitrary whole-family computation, later type continuations or all
+constructor native outputs with function parameters. The exact selected caller
+Pi is explicit in the generic theorem and proved from lookup in the concrete
+one. No exact header is claimed from ordinary assignment or projection metadata
+alone. Next: function-key family observation and fresh-context readout under
+arbitrary whole-family evolution. General HF/HJ and the strengthening goal stay
+open; original sorry and executable unchanged. No PR extraction or coordination.
+
+Validation: 772-job isolated build; eight theorem/definition roots; maximum
+dependency closure 11,307; 747 unchanged own/frozen source hashes. Audit
+traversed types, opaque bodies, inductive constructors and recursor RHSs, with
+all standard sorry/strengthening/circular-framework exclusions plus TypeForkJoin,
+TypeInstantiationJoin, StaticStructureCommonCoverage and
+StaticStructureTypeConversionJoin. Only propext/Classical.choice/Quot.sound;
+no own-module diagnostics. Artifacts: /dev/shm/unit-function-parameter-*.
+Independent untracked computation-count and primitive-descent files preserved.
