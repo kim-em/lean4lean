@@ -14440,3 +14440,23 @@ sources are not shown to carry this observer. No strict reduction of PropFront
 has been proved. The next coverage investigation must address function-valued
 aliases and source formation rather than assuming ordinary convertibility gives
 operational evidence. GOAL.md remains active; no PR extraction or coordination.
+
+## 2026-11-05 19:32:03 UTC — Admit function-valued aliases without freezing applied heads
+
+**Verdict: checked generalization of the existing observer.** The delta leaf now
+works at every demanded profile, including functions. The former claim that a
+nonbare primitive head must be the rigid family is no longer true and is removed.
+Instead, an actual stored head can match only a bare definition pattern: iota
+patterns are excluded by registry ownership. Thus full primitive preservation
+handles applied stored aliases without treating them as rigid or as frozen.
+
+Operational readout now lifts actual computation-predecessor closure through
+all finite function demands. Genuine delta under applications replaces the old
+atomic-only readout step. Substitution, beta, universe conversion, enriched
+computation, and generic native integration all recheck with the generalized
+inductive constructor; the joint native induction itself is unchanged.
+
+The complete batch passed 917 jobs, 58 audited roots, maximum closure
+12,022, and 892 frozen source hashes; only standard axioms, no own warnings
+and no forbidden dependencies. This removes the sort-valued alias restriction,
+but establishes neither arbitrary ordinary source coverage nor PropFront.

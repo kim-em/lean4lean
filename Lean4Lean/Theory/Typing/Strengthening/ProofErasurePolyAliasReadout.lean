@@ -13,21 +13,37 @@ open DemandProfile
 open PureObservation (Ob)
 variable [Params] {c : Name} {arity : Nat} {P : ProofShape → Prop}
 
+omit [Params] in
+/-- Closure under genuine computation predecessors propagates through every
+finite function demand, by computing the function under each application. -/
+theorem realizes_compute_back
+    (hP : ∀ {e e'}, Compute Step e e' → P e' → P e)
+    (R : Compute Step e e') (H : Realizes P e' o) : Realizes P e o := by
+  cases o with
+  | pi =>
+    simp only [Realizes] at H ⊢
+    exact hP R H
+  | sort => simp only [Realizes] at H
+  | app keys result =>
+    simp only [Realizes] at H ⊢
+    exact fun a ha => realizes_compute_back hP (.app R .refl) (H a ha)
+termination_by sizeOf o
+
 /-- Dependent typing decorations do not constrain operational substitution:
 supplying the free demands suffices for every raw realizing substitution. -/
 theorem Obs.realizes (H : Obs c arity Δ S e t o)
     (hP : ∀ {e e'}, ProofShape.BetaRed e e' → P e' → P e)
-    (hdelta : ∀ name levels rhs, (PureObservation.Definitions.ofEnv env univs henv).unfolds name levels rhs →
-      P (proofErase [] rhs) → P (.const name levels))
+    (hdelta : ∀ name levels rhs o, (PureObservation.Definitions.ofEnv env univs henv).unfolds name levels rhs →
+      Realizes P (proofErase [] rhs) o → Realizes P (.const name levels) o)
     (hconst : ∀ ls, Realizes P (.const c ls) (spineDemand arity))
     (hσ : ∀ i t key, S i t key → Realizes P (σ i) key) :
     Realizes P (e.subst σ) o := by
   induction H generalizing σ with
   | const => exact hconst _
   | delta _ HD _ ih =>
-    simp only [Realizes, ProofShape.subst]
-    apply hdelta _ _ _ HD
-    simpa only [Realizes, proofErase_closed_subst
+    simp only [ProofShape.subst]
+    apply hdelta _ _ _ _ HD
+    simpa only [proofErase_closed_subst
       ((PureObservation.Definitions.ofEnv env univs henv).closed HD)] using ih (VLevel.forall₂_equiv_refl _) HD hσ
   | var _ _ h => exact hσ _ _ _ h
   | app _ _ _ ihf ihx =>
@@ -78,14 +94,18 @@ theorem Obs.head_readout (H : Obs c arity Δ (fun _ _ _ => False) e t .pi) :
     HeadResult c arity (e.subst σ) := by
   have HR := H.realizes (P := HeadResult c arity) (σ := σ)
     (fun R H => by obtain ⟨ls, args, hn, RB⟩ := H; exact ⟨ls, args, hn, (Compute.beta R).trans RB⟩)
-    (fun name levels rhs HD H => by
-      obtain ⟨ls, args, hn, RB⟩ := H
-      exact ⟨ls, args, hn, (Compute.base (.inl (.inl (.delta HD)))).trans RB⟩)
+    (fun name levels rhs o HD H => realizes_compute_back
+      (P := HeadResult c arity)
+      (Step := ErasedIotaPrimitive (PureObservation.Definitions.ofEnv env univs henv))
+      (fun R HH => by
+        obtain ⟨ls, args, hn, RB⟩ := HH
+        exact ⟨ls, args, hn, R.trans RB⟩)
+      (Compute.base (.inl (.inl (.delta HD)))) H)
     (fun ls => head_spine_realizes (args := []) (by simp))
     (fun _ _ _ h => h.elim)
   simpa only [Realizes] using HR
 
-/-- Every full enriched descendant of a observed polymorphic alias has a family
+/-- Every full enriched descendant of an observed polymorphic alias has a family
 head after arbitrary raw substitution. The cleanup relation is the actual stored
 ordinary core, so it can be replayed below binders from source typing. -/
 theorem Obs.full_readout

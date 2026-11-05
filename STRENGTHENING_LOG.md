@@ -27553,3 +27553,19 @@ obligation. Sort-valued aliases and the unit-arrow family signature still limit
 source coverage. This is verified progress within the live fragment route,
 not a final GOAL.md deliverable. Executable and previous sources unchanged;
 no PRs and no coordination. Goal remains active.
+
+## 2026-11-05 19:32:03 UTC — Generalize polymorphic alias evidence to function profiles
+
+Changed the existing PolyAliasObservation, PolyAliasTransport and
+PolyAliasReadout modules in place. Delta evidence retains any profile/demand;
+its validity follows from the observed current body. Replaced the obsolete
+rigid-only applied-head argument with checked pattern/stored-head separation.
+Full coherent and EnvironmentCore preservation still holds. A generic
+computation-predecessor lemma extends operational readout through function
+demands using compatible application steps.
+
+Validation includes all seven previous polymorphic-alias modules and the two
+new function-alias modules: 917 jobs, 58 audited roots, maximum closure
+12,022, 892 frozen hashes, standard axioms only, no own warnings or
+forbidden strengthening/front/recovery dependencies. Existing native proofs
+and concrete sort-valued alias inputs recheck without edits. Goal remains open.

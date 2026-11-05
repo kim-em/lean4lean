@@ -6,6 +6,40 @@ namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation
 open private erase_const_inv from Lean4Lean.Theory.Typing.Strengthening.ProofErasurePrimitives
 variable [Params]
+/-- A matched pattern at an actual stored-definition head must be the bare
+constant definition pattern. Iota patterns are separated by registry ownership. -/
+theorem erased_pattern_stored_head_bare
+    (hp : Pat p r) (hm : Matches p a ls captures)
+    (HD : (Definitions.ofEnv env univs henv).unfolds name levels rhs)
+    (hh : a.constHead = some name) : ∃ ls', a = .const name ls' := by
+  obtain ⟨sp, rfl⟩ := pat_simple hp
+  cases sp with
+  | defn c =>
+    cases hm
+    cases Option.some.inj hh
+    exact ⟨_, rfl⟩
+  | iota rc mr cc kc =>
+    have HH : some rc = some name := by
+      simpa only [Pattern.constHead_eq, SimplePattern.iota_headConst] using hm.constHead.symm.trans hh
+    have hn : rc = name := Option.some.inj HH
+    exact (iota_no_stored_definition hp (hn ▸ HD)).elim
+
+/-- An ordinary primitive at a stored head can only occur at the bare alias,
+not at an applied alias spine. This holds for any selected delta collection. -/
+theorem erased_iota_stored_head_bare
+    (HD : (Definitions.ofEnv env univs henv).unfolds name levels rhs)
+    (R : ErasedIotaPrimitive D a b) (hh : a.constHead = some name) :
+    ∃ ls', a = .const name ls' := by
+  rcases R with (R | R) | R
+  · cases R with
+    | delta => cases Option.some.inj hh; exact ⟨_, rfl⟩
+    | projIota => cases hh
+  · cases R with
+    | select hp _ hm => exact erased_pattern_stored_head_bare hp hm HD hh
+    | apply hp _ hm => exact erased_pattern_stored_head_bare hp hm HD hh
+  · cases R with
+    | intro hp _ _ hm => exact erased_pattern_stored_head_bare hp hm HD hh
+
 namespace PolyAliasDemandProfile
 open DemandProfile
 variable {c : Name} {arity : Nat}
@@ -14,10 +48,10 @@ variable {c : Name} {arity : Nat}
 The concrete pattern alternatives already belong to the actual stored core. -/
 theorem Obs.alias_root_of_agreement
     (hcon : ∀ {p r}, Pat p r → ConcretePattern env p r) (hag : StoredAgreement D)
-    (HT : Typing Δ (.const name levels) .sort)
+    (HT : Typing Δ (.const name levels) t)
     (HD : (Definitions.ofEnv env univs henv).unfolds name levels rhs)
-    (HB : Obs c arity Δ S (proofErase [] rhs) .sort .pi)
-    (R : ErasedIotaPrimitive D (.const name levels) out) : Obs c arity Δ S out .sort .pi := by
+    (HB : Obs c arity Δ S (proofErase [] rhs) t o)
+    (R : ErasedIotaPrimitive D (.const name levels) out) : Obs c arity Δ S out t o := by
   rcases R with (R | R) | R
   · cases R with
     | delta HD' => cases hag HD HD'; exact HB
@@ -44,8 +78,10 @@ theorem Obs.iota_of_agreement
     cases H with
     | const HT => exact (erased_iota_primitive_no_rigid hc hD R rfl).elim
     | delta HT HD HB => exact Obs.alias_root_of_agreement hcon hag HT HD (HB (VLevel.forall₂_equiv_refl _) HD) R
-  · exact (erased_iota_primitive_no_rigid hc hD R
-      (H.primitive_head (erased_iota_primitive_head R) (fun name levels E => HA ⟨name, levels, E⟩))).elim
+  · rcases H.primitive_heads (erased_iota_primitive_head R) with HH | ⟨name, levels, rhs, HD, HH⟩
+    · exact (erased_iota_primitive_no_rigid hc hD R HH).elim
+    · obtain ⟨ls, E⟩ := erased_iota_stored_head_bare HD R HH
+      exact (HA ⟨name, ls, E⟩).elim
 
 /-- Full enriched stages preserve universe-indexed alias observations. Singleton heads
 are separated from stored definitions by their registered iota equations. -/

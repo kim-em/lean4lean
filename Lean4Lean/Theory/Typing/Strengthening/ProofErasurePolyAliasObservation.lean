@@ -17,17 +17,17 @@ open private erase_lam_inv from Lean4Lean.Theory.Typing.Strengthening.ProofErasu
 open private subst_bvar_liftN from Lean4Lean.Theory.Typing.Strengthening.ProofErasureJointRenaming
 variable [Params] {c : Name} {arity : Nat}
 
-/-- Typed control frames and sort-valued stored aliases. Each equivalent
+/-- Typed control frames and stored aliases at any demanded profile. Each equivalent
 universe instance has its own independently observed actual body. -/
 inductive Obs (c : Name) (arity : Nat) : List ProofShape → Sets → ProofShape → Profile → Ob → Prop where
   | const : Typing Δ (.const c ls) (spineProfile arity) →
       Obs c arity Δ S (.const c ls) (spineProfile arity) (spineDemand arity)
-  | delta : Typing Δ (.const name levels) .sort →
+  | delta : Typing Δ (.const name levels) t →
       (PureObservation.Definitions.ofEnv env univs henv).unfolds name levels rhs →
       (∀ {levels' rhs'}, List.Forall₂ (· ≈ ·) levels levels' →
         (PureObservation.Definitions.ofEnv env univs henv).unfolds name levels' rhs' →
-        Obs c arity Δ S (proofErase [] rhs') .sort .pi) →
-      Obs c arity Δ S (.const name levels) .sort .pi
+        Obs c arity Δ S (proofErase [] rhs') t o) →
+      Obs c arity Δ S (.const name levels) t o
   | var : Typing Δ (.bvar i) t → Demand t o → S i t o → Obs c arity Δ S (.bvar i) t o
   | app : Typing Δ (.app f a) B → Obs c arity Δ S f (.arrow A B) (.app keys o) →
       (∀ key ∈ keys, Obs c arity Δ S a A key) → Obs c arity Δ S (.app f a) B o
@@ -41,7 +41,7 @@ theorem Obs.typing (H : Obs c arity Δ S e t o) : Typing Δ e t := by cases H <;
 theorem Obs.demand (H : Obs c arity Δ S e t o) : Demand t o := by
   induction H with
   | const => exact spineDemand_valid arity
-  | delta => exact .sort
+  | delta _ HD _ ih => exact ih (VLevel.forall₂_equiv_refl _) HD
   | var _ HD => exact HD
   | app _ _ _ ihf _ => cases ihf; assumption
   | lam _ HK _ ih => exact .fn HK ih
@@ -124,27 +124,6 @@ theorem Obs.beta_forward (H : Obs c arity Δ S (.app (.lam D b) a) t o) (HS : S.
         | zero => obtain ⟨rfl, hk⟩ := hi; exact HX key hk
         | succ i => exact .var (HS i t key hi) HD hi)
       simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN, ProofShape.Subst.one] using R
-
-/-- A primitive head is rigid unless the entire source is a bare alias.
-Sort-valued aliases cannot supply the function of an application. -/
-theorem Obs.primitive_head (H : Obs c arity Δ S e t o) (HH : PrimitiveHead e)
-    (HA : ∀ name levels, e ≠ .const name levels) : e.constHead = some c := by
-  have aux : ∀ {Δ S e t o}, Obs c arity Δ S e t o → PrimitiveHead e →
-      t ≠ .sort → e.constHead = some c := by
-    intro Δ S e t o H
-    induction H with
-    | const => intros; rfl
-    | delta => intro _ h; exact (h rfl).elim
-    | var => intro h _; exact h.elim
-    | app _ _ _ ihf _ => intro hh _; exact ihf hh (by intro h; cases h)
-    | lam => intro h _; exact h.elim
-  cases H with
-  | const => rfl
-  | delta => exact (HA _ _ rfl).elim
-  | var | lam => cases HH
-  | app _ HF _ =>
-    have E := aux HF (by exact HH) (by intro h; cases h)
-    exact E
 
 /-- Every primitive head is either the designated rigid family or an actual
 stored definition; application frames preserve that disjunction. -/
