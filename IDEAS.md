@@ -11904,3 +11904,45 @@ source hashes stable. Only allowed axioms, no forbidden dependency, sorry or
 own-module warning. Artifacts /tmp/carrier-projection-parameter-histories-*.
 Independent boundary changes were preserved and not imported while uncommitted.
 Executable and original strengthening sorry are unchanged.
+
+### 2026-11-05 — Dependent argument transformations through native callers
+
+**Verdict: forward caller computations proved for arbitrary generic argument
+histories, whole telescope reannotation, and structure eta beneath a telescope.
+No native argument or type-fork premise is needed; the caller's exact Pi guard
+remains explicit.** ProofErasureNativeCallerTelescopes first lifts any computation
+of the caller's fresh generic argument into its generic application, then uses
+native telescope reification before supplying the actual argument. The output
+may depend on that argument. This is a forward computation of the whole call,
+not a forward path for the supplied argument in isolation.
+
+Generic eta through an arbitrary dependent telescope now replaces every written
+lambda annotation by its assigned annotation in one call. The actual supplied
+lambda has ordinary typing only. Two lambda telescopes with the same body and
+arbitrarily different written domains compute through their caller to the same
+assigned telescope; no individual domain joins are requested. Proof-valued
+functions, proof domains and dependent caller result types are included.
+
+The same generic-argument theorem performs admissible structure eta underneath
+an arbitrary dependent lambda prefix. Expansion typing derives admissibility;
+neither the original structure major nor the lambda closure needs a native
+certificate. This replaces the full TypeForkJoin premise of the earlier
+arbitrary-context theorem for the concrete class of exactly recovered callers.
+General bodies, arbitrary type contexts and converted callers still require
+further work. The exact caller guard cannot be inferred from ordinary typing,
+as the committed generic-family boundary shows. No strengthening result or
+strictly smaller sufficient front is claimed.
+
+The initial registered-header idea was checked against TypeShape and
+family_head_telescope_of_wf. Registration supplies ordinary equality to the
+normalized header, not a forward erased computation of that header. Its proof
+therefore does not supply the desired exact native normalized telescope for
+free. The general header-recovery problem remains live, without a proof or a
+new refutation here. Executable and original strengthening sorry are unchanged.
+
+Validation: 795-job isolated build; four new public roots and the ten public
+roots of the newly synchronized committed telescope-reification dependency
+all audited transitively. Maximum closure 11,370; 770 stable committed/own source
+hashes. Only allowed axioms, no forbidden dependencies, sorry or audited-module
+warnings. Artifacts /tmp/carrier-native-caller-telescopes-*. Independent
+uncommitted Pi-telescope work was neither imported nor staged.
