@@ -10050,3 +10050,48 @@ combined closures remained hash-stable and matched isolated copies. Artifacts
 preparation scripts use the corresponding /tmp/prepare-carrier-*.py names.
 Executable unchanged, no coordination. The original strengthening sorry remains
 and the goal stays active.
+
+
+## Simultaneous telescope annotations through a typed common ancestor (2026-11-05 00:42:15 UTC)
+
+Verdict: all written domains of a dependent lambda telescope can be replaced
+simultaneously by the domains of its assigned Pi telescope, preserving the exact
+residual body. Only whole-term typing and equal telescope lengths are required.
+The two domain lists need not coincide at any position; no pointwise domain join,
+native recovery of the abstraction/body, or separately transported body typing is
+assumed. Eta opening followed by administrative beta establishes ordinary typing
+and equality of the reannotated target. This works at arbitrary finite depth.
+
+The stronger operational result is an explicit common computational ancestor:
+(fun g : wrapForalls ds T => g) (wrapLams written b). Beta first reaches the
+original abstraction. Generic telescope eta before instantiation, followed by
+administrative beta, reaches wrapLams ds b. Every guard is supplied while g is
+fresh; the actual abstraction needs no native certificate. The committed general
+data-instantiation peak handles proof-valued functions as well as retained ones.
+This fork does not assume TypeForkJoin or any other confluence premise.
+
+Observing that typed common ancestor in a type context creates a type-valued
+fork. TypeForkJoin then joins the observations of the original and reannotated
+abstractions. Consequently two same-body lambda telescopes with different written
+annotations but the same assigned Pi telescope join in every type observer.
+The common intermediate uses the assigned domains and its typing is derived.
+This removes simultaneous domain alignment from this binder comparison; arbitrary
+different data bodies still need a congruence argument. No stronger completeness
+or strictly smaller sufficient strengthening obligation is claimed.
+
+Investigated canonical Eq as a classifying observation for contextual data.
+The available full-union rigid-head readout returns the family name and arity,
+but deliberately allows arbitrary exposed arguments. It therefore does not yet
+extract the data computational join needed for arbitrary body congruence. That
+argument-readout idea remains unproved, not refuted. A live alternative, recorded
+in the newly committed instantiation work, is a typed chain of forward/backward
+computations whose primitive eta cases use common ancestors. The concrete fork
+proved here supports that approach without presuming its completeness.
+
+Validation: one module, 120 lines, five public roots. Explicit 783-job build;
+full transitive audits through types, opaque values, constructors and recursor
+rules, maximum closure 11,091. Only propext, Classical.choice and Quot.sound;
+no configured forbidden dependencies or new warnings. All 758 local imported
+source hashes remained stable. Artifacts /dev/shm/contextual-telescope-annotations-*.
+Independent untracked work preserved; no executable changes, coordination or PR
+extraction. The original strengthening sorry remains and GOAL.md stays active.
