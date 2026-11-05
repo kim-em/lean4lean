@@ -25140,3 +25140,55 @@ allowed axioms and no forbidden dependency, sorry, or audited-module warning.
 Artifacts /tmp/carrier-historical-type-bodies-*. Independent recursive native
 Pi work was preserved and not used as an uncommitted dependency. Executable and
 original strengthening sorry remain unchanged.
+
+
+### 2026-11-05 07:30:04 UTC — Descend terminal native histories through ignored fields
+
+The field-suffix investigation produced an exact selected-output theorem for
+arbitrary dependent telescopes whose result is already typed below all their
+fields. `ProofErasureIgnoredFieldObservation` retains a lower ordinary result
+and a computation from the original result at every terminal payload. Its raw
+output is exactly that lower result lifted through the pending field context.
+This explicitly retained computation is stronger than simply observing that a
+result happens not to mention the fields.
+
+The recursive observation is closed under pending-domain conversion, arbitrary
+full-union computation, and supply of an ordinarily typed field. At the terminal
+computation case, certificate descent removes the entire pending field block,
+producing the exact lifted endpoint and a lower computation certificate. At Pi
+layers, component histories descend temporary controls, run the inner
+observation under the old domain, and convert the pending context. Supplying a
+field substitutes through the control observations; the terminal substitution
+just removes one unused lift. Thus the argument may be a proof, higher-order
+value, or dependent data without any native recovery premise. The initial
+observation is constructed from an arbitrary well-formed dependent field
+telescope and its result's lower sort typing.
+
+`ProofErasureIgnoredFieldSupply` connects this invariant to selected native
+histories. Its history theorem carries ordinary term and whole-application
+typing. Replay and erasure reflection identify each selected actual Pi; Pi
+inversion gives the argument its selected domain, and computation realization
+gives the argument image at that domain. The exact native conversion tails
+remain unchanged. `static_structure_ignored_field_native_origin` reaches the
+final selected output from the original result, provided the head retains the
+fixed origin `wrapForalls fields (result.liftN fields.length)`. The declaration
+corollary supplies that origin from a literal constant declaration and an
+ordinary `TelInst` argument vector. It needs no exact native type for the result
+or for any field value.
+
+This proves the proposed descent mechanism for arbitrary ignored field histories,
+without unrestricted beta stripping or normalizing opaque residuals. It does
+not yet combine those histories with arbitrary preceding parameter conversions:
+the partially applied constructor need not retain a literal residual field
+origin. A mixed observation tracking pending parameters and pending fields
+separately is still needed. General header alignment, global joining and
+canonical-Eq strengthening remain open. The executable and original weakN_iff
+sorry are unchanged; no PR extraction or GOAL.md completion is claimed.
+
+Validation: 794-job isolated build; all 11 public roots, including the
+recursive observation definition, audited through transitive types, values
+including opaque values, constructors and recursor RHSs; maximum closure
+11,377. All 769 source hashes matched own source or frozen committed
+dependencies and remained stable. Only propext/Classical.choice/Quot.sound;
+no forbidden dependencies, sorry, or own-module warning. Artifacts
+`/dev/shm/ignored-field-observation-*`.

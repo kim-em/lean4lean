@@ -12383,3 +12383,41 @@ allowed axioms and no forbidden dependency, sorry, or audited-module warning.
 Artifacts /tmp/carrier-historical-type-bodies-*. Independent recursive native
 Pi work was preserved and not used as an uncommitted dependency. Executable and
 original strengthening sorry remain unchanged.
+
+
+### 2026-11-05 07:30:04 UTC — Exact native histories through ignored fields
+
+**Verdict: arbitrary dependent field-only telescopes proved.**
+`IgnoredFieldPiObservation` replaces the reified terminal family with a lower
+ordinary type and a full-union computation from the original result to that
+type, lifted past all pending fields. Terminal computation descends through
+those unused binders using certificate descent. Pending-domain conversion
+changes ordinary observation typings only; supplying the oldest field removes
+one unused lift and preserves the same lower computation. Recursive control
+observations retain all opaque residuals between applications.
+
+`supply_history` follows the exact selected type history extracted from a
+native derivation. Ordinary typing of the term and its full application validates
+every selected domain, by replay, erasure reflection and Pi inversion. Arbitrary
+computed field images are realized at that domain; none needs native recovery.
+`static_structure_ignored_field_native_origin` therefore reaches the exact final
+selected output from the original lower result. The declaration corollary
+discharges the fixed-origin premise for a literal constant type
+`wrapForalls fields (result.liftN fields.length)`. It uses an ordinary dependent
+argument vector, so later field domains may depend on earlier fields and proof
+arguments are permitted. No native certificate for the result type is required.
+
+This confirms the descent-based alternative to beta-stripping an ignored-field
+wrapper. It handles any number of fields and arbitrary conversions between
+applications, but is not yet a mixed parameter-plus-field theorem. An arbitrary
+preceding parameter history need not leave a literal residual field telescope
+with the required fixed origin. The next live step is a mixed observation whose
+terminal lower history is a reified parameter family, with field binders tracked
+separately. General declaration-header alignment and global joining remain open.
+No strengthening proof, canonical-Eq counterexample, or strictly smaller
+sufficient obligation is claimed.
+
+Validation: 794 isolated build jobs; 11 public roots, maximum closure
+11,377; 769 unchanged committed/own sources. Only allowed axioms, no
+forbidden dependency, sorry, or own-module warning. Artifacts
+`/dev/shm/ignored-field-observation-*`.
