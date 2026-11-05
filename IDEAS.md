@@ -13461,3 +13461,37 @@ beta interleavings, is not represented by FunctionHeadExpansion. The root-histor
 rules do not by themselves discharge that continuation case. General HF/HJ and
 GOAL.md remain open; do not mistake the restricted development relation for the
 full computation union.
+
+
+### 2026-11-05 12:54:58 UTC — Extensional native header histories fail beta, even at Pi types
+
+Verdict: refuted general beta closure of NativeHeaderHistory in the actual
+registered positive unit-parameter constructor setting. Let p and q be two unit
+variables. The constructor mk p is ordinarily assigned Tag q by unit equality,
+but natively recovers Tag p. Tag q cannot compute to Tag p: the former is typed
+below insertion of p, while the latter retains p as an application argument.
+The obstruction uses checked computation descent, without a no-unfold or
+normalization hypothesis.
+
+An identity at the assigned type has the full Tag-q header history by the
+identity origin theorem, but its beta contractum does not. Packaging the body
+as a constant function moves this failure to a Pi header. Reflection of a
+constant-function header follows from the newly checked application theorem:
+apply to Prop, whose native type is exact, then use constant-beta native
+equivalence. Thus restricting the invariant to function headers is insufficient.
+
+The stronger generated-frame example starts with a function that BOTH has its
+header history and recovers that header exactly. Its actual native identity
+expansion also has the history. Two beta contractions nevertheless reach a
+function without it. Actual wrapper creation and initial exact native recovery
+therefore do not repair the proposed extensional invariant. The old positive
+eta/application/root-expansion results remain valid with their stated scope.
+
+This is not a strengthening counterexample and does not refute the narrower
+continuation conjecture from a bare registered constructor. It rejects using
+current native-output ancestry as the entire induction invariant. A subsequent
+attempt must retain construction histories of body/argument values as well as
+annotation histories. A candidate is a simultaneous observation of unit values,
+constructor functions, and constructor results, with parameter-sensitive type
+observations under fresh binders; this has not been implemented or established.
+General HF/HJ, strict smallness and GOAL.md remain open.

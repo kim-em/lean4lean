@@ -26558,3 +26558,46 @@ and recursor RHSs were audited with the standard strengthening/sorry exclusions
 plus TypeForkJoin, TypeInstantiationJoin, StaticStructureCommonCoverage and
 StaticStructureTypeConversionJoin. Only propext/Classical.choice/Quot.sound;
 no own-module warnings or sorry. Artifacts: /dev/shm/native-header-*.
+
+
+### 2026-11-05 12:54:58 UTC — A verified beta obstruction for directed native header histories
+
+The previous goal turn was progress: generic eta and application ancestry plus
+finite root expansion were verified and pushed. This turn tests the remaining
+beta-preservation idea and refutes its unrestricted form in Lean.
+
+Added ProofErasureNativeHeaderBetaBoundary.lean (234 lines, seven public
+results). computed_source_no_inserted_argument applies computation descent to
+exclude a newly inserted retained argument at the endpoint. In the actual
+registered fieldless phantom-family configuration, mk p can be assigned Tag q
+but has native output Tag p. The assigned type cannot compute to that native
+output. This establishes failure of directed assigned-header coverage rather
+than merely failure of exact recovery of the assigned type.
+
+native_header_identity_beta_failure constructs the source history from the
+identity annotation and exposes the failure on contraction. The constant-
+function reflection theorem uses NativeHeaderHistory.application with the
+exactly recoverable Prop argument and the constant-beta native equivalence.
+It lifts the failure to a genuine typed Pi assignment. No history or failed
+closure premise is assumed in the registered final counterexample.
+
+registered_generated_header_beta_failure further constructs an initial function
+with both a full header history and exact native recovery at that header. An
+actual native identity expansion creates the next frame, which also has the
+history; its beta path reaches a function lacking that history. This excludes
+adding generic beta preservation to the extensional history rules even if
+wrapper generation is native guarded and the initial source recovers its header.
+The counterexample does not start at a bare constructor with its stored header,
+so that special provenance conjecture remains live. It is not a counterexample
+to strengthening. Body/argument construction histories must be retained by the
+next invariant, rather than inferred from current native-output ancestry.
+
+Validation: 813-job isolated build; seven public roots audited through types,
+opaque values, constructors and recursor RHSs; maximum closure 11,378;
+788 own/frozen source hashes unchanged. Standard strengthening/sorry exclusions
+plus TypeForkJoin, TypeInstantiationJoin, StaticStructureCommonCoverage and
+StaticStructureTypeConversionJoin were enforced. Only propext/Classical.choice/
+Quot.sound, no own-module warnings or sorry. Artifacts:
+/dev/shm/native-header-beta-boundary-*.
+GOAL.md remains open, the original sorry and executable unchanged. No PRs were
+extracted; independent untracked modules remain preserved and excluded.
