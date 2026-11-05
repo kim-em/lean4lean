@@ -11317,3 +11317,19 @@ the same earlier-registry induction.
 Validation: five-module integration build (851 jobs), 18 public/generated
 roots, maximum closure 12,633, 826 stable source hashes, only allowed axioms,
 no forbidden dependencies or task-module warnings.
+
+### 2026-11-05 — Generic indices from formation before rule installation
+
+**Verdict: generic data-domain chains derived from earlier pattern coverage.**
+The generated recursor type is already well formed after constructors and
+projections, before the recursor rules are installed. Specializing its free
+target universe to Prop preserves source levels. Peeling this formation
+judgment with the constant true motive supplies ordinary generic index telescope
+typings. Interpreting those typings with coverage only for the earlier registry
+gives ComputationalTelInst and hence SingletonGenericDataDomainChains. No
+TypeForkJoin premise is needed for this step. The subsequent integration must
+still supply earlier coverage by history induction and prove type-fork joining.
+
+Validation: four new formation/index modules in an eight-module integration
+build (859 jobs); 48 public/generated roots, maximum closure 12,810; 834 stable
+source hashes, only allowed axioms, no forbidden dependencies or task warnings.

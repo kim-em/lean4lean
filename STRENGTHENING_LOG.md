@@ -23972,3 +23972,27 @@ closure 12,633; only propext/Classical.choice/Quot.sound, no sorry or configured
 forbidden dependency; no task-module warnings. All 826 closure hashes stable,
 isolated copies identical and non-task dependencies committed. Artifacts
 /tmp/carrier-computational-stage-*. Original sorry and executable unchanged.
+
+### 2026-11-05 — Formation supplies generic singleton index certificates
+
+Added ProofErasureSingletonIndexFormation, ProofErasureComputationalIndexFormation,
+ProofErasureComputationalProjectionStage and ProofErasureComputationalRegisteredIndices.
+The first extracts constructor-index telescope typing using only formation of
+the generated singleton recursor type. The projection stage is well formed,
+contains those recursor-type formation judgments, and retains exactly the
+earlier pattern registry. Specialization at target Prop leaves the actual
+source levels unchanged. The earlier strong interpreter turns the extracted
+index typings into computational telescope certificates; the existing telescope
+readout then supplies generic data-domain chains. No family-header definitional
+identity or current-pattern completeness is assumed.
+
+This discharges the generic-domain certificate from earlier registry coverage,
+without TypeForkJoin. History integration and the remaining fork-joining
+obligation are separate; no completed strengthening or strict reduction claimed.
+
+Validation: eight-module integration build, 859 jobs, 48 public/generated roots;
+full transitive type/body/opaque/constructor/recursor audit maximum closure 12,810.
+Only propext/Classical.choice/Quot.sound; no forbidden dependency, sorry or
+audited-module warning. All 834 closure source hashes stable, isolated copies
+identical, non-own dependencies committed. Artifacts /tmp/carrier-index-formation-*.
+Original sorry and executable unchanged.
