@@ -27996,3 +27996,60 @@ Completion audit: UniqueTyping.lean:94 still contains the original sorry.
 No canonical-Eq counterexample or genuinely strictly smaller sufficient
 obligation has been established. Executable unchanged; no PR extraction or
 agent coordination. GOAL.md remains active with its original scope.
+
+## 2026-11-05 21:25:10 UTC — Stage-zero comparison exposes Pis despite constant expansion
+
+Added ProofErasureIgnoredPiTrace and ProofErasureStageZeroPiExposure (292
+lines; one inductive family and fifteen public theorems). This closes the
+specific Pi-head exposure gap recorded by the preceding paired-exposure turn.
+
+IgnoredPiTrace follows function positions and lambda bodies to a literal Pi,
+counting remaining ignored arguments. It has no variable case, and it ignores
+all lambda annotations and application arguments. Raw substitution and beta
+preserve it. Constant expansion adds one ignored binder and supplies its
+argument immediately, so it preserves the same count. Operational readout
+uses the existing finite observation interpretation with empty argument
+demands, yielding an exact beta reduction to a Pi at arity zero.
+
+The main induction transfers traces through inferred ComputedJointCheck up
+to computation in both directions. It handles app, appCarrier and appComputed
+using only their inferred function checks. Lambda and sorted-lambda cases
+compute the target body and recontextualize it using primitive context
+independence; no native certificate is transported. Explicit eta-lambda cases
+use trace invariance at positive arity. Computation cases preserve the source
+trace before applying the recursive check, then prepend the other endpoint's
+path. Common-only constructors and carrier modes are excluded by the inferred
+mode index. There is no semantic equality or comparison-completeness premise.
+
+At stage zero, ordinary primitives have incompatible heads, level conversion
+roots are sorts/constants rather than traced heads, and constant expansion
+preserves the trace. The generic theorem therefore exposes the right Pi from
+any raw inferred comparison against a displayed left Pi. Actual independent
+sort typings convert common input comparison to inferred mode without changing
+the stage. These are checked exposure results, not hypotheses.
+
+The paired-function integration consumes the new theorem. The right annotation
+need not be displayed as a Pi initially. The exposed path can run in its own
+context because stage zero is context independent. Typed replay then supplies
+actual right domain/codomain sort typings and the original function at that
+Pi. The previous paired function construction and independent annotation
+computation laws finish, conditional only on the explicitly quantified paired
+body-exposure premise for the exposed right Pi.
+
+Still open: deriving that recursive premise from arbitrary carrier/comparison
+certificates, including differing binder contexts and dependent field
+histories. The head theorem does not assert that the newly exposed domain or
+codomain still has a particular base comparison certificate. It does not
+establish general stage collapse, singleton simulation, type-rooted stage-one
+confluence, or completeness of head exposure for ordinary definitional
+equality. Higher-stage identity/eta roots are outside the trace hypotheses.
+
+Validation: 846 isolated build jobs; 22 roots audited through types,
+opaque bodies, inductive constructors and recursor RHSs; maximum closure
+11,192; 821 frozen source/import hashes unchanged. Only propext,
+Classical.choice, Quot.sound; no forbidden dependencies or own warnings.
+
+Completion audit: the original weakN_iff sorry at UniqueTyping.lean:94 remains.
+No canonical-Eq counterexample or genuinely strictly smaller sufficient
+obligation is proved. Executable unchanged; no PR extraction or coordination.
+GOAL.md remains active with its original objective.

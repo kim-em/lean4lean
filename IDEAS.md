@@ -14816,3 +14816,42 @@ confluence remain open. No strictly smaller sufficient obligation is claimed.
 **Evidence:** 844 isolated build jobs; 12 audited public declarations;
 maximum closure 8,364; 819 frozen source/import hashes. Standard
 axioms only, no forbidden dependencies or own warnings.
+
+## 2026-11-05 21:25:10 UTC — Expose compared Pis through ignored-argument control traces
+
+**Idea:** Literal head preservation fails for constant beta expansion, but a
+Pi surrounded by such control frames admits a stronger syntactic observation:
+a function/body path ending at a Pi with no demands on application arguments.
+Track the remaining lambda arity and follow only inferred function checks.
+
+**Verdict:** Proved. IgnoredPiTrace has Pi, lambda and application constructors
+and no variable case. Arbitrary substitution, beta, and constant expansion
+preserve it. A zero-arity trace has a finite beta readout to a literal Pi.
+Inferred ComputedJointCheck transfers the trace up to computation whenever
+primitives preserve traces and are context independent. Application cases use
+only the inferred function subcheck, ignoring even recursively checked carrier
+arguments. Lambda cases recontextualize the resulting computation, which is
+valid at stage zero. Eta-lambda checking preserves positive trace arity.
+These two primitive conditions hold at stage zero, yielding unconditional
+raw stage-zero Pi exposure from an existing inferred comparison. Independent
+actual sort typings also permit common-mode input comparison.
+
+**Connection:** PairedIdentityExposure.function_of_compared_annotation now
+needs only the left Pi displayed. The base comparison exposes the right Pi;
+context independence moves that path to the right computation context, and
+typed replay recovers the actual right domain, codomain and function typing.
+Independent annotation computation feeds the previous paired function theorem.
+Only recursive paired body exposure remains a premise of this construction.
+
+**Limit / next:** This is operational head exposure from an existing checker
+certificate, not completeness for ordinary definitional equality. The trace
+argument does not retain comparison of the newly exposed domain/codomain.
+Full paired-exposure induction, its asymmetric output contexts, dependent
+field histories, common-comparison exposure, singleton simulation and
+type-rooted stage-one confluence remain open. Identity and native eta roots
+at higher stages are not covered by the context-independent trace theorem.
+No strictly smaller sufficient replacement for PropFront is claimed.
+
+**Evidence:** 846 isolated build jobs; 22 audited roots including trace
+constructors and recursors; maximum closure 11,192; 821 frozen hashes.
+Only standard axioms, no forbidden dependencies or own warnings.
