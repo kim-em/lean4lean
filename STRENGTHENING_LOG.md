@@ -25674,3 +25674,50 @@ constructors and recursor equations. Maximum closure 11,694; 794 stable frozen
 source hashes; allowed axioms only, no forbidden dependency, sorry, or own-module
 warning. Artifacts `/tmp/carrier-type-cut-history-*`. Independent uncommitted
 sources were neither imported nor staged.
+
+
+### 2026-11-05 — Unrestricted continuation after administrative type wrappers
+
+**Verdict: a pure-beta readout is proved for arbitrary full-union computation
+after finite nesting of constant and native identity wrappers of a type.**
+`ProofErasureTypeWrapperReadout.lean` defines the precise root wrapper relation.
+Identity annotations have native evidence when created; constant expansion has
+its usual retained-source condition. Each expansion is a union step and has a
+reverse beta path. Arbitrary reverse beta redexes and Eq casts are not included.
+
+The main `static_structure_type_wrappers_readout` keeps the original type as a
+marked payload. Empty free demands and the existing type-argument observations
+transport this mark through the whole subsequent computation, including changed
+annotations, expansions inside wrapper functions, introduced control frames,
+and steps after wrapper contraction. Certificate descent updates the payload's
+lower forward history. Reading the final observation yields an actual A' with
+A ≡ A', a full-union path erase A → erase A', and a PURE BETA path from the
+arbitrary output to erase A'. No normalization, HJ, type-fork or common-coverage
+hypothesis is used. This is stronger than mutual reachability of the initial
+wrapper and its payload.
+
+`static_structure_type_beta_root_expansion_readout` applies the result to every
+primitive at a type-valued literal beta redex, followed by arbitrary full-union
+computation. Head syntax excludes computational primitives, and sort typing
+excludes root function/structure eta, leaving exactly the two administrative
+wrappers. The resulting readout starts its payload computation at the original
+UNCONTRACTED redex. It therefore handles that root wrapper continuation, not the
+remaining original beta strip or full joining problem.
+
+A join-reflection corollary for these wrappers was tested and removed before
+commit: mutual computational reachability already gives that elementary fact,
+so it adds nothing to the live gap. The retained pure-beta readout is the useful
+stronger result. Further computation after function-position eta and created
+beta cuts still needs its history argument. No descent measure for the extracted
+payload computation, general confluence, HJ proof/sufficiency/strict-smallness,
+or canonical-Eq strengthening has been established. Original sorry and executable
+unchanged; no GOAL.md completion or new sufficient irreducible obligation claimed.
+
+Validation: isolated 794-job build; all six public/generated roots audited
+through types, opaque bodies, constructors and recursor equations; maximum
+closure 11,375; 769 stable frozen source hashes. Besides the standard forbidden
+dependencies, the audit rejects TypeInstantiationJoin, TypeForkJoin,
+StaticStructureCommonCoverage and StaticStructureTypeConversionJoin, confirming
+that this readout has none of those dependencies. Allowed axioms only; no sorry
+or own-module warning. Artifacts `/tmp/carrier-type-wrapper-readout-*`.
+Independent uncommitted sources were neither imported nor staged.
