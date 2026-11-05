@@ -11431,3 +11431,43 @@ maximum closure 11,651; 796 stable source hashes, only allowed axioms, no
 forbidden dependencies or audited-module warnings. Dependency inputs were
 frozen at committed afc07cdf; concurrent wrapper edits were preserved and
 excluded from validation.
+
+### 2026-11-05 04:39:59 UTC — Native transfer under fresh binders and evolving eta frames
+
+**Verdict: proved eta-frame preservation in the recursive marked development.**
+The apparent need to assume native transfer under fresh binders is discharged:
+certificate descent pulls every output of a lifted typed source back to the
+lower context, transfer acts there, and typed weakening restores the exact
+upper output at the raw pivot. NativeOutputTransfer.lift, .lambda_body and
+.eta_body establish this without TypeForkJoin or native recovery of the pivot
+at a preselected assigned type.
+
+The first eta-frame formulation retained an ordinary function/domain witness.
+The final invariant is stronger: store a typed domain and ordinary typing of
+the current lambda, plus the paired inner history. This allows arbitrary
+computation of both the annotation and the fresh argument, including after the
+argument has changed from its original proof/data variable shape. Compatible
+source computation updates ordinary typing; native output transfer uses the
+same raw argument on both sides and needs no renewed original Pi guard.
+WrappedCutStep now creates eta frames and evolves their contents, annotations
+and fresh arguments. Its existing finite simulation and join theorems cover
+the enlarged grammar.
+
+Finished states have literally equal source and pivot through every remaining
+frame. They permit unrestricted whole-term continuation, proved directly from
+the original contractum. A separate beta-continuation square covers arbitrary
+beta paths in pending application spines, including contraction at an applied
+eta frame, without certifying each newly exposed beta redex.
+
+Still open: structure frames, unrestricted control-body computation while the
+mark remains active, other marked contexts and initial/created cut coverage.
+The type-fork/common-coverage equivalence in the committed tree does not provide
+an independent coverage proof. This turn proves neither TypeForkJoin nor
+strengthening and does not claim a strictly smaller sufficient obligation.
+
+Validation: five changed/new modules plus the existing wrapper guard-loss
+regression module; 834-job isolated build, 74 public/generated audit roots,
+maximum transitive closure 11,524; only allowed axioms, no forbidden
+dependencies or own-module warnings. All 809 local closure hashes remained
+stable and were checked against own sources and committed dependencies before
+staging. Artifacts /dev/shm/eta-wrapped-*.

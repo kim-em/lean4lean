@@ -1,22 +1,23 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureWrapperPivotTransport
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEtaPivotTransport
 
-/-! # Recursive literal wrappers around historical marked cuts
+/-! # Recursive frames around historical marked cuts
 
-Each state has a source, a selected pivot, and a common readout. Wrappers retain
-ordinary annotation typing separately from their inner native outputs. The
+Each state has a source, a selected pivot, and a common readout. Frames retain
+ordinary typing separately from their inner native outputs. The
 pivot choice at the leaf remains the computed body at the original argument.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape
 open private isProof_congr from Lean4Lean.Theory.Typing.Strengthening.ProofErasurePrimitives
 
-/-- Literal constant and identity frames can be nested around a marked cut.
+/-- Constant, identity and eta frames can be nested around a marked cut.
 The body representative fixes its pivot; annotations belong to their frames. -/
 inductive WrappedCut where
   | cut (components : CutComponents) (body : VExpr)
   | done (value : ProofShape)
   | constant (inner : WrappedCut)
   | identity (annotation : ProofShape) (inner : WrappedCut)
+  | eta (annotation argument : ProofShape) (inner : WrappedCut)
 
 /-- The uncontracted side of a wrapped historical cut. -/
 def WrappedCut.source : WrappedCut → ProofShape
@@ -24,6 +25,7 @@ def WrappedCut.source : WrappedCut → ProofShape
   | .done e => e
   | .constant s => constantExpansion s.source
   | .identity A s => .app (.lam A (.bvar 0)) s.source
+  | .eta A argument s => .lam A (.app (s.source.liftN 1) argument)
 
 /-- The selected pivot uses the same frames as the source. -/
 noncomputable def WrappedCut.pivot [Params] (Γ : List VExpr) (x : VExpr) : WrappedCut → ProofShape
@@ -31,38 +33,42 @@ noncomputable def WrappedCut.pivot [Params] (Γ : List VExpr) (x : VExpr) : Wrap
   | .done e => e
   | .constant s => constantExpansion (s.pivot Γ x)
   | .identity A s => .app (.lam A (.bvar 0)) (s.pivot Γ x)
+  | .eta A argument s => .lam A (.app ((s.pivot Γ x).liftN 1) argument)
 
-/-- Wrapper readout discards the frames and contracts the historical leaf. -/
+/-- Readout discards beta wrappers, retains eta frames and contracts the historical leaf. -/
 def WrappedCut.readout : WrappedCut → ProofShape
   | .cut s _ => s.2.1.inst s.2.2
   | .done e => e
   | .constant s | .identity _ s => s.readout
+  | .eta A argument s => .lam A (.app (s.readout.liftN 1) argument)
 
 /-- A completed root is already identical to its pivot. All other roots
-are applications with lambda control heads, so only expansion primitives apply. -/
+are lambdas or applications with lambda control heads, so only expansion primitives apply. -/
 theorem WrappedCut.source_root_cases [Params] (s : WrappedCut) (Γ : List VExpr) (x : VExpr) :
     s.source = s.pivot Γ x ∨ (¬ PrimitiveHead s.source) ∧ (∀ u, s.source ≠ .sort u) := by
   cases s with
   | done => exact .inl rfl
-  | cut | constant | identity => exact .inr ⟨id, fun _ => ProofShape.noConfusion⟩
+  | cut | constant | identity | eta => exact .inr ⟨id, fun _ => ProofShape.noConfusion⟩
 
 /-- Literal identity contraction is independent of both annotation and argument. -/
 theorem raw_identity_beta (A e : ProofShape) : ProofShape.BetaRed (.app (.lam A (.bvar 0)) e) e := by
   simpa only [ProofShape.inst, instVar, Nat.lt_irrefl, ↓reduceIte, Nat.sub_self,
     ProofShape.liftN_zero] using (ProofShape.BetaRed.beta (A := A) (b := .bvar 0) (a := e))
 
-/-- Every source beta-reduces to its marked leaf's current contractum. -/
+/-- Every source beta-reduces to the marked contractum under its retained eta frames. -/
 theorem WrappedCut.beta_readout (s : WrappedCut) : ProofShape.BetaRed s.source s.readout := by
   induction s with
   | cut => exact .beta
   | done => exact .refl
   | constant s ih => exact (constantExpansion_beta _).trans ih
   | identity A s ih => exact (raw_identity_beta A s.source).trans ih
+  | eta A u s ih => exact .lam .refl (.app ih.liftN .refl)
 
 variable [Params] {D : PureObservation.Definitions}
 
-/-- Each identity frame stores only ordinary typing of its current argument.
-Its native guard is required at creation by WrappedCutStep, not renewed here. -/
+/-- Identity frames keep ordinary argument typing; eta frames keep a typed
+domain and ordinary typing of the current lambda. Native guards are required
+at creation by WrappedCutStep, not renewed here. -/
 inductive WrappedCut.Valid (D : PureObservation.Definitions) (Γ : List VExpr)
     (A b x : VExpr) (u : VLevel) (B : VExpr) : WrappedCut → Prop where
   | cut : CutPivotHistory D Γ A b x u B s d → Valid D Γ A b x u B (.cut s d)
@@ -70,12 +76,15 @@ inductive WrappedCut.Valid (D : PureObservation.Definitions) (Γ : List VExpr)
   | constant : Valid D Γ A b x u B s → Valid D Γ A b x u B (.constant s)
   | identity : Valid D Γ A b x u B s → WrapperTypeWitness Γ s.source C →
       Valid D Γ A b x u B (.identity C s)
+  | eta : Valid D Γ A b x u B s → DomainSort (proofEraseCtx Γ) C v →
+      WrapperTypeWitness Γ (.lam C (.app (s.source.liftN 1) argument)) T →
+      Valid D Γ A b x u B (.eta C argument s)
 
 /-- Valid sources remain retained after the marked cut has contracted. -/
 theorem WrappedCut.Valid.source_ne_proof (H : WrappedCut.Valid D Γ A b x u B s) : s.source ≠ .proof := by
   cases H with
   | done _ hn => exact hn
-  | cut | constant | identity => exact ProofShape.noConfusion
+  | cut | constant | identity | eta => exact ProofShape.noConfusion
 
 /-- A chosen cut body still gives a typed realization of the evolved redex. -/
 theorem CutPivotHistory.source_witness
@@ -119,6 +128,7 @@ theorem WrappedCut.Valid.source_witness
     obtain ⟨T, HT⟩ := ih
     exact ⟨T, HT.constant hΓ H.source_ne_proof⟩
   | @identity s C H HT _ => exact ⟨C, HT.identity hΓ H.source_ne_proof⟩
+  | eta _ _ HT _ => exact ⟨_, HT⟩
 
 /-- Every selected pivot is retained, including after all frames have been removed. -/
 theorem WrappedCut.Valid.pivot_ne_proof
@@ -127,7 +137,7 @@ theorem WrappedCut.Valid.pivot_ne_proof
   cases H with
   | cut H => exact H.pivot_ne_proof hΓ hn
   | done _ hn => exact hn
-  | constant | identity => exact ProofShape.noConfusion
+  | constant | identity | eta => exact ProofShape.noConfusion
 
 /-- Complete native output transfer survives every stored wrapper, even when
 the current argument no longer recovers an identity frame's annotation. -/
@@ -147,6 +157,9 @@ theorem WrappedCut.Valid.native
     exact ih.constant heq hs hΓ HT H.source_ne_proof
   | @identity s C H HT _ =>
     exact native_output_transfer_identity heq hs hΓ HT H.source_ne_proof _
+  | eta H SD _ ih =>
+    obtain ⟨_, HT⟩ := H.source_witness hΓ hn
+    exact ih.eta_body heq hs hΓ HT SD _
 
 /-- The selected pivot computes to the same readout that beta exposes from
 the current source. No exact native certificate for that readout is asserted. -/
@@ -162,5 +175,6 @@ theorem WrappedCut.Valid.compute_readout
   | done => exact .refl
   | constant _ ih => exact (ScopedCompute.beta (constantExpansion_beta _)).trans ih
   | identity _ _ ih => exact (ScopedCompute.beta (raw_identity_beta _ _)).trans ih
+  | eta _ SD _ ih => exact static_structure_eta_frame_compute heq hs SD ih
 
 end Lean4Lean.VEnv.Strengthening

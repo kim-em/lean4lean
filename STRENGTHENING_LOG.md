@@ -24119,3 +24119,49 @@ sorry, no audited-module warning. All 796 source hashes and isolated copies
 matched own files or committed afc07cdf dependencies. Concurrent wrapper edits
 were excluded and preserved. Artifacts /tmp/carrier-native-transfer-binders-*.
 Original sorry and executable unchanged.
+
+### 2026-11-05 04:39:59 UTC — Recursive marked developments now retain evolving eta frames
+
+Added ProofErasureEtaPivotTransport. NativeOutputTransfer.lift uses full-union
+recovery certificate descent on the typed lower source, transfers the descended
+output, and weakens the pivot's certificate through the typed fresh binder.
+The pivot itself can remain raw. lambda_body and eta_body then transfer every
+native output through a lambda with an application body and the same arbitrary
+raw argument. EtaFrameWitness.of_native and .source_witness reconstruct ordinary
+typing at creation; DomainSort.scoped_compute preserves a domain's sort by replay.
+
+Extended WrappedCut with an eta frame storing its current raw annotation and
+argument. Its readout retains that lambda/application frame rather than erasing
+it as beta. Valid stores a domain-sort witness and ordinary whole-frame typing,
+which survive compatible computation without renewing the initial native Pi.
+WrappedCutStep now includes eta creation, recursive inner development, domain
+computation and fresh-argument computation under the current domain. Its existing
+simulate and finite-development theorems were reproved for all new constructors.
+The typed frame witness deliberately allows the fresh argument to have computed
+away from etaArgument's original syntax.
+
+Added synchronized_compute and WrappedCut.Finished. Discharge of the marked leaf
+makes source and pivot identical through all remaining frames, including evolved
+eta frames. Finished.continue permits arbitrary whole-term computation;
+native_cut_finished_development reaches that endpoint from the original
+contractum. wrapped_cut_eta_components constructs a development from one native
+eta guard followed by recursive inner steps, domain computation and argument
+computation. Added spine_beta_square and native_cut_wrapper_development_beta_square
+for arbitrary subsequent beta paths, including beta at an applied eta frame.
+The existing primitive-plus-beta square now covers the enlarged development
+relation as well.
+
+Remaining: structure frames and more general mixed control-body computation
+while a mark is active, arbitrary marked contexts, and initial/created cut
+coverage. Pure beta continuation has a join; this is not a proof that every
+such continuation preserves the active history for later arbitrary full-union
+steps. TypeForkJoin and the original weakN_iff sorry remain open. No executable
+change, strengthening proof, counterexample or strict-smallness claim is made.
+
+Validation: 834 isolated build jobs; 74 public/generated roots across five
+changed/new modules and the unchanged guard-loss regression module. The full
+type/value/opaque/constructor/recursor dependency audit had maximum closure
+11,524, only propext/Classical.choice/Quot.sound, no forbidden dependency,
+no sorry and no own-module warning. All 809 closure sources were hash-stable
+and checked against committed dependencies and own sources at staging.
+Artifacts /dev/shm/eta-wrapped-*.
