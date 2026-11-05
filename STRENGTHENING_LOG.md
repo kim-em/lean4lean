@@ -27115,3 +27115,39 @@ strengthening/sorry/circular framework dependencies plus TypeForkJoin,
 TypeInstantiationJoin, StaticStructureCommonCoverage and
 StaticStructureTypeConversionJoin. Only propext/Classical.choice/Quot.sound;
 no owned-module diagnostics. Artifacts: /dev/shm/function-record-*.
+
+## 2026-11-05 16:54:48 UTC — Native profiles and arbitrary-order caller canonicalization
+
+Added ProofErasureNativeUnitProfile.lean and ProofErasureUnitArrowCanonical.lean
+(215 lines). The central proof changes the order of eta/beta work: normalize
+the caller's generic parameter while its exact native header is available,
+then substitute the raw argument. This avoids all demands on that argument.
+
+NativeUnitProfile has unit, dependent positive Pi, and directed conversion
+constructors. Its compute proof renames the actual function recovery into the
+fresh domain context, recovers the application to #0, and recurses on the
+codomain profile. Thus no preservation of native recovery through arbitrary
+term computation is smuggled into the induction. Its generic_argument proof
+renames the entire profile to the fresh parameter context, normalizes #0, and
+returns a lifted canonical value. Caller replacement and the existing dependent
+caller-telescope mechanism then apply. Annotations may be open and dependent.
+
+UnitArrows.profile constructs a profile for every finite simple type over the
+registered unit, including higher-order domains. UnitArrows.caller_canonical
+requires ordinary context well-formedness and native recovery of the caller
+at the literal simple domain; x is completely arbitrary. The canonical target
+is a finite sequence of lambdas ending in the unit constructor. Arbitrarily
+computed supplied arguments therefore need no separate semantic readout.
+
+This is a stronger caller result than the earlier Unit -> Unit demand readout,
+but not a replacement for the whole-computation observers: the caller itself
+must still recover the selected Pi. Convertible-header adequacy and the
+reduction of general forks to this fragment are unproved. Original sorry and
+executable unchanged; GOAL.md remains active, with no strict-smallness claim.
+
+Validation: 850-job isolated build; 19 roots checked through types, opaque
+values, inductive constructors and recursor RHSs; maximum closure 11,121;
+825 unchanged own/frozen sources; only the three standard axioms. All forbidden
+strengthening/sorry/framework/exposure/coverage/fork dependencies excluded.
+No new-module warnings. The two independent untracked research files were
+excluded from both the frozen imports and the commit. No PRs or coordination.

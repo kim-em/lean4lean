@@ -13909,3 +13909,42 @@ Validation: 855-job isolated build, 75 roots, maximum closure 11,690,
 830 unchanged own/frozen source hashes. Only standard axioms; all existing
 strengthening/sorry/circular and general join/coverage exclusions passed.
 No PR extraction or coordination.
+
+## 2026-11-05 16:54:48 UTC — Normalize the generic parameter before beta
+
+Verdict: checked and removes computational input demands for a caller whose
+selected argument type is any finite simple type over a registered positive
+unit. The earlier one-arrow readout expanded the argument through its caller,
+contracted beta, and then consumed a pointwise demand on the supplied argument.
+Instead, keep the caller's fresh parameter in scope, normalize it using its
+exact native header, and contract beta only after the result no longer mentions
+that parameter. The existing caller_constant_argument lemma performs this last
+step. No typing, native recovery, observation or history premise on the actual
+supplied argument remains, even at arbitrarily high finite function order.
+
+NativeUnitProfile also handles finite dependent Pi profiles: annotations may
+be open and depend on preceding arguments; each has an actual positive sort
+witness. A conversion node requires an actual directed computation of the
+selected type. Exact renaming, native normalization, generic-parameter readout,
+caller replacement and dependent CallerCanonicalTelescope extension are proved.
+UnitArrows.profile constructs these certificates for every literal simple unit
+type with no open exposure premise. Native and caller canonicalization follow.
+
+Boundary: this normalizes an actual native caller/parameter, not every future
+computed caller. Nor does it construct a profile from ordinary equality to a
+simple type. The search for eliminating the selected-family exposure from
+ordinary header typing still has no proof: PositiveHeaderRegistration permits
+ordinary conversion, and general head adequacy already entails PropositionFront.
+The latter does not prove this specialized closed-header question equivalent.
+Do not claim a counterexample, strict-smallness result, or GOAL.md completion.
+
+Next: exploit generic normalization to remove argument demands from literal
+family observers, while retaining the operational family head through whole
+computation; investigate how much native profile exposure can be recovered from
+selected computed headers. General conversion/exposure remains live and open.
+
+Validation: 850-job isolated build, 19 audited roots (including all profile
+constructors and recursors), maximum dependency closure 11,121, 825 frozen
+source hashes, only propext/Classical.choice/Quot.sound. No strengthening/sorry,
+circular framework, semantic head exposure, general coverage or fork joins.
+No executable changes, PR extraction, or coordination.
