@@ -25192,3 +25192,45 @@ including opaque values, constructors and recursor RHSs; maximum closure
 dependencies and remained stable. Only propext/Classical.choice/Quot.sound;
 no forbidden dependencies, sorry, or own-module warning. Artifacts
 `/dev/shm/ignored-field-observation-*`.
+
+
+### 2026-11-05 — Observed nonliteral declaration headers
+
+**Verdict: directed header ancestry extends exact ignored-field readout;
+arbitrary ordinary header conversion remains open.**
+
+ProofErasureObservedDeclarationHeaders exposes an observation-based native
+origin interface, then initializes it when a literal field telescope computes
+to the stored declaration header. The direction is from the literal telescope
+to the original stored header, so every subsequent native conversion history
+extends an existing observation. Replay and erasure reflection also derive the
+constant's ordinary typing at the literal telescope, validating the supplied
+TelInst vector. The head-origin premise is discharged from the actual stored
+constant declaration, including its closed-context erasure equation.
+
+A concrete corollary permits a nonliteral stored header wrapping the entire
+field telescope in a constant beta redex. Its header path is constructed with
+the controlled expansion rule; no separate ancestry or joining premise is
+assumed. All intermediate application conversions, independently computed
+fields, dependent later field domains, and proof-valued spines are retained.
+The original lower result reaches the exact final selected native type.
+
+This does not turn a path in the opposite direction into header ancestry,
+replace the path by ordinary type equality, combine arbitrary preceding
+parameter histories with fields, or handle result indices depending on fields.
+Global type-fork joining, TypeInstantiationJoin, and canonical-Eq strengthening
+remain open; no strictly smaller sufficient obligation is claimed.
+
+An independent implementation of ignored-field observations was built and
+fully audited locally (795 jobs, 90 roots, maximum closure 11,558, 770 frozen
+source hashes). During that work eb308f7c committed the same result. The local
+duplicate was removed from the worktree and retained only as the scratch
+/tmp/ProofErasureVacuousPiObservation.checked.lean; the new header extension
+imports the committed implementation. No uncommitted work was reused.
+
+Validation of the header extension: isolated 795-job build; all public and
+generated roots of the new module and newly copied committed imports audited
+(19 roots, maximum closure 11,378). All 770 source hashes matched frozen inputs.
+Only allowed axioms, no forbidden dependency, sorry, or audited-module warning.
+Artifacts /tmp/carrier-observed-declaration-headers-*. Independent in-progress
+family/field work was preserved. Executable and original sorry unchanged.
