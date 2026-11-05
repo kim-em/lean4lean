@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStaticStructureBetaRecovery
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureWrapperNativeOrigin
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStaticStructureLambdaResidual
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEtaFunctionResidual
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStaticStructureEtaSquares
@@ -6,8 +6,9 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStaticStructureEtaSquar
 /-! # Head beta with retained native cut certificates
 
 Head beta may expose a lambda by substituting it for a variable. The missing
-information is native recovery of each retained argument at the written cut
-domain. Keeping that certificate preserves every selected native output through
+information is native recovery of each used retained argument at the written cut
+domain. A constant body already typed below the binder needs no such certificate.
+Keeping these certificates preserves every selected native output through
 finite head computations, including applications and newly created head redexes.
 The certificates may use the full structure/function-eta union. They are explicit
 premises, not consequences of arbitrary source typing.
@@ -19,8 +20,9 @@ open private isProof_congr from Lean4Lean.Theory.Typing.Strengthening.ProofErasu
 open private empty_compute_beta from Lean4Lean.Theory.Typing.Strengthening.ProofErasureScopedComparison
 variable [Params] {D : PureObservation.Definitions}
 
-/-- Finite head beta computation retaining native evidence at every contracted
-cut. Only retained arguments require recovery. Reduction in function position
+/-- Finite head beta computation retaining native evidence at each used cut.
+Proof arguments and arguments discarded by a body typed below the binder need
+no recovery. Reduction in function position
 and sequentially created head redexes are included; arbitrary argument or binder
 computation is not built into this relation. -/
 inductive NativeHeadBeta (D : PureObservation.Definitions) (Γ : List VExpr) :
@@ -31,6 +33,8 @@ inductive NativeHeadBeta (D : PureObservation.Definitions) (Γ : List VExpr) :
       (¬ IsProof Γ x → ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D)
         (proofEraseCtx Γ) (proofErase Γ x) (proofErase Γ A)) →
       NativeHeadBeta D Γ (.app (.lam A b) x) (b.inst x)
+  | constant : env.HasType univs Γ b B → env.HasType univs Γ x A →
+      NativeHeadBeta D Γ (.app (.lam A b.lift) x) b
   | app : NativeHeadBeta D Γ f f' → NativeHeadBeta D Γ (.app f x) (.app f' x)
   | trans : NativeHeadBeta D Γ e e' → NativeHeadBeta D Γ e' e'' → NativeHeadBeta D Γ e e''
 
@@ -39,6 +43,8 @@ theorem NativeHeadBeta.beta_path (H : NativeHeadBeta D Γ e e') : VExpr.BetaRed 
   induction H with
   | refl => exact .refl
   | beta => exact .beta
+  | @constant b B x A _ _ =>
+    simpa only [VExpr.inst_lift] using (VExpr.BetaRed.beta (A := A) (b := b.lift) (a := x))
   | app _ ih => exact .app ih .refl
   | trans _ _ ih₁ ih₂ => exact ih₁.trans ih₂
 
@@ -87,6 +93,7 @@ theorem NativeHeadBeta.recovery
   induction H generalizing T out with
   | refl => exact RN
   | beta hA hb hx HR => exact static_structure_root_beta_native_recovery heq hs hΓ hA hb hx HR RN
+  | constant hb hx => exact static_structure_constant_beta_native_recovery heq hs hΓ hb hx RN
   | @app f f' x H ih =>
     obtain ⟨A, B, hf, hx⟩ := ht.app_inv henv hΓ
     have hn : ¬ IsProof Γ (.app f x) := fun hp => RN.ne_proof (proofErase_eq_proof.2 hp)

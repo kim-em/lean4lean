@@ -71,6 +71,10 @@ theorem NativeHeadBeta.subst
     (H : NativeHeadBeta D Γ e e') : NativeHeadBeta D Γ₀ (e.subst σ) (e'.subst σ) := by
   induction H with
   | refl => exact .refl
+  | constant hb hx =>
+    have hb' := hb.subst henv.orderedStrong W hΓ₀
+    have hx' := hx.subst henv.orderedStrong W hΓ₀
+    simpa only [VExpr.subst, VExpr.lift_subst_lift] using NativeHeadBeta.constant hb' hx'
   | @beta A u b B x hA hb hx HR =>
     have hA' := hA.subst henv.orderedStrong W hΓ₀
     have hb' := hb.subst henv.orderedStrong (W.lift henv.ordered hA) ⟨hΓ₀, u, hA'⟩

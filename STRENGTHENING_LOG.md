@@ -23287,3 +23287,39 @@ warnings. All 784 closure hashes match isolated copies and committed dependencie
 at db693ba1 (with the one new source checked against its working copy). Artifacts
 /tmp/carrier-generic-data-domains-*. Executable unchanged; independent edits
 preserved; no coordination; GOAL.md active, not complete or blocked.
+
+
+## Native wrapper histories and unused head cuts (2026-11-05 02:25:12 UTC)
+
+Verdict: checked progress on the development route, with no general type-fork
+joining premise. Native recovery of an arbitrary typed identity wrapper is
+exactly forward computation from its stored annotation, provided its argument
+is retained. This gives a real source for the residual type fork; it does not
+join that fork. A typed constant wrapper preserves the complete set of native
+outputs in both directions, even without recovery for its discarded argument.
+
+The root-beta factorization is extracted from the existing recovery proof:
+recover the original body, instantiate that selected type, then retain the final
+conversion tail. It needs only ordinary argument typing. Unused-binder
+certificate descent removes this intermediate binder for identity and constant
+bodies. Full static structure/function-eta union guards and arbitrary native
+conversion tails are covered.
+
+The existing NativeHeadBeta relation now includes constant cuts with the body
+typed in the lower context. Its recovery, expansion residuals, lambda readout,
+eta square and native-substitution theorem still hold. The prior created-identity
+cut counterexample also still holds for this enlarged relation. Thus this is
+an actual extension of the certified developments, not arbitrary cut coverage.
+The lower typing premise for a constant body is explicit; no strengthening is
+used to infer it from typing under the unused binder.
+
+Validation: 793-job isolated build; 34 public roots including the enlarged
+inductive's constructors and recursors, every public theorem in all four edited
+modules, and the two existing created-cut boundary roots. Full transitive audit
+through types, opaque values and recursor RHS: maximum closure 11,387,
+only propext, Classical.choice and Quot.sound, no configured forbidden dependency
+or sorry. All 768 local import sources remained unchanged during validation;
+dependencies were copied from committed HEAD and checked again before commit.
+Artifacts: /dev/shm/wrapper-native-*. Executable unchanged. Independent edits
+preserved. No PR extraction. GOAL.md remains open: no strengthening proof,
+canonical-Eq counterexample, or strictly smaller sufficient obligation claimed.

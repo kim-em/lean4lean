@@ -52,20 +52,20 @@ theorem static_structure_union_recovery_inst
     simpa only [VExpr.inst_eq, VExpr.Subst.liftN, ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using R
   exact R'.mono (fun H => ⟨n+k, H⟩)
 
-/-- Every native type selected for a beta redex survives contraction exactly,
-provided its retained argument recovers the lambda's written domain. The
-lambda's selected native Pi may have different computed components, and all
-post-application type conversions are retained. No confluence is assumed. -/
-theorem static_structure_root_beta_native_recovery
+/-- Native recovery at a typed beta redex factors through recovery of its
+original body, followed by instantiation of that selected type and the final
+conversion tail. The argument needs ordinary typing only. This factorization
+does not assert that the body recovery itself survives instantiation. -/
+theorem static_structure_root_beta_native_factor
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hΓ : OnCtx Γ (env.IsType univs)) (hA : env.HasType univs Γ A (.sort u))
     (hb : env.HasType univs (A :: Γ) b B) (hx : env.HasType univs Γ x A)
-    (HR : ¬ IsProof Γ x → ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D)
-      (proofEraseCtx Γ) (proofErase Γ x) (proofErase Γ A))
     (RN : ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
       (proofErase Γ (.app (.lam A b) x)) out) :
-    ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
-      (proofErase Γ (b.inst x)) out := by
+    ∃ selected, ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D)
+        (proofEraseCtx (A :: Γ)) (proofErase (A :: Γ) b) selected ∧
+      ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+        (selected.inst (proofErase Γ x)) out := by
   have hΓA : OnCtx (A :: Γ) (env.IsType univs) := ⟨hΓ, u, hA⟩
   have hn : ¬ IsProof Γ (.app (.lam A b) x) := fun H => RN.ne_proof (proofErase_eq_proof.2 H)
   have hnf := not_isProof_fn hΓ (HasType.lam hA hb) hx hn
@@ -83,7 +83,24 @@ theorem static_structure_root_beta_native_recovery
   obtain ⟨_, _, _, _, _, _, _, RCbody⟩ :=
     proofErase_static_structure_union_pi_components heq hs hΓ hA hC RP
   rw [EC] at RCbody
-  exact (static_structure_union_recovery_inst heq hs hΓ hx HR hb (RB'.convert RCbody)).convert RC
+  exact ⟨Y, RB'.convert RCbody, RC⟩
+
+/-- Every native type selected for a beta redex survives contraction exactly,
+provided its retained argument recovers the lambda's written domain. The
+lambda's selected native Pi may have different computed components, and all
+post-application type conversions are retained. No confluence is assumed. -/
+theorem static_structure_root_beta_native_recovery
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hΓ : OnCtx Γ (env.IsType univs)) (hA : env.HasType univs Γ A (.sort u))
+    (hb : env.HasType univs (A :: Γ) b B) (hx : env.HasType univs Γ x A)
+    (HR : ¬ IsProof Γ x → ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D)
+      (proofEraseCtx Γ) (proofErase Γ x) (proofErase Γ A))
+    (RN : ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+      (proofErase Γ (.app (.lam A b) x)) out) :
+    ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+      (proofErase Γ (b.inst x)) out := by
+  obtain ⟨selected, RB, RC⟩ := static_structure_root_beta_native_factor heq hs hΓ hA hb hx RN
+  exact (static_structure_union_recovery_inst heq hs hΓ hx HR hb RB).convert RC
 
 /-- Beta contraction at a proof argument preserves every selected native type
 in the enriched language without any argument-recovery premise. -/
