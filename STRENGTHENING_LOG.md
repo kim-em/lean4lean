@@ -27686,3 +27686,39 @@ Combined validation: 811 jobs, 16 roots, maximum closure 11,052,
 constructors and recursor RHSs; only standard allowed axioms, no forbidden
 strengthening/coverage dependencies and no own warnings. The original sorry
 remains; executable unchanged, no PR extraction or coordination, goal active.
+
+## 2026-11-05 20:13:25 UTC — Materialize all native guards; isolate comparison rules in stage collapse
+
+Added NativeGuardMaterialization (187 lines, nine theorems) and
+FirstStageSimulation (81 lines, three theorems). The central induction constructs
+a forward-computed cover that beta-reduces to its original source and recovers
+exactly the selected type using a context-independent base. It handles every
+native constructor. Forall formation transports the body's base guard backward
+along beta reduction of the changed context oracle; projection formation
+reduces the dependent projection recipe with the changed major.
+
+The actual staged corollaries are unconditional: a stage-n guard materializes
+in stage n+1 with stage-zero recovery, and union guards materialize within the
+union. Given simulation of a guard's internal paths at stage one, each of native
+identity, function eta and masked structure eta then simulates at stage one.
+The computed cover is beta-cleaned inside the output, yielding exact endpoints.
+This is a forward construction from existing native evidence, never arbitrary
+assigned-type coverage or transfer of that evidence through contraction.
+
+The full stage induction is now checked conditionally on the singleton and
+Eq-prefix root cases only. Both explicit hypotheses receive simulation of all
+lower-stage paths. The theorem covers complete full-union paths, all scopes,
+and exact raw endpoints if those two cases are discharged. They are not yet
+proved; stage-one confluence also remains open. Next work targets comparison
+guard materialization, with particular attention to carrier and annotation
+changes. The new hypotheses are not advertised as a smaller sufficient goal.
+
+Combined validation with contextual forks: 811 isolated jobs, 16 roots,
+maximum closure 11,052, 786 frozen source/import hashes. Types, opaque
+bodies, constructors and recursor RHSs audited; only propext, Classical.choice
+and Quot.sound, no forbidden dependencies, and no own warnings.
+
+Completion audit: UniqueTyping.lean:94 still has its original sorry. No
+canonical-Eq counterexample or genuinely strictly smaller sufficient obligation
+has been established. The executable is unchanged; no PR extraction or agent
+coordination. The full GOAL.md objective remains active.

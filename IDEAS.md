@@ -14578,3 +14578,42 @@ strictly smaller sufficient obligation or a proof of any fork-joining premise.
 Combined validation with the native-materialization work: 811 jobs,
 16 audited declarations, maximum closure 11,052, 786 frozen source
 hashes; only allowed axioms, no forbidden dependencies or own warnings.
+
+## 2026-11-05 20:13:25 UTC — Materialize native guards instead of transferring them through beta
+
+**Idea.** A caller may lose its selected type on contraction. Preserve the
+native derivation by putting each conversion into the written annotation of a
+forward-created identity wrapper, then restore the original term by beta.
+
+**Verdict: proved for every native-recovery constructor.**
+NativeGuardMaterialization turns existing native evidence into a forward
+computation to a beta-cover with exact base recovery of its selected type.
+Conversion writes the new type into an identity annotation. Dependent products
+use exact backward transport of base recovery along beta-related context
+oracles, so the changed domain does not invalidate the body's guard. Projections
+beta-clean their full dependent result recipe after the major changes. No
+ordinary assigned-type coverage or general native beta preservation is assumed.
+A stage-n native certificate materializes at stage n+1 with stage-zero recovery;
+full-union evidence materializes within the union as well.
+
+If all computations inside a guard already simulate at stage one, native
+identity, function eta and masked structure eta themselves simulate at stage
+one with exact original endpoints. Each first exposes the stage-zero guard in
+syntax, then beta-contracts the cover inside its result. This rules out treating
+nested native guards alone as a stage-collapse obstruction: the apparent extra
+depth can be written into annotations. It does NOT recover the selected type
+at the contracted source or provide native evidence from ordinary typing.
+
+FirstStageSimulation completes the stage induction conditionally on exactly
+two remaining rule families: CarrierRecoveredSingletonPrimitive and
+ComputedJointPrefixPrimitive. Each missing case receives lower-stage path
+simulation as its induction hypothesis. If these comparison-guard cases are
+proved, all full-union computation has stage-one simulation at exact raw
+endpoints. The cases remain explicit hypotheses; even proving them leaves
+stage-one type-fork confluence. No strict-smallness or completion claim.
+
+Next: try to materialize the comparison guards of singleton/Eq-prefix rules,
+tracking their endpoints, carrier and dependent annotations together. A failure
+of this raw simulation interface would not itself refute typed strengthening.
+Combined validation: 811 jobs, 16 roots, maximum closure 11,052,
+786 frozen hashes, standard axioms only, no forbidden dependencies or own warnings.
