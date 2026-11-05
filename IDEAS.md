@@ -15249,3 +15249,31 @@ justification for transporting it forward. Higher-stage tails and general
 strengthening remain open. Validation: 897 isolated jobs, 11 public roots,
 maximum audited closure 12,071, 872 unchanged frozen source/import hashes;
 standard axioms only and no forbidden dependencies or own-module warnings.
+
+
+### 2026-11-05 23:17:04 UTC — Compared control functions cannot retain stage-zero output joins
+
+Verdict: refuted by a checked example, even with the same literal sort argument,
+common actual function type, inferred function comparison and inferred comparison
+of both selected native Pis. The earlier fixed-function result cannot substitute
+inferred comparison for identity while retaining a level-core common reduct.
+
+Take the familiar eta-equal neutral types N = F v and A = F (fun x => v x).
+The inner functions are (fun _ : N => Sort 0) and (fun _ : A => Sort 0), assigned
+the same type by ordinary conversion. Wrap each in a constant caller accepting
+Sort 1, and apply both to Sort 0. Both function comparisons and native-Pi
+comparisons are explicit stage-zero certificates. Complete native application
+outputs are Pi N (Sort 1) and Pi A (Sort 1). They compare at stage zero but have
+no common reduct anywhere in the entire non-eta expansion union. Pi-domain
+inversion would otherwise give the already refuted beta/level join of N and A.
+One explicit domain-eta path at stage one repairs the output join.
+
+This is a boundary of the proposed common-reduct conclusion, not a counterexample
+to output comparison, full eta-union confluence or strengthening. The obstruction
+exists before any final conversion tail is added. The next viable target is
+comparison of complete native outputs after independent tails, or a join allowed
+to increase eta stage; converting arbitrary comparison into a stage-zero/core
+join is now ruled out in the exact terminal-control application setting.
+Validation: 786 isolated build jobs; 1 public root; maximum audited
+closure 8,569; 761 frozen source hashes; only standard axioms and no
+forbidden dependencies or own-module warnings. GOAL.md remains unresolved.

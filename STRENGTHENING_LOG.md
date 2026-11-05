@@ -28782,3 +28782,50 @@ paired exposure, singleton simulation and type-rooted confluence remain open.
 No canonical-Eq counterexample or genuinely strictly smaller sufficient
 irreducible obligation is established. Executable unchanged; no coordination or
 PR extraction. GOAL.md remains active with its original objective.
+
+
+### 2026-11-05 23:17:04 UTC — Exact control-application boundary for compared native outputs
+
+The resumed turn classified the immediately previous conversational exchange as
+no mathematical progress and revalidated HEAD d0856309 and the worktree. No PR
+extraction was resumed. The two independent untracked research files were left
+untouched. The next candidate was the extension from one fixed function to two
+inferred-compared functions, retaining the previous common-core-reduct result.
+
+ProofErasureComparedControlJoinBoundary proves
+EtaRecoveryJoinBoundary.compared_control_outputs_need_eta_join. The witness
+contains two ordinarily typed functions at the same literal terminal Pi domain
+Sort 1, their inferred stage-zero comparison, both native Pi recoveries, a
+comparison of those selected Pis, complete recoveries of their applications to
+the same literal Sort 0, and an inferred comparison of the resulting types.
+Those resulting types have no level-core common reduct and no common reduct at
+any depth of the non-eta expansion union. They do have an explicit stage-one
+eta computation from the left output to the right output.
+
+The construction uses the existing neutral eta-domain pair, but places it in
+the precise setting needed by the proposed control-application extension.
+Constant callers ensure that both actual input domains are literally Sort 1,
+not the nonterminal neutral domains of the inner returned functions. Ordinary
+beta equality proves the callers and applications remain nonproofs; weakening
+computes their exact erasures. Both recoveries use only lambda, application and
+sort rules. Pi-domain inversion of a hypothetical beta/level join reduces the
+negative claim to the existing neutral-domain nonjoinability theorem. The pure
+expansion common-join theorem excludes the entire non-eta union. Thus the failure
+is present with trivial final tails, even under all the extra comparison premises.
+The existing eta-domain computation supplies the positive stage-one repair.
+
+Validation: 786 isolated build jobs; 1 public root audited through
+types, opaque values, inductive constructors and recursor RHSs; maximum closure
+8,569; all 761 frozen source/import hashes unchanged. Only propext,
+Classical.choice and Quot.sound; no forbidden dependencies or own-module
+warnings. The only development correction qualified a private Pi-inversion
+helper by its ProofShape namespace. Build and audit processes completed normally.
+
+Completion audit: UniqueTyping.lean:94 still contains the original weakN_iff
+sorry. No canonical-Eq strengthening counterexample or strictly smaller sufficient
+irreducible obligation is established. The result refutes one proposed extension,
+not output comparison or full eta-union confluence. General native-output
+comparison through independent tails and joins permitting eta-stage growth remain
+live; general paired exposure, higher stages and singleton simulation also remain
+open. Executable unchanged, no coordination or PR extraction. GOAL.md stays active
+with its original objective.
