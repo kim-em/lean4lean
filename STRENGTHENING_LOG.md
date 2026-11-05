@@ -23379,3 +23379,57 @@ sorry sources or audited-module warnings. All 787 closure source hashes stayed
 stable and matched isolated copies byte-for-byte. Artifacts
 /tmp/carrier-literal-prefix-*. Executable unchanged; independent work preserved;
 no coordination; GOAL.md active, not complete or blocked.
+
+
+## Generated lambda frames retain historical native origins (2026-11-05 02:40:56 UTC)
+
+Verdict: the provenance route now has a checked invariant that survives a real
+loss of exact cut recovery. This advances lambda-domain observation, without
+claiming closure under arbitrary compatible computation or joining type forks.
+
+NativePiHistory stores an actual typed Pi predecessor, a forward domain path
+from the original anchor, and the complete computation to a selected native
+output. Pi component extraction reads every later literal Pi domain from that
+anchor. LambdaWrapperHistory distinguishes an inner lambda payload from an
+identity frame's historical annotation. Constant and identity frames can nest.
+Every native output of such a frame has the stored Pi origin, without requiring
+the current wrapped argument to recover the old annotation. Generated native
+identity expansion supplies its history from the actual original guard.
+
+The invariant survives literal root beta contraction, replacement by an argument
+with the same anchored payload history and ordinary type, and arbitrary full-
+union computation of an identity annotation. Root native eta reconstructs a
+literal lambda payload with a forward domain history. A finite beta readout
+exposes a lambda and its domain path. No body-origin claim is made: the history
+is deliberately about lambda domains, with no arbitrary equality-to-computation
+or fork-joining premise hidden in it.
+
+The boundary module verifies that this history is useful beyond exact native
+cuts. Starting with the existing positive empty-structure example x:A that
+cannot natively recover its assigned A, put the exactly recoverable identity
+wrapper w=(fun y:A => y) x inside a constant function f=(fun _:Type => w).
+Native recovery of f at Q=(Type -> A) really licenses a generated outer identity
+frame. Beta inside f produces g=(fun _:Type => x). Exact recovery of g at Q would
+recover x at A by applying g to Prop and contracting the constant wrapper,
+contradicting the existing boundary. Nevertheless the evolved outer frame has
+LambdaWrapperHistory, and root contraction retains that history. Its contraction
+is provably outside NativeHeadBeta, including the recently added constant cuts.
+This is an actually generated frame followed by an actual beta path, not an
+arbitrarily assigned wrapper presented as generated provenance.
+
+Remaining gap: computation in the bodies of control functions can destroy the
+literal identity/constant-frame syntax. The grammar does not cover those
+higher-order control programs, and no closure of the grammar under all
+ScopedCompute paths is asserted. The next observer must retain these separate
+payload and annotation histories across its control-variable demands. General
+full-union lambda readout, TypeForkJoin and the original strengthening sorry
+remain open. No new strictly smaller sufficient obligation is claimed.
+
+Validation: two new modules, 351 lines; 794-job isolated build and 20 public
+roots including constructors and recursor RHS, with complete transitive type
+and opaque-value traversal. Maximum closure 11,387; only propext,
+Classical.choice and Quot.sound, no configured forbidden dependencies or sorry,
+and no new-module warnings. All 769 local source hashes remained stable during
+validation and were checked against committed dependencies before staging.
+Artifacts /dev/shm/lambda-wrapper-*. Executable unchanged, independent work
+preserved, no coordination or PR extraction. GOAL.md remains active.
