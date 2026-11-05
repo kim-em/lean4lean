@@ -12508,3 +12508,52 @@ types, values including opaque values, constructors and recursor RHSs; maximum
 closure 11,592; 772 unchanged committed/own sources. Only allowed axioms,
 no forbidden dependency, sorry, or own-module warning. Artifacts
 `/dev/shm/native-family-fields-*`.
+
+
+### 2026-11-05 — Separate selected recovery from reverse header ancestry
+
+**Verdict: reverse exact ancestry is refuted even with forward header
+simplification; selected recovery after that simplification is proved.**
+
+ProofErasureHeaderAncestryBoundary constructs a context-declared function with
+one unused Type field, supplied by Prop. Its original result is F applied to a
+fresh positive empty-structure index. Unit eta computes that result to F applied
+to the constructor, which has an actual type representative below the fresh
+index. The whole original Pi header computes to the chosen Pi header, and both
+headers ordinarily type the same function. Stage-zero native recovery of the
+application still selects the original result. No computation from the chosen
+result can reach that selected output in any descending primitive language:
+arbitrary-block descent would have to introduce the fresh retained index.
+The old result does compute to the chosen result, giving an explicit join.
+
+Consequently ordinary header equality, and even a path from the stored header
+toward the chosen telescope, cannot establish the universal exact-output
+ancestry interface for context-declared heads. This is not a closed-constant
+header counterexample, a common-coverage counterexample, or a canonical-Eq
+strengthening counterexample. It strengthens the earlier direction warning to
+a checked obstruction in the general head interface.
+
+ProofErasureSelectedFieldRecovery proves the useful positive replacement.
+Supplying a literal raw Pi telescope whose result ignores its fields recovers
+that result exactly, for every raw argument vector of the right arity. No
+argument typing, native certificate, or computation history is needed; domain
+dependencies do not affect the terminal substitution. This raw result works for
+any primitive relation. A selected native header which computes to such a
+literal telescope therefore constructs exact recovery of the chosen result.
+The constant-declaration corollary starts from the actual stored type, so its
+header path has the opposite direction from ed005e6c's universal-ancestry law.
+Proof-valued raw constructor spines are included. The result constructs one
+selected recovery and does not compare it with all previous native outputs.
+
+This resolves the apparent conflict between forward header simplification and
+the boundary: use it for recovery existence, not reverse exact ancestry.
+Arbitrary ordinary header alignment, field-dependent result indices, global
+type-fork joining, TypeInstantiationJoin, and strengthening remain open. No
+strictly smaller sufficient obligation or GOAL.md completion is claimed.
+
+Validation: isolated 833-job build; all public/generated roots audited (5,
+maximum closure 11,076). All 808 source hashes matched own sources or frozen
+committed dependencies. Only allowed axioms; no forbidden dependency, sorry,
+or audited-module warning. Artifacts /tmp/carrier-header-ancestry-boundary-*.
+Independent mixed-family and registered-header work was preserved; no
+uncommitted dependency was used. Executable and original sorry unchanged.
