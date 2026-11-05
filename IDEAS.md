@@ -11759,3 +11759,44 @@ RHSs; maximum dependency closure 11,520, 800 stable committed/own source hashes.
 Only allowed axioms, no forbidden dependencies, sorry or own-module warnings.
 Artifacts /tmp/carrier-common-structure-pivot-*. Executable and original sorry
 unchanged; independent uncommitted work was neither imported nor staged.
+
+
+### 2026-11-05 05:39:41 UTC — Reify generic declaration computations before supplying retained arguments
+
+**Verdict: exact forward instantiation proved for native telescope openings,
+including arbitrary dependent retained arguments and their computed images.**
+Instead of transporting primitive guards through an argument substitution,
+expand the function by native eta at its literal telescope, run the complete
+generic body computation under those binders, apply the actual arguments, and
+contract the administrative lambdas. Typed realization handles proof erasure
+at every wrapper and application. This works at arbitrary telescope length.
+
+For a closed native function, the result is exactly the raw simultaneous
+instantiation of the computed body, in any ambient context. Original captures
+need ordinary telescope typing only and may independently compute to raw images;
+neither original nor computed captures need native recovery. A constant whose
+literal declaration is the telescope supplies the native function guard itself.
+This is stronger than the preceding proof-argument-family case in its argument
+coverage, but constrains the generic source to the head's eta opening. It does
+not transport arbitrary unrelated type-body computations or replace a literal
+declaration by an ordinarily convertible telescope without native evidence.
+
+A second application removes retained-argument recovery from Pi instantiation
+when the codomain is a generic application of a natively recovered family g.
+All native outputs of the resulting dependent application, including conversion
+tails, have the original g x as a computation ancestor after x computes.
+Literal context declarations for the family and dependent term function supply
+both required origins, yielding a specialization with no native-argument or
+fork-joining premises. Arbitrary codomains remain outside this theorem.
+
+Judgment: this establishes forward computation with retained data arguments,
+not merely a symmetric value chain. The next live question is how constructor
+codomain/parameter histories can be represented by these generic family
+computations; arbitrary family value histories do not by themselves supply that
+representation. General TypeForkJoin, marked-context and created-cut coverage,
+and weakN_iff remain open. No strictly smaller sufficient front is claimed.
+
+Validation: 786-job isolated build; ten public roots, maximum transitive
+closure 11,370; all 761 committed/own source hashes stable. Only
+propext/Classical.choice/Quot.sound, no forbidden dependencies, sorry, or own-module
+warnings. Artifacts: /dev/shm/native-telescope-reification-*.

@@ -24467,3 +24467,46 @@ RHSs; maximum dependency closure 11,520, 800 stable committed/own source hashes.
 Only allowed axioms, no forbidden dependencies, sorry or own-module warnings.
 Artifacts /tmp/carrier-common-structure-pivot-*. Executable and original sorry
 unchanged; independent uncommitted work was neither imported nor staged.
+
+
+### 2026-11-05 05:39:41 UTC — Native telescope reification and family codomain origins
+
+Added ProofErasureNativeTelescopeReification. Forward typed body computations
+close under arbitrary fixed dependent lambda telescopes; forward function
+computations act on entire ordinary typed argument telescopes. Proof wrappers
+and proof applications are handled through actual equality and erasure, so no
+retention assumption is inserted into these helpers.
+
+static_structure_native_telescope_body_compute realizes any full-union path
+from the generic eta opening, then composes native telescope eta with that
+body computation. The application theorem supplies ordinary arguments and
+contracts the introduced lambdas. The closed-telescope theorem transports the
+closed function computation into an arbitrary ambient context, identifies the
+result through proofErase_instOuter, and computes the captures independently.
+Its endpoint is the exact computed body's raw instOuter at the raw image list.
+The declaration specialization derives the function guard from the constant's
+literal type. All dependent data/proof arguments are ordinary typed captures;
+there are no native-image or common-coverage hypotheses.
+
+For one binder, this gives exact instantiation of a generic family application
+at an arbitrary typed argument and any computed image. Pi component origin
+supplies precisely that generic path when a term function's codomain is
+literally g applied to its fresh argument. Consequently every native output of
+the computed application, including conversion tails, descends from g x. The
+family must recover its displayed Pi, and the term function must have its
+stated type origin. The neutral-variable specialization derives these from
+literal context lookups, with no extra native or confluence assumptions.
+
+The result does not identify an arbitrary type body with a generic application.
+It therefore does not bypass the checked unrestricted-instantiation obstruction,
+assert common coverage from ordinary typing, or prove general type forks.
+Constructor history transfer through arbitrary retained parameters and full
+marked developments remain live. GOAL.md remains open; executable and original
+weakN_iff sorry are unchanged.
+
+Validation: 786 isolated build jobs, ten public roots audited through all
+transitive types, values, opaque values, constructors and recursor RHSs; maximum
+closure 11,370. Only allowed axioms; no forbidden dependencies, sorry,
+or own-module warnings. All 761 source hashes match own source and committed
+dependencies and remained stable. Independent structure-history commits were
+preserved. Artifacts: /dev/shm/native-telescope-reification-*.
