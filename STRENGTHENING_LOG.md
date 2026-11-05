@@ -23086,3 +23086,46 @@ sorry sources or new-module warnings. All 747 local dependency source hashes
 stayed stable and are checked against committed sources before committing.
 Artifacts /dev/shm/native-head-beta-*. Independent work preserved; executable
 unchanged; no coordination or PR extraction.
+
+### 2026-11-05: actual proof-indexed singleton pattern coverage — proved
+
+Verdict: the full dependent proof-index fragment now has raw pattern coverage.
+`singletonInstance_beta_prefix` generalizes the previous unindexed syntax proof:
+the actual equation captures preserve the recursor's parameter/motive/minor
+prefix, reconstruct an index list of the registered length, and reconstruct the
+major. It also identifies the rule prefix count with `data.indexOffset`. The
+existing unindexed theorem retains its signature as a specialization.
+
+`proof_telescope_suffix_arguments` proves that every actual argument of a
+propositional suffix erases to a proof, with arbitrary data parameters before
+it. The registered recursor type and `GuardedSingleton.full_major_args` expose
+both actual index/major suffixes. `proof_indices_spine` therefore supplies a
+reflexive erased computation between typed full spines sharing their original
+parameter/motive/minor prefix. The ordinary equality accompanying this raw
+computation comes from the original pat rule composed with the proved generic
+equation and beta, not from an assumed computation chain for the original pat.
+Thus `proof_indices_singleton_pattern` avoids HasTypeJ, earlier-stage type joins,
+constructor-parameter matching, and constructor-universe matching.
+
+`TypedDataIndexedSingletonPatternChainClosure` records the remaining raw case:
+the registered layout's index telescope is not propositional. Its
+`singleton_closure` covers all other layouts, including empty index telescopes;
+ordinary chain completeness now follows from this remaining data-indexed
+coverage. This is not a strictly smaller sufficient strengthening condition:
+TypeForkJoin remains separate and open. The original sorry remains.
+
+Next full-scope work must address data-index alignment or the type-fork join,
+not simply claim success from fragment coverage. Literal-constructor casts
+still need computational alignment of index and field domains; ordinary type
+uniqueness alone does not provide it. Selective development/standardisation of
+typed joins remains a live alternative, without a claimed finite round bound or
+exact native recovery invariant (both already concretely obstructed).
+
+Validation: two new modules (122 and 128 lines), and 63 additions/29 deletions
+to the beta-shape module. Isolated 811-job build; all nine public roots audited,
+including both roots of the modified module. Full transitive declaration audit,
+maximum closure 11,797; only propext, Classical.choice, Quot.sound; no configured
+forbidden dependencies, sorry sources or audited-module warnings. All 786
+closure source hashes were stable and byte-identical to isolated copies.
+Artifacts /tmp/carrier-proof-index-pattern-*. Executable unchanged; independent
+work preserved; no coordination; goal active, not complete or blocked.
