@@ -27847,3 +27847,54 @@ Completion audit: the original weakN_iff sorry remains in UniqueTyping.lean:94.
 No canonical-Eq counterexample or genuinely strictly smaller sufficient
 obligation has been proved. No PR extraction or coordination. The full
 GOAL.md objective remains active.
+
+## 2026-11-05 20:56:40 UTC — A recursive identity-annotated invariant for carrier exposure
+
+Added IdentityCarrierExposure, RecursiveIdentityCarrierExposure, and
+EqIdentityCarrierExposure (415 lines, one public definition and thirteen
+theorems). The exposure interface starts from identity-wrapped endpoints at
+the selected carrier, computes that carrier and both endpoints at stage one,
+and produces a stage-zero carrier guard. It asserts no exposure existence by
+itself and deliberately does not discard the input annotations.
+
+Carrier and endpoint computations run in the written annotations or payloads;
+symmetry swaps paths. A function identity wrapper eta-expands using its written
+Pi, identity-expands the application body at its native codomain, and only then
+beta-removes the inner wrapper. Thus the recursive body starts with exactly
+the same identity-annotated invariant. Actual typing and replay prove the
+required eta/beta restoration even for erased proof arguments; proof-valued
+functions are handled directly. No native preservation under contraction is
+assumed.
+
+A structural induction over the full ComputedJointCheck grammar closes all
+carrier function, compute, reduce, symmetry, and subsingleton cases. It leaves
+common-comparison exposure and exposure at registered record families as
+explicit quantified hypotheses. The latter currently covers all carrier
+certificates at such a family. Neither hypothesis is claimed proved or shown
+strictly smaller than PropFront. In particular this is no claim that stage one
+is confluent or that all guard stages have collapsed.
+
+Canonical Eq endpoint callers can insert the identity annotations at stage
+one, without endpoint recovery premises. Applying exposure and the retained
+outer eta frame then gives the exact original prefix contraction. The final
+rule theorem has precisely the typed Eq-prefix simulation boundary required
+by TypedFirstStageSimulation. A further lemma retains an extra identity layer
+on exposure outputs: both recover the same computed carrier at stage zero and
+compare at stage zero in either mode. This supplies a useful interface for
+recursive record fields without asserting that their dependent carrier
+histories automatically align.
+
+Next: establish common-comparison and record-family exposure. Check dependent
+field carrier alignment explicitly; equality alone supplies no forward native
+join. General singleton simulation and type-rooted first-stage confluence
+remain open after the Eq-prefix work.
+
+Validation: 841 isolated build jobs; 14 audited declarations through
+types, opaque bodies, constructors and recursor RHSs; maximum closure
+11,060; 816 frozen source/import hashes. Only propext, Classical.choice,
+Quot.sound; no forbidden strengthening/coverage dependencies and no own warnings.
+
+Completion audit: UniqueTyping.lean:94 still contains the original weakN_iff
+sorry. No canonical-Eq counterexample or genuinely strictly smaller sufficient
+obligation has been established. Executable unchanged; no PR extraction or
+agent coordination. GOAL.md remains active with its original objective.

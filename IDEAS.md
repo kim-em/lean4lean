@@ -14710,3 +14710,37 @@ is established.
 
 **Evidence:** 813 isolated build jobs, 7 audited roots, maximum closure
 11,069, 788 frozen hashes; standard axioms only, no forbidden dependencies.
+
+## 2026-11-05 20:56:40 UTC — Keep identity annotations through recursive carrier exposure
+
+**Idea:** The previous function result assumed standalone exposure of its
+applied bodies, which is not closed under nested functions. Start each exposure
+at explicit identity wrappers carrying the selected carrier. Keep the wrapper
+while its payload or annotation computes; move a wrapper to the codomain when
+a function is opened.
+
+**Verdict:** Checked as a recursive invariant. IdentityCarrierExposure is
+closed under carrier computation, endpoint computation, symmetry, and typed
+function formation. The function construction eta-opens the outer identity,
+identity-expands its native application body, then beta-removes the inner
+function wrapper while retaining the codomain wrapper. Typed replay handles
+proof-domain eta restoration. The full ComputedJointCheck induction now reduces
+carrier exposure to explicit common-comparison and registered-record-family
+hypotheses; subsingleton cases are already base guards. These two hypotheses
+are not proved or claimed strictly smaller than PropFront.
+
+**Connection:** Canonical endpoint callers insert the required identity
+wrappers at stage one. Exposure then gives the complete typed Eq-prefix rule
+simulation, with exact original annotation and minor. One additional identity
+layer makes exposed outputs both natively recover the computed carrier and
+compare at stage zero in either comparison mode.
+
+**Next:** Prove common-comparison and record-family exposure cases. For records,
+use native compared outputs for retained fields, while checking the dependency
+of later field types on earlier fields; do not assume those native types join
+merely from ordinary equality. General singleton simulation and type-rooted
+first-stage confluence remain separate unfinished work.
+
+**Evidence:** 841 isolated build jobs; 14 audited declarations; maximum
+closure 11,060; 816 frozen hashes; standard axioms only and no forbidden
+dependencies. This is supporting progress on the original goal, not completion.
