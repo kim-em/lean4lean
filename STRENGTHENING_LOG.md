@@ -27525,3 +27525,31 @@ nonempty-instance exclusion are checked. Validation of the whole seven-module
 batch passed 915 jobs and 49 roots, maximum closure 12,012, with
 890 frozen source hashes, standard axioms only and no new-source warnings.
 The original sorry and executable remain unchanged; final goal remains open.
+
+## 2026-11-05 19:22:46 UTC — Join native histories from registered polymorphic type aliases
+
+Added PolyAliasFamily, PolyAliasNative and PolyAliasInput (284 lines).
+registered_family_evidence needs the installed value, literal Family p body,
+well-formed universe arguments of the declared arity, and the existing family
+signature. Every instantiated parameter typing is recovered from registry
+soundness and application inversion. An initial implementation's extra ordinary
+parameter-template typing premise was removed before final validation.
+
+The final actual-lookup theorem discharges source observations, oracle valuation,
+independent family preservation and target-native evidence. Full EnvironmentCore
+annotation provenance, term computation, selected native recovery, native
+conversion and independent assigned-family computation meet at the canonical
+family application after arbitrary raw substitution. No new generic joint
+induction is assumed or copied.
+
+The complete seven-module batch passed 915 isolated jobs and 49 roots,
+maximum closure 12,012, 890 frozen hashes. The audit follows types, opaque
+bodies, inductive constructors and recursor RHSs; standard axioms only, no
+forbidden strengthening/front/circular-recovery dependencies, no own warnings.
+
+Completion audit: weakN_iff's original sorry remains at UniqueTyping.lean:94.
+There is no canonical-Eq counterexample and no strictly smaller sufficient
+obligation. Sort-valued aliases and the unit-arrow family signature still limit
+source coverage. This is verified progress within the live fragment route,
+not a final GOAL.md deliverable. Executable and previous sources unchanged;
+no PRs and no coordination. Goal remains active.

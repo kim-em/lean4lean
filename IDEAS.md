@@ -14416,3 +14416,27 @@ raw substitution. Concrete registry initialization and joint native integration
 are validated with this core and committed separately. Whole batch: 915 jobs,
 49 audited roots, maximum dependency closure 12,012; standard axioms
 only and all forbidden strengthening/front/recovery dependencies excluded.
+
+## 2026-11-05 19:22:46 UTC — Derive polymorphic family evidence directly from the registry
+
+**Verdict: concrete native joins extended; arbitrary source coverage unresolved.**
+For an installed value whose body is Family p, retrieve each instantiated body's
+ordinary typing from the actual stored equation. Application inversion and the
+family's displayed domain recover the parameter's typing. Thus neither a separate
+parameter-template typing premise nor an observation/native certificate is
+needed. The parameter's universe-dependent syntax is allowed to change.
+
+The generic CertifiedRecordDemand native induction is unchanged. Instantiating
+its independent evidence with the polymorphic observer gives EnvironmentCore
+native/assigned joins for actual variable lookups whose annotations descend from
+such registered aliases. This includes arbitrary term computation, native
+selection, native conversion and raw substitution. Three result modules add 284
+lines; whole batch 842 lines, 915 jobs, 49 audited roots, maximum closure
+12,012, 890 frozen hashes, standard axioms only and no own warnings.
+
+Limits are substantive: alias leaves are still sort-valued; the concrete target
+family is monomorphic with a finite unit-arrow parameter; arbitrary well-typed
+sources are not shown to carry this observer. No strict reduction of PropFront
+has been proved. The next coverage investigation must address function-valued
+aliases and source formation rather than assuming ordinary convertibility gives
+operational evidence. GOAL.md remains active; no PR extraction or coordination.
