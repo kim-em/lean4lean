@@ -26856,3 +26856,54 @@ TypeInstantiationJoin, StaticStructureCommonCoverage and
 StaticStructureTypeConversionJoin. Only propext/Classical.choice/Quot.sound;
 no own-module diagnostics. Artifacts: /dev/shm/unit-function-parameter-*.
 Independent untracked computation-count and primitive-descent files preserved.
+
+
+## 2026-11-05 15:33:07 UTC — Context-indexed demands close whole-family function-parameter return
+
+Completed six modules: RigidFunctionObservation/Transport, ControlWorlds,
+RigidFunctionWorlds/Canonical/Return. The observer is the rigid-unit grammar
+with a retained unit-endofunction input demand. Beta, typed substitution,
+changed domains, all native eta/identity/structure roots and full compatible
+computation preserve it. Unused beta-only readout was omitted; the new readout
+explicitly keeps access to future exact context-renaming worlds.
+
+ControlWorlds proves composition/identity of interpreted context maps, ordinary
+control realization/application/argument extraction, and lambda-body substitution.
+The interpretation composition proof is local because importing the older
+SequentialSubstitution module alongside the current structure-replay modules
+caused a duplicate declaration import error. No older module was changed; the
+small ordinary composition proof is independent of its old framework.
+
+WorldComputes quantifies function application over exact context renamings and
+ordinary typed arguments. Renaming of enriched primitives supplies monotonicity;
+beta-back closure uses only compatible beta. Obs.world_computes is proved by
+induction using ordinary lambda substitution and exact renaming of the free
+computational evidence. No native certificate for supplied arguments, general
+substitution stability, confluence or strengthening is assumed.
+
+family_world evaluates a retained function in the actual fresh unit world and
+combines the resulting body path with caller eta. native_unit_function_world
+initializes free function demands from lookup. literal_family_native reads the
+actual monomorphic stored declaration and discharges the caller-header premise.
+family_return covers every full-union whole-family path from Family #i and
+returns its output to Family (lambda S unitCtor). family_join returns two
+independent whole-family paths from different unit-function lookups to that
+same raw type. environment_family_return discharges both rigid unfolding
+exclusions for actual definitions. No observer or native-argument premise is
+left in these concrete results.
+
+Scope: the family remains rigid, monomorphic, and its stored header is literally
+(S -> S) -> Type. S is a positive empty unindexed parameter-free structure.
+The caller may now compute arbitrarily, unlike the preceding result. However,
+arbitrary convertible family headers and constructor-native histories with
+function parameters are not yet covered. General HF/HJ, strict smallness and
+GOAL.md are open. The original weakN_iff sorry and executable are unchanged;
+no PRs or coordination. Independent untracked modules preserved and excluded.
+
+Validation: 778-job isolated build; 45 roots including all observer constructors
+and recursor; maximum transitive closure 11,535; 753 unchanged own/frozen
+source hashes. Audited types, opaque bodies, constructor types and recursor RHSs,
+with standard strengthening/sorry/circular-framework exclusions plus TypeForkJoin,
+TypeInstantiationJoin, StaticStructureCommonCoverage and
+StaticStructureTypeConversionJoin. Only propext/Classical.choice/Quot.sound;
+no own-module diagnostics. Artifacts: /dev/shm/rigid-function-*.

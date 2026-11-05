@@ -13698,3 +13698,49 @@ remain open; no strengthening proof, counterexample or strict-smallness claim.
 Validation: 772-job isolated build; eight roots; maximum closure 11,307;
 747 own/frozen source hashes; only the three standard axioms and no forbidden
 strengthening, coverage or joining dependencies.
+
+
+## 2026-11-05 15:33:07 UTC — Full whole-family return with a retained unit endofunction
+
+Verdict: checked full-union return and joining for a rigid monomorphic family
+whose ACTUAL stored header is (S -> S) -> Type, applied to a looked-up unit
+endofunction. This removes the preceding fixed-caller restriction: arbitrary
+compatible computation of the entire Family f term, including caller prefixes,
+argument bodies, identity/eta/structure roots and changed annotations, still
+returns to Family (lambda S unitCtor). Two independent family continuations
+at different unit-function lookups join at that fixed output.
+
+RigidFunctionObservation demands the retained function's input/output behavior,
+not a forward origin for its literal annotation. Ordinary typed substitution
+preserves this grammar; the finite-stage/full-union proof handles all enriched
+roots. Rigid family and unit-constructor heads exclude unrelated primitive
+rules, and ordinary carrier separation handles actual structure expansions.
+
+The decisive new readout is WorldComputes: function demands quantify over
+exact interpreted context renamings and ordinarily typed arguments. This makes
+the fresh unit binder available without inventing arbitrary native-substitution
+closure. Its renaming and beta-back laws and the observer's fundamental theorem
+are checked. Ordinary context interpretations compose and type lambda beta
+substitution; only exact renamings move actual computational evidence.
+
+The family realization enters the caller's fresh S world, applies the retained
+function demand there, and obtains the body path to unitCtor. Caller eta then
+supplies the literal S annotation. The free original function lookup realizes
+its demand through native application and unit structure; the COMPUTED function
+needs no native certificate at the caller's selected type. The complete proof
+needs only the positive empty unit and the rigid family, no auxiliary record.
+
+Header boundary remains honest: literal_family_native reads actual ci.type and
+ci.uvars; the final theorem does not infer that exact native header from ordinary
+assigned typing. EnvironmentCore discharges both no-unfold exclusions. Family
+result universe is Type (succ zero); the unit may have any positive universe.
+This is a full local type-joining result, not general HF/HJ or a strictly smaller
+sufficient strengthening obligation. Constructor native recovery with retained
+function parameters and arbitrary merely convertible family headers remain live
+extensions. A next useful generalization is a proved stored-header computation
+into the selected Pi, transported only to well-formed worlds, rather than an
+unjustified uniform exact-header premise. GOAL.md stays open.
+
+Validation: 778-job isolated build, 45 public/constructor/recursor roots,
+maximum closure 11,535, 753 stable own/frozen source hashes; only the
+three standard axioms and no forbidden strengthening/coverage/join dependencies.
