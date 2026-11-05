@@ -13375,3 +13375,23 @@ The next representation must admit constructor functions and partial spines;
 fixed lower histories alone may also be too restrictive for parameter-dependent
 codomains. Do not repeat an induction on the unchanged observer. General HF/HJ,
 strict smallness and GOAL.md remain open.
+
+
+### 2026-11-05 12:18:06 UTC — A bare-constructor rule cannot preserve the existing type demands
+
+Verdict: refuted the simplest grammar repair independently of term syntax.
+LowerTypeHistory is an exact lift from below all temporary binders. It therefore
+cannot be an application whose retained argument is any variable in that prefix.
+NativeGroundDemand exposes a literal Pi codomain under one extra temporary
+binder, so no list of input keys gives the function demand ending in .pi to
+Pi A (family #0). This is the native constructor-type shape even before its
+parameter is supplied. It cannot acquire the old native soundness conclusion
+merely by adding a constructor case to ConstructorControlObservation.
+
+Next live candidate: observe the constructor function together with its pending
+arguments, and require the lower result history only after their substitution.
+Alternatively use parameter-dependent origins with value observations. Neither
+is proved here. Ordinary argument typing alone does not give the missing value
+ancestry. The existing lower-history laws remain useful after saturation, and
+all previously checked beta/root results remain valid. The main strengthening
+goal is still open; these are representation obstructions only.

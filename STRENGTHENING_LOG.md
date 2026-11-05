@@ -26451,3 +26451,26 @@ fork/coverage obligations. Only propext/Classical.choice/Quot.sound; no own-modu
 warning or sorry. Artifacts: /dev/shm/constructor-control-*.
 GOAL.md remains open. Original sorry and executable unchanged. PR extraction
 remains deferred; the two independent untracked modules are excluded throughout.
+
+
+### 2026-11-05 12:18:06 UTC — Fixed-history demand obstruction for constructor functions
+
+Added ProofErasureConstructorDemandBoundary.lean with three checked theorems.
+LowerTypeHistory.no_temporary_argument rules out retained occurrences of any
+inserted variable as an application argument in an exact lower type history.
+lower_type_demand_no_parameter_function rules out every input-key list at
+Pi A (f #0), and lower_type_demand_no_temporary_result generalizes the argument
+to any variable within the temporary prefix. These are syntactic impossibilities
+for the proposed invariant, not counterexamples to the desired strengthening.
+The bare-constructor grammar extension consequently needs a different native
+soundness statement, postponing lower result demands until actual arguments
+are supplied or tracking dependent parameter origins.
+
+Validation: 873-job isolated build, three public roots audited through types,
+opaque values, constructors and recursor RHSs; maximum closure 3,074;
+848 own/frozen sources unchanged. The same strengthening, sorry and general
+fork/coverage exclusions apply. Only standard propext/Classical.choice/Quot.sound
+axioms are allowed; no own-module warnings or sorry. Artifacts:
+/dev/shm/constructor-demand-boundary-*.
+Original sorry and executable remain unchanged; GOAL.md stays open. No PRs were
+extracted. Independent untracked work remains preserved and excluded.
