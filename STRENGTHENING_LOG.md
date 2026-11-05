@@ -23908,3 +23908,34 @@ Validation: two modules / 150 lines, isolated 848-job build, five public roots
 only propext/Classical.choice/Quot.sound; no sorry, forbidden dependencies or
 task warnings. All 823 closure hashes stable and isolated copies matched;
 non-task imports matched committed sources. Artifacts /tmp/carrier-computational-pattern-*.
+
+### 2026-11-05 03:58:23 UTC — Historical cut squares in function application contexts
+
+Generalized CutComponentHistory.native_pivot to native_pivot_uniform: the
+computed actual body instantiated with the original argument recovers all
+selected native outputs at once. The original single-output API is retained as
+a corollary. NativeOutputTransfer.app and .mkApps lift this exact transfer through
+arbitrary raw application spines; spine_pivot_uniform also lifts both surrounding
+computation paths, choosing its typed pivot independently of the spine.
+
+static_structure_nonopaque_primitive excludes computational roots for sources
+with neither an opaque head nor a sort root. native_pivot_primitive_square then
+uses output transfer for eta and structure guards, with beta-only residuals from
+the expanded source. CutComponentHistory.spine_primitive_square applies this to
+a historical cut under any pending arguments. spine_step_square adds function
+and argument occurrences by induction on the spine. The exported
+native_cut_spine_development_step_square permits finite component rounds and
+arbitrary pointwise pending-argument computations before the competing step.
+
+The result remains a contextual one-step square. It does not iterate through
+arbitrary continuation after a root expansion changes the spine, nor establish
+global confluence, TypeForkJoin, strengthening, or a strict reduction of PropFront.
+The next development invariant must retain the cut through those shape changes.
+
+Validation: 814 build jobs; 11 public roots in four modules; full declaration
+type/body, opaque-body, constructor and recursor dependency traversal, maximum
+closure 11,650. Only propext, Classical.choice and Quot.sound occur; no
+forbidden dependencies or task-module warnings. All 789 imported local sources
+remained hash-stable and were rechecked against the staging HEAD (own edits read
+from the working tree). Executable files unchanged. /dev/shm/cut-spine-* contains
+the source manifests, audit, logs and validation record.

@@ -11268,3 +11268,31 @@ concrete presentation. Declaration certificates and fork joining remain open.
 No strict-reduction or completed-strengthening claim. Two modules / 150 lines,
 848-job build, five audited roots (maximum closure 12,617), 823 stable source
 hashes; only allowed axioms and no forbidden dependencies or task warnings.
+
+### 2026-11-05 03:58:23 UTC — Uniform historical pivots under application spines
+
+**Verdict: proved the contextual one-step square for every pending application
+spine.** Strengthen native_pivot to choose one typed pivot before selecting any
+native output. Exact transfer of all outputs lifts through applications because
+native application recovery uses only the function certificate. The same pivot
+therefore works for every raw pending spine, with no native certificates for its
+arguments. Primitive guards at any enclosing application can fire at that pivot;
+the remaining argument computation runs inside the expanded output.
+
+The resulting native_cut_spine_development_step_square covers arbitrarily many
+component-history rounds, computation of all pending arguments, and any final
+one-occurrence step anywhere in the spine. The competing primitive branch joins
+by beta alone; the original-contractum branch uses full-union computation.
+This extends the previous root-cut square to cuts buried in function position.
+
+Still open: histories after root expansion followed by unrestricted continuation,
+other surrounding contexts, and created cuts. Exact output transfer alone does
+not supply those cases: dependent annotations and projection result types can
+retain the changed subterm itself. This is a limitation of the present argument,
+not a checked refutation of contextual developments. No strengthening proof,
+canonical-Eq counterexample, or strictly smaller sufficient obligation is claimed.
+Validation: four modules, 814-job isolated build, 11 public roots; full
+transitive audit maximum closure 11,650; only allowed axioms, no forbidden
+dependencies or task-module warnings; 789 stable local source hashes, checked
+against own sources and committed dependencies at staging. Artifacts
+/dev/shm/cut-spine-*.
