@@ -14617,3 +14617,41 @@ tracking their endpoints, carrier and dependent annotations together. A failure
 of this raw simulation interface would not itself refute typed strengthening.
 Combined validation: 811 jobs, 16 roots, maximum closure 11,052,
 786 frozen hashes, standard axioms only, no forbidden dependencies or own warnings.
+
+## 2026-11-05 20:26:12 UTC — Retain Eq-prefix output annotations while exposing comparison guards
+
+**Idea.** Native guard materialization hides conversions in beta-erased
+annotations, but runtime endpoint computations need not beta-return to their
+original values. Computing Eq-prefix endpoints first would therefore change its
+required output annotation. Put native eta around the original prefix first,
+compute inside that frame, and beta-remove the changed inner annotation.
+
+**Verdict: exact typed prefix simulation proved after guard exposure.**
+EqPrefixAnnotationRetention constructs the original prefix's exact native Pi
+from the installed canonical Eq.rec declaration and its actual five-argument
+telescope. Its proof-domain sort is witnessed independently. A general staged
+eta lemma retains any selected domain when computation reaches a constant
+lambda at another domain. Both proof and retained eta arguments are covered.
+
+Consequently arbitrary stage-one computations of the carrier, both endpoints
+and motive, ending in a stage-zero carrier guard, contract the original typed
+prefix at stage one with its exact original proof-domain annotation and minor.
+No reverse carrier/endpoint paths or computational annotation joins are needed.
+In particular, any stage-one endpoint join enables the prefix at stage one,
+rather than the naive stage-two guard bound. The source must be typed and
+retained; this is the source class relevant to typed primitive simulation.
+
+**Remaining work.** Arbitrary ComputedJointCheck evidence has not been turned
+into this operational exposure. A function-carrier guard need not give native
+recovery of its actual endpoint functions, so standalone endpoint exposure must
+not be assumed. Caller-based transformations may be needed. Moreover the prior
+FirstStageSimulation interfaces quantify over all raw prefixes, whereas this
+construction uses actual source typing to obtain the DomainSort needed by eta.
+Those raw interfaces are not refuted here, but are stronger than what this
+proof supplies. Develop a typed simulation induction if these witnesses are
+required; do not silently drop the source-typing premise. Singleton simulation
+and first-stage confluence remain open as well.
+
+Validation: 808 isolated jobs, 5 roots, maximum closure 11,052,
+783 frozen hashes; types, opaque bodies, constructors and recursor RHSs audited;
+standard axioms only, no forbidden dependencies or own warnings.

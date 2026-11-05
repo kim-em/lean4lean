@@ -27722,3 +27722,39 @@ Completion audit: UniqueTyping.lean:94 still has its original sorry. No
 canonical-Eq counterexample or genuinely strictly smaller sufficient obligation
 has been established. The executable is unchanged; no PR extraction or agent
 coordination. The full GOAL.md objective remains active.
+
+## 2026-11-05 20:26:12 UTC — Execute exposed Eq guards without changing the prefix's output domain
+
+Added EqPrefixAnnotationRetention (140 lines, five theorems). Fixed-stage
+computation weakens beneath a witnessed domain without raising the stage.
+Native eta then retains that domain while an enclosed function computes to a
+constant lambda with another written domain; beta removes the latter exactly.
+The result works in either proof-erasure mode and needs no reverse domain path.
+
+For a retained typed canonical Eq.rec prefix, exact native recovery of its
+original proof-domain Pi is derived from the literal installed declaration
+walk. Source typing supplies all canonical argument typings, and inversion of
+the five supplied arguments fixes the residual Pi syntactically. No native
+coverage premise on an argument or guard-completeness assumption is used.
+
+The main theorem computes carrier, endpoints and motive at stage one to a
+stage-zero guard, executes the prefix inside the eta frame, and returns the
+exact original annotation and minor. A corollary takes only a stage-one common
+reduct of the two endpoints. This eliminates a needless guard-depth increase
+for these Eq-prefix cases. It does not establish operational exposure for all
+recursive comparison certificates, singleton simulation, or confluence.
+
+Next: handle function-carrier comparisons through caller transformations, or
+first formulate typed stage simulation so the necessary DomainSort witnesses
+are available. The previous raw simulation interfaces remain conditional and
+are not discharged by a theorem restricted to actual typed prefix sources.
+
+Validation: 808 isolated build jobs; 5 audited roots; maximum closure
+11,052; 783 frozen source/import hashes; only propext, Classical.choice,
+Quot.sound. Audit traverses types, opaque values, constructors and recursor RHSs;
+no forbidden strengthening/coverage dependencies and no own warnings.
+
+Completion audit: the original weakN_iff sorry remains at UniqueTyping.lean:94.
+No canonical-Eq counterexample or genuinely smaller sufficient obligation has
+been proved. Executable unchanged; no PR extraction or coordination. GOAL.md
+remains active with the full original objective.
