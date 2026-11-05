@@ -25628,3 +25628,49 @@ types, opaque values, constructors and recursor RHSs; maximum closure
 and stayed stable. Only propext/Classical.choice/Quot.sound; no forbidden
 dependency, sorry, or own-module warning. Artifacts
 `/dev/shm/registered-header-boundary-*`.
+
+
+### 2026-11-05 — Type-valued historical cut squares without argument recovery
+
+**Verdict: arbitrary component histories and one final competing step now join
+under TypeInstantiationJoin alone, with no native argument certificate.**
+`ProofErasureTypeCutHistory.lean` first proves HJ.body_argument_join. Realize the
+computed argument as y, compute the original body at x forward to its instance
+at y, and invoke the post-instantiation type theorem once at y. Ordinary typed
+substitution transfers the actual sort assignment from b.inst x to b.inst y.
+The resulting proof composes one forward path with one join; it does not
+compose two unrelated joins. The generic body may have a dependent data type.
+
+`CutComponentHistory.type_contract_join` applies that result to the existing
+three-component histories. `type_source` separately proves ordinary sort typing
+of the current raw redex. Hence whole-cut primitives cannot be function or
+structure eta: only constant and native identity wrappers remain, and both
+beta-contract to the current contractum. `type_primitive_square` and
+`type_step_square` then cover every single-occurrence competitor, including
+root contraction, function-root expansion, domain/body steps and argument steps.
+The function-root case uses the existing literal-lambda beta readout; component
+cases append to their old histories before the single HJ invocation.
+
+The public `TypeInstantiationJoin.type_cut_development_step_square` permits any
+finite number of interleaved component rounds before that competing step.
+Repeated domain changes and complete absence of argument-native recovery are
+allowed. This replaces the recovery hypothesis of the earlier native-cut local
+square by the still-open HJ and a sort assignment for the complete original
+redex. It gives common reducts, not exact transport to the historical contractum.
+
+The dependent-observer route was also inspected: an observer over B.inst x
+does not automatically type at a generic B, and separately joined observations
+still require a way to join a middle fork. The fresh-caller theorem does not
+remove these obligations. Full continuation after root function expansion or
+contraction remains outside the component-round invariant. Local squares alone
+are not a confluence proof for this nonterminating calculus. HJ, its sufficiency
+and strict-smallness, type-fork joining and canonical-Eq strengthening remain
+open. No new irreducible sufficient obligation or GOAL.md completion is claimed.
+Original sorry and executable unchanged.
+
+Validation: isolated 819-job build; six public theorems and their generated
+matcher (seven roots total) audited through declaration types, opaque bodies,
+constructors and recursor equations. Maximum closure 11,694; 794 stable frozen
+source hashes; allowed axioms only, no forbidden dependency, sorry, or own-module
+warning. Artifacts `/tmp/carrier-type-cut-history-*`. Independent uncommitted
+sources were neither imported nor staged.
