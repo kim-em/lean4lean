@@ -26081,3 +26081,53 @@ also rejects TypeInstantiationJoin, TypeForkJoin, StaticStructureCommonCoverage
 and StaticStructureTypeConversionJoin, besides the standard forbidden names.
 Only propext/Classical.choice/Quot.sound; no own-module warning or sorry.
 Artifacts `/dev/shm/constructor-parameter-boundary-*`.
+
+
+### 2026-11-05 10:45:11 UTC — Simultaneous image computation repairs the retained-parameter example
+
+Added `ProofErasureComputedNativeSubstitution.lean`. The first theorem collects
+finite native bounds from a typed simultaneous substitution and transports an
+entire full-union computation, preserving its exact substituted output. The
+second theorem constructs a substitution square with only the final images
+native: source images compute pointwise to a second actual typed substitution,
+whose native image types use that same second substitution. The original body
+instance and the original output instance both compute to the second output
+instance. Pointwise compatible computation uses primitive renaming only;
+transport of the body history uses the final native image certificates. Replay
+of the body endpoint supplies the second arm. No confluence is used.
+
+Added `ProofErasureUnitParameterSubstitution.lean`. This directly addresses the
+configuration from 4d23f0ef. In Γ=[q:S,p:S], the registered positive constructor
+mk p is assigned Tag q. For any body b under Tag q::Γ and any full computation
+of b to out, both erase(b[mk p]) and out[erase(mk p)] compute to the explicit
+simultaneous output substituting mk unitCtor for the newest slot and unitCtor
+for q and p. The proof constructs the actual target Ctx.SubstEq, erasure
+agreement, all retained native images and every source-to-target image path.
+The body's type, dependency on its argument, parameter occurrences and internal
+computation history are unrestricted. This includes type-valued bodies.
+
+The distinction from the refuted exact-pivot repair is essential: mk unitCtor
+recovers Tag unitCtor, not Tag q. The old method required retaining Tag q while
+computing only the argument and is impossible here. The new square computes
+both ambient unit parameters and hence the assigned family at once. All paths
+still live in the original target context. Ordinary registration and typings
+are explicit, with the same positive phantom-family metadata as the preceding
+actual extension theorem; no common-coverage or binder-transport hypothesis is
+hidden in the example.
+
+The full goal remains open. This proves arbitrary generic-body histories in
+this configuration, not joins of arbitrary continuations after instantiation.
+The general square assumes existence of two typed maps, their pointwise paths
+and final native images; those conditions are constructed here only for the
+stated retained-unit-parameter configuration. No general HJ/HF, normalization,
+strict-smaller sufficient obligation or strengthening claim is made. Original
+sorry and executable unchanged; PR extraction deferred; independent untracked
+files preserved and excluded from imports/staging.
+
+Validation: 810-job isolated build, four public roots audited through types,
+opaque values, constructor arguments and recursor RHSs; maximum closure
+11,184. All 785 own/frozen dependency hashes stayed stable. Standard
+forbidden dependencies plus TypeInstantiationJoin, TypeForkJoin,
+StaticStructureCommonCoverage and StaticStructureTypeConversionJoin were
+rejected. Only propext/Classical.choice/Quot.sound; no own-module warning or
+sorry. Artifacts `/dev/shm/computed-native-substitution-*`.

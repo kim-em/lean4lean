@@ -13136,3 +13136,33 @@ waiting for a later exactly recoverable constructor image. Keep common native
 type joining as the candidate invariant; transport of dependent bodies and
 arbitrary continuations through such common types remains unresolved. This
 is neither a strengthening counterexample nor a sufficient smaller obligation.
+
+
+### 2026-11-05 10:45:11 UTC — Repair retained parameters by computing the whole substitution
+
+Verdict: **checked positive repair for arbitrary dependent bodies in the exact
+counterexample from 4d23f0ef; general simultaneous square established**.
+Waiting for an argument to recover its original assignment was refuted. Instead
+compute its ambient parameter images as well. The target native obligations
+then use the target substitution throughout their dependent oracle types.
+
+`static_structure_subst_join_computed_native_images` takes two actual typed
+simultaneous substitutions into the same target context, pointwise computations
+from the first erased images to the second, and native recovery only for the
+second images at their second-substitution oracle types. Any complete generic
+body computation gives two paths to exactly out.subst(targetImages). Body types
+are arbitrary. No source-image native assumption or type-joining axiom occurs.
+
+`static_structure_unit_parameter_body_join` discharges every image premise in
+the retained-parameter configuration mk p : Tag q, with q,p positive unit
+variables. The final images are mk unitCtor, unitCtor, unitCtor. The dependent
+body may use all three slots, including in annotations, and its computation is
+unrestricted. Thus every such instantiated-body square joins despite the
+proved impossibility of recovering Tag q from any future image of mk p.
+This bypasses the exact-pivot obstruction by transforming the environment
+parameters and dependent assignment together, in the original target context.
+
+General existence of suitable simultaneous image computations is not proved.
+Neither are arbitrary post-instantiation continuations joined. These remain
+separate obligations; no confluence, normalization, strengthening, or strictly
+smaller sufficient front is claimed.
