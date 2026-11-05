@@ -12717,3 +12717,40 @@ values including opaque bodies, constructors and recursor RHSs; maximum closure
 11,378; 808 unchanged committed/own source hashes. Only allowed axioms;
 no forbidden dependency, sorry, or own-module warning. Artifacts
 `/dev/shm/closed-header-direction-*`.
+
+
+### 2026-11-05 — Auxiliary Eq casts join post-instantiation type bodies
+
+`ProofErasureInstantiationCastTemplate.lean` proves three results. Computation
+of a payload extends through a fixed canonical cast to a sort, for any raw step
+relation and without a native payload premise. Next, `TypeInstantiationJoin`
+joins the casts of b.inst x and b'.inst x whenever b : T computes generically
+to b', T : Sort (succ v), and an equality proof identifies T.inst x with Sort v.
+The generic b need not be type-valued. The construction weakens the original
+body computation under the auxiliary Eq binder, wraps it in the cast, uses HJ
+once below that binder, then discharges its proof exactly on BOTH sides of the
+same join. Erasure/substitution identities give the two actual cast endpoints.
+
+The `.cast_template_of_type` corollary assumes b.inst x : Sort v instead of an
+Eq witness. Typing uniqueness aligns T.inst x with Sort v; Eq.refl at T.inst x,
+converted only at its endpoint, supplies the auxiliary witness. This derives
+the witness without any computational equality assumption for those endpoints.
+
+Verdict: the cast-template construction is checked, with HJ still open. The
+remaining cast-removal gap is real in this proof: ordinary endpoint conversion
+supports ordinary typeCast_refl, but the existing TypedComputationEq.typeCast
+requires an endpoint computation chain and yields a chain rather than a pair
+of forward joining paths. The theorem deliberately retains the casts. It does
+not prove uncast post-instantiation joining, HJ sufficiency, strict-smallness,
+TypeForkJoin, or canonical-Eq strengthening. Investigating cast-payload history
+reflection remains live; generic type-argument origins currently cover neutral
+heads and do not automatically handle an Eq.rec head computation. Original
+sorry and executable unchanged; no GOAL.md completion claimed.
+
+Validation: isolated 806-job build; all six public/generated roots audited
+through types, opaque values, constructors and recursor equations; maximum
+closure 11,496; 781 stable frozen source hashes, allowed axioms only, no forbidden
+dependency, sorry, or own-module warning. Artifacts `/tmp/carrier-instantiation-cast-template-*`.
+Old `/tmp/carrier-*.log` files outside the two current instantiation validations
+were losslessly gzip-archived to recover space when the filesystem filled;
+their contents remain in the corresponding `.log.gz` files.
