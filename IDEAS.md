@@ -12125,3 +12125,29 @@ own source and frozen committed dependencies. Only allowed axioms, no forbidden
 dependency, sorry, or audited-module warning. Artifacts
 /tmp/carrier-historical-caller-bodies-*. The independent committed literal-Pi
 history development was preserved and is not a dependency of these theorems.
+
+
+### 2026-11-05 06:38:08 UTC — Exact coverage of the last native application
+
+**Verdict: proved at arity one; arbitrary residual-telescope coverage remains
+open.** `LiteralPiHistory.of_native_app` extracts a literal history from any
+selected native output of `app f image`, assuming all native outputs of `f`
+compute from the original typed Pi. Typed realization exposes the selected Pi,
+domain inversion transports the ordinary argument to that domain, and typed
+realization of the argument image preserves the exact conversion tail. No native
+argument certificate, normalization, joining hypothesis, or original-body shape
+is required. `NativeFamilyPiHistory.native_application_origin` supplies the
+family-ancestry conclusion for an already reified arbitrary unary body.
+
+The multi-argument gap is still the earlier conversion whose codomain hides a
+remaining Pi. Normalizing that codomain can fork against the next selected
+conversion after substitution. The unary proof has no deeper binder to expose,
+and therefore does not establish the general coverage step. No smaller
+sufficient strengthening obligation is claimed.
+
+Integration repair: the new family state is renamed `NativeFamilyPiHistory`;
+`NativePiHistory` was already used by the older lambda-wrapper history module.
+Both modules now pass a combined-import audit. Validation: 798 build jobs,
+14 public roots, maximum transitive closure 11,382, 773 frozen committed/own
+sources; only the allowed axioms and no forbidden dependencies. Artifacts
+`/dev/shm/native-pi-history-coverage-*`.

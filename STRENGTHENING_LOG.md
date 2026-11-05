@@ -24846,3 +24846,40 @@ own source and frozen committed dependencies. Only allowed axioms, no forbidden
 dependency, sorry, or audited-module warning. Artifacts
 /tmp/carrier-historical-caller-bodies-*. The independent committed literal-Pi
 history development was preserved and is not a dependency of these theorems.
+
+
+### 2026-11-05 06:38:08 UTC — Derive unary literal histories from native recovery
+
+The preceding finite-history theorem required an explicit `LiteralPiHistory`
+witness. `LiteralPiHistory.of_native_app` now constructs that witness when one
+argument remains. Its hypotheses are an ordinary well-formed original Pi,
+an ordinary argument and its computation image, the function's fixed Pi-origin
+property, and any selected native recovery of the application. The function's
+Pi-origin property remains explicit; it is not inferred from arbitrary ordinary
+function typing.
+
+Native application inversion gives the selected raw Pi and the exact trailing
+computation. Typed replay realizes the Pi as an actual Pi. Pi inversion converts
+the argument's ordinary typing to the selected domain, and replay realizes its
+computed image at that domain. The history then converts once, supplies that
+realized argument, and retains the original trailing computation unchanged.
+This does not need a native certificate for the argument or its image.
+`NativeFamilyPiHistory.native_application_origin` combines this derived history
+with the existing finite-history proof for an arbitrary already reified unary
+body, beyond the earlier literal generic family-application case.
+
+The new state was also renamed from `NativePiHistory` to
+`NativeFamilyPiHistory`, repairing a collision with the older
+`ProofErasureLambdaWrapperHistory` declaration. The older API is unchanged;
+the audit imports both modules together. General multi-argument coverage still
+requires handling hidden residual Pi binders without losing the selected output.
+This is partial progress on that route, not a proof of strengthening, a canonical
+Eq counterexample, or a strictly smaller sufficient irreducible obligation.
+Executable and original `weakN_iff` sorry are unchanged; no PR was extracted.
+
+Validation: 798-job isolated build and combined-import check; all 14 public
+roots audited through transitive types, values including opaque values,
+constructors, and recursor RHSs; maximum closure 11,382. All 773 source
+hashes match own source or frozen committed dependencies and stayed stable.
+Only propext/Classical.choice/Quot.sound; no forbidden dependency, sorry, or
+own-module warning. Artifacts `/dev/shm/native-pi-history-coverage-*`.

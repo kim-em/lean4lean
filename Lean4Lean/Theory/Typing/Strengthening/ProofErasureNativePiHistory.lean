@@ -9,6 +9,7 @@ lambda is never assumed. Literal residual telescopes delimit each phase.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape
+open private erase_forallE_inv from Lean4Lean.Theory.Typing.Strengthening.ProofErasureBeta
 open private subst_bvar_liftN from Lean4Lean.Theory.Typing.Strengthening.ProofErasureJointRenaming
 variable [Params] {D : PureObservation.Definitions}
 
@@ -77,7 +78,7 @@ theorem proofErase_static_structure_open_computed_lambdas
 
 /-- A native family and its current literal type telescope. The retained
 function path is not itself a native certificate for the computed lambda. -/
-structure NativePiHistory (D : PureObservation.Definitions) (Γ : List VExpr)
+structure NativeFamilyPiHistory (D : PureObservation.Definitions) (Γ : List VExpr)
     (f : VExpr) (u : VLevel) (ds : List VExpr) (B : VExpr) : Prop where
   typed : env.HasType univs Γ f (VExpr.wrapForalls ds (.sort u))
   native : ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
@@ -87,13 +88,13 @@ structure NativePiHistory (D : PureObservation.Definitions) (Γ : List VExpr)
     (proofErase Γ f) (proofErase Γ (VExpr.wrapLams ds B))
 
 /-- An exact native family starts a history at its generic eta opening. -/
-theorem NativePiHistory.initial
+theorem NativeFamilyPiHistory.initial
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hΓ : OnCtx Γ (env.IsType univs))
     (hf : env.HasType univs Γ f (VExpr.wrapForalls ds (.sort u)))
     (RF : ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
       (proofErase Γ f) (proofErase Γ (VExpr.wrapForalls ds (.sort u)))) :
-    NativePiHistory D Γ f u ds (etaOpen ds.length f) :=
+    NativeFamilyPiHistory D Γ f u ds (etaOpen ds.length f) :=
   ⟨hf, RF, (hf.etaOpen_wf henv.ordered hΓ).2,
     static_structure_native_eta_telescope heq hs hΓ hf (fun _ => RF)⟩
 
@@ -121,15 +122,15 @@ private theorem sort_headers_congr
 
 /-- A literal type-telescope conversion advances the history and preserves the
 original family head. All changed domains and the new body are retained. -/
-theorem NativePiHistory.convert
+theorem NativeFamilyPiHistory.convert
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hΓ : OnCtx Γ (env.IsType univs))
-    (H : NativePiHistory D Γ f u ds B)
+    (H : NativeFamilyPiHistory D Γ f u ds B)
     (hlen : ds.length = ds'.length)
     (hT' : env.IsType univs Γ (VExpr.wrapForalls ds' B'))
     (R : ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
       (proofErase Γ (VExpr.wrapForalls ds B)) (proofErase Γ (VExpr.wrapForalls ds' B'))) :
-    NativePiHistory D Γ f u ds' B' := by
+    NativeFamilyPiHistory D Γ f u ds' B' := by
   have hctx := (H.typed.etaOpen_wf henv.ordered hΓ).1
   obtain ⟨v, hT⟩ := VExpr.wrapForalls_defeq hctx H.body
   obtain ⟨T, HT, ET⟩ := proofErase_scoped_compute_realize
@@ -168,11 +169,11 @@ theorem NativePiHistory.convert
 /-- Supplying an ordinary argument preserves the history at the literal
 instantiated residual telescope. The next conversion may run after this step;
 no native certificate is requested for the supplied argument. -/
-theorem NativePiHistory.apply
+theorem NativeFamilyPiHistory.apply
     (hΓ : OnCtx Γ (env.IsType univs))
-    (H : NativePiHistory D Γ f u (A :: ds) B)
+    (H : NativeFamilyPiHistory D Γ f u (A :: ds) B)
     (hx : env.HasType univs Γ x A) :
-    NativePiHistory D Γ (.app f x) u (VExpr.instDomains ds x 0) (B.inst x ds.length) := by
+    NativeFamilyPiHistory D Γ (.app f x) u (VExpr.instDomains ds x 0) (B.inst x ds.length) := by
   have hctx := (H.typed.etaOpen_wf henv.ordered hΓ).1
   have hL := HasType.wrapLams_of hctx H.body
   have hf : env.HasType univs Γ (.app f x)
@@ -210,15 +211,15 @@ theorem NativePiHistory.apply
 /-- An independently computed actual argument is realized at its original
 domain, then supplied to the history. The old family application computes to
 this new head, so its ancestry is retained without native image evidence. -/
-theorem NativePiHistory.apply_computed
+theorem NativeFamilyPiHistory.apply_computed
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hΓ : OnCtx Γ (env.IsType univs))
-    (H : NativePiHistory D Γ f u (A :: ds) B)
+    (H : NativeFamilyPiHistory D Γ f u (A :: ds) B)
     (hx : env.HasType univs Γ x A)
     (RX : ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
       (proofErase Γ x) image) :
     ∃ y, env.IsDefEq univs Γ x y A ∧ proofErase Γ y = image ∧
-      NativePiHistory D Γ (.app f y) u (VExpr.instDomains ds y 0) (B.inst y ds.length) ∧
+      NativeFamilyPiHistory D Γ (.app f y) u (VExpr.instDomains ds y 0) (B.inst y ds.length) ∧
       ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
         (proofErase Γ (.app f x)) (proofErase Γ (.app f y)) := by
   obtain ⟨y, HE, EY⟩ := proofErase_scoped_compute_realize
@@ -234,7 +235,7 @@ theorem NativePiHistory.apply_computed
 
 /-- At the end of a literal history, its terminal type is reached from the
 family application. No native evidence for that computed type is assumed. -/
-theorem NativePiHistory.finish (H : NativePiHistory D Γ f u [] B) :
+theorem NativeFamilyPiHistory.finish (H : NativeFamilyPiHistory D Γ f u [] B) :
     ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
       (proofErase Γ f) (proofErase Γ B) := H.path
 
@@ -292,7 +293,7 @@ theorem LiteralPiHistory.family_origin
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hΓ : OnCtx Γ (env.IsType univs))
     (W : LiteralPiHistory D Γ ds B args images out)
-    (H : NativePiHistory D Γ f u ds B) :
+    (H : NativeFamilyPiHistory D Γ f u ds B) :
     ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
       (ProofShape.mkApps (proofErase Γ f) (args.map (proofErase Γ))) out := by
   induction W generalizing f with
@@ -312,11 +313,75 @@ theorem LiteralPiHistory.typed_family_origin
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hΓ : OnCtx Γ (env.IsType univs))
     (W : LiteralPiHistory D Γ ds B args images out)
-    (H : NativePiHistory D Γ f u ds B)
+    (H : NativeFamilyPiHistory D Γ f u ds B)
     (ht : env.HasType univs Γ (VExpr.mkApps f args) (.sort v)) :
     ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
       (proofErase Γ (VExpr.mkApps f args)) out := by
   rw [proofErase_mkApps hΓ ht (not_isProof_of_sort hΓ ht)]
   exact W.family_origin heq hs hΓ H
+
+
+/-- With one argument left, every selected native application output is covered
+by a literal history, provided the function's recoveries retain the original Pi
+as a computation ancestor. This retains the selected conversion tail exactly;
+there is no normalization or joining premise and no native argument premise. -/
+theorem LiteralPiHistory.of_native_app
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (hT : env.IsType univs Γ (.forallE A B))
+    (hx : env.HasType univs Γ x A)
+    (HN : ∀ {T}, ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ) f T →
+      ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+        (proofErase Γ (.forallE A B)) T)
+    (RX : ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+      (proofErase Γ x) image)
+    (RN : ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+      (.app f image) out) :
+    LiteralPiHistory D Γ [A] B [x] [image] out := by
+  obtain ⟨rawA, rawB, RF, RC⟩ := RN.app_origin
+  have RT := HN RF
+  obtain ⟨T, HE, ET⟩ := proofErase_scoped_compute_realize
+    (erased_static_structure_eta_expansion_union_descent heq hs) hΓ hT.choose_spec rfl rfl RT
+  obtain ⟨A', B', rfl, _, EA', EB'⟩ := erase_forallE_inv ET
+  obtain ⟨⟨v, HA⟩, _⟩ := HE.toU.forallE_inv henv hΓ
+  have hx' := HA.defeq hx
+  obtain ⟨y, HY, EY⟩ := proofErase_scoped_compute_realize
+    (erased_static_structure_eta_expansion_union_descent heq hs) hΓ hx' rfl rfl RX
+  have hy := HY.hasType.2
+  have hT' : env.IsType univs Γ (.forallE A' B') := ⟨_, HE.hasType.2⟩
+  obtain ⟨⟨w, hA'⟩, z, hB'⟩ := HE.hasType.2.forallE_inv henv
+  have hΓA' : OnCtx (A' :: Γ) (env.IsType univs) := ⟨hΓ, w, hA'⟩
+  have RI : ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+      (proofErase Γ (B'.inst y)) out := by
+    rw [proofErase_instN hΓA' hy Ctx.InstN.zero hB', EB', EY]
+    exact RC
+  have RL : LiteralPiHistory D Γ [A'] B' [x] [image] out := by
+    rw [← EY]
+    exact .app hx' hy (EY ▸ RX) (.done RI)
+  apply LiteralPiHistory.convert (ds := [A]) (B := B) (ds' := [A']) rfl hT' _ RL
+  change ScopedCompute _ _ (proofErase Γ (.forallE A B)) (proofErase Γ (.forallE A' B'))
+  rwa [ET]
+
+/-- A reified unary family covers every native selected output of its caller's
+application, including arbitrary conversion tails. Unlike the general finite
+history theorem, the literal-history witness is derived here from recovery. -/
+theorem NativeFamilyPiHistory.native_application_origin
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (H : NativeFamilyPiHistory D Γ g u [A] B)
+    (hx : env.HasType univs Γ x A)
+    (HN : ∀ {T}, ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ) f T →
+      ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+        (proofErase Γ (.forallE A B)) T)
+    (RX : ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+      (proofErase Γ x) image)
+    (RN : ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+      (.app f image) out) :
+    ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+      (proofErase Γ (.app g x)) out := by
+  have hctx := (H.typed.etaOpen_wf henv.ordered hΓ).1
+  obtain ⟨v, hT⟩ := VExpr.wrapForalls_defeq hctx H.body
+  have W := LiteralPiHistory.of_native_app heq hs hΓ ⟨v, hT.hasType.1⟩ hx HN RX RN
+  exact W.typed_family_origin heq hs hΓ H (H.typed.app hx)
 
 end Lean4Lean.VEnv.Strengthening
