@@ -13425,3 +13425,39 @@ histories through those computations, using pending arguments where codomains
 mention fresh parameters. General dependent-field spines also remain beyond
 this one-parameter fieldless instantiation. This is a checked repair of the
 specific obstruction, not a new sufficient front or a proof of strengthening.
+
+
+### 2026-11-05 12:43:39 UTC — Directed header ancestry survives native function eta
+
+Verdict: checked a generic eta-preservation theorem, not limited to unit
+parameters or constructor heads. NativeHeaderHistory records a path from one
+original header to every selected native output. For a typed Pi header, actual
+native eta preserves that property even with a changed selected domain and a
+proof-erased fresh argument. The eta body's lifted-function certificate descends
+with its exact lower native certificate. Original Pi readout supplies the lower
+codomain path. Ordinary domain equality and backward context transport move the
+body's native conversion tail into the original binder context. These assemble
+a complete original-header path to the new selected Pi and its conversion tail.
+No type-fork join, forward binder transport or exact arbitrary assigned recovery
+is used.
+
+Application also preserves directed ancestry when the ORIGINAL retained argument
+has native recovery at the original domain. Instantiate the original-context
+codomain path there, then compute the argument through its typed endpoint. The
+current argument can lose recovery entirely. Ordinary unused-prefix lifting,
+constant wrappers and identity frames with stored annotation ancestry preserve
+the same property. Native identity obtains that ancestry from its actual guard.
+
+These rules compose through arbitrary finite alternations of root constant,
+identity and function-eta expansions. The concrete registered fieldless unit-
+parameter constructor supplies the initial header from its stored declaration;
+applying its evolved head to an independently computed unit argument yields
+canonical return for all native outputs and all later type continuations, with
+no computed family-header certificate. This strictly extends the previous single
+constant-head wrapper result but is not a strictly smaller sufficient front.
+
+Remaining: arbitrary compatible computation INSIDE generated controls, including
+beta interleavings, is not represented by FunctionHeadExpansion. The root-history
+rules do not by themselves discharge that continuation case. General HF/HJ and
+GOAL.md remain open; do not mistake the restricted development relation for the
+full computation union.

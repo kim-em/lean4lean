@@ -26510,3 +26510,51 @@ StaticStructureTypeConversionJoin are excluded. Only propext/Classical.choice/
 Quot.sound; no own-module warnings or sorry. Artifacts: /dev/shm/pending-unit-*.
 The original sorry and executable are unchanged. GOAL.md remains open, no PR
 extraction, independent untracked modules preserved and excluded.
+
+
+### 2026-11-05 12:43:39 UTC — Generic native header eta and application preservation
+
+The preceding goal turn was progress: pending unit application and its concrete
+constant-head wrapper case were checked and pushed. This turn adds three modules
+(299 lines) propagating the function's directed native type history itself.
+
+ProofErasureNativeHeaderEta defines NativeHeaderHistory and proves preservation
+by actual native function eta. The proof lowers the eta body's lifted-function
+native certificate, preserving its selected lower recovery. Two original-header
+Pi histories supply the eta annotation's ancestry and the independently selected
+codomain's ancestry. Ordinary domain equality handles representative contexts;
+backward context computation transport moves the body conversion tail to the
+original binder. Typed eta instantiation covers both retained and proof-erased
+fresh arguments. The entire recovered Pi then computes to the requested native
+output. No fork joining is required, and the statement is generic in the typed
+original Pi and function, not restricted to the unit-family example.
+
+ProofErasureNativeHeaderApplication proves unused-prefix lifting, constant-frame
+inheritance, identity-frame ancestry from a stored annotation, and application.
+The application rule requires native recovery only for the original retained
+argument. Full Pi readout, original-argument substitution and subsequent argument
+computation provide the exact codomain residual; every native conversion remains.
+
+ProofErasureFunctionHeadExpansion derives the identity-frame ancestry from an
+actual native guard and composes root constant/identity/eta expansions. Each
+recorded development embeds into the real full union. Ordinary replay preserves
+the original function typing between steps. A registered positive fieldless
+constructor supplies its initial header history, and its expanded head can be
+applied to an independently computed unit argument: every native output and later
+type continuation returns to the canonical unit-family type. The final theorem
+requires ordinary constructor retention, with no assumed header-history invariant
+or computed family-header certificate.
+
+Boundary: FunctionHeadExpansion has no congruence or beta rule. Arbitrary
+computation inside generated controls remains open; the new generic rules do not
+silently assume that closure. General HF/HJ, strict smallness, and GOAL.md remain
+open. Original sorry and executable unchanged; no PR extraction; independent
+untracked modules preserved and excluded.
+
+Validation: 811-job isolated build, 19 public roots including all new inductive
+constructors and recursors; maximum dependency closure 11,663. All 786
+own/frozen source hashes stayed stable. Types, opaque values, constructor fields
+and recursor RHSs were audited with the standard strengthening/sorry exclusions
+plus TypeForkJoin, TypeInstantiationJoin, StaticStructureCommonCoverage and
+StaticStructureTypeConversionJoin. Only propext/Classical.choice/Quot.sound;
+no own-module warnings or sorry. Artifacts: /dev/shm/native-header-*.
