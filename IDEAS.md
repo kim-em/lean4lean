@@ -14102,3 +14102,44 @@ Validation: 872 isolated build jobs, 22 audited roots, maximum closure
 11,828, 847 frozen source hashes, standard axioms only. No new warnings or
 forbidden strengthening/sorry/framework/exposure/coverage/fork dependencies.
 The original sorry and executable remain unchanged. GOAL.md remains open.
+
+## 2026-11-05 18:05:06 UTC — Computed oracle provenance and a checked backward-closure obstruction
+
+Verdict: forward provenance is sufficient; ordinary-conversion coverage by the
+current annotation grammar is false. Three new modules give both results.
+
+AnnotationSeed pairs ordinary carrier equality with an operational type
+observation under EMPTY free demands. TypeEquality.actual reflects equal
+erasures of actual typed annotations, after ordinary context conversion;
+lookup_control then recovers ordinary control typing for the actual variable.
+Seed.lookup supplies the exact native oracle observation using the literal
+lookup. Nothing assumes the new variable's own native evidence recursively.
+
+Seed.full_compute preserves both components through the entire enriched union.
+Consequently an actual record or function lookup annotation need not visibly be
+a family or Pi: a forward computation from a typed family-ending annotation
+suffices. The actual-environment theorems join arbitrary later term/native/type
+histories, after arbitrary raw substitution, with independently computed assigned
+families at the canonical target. The caller argument still needs ordinary
+typing only, and function-family parameters can depend on that argument.
+
+The direction cannot be silently reversed. A typed beta wrapper
+(lambda z : P, Family p) proof, with P : Prop, contracts to the observed family
+but has NO record-family observation in this grammar. Every observed lambda
+would require P to be equal to a positive control domain, contradicting ordinary
+sort uniqueness. family_seed_not_conversion_complete constructs P and its proof
+internally from the closed identity on (forall X : Prop, X), so no proposition
+inhabitant hypothesis remains. This is an actual limitation of the invariant,
+not a strengthening counterexample or failure of the desired native join.
+
+Next live attempt must address this checked missing case: a type observation
+supporting proof-domain beta wrappers, with the exact native annotation evidence
+retained. Simply adding an opaque equality leaf or reversing the proved forward
+closure is invalid. Existing dependent demand profiles and proof-binder transport
+may supply the domain discipline; their integration with the joint native
+induction is not yet proved. Alias unfolding remains another backward case.
+
+Validation: 876 isolated build jobs, 18 audited roots, maximum dependency
+closure 11,836, 851 frozen source hashes, only standard axioms. No own
+warnings or forbidden strengthening/sorry/framework/exposure/coverage/fork
+dependencies. GOAL.md remains open; no PR extraction or executable changes.

@@ -27293,3 +27293,44 @@ regenerable Strengthening compiler artifacts. The final sources were rebuilt
 and audited after restoration. General strengthening is still open; source
 oracles remain literal family-ending annotations, and target declarations have
 the existing literal UnitArrows parameter header restriction.
+
+## 2026-11-05 18:05:06 UTC — Observe actual computed lookup annotations; refute blanket seed coverage
+
+Added ObservedOracle (103 lines), ComputedRecordOracle (153 lines), and
+ObservedOracleBoundary (114 lines), totaling 370 Lean lines. Existing modules
+are unchanged.
+
+ObservedOracle proves TypeEquality.actual and lookup_control using ordinary
+context conversion and proof-erasure reflection at non-proof type expressions.
+Obs.weaken_demands moves an independently checked annotation into the demanded
+variable's set. AnnotationSeed contains ordinary equality and an empty-demand
+operational observation; lookup materializes typing, exact native valuation,
+and value observation. full_compute preserves seeds without assuming the
+future lookup's own native coverage.
+
+ComputedRecordOracle builds family and dependent family-ending Pi seeds and
+transports them along full computation to arbitrary actual lookup annotations.
+The function source may therefore have a nonliteral Pi annotation; its argument
+has only ordinary typing. Concrete record/function native-assigned joins use
+actual stored family metadata and arbitrary raw substitution, with all observer
+and target telescope premises discharged. The source forward-provenance path
+remains explicit and is not replaced by ordinary equality.
+
+ObservedOracleBoundary identifies why that restriction matters. No proposition
+can be equal to a positive control carrier. An observed proof-domain redex would
+supply exactly such an equality from its lambda annotation. The actual typed
+wrapper beta-reduces to the family yet cannot be an annotation seed. The final
+family_seed_not_conversion_complete constructs its own closed inhabited
+proposition and proves this obstruction in every applicable registered-family
+context, without an assumed proposition inhabitant. It refutes completeness of
+this grammar under ordinary conversion; it does not refute strengthening or
+the desired native-join theorem for the wrapper.
+
+Validation: 876 isolated build jobs; 18 roots audited through types, opaque
+values, inductive constructors, and recursor RHSs; maximum closure 11,836;
+851 source hashes unchanged. Only propext, Classical.choice and Quot.sound;
+no own warnings and no forbidden strengthening, sorry, circular framework,
+semantic exposure, general coverage or fork dependencies. Original sorry and
+executable unchanged. Independent untracked files excluded; no PRs or
+coordination. Next: support proof-domain beta predecessors in the joint native
+invariant, rather than assert the now-refuted seed-coverage premise.
