@@ -24658,3 +24658,40 @@ all audited transitively. Maximum closure 11,370; 770 stable committed/own sourc
 hashes. Only allowed axioms, no forbidden dependencies, sorry or audited-module
 warnings. Artifacts /tmp/carrier-native-caller-telescopes-*. Independent
 uncommitted Pi-telescope work was neither imported nor staged.
+
+### 2026-11-05 06:03:07 UTC — Whole Pi-to-lambda history reification with native domain guards
+
+Added ProofErasureNativePiTelescopeReification. Its exact component theorem
+recursively applies full-union Pi origin to recover domain paths and the terminal
+body path in the original contexts. Its arbitrary-output theorem additionally
+beta-exposes the entire finite marked Pi prefix, permitting all expansion
+wrappers and beta interleavings. ScopedTelescopeCompute then changes the family
+function's eta-lambda domains and terminal body simultaneously. A separate
+conversion of the original sort-ending native header preserves an exact native
+guard at those same changed domains.
+
+The result covers arbitrary dependent telescope lengths and proof/data domains.
+No original argument or computed image requires native certification. A raw
+prefix can supply the changed family guard through the existing syntactic supply
+rule. The paired-declaration corollary derives both starting guards when the
+family header is literally Pi ds Sort and the fieldless constructor declaration
+is literally Pi ds (etaOpen family). The closed-family corollary supplies all
+typed arguments after a whole generic type history, reaching the exact raw
+instantiated terminal body even when the images have computed independently.
+
+The exact certificate at the changed header belongs to the original family
+head, not automatically to the computed eta-expanded implementation. This matters
+for the remaining induction: after one actual argument is supplied, later
+constructor-type conversions need to be composed with the earlier reified path.
+Administrative beta cleanup alone does not commute that later path. No generic
+substitution closure, whole-type fork joining, or strictly smaller sufficient
+front has been assumed or proved. Literal-header compatibility is explicit;
+ordinary normalized-family typing is still insufficient evidence for it.
+GOAL.md remains open; executable and the original weakN_iff sorry are unchanged.
+
+Validation: 788-job isolated build, 13 public roots audited through all
+transitive types, values including opaque values, constructors and recursor RHSs;
+maximum closure 11,514. All 763 frozen committed/own source hashes match.
+Only propext/Classical.choice/Quot.sound; no forbidden dependency, sorry, or own
+warnings. Artifacts /dev/shm/native-pi-telescope-reification-*. Independent
+projection-history and caller-telescope commits were preserved. No PR extraction.

@@ -11946,3 +11946,37 @@ all audited transitively. Maximum closure 11,370; 770 stable committed/own sourc
 hashes. Only allowed axioms, no forbidden dependencies, sorry or audited-module
 warnings. Artifacts /tmp/carrier-native-caller-telescopes-*. Independent
 uncommitted Pi-telescope work was neither imported nor staged.
+
+### 2026-11-05 06:03:07 UTC — Reify whole Pi histories and retain their changed native domains
+
+**Verdict: proved for arbitrary dependent telescope length, with exact literal
+endpoints and with beta readout of arbitrary endpoints. Interleaved histories
+after partial application remain open.** NativePiTelescopeReification extends
+Pi component origin recursively through every marked binder. It extracts both
+ScopedTelescopeCompute for the domains and the terminal-body computation in the
+original full context. Arbitrary full-union outputs beta-expose the finite marked
+Pi prefix; neither the terminal body nor the whole calculus is normalized.
+
+If that terminal body is the eta opening of an exactly native family function,
+the same paths compute its eta telescope to lambdas with precisely the changed
+domains. The domain paths also convert the original family's exact native guard
+to the changed telescope ending in the original sort. Thus both a function path
+and a native guard retain the same domain vector. Raw prefix supply preserves
+that guard without native certificates for any supplied images. Literal paired
+family/fieldless-constructor declarations supply both starting origins. A closed
+family's whole generic type history also yields an exact terminal instantiation
+at arbitrary dependent typed arguments and independently computed images.
+
+This handles type conversions before argument supply, rather than merely a
+computation of the original terminal body. It does not yet compose type
+conversions after successive partial applications: beta-cleaning the earlier
+type history can create a fork with those later conversions. Nor is the changed
+eta-expanded function itself asserted to retain every native output; the proved
+changed-domain certificate belongs to the original family head. Field suffixes
+and nonliteral normalized family headers still need separate treatment. No
+TypeForkJoin, TypeInstantiationJoin, or strengthening conclusion is claimed.
+
+Validation: 788-job isolated build; 13 public roots, maximum transitive
+closure 11,514; all 763 own/committed source hashes stable. Only allowed
+axioms; no forbidden dependencies, sorry, or own-module warnings. Artifacts:
+/dev/shm/native-pi-telescope-reification-*.
