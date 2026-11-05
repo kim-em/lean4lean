@@ -11074,3 +11074,13 @@ computational telescope/major inversion. Remaining: rigid family argument
 readout, earlier-environment chains for declaration normalization and generic
 data domains, and TypeForkJoin. No strictly smaller sufficient obligation is
 claimed; the original strengthening sorry is unchanged.
+
+### Structural variable certificates for generic data domains — checked progress
+
+Extend HasTypeC with exact variable lookups. Two certificates for one variable
+compare its assigned types computationally, without TypeForkJoin. Identity
+computational telescope typing and the literal data-slot identity now turn
+computational constructor-index typing into SingletonGenericDataDomainChains.
+Remaining: obtain the index certificates from earlier declaration history;
+ordinary typing alone does not supply them. Actual rigid argument readout and
+TypeForkJoin remain open. No strict reduction or complete strengthening result.

@@ -13,7 +13,7 @@ open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params
 variable [Params]
 
 /-- Remaining pattern coverage when both actual endpoints have structural
-constant/application typings with computational conversions, and all realized
+variable/constant/application typings with computational conversions, and all realized
 checks have chains. Strong induction supplies these certificates; this premise
 has not yet been proved for the general data-indexed singleton case. -/
 def ComputationallyTypedPatternClosure (D : PureObservation.Definitions) : Prop :=
@@ -38,7 +38,7 @@ theorem computational_typing_of_strong
   induction H with
   | bvar h1 h2 h3 =>
     have H := (IsDefEqStrong.bvar h1 h2 h3).defeq
-    exact ⟨.refl H, .other not_app_bvar not_const_bvar H, .other not_app_bvar not_const_bvar H⟩
+    exact ⟨.refl H, .bvar h1, .bvar h1⟩
   | symm _ ih =>
     obtain ⟨H, ha, hb⟩ := ih hΓ
     exact ⟨H.symm, hb, ha⟩
@@ -49,8 +49,8 @@ theorem computational_typing_of_strong
   | sortDF h1 h2 h3 =>
     have C := TypedComputationEq.sortDF (D := EnvironmentCore.definitions) hΓ h1 h2 h3
     have H := C.defeq
-    exact ⟨.sortDF hΓ h1 h2 h3, .other not_app_sort not_const_sort H.hasType.1,
-      .other not_app_sort not_const_sort H.hasType.2⟩
+    exact ⟨.sortDF hΓ h1 h2 h3, .other not_app_sort not_const_sort (by intros; intro h; cases h) H.hasType.1,
+      .other not_app_sort not_const_sort (by intros; intro h; cases h) H.hasType.2⟩
   | constDF h1 h2 h3 h4 h5 h6 h7 h8 _ ih8 =>
     have H := (IsDefEqStrong.constDF h1 h2 h3 h4 h5 h6 h7 h8).defeq
     exact ⟨.constDF hΓ h1 h2 h3 h4 h5, .const h1 H.hasType.1,
@@ -66,16 +66,16 @@ theorem computational_typing_of_strong
   | projDF hi hw hu hp hx hf hT ht hm hn hc hg _ ihm ihn =>
     have H := (IsDefEqStrong.projDF hi hw hu hp hx hf hT ht hm hn hc hg).defeq
     exact ⟨((ihm hΓ).1.symm.trans (ihn hΓ).1).proj hΓ H.hasType.1,
-      .other not_app_proj not_const_proj H.hasType.1, .other not_app_proj not_const_proj H.hasType.2⟩
+      .other not_app_proj not_const_proj (by intros; intro h; cases h) H.hasType.1, .other not_app_proj not_const_proj (by intros; intro h; cases h) H.hasType.2⟩
   | lamDF h1 h2 h3 h4 h5 h6 h7 ih3 _ _ ih6 _ =>
     have H := (IsDefEqStrong.lamDF h1 h2 h3 h4 h5 h6 h7).defeq
     exact ⟨.lam hΓ (ih3 hΓ).1 (ih6 ⟨hΓ, _, h3.defeq.hasType.1⟩).1,
-      .other not_app_lam not_const_lam H.hasType.1, .other not_app_lam not_const_lam H.hasType.2⟩
+      .other not_app_lam not_const_lam (by intros; intro h; cases h) H.hasType.1, .other not_app_lam not_const_lam (by intros; intro h; cases h) H.hasType.2⟩
   | forallEDF h1 h2 h3 h4 h5 ih3 ih4 _ =>
     have H := (IsDefEqStrong.forallEDF h1 h2 h3 h4 h5).defeq
     exact ⟨.forallE hΓ (ih3 hΓ).1 (ih4 ⟨hΓ, _, h3.defeq.hasType.1⟩).1,
-      .other not_app_forallE not_const_forallE H.hasType.1,
-      .other not_app_forallE not_const_forallE H.hasType.2⟩
+      .other not_app_forallE not_const_forallE (by intros; intro h; cases h) H.hasType.1,
+      .other not_app_forallE not_const_forallE (by intros; intro h; cases h) H.hasType.2⟩
   | defeqDF h1 h2 h3 ih2 ih3 =>
     have H := (IsDefEqStrong.defeqDF h1 h2 h3).defeq
     obtain ⟨c, j1, j2⟩ := ih3 hΓ
@@ -85,11 +85,11 @@ theorem computational_typing_of_strong
     have H := (IsDefEqStrong.beta h1 h2 h3 h4 h5 h6 h7 h8).defeq
     have hlam := HasType.lam h3.defeq h5.defeq
     exact ⟨.of_beta hΓ H.hasType.1 .beta,
-      .app (.other not_app_lam not_const_lam hlam) (ih6 hΓ).2.1 H.hasType.1, (ih8 hΓ).2.1⟩
+      .app (.other not_app_lam not_const_lam (by intros; intro h; cases h) hlam) (ih6 hΓ).2.1 H.hasType.1, (ih8 hΓ).2.1⟩
   | eta h1 h2 h3 h4 h5 h6 h7 h8 _ _ _ ih6 _ _ =>
     have H := (IsDefEqStrong.eta h1 h2 h3 h4 h5 h6 h7 h8).defeq
     exact ⟨(TypedComputationEq.eta heq EnvironmentCore.sound hΓ h6.defeq).symm,
-      .other not_app_lam not_const_lam H.hasType.1, (ih6 hΓ).2.1⟩
+      .other not_app_lam not_const_lam (by intros; intro h; cases h) H.hasType.1, (ih6 hΓ).2.1⟩
   | proofIrrel h1 h2 h3 _ ih2 ih3 =>
     exact ⟨.proof_irrel h1.defeq h2.defeq h3.defeq, (ih2 hΓ).2.1, (ih3 hΓ).2.1⟩
   | extra h1 h2 h3 h4 h5 h6 h7 h8 h9 _ _ _ ih8 ih9 =>

@@ -23473,3 +23473,39 @@ remained stable, matched isolated copies and, except these five new modules,
 matched committed dependencies. Artifacts: /tmp/carrier-computational-typing-*.
 Executable unchanged. Independent committed wrapper-history work preserved and
 not used by these modules. GOAL.md remains active.
+
+## 2026-11-05 — Generic data domains from structural variable certificates
+
+Verdict: checked progress. HasTypeC now records variables by exact Lookup as
+well as constants and applications; its other-syntax constructor excludes all
+three forms. The simultaneous strong-equality induction still compiles with no
+TypeForkJoin premise. New bvar_inv retains the lookup-to-assignment chain;
+bvar_uniq compares two computational typings of the same variable using literal
+Lookup.uniq and chain composition, without ordinary type uniqueness or joining.
+
+ComputationalTelInst retains these certificates in each telescope slot. Its
+identity instance is structural, using Lookup.reverse_append. The new
+ProofErasureComputationalGenericDomains module derives each generic data-domain
+chain from computational typings of the generic constructor indices: a data
+index and its literal field variable have the same lookup, so their assignments
+are connected by a chain. The chain is retagged at the field's declared sort.
+ComputationalTelInst.generic_data_domains supplies the whole previously named
+SingletonGenericDataDomainChains premise, after which the existing arbitrary-
+occurrence specialization and literal-family/prefix computation apply.
+
+Remaining: constructor-index computational certificates must still be supplied
+from declaration history. Asking for these certificates is not claimed strictly
+weaker than asking for the domain chains, nor is their existence inferred from
+ordinary telescope typing. Actual instance alignment still needs rigid family
+argument readout and constructor-normalization chains; TypeForkJoin remains
+open. This is a concrete interface for the earlier-environment induction, not a
+completion of the strengthening goal or an unconditional elimination of HD.
+
+Validation: isolated 816-job build; all 49 public/generated roots across six
+modules passed complete transitive type, opaque-value and recursor-RHS audit,
+maximum closure 11,549. Only propext, Classical.choice and Quot.sound; no sorry,
+forbidden dependencies or audited-module warnings. All 791 closure sources
+stable and byte-identical to isolated copies; dependencies outside the six
+audited modules equal committed HEAD. Artifacts /tmp/carrier-computational-domains-*.
+Independent uncommitted observer work untouched. Executable and original
+strengthening sorry unchanged; GOAL.md remains active.
