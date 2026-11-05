@@ -13198,3 +13198,36 @@ post-instantiation continuations, multiple/dependent retained parameter
 profiles and general HJ/HF remain unresolved. The result is checked progress
 on the retained-parameter branch, not normalization, strengthening or a
 strictly smaller sufficient obligation.
+
+
+### 2026-11-05 11:05:07 UTC — Construct the common native guard at a reached constructor
+
+Verdict: **checked constructor-reaching square with no common-coverage premise,
+and canonical return for complete selected native histories under a computed
+header**. Typed realization of any whole computation reaching a saturated
+unindexed constructor supplies its literal native family. Fields need neither
+separate histories nor native recovery. A computation of the exposed parameter
+vector converts that family directly.
+
+For one retained unit parameter, an explicit complete path from a looked-up
+unit to the exposed parameter supplies its return to unitCtor. This constructs
+the canonical native family and the assigned-family common path, even when the
+assigned parameter is a different unit variable. The resulting structure square
+has arbitrary source computation up to the constructor and arbitrary major
+computation afterward, with unrestricted dependent fields. It has no native
+output, common coverage, header alignment or parameter-chain-join hypothesis.
+Constructor reachability and parameter ancestry remain explicit.
+
+Under the previously established computed-family-header certificate, every
+native output selected from independently computed constructor parameters and
+fields returns to that same canonical family. Two independent selections and
+their later type continuations therefore join without HF. A literal positive
+phantom-family declaration discharges the header certificate reflexively.
+Beta constant-spine inversion additionally extracts a real return path for a
+parameter exposed by a complete family history, including one selected by a
+constructor native guard; its own forward ancestry need not be assumed.
+
+No blanket constructor reachability, native coverage or preservation through
+arbitrary whole-term histories is proved. Arbitrary dependent-body
+post-instantiation continuations and general HJ/HF remain open. This does not
+restore exact recovery at the old assigned parameter or complete GOAL.md.

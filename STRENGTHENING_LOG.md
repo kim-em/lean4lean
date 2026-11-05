@@ -26188,3 +26188,60 @@ dependency hashes stayed stable. Standard forbidden dependencies plus
 TypeInstantiationJoin, TypeForkJoin, StaticStructureCommonCoverage and
 StaticStructureTypeConversionJoin were rejected. Only propext/Classical.choice/
 Quot.sound; no own-module warning or sorry. Artifacts `/dev/shm/rigid-unit-return-*`.
+
+
+### 2026-11-05 11:05:07 UTC — Constructor endpoints supply common unit-family guards
+
+Added three modules (368 lines). `ProofErasureConstructorImageRecovery.lean`
+proves that an arbitrary complete descending computation ending at a saturated
+unindexed constructor supplies native recovery of the family at its literal
+parameter images. The proof realizes the endpoint as an actual typed term,
+inverts its constant spine and uses the registered constructor walk. Source
+assignment is unrestricted, target native relation is arbitrary, and fields
+need no certificates or independent computation histories. Pointwise paths on
+the exposed parameters then convert the native result.
+
+`ProofErasureConstructorUnitPivot.lean` combines this with full unit return.
+When the exposed retained parameter has a complete computation ancestry from
+a unit lookup, the constructor recovers family(unitCtor). A family assignment
+at another unit lookup computes to that same type, so common native output is
+constructed rather than assumed. The structure square consequently needs no
+common-coverage, native-output, header or parameter-chain-joining premise. It
+allows arbitrary computation of the original major until the constructor,
+arbitrary major computation afterward, and a competing beta predecessor. All
+dependent fields remain unrestricted. Its explicit constructor-reaching path
+and unit-parameter ancestry are not claimed for arbitrary terms.
+
+`ProofErasureConstructorUnitNativeReturn.lean` handles all selected native
+outputs, rather than just the literal family guard. The computed-header origin
+theorem recovers the entire source family history despite conversions before,
+between and after constructor applications. Rigid unit-family return then
+sends the selected output to family(unitCtor). The initial parameter may itself
+be a computed image of a unit lookup. Independent parameter/field histories,
+independent native selections, and arbitrary subsequent type continuations all
+join at this fixed output. The computed-header condition remains explicit; the
+actual literal positive phantom-family declaration is certified by a separate
+reflexive-header lemma. General registration does not supply this condition.
+
+The final parameter-extraction result beta-inverts the literal family spine
+in the operational readout. Any parameter exposed by a complete family
+computation returns to unitCtor. Applying this to a selected constructor-native
+guard derives the guard parameter's path even when native conversions changed
+it. Thus the new selected parameter does not require a separate ancestry
+assumption; the original constructor parameter still has its stated unit
+ancestry and the header certificate remains required.
+
+GOAL.md remains open. These results cover the specified constructor endpoints
+and native histories, not arbitrary whole-term source stability or all
+post-instantiation body continuations. No general HJ/HF, normalization,
+strict-smaller sufficient front or canonical-Eq strengthening is asserted.
+Original sorry and executable unchanged; PR extraction deferred; independent
+untracked files preserved and excluded from imports/staging.
+
+Validation: 869-job isolated build; ten public roots audited through types,
+opaque values, constructor arguments and recursor RHSs; maximum closure
+11,774. All 844 own/frozen dependency hashes stayed stable. Standard
+forbidden dependencies plus TypeInstantiationJoin, TypeForkJoin,
+StaticStructureCommonCoverage and StaticStructureTypeConversionJoin were
+rejected. Only propext/Classical.choice/Quot.sound; no own-module warning or
+sorry. Artifacts `/dev/shm/constructor-unit-pivot-*`.
