@@ -11863,3 +11863,44 @@ Validation: 772-job isolated build; five public roots, maximum transitive
 closure 11,024; all 747 own/committed source hashes stable. Only allowed
 axioms, no forbidden dependency, sorry, or own-module warnings. Existing boundary
 interfaces preserved. Artifacts: /dev/shm/generic-family-boundary-*.
+
+### 2026-11-05 — Projection recipes follow changing recovered parameters
+
+**Verdict: parameter-and-major recipe transport and common-native projection
+tail transfer proved; parameter-chain joins and the source-recipe fork remain
+explicit.** ProofErasureProjectionParameterHistories transports the entire
+closed field template through simultaneous independent computations of its
+parameter vector and major. Source retained-projection typing supplies all
+capture typings and erasure agreement, including earlier proof fields whose
+raw projections need not equal their erased values. No target native images,
+target capture typing, or fixed parameter vector is required.
+
+The projection-tail theorem starts with a pivot that recovers an arbitrary
+common output of the original family. Registered-family value readout exposes
+a new family instance and parameter/index histories. Universe conversion
+aligns its head with the original levels, then actual native replay derives
+major typing at the newly selected argument vector. Only histories in the
+parameter prefix need joins: indices are excluded because the field recipe
+ignores them. Both major paths and both parameter paths reach the same complete
+recipe. Joining its fork with the original conversion tail supplies common
+native recovery for the pivot projection. Thus the previous exact original-
+family guard and same-argument pivot assignment have been removed, including
+for indexed families and arbitrary dependent fields. The final raw major and
+recipe need no native certificate. The result supplies the common native type
+input needed by the existing function-eta pivot square.
+
+The first attempted route was to apply native telescope reification directly
+to an arbitrary projection-type template. Its generic-application shape and
+exact head guard are not supplied by template typing; choosing a lambda for
+the head recreates the original beta fork. The newly committed generic-family
+boundary also explicitly refutes exact head recovery from ordinary converted
+family-function typing. This does not refute TypeInstantiationJoin, whose two
+full-computation residuals remain allowed. No global type-fork result, complete
+historical-context closure, strengthening, or strict-smallness claim is made.
+
+Validation: one new module, 828-job isolated build; all 12 public/generated
+roots audited transitively, maximum closure 11,520; 803 committed/own closure
+source hashes stable. Only allowed axioms, no forbidden dependency, sorry or
+own-module warning. Artifacts /tmp/carrier-projection-parameter-histories-*.
+Independent boundary changes were preserved and not imported while uncommitted.
+Executable and original strengthening sorry are unchanged.
