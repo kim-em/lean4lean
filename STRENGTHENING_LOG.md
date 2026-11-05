@@ -25721,3 +25721,59 @@ StaticStructureCommonCoverage and StaticStructureTypeConversionJoin, confirming
 that this readout has none of those dependencies. Allowed axioms only; no sorry
 or own-module warning. Artifacts `/tmp/carrier-type-wrapper-readout-*`.
 Independent uncommitted sources were neither imported nor staged.
+
+
+### 2026-11-05 09:01:45 UTC — Matching family/constructor checkpoints from common headers
+
+Added four modules, 391 lines. `ProofErasureCommonHeaderReadout.lean` proves
+that every computed sort-ending header can continue to a typed literal header
+with the same parameter count and original result universe. Exact Pi readout
+retains the parameter paths; sort readout supplies a context-independent beta
+cleanup and level conversion at the terminal sort. Typed realization recovers
+actual parameter syntax. Given a shared reduct, the same cleanup continues
+both incoming paths, so no join-composition or confluence premise is used.
+Its retarget-body theorem reuses those domain paths around any typed tail;
+ordinary context conversion derives the tail's target typing and identical
+erasure, including tails containing dependent fields.
+
+`ProofErasureCommonStructureHeader.lean` defines a per-declaration common
+header condition. ComputedStructureFamilyHeader implies it, and the opposite
+header-computation direction also suffices. A common output need not already
+be a literal telescope or have separate typing evidence: checkpoint readout
+constructs both. The actual family constant has an ordinary assignment and
+exact native recovery at that checkpoint in every well-formed context, which
+starts NativeFamilyPiHistory. Supplying any raw parameter-image vector of the
+right arity constructs exact native recovery of the result sort; no image
+native premise is introduced.
+
+`ProofErasureCommonConstructorCheckpoint.lean` applies the same common
+parameter checkpoint to an actual registered unindexed constructor. Registration
+provides its raw parameter/field split; the retarget-body theorem preserves its
+entire dependent field tail. The stored constructor type computes forward to
+the new matching telescope, and the actual constructor constant has both an
+ordinary assignment and selected native recovery there. The family's matching
+native history is returned with it. This aligns both declarations, not merely
+the family header in isolation.
+
+`ProofErasureCommonHeaderExample.lean` installs the previous fixed unit-index
+example and proves CommonStructureFamilyHeader together with failure of
+ComputedStructureFamilyHeader in the same well-formed canonical-Eq extension
+and full EnvironmentCore. It therefore demonstrates additional real registered
+prefixes covered by the common checkpoint condition.
+
+The remaining universal step is not hidden: selected native histories may
+branch before the checkpoint or interleave conversions and argument supply.
+No theorem here joins every such history to the checkpoint or proves all
+ordinarily aligned headers have a common reduct. Conditional exact-ancestry
+results remain unchanged; TypeForkJoin, TypeInstantiationJoin and canonical-Eq
+strengthening remain open. No sufficient strictly smaller obligation relative
+to PropFront or GOAL.md completion is claimed. The original weakN_iff sorry
+and executable are unchanged; PR extraction deferred. Independent work was
+preserved, and only committed dependencies were imported.
+
+Validation: 871-job isolated build; all 12 public roots audited through
+types, opaque values, constructors and recursor RHSs; maximum closure
+11,778. All 846 source hashes matched own source or committed dependencies
+and stayed stable. Only propext/Classical.choice/Quot.sound; no forbidden
+dependency, sorry, or own-module warning. Artifacts
+`/dev/shm/common-header-checkpoint-*`.

@@ -12919,3 +12919,30 @@ StaticStructureCommonCoverage and StaticStructureTypeConversionJoin, confirming
 that this readout has none of those dependencies. Allowed axioms only; no sorry
 or own-module warning. Artifacts `/tmp/carrier-type-wrapper-readout-*`.
 Independent uncommitted sources were neither imported nor staged.
+
+
+### 2026-11-05 09:01:45 UTC — Common header reducts yield matching native declaration checkpoints
+
+**Checked positive replacement for the refuted directed condition.** A common
+reduct of a sort-ending parameter header and another endpoint can be continued
+to an actual typed literal header with the same arity and original result
+universe. Pi readout exposes the marked prefix; terminal sort readout removes
+only administrative frames and level conversion. No normalization of parameter
+domains, confluence, TypeForkJoin, or TypeInstantiationJoin is assumed.
+
+`CommonStructureFamilyHeader` asks for a shared reduct rather than a directed
+path to the constructor's original prefix. It implies a native family history
+at a typed common checkpoint. The same parameter-domain paths retarget the
+actual registered constructor's entire dependent field tail, yielding matching
+ordinary and native checkpoints for both constant heads. All raw parameter
+images can also be supplied to recover a native sort. The registered example
+from 1a53209c satisfies this common condition while failing the directed one,
+so the replacement covers a checked additional declaration class.
+
+**Remaining gap:** arbitrary native histories may have selected conversions
+or arguments before the common checkpoint. The new result does not identify,
+reverse, discard, or join those earlier branches. Universal header joining and
+joining those selected histories remain open. This is not a sufficient strictly
+smaller strengthening obligation; the strictly weaker comparison here concerns
+only the two declaration-alignment conditions. GOAL.md remains open and PR
+extraction remains deferred.
