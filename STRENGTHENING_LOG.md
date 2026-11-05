@@ -26292,3 +26292,53 @@ plus TypeForkJoin, TypeInstantiationJoin, StaticStructureCommonCoverage and
 StaticStructureTypeConversionJoin were rejected. Only propext/Classical.choice/
 Quot.sound; no own-module warning or sorry. Artifacts
 `/dev/shm/constructor-rounds-*`.
+
+
+### 2026-11-05 11:27:57 UTC — Historical wrappers and constructor expansions interleave
+
+Added two modules (335 lines). `ProofErasureConstructorFrames.lean` first proves
+`computed_constructor_registered_guard_shape`: if any full descending
+computation reaches a monomorphic registered constructor, every registered
+native guard selected at the original source uses that family and an empty
+universe instance. The guard's ordinary typed replay is computed to the same
+endpoint; native literal-family recovery there and ordinary type uniqueness
+provide rigid-head inversion. No guard is assumed to survive the path.
+
+`ConstructorFrameHistory` combines a constructor-family state with nested
+constant and identity frames. Identity frames retain ordinary argument typing
+and the selected annotation's separate forward family ancestry. All frames
+have ordinary witnesses and beta-read a constructor state. Their native outputs
+follow the original family origin: constant frames use lower-body native
+recovery, identity frames use their stored annotation's complete computation.
+Structure expansion may consume any such whole frame. Guard-shape inversion
+fixes the family/metadata/instance, the native history supplies the new
+parameter ancestry, and typed realization validates the new constructor.
+Masked fields project the entire framed major, not merely the beta payload.
+
+`ProofErasureConstructorFrameDevelopment.lean` gives marked frame syntax,
+validity, and actual evolution steps. Arbitrary constructor rounds at leaves
+interleave with constant/identity creation, contraction, annotation computation,
+recursive payload evolution, and structure expansion of any current whole
+frame. The simulation theorem proves both preservation and actual full-union
+computation. The transitive closure permits unbounded finite alternation and
+nesting. Independent major developments and native selections, followed by
+arbitrary type computations, join at the canonical unit-family type.
+
+Identity guard refresh is deliberately absent after argument computation:
+ordinary typing survives while the historical annotation path is retained.
+The initial unit-family origin and computed-header certificate remain explicit.
+The grammar does not cover arbitrary computation of control functions or
+constructor prefixes. Those require a richer operational readout, not an
+assertion that all paths preserve literal frame shape. General HF/HJ and the
+full GOAL.md deliverable remain open. Original sorry and executable unchanged;
+PR extraction deferred; independent untracked modules preserved and excluded.
+
+Validation: 871-job isolated build; 40 public roots, including all new
+constructors and recursors, audited through types, opaque values, constructor
+arguments and recursor RHSs; maximum closure 11,862. All 846 own/frozen
+source hashes stayed stable. Standard forbidden dependencies plus TypeForkJoin,
+TypeInstantiationJoin, StaticStructureCommonCoverage and
+StaticStructureTypeConversionJoin were rejected; only propext/Classical.choice/
+Quot.sound, with no own-module warning or sorry. The audit-root generator was
+corrected to ignore declaration-like words in block comments. Artifacts
+`/dev/shm/constructor-frames-*`.

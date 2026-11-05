@@ -13265,3 +13265,38 @@ expansion immediately leaves the constructor spine. A future extension must
 represent those wrappers and their computations, not assume constructor shape
 is preserved. No general fork joining, strictly smaller sufficient front,
 or canonical-Eq strengthening follows yet; GOAL.md remains open.
+
+
+### 2026-11-05 11:27:57 UTC — Let structure expansion consume historical constructor frames
+
+Verdict: **checked family ancestry and canonical type joins through repeated
+constructor/constant/identity developments**. An identity frame stores the
+ancestry of its annotation when its native guard is selected. Its argument may
+then compute and lose recovery at that annotation. Ordinary typing of the
+argument survives, and every native output of the identity still descends
+from the stored annotation. Constant frames inherit the payload's histories.
+This reuses the existing wrapper-origin lemmas rather than assuming exact
+native recovery survives beta contraction.
+
+The new connection is root structure expansion of the entire framed major.
+Beta readout exposes a constructor payload. Ordinary typing across that readout
+forces the selected structure guard to use the same family and empty universe
+instance; no native guard is transported through contraction. The frame's
+native-output ancestry then becomes the new constructor parameter's family
+ancestry. Its fields project the entire framed source, including arbitrary
+retained dependent fields. Subsequent rounds and further wrappers can repeat
+without bounds on nesting, guard depth or expansion count.
+
+A separate guard-shape theorem works for an arbitrary whole computation to a
+monomorphic constructor, not just beta readout. It proves family and instance
+identity by ordinary realization and rigid-head inversion, without forward
+native stability. Finite frame developments are actual full-union computations;
+independent developments/native selections/later type continuations return to
+one canonical unit-family type.
+
+The computed-header certificate and initial unit-family ancestry remain
+explicit. Arbitrary computation of a frame's control function or of constructor
+prefix functions is not represented by the literal frame grammar. Thus this
+extends the previous invariant across a real class of whole-major shape changes
+but does not establish general continuation coverage, HF/HJ, strict smallness,
+or canonical-Eq strengthening. GOAL.md remains open.
