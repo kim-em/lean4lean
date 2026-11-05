@@ -14169,3 +14169,44 @@ constructors/recursors, maximum closure 11,850, 863 frozen hashes,
 standard axioms only, and no own warnings or forbidden dependencies.
 The next commit supplies the closed stage induction and concrete wrapped-oracle
 join. General strengthening is still open. No PRs or executable changes.
+
+## 2026-11-05 18:23:47 UTC — Resolve the proof-domain wrapper obstruction through full native histories
+
+Verdict: checked strict extension of the observation grammar, NOT a strict
+reduction of PropositionFront. Independent rigid-family preservation discharges
+FamilyPreserves at every enriched stage and at the full union. The joint native
+induction therefore retains every actual selected native type, including its
+conversion tail, after arbitrary term computation. dependent_family_head uses
+ordinary carrier equality and rigid-family injectivity to fix the monomorphic
+universe instance before arbitrary raw substitution. Type-only readout then
+supplies the same canonical native/assigned join as before.
+
+RigidDemandProfile.Obs.typed_wrapper observes a type-valued beta application
+with ANY ordinary typed displayed domain and argument, provided its body has
+independent family evidence. Domains may be open or Prop; the body may depend
+on the argument. wrapped_family_evidence specializes this to Family p and
+obtains carrier equality from typed beta plus singleton parameter equality.
+No native certificate for the supplied argument is required.
+
+wrapped_record_input accepts actual lookup at any full computational descendant
+of that wrapped annotation. wrapped_record_environment_native_assigned_join
+covers arbitrary subsequent term/native/type histories, arbitrary raw
+substitution and independent assigned-family computation in another context.
+All observer, native-coverage and target-telescope premises are discharged from
+ordinary input typing, annotation provenance and actual stored declaration data.
+proof_wrapper_strict_extension checks that the exact proof-domain wrapper
+rejected by the old grammar is admitted by the new one; the old rejection proof
+is retained and used in the comparison.
+
+Boundary: this resolves the identified beta-wrapper limitation for record-type
+annotations. It does not prove arbitrary conversion-to-observation completeness,
+all source term coverage, generic alias unfolding, or general strengthening.
+Next: add computational unfolding provenance to the independent family observer
+or derive an equivalent residual interface; arbitrary opaque equality is still
+not admissible. Nested dependent wrappers already fit the typed_wrapper lemma,
+so repeating the old positive-domain approximation is unnecessary.
+
+Result commit: five modules, 641 lines. Complete batch: 12 modules, 1,193 lines;
+888 isolated build jobs, 62 audited roots, maximum closure 11,850,
+863 frozen source hashes. Only standard axioms; no own warnings or forbidden
+dependencies. No PRs, executable changes or coordination. GOAL.md remains open.

@@ -27356,3 +27356,43 @@ No own warnings or forbidden strengthening/sorry/framework/exposure/coverage/for
 dependencies. The result commit supplies stage preservation, monomorphic head
 readout and concrete dependent beta-wrapped oracle inputs. Existing sources,
 original strengthening sorry, and executable are unchanged.
+
+## 2026-11-05 18:23:47 UTC — Full dependent-family native readout and wrapped-oracle joins
+
+Added RegisteredNative, Primitives, Stages, Readout and Input (five modules,
+641 lines). With the core commit the batch is 12 modules and 1,193 Lean lines.
+
+family_preserves_stage/union use the independent dependent rigid-head observer,
+not the joint native induction being established. This closes the extra
+FamilyPreserves parameter in full_compute/full_native. Primitive rigid-root
+exclusion uses that independent head evidence; type keys rule out incompatible
+eta/structure roots. Native identity obtains its annotation through the closed
+previous-stage native induction exactly as in the original observer.
+
+dependent_family_head beta-replays the independent head readout into the actual
+typed annotation. Ordinary record-carrier equality and registered-family
+injectivity force the level vector to be empty. The beta path can then be
+substituted by ANY raw substitution. This discharges the new leaf in type-only
+realization and the complete native/assigned join.
+
+Obs.typed_wrapper handles arbitrary dependent type-valued beta wrappers, with
+ignored argument demands even for Prop or open domains. wrapped_family_evidence
+combines its operational evidence with typed beta and UnitArrows.value_equal.
+independent_record_input initializes the exact lookup oracle. wrapped_record_input
+also permits any full annotation computation before storage. The final actual
+environment theorem joins all later native histories after arbitrary raw
+substitution with an independently computed assigned family.
+
+proof_wrapper_strict_extension explicitly pairs acceptance by the new grammar
+with the previously checked rejection by the old one. Thus the last turn's
+obstruction has been repaired without assuming ordinary-equality completeness.
+This is a statement about observation grammars, not strict-smallness relative to
+PropositionFront. Generic unfolding aliases and full ordinary-conversion
+coverage remain open, as does IsDefEqU.weakN_iff.
+
+Validation: 888 isolated build jobs; 62 roots including every constructor and
+recursor audited through types, opaque values, inductive constructors and
+recursor RHSs; maximum closure 11,850; 863 source hashes unchanged. Only
+propext/Classical.choice/Quot.sound, no own warnings, and all forbidden dependency
+exclusions passed. Original sorry/executable unchanged; independent untracked
+files excluded. No PR extraction or coordination.
