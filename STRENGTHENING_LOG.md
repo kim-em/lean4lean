@@ -26653,3 +26653,67 @@ recursor RHSs were audited with all standard strengthening/sorry exclusions
 plus TypeForkJoin, TypeInstantiationJoin, StaticStructureCommonCoverage and
 StaticStructureTypeConversionJoin. Only propext/Classical.choice/Quot.sound;
 no own-module warnings or sorry. Artifacts: /dev/shm/unit-constructor-control-*.
+
+
+### 2026-11-05 13:54:01 UTC — Joint constructor demands connect bodies, annotations and native recovery
+
+Previous goal turn: progress, committed/pushed as 2a99aaf4. Revalidated that HEAD
+and the two independent untracked files before beginning this continuation.
+Added eight modules (774 lines) for the annotation/native-parameter gap.
+
+ConstructorDemandKeys defines finite unit, record, function and type keys.
+A function key stores its input HeterogeneousControl type as well as its finite
+input keys; type keys retain their value key. TypeEquality carries ordinary
+annotation equality at a closed carrier, with substitution, computation, fresh
+variable typing and lambda-domain extraction. It supplies no directed history.
+
+ConstructorDemandObservation links term and native-type observations. Lambdas
+store a type observation for every demanded input; Pi payloads store those same
+input observations and the dependent result observation under the fresh binder.
+The unit-carrier and universe cases are opaque ordinary equalities, while the
+record-family constant demands its unit parameter. All node typings remain
+ordinary, and there is no arbitrary-equal-record-type payload rule.
+
+ConstructorDemandSubstitution proves ordinary demanded substitution through
+both kinds of binders, root beta, literal Pi readout and dependent codomain
+instantiation. Literal Tag p readout extracts an observed unit p. The application
+native theorem uses that instantiation and retains the complete native
+conversion tail, whose type-preservation premise is stated explicitly.
+
+ConstructorDemandFrames handles constant wrappers unconditionally, native
+identity/eta given observed actual guard types, and lambda native recovery
+given its body induction and type-conversion premises. ConstructorDemandTransport
+extends typed and native valuations at actual annotations and proves compatible
+computation from an explicit primitive-preservation premise, including beta,
+Pi codomains and context conversion at changed lambda/Pi domains.
+
+ConstructorDemandNative completes the native-recovery induction for every
+observation constructor, conditional on observed type computation and native
+headers of the two fixed functions. The header premises include ordinary source
+typing, so they do not demand observations in unrealizable raw contexts. The
+resulting selected Tag p guard theorem gives the unit observation required by a
+record-structure expansion without assuming any exact native certificate for p.
+
+ConstructorDemandRegistration constructs both carriers and the observed stored
+constructor header from actual registered metadata. Its Pi body retains Tag #0;
+substitution supplies the pending unit value instead of asserting a fixed lower
+type history for that fresh-dependent codomain. Bare-constructor native recovery
+therefore reduces to observed type computation along the actual declaration tail.
+
+Boundary: no unconditional full-union native/primitive preservation is claimed.
+The computation theorem and native theorem expose complementary induction
+premises, not a solved global fixed point. The family constant's native header
+and all enriched stage roots still need discharge. An ordinary Pi assignment
+alone must not be mistaken for an observed stored header. Next investigate an
+opaque certificate for the special family-to-universe function type, then close
+the finite-stage induction and actual structure roots. General HF/HJ, strict
+smallness, and GOAL.md remain open; original sorry and executable unchanged.
+No PR extraction; independent untracked modules preserved and excluded.
+
+Validation: isolated 825-job build; 58 public roots including all new
+constructors and recursors; maximum dependency closure 8,742; 800
+own/frozen source hashes unchanged. Types, opaque values, constructor fields
+and recursor RHSs audited with standard strengthening/sorry exclusions plus
+TypeForkJoin, TypeInstantiationJoin, StaticStructureCommonCoverage and
+StaticStructureTypeConversionJoin. Only propext/Classical.choice/Quot.sound;
+no own-module warnings or sorry. Artifacts: /dev/shm/constructor-demand-*.

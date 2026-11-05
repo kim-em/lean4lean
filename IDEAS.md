@@ -13529,3 +13529,44 @@ Next: combine construction/annotation provenance with the two-carrier observer
 and address native parameter selection before claiming full-union preservation.
 Do not replace that obligation with an unproved root-preservation hypothesis.
 General HF/HJ, strict smallness, and GOAL.md remain open.
+
+
+### 2026-11-05 13:54:01 UTC — Joint value/type keys retain dependent parameter demands
+
+Verdict: built and checked the missing substitution and native-induction
+interface. A finite type key retains its value key, and every function key
+retains its input carrier even when its input-demand list is empty. This is
+not yet full-union preservation or a new strictly smaller sufficient front.
+
+The previous ordinary two-carrier observer retained bodies but did not constrain
+native annotations. ConstructorDemand now stores observed type keys on demanded
+lambda inputs and the corresponding dependent result key under a Pi binder.
+Unit types and universes use ordinary TypeEquality witnesses; record-family
+types keep their unit parameters operationally. TypeEquality alone is never
+used to assert dependent parameter provenance.
+
+Ordinary interpreted substitution supplies actual value observations to both
+term bodies and native Pi codomains. Beta, compatible computation, and changed
+annotations preserve the joint observer when primitive roots preserve it.
+The native valuation extends from the actual observed binder annotation.
+The native-recovery induction is checked for every observation constructor,
+conditional on type-observation computation preservation and the two function
+headers. Its application case uses the current argument's value demand, not
+exact recovery at the selected native domain. Its selected Tag p readout yields
+an observed unit p under exactly those explicit premises.
+
+Actual registered positive unit/phantom metadata supplies the constructor's
+initial observed dependent header Pi S (Tag #0), including the retained fresh
+parameter that defeated fixed lower-origin demands. Constructor native recovery
+then reduces to preservation along its real stored-header conversion tail.
+Identity and eta preserve joint demands when their actual native guards carry
+the corresponding type observations; constant wrappers need no input demand.
+
+Remaining deep step: discharge primitive and type-computation preservation
+stage by stage, together with native function headers. In particular, the
+family constant's stored header need not be syntactically canonical merely
+because an ordinary Pi typing is available. Investigate an opaque ordinary
+certificate for its special universe-valued function type, or use a proved
+stored-header observation; do not silently assume exact family-header recovery.
+Then handle actual unit/record structure roots using native parameter readout.
+General HF/HJ, strict smallness and GOAL.md remain open.
