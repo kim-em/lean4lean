@@ -28576,3 +28576,39 @@ irreducible obligation is established. General common-mode/higher-stage
 extraction, remaining paired exposure, singleton simulation and type-rooted
 confluence are not closed by this change. Executable unchanged; no coordination
 or PR extraction. GOAL.md remains active with its original objective.
+
+### 2026-11-05 22:48:55 UTC — Pi domain extraction and native lambda annotation recovery
+
+ProofErasureMarkedPiTrace adds a payload predicate indexed by temporary binder
+depth and pending ignored arguments. Fixed-tail substitution, lifting, beta,
+constant expansion and positive-arity eta preserve this trace. Its identical
+syntax inversion recovers a shared payload. Compatible computation uses typed
+replay and the existing same-stage Pi origin component closure.
+
+ProofErasurePiDomainPayload descends a comparison of lifted selected domains
+through temporary controls, first converting sort-typed comparisons to inferred
+mode. Prefixing both original histories gives an inferred domain check without
+requiring equal universes. ProofErasurePiDomainComparison follows marked traces
+through every inferred comparison constructor. Application follows its function
+premise; control lambdas extend the temporary prefix; payload Pis use the domain
+lemma; eta transfers the positive-arity trace; computation preserves payloads.
+Sort typing converts either outer mode, so stage_zero_computed_pi_domains_compare
+covers arbitrary stage-zero computations from independently typed Pis, followed
+by an arbitrary computed comparison. stage_zero_pi_domains_compare specializes
+to the original Pi erasures.
+
+ProofErasureNativePiDomainComparison replays natively selected Pi outputs of
+actual lambdas, extracts their selected-domain checks, and prefixes the written
+domain histories retained by native lambda recovery. The resulting written
+annotation comparison supplies the domain premise of inferred etaLams. The
+selected Pi comparison is still required; actual type equality alone supplies
+no such certificate. This is not general carrier alignment or completeness.
+
+Validation: 786 isolated build jobs; 30 public/generated roots audited
+through types, opaque bodies, inductive constructors and recursor RHSs; maximum
+closure 11,275; 761 frozen source/import hashes unchanged. Allowed axioms
+only, no forbidden dependencies or own-module warnings. All validation processes
+terminated normally. Original weakN_iff sorry remains at UniqueTyping.lean:94;
+no canonical-Eq counterexample or strictly smaller sufficient irreducible
+obligation has been established. Executable unchanged; no PR extraction or
+coordination. GOAL.md remains active.

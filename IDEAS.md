@@ -15135,3 +15135,25 @@ comparison to its exposed endpoint; that integration is still needed. Full
 strengthening, general common-mode extraction and higher-stage extraction remain
 open. Validation: 878 jobs; 17 roots; maximum closure 11,682; 853
 frozen hashes; standard axioms only, no forbidden dependencies or own warnings.
+
+### 2026-11-05 22:48:55 UTC — Marked Pi traces recover domain checks through control computation
+
+Verdict: proved. Pending ignored control arguments distinguish payload Pis from
+control lambdas, allowing the full inferred comparison induction to follow the
+smaller function check in each application constructor. Sort-typed mode
+conversion admits either original comparison mode. At payload Pis, certificate
+descent removes temporary prefixes and retained component histories recover an
+inferred comparison of the original domains. Original domains, codomains and
+universes are independently typed; no agreement premise is assumed.
+
+Native Pi output comparisons now recover checks of written lambda annotations:
+replay realizes selected Pis, domain extraction compares their selected domains,
+and retained native-lambda domain histories prefix that check. Displayed eta
+between those lambdas therefore yields inferred comparison without a separately
+supplied written-annotation check. The selected Pi comparison remains an explicit
+premise; ordinary equality of their types is not comparison completeness.
+
+Validation: 786 isolated build jobs, 30 public/generated roots, maximum
+closure 11,275, all 761 frozen source/import hashes unchanged. Only standard
+axioms; no forbidden dependencies or own-module warnings. Codomain extraction,
+remaining paired exposure, higher stages and strengthening remain open.
