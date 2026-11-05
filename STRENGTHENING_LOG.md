@@ -22900,3 +22900,61 @@ no configured forbidden dependencies, sorry sources or new module warnings.
 All 781 closure source hashes stayed stable and matched isolated copies byte for
 byte. Artifacts: /tmp/carrier-unindexed-pattern-*. Independent work preserved;
 executable unchanged; no coordination. Goal active, not complete or blocked.
+
+
+## Identity beta/eta peaks force eta-aware residuals (2026-11-05 01:41:30 UTC)
+
+Verdict: generalized the existing identity beta/eta obstruction to arbitrary
+ordinary type conversion, and strengthened its separation from the level core
+to the entire non-eta expansion union at arbitrary guard depth. One typed
+identity beta step and one native function-eta expansion with a stage-zero
+guard have no common reduct in that non-eta union. The very same two branches explicitly join at the
+first static structure/function-eta stage. Thus this is not a counterexample
+to full-union confluence or canonical-Eq strengthening.
+
+The general construction accepts any ordinary equality A = B : Sort u. Let
+f be fun _:A => Prop, assign it the converted function type forall _:B, Type,
+and apply the identity function at that assigned type to f. The identity redex
+recovers the assigned Pi exactly using only lookup/lambda/application recovery;
+no native evidence for f is used. Beta exposes the literal A annotation. Native
+eta selects B, and finite beta cleanup restores exactly the constant Prop body.
+Level-core lambda inversion proves an exact equivalence: the two branches have
+a level-core join if and only if the erasures of A and B do.
+
+Consequently BetaEtaCoreForkJoin, explicitly documented as a false proposed
+invariant, would imply level-core completeness for arbitrary type conversion.
+The concrete counterexample instantiates the domains with the existing neutral
+eta pair F f and F (fun x => f x). Its pure-erasure beta/universe separation
+excludes every non-eta expansion-union join, for every definition collection.
+Pure compatible expansion would give a beta/universe join of the two lambda
+branches; beta cleanup and lambda inversion would then give the impossible
+beta/universe join of the two domains. The available
+native eta step on f instead computes the first domain to the second at stage
+one. Compatible lambda computation on the beta branch and beta cleanup on the
+eta branch give the explicit stage-one common reduct. All context and source
+typings are supplied, so the example persists in canonical-Eq environments.
+
+The concrete core counterexample and its eta repair were already established
+in ProofErasureEtaBetaPiBoundary.lean. This entry does not claim that example
+as new: the additional results are the arbitrary-conversion construction and
+exact level-core equivalence, plus nonjoinability in the full non-eta union.
+
+This identifies the exact excluded case of the earlier BetaLambdaReadout
+result: beta creates a lambda by substituting it for a variable carrying a
+converted function assignment. The previous literal-lambda-wrapper theorem
+tracks a syntactically present lambda through substitutions and remains valid.
+The new result rules out core-only residuals even at the first guarded layer;
+it does not refute a stage induction using eta-aware residuals or an induction
+that also tracks the source's typing conversions. Next work must preserve that
+information, rather than treating lower native guard depth as a sufficient
+core-joining invariant. General type-fork joining and strengthening remain open.
+
+Validation: one module, five public roots; isolated 784-job build against
+committed dependency sources and full transitive declaration audits through
+types, opaque values, constructors and recursor rules (maximum 8,595).
+Only propext, Classical.choice and Quot.sound; no configured forbidden
+dependencies or new-module warnings. Dependency source hashes checked against
+the committed tree before committing. Artifacts /dev/shm/identity-eta-peak-*.
+Independent work preserved; executable unchanged; no coordination or PR extraction.
+GOAL.md remains active; this is evidence changing the confluence strategy, not
+one of the goal's completed deliverables.
