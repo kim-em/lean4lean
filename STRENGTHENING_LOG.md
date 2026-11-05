@@ -26762,3 +26762,51 @@ weakN_iff/weakN_inv/sorryAx and all prior circular frameworks, additionally
 TypeForkJoin, TypeInstantiationJoin, StaticStructureCommonCoverage and
 StaticStructureTypeConversionJoin. Only propext/Classical.choice/Quot.sound;
 no warnings in owned modules. Artifacts: /dev/shm/constructor-demand-stages-*.
+
+
+## 2026-11-05 14:42:13 UTC — Full native return with higher-order and arbitrary ignored inputs
+
+Added ConstructorDemandSemantics, UnitArrows, ProgramReturn and IgnoredInput.
+Computes interprets the same finite keys by full compatible computation to the
+canonical unit/record/family instances, with functions quantified over realized
+arguments. Obs.computes proves this interpretation for arbitrary raw substitutions
+at a fixed output context. It does not assert general primitive substitution
+stability, confluence or beta normalization of supplied images.
+
+UnitArrows represents finite simple types over the positive unit carrier. Its
+key/control compatibility, native-header observation and erasure facts are
+proved recursively. Actual lookup supplies both observer valuations and the
+computational interpretation, including arbitrary finite-order function types.
+Native application ignores argument recovery; the final unit structure rule
+supplies the canonical result. UnitInputs includes all such actual lookups in
+an otherwise arbitrary well-formed context.
+
+program_return and program_native_return combine those valuations with the
+previous full-union preservation theorems. Obs.construct attaches the actual
+registered constructor to an observed unit program. unit_call_native_return
+is a concrete mk (f x) instance with no observation premise: f and x are actual
+lookups, x may have any finite simple function order, and every whole-term,
+native-recovery and subsequent type history is unrestricted.
+
+ignored_input_native_return strengthens the input side further. Here f is
+looked up at a literal arrow from ANY closed heterogeneous control carrier to
+the unit. x only needs ordinary typing at that carrier; an empty input-demand
+list avoids all provenance/native/normalization premises for x. The result after
+the same three arbitrary histories computes to Tag unitCtor. Its EnvironmentCore
+wrapper removes all external no-unfold exclusions.
+
+Scope remains explicit: retained family parameter is still the unit-valued
+result f x, not the higher-order argument x itself. Retaining arbitrary function
+parameters through a dependent family still needs new result-type demands;
+arbitrary converted lookup assignments still require the general joining work.
+The original weakN_iff sorry and executable are unchanged. No strengthening
+proof, canonical-Eq counterexample or strict-smallness deliverable yet. No PRs;
+independent untracked computation-count/primitive-descent modules preserved.
+
+Validation: 833-job isolated build; 29 public/constructor/recursor roots;
+maximum dependency closure 11,529; 808 unchanged own/frozen source hashes.
+Audit covers types, opaque bodies, constructor types and recursor RHSs, excluding
+weakN_iff/weakN_inv/sorryAx, the prior circular frameworks, TypeForkJoin,
+TypeInstantiationJoin, StaticStructureCommonCoverage and
+StaticStructureTypeConversionJoin. Only propext/Classical.choice/Quot.sound;
+no own-module diagnostics. Artifacts: /dev/shm/constructor-demand-semantics-*.

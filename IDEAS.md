@@ -13611,3 +13611,49 @@ executable unchanged; no PR extraction.
 
 Validation: 831-job isolated build, 86 audited roots, maximum closure
 11,540, 806 own/frozen source hashes, only the three standard axioms.
+
+
+## 2026-11-05 14:42:13 UTC — Computational demands admit higher-order and opaque unit-producing inputs
+
+Verdict: checked a stronger input interpretation for the completed joint
+observer. It no longer requires every free demand to beta-reduce to one selected
+unit variable or constructor. Free demands can instead supply actual full-union
+computations. This admits calls to arbitrary finite-order simple-unit functions,
+and separately completely unobserved ordinary typed arguments to a unit-valued
+free function. The original registered unit/fieldless-record signature remains.
+
+ConstructorDemandSemantics defines computational realizability for unit, record,
+function and dependent family-type keys. The observer's substitution theorem for
+this interpretation uses only compatible beta and supplied free realizations;
+it does not assume arbitrary substitution stability of enriched primitives.
+Full computation preservation is applied before semantic readout. Thus later
+structure, eta, beta and native-conversion interleavings are all covered.
+
+ConstructorDemandUnitArrows builds the native type observation and computational
+realization from literal simple-type lookup, at unbounded finite function order.
+Native application supplies the result header without recovering its argument;
+at the terminal unit, actual structure expansion supplies the canonical value.
+ProgramReturn initializes every simple-unit free lookup and proves full program
+and native return. Its concrete mk (f x) theorem has only actual lookups, metadata
+and computation histories, with x's simple function order unrestricted.
+
+A stronger ignored-input experiment succeeds: f's actual lookup at A -> Unit
+permits an empty argument-demand list. Consequently x can be ANY ordinarily
+typed term at the closed control carrier A. No observer derivation, native
+certificate, normalization assumption or computational history for x is needed.
+The complete mk (f x) / native / type continuation still reaches Tag unitCtor;
+EnvironmentCore discharges the rigid no-unfold conditions automatically.
+
+Boundary: this is a higher-order computation producing a retained UNIT
+parameter, not yet a family that retains an arbitrary function parameter.
+Nor does it initialize demands from arbitrary convertible assignments: literal
+lookup headers supply the crucial native annotations. General variable coverage
+would already imply the full proposition front (CommonCoverageFront); it cannot
+be silently substituted for that lookup condition. The next genuine extension
+must retain function parameters and their chosen domains through family types,
+or establish the general type-fork/conversion joins directly. No strictly
+smaller sufficient strengthening gap is claimed; GOAL.md remains open.
+
+Validation: 833-job isolated build; 29 roots including UnitArrows constructors
+and recursor; maximum closure 11,529; 808 fixed source hashes. Only the
+three standard axioms and no forbidden strengthening/join dependencies.
