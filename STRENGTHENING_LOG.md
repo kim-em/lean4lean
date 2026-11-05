@@ -22809,3 +22809,60 @@ dependencies or new-module warnings. Dependency source hashes checked against
 the committed tree before committing. Artifacts /dev/shm/native-level-coherence-*.
 Independent work preserved; no executable changes, coordination or PR extraction.
 The original strengthening sorry remains and GOAL.md stays active.
+
+
+### 2026-11-05 — Singleton equation extraction interpreted by typed chains
+
+Verdict: verified progress. NormalEqN (both comparison modes) and NormalEqF now
+produce typed computation chains. This includes universe changes, dependent Pi
+congruence, projections, proof irrelevance and all eta forms. Lambda annotations
+use the generic eta reannotation construction; Pi bodies move through ordinary
+context conversion by the already proved binder transport. No type-fork joining
+or ordinary-equality completeness premise is used.
+
+Refactored RecursorRegistered.zero_join into zero_join_via_prefix plus its
+original full-reduction specialization, preserving the original theorem signature.
+The generalized proof exposes exactly its actual operational ingredients: the
+selected recursor's own prefix at the fixed universe list, beta, application,
+reflexivity/transitivity and closing lambda telescopes. The 450-line extraction
+and field-normal-comparison argument is reused once, not copied. Ordinary
+FullReduction still supplies an internal subject-reduction fact, independently
+of the relation chosen to realize the trace. Existing downstream proofs rebuilt.
+
+TypedComputationTrace interprets those operations at every actual source
+assignment. The bridge singleton_equation_of_prefix composes the resulting
+trace with the normal comparison at the original stored assignment. Combining
+it with generated_unindexed_prefix proves unindexed_singleton_equation: every
+registered, well-typed, unindexed proposition-source singleton equation has a
+chain, with no remaining prefix-coverage or joining assumption. This is coverage
+of the full lambda-wrapped equation, beyond the previous generated-prefix result.
+
+The application interface acts on arbitrary dependent argument spines using
+whole-source typing. apply_equation_at_proof_major additionally proves that a
+typed right-hand equation instance connects to an actual source application if
+the left instance beta-reduces to the same function prefix with another proof
+major. Right-instance typing supplies the left instance; common function-domain
+typing and proof irrelevance align the majors. Constructor parameter syntax and
+constructor universe syntax need not be compared in this bridge.
+
+Remaining scope: actual raw singleton pattern matches still need alignment with
+these equation instances. For the unindexed case, establish the syntactic beta
+shape with the original recursor argument prefix, then use the proof-major bridge;
+WF.singletonPatCoverageJ already obtains right-instance typing from the pattern
+reduct. This should avoid the general indexed HasTypeJ/spine-joining detour, but
+that syntactic specialization has not yet been proved. For indexed singleton
+code, investigate forward computation of transported fields at literal constructor
+indices: data slots are literal fields and proof slots erase; recursive cast-type
+alignment may follow by typed template computation. General singleton coverage
+and TypeForkJoin remain open. No strictly smaller sufficient strengthening
+obligation, canonical-Eq proof or counterexample is claimed; original sorry remains.
+
+Validation: two new modules (76 and 156 lines), plus a 46-addition/7-deletion
+refactor of SingletonCoverage. Explicit isolated 802-job build; all 48 public
+roots audited across four modules, including all 28 roots of the modified legacy
+module and six binder-transport roots. Full transitive types, opaque values,
+constructors and recursor RHS audit; maximum closure 11,257. Only propext,
+Classical.choice, Quot.sound; no configured forbidden dependencies, sorry sources
+or audited-module warnings. All 777 closure source hashes remained stable and
+byte-identical to isolated copies. Artifacts /tmp/carrier-typed-equation-*.
+Independent work preserved; executable unchanged; no coordination; goal active.

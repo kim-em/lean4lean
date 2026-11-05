@@ -577,7 +577,12 @@ theorem RecursorRegistered.equation_uvars' (_H : RecursorRegistered env data)
   cases he
   rfl
 
-theorem RecursorRegistered.zero_join (heq : env.HasCanonicalEq) {Γ : List VExpr}
+/-- The singleton equation coverage construction uses only its own registered
+prefix at the fixed universe instance, beta, application and closing lambdas.
+Any relation with those operations realizes the same normal comparison. This
+exposes the actual computational content without assuming general reduction
+coverage or any confluence theorem for the supplied relation. -/
+theorem RecursorRegistered.zero_join_via_prefix (heq : env.HasCanonicalEq) {Γ : List VExpr}
     {data : RecursorData} {index : Fin data.schema.signature.constructors.size}
     {equation : VDefEq} {levels : List VLevel}
     (hΓ : OnCtx Γ (env.IsType univs)) (hlookup : recursorData data.name = some data)
@@ -589,9 +594,17 @@ theorem RecursorRegistered.zero_join (heq : env.HasCanonicalEq) {Γ : List VExpr
     (hrT : env.HasType equation.uvars [] equation.rhs equation.type)
     (hw : ∀ level ∈ levels, level.WF univs) (hl : levels.length = equation.uvars)
     (hlarge : data.largeTarget = true)
-    (hzero : (data.schema.sourceLevel data.owner data.levels).inst levels ≈ .zero) :
-    ∃ left right, FullReduction Γ (equation.lhs.instL levels) left ∧
-      FullReduction Γ (equation.rhs.instL levels) right ∧ NormalEq Γ left right := by
+    (hzero : (data.schema.sourceLevel data.owner data.levels).inst levels ≈ .zero)
+    (Trace : List VExpr → VExpr → VExpr → Prop)
+    (trace_refl : ∀ {Δ e}, Trace Δ e e)
+    (trace_trans : ∀ {Δ a b c}, Trace Δ a b → Trace Δ b c → Trace Δ a c)
+    (trace_app : ∀ {Δ f f' a a'}, Trace Δ f f' → Trace Δ a a' → Trace Δ (.app f a) (.app f' a'))
+    (trace_wrap : ∀ {Δ ds a b}, Trace (ds.reverse ++ Δ) a b → Trace Δ (VExpr.wrapLams ds a) (VExpr.wrapLams ds b))
+    (trace_beta : ∀ {Δ A b a}, Trace Δ (.app (.lam A b) a) (b.inst a))
+    (trace_prefix : ∀ {Δ args rhs}, PrefixUnfold env univs recursorData Δ data.name levels args rhs →
+      Trace Δ (mkApps (.const data.name levels) args) rhs) :
+    ∃ left right, Trace Γ (equation.lhs.instL levels) left ∧
+      Trace Γ (equation.rhs.instL levels) right ∧ NormalEq Γ left right := by
   have hlen : levels.length = data.uvars := hl.trans (H.equation_uvars' hgen)
   have hz : data.sourceLevel levels ≈ .zero := hzero
   have hlC : env.HasType univs [] (equation.lhs.instL levels) (equation.type.instL levels) :=
@@ -957,6 +970,10 @@ theorem RecursorRegistered.zero_join (heq : env.HasCanonicalEq) {Γ : List VExpr
       (instantiateParams (rb.instL levels) (vars np (2 + nf) ++ vars 2 nf ++ occ0)) := by
     rw [← hbeta, hlb]
     exact .tail (.tail .rfl (.app (.delta hrule) .rfl)) (.core (.beta .rfl .rfl))
+  have htrace : Trace (D'.reverse ++ Γ) (lb.instL levels)
+      (instantiateParams (rb.instL levels) (vars np (2 + nf) ++ vars 2 nf ++ occ0)) := by
+    rw [← hbeta, hlb]
+    exact trace_trans (trace_app (trace_prefix hrule) trace_refl) trace_beta
   -- normal equality with the right side
   have hvarsT : ∀ a ∈ vars np (2 + nf) ++ vars 2 nf, ∃ A, env.HasType univs (D'.reverse ++ Γ) a A := by
     intro a ha
@@ -1003,14 +1020,36 @@ theorem RecursorRegistered.zero_join (heq : env.HasCanonicalEq) {Γ : List VExpr
       rw [← hvars, instantiateParams_eq_instOuter, hio, instOuter_vars_lift hrbc, VExpr.liftN_zero]
     rwa [hid'] at h
   refine ⟨VExpr.wrapLams D' (instantiateParams (rb.instL levels) (vars np (2 + nf) ++ vars 2 nf ++ occ0)),
-    _, ?_, .rfl, ?_⟩
-  · show FullReduction Γ ((VExpr.wrapLams D lb).instL levels) _
+    _, ?_, trace_refl, ?_⟩
+  · show Trace Γ ((VExpr.wrapLams D lb).instL levels) _
     simp only [VExpr.instL_wrapLams, hD]
-    exact FullReduction.wrapLams' hred
+    exact trace_wrap htrace
   · show NormalEq Γ _ ((VExpr.wrapLams D rb).instL levels)
     simp only [VExpr.instL_wrapLams, hD]
     obtain ⟨u, hu⟩ := hlΓ.isType henv.ordered hΓ
     exact NormalEqF.wrapLams_congr hΓ rfl ⟨_, hu⟩ hnorm
+
+/-- The original full-reduction coverage is the specialization of the explicit
+single-prefix construction to the ordinary full reduction relation. -/
+theorem RecursorRegistered.zero_join (heq : env.HasCanonicalEq) {Γ : List VExpr}
+    {data : RecursorData} {index : Fin data.schema.signature.constructors.size}
+    {equation : VDefEq} {levels : List VLevel}
+    (hΓ : OnCtx Γ (env.IsType univs)) (hlookup : recursorData data.name = some data)
+    (H : RecursorRegistered env data)
+    (howner : data.schema.signature.constructors[index].owner = data.owner)
+    (hgen : data.equation index = some equation)
+    (hpe : env.PatEquation equation)
+    (hlT : env.HasType equation.uvars [] equation.lhs equation.type)
+    (hrT : env.HasType equation.uvars [] equation.rhs equation.type)
+    (hw : ∀ level ∈ levels, level.WF univs) (hl : levels.length = equation.uvars)
+    (hlarge : data.largeTarget = true)
+    (hzero : (data.schema.sourceLevel data.owner data.levels).inst levels ≈ .zero) :
+    ∃ left right, FullReduction Γ (equation.lhs.instL levels) left ∧
+      FullReduction Γ (equation.rhs.instL levels) right ∧ NormalEq Γ left right := by
+  exact H.zero_join_via_prefix heq hΓ hlookup howner hgen hpe hlT hrT hw hl hlarge hzero
+    FullReduction .rfl (fun a b => a.trans b) (fun f a => f.app a)
+    (fun H => FullReduction.wrapLams' H)
+    (.tail .rfl (.core (.beta .rfl .rfl))) (fun H => .tail .rfl (.delta H))
 
 end Join
 
