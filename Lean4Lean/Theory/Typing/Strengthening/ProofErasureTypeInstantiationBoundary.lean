@@ -43,14 +43,23 @@ against any descending target computation. The source computation needs only
 stage one. TypeInstantiationJoin and strengthening
 are not refuted: the displayed common reduct uses structure computation. The
 argument explicitly lacks native recovery at the cut domain, so this does not
-refute the restricted certified-cut route. -/
-theorem static_structure_type_instantiation_beta_residual_failure
+refute the restricted certified-cut route. The body is literally the generic
+application of an ordinarily typed family head. That head cannot natively recover
+its converted Pi type for any descending primitive language. Thus ordinary
+family typing cannot replace the exact native-head premise of generic telescope
+reification, even for a single argument. -/
+theorem static_structure_generic_family_instantiation_beta_residual_failure
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hi : env.projections family info) (hp : info.nparams = 0)
     (hx : info.nindices = 0) (hz : info.numFields = 0)
     (hS : env.HasType univs [] (.const family []) (.sort (.succ u))) :
-    ∃ Γ Q x B out,
+    ∃ Γ Q g x B out,
       OnCtx Γ (env.IsType univs) ∧ env.HasType univs Γ x Q ∧
+      env.HasType univs Γ g (.forallE Q (.sort (.succ .zero))) ∧
+      B = .app g.lift (.bvar 0) ∧
+      (∀ Step, ErasedScopedPrimitiveDescent Step →
+        ¬ ScopedTypeRecovery Step (proofEraseCtx Γ) (proofErase Γ g)
+          (proofErase Γ (.forallE Q (.sort (.succ .zero))))) ∧
       env.HasType univs (Q :: Γ) B (.sort (.succ .zero)) ∧
       ScopedCompute (ErasedStaticStructureEtaExpansionStage D 1) (proofEraseCtx (Q :: Γ))
         (proofErase (Q :: Γ) B) out ∧
@@ -114,6 +123,8 @@ theorem static_structure_type_instantiation_beta_residual_failure
   have hΓQ : OnCtx (Q :: Γ) (env.IsType univs) := ⟨hΓ, _, hQ⟩
   have hf : env.HasType univs Γ (.bvar 1) (.forallE (.forallE L (.sort (.succ .zero)))
       (.sort (.succ .zero))) := .bvar (.succ .zero)
+  have hfQ : env.HasType univs Γ (.bvar 1) (.forallE Q (.sort (.succ .zero))) :=
+    (IsDefEq.forallEDF HQ.symm (HasType.sort (by trivial))).defeq hf
   have hg : env.HasType univs (Q :: Γ) (.bvar 0) Q.lift := .bvar .zero
   have hgL := (HQ.weakN henv Ctx.LiftN.one).defeq hg
   let B := VExpr.app (.bvar 2) (.bvar 0)
@@ -221,13 +232,63 @@ theorem static_structure_type_instantiation_beta_residual_failure
     obtain ⟨F, _, _, EF, _⟩ := ProofShape.liftN_forallE_inv EC
     obtain ⟨_, arg, _, _, Earg⟩ := ProofShape.liftN_app_inv EF
     cases arg <;> simp [ProofShape.liftN, liftVar] at Earg
-  refine ⟨Γ, Q, x, B, out, hΓ, hxQ, hB, RB,
+  have HnoHead {Step} (hstep : ErasedScopedPrimitiveDescent Step) :
+      ¬ ScopedTypeRecovery Step (proofEraseCtx Γ) (proofErase Γ (.bvar 1))
+        (proofErase Γ (.forallE Q (.sort (.succ .zero)))) := by
+    intro R
+    have EW := proofErase_liftN hΔ hΓ Ctx.LiftN.one hf₀
+    change proofErase Γ (.bvar 1) = _ at EW
+    have EP : proofErase Γ (.forallE Q (.sort (.succ .zero))) =
+        .forallE (.forallE (.app (.bvar 2) (.bvar 0)) (.sort (.succ .zero)))
+          (.sort (.succ .zero)) := by
+      rw [show proofErase Γ (.forallE Q (.sort (.succ .zero))) = .forallE _ _ from
+        if_neg (not_isProof_of_sort hΓ (HasType.forallE hQ (HasType.sort (by trivial)))),
+        EQ, ES (Q :: Γ) hΓQ _ (by trivial)]
+    rw [EW, EP] at R
+    obtain ⟨C, _, EC⟩ := proofErase_scoped_typeRecovery_descend
+      hstep hΔ hΓ Ctx.LiftN.one hf₀ rfl R
+    obtain ⟨F, _, _, EF, _⟩ := ProofShape.liftN_forallE_inv EC
+    obtain ⟨A', _, _, EA', _⟩ := ProofShape.liftN_forallE_inv EF
+    obtain ⟨_, arg, _, _, Earg⟩ := ProofShape.liftN_app_inv EA'
+    cases arg <;> simp [ProofShape.liftN, liftVar] at Earg
+  refine ⟨Γ, Q, .bvar 1, x, B, out, hΓ, hxQ, hfQ, rfl, fun _ => HnoHead, hB, RB,
     Hno (erased_static_structure_eta_expansion_union_descent heq hs), fun _ => Hno,
     fun _ => HnoBeta, HnoNative, ?_⟩
   refine ⟨.app (.bvar 1) (.lam (.app (.bvar 2) (.const info.ctorName [])) (.sort .zero)), ?_, ?_⟩
   · rw [EI, Ex]
     exact .app .refl (.lam (.app .refl CZ) .refl)
   · exact (ScopedCompute.beta Rβ).trans (.app .refl (.lam (.app .refl CY) .refl))
+
+/-- The generic-family boundary also refutes unrestricted type instantiation.
+This preserves the original interface and its explicit full-computation join. -/
+theorem static_structure_type_instantiation_beta_residual_failure
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hi : env.projections family info) (hp : info.nparams = 0)
+    (hx : info.nindices = 0) (hz : info.numFields = 0)
+    (hS : env.HasType univs [] (.const family []) (.sort (.succ u))) :
+    ∃ Γ Q x B out,
+      OnCtx Γ (env.IsType univs) ∧ env.HasType univs Γ x Q ∧
+      env.HasType univs (Q :: Γ) B (.sort (.succ .zero)) ∧
+      ScopedCompute (ErasedStaticStructureEtaExpansionStage D 1) (proofEraseCtx (Q :: Γ))
+        (proofErase (Q :: Γ) B) out ∧
+      (¬ ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+        (proofErase Γ (B.inst x)) (out.inst (proofErase Γ x))) ∧
+      (∀ Step, ErasedScopedPrimitiveDescent Step →
+        ¬ ScopedCompute Step (proofEraseCtx Γ)
+          (proofErase Γ (B.inst x)) (out.inst (proofErase Γ x))) ∧
+      (∀ Step, ErasedScopedPrimitiveDescent Step →
+        ¬ ∃ shared, ScopedCompute Step (proofEraseCtx Γ)
+            (proofErase Γ (B.inst x)) shared ∧
+          ProofShape.BetaRed (out.inst (proofErase Γ x)) shared) ∧
+      (¬ ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+        (proofErase Γ x) (proofErase Γ Q)) ∧
+      ∃ shared, ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+          (proofErase Γ (B.inst x)) shared ∧
+        ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
+          (out.inst (proofErase Γ x)) shared := by
+  obtain ⟨Γ, Q, g, x, B, out, hΓ, hxQ, _, _, _, hB, RB, Hno, Hall, Hbeta, Hnative, Hjoin⟩ :=
+    static_structure_generic_family_instantiation_beta_residual_failure heq hs hi hp hx hz hS
+  exact ⟨Γ, Q, x, B, out, hΓ, hxQ, hB, RB, Hno, Hall, Hbeta, Hnative, Hjoin⟩
 
 /-- The original exact-instantiation boundary follows from the stronger
 pure-beta-residual obstruction. This preserves the earlier interface, including

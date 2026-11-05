@@ -11837,3 +11837,29 @@ match frozen committed dependencies and own source, including against current
 HEAD after the independent commit. Only allowed axioms, no forbidden dependency,
 sorry or own-module warnings. Artifacts /tmp/carrier-type-instantiation-binders-*.
 Independent telescope-reification work was preserved and not imported here.
+
+### 2026-11-05 05:49:51 UTC — Ordinary generic-family typing does not replace native head recovery
+
+**Verdict: refuted with a checked strengthening of the existing instantiation
+boundary, including its explicit full-computation join.** The earlier witness's
+body is literally g.lift applied to the fresh variable, and g has the required
+ordinary Pi typing. Nevertheless neither exact instantiation transport nor even
+a pure-beta residual against any descending target language exists. The head g
+cannot recover its converted Pi type in any descending language: it was declared
+below the new unit variable, whereas the converted Pi contains that variable in
+its nested domain. Selected-type descent and two Pi inversions prove the failure.
+The original argument also lacks its exact native domain certificate.
+
+This rules out weakening NativeTelescopeReification's exact family-head premise
+to ordinary typing, even for a single generic application. It does not refute
+registered constant heads at their literal declaration types, certified-head
+reification, TypeInstantiationJoin, or strengthening. In particular, the generic
+family counterexample uses a converted variable head, not a registered family
+constant. The remaining constructor-history route must preserve its native head
+origin through every partial application and subsequent type conversion; an
+ordinary normalized family telescope does not by itself discharge that proof.
+
+Validation: 772-job isolated build; five public roots, maximum transitive
+closure 11,024; all 747 own/committed source hashes stable. Only allowed
+axioms, no forbidden dependency, sorry, or own-module warnings. Existing boundary
+interfaces preserved. Artifacts: /dev/shm/generic-family-boundary-*.

@@ -24547,3 +24547,31 @@ match frozen committed dependencies and own source, including against current
 HEAD after the independent commit. Only allowed axioms, no forbidden dependency,
 sorry or own-module warnings. Artifacts /tmp/carrier-type-instantiation-binders-*.
 Independent telescope-reification work was preserved and not imported here.
+
+### 2026-11-05 05:49:51 UTC — Checked necessity of the generic family's native head premise
+
+ProofErasureTypeInstantiationBoundary now exposes the family head in the existing
+stage-one counterexample. The new
+static_structure_generic_family_instantiation_beta_residual_failure gives an
+ordinarily typed g at Pi Q Sort1 and the literal body equation B = g.lift bvar0,
+alongside the failed exact path, failed pure-beta residual, and explicit full-union
+join. It additionally proves that g cannot recover this Pi type in *any*
+descending primitive language. Its lower declaration has an old unit in the
+nested domain; the converted domain contains the newly inserted unit. Recovery
+descent followed by two Pi inversions and application inversion excludes it.
+
+The old beta-residual and exact-instantiation theorem statements remain available
+as corollaries. This is a refutation of the attempted ordinary-head generalization
+of native telescope reification, not a counterexample to strengthening. A family
+application's literal syntax alone is insufficient. The family head's exact guard
+must be retained, and the multi-argument constructor proof still needs to handle
+conversions between partial applications. Registered family metadata supplies an
+ordinary normalized telescope; its conversion to an exact native guard remains
+to be justified rather than assumed. GOAL.md stays open, with weakN_iff and the
+executable unchanged. No PR extraction was performed.
+
+Validation: 772-job isolated build; all five public roots audited through
+transitive types, values including opaque values, constructors and recursor RHSs;
+maximum closure 11,024. All 747 source hashes match own source and frozen
+committed dependencies. Only propext/Classical.choice/Quot.sound; no forbidden
+dependencies, sorry, or own warnings. Artifacts /dev/shm/generic-family-boundary-*.
