@@ -22718,3 +22718,48 @@ dependencies or new warnings. All 750 local imported-source hashes remained
 stable. Artifacts /dev/shm/closed-prop-forks-*. Independent work preserved; no
 executable changes, coordination or PR extraction. The original strengthening
 sorry remains and GOAL.md stays active.
+
+
+### 2026-11-05 — Singleton residue and concrete prefix-chain coverage
+
+Verdict: verified progress, not a strengthening deliverable. The actual stored
+patterns have empty checks. TypedComputationEq.pattern_nonzero covers every
+registered pattern outside large-target elimination at zero source level using
+its guarded core registration. TypedSingletonPatternChainClosure now names
+exactly the exceptional raw-pattern case; it implies the earlier pattern
+interface and hence ordinary chain completeness. The condition still needs proof.
+
+Canonical Eq prefixes now accept arbitrary typed computation chains between
+their data endpoints. Dependent application first changes the final endpoint to
+make the guard reflexive; the stage-one prefix computes; ordinary lambda-domain
+alignment restores the original proof annotation at the original assigned type.
+Applying this chain to any actual, possibly opaque, proof major and beta-contracting
+yields the minor. No raw join, native endpoint recovery, or TypeForkJoin is used.
+This verifies the proposed strategy of moving checked arguments by chains before
+using a reflexive guard, for canonical Eq rather than for all singleton families.
+
+For unindexed singleton code, transported_family_unindexed proves syntactic
+identity of the transported and requested families. Valid.unindexed_guard therefore
+supplies a reflexive recovered-carrier guard at every stage. The generated prefix
+has a chain from registration, generation and source typing alone; all code/layout
+certificates and the actual unfolding check are derived. This stays in the existing
+full union and adds no closed equations to the definition collection. Dependent
+residual telescopes and proof-valued whole prefixes are included.
+
+Scope judgment: generated-prefix coverage does not yet establish coverage of all
+raw singleton pattern equations. The remaining bridge must connect actual literal
+constructor instances and their captured fields to the prefix output; the general
+indexed case must also supply the family alignment through chains. Investigate the
+existing SingletonCoverage extraction/typed-spine alignment proof and use paired
+chain substitution for the resulting captures. TypeForkJoin remains independently
+open. Neither a canonical-Eq proof/counterexample nor a genuinely smaller sufficient
+irreducible strengthening obligation has been obtained; original sorry remains.
+
+Validation: three modules, 246 lines, eleven public roots. Two-module/seven-root
+isolated build (800 jobs), then one-module/four-root build (799 jobs). Full transitive
+audits through types, opaque values, constructors and recursor rules; maximum
+closure 11,583. Only propext, Classical.choice and Quot.sound; no configured
+forbidden dependencies, sorry sources, or new-module warnings. All 775/774 closure
+source hashes were stable and byte-identical to isolated copies. Artifacts:
+/tmp/carrier-typed-singleton-* and /tmp/carrier-typed-unindexed-*.
+Independent work preserved; no executable changes or coordination; goal active.
