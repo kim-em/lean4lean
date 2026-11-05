@@ -23619,3 +23619,54 @@ no new-module warnings. All 751 closure source hashes stable, own sources equal
 the authoritative worktree and remaining dependencies equal committed HEAD at
 staging. Artifacts /dev/shm/lambda-domain-*. Executable unchanged, independent
 work preserved, no coordination or PR extraction.
+
+## 2026-11-05 03:24:52 UTC — Root peak reduction and native final cuts along lambda histories
+
+Verdict: checked progress. The preceding turn established full lambda-domain
+readout. This turn uses it to discharge exact final-cut certificates and reduce
+primitive root peaks, rather than assuming a full original-body history.
+
+ProofErasureComputedLambdaCut proves that an unchanged argument natively
+recovering the initial written domain also recovers every literal endpoint's
+domain. The extra certificate is derived by conversion along the actual domain
+history. computed_lambda_application_readout realizes the finite raw beta readout
+as an actual typed lambda, aligns the unchanged argument by ordinary Pi typing,
+and supplies NativeHeadBeta for its final application cut. The preceding beta
+readout is deliberately not claimed to be NativeHeadBeta: control beta can lose
+exact native recovery. computed_lambda_body_instantiation uses the derived
+certificate to instantiate arbitrary subsequent computation of the selected
+body. It does not compare that body with the initial body.
+
+ProofErasureLambdaHistoryEtaSquare proves a stronger local confluence reduction.
+Suppose a retained literal lambda with domain A computes to a current function f.
+Compare native eta of f with an arbitrary further computation of f. Domain
+readout of the composed function path and native-domain readout at f give two
+forward computations starting at the original A. If those forks join, both
+whole-function branches join: the eta function residual reproduces the exact
+same final body, so no original-body history is required. The special case at
+the literal starting lambda requests confluence only at its proper syntactic
+subterm A. This is not itself a global well-founded induction.
+
+The new primitive classification shows that every primitive root step at any
+such computed f is either beta-reversible constant/identity expansion or native
+function eta. Opaque definition/singleton/Eq heads and native structure eta are
+excluded by the transported domain observation and its native-type demand.
+computed_lambda_primitive_square_of_domain_forks therefore handles every
+primitive-root versus arbitrary-computation peak along the lambda history under
+the single explicit local domain-fork premise.
+
+Remaining: beta-root peaks, compatible-context peaks and the global induction
+that would justify the local domain-fork premise. The unchanged-argument theorem
+must not be extended to a computed argument by reusing its old native recovery;
+exact recovery is not stable under arbitrary computation. Full body histories
+and TypeForkJoin remain open. This is neither an unconditional confluence theorem
+nor a new strictly smaller sufficient obligation than PropFront. The original
+strengthening sorry is unchanged and GOAL.md remains active.
+
+Validation: two modules, 264 lines; 793-job isolated build, eight public roots
+with complete transitive declaration-type, opaque-value and recursor-RHS audit.
+Maximum closure 11,522; only propext, Classical.choice and Quot.sound,
+no sorry or configured forbidden dependencies and no new-module warnings. All
+768 closure source hashes stable and byte-identical to authoritative own sources
+or committed dependencies before staging. Artifacts /dev/shm/lambda-history-peaks-*.
+Executable unchanged, independent work preserved, no coordination or PR extraction.

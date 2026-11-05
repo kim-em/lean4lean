@@ -11127,3 +11127,32 @@ full type/opaque-value/recursor-RHS audit, maximum closure 11,435, only the
 three allowed axioms, no forbidden dependencies or new-module warnings. All 751
 local dependency sources stayed stable and were checked against committed
 sources before staging. Artifacts /dev/shm/lambda-domain-*. No PR extraction.
+
+## 2026-11-05 03:24:52 UTC — Computed application cuts and root peaks along lambda histories
+
+Verdict: checked progress. Use the full domain observer before asking for an
+original-body history. If an unchanged argument recovers the original written
+domain A, conversion along the computed function's domain history supplies its
+exact certificate at every exposed lambda domain. Arbitrary computed endpoints
+have a finite beta readout ending in an actual typed lambda and a certified final
+application cut. This does not certify the preceding control beta steps. Once
+that cut is selected, subsequent body computation instantiates exactly.
+
+More directly useful for confluence: native eta at any computed descendant of
+a lambda can be joined with arbitrary further function computation using only
+fork joining at the original A. The full domain observer supplies both paths
+from A; the existing eta residual makes the final bodies identical. Every
+primitive root along the same history is either a beta-reversible wrapper or
+native function eta. Consequently the local A-fork premise handles all primitive
+root/computation peaks along that history, without a body-history premise.
+
+Remaining: arbitrary beta-root peaks, compatible surrounding contexts, and a
+valid global induction supplying local domain forks. If the argument itself
+computes, its old native certificate cannot silently be reused; independently
+computed domain paths need not already have a join. No new strictly smaller
+sufficient obligation or completed strengthening proof is claimed.
+
+Validation: two modules, eight roots, 793-job build; full transitive audit
+maximum closure 11,522, only allowed axioms, no forbidden dependencies or
+new-module warnings. All 768 closure source hashes stable and committed
+outside these modules. Artifacts /dev/shm/lambda-history-peaks-*.
