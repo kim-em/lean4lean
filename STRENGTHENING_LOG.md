@@ -26474,3 +26474,39 @@ axioms are allowed; no own-module warnings or sorry. Artifacts:
 /dev/shm/constructor-demand-boundary-*.
 Original sorry and executable remain unchanged; GOAL.md stays open. No PRs were
 extracted. Independent untracked work remains preserved and excluded.
+
+
+### 2026-11-05 12:29:19 UTC — Native return after pending unit-parameter application
+
+The previous goal turn was progress: three verified commits retained the
+positive constructor-control results and proved two representation obstructions.
+Current work adds two modules (209 lines) repairing the dependent-codomain case
+without asserting that the refuted saturated observer has become closed.
+
+ProofErasurePendingUnitCodomain connects original-context codomain computation
+to the existing rigid-family beta-cut observer. Independent full computation of
+a looked-up unit argument, beta instantiation, and ANY subsequent full type
+continuation are part of one observed cut computation. Arbitrary computation of
+the entire dependent Pi is covered by full Pi-origin component readout, including
+changed domains and nonliteral intermediate control syntax. The fresh parameter
+can occur in the codomain throughout; it is never required to be a lower lift.
+
+ProofErasurePendingUnitNative applies that theorem to native recovery of an
+application. A stated function-history premise supplies its exposed Pi path;
+all native conversion tails and later type paths are retained. The registered
+positive fieldless constructor discharges the premise from its actual stored
+declaration. Native equivalence of constant expansion then proves canonical
+return for the exact head-wrapper escape from the previous observer, with
+independently computed arguments. No computed family-header hypothesis or native
+argument certificate is required. Ordinary bare-constructor retention remains
+explicit. Arbitrary function-term computation is still the missing propagation
+step; this theorem does not assume it silently or rebrand it as strict smallness.
+
+Validation: 796-job isolated build; five public roots, maximum audited closure
+11,639; all 771 own/frozen source hashes unchanged. Audited dependency types,
+opaque values, constructors and recursor RHSs. Standard forbidden dependencies
+plus TypeForkJoin, TypeInstantiationJoin, StaticStructureCommonCoverage and
+StaticStructureTypeConversionJoin are excluded. Only propext/Classical.choice/
+Quot.sound; no own-module warnings or sorry. Artifacts: /dev/shm/pending-unit-*.
+The original sorry and executable are unchanged. GOAL.md remains open, no PR
+extraction, independent untracked modules preserved and excluded.

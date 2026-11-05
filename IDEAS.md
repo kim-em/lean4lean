@@ -13395,3 +13395,33 @@ is proved here. Ordinary argument typing alone does not give the missing value
 ancestry. The existing lower-history laws remain useful after saturation, and
 all previously checked beta/root results remain valid. The main strengthening
 goal is still open; these are representation obstructions only.
+
+
+### 2026-11-05 12:29:19 UTC — Pending unit arguments repair the dependent codomain obstruction
+
+Verdict: checked a complete continuation theorem after pending-argument supply,
+and discharged its head-history premise for the actual registered constructor
+and its constant-expanded head. The previous fixed-lower-demand obstruction is
+avoided: no lower history is demanded of Tag #0 under the parameter binder.
+Full Pi-origin readout retains the computed codomain path in that original
+binder context. Place that path under the lambda of the original family beta
+cut, compute the actual unit argument independently, contract, and append the
+entire later type continuation. The existing rigid-unit cut observer then
+returns the endpoint to Tag unitCtor. This works directly, without the initially
+considered detour through exact native substitution images.
+
+The native application theorem preserves every function recovery conversion,
+instantiates its exposed codomain, and includes the entire native output tail
+plus subsequent computation. Its function-history premise is discharged from
+the stored declaration for a positive fieldless one-parameter constructor;
+constant-expansion native equivalence handles precisely the head wrapper that
+escaped the old observer. The final wrapper theorem requires ordinary retention
+of the bare constructor, but no observation, computed family-header certificate,
+argument native certificate, or general fork join.
+
+Remaining: arbitrary computation of the function TERM is not covered by this
+head-history proof. The next attempt must propagate original constructor-header
+histories through those computations, using pending arguments where codomains
+mention fresh parameters. General dependent-field spines also remain beyond
+this one-parameter fieldless instantiation. This is a checked repair of the
+specific obstruction, not a new sufficient front or a proof of strengthening.
