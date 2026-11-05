@@ -12803,3 +12803,26 @@ closure 11,644; all 785 frozen source hashes stable. Allowed axioms only; no
 forbidden dependency, sorry, or audited-module warning. Artifacts
 `/tmp/carrier-post-instantiation-types-*`. Independent uncommitted files were
 preserved and not imported or staged.
+
+
+### 2026-11-05 08:39:21 UTC — Actual registration does not imply directed family-header alignment
+
+**Checked refutation.** `ProofErasureRegisteredHeaderBoundary.lean` installs
+fresh family and constructor constants plus their actual projection entry in a
+well-formed canonical-Eq extension. The family stores the closed header
+`Π (y : S) (F : S → Type) (z : S) (x : F ctor), Prop`; its fieldless constructor
+uses `F z` as the last parameter domain. Unit eta makes these headers ordinarily
+equal, satisfying the source parameter judgment, but no full static-structure
+computation goes from the stored header to the constructor prefix, at any
+chosen result universe. Consequently `ComputedStructureFamilyHeader` really
+is an extra sufficient condition, not a theorem of general registration.
+
+The syntax is fixed before extension, and the fresh-index impossibility is
+proved again in the final environment. The new environment is an actual
+`WF.inductProjections` prefix, not arbitrary metadata; no new recursor is
+claimed. The chosen header does compute to the stored header in the full
+environment core, giving an explicit common reduct. Thus this refutes the
+proposed directed-certificate shortcut, not native ancestry in general,
+joining, or strengthening. Next live route: align header histories through
+common outputs, retaining both declaration histories instead of requiring a
+particular reverse path. GOAL.md remains open; PR extraction deferred.

@@ -18,8 +18,10 @@ variable [Params] {D : PureObservation.Definitions}
 /-- The stored family header computes, in the empty context, to a sort-ending
 header on the constructor's raw parameter domains. Both the computation and
 its ordinary target typing are explicit. General registration supplies ordinary
-header equality only; deriving this directed certificate in that generality
-remains open. The constructor's own stored type is not replaced or reversed. -/
+header equality only. `exists_registered_header_without_computed` constructs a
+well-formed registered prefix where this directed certificate fails, so it is
+an additional sufficient condition, not a consequence of general registration.
+The constructor's own stored type is not replaced or reversed. -/
 def ComputedStructureFamilyHeader (D : PureObservation.Definitions)
     (s : Name) (info : VProjectionInfo) (ls : List VLevel) : Prop :=
   ∃ ps tail fi u,

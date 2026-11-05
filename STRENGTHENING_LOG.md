@@ -25580,3 +25580,51 @@ closure 11,644; all 785 frozen source hashes stable. Allowed axioms only; no
 forbidden dependency, sorry, or audited-module warning. Artifacts
 `/tmp/carrier-post-instantiation-types-*`. Independent uncommitted files were
 preserved and not imported or staged.
+
+
+### 2026-11-05 08:39:21 UTC — A registered canonical-Eq prefix without a computed family header
+
+Added three modules (432 lines). `ProofErasureExplicitHeaderBoundary.lean`
+uses fixed syntax over an existing positive empty structure S and its ctor.
+In context `[z:S, F:S→Type, y:S]`, the domains `F z` and `F ctor` are ordinarily
+equal. No descending computation from `F ctor` can introduce the fresh index
+z. Closing the context and adding the last parameter retains this obstruction
+for every possible result sort, while unit eta gives the forward computation
+from the chosen header to the stored one. Fixed syntax lets the same theorem
+apply after extending the environment, without assuming that negative
+computation facts are monotone under environment extension.
+
+`ProofErasureHeaderRegistration.lean` proves a generic installation lemma.
+Given a typed ordinary equality from the stored family header to a parameter
+header ending in Prop, it installs the family and its fieldless constructor
+with literal generic parameter arguments. It discharges actual TypeShape,
+CtorParameterShape, RawCtorShape, source-name uniqueness, constant typing and
+both addition stages, then uses `WF.inductProjections` for the real metadata.
+Fresh distinct names suffice to carry out both constant additions. This is a
+well-formed projection-stage prefix; no generated recursor is claimed.
+
+`exists_registered_header_without_computed` combines the construction and
+fixed obstruction. The extension preserves the old environment and canonical
+Eq and contains the new registered zero-index, zero-field family. Under the
+actual `hE.params 0` and full `EnvironmentCore.definitions`, its chosen header
+computes to the stored header, but `ComputedStructureFamilyHeader` fails.
+Existentially selecting another target sort does not repair the certificate.
+Updated that predicate's documentation to record the refutation of its blanket
+derivation from registration.
+
+This closes the declaration-specific escape left open by 29a8dbf5: ordinary
+source alignment is insufficient even for real registered metadata. It does
+not refute the conditional exact-history theorems, unqualified native ancestry,
+common-reduct existence, or canonical-Eq strengthening. The next alignment
+route must retain common-output information rather than demand this directed
+certificate for every registration. No strictly smaller sufficient obligation
+or GOAL.md completion is claimed. Original weakN_iff sorry and executable
+unchanged; PR extraction remains deferred. Independent work was preserved.
+
+Validation: 866-job isolated build, all 29 public roots (including the
+previous computed-header results whose documentation changed) audited through
+types, opaque values, constructors and recursor RHSs; maximum closure
+11,775. All 841 source hashes matched own source or committed dependencies
+and stayed stable. Only propext/Classical.choice/Quot.sound; no forbidden
+dependency, sorry, or own-module warning. Artifacts
+`/dev/shm/registered-header-boundary-*`.
