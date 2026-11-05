@@ -23996,3 +23996,32 @@ Only propext/Classical.choice/Quot.sound; no forbidden dependency, sorry or
 audited-module warning. All 834 closure source hashes stable, isolated copies
 identical, non-own dependencies committed. Artifacts /tmp/carrier-index-formation-*.
 Original sorry and executable unchanged.
+
+### 2026-11-05 — Integrated completeness now needs only type-fork joining
+
+Strengthened ProofErasureComputationalHistory: its strict stage-rank induction
+uses earlier pattern coverage twice, for declaration equations and for the
+new recursor-formation index certificates. Removed the external
+RegisteredSingletonDomainChains hypothesis from both pattern closure and
+ordinary-equality completeness. No SingletonDeclarationChains hypothesis
+remains either.
+
+Added ProofErasureTypeForkFront. Computational completeness plus TypeForkJoin
+yields StaticStructureTypeConversionJoin; the existing typed descent theorem
+then gives PropositionFront. canonical_propositionFront_of_type_forks fixes
+the concrete presentation from E.WF, leaving WF, canonical Eq and TypeForkJoin
+as its hypotheses. No separate pattern coverage, normalized-header identity,
+declaration certificate or generic-domain certificate is required.
+
+Remaining mathematical obligation: TypeForkJoin for EnvironmentCore.definitions.
+Its sufficiency is now checked, but its truth and strict smallness relative to
+PropFront are not established. This is substantial conditional progress, not
+a completed GOAL.md deliverable. Arbitrary full-union continuation joins,
+including newly created beta cuts and binder histories, remain live work.
+
+Validation: eight-module integration build, 859 jobs, 48 public/generated roots;
+full transitive declaration audit maximum closure 12,810, only
+propext/Classical.choice/Quot.sound, no sorry or forbidden dependency and no
+audited-module warnings. All 834 source hashes stable and isolated copies
+identical; dependencies outside own edits committed. Artifacts
+/tmp/carrier-index-formation-*. Original sorry and executable unchanged.

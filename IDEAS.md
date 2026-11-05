@@ -11333,3 +11333,21 @@ still supply earlier coverage by history induction and prove type-fork joining.
 Validation: four new formation/index modules in an eight-module integration
 build (859 jobs); 48 public/generated roots, maximum closure 12,810; 834 stable
 source hashes, only allowed axioms, no forbidden dependencies or task warnings.
+
+### 2026-11-05 — Type-fork joining is the sole remaining mathematical premise
+
+**Verdict: conditional sufficiency established; strict smallness unproved.**
+The history induction now supplies both declaration chains and generic
+data-domain chains from strictly earlier pattern coverage. Thus
+computational_typing_of_history needs neither certificate as an external
+assumption. TypeForkJoin supplies joins for those chains, and typed descent
+gives PropositionFront. The canonical wrapper uses the environment's own
+presentation: its only substantive hypotheses are WF, canonical Eq and
+TypeForkJoin. This is not a proof of TypeForkJoin or a demonstration that it
+is strictly smaller than PropFront. The original strengthening sorry remains;
+GOAL.md remains active. The live work is joining arbitrary full-union paths
+from typed type roots, including computation-created cuts and binder histories.
+
+Validation: eight-module integration build (859 jobs), all 48 public/generated
+roots audited, maximum closure 12,810; 834 stable source hashes, only allowed
+axioms, no forbidden dependencies or audited-module warnings.
