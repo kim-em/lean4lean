@@ -71,7 +71,7 @@ theorem Obs.world_computes
     (hclosed : ∀ t τ, (target t).subst τ = target t)
     (HC : target .atom = .const c [])
     (HF : ∀ {Δ}, ControlTyping Δ (.const r []) (.arrow (.arrow .atom .atom) (.sort v)) →
-      WorldComputes Step target Δ (.const r []) (.arrow (.arrow .atom .atom) (.sort v)) (.app [.app [.pi] .pi] .pi))
+      WorldComputes Step target Δ (.const r []) (.arrow (.arrow .atom .atom) (.sort v)) (.app [.app [] .pi] .pi))
     (H : Obs c r v Ω S e t o) (W : ContextSubstitution Ω Δ σ)
     (hσ : ∀ i t key, S i t key → WorldComputes Step target Δ (σ i) t key) :
     WorldComputes Step target Δ (e.subst σ) t o := by

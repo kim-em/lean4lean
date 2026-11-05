@@ -6,7 +6,9 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCarrierAlignedEtaStages
 
 The observation tracks a monomorphic rigid family constant as well as the
 unit constructor. The family demands its retained unit endofunction argument, so its
-parameter history survives beta, changed annotations and function eta.
+parameter history survives beta, changed annotations and function eta. Its
+function demand has an empty input-demand list: only ordinary input typing is
+needed. This permits fresh inputs under a convertible, natively selected domain.
 -/
 namespace Lean4Lean.VEnv.Strengthening.RigidFunctionObservation
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape
@@ -21,7 +23,7 @@ rigid family applied to a demanded unit endofunction. Projections and Pi types h
 inductive Obs (c r : Name) (v : VLevel) : List ProofShape → Sets → ProofShape → ControlType → Ob → Prop where
   | var : ControlTyping Δ (.bvar i) t → Demand t o → S i t o → Obs c r v Δ S (.bvar i) t o
   | rigid : ControlTyping Δ (.const r []) (.arrow (.arrow .atom .atom) (.sort v)) →
-      Obs c r v Δ S (.const r []) (.arrow (.arrow .atom .atom) (.sort v)) (.app [.app [.pi] .pi] .pi)
+      Obs c r v Δ S (.const r []) (.arrow (.arrow .atom .atom) (.sort v)) (.app [.app [] .pi] .pi)
   | terminal : ControlTyping Δ (.const c []) .atom → Obs c r v Δ S (.const c []) .atom .pi
   | app : ControlTyping Δ (.app f a) B → Obs c r v Δ S f (.arrow A B) (.app keys o) →
       (∀ key ∈ keys, Obs c r v Δ S a A key) → Obs c r v Δ S (.app f a) B o
@@ -40,7 +42,7 @@ theorem Obs.demand (H : Obs c r v Δ S e t o) : Demand t o := by
     apply Demand.fn ?_ .sort
     intro key hk
     obtain rfl := List.mem_singleton.1 hk
-    exact .fn (by intro k hk; obtain rfl := List.mem_singleton.1 hk; exact .atom) .atom
+    exact .fn (by simp) .atom
   | app _ _ _ ihf _ => cases ihf; assumption
   | lam _ HK _ ih => exact .fn HK ih
 

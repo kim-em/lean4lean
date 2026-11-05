@@ -26907,3 +26907,56 @@ with standard strengthening/sorry/circular-framework exclusions plus TypeForkJoi
 TypeInstantiationJoin, StaticStructureCommonCoverage and
 StaticStructureTypeConversionJoin. Only propext/Classical.choice/Quot.sound;
 no own-module diagnostics. Artifacts: /dev/shm/rigid-function-*.
+
+## 2026-11-05 15:51:43 UTC — Whole-family return at a selected convertible domain
+
+Added ProofErasureRigidFunctionSelected (139 lines) and
+ProofErasureRigidFunctionSelectedReturn (141 lines); updated the existing
+observer, computational readout, canonical helpers and literal return wrapper.
+The existing literal family_return now calls the more general result rather
+than retaining a second observer/readout proof. unit_arrow_erasure moved down
+the import graph to Canonical. No changes to the executable or UniqueTyping.
+
+The decisive change is the input-demand list: a native S -> S function's output
+is computable at every ordinary typed argument without computational evidence
+for that argument. Obs.rigid now requests `.app [.app [] .pi] .pi`. The existing
+all-stage preservation proof rebuilds unchanged; the world fundamental lemma
+requests the corresponding family realization. native_unit_function_world is
+now general in input-demand keys, with an arbitrary-target helper requiring
+only target.atom = unitCtor.
+
+selected_header_data replays an actual native `Pi (Pi A B) C` header and uses
+two ordinary Pi inversions against the family's closed assigned control type.
+It gives the selected sorts, their positive control levels, and fresh-variable
+ordinary S typing under A. family_world_selected uses the empty demand list to
+consume that variable without any native S certificate. Caller eta followed by
+the demanded body path produces Family (lambda A unitCtor).
+
+closed_selected_header replays one empty-context exposure to obtain an actual
+closed type and proves both the raw header and A fixed by substitution.
+selected_family_native_world transports this certificate by exact weakening
+into any actual context supplied by the ordinary family control witness.
+family_return_selected and family_join_selected handle arbitrary independent
+whole-family full-union continuations with the same selected A. The family
+result universe v is arbitrary. nested_stored_family_native supplies the
+exposure from actual monomorphic declaration data with instantiated stored
+shape `Pi (Pi A0 B0) C0`; family_return_stored uses it without requiring any
+literal S in the stored declaration. Ordinary typing at (S -> S) -> Sort v is
+still required and forces the necessary conversions.
+
+This does not normalize A to S or derive native coverage from ordinary equality.
+The general selected theorem has one explicit actual closed exposure premise;
+the stored-header theorem discharges it for displayed nested Pis. Arbitrarily
+hidden Pis, general constructor-native return with function parameters, HF/HJ,
+strict smallness and GOAL.md remain open. No claim that this fragment is an
+irreducible sufficient obligation. No PR extraction or agent coordination.
+Independent untracked computation-count/rule-descent modules preserved.
+
+Validation: 780-job isolated build; 56 roots including the observer's
+constructors/recursor; maximum transitive closure 11,538; all 755
+own/frozen source hashes unchanged. Audit recursively checks types, opaque
+bodies, constructor types and recursor RHSs, rejects the existing strengthening,
+sorry and circular framework dependencies plus TypeForkJoin,
+TypeInstantiationJoin, StaticStructureCommonCoverage and
+StaticStructureTypeConversionJoin. Only propext/Classical.choice/Quot.sound;
+no owned-module diagnostics. Artifacts: /dev/shm/selected-header-*.

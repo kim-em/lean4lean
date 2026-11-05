@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureRigidFunctionCanonical
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureRigidFunctionSelectedReturn
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEnvironmentCore
 
 /-! # Full family return with a retained function parameter
@@ -13,18 +13,6 @@ namespace Lean4Lean.VEnv.Strengthening.RigidFunctionObservation
 open _root_.Lean4Lean Params ProofShape
 open AtomicControl (Atom)
 variable [Params] {D : PureObservation.Definitions}
-
-/-- Erasure of the closed unit-function type is literal in every context. -/
-theorem unit_arrow_erasure
-    (hS : env.HasType univs [] (.const s []) (.sort (.succ u)))
-    (hΓ : OnCtx Γ (env.IsType univs)) :
-    proofErase Γ (.forallE (.const s []) (.const s [])) = .forallE (.const s []) (.const s []) := by
-  have hSΓ : env.HasType univs Γ (.const s []) (.sort (.succ u)) := hS.weak0 henv.ordered
-  have hΓS : OnCtx (VExpr.const s [] :: Γ) (env.IsType univs) := ⟨hΓ, _, hSΓ⟩
-  have hSS : env.HasType univs (VExpr.const s [] :: Γ) (.const s []) (.sort (.succ u)) := hS.weak0 henv.ordered
-  rw [show proofErase Γ (.forallE _ _) = .forallE _ _ from if_neg (not_isProof_of_sort hΓ (.forallE hSΓ hSS))]
-  rw [show proofErase Γ (.const s []) = .const s [] from if_neg (not_isProof_of_sort hΓ hSΓ),
-    show proofErase (VExpr.const s [] :: Γ) (.const s []) = .const s [] from if_neg (not_isProof_of_sort hΓS hSS)]
 
 /-- Actual literal declaration data supplies the same native caller header in
 any raw context. This is not inferred from an ordinarily equal assignment. -/
@@ -68,41 +56,12 @@ theorem family_return
       (.app (.const r []) (.bvar i)) out) :
     ScopedCompute (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
       out (.app (.const r []) (.lam (.const s []) (.const info.ctorName []))) := by
-  letI := AtomicControl.Atom.ofRigid (henv.projectionRigid hi) hS
-  let V : AtomicControl.Sets := fun j t o => j = i ∧ t = .arrow .atom .atom ∧ o = .app [.pi] .pi
-  have hx₀ : env.HasType univs Γ (.bvar i) (.forallE (.const s []) (.const s [])) := .bvar hl
-  have EX : proofErase Γ (.bvar i) = .bvar i :=
-    if_neg (AtomicControl.ControlType.not_isProof (t := .arrow .atom .atom) hΓ hx₀)
-  have HX : AtomicControl.ControlTyping (proofEraseCtx Γ) (.bvar i) (.arrow .atom .atom) := ⟨Γ, _, hΓ, rfl, hx₀, EX⟩
-  have hf : env.HasType univs Γ (.const r []) (.forallE (.forallE (.const s []) (.const s [])) (.sort (.succ .zero))) := by
-    have H := HasType.const (U := univs) (Γ := Γ) hc (ls := []) (by simp) (by simp [hU])
+  have hf₀ : env.HasType univs [] (.const r [])
+      (.forallE (.forallE (.const s []) (.const s [])) (.sort (.succ .zero))) := by
+    have H := HasType.const (U := univs) (Γ := []) hc (ls := []) (by simp) (by simp [hU])
     simpa only [hT, VExpr.instL, List.map_nil, VLevel.inst] using H
-  have EF : proofErase Γ (.const r []) = .const r [] := if_neg (not_isProof_function_to_sort hΓ hf)
-  have ht : env.HasType univs Γ (.app (.const r []) (.bvar i)) (.sort (.succ .zero)) := .app hf hx₀
-  have EE : proofErase Γ (.app (.const r []) (.bvar i)) = .app (.const r []) (.bvar i) := by
-    rw [show proofErase Γ (.app _ _) = .app _ _ from if_neg (not_isProof_of_sort hΓ ht), EF, EX]
-  have HV : V.Typed (proofEraseCtx Γ) := by rintro j t o ⟨rfl, rfl, rfl⟩; exact HX
-  have HK : AtomicControl.Demand (.arrow .atom .atom) (.app [.pi] .pi) :=
-    .fn (by intro key hk; obtain rfl := List.mem_singleton.1 hk; exact .atom) .atom
-  have HO : Obs info.ctorName r (.succ .zero) (proofEraseCtx Γ) V
-      (.app (.const r []) (.bvar i)) (.sort (.succ .zero)) .pi := by
-    refine .app ⟨Γ, _, hΓ, rfl, ht, EE⟩ (.rigid ⟨Γ, _, hΓ, rfl, hf, EF⟩) ?_
-    intro key hk
-    obtain rfl := List.mem_singleton.1 hk
-    exact .var HX HK ⟨rfl, rfl, rfl⟩
-  have H := HO.static_structure_union heq hs hi hz rfl (henv.projectionCtorRigid hi) hD hr hDr R HV
-  have RN : ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D) (proofEraseCtx Γ)
-      (.bvar i) (.forallE (.const s []) (.const s [])) := by
-    have RR := proofErase_scoped_lookup_recovery (Step := ErasedStaticStructureEtaExpansionUnion D)
-      hΓ hl (AtomicControl.ControlType.not_isProof (t := .arrow .atom .atom) hΓ hx₀) .refl
-    rwa [EX, unit_arrow_erasure hS hΓ] at RR
-  have HR := H.world_computes (union_world_rename heq hs) (fun t τ => canonical_subst t)
-    (target := canonical info.ctorName r s) rfl
-    (fun _ => family_world hi hp hx hz rfl hS (literal_family_native hS hc hU hT))
-    ContextRenaming.identity.interpretation (σ := Subst.id) (by
-      rintro j t key ⟨rfl, rfl, rfl⟩
-      exact native_unit_function_world heq hs hi hp hx hz RN)
-  simpa only [ProofShape.subst_id, WorldComputes, canonical] using HR
+  exact family_return_selected heq hs hi hp hx hz hD hS hr hDr hf₀
+    (literal_family_native hS hc hU hT) hΓ hl R
 
 /-- Independently computed family instances at any two unit-function lookups
 have a fixed common output. This is a full-continuation type join for this

@@ -13744,3 +13744,42 @@ unjustified uniform exact-header premise. GOAL.md stays open.
 Validation: 778-job isolated build, 45 public/constructor/recursor roots,
 maximum closure 11,535, 753 stable own/frozen source hashes; only the
 three standard axioms and no forbidden strengthening/coverage/join dependencies.
+
+## 2026-11-05 15:51:43 UTC — Empty argument demands remove the literal family-domain restriction
+
+Verdict: checked extension of the full whole-family return result, not a
+completion of GOAL.md. The preceding research turn was progress: fe14c900 is
+committed/pushed and its full-family theorem is present. This turn replaces its
+literal-domain requirement by one actual closed native nested-Pi exposure;
+ordinary assigned family typing stays (S -> S) -> Sort v.
+
+A retained unit endofunction with an actual literal native S -> S header can
+return unitCtor after application to any raw argument. Its observer therefore
+needs `.app [] .pi`, not `.app [.pi] .pi`. Full-union observer preservation still
+holds with this empty input-demand list. In the caller-selected fresh world,
+Pi injectivity supplies ordinary S-typing of the fresh variable even when its
+literal domain A is merely convertible to S. There is no demand to recover or
+compute that fresh variable at S, so the previously missing directed A-to-S
+conversion is unnecessary. Caller eta installs A, and body computation returns
+to Family (lambda A unitCtor).
+
+Native replay at the empty-context family proves the selected whole header and
+A closed; exact weakening transports that ONE exposure to every realized
+future context. The selected return/join theorems cover arbitrary full-union
+whole-family paths, with one fixed A. A concrete wrapper reads any instantiated
+stored nested Pi `Pi (Pi A0 B0) C0`; its actual erased A0 becomes the common
+annotation. Old literal-header return/join results are corollaries and still
+build. No native coverage or type-conversion join premise is used.
+
+Boundary: neither existence of a nested-Pi native exposure from ordinary family
+typing alone nor arbitrary constructor-native histories with retained function
+parameters is proved. Source free-function lookup types remain literal S -> S.
+The general strengthening/PropFront obligation and strict-smallness deliverable
+remain open. Next: connect the selected annotation result to dependent
+constructor result histories, or establish actual header exposure in the
+needed registered-family fragment without importing equivalent join coverage.
+
+Validation: 780-job isolated build, 56 audited roots, maximum transitive
+closure 11,538, 755 unchanged own/frozen source hashes; only standard
+propext/Classical.choice/Quot.sound, no strengthening/sorry/circular-framework
+or general fork/coverage dependencies. Original sorry and executable unchanged.

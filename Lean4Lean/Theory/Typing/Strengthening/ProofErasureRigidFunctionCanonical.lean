@@ -13,6 +13,19 @@ open AtomicControl (Atom)
 open private subst_bvar_liftN from Lean4Lean.Theory.Typing.Strengthening.ProofErasureJointRenaming
 variable [Params] [Atom]
 
+omit [Atom] in
+/-- Erasure of the closed unit-function type is literal in every context. -/
+theorem unit_arrow_erasure
+    (hS : env.HasType univs [] (.const s []) (.sort (.succ u)))
+    (hΓ : OnCtx Γ (env.IsType univs)) :
+    proofErase Γ (.forallE (.const s []) (.const s [])) = .forallE (.const s []) (.const s []) := by
+  have hSΓ : env.HasType univs Γ (.const s []) (.sort (.succ u)) := hS.weak0 henv.ordered
+  have hΓS : OnCtx (VExpr.const s [] :: Γ) (env.IsType univs) := ⟨hΓ, _, hSΓ⟩
+  have hSS : env.HasType univs (VExpr.const s [] :: Γ) (.const s []) (.sort (.succ u)) := hS.weak0 henv.ordered
+  rw [show proofErase Γ (.forallE _ _) = .forallE _ _ from if_neg (not_isProof_of_sort hΓ (.forallE hSΓ hSS))]
+  rw [show proofErase Γ (.const s []) = .const s [] from if_neg (not_isProof_of_sort hΓ hSΓ),
+    show proofErase (VExpr.const s [] :: Γ) (.const s []) = .const s [] from if_neg (not_isProof_of_sort hΓS hSS)]
+
 /-- Unit results and family results have fixed, closed computational targets. -/
 def canonical (c r s : Name) : AtomicControl.ControlType → ProofShape
   | .sort _ => .app (.const r []) (.lam (.const s []) (.const c []))
@@ -33,6 +46,23 @@ theorem union_world_rename (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
 
 /-- A literal native unit-function header realizes its function demand in
 all exact future worlds. Arguments need no native certificate. -/
+theorem native_unit_function_world_of_target
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hi : env.projections s info) (hp : info.nparams = 0)
+    (hx : info.nindices = 0) (hz : info.numFields = 0)
+    (RN : ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D) Δ e
+      (.forallE (.const s []) (.const s [])))
+    (HC : target .atom = .const info.ctorName []) :
+    WorldComputes (ErasedStaticStructureEtaExpansionUnion D) target
+      Δ e (.arrow .atom .atom) (.app keys .pi) := by
+  simp only [WorldComputes]
+  intro Δ' τ W a _ _
+  have R := RN.rename (union_world_rename heq hs) W
+  rw [HC]
+  exact unit_native_compute hi hp hx hz (ScopedTypeRecovery.app R)
+
+/-- A literal native unit-function header realizes its function demand in
+all exact future worlds. Arguments need no native certificate. -/
 theorem native_unit_function_world
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hi : env.projections s info) (hp : info.nparams = 0)
@@ -40,27 +70,24 @@ theorem native_unit_function_world
     (RN : ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D) Δ e
       (.forallE (.const s []) (.const s []))) :
     WorldComputes (ErasedStaticStructureEtaExpansionUnion D) (canonical info.ctorName r s)
-      Δ e (.arrow .atom .atom) (.app [.pi] .pi) := by
-  simp only [WorldComputes]
-  intro Δ' τ W a _ _
-  have R := RN.rename (union_world_rename heq hs) W
-  exact unit_native_compute hi hp hx hz (ScopedTypeRecovery.app R)
+      Δ e (.arrow .atom .atom) (.app keys .pi) :=
+  native_unit_function_world_of_target heq hs hi hp hx hz RN rfl
 
 /-- The family constant realizes its higher-order input demand. The caller
 selects the unit annotation; the argument is tested in that actual fresh world.
 The supplied native family header is explicit and must be discharged separately. -/
 theorem family_world
-    (hi : env.projections s info) (hp : info.nparams = 0)
-    (hx : info.nindices = 0) (hz : info.numFields = 0)
+    (_hi : env.projections s info) (_hp : info.nparams = 0)
+    (_hx : info.nindices = 0) (_hz : info.numFields = 0)
     (EA : Atom.type = .const s [])
     (hS : env.HasType univs [] (.const s []) (.sort (.succ u)))
     (RN : ∀ {Δ}, ScopedTypeRecovery (ErasedStaticStructureEtaExpansionUnion D) Δ (.const r [])
       (.forallE (.forallE (.const s []) (.const s [])) (.sort v))) :
     WorldComputes (ErasedStaticStructureEtaExpansionUnion D) (canonical info.ctorName r s) Δ
-      (.const r []) (.arrow (.arrow .atom .atom) (.sort v)) (.app [.app [.pi] .pi] .pi) := by
+      (.const r []) (.arrow (.arrow .atom .atom) (.sort v)) (.app [.app [] .pi] .pi) := by
   simp only [WorldComputes]
   intro Δ' τ W a HA ha
-  have HK := ha (.app [.pi] .pi) (by simp)
+  have HK := ha (.app [] .pi) (by simp)
   simp only [WorldComputes] at HK
   obtain ⟨Γ, a₀, hΓ, EΓ, ha₀, Ea⟩ := HA
   have hSΓ : env.HasType univs Γ (.const s []) (.sort (.succ u)) := hS.weak0 henv.ordered
@@ -89,11 +116,7 @@ theorem family_world
     rw [AtomicControl.ControlType.expr, EA]; exact .bvar .zero
   have HX : AtomicControl.ControlTyping (.const s [] :: Δ') (.bvar 0) .atom :=
     ⟨_, _, hΓS, EΓS, hx₀, if_neg (AtomicControl.ControlType.not_isProof hΓS hx₀)⟩
-  have KB := HK WS (.bvar 0) HX (by
-    intro key hk
-    obtain rfl := List.mem_singleton.1 hk
-    simp only [WorldComputes, canonical]
-    exact unit_native_compute hi hp hx hz (ScopedTypeRecovery.bvar (i := 0) (Δ := .const s [] :: Δ')))
+  have KB := HK WS (.bvar 0) HX (by simp)
   have EL : a.subst (fun i => .bvar (i+1)) = a.liftN 1 := by
     simpa only [liftVar, Nat.not_lt_zero, ↓reduceIte, Nat.add_comm] using (subst_bvar_liftN (n := 1) (k := 0) a)
   rw [EL] at KB
