@@ -27186,3 +27186,32 @@ sources. Only standard axioms; no new warnings or forbidden dependencies.
 Unrelated untracked files excluded. Original sorry and executable unchanged.
 General strengthening remains open: this proves the canonicalizable registered
 family case, not an exposure theorem for arbitrary convertible types. No PRs.
+
+## 2026-11-05 17:33:11 UTC — Ignored-parameter joint observer and arbitrary-order registration
+
+Core commit: UnitArrowEquality plus IgnoredRecord Observation, Substitution,
+Application, Frames, Transport, Native and Registration (8 files, 695 lines).
+All older observers remain unchanged.
+
+UnitArrows.value is the ordinary canonical inhabitant. value_typed,
+value_closed, value_erase, control_instL and value_equal establish its exact
+relationship to the previous computational canonical value. Equality uses
+ordinary eta and recursive unitLike, and has no argument-native premise.
+
+The new observer carries an arbitrary closed parameter control type. Constructor
+and family constants use fn parameter [] record/type.record; family_type permits
+ordinary equality only at the family-to-sort function header. There is no opaque
+record-family type rule and no parameter function_type rule. Joint lambda/Pi
+annotations, value substitution and actual native application are retained.
+
+Registration at every finite UnitArrows profile constructs the positive record
+carrier, converts the constructor ordinarily to its simple arrow, and observes
+its actual dependent stored header Pi Q (Family #0). Universe instantiation of
+Q's closed simple carrier is proved explicitly, not treated as definitional.
+The actual constant conversion tail starts from that stored observed Pi.
+
+Complete-batch validation: 869 build jobs, 71 dependency roots, maximum
+closure 11,819, 844 frozen source hashes, only standard axioms. No own
+warnings and all strengthening/sorry/framework/exposure/coverage/fork exclusions
+passed. The next commit discharges finite-stage native preservation and reads
+arbitrary constructor/native histories. General strengthening is still open.

@@ -13991,3 +13991,33 @@ Validation: 855-job isolated build, 9 audited theorem roots, maximum closure
 11,607, 830 frozen sources, only propext/Classical.choice/Quot.sound.
 No open strengthening, sorry, semantic head exposure, circular framework,
 general coverage or fork-join dependencies. No PR extraction or coordination.
+
+## 2026-11-05 17:33:11 UTC — Joint native observations that ignore the retained parameter
+
+Verdict: checked core for a separate, weaker-demand constructor observer.
+Dropping the argument demand from the old FunctionRecordDemand observer globally
+would invalidate its readout at a merely convertible selected nested Pi: that
+readout uses the supplied function's pointwise demand. Keep that observer intact.
+The new IgnoredRecordDemand observer preserves the operational constructor and
+family heads but gives both constants empty parameter-demand lists. Opaque
+ordinary type equality still CANNOT introduce a record-family type observation.
+
+The core parameter control is arbitrary. Registration specializes it to every
+finite UnitArrows profile: ordinary canonical values, their typings, closedness,
+erasures, universe instantiation invariance and singleton equality are proved by
+structural induction, ordinary eta and unitLike. No directed normalization or
+strengthening is used to obtain that ordinary equality. The record at the
+canonical value is a positive rigid carrier; the actual stored constructor Pi
+has an empty-input joint type observation. Its dependent family #0 result stays
+operational despite the ignored value argument.
+
+Substitution, annotation/context changes, application and lambda native recovery
+retain the joint type keys. Native closure is conditional on type computation
+only in the generic core; the following finite-stage result discharges it.
+No general carrier coverage or type equality is substituted for this obligation.
+
+Validation for the staged two-commit batch: 869 isolated build jobs, 71 audited
+roots including observer constructors/recursors, maximum closure 11,819,
+844 frozen own/import hashes, only the three standard axioms. No forbidden
+strengthening/sorry/circular/head-exposure/coverage/general-fork dependencies.
+No executable changes, PR extraction or coordination. GOAL.md remains open.
