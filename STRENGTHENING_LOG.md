@@ -27596,3 +27596,40 @@ sorry. There is no canonical-Eq counterexample or strictly smaller sufficient
 obligation. The target family and source-provenance restrictions remain. This
 turn extends the live fragment route but does not establish general coverage.
 Executable unchanged, no PRs or coordination, goal active.
+
+## 2026-11-05 19:45:24 UTC — Connect a first-guarded beta/eta critical pair to the full front
+
+Added FullIdentityEtaPeak (128 lines) and FirstGuardedForkFront (109 lines).
+The new result strengthens the existing core-only critical-pair analysis:
+full-union joining of the explicit identity peak is equivalent, pointwise, to
+full-union joining of the original converted domains. The long branch's actual
+typed representative is reconstructed before applying lambda-domain readout;
+no confluence of beta against that branch is silently assumed.
+
+FirstIdentityEtaResidualJoin is exactly the uniform type-conversion join
+obligation, expressed through this restricted peak syntax. Its proposition-front
+consequence is proved directly by descending joins of lifted propositions and
+reflecting their common erasure. FirstGuardedTypedForkJoin, with arbitrary typed
+source terms and stage-one source paths, implies that identity obligation even
+when its residual target is the full union. This is a necessity result for a
+proposed staged proof, not a proof of either new joining predicate.
+
+Positive repair: supplied domain paths close the explicit peak by beta and
+compatible lambda computation in the same relation, without increasing guard
+depth. The prospective induction therefore needs the source conversion's
+computational join as data. This pinpoints an ordinary-typing dependency that
+is not measured by native guard depth. Type-only stage-one forks are NOT shown
+equivalent here, and general stage induction is not refuted.
+
+Validation passed 804 isolated jobs and 13 audited roots, maximum
+closure 11,594, 779 frozen source hashes. Audit includes types, opaque
+values, constructors and recursor RHSs. Only propext, Classical.choice and
+Quot.sound; all existing forbidden dependencies excluded; no own warnings.
+
+Completion audit: the original weakN_iff sorry remains at UniqueTyping.lean:94.
+There is no counterexample under canonical Eq and no strictly smaller sufficient
+obligation. The new equivalence explicitly prevents claiming one from this
+restricted syntax. Previous fragment proofs and executable unchanged, no PR
+extraction or coordination. GOAL.md remains active. Next: inspect conversion-aware
+induction or genuinely type-only critical pairs rather than assume the first
+native-guard layer supplies a smaller base case.

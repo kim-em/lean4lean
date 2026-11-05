@@ -14488,3 +14488,38 @@ source form. Arbitrary ordinary conversion does not supply observation evidence.
 Further work must connect general source formation or the original typed-front
 configuration to the observation/readout invariant; extending declaration shapes
 alone is not a proof of that connection. GOAL.md remains active.
+
+## 2026-11-05 19:45:24 UTC — Full residuals of the first guarded identity peak encode all type joins
+
+**Verdict: checked obstruction to treating guard depth as the missing measure;
+not a counterexample to confluence or a smaller sufficient strengthening gap.**
+The earlier IdentityEtaCriticalPeak only characterized level-core residuals and
+refuted core-only repairs. FullIdentityEtaPeak now permits every enriched rule
+on both residual branches. Using the independently proved lambda-domain observer,
+joining this explicit identity-beta/native-eta peak is exactly joining its
+original ordinary type equation A = B. A reusable typed_raw_lambda_domain_join
+handles actual representatives of raw lambda endpoints.
+
+The source is the identity at (B -> Type) applied to (fun _ : A => Prop).
+Its beta branch exposes A; its native eta guard uses stage zero and exposes B.
+The two source branches live at stage one, while residuals may have arbitrary
+finite guard depth. Uniform joining of just these identity instances is exactly
+ordinary type-conversion joining and implies PropositionFront by actual binder
+descent. No TypeForkJoin or existing general-coverage theorem is used to establish
+this implication. FirstGuardedTypedForkJoin has arbitrary typed sources, including
+functions: this does NOT show that the restriction to sort-typed stage-one roots
+alone has the same strength.
+
+The constructive direction identifies the needed input: a join of A and B
+repairs the residuals in that SAME target relation using compatible lambdas and
+beta cleanup, with no extra primitive or guard depth. A source-typing induction
+must produce that conversion join; ordinary well-typedness and lower native
+stage alone cannot be substituted for it. Such an induction remains live, as
+does a direct proof of the hard first guarded case. No impossibility of those
+routes is claimed. Adding further alias shapes would not discharge this cost.
+
+Validation: two modules, 237 Lean lines, 804 jobs, 13 audited roots,
+maximum closure 11,594, 779 frozen hashes; standard axioms only, no own
+warnings, no strengthening/sorry/semantic-exposure/circular-recovery/general-fork
+or general-coverage dependencies. The new open predicates are explicit premises
+in conditional barrier theorems, never asserted as established. Goal remains open.
