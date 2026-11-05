@@ -27944,3 +27944,55 @@ Completion audit: the original sorry remains at UniqueTyping.lean:94. No
 canonical-Eq counterexample or genuinely strictly smaller sufficient
 obligation has been proved. Executable unchanged. No PR extraction or agent
 coordination. GOAL.md remains active with its original objective.
+
+## 2026-11-05 21:17:00 UTC — Paired identity exposure retains both binder contexts
+
+Added ProofErasurePairedIdentityExposure (200 lines; one definition and eleven
+theorems). The interface stores stage-one paths from id_A(a) in the left
+context and id_B(b) in the right context to a stage-zero common comparison in
+the left context. Neither the annotations nor the computation contexts are
+identified. Endpoint and annotation computations compose independently.
+
+The diagonal instance is proved equivalent to IdentityCarrierExposure. One
+direction uses the old native-compared-output construction; the other keeps
+the original carrier and uses carrierChecked on the common output comparison.
+Thus the new interface can feed the existing Eq-prefix simulation at its
+original boundary rather than substituting a weaker final claim.
+
+The function construction opens each explicitly displayed, typed Pi using
+its own identity annotation. The recursive paired body premise runs under
+the two different displayed domains. lamCommon assembles the output without
+requiring native recovery or computation transport between those contexts.
+This directly handles the binder mismatch left by the same-carrier attempt,
+conditional on the paired body exposure. No endpoint native-typing premise
+is added: the written identities provide the needed recoveries.
+
+A stage-zero carrier guard and inferred annotation comparison can check the
+initial wrappers without computation. A separate upgrade retains an extra
+identity layer on any paired common exposure, yielding inferred comparison
+of outputs natively typed at their separate original annotations. Its
+annotation-comparison hypothesis is explicit. The record theorem assembles
+pointwise paired field exposures using the exact static proof mask and each
+major's own dependent recipe; different parameter vectors need a supplied
+stage-zero comparison. The specialization at the same family parameters and
+context gives precisely the previous record-carrier target.
+
+Open: existence of paired exposure from arbitrary field certificates. A
+function annotation may not yet display its Pi head. The existing computed
+typed Pi-exposure theorem assumes all primitive sources have PrimitiveHead;
+stage-zero constant expansion violates that premise, so it cannot simply be
+instantiated here. Moreover, this interface's output check is in the left
+context; its asymmetric context choice still needs an explicit treatment in
+any full symmetry/recursive-checker induction. Common-comparison exposure,
+general singleton simulation, and type-rooted stage-one confluence remain
+unfinished. No global paired-exposure completeness theorem is asserted.
+
+Validation: 844 isolated build jobs; 12 audited declarations through
+types, opaque bodies, constructors and recursor RHSs; maximum closure
+8,364; 819 unchanged frozen hashes. Only propext, Classical.choice,
+Quot.sound; no forbidden strengthening/coverage dependencies or own warnings.
+
+Completion audit: UniqueTyping.lean:94 still contains the original sorry.
+No canonical-Eq counterexample or genuinely strictly smaller sufficient
+obligation has been established. Executable unchanged; no PR extraction or
+agent coordination. GOAL.md remains active with its original scope.

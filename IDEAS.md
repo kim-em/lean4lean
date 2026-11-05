@@ -14779,3 +14779,40 @@ obligation or completed strengthening.
 **Evidence:** 843 isolated build jobs, 10 audited declarations, maximum
 closure 11,054, 818 frozen source/import hashes. Only standard axioms;
 no forbidden dependencies or own warnings.
+
+## 2026-11-05 21:17:00 UTC — Separate both annotations and computation contexts during exposure
+
+**Idea:** A right record field need not acquire the left field's annotation.
+Keep independent identity annotations and independent computation contexts,
+requiring the resulting endpoints to compare in common mode in the left
+context. Function recursion can then retain each displayed binder.
+
+**Verdict:** Checked construction. PairedIdentityExposure has independent
+annotation and endpoint computation laws. It is equivalent to the previous
+IdentityCarrierExposure when contexts and annotations coincide, so the
+same-carrier target has not been weakened. For two displayed typed Pis,
+function exposure moves each identity to its own codomain and computes the
+bodies in their respective binder contexts. Common lambda checking assembles
+the result without transporting the right computation to the left binder.
+A base carrier guard plus inferred annotation comparison checks the two
+retained wrappers directly. More generally, inferred annotation comparison
+upgrades any paired common exposure to inferred outputs, each with its own
+exact native type. Per-field paired exposures assemble full masked records,
+even with separately compared parameter vectors, and specialize to the
+original record exposure requirement.
+
+**Limit / next:** This proves closure constructions, not existence from the
+full carrier/comparison grammar. The function theorem requires both Pi heads
+to be displayed; an inferred type comparison does not by itself supply the
+missing right Pi computation here. Existing ComputedTypedExposure requires
+primitive-head preservation, which constant expansion at stage zero does not
+satisfy. The paired interface is asymmetric: its final check is in the left
+context, so swapping different computation contexts is not an automatic
+symmetry theorem. Future induction must account for this explicitly rather
+than silently transport certificates across compared contexts. General
+common-comparison exposure, singleton simulation, and type-rooted stage-one
+confluence remain open. No strictly smaller sufficient obligation is claimed.
+
+**Evidence:** 844 isolated build jobs; 12 audited public declarations;
+maximum closure 8,364; 819 frozen source/import hashes. Standard
+axioms only, no forbidden dependencies or own warnings.
