@@ -22163,3 +22163,47 @@ no configured forbidden dependencies or new warnings. All 718 imported-source
 hashes remained stable. Artifacts /dev/shm/caller-eta-repair-*.
 No executable changes or PR extraction. The original strengthening sorry remains;
 the goal stays active.
+
+
+## Abstract a body to perform function eta below a lambda (2026-11-05 00:20:19 UTC)
+
+Verdict: proved a new binder case for contextual joining, conditional on joining
+forks at typed types. For arbitrary dependent A, B, C and f : Pi B C in A::Gamma,
+every typed type context joins observations of (fun x:A => f) and
+(fun x:A => fun y:B => f y). Neither f nor its enclosing lambda needs a native
+certificate. Outer and inner proof domains are both allowed, as are proof
+functions. This proves the eta case below one lambda, not general lambda-body
+congruence or arbitrary binder-depth completeness.
+
+The construction abstracts over the surrounding binder before substituting.
+A fresh generic g : Pi A (Pi B C) has native recovery from its declaration.
+Exact native application requires only ordinary typing of the argument, so
+under a fresh x:A the term g x recovers Pi B C exactly. Eta first expands g and
+then g x, giving a checked computation to the two-lambda generic expansion.
+All ordinary typings are retained, and proof-valued sources erase directly.
+Substituting the arbitrary original lambda (fun x:A => f) beta-reduces the generic
+expansion to (fun x:A => fun y:B => f y); no reduction of f is needed.
+
+A general contextual lemma incorporates that administrative beta cleanup into
+the original type-valued beta fork. Generic computation is propagated through
+the typed observation using primitive renaming; the actual value is then
+substituted on the two fork branches. The computed branch beta-cleans to the
+desired observed endpoint. Applying the explicit type-fork joining premise at
+the original typed beta-redex yields the join. This avoids assuming exact
+substitution of guarded computation or native coverage of the substituted value.
+
+Scope judgment: the previous pointwise TypeContextJoin relation did not by
+itself supply lambda congruence. Abstraction gives a concrete way around that
+problem for this primitive eta case, rather than postulating congruence. General
+body equations, arbitrary binder paths, and the proof of type-fork joining
+remain unresolved. No strictly smaller sufficient strengthening obligation or
+proof of weakN_iff is claimed. Next: extend the generic abstraction construction
+along dependent binder telescopes and test other primitive body equations.
+
+Validation: two new modules, 255 lines, eight public roots. Explicit 775-job
+build; full transitive audit through types, opaque values, constructors and
+recursor rules, maximum closure 11,073. Only propext, Classical.choice and
+Quot.sound; no configured forbidden dependencies or new warnings. All 750
+imported-source hashes remained stable. Artifacts /dev/shm/generic-binder-eta-*.
+No executable changes, coordination or PR extraction. The original strengthening
+sorry remains and the goal stays active.
