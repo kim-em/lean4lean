@@ -13783,3 +13783,52 @@ Validation: 780-job isolated build, 56 audited roots, maximum transitive
 closure 11,538, 755 unchanged own/frozen source hashes; only standard
 propext/Classical.choice/Quot.sound, no strengthening/sorry/circular-framework
 or general fork/coverage dependencies. Original sorry and executable unchanged.
+
+## 2026-11-05 16:11:39 UTC — Dependent constructor native return with function parameters
+
+Verdict: checked application/native extension of ee3ce7a4, not a completion of
+GOAL.md. The previous goal turn was progress: its selected-family return is
+committed/pushed and was revalidated from the worktree. This turn connects that
+result to actual registered constructor headers and native result histories.
+
+A tempting shortcut was NativeHeaderHistory.application: it can already move a
+Pi-codomain path through an independently computed argument, but requires exact
+native recovery of the ORIGINAL argument at the original domain. The new cut
+proof instead retains a finite function observation and uses an ordinary typed
+lambda/application frame. Full observer preservation covers body computation,
+independent argument computation, beta substitution and every later type path.
+No original or current argument recovery is needed by this generic cut. A
+constant-function example allows an ordinarily convertible literal annotation L
+with no free computational demands, including ambient variables in L.
+
+Existing full-union Pi-origin readout preserves the codomain history in its
+original function-parameter context even when the whole Pi header computes and
+its displayed domain changes. This discharges the dependent application step:
+inspect native application, retain the function header's ancestry, then apply
+the observed cut. Computational world readout returns to the one selected
+family annotation A from the preceding turn.
+
+Registered projection metadata with parameter (S -> S) supplies the constructor
+header directly. Existing FunctionHeadExpansion.header handles arbitrary finite
+root constant/identity/eta expansion sequences, with unrestricted native guards.
+Thus a computed lookup argument, any subsequent native output and all later
+type computation return to Family (lambda A unitCtor). An independently computed
+assigned family at another lookup has the same output. The environment/stored
+header wrapper discharges both unfolding exclusions and the family's selected
+exposure from actual declaration data. There is no assumed constructor header
+history, observer or native argument certificate in that concrete wrapper.
+
+Boundary: FunctionHeadExpansion is root expansion only, not arbitrary whole-term
+compatible beta/structure computation. NativeHeaderHistory's known beta failure
+is not bypassed or reasserted. The next live step is to extend the joint
+constructor value/type observer to a function-parameter key. Its annotation can
+use ordinary equality at the empty-input-demand unit-function key, but its record
+family parameter must retain operational provenance. This general joint
+extension has NOT been proved here. Strengthening, general HF/HJ and strict
+smallness remain open; no PR extraction or coordination.
+
+Validation: 825-job isolated build, 14 roots, maximum transitive closure
+11,835; all 800 own/frozen source hashes unchanged. Types, opaque bodies,
+constructors and recursor RHSs audited; only propext/Classical.choice/Quot.sound,
+with all existing strengthening/sorry/circular and general join/coverage
+exclusions. Original weakN_iff sorry and executable unchanged.

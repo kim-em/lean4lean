@@ -26960,3 +26960,63 @@ sorry and circular framework dependencies plus TypeForkJoin,
 TypeInstantiationJoin, StaticStructureCommonCoverage and
 StaticStructureTypeConversionJoin. Only propext/Classical.choice/Quot.sound;
 no owned-module diagnostics. Artifacts: /dev/shm/selected-header-*.
+
+## 2026-11-05 16:11:39 UTC — Function-parameter constructor native and assigned joins
+
+Added three modules, 465 Lean lines, without changing prior Lean sources:
+ProofErasureFunctionParameterCut (134), FunctionParameterNative (169), and
+FunctionParameterConstructor (162).
+
+family_lambda_observation constructs the typed dependent family frame from its
+ordinary assignment. pending_function_codomain_observation starts the cut
+`(lambda (S -> S) (Family #0)) p`; full compatible computation includes the body
+path, independent argument path, beta contraction and final continuation.
+Consequently the computed result retains the family observation without any
+native certificate for the argument. pending_function_pi_observation obtains
+the body path from the existing full-union Pi-origin theorem, always in the
+original parameter context, even after whole-header computation and changed
+selected domains. This avoids assuming native derivation substitution.
+
+pending_function_native_observation inspects native application and applies the
+Pi/cut lemma using the constructor head's explicit original-header history.
+pending_function_native_return interprets the resulting observation using the
+single closed selected family exposure and free-variable world realizations.
+constant_function_native_return discharges those realizations with an empty
+valuation for an ordinarily typed lambda L unitCtor. Its annotation may differ
+from S and mention ambient variables; no exact original recovery is required.
+function_lookup initializes the concrete free demand and its actual native
+oracle. lookup_function_native_return allows its argument to compute arbitrarily
+before supply; only the head-history premise remains in that intermediate result.
+
+registered_function_constructor_history reads the stored dependent header from
+actual PositiveHeaderRegistration projection metadata with parameter S -> S.
+expanded_function_constructor_history uses the existing root head-expansion
+preservation theorem and proves constructor retention from its positive result
+type. expanded_function_constructor_native_return discharges the head ancestry
+and observation premises. expanded_function_constructor_assigned_join joins its
+future native type with any independent whole-family continuation at another
+function lookup. environment_stored_function_constructor_native_return uses
+actual environment definitions and instantiated stored nested-Pi family syntax
+to remove the unfolding and selected-exposure premises as well. The resulting
+annotation is the stored family's erased A0, not necessarily literal S.
+
+The restriction is explicit in statements/docs: head development is repeated
+root constant/native-identity/native-eta expansion, with full-union guards. The
+argument, header, native conversion tails and later type paths use the full
+union. Arbitrary compatible computation of the WHOLE constructor term, in
+particular beta/record-structure interleavings, is still open for retained
+function parameters. Existing NativeHeaderHistory beta counterexamples remain
+valid. The next joint value/type observer must carry function keys through the
+stored dependent constructor Pi; ordinary type equality must not be substituted
+for record-family parameter provenance. This is a checked fragment extension,
+not an irreducible sufficient obligation or a proof of strict smallness.
+GOAL.md and the original weakN_iff sorry remain open. No executable changes,
+PR extraction, or coordination; independent untracked modules preserved.
+
+Validation: 825-job isolated build, 14 roots, maximum transitive closure
+11,835; all 800 own/frozen source hashes unchanged. Recursive audit covers
+types, opaque bodies, inductive constructors and recursor RHSs; rejects the
+strengthening/sorry/circular framework dependencies and TypeForkJoin,
+TypeInstantiationJoin, StaticStructureCommonCoverage and
+StaticStructureTypeConversionJoin. Only propext/Classical.choice/Quot.sound;
+no owned-module diagnostics. Artifacts: /dev/shm/function-parameter-cut-*.
