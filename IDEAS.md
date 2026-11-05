@@ -13231,3 +13231,37 @@ No blanket constructor reachability, native coverage or preservation through
 arbitrary whole-term histories is proved. Arbitrary dependent-body
 post-instantiation continuations and general HJ/HF remain open. This does not
 restore exact recovery at the old assigned parameter or complete GOAL.md.
+
+
+### 2026-11-05 11:18:21 UTC — Preserve family ancestry through repeated actual constructor expansions
+
+Verdict: **checked unbounded finite constructor-round invariant and canonical
+unit-family type joins**. The previous selected-native-history result now
+iterates through actual root structure expansions, each with an independently
+selected guard, and arbitrary full computations in every argument between
+expansions. A fixed family origin computes to every selected native output.
+An expansion's new parameter therefore inherits family ancestry from its own
+native guard; no separate parameter path is postulated after expansion.
+
+Ordinary same-source typing and rigid-head inversion force every registered
+native guard to have the same family, parameter arity and empty universe
+instance. The grammar admits the actual root expansion relation without
+preselecting that family or its guard. Typed realization preserves endpoint
+witnesses; arbitrary dependent fields require no native certificates. Entry
+is possible after an arbitrary whole computation reaching a constructor,
+provided its parameter has the stated original ancestry.
+
+For the retained unit parameter, every native output selected after any number
+of rounds, and every subsequent full type continuation, returns to the same
+canonical family(unitCtor). Two independent major histories therefore give
+joining type histories without HF. The computed-family-header certificate
+remains explicit and is not a consequence of general registration.
+
+Boundary: constructor rounds do not contain every whole-major computation.
+Native identity/function wrappers on constructor prefixes and their later
+beta contractions still need a general operational readout invariant. Merely
+asserting that every computation has this grammar would be false: identity
+expansion immediately leaves the constructor spine. A future extension must
+represent those wrappers and their computations, not assume constructor shape
+is preserved. No general fork joining, strictly smaller sufficient front,
+or canonical-Eq strengthening follows yet; GOAL.md remains open.

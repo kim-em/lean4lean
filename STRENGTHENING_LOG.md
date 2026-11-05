@@ -26245,3 +26245,50 @@ forbidden dependencies plus TypeInstantiationJoin, TypeForkJoin,
 StaticStructureCommonCoverage and StaticStructureTypeConversionJoin were
 rejected. Only propext/Classical.choice/Quot.sound; no own-module warning or
 sorry. Artifacts `/dev/shm/constructor-unit-pivot-*`.
+
+
+### 2026-11-05 11:18:21 UTC — Constructor family ancestry survives repeated expansions
+
+Added `ProofErasureConstructorRounds.lean` (278 lines). The generic
+`native_registered_family_shape` replays two native guards at one typed source,
+uses ordinary type uniqueness and rigid-head inversion, and proves family
+identity, parameter-arity agreement and preservation of a monomorphic instance.
+It does not assume a type join or exact agreement of parameters.
+
+`ConstructorFamilyState` stores an actual typed witness of the raw constructor
+and a computation from a fixed family origin to its literal parameter family.
+`of_compute` enters this state after arbitrary whole computation;
+`of_unit_parameter_compute` builds its origin from an actual family application
+to a looked-up variable and an explicit parameter computation. The header
+origin theorem transfers the state's ancestry to every native selection.
+Argument computations extend ancestry by compatibility and preserve typed
+witnesses by realization. Actual root structure expansion uses guard-shape
+inversion, metadata uniqueness and the guard's own family ancestry to establish
+the invariant at the new constructor, including all masked dependent fields.
+
+`ConstructorRounds` includes reflexivity, arbitrary full argument computations,
+actual native structure expansions and composition. It embeds in the staged
+computation relation. Its induction proves invariant preservation without a
+bound on the number of rounds or guard depths. The final theorems send every
+selected native output and arbitrary later type continuation to the fixed
+unit-family type; two independent round histories join there. No independent
+native argument certificate, common-native coverage or fork-joining premise
+is used. The original computed-header certificate and unit-origin assumption
+remain explicit.
+
+Scope is not arbitrary whole-term computation: root identity expansions and
+function wrappers at constructor prefixes can leave the constructor grammar.
+Extending the operational observation through those wrappers is the next
+unresolved step; no blanket grammar-coverage claim was made. General HJ/HF,
+post-instantiation dependent-body continuations and GOAL.md remain open.
+Original sorry and executable unchanged. PR extraction remains deferred;
+the two independent untracked modules were excluded from imports and staging.
+
+Validation: 869-job isolated build; 19 public roots including round
+constructors and recursors audited through types, opaque values, constructor
+arguments and recursor RHSs; maximum closure 11,796. All 844 source and
+frozen dependency hashes stayed stable. The standard circular dependencies
+plus TypeForkJoin, TypeInstantiationJoin, StaticStructureCommonCoverage and
+StaticStructureTypeConversionJoin were rejected. Only propext/Classical.choice/
+Quot.sound; no own-module warning or sorry. Artifacts
+`/dev/shm/constructor-rounds-*`.
