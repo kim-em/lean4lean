@@ -27151,3 +27151,38 @@ values, inductive constructors and recursor RHSs; maximum closure 11,121;
 strengthening/sorry/framework/exposure/coverage/fork dependencies excluded.
 No new-module warnings. The two independent untracked research files were
 excluded from both the frozen imports and the commit. No PRs or coordination.
+
+## 2026-11-05 17:09:29 UTC — Canonical registered-family substitution and instantiation forks
+
+Added ProofErasureRegisteredCanonicalTelescope.lean (114 lines) and
+ProofErasureUnitArrowFamilyReturn.lean (129 lines). Reused rigid head readout;
+no new observation grammar was needed.
+
+static_structure_registered_spine_substitution_readout obtains a literal family
+spine after full source computation, realizes its typing, and uses ordinary
+family injectivity to identify the universe instances. Beta cleanup and level
+conversion then expose the original head and arity under arbitrary raw
+substitution in any target context. Supplied arguments remain arbitrary.
+
+static_structure_registered_canonical_substitution_return completes that path
+with the target native header and CallerCanonicalTelescope. The identity case
+handles arbitrary whole-family continuations. The instantiation-fork theorem
+repairs a computed family body under ANY raw argument image against a separate
+full computation of its ordinarily typed instantiation. The raw image is not
+required to be typed or related to the original argument. Both outputs reach
+the same target canonical family. This is possible because generic-parameter
+normalization happens in the target caller, before beta substitutes that image.
+
+UnitArrows.caller_telescope supplies arbitrary finite-order simple unit domains.
+UnitArrows.stored_family_native reconstructs the actual constant certificate in
+any ordinary context using closed stored-header erasure. The stored codomain
+need not be literally a sort. The two EnvironmentCore wrappers discharge all
+native, profile, soundness and no-unfolding premises from actual declaration
+data. No source or computed argument observation/lookup is needed.
+
+Validation: 855 isolated build jobs, 9 roots audited through types, opaque
+values, constructors and recursor RHSs, maximum closure 11,607, 830 frozen
+sources. Only standard axioms; no new warnings or forbidden dependencies.
+Unrelated untracked files excluded. Original sorry and executable unchanged.
+General strengthening remains open: this proves the canonicalizable registered
+family case, not an exposure theorem for arbitrary convertible types. No PRs.

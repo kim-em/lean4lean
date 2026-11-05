@@ -13948,3 +13948,46 @@ constructors and recursors), maximum dependency closure 11,121, 825 frozen
 source hashes, only propext/Classical.choice/Quot.sound. No strengthening/sorry,
 circular framework, semantic head exposure, general coverage or fork joins.
 No executable changes, PR extraction, or coordination.
+
+## 2026-11-05 17:09:29 UTC — Whole-family return without argument observations
+
+Verdict: checked. The existing RigidDemandProfile head readout already ignores
+all supplied parameters and indices while preserving a registered family's
+head and arity through arbitrary full-union computation. Combine it with the
+new generic-parameter normalization, rather than building another higher-order
+observer. This removes the earlier lookup, argument-history, and argument-
+observation requirements on the FAMILY side of the retained-function problem.
+
+The first new result beta-cleans every computed family after ANY raw substitution
+and restores its original universe instance by level conversion. Its target
+context needs no typing. With an actual target native family header and a
+CallerCanonicalTelescope, all resulting arguments then canonicalize. Source and
+target contexts and definition collections may differ. No substitution stability
+of native primitives or preservation of argument recovery is assumed.
+
+The instantiation-fork result joins a computation begun under a binder against
+an independent computation after typed substitution. The former branch may
+instantiate with ANY raw image, with no relation to the typed value on the latter
+branch. This covers independently computed arguments as well. For every finite
+UnitArrows type, actual stored family data discharges the target native/profile
+premises: only the outer stored Pi and its literal simple domain are required;
+the remaining stored codomain is arbitrary. Arbitrary original family arguments
+are ordinarily typed solely through the initial application.
+
+Boundary: this closes a concrete type-instantiation fragment, not general
+TypeInstantiationJoin, TypeForkJoin, PropFront, or strengthening. Canonical
+family head recovery is not proved for arbitrary ordinarily equal assigned
+types. The earlier arbitrary computed-CONSTRUCTOR native-return result still
+uses its joint type/value observer and a looked-up Unit -> Unit parameter.
+
+Next live direction: simplify that joint constructor observer to ignore its
+parameter completely. Constructor/native family heads retain their operational
+provenance, while this new whole-family theorem supplies readout for arbitrary
+supplied parameters. A finite UnitArrows canonical value and ordinary uniqueness
+proof should extend the fixed record carrier to arbitrary simple function order.
+Do not replace operational type-head evidence by ordinary type equality.
+
+Validation: 855-job isolated build, 9 audited theorem roots, maximum closure
+11,607, 830 frozen sources, only propext/Classical.choice/Quot.sound.
+No open strengthening, sorry, semantic head exposure, circular framework,
+general coverage or fork-join dependencies. No PR extraction or coordination.
