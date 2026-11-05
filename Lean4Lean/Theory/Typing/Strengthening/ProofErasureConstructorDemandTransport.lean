@@ -67,16 +67,19 @@ theorem Obs.compute (hstep : ErasedScopedPrimitiveDescent Step)
   | app RF RX ihf ihx =>
     have HT := H.typing.compute hstep (.app RF RX)
     cases H with
+    | family_type HE => exact .family_type (HE.compute hstep (.app RF RX))
     | unit_type HE => exact .unit_type (HE.compute hstep (.app RF RX))
     | univ HK HE => exact .univ HK (HE.compute hstep (.app RF RX))
     | app _ HF HX => exact .app HT (ihf HS HV HF) (fun key hk => ihx HS HV (HX key hk))
   | proj R _ =>
     cases H with
+    | family_type HE => exact .family_type (HE.compute hstep (.proj R))
     | unit_type HE => exact .unit_type (HE.compute hstep (.proj R))
     | univ HK HE => exact .univ HK (HE.compute hstep (.proj R))
   | lam RA RB ihA ihb =>
     have HT := H.typing.compute hstep (.lam RA RB)
     cases H with
+    | family_type HE => exact .family_type (HE.compute hstep (.lam RA RB))
     | unit_type HE => exact .unit_type (HE.compute hstep (.lam RA RB))
     | univ HK HE => exact .univ HK (HE.compute hstep (.lam RA RB))
     | lam _ HE HK HA HB =>
@@ -85,6 +88,7 @@ theorem Obs.compute (hstep : ErasedScopedPrimitiveDescent Step)
   | forallE RA RB ihA ihb =>
     have HT := H.typing.compute hstep (.forallE RA RB)
     cases H with
+    | family_type HE => exact .family_type (HE.compute hstep (.forallE RA RB))
     | unit_type HE => exact .unit_type (HE.compute hstep (.forallE RA RB))
     | univ HK HE => exact .univ HK (HE.compute hstep (.forallE RA RB))
     | pi _ HE HK HA HB =>

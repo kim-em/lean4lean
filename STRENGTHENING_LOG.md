@@ -26717,3 +26717,48 @@ and recursor RHSs audited with standard strengthening/sorry exclusions plus
 TypeForkJoin, TypeInstantiationJoin, StaticStructureCommonCoverage and
 StaticStructureTypeConversionJoin. Only propext/Classical.choice/Quot.sound;
 no own-module warnings or sorry. Artifacts: /dev/shm/constructor-demand-*.
+
+
+## 2026-11-05 14:11:58 UTC — Arbitrary computation and native recovery for the unit constructor fragment
+
+Completed the joint observer's full-stage induction and concrete canonical
+return, replacing the preceding entry's conditional native/primitive boundary.
+ConstructorDemandKeys.pi_parts uses ordinary Pi injectivity; the new family_type
+observation carries equality to unit -> universe. Substitution, beta, Pi
+inversion, annotation transport and native recovery all handle that case.
+The generic native theorem no longer needs a family-header premise.
+
+ConstructorDemandStructure identifies actual registered unit/record expansion
+outputs using native replay and head inversion. ConstructorDemandRegisteredNative
+discharges the constructor header from its stored declaration and observed type
+computation, and proves identity/eta/structure preservation. Primitive rigid-head
+exclusion and ConstructorDemandStages close finite-stage induction, full_compute
+and full_native. No general type fork, instantiation join, common coverage or
+conversion-completeness premise is used.
+
+ConstructorDemandReadout interprets the joint keys operationally. Ground unit,
+record and family-type observations beta-reduce to the original unit variable
+or its constructor instance; higher type keys remain annotation certificates.
+ConstructorDemandReturn initializes typed/native valuations directly from an
+actual unit lookup and registered declarations. canonical_native_return covers
+an arbitrary full-union path mk i -> image, any selected native image -> A,
+and any full-union A -> out, and returns out to Tag unitCtor.
+canonical_term_return gives the corresponding term return; native_assigned_join
+also joins an independently computed assigned Tag j. The EnvironmentCore wrapper
+needs no external no-unfold assumptions. This resolves the concrete native vs
+assigned parameter mismatch through a common future, without exact recovery.
+
+Remaining scope: arbitrary dependent types, arbitrary convertible assignments,
+and general HF/HJ. The concrete theorem's registered fieldless, monomorphic,
+unit-parameter signature is explicit. No claim that this fragment suffices for
+PropFront, no strict-smallness claim, no strengthening proof or counterexample.
+The original weakN_iff sorry and executable are unchanged. No PR extraction;
+independent untracked computation-count/primitive-descent modules excluded.
+
+Validation: 831-job isolated build; 86 public/constructor/recursor roots;
+maximum transitive dependency closure 11,540; 806 source hashes unchanged.
+Audited types, opaque bodies, inductive constructors and recursor RHSs, excluding
+weakN_iff/weakN_inv/sorryAx and all prior circular frameworks, additionally
+TypeForkJoin, TypeInstantiationJoin, StaticStructureCommonCoverage and
+StaticStructureTypeConversionJoin. Only propext/Classical.choice/Quot.sound;
+no warnings in owned modules. Artifacts: /dev/shm/constructor-demand-stages-*.

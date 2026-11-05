@@ -5,7 +5,8 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureExpansionVariableExposu
 
 A lambda retains the type demand of each demanded input. A Pi retains the same
 input demands and the dependent result-type demand under its fresh binder.
-Unit-carrier and universe equalities are ordinary opaque witnesses; the record
+Unit-carrier, universe and the special family-to-universe function-type
+equalities are ordinary opaque witnesses; the record
 family parameter is retained operationally by its demanded family application.
 -/
 namespace Lean4Lean.VEnv.Strengthening.ConstructorDemand
@@ -35,6 +36,8 @@ inductive Obs (unit record : AtomicControl.Atom) (uc ctor family : Name) :
   | family : HeterogeneousControl.ControlTyping Δ (.const family [])
       (.arrow (.atom unit) (.sort (HeterogeneousControl.ControlType.atom record).level)) →
       Obs unit record uc ctor family Δ S (.const family []) (.fn (.atom unit) [.unit] (.type .record))
+  | family_type : TypeEquality Δ e (.arrow (.atom unit) (.sort (HeterogeneousControl.ControlType.atom record).level)) →
+      Obs unit record uc ctor family Δ S e (.type (.fn (.atom unit) [.unit] (.type .record)))
   | unit_type : TypeEquality Δ e (.atom unit) → Obs unit record uc ctor family Δ S e (.type .unit)
   | univ : key.Valid unit record → TypeEquality Δ e (.sort (key.control unit record).level) →
       Obs unit record uc ctor family Δ S e (.type (.type key))
@@ -58,7 +61,7 @@ theorem Obs.typing (H : Obs unit record uc ctor family Δ S e key) :
     HeterogeneousControl.ControlTyping Δ e (key.control unit record) := by
   cases H with
   | var HT | unit_ctor HT | record_ctor HT | family HT | app HT | lam HT | pi HT => exact HT
-  | unit_type HE => exact HE.typing
+  | unit_type HE | family_type HE => exact HE.typing
   | univ _ HE => exact HE.typing
 
 /-- Function inputs and result keys are compatible with their stored carriers. -/
@@ -66,7 +69,7 @@ theorem Obs.valid (H : Obs unit record uc ctor family Δ S e key) : key.Valid un
   induction H with
   | var _ HK => exact HK
   | unit_ctor | unit_type => simp only [Key.Valid]
-  | record_ctor | family =>
+  | record_ctor | family | family_type =>
     simp only [Key.Valid]
     refine ⟨?_, trivial⟩
     intro key hk
@@ -95,6 +98,7 @@ theorem Obs.rename (H : Obs unit record uc ctor family Δ S e key)
   | unit_ctor HT => exact .unit_ctor (HT.subst W)
   | record_ctor HT => exact .record_ctor (HT.subst W)
   | family HT => exact .family (HT.subst W)
+  | family_type HE => exact .family_type (HE.subst W)
   | unit_type HE => exact .unit_type (HE.subst W)
   | univ HK HE => exact .univ HK (HE.subst W)
   | app HT _ _ ihf iha => exact .app (HT.subst W) (ihf W hσ) (fun key hk => iha key hk W hσ)

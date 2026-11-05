@@ -13570,3 +13570,44 @@ certificate for its special universe-valued function type, or use a proved
 stored-header observation; do not silently assume exact family-header recovery.
 Then handle actual unit/record structure roots using native parameter readout.
 General HF/HJ, strict smallness and GOAL.md remain open.
+
+
+## 2026-11-05 14:11:58 UTC — Full-union constructor/native demands: checked local closure
+
+Verdict: the joint observer now survives every finite enriched stage, hence
+arbitrary full-union compatible computation and native recovery, for the
+registered positive unit/fieldless one-parameter record signature. This closes
+the conditional preservation boundary of the previous entry. It is a local
+native/assigned-type joining theorem, not a proof of general HF/HJ or a strictly
+smaller sufficient strengthening obligation.
+
+The decisive addition is an opaque ordinary equality certificate only for the
+family function's type (unit -> universe). Ordinary Pi injectivity exposes its
+input and universe codomain under the actual binder. The dependent family
+application Tag p still requires an operational unit observation of p; it is
+never admitted from ordinary type equality alone. This discharges the family
+header without reinstating the refuted fixed-lower-origin invariant.
+
+Finite-stage induction handles native identity, eta and actual structure roots
+using the preceding stage's native theorem. Unit structure returns the unit
+constructor; record structure returns the record constructor at the parameter
+selected by its actual native guard. Rigid heads exclude unrelated primitive
+roots. Registered declaration typing supplies the remaining constructor header.
+
+Operational readout gives explicit return after arbitrary whole-term computation
+of mk i, arbitrary native recovery, and arbitrary subsequent type computation:
+the final type computes to Tag unitCtor. Independently computed assigned Tag j
+joins there too. EnvironmentCore discharges all three no-unfold premises.
+No assumed term provenance, observed header, primitive closure, exact selected
+argument certificate, or native history remains in the concrete return theorem.
+
+Next boundary: initialization/coverage for arbitrary dependent types and arbitrary
+convertible assignments. The observer presently fixes two positive closed
+carriers and finite operational demands; ordinary equality cannot supply the
+missing parameter demands. Generalizing a bare ordinary typing into an observed
+family application would erase the very invariant that proved this result.
+General HF/HJ, strict smallness and GOAL.md remain open. Original sorry and
+executable unchanged; no PR extraction.
+
+Validation: 831-job isolated build, 86 audited roots, maximum closure
+11,540, 806 own/frozen source hashes, only the three standard axioms.

@@ -26,6 +26,7 @@ theorem Obs.subst (H : Obs unit record uc ctor family Δ S e key)
   | unit_ctor HT => exact .unit_ctor (HT.subst W)
   | record_ctor HT => exact .record_ctor (HT.subst W)
   | family HT => exact .family (HT.subst W)
+  | family_type HE => exact .family_type (HE.subst W)
   | unit_type HE => exact .unit_type (HE.subst W)
   | univ HK HE => exact .univ HK (HE.subst W)
   | app HT _ _ ihf iha => exact .app (HT.subst W) (ihf W hσ) (fun key hk => iha key hk W hσ)
@@ -60,6 +61,7 @@ and every demanded native-type annotation stored in it. -/
 theorem Obs.beta_forward (H : Obs unit record uc ctor family Δ S (.app (.lam A b) a) key)
     (HS : S.Typed unit record Δ) : Obs unit record uc ctor family Δ S (b.inst a) key := by
   cases H with
+  | family_type HE => exact .family_type (HE.beta .beta)
   | unit_type HE => exact .unit_type (HE.beta .beta)
   | univ HK HE => exact .univ HK (HE.beta .beta)
   | app HT HF HX =>
@@ -81,6 +83,11 @@ theorem Obs.pi_parts
       Obs unit record uc ctor family (A :: Δ) (Sets.cons keys S) B (.type result) := by
   cases H with
   | pi _ HE HK HA HB => exact ⟨HE, HK, HA, HB⟩
+  | family_type HE =>
+    obtain ⟨HD, HB⟩ := HE.pi_parts
+    refine ⟨HD, ?_, ?_, .univ (by simp only [Key.Valid]) HB⟩
+    · intro key hk; obtain rfl := List.mem_singleton.1 hk; rfl
+    · intro key hk; obtain rfl := List.mem_singleton.1 hk; exact .unit_type HD
 
 /-- Supplying the demanded values instantiates an observed native Pi's result.
 This is the application case needed by native recovery: the current argument

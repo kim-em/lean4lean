@@ -8,7 +8,7 @@ Pi cannot silently reinterpret an input key at a different control type.
 -/
 namespace Lean4Lean.VEnv.Strengthening.ConstructorDemand
 open _root_.Lean4Lean Params ProofShape
-open private erase_lam_inv from Lean4Lean.Theory.Typing.Strengthening.ProofErasureBeta
+open private erase_lam_inv erase_forallE_inv from Lean4Lean.Theory.Typing.Strengthening.ProofErasureBeta
 variable [Params]
 
 /-- Finite term demands and the corresponding native-type demands. -/
@@ -87,5 +87,21 @@ theorem lambda_domain_equality
   obtain ⟨⟨_, HA⟩, _⟩ := ((HasType.lam hA hb).uniqU henv hΓ hf).forallE_inv henv hΓ
   have hW := (HeterogeneousControl.ControlTyping.of_typed hΓ hf).wf.1
   exact ⟨Γ, A₀, hΓ, EΓ, HA.toU.of_r henv hΓ (HeterogeneousControl.ControlType.typed hW), EA⟩
+
+
+/-- Ordinary equality to a closed arrow exposes carrier equalities for both
+parts of a literal Pi. The codomain equality is in the actual displayed binder
+context; no exact native domain recovery or strengthening is used. -/
+theorem TypeEquality.pi_parts (H : TypeEquality Δ (.forallE A B) (.arrow domain result)) :
+    TypeEquality Δ A domain ∧ TypeEquality (A :: Δ) B result := by
+  obtain ⟨Γ, T, hΓ, EΓ, HE, ET⟩ := H
+  obtain ⟨A₀, B₀, rfl, _, EA, EB⟩ := erase_forallE_inv ET
+  have HW := HeterogeneousControl.ControlType.wf_of_typing henv.ordered HE.hasType.2
+  obtain ⟨⟨_, HD⟩, _, HB⟩ := HE.toU.forallE_inv henv hΓ
+  have HD' := HD.toU.of_r henv hΓ (HeterogeneousControl.ControlType.typed HW.1)
+  have hΓA : OnCtx (A₀ :: Γ) (env.IsType univs) := ⟨hΓ, domain.level, HD'.hasType.1⟩
+  exact ⟨⟨Γ, A₀, hΓ, EΓ, HD', EA⟩,
+    ⟨A₀ :: Γ, B₀, hΓA, by simp only [proofEraseCtx, EA, EΓ],
+      HB.toU.of_r henv hΓA (HeterogeneousControl.ControlType.typed HW.2), EB⟩⟩
 
 end Lean4Lean.VEnv.Strengthening.ConstructorDemand
