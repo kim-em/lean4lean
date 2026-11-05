@@ -24883,3 +24883,44 @@ constructors, and recursor RHSs; maximum closure 11,382. All 773 source
 hashes match own source or frozen committed dependencies and stayed stable.
 Only propext/Classical.choice/Quot.sound; no forbidden dependency, sorry, or
 own-module warning. Artifacts `/dev/shm/native-pi-history-coverage-*`.
+
+### 2026-11-05 — Caller transformations need only the selected native domain
+
+**Verdict: the exact-assigned-Pi premise was stronger than needed; a strictly
+weaker caller interface is now proved sufficient for these local squares.**
+ProofErasureCallerDomainGuards runs generic argument computations, simultaneous
+dependent telescope reannotation, and the historical body-history square from
+a native Pi whose domain alone equals the assigned argument type. Its selected
+codomain is arbitrary raw syntax. The ordinary dependent caller type still
+controls actual typing and erasure. Forward computation of the argument type
+changes the domain guard while retaining its arbitrary native codomain. No
+argument recovery or type-fork joining premise is used.
+
+ProofErasureCallerDomainGuardBoundary verifies that this weaker premise adds
+actual coverage. A constant caller with input type Sort 1 -> Sort 1 has a domain
+guard whenever its returned value has any native type. Recovering the caller's
+complete assigned Pi would instead recover that value at its assigned type.
+The existing positive-empty-structure obstruction supplies a value for which
+that is impossible, but common native recovery exists. A typed identity cover
+of this caller has its exact assigned Pi at stage zero and beta-contracts to
+the caller with only the domain guard. Both actual and erased beta paths are
+proved; the input telescope is nonempty and has an explicit lambda inhabitant.
+Thus this is a checked distinction between caller interfaces, not merely a
+restatement of arbitrary exact-recovery failure.
+
+The earlier LambdaWrapperHistoryBoundary and TypeInstantiationBoundary already
+exclude universal full assigned-type transfer, including function callers; those
+refutations were reused rather than reproved. This development does not prove
+that every computed caller retains the necessary domain, nor that domains can
+be aligned after arbitrary caller histories. The generic-family fresh-domain
+example is the next test for that remaining claim. The strict separation is
+between these local caller premises, not a strictly smaller sufficient global
+strengthening obligation. General native-history coverage, type-fork joining,
+and strengthening remain open; executable and original sorry are unchanged.
+
+Validation: isolated build succeeded (826 jobs); seven public/generated roots
+including the new matcher passed full dependency audits, maximum closure 11,373.
+All 801 source hashes matched frozen committed dependencies and own sources;
+only allowed axioms, no forbidden dependency, sorry, or audited-module warning.
+Artifacts /tmp/carrier-caller-domain-guards-*. Independent native-Pi history
+changes were preserved and not imported while uncommitted.
