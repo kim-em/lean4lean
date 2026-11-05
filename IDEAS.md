@@ -13495,3 +13495,37 @@ annotation histories. A candidate is a simultaneous observation of unit values,
 constructor functions, and constructor results, with parameter-sensitive type
 observations under fresh binders; this has not been implemented or established.
 General HF/HJ, strict smallness and GOAL.md remain open.
+
+
+### 2026-11-05 13:20:57 UTC — Two-carrier body demands survive compatible beta/control development
+
+Verdict: established a constructive body/argument observation for unit values
+and unit-parameter constructor results, with arbitrary compatible beta
+interleavings and full computation of displayed binder annotations. This is
+progress beyond the root-only FunctionHeadExpansion grammar, not a solution to
+native type coverage or a strictly smaller sufficient strengthening front.
+
+The prior NativeHeaderHistory obstruction shows that extensional native type
+ancestry cannot carry beta alone. HeterogeneousControl now assigns each atomic
+leaf an ordinary closed positive carrier certificate, allowing S and Tag unit
+in one typed control program. The constructor's arrow explicitly demands a unit
+argument; lambda bodies retain those demands and ordinary substitution supplies
+them on contraction. The assigned simple arrow S -> Tag unit follows from actual
+registered constructor typing and unit equality, not from native completeness.
+
+The observer supports ordinary substitution, all compatible beta reductions,
+native identity and function eta with full-union guards, and constant wrappers.
+Development additionally lets lambda/Pi domain annotations compute by the entire
+full union. Operational readout reaches mk originalUnitVariable or mk unitCtor.
+Actual registered positive unit/phantom metadata supplies all initial carrier
+and node typings, and one actual unit expansion gives canonical term return.
+
+Boundary: term-node structure expansion is not a root of Development. A native
+Tag p guard must carry an observation of p, and the current ordinary typed
+observer alone does not establish that. Annotation/native-output provenance
+must still be linked to the retained body demands. Nor does term return imply
+that every selected native type of the intermediate term returns to Tag unit.
+Next: combine construction/annotation provenance with the two-carrier observer
+and address native parameter selection before claiming full-union preservation.
+Do not replace that obligation with an unproved root-preservation hypothesis.
+General HF/HJ, strict smallness, and GOAL.md remain open.

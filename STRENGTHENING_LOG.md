@@ -26601,3 +26601,55 @@ Quot.sound, no own-module warnings or sorry. Artifacts:
 /dev/shm/native-header-beta-boundary-*.
 GOAL.md remains open, the original sorry and executable unchanged. No PRs were
 extracted; independent untracked modules remain preserved and excluded.
+
+
+### 2026-11-05 13:20:57 UTC — Registered constructor control return with beta interleavings
+
+The previous completed goal turn was progress: the native header beta
+obstruction was checked and pushed as 78081fe9. The intervening clarification
+made no implementation progress. This continuation revalidated that HEAD and
+the unchanged worktree, then implemented the retained body/argument direction.
+
+Added six modules (904 lines). ProofErasureHeterogeneousControlTyping extends
+ordinary control typing to multiple closed positive carrier certificates; the
+single-atom implementation remains intact. Its substitution, replay, lambda
+inversion, and native identity/eta witnesses carry no exact-native-image premise.
+
+ProofErasureUnitConstructorObservation demands the unit argument of a bare
+constructor while typing its result at a separate record carrier. Substitution
+retains demands through bodies, beta discharges them from actual arguments,
+and a literal saturated constructor exposes its parameter observation.
+ProofErasureUnitConstructorTransport handles compatible computation with an
+explicit root-preservation premise. The concrete ControlStep roots in
+ProofErasureUnitConstructorReadout discharge that premise for constant, native
+identity, and native eta expansions, with full-union native guards.
+
+ProofErasureConstructorControlDevelopment permits unrestricted full-union
+computation of displayed lambda/Pi domain annotations, arbitrary compatible
+beta interleavings, and the three control roots anywhere in the observed term.
+Every development embeds in the actual full union. Its observation theorem
+uses ordinary context conversion at changed annotations, not a joining premise.
+Operational readout beta-cleans to mk originalUnitVariable or mk unitCtor.
+
+ProofErasureRegisteredConstructorControl obtains S -> Tag unit by ordinary unit
+equality from registered metadata. Both closed carriers and all initial typing
+witnesses are constructed internally. registered_constructor_control_return
+then returns every represented development to mk unitCtor by readout plus the
+actual unit lookup expansion. It assumes no observation, header history, or
+computed family-header certificate.
+
+Boundary: Development omits term-level structure expansion (and general
+primitive term evolution). Recovering an observed unit parameter from a native
+Tag p guard remains open. The new theorem is canonical TERM return for this
+explicit language; it is not all-native-output return or full-union closure.
+A combined annotation/construction invariant is still needed. The original
+weakN_iff sorry and executable are unchanged; GOAL.md remains open. No PR
+extraction. Independent untracked modules preserved and excluded.
+
+Validation: isolated 817-job build; 91 public roots including new inductive
+constructors and recursors; maximum dependency closure 11,304; 792
+own/frozen source hashes unchanged. Types, opaque values, constructors and
+recursor RHSs were audited with all standard strengthening/sorry exclusions
+plus TypeForkJoin, TypeInstantiationJoin, StaticStructureCommonCoverage and
+StaticStructureTypeConversionJoin. Only propext/Classical.choice/Quot.sound;
+no own-module warnings or sorry. Artifacts: /dev/shm/unit-constructor-control-*.
