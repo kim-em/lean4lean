@@ -26131,3 +26131,60 @@ forbidden dependencies plus TypeInstantiationJoin, TypeForkJoin,
 StaticStructureCommonCoverage and StaticStructureTypeConversionJoin were
 rejected. Only propext/Classical.choice/Quot.sound; no own-module warning or
 sorry. Artifacts `/dev/shm/computed-native-substitution-*`.
+
+
+### 2026-11-05 10:53:35 UTC — Rigid family continuation return discharges a parameter square
+
+Added four modules (697 lines). `ProofErasureRigidUnitObservation.lean` extends
+the typed unit observation with a monomorphic rigid family at S→Sort v. This
+leaf demands its argument instead of forgetting it. Renaming, actual typed
+substitution, changed contexts, beta, function eta and identity/constant
+wrappers preserve observations. Two designated constant heads replace the old
+single terminal head. The typed operational interpretation distinguishes unit
+leaves from family-result leaves and supplies an interpretation for the rigid
+family application.
+
+`ProofErasureRigidUnitTransport.lean` proves preservation through every full
+structure/function-eta stage and compatible transitive computation. Rigidity
+excludes primitive rewrites at either observed head. Structure expansion at
+sort or arrow control types is impossible by ordinary head uniqueness; the
+atomic unit case produces its fixed constructor. Lambda annotation changes
+use ordinary typed context conversion rather than native guard transport.
+
+`ProofErasureRigidUnitReturn.lean` proves that every complete continuation of
+an observed family program beta-reads to family(variable) or family(unitCtor).
+Lookup supplies the final unit step. Public ordinary-typing corollaries cover
+rigid family applications and whole beta cuts whose written domain is merely
+definitionally equal to S. Independent complete histories from different unit
+variables return to the same fixed family(unitCtor). The EnvironmentCore
+specialization derives both head exclusions from actual registration, so no
+separate unfolding premise remains there. These histories include all later
+computation, not just a first structure step or component round.
+
+`ProofErasureUnitParameterPivot.lean` applies this to the remaining common
+native structure square. Any native output meeting the assigned family after
+an arbitrary complete type history converts onward to family(unitCtor). This
+supplies the canonical structure guard. Source paths before/after the pivot
+and the competing beta predecessor then meet at the explicit structure output
+with that parameter and final major. There may be arbitrary dependent retained
+fields and proof masks; only the family parameter is restricted to one looked-up
+closed positive nullary unit. Unlike the earlier general parameter-history
+square, this theorem assumes no parameter-chain joining. Existence of common
+native output remains an explicit premise and is not derived here.
+
+The previous simultaneous-substitution theorem still covers arbitrary generic
+body histories, while this turn handles complete continuations for the rigid
+unit-family program and removes its parameter-joining premise in the structure
+square. Arbitrary dependent-body continuations and common native coverage remain
+open. Closed-proposition fork equivalence prevents counting closure alone as a
+smaller obligation. No general HJ/HF, strict-smaller sufficient front or GOAL.md
+completion is claimed. Original sorry and executable unchanged; PR extraction
+deferred; independent untracked files preserved and excluded from imports.
+
+Validation: 763-job isolated build, 40 public roots including the observation
+constructors and recursors audited through types, opaque values, constructor
+arguments and recursor RHSs; maximum closure 11,452. All 738 own/frozen
+dependency hashes stayed stable. Standard forbidden dependencies plus
+TypeInstantiationJoin, TypeForkJoin, StaticStructureCommonCoverage and
+StaticStructureTypeConversionJoin were rejected. Only propext/Classical.choice/
+Quot.sound; no own-module warning or sorry. Artifacts `/dev/shm/rigid-unit-return-*`.

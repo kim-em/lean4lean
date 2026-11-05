@@ -13166,3 +13166,35 @@ General existence of suitable simultaneous image computations is not proved.
 Neither are arbitrary post-instantiation continuations joined. These remain
 separate obligations; no confluence, normalization, strengthening, or strictly
 smaller sufficient front is claimed.
+
+
+### 2026-11-05 10:53:35 UTC — Follow retained unit parameters through rigid family continuations
+
+Verdict: **checked full continuation return and a structure-pivot square without
+parameter-chain joining**. Inspection of ClosedPropForks reconfirmed that merely
+closing the simultaneous-substitution problem retains the full TypeForkJoin
+obligation; this is not a smaller front. Instead extend the typed unit observer
+with a rigid monomorphic family leaf that demands its unit argument.
+
+RigidUnitObservation preserves that demand through beta, arbitrary typed
+control substitutions, changed written domains, identity/constant wrappers,
+function eta and every full-union stage. The two possible primitive heads are
+the family and the unit constructor; rigidity excludes their delta/iota/K
+rewrites. Structure eta consumes only atomic unit nodes. Operational readout
+then beta-cleans a complete type-valued history to family(variable) or
+family(unitCtor), and lookup supplies the remaining unit step.
+
+This gives complete continuation joins for a rigid family at different unit
+variables, including whole beta cuts with ordinarily equal written domains.
+Actual registered families and EnvironmentCore discharge rigidity/unfolding
+exclusions. For a structure with one retained looked-up unit parameter and
+arbitrary dependent fields, common native output now supplies the canonical
+family guard directly. The old parameter-chain joining premise is eliminated
+for this configuration by family return; structure output functoriality handles
+all retained field projections and source histories.
+
+Common native-output existence remains explicit. Arbitrary dependent-body
+post-instantiation continuations, multiple/dependent retained parameter
+profiles and general HJ/HF remain unresolved. The result is checked progress
+on the retained-parameter branch, not normalization, strengthening or a
+strictly smaller sufficient obligation.
