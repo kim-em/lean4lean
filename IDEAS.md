@@ -11495,3 +11495,43 @@ Validation: current-HEAD integration build (823 jobs), 150 public/generated
 roots across six modules, maximum closure 11,647; 798 stable source hashes,
 all dependencies committed, only allowed axioms, no forbidden dependencies,
 sorry or audited-module warnings.
+
+### 2026-11-05 04:53:49 UTC — Exact transfer fails in dependent argument contexts; beta output histories suffice for expansion squares
+
+**Verdict: refuted exact native transfer as a general marked-context invariant.**
+The existing projectionType_beta already transports dependent recipes, so adding
+another recipe beta lemma would duplicate established work. The genuine question
+is preservation of selected outputs after the recipe and its conversion tail
+change. A checked counterexample now prevents assuming exact preservation.
+
+Take a fresh q : Type and an older variable f : (T : Type) → T → Type.
+The constant cut a = (fun (_ : Type) => Prop) q has a native certificate for its
+original argument and preserves every full-union native output on contraction
+to Prop. Yet f a recovers the type a → Type already at stage zero, while f Prop
+cannot recover that exact type in the full union. The contracted application
+was typed before q was inserted, so native descent requires every recovered
+output to be a lift; a → Type retains q and is not a lift. Both applications
+are retained and have a common ordinary type. Their displayed native outputs
+beta-join. No structure declaration assumptions are needed, and canonical Eq
+is allowed. This is not a strengthening or confluence counterexample.
+
+**Verdict: proved expansion squares with beta evolution of native outputs.**
+NativeOutputBetaTransfer permits the selected output to beta-reduce to an output
+recovered at the pivot. Exact transfer embeds and sequential transfers compose.
+All four root expansion squares still work: function eta follows the beta
+history of its domain and transports DomainSort, while structure eta follows
+the parameter beta histories. The residual from the original expansion remains
+pure beta. This also gives a conditional square at any dependent projection,
+not just field zero.
+
+Still missing: closure of the new output-history interface through arbitrary
+dependent contexts and conversion tails, plus the existing created-cut and
+mixed-continuation coverage obligations. The new interface is not asserted
+universally or claimed strictly smaller than PropositionFront. TypeForkJoin and
+weakN_iff remain open. The next proof must handle changing native outputs rather
+than extend exact transfer by a nonexistent general argument-congruence rule.
+
+Validation: two new modules, 825 build jobs, nine public audit roots,
+maximum transitive closure 11,363; all 800 imported source hashes stable,
+only allowed axioms, no forbidden dependencies or own-module warnings.
+Artifacts /dev/shm/argument-transfer-*.

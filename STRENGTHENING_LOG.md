@@ -24199,3 +24199,45 @@ propext/Classical.choice/Quot.sound; no sorry, forbidden dependency or audited
 module warning. All 798 source hashes stable, isolated copies identical and
 non-own sources committed at staging. Artifacts /tmp/carrier-first-projection-*.
 Original sorry and executable unchanged.
+
+### 2026-11-05 04:53:49 UTC — A dependent-argument obstruction and expansion squares with changed native types
+
+Added ProofErasureNativeTransferArgumentBoundary. Its explicit ordinary context
+contains f : (T : Type) → T → Type and a newly inserted q : Type. For
+ a = (fun (_ : Type) => Prop) q,
+native_output_transfer_argument_beta_failure proves NativeHeadBeta a Prop using
+the native certificate of q, exact full-union transfer a → Prop, common ordinary
+typing of f a and f Prop, stage-zero recovery of a → Type from f a, and absence
+of that output at f Prop in the full union. The exclusion uses selected-type
+binder descent and fresh_argument_constant_not_lift. The target recovers
+Prop → Type at stage zero, and the source selected type beta-reduces to it.
+Corollaries refute argument closure of NativeHeadBeta and argument congruence of
+NativeOutputTransfer. This holds in any canonical-Eq Params environment without
+additional structure assumptions. It does not refute strengthening.
+
+Added ProofErasureBetaOutputPivotSquare. NativeOutputBetaTransfer records beta
+reduction of a selected source output to a pivot-native output. Its docstring
+names the still-missing dependent-context/conversion-tail closure. Exact native
+transfer embeds, and the interface composes. beta_output_pivot_expansion_square
+proves joins for constant, identity, function-eta and masked structure-eta
+competitors. Eta uses beta Pi inversion and DomainSort.scoped_compute at the
+changed domain; structure uses beta constant-spine inversion and pointwise
+parameter reduction. Both preserve a pure-beta right residual. Nonopaque-root
+and arbitrary-field projection corollaries expose the interface at the actual
+remaining contexts; the projection corollary retains output transfer as an
+explicit unproved premise.
+
+Research judgment: exact-output closure is unavailable in general, even for a
+certified cut with no structure machinery. A type-history/common-reduct route
+remains live and now has the required expansion square. Its context closure,
+conversion-tail joining, created-cut coverage and unrestricted mixed paths are
+not proved. No strictly smaller sufficient front is claimed. Original sorry
+and executable unchanged; GOAL.md remains active.
+
+Validation: 825-job isolated build; nine public roots with full transitive
+type/value/opaque/constructor/recursor traversal, maximum closure 11,363.
+Only propext/Classical.choice/Quot.sound; no sorry, forbidden dependencies or
+own-module warnings. All 800 closure source hashes stable and checked against
+committed dependencies and own sources before staging. Concurrent uncommitted
+projection/common-native modules were neither used nor changed. Artifacts
+/dev/shm/argument-transfer-*.
