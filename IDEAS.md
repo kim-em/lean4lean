@@ -10951,3 +10951,59 @@ dependencies were copied from committed HEAD and checked again before commit.
 Artifacts: /dev/shm/wrapper-native-*. Executable unchanged. Independent edits
 preserved. No PR extraction. GOAL.md remains open: no strengthening proof,
 canonical-Eq counterexample, or strictly smaller sufficient obligation claimed.
+
+
+## Literal-prefix traces close stored data-indexed singleton equations (2026-11-05)
+
+Verdict: removed the all-prefix coverage premise from stored singleton equation
+computation. For arbitrary dependent data indices, generic data-domain chains
+and TypeForkJoin now suffice for the entire lambda-wrapped stored equation.
+Neither open premise is discharged; actual pattern alignment remains separate.
+
+RecursorData.LiteralSingletonPrefix records the actual opened parameters, a typed
+constructor field instance, and literal equality of the opened indices with the
+constructor indices specialized at those fields. Its fresh proof major need not
+be the constructor itself. RecursorRegistered.zero_join_via_literal_prefix retains
+this evidence at the only prefix step of the original coverage construction.
+The construction's existing typed fields beneath the fresh major, and its exact
+opened argument equations, supply the certificate. The original zero_join_via_prefix
+signature and zero_join remain wrappers, so existing callers are preserved.
+No second copy of the large coverage construction was introduced.
+
+SingletonPrefixCode.Valid.literal_guard uses the registered opened telescope to
+obtain actual major typing, specializes the generic declaration-domain chains,
+and forms the transported-family computation chain. TypeForkJoin joins its two
+erasures. Finite-stage extraction from the resulting raw comparison gives a
+concrete finite guard depth; no uniform stage bound or native argument recovery
+is assumed. TypedComputationEq.literal_prefix rebuilds the generated check and
+performs its recovered singleton step at the next stage, retaining the original
+source assignment. generated_literal_prefix derives the fixed code certificates
+from registration and generation.
+
+TypedComputationEq.singleton_equation_of_literal_prefix interprets the revised
+coverage construction as typed computation chains. data_singleton_equation
+supplies its prefix callback using the finite generic domain comparisons and
+TypeForkJoin. It covers every registered large-eliminating singleton equation at
+a proposition-source specialization, including arbitrary dependent data-index
+telescopes, at the stored equation type. This closes the interface mismatch
+between the previous literal-family theorem and the older all-prefix callback.
+
+Remaining scope: generic domain chains are known only as ordinary domain
+equalities in general, and TypeForkJoin is open. An actual matched pattern may
+supply recursor indices different from the literal indices of the stored-equation
+instance; ordinary family/type uniqueness gives their ordinary alignment but
+not computation chains. The proof-indexed pattern case remains unconditionally
+covered by exact erasure, while the data-indexed pattern case still needs that
+computational alignment. Strengthening is not proved, and no strictly smaller
+sufficient irreducible obligation is claimed.
+
+Validation: three new modules (23, 110 and 70 lines), and 60 additions/5 deletions
+in SingletonCoverage. Isolated 812-job build, with all 39 public roots audited
+across five modules (including the committed beta-recovery dependency updated
+by independent work). Full transitive traversal includes declaration types,
+opaque bodies, constructors and recursor RHS; maximum closure 11,345. Only
+propext, Classical.choice and Quot.sound; no configured forbidden dependencies,
+sorry sources or audited-module warnings. All 787 closure source hashes stayed
+stable and matched isolated copies byte-for-byte. Artifacts
+/tmp/carrier-literal-prefix-*. Executable unchanged; independent work preserved;
+no coordination; GOAL.md active, not complete or blocked.

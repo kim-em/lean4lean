@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Typing.Confluence.SingletonRecursorExtraction
 import Lean4Lean.Theory.Typing.Confluence.Helpers
 import Lean4Lean.Theory.Typing.PatEquation
-import Lean4Lean.Theory.Typing.PrefixUnfolding.Layout
+import Lean4Lean.Theory.Typing.PrefixUnfolding.Literal
 import Lean4Lean.Theory.VExpr
 import Lean4Lean.Theory.Typing.SingletonExtraction.Basic
 import Lean4Lean.Theory.Inductive.SignatureData
@@ -582,7 +582,7 @@ prefix at the fixed universe instance, beta, application and closing lambdas.
 Any relation with those operations realizes the same normal comparison. This
 exposes the actual computational content without assuming general reduction
 coverage or any confluence theorem for the supplied relation. -/
-theorem RecursorRegistered.zero_join_via_prefix (heq : env.HasCanonicalEq) {Γ : List VExpr}
+theorem RecursorRegistered.zero_join_via_literal_prefix (heq : env.HasCanonicalEq) {Γ : List VExpr}
     {data : RecursorData} {index : Fin data.schema.signature.constructors.size}
     {equation : VDefEq} {levels : List VLevel}
     (hΓ : OnCtx Γ (env.IsType univs)) (hlookup : recursorData data.name = some data)
@@ -601,8 +601,11 @@ theorem RecursorRegistered.zero_join_via_prefix (heq : env.HasCanonicalEq) {Γ :
     (trace_app : ∀ {Δ f f' a a'}, Trace Δ f f' → Trace Δ a a' → Trace Δ (.app f a) (.app f' a'))
     (trace_wrap : ∀ {Δ ds a b}, Trace (ds.reverse ++ Δ) a b → Trace Δ (VExpr.wrapLams ds a) (VExpr.wrapLams ds b))
     (trace_beta : ∀ {Δ A b a}, Trace Δ (.app (.lam A b) a) (b.inst a))
-    (trace_prefix : ∀ {Δ args rhs}, PrefixUnfold env univs recursorData Δ data.name levels args rhs →
-      Trace Δ (mkApps (.const data.name levels) args) rhs) :
+    (trace_prefix : ∀ {Δ args program},
+      data.singletonUnfolding env univs levels args = some program →
+      data.LiteralSingletonPrefix env univs Δ levels args program →
+      PrefixUnfold env univs recursorData Δ data.name levels args program.rhs →
+      Trace Δ (mkApps (.const data.name levels) args) program.rhs) :
     ∃ left right, Trace Γ (equation.lhs.instL levels) left ∧
       Trace Γ (equation.rhs.instL levels) right ∧ NormalEq Γ left right := by
   have hlen : levels.length = data.uvars := hl.trans (H.equation_uvars' hgen)
@@ -970,10 +973,33 @@ theorem RecursorRegistered.zero_join_via_prefix (heq : env.HasCanonicalEq) {Γ :
       (instantiateParams (rb.instL levels) (vars np (2 + nf) ++ vars 2 nf ++ occ0)) := by
     rw [← hbeta, hlb]
     exact .tail (.tail .rfl (.app (.delta hrule) .rfl)) (.core (.beta .rfl .rfl))
+  have hopened : data.openedArguments
+      (vars (np + 2) nf ++ E.ctorIndices.map (·.liftN 2 nf)) =
+      vars np (2 + nf + 1) ++ vars 2 (nf + 1) ++ idx1 ++ [VExpr.bvar 0] := by
+    simpa only [RecursorData.openedArguments, hprelen, Nat.add_sub_cancel_left] using hall
+  have htake : (data.openedArguments
+      (vars (np + 2) nf ++ E.ctorIndices.map (·.liftN 2 nf))).take data.numParams =
+      vars np (2 + nf + 1) := by
+    rw [hopened, ← hpl, hnp', List.append_assoc, List.append_assoc,
+      List.take_left' (by simp [vars])]
+  have hdrop : ((data.openedArguments
+      (vars (np + 2) nf ++ E.ctorIndices.map (·.liftN 2 nf))).drop data.indexOffset).take
+      data.numIndices = idx1 := by
+    rw [hopened, hio, show vars np (2 + nf + 1) ++ vars 2 (nf + 1) ++ idx1 ++ [VExpr.bvar 0] =
+      (vars np (2 + nf + 1) ++ vars 2 (nf + 1)) ++ (idx1 ++ [VExpr.bvar 0]) by simp,
+      List.drop_left' (by simp [vars]), ← hidxl, ← hidx1l, List.take_left]
+  have hliteral : data.LiteralSingletonPrefix env univs (D'.reverse ++ Γ) levels
+      (vars (np + 2) nf ++ E.ctorIndices.map (·.liftN 2 nf))
+      ⟨[d], tail, mkApps E.ctor (vars np (2 + nf + 1) ++ occ1),
+        ⟨data.uvars, wrapLams D lb, wrapLams D rb, wrapForalls D tb⟩, ⟨D, lb, rb, tb⟩,
+        vars np (2 + nf + 1) ++ vars 2 (nf + 1) ++ occ1, levels⟩ := by
+    refine ⟨S, E, vars nf 1, hS, hE, ?_, ?_⟩
+    · simpa only [htake, hPdef, List.reverse_singleton, List.singleton_append] using hf1
+    · rw [htake, hdrop, ← hidx1def]
   have htrace : Trace (D'.reverse ++ Γ) (lb.instL levels)
       (instantiateParams (rb.instL levels) (vars np (2 + nf) ++ vars 2 nf ++ occ0)) := by
     rw [← hbeta, hlb]
-    exact trace_trans (trace_app (trace_prefix hrule) trace_refl) trace_beta
+    exact trace_trans (trace_app (trace_prefix hprog hliteral hrule) trace_refl) trace_beta
   -- normal equality with the right side
   have hvarsT : ∀ a ∈ vars np (2 + nf) ++ vars 2 nf, ∃ A, env.HasType univs (D'.reverse ++ Γ) a A := by
     intro a ha
@@ -1028,6 +1054,35 @@ theorem RecursorRegistered.zero_join_via_prefix (heq : env.HasCanonicalEq) {Γ :
     simp only [VExpr.instL_wrapLams, hD]
     obtain ⟨u, hu⟩ := hlΓ.isType henv.ordered hΓ
     exact NormalEqF.wrapLams_congr hΓ rfl ⟨_, hu⟩ hnorm
+
+/-- The original trace interface follows by discarding the literal occurrence
+certificate. Existing callers may still supply all-prefix coverage. -/
+theorem RecursorRegistered.zero_join_via_prefix (heq : env.HasCanonicalEq) {Γ : List VExpr}
+    {data : RecursorData} {index : Fin data.schema.signature.constructors.size}
+    {equation : VDefEq} {levels : List VLevel}
+    (hΓ : OnCtx Γ (env.IsType univs)) (hlookup : recursorData data.name = some data)
+    (H : RecursorRegistered env data)
+    (howner : data.schema.signature.constructors[index].owner = data.owner)
+    (hgen : data.equation index = some equation)
+    (hpe : env.PatEquation equation)
+    (hlT : env.HasType equation.uvars [] equation.lhs equation.type)
+    (hrT : env.HasType equation.uvars [] equation.rhs equation.type)
+    (hw : ∀ level ∈ levels, level.WF univs) (hl : levels.length = equation.uvars)
+    (hlarge : data.largeTarget = true)
+    (hzero : (data.schema.sourceLevel data.owner data.levels).inst levels ≈ .zero)
+    (Trace : List VExpr → VExpr → VExpr → Prop)
+    (trace_refl : ∀ {Δ e}, Trace Δ e e)
+    (trace_trans : ∀ {Δ a b c}, Trace Δ a b → Trace Δ b c → Trace Δ a c)
+    (trace_app : ∀ {Δ f f' a a'}, Trace Δ f f' → Trace Δ a a' → Trace Δ (.app f a) (.app f' a'))
+    (trace_wrap : ∀ {Δ ds a b}, Trace (ds.reverse ++ Δ) a b → Trace Δ (VExpr.wrapLams ds a) (VExpr.wrapLams ds b))
+    (trace_beta : ∀ {Δ A b a}, Trace Δ (.app (.lam A b) a) (b.inst a))
+    (trace_prefix : ∀ {Δ args rhs}, PrefixUnfold env univs recursorData Δ data.name levels args rhs →
+      Trace Δ (mkApps (.const data.name levels) args) rhs) :
+    ∃ left right, Trace Γ (equation.lhs.instL levels) left ∧
+      Trace Γ (equation.rhs.instL levels) right ∧ NormalEq Γ left right := by
+  exact H.zero_join_via_literal_prefix heq hΓ hlookup howner hgen hpe hlT hrT hw hl hlarge hzero
+    Trace trace_refl trace_trans trace_app trace_wrap trace_beta
+    (fun _ _ HP => trace_prefix HP)
 
 /-- The original full-reduction coverage is the specialization of the explicit
 single-prefix construction to the ordinary full reduction relation. -/
