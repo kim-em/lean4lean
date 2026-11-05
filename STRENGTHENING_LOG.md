@@ -24098,3 +24098,24 @@ full transitive type/body/opaque/constructor/recursor audit maximum closure
 or audited-module warnings. All 839 closure hashes stable and isolated sources
 identical; non-own sources match committed HEAD at staging. Artifacts
 /tmp/carrier-type-fork-coverage-*.
+
+### 2026-11-05 — Exact native transfer under binders and eta frames
+
+Added ProofErasureNativeTransferBinders. NativeOutputTransfer.lam preserves the
+whole native conversion tail. NativeOutputTransfer.liftN combines exact
+certificate descent with renaming across any typed binder insertion. The
+under_domain and eta_frame theorems interpret an ambient DomainSort witness
+and retain the chosen proof/data erasure of the fresh argument. No type-fork
+joining or ordinary typing of the raw pivot is assumed.
+
+Remaining: these closure laws do not classify arbitrary full-union paths or
+cover every created cut. TypeForkJoin and the original strengthening theorem
+remain open; no strict-smallness claim.
+
+Validation: 28-module integration build, 821 jobs; 276 public/generated roots
+with full type/body/opaque/constructor/recursor traversal, maximum closure
+11,651. Only propext/Classical.choice/Quot.sound, no forbidden dependency or
+sorry, no audited-module warning. All 796 source hashes and isolated copies
+matched own files or committed afc07cdf dependencies. Concurrent wrapper edits
+were excluded and preserved. Artifacts /tmp/carrier-native-transfer-binders-*.
+Original sorry and executable unchanged.

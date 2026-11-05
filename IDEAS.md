@@ -11415,3 +11415,19 @@ continuation/marked-context work is still live.
 Validation: three-module integration, 864 jobs, 63 public/generated roots,
 maximum transitive closure 12,872; 839 stable local source hashes and committed
 dependencies, only allowed axioms, no forbidden dependencies or task warnings.
+
+### 2026-11-05 — Native-output transfer beneath inserted binders
+
+**Verdict: exact transfer is stable under arbitrary typed binder insertion.**
+Source-certificate descent removes the inserted binders, transfer acts at the
+original context, and interpreted renaming restores the exact selected output.
+Only the source needs an ordinary typing witness; the pivot can remain raw.
+Transfer through a common lambda domain is structural, so function-eta frames
+also preserve every native output, including proof-erased fresh arguments.
+This supplies binder/frame closure, not arbitrary computation-path coverage.
+
+Validation: 28-module integration (821 jobs), 276 public/generated roots,
+maximum closure 11,651; 796 stable source hashes, only allowed axioms, no
+forbidden dependencies or audited-module warnings. Dependency inputs were
+frozen at committed afc07cdf; concurrent wrapper edits were preserved and
+excluded from validation.
