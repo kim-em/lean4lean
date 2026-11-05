@@ -9939,3 +9939,47 @@ Quot.sound; no configured forbidden dependencies or new warnings. All 753
 imported-source hashes remained stable. Artifacts /dev/shm/contextual-eta-telescope-*.
 No executable changes, coordination or PR extraction. The original strengthening
 sorry remains and the goal stays active.
+
+
+## Structure eta beneath every dependent lambda telescope (2026-11-05 00:35:37 UTC)
+
+Verdict: closed the structure-eta primitive beneath arbitrary finite dependent
+lambda prefixes, conditional on the existing TypeForkJoin premise. The public
+TypeForkJoin.contextual_structure_eta_under_telescope theorem observes
+wrapLams ds m and wrapLams ds (structExpand family info ls ps m) in every typed
+type context. The structure parameters may depend on every prefix binder;
+proof domains, proof majors, proof-valued abstractions and mixed retained/proof
+fields are included. Neither the original major nor its whole abstraction needs
+native recovery. Admissibility comes from the actual expansion's ordinary typing,
+not a stronger universe assumption or a separate coverage hypothesis.
+
+The native construction first opens the declared function telescope with fresh
+variables. Exact assigned recovery weakens and survives each application using
+only ordinary argument typing. At the terminal family, exact recovery supplies
+the structure-expansion guard. Ordinary telescope eta and structure eta type the
+result. This gives a computation of a fresh generic function into its fully
+opened and structure-expanded body, before any actual abstraction is substituted.
+
+The syntax layer proves that beta reduction of a major passes through all its
+projected fields. Instantiating the generic telescope restores the dependent
+domains and parameters exactly. Supplying wrapLams ds m contracts only the
+administrative applications introduced by opening that displayed prefix; no
+normalization or reduction of m or the parameters is required. The established
+generic type-context beta fork then joins observations of the actual two sides.
+
+Scope judgment: this removes another primitive case under unbounded lambda
+depth, following the preceding function-eta construction. It does not establish
+arbitrary data-valued lambda-body congruence, general dependent term-template
+congruence, or TypeForkJoin. It is not a proof of strengthening or a newly proved
+strictly smaller sufficient obligation. The original UniqueTyping.weakN_iff sorry
+remains. Next: address typed enclosing templates and general body congruence;
+reuse this terminal-major construction rather than assume native recovery of
+actual substituted values.
+
+Validation: three new modules, 241 lines, eight public roots. Explicit 781-job
+build; full transitive dependency audit through types, opaque values, constructor
+lists and recursor rules, maximum closure 11,098. Only propext,
+Classical.choice and Quot.sound; no configured forbidden dependencies or new
+warnings. All 756 local imported-source hashes remained stable. Artifacts
+/dev/shm/contextual-structure-telescope-*. Independent untracked work was
+preserved. No executable changes, coordination or PR extraction; goal active.
