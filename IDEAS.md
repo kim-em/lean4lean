@@ -15157,3 +15157,27 @@ Validation: 786 isolated build jobs, 30 public/generated roots, maximum
 closure 11,275, all 761 frozen source/import hashes unchanged. Only standard
 axioms; no forbidden dependencies or own-module warnings. Codomain extraction,
 remaining paired exposure, higher stages and strengthening remain open.
+
+### 2026-11-05 22:52:53 UTC — Pi codomain extraction at a shared written binder
+
+Verdict: proved through arbitrary stage-zero computed comparisons in either
+outer mode. Marked Pi payloads retain domain and codomain histories. The body
+comparison descends temporary controls, then native backward context transport
+pulls it from the computed domain to the original shared binder. Ordinary Pi
+injectivity aligns actual codomain typings before the trace induction, so the
+public theorem admits independently assigned codomain universes. Sort-typed
+mode conversion handles both ordinary and sorted Pi comparison constructors.
+
+Native selected Pi outputs of actual lambdas at a shared written binder now
+supply native recovery and inferred comparison of their exact selected body
+types in the original scope. Their selected domains can differ: rebuild each Pi
+at the common written domain, prefix its retained domain history, then extract
+codomains. This removes a body-type-check premise without assuming native
+context alignment or replacing a computed check with ordinary type equality.
+
+Boundary: arbitrary unequal written binders still require additional context
+transport; the selected Pi comparison remains supplied. Higher-stage extraction,
+full paired exposure and strengthening remain open. Validation: 789 isolated
+jobs, 5 public roots, maximum audited closure 11,374, 764 unchanged
+frozen source/import hashes, standard axioms only and no forbidden dependencies
+or own-module warnings.

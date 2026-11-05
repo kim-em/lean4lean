@@ -28612,3 +28612,47 @@ terminated normally. Original weakN_iff sorry remains at UniqueTyping.lean:94;
 no canonical-Eq counterexample or strictly smaller sufficient irreducible
 obligation has been established. Executable unchanged; no PR extraction or
 coordination. GOAL.md remains active.
+
+### 2026-11-05 22:52:53 UTC — Pi codomain and exact native body-type comparison
+
+ProofErasurePiCodomainPayload descends selected codomain checks below temporary
+prefixes and pulls them back along the retained original-domain computation.
+Typed replay keeps original codomain typing, ordinary binder conversion realizes
+both endpoints under the selected left domain, certificate descent removes the
+prefix at cutoff one, and native backward context transport returns the check
+to the written binder. Identical marked payloads retain common codomain paths.
+
+ProofErasurePiCodomainComparison follows the full inferred checking induction
+with pending ignored control arguments. Structural Pi cases read their codomain
+premise in either mode and convert the result to inferred mode using sort typing.
+All application cases recurse on function checks; positive-arity eta reads a
+common payload; zero-arity lambda heads are impossible. Computation preserves
+traces and symmetry exchanges original codomains while keeping the shared binder.
+The public computed theorem accepts either outer mode and independently assigned
+codomain universes. Reflection of the prefixed original Pi check and ordinary Pi
+injectivity align actual codomain typings, without supplying the desired raw
+comparison. The trace induction supplies that comparison. A direct corollary
+handles comparisons of original Pi erasures.
+
+ProofErasureNativePiCodomainComparison applies extraction to native Pi outputs of
+actual lambdas with a shared written binder. Native lambda factorization provides
+two domain computations and exact native body recoveries under the written binder.
+Replay realizes their selected body types there. Each realized type forms a Pi
+at the written binder, which computes to its selected Pi by changing only the
+domain. The supplied selected Pi comparison then extracts an inferred comparison
+of the exact selected body types in the original scope. Selected domains may
+differ; no comparison transport across selected domains is postulated.
+
+The shared written binder remains substantive. Arbitrary independently written
+binders would need context transport not supplied by ordinary domain equality.
+This does not close common-mode lambda extraction, higher stages, paired exposure,
+singleton simulation, or type-rooted confluence.
+
+Validation: 789 isolated build jobs; 5 public roots audited through
+types, opaque bodies, inductive constructors and recursor RHSs; maximum closure
+11,374; 764 frozen source/import hashes unchanged. Only propext,
+Classical.choice and Quot.sound; no forbidden dependencies or own-module warnings.
+All validation processes terminated normally. UniqueTyping.lean:94 retains the
+original weakN_iff sorry; no canonical-Eq counterexample or strictly smaller
+sufficient irreducible obligation has been established. Executable unchanged,
+no coordination and no PR extraction. GOAL.md remains active.
