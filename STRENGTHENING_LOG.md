@@ -25428,3 +25428,26 @@ values including opaque bodies, constructors and recursor RHSs; maximum closure
 and remained stable. Only propext/Classical.choice/Quot.sound; no forbidden
 dependency, sorry, or own-module warning. Artifacts
 `/dev/shm/computed-structure-header-*`.
+
+
+### 2026-11-05 — Exact proof discharge after one joining instantiation
+
+`ProofErasureInstantiationProofDischarge.lean` proves
+`TypeInstantiationJoin.inst_then_certified` and `.inst_then_proof`. The open
+TypeInstantiationJoin premise first instantiates an arbitrary argument below
+a dependent binder. Exact certified instantiation then carries BOTH branches
+of that same join to one substituted common output. A propositional second
+argument needs no native certificate; a retained second argument needs native
+recovery at its assigned type. The first argument needs none.
+
+Verdict: checked conditional support for an auxiliary-Eq cast template. This
+avoids composing unrelated joins and does not assume TypeForkJoin. It proves
+neither TypeInstantiationJoin itself nor cast elimination, unrestricted
+post-instantiation type joining, sufficiency, or strict-smallness versus
+PropFront. Canonical-Eq strengthening remains open; original sorry and
+executable unchanged. No GOAL.md completion is claimed.
+
+Validation: isolated 777-job build, two public/generated roots audited through
+types and opaque values, constructors and recursor equations; maximum closure
+11,484; 752 frozen source hashes. Only allowed axioms, no forbidden dependency,
+sorry, or own-module warning. Artifacts `/tmp/carrier-instantiation-proof-discharge-*`.
