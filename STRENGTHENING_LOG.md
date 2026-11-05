@@ -24072,3 +24072,29 @@ Classical.choice and Quot.sound occur, with no forbidden dependencies or
 new-module warnings. All 807 imported local sources were hash-stable and
 rechecked against committed dependencies and own sources before staging.
 Artifacts: /dev/shm/wrapped-cut-*.
+
+### 2026-11-05 — Exact boundary of the remaining fork premise
+
+Added ProofErasureTypeForkCoverage. StaticStructureTypeConversionJoin.type_forks
+realizes both fork endpoints and applies ordinary equality-to-join completeness.
+Combined with the new history theorem this proves
+environment_core_type_forks_iff_conversion_join. Type-fork joining also gives
+uniform common native coverage by the existing native-existence construction;
+converted-variable coverage gives its converse. The checked theorem
+environment_core_type_forks_iff_common_coverage records this equivalence.
+
+Judgment: uniform native coverage is not an independent smaller replacement for
+TypeForkJoin. These results do not prove the remaining fork obligation, its
+strict smallness relative to PropositionFront, or the original strengthening
+theorem. Existing return-tree and closed-proposition boundaries already cover
+the easy syntactic fragment restrictions. Full-union continuation joins remain
+the live route; the committed recursive-wrapper development is reusable but
+does not cover all active-mark eta/structure continuations or arbitrary contexts.
+GOAL.md remains active, with the original sorry and executable unchanged.
+
+Validation: three-module integration build, 864 jobs; 63 public/generated roots,
+full transitive type/body/opaque/constructor/recursor audit maximum closure
+12,872. Only propext/Classical.choice/Quot.sound; no sorry, forbidden dependency
+or audited-module warnings. All 839 closure hashes stable and isolated sources
+identical; non-own sources match committed HEAD at staging. Artifacts
+/tmp/carrier-type-fork-coverage-*.

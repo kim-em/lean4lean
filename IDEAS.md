@@ -11395,3 +11395,23 @@ full transitive audit maximum closure 11,505, only allowed axioms, no
 forbidden dependencies or audited-module warnings; 807 stable source hashes,
 checked against own sources and committed dependencies at staging. Artifacts
 /dev/shm/wrapped-cut-*.
+
+### 2026-11-05 — Boundary: type forks and uniform native coverage are equivalent
+
+**Verdict: changing to uniform common coverage does not narrow the remaining gap.**
+Ordinary type-conversion joins imply TypeForkJoin by reifying both outputs.
+Together with declaration-history completeness, this proves equivalence in
+the concrete presentation. Existing native-existence readout then gives common
+coverage from TypeForkJoin; variable coverage supplies the reverse implication.
+Thus bare native existence is no longer a separate conditional assumption,
+but uniform common coverage cannot independently justify fork joining. Neither
+equivalence establishes PropositionFront's converse or strict smallness.
+
+The existing closed-inhabited-proposition restriction and universe/Pi return
+fragments were checked before considering further fragment reductions; they
+already cover those proposed simplifications. The remaining full-union
+continuation/marked-context work is still live.
+
+Validation: three-module integration, 864 jobs, 63 public/generated roots,
+maximum transitive closure 12,872; 839 stable local source hashes and committed
+dependencies, only allowed axioms, no forbidden dependencies or task warnings.
