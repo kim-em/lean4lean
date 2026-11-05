@@ -26342,3 +26342,60 @@ StaticStructureTypeConversionJoin were rejected; only propext/Classical.choice/
 Quot.sound, with no own-module warning or sorry. The audit-root generator was
 corrected to ignore declaration-like words in block comments. Artifacts
 `/dev/shm/constructor-frames-*`.
+
+
+### 2026-11-05 11:41:08 UTC — Higher-order annotation histories with retained data results
+
+Added three modules (422 lines). `ProofErasureNativeGroundDemand.lean` extends
+the recursive type-demand construction with an arbitrary ground type predicate.
+Function demands still observe actual Pi types with recursive input demands and
+dependent codomain demands. Ground sort witnesses give positive universe
+information, ordinary interpreted substitution transports all recursive demands,
+and complete full-union type computation preserves them when the concrete
+ground predicate has the corresponding laws. Changed domains transport the
+computed codomain demand by ordinary context conversion. No native image
+certificate or general fork-joining premise occurs. Function demands continue
+to exclude primitive family heads, while ground demands can represent data.
+
+`ProofErasureLowerTypeHistory.lean` supplies a concrete ground predicate and
+proves all its laws. Each witness records a positive typed lower type, a forward
+path from the original raw type, its exact lift through temporary binders and
+a current ordinary sort witness. Substitution fixes only the original tail;
+any temporary controls may be replaced by ordinary typed terms. Full type
+computation descends via the checked certificate-descent theorem and extends
+the lower path. Native recovery of a retained source with known ancestry
+supplies such a history; constructor-frame histories discharge that ancestry.
+The recursive `LowerTypeDemand` consequently transports higher-order demands
+through arbitrary type computation and ordinary temporary substitution.
+
+The identity-arrow demand is constructed from the actual historical annotation.
+`computed_identity_type_result_history` covers complete computation of that
+arrow to an exposed Pi, followed by substitution into its codomain.
+`computed_identity_type_inst_history` constructs the substitution interpretation
+from an arbitrary ordinary argument typing, with no native recovery assumption.
+Intermediate codomains may contain control-dependent syntax; after instantiation
+the result is again an exact lower typed image with its original ancestry.
+
+`ProofErasureUnitIdentityTypeHistory.lean` connects this to the constructor
+route: a native annotation selected from a historical frame gives the ground
+history; its identity-arrow type may compute completely before an ordinary
+argument is supplied at the new domain. The instantiated result and every
+subsequent full type computation return to the canonical unit-family type.
+The source frame's computed-header certificate and initial family ancestry
+remain explicit.
+
+Boundary: preservation through arbitrary computation of function terms is
+still unproved. The new result handles their type histories and ordinary
+argument substitution, not constructor-prefix term evolution or all structure
+expansions inside a control body. GOAL.md remains open; no general HF/HJ or
+strict-smallness result is asserted. Original sorry and executable unchanged.
+PR extraction remains deferred; independent untracked modules were preserved
+and excluded from imports and staging.
+
+Validation: 873-job isolated build; 22 public roots audited through types,
+opaque values, constructors and recursor RHSs; maximum closure 11,862.
+All 848 own/frozen source hashes stayed stable. Standard forbidden dependencies
+plus TypeForkJoin, TypeInstantiationJoin, StaticStructureCommonCoverage and
+StaticStructureTypeConversionJoin were rejected. Only propext/Classical.choice/
+Quot.sound; no own-module warning or sorry. Artifacts
+`/dev/shm/ground-type-history-*`.

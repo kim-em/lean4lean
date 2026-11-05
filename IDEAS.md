@@ -13300,3 +13300,41 @@ prefix functions is not represented by the literal frame grammar. Thus this
 extends the previous invariant across a real class of whole-major shape changes
 but does not establish general continuation coverage, HF/HJ, strict smallness,
 or canonical-Eq strengthening. GOAL.md remains open.
+
+
+### 2026-11-05 11:41:08 UTC — Replace Pi-only ground demands by lower data-type histories
+
+Verdict: **checked higher-order annotation transport for retained data types,
+with a constructor-frame identity-type application**. The existing recursive
+native-type demand observes Pi payloads at its base, so it cannot directly
+represent a rigid record-family result. `NativeGroundDemand` instead accepts
+a ground type predicate and retains dependent Pi observations for function
+keys. It proves recursive preservation under ordinary temporary-variable
+substitution and arbitrary full type computation from the corresponding ground
+laws. Function keys still exclude opaque family guards; ground keys need not.
+
+`LowerTypeHistory` is a concrete noncircular ground predicate: a positive
+ordinarily typed lower type, its forward computation from a fixed origin, its
+lifted image under the temporary prefix, and a current sort witness. Ordinary
+substitution fixes the lower history. Certificate descent appends arbitrary
+computations under temporary binders to the lower history. Constructor-frame
+native selections supply this invariant using their previously checked origin
+theorem; no native argument-image premise is added.
+
+An actual historical type constructs the recursive demand for its identity
+arrow. Complete computation of that arrow to a new literal Pi, followed by
+ordinary argument substitution at the exposed domain, preserves the lower
+result history. The concrete instantiation theorem derives the interpretation
+from ordinary argument typing, with no native recovery at either domain. When
+the initial annotation was selected from a unit-parameter constructor frame,
+the instantiated result and every later type continuation return to the fixed
+canonical family(unitCtor).
+
+This is computation of function TYPES and transport of historical annotations,
+not yet arbitrary computation of the function TERMS. The next term-observation
+step must carry these data demands through constructor prefixes and structure
+expansion inside control bodies. A raw saturated-constructor payload cannot
+simply be treated as opaque under application congruence: computation of its
+function prefix can expose nonliteral control syntax. The new ground laws
+supply the annotation part of that observer without claiming its term closure.
+General HF/HJ, a strictly smaller sufficient front, and GOAL.md remain open.
