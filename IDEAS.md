@@ -11699,3 +11699,27 @@ Validation: 783-job isolated build; six public roots, maximum transitive
 closure 11,329; 758 committed/own closure-source hashes stable. Only
 propext/Classical.choice/Quot.sound, no forbidden dependency, sorry, or own-module
 warning. Artifacts: /dev/shm/registered-proof-return-*.
+
+### 2026-11-05 — Computed constructor histories supply their own target family guards
+
+**Verdict: target family recovery proved without parameter or field native
+certificates; fixed-parameter history transfer now derives its target guard.**
+Any retained saturated constructor of an unindexed structure remains a typed
+constructor after independent argument computations in a descending language.
+Replaying that path and reading the literal constructor declaration yields native
+recovery at the resulting parameter images, using any target recovery relation,
+even the empty one. Parameters may compute and may be arbitrary data; their new
+images are retained explicitly rather than equated with their original syntax.
+
+For fixed parameters, this supplies the original family after arbitrary field
+computations. Combining it with the prior native-origin theorem gives exact
+output transfer between two independently evolved field vectors. Only original
+retained parameter certificates remain in that transfer premise; the second
+field vector no longer needs an assumed native family guard. This establishes
+an evolving structure-frame component, not unrestricted continuation coverage,
+TypeForkJoin, strengthening, or a strictly smaller sufficient front.
+
+Validation: one new module, 831-job isolated build; five public/generated roots,
+maximum closure 11,388; 806 stable closure-source hashes against own and committed
+files, only allowed axioms, no forbidden dependencies, sorry or own-module
+warnings. Artifacts /tmp/carrier-computed-constructor-*.
