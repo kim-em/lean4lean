@@ -10159,3 +10159,56 @@ hashes stayed stable and matched isolated copies. Artifacts
 retains all eleven targets and enumerated generated declarations. Executable
 unchanged, no coordination. The original strengthening sorry remains and the
 goal stays active.
+
+
+## Telescope congruence and full context conversion for typed chains (2026-11-05 00:51:49 UTC)
+
+Verdict: typed computation equality now closes arbitrary finite dependent lambda
+prefixes and is invariant under full ordinary dependent-context conversion. No
+TypeForkJoin, native coverage, exact forward binder transport, or strengthening
+premise is used for these closure theorems. They apply to retained data bodies
+as well as types and proofs. The separate interpretation as contextual joins
+continues to require TypeForkJoin.
+
+The telescope reannotation common ancestor from the preceding turn becomes a
+typed chain. Lambda congruence can consequently change its domain by ordinary
+equality alone, without requiring a domain computation chain. Closing a body
+chain under a fixed prefix is an induction on the prefix. Combining closure
+with reannotation on both sides compares arbitrary different bodies under
+independently written telescopes at the same assigned Pi telescope. The assigned
+context's well-formedness follows from whole-term typing, and no separate native
+certificate or transported body typing is required. TypeForkJoin then interprets
+this chain as a join in every type observer. This does not assume that arbitrary
+TypeContextJoin hypotheses themselves have lambda congruence.
+
+Binder transport uses a different operation from forward native transport.
+Abstract the body chain under its original domain, convert its function type to
+the equal new domain, weaken it into the new context, and apply it to the fresh
+variable. Administrative beta on both endpoints returns the unchanged body
+syntax at the unchanged assigned type. Exact variable renaming supplies the only
+primitive transport. Individual forward paths may become chains with backward
+segments; no false forward-context law is asserted.
+
+Opening a chain between literal lambda telescopes similarly applies successive
+fresh variables and beta-cleans the displayed prefix. This lets a declaration
+change at arbitrary depth: close the intervening prefix, change the declaration,
+then reopen. Finally, induction on IsDefEqCtx closes each head binder, transports
+the outer function chain along the tail conversion, reopens, and changes the
+head declaration. The resulting defeqCtx theorem and its iff retain identical
+term and assignment syntax in either definitionally equal context.
+
+Scope judgment: the stronger chain relation now has the dependent binder and
+context operations needed by a completeness proof. Ordinary IsDefEq completeness
+is still unproved; the remaining registered primitive cases and TypeForkJoin
+itself remain live obligations. The original strengthening sorry remains, and
+no proof or strictly smaller sufficient strengthening obligation is claimed.
+Next: complete the ordinary equality induction using the primitive chains, then
+identify exactly what still has to be joined at type roots.
+
+Validation: two new modules, 250 lines, eleven public roots. Explicit 788-job
+build; full transitive audits through types, opaque values, constructor lists and
+recursor rules, maximum closure 11,102. Only propext, Classical.choice and
+Quot.sound; no configured forbidden dependencies or new warnings. All 763 local
+imported-source hashes remained stable. Artifacts /dev/shm/typed-binder-transport-*.
+Only these modules and the EOF ledger appendices are staged; independent work
+is preserved. No executable changes, coordination or PR extraction; goal active.
