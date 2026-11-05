@@ -15181,3 +15181,37 @@ full paired exposure and strengthening remain open. Validation: 789 isolated
 jobs, 5 public roots, maximum audited closure 11,374, 764 unchanged
 frozen source/import hashes, standard axioms only and no forbidden dependencies
 or own-module warnings.
+
+### 2026-11-05 23:00:53 UTC — Independent Pi binders and native control result types
+
+Verdict: proved for ordinarily equal terminal reference domains, with an
+application consequence that needs no literal function-head assumption. The
+previous shared-written-binder proof depended on native backward images; merely
+replacing that binder by an ordinarily equal one would not supply those images.
+This identifies a missing premise of that proof, not a refutation of general
+codomain extraction. The already proved terminal-context transport supplies the
+missing comparison transport for terminal reference domains.
+
+Marked Pi traces now extract codomain checks at a fixed terminal reference
+binder from arbitrary computed comparisons of independently annotated Pis.
+Their original codomain universes may differ. Native Pi comparisons of actual
+lambdas at a common assigned Pi then compare exact selected body types at that
+reference binder, retaining body recoveries in the respective original scopes.
+No exact native recovery in the reference scope is falsely asserted.
+
+Whole-Pi comparison also derives its own domain alignment and yields comparison
+of codomains instantiated by the same actual argument at a terminal-valued left
+domain. Native replay lifts this to arbitrary functions at a common actual Pi:
+compared selected Pis yield compared exact instantiated result types, even when
+selected domains differ. Finally argument computation passes through each exact
+selected codomain, so different control arguments checked against the same fixed
+sort yield inferred comparison of their selected result types. No lambda exposure
+or separately supplied result-type check remains in this application theorem.
+
+Open: nonterminal reference transport, arbitrary higher stages, general paired
+exposure, and comparisons after independent final native conversion tails.
+Comparison cannot simply be pushed forward through those tails. No strengthening
+proof, canonical-Eq counterexample or strictly smaller sufficient irreducible
+obligation is claimed. Validation: 888 build jobs; 9 public roots; maximum
+audited closure 11,606; 863 unchanged frozen source/import hashes; standard
+axioms only, no forbidden dependencies or own-module warnings.

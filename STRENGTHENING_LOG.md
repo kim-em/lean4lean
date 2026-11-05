@@ -28656,3 +28656,68 @@ All validation processes terminated normally. UniqueTyping.lean:94 retains the
 original weakN_iff sorry; no canonical-Eq counterexample or strictly smaller
 sufficient irreducible obligation has been established. Executable unchanged,
 no coordination and no PR extraction. GOAL.md remains active.
+
+### 2026-11-05 23:00:53 UTC — Terminal Pi extraction through to native application result checks
+
+ProofErasureTerminalPiPayload reads both independent codomain histories at a
+fixed ordinarily equal terminal reference binder. Typed replay and ordinary
+context conversion realize both selected endpoints under the left payload
+domain. Certificate descent removes temporary controls; terminal-context
+transport returns the selected check to the reference binder, and original
+histories prefix it. Identical payloads yield a common codomain computation.
+No forward history from the reference binder is required.
+
+ProofErasureTerminalPiComparison carries this invariant through the full inferred
+comparison grammar with pending control arguments. Symmetry exchanges the
+original written annotations and bodies while keeping the reference binder
+fixed. Sort-typed mode conversion admits either outer mode and both Pi checking
+constructors. Reflection and ordinary Pi injectivity align actual codomain
+typings before the induction, admitting independent original codomain universes.
+The computed and direct public results require only ordinary equality of each
+written annotation with the fixed terminal reference domain.
+
+ProofErasureTerminalPiInstantiation derives the right-domain equality directly
+from the supplied whole-Pi comparison. Its left domain is terminal-valued, so
+substitution of any actual inhabitant preserves the extracted codomain check.
+This proves comparison of actual instantiated codomains, without a separately
+supplied domain equality or codomain check.
+
+ProofErasureTerminalNativePiComparison uses common actual Pi typing to align
+independently written lambda domains with a reference binder. Native recovery
+retains each original-scope body certificate and domain computation; rebuilt
+Pis and the new extraction compare exact selected codomains in the reference
+scope. Native body certificates are deliberately retained in their original
+scopes: ordinary binder equality does not justify exact native transport.
+The second theorem works for arbitrary function heads. Replay realizes their
+selected Pis, uniqueness aligns actual arguments with selected domains, and
+terminal Pi instantiation compares the exact selected result types at a shared
+argument. Selected domains need not agree syntactically.
+
+ProofErasureNativeControlResultTypes first proves that an actual argument's
+stage-zero computation passes through its exact natively selected codomain.
+Typed replay supplies the codomain template, uniqueness supplies argument typing
+at the selected domain, and interpreted renaming lifts the argument computation
+through every template occurrence. The paired theorem uses sort return on two
+independent arguments, compares selected result types at the fixed sort by the
+arbitrary-function theorem, and prefixes the two template computations. Thus
+comparison of selected Pi outputs and fixed-sort checks for the two arguments
+suffice for inferred comparison of their exact instantiated result types.
+Neither function must be exposed as a lambda. This is the selected application
+result before any independent final native conversion tails.
+
+Validation: 888 isolated build jobs; 9 public roots audited through
+types, opaque bodies, inductive constructors and recursor RHSs; maximum closure
+11,606; all 863 frozen source/import hashes unchanged. Only propext,
+Classical.choice and Quot.sound; no forbidden dependencies or own-module warnings.
+An unnecessary private-open declaration was removed after Lean identified that
+the argument-typing helper was public. Final compilation and audits passed and
+all validation processes terminated normally.
+
+Completion audit: UniqueTyping.lean:94 still contains the original weakN_iff
+sorry. Nonterminal independently written binders, higher-stage extraction,
+general paired exposure, singleton simulation and type-rooted confluence remain
+open. Independent native conversion tails require a justified join or transport
+argument; these theorems do not assert forward transport of comparison. No
+canonical-Eq counterexample or strictly smaller sufficient irreducible obligation
+is established. Executable unchanged, no coordination, no PR extraction.
+GOAL.md remains active with its original objective.
