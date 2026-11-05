@@ -10757,3 +10757,62 @@ forbidden dependencies, sorry sources or audited-module warnings. All 786
 closure source hashes were stable and byte-identical to isolated copies.
 Artifacts /tmp/carrier-proof-index-pattern-*. Executable unchanged; independent
 work preserved; no coordination; goal active, not complete or blocked.
+
+
+## Native substitution preserves old cuts, not all created cuts (2026-11-05 02:05:26 UTC)
+
+Verdict: certified head developments are closed under exact native substitution,
+but that closure cannot certify every new beta redex exposed by substitution.
+Both the positive substitution theorem and a concrete created-cut boundary are
+checked in the full structure/function-eta union, without TypeForkJoin.
+
+NativeImageTransport.Images.finite_stage collects a uniform finite image bound
+from any monotone stage family and a finite source context. The full-union
+recovery transport therefore needs only pointwise union recovery, not a bound
+chosen by the caller. NativeHeadBeta.subst transports each original root cut's
+typings and its retained-argument certificate through a simultaneous typed map.
+NativeHeadBeta.inst specializes this to a single retained native argument, with
+proof arguments admitted vacuously. body_beta_square supplies the certified
+residual after contracting a cut before developing its body's original head
+path. Source and image guard depths may be independently unbounded but finite.
+These are residuals of existing certificates, not coverage of newly created cuts.
+
+The new boundary instantiates the existing fresh-unit exact-recovery failure.
+There is an actually assigned domain A whose erasure contains a fresh retained
+unit variable; x cannot recover A in any descending native language. Nevertheless
+A computes to C and x recovers C. The identity function written with domain A
+is typed and natively recovers the computed Pi C -> C. Its original annotation
+is unchanged: lambda recovery converts both the Pi domain and lifted codomain
+along the actual A-to-C computation. Substitution of this function for a fresh
+function variable is an actual Ctx.SubstEq with native images. It changes the
+neutral application f x into (fun y:A => y) x. Both function and argument have
+exact native certificates at the selected interface C -> C and C.
+
+That newly exposed identity cut has no NativeHeadBeta certificate, even via
+multiple steps: it recovers A before beta, and the proved exact recovery
+preservation would force impossible recovery of A from x afterward. The theorem
+includes the typed substitution, its native image condition, and the literal
+instantiation equation. It is conditional on the same closed positive empty
+structure as the existing boundary, and compatible with canonical Eq. It is
+not a canonical-Eq strengthening counterexample or a refutation of confluence.
+
+Judgment: carrying exact native cut certificates is valid for residuals of
+already certified reductions and generated identity wrappers, but is insufficient
+as a complete invariant for all newly created redexes. Do not infer global cut
+coverage from native-image substitution closure. A general developments proof
+must permit selected types to move toward common reducts or retain stronger
+origin information for guard choices. The existing NativeForwardBinder/common
+instantiation obligations already contain type-fork content; they cannot be
+installed as an automatic local repair. The next task is the residual type fork,
+not another exact-cut coverage assertion. General TypeForkJoin, indexed data
+singleton coverage and the original strengthening theorem remain open; no
+strictly smaller sufficient obligation is claimed.
+
+Validation: two modules (121 and 110 lines), seven public roots, isolated
+792-job build and full transitive declaration audits through types, opaque
+values, constructors and recursor RHS (maximum 11,384). Only propext,
+Classical.choice and Quot.sound; no configured forbidden dependencies, sorry
+sources or new-module warnings. All 767 local source hashes stayed stable and
+are checked against committed dependency sources before committing. Artifacts
+/dev/shm/native-head-subst-*. Independent work preserved; executable unchanged;
+no coordination or PR extraction. GOAL.md remains active.
