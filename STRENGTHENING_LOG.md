@@ -25980,3 +25980,55 @@ StaticStructureTypeConversionJoin, in addition to the standard forbidden
 dependencies. Only propext/Classical.choice/Quot.sound; no sorry or own-module
 warning. Source/import stability and root counts are recorded in
 `/dev/shm/atomic-unit-validation.json` and `/dev/shm/atomic-unit-sync.json`.
+
+
+### 2026-11-05 10:26:02 UTC — Computed constructor repair beyond neutral unit bodies
+
+Added `ProofErasureComputedNativeInstantiation.lean` with two full-union
+computed-image lemmas. A forward path to an exactly recoverable argument gives
+an explicit join between the original instantiated body and the computed body
+instantiated at the original argument. The body has arbitrary dependent type.
+An independent intermediate argument computation is also allowed; only its
+later pivot must recover the assignment. Ordinary typed realization provides
+all representatives, and proof arguments retain the conditional/vacuous native
+premise. Neither HJ nor HF is used.
+
+`ProofErasureConstructorInstantiation.lean` derives that pivot certificate
+from constructor syntax. Native recovery at an exposed registered family is
+converted to the exact assigned family when its parameters are proofs:
+actual family injectivity supplies pointwise typed equalities and equivalent
+universes, proof erasure identifies parameters, and a directed level step
+restores the assigned universe instance. A saturated unindexed constructor
+supplies the exposed family with no native field assumptions. Consequently
+any argument computation reaching that constructor repairs arbitrary generic
+body instantiation, including independent intermediate argument histories.
+Dependent retained fields are unrestricted; the proof restriction concerns
+the assigned family parameters. A constructor-reaching path is explicit.
+
+`ProofErasureUnitBodyInstantiation.lean` discharges that path using the full
+unit return from 7cbe203b. Every computed image of a looked-up inhabitant of the
+closed positive empty family returns to its constructor. Arbitrary typed
+bodies, independent body/argument histories, and paired generic bodies with a
+common output therefore have explicit instantiated joins. This removes the
+previous neutral-caller/body restriction from the unit-instantiation fragment
+without assuming native recovery of the computed argument.
+
+Inspecting the existing scoped value-chain interface showed why the previous
+unit return alone cannot discharge general structure parameter-chain joining:
+its premise is a forward path from the unit variable, whereas value histories
+are symmetric typed computation chains. This is a limitation of that direct
+application, not a counterexample to joining. The general theorem developed
+here instead uses an explicit forward path to a constructor. Retained data
+parameter alignment, constructor coverage for arbitrary terms, and arbitrary
+post-contraction continuations remain open. The calculus is not asserted to
+normalize. No general HJ/HF proof, strict-smaller sufficient obligation, or
+GOAL.md completion is claimed. Original sorry/executable unchanged; no PR
+extraction. Independent files preserved and excluded from imports/staging.
+
+Validation: 798-job isolated build; nine public roots audited through
+types, opaque values, constructor arguments and recursor RHSs; maximum closure
+11,437. All 773 own/frozen dependency hashes stayed stable. The audit
+rejects TypeInstantiationJoin, TypeForkJoin, StaticStructureCommonCoverage and
+StaticStructureTypeConversionJoin in addition to the standard forbidden names.
+Only propext/Classical.choice/Quot.sound; no sorry or own-module warning.
+Artifacts `/dev/shm/constructor-instantiation-*`.

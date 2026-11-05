@@ -13071,3 +13071,41 @@ cannot be instantiated into this theorem. Extending the invariant to structure
 fields, arbitrary dependent types and dynamically selected caller histories
 remains open. HJ/HF and their sufficiency or strict-smallness questions remain
 as recorded previously; canonical-Eq strengthening is not solved.
+
+
+### 2026-11-05 10:26:02 UTC — Constructor endpoints repair arbitrary dependent instantiation
+
+**Verdict: the structural readout now supplies an instantiation join for
+arbitrary dependent bodies, and constructor-based repair permits arbitrary
+retained fields.** A computed image with exact native recovery suffices for
+full-union instantiation: compute the argument first on one arm, instantiate
+the generic body computation there, and compute the argument through the
+realized body on the other arm. Both meet at an explicit raw substitution.
+This extends the older joint-stage computed-recovery lemma to the full
+structure/function-eta union and independent intermediate argument histories.
+
+For a saturated registered constructor, native recovery requires no field
+certificates. If the original assigned family parameters are proofs, ordinary
+family injectivity makes their erasures identical to the selected parameters;
+level conversion restores the original universe instance. Thus reaching such
+a constructor suffices for the instantiation join, with unrestricted dependent
+data/function/proof fields and open dependent proof parameters. Nullary
+structures are included without restrictions on their fields. This is about
+proof PARAMETERS, not a proof-only FIELDS restriction.
+
+Combining this with 7cbe203b gives an unconditional fragment of HJ for every
+computed image of a looked-up unit variable and ANY typed generic body. Body
+and argument computations may evolve independently. The original body need
+not be a neutral application, need not be sort-valued, and may depend on its
+unit binder. Paired bodies with a common generic output also instantiate at
+distinct computed unit inhabitants and reach the same explicit result.
+
+**Limit:** the unit return theorem does not by itself join arbitrary
+ScopedValueChain histories; those are represented computation chains, not
+forward paths from the observed unit variable. The general constructor theorem
+therefore retains an explicit constructor-reaching path. No normalization,
+constructor coverage, or alignment of retained data parameters is inferred.
+For arbitrary bodies the new result is an instantiation/component square;
+it does not absorb unrestricted continuations after its contracta. General HJ,
+HF, their unresolved strict-smallness/sufficiency questions as previously
+recorded, and canonical-Eq strengthening remain open. No GOAL.md completion.
