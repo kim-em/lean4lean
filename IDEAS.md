@@ -15006,3 +15006,26 @@ smaller sufficient replacement for PropFront is claimed.
 including the new path constructors and recursors; maximum closure
 11,562; 838 frozen source/import hashes. Standard axioms only, no
 forbidden dependencies or warnings in the five changed modules.
+
+### 2026-11-05 22:11:47 UTC — Exact stage-zero lambda histories and joining-function body extraction
+
+Verdict: checked progress on the body-extraction route. Marked lambda payloads
+can retain exact annotation/body computations at stage zero: certificate descent
+removes temporary prefixes, and context independence appends body histories in
+the original binder context. Literal lambda endpoints select the exact payload,
+not merely a beta residual. For two retained typed lambdas computing to one
+arbitrary endpoint, beta-expose the left payload and append that same beta path
+to the right computation. Exact readout gives common component endpoints, hence
+comparisons of the original domains and bodies in either mode. This works with
+different original annotations and dependent body types; body computation is
+recontextualized to the left binder only after readout.
+
+Integrated into universe control-frame contraction: a common function endpoint
+now supplies the needed body comparison instead of assuming it. Generated
+wrappers at the common endpoint are allowed. This does not assert that every
+function comparison admits a computation join, nor solve extraction through
+all comparison constructors. The remaining task is general body-comparison
+extraction, including independently computed control applications and eta.
+Validation: 868 isolated build jobs; 14 audited roots, maximum closure
+11,615; 843 frozen source/import hashes; only the three allowed axioms,
+no forbidden dependencies. Original strengthening remains open; no PR extraction.

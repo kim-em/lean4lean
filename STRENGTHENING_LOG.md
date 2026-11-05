@@ -28275,3 +28275,55 @@ simulation and type-rooted stage-one confluence remain open. No canonical-Eq
 counterexample or genuinely strictly smaller sufficient obligation is proved.
 Executable unchanged; no PR extraction or coordination. GOAL.md remains active
 with its original objective.
+
+### 2026-11-05 22:11:47 UTC — Preserve lambda histories at stage zero and extract bodies from function joins
+
+Previous implementation turn: progress in 7c257030, confirmed in the worktree.
+The intervening instruction clarification made no proof progress. This turn
+revalidated GOAL.md, OPEN_PROOFS.md, current HEAD and the unchanged original
+sorry before resuming. No processes were restarted after an observation timeout.
+
+ProofErasureStageZeroLambdaReadout adds StageZeroLambdaOrigin, retaining actual
+component representatives and exact stage-zero histories in the original scopes.
+Its component-closure proof uses typed certificate descent below temporary
+prefixes and ordinary context conversion for typing. The raw body history moves
+back to the original binder by stage-zero context independence, avoiding the
+later-stage bound needed by the existing expansion-union implementation.
+
+The marked observation transports through arbitrary constant expansions,
+computations inside their function positions and beta interleavings. Its base
+demand distinguishes payload lambdas from functional control lambdas. At a
+literal lambda endpoint, lambda inversion forces the exact marked components;
+there is no remaining beta residual in either component history. General
+readout exposes a lambda by beta while keeping both histories at stage zero.
+
+proofErase_stage_zero_lambda_join_components takes two separately typed,
+non-proof lambdas computing to one arbitrary raw endpoint. Left readout exposes
+a literal lambda by beta. Appending that beta path to the right computation and
+using exact endpoint readout gives common domain/body endpoints. No shared
+original domain, body type, terminal image or normalisation premise is needed.
+proofErase_stage_zero_lambda_join_compares then compares both original components
+in either mode, with the body comparison indexed by the left original binder.
+
+stage_zero_control_frame_pair_of_function_join integrates that extraction with
+terminal instantiation and compared-sort return. The two functions have the
+common universe-convertible binder used by the original control-frame theorem;
+their common computation endpoint supplies its body-check premise. Both frames
+contract to the fixed-sort instantiations and retain the resulting comparison.
+This is the joining-computation case of extraction, not general extraction from
+an arbitrary ComputedJointCompare certificate. No claim of general joinability
+for that language is made.
+
+Validation: 868 isolated build jobs; 14 public roots audited through
+types, opaque bodies, inductive constructors and recursor RHSs; maximum closure
+11,615; all 843 frozen source/import hashes unchanged. Only propext,
+Classical.choice and Quot.sound occur; no forbidden dependencies or warnings in
+the changed modules. Development caught and fixed a simplifier tactic spelling
+and the placement of omit before a docstring; final integrated build passed.
+
+Completion check: UniqueTyping.lean:94 still has the original weakN_iff sorry.
+No canonical-Eq counterexample or genuinely strictly smaller sufficient
+obligation has been proved. General comparison extraction, arbitrary
+nonterminal image transport and the remaining stage-collapse/confluence work
+are still unresolved. Executable unchanged; independent untracked files
+preserved; no coordination or PR extraction. GOAL.md remains active unchanged.

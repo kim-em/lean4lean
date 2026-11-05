@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStageZeroSortExposure
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStageZeroTerminalTransport
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStageZeroLambdaReadout
 
 /-! # Contract control frames after computation of their binder annotation
 
@@ -128,5 +129,36 @@ theorem stage_zero_converted_control_frame_pair
   · rw [EA]; exact .beta
   · rw [EB]; exact .beta
   · exact H
+
+/-- Function computations with a common endpoint supply the body comparison
+needed to contract both universe control frames. The common endpoint can
+contain wrappers, and no body comparison is assumed. This covers computation
+joins; extracting bodies from arbitrary function comparisons remains open. -/
+theorem stage_zero_control_frame_pair_of_function_join
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hΓ : OnCtx Γ (env.IsType univs)) (hu : u.WF univs)
+    (HC : env.IsDefEq univs Γ (.sort (.succ u)) C (.sort v))
+    (ha : env.HasType univs (C :: Γ) a T) (hb : env.HasType univs (C :: Γ) b T)
+    (hx : env.HasType univs Γ x (.sort w)) (hy : env.HasType univs Γ y (.sort z))
+    (hna : ¬ IsProof Γ (.lam C a)) (hnb : ¬ IsProof Γ (.lam C b))
+    (RFA : ScopedCompute (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ)
+      (.lam (proofErase Γ C) (proofErase (C :: Γ) a)) out)
+    (RFB : ScopedCompute (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ)
+      (.lam (proofErase Γ C) (proofErase (C :: Γ) b)) out)
+    (HX : ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ) xMode
+      (.sort u) (proofErase Γ x))
+    (HY : ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ) yMode
+      (.sort u) (proofErase Γ y)) :
+    ScopedCompute (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ)
+      (.app (.lam K (proofErase (C :: Γ) a)) (proofErase Γ x))
+      (proofErase Γ (a.inst (.sort u))) ∧
+    ScopedCompute (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ)
+      (.app (.lam L (proofErase (C :: Γ) b)) (proofErase Γ y))
+      (proofErase Γ (b.inst (.sort u))) ∧
+    ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D 0) (proofEraseCtx Γ) mode
+      (proofErase Γ (a.inst (.sort u))) (proofErase Γ (b.inst (.sort u))) := by
+  have HB := (proofErase_stage_zero_lambda_join_compares heq hs hΓ HC.hasType.2 ha
+    HC.hasType.2 hb hna hnb RFA RFB (domainMode := false) (bodyMode := mode)).2
+  exact stage_zero_converted_control_frame_pair heq hs hΓ hu HC ha hb hx hy HB HX HY
 
 end Lean4Lean.VEnv.Strengthening
