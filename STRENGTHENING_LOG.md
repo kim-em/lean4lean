@@ -27569,3 +27569,30 @@ new function-alias modules: 917 jobs, 58 audited roots, maximum closure
 12,022, 892 frozen hashes, standard axioms only, no own warnings or
 forbidden strengthening/front/recovery dependencies. Existing native proofs
 and concrete sort-valued alias inputs recheck without edits. Goal remains open.
+
+## 2026-11-05 19:32:18 UTC — Join native histories of records annotated by applied aliases
+
+Added FunctionAliasFormation and FunctionAliasInput (221 Lean lines).
+registered_function_instance recovers ordinary domain and parameter typings
+from the actual registry body. registered_function_observation derives a function
+demand for every equivalent universe instance. The application theorem combines
+that evidence with ordinary typing of the supplied argument; it allows dependent
+parameters and proof domains without argument native-recovery assumptions.
+
+The concrete actual-lookup result follows annotation computation into the
+context's assigned type, then arbitrary term computation, native selection,
+native conversion and independent assigned-family computation. Both endpoints
+meet at the canonical family application, with arbitrary raw substitution on
+the native endpoint. All observation, valuation and family-preservation premises
+are discharged. Existing generic native induction was not modified.
+
+Validation: 917 isolated jobs; 58 audited roots; maximum closure
+12,022; 892 frozen hashes; types, opaque bodies, constructors and recursor
+RHSs audited; only propext, Classical.choice and Quot.sound; no forbidden
+dependencies and no own warnings. Old polymorphic alias inputs also recheck.
+
+Completion audit: UniqueTyping.lean:94 still contains the original weakN_iff
+sorry. There is no canonical-Eq counterexample or strictly smaller sufficient
+obligation. The target family and source-provenance restrictions remain. This
+turn extends the live fragment route but does not establish general coverage.
+Executable unchanged, no PRs or coordination, goal active.

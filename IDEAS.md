@@ -14460,3 +14460,31 @@ The complete batch passed 917 jobs, 58 audited roots, maximum closure
 12,022, and 892 frozen source hashes; only standard axioms, no own warnings
 and no forbidden dependencies. This removes the sort-valued alias restriction,
 but establishes neither arbitrary ordinary source coverage nor PropFront.
+
+## 2026-11-05 19:32:18 UTC — Initialize applied dependent function aliases from registry typing
+
+**Verdict: concrete source coverage extended; the general coverage gap remains.**
+For an installed body `lambda A (Family p)`, inversion of its actual instantiated
+typing supplies the domain's type and the dependent parameter's ordinary typing.
+No separate parameter observation or template typing assumption is introduced.
+This initializes the function demand at every equivalent universe instance.
+Applying the alias to an ordinarily typed argument supplies carrier equality and
+operational family evidence. A may be Prop, and p may depend on its bound proof.
+
+FunctionAliasFormation and FunctionAliasInput add 221 lines. Actual unknown
+record lookups whose annotations descend from such applications now have full
+EnvironmentCore native/assigned joins after arbitrary term computation, selected
+native recovery, native conversion and raw substitution. The earlier monomorphic
+observer is proved unable to observe an applied stored alias, even at empty
+universes. The generic native induction is reused unchanged.
+
+Whole batch: 917 jobs, 58 roots, maximum dependency closure 12,022,
+892 frozen source hashes, standard axioms only, no forbidden dependencies or own
+warnings. No executable changes, no PR extraction, no coordination.
+
+This is not the final deliverable: target parameters remain finite unit-arrow
+values, and annotation provenance is a directed computation from a certified
+source form. Arbitrary ordinary conversion does not supply observation evidence.
+Further work must connect general source formation or the original typed-front
+configuration to the observation/readout invariant; extending declaration shapes
+alone is not a proof of that connection. GOAL.md remains active.
