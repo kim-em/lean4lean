@@ -14065,3 +14065,40 @@ Validation: 869 isolated build jobs, 71 audited roots, maximum dependency
 closure 11,819, 844 frozen hashes; only propext/Classical.choice/Quot.sound.
 No new warnings or forbidden dependencies. Original sorry/executable unchanged.
 No PR extraction or coordination; the two independent untracked files excluded.
+
+## 2026-11-05 17:51:39 UTC — Type-only readout for unknown record inputs
+
+Verdict: checked extension beyond constructor ancestry. Interpret unit and record
+value keys by True, retain beta exposure at type.record, and recurse through
+function results. HeadFree excludes a free type.record key and every function
+ending in it; every raw term realizes all other free keys. Joint oracle
+observations still supply the type heads. Thus ignoring value normalization
+cannot silently assume an operational family head from an arbitrary raw image.
+
+This interpretation proves full term/native/type-history family readout after
+any raw substitution for observed programs with HeadFree free demands. Concrete
+initialization now covers (1) an unknown variable with actual lookup Family p,
+and (2) an unknown function with actual lookup Pi domain (Family p), applied to
+ANY ordinarily typed argument. The second p may depend on that argument. Its
+domain is an arbitrary closed heterogeneous control type; the family parameter
+has any finite UnitArrows type. Parameter typing follows from the actual lookup,
+and the argument has no observation or native-recovery premise.
+
+Actual stored target family data supplies the canonical telescope, yielding a
+join between every substituted native history and an independently computed
+assigned family in a different ordinary context. The result has no constructor
+source premise, no source value normalization, and no ambient interpretation of
+the raw substitution. It does retain literal family-ending lookup annotations.
+
+Next live frontier: extend the source annotation discipline beyond literal
+family-ending oracles. Merely adding an opaque ordinary type-equality leaf
+would invalidate the operational head interpretation; arbitrary native type
+coverage has already been reduced to the full type-conversion join elsewhere.
+Investigate computational provenance for converted annotations, retaining the
+joint oracle evidence, rather than treating ordinary equality as directed
+exposure. No general source coverage or strict-smallness result follows yet.
+
+Validation: 872 isolated build jobs, 22 audited roots, maximum closure
+11,828, 847 frozen source hashes, standard axioms only. No new warnings or
+forbidden strengthening/sorry/framework/exposure/coverage/fork dependencies.
+The original sorry and executable remain unchanged. GOAL.md remains open.

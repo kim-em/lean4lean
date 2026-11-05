@@ -27251,3 +27251,45 @@ framework/semantic exposure/coverage/fork dependencies excluded. No executable
 change or modification of older Lean sources. General strengthening remains
 open; source coverage is still the registered singleton-parameter constructor
 fragment. No PRs or coordination.
+
+## 2026-11-05 17:51:39 UTC — Native/assigned joins from unknown records and unknown functions
+
+Added three modules (452 lines): IgnoredRecordTypeReadout, IgnoredRecordInput,
+and IgnoredRecordFunctionInput. The existing observer and native-stage proofs
+are reused unchanged.
+
+TypeRealizes retains operational beta head exposure only at type.record;
+HeadFree.realizes discharges every allowed ambient raw value. Obs.type_realizes
+handles the full joint observer grammar. program_native_head_readout composes
+full term computation, native selection, full type computation, and arbitrary
+raw substitution. program_environment_native_assigned_join uses actual stored
+family declarations and UnitArrows canonical telescopes to join that result
+with an independently computed ordinary assigned family.
+
+family_parameter derives parameter typing by ordinary application inversion
+and displayed-domain uniqueness. family_value_control uses ordinary singleton
+equality only to type the value at the fixed carrier. family_observation retains
+the literal operational family application with no parameter demand.
+record_input_observation obtains its native demand from erasedTypeOracle_valid
+for the actual lookup, not merely from the assigned control type.
+
+record_function_input_observation similarly observes the actual dependent Pi
+oracle. The family parameter can depend on the argument; its typing follows
+from lookup inversion. The free function consumes no argument demand. Its
+application can therefore use any ordinarily typed argument of the displayed
+closed control domain. Both concrete source forms have native-head, arbitrary
+target-telescope, and actual-environment native/assigned join theorems.
+
+Validation: 872 isolated build jobs; 22 roots audited through types, opaque
+values, inductive constructors and recursor RHSs; maximum dependency closure
+11,828; 847 source hashes unchanged. Only propext, Classical.choice and
+Quot.sound occur. No own warnings or forbidden strengthening, sorry, circular
+framework, head-exposure, coverage or fork dependencies. Independent untracked
+files were excluded. No executable changes, PR extraction or coordination.
+
+A full filesystem interrupted one source write. The checked source was restored
+byte-for-byte from the isolated build copy after clearing only this worktree's
+regenerable Strengthening compiler artifacts. The final sources were rebuilt
+and audited after restoration. General strengthening is still open; source
+oracles remain literal family-ending annotations, and target declarations have
+the existing literal UnitArrows parameter header restriction.
