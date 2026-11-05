@@ -28153,3 +28153,57 @@ Full paired exposure, singleton simulation and type-rooted stage-one confluence
 remain open. No canonical-Eq counterexample or genuinely strictly smaller
 sufficient obligation is proved. Executable unchanged; no PR extraction or
 coordination. GOAL.md remains active with its original objective.
+
+
+## 2026-11-05 21:50:49 UTC — Stage-zero Pi histories and native lambda factorization
+
+Previous goal turn: progress, committed and pushed as 2fdf9fa4. Current HEAD,
+worktree state, the older terminal-image transport and the expanded Pi-origin
+proof were inspected before editing.
+
+The older terminal-domain conversion proof cannot be reused unchanged: its
+protected-family recovery paths store primitive-only conversions and use
+literal Pi decomposition. Constant expansion can temporarily replace that
+literal Pi by an application. The full expanded-union Pi-origin theorem does
+handle such paths, but extracts components only at a finite later bound. For
+base-stage recursive comparison, that bound is insufficient.
+
+StageZeroPiOrigin now retains the original stage for the expanded base. Its
+payload contains actual component representatives and both exact histories.
+Temporary binder descent retains stage zero. Context independence then moves
+a new codomain path to the original domain context without a native identity
+substitution or additive stage bound. The existing full marked-observation
+induction supplies arbitrary stage-zero readout and exact literal Pi endpoint
+components. This includes computations inside generated constant functions,
+changing annotations and arbitrary beta interleavings. No normalization or
+confluence assumption is introduced.
+
+stage_zero_lambda_native_parts factors a literal lambda's native certificate
+into its original body recovery and a Pi conversion path, replays the body's
+selected type, and applies the new exact component theorem. The result is a
+forward computation of the written domain and native recovery of the body at
+the exact selected codomain, all at stage zero. The selected-domain corollary
+changes only the lambda annotation. stage_zero_root_beta_native_factor then
+retains the body recovery and final instantiated conversion tail for any typed
+argument, again without leaving stage zero. This is factorization, not a
+claim that arbitrary argument substitution preserves that body recovery.
+
+Still open: extending terminal/protected recovery paths and their substitution
+induction to constant expansions. Typed histories are needed to use the new
+Pi component theorem in that induction. Hence universe-convertible binder
+transport, arbitrary compared-function body extraction and symmetry remain
+unfinished. Full paired identity exposure, singleton simulation and type-rooted
+stage-one confluence also remain open.
+
+Validation: 770 isolated build jobs; all 9 public roots audited through
+types, opaque bodies, inductive constructors and recursor RHSs; maximum closure
+11,365; 745 frozen source/import hashes unchanged. Only propext,
+Classical.choice and Quot.sound; no forbidden dependencies or new-module
+warnings. An obsolete context-erasure rewrite from the union proof was removed:
+direct recontextualization already keeps the required original source erasure.
+The subsequent build and full audit passed.
+
+Completion audit: UniqueTyping.lean:94 still has the original weakN_iff sorry.
+No canonical-Eq counterexample or genuinely strictly smaller sufficient
+obligation is proved. Executable unchanged; no PR extraction or coordination.
+GOAL.md remains active with its original objective.

@@ -14920,3 +14920,40 @@ live. No smaller sufficient strengthening obligation has been established.
 types, bodies, constructors and recursor equations; maximum closure
 11,334; 824 frozen source/import hashes. Allowed axioms only and no
 forbidden dependencies or warnings in the changed modules.
+
+
+## 2026-11-05 21:50:49 UTC — Keep Pi component and native lambda readout at stage zero
+
+**Idea:** Extend the older terminal-domain transport to the expansion base.
+Its recovery argument needs selected Pi components without increasing the
+stage. General union Pi readout gives only a finite later bound, but at stage
+zero the primitive computation relation is independent of the context.
+
+**Verdict:** The stage-preserving computation prerequisite is now proved.
+StageZeroPiOrigin retains actual domain/codomain representatives, domain
+equality, and both component computations in their original contexts. Its
+component closure lowers temporary binders by certificate descent, then
+recontextualizes the codomain path directly. The full marked-observation
+induction therefore yields stage-zero Pi readout through arbitrary constant
+expansions and beta interleavings. Literal Pi endpoints give exact component
+histories without extra cleanup or an increase in stage.
+
+**Integration:** Native recovery of a literal lambda now exposes a stage-zero
+computation of its written domain to the selected domain, and native body
+recovery at the exact selected codomain under the original binder. Thus the
+lambda computes to that selected annotation while retaining its body. A
+native beta-redex certificate factors through the original body and the final
+instantiated conversion at stage zero; its argument needs only ordinary typing.
+
+**Remaining:** Terminal-domain context transport is not yet extended. The
+older protected-family path proof uses primitive-head preservation; constant
+expansion violates that hypothesis. The new component theorem can replace
+its Pi-decomposition step, but the path/substitution induction still needs
+expansion-compatible typed conversion histories. Arbitrary compared-function
+body extraction and its symmetry case also remain open. No general native
+beta preservation without image evidence is claimed.
+
+**Evidence:** 770 isolated build jobs; 9 public roots audited through
+types, opaque bodies, constructors and recursor RHSs; maximum closure
+11,365; 745 frozen source/import hashes. Standard axioms only, no
+forbidden dependencies or warnings in the new modules.
