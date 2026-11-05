@@ -27215,3 +27215,39 @@ closure 11,819, 844 frozen source hashes, only standard axioms. No own
 warnings and all strengthening/sorry/framework/exposure/coverage/fork exclusions
 passed. The next commit discharges finite-stage native preservation and reads
 arbitrary constructor/native histories. General strengthening is still open.
+
+## 2026-11-05 17:33:30 UTC — Full native return with arbitrary finite-order supplied parameters
+
+Result commit: IgnoredRecord Structure, RegisteredNative, Primitives, Stages,
+Readout and Return (6 files, 601 lines). Together with the core commit the batch
+is 14 Lean files and 1,296 lines.
+
+Full stage preservation discharges the generic native-induction premises using
+actual constructor metadata. The record-structure case is simpler: the expanded
+Ctor p is observed with no demand on p, so that branch needs neither prior-stage
+native preservation nor a recovered parameter observation. Other type/value
+annotation obligations are preserved through the same joint induction.
+
+The Realizes interpretation is purely beta: unit values return their unit
+constructor; record values and record-family types expose their fixed heads and
+an arbitrary argument. Function keys consume their listed demands, while other
+type keys are trivial. Initial Ctor (erase x) has an empty free valuation for any
+ordinary x : Q. Hence arbitrary whole term/native/type histories expose their
+heads after arbitrary raw substitution, without any target interpretation.
+
+native_substitution_telescope_return completes this pure-beta path using an
+actual target family recovery and any certified canonical telescope of arity one.
+The source/target contexts and definition collections may differ. The concrete
+native_substitution_return constructs the target telescope for Q; the
+EnvironmentCore wrapper gets the target family header from stored declaration
+data. environment_stored_native_assigned_join then combines this with the
+previous whole-family return for an independently computed assigned family.
+All type computations and all raw substitution images are unrestricted.
+
+Validation: 869 isolated build jobs, 71 audited roots including every observer
+constructor/recursor, maximum closure 11,819, 844 frozen sources. Only
+standard axioms, no own warnings, and all forbidden strengthening/sorry/circular
+framework/semantic exposure/coverage/fork dependencies excluded. No executable
+change or modification of older Lean sources. General strengthening remains
+open; source coverage is still the registered singleton-parameter constructor
+fragment. No PRs or coordination.

@@ -14021,3 +14021,47 @@ roots including observer constructors/recursors, maximum closure 11,819,
 844 frozen own/import hashes, only the three standard axioms. No forbidden
 strengthening/sorry/circular/head-exposure/coverage/general-fork dependencies.
 No executable changes, PR extraction or coordination. GOAL.md remains open.
+
+## 2026-11-05 17:33:30 UTC — Arbitrary higher-order constructor inputs and substituted native return
+
+Verdict: checked full result. The constructor now accepts ANY ordinarily typed
+argument at ANY finite UnitArrows type; no lookup, parameter observation,
+terminating computation or native argument certificate is required. Every full
+constructor computation, every native selection of its result, and every later
+full type computation beta-exposes the registered family, even after ANY raw
+substitution. The constructor value itself similarly beta-exposes its head.
+
+Finite-stage induction handles all enriched primitives. Record structure
+expansion no longer needs an observed parameter from the preceding native
+induction: ordinary rigidity identifies its family/arity, and the constructor
+leaf has an empty argument-demand list. Identity and function eta still obtain
+their necessary annotation demands from actual previous-stage native recovery.
+Thus the simplification preserves the joint discipline where it is needed.
+
+Pure-beta Realizes readout leaves the exposed argument arbitrary. A target
+CallerCanonicalTelescope then finishes every substituted native history; its
+selected annotations need not match the source if it supplies actual computation
+evidence. The finite UnitArrows case constructs that telescope. The actual stored
+family's outer Pi discharges its native header. The concrete environment theorem
+joins this substituted native result to an independently computed assigned family
+in another ordinary context, at the same canonical family application.
+
+Boundary: these source terms are registered fieldless constructors with one
+singleton parameter. Arbitrary typed record terms, arbitrary native assigned
+type coverage, arbitrary convertible family headers, and general strengthening
+remain unproved. The older selected-domain function observer remains useful
+where its target header is not covered by the new literal simple/profile premise.
+This is not a strict-smallness or GOAL.md completion claim.
+
+Next: the SAME observer can start at a record variable whose actual oracle is a
+literal observed family. A type-only readout can interpret record-value demands
+trivially while keeping type.record operational; this could extend native head
+return to unknown record values and programs without requiring their substituted
+images to normalize. Generalize only after checking that type-head evidence
+cannot leak through an opaque value demand; arbitrary typed source coverage
+must not be assumed.
+
+Validation: 869 isolated build jobs, 71 audited roots, maximum dependency
+closure 11,819, 844 frozen hashes; only propext/Classical.choice/Quot.sound.
+No new warnings or forbidden dependencies. Original sorry/executable unchanged.
+No PR extraction or coordination; the two independent untracked files excluded.
