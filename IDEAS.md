@@ -12674,3 +12674,46 @@ Validation: isolated 777-job build, two public/generated roots audited through
 types and opaque values, constructors and recursor equations; maximum closure
 11,484; 752 frozen source hashes. Only allowed axioms, no forbidden dependency,
 sorry, or own-module warning. Artifacts `/tmp/carrier-instantiation-proof-discharge-*`.
+
+
+### 2026-11-05 08:18:09 UTC — Closing a header does not orient ordinary equality
+
+**Verdict: the blanket closed sort-header alignment principle is refuted.**
+
+The missing directed family-header certificate cannot be supplied merely by a
+lemma turning arbitrary ordinary equality of closed parameter telescopes into
+computation. `static_structure_closed_header_domain_reflect` proves that a
+full-union computation between two sort-ending headers with the same context
+prefix reflects to the exact computation between their final parameter domains.
+The proof reads the whole prefix with Pi-telescope component extraction, then
+reads the last Pi domain. Intervening opaque controls and eta stages do not
+weaken this exact conclusion.
+
+The checked fresh-index header boundary supplies well-typed B and C in a
+well-formed context Γ, a computation B to C, and no reverse computation in any
+descending primitive language. Abstract Γ and add B or C as the last parameter,
+ending the header in Sort zero. Both resulting telescopes are closed, have the
+same arity, and are definitionally equal in the empty context. The B-header
+computes to the C-header by compatible closure. A reverse closed computation
+would reflect to C computing to B, contradicting the fresh-index boundary.
+
+`ClosedSortHeaderDirectedAlignment` names the proposed universal principle for
+equally long, closed, sort-ending headers; its negation is proved under canonical
+Eq and the same registered positive empty-structure assumptions used by the
+existing boundary. Thus closedness, equal arity, and ordinary header equality
+do not remove the directional gap. This uses the full computation union, not a
+language with omitted unfolding rules.
+
+The result does not install new family or constructor declarations. It therefore
+does not refute the computed-header certificate for every particular registered
+family, nor does it refute strengthening or common-header joining: the forward
+endpoint is already an explicit common reduct. The next general alignment step
+must use additional declaration-specific structure or shared outputs; it cannot
+simply orient arbitrary closed ordinary equality. The earlier literal/computed
+header theorems remain valid, while general joining and GOAL.md remain open.
+
+Validation: 833-job isolated build; all 4 public roots audited through types,
+values including opaque bodies, constructors and recursor RHSs; maximum closure
+11,378; 808 unchanged committed/own source hashes. Only allowed axioms;
+no forbidden dependency, sorry, or own-module warning. Artifacts
+`/dev/shm/closed-header-direction-*`.

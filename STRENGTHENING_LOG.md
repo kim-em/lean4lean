@@ -25451,3 +25451,46 @@ Validation: isolated 777-job build, two public/generated roots audited through
 types and opaque values, constructors and recursor equations; maximum closure
 11,484; 752 frozen source hashes. Only allowed axioms, no forbidden dependency,
 sorry, or own-module warning. Artifacts `/tmp/carrier-instantiation-proof-discharge-*`.
+
+
+### 2026-11-05 08:18:09 UTC — Refute blanket directed alignment of closed sort headers
+
+Added `ProofErasureClosedHeaderDirection`. The positive reflection theorem
+extracts a final parameter-domain computation from any full-union path between
+closed sort-ending telescopes with the same context prefix. Exact Pi-telescope
+component extraction first removes that prefix; exact Pi-component extraction
+then reads the changed domain. This works through arbitrary control frames and
+structure/function eta without native argument recovery or normalization.
+
+The boundary closes the existing fresh-index one-way type example. If B
+computes to C under Γ, but C cannot compute back to B, then the headers
+`wrapForalls (Γ.reverse ++ [B]) (sort zero)` and the corresponding C-header have
+an ordinary definitional equality in the empty context and a forward computation.
+They are equally long and sort-ending. Their empty-context typing proves they
+are closed. A reverse path would reflect to the forbidden C-to-B computation.
+Canonical Eq and the original registered positive empty structure assumptions
+are retained; no restricted or deliberately incomplete computation language is
+used to create the obstruction.
+
+`ClosedSortHeaderDirectedAlignment` records the universal proposed shortcut,
+and `not_closed_sort_header_directed_alignment` formally refutes it. This
+changes the next alignment step: closing header domains does not justify an
+arbitrary chosen orientation of ordinary equality. Additional registered-family
+structure or common-output alignment is still needed.
+
+No new registered family/constructor pair is installed by this theorem. It is
+not a counterexample to the specific computed-header certificate for every
+registered declaration, not a common-reduct counterexample, and not a
+canonical-Eq strengthening counterexample. The forward header endpoint is an
+explicit join. Earlier positive native-history theorems are unchanged, and
+neither a sufficient strictly smaller obligation nor GOAL.md completion is
+claimed. Executable and original weakN_iff sorry unchanged; PR extraction
+remains deferred. Independent work was preserved and no uncommitted dependency
+was imported.
+
+Validation: 833-job isolated build; all 4 public roots audited through types,
+values including opaque bodies, constructors and recursor RHSs; maximum closure
+11,378. All 808 source hashes matched own source or committed dependencies
+and remained stable. Only propext/Classical.choice/Quot.sound; no forbidden
+dependency, sorry, or own-module warning. Artifacts
+`/dev/shm/closed-header-direction-*`.
