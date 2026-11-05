@@ -26420,3 +26420,34 @@ StaticStructureTypeConversionJoin were rejected. Only propext/Classical.choice/
 Quot.sound; no own-module warning or sorry. Artifacts: /dev/shm/constructor-control-*.
 Full computation closure is not established; the companion boundary refutes
 its proposed prefix premise. Original sorry and executable unchanged, no PRs.
+
+
+### 2026-11-05 12:14:34 UTC — Complete root preservation and a verified prefix escape
+
+Added ConstructorControlFrames, ConstructorControlPrimitives,
+ConstructorControlContinuation and ConstructorControlBoundary. The first two
+connect earlier frame histories to the richer observer and prove preservation
+by every staged root primitive, including actual native structure guards and
+fresh control-variable structure expansions. Every selected native output after
+an arbitrary beta path from an observed unit-parameter constructor returns to
+the canonical unit-family type. These positive results are unconditional with
+respect to PrefixPreservation, with their stated registration/header premises.
+
+The continuation module isolates the saturated-payload application-congruence
+case as PrefixPreservation and proves complete preservation conditionally on it.
+The boundary module REFUTES this premise: expanding the bare constructor head
+produces an unobservable application that beta-contracts to the original. An
+ordinary retained constructor typing supplies the initial state, so there is no
+assumed observation/history invariant in the final refutation. The conditional
+result is not a sufficient live front, nor is this a strengthening counterexample.
+Constructor-function observations and their parameter-dependent demands must be
+redesigned before continuing this induction.
+
+Validation: joint 882-job isolated build of nine modules (1,055 lines),
+48 public roots, maximum closure 11,866; all 857 source hashes stable.
+The dependency audit includes types, opaque values, constructors and recursor
+RHSs and rejects the standard forbidden dependencies and all four general
+fork/coverage obligations. Only propext/Classical.choice/Quot.sound; no own-module
+warning or sorry. Artifacts: /dev/shm/constructor-control-*.
+GOAL.md remains open. Original sorry and executable unchanged. PR extraction
+remains deferred; the two independent untracked modules are excluded throughout.

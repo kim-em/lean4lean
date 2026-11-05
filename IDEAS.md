@@ -13352,3 +13352,26 @@ histories. It does not yet give full computation preservation. The companion
 prefix counterexample, checked in the same validation batch, shows that the
 current grammar cannot be extended to arbitrary computations unchanged.
 General HF/HJ and GOAL.md remain open.
+
+
+### 2026-11-05 12:14:34 UTC — Root primitive closure succeeds; prefix closure is refuted
+
+Verdict: checked all enriched root primitives, but the proposed full-computation
+premise PrefixPreservation is false for this observer. Actual typed saturated
+constructors support the payload observation. The admitted constant expansion
+of the bare constructor head produces an application that beta-reduces back to
+the original constructor but has no observation: its head requires observing
+the unsaturated constructor constant, excluded by the grammar. The refutation
+is derived from ordinary typing of a retained fieldless one-parameter constructor;
+it requires neither an assumed observation nor the computed-header certificate.
+This is a representation obstruction, not a strengthening counterexample.
+
+The positive root theorem handles native identity, function eta, and native
+structure expansion, including expansion of a fresh control variable/body;
+new fields are unrestricted. Frame histories seed the observer. Full computation
+preservation was proved conditionally on PrefixPreservation, and the boundary
+now prevents treating that false condition as a live irreducible obligation.
+The next representation must admit constructor functions and partial spines;
+fixed lower histories alone may also be too restrictive for parameter-dependent
+codomains. Do not repeat an induction on the unchanged observer. General HF/HJ,
+strict smallness and GOAL.md remain open.
