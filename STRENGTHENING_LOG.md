@@ -23188,3 +23188,56 @@ sources or new-module warnings. All 767 local source hashes stayed stable and
 are checked against committed dependency sources before committing. Artifacts
 /dev/shm/native-head-subst-*. Independent work preserved; executable unchanged;
 no coordination or PR extraction. GOAL.md remains active.
+
+
+## Dependent singleton data reconstruction from explicit domain chains (2026-11-05)
+
+Verdict: dependent field reconstruction is now computationally checked once
+literal data-slot domain comparisons are supplied as typed computation chains.
+This is progress inside the data-index case, not a proof of strengthening or a
+strictly smaller sufficient obligation.
+
+TypedComputationTrace.mkApps_congr replays a pointwise-related entire argument
+spine. TypedComputationEq.instOuter_from_wrapper closes a typed telescope,
+applies the two spines, and contracts beta on both ends. Open and closed body
+versions need only the source telescope instance; whole-application replay
+supplies target typing. Argument chains may carry different actual assignments.
+No native recovery, canonical Eq, or type-fork joining is needed here.
+
+TypedComputationEq.typeCast removes a canonical type cast from a chain between
+its endpoint types, at any actual assignment of the cast. The equality witness
+may be opaque. It uses the already checked canonical Eq prefix computation,
+not ordinary type uniqueness as a surrogate for computation.
+
+transportedFields_chain_of_data_alignment handles the full dependent field
+list. At each step, the preceding field chains compare the instantiated field
+domains; a supplied index-domain/original-field-domain chain then compares the
+actual cast endpoints. The cast computes, and a supplied index/field value
+chain reaches the original field. Proof fields use proof irrelevance. Original
+and transported telescope typings determine every intermediate assignment.
+
+At literal constructor indices the value chains are reflexive. The named
+SingletonLiteralDataDomainChains premise isolates only the comparisons of
+specialized declared index domains with original field domains, before any
+reconstructed fields occur. transportedFields_chain_at_literal derives all
+field chains from it, for any major proof at those indices. Applying the typed
+branch-family template gives transportedFamily_chain_at_literal. The final
+transportedFamily_join_at_literal additionally assumes TypeForkJoin to provide
+the actual shared erased reduct required by the singleton family guard.
+
+Remaining scope: ordinary uniqueness supplies ordinary domain equations, not
+the named domain chains. Literal-family comparison does not cover arbitrary
+prefixes; the stored-equation trace currently requests prefix computation at
+all occurrences. General data-indexed singleton pattern coverage, computational
+domain agreement, full-union TypeForkJoin and the original strengthening sorry
+remain open. No inference of a common reduct from a bare computation chain, no
+ordinary-equality completeness assumption hidden in a proof, and no claim that
+the new local domain premise is sufficient for the whole goal.
+
+Validation: four new modules, 331 lines, twelve public roots; isolated 807-job
+build and full transitive declaration audits through types, opaque bodies,
+constructors and recursor RHS. Maximum closure 11,170; only propext,
+Classical.choice and Quot.sound, no configured forbidden dependencies or sorry
+sources, and no new-module warnings. All 782 closure source hashes were stable
+and byte-identical to isolated copies. Artifacts /tmp/carrier-data-domain-chain-*.
+Executable unchanged; independent work preserved; no coordination; GOAL.md active.
