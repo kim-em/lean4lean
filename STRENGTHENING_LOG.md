@@ -27666,3 +27666,23 @@ Neither a canonical-Eq counterexample nor a genuinely smaller sufficient
 obligation is established. Executable unchanged; no PR extraction, no agent
 coordination. GOAL.md remains active, with mixed caller-history forks as the
 next unresolved case rather than the now-checked retained-caller peak.
+
+## 2026-11-05 20:13:19 UTC — Construct the unrestricted contextual stage-one eta fork
+
+Added FirstStageContextualEta (169 lines, four theorems). Image computation uses
+primitive renaming only and preserves its stage through dependent annotations.
+The generic binder's own native lookup then realizes arbitrary function eta in
+all typed type observers at stage one. Both endpoints contract the generic beta
+redex, so there is no remaining caller-guard premise. Proof functions collapse
+by erasure. Literal lambdas additionally beta-clean up to their unchanged body
+at the assigned annotation, without a domain-joining assumption.
+
+This strengthens the prior retained-caller test to arbitrary observers and
+lambda bodies, but constructs forks rather than joins. The competing contracted
+caller case remains open. It does not prove stage-one confluence or strengthening.
+
+Combined validation: 811 jobs, 16 roots, maximum closure 11,052,
+786 frozen hashes. Full dependency audit includes types, opaque values,
+constructors and recursor RHSs; only standard allowed axioms, no forbidden
+strengthening/coverage dependencies and no own warnings. The original sorry
+remains; executable unchanged, no PR extraction or coordination, goal active.

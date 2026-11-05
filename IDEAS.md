@@ -14554,3 +14554,27 @@ maximum closure 11,456, 777 frozen source hashes. Only standard allowed
 axioms, no forbidden strengthening/coverage dependencies, no own warnings.
 Next: resolve the mixed caller-history peak or derive a conversion-aware
 induction that supplies its repair; avoid re-proving the retained-caller case.
+
+## 2026-11-05 20:13:19 UTC — Put arbitrary contextual eta and lambda reannotation into stage one
+
+**Idea.** Contract the generic caller instead of retaining its native guard,
+and determine how much of contextual eta/reannotation is already present in
+sort-typed first-stage forks.
+
+**Verdict: complete fork construction, residual joining still open.**
+FirstStageContextualEta gives stage-preserving computation of supplied images
+through arbitrary typed observers, then the explicit beta fork induced by a
+computed generic variable. Generic function eta needs only a stage-zero lookup
+guard. For every ordinarily typed function and every typed type observer, both
+observations are reached from one sort-typed beta redex in stage one. Proof
+functions and proof-domain inputs are included. For a literal lambda, beta
+restores its arbitrary body at the assigned Pi domain; the two endpoints are
+C[lambda L b] and C[lambda A b], with the generic caller already contracted.
+No native premise on the actual supplied function or observer survives in the
+statement. The missing join is therefore arbitrary contextual reannotation,
+not just the earlier constant-body retained-caller example. This is not a new
+strictly smaller sufficient obligation or a proof of any fork-joining premise.
+
+Combined validation with the native-materialization work: 811 jobs,
+16 audited declarations, maximum closure 11,052, 786 frozen source
+hashes; only allowed axioms, no forbidden dependencies or own warnings.
