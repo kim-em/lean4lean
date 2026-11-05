@@ -28829,3 +28829,59 @@ comparison through independent tails and joins permitting eta-stage growth remai
 live; general paired exposure, higher stages and singleton simulation also remain
 open. Executable unchanged, no coordination or PR extraction. GOAL.md stays active
 with its original objective.
+
+
+### 2026-11-05 23:24:21 UTC — Comparison survives non-eta tails at pure normal native outputs
+
+Previous turn: progress, committed and pushed 9d4351a3. Current worktree and
+GOAL.md were rechecked. The existing level-core checking transport induction was
+inspected: it changes contexts and carriers while retaining both endpoints, so
+it cannot justify arbitrary endpoint forward transport. The next proof targets
+comparison itself, permitting independently returning endpoints rather than a
+common core reduct, which the previous example rules out.
+
+ProofErasurePureNormalTailReturn proves three results. First, a beta/level join
+to an actual typed normal erasure gives a forward beta/level path to that exact
+erasure. Beta normality fixes the endpoint's reduction branch; typed structural
+variant computation supplies the residual universe steps. Second, the existing
+pure expansion-join theorem supplies that join for arbitrary non-eta union tails.
+Only the source and context must be pure. Third, two independent return paths
+reuse an existing computed comparison in any language admitting level steps.
+Endpoint typings and checking modes may differ. These results do not need
+canonical Eq, sound definitions, or normalization of intermediate terms.
+
+ProofErasurePureNormalNativeControl applies this to native application result
+types. The previous theorem extracts their inferred comparison from a comparison
+of the selected Pis and checks of the original arguments against a fixed sort.
+Native result-type realization gives actual types with exactly the selected
+erasures, discharging the typing needed for return. The final tails may use all
+non-eta singleton/expansion stages, yet the resulting comparison is stage zero.
+Functions need not be equal or literal lambdas, and the two actual arguments and
+selected Pi domains may differ. Pure context and pure beta-normal instantiated
+selected result types are explicit restrictions. No core join or result-type
+comparison is silently assumed.
+
+The theorem in ProofErasureComparedControlJoinBoundary was strengthened to
+expose the purity, beta-normality and typed representatives of its existing
+witness. ProofErasureComparedControlTailRepair uses those facts to quantify over
+all non-eta tails of both outputs. They retain stage-zero comparison and a
+stage-one eta common reduct. A non-eta common reduct remains impossible by
+concatenation with the original tails. This verifies that the normal-return
+method covers the precise counterexample to the proposed core-join extension.
+It does not convert that counterexample into a common stage-zero reduction.
+
+Validation: 900 isolated build jobs; 6 public roots audited through
+types, opaque bodies, inductive constructors and recursor RHSs; maximum closure
+11,713; 875 frozen source/import hashes unchanged. Only propext,
+Classical.choice and Quot.sound; no forbidden dependencies or own-module
+warnings. Development fixes supplied explicit context and intermediate scoped
+computation types to resolve Lean metavariables. Final build and audit processes
+completed successfully. Independent untracked files were left untouched.
+
+Completion audit: UniqueTyping.lean:94 still contains the original weakN_iff
+sorry. No canonical-Eq strengthening counterexample or strictly smaller
+sufficient irreducible obligation has been obtained. Purity/normality removal,
+general native-output comparison, eta-containing tails, paired exposure and
+singleton simulation remain open. This is concrete progress on the stated
+restrict-then-generalize route, not completion of GOAL.md. Executable unchanged;
+no coordination or PR extraction. The original goal remains active.

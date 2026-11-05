@@ -15277,3 +15277,41 @@ join is now ruled out in the exact terminal-control application setting.
 Validation: 786 isolated build jobs; 1 public root; maximum audited
 closure 8,569; 761 frozen source hashes; only standard axioms and no
 forbidden dependencies or own-module warnings. GOAL.md remains unresolved.
+
+
+### 2026-11-05 23:24:21 UTC — Return non-eta tails to pure normal selected result types
+
+Verdict: proved, including different control functions and arbitrary non-eta
+union tails. This addresses the comparison target left live by 9d4351a3 without
+reintroducing its false core-join requirement. It is a fragment result; purity
+and normality remain explicit premises, not claims about all native outputs.
+
+A beta/universe join to a typed beta-normal erasure gives an exact forward
+beta/universe computation to that endpoint. Its own beta branch is fixed, and
+its typing supplies the well-formed universes needed to reverse the structural
+variation. Thus any non-eta expansion-union tail from a pure normal endpoint in
+a pure context returns to its source. No canonical Eq, definition soundness,
+intermediate typing, or full guarded confluence is needed for this return lemma.
+
+Two compared endpoints can return independently; they need not join each other
+in the core. This preserves arbitrary checking modes and works in any target
+checker containing level steps. Instantiating the earlier control-result theorem
+and realizing both selected result types yields comparison after independent
+non-eta tails for different functions, arguments and selected domains, provided
+the instantiated selected types are pure and beta-normal. Native Pi comparison
+and argument checks are inputs; no result-type comparison input is added.
+
+The exact previous compared-control witness now includes pure-context evidence,
+normality, purity and actual typed representatives of both outputs. Every pair
+of non-eta tails of those outputs still compares at stage zero and joins at eta
+stage one. No pair gains a non-eta common reduct, since concatenating such a join
+with the tails would contradict the original obstruction. This confirms a
+positive comparison result in the example where common stage-zero reduction is
+provably impossible.
+
+Remaining: arbitrary nonnormal or impure selected types, deriving native-output
+comparisons from general inferred function comparisons, eta-containing tails,
+and the global strengthening obligation. The return proof does not establish
+normalization, and cannot simply erase its normality premise. Validation:
+900 build jobs, 6 audited roots, maximum closure 11,713, 875 frozen
+source hashes; standard axioms only, no forbidden dependencies or own warnings.

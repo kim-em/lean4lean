@@ -47,7 +47,7 @@ private theorem constant_sort_caller_erase
     show proofErase Γ (.sort .zero) = .sort .zero from if_neg (not_isProof_of_sort hΓ hp)]
 
 namespace EtaRecoveryJoinBoundary
-open private context native assigned nativeRaw assignedRaw context_wf native_typed types_equal erasures
+open private context native assigned nativeRaw assignedRaw context_wf native_typed types_equal erasures normal_forms
   from Lean4Lean.Theory.Typing.Strengthening.ProofErasureEtaRecoveryJoinBoundary
 open private raw_no_join context_pure
   from Lean4Lean.Theory.Typing.Strengthening.ProofErasureCarrierAlignedJoinedNativeBoundary
@@ -82,6 +82,8 @@ non-eta expansion union. Their selected native Pis and complete outputs also
 compare at stage zero. An explicit stage-one path joins the outputs. Thus the
 fixed-function core-join theorem cannot simply replace function identity by
 inferred comparison; neither output comparison nor strengthening is refuted.
+The witness also provides purity, beta-normality and typed representatives of
+both outputs, for transporting this example through later conversion tails.
 No assumptions on the definitions or additional environment declarations are
 needed, so the construction also applies in environments with canonical Eq. -/
 theorem compared_control_outputs_need_eta_join (D : Definitions) :
@@ -104,8 +106,12 @@ theorem compared_control_outputs_need_eta_join (D : Definitions) :
         (proofEraseCtx Γ) false outL outR ∧
       ScopedCompute (ErasedStaticStructureEtaExpansionStage D 1) (proofEraseCtx Γ) outL outR ∧
       ¬ ComputeJoin (ErasedLevelCore D) outL outR ∧
-      ¬ ∃ out, ScopedCompute (ErasedExpansionUnion D) (proofEraseCtx Γ) outL out ∧
-        ScopedCompute (ErasedExpansionUnion D) (proofEraseCtx Γ) outR out := by
+      (¬ ∃ out, ScopedCompute (ErasedExpansionUnion D) (proofEraseCtx Γ) outL out ∧
+        ScopedCompute (ErasedExpansionUnion D) (proofEraseCtx Γ) outR out) ∧
+      PureContext (proofEraseCtx Γ) ∧ PureLambda outL ∧ PureLambda outR ∧
+      NormalSyntax (fun _ _ => False) outL ∧ NormalSyntax (fun _ _ => False) outR ∧
+      ∃ P Q v w, env.HasType univs Γ P (.sort v) ∧ env.HasType univs Γ Q (.sort w) ∧
+        proofErase Γ P = outL ∧ proofErase Γ Q = outR := by
   let Γ := context []
   have hΓ : OnCtx Γ (env.IsType univs) := context_wf trivial
   have hΓN : OnCtx (native :: Γ) (env.IsType univs) := ⟨hΓ, _, native_typed⟩
@@ -134,6 +140,29 @@ theorem compared_control_outputs_need_eta_join (D : Definitions) :
   rw [Ec] at Eg Egp
   let P := ProofShape.forallE nativeRaw (.sort (.succ .zero))
   let Q := ProofShape.forallE assignedRaw (.sort (.succ .zero))
+  have hPure := context_pure (Γ := []) (by intro a ha; cases ha)
+  have HNP : NormalSyntax (fun _ _ => False) P :=
+    ⟨fun _ H => H.elim, (normal_forms (Step := fun _ _ _ => False) (fun H => H.elim) []).1,
+      fun _ H => H.elim, trivial⟩
+  have HNQ : NormalSyntax (fun _ _ => False) Q :=
+    ⟨fun _ H => H.elim, (normal_forms (Step := fun _ _ _ => False) (fun H => H.elim) []).2,
+      fun _ H => H.elim, trivial⟩
+  have pi_erase {A} (hA : env.HasType univs Γ A (.sort (.succ .zero))) :
+      proofErase Γ (.forallE A (.sort (.succ .zero))) =
+        .forallE (proofErase Γ A) (.sort (.succ .zero)) := by
+    have hPi := HasType.forallE hA (HasType.sort (l := .succ .zero) (by trivial))
+    have hΓA : OnCtx (A :: Γ) (env.IsType univs) := ⟨hΓ, _, hA⟩
+    rw [show proofErase Γ (.forallE A (.sort (.succ .zero))) = .forallE _ _ from
+      if_neg (not_isProof_of_sort hΓ hPi),
+      show proofErase (A :: Γ) (.sort (.succ .zero)) = .sort (.succ .zero) from
+        if_neg (not_isProof_of_sort hΓA (HasType.sort (by trivial)))]
+  have hTyped : ∃ P₀ Q₀ v w, env.HasType univs Γ P₀ (.sort v) ∧
+      env.HasType univs Γ Q₀ (.sort w) ∧ proofErase Γ P₀ = P ∧ proofErase Γ Q₀ = Q := by
+    refine ⟨.forallE native (.sort (.succ .zero)), .forallE assigned (.sort (.succ .zero)), _, _,
+      .forallE native_typed (.sort (by trivial)),
+      .forallE types_equal.hasType.1 (.sort (by trivial)), ?_, ?_⟩
+    · rw [pi_erase native_typed, EN]
+    · rw [pi_erase types_equal.hasType.1, EA]
   have Hno : ¬ ∃ out, ScopedCompute (ErasedExpansionUnion D) (proofEraseCtx Γ) P out ∧
       ScopedCompute (ErasedExpansionUnion D) (proofEraseCtx Γ) Q out := by
     rintro ⟨out, RL, RR⟩
@@ -142,7 +171,8 @@ theorem compared_control_outputs_need_eta_join (D : Definitions) :
   refine ⟨Γ, .lam (.sort (.succ .zero)) b.lift, .lam (.sort (.succ .zero)) c.lift,
     B.lift, P.liftN 1, Q.liftN 1, P, Q, hΓ,
     .lam (.sort (by trivial)) (hb.weakN henv Ctx.LiftN.one),
-    .lam (.sort (by trivial)) (hc.weakN henv Ctx.LiftN.one), ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, Hno⟩
+    .lam (.sort (by trivial)) (hc.weakN henv Ctx.LiftN.one), ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_,
+    Hno, hPure, by trivial, by trivial, HNP, HNQ, hTyped⟩
   · rw [Ef, Eg]
     exact .lam (.leaf .refl) (.lam lifted_domains_compare (.leaf .refl))
   · rw [Ef]; exact .lam (.lam (.sort (by trivial)))
