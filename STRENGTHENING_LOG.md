@@ -31974,3 +31974,44 @@ extraction.
 The minimum-cut theorem is proved. In the preceding entry, “remain open”
 refers to eliminating its retained-argument eta residual and to the overall
 strengthening goal, not to the minimum-cut theorem itself.
+
+
+## 2026-11-06 11:55:27 UTC — Exact lambda-body counts in the initial binder context
+
+Added `ProofErasureCountedNativeTransport.lean`. Its general typed transport
+lemma reconstructs one target primitive per source primitive and preserves the
+exact outer count throughout compatible closure. The native-image instance
+retains Pi-inert heads with the existing additive guard-stage bound. Applied
+to the native identity images supplied by an annotation computation, it moves
+a body path from the computed binder back to its predecessor with unchanged
+raw endpoints and primitive count. This does not synthesize native images for
+arbitrary actual arguments.
+
+Added `ProofErasurePiInertLambdaCountReadout.lean`. Induction on the actual
+lambda computation reifies each domain and body segment. At composition, the
+later body path is pulled to the earlier binder using counted backward-context
+transport, then composed with the earlier body path at a common finite stage.
+The resulting domain path stays at the original stage, the resulting body
+path is in the initial binder context, and their costs sum exactly to the
+original lambda cost. Semantic equality of actual representatives is retained
+in both initial scopes. A native-eta interface reconstructs the initial domain
+and eta body from guarded recovery, so it needs only the typed source already
+available at the selected original-spine cut.
+
+Strengthened `pi_inert_eq_exposure_eq_or_nonbeta_eta_body_cut`: its residual
+now includes the initial-context counted body path, the separate annotation
+path, an exact cost-splitting equation, and positive body count. The latter
+follows because zero body count would give the beta-only body evolution already
+excluded by minimality. All prior endpoint, prefix-length, ancestry, lambda,
+argument and suffix conclusions remain. This removes changing annotations as
+an obstacle to obtaining a body path; arbitrary retained-argument eta is not
+yet eliminated. Guard-stage growth remains explicit, so same-stage minimality
+must not be used for a new bypass at an enlarged stage. The singleton readout
+can now be pursued on the recovered body spine, with nested eta still open.
+
+Validation: 980 build jobs including contextual-cast and core-family
+substitution regressions; 6 complete dependency roots, maximum closure
+11,569; 955 frozen source hashes. Only propext, Classical.choice and
+Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
+assumptions or owned warnings. Executable unchanged; no coordination or PR
+extraction. GOAL.md remains unachieved.

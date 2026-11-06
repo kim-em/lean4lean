@@ -18076,3 +18076,40 @@ Validation: 834 build jobs; 7 complete dependency roots; maximum
 closure 10,966; 811 frozen source hashes. Standard axioms only; no
 forbidden dependency or owned diagnostic. Executable unchanged; no coordination
 or PR extraction. GOAL.md remains active.
+
+
+## 2026-11-06 11:55:27 UTC — Counted body readout survives changing annotations
+
+- Maintain only a semantic completion separately at every annotation: viable,
+  but the existing native backward-context transport gives a more direct
+  route to the needed body path. Its primitive transport reconstructs exactly
+  one primitive, so the finite stage bound and outer occurrence count can be
+  separated instead of treating annotation changes as lost body history.
+- Preserve counts under constrained native-image substitution: proved. Typed
+  source replay realizes transitive intermediates and each binder extends the
+  image interpretation. Pi-inert source heads survive substitution, so the
+  result remains Pi-inert at the additive guard-stage bound with exactly the
+  original primitive count.
+- Move body computation back across a computed annotation: proved with exact
+  raw endpoints and count. The annotation stage adds to the body's guard stage,
+  not to its primitive cost. This uses constructed native identity images,
+  not arbitrary native recovery of a supplied argument.
+- Invert a whole changing-annotation lambda computation: proved. The annotation
+  path retains its original stage; the body path lives in the initial binder
+  context at a finite stage. Their counts sum exactly to the lambda count.
+  Actual domain/body representatives retain semantic equality in the original
+  scopes. A recovered native eta supplies all required initial typings.
+- Integrate this into the minimum Eq cut: proved. The residual now contains
+  that exact initial-context body path with strictly positive body count,
+  alongside its original non-beta condition and all spine/argument/tail data.
+- Next: analyze that fixed-context body spine, using the preceding fresh-eta
+  singleton readout. Nested eta and component-only body evolution still need
+  treatment. Because context transport may enlarge the guard stage, a bypass
+  using it cannot silently invoke minimality at the original fixed stage;
+  minimization over finite stages is a live option. No strengthening or
+  strictly smaller sufficient PropFront obligation is claimed.
+
+Validation: 980 build jobs; 6 complete dependency roots; maximum
+closure 11,569; 955 frozen source hashes. Standard axioms only; no
+forbidden dependency or owned diagnostic. Executable unchanged; no coordination
+or PR extraction. GOAL.md remains active.

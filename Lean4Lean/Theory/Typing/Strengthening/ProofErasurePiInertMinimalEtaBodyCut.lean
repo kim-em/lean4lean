@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertProofEtaElimination
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertEtaCut
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLambdaCountReadout
 
 /-! # Probe exposure forces genuine computation inside an eta body
 
@@ -7,6 +8,8 @@ The minimum-count original-spine cut excludes administrative expansions and
 all singleton cases and eta applied to a proof. A surviving eta occurs before
 the final proof-major slot, must consume an argument, and its body
 before that beta is not reachable from its original body by beta alone.
+The exact body path is recovered in the initial binder context at a finite
+guard stage, with positive body count and separate annotation cost.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation
@@ -53,8 +56,9 @@ private theorem singleton_spine_readout
 /-- A typed-lower probe exposure gives the original lower equation, or an
 original-prefix eta before the proof-major slot whose first consuming beta
 follows body computation beyond beta. All original component paths, whole prefix, exact
-lambda/argument paths and post-beta tail are retained. The remaining gap is
-readout through this non-beta body work; no eta-bypass closure is assumed. -/
+lambda/argument paths and post-beta tail are retained. The positive-count body
+path is in its initial binder context. The remaining gap is readout through
+this body work, including nested eta; no eta-bypass closure is assumed. -/
 theorem pi_inert_eq_exposure_eq_or_nonbeta_eta_body_cut
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hreg : recursorData ``Eq.rec = some data) (hoff : data.majorOffset = 5)
@@ -68,7 +72,7 @@ theorem pi_inert_eq_exposure_eq_or_nonbeta_eta_body_cut
     (R : ScopedCompute (PiInertStage D n) (proofEraseCtx Γ')
       (ProofShape.mkApps (.const ``Eq.rec [v,w]) args) out) (HE : CarrierExposure out) :
     env.IsDefEq univs Γ a b α ∨
-    (∃ ls pre pending A body A' body' x' xs' k cf ca cs,
+    (∃ ls pre pending A body A' body' x' xs' k cf ca cs cd cb bodyStage,
       List.Forall₂ (· ≈ ·) [v,w] ls ∧ pre.length ≤ 4 ∧
       List.Forall₂ (ScopedCompute (PiInertStage D n) (proofEraseCtx Γ')) args (pre ++ pending) ∧
       ScopedCompute (PiInertStage D n) (proofEraseCtx Γ')
@@ -81,7 +85,10 @@ theorem pi_inert_eq_exposure_eq_or_nonbeta_eta_body_cut
       ScopedArgumentsCount (PiInertStage D n) (proofEraseCtx Γ') ca pending (x' :: xs') ∧
       ScopedComputeCount (PiInertStage D n) cs (proofEraseCtx Γ')
         (ProofShape.mkApps (body'.inst x') xs') out ∧
-      ¬ ProofShape.BetaRed body body' ∧ 0 < cf) := by
+      ¬ ProofShape.BetaRed body body' ∧ 0 < cf ∧ cd+cb = cf ∧
+      ScopedComputeCount (PiInertStage D n) cd (proofEraseCtx Γ') A A' ∧
+      ScopedComputeCount (PiInertStage D bodyStage) cb (A :: proofEraseCtx Γ') body body' ∧
+      0 < cb) := by
   classical
   obtain ⟨_, _, _, ha, _, _, hb⟩ := eqRecBeforeMajor_typings henv heq hΓ ⟨_, ht⟩
   have Eargs' : args = [(proofErase Γ α).liftN count offset,
@@ -161,7 +168,15 @@ theorem pi_inert_eq_exposure_eq_or_nonbeta_eta_body_cut
             cases HD with | cons HP HD =>
               cases HD
               exact hnotProof [] (by rw [HP.pi_inert_proof_fixed])
-          exact .inr ⟨ls, pre, pending, _, _, A', body', x', xs', k, cf, ca, cs,
-            HL, hshort, HA, RP.forget, HTpre, hk, .intro RN SD, RF, RX, RS, Hbody, hpos⟩
+          obtain ⟨cd, cb, bodyStage, hsplit, RD, RB⟩ := pi_inert_native_eta_count_body_readout
+            heq hs (erased_static_structure_eta_expansion_stage_descent heq hs k)
+            HTpre (.intro RN SD) RF
+          have hbpos : 0 < cb := by
+            by_contra hzero
+            have hz : cb = 0 := by omega
+            exact Hbody (hz ▸ RB).zero_beta
+          exact .inr ⟨ls, pre, pending, _, _, A', body', x', xs', k, cf, ca, cs, cd, cb, bodyStage,
+            HL, hshort, HA, RP.forget, HTpre, hk, .intro RN SD, RF, RX, RS, Hbody, hpos,
+            hsplit, RD, RB, hbpos⟩
 
 end Lean4Lean.VEnv.Strengthening
