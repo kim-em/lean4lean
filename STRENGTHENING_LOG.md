@@ -29075,3 +29075,78 @@ excluded by both universal return and common-reduction approaches. Coverage of
 arbitrary comparisons, especially reducible applications, is the next substantive
 problem. The full GOAL.md remains active. Executable unchanged; independent
 untracked files preserved; no coordination or PR extraction.
+
+
+### 2026-11-06 00:09:19 UTC — Typed eta arguments continue computing beneath neutral families
+
+Previous goal turn: progress (2c7ea9b5, evolving recursive native references).
+Revalidated that HEAD and the two independent untracked files before continuing.
+The intended extension is comparison through applications. This turn resolves
+independent argument evolution and beta contraction inside typed eta bodies;
+outer reducible-function application remains explicitly open.
+
+ProofErasureLevelCoreEtaTransport.lean proves ordinary_return: every level-core
+reduct of a typed source reduces to an ordinary reduct of that source. Existing
+factorization supplies the ordinary path and structural universe variation;
+ordinary replay supplies the actual target typing needed to reverse the latter.
+This does not require the source or any reference to be returning or normal.
+Generic ordinary fresh-application reflection replays the erased opened function,
+reflects its original PatternCompute path, then erases the function path again.
+The outcome is literal eta or two lambdas sharing a body. The core may contain
+any sound selected definitions, including optional quotient programs.
+
+EtaResidual.level_compute_right follows arbitrary level-core paths of the short
+endpoint. A direct lambda inversion replaces the old ComputationalRoot premise,
+which excludes sort universe conversions. Combining ordinary-return at the eta
+body, fresh reflection and typed level-core confluence proves raw common-mode
+eta_shape_forward. Typed eta-head classification extends this to both displayed
+head-eta constructors, including proof-domain eta. Neither endpoint is assumed
+ordinary-fixed, and ordinary-core confluence is not an additional premise.
+
+ProofErasureLevelCoreNeutralSpines.lean excludes every full-core root at a
+variable spine and extracts a path for each argument, retaining index and arity.
+Specialized single-argument inversion and bare-variable fixedness support the
+example's separation proof. Unlike the ordinary PrimitiveHead shortcut, the
+root proof explicitly handles the level core's sort and constant conversions.
+
+ProofErasureLevelRecursiveTransport.lean adds eta and neutral constructors to
+the existing recursive certificate. Eta uses actual common-type originals;
+neutral spines compare all their arguments recursively in common mode. The
+forward induction invokes the new eta theorem and pointwise neutral-path
+inversion. Existing join, fixed, binder, typed prefix and symmetry cases remain.
+The public forward/of_joins signatures are unchanged. Rebuilt and audited the
+previous complete-native-output transport and recursive eta-reference example
+against the enlarged inductive relation, including all new constructors and
+recursor rules in the dependency closure.
+
+ProofErasureRecursiveEtaArgument.lean constructs a well-formed context with
+f : D -> Prop and F : (D -> Prop) -> Sort 1. The types F f and
+F (fun x : D => f x) are actually typed at Sort 1 and definitionally equal.
+Their guard uses typed eta under a neutral application, with no fixed eta leaf.
+A join would preserve the family head and give a common reduct of a bare variable
+and a lambda, which is impossible. Every reduct of the long type retains a
+lambda whose annotation is a reduct of D. Returning after every ordinary step
+would induce the already refuted return property at that recursive annotation.
+Thus all independent core reduct pairs compare but never join, and no long-side
+reduct is returning. Typed replay, stage-zero core joining and of_joins extend
+these conclusions to arbitrary independent stage-zero expansion tails. A fresh
+recursive declaration over any well-formed canonical-Eq base realizes the
+example with all abstract pattern/definition conditions discharged.
+
+Validation: full isolated build passed (932 jobs); 32 roots audited
+through types, opaque values, inductive constructors and recursor RHSs;
+maximum closure 12,175; 907 source/import hashes unchanged. Only propext,
+Classical.choice and Quot.sound; no forbidden dependencies or own-module
+warnings. The old native-reference interfaces and example are included as
+regression build/audit roots. Development fixes supplied exact etaArgument
+universe discrimination, an explicit short function to EtaHead.boundVar, and
+an explicit TypedCoreConfluence type to prevent eager implicit instantiation.
+
+Completion audit: UniqueTyping.lean:94 still has the original weakN_iff sorry.
+No canonical-Eq strengthening counterexample or strictly smaller sufficient
+irreducible obligation is established. The new work handles neutral family
+applications with nonfixed eta arguments; it does not justify substituting
+arbitrary functions for those neutral heads. Outer beta overlap, full comparison
+coverage, higher eta-stage joining, paired exposure and singleton simulation
+remain live. GOAL.md stays active. Executable unchanged; independent untracked
+files preserved; no coordination or PR extraction.

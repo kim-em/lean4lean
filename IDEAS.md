@@ -15443,3 +15443,51 @@ has a LevelRecursiveGuard. Higher eta stages, paired exposure and singleton
 simulation remain open. Validation: 926 build jobs, 18 audited roots
 including constructors/recursors, maximum closure 12,132, 901 unchanged
 frozen source hashes; only standard axioms and no forbidden dependencies.
+
+
+### 2026-11-06 00:09:19 UTC — Nonfixed typed eta and neutral family applications in the level core
+
+Verdict: checked extension of evolving-reference comparison. Fixedness is no
+longer required at typed head-eta leaves; variable-headed application spines
+may contain recursively compared arguments that compute indefinitely. This
+solves argument evolution and beta overlap inside a typed eta body, not arbitrary
+outer application overlap. Strengthening remains open.
+
+A full level-core path from a typed term can compute back to an ordinary reduct
+of that term: postpone universe conversion and reverse only the structural
+universe variation using the typed ordinary reduct. No return to the original
+term is asserted. Generic ordinary fresh-argument reflection then handles beta
+crossing the eta body's application boundary. The short endpoint is joined in
+the level core, and raw EtaResidual follows its remaining level computation.
+Thus typed head eta transports through arbitrary independent level-core paths
+using soundness, universe compatibility, concrete patterns and typed level-core
+confluence. Ordinary-core confluence and endpoint fixedness are unnecessary.
+The definition collection is generic, including the actual optional quotient
+and registered-structure programs.
+
+LevelRecursiveGuard now has typed eta and neutral-spine constructors. Direct
+level-root exclusion proves neutral-spine inversion without misusing the ordinary
+PrimitiveHead theorem (universe conversion also has sort roots). Each argument
+path feeds the recursive comparison induction, giving an inferred comparison of
+the family applications. Existing complete-native-output and application-reference
+transport theorems rebuild with this enlarged grammar and unchanged interfaces.
+
+The new actual example is N = F f and A = F (fun x : D => f x), with
+D := D -> (Prop -> Prop), f : D -> Prop and F : (D -> Prop) -> Sort 1.
+The recursive annotation lies inside the eta leaf itself. N/A are typed at Sort 1
+and definitionally equal. All independent level-core reducts compare; no pair
+has a level-core common reduct; every long-side reduct fails ordinary-reduct
+return. Stage-zero expansion tails preserve all three conclusions as well.
+The canonical-extension corollary installs the actual declaration and discharges
+all pattern and definition hypotheses. This goes beyond the previous example's
+independent recursive Pi frame around a fixed eta leaf.
+
+Next unresolved case: substitution into a neutral head can expose a lambda and
+create an outer beta redex. The neutral constructor cannot simply be treated as
+closed under arbitrary substitution. A substitution-aware recursive certificate
+or an applied-guard development argument remains needed; arbitrary raw or
+computed comparisons still lack coverage. No new strictly smaller sufficient
+irreducible obligation is claimed. Validation: 932 build jobs, 32 audited
+roots including constructors/recursors and previous native-reference results,
+maximum closure 12,175, 907 unchanged frozen source hashes; standard axioms
+only and no forbidden dependencies or own-module warnings.
