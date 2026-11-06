@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureContextualCastGuard
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCoreContextTransport
 
 /-! # Recursive computation joins stable under the full ordinary core
 
@@ -17,7 +17,7 @@ inductive CoreFamilyKind where
   | compute
   | compare (mode : Bool)
 
-/-- A finite recursive grammar alternating full-core stable computations and
+/-- A recursive grammar at a finite stage, alternating full-core stable computations and
 comparisons. Every new cast consumes a smaller comparison child; joins consume
 smaller computation children. Annotation domains have a shared actual sort, so
 either checking mode is accepted. No constructor assumes stability as an oracle. -/
@@ -44,6 +44,23 @@ inductive CoreFamilyCast (D : Definitions) :
       (H : CoreFamilyCast D n (.compare domainMode) (proofEraseCtx Γ) (proofErase Γ A) (proofErase Γ C)) :
       CoreFamilyCast D n (.compare mode) (proofEraseCtx Γ)
         (proofErase Γ (t.inst (.lam A b))) (proofErase Γ (t.inst (.lam C b)))
+  /-- Body children are certificates at each interpreted substitution, not an
+  assumed future-comparison property. Their readout is proved by induction. -/
+  | lamCommon
+      (HB : ∀ {Δ' τ}, ContextSubstitution (A :: Δ) Δ' τ →
+        CoreFamilyCast D n (.compare true) Δ' (b.subst τ) (c.subst τ)) :
+      CoreFamilyCast D n (.compare true) Δ (.lam A b) (.lam C c)
+  | lamSorted (SA : DomainSort Δ A u) (SC : DomainSort Δ C u)
+      (HA : CoreFamilyCast D n (.compare true) Δ A C)
+      (HB : ∀ {Δ' τ}, ContextSubstitution (A :: Δ) Δ' τ →
+        CoreFamilyCast D n (.compare mode) Δ' (b.subst τ) (c.subst τ)) :
+      CoreFamilyCast D n (.compare mode) Δ (.lam A b) (.lam C c)
+  | forallSorted (SA : DomainSort Δ A u) (SC : DomainSort Δ C u)
+      (SB : DomainSort (A :: Δ) B v) (SE : DomainSort (A :: Δ) E v)
+      (HA : CoreFamilyCast D n (.compare true) Δ A C)
+      (HB : ∀ {Δ' τ}, ContextSubstitution (A :: Δ) Δ' τ →
+        CoreFamilyCast D n (.compare true) Δ' (B.subst τ) (E.subst τ)) :
+      CoreFamilyCast D n (.compare mode) Δ (.forallE A B) (.forallE C E)
   | prefixes : CoreFamilyCast D n .compute Δ a a' → CoreFamilyCast D n .compute Δ b b' →
       CoreFamilyCast D n (.compare mode) Δ a' b' → CoreFamilyCast D n (.compare mode) Δ a b
   | reducts : CoreFamilyCast D n (.compare mode) Δ a b →
@@ -107,6 +124,29 @@ theorem CoreFamilyCast.interpret
   | annotation hΓ hA hC hb ht _ ih =>
     exact fun RA RB => contextual_annotation_consumer_core heq hs hc hΓ hA hC hb ht
       (fun RX RY => ih RX RY) RA RB
+  | lamCommon _ ih =>
+    intro a' b' RA RB
+    obtain ⟨A', body, rfl, RD, RL⟩ := RA.level_core_lam_inv
+    obtain ⟨C', body', rfl, _, RR⟩ := RB.level_core_lam_inv
+    have HB := ih (ContextSubstitution.core_binder hs RD) (a' := body) (b' := body')
+    simp only [ProofShape.subst_id] at HB
+    exact .lamCommon (HB RL RR)
+  | lamSorted SA SC _ _ ihA ihB =>
+    intro a' b' RA RB
+    obtain ⟨A', body, rfl, RD, RL⟩ := RA.level_core_lam_inv
+    obtain ⟨C', body', rfl, RC, RR⟩ := RB.level_core_lam_inv
+    have HB := ihB (ContextSubstitution.core_binder hs RD) (a' := body) (b' := body')
+    simp only [ProofShape.subst_id] at HB
+    exact .lamSorted (SA.level_core hs RD) (SC.level_core hs RC) (ihA RD RC) (HB RL RR)
+  | forallSorted SA SC SB SE _ _ ihA ihB =>
+    intro a' b' RA RB
+    obtain ⟨A', body, rfl, RD, RL⟩ := RA.pi_parts (fun H => erased_level_core_no_pi H)
+    obtain ⟨C', body', rfl, RC, RR⟩ := RB.pi_parts (fun H => erased_level_core_no_pi H)
+    have HB := ihB (ContextSubstitution.core_binder hs RD) (a' := body) (b' := body')
+    have SL := ContextSubstitution.sort (ContextSubstitution.core_binder hs RD) (SB.level_core hs RL)
+    have SR := ContextSubstitution.sort (ContextSubstitution.core_binder hs RD) (SE.level_core hs RR)
+    simp only [ProofShape.subst_id] at HB SL SR
+    exact .forallSorted (SA.level_core hs RD) (SC.level_core hs RC) (ihA RD RC) SL SR (HB RL RR)
   | prefixes _ _ _ ih₁ ih₂ ih =>
     intro a' b' RA RB
     obtain ⟨left, RL, CL⟩ := ih₁.2 RA

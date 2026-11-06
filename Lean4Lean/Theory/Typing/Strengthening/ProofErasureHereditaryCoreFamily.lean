@@ -61,6 +61,43 @@ theorem CoreFamilyCast.Hereditary.eta
   exact .raise (Nat.zero_le n) (.prior (.prior (.core (.eta hΓ₀
     (ha.subst henv.orderedStrong WS hΓ₀) (hb.subst henv.orderedStrong WS hΓ₀) H'))))
 
+/-- A retained common body comparison constructs common lambda comparison.
+The written domains may differ, and all future domain computation is handled
+by the interpreted body children in the recursive grammar. -/
+theorem CoreFamilyCast.Hereditary.lamCommon
+    (H : CoreFamilyCast.Hereditary D n (.compare true) (A :: Δ) b c) :
+    CoreFamilyCast.Hereditary D n (.compare true) Δ (.lam A b) (.lam C c) := by
+  refine ⟨.lamCommon (fun W => H.future W), ?_⟩
+  intro Δ' τ W
+  exact .lamCommon (fun V => (H.substitute W.cons).future V)
+
+/-- Shared domain sorts and retained common domain comparison give lambda
+comparison in either mode. Body histories survive arbitrary future substitution
+and computation of the displayed domains. -/
+theorem CoreFamilyCast.Hereditary.lamSorted
+    (SA : DomainSort Δ A u) (SC : DomainSort Δ C u)
+    (HA : CoreFamilyCast.Hereditary D n (.compare true) Δ A C)
+    (HB : CoreFamilyCast.Hereditary D n (.compare mode) (A :: Δ) b c) :
+    CoreFamilyCast.Hereditary D n (.compare mode) Δ (.lam A b) (.lam C c) := by
+  refine ⟨.lamSorted SA SC HA.base (fun W => HB.future W), ?_⟩
+  intro Δ' τ W
+  exact .lamSorted (W.sort SA) (W.sort SC) (HA.future W)
+    (fun V => (HB.substitute W.cons).future V)
+
+/-- Dependent Pi domains and bodies retain their actual common sorts. The body
+certificates are transported into the computed left-domain context at readout. -/
+theorem CoreFamilyCast.Hereditary.forallSorted
+    (SA : DomainSort Δ A u) (SC : DomainSort Δ C u)
+    (SB : DomainSort (A :: Δ) B v) (SE : DomainSort (A :: Δ) E v)
+    (HA : CoreFamilyCast.Hereditary D n (.compare true) Δ A C)
+    (HB : CoreFamilyCast.Hereditary D n (.compare true) (A :: Δ) B E) :
+    CoreFamilyCast.Hereditary D n (.compare mode) Δ (.forallE A B) (.forallE C E) := by
+  refine ⟨.forallSorted SA SC SB SE HA.base (fun W => HB.future W), ?_⟩
+  intro Δ' τ W
+  exact .forallSorted (W.sort SA) (W.sort SC)
+    (ContextSubstitution.sort W.cons SB) (ContextSubstitution.sort W.cons SE)
+    (HA.future W) (fun V => (HB.substitute W.cons).future V)
+
 /-- Sequential computation retains the same substituted intermediate. -/
 theorem CoreFamilyCast.Hereditary.trans
     (H : CoreFamilyCast.Hereditary D n .compute Δ a b)

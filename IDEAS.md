@@ -16325,3 +16325,43 @@ Validation: 827 build jobs, 57 audited roots including the enlarged
 grammar's constructors/recursors and the hereditary record, maximum closure
 12,707; 802 frozen hashes. Standard axioms only, no forbidden dependencies
 or owned-module warnings. Original sorry and executable unchanged.
+
+
+### 2026-11-06 04:09:58 UTC — Retained body certificates handle changing binders and beta application
+
+Previous turn: progress (ce6cec69, shared-sort common annotation consumers).
+Revalidated that commit and preserved the two independent untracked experiments.
+
+Idea: use the already-retained interpreted substitutions of a body to transport
+its certificate when ordinary core computation changes the written domain.
+Verdict: proved for common lambdas, sorted lambdas in either mode, and sorted
+dependent Pis. ContextSubstitution.core_binder constructs the identity map
+between raw contexts by replaying the domain computation at each actual source
+realization. DomainSort.level_core retains its actual sort witness.
+
+The recursive grammar's new binder constructors take body children indexed by
+interpreted substitutions. These are recursive CoreFamilyCast certificates,
+not assumed comparisons at future reducts; their full-core readout follows
+from the constructor's induction hypotheses. Hereditary body records supply
+the indexed children constructively. The hereditary binder closure proofs
+compose substitutions beneath the binder and retain the same finite stage.
+
+A distinct application step is also proved: different displayed lambda
+domains and different bodies can be applied to the same actual argument when
+it inhabits both domains and the body comparison is hereditary. Each side's
+erasure-instantiation law uses its own genuine typing; the erased argument
+substitution is identical. Typed beta paths then prepend the instantiated body
+comparison. The result remains hereditary and handles arbitrary subsequent
+full-core paths, without normalization or an inferred domain certificate.
+
+This closes the structural binder case and one created-beta application case
+for retained histories. It does not cover arbitrary old recursive leaves or
+applications at distinct merely compared arguments. Next live direction:
+paired argument histories and consumer transport sufficient to instantiate
+different bodies at different arguments, while continuing to track the general
+semantic coverage requirement. No final GOAL.md deliverable is claimed.
+
+Validation: 829 jobs, 54 audited roots including all new grammar
+constructors and recursors, maximum closure 12,330; 804 frozen hashes.
+Only standard axioms; no forbidden dependencies or own-module warnings. The
+finite-stage substitution barrier and prior cast feedback clients rebuild.

@@ -30141,3 +30141,48 @@ Next investigate body comparisons under changing binders and the application
 histories needed for coverage. All GOAL.md final deliverables remain open;
 original sorry, executable and independent untracked files preserved. No
 coordination, PR extraction or PR creation.
+
+
+### 2026-11-06 04:09:58 UTC — Full-core binder transport and hereditary beta applications
+
+Added ProofErasureCoreContextTransport.lean. DomainSort.level_core replays
+ordinary core computations to preserve actual sort witnesses.
+ContextSubstitution.core_binder supplies an interpreted identity substitution
+from A :: Δ to A' :: Δ whenever A computes to A' in the full ordinary core.
+Every actual source realization supplies the domain typing; forward replay
+constructs the target and actual context conversion. No strengthening is used.
+
+Extended CoreFamilyCast with lamCommon, lamSorted and forallSorted. Body
+children are recursive certificates under interpreted substitutions. Induction
+interprets the selected child at the context obtained by computing the left
+domain. Lambda/Pi computation inversion supplies the body paths; retained sort
+witnesses support sorted checking. No future comparison law is a constructor
+premise. The grammar remains at a finite stage, and its readout is proved by
+structural induction over its recursively indexed certificate children.
+
+Extended CoreFamilyCast.Hereditary with the corresponding three constructive
+binder closures. Future ambient substitutions lift beneath the binder, and
+composition retains all subsequent body substitutions. These rules do not
+upgrade arbitrary prior leaves or assume global substitution closure.
+
+Added ProofErasureHereditaryBetaApplication.lean. instantiate_bodies handles
+one actual argument inhabiting both written domains, with separate typings for
+the two bodies and one retained body certificate in the left raw context. The
+two erasure laws agree on the substituted argument without a supplied domain
+equality. beta_application_same_argument adds the two genuinely typed beta
+prefixes and retains hereditary comparison. The actual-environment theorem
+reads this out after arbitrary interpreted substitution and independent full-
+core paths, including newly exposed redexes. Bodies and domains may differ.
+
+Validation: 829 build jobs, 54 complete audit roots, maximum closure
+12,330, 804 frozen source/import hashes. Full traversal includes types,
+opaque bodies, indexed constructor children and recursor RHSs. Only propext,
+Classical.choice and Quot.sound; no forbidden dependencies or own warnings.
+The previous finite-stage identity-substitution barrier and cast/annotation
+feedback clients rebuild against the enlarged grammar.
+
+Judgment: retained histories now close under changing binders and the displayed
+beta case with a shared actual argument. Distinct compared arguments and
+general semantic coverage remain open. This is not a strictly smaller sufficient
+front obligation or other final GOAL.md deliverable. Original sorry, executable
+and independent files preserved; no coordination, PR extraction or PR creation.
