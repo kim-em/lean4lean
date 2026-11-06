@@ -19830,3 +19830,34 @@ No general annotation-transport claim is made. Non-proof argument agreement
 and well-founded scope progress also remain open. The GOAL.md objective is
 not complete. Validation: 1043 jobs, 36 roots including the unchanged
 strict-minimum API, maximum closure 11,976, 1,018 frozen source hashes.
+
+
+## 2026-11-06 19:56:49 UTC — Retain insertion structure to replay later annotations
+
+**Idea:** general exact renamings suffice for readout but do not retain where
+to replay independent annotation changes. Keep the actual insertion, binder
+extension and composition construction of the reverse maps. Induct on this
+construction to move an annotation change to its corresponding target scope.
+
+**Verdict:** proved. `ContextEmbedding.compute_context` preserves the map
+while replaying a single annotation change. Inserted declarations keep their
+raw annotations with semantically converted domain-sort witnesses; binder
+changes rename their original certificates; compositions transport in order.
+The theorem extends through arbitrary finite retained annotation histories.
+
+`EqTargetPrefixEmbedding` retains this construction alongside bounded
+completion. Its proof-endpoint theorem composes the new reverse embedding
+with the existing one after transporting the actual annotation history. It
+covers repeated proof consumption at arbitrary retained depth. Component
+computation, eta execution, positive guard readout, counted cuts and strict
+minimum descent all retain the stronger witness. The actual next-scope
+frontier preserves it or exposes its particular consumed base domain without
+a Prop witness. Ordinary completion supplies the initial identity embedding.
+
+This closes retained-annotation transport for the constructed invariant used
+by these paths. Non-proof argument agreement and termination through
+equal-cost scope moves remain open. A possible next progress measure is the
+selected continuation structure or a secondary beta/administrative count;
+no such decrease is yet proved. No sufficient smaller obligation or completed
+strengthening theorem is claimed. Validation: 1047 jobs, 40 audited
+roots, maximum closure 11,976, 1,022 frozen source hashes.

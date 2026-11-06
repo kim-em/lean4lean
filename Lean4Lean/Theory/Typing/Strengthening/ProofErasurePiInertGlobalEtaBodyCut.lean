@@ -3,7 +3,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaFrameOri
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqDelayedSupply
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetractionComposition
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqEmbeddedMinimum
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
 
 /-! # Eq exposure reaches a non-level root inside a minimum eta body
@@ -167,8 +167,19 @@ these maps. `consume_proof_binder` and `EqRepeatedProofHistory.retraction`
 preserve the witness through arbitrarily many further topmost proof-binder
 consumptions, interleaved with component and eta histories. The actual base
 endpoint classifier retains only its consumed domain without a Prop witness.
-Changing retained annotations above a later consumption still requires
-transport; this finite-history closure does not assert arbitrary coverage.
+The general-renaming witness alone does not record how to replay changed
+retained annotations above later consumption. `ContextEmbedding` now retains
+the actual insertion, binder extension and composition structure. Its annotation
+transport replays every source change in the embedded target while preserving
+the map. `EqTargetPrefixEmbedding.proof_endpoint` consequently preserves the
+same constructed witness through any further proof endpoint, at arbitrary
+retained depth and with its recorded annotation computations. Component and
+eta histories and the strict minimum descent retain that construction.
+`embedding_scope_frontier` starts from ordinary completion and reaches the
+actual next scope move: it preserves the embedding invariant or records the
+consumed base domain without a Prop witness. Repeated proof-valued scope moves
+therefore need no new agreement assumption. Non-proof argument agreement and
+termination through equal-cost scope moves remain open.
 Component-only
 transitions through enclosing wrappers still need target agreement from their
 actual histories; coverage of arbitrary wrapped-body histories remains open. `read_full_eta_loss_in_minimum` reads a head-losing root

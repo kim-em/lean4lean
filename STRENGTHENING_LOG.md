@@ -34395,3 +34395,53 @@ possibly retaining actual embedding structure for those reverse maps; derive
 non-proof image agreement and progress through equal-cost moves. No arbitrary
 wrapper coverage, sufficient smaller obligation, or strengthening proof is
 claimed. The original weakN_iff gap remains. No executable changes or PRs.
+
+
+## 2026-11-06 19:56:49 UTC — Constructed embeddings close retained proof-scope transport
+
+Added `ProofErasureContextEmbedding.lean`. The new inductive witness records
+identity, an inserted domain with its sort witness, extension below a
+displayed binder, and composition. Every witness yields the existing exact
+context renaming. A recorded annotation change transports through this
+construction with the same map and a corresponding target annotation change.
+Semantic context conversion preserves sort witnesses for intervening inserted
+declarations. Finite context histories preserve the same construction.
+
+Added `ProofErasureEqEmbeddedCompletion.lean`. Proof endpoints produce a
+constructed reverse embedding after replaying their actual retained annotation
+history, with identity on every retained source variable. The stronger bounded
+completion invariant embeds into general reverse-renaming completion and starts
+from ordinary completion via identity. Its history transport and pullback
+combine to preserve any further proof endpoint at arbitrary depth, including
+changed retained annotations and earlier composed reverse maps. The actual
+endpoint classifier leaves only its consumed base domain without a Prop witness.
+
+Added `ProofErasureEqEmbeddedHistory.lean` and
+`ProofErasureEqEmbeddedMinimum.lean`. Component, prefix, eta-opening and
+supplied-consumption histories retain the embedding construction. Counted
+execution derives it at the actual endpoint or selected non-level cut. Positive
+singleton readout is inherited through the general retraction. The original
+actual minimum and unrestricted competitor predicate stay in their scopes;
+native eta gives strict descent while preserving the stronger witness.
+
+The new component frontier additionally retains typing of its actual endpoint,
+derived from the chosen continuation run. Its next-scope theorem preserves the
+embedding through every identity/proof endpoint or records the original base
+consumption without a Prop witness. `embedding_scope_frontier` starts this
+analysis from ordinary completion without an extra ancestry assumption. The
+output embedding has the same form needed for another iteration; no count
+decrease is claimed for a zero-cost component move. Global documentation and
+imports expose this result without claiming termination or arbitrary non-proof
+argument agreement.
+
+Validation: 1047 build jobs including global and established regressions.
+All 40 public roots (including the retained previous minimum API) passed
+recursive type/value/constructor/recursor and axiom audit, maximum closure
+11,976. Only propext, Classical.choice and Quot.sound occur; no owned
+diagnostics, sorryAx, strengthening gap dependency or excluded circular
+framework. All 1,022 frozen source hashes remained unchanged.
+
+Remaining: derive non-proof argument agreement from actual supply ancestry
+and prove progress through equal-cost scope moves. The full GOAL.md objective
+is incomplete; weakN_iff retains its original sorry. No executable changes,
+PR extraction or coordination.
