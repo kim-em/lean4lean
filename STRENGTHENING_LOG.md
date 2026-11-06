@@ -30803,3 +30803,40 @@ maximum closure 9,416; 837 frozen source/import hashes. Only propext,
 Classical.choice and Quot.sound; no forbidden dependencies or owned warnings.
 Preserved independent experiments and left executable unchanged. No coordination
 or PR extraction. Goal remains active and the original sorry remains.
+
+
+### 2026-11-06 06:41:34 UTC — Exact strength of the remaining eta-domain readout premise
+
+Added ProofErasureEtaCoreDomainBoundary. FiniteEtaCoreDomainReadout allows each
+actual exposed domain pair its own arbitrary finite inferred-comparison stage.
+It is equivalent to FiniteInferredSortReadout, coverage of all actual same-sort
+equations. One direction realizes the recorded domain histories; the other
+uses a zero-step constant-body lambda with a converted assigned domain.
+
+Also tested two native-source restrictions. FiniteNativeEtaCoreDomainReadout
+requires a stage-zero native Pi and its input-sort witness; the same zero-step
+probe still encodes every same-sort equation. FiniteAssignedEtaCoreDomainReadout
+requires exact stage-zero recovery of the original assigned Pi. An identity
+cover supplies this for any typed non-proof source, and one beta step preserves
+all its domain marks via EtaCoreDomains.function_prefix. This restriction is
+therefore still equivalent to unrestricted same-sort inferred coverage.
+
+All three coverage laws imply PropositionFront under canonical Eq and sound
+definitions, without confluence, level compatibility or uniform finite stages.
+Actual total-environment specializations are supplied for the native-source and
+exact-assigned-source cases. No coverage law is assumed as an axiom or proved;
+these are checked implications and equivalences locating the remaining gap.
+
+The result changes the next action: native source recovery, even at the exact
+assigned Pi, cannot by itself discharge the universal domain guards. The
+conversion dependencies inside argument typings must be retained through beta.
+Strong typing constructors store those dependencies, but a justified induction
+that turns them into the needed certificates is still outstanding. Existing
+exposed-lambda transport with an already supplied domain certificate is not a
+solution to this global coverage problem and was not duplicated.
+
+Validation: 863 jobs; 19 complete type/value/constructor/recursor audits;
+maximum closure 11,327; 838 frozen source/import hashes. Only propext,
+Classical.choice and Quot.sound; no forbidden dependencies or owned warnings.
+Independent experiments preserved; no executable edits, coordination or PR
+extraction. Strengthening and the final deliverable remain open.

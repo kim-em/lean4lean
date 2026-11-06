@@ -17128,3 +17128,53 @@ the exposed certificate obligations; the original weakN_iff sorry remains.
 Validation: 862 jobs; 7 complete dependency-audit roots; maximum closure
 9,416; 837 frozen hashes; standard axioms only, no forbidden dependencies
 or owned diagnostics. No executable changes, coordination or PR extraction.
+
+
+### 2026-11-06 06:41:34 UTC — Eta-domain history coverage still contains the full front
+
+Previous goal turn: progress (cf1488ca and 8a375982, all primitive cases and
+arbitrary typed consumer full-core residuals). Revalidated HEAD and both
+independent untracked experiments. Audited the actual remaining domain readout
+premise before trying to infer it from semantic function typing.
+
+Verdict: unrestricted eta-domain readout is exactly finite inferred coverage of
+arbitrary same-sort equalities. Proved both directions. Domain history realizes
+two actual same-sort types with semantic equality, but conversely the zero-step
+history of domainProbe Q typed at Pi P (Sort 1) exposes any equation P = Q as a
+domain mark. Each output may choose an arbitrary finite stage; there is no
+uniform-stage assumption in this barrier. Inferred descent above one unused
+binder proves PropositionFront from that coverage, without confluence.
+
+Tested a proposed native-source restriction. Verdict: still the entire front.
+The zero-step probe already has a stage-zero native Pi and a domain-sort witness.
+Its native domain is Q while its assigned domain is P. Thus the presence of a
+native certificate alone does not supply the missing agreement certificate.
+
+Tested the stronger requirement of exact stage-zero recovery at the assigned
+Pi itself. Verdict: still the entire front. Every typed non-proof function has
+an actual identity-redex cover with exact assigned-type native recovery. Its
+single beta step reaches the original function. Prepending this step preserves
+every eta-domain mark in either orientation. Hence readout restricted even to
+these exactly recovered sources implies unrestricted eta-domain readout. Proved
+its equivalence to same-sort coverage and its PropositionFront implication,
+including an actual-total-environment specialization.
+
+This is not a counterexample to readout or strengthening. It invalidates treating
+the recently exposed universal coverage premise as a strictly smaller sufficient
+final obligation, and rules out filling it merely by adding native recovery at
+the source. The full-core consumer transport result remains valid, but has not
+removed the hard conversion frontier.
+
+Avoided rebuilding the already proved exposed-lambda consumer reduction and
+its supplied-domain-certificate cases. Inspected IsDefEqStrong: appDF retains
+argument derivations and defeqDF retains the type-conversion derivation, whereas
+beta can erase the identity wrapper that held the selected source Pi. The live
+next direction must preserve these inner conversion dependencies through beta,
+using their existing certificates or a justified derivation induction. Merely
+tracking the outer function's raw history or exact starting Pi is insufficient.
+No well-foundedness claim for that induction has been established here.
+
+Validation: 863 jobs; 19 complete dependency-audit roots; maximum closure
+11,327; 838 frozen hashes; standard axioms only, no forbidden dependencies
+or owned diagnostics. Executable unchanged, no coordination or PR extraction.
+The original weakN_iff sorry remains and GOAL.md remains unachieved.
