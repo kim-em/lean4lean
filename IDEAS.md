@@ -19373,3 +19373,35 @@ case. Arbitrary wrapper-history coverage and `weakN_iff` remain open, and no
 sufficient obligation strictly smaller than PropFront is claimed. Validation:
 1027 jobs, 12 audited roots, maximum closure 11,813, 1,002 frozen
 source hashes. No executable changes, PR extraction or coordination.
+
+
+## 2026-11-06 17:44:52 UTC — Delete constant wrappers through typed mixed continuations
+
+Verdict: verified progress. `ProofErasurePiInertConstantFrames.lean` excludes
+constant expansion at any tracked root of a typed minimum ending at an exposed
+carrier, across arbitrary mixed continuation frames. Together with the identity
+result, this closes both administrative expansion cases for these minima.
+
+The key simplification is to keep `ConstantHeadDeletion` entirely raw.
+Deleting a constant wrapper is itself beta reduction, so actual source typing
+supplies the lower payload's typing whenever a surviving wrapper must be
+simulated. The displayed annotation is recovered from the same typed source;
+its domain-sort witness realizes in the payload's context. Existing counted
+unused-binder descent then reconstructs the exact lower payload path at the
+same stage with no larger primitive count. This avoids needing a persistent
+extra semantic witness inside every deletion constructor.
+
+Raw substitution and beta preserve deletion. Induction on the actual typed
+continuation uses its recorded application-source typings, while retained
+frames need only raw lambda/application closure. The competitor keeps the
+same continuation predicate and exact terminal result. No native guard or
+computation is substituted across frames. The removed insertion's unit cost
+contradicts the original minimum.
+
+Still open: deriving target agreement when a component-only path proceeds
+through enclosing retained/application frames, and completing coverage of
+arbitrary wrapped histories. Closing administrative cases does not itself
+close the eta recursion or prove strengthening. `weakN_iff` remains open;
+no sufficient obligation strictly smaller than PropFront is claimed.
+Validation: 1028 jobs, 13 audited roots, maximum closure 11,813,
+1,003 frozen source hashes. No executable changes, PR extraction or coordination.

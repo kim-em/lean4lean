@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqTargetPrefixExecution
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertIdentityFrames
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertConstantFrames
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSpecializationFrames
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -53,9 +53,14 @@ another native eta at any arity. Identity expansion at any tracked root of
 a minimum is now excluded through arbitrary mixed frames by
 `pi_inert_frames_minimum_no_identity`: deleting the wrapper simulates the
 current path and all enclosing frames without increasing their primitive
-count, while its insertion costs one. Constant expansions and component-only
-transitions through enclosing wrappers still need the corresponding argument;
-coverage of arbitrary wrapped-body histories remains open. `read_full_eta_loss_in_minimum` reads a head-losing root
+count, while its insertion costs one. The corresponding constant case is
+excluded by `pi_inert_frames_minimum_no_constant`, using actual source typing
+to recover the lower payload before unused-binder certificate descent. Its
+competitor keeps the same continuation predicate through every mixed frame.
+Thus both administrative expansion cases are excluded at tracked roots of
+typed minima. Component-only transitions through enclosing wrappers still
+need target agreement from their actual histories; coverage of arbitrary
+wrapped-body histories remains open. `read_full_eta_loss_in_minimum` reads a head-losing root
 in the full-prefix body component history through any iterated insertions.
 In the proof-major case, a head-losing primitive
 reached through its body component history either reads the original equation

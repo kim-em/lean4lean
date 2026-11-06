@@ -33680,3 +33680,52 @@ target agreement derived from the actual enclosing origin/argument histories.
 Arbitrary wrapped-history coverage, a sufficient strictly smaller irreducible
 obligation, and strengthening itself remain unproved. No executable changes,
 PR extraction or coordination.
+
+
+## 2026-11-06 17:44:52 UTC — Exclude constant roots through arbitrary typed continuations
+
+Added `ProofErasurePiInertConstantFrames.lean`. `ConstantHeadDeletion` tracks
+removal of one constant wrapper through function positions, lambda bodies and
+identity payloads. Its raw substitution lemma uses lifted substitution; its
+beta simulation uses pure-beta lift inversion for an unused body. `reduce`
+proves that every deletion is itself a compatible beta reduction.
+
+`typed_constant_lambda_count_readout` derives lower-payload typing by replaying
+that beta reduction from the actual typed wrapper. It obtains the annotation's
+domain-sort witness from the wrapper's lambda typing and realizes it in the
+payload's actual context. The established counted constant-lambda readout then
+descends the unused body without changing the stage or increasing its count.
+Neither an arbitrary guarded substitution law nor an independently supplied
+lower-payload origin is needed.
+
+`ConstantHeadDeletion.compute` simulates an entire counted Pi-inert computation
+in its original scope. At transitivity, typing of the actual intermediate comes
+from the original path; at compatible function/body/payload positions it comes
+from the corresponding typed hole. The raw deletion relation requires no
+context-conversion transport when a displayed lambda annotation changes.
+
+`PiInertTypedContinuationRun.constant_deletion` simulates every application
+path using its recorded actual source typing, with raw substitution only on
+related endpoints. Retained frames preserve the relation syntactically. At the
+exposed terminal carrier the endpoints agree. The competitor satisfies the
+same continuation predicate at no greater cost, without new restrictions on
+competitor endpoints. `pi_inert_constant_frames_bypass` combines local and
+continuation simulation. `pi_inert_frames_minimum_no_constant` obtains the
+actual tail-source typing from the prefix and selected primitive, then removes
+its unit insertion cost to contradict minimality at any tracked root.
+
+The global module now imports and documents this result. Its theorem statement
+is unchanged. Both identity and constant administrative cases are excluded for
+the actual mixed minima. Component-only transitions still require target
+agreement from the enclosing origin/argument histories; arbitrary history
+coverage and closure of the eta recursion remain unproved.
+
+Validation: 1028 jobs including GlobalEtaBodyCut and the established
+ContextualCastFeedback/CoreFamilySubstitutionBarrier regressions. All twelve
+new public declarations and the global theorem passed recursive dependency
+and axiom audit, maximum closure 11,813. Only propext, Classical.choice
+and Quot.sound occur; no weakN_iff, weakN_inv, sorryAx or excluded framework
+dependencies. No owned diagnostics; all 1,003 frozen source hashes stayed
+unchanged across the build and audit. Strengthening and a sufficient strictly
+smaller irreducible obligation remain open. No executable changes, PR extraction
+or coordination.
