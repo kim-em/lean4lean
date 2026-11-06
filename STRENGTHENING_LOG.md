@@ -33314,3 +33314,43 @@ wrapped history selected by the global theorem. Retained/identity wrappers and
 fresh eta beyond all target slots remain open. The global theorem itself is
 unchanged this turn; the full strengthening goal is not complete. No executable
 changes, PR extraction or coordination.
+
+
+### 2026-11-06 16:40:41 UTC — Extend the global residue beyond single-block completion
+
+Added `ProofErasureEqIteratedAmbient.lean` and strengthened the residual witness
+of `pi_inert_eq_exposure_eq_or_global_eta_spine_cut` with unchanged hypotheses.
+
+`IteratedAmbientEqCompletion` records a base completion and arbitrarily many
+actual typed unused insertions, including insertions at different depths.
+Its `read_loss` theorem descends each head-losing primitive via the existing
+single-rule descent theorem, preserving stage and exact lifted output. Wrapped
+head preservation under lifting reflects the negative head condition. After
+all additional insertions have been removed, the base completion supplies the
+original equation. Typing and the original vector's arity bound are also proved.
+
+`under_domain` adds an unused binder by realizing its domain in the completion's
+actual source context. `under_computed_domain` replays an annotation computation,
+derives the new sort assignment and reconstructs completion under that changed
+unused binder. No inhabitant of an inserted type is needed, and no guarded path
+or recovery witness is substituted or converted across changed annotations.
+
+The global result now contains `IteratedAmbientSingletonFailure`. The selected
+root, singleton form, short arity, original counted paths and tracked hole remain
+unchanged. A classical split either reads the original equation using iterated
+completion or proves absence of every such completion at that same root.
+`forget` recovers the preceding `SingletonEqHeadCompletionFailure`.
+
+Validation: 1017 jobs including GlobalEtaBodyCut and the established regression
+modules ContextualCastFeedback/CoreFamilySubstitutionBarrier. All 10 public
+owned declarations passed the recursive dependency and axiom audit (maximum
+closure 11,802), including inductive constructors and recursor rules.
+Only propext, Classical.choice and Quot.sound occur; no weakN_iff, weakN_inv,
+sorryAx or excluded framework dependencies. No owned diagnostics. All 992
+frozen source hashes remained unchanged across the final build and audit.
+
+Remaining: component/consumption closure for iterated completion and coverage
+of the actual arbitrary wrapped history. Used annotation changes are not handled
+by the unused-binder lemma. The full strengthening theorem is still open; this
+is not a completed sufficient irreducible obligation. No executable changes,
+PR extraction or coordination.

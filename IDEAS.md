@@ -19129,3 +19129,41 @@ sufficient irreducible obligation strictly smaller than PropFront is claimed.
 Validation: 1017 jobs, 7 audited roots (six new public declarations and
 the existing global theorem), maximum closure 11,795; 992 frozen hashes.
 No executable changes, PR extraction or coordination.
+
+
+### 2026-11-06 16:40:41 UTC — Read completion through successive unused insertions
+
+**Idea.** A single contiguous unused binder block need not represent the
+additional insertions encountered after eta binders have already been opened.
+Retain a finite sequence of actual typed insertions instead of requiring them
+to combine into one block. Descend the selected primitive one insertion at a
+time before reading the original completion.
+
+**Verdict: checked and integrated into the global result.**
+`IteratedAmbientEqCompletion` extends `EqHeadCompletion` by actual well-formed
+insertions at arbitrary depths. Its arity bound and source typing are derived.
+`read_loss` uses `pi_inert_stage_rule_descent` to keep each descended root a
+single primitive at the same finite stage and preserve its exact lifted target.
+A lower wrapped head would lift to an upper wrapped head, so the head-loss
+condition also descends. No target inhabitant for an inserted type is assumed.
+
+`under_domain` derives an unused top binder from its domain-sort witness.
+`under_computed_domain` derives a new domain-sort witness by actual computation
+and rebuilds completion under the changed annotation of an unused wrapper.
+It does not transport the old native recovery guard to a different raw context.
+The global theorem now returns `IteratedAmbientSingletonFailure`, retaining the
+same short singleton root, counted paths and tracked hole while excluding all
+these iterated completions. Forgetting the broader exclusion recovers the
+previous singleton failure.
+
+Still open: propagating this broader completion through later component
+computation, consumed eta and arbitrary wrapper histories. Annotation changes
+for used binders need separate treatment: the exact-oracle condition in
+`ContextRenaming` is not supplied by a typed identity substitution alone. This
+is an unmet premise of that proposed transport, not a counterexample to the
+full route. Next, combine actual component reification with the iterated
+insertion witness, then connect the concrete consumption history. Goal remains
+incomplete; no sufficient strictly smaller irreducible obligation is claimed.
+
+Validation: 1017 jobs, 10 audited roots, maximum closure 11,802;
+992 frozen source hashes. No executable changes, PR extraction or coordination.
