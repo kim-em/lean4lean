@@ -30609,3 +30609,42 @@ dependency audit roots; maximum closure 9,169; 820 frozen hashes.
 Only propext, Classical.choice and Quot.sound; no forbidden dependencies and no
 owned warnings. Preserved both independent untracked experiments. No executable
 changes, coordination or PR extraction. IsDefEqU.weakN_iff remains open.
+
+
+### 2026-11-06 05:52:24 UTC — Consumer beta transport with unrestricted eta origins
+
+Added three modules: ProofErasureAmbientVariants, ProofErasureAmbientEtaBeta,
+and ProofErasureAmbientEtaConsumer. AmbientVariant extends paired annotation
+syntax with an arbitrary protected ambient origin relation. Lift, paired local
+substitution, symmetry, finite beta simulation and independent residuals are
+proved. The generic beta theorem exposes exactly two origin interactions.
+
+RetainedEtaAtom instantiates origins with either orientation of eta of an
+arbitrary function. Proved raw retained fresh-application reflection and both
+origin interactions. When the function computes to a lambda, the long branch
+retains its eta domain and the short branch's exposed domain is recorded as an
+annotation mark. Applying either orientation is handled without a neutrality
+assumption; newly created consumer beta redexes use paired local substitution.
+
+EtaBetaOrigin and EtaBetaDomains record concrete source beta paths and discharge
+all guard-closure hypotheses. proofErase_ambient_eta_consumer_beta_residuals
+covers every typed consumer and independent beta paths for arbitrary supplied
+functions with nonzero input sort. It needs no native recovery or inferred
+comparison premise. Proof-valued functions are included via equal erasures.
+proofErase_eta_beta_domain_origin recovers actual representatives, original-sort
+typings and equality for exposed domain pairs, with the exact body erasure.
+
+ambient_variant_computed_check transports ambient inferred certificates under
+consumer binders. The final beta-check theorem connects its eta-origin premise
+to the previous native-domain readout; exposed-domain comparisons remain
+explicit. The result does not prove native/domain coverage, proof-input eta
+simulation, full-core primitive simulation or strengthening. In particular it
+does not treat semantic domain equality as a strengthening-safe certificate.
+
+Validation: 848 build jobs; 46 complete type/value/constructor/recursor
+audit roots; maximum closure 11,154; 823 frozen source/import hashes.
+Only propext, Classical.choice and Quot.sound, no forbidden dependencies, no
+owned warnings. Preserved the independent computation-count and primitive-rule
+descent experiments. Original sorry remains; no executable changes, coordination
+or PR extraction. Next live work is typed proof-input origin simulation, then
+full core and certificate coverage.

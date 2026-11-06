@@ -16859,3 +16859,54 @@ Validation: 845 build jobs; 7 complete audit roots; maximum closure
 9,169; 820 frozen source/import hashes. Only standard axioms, no
 forbidden dependencies or owned diagnostics. Original sorry remains. No
 coordination, executable changes, PR creation or extraction.
+
+
+### 2026-11-06 05:52:24 UTC — Arbitrary protected eta functions survive consumer beta
+
+Previous goal turn: progress (a9d9b2b7, retained eta argument classification
+and domain history). Revalidated HEAD and preserved both independent untracked
+experiments. Continued the explicit arbitrary-consumer obligation rather than
+adding another covered neutral or fixed function example.
+
+Implemented AmbientVariant: structural paired syntax with protected ambient
+origins and emerging lambda-domain marks. Local paired substitution may change
+all local images, duplicate origins or discard them, but leaves the ambient
+origin terms unchanged. Generic beta simulation reduces to computation inside
+an origin and applying an origin whose left endpoint is a lambda.
+
+Discharged both interactions for eta with a retained fresh argument and an
+arbitrary ambient short function. Raw fresh-argument beta reflection records
+whether the application boundary survives or exposes a lambda. In the latter
+case simulation creates an annotation mark. The reverse eta orientation also
+works when the short function is already a lambda; its eta wrapper contracts
+before application. No neutral-head or termination premise is used.
+
+Concrete guards record beta paths from the original written domain and supplied
+function, and the exact domains of exposed lambdas. Proved their required
+closure properties. Actual typed consumer pairs therefore have further paired
+residuals after any two independent beta paths, with no native recovery,
+comparison oracle or lambda/variable exposure premise. Proof-valued functions
+are allowed. The input sort is nonzero, so the fresh argument is retained.
+Also reconstructed actual representatives of each exposed domain pair at the
+original input sort and an actual equality there, retaining the body erasure.
+
+Readout: ambient atom/domain comparisons transport through the entire consumer
+by exact renaming. The preceding native-domain readout discharges the eta atoms
+from explicit native-domain certificates for the source's beta descendants.
+The exposed-domain comparison premise remains separate and explicit. This
+supplies consumer transport, not coverage of those strengthening-safe guards.
+Semantic equality of the recovered domains is not silently used as such a guard.
+
+Verdict: arbitrary-function consumer beta simulation is now proved for retained
+fresh arguments, including beta which changes an eta mark to an annotation mark.
+This advances the general route beyond permanently neutral supplied functions.
+Remaining work includes typed proof-argument origins, full-core primitive
+simulation (where eta can obscure visible pattern structure), and actual
+native/domain certificate coverage. No new smaller final obligation, proof of
+strengthening or counterexample is claimed. The original goal remains intact.
+
+Validation: 848 build jobs; 46 complete audit roots including new
+constructors and recursors; maximum closure 11,154; 823 frozen hashes.
+Only standard axioms, no forbidden dependencies or owned diagnostics. No
+coordination, executable changes, PR creation or extraction; original sorry
+remains in UniqueTyping.lean.
