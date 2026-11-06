@@ -18972,3 +18972,32 @@ so strengthening and the requested strictly smaller sufficient irreducible
 obligation remain unproved. Validation: 1012 jobs, 8 audited roots,
 maximum closure 11,763; 987 frozen source hashes. No executable changes
 or PR extraction.
+
+
+### 2026-11-06 15:51:53 UTC — Read proof-major singleton loss without filling the binder
+
+**Idea.** At the completed five-argument boundary, use certificate descent
+through the fresh proof binder rather than extending target specialization
+with an unavailable lower proof. Classify a head-losing root along the actual
+six-component history.
+
+**Verdict: checked readout; full-root structure eta remains.**
+`EqHeadCompletion.read_singletons_after_full_eta` derives both singleton
+readouts from the retained completing realization, ambient insertion and
+actual recovered domain. `read_proof_major_loss` proves the original equation
+or native structure eta at exactly six arguments with no pending arguments.
+The literal proof marker blocks core iota; the head invariant excludes level,
+constant, identity and function-eta roots. Short typed Eq prefixes exclude
+structure eta, forcing the exact full-root boundary.
+
+The existing proof-eta bypass requires a same-scope actual proof application;
+the nested boundary may compute before the outer instantiation supplies it.
+That bypass therefore cannot simply be applied to the current data. This is
+an unmet premise, not a refutation of delayed proof-eta elimination. The global
+result now retains the inner recovery and domain-sort witnesses needed for
+the new readout. Arbitrary intervening wrapper histories and exclusion or
+bypass of full-root structure eta remain open. Goal incomplete; no smaller
+sufficient irreducible obligation than PropFront is claimed.
+
+Validation: 1013 jobs, 10 audited roots, maximum closure 11,763;
+988 frozen source hashes. No executable changes, PR extraction or coordination.

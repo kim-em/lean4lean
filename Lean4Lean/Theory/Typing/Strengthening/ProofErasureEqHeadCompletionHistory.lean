@@ -213,7 +213,8 @@ continuation under the next eta binder. If fewer than five arguments have
 been supplied, its fresh source has a derived completion. Otherwise the
 selected prefix is exactly complete at arity five, and that prefix's original
 completion is retained. The new sixth argument needs separate proof-major
-handling; this theorem does not assign it a target inhabitant. -/
+handling; this theorem does not assign it a target inhabitant. The actual
+inner recovery and domain-sort witnesses are retained for subsequent readout. -/
 theorem CountedEtaBodySpineCut.nested_eta_completed_frames
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hguard : ErasedScopedPrimitiveDescent Guard)
@@ -235,7 +236,11 @@ theorem CountedEtaBodySpineCut.nested_eta_completed_frames
           (.app ((ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre).liftN 1) (etaArgument innerU)) ∨
         bodyPre.length = 5 ∧ etaArgument innerU = .proof ∧
           EqHeadCompletion Γ v w [α,a,M,minor,b] (A :: Δ)
-          (ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre)) := by
+          (ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre)) ∧
+      ∃ innerStage innerB,
+        ScopedTypeRecovery (ErasedStaticStructureEtaExpansionStage D innerStage) (A :: Δ)
+          (ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre) (.forallE innerA innerB) ∧
+        DomainSort (A :: Δ) innerA innerU := by
   obtain ⟨A', body', x', xs', cf, ca, cs, cd, cb, m, ls', bodyPre, bodyPending, target, pb, tb,
     hc, hf, hcut, RF, RX, RS, _, _, _, RP, HR, _, RT, _, HM, _, _, WI, _, ⟨k, _, HEta⟩, HP⟩ := H
   obtain ⟨HTbody, _⟩ := pi_inert_eta_body_interpretation heq hs hguard HT RN SD RX
@@ -274,7 +279,7 @@ theorem CountedEtaBodySpineCut.nested_eta_completed_frames
         have HH := HM later suffixStage j suffixCount endpoint RJ
           (by simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using RK)
         omega)
-    refine ⟨innerA, innerU, ls', bodyPre, smaller, by omega, Htyped, ?_⟩
+    refine ⟨innerA, innerU, ls', bodyPre, smaller, by omega, Htyped, ?_, k, innerB, RNinner, SDinner⟩
     by_cases hshort : bodyPre.length < 5
     · exact .inl (HP.eta (erased_static_structure_eta_expansion_stage_descent heq hs k)
         hΓ ht (by simpa only [List.length_cons, List.length_nil] using hshort) RNinner SDinner)

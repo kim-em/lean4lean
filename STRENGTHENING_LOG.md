@@ -33099,3 +33099,53 @@ closure 11,763; 987 frozen source hashes. Both changed modules are warning
 free. Audits traverse types, values, opaque bodies, constructors and recursor
 RHSs; only propext, Classical.choice and Quot.sound occur. Forbidden
 strengthening and replacement obligations are absent.
+
+
+### 2026-11-06 15:51:53 UTC — Classify proof-major head loss through the actual body components
+
+Added `ProofErasureEqProofMajorHeadLoss.lean`.
+`EqHeadCompletion.read_singletons_after_full_eta` unpacks the completing
+realization below ambient binders, proves its source vector has exactly five
+arguments, reifies the head-level comparison, and applies the two-block
+singleton readout. Both singleton forms descend the fresh proof binder and
+then the earlier ambient insertion before specializing semantic equality.
+Neither needs a lower proof inhabitant or guarded substitution closure.
+
+`read_proof_major_loss` classifies a primitive that loses the tracked Eq head
+on a prefix of the computed six-argument fresh body. The head invariant rules
+out levels, constant expansion, identity expansion and function eta. The
+proved literal proof argument and its fixedness under Pi-inert computation
+exclude core iota. The two singleton forms prove the original target equation.
+The only remaining form is native structure eta. The source component count
+bounds its prefix by six, and typing excludes structure eta on prefixes of
+at most five arguments; hence the residual root has exactly six arguments
+and no pending arguments. Its exact root scope, source, target and finite
+structure guard stage are retained. This is a conditional local readout of
+the given component history, not a claim that arbitrary later wrapped-head
+cuts have such a history.
+
+The smaller-minimum constructor in `EqHeadCompletionHistory` now also returns
+the actual inner recovery stage, codomain and DomainSort witnesses. The global
+Eq-exposure theorem preserves them in its conclusion, derived from the same
+selected inner eta, without adding hypotheses. These are the inputs needed
+to use the new proof-major readout after component traversal; the previous
+statement had forgotten them.
+
+A direct application of `pi_inert_proof_eta_spine_count_eliminate` was checked
+against its inputs. It requires the short application to a proof marker to
+have an actual typed realization in the same scope. At the retained nested
+boundary, computation can happen under the fresh proof binder before outer
+instantiation; the available completion of five arguments supplies no such
+lower proof. No invalid early bypass was introduced. Delayed elimination may
+still work once actual argument supply and its history are accounted for.
+
+Remaining work: carry completion and the necessary assigned-type information
+through arbitrary mixed continuations; eliminate or bypass the full six-slot
+structure-eta residue. The goal remains incomplete. No executable changes,
+coordination or PR extraction.
+
+Validation: 1013 build jobs, 10 public/full-result audit roots, maximum
+closure 11,763; 988 frozen source hashes. All three changed modules are
+warning free. Audits traverse types, values, opaque bodies, constructors and
+recursor RHSs; only propext, Classical.choice and Quot.sound occur. Forbidden
+strengthening and replacement obligations are absent.

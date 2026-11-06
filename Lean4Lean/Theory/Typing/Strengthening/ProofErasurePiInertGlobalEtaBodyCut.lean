@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqHeadCompletionHistory
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqProofMajorHeadLoss
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSpecializationFrames
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -35,7 +35,12 @@ prefix needs separate handling for its fresh proof major. The smaller typed
 minimum now retains this exact alternative: its source has a completion, or
 its pre-eta prefix has exactly five arguments and retains that completion,
 and its fresh argument is proved to be the literal proof marker
-(`nested_eta_completed_frames`). The conclusion also retains a positive, strictly smaller
+(`nested_eta_completed_frames`). Its actual inner recovery and domain-sort
+witnesses are also retained. In the proof-major case, a head-losing primitive
+reached through its body component history either reads the original equation
+or is native structure eta (`EqHeadCompletion.read_proof_major_loss`). This
+uses descent through the fresh proof binder, not an assumed lower proof;
+arbitrary later wrapper histories and the structure-eta residue remain open. The conclusion also retains a positive, strictly smaller
 `PiInertTypedContinuationMinimum` under both eta binders, derived by
 `CountedEtaBodySpineCut.nested_eta_typed_frames` from the selected inner eta.
 It records actual typing at every application source in its continuation;
@@ -126,7 +131,11 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
             (.app ((ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre).liftN 1) (etaArgument innerU)) ∨
           bodyPre.length = 5 ∧ etaArgument innerU = .proof ∧
             EqHeadCompletion Γ v w [α,a,M,m,b] (A :: proofEraseCtx Γ')
-            (ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre))) := by
+            (ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre)) ∧
+        ∃ innerStage innerB,
+          ScopedTypeRecovery (ErasedStaticStructureEtaExpansionStage D innerStage) (A :: proofEraseCtx Γ')
+            (ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre) (.forallE innerA innerB) ∧
+          DomainSort (A :: proofEraseCtx Γ') innerA innerU) := by
   classical
   obtain ⟨_, _, _, ha, _, _, hb⟩ := eqRecBeforeMajor_typings henv heq hΓ ⟨_, ht⟩
   have Eargs' : args = [(proofErase Γ α).liftN count offset,
@@ -224,7 +233,7 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
               (HB.eq_guarded heq hs hreg hoff hRec hshort) with Hlower | HB'
           · exact .inl Hlower
           · have HBcompleted := HB'.complete_root heq hs hΓ HPfresh
-            obtain ⟨innerA, innerU, bodyLs, bodyPre, smaller, hsmall, HM, HPnested⟩ :=
+            obtain ⟨innerA, innerU, bodyLs, bodyPre, smaller, hsmall, HM, HPnested, Horigin⟩ :=
               HBcompleted.nested_eta_completed_frames heq hs
                 (erased_static_structure_eta_expansion_stage_descent heq hs k) HTwhole RN SD H hΓ ht
                 (cp := cp) (cost := cost) (by omega)
@@ -238,6 +247,6 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
             · exact .inl Hlower
             · exact .inr ⟨stage, cost, ls, pre, pending, _, _, _, k, cp, ct,
               RC, hminAll, hcostExact, HL, hshort, HA, RP, HTpre, hk, RN, SD, RT, HBcompleted,
-              innerA, innerU, bodyLs, bodyPre, smaller, HM.eq_positive heq Hhead HE, hsmall, HM, Hfailure, HPnested⟩
+              innerA, innerU, bodyLs, bodyPre, smaller, HM.eq_positive heq Hhead HE, hsmall, HM, Hfailure, HPnested, Horigin⟩
 
 end Lean4Lean.VEnv.Strengthening
