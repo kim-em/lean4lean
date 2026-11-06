@@ -16408,3 +16408,42 @@ No final GOAL.md deliverable is claimed.
 Validation: 831 jobs, 16 roots including ArgumentHistory constructors
 and recursors, maximum closure 12,345; 806 frozen source/import hashes.
 Standard axioms only; no forbidden dependencies or own-module warnings.
+
+
+### 2026-11-06 04:28:35 UTC — Shared eta computation histories retain the full proposition front
+
+Previous conversational turn: no proof progress; it corrected a misunderstanding
+about the temporary summary request. Revalidated the pending research state:
+the development build had terminated with an existential-output elaboration
+error. Supplied the explicit identity-consumer output and rebuilt successfully.
+
+Idea: cover merely compared arguments by promoting every typed eta pair to
+shared-output ArgumentHistory paths. Verdict: proved that this promotion would
+already imply PropositionFront, even if both paths, their shared raw output
+and their finite stage may be chosen separately for each typing. This is a
+conditional barrier, not a counterexample or a proof that promotion is false.
+
+The identity consumer converts the proposed histories into CoreFamilyCast
+computation joins, including proof-valued carriers whose identity erases.
+For equal domains P and Q, domainProbe P can be typed at the Q-domain Pi.
+Its eta expansion beta-reduces to domainProbe Q. A proposed computation join
+therefore gives inferred comparison of these probes. Applying this above a
+removed binder, then using checked descent and Pi-type uniqueness below,
+recovers the full proposition front. Common-mode eta comparison alone does
+not supply that computation join.
+
+Positive case: an eta-expanded function applied to an actual argument reduces
+by ordinary beta. This produces an ArgumentHistory at the instantiated result
+type and a hereditary stage-zero computation inside every typed consumer.
+This case uses the existing ordinary-core machinery; it does not settle bare
+eta arguments under arbitrary consumers.
+
+Next live direction: comparison transport for eta arguments that preserves
+common mode and caller typing, rather than shared computation outputs. The
+existing first-stage contextual eta fork construction supplies the arbitrary
+type-observer instance, but joining that fork remains unproved. General
+semantic coverage and all final GOAL.md deliverables remain open.
+
+Validation: 833 build jobs, 8 audited roots, maximum closure
+12,346; 808 frozen source/import hashes. Standard axioms only;
+no forbidden dependencies or owned-module warnings.

@@ -30231,3 +30231,35 @@ no blanket promotion of all CoreFamilyCast computations. Next investigate the
 common-mode application gap while preserving the original strengthening scope.
 No final deliverable is established. Original sorry, executable and independent
 files preserved; no coordination, PR extraction or PR creation.
+
+
+### 2026-11-06 04:28:35 UTC — Eta argument history boundary and applied-eta consumer
+
+Added ProofErasureEtaArgumentHistoryBoundary.lean and
+ProofErasureAppliedEtaArgument.lean. FiniteEtaArgumentJoin proposes shared
+histories for each genuinely typed eta pair. The identity consumer proves
+FiniteEtaComputationJoin, whose paths may meet at any raw output and finite
+stage. The eta/beta fork of constant-body domain probes converts this to an
+inferred probe comparison. Checked lifting/descent and Pi-type uniqueness
+then prove PropositionFront. The actual-environment wrapper discharges the
+full universe-extended primitive-core and canonical-Eq registration premises.
+
+ArgumentHistory.applied_eta gives an ordinary-core history after the expanded
+function is actually applied. hereditary_applied_eta_consumer transports it
+through an arbitrary genuinely typed consumer, retaining stage zero and
+future typed substitutions/full-core interpretation. This is a supported
+beta case, not general contextual eta computation.
+
+Validation: 833 build jobs; 8 complete dependency-audit roots;
+maximum closure 12,346; 808 frozen source/import hashes. The audit
+traverses types, opaque bodies, constructors and recursor RHSs. Only propext,
+Classical.choice and Quot.sound; no forbidden dependencies or own warnings.
+Prior cast feedback and finite-stage substitution barrier clients rebuild.
+
+Judgment: unrestricted eta-history promotion cannot be advertised as a
+strictly smaller sufficient obligation: its checked implication retains the
+entire front. This does not refute eta or rule out common-mode contextual
+comparison with caller typing. That comparison route and its coverage are
+still live. The original sorry remains; no final GOAL.md deliverable is
+claimed. Executable and independent files preserved; no coordination or PR
+extraction/creation.
