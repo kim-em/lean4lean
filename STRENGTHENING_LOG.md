@@ -35397,3 +35397,66 @@ framework. All 1,044 source hashes remained fixed. The chosen-chain original-pro
 root still excludes the older nested-eta, frame-boundary and supply-boundary
 probe theorems. Executable and original weakN_iff sorry unchanged; stock Lean/Lake
 used exclusively in the scratch checkout.
+
+
+## 2026-11-06 22:52:50 UTC — Preserve actual supplied-argument history in eta descent
+
+Added `ProofErasureEqChainArgumentHistory.lean`, imported and described by the
+global eta body-cut module. Inspection confirmed that `CountedEtaFrameOrigin`
+already records the actual argument-vector computation, while its ordinary
+minimum packaging forgets the relationship to chosen target images. The new
+record retains precisely that relationship for arguments waiting outside the
+currently tracked Eq spine.
+
+`EqArgumentSupplyAt` consists of individually typed actual lower arguments and
+pointwise semantic equality between their specializations and their unchanged
+chosen images. It is initialized from typed arguments; `pending_argument_supply`
+ties initialization to the exact suffix moved into a chosen Eq prefix's pending
+vector. `chain_compute` reifies native certificates through the full insertion
+chain and keeps pointwise original-to-computed equalities. `frame` and
+`chain_compute_frame` preserve the chosen images through an agreeing actual
+scope map and identify the exact outgoing upper raw vector. `under_binder`
+lifts waiting arguments without changing their chosen images. No guarded
+computation is substituted, and no new arbitrary image equality is assumed.
+
+`consume_head` obtains a matching consumption frame from the preserved head
+image and actual displayed-domain typing. `chain_consumed_head` derives that
+frame from the actual computed vector, using its source equality to recover
+the computed head's typing at the original domain. The remaining vector keeps
+its own chosen images and exact raw representatives.
+
+An integration check caught a necessary distinction: the original probe includes
+an extra erased major proof with no required lower realization. Consequently
+`chain_compute_prefix` lowers only the tracked supply prefix, while preserving
+all extra upper arguments and their native component paths. Both branches of the
+eta continuation retain these extras. Neither a target image nor a lower typed
+representative is imposed on them.
+
+`EqSuppliedEtaContinuation` retains both actual eta branches. A surviving lambda
+keeps its entire computed supply, exact endpoint, actual annotation path, typed
+body source and computation, concrete retained continuation and unrestricted
+body minimum. A consumed lambda keeps the derived matching lower frame, exact
+upper head and remaining raw vector, the tail's chosen images, actual post-beta
+suffix, concrete application continuation and its unrestricted minimum. The
+`minimum` theorem recovers the original strictly smaller typed minimum without
+changing witnesses or predicates. `CountedEtaFrameOrigin.argument_history`
+derives this record by reading the original argument computation in each branch.
+Finally `pi_inert_eta_chain_argument_history` constructs it directly from the
+actual parent eta path and fixed outer continuation, deriving the upper domain
+sort from the recorded insertion chain.
+
+Remaining work is a global history invariant that associates these initialized
+records with every selected frontier and carries them through all subsequent
+cuts, retained annotation histories and scope moves. The earlier arbitrary
+continuation frontier is unchanged. This step does not satisfy GOAL.md's final
+proof/counterexample/sufficient-smaller-obligation deliverable. GOAL.md remains
+active; no PR extraction, executable change or Lean/Lake patch.
+
+Validation: 1070 jobs including the global theorem and established regressions;
+148 declarations recursively audited through types, values, constructors
+and recursors, maximum closure 11,976. Only propext, Classical.choice and
+Quot.sound occur; no owned diagnostics, sorryAx, strengthening dependency or
+excluded circular framework. All 1,045 source hashes stayed fixed. The chosen-chain
+original-probe root still excludes older nested-eta, frame-boundary and
+supply-boundary probe theorems. Original weakN_iff sorry unchanged. All Lean/Lake
+commands ran in the scratch checkout with the stock toolchain.

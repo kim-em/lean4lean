@@ -14,6 +14,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainRetained
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainSupply
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainRetainedSupply
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainArgumentHistory
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -216,6 +217,20 @@ One frame over the selected suffix replaces the displayed two-frame pair when
 primitive cost is unchanged. This covers one unchanged retained annotation;
 arbitrary retained-prefix histories and extraction of original argument
 ancestry throughout the global frontier still need integration.
+`EqArgumentSupplyAt` now records chosen images for typed arguments waiting
+outside the tracked Eq spine. Actual chain computation, agreeing frame moves,
+and opening a newer binder preserve these same images. Taking an actual prefix
+initializes the record from precisely the arguments moved into its pending
+vector. `pi_inert_eta_chain_argument_history` derives history-enriched retained
+or consumed continuations directly from the actual parent eta suffix. The
+consumed branch derives its matching lower frame from the recorded argument
+computation and preserves the remaining vector; the retained branch keeps its
+actual annotation path and entire supply. Extra upper arguments, including the
+original major proof marker, retain their own actual component paths without
+a lower realization or target image. Both preserve the exact induced
+competitor predicate and strictly smaller typed body minimum. A global invariant
+still must propagate these records through every later selected cut and frame;
+the arbitrary-continuation frontier is not yet closed.
 `minimum_frontier` iterates this decrease
 by strong induction and reaches a component-only current path with completion
 at both endpoints. The conclusion retains this actual

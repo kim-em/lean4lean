@@ -20362,3 +20362,27 @@ sufficient smaller PropFront obligation.
 Validation: 1069 build jobs, 134 recursively audited declarations, maximum
 closure 11,976; only propext, Classical.choice and Quot.sound. All 1,044
 source hashes remained fixed. Original strengthening gap unchanged.
+
+
+## 2026-11-06 22:52:50 UTC — Chosen argument histories derived from actual eta continuations
+
+**Idea:** Preserve chosen images on actual argument vectors outside the tracked
+Eq prefix. Native computation changes their lower representatives; an agreeing
+frame changes their scope; a newer binder lifts them. The same images remain
+attached until the actual eta execution consumes the head. Extra upper arguments
+must remain untracked: the original probe's major proof marker need not have a
+lower representative.
+
+**Verdict:** Verified initialization from the actual omitted Eq prefix,
+computation through arbitrary insertion chains, agreeing scope moves, opening
+newer binders, and consumption-frame extraction from the actual computed vector.
+`pi_inert_eta_chain_argument_history` derives both history-enriched eta branches
+from the actual parent path and original continuation. It preserves annotation
+history, raw extra-argument paths, the exact induced competitor predicate and a
+strictly smaller typed body minimum. The general frontier still needs a global
+invariant propagating these records through all subsequent cuts and frames;
+this is not strengthening or a sufficient smaller PropFront obligation.
+
+Validation: 1070 build jobs, 148 recursively audited declarations, maximum
+closure 11,976; only propext, Classical.choice and Quot.sound. All 1,045
+source hashes fixed. Original strengthening gap unchanged.
