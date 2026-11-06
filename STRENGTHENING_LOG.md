@@ -31967,3 +31967,10 @@ substitution regressions; 7 complete dependency roots, maximum closure
 Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
 assumptions or owned warnings. Executable unchanged; no coordination or PR
 extraction.
+
+
+## 2026-11-06 11:47:33 UTC — Clarify the remaining proof status
+
+The minimum-cut theorem is proved. In the preceding entry, “remain open”
+refers to eliminating its retained-argument eta residual and to the overall
+strengthening goal, not to the minimum-cut theorem itself.
