@@ -15628,3 +15628,47 @@ closure 11,624; 765 pinned source/import hashes unchanged. Standard axioms
 only; no forbidden dependencies or own-module warnings. The original sorry is
 unchanged. No sufficient strictly smaller irreducible obligation has been proved;
 GOAL.md stays active. No executable changes, coordination or PR extraction.
+
+
+## 2026-11-06 01:00:53 UTC — First-stage repair of the sort-loop beta obstruction
+
+Previous goal turn: progress, with 47e8bab9ac62304d5133f0952ae84a049f20b165
+committed and pushed. Revalidated that HEAD and the two independent untracked
+experiments before continuing. No coordination or PR extraction.
+
+Idea: use the already-descending first singleton stage for the cast exposed by
+the failed recursive instantiation law. Verdict: concrete repair checked, plus
+a general prefix/argument square for all LevelRecursiveGuard endpoint guards.
+This does not reinstate the refuted same-core recursive closure law.
+
+The failure is more precise than loss of every certificate at substitution:
+LevelRecursiveGuard.subst_raw proves unrestricted raw substitution retains a
+RawCheckedCompare. On the last witness, the two mixed applications have inferred
+raw comparison before contraction by app/refl/lamCommon. One beta contraction
+on the mixed side produces the second self loop; loop readout and cast exclusion
+then forbid raw comparison in either mode. The existing first-stage Eq prefix
+contracts each reflexive cast annotation and computes the contracted loop back
+to the reference loop. recursive_mixed_loops_realize and the combined actual-
+environment theorem establish that all three terms are genuinely propositions.
+No loop normalization is used.
+
+The reusable positive result transports recursive endpoint guards through
+independent full level-core paths in all five prefix arguments and constructs
+the residual stage-one guard. Applying an arbitrary sixth proof major joins the
+square at the computed minor. The carrier, motive, minor, both endpoints and
+major may all compute; endpoints need neither terminate nor return to their
+original syntax. This extends the earlier ordinary-core join/displayed-eta
+prefix square to the current recursive fragment and universe-extended core.
+
+Scope: argument computation at this prefix is handled, not every interleaving
+of higher-stage computation, arbitrary substitution-created beta redexes, or all
+computed native Pi comparisons. Higher-stage global confluence remains costly
+(the earlier first-guarded-fork theorem already implies PropositionFront).
+A live next task is a certificate invariant for created beta contractions that
+can retain these explicit higher-stage repairs without assuming that global
+confluence. No sufficient strictly smaller irreducible obligation is claimed.
+
+Validation: 792 jobs; 10 audited public roots; maximum dependency closure
+11,374; 767 pinned source/import hashes unchanged. Standard axioms only,
+no forbidden dependencies or own-module warnings. Original strengthening sorry
+and executable unchanged; GOAL.md remains active.

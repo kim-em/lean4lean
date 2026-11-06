@@ -29380,3 +29380,67 @@ turn proves no strengthening theorem, canonical-Eq strengthening counterexample,
 or strictly smaller sufficient irreducible obligation. GOAL.md remains active.
 Only these two proof files and EOF ledger additions are committed. The executable
 and independent experiments are untouched; no coordination or PR extraction.
+
+
+## 2026-11-06 01:00:53 UTC — Recursive prefix residuals and a typed sort-loop repair
+
+Previous turn: progress (47e8bab9 committed and pushed). Revalidated that HEAD,
+its refutation and the unchanged independent experiments. Inspected the existing
+singleton, computational-chain and first-stage-fork results before selecting a
+local residual theorem: unrestricted first-stage confluence would already carry
+the original proposition front, and reflexive cast removal alone was previously
+available. The new work connects that removal to the fresh typed loop obstruction
+and transports the current recursive guards through full level-core argument paths.
+
+ProofErasureRecursivePrefixResidual.lean embeds raw level-core endpoint checks
+in the existing ComputedJointPrefixPrimitive at static-structure stage one. Its
+full-application lemma contracts that prefix and the proof-major beta redex,
+without requiring a constructor-shaped major. No new primitive is introduced.
+LevelRecursiveGuard.first_stage_prefix_square uses the already-audited forward
+induction to construct the check at independently reduced endpoints. All other
+arguments follow arbitrary full level-core computations. The output's proof
+domain and lifted minor compute componentwise, yielding a literal commuting
+square. first_stage_full_square includes arbitrary computation of the sixth
+major and joins at the computed minor. The stage-one statement is a genuine
+computation certificate, not merely semantic equality or a typed chain.
+
+ProofErasureSortLoopStageRepair.lean separates substitution from forward
+stability. LevelRecursiveGuard.subst_raw retains a RawCheckedCompare under any
+raw substitution, using generic raw substitution of the core and the existing
+comparison certificate. No atomicity is needed for this weaker conclusion.
+It does not retain LevelRecursiveGuard or transport through subsequent beta.
+
+first_stage_reflexive_cast_compute erases the actual canonical Eq cast and
+uses the raw reflexive endpoint check to compute its payload at stage one.
+Whole-proof sources are handled by erasure congruence. The loop corollary
+removes the cast in both diagonal annotations without reducing the looping
+body. EnvironmentCore.cast_loop_beta_repair pairs four facts: inferred raw
+comparison of the reference and mixed loop; one explicit beta contraction to
+the cast loop; exclusion of raw loop comparison in either mode for the full
+actual level core; and an explicit stage-one path from that loop to the reference.
+The negative clause invokes the previous full-core cast exclusion and loop
+readout, including optional quotient programs and universe changes.
+
+recursive_mixed_loops_realize constructs the actual diagonal typings and exact
+erasures from a recursive carrier equation and carrier conversion. The final
+EnvironmentCore.typed_sort_loop_beta_repair bundles the loss and repair with
+three actual sort-zero typings in one well-formed context. Its assumptions are
+the recursive Pi/free-equality-major context already realized in the previous
+canonical extension. Thus this tests the same typed obstruction, not untyped
+lambda terms or an unrelated replacement example.
+
+Validation: isolated build passed (792 jobs); 10 public roots audited
+through types, opaque values, inductive constructors and recursor RHSs; maximum
+closure 11,374; 767 pinned source/import hashes unchanged. Only propext,
+Classical.choice and Quot.sound, with no forbidden dependencies or own-module
+warnings. The only development correction reconstructed the Pi's sort typing
+via forallE inversion before excluding proof erasure; no missing lemma or
+strengthening assumption was introduced.
+
+Completion audit: original IsDefEqU.weakN_iff sorry remains. No general
+strengthening proof, canonical-Eq strengthening counterexample, or strictly
+smaller sufficient irreducible obligation is established. Arbitrary created-beta
+repair and coverage of selected native type comparisons remain open; the new
+prefix square alone does not settle either. GOAL.md remains active. Only two
+new proof files and EOF ledger additions are committed. Executable and the two
+independent experiments are untouched; no coordination or PR extraction.
