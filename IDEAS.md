@@ -17603,3 +17603,33 @@ unchanged. No extraction or coordination.
 Validation: 916 build jobs, 11 complete dependency roots, maximum closure
 12,397, 891 frozen hashes. Only standard axioms, no forbidden dependencies
 or owned diagnostics. Executable unchanged; no PR extraction or coordination.
+
+
+## 2026-11-06 09:05:33 UTC — Carrier conversion from comparisons and core joins
+
+- Convert an empty-structure carrier by exposing its family through a type
+  comparison: proved for parameterized families and any primitive relation
+  satisfying rigid spine preservation. The computed checker may use every
+  application constructor; target carrier syntax is unrestricted.
+- Instantiate at finite level-recovered stages and embed into PiInertStage:
+  proved at the unchanged bound. This transfers a base carrier guard from an
+  explicit type comparison, without a new assumed semantic conversion rule.
+- Apply literal rigid spine preservation to PiInertStage: refuted at every
+  stage, already by constant beta expansion at stage zero. The source const
+  becomes an application of a lambda, so its root is no longer the family.
+  This does not refute family readout after beta cleanup or carrier conversion.
+- Convert whole histories across an ordinary-core common reduct: proved as an
+  equivalence, at arbitrary typed carriers and unchanged stage. More generally,
+  the old carrier's path must be core, while the new carrier's path may be any
+  retained interpreted computation (including the new Eq consumer theorem).
+- Remaining: comparison-directed family exposure up to beta for the expanded
+  skeleton, then carrier transport through that exposure. Merely observing
+  computation from a family is not yet a proof for an arbitrary comparison.
+  Forward transport along guarded carrier paths is still unproved; do not
+  replace the ordinary-core residual quantifier with it. General conversion,
+  composition, application and the final strengthening deliverable remain open.
+
+Validation: 913 build jobs, 9 complete dependency roots, maximum closure
+10,994, 888 frozen source hashes; only standard axioms, no forbidden
+framework dependencies or owned diagnostics. No executable changes, extraction
+or coordination; independent experiments preserved.

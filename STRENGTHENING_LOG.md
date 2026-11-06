@@ -31315,3 +31315,52 @@ maximum closure 12,397; 891 frozen source hashes. Only propext,
 Classical.choice and Quot.sound, no weakN_iff/weakN_inv/sorryAx or forbidden
 framework dependency, and no owned diagnostics. Executable and independent
 experiments unchanged; no coordination or PR extraction.
+
+
+## 2026-11-06 09:05:33 UTC — Whole-history core conversion and compared unit carriers
+
+ProofErasureComparedUnitCarrier proves proofErase_compared_unit_carrier.
+A supplied typed comparison from a parameterized empty structure to an arbitrary
+type is first read in inferred mode. Rigid-family exposure produces a path from
+the target type to the same family at equivalent levels and unchanged arity.
+The target then admits a subsingleton guard for arbitrary endpoints. This is a
+base checker result; future comparison closure is not inferred from it.
+The level-recovered stages satisfy the required spine invariant. Their complete
+recursive guards embed into PiInertStage at the same finite bound, giving
+proofErase_level_compared_unit_carrier with no target head restriction.
+
+The proposed direct extension of this proof to the current expanded relation
+has a checked obstruction: pi_inert_not_spine_root_levels. Constant expansion
+at stage zero rewrites any literal constant into a beta wrapper, so no stage
+satisfies the literal rigid-spine root premise. This refutes the premise used by
+this particular exposure argument, not conversion or family readout up to beta.
+The current PrimitiveHead condition excludes Pi roots but does not prevent
+constant or native identity expansion at rigid constant sources.
+
+ProofErasurePiInertCarrierCoreConversion proves forward core-carrier reduction
+for arbitrary completed histories by composing their residual paths. Future
+paths use raw ordinary-core substitution. carrier_join combines that forward
+rule with the previously proved carrier_prefix: the old carrier reaches shared
+by core, while the new carrier reaches shared by any retained interpreted
+computation. core_convert and pi_inert_carrier_history_core_join_iff specialize
+to actual carriers having an ordinary-core common reduct. No chosen realization
+of the shared output, endpoint typing, native recovery, carrier-shape restriction
+or stage increase is required. An actual-environment wrapper discharges core
+soundness and confluence; this ordinary-core result needs no canonical-Eq input.
+
+The guarded target path in carrier_join can use the preceding turn's general
+Eq consumer computation. The opposite path remains ordinary core: carrier
+histories quantify over ordinary-core residuals, so consuming guarded output
+paths would require a new theorem. General type comparison does not supply a
+core join, and the results here do not establish general conversion. Next work
+on comparison-directed rigid-family readout up to beta (beyond path-only marked
+observations), or forward carrier transport along retained guarded computation.
+Composition and arbitrary paired application remain open. weakN_iff still has
+its original sorry; no strictly smaller sufficient obligation is claimed.
+
+Validation: 913 build jobs including feedback and substitution-barrier
+regressions; 9 complete type/value/constructor/recursor dependency roots;
+maximum closure 10,994; 888 frozen hashes. Only propext, Classical.choice
+and Quot.sound, no weakN_iff/weakN_inv/sorryAx or forbidden framework dependency,
+no owned diagnostics. Executable unchanged, independent experiments preserved;
+no coordination or PR extraction.
