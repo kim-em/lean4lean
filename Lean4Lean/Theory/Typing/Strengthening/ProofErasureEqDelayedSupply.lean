@@ -8,6 +8,8 @@ produce both the retained binder frame and its matching consumption frame.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape
+open private args_subst
+  from Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPrefixSpecialization
 variable [Params]
 
 /-- An agreeing outer frame, actual annotation computation and actual argument
@@ -72,13 +74,15 @@ theorem EqPrefixSpecializationAt.compute_then_frame
         (pre'.map (·.subst ρ)) σ' pending ∧
       env.HasType univs Γ' (VExpr.mkApps (.const ``Eq.rec [v'',w'']) (pre'.map (·.subst ρ))) (F.subst ρ) ∧
       pre'.map (proofErase Γ) = raw ∧
-      (pre'.map (·.subst ρ)).map (proofErase Γ') = raw.map (·.subst τ) := by
+      (pre'.map (·.subst ρ)).map (proofErase Γ') = raw.map (·.subst τ) ∧
+      env.IsDefEq univs Γ (VExpr.mkApps (.const ``Eq.rec [v',w']) pre)
+        (VExpr.mkApps (.const ``Eq.rec [v'',w'']) pre') F := by
   obtain ⟨pre', HP, EP, HE⟩ := H.compute hstep H.1.wf H.1.wf (Ctx.LiftN.zero []) hΔ hf HC
     (by simpa only [List.length_nil, ProofShape.liftN_zero, List.map_id_fun', id] using HA)
   have EP' : pre'.map (proofErase Γ) = raw := by
     simpa only [List.length_nil, ProofShape.liftN_zero, List.map_id_fun', id] using EP
   obtain ⟨HP', hf', ER⟩ := HP.frame hΔ W HE.hasType.2
-  exact ⟨pre', HP', hf', EP', by simpa only [EP'] using ER⟩
+  exact ⟨pre', HP', hf', EP', by simpa only [EP'] using ER, HE⟩
 
 /-- A shared actual supply opens eta, crosses an agreeing outer frame,
 computes the displayed annotation and body components in the later scope,
@@ -114,7 +118,10 @@ theorem EqPrefixSpecializationAt.eta_delayed_compute_inst
       env.HasType univs Γ' (VExpr.mkApps (.const ``Eq.rec [v'',w'']) (pre'.map (·.inst x')))
         ((B.subst ρ.lift).inst x') ∧
       pre'.map (proofErase (A' :: Γ')) = rawPre ∧
-      (pre'.map (·.inst x')).map (proofErase Γ') = rawPre.map (·.inst rawX) := by
+      (pre'.map (·.inst x')).map (proofErase Γ') = rawPre.map (·.inst rawX) ∧
+      env.IsDefEqU univs Γ'
+        (.app ((VExpr.mkApps (.const ``Eq.rec [v',w']) pre).subst ρ) (x.subst ρ))
+        (VExpr.mkApps (.const ``Eq.rec [v'',w'']) (pre'.map (·.inst x'))) := by
   obtain ⟨Hfresh, x₀, HX₀, _, _⟩ := H.eta_supply_frame hstep hΔ ht hwhole hA hf
     (ScopedCompute.refl (Step := Step) (e := proofErase Γ x))
   have hx := HX₀.hasType.1
@@ -137,11 +144,117 @@ theorem EqPrefixSpecializationAt.eta_delayed_compute_inst
   have HBafter : List.Forall₂ (ScopedCompute BodyStep (proofEraseCtx (A' :: Γ')))
       (((pre.map VExpr.lift ++ [VExpr.bvar 0]).map (·.subst ρ.lift)).map (proofErase (A' :: Γ'))) rawPre := by
     simpa only [EPafter, proofEraseCtx, EA] using HB
-  obtain ⟨pre', HPfinal, hfinal, Epre, Efinal⟩ :=
+  obtain ⟨pre', HPfinal, hfinal, Epre, Efinal, HEbody⟩ :=
     HPafter.compute_then_frame hbody hΔ Hconsume hbafter HCafter HBafter
-  refine ⟨A', x', pre', HA, EA, HX, EX, Hretained, Hconsume, ?_, ?_, Epre, ?_⟩
+  refine ⟨A', x', pre', HA, EA, HX, EX, Hretained, Hconsume, ?_, ?_, Epre, ?_, ?_⟩
   · simpa only [VExpr.inst_eq, VExpr.Subst.one] using HPfinal
   · simpa only [VExpr.inst_eq, VExpr.Subst.one] using hfinal
   · simpa only [VExpr.inst_eq, VExpr.Subst.one, ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using Efinal
+  · have EBefore : VExpr.mkApps (.const ``Eq.rec [v',w'])
+        ((pre.map VExpr.lift ++ [VExpr.bvar 0]).map (·.subst ρ.lift)) =
+        .app ((VExpr.mkApps (.const ``Eq.rec [v',w']) pre).subst ρ).lift (.bvar 0) := by
+      simpa only [VExpr.subst_mkApps, VExpr.subst, VExpr.lift_subst_lift,
+        VExpr.Subst.lift, VExpr.Subst.cons] using congrArg (fun e => e.subst ρ.lift) EE
+    have HI := (HEbody.instN henv (HA.defeq HX.hasType.2) Ctx.InstN.zero).toU
+    rw [EBefore] at HI
+    have HI' : env.IsDefEqU univs Γ'
+        (.app ((VExpr.mkApps (.const ``Eq.rec [v',w']) pre).subst ρ) x')
+        (VExpr.mkApps (.const ``Eq.rec [v'',w'']) (pre'.map (·.inst x'))) := by
+      simpa only [VExpr.inst_eq, VExpr.subst_mkApps, VExpr.subst,
+        VExpr.lift_subst_cons, VExpr.Subst.cons, VExpr.subst_id] using HI
+    exact (IsDefEq.appDF (hf.subst henv.orderedStrong W.actual W.target.wf) HX).toU.trans henv W.target.wf HI'
+
+/-- Restore an actual source tail whose specialization agrees with the
+pending target tail. The original chosen substitution and final pending
+vector are unchanged; only the agreeing tail moves back into the source. -/
+theorem EqPrefixSpecializationAt.append_pending_agree
+    (hΔ : OnCtx Δ (env.IsType univs))
+    (H : EqPrefixSpecializationAt Γ Δ v w v' w' original pre σ (targetTail ++ pending))
+    (HR : List.Forall₂ (env.IsDefEqU univs Δ) targetTail (rest.map (·.subst σ))) :
+    EqPrefixSpecializationAt Γ Δ v w v' w' original (pre ++ rest) σ pending := by
+  have Hrefl := (H.2.2.flip.imp (fun _ _ h => IsDefEqU.symm h)).trans
+    (fun _ _ _ h k => h.trans henv hΔ k) H.2.2
+  obtain ⟨Hpre, Htail⟩ := List.forall₂_append_split Hrefl rfl
+  obtain ⟨_, Hpending⟩ := List.forall₂_append_split Htail rfl
+  refine ⟨H.1, H.2.1, ?_⟩
+  have HH := H.2.2.trans (fun _ _ _ h k => h.trans henv hΔ k)
+    (Hpre.append' (HR.append' Hpending))
+  simpa only [List.map_append, List.append_assoc] using HH
+
+/-- Delayed eta consumption retains the entire independently computed actual
+supply. Semantic prefix equality restores whole-application typing before the
+remaining arguments are reified. Their original target images agree through
+the outer frame and their actual computations, so they can be returned from
+the pending vector to the source spine without changing the chosen assignment.
+An agreeing outer frame is still required; arbitrary context interpretation
+alone does not prove the initial agreement. -/
+theorem EqPrefixSpecializationAt.eta_delayed_compute_spine_inst
+    (hstep : ErasedScopedPrimitiveDescent Step)
+    (hbody : ErasedScopedPrimitiveDescent BodyStep)
+    (hΔ : OnCtx Δ (env.IsType univs))
+    (H : EqPrefixSpecializationAt Γ Δ v w v' w' original (pre ++ x :: rest) σ pending)
+    (W : EqSpecializationFrame Γ Γ' Δ σ σ' ρ τ)
+    (ht : env.HasType univs Δ (VExpr.mkApps (.const ``Eq.rec [v,w]) original) T)
+    (hwhole : env.HasType univs Γ (VExpr.mkApps (.const ``Eq.rec [v',w']) (pre ++ x :: rest)) F)
+    (hA : env.HasType univs Γ A (.sort u))
+    (hf : env.HasType univs Γ (VExpr.mkApps (.const ``Eq.rec [v',w']) pre) (.forallE A B))
+    (HC : env.IsDefEqU univs (A :: Γ) (.const ``Eq.rec [v',w']) (.const ``Eq.rec [v'',w'']))
+    (RA : ScopedCompute Step (proofEraseCtx Γ') (proofErase Γ' (A.subst ρ)) rawA)
+    (RX : ScopedCompute Step (proofEraseCtx Γ') (proofErase Γ' (x.subst ρ)) rawX)
+    (HB : List.Forall₂ (ScopedCompute BodyStep (rawA :: proofEraseCtx Γ'))
+      (((pre.map VExpr.lift ++ [VExpr.bvar 0]).map (proofErase (A :: Γ))).map (·.subst τ.lift)) rawPre)
+    (RXS : List.Forall₂ (ScopedCompute Step (proofEraseCtx Γ'))
+      ((rest.map (proofErase Γ)).map (·.subst τ)) rawRest) :
+    ∃ (A' x' : VExpr) (pre' rest' : List VExpr),
+      env.IsDefEq univs Γ' (A.subst ρ) A' (.sort u) ∧ proofErase Γ' A' = rawA ∧
+      env.IsDefEq univs Γ' (x.subst ρ) x' (A.subst ρ) ∧ proofErase Γ' x' = rawX ∧
+      EqSpecializationFrame (A :: Γ) (A' :: Γ') Δ
+        (σ.cons (x.subst σ)) (σ'.cons (x.subst σ)) ρ.lift τ.lift ∧
+      EqSpecializationFrame (A' :: Γ') Γ' Δ (σ'.cons (x.subst σ)) σ'
+        (VExpr.Subst.one x') (ProofShape.Subst.one rawX) ∧
+      EqPrefixSpecializationAt Γ' Δ v w v'' w'' original
+        (pre'.map (·.inst x') ++ rest') σ' pending ∧
+      env.IsDefEq univs Γ'
+        (VExpr.mkApps (.const ``Eq.rec [v',w']) ((pre ++ x :: rest).map (·.subst ρ)))
+        (VExpr.mkApps (.const ``Eq.rec [v'',w'']) (pre'.map (·.inst x') ++ rest')) (F.subst ρ) ∧
+      pre'.map (proofErase (A' :: Γ')) = rawPre ∧ rest'.map (proofErase Γ') = rawRest ∧
+      (pre'.map (·.inst x') ++ rest').map (proofErase Γ') = rawPre.map (·.inst rawX) ++ rawRest := by
+  obtain ⟨A', x', pre', HA, EA, HX, EX, Hretained, Hconsume, HP, hprefix, EP, EI, Hhead⟩ :=
+    H.eta_delayed_compute_inst hstep hbody hΔ W ht hwhole hA hf HC RA RX HB
+  have hrest : ∀ e ∈ rest, VExpr.WF env univs Γ e := by
+    intro e he
+    exact (mkApps_arguments_wf henv H.1.wf ⟨_, hwhole⟩).2 e
+      (List.mem_append_right pre (List.mem_cons_of_mem x he))
+  have Erest : (rest.map (·.subst ρ)).map (proofErase Γ') =
+      (rest.map (proofErase Γ)).map (·.subst τ) := by
+    simp only [List.map_map]
+    apply List.map_congr_left
+    intro e he
+    obtain ⟨Te, heT⟩ := hrest e he
+    exact proofErase_subst_with W.target.wf W.actual heT W.erase
+  have hsplit : env.HasType univs Γ'
+      (VExpr.mkApps (.app ((VExpr.mkApps (.const ``Eq.rec [v',w']) pre).subst ρ) (x.subst ρ))
+        (rest.map (·.subst ρ))) (F.subst ρ) := by
+    simpa only [VExpr.subst_mkApps, VExpr.subst, List.map_append, List.map_cons,
+      VExpr.mkApps_append, VExpr.mkApps_cons] using hwhole.subst henv.orderedStrong W.actual W.target.wf
+  obtain ⟨rest', HR, ER, HE⟩ := proofErase_scoped_spine_arguments_descend hstep
+    W.target.wf W.target.wf (Ctx.LiftN.zero []) Hhead hsplit
+    (by simpa only [List.length_nil, ProofShape.liftN_zero, List.map_id_fun', id, Erest] using RXS)
+  have ER' : rest'.map (proofErase Γ') = rawRest := by
+    simpa only [List.length_nil, ProofShape.liftN_zero, List.map_id_fun', id] using ER
+  have HframeRest : List.Forall₂ (env.IsDefEqU univs Δ)
+      (rest.map (·.subst σ)) ((rest.map (·.subst ρ)).map (·.subst σ')) := by
+    apply List.forall₂_of_getElem (by simp only [List.length_map])
+    intro i hi hi'
+    have hi₀ : i < rest.length := by simpa only [List.length_map] using hi
+    obtain ⟨Te, heT⟩ := hrest rest[i] (List.getElem_mem hi₀)
+    simpa only [List.getElem_map] using (W.term hΔ heT).toU
+  have HRtarget := HframeRest.trans (fun _ _ _ h k => h.trans henv hΔ k)
+    (args_subst hΔ W.target HR)
+  refine ⟨A', x', pre', rest', HA, EA, HX, EX, Hretained, Hconsume,
+    HP.append_pending_agree hΔ HRtarget, ?_, EP, ER', ?_⟩
+  · simpa only [VExpr.subst_mkApps, VExpr.subst, List.map_append, List.map_cons,
+      VExpr.mkApps_append, VExpr.mkApps_cons] using HE
+  · rw [List.map_append, EI, ER']
 
 end Lean4Lean.VEnv.Strengthening

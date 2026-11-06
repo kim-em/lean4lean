@@ -19628,3 +19628,21 @@ agreement from ordinary context interpretation. It does not close strengthening
 or establish a sufficient strictly smaller irreducible obligation. Validation:
 1035 jobs, 4 audited roots, maximum closure 11,967, 1,010 frozen
 source hashes. No executable changes, PR extraction or coordination.
+
+
+## 2026-11-06 18:51:37 UTC — Keep the full actual supply after delayed eta consumption
+
+**Idea:** retain the semantic equality produced by body computation and actual
+beta consumption, then use the original whole-application typing to reify the
+independently computed remaining arguments. Their target images agree through
+the same outer frame and actual computations, so the tail can move out of the
+pending target vector and back into the actual source spine.
+
+**Verdict:** proved in `EqPrefixSpecializationAt.eta_delayed_compute_spine_inst`.
+The output keeps the complete computed source supply, original pending vector,
+chosen assignment, original whole type after substitution, both binder frames
+and exact erased endpoint. This removes the previous delayed-supply theorem's
+loss of the actual remaining tail. The outer agreeing frame remains required;
+coverage of arbitrary histories, unused insertions and non-component bodies
+is not implied. Build: 1035 jobs; 6 audited roots; maximum recursive
+closure 11,967; 1,010 unchanged source hashes. Main goal remains open.

@@ -34072,3 +34072,38 @@ actual remaining supplies where later consumption needs them. The outer frame
 agreement remains an explicit input here. `weakN_iff` and a sufficient
 irreducible obligation strictly smaller than PropFront remain open. No
 executable changes, PR extraction or coordination.
+
+
+## 2026-11-06 18:51:37 UTC — Restore the entire computed tail after delayed eta consumption
+
+Strengthened `EqPrefixSpecializationAt.compute_then_frame` to retain its
+source semantic equality. Strengthened `eta_delayed_compute_inst` to retain
+the equality from the actual substituted supplied application to the computed
+post-beta prefix. This equality follows from the actual computed body,
+instantiation at the computed argument and argument equality; it is not an
+additional compatibility premise.
+
+Added `append_pending_agree`, which returns an agreeing actual tail from the
+pending target vector to the source at the same chosen substitution. Added
+`eta_delayed_compute_spine_inst`, which uses the retained prefix equality and
+the original whole-application typing to reify independently computed remaining
+arguments. Their target agreement follows from the outer frame and their
+actual semantic computations. The output retains the full actual source
+supply, the original pending vector, both binder frames, the original assigned
+whole type after substitution, and exact erased body and tail endpoints.
+
+The global module documents this extension; its frontier statement and proof
+remain unchanged. This supplies the actual remaining arguments needed for a
+subsequent consumption, removing the explicit limitation in the previous
+entry. Deriving agreement throughout arbitrary actual histories, including
+unused insertions and non-component eta bodies, remains open.
+
+Validation: 1035 build jobs including GlobalEtaBodyCut and the established
+ContextualCastFeedback/CoreFamilySubstitutionBarrier regressions; all 6
+public roots in the two owned modules passed recursive type/value/constructor/
+recursor dependency and axiom audit, maximum closure 11,967. Only propext,
+Classical.choice and Quot.sound occur; no weakN_iff, weakN_inv, sorryAx or excluded
+framework dependencies. No owned diagnostics; all 1,010 frozen source hashes
+remained unchanged across build and audit. `weakN_iff` and a sufficient smaller
+irreducible obligation remain open. No executable changes, PR extraction or
+coordination.

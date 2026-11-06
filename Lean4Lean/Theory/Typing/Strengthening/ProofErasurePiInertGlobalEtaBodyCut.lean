@@ -96,7 +96,11 @@ binder image across an agreeing outer frame, computed annotation, later body
 components and actual argument consumption. Its retained and consumption
 frames are derived from the original shared supply and actual computations;
 no new image-compatibility premise is added. The result gives post-beta
-specialization and exact erased arguments. The outer frame must already carry
+specialization and exact erased arguments.
+`eta_delayed_compute_spine_inst` also restores the independently computed
+remaining source arguments, preserving their original target agreement and
+the assigned type of the whole supplied application. Its output retains the
+full actual supply for later consumption. The outer frame must already carry
 target agreement; deriving and linking those witnesses throughout every
 actual global history, including unused insertions, remains open.
 `minimum_frontier` iterates this decrease
