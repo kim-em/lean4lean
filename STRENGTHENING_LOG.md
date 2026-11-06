@@ -29576,3 +29576,36 @@ and native comparison coverage remain open. Forward transport still covers
 core paths rather than arbitrary higher-stage paths. GOAL.md remains active.
 Only three proof modules and EOF ledger additions are committed; executable and
 independent untracked experiments untouched. No coordination or PR extraction.
+
+
+## 2026-11-06 01:31:06 UTC — Function-position cast residuals and created head beta
+
+Added ProofErasureCastSpineResidual.lean. Proved exact Eq primitive arity and
+ordinary inversion of a proof-major Eq spine with an arbitrary application
+suffix. The typed residual theorem derives the payload application's typing
+and joins every full-core cast-application reduct to an ordinary reduct of that
+payload application. Independent core tails join at one stage above the child
+endpoint certificate. Only full level-core confluence is used.
+
+Extended LevelStagedCastGuard with castSpine and its structural forward case.
+Added ProofErasureStagedCastApplication.lean: cast_beta retains a recursive
+certificate after removing a cast around a lambda and contracting the exposed
+head beta, for arbitrary body and typed argument. EnvironmentCore specializes
+the result and returns guards/comparisons after arbitrary independent core tails.
+No comparison of the resulting body is a premise.
+
+Development corrections: include the original prefix-length bound when proving
+that the only remaining prefix has length six; give the output checking mode
+explicitly in the actual-environment corollary. Both were resolved in checked
+proofs. No new gaps or axioms were introduced.
+
+Validation: 801 build jobs; 25 dependency roots; maximum closure
+12,094; 776 frozen source/import hashes unchanged. Audit traverses types,
+opaque values, constructors and recursor RHSs. Only propext, Classical.choice,
+Quot.sound; no forbidden fronts, original strengthening theorem or sorryAx.
+No own-module warnings. Existing NestedCastGuard rebuilt after the constructor
+extension. Independent untracked files preserved. No executable changes or PRs.
+
+Judgment: useful closure of the explicit-cast fragment under function application
+and the beta it exposes. General annotation comparison and arbitrary typed
+substitution remain open, so none of GOAL.md's three deliverables is achieved.

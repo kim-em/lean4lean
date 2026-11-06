@@ -15759,3 +15759,48 @@ constructors and recursors, maximum closure 12,092, 775 pinned hashes
 unchanged. Standard axioms only; no forbidden dependencies or own warnings.
 Original sorry remains, executable unchanged, GOAL.md active. No coordination
 or PR extraction.
+
+
+## 2026-11-06 01:31:06 UTC — Certified casts in function position survive arbitrary application tails
+
+Previous implementation turn: progress (1adf23ca2438106d32b436164df2111197774840
+committed and pushed). The intervening clarification changed no authoritative
+state. Revalidated HEAD and preserved both independent untracked Lean files.
+
+Idea: extend the finite cast certificate through an application spine, including
+the beta redex exposed when its payload is a lambda. Verdict: checked for every
+finite supplied suffix and independent arbitrary full level-core tails. This is
+a general function-position rule, not another particular cast-loop example.
+
+Canonical Eq primitive matches have exactly six supplied arguments. A seventh
+or later application cannot introduce a new root rule. Combined with proof-major
+fixedness and exclusion of all shorter prefixes, first-head inversion supplies
+ordinary core paths for the five cast components and every suffix argument.
+Typed level-core factorization returns arbitrary universe-changing paths to
+this ordinary spine. The earlier-stage endpoint certificate removes its cast;
+core confluence at the original entire payload application then handles all
+independently created beta contractions. No singleton-stage confluence is used.
+
+LevelStagedCastGuard.castSpine retains this construction recursively at bound
+n+1. The cast_beta theorem specializes it to an arbitrary lambda body and
+arbitrary typed argument, retaining the certificate against the instantiated
+body. Its actual-environment specialization permits arbitrary subsequent full
+core paths on both sides and returns both the reusable guard and its stage
+comparison. No atomicity, normalization, exact recovery, or contractum comparison
+is assumed. The payload application's typing is derived internally from the
+cast application's typing and the child endpoint certificate.
+
+Limit: the function conversion must have explicit cast syntax and its endpoint
+types must have the earlier certificate. This does not convert arbitrary common
+lambda checking to inferred checking, does not handle an arbitrary cast inserted
+as an argument to a higher-order consumer, and does not establish higher-stage
+residual closure. The next unresolved application issue is the common lambda
+whose written annotation changes without an explicit certified cast. No strictly
+smaller sufficient strengthening obligation is claimed.
+
+Validation: 801 jobs; 25 full dependency roots including every staged
+guard constructor and recursor; maximum closure 12,094; 776 frozen hashes
+unchanged. Standard axioms only, no forbidden dependencies or own warnings.
+The existing nested-cast module also rebuilt successfully with the extended
+guard. Original sorry remains, executable unchanged, GOAL.md active.
+No coordination or PR extraction.

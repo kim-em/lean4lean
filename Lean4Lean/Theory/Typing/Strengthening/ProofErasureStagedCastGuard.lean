@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStagedCastResidual
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCastSpineResidual
 
 /-! # Finite recursive cast repairs with certified endpoint types
 
@@ -24,6 +24,15 @@ inductive LevelStagedCastGuard (D : Definitions) : Nat → Bool → ProofShape �
       (hx : env.HasType univs Γ x X)
       (H : LevelStagedCastGuard D n true (proofErase Γ X) (proofErase Γ Y)) :
       LevelStagedCastGuard D (n+1) mode (proofErase Γ (typeCast u X Y q x)) (proofErase Γ x)
+  | castSpine (hu : u.WF univs) (hΓ : OnCtx Γ (env.IsType univs))
+      (hX : env.HasType univs Γ X (.sort u)) (hY : env.HasType univs Γ Y (.sort u))
+      (hq : env.HasType univs Γ q (eqApp (.succ u) (.sort u) X Y))
+      (hf : env.HasType univs Γ f X)
+      (ht : env.HasType univs Γ (VExpr.mkApps (typeCast u X Y q f) args) T)
+      (H : LevelStagedCastGuard D n true (proofErase Γ X) (proofErase Γ Y)) :
+      LevelStagedCastGuard D (n+1) mode
+        (proofErase Γ (VExpr.mkApps (typeCast u X Y q f) args))
+        (proofErase Γ (VExpr.mkApps f args))
   | lam : LevelStagedCastGuard D n false A A' → LevelStagedCastGuard D n mode b b' →
       LevelStagedCastGuard D n mode (.lam A b) (.lam A' b')
   | lamCommon : LevelStagedCastGuard D n true b b' →
@@ -64,6 +73,10 @@ theorem LevelStagedCastGuard.forward
   | cast hu hΓ hX hY hq hx _ ih =>
     obtain ⟨shared, RL, RR⟩ := staged_cast_level_core_join heq hs hl hcon hc hreg hoff hD
       hu hΓ hX hY hq hx (fun RA RB => ih RA RB) RA RB
+    exact .compute RL RR (.leaf .refl)
+  | castSpine hu hΓ hX hY hq hf ht _ ih =>
+    obtain ⟨shared, RL, RR⟩ := staged_cast_spine_level_core_join heq hs hl hcon hc hreg hoff hD
+      hu hΓ hX hY hq hf ht (fun RA RB => ih RA RB) RA RB
     exact .compute RL RR (.leaf .refl)
   | lam _ _ ihA ihb =>
     obtain ⟨_, _, rfl, RL, Rl⟩ := RA.level_core_lam_inv
