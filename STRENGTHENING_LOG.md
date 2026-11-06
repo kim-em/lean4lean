@@ -33005,3 +33005,48 @@ closure 11,735; 985 frozen source hashes. Both changed modules are warning
 free. Audits traverse types, values, opaque bodies, constructors and recursor
 RHSs; only propext, Classical.choice and Quot.sound occur. Forbidden
 strengthening and replacement obligations are absent.
+
+
+### 2026-11-06 15:32:24 UTC — Read a head loss from its original target completion
+
+Added `ProofErasureEqHeadCompletion.lean`. `EqHeadCompletion` records an actual
+typed nonproof Eq prefix, its semantic specialization to the original target
+argument vector, and its exact raw image after an optional unused binder
+insertion. The actual root context is retained. The ambient insertion is
+separate from the source specialization, so no target assignment is required
+for unused ambient binders.
+
+`arity` derives the erased prefix's length bound directly from the completion
+vector. `read_loss` applies this to the original five-argument Eq probe,
+classifies a primitive that loses its wrapped Eq head, and reads either
+singleton form. Specialized roots force exactly five source arguments and
+use carrier-certificate descent; general singleton roots use the existing
+semantic prefix-specialization readout. Both descend ambient binders before
+specializing. No short-arity premise, renewed native recovery or substitution
+of guarded paths is assumed.
+
+`EqHeadCompletionFailure` retains the actual counted prefix and suffix, scoped
+hole, typed root, primitive and negative target-head invariant, together with
+the absence of a completing realization. Its forget theorem recovers the
+previous `TypedWrappedHeadLoss`. The readout-or-failure theorem chooses the
+same root from the existing head-loss witness. The global Eq-exposure theorem
+now integrates this alternative directly: when completion exists it returns
+the original lower equation; otherwise it returns completion failure within
+the existing strictly smaller positive continuation budget. No hypotheses
+were added to that global theorem.
+
+This is a more precise remaining ancestry condition, not a proof of its
+preservation. In particular, `PiInertTypedContinuationRun` permits arbitrary
+typed endpoint substitutions and does not itself ensure target agreement.
+The next step must derive completing realizations from the actual histories
+that construct the global run, accounting for retained lambdas, identity
+payloads and consumption, or identify a concrete obstruction to that route.
+The goal remains incomplete; no sufficient strictly smaller irreducible
+obligation than PropFront is claimed. No executable changes, coordination or
+PR extraction.
+
+Validation: 1011 build jobs, 7 public/full-result audit roots, maximum
+closure 11,750; 986 frozen source hashes. Both changed modules are warning
+free. Audits include types, values, opaque bodies, constructors and recursor
+RHSs; only propext, Classical.choice and Quot.sound occur. Forbidden
+strengthening and replacement obligations are absent.

@@ -18921,3 +18921,25 @@ Eq target ancestry follows from the current invariant; both remain open.
 This selects a later actual loss and does not claim it is the previous
 nested eta root. Build: 1010 jobs; 19 audited roots, maximum closure
 11,735; 985 frozen source hashes. No executable changes or PR extraction.
+
+
+### 2026-11-06 15:32:24 UTC — One completion witness supplies head-loss arity and readout
+
+**Idea.** The selected head loss need not assume a separate short-arity bound:
+a semantic specialization to the original five arguments already bounds its
+prefix length. Package a typed completing realization below optional ambient
+unused binders, then read both possible singleton roots through that witness.
+
+**Verdict: checked conditional readout, ancestry still open.**
+`EqHeadCompletion.arity` derives the length bound from the completion vector.
+`read_loss` excludes every non-singleton root using the tracked-head loss and
+then descends the singleton guard before specializing its semantic equation.
+Ambient unused binders need no target inhabitant. The global theorem now
+returns the original equation or an actual counted head loss with no such
+completing realization. This combines the two previous missing inputs into
+one precise ancestry condition; it does not construct that ancestry through
+arbitrary mixed histories or establish a sufficient strictly smaller
+irreducible obligation than PropFront. Arbitrary typed continuation frames
+still lack the target agreement required by `EqSpecializationFrame`.
+Validation: 1011 jobs, 7 audited roots, maximum closure 11,750,
+986 frozen source hashes. Executable unchanged; no PR extraction.
