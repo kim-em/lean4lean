@@ -31167,3 +31167,57 @@ Validation: 923 jobs including feedback and substitution-barrier regressions;
 closure 11,322; 898 frozen hashes. Only propext, Classical.choice and
 Quot.sound; no forbidden dependencies or owned warnings. Executable unchanged,
 independent experiments preserved, no coordination or PR extraction.
+
+
+## 2026-11-06 08:24:03 UTC — Full-core dependent function histories, eta and lambda cases
+
+Revalidated HEAD 2016130f and classified the prior goal turn as progress. Reviewed
+the older beta-only BetaStableCarrier.function and ordinary-core subsingleton
+preservation before extending the current level-core, fixed-stage histories.
+
+ProofErasurePiInertFunctionHistory proves SubsingletonCarrier.level_core_compute
+for all structural subsingletons. Rigid spines retain their family and arity
+while universe arguments and parameters compute; Pi carriers retain the recursive
+codomain property. PiInertCarrierHistory.subsingleton then covers every future
+typed substitution and all three independent core paths, including parameterized
+empty structures and function-valued subsingletons.
+
+function_residual follows both carrier components. Its changed domain supplies
+ContextSubstitution.core_binder; applying the retained body history there keeps
+the chosen eta argument's domain sort while following both function paths under
+a lift. function retains this construction after every outer typed substitution.
+function_domain_convert reflects an explicit domain-comparison child, constructs
+the actual identity context substitution, and reuses the body history under the
+new domain. Domains are arbitrary types at one sort; no general conversion of
+an already completed carrier certificate is asserted.
+
+ProofErasurePiInertEtaCarrier adds direct typed ordinary-core seeds for
+PiInertInterpret and PiInertEvidence, needing only core soundness and typed core
+confluence. The eta theorem tests both functions at a fresh variable: the eta
+application beta-contracts exactly to the short function's test. Their core join
+supplies a common comparison and full carrier history; function extensionality
+then constructs the requested history at the assigned Pi. The proof-valued case
+uses common erasure. This covers arbitrary typed functions, including neutral
+and converted ones, already at stage zero, with no native recovery or domain
+comparison premise. EnvironmentCore.eta_carrier_history instantiates the result
+from an actual environment and infers the domain sort from the function typing.
+
+ProofErasurePiInertLambdaCarrier proves the corresponding typed lambda test and
+lambda congruence case. Both written domains may differ from each other and the
+assigned Pi domain. Actual source typings justify both beta steps, and the body
+history pulls back through their certified computations. The outer function rule
+retains the same finite stage and all future carrier/endpoint residuals. Neither
+result asserts ordinary comparison for arbitrary non-sort carriers.
+
+These are concrete strong-induction cases, not a global coverage theorem.
+General composition, conversion, and application remain unresolved. Next build
+Pi comparison from retained domain/body histories and investigate application
+without silently extracting future body evidence from an arbitrary completed
+guard or assuming paired substitution from a same-image substitution theorem.
+The original weakN_iff sorry remains; no final strict-smallness claim is made.
+
+Validation: 911 jobs including prior feedback and substitution-barrier
+regressions; 11 complete type/value/constructor/recursor dependency roots;
+maximum closure 11,001; 886 frozen hashes. Only propext, Classical.choice
+and Quot.sound; no forbidden dependencies or owned diagnostics. Executable
+unchanged, independent experiments preserved, no coordination or PR extraction.

@@ -17503,3 +17503,49 @@ Validation: 923 jobs, 26 complete dependency-audit roots including the
 new structure constructor/recursors/projections, maximum closure 11,322,
 898 frozen source/import hashes. Standard axioms only; no forbidden dependencies
 or owned diagnostics. Executable unchanged; no coordination or PR extraction.
+
+
+## 2026-11-06 08:24:03 UTC — Function binders close arbitrary eta and typed lambda congruence
+
+Previous goal turn: progress at 2016130f (carrier residual histories through
+certified casts and Eq probes). Revalidated the worktree before extending the
+history under dependent binders; independent experiments remained untouched.
+
+Idea: use retained interpreted substitutions to move a recursive function guard
+under a computed or converted domain, then test eta/lambda equations at a fresh
+argument. Verdict: proved. Function histories survive independent full-core
+paths of their Pi carrier and both endpoints. The domain path constructs an
+actual identity substitution into the new binder context; the body history
+supplies every needed future residual. Outer substitutions compose with that
+history. An explicit common domain-comparison child also changes the binder to
+an arbitrary actually equal domain at the same sort, without restricting the
+domain to an earlier terminal or neutral grammar.
+
+The function rule proves a complete typed eta carrier-history case at stage
+zero (and any other stage): neutral, converted and proof-valued functions are
+all included. At the fresh argument the long eta form beta-contracts to the
+short form's test. Actual typed core paths supply substitution-stable comparison
+and hence carrier histories for the tests. No native recovery or domain
+comparison child is needed for this assigned-carrier eta case. Lambda congruence
+likewise follows from a retained body history, even when both written domains
+differ from the assigned Pi domain. The two fresh tests beta-contract to their
+respective bodies. This closes concrete cases of the carrier-based strong
+induction; it does not promote eta to ordinary inferred comparison.
+
+Structural subsingleton histories now include arbitrary parameterized empty
+structures and iterated dependent functions into them. Their carrier paths may
+change universe instances and parameters. Rigid-family non-unfolding and Pi
+inversion prove preservation through the complete ordinary level core.
+
+Boundary/next action: general carrier composition, arbitrary conversion and
+application remain open. Construct Pi type comparison from retained domain/body
+histories next, then investigate application using retained body evidence. Do
+not assume a completed carrier certificate can be inverted into a hereditary
+body certificate or that equal but distinct arguments can be substituted using
+the same-image future field. GOAL.md remains unachieved; weakN_iff is still open,
+and no strictly smaller sufficient irreducible obligation is claimed.
+
+Validation: 911 jobs, 11 complete dependency-audit roots, maximum closure
+11,001, 886 frozen source/import hashes. Standard axioms only; no forbidden
+dependencies or owned warnings. Executable unchanged; no PR extraction or
+coordination.
