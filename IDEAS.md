@@ -20465,3 +20465,43 @@ GOAL.md deliverable remain open; no claim of a sufficient smaller frontier.
 Validation: 1073 build jobs, 166 audited declarations, maximum dependency
 closure 11,976; only the three permitted Lean axioms. All 1,048 source
 hashes fixed, scratch-only stock Lean/Lake, no executable change or PR extraction.
+
+
+## 2026-11-06 23:42:13 UTC — Preserve supplied consumption through interleaved unused insertions
+
+**Idea:** Keep a typed upper substitution in addition to the lower agreeing
+frame and separate insertion paths. A chosen retained binder lifts both maps;
+an unused actual insertion lifts only the upper map and leaves both lower
+assignments fixed. Count chosen binders separately from all retained frames.
+
+**Verdict:** Implemented and checked for finite arbitrary interleavings of these
+native top-binder steps, including computed annotations and inserted domains
+that depend on earlier upper variables. `EqSupplyInsertionSquare` retains both
+actual maps and their semantic/erased commuting equations. Its two extension
+lemmas construct the outgoing annotations and insertion paths without assigning
+an inhabitant to an unused type. `EqInterleavedSupplyHistory.realize` iterates
+these steps; its retained-prefix theorem recovers the actual native wrappers,
+and the previous chosen-only history embeds unchanged.
+
+A further separation lets the source history be recorded before the final
+computed consumed argument is known. `rebase_endpoint` fills in the outgoing
+raw contexts/map later while preserving every original annotation path, chosen
+image, insertion and wrapper. Actual supplied-argument computation still derives
+the required base agreement; the theorem does not assert agreement with an
+arbitrary future image.
+
+`interleaved_supply_selected_return` derives both suffix minima from the actual
+parent predicate, counted body path, application suffix and original outer run.
+It returns to the chosen-chain class with the explicit cost/frame decrease.
+Untracked upper extras are retained and substituted exactly, which is needed
+for saturated eta bodies under unused inserted binders. No independent inner
+minimum or target inhabitant for an unused domain is assumed.
+
+Still open: derive and carry the complete supplied history through every nested
+cut and close the original-probe continuation argument. This is checked local
+preservation, not a sufficient smaller PropFront obligation or a strengthening
+proof. GOAL.md and the original weakN_iff sorry remain open.
+
+Validation: 1075 build jobs, 182 audited roots, maximum closure
+11,976; only the three permitted Lean axioms. All 1,050 source hashes stayed
+fixed. Stock Lean/Lake ran only in scratch. No executable changes or PR extraction.

@@ -35658,3 +35658,78 @@ strengthening dependency or excluded circular framework. All 1,048 source hashes
 stayed fixed. The chosen-chain original-probe root still excludes the older
 nested-eta, frame-boundary and supply-boundary probe roots. Stock Lean/Lake ran
 only in the scratch checkout. No executable changes or PR extraction.
+
+
+## 2026-11-06 23:42:13 UTC — Interleave unused insertions with retained supplied binders
+
+Added `ProofErasureEqSupplyInsertionSquare.lean` and
+`ProofErasureEqInterleavedSupplyHistory.lean`, imported and described from the
+global eta body-cut module. These extend the previous finite chosen-only
+retained telescope to unused actual binders inserted between chosen binders.
+
+The earlier lower/raw square did not retain an actual upper typed map. That
+map is needed when an inserted domain depends on variables absent from the
+lower context. `EqSupplyInsertionSquare` now keeps the lower agreeing frame,
+separate identity insertion chains, the actual typed upper substitution and its
+erasure, and semantic/raw commuting squares for all terms. Its supplied base
+is derived by descending the actual older argument computation, then weakening
+that same argument through the original insertion chain. The incoming path
+shifts under the consumed binder; the outgoing path does not.
+
+The retained extension descends the actual native annotation certificate through
+the source chain, preserves the newer chosen image, and converts the outgoing
+domain after both actual maps. Both maps lift and both insertion paths shift.
+The unused extension realizes its annotation directly in the actual upper
+scope, where the domain may mention any earlier upper binder. It appends a top
+insertion on each side and lifts only the upper map. Lower contexts, chosen
+assignments and their agreement remain unchanged. Neither extension substitutes
+an annotation computation or requires a target image for an unused declaration.
+
+`EqInterleavedSupplyHistory` records both extensions in their actual order,
+including counted annotations and lambda wrappers. Its chosen-binder count
+controls the lower map; the total retained depth controls the upper map and
+continuation frames. Its realization theorem constructs the resulting concrete
+contexts, insertion paths and typed square. Its retained-prefix theorem derives
+the existing `PiInertRetainedPrefixCount` from source typing and insertions; the
+previous `EqRetainedSupplyHistory` embeds with equal chosen/total counts.
+
+`rebase_endpoint` proves that the source history can be recorded before the
+computed consumed argument is known. It replaces only the initial outgoing raw
+context and raw map and reconstructs their derived extensions. Original source
+scopes, chosen images, native annotation paths, insertions and wrappers remain
+identical. This is deliberately not a general future-image agreement theorem:
+`consume` still obtains agreement from the actual older supplied argument path.
+
+`component_return` lowers the incoming actual body components, executes the
+agreeing lower map, and reconstructs a chosen-chain continuation minimum through
+the separate outgoing insertion path. It preserves chosen pending arguments,
+actual type/nonproof status and the exact outgoing erased vector. The selected
+return theorem derives the whole suffix minimum from the recorded parent body
+path and application predicate, then reads every retained lambda in the actual
+suffix to obtain the inner minimum. The result has cost at most cs+ck and exactly
+frames+depth tail frames; relative to the parent cost cb+(cs+ck) and recorded
+retained-depth-plus-application prefix, primitive cost decreases or the older
+application frame disappears.
+
+The final selected-return interface accepts a source history recorded with any
+placeholder outgoing context/map. It fills those in using the actual consumed
+argument before realization. It also retains untracked upper extra arguments:
+their exact syntax is substituted by that actual map. This is essential for
+saturated eta continuations under unused inserted binders, whose bodies need
+not be represented solely by the tracked lower Eq prefix. The established
+condition that extras occur only after the chosen prefix is complete is retained.
+
+Remaining gap: derive and preserve this full supplied ancestry at arbitrary
+nested cuts and close the original-probe continuation induction. The finite
+interleaved preservation and local cost/frame decrease do not establish that
+global invariant or a sufficient smaller PropFront obligation. No completion
+claim: GOAL.md remains active and weakN_iff's original sorry is unchanged.
+
+Validation: 1075 jobs including the global module and established regressions;
+182 roots recursively audited through types, values, constructors and
+recursors, maximum closure 11,976. Only propext, Classical.choice and
+Quot.sound occur; no owned diagnostics, sorryAx, strengthening dependency or
+excluded circular framework. All 1,050 source hashes stayed fixed. The
+chosen-chain original-probe root still excludes older nested-eta, frame-boundary
+and supply-boundary probe roots. Stock Lean/Lake ran only in scratch. No
+executable change or PR extraction.

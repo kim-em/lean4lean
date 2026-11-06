@@ -18,6 +18,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainArgumentHistory
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChosenSupplyDescent
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSuppliedSpineReturn
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedTelescopeSupply
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqInterleavedSupplyHistory
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -37,6 +38,14 @@ run, then returns the component-only body to the chosen-chain minimum class.
 Cost does not increase; at equal cost the retained-depth frame count omits the
 older application. Carrying the supplied history to arbitrary nested cuts
 remains open; these local preservation theorems do not close strengthening.
+
+`interleaved_supply_selected_return` extends this return through unused actual
+insertions between chosen retained binders. A typed upper map handles domains
+that depend on earlier inserted variables; lower assignments need no new images.
+The source annotation history can be recorded before the computed consumed
+argument is known. Its outgoing contexts are filled in at consumption, and
+untracked upper extras retain their exact substituted syntax. Deriving and
+carrying the full supplied history through arbitrary nested cuts remains open.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation
