@@ -20028,3 +20028,21 @@ Validation: 1054 build jobs, 35 audited roots, maximum closure
 must use the consumed binder in the bounded Eq prefix or a retained annotation.
 Underfilled direct supplies and full strengthening coverage remain open. This
 is a stronger necessary frontier, not the sufficient-obligation deliverable.
+
+
+## 2026-11-06 20:56:05 UTC — Fill underfull target prefixes with certified proof supply
+
+Idea: for a literal proof argument at a recovered proposition domain, open eta
+to choose the corresponding target proof, then use reverse insertion to remove
+the fresh binder. Verdict: proved. No target inhabitant or chosen-image equality
+is assumed. `EqProofPrefixSupply` iterates this construction until the actual
+supply ends or the target vector is full, then admits every remaining argument.
+The original-probe frontier now traverses those chains. `first_proof_supply_gap`
+selects the first unsupported argument after a completed certified prefix.
+
+A bare proof marker does not supply its proposition-domain certificate; general
+recovery is not silently inferred from typing. Non-proof target agreement and
+uncertified proof domains remain open, as does full strengthening coverage.
+Validation: 1055 jobs, 34 audited roots, maximum closure 11,976;
+only standard axioms. This is a necessary-frontier refinement, not completion
+of GOAL.md or a sufficient smaller obligation.

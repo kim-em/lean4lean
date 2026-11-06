@@ -256,6 +256,15 @@ domain when the annotation shell around the bounded prefix is a literal lift.
 The stronger frontier therefore requires occurrence in that shell. Actual
 wrapper argument vectors need no independence; the execution retains them. The inner Eq prefix alone is
 not claimed to suffice at retained depth.
+Direct underfilled supplies are further traversed by `EqProofPrefixSupply`: each
+literal proof argument has an actual native recovered proposition domain.
+`append_proof` opens eta to choose the target proof and removes the fresh binder
+by reverse insertion. No target inhabitant or image equality is supplied.
+After saturation all remaining arguments are unrestricted. A remaining direct
+supply boundary records failure of this concrete certificate chain; a bare
+proof marker alone does not provide its domain certificate. The outgoing
+completed prefix is retained, and `first_proof_supply_gap` selects the first
+unsupported argument after the successfully certified prefix.
 Argument agreement for those cases and full strengthening coverage remain open. Its count is positive:
 `eq_positive` excludes zero-cost Eq exposure through arbitrary mixed frames.
 The conclusion additionally selects an `IteratedAmbientSingletonFailure`

@@ -34731,3 +34731,50 @@ direct supplies; and full strengthening coverage. This is a necessary frontier
 refinement, not a sufficient irreducible obligation smaller than PropFront.
 The original weakN_iff sorry and executable are unchanged. GOAL.md remains
 active; no PR extraction.
+
+
+## 2026-11-06 20:56:05 UTC — Traverse certified proof supplies at underfilled Eq prefixes
+
+Added `ProofErasureEqProofSupply.lean`. `EqTargetPrefixEmbedding.append_proof`
+requires an actual native Pi recovery certificate and a proposition-sort witness
+for its displayed domain. The existing eta theorem chooses the target proof
+from the completion. The fresh variable erases to a proof marker; the whole
+new prefix is therefore a literal lift of the application with that marker.
+Inserting the displayed domain backwards and pulling back the constructed
+embedding yields completion in the original scope. No proof inhabitant,
+semantic argument-image equality, or lower completion premise is added.
+
+`EqProofPrefixSupply` records concrete native recovery and domain-sort certificates
+for successive literal proof arguments. Empty supply and target saturation are
+terminal constructors; after saturation arbitrary remaining values are admitted.
+`proof_supply` preserves completion for the whole actual next application.
+`failure_shape` derives underfilled arity and nonempty pending supply from failure.
+`first_gap` selects the first unsupported argument after a certified prefix,
+retaining the exact decomposition and the missing proof/domain certificate.
+`first_proof_supply_gap` also derives target completion for that selected prefix.
+
+Integrated these chains into the main lexicographic supply-boundary induction.
+The direct scope move is handled first; when it preserves completion, a certified
+proof-supply chain advances to the actual whole suffix with the existing strict
+frame decrease at equal primitive cost. The underfilled residual now records
+failure of this concrete chain and completion of its outgoing mapped prefix,
+so the first-gap theorem is applicable without an extra completion premise.
+Non-proof scope failures retain their previous exact usage conditions, including
+the annotation-only retained shell. The original lifted-probe theorem acquires
+no new hypothesis.
+
+Validation: 1055 jobs including the global theorem and established regressions;
+34 roots recursively audited through types, values, constructors and
+recursors, maximum closure 11,976. Only propext, Classical.choice and
+Quot.sound occur. No owned diagnostics, sorryAx, strengthening gap or excluded
+circular framework. All 1,030 source hashes remained fixed. The original-probe
+root is independently checked not to depend on the old nested-eta frontier.
+
+Remaining: derive recovery certificates where only actual typing is presently
+known, agree non-proof supplies and used non-proof binder images, and prove
+full strengthening coverage. A raw proof marker alone is not asserted to have
+native recovery or an arbitrary proposition type. The first-gap result retains
+prefix completion but does not assert a new frame minimum at that partial
+prefix. This is a necessary-frontier refinement, not a sufficient irreducible
+obligation smaller than PropFront. The original weakN_iff sorry and executable
+are unchanged. GOAL.md remains active; no PR extraction or Lean/Lake patch.

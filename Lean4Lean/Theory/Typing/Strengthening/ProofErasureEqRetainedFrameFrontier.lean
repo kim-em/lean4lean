@@ -1,6 +1,7 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameProgress
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedRetraction
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqProofSupply
 
 /-! # Exhaust retained prefixes before selecting a supply boundary
 
@@ -11,7 +12,9 @@ Eq application. At a direct map, the bounded prefix must actually use the
 consumed binder; unused top binders and retained wrappers alone do not stop
 the induction. At retained depth the consumed binder must occur in the
 annotation shell around the bounded prefix. Wrapper argument vectors do not
-need to be independent.
+need to be independent. Direct new supplies must fail the concrete chain
+of recovered proposition domains and proof markers before they can stop the
+induction.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation
@@ -37,7 +40,10 @@ recorded, as does equivalence on every competing endpoint. The actual map
 consumes a non-proof domain (used in the bounded Eq arguments when there are
 no retained wrappers, and used in its annotation shell otherwise),
 or the prefix is empty and its underfilled Eq spine receives nonempty new
-supply. Retained wrappers are not a separate case. -/
+supply which cannot be traversed using recovered proposition domains and
+literal proof arguments. The outgoing prefix retains completion so the first
+unsupported argument can be selected by `first_proof_supply_gap`. Retained
+wrappers are not a separate case. -/
 def EqEmbeddingSupplyBoundaryMinimum (D : Definitions) (Γ : List VExpr) (v w : VLevel)
     (original : List VExpr) (Ω : List ProofShape) (out : ProofShape) (budget : Nat) : Prop :=
   ∃ Δ ls args K ck frames Θ Ξ τ pending plug depth n cs endpoint ck' K' remaining,
@@ -58,7 +64,10 @@ def EqEmbeddingSupplyBoundaryMinimum (D : Definitions) (Γ : List VExpr) (v w : 
         (depth = 0 → ¬ UnusedEqPrefix original.length args) ∧
         (0 < depth → ∃ shell, PiInertRetainedShellCount D Δ Θ plug shell depth ∧
           ¬ UnusedRetainedEqPrefix shell original.length ls args)) ∨
-      (depth = 0 ∧ args.length < original.length ∧ pending ≠ []))
+      (depth = 0 ∧ args.length < original.length ∧ pending ≠ [] ∧
+        EqTargetPrefixEmbedding Γ v w original Ξ
+          (ProofShape.mkApps (.const ``Eq.rec ls) (args.map (·.subst τ))) ∧
+        ¬ EqProofPrefixSupply D Ξ ls original.length (args.map (·.subst τ)) pending))
 
 /-- Increasing the budget keeps the identical endpoint and supply boundary. -/
 theorem EqEmbeddingSupplyBoundaryMinimum.mono
@@ -114,13 +123,10 @@ theorem EqTargetPrefixEmbedding.supply_boundary
         · subst depth
           cases HR with
           | refl =>
-            by_cases hsup : [α,a,M,minor,b].length ≤ args'.length ∨ pending = []
-            · rcases HPend.direct_endpoint_or_used heq hs hΓ HTend W with HPscope | HN
-              · have HPnext : EqTargetPrefixEmbedding Γ v w [α,a,M,minor,b] Ξ
-                    (ProofShape.mkApps (.const ``Eq.rec ls') (args'.map (·.subst τ) ++ pending)) := by
-                  rcases hsup with hlen | rfl
-                  · exact HPscope.append_saturated (by simpa only [List.length_map] using hlen) pending
-                  · simpa only [List.append_nil] using HPscope
+            rcases HPend.direct_endpoint_or_used heq hs hΓ HTend W with HPscope | HN
+            · by_cases hsup : EqProofPrefixSupply D Ξ ls' [α,a,M,minor,b].length
+                  (args'.map (·.subst τ)) pending
+              · have HPnext := HPscope.proof_supply heq hs hΓ ht hsup
                 simp only [id_eq, ProofShape.subst_mkApps, ProofShape.subst, ← ProofShape.mkApps_append] at HMwhole
                 by_cases hsmall : ck < cost
                 · rcases ihCost ck hsmall HPnext HMwhole with Hlower | HB
@@ -129,13 +135,15 @@ theorem EqTargetPrefixEmbedding.supply_boundary
                 · have hequal : ck = cost := by omega
                   rw [hequal] at HMwhole
                   exact ihFrames remaining (by omega) HPnext HMwhole
-              · obtain ⟨A, x, EΔ, Eτ, Hnonprop, Hused⟩ := HN
+              · have HF := EqProofPrefixSupply.failure_shape hsup
+                simp only [List.length_map] at HF
                 exact .inr ⟨Δ, ls', args', K, ck, frames, Δ, Ξ, τ, pending, id, 0, m, cs, tail, ck', K', remaining,
                   HPend, HK, .refl, W, HTplug, HTnext, RT, HK', hcount, hframes, by omega, EK, HMend,
-                  .inl ⟨A, x, EΔ, Eτ, Hnonprop, (fun _ => Hused), by omega⟩⟩
-            · exact .inr ⟨Δ, ls', args', K, ck, frames, Δ, Ξ, τ, pending, id, 0, m, cs, tail, ck', K', remaining,
+                  .inr ⟨rfl, HF.1, HF.2, HPscope, hsup⟩⟩
+            · obtain ⟨A, x, EΔ, Eτ, Hnonprop, Hused⟩ := HN
+              exact .inr ⟨Δ, ls', args', K, ck, frames, Δ, Ξ, τ, pending, id, 0, m, cs, tail, ck', K', remaining,
                 HPend, HK, .refl, W, HTplug, HTnext, RT, HK', hcount, hframes, by omega, EK, HMend,
-                .inr ⟨rfl, by omega, fun h => hsup (.inr h)⟩⟩
+                .inl ⟨A, x, EΔ, Eτ, Hnonprop, (fun _ => Hused), by omega⟩⟩
         · rcases W.proof_or_nonproof (D := D) with HC | HN
           · obtain ⟨Λ, σ, smaller, HCinner, hsmall, HMinner⟩ := HR.focus_nonempty heq hs (by omega) HC HMwhole
             have HPinner := HPend.proof_endpoint heq hs hΓ HTend HCinner
@@ -193,7 +201,7 @@ prefix. The original all-stage minimum is retained. No retained-wrapper case
 is left on its own: the residue identifies a non-proof endpoint map (with
 actual bounded-prefix use in the direct case and annotation-shell use
 otherwise) or a nonempty new supply at an
-underfilled direct prefix. Their argument agreement
+underfilled direct prefix lacking a certified proof-supply chain. Their agreement
 and full strengthening coverage remain unproved. -/
 theorem pi_inert_eq_exposure_eq_or_supply_boundary
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
