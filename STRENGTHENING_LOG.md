@@ -34313,3 +34313,47 @@ circular framework, or owned diagnostic. All 1,014 source hashes unchanged.
 The full GOAL.md objective remains open: propagate the invariant through the
 remaining histories and prove sufficient progress, or supply another complete
 route. No executable changes, PR extraction or coordination.
+
+
+## 2026-11-06 19:43:03 UTC — Retraction histories and the actual strict minimum frontier
+
+Added `ProofErasureEqRetractionHistory.lean`. Component certificates, native
+recovery, domain sorts and actual supplied arguments rename into the retained
+completed context. Literal substitution identities match the computed body
+and consumed endpoint. The reverse map extends beneath fresh eta binders.
+The resulting closure covers any finite recorded spine history and preserves
+completion only up to the original target-vector length. Extra actual
+arguments require no target assignment.
+
+The counted execution theorem returns retraction at the actual endpoint or
+the original non-level cut with both prefix and supplied-spine witnesses.
+The first-beta theorem derives its body component branch from execution.
+Positive singleton guard readout no longer needs output head loss.
+
+Added `ProofErasureEqRetractionMinimum.lean`. The actual hole minimum and its
+unrestricted competitors stay in their original scopes. Singleton guards
+read the target; existing typed exclusions remove core, constant, identity
+and structure roots; native eta gives a strictly smaller fresh-body minimum
+carrying the retraction. Strong induction yields an actual component frontier
+with this invariant at both ends. Its next application retains the exact
+substitution, recorded annotation context, typed minimum and remaining budget.
+
+`EqTargetPrefixComponentMinimum.eq_or_retracted_frontier_or_consumed` connects
+the prior ordinary frontier to this descent after its actual next scope move.
+It returns equality, a later retraction frontier, or the particular consumed
+base binder lacking a Prop-domain witness, retaining the original completion,
+next typed minimum, interpretation and budget in that branch. The global
+module imports and documents these derived results; no claim of full wrapper
+coverage or termination through equal-cost moves is added.
+
+Validation: 1041 build jobs, including global and established regressions.
+All 19 public roots passed recursive type/value/constructor/recursor and
+axiom audits, maximum closure 11,976; only propext, Classical.choice
+and Quot.sound. No owned diagnostics, sorryAx, strengthening gap dependency
+or excluded circular framework. All 1,016 source hashes unchanged.
+
+Next: propagate the later retraction frontier through its actual scope map;
+consider composing reverse renamings beyond the current single-insertion
+representation, and replaying retained annotations. Non-proof agreement and
+well-founded scope progress remain open. GOAL.md is incomplete and
+`weakN_iff` still has its original gap. No executable changes or PR extraction.

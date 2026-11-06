@@ -3,6 +3,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaFrameOri
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqDelayedSupply
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetractionMinimum
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
 
 /-! # Eq exposure reaches a non-level root inside a minimum eta body
@@ -150,8 +151,15 @@ fixes every retained source variable. `EqTargetPrefixRetraction.read_loss`
 therefore reads a nonstructural head loss through arbitrary unused insertions.
 The actual frontier's `focus_next_retracted_or_unwitnessed_domain` now carries
 that witness or identifies its consumed base binder without a Prop-domain
-witness. This is not ordinary completion in the consumed context; propagation
-of the retraction through later arbitrary scope moves remains open.
+witness. This is not ordinary completion in the consumed context.
+`EqTargetPrefixRetraction` now survives actual component computations, eta
+opening and supplied eta consumption. Its counted execution and positive
+singleton readout support `minimum_frontier`, which removes every non-level
+cut by strict descent. `eq_or_retracted_frontier_or_consumed` follows the
+ordinary frontier through its actual next scope move and applies that descent:
+it yields target equality, a later retraction component frontier, or the
+particular consumed base binder without a Prop-domain witness. Propagation
+through the later frontier's next scope map and equal-cost progress remain open.
 Component-only
 transitions through enclosing wrappers still need target agreement from their
 actual histories; coverage of arbitrary wrapped-body histories remains open. `read_full_eta_loss_in_minimum` reads a head-losing root

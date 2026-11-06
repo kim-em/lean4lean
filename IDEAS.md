@@ -19774,3 +19774,32 @@ non-proof argument agreement, and well-founded progress remain to be proved.
 No sufficient smaller obligation or strengthening proof is claimed.
 Validation: 1039 jobs, 20 audited roots, maximum closure 11,976,
 1,014 frozen source hashes.
+
+
+## 2026-11-06 19:43:03 UTC — Propagate reverse-renaming completion through actual eta execution
+
+**Idea:** use exact renaming of component, recovery and argument certificates
+to carry the existing completion proofs into the retracted context. Keep the
+actual minimum and competitors in their original contexts, rather than trying
+to rename minimality across an unused insertion.
+
+**Verdict:** proved. Reverse-renaming completion survives components, arbitrary
+prefix selection, eta opening at every arity, supplied eta consumption, and
+finite recorded spine histories. Counted execution derives the same invariant
+at its actual endpoint or selected non-level body cut. Positive singleton
+guards read through it, including when their outputs retain an Eq head.
+
+Native eta still gives a strictly smaller actual body minimum. Strong induction
+therefore yields `EqTargetPrefixRetraction.minimum_frontier`, retaining a
+component-only frontier with retraction at both ends. The original completion
+frontier now follows its next scope move into this full descent, returning
+target equality, the later retraction frontier, or its actual consumed base
+binder without a Prop-domain witness.
+
+Remaining: transport the retraction through the later frontier's next scope
+map (including annotation histories and repeated consumption), non-proof
+argument agreement, and progress through equal-cost moves. The current
+identity-or-one-insertion representation may need generalization to compose
+reverse maps. No sufficiency or strict reduction from PropFront is claimed.
+Validation: 1041 build jobs, 19 roots, maximum closure 11,976,
+1,016 unchanged frozen source hashes.
