@@ -143,6 +143,36 @@ theorem TypedEtaOrigin.component_body_bypass
     exact (RF'.mkApps RX').trans (by
       simpa only [ProofShape.mkApps, EB] using RS.mono (pi_inert_stage_mono (Nat.le_max_right m n)))
 
+/-- The actual computed first argument interprets the later eta binder.
+This supplies a concrete application frame after substitution has removed
+the original native recovery certificate. Only ordinary Pi typing is used. -/
+theorem TypedEtaOrigin.body_interpretation
+    (H : TypedEtaOrigin Δ A f u) (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (HT : TypedSource Δ (ProofShape.mkApps f args))
+    (RX : ScopedArgumentsCount (PiInertStage D n) Δ ca args (x' :: xs')) :
+    ContextSubstitution (A :: Δ) Δ (ProofShape.Subst.one x') := by
+  cases RX with
+  | cons RX _ =>
+    have HTapp : TypedSource Δ (.app f _) := typed_spine_head HT
+    obtain ⟨Γ, e, T, hΓ, rfl, ht, Ee⟩ := HTapp
+    obtain ⟨f₀, x₀, rfl, _, Ef, Ex⟩ := erase_app_inv Ee
+    obtain ⟨C₀, B₀, hf₀, hx⟩ := ht.app_inv henv hΓ
+    obtain ⟨a, f₁, B₁, ha, hf₁, hn₁, Ea, Ef₁⟩ := H.realize hΓ
+    obtain ⟨_, HE⟩ := (proofErase_reflect hΓ hf₁ hf₀ (Ef₁.trans Ef.symm)).2 hn₁
+    have hf := ((HE.defeq hΓ).of_l henv hΓ hf₁).hasType.2
+    have hΓa : OnCtx (a :: Γ) (env.IsType univs) := ⟨hΓ, u, ha⟩
+    obtain ⟨x₁, HX, EX⟩ := proofErase_scoped_compute_realize
+      (ErasedScopedPrimitiveCertificateDescent.descent (pi_inert_stage_certificate_descent heq hs n))
+      hΓ hx rfl Ex RX.forget
+    have hxA := argument_at_displayed_domain hΓ hf₀ hf HX.hasType.2
+    have WI : ContextSubstitution (proofEraseCtx (a :: Γ)) (proofEraseCtx Γ)
+        (ProofShape.Subst.one (proofErase Γ x₁)) :=
+      ContextSubstitution.of_typed hΓ (Ctx.InstN.zero.substEq hΓa hxA)
+        (erasedSubstAgreement_one hΓa hxA)
+    rw [proofEraseCtx, Ea, EX] at WI
+    intro Γ' hΓ' EΓ'
+    exact WI hΓ' EΓ'
+
 /-- Read a component-only retained eta body back to its short function with
 the exact body-function count. Annotation computation converts its actual Pi
 typing to the displayed endpoint domain. No path is substituted. -/

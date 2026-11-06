@@ -32623,3 +32623,43 @@ values, types, opaque bodies, inductive constructors and recursor RHSs; only
 propext, Classical.choice and Quot.sound occur. Forbidden strengthening and
 replacement-obligation dependencies are absent; changed modules have no
 warnings. Executable unchanged; no PR extraction or coordination.
+
+
+## 2026-11-06 14:16:44 UTC — Later retained-eta body cut from an actual continuation path
+
+Added `ProofErasurePiInertLaterEtaBodyCut.lean`, extended the typed-origin
+module with actual argument interpretation, and updated the full Eq result's
+import/documentation. The full Eq theorem's statement is unchanged.
+
+The new extraction theorem splits the actual later lambda-spine path.
+Carrier exposure excludes its surviving-lambda alternative. Counted body
+readout then reconstructs the beta decomposition in the original later binder
+context. Keeping the first-scope long path fixed yields later-path minimality;
+body replacement gives exact annotation/body/argument/suffix accounting and
+a strictly smaller body/suffix minimum with arbitrary competing endpoints
+and finite stages.
+
+The two-scope bypass excludes a component-only later body. If its short
+function is constant-headed, the existing spine decomposition yields a typed
+non-level root with exact prefix/root/tail counts and component ancestry.
+The native wrapper derives the first-scope long path and short alternative
+from the original eta histories, including the saved unit occurrence.
+
+The cut retains the actual computed argument's context interpretation,
+derived from ordinary typed Pi alignment and argument reification. Its frame
+projection is a concrete smaller continuation minimum ending at the same
+original exposed output. No guarded computation is substituted. A local Lean
+inference failure at the context-substitution witness was resolved by giving
+its full quantified type explicitly.
+
+Remaining: later-root classification with Eq specialization, general mixed
+retained-lambda frames, and deriving the actual later long-source typing
+where needed by the full recurrence. The final strengthening theorem remains
+open; numeric descent alone is not claimed to finish the goal.
+
+Validation: 1002 build jobs, 14 public/full-result audit roots, maximum
+dependency closure 11,643; 977 frozen source hashes. Dependency traversal
+includes values, types, opaque bodies, constructors and recursor RHSs. Only
+propext, Classical.choice and Quot.sound occur; forbidden strengthening and
+replacement-obligation dependencies are absent. Changed modules are warning
+free. Executable unchanged; no PR extraction or coordination.

@@ -18676,3 +18676,45 @@ Validation: 1001 build jobs, 5 public/full-result dependency roots,
 maximum closure 11,643; 976 frozen source hashes. Only propext,
 Classical.choice and Quot.sound; no forbidden dependencies or changed-module
 warnings. Executable unchanged; no PR extraction or coordination.
+
+
+## 2026-11-06 14:16:44 UTC — Extract the next body root at later eta consumption
+
+**Idea.** Replace the supplied later-beta decomposition in the two-scope
+bypass with extraction from the actual continuation path. An exposed final
+output forces consumption. The original two-scope minimum should force exact
+accounting and a smaller joint body/suffix minimum at that later beta.
+
+**Verdict: extraction, smaller minimum and conditional body root proved.**
+`CountedLaterEtaBodyCut` retains the actual annotation/body/argument/suffix
+paths, exact total cost, typed body, typed argument instantiation, joint
+minimality with variable intermediate endpoint and stages, and a counted
+non-level body root when the substituted short function is constant-headed.
+
+`pi_inert_retained_eta_later_body_cut` extracts the later beta from the given
+path to carrier exposure. Keeping the original long endpoint fixed transfers
+minimality to the later path. Replacing its body inside that lambda proves
+the joint minimum. A component-only body would permit the previously proved
+two-scope bypass, contradicting the original minimum. The constant-spine
+decomposition therefore selects an exact typed non-level root.
+
+`pi_inert_native_retained_eta_later_body_cut` constructs both first-scope
+alternatives, their counts and their difference from the original native
+eta and annotation/function/argument histories. It returns the counted short
+path and typed origin along with the later cut; no separate later-beta or
+cost-saving assumption is required. `TypedEtaOrigin.body_interpretation`
+recovers the actual later argument substitution from ordinary Pi typing, and
+`CountedLaterEtaBodyCut.frames` puts the result in the concrete continuation
+minimum class at a strictly smaller cost.
+
+Still open: classify/eliminate the later non-level root with the original Eq
+target specialization, and extend extraction through arbitrary intervening
+retained lambda frames when the current endpoint is not exposed. Typing of
+the actual later long application remains an input. This does not close
+weakN_iff or establish a sufficient strictly smaller obligation than PropFront.
+GOAL.md remains active.
+
+Validation: 1002 build jobs, 14 public/full-result dependency roots,
+maximum closure 11,643; 977 frozen source hashes. Only propext,
+Classical.choice and Quot.sound; no forbidden dependencies or warnings in
+changed modules. Executable unchanged; no PR extraction or coordination.
