@@ -171,7 +171,7 @@ theorem TargetPrefixEqSpineCut.eq_or_smaller
 
 /-- A remaining component-only minimum with bounded completion at both ends
 of its actual current path. Its actual mixed continuation and next application
-are retained, with the intervening prefix represented by a tracked hole and
+are retained, with the intervening prefix represented by an application/binder hole and
 its exact inner substitution. The original continuation predicate is preserved
 pointwise on all competitors. What is missing is propagation of target
 agreement when that completed endpoint enters the enclosing frames; source typing alone does not give that agreement. -/
@@ -197,6 +197,25 @@ theorem EqTargetPrefixComponentMinimum.mono
     (h : budget ≤ larger) : EqTargetPrefixComponentMinimum D Γ v w original Ω out larger := by
   obtain ⟨Δ, ls, args, ls', args', n, cb, ck, K, hc, H⟩ := H
   exact ⟨Δ, ls, args, ls', args', n, cb, ck, K, Nat.le_trans hc h, H⟩
+
+/-- Follow the frontier's actual next application and focus its enclosing
+application/binder hole. This yields a typed minimum at the substituted Eq
+spine, with the unchanged remaining budget. Target completion is retained at
+the original endpoint; transporting it to the substituted endpoint still
+requires agreement from the recorded ancestry. This theorem does not claim
+strict decrease when the preceding component path has zero cost. -/
+theorem EqTargetPrefixComponentMinimum.focus_next
+    (H : EqTargetPrefixComponentMinimum D Γ v w original Ω out budget) :
+    ∃ Δ Λ ls args σ cb ck, cb+ck ≤ budget ∧
+      EqTargetPrefixCompletion Γ v w original Δ (ProofShape.mkApps (.const ``Eq.rec ls) args) ∧
+      ContextSubstitution Δ Λ σ ∧
+      PiInertTypedContinuationMinimum D Ω out Λ
+        (ProofShape.mkApps (.const ``Eq.rec ls) (args.map (·.subst σ))) ck := by
+  obtain ⟨Δ, ls, args, ls', args', n, cb, ck, K, hc, _, HP, _, R, _, _, _, HM, Hnext⟩ := H
+  obtain ⟨Ξ, Λ, σ, C, suffixStage, cs, endpoint, ck', K', _, WS, _, _, _, _, _, HMinner, _, _⟩ :=
+    Hnext.joint_minimum R rfl HM
+  refine ⟨Δ, Λ, ls', args', σ, cb, ck, hc, HP, WS, ?_⟩
+  simpa only [ProofShape.subst_mkApps, ProofShape.subst] using HMinner
 
 /-- Strong induction removes every completed non-level cut from the current
 path: singleton guards read the target, administrative roots contradict the

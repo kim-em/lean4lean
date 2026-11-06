@@ -73,10 +73,16 @@ remaining typed continuation and either retained or consumed outcome. Its
 positive earlier insertion supplies strict decrease without immediate carrier
 exposure. An arbitrary intervening retained prefix
 is now represented by `PiInertNextApplicationAtHole`: it records a tracked
-hole and interpreted substitution into its precise binder context, with the
+application/binder hole and interpreted substitution into its precise binder
+context, with the
 original continuation predicate preserved on every competitor. Ordinary eta
-origin survives at that location. Following the actual computation through
-the hole and deriving target agreement are still open.
+origin survives at that location. `SpineBinderHole.focus_path` reifies the
+whole subsequent computation as a typed continuation at the inner term;
+every competitor maps back to the original path at the same count.
+`EqTargetPrefixComponentMinimum.focus_next` consequently gives a typed
+minimum at the substituted Eq spine with the remaining budget. Target
+agreement at that substituted spine is still open, as is a well-founded
+progress argument for moves whose preceding component path costs zero.
 `minimum_frontier` iterates this decrease
 by strong induction and reaches a component-only current path with completion
 at both endpoints. The conclusion retains this actual

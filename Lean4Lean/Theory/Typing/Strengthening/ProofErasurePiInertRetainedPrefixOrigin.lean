@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaFrameOrigin
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertNextApplication
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertTrackedHeadHole
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertHoleContinuation
 
 /-! # Locate a retained origin across a finite enclosing prefix
 
@@ -13,8 +13,8 @@ namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation
 
 private theorem tracked_spine {C : ScopedHole Δ Θ}
-    (HC : TrackedHeadHole C) (args : List ProofShape) :
-    ∃ C' : ScopedHole Δ Θ, TrackedHeadHole C' ∧
+    (HC : SpineBinderHole C) (args : List ProofShape) :
+    ∃ C' : ScopedHole Δ Θ, SpineBinderHole C' ∧
       ∀ e, C'.plug e = ProofShape.mkApps (C.plug e) args := by
   induction args using List.snoc_induction with
   | nil => exact ⟨C, HC, fun _ => rfl⟩
@@ -25,8 +25,8 @@ private theorem tracked_spine {C : ScopedHole Δ Θ}
     simp only [ScopedHole.plug, ProofShape.mkApps_snoc, EC]
 
 private theorem tracked_compose {C : ScopedHole Δ Θ} {B : ScopedHole Θ Ξ}
-    (HC : TrackedHeadHole C) (HB : TrackedHeadHole B) :
-    ∃ C' : ScopedHole Δ Ξ, TrackedHeadHole C' ∧
+    (HC : SpineBinderHole C) (HB : SpineBinderHole B) :
+    ∃ C' : ScopedHole Δ Ξ, SpineBinderHole C' ∧
       ∀ e, C'.plug e = C.plug (B.plug e) := by
   induction HC with
   | hole => exact ⟨B, HB, fun _ => rfl⟩
@@ -36,9 +36,6 @@ private theorem tracked_compose {C : ScopedHole Δ Θ} {B : ScopedHole Θ Ξ}
   | lamBody _ ih =>
     obtain ⟨C', HC', EC⟩ := ih HB
     exact ⟨.lamBody _ C', .lamBody HC', fun e => congrArg (ProofShape.lam _) (EC e)⟩
-  | @identity Δ Θ A C HC ih =>
-    obtain ⟨C', HC', EC⟩ := ih HB
-    exact ⟨.appArg (.lam A (.bvar 0)) C', .identity HC', fun e => congrArg (ProofShape.app (.lam A (.bvar 0))) (EC e)⟩
 
 variable [Params]
 
@@ -50,7 +47,7 @@ native recovery certificate is transported. -/
 theorem PiInertRetainedPrefix.substitution_hole
     (HP : PiInertRetainedPrefix D Δ Θ plug)
     (W : ContextSubstitution Θ Ξ τ) :
-    ∃ Λ σ, ∃ C : ScopedHole Ξ Λ, TrackedHeadHole C ∧
+    ∃ Λ σ, ∃ C : ScopedHole Ξ Λ, SpineBinderHole C ∧
       ContextSubstitution Δ Λ σ ∧ ∀ e, (plug e).subst τ = C.plug (e.subst σ) := by
   induction HP with
   | refl => exact ⟨Ξ, τ, .hole, .hole, W, fun _ => rfl⟩
@@ -61,7 +58,7 @@ theorem PiInertRetainedPrefix.substitution_hole
       simpa only [ProofShape.Subst.id, ProofShape.subst] using
         (ContextSubstitution.comp WI (ContextSubstitution.cons (A := A') WS) hΓ EΓ)
     obtain ⟨B, HB, EB⟩ := tracked_spine
-      (TrackedHeadHole.lamBody (A := A'.subst σ) (.hole : TrackedHeadHole
+      (SpineBinderHole.lamBody (A := A'.subst σ) (.hole : SpineBinderHole
         (.hole : ScopedHole (A'.subst σ :: Λ) (A'.subst σ :: Λ))))
       (args.map (·.subst σ))
     obtain ⟨C', HC', EC'⟩ := tracked_compose HC HB
@@ -76,7 +73,7 @@ application computation for every competing endpoint. -/
 theorem PiInertRetainedPrefix.application_hole
     (HP : PiInertRetainedPrefix D Δ Θ plug)
     (W : ContextSubstitution Θ Ξ τ) (args : List ProofShape) :
-    ∃ Λ σ, ∃ C : ScopedHole Ξ Λ, TrackedHeadHole C ∧
+    ∃ Λ σ, ∃ C : ScopedHole Ξ Λ, SpineBinderHole C ∧
       ContextSubstitution Δ Λ σ ∧
       ∀ e, ProofShape.mkApps ((plug e).subst τ) args = C.plug (e.subst σ) := by
   obtain ⟨Λ, σ, C, HC, WS, EC⟩ := HP.substitution_hole W
@@ -90,7 +87,7 @@ cannot be replaced by an unrelated existential minimum. -/
 def PiInertNextApplicationAtHole (D : Definitions) (Ω : List ProofShape) (out : ProofShape)
     (Δ : List ProofShape) (K : ProofShape → Nat → Prop) (e : ProofShape) (ck : Nat) : Prop :=
     ∃ Ξ Λ σ, ∃ C : ScopedHole Ξ Λ, ∃ n cs endpoint ck' K',
-      TrackedHeadHole C ∧ ContextSubstitution Δ Λ σ ∧
+      SpineBinderHole C ∧ ContextSubstitution Δ Λ σ ∧
       TypedSource Ξ (C.plug (e.subst σ)) ∧
       ScopedComputeCount (PiInertStage D n) cs Ξ (C.plug (e.subst σ)) endpoint ∧
       PiInertTypedContinuationRun D Ω out Ξ K' endpoint ck' ∧ cs+ck' = ck ∧
@@ -114,7 +111,9 @@ theorem PiInertNextApplication.substitution_hole
 /-- The hole presentation preserves the full joint minimum with a preceding
 path in its original scope. The next computation has exactly the original
 continuation budget, hence is strictly smaller when that preceding path has
-positive cost. No preceding guarded computation is substituted. -/
+positive cost. The same budget also gives a typed minimum at the inner
+substituted endpoint by focusing through the hole. No preceding guarded
+computation is substituted. -/
 theorem PiInertNextApplicationAtHole.joint_minimum
     (H : PiInertNextApplicationAtHole D Ω out Δ K e ck)
     (R : ScopedComputeCount (PiInertStage D n) cb Δ source e)
@@ -122,11 +121,12 @@ theorem PiInertNextApplicationAtHole.joint_minimum
     (hmin : ∀ later j body k, ScopedComputeCount (PiInertStage D later) j Δ source body →
       K body k → cost ≤ j+k) :
     ∃ Ξ Λ σ, ∃ C : ScopedHole Ξ Λ, ∃ suffixStage cs endpoint ck' K',
-      TrackedHeadHole C ∧ ContextSubstitution Δ Λ σ ∧
+      SpineBinderHole C ∧ ContextSubstitution Δ Λ σ ∧
       TypedSource Ξ (C.plug (e.subst σ)) ∧
       ScopedComputeCount (PiInertStage D suffixStage) cs Ξ (C.plug (e.subst σ)) endpoint ∧
       PiInertTypedContinuationRun D Ω out Ξ K' endpoint ck' ∧ cs+ck' = ck ∧
       PiInertTypedContinuationMinimum D Ω out Ξ (C.plug (e.subst σ)) ck ∧
+      PiInertTypedContinuationMinimum D Ω out Λ (e.subst σ) ck ∧
       (0 < cb → ck < cost) ∧
       ∀ firstStage later j body k tail l,
         ScopedComputeCount (PiInertStage D firstStage) j Δ source body →
@@ -139,8 +139,14 @@ theorem PiInertNextApplicationAtHole.joint_minimum
     intro later j tail l RJ HL
     have HH := hmin n cb e (j+l) R ((EK e (j+l)).2 ⟨later, j, tail, l, rfl, RJ, HL⟩)
     omega
+  have HMinner : PiInertTypedContinuationMinimum D Ω out Λ (e.subst σ) ck := by
+    have Hfocus := HC.focus_minimum HT RT HK (by
+      intro later j tail l RJ HL
+      have HH := hmin n cb e (j+l) R ((EK e (j+l)).2 ⟨later, j, tail, l, rfl, RJ, HL⟩)
+      omega)
+    simpa only [hc] using Hfocus
   refine ⟨Ξ, Λ, σ, C, suffixStage, cs, endpoint, ck', K', HC, WS, HT, RT, HK, hc,
-    HM, (by omega), ?_⟩
+    HM, HMinner, (by omega), ?_⟩
   intro firstStage later j body k tail l RJ RK HL
   have HH := hmin firstStage j body (k+l) RJ ((EK body (k+l)).2 ⟨later, k, tail, l, rfl, RK, HL⟩)
   omega
@@ -156,7 +162,7 @@ theorem PiInertNextApplication.eta_origin
       (ProofShape.mkApps (.lam A (.app (f.liftN 1) (etaArgument u))) args) ck)
     (HO : TypedEtaOrigin Δ A f u) :
     ∃ Ξ Λ σ, ∃ C : ScopedHole Ξ Λ, ∃ n cs endpoint ck' K',
-      TrackedHeadHole C ∧ ContextSubstitution Δ Λ σ ∧
+      SpineBinderHole C ∧ ContextSubstitution Δ Λ σ ∧
       TypedEtaOrigin Λ (A.subst σ) (f.subst σ) u ∧
       TypedSource Ξ (C.plug (.lam (A.subst σ) (.app ((f.subst σ).liftN 1) (etaArgument u)))) ∧
       ScopedComputeCount (PiInertStage D n) cs Ξ
@@ -166,7 +172,7 @@ theorem PiInertNextApplication.eta_origin
         ScopedComputeCount (PiInertStage D later) j Ξ (C.plug (q.subst σ)) tail ∧
         K' tail l := by
   obtain ⟨Ξ, Λ, σ, C, n, cs, endpoint, ck', K', HC, WS, HT, RT, HK, hc, EK⟩ := H.substitution_hole
-  obtain ⟨B, HB, EB⟩ := tracked_spine (.hole : TrackedHeadHole (.hole : ScopedHole Λ Λ))
+  obtain ⟨B, HB, EB⟩ := tracked_spine (.hole : SpineBinderHole (.hole : ScopedHole Λ Λ))
     (args.map (·.subst σ))
   obtain ⟨C', HC', EC⟩ := tracked_compose HC HB
   have EE : ∀ q, C'.plug (q.subst σ) = C.plug ((ProofShape.mkApps q args).subst σ) := by

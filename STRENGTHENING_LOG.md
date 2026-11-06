@@ -33922,3 +33922,52 @@ The uniform location and competitor equation do not imply agreement with an
 arbitrary target specialization. `weakN_iff` remains open; this is not a proved
 sufficient irreducible obligation strictly smaller than PropFront. No executable
 changes, PR extraction or coordination.
+
+
+## 2026-11-06 18:31:26 UTC — Focus paths through retained application/binder holes
+
+Added `ProofErasurePiInertHoleContinuation.lean`. `SpineBinderHole` records
+exactly function-application and lambda-body positions, and implies the older
+tracked-hole property. `PiInertPrefixClosed` expresses absorption of preceding
+counted computations in the current scope with additive cost. An application
+continuation with identity endpoint substitution has this property for any
+pending argument list, by lifting the added function path and composing at a
+common finite stage.
+
+`SpineBinderHole.focus_continuation` reconstructs typed frames from the actual
+whole-source typing. An application adds a zero-cost selected application
+frame; a lambda adds a retained frame with its actual domain sort and an
+unchanged annotation. At every step, focused competitors imply the old
+continuation predicate at exactly the same count. `focus_path` first packages
+the selected whole path with its remaining actual typed run, then returns the
+inner run and a count-exact reconstruction of every competitor as an outer
+path followed by the original continuation. `focus_minimum` consequently
+builds an inner typed minimum without changing its budget.
+
+Strengthened all retained-prefix hole results and `PiInertNextApplicationAtHole`
+to retain the precise `SpineBinderHole` grammar, derived by the original
+prefix induction. No caller premise was added. `joint_minimum` now constructs
+both the whole-hole and inner-source minima at the identical remaining
+continuation budget. The existing original-scope path and full joint competitor
+minimum remain intact. `EqTargetPrefixComponentMinimum.focus_next` uses that
+record to produce a typed minimum at the substituted Eq spine, retaining the
+pre-substitution completion, exact context interpretation and original budget
+bound. The global theorem's frontier contains the stronger hole record, and
+its documentation now states the focused consequence and its limitations.
+
+Validation: 1033 jobs including GlobalEtaBodyCut and the established
+ContextualCastFeedback/CoreFamilySubstitutionBarrier regressions. All
+22 public roots in the four owned modules passed recursive dependency
+and axiom audit, maximum closure 11,951. Only propext, Classical.choice
+and Quot.sound occur; no weakN_iff, weakN_inv, sorryAx or excluded framework
+dependencies. No owned diagnostics; all 1,008 frozen source hashes remained
+unchanged across final build and audit.
+
+Remaining: target agreement at the substituted spine, and well-founded
+progress for scope moves with zero preceding component cost. Focusing alone
+can leave the whole computation in a continuation and should not be iterated
+as if it were strict descent. The next route is to use focused competitor
+reconstruction at an actual eta insertion, charging its positive primitive
+cost, while retaining the relevant ancestry. `weakN_iff` and a sufficient
+irreducible obligation strictly smaller than PropFront remain open. No
+executable changes, PR extraction or coordination.

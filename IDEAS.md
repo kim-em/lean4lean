@@ -19526,3 +19526,37 @@ does not preserve target completion. Strengthening and a sufficient strictly
 smaller irreducible obligation remain open. Validation: 1032 jobs, 14
 audited roots, maximum closure 11,946, 1,007 frozen source hashes. No
 executable changes, PR extraction or coordination.
+
+
+## 2026-11-06 18:31:26 UTC — Reify the located computation as inner typed continuations
+
+Verdict: verified progress, with an explicit limit on iteration. The prefix
+construction produces only function applications and lambda bodies, a stronger
+fact than arbitrary tracked-hole membership. `SpineBinderHole` records this
+precise grammar. Its actual whole computation can be reified as a typed
+continuation at the inner term. All focused competitors map back to the old
+whole path and continuation with exactly the same count.
+
+The construction keeps a continuation property that absorbs preceding
+same-scope counted computations. Application nodes use actual typed application
+frames with identity substitution; lambda nodes use retained frames with
+unchanged annotations. Their source typings supply the required domain sorts.
+No guarded computation crosses a substitution or changes its scope.
+`focus_minimum` therefore derives an inner typed minimum at the same budget.
+The retained-prefix joint-minimum theorem now supplies both the whole and
+inner minima, and `EqTargetPrefixComponentMinimum.focus_next` follows the
+actual next application to the substituted Eq spine.
+
+Limit: focusing moves scope without necessarily spending primitive count. In
+particular it places the selected path in the new continuation, so repeatedly
+focusing zero-cost current paths is not a well-founded descent argument.
+The next useful application is at an actual native eta insertion inside a
+located hole: lift each focused competitor back into the original minimum,
+and use the insertion's positive cost for strict descent. Target agreement
+must still be recovered from linked eta/argument ancestry; the ordinary inner
+context interpretation alone cannot transport target completion.
+
+Validation: 1033 build jobs, 22 audited public roots, maximum closure
+11,951, 1,008 frozen source hashes. Strengthening and a sufficient
+strictly smaller irreducible obligation remain open. No executable changes,
+PR extraction or coordination.
