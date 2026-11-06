@@ -19958,3 +19958,37 @@ strengthening coverage. The new frontier is necessary evidence, not a proved
 sufficient irreducible obligation smaller than PropFront. GOAL.md stays open.
 Validation: 1050 jobs, 32 audited roots, maximum closure 11,976,
 1,025 frozen source hashes.
+
+
+## 2026-11-06 20:34:31 UTC — Remove retained wrappers from the standalone frontier cases
+
+**Idea:** generic hole refocusing recreates the application frame just
+traversed. Instead, read a whole lambda-spine computation in its original body
+scope and represent its actual suffix by exactly one retained or consumed
+frame over the unchanged tail. Iterate through the recorded retained prefix.
+
+**Verdict:** proved and integrated for arbitrary finite retained prefixes.
+The lambda readout does not require eta syntax or a component-only body.
+In the consumed case, typing of the original whole application and actual
+argument computation derives its binder substitution; the body path remains
+in its original scope. In the retained case, the actual annotation path and
+changed displayed lambda are kept. Neither case substitutes guarded paths.
+
+`PiInertRetainedPrefixCount` records the exact prefix length. Its next-application
+readout gives `oldFrames = remaining + depth + 1`. The new `focus_nonempty`
+rebuilds precisely `remaining + depth` frames with no greater primitive cost,
+transporting the exact proof endpoint under every recorded annotation change.
+Thus equal-count progress is strict for the entire prefix, not only a single
+adjacent pair. A positive count decrease continues to permit any new frame
+count.
+
+`EqTargetPrefixEmbedding.supply_boundary` now traverses these prefixes inside
+the minimum induction. The original-probe theorem leaves only an actual
+non-proof outer consumption, possibly beyond retained binders, or nonempty
+new supply at an underfilled direct Eq prefix. Retained wrappers alone no
+longer stop the proof. Their argument-agreement residue is still open.
+
+Full strengthening coverage and a sufficient strictly smaller irreducible
+obligation are not established. GOAL.md remains incomplete. Validation:
+1052 jobs, 34 audited roots, maximum closure 11,976, 1,027 frozen
+source hashes; the new probe root is independent of the old nested-eta frontier.

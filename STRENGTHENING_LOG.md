@@ -34584,3 +34584,56 @@ argument ancestry and prove full strengthening coverage. This exhausts the
 eligible direct transitions but is not global mixed-frame termination or a
 sufficient smaller obligation. The original weakN_iff sorry and executable are
 unchanged; GOAL.md remains incomplete. No PR extraction.
+
+
+## 2026-11-06 20:34:31 UTC — Read arbitrary retained execution with a strict frame decrease
+
+Added `ProofErasureEqRetainedFrameProgress.lean`. Its typed lambda readout
+recovers the counted domain and body paths in the original binder context.
+Actual whole-application typing plus the recorded argument path derives the
+consumption interpretation; no chosen target-image agreement is inferred.
+
+`pi_inert_lambda_spine_body_frame_minimum` reads any typed lambda-spine
+minimum back to its source body, with no greater primitive cost and exactly
+one frame over the selected outer tail. A retained endpoint stores its actual
+domain computation and identity context conversion. A consumed endpoint
+stores its actual one-substitution, post-beta suffix and tail. Competitors
+are reconstructed by changing the body path, keeping the annotation and
+argument paths, and then following the original predicate. They still range
+over all stages and endpoints. `PiInertFrameMinimum.lambda_body` packages
+this readout for an existing frame-refined minimum.
+
+`PiInertRetainedPrefixCount` records the same annotations and arguments as the
+old prefix, plus its exact length. `next_counted_application` proves the
+identity `frames = remaining + depth + 1` and retains the pointwise competitor
+equivalence. `focus_nonempty` recursively reads each actual lambda path and
+returns an inner minimum with `remaining + depth` frames and no greater cost.
+Its proof endpoint is lifted through the recorded annotation changes. This
+handles arbitrary nonempty prefixes and pending arguments, regardless of
+whether their bodies still have native eta syntax or only component steps.
+
+Added `ProofErasureEqRetainedFrameFrontier.lean`. The two-measure induction now
+uses the above readout at every nonempty retained prefix whose actual next map
+is identity or proof-valued consumption. It strictly decreases frame count
+when primitive count is equal. The resulting `EqEmbeddingSupplyBoundaryMinimum`
+retains the exact prefix, map, source typings, path, tail, count equations,
+competitor equivalence and endpoint minimum. Its residue is precisely an
+actual non-proof outer consumption, or empty prefix plus underfilled Eq spine
+and nonempty pending supply. A retained wrapper is no longer a standalone
+boundary. The original lifted probe seeds this stronger result directly;
+the older frontiers remain available.
+
+Validation: 1052 jobs including the global theorem and established
+regressions; 34 roots recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening gap or excluded circular framework. All 1,027 source hashes
+remained fixed. The new probe theorem is checked independently of the old
+nested-eta frontier.
+
+Remaining: actual argument agreement across the non-proof endpoint and
+underfilled direct-supply cases, including their ancestry through earlier
+eta selections; full strengthening coverage remains open. This is a stronger
+necessary frontier, not a sufficient irreducible obligation smaller than
+PropFront. The original weakN_iff sorry and executable are unchanged;
+GOAL.md remains active. No PR extraction.

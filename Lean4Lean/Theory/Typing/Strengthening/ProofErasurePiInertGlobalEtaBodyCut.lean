@@ -3,7 +3,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaFrameOri
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqDelayedSupply
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqFrameFrontier
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
 
 /-! # Eq exposure reaches a non-level root inside a minimum eta body
@@ -235,7 +235,17 @@ and retains that endpoint's completed unrestricted minimum and exact run.
 `pi_inert_eq_exposure_eq_or_frame_boundary` derives this result directly from
 the original lifted probe using identity specialization of its five lower
 arguments. It does not depend on the nested-eta frontier theorem below. The
-three boundary cases and full strengthening coverage remain open. Its count is positive:
+older boundary cases are refined by `pi_inert_eq_exposure_eq_or_supply_boundary`.
+`PiInertRetainedPrefixCount.focus_nonempty` reads every actual lambda path in
+its original body scope, rebuilding one frame per retained binder over the
+selected tail. The intervening application is not rebuilt, so the actual frame
+count strictly drops whenever primitive cost is unchanged. This works with
+retained or consumed lambda execution and arbitrary pending arguments, without
+assuming eta syntax or component-only bodies. Completion crosses the recorded
+annotation history and any proof-preserving outer endpoint. The new induction
+therefore leaves only an actual non-proof endpoint map, possibly outside a
+retained prefix, or nonempty supply at an underfilled direct Eq prefix.
+Argument agreement for those cases and full strengthening coverage remain open. Its count is positive:
 `eq_positive` excludes zero-cost Eq exposure through arbitrary mixed frames.
 The conclusion additionally selects an `IteratedAmbientSingletonFailure`
 within that smaller budget. Its exact hole follows function positions, retained
