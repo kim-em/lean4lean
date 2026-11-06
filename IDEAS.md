@@ -16672,3 +16672,54 @@ Validation: 838 build jobs; 15 complete audit roots; maximum closure
 11,982; 813 frozen source/import hashes. Only standard axioms; no forbidden
 dependencies or owned-module warnings. No final GOAL.md deliverable; original
 sorry remains, executable unchanged, no PR extraction or coordination.
+
+
+### 2026-11-06 05:14:48 UTC — Typed proof-domain eta closes the remaining lookup sort case
+
+Previous goal turn: progress (f39563c1, full ordinary-core neutral eta
+simulation for retained non-proof arguments). Revalidated HEAD and preserved
+the independent computation-count and primitive-rule-descent experiments.
+
+Deep continuation: proof-domain eta erases the bound argument to proof, so
+raw beta substitution alone cannot preserve its paired relation. Retained
+ambient DomainSort witnesses supply the missing fact at each actual redex.
+Proved that an argument to an actual applied lambda erases to proof whenever
+its written domain's erasure has a sort-zero witness. This uses application
+inversion, realization of the witness, erasure reflection and sort uniqueness;
+it does not assume that the written domain is syntactically the original one.
+
+Added protected proof-neutral eta variants and their paired local substitution.
+Typed beta simulation transports the domain-sort witness by exact ambient
+renaming, identifies the actual lambda annotation, then proves its argument's
+proof erasure. The other paired argument must also be the proof marker, so
+contracting the marked wrapper preserves the relation. Actual replay supplies
+typing at every transitive intermediate endpoint and under every local binder.
+Verdict: the proof-domain beta gap is closed without a false raw simulation law.
+
+Extended the typed simulation through all ordinary-core primitives and finite
+paths. Domain origin guards retain full core histories; replay preserves their
+sort-zero witnesses. Both directions in independent residual alignment carry
+actual source representatives. Native recovery expands each marked variable
+at the next stage, then follows its recorded domain path. Structural readout
+therefore compares the paired residuals in either mode.
+
+Unified all cases into EnvironmentCore.lookup_eta_consumer_core. Literal Pi
+lookup alone supplies function typing, domain sort and initial native recovery.
+Proof-valued functions have equal erased consumer instances; typed core
+confluence handles their independent tails. The remaining functions use the
+new proof-domain simulation or the earlier retained-argument simulation.
+Verdict: every typed consumer of a literal-Pi variable's eta pair has stage-one
+comparison after arbitrary independent ordinary-core paths, with no sort or
+proof-classification restriction.
+
+Still open: arbitrary converted function typing and arbitrary ambient
+substitution of the protected variable. Introducing a fresh generic function
+binder does not remove the latter obligation: substituting an arbitrary
+function can replace the protected neutral head by a lambda. No hereditary
+closure or higher-stage confluence is inferred from the lookup theorem. These
+remain live work toward the original goal, not exclusions from success.
+
+Validation: 843 build jobs; 34 complete roots including the new
+inductive's constructors and recursors; maximum closure 12,032; 818 frozen
+source/import hashes. Only standard axioms; no forbidden dependencies or
+owned-module diagnostics. No final GOAL.md deliverable, original sorry remains.

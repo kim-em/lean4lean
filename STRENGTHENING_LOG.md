@@ -30452,3 +30452,47 @@ extension; arbitrary semantic Pi typing still does not supply exact native
 recovery. No confluence of higher eta stages, hereditary comparison or general
 ambient-substitution closure is claimed. GOAL.md is unchanged and unachieved;
 original sorry and independent files preserved. No PR extraction/creation.
+
+
+### 2026-11-06 05:14:48 UTC — Full-core neutral eta lookup coverage at every sort
+
+Added five modules: ProofErasureProofNeutralEtaVariants, ProofNeutralEtaBeta,
+ProofNeutralEtaCorePrimitives, ProofNeutralEtaCoreComputation and
+ProofNeutralEtaChecking (each under the ProofErasure prefix).
+
+ProofNeutralEtaVariant has the protected ambient-variable eta marks with a
+proof marker in the lambda body. Its symmetry, lifting, paired substitution
+and instantiation are raw syntax results. Beta simulation explicitly requires
+actual source typing and ambient sort-zero witnesses. At a marked application,
+proofErase_beta_proof_argument derives the actual argument's proof erasure
+from its written domain's sort witness. The paired argument is then necessarily
+proof too. This is the missing typed step in the earlier raw approach.
+
+Primitive simulation retains exact matches, captures and universes as in the
+non-proof-domain case. Full compatible simulation uses typed replay at each
+composition point, exact renaming under binders and lifting inversion for
+computed annotations. The consumer proof retains full histories from the
+original proposition, deriving sort witnesses by replay. It uses ordinary
+confluence at the short consumer source and reconstructs typing for reverse
+simulation. Both residuals read out at a single successor stage.
+
+The final actual-environment theorem EnvironmentCore.lookup_eta_consumer_core
+requires a well-formed canonical-Eq environment, well-formed context, literal
+Pi lookup, actual consumer typing and two arbitrary ordinary level-core paths.
+It concludes stage-one ComputedJointCompare in either mode. It imposes no
+non-proof-function or non-proof-input restriction. The proof-valued-function
+case uses identical erasures and core confluence; the two input-sort cases use
+the corresponding typed or raw protected simulations. No normalization is used.
+
+Validation: 843 jobs; 34 complete audit roots; maximum closure
+12,032; 818 frozen source/import hashes. Audit includes types, opaque
+bodies, constructors and recursor RHSs. Only propext, Classical.choice and
+Quot.sound; no forbidden dependencies or owned warnings. Existing contextual
+cast feedback and finite-stage substitution barrier clients rebuilt.
+
+Judgment: the proof-domain gap in native neutral lookup coverage is closed.
+Arbitrary converted Pi typing, arbitrary ambient substitution and general
+hereditary coverage remain unproved. The original strengthening sorry is still
+present; no proof, canonical-Eq counterexample or strictly smaller sufficient
+final obligation is claimed. Executable and independent files preserved;
+no coordination or PR extraction/creation; GOAL.md remains active.
