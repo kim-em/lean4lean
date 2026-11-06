@@ -29444,3 +29444,73 @@ repair and coverage of selected native type comparisons remain open; the new
 prefix square alone does not settle either. GOAL.md remains active. Only two
 new proof files and EOF ledger additions are committed. Executable and the two
 independent experiments are untouched; no coordination or PR extraction.
+
+
+## 2026-11-06 01:09:31 UTC — Full-core cast residuals and recursive first-stage guards
+
+Previous turn: progress (9c037b8a pushed). Revalidated that HEAD and preserved
+the two independent untracked files. The earlier prefix square supplied a
+residual only when all argument paths were already exposed. This turn removes
+that premise for arbitrary full-core computation of actual reflexive casts,
+and packages the repair in a recursively reusable certificate.
+
+ProofErasureCastCoreResidual.lean first proves eqRec_proof_core_inv. The generic
+first-head decomposition either gives component histories or a first primitive
+at some computed prefix. Eq registration and absence of a delta program exclude
+every short prefix. The last argument's proof marker remains fixed, excluding
+a saturated ordinary iota match. Consequently the entire ordinary computation
+preserves the six-argument Eq spine and yields paths for each earlier argument.
+
+reflexive_cast_level_core_residual factors a full level-core path at the actual
+typed cast source. Its output returns by level-core computation to an ordinary
+reduct. Whole-proof sources reduce to the proof-erasure case. Otherwise the
+proof major erases to the marker, the new inversion exposes the ordinary spine,
+and LevelRecursiveGuard.forward certifies the two independently computed copies
+of the endpoint type. The first-stage Eq prefix computes that residual to the
+computed minor. The theorem produces an ordinary path from the original payload
+to this minor and a stage-one path from the arbitrary cast reduct to the same
+minor. The checking context is arbitrary: all contextual certificates are
+constructed from raw endpoint checks, allowing use under larger binder frames.
+
+reflexive_cast_level_core_join adds arbitrary independent payload computation
+and joins via ordinary-source level-core confluence. EnvironmentCore.no_eqRec
+checks both optional-Quot branches against the stored/structure exclusion.
+The actual-environment corollary discharges soundness, universe compatibility,
+confluence, registration and Eq.rec exclusion; no abstract missing interface
+remains in that corollary.
+
+ProofErasureLevelCastGuard.lean defines the stronger inductive guard. Its leaves
+are the existing LevelRecursiveGuard or actual typed reflexive casts. Lambda,
+common-lambda and Pi frames combine children; selfLoop preserves comparison of
+its annotations through their arbitrary core histories. Typed computation
+prefixes use level-core confluence, and core tails compose with the recursive
+histories. Symmetry is explicit. The forward theorem proves stage-one
+ComputedJointCompare by structural induction in every ambient checking context.
+No stage-one confluence, arbitrary transport, or carrier-recovery oracle appears
+as a constructor or proof assumption. of_typed_joins retains the inductive guard
+for later frames and tails, rather than merely yielding a terminal comparison.
+
+EnvironmentCore.cast_guard_strict constructs a new guard for a free-major
+reflexive Pi cast and refutes the corresponding old guard using its forward
+interpretation and the full-core Pi-exposure obstruction. cast_loop_guard_forward
+then constructs a guard on every pair of independent full-core reducts of the
+cast-loop witness and interprets it at stage one. The loop body need not
+normalize. This is a genuine enlargement past the preceding counterexample,
+while leaving that counterexample's same-core claim unchanged.
+
+Validation: isolated build passed (797 jobs). Audited 23 roots including
+all guard constructors, rec, recOn and casesOn; traversed types, opaque values,
+inductive constructors and recursor RHSs. Maximum closure 11,551; 772
+source/import hashes unchanged. Only propext, Classical.choice and Quot.sound;
+no forbidden dependencies, original strengthening dependencies, or own-module
+warnings. Development corrected one Name disequality proof by decide; no premise
+was weakened and no gap was admitted.
+
+Completion audit: UniqueTyping.lean:94 retains the original weakN_iff sorry.
+No canonical-Eq strengthening counterexample or strictly smaller sufficient
+irreducible obligation has been established. General created-beta repair,
+substitution closure and native comparison coverage remain open. In particular,
+this guard's forward theorem covers core tails, not arbitrary stage-one tails.
+GOAL.md remains active. Only these two proof files and EOF ledger additions are
+committed; executable and independent experiments untouched; no coordination
+or PR extraction.

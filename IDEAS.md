@@ -15672,3 +15672,49 @@ Validation: 792 jobs; 10 audited public roots; maximum dependency closure
 11,374; 767 pinned source/import hashes unchanged. Standard axioms only,
 no forbidden dependencies or own-module warnings. Original strengthening sorry
 and executable unchanged; GOAL.md remains active.
+
+
+## 2026-11-06 01:09:31 UTC — A reusable cast guard survives arbitrary full-core tails
+
+Previous goal turn: progress (9c037b8a3501d3f70423c4bb6c8fd57a9869ac15 committed
+and pushed). Revalidated that HEAD and the two independent untracked experiments.
+
+Idea: make the first-stage repair reusable by deriving the residual spine from
+an arbitrary cast computation, rather than assuming separate argument paths.
+Verdict: checked for every actual reflexive cast and all full level-core tails.
+This yields a strictly larger recursive certificate, LevelCastGuard, whose
+comparison interpretation uses the existing singleton stage one.
+
+Ordinary proof-major Eq computation cannot contract any prefix: shorter
+prefixes lack the major, and the saturated prefix has the proof marker instead
+of a visible constructor. The first-head decomposition therefore recovers five
+independent argument histories from any finite ordinary path. Typed universe
+factorization returns every full level-core cast reduct to such an ordinary
+reduct. The two independently computed copies of the reflexive type endpoint
+retain their recursive check. The existing first-stage prefix removes the cast
+there, at an ordinary reduct of the original payload. Independent payload
+computation joins using only level-core confluence. Optional Quot equations
+are included in the actual environment specialization.
+
+LevelCastGuard adds actual typed reflexive-cast leaves to the previous recursive
+guard, and closes under lambda/Pi frames, common lambdas, self loops, typed core
+prefixes, core tails and symmetry. Structural induction interprets every guard
+after independent arbitrary core paths as ComputedJointCompare at stage one,
+in any checking context. Typed outputs joined to references retain the guard
+itself. The old cast-loop counterexample now has a guard on every pair of its
+independent core reducts. A free-major Pi cast explicitly separates this new
+certificate from LevelRecursiveGuard.
+
+Limit: the residual paths in the forward theorem are full level-core paths,
+not arbitrary stage-one paths. No arbitrary typed-substitution closure or
+coverage of all computed native comparisons is asserted. The original
+same-core closure refutation remains intact. Next investigate how a created
+beta contraction consumes a common-lambda certificate while retaining explicit
+cast repairs, without replacing that obligation by global stage-one confluence.
+No strictly smaller sufficient strengthening obligation is claimed here.
+
+Validation: 797 jobs; 23 complete dependency roots including all new
+constructors and recursors; maximum closure 11,551; 772 pinned hashes
+unchanged. Standard axioms only, no forbidden dependencies or own warnings.
+Original strengthening sorry remains; executable unchanged; GOAL.md active.
+No coordination or PR extraction.
