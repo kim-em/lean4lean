@@ -107,10 +107,6 @@ theorem pi_inert_eq_eta_inner_singleton_readout
     obtain ⟨_, hPi⟩ := hf.isType henv hΓ
     obtain ⟨⟨_, hA⟩, _, _⟩ := hPi.forallE_inv henv
     have hA := (EA ▸ SD).descend hΓ hΓ' W hA
-    obtain ⟨Tx, hfx⟩ := VExpr.WF.of_mkApps henv hΓ (f := .app _ x) ⟨_, hsplit⟩
-    have hfx : env.HasType univs Γ (.app (VExpr.mkApps (.const ``Eq.rec [v₁,w₁]) lowerPre) x) Tx := hfx
-    obtain ⟨_, _, hf', hx⟩ := hfx.app_inv henv hΓ
-    have hxA := argument_at_displayed_domain hΓ hf' hf hx
     have Ectx : proofEraseCtx (A.liftN count offset :: Γ') = rawA :: proofEraseCtx Γ' := by
       rw [proofEraseCtx, proofErase_liftN hΓ hΓ' W hA, EA]
     have HR : env.IsDefEq univs Γ a₁ b₁ α₁ := by
@@ -135,7 +131,7 @@ theorem pi_inert_eq_eta_inner_singleton_readout
           hΓ hΓ' W hΓ hfull hA hf hnp hshortLower
           (by simpa only [Ectx, EPpre] using HAbody.imp (fun _ _ R => R.mono pi_inert_stage_embed))
           (by simpa only [Ectx] using RL) Hbody
-      · exact pi_inert_eq_computed_fresh_eta_readout heq hs hΓ hΓ' W hA hf hxA hfull Efull
+      · exact pi_inert_eq_computed_fresh_eta_readout heq hs hΓ hΓ' W hA hf hfull Efull
           (by simpa only [Ectx, EPpre] using HAbody) (by simpa only [Ectx] using HQ)
     exact ((Ha.trans henv hΓ HR.toU).trans henv hΓ Hb.symm).of_l henv hΓ ha
 

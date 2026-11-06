@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertEqEtaRoot
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSpecializedReadout
 
 /-! # Read a specialized Eq guard under the fresh eta binder
 
@@ -30,7 +31,6 @@ theorem pi_inert_eq_computed_fresh_eta_readout
     (W : Ctx.LiftN count offset Γ Γ')
     (hA : env.HasType univs Γ A (.sort u))
     (hf : env.HasType univs Γ (VExpr.mkApps (.const ``Eq.rec [v,w]) pre) (.forallE A B))
-    (hx : env.HasType univs Γ x A)
     (ht : env.HasType univs Γ (eqRecBeforeMajor v w α a M minor b) T)
     (Eargs : pre ++ x :: pending = [α,a,M,minor,b])
     (HA : List.Forall₂ (ScopedCompute (PiInertStage D bodyStage)
@@ -63,7 +63,6 @@ theorem pi_inert_eq_computed_fresh_eta_readout
     simpa only [eqRecBeforeMajor, VExpr.mkApps, VExpr.lift, VExpr.liftN,
       List.foldl_cons, List.foldl_nil, VExpr.inst_liftN_bvar] using hfw.app (HasType.bvar .zero)
   obtain ⟨_, _, hα, ha, _, _, _⟩ := eqRecBeforeMajor_typings henv heq hΓ ⟨_, ht⟩
-  obtain ⟨_, _, _, haFresh, _, _, hbFresh⟩ := eqRecBeforeMajor_typings henv heq hΓA ⟨_, hbody⟩
   have Eextend {e F} (he : env.HasType univs Γ e F) :
       (proofErase (A :: Γ) e.lift).liftN count (offset+1) =
         ((proofErase Γ e).liftN count offset).liftN 1 := by
@@ -86,12 +85,13 @@ theorem pi_inert_eq_computed_fresh_eta_readout
       (ErasedStaticStructureEtaExpansionStage D (max bodyStage rootStage))
       (ErasedStaticStructureEtaExpansionStage D (max bodyStage rootStage)) :=
     erased_static_structure_eta_expansion_stage_certificate_descent heq hs (max bodyStage rootStage)
-  have HR := proofErase_computed_joint_carrier_reflect hd.descent hΓA haFresh hbFresh
-    (proofErase_computed_joint_carrier_certificate_descend hd hΓA hΓA' W.succ haFresh hbFresh HG')
-  have WS : Ctx.SubstEq env univs Γ (VExpr.Subst.id.cons x) (VExpr.Subst.id.cons x) (A :: Γ) :=
-    .cons (Ctx.SubstEq.id henv.ordered hΓ) hA (by
-      change env.HasType univs Γ x (A.subst VExpr.Subst.id)
-      simpa only [VExpr.subst_id] using hx)
-  simpa only [VExpr.lift_subst_cons, VExpr.subst_id, VExpr.subst, VExpr.Subst.cons] using HR.subst henv WS hΓ
+  have HP : EqPrefixSpecialization Γ Γ v w v w [α,a,M,minor,x] [α,a,M,minor] := by
+    simpa only [List.take_succ_cons, List.take_zero] using
+      (EqPrefixSpecialization.of_typed hΓ ht).take 4
+  have HF : EqPrefixSpecialization (A :: Γ) Γ v w v w [α,a,M,minor,x]
+      [α.lift,a.lift,M.lift,minor.lift,.bvar 0] := by
+    simpa only [List.map_cons, List.map_nil, List.cons_append, List.nil_append] using
+      HP.eta hΓ ht hA hf (by change 4 < 5; decide)
+  exact HF.read_carrier_guard heq hd hΓA hΓA' W.succ hΓ ht hbody HG'
 
 end Lean4Lean.VEnv.Strengthening

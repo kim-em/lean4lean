@@ -18432,3 +18432,44 @@ Validation: 995 build jobs, 14 complete dependency roots, maximum
 closure 11,641; 970 frozen source hashes. Only propext, Classical.choice
 and Quot.sound; no forbidden dependencies or warnings in the changed modules.
 Executable unchanged; no PR extraction or coordination.
+
+
+## 2026-11-06 13:25:38 UTC — Read specialized Eq guards without filling the proof-major binder
+
+**Idea.** Extend the retained target completion to specialized carrier guards.
+When a full five-argument prefix opens another eta binder, descend the guard
+through that binder instead of trying to extend the target substitution with
+a lower proof that the completion does not provide.
+
+**Verdict: specialized readout proved, including the fresh proof-major case.**
+`EqPrefixSpecialization.read_carrier_guard` descends and reflects the source
+carrier certificate, specializes only its semantic equation, then transports
+along the completion's endpoint equalities. `read_computed_guard` recovers that
+certificate from the first five component histories; arbitrary trailing raw
+arguments need no actual representatives in the target context.
+
+`read_computed_guard_under_binder` first descends the certificate across an
+extra actual upper binder and then across the original ambient weakening.
+`read_computed_guard_after_eta` uses native Pi recovery and the domain-sort
+witness to realize the raw eta domain, then applies that two-step descent.
+It does not require a target inhabitant of the fresh binder. In particular,
+this treats the specialized guard reached after opening the proof major of a
+full five-argument Eq prefix without assuming a lower Eq proof.
+
+The existing specialized fresh-eta theorem now uses the specialization witness
+too. Its explicit next-argument typing hypothesis is redundant and removed:
+the target completion's whole typing already supplies it via the proved eta
+extension. The shared singleton caller no longer duplicates that derivation.
+
+The general-singleton proof-major readout and mixed-continuation induction
+remain open. A possible next route for the former is component certificate
+descent across the fresh binder, retaining actual lower component paths for a
+second descent through the original weakening; semantic component equalities
+alone would not suffice for that second descent. This is a live route, not an
+assumed theorem. No strengthening, counterexample, or sufficient strictly
+smaller logical obligation than PropFront is claimed. Goal remains active.
+
+Validation: 996 build jobs, 10 complete dependency roots, maximum
+closure 11,643; 971 frozen source hashes. Only propext, Classical.choice
+and Quot.sound; no forbidden dependencies or warnings in the changed modules.
+Executable unchanged; no PR extraction or coordination.

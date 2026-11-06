@@ -32387,3 +32387,50 @@ complete dependency roots, maximum closure 11,641; 970 frozen source
 hashes. Only propext, Classical.choice and Quot.sound; no weakN_iff, weakN_inv,
 sorryAx, forbidden closure/alignment assumptions or warnings in the changed
 modules. Executable unchanged; no PR extraction or coordination. Goal active.
+
+
+## 2026-11-06 13:25:38 UTC — Specialized carrier readout across the proof-major boundary
+
+Added `ProofErasureEqSpecializedReadout.lean`. A full source prefix specializing
+to the original five-slot target vector has no missing target arguments.
+`read_carrier_guard` lowers its actual carrier certificate through the ambient
+weakening and reflects it in the source context. Ordinary typed substitution
+then specializes the equation, and the retained pointwise endpoint equalities
+recover the original lower equation at its original carrier.
+
+`read_computed_guard` combines this with the specialized root's component guard
+readout. Only the first five original components matter; trailing raw arguments
+can remain uninterpreted in the target context. `read_computed_guard_under_binder`
+removes an additional arbitrary well-typed upper binder before descending the
+original ambient block. The weakened actual source endpoint typings justify
+that first certificate descent. It does not substitute any guarded computation.
+
+`read_computed_guard_after_eta` connects this directly to the native eta case
+at a full five-argument Eq prefix. Recover an actual lower Pi domain, use the
+domain-sort witness to fix its sort, and weaken that domain into the upper
+context. Its erasure is exactly the raw eta annotation. The preceding theorem
+then descends the guard through the fresh binder without selecting a target
+argument for it. Thus a fresh proof-major binder can be removed for this
+specialized readout even when no lower Eq proof is available.
+
+Refactored `pi_inert_eq_computed_fresh_eta_readout` to initialize and extend
+`EqPrefixSpecialization`, then use `read_carrier_guard`. Removed its redundant
+explicit next-argument typing premise and the corresponding application
+inversion in the shared inner-singleton caller. Both singleton branches now
+use the retained completion API. The full Eq-exposure theorem and nested eta
+consequence retain their original statements and assumptions.
+
+Remaining: general-singleton readout across the extra proof binder, broader
+next-root classification, and administrative bypasses through the actual
+mixed continuation frames. For general singleton readout, the existing
+`proofErase_scoped_compute_certificate_descend` can retain component paths
+after first removing the fresh binder, which is needed before the second
+ambient descent. This continuation of the proof is unproved here. GOAL.md
+remains unachieved, including its sufficient strictly smaller obligation option.
+
+Validation: 996 build jobs including full exposure, nested eta, contextual
+cast and core-family substitution regressions; 10 complete dependency
+roots, maximum closure 11,643; 971 frozen source hashes. Only propext,
+Classical.choice and Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden
+closure/alignment assumptions or warnings in the changed modules. Executable
+unchanged; no PR extraction or coordination.
