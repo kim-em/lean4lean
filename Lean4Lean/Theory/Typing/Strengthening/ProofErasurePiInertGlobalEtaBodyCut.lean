@@ -261,10 +261,15 @@ literal proof argument has an actual native recovered proposition domain.
 `append_proof` opens eta to choose the target proof and removes the fresh binder
 by reverse insertion. No target inhabitant or image equality is supplied.
 After saturation all remaining arguments are unrestricted. A remaining direct
-supply boundary records failure of this concrete certificate chain; a bare
-proof marker alone does not provide its domain certificate. The outgoing
-completed prefix is retained, and `first_proof_supply_gap` selects the first
-unsupported argument after the successfully certified prefix.
+supply boundary records failure of this concrete certificate chain.
+`eq_rec_short_prefix_native_pi` constructs exact recovery directly from the
+canonical declaration telescope and actual typed arguments.
+`typed_eq_proof_argument_recovery` then derives its proposition-domain witness
+from the actual proof application, so no missing-recovery alternative remains
+for a typed short proof supply. `first_typed_supply_gap` selects an actual
+non-proof argument before saturation and retains completion of the prefix
+preceding it. This is derived in the original-probe frontier from its existing
+whole-source typing; no extra native recovery hypothesis is imposed.
 Argument agreement for those cases and full strengthening coverage remain open. Its count is positive:
 `eq_positive` excludes zero-cost Eq exposure through arbitrary mixed frames.
 The conclusion additionally selects an `IteratedAmbientSingletonFailure`

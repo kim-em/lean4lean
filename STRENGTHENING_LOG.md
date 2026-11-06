@@ -34778,3 +34778,51 @@ prefix completion but does not assert a new frame minimum at that partial
 prefix. This is a necessary-frontier refinement, not a sufficient irreducible
 obligation smaller than PropFront. The original weakN_iff sorry and executable
 are unchanged. GOAL.md remains active; no PR extraction or Lean/Lake patch.
+
+
+## 2026-11-06 21:00:27 UTC — Eliminate missing recovery at typed short proof supplies
+
+Added `ProofErasureEqTypedProofSupply.lean`. A native telescope induction keeps
+both the actual function typing and recovery of its exact erased assigned type.
+Each next argument is typed at the displayed domain by type uniqueness. Erasure
+of actual typed instantiation identifies the next recovered result with the
+new native type. Syntactic Pi arity cannot decrease under instantiation, so
+canonical Eq's six literal binders supply this construction for every prefix
+of at most five arguments. `eq_rec_short_prefix_native_pi` works at any primitive
+relation and requires no computation, recovery-completeness or stage hypothesis.
+
+`typed_eq_proof_argument_recovery` reifies the actual typed raw proof application,
+recovers its native Pi domain, and aligns the actual proof's proposition with
+that domain by ordinary type uniqueness. It constructs both exact raw recovery
+and a DomainSort zero witness in the original raw scope. `append_typed_proof`
+then applies the previous eta/reverse-insertion argument with these derived
+certificates rather than asking the caller for them.
+
+`EqProofPrefixSupply.first_nonproof` refines a failed certificate chain when
+the whole actual application is typed and at most six slots are tracked. A
+literal proof at its first gap would have the required recovery and domain
+witness by the new theorem, a contradiction. `first_typed_supply_gap` retains
+the exact pending decomposition, successful preceding supply derivation and
+completion of that prefix, its underfilled arity, and a non-proof next argument.
+It does not assert a new frame minimum at the partially supplied prefix.
+
+Integrated this stronger readout into the original-probe frontier using the
+existing actual whole-source typing after its scope map. No new hypothesis is
+added to the probe theorem. The underfilled boundary still retains the old
+supply failure, and now additionally identifies the non-proof argument and
+completed prefix before it. Missing recovery for a typed short proof argument
+is no longer a residual case. The non-proof consumed-binder alternatives and
+their direct/retained usage conditions remain unchanged.
+
+Validation: 1056 jobs including the global theorem and established regressions;
+33 roots recursively audited through types, values, constructors and
+recursors, maximum closure 11,976. Only propext, Classical.choice and
+Quot.sound occur. No owned diagnostics, sorryAx, strengthening gap or excluded
+circular framework. All 1,031 source hashes remained fixed. The original-probe
+root is independently checked not to depend on the old nested-eta frontier.
+
+Remaining: agreement for actual non-proof arguments and used non-proof binder
+images, dependent retained annotations, and full strengthening coverage. This
+is a stronger necessary frontier, not a sufficient irreducible obligation smaller
+than PropFront. The original weakN_iff sorry and executable are unchanged.
+GOAL.md remains active; no PR extraction or Lean/Lake patch.

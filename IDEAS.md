@@ -20046,3 +20046,20 @@ uncertified proof domains remain open, as does full strengthening coverage.
 Validation: 1055 jobs, 34 audited roots, maximum closure 11,976;
 only standard axioms. This is a necessary-frontier refinement, not completion
 of GOAL.md or a sufficient smaller obligation.
+
+
+## 2026-11-06 21:00:27 UTC — Derive short proof-domain recovery from canonical Eq typing
+
+Idea: canonical Eq's literal six-binder telescope constructs native Pi recovery
+at every short typed prefix, independent of arbitrary recovery completeness.
+Verdict: proved and integrated. `eq_rec_short_prefix_native_pi` walks the typed
+arguments while keeping exact erased native recovery. Actual application typing
+aligns a supplied proof with that native domain, deriving its proposition sort.
+Thus the previous missing-domain-certificate alternative is impossible for typed
+short proof supplies. `first_typed_supply_gap` identifies a non-proof argument
+before saturation and retains completion of its preceding prefix.
+
+Validation: 1056 jobs, 33 audited roots, maximum closure 11,976;
+only standard axioms. Remaining: non-proof supply/image agreement and dependent
+retained annotations, plus full strengthening coverage. This removes a concrete
+previous residue but does not satisfy the sufficient-obligation deliverable.
