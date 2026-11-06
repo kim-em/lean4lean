@@ -20161,3 +20161,28 @@ consumption still require closure. Original-probe frontier and strengthening
 gap unchanged. Validation: 1060 jobs, 64 recursive roots, maximum closure
 11,976; only propext, Classical.choice and Quot.sound, all 1,035 source
 hashes fixed.
+
+
+## 2026-11-06 21:41:50 UTC — Compose separated paired insertions before recovering eta
+
+**Idea.** Keep a finite ordered chain of actual insertion squares rather than
+flattening blocks at different depths. Descend actual component and recovery
+certificates through that chain before using the original chosen assignment.
+
+**Verified.** `EqFrameInsertionChain` appends separated chains, adds a new unused
+domain using the actual upper map, and enters a dependent binder by shifting
+every block's offset. It keeps both semantic and raw commutation and exact
+upper erasure. `compute_insertion_chain` preserves both lower assignments and
+exact upper endpoints after arbitrary actual component paths. Recovery and
+domain-sort witnesses descend through the full chain; `eta_insertion_chain`
+restores the exact upper body and scope. `chain_hole_cut_eq_or_smaller` connects
+this construction to an actual strictly smaller short-prefix minimum.
+
+**Verdict.** Separated blocks no longer obstruct the chosen short-eta descent
+step. The construction requires actual insertion squares, constructed by the
+provided operations, and does not infer frame agreement from a continuation
+map. Saturated eta through the chain, annotation changes and actual continuation
+consumption still need integration. Original-probe frontier and strengthening
+gap unchanged. Validation: 1061 jobs, 93 recursive roots, maximum closure
+11,976; only propext, Classical.choice and Quot.sound, all 1,036 source
+hashes fixed.

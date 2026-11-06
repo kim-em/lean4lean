@@ -6,6 +6,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPairedEta
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChosenCut
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSaturatedPaired
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPairedInsertion
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqInsertionChain
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -149,6 +150,16 @@ also preserves the square's exact erased endpoint. This handles a supplied
 block at arbitrary count and offset. Composing separated insertion blocks,
 handling further saturated openings in that representation, and following
 actual continuation consumption still require a global closure argument.
+`EqFrameInsertionChain` now composes separated blocks in their literal order,
+adds new unused domains, and moves every block beneath a dependent binder.
+It retains the actual upper map and both semantic and erased commutation.
+Component and native-recovery certificates descend through the entire chain
+before the original lower assignment is used. `eta_insertion_chain` restores
+the exact upper scope and body, and `chain_hole_cut_eq_or_smaller` preserves
+the shifted chain in a strictly smaller actual short-prefix minimum.
+Saturated opening through this representation, annotation changes, and actual
+continuation consumption still need integration; the original-probe frontier
+below is unchanged.
 `minimum_frontier` iterates this decrease
 by strong induction and reaches a component-only current path with completion
 at both endpoints. The conclusion retains this actual

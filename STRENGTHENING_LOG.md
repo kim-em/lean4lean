@@ -35014,3 +35014,59 @@ strengthening gap or excluded circular framework. All 1,035 source hashes
 remained fixed. Original-probe root independent of the old nested-eta frontier.
 Original weakN_iff sorry and executable unchanged; GOAL.md active;
 no PR extraction or Lean/Lake patch.
+
+
+## 2026-11-06 21:41:50 UTC — Preserve chosen Eq ancestry through separated insertion chains
+
+Added `ProofErasureEqInsertionChain.lean`. `EqInsertionPath` records blocks in
+literal order, with exact operations on actual and erased terms and an offset
+shift under binders. `EqFrameInsertionChain` links each block's upper actual
+map to the next block's lower map. The chain preserves actual map typing and
+erasure, weakens typed source terms, and composes both semantic and raw
+commuting equations without requiring the blocks to be contiguous.
+
+`append`, `insert_domain` and `under_binder` construct separated chains and
+permit further dependent binder openings. Intermediate inserted contexts do
+not need target assignments. Generalized the previous block's binder-lifting
+proof to `under_binder_actual`, taking only the actual typed lower map and
+its well-formed target. The old `under_binder` theorem remains a wrapper with
+its original statement. This supplies precisely the inputs available at an
+intermediate chain position without inventing target images.
+
+`compute_certificate` descends an actual path in reverse insertion order,
+retaining its exact lower source scope, semantic endpoint equality, lower
+certificate and exact inserted output. `components_certificate` applies that
+to the actual argument vector. `compute_insertion_chain` then reifies the
+lower spine with its original chosen substitution and external pending vector,
+follows the old agreeing frame, and derives exact equality with substitution
+of the computed upper erased endpoint. Certificate descent is required here;
+no primitive computation is substituted through a frame.
+
+`recovery_certificate`, `domain_sort` and `recovered_pi` descend native recovery
+and its domain-sort witness through every block. Pi-shape inversion retains
+the exact domain under the old path and body under the shifted path.
+`eta_insertion_chain` extends the lower chosen assignment by its next pending
+target argument, lifts the agreeing frame, and restores the entire shifted
+chain with exact upper raw body and context equalities.
+
+`completion` supplies the existing iterated-completion readout from the same
+recorded chain. `chain_hole_cut_eq_or_smaller` uses this only for the actual
+non-level root classifier; short native eta then returns a strictly smaller
+continuation minimum with the chosen lower frame and shifted chain retained.
+The theorem applies beneath an arbitrary application/binder hole and preserves
+all-stage competitor minimality.
+
+Imported the result into the global module. Saturated opening through this
+chain representation, annotation changes and linking the stored frame to
+actual later continuation consumption remain open. The original-probe frontier
+is unchanged. This is not full strengthening or a sufficient irreducible
+obligation strictly smaller than PropFront.
+
+Validation: 1061 build jobs including the global theorem and established
+regressions; 93 declarations recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening gap or excluded circular framework. All 1,036 source hashes
+remained fixed. Original-probe root independent of the old nested-eta frontier.
+Original weakN_iff sorry and executable unchanged; GOAL.md active;
+no PR extraction or Lean/Lake patch.

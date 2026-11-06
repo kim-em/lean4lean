@@ -60,15 +60,16 @@ actual maps lift; the old insertion moves one position deeper. Commutation
 of the new displayed domains follows from the stored semantic square, and
 commutation under binders follows by applying the old square to a lambda.
 No equality of new domains or target inhabitant of an inserted type is assumed. -/
-theorem EqFrameInsertion.under_binder
+theorem EqFrameInsertion.under_binder_actual
     (I : EqFrameInsertion Γ Γ' Λ Λ' count offset ρ τ κ υ)
-    (W : EqSpecializationFrame Γ Γ' Δ σ σ' ρ τ)
+    (hΓ' : OnCtx Γ' (env.IsType univs))
+    (S : Ctx.SubstEq env univs Γ' ρ ρ Γ)
     (hA : env.HasType univs Γ A (.sort u)) :
     EqFrameInsertion (A :: Γ) (A.subst ρ :: Γ')
       (A.liftN count offset :: Λ) ((A.subst ρ).liftN count offset :: Λ')
       count (offset+1) ρ.lift τ.lift κ.lift υ.lift := by
   have hAup : env.HasType univs Λ (A.liftN count offset) (.sort u) := hA.weakN henv I.source
-  have hAout := hA.subst henv.orderedStrong W.actual W.target.wf
+  have hAout := hA.subst henv.orderedStrong S hΓ'
   have hAoutUp : env.HasType univs Λ' ((A.subst ρ).liftN count offset) (.sort u) :=
     hAout.weakN henv I.target
   refine ⟨I.source.succ, I.target.succ, ⟨I.target_wf, u, hAoutUp⟩, ?_, ?_, ?_, ?_⟩
@@ -84,6 +85,16 @@ theorem EqFrameInsertion.under_binder
     have E := I.erased (.lam (.sort .zero) e)
     simp only [ProofShape.liftN, ProofShape.subst] at E
     exact (ProofShape.lam.inj E).2
+
+/-- The lower agreeing frame supplies the typed-map inputs of binder lifting. -/
+theorem EqFrameInsertion.under_binder
+    (I : EqFrameInsertion Γ Γ' Λ Λ' count offset ρ τ κ υ)
+    (W : EqSpecializationFrame Γ Γ' Δ σ σ' ρ τ)
+    (hA : env.HasType univs Γ A (.sort u)) :
+    EqFrameInsertion (A :: Γ) (A.subst ρ :: Γ')
+      (A.liftN count offset :: Λ) ((A.subst ρ).liftN count offset :: Λ')
+      count (offset+1) ρ.lift τ.lift κ.lift υ.lift :=
+  I.under_binder_actual W.target.wf W.actual hA
 
 /-- Reify actual component computations beneath a paired insertion, keeping
 both lower chosen assignments. Following the upper map at the computed raw
