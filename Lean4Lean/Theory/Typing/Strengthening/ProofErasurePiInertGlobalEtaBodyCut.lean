@@ -2,6 +2,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqTargetPrefixMinimum
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaFrameOrigin
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqDelayedSupply
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
 
 /-! # Eq exposure reaches a non-level root inside a minimum eta body
@@ -133,7 +134,16 @@ lifted bounded prefix independently of the argument; later source arguments
 may still use the binder. The remaining branch of
 `focus_next_completed_or_consumed` explicitly lacks a completion below the
 consumed binder at its derived depth. Target agreement for that remaining
-argument is still open.
+argument is still open in general. `ContextSubstitution.realize_one` now
+recovers an actual argument at the original displayed type by normalizing
+older-variable identity erasures. `EqSpecializationFrame.inst_iff` identifies
+the exact remaining image equality. In a chosen semantic source realization,
+`ProofEndpointContext.frame` derives it automatically for proof-valued
+consumption and lifts that agreement through every recorded retained annotation.
+`endpoint_context_frame_or_unwitnessed_domain` therefore returns the complete
+transported specialization or the actual consumed base binder without a Prop
+domain witness. This requires a target assignment for the chosen source context;
+arbitrary unused insertions in the global completion do not provide one.
 Component-only
 transitions through enclosing wrappers still need target agreement from their
 actual histories; coverage of arbitrary wrapped-body histories remains open. `read_full_eta_loss_in_minimum` reads a head-losing root

@@ -19727,3 +19727,26 @@ property includes a typed lower completion. Agreement for the remaining
 argument and progress through equal-cost moves remain open. Validation:
 1037 build jobs, 17 audited roots, maximum closure 11,976, 1,012
 unchanged source hashes. The main goal remains unfinished.
+
+
+## 2026-11-06 19:27:23 UTC — Normalize consumed arguments and derive proof-valued agreement
+
+**Idea:** a raw one-binder interpretation already fixes the older variables
+up to erased identity. Recover semantic identity there, realize the consumed
+argument at its original displayed type, and isolate its target-image equality.
+
+**Verdict:** proved. `ContextSubstitution.realize_one` normalizes the map;
+`EqSpecializationFrame.inst_iff` identifies the exact image equality. For a
+proof-valued domain, proof irrelevance derives it from the chosen source
+assignment. `ProofEndpointContext.frame` propagates this through any finite
+recorded retained-annotation context, keeping the assigned type and exact raw
+argument vector. The actual endpoint classifier leaves only its particular
+consumed binder without a Prop-domain witness.
+
+This result requires a chosen assignment for the source context. Arbitrary
+unused ambient insertions need not have target inhabitants; extending the
+result to those completions remains necessary. Non-proof argument agreement
+and progress through equal-cost scope moves remain open. This is a building
+block, not a sufficient smaller obligation or a proof of strengthening.
+Validation: 1038 build jobs, 11 audited public roots, maximum closure
+11,976, 1,013 frozen source hashes.

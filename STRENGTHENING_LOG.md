@@ -34250,3 +34250,31 @@ there is no such lower unused-prefix completion, and provide progress through
 equal-cost scope moves. The new exclusion is a necessary residual restriction,
 not a sufficient irreducible obligation proved smaller than PropFront.
 `weakN_iff` remains open. No executable changes, PR extraction or coordination.
+
+
+## 2026-11-06 19:27:23 UTC — Actual consumed argument and proof-valued endpoint frames
+
+Added `ProofErasureEqConsumedArgument.lean`. A typed self-substitution whose
+erasure is identity acts as semantic identity; this normalizes the tail of
+an interpreted raw one-binder substitution. The actual argument is recovered
+at the original displayed domain, with exact erasure only where the source
+variable is not proof-valued. The agreeing frame is equivalent to the single
+equality between that argument's target instance and the chosen head image.
+
+Proof irrelevance supplies this equality for proof-valued domains. The new
+`ProofEndpointContext` records identity, proof-valued consumption, and the
+actual annotation computations above it. Its frame theorem retains chosen
+images while replaying annotation conversion and gives exact transformed
+specialization, whole typing, and erased argument vector. The classifier
+retains the actual base map and depth when no Prop-domain witness exists.
+The global module imports and documents this result; its main theorem is
+unchanged. Arbitrary iterated unused insertions still require separate
+handling because they need not admit a full target assignment.
+
+Validation: 1038 build jobs including GlobalEtaBodyCut and the established
+ContextualCastFeedback/CoreFamilySubstitutionBarrier regressions. All 11
+public audit roots passed recursive type/value/constructor/recursor dependency
+and axiom checks, maximum closure 11,976. Only propext, Classical.choice
+and Quot.sound occur; no strengthening gap or excluded circular framework
+dependencies. No owned diagnostics; all 1,013 frozen source hashes remained
+unchanged. `weakN_iff` remains open. No executable changes or PR extraction.
