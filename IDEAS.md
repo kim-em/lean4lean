@@ -17230,3 +17230,45 @@ Validation: 866 jobs; 17 complete type/value/constructor/recursor audit
 roots; maximum closure 11,673; 841 frozen source/import hashes. Standard
 axioms only, no forbidden dependencies or owned warnings. No executable changes,
 coordination or PR extraction.
+
+
+### 2026-11-06 07:00:36 UTC — Extracting eta domain evidence from whole Pi computation joins
+
+Previous goal turn: progress (076f2b2b, retained eta certificates through core
+computation and identity beta). Revalidated its clean tracked state; the two
+independent untracked experiments remain untouched. The intervening exchange
+clarified that summary-only instructions were not an ongoing stop request.
+
+Idea: generalize stage-zero Pi domain extraction to the enriched stages.
+Inspection identifies why the ignored-control trace is insufficient: native
+identity expansion returns a demanded argument, whereas MarkedPiTrace follows
+only function positions and ignored lambda binders. Existing typed control
+observations already follow that argument for computations. A general relational
+comparison argument is still needed; no arbitrary-comparison theorem is claimed.
+
+Discharged the computation-join case. Two PiReadout certificates for a common
+output give a common domain computation by raw beta confluence and exact Pi
+inversion. The selected Pis need not coincide or normalize; domains, codomains,
+and universes may differ. Applying full static-structure Pi readout handles all
+finite guard stages and arbitrary compatible control wrappers.
+
+For CoreFamilyCast computation certificates from whole Pis to a shared output,
+proved domain joins after independent full-core domain paths. Realize each domain
+residual, transport its actual codomain typing with unchanged erasure, commute
+the whole-Pi paths through the certificates, and join the retained core tails
+at their actual typed common source. Pi readout extracts the residual domain
+paths. Only ordinary core confluence and raw beta confluence are used.
+
+These whole-type certificates now construct EtaCoreReadout for a converted
+literal lambda without assuming a separate domain certificate. The readout
+survives identity beta and handles every typed eta consumer after independent
+core paths. Every completed comparison has a finite stage at least the input
+stage. The stage may depend on the residual paths: this is not uniform
+future coverage at a fixed stage and cannot silently replace that premise in
+CoreFamilyCast. General Pi comparison extraction, annotations/consumer cases,
+and well-founded synthesis from strong derivations remain open.
+
+Validation: 871 jobs; 6 complete type/value/constructor/recursor audit
+roots; maximum closure 12,217; 846 frozen hashes. Standard axioms only,
+no forbidden dependencies or owned diagnostics. Executable unchanged; no
+coordination or PR extraction. The weakN_iff sorry and GOAL.md remain open.

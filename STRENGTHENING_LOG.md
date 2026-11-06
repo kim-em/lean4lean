@@ -30877,3 +30877,37 @@ structure constructors, recursors and projections; maximum closure 11,673;
 841 frozen hashes. Only propext, Classical.choice and Quot.sound; no forbidden
 dependencies or owned diagnostics. Independent experiments preserved; no
 executable changes, coordination or PR extraction.
+
+
+### 2026-11-06 07:00:36 UTC — Whole Pi computation joins supply eta readout
+
+Added ProofErasurePiJoinDomains with four checked results. PiReadout.domain_join
+aligns two beta readouts of one output and retains both domain histories.
+static_structure_pi_join_domains applies it to whole Pi paths at arbitrary
+finite enriched stages. proofErase_core_pi_domain_residual realizes a domain
+core path as a typed whole-Pi path, transporting its codomain typing while
+preserving its erased body. CoreFamilyCast.pi_join_domain_residuals commutes
+these whole-Pi paths through two computation certificates with a common output,
+joins the resulting ordinary-core tails, then extracts domain joins in the
+static-structure union. The computation certificates allow casts and sequential
+compositions; the shared output need not be a literal Pi.
+
+Added ProofErasureEtaPiJoinEvidence. eta_core_readout_lambda_of_pi_join consumes
+those whole-type computation certificates to construct all eta domain and origin
+checks for the lambda. pi_join_eta_identity_consumer_finite carries that evidence
+through the identity wrapper and arbitrary typed consumers, including independent
+full-core computation on both sides, and extracts a finite later stage.
+
+This discharges the join case of the intended whole-Pi evidence extraction.
+It does not replace an arbitrary CoreFamilyCast comparison by computation paths,
+prove comparison transitivity, or establish a stage bound uniform over all
+future residuals. The previous stage-zero ignored-control argument cannot cover
+native identity argument demand without a stronger relational invariant.
+The next generalization must address comparison children and their substitutions,
+not assume global eta-domain readout (already known to imply the full front).
+No final strictly smaller sufficient obligation has been established.
+
+Validation: 871 jobs; 6 complete dependency-audit roots; maximum closure
+12,217; 846 frozen source/import hashes. Only propext, Classical.choice,
+and Quot.sound; no forbidden dependencies or owned warnings. Independent
+untracked experiments preserved. No executable changes or PR extraction.
