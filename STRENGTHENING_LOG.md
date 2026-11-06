@@ -34637,3 +34637,45 @@ eta selections; full strengthening coverage remains open. This is a stronger
 necessary frontier, not a sufficient irreducible obligation smaller than
 PropFront. The original weakN_iff sorry and executable are unchanged;
 GOAL.md remains active. No PR extraction.
+
+
+## 2026-11-06 20:42:54 UTC — Eliminate unused top binders from the supply boundary
+
+Added `ProofErasureEqUnusedEmbedding.lean`. `UnusedEqPrefix` says exactly
+that the first target-arity raw arguments are lifts across the top binder.
+`prefix_congr` transports constructed completion between identical bounded
+prefixes, permitting all later actual arguments to differ. `TypedSource.top_domain`
+recovers the displayed source domain's sort from its actual typed context.
+
+`consume_unused_prefix` inserts that domain back into the outgoing context.
+Instantiation followed by the reverse insertion restores the bounded prefix
+literally; `pullback` composes this insertion with the old constructed embedding.
+No inhabitant, semantic equality for the actual supplied argument, lower source
+typing, or lower completion is assumed. The domain may have any sort, and the
+actual argument may occur in the unrestricted suffix beyond the target arity.
+`direct_endpoint_or_used` combines this result with the existing proof-endpoint
+transport. Its only residual direct map consumes a non-proof domain actually
+used in the bounded raw prefix.
+
+Integrated the new alternative into `EqTargetPrefixEmbedding.supply_boundary`
+and the original lifted-probe theorem. At zero retained depth, an unavailable
+new supply still returns the underfilled boundary. Otherwise the proof crosses
+all unused or proof-valued consumptions and continues the existing lexicographic
+induction on primitive count and actual frames. The non-proof direct residue
+now includes the negation of raw unusedness. At positive retained depth the
+previous proof-endpoint refocusing remains; no unsound independence claim is
+made about the intervening annotations.
+
+Validation: 1053 jobs including the global theorem and established regressions;
+33 roots recursively audited through types, values, constructors and
+recursors, maximum closure 11,976. Only propext, Classical.choice and
+Quot.sound occur. No owned diagnostics, sorryAx, strengthening gap or excluded
+circular framework. All 1,028 imported source hashes remained fixed. The
+original-probe result is independently checked not to use the old nested-eta
+frontier.
+
+Remaining: target agreement for used non-proof consumptions, underfilled new
+supplies, and dependent retained annotations; full strengthening coverage is
+still unproved. This removes a case from the necessary frontier but does not
+satisfy the sufficient-obligation deliverable. The original weakN_iff sorry and
+executable are unchanged; GOAL.md remains active. No PR extraction.

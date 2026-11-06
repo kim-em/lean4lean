@@ -245,6 +245,12 @@ assuming eta syntax or component-only bodies. Completion crosses the recorded
 annotation history and any proof-preserving outer endpoint. The new induction
 therefore leaves only an actual non-proof endpoint map, possibly outside a
 retained prefix, or nonempty supply at an underfilled direct Eq prefix.
+A direct non-proof consumption can stop only when the bounded raw prefix uses
+the consumed binder: `consume_unused_prefix` reinserts its actual domain and
+pulls the old constructed embedding through the exact round trip. No lower
+completion or lower typing assumption is needed. At nonempty retained depth,
+the annotations may still depend on the consumed binder, so this direct
+unusedness criterion is not claimed to suffice.
 Argument agreement for those cases and full strengthening coverage remain open. Its count is positive:
 `eq_positive` excludes zero-cost Eq exposure through arbitrary mixed frames.
 The conclusion additionally selects an `IteratedAmbientSingletonFailure`

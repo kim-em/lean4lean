@@ -19992,3 +19992,20 @@ Full strengthening coverage and a sufficient strictly smaller irreducible
 obligation are not established. GOAL.md remains incomplete. Validation:
 1052 jobs, 34 audited roots, maximum closure 11,976, 1,027 frozen
 source hashes; the new probe root is independent of the old nested-eta frontier.
+
+
+## 2026-11-06 20:42:54 UTC — Reverse embedding across a raw unused top binder
+
+Idea: when the bounded Eq prefix is literally a lift, reinsert the actual
+consumed domain and pull the existing constructed completion through the
+round trip. Verdict: proved and integrated into the original-probe frontier.
+`consume_unused_prefix` needs neither a Prop domain nor a separately typed
+lower completion; arguments beyond the target arity are unrestricted.
+`direct_endpoint_or_used` excludes unused top binders from the direct
+non-proof boundary. The all-stage minimum and strict frame decrease remain.
+
+Validation: 1053 build jobs, 33 audited roots, maximum dependency
+closure 11,976; only the three standard axioms. Full strengthening and
+argument agreement for used non-proof binders remain open. At retained depth,
+dependent annotations prevent claiming the same raw-prefix test suffices.
+This is a stronger necessary frontier, not a sufficient smaller obligation.
