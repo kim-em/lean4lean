@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqUnusedConsumption
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqProofRetraction
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqTargetPrefixExecution
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertConstantFrames
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertEtaHoleMinimum
@@ -293,6 +294,31 @@ theorem EqTargetPrefixComponentMinimum.focus_next_completed_or_consumed
     · have HH := UnusedTargetPrefixCompletion.consume heq hs hΓ HU Hctx x
       exact .inl (by simpa only [ProofShape.subst_mkApps, ProofShape.subst] using HH)
     · exact .inr ⟨x, depth, rfl, HU⟩
+
+/-- The same actual next application either carries a bounded reverse-renaming
+readout witness or consumes its particular base binder without a Prop-domain
+witness. Proof consumption is handled even through arbitrary unused ambient
+insertions. The reverse-renaming witness reads a nonstructural head loss, but
+its propagation through subsequent arbitrary scope moves remains open. -/
+theorem EqTargetPrefixComponentMinimum.focus_next_retracted_or_unwitnessed_domain
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (H : EqTargetPrefixComponentMinimum D Γ v w original Ω out budget) :
+    ∃ Δ Λ ls args σ cb ck, cb+ck ≤ budget ∧
+      EqTargetPrefixCompletion Γ v w original Δ (ProofShape.mkApps (.const ``Eq.rec ls) args) ∧
+      ContextSubstitution Δ Λ σ ∧
+      PiInertTypedContinuationMinimum D Ω out Λ
+        (ProofShape.mkApps (.const ``Eq.rec ls) (args.map (·.subst σ))) ck ∧
+      (EqTargetPrefixRetraction Γ v w original Λ
+          (ProofShape.mkApps (.const ``Eq.rec ls) (args.map (·.subst σ))) ∨
+        ∃ Θ A x depth, ContextSubstitution (A :: Θ) Θ (ProofShape.Subst.one x) ∧
+          ¬ DomainSort Θ A .zero ∧ σ = (ProofShape.Subst.one x).liftN depth) := by
+  obtain ⟨Δ, Λ, ls, args, σ, cb, ck, hc, HP, WS, Hancestry, HM⟩ := H.focus_next
+  refine ⟨Δ, Λ, ls, args, σ, cb, ck, hc, HP, WS, HM, ?_⟩
+  rcases Hancestry.proof_or_unwitnessed_domain with HC | HN
+  · exact .inl (by simpa only [ProofShape.subst_mkApps, ProofShape.subst] using
+      HP.proof_endpoint_retraction heq hs hΓ HC)
+  · exact .inr HN
 
 /-- Strong induction removes every completed non-level cut from the current
 path: singleton guards read the target, administrative roots contradict the

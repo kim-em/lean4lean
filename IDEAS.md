@@ -19750,3 +19750,27 @@ and progress through equal-cost scope moves remain open. This is a building
 block, not a sufficient smaller obligation or a proof of strengthening.
 Validation: 1038 build jobs, 11 audited public roots, maximum closure
 11,976, 1,013 frozen source hashes.
+
+
+## 2026-11-06 19:35:44 UTC — Reverse renaming across proof consumption
+
+**Idea:** target images for arbitrary unused insertions are unnecessary if
+a consumed proof binder can be reinserted into the actual head-loss
+certificate. Typed erasure ignores that binder, so the source round trip
+should be exact. Replay retained annotation computations before reinsertion.
+
+**Verdict:** proved, including arbitrary retained depth and arbitrary iterated
+unused insertions. `ProofEndpointContext.retraction` returns the original
+annotation history, a reverse exact context renaming, and identity on every
+retained source variable. `EqTargetPrefixRetraction` records bounded completion
+after that renaming. Its `read_loss` theorem reads any actual nonstructural
+head loss. The actual next-application frontier now returns this witness or
+its particular consumed base binder without a Prop-domain witness.
+
+This removes the full-source target-assignment limitation for proof-valued
+head-loss readout. It does not assert ordinary completion after consumption.
+Propagation of the new witness through later computations and scope changes,
+non-proof argument agreement, and well-founded progress remain to be proved.
+No sufficient smaller obligation or strengthening proof is claimed.
+Validation: 1039 jobs, 20 audited roots, maximum closure 11,976,
+1,014 frozen source hashes.

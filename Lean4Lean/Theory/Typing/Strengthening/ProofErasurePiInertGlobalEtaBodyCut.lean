@@ -144,6 +144,14 @@ consumption and lifts that agreement through every recorded retained annotation.
 transported specialization or the actual consumed base binder without a Prop
 domain witness. This requires a target assignment for the chosen source context;
 arbitrary unused insertions in the global completion do not provide one.
+`ProofEndpointContext.retraction` removes that assignment requirement for
+head-loss readout: after replaying the retained annotations, reverse renaming
+fixes every retained source variable. `EqTargetPrefixRetraction.read_loss`
+therefore reads a nonstructural head loss through arbitrary unused insertions.
+The actual frontier's `focus_next_retracted_or_unwitnessed_domain` now carries
+that witness or identifies its consumed base binder without a Prop-domain
+witness. This is not ordinary completion in the consumed context; propagation
+of the retraction through later arbitrary scope moves remains open.
 Component-only
 transitions through enclosing wrappers still need target agreement from their
 actual histories; coverage of arbitrary wrapped-body histories remains open. `read_full_eta_loss_in_minimum` reads a head-losing root

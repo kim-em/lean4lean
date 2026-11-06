@@ -34278,3 +34278,38 @@ and axiom checks, maximum closure 11,976. Only propext, Classical.choice
 and Quot.sound occur; no strengthening gap or excluded circular framework
 dependencies. No owned diagnostics; all 1,013 frozen source hashes remained
 unchanged. `weakN_iff` remains open. No executable changes or PR extraction.
+
+
+## 2026-11-06 19:35:44 UTC — Proof endpoints retract into completed contexts
+
+Added `ProofErasureEqProofRetraction.lean`. The retraction is proved by
+induction on the actual endpoint context. At a proof-consuming base, erasure
+retains no occurrence of the consumed variable. At each newer binder, the
+recorded annotation computation is reified and its erased result satisfies
+the same round-trip identity. Exact context renaming then extends under that
+annotation. The resulting reverse map is identity or insertion of one binder
+at the derived depth, with a concrete prior annotation history.
+
+`IteratedAmbientEqCompletion.read_proof_endpoint_loss` lifts the actual
+primitive back through this renaming and reads it against the context-history
+completion. The new `EqTargetPrefixRetraction` carries bounded completion
+after the reverse map; it has a nonstructural head-loss readout theorem.
+Bounded prefix typing alone constructs this witness, even with unrestricted
+extra arguments. No target values for arbitrary unused insertions are needed.
+
+Integrated `focus_next_retracted_or_unwitnessed_domain` at the actual component
+minimum. It retains the same next application, exact substituted source,
+remaining budget and typed continuation minimum, and gives either the
+retraction witness or the actual consumed base binder without a Prop-domain
+witness. Existing unused-consumption completion and frontier remain intact.
+Global documentation distinguishes reverse-renaming readout from ordinary
+completion and does not claim coverage of subsequent scope moves.
+
+Validation: 1039 build jobs including global and established regression
+modules; 20 public roots recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No strengthening gap, sorryAx, excluded
+circular framework, or owned diagnostic. All 1,014 source hashes unchanged.
+The full GOAL.md objective remains open: propagate the invariant through the
+remaining histories and prove sufficient progress, or supply another complete
+route. No executable changes, PR extraction or coordination.
