@@ -17978,3 +17978,35 @@ Validation: 974 build jobs; 7 complete dependency roots; maximum
 closure 11,416; 949 frozen source hashes. Standard axioms only, no
 forbidden dependency or owned diagnostic. Executable unchanged; no coordination
 or PR extraction.
+
+
+## 2026-11-06 11:29:54 UTC — A surviving eta cut must do more than beta in its body
+
+- Remove native eta by applying the constant-wrapper argument: insufficient.
+  The eta body can use its fresh argument, and changing annotations do not give
+  a single body path in a fixed raw context. No general guarded substitution or
+  application-closure law is assumed to bridge that gap.
+- Substitute just an already known beta body path: viable and proved. Actual
+  typing of the pending application aligns its argument with the recovered eta
+  domain, including a proof-erased argument. Its computed representative remains
+  typed there. Instantiating the beta path then computes the short application
+  to the exact post-beta body without any guarded primitive substitution.
+- Keep all argument and suffix counts while discarding eta and annotation work:
+  proved. The bypass costs exactly the argument-vector count plus suffix count.
+  A globally minimal path therefore cannot have a beta-only final eta body,
+  even if the discarded annotation path used arbitrary guarded primitives.
+- Integrate this exclusion into the full probe cut: proved. Either lower index
+  equality holds, or a proper original-prefix eta consumes an argument after
+  a lambda computation whose final body is not a beta reduct of the original
+  eta body. That lambda path has positive primitive count. Original component
+  histories, source typing, exact lambda/argument paths and post-beta suffix are
+  retained. This is stronger than merely observing that an eta root occurred.
+- Next: read the equation through the non-beta body work, tracking the fresh
+  argument and changing annotations. That case remains open; this result does
+  not assert arbitrary eta bypass or a smaller sufficient PropositionFront
+  obligation, and GOAL.md is not complete.
+
+Validation: 977 build jobs; 3 complete dependency roots; maximum
+closure 11,430; 952 frozen source hashes. Only standard axioms; no
+forbidden dependency or owned diagnostic. Executable unchanged; no coordination
+or PR extraction.

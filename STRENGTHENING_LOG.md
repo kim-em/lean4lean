@@ -31860,3 +31860,38 @@ weakN_inv, sorryAx or forbidden closure/alignment premise; no owned warnings.
 GOAL.md remains open. Native function eta is the remaining cut case in this
 route, not a claim that the complete strengthening proof has only that obligation.
 No executable changes, coordination or PR extraction.
+
+
+## 2026-11-06 11:29:54 UTC — Minimum eta exposure excludes beta-only body evolution
+
+Added `ProofErasurePiInertEtaBodyResidual.lean`. Native recovery reifies the eta
+domain, ordinary Pi uniqueness types the actual pending argument at that domain,
+and replay retains the computed argument's typing. This gives the exact equation
+for instantiating the original erased eta body, including proof arguments.
+If the selected final body is a beta reduct of that original body, only the beta
+path is substituted. The short application follows it to the same exact
+contractum and final output. The counted bypass keeps precisely the pending
+argument and suffix costs; no guard substitution or stage increase is used.
+
+The minimum-path lemma combines this bypass with the counted first-head-beta
+decomposition. Any such cut must have a final body that is not a beta reduct of
+the original body; consequently its lambda computation has positive primitive
+count. Annotation changes alone cannot satisfy this condition, regardless of
+how many guarded steps their paths contain.
+
+Added `ProofErasurePiInertMinimalEtaBodyCut.lean`. The complete minimum-count
+probe argument retains its count information until this new bypass is applied.
+Universe roots, ordinary core, structure eta, administrative expansions and all
+general/specialized singleton cases are handled by the previously established
+readouts. The remaining proper-prefix eta must consume an argument after
+non-beta body evolution. All original component ancestry, the complete prefix,
+source typing, exact counted lambda and argument paths and post-beta suffix
+survive in the conclusion. Its fresh argument/body work is still unresolved.
+
+Validation: 977 build jobs including contextual-cast and core-family
+substitution regressions; 3 complete dependency roots, maximum closure
+11,430; 952 frozen source hashes. Types, values, opaque bodies, constructors
+and recursor rules checked. Only propext, Classical.choice and Quot.sound; no
+weakN_iff, weakN_inv, sorryAx or forbidden closure/alignment assumptions; no
+owned warnings. Strengthening remains open, with no new sufficiency claim.
+Executable unchanged; no coordination or PR extraction.
