@@ -18316,3 +18316,38 @@ logical obligation than PropFront is claimed.
 Validation: 992 build jobs, 4 complete dependency roots, maximum
 closure 11,626; 967 frozen source hashes. Only propext, Classical.choice
 and Quot.sound; no forbidden dependencies or owned warnings. Executable unchanged.
+
+
+## 2026-11-06 12:53:22 UTC — Specialized inner Eq guards read the original lower equation
+
+**Idea.** A specialized computed Eq root requires five arguments. In the fresh
+eta body this forces the original prefix to have four arguments and makes the
+fresh variable the final endpoint. Read its component guard below the ambient
+unused binders, then specialize only the resulting semantic equation.
+
+**Verdict: proved and integrated.**
+`pi_inert_eq_computed_fresh_eta_readout` obtains the actual fresh five-argument
+Eq probe from the recovered Pi typing. Canonical Eq inversion types its carrier
+and endpoints. The two guard stages are raised to a common finite stage, the
+component guard descends through the extended context, and reflection produces
+a semantic equation. Ordinary typed substitution instantiates that equation
+at the original endpoint. Neither guarded computation path is substituted.
+
+The shared outer reconstruction in `pi_inert_eq_eta_inner_singleton_readout`
+now handles both singleton forms. `CountedEtaBodySpineCut.read_singleton` uses
+the specialized readout on the same selected cut. The full Eq-exposure result
+therefore retains native function eta as its only inner-root alternative,
+without adding hypotheses to that full result or losing its counted paths,
+typing, component histories, or joint body/continuation minimum.
+
+Nested eta remains open. The smaller body count alone is insufficient for the
+existing exposure theorem because its endpoint need not expose a carrier.
+A continuation-aware induction must carry the enclosing typed instantiations
+and applications; arbitrary substitution of guarded paths is not available.
+This is a live direction, not a proved sufficient obligation strictly smaller
+than PropFront. GOAL.md remains unachieved.
+
+Validation: 993 build jobs, 5 complete dependency roots, maximum
+closure 11,629; 968 frozen source hashes. Only propext, Classical.choice
+and Quot.sound; no forbidden dependencies or warnings in the changed modules.
+Executable unchanged; no PR extraction or coordination.

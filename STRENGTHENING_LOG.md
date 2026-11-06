@@ -32253,3 +32253,40 @@ substitution regressions; 4 complete dependency roots, maximum closure
 Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
 assumptions or owned warnings. No PR extraction or coordination; executable
 unchanged. GOAL.md remains active and unachieved.
+
+
+## 2026-11-06 12:53:22 UTC — Leave only nested native eta in the inner Eq cut
+
+Added `ProofErasurePiInertEqEtaComputed.lean`. Specialized Eq prefix arity and
+the component-history length force a four-argument outer prefix. Its actual
+recovered Pi typing supplies the fresh application under the original lower
+domain; canonical Eq inversion types the lifted carrier, lifted endpoint and
+fresh variable even though the displayed domain need not syntactically equal
+the original carrier. The specialized root's component guard is recovered at
+a common finite stage, descended through the ambient weakening extended by
+this domain, and reflected to a lower semantic equation. Only that equation
+is then instantiated at the original actual endpoint.
+
+Generalized `pi_inert_eq_eta_inner_singleton_readout` to use either the general
+singleton readout or this specialized readout after its existing reconstruction
+of the outer five arguments. The selected root's retained typing supplies its
+universe well-formedness. The cut wrapper supplies this typing, so the full
+Eq-exposure theorem acquires no new assumptions. Its original lower endpoint
+equation follows in either singleton branch by the retained component semantic
+equalities. `EqEtaRemainingRoot` now consists solely of native function eta.
+Every other cut witness and both minima are retained unchanged.
+
+The remaining nested eta must be handled with its application continuation.
+A recursive call to the exposed-output theorem on the body alone is invalid:
+the body endpoint may still be a lambda. The continuation's typed substitution
+does not supply arbitrary native image recovery or guarded substitution
+closure. A stronger induction carrying these continuations remains live.
+No proof of strengthening, canonical-Eq counterexample, or proved sufficient
+strictly smaller obligation than PropFront is claimed.
+
+Validation: 993 build jobs including contextual-cast and core-family
+substitution regressions; 5 complete dependency roots, maximum closure
+11,629; 968 frozen source hashes. Only propext, Classical.choice and
+Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
+assumptions or warnings in the changed modules. Executable unchanged; no PR
+extraction or coordination. GOAL.md remains active and unachieved.

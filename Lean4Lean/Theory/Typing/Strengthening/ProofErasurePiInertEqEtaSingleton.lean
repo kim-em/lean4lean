@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertEqEtaRoot
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertEqEtaComputed
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureRecoveredEqComputedSpecialization
 
 /-! # Read an inner singleton through both Eq argument histories
@@ -23,7 +23,7 @@ private theorem typed_const_levels_wf
   obtain ⟨_, hc⟩ := VExpr.WF.of_mkApps henv hΓ ⟨_, ht⟩
   exact (HasType.const_inv henv hΓ hc).choose_spec.2.1
 
-/-- A general singleton inside the first eta body reads the original lower
+/-- Either singleton form inside the first eta body reads the original lower
 Eq equation, even when both the outer arguments and the fresh body components
 have computed. Its guard is lowered before the fresh binder is specialized. -/
 theorem pi_inert_eq_eta_inner_singleton_readout
@@ -43,8 +43,11 @@ theorem pi_inert_eq_eta_inner_singleton_readout
     (HLbody : List.Forall₂ (· ≈ ·) ls bodyLs)
     (HAbody : List.Forall₂ (ScopedCompute (PiInertStage D bodyStage) (rawA :: proofEraseCtx Γ'))
       (pre.map (·.liftN 1) ++ [etaArgument u]) (bodyPre ++ bodyPending))
+    (HTinner : TypedSource (rawA :: proofEraseCtx Γ') (ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre))
     (HG : CarrierRecoveredSingletonPrimitive (ErasedStaticStructureEtaExpansionStage D singletonStage)
-      (rawA :: proofEraseCtx Γ') (ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre) target) :
+        (rawA :: proofEraseCtx Γ') (ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre) target ∨
+      ComputedJointPrefixPrimitive (ErasedStaticStructureEtaExpansionStage D singletonStage)
+        (rawA :: proofEraseCtx Γ') (ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre) target) :
     env.IsDefEq univs Γ a b α := by
   obtain ⟨v₁, w₁, rfl⟩ : ∃ v₁ w₁, ls = [v₁,w₁] := by
     cases HL with | cons _ HL => cases HL with | cons _ HL => cases HL; exact ⟨_, _, rfl⟩
@@ -110,32 +113,35 @@ theorem pi_inert_eq_eta_inner_singleton_readout
     have hxA := argument_at_displayed_domain hΓ hf' hf hx
     have Ectx : proofEraseCtx (A.liftN count offset :: Γ') = rawA :: proofEraseCtx Γ' := by
       rw [proofEraseCtx, proofErase_liftN hΓ hΓ' W hA, EA]
-    have RL : ScopedCompute (ErasedStaticStructureEtaExpansionStage D bodyStage)
-        (rawA :: proofEraseCtx Γ') (.const ``Eq.rec [v₁,w₁]) (.const ``Eq.rec [v₂,w₂]) :=
-      .base (erased_static_structure_eta_expansion_stage_mono (Nat.zero_le bodyStage)
-        (show ErasedStaticStructureEtaExpansionStage D 0 _ _ _ from
-          .inl (.inr (.const HLbody (typed_const_levels_wf HG.1)))))
-    have Hbody : CarrierRecoveredSingletonPrimitive (ErasedStaticStructureEtaExpansionStage D singletonStage)
-        (proofEraseCtx (A.liftN count offset :: Γ'))
-        (ProofShape.mkApps (.const ``Eq.rec [v₂,w₂]) ((bodyPre ++ bodyPending).take bodyPre.length)) target := by
-      simpa only [Ectx, List.take_left] using HG
-    have HR := proofErase_recovered_singleton_eq_computed_fresh_eta_descend heq
-      (erased_static_structure_eta_expansion_stage_descent heq hs bodyStage)
-      (erased_static_structure_eta_expansion_stage_certificate_descent heq hs singletonStage)
-      hΓ hΓ' W hA hf hnp hxA hfull Efull
-      (by simpa only [Ectx, EPpre] using HAbody.imp (fun _ _ R => R.mono pi_inert_stage_embed))
-      (by simpa only [Ectx] using RL) Hbody
+    have HR : env.IsDefEq univs Γ a₁ b₁ α₁ := by
+      rcases HG with HG | HQ
+      · have RL : ScopedCompute (ErasedStaticStructureEtaExpansionStage D bodyStage)
+            (rawA :: proofEraseCtx Γ') (.const ``Eq.rec [v₁,w₁]) (.const ``Eq.rec [v₂,w₂]) :=
+          .base (erased_static_structure_eta_expansion_stage_mono (Nat.zero_le bodyStage)
+            (show ErasedStaticStructureEtaExpansionStage D 0 _ _ _ from
+              .inl (.inr (.const HLbody (typed_const_levels_wf HTinner)))))
+        have Hbody : CarrierRecoveredSingletonPrimitive (ErasedStaticStructureEtaExpansionStage D singletonStage)
+            (proofEraseCtx (A.liftN count offset :: Γ'))
+            (ProofShape.mkApps (.const ``Eq.rec [v₂,w₂]) ((bodyPre ++ bodyPending).take bodyPre.length)) target := by
+          simpa only [Ectx, List.take_left] using HG
+        exact proofErase_recovered_singleton_eq_computed_fresh_eta_descend heq
+          (erased_static_structure_eta_expansion_stage_descent heq hs bodyStage)
+          (erased_static_structure_eta_expansion_stage_certificate_descent heq hs singletonStage)
+          hΓ hΓ' W hA hf hnp hxA hfull Efull
+          (by simpa only [Ectx, EPpre] using HAbody.imp (fun _ _ R => R.mono pi_inert_stage_embed))
+          (by simpa only [Ectx] using RL) Hbody
+      · exact pi_inert_eq_computed_fresh_eta_readout heq hs hΓ hΓ' W hA hf hxA hfull Efull
+          (by simpa only [Ectx, EPpre] using HAbody) (by simpa only [Ectx] using HQ)
     exact ((Ha.trans henv hΓ HR.toU).trans henv hΓ Hb.symm).of_l henv hΓ ha
 
-/-- The two inner root forms left after general recovered singleton readout.
-The specialized computed guard and nested eta are not discharged by this definition. -/
+/-- The inner root left after both singleton readouts: an earlier native
+function eta expansion. Eliminating this nested eta is still open. -/
 def EqEtaRemainingRoot (D : Definitions) (n : Nat) (Δ : List ProofShape)
     (source target : ProofShape) : Prop :=
-  ComputedJointPrefixPrimitive (ErasedStaticStructureEtaExpansionStage D n) Δ source target ∨
-    ∃ k, k < n ∧ NativeEtaExpansion (ErasedStaticStructureEtaExpansionStage D k) Δ source target
+  ∃ k, k < n ∧ NativeEtaExpansion (ErasedStaticStructureEtaExpansionStage D k) Δ source target
 
-/-- Read the selected inner general singleton back to the original equation,
-or retain the same cut with only specialized Eq and native eta alternatives.
+/-- Read either selected inner singleton back to the original equation,
+or retain the same cut with native function eta as its only root form.
 The outer and inner component histories are both used; no cut is reselected. -/
 theorem CountedEtaBodySpineCut.read_singleton
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
@@ -165,9 +171,10 @@ theorem CountedEtaBodySpineCut.read_singleton
     ⟨A', body', x', xs', cf, ca, cs, cd, cb, m, ls', bodyPre, bodyPending, target, pb, tb,
       hc, hf, hcut, RF, RX, RS, RD, HLbody, HAbody, RP, HR, HN, RT, HM, HMC, HI, HTR, WI, HC, HG'⟩
   rcases HG with HQ | ⟨k, hk, HG | HE⟩
-  · exact .inr (finish (.inl HQ))
   · exact .inl (pi_inert_eq_eta_inner_singleton_readout heq hs hΓ hΓ' W ht hn HL HA
-      hshort HT RN SD HLbody HAbody HG)
-  · exact .inr (finish (.inr ⟨k, hk, HE⟩))
+      hshort HT RN SD HLbody HAbody HTR (.inr HQ))
+  · exact .inl (pi_inert_eq_eta_inner_singleton_readout heq hs hΓ hΓ' W ht hn HL HA
+      hshort HT RN SD HLbody HAbody HTR (.inl HG))
+  · exact .inr (finish ⟨k, hk, HE⟩)
 
 end Lean4Lean.VEnv.Strengthening

@@ -23,9 +23,9 @@ globally minimal with smaller count (via `CountedEtaBodySpineCut.smaller_minimum
 The body and its application continuation are jointly minimal with variable
 body endpoint; identity and constant expansion are excluded at the selected
 inner root, with its typing and the actual argument's context substitution retained.
-General recovered singleton roots read the original lower equation. The
-remaining inner root is a specialized computed Eq prefix or native function
-eta. Reading that specialized guard and eliminating nested eta remain open. -/
+Both singleton forms read the original lower equation. The remaining inner
+root is native function eta. Eliminating this nested eta through the retained
+application continuation remains open. -/
 theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hreg : recursorData ``Eq.rec = some data) (hoff : data.majorOffset = 5)
