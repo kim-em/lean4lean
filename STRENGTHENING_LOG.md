@@ -30496,3 +30496,46 @@ hereditary coverage remain unproved. The original strengthening sorry is still
 present; no proof, canonical-Eq counterexample or strictly smaller sufficient
 final obligation is claimed. Executable and independent files preserved;
 no coordination or PR extraction/creation; GOAL.md remains active.
+
+
+### 2026-11-06 05:20:04 UTC — Checked converted-domain neutral eta consumers
+
+Added ProofErasureConvertedNeutralEtaChecking.lean and
+ProofErasureConvertedNeutralEtaConsumer.lean.
+
+Both protected variant grammars now have readouts using an ambient comparison
+for each eta mark, rather than demanding a computation from the short variable
+to the exact written expansion. native_eta_converted_domain_check expands at
+the recovered domain C and compares it to the written domain A. The lambda
+bodies agree because their input sort classification agrees. The check is
+valid in either mode and renames beneath arbitrary consumer binders.
+
+The two full-core consumer theorems retain native recovery at an independent
+domain and require inferred comparisons from every computed written annotation
+to it. Actual source typing, full-core replay and paired residual simulation
+remain unchanged; the new comparison readout supplies the final certificate.
+
+staged_converted_lookup_eta_consumer_core discharges the residual comparison
+interface from a finite LevelStagedCastGuard between assigned and declared
+domains. Literal lookup supplies native recovery at the declared domain, with
+no exact recovery assumed at the converted one. The EnvironmentCore wrapper
+discharges all primitive and confluence interfaces. Every input sort and
+function proof classification is covered at the successor stage.
+
+cast_domain_lookup_eta_consumer_core is a concrete actual-environment client.
+It sets A to a reflexive type cast of C, constructs the domain guard from a
+reflexive sort comparison, and derives the function's Pi A E typing from its
+literal Pi C E lookup. It compares every independent ordinary-core residual
+pair of a typed eta consumer at stage two, without extra certificate premises.
+
+Validation: 845 jobs; 8 roots; maximum closure 12,291; 820 frozen
+source/import hashes. Full dependency traversal includes types, opaque values,
+constructors and recursor RHSs. Only propext, Classical.choice and Quot.sound;
+no forbidden dependencies or owned diagnostics. Existing cast feedback and
+finite-stage substitution barrier clients rebuilt.
+
+Judgment: certified converted domains are covered without native conversion
+completeness. General semantic conversion coverage and arbitrary ambient
+substitution remain unproved; this is not a sufficient smaller final obligation.
+GOAL.md remains active and unachieved. Original sorry, executable and independent
+files preserved; no coordination or PR extraction.

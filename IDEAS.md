@@ -16723,3 +16723,50 @@ Validation: 843 build jobs; 34 complete roots including the new
 inductive's constructors and recursors; maximum closure 12,032; 818 frozen
 source/import hashes. Only standard axioms; no forbidden dependencies or
 owned-module diagnostics. No final GOAL.md deliverable, original sorry remains.
+
+
+### 2026-11-06 05:20:04 UTC — Converted neutral eta uses a retained domain certificate
+
+Previous goal turn: progress (d30ffeb9, typed proof-domain simulation and
+all-sort native lookup coverage). Revalidated HEAD and preserved both
+independent untracked experiments.
+
+Deep continuation: a variable may be assigned Pi A B while its declared type
+is Pi C E. Expanding at A would require native recovery at the converted type,
+which semantic typing alone has not supplied. Instead expand at the actual
+recovered C and compare the resulting lambda annotation with A. Generalized
+both protected-variant readouts from expansion computations to retained
+comparisons in either mode. Exact renaming carries those comparisons under
+all local consumer binders.
+
+Verdict: independently computed A annotations need only retained inferred
+comparisons to the chosen C, plus its actual sort witness. A native expansion
+at C and a lambda-domain comparison suffice for each mark. This handles both
+proof and retained input arguments and preserves the previous full-core
+residual simulation. It does not manufacture exact recovery at A.
+
+Discharged the annotation-residual interface using LevelStagedCastGuard at
+stage n. Its proved forward interpretation supplies every required comparison,
+and lookup at Pi C E supplies native recovery at the declared domain. The
+actual-environment theorem compares arbitrary typed eta consumers after two
+independent full ordinary-core paths at stage n+1. All input sorts and
+proof-valued functions are included.
+
+Concrete application: the assigned annotation A is a reflexive type cast of
+the declared C. Built its stage-one domain certificate from a reflexive sort
+check, and reconstructed the converted Pi typing using canonical Eq and Pi
+congruence. Every typed consumer's residual pair compares at stage two. No
+native recovery, semantic converted-function typing, or domain-comparison
+oracle is supplied separately by this example's caller.
+
+Limits: general semantic domain conversion is not proved to belong to the
+finite guard grammar. Declared types that do not supply the retained native Pi
+still need recovery coverage. Arbitrary ambient substitution can turn the
+protected variable into a lambda; the result is not hereditary. Those remain
+live obligations of the original goal. The new result handles constructive
+converted-domain cases, not arbitrary converted typing or strengthening.
+
+Validation: 845 build jobs; 8 complete audit roots; maximum closure
+12,291; 820 frozen source/import hashes. Only standard axioms; no forbidden
+dependencies or owned-module warnings. Original sorry remains; no final
+GOAL.md deliverable and no PR extraction/creation.
