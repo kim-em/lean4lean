@@ -19701,3 +19701,29 @@ one branch of the necessary frontier; it is not a proof of strengthening or a
 sufficient strictly smaller irreducible obligation. Validation: 1036 build
 jobs, 28 audited public roots, maximum closure 11,976, 1,011
 unchanged source hashes.
+
+
+## 2026-11-06 19:18:04 UTC — Consume an unused binder beneath the actual retained annotations
+
+**Idea:** before requiring equality between an actual consumed argument and a
+chosen target image, check whether the bounded Eq prefix comes from below
+that binder as an unused insertion. In that case the argument should disappear
+from the prefix, even though annotations above the binder have computed and
+later source arguments may use it.
+
+**Verdict:** proved and integrated. `PiInertEndpointContext.unused_ancestry`
+derives the consumed binder's depth and descends the recorded annotation
+computations through that exact unused insertion. The result is a lower
+context history. `UnusedTargetPrefixCompletion.consume` combines that history
+with literal lift/substitution cancellation. Only the target-relevant prefix
+needs a lower completion; the argument is arbitrary and extra source arguments
+are unrestricted.
+
+The actual frontier's `focus_next_completed_or_consumed` now closes both the
+identity branch and any consumption with this lower completion witness. Its
+remaining consumption explicitly lacks that witness at the derived depth.
+This is not a claim that the binder must syntactically occur: the excluded
+property includes a typed lower completion. Agreement for the remaining
+argument and progress through equal-cost moves remain open. Validation:
+1037 build jobs, 17 audited roots, maximum closure 11,976, 1,012
+unchanged source hashes. The main goal remains unfinished.

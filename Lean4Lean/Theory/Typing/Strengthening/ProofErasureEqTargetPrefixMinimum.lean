@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqUnusedConsumption
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqTargetPrefixExecution
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertConstantFrames
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertEtaHoleMinimum
@@ -262,9 +263,11 @@ theorem EqTargetPrefixComponentMinimum.focus_next
   simpa only [ProofShape.subst_mkApps, ProofShape.subst] using HMinner
 
 /-- At the actual next application, identity maps preserve target completion
-through their recorded annotation history. The only remaining substitution
-case consumes one binder beneath retained binders. This does not claim strict
-count decrease for an identity move or target agreement for that consumption. -/
+through their recorded annotation history. Consumption also preserves
+completion when the bounded prefix comes from below that unused binder. The
+remaining one-binder consumption explicitly lacks such a lower completion.
+This does not claim strict count decrease for an identity move or agreement
+for the remaining consumed argument. -/
 theorem EqTargetPrefixComponentMinimum.focus_next_completed_or_consumed
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hΓ : OnCtx Γ (env.IsType univs))
@@ -276,13 +279,20 @@ theorem EqTargetPrefixComponentMinimum.focus_next_completed_or_consumed
         (ProofShape.mkApps (.const ``Eq.rec ls) (args.map (·.subst σ))) ck ∧
       (EqTargetPrefixCompletion Γ v w original Λ
           (ProofShape.mkApps (.const ``Eq.rec ls) (args.map (·.subst σ))) ∨
-        ∃ x depth, σ = (ProofShape.Subst.one x).liftN depth) := by
+        ∃ x depth, σ = (ProofShape.Subst.one x).liftN depth ∧
+          ¬ UnusedTargetPrefixCompletion Γ v w original Δ
+            (ProofShape.mkApps (.const ``Eq.rec ls) args) depth) := by
+  classical
   obtain ⟨Δ, Λ, ls, args, σ, cb, ck, hc, HP, WS, Hancestry, HM⟩ := H.focus_next
   refine ⟨Δ, Λ, ls, args, σ, cb, ck, hc, HP, WS, HM, ?_⟩
-  rcases Hancestry.ancestry with ⟨rfl, Hctx⟩ | Hconsume
+  rcases Hancestry.unused_ancestry heq hs with ⟨rfl, Hctx⟩ | ⟨x, depth, rfl, Hctx⟩
   · exact .inl (by simpa only [ProofShape.subst_id, List.map_id_fun', id] using
       HP.context_history heq hs hΓ Hctx)
-  · exact .inr Hconsume
+  · by_cases HU : UnusedTargetPrefixCompletion Γ v w original Δ
+        (ProofShape.mkApps (.const ``Eq.rec ls) args) depth
+    · have HH := UnusedTargetPrefixCompletion.consume heq hs hΓ HU Hctx x
+      exact .inl (by simpa only [ProofShape.subst_mkApps, ProofShape.subst] using HH)
+    · exact .inr ⟨x, depth, rfl, HU⟩
 
 /-- Strong induction removes every completed non-level cut from the current
 path: singleton guards read the target, administrative roots contradict the

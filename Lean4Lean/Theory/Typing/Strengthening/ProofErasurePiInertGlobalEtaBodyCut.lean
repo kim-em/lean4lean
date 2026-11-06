@@ -125,7 +125,15 @@ replays those changes through unused insertions at arbitrary depths, and
 whole finite history. `focus_next_completed_or_consumed` therefore gives
 completion at the actual next substituted spine or leaves one binder
 consumption. Identity moves no longer require an agreement hypothesis; their
-possible equal cost still needs a progress argument.
+possible equal cost still needs a progress argument. Consumption of an
+unused ambient binder is now handled by `PiInertEndpointContext.unused_ancestry`:
+the recorded annotations descend through that exact insertion, leaving a
+lower context history. `UnusedTargetPrefixCompletion.consume` cancels the
+lifted bounded prefix independently of the argument; later source arguments
+may still use the binder. The remaining branch of
+`focus_next_completed_or_consumed` explicitly lacks a completion below the
+consumed binder at its derived depth. Target agreement for that remaining
+argument is still open.
 Component-only
 transitions through enclosing wrappers still need target agreement from their
 actual histories; coverage of arbitrary wrapped-body histories remains open. `read_full_eta_loss_in_minimum` reads a head-losing root

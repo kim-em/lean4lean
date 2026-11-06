@@ -34204,3 +34204,49 @@ of equal-cost identity moves. Identity completion itself is now proved. The
 frontier remains a necessary residual, not a proved sufficient irreducible
 obligation smaller than PropFront. `weakN_iff` remains open. No executable
 changes, PR extraction or coordination.
+
+
+## 2026-11-06 19:18:04 UTC — Remove unused-binder consumption from the completion gap
+
+Added `ProofErasureEqUnusedConsumption.lean`. The raw theorem
+`ProofShape.consume_unused_lift` cancels a single unused insertion at arbitrary
+depth under the exact lifted one-argument substitution, independently of that
+argument and without changing newer variable indices.
+
+`PiInertEndpointContext.unused_ancestry` follows the actual context-origin
+record. Identity yields the existing annotation history. Consumption yields
+its exact argument/depth and a lower-context-history construction for any
+compatible actual unused insertion at that depth. In each retained-binder
+case, the original annotation certificate descends through the insertion;
+raw cancellation identifies the computed annotation after consumption, and
+that lower change composes with the older retained history. No native guard
+is substituted and no target image for the argument is assumed.
+
+Added context-history replay for `IteratedAmbientEqCompletion` and the
+predicate `UnusedTargetPrefixCompletion`. It requires only the bounded
+initial prefix to be a literal lift of an actually typed lower completion.
+Later source arguments may use the consumed binder. Its `forget` theorem
+restores ordinary bounded completion; `consume` follows the derived lower
+annotation history and cancels the unused insertion for any raw argument.
+
+Strengthened `EqTargetPrefixComponentMinimum.focus_next_completed_or_consumed`
+at the actual selected next application. Both identity and consumption with
+such a lower completion now return completion of the exact substituted
+spine. The remaining one-binder consumption explicitly lacks
+`UnusedTargetPrefixCompletion` at its derived depth. The global module
+documents the stronger derived frontier; its explicit initial assumptions
+and main proof remain unchanged.
+
+Validation: 1037 build jobs including GlobalEtaBodyCut and the established
+ContextualCastFeedback/CoreFamilySubstitutionBarrier regressions. All 17
+public roots in the three owned modules passed recursive type/value/constructor/
+recursor dependency and axiom audit, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur; no weakN_iff, weakN_inv, sorryAx or excluded
+framework dependencies. No owned diagnostics; all 1,012 frozen source hashes
+remained unchanged across build and audit.
+
+Remaining: derive target agreement for the actually consumed argument when
+there is no such lower unused-prefix completion, and provide progress through
+equal-cost scope moves. The new exclusion is a necessary residual restriction,
+not a sufficient irreducible obligation proved smaller than PropFront.
+`weakN_iff` remains open. No executable changes, PR extraction or coordination.
