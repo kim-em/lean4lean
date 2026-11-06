@@ -17378,3 +17378,35 @@ Validation: 898 jobs; 45 complete type/value/constructor/recursor audit
 roots; maximum closure 12,333; 873 frozen source/import hashes. Standard
 axioms only; no forbidden dependencies or owned diagnostics. Executable unchanged,
 no coordination and no PR extraction.
+
+
+## 2026-11-06 07:47:17 UTC — Interpreted induction evidence closes eta-to-cast feedback
+
+Idea: use the existing Pi-inert interpretation itself, retained under every
+future typed substitution, as the constructive induction predicate. Rebuilding
+an old CoreFamilyCast node after extracting domains is unnecessary. Verdict:
+proved locally. PiInertEvidence is constructed from existing hereditary
+certificates; composition of computations, common-output joins, comparison
+symmetry, residuals, substitution and whole-Pi domain projection preserve it.
+Whole-Pi comparison drives converted-lambda eta in an arbitrary typed consumer
+at the same stage. A type-valued eta consumer constructs its canonical Eq major
+and drives another arbitrary cast consumer at the next stage. These results
+retain all future typed substitutions and independent full-core reductions.
+
+The lambda's nonproof status after substitution is proved by erasure
+commutation. The proof does not assume that arbitrary checker comparisons
+survive substitution, nor that guarded stages are confluent. A derived
+comparison can now feed another cast without reconstructing the older syntax.
+
+Boundary: these are constructive closure cases, not a coverage theorem for
+IsDefEqStrong. In particular, equality transitivity is not supplied by
+computation composition, and arbitrary neutral-function eta is not covered by
+the converted-lambda rule. Next investigate comparison composition with actual
+middle typings as the strong-transitivity induction case. GOAL.md remains open;
+there is no strengthening proof, canonical-Eq counterexample, or proved strictly
+smaller sufficient irreducible obligation.
+
+Validation: 901 jobs; 24 complete dependency-audit roots including the
+new structure's constructor, recursors and projections; maximum closure
+11,667; 876 frozen source/import hashes. Standard axioms only, no forbidden
+dependencies or owned diagnostics. Executable unchanged; no PR extraction.

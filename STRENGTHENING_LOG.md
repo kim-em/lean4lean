@@ -31009,3 +31009,50 @@ Validation: 898 jobs; 45 complete dependency-audit roots; maximum closure
 12,333; 873 frozen hashes. Only propext, Classical.choice and Quot.sound;
 no forbidden dependencies or owned warnings. Both independent experiments
 preserved. Executable unchanged; no coordination or PR extraction.
+
+
+## 2026-11-06 07:47:17 UTC — Hereditary interpreted eta and subsequent cast
+
+Resumption audit: the previous implementation turn made progress in 08c0d108
+(same-stage Pi-domain extraction). The intervening clarification made no proof
+progress. Revalidated HEAD and the worktree; the unfinished PiInertEvidence file
+was present, while both independent untracked experiments were preserved.
+
+Added ProofErasurePiInertEvidence, ProofErasurePiInertEtaEvidence and
+ProofErasurePiInertCastEvidence. PiInertEvidence pairs an actual interpretation
+with its interpretations under all future typed substitutions. It is a
+constructive predicate, not a postulated completeness or substitution oracle.
+Existing hereditary certificates instantiate it. It supports typed substitution,
+computation composition, common-output comparison, symmetry, residuals, and
+same-stage raw Pi-domain projection. The join uses ordinary core confluence at
+the retained typed common output, never confluence of guarded computation.
+
+PiInertInterpret.eta_readout projects residual domains from interpreted whole-Pi
+comparison. etaConsumer retains the original stage through every typed consumer
+and pair of independent core paths. PiInertEvidence.etaConsumer reconstructs
+all actual typings under substitution and derives nonproof status of the new
+lambda from erasure commutation. This supplies a derived induction case without
+adding another constructor to CoreFamilyCast.
+
+PiInertInterpret.castConsumer and PiInertEvidence.castConsumer accept this
+interpreted child directly. type_cast constructs the canonical equality major
+from a common type comparison; eta_cast combines the complete chain: whole-Pi
+comparison, converted-lambda eta inside a type-valued consumer, equality-major
+construction, then an arbitrary later cast consumer. The final computation is
+at stage n+1, retains an ordinary core output tail, and survives every future
+typed substitution. It can therefore be reused by the proved computation/join
+operations and later interpreted cast rules.
+
+Limit: no arbitrary strong-derivation coverage or comparison transitivity is
+claimed. The eta case requires a literal nonproof lambda and actual shared
+sorts for its assigned and written domains. The next synthesis step must handle
+equality transitivity and other outstanding constructors, rather than treating
+this local closure as the final strengthening theorem. weakN_iff remains open;
+no final strict-smallness result has been obtained.
+
+Validation: 901 jobs including existing cast-feedback and substitution-barrier
+regressions; 24 complete type/value/constructor/recursor audit roots;
+maximum dependency closure 11,667; 876 frozen hashes. Only propext,
+Classical.choice and Quot.sound; no forbidden dependencies or owned warnings.
+Executable unchanged, independent experiments preserved, no coordination or PR
+extraction.
