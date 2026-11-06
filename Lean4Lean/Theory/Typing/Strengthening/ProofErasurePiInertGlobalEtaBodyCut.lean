@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertContinuationFrames
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertTypedContinuation
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSpecializationFrames
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -26,7 +26,12 @@ The body and its application continuation are jointly minimal with variable
 body endpoint; identity and constant expansion are excluded at the selected
 inner root, with its typing and the actual argument's context substitution retained.
 Both singleton forms read the original lower equation. The remaining inner
-root is native function eta. Eliminating this nested eta through the retained
+root is native function eta. The conclusion also retains a strictly smaller
+`PiInertTypedContinuationMinimum` under both eta binders, derived by
+`CountedEtaBodySpineCut.nested_eta_typed_frames` from the selected inner eta.
+It records actual typing at every application source in its continuation;
+`pi_inert_eta_typed_continuation_frames` preserves that execution through
+further consumed or retained eta cuts. Eliminating this nested eta through the retained
 application continuation remains open. `CountedEtaBodySpineCut.nested_eta_cut`
 supplies a smaller body/continuation minimum in both the consumed and retained
 lambda cases. `CountedEtaBodySpineCut.nested_eta_frames` retains concrete typed
@@ -88,7 +93,10 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
         (ProofShape.mkApps (.lam A (.app ((ProofShape.mkApps (.const ``Eq.rec ls) pre).liftN 1)
           (etaArgument u))) pending) out ∧
       CountedEtaBodySpineCut D stage (proofEraseCtx Γ') ``Eq.rec ls pre A u pending out ct
-        (EqEtaRemainingRoot D)) := by
+        (EqEtaRemainingRoot D) ∧
+      ∃ innerA innerU bodyLs bodyPre smaller, smaller < cost ∧
+        PiInertTypedContinuationMinimum D (proofEraseCtx Γ') out (innerA :: A :: proofEraseCtx Γ')
+          (.app ((ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre).liftN 1) (etaArgument innerU)) smaller) := by
   classical
   obtain ⟨_, _, _, ha, _, _, hb⟩ := eqRecBeforeMajor_typings henv heq hΓ ⟨_, ht⟩
   have Eargs' : args = [(proofErase Γ α).liftN count offset,
@@ -181,6 +189,9 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
               (HB.eq_guarded heq hs hreg hoff hRec hshort) with Hlower | HB'
           · exact .inl Hlower
           · exact .inr ⟨stage, cost, ls, pre, pending, _, _, _, k, cp, ct,
-              RC, hminAll, hcostExact, HL, hshort, HA, RP, HTpre, hk, RN, SD, RT, HB'⟩
+              RC, hminAll, hcostExact, HL, hshort, HA, RP, HTpre, hk, RN, SD, RT, HB',
+              HB'.nested_eta_typed_frames heq hs
+                (erased_static_structure_eta_expansion_stage_descent heq hs k) HTwhole RN SD H
+                (cp := cp) (by omega)⟩
 
 end Lean4Lean.VEnv.Strengthening

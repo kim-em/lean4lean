@@ -32864,3 +32864,50 @@ closure 11,648, 982 frozen source hashes. Changed modules are warning
 free. Audits inspect types, values, opaque bodies, constructors and recursor
 RHSs; only propext, Classical.choice and Quot.sound occur. Forbidden
 strengthening and replacement obligations are absent. Goal remains incomplete.
+
+
+## 2026-11-06 15:05:17 UTC — Typed continuation executions in the global nested-eta result
+
+The previous goal turn was verified progress in `b3626103`; this turn began
+with its clean, pushed worktree state.
+
+Strengthened the consumed branch of `CountedEtaContinuationCut` with actual
+typing of the full application starting its post-beta suffix. The producer
+`pi_inert_eta_continuation_cut` derives this from the original typed spine,
+selected eta root, lambda and argument computation, and exact beta step.
+There is no new caller premise. Existing consumers were updated for the
+additional conjunct. Forward Pi-inert realization supplies endpoint typing.
+
+Added `ProofErasurePiInertTypedContinuation.lean`. Its
+`PiInertTypedContinuationRun` records the actual execution through terminal,
+application and retained-lambda frames. Each application stores typing of the
+incoming endpoint and the full substituted application source, its counted
+path, and the remaining execution. Retained frames keep the actual body
+source typing, annotation path and context interpretation. The run forgets
+to the existing concrete frame predicate and proves that predicate at the
+same count. This does not restrict the competing paths in the minimum.
+
+`PiInertTypedContinuationMinimum` retains the actual run alongside the old
+unrestricted endpoint/stage minimum. The eta cut preserves this stronger
+minimum in both branches and strictly decreases its count. The terminal
+supply theorem derives the initial output typing from the actual path.
+`CountedEtaBodySpineCut.nested_eta_typed_frames` connects this directly to the
+already selected inner native eta: it reconstructs the exact outer
+lambda/argument/beta source typing, retains the enclosing application frame,
+and then applies the typed eta step under the second binder.
+
+The main `pi_inert_eq_exposure_eq_or_global_eta_spine_cut` statement is now
+strictly stronger. Its native-eta branch retains all existing witnesses and
+also returns a smaller typed continuation minimum under both eta binders.
+No hypothesis was added. This is an actual change to the full Eq result,
+not only an imported helper. The remaining work is supplying Eq target
+specialization/argument ancestry through the actual mixed execution and
+forcing or bypassing subsequent roots to finish the recursive eta argument.
+The strengthening goal remains incomplete. Executable unchanged; no PR
+extraction or coordination.
+
+Validation: 1008 build jobs, 26 public/full-result audit roots, maximum
+closure 11,688; 983 frozen source hashes. Changed modules are warning
+free. Audits traverse types, values, opaque bodies, constructors and recursor
+RHSs; only propext, Classical.choice and Quot.sound occur, with no forbidden
+strengthening or replacement obligations.

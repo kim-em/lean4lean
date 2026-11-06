@@ -14,6 +14,18 @@ open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation
 open private typed_spine_head from Lean4Lean.Theory.Typing.Strengthening.ProofErasureScopedSpineCut
 variable [Params]
 
+/-- Forward realization preserves an actual typed source along a Pi-inert
+computation. This supplies typing at the exact endpoint of an actual path. -/
+theorem ProofShape.TypedSource.pi_inert_compute
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (HT : TypedSource Δ source) (R : ScopedCompute (PiInertStage D n) Δ source target) :
+    TypedSource Δ target := by
+  obtain ⟨Γ, e, T, hΓ, EΓ, ht, Ee⟩ := HT
+  obtain ⟨e', HE, EE⟩ := proofErase_scoped_compute_realize
+    (ErasedScopedPrimitiveCertificateDescent.descent (pi_inert_stage_certificate_descent heq hs n))
+    hΓ ht EΓ Ee R
+  exact ⟨Γ, e', T, hΓ, EΓ, HE.hasType.2, EE⟩
+
 /-- A fixed endpoint substitution and argument spine, followed by a counted
 computation and an arbitrary fixed continuation. Only the endpoint is substituted.
 Repeated application of this definition represents arbitrarily many frames. -/
@@ -102,7 +114,8 @@ In the surviving case, a component-only body retains the counted short-function
 path and its actual Pi typing at the changed annotation.
 For a constant-headed source, the consumed case also retains an exact counted
 non-level body root; component-only computation is bypassed before the continuation.
-No carrier exposure of the intermediate body endpoint is asserted. -/
+The consumed branch retains typing of the exact application starting its
+suffix. No carrier exposure of the intermediate body endpoint is asserted. -/
 def CountedEtaContinuationCut (D : Definitions) (n : Nat) (Δ : List ProofShape)
     (f A : ProofShape) (u : VLevel) (args : List ProofShape) (out : ProofShape)
     (ct ck cost : Nat) (K : ProofShape → Nat → Prop) : Prop :=
@@ -132,7 +145,8 @@ def CountedEtaContinuationCut (D : Definitions) (n : Nat) (Δ : List ProofShape)
     ScopedComputeCount (PiInertStage D m) cb (A :: Δ)
       (.app (f.liftN 1) (etaArgument u)) body' ∧
     ScopedComputeCount (PiInertStage D n) cs Δ
-      (ProofShape.mkApps (body'.inst x') xs') out ∧ K out ck ∧
+      (ProofShape.mkApps (body'.inst x') xs') out ∧
+    TypedSource Δ (ProofShape.mkApps (body'.inst x') xs') ∧ K out ck ∧
     (∀ c ls pre, f = ProofShape.mkApps (.const c ls) pre →
       CountedNonlevelSpineRoot D m (A :: Δ) c ls (pre.map (·.liftN 1) ++ [etaArgument u]) body' cb) ∧
     ∀ later j endpoint k,
@@ -158,6 +172,8 @@ theorem pi_inert_eta_continuation_cut
       ScopedComputeCount (PiInertStage D later) j Δ original endpoint →
       K endpoint k → cost ≤ j+k) :
     CountedEtaContinuationCut D n Δ f A u args out ct ck cost K := by
+  have HTlong := HT.pi_inert_compute heq hs
+    (((ScopedComputeCount.base HR).mkApps (ScopedArgumentsCount.refl (args := args))).forget)
   refine ⟨SD, ?_⟩
   rcases RT.pi_inert_lambda_spine_or_beta with
     ⟨A', body', args', cf, ca, hc, EO, RF, RX⟩ |
@@ -183,7 +199,14 @@ theorem pi_inert_eta_continuation_cut
     obtain ⟨_, hsmall, HM⟩ := pi_inert_counted_lambda_continuation_minimal_of
       RP HR RD RB RX RS HK (by omega) hmin
     obtain ⟨HTbody, WI⟩ := pi_inert_eta_body_interpretation heq hs hguard HT RN SD RX
-    refine .inr ⟨body', x', xs', cb, cs, m, hsmall, HTbody, WI, RB, RS, HK, ?_, HM⟩
+    have Rbeta : ScopedComputeCount (PiInertStage D n) 0 Δ
+        (ProofShape.mkApps (.lam A' body') (x' :: xs'))
+        (ProofShape.mkApps (body'.inst x') xs') := by
+      simpa only [ProofShape.mkApps] using
+        (ScopedComputeCount.beta (BetaRed.beta (A := A') (b := body') (a := x'))).mkApps
+          (ScopedArgumentsCount.refl (args := xs'))
+    have HTnext := HTlong.pi_inert_compute heq hs (((RF.mkApps RX).trans Rbeta).forget)
+    refine .inr ⟨body', x', xs', cb, cs, m, hsmall, HTbody, WI, RB, RS, HTnext, HK, ?_, HM⟩
     rintro c ls pre rfl
     apply pi_inert_eta_body_spine_root heq hs HTbody RB
     · intro later j RJ

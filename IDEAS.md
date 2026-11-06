@@ -18858,3 +18858,23 @@ has agreement. Deriving these witnesses and tracked pending argument supply
 through the entire mixed continuation, then eliminating repeated eta,
 remain open. No strengthening completion or smaller sufficient obligation
 is claimed.
+
+
+## 2026-11-06 15:05:17 UTC — Preserve actual application-source typing through mixed eta frames
+
+**Idea.** Ordinary context interpretation of an application frame does not
+supply typing for its full substituted application with pending arguments.
+Retain that typing from the actual lambda/argument/beta path and preserve an
+actual typed execution of all continuation frames alongside the raw minimum.
+
+**Verdict: proved and integrated into the global Eq result.** The consumed
+eta cut now derives and retains the exact suffix-source typing. A typed
+continuation execution records the chosen paths and their source typings,
+while its underlying predicate and all minimum competitors remain unchanged.
+Both consumed and retained eta steps preserve this execution and strictly
+reduce the count. The actual selected inner eta yields such a minimum under
+both binders, and the global Eq-exposure theorem now returns it without extra
+hypotheses. Tracking the fixed Eq completion and its pending arguments through
+this execution, and forcing/eliminating the next useful root in every mixed
+frame case, remain open. This is a strengthened global decomposition, not a
+proof of strengthening or a sufficient smaller irreducible obligation.
