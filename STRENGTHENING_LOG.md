@@ -33501,3 +33501,50 @@ after the target vector is exhausted. The retained component-only top-annotation
 transfer is now proved, not left as an extra premise. Goal remains incomplete;
 no sufficient strictly smaller irreducible obligation is claimed. No executable
 changes, PR extraction or coordination.
+
+
+## 2026-11-06 17:18:22 UTC — Uniform target-prefix ancestry at the smaller global minimum
+
+Added `ProofErasureEqFullPrefixReadout.lean`. A component history on a longer
+actual Eq spine preserves completion of any selected prefix contained in the
+completed vector. For a full five-argument completion in a sort-ending typed
+minimum, a head-losing root reads the original equation: structure recovery
+would give a rigid-tail assignment to the root, through its pending arguments
+and backwards along the actual prefix, contradicting that same minimum.
+Canonical typing and singleton classification bound all other losing roots
+by five arguments, which permits completion readout without assigning any
+extra arguments to the target. The full-eta specialization inserts the fresh
+binder around only the completed prefix and needs no lower proof inhabitant
+or transported native recovery certificate.
+
+Added `ProofErasureEqTargetPrefix.lean`. `EqTargetPrefixCompletion` records an
+actual constant spine and iterated completion of its initial segment bounded
+by the original target length. Full-source typing is separate actual-execution
+data. Fully completed short sources embed, and the exact bounded prefix can
+be extracted. Component computation, prefix selection and computed used
+annotations preserve the invariant. Native eta opening has no arity premise:
+before exhaustion it uses ordinary completed eta; at or beyond exhaustion it
+inserts an unused binder around the already completed prefix. Nonstructural
+head loss reads the original equation once actual root typing is supplied.
+
+Updated `pi_inert_eq_exposure_eq_or_global_eta_spine_cut` to derive this uniform
+prefix completion at the same smaller typed minimum. Its prior short-body or
+five-slot/proof-major alternative, native recovery, domain sort, selected
+singleton failure and exact counts remain in the conclusion. The new witness
+is derived from those existing alternatives; it is not an additional premise.
+
+Validation: 1024 jobs including GlobalEtaBodyCut and the existing
+ContextualCastFeedback/CoreFamilySubstitutionBarrier regressions. All 11
+public owned declarations passed recursive dependency and axiom audit,
+maximum closure 11,813. Only propext, Classical.choice and Quot.sound
+occur; no weakN_iff, weakN_inv, sorryAx or excluded framework dependencies.
+No owned diagnostics; 999 frozen source hashes unchanged across final build
+and audit.
+
+Remaining: derive bounded-prefix completion through consumption with extra
+source arguments, then through arbitrary wrapped-body histories and remaining
+non-level roots. Eta opening beyond the target vector no longer needs a
+separate target inhabitant, but arbitrary execution closure is not proved.
+The original strengthening goal remains incomplete; no sufficient strictly
+smaller irreducible obligation is claimed. No executable changes, PR extraction
+or coordination.

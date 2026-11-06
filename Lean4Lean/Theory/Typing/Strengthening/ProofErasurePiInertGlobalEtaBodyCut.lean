@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqIteratedAmbient
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqTargetPrefix
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSpecializationFrames
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -36,7 +36,15 @@ minimum now retains this exact alternative: its source has a completion, or
 its pre-eta prefix has exactly five arguments and retains that completion,
 and its fresh argument is proved to be the literal proof marker
 (`nested_eta_completed_frames`). Its actual inner recovery and domain-sort
-witnesses are also retained. In the proof-major case, a head-losing primitive
+witnesses are also retained. The same smaller source now uniformly carries
+`EqTargetPrefixCompletion`: its first at most five arguments retain iterated
+completion even when the fresh sixth proof argument has no target inhabitant.
+This invariant survives further native eta opening at every arity, actual
+component computation and computed used annotations. It does not yet assert
+closure through arbitrary wrapped-body histories or all consumption beyond
+the target vector. `read_full_eta_loss_in_minimum` reads a head-losing root
+in the full-prefix body component history through any iterated insertions.
+In the proof-major case, a head-losing primitive
 reached through its body component history either reads the original equation
 or is native structure eta (`EqHeadCompletion.read_proof_major_loss`). This
 uses descent through the fresh proof binder, not an assumed lower proof;
@@ -149,6 +157,8 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
           bodyPre.length = 5 ∧ etaArgument innerU = .proof ∧
             EqHeadCompletion Γ v w [α,a,M,m,b] (A :: proofEraseCtx Γ')
             (ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre)) ∧
+        EqTargetPrefixCompletion Γ v w [α,a,M,m,b] (innerA :: A :: proofEraseCtx Γ')
+          (.app ((ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre).liftN 1) (etaArgument innerU)) ∧
         ∃ innerStage innerB,
           ScopedTypeRecovery (ErasedStaticStructureEtaExpansionStage D innerStage) (A :: proofEraseCtx Γ')
             (ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre) (.forallE innerA innerB) ∧
@@ -223,6 +233,7 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
           omega
         cases Heta with
         | intro RN SD =>
+          rename_i outerA outerB outerU
           have HB := globally_minimal_pi_inert_eta_body_spine_cut heq hs
             (erased_static_structure_eta_expansion_stage_descent heq hs k) HTwhole RN SD
             (by simpa only [ProofShape.mkApps_append] using RP) H RT hcost hminAll HE
@@ -258,6 +269,13 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
               HBcompleted.nested_eta_completed_frames heq hs
                 (erased_static_structure_eta_expansion_stage_descent heq hs k) HTwhole RN SD H hΓ ht
                 (cp := cp) (cost := cost) (by omega)
+            have HPuniform : EqTargetPrefixCompletion Γ v w [α,a,M,m,b]
+                (innerA :: outerA :: proofEraseCtx Γ')
+                (.app ((ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre).liftN 1) (etaArgument innerU)) := by
+              rcases HPnested with HPbody | ⟨_, _, HPpre⟩
+              · exact .of_completion (.base HPbody)
+              · exact (EqTargetPrefixCompletion.of_completion (.base HPpre)).eta
+                  heq hs hΓ ht RNinner SDinner
             have Hhead : RetainedConstHead ``Eq.rec
                 (.app ((ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre).liftN 1) (etaArgument innerU)) := by
               apply RetainedConstHead.app
@@ -271,7 +289,7 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
               · exact .inl Hlower
               · exact .inr ⟨stage, cost, ls, pre, pending, _, _, _, k, cp, ct,
                 RC, hminAll, hcostExact, HL, hshort, HA, RP, HTpre, hk, RN, SD, RT, HBcompleted,
-                innerA, innerU, bodyLs, bodyPre, smaller, HM.eq_positive heq Hhead HE, hsmall, HM, Hfailure', HPnested, innerStage, innerB, RNinner, SDinner,
+                innerA, innerU, bodyLs, bodyPre, smaller, HM.eq_positive heq Hhead HE, hsmall, HM, Hfailure', HPnested, HPuniform, innerStage, innerB, RNinner, SDinner,
                   fun _ hr => HM.no_rigid_tail heq hs HCout hr⟩
 
 end Lean4Lean.VEnv.Strengthening

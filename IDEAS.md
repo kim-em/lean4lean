@@ -19263,3 +19263,31 @@ no sufficient irreducible obligation strictly smaller than PropFront is claimed.
 Validation: 1022 jobs, 9 audited roots including the global theorem,
 maximum closure 11,802, 997 frozen source hashes. No executable changes,
 PR extraction or coordination.
+
+
+## 2026-11-06 17:18:22 UTC — Retain only the target-length prefix beyond the proof major
+
+Verdict: verified progress. Completing extra source arguments is unnecessary
+for a short head-losing root. `compute_prefix_components` retains completion
+at a selected prefix within the completed vector even when the actual source
+has extra arguments. `read_full_prefix_loss_in_minimum` excludes structure eta
+using the same sort-ending execution, then derives root arity at most five
+from canonical typing and singleton code generation. The root's completion
+therefore comes from the original five-argument prefix. The full-eta variant
+uses unused-binder insertion for that prefix without supplying a target proof.
+
+`EqTargetPrefixCompletion` uniformly records completion of the first at most
+`original.length` actual arguments. It survives component computation, prefix
+selection, computed used annotations, and native eta opening at every arity.
+After the vector is exhausted, opening eta only lifts the completed prefix;
+the new argument receives no target assignment. The global theorem now derives
+this invariant at its exact smaller minimum in both prior ancestry cases.
+
+Still open: closure through general consumption with extra arguments,
+arbitrary wrapped-body ancestry and the remaining non-level body roots. The
+exhausted-vector opening case is covered; the entire recursive argument is
+not. No sufficient irreducible obligation strictly smaller than PropFront is
+claimed, and `weakN_iff` remains open.
+
+Validation: 1024 jobs, 11 audited roots, maximum closure 11,813,
+999 frozen source hashes. No executable changes, PR extraction or coordination.
