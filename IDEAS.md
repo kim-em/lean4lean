@@ -16240,3 +16240,47 @@ Validation: 825 jobs, 18 audited roots, maximum closure 12,324;
 800 frozen source/import hashes. Only standard axioms and no forbidden
 dependencies or warnings in either owned module. No final GOAL.md deliverable
 is established; original sorry and executable unchanged.
+
+
+### 2026-11-06 03:54:17 UTC — Constructive hereditary histories combine substitution and full core
+
+Previous turn: progress (66345feb, finite-stage identity readout implies the
+whole proposition front). Revalidated that commit and preserved both independent
+untracked experiments before testing the remaining common-mode endpoint route.
+
+Idea: retain substitution stability for individual computation/comparison
+histories and construct it through the current cast operations, instead of
+postulating it for every old recursive leaf. Verdict: proved for typed full-core
+paths, typed displayed eta, sequential computations, joins, prefixes, core
+residuals, symmetry, stage raising, cast consumers and annotation consumers.
+The same finite stage works for every interpreted typed substitution.
+
+CoreFamilyCast.Hereditary is an explicitly stronger property of a certificate,
+with a base certificate and reconstructed instances. It is not an automatic
+upgrade for arbitrary prior leaves. The seed proofs and closure theorems
+construct its future field. Repeated substitutions compose, and the existing
+full-core interpreter handles all subsequently exposed redexes. Cast consumers
+use only a hereditary common-mode endpoint comparison; annotation consumers
+still require a hereditary inferred domain comparison. Actual typed source
+replay justifies erasure naturality on both sides, including the cast at the
+consumer's original input type.
+
+Joins of such computations construct the equality major and hereditary history
+of a later arbitrary-consumer cast. Reflexive casts supply concrete seeds with
+no history premise. A Pi and its free-major cast have a hereditary inferred
+comparison but no old LevelRecursiveGuard; cast-domain annotation consumers
+also retain the property. This connects full-core residual handling with
+arbitrary substitution for a constructed class, beyond the earlier beta-only
+family result, without reinstating the refuted old core closure law.
+
+Coverage remains the decisive gap: arbitrary prior comparisons are not promoted,
+and no coverage theorem for semantic equality is proved. Next live direction:
+use actual sort witnesses to investigate common-mode domain readout inside
+annotation consumers, and track the application cases where missing domain
+information first appears. This construction is not a claimed strictly smaller
+sufficient obligation or other final GOAL.md deliverable.
+
+Validation: 825 jobs, 26 audited roots including the new record's
+constructor, fields and recursors, maximum closure 12,707; 800 frozen
+hashes. Standard axioms only, no forbidden dependencies or own-module warnings.
+Original sorry and executable unchanged; no coordination or PR extraction.

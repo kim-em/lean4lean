@@ -30051,3 +30051,50 @@ and not one of GOAL.md's final deliverables. Common-mode sort-only substitution
 and a hereditary record of domain comparisons remain distinct investigations;
 semantic coverage is still required. Original sorry, executable and independent
 untracked files preserved. No coordination, PR extraction or PR creation.
+
+
+### 2026-11-06 03:54:17 UTC — Retained full-core histories survive arbitrary typed substitution
+
+Added ProofErasureHereditaryCoreFamily.lean. The Hereditary record retains a
+CoreFamilyCast certificate and certificates for every interpreted substitution
+at the same stage. Substitution composition preserves the entire record. This
+defines a stronger property; it does not assert that arbitrary prior leaves
+have it. Constructive seed theorems handle typed full-core paths and displayed
+eta; closure theorems handle sequential computation, joins, prefixes, residuals,
+symmetry and stage raising.
+
+The cast-consumer proof reflects its earlier common-mode child to obtain actual
+endpoint conversion, types the cast at the consumer's original input type, and
+reconstructs the consumer under the actual substitution lifted beneath that
+type. Erasure agreement and cast/instantiation naturality identify the exact
+new endpoints. The substituted earlier child supplies the new cast certificate.
+The annotation-consumer proof similarly reconstructs its two typed lambdas and
+consumer, retaining the inferred domain child. No global substitution closure
+or future-stability oracle is needed to construct either operation from
+previously constructed hereditary children.
+
+Added ProofErasureHereditaryCoreFeedback.lean. Computation joins produce a later
+cast's actual equality major and hereditary consumer computation. Typed
+substitution has a direct original-term interface. Actual-environment readout
+provides the existing full-core interpretation after arbitrary substitution,
+so new beta redexes and primitive reductions are included.
+
+Concrete actual-environment theorems construct reflexive-cast consumers,
+reflexive-cast values and cast-domain annotation consumers without a history
+premise. A Pi and its free-major cast have a hereditary inferred guard and
+provably lack an old LevelRecursiveGuard, showing that this construction
+retains a genuine higher-stage repair under substitution.
+
+Validation: 825 build jobs including ContextualCastFeedback; 26 complete
+dependency roots; maximum closure 12,707; 800 frozen source/import hashes.
+Audit covers types, opaque bodies, record constructor and fields, and recursor
+RHSs. Only propext, Classical.choice and Quot.sound; no forbidden dependencies
+or warnings in the owned modules.
+
+Judgment: arbitrary typed substitution and full-core stability now coexist
+constructively for these recursive computation/annotation histories. This
+does not give coverage of all semantic equalities or arbitrary prior guards.
+The earlier inferred-substitution barrier remains valid. Next investigate
+sort-aware common-mode annotation readout and the remaining application/domain
+coverage case. No final GOAL.md deliverable is established. Original sorry,
+executable and independent files preserved; no coordination or PR extraction.
