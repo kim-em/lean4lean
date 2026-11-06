@@ -19167,3 +19167,24 @@ incomplete; no sufficient strictly smaller irreducible obligation is claimed.
 
 Validation: 1017 jobs, 10 audited roots, maximum closure 11,802;
 992 frozen source hashes. No executable changes, PR extraction or coordination.
+
+
+## 2026-11-06 16:51:00 UTC — Component paths and fresh eta through iterated insertion
+
+Verdict: verified progress. `ProofErasureEqIteratedAmbientHistory.lean` proves
+that iterated ambient completion survives actual component computations,
+universe conversion, prefix selection and fresh eta opening while a target
+slot remains. Descending the computation certificates as well as actual
+endpoints supplies the induction hypothesis below each inserted block. Native
+recovery certificates likewise descend before eta opening; the block is then
+restored under the fresh binder. The existing counted body cut retains its
+exact witnesses while adding completion at the selected root.
+
+Still open: eta consumption through this iterated witness and coverage of
+arbitrary retained wrapper histories, including used annotation changes and
+eta after all original target slots. No sufficient irreducible obligation
+strictly smaller than PropFront is claimed.
+
+Validation: 1018 jobs, 5 audited roots (including the global theorem),
+maximum closure 11,802, 993 frozen source hashes. No executable changes,
+PR extraction or coordination.

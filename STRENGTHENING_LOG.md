@@ -33354,3 +33354,31 @@ of the actual arbitrary wrapped history. Used annotation changes are not handled
 by the unused-binder lemma. The full strengthening theorem is still open; this
 is not a completed sufficient irreducible obligation. No executable changes,
 PR extraction or coordination.
+
+
+## 2026-11-06 16:51:00 UTC — Preserve iterated completion through component and eta histories
+
+Added `ProofErasureEqIteratedAmbientHistory.lean`. The helper
+`erased_components_certificate_below` identifies exact lower component
+endpoints by injectivity of raw lifting after certificate descent.
+`IteratedAmbientEqCompletion.compute_components` reifies the actual component
+vector, retains its lower paths, advances the lower completion and restores
+the same insertion at the typed selected prefix.
+
+`IteratedAmbientEqCompletion.eta` descends the native recovery certificate and
+domain-sort witness, opens eta below the insertion, and restores the insertion
+under the new binder. It needs an unfilled original target slot, but no
+inhabitant of the inserted ambient block.
+`CountedEtaBodySpineCut.complete_iterated_root` decorates the same selected
+root with iterated completion, preserving counts, paths, scopes and minima.
+
+Validation: 1018 jobs including GlobalEtaBodyCut and the established
+ContextualCastFeedback/CoreFamilySubstitutionBarrier regressions. All four
+new public declarations and the global theorem passed recursive dependency
+and axiom audit, maximum closure 11,802. Only propext, Classical.choice
+and Quot.sound occur. No weakN_iff, weakN_inv, sorryAx or excluded framework
+dependencies; no owned diagnostics; 993 frozen source hashes unchanged.
+
+Remaining: consumption closure for iterated completion and arbitrary wrapper
+history coverage. The main theorem remains open. No executable changes,
+PR extraction or coordination.
