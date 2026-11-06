@@ -30773,3 +30773,33 @@ Validation: 859 jobs; 11 complete type/value/constructor/recursor audits;
 maximum closure 8,886; 834 frozen source/import hashes. Standard axioms
 only, no forbidden dependencies or owned diagnostics. Preserved the independent
 experiments; no executable edits, coordination or PR extraction.
+
+
+### 2026-11-06 06:31:11 UTC — Full-core eta consumer closure and independent residuals
+
+Added ProofErasureAmbientBetaCompute, ProofErasureEtaCoreConsumer and
+ProofErasureSortedEtaCoreResiduals. The generic typed beta driver now permits
+computed target paths. sorted_eta_core_left integrates beta, all core
+primitives, exact eta origins and binder traversal for arbitrary typed
+consumers, retaining full-core histories for exposed domain marks.
+
+proofErase_sorted_eta_consumer_core_residuals covers every supplied typed
+function, every input sort, every typed consumer and independent full-core
+computations on both sides. Proof-valued functions are included. Further
+residuals preserve AmbientVariant with EtaCoreDomains and SortedEtaAtom guarded
+by EtaCoreOrigin. Source confluence suffices; StoredCore discharges it for actual
+stored definitions with concrete patterns.
+
+proofErase_sorted_eta_consumer_core_check converts those residuals to inferred
+comparisons when ambient origin and domain certificates are supplied, for any
+renaming-stable comparison core containing the level core. This is a conditional
+readout theorem. The unconditional transport relation is proved, but native and
+inferred-domain certificate coverage is still missing. No strengthening proof,
+canonical-Eq counterexample or strictly smaller sufficient final obligation has
+yet been established.
+
+Validation: 862 jobs; 7 complete type/value/constructor/recursor audits;
+maximum closure 9,416; 837 frozen source/import hashes. Only propext,
+Classical.choice and Quot.sound; no forbidden dependencies or owned warnings.
+Preserved independent experiments and left executable unchanged. No coordination
+or PR extraction. Goal remains active and the original sorry remains.

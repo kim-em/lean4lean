@@ -17085,3 +17085,46 @@ counterexample or strictly smaller final obligation is claimed.
 Validation: 859 jobs; 11 complete dependency-audit roots; maximum closure
 8,886; 834 frozen hashes; only standard axioms, no forbidden dependencies
 or owned warnings. No executable change, coordination or PR extraction.
+
+
+### 2026-11-06 06:31:11 UTC — Arbitrary typed eta consumers through full-core computation
+
+Continued the same progress turn after cf1488ca (all primitive cases). The beta
+structural driver previously required beta-only target paths, which is too
+narrow when its origins have full-core histories. Generalized that driver to
+allow Compute Step on the target while retaining typed beta replay on the
+source. Verdict: no extra semantic premise is needed.
+
+Combined it with the checked primitive theorem, exact full-core origin
+simulation, domain-history closure and source realization. sorted_eta_core_left
+now handles every finite full-core computation under every local binder of a
+typed consumer. Actual replay preserves the typing needed by subsequent
+proof-domain application interactions; marked annotations retain their exact
+ambient histories through lift reflection.
+
+Constructed the initial relation for every typed function and its eta form and
+transported it through arbitrary typed consumer substitution. Independent
+full-core computations on both sides have further residuals related by those
+concrete eta/domain histories. The proof uses typed confluence at the actual
+source, then reverses one simulation. Proof-valued functions are covered by
+identical erasures and source confluence. StoredCore specializes the result to
+registered stored definitions and discharges the confluence premise from the
+existing concrete-pattern theorem; no canonical-Eq or normalization assumption
+is needed for this transport layer.
+
+The inferred-readout theorem records the remaining coverage obligations
+explicitly: comparisons of the exposed domain pairs and residual eta origins
+in the ambient context. Once supplied, exact renaming and the proved consumer
+simulation yield comparisons of both independently computed endpoints. It does
+not assume unrestricted substitution closure of inferred comparison.
+
+This completes the arbitrary-function/all-input-sort eta consumer full-core
+transport step, which was previously available only for beta or restricted
+neutral origins. Remaining: prove the required native/domain inferred
+certificate coverage, integrate with the overall strengthening route, and
+verify the original final deliverable. No strict-smallness claim is made for
+the exposed certificate obligations; the original weakN_iff sorry remains.
+
+Validation: 862 jobs; 7 complete dependency-audit roots; maximum closure
+9,416; 837 frozen hashes; standard axioms only, no forbidden dependencies
+or owned diagnostics. No executable changes, coordination or PR extraction.
