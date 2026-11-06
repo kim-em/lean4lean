@@ -35342,3 +35342,58 @@ remained fixed. Chosen-chain probe root separately excludes older nested-eta,
 frame-boundary and supply-boundary probe theorems. Original-probe supply-boundary
 root remains independent of the old nested-eta frontier. Original weakN_iff
 sorry and executable unchanged; GOAL.md active; no PR extraction or Lean/Lake patch.
+
+
+## 2026-11-06 22:41:33 UTC — Actual older-binder consumption under a retained newer binder
+
+Added `ProofErasureEqChainRetainedSupply.lean`, imported and described in the
+global eta body-cut module. Inspection of the actual eta-hole minimum showed
+that its continuation reconstruction keeps the outer syntax but its packaged
+minimum does not identify pending target images with arbitrary future supply.
+The next local case is an older argument consumed under a newer eta binder;
+this is distinct from consuming that newer binder immediately.
+
+`EqInsertionPath.underBinders` shifts every insertion beneath a finite prefix.
+`erased_instN` proves the exact instantiation square at arbitrary retained depth:
+the source offsets are one greater than the destination offsets, while the
+argument follows the original path. `erased_retained_inst` presents the depth-one
+case as the precise lifted raw substitution used by a continuation.
+
+`chain_retained_supplied_components` starts in B :: A :: Γ with chosen assignment
+(σ.cons (x.subst σ)).cons y. Actual body components descend through the twice
+shifted chain and the actual original argument x descends through the old chain.
+The resulting x' determines the consumption frame at A; lifting this frame under
+B preserves y by derived domain conversion. The output is in B.inst x' :: Γ with
+chosen assignment σ.cons y and unchanged pending target arguments. The theorem
+also constructs the exact upper lifted ContextSubstitution, its outgoing domain,
+typing, nonproof status, and exact consumed raw component vector. It does not
+identify y with x or assume agreement for an unrelated argument.
+
+`chain_retained_supplied_minimum` connects this to the actual continuation.
+The displayed retained lambda is substituted by the older argument, then applied
+to the actual recorded argument list. Competitor reconstruction into the original
+minimum preserves the original continuation K and all suffix arguments. The
+selected whole-lambda suffix is read back to its actual substituted body with
+one frame over the original tail; the displayed enclosing pair has two. The
+resulting primitive cost is bounded by the old suffix cost and is either less
+than the original cost or equal with the recorded one-versus-two frame bound.
+The original paired frame is lifted over the correctly substituted B domain,
+with y's typing derived from the consumption agreement, and its insertion chain
+is rebuilt. The resulting `EqChainContinuationMinimum` can re-enter the existing
+component-frontier construction. Its more precise frame minimum is also returned.
+
+Scope remains local: the retained annotation is unchanged, the older argument's
+component path from original x is supplied explicitly, and the minimum is for
+the displayed retained/application continuation. A global supply-history invariant
+still must derive these premises for every reachable frontier, including arbitrary
+retained prefixes and annotation histories. No sufficient PropFront reduction or
+strengthening proof is claimed. GOAL.md remains active; no PR extraction.
+
+Validation: 1069 jobs including the global module and established regressions;
+134 roots recursively audited through values, types, constructors and recursors,
+maximum closure 11,976. Only propext, Classical.choice and Quot.sound occur.
+No owned diagnostics, sorryAx, strengthening dependency or excluded circular
+framework. All 1,044 source hashes remained fixed. The chosen-chain original-probe
+root still excludes the older nested-eta, frame-boundary and supply-boundary
+probe theorems. Executable and original weakN_iff sorry unchanged; stock Lean/Lake
+used exclusively in the scratch checkout.

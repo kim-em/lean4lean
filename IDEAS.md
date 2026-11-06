@@ -20338,3 +20338,27 @@ continuation; a pending target image alone does not provide it. Global coverage
 and strengthening remain open. Validation: 1068 jobs, 129 recursive roots,
 maximum closure 11,976; only propext, Classical.choice and Quot.sound,
 all 1,043 source hashes fixed.
+
+
+## 2026-11-06 22:41:33 UTC — Consume older actual supply beneath a newer retained binder
+
+**Idea:** An empty local suffix after nested eta does not make the newer chosen
+image the next consumed argument. The continuation can first consume an older
+supplied argument beneath the newer binder. Track that lifted substitution
+with distinct source and destination insertion depths, preserving the newer
+chosen image until its own supply arrives.
+
+**Verdict:** Verified for one unchanged retained annotation. The new
+`chain_retained_supplied_components` descends the actual body and older argument,
+derives the lifted frame's agreement, and identifies both the outgoing domain
+and raw body. `chain_retained_supplied_minimum` executes the displayed enclosing
+retained/application pair using its actual suffix and returns a paired-chain
+minimum at precisely that substituted body. It records one frame over the
+selected suffix; primitive count does not increase. General retained annotation
+histories and derivation of original supply ancestry for every reachable
+continuation remain open. This is progress toward the original goal, not a
+sufficient smaller PropFront obligation.
+
+Validation: 1069 build jobs, 134 recursively audited declarations, maximum
+closure 11,976; only propext, Classical.choice and Quot.sound. All 1,044
+source hashes remained fixed. Original strengthening gap unchanged.

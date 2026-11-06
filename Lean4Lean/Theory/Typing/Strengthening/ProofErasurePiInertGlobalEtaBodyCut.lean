@@ -13,6 +13,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainAnnotations
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainRetained
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainSupply
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainRetainedSupply
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -205,6 +206,16 @@ and the exact upper endpoint map. The older paired frame and chain survive.
 short root that exhausts its current spine and has an empty actual suffix.
 Supply for the latter must come from later continuation ancestry; the pending
 target image alone does not justify consumption agreement.
+`chain_retained_supplied_components` now preserves a newer chosen binder while
+an older supplied argument is consumed beneath it. The shifted insertion
+identity uses different source and destination offsets and yields the exact
+upper lifted substitution. `chain_retained_supplied_minimum` follows the actual
+retained-lambda/application suffix, preserving its argument vector and chosen
+specialization, and rebuilds the paired-chain minimum at its substituted body.
+One frame over the selected suffix replaces the displayed two-frame pair when
+primitive cost is unchanged. This covers one unchanged retained annotation;
+arbitrary retained-prefix histories and extraction of original argument
+ancestry throughout the global frontier still need integration.
 `minimum_frontier` iterates this decrease
 by strong induction and reaches a component-only current path with completion
 at both endpoints. The conclusion retains this actual
