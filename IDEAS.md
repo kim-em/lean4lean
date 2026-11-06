@@ -17455,3 +17455,51 @@ Validation: 905 jobs, 24 complete dependency-audit roots including the
 new structure's constructor/recursors/projections, maximum closure 10,980,
 880 frozen source/import hashes. Standard axioms only; no forbidden dependencies
 or owned warnings. Executable unchanged; no coordination or PR extraction.
+
+
+## 2026-11-06 08:12:40 UTC — Carrier residual histories and explicit hidden-type repair
+
+Previous goal turn: progress, verified at f54b09d2 (refuted universal Pi-inert
+common-comparison coverage and constructed a carrier predicate). Current work
+revalidated those sources and preserved both independent untracked experiments.
+
+Idea: carrier conversion through certified computation should consume the
+retained type-comparison child rather than semantic equality alone. Verdict:
+proved for certified type computations, type-valued cast consumers, and the
+Eq type probe that hides an empty-structure carrier. Endpoint-only future
+evidence is insufficient for this construction: the computation interpreter
+returns an ordinary-core tail from the output type. Added PiInertCarrierHistory
+to retain independent full-core paths of the carrier as well as both endpoints,
+including after every actual typed substitution. No automatic strengthening of
+the previous carrier evidence is assumed. Common comparison and a rigid nullary
+empty structure construct the stronger history. Histories pull back through
+certified carrier computation and through two endpoint computations.
+
+The Eq-probe result is a direct full-core residual proof, not just a base
+primitive reduction. Ordinary-return factorization and the Eq.rec spine
+inversion expose computed indices and minor; the explicit earlier index
+comparison repairs the prefix at n+1, retaining the minor's ordinary-core tail.
+Actual substitution reconstructs the probe, index typings, major and child.
+This gives a reusable computation history and transfers the full carrier history
+from the minor. A nullary empty structure hidden behind arbitrary proposition
+indices therefore has a history for arbitrary endpoints once that explicit
+index child is supplied. The actual-environment wrapper discharges all registry,
+universe-compatibility, soundness and non-unfolding assumptions.
+
+This extends the older BetaStableCarrier certified-prefix construction to the
+current full-core interpreter and recursive cast evidence, retaining a fixed
+finite stage. It does not evade the older TypedFutureCarrierComposition front:
+that interface lacks the explicit index child now consumed here. General
+carrier composition, arbitrary conversion and strong-derivation coverage remain
+open. No new irreducible obligation is claimed smaller than PropositionFront.
+GOAL.md and weakN_iff remain unachieved.
+
+Next: extend the carrier-history constructors through structural subsingleton
+families and function binders, then use type-conversion children in the remaining
+structural carrier cases. Do not promote arbitrary type comparison to a shared
+computation output or arbitrary endpoint evidence to carrier-residual history.
+
+Validation: 923 jobs, 26 complete dependency-audit roots including the
+new structure constructor/recursors/projections, maximum closure 11,322,
+898 frozen source/import hashes. Standard axioms only; no forbidden dependencies
+or owned diagnostics. Executable unchanged; no coordination or PR extraction.

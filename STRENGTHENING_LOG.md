@@ -31110,3 +31110,60 @@ regressions; 24 complete type/value/constructor/recursor dependency roots;
 maximum closure 10,980; 880 frozen hashes. Only propext, Classical.choice
 and Quot.sound, with no forbidden dependencies or owned diagnostics. Executable
 unchanged, independent experiments preserved, no coordination or PR extraction.
+
+
+## 2026-11-06 08:12:40 UTC — Full-core carrier conversion through certified computations
+
+Revalidated f54b09d2 and classified the previous goal turn as progress. Reviewed
+existing terminal/neutral function carrier conversion, full-core guard reduction,
+and BetaStableCarrier prefix proofs before choosing the next construction.
+The current PiInertCarrierEvidence retained endpoint paths but not paths of the
+carrier itself; this missing component matters when a certified computation
+returns only an ordinary-core tail from its output carrier.
+
+ProofErasurePiInertCarrierHistory constructs a stronger interpretation with
+three independent full-core paths, and retains it under every interpreted typed
+substitution. Forgetting carrier computation yields the prior carrier evidence.
+Common comparisons construct histories for arbitrary carriers. A rigid nullary
+empty structure constructs histories for arbitrary endpoints, including all
+universe-changing carrier residuals. Substitution, raising and symmetry preserve
+them. No universal promotion of PiInertCarrierEvidence is asserted.
+
+carrier_prefix consumes PiInertEvidence.compute: commute the source carrier
+path, then use the old history on the retained ordinary-core output tail and
+rebuild carrierCompute. prefixes does the same for both endpoint computations.
+Neither construction needs confluence of the guarded stage or a selected common
+normal form. cast_carrier constructs a canonical equality major from the earlier
+type-comparison child and transfers a history through any type-valued consumer
+of that cast at the next stage. These histories can be nested and reused.
+
+ProofErasurePiInertProbeCarrier treats the type-valued Eq probe directly.
+pi_inert_type_probe_core_residual factors each full-core path through an ordinary
+return, inverts the Eq.rec spine with its erased proof major, compares the two
+computed indices using the explicit earlier child, and repairs the prefix.
+The result retains a core path from the original minor and a next-stage path
+from the observed probe residual. PiInertInterpret.type_probe packages the typed
+output; PiInertEvidence.type_probe reconstructs all syntax and typings under
+future actual substitution using the new eqTypeProbe_subst lemma. No confluence
+assumption is needed for this direct probe residual construction.
+
+PiInertCarrierHistory.type_probe pulls back the minor's complete history.
+unit_probe_carrier constructs that history for a rigid nullary empty structure,
+so the earlier hidden-unit configuration is repaired from its explicit index
+comparison at n, yielding a full history at n+1. EnvironmentCore provides an
+actual-environment instantiation of every implementation premise. The index
+comparison remains an explicit recursive child, never inferred merely from
+semantic equality or from the two unit-constructor bridge certificates.
+
+Limits: arbitrary carrier composition/conversion and full strong-derivation
+coverage remain unproved. The earlier future-carrier composition barrier still
+applies to an interface that drops the index child. This increment does not
+prove strengthening or strict-smallness. Next extend the stronger histories
+through structural subsingletons and function-carrier binders while retaining
+conversion children; do not silently use general forward carrier transport.
+
+Validation: 923 jobs including feedback and substitution-barrier regressions;
+26 complete type/value/constructor/recursor dependency roots; maximum
+closure 11,322; 898 frozen hashes. Only propext, Classical.choice and
+Quot.sound; no forbidden dependencies or owned warnings. Executable unchanged,
+independent experiments preserved, no coordination or PR extraction.
