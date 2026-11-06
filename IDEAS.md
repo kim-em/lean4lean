@@ -19594,3 +19594,37 @@ Strengthening and a sufficient strictly smaller irreducible obligation remain
 open. Validation: 1034 jobs, 13 audited roots, maximum closure
 11,967, 1,009 frozen source hashes. No executable changes, PR extraction
 or coordination.
+
+
+## 2026-11-06 18:44:28 UTC — Keep the chosen binder image through delayed consumption
+
+Verdict: verified progress on target agreement, conditional on an already
+agreeing outer frame. Earlier lifting and consumption lemmas could be composed,
+but the delayed step did not jointly retain the original binder image, changed
+annotation, computed argument and actual body endpoint. The new result derives
+these together from original shared supply and actual later computations.
+
+`EqSpecializationFrame.computed_binder_supply` keeps the binder image equal to
+the original supplied argument's specialization. The outer frame's term
+agreement, followed by actual argument computation, proves compatibility with
+the later computed argument. Actual annotation computation converts its domain.
+This constructs the retained frame, consumption frame and their exact composite
+without an additional image-equality premise. `compute_then_frame` retains the
+chosen substitution across source component computation and then applies the
+agreeing endpoint map, preserving the exact erased endpoint vector.
+
+`EqPrefixSpecializationAt.eta_delayed_compute_inst` starts from the shared
+whole supply, derives the fresh specialization, follows the retained frame,
+computes body components in the actual later binder context, and consumes the
+computed argument. It returns post-beta specialization, actual typing and the
+exact raw instantiated vector. The original remaining supply is retained as
+pending target terms; computation/restoration of the remaining actual tail is
+not claimed here.
+
+Remaining: derive and link the outer agreement witnesses throughout the actual
+global history, including ambient unused insertions and non-component body
+branches. This theorem assumes an agreeing outer frame and does not infer
+agreement from ordinary context interpretation. It does not close strengthening
+or establish a sufficient strictly smaller irreducible obligation. Validation:
+1035 jobs, 4 audited roots, maximum closure 11,967, 1,010 frozen
+source hashes. No executable changes, PR extraction or coordination.

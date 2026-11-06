@@ -34023,3 +34023,52 @@ selected insertion beneath the retained-hole grammar; arbitrary equal-cost
 scope moves and target-agreement transport are not thereby solved. `weakN_iff`
 and a sufficient irreducible obligation strictly smaller than PropFront remain
 open. No executable changes, PR extraction or coordination.
+
+
+## 2026-11-06 18:44:28 UTC — Delayed eta supply retains its original target image
+
+Added `ProofErasureEqDelayedSupply.lean`. Its three public theorems link the
+chosen semantic substitution to actual later retained and consumed frames.
+`EqSpecializationFrame.computed_binder_supply` reifies actual annotation and
+argument computations after an agreeing outer frame. It lifts that frame with
+the original image `x.subst σ`, converts the later annotation using its actual
+computed equality, derives the chosen image's equality with the computed
+argument's outgoing specialization, and constructs both retained and consumed
+frames plus their literal composite. Native guards and raw computation paths
+are not transported; no new compatibility premise is introduced.
+
+`EqPrefixSpecializationAt.compute_then_frame` reifies source-scope component
+computation at the fixed chosen substitution before applying an agreeing frame.
+It returns the new specialization, actual whole-prefix typing, the computed
+source argument vector and its exact substituted erasure.
+
+`EqPrefixSpecializationAt.eta_delayed_compute_inst` derives its fresh-body
+specialization from the original whole source supply. The same selected target
+image survives the outer frame and computed annotation. Body components then
+compute in the actual later binder context, with their given raw source vector
+identified by the retained frame's erasure agreement. The derived consumption
+frame gives the post-beta specialization and actual typing, and the final raw
+argument vector is exactly the computed body's instantiation at the actual
+computed argument. Both binder frames are retained in the result. The omitted
+source tail remains the original pending target vector; this result does not
+claim to reconstruct its independently computed actual tail.
+
+The global module imports the new result and documents its scope. The global
+theorem's statement and proof are unchanged: the new theorem is a supply/
+agreement step for the outstanding history argument, not a claim that every
+recorded raw continuation already provides an agreeing outer frame.
+
+Validation: 1035 jobs including GlobalEtaBodyCut and the established
+ContextualCastFeedback/CoreFamilySubstitutionBarrier regressions. All
+4 public roots (three new theorems and the global theorem) passed
+recursive dependency and axiom audit, maximum closure 11,967. Only
+propext, Classical.choice and Quot.sound occur; no weakN_iff, weakN_inv, sorryAx
+or excluded framework dependencies. No owned diagnostics; all 1,010 frozen
+source hashes remained unchanged across final build and audit.
+
+Remaining: propagate the chosen agreement witnesses along the actual whole
+history, including unused insertions and non-component eta bodies, and restore
+actual remaining supplies where later consumption needs them. The outer frame
+agreement remains an explicit input here. `weakN_iff` and a sufficient
+irreducible obligation strictly smaller than PropFront remain open. No
+executable changes, PR extraction or coordination.

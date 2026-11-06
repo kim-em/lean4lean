@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqTargetPrefixMinimum
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaFrameOrigin
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSpecializationFrames
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqDelayedSupply
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
 
 /-! # Eq exposure reaches a non-level root inside a minimum eta body
@@ -91,6 +91,14 @@ administrative, core and structure cases are excluded; native eta gives that
 strictly smaller completed body. The spine-cut classifier now uses this
 general result and retains its existing consumed-body return shortcut.
 Completion must still be established at the actual selected root.
+`EqPrefixSpecializationAt.eta_delayed_compute_inst` now preserves the chosen
+binder image across an agreeing outer frame, computed annotation, later body
+components and actual argument consumption. Its retained and consumption
+frames are derived from the original shared supply and actual computations;
+no new image-compatibility premise is added. The result gives post-beta
+specialization and exact erased arguments. The outer frame must already carry
+target agreement; deriving and linking those witnesses throughout every
+actual global history, including unused insertions, remains open.
 `minimum_frontier` iterates this decrease
 by strong induction and reaches a component-only current path with completion
 at both endpoints. The conclusion retains this actual
