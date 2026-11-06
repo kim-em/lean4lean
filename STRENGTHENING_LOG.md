@@ -29258,3 +29258,63 @@ higher-stage joining, paired exposure and singleton simulation remain live.
 GOAL.md remains active. Only the three proof modules and appended ledgers are
 committed; executable and independent untracked experiments are untouched. No
 coordination or PR extraction.
+
+
+## 2026-11-06 00:38:26 UTC — Checked cost of generalizing the atomic substitution constructor
+
+Previous goal turn: progress, with e8fd432d and 64371aab pushed. Revalidated the
+latter HEAD and the unchanged independent untracked experiments. Investigated
+non-atomic images because the earlier raw beta-reflection counterexample alone
+did not establish what a more sophisticated typed transport proof would need.
+
+ProofErasureRecursiveSubstitutionBarrier.lean names two unresolved closure
+properties without assuming either globally. TypedRecursiveSubstitutionClosure
+removes the atomic-image restriction but still requires a common actual type
+for its resulting endpoints. TypedRecursiveInstantiationClosure is narrower:
+both sources live in one actual extended context at one common type, and the
+single substituted original term inhabits the removed binder's type. Erasure
+commutation proves that the first property implies the second.
+
+recursive_neutral_probe_guard constructs the original inferred certificate
+from a neutral application of two constant-body lambdas. lamCommon supplies
+argument comparison without annotation comparison; its identical sort body
+uses a typed reflexive join. For any actual domain equality P = Q, the two
+probes are given the common function type T = P -> Type by original conversion.
+The typed probe_guard theorem extends the actual context by h : T -> T,
+constructs both applications h p and h q at the same type, and verifies their
+exact erasures against that neutral certificate. The actual identity lambda
+at T is a typed substitution image. Hypothetical typed-instantiation closure
+then supplies an inferred guard on the identity wrappers; one beta step on
+each side and the existing reducts constructor give inferred probe guards.
+
+implies_propositionFront performs this construction above the unused binder.
+The previously audited recursive forward theorem yields RawCheckedCompare;
+generic typed descent lowers the two probes, which are independently typed
+below. Inferred comparison does not use a common type hypothesis below.
+Type uniqueness and Pi-domain injectivity then recover the desired proposition
+equality below. The actual EnvironmentCore corollary discharges soundness,
+universe compatibility and confluence; the conditional reduction needs no
+additional use of canonical Eq. It applies in the canonical-Eq setting as well.
+
+recursive_probe_identity_not_sort proves that neither the probe nor its
+identity wrapper admits any sort typing, even through conversion. Thus the
+checked implication does not refute or establish sort-valued-only closure.
+Native application result types from the previous turn have precisely those
+sort typings, so a type-directed version of the substitution problem remains
+live. Unrestricted typed closure itself is also unrefuted; proving it would
+settle the original proposition front rather than a demonstrably smaller one.
+
+Validation: isolated full build passed (786 jobs); 10 roots audited
+through types, opaque values, inductive constructors and recursor RHSs; maximum
+closure 10,023; 761 source/import hashes unchanged. Standard axioms only,
+no forbidden dependencies or own-module warnings. Development fixes selected
+the wrapper side of nativeIdentityExpansion_equal, supplied the second neutral
+argument list explicitly, used Ctx.LiftN.one without a typing argument, and
+avoided eager implicit instantiation in the two closure corollaries. Duplicate
+raw-image probe construction was removed in favor of the stronger typed proof.
+
+Completion audit: UniqueTyping.lean:94 retains the original sorry. No proof of
+strengthening, canonical-Eq counterexample, or strictly smaller sufficient
+irreducible obligation has been obtained. GOAL.md remains active. This commit
+contains one new proof module and EOF ledger additions only. Executable and
+independent untracked files preserved; no coordination or PR extraction.

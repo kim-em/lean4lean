@@ -15549,3 +15549,41 @@ closure 12,221; 911 frozen source/import hashes unchanged; standard axioms
 only, no forbidden dependencies or own-module warnings. Arbitrary computed-Pi
 comparison coverage and non-atomic beta exposure remain open; this is no claimed
 strictly smaller sufficient obligation for strengthening.
+
+
+## 2026-11-06 00:38:26 UTC — Unrestricted recursive instantiation retains the entire proposition front
+
+Previous turn: progress (e8fd432d and 64371aab committed and pushed). Revalidated
+64371aabcb6d90ac957736fa165ff09811d2d5c8 and the two independent untracked files.
+
+Idea: remove atomicity from the new recursive substitution constructor, using
+actual typed endpoints to handle newly exposed beta redexes. Verdict: the proposed
+rule already implies PropositionFront, even after strengthening the premises to
+one actual source context, a common source type, and a genuine typed single
+argument. This is a checked implication barrier, not a refutation or a claim
+that the route cannot be completed. It cannot be advertised as a strictly smaller
+remaining obligation or discharged by raw substitution stability alone.
+
+For P definitionally equal to Q, let p = (fun _ : P => Prop), q = (fun _ : Q =>
+Prop), and T = P -> Type. Both probes have type T. In a context extended by
+h : T -> T, the terms h p and h q are commonly typed and have an inferred
+recursive guard: the neutral application checks its arguments in common mode,
+and lamCommon compares their identical sort bodies without comparing P and Q.
+Substitute the actual identity function at T for h. The hypothetical rule yields
+an inferred guard between identity wrappers. The existing reducts constructor
+removes both wrappers, and forward reads out an inferred comparison of p/q.
+Applying this above an unused binder and descending the probes forces equality
+of P/Q below by type uniqueness. The source guard needs no eta, fixed leaf,
+primitive rule, or comparison of the probe annotations.
+
+The witness and its wrapper provably have no sort typing, including through
+conversion. Hence it does not settle substitution restricted to sort-valued
+endpoints. That case matches native result types in the previous application
+theorem and remains a live next target; no sufficient smaller-front theorem is
+yet claimed for it. Coherent typing alone, without this restriction, does not
+avoid the checked reduction.
+
+Validation: 786 build jobs; 10 complete dependency roots; maximum
+closure 10,023; 761 pinned source/import hashes unchanged. Standard axioms
+only, no forbidden dependencies or own-module warnings. Original strengthening
+sorry remains; executable unchanged; no coordination or PR extraction.
