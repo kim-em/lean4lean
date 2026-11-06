@@ -33833,3 +33833,42 @@ history across those frames; the local origin does not yet supply a full linked
 trace through every recursive minimum step. The original strengthening theorem
 and a sufficient irreducible obligation strictly smaller than PropFront remain
 open. No executable changes, PR extraction or coordination.
+
+
+## 2026-11-06 18:17:24 UTC — Both later eta outcomes with an arbitrary continuation
+
+Added `ProofErasurePiInertLaterEtaFrameOrigin.lean`, with three public theorems.
+`TypedEtaOrigin.frame_origin_of_minimum` starts with ordinary typed eta origin,
+the actual long-spine computation and minimum for a fixed endpoint predicate.
+Its retained and consumed branches recover domain/body paths and actual
+argument histories, and prove child minimality by replacing only the body
+path. They retain the same continuation predicate. The consumed branch also
+records its actual typed argument interpretation and post-beta source.
+Strict decrease uses a larger budget containing positive earlier work.
+
+`pi_inert_retained_eta_frame_origin` carries ordinary eta origin through the
+actual context substitution, normalizes the pending application, and derives
+local minimum and strict budget from the joint two-scope minimum. Its current
+endpoint need not expose a carrier; the remainder is an arbitrary actual typed
+continuation. `pi_inert_native_retained_eta_frame_origin` reconstructs the
+preceding long path from the original native eta insertion, annotation,
+lifted-function and argument computations, deriving the positive count and
+origin rather than asking the caller to supply them. Both outcomes use the
+existing `CountedEtaFrameOrigin` interface and its `typed_frames` theorem.
+The global module imports the new result and documents its precise scope;
+the global theorem's statement and proof are unchanged.
+
+Validation: 1031 jobs including GlobalEtaBodyCut and the established
+ContextualCastFeedback/CoreFamilySubstitutionBarrier regressions. All
+4 public roots (three new theorems and the global theorem) passed the
+recursive dependency audit, maximum closure 11,932. Only propext,
+Classical.choice and Quot.sound occur; no weakN_iff, weakN_inv, sorryAx or
+excluded framework dependencies. No owned diagnostics; all 1,006 frozen
+source hashes remained unchanged across the final build and audit.
+
+Remaining: the actual retained prefix before the next application still
+requires a linked origin history and target-agreement proof. The new theorem
+allows the later lambda to survive that application's computation, but does
+not solve this prefix-composition problem. `weakN_iff` and the alternative
+sufficient strictly smaller irreducible obligation remain open. No executable
+changes, PR extraction or coordination.

@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqTargetPrefixMinimum
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaFrameOrigin
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSpecializationFrames
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -66,7 +67,12 @@ the exact lambda, annotation, body and argument-vector paths in both branches.
 `eta_origin_minimum` uses that supply to return through an actually consumed
 component-only body to its completed post-beta source with the parent
 continuation. The other branches retain the smaller fresh-body minimum;
-propagating origins through arbitrary retained frames is still open.
+`pi_inert_native_retained_eta_frame_origin` now reconstructs an origin at a
+later substitution/application after a retained component body, allowing any
+remaining typed continuation and either retained or consumed outcome. Its
+positive earlier insertion supplies strict decrease without immediate carrier
+exposure. Linking those origins through arbitrary intervening retained frames
+and deriving their target agreement are still open.
 `minimum_frontier` iterates this decrease
 by strong induction and reaches a component-only current path with completion
 at both endpoints. The conclusion retains this actual

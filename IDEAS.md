@@ -19468,3 +19468,32 @@ target agreement. Strengthening and a sufficient strictly smaller irreducible
 obligation remain unproved. Validation: 1030 jobs, 19 audited roots,
 maximum closure 11,932, 1,005 frozen source hashes. No executable changes,
 PR extraction or coordination.
+
+
+## 2026-11-06 18:17:24 UTC — Read later eta origins without forcing immediate exposure
+
+Verdict: verified progress. The previous later-body cut assumed exposure at
+the next application endpoint and thereby forced the retained eta lambda to
+be consumed there. A remaining typed continuation may instead expose the
+carrier later. Ordinary `TypedEtaOrigin`, which does survive the actual
+endpoint substitution, suffices to recover both branches at that application.
+No native recovery certificate is transported through substitution.
+
+`TypedEtaOrigin.frame_origin_of_minimum` reads the actual lambda body and
+argument computations with any fixed continuation predicate. Minimality makes
+the reconstructed count exact; an earlier positive budget contribution gives
+a strictly smaller child minimum even in the retained branch. The consumed
+branch records its actual argument substitution, post-beta typing and suffix.
+`pi_inert_retained_eta_frame_origin` applies this after a typed substitution
+and pending application. `pi_inert_native_retained_eta_frame_origin` derives
+the origin and positive earlier count from the actual native eta insertion
+and retained component computation. Existing `typed_frames` then supplies
+the smaller typed minimum for either branch.
+
+Remaining: this handles one later application with arbitrary remaining
+continuation. It does not yet link origins through the retained-lambda prefix
+before that application or prove target agreement for those composed origins.
+It does not finish strengthening or establish a sufficient irreducible
+obligation strictly smaller than PropFront. Validation: 1031 build jobs,
+4 audited public roots, maximum closure 11,932, 1,006 frozen source
+hashes. No executable changes, PR extraction or coordination.
