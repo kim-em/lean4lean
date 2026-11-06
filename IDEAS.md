@@ -18718,3 +18718,40 @@ Validation: 1002 build jobs, 14 public/full-result dependency roots,
 maximum closure 11,643; 977 frozen source hashes. Only propext,
 Classical.choice and Quot.sound; no forbidden dependencies or warnings in
 changed modules. Executable unchanged; no PR extraction or coordination.
+
+
+## 2026-11-06 14:21:56 UTC — Classify the selected later eta body root
+
+**Idea.** The extracted later cut has exactly the joint minimum and typed
+instantiation needed by the existing identity/constant continuation bypasses.
+Use them on the selected root, then apply canonical Eq short-prefix inversion
+without discarding or reselecting any counted witness.
+
+**Verdict: wrapper exclusion and short-Eq classification proved.**
+Added optional root predicates to `CountedNonlevelSpineRoot` and
+`CountedLaterEtaBodyCut`, defaulting to True. All existing construction
+statements retain their previous meaning; the frame projection accepts any
+root refinement. `CountedNonlevelSpineRoot.no_wrappers` derives both exclusions
+from the original counted prefix/tail, typed source, actual endpoint
+substitution, exact count and joint minimum. `CountedLaterEtaBodyCut.no_wrappers`
+supplies these directly from the later cut and exposed output.
+
+For a constant-headed Eq prefix of at most four arguments, its fresh body has
+at most five. Component ancestry bounds the selected root prefix by five;
+canonical Eq then excludes core iota and structure eta. The two `.eq_guarded`
+methods retain the same exact cut with `EqEtaGuardedRoot`: specialized
+singleton, general singleton, or earlier-stage native function eta.
+
+Still open: carry the original Eq target specialization through the actual
+intervening endpoint substitution, then read the later singleton guards and
+continue the native-eta induction. The proof-major eta case, when the short
+prefix already has five arguments, is not covered by this short-prefix
+classification. Wrapper exclusion itself has no arity restriction. Arbitrary
+mixed retained-lambda frames remain open. No completed strengthening proof
+or sufficient strictly smaller replacement for PropFront is claimed.
+GOAL.md remains active.
+
+Validation: 1003 build jobs, 12 public/full-result dependency roots,
+maximum closure 11,643; 978 frozen source hashes. Only propext,
+Classical.choice and Quot.sound; no forbidden dependencies or changed-module
+warnings. Executable unchanged; no PR extraction or coordination.

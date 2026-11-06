@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertContinuationFrames
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaBodyCut
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaRoot
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
 
 /-! # Eq exposure reaches a non-level root inside a minimum eta body
@@ -33,8 +33,10 @@ application and annotated lambda frames ending at this same original output.
 For a retained component-only body, `pi_inert_native_retained_eta_later_body_cut`
 extracts a smaller body/suffix minimum from the actual later path to an exposed
 output. If the short function remains constant-headed, that body has a typed
-non-level root. The general mixed-frame elimination and classification of
-these later roots remain open. -/
+non-level root. `CountedLaterEtaBodyCut.eq_guarded` classifies the later short
+Eq root as singleton or native eta while retaining the same cut. Reading its
+guards with the original Eq specialization and general mixed-frame elimination
+remain open. -/
 theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hreg : recursorData ``Eq.rec = some data) (hoff : data.majorOffset = 5)

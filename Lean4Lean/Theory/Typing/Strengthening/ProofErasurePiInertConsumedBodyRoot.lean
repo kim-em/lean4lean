@@ -15,9 +15,11 @@ variable [Params]
 
 /-- A counted first non-level root on the original constant spine, with
 exact accounting, component ancestry, its actual source typing, and both
-surrounding paths. This does not classify or eliminate the selected root. -/
+surrounding paths. The optional predicate refines this same root, without
+choosing another decomposition; by default it adds no restriction. -/
 def CountedNonlevelSpineRoot (D : Definitions) (n : Nat) (Δ : List ProofShape)
-    (c : Name) (ls : List VLevel) (args : List ProofShape) (out : ProofShape) (cost : Nat) : Prop :=
+    (c : Name) (ls : List VLevel) (args : List ProofShape) (out : ProofShape) (cost : Nat)
+    (Root : Nat → List ProofShape → ProofShape → ProofShape → Prop := fun _ _ _ _ => True) : Prop :=
   ∃ ls' pre pending target cp ct, cp+1+ct = cost ∧
     List.Forall₂ (· ≈ ·) ls ls' ∧
     List.Forall₂ (ScopedCompute (PiInertStage D n) Δ) args (pre ++ pending) ∧
@@ -26,7 +28,8 @@ def CountedNonlevelSpineRoot (D : Definitions) (n : Nat) (Δ : List ProofShape)
     PiInertStage D n Δ (ProofShape.mkApps (.const c ls') pre) target ∧
     ¬ LevelPrimitive univs (ProofShape.mkApps (.const c ls') pre) target ∧
     ScopedComputeCount (PiInertStage D n) ct Δ (ProofShape.mkApps target pending) out ∧
-    TypedSource Δ (ProofShape.mkApps (.const c ls') pre)
+    TypedSource Δ (ProofShape.mkApps (.const c ls') pre) ∧
+    Root n Δ (ProofShape.mkApps (.const c ls') pre) target
 
 /-- Excluding the retained fresh-slot form forces a non-level body-spine
 root. Minimum count makes its decomposition exact. The output can be any
@@ -61,7 +64,7 @@ theorem pi_inert_eta_body_spine_root
     have HM := hmin m (cp+1+ct) (by
       simpa only [Nat.add_zero, ← Nat.add_assoc, ProofShape.mkApps_snoc,
         ProofShape.liftN_mkApps, ProofShape.liftN] using RP.trans RT')
-    refine ⟨ls', bodyPre, bodyPending, target, cp, ct, by omega, HL, HA, RP, HR, HN, RT, ?_⟩
+    refine ⟨ls', bodyPre, bodyPending, target, cp, ct, by omega, HL, HA, RP, HR, HN, RT, ?_, trivial⟩
     apply RP.forget.spine_cut_source_typed
       (ErasedScopedPrimitiveCertificateDescent.descent (pi_inert_stage_certificate_descent heq hs m))
     simpa only [ProofShape.mkApps_snoc, ProofShape.liftN_mkApps, ProofShape.liftN] using HT

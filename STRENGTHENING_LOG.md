@@ -32663,3 +32663,39 @@ includes values, types, opaque bodies, constructors and recursor RHSs. Only
 propext, Classical.choice and Quot.sound occur; forbidden strengthening and
 replacement-obligation dependencies are absent. Changed modules are warning
 free. Executable unchanged; no PR extraction or coordination.
+
+
+## 2026-11-06 14:21:56 UTC — Later body root reduced to singleton or native eta
+
+Added `ProofErasurePiInertLaterEtaRoot.lean`. The root and later-body cut
+predicates now accept an optional pointwise refinement, so classification
+retains the existing existential witnesses. Their default True refinement
+keeps previous clients unchanged. The frame theorem is generalized to all
+refinements.
+
+The generic counted-root wrapper theorem invokes the existing exact-output
+identity and constant bypasses using the cut's joint body/continuation
+minimum. The later-cut method derives every required premise from its
+retained source typing, typed argument substitution and exact counts.
+Neither result assumes additional guarded substitution or source recovery.
+
+The Eq refinement uses component-vector lengths to bound the selected root
+prefix. For a short source prefix (at most four supplied arguments), the
+fresh body has at most five. The canonical short-prefix theorem eliminates
+core iota and structure expansion, leaving the two actual singleton guards
+or native function eta. No root is reselected and no counts, prefix/tail
+paths, body minimum or argument interpretation are dropped.
+
+The full Eq result imports and documents the new refinement; its main
+statement is unchanged. Still required: specialization of the original Eq
+target through the intervening application, singleton readout at that later
+root, the proof-major prefix case, and general mixed retained-lambda frames.
+The root classification is a proved case reduction, not completion of
+weakN_iff or the alternative GOAL.md deliverable.
+
+Validation: 1003 build jobs, 12 public/full-result audit roots, maximum
+dependency closure 11,643; 978 frozen source hashes. Audits include
+types, values, opaque bodies, constructors and recursor RHSs; only propext,
+Classical.choice and Quot.sound occur. Forbidden strengthening/replacement
+obligations are absent, and changed modules are warning free. Executable
+unchanged; no PR extraction or coordination.

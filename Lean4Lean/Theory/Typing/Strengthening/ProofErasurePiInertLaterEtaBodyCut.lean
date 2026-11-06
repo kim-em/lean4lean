@@ -37,10 +37,12 @@ private theorem lambda_tail_replace
 /-- The actual later beta decomposition, with exact counts, a smaller joint
 body/suffix minimum, and a typed non-level root whenever its short function
 is constant-headed. This is a proved decomposition, not a closure assumption.
-The selected non-level root still needs classification and elimination. -/
+The optional root predicate refines the same selected witness. By default,
+the non-level root still needs classification and elimination. -/
 def CountedLaterEtaBodyCut (D : Definitions) (n : Nat) (Δ : List ProofShape)
     (A f : ProofShape) (u : VLevel) (args : List ProofShape) (out : ProofShape)
-    (ct cost : Nat) : Prop :=
+    (ct cost : Nat)
+    (Root : Nat → List ProofShape → ProofShape → ProofShape → Prop := fun _ _ _ _ => True) : Prop :=
   ∃ A' body' x' xs' cd cb ca cs m,
     cd+cb+ca+cs = ct ∧ cb+cs < cost ∧
     ScopedComputeCount (PiInertStage D n) cd Δ A A' ∧
@@ -57,13 +59,14 @@ def CountedLaterEtaBodyCut (D : Definitions) (n : Nat) (Δ : List ProofShape)
         (ProofShape.mkApps (endpoint.inst x') xs') out → cb+cs ≤ j+k) ∧
     (∀ c ls pre, f = ProofShape.mkApps (.const c ls) pre →
       CountedNonlevelSpineRoot D m (A :: Δ) c ls
-        (pre.map (·.liftN 1) ++ [etaArgument u]) body' cb)
+        (pre.map (·.liftN 1) ++ [etaArgument u]) body' cb Root)
 
 /-- The extracted later body has a smaller concrete continuation minimum
 ending at the original exposed output. Its actual first argument supplies
 the typed instantiation frame; no native image recovery is required. -/
 theorem CountedLaterEtaBodyCut.frames
-    (H : CountedLaterEtaBodyCut D n Δ A f u args out ct cost) :
+    {Root : Nat → List ProofShape → ProofShape → ProofShape → Prop}
+    (H : CountedLaterEtaBodyCut D n Δ A f u args out ct cost Root) :
     ∃ smaller, smaller < cost ∧ PiInertContinuationMinimum D Δ out (A :: Δ)
       (.app (f.liftN 1) (etaArgument u)) smaller := by
   obtain ⟨A', body', x', xs', cd, cb, ca, cs, m, _, hsmall, _, RB, _, RS, HT, WI, HM, _⟩ := H
