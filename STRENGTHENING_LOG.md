@@ -34866,3 +34866,52 @@ strengthening gap or excluded circular framework. All 1,032 source hashes
 remained fixed. The original-probe root is independently checked not to depend
 on the old nested-eta frontier. The original weakN_iff sorry and executable
 are unchanged. GOAL.md remains active; no PR extraction or Lean/Lake patch.
+
+
+## 2026-11-06 21:17:03 UTC — Carry chosen assignment through actual first cut and eta minimum
+
+Added `ProofErasureEqChosenCut.lean`. `compute_levels` reifies a component vector
+in its actual source scope while retaining the original chosen substitution
+and external pending target vector. Well-formedness of changed head levels
+comes from the actual reached typed spine. `ChosenEqSpineCut` stores the typed
+semantic prefix and all actually supplied remaining arguments, together with
+the original counted prefix, selected non-level root, and suffix path.
+
+`chosen_counted_spine_or_cut` derives this invariant from an actual counted
+computation. Its component-only branch retains semantic equality of the whole
+spine at its original assigned type. Its cut branch splits the reified full
+vector at exactly the raw selected prefix length. Thus subsequent prefix
+selection uses the same assignment, with omitted actual arguments specialized
+into the pending vector, rather than choosing a new existential completion.
+
+`paired_hole_cut_eq_or_smaller` uses the existing root classifier beneath an
+actual application/binder hole. Native recovery is reified in the current
+semantic source context, and its DomainSort witness determines the new binder's
+universe. Exact erasure identifies this semantic eta body with the source of
+the strictly smaller raw continuation minimum. The output retains actual body
+typing, non-proof status, the chosen assignment extended by its next target
+argument, and the old agreeing frame lifted under the dependent new domain.
+
+`PairedEqBodyMinimum` packages that result. The theorem
+`ChosenEqSpineCut.eq_or_paired_smaller_or_saturated` connects the actual cut to
+this strict descent. If a target image remains it keeps the paired frame in
+the smaller minimum. Otherwise the selected prefix has exactly five arguments;
+both the actual remaining supply and external pending vector are empty. The
+saturated branch keeps the original counted prefix, non-level root and suffix.
+
+Imported these results into the global module and documented their scope.
+This does not infer an agreeing frame from an arbitrary continuation map, nor
+claim that the supplied frame already describes every later continuation.
+The direct semantic realization is essential: iterated ambient embeddings,
+saturated eta and subsequent continuation consumption still need coverage.
+The original-probe supply boundary is unchanged, and these results are not a
+sufficient irreducible obligation strictly smaller than PropFront.
+
+Validation: 1058 build jobs including the global theorem and established
+regressions; 50 declarations recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening gap or excluded circular framework. All 1,033 source hashes
+remained fixed. The original-probe root remains independent of the old
+nested-eta frontier. Original weakN_iff sorry and executable unchanged;
+GOAL.md active; no PR extraction or Lean/Lake patch.

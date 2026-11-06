@@ -20086,3 +20086,27 @@ next obligation; saturation and arbitrary subsequent supplies are not covered
 by these lemmas. The original strengthening gap remains. Validation: 1057
 jobs, 44 recursive dependency roots, maximum closure 11,976; only
 propext, Classical.choice and Quot.sound, with all 1,032 source hashes fixed.
+
+
+## 2026-11-06 21:17:03 UTC — Retain chosen substitutions at actual counted cuts
+
+**Idea.** Reify the whole component vector before selecting a non-level root,
+keeping the original substitution and external pending vector. Then use the
+actual cut's native recovery to open the same semantic binder as its strictly
+smaller raw continuation minimum, lifting the existing agreeing frame beneath it.
+
+**Verified.** `chosen_counted_spine_or_cut` returns an actual typed whole supply
+with the same chosen substitution. `paired_hole_cut_eq_or_smaller` preserves
+that substitution and the supplied frame through strict eta descent under an
+application/binder hole. `ChosenEqSpineCut.eq_or_paired_smaller_or_saturated`
+connects actual cut extraction to this descent. Exhausting target arguments
+forces an exact five-slot root with no actual pending supply, retaining both
+counted path segments. No primitive history is substituted.
+
+**Verdict.** The direct-realization non-level-cut step now preserves a supplied
+agreeing frame. This is not full global coverage: the frame must already be
+linked by earlier ancestry; arbitrary continuation maps do not supply agreement.
+Saturated prefixes, ambient embeddings and subsequent continuation consumption
+remain open. The original-probe frontier and weakN_iff are unchanged. Validation:
+1058 jobs, 50 recursive roots, maximum closure 11,976; only propext,
+Classical.choice and Quot.sound, all 1,033 source hashes fixed.

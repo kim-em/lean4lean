@@ -3,6 +3,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaFrameOri
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqDelayedSupply
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPairedEta
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChosenCut
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -115,6 +116,16 @@ preservation steps: the non-level-body-cut branch of global minimum descent
 still forgets this pair, and carrying it through that recursion and ambient
 insertions remains open. The supply-boundary theorem below is not strengthened
 by these local lemmas alone.
+For a direct semantic realization, `chosen_counted_spine_or_cut` now retains
+the chosen substitution and reifies every actual supplied argument at the first
+non-level root. `ChosenEqSpineCut.eq_or_paired_smaller_or_saturated` combines
+this selection with strict eta descent: while a target argument remains, the
+smaller actual minimum keeps the extended chosen assignment and the supplied
+agreeing frame. Exhausting the target vector instead yields an exact five-slot
+cut with no actual pending supply, retaining both counted path segments.
+This does not derive agreement for an arbitrary continuation map. Relating
+the paired frame to later actual consumption, handling the saturated case,
+and lifting the construction through ambient embeddings remain open.
 `minimum_frontier` iterates this decrease
 by strong induction and reaches a component-only current path with completion
 at both endpoints. The conclusion retains this actual
