@@ -105,8 +105,9 @@ private theorem tracked_spine_hole (Δ : List ProofShape) (args : List ProofShap
     exact ⟨.appFn C x, .appFn HC, fun f => by rw [ProofShape.mkApps_snoc]; exact congrArg (fun g => ProofShape.app g x) (EC f)⟩
 
 /-- Every actual completed non-level cut in a typed minimum either reads the
-original equation or descends through native eta to a strictly smaller typed
-minimum with bounded completion. No source arity bound or ancestry hypothesis
+original equation or follows native eta to a strictly smaller typed minimum
+with bounded completion. An actually consumed component-only body returns to
+the parent's scope; the other branches retain the smaller fresh-body minimum. No source arity bound or ancestry hypothesis
 for the primitive output is imposed. -/
 theorem TargetPrefixEqSpineCut.eq_or_smaller
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
@@ -126,7 +127,7 @@ theorem TargetPrefixEqSpineCut.eq_or_smaller
         PiInertTypedContinuationMinimum D Ω out Ξ (ProofShape.mkApps (.const ``Eq.rec ls) args) smaller ∧
         EqTargetPrefixCompletion Γ v w [α,a,M,minor,b] Ξ (ProofShape.mkApps (.const ``Eq.rec ls) args) := by
   classical
-  obtain ⟨ls, pre, pending, target, cp, ct, hc, RP, HR, HN, RT, HP⟩ := H
+  obtain ⟨ls, pre, pending, target, cp, ct, hc, RP, HR, HN, RT, HP, HPsupplied⟩ := H
   have RP' : ScopedComputeCount (PiInertStage D n) cp Δ source
       (ProofShape.mkApps (ProofShape.mkApps (.const ``Eq.rec ls) pre) pending) := by
     simpa only [ProofShape.mkApps_append] using RP
@@ -161,12 +162,11 @@ theorem TargetPrefixEqSpineCut.eq_or_smaller
   · exact (HId _ HI).elim
   · cases HEta with
     | @intro A B u RN SD =>
-      obtain ⟨smaller, hsmall, HM, HPnew⟩ := HP.eta_typed_minimum heq hs hΓ ht HTwhole RN SD
-        RP' HR RT HK (cost := cost) (by omega) hmin
-      have ES : .app ((ProofShape.mkApps (.const ``Eq.rec ls) pre).liftN 1) (etaArgument u) =
-          ProofShape.mkApps (.const ``Eq.rec ls) (pre.map (·.liftN 1) ++ [etaArgument u]) := by
-        simp only [ProofShape.liftN_mkApps, ProofShape.liftN, ProofShape.mkApps_append, ProofShape.mkApps]
-      exact .inr ⟨A :: Δ, ls, _, smaller, hsmall, ES ▸ HM, ES ▸ HPnew⟩
+      obtain ⟨_, Ξ, next, smaller, hsmall, HM, HPnew, _⟩ := HPsupplied.eta_origin_minimum
+        heq hs hΓ ht HTwhole RN SD RP' HR RT HK (cost := cost) (by omega) hmin
+      have Hshape := HPnew
+      obtain ⟨nextLs, nextArgs, ES, _⟩ := Hshape
+      exact .inr ⟨Ξ, nextLs, nextArgs, smaller, hsmall, ES ▸ HM, ES ▸ HPnew⟩
 
 /-- A remaining component-only minimum with bounded completion at both ends
 of its actual current path. Its actual mixed continuation is retained. What

@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqTargetPrefixConsumption
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertEtaFrameOrigin
 
 /-! # Derive bounded-prefix completion from actual eta execution
 
@@ -33,8 +34,9 @@ private theorem native_eta_body_typed
 
 /-- The actual first non-level Eq-spine root, with bounded target completion derived
 from its preceding component history, up to the target length. This retains the original path endpoints,
-root stage, pending arguments and count bound. Classifying the completed root
-and following later arbitrary wrapper execution remain separate obligations. -/
+root stage, pending arguments and count bound. Completion of the full supplied
+spine is also retained, so actual eta consumption can use its argument ancestry.
+Following arbitrary enclosing wrapper execution remains a separate obligation. -/
 def TargetPrefixEqSpineCut (D : Definitions) (Γ : List VExpr) (v w : VLevel)
     (original : List VExpr) (n : Nat) (Δ : List ProofShape)
     (source endpoint : ProofShape) (budget : Nat) : Prop :=
@@ -44,7 +46,8 @@ def TargetPrefixEqSpineCut (D : Definitions) (Γ : List VExpr) (v w : VLevel)
     PiInertStage D n Δ (ProofShape.mkApps (.const ``Eq.rec ls) pre) target ∧
     ¬ LevelPrimitive univs (ProofShape.mkApps (.const ``Eq.rec ls) pre) target ∧
     ScopedComputeCount (PiInertStage D n) ct Δ (ProofShape.mkApps target pending) endpoint ∧
-    EqTargetPrefixCompletion Γ v w original Δ (ProofShape.mkApps (.const ``Eq.rec ls) pre)
+    EqTargetPrefixCompletion Γ v w original Δ (ProofShape.mkApps (.const ``Eq.rec ls) pre) ∧
+    EqTargetPrefixCompletion Γ v w original Δ (ProofShape.mkApps (.const ``Eq.rec ls) (pre ++ pending))
 
 /-- A counted computation from an actually typed Eq spine either preserves bounded completion
 at its exact endpoint or encounters a prefix-completed non-level root on that same
@@ -72,8 +75,9 @@ theorem EqTargetPrefixCompletion.counted_spine_or_cut
   · have HT := RP.forget.spine_cut_source_typed
       (ErasedScopedPrimitiveCertificateDescent.descent (pi_inert_stage_certificate_descent heq hs n)) HTsource
     have HH := HP.compute_components heq hs hΓ HL (typed_const_levels_wf HT) HA pre.length
+    have Hfull := HP.compute_components heq hs hΓ HL (typed_const_levels_wf HT) HA (pre ++ pending).length
     exact .inr ⟨ls', pre, pending, target, cp, ct, hc, RP, HR, HN, RT,
-      by simpa only [List.take_left] using HH⟩
+      (by simpa only [List.take_left] using HH), (by simpa only [List.take_length] using Hfull)⟩
 
 /-- Taking a prefix of a completed source keeps the exact current scope.
 This is the zero-step case of actual component preservation. -/
@@ -315,5 +319,61 @@ theorem EqTargetPrefixCompletion.eta_typed_minimum
     (erased_static_structure_eta_expansion_stage_descent heq hs guardStage)
     HTwhole RN SD RP HR RT HK hcost hmin
   exact ⟨smaller, hsmall, HM, HP.eta heq hs hΓ ht RN SD⟩
+
+/-- Retain the exact eta-frame origin and use whole-spine supply to return
+through an actually consumed component-only body. That case keeps the parent
+continuation and advances to its completed post-beta source at smaller cost.
+The other cases retain the actual smaller fresh-body minimum and its origin;
+agreement through subsequent retained frames still needs to be established. -/
+theorem EqTargetPrefixCompletion.eta_origin_minimum
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (ht : env.HasType univs Γ (VExpr.mkApps (.const ``Eq.rec [v,w]) original) T)
+    (HP : EqTargetPrefixCompletion Γ v w original Δ
+      (ProofShape.mkApps (.const ``Eq.rec ls) (pre ++ pending)))
+    (HTwhole : TypedSource Δ (ProofShape.mkApps (ProofShape.mkApps (.const ``Eq.rec ls) pre) pending))
+    (RN : ScopedTypeRecovery (ErasedStaticStructureEtaExpansionStage D guardStage) Δ
+      (ProofShape.mkApps (.const ``Eq.rec ls) pre) (.forallE A B)) (SD : DomainSort Δ A u)
+    (RP : ScopedComputeCount (PiInertStage D n) cp Δ source
+      (ProofShape.mkApps (ProofShape.mkApps (.const ``Eq.rec ls) pre) pending))
+    (HR : PiInertStage D n Δ (ProofShape.mkApps (.const ``Eq.rec ls) pre)
+      (.lam A (.app ((ProofShape.mkApps (.const ``Eq.rec ls) pre).liftN 1) (etaArgument u))))
+    (RT : ScopedComputeCount (PiInertStage D n) ct Δ
+      (ProofShape.mkApps (.lam A
+        (.app ((ProofShape.mkApps (.const ``Eq.rec ls) pre).liftN 1) (etaArgument u))) pending) endpoint)
+    (HK : PiInertTypedContinuationRun D Ω out Δ K endpoint ck)
+    (hcost : cp+1+ct+ck ≤ cost)
+    (hmin : ∀ later j endpoint' k,
+      ScopedComputeCount (PiInertStage D later) j Δ source endpoint' → K endpoint' k → cost ≤ j+k) :
+    CountedEtaFrameOrigin D n Δ (ProofShape.mkApps (.const ``Eq.rec ls) pre) A u pending endpoint ct ck cost K ∧
+    ∃ Ξ next smaller, smaller < cost ∧ PiInertTypedContinuationMinimum D Ω out Ξ next smaller ∧
+      EqTargetPrefixCompletion Γ v w original Ξ next ∧
+      ((Ξ = Δ ∧ ∃ (body' x' : ProofShape) (xs' : List ProofShape) (cs : Nat), next = ProofShape.mkApps (body'.inst x') xs' ∧ smaller = cs+ck ∧
+          ScopedComputeCount (PiInertStage D n) cs Δ next endpoint) ∨
+       (Ξ = A :: Δ ∧ next = .app ((ProofShape.mkApps (.const ``Eq.rec ls) pre).liftN 1) (etaArgument u))) := by
+  have Horigin := pi_inert_eta_frame_origin heq hs
+    (erased_static_structure_eta_expansion_stage_descent heq hs guardStage)
+    HTwhole RN SD RP HR RT HK.holds hcost hmin
+  have HPfresh := (HP.take_prefix heq hs hΓ).eta heq hs hΓ ht RN SD
+  obtain ⟨freshCost, hfresh, HMfresh⟩ := Horigin.typed_frames heq hs HK
+  have fresh : ∃ Ξ next smaller, smaller < cost ∧ PiInertTypedContinuationMinimum D Ω out Ξ next smaller ∧
+      EqTargetPrefixCompletion Γ v w original Ξ next ∧
+      ((Ξ = Δ ∧ ∃ (body' x' : ProofShape) (xs' : List ProofShape) (cs : Nat), next = ProofShape.mkApps (body'.inst x') xs' ∧ smaller = cs+ck ∧
+          ScopedComputeCount (PiInertStage D n) cs Δ next endpoint) ∨
+       (Ξ = A :: Δ ∧ next = .app ((ProofShape.mkApps (.const ``Eq.rec ls) pre).liftN 1) (etaArgument u))) :=
+    ⟨_, _, freshCost, hfresh, HMfresh, HPfresh, .inr ⟨rfl, rfl⟩⟩
+  refine ⟨Horigin, ?_⟩
+  rcases Horigin.2 with Hret | Hcons
+  · exact fresh
+  · obtain ⟨A', body', x', xs', cf, ca, cs, cd, cb, m, hc, _, RF, RX, _, _, _, _, _, RS, _⟩ := Hcons
+    cases pending with
+    | nil => cases RX
+    | cons x rest =>
+      rcases HP.consumed_eta_minimum heq hs hΓ ht
+          (by simpa only [ProofShape.mkApps_append] using HTwhole) RN SD
+          (by simpa only [ProofShape.mkApps_append] using RP) HR RF RX RS HK
+          (cost := cost) (by omega) hmin with ⟨HPnext, hsmall, HMnext⟩ | Hcut
+      · exact ⟨Δ, _, cs+ck, hsmall, HMnext, HPnext, .inl ⟨rfl, body', x', xs', cs, rfl, rfl, RS⟩⟩
+      · exact fresh
 
 end Lean4Lean.VEnv.Strengthening

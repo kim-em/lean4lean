@@ -19435,3 +19435,36 @@ histories. The new frontier does not assert universal agreement or impossibility
 Strengthening and sufficient strict reduction below PropFront remain unproved.
 Validation: 1029 jobs, 8 audited roots, maximum closure 11,902,
 1,004 frozen source hashes. No executable changes, PR extraction or coordination.
+
+
+## 2026-11-06 18:07:11 UTC — Keep whole eta supply and return through consumed frames
+
+Verdict: verified progress. Two interfaces were discarding ancestry needed by
+the next step. The first non-level cut retained completion only at its selected
+function prefix, omitting the pending supplied arguments. The child minimum
+also hid the lambda/argument computation that produced a consumed binder's
+substitution image. Both are now available at the eta step.
+
+`TargetPrefixEqSpineCut` now retains bounded completion of the whole supplied
+spine as well as its selected prefix, derived from the same actual component
+history. `CountedEtaFrameOrigin` retains the exact lambda, argument-vector,
+annotation, body and suffix paths, their cost bounds, and child minimality for
+the precise retained or consumed continuation predicate. The typed child run
+is constructed from that recorded branch.
+
+`EqTargetPrefixCompletion.eta_origin_minimum` uses the whole completion and
+actual supplied argument computation to return through a consumed
+component-only body. The next completed minimum is at its exact post-beta
+source, in the parent scope and with the parent continuation. The other cases
+keep the smaller fresh-body minimum and the recorded origin. The non-level
+cut classifier now calls this result, so the global frontier induction uses
+this consumed-frame return rather than always entering a fresh-body minimum.
+
+Remaining: retain and compose the relevant origins through arbitrary retained
+frames, including a lambda consumed only after additional enclosing frames.
+The new local origin is not a complete ancestry trace across the entire
+frontier induction, and arbitrary typed substitutions still do not imply
+target agreement. Strengthening and a sufficient strictly smaller irreducible
+obligation remain unproved. Validation: 1030 jobs, 19 audited roots,
+maximum closure 11,932, 1,005 frozen source hashes. No executable changes,
+PR extraction or coordination.

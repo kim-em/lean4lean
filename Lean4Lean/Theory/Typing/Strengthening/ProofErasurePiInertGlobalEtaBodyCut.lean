@@ -60,7 +60,14 @@ Thus both administrative expansion cases are excluded at tracked roots of
 typed minima. `TargetPrefixEqSpineCut.eq_or_smaller` now combines both
 exclusions with direct positive singleton readout and structure/core exclusion:
 every completed non-level cut reads the original equation or yields a strictly
-smaller completed eta-body minimum. `minimum_frontier` iterates this decrease
+smaller completed minimum. The cut now retains completion of the whole
+supplied spine as well as its selected prefix. `CountedEtaFrameOrigin` retains
+the exact lambda, annotation, body and argument-vector paths in both branches.
+`eta_origin_minimum` uses that supply to return through an actually consumed
+component-only body to its completed post-beta source with the parent
+continuation. The other branches retain the smaller fresh-body minimum;
+propagating origins through arbitrary retained frames is still open.
+`minimum_frontier` iterates this decrease
 by strong induction and reaches a component-only current path with completion
 at both endpoints. The conclusion retains this actual
 `EqTargetPrefixComponentMinimum` within the smaller budget, including its

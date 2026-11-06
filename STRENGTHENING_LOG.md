@@ -33782,3 +33782,54 @@ advances through its enclosing frames. The frontier is a proved necessary
 residual of this exposure argument, not a proved impossible case or a sufficient
 irreducible obligation strictly smaller than PropFront. `weakN_iff` remains
 open. No executable changes, PR extraction or coordination.
+
+
+## 2026-11-06 18:07:11 UTC — Preserve supplied arguments at the eta cut and consume them
+
+Added `ProofErasurePiInertEtaFrameOrigin.lean`. `CountedEtaFrameOrigin` records
+both actual eta suffix branches, with the original argument vector and its
+counted computation retained even for a consumed binder. Both branches retain
+the lambda/annotation/body paths and exact count decomposition; the consumed
+branch additionally records its actual instantiation interpretation, typed
+post-beta source and suffix. Their minimum predicates are exactly the retained
+lambda continuation and the consumed application continuation, respectively.
+`pi_inert_eta_frame_origin` derives these witnesses from the actual parent
+prefix, eta primitive, suffix and minimum. `typed_frames` constructs the child
+minimum from the same recorded body path and induced continuation.
+
+Strengthened `TargetPrefixEqSpineCut` with bounded completion of the full
+`pre ++ pending` supply, in addition to the selected prefix. Its producer
+reifies the same original component history at the full supplied length, so
+this is derived ancestry rather than a new caller premise. The cut classifier
+now retains and uses that field.
+
+Added `EqTargetPrefixCompletion.eta_origin_minimum`. It constructs the actual
+origin and fresh-body fallback. If the origin is consumed, the retained
+argument-vector computation exposes the supplied first argument. The existing
+whole-supply consumption theorem then derives completion at the exact
+post-beta source when the body has only component history, and constructs a
+strictly smaller minimum there with the original parent continuation. The
+result records this post-beta source, suffix and remaining count explicitly.
+For a retained lambda or a non-level body cut it keeps the actual smaller
+fresh-body minimum; no arbitrary later substitution agreement is assumed.
+
+`TargetPrefixEqSpineCut.eq_or_smaller` now uses this return-aware step, deriving
+the next displayed Eq spine from its bounded completion. Consequently the
+global frontier induction follows actual consumed-frame returns where the
+component case permits them. The global theorem's statement is unchanged;
+its dependency and proof now use the strengthened cut and origin step.
+
+Validation: 1030 jobs including GlobalEtaBodyCut and the established
+ContextualCastFeedback/CoreFamilySubstitutionBarrier regressions. All 19
+public roots in the four owned modules passed recursive dependency and axiom
+audit, maximum closure 11,932. Only propext, Classical.choice and
+Quot.sound occur; no weakN_iff, weakN_inv, sorryAx or excluded framework
+dependencies. No owned diagnostics; all 1,005 frozen source hashes remained
+unchanged across the final build and audit.
+
+Remaining: a retained eta lambda may be consumed only after further enclosing
+frames. Its argument agreement must be reconstructed from a compatible origin
+history across those frames; the local origin does not yet supply a full linked
+trace through every recursive minimum step. The original strengthening theorem
+and a sufficient irreducible obligation strictly smaller than PropFront remain
+open. No executable changes, PR extraction or coordination.
