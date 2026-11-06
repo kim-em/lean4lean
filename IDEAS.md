@@ -20431,3 +20431,37 @@ and retained-lambda branches remains open; GOAL.md is not complete.
 Validation: 1072 build jobs, 154 recursively audited declarations, maximum
 closure 11,976; only propext, Classical.choice and Quot.sound, with all
 1,047 source hashes fixed. Original strengthening sorry unchanged.
+
+
+## 2026-11-06 23:31:52 UTC — Separate insertion paths across finite retained supply histories
+
+**Idea:** Generalize the one-retained-binder consumption result by retaining two
+insertion chains, one before consumption and one after it, rather than forcing
+both sides into the same-offset paired chain. Carry the chosen newer images
+through their actual annotation histories, deriving each outgoing annotation by
+substituting the computed lower annotation.
+
+**Verdict:** Implemented and checked for every finite retained telescope.
+`EqRetainedSupplyHistory.consume` derives the agreeing base map from the actual
+older argument computation, and then preserves all newer chosen images through
+arbitrarily many computed annotations. `retained_telescope_return` lowers an
+actual component-only body and returns its substituted suffix to
+`EqChainContinuationMinimum`, at the exact supplied suffix cost. The stronger
+`retained_telescope_whole_return` derives the required inner minimum by reading
+the actual whole retained suffix. It handles every positive retained depth,
+without increasing primitive cost, and retains exactly frames+depth tail frames.
+`retained_telescope_selected_return` derives that whole suffix minimum from the
+parent application predicate and its recorded body path, suffix and outer run.
+It returns an explicit primitive-cost/frame decrease relative to the recorded
+retained-depth-plus-application prefix. This replaces
+the earlier restriction to one unchanged retained annotation. The two insertion
+paths and their shifted offsets are explicit; no inhabitant of an inserted
+declaration and no agreement with an arbitrary future argument is assumed.
+
+This does not derive the supplied history at every arbitrary nested cut. That global ancestry/continuation connection remains the next obligation,
+especially with empty local supply. The original strengthening sorry and the
+GOAL.md deliverable remain open; no claim of a sufficient smaller frontier.
+
+Validation: 1073 build jobs, 166 audited declarations, maximum dependency
+closure 11,976; only the three permitted Lean axioms. All 1,048 source
+hashes fixed, scratch-only stock Lean/Lake, no executable change or PR extraction.

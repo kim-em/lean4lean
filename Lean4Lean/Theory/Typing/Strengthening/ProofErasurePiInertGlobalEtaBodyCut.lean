@@ -17,6 +17,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainRetainedSupply
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainArgumentHistory
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChosenSupplyDescent
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSuppliedSpineReturn
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedTelescopeSupply
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -26,6 +27,16 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCu
 Minimize over all finite stages, read every outer singleton directly, and
 bypass administrative and proof-argument eta cases. The retained native eta
 must itself contain a non-level cut on its original constant-headed body.
+
+`EqRetainedSupplyHistory.consume` now carries an actually computed older
+argument beneath any finite telescope of retained binders and computed
+annotations. Separate insertion paths account for the removed binder.
+`EqPrefixSpecializationAt.retained_telescope_selected_return` derives the
+whole and inner suffix minima from the parent application predicate and recorded
+run, then returns the component-only body to the chosen-chain minimum class.
+Cost does not increase; at equal cost the retained-depth frame count omits the
+older application. Carrying the supplied history to arbitrary nested cuts
+remains open; these local preservation theorems do not close strengthening.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation

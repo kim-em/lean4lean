@@ -35581,3 +35581,80 @@ excluded circular framework. All 1,047 source hashes stayed fixed. The chosen-ch
 original-probe root still excludes older nested-eta, frame-boundary and
 supply-boundary probe theorems. Original weakN_iff sorry unchanged. Stock Lean/Lake
 commands ran only in the scratch checkout.
+
+
+## 2026-11-06 23:31:52 UTC — Consume supplied arguments beneath finite computed retained telescopes
+
+Added `ProofErasureEqRetainedTelescopeSupply.lean` and connected it to the global
+eta body-cut module. The earlier one-unchanged-binder result is now generalized
+to any finite sequence of retained binders with actual computed annotations.
+
+The key correction is structural: a used-binder consumption changes insertion
+offsets. The incoming and outgoing chains therefore cannot generally be one
+paired chain with the same path. `EqFrameInsertionChain.source_identity` keeps
+all actual source insertions but forgets the previous outgoing map. Separate
+identity chains can then be rebuilt on the two sides, related by the literal
+raw substitution square. `EqInsertionPath.square_under_binder` proves that this
+square lifts under a binder even when its two insertion paths differ.
+
+`EqRetainedSupplyHistory` records each original lower annotation, its already
+chosen newer target image and typing, the counted native annotation path, and the actual retained lambda wrapper
+before the older map acts. Its shape theorem fixes the insertion offsets and
+raw substitution at the recorded depth. Its endpoint theorem recovers the
+existing native endpoint-context history while retaining typed source
+assignments and source insertion chains. The history does not assert agreement
+with a future supplied argument or assume a lower annotation computation.
+
+`realize` constructs the concrete outgoing context and agreeing specialization
+frame by induction on that history. At each binder, its actual annotation path
+is descended through the source identity chain. The resulting source equality
+converts the outgoing domain after the older map. The chosen image is unchanged;
+its outgoing typing follows from the old frame's agreement. The outgoing raw
+context is exactly the recorded annotation result under the upper map. The
+actual frame is the original lower map lifted by the telescope depth, while
+the outgoing insertion path is independently shifted by that depth.
+
+`consume` supplies this construction's base from an actual older argument path.
+It descends that path to x', derives agreement with the original chosen xσ,
+and uses the already proved instantiation/insertion square. No target images
+are required for unused inserted binders. `retained_telescope_return` then
+lowers an actual component-only body in the source chain, executes this derived
+frame, preserves the original chosen pending vector, type and nonproof status,
+and proves the exact outgoing erased component vector. Its given actual suffix
+minimum returns to `EqChainContinuationMinimum` at the same cost, including any
+upper extras allowed by the completed-prefix condition.
+
+`focus_nonempty` reads the actual whole retained suffix using the recorded
+lambda wrappers. It repeatedly invokes the existing lambda-spine readout, with
+the original competitors and suffix, and derives a body minimum in exactly the
+raw context and map produced by the supply history. Primitive cost does not
+increase; the result has exactly one frame per retained binder over the selected
+suffix, and does not rebuild the older application frame. The stronger
+`retained_telescope_whole_return` combines that readout with supply realization
+and body-component descent. Thus it no longer requires an inner body minimum
+as an independent premise. The whole retained suffix may have arbitrary pending
+arguments, which the lambda-spine readout handles directly.
+
+`retained_telescope_selected_return` completes that connection to the recorded
+parent application predicate: every competing whole suffix is prefixed by the
+original counted body path. This derives the whole minimum at cs+ck directly
+from the given actual suffix and original outer run, then applies the preceding
+readout. The result has cost at most cs+ck and exactly frames+depth tail frames.
+Relative to parent cost cb+(cs+ck) and its recorded depth-plus-application prefix,
+either primitive cost decreases or the older application frame disappears.
+No independent whole or inner suffix minimum is assumed by this final theorem.
+
+Remaining gap: construct and preserve this supplied history at arbitrary nested
+cuts, including histories with newly interleaved insertions. The new result
+handles a recorded finite telescope but does not establish global continuation
+closure or a sufficient smaller PropFront obligation. The empty-local-supply case still needs the enclosing
+history. GOAL.md remains active, and the weakN_iff sorry remains unchanged.
+
+Validation: 1073 build jobs including the global module and established
+regressions; 166 declarations recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur; no owned diagnostics, sorryAx,
+strengthening dependency or excluded circular framework. All 1,048 source hashes
+stayed fixed. The chosen-chain original-probe root still excludes the older
+nested-eta, frame-boundary and supply-boundary probe roots. Stock Lean/Lake ran
+only in the scratch checkout. No executable changes or PR extraction.
