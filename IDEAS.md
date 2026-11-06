@@ -15718,3 +15718,44 @@ constructors and recursors; maximum closure 11,551; 772 pinned hashes
 unchanged. Standard axioms only, no forbidden dependencies or own warnings.
 Original strengthening sorry remains; executable unchanged; GOAL.md active.
 No coordination or PR extraction.
+
+
+## 2026-11-06 01:17:14 UTC — Recursive finite-stage casts between certified endpoint types
+
+Previous goal turn: progress (fde4703207e29de0ba8be49217f75fd1fa9ea12a committed
+and pushed). Revalidated that HEAD and preserved the independent untracked files.
+
+Idea: remove literal endpoint reflexivity from the new cast leaf by consuming
+an earlier recursive endpoint certificate. Verdict: checked at arbitrary finite
+cast depth. A guard at stage n compares the endpoint types after arbitrary core
+paths; stage n+1 then contracts the residual cast. The new inductive grammar
+stores the child certificate, not its forward theorem as an oracle.
+
+The residual proof reconstructs ordinary endpoint equality by reflecting the
+earlier-stage comparison at the actual common sort. Thus no separate semantic
+conversion is assumed to authorize the cast removal. Full level-core
+factorization and ordinary proof-major Eq inversion expose the computed spine;
+the same child induction hypothesis constructs the residual endpoint guard.
+Independent payload computation joins using only level-core confluence.
+
+LevelStagedCastGuard records an explicit finite bound, retains binder and loop
+frames, typed prefixes, arbitrary core tails and symmetry, and allows increasing
+the bound. Every previous LevelCastGuard embeds at bound one. The nested example
+has a target type that is itself a cast: the inner cast supplies the outer
+endpoint certificate, and canonical reflexivity plus checked conversion builds
+the outer equality proof. No outer equality witness or endpoint oracle is a
+premise. Both its reusable guard and forward comparison survive independent
+core computation at bound two; minimality of that bound is not claimed.
+
+Limit: this is closure under explicit certified casts, not arbitrary conversion
+of lambda annotations or arbitrary typed substitution. Higher-stage residual
+paths themselves are not covered by the forward theorem. The general created-
+beta case still needs a reason that its promoted annotation comparison belongs
+to this or a larger descending grammar; ordinary semantic conversion alone is
+not that reason. No smaller sufficient strengthening obligation is claimed.
+
+Validation: 800 jobs, 24 full dependency roots including all new
+constructors and recursors, maximum closure 12,092, 775 pinned hashes
+unchanged. Standard axioms only; no forbidden dependencies or own warnings.
+Original sorry remains, executable unchanged, GOAL.md active. No coordination
+or PR extraction.

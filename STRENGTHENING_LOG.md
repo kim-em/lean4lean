@@ -29514,3 +29514,65 @@ this guard's forward theorem covers core tails, not arbitrary stage-one tails.
 GOAL.md remains active. Only these two proof files and EOF ledger additions are
 committed; executable and independent experiments untouched; no coordination
 or PR extraction.
+
+
+## 2026-11-06 01:17:14 UTC — Earlier endpoint certificates support arbitrary finite cast depth
+
+Previous turn: progress (fde47032 pushed). Revalidated the authoritative HEAD
+and independent files. Investigated the remaining literal-reflexivity restriction
+of LevelCastGuard by making endpoint comparisons recursive at a smaller stage.
+The original strengthening theorem and requested deliverable remain unchanged.
+
+ProofErasureStagedCastResidual.lean lifts any computed common endpoint comparison
+at stage n through the existing Eq-prefix rule at n+1, then applies its proof
+major by beta. Full level-core computations embed in every finite stage. The
+staged_cast_level_core_residual theorem takes the earlier-stage forward
+interpretation as a directed induction interface. It first reflects the
+unreduced endpoint check at the actual common sort and obtains the ordinary
+conversion needed for IsDefEq.typeCast_refl. This equality is derived, not an
+extra semantic premise. Whole-proof sources use proof-erasure congruence. Other
+sources factor to an ordinary reduct; the previous proof-major spine inversion
+exposes independent endpoint paths. Applying the same inductive interface to
+those paths supplies the next-stage residual guard. Its output is an ordinary
+reduct of the original payload. The join corollary adds arbitrary independent
+payload computation using only the established level-core confluence theorem.
+
+ProofErasureStagedCastGuard.lean supplies that interface by structural induction.
+The new indexed grammar has a core leaf, monotone bound increase, and a cast
+constructor whose endpoint comparison is a child at strictly smaller stage.
+Both endpoint types have actual typings at the same sort, the major has the
+actual Eq type, and the payload inhabits the source endpoint. Lambda/common-
+lambda/Pi frames, self loops, typed prefixes, core tails and symmetry preserve
+the bound. No comparison transport or confluence oracle is a constructor.
+The forward theorem interprets every certificate after arbitrary independent
+core paths at the recorded finite stage. Typed outputs joined to references
+retain the inductive certificate. Every previous reflexive LevelCastGuard
+embeds at bound one with a reflexive core join as its new endpoint child.
+The actual-environment corollary discharges all registry/core interfaces.
+
+ProofErasureNestedCastGuard.lean exercises the new child constructor on a typed
+example. The outer target is Y = cast (Sort u) (Sort u) r X, so its endpoint
+syntax differs from X. The inner cast yields both Y's typing and a stage-one
+endpoint certificate. The outer proof is explicitly Eq.refl X, typed at Eq X Y
+by checked Eq congruence and the inner cast's semantic equality. The outer cast
+therefore receives a constructed stage-two guard, without assuming an outer
+equality witness or endpoint coverage. Its actual-environment corollary retains
+that guard and computed comparison after any independent full-core tails.
+No claim is made that two is the smallest possible stage for this example.
+
+Validation: isolated build passed (800 jobs); 24 audited roots include
+all new constructors, rec, recOn and casesOn. Audit traversed types, opaque
+values, inductive constructors and recursor RHSs; maximum closure 12,092;
+775 source/import hashes unchanged. Standard axioms only, no forbidden or
+original strengthening dependencies, and no own-module warnings. Development
+specified the residual comparison's ambient checking context explicitly to
+resolve an inference ambiguity; no premise or target relation was weakened.
+
+Completion audit: the original weakN_iff sorry remains at UniqueTyping.lean:94.
+No canonical-Eq strengthening counterexample or strictly smaller sufficient
+irreducible obligation has been obtained. Explicit certified casts now recurse,
+but arbitrary annotation conversion, created-beta repair, typed substitution
+and native comparison coverage remain open. Forward transport still covers
+core paths rather than arbitrary higher-stage paths. GOAL.md remains active.
+Only three proof modules and EOF ledger additions are committed; executable and
+independent untracked experiments untouched. No coordination or PR extraction.
