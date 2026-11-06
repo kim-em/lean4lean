@@ -19317,3 +19317,29 @@ sufficient irreducible obligation strictly smaller than PropFront is claimed;
 `weakN_iff` remains open. Validation: 1025 jobs, 5 audited roots,
 maximum closure 11,813, 1,000 frozen source hashes. No executable changes,
 PR extraction or coordination.
+
+
+## 2026-11-06 17:28:34 UTC — Follow actual eta execution with bounded target ancestry
+
+Verdict: verified progress. `ProofErasureEqTargetPrefixExecution.lean` extends
+the counted execution and minimum arguments to bounded-prefix completion,
+with actual full-source typing retained independently. A component-only body
+returns bounded completion at the exact consumed endpoint, even beyond the
+target length, or at the retained body in its changed annotation context.
+Otherwise the actual non-level root retains bounded completion and its counted
+prefix/suffix. The full suffix split permits arbitrary pending arguments,
+including none.
+
+`consumed_eta_minimum` gives a strictly smaller typed minimum at the completed
+post-beta source. `eta_typed_minimum` descends through another selected native
+eta with a strictly smaller minimum and the same bounded-prefix invariant at
+any arity. The fresh full-body typing is derived from actual native eta
+realization, not from the prefix-only ancestry witness.
+
+Still open: administrative roots and component-only transitions through
+enclosing wrappers, including agreement across the actual retained frames.
+These execution lemmas do not prove arbitrary wrapper-history coverage. No
+sufficient irreducible obligation strictly smaller than PropFront is claimed;
+`weakN_iff` remains open. Validation: 1026 jobs, 8 audited roots, maximum
+closure 11,813, 1,001 frozen source hashes. No executable changes, PR
+extraction or coordination.

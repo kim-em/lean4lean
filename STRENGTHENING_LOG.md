@@ -33589,3 +33589,48 @@ with extra arguments, but does not prove that every global selected-root
 history belongs to the recorded spine relation. The main strengthening goal
 remains incomplete; no sufficient strictly smaller irreducible obligation
 is claimed. No executable changes, PR extraction or coordination.
+
+
+## 2026-11-06 17:28:34 UTC — Bounded-prefix ancestry through counted eta branches and minima
+
+Added `ProofErasureEqTargetPrefixExecution.lean`. `TargetPrefixEqSpineCut`
+retains bounded completion at the actual first non-level root with its original
+counted paths, pending arguments and bound. `counted_spine_or_cut` derives this
+from actual component computation or preserves completion at the exact endpoint.
+Full-source typing is a separate input because bounded completion does not
+type arguments beyond the target vector. `take_prefix` specializes zero-step
+component preservation using valid levels from the completed initial segment.
+
+`consumed_eta_execution` derives fresh-body typing by actual native eta
+realization, reads the counted lambda history in its original binder context,
+and either applies bounded-prefix consumption to the derived component history
+or retains the actual prefix-completed body root. No arity limit or extra
+target assignment is assumed. `consumed_eta_minimum` reconstructs the actual
+prefix through eta, lambda/argument computation and beta to retain a strictly
+smaller typed minimum. Typing at the full post-beta source comes from that
+execution rather than from prefix ancestry. Competitors retain the original
+continuation and range over every finite stage and endpoint.
+
+`eta_execution` handles the full retained-or-first-beta suffix with any pending
+vector, including the empty vector. A retained component endpoint receives
+bounded completion in the actual changed annotation context.
+`eta_typed_minimum` carries the same invariant into the strictly smaller typed
+minimum of another native eta at every arity. The global theorem's module
+imports these results and documents the outstanding execution cases.
+
+Validation: 1026 jobs including GlobalEtaBodyCut and the established
+ContextualCastFeedback/CoreFamilySubstitutionBarrier regressions. All seven
+new public declarations and the global theorem passed recursive dependency
+and axiom audit, maximum closure 11,813. Only propext, Classical.choice
+and Quot.sound occur; no weakN_iff, weakN_inv, sorryAx or excluded framework
+dependencies. No owned diagnostics; all 1,001 frozen source hashes remained
+unchanged across the final build and audit.
+
+Remaining: administrative expansions and component-only transitions through
+enclosing wrappers still require their ancestry argument. In particular,
+prefix completion of a retained body alone does not assert agreement with
+an arbitrary later context substitution. The exact recorded origin/argument
+histories must supply that agreement. Arbitrary wrapped-history coverage and
+the original strengthening theorem remain open; no sufficient strictly smaller
+irreducible obligation is claimed. No executable changes, PR extraction or
+coordination.
