@@ -30840,3 +30840,40 @@ maximum closure 11,327; 838 frozen source/import hashes. Only propext,
 Classical.choice and Quot.sound; no forbidden dependencies or owned warnings.
 Independent experiments preserved; no executable edits, coordination or PR
 extraction. Strengthening and the final deliverable remain open.
+
+
+### 2026-11-06 06:51:01 UTC — Local conversion certificates survive function computation
+
+Added ProofErasureAmbientSortedReadout, ProofErasureEtaCoreReadoutTransport and
+ProofErasureEtaConversionEvidence. Exposed annotation marks now admit shared-sort
+common-mode domain checks in the arbitrary eta consumer readout theorem.
+Actual eta histories supply the sort witnesses; comparison coverage remains
+explicit and is not inferred from their semantic equality.
+
+EtaCoreReadout records the two local readout obligations for a particular
+assigned function. after and before transport it along a finite full-core
+function path, preserving the exact comparison core/stage. The backward proof
+joins all alternative function histories at the typed source and extracts
+annotation paths from their common lambda reduct. It uses no comparison
+transitivity or normalization. eta_core_readout_identity_iff specializes this
+to an identity beta step.
+
+eta_core_readout_lambda_of_conversion constructs the complete local certificate
+from a retained common-mode CoreFamilyCast conversion between the lambda's
+assigned and written domains. Source lambda inversion, typed eta beta and
+shared-sort lambda checking discharge every residual domain/origin case.
+EtaCoreReadout.identity_consumer then carries the argument's evidence through
+the wrapper and into every typed consumer, including independent full-core
+computation on both sides. This is the local evidence-preserving construction
+that the native-source-only barrier lacked.
+
+General conversion-certificate synthesis and a justified induction over strong
+typing/equality derivations remain unproved. In particular this does not replace
+an arbitrary Pi-type conversion by a domain certificate for free. Strengthening
+is still open, and no final strict-smallness claim is made.
+
+Validation: 866 jobs; 17 complete dependency-audit roots including new
+structure constructors, recursors and projections; maximum closure 11,673;
+841 frozen hashes. Only propext, Classical.choice and Quot.sound; no forbidden
+dependencies or owned diagnostics. Independent experiments preserved; no
+executable changes, coordination or PR extraction.

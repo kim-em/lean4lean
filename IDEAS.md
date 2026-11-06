@@ -17178,3 +17178,55 @@ Validation: 863 jobs; 19 complete dependency-audit roots; maximum closure
 11,327; 838 frozen hashes; standard axioms only, no forbidden dependencies
 or owned diagnostics. Executable unchanged, no coordination or PR extraction.
 The original weakN_iff sorry remains and GOAL.md remains unachieved.
+
+
+### 2026-11-06 06:51:01 UTC — Retaining inner conversion evidence across identity beta
+
+Previous goal turn: progress (80b64575, unrestricted eta-domain readout and even
+exact assigned-source recovery still imply the full front). Revalidated HEAD
+and the independent untracked experiments. Continued with local retained
+conversion evidence instead of claiming synthesis from outer native recovery.
+
+Idea: attach the actual domain and eta-origin readout evidence to a particular
+assigned function, and transport it along core computation. Verdict: proved
+in both directions at the identical comparison relation and stage. Forward
+transport prefixes histories. Backward transport uses source confluence to join
+the chosen reduct with every independent exposed lambda or eta origin; exact
+lambda inversion retains the annotation path needed to prefix its comparison.
+No comparison transitivity, inferred substitution completeness or native source
+coverage is used.
+
+Refined the consumer readout interface: a common-mode comparison of an exposed
+domain pair, together with its actual shared sort, suffices for the enclosing
+lambda in either mode. EtaCoreDomains realization supplies both sort witnesses.
+The retained common-mode conversion itself stays explicit. Extended the ambient
+variant readout and the full-core consumer theorem to use this interface. This
+is not a smaller final front: arbitrary same-sort common comparisons also descend
+with their common lower sort; no global coverage theorem is asserted.
+
+Constructed local EtaCoreReadout evidence for a literal lambda from a previously
+retained CoreFamilyCast common comparison between its assigned and written
+domains. Its interpretation supplies all future domain checks. Every exposed
+function remains a lambda; typed eta beta restores its exact body, so no native
+body recovery or normalization is required. This constructs the whole local
+certificate, including residual eta atoms, from the conversion child.
+
+The readout certificate is equivalent before and after an identity wrapper.
+Consequently the argument's retained conversion evidence supplies inferred
+comparison for arbitrary consumers of the wrapper's eta pair after independent
+full-core paths. This closes the local identity-beta case identified by the
+preceding barrier when the inner conversion certificate is retained. The
+wrapper's exact assigned-type recovery alone still cannot construct that child.
+
+Limits and next action: the construction consumes a previously established
+conversion certificate. It does not derive one for every IsDefEqStrong
+conversion, and no well-founded global induction has yet been proved. Strong
+conversion may concern whole Pi types; preserving/extracting its domain evidence
+through arbitrary conversion derivations and argument substitution remains
+necessary. The original weakN_iff sorry and every final GOAL.md deliverable
+remain open. No strictly smaller sufficient obligation is claimed.
+
+Validation: 866 jobs; 17 complete type/value/constructor/recursor audit
+roots; maximum closure 11,673; 841 frozen source/import hashes. Standard
+axioms only, no forbidden dependencies or owned warnings. No executable changes,
+coordination or PR extraction.
