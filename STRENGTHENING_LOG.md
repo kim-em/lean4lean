@@ -30410,3 +30410,45 @@ General converted-neutral typing, proof-domain marks and full primitive
 simulation remain open. The result is not promoted to hereditary comparison or
 to arbitrary ambient substitution. GOAL.md remains unachieved; original sorry,
 executable and independent files preserved. No coordination or PR extraction.
+
+
+### 2026-11-06 05:08:18 UTC — Neutral eta consumers after arbitrary ordinary core paths
+
+Added ProofErasureNeutralEtaCorePrimitives.lean,
+ProofErasureNeutralEtaCoreComputation.lean and
+ProofErasureNeutralEtaCoreChecking.lean.
+
+The primitive layer preserves exact constant spines and visible matches, with
+pointwise protected eta variants among their captures. It simulates delta,
+saturated projection, selecting/capture-application rules, arbitrary stored
+iota templates and explicit universe conversion. Original rule checks and
+universe lists are reused literally; no endpoint typing oracle is needed.
+
+The compatible computation layer carries those primitive results through all
+constructors. The marked neutral body cannot take a primitive or beta step.
+Domain paths descend through the protected prefix via level_core_lift_inv and
+update the ambient origin guard. Beta uses protected paired substitution.
+Independent full paths produce further paired residuals using typed ordinary
+core confluence only at the right source.
+
+The checking layer replaces the beta domain-origin guard by a full ordinary
+core history. Native expansion followed by that history reads every mark at
+one successor stage. Typed replay reconstructs the left residual's actual
+representative, so the prior exact-renaming readout handles all binder
+contexts. The actual EnvironmentCore theorem discharges soundness and typed
+confluence; literal Pi lookup discharges native recovery at stage zero. Its
+conclusion compares all independent core residuals of an arbitrary typed eta
+consumer at stage one, in either comparison mode.
+
+Validation: 838 jobs; 15 roots; maximum closure 11,982; 813 frozen
+source/import hashes. Audit traverses types, opaque bodies, constructors and
+recursor RHSs. Only propext, Classical.choice and Quot.sound; no forbidden
+dependencies or owned-module diagnostics. Contextual cast feedback and the
+finite-stage substitution barrier regression clients rebuilt.
+
+Judgment: the prior full-primitive-simulation gap is closed for protected
+neutral marks with retained bound arguments. Proof-domain marks need a typed
+extension; arbitrary semantic Pi typing still does not supply exact native
+recovery. No confluence of higher eta stages, hereditary comparison or general
+ambient-substitution closure is claimed. GOAL.md is unchanged and unachieved;
+original sorry and independent files preserved. No PR extraction/creation.

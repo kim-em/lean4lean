@@ -16626,3 +16626,49 @@ strengthening nor a strictly smaller sufficient final obligation.
 Validation: 835 build jobs; 5 complete audit roots; maximum closure
 11,495; 810 frozen source/import hashes. Only standard axioms, no forbidden
 dependencies or owned-module warnings. Original sorry remains; no PR extraction.
+
+
+### 2026-11-06 05:08:18 UTC — Full ordinary core preserves protected neutral eta residuals
+
+Previous goal turn: progress (a55c7406, checked native neutral eta beta
+residuals). Revalidated that HEAD and the worktree; both independent untracked
+experiments remain unchanged.
+
+Deep continuation: remove the beta-only restriction on neutral eta consumers.
+Visible patterns inspect constant/application structure, whereas eta marks
+replace a variable by a lambda. A match can therefore only capture a mark,
+not inspect its changed root. Proved exact preservation of pattern universes,
+pointwise related captures and constant spines. Delta uses the same closed
+body; projection selects related fields; quotient/capture rules retain their
+uniform checks; arbitrary stored iota templates retain the same closed RHS.
+Explicit level conversion is replayed identically at paired sorts/constants.
+Verdict: all ordinary level-core primitive simulation cases are proved without
+a typing or pattern-compatibility premise.
+
+Extended paired simulation to finite ordinary core computation. The protected
+variable's eta body is core-normal. Core computation inside its lifted domain
+reflects to the ambient domain, using the existing exact lifting-inversion
+theorem; the mark retains that full history. Local beta substitution still
+uses the already checked protected-tail theorem. Thus recursive delta and
+created redexes require no termination or normalization assumption.
+
+Independent paths are aligned using typed confluence at the short consumer
+source, followed by reverse paired simulation. Native recovery expands each
+ambient variable once, after which its full recorded domain history computes
+at the same successor stage. The previous structural readout yields comparison
+in either mode. Literal Pi lookup supplies the recovery at stage zero, giving
+an actual-environment stage-one theorem for every ordinary-core residual pair.
+
+Verdict: full primitive simulation and full ordinary-core residual comparison
+are now closed for the non-proof-domain native neutral case. This is stronger
+than the previous beta-only result, but does not establish arbitrary converted
+Pi recovery, proof-domain eta, higher-stage residual stability, or hereditary
+ambient substitution. The next live step is typed proof-domain handling: beta
+must use source typing to ensure an applied argument erases to proof; arbitrary
+raw argument substitution cannot justify that. General converted-neutral
+coverage remains another open part of the same goal.
+
+Validation: 838 build jobs; 15 complete audit roots; maximum closure
+11,982; 813 frozen source/import hashes. Only standard axioms; no forbidden
+dependencies or owned-module warnings. No final GOAL.md deliverable; original
+sorry remains, executable unchanged, no PR extraction or coordination.
