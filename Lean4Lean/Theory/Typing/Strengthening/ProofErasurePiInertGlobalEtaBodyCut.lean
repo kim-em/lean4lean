@@ -5,6 +5,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqDelayedSupply
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPairedEta
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChosenCut
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSaturatedPaired
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPairedInsertion
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -137,6 +138,17 @@ through such an insertion while preserving both older assignments and exact
 erased endpoint agreement. These one-step results still require iteration
 through subsequent ambient scopes and actual continuation consumption; they
 do not yet strengthen the original-probe supply boundary below.
+`EqFrameInsertion` now records an actual typed upper map and its semantic
+and erased commutation with a lower frame across an unused block. A concrete
+single-domain insertion derives this square without a target inhabitant.
+`eta_paired_insertion` opens recovered eta below the block, preserving both
+lower assignments and moving the same insertion one position deeper.
+`inserted_hole_cut_eq_or_smaller` connects this to a strictly smaller actual
+minimum under an arbitrary application/binder hole; component computation
+also preserves the square's exact erased endpoint. This handles a supplied
+block at arbitrary count and offset. Composing separated insertion blocks,
+handling further saturated openings in that representation, and following
+actual continuation consumption still require a global closure argument.
 `minimum_frontier` iterates this decrease
 by strong induction and reaches a component-only current path with completion
 at both endpoints. The conclusion retains this actual

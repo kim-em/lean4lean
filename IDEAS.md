@@ -20134,3 +20134,30 @@ inhabitant or arbitrary continuation-map agreement is assumed; the original
 probe frontier and strengthening gap remain unchanged. Validation: 1059 jobs,
 56 recursive roots, maximum closure 11,976; only propext,
 Classical.choice and Quot.sound, all 1,034 source hashes fixed.
+
+
+## 2026-11-06 21:31:39 UTC — Keep paired maps while eta enters below an unused block
+
+**Idea.** Record a commuting square between the lower agreeing frame and the
+actual upper typed substitution across the same insertion on both sides.
+Lift the two maps when eta enters a dependent binder, moving the insertion
+offset one position deeper instead of inventing target images for its domains.
+
+**Verified.** `EqFrameInsertion` retains both actual context insertions, upper
+typing and erasure, and semantic/raw commutation on every term. `insert_domain`
+derives it from one actual unused domain. `under_binder` derives domain
+commutation and the lifted square. `compute_paired_insertion` preserves lower
+chosen assignments and exact upper endpoint agreement through actual component
+paths. `eta_paired_insertion` lowers actual recovery and its domain-sort witness,
+then restores the exact raw eta body and scope. The connected theorem
+`inserted_hole_cut_eq_or_smaller` retains these data in an actual strictly
+smaller continuation minimum beneath an application/binder hole.
+
+**Verdict.** Short eta below a supplied insertion block now preserves the paired
+minimum data. This handles arbitrary count/offset when the square is supplied;
+the concrete constructors here give zero/one insertion and binder extension.
+Composition of separated blocks, further saturated openings and later actual
+consumption still require closure. Original-probe frontier and strengthening
+gap unchanged. Validation: 1060 jobs, 64 recursive roots, maximum closure
+11,976; only propext, Classical.choice and Quot.sound, all 1,035 source
+hashes fixed.

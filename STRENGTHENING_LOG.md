@@ -34963,3 +34963,54 @@ strengthening gap or excluded circular framework. All 1,034 source hashes
 remained fixed. Original-probe root independent of the old nested-eta frontier.
 Original weakN_iff sorry and executable unchanged; GOAL.md active;
 no PR extraction or Lean/Lake patch.
+
+
+## 2026-11-06 21:31:39 UTC — Paired insertion squares survive dependent eta and actual minimum descent
+
+Added `ProofErasureEqPairedInsertion.lean`. `EqFrameInsertion` records matching
+actual Ctx.LiftN insertions on the source and outgoing side of a frame, a typed
+upper substitution with its erased map, and exact semantic and raw commutation.
+Target assignments stay in the lower contexts. `no_insertion` and `insert_domain`
+construct the initial square from an existing agreeing frame; inserted domains
+require no target inhabitants. `interpretation` recovers the actual upper raw
+context substitution.
+
+`under_binder` moves the block one position deeper while lifting both lower
+and upper maps. The incoming upper domain is the weakened lower domain, and
+the outgoing upper domain is the weakened actual lower image. Their equality
+is derived from semantic commutation. Applying the original commuting equations
+to a lambda yields the corresponding equations under a binder; no syntactic
+independence of the new domain is assumed.
+
+`compute_paired_insertion` reifies actual component paths below the insertion,
+retains the lower chosen substitution, follows the lower agreeing frame and
+proves exact equality of the resulting upper erased endpoint with the actual
+upper substitution of the computed vector. Primitive histories stay in their
+original scopes. `eta_paired_insertion` descends actual native recovery and its
+domain-sort witness, chooses the next pending target argument in the lower
+scope, and returns the extended lower frame plus the shifted insertion square.
+Exact raw context/body equalities identify this construction with the original
+upper native eta step.
+
+`inserted_hole_cut_eq_or_smaller` connects those equalities to the existing
+all-stage minimum classifier beneath an actual application/binder hole. Positive
+singleton guards read the target equation; short native eta gives a strictly
+smaller actual continuation minimum with both the chosen lower frame and upper
+insertion square retained. The original-probe supply-boundary theorem is not
+changed by importing this local result.
+
+Remaining: the interface supports a supplied block at arbitrary count/offset,
+but its concrete constructors here cover zero/one insertion and binder extension.
+Separated blocks need a compositional representation, including further saturated
+openings; the recorded frame must also be linked to later actual continuation
+consumption. No agreement is inferred from an arbitrary continuation map. This
+is not a sufficient irreducible obligation strictly smaller than PropFront.
+
+Validation: 1060 build jobs including the global theorem and established
+regressions; 64 declarations recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening gap or excluded circular framework. All 1,035 source hashes
+remained fixed. Original-probe root independent of the old nested-eta frontier.
+Original weakN_iff sorry and executable unchanged; GOAL.md active;
+no PR extraction or Lean/Lake patch.
