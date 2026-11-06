@@ -19497,3 +19497,32 @@ It does not finish strengthening or establish a sufficient irreducible
 obligation strictly smaller than PropFront. Validation: 1031 build jobs,
 4 audited public roots, maximum closure 11,932, 1,006 frozen source
 hashes. No executable changes, PR extraction or coordination.
+
+
+## 2026-11-06 18:24:44 UTC — Locate the origin through every retained prefix
+
+Verdict: verified progress. The finite prefix before the next application can
+be represented by a tracked scoped hole and an interpreted substitution into
+its exact inner context. At each retained binder, compose its recorded
+annotation interpretation with the later substitution lifted under that
+binder. This gives a uniform equation for every competing endpoint, not merely
+the selected one. It transports ordinary typed eta origin without transporting
+native recovery guards or earlier guarded computations.
+
+`PiInertNextApplicationAtHole` records the next actual computation, remaining
+typed run, exact count and pointwise equivalence with the original continuation.
+Its joint-minimum theorem retains the preceding path in its original scope;
+the next minimum has exactly the old continuation budget and is strictly
+smaller if the preceding path has positive cost. The eta specialization keeps
+the actual argument supply around the substituted lambda inside the hole.
+
+The component frontier now stores this next-application witness with the same
+original continuation predicate. `minimum_frontier` derives it from the actual
+run and the exposed final output, so the global theorem carries it as part of
+its residual. This does not yet follow the selected computation through the
+hole or reconstruct target agreement from the complete eta ancestry. Those
+remain the next obligations; an arbitrary interpreted substitution alone still
+does not preserve target completion. Strengthening and a sufficient strictly
+smaller irreducible obligation remain open. Validation: 1032 jobs, 14
+audited roots, maximum closure 11,946, 1,007 frozen source hashes. No
+executable changes, PR extraction or coordination.

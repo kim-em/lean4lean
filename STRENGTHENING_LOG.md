@@ -33872,3 +33872,53 @@ allows the later lambda to survive that application's computation, but does
 not solve this prefix-composition problem. `weakN_iff` and the alternative
 sufficient strictly smaller irreducible obligation remain open. No executable
 changes, PR extraction or coordination.
+
+
+## 2026-11-06 18:24:44 UTC — Retained-prefix origins and the next frontier application
+
+Added `ProofErasurePiInertRetainedPrefixOrigin.lean`. Private tracked-hole spine
+and composition lemmas support `PiInertRetainedPrefix.substitution_hole`:
+for a finite retained prefix followed by its actual endpoint substitution,
+there is one tracked hole and one interpreted substitution into its exact
+binder context, with an equation valid for every endpoint. The retained step
+uses the recorded annotation interpretation, composed with the lifted later
+substitution. `application_hole` includes the exact pending argument vector.
+
+`PiInertNextApplicationAtHole` stores the next actual counted path and typed
+continuation, source typing, exact budget split, inner interpretation and a
+pointwise equivalence with the original continuation predicate on all endpoint
+competitors. `PiInertNextApplication.substitution_hole` derives this record
+from the existing actual next-application decomposition. Its `joint_minimum`
+method keeps preceding computation in its original scope and derives the next
+minimum at exactly the old continuation budget, with strict decrease when the
+preceding path has positive cost. No guarded path is substituted.
+
+`PiInertNextApplication.eta_origin` carries the ordinary typed eta origin into
+the inner context through every retained prefix, retaining the actual next
+path and remaining run. The supplied argument vector is built into its tracked
+hole, and the original continuation predicate is retained for every replacement
+lambda with that same supply. This locates the eta at the start of the next
+computation; it does not assume the eta remains unchanged during that path.
+
+Strengthened `EqTargetPrefixComponentMinimum` with a
+`PiInertNextApplicationAtHole` for its exact current endpoint and continuation.
+`minimum_frontier` constructs it from the actual typed run: a constant Eq
+spine is not exposed, so an exposed final output forces a next application.
+The global theorem consequently returns this stronger frontier record. Its
+documentation distinguishes origin location from the still-open task of
+following computation through that hole and proving target agreement.
+
+Validation: 1032 jobs including GlobalEtaBodyCut and the established
+ContextualCastFeedback/CoreFamilySubstitutionBarrier regressions. All
+14 public roots in the three owned modules passed recursive dependency
+and axiom audit, maximum closure 11,946. Only propext, Classical.choice
+and Quot.sound occur; no weakN_iff, weakN_inv, sorryAx or excluded framework
+dependencies. No owned diagnostics; all 1,007 frozen source hashes remained
+unchanged across final build and audit.
+
+Remaining: compose actual eta/argument ancestry with subsequent computation
+inside or through the located hole, and use it to recover target agreement.
+The uniform location and competitor equation do not imply agreement with an
+arbitrary target specialization. `weakN_iff` remains open; this is not a proved
+sufficient irreducible obligation strictly smaller than PropFront. No executable
+changes, PR extraction or coordination.

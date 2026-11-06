@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqTargetPrefixExecution
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertConstantFrames
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertRetainedPrefixOrigin
 
 /-! # Completed non-level cuts strictly descend the mixed minimum
 
@@ -169,9 +170,11 @@ theorem TargetPrefixEqSpineCut.eq_or_smaller
       exact .inr ⟨Ξ, nextLs, nextArgs, smaller, hsmall, ES ▸ HM, ES ▸ HPnew⟩
 
 /-- A remaining component-only minimum with bounded completion at both ends
-of its actual current path. Its actual mixed continuation is retained. What
-is missing is propagation of target agreement when that completed endpoint
-enters the enclosing frames; source typing alone does not give that agreement. -/
+of its actual current path. Its actual mixed continuation and next application
+are retained, with the intervening prefix represented by a tracked hole and
+its exact inner substitution. The original continuation predicate is preserved
+pointwise on all competitors. What is missing is propagation of target
+agreement when that completed endpoint enters the enclosing frames; source typing alone does not give that agreement. -/
 def EqTargetPrefixComponentMinimum (D : Definitions) (Γ : List VExpr) (v w : VLevel)
     (original : List VExpr) (Ω : List ProofShape) (out : ProofShape) (budget : Nat) : Prop :=
   ∃ Δ ls args ls' args' n cb ck K, cb+ck ≤ budget ∧
@@ -183,8 +186,9 @@ def EqTargetPrefixComponentMinimum (D : Definitions) (Γ : List VExpr) (v w : VL
     List.Forall₂ (· ≈ ·) ls ls' ∧
     List.Forall₂ (ScopedCompute (PiInertStage D n) Δ) args args' ∧
     PiInertTypedContinuationRun D Ω out Δ K (ProofShape.mkApps (.const ``Eq.rec ls') args') ck ∧
-    ∀ later j endpoint k, ScopedComputeCount (PiInertStage D later) j Δ
-      (ProofShape.mkApps (.const ``Eq.rec ls) args) endpoint → K endpoint k → cb+ck ≤ j+k
+    (∀ later j endpoint k, ScopedComputeCount (PiInertStage D later) j Δ
+      (ProofShape.mkApps (.const ``Eq.rec ls) args) endpoint → K endpoint k → cb+ck ≤ j+k) ∧
+    PiInertNextApplicationAtHole D Ω out Δ K (ProofShape.mkApps (.const ``Eq.rec ls') args') ck
 
 /-- Increasing the recorded budget retains the identical actual component
 path, continuation and minimum. -/
@@ -198,7 +202,8 @@ theorem EqTargetPrefixComponentMinimum.mono
 path: singleton guards read the target, administrative roots contradict the
 minimum, and native eta strictly decreases it. The remaining actual minimum
 has component ancestry and bounded completion at both current endpoints.
-Following that endpoint through its enclosing frames is still required. -/
+Its next application retains the exact substituted hole and the original
+competitor predicate. Target agreement through that hole is still required. -/
 theorem EqTargetPrefixCompletion.minimum_frontier
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hreg : recursorData ``Eq.rec = some data) (hoff : data.majorOffset = 5)
@@ -215,8 +220,10 @@ theorem EqTargetPrefixCompletion.minimum_frontier
     rcases HP.counted_spine_or_cut heq hs hΓ HT R with
       ⟨ls', args', rfl, HL, HA, HPend⟩ | Hcut
     · refine .inr ⟨Δ, ls, args, ls', args', n, cb, ck, K, by omega,
-        HP, HPend, HT, R, HL, HA, HK, ?_⟩
-      simpa only [hc] using hmin
+        HP, HPend, HT, R, HL, HA, HK, ?_, ?_⟩
+      · simpa only [hc] using hmin
+      · exact (HK.next_application HE
+          (((RetainedConstHead.const (ls := ls')).mkApps args').eq_not_exposed heq)).substitution_hole
     · rcases Hcut.eq_or_smaller heq hs hreg hoff hRec hΓ ht HT HK HE HO
         (cost := cost) (by omega) hmin with Hlower | ⟨Ξ, ls', args', smaller, hsmall, HM', HP'⟩
       · exact .inl Hlower

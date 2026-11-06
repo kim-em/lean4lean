@@ -71,12 +71,17 @@ continuation. The other branches retain the smaller fresh-body minimum;
 later substitution/application after a retained component body, allowing any
 remaining typed continuation and either retained or consumed outcome. Its
 positive earlier insertion supplies strict decrease without immediate carrier
-exposure. Linking those origins through arbitrary intervening retained frames
-and deriving their target agreement are still open.
+exposure. An arbitrary intervening retained prefix
+is now represented by `PiInertNextApplicationAtHole`: it records a tracked
+hole and interpreted substitution into its precise binder context, with the
+original continuation predicate preserved on every competitor. Ordinary eta
+origin survives at that location. Following the actual computation through
+the hole and deriving target agreement are still open.
 `minimum_frontier` iterates this decrease
 by strong induction and reaches a component-only current path with completion
 at both endpoints. The conclusion retains this actual
 `EqTargetPrefixComponentMinimum` within the smaller budget, including its
+next application at such an exact substituted hole and its
 original typed continuation and unrestricted competitor minimum. Component-only
 transitions through enclosing wrappers still need target agreement from their
 actual histories; coverage of arbitrary wrapped-body histories remains open. `read_full_eta_loss_in_minimum` reads a head-losing root
