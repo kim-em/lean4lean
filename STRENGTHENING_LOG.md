@@ -33382,3 +33382,39 @@ dependencies; no owned diagnostics; 993 frozen source hashes unchanged.
 Remaining: consumption closure for iterated completion and arbitrary wrapper
 history coverage. The main theorem remains open. No executable changes,
 PR extraction or coordination.
+
+
+## 2026-11-06 16:55:08 UTC — Close component-only consumption for iterated completion
+
+Added `ProofErasureEqIteratedConsumption.lean`. Its consumption theorem inducts
+on the actual insertion witness. At each insertion it decomposes the actual
+Eq spine into prefix, consumed argument and tail, descends the prefix's native
+recovery certificate, realizes its exact domain sort, and reconstructs the
+fresh actual eta body. Component reification plus certificate descent retains
+the lower body paths. The independently computed argument and tail likewise
+retain lower certificates. These supply the induction hypothesis in the lower
+raw context. Actual semantic instantiation types the consumed whole spine,
+and proof erasure with lift/inst commutation identifies its exact upper image.
+The same unused insertion is restored, without assuming an inhabitant of it.
+
+The existing concrete `EqSpineConsumptionHistory` now has `iterated_completion`
+and `read_iterated_loss`. Thus arbitrary finite compositions of its component,
+eta-opening and consumption constructors preserve iterated completion and
+read the original equation at a subsequent head-losing primitive. The relation
+itself has not been enlarged to arbitrary continuation substitutions.
+
+Validation: 1020 jobs with GlobalEtaBodyCut and the existing
+ContextualCastFeedback/CoreFamilySubstitutionBarrier regressions. All three
+new public declarations and the global theorem passed recursive dependency
+and axiom audit (maximum closure 11,802); individual new-root closures
+are 11,091, 11,110 and 11,345 declarations. Only propext, Classical.choice and
+Quot.sound occur; no weakN_iff, weakN_inv, sorryAx or excluded framework
+dependencies. No owned diagnostics. All 995 frozen source hashes remained
+unchanged throughout the final build and audit.
+
+The full goal remains incomplete. The current continuation abstraction admits
+general typed context substitution, which alone does not give agreement with
+the original target vector. The concrete generated consumption histories are
+now covered even through iterated insertions; deriving such ancestry for the
+actual arbitrary wrapper history, used annotation conversion and the exhausted
+target-vector case remains. No executable changes, PR extraction or coordination.

@@ -19188,3 +19188,27 @@ strictly smaller than PropFront is claimed.
 Validation: 1018 jobs, 5 audited roots (including the global theorem),
 maximum closure 11,802, 993 frozen source hashes. No executable changes,
 PR extraction or coordination.
+
+
+## 2026-11-06 16:55:08 UTC — Consume eta through iterated ambient completion
+
+Verdict: verified progress. `IteratedAmbientEqCompletion.consume_eta_components`
+now preserves the target completion through body computation and eta consumption
+after any finite sequence of actual unused insertions. Below each insertion,
+reify the body, consumed argument and tail endpoints; retain their computation
+certificates and the prefix's native recovery certificate. Apply the lower
+completion theorem, then use actual semantic instantiation and raw lift/inst
+commutation to restore the exact upper endpoint. No target inhabitant is
+required for unused inserted types.
+
+`EqSpineConsumptionHistory.iterated_completion` and `read_iterated_loss` extend
+the existing finite-history result to this broader completion. This closes
+the previously named iterated consumption gap. It does not yet establish
+coverage of arbitrary retained-lambda/identity-wrapper execution, used domain
+annotation changes or fresh eta beyond the original target vector.
+
+Validation: 1020 jobs, 4 audited roots including the global theorem,
+maximum closure 11,802; 995 frozen source hashes. Only the standard three
+axioms occur, with no strengthening or excluded-framework dependency. The
+original `weakN_iff` sorry remains; no sufficient strictly smaller irreducible
+obligation is claimed. No executable changes, PR extraction or coordination.
