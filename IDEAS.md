@@ -16037,3 +16037,23 @@ and recursors of AnnotationVariant; maximum closure 11,856; 739 unchanged
 pinned source/import hashes. Only standard axioms; no forbidden dependencies or
 own-module warnings. Original sorry remains, executable unchanged, goal active.
 No coordination or PR extraction.
+
+
+### 2026-11-06 02:39:24 UTC — Paired annotation consumers through the full ordinary core
+
+Idea: simulate core reduction on paired annotation variants, retaining the
+existing recursive level-core guard at each marked domain. Verdict: proved.
+Visible primitive patterns preserve exact constant heads and universes and pair
+the captures; delta, projection, capture rules, templates and universe conversion
+therefore simulate. Pure-lift reflection handles reduction inside a marked domain.
+Typed core confluence at one actual endpoint then compares independent residuals.
+Every typed consumer of same-body lambdas inherits the result, including consumers
+that duplicate or apply the lambdas and create redexes.
+
+This extends arbitrary-consumer closure to full core reduction for
+LevelRecursiveGuard false. It does not establish arbitrary ambient substitution
+closure of that guard or full-core stability of RecursiveFamilyCast. Those are
+distinct premises, and general semantic domain coverage remains open. No final
+GOAL.md deliverable is claimed. Validation: 789 build jobs, 15 audited
+roots, maximum dependency closure 10,800, 764 frozen source hashes; no
+forbidden dependencies or nonstandard axioms. No extraction or PR creation.

@@ -29788,3 +29788,38 @@ Judgment: the previously missing arbitrary consumer closure is now proved for
 the recursive nonjoining annotation fragment. General semantic domain coverage,
 other nonjoining argument forms and full-core future closure remain open. None
 of GOAL.md's three final deliverables is established; the goal remains active.
+
+
+### 2026-11-06 02:39:24 UTC — Full core residual comparison for arbitrary annotation consumers
+
+Added ProofErasureAnnotationCorePrimitives.lean: paired constant-spine and
+pattern matching, paired delta/projection/capture/template outputs, universe-root
+simulation, and raw reflection of full level-core paths through pure lifts.
+The pattern proofs reuse the original rule and universe checks literally.
+
+Added ProofErasureAnnotationCoreComputation.lean: full core path simulation for
+AnnotationVariant when marked domain guards retain left reducts; recursive
+level-core guards discharge this condition. Structural readout and typed
+confluence at one actual source give comparison after two independent core paths.
+
+Added ProofErasureAnnotationCoreConsumer.lean: a LevelRecursiveGuard false
+domain certificate constructs a pair of same-body lambdas at a shared Pi type.
+Arbitrary typed consumers preserve this pair and admit inferred comparison at
+all full-core residuals. An EnvironmentCore theorem discharges core soundness,
+level compatibility, concrete matching and typed confluence in actual well-formed
+environments. There is no domain-join or global guarded-confluence premise.
+
+The unfinished development build had terminated with an implicit-guard
+elaboration error; supplying the explicit guard and its polymorphic arguments
+resolved it without changing the theorem's premises. Validation: 789 build
+jobs, 15 dependency roots, maximum closure 10,800; all 764 frozen
+source/import hashes unchanged. Full traversal includes types, opaque bodies,
+constructors and recursor RHSs; only propext, Classical.choice and Quot.sound,
+no forbidden dependencies, no warnings in the three new modules.
+
+Judgment: concrete progress on arbitrary consumer closure under full core
+reduction, with the domain certificate still supplied. This does not combine
+the beta-only grammar's arbitrary ambient substitution with full core stability.
+General semantic domain coverage and the original strengthening theorem remain
+open; none of the three final deliverables is established. Independent files
+preserved; executable unchanged; no coordination, extraction or PRs.
