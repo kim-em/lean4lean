@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertEqEtaSingleton
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertConsumedBodyRoot
 
 /-! # Minimum eta bodies with an arbitrary fixed continuation
 
@@ -96,6 +97,8 @@ theorem pi_inert_retained_lambda_continuation_minimal_of
 /-- An eta yields a typed body with a strictly smaller combined minimum.
 If its lambda survives, the new continuation retains that lambda; if it is
 consumed, the new frame carries the actual argument's typed substitution.
+For a constant-headed source, the consumed case also retains an exact counted
+non-level body root; component-only computation is bypassed before the continuation.
 No carrier exposure of the intermediate body endpoint is asserted. -/
 def CountedEtaContinuationCut (D : Definitions) (n : Nat) (Δ : List ProofShape)
     (f A : ProofShape) (u : VLevel) (args : List ProofShape) (out : ProofShape)
@@ -123,6 +126,8 @@ def CountedEtaContinuationCut (D : Definitions) (n : Nat) (Δ : List ProofShape)
       (.app (f.liftN 1) (etaArgument u)) body' ∧
     ScopedComputeCount (PiInertStage D n) cs Δ
       (ProofShape.mkApps (body'.inst x') xs') out ∧ K out ck ∧
+    (∀ c ls pre, f = ProofShape.mkApps (.const c ls) pre →
+      CountedNonlevelSpineRoot D m (A :: Δ) c ls (pre.map (·.liftN 1) ++ [etaArgument u]) body' cb) ∧
     ∀ later j endpoint k,
       ScopedComputeCount (PiInertStage D later) j (A :: Δ)
         (.app (f.liftN 1) (etaArgument u)) endpoint →
@@ -167,7 +172,20 @@ theorem pi_inert_eta_continuation_cut
     obtain ⟨_, hsmall, HM⟩ := pi_inert_counted_lambda_continuation_minimal_of
       RP HR RD RB RX RS HK (by omega) hmin
     obtain ⟨HTbody, WI⟩ := pi_inert_eta_body_interpretation heq hs hguard HT RN SD RX
-    exact .inr ⟨body', x', xs', cb, cs, m, hsmall, HTbody, WI, RB, RS, HK, HM⟩
+    refine .inr ⟨body', x', xs', cb, cs, m, hsmall, HTbody, WI, RB, RS, HK, ?_, HM⟩
+    rintro c ls pre rfl
+    apply pi_inert_eta_body_spine_root heq hs HTbody RB
+    · intro later j RJ
+      have HK' : PiInertApplicationContinuation D Δ (ProofShape.Subst.one x') xs' K body' (cs+ck) :=
+        ⟨n, cs, out, ck, rfl, by
+          simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using RS, HK⟩
+      have HJ := HM later j body' (cs+ck) RJ HK'
+      omega
+    · intro g cg hcg RG EB
+      have RR := pi_inert_retained_eta_body_count_bypass heq hs hguard HT RN SD RG RX (EB ▸ RS)
+      have RP' := RP.mono (pi_inert_stage_mono (Nat.le_max_right m n))
+      have HB := hmin _ _ _ _ (RP'.trans RR) HK
+      omega
 
 /-- Apply the continuation induction step to the actual inner eta selected
 by the Eq-exposure cut. Its enclosing beta frame is fixed, and the combined

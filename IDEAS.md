@@ -18558,3 +18558,39 @@ Validation: 998 build jobs, 15 complete dependency roots, maximum
 closure 11,643; 973 frozen source hashes. Only propext, Classical.choice
 and Quot.sound; no forbidden dependencies or warnings in the changed modules.
 Executable unchanged; no PR extraction or coordination.
+
+
+## 2026-11-06 13:54:43 UTC — Force a body root when eta is consumed before its continuation
+
+**Idea.** Use the exact-endpoint eta bypass before discarding the originating
+function's typing. Since the bypass preserves the endpoint, an arbitrary
+fixed continuation can remain unchanged; no exposure property is needed at
+the intermediate body endpoint.
+
+**Verdict: consumed branch proved and integrated.**
+`pi_inert_eta_body_spine_root` decomposes a constant-headed eta body. If its
+fresh slot survives and only the lifted function computes, the caller's
+bypass excludes that case. Otherwise it returns `CountedNonlevelSpineRoot`,
+retaining exact counts, level and component ancestry, both surrounding
+paths, and actual typing of the selected root source. Body minimality makes
+the count equation exact.
+
+`pi_inert_eta_continuation_cut` now supplies this witness in its consumed
+branch for every constant-headed source. Its existing joint minimum implies
+the needed fixed-body minimum. The component-only case contradicts the
+original minimum after applying the exact-endpoint bypass and retaining the
+same continuation. This adds no hypothesis to the construction and applies
+to the actual inner Eq eta through `nested_eta_cut`.
+
+Still open: a retained lambda may cross an enclosing frame before it is
+consumed. Its component-only history is not excluded by an arbitrary endpoint
+predicate, and the concrete-frame argument still needs eta-origin metadata
+and Eq target specialization. The new non-level root is not yet classified
+or eliminated through arbitrary mixed frames. This is progress within the
+route, not a proof of strengthening or of a sufficient obligation strictly
+smaller than PropFront. GOAL.md remains active.
+
+Validation: 999 build jobs, 17 complete dependency roots, maximum
+closure 11,643; 974 frozen source hashes. Only propext, Classical.choice
+and Quot.sound; no forbidden dependencies or warnings in the changed modules.
+Executable unchanged; no PR extraction or coordination.

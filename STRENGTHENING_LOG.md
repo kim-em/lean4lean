@@ -32527,3 +32527,32 @@ roots, maximum closure 11,643; 973 frozen source hashes. Only propext,
 Classical.choice and Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden
 closure/alignment assumptions or warnings in the changed modules. Executable
 unchanged; no PR extraction or coordination.
+
+
+## 2026-11-06 13:54:43 UTC — Consumed eta bodies retain an exact non-level root
+
+Added `ProofErasurePiInertConsumedBodyRoot.lean` and strengthened the consumed
+alternative of `CountedEtaContinuationCut`. The construction now rules out
+a component-only fresh-slot body using the originating eta's native Pi
+recovery, the actual argument history, and the existing exact-endpoint
+bypass. The arbitrary continuation is reused at precisely the same endpoint.
+The original global minimum gives the contradiction; no guarded path is
+substituted and no carrier exposure is assumed for the body endpoint.
+
+The resulting `CountedNonlevelSpineRoot` keeps the counted prefix and suffix,
+the non-level primitive step, level/component ancestry, and actual source
+typing. Fixed-body minimality upgrades the decomposition's count inequality
+to equality. The existing nested Eq eta cut inherits the stronger consumed
+alternative. Updated the frame consumer to accept the additional witness.
+
+The full goal is not closed: retained lambdas need a bypass across enclosing
+frames, and subsequent roots still need classification with the Eq target
+specialization preserved. Neither numeric descent nor this consumed-case
+cut is being claimed as a sufficient smaller replacement for PropFront.
+
+Validation: 999 build jobs, 17 public/full-result audit roots, maximum
+dependency closure 11,643, 974 frozen source hashes. Audits traverse
+values/types, opaque bodies, inductive constructors and recursor RHSs; only
+propext, Classical.choice and Quot.sound occur. Forbidden strengthening and
+replacement-obligation dependencies are absent; changed modules have no
+warnings. Executable unchanged; no PR extraction or coordination.

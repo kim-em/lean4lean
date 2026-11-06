@@ -96,7 +96,7 @@ theorem CountedEtaContinuationCut.frames
   obtain ⟨SD, H⟩ := H
   rcases H with
     ⟨A', body', args', cf, ca, _, EO, _, _, HKbody, cd, cb, m, _, hsmall, HT, RD, RB, HM⟩ |
-    ⟨body', x', xs', cb, cs, m, hsmall, HT, WI, RB, RS, HKbody, HM⟩
+    ⟨body', x', xs', cb, cs, m, hsmall, HT, WI, RB, RS, HKbody, _, HM⟩
   · refine ⟨cb+ck, hsmall, (fun body k => K (ProofShape.mkApps (.lam A' body) args') k),
       m, cb, ck, body', .retained SD RD (pi_inert_retained_frame_interpretation heq hs SD RD) HK,
       HT, RB, ?_, rfl, HM⟩
