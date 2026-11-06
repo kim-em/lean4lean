@@ -31221,3 +31221,49 @@ regressions; 11 complete type/value/constructor/recursor dependency roots;
 maximum closure 11,001; 886 frozen hashes. Only propext, Classical.choice
 and Quot.sound; no forbidden dependencies or owned diagnostics. Executable
 unchanged, independent experiments preserved, no coordination or PR extraction.
+
+
+## 2026-11-06 08:37:37 UTC — Dependent Pi histories and the joined-argument boundary
+
+ProofErasurePiInertPiCarrier proves PiInertInterpret.forallSorted and its
+hereditary evidence form. Independent core paths of both domains and codomains
+are inverted; the codomain child is reinterpreted beneath the computed left
+domain. Future substitutions use the retained binder substitution. The actual
+pi_inert_forall_carrier_history converts sort-carrier children to ordinary type
+comparisons, reflects the domain comparison to change the right binder, and
+constructs the Pi carrier history. This covers the sorted Pi congruence case
+without general carrier conversion or a global coverage premise.
+
+ProofErasurePiInertArgumentCarrier proves dependent instantiation for joined
+ArgumentHistory inputs. Their shared output has a typed realization, which
+supplies the common substitution of the body history. The left argument history
+also computes the dependent carrier to its shared instance; carrier_prefix and
+endpoint prefixes then return to the requested left carrier and differing
+endpoints. The application corollary works for arbitrary typed functions given
+the fresh-body history. A beta-application corollary and an actual-environment
+application wrapper are included. Casts in argument histories are supported;
+ordinary-core joins are not assumed.
+
+ProofErasurePiInertArgumentBoundary proves joined_comparison by observing both
+histories through the typed identity body. It then proves
+pi_inert_unit_argument_history_failure: distinct variables at a positive nullary
+empty structure are strongly equal, but no stage and no shared raw output admit
+a joined pair of ArgumentHistory certificates. Hence the new application case
+cannot become universal simply by synthesizing joined histories from arbitrary
+strong argument equality. This is a checked obstruction to that proposed
+completion, not a counterexample to strengthening.
+
+Next investigate a relational substitution theorem that consumes argument
+carrier evidence, or controlled native structure computations with a proved
+Pi-domain invariant. General composition, conversion, and application remain
+open; completed function guards still do not supply hereditary body inversion.
+The original weakN_iff sorry remains. This turn establishes useful induction
+cases and rules out one attempted completion; it does not deliver the final
+proof/counterexample or prove a strictly smaller sufficient obligation.
+
+Validation: 914 build jobs including prior feedback/substitution-barrier
+regressions; 9 complete type/value/constructor/recursor dependency roots;
+maximum closure 12,379; 889 frozen hashes. Only propext, Classical.choice,
+and Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden framework dependency,
+or owned diagnostic. Executable unchanged, independent experiments preserved;
+no coordination or PR extraction.

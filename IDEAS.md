@@ -17549,3 +17549,29 @@ Validation: 911 jobs, 11 complete dependency-audit roots, maximum closure
 11,001, 886 frozen source/import hashes. Standard axioms only; no forbidden
 dependencies or owned warnings. Executable unchanged; no PR extraction or
 coordination.
+
+
+## 2026-11-06 08:37:37 UTC — Dependent Pi and joined-argument carrier cases
+
+- Build Pi congruence from carrier histories of its domain and codomain: proved
+  at the same stage, retaining all core residuals and future substitutions.
+  Domain reflection transports the right codomain into its assigned context.
+- Instantiate dependent carrier histories at arguments with a shared computation
+  history: proved. The left argument transports the result carrier in addition
+  to both endpoints. Arbitrary functions with retained fresh-body histories and
+  displayed beta applications inherit this result.
+- Obtain these joined histories from arbitrary strong argument equality: refuted.
+  The typed identity body would give ordinary Pi-inert comparison; distinct
+  positive empty-structure variables have strong equality but cannot have such
+  a comparison at any stage. The application theorem is therefore a genuine
+  fragment, not a general strong-induction application case.
+- Next: investigate paired substitution retaining carrier equality of arguments,
+  or permit controlled native structure computations. Do not assume a common
+  computational representative for every equality, and do not infer hereditary
+  fresh-body evidence by inverting an arbitrary function guard. Composition and
+  conversion remain open. No strictly smaller sufficient obligation is claimed.
+
+Validation: 914 build jobs, 9 complete dependency roots, maximum closure
+12,379, 889 frozen source hashes; only the standard three axioms, no
+forbidden dependency or owned diagnostic. Executable and independent experiments
+unchanged. No extraction or coordination.
