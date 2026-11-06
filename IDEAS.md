@@ -15523,3 +15523,29 @@ Validation: 909 build jobs; 34 complete dependency roots; maximum
 closure 12,217; 884 frozen source/import hashes unchanged. Standard axioms
 only, no forbidden dependencies or own-module warnings. No claim of a strictly
 smaller sufficient irreducible obligation.
+
+
+## 2026-11-06 00:26:18 UTC — Make atomic native-output transport recursively reusable
+
+Verdict: checked closure, beyond the terminal comparison of e8fd432d. Extended
+LevelRecursiveGuard with computation tails, typed atomic instances, and typed
+atomic Pi-codomain instances. Its forward theorem still follows structural
+induction on the certificate. The new atomic cases reflect ordinary paths after
+typed universe factorization, invoke only the recursive induction hypothesis,
+then substitute the raw comparison. No transport oracle is a constructor.
+
+Computation-tail closure plus existing typed prefixes constructs a certificate
+for any typed pair joined to the two references independently. Native replay
+provides those output typings internally. Consequently complete stage-zero
+atomic application outputs now retain LevelRecursiveGuard, not just a terminal
+ComputedJointCompare. If these outputs are Pis, they can be reused as the selected
+function-type certificate for another application. Literal sort control has the
+same stronger actual-environment theorem. The earlier comparison APIs remain
+unchanged and now read out the resulting certificates.
+
+Validation: 936 jobs; 38 complete dependency roots including every guard
+constructor/recursor and previous nonfixed recursive-eta examples; maximum
+closure 12,221; 911 frozen source/import hashes unchanged; standard axioms
+only, no forbidden dependencies or own-module warnings. Arbitrary computed-Pi
+comparison coverage and non-atomic beta exposure remain open; this is no claimed
+strictly smaller sufficient obligation for strengthening.

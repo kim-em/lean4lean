@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureAtomicCoreReflection
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureCoreFixedTailReturn
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureLevelCoreEtaTransport
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureLevelCoreNeutralSpines
@@ -8,15 +9,63 @@ Typed join leaves may reduce indefinitely. Typed eta and fixed comparison leaves
 preserve eta differences without requiring a common reduct. Pi and lambda frames combine
 these two behaviors, with independent computation in every component. Coverage
 of arbitrary checking certificates, especially reducible applications, remains
-open; no forward-transport oracle is a constructor of this fragment.
+open. Atomic instantiation and computation tails can be iterated inside the
+certificate; no forward-transport oracle is a constructor of this fragment.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation
 variable [Params]
 
+private theorem structure_not_pi (H : StructureEtaHead (.forallE A B) m) : False := by
+  generalize E : ProofShape.forallE A B = source at H
+  cases H
+  have HH := congrArg ProofShape.constHead E
+  simp only [ProofShape.constHead, ProofShape.constHead_mkApps] at HH
+  cases HH
+
+/-- Raw Pi comparison exposes an inferred comparison of its codomains when
+no primitive rewrites a Pi head. Computation prefixes are retained componentwise;
+no common typing, normalization or domain comparison is an extra premise. -/
+theorem ProofShape.Compare.pi_bodies
+    (hpi : ∀ {A B out}, ¬ Step (.forallE A B) out)
+    (H : Compare Step mode (.forallE A B) (.forallE C E)) : Compare Step false B E := by
+  generalize EL : ProofShape.forallE A B = left at H
+  generalize ER : ProofShape.forallE C E = right at H
+  induction H generalizing A B C E with
+  | refl => cases EL; cases ER; exact .refl
+  | forallE HA HB => cases EL; cases ER; exact HB
+  | compute RL RR H ih =>
+    obtain ⟨A', B', E₁, _, RB⟩ := (EL ▸ RL).pi_parts hpi
+    obtain ⟨C', E', E₂, _, RE⟩ := (ER ▸ RR).pi_parts hpi
+    exact .compute RB RE (ih E₁.symm E₂.symm)
+  | etaL H => obtain ⟨_, _, E, _⟩ := H.shape; cases EL.trans E
+  | etaR H => obtain ⟨_, _, E, _⟩ := H.shape; cases ER.trans E
+  | structL H => exact (structure_not_pi (EL ▸ H)).elim
+  | structR H => exact (structure_not_pi (ER ▸ H)).elim
+  | sort | const | app | proj | lam | etaLams => cases EL
+
+/-- Common-lambda checking adds no Pi case, so raw checked comparison has the
+same codomain readout through arbitrary compatible computation prefixes. -/
+theorem ProofShape.RawCheckedCompare.pi_bodies
+    (hpi : ∀ {A B out}, ¬ Step (.forallE A B) out)
+    (H : RawCheckedCompare Step mode (.forallE A B) (.forallE C E)) :
+    RawCheckedCompare Step false B E := by
+  generalize EL : ProofShape.forallE A B = left at H
+  generalize ER : ProofShape.forallE C E = right at H
+  induction H generalizing A B C E with
+  | base H => exact .base ((EL ▸ ER ▸ H).pi_bodies hpi)
+  | forallE HA HB => cases EL; cases ER; exact HB
+  | compute RL RR H ih =>
+    obtain ⟨A', B', E₁, _, RB⟩ := (EL ▸ RL).pi_parts hpi
+    obtain ⟨C', E', E₂, _, RE⟩ := (ER ▸ RR).pi_parts hpi
+    exact .compute RB RE (ih E₁.symm E₂.symm)
+  | app | proj | lam | lamCommon => cases EL
+
 /-- A recursive level-core comparison fragment. Typed eta and join leaves need
 no fixedness. An additional fixed-leaf constructor admits arbitrary raw checks.
-Leaf typings are actual witnesses used for confluence and universe-return arguments; the raw
+Atomic substitution and Pi-codomain instantiation retain the certificate when
+the resulting endpoints have actual typings. Arbitrary computation tails also
+retain it. Leaf typings are actual witnesses used for confluence and universe-return arguments; the raw
 comparison conclusion can subsequently be embedded at any checking context. -/
 inductive LevelRecursiveGuard (D : Definitions) : Bool → ProofShape → ProofShape → Prop where
   | join (hΓ : OnCtx Γ (env.IsType univs)) (ha : env.HasType univs Γ a A)
@@ -50,6 +99,20 @@ inductive LevelRecursiveGuard (D : Definitions) : Bool → ProofShape → ProofS
       (HB : Compute (ErasedLevelCore D) (proofErase Γ b) b')
       (H : LevelRecursiveGuard D mode a' b') :
       LevelRecursiveGuard D mode (proofErase Γ a) (proofErase Γ b)
+  | reducts (H : LevelRecursiveGuard D mode a b)
+      (RA : Compute (ErasedLevelCore D) a a') (RB : Compute (ErasedLevelCore D) b b') :
+      LevelRecursiveGuard D mode a' b'
+  | atomic (H : LevelRecursiveGuard D mode a b) (Hσ : AtomicSubstitution σ)
+      (hΓ : OnCtx Γ (env.IsType univs)) (he : env.HasType univs Γ e A)
+      (hf : env.HasType univs Γ f B)
+      (Ee : proofErase Γ e = a.subst σ) (Ef : proofErase Γ f = b.subst σ) :
+      LevelRecursiveGuard D mode (proofErase Γ e) (proofErase Γ f)
+  | piAtomic (H : LevelRecursiveGuard D mode (.forallE X a) (.forallE Z b))
+      (Hσ : AtomicSubstitution σ)
+      (hΓ : OnCtx Γ (env.IsType univs)) (he : env.HasType univs Γ e A)
+      (hf : env.HasType univs Γ f B)
+      (Ee : proofErase Γ e = a.subst σ) (Ef : proofErase Γ f = b.subst σ) :
+      LevelRecursiveGuard D false (proofErase Γ e) (proofErase Γ f)
   | symm : LevelRecursiveGuard D mode a b → LevelRecursiveGuard D mode b a
 
 omit [Params] in
@@ -77,7 +140,9 @@ private theorem compare_spine (H : List.Forall₂ (RawCheckedCompare Step true) 
 /-- Independent level-core paths preserve comparison for the recursive
 fragment. Typed confluence handles evolving join leaves; fixed leaves return
 locally. Typed eta reflects fresh-argument computation; neutral spines recurse
-through their arguments. Neither entire endpoint must normalize, return, or join
+through their arguments. Atomic instances reflect ordinary paths after typed
+universe factorization; Pi instances read out codomains before substitution.
+Neither entire endpoint must normalize, return, or join
 the other. -/
 theorem LevelRecursiveGuard.forward
     (hs : D.Sound env univs) (hl : D.LevelCompatible univs)
@@ -123,7 +188,47 @@ theorem LevelRecursiveGuard.forward
     obtain ⟨left, RL, HL⟩ := hc hΓ ha RA HA
     obtain ⟨right, RR, HR⟩ := hc hΓ hb RB HB
     exact .compute RL RR (ih HL HR)
+  | reducts _ RL RR ih => exact ih (RL.trans RA) (RR.trans RB)
+  | atomic _ Hσ hΓ he hf Ee Ef ih =>
+    obtain ⟨left₀, RL₀, TL⟩ := proofErase_level_core_ordinary_return hs hl hcon hΓ he RA
+    obtain ⟨right₀, RR₀, TR⟩ := proofErase_level_core_ordinary_return hs hl hcon hΓ hf RB
+    rw [Ee] at RL₀
+    rw [Ef] at RR₀
+    obtain ⟨a₀, RL, EA⟩ := RL₀.iota_atomic_subst_inv Hσ
+    obtain ⟨b₀, RR, EB⟩ := RR₀.iota_atomic_subst_inv Hσ
+    refine .compute TL TR ?_
+    rw [← EA, ← EB]
+    exact (ih (RL.mono (fun H => .inl H)) (RR.mono (fun H => .inl H))).subst
+      (fun H => erased_level_core_subst H)
+  | piAtomic _ Hσ hΓ he hf Ee Ef ih =>
+    obtain ⟨left₀, RL₀, TL⟩ := proofErase_level_core_ordinary_return hs hl hcon hΓ he RA
+    obtain ⟨right₀, RR₀, TR⟩ := proofErase_level_core_ordinary_return hs hl hcon hΓ hf RB
+    rw [Ee] at RL₀
+    rw [Ef] at RR₀
+    obtain ⟨a₀, RL, EA⟩ := RL₀.iota_atomic_subst_inv Hσ
+    obtain ⟨b₀, RR, EB⟩ := RR₀.iota_atomic_subst_inv Hσ
+    have H := (ih (.forallE .refl (RL.mono (fun H => .inl H)))
+      (.forallE .refl (RR.mono (fun H => .inl H)))).pi_bodies
+      (fun H => erased_level_core_no_pi H)
+    refine .compute TL TR ?_
+    rw [← EA, ← EB]
+    exact H.subst (fun H => erased_level_core_subst H)
   | symm _ ih => exact (ih RB RA).symm
+
+/-- Typed outputs joined independently to recursively compared references
+retain a recursive certificate. Follow each reference to its joining point,
+then use the actual output typings for the two computation prefixes. This is
+syntactic certificate construction and requires no confluence premise. -/
+theorem LevelRecursiveGuard.of_typed_joins
+    (H : LevelRecursiveGuard D mode a b)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (he : env.HasType univs Γ e A) (hf : env.HasType univs Γ f B)
+    (JL : ComputeJoin (ErasedLevelCore D) (proofErase Γ e) a)
+    (JR : ComputeJoin (ErasedLevelCore D) (proofErase Γ f) b) :
+    LevelRecursiveGuard D mode (proofErase Γ e) (proofErase Γ f) := by
+  obtain ⟨left, RL, RA⟩ := JL
+  obtain ⟨right, RR, RB⟩ := JR
+  exact .compute hΓ he hf RL RR (H.reducts RA RB)
 
 /-- Reference joins suffice to transport a recursive comparison even when
 neither join can return to its original reference. Both references evolve to

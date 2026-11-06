@@ -29206,3 +29206,55 @@ forbidden dependencies or own-module warnings. Original weakN_iff sorry remains
 at UniqueTyping.lean:94. Neither canonical-Eq strengthening, a counterexample,
 nor a strictly smaller sufficient irreducible obligation has been established.
 GOAL.md stays active. Executable unchanged; no coordination or PR extraction.
+
+
+## 2026-11-06 00:26:18 UTC — Recursive closure through complete atomic application outputs
+
+Continued after auditing, committing and pushing e8fd432d. The previous theorem
+returned a raw/checker comparison, which could not itself be supplied wherever
+a new recursive selected-Pi certificate was needed. Resolved that limitation by
+extending the certificate grammar and its independently checked forward theorem.
+
+LevelRecursiveGuard.reducts retains a certificate after independent level-core
+paths. Its induction case composes the supplied paths with the requested tails.
+The atomic and piAtomic constructors retain the certificate after pointwise
+atomic substitution or whole-Pi codomain instantiation. They require actual
+well-typed resulting endpoints in one well-formed context, not typings for
+transported recursive leaves. Their forward cases factor instantiated paths to
+ordinary paths plus return paths, reflect the ordinary paths, and invoke the
+recursive induction hypothesis on the original endpoints. Pi instances lift the
+paths under the Pis before reading out codomains. Raw substitution and the
+return paths finish. Moved the existing raw Pi readout lemmas into the recursive
+transport module so this induction has no import cycle. Public atomic forward
+interfaces now follow directly from the new constructors.
+
+LevelRecursiveGuard.of_typed_joins combines reducts with the existing typed
+compute constructor. It constructs guards for typed outputs joined to separate
+references and needs no soundness or confluence premise. The complete application
+output theorem first constructs the atomic Pi instance guard, then replays both
+complete native recoveries to actual typed output representatives and applies
+this join constructor. The stronger public result is
+stage_zero_atomic_reference_application_outputs_guard; the actual environment
+specialization stage_zero_atomic_control_outputs_guard discharges atomicity and
+convergence for literal sort controls. Both prior comparison theorem signatures
+are unchanged and follow by forward at reflexive tails. This permits another
+application to use the resulting certificate whenever the native outputs are
+Pis, including independent complete selections and conversion tails.
+
+Validation: full isolated module build passed (936 jobs); 38 roots
+including all guard constructors and recursors audited through types, opaque
+bodies, inductive constructors and recursor RHSs; maximum closure 12,221;
+911 pinned source/import hashes unchanged. Previous recursive eta-argument,
+recursive native-reference and nonreturning eta-reference examples are regression
+build/audit roots. Only propext, Classical.choice and Quot.sound; no forbidden
+dependencies or own-module warnings. A development error naming an inaccessible
+implicit substitution in induction cases was fixed by directing substitution
+from the rewritten goal; no theorem premise was weakened.
+
+Completion audit: the original UniqueTyping.lean:94 sorry is unchanged. No
+canonical-Eq counterexample or strictly smaller sufficient irreducible obligation
+has been established. General certificate coverage, non-atomic substitution,
+higher-stage joining, paired exposure and singleton simulation remain live.
+GOAL.md remains active. Only the three proof modules and appended ledgers are
+committed; executable and independent untracked experiments are untouched. No
+coordination or PR extraction.
