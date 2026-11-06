@@ -74,15 +74,24 @@ theorem TypedRecursiveSubstitutionClosure.instantiation
     (by simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using
       proofErase_instN hΓA hp Ctx.InstN.zero hc)
 
-/-- The neutral probe templates are actual commonly typed terms. Substituting
-an actual identity function at their newest variable and taking one beta step
-would give inferred recursive guards for all convertible domain probes. -/
-theorem TypedRecursiveInstantiationClosure.probe_guard
-    (H : TypedRecursiveInstantiationClosure D)
+/-- A concrete, commonly typed neutral probe and identity substitution. Its
+stage-zero recursive guard omits the two domain annotations, while the two
+substituted outputs beta-reduce to those domain probes. This witness is
+independent of any proposed substitution-closure conclusion. -/
+theorem recursive_neutral_probe_instantiation
     (hΓ : OnCtx Γ (env.IsType univs))
     (hP : env.HasType univs Γ P (.sort u)) (hQ : env.HasType univs Γ Q (.sort u))
     (HPQ : env.IsDefEq univs Γ P Q (.sort u)) :
-    LevelRecursiveGuard D false (proofErase Γ (domainProbe P)) (proofErase Γ (domainProbe Q)) := by
+    ∃ T b c B, let A := VExpr.forallE T T.lift;
+      let p := VExpr.lam T (.bvar 0);
+      OnCtx (A :: Γ) (env.IsType univs) ∧
+      env.HasType univs (A :: Γ) b B ∧ env.HasType univs (A :: Γ) c B ∧
+      env.HasType univs Γ p A ∧
+      LevelRecursiveGuard D false (proofErase (A :: Γ) b) (proofErase (A :: Γ) c) ∧
+      ProofShape.Compute (ErasedLevelCore D) (proofErase Γ (b.inst p))
+        (proofErase Γ (domainProbe P)) ∧
+      ProofShape.Compute (ErasedLevelCore D) (proofErase Γ (c.inst p))
+        (proofErase Γ (domainProbe Q)) := by
   let T := VExpr.forallE P (.sort (.succ .zero))
   have hf : env.HasType univs Γ (domainProbe P) T := domainProbe_typed hP
   have hg : env.HasType univs Γ (domainProbe Q) T :=
@@ -113,13 +122,13 @@ theorem TypedRecursiveInstantiationClosure.probe_guard
       show proofErase (I :: Γ) (.bvar 0) = .bvar 0 from if_neg hnvar,
       proofErase_liftN hΓ hΓI Ctx.LiftN.one hg, proofErase_domainProbe hΓ hQ]
     rfl
-  have HG := H hΓI hleft hright hid
-    (EL.symm ▸ ER.symm ▸ recursive_neutral_probe_guard hΓ (proofErase Γ P) (proofErase Γ Q))
-  simp only [VExpr.inst, instVar, Nat.lt_irrefl, ↓reduceIte,
-    VExpr.liftN_zero, VExpr.inst_lift] at HG
+  refine ⟨T, _, _, _, hΓI, hleft, hright, hid,
+    EL.symm ▸ ER.symm ▸ recursive_neutral_probe_guard hΓ (proofErase Γ P) (proofErase Γ Q), ?_⟩
   have hnf := not_isProof_function_to_sort hΓ hf
   have hng := not_isProof_function_to_sort hΓ hg
-  apply HG.reducts
+  simp only [VExpr.inst, instVar, Nat.lt_irrefl, ↓reduceIte,
+    VExpr.liftN_zero, VExpr.inst_lift]
+  constructor
   · rw [proofErase_nativeIdentityExpansion hΓ hf hnf]
     simpa only [ProofShape.inst, instVar, Nat.lt_irrefl, ↓reduceIte, Nat.sub_self,
       ProofShape.liftN_zero] using
@@ -130,6 +139,19 @@ theorem TypedRecursiveInstantiationClosure.probe_guard
       ProofShape.liftN_zero] using
       (ProofShape.Compute.beta (Step := ErasedLevelCore D)
         (ProofShape.BetaRed.beta (A := proofErase Γ T) (b := .bvar 0) (a := proofErase Γ (domainProbe Q))))
+
+/-- The neutral probe templates are actual commonly typed terms. Substituting
+an actual identity function at their newest variable and taking one beta step
+would give inferred recursive guards for all convertible domain probes. -/
+theorem TypedRecursiveInstantiationClosure.probe_guard
+    (H : TypedRecursiveInstantiationClosure D)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (hP : env.HasType univs Γ P (.sort u)) (hQ : env.HasType univs Γ Q (.sort u))
+    (HPQ : env.IsDefEq univs Γ P Q (.sort u)) :
+    LevelRecursiveGuard D false (proofErase Γ (domainProbe P)) (proofErase Γ (domainProbe Q)) := by
+  obtain ⟨T, b, c, B, hΓA, hb, hc, hp, HG, RL, RR⟩ :=
+    recursive_neutral_probe_instantiation (D := D) hΓ hP hQ HPQ
+  exact (H hΓA hb hc hp HG).reducts RL RR
 
 /-- Coherent common source typing and an actual typed image still leave the
 full proposition front in arbitrary recursive single-instantiation closure.

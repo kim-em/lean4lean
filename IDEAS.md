@@ -16203,3 +16203,40 @@ Validation: 823 jobs, 32 roots including both new inductive types and
 their constructors/recursors, maximum closure 12,310, 798 frozen hashes.
 Only standard axioms; no forbidden dependencies. The prior goal turn was
 progress (dbb6f521); this turn proves the indicated iteration and join step.
+
+
+### 2026-11-06 03:42:55 UTC — Arbitrary finite cast stages retain the inferred substitution front
+
+Previous goal turn: progress by verification of the completed 3019abe8 commit,
+remote push and audited source hashes. This turn revalidated the worktree and
+tested the proposed arbitrary-substitution continuation against the existing
+neutral-probe obstruction.
+
+Idea: permit arbitrary finite output stages when substituting actual typed
+arguments into stage-zero CoreFamilyCast inferred comparisons. Verdict: this
+still implies the full PropositionFront. The new theorem propagates the known
+probe obstruction to the current, strictly richer comparison grammar; neither
+cast stages nor recursive computation joins bypass it. Even the weaker readout
+restricted to identity substitution suffices, with a separately chosen stage
+for every residual pair and no retained recursive output certificate.
+
+The witness uses h applied to constant-body lambda probes, one actual identity
+image, and one beta step on each side. Source terms share a genuine original
+type. Their neutral inferred guard checks the lambda arguments in common mode
+and therefore omits the domain comparison. Inferred descent of the resulting
+probes below an unused binder recovers equality of the domains by type
+uniqueness. The source requires no cast or annotation-consumer constructor.
+
+This is an implication barrier, not a counterexample to finite-stage closure or
+strengthening. It does not settle common-mode sort-only substitution. Next live
+direction: follow the necessary domain information through hereditary typed
+histories, separating the cast endpoint's common-mode requirement from the
+annotation rule's inferred requirement. Any restricted construction must still
+prove coverage sufficient for the original front; restriction alone is not a
+final deliverable. Do not advertise arbitrary inferred substitution as a
+strictly smaller remaining obligation.
+
+Validation: 825 jobs, 18 audited roots, maximum closure 12,324;
+800 frozen source/import hashes. Only standard axioms and no forbidden
+dependencies or warnings in either owned module. No final GOAL.md deliverable
+is established; original sorry and executable unchanged.

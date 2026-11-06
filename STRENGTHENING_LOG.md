@@ -30014,3 +30014,40 @@ ambient substitution and semantic domain coverage remain unproved; the older
 beta/substitution grammar is still a distinct construction. No final GOAL.md
 deliverable is established. The original sorry, executable and independent
 files are preserved; no coordination, PR extraction or PR creation.
+
+
+### 2026-11-06 03:42:55 UTC — Finite-stage identity readout still implies PropositionFront
+
+Extracted recursive_neutral_probe_instantiation from the earlier recursive
+substitution barrier. Its statement now explicitly exposes the identity image
+(fun x : T => x), the source binder T -> T, common source typing, the old
+recursive source guard, and both full-core paths to the domain probes. The old
+probe_guard theorem uses this witness and retains its public interface.
+
+Added ProofErasureCoreFamilySubstitutionBarrier.lean.
+FiniteCoreFamilyInstantiation requests only stage-zero inferred inputs but
+allows any finite output stage. FiniteRecursiveIdentityReadout is weaker:
+it asks only for inferred comparisons of residuals after actual identity
+substitution, with an independent stage for each residual pair. The established
+CoreFamilyCast interpretation proves the first proposed law implies the second.
+The concrete probe witness and computed-joint descent prove the second implies
+PropositionFront. The actual-environment wrapper discharges soundness, level
+compatibility, confluence and Eq-recursion registration.
+
+The comparison of probes above the unused binder descends in inferred mode,
+using only their separate lower typings and non-proofness. Type uniqueness
+then exposes the required lower domain equality. No equality of the probe
+types below the binder or guarded-stage confluence is assumed.
+
+Validation: 825 jobs, 18 complete dependency roots, maximum closure
+12,324, 800 frozen hashes; traversal covers declaration types, opaque
+bodies, constructors and recursor RHSs. Only propext, Classical.choice and
+Quot.sound; no forbidden dependencies and no owned-module warnings.
+
+Judgment: the current richer grammar has the same inferred substitution
+barrier even with unbounded finite stages; the proposed law cannot be described
+as a strictly smaller obligation. This is a checked reduction, not a refutation
+and not one of GOAL.md's final deliverables. Common-mode sort-only substitution
+and a hereditary record of domain comparisons remain distinct investigations;
+semantic coverage is still required. Original sorry, executable and independent
+untracked files preserved. No coordination, PR extraction or PR creation.
