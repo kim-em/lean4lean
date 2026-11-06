@@ -18280,3 +18280,39 @@ logical obligation than PropFront is claimed.
 Validation: 989 build jobs, 9 complete dependency roots, maximum
 closure 11,607; 964 frozen source hashes. Only propext, Classical.choice
 and Quot.sound; no forbidden dependencies or owned warnings. Executable unchanged.
+
+
+## 2026-11-06 12:44:06 UTC — Read the inner general singleton through both argument histories
+
+**Idea.** The existing computed fresh-eta singleton theorem applies only after
+its outer prefix and eta domain have representatives below the ambient unused
+binders. Reify all five outer arguments first, recover that lower domain, then
+use the inner component history without substituting either guarded path.
+
+**Verdict: proved and integrated.**
+`pi_inert_eq_eta_inner_singleton_readout` reconstructs the computed five-argument
+Eq completion below the unused binders, retaining pointwise semantic equalities.
+Its first pre.length arguments erase and lift to the selected outer prefix.
+The recovered Pi and domain-sort witnesses descend at that prefix; ordinary
+application typing aligns the next actual argument with the recovered domain.
+The existing fresh-eta theorem then reads the inner general singleton below
+the ambient binders, specializes its semantic equation, and obtains equality
+of the computed completion's endpoints. The original component equalities
+transport that equation back to the original lower endpoints and carrier.
+
+`CountedEtaBodySpineCut.read_singleton` uses this result to discharge the
+selected general singleton or retain the exact same counted cut. The full
+Eq-exposure theorem now has only specialized computed Eq prefix and native
+function eta in its inner residual. No assumptions were added; all remaining
+witnesses and both path minima are preserved.
+
+The specialized computed guard and nested eta remain open. For the specialized
+guard, the same outer reconstruction should be reusable; its five-argument
+arity forces a four-argument outer prefix, and a fresh-context carrier-guard
+readout can then be specialized semantically. That is a next proof direction,
+not a proved result. GOAL.md remains unachieved; no sufficient strictly smaller
+logical obligation than PropFront is claimed.
+
+Validation: 992 build jobs, 4 complete dependency roots, maximum
+closure 11,626; 967 frozen source hashes. Only propext, Classical.choice
+and Quot.sound; no forbidden dependencies or owned warnings. Executable unchanged.

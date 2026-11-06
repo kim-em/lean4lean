@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertEqEtaRoot
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertEqEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
 
 /-! # Eq exposure reaches a non-level root inside a minimum eta body
@@ -23,9 +23,9 @@ globally minimal with smaller count (via `CountedEtaBodySpineCut.smaller_minimum
 The body and its application continuation are jointly minimal with variable
 body endpoint; identity and constant expansion are excluded at the selected
 inner root, with its typing and the actual argument's context substitution retained.
-The inner root is a specialized Eq singleton, a general recovered singleton,
-or native function eta. Reading the inner singleton guards and eliminating
-nested eta remain open; ordinary core and structure eta are excluded. -/
+General recovered singleton roots read the original lower equation. The
+remaining inner root is a specialized computed Eq prefix or native function
+eta. Reading that specialized guard and eliminating nested eta remain open. -/
 theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hreg : recursorData ``Eq.rec = some data) (hoff : data.majorOffset = 5)
@@ -57,7 +57,7 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
         (ProofShape.mkApps (.lam A (.app ((ProofShape.mkApps (.const ``Eq.rec ls) pre).liftN 1)
           (etaArgument u))) pending) out ∧
       CountedEtaBodySpineCut D stage (proofEraseCtx Γ') ``Eq.rec ls pre A u pending out ct
-        (EqEtaGuardedRoot D)) := by
+        (EqEtaRemainingRoot D)) := by
   classical
   obtain ⟨_, _, _, ha, _, _, hb⟩ := eqRecBeforeMajor_typings henv heq hΓ ⟨_, ht⟩
   have Eargs' : args = [(proofErase Γ α).liftN count offset,
@@ -145,8 +145,11 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
             cases HD with | cons HP HD =>
               cases HD
               exact hnotProof [] (by rw [HP.pi_inert_proof_fixed])
-          exact .inr ⟨stage, cost, ls, pre, pending, _, _, _, k, cp, ct,
-            RC, hminAll, hcostExact, HL, hshort, HA, RP, HTpre, hk, RN, SD, RT,
-            HB.eq_guarded heq hs hreg hoff hRec hshort⟩
+          rcases CountedEtaBodySpineCut.read_singleton heq hs hΓ hΓ' W ht hn HL
+              (by simpa only [Eargs] using HA) hshort HTpre RN SD
+              (HB.eq_guarded heq hs hreg hoff hRec hshort) with Hlower | HB'
+          · exact .inl Hlower
+          · exact .inr ⟨stage, cost, ls, pre, pending, _, _, _, k, cp, ct,
+              RC, hminAll, hcostExact, HL, hshort, HA, RP, HTpre, hk, RN, SD, RT, HB'⟩
 
 end Lean4Lean.VEnv.Strengthening

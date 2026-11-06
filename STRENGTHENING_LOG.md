@@ -32214,3 +32214,42 @@ substitution regressions; 9 complete dependency roots, maximum closure
 Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
 assumptions or owned warnings. No PR extraction or coordination; executable
 unchanged.
+
+
+## 2026-11-06 12:44:06 UTC — Discharge the inner general singleton in the full Eq theorem
+
+Added `ProofErasurePiInertEqEtaSingleton.lean`. Its main readout uses both the
+outer six-slot component history and the fresh eta-body component history.
+Take the original five meaningful slots, reify their computations below the
+ambient unused binders, and retain their pointwise semantic equalities. The
+head-level equality is justified by actual source typing. Split the resulting
+five-argument completion at the selected outer prefix length (at most four),
+which provides a next actual argument and the remaining completion.
+
+Descend the outer recovered Pi at that reconstructed prefix and use its domain
+sort witness to build the actual lower eta domain. Original application typing
+aligns the next argument with this domain. The upper extended context is exactly
+the erasure of the lower domain lifted over the ambient unused binders. Thus
+the previously proved computed fresh-eta singleton theorem applies to the
+inner component and level histories. It lowers the singleton guard first and
+specializes only the resulting semantic equality. Pointwise outer endpoint
+equalities transport the result back to the original lower equation.
+
+`EqEtaRemainingRoot` records the two cases still unresolved here: specialized
+computed Eq prefix and native function eta. `CountedEtaBodySpineCut.read_singleton`
+either produces the original lower equation or refines the same body witness
+to those cases. The full Eq-exposure theorem now uses this readout; it acquires
+no additional assumptions and retains every other prefix, suffix, count,
+minimality and typing witness. Neither guarded computation history is substituted.
+
+The specialized guard and nested eta still need treatment. The outer argument
+reconstruction provides a route toward the specialized case, but this commit
+does not claim it. Strengthening, a canonical-Eq counterexample, and a sufficient
+strictly smaller obligation than PropFront remain unproved.
+
+Validation: 992 build jobs including contextual-cast and core-family
+substitution regressions; 4 complete dependency roots, maximum closure
+11,626; 967 frozen source hashes. Only propext, Classical.choice and
+Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
+assumptions or owned warnings. No PR extraction or coordination; executable
+unchanged. GOAL.md remains active and unachieved.
