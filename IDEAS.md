@@ -15804,3 +15804,50 @@ unchanged. Standard axioms only, no forbidden dependencies or own warnings.
 The existing nested-cast module also rebuilt successfully with the extended
 guard. Original sorry remains, executable unchanged, GOAL.md active.
 No coordination or PR extraction.
+
+
+## 2026-11-06 01:43:55 UTC — Recursive cast computations through arbitrary typed consumers
+
+Previous goal turn: progress (8036ef9444841ba544f060d0c4f863807ff5c065 committed
+and pushed). Revalidated that HEAD and preserved both independent untracked files.
+
+Idea: handle cast arguments duplicated or used as functions by arbitrary typed
+consumers. Verdict: checked for recursively joined endpoint computations, with
+future beta and interpreted typed-substitution certificates. This uses a stronger
+constructive fragment than LevelStagedCastGuard; it does not assume that every
+existing staged comparison has the required future property.
+
+proofErase_typeCast_certified builds complete cast removal in the already
+established ErasedBetaStableJoint relation from an endpoint future certificate.
+It reflects semantic endpoint equality, constructs the actual generated Eq
+prefix, applies it to the major, and contracts beta. Proof-valued casts are
+included. RecursiveCastCompute then constructs those future certificates from
+two smaller endpoint computations to a shared raw output. Core, transitive,
+application, projection and binder rules are compatible; typed substitution and
+pointwise image computation also retain the recursive grammar. Structural
+interpretation discharges every case without a transport oracle constructor.
+
+An arbitrary typed consumer instantiates at both argument endpoints while
+retaining RecursiveCastCompute itself. This covers duplication, function-position
+use, arbitrary lambda arguments and new beta redexes. A recursive join yields
+BetaStableFamily through the existing certified commutation theorem; consumer
+outputs therefore retain comparisons after arbitrary independent beta paths and
+all future interpreted substitutions. Their current comparisons have actual
+finite joint-stage bounds. Actual environment specialization discharges soundness
+and registry assumptions. Reflexive casts need no supplied comparison; the nested
+example constructs the outer witness and endpoint joins from an inner cast.
+
+Limit: this computation fragment requires actual endpoint joins, so it does not
+cover all nonjoining staged guards or arbitrary semantic annotation conversion.
+Its core is ordinary delta/iota/beta, and the forward residual guarantee is beta,
+not arbitrary full level-core or arbitrary singleton-stage computation. No new
+confluence claim is made. The next unresolved issue is promoting common lambda
+arguments with convertible but uncertified written domains; these consumer rules
+can propagate a constructed conversion but cannot manufacture that certificate.
+No strictly smaller sufficient strengthening obligation is claimed.
+
+Validation: 757 jobs; 22 complete dependency roots including all new
+constructors and recursors; maximum closure 11,711; 732 frozen hashes
+unchanged. Only propext, Classical.choice, Quot.sound; no forbidden dependencies
+or own-module warnings. Original strengthening sorry remains, executable unchanged,
+GOAL.md active. No coordination or PR extraction.

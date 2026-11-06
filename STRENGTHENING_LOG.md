@@ -29609,3 +29609,37 @@ extension. Independent untracked files preserved. No executable changes or PRs.
 Judgment: useful closure of the explicit-cast fragment under function application
 and the beta it exposes. General annotation comparison and arbitrary typed
 substitution remain open, so none of GOAL.md's three deliverables is achieved.
+
+
+## 2026-11-06 01:43:55 UTC — Recursive cast certification and higher-order argument consumers
+
+Added ProofErasureRecursiveCastComputation.lean and
+ProofErasureRecursiveCastConsumer.lean. Complete typeCast contraction is certified
+from future endpoint comparison, including proof-valued outputs. The recursive
+computation grammar replaces that interface by two explicit smaller endpoint
+computations to a common output. Its structural interpretation constructs the
+future certificate via certified joins, then the actual Eq prefix computation.
+Compatible frames, actual typed substitution and pointwise image computation
+retain the grammar. Every interpreted computation has a finite joint-stage bound.
+
+inst_argument propagates a recursive argument computation through an arbitrary
+typed body, retaining a reusable recursive computation. consumer_beta supplies
+future comparisons at independent beta residuals and an actual finite-stage
+comparison. Reflexive and recursively nested casts supply concrete applications;
+the nested example constructs its outer equality proof rather than assuming it.
+The actual environment theorem discharges soundness and Eq registry agreement.
+
+Development fixes were elaboration details: explicit ScopedCompute.app, explicit
+substitution indices in induction cases, and inst_eq when moving between one-
+variable instantiation and substitution. All are resolved; no gaps introduced.
+
+Validation: 757 jobs, 22 full dependency roots, maximum closure
+11,711, 732 unchanged pinned source/import hashes. Audit traverses declaration
+types, opaque values, inductive constructors and recursor RHSs. Standard axioms
+only; no forbidden fronts, strengthening theorem, sorryAx or own warnings.
+Independent untracked files preserved. No executable changes or PRs.
+
+Judgment: closes arbitrary typed argument consumption for the constructive
+recursive-join cast fragment, retaining beta/substitution certificates. It does
+not prove full-core forward closure, arbitrary staged-guard coverage, or general
+annotation conversion. GOAL.md's deliverable remains unachieved and active.
