@@ -32290,3 +32290,50 @@ substitution regressions; 5 complete dependency roots, maximum closure
 Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
 assumptions or warnings in the changed modules. Executable unchanged; no PR
 extraction or coordination. GOAL.md remains active and unachieved.
+
+
+## 2026-11-06 13:05:31 UTC — Smaller typed eta bodies with retained or consumed lambda frames
+
+Added `ProofErasurePiInertNestedEtaMinimum.lean`. The continuation is a fixed
+predicate on the intermediate endpoint and its remaining primitive count.
+For a consumed lambda, `PiInertApplicationContinuation` first substitutes only
+the endpoint, applies the fixed pending arguments, runs a counted computation
+at any finite stage, and passes the result to the old predicate. The exact
+original prefix, eta root, domain path, and argument paths reconstruct any
+competitor body plus this new continuation. Global minimality then proves
+exact count accounting and a strictly smaller combined body/continuation
+minimum. All stages can increase independently.
+
+For a lambda surviving to the current endpoint, retain its computed domain
+and computed arguments as a fixed lambda-spine frame. Replacing only its body
+path reconstructs a valid original whole path before entering the old
+continuation. This gives the same strict decrease without requiring a beta
+in the current scope. The typed lambda readout keeps the body in its initial
+binder context, even when annotation transport raises the finite guard stage.
+
+`CountedEtaContinuationCut` records both cases with actual counted paths,
+source-body typing, the inherited variable-endpoint minimum, and (for the
+consumed case) the actual argument's ordinary typed context interpretation.
+`pi_inert_eta_continuation_cut` proves the result for any fixed continuation.
+`CountedEtaBodySpineCut.nested_eta_cut` instantiates it at the actual selected
+inner Eq eta, reifying the retained prefix to recover its full application
+spine's typing. Its continuation is the existing outer instantiation and
+application suffix, so no new closure hypothesis is introduced. The full
+Eq-exposure module imports the result and documents this consequence.
+
+This resolves the next-binder count problem, including the previously awkward
+surviving-lambda case. It is not an eta-elimination theorem. The next induction
+must preserve the concrete mixed continuation frames and original lower Eq
+readout, and bypass stable/administrative body histories or classify the next
+useful root. Arbitrary predicates do not support these bypasses by themselves;
+the actual continuation structure cannot be discarded. No guarded path is
+substituted, and no native image recovery is inferred from semantic typing.
+GOAL.md remains unachieved, including its sufficient strictly smaller
+obligation alternative.
+
+Validation: 994 build jobs including contextual-cast and core-family
+substitution regressions; 7 complete dependency roots, maximum closure
+11,629; 969 frozen source hashes. Only propext, Classical.choice and
+Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
+assumptions or warnings in the changed modules. Executable unchanged; no PR
+extraction or coordination.

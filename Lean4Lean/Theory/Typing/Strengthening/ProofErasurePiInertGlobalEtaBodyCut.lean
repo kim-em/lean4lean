@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertEqEtaSingleton
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertNestedEtaMinimum
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
 
 /-! # Eq exposure reaches a non-level root inside a minimum eta body
@@ -25,7 +25,9 @@ body endpoint; identity and constant expansion are excluded at the selected
 inner root, with its typing and the actual argument's context substitution retained.
 Both singleton forms read the original lower equation. The remaining inner
 root is native function eta. Eliminating this nested eta through the retained
-application continuation remains open. -/
+application continuation remains open. `CountedEtaBodySpineCut.nested_eta_cut`
+supplies a smaller body/continuation minimum in both the consumed and retained
+lambda cases, keeping the enclosing frames explicit. -/
 theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hreg : recursorData ``Eq.rec = some data) (hoff : data.majorOffset = 5)

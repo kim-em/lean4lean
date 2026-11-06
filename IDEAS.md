@@ -18351,3 +18351,43 @@ Validation: 993 build jobs, 5 complete dependency roots, maximum
 closure 11,629; 968 frozen source hashes. Only propext, Classical.choice
 and Quot.sound; no forbidden dependencies or warnings in the changed modules.
 Executable unchanged; no PR extraction or coordination.
+
+
+## 2026-11-06 13:05:31 UTC — Descend the eta minimum through arbitrary fixed continuations
+
+**Idea.** Generalize the combined body/suffix minimum from one exposed-output
+application frame to an arbitrary fixed endpoint-and-count predicate. A consumed
+lambda prepends a substitution/application/computation frame. A surviving lambda
+can instead remain as a fixed lambda-spine frame around the variable endpoint.
+Neither case requires substituting a guarded computation.
+
+**Verdict: both induction steps proved and applied to the selected inner Eq eta.**
+`pi_inert_counted_lambda_continuation_minimal_of` proves exact enclosing cost,
+strict decrease, and inherited minimum when the lambda is consumed.
+`pi_inert_retained_lambda_continuation_minimal_of` proves the analogous result
+when it survives. Competitor stages and endpoints can vary, but the enclosing
+continuation stays fixed. `PiInertApplicationContinuation` adds a frame with
+its own finite stage and cost; retained lambdas use ordinary predicate
+composition. Repeated frames are therefore representable without a depth bound.
+
+`pi_inert_eta_continuation_cut` uses typed lambda readout to supply a typed body
+and a strictly smaller combined minimum in either case. The consumed case also
+retains the actual argument's context substitution. `CountedEtaBodySpineCut.nested_eta_cut`
+applies it to the exact inner eta from the current Eq-exposure result, using
+its existing joint minimum, prefix, suffix, and component-derived typing.
+The full theorem imports this consequence without acquiring new hypotheses.
+
+The count can now descend even when the lambda survives into another scope.
+This does not eliminate nested eta: one must still force a useful body-spine
+root or bypass the administrative history through mixed retained-lambda and
+application frames, while carrying the original Eq endpoint readout. An
+arbitrary continuation predicate alone cannot justify such a bypass (it may
+insist on the retained lambda's syntax). The concrete continuation structure
+and the original exposed output must therefore remain part of that induction.
+This is the next live direction. No sufficient strictly smaller logical
+obligation than PropFront, strengthening proof, or counterexample is claimed.
+
+Validation: 994 build jobs, 7 complete dependency roots, maximum
+closure 11,629; 969 frozen source hashes. Only propext, Classical.choice
+and Quot.sound; no forbidden dependencies or warnings in the changed modules.
+Executable unchanged; no PR extraction or coordination. GOAL.md remains active.
