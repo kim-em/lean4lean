@@ -15851,3 +15851,46 @@ constructors and recursors; maximum closure 11,711; 732 frozen hashes
 unchanged. Only propext, Classical.choice, Quot.sound; no forbidden dependencies
 or own-module warnings. Original strengthening sorry remains, executable unchanged,
 GOAL.md active. No coordination or PR extraction.
+
+
+## 2026-11-06 01:48:51 UTC — Written lambda annotations repaired inside arbitrary consumers
+
+Previous goal turn: progress (d7841b857d7b488ea9207b3242fb69c94857c6be committed
+and pushed). Revalidated HEAD and preserved the two independent untracked files.
+
+Idea: use recursively joined annotation computations to repair lambda arguments
+without inserting a cast around the lambda itself. Verdict: checked for arbitrary
+same-body lambdas and arbitrary typed consumers, with finite inferred comparison
+after independent beta residuals. This connects the recursive cast fragment to
+the annotation alignment required when a lambda argument becomes a function head.
+
+RecursiveCastCompute.realize and join_defeq derive actual targets and equalities
+from the existing certified interpretation. inst_joined propagates both sides of
+an argument join through any typed consumer, keeping two recursive computations
+to an actual common instantiated body. The shared argument is reconstructed from
+the left path; no target recovery, common-reduct typing premise, or confluence of
+the recursive computation relation is assumed. join_beta constructs an actual
+certified join after independent beta tails using beta commutation and ordinary
+beta confluence only at that realized shared output.
+
+recursive_lambda_annotation_join constructs the new lambda's common Pi typing,
+body-erasure agreement under domain conversion, and the literal erased lambda
+join from the two domain paths. It includes proof-valued lambdas. Arbitrary
+consumers retain recursive joins; beta residuals have finite inferred-mode joint
+comparisons. A reflexive universe cast in the written annotation supplies the
+domain paths directly, with unrestricted lambda and consumer bodies. The actual
+environment wrapper discharges soundness and Eq registry agreement.
+
+Limit: same-body annotation repair requires an explicit recursive domain join.
+It neither supplies joins for arbitrary semantic domain conversions nor covers
+nonjoining lambda-body comparisons. The outputs may be reused as recursive joins,
+but their residual guarantee here is beta, not arbitrary full-core or higher-stage
+computation. Prior common-lambda and substitution barriers remain intact. General
+annotation-certificate coverage is still the central unresolved step; no smaller
+sufficient strengthening obligation is claimed.
+
+Validation: 759 jobs; 9 full dependency roots; maximum closure
+11,717; 734 frozen source/import hashes unchanged. Only propext,
+Classical.choice, Quot.sound; no forbidden dependencies or own-module warnings.
+Original sorry remains, executable unchanged, GOAL.md active. No coordination
+or PR extraction.

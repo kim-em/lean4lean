@@ -29643,3 +29643,31 @@ Judgment: closes arbitrary typed argument consumption for the constructive
 recursive-join cast fragment, retaining beta/substitution certificates. It does
 not prove full-core forward closure, arbitrary staged-guard coverage, or general
 annotation conversion. GOAL.md's deliverable remains unachieved and active.
+
+
+## 2026-11-06 01:48:51 UTC — Recursive annotation joins and inferred consumer residuals
+
+Added ProofErasureRecursiveCastJoins.lean with exact typed replay, reflected
+join equality, retained paired consumer joins, and certified joins after beta
+residuals. The arbitrary raw shared argument output is realized internally.
+No recursive-computation confluence assumption enters these proofs.
+
+Added ProofErasureRecursiveLambdaAnnotation.lean. Same-body lambdas with joined
+written domains receive a common Pi typing and recursive erased join. Typed
+context conversion identifies their body erasures. This join propagates through
+any typed consumer and yields a finite inferred-mode comparison after independent
+beta paths, including redexes newly exposed by the consumer. A cast-annotation
+specialization constructs the domain paths; the actual environment specialization
+discharges the abstract environment interfaces. Proof-valued lambdas are covered.
+
+Validation: 759 build jobs, 9 full dependency roots, maximum closure
+11,717, 734 unchanged pinned hashes. Audit traverses types, opaque values,
+constructors and recursor RHSs. Standard axioms only; no strengthening theorem,
+sorryAx, forbidden transport/coverage interfaces, or own-module warnings. Both new
+modules compiled on their first development build. Independent untracked files
+preserved; no executable changes or PRs.
+
+Judgment: a concrete annotation-alignment rule for recursively joined domains,
+reusable in arbitrary consumers and inferred beta-residual checking. General
+semantic annotation conversion and nonjoining body coverage are still open.
+None of GOAL.md's three deliverables is yet achieved; goal remains active.
