@@ -29150,3 +29150,59 @@ arbitrary functions for those neutral heads. Outer beta overlap, full comparison
 coverage, higher eta-stage joining, paired exposure and singleton simulation
 remain live. GOAL.md stays active. Executable unchanged; independent untracked
 files preserved; no coordination or PR extraction.
+
+
+## 2026-11-06 00:22:31 UTC — Complete native control outputs from pre-instantiation Pi guards
+
+Previous proof-development turn: progress (four new modules compiled). The
+intervening exchange clarified pause/extraction intent and made no proof progress.
+Revalidated HEAD 8bc872dff75f8086cea48680d4ba0b3f7476f7d3 and all six untracked
+files before the full audit. The two independent untracked experiments remain
+untouched. PR extraction remains deferred.
+
+ProofErasureAtomicSubstitutionReflection defines SubstitutionAtom (variable,
+sort, proof marker) and pointwise AtomicSubstitution. Constructor and constant
+spine inversions reflect beta histories and compatible computation, assuming
+reflection of primitive roots. Lifting and single-argument substitution retain
+atomicity, with no injectivity or normalization assumptions.
+
+ProofErasureAtomicCoreReflection proves visible-pattern reflection with exact
+capture correspondence. Delta bodies and fixed templates use declaration
+closedness; projection rules select the original argument; capture applications
+substitute exactly. The resulting ordinary-core reflection is untyped and
+independent of confluence, including all supported registered primitives.
+
+ProofErasureAtomicRecursiveTransport proves Pi-codomain readout for raw and raw
+checked comparisons when primitives cannot rewrite a Pi root. Atomic instances
+of LevelRecursiveGuard compare after arbitrary independent level-core paths or
+joins: typed universe factorization supplies an ordinary path and a return from
+the given reduct, ordinary reflection reconstructs the original paths, and the
+recursive forward theorem compares them before substitution. The stronger Pi
+version lifts those paths under the original Pis and reads out the comparison.
+It requires only the whole-Pi recursive certificate, not one on the codomains.
+Instantiated whole endpoints have actual typing witnesses; recursive leaf
+contexts need not be transported. These theorems produce raw comparisons and
+do not yet assert closure of the recursive certificate itself.
+
+ProofErasureAtomicControlReferences applies the Pi theorem to arbitrary complete
+native application recoveries. Independent functions may have different actual
+result types; their selected native Pis carry the recursive comparison. Original
+arguments compute to one actual atomic-erasure argument. Selected codomain
+typings and complete-output joins are derived internally from native recovery.
+The actual EnvironmentCore corollary accepts literal sort argument comparisons
+and discharges convergence and atomicity. No selected output is assumed fixed,
+normal, returning, or equal to the output chosen inside a complete recovery.
+
+Checked limitation: non_atomic_substitution_creates_beta exhibits the neutral
+application bvar0 proof and substitution bvar0 := (fun x => x). Its beta result
+has no pre-substitution beta path yielding that result by substitution. This is
+only a raw reflection boundary, not a counterexample to typed transport.
+
+Validation: isolated full module build passed (909 jobs); 34 roots
+including atom constructors/recursors audited through types, opaque bodies,
+inductive constructors and recursor RHSs; maximum closure 12,217; 884
+frozen hashes unchanged. Only propext, Classical.choice and Quot.sound; no
+forbidden dependencies or own-module warnings. Original weakN_iff sorry remains
+at UniqueTyping.lean:94. Neither canonical-Eq strengthening, a counterexample,
+nor a strictly smaller sufficient irreducible obligation has been established.
+GOAL.md stays active. Executable unchanged; no coordination or PR extraction.

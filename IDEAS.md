@@ -15491,3 +15491,35 @@ irreducible obligation is claimed. Validation: 932 build jobs, 32 audited
 roots including constructors/recursors and previous native-reference results,
 maximum closure 12,175, 907 unchanged frozen source hashes; standard axioms
 only and no forbidden dependencies or own-module warnings.
+
+
+## 2026-11-06 00:22:31 UTC — Reflect atomic instantiation before evolving whole-Pi comparisons
+
+Verdict: checked progress for complete stage-zero application outputs. Ordinary
+computation reflects exactly through substitutions whose images are variables,
+sorts or proof markers. Such images create neither beta redexes nor visible
+primitive matches; closed delta/template bodies and reflected captures preserve
+the exact substituted endpoint. This requires no typing or confluence.
+
+For level-core paths, typed factorization returns to an ordinary reduct, whose
+path reflects through the atomic substitution. The existing recursive guard
+then compares the original reducts; ordinary substitution and the universe
+return paths give the instantiated comparison. For Pi codomains, first lift the
+reflected paths beneath the original whole Pis and invert their raw comparison.
+Thus a whole-Pi recursive certificate suffices, with no separate codomain guard
+or certificate after instantiation. All complete native application recoveries
+are covered using their joins to selected instantiated codomains. Literal sort
+control in the actual environment discharges atomicity and argument convergence.
+
+Boundary checked: replacing a neutral head with an identity lambda creates a
+beta path with no original path reflecting it. This refutes arbitrary-image
+path reflection only, not typed comparison transport or strengthening. General
+recursive-certificate coverage and non-atomic substitution remain open. A useful
+next step is closure of the recursive certificate itself under this atomic Pi
+instantiation, so the result can feed another recursive comparison rather than
+only yielding a terminal raw comparison.
+
+Validation: 909 build jobs; 34 complete dependency roots; maximum
+closure 12,217; 884 frozen source/import hashes unchanged. Standard axioms
+only, no forbidden dependencies or own-module warnings. No claim of a strictly
+smaller sufficient irreducible obligation.
