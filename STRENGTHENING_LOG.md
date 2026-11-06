@@ -30186,3 +30186,48 @@ beta case with a shared actual argument. Distinct compared arguments and
 general semantic coverage remain open. This is not a strictly smaller sufficient
 front obligation or other final GOAL.md deliverable. Original sorry, executable
 and independent files preserved; no coordination, PR extraction or PR creation.
+
+
+### 2026-11-06 04:18:58 UTC — Paired beta applications through core and cast argument histories
+
+Added ProofErasureHereditaryArgumentHistory.lean. ArgumentHistory stores
+ordinary full-core paths, certified value casts, transitive composition and
+stage raising, indexed by an actual context and fixed carrier. Cast endpoints
+use an earlier hereditary common-mode type comparison.
+
+The interpretation induction constructs a target original at that carrier and
+a hereditary computation for every typed body under the carrier. Ordinary
+computation propagates through raw instantiation; cast computation uses the
+proved arbitrary typed consumer theorem. Composition joins the raw intermediate
+body instances directly, so no chosen original intermediate or general
+comparison-congruence law is required.
+
+instantiate_argument_histories uses the left target realization to interpret
+the shared raw output as a substitution into the retained body certificate.
+The two history interpretations compute the independently instantiated typed
+bodies to that common substitution. Their carrier types, bodies and arguments
+may differ. Computation prefixes retain the full hereditary comparison, and
+beta_application_argument_histories adds the two displayed beta paths.
+
+Actual-environment wrappers discharge the primitive assumptions and include
+ordinary-core joins as a specialization. hereditary_cast_argument_application
+constructs the history on a free-proof reflexive cast argument and compares it
+to the payload application even with different lambda bodies.
+argument_histories_beyond_core_join proves a Pi and its free-proof cast have
+shared history outputs but no ordinary-core common reduct, using the checked
+old inferred-guard exclusion.
+
+Validation: 831 build jobs, 16 complete audit roots, maximum closure
+12,345, 806 frozen hashes. Types, opaque bodies, constructors and recursor
+RHSs traversed. Only propext, Classical.choice and Quot.sound; no forbidden
+dependencies or owned-module warnings. Prior feedback and finite-stage identity
+substitution barrier targets rebuilt.
+
+Judgment: retained bodies now apply to distinct arguments with explicit core
+and certified cast histories, without requiring an ordinary-core join. This
+is not arbitrary transport of merely compared arguments or coverage of all
+semantic equality. The fixed-carrier history condition is explicit; there is
+no blanket promotion of all CoreFamilyCast computations. Next investigate the
+common-mode application gap while preserving the original strengthening scope.
+No final deliverable is established. Original sorry, executable and independent
+files preserved; no coordination, PR extraction or PR creation.

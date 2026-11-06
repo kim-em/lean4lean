@@ -16365,3 +16365,46 @@ Validation: 829 jobs, 54 audited roots including all new grammar
 constructors and recursors, maximum closure 12,330; 804 frozen hashes.
 Only standard axioms; no forbidden dependencies or own-module warnings. The
 finite-stage substitution barrier and prior cast feedback clients rebuild.
+
+
+### 2026-11-06 04:18:58 UTC — Distinct argument histories instantiate retained body comparisons
+
+Previous turn: progress (e555f041, binder transport and beta application at a
+shared actual argument). Revalidated that commit and both independent untracked
+experiments before extending the paired-argument case.
+
+Idea: interpret argument computation as transport through every typed body,
+retaining an actual target at the original carrier. Verdict: proved for
+ordinary full-core paths, value casts with hereditary endpoint comparisons,
+composition and stage raising. ArgumentHistory fixes the actual carrier along
+each history; intermediate outputs can remain raw. Its induction constructs
+a hereditary computation for every typed body instead of assuming contextual
+closure for arbitrary existing comparisons.
+
+Two histories with a shared raw output now instantiate a hereditary comparison
+between different bodies at different actual arguments and written domains.
+The left history constructs a target realization at the left carrier, which
+interprets the common raw substitution. Each history independently computes
+its typed body to that substitution. Retained computation prefixes combine
+them with the instantiated body comparison, and actual beta prefixes give the
+application theorem. The result retains arbitrary subsequent typed substitution
+and full-core residuals in either comparison mode.
+
+This includes ordinary-core joined arguments and certified casts. A concrete
+actual-environment theorem removes a free-proof reflexive cast from one
+argument while the lambda bodies differ. A separate checked separation proves
+that a Pi and its free-proof cast share history outputs but have no ordinary-
+core common reduct. Thus this extends the shared-argument and ordinary-join
+cases rather than merely restating them.
+
+Limits: arbitrary CoreFamilyCast computations are not automatically lifted into
+ArgumentHistory, which retains a fixed actual carrier and explicit core/cast
+steps. Arguments related only by comparison, without shared-output histories,
+remain open. Next investigate that common-mode application case and the
+coverage it would need for the original proposition front; do not assume
+unrestricted inferred substitution, whose checked barrier still applies.
+No final GOAL.md deliverable is claimed.
+
+Validation: 831 jobs, 16 roots including ArgumentHistory constructors
+and recursors, maximum closure 12,345; 806 frozen source/import hashes.
+Standard axioms only; no forbidden dependencies or own-module warnings.
