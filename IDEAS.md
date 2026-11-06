@@ -16447,3 +16447,50 @@ semantic coverage and all final GOAL.md deliverables remain open.
 Validation: 833 build jobs, 8 audited roots, maximum closure
 12,346; 808 frozen source/import hashes. Standard axioms only;
 no forbidden dependencies or owned-module warnings.
+
+
+### 2026-11-06 04:36:57 UTC — Typed eta consumers reduce to exposed-lambda reannotation
+
+Previous goal turn: progress (b94da843, shared eta computation histories imply
+the entire proposition front; applied eta has an ordinary consumer history).
+Revalidated that commit and preserved both independent untracked experiments.
+
+Idea: keep the original typed consumer and compare the eta pair directly,
+without promoting it to shared computation histories. Verdict: proved an exact
+reduction whenever an ordinary-core path exposes a lambda at the assigned Pi
+type. The hereditary eta-consumer comparison is equivalent to the same consumer
+of the exposed lambda with its assigned versus written domains. The stage and
+checking mode are unchanged in both directions; no domain certificate enters
+the equivalence itself.
+
+Ordinary core computation propagates through the typed consumer and through
+eta expansion. The latter includes whole-proof functions. The expanded exposed
+lambda beta-reduces to the same body with the assigned annotation. Both core
+paths therefore take the eta-consumer pair to the annotation-consumer pair.
+Retained residuals prove one implication and core prefixes prove the other.
+This identifies the conversion still needing justification rather than silently
+recovering it from the caller's semantic typing.
+
+A hereditary comparison of the two domains closes this branch using existing
+annotation transport. Lambda inversion retains its natural codomain; Pi-type
+conversion transports the actual consumer to that natural type. Thus the
+consumer need not initially be typed at the lambda's written natural Pi.
+When the exposed written domain equals the assigned domain, a reflexive
+certificate gives stage-zero comparison for every typed consumer, without
+normalizing the lambda body or consumer. Actual-environment wrappers discharge
+the primitive and canonical-Eq hypotheses.
+
+Considered contracting marked lambda uses to remove every annotation mismatch.
+Existing MarkedDevelopments already proves termination for fixed redex marks;
+DevelopmentRounds rules out a fixed bound on repeated marking. Neither proves
+termination for all newly exposed uses of marked lambdas. No new termination
+claim or refutation is made. The general eta-consumer case still requires
+coverage of non-exposing functions and uncertified annotation conversions.
+Next live direction: retain the caller's domain-comparison derivation through
+exposure instead of trying to reconstruct a certificate from semantic typing.
+This reduction is not a sufficient obligation strictly smaller than PropFront;
+none of GOAL.md's final deliverables is established.
+
+Validation: 832 jobs, 7 audited roots, maximum closure 12,334;
+807 frozen source/import hashes. Only standard axioms; no forbidden dependency
+or owned-module warnings.

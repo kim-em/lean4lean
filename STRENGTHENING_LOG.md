@@ -30263,3 +30263,39 @@ comparison with caller typing. That comparison route and its coverage are
 still live. The original sorry remains; no final GOAL.md deliverable is
 claimed. Executable and independent files preserved; no coordination or PR
 extraction/creation.
+
+
+### 2026-11-06 04:36:57 UTC — Exposed-lambda eta consumer equivalence
+
+Added ProofErasureEtaConsumerReduction.lean. Ordinary erased-core paths now
+have explicit typed-consumer and typed-eta propagation lemmas. The eta/lambda
+critical-pair lemma supplies the reannotated lambda at the original assigned
+Pi type together with the ordinary beta path to it.
+
+eta_consumer_iff_annotation takes a source function, a core path to an actual
+lambda at the same assigned Pi, and an arbitrary typed consumer. It equates
+hereditary comparison of that consumer's eta pair with comparison of its two
+reannotated lambda instances. Both checking modes and the exact finite stage
+are retained. Forward uses residuals; reverse uses genuinely typed core
+prefixes. No domain-equality certificate is smuggled into the equivalence.
+
+eta_consumer_of_exposed_lambda closes the resulting annotation comparison
+when a retained domain certificate is available in either mode at a common
+sort. Inversion of the reannotated lambda keeps its natural Pi; context
+conversion moves the original consumer typing to it before annotation
+transport. Actual-environment wrappers include the matching-domain case at
+stage zero, with no extra domain-comparison premise. These histories retain
+arbitrary future typed substitutions and full-core interpretation.
+
+Validation: 832 build jobs; 7 complete audit roots; maximum closure
+12,334; 807 frozen hashes. Types, opaque bodies, constructors and
+recursor RHSs traversed; only propext, Classical.choice and Quot.sound.
+No forbidden dependencies or owned-module warnings. Prior cast feedback and
+finite-stage substitution-barrier clients rebuilt.
+
+Judgment: this closes the arbitrary-consumer eta case for a core-exposed lambda
+with certified domain alignment, and gives an exact reduction without that
+certificate. It does not cover all function values or derive arbitrary domain
+certificates from semantic conversion. General coverage, the original sorry
+and every final GOAL.md deliverable remain open. Executable and independent
+files preserved; no coordination or PR extraction/creation.
