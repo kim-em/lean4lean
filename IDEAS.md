@@ -17661,3 +17661,36 @@ Validation: 914 build jobs, 11 complete dependency roots, maximum closure
 11,644, 889 frozen hashes. Only standard axioms; no forbidden dependency or
 owned diagnostic. Executable and independent experiments unchanged, no extraction
 or coordination.
+
+
+## 2026-11-06 09:27:11 UTC — Fresh-body readout is exactly shared application
+
+- Extract a hereditary fresh-body history from any completed assigned-Pi
+  history: still missing. Proved that this law is equivalent to shared-argument
+  application closure, allowing an arbitrary finite output stage in both laws.
+  Forward uses actual substitution; reverse weakens into the actual domain and
+  applies to its fresh variable. This is one obligation, not two independent
+  simplifications of the strengthening problem.
+- Treat ambient future stability as stability under replacing a lambda's bound
+  variable: unsupported. Proved full stage-zero selector histories for
+  lambda f : S -> S, f i versus lambda f : S -> S, f j, including every core
+  residual and ambient typed substitution. The bound f stays neutral in these
+  certificates, and the supplied raw carrier can be arbitrary.
+- Give those selectors the actual converted result type T, where T is
+  semantically equal to positive empty structure S: shared application to the
+  identity would give complete histories for i,j at T without a retained
+  conversion child. For distinct variables, common comparison is impossible at
+  every Pi-inert stage, so the result must compute T to structural carrier
+  exposure. This is a proved necessary consequence of the missing law.
+- Do not transfer the older ErasedJointUnion application-to-PropositionFront
+  obstruction without a new proof: PiInertStage includes primitive-head
+  expansion, and the old literal Eq-probe head theorem does not directly cover
+  it. Next investigate probe readout through these expansions, or retain and
+  synthesize actual conversion children instead of assuming their extraction.
+  Neither application closure nor its strict smallness has been established;
+  the original goal remains open.
+
+Validation: 954 build jobs, 14 complete dependency roots, maximum closure
+8,726, 929 frozen source hashes; only propext, Classical.choice and
+Quot.sound, no forbidden dependency or owned diagnostic. Executable unchanged;
+independent experiments preserved; no extraction or coordination.

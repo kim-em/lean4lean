@@ -31414,3 +31414,51 @@ maximum closure 11,644; 889 frozen hashes. Only propext, Classical.choice
 and Quot.sound; no weakN_iff/weakN_inv/sorryAx or forbidden framework dependency,
 no owned diagnostics. Executable unchanged, independent experiments preserved;
 no coordination or PR extraction.
+
+
+## 2026-11-06 09:27:11 UTC — Exact function-readout equivalence and hidden-conversion boundary
+
+ProofErasurePiInertSelectorHistory constructs full ordinary-core residual and
+ambient-future comparison evidence for unit selectors. Their neutral bound
+function compares via an empty-structure argument guard. The assigned carrier
+can be any raw term, since common comparison supplies carrierChecked at every
+carrier residual. Only the rigid unit family's non-unfolding is required;
+canonical Eq supplies the existing full-core rigidity lemma. The actual
+selectors are independently well typed at their usual positive result type.
+
+ProofErasurePiInertFunctionReadout proves actual binder insertion and endpoint
+core reduction preserve completed histories. Actual shared-argument substitution
+of a retained fresh-body history gives the application history at the actual
+instantiated carrier. It then names the missing universal fresh-body extraction
+and shared-application laws and proves their equivalence. For the reverse
+implication, weakening the function history under the actual domain and applying
+to the new variable produces precisely the required body history. Neither
+closure law is assumed globally or proved by this equivalence.
+
+ProofErasurePiInertFunctionReadoutBoundary assigns the stage-zero selectors a
+Pi result T by actual semantic conversion T = S. Applying to the identity and
+consuming two beta steps would produce a full history for arbitrary unit
+variables at T. When they are distinct, Pi-inert bvar injectivity eliminates
+ordinary common comparison. The remaining carrier rule therefore requires a
+finite Pi-inert computation from erased T to a CarrierExposure. The original
+selector certificate contains no child witnessing the conversion to T.
+
+Judgment: completed ambient histories do not expose an automatic function-body
+inversion proof. Such inversion is exactly the application gap, and even its
+simplest selectors force recovery of hidden carrier conversions. This is a
+necessary-consequence theorem, not a counterexample to the law. The old
+application obstruction implied PropositionFront for ErasedJointUnion; no such
+claim is made here without proving Eq-probe head descent through the larger
+Pi-inert stage's expansions. That is the next direct test of this obligation.
+Alternatively a derivation-directed construction must retain conversion children
+rather than recover them from an arbitrary completed history. Composition,
+general application, and strengthening remain open. UniqueTyping.lean retains
+the original weakN_iff sorry; no final deliverable or strictly smaller sufficient
+obligation is claimed.
+
+Validation: 954 build jobs including feedback/substitution-barrier
+regressions; 14 complete type/value/constructor/recursor dependency roots;
+maximum closure 8,726; 929 frozen hashes. Only propext, Classical.choice
+and Quot.sound; no weakN_iff/weakN_inv/sorryAx or forbidden framework dependency,
+no owned diagnostics. Executable unchanged, independent experiments preserved;
+no coordination or PR extraction.
