@@ -17272,3 +17272,54 @@ Validation: 871 jobs; 6 complete type/value/constructor/recursor audit
 roots; maximum closure 12,217; 846 frozen hashes. Standard axioms only,
 no forbidden dependencies or owned diagnostics. Executable unchanged; no
 coordination or PR extraction. The weakN_iff sorry and GOAL.md remain open.
+
+
+### 2026-11-06 07:16:33 UTC — Core-exposed Pi readout through annotation and prefix comparisons
+
+Previous goal turn: progress (822175a9, whole-Pi computation joins provide eta
+domain evidence). Revalidated tracked state and kept both independent untracked
+experiments untouched. Continued toward general conversion-certificate domain
+extraction rather than assuming arbitrary comparisons are computation joins.
+
+Idea: extract domains from annotation consumers using their retained structural
+variant, before throwing that information away in the final comparison.
+Verdict: proved. Simulate one core path, join at the typed right source, simulate
+back, invert both exposed Pis, and read the paired domains at the realized right
+domain typing. The contextual annotation child supplies every marked domain
+check in either mode, including shared-sort common checks. Output checks retain
+the exact input stage; neither consumer needs to be a Pi initially.
+
+Idea: strengthen the induction statement to observe typed Pis after arbitrary
+core paths from the certificate endpoints. Verdict: productive. Introduced
+PiCoreDomainReadout. The recursive-prefix case now commutes both computation
+children, reads their possibly wrapped outputs as actual Pis with beta tails,
+and applies the smaller comparison's invariant at those core-exposed Pis.
+The original domain histories prefix the resulting comparison; no comparison
+transitivity or normalization is needed. Generalized join coverage to the same
+interface; proved annotation, Pi-frame, symmetry, reduct and lambda-vacuity cases.
+The old LevelRecursiveGuard fragment has this readout via its stage-zero
+interpretation and the existing stage-zero extraction theorem.
+
+Idea: complete the full CoreFamilyCast induction with this invariant. Verdict:
+all constructors except prior contextual guards and weakening are discharged,
+with the precise conditional theorem pi_core_domain_readout_of_cases. Remaining
+premises are named CoreFamilyPiPrior and CoreFamilyPiWeakening. Neither is proved,
+and neither is asserted to be strictly smaller than the front. Prior coverage
+must include the earlier cast/spine/annotation grammars, not only the old core.
+Weakening cannot simply apply the lower invariant: actual typings of the upper
+observed Pi components do not supply lower typings for free. This is an exposed
+proof obligation, not a counterexample to transport or strengthening. A live next
+route is to strengthen the induction over inserted binder contexts, or to move
+weakening through the certificate constructors while retaining actual witnesses.
+
+Connected the invariant to eta readout and finite-stage identity-wrapped eta
+consumers. Each domain residual is realized as a whole-Pi residual, so the
+invariant constructs the conversion checks rather than taking them as a separate
+input. Thus the newly handled annotation and prefix cases feed the eta route.
+General strong-derivation synthesis and uniform finite-stage closure remain open;
+this local induction split is not a final reduction of strengthening.
+
+Validation: 890 jobs; 18 complete dependency-audit roots including all new
+definitions and conditional theorem types; maximum closure 12,103; 865
+frozen hashes. Standard axioms only, no forbidden dependencies or owned warnings.
+No executable changes, coordination or PR extraction. GOAL.md remains unachieved.

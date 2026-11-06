@@ -30911,3 +30911,49 @@ Validation: 871 jobs; 6 complete dependency-audit roots; maximum closure
 12,217; 846 frozen source/import hashes. Only propext, Classical.choice,
 and Quot.sound; no forbidden dependencies or owned warnings. Independent
 untracked experiments preserved. No executable changes or PR extraction.
+
+
+### 2026-11-06 07:16:33 UTC — Pi domains through annotations and recursive computation prefixes
+
+Added ProofErasureAnnotationPiDomains. AnnotationVariant.pi_domains projects
+structurally paired Pis. annotation_variant_pi_domain_residual_check combines
+full-core variant simulation, typed confluence and actual right-domain replay
+to compare domains of independent Pi residuals. Its guard is symmetric and
+closed under one-sided core computation. contextual_annotation_consumer_pi_domains
+constructs this guard from the original annotation comparison child, using the
+actual shared sort if that child is common-mode. It preserves the exact stage
+and allows either output comparison mode.
+
+Added ProofErasurePiCoreDomainReadout. The invariant quantifies over typed actual
+Pi components exposed by arbitrary core paths from possibly non-Pi inputs.
+Its prefix lemma commutes the two CoreFamilyCast computation children, uses
+full-union Pi origin readout at their wrapped outputs, appends beta tails to the
+children's retained core paths, invokes the inner comparison invariant, and
+prefixes the extracted domain histories. Separate lemmas handle computation
+joins, annotation consumers, Pi frames, symmetry and reducts. Lambda inputs
+cannot expose Pis. LevelRecursiveGuard coverage is proved using its interpreted
+stage-zero comparison. The conditional full CoreFamilyCast induction leaves
+exactly CoreFamilyPiPrior and CoreFamilyPiWeakening as named premises; computation
+cases have the trivial motive and stage raising changes no readout statement.
+
+The weakening premise retains the actual comparison certificate as well as its
+induction hypothesis. It does not assume that arbitrary readout predicates
+transport, or infer lower Pi typings from upper typings. Prior and weakening
+coverage are still missing. The chosen invariant may need strengthening for
+that step; no obstruction or equivalence with the front is claimed here.
+
+Added ProofErasureEtaPiDomainReadout. Actual domain core paths give typed whole
+Pi observations with transported codomain typings; this supplies all domain
+checks required for EtaCoreReadout. The complete readout then handles arbitrary
+identity-wrapped eta consumers and independent core paths with a finite output
+stage. The stage need not be uniform over future substitutions or computations.
+
+This advances local conversion-evidence extraction but does not synthesize
+certificates for arbitrary IsDefEqStrong derivations or remove weakN_iff's sorry.
+Neither the two remaining local cases nor their conjunction is claimed to be a
+strictly smaller sufficient strengthening obligation. The active goal remains.
+
+Validation: 890 jobs; 18 complete type/value/constructor/recursor audit
+roots; maximum closure 12,103; 865 frozen hashes. Only propext,
+Classical.choice and Quot.sound, no forbidden dependencies or owned diagnostics.
+Independent untracked experiments preserved; executable unchanged; no PR extraction.
