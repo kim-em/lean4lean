@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameProgress
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqUnusedEmbedding
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedRetraction
 
 /-! # Exhaust retained prefixes before selecting a supply boundary
 
@@ -9,7 +9,9 @@ those lambda paths rebuilds fewer frames than were removed. Remaining cases
 are an actual non-proof scope map or a new supply at an underfilled direct
 Eq application. At a direct map, the bounded prefix must actually use the
 consumed binder; unused top binders and retained wrappers alone do not stop
-the induction.
+the induction. At retained depth the consumed binder must occur in the
+annotation shell around the bounded prefix. Wrapper argument vectors do not
+need to be independent.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation
@@ -33,8 +35,9 @@ theorem PiInertEndpointMap.proof_or_nonproof
 agreement. Its counted retained prefix, exact scope map, suffix and tail remain
 recorded, as does equivalence on every competing endpoint. The actual map
 consumes a non-proof domain (used in the bounded Eq arguments when there are
-no retained wrappers), or the prefix is empty and its underfilled Eq spine
-receives nonempty new supply. Retained wrappers are not a separate case. -/
+no retained wrappers, and used in its annotation shell otherwise),
+or the prefix is empty and its underfilled Eq spine receives nonempty new
+supply. Retained wrappers are not a separate case. -/
 def EqEmbeddingSupplyBoundaryMinimum (D : Definitions) (Γ : List VExpr) (v w : VLevel)
     (original : List VExpr) (Ω : List ProofShape) (out : ProofShape) (budget : Nat) : Prop :=
   ∃ Δ ls args K ck frames Θ Ξ τ pending plug depth n cs endpoint ck' K' remaining,
@@ -52,7 +55,9 @@ def EqEmbeddingSupplyBoundaryMinimum (D : Definitions) (Γ : List VExpr) (v w : 
       ScopedComputeCount (PiInertStage D later) j Δ (ProofShape.mkApps (.const ``Eq.rec ls) args) endpoint →
       K endpoint k → ck ≤ j+k) ∧
     ((∃ A x, Θ = A :: Ξ ∧ τ = ProofShape.Subst.one x ∧ ¬ DomainSort Ξ A .zero ∧
-        (depth = 0 → ¬ UnusedEqPrefix original.length args)) ∨
+        (depth = 0 → ¬ UnusedEqPrefix original.length args) ∧
+        (0 < depth → ∃ shell, PiInertRetainedShellCount D Δ Θ plug shell depth ∧
+          ¬ UnusedRetainedEqPrefix shell original.length ls args)) ∨
       (depth = 0 ∧ args.length < original.length ∧ pending ≠ []))
 
 /-- Increasing the budget keeps the identical endpoint and supply boundary. -/
@@ -127,7 +132,7 @@ theorem EqTargetPrefixEmbedding.supply_boundary
               · obtain ⟨A, x, EΔ, Eτ, Hnonprop, Hused⟩ := HN
                 exact .inr ⟨Δ, ls', args', K, ck, frames, Δ, Ξ, τ, pending, id, 0, m, cs, tail, ck', K', remaining,
                   HPend, HK, .refl, W, HTplug, HTnext, RT, HK', hcount, hframes, by omega, EK, HMend,
-                  .inl ⟨A, x, EΔ, Eτ, Hnonprop, fun _ => Hused⟩⟩
+                  .inl ⟨A, x, EΔ, Eτ, Hnonprop, (fun _ => Hused), by omega⟩⟩
             · exact .inr ⟨Δ, ls', args', K, ck, frames, Δ, Ξ, τ, pending, id, 0, m, cs, tail, ck', K', remaining,
                 HPend, HK, .refl, W, HTplug, HTnext, RT, HK', hcount, hframes, by omega, EK, HMend,
                 .inr ⟨rfl, by omega, fun h => hsup (.inr h)⟩⟩
@@ -143,9 +148,22 @@ theorem EqTargetPrefixEmbedding.supply_boundary
               rw [hequal] at HMinner
               exact ihFrames (remaining+depth) (by omega) HPinner HMinner
           · obtain ⟨A, x, EΘ, Eτ, Hnonprop⟩ := HN
-            exact .inr ⟨Δ, ls', args', K, ck, frames, Θ, Ξ, τ, pending, plug, depth, m, cs, tail, ck', K', remaining,
-              HPend, HK, HR, W, HTplug, HTnext, RT, HK', hcount, hframes, by omega, EK, HMend,
-              .inl ⟨A, x, EΘ, Eτ, Hnonprop, fun h => (hd h).elim⟩⟩
+            obtain ⟨shell, HS⟩ := HR.with_shell
+            by_cases HU : UnusedRetainedEqPrefix shell [α,a,M,minor,b].length ls' args'
+            · subst Θ τ
+              obtain ⟨u, SD⟩ := TypedSource.top_domain HTplug
+              obtain ⟨Λ, smaller, hsmall, HMinner, HPinner⟩ :=
+                HPend.consume_unused_retained heq hs hΓ HS (by omega) SD HU HMwhole
+              by_cases hstrict : smaller < cost
+              · rcases ihCost smaller hstrict HPinner HMinner with Hlower | HB
+                · exact .inl Hlower
+                · exact .inr (HB.mono (Nat.le_of_lt hstrict))
+              · have hequal : smaller = cost := by omega
+                rw [hequal] at HMinner
+                exact ihFrames (remaining+depth) (by omega) HPinner HMinner
+            · exact .inr ⟨Δ, ls', args', K, ck, frames, Θ, Ξ, τ, pending, plug, depth, m, cs, tail, ck', K', remaining,
+                HPend, HK, HR, W, HTplug, HTnext, RT, HK', hcount, hframes, by omega, EK, HMend,
+                .inl ⟨A, x, EΘ, Eτ, Hnonprop, (fun h => (hd h).elim), fun _ => ⟨shell, HS, HU⟩⟩⟩
       · rcases Hcut.eq_or_smaller heq hs hreg hoff hRec hΓ ht HT HK.forget HE HO
           (cost := cost) (by omega) hmin with Hlower | ⟨Ξ, ls', args', smaller, hsmall, HM', HP'⟩
         · exact .inl Hlower
@@ -173,7 +191,8 @@ theorem EqTargetPrefixCompletion.supply_boundary
 exhausting completion-preserving applications through every finite retained
 prefix. The original all-stage minimum is retained. No retained-wrapper case
 is left on its own: the residue identifies a non-proof endpoint map (with
-actual bounded-prefix use in the direct case) or a nonempty new supply at an
+actual bounded-prefix use in the direct case and annotation-shell use
+otherwise) or a nonempty new supply at an
 underfilled direct prefix. Their argument agreement
 and full strengthening coverage remain unproved. -/
 theorem pi_inert_eq_exposure_eq_or_supply_boundary

@@ -20009,3 +20009,22 @@ closure 11,976; only the three standard axioms. Full strengthening and
 argument agreement for used non-proof binders remain open. At retained depth,
 dependent annotations prevent claiming the same raw-prefix test suffices.
 This is a stronger necessary frontier, not a sufficient smaller obligation.
+
+
+## 2026-11-06 20:50:16 UTC — Restore only retained annotations and the bounded Eq prefix
+
+Idea: extend the top-binder reverse insertion through every retained binder,
+deriving each annotation identity from a literal round trip. Verdict: proved
+and integrated. The initial whole-expression test also constrained wrapper
+arguments, which the embedding proof never used; the final theorem instead
+tracks an annotation-only shell, leaving all actual wrapper supply unrestricted.
+`focus_retraction` keeps the whole execution and its frame decrease while
+restoring a separately tracked bounded prefix. `consume_unused_retained`
+derives its reverse embedding from the actual consumed domain, with no proof
+sort, lower completion, or semantic target-image agreement premise.
+
+Validation: 1054 build jobs, 35 audited roots, maximum closure
+11,976; only the three standard axioms. The remaining non-proof boundary
+must use the consumed binder in the bounded Eq prefix or a retained annotation.
+Underfilled direct supplies and full strengthening coverage remain open. This
+is a stronger necessary frontier, not the sufficient-obligation deliverable.

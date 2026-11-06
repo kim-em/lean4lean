@@ -34679,3 +34679,55 @@ supplies, and dependent retained annotations; full strengthening coverage is
 still unproved. This removes a case from the necessary frontier but does not
 satisfy the sufficient-obligation deliverable. The original weakN_iff sorry and
 executable are unchanged; GOAL.md remains active. No PR extraction.
+
+
+## 2026-11-06 20:50:16 UTC — Restore completion through retained annotation shells
+
+Added `ProofErasureEqRetainedRetraction.lean`. `PiInertRetainedShellCount`
+records the original counted retained prefix together with a second plug
+containing exactly its lambdas and displayed annotations. The actual plug
+still carries every application argument. `with_shell` derives this data
+from any existing retained-prefix witness; `forget` recovers that witness.
+`UnusedRetainedEqPrefix` tests literal unusedness of the shell around just
+the bounded target prefix. Neither extra inner Eq arguments nor any wrapper
+argument vectors are included in this test.
+
+`PiInertRetainedShellCount.focus_retraction` refocuses the actual whole-source
+minimum while restoring a separately tracked payload. A supplied reverse
+context embedding and annotation history are lifted at each retained binder.
+Injectivity of the tracked lambda yields the exact annotation identity needed
+to identify the restored domain. The original annotation computation is then
+replayed before the restored lower history. Each actual lambda execution
+adds one frame to the selected tail; the removed application is not rebuilt.
+The result keeps the exact lifted forward and reverse maps, the payload
+round trip, no greater primitive count and precisely frames + depth frames.
+This construction assumes no proof-valued domain or semantic target assignment.
+
+`EqTargetPrefixEmbedding.consume_unused_retained` inserts the actual outer
+consumed domain backwards. Literal shell unusedness proves the required round
+trip. It then applies the refocusing theorem, transports the old completion
+through the reconstructed annotation history, and pulls it through the new
+embedding. Only the bounded Eq prefix is restored; unrestricted extra inner
+arguments and every wrapper argument remain in the actual execution.
+
+The main supply-boundary induction now traverses these non-proof endpoints
+at any positive retained depth. Equal primitive cost still strictly decreases
+frames. Its non-proof residual retains an actual annotation shell which uses
+the consumed binder; the direct case retains the earlier bounded-prefix use
+condition. The original lifted-probe theorem derives this stronger boundary
+without extra hypotheses. Earlier theorem APIs remain available.
+
+Validation: 1054 jobs including the global theorem and established
+regressions; 35 roots recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening gap or excluded circular framework. All 1,029 source hashes
+remained fixed. The original-probe theorem is independently checked not to
+use the old nested-eta frontier.
+
+Remaining: argument agreement when the bounded Eq prefix or a retained
+annotation actually depends on the consumed non-proof binder; underfilled
+direct supplies; and full strengthening coverage. This is a necessary frontier
+refinement, not a sufficient irreducible obligation smaller than PropFront.
+The original weakN_iff sorry and executable are unchanged. GOAL.md remains
+active; no PR extraction.

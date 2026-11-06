@@ -249,8 +249,13 @@ A direct non-proof consumption can stop only when the bounded raw prefix uses
 the consumed binder: `consume_unused_prefix` reinserts its actual domain and
 pulls the old constructed embedding through the exact round trip. No lower
 completion or lower typing assumption is needed. At nonempty retained depth,
-the annotations may still depend on the consumed binder, so this direct
-unusedness criterion is not claimed to suffice.
+`focus_retraction` lifts a constructed reverse embedding through the actual
+annotation history whenever a tracked annotation shell is restored exactly.
+`consume_unused_retained` derives that round trip by reinserting the consumed
+domain when the annotation shell around the bounded prefix is a literal lift.
+The stronger frontier therefore requires occurrence in that shell. Actual
+wrapper argument vectors need no independence; the execution retains them. The inner Eq prefix alone is
+not claimed to suffice at retained depth.
 Argument agreement for those cases and full strengthening coverage remain open. Its count is positive:
 `eq_positive` excludes zero-cost Eq exposure through arbitrary mixed frames.
 The conclusion additionally selects an `IteratedAmbientSingletonFailure`
