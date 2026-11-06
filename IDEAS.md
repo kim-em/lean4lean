@@ -19891,3 +19891,35 @@ history is a candidate for preserving the full vector rather than focusing
 on an underfilled fresh body. No global termination or sufficient smaller
 obligation is proved. Validation: 1048 jobs, 35 audited roots, maximum
 closure 11,976, 1,023 frozen source hashes.
+
+
+## 2026-11-06 20:13:56 UTC — Keep supplied eta ancestry and advance actual retained endpoints
+
+**Idea:** the embedded minimum already records completion of the whole
+supplied spine, but its non-level descent always selected the fresh eta body.
+Use that supply to advance actual component-only consumption; for retained
+lambdas, advance to the actual endpoint under the changed annotation.
+
+**Verdict:** both cases are proved and integrated into the existing descent.
+`consumed_eta_spine_execution` derives the exact Eq spine after beta with the
+same full supplied arity. It needs no independent target-image agreement,
+even when the selected root prefix is underfilled. Its minimum theorem keeps
+the original outer predicate, suffix and typed continuation and strictly
+reduces primitive cost. A saturated supplied vector stays saturated.
+
+For retained component-only bodies, annotation replay transports the embedding
+to the actual final binder context. `retained_eta_spine_minimum` selects that
+body endpoint with cost equal to the remaining outer continuation. Its proof
+wraps every competitor with the final annotation and supplied arguments, then
+prepends the already executed path. Only one retained frame is added, with no
+synthetic application for the old body path; strict primary descent pays for
+that frame. The generic `pi_inert_retained_endpoint_minimum` records this
+endpoint argument independently of Eq completion.
+
+`EmbeddedTargetPrefixEqSpineCut.eq_or_smaller` now uses both paths. A body with
+its own non-level cut still uses the existing smaller fresh-body minimum.
+Remaining: agreement and decreasing progress through arbitrary later frames,
+especially non-proof consumption and underfilled prefixes whose supply is no
+longer linked to the selected eta root. This does not prove global termination,
+a sufficient smaller obligation, or strengthening. Validation: 1049 jobs,
+33 audited roots, maximum closure 11,976, 1,024 frozen source hashes.

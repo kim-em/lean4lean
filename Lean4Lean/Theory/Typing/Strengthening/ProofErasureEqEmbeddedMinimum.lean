@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqEmbeddedHistory
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqEmbeddedExecution
 
 /-! # Strict minimum descent with reverse-renaming completion
 
@@ -117,8 +117,12 @@ theorem EqTargetPrefixEmbedding.hole_cut_eq_or_smaller {C : ScopedHole Δ Θ}
 
 /-- Every actual completed non-level cut in a typed minimum either reads the
 original equation or follows native eta to a strictly smaller typed minimum
-with bounded reverse-renaming completion. The entire outer suffix is retained by the smaller fresh-body minimum. No source arity bound or ancestry hypothesis
-for the primitive output is imposed. -/
+with bounded reverse-renaming completion. Actual component-only eta consumption
+returns to the parent scope, keeping the full supplied arity and original
+continuation. Retained component-only bodies advance to their actual endpoint
+under the final annotation. A non-level body cut keeps the smaller fresh-body
+minimum and the outer suffix. No source arity bound or ancestry hypothesis for
+the primitive output is imposed. -/
 theorem EmbeddedTargetPrefixEqSpineCut.eq_or_smaller
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hreg : recursorData ``Eq.rec = some data) (hoff : data.majorOffset = 5)
@@ -146,12 +150,33 @@ theorem EmbeddedTargetPrefixEqSpineCut.eq_or_smaller
       (C.plug (ProofShape.mkApps (.const ``Eq.rec ls) pre)) := by rw [EC]; exact RP'
   have RTC : ScopedComputeCount (PiInertStage D n) ct Δ (C.plug target) endpoint := by rw [EC]; exact RT
   rcases HP.hole_cut_eq_or_smaller heq hs hreg hoff hRec hΓ ht HC HT RPC HR HN RTC HK HE HO
-      (cost := cost) (by omega) hmin with Hlower | ⟨k, A, B, u, _, _, _, _, hsmall, HM, HPfresh⟩
+      (cost := cost) (by omega) hmin with Hlower | ⟨k, A, B, u, rfl, _, RN, SD, hsmall, HM, HPfresh⟩
   · exact .inl Hlower
   · have ES : .app ((ProofShape.mkApps (.const ``Eq.rec ls) pre).liftN 1) (etaArgument u) =
         ProofShape.mkApps (.const ``Eq.rec ls) (pre.map (·.liftN 1) ++ [etaArgument u]) := by
       simp only [ProofShape.liftN_mkApps, ProofShape.liftN, ProofShape.mkApps_append, ProofShape.mkApps]
-    exact .inr ⟨A :: Δ, ls, pre.map (·.liftN 1) ++ [etaArgument u], ct+ck, hsmall, ES ▸ HM, ES ▸ HPfresh⟩
+    have fresh : ∃ Ξ ls args smaller, smaller < cost ∧
+        PiInertTypedContinuationMinimum D Ω out Ξ (ProofShape.mkApps (.const ``Eq.rec ls) args) smaller ∧
+        EqTargetPrefixEmbedding Γ v w [α,a,M,minor,b] Ξ (ProofShape.mkApps (.const ``Eq.rec ls) args) :=
+      ⟨A :: Δ, ls, pre.map (·.liftN 1) ++ [etaArgument u], ct+ck, hsmall, ES ▸ HM, ES ▸ HPfresh⟩
+    rcases RT.pi_inert_lambda_spine_or_beta with
+      ⟨A', body', args', cf, ca, htail, rfl, RF, RX⟩ |
+      ⟨A', body', x', rest', cf, ca, cs, htail, RF, RX, RS⟩
+    · have HTwhole := HT.pi_inert_compute heq hs RP.forget
+      rcases HPsupplied.retained_eta_spine_minimum heq hs hΓ ht HTwhole RN SD
+          RP HR RF RX HK (cost := cost) (by omega) hmin with
+        ⟨nextLs, nextArgs, EN, _, HPnext, hnext, HMnext⟩ | Hcut
+      · exact .inr ⟨A' :: Δ, nextLs, nextArgs, ck, hnext, EN ▸ HMnext, HPnext⟩
+      · exact .inr fresh
+    · cases pending with
+      | nil => cases RX
+      | cons x rest =>
+        have HTwhole := HT.pi_inert_compute heq hs RP.forget
+        rcases HPsupplied.consumed_eta_spine_minimum heq hs hΓ ht HTwhole RN SD
+            RP HR RF RX RS HK (cost := cost) (by omega) hmin with
+          ⟨⟨nextLs, nextArgs, EN, _, HPnext⟩, hnext, HMnext⟩ | Hcut
+        · exact .inr ⟨Δ, nextLs, nextArgs, cs+ck, hnext, EN ▸ HMnext, HPnext⟩
+        · exact .inr fresh
 
 
 /-- A remaining component-only minimum with bounded reverse-renaming completion at both ends

@@ -184,6 +184,62 @@ theorem EqTargetPrefixEmbedding.take_prefix {D : Definitions}
   simpa only [List.take_left] using HH
 
 /-- The actual first-beta execution either preserves reverse-renaming
+completion and the full supplied arity at the consumed endpoint, or identifies
+its original-scope body cut carrying the same invariant. The body component history is derived from
+execution; no additional target-image agreement is assumed. -/
+theorem EqTargetPrefixEmbedding.consumed_eta_spine_execution
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (ht : env.HasType univs Γ (VExpr.mkApps (.const ``Eq.rec [v,w]) original) T)
+    (HP : EqTargetPrefixEmbedding Γ v w original Δ
+      (ProofShape.mkApps (.const ``Eq.rec ls) (pre ++ x :: rest)))
+    (HTwhole : TypedSource Δ (ProofShape.mkApps (.const ``Eq.rec ls) (pre ++ x :: rest)))
+    (RN : ScopedTypeRecovery (ErasedStaticStructureEtaExpansionStage D guardStage) Δ
+      (ProofShape.mkApps (.const ``Eq.rec ls) pre) (.forallE A B))
+    (SD : DomainSort Δ A u)
+    (RF : ScopedComputeCount (PiInertStage D n) cf Δ
+      (.lam A (.app ((ProofShape.mkApps (.const ``Eq.rec ls) pre).liftN 1) (etaArgument u))) (.lam A' body'))
+    (RX : ScopedArgumentsCount (PiInertStage D n) Δ ca (x :: rest) (x' :: rest')) :
+    ∃ cd cb bodyStage, cd+cb = cf ∧
+      ScopedComputeCount (PiInertStage D n) cd Δ A A' ∧
+      ScopedComputeCount (PiInertStage D bodyStage) cb (A :: Δ)
+        (.app ((ProofShape.mkApps (.const ``Eq.rec ls) pre).liftN 1) (etaArgument u)) body' ∧
+      ((∃ nextLs nextArgs,
+          ProofShape.mkApps (body'.inst x') rest' = ProofShape.mkApps (.const ``Eq.rec nextLs) nextArgs ∧
+          nextArgs.length = pre.length + 1 + rest.length ∧
+          EqTargetPrefixEmbedding Γ v w original Δ (ProofShape.mkApps (.const ``Eq.rec nextLs) nextArgs)) ∨
+        EmbeddedTargetPrefixEqSpineCut D Γ v w original bodyStage (A :: Δ)
+          (.app ((ProofShape.mkApps (.const ``Eq.rec ls) pre).liftN 1) (etaArgument u)) body' cb) := by
+  have HPpre := HP.take_prefix heq hs hΓ
+  have HPbody := HPpre.eta heq hs hΓ ht RN SD
+  have HTpre : TypedSource Δ (ProofShape.mkApps (.const ``Eq.rec ls) pre) :=
+    typed_spine_head (by simpa only [ProofShape.mkApps_append] using HTwhole)
+  have HTfresh := native_eta_body_typed
+    (erased_static_structure_eta_expansion_stage_descent heq hs guardStage) HTpre RN SD
+  obtain ⟨cd, cb, bodyStage, hc, RD, RB⟩ := pi_inert_native_eta_count_body_readout heq hs
+    (erased_static_structure_eta_expansion_stage_descent heq hs guardStage)
+    HTpre (.intro RN SD) RF
+  refine ⟨cd, cb, bodyStage, hc, RD, RB, ?_⟩
+  have ES : .app ((ProofShape.mkApps (.const ``Eq.rec ls) pre).liftN 1) (etaArgument u) =
+      ProofShape.mkApps (.const ``Eq.rec ls) (pre.map (·.liftN 1) ++ [etaArgument u]) := by
+    simp only [ProofShape.liftN_mkApps, ProofShape.liftN, ProofShape.mkApps_append,
+      ProofShape.mkApps]
+  rcases (ES ▸ HPbody).counted_spine_or_cut heq hs hΓ (ES ▸ HTfresh) (ES ▸ RB) with
+    ⟨bodyLs, rawBody, EO, HL, HA, _⟩ | Hcut
+  · have HTbody := EO ▸ HTfresh.pi_inert_compute heq hs RB.forget
+    cases RX with
+    | cons RX RXS =>
+      have Hnext := HP.consume_eta_components heq hs hΓ ht RN SD HL HA HTbody RX.forget RXS.forget
+      refine .inl ⟨bodyLs, rawBody.map (·.inst x') ++ rest', ?_, ?_, Hnext⟩
+      · simp only [EO, ProofShape.inst_eq_subst, ProofShape.Subst.liftN,
+          ProofShape.subst_mkApps, ProofShape.subst, ProofShape.mkApps_append]
+      · have HB := HA.length_eq
+        have HX := RXS.forget.length_eq
+        simp only [List.length_append, List.length_map, List.length_cons, List.length_nil] at HB ⊢
+        omega
+  · exact .inr (ES.symm ▸ Hcut)
+
+/-- The actual first-beta execution either preserves reverse-renaming
 completion at the consumed endpoint or identifies its original-scope body
 cut carrying the same invariant. The body component history is derived from
 execution; no additional target-image agreement is assumed. -/
@@ -207,31 +263,11 @@ theorem EqTargetPrefixEmbedding.consumed_eta_execution
       (EqTargetPrefixEmbedding Γ v w original Δ (ProofShape.mkApps (body'.inst x') rest') ∨
         EmbeddedTargetPrefixEqSpineCut D Γ v w original bodyStage (A :: Δ)
           (.app ((ProofShape.mkApps (.const ``Eq.rec ls) pre).liftN 1) (etaArgument u)) body' cb) := by
-  have HPpre := HP.take_prefix heq hs hΓ
-  have HPbody := HPpre.eta heq hs hΓ ht RN SD
-  have HTpre : TypedSource Δ (ProofShape.mkApps (.const ``Eq.rec ls) pre) :=
-    typed_spine_head (by simpa only [ProofShape.mkApps_append] using HTwhole)
-  have HTfresh := native_eta_body_typed
-    (erased_static_structure_eta_expansion_stage_descent heq hs guardStage) HTpre RN SD
-  obtain ⟨cd, cb, bodyStage, hc, RD, RB⟩ := pi_inert_native_eta_count_body_readout heq hs
-    (erased_static_structure_eta_expansion_stage_descent heq hs guardStage)
-    HTpre (.intro RN SD) RF
-  refine ⟨cd, cb, bodyStage, hc, RD, RB, ?_⟩
-  have ES : .app ((ProofShape.mkApps (.const ``Eq.rec ls) pre).liftN 1) (etaArgument u) =
-      ProofShape.mkApps (.const ``Eq.rec ls) (pre.map (·.liftN 1) ++ [etaArgument u]) := by
-    simp only [ProofShape.liftN_mkApps, ProofShape.liftN, ProofShape.mkApps_append,
-      ProofShape.mkApps]
-  rcases (ES ▸ HPbody).counted_spine_or_cut heq hs hΓ (ES ▸ HTfresh) (ES ▸ RB) with
-    ⟨bodyLs, rawBody, EO, HL, HA, _⟩ | Hcut
-  · have HTbody := EO ▸ HTfresh.pi_inert_compute heq hs RB.forget
-    cases RX with
-    | cons RX RXS =>
-      have Hnext := HP.consume_eta_components heq hs hΓ ht RN SD HL HA HTbody RX.forget RXS.forget
-      exact .inl (by simpa only [EO, ProofShape.inst_eq_subst, ProofShape.Subst.liftN,
-        ProofShape.subst_mkApps, ProofShape.subst, ProofShape.mkApps_append] using Hnext)
-  · exact .inr (ES.symm ▸ Hcut)
-
-
+  obtain ⟨cd, cb, bodyStage, hc, RD, RB, Hnext | Hcut⟩ :=
+    HP.consumed_eta_spine_execution heq hs hΓ ht HTwhole RN SD RF RX
+  · obtain ⟨nextLs, nextArgs, ES, _, HPnext⟩ := Hnext
+    exact ⟨cd, cb, bodyStage, hc, RD, RB, .inl (ES.symm ▸ HPnext)⟩
+  · exact ⟨cd, cb, bodyStage, hc, RD, RB, .inr Hcut⟩
 
 
 /-- Positive singleton guards read the target through reverse renaming even

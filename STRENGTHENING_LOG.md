@@ -34492,3 +34492,47 @@ and move through retained lambda wrappers without recreating continuation
 frames. Non-proof agreement remains open. The direct lexicographic decrease
 is not a global termination proof, and GOAL.md remains incomplete. The
 original weakN_iff sorry is unchanged. No executable changes or PR extraction.
+
+
+## 2026-11-06 20:13:56 UTC — Use actual consumed and retained eta endpoints in embedded descent
+
+Strengthened the embedded first-beta execution lemma to return the literal
+post-beta Eq spine and its full supplied arity, in addition to completion.
+The original `consumed_eta_execution` API is retained as a projection of the
+stronger result. Arity follows from the actual component and argument paths;
+no target inhabitant or unrelated context-substitution agreement is assumed.
+
+Added `ProofErasureEqEmbeddedExecution.lean` with three proved results:
+
+- `consumed_eta_spine_minimum` preserves the actual post-beta source, original
+  suffix and continuation predicate with strictly smaller cost `cs+ck`, or
+  exposes the original-scope body's embedded non-level cut. Full supplied
+  arity is retained on the consumed branch, including at underfilled roots.
+- `pi_inert_retained_endpoint_minimum` moves to the body at an actual retained
+  lambda endpoint. It wraps all competitor paths with the final annotation
+  and argument vector, prefixes the already executed path, and keeps the
+  outer typed run behind exactly one retained frame. It adds no synthetic
+  application frame for the preceding body computation.
+- `retained_eta_spine_minimum` derives endpoint completion through the actual
+  annotation history and applies that endpoint argument. The next cost is
+  `ck`, strictly smaller because the original path paid for native eta. A
+  non-level body instead returns its recorded embedded cut with smaller budget.
+
+Updated `EmbeddedTargetPrefixEqSpineCut.eq_or_smaller` to split the actual eta
+suffix and use the two endpoint results when its body changes only components.
+This replaces the unconditional fresh-body selection. The existing fresh-body
+minimum is still used when that body's path contains a non-level cut. The
+public frontier and its unrestricted competitor conditions are unchanged.
+
+Validation: 1049 jobs including the global theorem and established
+regressions; 33 public roots recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening gap or excluded circular framework; all 1,024 source hashes
+remained unchanged between build and audit.
+
+Remaining: a global well-founded traversal of later mixed frames retaining
+needed supply ancestry, including non-proof endpoint agreement and equal-cost
+moves. These endpoint steps do not establish arbitrary frame coverage or a
+sufficient irreducible obligation. GOAL.md remains incomplete and the original
+weakN_iff sorry is unchanged. No executable changes or PR extraction.

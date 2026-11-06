@@ -175,6 +175,17 @@ the map. `EqTargetPrefixEmbedding.proof_endpoint` consequently preserves the
 same constructed witness through any further proof endpoint, at arbitrary
 retained depth and with its recorded annotation computations. Component and
 eta histories and the strict minimum descent retain that construction.
+The strict descent now uses the full supplied vector at selected eta roots.
+`consumed_eta_spine_minimum` returns to the parent scope after a component-only
+body, preserving the exact full arity and original continuation. Thus selecting
+an underfilled prefix no longer loses arguments already present in its supply.
+`retained_eta_spine_minimum` advances a component-only retained body to its
+actual endpoint under the final annotation, with cost equal to the remaining
+outer continuation and one actual retained frame. Completion transports along
+the recorded annotation history. A non-level body cut still uses the strictly
+smaller fresh-body minimum. These alternatives are integrated into
+`EmbeddedTargetPrefixEqSpineCut.eq_or_smaller`; unrelated later scope moves
+still require their own agreement and progress argument.
 `embedding_scope_frontier` starts from ordinary completion and reaches the
 actual next scope move: it preserves the embedding invariant or records the
 consumed base domain without a Prop witness. Repeated proof-valued scope moves
