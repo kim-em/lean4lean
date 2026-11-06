@@ -35,7 +35,7 @@ private theorem future_join
     (RB : ProofShape.BetaRed (proofErase Γ b) shared)
     (PA : ProofShape.BetaRed (proofErase Γ a) p)
     (PB : ProofShape.BetaRed (proofErase Γ b) q) :
-    JointCompare Step (proofEraseCtx Γ) true p q := by
+    JointCompare Step (proofEraseCtx Γ) mode p q := by
   obtain ⟨left, RL, PL⟩ := proofErase_beta_confluent hΓ ha RA PA
   obtain ⟨right, RR, PR⟩ := proofErase_beta_confluent hΓ hb RB PB
   obtain ⟨e, RE, EE⟩ := proofErase_beta_replay hΓ ha RA
@@ -43,15 +43,15 @@ private theorem future_join
   obtain ⟨out, LL, LR⟩ := proofErase_beta_confluent hΓ (beta_eq hΓ ha RE).hasType.2 RL RR
   exact .compute (.beta (PL.trans LL)) (.beta (PR.trans LR)) (.leaf .refl)
 
-/-- A typed beta join is a family certificate for any target primitive
-relation. It survives every future beta path and interpreted substitution,
+/-- A typed beta join is a family certificate in either checking mode for any
+target primitive relation. It survives every future beta path and interpreted substitution,
 including substitutions that create new redexes. -/
-theorem proofErase_beta_join_family
+theorem proofErase_beta_join_family_mode
     (hΓ : OnCtx Γ (env.IsType univs))
     (ha : env.HasType univs Γ a A) (hb : env.HasType univs Γ b B)
     (RA : ProofShape.BetaRed (proofErase Γ a) shared)
     (RB : ProofShape.BetaRed (proofErase Γ b) shared) :
-    BetaStableFamily (fun Δ => JointCompare Step Δ true)
+    BetaStableFamily (fun Δ => JointCompare Step Δ mode)
       (proofEraseCtx Γ) (proofErase Γ a) (proofErase Γ b) := by
   refine ⟨fun PA PB => future_join hΓ ha hb RA RB PA PB, ?_⟩
   intro Δ' τ p q W PA PB
@@ -62,5 +62,15 @@ theorem proofErase_beta_join_family
   rw [← proofErase_subst_with hΓ₀ WS hb ES] at RB' PB
   rw [← EΓ₀]
   exact future_join hΓ₀ (ha.subst henv WS) (hb.subst henv WS) RA' RB' PA PB
+
+/-- Common-mode specialization of the mode-polymorphic future certificate. -/
+theorem proofErase_beta_join_family
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (ha : env.HasType univs Γ a A) (hb : env.HasType univs Γ b B)
+    (RA : ProofShape.BetaRed (proofErase Γ a) shared)
+    (RB : ProofShape.BetaRed (proofErase Γ b) shared) :
+    BetaStableFamily (fun Δ => JointCompare Step Δ true)
+      (proofEraseCtx Γ) (proofErase Γ a) (proofErase Γ b) :=
+  proofErase_beta_join_family_mode hΓ ha hb RA RB
 
 end Lean4Lean.VEnv.Strengthening

@@ -16,26 +16,26 @@ private theorem future_prefixes
     (ha : env.HasType univs Γ a A) (hb : env.HasType univs Γ b B)
     (RA : ScopedCompute (ErasedBetaStableJoint D) (proofEraseCtx Γ) (proofErase Γ a) a')
     (RB : ScopedCompute (ErasedBetaStableJoint D) (proofEraseCtx Γ) (proofErase Γ b) b')
-    (H : BetaStableFamily (fun Δ => JointCompare (ErasedJointUnion D) Δ true) (proofEraseCtx Γ) a' b')
+    (H : BetaStableFamily (fun Δ => JointCompare (ErasedJointUnion D) Δ mode) (proofEraseCtx Γ) a' b')
     (PA : ProofShape.BetaRed (proofErase Γ a) p)
     (PB : ProofShape.BetaRed (proofErase Γ b) q) :
-    JointCompare (ErasedJointUnion D) (proofEraseCtx Γ) true p q := by
+    JointCompare (ErasedJointUnion D) (proofEraseCtx Γ) mode p q := by
   obtain ⟨left, BL, CL⟩ := proofErase_beta_stable_joint_beta_commute heq hs hΓ ha RA PA
   obtain ⟨right, BR, CR⟩ := proofErase_beta_stable_joint_beta_commute heq hs hΓ hb RB PB
   exact .compute (CL.mono erased_beta_stable_joint_into_union)
     (CR.mono erased_beta_stable_joint_into_union) (H.1 BL BR)
 
-/-- Prefixing a future family certificate by two certified computations gives
-another future certificate. The residual endpoints need not be equal or have
+/-- Prefixing a future family certificate by two certified computations
+preserves its checking mode. The residual endpoints need not be equal or have
 a computational join; their stored comparisons handle every future residual. -/
-theorem BetaStableFamily.certified_prefixes
+theorem BetaStableFamily.certified_prefixes_mode
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hΓ : OnCtx Γ (env.IsType univs))
     (ha : env.HasType univs Γ a A) (hb : env.HasType univs Γ b B)
     (RA : ScopedCompute (ErasedBetaStableJoint D) (proofEraseCtx Γ) (proofErase Γ a) a')
     (RB : ScopedCompute (ErasedBetaStableJoint D) (proofEraseCtx Γ) (proofErase Γ b) b')
-    (H : BetaStableFamily (fun Δ => JointCompare (ErasedJointUnion D) Δ true) (proofEraseCtx Γ) a' b') :
-    BetaStableFamily (fun Δ => JointCompare (ErasedJointUnion D) Δ true)
+    (H : BetaStableFamily (fun Δ => JointCompare (ErasedJointUnion D) Δ mode) (proofEraseCtx Γ) a' b') :
+    BetaStableFamily (fun Δ => JointCompare (ErasedJointUnion D) Δ mode)
       (proofEraseCtx Γ) (proofErase Γ a) (proofErase Γ b) := by
   refine ⟨fun PA PB => future_prefixes heq hs hΓ ha hb RA RB H PA PB, ?_⟩
   intro Δ' τ p q W PA PB
@@ -49,5 +49,17 @@ theorem BetaStableFamily.certified_prefixes
   rw [← proofErase_subst_with hΓ₀ WS hb ES] at PB
   rw [← EΓ₀] at H' ⊢
   exact future_prefixes heq hs hΓ₀ (ha.subst henv WS) (hb.subst henv WS) RA' RB' H' PA PB
+
+/-- Common-mode specialization of the mode-polymorphic future certificate. -/
+theorem BetaStableFamily.certified_prefixes
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (ha : env.HasType univs Γ a A) (hb : env.HasType univs Γ b B)
+    (RA : ScopedCompute (ErasedBetaStableJoint D) (proofEraseCtx Γ) (proofErase Γ a) a')
+    (RB : ScopedCompute (ErasedBetaStableJoint D) (proofEraseCtx Γ) (proofErase Γ b) b')
+    (H : BetaStableFamily (fun Δ => JointCompare (ErasedJointUnion D) Δ true) (proofEraseCtx Γ) a' b') :
+    BetaStableFamily (fun Δ => JointCompare (ErasedJointUnion D) Δ true)
+      (proofEraseCtx Γ) (proofErase Γ a) (proofErase Γ b) :=
+  BetaStableFamily.certified_prefixes_mode heq hs hΓ ha hb RA RB H
 
 end Lean4Lean.VEnv.Strengthening

@@ -19,7 +19,7 @@ private theorem future_join
     (RB : ScopedCompute (ErasedBetaStableJoint D) (proofEraseCtx Γ) (proofErase Γ b) shared)
     (PA : ProofShape.BetaRed (proofErase Γ a) p)
     (PB : ProofShape.BetaRed (proofErase Γ b) q) :
-    JointCompare (ErasedJointUnion D) (proofEraseCtx Γ) true p q := by
+    JointCompare (ErasedJointUnion D) (proofEraseCtx Γ) mode p q := by
   obtain ⟨left, BL, CL⟩ := proofErase_beta_stable_joint_beta_commute heq hs hΓ ha RA PA
   obtain ⟨right, BR, CR⟩ := proofErase_beta_stable_joint_beta_commute heq hs hΓ hb RB PB
   obtain ⟨e, HE, EE⟩ := proofErase_scoped_compute_realize
@@ -30,15 +30,15 @@ private theorem future_join
     ((CR.trans (.beta LR)).mono erased_beta_stable_joint_into_union) (.leaf .refl)
 
 /-- Certified computational joins supply all future beta/substitution family
-comparisons in the union. Neither confluence of arbitrary joint computation
+comparisons in either checking mode. Neither confluence of arbitrary joint computation
 nor normalization of the common output is required. -/
-theorem proofErase_certified_join_family
+theorem proofErase_certified_join_family_mode
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hΓ : OnCtx Γ (env.IsType univs))
     (ha : env.HasType univs Γ a A) (hb : env.HasType univs Γ b B)
     (RA : ScopedCompute (ErasedBetaStableJoint D) (proofEraseCtx Γ) (proofErase Γ a) shared)
     (RB : ScopedCompute (ErasedBetaStableJoint D) (proofEraseCtx Γ) (proofErase Γ b) shared) :
-    BetaStableFamily (fun Δ => JointCompare (ErasedJointUnion D) Δ true)
+    BetaStableFamily (fun Δ => JointCompare (ErasedJointUnion D) Δ mode)
       (proofEraseCtx Γ) (proofErase Γ a) (proofErase Γ b) := by
   refine ⟨fun PA PB => future_join heq hs hΓ ha hb RA RB PA PB, ?_⟩
   intro Δ' τ p q W PA PB
@@ -51,5 +51,16 @@ theorem proofErase_certified_join_family
   rw [← proofErase_subst_with hΓ₀ WS hb ES] at PB
   rw [← EΓ₀]
   exact future_join heq hs hΓ₀ (ha.subst henv WS) (hb.subst henv WS) RA' RB' PA PB
+
+/-- Common-mode specialization of the mode-polymorphic future certificate. -/
+theorem proofErase_certified_join_family
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (ha : env.HasType univs Γ a A) (hb : env.HasType univs Γ b B)
+    (RA : ScopedCompute (ErasedBetaStableJoint D) (proofEraseCtx Γ) (proofErase Γ a) shared)
+    (RB : ScopedCompute (ErasedBetaStableJoint D) (proofEraseCtx Γ) (proofErase Γ b) shared) :
+    BetaStableFamily (fun Δ => JointCompare (ErasedJointUnion D) Δ true)
+      (proofEraseCtx Γ) (proofErase Γ a) (proofErase Γ b) :=
+  proofErase_certified_join_family_mode heq hs hΓ ha hb RA RB
 
 end Lean4Lean.VEnv.Strengthening

@@ -15930,3 +15930,52 @@ Validation: 769 jobs, 33 full dependency roots including every new
 constructor and recursor, maximum closure 11,794; 744 unchanged pinned
 source/import hashes. Only standard axioms, no forbidden dependencies or new
 module warnings. Original sorry remains; executable unchanged; no PR extraction.
+
+
+## 2026-11-06 02:07:43 UTC — Nonjoining domain certificates in inferred lambda checking
+
+Previous goal turn: progress (73404142f21806fdd5b7660b27bdda068be6fa9f committed,
+pushed and audited). Revalidated that HEAD and preserved the two independent
+untracked modules. The strengthening sorry is still the open deliverable.
+
+Idea: use a recursively certified domain comparison directly in inferred lambda
+checking, rather than requiring it to produce a domain computation join. Verdict:
+checked, including independent future beta paths and interpreted substitutions.
+BetaStableFamily.lam_sorted moves the body certificate into the residual left
+domain context and carries the two actual sort witnesses. This promotes a common
+domain certificate into an inferred lambda certificate without converting common
+body comparison into inferred body comparison without evidence.
+
+Generalized the existing typed beta-join, certified-join and certified-prefix
+proofs to either checking mode. Their prior public common-mode statements remain
+as specializations, so previous consumers retain their interfaces. These proofs
+use replay, certified computation/beta commutation and typed beta confluence;
+there is no new arbitrary-comparison transport or computation confluence premise.
+
+recursive_lambda_annotation_future reflects the recursive domain certificate,
+constructs the reannotated lambda's common Pi typing and body-erasure agreement,
+and supplies inferred future checking for arbitrary same-body lambdas. Proof
+outputs are included. recursive_lambda_annotation_apply_future contracts two
+independently annotated lambdas at recursively joined arguments. Its unrestricted
+body may duplicate or apply those arguments. Both beta prefixes are retained in
+an inferred future certificate; each requested residual has a finite stage.
+
+A canonical-Eq environment example reuses the preceding nonjoining endpoint
+types as written lambda domains. Both lambdas have one actual Pi type, and their
+inferred future comparison is checked. A direct annotation-path inversion proves
+that the lambdas themselves have no join even in the full joint union. Thus this
+strictly extends the previous domain-join criterion for lambda alignment; it is
+not merely a stronger search for the same joins. The actual environment wrapper
+discharges soundness, registry agreement and Eq rigidity from the empty context.
+
+Limit: arbitrary consumers of a nonjoining lambda pair remain open. The application
+result uses joined arguments and one common body, not arbitrary paired arguments
+or bodies. General semantic domain coverage and full-core future closure are also
+unproved. No sufficient obligation strictly smaller than PropFront is claimed.
+GOAL.md's three deliverables remain incomplete; the goal stays active.
+
+Validation: 783 build jobs including all 13 direct importers of the generalized
+support modules; 16 dependency roots, maximum closure 11,844; 758
+unchanged pinned source/import hashes. Audit includes opaque bodies, constructors
+and recursor RHSs. Only standard axioms; no forbidden dependencies or own warnings.
+No executable changes, coordination, or PR extraction.

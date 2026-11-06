@@ -29708,3 +29708,40 @@ and keeps its results composable. General domain-comparison coverage remains
 unproved; beta/substitution future stability does not establish arbitrary full-core
 stability. The strengthening theorem, a canonical-Eq counterexample, and a strictly
 smaller sufficient obligation all remain open. GOAL.md stays active.
+
+
+## 2026-11-06 02:07:43 UTC — Inferred future checking past the annotation-join boundary
+
+Generalized the proofs in ProofErasureBetaJoinFamily,
+ProofErasureCertifiedJoinFamily and ProofErasureCertifiedFamilyPrefixes to an
+arbitrary checking mode, preserving their previous common-mode interfaces as
+corollaries. Added BetaStableFamily.lam_sorted to ProofErasureFamilyBinders:
+actual sort witnesses and a future domain comparison preserve inferred body
+checking beneath independently reduced or substituted annotations.
+
+Added ProofErasureRecursiveAnnotationChecking. Recursive common comparison
+reflects at a shared actual type. Same-body lambda reannotation constructs the
+new common Pi typing and inferred future comparison from a recursive domain
+certificate. Applications at recursively joined arguments retain inferred future
+comparison via certified body joins and beta prefixes, with a finite-stage
+readout at every pair of requested residuals.
+
+Added ProofErasureRecursiveAnnotationBoundary. Actual inhabited function types
+with distinct normal erasures become annotations of same-body lambdas. The new
+inferred certificate applies, while lambda-domain path inversion rules out a
+full-union computation join of the lambdas. An actual-environment specialization
+starts from the empty context and discharges all abstract environment interfaces.
+
+Development required one dot-notation formatting fix and removal of an unused
+section parameter from a raw inversion lemma. No proof gaps or extra assumptions
+were introduced. Validation: 783 build jobs, including the 13 direct importers
+of changed support modules; 16 full dependency roots, maximum closure
+11,844; 758 unchanged pinned source/import hashes. Standard axioms only,
+no forbidden dependencies or own-module warnings. Independent files preserved.
+
+Judgment: inferred annotation checking now accepts the new nonjoining domain
+certificates. This closes a concrete restriction of the earlier annotation rule.
+It does not establish arbitrary contextual consumption of nonjoining lambda
+pairs, general domain equality coverage, or full-core residual stability. The
+original strengthening sorry and all three GOAL.md deliverables remain open.
+Executable unchanged; no PRs; goal remains active.

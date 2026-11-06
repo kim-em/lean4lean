@@ -69,4 +69,28 @@ theorem BetaStableFamily.forall_sorted
   exact forall_future (W.sort SA) (W.sort SA') (ContextSubstitution.sort W.cons SB) (ContextSubstitution.sort W.cons SB')
     (HA.subst W) (HB.subst W.cons) R S
 
+private theorem lambda_sorted_future
+    (SA : DomainSort Δ A u) (SA' : DomainSort Δ A' u)
+    (HA : BetaStableFamily (fun Δ => JointCompare Step Δ true) Δ A A')
+    (HB : BetaStableFamily (fun Δ => JointCompare Step Δ mode) (A :: Δ) b b')
+    (R : ProofShape.BetaRed (.lam A b) left)
+    (S : ProofShape.BetaRed (.lam A' b') right) : JointCompare Step Δ mode left right := by
+  obtain ⟨D, body, rfl, RD, RB⟩ := R.lam_inv
+  obtain ⟨D', body', rfl, RD', RB'⟩ := S.lam_inv
+  have HC := ((HB.beta RB RB').subst (context_identity.cons_beta RD)).base
+  simp only [ProofShape.subst_id] at HC
+  exact .lamSorted (SA.beta RD) (SA'.beta RD') (HA.1 RD RD') HC
+
+/-- Certified domain comparison promotes lambda comparison to either checking
+mode. Each endpoint may reduce its domain and body independently, before or
+following interpreted substitution; no computation join of domains is required. -/
+theorem BetaStableFamily.lam_sorted
+    (SA : DomainSort Δ A u) (SA' : DomainSort Δ A' u)
+    (HA : BetaStableFamily (fun Δ => JointCompare Step Δ true) Δ A A')
+    (HB : BetaStableFamily (fun Δ => JointCompare Step Δ mode) (A :: Δ) b b') :
+    BetaStableFamily (fun Δ => JointCompare Step Δ mode) Δ (.lam A b) (.lam A' b') := by
+  refine ⟨fun R S => lambda_sorted_future SA SA' HA HB R S, ?_⟩
+  intro Δ' τ p q W R S
+  exact lambda_sorted_future (W.sort SA) (W.sort SA') (HA.subst W) (HB.subst W.cons) R S
+
 end Lean4Lean.VEnv.Strengthening
