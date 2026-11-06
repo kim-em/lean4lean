@@ -31895,3 +31895,34 @@ and recursor rules checked. Only propext, Classical.choice and Quot.sound; no
 weakN_iff, weakN_inv, sorryAx or forbidden closure/alignment assumptions; no
 owned warnings. Strengthening remains open, with no new sufficiency claim.
 Executable unchanged; no coordination or PR extraction.
+
+
+## 2026-11-06 11:35:08 UTC — Proof-argument eta bypass and a shorter residual prefix
+
+Added `ProofErasurePiInertProofEtaElimination.lean` with
+`pi_inert_proof_eta_spine_count_eliminate`. Starting from a typed application
+whose argument erases to proof, reify the native eta domain and use Pi
+uniqueness to type the actual argument at that recovered domain. Its proof
+classification then forces the domain's sort to be Prop. Consequently the eta
+body is literally the lift of the original erased application. Counted
+constant-lambda descent removes the binder through arbitrary body and annotation
+computation, preserving the exact exposed output with no larger tail count.
+This is an unconditional bypass within the theorem's stated typed/Pi-inert
+hypotheses, rather than another assumed substitution closure.
+
+Strengthened `pi_inert_eq_exposure_eq_or_nonbeta_eta_body_cut` in the existing
+minimal-cut module. A proof argument at the selected eta contradicts global
+minimality, since the bypass saves its root. At prefix length five, component
+ancestry forces the remaining argument to be proof: Pi-inert computation cannot
+change the original final marker. The public residual bound is now
+`pre.length ≤ 4`, retaining every previous origin, lambda path, argument path,
+post-beta suffix and non-beta-body condition. Earlier-prefix eta with a retained
+argument is still unresolved. No PropFront sufficiency or strict reduction claim
+is made.
+
+Validation: 978 build jobs including contextual-cast and core-family
+substitution regressions; 2 complete dependency roots, maximum closure
+11,434; 953 frozen source hashes. Only propext, Classical.choice and
+Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
+assumptions or owned warnings. Executable unchanged; no coordination or PR
+extraction. GOAL.md remains unachieved.

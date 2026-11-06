@@ -18010,3 +18010,33 @@ Validation: 977 build jobs; 3 complete dependency roots; maximum
 closure 11,430; 952 frozen source hashes. Only standard axioms; no
 forbidden dependency or owned diagnostic. Executable unchanged; no coordination
 or PR extraction.
+
+
+## 2026-11-06 11:35:08 UTC — Remove the proof-argument eta case completely
+
+- Treat every surviving eta body as using its fresh argument: too coarse.
+  For an actual proof argument, domain uniqueness forces the recovered eta
+  domain to be a proposition. The fresh argument erases to the proof marker;
+  the entire eta body is therefore the unused-binder lift of the original
+  typed application. This uses the application's actual proof inhabitant,
+  never an invented inhabitant in the lower context.
+- Apply counted constant-lambda descent to that body: proved. Arbitrary
+  guarded body computation and changing annotations are supported, with the
+  exact exposed output retained at cost no larger than the original tail.
+  The eta root itself is saved. No raw guard substitution law is assumed.
+- Use the bypass in the globally minimal Eq probe cut: proved. The first
+  pending argument cannot be a proof marker. If five arguments have already
+  been supplied, the remaining argument is precisely the original proof
+  marker, since Pi-inert computation fixes it. Thus the residual eta prefix
+  has at most four arguments, improving the previous bound of five.
+- Remaining route: native eta at an earlier prefix with a retained argument
+  and non-beta body work. Fresh-variable dependence genuinely remains there;
+  this proof does not give arbitrary eta elimination. Reading those body
+  computations while tracking the typed completion remains open. Neither
+  strengthening nor a strictly smaller sufficient PropFront obligation has
+  been established; GOAL.md remains active.
+
+Validation: 978 build jobs; 2 complete dependency roots; maximum
+closure 11,434; 953 frozen source hashes. Standard axioms only; no
+forbidden dependency or owned diagnostic. Executable unchanged; no coordination
+or PR extraction.

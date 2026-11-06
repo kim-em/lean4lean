@@ -1,10 +1,11 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertEtaBodyResidual
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertProofEtaElimination
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertEtaCut
 
 /-! # Probe exposure forces genuine computation inside an eta body
 
 The minimum-count original-spine cut excludes administrative expansions and
-all singleton cases. A surviving eta must consume an argument, and its body
+all singleton cases and eta applied to a proof. A surviving eta occurs before
+the final proof-major slot, must consume an argument, and its body
 before that beta is not reachable from its original body by beta alone.
 -/
 namespace Lean4Lean.VEnv.Strengthening
@@ -49,9 +50,9 @@ private theorem singleton_spine_readout
         (erased_static_structure_eta_expansion_stage_certificate_descent heq hs k)
         hΓ hΓ' W ht hn (HA5.imp (fun _ _ R => R.mono pi_inert_stage_embed)) RL (HP.symm ▸ HG)
 
-/-- A typed-lower probe exposure gives the original lower equation, or a
-proper original-prefix eta whose first consuming beta follows genuine body
-computation beyond beta. All original component paths, whole prefix, exact
+/-- A typed-lower probe exposure gives the original lower equation, or an
+original-prefix eta before the proof-major slot whose first consuming beta
+follows body computation beyond beta. All original component paths, whole prefix, exact
 lambda/argument paths and post-beta tail are retained. The remaining gap is
 readout through this non-beta body work; no eta-bypass closure is assumed. -/
 theorem pi_inert_eq_exposure_eq_or_nonbeta_eta_body_cut
@@ -68,7 +69,7 @@ theorem pi_inert_eq_exposure_eq_or_nonbeta_eta_body_cut
       (ProofShape.mkApps (.const ``Eq.rec [v,w]) args) out) (HE : CarrierExposure out) :
     env.IsDefEq univs Γ a b α ∨
     (∃ ls pre pending A body A' body' x' xs' k cf ca cs,
-      List.Forall₂ (· ≈ ·) [v,w] ls ∧ pre.length ≤ 5 ∧
+      List.Forall₂ (· ≈ ·) [v,w] ls ∧ pre.length ≤ 4 ∧
       List.Forall₂ (ScopedCompute (PiInertStage D n) (proofEraseCtx Γ')) args (pre ++ pending) ∧
       ScopedCompute (PiInertStage D n) (proofEraseCtx Γ')
         (ProofShape.mkApps (.const ``Eq.rec [v,w]) args)
@@ -130,6 +131,13 @@ theorem pi_inert_eq_exposure_eq_or_nonbeta_eta_body_cut
             (ProofShape.mkApps (ProofShape.mkApps (.const ``Eq.rec ls) pre) pending) := by
           obtain ⟨Γ₀, e₀, hΓ₀, EΓ₀, ht₀, Ee₀⟩ := HS
           exact ⟨Γ₀, e₀, _, hΓ₀, EΓ₀, ht₀, Ee₀⟩
+        have hnotProof : ∀ rest, pending ≠ .proof :: rest := by
+          intro rest EP
+          obtain ⟨j, hj, RB⟩ := pi_inert_proof_eta_spine_count_eliminate heq hs
+            (erased_static_structure_eta_expansion_stage_descent heq hs k)
+            (EP ▸ HTwhole) Heta (EP ▸ RT) HE
+          have HM := hmin _ (RP.trans (by simpa only [EP, ProofShape.mkApps_append] using RB))
+          omega
         cases Heta with
         | intro RN SD =>
           obtain ⟨A', body', x', xs', cf, ca, cs, _, RF, RX, RS, Hbody, hpos⟩ :=
@@ -141,7 +149,19 @@ theorem pi_inert_eq_exposure_eq_or_nonbeta_eta_body_cut
           have hlength := HA.length_eq
           rw [Eargs'] at hlength
           simp only [List.length_cons, List.length_nil, List.length_append] at hlength
+          have hshort : pre.length ≤ 4 := by
+            by_contra hlong
+            have hfive : pre.length = 5 := by omega
+            have Hdrop : (pre ++ pending).drop 5 = pending := by
+              rw [← hfive, List.drop_left]
+            have HD : List.Forall₂ (ScopedCompute (PiInertStage D n) (proofEraseCtx Γ'))
+                [.proof] pending := by
+              simpa only [List.drop_succ_cons, List.drop_zero, Hdrop] using
+                Lean4Lean.List.forall₂_drop HA6 5
+            cases HD with | cons HP HD =>
+              cases HD
+              exact hnotProof [] (by rw [HP.pi_inert_proof_fixed])
           exact .inr ⟨ls, pre, pending, _, _, A', body', x', xs', k, cf, ca, cs,
-            HL, by omega, HA, RP.forget, HTpre, hk, .intro RN SD, RF, RX, RS, Hbody, hpos⟩
+            HL, hshort, HA, RP.forget, HTpre, hk, .intro RN SD, RF, RX, RS, Hbody, hpos⟩
 
 end Lean4Lean.VEnv.Strengthening
