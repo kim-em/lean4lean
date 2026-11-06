@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqTargetPrefixExecution
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertIdentityFrames
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSpecializationFrames
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -48,9 +49,13 @@ consumed branches from actual counted execution with arbitrary pending
 arguments; retained completion uses the changed displayed annotation.
 `consumed_eta_minimum` retains a strictly smaller completed post-beta minimum,
 and `eta_typed_minimum` preserves the bounded prefix while descending through
-another native eta at any arity. Administrative roots and component-only
-transitions through enclosing wrappers still need the corresponding ancestry
-argument; coverage of arbitrary wrapped-body histories remains open. `read_full_eta_loss_in_minimum` reads a head-losing root
+another native eta at any arity. Identity expansion at any tracked root of
+a minimum is now excluded through arbitrary mixed frames by
+`pi_inert_frames_minimum_no_identity`: deleting the wrapper simulates the
+current path and all enclosing frames without increasing their primitive
+count, while its insertion costs one. Constant expansions and component-only
+transitions through enclosing wrappers still need the corresponding argument;
+coverage of arbitrary wrapped-body histories remains open. `read_full_eta_loss_in_minimum` reads a head-losing root
 in the full-prefix body component history through any iterated insertions.
 In the proof-major case, a head-losing primitive
 reached through its body component history either reads the original equation

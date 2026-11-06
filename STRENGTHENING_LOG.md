@@ -33634,3 +33634,49 @@ histories must supply that agreement. Arbitrary wrapped-history coverage and
 the original strengthening theorem remain open; no sufficient strictly smaller
 irreducible obligation is claimed. No executable changes, PR extraction or
 coordination.
+
+
+## 2026-11-06 17:38:45 UTC — Exclude tracked identity roots in arbitrary continuation minima
+
+Added `ProofErasurePiInertIdentityFrames.lean`. `IdentityHeadDeletion` relates
+an expression with a tracked identity to the expression with that identity
+removed. Its closure follows the same function, lambda-body and identity-payload
+positions as `TrackedHeadHole`; ordinary arguments and annotations agree.
+`mkApps` and `subst` preserve the relation, and `eq_or_lambda` shows that a
+nontrivial outstanding deletion shields the ordinary head from primitives.
+
+`beta` simulates every compatible beta path. `compute` simulates a counted
+Pi-inert path in its original scope and at its original stage with a count
+no larger than the original. A root identity may survive with a changed
+annotation and computed payload, or be consumed by beta. Enclosing lambda
+bodies remain in their original annotation context during computation. No
+primitive guard is substituted or moved across a changed context.
+
+`PiInertContinuationFrames.identity_deletion` inducts over every finite mixed
+frame sequence. Application frames substitute only the related endpoints,
+simulate their actual paths, and pass the new endpoint to the remaining
+frames. Retained frames use lambda/application closure. The terminal carrier
+exposure forces equality of the two endpoints. The reconstructed competitor
+satisfies the original continuation predicate at no greater cost.
+`pi_inert_identity_frames_bypass` combines current-path and continuation
+simulation. `pi_inert_frames_minimum_no_identity` then excludes identity
+expansion at any tracked root: its removed unit insertion cost contradicts
+the minimum, whether consumption occurs locally or in a later frame. This
+result covers tracked holes under binders and inside other identity payloads,
+not just a single function-prefix substitution. The global module imports
+and documents the new exclusion; its theorem statement is unchanged.
+
+Validation: 1027 jobs including GlobalEtaBodyCut and the established
+ContextualCastFeedback/CoreFamilySubstitutionBarrier regressions. All eleven
+new public declarations and the global theorem passed the recursive dependency
+and axiom audit, maximum closure 11,813. Only propext, Classical.choice
+and Quot.sound occur; no weakN_iff, weakN_inv, sorryAx or excluded framework
+dependencies. No owned diagnostics; all 1,002 frozen source hashes remained
+unchanged across the final build and audit.
+
+Remaining: constant wrappers need the corresponding typed unused-body
+simulation across all mixed frames. Component-only transitions still need
+target agreement derived from the actual enclosing origin/argument histories.
+Arbitrary wrapped-history coverage, a sufficient strictly smaller irreducible
+obligation, and strengthening itself remain unproved. No executable changes,
+PR extraction or coordination.

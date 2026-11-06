@@ -19343,3 +19343,33 @@ sufficient irreducible obligation strictly smaller than PropFront is claimed;
 `weakN_iff` remains open. Validation: 1026 jobs, 8 audited roots, maximum
 closure 11,813, 1,001 frozen source hashes. No executable changes, PR
 extraction or coordination.
+
+
+## 2026-11-06 17:38:45 UTC — Delete identities through arbitrary mixed continuations
+
+Verdict: verified progress. `ProofErasurePiInertIdentityFrames.lean` proves
+that identity expansion is impossible at any tracked root of a minimum ending
+at an exposed carrier, through arbitrarily many retained-lambda and application
+frames. The previous one-substitution bypass is no longer the limit of the
+identity case.
+
+`IdentityHeadDeletion` tracks a single removed identity through function
+positions, lambda bodies and other identity payloads, allowing equality once
+the identity is consumed. Raw endpoint substitution preserves this relation.
+An outstanding deletion protects the ordinary head with a lambda, preventing
+an enclosing Pi-inert primitive from inspecting it. Induction on beta and
+counted computation therefore simulates deletion at the same stage and scope
+with no greater primitive count. Carrier exposure forces endpoint equality.
+Induction on the actual finite frame structure then gives a competitor for
+the same continuation predicate, including all retained annotations and raw
+substitutions. Removing an identity insertion saves its unit primitive cost.
+No typing or guarded-substitution assumption is added to the simulation.
+
+Still open: constant-wrapper removal through arbitrary mixed frames and
+component-only transitions preserving target agreement through enclosing
+wrappers. Constant wrappers need their unused-body certificate descent and
+actual typing preserved; the raw identity argument alone does not prove that
+case. Arbitrary wrapper-history coverage and `weakN_iff` remain open, and no
+sufficient obligation strictly smaller than PropFront is claimed. Validation:
+1027 jobs, 12 audited roots, maximum closure 11,813, 1,002 frozen
+source hashes. No executable changes, PR extraction or coordination.
