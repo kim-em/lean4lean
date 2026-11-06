@@ -18177,3 +18177,38 @@ PropFront. GOAL.md remains unachieved.
 Validation: 985 build jobs, 6 complete dependency roots, maximum
 closure 11,573; 960 frozen source hashes. Only propext, Classical.choice
 and Quot.sound; no forbidden dependencies or owned warnings. Executable unchanged.
+
+
+## 2026-11-06 12:21:45 UTC — Minimize body plus continuation; exclude delayed identity roots
+
+**Idea.** Fixed-endpoint body minimality cannot justify replacing a wrapper
+that survives until after the enclosing beta. Minimize the sum of body and
+post-beta suffix costs instead, allowing their common body endpoint to vary.
+
+**Verdict: proved and used to eliminate an inner root family.**
+`pi_inert_counted_lambda_continuation_minimal` reconstructs every competing
+pair at common finite stages and proves the combined body/suffix count is
+strictly smaller than the original whole count. It quantifies over both new
+stages, both counts, and every intermediate body endpoint while fixing the
+actual computed argument, pending spine and final output.
+
+`pi_inert_identity_spine_continuation_bypass` then removes identity wrappers
+across arbitrary endpoint substitution and a pending spine. If the identity
+is consumed in the original scope, retain the old body endpoint and suffix.
+If it survives, retain the computed payload and arguments as the new body
+endpoint, and remove the substituted identity in the outer suffix. No guarded
+path is substituted. Both cases preserve the exact final output and do not
+increase the combined count. The primitive that introduced the identity is
+therefore strictly wasteful. `CountedEtaBodySpineCut` and the full Eq-exposure
+result now exclude native identity expansion at the selected inner root.
+
+The body endpoint itself need not expose a carrier. This removes the particular
+continuation mismatch for identities, but does not eliminate constant wrappers
+or nested eta. In particular the arbitrary-substitution identity proof must not
+be reused for constant wrappers without the required typed payload readout.
+The wider root classification/readout and GOAL.md remain open; no sufficient
+strictly smaller obligation than PropFront is claimed.
+
+Validation: 986 build jobs, 9 complete dependency roots, maximum
+closure 11,584; 961 frozen source hashes. Only propext, Classical.choice
+and Quot.sound; no forbidden dependencies or owned warnings. Executable unchanged.

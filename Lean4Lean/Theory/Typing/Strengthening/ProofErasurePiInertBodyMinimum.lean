@@ -59,4 +59,33 @@ theorem pi_inert_counted_lambda_body_minimal
   have HJ := hmin _ _ (pi_inert_counted_lambda_body_replace RP HR RD RJ RX RS)
   omega
 
+/-- Minimize the body together with its application continuation. A competitor
+may change the body endpoint and the entire post-beta suffix, provided it
+reaches the same final output. Both stages may increase independently. The
+combined cost is strictly smaller than the enclosing minimum path's count. -/
+theorem pi_inert_counted_lambda_continuation_minimal
+    (RP : ScopedComputeCount (PiInertStage D n) cp Δ original (ProofShape.mkApps f args))
+    (HR : PiInertStage D n Δ f (.lam A body))
+    (RD : ScopedComputeCount (PiInertStage D n) cd Δ A A')
+    (RB : ScopedComputeCount (PiInertStage D m) cb (A :: Δ) body body')
+    (RX : ScopedArgumentsCount (PiInertStage D n) Δ ca args (x' :: xs'))
+    (RS : ScopedComputeCount (PiInertStage D n) cs Δ
+      (ProofShape.mkApps (body'.inst x') xs') out)
+    (hcost : cp+1+cd+cb+ca+cs ≤ cost)
+    (hmin : ∀ later j, ScopedComputeCount (PiInertStage D later) j Δ original out → cost ≤ j) :
+    cb+cs < cost ∧ ∀ later suffixStage j k endpoint,
+      ScopedComputeCount (PiInertStage D later) j (A :: Δ) body endpoint →
+      ScopedComputeCount (PiInertStage D suffixStage) k Δ
+        (ProofShape.mkApps (endpoint.inst x') xs') out → cb+cs ≤ j+k := by
+  obtain ⟨hexact, _, _⟩ := pi_inert_counted_lambda_body_minimal RP HR RD RB RX RS hcost hmin
+  refine ⟨by omega, ?_⟩
+  intro later suffixStage j k endpoint RJ RK
+  have raise : ∀ {Δ a b}, PiInertStage D n Δ a b → PiInertStage D (max n suffixStage) Δ a b :=
+    pi_inert_stage_mono (Nat.le_max_left n suffixStage)
+  have RR := pi_inert_counted_lambda_body_replace (RP.mono raise) (raise HR)
+    (RD.mono raise) RJ (RX.mono raise)
+    (RK.mono (pi_inert_stage_mono (Nat.le_max_right n suffixStage)))
+  have HM := hmin _ _ RR
+  omega
+
 end Lean4Lean.VEnv.Strengthening

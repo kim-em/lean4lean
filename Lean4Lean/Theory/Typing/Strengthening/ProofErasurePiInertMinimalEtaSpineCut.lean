@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertEtaSpineBypass
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertBodyMinimum
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertIdentityContinuation
 
 /-! # A globally minimal eta must reach a non-level body-spine root
 
@@ -23,6 +23,8 @@ private theorem eta_argument_fixed
 /-- The counted first non-level root on a constant-headed eta body. It
 retains the consuming beta, domain cost, component ancestry, and both suffixes.
 Both decompositions have exact counts, and the body path is globally minimal.
+The body together with its application continuation is also minimal when both
+paths and their common endpoint vary. Identity expansion is excluded at the root.
 This is a witnessed decomposition, not an assumed closure property. -/
 def CountedEtaBodySpineCut (D : Definitions) (n : Nat) (Δ : List ProofShape)
     (c : Name) (ls : List VLevel) (pre : List ProofShape) (A : ProofShape) (u : VLevel)
@@ -43,8 +45,15 @@ def CountedEtaBodySpineCut (D : Definitions) (n : Nat) (Δ : List ProofShape)
       PiInertStage D m (A :: Δ) (ProofShape.mkApps (.const c ls') bodyPre) target ∧
       ¬ LevelPrimitive univs (ProofShape.mkApps (.const c ls') bodyPre) target ∧
       ScopedComputeCount (PiInertStage D m) tb (A :: Δ) (ProofShape.mkApps target bodyPending) body' ∧
-      ∀ later j, ScopedComputeCount (PiInertStage D later) j (A :: Δ)
-        (.app ((ProofShape.mkApps (.const c ls) pre).liftN 1) (etaArgument u)) body' → cb ≤ j
+      (∀ later j, ScopedComputeCount (PiInertStage D later) j (A :: Δ)
+        (.app ((ProofShape.mkApps (.const c ls) pre).liftN 1) (etaArgument u)) body' → cb ≤ j) ∧
+      (∀ later suffixStage j k endpoint,
+        ScopedComputeCount (PiInertStage D later) j (A :: Δ)
+          (.app ((ProofShape.mkApps (.const c ls) pre).liftN 1) (etaArgument u)) endpoint →
+        ScopedComputeCount (PiInertStage D suffixStage) k Δ
+          (ProofShape.mkApps (endpoint.inst x') xs') out → cb+cs ≤ j+k) ∧
+      ∀ Recovery, ¬ NativeIdentityExpansion Recovery (A :: Δ)
+        (ProofShape.mkApps (.const c ls') bodyPre) target
 
 /-- The body selected by the cut is a globally minimum path of strictly
 smaller cost than the enclosing path, whose eta root costs one primitive.
@@ -58,7 +67,7 @@ theorem CountedEtaBodySpineCut.smaller_minimum
       ∀ later j, ScopedComputeCount (PiInertStage D later) j (A :: Δ)
         (.app ((ProofShape.mkApps (.const c ls) pre).liftN 1) (etaArgument u)) body' → cb ≤ j := by
   obtain ⟨_, body', _, _, cf, ca, cs, cd, cb, m, _, _, _, _, pb, tb,
-    hc, hf, hb, _, _, _, _, _, _, RP, HR, _, RT, HM⟩ := H
+    hc, hf, hb, _, _, _, _, _, _, RP, HR, _, RT, HM, _, _⟩ := H
   refine ⟨cb, m, body', by omega, ?_, HM⟩
   have RT' := ((ScopedComputeCount.base HR).mkApps ScopedArgumentsCount.refl).trans RT
   rw [← ProofShape.mkApps_append] at RT'
@@ -68,7 +77,8 @@ theorem CountedEtaBodySpineCut.smaller_minimum
 must encounter a non-level primitive on its original body spine before the
 first consuming beta. Mere argument computation and level changes are bypassed.
 This locates the body root; classification of that root, including nested eta,
-remains a separate obligation. -/
+remains a separate obligation. Combined body/continuation minimality rules out
+identity expansion even if it survives until after the enclosing beta. -/
 theorem globally_minimal_pi_inert_eta_body_spine_cut
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hguard : ErasedScopedPrimitiveDescent Guard)
@@ -95,6 +105,8 @@ theorem globally_minimal_pi_inert_eta_body_spine_cut
       simpa only [ProofShape.mkApps_snoc, ProofShape.liftN_mkApps, ProofShape.liftN] using RB
     obtain ⟨hexact, _, hminBody⟩ := pi_inert_counted_lambda_body_minimal
       RP HR RD RB RX RS (by omega) hmin
+    obtain ⟨_, hminContinuation⟩ := pi_inert_counted_lambda_continuation_minimal
+      RP HR RD RB RX RS (by omega) hmin
     have hcExact : cf+ca+cs = ct := by omega
     rcases RBspine.const_spine_components_or_cut (U := univs) with
       ⟨ls', rawArgs, ch, cc, hcomponents, EO, _, RH, RA⟩ |
@@ -109,15 +121,24 @@ theorem globally_minimal_pi_inert_eta_body_spine_cut
       have RR := pi_inert_retained_eta_body_count_bypass heq hs hguard HT RN SD RG RX (EB ▸ RS)
       have HM := hmin _ _ ((RP.mono (pi_inert_stage_mono (Nat.le_max_right m n))).trans RR)
       omega
-    · refine ⟨A', body', x', xs', cf, ca, cs, cd, cb, m, ls', bodyPre, bodyPending,
-        target, pb, tb, hcExact, hsplit, ?_, RF, RX, RS, RD, HL, HA, ?_, HR, HN, RTB, hminBody⟩
-      · have RT' := ((ScopedComputeCount.base HR).mkApps ScopedArgumentsCount.refl).trans RTB
+    · have hcutExact : pb+1+tb = cb := by
+        have RT' := ((ScopedComputeCount.base HR).mkApps ScopedArgumentsCount.refl).trans RTB
         rw [← ProofShape.mkApps_append] at RT'
         have R := RPB.trans RT'
         have HM := hminBody m (pb+1+tb) (by
           simpa only [Nat.add_zero, ← Nat.add_assoc,
             ProofShape.mkApps_snoc, ProofShape.liftN_mkApps, ProofShape.liftN] using R)
         omega
-      · simpa only [ProofShape.mkApps_snoc, ProofShape.liftN_mkApps, ProofShape.liftN] using RPB
+      have RPB' : ScopedComputeCount (PiInertStage D m) pb (A :: Δ)
+          (.app ((ProofShape.mkApps (.const c ls) pre).liftN 1) (etaArgument u))
+          (ProofShape.mkApps (.const c ls') (bodyPre ++ bodyPending)) := by
+        simpa only [ProofShape.mkApps_snoc, ProofShape.liftN_mkApps, ProofShape.liftN] using RPB
+      refine ⟨A', body', x', xs', cf, ca, cs, cd, cb, m, ls', bodyPre, bodyPending,
+        target, pb, tb, hcExact, hsplit, hcutExact, RF, RX, RS, RD, HL, HA, RPB', HR, HN, RTB,
+        hminBody, hminContinuation, ?_⟩
+      apply pi_inert_continuation_minimum_no_identity
+        (by simpa only [ProofShape.mkApps_append] using RPB') RTB
+        (by simpa only [ProofShape.inst_eq_subst] using RS) hcutExact
+        (by simpa only [ProofShape.inst_eq_subst] using hminContinuation) HE
 
 end Lean4Lean.VEnv.Strengthening

@@ -32095,3 +32095,41 @@ substitution regressions; 6 complete dependency roots, maximum closure
 Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
 assumptions or owned warnings. No PR extraction or coordination; executable
 unchanged. GOAL.md remains active and unachieved.
+
+
+## 2026-11-06 12:21:45 UTC — Carry the application continuation through identity elimination
+
+Extended `ProofErasurePiInertBodyMinimum.lean` with
+`pi_inert_counted_lambda_continuation_minimal`. Its competitors can change
+both the body endpoint and the post-beta suffix, at independent finite stages.
+The actual computed argument and pending vector remain fixed, and the final
+output remains exact. The body-plus-suffix count is strictly smaller than the
+original whole path; every competing pair has at least that combined count.
+This follows from the existing counted lambda replacement after raising the
+fixed prefix, domain and arguments to a common stage with the new suffix.
+
+Added `ProofErasurePiInertIdentityContinuation.lean`. Split the identity spine
+at its first consuming beta. When consumed in the body, discard the identity
+annotation cost and replay the payload/argument paths and tail. When the
+identity remains in the body endpoint, its identity-lambda body is still the
+fresh variable; arbitrary endpoint substitution preserves that shape. Apply
+the counted identity-spine elimination to the outer suffix and pair it with
+the original-scope computed payload/arguments. The combined cost does not
+grow, and no guarded primitive computation is transported through substitution.
+`pi_inert_continuation_minimum_no_identity` adds the retained body prefix and
+contradicts joint minimality by saving the selected identity root's unit cost.
+
+Strengthened `CountedEtaBodySpineCut` with joint body/continuation minimality
+and exclusion of every native-identity recovery relation at the selected root.
+The existing globally minimal eta construction proves both fields, and the
+full Eq-exposure theorem carries them with no new assumptions. Existing body
+minimality, exact costs, original component ancestry, and both suffixes remain.
+The remaining root classification, including constant wrappers and nested eta,
+is still open. The continuation problem is solved here for identities only.
+
+Validation: 986 build jobs including contextual-cast and core-family
+substitution regressions; 9 complete dependency roots, maximum closure
+11,584; 961 frozen source hashes. Only propext, Classical.choice and
+Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
+assumptions or owned warnings. No PR extraction or coordination; executable
+unchanged. GOAL.md remains active and unachieved.
