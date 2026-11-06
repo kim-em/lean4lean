@@ -18,6 +18,8 @@ variable [Params]
 /-- The original lower equation holds, or an original-prefix eta of arity at
 most four contains a non-level body-spine cut. The whole path has minimum
 primitive count among all finite stages; every prefix and suffix is retained.
+The outer and body decompositions have exact costs, and the body path is
+globally minimal with smaller count (via `CountedEtaBodySpineCut.smaller_minimum`).
 The remaining gap is classification and elimination of that inner root,
 including nested eta, rather than annotation or component-only computation. -/
 theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
@@ -38,7 +40,7 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
         (ProofShape.mkApps (.const ``Eq.rec [v,w]) args) out ∧
       (∀ later j, ScopedComputeCount (PiInertStage D later) j (proofEraseCtx Γ')
         (ProofShape.mkApps (.const ``Eq.rec [v,w]) args) out → cost ≤ j) ∧
-      cp+1+ct ≤ cost ∧ List.Forall₂ (· ≈ ·) [v,w] ls ∧ pre.length ≤ 4 ∧
+      cp+1+ct = cost ∧ List.Forall₂ (· ≈ ·) [v,w] ls ∧ pre.length ≤ 4 ∧
       List.Forall₂ (ScopedCompute (PiInertStage D stage) (proofEraseCtx Γ')) args (pre ++ pending) ∧
       ScopedComputeCount (PiInertStage D stage) cp (proofEraseCtx Γ')
         (ProofShape.mkApps (.const ``Eq.rec [v,w]) args)
@@ -64,7 +66,13 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
       (@level_primitive_spine_roots univs ``Eq.rec) with
     ⟨ls, args', EO, _, _⟩ | ⟨ls, pre, pending, target, cp, ct, hcost, HL, HA, RP, H, HN, RT⟩
   · exact ((carrier_exposure_ne_eqRec heq HE) (by rw [EO, constHead_mkApps]; rfl)).elim
-  · have HA6 := Eargs' ▸ HA
+  · have hcostExact : cp+1+ct = cost := by
+      have RT' := ((ScopedComputeCount.base H).mkApps ScopedArgumentsCount.refl).trans RT
+      rw [← ProofShape.mkApps_append] at RT'
+      have HM := hmin (cp+1+ct) (by
+        simpa only [Nat.add_zero, ← Nat.add_assoc] using RP.trans RT')
+      omega
+    have HA6 := Eargs' ▸ HA
     have hd : ErasedScopedPrimitiveCertificateDescent
         (ErasedStaticStructureEtaExpansionStage D stage) (ErasedStaticStructureEtaExpansionStage D stage) :=
       erased_static_structure_eta_expansion_stage_certificate_descent heq hs stage
@@ -113,7 +121,7 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
         | intro RN SD =>
           have HB := globally_minimal_pi_inert_eta_body_spine_cut heq hs
             (erased_static_structure_eta_expansion_stage_descent heq hs k) HTwhole RN SD
-            (by simpa only [ProofShape.mkApps_append] using RP) RT hcost hminAll HE
+            (by simpa only [ProofShape.mkApps_append] using RP) H RT hcost hminAll HE
           have hpending : 0 < pending.length := by
             obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, RX, _⟩ := HB
             cases RX with | cons => simp
@@ -133,6 +141,6 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
               cases HD
               exact hnotProof [] (by rw [HP.pi_inert_proof_fixed])
           exact .inr ⟨stage, cost, ls, pre, pending, _, _, _, k, cp, ct,
-            RC, hminAll, hcost, HL, hshort, HA, RP, HTpre, hk, RN, SD, RT, HB⟩
+            RC, hminAll, hcostExact, HL, hshort, HA, RP, HTpre, hk, RN, SD, RT, HB⟩
 
 end Lean4Lean.VEnv.Strengthening

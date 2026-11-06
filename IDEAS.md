@@ -18149,3 +18149,31 @@ Validation: 984 build jobs; 9 complete dependency roots; maximum
 closure 11,561; 959 frozen source hashes. Standard axioms only; no
 forbidden dependency or owned diagnostic. Executable unchanged; no coordination
 or PR extraction. GOAL.md remains active.
+
+
+## 2026-11-06 12:14:11 UTC — Inherit global minimality below the consumed eta binder
+
+**Idea.** Reinsert any competing body computation below the original lambda
+annotation, then retain the computed arguments, consuming beta and exact final
+suffix. Since finite stages admit a common upper bound, global whole-path
+minimality should force global body-path minimality despite annotation transport.
+
+**Verdict: proved and integrated.** `pi_inert_counted_lambda_body_replace`
+constructs that competitor with exact cost cp+1+cd+j+ca+cs.
+`pi_inert_counted_lambda_body_minimal` proves tight whole-path accounting,
+strictly smaller body count, and minimality over every finite stage.
+`CountedEtaBodySpineCut` now retains the body minimum certificate and exact
+consuming-beta/body-cut cost equations. Its `smaller_minimum` theorem extracts
+the actual smaller path. The full Eq-exposure theorem returns exact outer-cut
+accounting and the strengthened body witness without additional hypotheses.
+
+This justifies a numerical induction measure below eta, but it does not close
+the induction case: the body endpoint need not expose a carrier. The enclosing
+instantiation and suffix must be represented in a stronger induction invariant.
+No application of the exposure theorem to that body alone is justified. A
+smaller count is not a proved strictly smaller sufficient obligation than
+PropFront. GOAL.md remains unachieved.
+
+Validation: 985 build jobs, 6 complete dependency roots, maximum
+closure 11,573; 960 frozen source hashes. Only propext, Classical.choice
+and Quot.sound; no forbidden dependencies or owned warnings. Executable unchanged.

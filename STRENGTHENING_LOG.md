@@ -32060,3 +32060,38 @@ substitution regressions; 9 complete dependency roots, maximum closure
 Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
 assumptions or owned warnings. Executable unchanged; no coordination or PR
 extraction.
+
+
+## 2026-11-06 12:14:11 UTC — Exact cost and a globally minimal, smaller eta body
+
+Added `ProofErasurePiInertBodyMinimum.lean`. A body path at any finite stage is
+inserted under the original source annotation, preserving the separate domain
+computation. The selected primitive, original prefix, argument vector, beta
+contraction and final suffix reconstruct the exact original output at stage
+max(later,n), with count cp+1+cd+j+ca+cs. Guarded primitives are never substituted.
+Global whole-path minimality therefore yields exact accounting and body
+minimality over all finite stages, and the selected root's unit cost makes the
+body count strictly smaller than the whole count.
+
+Strengthened `CountedEtaBodySpineCut` and its construction. The lambda/argument/
+suffix costs now sum exactly to the eta tail cost; the body-prefix/root/tail
+costs sum exactly to the body cost. The witness retains global body minimality.
+Its `smaller_minimum` theorem reconstructs the counted body path from the actual
+cut and exposes the strict bound. The local construction now takes the selected
+eta primitive explicitly so replacement can rebuild it; the full Eq theorem
+already has that primitive and acquires no new assumptions. Its outer
+prefix/root/tail accounting is also exact.
+
+Remaining gap: classification/elimination of the inner non-level root,
+including nested eta, under the enclosing application continuation. Body
+minimality concerns the exact body endpoint; it does not make that endpoint
+exposed. Thus the existing Eq-exposure theorem cannot simply serve as the
+induction hypothesis for the smaller path. No strengthening proof, counterexample,
+or sufficient strictly smaller logical obligation is claimed.
+
+Validation: 985 build jobs including contextual-cast and core-family
+substitution regressions; 6 complete dependency roots, maximum closure
+11,573; 960 frozen source hashes. Only propext, Classical.choice and
+Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
+assumptions or owned warnings. No PR extraction or coordination; executable
+unchanged. GOAL.md remains active and unachieved.
