@@ -16171,3 +16171,35 @@ Validation: 821 build jobs, 43 audited roots including both grammars'
 constructors and recursors, maximum dependency closure 12,286, 796 frozen
 source hashes; no forbidden dependencies or nonstandard axioms. The existing
 ContextualCastFeedback importer rebuilt. Previous goal turn: progress (b796904f).
+
+
+### 2026-11-06 03:31:29 UTC — Full-core stable computation sequences, joins and feedback
+
+Idea: retain the ordinary payload tail in cast-consumer commutation, then
+interpret recursive computation and comparison certificates simultaneously.
+Verdict: proved. Sequential computation passes that ordinary tail into the next
+commutation induction hypothesis. Computation joins retain an actual typed
+realization of the shared raw output, so ordinary core confluence joins the
+residual output paths. No confluence of a guarded stage is used.
+
+CoreFamilyCast alternates earlier contextual comparisons, typed core paths,
+cast consumers, sequential computation, common-output joins, annotation
+consumers, computation prefixes, residuals, symmetry, stage raising and actual
+binder insertion. Computation means an actual typed output plus a directed
+commutation theorem, not an assumed global future property. Comparison readout
+covers every independent pair of full-core paths in either checking mode.
+Computation joins construct a later cast's equality major and recursive
+arbitrary-consumer computation certificate, retaining further feedback.
+
+This closes composition and reuse of full-core cast-computation joins. It does
+not prove arbitrary ambient substitution or semantic domain coverage. In
+particular the earlier contextual comparison leaves do not acquire a
+substitution law merely by being embedded in this grammar. Next live direction:
+trace substitution through those leaves and retained histories, separating
+constructible substitution cases from the known false old guard closure law.
+The general strengthening target and all three final deliverables remain open.
+
+Validation: 823 jobs, 32 roots including both new inductive types and
+their constructors/recursors, maximum closure 12,310, 798 frozen hashes.
+Only standard axioms; no forbidden dependencies. The prior goal turn was
+progress (dbb6f521); this turn proves the indicated iteration and join step.

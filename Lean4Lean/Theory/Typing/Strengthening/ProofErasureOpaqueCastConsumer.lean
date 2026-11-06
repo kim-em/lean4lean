@@ -47,11 +47,11 @@ theorem proofErase_eq_cast_shape_core
   obtain ⟨α', x', M', m', y', rfl, _, _, _, _, _⟩ := RM.eqRec_proof_core_inv hreg hoff hD
   exact EqCastShape.variant ⟨_, _, _, _, _, _, _, rfl⟩ VM
 
-/-- Every typed consumer of a cast and its payload has a finite-stage join
-at arbitrary independent full-core residuals. The endpoint-family premise is
+/-- Every typed consumer of a cast and its payload has a directed join
+at independent full-core residuals, retaining an ordinary core payload path. The endpoint-family premise is
 an induction interface for recursive cast guards; no consumer confluence or
 normalization hypothesis is assumed. -/
-theorem contextual_cast_consumer_core_join
+theorem contextual_cast_consumer_core_commute
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs) (hl : D.LevelCompatible univs)
     (hcon : ∀ {p r}, Pat p r → ConcretePattern env p r)
     (hc : TypedCoreConfluence (ErasedLevelCore D))
@@ -68,7 +68,7 @@ theorem contextual_cast_consumer_core_join
       (proofErase Γ (t.inst (typeCast u X Y q x))) left)
     (RR : ProofShape.Compute (ErasedLevelCore D) (proofErase Γ (t.inst x)) right) :
     ∃ shared, ScopedCompute (ErasedStaticStructureEtaExpansionStage D (n+1)) (proofEraseCtx Γ) left shared ∧
-      ScopedCompute (ErasedStaticStructureEtaExpansionStage D (n+1)) (proofEraseCtx Γ) right shared := by
+      ProofShape.Compute (ErasedLevelCore D) right shared := by
   have HXY := (proofErase_computed_joint_compare_reflect
     (erased_static_structure_eta_expansion_stage_descent heq hs n) hΓ hX hY (HG .refl .refl)).1
       ⟨_, HasType.sort hu⟩
@@ -85,7 +85,7 @@ theorem contextual_cast_consumer_core_join
         proofErase_instN hΓX hx Ctx.InstN.zero ht, proofErase_eq_proof.2 hp, Ex]
     rw [E] at RL
     obtain ⟨shared, RA, RB⟩ := hc hΓ hright RL RR
-    exact ⟨shared, RA.in_static_stage, RB.in_static_stage⟩
+    exact ⟨shared, RA.in_static_stage, RB⟩
   have Eq : proofErase Γ q = .proof := proofErase_eq_proof.2
     ⟨_, hq, HasType.eqApp heq (by exact hu) (.sort hu) hX hY⟩
   have ES := proofErase_const_spine hΓ
@@ -125,6 +125,32 @@ theorem contextual_cast_consumer_core_join
     (erased_static_structure_eta_expansion_stage_rename heq hs (n+1))
     (fun H => hguard H) V₁ hΓ HE.hasType.2 EE W
   obtain ⟨out, RS, RQ⟩ := hc hΓ hright (RB₁.trans RC) RR
-  exact ⟨out, RJ.trans RS.in_static_stage, RQ.in_static_stage⟩
+  exact ⟨out, RJ.trans RS.in_static_stage, RQ⟩
+
+/-- Every typed consumer of a cast and its payload has a finite-stage join
+at arbitrary independent full-core residuals. The endpoint-family premise is
+an induction interface for recursive cast guards; no consumer confluence or
+normalization hypothesis is assumed. -/
+theorem contextual_cast_consumer_core_join
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs) (hl : D.LevelCompatible univs)
+    (hcon : ∀ {p r}, Pat p r → ConcretePattern env p r)
+    (hc : TypedCoreConfluence (ErasedLevelCore D))
+    (hreg : recursorData ``Eq.rec = some data) (hoff : data.majorOffset = 5)
+    (hD : ∀ levels rhs, ¬ D.unfolds ``Eq.rec levels rhs)
+    (hu : u.WF univs) (hΓ : OnCtx Γ (env.IsType univs))
+    (hX : env.HasType univs Γ X (.sort u)) (hY : env.HasType univs Γ Y (.sort u))
+    (hq : env.HasType univs Γ q (eqApp (.succ u) (.sort u) X Y))
+    (hx : env.HasType univs Γ x X) (ht : env.HasType univs (X :: Γ) t T)
+    (HG : ∀ {a b}, ProofShape.Compute (ErasedLevelCore D) (proofErase Γ X) a →
+      ProofShape.Compute (ErasedLevelCore D) (proofErase Γ Y) b →
+      ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D n) (proofEraseCtx Γ) true a b)
+    (RL : ProofShape.Compute (ErasedLevelCore D)
+      (proofErase Γ (t.inst (typeCast u X Y q x))) left)
+    (RR : ProofShape.Compute (ErasedLevelCore D) (proofErase Γ (t.inst x)) right) :
+    ∃ shared, ScopedCompute (ErasedStaticStructureEtaExpansionStage D (n+1)) (proofEraseCtx Γ) left shared ∧
+      ScopedCompute (ErasedStaticStructureEtaExpansionStage D (n+1)) (proofEraseCtx Γ) right shared := by
+  obtain ⟨shared, RL', RR'⟩ := contextual_cast_consumer_core_commute heq hs hl hcon hc hreg hoff hD
+    hu hΓ hX hY hq hx ht HG RL RR
+  exact ⟨shared, RL', RR'.in_static_stage⟩
 
 end Lean4Lean.VEnv.Strengthening

@@ -29971,3 +29971,46 @@ under full core reduction. General ambient substitution and semantic domain
 coverage remain open, and none of GOAL.md's final deliverables is established.
 The original sorry remains; executable and independent files are preserved.
 No coordination, PR extraction or PR creation.
+
+
+### 2026-11-06 03:31:29 UTC — Recursive computation joins with full-core residual comparison
+
+Strengthened the implementation in ProofErasureOpaqueCastConsumer.lean with
+contextual_cast_consumer_core_commute, retaining the ordinary core path on the
+payload side. The previous public join theorem remains as a wrapper embedding
+that path into its finite stage, so its callers retain their original interface.
+
+Added ProofErasureCoreFamilyCast.lean. CoreFamilyKind separates computation from
+the two comparison modes. The recursive grammar includes typed core paths,
+cast consumers consuming comparison children, sequential composition, joins,
+annotation consumers, prefixes, residuals, symmetry, raising and binder
+insertion, with earlier ContextualCastGuard leaves.
+
+One interpretation induction constructs a typed output and directed full-core
+commutation for every computation certificate, and full-core residual checks
+for every comparison certificate. Sequential composition uses the previous
+ordinary output path as the next input. Joins use actual typed realization
+of the common output and ordinary core confluence there. Prefixes feed
+commuted ordinary output paths into the smaller comparison child. Weakening
+uses raw pure-lift inversion and exact context renaming. No global guarded
+confluence or comparison-transport oracle is assumed.
+
+Added ProofErasureCoreFamilyFeedback.lean. Two recursive computation histories
+with a shared output give a retained endpoint comparison, which constructs
+the canonical equality major of a later cast and its arbitrary-consumer
+computation certificate. Actual-environment interpretation, join-residual and
+feedback theorems discharge all abstract primitive interfaces.
+
+Validation: 823 build jobs including the unchanged ContextualCastFeedback
+regression target; 32 audited roots; maximum dependency closure
+12,310; 798 frozen source/import hashes unchanged. The full dependency
+audit includes declaration types, opaque bodies, constructors and recursor
+RHSs. Only propext, Classical.choice and Quot.sound; no forbidden dependencies
+and no warnings in the changed/new modules.
+
+Judgment: full-core stability now composes through certified computation
+sequences and joins, whose results remain usable by later casts. Arbitrary
+ambient substitution and semantic domain coverage remain unproved; the older
+beta/substitution grammar is still a distinct construction. No final GOAL.md
+deliverable is established. The original sorry, executable and independent
+files are preserved; no coordination, PR extraction or PR creation.
