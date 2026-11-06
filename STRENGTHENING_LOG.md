@@ -29873,3 +29873,48 @@ smaller sufficient strengthening obligation. The original sorry remains.
 Next: close the recursive guard grammar under this consumer operation, then
 continue the full-core/substitution interaction. Executable and independent
 files preserved; no coordination, PR extraction or PR creation.
+
+
+### 2026-11-06 02:56:22 UTC — Context-indexed recursive cast and annotation certificates
+
+Weakened annotation_variant_computed_check's ambient-check premise from all
+contexts to its single actual ambient context. The existing staged consumer
+importer rebuilt successfully against the more general interface.
+
+Added ProofErasureContextualAnnotationCore.lean: a private symmetric relation
+of independent residuals of the two original domains is closed under further
+core reduction. Its readout uses only the supplied child induction hypothesis
+at the actual context. This proves arbitrary typed annotation-consumer residual
+comparison in either mode without a global guard-substitution assumption.
+
+Added ProofErasureContextualCastResidual.lean: actual-context versions of cast
+residual repair and cast/payload joining. The endpoint certificate need not
+check in unrelated contexts, and only ordinary core confluence is used.
+
+Added ProofErasureContextualCastGuard.lean: a finite-stage grammar indexed by
+its context, with earlier staged leaves, casts, annotation consumers, raising,
+typed core prefixes, independent core tails, binder insertion and symmetry.
+The structural interpretation proves full-core stability. Casts add one stage;
+annotation consumers retain the stage. All contextual consumer results can be
+used as child certificates rather than being discarded after readout.
+
+Added ProofErasureContextualCastFeedback.lean: a type-valued annotation consumer
+constructs a later cast's equality major and endpoint child certificate from
+the smaller recursive domain certificate. Actual environment wrappers supply
+soundness, universe compatibility, concrete matching, Eq registration and core
+confluence. The payload is arbitrary, including non-proof data.
+
+A development error in a private symmetry lemma resolved a dotted name to
+itself; explicit disjunction elimination fixed it. No mathematical assumption
+was added. Validation: 816 build jobs; 21 dependency roots, including
+all new constructors and recursors; maximum closure 12,240. All 791
+source/import hashes unchanged; no new-module warnings, forbidden dependencies
+or nonstandard axioms. Full audit includes types, opaque bodies, constructor
+dependencies and recursor RHSs.
+
+Judgment: full-core comparison is now retained across arbitrary finite
+alternations of certified casts and typed annotation consumers. General
+substitution closure and coverage remain unproved; RecursiveFamilyCast's
+beta/substitution interpretation is still a different grammar. None of the
+three final GOAL.md deliverables is established, and the original sorry remains.
+Executable and independent files preserved; no coordination or PR extraction.

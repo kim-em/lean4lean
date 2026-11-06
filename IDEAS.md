@@ -16104,3 +16104,35 @@ Validation: 812 build jobs, 7 audited roots, maximum dependency closure
 12,223, 787 frozen source hashes; no forbidden dependencies or nonstandard
 axioms. Prior goal turn classified as progress (checked and pushed core result);
 this turn extends its admissible domain premise with a checked separation.
+
+
+### 2026-11-06 02:56:22 UTC — Retain contextual annotation results as later cast guards
+
+Idea: make the recursive full-core certificate context-indexed, so an arbitrary
+annotation consumer can feed a later cast without claiming its comparison in
+every unrelated context. Verdict: proved. The structural annotation readout
+needs its ambient domain check only at the actual base context; exact renaming
+handles local binders. A symmetric relation of pairs of core reducts retains
+the original domain certificate through the paired simulation. Contextual cast
+residuals likewise need their endpoint checks only at the actual cast context.
+
+ContextualCastGuard alternates earlier staged certificates, casts and arbitrary
+typed annotation consumers. It retains typed core prefixes, independent core
+tails, symmetry, stage raising and actual binder insertions. One structural
+induction proves full-core residual checking. A type-valued annotation consumer
+constructs both the endpoint certificate and the equality major of a subsequent
+cast, so that result may feed another constructor. The grammar has no future
+comparison or higher-stage confluence oracle as a constructor premise.
+
+This closes recursive reuse of the previous consumer theorem. It does not
+establish arbitrary ambient substitution closure, semantic domain coverage, or
+a final GOAL.md deliverable. The existing refutation of substitution for the
+older LevelRecursiveGuard is not a refutation of this enlarged contextual
+grammar, but neither is it evidence that its substitution law holds. The
+remaining live direction is the full-core/substitution interaction, keeping
+these newly retained annotation and cast histories.
+
+Validation: 816 jobs, 21 audited roots including constructors and
+recursors, maximum dependency closure 12,240; 791 frozen source hashes.
+No forbidden dependencies, proof gaps or nonstandard axioms. The previous goal
+turn was progress (18a624f5); this turn adds the missing recursive reuse.

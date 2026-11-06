@@ -40,7 +40,7 @@ of the domain guard is assumed. -/
 theorem annotation_variant_computed_check
     (hrename : ∀ {Δ Δ' a b τ}, Step Δ a b → ContextRenaming Δ Δ' τ →
       Step Δ' (a.subst τ) (b.subst τ))
-    (hguard : ∀ {A C Δ}, Guard A C → ComputedJointCompare Step Δ false A C)
+    (hguard : ∀ {A C}, Guard A C → ComputedJointCompare Step Δ false A C)
     (V : AnnotationVariant Guard n a b)
     (hΓ : OnCtx Γ (env.IsType univs)) (ht : env.HasType univs Γ e T)
     (Ee : proofErase Γ e = a)
@@ -71,7 +71,7 @@ theorem annotation_variant_computed_check
   | marked HG VB ihB =>
     obtain ⟨A, body, rfl, _, EA, EB⟩ := erase_lam_inv Ee
     obtain ⟨⟨u, hA⟩, _, hb⟩ := ht.lam_inv henv hΓ
-    have HG' := (hguard (Δ := Δ) HG).rename hrename W
+    have HG' := (hguard HG).rename hrename W
     simp only [JointCheckKind.subst, subst_shift] at HG'
     apply ComputedJointCheck.lam HG'
     have hΓA : OnCtx (A :: Γ) (env.IsType univs) := ⟨hΓ, u, hA⟩
