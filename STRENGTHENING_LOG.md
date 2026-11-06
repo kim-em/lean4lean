@@ -34915,3 +34915,51 @@ strengthening gap or excluded circular framework. All 1,033 source hashes
 remained fixed. The original-probe root remains independent of the old
 nested-eta frontier. Original weakN_iff sorry and executable unchanged;
 GOAL.md active; no PR extraction or Lean/Lake patch.
+
+
+## 2026-11-06 21:23:04 UTC — Replace the saturated chosen-cut stop by a paired unused-binder minimum
+
+Added `ProofErasureEqSaturatedPaired.lean`. The canonical five-argument telescope
+and ordinary type uniqueness prove `eq_rec_five_pi_domain_prop`: any displayed
+Pi domain at such a source is typed at Sort zero, including a converted native
+recovery domain. No inhabitant of that proposition is inferred.
+
+`EqSpecializationFrame.unused_domain_interpretation` lifts the actual typed
+substitution and its erasure beneath an arbitrary actual domain. The original
+target substitutions stay below the new binder; this is a raw context
+interpretation, not a target assignment to the extended source context.
+`compute_under_unused_frame` reifies actual tracked component paths through
+one unused binder insertion, preserves the original chosen assignment, follows
+the older agreeing frame below that binder, and proves exact equality of the
+two lifted erased endpoints. Primitive paths remain in their original scope.
+
+`saturated_hole_cut_eq_or_smaller` combines the actual non-level root classifier
+with canonical domain typing. Its eta case retains the actual recovered domain,
+literal proof-marker body, strict decrease, original actual body continuation
+minimum, bounded completion, outgoing lower specialization and lifted raw scope
+interpretation. The supplied old agreeing frame does not require a new target
+proof image.
+
+`UnusedPairedEqBodyMinimum` stores the old lower specialization and agreeing
+frame together with that smaller proof-binder minimum. The connected theorem
+`ChosenEqSpineCut.eq_or_paired_minimum` now treats both branches of the previous
+classifier: short eta returns `PairedEqBodyMinimum`; saturated eta returns
+`UnusedPairedEqBodyMinimum`. There is no terminal five-slot cut alternative
+in this theorem. The old theorem remains available unchanged.
+
+Imported the result into the global module and documented the exact limit.
+The direct chosen-cut classifier now descends strictly in both eta cases,
+but the unused-binder representation still needs closure through further
+ambient insertions, annotation changes, selected inner roots and actual
+continuation consumption. No agreement is inferred from an arbitrary raw
+continuation map. The original-probe supply-boundary theorem is unchanged;
+this is not a sufficient irreducible obligation strictly smaller than PropFront.
+
+Validation: 1059 build jobs including the global theorem and established
+regressions; 56 declarations recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening gap or excluded circular framework. All 1,034 source hashes
+remained fixed. Original-probe root independent of the old nested-eta frontier.
+Original weakN_iff sorry and executable unchanged; GOAL.md active;
+no PR extraction or Lean/Lake patch.

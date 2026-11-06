@@ -4,6 +4,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleto
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqDelayedSupply
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPairedEta
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChosenCut
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSaturatedPaired
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -126,6 +127,16 @@ cut with no actual pending supply, retaining both counted path segments.
 This does not derive agreement for an arbitrary continuation map. Relating
 the paired frame to later actual consumption, handling the saturated case,
 and lifting the construction through ambient embeddings remain open.
+`ChosenEqSpineCut.eq_or_paired_minimum` now replaces that terminal saturated
+cut by a strictly smaller `UnusedPairedEqBodyMinimum`. The actual fresh domain
+is proved to be a proposition. Its sixth argument is the literal proof marker;
+the older chosen assignment and frame stay below the unused binder, and the
+lifted actual map supplies its raw scope interpretation. No target inhabitant
+is assumed. `compute_under_unused_frame` lowers tracked component computations
+through such an insertion while preserving both older assignments and exact
+erased endpoint agreement. These one-step results still require iteration
+through subsequent ambient scopes and actual continuation consumption; they
+do not yet strengthen the original-probe supply boundary below.
 `minimum_frontier` iterates this decrease
 by strong induction and reaches a component-only current path with completion
 at both endpoints. The conclusion retains this actual

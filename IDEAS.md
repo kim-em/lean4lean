@@ -20110,3 +20110,27 @@ Saturated prefixes, ambient embeddings and subsequent continuation consumption
 remain open. The original-probe frontier and weakN_iff are unchanged. Validation:
 1058 jobs, 50 recursive roots, maximum closure 11,976; only propext,
 Classical.choice and Quot.sound, all 1,033 source hashes fixed.
+
+
+## 2026-11-06 21:23:04 UTC — Saturated eta keeps its older frame below an unused proof binder
+
+**Idea.** Do not extend a fully consumed target assignment with an unavailable
+proof inhabitant. Keep the five completed arguments and their agreeing frame
+below the actual new binder, and lift only the actual context map.
+
+**Verified.** `eq_rec_five_pi_domain_prop` identifies every displayed domain at
+a typed five-argument prefix as a proposition. `saturated_hole_cut_eq_or_smaller`
+returns an actual strictly smaller proof-binder minimum, outgoing lower
+specialization and lifted raw context interpretation. `eq_or_paired_minimum`
+replaces the previous terminal saturated cut by `UnusedPairedEqBodyMinimum`,
+which retains the original assignment and agreeing frame. Component computations
+beneath one unused domain descend while preserving both lower assignments and
+exact substituted erased endpoints (`compute_under_unused_frame`).
+
+**Verdict.** The direct chosen-cut classifier now strictly descends in both
+short and saturated eta cases. This does not yet give an invariant closed under
+all subsequent inserted scopes and continuation consumption. No target proof
+inhabitant or arbitrary continuation-map agreement is assumed; the original
+probe frontier and strengthening gap remain unchanged. Validation: 1059 jobs,
+56 recursive roots, maximum closure 11,976; only propext,
+Classical.choice and Quot.sound, all 1,034 source hashes fixed.
