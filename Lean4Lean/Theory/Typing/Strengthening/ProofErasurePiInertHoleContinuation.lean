@@ -133,7 +133,7 @@ theorem SpineBinderHole.focus_path {C : ScopedHole Δ Θ}
 at its inner source with exactly the same budget. This is a non-increasing
 scope move, not a strict-decrease claim. The original whole-path minimum
 ranges over all stages, endpoints and original continuation competitors. -/
-theorem SpineBinderHole.focus_minimum {C : ScopedHole Δ Θ}
+private theorem focus_minimum_reified {C : ScopedHole Δ Θ}
     (HC : SpineBinderHole C) (HT : TypedSource Δ (C.plug e))
     (R : ScopedComputeCount (PiInertStage D n) ct Δ (C.plug e) endpoint)
     (HK : PiInertTypedContinuationRun D Ω out Δ K endpoint ck)
@@ -146,5 +146,20 @@ theorem SpineBinderHole.focus_minimum {C : ScopedHole Δ Θ}
   obtain ⟨m, c, tail, l, hc, RT, HK''⟩ := EL e (j+k) (HLC later j e body k RJ HK')
   have HH := hmin m c tail l RT HK''
   omega
+
+/-- Focus a typed minimum without introducing a redundant identity frame
+when the hole is empty. Nonempty holes retain the general reification;
+strict progress through those frames is not asserted here. -/
+theorem SpineBinderHole.focus_minimum {C : ScopedHole Δ Θ}
+    (HC : SpineBinderHole C) (HT : TypedSource Δ (C.plug e))
+    (R : ScopedComputeCount (PiInertStage D n) ct Δ (C.plug e) endpoint)
+    (HK : PiInertTypedContinuationRun D Ω out Δ K endpoint ck)
+    (hmin : ∀ later j tail l, ScopedComputeCount (PiInertStage D later) j Δ
+      (C.plug e) tail → K tail l → ct+ck ≤ j+l) :
+    PiInertTypedContinuationMinimum D Ω out Θ e (ct+ck) := by
+  cases HC with
+  | hole => exact ⟨K, n, ct, ck, endpoint, HT, R, HK, rfl, hmin⟩
+  | appFn HC => exact focus_minimum_reified (.appFn HC) HT R HK hmin
+  | lamBody HC => exact focus_minimum_reified (.lamBody HC) HT R HK hmin
 
 end Lean4Lean.VEnv.Strengthening

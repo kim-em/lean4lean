@@ -19861,3 +19861,33 @@ selected continuation structure or a secondary beta/administrative count;
 no such decrease is yet proved. No sufficient smaller obligation or completed
 strengthening theorem is claimed. Validation: 1047 jobs, 40 audited
 roots, maximum closure 11,976, 1,022 frozen source hashes.
+
+
+## 2026-11-06 20:04:38 UTC — Test and repair the equal-cost continuation measure
+
+**Idea:** use the selected continuation's frame count as a secondary measure
+when primitive count does not decrease.
+
+**Verdict:** naive application is refuted, and a direct-suffix case is proved.
+`PiInertFrameMinimum.idle_refocus` constructs another minimum at the identical
+source, context and primitive cost with one extra frame. The old empty-hole
+focus introduced exactly this kind of identity application; repeated generic
+refocusing cannot justify frame descent. Empty-hole `focus_minimum` now retains
+the original selected path directly. Nonempty holes still use general
+reification and have no claimed decrease.
+
+`PiInertRunFrames.next_application` proves strict removal of selected frames
+through the retained prefix and first application, before any refocusing.
+When the target prefix is full, arbitrary pending arguments preserve bounded
+completion and its constructed embedding. `direct_application_progress` keeps
+the actual whole suffix and selected tail, explicitly constructing both
+frame-refined minima. Positive preceding component cost lowers the primary
+measure; zero cost lowers the selected frame count by one.
+
+Remaining: underfilled prefixes need actual pending-argument agreement, and
+retained lambda wrappers need an execution decomposition that avoids
+reintroducing the frames just removed. The existing supplied eta-consumption
+history is a candidate for preserving the full vector rather than focusing
+on an underfilled fresh body. No global termination or sufficient smaller
+obligation is proved. Validation: 1048 jobs, 35 audited roots, maximum
+closure 11,976, 1,023 frozen source hashes.

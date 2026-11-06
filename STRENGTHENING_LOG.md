@@ -34445,3 +34445,50 @@ Remaining: derive non-proof argument agreement from actual supply ancestry
 and prove progress through equal-cost scope moves. The full GOAL.md objective
 is incomplete; weakN_iff retains its original sorry. No executable changes,
 PR extraction or coordination.
+
+
+## 2026-11-06 20:04:38 UTC — Direct application progress and the idle-focus obstruction
+
+Inspection of `SpineBinderHole.focus_path` showed that even an empty hole
+wrapped the selected path in an identity application with no pending arguments.
+Focusing the resulting zero-prefix minimum can reintroduce that same frame,
+so source syntax, context length and primitive cost do not ensure progress.
+The public empty-hole `focus_minimum` now returns the original typed path and
+continuation. Nonempty holes retain the old helper and its stated limitation.
+
+Added `ProofErasureEqFrameProgress.lean`. Saturated target prefixes admit
+arbitrary additional pending arguments, preserving the same constructed
+embedding. `PiInertRunFrames` records the selected run's actual application
+and retained frames while keeping its original certificates and unrestricted
+competitor predicate. Every existing actual run has a frame count. Following
+its retained prefix to the next actual application yields a strictly smaller
+selected tail count, with all source typings, suffix computation and
+competitor equivalence retained.
+
+`PiInertFrameMinimum` adds this count to the existing primitive minimum, with
+no assumption of secondary minimality. `idle_refocus` formally constructs a
+minimum at the same source/context/cost and frame count plus one; it witnesses
+the obstruction to using generic reification as a decreasing transformation.
+
+`EqTargetPrefixEmbedding.direct_application_progress` handles a direct actual
+application whose target prefix is full. Its input retains the exact endpoint
+map, proof-endpoint history, source and whole-source typings, selected prefix
+and suffix, tail frame witness, and original competitor minimum. It constructs
+both the parent's frame-refined minimum and the whole next-spine minimum with
+the same selected tail. The embedding survives proof endpoint transport and
+pending application. The primitive cost strictly drops when the preceding
+component path has positive cost; otherwise the actual tail has one fewer
+frame. No synthetic identity frame is inserted into this transition.
+
+Validation: 1048 jobs, including global and established regressions. All
+35 public roots, including both prior minimum APIs affected by the
+focus implementation, passed recursive type/value/constructor/recursor and
+axiom checks, maximum closure 11,976. Only propext, Classical.choice
+and Quot.sound occur; no owned diagnostics, sorryAx, strengthening gap or
+excluded circular framework. All 1,023 source hashes remained unchanged.
+
+Remaining: preserve actual supplied-argument ancestry for underfilled prefixes
+and move through retained lambda wrappers without recreating continuation
+frames. Non-proof agreement remains open. The direct lexicographic decrease
+is not a global termination proof, and GOAL.md remains incomplete. The
+original weakN_iff sorry is unchanged. No executable changes or PR extraction.

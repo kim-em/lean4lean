@@ -3,7 +3,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaFrameOri
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqDelayedSupply
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqEmbeddedMinimum
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqFrameProgress
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
 
 /-! # Eq exposure reaches a non-level root inside a minimum eta body
@@ -180,6 +180,16 @@ actual next scope move: it preserves the embedding invariant or records the
 consumed base domain without a Prop witness. Repeated proof-valued scope moves
 therefore need no new agreement assumption. Non-proof argument agreement and
 termination through equal-cost scope moves remain open.
+`PiInertFrameMinimum.idle_refocus` now proves a concrete obstruction to a naive
+frame measure: empty identity refocusing preserves source, context and cost
+while adding a frame. Empty-hole `focus_minimum` therefore retains the original
+path directly. `PiInertRunFrames.next_application` removes selected frames
+before any refocusing. For a direct application whose target prefix is full,
+`direct_application_progress` keeps the actual whole suffix and its embedding:
+the primitive cost decreases, or at equal cost the selected tail has one fewer
+frame. This does not yet cover underfilled prefixes or restoration of retained
+lambda wrappers; those cases still need their actual supply history or a
+progress-preserving execution decomposition.
 Component-only
 transitions through enclosing wrappers still need target agreement from their
 actual histories; coverage of arbitrary wrapped-body histories remains open. `read_full_eta_loss_in_minimum` reads a head-losing root
