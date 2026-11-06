@@ -18818,3 +18818,22 @@ without asking native recovery to survive substitution. Arbitrary mixed-frame
 specialization ancestry and the recursive elimination of the remaining eta
 are still open. This is neither a proof of `weakN_iff` nor a proved sufficient
 obligation smaller than `PropFront`.
+
+
+## 2026-11-06 14:49:09 UTC — Keep the actual remaining spine during eta consumption
+
+**Idea.** The existing consume theorem preserved the target completion but
+left the remaining source arguments only as substituted target terms. Retain
+the independently computed source tail as well, with whole-spine typing, so
+another argument-supply step has actual source ancestry available.
+
+**Verdict: proved for the explicit supply/consume step.** The new theorem
+preserves the chosen substitution and residual target completion, reifies
+body/argument/tail histories in their own scopes, and returns a whole-spine
+equality at its original type plus the exact erased instantiated vector.
+Ordinary source context conversion also preserves the specialization, and a
+computed annotation supplies the converted typing and unchanged erasures.
+A short prefix of the whole completion directly feeds later cut classification
+and singleton readout. Deriving these inputs throughout arbitrary nested
+continuation frames remains open; this does not establish strengthening or a
+sufficient irreducible obligation smaller than `PropFront`.

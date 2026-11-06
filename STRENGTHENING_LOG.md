@@ -32771,3 +32771,49 @@ closure 11,648, and 980 frozen source hashes. All changed modules are
 warning free. Audits include types, values, opaque bodies, constructors and
 recursor RHSs; only propext, Classical.choice and Quot.sound occur. Forbidden
 strengthening and replacement obligations are absent.
+
+
+## 2026-11-06 14:49:09 UTC — Whole-spine specialization across consumption and annotation conversion
+
+The preceding goal turn made verified progress in `dcea7c34`; the worktree was
+clean at that commit when this turn began.
+
+Added `ProofErasureEqSpineInstantiation.lean`. The source specialization now
+survives an eta consumption with its remaining source arguments retained.
+The consumed argument is typed at the displayed domain using the whole
+spine's typing. Taking the tracked prefix supplies its target binder image,
+so no separate image-agreement hypothesis is needed. Body-component and
+argument computations are independently reified. The resulting body equality
+is instantiated semantically, then combined with the consumed argument's
+equality to type the new head at the original application. Independent tail
+computations are reified under that head equality, preserving the whole
+spine's original assigned type.
+
+`EqPrefixSpecializationAt.append_pending` restores the explicitly represented
+source tail to the source vector. Component congruence then updates this tail
+to its computed actual values while keeping the chosen substitution and the
+original residual target completion. The main theorem returns the exact raw
+instantiated vector, actual body/tail erasures, and consumed argument equality.
+This provides whole-spine supply data for another split/eta/consume step,
+rather than only a target-only completion for the consumed prefix.
+
+`source_convert` preserves the chosen specialization along ordinary source
+context conversion. `compute_annotation` reifies a retained annotation path,
+converts the source typing, and proves that all argument erasures remain
+unchanged. No guarded path is transported across either substitution or
+context conversion.
+
+`CountedLaterEtaBodyCut.eq_or_eta_of_completion` derives a selected short
+prefix's typing, nonproof status and specialization from that whole spine.
+The retained typed eta origin supplies its current Pi domain. Existing
+wrapper exclusion, root classification and both singleton readouts then
+return the original target equation or the same native eta cut. The global
+Eq result imports and documents these operations; its main statement remains
+unchanged. Full arbitrary mixed-frame ancestry and recursive eta elimination
+remain open. Executable unchanged; no PR extraction or coordination.
+
+Validation: 1006 build jobs, 6 public/full-result audit roots, maximum
+closure 11,648, 981 frozen source hashes. Changed modules are warning
+free. Audits traverse types, values, opaque bodies, constructors and recursor
+RHSs; only propext, Classical.choice and Quot.sound occur, and forbidden
+strengthening/replacement obligations are absent. The active goal is incomplete.

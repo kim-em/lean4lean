@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertContinuationFrames
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPrefixInstantiation
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSpineInstantiation
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
 
 /-! # Eq exposure reaches a non-level root inside a minimum eta body
@@ -45,7 +45,13 @@ the remaining eta recursively remain open. `EqPrefixSpecializationAt.compute_ins
 specialization through the two endpoint histories when the actual argument's
 agreement with the chosen target binder image has been established.
 `EqPrefixSpecializationAt.eta_compute_inst` derives that agreement when the
-prefix and its next actual argument share the retained target completion. -/
+prefix and its next actual argument share the retained target completion.
+`EqPrefixSpecializationAt.eta_compute_spine_inst` also retains the independently
+computed remaining source arguments, the whole spine's assigned type and exact
+erasure. `compute_annotation` preserves the chosen specialization across a
+computed retained annotation. `CountedLaterEtaBodyCut.eq_or_eta_of_completion`
+then derives short-prefix inputs from that whole completion and reads its
+singleton cases. Arbitrary mixed-frame ancestry is still not established. -/
 theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hreg : recursorData ``Eq.rec = some data) (hoff : data.majorOffset = 5)
