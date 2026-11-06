@@ -33240,3 +33240,38 @@ The root's typing does not itself give that ancestry. A possible next independen
 restriction is excluding core matching using proof erasure of the typed Eq major;
 that argument has not yet been implemented. The requested final deliverable is
 not achieved. No executable changes, PR extraction or coordination.
+
+
+### 2026-11-06 16:21:21 UTC — Reduce the selected failure to a short singleton root
+
+Added `ProofErasureTypedEqCoreExclusion.lean`. `typed_eq_major_proof` reifies
+an actually typed six-argument erased Eq spine, recovers its two canonical
+universe parameters, uses `eqRecApp_typings`, and erases the actual proof major.
+`typed_eq_no_core_root` analyzes each registered and template core rule. A valid
+Eq iota match has major offset five, hence exactly the typed six-slot shape;
+its constructor observation contradicts the literal proof marker. This argument
+requires neither component ancestry nor an assumed arity bound.
+
+`typed_nonstructural_eq_head_loss_singleton` combines this exclusion with the
+existing level, constant, identity, function-eta and structure exclusions.
+Only the two singleton forms remain. Their code generation supplies arity at
+most five. `NonstructuralEqHeadCompletionFailure.singleton` adds these facts at
+the same selected root, preserving the exact paths, tracked hole and cost bound;
+`SingletonEqHeadCompletionFailure.forget` recovers the prior witness.
+The global theorem now returns the singleton failure with no new hypotheses.
+
+Validation: 1016 build jobs including the global theorem and the established
+ContextualCastFeedback/CoreFamilySubstitutionBarrier regression modules.
+All 7 public owned declarations passed the recursive dependency audit,
+including private helpers through their callers (maximum closure 11,795).
+Only propext, Classical.choice and Quot.sound occur. No weakN_iff, weakN_inv,
+sorryAx or forbidden framework dependencies; no diagnostics in owned modules.
+All 991 frozen source hashes remained unchanged across build and audit.
+
+The unresolved step is still semantic argument ancestry. The selected root is
+now proved short and singleton, but its arguments have not been related back to
+the original target throughout arbitrary mixed wrapper histories. The abstract
+typed continuation permits general context substitutions; the concrete original
+execution must supply the target-agreement witnesses. The requested proof,
+counterexample or sufficient strictly smaller irreducible obligation is not yet
+achieved. No executable changes, PR extraction or coordination.

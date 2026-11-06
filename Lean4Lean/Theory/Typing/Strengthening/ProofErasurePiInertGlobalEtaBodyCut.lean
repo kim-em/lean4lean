@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertTrackedHeadHole
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureTypedEqCoreExclusion
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSpecializationFrames
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -56,7 +56,7 @@ next application unless its current endpoint already exposes a carrier. The
 next application inherits full minimality and the prefix preserves joint
 competitors (`PiInertNextApplication.joint_minimum`). Its count is positive:
 `eq_positive` excludes zero-cost Eq exposure through arbitrary mixed frames.
-The conclusion additionally selects a `NonstructuralEqHeadCompletionFailure`
+The conclusion additionally selects a `SingletonEqHeadCompletionFailure`
 within that smaller budget. Its exact hole follows function positions, retained
 lambda bodies and identity payloads. The selected root excludes native
 structure recovery at every finite stage: its hypothetical rigid assignment
@@ -64,8 +64,12 @@ would propagate through the tracked hole and back along the typed prefix,
 contradicting the sort-ending execution. Forgetting these restrictions recovers
 `EqHeadCompletionFailure` and then `TypedWrappedHeadLoss`. The root also excludes
 level conversion, constant expansion, identity expansion and native function
-eta, even across arbitrary mixed continuation frames. A short selected Eq root is necessarily singleton
-(`pi_inert_short_eq_head_loss_singleton`). The selected loss can occur later
+eta, even across arbitrary mixed continuation frames. Canonical typing forces
+the sixth Eq argument to erase to proof; registered iota patterns require a
+visible constructor there. `typed_eq_no_core_root` therefore excludes ordinary
+core reduction at the selected root without any ancestry or arity premise.
+The root must be one of the two singleton forms, whose code generation then
+derives its arity bound of five (`typed_nonstructural_eq_head_loss_singleton`). The selected loss can occur later
 than the original nested eta. `EqHeadCompletion.read_loss` derives both short
 arity and semantic readout from one completing realization, allowing ambient
 unused binders. Thus this branch now explicitly lacks any such completion at
@@ -136,7 +140,7 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
       ∃ innerA innerU bodyLs bodyPre smaller, 0 < smaller ∧ smaller < cost ∧
         PiInertTypedContinuationMinimum D (proofEraseCtx Γ') out (innerA :: A :: proofEraseCtx Γ')
           (.app ((ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre).liftN 1) (etaArgument innerU)) smaller ∧
-        NonstructuralEqHeadCompletionFailure D Γ v w [α,a,M,m,b] smaller ∧
+        SingletonEqHeadCompletionFailure D Γ v w [α,a,M,m,b] smaller ∧
         (EqHeadCompletion Γ v w [α,a,M,m,b] (innerA :: A :: proofEraseCtx Γ')
             (.app ((ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre).liftN 1) (etaArgument innerU)) ∨
           bodyPre.length = 5 ∧ etaArgument innerU = .proof ∧
@@ -261,7 +265,7 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
             · exact .inl Hlower
             · exact .inr ⟨stage, cost, ls, pre, pending, _, _, _, k, cp, ct,
               RC, hminAll, hcostExact, HL, hshort, HA, RP, HTpre, hk, RN, SD, RT, HBcompleted,
-              innerA, innerU, bodyLs, bodyPre, smaller, HM.eq_positive heq Hhead HE, hsmall, HM, Hfailure, HPnested, innerStage, innerB, RNinner, SDinner,
+              innerA, innerU, bodyLs, bodyPre, smaller, HM.eq_positive heq Hhead HE, hsmall, HM, Hfailure.singleton heq hreg hoff hRec, HPnested, innerStage, innerB, RNinner, SDinner,
                 fun _ hr => HM.no_rigid_tail heq hs HCout hr⟩
 
 end Lean4Lean.VEnv.Strengthening

@@ -19057,3 +19057,39 @@ irreducible obligation strictly smaller than PropFront is claimed.
 
 Validation: 1015 jobs, 14 audited roots, maximum closure 11,789;
 990 frozen source hashes. Executable unchanged; no PR extraction or coordination.
+
+
+### 2026-11-06 16:21:21 UTC — Typed canonical Eq excludes every ordinary core root
+
+**Idea.** Read the major's actual typing rather than carrying its proof marker
+through an arbitrary argument history. Canonical Eq typing makes the sixth
+argument a proof. A registered iota match inspects exactly that slot and needs
+a visible constructor, contradicting proof erasure.
+
+**Verdict: checked, with no arity or ancestry premise.**
+`typed_eq_major_proof` derives the literal marker from any typed six-argument
+raw Eq spine, including arbitrary universe levels admitted by its typing.
+`typed_eq_no_core_root` excludes all ordinary core forms at any typed Eq head:
+registered direct definitions are incompatible with recursor registration,
+delta is excluded by the existing no-unfolding assumption, projections have
+the wrong head, and registered/template iota matches have a proof major.
+Matching itself fixes the saturated arity, so no global spine-length bound
+is needed.
+
+Combined with tracked head loss and structure exclusion,
+`typed_nonstructural_eq_head_loss_singleton` leaves exactly the specialized
+computed singleton or a general recovered singleton at an earlier finite
+stage. Code generation then derives the selected prefix's arity bound of five.
+The global theorem returns `SingletonEqHeadCompletionFailure` at the same root,
+hole, paths and smaller budget. Both singleton forms still require ancestry
+readout to obtain the original target equation.
+
+Next: retain shared argument completion through the concrete wrapper history.
+The abstract typed continuation admits arbitrary context substitutions; its
+typing witnesses alone do not provide the target agreement required by
+`EqSpecializationFrame`. Use the original path's pending arguments and actual
+consumption history rather than assuming this missing agreement. Goal incomplete;
+no sufficient irreducible obligation strictly smaller than PropFront is claimed.
+
+Validation: 1016 jobs, 7 audited public roots, maximum closure 11,795;
+991 frozen source hashes. Executable unchanged; no PR extraction or coordination.
