@@ -34826,3 +34826,43 @@ images, dependent retained annotations, and full strengthening coverage. This
 is a stronger necessary frontier, not a sufficient irreducible obligation smaller
 than PropFront. The original weakN_iff sorry and executable are unchanged.
 GOAL.md remains active; no PR extraction or Lean/Lake patch.
+
+
+## 2026-11-06 21:09:41 UTC — Preserve paired actual supply through nested eta components
+
+Added `ProofErasureEqPairedEta.lean`. `eta_frame` extends an existing agreeing
+frame beneath a dependent eta domain, using the next pending target argument
+on both sides. Its typing comes from the original completion and target-spine
+typing. The outgoing domain is the actual substituted domain; independence
+from the consumed binder is not required.
+
+`embedding` and `embedding_after_frame` recover the existing constructed
+embedding invariant from a chosen actual specialization. The latter retains
+the literal raw substitution and derives outgoing non-proof status from typed
+substitution. `eta_compute_frame` computes components in their actual incoming
+scope and preserves both chosen specializations and the same lifted frame.
+It returns the exact raw component endpoint, its exact substituted erasure,
+actual outgoing typing, and the embedding readout. It does not transport a
+primitive computation through substitution.
+
+`supplied_nested_eta_frame` derives the initial consumption frame from the
+original actual supplied argument and its computation, then lifts it beneath
+another eta binder. This explicitly handles a new annotation depending on
+the consumed older binder. There is no extra image-compatibility assumption.
+The generic frame lemma can be iterated while a target argument remains.
+
+Imported the local results in the global module and documented the exact
+remaining loss: the non-level-body-cut branch selects a fresh minimum and
+forgets this pair. The existing supply-boundary theorem is unchanged. Full
+coverage still requires preserving the pair through recursive cuts, ambient
+insertions and later actual supplies; these lemmas do not prove that coverage
+or a sufficient obligation strictly smaller than PropFront.
+
+Validation: 1057 build jobs including the global theorem and established
+regressions; 44 roots recursively audited through declaration types,
+values, constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening gap or excluded circular framework. All 1,032 source hashes
+remained fixed. The original-probe root is independently checked not to depend
+on the old nested-eta frontier. The original weakN_iff sorry and executable
+are unchanged. GOAL.md remains active; no PR extraction or Lean/Lake patch.

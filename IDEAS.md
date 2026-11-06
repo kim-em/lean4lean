@@ -20063,3 +20063,26 @@ Validation: 1056 jobs, 33 audited roots, maximum closure 11,976;
 only standard axioms. Remaining: non-proof supply/image agreement and dependent
 retained annotations, plus full strengthening coverage. This removes a concrete
 previous residue but does not satisfy the sufficient-obligation deliverable.
+
+
+## 2026-11-06 21:09:41 UTC — Keep actual supply agreement through nested eta
+
+**Idea.** Preserve the chosen target assignment and the actual consumption
+frame when descent opens another eta binder, instead of retaining only an
+existential embedding completion. Extend both assignments with the same next
+target argument; derive its domain typing from the completion.
+
+**Verified.** `EqPrefixSpecializationAt.eta_frame` handles dependent new domains.
+`supplied_nested_eta_frame` seeds the older consumption frame from an actual
+computed argument, without adding an image-agreement premise. `eta_compute_frame`
+keeps both assignments and their frame through arbitrary actual body-component
+computations and reads out embedding completion at the exact substituted raw
+endpoint. No primitive history is transported through the substitution.
+
+**Verdict.** A checked local preservation step, not a stronger global frontier.
+The non-level body-cut branch still discards this pair. Carrying the pair
+through its recursive minimum descent and iterated ambient insertions is the
+next obligation; saturation and arbitrary subsequent supplies are not covered
+by these lemmas. The original strengthening gap remains. Validation: 1057
+jobs, 44 recursive dependency roots, maximum closure 11,976; only
+propext, Classical.choice and Quot.sound, with all 1,032 source hashes fixed.

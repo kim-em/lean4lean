@@ -2,6 +2,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqTargetPrefixMinimum
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaFrameOrigin
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqDelayedSupply
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPairedEta
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -105,6 +106,15 @@ the assigned type of the whole supplied application. Its output retains the
 full actual supply for later consumption. The outer frame must already carry
 target agreement; deriving and linking those witnesses throughout every
 actual global history, including unused insertions, remains open.
+`supplied_nested_eta_frame` now derives the initial consumption frame from
+actual shared supply and preserves it beneath a further dependent eta binder.
+`eta_compute_frame` keeps both chosen substitutions and their paired frame
+through the new body's component computations, then recovers the existing
+embedding invariant at the exact substituted raw endpoint. These are local
+preservation steps: the non-level-body-cut branch of global minimum descent
+still forgets this pair, and carrying it through that recursion and ambient
+insertions remains open. The supply-boundary theorem below is not strengthened
+by these local lemmas alone.
 `minimum_frontier` iterates this decrease
 by strong induction and reaches a component-only current path with completion
 at both endpoints. The conclusion retains this actual
