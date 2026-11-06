@@ -33460,3 +33460,44 @@ exhausted target-vector case. The general continuation substitution alone
 still does not imply target agreement. Goal remains incomplete; no sufficient
 strictly smaller irreducible obligation is claimed. No executable changes,
 PR extraction or coordination.
+
+
+## 2026-11-06 17:10:49 UTC — Transfer retained completion into its changed annotation context
+
+Added `ProofErasureEqCompletionAnnotation.lean`. Its public
+`IteratedAmbientEqCompletion.compute_annotation` takes an actual raw top-domain
+computation and same-relation certificate descent, and preserves completion
+of the unchanged body in the new binder context. The body may use the binder.
+
+A private insertion lemma separates three cases. An empty inserted block
+uses the lower induction hypothesis. A top binder belonging to an inserted
+block is recomputed in the actual tail context and that same block is rebuilt.
+When the changed binder lies above the inserted block, its certificate descends
+to an actual lower-domain computation. Recursive completion moves to the new
+lower domain; ordinary context conversion types the same body and preserves
+its erasure; restoring the insertion gives the exact upper domain endpoint.
+The base EqHeadCompletion witness is decomposed into a pure specialization
+and its explicit insertion. Pure specialization uses actual context conversion
+to retain its chosen target substitution and argument agreement.
+
+Updated `ProofErasureEqCompletedEtaExecution.lean` to import the new theorem.
+Its existing retained-or-consumed execution result now returns completion in
+`A' :: Δ` in the retained component-only branch. Previously it returned only
+completion in `A :: Δ`. The exact domain/body/argument histories, endpoint,
+counts and consumed branch are preserved. No recovery certificate is moved
+across a semantic context conversion; the annotation computation supplies
+the needed lower certificates before actual source conversion.
+
+Validation: 1022 jobs with GlobalEtaBodyCut and the existing
+ContextualCastFeedback/CoreFamilySubstitutionBarrier regression modules. The
+new public theorem, all seven declarations in the updated execution module
+and the global theorem passed recursive dependency and axiom audit, maximum
+closure 11,802. Only propext, Classical.choice and Quot.sound occur; no
+weakN_iff, weakN_inv, sorryAx or excluded framework dependencies. No owned
+diagnostics; all 997 frozen source hashes unchanged during final build/audit.
+
+Remaining: arbitrary wrapper execution and its non-level body roots, plus eta
+after the target vector is exhausted. The retained component-only top-annotation
+transfer is now proved, not left as an extra premise. Goal remains incomplete;
+no sufficient strictly smaller irreducible obligation is claimed. No executable
+changes, PR extraction or coordination.

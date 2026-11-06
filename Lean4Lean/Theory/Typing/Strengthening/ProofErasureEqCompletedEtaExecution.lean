@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqIteratedConsumption
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqCompletionAnnotation
 
 /-! # Derive completion from the actual counted eta execution
 
@@ -205,12 +205,12 @@ theorem IteratedAmbientEqCompletion.consumed_eta_minimum
 
 
 /-- Split the actual entire suffix of a supplied eta expansion. In the retained
-case, completion or the selected body root is kept in the original binder
-context alongside the exact annotation history. In the consumed case,
+case, endpoint completion moves into the actual changed annotation context;
+a selected body root keeps its original binder context. In the consumed case,
 completion is derived at the exact beta endpoint or a completed body root is
 selected. Both cases retain the actual lambda, argument and suffix paths and
-their original count bound. Moving a retained completed body into a changed
-annotation context is deliberately not inferred from ordinary context typing. -/
+their original count bound. The retained endpoint transfer is derived from
+the actual annotation computation through each unused insertion. -/
 theorem IteratedAmbientEqCompletion.eta_execution
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hΓ : OnCtx Γ (env.IsType univs))
@@ -231,7 +231,7 @@ theorem IteratedAmbientEqCompletion.eta_execution
       ScopedComputeCount (PiInertStage D n) cd Δ A A' ∧
       ScopedComputeCount (PiInertStage D bodyStage) cb (A :: Δ)
         (.app ((ProofShape.mkApps (.const ``Eq.rec ls) pre).liftN 1) (etaArgument u)) body' ∧
-      (IteratedAmbientEqCompletion Γ v w original (A :: Δ) body' ∨
+      (IteratedAmbientEqCompletion Γ v w original (A' :: Δ) body' ∨
         IteratedCompletedEqSpineCut D Γ v w original bodyStage (A :: Δ)
           (.app ((ProofShape.mkApps (.const ``Eq.rec ls) pre).liftN 1) (etaArgument u)) body' cb)) ∨
     (∃ A' body' x' rest' cf ca cs cd cb bodyStage, cf+ca+cs ≤ cost ∧ cd+cb = cf ∧
@@ -260,7 +260,7 @@ theorem IteratedAmbientEqCompletion.eta_execution
         ProofShape.mkApps]
     rcases (ES ▸ HPbody).counted_spine_or_cut heq hs hΓ (ES ▸ RB) with
       ⟨_, _, _, _, _, HPend⟩ | Hcut
-    · exact .inl HPend
+    · exact .inl (HPend.compute_annotation (pi_inert_stage_certificate_descent heq hs n) hΓ RD.forget)
     · exact .inr (ES.symm ▸ Hcut)
   · obtain ⟨cd, cb, bodyStage, hcb, RD, RB, Hbody⟩ :=
       HP.consumed_eta_execution heq hs hΓ ht RN SD RF RX

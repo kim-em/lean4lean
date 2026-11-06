@@ -19237,3 +19237,29 @@ PropFront; `weakN_iff` remains open.
 Validation: 1021 jobs; 8 audited roots including the global theorem;
 maximum closure 11,802; 996 frozen source hashes. No executable changes,
 PR extraction or coordination.
+
+
+## 2026-11-06 17:10:49 UTC — Compute a used binder annotation through iterated completion
+
+Verdict: verified progress; the top-binder annotation gap in the retained
+component-only eta branch is closed.
+`IteratedAmbientEqCompletion.compute_annotation` preserves completion under
+an actual computation of the existing top annotation, even when the completed
+body uses that binder. It needs certificate descent for the annotation steps,
+not substitution closure of native guards. If the changed binder is in an
+inserted unused block, rebuild that block. If it is above the block, descend
+the actual annotation certificate, recursively convert the lower completion,
+and restore the exact changed insertion.
+
+The existing `eta_execution` theorem now returns retained endpoint completion
+in the actual new annotation context. Selected non-level body roots remain
+in the original body scope, where their recorded paths occurred. Arbitrary
+semantic context conversion is not asserted: actual computation supplies the
+lower annotation image needed to reconstruct each insertion.
+
+Still open: non-level body roots, arbitrary wrapper ancestry and the exhausted
+target-vector/proof-major case. The main strengthening theorem is unchanged;
+no sufficient irreducible obligation strictly smaller than PropFront is claimed.
+Validation: 1022 jobs, 9 audited roots including the global theorem,
+maximum closure 11,802, 997 frozen source hashes. No executable changes,
+PR extraction or coordination.
