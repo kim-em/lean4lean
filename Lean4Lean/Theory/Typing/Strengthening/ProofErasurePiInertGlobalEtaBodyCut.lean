@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertContinuationFrames
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertRetainedEtaContinuation
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
 
 /-! # Eq exposure reaches a non-level root inside a minimum eta body
@@ -28,7 +29,11 @@ root is native function eta. Eliminating this nested eta through the retained
 application continuation remains open. `CountedEtaBodySpineCut.nested_eta_cut`
 supplies a smaller body/continuation minimum in both the consumed and retained
 lambda cases. `CountedEtaBodySpineCut.nested_eta_frames` retains concrete typed
-application and annotated lambda frames ending at this same original output. -/
+application and annotated lambda frames ending at this same original output.
+For the retained case, `pi_inert_native_eta_two_scope_minimum_no_components`
+excludes component-only function histories on both sides of a typed application
+continuation, given its actual later-consumption decomposition. The general
+mixed-frame elimination and later non-component body analysis remain open. -/
 theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hreg : recursorData ``Eq.rec = some data) (hoff : data.majorOffset = 5)

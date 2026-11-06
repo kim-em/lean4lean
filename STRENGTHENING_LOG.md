@@ -32588,3 +32588,38 @@ types, values, opaque bodies, constructors and recursor RHSs. Only propext,
 Classical.choice and Quot.sound occur; forbidden strengthening and
 replacement-obligation dependencies are absent. Changed modules are warning
 free. Executable unchanged; no PR extraction or coordination.
+
+
+## 2026-11-06 14:08:27 UTC — Exact retained-eta bypass through an application continuation
+
+Added `ProofErasurePiInertRetainedEtaContinuation.lean` and imported it from
+the full Eq-exposure result. The new short-spine typing theorem handles all
+pending arguments by actual spine reification, erasure reflection and
+semantic eta congruence. It preserves the original assigned result type.
+
+The bypass combines an original-scope counted short-function/argument path
+with the later-scope component-body bypass. Typed substitution acts on the
+origin and endpoint only. Both finite guard stages remain independently
+variable, the second path retains the exact output, and all three later
+function/argument/suffix costs survive exactly.
+
+The minimum contradiction prepends the original prefix and reuses an
+arbitrary remaining continuation at the same later output. It saves the
+original eta occurrence; discarded annotation computation can only improve
+the bound. The native version constructs its typed origin and counted short
+path from the actual native eta histories, requiring no separate origin
+assumption or substitution law for native recovery.
+
+Limit: the actual later-consumption decomposition and typing of the long
+application are inputs. General extraction through mixed frames and analysis
+of later non-component bodies remain open, as does propagation of the Eq
+target specialization. The full Eq theorem's statement is unchanged and
+weakN_iff still has its original sorry; no completed GOAL.md deliverable is
+claimed.
+
+Validation: 1001 build jobs, 5 public/full-result audit roots, maximum
+dependency closure 11,643; 976 frozen source hashes. Audit traverses
+values, types, opaque bodies, inductive constructors and recursor RHSs; only
+propext, Classical.choice and Quot.sound occur. Forbidden strengthening and
+replacement-obligation dependencies are absent; changed modules have no
+warnings. Executable unchanged; no PR extraction or coordination.

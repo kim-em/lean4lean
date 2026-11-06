@@ -18637,3 +18637,42 @@ Validation: 1000 build jobs, 23 complete dependency roots, maximum
 closure 11,643; 975 frozen source hashes. Only propext, Classical.choice
 and Quot.sound; no forbidden dependencies or warnings in changed modules.
 Executable unchanged; no PR extraction or coordination.
+
+
+## 2026-11-06 14:08:27 UTC — Bypass retained eta across one typed application frame
+
+**Idea.** Combine the exact counted short-function readout before endpoint
+substitution with the typed-origin bypass at later consumption. Keep both
+paths in their original scopes; only substitute their common endpoint.
+An arbitrary continuation after the later output remains unchanged.
+
+**Verdict: two-scope bypass and minimum contradiction proved.**
+`TypedEtaOrigin.shorten_spine` derives actual typing of the entire short
+application from the retained long application, including pending arguments
+introduced only after substitution. It reifies the actual argument vector,
+reflects the long head to the stored actual eta, and uses ordinary semantic
+application congruence. This avoids an extra short-spine typing assumption.
+
+`pi_inert_retained_eta_two_scope_bypass` retains exact first-scope function
+and argument counts and exact later-scope function, argument and suffix
+counts. It reaches the same final output. The two computations are never
+substituted. `pi_inert_two_scope_minimum_no_retained_components` combines
+these paths with the original prefix and fixed remaining continuation to
+contradict a minimum that includes the eta occurrence. Annotation costs may
+be discarded. `pi_inert_native_eta_two_scope_minimum_no_components` derives
+the origin and short path directly from the native eta and its retained
+annotation/function histories.
+
+This excludes the component-only case across a single application frame
+when its actual later-consumption decomposition is supplied. The full Eq
+exposure module imports and documents the result, but its main theorem's
+statement is unchanged. Still open: extract and analyze later decompositions
+through arbitrary mixed frames, preserve the original Eq specialization, and
+handle later bodies that leave the component-only form. This is not yet a
+proof of strengthening or a sufficient smaller replacement for PropFront.
+GOAL.md remains active.
+
+Validation: 1001 build jobs, 5 public/full-result dependency roots,
+maximum closure 11,643; 976 frozen source hashes. Only propext,
+Classical.choice and Quot.sound; no forbidden dependencies or changed-module
+warnings. Executable unchanged; no PR extraction or coordination.
