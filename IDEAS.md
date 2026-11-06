@@ -19093,3 +19093,39 @@ no sufficient irreducible obligation strictly smaller than PropFront is claimed.
 
 Validation: 1016 jobs, 7 audited public roots, maximum closure 11,795;
 991 frozen source hashes. Executable unchanged; no PR extraction or coordination.
+
+
+### 2026-11-06 16:32:30 UTC — Preserve actual argument supply across ambient eta consumption
+
+**Idea.** Recover the completion information from the concrete supplied spine,
+not from an arbitrary typed continuation substitution. Keep the original unused
+binder block while the eta body, consumed argument and remaining arguments
+compute independently. Descend their actual endpoints before instantiation.
+
+**Verdict: checked for component-body consumption and finite compositions.**
+`EqPrefixSpecializationAt.compute_inst_below` transports the selected semantic
+binder image through a computed argument below ambient binders.
+`eta_compute_spine_inst_below` derives that image agreement from the shared
+completed source spine and retains the independently computed source tail.
+`EqHeadCompletion.consume_eta_components` opens the raw completion witness,
+recovers the actual eta domain from the given recovery certificate, splits the
+same actual source vector, and packages the exact consumed raw spine back into
+`EqHeadCompletion`. It takes no separate target-image agreement hypothesis.
+
+`EqSpineConsumptionHistory` composes concrete component, fresh-eta and consumed-
+eta steps with their original scopes and finite-stage paths. Completion and
+original-equation readout are proved for every finite history in this relation.
+This admits repeated concrete consumption under ambient unused binders; it does
+not assume that an arbitrary typed context substitution preserves completion.
+
+Still open: coverage of the actual global path through retained lambda and
+identity wrappers, including fresh eta beyond the original target vector.
+The relation deliberately makes this missing coverage explicit; it is not a
+claim that the global selected singleton already has such a history. An
+extension must retain the pending actual arguments through those wrappers and
+handle unused binders interleaved with eta binders. Goal incomplete; no new
+sufficient irreducible obligation strictly smaller than PropFront is claimed.
+
+Validation: 1017 jobs, 7 audited roots (six new public declarations and
+the existing global theorem), maximum closure 11,795; 992 frozen hashes.
+No executable changes, PR extraction or coordination.

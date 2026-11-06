@@ -33275,3 +33275,42 @@ typed continuation permits general context substitutions; the concrete original
 execution must supply the target-agreement witnesses. The requested proof,
 counterexample or sufficient strictly smaller irreducible obligation is not yet
 achieved. No executable changes, PR extraction or coordination.
+
+
+### 2026-11-06 16:32:30 UTC — Close concrete eta-consumption ancestry below unused binders
+
+Added `ProofErasureEqAmbientConsumption.lean`.
+
+The new ambient computation/instantiation lemma descends the body components
+under the fresh binder and unused block, and the actual argument in the outer
+ambient scope. It specializes only actual terms and semantic equalities. The
+exact raw endpoint equality follows from typed erasure substitution and
+`ProofShape.liftN_instN`. The whole-spine variant retains the independently
+computed remaining source arguments, its assigned type and chosen target
+substitution; shared completion derives binder-image agreement.
+
+`EqHeadCompletion.consume_eta_components` connects this to the raw invariant.
+It splits the supplied raw prefix/argument/tail in the same actual realization,
+recovers the displayed eta domain below ambient binders, derives its exact sort,
+and preserves the completion at the literal raw beta-consumption source. No
+additional agreement or lower inhabitant of an ambient binder is assumed.
+
+`EqSpineConsumptionHistory` records finite compositions of component histories,
+opening an eta binder while a target slot remains, and actual component-body
+eta consumption. Its `completion` theorem preserves the original target vector;
+`read_loss` proves the original equation when the resulting spine is the source
+of a head-losing primitive. The primitive's stage can differ from the histories.
+
+Validation: 1017 jobs including the new module, existing GlobalEtaBodyCut,
+ContextualCastFeedback and CoreFamilySubstitutionBarrier. All six public new
+declarations plus the global theorem passed the recursive dependency/axiom
+audit (7 roots, maximum closure 11,795); only propext,
+Classical.choice and Quot.sound. No weakN_iff, weakN_inv, sorryAx or excluded
+framework dependencies. No diagnostics in the new module. All 992 frozen source
+hashes remained unchanged through verification.
+
+This establishes a concrete repeated-consumption case, not coverage of every
+wrapped history selected by the global theorem. Retained/identity wrappers and
+fresh eta beyond all target slots remain open. The global theorem itself is
+unchanged this turn; the full strengthening goal is not complete. No executable
+changes, PR extraction or coordination.
