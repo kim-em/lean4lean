@@ -30681,3 +30681,33 @@ owned warnings. Independent experiments remain untouched. No executable changes,
 coordination or PR extraction. Original weakN_iff sorry remains; no final goal
 deliverable is claimed. Next: full-core primitives with beta cleanup of visible
 eta wrappers, followed by native/domain certificate coverage.
+
+
+### 2026-11-06 06:11:25 UTC — Eta-hidden spine exposure and projection simulation
+
+Added ProofErasureEtaApplicationCleanup and ProofErasureEtaSpineCleanup.
+Interpreted source typing reconstructs an actual Pi carrier for the consumer's
+non-proof function representative and retains its input sort. This forces proof
+erasure of arguments to proof-domain functions even when the source head is
+not a lambda. Applied right eta wrappers therefore beta-clean up for all input
+sorts while preserving the paired argument.
+
+sorted_eta_constant_spine_cleanup recursively removes wrappers on proper
+prefixes and returns either the exact constant/universe spine with paired
+arguments or one explicit whole-spine eta origin. The applied-spine theorem
+removes the latter by consuming another actual argument. The rigid-family
+version excludes it through actual carrier typing and rigid/Pi incompatibility.
+No generally false untyped whole-spine exposure is assumed.
+
+sorted_eta_projection_spine_cleanup uses rigid-family exposure for the actual
+constructor major, then performs the registered projection selection. Its
+output field is related by the original AmbientVariant. This is a checked
+primitive simulation after beta cleanup, not a global full-core closure theorem.
+The histories still use beta; full-core origin simulation, capture/template
+patterns and native/domain comparison coverage remain outstanding.
+
+Validation: 853 jobs; 8 complete type/value/constructor/recursor audits;
+maximum closure 8,357; 828 frozen hashes. Only propext, Classical.choice
+and Quot.sound, no forbidden dependencies, no owned warnings. Preserved both
+independent untracked experiments. No executable changes, coordination or PR
+extraction; the original strengthening sorry remains and the goal is unachieved.

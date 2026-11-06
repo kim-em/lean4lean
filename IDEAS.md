@@ -16954,3 +16954,50 @@ Validation: 851 build jobs; 24 complete audit roots, including the new
 constructors and recursors; maximum closure 11,161; 826 frozen hashes.
 Only standard axioms, no forbidden dependencies or owned diagnostics. No
 coordination, executable changes or PR extraction; original sorry remains.
+
+
+### 2026-11-06 06:11:25 UTC — Beta cleanup of eta-hidden constant prefixes and projection
+
+Previous goal turn: progress (ab62786d, arbitrary-function eta consumer beta
+transport for all input sorts). Revalidated HEAD and the independent untracked
+experiments. Continued toward full core primitives rather than reusing the
+neutral pattern proof under an unjustified shape-preservation assumption.
+
+Checked the primitive mismatch: eta on a constant-headed proper function prefix
+changes visible pattern structure. A supplied next argument can remove that
+wrapper by beta. A whole-spine eta wrapper cannot in general be removed without
+an argument, so unconditional exact spine exposure would be false for an
+arbitrary function-typed spine. Verdict: retain that alternative explicitly and
+exclude it by typing only at rigid-family carriers.
+
+Proved semantic Pi-carrier transport from interpreted ambient typing to the
+actual non-proof consumer representative with the same substituted erasure.
+Its input sort survives. Consequently a visible application of an interpreted
+proof-domain function supplies a proof-erased argument, without needing a
+literal lambda or native recovery. This closes right-wrapper beta cleanup for
+all input sorts; paired proof arguments are fixed using atom non-proofness.
+
+Proved recursive constant-spine cleanup: proper-prefix eta wrappers disappear
+by beta, constants and universe lists remain exact, and arguments retain paired
+origins. The result either exposes that spine or records one whole eta origin.
+Supplying a further argument removes the latter alternative too. At a rigid
+family carrier, actual typing excludes the whole function-eta alternative via
+Pi/rigid-head incompatibility. This gives unconditional exposure there.
+
+Concrete primitive continuation: projection of the paired saturated constructor
+computes through beta cleanup followed by the exact registered projection rule.
+The selected output remains paired with the original field. No semantic field
+comparison, native argument recovery or target typing oracle is supplied.
+
+Limits: the origin histories currently remain beta histories. Full-core source
+histories, eta-body reflection suitable for their simulation, and registered
+capture/template pattern cases still need integration. The projection result
+covers the structural paired-major case; a whole-origin primitive case must
+also be supplied by full-core origin simulation. Native/domain inferred
+certificate coverage remains missing. No strengthening proof, counterexample
+or strictly smaller final obligation is claimed.
+
+Validation: 853 build jobs; 8 complete dependency audit roots; maximum
+closure 8,357; 828 frozen source/import hashes. Only standard axioms,
+no forbidden dependencies or owned diagnostics. No coordination, executable
+changes or PR extraction. Original weakN_iff sorry remains.
