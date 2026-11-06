@@ -31824,3 +31824,39 @@ no weakN_iff, weakN_inv, sorryAx or forbidden closure/alignment assumptions; no
 owned warnings. The original strengthening theorem is still open. Shorter
 generated telescopes and native eta remain the next work. No executable changes,
 coordination or PR extraction.
+
+
+## 2026-11-06 11:16:17 UTC — General singleton cuts are discharged; native function eta remains
+
+`ProofErasureRecoveredEqPrefixCompletion.lean` proves fresh-opening invariance
+of the fully opened arguments and of any generated family guard. Its completion
+theorem inducts on missing target arguments while maintaining an actual typed
+substitution from the successively opened source context. The intended complete
+Eq prefix types each next target argument. At the five-argument base, guard
+descent removes the fresh proof major, rigid Eq-family injectivity reads the
+endpoint equation, and ordinary semantic substitution specializes it. No raw
+comparison substitution law is used. Raw code realization then gives same-context
+readout for a singleton at any initial segment of a typed five-argument prefix.
+
+`ProofErasureRecoveredEqComputedPrefix.lean` descends a selected partial-prefix
+singleton as a single lower root. Whole-source replay reifies the computed
+five-argument prefix, and separate carrier/index paths align its indices with
+the original lower endpoints. The source computation and guard may use different
+stages; universe-head changes and arbitrary component computations are admitted.
+
+`ProofErasurePiInertEtaCut.lean` applies this to the minimum-count exposure cut.
+Taking the first five component histories reconstructs a typed lower completion
+for every possible singleton arity. Thus every general singleton alternative
+now gives the original lower equation. The remaining alternative is an earlier
+native function-eta root with all original component histories, source typing
+and complete path segments retained. The theorem still assumes a typed lower
+origin for the whole five-argument prefix, including motive and minor.
+
+Validation: 974 build jobs with contextual-cast and core-family substitution
+regressions; 7 complete dependency roots, maximum closure 11,416;
+949 frozen source hashes. Types, values, opaque bodies, constructors and recursor
+rules audited; only propext, Classical.choice and Quot.sound. No weakN_iff,
+weakN_inv, sorryAx or forbidden closure/alignment premise; no owned warnings.
+GOAL.md remains open. Native function eta is the remaining cut case in this
+route, not a claim that the complete strengthening proof has only that obligation.
+No executable changes, coordination or PR extraction.

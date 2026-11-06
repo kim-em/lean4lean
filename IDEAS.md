@@ -17944,3 +17944,37 @@ Validation: 972 build jobs; 5 complete dependency roots; maximum
 closure 11,389; 947 frozen source hashes. Standard axioms only; no
 forbidden dependency or owned diagnostic. Executable unchanged; no coordination
 or PR extraction.
+
+
+## 2026-11-06 11:16:17 UTC — Every recovered singleton prefix reads its typed completion
+
+- Exclude early guards by comparing a fixed proposition with the fresh index:
+  superseded by a stronger completion argument. No separate fresh-variable
+  impossibility lemma or special literal Prop carrier is needed.
+- Supply missing prefix arguments directly to a recovered raw guard: not
+  assumed. Instead, open each missing argument as a fresh variable. The fully
+  opened argument vector and generated guard context remain literally identical.
+  This is proved for arbitrary comparison relations.
+- Carry a typed substitution alongside those fresh openings: proved. The
+  intended complete target prefix supplies each next argument's typing, using
+  ordinary application inversion and Pi-domain uniqueness. At five arguments,
+  remove the proof major and read the semantic endpoint equation. Only this
+  semantic equation is substituted; the guard never needs substitution closure.
+- Consequently every generated singleton prefix, including zero through four
+  arguments, forces equality of the indices of every typed five-argument
+  completion. Raw singleton code realization, exact lower root descent and
+  whole-prefix computation replay connect this result to original lower indices.
+- Combine with the minimum-count cut: proved. For a probe whose complete
+  five-argument prefix has a typed lower origin, exposure gives the original
+  lower equality or an earlier native function-eta cut on its original spine.
+  All general singleton alternatives are discharged. The residual still retains
+  the full prefix/tail, component histories, typing and guard stage.
+- Next: resolve the native function-eta cut without assuming arbitrary
+  same-stage substitution or application closure. This is a checked reduction
+  within the route; no strictly smaller sufficient PropositionFront obligation
+  or completion of GOAL.md is claimed.
+
+Validation: 974 build jobs; 7 complete dependency roots; maximum
+closure 11,416; 949 frozen source hashes. Standard axioms only, no
+forbidden dependency or owned diagnostic. Executable unchanged; no coordination
+or PR extraction.
