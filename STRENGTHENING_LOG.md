@@ -30376,3 +30376,37 @@ comparison and no claim of arbitrary ambient substitution or semantic coverage.
 Those are required further work toward the unchanged strengthening goal.
 Original sorry, executable and independent files preserved; no coordination or
 PR extraction/creation; no final GOAL.md deliverable claimed.
+
+
+### 2026-11-06 05:03:56 UTC — Checked comparison of neutral native eta beta residuals
+
+Added ProofErasureNeutralEtaChecking.lean. Its structural readout theorem takes
+an actual typed source, an exact ambient renaming and a computation expansion
+for each protected eta mark. It produces ComputedJointCompare in either mode.
+The renaming step preserves the mark's ambient variable and domain while actual
+typing supplies the extended binder contexts.
+
+Native Pi recovery at stage n supplies the expansion at stage n+1. The domain
+may then beta-reduce independently without losing its guard. The actual
+consumer theorem combines this with the earlier protected-variant residuals:
+independent beta paths from t[eta(f)] and t[f] can be continued and compared at
+that single fixed stage. Replay of the left beta residual reconstructs the
+typed source needed by readout. No join of the eta pair is assumed.
+
+Literal context lookup at a Pi supplies the native certificate at stage zero;
+the actual EnvironmentCore corollary therefore compares such consumer residuals
+at stage one with ordinary typing and lookup hypotheses. The function must be
+non-proof and its input domain must have nonzero sort. The result applies to
+arbitrary typed consumers, including nested lambdas and dependent annotations.
+
+Validation: 835 jobs; 5 audited roots; maximum closure 11,495;
+810 frozen source/import hashes. Traversed types, opaque values, constructor
+children and recursor RHSs. Only propext, Classical.choice and Quot.sound; no
+forbidden dependencies and no owned-module diagnostics. Existing contextual
+cast feedback and finite-stage substitution barrier clients rebuilt.
+
+Judgment: comparison readout is now proved for the native neutral beta case.
+General converted-neutral typing, proof-domain marks and full primitive
+simulation remain open. The result is not promoted to hereditary comparison or
+to arbitrary ambient substitution. GOAL.md remains unachieved; original sorry,
+executable and independent files preserved. No coordination or PR extraction.

@@ -16588,3 +16588,41 @@ No final GOAL.md deliverable is established; the original sorry remains.
 Validation: 834 build jobs; 21 complete roots including every new
 constructor and recursor; maximum closure 8,252; 809 frozen hashes.
 Only standard axioms; no forbidden dependencies or owned-module warnings.
+
+
+### 2026-11-06 05:03:56 UTC — Native lookup reads protected neutral eta beta residuals
+
+Previous goal turn: progress (c475b4bc, protected neutral eta variants and
+actual typed consumer residuals). Revalidated HEAD and the unfinished module;
+the intervening discussion made no implementation changes. Continued the
+existing proof, preserving both independent untracked experiments.
+
+Readout by common-mode eta alone does not discharge the recursive structural
+cases: inferred comparisons occur in function positions and beneath lambda
+bodies. Contracting only applied eta wrappers does not cover bare marked
+variables in all such positions. Verdict: insufficient for this readout.
+
+Retain native Pi recovery for the ambient variable instead. At the next finite
+stage it computes to its eta expansion; exact ambient renaming transports the
+expansion beneath every local binder. Any beta-computed domain follows the
+original expansion by its recorded domain path. This yields comparison in
+either mode for every protected variant, using actual source typing to rebuild
+binder contexts. Combined with the previous paired beta-residual theorem, it
+compares independent beta reducts of any actual typed eta consumer at a fixed
+stage, with no normalization assumption.
+
+Lookup at a literal Pi discharges recovery at stage zero. Added a stage-one
+corollary for actual well-formed canonical-Eq environments, requiring no
+separate recovery certificate. Verdict: the neutral native-lookup case now has
+checked residual comparison, not merely residual syntax.
+
+Limits and next live work: full primitive computation is not simulated by this
+beta-only relation. Proof-domain marks require typed argument handling, and
+arbitrary semantic Pi typings do not automatically provide native recovery.
+No hereditary or arbitrary ambient-substitution closure has been established.
+These remain obligations of the unchanged goal; this is neither a proof of
+strengthening nor a strictly smaller sufficient final obligation.
+
+Validation: 835 build jobs; 5 complete audit roots; maximum closure
+11,495; 810 frozen source/import hashes. Only standard axioms, no forbidden
+dependencies or owned-module warnings. Original sorry remains; no PR extraction.
