@@ -31462,3 +31462,63 @@ maximum closure 8,726; 929 frozen hashes. Only propext, Classical.choice
 and Quot.sound; no weakN_iff/weakN_inv/sorryAx or forbidden framework dependency,
 no owned diagnostics. Executable unchanged, independent experiments preserved;
 no coordination or PR extraction.
+
+
+## 2026-11-06 09:37:26 UTC — Exact application stage boundary through expanded Eq probes
+
+The first attempt to extend the old application-to-PropositionFront obstruction
+encountered a real mismatch: the old first-head argument regards a constant
+wrapper as a head change. The expanded relation permits that wrapper already at
+zero. Instead of declaring expanded readout proved, this turn isolates the
+stronger target actually needed by the selector example: CarrierExposure.
+
+ProofErasureProbeExpansionBarrier proves structural carrier exposure persists
+under level-core computation, assuming registered rigid families do not unfold.
+A type-valued Eq recursor cannot share a level-core reduct with any such exposed
+carrier. Ordinary-return factorization takes its side of the join back to an
+ordinary Eq.rec spine whose erased major remains proof. Exposure on the other
+side would persist to that same spine, contradicting the rigid distinction
+between Eq.rec and registered record families or Pi heads.
+
+This excludes carrier exposure after arbitrary interleavings of ordinary core,
+universe conversion, constant expansion and native identity expansion. Native
+recovery guards may use any descending relation. Existing typed core confluence
+supplies the common reduct; no normalization or confluence of the full guarded
+relation is assumed. The entire unrestricted expanded stage zero embeds in this
+fragment. Consequently a Pi-inert stage-zero guard at a type-valued Eq recursor
+can compare two raw variables only when their indices agree.
+
+ProofErasurePiInertApplicationStageBoundary turns that result into an exact
+stage characterization for a reflexive unit probe: a carrier history between
+distinct raw variables exists iff its stage is at least one. The upper bound
+constructs a stage-zero reflexive proposition comparison and consumes it with
+the existing Eq-probe carrier rule. The lower bound uses the new exposure
+barrier and ordinary bvar injectivity.
+
+The application witness uses two actual selectors with a full stage-zero
+assigned-Pi history, and applies them to the same unit identity. Actual semantic
+conversion assigns the reflexive probe as their result carrier. The application
+outputs have a full stage-one history, constructed by prefixing the variable
+history with their beta computations; a hypothetical stage-zero history would
+survive endpoint reduction and contradict the lower bound. An actual-environment
+wrapper constructs the context with two unit variables, the closed proposition
+forall P : Prop, P, and its reflexive equality proof. It discharges soundness,
+registry, confluence, universe and non-unfolding assumptions for EnvironmentCore.
+Only a closed positive empty structure and canonical Eq remain as environment
+hypotheses.
+
+Judgment: a stage-preserving application proof is now concretely excluded,
+even when the hidden type conversion is reflexive. The finite-output-stage law
+from the previous commit is still live, and this witness succeeds at one. Full
+expanded Eq-probe readout to lower proposition equality is not established:
+guarded singleton and eta roots lie outside the mixed-fragment confluence
+argument. Their guard ancestry is the next obstacle to audit. No implication to
+PropositionFront for the full Pi-inert law, strict-smallness claim, or final
+strengthening deliverable is asserted. weakN_iff retains its original sorry.
+
+Validation: 959 build jobs including feedback/substitution-barrier
+regressions; 9 complete type/value/constructor/recursor dependency roots;
+maximum closure 10,753; 934 frozen hashes. Only propext, Classical.choice
+and Quot.sound; no weakN_iff/weakN_inv/sorryAx or forbidden framework dependency,
+no owned diagnostics. Executable unchanged, independent experiments preserved;
+no coordination or PR extraction.

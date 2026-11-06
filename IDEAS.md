@@ -17694,3 +17694,37 @@ Validation: 954 build jobs, 14 complete dependency roots, maximum closure
 8,726, 929 frozen source hashes; only propext, Classical.choice and
 Quot.sound, no forbidden dependency or owned diagnostic. Executable unchanged;
 independent experiments preserved; no extraction or coordination.
+
+
+## 2026-11-06 09:37:26 UTC — Beta wrappers do not remove the probe's carrier obstruction
+
+- Reuse literal Eq.rec-head change as the expanded readout criterion: rejected.
+  Constant expansion changes the syntactic head already at stage zero. A real
+  obstruction must follow the result through administrative beta wrappers.
+- Eliminate interleaved constant/native identity expansion using typed core
+  confluence: proved for carrier exposure of arbitrary type-valued Eq recursors.
+  Every such mixed path has a common level-core reduct. Structural exposure
+  persists along the output branch; ordinary-return factorization and proof-major
+  Eq-spine inversion retain Eq.rec on the input branch. These are incompatible.
+  Native guards may use any descending relation; the result is not limited to
+  a fixed number of wrappers or a prescribed order of their contractions.
+- Preserve the input stage when applying a completed function history: refuted
+  by actual typed selectors. Their history is stage zero; after applying the
+  identity at a result type hidden behind a reflexive Eq probe, a stage-zero
+  result history is impossible. A full stage-one history is constructed.
+  More precisely, distinct raw variables at this reflexive unit probe have a
+  carrier history iff the stage is positive.
+- Discharge abstract core assumptions: done for every actual well-formed
+  canonical-Eq environment with a closed positive empty structure. The witness
+  context, distinct variables, proposition and reflexive Eq proof are constructed.
+- General expanded Eq-probe descent remains open. The mixed-fragment theorem
+  excludes using beta wrappers alone, but does not eliminate guarded singleton,
+  function-eta or structure-eta roots. Recovering lower proposition comparison
+  through those roots still needs an ancestry/guard readout argument. The finite
+  application law is not refuted: the explicit example succeeds at stage one.
+  No new strictly smaller sufficient obligation or final goal completion follows.
+
+Validation: 959 build jobs, 9 complete dependency roots, maximum closure
+10,753, 934 frozen source hashes. Only standard axioms; no forbidden
+framework dependency or owned diagnostic. Executable and independent experiments
+unchanged; no extraction or coordination.
