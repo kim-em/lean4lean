@@ -17823,3 +17823,40 @@ Validation: 909 build jobs, 17 complete dependency roots, maximum
 closure 11,147, 884 frozen source hashes; standard axioms only, no
 forbidden dependency or owned diagnostic. Executable and independent experiments
 unchanged; no coordination or PR extraction.
+
+
+## 2026-11-06 10:39:05 UTC — Spine cuts with original argument ancestry and complete continuations
+
+- Select the first arbitrary nontransparent hole: insufficient for ancestry;
+  it may occur inside an unrelated argument. The existing const_spine_or_head
+  does select an original prefix, but loses the post-root continuation and
+  stops at mere universe conversion. Extended this approach to retain both
+  whole-source path segments, every original argument path, and pointwise
+  universe equivalence while passing a specified universe-only root fragment.
+- Read a specialized Eq guard at this cut: proved from the whole argument
+  vector. The carrier and endpoint paths are extracted from that vector,
+  rather than assumed independently. Full-stage certificate descent returns
+  the original lower carrier guard and actual lower endpoint equality.
+- Permit ordinary core to be the cut on a six-argument proof-major probe:
+  excluded. A shorter prefix lacks the major; a full prefix still has the
+  unchanged proof marker. Universe roots have already been passed by the cut.
+- Permit masked structure eta at a prefix of the type-valued probe: excluded.
+  A proper prefix is actually Pi-typed because an argument is pending; the
+  saturated source remains sort-typed. Both contradict a recovered structure
+  family assignment by type uniqueness.
+- Remaining spine-root classification: either the lower equation is read, or
+  a typed original-prefix cut uses constant expansion or an earlier guarded
+  general singleton, native identity expansion, or native function eta. It
+  retains every original component origin and the exact suffix to exposure.
+- Bypass the constant/identity alternatives: proved at the same Pi-inert
+  stage, including pending arguments. Still missing is a decreasing measure
+  for repeated bypass, plus native function-eta handling and general-singleton
+  decoding. The existing untracked computation-count/rule-descent experiments
+  are possible inputs to that measure investigation; they were inspected but
+  neither modified, imported, validated here, nor included in this commit.
+
+Validation: 966 build jobs, 12 complete dependency roots, maximum
+closure 11,138, 941 frozen hashes; only standard axioms, no forbidden
+dependency or owned diagnostic. The original strengthening goal remains open;
+no strictly smaller sufficient obligation is claimed. Executable and independent
+experiments unchanged; no coordination or PR extraction.

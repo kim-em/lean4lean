@@ -31670,3 +31670,53 @@ roots; maximum closure 11,147; 884 frozen source hashes. Only propext,
 Classical.choice and Quot.sound, with no weakN_iff/weakN_inv/sorryAx or forbidden
 framework dependencies and no owned diagnostics. Executable unchanged;
 independent experiments preserved; no coordination or PR extraction.
+
+
+## 2026-11-06 10:39:05 UTC — Original-spine readout or a classified prefix cut
+
+ProofErasureScopedSpineCut extends the existing first-head occurrence idea with
+complete continuations and a universe-stable root fragment. Given any scoped
+path from a constant spine, either the spine survives with pointwise argument
+paths and equivalent universe levels, or an actual root outside that fragment
+acts on a prefix of the original spine. The witness retains all argument origins,
+the whole-source path to the selected spine, the selected root, its pending
+arguments, and the full post-root path to the original output. Child computations
+may use every Step rule; they are not selected as unrelated cuts. A separate
+replay lemma supplies the actual typing of the selected prefix.
+
+ProofErasureEqSpineCutReadout extracts the three Eq guard paths from that full
+argument vector. Its main theorem starts from a sort-typed six-argument Eq probe
+with a proof major and lifted original carrier/endpoints. Either it returns the
+exact original lower full-stage carrier guard and actual lower endpoint equality,
+or it returns a typed original-prefix cut with all origins and both continuations.
+The cut passes universe conversions and excludes ordinary core: proper prefixes
+lack the major, and the full spine's proof marker cannot compute. It also excludes
+masked structure eta at every prefix. A proper prefix must have an actual Pi
+assignment, while an unapplied source is sort-typed; neither can recover a rigid
+structure family. Thus only constant expansion or an earlier general singleton,
+native identity expansion, or native function eta remains at the selected root.
+
+The same module connects the previous wrapper theorems to these concrete cuts.
+A constant or native-identity expansion can be bypassed, yielding a path from
+the cut's original source applied to its pending arguments to the exact exposed
+output. Both the Pi-inert outer relation and its numerical stage are retained.
+No typing or native-recovery premise is added for a discarded wrapper argument.
+
+Judgment: the direct specialized Eq readout no longer requires independently
+supplied component histories; they come from the whole computation's spine cut.
+The cut is on the original function spine rather than an arbitrary nested hole.
+It can still select a constant/identity expansion. Bypass is an exact continuation,
+but no theorem yet bounds the reconstructed path's primitive count or proves
+termination of repeated selection and bypass. That quantitative step, native
+function-eta prefix handling, and general-singleton family decoding remain open.
+The two preserved untracked count/rule-descent files were read as candidate
+infrastructure only and are not dependencies of this result. No application-to-
+PropositionFront implication, strictly smaller sufficient obligation, or final
+goal completion is claimed; weakN_iff retains its original sorry.
+
+Validation: 966 build jobs including contextual-feedback and substitution
+barrier regressions; 12 complete type/value/constructor/recursor dependency
+roots; maximum closure 11,138; 941 frozen source hashes. Only propext,
+Classical.choice and Quot.sound; no weakN_iff/weakN_inv/sorryAx or forbidden
+framework dependency and no owned diagnostics. Executable and independent
+experiments unchanged; no coordination or PR extraction.
