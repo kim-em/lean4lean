@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertEqEtaComputed
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureRecoveredEqComputedSpecialization
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPrefixSpecialization
 
 /-! # Read an inner singleton through both Eq argument histories
 
@@ -124,10 +124,15 @@ theorem pi_inert_eq_eta_inner_singleton_readout
             (proofEraseCtx (A.liftN count offset :: Γ'))
             (ProofShape.mkApps (.const ``Eq.rec [v₂,w₂]) ((bodyPre ++ bodyPending).take bodyPre.length)) target := by
           simpa only [Ectx, List.take_left] using HG
-        exact proofErase_recovered_singleton_eq_computed_fresh_eta_descend heq
+        have Hspec : EqPrefixSpecialization Γ Γ v₁ w₁ v₁ w₁ [α₁,a₁,M₁,minor₁,b₁] lowerPre :=
+          (EqPrefixSpecialization.of_typed hΓ hfull).take pre.length
+        have hshortLower : lowerPre.length < 5 := by
+          simp only [lowerPre, full, List.length_take, List.length_cons, List.length_nil]
+          omega
+        exact Hspec.read_fresh_singleton heq
           (erased_static_structure_eta_expansion_stage_descent heq hs bodyStage)
           (erased_static_structure_eta_expansion_stage_certificate_descent heq hs singletonStage)
-          hΓ hΓ' W hA hf hnp hxA hfull Efull
+          hΓ hΓ' W hΓ hfull hA hf hnp hshortLower
           (by simpa only [Ectx, EPpre] using HAbody.imp (fun _ _ R => R.mono pi_inert_stage_embed))
           (by simpa only [Ectx] using RL) Hbody
       · exact pi_inert_eq_computed_fresh_eta_readout heq hs hΓ hΓ' W hA hf hxA hfull Efull

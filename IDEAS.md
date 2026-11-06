@@ -18391,3 +18391,44 @@ Validation: 994 build jobs, 7 complete dependency roots, maximum
 closure 11,629; 969 frozen source hashes. Only propext, Classical.choice
 and Quot.sound; no forbidden dependencies or warnings in the changed modules.
 Executable unchanged; no PR extraction or coordination. GOAL.md remains active.
+
+
+## 2026-11-06 13:17:45 UTC — Preserve an original Eq completion through repeated fresh prefixes
+
+**Idea.** Replace the single fresh-binder completion argument with a reusable
+specialization witness. A typed substitution sends the current source prefix
+into a fixed original target vector, up to pointwise semantic equality; head
+universe changes are retained as semantic equality of the Eq recursor constants.
+The missing target arguments remain actual terms.
+
+**Verdict: preservation and general-singleton readout proved and integrated.**
+`EqPrefixSpecialization` starts from the original typed vector. It is preserved
+by taking a shorter prefix, by semantic head/component equality, and by reifying
+raw component computations below ambient unused binders. Opening another eta
+binder uses the next actual target completion argument. Whole-spine congruence
+and type uniqueness give that argument the substituted recovered domain, so
+the typed substitution extends. This does not assume any native recovery for
+substitution images or substitute a guarded computation.
+
+The general-singleton readouts work at the current prefix, after another
+component computation, and after another fresh binder and component computation.
+They lower the guard in its source scope before specializing the semantic
+index equation. The existing inner singleton theorem now initializes this
+witness and calls `read_fresh_singleton`; the full exposure theorem and nested
+eta minimum still compile with the same statements and hypotheses.
+
+This supports any sequence of the proved preservation operations, rather than
+only the original one-binder shape. It does not complete the nested-eta induction.
+Fresh extension requires a remaining argument in the target vector. At five
+arguments, the next binder is the proof major, and no actual lower proof is
+available from the five-argument completion alone. That case needs a guard
+readout/descent that leaves the fresh proof binder unspecialized. Specialized
+computed-guard readout through this new invariant and administrative bypasses
+through mixed continuation frames also remain to be integrated. These are live
+proof directions, not assumed closure properties or a sufficient strictly
+smaller obligation than PropFront. GOAL.md remains unachieved.
+
+Validation: 995 build jobs, 14 complete dependency roots, maximum
+closure 11,641; 970 frozen source hashes. Only propext, Classical.choice
+and Quot.sound; no forbidden dependencies or warnings in the changed modules.
+Executable unchanged; no PR extraction or coordination.

@@ -32337,3 +32337,53 @@ substitution regressions; 7 complete dependency roots, maximum closure
 Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
 assumptions or warnings in the changed modules. Executable unchanged; no PR
 extraction or coordination.
+
+
+## 2026-11-06 13:17:45 UTC — General-singleton readout after repeated prefix specialization steps
+
+Added `ProofErasureEqPrefixSpecialization.lean`. `EqPrefixSpecialization`
+retains a typed source-to-target substitution, actual missing target arguments,
+semantic Eq-head equality, and pointwise equality from the fixed original
+target vector to the specialized current prefix plus its completion.
+
+`of_typed` initializes the identity witness; `take` transfers omitted source
+arguments into the target completion. `congr` specializes only semantic head
+and component equalities. `compute` uses the existing component descent theorem
+to obtain the new actual source prefix, its exact lifted erasure, and its
+original assigned type before updating the witness.
+
+`eta` handles a current prefix shorter than the target vector. Its completion
+must contain a next argument. Target whole-spine congruence types the completed
+current head; application inversion and uniqueness align that argument with
+the substituted recovered Pi domain. Extending the actual typed substitution
+then specializes the lifted old arguments and the new fresh variable back to
+the same target completion. This works when the source context already contains
+earlier fresh binders and the prefix has already computed or been truncated.
+
+`read_singleton` lowers the recovered singleton and uses the existing semantic
+completion theorem. `read_computed_singleton` first reifies another component
+history and selects its actual prefix. `read_fresh_singleton` additionally
+opens a fresh eta binder, aligns its raw argument vector through the ambient
+weakening, and reifies head-level computation before invoking that readout.
+Only actual terms and semantic equalities are specialized.
+
+The general branch of `pi_inert_eq_eta_inner_singleton_readout` now initializes
+this invariant on the reconstructed lower five-argument completion and uses
+the new fresh-singleton API. Its specialized computed-guard branch is unchanged.
+The current full Eq-exposure theorem and the nested-eta consequence are included
+in the build and dependency audit; their statements gain no assumptions.
+
+Remaining work: carry this witness alongside the concrete mixed continuation
+frames, extend the specialized guard readout, and treat eta at the proof-major
+boundary without assuming an actual lower proof. Administrative bypasses and
+next-root classification must still close the continuation induction. The new
+witness is an established preservation invariant, not a sufficient strengthening
+obligation. Strengthening, a canonical-Eq counterexample, and a proved sufficient
+strictly smaller obligation than PropFront remain unachieved.
+
+Validation: 995 build jobs including the full exposure theorem, nested eta
+minimum, contextual-cast and core-family substitution regressions; 14
+complete dependency roots, maximum closure 11,641; 970 frozen source
+hashes. Only propext, Classical.choice and Quot.sound; no weakN_iff, weakN_inv,
+sorryAx, forbidden closure/alignment assumptions or warnings in the changed
+modules. Executable unchanged; no PR extraction or coordination. Goal active.
