@@ -26,10 +26,13 @@ Both decompositions have exact counts, and the body path is globally minimal.
 The body together with its application continuation is also minimal when both
 paths and their common endpoint vary. Identity and constant expansion are excluded
 at the typed root; the actual argument interprets the endpoint substitution.
+The optional `Root` predicate refines this same selected root, without choosing
+a second decomposition; the default adds no restriction.
 This is a witnessed decomposition, not an assumed closure property. -/
 def CountedEtaBodySpineCut (D : Definitions) (n : Nat) (Δ : List ProofShape)
     (c : Name) (ls : List VLevel) (pre : List ProofShape) (A : ProofShape) (u : VLevel)
-    (args : List ProofShape) (out : ProofShape) (ct : Nat) : Prop :=
+    (args : List ProofShape) (out : ProofShape) (ct : Nat)
+    (Root : Nat → List ProofShape → ProofShape → ProofShape → Prop := fun _ _ _ _ => True) : Prop :=
     ∃ A' body' x' xs' cf ca cs cd cb m ls' bodyPre bodyPending target pb tb,
       cf+ca+cs = ct ∧ cd+cb = cf ∧ pb+1+tb = cb ∧
       ScopedComputeCount (PiInertStage D n) cf Δ
@@ -57,13 +60,15 @@ def CountedEtaBodySpineCut (D : Definitions) (n : Nat) (Δ : List ProofShape)
         (ProofShape.mkApps (.const c ls') bodyPre) target) ∧
       TypedSource (A :: Δ) (ProofShape.mkApps (.const c ls') bodyPre) ∧
       ContextSubstitution (A :: Δ) Δ (ProofShape.Subst.one x') ∧
-      ¬ ConstantExpansion (ProofShape.mkApps (.const c ls') bodyPre) target
+      ¬ ConstantExpansion (ProofShape.mkApps (.const c ls') bodyPre) target ∧
+      Root m (A :: Δ) (ProofShape.mkApps (.const c ls') bodyPre) target
 
 /-- The body selected by the cut is a globally minimum path of strictly
 smaller cost than the enclosing path, whose eta root costs one primitive.
 The endpoint is retained without assuming that it exposes a carrier. -/
 theorem CountedEtaBodySpineCut.smaller_minimum
-    (H : CountedEtaBodySpineCut D n Δ c ls pre A u args out ct)
+    {Root : Nat → List ProofShape → ProofShape → ProofShape → Prop}
+    (H : CountedEtaBodySpineCut D n Δ c ls pre A u args out ct Root)
     (hcost : cp+1+ct ≤ cost) :
     ∃ cb m body', cb < cost ∧
       ScopedComputeCount (PiInertStage D m) cb (A :: Δ)
@@ -143,7 +148,7 @@ theorem globally_minimal_pi_inert_eta_body_spine_cut
         (ErasedScopedPrimitiveCertificateDescent.descent (pi_inert_stage_certificate_descent heq hs m)) HTbody
       refine ⟨A', body', x', xs', cf, ca, cs, cd, cb, m, ls', bodyPre, bodyPending,
         target, pb, tb, hcExact, hsplit, hcutExact, RF, RX, RS, RD, HL, HA, RPB', HR, HN, RTB,
-        hminBody, hminContinuation, ?_, HTroot, WI, ?_⟩
+        hminBody, hminContinuation, ?_, HTroot, WI, ?_, trivial⟩
       · apply pi_inert_continuation_minimum_no_identity
           (by simpa only [ProofShape.mkApps_append] using RPB') RTB
           (by simpa only [ProofShape.inst_eq_subst] using RS) hcutExact

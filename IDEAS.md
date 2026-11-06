@@ -18248,3 +18248,35 @@ than PropFront remain unproved; GOAL.md is not achieved.
 Validation: 988 build jobs, 8 complete dependency roots, maximum
 closure 11,594; 963 frozen source hashes. Only propext, Classical.choice
 and Quot.sound; no forbidden dependencies or owned warnings. Executable unchanged.
+
+
+## 2026-11-06 12:33:57 UTC — The inner Eq eta root has only three guarded forms
+
+**Idea.** The outer prefix has at most four supplied arguments, hence its
+fresh eta body has at most five. Use that arity both to exclude ordinary Eq
+iota and to recover an actual residual Pi type, excluding structure eta.
+
+**Verdict: proved and integrated.** `eq_rec_short_prefix_pi` proves an actual
+Pi assignment for every typed canonical Eq.rec prefix of at most five
+arguments, at arbitrary well-formed universe arguments. A private generic
+spine lemma consumes fewer arguments than the assigned type's syntactic Pi
+arity; substitution cannot decrease that arity. Typed source replay and type
+uniqueness then exclude every masked structure expansion at the erased prefix.
+The same length bound excludes ordinary iota because the proof major is absent.
+
+`pi_inert_eq_short_guarded_root` combines those exclusions with the already
+proved level, constant-wrapper and identity-wrapper exclusions. The result
+`EqEtaGuardedRoot` has exactly three alternatives: specialized computed Eq
+prefix, earlier general recovered singleton, or earlier native function eta.
+`CountedEtaBodySpineCut.eq_guarded` refines the same selected body cut, keeping
+all its witnesses. The full Eq-exposure theorem now returns this classification
+without additional hypotheses; no unrelated second root is selected.
+
+The remaining work is to read the inner singleton guards back to the original
+lower equation and eliminate nested eta through the continuation. Classification
+alone does neither. GOAL.md remains unachieved; no sufficient strictly smaller
+logical obligation than PropFront is claimed.
+
+Validation: 989 build jobs, 9 complete dependency roots, maximum
+closure 11,607; 964 frozen source hashes. Only propext, Classical.choice
+and Quot.sound; no forbidden dependencies or owned warnings. Executable unchanged.

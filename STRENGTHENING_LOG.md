@@ -32174,3 +32174,43 @@ substitution regressions; 8 complete dependency roots, maximum closure
 Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
 assumptions or owned warnings. No PR extraction or coordination; executable
 unchanged. GOAL.md remains active and unachieved.
+
+
+## 2026-11-06 12:33:57 UTC — Exclude inner core/structure roots and retain the guarded classification
+
+Added `ProofErasurePiInertEqEtaRoot.lean`. Its generic typed-spine argument
+uses the original assigned type and type uniqueness at each application.
+Instantiating a type cannot decrease its syntactic leading-Pi count, so fewer
+arguments than that count leave an actual Pi assignment. The installed canonical
+Eq recursor has six leading Pis, giving `eq_rec_short_prefix_pi` for every
+typed prefix of length at most five. Reifying an erased prefix and replaying a
+native structure recovery would give both a Pi type and a rigid structure
+family type; existing head separation rules this out.
+
+The retained component ancestry bounds the inner prefix by the outer prefix
+length plus one, hence by five. Its missing proof major rules out ordinary
+core iota. `pi_inert_eq_short_guarded_root` combines these facts with the
+previous level/constant/identity exclusions and the actual stage decomposition.
+Its `EqEtaGuardedRoot` conclusion is a specialized computed Eq prefix, an
+earlier recovered singleton, or an earlier native function eta expansion.
+No guard is substituted and no singleton readout is assumed.
+
+Added an optional root predicate to `CountedEtaBodySpineCut`, defaulting to
+True, so refinement preserves the very same selected inner root and all
+surrounding witnesses. Its smaller-minimum projection works for every such
+predicate. `CountedEtaBodySpineCut.eq_guarded` fills the concrete classification,
+and the full Eq-exposure theorem now returns the refined witness. All existing
+counts, minima, component origins, typings, context interpretation and suffixes
+are retained. The full theorem acquires no new hypotheses.
+
+The unresolved cases are now explicitly the two inner singleton forms and
+nested function eta. Their readout/elimination is not proved here, and this
+local classification is not a sufficient strictly smaller obligation than
+PropFront. GOAL.md remains active and unachieved.
+
+Validation: 989 build jobs including contextual-cast and core-family
+substitution regressions; 9 complete dependency roots, maximum closure
+11,607; 964 frozen source hashes. Only propext, Classical.choice and
+Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
+assumptions or owned warnings. No PR extraction or coordination; executable
+unchanged.
