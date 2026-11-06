@@ -31522,3 +31522,57 @@ maximum closure 10,753; 934 frozen hashes. Only propext, Classical.choice
 and Quot.sound; no weakN_iff/weakN_inv/sorryAx or forbidden framework dependency,
 no owned diagnostics. Executable unchanged, independent experiments preserved;
 no coordination or PR extraction.
+
+
+## 2026-11-06 09:51:45 UTC — Exact typed cut at the first nontransparent primitive
+
+ProofErasureScopedPrimitiveCut introduces a single-hole syntax indexed by the
+outer and inner erased contexts. Its eight constructors cover the hole itself,
+both application sides, projection, and both positions of lambda and Pi. Plugging
+and compatible lifting retain the precise context at every nested occurrence.
+The fragment_or_cut theorem constructs either a whole path in the target
+fragment or a target-only prefix, a source primitive outside that fragment, and
+a source-relation suffix at the exact same final endpoint. It requires no
+inclusion between the relations, no substitution closure, typing or confluence.
+
+The binder cases process the body before the annotation. This is necessary
+because ScopedCompute certifies the body under the original source annotation.
+If the first escape is in the body, the annotation computation remains in the
+tail; if the body stays in the fragment, it is included in the prefix before an
+annotation escape. No conversion of a body certificate to the new annotation
+context is assumed. Typed hole inversion then supplies an actual TypedSource at
+the escaping root, using only replay of the smaller-fragment prefix.
+
+ProofErasurePiInertProbeGuardedCut classifies full-stage roots outside ordinary
+level core, constant expansion and native identity expansion. The remaining
+alternatives are carrier-recovered singleton, computed Eq prefix, native function
+eta and native masked structure eta. Their guards use a strictly earlier finite
+stage. The recovery bound in the excluded fragment may be larger than the root
+stage, so inherited identity expansions are correctly excluded as well.
+
+For an exposed type-valued Eq recursor, the generic decomposition is applied to
+the INTERSECTION of the original Pi-inert stage with the mixed fragment. This
+retains both prefix certificates: the original stage bound and absence of
+nontransparent roots. Merely using the larger mixed fragment would forget the
+first fact, because its allowed native guards can use the entire current stage.
+The previous no-exposure theorem rules out an all-fragment path. The result
+retains the exact hole, the typed escaping source, the original root certificate,
+its non-membership in the mixed fragment, the earlier-stage guard family and the
+whole original suffix to the exposed carrier.
+
+Judgment: this establishes a concrete typed location at which any successful
+probe exposure must leave ordinary core plus beta wrappers. It does not establish
+that the first escape causes the final head change: it may be in an argument or
+annotation. In particular, the root's comparison indices have not been identified
+as computed versions of the original probe indices below the inserted binders.
+That ancestry/selection argument remains necessary for expanded Eq-probe descent.
+No application-to-PropositionFront implication for the full Pi-inert language,
+strictly smaller sufficient obligation, or final strengthening solution is
+claimed. UniqueTyping.lean retains the original weakN_iff sorry.
+
+Validation: 958 build jobs including feedback/substitution-barrier
+regressions; 8 complete type/value/constructor/recursor dependency roots;
+maximum closure 11,187; 933 frozen hashes. Only propext, Classical.choice
+and Quot.sound; no weakN_iff/weakN_inv/sorryAx or forbidden framework dependency,
+no owned diagnostics. Executable unchanged, independent experiments preserved;
+no coordination or PR extraction.

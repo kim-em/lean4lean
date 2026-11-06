@@ -17728,3 +17728,36 @@ Validation: 959 build jobs, 9 complete dependency roots, maximum closure
 10,753, 934 frozen source hashes. Only standard axioms; no forbidden
 framework dependency or owned diagnostic. Executable and independent experiments
 unchanged; no extraction or coordination.
+
+
+## 2026-11-06 09:51:45 UTC — Retain the actual first guarded occurrence and both surrounding paths
+
+- Infer lower proposition equality merely from a positive guard stage: not
+  justified. The existing first-guarded identity peak already hides arbitrary
+  type conversion, and a first syntactic escape can occur in an argument or
+  annotation unrelated to the original Eq indices.
+- Locate a nontransparent primitive with its whole path context: proved.
+  ScopedHole records the exact inner and outer erased contexts. Compatible
+  computation either stays in a chosen fragment or factors into a fragment
+  prefix, one primitive outside it at the hole, and the original-relation tail.
+  Binder bodies precede annotation changes; this avoids assuming checker
+  transport across changed binders.
+- Recover actual typing of that occurrence: proved by replaying only the
+  fragment prefix and inverting the typed filled hole. No source-relation
+  replay, original-output typing or global native recovery premise is needed.
+- Apply this to an exposed type-valued Eq recursor: proved a cut whose prefix
+  retains BOTH the original Pi-inert stage and the mixed core/constant/identity
+  fragment. The previous carrier-exposure barrier rules out an all-fragment
+  computation. The escaping root is a singleton, Eq prefix, function eta or
+  structure eta with a strictly earlier guard stage, and the original suffix
+  still reaches the exact exposed carrier.
+- Missing: prove ancestry connecting this root's guard to the original probe
+  indices, or select a causally relevant head occurrence through the expanded
+  wrappers. This cut does not supply that connection and cannot by itself
+  descend the original proposition equality. General finite application,
+  composition and weakN_iff remain open; no smaller sufficient gap is claimed.
+
+Validation: 958 build jobs, 8 complete dependency roots, maximum closure
+11,187, 933 frozen hashes. Standard axioms only, no forbidden framework
+dependency or owned diagnostics. No executable changes, extraction or
+coordination; independent experiments preserved.
