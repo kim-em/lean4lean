@@ -18837,3 +18837,24 @@ A short prefix of the whole completion directly feeds later cut classification
 and singleton readout. Deriving these inputs throughout arbitrary nested
 continuation frames remains open; this does not establish strengthening or a
 sufficient irreducible obligation smaller than `PropFront`.
+
+
+## 2026-11-06 14:56:51 UTC — Compose target agreement across actual endpoint frames
+
+**Idea.** A typed context substitution alone does not identify the next
+scope's target specialization with the current one. Record the actual map,
+its erased-variable agreement and a paired semantic substitution relating
+the incoming target assignment to the composite outgoing assignment.
+
+**Verdict: composition and concrete supply proved.** `EqSpecializationFrame`
+witnesses compose and lift under retained binders. Context conversion and
+computed binder consumption construct witnesses. Shared whole-spine supply
+constructs both the fresh-body specialization and its matching consumption
+frame without an extra image-equality premise. The specialization, actual
+source typing and exact raw vector transport through such frames, and later
+singleton readout consumes the resulting data. This is explicit agreement
+of supplied frames, not a theorem that every raw continuation interpretation
+has agreement. Deriving these witnesses and tracked pending argument supply
+through the entire mixed continuation, then eliminating repeated eta,
+remain open. No strengthening completion or smaller sufficient obligation
+is claimed.

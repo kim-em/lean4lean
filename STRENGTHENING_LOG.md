@@ -32817,3 +32817,50 @@ closure 11,648, 981 frozen source hashes. Changed modules are warning
 free. Audits traverse types, values, opaque bodies, constructors and recursor
 RHSs; only propext, Classical.choice and Quot.sound occur, and forbidden
 strengthening/replacement obligations are absent. The active goal is incomplete.
+
+
+## 2026-11-06 14:56:51 UTC — Composable actual application frames with target agreement
+
+The previous goal turn made checked progress in `4ed2a3b1`; this turn began
+from its clean, pushed worktree state.
+
+Added `ProofErasureEqSpecializationFrames.lean`. `EqSpecializationFrame`
+retains an actual typed source-to-next-scope substitution, its raw erasure
+agreement, the next scope's typed target assignment, and paired semantic
+agreement between the incoming assignment and the outgoing composite.
+This distinguishes the ancestry needed by Eq specialization from ordinary
+raw context interpretation, which alone does not provide it.
+
+Proved composition using paired lookup, pullback and transitivity. Every
+actual typed source term has equal target images along the two routes.
+Frames also lift beneath a retained binder using the same chosen target
+image; term agreement derives the target-domain conversion. Ordinary context
+conversion yields an identity frame preserving the chosen assignment.
+
+An actual consumed binder gives a frame from the argument/image equality.
+Reifying its argument computation derives that equality for the original
+specialized argument automatically. `eta_supply_frame` uses the whole source
+completion to choose precisely this image and returns both the fresh-body
+specialization and matching computed frame. Its argument typing comes from
+the actual whole spine at the displayed Pi domain.
+
+`EqPrefixSpecializationAt.frame` transports the target completion, actual
+source typing and exact erased argument vector through an agreeing frame.
+`CountedLaterEtaBodyCut.eq_or_eta_after_frame` uses this data to classify and
+read the later short-prefix cut, deriving the new source's nonproof status
+as well. A composed or binder-lifted frame is accepted directly. No guarded
+computation path is substituted or moved across context conversion.
+
+The global Eq result imports and documents the new operations; its main
+statement remains unchanged. The general mixed continuation still needs a
+proof supplying these agreements together with tracked pending arguments
+at each actual frame. Recursive elimination of the remaining eta is also
+open. These are composable proved operations, not a new axiom or a claim
+that arbitrary raw context substitutions preserve a fixed target equation.
+Executable unchanged; no PR extraction or coordination.
+
+Validation: 1007 build jobs, 12 public/full-result audit roots, maximum
+closure 11,648, 982 frozen source hashes. Changed modules are warning
+free. Audits inspect types, values, opaque bodies, constructors and recursor
+RHSs; only propext, Classical.choice and Quot.sound occur. Forbidden
+strengthening and replacement obligations are absent. Goal remains incomplete.
