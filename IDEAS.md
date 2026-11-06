@@ -18212,3 +18212,39 @@ strictly smaller obligation than PropFront is claimed.
 Validation: 986 build jobs, 9 complete dependency roots, maximum
 closure 11,584; 961 frozen source hashes. Only propext, Classical.choice
 and Quot.sound; no forbidden dependencies or owned warnings. Executable unchanged.
+
+
+## 2026-11-06 12:28:15 UTC — Typed continuation removes the remaining constant wrappers
+
+**Idea.** The identity continuation argument cannot simply be reused for a
+constant lambda: its payload needs a typed readout after substitution. Obtain
+that typing from an ordinary `ContextSubstitution`, while leaving the guarded
+body path in its original scope.
+
+**Verdict: proved and integrated without a new hypothesis.**
+`pi_inert_constant_spine_continuation_bypass` reifies the computed annotation
+and unused payload, including a counted payload path. If the wrapper survives
+the body computation, the context interpretation substitutes those actual
+representatives and supplies their target typings. Counted constant-wrapper
+elimination then applies in the continuation scope. If the wrapper was already
+consumed, retain the old body endpoint and suffix. Both cases preserve the
+exact final output and do not increase combined body/suffix cost. No guarded
+path or native-recovery certificate is substituted.
+
+`pi_inert_eta_body_interpretation` supplies the needed context interpretation
+from the actual computed pending argument, aligned with the recovered eta
+domain by ordinary type uniqueness. It also types the initial eta body. The
+retained body prefix then types the selected inner root. Joint minimality
+excludes constant expansion there by saving its unit root cost. The full
+Eq-exposure result now excludes both constant and identity expansion, and
+retains root typing plus the actual argument's context-substitution witness.
+
+The remaining inner-root classification/readout, especially nested eta, is
+still open. Ordinary context interpretation does not imply arbitrary native
+image recovery or finite-stage guarded substitution closure. Strengthening,
+a canonical-Eq counterexample, and a sufficient strictly smaller obligation
+than PropFront remain unproved; GOAL.md is not achieved.
+
+Validation: 988 build jobs, 8 complete dependency roots, maximum
+closure 11,594; 963 frozen source hashes. Only propext, Classical.choice
+and Quot.sound; no forbidden dependencies or owned warnings. Executable unchanged.

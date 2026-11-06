@@ -32133,3 +32133,44 @@ substitution regressions; 9 complete dependency roots, maximum closure
 Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
 assumptions or owned warnings. No PR extraction or coordination; executable
 unchanged. GOAL.md remains active and unachieved.
+
+
+## 2026-11-06 12:28:15 UTC — Exclude constant expansion inside the retained eta body
+
+Added `ProofErasurePiInertConstantContinuation.lean`. Its typed constant-spine
+bypass splits at the first consuming beta. In the consumed branch it replays
+the counted payload and remaining arguments. In the surviving branch, counted
+constant-lambda readout supplies actual computed annotations and payloads in
+the original context. An ordinary context-substitution interpretation gives
+their target representatives, typings and exact endpoint erasures. The outer
+suffix can then use counted constant-spine elimination. This changes the body
+endpoint and suffix together, retains the exact final output, and does not
+increase their combined cost. Guarded computations are never substituted.
+Two corollaries handle the standard constant-expansion primitive and exclude
+it at a minimum combined body/continuation cut by saving the root occurrence.
+
+Added `ProofErasurePiInertEtaBodyInterpretation.lean`. From the whole typed
+application, native eta domain and computed pending argument, recover the
+actual domain and argument at their declared types. Type uniqueness aligns
+the argument with the eta domain. The actual fresh-variable eta body supplies
+its typed source, and ordinary typed instantiation supplies a context
+interpretation from that original binder to the outer scope. This witness
+requires no exact native type recovery for the argument and remains based on
+the original domain despite later annotation changes.
+
+Integrated both into `CountedEtaBodySpineCut` and the full Eq-exposure theorem.
+The selected inner root is now typed and neither a constant nor an identity
+expansion. Its actual argument's context-substitution interpretation is
+retained alongside the existing exact counts, component ancestry, body and
+continuation minima, and both suffixes. No assumptions were added to the full
+theorem. The remaining guarded-root analysis, including nested eta, is open;
+ordinary context interpretation must not be promoted to guarded substitution
+closure. No completion or sufficient strictly smaller logical obligation is
+claimed.
+
+Validation: 988 build jobs including contextual-cast and core-family
+substitution regressions; 8 complete dependency roots, maximum closure
+11,594; 963 frozen source hashes. Only propext, Classical.choice and
+Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
+assumptions or owned warnings. No PR extraction or coordination; executable
+unchanged. GOAL.md remains active and unachieved.

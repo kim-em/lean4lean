@@ -21,7 +21,8 @@ primitive count among all finite stages; every prefix and suffix is retained.
 The outer and body decompositions have exact costs, and the body path is
 globally minimal with smaller count (via `CountedEtaBodySpineCut.smaller_minimum`).
 The body and its application continuation are jointly minimal with variable
-body endpoint; identity expansion is excluded at the selected inner root.
+body endpoint; identity and constant expansion are excluded at the selected
+inner root, with its typing and the actual argument's context substitution retained.
 The remaining gap is classification and elimination of that inner root,
 including nested eta, rather than annotation or component-only computation. -/
 theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut

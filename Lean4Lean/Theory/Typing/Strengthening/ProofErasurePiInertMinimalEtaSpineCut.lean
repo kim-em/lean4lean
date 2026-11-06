@@ -1,5 +1,5 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertEtaSpineBypass
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertIdentityContinuation
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertEtaBodyInterpretation
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertConstantContinuation
 
 /-! # A globally minimal eta must reach a non-level body-spine root
 
@@ -24,7 +24,8 @@ private theorem eta_argument_fixed
 retains the consuming beta, domain cost, component ancestry, and both suffixes.
 Both decompositions have exact counts, and the body path is globally minimal.
 The body together with its application continuation is also minimal when both
-paths and their common endpoint vary. Identity expansion is excluded at the root.
+paths and their common endpoint vary. Identity and constant expansion are excluded
+at the typed root; the actual argument interprets the endpoint substitution.
 This is a witnessed decomposition, not an assumed closure property. -/
 def CountedEtaBodySpineCut (D : Definitions) (n : Nat) (Δ : List ProofShape)
     (c : Name) (ls : List VLevel) (pre : List ProofShape) (A : ProofShape) (u : VLevel)
@@ -52,8 +53,11 @@ def CountedEtaBodySpineCut (D : Definitions) (n : Nat) (Δ : List ProofShape)
           (.app ((ProofShape.mkApps (.const c ls) pre).liftN 1) (etaArgument u)) endpoint →
         ScopedComputeCount (PiInertStage D suffixStage) k Δ
           (ProofShape.mkApps (endpoint.inst x') xs') out → cb+cs ≤ j+k) ∧
-      ∀ Recovery, ¬ NativeIdentityExpansion Recovery (A :: Δ)
-        (ProofShape.mkApps (.const c ls') bodyPre) target
+      (∀ Recovery, ¬ NativeIdentityExpansion Recovery (A :: Δ)
+        (ProofShape.mkApps (.const c ls') bodyPre) target) ∧
+      TypedSource (A :: Δ) (ProofShape.mkApps (.const c ls') bodyPre) ∧
+      ContextSubstitution (A :: Δ) Δ (ProofShape.Subst.one x') ∧
+      ¬ ConstantExpansion (ProofShape.mkApps (.const c ls') bodyPre) target
 
 /-- The body selected by the cut is a globally minimum path of strictly
 smaller cost than the enclosing path, whose eta root costs one primitive.
@@ -78,7 +82,8 @@ must encounter a non-level primitive on its original body spine before the
 first consuming beta. Mere argument computation and level changes are bypassed.
 This locates the body root; classification of that root, including nested eta,
 remains a separate obligation. Combined body/continuation minimality rules out
-identity expansion even if it survives until after the enclosing beta. -/
+identity and constant expansion even if they survive until after the enclosing
+beta; the actual argument supplies the required typed context interpretation. -/
 theorem globally_minimal_pi_inert_eta_body_spine_cut
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hguard : ErasedScopedPrimitiveDescent Guard)
@@ -133,12 +138,19 @@ theorem globally_minimal_pi_inert_eta_body_spine_cut
           (.app ((ProofShape.mkApps (.const c ls) pre).liftN 1) (etaArgument u))
           (ProofShape.mkApps (.const c ls') (bodyPre ++ bodyPending)) := by
         simpa only [ProofShape.mkApps_snoc, ProofShape.liftN_mkApps, ProofShape.liftN] using RPB
+      obtain ⟨HTbody, WI⟩ := pi_inert_eta_body_interpretation heq hs hguard HT RN SD RX
+      have HTroot := RPB'.forget.spine_cut_source_typed
+        (ErasedScopedPrimitiveCertificateDescent.descent (pi_inert_stage_certificate_descent heq hs m)) HTbody
       refine ⟨A', body', x', xs', cf, ca, cs, cd, cb, m, ls', bodyPre, bodyPending,
         target, pb, tb, hcExact, hsplit, hcutExact, RF, RX, RS, RD, HL, HA, RPB', HR, HN, RTB,
-        hminBody, hminContinuation, ?_⟩
-      apply pi_inert_continuation_minimum_no_identity
-        (by simpa only [ProofShape.mkApps_append] using RPB') RTB
-        (by simpa only [ProofShape.inst_eq_subst] using RS) hcutExact
-        (by simpa only [ProofShape.inst_eq_subst] using hminContinuation) HE
+        hminBody, hminContinuation, ?_, HTroot, WI, ?_⟩
+      · apply pi_inert_continuation_minimum_no_identity
+          (by simpa only [ProofShape.mkApps_append] using RPB') RTB
+          (by simpa only [ProofShape.inst_eq_subst] using RS) hcutExact
+          (by simpa only [ProofShape.inst_eq_subst] using hminContinuation) HE
+      · apply pi_inert_continuation_minimum_no_constant heq hs HTroot WI
+          (by simpa only [ProofShape.mkApps_append] using RPB') RTB
+          (by simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using RS) hcutExact
+          (by simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using hminContinuation) HE
 
 end Lean4Lean.VEnv.Strengthening
