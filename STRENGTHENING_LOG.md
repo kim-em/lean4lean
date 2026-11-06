@@ -31720,3 +31720,38 @@ roots; maximum closure 11,138; 941 frozen source hashes. Only propext,
 Classical.choice and Quot.sound; no weakN_iff/weakN_inv/sorryAx or forbidden
 framework dependency and no owned diagnostics. Executable and independent
 experiments unchanged; no coordination or PR extraction.
+
+
+## 2026-11-06 10:51:55 UTC — Quantitative Pi-inert descent and prefix bypass
+
+The previously untracked ProofErasurePrimitiveRuleDescent and
+ProofErasureComputationCount files are now adopted unchanged after compilation
+and complete dependency validation. Their single-rule descent reconstructs one
+lower primitive per upper occurrence, and their counted compatible relation
+preserves that exact count through arbitrary unused binder insertion. Beta
+computation costs zero; computations inside primitive guards are not counted.
+The pre-integration hashes confirm that both original files remain byte-for-byte
+unchanged.
+
+ProofErasurePiInertCountedWrappers specializes single-rule descent to the
+restricted Pi-inert skeleton. It adds counted argument vectors and a first-head-
+beta decomposition whose function, arguments and tail have total cost bounded
+by the original path. Constant-lambda segments lower their body at exactly its
+count, while arbitrary changing-annotation paths retain a bounded lower payload
+count. Identity and constant wrappers can then be removed at proper function
+prefixes without increasing cost or stage. Discarded annotations/arguments add
+no remaining cost; no recovery certificate for a discarded argument is needed.
+The combined typed-prefix bypass theorem provides a path costing at most the
+post-expansion tail, hence strictly less than that tail plus the selected root.
+
+Judgment: the missing quantitative property of administrative wrapper bypass is
+proved. This is not normalization and does not bound guard proof sizes. The
+counted spine decomposition and minimum-path exclusion use this bound in the
+next separately committed module. Singleton and function-eta decoding remain
+open, and weakN_iff retains its original sorry.
+
+Validation batch: 970 jobs including feedback/substitution regressions;
+27 complete type/value/constructor/recursor roots, including the minimum-cut
+module; maximum closure 11,232; 945 frozen hashes. Only propext,
+Classical.choice and Quot.sound, with no forbidden dependency or owned diagnostic.
+Executable unchanged; no coordination or PR extraction.

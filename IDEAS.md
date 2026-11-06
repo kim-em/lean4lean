@@ -17860,3 +17860,28 @@ closure 11,138, 941 frozen hashes; only standard axioms, no forbidden
 dependency or owned diagnostic. The original strengthening goal remains open;
 no strictly smaller sufficient obligation is claimed. Executable and independent
 experiments unchanged; no coordination or PR extraction.
+
+
+## 2026-11-06 10:51:55 UTC — Primitive counts survive restricted descent and wrapper removal
+
+- Count only outer primitive occurrences, giving beta paths count zero and
+  leaving guard derivation sizes outside the measure: viable. The existing
+  PrimitiveRuleDescent and ComputationCount experiments compile unchanged and
+  pass the full dependency audit. They are now incorporated, byte-for-byte,
+  as foundations for this route rather than left as untracked experiments.
+- Descend a Pi-inert primitive without replacing it by several primitives:
+  proved from single-rule full-stage descent and reflection of its source-head
+  restriction. Compatible unused-binder descent consequently preserves count.
+- Account for wrapper removal with arbitrary changing annotations and pending
+  arguments: proved. First-head-beta decomposition bounds the combined costs
+  of the function, argument vector and suffix. Identity removal discards its
+  function cost; constant removal lowers its body without increasing that
+  cost and discards the unused first argument. Both retain the Pi-inert stage.
+- A selected constant/identity expansion can therefore be bypassed with cost
+  at most its tail, saving its own primitive occurrence. The counted spine-cut
+  and minimum-path argument are validated together and committed separately.
+
+Validation batch: 970 jobs; 27 complete dependency roots including
+the minimum-cut module; maximum closure 11,232; 945 frozen source hashes.
+Only standard axioms, no forbidden dependency or owned diagnostic. Executable
+unchanged; no coordination or PR extraction. Strengthening remains open.
