@@ -17911,3 +17911,36 @@ Validation: the same 970-job batch and 27-root complete dependency
 audit; maximum closure 11,232; 945 unchanged source hashes; standard
 axioms only, no forbidden dependency or owned diagnostic. No executable changes,
 coordination or PR extraction.
+
+
+## 2026-11-06 11:03:28 UTC — Descend the generated Eq family before decoding its endpoints
+
+- Reuse the old raw Eq decoder on full recovered guards: its Eq-head inertness
+  and primitive-head premises do not hold for the expanded relation. Do not
+  assume those restrictions for guards merely because the outer path is Pi-inert.
+- Decode a five-argument singleton semantically only after removing its fresh
+  proof major: proved. Its generated family comparison has two typed lower
+  endpoints, so recovered-comparison descent removes that binder. Rigid Eq
+  family injectivity then reads the endpoint equation in the lower context.
+  This handles arbitrary carriers and expanded guards, without literal-sort
+  preservation, Eq-head inertness, or an assumed certificate-completeness law.
+- Retain original endpoint ancestry after arbitrary argument computation:
+  proved. Reconstruct the whole lower five-argument prefix, descend the selected
+  singleton as one root, and align the original carrier and both indices using
+  their separate paths. An independent constant-head path allows universe
+  changes; source computations and singleton guards may use different stages.
+- Feed this into the minimum-count spine cut: proved with a typed lower origin
+  for the complete five-argument prefix (including motive and minor). A complete
+  singleton cut now yields the original lower equality. The remaining selected
+  cut is a singleton at fewer than five arguments or a native function eta,
+  with all argument paths, source typing and both full path segments retained.
+- Next: use the generated early-prefix telescope to remove the proof major
+  before specializing the remaining arguments, or resolve the native eta cut.
+  No substitution closure of the full guard grammar is assumed. This is a
+  checked reduction of the existing route, not a strictly smaller sufficient
+  obligation for PropositionFront and not completion of GOAL.md.
+
+Validation: 972 build jobs; 5 complete dependency roots; maximum
+closure 11,389; 947 frozen source hashes. Standard axioms only; no
+forbidden dependency or owned diagnostic. Executable unchanged; no coordination
+or PR extraction.

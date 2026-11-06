@@ -31793,3 +31793,34 @@ closure 11,232; 945 frozen hashes. Only propext, Classical.choice and
 Quot.sound, no forbidden dependency and no owned diagnostics. The incorporated
 count/descent experiments remain byte-for-byte unchanged. Executable unchanged;
 no coordination or PR extraction.
+
+
+## 2026-11-06 11:03:28 UTC — Complete recovered-singleton Eq prefixes now read the lower equation
+
+Added `ProofErasureRecoveredEqFamilyReadout.lean`. The generic five-argument
+code readout retains its literal family comparison under the fresh proof major.
+For a recovered comparison, descent on the two typed family propositions removes
+that binder first; semantic rigid-family injectivity then gives the same-context
+endpoint equation. Single-rule singleton descent handles an arbitrary inserted
+block. Whole-prefix replay and the separate carrier/index paths extend the result
+to arbitrary computed arguments and a changed universe head. The conclusion is
+actual lower definitional equality, not a claim that the old syntactic decoder
+works on expanded guards.
+
+Added `ProofErasurePiInertSingletonReadout.lean`. Its main theorem composes this
+readout with the existing minimum-count cut. With all five prefix arguments
+originating in a typed lower prefix, either the original lower indices are equal,
+or the retained original-spine cut is an earlier general singleton of arity
+strictly below five or a native function eta. The universe chain supplies the
+constant-head path, and valid singleton code supplies target-level well-formedness.
+The theorem keeps the original component histories, complete prefix and tail,
+source typing, root and strictly earlier guard stage.
+
+Validation: 972 build jobs including contextual-cast and core-family
+substitution regressions; 5 complete dependency roots, maximum closure
+11,389, 947 frozen source hashes. Checked types, values, opaque values,
+constructors and recursor rules. Only propext, Classical.choice and Quot.sound;
+no weakN_iff, weakN_inv, sorryAx or forbidden closure/alignment assumptions; no
+owned warnings. The original strengthening theorem is still open. Shorter
+generated telescopes and native eta remain the next work. No executable changes,
+coordination or PR extraction.
