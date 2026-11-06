@@ -18943,3 +18943,32 @@ irreducible obligation than PropFront. Arbitrary typed continuation frames
 still lack the target agreement required by `EqSpecializationFrame`.
 Validation: 1011 jobs, 7 audited roots, maximum closure 11,750,
 986 frozen source hashes. Executable unchanged; no PR extraction.
+
+
+### 2026-11-06 15:41:44 UTC — Construct completion through the actual nested eta seed
+
+**Idea.** Recover the target completion from the original component history,
+then preserve it through the actual recovered eta domain and the body's
+component history. Carry it into the smaller continuation instead of only
+assuming it at a future losing root.
+
+**Verdict: checked construction through the nested seed; continuation open.**
+`EqHeadCompletion.compute_components` reifies the actual argument history
+below unused ambient binders and retains any selected prefix. `.eta` derives
+the exact fresh-body realization and completion while a target argument
+remains. `eq_head_completion_of_probe_components` initializes these witnesses
+from the original five arguments, without assigning an actual term to the
+extra raw proof marker. `CountedEtaBodySpineCut.complete_root` retains ancestry
+at the very same selected inner eta root. The global theorem now returns that
+completed cut and a smaller typed minimum whose source has completion, or
+whose pre-eta prefix has exactly five arguments and retains completion.
+`full_eta_argument` proves the latter case's fresh argument is literally
+`.proof`, using canonical Eq's residual domain and type uniqueness.
+
+No arbitrary mixed-history preservation is claimed. The five-slot boundary
+cannot be handled by inventing a lower inhabitant of Eq; it needs separate
+proof-major treatment. Continuation ancestry after the seed remains open,
+so strengthening and the requested strictly smaller sufficient irreducible
+obligation remain unproved. Validation: 1012 jobs, 8 audited roots,
+maximum closure 11,763; 987 frozen source hashes. No executable changes
+or PR extraction.

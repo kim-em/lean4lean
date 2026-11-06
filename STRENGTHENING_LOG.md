@@ -33050,3 +33050,52 @@ closure 11,750; 986 frozen source hashes. Both changed modules are warning
 free. Audits include types, values, opaque bodies, constructors and recursor
 RHSs; only propext, Classical.choice and Quot.sound occur. Forbidden
 strengthening and replacement obligations are absent.
+
+
+### 2026-11-06 15:41:44 UTC — Construct and retain the nested source's target ancestry
+
+Added `ProofErasureEqHeadCompletionHistory.lean` and strengthened the global
+Eq-exposure conclusion with derived completion witnesses.
+
+`EqHeadCompletion.compute_components` reifies the exact component history at
+its original stage and below its ambient unused binders. It uses the actual
+well-formed head levels, retains semantic argument agreement with the fixed
+target vector, and supplies completion at any selected output prefix.
+`eta` lowers the recovered Pi domain, obtains its actual sort from DomainSort,
+and constructs the typed nonproof fresh body in that precise context. When
+the prefix is shorter than the target vector, the existing specialization
+consumes the next target argument. All new erasure and context equalities are
+proved, not supplied as extra premises.
+
+`eq_head_completion_of_probe_components` seeds completion from the original
+five-argument Eq probe and the first five components of the actual six-argument
+history. The trailing raw proof marker does not need a lower representative.
+`CountedEtaBodySpineCut.complete_root` then follows the actual body component
+history and attaches completion to the very same selected root; every count,
+path, hole scope, typing and minimum witness is retained. `forget_completion`
+recovers the former cut interface.
+
+`nested_eta_completed_frames` reconstructs the actual smaller typed execution
+while retaining completion at its selected inner eta source. If that source
+has fewer than five arguments, the fresh source of the returned minimum has
+completion too. Otherwise completion bounds its prefix by five, so the
+boundary is exactly five arguments. `full_eta_argument` proves that its raw
+fresh argument is `.proof`: the canonical recursor's residual domain is Eq,
+type uniqueness aligns the recovered domain with it, and sort uniqueness
+identifies the DomainSort universe with zero. No lower proof is assumed.
+
+The global theorem now derives these witnesses from its original hypotheses.
+It returns a completed inner-root cut and the exact alternative for the
+smaller minimum's initial source, alongside the previously selected later
+completion failure. This establishes ancestry at the initial nested seed;
+it does not establish ancestry at the later losing root. Arbitrary mixed
+continuation traversal still needs target agreement, and the completed-prefix
+proof-major case needs separate handling. The goal remains incomplete, with
+no claim of a sufficient strictly smaller irreducible obligation than
+PropFront. Executable unchanged; no coordination or PR extraction.
+
+Validation: 1012 build jobs, 8 public/full-result audit roots, maximum
+closure 11,763; 987 frozen source hashes. Both changed modules are warning
+free. Audits traverse types, values, opaque bodies, constructors and recursor
+RHSs; only propext, Classical.choice and Quot.sound occur. Forbidden
+strengthening and replacement obligations are absent.
