@@ -33149,3 +33149,58 @@ closure 11,763; 988 frozen source hashes. All three changed modules are
 warning free. Audits traverse types, values, opaque bodies, constructors and
 recursor RHSs; only propext, Classical.choice and Quot.sound occur. Forbidden
 strengthening and replacement obligations are absent.
+
+
+### 2026-11-06 16:06:03 UTC — Actual rigid result types exclude the proof-major structure case
+
+Added `ProofErasurePiInertRigidTail.lean`. `RigidTail` is an actual type grammar:
+a fixed constant family with arbitrary parameters, optionally under Pi
+binders with arbitrary domains. It is closed under ordinary substitution.
+`RigidTailTyping` records a nonproof raw term's actual assigned type in this
+grammar. Its realization theorem uses context conversion and nonproof erasure
+reflection to recover the assignment at any typed representative of the same
+raw term.
+
+The assignment is preserved by source-typed computation, interpreted endpoint
+substitution, actually typed application spines, and retained lambdas. At an
+application, rigid-head/Pi separation excludes trying to apply a bare family;
+a Pi assignment supplies the actual argument's domain and its instantiated
+codomain retains the tail. At a retained lambda, the actual whole-lambda
+realization provides the displayed annotation and body context. These proofs
+transport ordinary typings only and do not assume guarded substitution or
+context-conversion closure.
+
+`PiInertTypedContinuationRun.rigid_tail` proves preservation through arbitrary
+mixed actual frames, including annotation-changing retained frames via their
+existing identity interpretation. A sort-typed terminal output excludes all
+rigid-tail assignments, so `PiInertTypedContinuationMinimum.no_rigid_tail`
+rules them out at the minimum's source. This uses the actual execution, not
+minimality. `compute_backward` additionally transfers an endpoint assignment
+back along a typed computation by reifying the path and changing the type of
+the source across semantic equality. It does not construct a reversed raw
+computation.
+
+Native masked structure recovery provides a rigid-family assignment at its
+nonproof source. Thus `pi_inert_structure_root_no_sort_continuation` excludes
+such a source with an actual suffix and typed continuation ending at a sort.
+`EqHeadCompletion.read_proof_major_loss_in_minimum` applies the stronger
+backward form to the previous proof-major classifier: the residual structure
+root has six arguments and no pending tail, so the actual prefix carries its
+rigid assignment back to the fresh source. The sort-ending minimum forbids
+it. Consequently both the singleton and structure branches now yield the
+original target equation for this computed proof-major head-loss configuration.
+No inhabitant of the lower Eq proposition is introduced.
+
+The global theorem computes the actual output's sort typing from its original
+control witness and original path. Its existing smaller typed minimum now
+explicitly returns absence of every rigid-tail assignment at its initial
+source. This resolves the local full-six-slot structure residue, but does not
+yet preserve argument ancestry through arbitrary subsequent wrapped-head
+histories. That remains the next integration requirement. The goal is still
+incomplete; executable unchanged, no coordination or PR extraction.
+
+Validation: 1014 build jobs, 17 public/full-result audit roots, maximum
+closure 11,781; 989 frozen source hashes. Changed modules are warning
+free. Audits traverse types, values, opaque bodies, constructors and recursor
+RHSs; only propext, Classical.choice and Quot.sound occur. Forbidden
+strengthening and replacement obligations are absent.

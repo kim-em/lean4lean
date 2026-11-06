@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqProofMajorHeadLoss
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertRigidTail
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSpecializationFrames
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -40,7 +40,12 @@ witnesses are also retained. In the proof-major case, a head-losing primitive
 reached through its body component history either reads the original equation
 or is native structure eta (`EqHeadCompletion.read_proof_major_loss`). This
 uses descent through the fresh proof binder, not an assumed lower proof;
-arbitrary later wrapper histories and the structure-eta residue remain open. The conclusion also retains a positive, strictly smaller
+the structure alternative is excluded when the actual prefix and sort-ending
+minimum are retained (`read_proof_major_loss_in_minimum`). The returned smaller
+source now explicitly lacks every rigid-tail assignment: those assignments
+survive arbitrary mixed typed continuations and contradict the original
+output's sort typing. Preserving argument ancestry through arbitrary later
+wrapper histories remains open. The conclusion also retains a positive, strictly smaller
 `PiInertTypedContinuationMinimum` under both eta binders, derived by
 `CountedEtaBodySpineCut.nested_eta_typed_frames` from the selected inner eta.
 It records actual typing at every application source in its continuation;
@@ -135,8 +140,12 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
         ∃ innerStage innerB,
           ScopedTypeRecovery (ErasedStaticStructureEtaExpansionStage D innerStage) (A :: proofEraseCtx Γ')
             (ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre) (.forallE innerA innerB) ∧
-          DomainSort (A :: proofEraseCtx Γ') innerA innerU) := by
+          DomainSort (A :: proofEraseCtx Γ') innerA innerU ∧
+          ∀ c, env.Rigid c → ¬ RigidTailTyping (innerA :: A :: proofEraseCtx Γ')
+            (.app ((ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre).liftN 1) (etaArgument innerU)) c) := by
   classical
+  have HCout := HT.compute
+    (ErasedScopedPrimitiveCertificateDescent.descent (pi_inert_stage_certificate_descent heq hs n)) R
   obtain ⟨_, _, _, ha, _, _, hb⟩ := eqRecBeforeMajor_typings henv heq hΓ ⟨_, ht⟩
   have Eargs' : args = [(proofErase Γ α).liftN count offset,
       (proofErase Γ a).liftN count offset, (proofErase Γ M).liftN count offset,
@@ -233,7 +242,7 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
               (HB.eq_guarded heq hs hreg hoff hRec hshort) with Hlower | HB'
           · exact .inl Hlower
           · have HBcompleted := HB'.complete_root heq hs hΓ HPfresh
-            obtain ⟨innerA, innerU, bodyLs, bodyPre, smaller, hsmall, HM, HPnested, Horigin⟩ :=
+            obtain ⟨innerA, innerU, bodyLs, bodyPre, smaller, hsmall, HM, HPnested, innerStage, innerB, RNinner, SDinner⟩ :=
               HBcompleted.nested_eta_completed_frames heq hs
                 (erased_static_structure_eta_expansion_stage_descent heq hs k) HTwhole RN SD H hΓ ht
                 (cp := cp) (cost := cost) (by omega)
@@ -247,6 +256,7 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
             · exact .inl Hlower
             · exact .inr ⟨stage, cost, ls, pre, pending, _, _, _, k, cp, ct,
               RC, hminAll, hcostExact, HL, hshort, HA, RP, HTpre, hk, RN, SD, RT, HBcompleted,
-              innerA, innerU, bodyLs, bodyPre, smaller, HM.eq_positive heq Hhead HE, hsmall, HM, Hfailure, HPnested, Horigin⟩
+              innerA, innerU, bodyLs, bodyPre, smaller, HM.eq_positive heq Hhead HE, hsmall, HM, Hfailure, HPnested, innerStage, innerB, RNinner, SDinner,
+                fun _ hr => HM.no_rigid_tail heq hs HCout hr⟩
 
 end Lean4Lean.VEnv.Strengthening

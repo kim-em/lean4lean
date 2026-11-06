@@ -19001,3 +19001,29 @@ sufficient irreducible obligation than PropFront is claimed.
 
 Validation: 1013 jobs, 10 audited roots, maximum closure 11,763;
 988 frozen source hashes. No executable changes, PR extraction or coordination.
+
+
+### 2026-11-06 16:06:03 UTC — Rule out structure loss by propagating actual result types
+
+**Idea.** A native structure root has an ordinary assigned type headed by a
+rigid family. Permit Pi binders over that family and propagate the assigned
+type through the actual remaining computation and mixed continuation. Typed
+substitution preserves the family, application consumes Pi binders, and
+retained lambdas add them. A sort-typed output contradicts every such type.
+
+**Verdict: checked; the local proof-major structure residue is eliminated.**
+`RigidTailTyping` survives arbitrary mixed `PiInertTypedContinuationRun`s.
+Its endpoint assignment can also be transferred backward along an actual
+computation by semantic equality, without reversing or substituting raw paths.
+`EqHeadCompletion.read_proof_major_loss_in_minimum` now reads the original
+equation from the proof-major component history when its actual prefix and
+sort-ending typed minimum are retained. The full six-argument structure case
+contradicts this assigned-type invariant. No lower proof is assumed.
+
+The global theorem derives the output's sort assignment from its original
+path and returns absence of rigid-tail typing at the smaller minimum's source.
+This resolves the structure alternative for the displayed component-history
+readout; ancestry through arbitrary later wrapped-head histories is still
+open. Goal incomplete; no sufficient smaller irreducible obligation than
+PropFront is claimed. Validation: 1014 jobs, 17 audited roots, maximum
+closure 11,781; 989 frozen hashes. Executable unchanged; no PR extraction.
