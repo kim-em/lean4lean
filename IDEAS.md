@@ -16816,3 +16816,46 @@ Validation: 847 jobs; 6 complete audit roots; maximum closure
 12,453; 822 frozen source/import hashes. Only standard axioms; no forbidden
 dependencies or owned diagnostics. Original sorry remains; no final GOAL.md
 deliverable, coordination or PR extraction.
+
+
+### 2026-11-06 05:37:58 UTC — Retained eta reflection for unrestricted functions
+
+Previous goal turn: progress (48a21cc6, supplied histories inherit neutral eta
+residual readout). Revalidated HEAD and the two independent untracked files.
+The intervening clarification about stopping made no repository change.
+
+Checked the proposed fresh-argument primitive exclusion before implementing it.
+FreshPatternReflection already proves it, and LevelCoreEtaTransport already
+handles arbitrary functions in common mode. Verdict: do not duplicate the
+exclusion or claim a new general reflection result merely from those theorems.
+
+Deep continuation: retain what the common-mode result discards. Added
+ClassifiedEtaBody, keeping the original etaArgument universe classification
+through reflected beta and all later full-core computation of the short
+function. Independent full-core paths now have further residuals retaining the
+exact written-domain path and an actual typed short representative at the
+original Pi. This works for arbitrary functions, including recursion; no
+history to a covered variable/lambda or normalization premise is needed.
+
+Proved inferred readout of either classified residual from a selected native
+Pi and an explicit comparison between its domain and the retained annotation.
+When beta exposes a lambda, typing at the original Pi aligns the sort used for
+proof erasure, and the native expansion beta-contracts to its exact retained
+body. Thus the proof-domain case is covered without an unchecked raw eta/beta
+assumption. The final reduction allows each residual pair its own finite stage
+and handles proof-valued functions by core confluence.
+
+Verdict: the arbitrary-function reflection no longer loses the domain history
+or argument classification needed for inferred readout. The remaining native
+Pi/domain comparison coverage is an explicit premise. This does NOT prove its
+coverage, arbitrary consumer closure, strengthening, or a strictly smaller
+sufficient final obligation. Existing native-coverage and substitution barriers
+remain relevant; none is a refutation of the live retained-origin approach.
+Next: combine retained arbitrary eta origins with protected consumer simulation
+while keeping the emerging lambda-domain obligations, then discharge their
+native/domain coverage rather than replacing it with semantic conversion.
+
+Validation: 845 build jobs; 7 complete audit roots; maximum closure
+9,169; 820 frozen source/import hashes. Only standard axioms, no
+forbidden dependencies or owned diagnostics. Original sorry remains. No
+coordination, executable changes, PR creation or extraction.

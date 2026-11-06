@@ -30580,3 +30580,32 @@ neutral readout. This does not prove all functions have such histories or
 promote the target check to arbitrary substitution stability. General coverage
 remains open; original strengthening sorry and GOAL.md are unchanged.
 Executable and independent files preserved; no coordination or PR extraction.
+
+
+### 2026-11-06 05:37:58 UTC — Classified eta residuals retain domain origins
+
+Added ProofErasureRetainedEtaReflection.lean. ClassifiedEtaBody distinguishes
+the exact etaArgument u opening from a short lambda sharing the residual body.
+Its right-computation lemma keeps the long annotation fixed. Ordinary typed
+fresh reflection constructs the classified witness, and independent full-level
+core paths produce further residuals together with the original annotation's
+core path and an actual short representative typed at the original Pi.
+
+classified_eta_native_domain_check reads either branch in inferred or common
+mode from native recovery at a selected domain plus the explicit inferred
+comparison with the retained written domain. For the lambda branch, uniqueness
+at the original Pi supplies the domain sort needed for the typed proof-erased
+eta/beta identity. Both proof and retained fresh arguments are covered.
+
+proofErase_level_core_eta_check_of_native_domains isolates sufficient coverage
+at one fixed stage. proofErase_level_core_eta_finite_check_of_native_domains
+removes that uniform bound: each finite residual pair may use its own stage;
+proof-valued functions use core confluence. The coverage premise is not proved,
+and arbitrary consumer closure remains open. This is not a new claimed
+irreducible obligation strictly smaller than PropFront or a completed goal.
+
+Validation: 845 build jobs; 7 complete type/value/constructor/recursor
+dependency audit roots; maximum closure 9,169; 820 frozen hashes.
+Only propext, Classical.choice and Quot.sound; no forbidden dependencies and no
+owned warnings. Preserved both independent untracked experiments. No executable
+changes, coordination or PR extraction. IsDefEqU.weakN_iff remains open.
