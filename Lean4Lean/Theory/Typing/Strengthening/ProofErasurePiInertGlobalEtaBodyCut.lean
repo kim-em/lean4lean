@@ -3,7 +3,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaFrameOri
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqDelayedSupply
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqFrameProgress
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
 
 /-! # Eq exposure reaches a non-level root inside a minimum eta body
@@ -223,7 +223,19 @@ further consumed or retained eta cuts. `PiInertTypedContinuationMinimum.advance`
 follows its actual execution through any finite retained-lambda prefix to the
 next application unless its current endpoint already exposes a carrier. The
 next application inherits full minimality and the prefix preserves joint
-competitors (`PiInertNextApplication.joint_minimum`). Its count is positive:
+competitors (`PiInertNextApplication.joint_minimum`).
+`EqTargetPrefixEmbedding.frame_boundary` now exhausts completed non-level cuts
+and eligible direct applications with nested induction on primitive cost and
+selected frame count. Equal-cost moves keep the actual shorter tail; a positive
+cost decrease permits a new frame count. Empty supplies are eligible at every
+arity, and nonempty supplies are eligible once the target prefix is full.
+The resulting `EqEmbeddingFrameBoundaryMinimum` identifies a retained wrapper,
+non-proof consumption, or an underfilled prefix with nonempty pending supply,
+and retains that endpoint's completed unrestricted minimum and exact run.
+`pi_inert_eq_exposure_eq_or_frame_boundary` derives this result directly from
+the original lifted probe using identity specialization of its five lower
+arguments. It does not depend on the nested-eta frontier theorem below. The
+three boundary cases and full strengthening coverage remain open. Its count is positive:
 `eq_positive` excludes zero-cost Eq exposure through arbitrary mixed frames.
 The conclusion additionally selects an `IteratedAmbientSingletonFailure`
 within that smaller budget. Its exact hole follows function positions, retained

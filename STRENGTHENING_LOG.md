@@ -34536,3 +34536,51 @@ needed supply ancestry, including non-proof endpoint agreement and equal-cost
 moves. These endpoint steps do not establish arbitrary frame coverage or a
 sufficient irreducible obligation. GOAL.md remains incomplete and the original
 weakN_iff sorry is unchanged. No executable changes or PR extraction.
+
+
+## 2026-11-06 20:22:17 UTC — Direct-frame exhaustion from the original lifted Eq probe
+
+Added `ProofErasureEqFrameFrontier.lean`. Every typed continuation minimum now
+admits its selected finite frame count via `with_frames`. The generic
+`pi_inert_application_tail_minimum` retains an actual application's whole
+suffix, original competitor predicate and exact tail count.
+
+`PiInertEqFrameBoundary` stores three actual run constructors with all their
+source typings, annotation or substitution witnesses, counted paths and tails:
+retained wrapper, non-proof consumption, and nonempty supply at an underfilled
+Eq prefix. Its `run` theorem reconstructs the identical typed run. The
+classifier excludes a terminal Eq endpoint at an exposed carrier and otherwise
+returns an eligible direct application or one of those three cases.
+
+`EqEmbeddingFrameBoundaryMinimum` keeps completion and the endpoint's own
+unrestricted minimum, bounded by the input budget. It supplies a frame-refined
+minimum with zero preceding computation and its exact remaining run.
+
+`EqTargetPrefixEmbedding.frame_boundary` combines non-level strict descent
+with direct-tail progress by nested strong induction on primitive count and
+frame count. Positive count decreases reset the secondary measure freely;
+equal-count direct steps use the selected shorter tail. The empty-pending
+case needs no new argument images even when the prefix is underfilled.
+The ordinary-completion version derives its frame count from the given run.
+
+`EqTargetPrefixCompletion.probe` establishes the invariant directly for the
+original lifted five-argument prefix plus erased proof major. The new
+`pi_inert_eq_exposure_eq_or_frame_boundary` minimizes the original counted
+exposure over all stages, seeds a terminal continuation, and applies the
+new induction. Its hypotheses match the original probe setup; it assumes no
+later-root completion and does not use the old nested-eta frontier. The global
+module imports and documents this additional result; the old detailed theorem
+remains available.
+
+Validation: 1050 jobs including the global theorem and established
+regressions, 32 public roots audited through types, values, constructors
+and recursors, maximum closure 11,976. Only propext, Classical.choice
+and Quot.sound occur. No owned diagnostics, sorryAx, strengthening gap or
+excluded circular framework; 1,025 source hashes remained fixed. The new probe
+root is additionally checked not to depend on the old nested-eta frontier.
+
+Remaining: resolve the retained/non-proof/underfilled boundary with actual
+argument ancestry and prove full strengthening coverage. This exhausts the
+eligible direct transitions but is not global mixed-frame termination or a
+sufficient smaller obligation. The original weakN_iff sorry and executable are
+unchanged; GOAL.md remains incomplete. No PR extraction.

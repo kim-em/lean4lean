@@ -19923,3 +19923,38 @@ especially non-proof consumption and underfilled prefixes whose supply is no
 longer linked to the selected eta root. This does not prove global termination,
 a sufficient smaller obligation, or strengthening. Validation: 1049 jobs,
 33 audited roots, maximum closure 11,976, 1,024 frozen source hashes.
+
+
+## 2026-11-06 20:22:17 UTC — Exhaust eligible direct frames with two decreasing measures
+
+**Idea:** the old component frontier stopped even when its next actual
+application preserved completion and removed a frame. Combine the strict
+non-level descent with repeated direct-tail progress, using primitive cost
+first and the selected remaining frame count second.
+
+**Verdict:** proved for every completed typed minimum, returning exact
+remaining cases rather than an arbitrary first component transition.
+`EqTargetPrefixEmbedding.frame_boundary` uses nested strong induction. A
+positive primitive decrease permits any new finite frame count; an equal-cost
+application keeps the original tail with one fewer frame. It never uses a
+reified run to justify secondary decrease. Identity/proof endpoint moves with
+full target prefixes are traversed, as are empty supplies at every arity.
+
+`PiInertEqFrameBoundary` records the actual unresolved constructor: a retained
+wrapper; consumption of a domain without a Prop witness; or a nonempty pending
+supply at an underfilled Eq prefix. The returned endpoint has completion,
+its own unrestricted minimum, and the exact remaining typed run and frame
+count. These cases are not refuted or assumed impossible.
+
+The new original-probe theorem starts completion directly from the five lower
+arguments with identity specialization and unused-binder insertion, then adds
+the erased proof major outside that bounded prefix. It reaches the boundary
+from the original exposure path without using the older nested-eta frontier.
+The dependency audit checks this independence explicitly.
+
+Remaining: resolve retained wrapper execution and non-proof/underfilled
+argument agreement while retaining actual supply ancestry, and establish full
+strengthening coverage. The new frontier is necessary evidence, not a proved
+sufficient irreducible obligation smaller than PropFront. GOAL.md stays open.
+Validation: 1050 jobs, 32 audited roots, maximum closure 11,976,
+1,025 frozen source hashes.
