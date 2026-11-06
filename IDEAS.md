@@ -15587,3 +15587,44 @@ Validation: 786 build jobs; 10 complete dependency roots; maximum
 closure 10,023; 761 pinned source/import hashes unchanged. Standard axioms
 only, no forbidden dependencies or own-module warnings. Original strengthening
 sorry remains; executable unchanged; no coordination or PR extraction.
+
+
+## 2026-11-06 00:52:55 UTC — Sort-valued recursive substitution is false for the full level core
+
+Previous goal turn: progress (construction of the full-core loop readout and
+partial substitution boundary); the intervening clarification made no code
+changes. Revalidated bbe02326e1a480439c66e7ac6d3c76518f38630a and found the
+previous build terminal with errors, with no live build process. Continued its
+proof rather than restarting a live job.
+
+Idea: restrict unrestricted recursive instantiation to actual sort-typed sources
+and outputs. Verdict: refuted, including proposition-valued sources, a single
+shared actual typed substitution image, and the actual total environment core
+with universe changes and optional Quot programs. The preceding function-valued
+probe barrier left this restriction open; the present witness settles it.
+
+Given D convertible to D -> Prop and D convertible to D', both diagonals have
+carrier D. In an actual context with h : D -> Prop, the propositions h diagonalD
+and h diagonalD' have an inferred recursive guard from neutral application and
+common lambda checking. Substitute diagonalD for h. One beta step on the right
+produces the two self loops at D and D'. Full-core loop readout forces inferred
+comparison of their annotations. Choose D to be an actual recursive Pi and D'
+to be its reflexive canonical-Eq cast along a free proof. That comparison would
+expose a Pi from the cast. Typed ordinary-return factorization, ordinary Pi
+preservation and the existing cast boundary prohibit this exposure, even with
+universe and quotient computation.
+
+The actual recursive extension preserves canonical Eq and separately satisfies
+PropositionFront via the previously checked Curry/Eq argument. The final theorem
+pairs that front with failure of the proposed closure law. Thus this rules out a
+certificate shortcut, not strengthening. It also refutes the unrestricted closure
+laws for this core: restricting a hypothetical unrestricted law would give the
+now-refuted sort-only law. Higher singleton stages or an explicitly stronger
+comparison relation remain necessary candidates; arbitrary same-core recursive
+substitution must no longer be treated as a live general closure theorem.
+
+Validation: 790 build jobs; 12 audited public roots; maximum dependency
+closure 11,624; 765 pinned source/import hashes unchanged. Standard axioms
+only; no forbidden dependencies or own-module warnings. The original sorry is
+unchanged. No sufficient strictly smaller irreducible obligation has been proved;
+GOAL.md stays active. No executable changes, coordination or PR extraction.

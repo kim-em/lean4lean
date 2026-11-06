@@ -29318,3 +29318,65 @@ strengthening, canonical-Eq counterexample, or strictly smaller sufficient
 irreducible obligation has been obtained. GOAL.md remains active. This commit
 contains one new proof module and EOF ledger additions only. Executable and
 independent untracked files preserved; no coordination or PR extraction.
+
+
+## 2026-11-06 00:52:55 UTC — Refute typed proposition-valued recursive instantiation
+
+Previous goal turn: progress toward the loop-readout counterexample. Revalidated
+bbe02326e1a480439c66e7ac6d3c76518f38630a; the earlier build was terminal with
+errors and no build process remained. Preserved the two independent untracked
+experiments. The clarification exchange did not change the worktree.
+
+ProofErasureLevelLoopReadout.lean extends annotation ancestry to ErasedLevelCore.
+Its root exclusion handles both ordinary primitive roots and explicit universe
+roots. Full-core diagonal inversion preserves the body; every loop reduct keeps
+two annotations descended from the original annotation, including beta
+replication. Inferred diagonal comparison reads out its annotations. Either mode
+of loop comparison therefore yields inferred annotation comparison. A separate
+inversion proves that inferred raw comparison with a displayed Pi requires
+full-core Pi exposure on the other side. No normalization or annotation
+fixedness hypothesis is used.
+
+ProofErasureSortRecursiveSubstitutionBoundary.lean defines the proposed
+TypedSortRecursiveInstantiationClosure with genuine source context typing,
+source sort typings, and one shared typed substitution image. Its recursive_loops
+theorem constructs proposition-valued neutral applications of two convertible
+recursive diagonals. The source guard uses only neutral and lamCommon rules,
+not a comparison of carrier annotations. Instantiating the neutral function by
+the first diagonal gives a mixed loop; one beta step on the right duplicates
+the second diagonal. The existing reducts and forward theorems plus the new
+loop readout force full-core inferred comparison of the two carriers.
+
+EnvironmentCore.level_cast_no_pi is stated in actual environment parameters,
+where pattern rules are concrete. Typed level-core ordinary-return factorization
+turns a hypothetical cast-to-Pi path into an ordinary cast-to-Pi path: full-core
+reduction of the displayed Pi keeps its head. Both optional-Quot branches reduce
+to the checked free-major reflexive-cast boundary. The recursive declaration
+then supplies an actual recursive Pi and an actual well-formed context extended
+by a reflexive equality proof. Their combination refutes sort-only recursive
+instantiation for the total environment core.
+
+canonical_sort_recursive_instantiation_failure simultaneously records that the
+extension preserves canonical Eq, satisfies PropositionFront by the independent
+Curry/Eq proof, and fails the certificate closure law. This is expressly not a
+counterexample to strengthening. It refutes arbitrary same-core sort-valued
+recursive substitution, including the proposition-valued special case; merely
+requiring coherent typed substitution or restricting native result types to
+sorts does not repair the law. A future route needs additional singleton-stage
+comparison or a different invariant that supports the exposed carrier equality.
+
+Validation: isolated full build passed (790 jobs); 12 public roots audited
+through types, opaque values, inductive constructors and recursor RHSs; maximum
+closure 11,624; 765 source/import hashes unchanged. Only propext,
+Classical.choice and Quot.sound; no forbidden dependencies, original strengthening
+theorem dependencies, or own-module warnings. Development fixes imported the
+private diagonal erasure lemma explicitly, supplied the lifted erasure equation
+at the exact syntactic source, and specialized cast exclusion to actual environment
+parameters to match the existing ordinary-core boundary. No premise was weakened
+to conceal the failed closure law.
+
+Completion audit: UniqueTyping.lean retains its original weakN_iff sorry. This
+turn proves no strengthening theorem, canonical-Eq strengthening counterexample,
+or strictly smaller sufficient irreducible obligation. GOAL.md remains active.
+Only these two proof files and EOF ledger additions are committed. The executable
+and independent experiments are untouched; no coordination or PR extraction.
