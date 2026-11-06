@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqTargetPrefixExecution
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertConstantFrames
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertRetainedPrefixOrigin
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertEtaHoleMinimum
 
 /-! # Completed non-level cuts strictly descend the mixed minimum
 
@@ -98,12 +98,77 @@ theorem EqTargetPrefixCompletion.read_guard
 
 omit [Params] in
 private theorem tracked_spine_hole (Δ : List ProofShape) (args : List ProofShape) :
-    ∃ C : ScopedHole Δ Δ, TrackedHeadHole C ∧ ∀ f, C.plug f = ProofShape.mkApps f args := by
+    ∃ C : ScopedHole Δ Δ, SpineBinderHole C ∧ ∀ f, C.plug f = ProofShape.mkApps f args := by
   induction args using List.snoc_induction with
   | nil => exact ⟨.hole, .hole, fun _ => rfl⟩
   | snoc args x ih =>
     obtain ⟨C, HC, EC⟩ := ih
     exact ⟨.appFn C x, .appFn HC, fun f => by rw [ProofShape.mkApps_snoc]; exact congrArg (fun g => ProofShape.app g x) (EC f)⟩
+
+/-- A completed non-level root under any application/binder hole either
+reads the target equation or is native eta with a strictly smaller completed
+body minimum. The actual eta recovery, domain and output equality are retained
+so callers can additionally exploit the original supplied arguments. Completion
+at this actual root is required; no arbitrary-substitution transport is used. -/
+theorem EqTargetPrefixCompletion.hole_cut_eq_or_smaller {C : ScopedHole Δ Θ}
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hreg : recursorData ``Eq.rec = some data) (hoff : data.majorOffset = 5)
+    (hRec : ∀ levels rhs, ¬ D.unfolds ``Eq.rec levels rhs)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (ht : env.HasType univs Γ (eqRecBeforeMajor v w α a M minor b) T)
+    (HP : EqTargetPrefixCompletion Γ v w [α,a,M,minor,b] Θ
+      (ProofShape.mkApps (.const ``Eq.rec ls) args))
+    (HC : SpineBinderHole C) (HT : TypedSource Δ source)
+    (RP : ScopedComputeCount (PiInertStage D n) cp Δ source
+      (C.plug (ProofShape.mkApps (.const ``Eq.rec ls) args)))
+    (HR : PiInertStage D n Θ (ProofShape.mkApps (.const ``Eq.rec ls) args) target)
+    (HN : ¬ LevelPrimitive univs (ProofShape.mkApps (.const ``Eq.rec ls) args) target)
+    (RT : ScopedComputeCount (PiInertStage D n) ct Δ (C.plug target) endpoint)
+    (HK : PiInertTypedContinuationRun D Ω out Δ K endpoint ck)
+    (HE : CarrierExposure out) (HO : ControlTyping Ω out (.sort outU))
+    (hcost : cp+1+ct+ck ≤ cost)
+    (hmin : ∀ later j tail k, ScopedComputeCount (PiInertStage D later) j Δ source tail →
+      K tail k → cost ≤ j+k) :
+    env.IsDefEq univs Γ a b α ∨ ∃ k A B u,
+      target = .lam A (.app ((ProofShape.mkApps (.const ``Eq.rec ls) args).liftN 1) (etaArgument u)) ∧
+      k < n ∧ ScopedTypeRecovery (ErasedStaticStructureEtaExpansionStage D k) Θ
+        (ProofShape.mkApps (.const ``Eq.rec ls) args) (.forallE A B) ∧ DomainSort Θ A u ∧
+      ct+ck < cost ∧
+      PiInertTypedContinuationMinimum D Ω out (A :: Θ)
+        (.app ((ProofShape.mkApps (.const ``Eq.rec ls) args).liftN 1) (etaArgument u)) (ct+ck) ∧
+      EqTargetPrefixCompletion Γ v w [α,a,M,minor,b] (A :: Θ)
+        (.app ((ProofShape.mkApps (.const ``Eq.rec ls) args).liftN 1) (etaArgument u)) := by
+  classical
+  have HTwhole := HT.pi_inert_compute heq hs RP.forget
+  have HTroot := C.typed HTwhole
+  have Hconst := pi_inert_frames_minimum_no_constant heq hs HT HE HC.tracked RP HR RT HK hcost hmin
+  have HId := pi_inert_frames_minimum_no_identity HK.frames HE HC.tracked RP RT HK.holds hcost hmin
+  have Hcore : ¬ ErasedLevelCore D (ProofShape.mkApps (.const ``Eq.rec ls) args) target := by
+    rintro (Hcore | HL)
+    · exact typed_eq_no_core_root heq hreg hoff hRec HTroot (constHead_mkApps _ _) Hcore
+    · exact HN HL
+  have Hstruct : ¬ NativeMaskedStructureExpansion (ErasedStaticStructureEtaExpansionStage D n) Θ
+      (ProofShape.mkApps (.const ``Eq.rec ls) args) target := by
+    intro HS
+    obtain ⟨c, hr, HTail⟩ := rigid_tail_of_native_structure
+      (erased_static_structure_eta_expansion_stage_descent heq hs n) HTroot const_spine_ne_proof HS
+    have hp : ErasedScopedPrimitiveDescent (PiInertStage D n) :=
+      ErasedScopedPrimitiveCertificateDescent.descent (pi_inert_stage_certificate_descent heq hs n)
+    have Hwhole := HC.tracked.rigid_tail_plug hp hr HTwhole HTail
+    exact HO.no_rigid_tail hr (HK.rigid_tail heq hs hr
+      (Hwhole.compute hp ((HC.counted (.base HR)).trans RT).forget))
+  by_cases HQ : ComputedJointPrefixPrimitive (ErasedStaticStructureEtaExpansionStage D n) Θ
+      (ProofShape.mkApps (.const ``Eq.rec ls) args) target
+  · exact .inl (HP.read_guard heq (erased_static_structure_eta_expansion_stage_certificate_descent heq hs n) hΓ ht (.inr HQ))
+  rcases static_other_spine_root HR.1 Hcore HQ Hstruct with HC | ⟨k, hk, HG | HI | HEta⟩
+  · exact (Hconst HC).elim
+  · exact .inl (HP.read_guard heq (erased_static_structure_eta_expansion_stage_certificate_descent heq hs k) hΓ ht (.inl HG))
+  · exact (HId _ HI).elim
+  · cases HEta with
+    | @intro A B u RN SD =>
+      obtain ⟨_, hsmall, HM, HPfresh⟩ := HP.eta_hole_minimum
+        heq hs hΓ ht HC HT RN SD RP HR RT HK hcost hmin
+      exact .inr ⟨k, A, B, u, rfl, hk, RN, SD, hsmall, HM, HPfresh⟩
 
 /-- Every actual completed non-level cut in a typed minimum either reads the
 original equation or follows native eta to a strictly smaller typed minimum
@@ -137,37 +202,14 @@ theorem TargetPrefixEqSpineCut.eq_or_smaller
   have RPC : ScopedComputeCount (PiInertStage D n) cp Δ source
       (C.plug (ProofShape.mkApps (.const ``Eq.rec ls) pre)) := by rw [EC]; exact RP'
   have RTC : ScopedComputeCount (PiInertStage D n) ct Δ (C.plug target) endpoint := by rw [EC]; exact RT
-  have HTroot := C.typed (show TypedSource Δ (C.plug (ProofShape.mkApps (.const ``Eq.rec ls) pre)) from by rw [EC]; exact HTwhole)
-  have Hconst := pi_inert_frames_minimum_no_constant heq hs HT HE HC RPC HR RTC HK
-    (cost := cost) (by omega) hmin
-  have HId := pi_inert_frames_minimum_no_identity HK.frames HE HC RPC RTC HK.holds
-    (cost := cost) (by omega) hmin
-  have Hcore : ¬ ErasedLevelCore D (ProofShape.mkApps (.const ``Eq.rec ls) pre) target := by
-    rintro (Hcore | HL)
-    · exact typed_eq_no_core_root heq hreg hoff hRec HTroot (constHead_mkApps _ _) Hcore
-    · exact HN HL
-  have Hstruct : ¬ NativeMaskedStructureExpansion (ErasedStaticStructureEtaExpansionStage D n) Δ
-      (ProofShape.mkApps (.const ``Eq.rec ls) pre) target := by
-    intro HS
-    obtain ⟨c, hr, HTail⟩ := rigid_tail_of_native_structure
-      (erased_static_structure_eta_expansion_stage_descent heq hs n) HTroot const_spine_ne_proof HS
-    have Rafter := ((ScopedComputeCount.base HR).mkApps (ScopedArgumentsCount.refl (args := pending))).trans RT
-    exact HO.no_rigid_tail hr (HK.rigid_tail heq hs hr ((HTail.mkApps hr HTwhole).compute
-      (ErasedScopedPrimitiveCertificateDescent.descent (pi_inert_stage_certificate_descent heq hs n)) Rafter.forget))
-  by_cases HQ : ComputedJointPrefixPrimitive (ErasedStaticStructureEtaExpansionStage D n) Δ
-      (ProofShape.mkApps (.const ``Eq.rec ls) pre) target
-  · exact .inl (HP.read_guard heq (erased_static_structure_eta_expansion_stage_certificate_descent heq hs n) hΓ ht (.inr HQ))
-  rcases static_other_spine_root HR.1 Hcore HQ Hstruct with HC | ⟨k, hk, HG | HI | HEta⟩
-  · exact (Hconst HC).elim
-  · exact .inl (HP.read_guard heq (erased_static_structure_eta_expansion_stage_certificate_descent heq hs k) hΓ ht (.inl HG))
-  · exact (HId _ HI).elim
-  · cases HEta with
-    | @intro A B u RN SD =>
-      obtain ⟨_, Ξ, next, smaller, hsmall, HM, HPnew, _⟩ := HPsupplied.eta_origin_minimum
-        heq hs hΓ ht HTwhole RN SD RP' HR RT HK (cost := cost) (by omega) hmin
-      have Hshape := HPnew
-      obtain ⟨nextLs, nextArgs, ES, _⟩ := Hshape
-      exact .inr ⟨Ξ, nextLs, nextArgs, smaller, hsmall, ES ▸ HM, ES ▸ HPnew⟩
+  rcases HP.hole_cut_eq_or_smaller heq hs hreg hoff hRec hΓ ht HC HT RPC HR HN RTC HK HE HO
+      (cost := cost) (by omega) hmin with Hlower | ⟨k, A, B, u, rfl, _, RN, SD, _, _, _⟩
+  · exact .inl Hlower
+  · obtain ⟨_, Ξ, next, smaller, hsmall, HM, HPnew, _⟩ := HPsupplied.eta_origin_minimum
+      heq hs hΓ ht HTwhole RN SD RP' HR RT HK (cost := cost) (by omega) hmin
+    have Hshape := HPnew
+    obtain ⟨nextLs, nextArgs, ES, _⟩ := Hshape
+    exact .inr ⟨Ξ, nextLs, nextArgs, smaller, hsmall, ES ▸ HM, ES ▸ HPnew⟩
 
 /-- A remaining component-only minimum with bounded completion at both ends
 of its actual current path. Its actual mixed continuation and next application

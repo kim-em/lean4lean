@@ -74,15 +74,23 @@ positive earlier insertion supplies strict decrease without immediate carrier
 exposure. An arbitrary intervening retained prefix
 is now represented by `PiInertNextApplicationAtHole`: it records a tracked
 application/binder hole and interpreted substitution into its precise binder
-context, with the
-original continuation predicate preserved on every competitor. Ordinary eta
+context, with the original continuation predicate preserved on every competitor. Ordinary eta
 origin survives at that location. `SpineBinderHole.focus_path` reifies the
 whole subsequent computation as a typed continuation at the inner term;
 every competitor maps back to the original path at the same count.
 `EqTargetPrefixComponentMinimum.focus_next` consequently gives a typed
 minimum at the substituted Eq spine with the remaining budget. Target
 agreement at that substituted spine is still open, as is a well-founded
-progress argument for moves whose preceding component path costs zero.
+progress argument for arbitrary moves whose preceding component path costs
+zero. At an actual primitive inserting a lambda,
+`pi_inert_lambda_hole_body_minimum` instead charges that insertion and gives
+a strictly smaller fresh-body minimum beneath any application/binder hole.
+`EqTargetPrefixCompletion.hole_cut_eq_or_smaller` classifies a completed
+non-level root at such a location: positive singleton guards read the target;
+administrative, core and structure cases are excluded; native eta gives that
+strictly smaller completed body. The spine-cut classifier now uses this
+general result and retains its existing consumed-body return shortcut.
+Completion must still be established at the actual selected root.
 `minimum_frontier` iterates this decrease
 by strong induction and reaches a component-only current path with completion
 at both endpoints. The conclusion retains this actual

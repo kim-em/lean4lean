@@ -19560,3 +19560,37 @@ Validation: 1033 build jobs, 22 audited public roots, maximum closure
 11,951, 1,008 frozen source hashes. Strengthening and a sufficient
 strictly smaller irreducible obligation remain open. No executable changes,
 PR extraction or coordination.
+
+
+## 2026-11-06 18:37:14 UTC — Charge an actual lambda insertion for strict hole descent
+
+Verdict: verified progress. The previous focusing result preserves cost and
+cannot justify iteration by itself. At an actual primitive that inserts a
+lambda inside an application/binder hole, the original prefix and that
+insertion can be charged before focusing the remaining execution on the fresh
+body. This yields an exact smaller budget, not an equal-cost scope move.
+
+`pi_inert_lambda_hole_body_minimum` reconstructs every focused body competitor
+through the same hole and actual original prefix. It proves exact global cost
+and a strictly smaller typed minimum at the inserted body's original binder
+scope, retaining an actual typed continuation and pointwise competitor
+reconstruction. It needs the actual lambda-producing primitive, not an
+assumed native recovery after a substitution. For a completed native eta root,
+`EqTargetPrefixCompletion.eta_hole_minimum` additionally derives completion of
+the fresh body from the actual recovery and domain-sort witnesses.
+
+`hole_cut_eq_or_smaller` now classifies any completed non-level root under
+such a hole. Positive singleton guards read the target; constant/identity,
+core and structure alternatives are excluded by the actual minimum and final
+sort exposure. Native eta yields the new strict body minimum. The original
+spine-cut classifier now uses this generalized classifier, then retains its
+existing whole-supply eta-origin step and consumed-component return shortcut.
+
+Remaining: establish completion at selected roots reached through later
+substitutions using their linked argument ancestry. The new result requires
+completion at the actual root; it does not transport completion through an
+arbitrary context interpretation, nor justify unrestricted equal-cost moves.
+Strengthening and a sufficient strictly smaller irreducible obligation remain
+open. Validation: 1034 jobs, 13 audited roots, maximum closure
+11,967, 1,009 frozen source hashes. No executable changes, PR extraction
+or coordination.

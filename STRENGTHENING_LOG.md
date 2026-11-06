@@ -33971,3 +33971,55 @@ reconstruction at an actual eta insertion, charging its positive primitive
 cost, while retaining the relevant ancestry. `weakN_iff` and a sufficient
 irreducible obligation strictly smaller than PropFront remain open. No
 executable changes, PR extraction or coordination.
+
+
+## 2026-11-06 18:37:14 UTC — Strict completed eta descent beneath application/binder holes
+
+Added `ProofErasurePiInertEtaHoleMinimum.lean`. `SpineBinderHole.counted` lifts
+payload computation at exactly its original primitive count. The main result,
+`pi_inert_lambda_hole_body_minimum`, starts with the actual prefix, primitive
+inserting a lambda, suffix, typed continuation and all-stage global minimum.
+It focuses the suffix through the enclosing hole and inserted binder, keeping
+the original continuation predicate via exact competitor reconstruction. Any
+body competitor composes back after the actual prefix and insertion. This
+proves both exact global cost and a typed fresh-body minimum with budget
+`ct + ck`, strictly less than the original budget because the insertion costs
+one. It retains the focused run, closure under preceding computations and
+pointwise reconstruction as well as the existential typed minimum.
+
+`EqTargetPrefixCompletion.eta_hole_minimum` specializes that result to an
+actual native eta at a completed root, deriving completion of the fresh body
+from the same native recovery/domain witnesses. It applies under arbitrary
+function applications and lambda bodies, and allows arbitrary subsequent
+mixed typed continuation; the new binder need not be consumed immediately.
+
+Added `EqTargetPrefixCompletion.hole_cut_eq_or_smaller` in the minimum module.
+The previous spine-root exclusions now work at any application/binder hole:
+constant and identity insertion contradict minimality; ordinary core is
+excluded at the typed Eq root; a structural root would propagate rigid result
+typing through the tracked hole and remaining run, contradicting the final
+sort. Both positive singleton guards read the target directly. The remaining
+native eta branch supplies a strictly smaller completed body minimum and
+retains its actual recovery, domain, output equality and guard-stage bound.
+
+Refactored `TargetPrefixEqSpineCut.eq_or_smaller` to call this generalized
+classifier. Its pending-argument hole now records the stronger application/
+binder grammar. The native branch still invokes `eta_origin_minimum` on the
+whole original supply, preserving the existing consumed-component return and
+its exact original argument history. Thus the global frontier uses the new
+classification without replacing that return by the fresh-body fallback.
+
+Validation: 1034 jobs including GlobalEtaBodyCut and the established
+ContextualCastFeedback/CoreFamilySubstitutionBarrier regressions. All
+13 public roots in the three owned modules passed recursive dependency
+and axiom audit, maximum closure 11,967. Only propext, Classical.choice
+and Quot.sound occur; no weakN_iff, weakN_inv, sorryAx or excluded framework
+dependencies. No owned diagnostics; all 1,009 frozen source hashes remained
+unchanged across final build and audit.
+
+Remaining: derive completion at actual roots after later substitutions from
+linked eta and argument ancestry. Strict descent is now proved at a completed
+selected insertion beneath the retained-hole grammar; arbitrary equal-cost
+scope moves and target-agreement transport are not thereby solved. `weakN_iff`
+and a sufficient irreducible obligation strictly smaller than PropFront remain
+open. No executable changes, PR extraction or coordination.
