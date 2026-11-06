@@ -17001,3 +17001,49 @@ Validation: 853 build jobs; 8 complete dependency audit roots; maximum
 closure 8,357; 828 frozen source/import hashes. Only standard axioms,
 no forbidden dependencies or owned diagnostics. No coordination, executable
 changes or PR extraction. Original weakN_iff sorry remains.
+
+
+### 2026-11-06 06:20:36 UTC — Exact eta reflection and full-core origin histories
+
+Previous goal turn: progress (5f387257, eta-hidden constant-spine cleanup and
+structural projection simulation). Revalidated HEAD and the two independent
+untracked experiments. The intervening clarification was conversational and
+did not change the worktree; work resumes under the active goal continuation.
+PR extraction remains deferred.
+
+Tested direct induction on full level-core computation of the opened eta body,
+instead of factoring through an ordinary return path that changes its endpoint.
+Verdict: works. Applied registered patterns demand a visibly matched final
+argument, which cannot be either the fresh variable or proof marker. Delta,
+projection and universe roots also cannot consume that application boundary.
+The selected eta argument is fixed by all core paths. At beta, typed fresh
+reflection applies; at composition, actual realization preserves the original
+Pi and non-proofness, or computation continues under an exposed lambda. The
+function path reflects exactly, with the original body endpoint unchanged.
+No confluence, concrete-pattern, unfolding-level-compatibility, normalization
+or native recovery premise is needed.
+
+Extended eta-origin and exposed-domain histories from beta to full core paths.
+Their domain marks are symmetric and stable under further core computation.
+Actual realization retains non-proofness and the original input sort; a lambda
+exposed by a full-core function history still restores its exact body by eta
+beta. Both orientations of a lifted eta origin now simulate arbitrary full-core
+paths with an exact source endpoint and explicit exposed-domain history.
+
+Application interactions survive this extension: typed source applications
+force proof-erased arguments for proposition domains, and applying an origin or
+removing an applied right wrapper uses only beta on the target side. Thus the
+previous prefix-cleanup mechanism can use full-core histories, rather than
+silently assuming that the ambient function stayed within beta computation.
+
+Remaining: integrate full-core histories with all structural consumer cases,
+registered capture/template matching and primitive replay. The new origin
+simulation supplies the previously missing whole-origin case, but is not yet
+a closure theorem for arbitrary consumers. Native/inferred domain comparison
+coverage remains unproved. No strengthening proof, counterexample or strictly
+smaller final obligation is claimed; the original weakN_iff sorry remains.
+
+Validation: 855 build jobs; 16 complete dependency-audit roots; maximum
+closure 8,731; 830 frozen source/import hashes. Only standard axioms,
+no forbidden dependencies or owned diagnostics. No executable change,
+coordination or PR extraction.

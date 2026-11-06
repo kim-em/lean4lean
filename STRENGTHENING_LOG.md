@@ -30711,3 +30711,39 @@ maximum closure 8,357; 828 frozen hashes. Only propext, Classical.choice
 and Quot.sound, no forbidden dependencies, no owned warnings. Preserved both
 independent untracked experiments. No executable changes, coordination or PR
 extraction; the original strengthening sorry remains and the goal is unachieved.
+
+
+### 2026-11-06 06:20:36 UTC — Exact full-core eta endpoints and application interactions
+
+Added ProofErasureExactEtaCoreReflection, ProofErasureSortedEtaCoreOrigins and
+ProofErasureSortedEtaCoreApplication. The direct fresh-application theorem
+reflects every full level-core path from an actual opened eta body into a path
+of the ambient function, preserving the exact body endpoint. Its conclusion
+classifies that endpoint as the same fresh application or the body of an
+exposed lambda. Sound definitions and source typing suffice; confluence,
+concrete patterns and level compatibility are unnecessary.
+
+EtaCoreOrigin and EtaCoreDomains retain full-core domain/function histories.
+sorted_eta_origin_core simulates arbitrary paths from either lifted eta
+orientation, preserving the source endpoint exactly and marking domains when
+beta crosses the fresh boundary. Actual realization supplies the original Pi,
+input sort and non-proof invariant throughout. Full-core exposed lambdas still
+admit the typed eta beta restoration used by application interaction.
+
+sorted_eta_core_origin_apply and sorted_eta_core_right_application_cleanup
+extend the existing typed beta application mechanisms to full-core histories.
+They handle proposition inputs using the actual consumer typing; no untyped
+proof-marker substitution law or inferred native carrier is assumed. Their
+target computation remains beta-only even though the ambient histories include
+declarations, patterns, projections and universe steps.
+
+This removes the exact-origin reflection gap identified at the preceding
+checkpoint. It does not close arbitrary-consumer full-core simulation or supply
+inferred comparison certificates for exposed domains. Those remain the next
+integration and coverage tasks; strengthening itself is still open.
+
+Validation: 855 jobs; 16 complete type/value/constructor/recursor audits;
+maximum closure 8,731; 830 frozen hashes. Only propext, Classical.choice
+and Quot.sound, no forbidden dependencies, no owned warnings. Preserved both
+independent untracked experiments. No executable changes, coordination or PR
+extraction. Goal remains unachieved.
