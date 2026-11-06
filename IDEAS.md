@@ -18899,3 +18899,25 @@ This supplies an actual continuation traversal and the zero-count base case,
 but does not yet force/read the right root in every positive-count mixed-frame
 case or preserve the original target completion throughout that traversal.
 The strengthening objective is still incomplete.
+
+
+### 2026-11-06 15:26:37 UTC — Track the Eq head through administrative wrappers
+
+**Idea.** Instead of repeatedly selecting native eta as the first non-level
+root, follow the Eq head through retained lambdas and literal identity
+applications until a primitive actually loses it. Arbitrary raw substitution,
+beta, constant expansion, identity expansion and function eta preserve this
+syntactic invariant. Follow the actual typed continuation when a local path
+preserves it; the exposed final endpoint cannot preserve it.
+
+**Verdict: checked progress, not closure.** `WrappedConstHead` and
+`ScopedComputeCount.wrapped_head_cut` select an exact counted loss with a
+scoped hole. `TypedWrappedHeadLoss.root` supplies actual typing and excludes
+all four administrative root families, including function eta. The global
+Eq-exposure theorem now returns this loss within its strictly smaller typed
+continuation budget. For at most five arguments the selected Eq root is
+singleton-only. Neither that argument bound nor the selected root's original
+Eq target ancestry follows from the current invariant; both remain open.
+This selects a later actual loss and does not claim it is the previous
+nested eta root. Build: 1010 jobs; 19 audited roots, maximum closure
+11,735; 985 frozen source hashes. No executable changes or PR extraction.

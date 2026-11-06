@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertNextApplication
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertWrappedHeadCut
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSpecializationFrames
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -36,8 +36,14 @@ follows its actual execution through any finite retained-lambda prefix to the
 next application unless its current endpoint already exposes a carrier. The
 next application inherits full minimality and the prefix preserves joint
 competitors (`PiInertNextApplication.joint_minimum`). Its count is positive:
-`eq_positive` excludes zero-cost Eq exposure through arbitrary mixed frames. Eliminating this nested eta through the retained
-application continuation remains open. `CountedEtaBodySpineCut.nested_eta_cut`
+`eq_positive` excludes zero-cost Eq exposure through arbitrary mixed frames.
+The conclusion additionally selects a `TypedWrappedHeadLoss` within that
+smaller budget. Its actual typed root excludes level conversion, constant
+expansion, identity expansion and native function eta, even across arbitrary
+mixed continuation frames. A short selected Eq root is necessarily singleton
+(`pi_inert_short_eq_head_loss_singleton`). The selected loss can occur later
+than the original nested eta; its short-arity bound and argument ancestry back
+to the original target equation remain open. `CountedEtaBodySpineCut.nested_eta_cut`
 supplies a smaller body/continuation minimum in both the consumed and retained
 lambda cases. `CountedEtaBodySpineCut.nested_eta_frames` retains concrete typed
 application and annotated lambda frames ending at this same original output.
@@ -101,7 +107,8 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
         (EqEtaRemainingRoot D) ∧
       ∃ innerA innerU bodyLs bodyPre smaller, 0 < smaller ∧ smaller < cost ∧
         PiInertTypedContinuationMinimum D (proofEraseCtx Γ') out (innerA :: A :: proofEraseCtx Γ')
-          (.app ((ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre).liftN 1) (etaArgument innerU)) smaller) := by
+          (.app ((ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre).liftN 1) (etaArgument innerU)) smaller ∧
+        TypedWrappedHeadLoss D ``Eq.rec smaller) := by
   classical
   obtain ⟨_, _, _, ha, _, _, hb⟩ := eqRecBeforeMajor_typings henv heq hΓ ⟨_, ht⟩
   have Eargs' : args = [(proofErase Γ α).liftN count offset,
@@ -204,6 +211,6 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
                 (RetainedConstHead.const (ls := bodyLs)).mkApps (bodyPre.map (·.liftN 1))
             exact .inr ⟨stage, cost, ls, pre, pending, _, _, _, k, cp, ct,
               RC, hminAll, hcostExact, HL, hshort, HA, RP, HTpre, hk, RN, SD, RT, HB',
-              innerA, innerU, bodyLs, bodyPre, smaller, HM.eq_positive heq Hhead HE, hsmall, HM⟩
+              innerA, innerU, bodyLs, bodyPre, smaller, HM.eq_positive heq Hhead HE, hsmall, HM, HM.wrapped_head_loss heq Hhead.wrapped HE⟩
 
 end Lean4Lean.VEnv.Strengthening

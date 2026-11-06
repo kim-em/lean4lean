@@ -32960,3 +32960,48 @@ closure 11,708; 984 frozen source hashes. Changed modules are warning
 free. Audits traverse types, values, opaque bodies, constructors and recursor
 RHSs; only propext, Classical.choice and Quot.sound occur. Forbidden
 strengthening and replacement obligations are absent.
+
+
+### 2026-11-06 15:26:37 UTC — Select an actual Eq head loss across mixed continuations
+
+Added `ProofErasurePiInertWrappedHeadCut.lean` and strengthened the actual
+conclusion of `pi_inert_eq_exposure_eq_or_global_eta_spine_cut`.
+
+`WrappedConstHead` extends the previous constant/application/lambda invariant
+with identity payloads. It is stable under arbitrary raw substitution and
+beta. `wrapped_head_cut` decomposes a losing counted path into an exact prefix,
+a primitive in a scoped hole, and an exact suffix. Application arguments and
+annotations are skipped unless the identity payload contains the tracked
+head. The lambda case keeps the original annotation at the selected root and
+places the annotation computation in the suffix. Forward typed realization
+and hole inversion supply the selected root's actual typing.
+
+The actual `PiInertTypedContinuationRun` is traversed across arbitrary mixed
+application and retained frames. A head-preserving application path passes
+the invariant to the remaining execution; a head-losing one supplies the
+local cut and its recorded source typing. The terminal case contradicts
+carrier exposure. This proves a cost-bounded loss for every typed Eq minimum
+ending at the exposed original output, without requiring exposed intermediate
+endpoints. The global theorem derives that loss from its existing positive,
+strictly smaller nested minimum, adding no hypotheses.
+
+A Pi-inert root source satisfying the invariant is an ordinary constant
+spine. Level conversion, constant expansion, literal identity expansion and
+native function eta preserve the invariant, so all are excluded at the
+selected root. For a typed Eq spine with at most five arguments, the existing
+root classification consequently leaves only the specialized or general
+singleton forms. The new result retains the negative target invariant as
+well as both counted paths, the hole, root typing and primitive evidence.
+
+This bypasses native eta as a selected losing root, but does not yet complete
+the original argument. The selected later root still needs its short-arity
+bound and semantic argument ancestry to the original Eq target. Merely knowing
+its constant head and actual typing does not establish those facts. The goal
+remains incomplete; the executable is unchanged. No coordination or PR
+extraction was performed.
+
+Validation: 1010 build jobs, 19 public/full-result audit roots, maximum
+closure 11,735; 985 frozen source hashes. Both changed modules are warning
+free. Audits traverse types, values, opaque bodies, constructors and recursor
+RHSs; only propext, Classical.choice and Quot.sound occur. Forbidden
+strengthening and replacement obligations are absent.
