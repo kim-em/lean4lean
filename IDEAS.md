@@ -16071,3 +16071,36 @@ context, but cannot finish strengthening by adding that closure law to the
 existing grammar. A richer computation/comparison relation is necessary for
 this approach; bridging the cast-aware future grammar to full-core reduction
 remains a live direction. This boundary is not a strengthening counterexample.
+
+
+### 2026-11-06 02:48:40 UTC — Cast-certified annotation pairs under arbitrary consumers
+
+Idea: replace the core-only guard of paired annotation variants by finite staged
+cast guards, and read the resulting syntax using exact context renaming. Verdict:
+proved without adding the refuted arbitrary-substitution law. The primitive and
+full-core paired simulations are guard-parametric. Typed checking reconstructs
+the local binders on one side and transports the ambient domain comparison by
+an actual context renaming. Core confluence joins independent residual paths;
+the inferred computed comparison keeps the original finite stage bound.
+
+The actual-environment cast_domain_annotation_consumer theorem constructs the
+guard for a reflexive cast in a written lambda domain. It permits every typed
+consumer, with no separately supplied domain certificate. The accompanying
+cast_annotation_guard_beyond_core theorem shows that a Pi and its free-major
+reflexive cast have the new staged certificate but cannot have the old inferred
+LevelRecursiveGuard. This is strictness of the domain premise, not strictness
+of a sufficient strengthening obligation.
+
+The beta/substitution grammar RecursiveFamilyCast is still distinct from the
+full-core LevelStagedCastGuard grammar. This result does not prove full-core
+stability of the former, nor arbitrary consumer closure for every cast used as
+an argument: the arbitrary consumers here receive paired annotated lambdas.
+General semantic coverage and GOAL.md's final deliverables remain open.
+Next live direction: retain these annotation-consumer results as recursive
+guard constructors, allowing their outputs to justify later casts, and address
+the remaining full-core/substitution interaction.
+
+Validation: 812 build jobs, 7 audited roots, maximum dependency closure
+12,223, 787 frozen source hashes; no forbidden dependencies or nonstandard
+axioms. Prior goal turn classified as progress (checked and pushed core result);
+this turn extends its admissible domain premise with a checked separation.

@@ -29837,3 +29837,39 @@ context, but cannot finish strengthening by adding that closure law to the
 existing grammar. A richer computation/comparison relation is necessary for
 this approach; bridging the cast-aware future grammar to full-core reduction
 remains a live direction. This boundary is not a strengthening counterexample.
+
+
+### 2026-11-06 02:48:40 UTC — Full-core annotation consumers with finite staged cast domains
+
+Added ProofErasureStagedAnnotationChecking.lean. The generic structural readout
+accepts inferred computed checks for the ambient marked domains and exact
+renaming of the primitive relation. It reconstructs local contexts from an
+actual left realization rather than assuming arbitrary substitution closure of
+the guard. Full-core paired simulation instantiated with LevelStagedCastGuard
+and typed core confluence at the actual right source yield a computed residual
+comparison at the same stage. Typed replay supplies the source for readout.
+
+Added ProofErasureStagedAnnotationConsumer.lean. A staged domain certificate
+constructs a pair of same-body lambdas with common Pi typing; arbitrary typed
+consumers preserve that pair under all full level-core reductions. Actual
+environments discharge all core interfaces. The concrete reflexive-cast-domain
+specialization constructs its stage-one certificate from typings alone. A Pi
+and its free-major cast separate this domain premise from the previous inferred
+core guard, using the checked no-Pi-exposure obstruction. No normalization or
+guarded-stage confluence premise is used.
+
+Development fixes were explicit comparison-mode inference and unpacking the
+sort typing needed for common-type reflection. Both new modules are complete
+and introduce no proof gaps. Validation: 812 build jobs, 7 roots,
+maximum dependency closure 12,223; 787 source/import hashes unchanged.
+The audit traverses types, opaque bodies, constructors and recursor RHSs, and
+finds only propext, Classical.choice and Quot.sound, no forbidden dependencies,
+and no warnings in the new modules.
+
+Judgment: strict extension of the certified lambda-domain fragment and its
+arbitrary-consumer full-core theorem. This is not completeness for semantic
+equality, not full-core stability of RecursiveFamilyCast, and not a strictly
+smaller sufficient strengthening obligation. The original sorry remains.
+Next: close the recursive guard grammar under this consumer operation, then
+continue the full-core/substitution interaction. Executable and independent
+files preserved; no coordination, PR extraction or PR creation.
