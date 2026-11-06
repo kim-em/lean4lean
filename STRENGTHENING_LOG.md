@@ -30539,3 +30539,44 @@ completeness. General semantic conversion coverage and arbitrary ambient
 substitution remain unproved; this is not a sufficient smaller final obligation.
 GOAL.md remains active and unachieved. Original sorry, executable and independent
 files preserved; no coordination or PR extraction.
+
+
+### 2026-11-06 05:24:46 UTC — Eta residual readout through certified supplied-function histories
+
+Added ProofErasureEtaHistoryResidualReadout.lean. The central theorem
+ArgumentHistory.eta_consumer_residuals transports a target eta comparison that
+is valid after all ordinary-core tails. The history separately computes both
+consumer instances; CoreFamilyCast.commute moves arbitrary source core paths
+past those computations while retaining ordinary target tails. Applying the
+target readout and computation prefixes gives the result at max(n,m).
+
+Actual-environment clients cover histories to native lookup variables at
+max(n,1), and histories to certified converted-domain lookup variables at
+max(n,stage+1). Unlike the earlier hereditary eta-consumer prefix theorem,
+these clients need no hereditary certificate for the target comparison. They
+use the recent checked neutral residual results directly.
+
+The cast_lookup_function_eta_consumer_core client constructs a stage-one
+history from a reflexive cast of an actual native function variable to that
+variable. The carrier certificate is built from two reflexive core histories.
+Every typed consumer and all independent ordinary-core tails are covered,
+with no function/input proof-classification restriction.
+
+For non-proof payloads, reflexive_cast_no_core_variable proves that the erased
+Eq recursor spine prevents ordinary computation to any raw variable. The
+bundled cast_lookup_eta_beyond_core_exposure theorem supplies the positive
+stage-one residual comparison together with both no-variable and no-lambda
+exposure facts. Thus this particular supplied function is outside either
+ordinary exposure route while its retained history gives comparison.
+
+Validation: 847 jobs; 6 complete roots; maximum closure 12,453;
+822 frozen source/import hashes. Dependency traversal covers types, opaque
+values, constructors and recursor RHSs. Only propext, Classical.choice and
+Quot.sound; no forbidden dependencies or owned diagnostics. Existing cast
+feedback and finite-stage substitution barrier clients rebuilt.
+
+Judgment: a concrete class of supplied-function instances now inherits the
+neutral readout. This does not prove all functions have such histories or
+promote the target check to arbitrary substitution stability. General coverage
+remains open; original strengthening sorry and GOAL.md are unchanged.
+Executable and independent files preserved; no coordination or PR extraction.

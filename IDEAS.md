@@ -16770,3 +16770,49 @@ Validation: 845 build jobs; 8 complete audit roots; maximum closure
 12,291; 820 frozen source/import hashes. Only standard axioms; no forbidden
 dependencies or owned-module warnings. Original sorry remains; no final
 GOAL.md deliverable and no PR extraction/creation.
+
+
+### 2026-11-06 05:24:46 UTC — Supplied function histories inherit neutral eta residual readout
+
+Previous goal turn: progress (394c4fd1, neutral eta with certified domain
+conversions and a concrete cast-domain client). Revalidated HEAD and preserved
+both independent untracked experiments.
+
+Rechecked the existing CoreFamilySubstitutionBarrier and EtaArgumentHistoryBoundary
+before attempting generic substitution promotion. They already show that broad
+finite-stage instantiation or shared eta-computation outputs retain the full
+proposition front. Verdict: no new barrier theorem is needed, and those facts
+are not a refutation of strengthening or of a more specific retained history.
+
+Deep continuation: connect actual supplied function histories to the new
+neutral residual readout without requiring the target comparison to be
+hereditary. ArgumentHistory already transports both the short consumer and
+its eta-composed template. Commuting a source ordinary-core path through either
+computation leaves an ordinary core tail at the target. The target's existing
+residual comparison consumes these two tails. Proved that the resulting stage
+is the maximum of history stage and target-comparison stage.
+
+Verdict: a finite core/cast history ending at a literal-Pi variable now covers
+eta of its supplied source function in every typed consumer, through arbitrary
+independent ordinary-core paths. A second actual-environment theorem allows a
+certified converted target domain and uses max(historyStage, domainStage+1).
+No arbitrary substitution closure or target hereditary comparison is assumed.
+
+Concrete application: reflexively cast a native function variable at its Pi
+carrier. Its argument history is constructed from actual typing and a
+reflexive hereditary carrier certificate. Every eta consumer's independent
+residual pair compares at stage one. For a non-proof payload, proved that no
+ordinary-core path exposes any variable, and combined this with the existing
+no-lambda theorem. This supplies a function outside both ordinary variable and
+lambda exposure cases; no exposure or comparison oracle is passed by its caller.
+
+Limits and next live work: the result consumes a particular finite argument
+history, not a coverage theorem for all supplied functions. General functions
+without a history to a covered neutral/lambda, arbitrary converted-domain
+coverage and full ambient substitution remain unresolved. The original goal
+is unchanged; these are required further work, not restrictions on success.
+
+Validation: 847 jobs; 6 complete audit roots; maximum closure
+12,453; 822 frozen source/import hashes. Only standard axioms; no forbidden
+dependencies or owned diagnostics. Original sorry remains; no final GOAL.md
+deliverable, coordination or PR extraction.
