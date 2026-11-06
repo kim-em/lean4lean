@@ -35522,3 +35522,62 @@ excluded circular framework. All 1,046 source hashes stayed fixed. The chosen-ch
 original-probe root still excludes the older nested-eta, frame-boundary and
 supply-boundary probe theorems. A local extra-explicit-argument elaboration error
 in the restoration lemma was fixed before the successful validation.
+
+
+## 2026-11-06 23:12:22 UTC — Restore whole supplied spines after actual eta-body consumption
+
+Added `ProofErasureEqSuppliedSpineReturn.lean`, imported and described in the
+global eta body-cut module. The previously retained source argument equalities
+are now used to rebuild the actual whole lower application after consumption.
+
+`supplied_chain_spine_return` starts with the original whole chosen spine,
+its recovered displayed Pi domain, the actual computed head argument and waiting
+tail recorded by the eta history, and actual body components through the shifted
+insertion chain. It descends the body components and instantiates the resulting
+source equality by that same recorded argument. Together with the original-to-
+computed argument equality, this derives equality of the consumed head; that
+head equality is no longer an extra premise. The tail's source equalities recover
+the original whole application type and nonproof status, while its chosen-image
+equalities restore the old pending vector. Exact raw identities retain every
+untracked upper extra argument and the outgoing image under the original paired
+frame. Both the old frame and old insertion chain remain usable afterward.
+
+`supplied_chain_return_minimum` resumes the selected actual post-beta suffix with
+the unchanged original outer continuation. Every competing suffix path is inserted
+into the recorded body/application predicate using the actual body path. This
+proves the new whole-spine minimum at cs+ck; the earlier eta descent's strict
+bound makes this smaller than the original parent cost even when body count is
+zero. The original source scope and chosen substitution, pending vector and
+insertion chain are restored in `EqChainContinuationMinimum`. The actual extra
+argument computation preserves the condition that extras occur only after the
+chosen prefix is complete.
+
+`supplied_body_return_or_cut` removes the component-only premise from this
+continuation step. It reads the actual counted fresh-body path through the chosen
+chain. In the component branch the level equality derives the native head-level
+certificate, and the preceding return/minimum theorem restores the whole supplied
+spine. Otherwise the result retains the exact `ChosenEqChainSpineCut` under the
+fresh chosen binder, including its source, endpoint and counted budget. Further
+recursion on that cut still must preserve the enclosing supplied history.
+
+The eta history interface was also strengthened without new constructor premises:
+`EqSuppliedEtaContinuation` retains the actual original outer typed run as a common
+field and the consumed branch's actual post-beta source typing explicitly. These
+witnesses were already used to construct its body application run; keeping them
+explicit allows the actual suffix/minimum to be reused without selecting an
+unrelated execution. Its existing smaller-minimum theorem remains valid.
+
+Remaining work: propagate the supplied history through nested body cuts and
+retained-lambda continuations, including empty local supply. This step returns
+one actual consumed component branch to the original chain class; it does not
+close the arbitrary-continuation frontier or prove a sufficient smaller PropFront
+obligation. GOAL.md remains active. No PR extraction or executable change.
+
+Validation: 1072 jobs including the global module and established regressions;
+154 declarations recursively audited through types, values, constructors and
+recursors, maximum closure 11,976. Only propext, Classical.choice and
+Quot.sound occur; no owned diagnostics, sorryAx, strengthening dependency or
+excluded circular framework. All 1,047 source hashes stayed fixed. The chosen-chain
+original-probe root still excludes older nested-eta, frame-boundary and
+supply-boundary probe theorems. Original weakN_iff sorry unchanged. Stock Lean/Lake
+commands ran only in the scratch checkout.

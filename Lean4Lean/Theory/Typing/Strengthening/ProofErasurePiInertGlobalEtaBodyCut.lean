@@ -16,6 +16,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainSupply
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainRetainedSupply
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainArgumentHistory
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChosenSupplyDescent
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSuppliedSpineReturn
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -244,6 +245,17 @@ these distinct relations to restore both the pending vector and typing of the
 whole application once the consumed head's source equality has been derived.
 Empty local supply and complete propagation through the enclosing history
 remain open; no sufficient smaller PropFront obligation is asserted.
+`supplied_chain_spine_return` now derives the consumed head equality from
+actual body components and the recorded argument. The waiting source equalities
+restore the original whole type, and their chosen images restore the old pending
+vector. `supplied_chain_return_minimum` resumes the unchanged actual suffix in
+the original context and chain, retaining all computed upper extras at a strictly
+smaller parent budget. `supplied_body_return_or_cut` reads the actual body path:
+component-only execution returns the whole supplied spine, while a non-level
+body cut retains its chosen fresh binder and exact counted cut. The supplied
+history also now keeps the original outer run and post-beta source typing
+explicitly. Nested cuts and retained-lambda branches still require propagation
+of the enclosing history in the global recursion.
 `minimum_frontier` iterates this decrease
 by strong induction and reaches a component-only current path with completion
 at both endpoints. The conclusion retains this actual

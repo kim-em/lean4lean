@@ -20409,3 +20409,25 @@ coverage remains open. This is not a sufficient smaller PropFront obligation.
 Validation: 1071 build jobs; 151 recursively audited declarations; maximum
 closure 11,976; only propext, Classical.choice and Quot.sound. All 1,046
 source hashes fixed; original strengthening sorry unchanged.
+
+
+## 2026-11-06 23:12:22 UTC — Return the actual consumed eta body to its whole supplied spine
+
+**Idea:** Descend body components, instantiate their source equality by the
+recorded supplied argument, and combine it with that argument's equality to
+obtain the consumed head equality. Restore the remaining arguments using both
+their source equalities and their chosen target images, then resume the actual
+post-beta suffix in the original context and insertion chain.
+
+**Verdict:** Verified. The component-only branch restores the original pending
+vector and whole application type, retains every untracked upper extra argument,
+and yields a strictly smaller paired-chain minimum. `supplied_body_return_or_cut`
+classifies the actual counted body path, so it does not assume that the body is
+component-only: otherwise it returns the exact non-level cut under the fresh
+chosen binder. The argument-history record now explicitly retains its original
+outer run and post-beta source typing. Global propagation through nested cuts
+and retained-lambda branches remains open; GOAL.md is not complete.
+
+Validation: 1072 build jobs, 154 recursively audited declarations, maximum
+closure 11,976; only propext, Classical.choice and Quot.sound, with all
+1,047 source hashes fixed. Original strengthening sorry unchanged.

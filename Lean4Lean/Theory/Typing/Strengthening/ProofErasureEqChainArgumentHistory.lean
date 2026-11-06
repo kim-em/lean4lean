@@ -217,11 +217,14 @@ theorem EqArgumentSupplyAt.chain_consumed_head
 with chosen images still attached to every supplied argument. The consumed
 branch includes a derived matching frame, while the retained branch keeps
 the entire vector available. Both branches preserve their original competitor
-predicate and source argument equalities; this is not a claim of arbitrary continuation closure. -/
+predicate and source argument equalities. The original outer run and the
+post-beta source typing are retained explicitly for resuming that actual suffix.
+This is not a claim of arbitrary continuation closure. -/
 def EqSuppliedEtaContinuation (D : Definitions) (n : Nat) (Γ Δ Λ : List VExpr)
     (σ : VExpr.Subst) (blocks : EqInsertionPath) (A x y : VExpr) (chosen actual : List VExpr)
     (f : ProofShape) (u : VLevel) (Ω : List ProofShape) (out endpoint : ProofShape)
     (ck cost : Nat) (extra : List ProofShape) (K : ProofShape → Nat → Prop) : Prop :=
+  PiInertTypedContinuationRun D Ω out (proofEraseCtx Λ) K endpoint ck ∧ (
     (∃ A' body' args' raw rawExtra cd cb m,
       EqArgumentSupplyAt Γ Δ σ (y :: chosen) args' ∧
       List.Forall₂ (env.IsDefEqU univs Γ) (x :: actual) args' ∧
@@ -248,6 +251,7 @@ def EqSuppliedEtaContinuation (D : Definitions) (n : Nat) (Γ Δ Λ : List VExpr
       TypedSource (proofEraseCtx (blocks.actual A :: Λ)) (.app (f.liftN 1) (etaArgument u)) ∧
       ScopedComputeCount (PiInertStage D m) cb (proofEraseCtx (blocks.actual A :: Λ))
         (.app (f.liftN 1) (etaArgument u)) body' ∧
+      TypedSource (proofEraseCtx Λ) (ProofShape.mkApps (body'.inst rawX) rawRest) ∧
       ScopedComputeCount (PiInertStage D n) cs (proofEraseCtx Λ)
         (ProofShape.mkApps (body'.inst rawX) rawRest) endpoint ∧
       PiInertTypedContinuationRun D Ω out (proofEraseCtx (blocks.actual A :: Λ))
@@ -256,7 +260,7 @@ def EqSuppliedEtaContinuation (D : Definitions) (n : Nat) (Γ Δ Λ : List VExpr
       ∀ later j body k, ScopedComputeCount (PiInertStage D later) j
         (proofEraseCtx (blocks.actual A :: Λ)) (.app (f.liftN 1) (etaArgument u)) body →
         PiInertApplicationContinuation D (proofEraseCtx Λ) (ProofShape.Subst.one rawX) rawRest K body k →
-        cb+(cs+ck) ≤ j+k)
+        cb+(cs+ck) ≤ j+k))
 
 /-- Read the actual eta execution with its argument history intact. In the
 retained branch the whole computed vector keeps its chosen images. In the
@@ -277,6 +281,7 @@ theorem CountedEtaFrameOrigin.argument_history
     (HK : PiInertTypedContinuationRun D Ω out (proofEraseCtx Λ) K endpoint ck) :
     EqSuppliedEtaContinuation D n Γ Δ Λ σ blocks A x y chosen actual f u Ω out endpoint ck cost extra K := by
   obtain ⟨SD, H⟩ := H
+  refine ⟨HK, ?_⟩
   rcases H with
     ⟨A', body', raw, cf, ca, cd, cb, m, _, _, EO, _, RA, RD, HT, RB, hsmall, HM⟩ |
     ⟨A', body', rawX, rawRest, cf, ca, cs, cd, cb, m, _, _, _, RA, _, HT, RB, WI, HTnext, RS, hsmall, HM⟩
@@ -297,7 +302,7 @@ theorem CountedEtaFrameOrigin.argument_history
     have HR := PiInertTypedContinuationRun.application (HT.pi_inert_compute heq hs RB.forget)
       (.inst WI) HTnext' RT HK
     refine .inr ⟨x', rest', rawX, rawRest, rawExtra, body', cb, cs, m,
-      HX, EX, ER, RX, WF, HS', Hargs, HT, RB, RS, HR, by omega, ?_⟩
+      HX, EX, ER, RX, WF, HS', Hargs, HT, RB, HTnext, RS, HR, by omega, ?_⟩
     intro later j body k RJ HL
     have HH := HM later j body k RJ HL
     omega
@@ -309,9 +314,9 @@ theorem EqSuppliedEtaContinuation.minimum
     (H : EqSuppliedEtaContinuation D n Γ Δ Λ σ blocks A x y chosen actual f u Ω out endpoint ck cost extra K) :
     ∃ smaller, smaller < cost ∧ PiInertTypedContinuationMinimum D Ω out
       (proofEraseCtx (blocks.actual A :: Λ)) (.app (f.liftN 1) (etaArgument u)) smaller := by
-  rcases H with
+  rcases H.2 with
     ⟨A', body', args', raw, rawExtra, cd, cb, m, _, _, _, _, _, _, HT, RB, HR, hsmall, HM⟩ |
-    ⟨x', rest', rawX, rawRest, rawExtra, body', cb, cs, m, _, _, _, _, _, _, _, HT, RB, _, HR, hsmall, HM⟩
+    ⟨x', rest', rawX, rawRest, rawExtra, body', cb, cs, m, _, _, _, _, _, _, _, HT, RB, _, _, HR, hsmall, HM⟩
   · exact ⟨cb+ck, hsmall, _, m, cb, ck, body', HT, RB, HR, rfl, HM⟩
   · exact ⟨cb+(cs+ck), hsmall, _, m, cb, cs+ck, body', HT, RB, HR, rfl, HM⟩
 
