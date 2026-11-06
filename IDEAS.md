@@ -17575,3 +17575,31 @@ Validation: 914 build jobs, 9 complete dependency roots, maximum closure
 12,379, 889 frozen source hashes; only the standard three axioms, no
 forbidden dependency or owned diagnostic. Executable and independent experiments
 unchanged. No extraction or coordination.
+
+
+## 2026-11-06 08:50:59 UTC — General Eq computation consumes carrier histories directly
+
+- Seek application by using the existing recovered-domain carrier rule: live,
+  but a base application certificate does not supply the residual body history
+  needed when future substitution exposes beta. Do not treat native recovery
+  of an assigned type as automatic from typing.
+- Use the recursive Eq-prefix carrier guard without promoting the indices to
+  ordinary comparison: proved. A full index carrier history repairs independent
+  core computations of the carrier and both endpoints at stage n+1. Motives may
+  depend on the endpoint and its equality proof.
+- Preserve this computation inside arbitrary typed consumers: proved with opaque
+  Eq marks, full-core residual transport, typed realization and ordinary-core
+  confluence. Future substitution reconstructs both the recursor and consumer.
+- Test against the previous joined-argument obstruction: proved stage-one
+  consumer computation for distinct positive unit indices together with failure
+  of every joined ArgumentHistory pair for those indices. This bypasses the
+  common-index-computation requirement for Eq elimination, not for arbitrary
+  paired substitution of the indices themselves.
+- Feed type-valued consumers back into carrier comparison: proved, retaining
+  independent carrier/endpoint residuals and future substitutions at n+1.
+  General application, composition, conversion and coverage remain live gaps;
+  no strict-smallness result or completion of strengthening is asserted.
+
+Validation: 916 build jobs, 11 complete dependency roots, maximum closure
+12,397, 891 frozen hashes. Only standard axioms, no forbidden dependencies
+or owned diagnostics. Executable unchanged; no PR extraction or coordination.

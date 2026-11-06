@@ -31267,3 +31267,51 @@ maximum closure 12,379; 889 frozen hashes. Only propext, Classical.choice,
 and Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden framework dependency,
 or owned diagnostic. Executable unchanged, independent experiments preserved;
 no coordination or PR extraction.
+
+
+## 2026-11-06 08:50:59 UTC — Carrier histories drive general dependent Eq computation
+
+ProofErasurePiInertEqRecCarrier generalizes the earlier common-type cast and
+proposition-probe reductions to any fully typed canonical Eq.rec application.
+ComputedJointCarrierGuard.next_pi_inert_stage uses the recursive carrier rule
+without converting it to ordinary comparison. The full-core residual proof
+first postpones universe computation, then exposes the six-argument Eq spine.
+Its carrier and both index residuals feed the supplied PiInertCarrierResidual.
+The resulting prefix repairs the computed spine, retaining an ordinary-core
+minor tail. Reflection supplies only the local semantic endpoint equality
+needed to handle proof erasure. Motives and source result types are arbitrary;
+proof-valued sources are included. The interpretation and full future evidence
+are constructed, with exactly one additional stage.
+
+ProofErasurePiInertEqRecConsumer carries this repair through an arbitrary typed
+consumer. Opaque Eq marks retain their full-core residual shape under beta,
+including duplication and erasure; each mark is discharged by the new carrier
+residual theorem. Typed realization and ordinary-core confluence supply the
+retained output tail. The future proof reconstructs the substituted recursor,
+its carrier/index child and the consumer under the substituted result type.
+No global guarded confluence, arbitrary certificate substitution or common
+reduct of the original indices is assumed.
+
+ProofErasurePiInertEqRecApplications transfers a minor carrier history to a
+type-valued recursor consumer at stage n+1. It also proves the conjunction that
+was unavailable to the old joined-index route: distinct positive nullary unit
+variables drive stage-one Eq computation in every typed consumer, yet admit no
+joined ArgumentHistory certificates at any stage. Actual-environment wrappers
+discharge the computation, confluence, registry, universe and rigidity premises.
+This computation theorem operates on the Eq recursor and its minor; it does not
+assert that the distinct indices themselves compute to a shared output.
+
+The result closes a recursive Eq-computation rule and its consumer closure from
+carrier children. It does not close arbitrary application or paired substitution
+from carrier equality, nor general carrier composition/conversion. Continue on
+those strong-derivation cases without replacing argument carrier equality by a
+refuted common-output requirement. Native domain recovery and hereditary body
+inversion still need actual proofs. The original weakN_iff sorry remains and no
+strictly smaller sufficient obligation has been established.
+
+Validation: 916 build jobs including prior feedback/substitution-barrier
+regressions; 11 complete type/value/constructor/recursor dependency roots;
+maximum closure 12,397; 891 frozen source hashes. Only propext,
+Classical.choice and Quot.sound, no weakN_iff/weakN_inv/sorryAx or forbidden
+framework dependency, and no owned diagnostics. Executable and independent
+experiments unchanged; no coordination or PR extraction.
