@@ -31364,3 +31364,53 @@ maximum closure 10,994; 888 frozen hashes. Only propext, Classical.choice
 and Quot.sound, no weakN_iff/weakN_inv/sorryAx or forbidden framework dependency,
 no owned diagnostics. Executable unchanged, independent experiments preserved;
 no coordination or PR extraction.
+
+
+## 2026-11-06 09:13:48 UTC — Reversible guarded conversion when a universe is exposed
+
+ProofErasurePiInertUniverseConversion proves that directed interpreted computation
+supplies a base comparison in either mode without guarded confluence: the retained
+core output tail and guarded source tail form the comparison. Non-proof typed
+endpoints therefore reflect to actual definitional equality even when their
+supplied types differ. This uses inferred comparison and the existing checked
+descent, not strengthening.
+
+For independently sorted endpoints, types_reindex extracts hereditary ordinary
+comparison from the old carrier evidence and reconstructs a full history at any
+raw carrier. Its carrier residuals and future substitutions are all covered by
+the checked-carrier rule. pi_inert_type_carrier_histories_iff gives an exact
+same-stage equivalence at any two actual assigned carriers. This extends the
+previous evidence-only bridge to complete histories and arbitrary reindexing.
+
+universe_convert uses an explicit type-comparison child from the old carrier to
+a universe. Inferred reflection supplies both endpoint typings at that universe,
+so the sorted-endpoint rule applies. compute_to_universe does the same for a
+directed interpreted computation, including guarded computation. Only its base
+interpretation is needed to establish the actual typings; the original history
+then supplies all future evidence. The computation's stage does not increase
+the output history's stage. No forward guarded-path closure is assumed.
+
+ProofErasurePiInertEqRecUniverse proves monotonicity of interpreted computation
+and comparison evidence, preserving output core tails and future substitutions.
+pi_inert_guarded_universe_histories_iff combines forward universe conversion with
+backward carrier_prefix at any stage containing the computation. The actual
+Eq-recursion specialization accepts arbitrary dependent motives, a universe minor,
+an earlier index carrier history and arbitrary completed histories at the source
+or target carrier. Its equivalence needs neither an ordinary-core join nor a
+shared computation of the indices. An actual-environment wrapper discharges the
+core and Eq-registration hypotheses.
+
+This resolves forward guarded conversion for universe targets and arbitrary
+carrier changes for type-valued endpoints. It does not establish forward guarded
+transport at general function or nontrivial structure carriers. Those still
+require constructive body/field histories or an appropriate exposure theorem;
+semantic carrier equality alone has not supplied them. General composition and
+paired application remain open. weakN_iff still has its original sorry; no
+strictly smaller sufficient obligation or final completion is claimed.
+
+Validation: 914 build jobs including prior feedback/substitution-barrier
+regressions; 11 complete type/value/constructor/recursor dependency roots;
+maximum closure 11,644; 889 frozen hashes. Only propext, Classical.choice
+and Quot.sound; no weakN_iff/weakN_inv/sorryAx or forbidden framework dependency,
+no owned diagnostics. Executable unchanged, independent experiments preserved;
+no coordination or PR extraction.
