@@ -34152,3 +34152,55 @@ between the actual argument and its chosen target image by itself. The global
 frontier remains a necessary residual, not a proved sufficient strictly smaller
 PropFront obligation. `weakN_iff` remains open. No executable changes, PR
 extraction or coordination.
+
+
+## 2026-11-06 19:08:51 UTC — Preserve completion through all retained annotation changes
+
+Added `ProofErasureEqRetainedContext.lean`. `AnnotationContextCompute` records
+one annotation computation at any binder depth, with literal unchanged newer
+annotations. `realize` constructs actual semantic context conversion from any
+source realization. `descend_insertion` replays a change through a `Ctx.LiftN`
+witness, returning both new well-formed contexts, their semantic conversions,
+the rebuilt insertion, the exact new upper erasure and a lower annotation
+certificate. If the changed binder lies inside the unused block, the lower
+change is reflexive. Otherwise the actual certificate descends at its original
+scope, including when newer retained binders lie above it.
+
+`IteratedAmbientEqCompletion.compute_context` preserves completion through
+this change at arbitrary depth by rebuilding every recorded insertion. The
+base keeps its original chosen target substitution via source conversion.
+The bounded target-prefix invariant inherits the result. A finite
+`PiInertContextHistory` permits different finite stages for its annotation
+computations; `EqTargetPrefixCompletion.context_history` replays the entire
+history without substituting native recovery guards.
+
+Added `PiInertEndpointContext`, recording the actual identity or one-binder
+consumption at its base and every retained annotation computation above it.
+Its identity case derives the precise annotation history; its other case is
+one consumption beneath the retained prefix. Both cases retain their full
+context construction for further agreement work, rather than discarding the
+annotation evidence in the consumption case.
+
+The retained-prefix hole construction now derives this context-origin witness
+from its actual prefix and endpoint map. The next-application hole, joint
+minimum, eta origin and component frontier retain it. Added
+`focus_next_completed_or_consumed`: the identity branch now proves target
+completion at the exact substituted source of the next typed minimum, through
+all unused insertions. The only remaining substitution branch consumes one
+binder. The global theorem rebuilds with unchanged explicit assumptions and
+proof, using these stronger derived frontier records.
+
+Validation: 1036 build jobs including GlobalEtaBodyCut and the established
+ContextualCastFeedback/CoreFamilySubstitutionBarrier regressions. All 28
+public roots in the four owned modules passed recursive type/value/constructor/
+recursor dependency and axiom audit, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur; no weakN_iff, weakN_inv, sorryAx or excluded
+framework dependencies. No owned diagnostics; all 1,011 frozen source hashes
+remained unchanged across build and audit.
+
+Remaining: derive the actually consumed argument's agreement with its chosen
+target image from linked supply ancestry, and provide progress for sequences
+of equal-cost identity moves. Identity completion itself is now proved. The
+frontier remains a necessary residual, not a proved sufficient irreducible
+obligation smaller than PropFront. `weakN_iff` remains open. No executable
+changes, PR extraction or coordination.

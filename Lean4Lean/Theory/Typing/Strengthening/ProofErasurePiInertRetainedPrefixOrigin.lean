@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaFrameOrigin
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedContext
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertNextApplication
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertHoleContinuation
 
@@ -44,16 +45,18 @@ one tracked hole and one interpreted substitution into its exact binder
 context. The substitution is the literal binder lift of the same outer map
 at a recorded finite depth. The equation is uniform in the endpoint. Each annotation conversion
 is composed with the lifted later substitution; no guarded computation or
-native recovery certificate is transported. -/
+native recovery certificate is transported. The same construction records
+every annotation change above an actual identity or consumption map. -/
 theorem PiInertRetainedPrefix.substitution_hole
     (HP : PiInertRetainedPrefix D Δ Θ plug)
     (W : ContextSubstitution Θ Ξ τ) :
     ∃ Λ σ, ∃ C : ScopedHole Ξ Λ, SpineBinderHole C ∧
-      ContextSubstitution Δ Λ σ ∧ (∃ depth, σ = τ.liftN depth) ∧ ∀ e, (plug e).subst τ = C.plug (e.subst σ) := by
+      ContextSubstitution Δ Λ σ ∧ (∃ depth, σ = τ.liftN depth) ∧
+      (PiInertEndpointContext D Θ Ξ τ → PiInertEndpointContext D Δ Λ σ) ∧ ∀ e, (plug e).subst τ = C.plug (e.subst σ) := by
   induction HP with
-  | refl => exact ⟨Ξ, τ, .hole, .hole, W, ⟨0, rfl⟩, fun _ => rfl⟩
+  | refl => exact ⟨Ξ, τ, .hole, .hole, W, ⟨0, rfl⟩, (fun H => H), fun _ => rfl⟩
   | @retained Δ A u n cd A' plug Θ args SD RD WI HP ih =>
-    obtain ⟨Λ, σ, C, HC, WS, ⟨depth, Eσ⟩, EC⟩ := ih W
+    obtain ⟨Λ, σ, C, HC, WS, ⟨depth, Eσ⟩, HI, EC⟩ := ih W
     have WB : ContextSubstitution (A :: Δ) (A'.subst σ :: Λ) σ.lift := by
       intro Γ hΓ EΓ
       simpa only [ProofShape.Subst.id, ProofShape.subst] using
@@ -63,7 +66,9 @@ theorem PiInertRetainedPrefix.substitution_hole
         (.hole : ScopedHole (A'.subst σ :: Λ) (A'.subst σ :: Λ))))
       (args.map (·.subst σ))
     obtain ⟨C', HC', EC'⟩ := tracked_compose HC HB
-    refine ⟨A'.subst σ :: Λ, σ.lift, C', HC', WB, ⟨depth+1, congrArg ProofShape.Subst.lift Eσ⟩, ?_⟩
+    refine ⟨A'.subst σ :: Λ, σ.lift, C', HC', WB, ⟨depth+1, congrArg ProofShape.Subst.lift Eσ⟩, ?_, ?_⟩
+    · intro Hctx
+      exact .binder RD.forget (HI Hctx)
     intro e
     rw [EC, EC', EB]
     simp only [ProofShape.subst_mkApps, ProofShape.subst, ScopedHole.plug]
@@ -76,20 +81,23 @@ theorem PiInertRetainedPrefix.application_hole
     (W : ContextSubstitution Θ Ξ τ) (args : List ProofShape) :
     ∃ Λ σ, ∃ C : ScopedHole Ξ Λ, SpineBinderHole C ∧
       ContextSubstitution Δ Λ σ ∧ (∃ depth, σ = τ.liftN depth) ∧
+      (PiInertEndpointContext D Θ Ξ τ → PiInertEndpointContext D Δ Λ σ) ∧
       ∀ e, ProofShape.mkApps ((plug e).subst τ) args = C.plug (e.subst σ) := by
-  obtain ⟨Λ, σ, C, HC, WS, ED, EC⟩ := HP.substitution_hole W
+  obtain ⟨Λ, σ, C, HC, WS, ED, HI, EC⟩ := HP.substitution_hole W
   obtain ⟨C', HC', EC'⟩ := tracked_spine HC args
-  exact ⟨Λ, σ, C', HC', WS, ED, fun e => by rw [EC, EC']⟩
+  exact ⟨Λ, σ, C', HC', WS, ED, HI, fun e => by rw [EC, EC']⟩
 
 /-- The next actual application represented by its enclosing tracked hole
 and exact substitution at the inner endpoint. The map is identity or a single
-actual consumption beneath retained binders. The predicate equivalence keeps
+actual consumption beneath retained binders. Its precise context origin
+retains every annotation computation; identity maps consequently supply the
+context history needed to preserve completion. The predicate equivalence keeps
 the original continuation fixed on every competitor, so the recorded path
 cannot be replaced by an unrelated existential minimum. -/
 def PiInertNextApplicationAtHole (D : Definitions) (Ω : List ProofShape) (out : ProofShape)
     (Δ : List ProofShape) (K : ProofShape → Nat → Prop) (e : ProofShape) (ck : Nat) : Prop :=
     ∃ Ξ Λ σ, ∃ C : ScopedHole Ξ Λ, ∃ n cs endpoint ck' K',
-      SpineBinderHole C ∧ ContextSubstitution Δ Λ σ ∧ SingleEndpointSubstitution σ ∧
+      SpineBinderHole C ∧ ContextSubstitution Δ Λ σ ∧ PiInertEndpointContext D Δ Λ σ ∧
       TypedSource Ξ (C.plug (e.subst σ)) ∧
       ScopedComputeCount (PiInertStage D n) cs Ξ (C.plug (e.subst σ)) endpoint ∧
       PiInertTypedContinuationRun D Ω out Ξ K' endpoint ck' ∧ cs+ck' = ck ∧
@@ -101,13 +109,15 @@ def PiInertNextApplicationAtHole (D : Definitions) (Ω : List ProofShape) (out :
 retained prefix. The original continuation is identified pointwise with paths
 from the substituted endpoint in this hole, preserving all competitors and
 exact continuation costs. Its raw map retains the single-consumption form
-derived from the actual application and finite retained prefix. -/
+derived from the actual application and finite retained prefix. The identity
+case also retains the annotation history derived from that same prefix. -/
 theorem PiInertNextApplication.substitution_hole
     (H : PiInertNextApplication D Ω out Δ K e ck) :
     PiInertNextApplicationAtHole D Ω out Δ K e ck := by
   obtain ⟨Θ, Ξ, τ, args, plug, n, cs, endpoint, ck', K', HP, W, _, HT, R, HK, hc, EK⟩ := H
-  obtain ⟨Λ, σ, C, HC, WS, ⟨depth, Eσ⟩, EC⟩ := HP.application_hole W.interpretation args
-  refine ⟨Ξ, Λ, σ, C, n, cs, endpoint, ck', K', HC, WS, Eσ.symm ▸ W.single.liftN depth, EC e ▸ HT, EC e ▸ R, HK, hc, ?_⟩
+  obtain ⟨Λ, σ, C, HC, WS, _, HI, EC⟩ := HP.application_hole W.interpretation args
+  have Hancestry := HI (PiInertEndpointContext.base W)
+  refine ⟨Ξ, Λ, σ, C, n, cs, endpoint, ck', K', HC, WS, Hancestry, EC e ▸ HT, EC e ▸ R, HK, hc, ?_⟩
   intro body k
   simpa only [PiInertApplicationContinuation, EC] using EK body k
 
@@ -124,7 +134,7 @@ theorem PiInertNextApplicationAtHole.joint_minimum
     (hmin : ∀ later j body k, ScopedComputeCount (PiInertStage D later) j Δ source body →
       K body k → cost ≤ j+k) :
     ∃ Ξ Λ σ, ∃ C : ScopedHole Ξ Λ, ∃ suffixStage cs endpoint ck' K',
-      SpineBinderHole C ∧ ContextSubstitution Δ Λ σ ∧ SingleEndpointSubstitution σ ∧
+      SpineBinderHole C ∧ ContextSubstitution Δ Λ σ ∧ PiInertEndpointContext D Δ Λ σ ∧
       TypedSource Ξ (C.plug (e.subst σ)) ∧
       ScopedComputeCount (PiInertStage D suffixStage) cs Ξ (C.plug (e.subst σ)) endpoint ∧
       PiInertTypedContinuationRun D Ω out Ξ K' endpoint ck' ∧ cs+ck' = ck ∧
@@ -135,7 +145,7 @@ theorem PiInertNextApplicationAtHole.joint_minimum
         ScopedComputeCount (PiInertStage D firstStage) j Δ source body →
         ScopedComputeCount (PiInertStage D later) k Ξ (C.plug (body.subst σ)) tail →
         K' tail l → cost ≤ j+k+l := by
-  obtain ⟨Ξ, Λ, σ, C, suffixStage, cs, endpoint, ck', K', HC, WS, Hsingle, HT, RT, HK, hc, EK⟩ :=
+  obtain ⟨Ξ, Λ, σ, C, suffixStage, cs, endpoint, ck', K', HC, WS, Hancestry, HT, RT, HK, hc, EK⟩ :=
     H
   have HM : PiInertTypedContinuationMinimum D Ω out Ξ (C.plug (e.subst σ)) ck := by
     refine ⟨K', suffixStage, cs, ck', endpoint, HT, RT, HK, hc, ?_⟩
@@ -148,7 +158,7 @@ theorem PiInertNextApplicationAtHole.joint_minimum
       have HH := hmin n cb e (j+l) R ((EK e (j+l)).2 ⟨later, j, tail, l, rfl, RJ, HL⟩)
       omega)
     simpa only [hc] using Hfocus
-  refine ⟨Ξ, Λ, σ, C, suffixStage, cs, endpoint, ck', K', HC, WS, Hsingle, HT, RT, HK, hc,
+  refine ⟨Ξ, Λ, σ, C, suffixStage, cs, endpoint, ck', K', HC, WS, Hancestry, HT, RT, HK, hc,
     HM, HMinner, (by omega), ?_⟩
   intro firstStage later j body k tail l RJ RK HL
   have HH := hmin firstStage j body (k+l) RJ ((EK body (k+l)).2 ⟨later, k, tail, l, rfl, RK, HL⟩)
@@ -165,7 +175,7 @@ theorem PiInertNextApplication.eta_origin
       (ProofShape.mkApps (.lam A (.app (f.liftN 1) (etaArgument u))) args) ck)
     (HO : TypedEtaOrigin Δ A f u) :
     ∃ Ξ Λ σ, ∃ C : ScopedHole Ξ Λ, ∃ n cs endpoint ck' K',
-      SpineBinderHole C ∧ ContextSubstitution Δ Λ σ ∧ SingleEndpointSubstitution σ ∧
+      SpineBinderHole C ∧ ContextSubstitution Δ Λ σ ∧ PiInertEndpointContext D Δ Λ σ ∧
       TypedEtaOrigin Λ (A.subst σ) (f.subst σ) u ∧
       TypedSource Ξ (C.plug (.lam (A.subst σ) (.app ((f.subst σ).liftN 1) (etaArgument u)))) ∧
       ScopedComputeCount (PiInertStage D n) cs Ξ
@@ -174,7 +184,7 @@ theorem PiInertNextApplication.eta_origin
       ∀ q k, K (ProofShape.mkApps q args) k ↔ ∃ later j tail l, j+l = k ∧
         ScopedComputeCount (PiInertStage D later) j Ξ (C.plug (q.subst σ)) tail ∧
         K' tail l := by
-  obtain ⟨Ξ, Λ, σ, C, n, cs, endpoint, ck', K', HC, WS, Hsingle, HT, RT, HK, hc, EK⟩ := H.substitution_hole
+  obtain ⟨Ξ, Λ, σ, C, n, cs, endpoint, ck', K', HC, WS, Hancestry, HT, RT, HK, hc, EK⟩ := H.substitution_hole
   obtain ⟨B, HB, EB⟩ := tracked_spine (.hole : SpineBinderHole (.hole : ScopedHole Λ Λ))
     (args.map (·.subst σ))
   obtain ⟨C', HC', EC⟩ := tracked_compose HC HB
@@ -185,7 +195,7 @@ theorem PiInertNextApplication.eta_origin
   have Eeta : (ProofShape.lam A (.app (f.liftN 1) (etaArgument u))).subst σ =
       .lam (A.subst σ) (.app ((f.subst σ).liftN 1) (etaArgument u)) := by
     simp only [ProofShape.subst, ProofShape.lift_subst_lift, ProofShape.etaArgument_subst]
-  refine ⟨Ξ, Λ, σ, C', n, cs, endpoint, ck', K', HC', WS, Hsingle, HO.subst WS, ?_, ?_, HK, hc, ?_⟩
+  refine ⟨Ξ, Λ, σ, C', n, cs, endpoint, ck', K', HC', WS, Hancestry, HO.subst WS, ?_, ?_, HK, hc, ?_⟩
   · rw [← Eeta, EE]
     exact HT
   · rw [← Eeta, EE]

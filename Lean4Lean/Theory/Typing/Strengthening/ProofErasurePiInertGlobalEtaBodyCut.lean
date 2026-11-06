@@ -117,6 +117,15 @@ without a new assumption on the global path. Agreement is therefore needed
 for identity or one actual consumption beneath retained binders, rather than
 an unrestricted endpoint substitution. The consumed argument's agreement
 with the chosen target image is still to be derived from its linked ancestry.
+The focused map now retains `PiInertEndpointContext`, recording every
+annotation computation above the actual identity or consumed-binder map.
+Its identity case derives `PiInertContextHistory` from those annotations. `AnnotationContextCompute.descend_insertion`
+replays those changes through unused insertions at arbitrary depths, and
+`EqTargetPrefixCompletion.context_history` preserves completion through the
+whole finite history. `focus_next_completed_or_consumed` therefore gives
+completion at the actual next substituted spine or leaves one binder
+consumption. Identity moves no longer require an agreement hypothesis; their
+possible equal cost still needs a progress argument.
 Component-only
 transitions through enclosing wrappers still need target agreement from their
 actual histories; coverage of arbitrary wrapped-body histories remains open. `read_full_eta_loss_in_minimum` reads a head-losing root

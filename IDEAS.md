@@ -19674,3 +19674,30 @@ does not imply that equality. No proof, canonical-Eq counterexample, or
 sufficient strictly smaller irreducible obligation is claimed. Validation:
 1035 build jobs, 79 public audit roots, maximum recursive closure
 11,977, 1,010 unchanged source hashes.
+
+
+## 2026-11-06 19:08:51 UTC — Close identity agreement through the actual retained annotations
+
+**Idea:** an identity raw map is not enough to justify completion after its
+retained prefix: annotations may have computed at several binder depths.
+Retain the actual annotation history and descend it through every unused
+insertion before converting the semantic source completion.
+
+**Verdict:** proved and integrated. `AnnotationContextCompute` records a
+computation at any binder depth. Its insertion-descent theorem rebuilds both
+actual contexts and the unused insertion; changing an inserted binder leaves
+the lower context unchanged, while other changes retain lower certificates.
+Completion survives each change and any finite `PiInertContextHistory`.
+`PiInertEndpointContext` retains every annotation computation above the actual
+identity or consumed-binder map, including the still-open consumption case.
+The actual next-application hole derives this witness from its retained prefix.
+
+`focus_next_completed_or_consumed` now gives completion at the next actual
+substituted spine or leaves one binder consumption beneath retained binders.
+Identity cases need no extra target-agreement assumption, including with
+iterated unused insertions. Remaining: derive the consumed argument's target
+agreement and justify progress through equal-cost identity moves. This closes
+one branch of the necessary frontier; it is not a proof of strengthening or a
+sufficient strictly smaller irreducible obligation. Validation: 1036 build
+jobs, 28 audited public roots, maximum closure 11,976, 1,011
+unchanged source hashes.

@@ -244,22 +244,45 @@ theorem EqTargetPrefixComponentMinimum.mono
 application/binder hole. This yields a typed minimum at the substituted Eq
 spine, with the unchanged remaining budget. Its substitution is identity or
 one binder consumption beneath a finite retained prefix, derived from the
-actual execution. Target completion is retained at
-the original endpoint; transporting it to the substituted endpoint still
-requires agreement from the recorded ancestry. This theorem does not claim
+actual execution. Identity maps retain their concrete annotation history;
+consumption still requires agreement from the recorded argument ancestry.
+Target completion is retained at the original endpoint. This theorem does not claim
 strict decrease when the preceding component path has zero cost. -/
 theorem EqTargetPrefixComponentMinimum.focus_next
     (H : EqTargetPrefixComponentMinimum D Γ v w original Ω out budget) :
     ∃ Δ Λ ls args σ cb ck, cb+ck ≤ budget ∧
       EqTargetPrefixCompletion Γ v w original Δ (ProofShape.mkApps (.const ``Eq.rec ls) args) ∧
-      ContextSubstitution Δ Λ σ ∧ SingleEndpointSubstitution σ ∧
+      ContextSubstitution Δ Λ σ ∧ PiInertEndpointContext D Δ Λ σ ∧
       PiInertTypedContinuationMinimum D Ω out Λ
         (ProofShape.mkApps (.const ``Eq.rec ls) (args.map (·.subst σ))) ck := by
   obtain ⟨Δ, ls, args, ls', args', n, cb, ck, K, hc, _, HP, _, R, _, _, _, HM, Hnext⟩ := H
-  obtain ⟨Ξ, Λ, σ, C, suffixStage, cs, endpoint, ck', K', _, WS, Hsingle, _, _, _, _, _, HMinner, _, _⟩ :=
+  obtain ⟨Ξ, Λ, σ, C, suffixStage, cs, endpoint, ck', K', _, WS, Hancestry, _, _, _, _, _, HMinner, _, _⟩ :=
     Hnext.joint_minimum R rfl HM
-  refine ⟨Δ, Λ, ls', args', σ, cb, ck, hc, HP, WS, Hsingle, ?_⟩
+  refine ⟨Δ, Λ, ls', args', σ, cb, ck, hc, HP, WS, Hancestry, ?_⟩
   simpa only [ProofShape.subst_mkApps, ProofShape.subst] using HMinner
+
+/-- At the actual next application, identity maps preserve target completion
+through their recorded annotation history. The only remaining substitution
+case consumes one binder beneath retained binders. This does not claim strict
+count decrease for an identity move or target agreement for that consumption. -/
+theorem EqTargetPrefixComponentMinimum.focus_next_completed_or_consumed
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (H : EqTargetPrefixComponentMinimum D Γ v w original Ω out budget) :
+    ∃ Δ Λ ls args σ cb ck, cb+ck ≤ budget ∧
+      EqTargetPrefixCompletion Γ v w original Δ (ProofShape.mkApps (.const ``Eq.rec ls) args) ∧
+      ContextSubstitution Δ Λ σ ∧
+      PiInertTypedContinuationMinimum D Ω out Λ
+        (ProofShape.mkApps (.const ``Eq.rec ls) (args.map (·.subst σ))) ck ∧
+      (EqTargetPrefixCompletion Γ v w original Λ
+          (ProofShape.mkApps (.const ``Eq.rec ls) (args.map (·.subst σ))) ∨
+        ∃ x depth, σ = (ProofShape.Subst.one x).liftN depth) := by
+  obtain ⟨Δ, Λ, ls, args, σ, cb, ck, hc, HP, WS, Hancestry, HM⟩ := H.focus_next
+  refine ⟨Δ, Λ, ls, args, σ, cb, ck, hc, HP, WS, HM, ?_⟩
+  rcases Hancestry.ancestry with ⟨rfl, Hctx⟩ | Hconsume
+  · exact .inl (by simpa only [ProofShape.subst_id, List.map_id_fun', id] using
+      HP.context_history heq hs hΓ Hctx)
+  · exact .inr Hconsume
 
 /-- Strong induction removes every completed non-level cut from the current
 path: singleton guards read the target, administrative roots contradict the
