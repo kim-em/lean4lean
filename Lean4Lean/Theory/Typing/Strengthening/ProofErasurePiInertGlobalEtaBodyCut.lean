@@ -9,6 +9,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPairedInsertion
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqInsertionChain
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSaturatedChain
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainConsumption
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainAnnotations
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -169,9 +170,14 @@ consumed unused top binder and retains both lower assignments, the older chain,
 and exact full consumed endpoint. Its domain need not be proof-valued.
 `saturated_chain_application_progress` keeps the selected actual application
 suffix with a smaller primitive cost or one fewer recorded continuation frame.
-Annotation changes, retained wrappers and consumption of binders used by the
-tracked prefix still need integration; the original-probe frontier below is
-unchanged.
+`EqFrameInsertionChain.context_history` rebuilds all source insertions through
+finite recorded annotation histories, keeping the same outgoing contexts and
+maps. `chain_context_history` preserves both chosen assignments and the exact
+erased prefix; `chain_context_components` resumes actual computation in the
+changed source scope with exact outgoing endpoint agreement. Matching the
+whole actual continuation through retained wrappers and consuming binders used
+by the tracked prefix still need integration; the original-probe frontier
+below is unchanged.
 `minimum_frontier` iterates this decrease
 by strong induction and reaches a component-only current path with completion
 at both endpoints. The conclusion retains this actual

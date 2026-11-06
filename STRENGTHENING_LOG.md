@@ -35147,3 +35147,48 @@ strengthening gap or excluded circular framework. All 1,038 source hashes
 remained fixed. Original-probe root independent of the old nested-eta frontier.
 Original weakN_iff sorry and executable unchanged; GOAL.md active;
 no PR extraction or Lean/Lake patch.
+
+
+## 2026-11-06 22:03:35 UTC — Recorded annotation histories preserve the full paired insertion chain
+
+Added `ProofErasureEqChainAnnotations.lean`, imported by the global module.
+`rebase_insertion_erased` rebuilds an unused insertion above another well-formed
+realization of its lower raw context. Inserted declarations retain their actual
+syntax; retained declarations are taken from the new lower realization and
+lifted at the same count/offset. Ordinary context conversion justifies their
+typings and preserves the exact upper raw context.
+
+`EqSpecializationFrame.source_convert` keeps the literal actual/raw maps and
+both chosen target assignments while converting the source. The outgoing
+context is unchanged. `EqFrameInsertionChain.compute_context` descends one
+recorded annotation computation through every source insertion. The recursive
+lower realization can differ from the one chosen by the block's descent;
+`rebase_insertion_erased` reconciles them using their equal erased contexts.
+Actual-map typing and erased agreement are converted at the source; target
+insertions and both syntactic commutation equations are retained verbatim.
+The result keeps both context conversions, exact upper raw endpoint, lower
+annotation certificate, and rebuilt chain.
+
+`context_history` repeats this construction over any finite recorded history,
+using each annotation's own stage and scope. `chain_context_history` retains
+the original actual prefix, assigned type, both chosen substitutions, and exact
+component erasures. `chain_context_components` then descends subsequent actual
+component certificates in the changed source context and proves exact agreement
+with the same outgoing upper map. Guarded paths are never substituted or
+transported through the context conversions.
+
+The theorem changes source realizations while keeping outgoing contexts fixed.
+It does not yet match all changed outgoing annotations and retained-wrapper
+endpoint maps of the actual continuation. That integration, and consumption
+of binders used by the tracked prefix, remain open. The original-probe frontier
+is unchanged; this is not strengthening or a sufficient irreducible obligation
+strictly smaller than PropFront.
+
+Validation: 1064 build jobs including the global theorem and established
+regressions; 107 declarations recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening gap or excluded circular framework. All 1,039 source hashes
+remained fixed. Original-probe root independent of the old nested-eta frontier.
+Original weakN_iff sorry and executable unchanged; GOAL.md active;
+no PR extraction or Lean/Lake patch.

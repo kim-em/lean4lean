@@ -20235,3 +20235,28 @@ or arbitrary annotation changes. Original-probe frontier and strengthening gap
 unchanged. Validation: 1063 jobs, 101 recursive roots, maximum closure
 11,976; only propext, Classical.choice and Quot.sound, all 1,038 source
 hashes fixed.
+
+
+## 2026-11-06 22:03:35 UTC — Preserve the paired chain through recorded source annotation histories
+
+**Idea.** Change the source realizations while retaining outgoing contexts and
+both actual and erased maps. Rebuild an insertion over any well-formed lower
+realization with the same erased context, so independently descended annotation
+certificates need not select syntactically identical declarations.
+
+**Verified.** `rebase_insertion_erased` constructs that rebuilt insertion and
+preserves its exact upper raw context. `EqSpecializationFrame.source_convert`
+keeps both chosen assignments and literal maps. `EqFrameInsertionChain.compute_context`
+descends one recorded annotation change through all blocks, rebuilding each
+source insertion with the same count/offset. `context_history` iterates over
+finite actual stages. `chain_context_history` preserves the chosen prefix and
+its exact argument erasures, and `chain_context_components` resumes computation
+in the changed actual source scope with exact outgoing endpoint agreement.
+
+**Verdict.** Recorded source annotation histories no longer require forgetting
+the paired chain or choosing new target assignments. Outgoing contexts stay
+fixed; matching the complete actual endpoint through retained wrappers and
+consumption of used binders still requires integration. This is not a sufficient
+smaller obligation or full strengthening. Validation: 1064 jobs, 107
+recursive roots, maximum closure 11,976; only propext, Classical.choice
+and Quot.sound, all 1,039 source hashes fixed.
