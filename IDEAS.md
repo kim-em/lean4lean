@@ -17047,3 +17047,41 @@ Validation: 855 build jobs; 16 complete dependency-audit roots; maximum
 closure 8,731; 830 frozen source/import hashes. Only standard axioms,
 no forbidden dependencies or owned diagnostics. No executable change,
 coordination or PR extraction.
+
+
+### 2026-11-06 06:27:47 UTC — Registered patterns through arbitrary-function eta origins
+
+Previous goal turn: progress (1aabda42, exact full-core eta reflection and
+application interactions). Revalidated the committed worktree and preserved the
+two independent untracked experiments. Continued integration with primitives.
+
+Verdict: full pattern exposure works using actual major non-function typing.
+The existing Params.major_not_pi theorem excludes the whole eta-wrapper
+alternative at the inspected constructor major of every registered iota rule.
+This avoids a new concrete-pattern or family-recovery assumption. Generalized
+constant-spine beta cleanup to full-core histories and to a non-function typing
+premise. Proper-prefix wrappers are consumed by the next supplied argument;
+constructor-major wrappers contradict the actual original redex typing.
+
+Proved raw constant-spine match extraction and pointwise capture transport.
+Every registered pattern at an actual typed source now either beta-exposes its
+original head/universes and pointwise paired captures on the target, or is one
+whole eta origin. The latter is handled by the preceding exact core-origin
+simulation, rather than by a false claim of unconditional visible matching.
+
+Integrated capture selection, capture application, arbitrary closed templates,
+declaration unfolding, projection selection and explicit universe roots into
+sorted_eta_core_primitive. Checks and closed RHS templates are reused literally;
+projection majors use rigid-family typing to exclude functions. Thus every
+full-core primitive simulates at an arbitrary sorted eta variant of a typed
+consumer with explicit domain/function histories. No normalization, native
+coverage or semantic endpoint comparison is assumed.
+
+Remaining: connect the primitive theorem and typed beta interactions into
+arbitrary finite consumer computation and independent residuals, then establish
+native/inferred domain certificate coverage. No strengthening proof,
+counterexample or strictly smaller final obligation is claimed.
+
+Validation: 859 jobs; 11 complete dependency-audit roots; maximum closure
+8,886; 834 frozen hashes; only standard axioms, no forbidden dependencies
+or owned warnings. No executable change, coordination or PR extraction.

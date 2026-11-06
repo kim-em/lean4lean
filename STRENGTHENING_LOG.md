@@ -30747,3 +30747,29 @@ maximum closure 8,731; 830 frozen hashes. Only propext, Classical.choice
 and Quot.sound, no forbidden dependencies, no owned warnings. Preserved both
 independent untracked experiments. No executable changes, coordination or PR
 extraction. Goal remains unachieved.
+
+
+### 2026-11-06 06:27:47 UTC — Full-core primitive simulation for sorted eta consumers
+
+Added ProofErasureEtaCoreSpineCleanup, ProofErasureEtaCorePatterns and
+ProofErasureEtaCorePrimitives. Full-core origin histories now support beta
+cleanup of constant prefixes. Non-function typing excludes a complete wrapper
+at an inspected major; Params.major_not_pi discharges this for registered iota
+from the original actual redex typing.
+
+sorted_eta_core_pattern_cleanup retains either an exposed exact pattern with
+paired captures or one whole eta origin. sorted_eta_core_primitive combines
+that cleanup with exact origin simulation to cover declaration, projection,
+capture, template and universe roots. Both source and target universe lists
+and rule checks remain literal; no inferred native certificate or semantic
+comparison is introduced. Projection cleanup uses the actual rigid carrier.
+
+All primitive cases are now supplied. Arbitrary finite consumer closure and
+independent residuals remain to be assembled from these cases and typed beta
+interactions. Inferred domain comparison coverage is still missing, and the
+original strengthening sorry remains.
+
+Validation: 859 jobs; 11 complete type/value/constructor/recursor audits;
+maximum closure 8,886; 834 frozen source/import hashes. Standard axioms
+only, no forbidden dependencies or owned diagnostics. Preserved the independent
+experiments; no executable edits, coordination or PR extraction.
