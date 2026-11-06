@@ -20186,3 +20186,27 @@ consumption still need integration. Original-probe frontier and strengthening
 gap unchanged. Validation: 1061 jobs, 93 recursive roots, maximum closure
 11,976; only propext, Classical.choice and Quot.sound, all 1,036 source
 hashes fixed.
+
+
+## 2026-11-06 21:50:43 UTC — Saturated eta and extra arguments through the full insertion chain
+
+**Idea.** Keep the completed chosen prefix below the insertion chain, but let
+additional actual arguments and native recovered domains live in its upper
+scope. Append recovered domains using the actual upper map rather than
+requiring new target inhabitants or assuming every later domain is a proposition.
+
+**Verified.** `saturated_chain_components` retains both chosen assignments and
+the exact whole raw endpoint after argument computation. `open_recovered_domain`
+reifies native recovery in the actual upper context and appends its insertion.
+`saturated_chain_eta` lifts the extras and appends the fresh argument at every
+saturated arity. `saturated_chain_hole_cut_eq_or_smaller` connects this to the
+actual strictly smaller all-stage continuation minimum beneath an arbitrary
+application/binder hole.
+
+**Verdict.** Saturated openings no longer require dropping the recorded chain,
+including after additional arguments. Annotation changes and agreement with
+actual later continuation consumption still need integration. Original-probe
+frontier and strengthening gap unchanged; this remains supporting work, not a
+sufficient smaller obligation. Validation: 1062 jobs, 99 recursive roots,
+maximum closure 11,976; only propext, Classical.choice and Quot.sound,
+all 1,037 source hashes fixed.

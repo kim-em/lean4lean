@@ -7,6 +7,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChosenCut
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSaturatedPaired
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPairedInsertion
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqInsertionChain
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSaturatedChain
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -157,9 +158,13 @@ Component and native-recovery certificates descend through the entire chain
 before the original lower assignment is used. `eta_insertion_chain` restores
 the exact upper scope and body, and `chain_hole_cut_eq_or_smaller` preserves
 the shifted chain in a strictly smaller actual short-prefix minimum.
-Saturated opening through this representation, annotation changes, and actual
-continuation consumption still need integration; the original-probe frontier
-below is unchanged.
+`saturated_chain_hole_cut_eq_or_smaller` now appends the natively recovered
+upper domain to that chain at every saturated arity, preserving a strictly
+smaller actual body minimum. Extra actual arguments need no target images,
+and later domains need not be propositions. `saturated_chain_components`
+keeps the same chosen assignments through computation of the full vector.
+Annotation changes and actual continuation consumption still need integration;
+the original-probe frontier below is unchanged.
 `minimum_frontier` iterates this decrease
 by strong induction and reaches a component-only current path with completion
 at both endpoints. The conclusion retains this actual

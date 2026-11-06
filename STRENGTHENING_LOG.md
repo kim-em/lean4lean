@@ -35070,3 +35070,40 @@ strengthening gap or excluded circular framework. All 1,036 source hashes
 remained fixed. Original-probe root independent of the old nested-eta frontier.
 Original weakN_iff sorry and executable unchanged; GOAL.md active;
 no PR extraction or Lean/Lake patch.
+
+
+## 2026-11-06 21:50:43 UTC — Saturated openings retain chosen lower assignments and upper history
+
+Added `ProofErasureEqSaturatedChain.lean` and imported it into the global module.
+`chain_prefix_completion` and `saturated_chain_completion` derive bounded
+completion through the recorded chain, with arbitrary additional actual raw
+arguments once the target prefix is complete. `saturated_chain_components`
+splits the computed vector at the tracked prefix length, descends its actual
+component certificates, keeps both chosen target assignments, and restores
+completion at the exact full endpoint using the remaining actual arguments.
+
+`open_recovered_domain` realizes native type recovery in the chain's actual
+upper source scope and proves the recovered domain has its native sort. The
+new outgoing domain is its image under the already typed upper substitution.
+This supplies a new top insertion without a target inhabitant. Unlike the
+five-argument proof-domain case, subsequent domains may have arbitrary sorts.
+`saturated_chain_eta` retains the completed lower prefix and both original
+assignments, appends this insertion, lifts every extra argument and adds the
+native eta argument. `saturated_chain_hole_cut_eq_or_smaller` connects that
+construction to an actual non-level cut beneath an arbitrary application/binder
+hole, returning the exact raw body, preserved chain and strictly smaller typed
+continuation minimum with unrestricted all-stage competitors.
+
+Annotation changes and linking the retained frame to actual continuation
+consumption remain open. The original-probe frontier is unchanged. These are
+preservation and descent lemmas, not full strengthening or a sufficient
+irreducible obligation strictly smaller than PropFront.
+
+Validation: 1062 build jobs including the global theorem and established
+regressions; 99 declarations recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening gap or excluded circular framework. All 1,037 source hashes
+remained fixed. Original-probe root independent of the old nested-eta frontier.
+Original weakN_iff sorry and executable unchanged; GOAL.md active;
+no PR extraction or Lean/Lake patch.
