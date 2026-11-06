@@ -33204,3 +33204,39 @@ closure 11,781; 989 frozen source hashes. Changed modules are warning
 free. Audits traverse types, values, opaque bodies, constructors and recursor
 RHSs; only propext, Classical.choice and Quot.sound occur. Forbidden
 strengthening and replacement obligations are absent.
+
+
+### 2026-11-06 16:16:34 UTC — Carry rigid-result exclusion through selected head wrappers
+
+Added `ProofErasurePiInertTrackedHeadHole.lean` and integrated its strengthened
+selection into `pi_inert_eq_exposure_eq_or_global_eta_spine_cut`.
+
+The new tracked-hole witness admits function positions, lambda bodies and
+identity payloads only. Its rigid-tail propagation theorem uses actual typing
+of each whole wrapper; identity elimination transfers an assigned type back
+along beta, without reversing or substituting guarded computation. The counted
+cut keeps its exact original prefix, root, suffix, scopes and cost equation.
+Mixed continuation selection retains absence of every rigid-tail assignment at
+the selected local source, as a consequence of the actual sort-ending execution.
+A hypothetical native structure recovery at the root propagates through the hole
+and back through the prefix, contradicting that absence.
+
+The global theorem's residual witness is now
+`NonstructuralEqHeadCompletionFailure`: the same cost-bounded root lacks target
+completion, lies in a tracked hole and excludes native structure recovery at
+every finite stage. The original theorem hypotheses are unchanged. Forgetting
+these added facts recovers the previous `EqHeadCompletionFailure`.
+
+Validation: the frozen scratch closure built successfully (1015 jobs), including
+GlobalEtaBodyCut, ContextualCastFeedback and CoreFamilySubstitutionBarrier.
+All 14 public owned declarations passed the recursive dependency and axiom
+audit (types, values, opaque values, constructors and recursor rules; maximum
+closure 11,789). Only propext, Classical.choice and Quot.sound occur; no
+weakN_iff, weakN_inv, sorryAx or excluded framework dependencies. All 990 source
+hashes remained unchanged across verification; no diagnostics in owned modules.
+
+Still open: deriving Eq argument completion through arbitrary wrapped histories.
+The root's typing does not itself give that ancestry. A possible next independent
+restriction is excluding core matching using proof erasure of the typed Eq major;
+that argument has not yet been implemented. The requested final deliverable is
+not achieved. No executable changes, PR extraction or coordination.

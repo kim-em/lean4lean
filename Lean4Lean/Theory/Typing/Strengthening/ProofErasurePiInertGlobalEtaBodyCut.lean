@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertRigidTail
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertTrackedHeadHole
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSpecializationFrames
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -56,10 +56,15 @@ next application unless its current endpoint already exposes a carrier. The
 next application inherits full minimality and the prefix preserves joint
 competitors (`PiInertNextApplication.joint_minimum`). Its count is positive:
 `eq_positive` excludes zero-cost Eq exposure through arbitrary mixed frames.
-The conclusion additionally selects an `EqHeadCompletionFailure` within that
-smaller budget; forgetting its final condition recovers `TypedWrappedHeadLoss`. Its actual typed root excludes level conversion, constant
-expansion, identity expansion and native function eta, even across arbitrary
-mixed continuation frames. A short selected Eq root is necessarily singleton
+The conclusion additionally selects a `NonstructuralEqHeadCompletionFailure`
+within that smaller budget. Its exact hole follows function positions, retained
+lambda bodies and identity payloads. The selected root excludes native
+structure recovery at every finite stage: its hypothetical rigid assignment
+would propagate through the tracked hole and back along the typed prefix,
+contradicting the sort-ending execution. Forgetting these restrictions recovers
+`EqHeadCompletionFailure` and then `TypedWrappedHeadLoss`. The root also excludes
+level conversion, constant expansion, identity expansion and native function
+eta, even across arbitrary mixed continuation frames. A short selected Eq root is necessarily singleton
 (`pi_inert_short_eq_head_loss_singleton`). The selected loss can occur later
 than the original nested eta. `EqHeadCompletion.read_loss` derives both short
 arity and semantic readout from one completing realization, allowing ambient
@@ -131,7 +136,7 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
       ∃ innerA innerU bodyLs bodyPre smaller, 0 < smaller ∧ smaller < cost ∧
         PiInertTypedContinuationMinimum D (proofEraseCtx Γ') out (innerA :: A :: proofEraseCtx Γ')
           (.app ((ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre).liftN 1) (etaArgument innerU)) smaller ∧
-        EqHeadCompletionFailure D Γ v w [α,a,M,m,b] smaller ∧
+        NonstructuralEqHeadCompletionFailure D Γ v w [α,a,M,m,b] smaller ∧
         (EqHeadCompletion Γ v w [α,a,M,m,b] (innerA :: A :: proofEraseCtx Γ')
             (.app ((ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre).liftN 1) (etaArgument innerU)) ∨
           bodyPre.length = 5 ∧ etaArgument innerU = .proof ∧
@@ -251,7 +256,7 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
               apply RetainedConstHead.app
               simpa only [ProofShape.liftN_mkApps, ProofShape.liftN] using
                 (RetainedConstHead.const (ls := bodyLs)).mkApps (bodyPre.map (·.liftN 1))
-            rcases (HM.wrapped_head_loss heq Hhead.wrapped HE).eq_or_completion_failure
+            rcases (HM.tracked_head_loss heq hs Hhead.wrapped HE HCout).eq_or_completion_failure
                 heq hs hreg hoff hRec hΓ ht with Hlower | Hfailure
             · exact .inl Hlower
             · exact .inr ⟨stage, cost, ls, pre, pending, _, _, _, k, cp, ct,

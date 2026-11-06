@@ -19027,3 +19027,33 @@ readout; ancestry through arbitrary later wrapped-head histories is still
 open. Goal incomplete; no sufficient smaller irreducible obligation than
 PropFront is claimed. Validation: 1014 jobs, 17 audited roots, maximum
 closure 11,781; 989 frozen hashes. Executable unchanged; no PR extraction.
+
+
+### 2026-11-06 16:16:34 UTC — Exclude structure eta at the selected wrapped head loss
+
+**Idea.** Preserve the actual hole grammar in head-loss selection: function
+positions, retained lambda bodies and identity payloads. Propagate a recovered
+rigid result family outward through this hole and backwards along the typed
+prefix. The local source then contradicts the nonrigidity forced by its actual
+sort-ending continuation.
+
+**Verdict: checked and integrated into the global result.**
+`TrackedHeadHole.rigid_tail_plug` handles all three wrappers, including identity
+payloads by semantic transport backwards along beta. Counted head-loss selection
+retains this hole restriction with exact prefix and suffix costs. A typed mixed
+execution or minimum ending at a sort selects a `TypedNonrigidHeadLoss`.
+Its root excludes native structure recovery at every finite stage, even under
+retained binders. The global theorem now returns
+`NonstructuralEqHeadCompletionFailure` in the same strictly smaller budget;
+forgetting its extra restrictions recovers the former failure predicate.
+
+The Eq argument ancestry gap through arbitrary later histories remains open.
+The next candidate is to exclude ordinary core roots using the actual typing
+of the canonical Eq major: `eqRecApp_typings` supplies its Eq type, hence proof
+erasure. Existing `erased_iota_eqRec_no_root` handles short prefixes or a final
+proof marker; the arbitrary-arity/matched-root connection still needs proof.
+This is a next action, not a claimed result. Goal incomplete; no sufficient
+irreducible obligation strictly smaller than PropFront is claimed.
+
+Validation: 1015 jobs, 14 audited roots, maximum closure 11,789;
+990 frozen source hashes. Executable unchanged; no PR extraction or coordination.
