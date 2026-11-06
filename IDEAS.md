@@ -16057,3 +16057,17 @@ distinct premises, and general semantic domain coverage remains open. No final
 GOAL.md deliverable is claimed. Validation: 789 build jobs, 15 audited
 roots, maximum dependency closure 10,800, 764 frozen source hashes; no
 forbidden dependencies or nonstandard axioms. No extraction or PR creation.
+
+
+### 2026-11-06 02:40:12 UTC — Boundary on generalizing the core annotation result
+
+Rechecked ProofErasureSortRecursiveSubstitutionBoundary.lean, especially
+canonical_sort_recursive_instantiation_failure. Arbitrary ambient substitution
+closure of LevelRecursiveGuard is already refuted, even for sort-typed source
+terms and a genuine typed single substitution in a canonical-Eq extension that
+satisfies PropositionFront. It is not merely an unproved closure lemma.
+The full-core annotation consumer result above is valid at its fixed ambient
+context, but cannot finish strengthening by adding that closure law to the
+existing grammar. A richer computation/comparison relation is necessary for
+this approach; bridging the cast-aware future grammar to full-core reduction
+remains a live direction. This boundary is not a strengthening counterexample.

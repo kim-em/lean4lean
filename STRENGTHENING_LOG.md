@@ -29823,3 +29823,17 @@ the beta-only grammar's arbitrary ambient substitution with full core stability.
 General semantic domain coverage and the original strengthening theorem remain
 open; none of the three final deliverables is established. Independent files
 preserved; executable unchanged; no coordination, extraction or PRs.
+
+
+### 2026-11-06 02:40:12 UTC — Boundary on generalizing the core annotation result
+
+Rechecked ProofErasureSortRecursiveSubstitutionBoundary.lean, especially
+canonical_sort_recursive_instantiation_failure. Arbitrary ambient substitution
+closure of LevelRecursiveGuard is already refuted, even for sort-typed source
+terms and a genuine typed single substitution in a canonical-Eq extension that
+satisfies PropositionFront. It is not merely an unproved closure lemma.
+The full-core annotation consumer result above is valid at its fixed ambient
+context, but cannot finish strengthening by adding that closure law to the
+existing grammar. A richer computation/comparison relation is necessary for
+this approach; bridging the cast-aware future grammar to full-core reduction
+remains a live direction. This boundary is not a strengthening counterexample.
