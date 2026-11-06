@@ -15,6 +15,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainSupply
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainRetainedSupply
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainArgumentHistory
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChosenSupplyDescent
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -231,6 +232,18 @@ a lower realization or target image. Both preserve the exact induced
 competitor predicate and strictly smaller typed body minimum. A global invariant
 still must propagate these records through every later selected cut and frame;
 the arbitrary-continuation frontier is not yet closed.
+`supplied_eta_chain_descent` now derives the chosen fresh prefix and supplied
+continuation history together, using the same recovered lower domain. The
+source argument's displayed-domain typing and fresh paired chain are derived
+from the whole actual supplied spine. `supplied_chain_cut_eq_or_descent`
+classifies an actual supplied non-level cut before invoking that joint descent;
+positive guards read the original equation, and eta retains both records and
+a strictly smaller chain minimum. Source equalities of the waiting arguments
+are now retained alongside their chosen images. `restore_computed_supply` uses
+these distinct relations to restore both the pending vector and typing of the
+whole application once the consumed head's source equality has been derived.
+Empty local supply and complete propagation through the enclosing history
+remain open; no sufficient smaller PropFront obligation is asserted.
 `minimum_frontier` iterates this decrease
 by strong induction and reaches a component-only current path with completion
 at both endpoints. The conclusion retains this actual

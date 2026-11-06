@@ -184,7 +184,8 @@ theorem EqArgumentSupplyAt.chain_compute_prefix
 
 /-- The actual computed vector determines its consumed head and remaining
 supply. The head's chosen-image agreement is recovered from the stored history,
-and its displayed-domain typing follows from the source argument equality. -/
+and its displayed-domain typing follows from the source argument equality.
+The tail's source equalities are retained separately from its chosen images. -/
 theorem EqArgumentSupplyAt.chain_consumed_head
     (hstep : ErasedScopedPrimitiveCertificateDescent Step Step)
     (hΔ : OnCtx Δ (env.IsType univs))
@@ -199,29 +200,31 @@ theorem EqArgumentSupplyAt.chain_consumed_head
       ((rest'.map (proofErase Γ)).map blocks.erased) ++ rawExtra = rawRest ∧
       List.Forall₂ (ScopedCompute Step (proofEraseCtx Λ)) extra rawExtra ∧
       EqSpecializationFrame (A :: Γ) Γ Δ (σ.cons y) σ (VExpr.Subst.one x')
-        (ProofShape.Subst.one (proofErase Γ x')) ∧ EqArgumentSupplyAt Γ Δ σ chosen rest' := by
+        (ProofShape.Subst.one (proofErase Γ x')) ∧ EqArgumentSupplyAt Γ Δ σ chosen rest' ∧
+      List.Forall₂ (env.IsDefEqU univs Γ) actual rest' := by
   obtain ⟨args', rawExtra, HS, HE, EE, RX⟩ := H.chain_compute_prefix hstep hΔ W J RA
   cases args' with
   | nil => cases HE
   | cons x' rest' =>
     obtain ⟨EX, ER⟩ := List.cons.inj EE
     cases HE with
-    | cons HX _ =>
+    | cons HX Hrest =>
       have HX := HX.of_l henv W.actual.wf hx
       obtain ⟨WF, HR⟩ := HS.consume_head hΔ W.agree.left hA HX.hasType.2
-      exact ⟨x', rest', rawExtra, HX, EX, ER, RX, WF, HR⟩
+      exact ⟨x', rest', rawExtra, HX, EX, ER, RX, WF, HR, Hrest⟩
 
 /-- The two exact continuation branches created by actual eta execution,
 with chosen images still attached to every supplied argument. The consumed
 branch includes a derived matching frame, while the retained branch keeps
 the entire vector available. Both branches preserve their original competitor
-predicate; this is not a claim of arbitrary continuation closure. -/
+predicate and source argument equalities; this is not a claim of arbitrary continuation closure. -/
 def EqSuppliedEtaContinuation (D : Definitions) (n : Nat) (Γ Δ Λ : List VExpr)
-    (σ : VExpr.Subst) (blocks : EqInsertionPath) (A x y : VExpr) (chosen : List VExpr)
+    (σ : VExpr.Subst) (blocks : EqInsertionPath) (A x y : VExpr) (chosen actual : List VExpr)
     (f : ProofShape) (u : VLevel) (Ω : List ProofShape) (out endpoint : ProofShape)
     (ck cost : Nat) (extra : List ProofShape) (K : ProofShape → Nat → Prop) : Prop :=
     (∃ A' body' args' raw rawExtra cd cb m,
       EqArgumentSupplyAt Γ Δ σ (y :: chosen) args' ∧
+      List.Forall₂ (env.IsDefEqU univs Γ) (x :: actual) args' ∧
       ((args'.map (proofErase Γ)).map blocks.erased) ++ rawExtra = raw ∧
       List.Forall₂ (ScopedCompute (PiInertStage D n) (proofEraseCtx Λ)) extra rawExtra ∧
       endpoint = ProofShape.mkApps (.lam A' body') raw ∧
@@ -241,6 +244,7 @@ def EqSuppliedEtaContinuation (D : Definitions) (n : Nat) (Γ Δ Λ : List VExpr
       List.Forall₂ (ScopedCompute (PiInertStage D n) (proofEraseCtx Λ)) extra rawExtra ∧
       EqSpecializationFrame (A :: Γ) Γ Δ (σ.cons y) σ (VExpr.Subst.one x')
         (ProofShape.Subst.one (proofErase Γ x')) ∧ EqArgumentSupplyAt Γ Δ σ chosen rest' ∧
+      List.Forall₂ (env.IsDefEqU univs Γ) actual rest' ∧
       TypedSource (proofEraseCtx (blocks.actual A :: Λ)) (.app (f.liftN 1) (etaArgument u)) ∧
       ScopedComputeCount (PiInertStage D m) cb (proofEraseCtx (blocks.actual A :: Λ))
         (.app (f.liftN 1) (etaArgument u)) body' ∧
@@ -271,18 +275,18 @@ theorem CountedEtaFrameOrigin.argument_history
     (H : CountedEtaFrameOrigin D n (proofEraseCtx Λ) f (proofErase Λ (blocks.actual A)) u
       ((((x :: actual).map (proofErase Γ)).map blocks.erased) ++ extra) endpoint ct ck cost K)
     (HK : PiInertTypedContinuationRun D Ω out (proofEraseCtx Λ) K endpoint ck) :
-    EqSuppliedEtaContinuation D n Γ Δ Λ σ blocks A x y chosen f u Ω out endpoint ck cost extra K := by
+    EqSuppliedEtaContinuation D n Γ Δ Λ σ blocks A x y chosen actual f u Ω out endpoint ck cost extra K := by
   obtain ⟨SD, H⟩ := H
   rcases H with
     ⟨A', body', raw, cf, ca, cd, cb, m, _, _, EO, _, RA, RD, HT, RB, hsmall, HM⟩ |
     ⟨A', body', rawX, rawRest, cf, ca, cs, cd, cb, m, _, _, _, RA, _, HT, RB, WI, HTnext, RS, hsmall, HM⟩
-  · obtain ⟨args', rawExtra, HS', _, ER, RX⟩ := HS.chain_compute_prefix (pi_inert_stage_certificate_descent heq hs n) hΔ W J RA.forget
+  · obtain ⟨args', rawExtra, HS', Hargs, ER, RX⟩ := HS.chain_compute_prefix (pi_inert_stage_certificate_descent heq hs n) hΔ W J RA.forget
     have HK' : PiInertTypedContinuationRun D Ω out (proofEraseCtx Λ) K
         (ProofShape.mkApps (.lam A' body') raw) ck := EO ▸ HK
     have HR := PiInertTypedContinuationRun.retained (HT.pi_inert_compute heq hs RB.forget) SD RD
       (pi_inert_retained_frame_interpretation heq hs SD RD) HK'
-    exact .inl ⟨A', body', args', raw, rawExtra, cd, cb, m, HS', ER, RX, EO, RD, HT, RB, HR, hsmall, HM⟩
-  · obtain ⟨x', rest', rawExtra, HX, EX, ER, RX, WF, HS'⟩ := HS.chain_consumed_head
+    exact .inl ⟨A', body', args', raw, rawExtra, cd, cb, m, HS', Hargs, ER, RX, EO, RD, HT, RB, HR, hsmall, HM⟩
+  · obtain ⟨x', rest', rawExtra, HX, EX, ER, RX, WF, HS', Hargs⟩ := HS.chain_consumed_head
       (pi_inert_stage_certificate_descent heq hs n) hΔ W J hA hx RA.forget
     have RT : ScopedComputeCount (PiInertStage D n) cs (proofEraseCtx Λ)
         (ProofShape.mkApps (body'.subst (ProofShape.Subst.one rawX)) rawRest) endpoint := by
@@ -293,7 +297,7 @@ theorem CountedEtaFrameOrigin.argument_history
     have HR := PiInertTypedContinuationRun.application (HT.pi_inert_compute heq hs RB.forget)
       (.inst WI) HTnext' RT HK
     refine .inr ⟨x', rest', rawX, rawRest, rawExtra, body', cb, cs, m,
-      HX, EX, ER, RX, WF, HS', HT, RB, RS, HR, by omega, ?_⟩
+      HX, EX, ER, RX, WF, HS', Hargs, HT, RB, RS, HR, by omega, ?_⟩
     intro later j body k RJ HL
     have HH := HM later j body k RJ HL
     omega
@@ -302,12 +306,12 @@ theorem CountedEtaFrameOrigin.argument_history
 minimum at the same fresh body. The argument history remains available in the
 input record; forgetting it here does not alter the chosen continuation. -/
 theorem EqSuppliedEtaContinuation.minimum
-    (H : EqSuppliedEtaContinuation D n Γ Δ Λ σ blocks A x y chosen f u Ω out endpoint ck cost extra K) :
+    (H : EqSuppliedEtaContinuation D n Γ Δ Λ σ blocks A x y chosen actual f u Ω out endpoint ck cost extra K) :
     ∃ smaller, smaller < cost ∧ PiInertTypedContinuationMinimum D Ω out
       (proofEraseCtx (blocks.actual A :: Λ)) (.app (f.liftN 1) (etaArgument u)) smaller := by
   rcases H with
-    ⟨A', body', args', raw, rawExtra, cd, cb, m, _, _, _, _, _, HT, RB, HR, hsmall, HM⟩ |
-    ⟨x', rest', rawX, rawRest, rawExtra, body', cb, cs, m, _, _, _, _, _, _, HT, RB, _, HR, hsmall, HM⟩
+    ⟨A', body', args', raw, rawExtra, cd, cb, m, _, _, _, _, _, _, HT, RB, HR, hsmall, HM⟩ |
+    ⟨x', rest', rawX, rawRest, rawExtra, body', cb, cs, m, _, _, _, _, _, _, _, HT, RB, _, HR, hsmall, HM⟩
   · exact ⟨cb+ck, hsmall, _, m, cb, ck, body', HT, RB, HR, rfl, HM⟩
   · exact ⟨cb+(cs+ck), hsmall, _, m, cb, cs+ck, body', HT, RB, HR, rfl, HM⟩
 
@@ -340,7 +344,7 @@ theorem pi_inert_eta_chain_argument_history
     (hcost : cp+1+ct+ck ≤ cost)
     (HM : ∀ later j tail k, ScopedComputeCount (PiInertStage D later) j
       (proofEraseCtx Λ) source tail → K tail k → cost ≤ j+k) :
-    EqSuppliedEtaContinuation D n Γ Δ Λ σ blocks A x y chosen f u Ω out endpoint ck cost extra K := by
+    EqSuppliedEtaContinuation D n Γ Δ Λ σ blocks A x y chosen actual f u Ω out endpoint ck cost extra K := by
   have hAup : env.HasType univs Λ (blocks.actual A) (.sort u) := by
     simpa only [EqInsertionPath.actual_sort] using J.weak hA
   have SD : DomainSort (proofEraseCtx Λ) (proofErase Λ (blocks.actual A)) u :=

@@ -35460,3 +35460,65 @@ excluded circular framework. All 1,045 source hashes stayed fixed. The chosen-ch
 original-probe root still excludes older nested-eta, frame-boundary and
 supply-boundary probe theorems. Original weakN_iff sorry unchanged. All Lean/Lake
 commands ran in the scratch checkout with the stock toolchain.
+
+
+## 2026-11-06 23:03:21 UTC — Connect actual supplied cuts to joint chosen eta descent
+
+Added `ProofErasureEqChosenSupplyDescent.lean`, imported and described by the
+global eta body-cut module. The prior argument-history result and fresh-prefix
+eta result were individually verified but not yet tied to one recovered domain.
+The new `supplied_eta_chain_descent` starts with a chosen whole lower spine
+pre ++ x :: rest and its actual upper supplied suffix, including arbitrary
+untracked extras. It takes the chosen prefix, descends the actual native Pi
+recovery through the insertion chain, and derives x's typing at that displayed
+domain from the original whole application. The fresh chosen image is x.subst σ;
+it is not a separately supplied agreement premise.
+
+The theorem retains the recovered domain, original prefix Pi typing, fresh chosen
+prefix, agreeing lifted frame, shifted insertion chain, actual body typing and
+nonproof status. The supplied eta history is derived from the same parent path,
+domain and continuation, and its strictly smaller typed body minimum is packaged
+as an `EqChainContinuationMinimum` with those exact fresh witnesses. The history
+itself remains available, including the actual retained/consumed branch,
+argument vector and upper extras.
+
+`supplied_chain_cut_eq_or_descent` removes the native-eta assumption: it begins
+with an actual non-level primitive at a prefix with a nonempty tracked supplied
+suffix. The selected suffix determines the actual application hole. Chosen chain
+completion classifies the primitive, reading a positive guard as the original
+target equation or identifying native eta. In the latter case the theorem invokes
+the joint construction and retains the literal primitive target as well as the
+fresh chosen data, argument history and smaller minimum. This is an actual root
+classification, not an assumed later-root image-compatibility condition.
+
+While following consumption, an interface gap became concrete: target-image
+agreement on waiting arguments alone cannot rebuild typing of the whole source
+application. `EqSuppliedEtaContinuation` now additionally retains pointwise source
+semantic equalities for the entire retained vector or the consumed tail. These
+are obtained from the actual argument computations already reified by the history
+proof; no new premise is added to its native-parent constructor. The original
+actual tail is now an explicit index of the record, and its forgetful minimum
+still uses the same counted path and continuation.
+
+`restore_computed_supply` uses these distinct relations for their respective
+purposes: source head and argument equalities preserve the original whole
+application type and nonproof status, while target-image agreement moves the
+computed arguments back from the chosen pending vector into the actual prefix.
+Its source head equality must still be derived from the actual consumed body
+path. This avoids treating individually typed arguments or their target images
+as sufficient evidence for dependent whole-application typing.
+
+Remaining work: propagate the combined records through the global frontier,
+derive the consumed head equality at component-only continuations, and handle
+empty local supply from the older enclosing history. The original strengthening
+sorry remains; no sufficient smaller PropFront reduction is claimed. GOAL.md
+active, no PR extraction, executable unchanged, stock Lean/Lake only in scratch.
+
+Validation: 1071 build jobs including global theorem and established regressions;
+151 declarations recursively audited through types, values, constructors and
+recursors, maximum closure 11,976. Only propext, Classical.choice and
+Quot.sound occur. No owned diagnostics, sorryAx, strengthening dependency or
+excluded circular framework. All 1,046 source hashes stayed fixed. The chosen-chain
+original-probe root still excludes the older nested-eta, frame-boundary and
+supply-boundary probe theorems. A local extra-explicit-argument elaboration error
+in the restoration lemma was fixed before the successful validation.

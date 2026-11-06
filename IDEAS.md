@@ -20386,3 +20386,26 @@ this is not strengthening or a sufficient smaller PropFront obligation.
 Validation: 1070 build jobs, 148 recursively audited declarations, maximum
 closure 11,976; only propext, Classical.choice and Quot.sound. All 1,045
 source hashes fixed. Original strengthening gap unchanged.
+
+
+## 2026-11-06 23:03:21 UTC — Joint chosen-prefix and supplied-history descent at actual cuts
+
+**Idea:** Derive the fresh chosen prefix and supplied continuation history from
+the same recovered eta domain, then apply the construction after actual non-level
+root classification. Retain the waiting arguments' source equalities separately
+from their target-image equalities: the former recover whole source typing,
+while the latter restore the pending target vector.
+
+**Verdict:** Verified. `supplied_eta_chain_descent` starts from the whole actual
+supplied spine and derives both records together, the displayed domain and first
+argument typing, and a strictly smaller paired-chain minimum. The non-level
+`supplied_chain_cut_eq_or_descent` reads a positive guard or constructs that same
+history-enriched eta descent. `restore_computed_supply` restores a typed whole
+application once its consumed head equality is available. The argument-history
+record was strengthened to keep the source equalities needed by this step.
+Empty local supply still needs the enclosing history, and full continuation
+coverage remains open. This is not a sufficient smaller PropFront obligation.
+
+Validation: 1071 build jobs; 151 recursively audited declarations; maximum
+closure 11,976; only propext, Classical.choice and Quot.sound. All 1,046
+source hashes fixed; original strengthening sorry unchanged.
