@@ -31623,3 +31623,50 @@ maximum closure 11,049; 935 frozen hashes. Only propext, Classical.choice
 and Quot.sound, with no weakN_iff/weakN_inv/sorryAx or forbidden framework
 dependency and no owned diagnostics. Executable unchanged; independent
 experiments preserved; no coordination or PR extraction.
+
+
+## 2026-11-06 10:19:14 UTC — Restricted certificate descent and administrative prefix removal
+
+ProofErasurePiInertCertificateDescent establishes certificate-preserving descent
+for every Pi-inert stage. Ordinary core, universe, singleton and Eq-prefix roots
+retain their source-head restriction; constant, identity, function eta and masked
+structure expansions reconstruct a restricted lower root using full-stage guard
+descent. The exact output remains a lift of the reified lower term. Consequently
+actual typed computation reflects through arbitrary unused binder blocks at the
+same Pi-inert stage, with prescribed raw endpoints and no inhabitants of the
+removed declarations.
+
+ProofErasurePiInertWrapperElimination proves lambda shape/domain preservation,
+identity-body rigidity, and first-head-beta decomposition both for an application
+and for a spine with pending arguments. Identity wrappers either survive with
+separate annotation/argument paths or can be removed with a direct same-stage
+payload path. At a proper prefix, all pending argument paths are retained. An
+exposed carrier cannot be a lambda-headed spine, so it forces the elimination
+alternative. These are raw path theorems and require no source typing.
+
+ProofErasurePiInertConstantElimination uses the new restricted descent to remove
+constant wrappers. In a lambda path with an initially unused binder, successive
+annotation/body segments reify an actual current domain and an exact lower
+payload. The invariant is an exactly lifted body, so no body-context transport
+or instantiation coverage premise is needed. It yields same-stage restricted
+wrapper removal both at the whole source and at proper function prefixes with
+arbitrary pending arguments. Only the original domain and payload require actual
+typings; the discarded argument needs no typing or native recovery certificate.
+
+Judgment: this discharges the identity/constant wrapper cases as exact path
+eliminations, including the proper-prefix configuration needed by the probe
+ancestry route. Unlike the initial full-stage fallback, the final results retain
+the Pi-inert control skeleton. They do not yet assemble a global standardisation
+argument or prove that repeated elimination decreases a computation measure.
+Extraction of an appropriate Eq-prefix guard and its three original component
+paths remains open, as do native-eta prefix handling and general-singleton family
+decoding. No full Pi-inert application-to-PropositionFront implication, strictly
+smaller sufficient obligation, or final goal completion is claimed; weakN_iff
+retains its original sorry.
+
+Validation: 909 build jobs including contextual-feedback and substitution
+barrier regressions; 17 complete type/value/constructor/recursor dependency
+roots; maximum closure 11,147; 884 frozen source hashes. Only propext,
+Classical.choice and Quot.sound, with no weakN_iff/weakN_inv/sorryAx or forbidden
+framework dependencies and no owned diagnostics. Executable unchanged;
+independent experiments preserved; no coordination or PR extraction.

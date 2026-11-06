@@ -17790,3 +17790,36 @@ Validation: 960 build jobs, 8 complete dependency roots, maximum closure
 11,049, 935 frozen hashes; standard axioms only, no forbidden dependency
 or owned diagnostic. Executable and independent experiments unchanged; no
 coordination or extraction.
+
+
+## 2026-11-06 10:19:14 UTC — Exact Pi-inert descent and wrapper removal at proper prefixes
+
+- Remove identity wrappers while retaining their argument origin: proved at
+  the original Pi-inert stage. Lambda annotations may compute arbitrarily,
+  but the identity body remains the same bound variable. A whole computation
+  either retains the wrapper or has a direct path from its original payload.
+- Remove a constant wrapper by lowering its computed body: proved. The first
+  version returned only full-stage computation; this loss is now eliminated
+  by exact certificate descent for the restricted Pi-inert relation itself.
+  Every outer primitive retains its admissible source head below insertion;
+  guards still descend using the full earlier stage. Native eta and structure
+  recovery certificates are reconstructed without additional coverage premises.
+- Treat arbitrary changing annotations by transporting a single body path:
+  unnecessary for an unused binder. Reify the current domain and lower payload
+  after each lambda segment, then descend the next segment below that current
+  binder. This preserves the exact lifted-body invariant and restricted stage.
+- Remove wrappers at proper function prefixes, with pending arguments: proved
+  for identity and constant wrappers, preserving every nondiscarded argument
+  path and the exact final output at the original stage. The output must not
+  retain a lambda-headed spine; all exposed carriers satisfy this condition.
+- Missing: extract the carrier and endpoint ancestry of a causally relevant
+  Eq-prefix guard through the remaining prefix rewrites. These elimination
+  theorems do not prove a terminating global wrapper-removal procedure, a
+  computation-length decrease, native eta elimination, or general singleton
+  family decoding. They do not establish the final strengthening theorem or
+  a strictly smaller sufficient obligation.
+
+Validation: 909 build jobs, 17 complete dependency roots, maximum
+closure 11,147, 884 frozen source hashes; standard axioms only, no
+forbidden dependency or owned diagnostic. Executable and independent experiments
+unchanged; no coordination or PR extraction.
