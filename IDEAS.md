@@ -18594,3 +18594,46 @@ Validation: 999 build jobs, 17 complete dependency roots, maximum
 closure 11,643; 974 frozen source hashes. Only propext, Classical.choice
 and Quot.sound; no forbidden dependencies or warnings in the changed modules.
 Executable unchanged; no PR extraction or coordination.
+
+
+## 2026-11-06 14:01:15 UTC — Retain actual eta origins across changed annotations and substitution
+
+**Idea.** A component-only body of a surviving eta lambda should carry its
+short function's actual Pi typing at the current displayed annotation. Native
+recovery need not survive the later substitution: ordinary typing can justify
+readout and the fresh argument at the later consumption.
+
+**Verdict: counted origin readout and later-scope operations proved.**
+`TypedEtaOrigin` packages a nonproof function, its displayed domain and sort
+in a realization of the current raw context. The older `EtaFrameWitness`
+records analogous ordinary typing in a fixed actual context; this version
+keeps the nonproof evidence and raw-context interpretation needed by counted
+continuations. Its realization and substitution lemmas preserve the exact
+raw endpoints. `lambda_typed` reconstructs the retained lambda, and
+`argument_inst` proves the exact fresh-slot substitution equation from an
+actual application, including a proof-valued argument.
+
+`pi_inert_retained_eta_origin` lowers the component function path with its
+exact count and converts the resulting actual Pi typing along the computed
+annotation equality. The retained alternative of `CountedEtaContinuationCut`
+now supplies this origin and counted short path whenever its body retains
+the fresh slot. This adds no hypothesis to the eta-cut construction.
+
+`TypedEtaOrigin.count_body_readout` and `.component_body_bypass` work in the
+later scope using ordinary typing alone, so they remain available after
+`.subst`. The latter preserves the exact suffix endpoint and the sum of the
+function, argument and suffix counts. No guarded computation or native
+recovery certificate is substituted.
+
+Still open: compose these operations into the full mixed-frame induction,
+retaining original count savings and Eq prefix specialization. The general
+frame projection still forgets the extra origin; callers must use the
+stronger eta-cut witness. Later body computations can also leave the
+component-only form, requiring root analysis rather than this bypass. No
+strengthening proof, counterexample, or sufficient strictly smaller logical
+obligation than PropFront is claimed. GOAL.md remains active.
+
+Validation: 1000 build jobs, 23 complete dependency roots, maximum
+closure 11,643; 975 frozen source hashes. Only propext, Classical.choice
+and Quot.sound; no forbidden dependencies or warnings in changed modules.
+Executable unchanged; no PR extraction or coordination.

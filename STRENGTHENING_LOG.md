@@ -32556,3 +32556,35 @@ values/types, opaque bodies, inductive constructors and recursor RHSs; only
 propext, Classical.choice and Quot.sound occur. Forbidden strengthening and
 replacement-obligation dependencies are absent; changed modules have no
 warnings. Executable unchanged; no PR extraction or coordination.
+
+
+## 2026-11-06 14:01:15 UTC — Typed retained eta origins at later consumption
+
+Added `ProofErasurePiInertRetainedEtaOrigin.lean`. Its raw-context witness
+retains the actual nonproof function's Pi typing and the displayed domain's
+sort. Proved realization in any context with the same erasure, ordinary
+typed substitution, typed lambda reconstruction, and the exact argument
+instantiation equation. The latter derives argument typing at the displayed
+domain by erasure reflection and type uniqueness; it does not infer it
+from a raw substitution's behavior at an erased proof variable.
+
+The counted origin theorem reifies annotation computation, descends the
+lifted function path at its exact count, and converts its actual Pi typing
+to the new annotation. The retained eta-cut branch now keeps this result for
+its component-only body endpoints. Its construction and the full nested
+Eq consequence require no additional premise. The frame consumer accepts
+the stronger cut while continuing to project only structural frame data.
+
+Later lambda readout and exact-endpoint component-body bypass now use this
+ordinary typed origin instead of native recovery. Combining `.subst` with
+these operations is valid without substituting any computation. Remaining
+work is their composition through mixed frames, preservation of the original
+count saving and Eq specialization, and analysis when the later body leaves
+the component-only form. The full GOAL.md deliverable remains unproved.
+
+Validation: 1000 build jobs, 23 public/full-result audit roots, maximum
+dependency closure 11,643, 975 frozen source hashes. Audits include
+types, values, opaque bodies, constructors and recursor RHSs. Only propext,
+Classical.choice and Quot.sound occur; forbidden strengthening and
+replacement-obligation dependencies are absent. Changed modules are warning
+free. Executable unchanged; no PR extraction or coordination.

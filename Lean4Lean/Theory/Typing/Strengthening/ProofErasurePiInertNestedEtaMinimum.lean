@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertEqEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertConsumedBodyRoot
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertRetainedEtaOrigin
 
 /-! # Minimum eta bodies with an arbitrary fixed continuation
 
@@ -97,6 +98,8 @@ theorem pi_inert_retained_lambda_continuation_minimal_of
 /-- An eta yields a typed body with a strictly smaller combined minimum.
 If its lambda survives, the new continuation retains that lambda; if it is
 consumed, the new frame carries the actual argument's typed substitution.
+In the surviving case, a component-only body retains the counted short-function
+path and its actual Pi typing at the changed annotation.
 For a constant-headed source, the consumed case also retains an exact counted
 non-level body root; component-only computation is bypassed before the continuation.
 No carrier exposure of the intermediate body endpoint is asserted. -/
@@ -114,6 +117,10 @@ def CountedEtaContinuationCut (D : Definitions) (n : Nat) (Δ : List ProofShape)
       ScopedComputeCount (PiInertStage D n) cd Δ A A' ∧
       ScopedComputeCount (PiInertStage D m) cb (A :: Δ)
         (.app (f.liftN 1) (etaArgument u)) body' ∧
+      (∀ g cg, ScopedComputeCount (PiInertStage D m) cg (A :: Δ) (f.liftN 1) g →
+        body' = .app g (etaArgument u) →
+        ∃ short, ScopedComputeCount (PiInertStage D m) cg Δ f short ∧
+          body' = .app (short.liftN 1) (etaArgument u) ∧ TypedEtaOrigin Δ A' short u) ∧
       ∀ later j endpoint k,
         ScopedComputeCount (PiInertStage D later) j (A :: Δ)
           (.app (f.liftN 1) (etaArgument u)) endpoint →
@@ -165,8 +172,12 @@ theorem pi_inert_eta_continuation_cut
         (ErasedScopedPrimitiveCertificateDescent.descent (pi_inert_stage_certificate_descent heq hs n))
         hΓ ht EΓ Ee (ScopedCompute.base HR)
       exact (ScopedHole.lamBody A .hole).typed ⟨Γ, e', T, hΓ, EΓ, HE.hasType.2, EE⟩
-    exact .inl ⟨A', body', args', cf, ca, hc, EO, RF, RX, HK,
-      cd, cb, m, hsplit, hsmall, HTbody, RD, RB, HM⟩
+    refine .inl ⟨A', body', args', cf, ca, hc, EO, RF, RX, HK,
+      cd, cb, m, hsplit, hsmall, HTbody, RD, RB, ?_, HM⟩
+    intro g cg RG EB
+    obtain ⟨short, RS, EG, HO⟩ := pi_inert_retained_eta_origin
+      heq hs hguard (typed_spine_head HT) RN SD RD RG
+    exact ⟨short, RS, by simpa only [EG] using EB, HO⟩
   · obtain ⟨cd, cb, m, hsplit, RD, RB⟩ := pi_inert_native_eta_count_body_readout
       heq hs hguard (typed_spine_head HT) (.intro RN SD) RF
     obtain ⟨_, hsmall, HM⟩ := pi_inert_counted_lambda_continuation_minimal_of
