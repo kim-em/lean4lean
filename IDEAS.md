@@ -18799,3 +18799,22 @@ Validation: 1004 build jobs, 20 public/full-result dependency roots,
 maximum closure 11,648; 979 frozen source hashes. Only propext,
 Classical.choice and Quot.sound; no forbidden dependencies or changed-module
 warnings. Executable unchanged; no PR extraction or coordination.
+
+
+## 2026-11-06 14:41:06 UTC — Read later singleton roots through retained Eq specialization
+
+**Idea.** Once computed binder consumption preserves the original target Eq
+completion, use that specialization to read both singleton forms in the later
+eta body. Keep the actual selected cut instead of selecting a different path.
+
+**Verdict: proved locally, not a completed strengthening reduction.** A
+specialized singleton forces the short source prefix to have four arguments;
+its fresh fifth argument completes the source vector. Guard descent happens
+before target specialization. The general singleton uses the same retained
+completion and the existing fresh-body readout. Both branches now yield the
+original target equation, leaving only native eta at the same later cut.
+The retained typed eta origin supplies the actual domain and Pi assignment
+without asking native recovery to survive substitution. Arbitrary mixed-frame
+specialization ancestry and the recursive elimination of the remaining eta
+are still open. This is neither a proof of `weakN_iff` nor a proved sufficient
+obligation smaller than `PropFront`.

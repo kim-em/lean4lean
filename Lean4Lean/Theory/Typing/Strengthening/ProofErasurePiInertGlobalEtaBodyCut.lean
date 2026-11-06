@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertContinuationFrames
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaRoot
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPrefixInstantiation
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
 
@@ -35,9 +35,13 @@ For a retained component-only body, `pi_inert_native_retained_eta_later_body_cut
 extracts a smaller body/suffix minimum from the actual later path to an exposed
 output. If the short function remains constant-headed, that body has a typed
 non-level root. `CountedLaterEtaBodyCut.eq_guarded` classifies the later short
-Eq root as singleton or native eta while retaining the same cut. Reading its
-guards with the original Eq specialization and general mixed-frame elimination
-remain open. `EqPrefixSpecializationAt.compute_inst` transports a retained
+Eq root as singleton or native eta while retaining the same cut.
+`CountedLaterEtaBodyCut.read_singleton` reads both singleton guards through a
+retained source-to-target Eq specialization, leaving the same native eta cut.
+Its `read_singleton_of_origin` variant obtains the later Pi assignment from
+the retained typed eta origin, without requiring renewed native recovery.
+Supplying that specialization throughout arbitrary mixed frames and eliminating
+the remaining eta recursively remain open. `EqPrefixSpecializationAt.compute_inst` transports a retained
 specialization through the two endpoint histories when the actual argument's
 agreement with the chosen target binder image has been established.
 `EqPrefixSpecializationAt.eta_compute_inst` derives that agreement when the

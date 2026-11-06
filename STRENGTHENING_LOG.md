@@ -32737,3 +32737,37 @@ types, values, opaque bodies, constructors and recursor RHSs. Only propext,
 Classical.choice and Quot.sound occur; forbidden strengthening and replacement
 obligations are absent. Changed modules are warning free. Executable unchanged;
 no PR extraction or coordination.
+
+
+## 2026-11-06 14:41:06 UTC — Later eta singleton readout preserves the original target equation
+
+Added `ProofErasurePiInertLaterEtaSingleton.lean`. The specialized fresh-body
+readout now accepts an arbitrary source-to-target `EqPrefixSpecialization`,
+rather than requiring the original five arguments to live in the current
+source context. The computed singleton's five-argument shape forces the
+source prefix to contain four arguments. Actual typing supplies the fresh
+body vector and its exact erasure. Stage enlargement combines component and
+guard histories; certificate descent precedes semantic specialization.
+
+The general singleton case reuses fresh-body readout with the retained target
+completion, using the selected root typing to validate its changed levels.
+`CountedNonlevelSpineRoot.read_singleton` and
+`CountedLaterEtaBodyCut.read_singleton` return the original target Eq equation
+or retain the same witnesses with `EqEtaRemainingRoot`. Counts, component
+histories, prefix/suffix paths, typed instantiation, final output and joint
+minimum are retained exactly; no root is reselected.
+
+`CountedLaterEtaBodyCut.read_singleton_of_origin` obtains the source domain
+and Pi assignment from `TypedEtaOrigin.realize` and erasure reflection.
+It applies after typed endpoint substitution without a new native recovery
+certificate. The global Eq result imports and documents the new readout;
+its main theorem statement is unchanged. Connecting source/argument ancestry
+through every mixed continuation frame and closing the recursive native eta
+case remain open. The goal is incomplete; executable unchanged and no PR
+extraction or coordination.
+
+Validation: 1005 build jobs, 6 public/full-result audit roots, maximum
+closure 11,648, and 980 frozen source hashes. All changed modules are
+warning free. Audits include types, values, opaque bodies, constructors and
+recursor RHSs; only propext, Classical.choice and Quot.sound occur. Forbidden
+strengthening and replacement obligations are absent.
