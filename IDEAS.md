@@ -18517,3 +18517,44 @@ Validation: 997 build jobs, 9 complete dependency roots, maximum
 closure 11,643; 972 frozen source hashes. Only propext, Classical.choice
 and Quot.sound; no forbidden dependencies or warnings in the changed modules.
 Executable unchanged; no PR extraction or coordination.
+
+
+## 2026-11-06 13:45:46 UTC — Preserve concrete mixed continuation frames during eta descent
+
+**Idea.** The arbitrary endpoint/count predicate used by the minimum theorem
+must retain its actual generated structure. Record the fixed terminal output,
+application frames with typed endpoint substitutions, and retained lambda
+frames with their annotation histories, then prove eta descent stays in this
+class while lowering the combined minimum.
+
+**Verdict: concrete frame invariant and eta step proved.**
+`PiInertContinuationFrames` is an inductive structural witness. Application
+frames use the existing counted endpoint-substitution/application operation;
+retained lambda frames preserve the original domain sort, counted annotation
+path, and identity context interpretation into the displayed annotation.
+`pi_inert_retained_frame_interpretation` derives that interpretation from actual
+typed annotation readout and ordinary context conversion. It asserts no
+transport of guarded computation.
+
+`PiInertContinuationMinimum` records a typed current source, its counted path,
+a concrete frame witness ending at the original output, and joint minimality
+with varying intermediate endpoints and finite stages. `CountedEtaContinuationCut.frames`
+and `pi_inert_eta_continuation_frames` preserve this invariant in both eta
+branches with strict decrease. `CountedEtaBodySpineCut.nested_eta_frames`
+constructs it from the actual selected inner Eq eta, with the original outer
+instantiation as its first enclosing frame. The eta cut now also retains its
+original domain-sort witness; no new premise is added to its construction.
+
+Still open: a component-only body history is compatible with the minimum;
+the frame invariant by itself does not rule it out. Bypassing it needs the
+originating eta function and its Pi typing, plus the component ancestry, tied
+to the top frame. The current frames retain scope and annotation interpretation,
+but do not yet package all of that eta-origin metadata. Carrying those witnesses
+and the Eq target specialization while classifying the next root is the next
+live direction. No strengthening, counterexample, or proved sufficient strictly
+smaller logical obligation than PropFront is claimed. GOAL.md remains active.
+
+Validation: 998 build jobs, 15 complete dependency roots, maximum
+closure 11,643; 973 frozen source hashes. Only propext, Classical.choice
+and Quot.sound; no forbidden dependencies or warnings in the changed modules.
+Executable unchanged; no PR extraction or coordination.

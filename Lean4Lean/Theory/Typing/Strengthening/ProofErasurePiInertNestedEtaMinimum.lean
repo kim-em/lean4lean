@@ -100,6 +100,7 @@ No carrier exposure of the intermediate body endpoint is asserted. -/
 def CountedEtaContinuationCut (D : Definitions) (n : Nat) (Δ : List ProofShape)
     (f A : ProofShape) (u : VLevel) (args : List ProofShape) (out : ProofShape)
     (ct ck cost : Nat) (K : ProofShape → Nat → Prop) : Prop :=
+  DomainSort Δ A u ∧ (
   (∃ A' body' args' cf ca, cf+ca ≤ ct ∧
     out = ProofShape.mkApps (.lam A' body') args' ∧
     ScopedComputeCount (PiInertStage D n) cf Δ
@@ -126,7 +127,7 @@ def CountedEtaContinuationCut (D : Definitions) (n : Nat) (Δ : List ProofShape)
       ScopedComputeCount (PiInertStage D later) j (A :: Δ)
         (.app (f.liftN 1) (etaArgument u)) endpoint →
       PiInertApplicationContinuation D Δ (ProofShape.Subst.one x') xs' K endpoint k →
-      cb+cs+ck ≤ j+k)
+      cb+cs+ck ≤ j+k))
 
 /-- The minimum-count induction step for an eta with any fixed continuation.
 Both the consumed and retained lambda cases yield smaller body minima. These
@@ -145,6 +146,7 @@ theorem pi_inert_eta_continuation_cut
       ScopedComputeCount (PiInertStage D later) j Δ original endpoint →
       K endpoint k → cost ≤ j+k) :
     CountedEtaContinuationCut D n Δ f A u args out ct ck cost K := by
+  refine ⟨SD, ?_⟩
   rcases RT.pi_inert_lambda_spine_or_beta with
     ⟨A', body', args', cf, ca, hc, EO, RF, RX⟩ |
     ⟨A', body', x', xs', cf, ca, cs, hc, RF, RX, RS⟩

@@ -32480,3 +32480,50 @@ roots, maximum closure 11,643; 972 frozen source hashes. Only propext,
 Classical.choice and Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden
 closure/alignment assumptions or warnings in the changed modules. Executable
 unchanged; no PR extraction or coordination.
+
+
+## 2026-11-06 13:45:46 UTC — A concrete continuation minimum for the selected nested eta
+
+Added `ProofErasurePiInertContinuationFrames.lean`. The finite structural
+witness fixes the terminal scope and output. An application frame retains an
+ordinary typed context substitution and the counted application continuation.
+A retained lambda frame keeps its source domain sort, the counted path to its
+displayed annotation, and a typed identity interpretation from the source
+binder context to the displayed one. The latter follows by realizing the
+annotation path and applying actual context conversion; no guarded-substitution
+or guarded-context-conversion closure is assumed.
+
+`PiInertContinuationFrames.inst` identifies the existing outer instantiation
+suffix with an application frame ending at the fixed terminal output.
+`PiInertContinuationMinimum` combines frame membership, current source typing,
+an actual counted path, a realized continuation, exact combined count, and
+minimality over varying body endpoints and all finite stages.
+
+Strengthened `CountedEtaContinuationCut` to retain its original domain-sort
+witness, which its construction already has. `CountedEtaContinuationCut.frames`
+turns either eta branch into the concrete invariant: retaining a lambda adds
+its annotation/context frame; consuming it adds its actual instantiation frame.
+Both yield strictly smaller combined minima. `pi_inert_eta_continuation_frames`
+packages the induction step without introducing an arbitrary predicate.
+
+`CountedEtaBodySpineCut.nested_eta_frames` applies this to the actual inner Eq
+eta selected by the full exposure result. Its terminal output is the original
+whole-path output, its source is the next typed Eq eta body, and its combined
+minimum is strictly below the original count. The full exposure module imports
+and documents this consequence; its main theorem gains no new assumptions.
+
+This provides the concrete continuation structure needed for structural
+induction, not the final bypass proof. The body can still have only component
+computations; eliminating that history through the frames needs the originating
+eta function's lower Pi typing and component ancestry, which are not yet stored
+in the frame witness. They must be carried with the Eq specialization rather
+than inferred from source-body typing alone. Next-root classification and the
+administrative bypasses remain open. GOAL.md is unachieved, including its
+sufficient strictly smaller obligation alternative.
+
+Validation: 998 build jobs including full exposure, nested eta, contextual
+cast and core-family substitution regressions; 15 complete dependency
+roots, maximum closure 11,643; 973 frozen source hashes. Only propext,
+Classical.choice and Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden
+closure/alignment assumptions or warnings in the changed modules. Executable
+unchanged; no PR extraction or coordination.
