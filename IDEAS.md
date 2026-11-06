@@ -17885,3 +17885,29 @@ Validation batch: 970 jobs; 27 complete dependency roots including
 the minimum-cut module; maximum closure 11,232; 945 frozen source hashes.
 Only standard axioms, no forbidden dependency or owned diagnostic. Executable
 unchanged; no coordination or PR extraction. Strengthening remains open.
+
+
+## 2026-11-06 10:52:11 UTC — A minimum-count exposure path selects a genuine guarded Eq prefix
+
+- Pass universe conversions while retaining a quantitative original-spine cut:
+  proved. Prefix cost plus one for the selected root plus tail cost is bounded
+  by the original count. All component origins survive, without charging their
+  paths again in addition to the whole-source prefix.
+- Iteratively bypass arbitrary expansions without a termination argument:
+  replaced by choosing an existing path with minimum natural-number count.
+  A constant or identity expansion cut contradicts minimality because its
+  typed bypass retains the same final output and saves the selected root.
+- Obtain a guarded original-prefix occurrence from whole probe exposure:
+  proved. Either the original lower carrier guard/equality is read directly,
+  or an earlier general-singleton or native function-eta root acts on the
+  original Eq spine. Universe changes, ordinary core, masked structure eta,
+  constant expansion and identity expansion are excluded from the selected cut.
+- Remaining work: decode the general-singleton guard or handle the native
+  function-eta prefix while retaining the original endpoint information. The
+  theorem is a checked local reduction, not yet a strictly smaller sufficient
+  obligation for PropositionFront or completion of GOAL.md.
+
+Validation: the same 970-job batch and 27-root complete dependency
+audit; maximum closure 11,232; 945 unchanged source hashes; standard
+axioms only, no forbidden dependency or owned diagnostic. No executable changes,
+coordination or PR extraction.

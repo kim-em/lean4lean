@@ -31755,3 +31755,41 @@ Validation batch: 970 jobs including feedback/substitution regressions;
 module; maximum closure 11,232; 945 frozen hashes. Only propext,
 Classical.choice and Quot.sound, with no forbidden dependency or owned diagnostic.
 Executable unchanged; no coordination or PR extraction.
+
+
+## 2026-11-06 10:52:11 UTC — Administrative-free guarded cuts by minimum primitive count
+
+ProofErasurePiInertMinimalSpineCut proves a quantitative version of the complete
+constant-spine cut. Universe-only roots are passed; the selected prefix and its
+suffix retain counted computations with cp + 1 + ct <= original cost. The full
+argument-origin vector and equivalent head levels are retained independently.
+A separate well-ordering proof gives every finite computation a certificate
+with minimum outer primitive count, without any normalization assumption.
+
+The main theorem pi_inert_eq_exposure_readout_or_guarded_spine_cut applies that
+minimum choice to the type-valued proof-major Eq probe. As before, a specialized
+Eq prefix recovers the original lower full-stage carrier guard and endpoint
+equality. Otherwise ordinary core and structure eta are excluded. The previous
+remaining constant/identity alternatives now contradict minimality: combine the
+counted whole-source prefix with a wrapper-free tail costing no more than ct,
+obtaining the same original source and final output for fewer primitives.
+
+Consequently the alternative cut is necessarily an earlier general singleton
+or native function-eta root on the original Eq spine. It retains every original
+argument path, actual prefix typing, the root itself and the full continuation
+to the exposed carrier. The selected minimum path may differ from the supplied
+path; this is an existence theorem and does not assert termination of an
+arbitrary implementation that repeatedly selects cuts.
+
+Judgment: the administrative-cut termination gap is closed. The two remaining
+root families now have a causally relevant original-spine occurrence with exact
+ancestry; decoding singleton family guards and handling function eta remain
+open. No full Pi-inert application-to-PropositionFront implication or strictly
+smaller sufficient obligation is claimed. weakN_iff remains unchanged and open.
+
+Validation: 970 build jobs including feedback/substitution regressions;
+27 complete type/value/constructor/recursor dependency roots; maximum
+closure 11,232; 945 frozen hashes. Only propext, Classical.choice and
+Quot.sound, no forbidden dependency and no owned diagnostics. The incorporated
+count/descent experiments remain byte-for-byte unchanged. Executable unchanged;
+no coordination or PR extraction.
