@@ -29745,3 +29745,46 @@ It does not establish arbitrary contextual consumption of nonjoining lambda
 pairs, general domain equality coverage, or full-core residual stability. The
 original strengthening sorry and all three GOAL.md deliverables remain open.
 Executable unchanged; no PRs; goal remains active.
+
+
+## 2026-11-06 02:27:31 UTC — Paired beta simulation closes certified annotation consumers
+
+Added ProofErasureAnnotationVariants.lean. AnnotationVariant records marked
+changes of ambient lambda annotations beneath a counted local binder prefix.
+Protected-tail substitution fixes ambient variables while replacing local images
+independently. The proofs establish weakening, arbitrary template instantiation,
+paired substitution, beta instantiation, symmetry, one-sided beta simulation,
+independent beta residuals and common ambient substitution. Raw beta lift inversion
+keeps each reduced marked annotation tied to its original ambient scope. Neither
+normalization nor a computational join of paired terms is used.
+
+Added ProofErasureAnnotationVariantChecking.lean. Actual sort witnesses plus
+BetaStableFamily comparison instantiate the marked-domain relation. Its beta,
+symmetry and substitution requirements are all proved. Typed structural readout
+uses only the left term's typing and an interpreted ambient embedding, deriving
+local context extensions as it descends. Reading paired residuals after raw beta
+confluence produces inferred comparisons, and interpreted ambient substitution
+constructs a full future certificate.
+
+Added ProofErasureAnnotationVariantConsumer.lean. A recursive domain certificate
+constructs a marked pair of same-body lambdas, including proof-valued lambdas.
+Every typed consumer propagates the pair through all argument occurrences.
+The resulting inferred future comparison covers independent beta paths and
+common ambient substitutions. The actual environment theorem discharges soundness
+and registry agreement and supplies a finite joint-stage readout.
+
+Development fixes involved implicit substitution/guard types, arithmetic order
+in shifts, and explicit context-substitution types to prevent Lean from eagerly
+instantiating their implicit source context. No mathematical premise was added
+to resolve these elaboration issues; the new modules contain no proof gaps.
+
+Validation: 764 build jobs, 32 dependency roots, maximum closure
+11,856; 739 frozen source/import hashes unchanged. The audit traverses
+opaque values, declaration types, constructors and recursor RHSs; only standard
+axioms, no forbidden strengthening/transport/coverage dependencies or new warnings.
+Independent files preserved; executable unchanged; no PRs or coordination.
+
+Judgment: the previously missing arbitrary consumer closure is now proved for
+the recursive nonjoining annotation fragment. General semantic domain coverage,
+other nonjoining argument forms and full-core future closure remain open. None
+of GOAL.md's three final deliverables is established; the goal remains active.

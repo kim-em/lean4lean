@@ -15979,3 +15979,61 @@ support modules; 16 dependency roots, maximum closure 11,844; 758
 unchanged pinned source/import hashes. Audit includes opaque bodies, constructors
 and recursor RHSs. Only standard axioms; no forbidden dependencies or own warnings.
 No executable changes, coordination, or PR extraction.
+
+
+## 2026-11-06 02:27:31 UTC — Arbitrary consumers of nonjoining annotation variants
+
+Previous goal turn: progress (54d938e2bd385c82aeeb9463fe5285f50492448b committed,
+pushed and audited). Revalidated HEAD and preserved the two independent untracked
+modules. Continued at the explicitly remaining arbitrary-consumer gap.
+
+Initial idea: add unrestricted certified lambda reannotation as a unary primitive
+and reuse computation joins. Verdict: not adopted. A future domain comparison
+alone does not make its replacement annotation reconstructible from the source
+below binder insertion. The existing checked reverse-beta boundary
+(ProofErasureExpansionBetaBoundary.erased_typed_reverse_beta_descent_failure)
+shows the relevant scope failure: an upper-context target can retain an inserted
+variable despite a closed source. No new unary descent rule is asserted here.
+
+Deep attempt: retain paired syntax with marked ambient annotation origins.
+Verdict: checked through arbitrary typed consumers, common ambient substitution
+and independent finite beta paths. AnnotationVariant Guard n records structural
+pairs and marks lambda-domain replacements by Guard A C, with both domains
+lifted over the n local binders. Paired local substitution may differ in every
+local image while its ambient tail is protected. This is proved, not assumed.
+Contracting a marked lambda discards its domain mark and instantiates the related
+bodies at related arguments. Duplicated marks retain the same ambient origin.
+
+Raw beta lift inversion, paired substitution, beta simulation and independent
+residuals are proved without typing or normalization. Independent residuals use
+raw beta confluence and symmetric domain guards, not a join of the paired terms.
+Common ambient substitution transforms the marks themselves, allowing new redexes
+in the domains and consumer while retaining the local-origin invariant.
+
+CertifiedAnnotationDomains instantiates the guards by actual common sort
+witnesses and future common comparison. Symmetry, beta retention and interpreted
+substitution are discharged from existing certificates. The structural readout
+needs only a typed left source and an interpreted embedding of the ambient
+context. It reconstructs local binder contexts and checks in either mode.
+Consequently annotation_variant_future constructs all future comparisons rather
+than positing a closure axiom for arbitrary comparison.
+
+recursive_annotation_consumer_future now covers every typed consumer of arbitrary
+same-body lambdas whose domains have a recursive comparison certificate. The
+consumer may apply, duplicate, nest or retain the lambdas in dependent annotations.
+The domains and lambda arguments need no computational join, so the preceding
+nonjoining examples are admitted by the exact new premise. The actual environment
+wrapper supplies finite inferred comparisons after any independent beta tails.
+This closes the previous arbitrary-consumer gap for certified reannotation pairs.
+
+Limits: arbitrary semantic domain conversions still lack recursive certificates.
+This is beta/substitution stability, not full-core or arbitrary guarded-computation
+stability. The relation permits recursively varied bodies but does not claim
+coverage of every semantically equal or eta-related argument pair. No smaller
+sufficient replacement for PropFront or completion of GOAL.md is claimed.
+
+Validation: 764 jobs; 32 full dependency roots including all constructors
+and recursors of AnnotationVariant; maximum closure 11,856; 739 unchanged
+pinned source/import hashes. Only standard axioms; no forbidden dependencies or
+own-module warnings. Original sorry remains, executable unchanged, goal active.
+No coordination or PR extraction.
