@@ -82,7 +82,7 @@ theorem SpineBinderHole.focus_continuation {C : ScopedHole Δ Θ}
           (ScopedComputeCount.beta (Step := PiInertStage D 0) (Δ := Δ)
             (BetaRed.refl (e := .app (C.plug e) x)))
       simpa only [Nat.zero_add] using PiInertTypedContinuationRun.application HTf
-        identity_interpretation (by simpa only [ProofShape.subst_id, ProofShape.mkApps] using HT) R HK
+        (.identity identity_interpretation) (by simpa only [ProofShape.subst_id, ProofShape.mkApps] using HT) R HK
     obtain ⟨L, HL, HLC, EL⟩ := ih HR pi_inert_identity_application_prefix_closed
     refine ⟨L, HL, HLC, ?_⟩
     intro body k H
@@ -121,7 +121,7 @@ theorem SpineBinderHole.focus_path {C : ScopedHole Δ Θ}
         ScopedComputeCount (PiInertStage D later) j Δ (C.plug body) tail ∧ K tail l := by
   have HR : PiInertTypedContinuationRun D Ω out Δ
       (PiInertApplicationContinuation D Δ ProofShape.Subst.id [] K) (C.plug e) (ct+ck) :=
-    .application HT identity_interpretation
+    .application HT (.identity identity_interpretation)
       (by simpa only [ProofShape.subst_id, ProofShape.mkApps] using HT)
       (by simpa only [ProofShape.subst_id, ProofShape.mkApps] using R) HK
   obtain ⟨L, HL, HLC, EL⟩ := HC.focus_continuation HR pi_inert_identity_application_prefix_closed

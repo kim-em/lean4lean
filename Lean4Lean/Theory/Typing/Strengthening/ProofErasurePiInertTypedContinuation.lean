@@ -3,13 +3,58 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertContinuationFram
 /-! # Actual typed executions of the concrete continuation frames
 
 Retain typing at each actual application source, rather than only the typed
-substitution between scopes. The eta minimum step supplies this data from its
+substitution between scopes, including whether it is identity or consumption
+of one actual binder. The eta minimum step supplies this data from its
 actual computation, including the exact source of the suffix after beta.
 Competitor paths remain unconstrained by these typing witnesses.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation
 variable [Params]
+
+/-- The endpoint maps actually constructed by eta consumption and hole
+focusing. Consumption removes exactly the displayed source binder; identity
+focusing stays in the same scope. The ordinary typed interpretation is retained
+in each case, but arbitrary context maps are not constructors. -/
+inductive PiInertEndpointMap : List ProofShape → List ProofShape → ProofShape.Subst → Prop where
+  | identity : ContextSubstitution Δ Δ ProofShape.Subst.id →
+      PiInertEndpointMap Δ Δ ProofShape.Subst.id
+  | inst : ContextSubstitution (A :: Δ) Δ (ProofShape.Subst.one x) →
+      PiInertEndpointMap (A :: Δ) Δ (ProofShape.Subst.one x)
+
+/-- Forget only the origin of the actual endpoint map. -/
+theorem PiInertEndpointMap.interpretation (H : PiInertEndpointMap Δ Θ τ) :
+    ContextSubstitution Δ Θ τ := by
+  cases H with
+  | identity W | inst W => exact W
+
+/-- Identity or a single actual binder consumption beneath finitely many
+retained binders. This is a syntactic restriction, not target agreement. -/
+def SingleEndpointSubstitution (τ : ProofShape.Subst) : Prop :=
+  τ = ProofShape.Subst.id ∨ ∃ x depth, τ = (ProofShape.Subst.one x).liftN depth
+
+omit [Params] in
+/-- Entering one more retained binder preserves the single-consumption form. -/
+theorem SingleEndpointSubstitution.lift (H : SingleEndpointSubstitution τ) :
+    SingleEndpointSubstitution τ.lift := by
+  rcases H with rfl | ⟨x, depth, rfl⟩
+  · exact .inl ProofShape.Subst.id_lift
+  · exact .inr ⟨x, depth+1, rfl⟩
+
+omit [Params] in
+/-- A finite retained prefix only changes the depth of the same consumption. -/
+theorem SingleEndpointSubstitution.liftN (H : SingleEndpointSubstitution τ) (depth : Nat) :
+    SingleEndpointSubstitution (τ.liftN depth) := by
+  induction depth with
+  | zero => exact H
+  | succ depth ih => exact ih.lift
+
+/-- Every actual application frame supplies the restricted raw map. -/
+theorem PiInertEndpointMap.single (H : PiInertEndpointMap Δ Θ τ) :
+    SingleEndpointSubstitution τ := by
+  cases H with
+  | identity => exact .inl rfl
+  | inst => exact .inr ⟨_, 0, rfl⟩
 
 /-- An actual execution of a finite continuation, carrying its chosen paths
 and typings. The underlying predicate still admits the same competitors;
@@ -20,7 +65,7 @@ inductive PiInertTypedContinuationRun (D : Definitions) (Ω : List ProofShape) (
     List ProofShape → (ProofShape → Nat → Prop) → ProofShape → Nat → Prop where
   | terminal : TypedSource Ω out →
       PiInertTypedContinuationRun D Ω out Ω (fun e k => e = out ∧ k = 0) out 0
-  | application : TypedSource Δ e → ContextSubstitution Δ Θ τ →
+  | application : TypedSource Δ e → PiInertEndpointMap Δ Θ τ →
       TypedSource Θ (ProofShape.mkApps (e.subst τ) args) →
       ScopedComputeCount (PiInertStage D n) cs Θ (ProofShape.mkApps (e.subst τ) args) e' →
       PiInertTypedContinuationRun D Ω out Θ K e' ck →
@@ -39,7 +84,7 @@ theorem PiInertTypedContinuationRun.frames
     PiInertContinuationFrames D Ω out Δ K := by
   induction H with
   | terminal => exact .terminal
-  | application _ W _ _ _ ih => exact .application W ih
+  | application _ W _ _ _ ih => exact .application W.interpretation ih
   | retained _ SD RD WI _ ih => exact .retained SD RD WI ih
 
 /-- The chosen execution satisfies its original continuation predicate at
@@ -109,7 +154,7 @@ theorem CountedEtaContinuationCut.typed_frames
     refine ⟨cb+(cs+ck), by omega,
       PiInertApplicationContinuation D Δ (ProofShape.Subst.one x') xs' K,
       m, cb, cs+ck, body', HT, RB, ?_, rfl, ?_⟩
-    · exact .application (HT.pi_inert_compute heq hs RB.forget) WI Hnext RT HK
+    · exact .application (HT.pi_inert_compute heq hs RB.forget) (.inst WI) Hnext RT HK
     · intro later j endpoint' k RJ RK
       have HH := HM later j endpoint' k RJ RK
       omega
@@ -204,7 +249,7 @@ theorem CountedEtaBodySpineCut.nested_eta_typed_frames
         (ProofShape.mkApps (body'.subst (ProofShape.Subst.one x')) xs') := by
       simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using HTnext
     simpa only [Nat.add_zero] using
-      PiInertTypedContinuationRun.application HTbody' WI HTnext' RS' (.terminal HTout)
+      PiInertTypedContinuationRun.application HTbody' (.inst WI) HTnext' RS' (.terminal HTout)
   cases HEta with
   | @intro innerA innerB innerU RNinner SDinner =>
     obtain ⟨smaller, hsmall, Htyped⟩ := pi_inert_eta_typed_continuation_frames heq hs

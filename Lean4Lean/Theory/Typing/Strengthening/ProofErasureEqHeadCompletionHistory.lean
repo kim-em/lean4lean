@@ -268,7 +268,7 @@ theorem CountedEtaBodySpineCut.nested_eta_completed_frames
         (ProofShape.mkApps (body'.subst (ProofShape.Subst.one x')) xs') := by
       simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using HTnext
     simpa only [Nat.add_zero] using
-      PiInertTypedContinuationRun.application HTbody' WI HTnext' RS' (.terminal HTout)
+      PiInertTypedContinuationRun.application HTbody' (.inst WI) HTnext' RS' (.terminal HTout)
   cases HEta with
   | @intro innerA innerB innerU RNinner SDinner =>
     obtain ⟨smaller, hsmall, Htyped⟩ := pi_inert_eta_typed_continuation_frames heq hs

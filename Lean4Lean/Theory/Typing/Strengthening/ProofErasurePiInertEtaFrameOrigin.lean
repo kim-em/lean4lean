@@ -123,7 +123,7 @@ theorem CountedEtaFrameOrigin.typed_frames
     refine ⟨cb+(cs+ck), by omega,
       PiInertApplicationContinuation D Δ (ProofShape.Subst.one x') xs' K,
       m, cb, cs+ck, body', HT, RB, ?_, rfl, ?_⟩
-    · exact .application (HT.pi_inert_compute heq hs RB.forget) WI Hnext RT HK
+    · exact .application (HT.pi_inert_compute heq hs RB.forget) (.inst WI) Hnext RT HK
     · intro later j endpoint' k RJ RK
       have HH := HM later j endpoint' k RJ RK
       omega

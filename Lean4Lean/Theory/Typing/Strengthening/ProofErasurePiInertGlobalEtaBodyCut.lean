@@ -108,7 +108,16 @@ by strong induction and reaches a component-only current path with completion
 at both endpoints. The conclusion retains this actual
 `EqTargetPrefixComponentMinimum` within the smaller budget, including its
 next application at such an exact substituted hole and its
-original typed continuation and unrestricted competitor minimum. Component-only
+original typed continuation and unrestricted competitor minimum. The actual
+application maps now retain their construction in `PiInertEndpointMap`: each
+is identity or consumes exactly one binder. Focusing beneath a retained prefix
+records the literal finite binder lift of that same map. Consequently
+`focus_next` derives `SingleEndpointSubstitution` at the selected inner spine,
+without a new assumption on the global path. Agreement is therefore needed
+for identity or one actual consumption beneath retained binders, rather than
+an unrestricted endpoint substitution. The consumed argument's agreement
+with the chosen target image is still to be derived from its linked ancestry.
+Component-only
 transitions through enclosing wrappers still need target agreement from their
 actual histories; coverage of arbitrary wrapped-body histories remains open. `read_full_eta_loss_in_minimum` reads a head-losing root
 in the full-prefix body component history through any iterated insertions.

@@ -19646,3 +19646,31 @@ loss of the actual remaining tail. The outer agreeing frame remains required;
 coverage of arbitrary histories, unused insertions and non-component bodies
 is not implied. Build: 1035 jobs; 6 audited roots; maximum recursive
 closure 11,967; 1,010 unchanged source hashes. Main goal remains open.
+
+
+## 2026-11-06 18:58:35 UTC — Keep the actual endpoint-map origin in the global continuation
+
+**Idea:** derive the next map's shape from the actual construction sites,
+instead of asking for target agreement under an arbitrary interpreted
+substitution. Inspection found that actual typed continuation applications
+arise only from identity focusing or consumption of one displayed binder.
+Unused-insertion component descent is already available; adding another
+wrapper around that API would not recover this lost construction evidence.
+
+**Verdict:** proved and integrated. `PiInertEndpointMap` records identity or
+one-binder consumption together with the ordinary interpretation. Every
+actual eta and hole-focusing construction supplies its case. The retained
+prefix records that the inner substitution is a finite binder lift of the
+same outer map. The actual global frontier and `focus_next` consequently
+retain `SingleEndpointSubstitution`: identity or one consumption beneath a
+finite retained prefix. This is derived from the original whole-path inputs,
+not an extra assumption. Minimum competitors remain unrestricted by the new
+selected-execution evidence.
+
+Remaining: obtain the consumed argument's equality with the previously chosen
+target image from linked ancestry, and preserve completion across the recorded
+annotation changes and unused insertions. The single-consumption shape alone
+does not imply that equality. No proof, canonical-Eq counterexample, or
+sufficient strictly smaller irreducible obligation is claimed. Validation:
+1035 build jobs, 79 public audit roots, maximum recursive closure
+11,977, 1,010 unchanged source hashes.

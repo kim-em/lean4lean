@@ -26,13 +26,13 @@ inductive PiInertRetainedPrefix (D : Definitions) :
         (fun e => plug (ProofShape.mkApps (.lam A' e) args))
 
 /-- The first actual application after zero or more retained lambda frames.
-Its full typed source, chosen computation, remaining typed execution and exact
-cost are retained. Pointwise equivalence describes the original continuation
+Its identity or single-binder endpoint map, full typed source, chosen
+computation, remaining typed execution and exact cost are retained. Pointwise equivalence describes the original continuation
 on every competitor endpoint, not merely on its selected endpoint. -/
 def PiInertNextApplication (D : Definitions) (Ω : List ProofShape) (out : ProofShape)
     (Δ : List ProofShape) (K : ProofShape → Nat → Prop) (e : ProofShape) (ck : Nat) : Prop :=
   ∃ Θ Ξ τ args plug n cs e' ck' K',
-    PiInertRetainedPrefix D Δ Θ plug ∧ ContextSubstitution Θ Ξ τ ∧
+    PiInertRetainedPrefix D Δ Θ plug ∧ PiInertEndpointMap Θ Ξ τ ∧
     TypedSource Θ (plug e) ∧ TypedSource Ξ (ProofShape.mkApps ((plug e).subst τ) args) ∧
     ScopedComputeCount (PiInertStage D n) cs Ξ (ProofShape.mkApps ((plug e).subst τ) args) e' ∧
     PiInertTypedContinuationRun D Ω out Ξ K' e' ck' ∧ cs+ck' = ck ∧
@@ -64,7 +64,7 @@ theorem PiInertNextApplication.minimum
     (H : PiInertNextApplication D Ω out Δ K e ck)
     (hmin : ∀ k, K e k → ck ≤ k) :
     ∃ Θ Ξ τ args plug,
-      PiInertRetainedPrefix D Δ Θ plug ∧ ContextSubstitution Θ Ξ τ ∧
+      PiInertRetainedPrefix D Δ Θ plug ∧ PiInertEndpointMap Θ Ξ τ ∧
       TypedSource Θ (plug e) ∧
       PiInertTypedContinuationMinimum D Ω out Ξ
         (ProofShape.mkApps ((plug e).subst τ) args) ck := by
@@ -84,7 +84,7 @@ theorem PiInertNextApplication.joint_minimum
     (hmin : ∀ later j endpoint k, ScopedComputeCount (PiInertStage D later) j Δ source endpoint →
       K endpoint k → cost ≤ j+k) :
     ∃ Θ Ξ τ args plug suffixStage cs e' ck' K',
-      PiInertRetainedPrefix D Δ Θ plug ∧ ContextSubstitution Θ Ξ τ ∧
+      PiInertRetainedPrefix D Δ Θ plug ∧ PiInertEndpointMap Θ Ξ τ ∧
       TypedSource Θ (plug e) ∧ TypedSource Ξ (ProofShape.mkApps ((plug e).subst τ) args) ∧
       ScopedComputeCount (PiInertStage D suffixStage) cs Ξ (ProofShape.mkApps ((plug e).subst τ) args) e' ∧
       PiInertTypedContinuationRun D Ω out Ξ K' e' ck' ∧ cb+cs+ck' = cost ∧
@@ -124,7 +124,7 @@ theorem PiInertTypedContinuationMinimum.advance
       PiInertTypedContinuationRun D Ω out Δ K e ck ∧ cb+ck = cost ∧
       (CarrierExposure e ∨
         (PiInertNextApplication D Ω out Δ K e ck ∧
-          ∃ Θ Ξ τ args plug, PiInertRetainedPrefix D Δ Θ plug ∧ ContextSubstitution Θ Ξ τ ∧
+          ∃ Θ Ξ τ args plug, PiInertRetainedPrefix D Δ Θ plug ∧ PiInertEndpointMap Θ Ξ τ ∧
             TypedSource Θ (plug e) ∧ PiInertTypedContinuationMinimum D Ω out Ξ
               (ProofShape.mkApps ((plug e).subst τ) args) ck)) ∧
       ck ≤ cost ∧ (0 < cb → ck < cost) ∧

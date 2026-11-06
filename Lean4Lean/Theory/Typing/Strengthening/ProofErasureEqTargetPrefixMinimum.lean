@@ -242,7 +242,9 @@ theorem EqTargetPrefixComponentMinimum.mono
 
 /-- Follow the frontier's actual next application and focus its enclosing
 application/binder hole. This yields a typed minimum at the substituted Eq
-spine, with the unchanged remaining budget. Target completion is retained at
+spine, with the unchanged remaining budget. Its substitution is identity or
+one binder consumption beneath a finite retained prefix, derived from the
+actual execution. Target completion is retained at
 the original endpoint; transporting it to the substituted endpoint still
 requires agreement from the recorded ancestry. This theorem does not claim
 strict decrease when the preceding component path has zero cost. -/
@@ -250,13 +252,13 @@ theorem EqTargetPrefixComponentMinimum.focus_next
     (H : EqTargetPrefixComponentMinimum D Γ v w original Ω out budget) :
     ∃ Δ Λ ls args σ cb ck, cb+ck ≤ budget ∧
       EqTargetPrefixCompletion Γ v w original Δ (ProofShape.mkApps (.const ``Eq.rec ls) args) ∧
-      ContextSubstitution Δ Λ σ ∧
+      ContextSubstitution Δ Λ σ ∧ SingleEndpointSubstitution σ ∧
       PiInertTypedContinuationMinimum D Ω out Λ
         (ProofShape.mkApps (.const ``Eq.rec ls) (args.map (·.subst σ))) ck := by
   obtain ⟨Δ, ls, args, ls', args', n, cb, ck, K, hc, _, HP, _, R, _, _, _, HM, Hnext⟩ := H
-  obtain ⟨Ξ, Λ, σ, C, suffixStage, cs, endpoint, ck', K', _, WS, _, _, _, _, _, HMinner, _, _⟩ :=
+  obtain ⟨Ξ, Λ, σ, C, suffixStage, cs, endpoint, ck', K', _, WS, Hsingle, _, _, _, _, _, HMinner, _, _⟩ :=
     Hnext.joint_minimum R rfl HM
-  refine ⟨Δ, Λ, ls', args', σ, cb, ck, hc, HP, WS, ?_⟩
+  refine ⟨Δ, Λ, ls', args', σ, cb, ck, hc, HP, WS, Hsingle, ?_⟩
   simpa only [ProofShape.subst_mkApps, ProofShape.subst] using HMinner
 
 /-- Strong induction removes every completed non-level cut from the current

@@ -34107,3 +34107,48 @@ framework dependencies. No owned diagnostics; all 1,010 frozen source hashes
 remained unchanged across build and audit. `weakN_iff` and a sufficient smaller
 irreducible obligation remain open. No executable changes, PR extraction or
 coordination.
+
+
+## 2026-11-06 18:58:35 UTC — Derive single-binder substitution at the actual global frontier
+
+Added `PiInertEndpointMap` in the typed-continuation module. Its two cases
+retain the ordinary typed interpretation while specifying identity in the
+same scope or instantiation of exactly the displayed source binder. Replaced
+the unrestricted application-map field of `PiInertTypedContinuationRun` by
+this actual-origin witness. All existing construction sites are updated:
+eta cuts and nested completed body cuts supply consumption; hole focusing
+supplies identity. The general continuation predicate and its competitors
+are unchanged. Forgetting to `PiInertContinuationFrames` still uses the
+ordinary interpretation, and rigid-tail propagation is updated accordingly.
+
+`PiInertNextApplication` now retains the same endpoint-map origin through its
+finite retained-lambda prefix, including its minimum/advance interfaces.
+`PiInertRetainedPrefix.substitution_hole` and `application_hole` additionally
+prove that the exact inner map is a finite binder lift of the original outer
+map. This follows through the recorded annotation conversions, whose raw
+substitution is identity. `SingleEndpointSubstitution` records identity or
+one consumption beneath finitely many binders, with its lifting laws.
+
+The next-application hole, joint minimum and retained eta origin preserve
+this restriction. `EqTargetPrefixComponentMinimum.focus_next` now returns it
+at the exact substituted Eq spine. The global theorem rebuilds with its
+original explicit assumptions and proof, deriving a stronger continuation
+and component frontier through their strengthened definitions. This narrows
+the actual next agreement problem; it does not assume that arbitrary typed
+maps agree with the target or discard the actual continuation.
+
+Validation: 1035 build jobs including GlobalEtaBodyCut and the established
+ContextualCastFeedback/CoreFamilySubstitutionBarrier regressions; all 79
+public roots in the nine changed Lean modules passed recursive type/value/
+constructor/recursor dependency and axiom audit, maximum closure 11,977.
+Only propext, Classical.choice and Quot.sound occur; no weakN_iff, weakN_inv,
+sorryAx or excluded framework dependencies. No owned diagnostics; all 1,010
+frozen source hashes remained unchanged across build and audit.
+
+Remaining: derive target agreement for the one actually consumed binder under
+the retained prefix, including its source-supply ancestry, annotation changes
+and ambient unused insertions. The new raw-map restriction supplies no equality
+between the actual argument and its chosen target image by itself. The global
+frontier remains a necessary residual, not a proved sufficient strictly smaller
+PropFront obligation. `weakN_iff` remains open. No executable changes, PR
+extraction or coordination.

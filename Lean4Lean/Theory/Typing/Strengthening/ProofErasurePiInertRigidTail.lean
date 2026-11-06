@@ -163,7 +163,7 @@ theorem PiInertTypedContinuationRun.rigid_tail
   induction H with
   | terminal => exact HT
   | application _ W HTapp R HK ih =>
-    exact ih (((HT.subst W).mkApps hr HTapp).compute
+    exact ih (((HT.subst W.interpretation).mkApps hr HTapp).compute
       (ErasedScopedPrimitiveCertificateDescent.descent (pi_inert_stage_certificate_descent heq hs _)) R.forget)
   | retained _ _ _ WI HK ih =>
     have HB := HT.subst WI
