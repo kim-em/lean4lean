@@ -16910,3 +16910,47 @@ constructors and recursors; maximum closure 11,154; 823 frozen hashes.
 Only standard axioms, no forbidden dependencies or owned diagnostics. No
 coordination, executable changes, PR creation or extraction; original sorry
 remains in UniqueTyping.lean.
+
+
+### 2026-11-06 06:00:27 UTC — All input sorts in arbitrary-function eta consumer beta
+
+Previous goal turn: progress (9d873942, arbitrary protected eta functions through
+consumer beta for retained fresh arguments). Revalidated HEAD and preserved the
+two independent untracked experiments. Continued the proof-input gap explicitly;
+no neutral-function restriction or unchecked raw proof substitution was added.
+
+Added a typed AmbientVariant beta driver. Its only new typed interaction is
+application of an origin whose left endpoint is a lambda. Structural cases keep
+actual representatives beneath binders, and transitive paths use typed beta
+replay. Protected paired substitution remains unchanged. Also proved that
+paired proof markers are fixed whenever guarded atoms cannot start at proof.
+
+SortedEtaAtom records the original input sort and uses etaArgument u in both
+orientations. Proved typed beta-only fresh-application reflection retaining that
+classification. Source histories supply actual non-proof function descendants,
+computed domain sort witnesses and the exact beta identity for any exposed
+lambda. For a proof-domain long form, the consumer's own typing forces the
+supplied argument to erase to proof; guarded origins force its paired argument
+to be proof too. For a short lambda, actual ambient typing restores the exact
+body even when eta uses an erased proof argument.
+
+Verdict: proofErase_sorted_eta_consumer_beta_residuals now covers arbitrary typed
+supplied functions, arbitrary typed consumers, all input sorts and independent
+finite beta paths without native recovery, inferred comparison or normalization
+premises. Proof-valued functions are included by equal erasures and raw beta
+confluence. Exposed lambda-domain obligations remain recorded, not discarded.
+The nonzero-input restriction of the previous raw instantiation is removed.
+
+The inferred readout also works for every input sort and connects eta atoms to
+native-domain certificates along actual beta descendants. Native/domain coverage
+still remains explicit, including inferred comparisons of the exposed domains.
+The result is beta transport, not strengthening, a counterexample, or a claimed
+strictly smaller final sufficient obligation. Full-core primitive simulation
+and constructive certificate coverage remain live work. In particular, eta
+can obscure constant-headed pattern structure, so the neutral primitive proof
+cannot simply be reused without beta cleanup of visible eta wrappers.
+
+Validation: 851 build jobs; 24 complete audit roots, including the new
+constructors and recursors; maximum closure 11,161; 826 frozen hashes.
+Only standard axioms, no forbidden dependencies or owned diagnostics. No
+coordination, executable changes or PR extraction; original sorry remains.

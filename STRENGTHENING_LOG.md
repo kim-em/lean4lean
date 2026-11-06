@@ -30648,3 +30648,36 @@ owned warnings. Preserved the independent computation-count and primitive-rule
 descent experiments. Original sorry remains; no executable changes, coordination
 or PR extraction. Next live work is typed proof-input origin simulation, then
 full core and certificate coverage.
+
+
+### 2026-11-06 06:00:27 UTC — Typed proof arguments complete beta eta-consumer transport
+
+Added ProofErasureAmbientTypedBeta, ProofErasureSortedEtaOrigins and
+ProofErasureSortedEtaConsumer. The generic typed beta driver carries actual
+left representatives through computation and consumer binders. Only applying
+an ambient eta origin needs its typed consumer premise. Local paired
+substitution and origin computation retain the existing protected structure.
+
+SortedEtaAtom uses etaArgument at the original input sort. Typed beta fresh
+reflection gives a beta-only short-function history with exact classified
+residuals. Supporting lemmas retain non-proofness of function descendants,
+domain sort witnesses and exact eta/beta restoration of exposed lambda bodies.
+The applied proof-domain branch derives the argument's proof erasure from the
+actual redex typing, then uses atom non-proofness to fix the paired argument.
+Both orientations of eta are simulated for arbitrary supplied functions.
+
+proofErase_sorted_eta_consumer_beta_residuals has no restriction on input sort
+or proof-valued functions. It covers every typed consumer and pair of finite
+beta paths, with no native coverage or comparison premise. The residual
+AmbientVariant records each original eta history and each newly exposed
+lambda-domain pair. The final checking theorem reads these residuals using
+explicit ambient domain/native certificates; their general coverage is still
+missing, rather than being inferred from semantic equality.
+
+Validation: 851 build jobs; 24 complete type/value/constructor/recursor
+audit roots; maximum closure 11,161; 826 frozen source/import hashes.
+Only propext, Classical.choice and Quot.sound, no forbidden dependencies and no
+owned warnings. Independent experiments remain untouched. No executable changes,
+coordination or PR extraction. Original weakN_iff sorry remains; no final goal
+deliverable is claimed. Next: full-core primitives with beta cleanup of visible
+eta wrappers, followed by native/domain certificate coverage.
