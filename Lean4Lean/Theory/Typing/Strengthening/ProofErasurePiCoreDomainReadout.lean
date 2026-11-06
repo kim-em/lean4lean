@@ -6,8 +6,8 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiDomainComparison
 
 The induction interface allows comparison endpoints to expose typed Pis only
 after core computation. This handles recursive computation prefixes without
-assuming the intermediate outputs are literal Pis. The general certificate
-coverage theorem, including prior guards and weakening, is not asserted here.
+assuming the intermediate outputs are literal Pis. The conditional induction
+below is completed, including prior guards and weakening, in PiInertDomains.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation
@@ -15,7 +15,7 @@ variable [Params] {D : Definitions}
 
 /-- The domain-extraction induction invariant. Actual Pi components are
 supplied at the observed residuals, not at the certificate's original endpoints.
-Coverage for every CoreFamilyCast comparison remains to be proved. -/
+Coverage for every CoreFamilyCast comparison is proved in PiInertDomains. -/
 def PiCoreDomainReadout (D : Definitions) (Δ : List ProofShape) (a b : ProofShape) : Prop :=
   ∀ {Γ A B C E u v w z}, OnCtx Γ (env.IsType univs) →
     env.HasType univs Γ A (.sort u) → env.HasType univs (A :: Γ) B (.sort v) →
@@ -146,16 +146,15 @@ theorem PiCoreDomainReadout.left_lambda : PiCoreDomainReadout D Δ (.lam A b) c 
   obtain ⟨_, _, EQ, _, _⟩ := RL.level_core_lam_inv
   cases EQ
 
-/-- The remaining prior-guard case: earlier cast and annotation certificates
-must retain domains at typed core-exposed Pi endpoints. The recursive core
-subfragment is proved above; coverage of all ContextualCastGuard constructors
-is still required. This is not asserted to be smaller than the full front. -/
+/-- The prior-guard case of the original conditional induction. Coverage of
+all ContextualCastGuard constructors is discharged by core_family_pi_prior in
+PiInertDomains. This interface is not a strict-smallness claim about the front. -/
 def CoreFamilyPiPrior (D : Definitions) : Prop :=
   ∀ {stage mode Δ a b}, ContextualCastGuard D stage mode Δ a b → PiCoreDomainReadout D Δ a b
 
-/-- The remaining weakening case, restricted to actual recursive comparison
-certificates. The current invariant observes typed Pis only in the requested
-context; transporting it must not assume their unproved lower typings. -/
+/-- The weakening case of the original conditional induction, restricted to
+actual recursive comparison certificates. PiInertDomains discharges it by raw
+domain projection, without assuming lower typings of the observed Pis. -/
 def CoreFamilyPiWeakening (D : Definitions) : Prop :=
   ∀ {Γ Γ' count k stage mode a b}, OnCtx Γ (env.IsType univs) → OnCtx Γ' (env.IsType univs) →
     Ctx.LiftN count k Γ Γ' → CoreFamilyCast D stage (.compare mode) (proofEraseCtx Γ) a b →
@@ -163,8 +162,8 @@ def CoreFamilyPiWeakening (D : Definitions) : Prop :=
     PiCoreDomainReadout D (proofEraseCtx Γ') (a.liftN count k) (b.liftN count k)
 
 /-- Every other recursive comparison constructor preserves the readout
-invariant. The two explicit case hypotheses are not proved here and no strict
-smallness or general strong-derivation coverage follows from this reduction. -/
+invariant. PiInertDomains supplies both explicit case hypotheses. This local
+induction does not establish general strong-derivation certificate coverage. -/
 theorem CoreFamilyCast.pi_core_domain_readout_of_cases
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs) (hl : D.LevelCompatible univs)
     (hcon : ∀ {p r}, Pat p r → ConcretePattern env p r)

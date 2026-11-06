@@ -17323,3 +17323,58 @@ Validation: 890 jobs; 18 complete dependency-audit roots including all new
 definitions and conditional theorem types; maximum closure 12,103; 865
 frozen hashes. Standard axioms only, no forbidden dependencies or owned warnings.
 No executable changes, coordination or PR extraction. GOAL.md remains unachieved.
+
+
+### 2026-11-06 07:31:32 UTC — Retaining primitive heads closes both local Pi extraction gaps
+
+Previous goal turn: progress (72a1c9a2, core-exposed Pi readout through annotations
+and prefixes, with prior and weakening cases explicit). Revalidated HEAD and
+tracked state; preserved both independent untracked experiments.
+
+Idea: strengthen the interpretation rather than transport the typed Pi-readout
+invariant backward through weakening. Inspection of the existing constructions
+shows their outer primitive steps use ordinary core computation and guarded Eq
+prefixes. They never need the ambient stage's optional constant/identity/eta
+expansions at a literal Pi root. Verdict: proved for the entire existing
+CoreFamilyCast grammar, not a restricted selection of its constructors.
+
+Defined PiInertStage as the existing finite stage together with a constant,
+projection or sort head witness. Its guards still use the complete original
+stage. Proved core inclusion, monotonicity, exact renaming and no Pi-root step.
+Refined staged/contextual cast residuals, cast spines, arbitrary cast consumers,
+and annotation consumers to retain these heads in their computation skeletons.
+Then reinterpreted all LevelStagedCastGuard, ContextualCastGuard and CoreFamilyCast
+constructors at the same stage. Weakening carries the head evidence with the
+renamed certificate, so no lower actual Pi typings are needed.
+
+Raw scoped computation without Pi-root steps projects a domain path in the
+unchanged ambient context. Raw computed joint comparison then projects a common
+domain comparison, including forallSorted, all computation prefixes and symmetry.
+Its proof needs no endpoint typing, confluence or native recovery. Applying it
+to the refined full interpretation proves CoreFamilyCast.pi_domains after
+arbitrary independent core paths exposing Pis, at the exact original stage.
+
+Consequences: CoreFamilyPiPrior and CoreFamilyPiWeakening are both discharged.
+The latter does not even need its old lower-readout premise. Full local
+PiCoreDomainReadout follows unconditionally for the recursive certificate grammar.
+An actual-environment wrapper verifies that WF plus canonical Eq discharges all
+registry, pattern, level and core-confluence assumptions. Updated the original
+conditional interface's docstrings to point to these proofs.
+
+Whole-Pi comparison now constructs a converted literal lambda's EtaCoreReadout
+at the same stage, uniformly over future core paths. Arbitrary identity-wrapped
+eta consumers inherit that exact stage, uniformly over consumers and residuals.
+This removes both the computation-join restriction and the earlier per-residual
+finite-stage limitation. No new domain-certificate premise is introduced.
+
+Limits/next action: the full recursive certificate language still is not proved
+to cover arbitrary IsDefEqStrong derivations. The next synthesis argument can use
+a whole-Pi conversion child directly in the lambda eta case; it must still
+justify dependent substitution, composition and the required future certificates.
+There is no proof or counterexample of strengthening and no strictly smaller
+sufficient irreducible obligation yet. GOAL.md and weakN_iff remain open.
+
+Validation: 898 jobs; 45 complete type/value/constructor/recursor audit
+roots; maximum closure 12,333; 873 frozen source/import hashes. Standard
+axioms only; no forbidden dependencies or owned diagnostics. Executable unchanged,
+no coordination and no PR extraction.

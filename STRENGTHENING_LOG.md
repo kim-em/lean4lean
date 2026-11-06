@@ -30957,3 +30957,55 @@ Validation: 890 jobs; 18 complete type/value/constructor/recursor audit
 roots; maximum closure 12,103; 865 frozen hashes. Only propext,
 Classical.choice and Quot.sound, no forbidden dependencies or owned diagnostics.
 Independent untracked experiments preserved; executable unchanged; no PR extraction.
+
+
+### 2026-11-06 07:31:32 UTC — Same-stage domain extraction for every recursive comparison certificate
+
+The two outstanding local cases are now proved. The key change is retaining
+which primitive heads the existing interpretations actually use. PiInertStage
+is a subrelation of the original finite stage whose outer source is primitive-
+headed or a sort. Full-stage guards inside those primitives are unchanged.
+Core steps embed at every stage; exact renaming and stage raising preserve the
+extra witness; literal Pis admit no primitive root step.
+
+Added PiInertCastResiduals and PiInertCastConsumer to retain this property through
+staged/contextual casts, overapplied cast spines and arbitrary typed consumers.
+Added PiInertAnnotation for the annotation consumer's structural readout.
+The proofs refine the existing constructions: ordinary core residuals and Eq
+prefix repair suffice, including under the consumer's binders. No native output
+resynthesis or stronger confluence assumption was added.
+
+PiInertPrior reinterprets all earlier staged and contextual guard constructors.
+PiInertCoreFamily proves a simultaneous computation/comparison interpretation
+for every CoreFamilyCast constructor, preserving its original stage. Computation
+still retains a typed output and an ordinary-core output tail; comparison still
+covers every independent pair of core paths. All guarded computation prefixes
+now retain the restricted outer heads. In particular, arbitrary weakening is
+handled by the existing core lift reflection and exact renaming, not by lowering
+actual observed Pi typings.
+
+PiInertDomains projects raw domain paths and comparisons when no primitive can
+rewrite a Pi root. Scoped domains stay in the original ambient context; no
+codomain-context transport is needed for this projection. CoreFamilyCast.pi_domains
+therefore covers core-exposed Pis without endpoint typing hypotheses, at the
+same stage. core_family_pi_prior and core_family_pi_weakening discharge the two
+previous named local premises; CoreFamilyCast.pi_core_domain_readout is now
+unconditional. EnvironmentCore.core_family_pi_domains instantiates all semantic
+premises from an actual well-formed canonical-Eq environment.
+
+EtaPiComparisonEvidence constructs complete EtaCoreReadout from an arbitrary
+whole-Pi CoreFamilyCast comparison. Unlike the preceding computation-join result,
+its stage remains fixed over every future domain/function core path. The
+identity-wrapped eta consumer likewise has a comparison at that same stage,
+for every typed consumer and independent core residual pair.
+
+The original certificate grammar was not narrowed or extended. The refinement
+establishes a stronger interpretation for all of it. This is still a local
+conversion-evidence result: arbitrary strong-derivation coverage, dependent
+substitution and comparison composition remain synthesis obligations. The
+weakN_iff sorry remains, and no final strict-smallness claim is made.
+
+Validation: 898 jobs; 45 complete dependency-audit roots; maximum closure
+12,333; 873 frozen hashes. Only propext, Classical.choice and Quot.sound;
+no forbidden dependencies or owned warnings. Both independent experiments
+preserved. Executable unchanged; no coordination or PR extraction.
