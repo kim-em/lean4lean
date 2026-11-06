@@ -31576,3 +31576,50 @@ maximum closure 11,187; 933 frozen hashes. Only propext, Classical.choice
 and Quot.sound; no weakN_iff/weakN_inv/sorryAx or forbidden framework dependency,
 no owned diagnostics. Executable unchanged, independent experiments preserved;
 no coordination or PR extraction.
+
+
+## 2026-11-06 10:00:12 UTC — Recover the lower guard from three component histories
+
+ProofErasureEqPrefixComponentDescent reads the carrier guard out of a direct
+ComputedJointPrefixPrimitive. Endpoint paths pull it back to the original
+endpoints, then the carrier path pulls it back to the original supplied type.
+The resulting guard has exactly the lifted lower inputs required by the existing
+computed-carrier certificate descent theorem. Thus no unchanged-sort assumption,
+source-head restriction, native-recovery completeness or strengthening oracle is
+needed. Motive and minor histories do not enter this readout.
+
+The generic result preserves a certificate in a target relation with primitive
+certificate descent. The full expanded specialization accepts component paths at
+stage n and a guard at stage k, returning the exact lower carrier certificate at
+max n k. The Pi-inert specialization embeds its component paths into the full
+stage; for k <= n it returns both a lower full-stage-n certificate and actual
+definitional equality at the original lower carrier. It does not return a
+Pi-inert certificate, hereditary future stability, or paths not supplied as input.
+
+ProofErasureSortedGuardedRoot establishes sort-typed root exclusions. A literal
+lambda cannot have a sort assignment, so source replay excludes specialized Eq
+prefixes at sort-typed sources. Existing type-uniqueness arguments exclude native
+function eta and native masked structure eta. Consequently any root outside the
+mixed core/constant/identity fragment at a sort-typed source must be a general
+singleton with an earlier guard. At literal saturated Eq.rec syntax this too is
+impossible: valid singleton code stops at arity five and the source has six
+arguments. Every full-stage primitive at such a source is therefore transparent
+in the precise mixed-fragment sense.
+
+Judgment: the direct Eq-prefix case now has a checked lower readout even after
+arbitrary expanded component computations. The unresolved work is producing
+those aligned component histories from a whole-term exposure path and identifying
+an appropriate prefix. The generic first escaping occurrence can lie inside
+unrelated arguments or annotations. General singleton guards compare family
+expressions and still need their separate ancestry/decoding argument. The root
+exclusion directs the literal saturated-probe case toward proper prefixes rather
+than a whole-source root. No full Pi-inert application-to-PropositionFront
+implication, strictly smaller sufficient obligation, or final goal completion is
+claimed; weakN_iff retains its original sorry.
+
+Validation: 960 build jobs including feedback/substitution-barrier
+regressions; 8 complete type/value/constructor/recursor dependency roots;
+maximum closure 11,049; 935 frozen hashes. Only propext, Classical.choice
+and Quot.sound, with no weakN_iff/weakN_inv/sorryAx or forbidden framework
+dependency and no owned diagnostics. Executable unchanged; independent
+experiments preserved; no coordination or PR extraction.

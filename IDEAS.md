@@ -17761,3 +17761,32 @@ Validation: 958 build jobs, 8 complete dependency roots, maximum closure
 11,187, 933 frozen hashes. Standard axioms only, no forbidden framework
 dependency or owned diagnostics. No executable changes, extraction or
 coordination; independent experiments preserved.
+
+
+## 2026-11-06 10:00:12 UTC — Direct Eq-prefix ancestry readout and sorted root exclusions
+
+- Demand a literally unchanged sort carrier before reading an Eq-prefix guard:
+  unnecessary. Proved that paths of the carrier and both endpoints can be
+  attached to the observed guard by carrierCompute/carrierReduce. Exact
+  certificate descent then recovers the original lower carrier comparison.
+- Permit the component paths and guard to use arbitrary full expanded stages:
+  proved, retaining the exact lower certificate at their maximum stage. The
+  Pi-inert specialization keeps the original numeric bound when the observed
+  guard is earlier and also returns actual lower definitional equality. Motive
+  and minor origins are not needed for this direct-prefix readout.
+- Classify a nontransparent root with a sort assignment: only general singleton
+  remains. Function/structure eta are excluded by type uniqueness; the specialized
+  Eq prefix is excluded because replay would produce a sort-typed lambda.
+- Apply that classification at literal saturated Eq.rec syntax: every full-stage
+  root is in the mixed core/constant/identity fragment. Valid general singleton
+  code has at most five arguments, whereas the saturated source has six.
+- Missing: extract the three aligned component origins at an appropriate direct
+  Eq prefix from the whole expanded path. The generic first cut can still be
+  elsewhere; neither its ancestry nor the general-singleton family decoder has
+  been proved here. This closes a conditional readout step, not the original
+  strengthening goal or a strictly smaller sufficient obligation.
+
+Validation: 960 build jobs, 8 complete dependency roots, maximum closure
+11,049, 935 frozen hashes; standard axioms only, no forbidden dependency
+or owned diagnostic. Executable and independent experiments unchanged; no
+coordination or extraction.
