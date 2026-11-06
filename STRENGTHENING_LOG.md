@@ -32699,3 +32699,41 @@ types, values, opaque bodies, constructors and recursor RHSs; only propext,
 Classical.choice and Quot.sound occur. Forbidden strengthening/replacement
 obligations are absent, and changed modules are warning free. Executable
 unchanged; no PR extraction or coordination.
+
+
+## 2026-11-06 14:30:13 UTC — Eq completion through computed prefix and argument instantiation
+
+Refactored the specialization invariant to expose `EqPrefixSpecializationAt`,
+retaining the actual target substitution and pending target arguments. Its
+existential wrapper has the same meaning and public interface as before.
+Existing take/congr/compute/eta proofs now delegate to witness-preserving
+versions, so the creation and computation steps actually supply the data
+needed by later binder consumption.
+
+Added `ProofErasureEqPrefixInstantiation.lean`. Paired semantic substitution
+relates specialization through the old binder image to specialization after
+the actual argument is instantiated. The theorem keeps the resulting actual
+source typing. Reification of a computed argument preserves the image
+equality, and erasure/instantiation compatibility supplies the exact raw
+argument vector. Prefix components and the argument may use independent
+descent relations in their respective scopes.
+
+The composed supply theorem starts with a shared completion for a prefix and
+its next actual argument. Prefix truncation selects that argument's image;
+eta extends the same substitution by it. The new compute/instantiate theorem
+then needs no separate image-equality assumption. It returns the original
+target completion, source typing, actual argument equality and erasure, and
+exact substituted raw prefix vector.
+
+The full Eq result imports and documents the new operation; its main theorem
+statement remains unchanged. Integrating shared source/argument ancestry into
+the full mixed-frame induction, handling changed annotations there, and
+reading all later singleton roots remain open. No guarded substitution law
+or native recovery of arbitrary substitution images is assumed.
+
+Validation: 1004 build jobs, 20 public/full-result audit roots, maximum
+dependency closure 11,648; 979 frozen source hashes. Audits traverse
+types, values, opaque bodies, constructors and recursor RHSs. Only propext,
+Classical.choice and Quot.sound occur; forbidden strengthening and replacement
+obligations are absent. Changed modules are warning free. Executable unchanged;
+no PR extraction or coordination.

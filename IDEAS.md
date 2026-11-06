@@ -18755,3 +18755,47 @@ Validation: 1003 build jobs, 12 public/full-result dependency roots,
 maximum closure 11,643; 978 frozen source hashes. Only propext,
 Classical.choice and Quot.sound; no forbidden dependencies or changed-module
 warnings. Executable unchanged; no PR extraction or coordination.
+
+
+## 2026-11-06 14:30:13 UTC — Preserve a chosen Eq specialization across actual binder consumption
+
+**Idea.** Existential specialization hides the target value chosen for a
+fresh binder. Retain that substitution and pending target vector explicitly,
+then compare the actual consumed argument with the stored value before
+instantiating a computed prefix.
+
+**Verdict: explicit witnesses, semantic instantiation and a composed supply
+case proved.** `EqPrefixSpecializationAt` exposes the chosen substitution and
+pending arguments. The existing existential definition packages precisely
+this data. Truncation, component congruence, component computation and eta
+extension now have explicit-witness versions; existing public interfaces
+delegate to them and retain their old statements. In particular, computation
+keeps the same chosen substitution, while eta records the chosen next value.
+
+`EqPrefixSpecializationAt.inst` uses paired ordinary substitution to preserve
+every prefix component when the actual argument specializes to the chosen
+binder image. It retains the source's actual instantiated assignment.
+`.inst_compute` first reifies an independently computed argument and gives
+the exact erased instantiated prefix. `.compute_inst` combines component
+computation in the binder scope with argument computation in the outer scope,
+then substitutes only the endpoints. Neither guarded computation is moved.
+
+`.eta_compute_inst` derives the needed target-image agreement when the tracked
+source vector is `pre ++ x :: rest`. Taking `pre` chooses `x.subst σ` as the
+next target image; eta extends by that value. Independent body and argument
+computations and actual beta instantiation preserve the same target completion
+and produce the exact new raw vector. This composed case has no extra
+target-image equality premise.
+
+Still open: connect the full continuation histories to this shared-completion
+invariant, including changed annotations and general mixed retained frames,
+then use it to discharge the later singleton roots. The general `.inst` and
+`.compute_inst` methods deliberately retain their target-image agreement
+premise; arbitrary typed substitution alone does not establish it. Neither
+strengthening nor a sufficient strictly smaller obligation than PropFront is
+claimed. GOAL.md remains active.
+
+Validation: 1004 build jobs, 20 public/full-result dependency roots,
+maximum closure 11,648; 979 frozen source hashes. Only propext,
+Classical.choice and Quot.sound; no forbidden dependencies or changed-module
+warnings. Executable unchanged; no PR extraction or coordination.

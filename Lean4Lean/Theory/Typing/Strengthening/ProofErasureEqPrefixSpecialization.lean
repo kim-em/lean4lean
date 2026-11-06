@@ -19,15 +19,28 @@ open private ProofShape.liftN_const_inv
 open private erase_const_inv from Lean4Lean.Theory.Typing.Strengthening.ProofErasurePrimitives
 variable [Params]
 
+/-- The chosen substitution and pending target arguments of a prefix
+specialization. Keeping these witnesses explicit permits later binder
+instantiation to compare its actual argument with the chosen target image. -/
+def EqPrefixSpecializationAt (Γ Δ : List VExpr) (v w v' w' : VLevel)
+    (original pre : List VExpr) (σ : VExpr.Subst) (pending : List VExpr) : Prop :=
+  Ctx.SubstEq env univs Δ σ σ Γ ∧
+    env.IsDefEqU univs Δ (.const ``Eq.rec [v,w]) (.const ``Eq.rec [v',w']) ∧
+    List.Forall₂ (env.IsDefEqU univs Δ) original (pre.map (·.subst σ) ++ pending)
+
 /-- The current Eq prefix has a typed specialization into the original target
 argument vector. Head levels and all arguments may have changed semantically.
 The missing target arguments are actual terms, not substitution closure of a
 raw guard or a native recovery certificate for its images. -/
 def EqPrefixSpecialization (Γ Δ : List VExpr) (v w v' w' : VLevel)
     (original pre : List VExpr) : Prop :=
-  ∃ σ pending, Ctx.SubstEq env univs Δ σ σ Γ ∧
-    env.IsDefEqU univs Δ (.const ``Eq.rec [v,w]) (.const ``Eq.rec [v',w']) ∧
-    List.Forall₂ (env.IsDefEqU univs Δ) original (pre.map (·.subst σ) ++ pending)
+  ∃ σ pending, EqPrefixSpecializationAt Γ Δ v w v' w' original pre σ pending
+
+/-- Forget the chosen substitution while retaining the existing specialization
+interface. This is only existential packaging of the same witnesses. -/
+theorem EqPrefixSpecializationAt.forget
+    (H : EqPrefixSpecializationAt Γ Δ v w v' w' original pre σ pending) :
+    EqPrefixSpecialization Γ Δ v w v' w' original pre := ⟨σ, pending, H⟩
 
 /-- The original typed vector starts the specialization invariant with the
 identity substitution. Taking a prefix then supplies its initial completion. -/
@@ -52,22 +65,31 @@ private theorem args_subst
 
 /-- A shorter selected prefix retains the same specialization; the omitted
 source arguments become part of its actual target completion. -/
+theorem EqPrefixSpecializationAt.take
+    (H : EqPrefixSpecializationAt Γ Δ v w v' w' original pre σ pending) (arity : Nat) :
+    EqPrefixSpecializationAt Γ Δ v w v' w' original (pre.take arity) σ
+      ((pre.drop arity).map (·.subst σ) ++ pending) := by
+  obtain ⟨WS, HC, HA⟩ := H
+  refine ⟨WS, HC, ?_⟩
+  simpa only [← List.append_assoc, ← List.map_append, List.take_append_drop] using HA
+
+/-- The existential interface inherits truncation from the same chosen
+substitution; the omitted source arguments become its target completion. -/
 theorem EqPrefixSpecialization.take
     (H : EqPrefixSpecialization Γ Δ v w v' w' original pre) (arity : Nat) :
     EqPrefixSpecialization Γ Δ v w v' w' original (pre.take arity) := by
-  obtain ⟨σ, pending, WS, HC, HA⟩ := H
-  refine ⟨σ, (pre.drop arity).map (·.subst σ) ++ pending, WS, HC, ?_⟩
-  simpa only [← List.append_assoc, ← List.map_append, List.take_append_drop] using HA
+  obtain ⟨σ, pending, H⟩ := H
+  exact (H.take arity).forget
 
 /-- Component and head equalities preserve the original target completion.
 Only these semantic equalities are specialized, after their source readout. -/
-theorem EqPrefixSpecialization.congr
+theorem EqPrefixSpecializationAt.congr
     (hΔ : OnCtx Δ (env.IsType univs))
-    (H : EqPrefixSpecialization Γ Δ v w v' w' original pre)
+    (H : EqPrefixSpecializationAt Γ Δ v w v' w' original pre σ pending)
     (HC : env.IsDefEqU univs Γ (.const ``Eq.rec [v',w']) (.const ``Eq.rec [v'',w'']))
     (HP : List.Forall₂ (env.IsDefEqU univs Γ) pre pre') :
-    EqPrefixSpecialization Γ Δ v w v'' w'' original pre' := by
-  obtain ⟨σ, pending, WS, Hhead, HA⟩ := H
+    EqPrefixSpecializationAt Γ Δ v w v'' w'' original pre' σ pending := by
+  obtain ⟨WS, Hhead, HA⟩ := H
   obtain ⟨_, HC⟩ := HC
   have HCΔ : env.IsDefEqU univs Δ (.const ``Eq.rec [v',w']) (.const ``Eq.rec [v'',w'']) := by
     simpa only [VExpr.subst] using (HC.subst henv WS hΔ).toU
@@ -80,12 +102,41 @@ theorem EqPrefixSpecialization.congr
   have Hpending : List.Forall₂ (env.IsDefEqU univs Δ) pending pending := by
     simpa only [List.drop_left] using
       Lean4Lean.List.forall₂_drop Hrefl (pre.map (·.subst σ)).length
-  exact ⟨σ, pending, WS, Hhead.trans henv hΔ HCΔ,
+  exact ⟨WS, Hhead.trans henv hΔ HCΔ,
     HA.trans (fun _ _ _ H K => H.trans henv hΔ K) (HPΔ.append' Hpending)⟩
+
+/-- Existential specialization inherits component congruence from the
+version retaining its chosen substitution and pending target arguments. -/
+theorem EqPrefixSpecialization.congr
+    (hΔ : OnCtx Δ (env.IsType univs))
+    (H : EqPrefixSpecialization Γ Δ v w v' w' original pre)
+    (HC : env.IsDefEqU univs Γ (.const ``Eq.rec [v',w']) (.const ``Eq.rec [v'',w'']))
+    (HP : List.Forall₂ (env.IsDefEqU univs Γ) pre pre') :
+    EqPrefixSpecialization Γ Δ v w v'' w'' original pre' := by
+  obtain ⟨σ, pending, H⟩ := H
+  exact (H.congr hΔ HC HP).forget
 
 /-- Pointwise raw computation below ambient unused binders is reified before
 updating the specialization. The resulting prefix has an exact erased image
 and the original source assignment, ready for another recovered eta domain. -/
+theorem EqPrefixSpecializationAt.compute
+    (hsource : ErasedScopedPrimitiveDescent Source)
+    (hΓ : OnCtx Γ (env.IsType univs)) (hΓ' : OnCtx Γ' (env.IsType univs))
+    (W : Ctx.LiftN count offset Γ Γ') (hΔ : OnCtx Δ (env.IsType univs))
+    (H : EqPrefixSpecializationAt Γ Δ v w v' w' original pre σ pending)
+    (hf : env.HasType univs Γ (VExpr.mkApps (.const ``Eq.rec [v',w']) pre) F)
+    (HC : env.IsDefEqU univs Γ (.const ``Eq.rec [v',w']) (.const ``Eq.rec [v'',w'']))
+    (HA : List.Forall₂ (ScopedCompute Source (proofEraseCtx Γ'))
+      ((pre.map (proofErase Γ)).map (·.liftN count offset)) raw) :
+    ∃ pre', EqPrefixSpecializationAt Γ Δ v w v'' w'' original pre' σ pending ∧
+      ((pre'.map (proofErase Γ)).map (·.liftN count offset)) = raw ∧
+      env.IsDefEq univs Γ (VExpr.mkApps (.const ``Eq.rec [v',w']) pre)
+        (VExpr.mkApps (.const ``Eq.rec [v'',w'']) pre') F := by
+  obtain ⟨pre', HP, EP, HE⟩ := proofErase_scoped_spine_arguments_descend hsource hΓ hΓ' W HC hf HA
+  exact ⟨pre', H.congr hΔ HC HP, EP, HE⟩
+
+/-- The existing computation interface forgets only the selected target
+substitution; its typed component readout is unchanged. -/
 theorem EqPrefixSpecialization.compute
     (hsource : ErasedScopedPrimitiveDescent Source)
     (hΓ : OnCtx Γ (env.IsType univs)) (hΓ' : OnCtx Γ' (env.IsType univs))
@@ -99,13 +150,43 @@ theorem EqPrefixSpecialization.compute
       ((pre'.map (proofErase Γ)).map (·.liftN count offset)) = raw ∧
       env.IsDefEq univs Γ (VExpr.mkApps (.const ``Eq.rec [v',w']) pre)
         (VExpr.mkApps (.const ``Eq.rec [v'',w'']) pre') F := by
-  obtain ⟨pre', HP, EP, HE⟩ := proofErase_scoped_spine_arguments_descend hsource hΓ hΓ' W HC hf HA
-  exact ⟨pre', H.congr hΔ HC HP, EP, HE⟩
+  obtain ⟨σ, pending, H⟩ := H
+  obtain ⟨pre', H', EP, HE⟩ := H.compute hsource hΓ hΓ' W hΔ hf HC HA
+  exact ⟨pre', H'.forget, EP, HE⟩
 
-/-- Opening one more fresh eta argument preserves the same target completion
-when the prefix is still shorter than that completion. The next actual target
-argument has the substituted recovered domain, so the source substitution
-extends by that argument. This operation can be iterated through fresh binders. -/
+/-- Opening eta consumes the explicitly chosen next target argument and
+retains the extended substitution. Later binder consumption can therefore
+compare its actual argument with this particular target image. -/
+theorem EqPrefixSpecializationAt.eta
+    (hΔ : OnCtx Δ (env.IsType univs))
+    (H : EqPrefixSpecializationAt Γ Δ v w v' w' original pre σ (x :: rest))
+    (ht : env.HasType univs Δ (VExpr.mkApps (.const ``Eq.rec [v,w]) original) T)
+    (hA : env.HasType univs Γ A (.sort u))
+    (hf : env.HasType univs Γ (VExpr.mkApps (.const ``Eq.rec [v',w']) pre) (.forallE A B)) :
+    EqPrefixSpecializationAt (A :: Γ) Δ v w v' w' original
+      (pre.map VExpr.lift ++ [.bvar 0]) (σ.cons x) rest := by
+  obtain ⟨WS, HC, HA⟩ := H
+  have HE := IsDefEqU.mkApps_args hΔ HC HA ht
+  have ht' := (HE.of_l henv hΔ ht).hasType.2
+  rw [VExpr.mkApps_append] at ht'
+  obtain ⟨Tx, hfx⟩ := VExpr.WF.of_mkApps henv hΔ (f := .app _ x) ⟨_, ht'⟩
+  have hfx : env.HasType univs Δ
+      (.app (VExpr.mkApps (.const ``Eq.rec [v',w']) (pre.map (·.subst σ))) x) Tx := hfx
+  obtain ⟨_, _, hf', hx⟩ := hfx.app_inv henv hΔ
+  have hfσ : env.HasType univs Δ
+      (VExpr.mkApps (.const ``Eq.rec [v',w']) (pre.map (·.subst σ)))
+      (.forallE (A.subst σ) (B.subst σ.lift)) := by
+    simpa only [VExpr.subst_mkApps, VExpr.subst] using hf.subst henv.orderedStrong WS hΔ
+  have hxA := argument_at_displayed_domain hΔ hf' hfσ hx
+  have WS' : Ctx.SubstEq env univs Δ (σ.cons x) (σ.cons x) (A :: Γ) := .cons WS hA hxA
+  refine ⟨WS', HC, ?_⟩
+  simpa only [List.map_append, List.map_map, Function.comp_def, VExpr.lift_subst_cons,
+    List.map_cons, List.map_nil, VExpr.subst, VExpr.Subst.cons,
+    List.append_assoc, List.cons_append, List.nil_append] using HA
+
+/-- Opening one more eta binder preserves the same target completion when
+its next target argument exists. The explicit-witness version performs the
+extension; this interface forgets only the selected substitution. -/
 theorem EqPrefixSpecialization.eta
     (hΔ : OnCtx Δ (env.IsType univs))
     (H : EqPrefixSpecialization Γ Δ v w v' w' original pre)
@@ -114,28 +195,11 @@ theorem EqPrefixSpecialization.eta
     (hf : env.HasType univs Γ (VExpr.mkApps (.const ``Eq.rec [v',w']) pre) (.forallE A B))
     (hlen : pre.length < original.length) :
     EqPrefixSpecialization (A :: Γ) Δ v w v' w' original (pre.map VExpr.lift ++ [.bvar 0]) := by
-  obtain ⟨σ, pending, WS, HC, HA⟩ := H
-  have hlength := HA.length_eq
+  obtain ⟨σ, pending, H⟩ := H
+  have hlength := H.2.2.length_eq
   cases pending with
   | nil => simp only [List.length_append, List.length_map, List.length_nil] at hlength; omega
-  | cons x rest =>
-    have HE := IsDefEqU.mkApps_args hΔ HC HA ht
-    have ht' := (HE.of_l henv hΔ ht).hasType.2
-    rw [VExpr.mkApps_append] at ht'
-    obtain ⟨Tx, hfx⟩ := VExpr.WF.of_mkApps henv hΔ (f := .app _ x) ⟨_, ht'⟩
-    have hfx : env.HasType univs Δ
-        (.app (VExpr.mkApps (.const ``Eq.rec [v',w']) (pre.map (·.subst σ))) x) Tx := hfx
-    obtain ⟨_, _, hf', hx⟩ := hfx.app_inv henv hΔ
-    have hfσ : env.HasType univs Δ
-        (VExpr.mkApps (.const ``Eq.rec [v',w']) (pre.map (·.subst σ)))
-        (.forallE (A.subst σ) (B.subst σ.lift)) := by
-      simpa only [VExpr.subst_mkApps, VExpr.subst] using hf.subst henv.orderedStrong WS hΔ
-    have hxA := argument_at_displayed_domain hΔ hf' hfσ hx
-    have WS' : Ctx.SubstEq env univs Δ (σ.cons x) (σ.cons x) (A :: Γ) := .cons WS hA hxA
-    refine ⟨σ.cons x, rest, WS', HC, ?_⟩
-    simpa only [List.map_append, List.map_map, Function.comp_def, VExpr.lift_subst_cons,
-      List.map_cons, List.map_nil, VExpr.subst, VExpr.Subst.cons,
-      List.append_assoc, List.cons_append, List.nil_append] using HA
+  | cons x rest => exact (H.eta hΔ ht hA hf).forget
 
 /-- A recovered singleton at the current source prefix reads the original
 target equation, regardless of how many specialization-preserving prefix

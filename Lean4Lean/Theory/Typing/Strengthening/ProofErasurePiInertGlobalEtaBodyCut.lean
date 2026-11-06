@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertContinuationFrames
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaRoot
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPrefixInstantiation
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
 
 /-! # Eq exposure reaches a non-level root inside a minimum eta body
@@ -36,7 +37,11 @@ output. If the short function remains constant-headed, that body has a typed
 non-level root. `CountedLaterEtaBodyCut.eq_guarded` classifies the later short
 Eq root as singleton or native eta while retaining the same cut. Reading its
 guards with the original Eq specialization and general mixed-frame elimination
-remain open. -/
+remain open. `EqPrefixSpecializationAt.compute_inst` transports a retained
+specialization through the two endpoint histories when the actual argument's
+agreement with the chosen target binder image has been established.
+`EqPrefixSpecializationAt.eta_compute_inst` derives that agreement when the
+prefix and its next actual argument share the retained target completion. -/
 theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hreg : recursorData ``Eq.rec = some data) (hoff : data.majorOffset = 5)
