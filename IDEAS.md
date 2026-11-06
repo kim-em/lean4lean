@@ -18040,3 +18040,39 @@ Validation: 978 build jobs; 2 complete dependency roots; maximum
 closure 11,434; 953 frozen source hashes. Standard axioms only; no
 forbidden dependency or owned diagnostic. Executable unchanged; no coordination
 or PR extraction.
+
+
+## 2026-11-06 11:47:14 UTC — Read a computed singleton beneath a fresh eta binder
+
+- Substitute a raw singleton guard after eta: still unnecessary and not
+  assumed. Lower the selected singleton through the ambient unused binders,
+  decode its generated family in the lower source context, and specialize
+  only the reflected semantic equality. Source and completed-target contexts
+  may differ; the target substitution never needs to interpret removed
+  ambient binders. This separation is now proved at the raw-root interface.
+- Handle a fresh argument before any body computation: proved. The source
+  prefix is opened with its actual typed eta domain. A typed substitution
+  sends the fresh variable to the original next argument, completing the
+  original five-argument Eq prefix. A singleton consuming that fresh argument
+  therefore reads the original lower equation, even above unused binders.
+- Retain that readout after component computation: proved. Replay each
+  argument at its actual dependent assignment, preserving pointwise semantic
+  equalities and the typing of the whole reconstructed spine. These semantic
+  equalities specialize without any raw substitution law. Typed application
+  congruence constructs the modified completion; equality of its indices
+  transports back to the original target indices.
+- Include universe-head changes and a singleton at any computed initial
+  segment: proved. The computed source prefix descends, its chosen root
+  descends, and any unsupplied source arguments join the remaining target
+  completion. A concrete corollary applies this to the computed fresh eta
+  body, including the newly supplied argument in the component history.
+- Still open: derive and propagate this source/target completion through the
+  full changing-annotation lambda history and nested native eta. The result
+  handles singleton roots once the body-spine history is exposed; it does not
+  eliminate arbitrary retained-argument eta or supply finite shared application.
+  No strictly smaller sufficient PropFront obligation is claimed.
+
+Validation: 834 build jobs; 7 complete dependency roots; maximum
+closure 10,966; 811 frozen source hashes. Standard axioms only; no
+forbidden dependency or owned diagnostic. Executable unchanged; no coordination
+or PR extraction. GOAL.md remains active.

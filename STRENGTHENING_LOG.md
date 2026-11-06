@@ -31926,3 +31926,44 @@ substitution regressions; 2 complete dependency roots, maximum closure
 Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
 assumptions or owned warnings. Executable unchanged; no coordination or PR
 extraction. GOAL.md remains unachieved.
+
+
+## 2026-11-06 11:47:14 UTC — Source descent followed by typed completion specialization
+
+Added `ProofErasureRecoveredEqSpecialization.lean`. The general singleton
+readout now accepts an independently typed target completion and an actual
+substitution from its context into the source-prefix context. The existing
+fresh-completion argument reflects the generated family before any semantic
+substitution. A second interface first descends the singleton across an
+unused binder block, so removed ambient binders need no target inhabitants.
+The target completion may also agree only pointwise by definitional equality;
+typed spine congruence and index transport return the original target equation.
+A direct fresh-eta corollary opens the next argument at its actual domain,
+descends below ambient insertion under that binder, and specializes at the
+original typed pending argument.
+
+Added `ProofErasureRecoveredEqComputedSpecialization.lean`. Its argument replay
+lemma keeps semantic equality for each original argument, including proofs at
+dependent domains, and types the reconstructed whole spine at its original
+assignment. The main computed readout allows changes to every supplied source
+argument and the Eq.rec universe instance, followed by a general singleton at
+any initial segment. It reconstructs the source prefix and selected root below
+insertion, substitutes semantic component equalities, supplies the remaining
+target completion, and reads the original target indices. Neither raw guards
+nor arbitrary scoped computations are substituted.
+
+The concrete computed-fresh-eta corollary combines these pieces for the body
+of an eta on an Eq prefix of at most four arguments (as forced by its typed
+completion). Its component history includes the fresh argument; the selected
+singleton may act on any computed prefix. This closes that singleton readout
+case. It does not yet expose such a root through an arbitrary lambda history:
+changing annotations and nested eta still require a preserved typed completion
+invariant. The current minimum-cut theorem and strengthening goal remain open;
+no sufficiency or strict reduction claim is made.
+
+Validation: 834 build jobs including contextual-cast and core-family
+substitution regressions; 7 complete dependency roots, maximum closure
+10,966; 811 frozen source hashes. Only propext, Classical.choice and
+Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
+assumptions or owned warnings. Executable unchanged; no coordination or PR
+extraction.
