@@ -29918,3 +29918,56 @@ substitution closure and coverage remain unproved; RecursiveFamilyCast's
 beta/substitution interpretation is still a different grammar. None of the
 three final GOAL.md deliverables is established, and the original sorry remains.
 Executable and independent files preserved; no coordination or PR extraction.
+
+
+### 2026-11-06 03:19:43 UTC — Full-core joins for arbitrary certified cast consumers
+
+Added ProofErasureOpaqueVariants.lean: a directed relation with ambient marked
+source/payload pairs protected by local binder depth. Proved weakening, arbitrary
+template instantiation, paired local substitution, beta instantiation and left
+beta simulation. Unlike annotation variants, symmetry is not required: the
+payload may expose a new head absent from the blocked cast.
+
+Added ProofErasureOpaquePatterns.lean: EqCastShape records the complete
+six-argument proof-major recursor. Exact universe lists and corresponding
+captures survive visible matching. Rigid constructors exclude Eq.rec; canonical
+registration excludes a full cast at a shorter recursor prefix, and the proof
+major excludes a constructor match.
+
+Added ProofErasureOpaqueCoreSimulation.lean: every ordinary primitive and
+universe root, followed by every compatible full-core path, preserves the
+directed opaque relation. Reductions inside marked sources retain their core
+history; local beta substitutions preserve ambient origins.
+
+Added ProofErasureOpaqueJoinReadout.lean: marked directed joins propagate through
+arbitrary typed syntax. Exact renaming places each ambient guarded path beneath
+local binders, while the entire payload path stays in the ordinary level core.
+Only the source side needs an actual typing.
+
+Added ProofErasureOpaqueCastConsumer.lean: typed universe factorization proves
+that every full-core reduct of a non-proof cast retains its blocked shape.
+Opaque simulation plus directed joining and ordinary core confluence produce
+a finite-stage common reduct for independent full-core paths from arbitrary
+cast consumers. Proof-valued payloads are handled separately by equal erasure.
+The consumer expects the payload's source type; explicit conversion through
+the reconstructed endpoint equality supplies the cast at that type.
+
+Extended ContextualCastGuard with castConsumer, interpreting its smaller
+endpoint child through this theorem. The actual environment wrapper constructs
+the common reduct and both paths. Existing cast/annotation feedback continues
+to compile, retaining arbitrary finite recursive reuse.
+
+Development fixes concerned dependent inversion of lifted marked sources,
+explicit guard inference, substitution reduction at index zero, and the cast's
+source/target typing conversion. No new mathematical premises were added.
+Validation: 821 jobs, 43 dependency roots, maximum closure 12,286;
+796 frozen source/import hashes unchanged. Full traversal covers declaration
+types, opaque bodies, constructors and recursor RHSs. Only propext,
+Classical.choice and Quot.sound; no forbidden dependencies or new warnings.
+The modified grammar's direct importer, ContextualCastFeedback, also rebuilt.
+
+Judgment: arbitrary typed cast-consumer closure is now proved and retained
+under full core reduction. General ambient substitution and semantic domain
+coverage remain open, and none of GOAL.md's final deliverables is established.
+The original sorry remains; executable and independent files are preserved.
+No coordination, PR extraction or PR creation.

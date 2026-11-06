@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureContextualAnnotationCore
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureContextualCastResidual
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureOpaqueCastConsumer
 
 /-! # Recursive casts and annotation consumers in their actual contexts
 
@@ -13,7 +13,8 @@ open private subst_bvar_liftN from Lean4Lean.Theory.Typing.Strengthening.ProofEr
 variable [Params] {D : Definitions}
 
 /-- A context-indexed finite-stage certificate. Casts increase the stage bound;
-annotation consumers preserve it. Core tails, typed core prefixes and actual
+annotation consumers preserve it. Arbitrary typed consumers of cast payloads
+are included at the cast's next-stage bound. Core tails, typed core prefixes and actual
 binder insertions retain the certificate. Arbitrary ambient substitution and
 coverage of semantic equality are not asserted. -/
 inductive ContextualCastGuard (D : Definitions) :
@@ -27,6 +28,13 @@ inductive ContextualCastGuard (D : Definitions) :
       (H : ContextualCastGuard D n true (proofEraseCtx Γ) (proofErase Γ X) (proofErase Γ Y)) :
       ContextualCastGuard D (n+1) mode (proofEraseCtx Γ)
         (proofErase Γ (typeCast u X Y q x)) (proofErase Γ x)
+  | castConsumer (hu : u.WF univs) (hΓ : OnCtx Γ (env.IsType univs))
+      (hX : env.HasType univs Γ X (.sort u)) (hY : env.HasType univs Γ Y (.sort u))
+      (hq : env.HasType univs Γ q (eqApp (.succ u) (.sort u) X Y))
+      (hx : env.HasType univs Γ x X) (ht : env.HasType univs (X :: Γ) t T)
+      (H : ContextualCastGuard D n true (proofEraseCtx Γ) (proofErase Γ X) (proofErase Γ Y)) :
+      ContextualCastGuard D (n+1) mode (proofEraseCtx Γ)
+        (proofErase Γ (t.inst (typeCast u X Y q x))) (proofErase Γ (t.inst x))
   | annotation (hΓ : OnCtx Γ (env.IsType univs))
       (hA : env.HasType univs Γ A (.sort u)) (hC : env.HasType univs Γ C (.sort u))
       (hb : env.HasType univs (A :: Γ) b B)
@@ -69,6 +77,10 @@ theorem ContextualCastGuard.forward
     obtain ⟨shared, RL, RR⟩ := contextual_cast_level_core_join heq hs hl hcon hc hreg hoff hD
       hu hΓ hX hY hq hx (fun RA RB => ih RA RB) RA RB
     exact .compute RL RR (.leaf .refl)
+  | castConsumer hu hΓ hX hY hq hx ht _ ih =>
+    obtain ⟨shared, RL, RR⟩ := contextual_cast_consumer_core_join heq hs hl hcon hc hreg hoff hD
+      hu hΓ hX hY hq hx ht (fun RA RB => ih RA RB) RA RB
+    exact .compute RL RR (.leaf .refl)
   | annotation hΓ hA hC hb ht _ ih =>
     exact contextual_annotation_consumer_core heq hs hc hΓ hA hC hb ht (fun RA RB => ih RA RB) RA RB
   | compute hΓ ha hb RL RR _ ih =>
@@ -99,5 +111,30 @@ theorem EnvironmentCore.contextual_cast_guard_forward {env : VEnv} (henv : env.W
   exact H.forward heq sound (levelCompatible (fun H => H)) (fun H => H)
     (typed_level_core_confluence (fun H => H)) hlookup (hr.eqRec_target heq hn).2.1
     (no_eqRec heq) RA RB
+
+omit [Params] in
+/-- Every actual typed consumer of a recursively certified cast joins its
+payload consumer after arbitrary independent full-core reductions. This covers
+application, duplication and occurrences beneath dependent binders. -/
+theorem EnvironmentCore.contextual_cast_consumer_join {env : VEnv} (henv : env.WF) (U : Nat) :
+    letI := henv.params U
+    ∀ {n u Γ X Y q x t T left right}, env.HasCanonicalEq → u.WF U → OnCtx Γ (env.IsType U) →
+      env.HasType U Γ X (.sort u) → env.HasType U Γ Y (.sort u) →
+      env.HasType U Γ q (eqApp (.succ u) (.sort u) X Y) →
+      env.HasType U Γ x X → env.HasType U (X :: Γ) t T →
+      ContextualCastGuard definitions n true (proofEraseCtx Γ) (proofErase Γ X) (proofErase Γ Y) →
+      ProofShape.Compute (ErasedLevelCore definitions) (proofErase Γ (t.inst (typeCast u X Y q x))) left →
+      ProofShape.Compute (ErasedLevelCore definitions) (proofErase Γ (t.inst x)) right →
+      ∃ shared, ScopedCompute (ErasedStaticStructureEtaExpansionStage definitions (n+1))
+          (proofEraseCtx Γ) left shared ∧
+        ScopedCompute (ErasedStaticStructureEtaExpansionStage definitions (n+1))
+          (proofEraseCtx Γ) right shared := by
+  letI := henv.params U
+  intro n u Γ X Y q x t T left right heq hu hΓ hX hY hq hx ht H RL RR
+  obtain ⟨data, hlookup, hr, hn, _⟩ := heq.recursorRegistration henv
+  exact contextual_cast_consumer_core_join heq sound (levelCompatible (fun H => H)) (fun H => H)
+    (typed_level_core_confluence (fun H => H)) hlookup (hr.eqRec_target heq hn).2.1
+    (no_eqRec heq) hu hΓ hX hY hq hx ht
+    (fun RA RB => contextual_cast_guard_forward henv U heq H RA RB) RL RR
 
 end Lean4Lean.VEnv.Strengthening

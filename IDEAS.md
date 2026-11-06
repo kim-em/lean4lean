@@ -16136,3 +16136,38 @@ Validation: 816 jobs, 21 audited roots including constructors and
 recursors, maximum dependency closure 12,240; 791 frozen source hashes.
 No forbidden dependencies, proof gaps or nonstandard axioms. The previous goal
 turn was progress (18a624f5); this turn adds the missing recursive reuse.
+
+
+### 2026-11-06 03:19:43 UTC — Arbitrary consumers of certified casts through full core reduction
+
+Idea: track a complete proof-major cast as an opaque ambient occurrence in
+arbitrary consumer syntax. Verdict: proved, including primitive matching and
+full-core residual joining. The simulation must be directed: deleting a cast
+can expose a new beta redex on the payload side. Left core paths simulate on
+the payload side while retaining marked source histories; a directed join then
+uses guarded computation only on the marked side and ordinary core computation
+on the payload side. Ordinary typed core confluence finishes independent paths.
+
+Registered patterns can capture a cast but cannot inspect it. Constructor names
+are rigid and differ from Eq.rec; an Eq.rec prefix has five arguments, while a
+complete marked cast has six and a proof major. This proves matching for all
+ordinary capture and template rules. Universe conversion preserves the cast
+shape by typed factorization followed by structural universe variation.
+
+The actual-environment contextual_cast_consumer_join theorem now covers every
+typed consumer of a cast and its payload, with arbitrary independent full-core
+reductions. ContextualCastGuard.castConsumer retains this result recursively at
+one stage above its endpoint child. This closes the arbitrary cast-argument
+consumer gap, not just the earlier lambda-annotation case. Payloads may be
+functions or non-proof data; consumers may duplicate or apply them.
+
+General ambient substitution and semantic endpoint coverage remain unproved.
+Next live direction: iterate the directed core-commutation result through
+sequences of certified computations and their joins, retaining ordinary payload
+paths, then address the remaining ambient-substitution interaction. No final
+GOAL.md deliverable is claimed.
+
+Validation: 821 build jobs, 43 audited roots including both grammars'
+constructors and recursors, maximum dependency closure 12,286, 796 frozen
+source hashes; no forbidden dependencies or nonstandard axioms. The existing
+ContextualCastFeedback importer rebuilt. Previous goal turn: progress (b796904f).
