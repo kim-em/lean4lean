@@ -19212,3 +19212,28 @@ maximum closure 11,802; 995 frozen source hashes. Only the standard three
 axioms occur, with no strengthening or excluded-framework dependency. The
 original `weakN_iff` sorry remains; no sufficient strictly smaller irreducible
 obligation is claimed. No executable changes, PR extraction or coordination.
+
+
+## 2026-11-06 17:04:29 UTC — Derive completion branches from actual eta execution
+
+Verdict: verified progress. Avoid inferring target agreement from arbitrary
+`ContextSubstitution`. Instead decompose the actual counted lambda/argument
+execution and derive its component histories.
+`IteratedAmbientEqCompletion.consumed_eta_execution` returns completion at
+the exact post-beta spine or a completed non-level root inside the original
+binder-scope body path. Annotation and argument computations are unrestricted.
+`consumed_eta_minimum` makes the first branch a strictly smaller typed minimum
+with the same continuation predicate and all finite-stage competitors. The
+second branch retains a completed root within a strictly smaller body budget.
+`eta_execution` derives both retained and consumed cases from the entire
+actual suffix. Retained completion stays in the original binder context.
+
+Still open: classification/recursion at the remaining completed non-level
+roots, transferring completion across changed used annotations in retained
+wrappers, arbitrary wrapper ancestry and the exhausted target-vector case.
+This is not yet a sufficient irreducible obligation strictly smaller than
+PropFront; `weakN_iff` remains open.
+
+Validation: 1021 jobs; 8 audited roots including the global theorem;
+maximum closure 11,802; 996 frozen source hashes. No executable changes,
+PR extraction or coordination.

@@ -33418,3 +33418,45 @@ the original target vector. The concrete generated consumption histories are
 now covered even through iterated insertions; deriving such ancestry for the
 actual arbitrary wrapper history, used annotation conversion and the exhausted
 target-vector case remains. No executable changes, PR extraction or coordination.
+
+
+## 2026-11-06 17:04:29 UTC — Connect iterated completion to counted eta execution and minima
+
+Added `ProofErasureEqCompletedEtaExecution.lean`.
+`IteratedCompletedEqSpineCut` retains the selected non-level root, pending
+arguments, exact prefix/suffix paths and count bound together with its
+derived iterated completion. `counted_spine_or_cut` obtains this completion
+from the actual component history, or preserves completion at the endpoint.
+`take_prefix` specializes zero-step component preservation. `eta_of_supply`
+derives the available target slot from the completed whole spine's actual
+next argument rather than assuming a separate length bound.
+
+`consumed_eta_execution` uses native lambda count readout to keep the body
+path in its original binder context despite annotation changes. If that path
+only changes components, the prior consumption theorem gives completion at
+the exact post-beta whole spine, using its actual computed argument and tail.
+Otherwise the same body path supplies a completed non-level root.
+`consumed_eta_minimum` reconstructs the prefix through the actual eta root,
+lambda/argument paths and beta. Global minimality forces its total cost to
+equal the chosen execution; the post-beta source consequently has a strictly
+smaller typed minimum, with the original continuation and arbitrary-stage
+competitors. The alternative body cut also has strictly smaller budget.
+
+`eta_execution` applies the actual retained-or-first-beta decomposition to
+the entire suffix. The retained branch records completion or its cut in the
+original binder context alongside the exact annotation and argument paths.
+It does not assert transport into the changed displayed annotation context.
+
+Validation: 1021 jobs with GlobalEtaBodyCut and the established regression
+modules ContextualCastFeedback/CoreFamilySubstitutionBarrier. All seven new
+public declarations plus the global theorem passed recursive dependency and
+axiom audit, maximum closure 11,802. Only propext, Classical.choice and
+Quot.sound occur; no weakN_iff, weakN_inv, sorryAx or excluded framework
+dependencies. No owned diagnostics; 996 frozen source hashes unchanged.
+
+Remaining: continue from the completed non-level root, handle changed used
+annotations in retained wrappers, cover arbitrary wrapper ancestry and the
+exhausted target-vector case. The general continuation substitution alone
+still does not imply target agreement. Goal remains incomplete; no sufficient
+strictly smaller irreducible obligation is claimed. No executable changes,
+PR extraction or coordination.
