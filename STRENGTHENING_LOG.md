@@ -33548,3 +33548,44 @@ separate target inhabitant, but arbitrary execution closure is not proved.
 The original strengthening goal remains incomplete; no sufficient strictly
 smaller irreducible obligation is claimed. No executable changes, PR extraction
 or coordination.
+
+
+## 2026-11-06 17:23:15 UTC — Close target-prefix consumption beyond the target vector
+
+Added `ProofErasureEqTargetPrefixConsumption.lean`.
+`IteratedAmbientEqCompletion.compute_lifted_components_inst` realizes the
+completed source in an actual context, adds the displayed unused binder, and
+reifies the component endpoints below it. Certificate descent retains the
+lower component paths, so completion advances below the binder. The exact
+lifted endpoint vector then instantiates to the lower vector for any raw
+argument; no guarded path is substituted and no target inhabitant is needed.
+
+`EqTargetPrefixCompletion.consume_eta_components` splits at the target length.
+If the consumed argument belongs to the target prefix, the source is truncated
+after the required tail entries, existing iterated consumption applies, and
+list length preservation identifies its result with the desired output prefix.
+Otherwise the body component history is truncated to the target length and
+the unused-binder lemma supplies the exact instantiated prefix. Full source
+and tail arities are unrestricted; the body typing supplies valid new levels.
+
+`EqSpineConsumptionHistory.target_prefix_completion` preserves the invariant
+through every finite recorded component/eta/consumption history, with an arity
+bound independent of the original target length. `read_target_prefix_loss`
+uses actual root typing and structure exclusion to read the original equation
+at a subsequent head loss. The global theorem's module now imports this result
+and records the narrowed remaining scope in its documentation.
+
+Validation: 1025 jobs with GlobalEtaBodyCut and the existing
+ContextualCastFeedback/CoreFamilySubstitutionBarrier regressions. All four
+new public declarations and the global theorem passed recursive dependency
+and axiom audit, maximum closure 11,813. Only propext, Classical.choice
+and Quot.sound occur; no weakN_iff, weakN_inv, sorryAx or excluded framework
+dependencies. No owned diagnostics; all 1,000 frozen source hashes remained
+unchanged across the final build and audit.
+
+Remaining: connect bounded-prefix ancestry through arbitrary actual wrapper
+bodies and the non-level roots in those histories. This turn closes consumption
+with extra arguments, but does not prove that every global selected-root
+history belongs to the recorded spine relation. The main strengthening goal
+remains incomplete; no sufficient strictly smaller irreducible obligation
+is claimed. No executable changes, PR extraction or coordination.

@@ -19291,3 +19291,29 @@ claimed, and `weakN_iff` remains open.
 
 Validation: 1024 jobs, 11 audited roots, maximum closure 11,813,
 999 frozen source hashes. No executable changes, PR extraction or coordination.
+
+
+## 2026-11-06 17:23:15 UTC — Consume eta with extra source arguments at every arity
+
+Verdict: verified progress; bounded-prefix consumption closure is proved.
+`EqTargetPrefixCompletion.consume_eta_components` permits arbitrary extra
+arguments. Before the target is full, truncate the actual remaining tail
+and invoke iterated completed consumption. At or beyond the target length,
+the retained prefix is independent of the fresh binder: reify its computed
+components below that binder and retain their lower certificates. Exact
+lifted endpoint images show that instantiating any supplied raw argument
+returns the same lower prefix, requiring no new target inhabitant.
+
+`EqSpineConsumptionHistory.target_prefix_completion` composes these steps
+with component computation and eta opening for any history arity bound, not
+just the target length. Its readout theorem derives the original equation
+at a typed nonstructural head-losing root. The global module now imports
+and documents this completed consumption closure.
+
+Still open: proving coverage of the actual arbitrary wrapped-body histories
+leading to the selected global singleton root. The component/eta/consumption
+history relation does not itself describe every wrapper computation. No
+sufficient irreducible obligation strictly smaller than PropFront is claimed;
+`weakN_iff` remains open. Validation: 1025 jobs, 5 audited roots,
+maximum closure 11,813, 1,000 frozen source hashes. No executable changes,
+PR extraction or coordination.

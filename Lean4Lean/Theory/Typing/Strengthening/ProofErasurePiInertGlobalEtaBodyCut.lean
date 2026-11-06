@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqTargetPrefix
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqTargetPrefixConsumption
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSpecializationFrames
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -40,9 +40,10 @@ witnesses are also retained. The same smaller source now uniformly carries
 `EqTargetPrefixCompletion`: its first at most five arguments retain iterated
 completion even when the fresh sixth proof argument has no target inhabitant.
 This invariant survives further native eta opening at every arity, actual
-component computation and computed used annotations. It does not yet assert
-closure through arbitrary wrapped-body histories or all consumption beyond
-the target vector. `read_full_eta_loss_in_minimum` reads a head-losing root
+component computation, computed used annotations and component-body eta
+consumption beyond the target vector. `EqSpineConsumptionHistory.target_prefix_completion`
+composes the component, eta and consumption cases for every finite recorded
+spine history. Coverage of arbitrary wrapped-body histories remains open. `read_full_eta_loss_in_minimum` reads a head-losing root
 in the full-prefix body component history through any iterated insertions.
 In the proof-major case, a head-losing primitive
 reached through its body component history either reads the original equation
