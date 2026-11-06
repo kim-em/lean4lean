@@ -30337,3 +30337,42 @@ consumer composition is explicit and is satisfied by eta; genuinely dependent
 intermediate carriers remain outside that composition theorem. Strengthening
 and every final GOAL.md deliverable remain open. Original sorry, executable and
 independent files preserved; no coordination or PR extraction/creation.
+
+
+### 2026-11-06 04:54:35 UTC — Neutral eta residual syntax for arbitrary typed consumers
+
+Added ProofErasureNeutralEtaVariants.lean and ProofErasureNeutralEtaConsumer.lean.
+NeutralEtaVariant records structural pairs and two orientations of eta at a
+protected ambient variable. Its depth index shifts the stored annotation and
+variable across the local binder prefix. Both local substitutions may differ;
+only their ambient tails must agree with the protected variables.
+
+The lifting/substitution lemmas prove that beta may duplicate or discard the
+marks. beta_left simulates arbitrary finite beta paths: the marked lambda body
+is beta-fixed, its domain retains the supplied reduction guard, and applying
+the marked wrapper yields an ordinary application of the ambient variable.
+beta_residuals aligns two independent paths using raw beta confluence at one
+endpoint. It does not claim that the paired endpoints themselves have a join.
+
+The typed module derives the seed from an actual non-proof function variable
+at a Pi with non-proof input domain. Its domain guard is the actual original
+erasure's beta-reduction closure. The erasure-instantiation law and related
+images lift this seed into any typed consumer. Two independent beta paths from
+those consumer instances can then be continued to protected variant residuals.
+No canonical-Eq assumption beyond the surrounding Params setup is needed for
+these syntactic results.
+
+Validation: 834 jobs; 21 audited roots including constructors and
+recursors; maximum closure 8,252; 809 frozen source/import hashes.
+Types, opaque bodies, constructor children and recursor RHSs traversed. Only
+propext, Classical.choice and Quot.sound; no forbidden dependencies or own
+warnings. Existing cast feedback and finite-stage substitution barrier clients
+rebuilt against the pinned dependency closure.
+
+Judgment: the neutral case now has substitution and beta-residual machinery
+linked to actual consumers. Typed comparison readout, full primitive simulation
+and proof-domain marks are still unproved. There is no promotion to hereditary
+comparison and no claim of arbitrary ambient substitution or semantic coverage.
+Those are required further work toward the unchanged strengthening goal.
+Original sorry, executable and independent files preserved; no coordination or
+PR extraction/creation; no final GOAL.md deliverable claimed.

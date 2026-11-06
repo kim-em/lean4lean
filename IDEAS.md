@@ -16536,3 +16536,55 @@ is used or made.
 Validation: 833 build jobs; 9 complete audit roots; maximum closure
 12,353; 808 frozen source/import hashes. Only standard axioms; no
 forbidden dependencies or owned-module warnings.
+
+
+### 2026-11-06 04:54:35 UTC — Protected neutral eta variants survive local beta substitution
+
+Previous goal turn: progress (83a360b8, eta consumers along core/cast histories,
+with a cast source that cannot expose a lambda in ordinary core). Revalidated
+that commit and preserved both independent untracked experiments.
+
+Considered using the existing dependent-family cast grammar to get arbitrary
+eta consumers directly. Verdict: its eqFamily rule handles the special equality
+family, while arbitrary consumers still require computation histories. It does
+not supply the missing contextual eta readout. No general impossibility of
+canonical-Eq methods is claimed.
+
+Deep attempt: treat a neutral ambient function variable as a protected origin
+rather than requiring history exposure to a lambda. Added NeutralEtaVariant:
+structural paired syntax and both orientations of a marked eta expansion of
+that variable. Local substitution may replace all local variables by distinct
+related images, duplicate marks and discard marks, but its ambient tail keeps
+the marked variable neutral and its annotation protected.
+
+Verdict: proved protected lifting, paired substitution, beta instantiation,
+forward simulation of arbitrary finite beta paths, and paired independent beta
+residuals. The critical beta case contracts a marked eta wrapper to the same
+ambient variable applied to related arguments. It introduces no annotation
+alignment obligation. Domain computation updates the mark's guard; the neutral
+body remains fixed. Independent residuals use ordinary raw beta confluence at
+one endpoint rather than confluence of a larger comparison grammar.
+
+Connected the relation to actual typed eta of an ambient function variable and
+to every genuinely typed consumer, including applications, duplication and
+occurrences in dependent annotations. The mark guard retains a beta path from
+the original ambient domain. Independent beta residuals of those actual
+consumer terms have further reducts related by the same grammar.
+
+Limits: these are residual syntax certificates, not a strengthening-safe
+comparison readout. The raw markers retain their bound argument, so the typed
+instance explicitly assumes a non-proof input domain and a non-proof function.
+Proof-domain eta needs a typed extension: replacing the bound variable by a
+proof marker is not compatible with arbitrary untyped argument substitution.
+No blanket ambient substitution is asserted, since that could replace the
+protected variable by a lambda. Full primitive simulation is also unfinished.
+
+Next live work: typed readout by structural induction, contracting a root eta
+wrapper in function position and using typing to exclude marks at incompatible
+sort/projection positions; then full-core primitives and the proof-domain case.
+These gaps remain part of the original scope, not exclusions from success.
+No final GOAL.md deliverable is established; the original sorry remains.
+
+Validation: 834 build jobs; 21 complete roots including every new
+constructor and recursor; maximum closure 8,252; 809 frozen hashes.
+Only standard axioms; no forbidden dependencies or owned-module warnings.
