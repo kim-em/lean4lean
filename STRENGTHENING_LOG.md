@@ -35239,3 +35239,58 @@ strengthening gap or excluded circular framework. All 1,040 source hashes
 remained fixed. Original-probe root independent of the old nested-eta frontier.
 Original weakN_iff sorry and executable unchanged; GOAL.md active;
 no PR extraction or Lean/Lake patch.
+
+
+## 2026-11-06 22:20:13 UTC — Actual cut selection and a chosen-chain frontier from the original Eq probe
+
+Added `ProofErasureEqChainCut.lean` and `ProofErasureEqChainFrontier.lean`,
+imported through the global module. `chain_compute_levels` descends the tracked
+part of an actual upper component vector, retaining the chosen substitution
+and pending target vector while preserving the extra upper arguments' actual
+component certificates. `chain_counted_spine_or_cut` reifies either the exact
+component endpoint or the first actual non-level root. Its cut stores the whole
+computed tracked prefix, untracked extras, root arity, and exact counted paths
+before and after the root. The latter path retains every actually supplied
+argument. Extras are permitted only after the tracked target prefix is complete.
+
+`chain_root_partition` proves that a short selected root is an inserted lower
+prefix with a nonempty chosen pending vector; omitted actual lower arguments
+supply that vector before its old external tail. A saturated selected root
+instead has empty old pending data and splits only the upper extras.
+`ChosenEqChainSpineCut.eq_or_smaller` constructs the actual application hole
+from the selected suffix and applies the corresponding short/saturated eta
+minimum theorem. It returns the target equation or a strictly smaller actual
+minimum retaining a chosen assignment, paired frame and full insertion chain.
+The old unrestricted all-stage competitor predicate is preserved by those
+strict-descent theorems.
+
+`EqChainContinuationMinimum.component_frontier` iterates cut removal by strong
+induction. Its remaining component minimum retains both actual endpoints, a
+common chosen substitution and pending vector, their paired frame and insertion
+chain, native component certificates, counted path, typed continuation,
+unrestricted minimum, and next actual application. No fresh existential
+completion replaces the chosen assignment during a component step.
+
+`pi_inert_eq_exposure_eq_or_chain_frontier` constructs the initial chosen
+specialization and an identity paired map across the original unused insertion,
+then minimizes the original lifted probe across all finite stages and invokes
+the new induction. Thus this frontier is derived from the original probe with
+no extra completion or frame-compatibility premise at a later root. It does
+not invoke the older nested-eta, frame-boundary or supply-boundary probe theorem.
+
+The stored paired map is not yet identified with an arbitrary next application
+map. Linking it to actual used-binder consumption and proving full continuation
+progress remain open. The earlier supply boundary is unchanged; the new result
+is another necessary frontier, not strengthening or a sufficient irreducible
+obligation strictly smaller than PropFront.
+
+Validation: 1067 build jobs including the global theorem and established
+regressions; 125 declarations recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening gap or excluded circular framework. All 1,042 source hashes
+remained fixed. New chosen-chain probe root separately excludes the older
+nested-eta, frame-boundary and supply-boundary probe theorems. Original-probe
+supply-boundary root remains independent of the old nested-eta frontier.
+Original weakN_iff sorry and executable unchanged; GOAL.md active;
+no PR extraction or Lean/Lake patch.

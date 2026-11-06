@@ -20285,3 +20285,31 @@ of binders used by the tracked prefix still require integration; original-probe
 frontier and strengthening gap unchanged. Validation: 1065 jobs, 115
 recursive roots, maximum closure 11,976; only propext, Classical.choice
 and Quot.sound, all 1,040 source hashes fixed.
+
+
+## 2026-11-06 22:20:13 UTC — Derive a chosen paired-chain component frontier from the original probe
+
+**Idea.** Select actual counted roots after reifying the tracked lower prefix
+through the entire insertion chain. Retain untracked upper arguments only
+beyond completion, partition short/saturated roots, and use strict descent to
+reach a component-only minimum carrying the chosen assignments and chain.
+
+**Verified.** `chain_compute_levels` retains actual extra-argument certificates.
+`chain_counted_spine_or_cut` keeps the whole reached vector and counted supplied
+suffix; `chain_root_partition` gives either a nonempty chosen pending vector
+or a completed prefix plus upper extras. `ChosenEqChainSpineCut.eq_or_smaller`
+connects both cases to a strictly smaller `EqChainContinuationMinimum`.
+`component_frontier` iterates by strong induction, preserving a common chosen
+assignment and paired chain at both component endpoints. The new
+`pi_inert_eq_exposure_eq_or_chain_frontier` starts from the original lifted Eq
+probe and derives this frontier with its actual next application, without any
+later-root completion or frame-compatibility hypothesis.
+
+**Verdict.** The paired invariant now reaches a component frontier derived from
+the original probe, rather than remaining only local preservation lemmas.
+Agreement with the next actual consumed used binder and whole-continuation
+progress remain open. This is a necessary frontier, not a sufficient smaller
+PropFront obligation. Validation: 1067 jobs, 125 recursive roots, maximum
+closure 11,976; only propext, Classical.choice and Quot.sound, all 1,042
+source hashes fixed. New probe frontier independently excludes older probe
+frontier dependencies.

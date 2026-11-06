@@ -11,6 +11,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSaturatedChain
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainConsumption
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainAnnotations
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainRetained
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -183,7 +184,18 @@ case: an unused binder with an arbitrary upper domain and no chosen image.
 Both construct the exact `PiInertEndpointContext.binder` target, rather than
 transporting a guarded path through substitution. Covering the whole selected
 continuation recursively and consuming binders used by the tracked prefix
-still need integration; the original-probe frontier below is unchanged.
+still need integration; the earlier supply-boundary frontier is unchanged.
+`chain_counted_spine_or_cut` now extracts actual cuts through the whole chain,
+retaining chosen assignments and the supplied upper suffix. Root partition
+feeds both short and saturated cuts into strict paired-chain descent.
+`EqChainContinuationMinimum.component_frontier` iterates that descent, keeping
+chosen assignments and the chain at both ends of the remaining component path.
+`pi_inert_eq_exposure_eq_or_chain_frontier` derives this new frontier directly
+from the original lifted probe, retaining its minimized counted path and next
+actual application. No later-root completion or frame compatibility is assumed.
+The frontier does not identify its stored frame with an arbitrary next
+consumption map; full continuation coverage and used-binder agreement remain
+open. This is a necessary frontier, not a sufficient PropFront reduction.
 `minimum_frontier` iterates this decrease
 by strong induction and reaches a component-only current path with completion
 at both endpoints. The conclusion retains this actual
