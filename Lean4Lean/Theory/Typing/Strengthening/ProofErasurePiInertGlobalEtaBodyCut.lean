@@ -19,6 +19,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChosenSupplyDescent
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSuppliedSpineReturn
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedTelescopeSupply
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqInterleavedSupplyHistory
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSaturatedEmptySupplyHistory
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -46,6 +47,14 @@ The source annotation history can be recorded before the computed consumed
 argument is known. Its outgoing contexts are filled in at consumption, and
 untracked upper extras retain their exact substituted syntax. Deriving and
 carrying the full supplied history through arbitrary nested cuts remains open.
+
+The empty-local-supply cut theorems now derive history extensions from actual
+non-level cuts at the whole reached spine. A short prefix opens a chosen binder;
+a saturated prefix records an unused insertion and keeps the native eta argument
+among the upper extras. The actual argument-free eta suffix must retain its
+lambda, so both cases keep the original annotation/body paths, strict child
+minimum and extended history alongside the body component-or-cut readout.
+Nested supplied consumption and global continuation closure remain open.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation

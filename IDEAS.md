@@ -20505,3 +20505,38 @@ proof. GOAL.md and the original weakN_iff sorry remain open.
 Validation: 1075 build jobs, 182 audited roots, maximum closure
 11,976; only the three permitted Lean axioms. All 1,050 source hashes stayed
 fixed. Stock Lean/Lake ran only in scratch. No executable changes or PR extraction.
+
+
+## 2026-11-06 23:53:18 UTC — Derive retained ancestry at empty-local-supply cuts
+
+**Idea:** An eta cut at the whole reached spine has no local arguments outside
+its head. The actual eta suffix therefore cannot consume the new lambda there;
+its argument-vector path starts empty. Use that forced retained branch to extend
+the existing interleaved source history from the actual annotation/body paths.
+
+**Verdict:** Implemented and checked for both short and saturated whole-spine
+cuts. `CountedEtaFrameOrigin.empty_arguments` eliminates the impossible consumed
+alternative and retains the exact lambda endpoint, annotation computation, body
+path, induced continuation and strict minimum. The short-prefix theorem derives
+its newer chosen image's typing from the existing pending target vector and
+records a retained binder. The saturated theorem recovers the actual upper
+domain and records an unused insertion, keeping the native eta argument as an
+upper extra without extending the chosen lower assignment.
+
+Both cut classifiers start from the actual non-level root, not an eta premise.
+Positive guards recover the original target equation. Otherwise the actual
+child body is classified as component computation or an exact nested cut, with
+the extended source history common to both alternatives. The original selected
+continuation predicate and all competitors are retained at the smaller cost.
+This supplies a concrete ancestry-construction step where the earlier finite
+history preservation theorem needed that history as input.
+
+Remaining: nested eta with local supplied arguments, especially an immediately
+consumed new binder whose body contains another cut, needs the enclosing supply
+and continuation history carried through descent and return. The full original-
+probe continuation invariant and strengthening remain open. No sufficient
+smaller PropFront obligation is claimed.
+
+Validation: 1077 build jobs, 187 recursively audited declarations, maximum
+closure 11,976; only the three permitted Lean axioms. All 1,052 source
+hashes fixed, scratch-only stock Lean/Lake, no executable changes or PR extraction.

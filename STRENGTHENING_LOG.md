@@ -35733,3 +35733,69 @@ excluded circular framework. All 1,050 source hashes stayed fixed. The
 chosen-chain original-probe root still excludes older nested-eta, frame-boundary
 and supply-boundary probe roots. Stock Lean/Lake ran only in scratch. No
 executable change or PR extraction.
+
+
+## 2026-11-06 23:53:18 UTC — Construct source-history extensions from actual empty-supply eta cuts
+
+Added `ProofErasureEqEmptySupplyHistory.lean` and
+`ProofErasureEqSaturatedEmptySupplyHistory.lean`, imported and described in the
+global eta body-cut module. These connect the existing finite interleaved
+history to actual non-level cuts with no local arguments outside the root.
+They derive the history extension rather than assuming the next retained step.
+
+`CountedEtaFrameOrigin.empty_arguments` reads the existing actual eta-origin
+record with an empty argument vector. A consumed branch would require a native
+argument path from [] to a nonempty vector, which has no constructor. The
+retained branch keeps the exact computed annotation, actual lambda endpoint,
+counted body path, original induced continuation and unrestricted minimum at
+cb+ck, strictly below the parent cost. No outer continuation or future argument
+is replaced by an unrelated existential execution.
+
+For a short chosen prefix, `empty_supply_eta_history` descends the native Pi
+recovery through the insertion chain, constructs the fresh chosen prefix and
+paired chain, and derives the new chosen image's typing from that same fresh
+assignment. The image was already the head of the parent's pending target
+vector; no local actual argument or future image agreement is assumed. The
+actual retained annotation computation extends `EqInterleavedSupplyHistory`,
+including the exact lambda wrapper and lifted raw endpoint map. Its actual body
+source is identified with the fresh lower Eq spine through the shifted chain.
+
+The body path is then classified by the existing actual counted chain reader.
+The component branch preserves the computed lower prefix, source equality,
+level equality and exact native component paths. The other branch keeps the
+literal `ChosenEqChainSpineCut` at the same body source, endpoint, count and
+pending vector. The extended history, actual body run and its unrestricted
+minimum remain common fields outside this disjunction. A concrete
+`EqChainContinuationMinimum` at cb+ck is also derived from the same witnesses.
+
+`empty_supply_cut_eq_or_history` removes the native eta premise. It applies the
+canonical Eq cut classification at the actual whole reached prefix. Positive
+guards recover the original equation; otherwise native eta recovery and the
+actual selected suffix feed the preceding history-construction theorem.
+
+The saturated versions handle a completed chosen prefix with any upper extras.
+Native Pi recovery realizes the actual upper domain and inserts it above the
+existing chain. The original lower prefix, substitution and agreeing frame are
+unchanged. The retained annotation path extends the history's unused-binder
+constructor; the chosen-binder count stays fixed and the total retained depth
+increases. All existing upper extras are lifted, and the native eta argument is
+appended as a new upper extra. The actual body readout preserves both tracked
+component paths and extra-argument paths, or returns its exact nested cut with
+the same extended history. The non-level saturated classifier again derives
+eta rather than assuming it, and retains the original selected predicate.
+
+Remaining gap: carry enclosing supplied arguments and continuation ancestry
+through nested eta with nonempty local supply, particularly when a new binder
+is consumed after a body containing a further non-level cut. These empty-local-
+supply history steps do not establish arbitrary continuation closure or a
+sufficient smaller PropFront obligation. GOAL.md remains active and the original
+weakN_iff sorry is unchanged.
+
+Validation: 1077 build jobs including the global module and established
+regressions; 187 declarations recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur; no owned diagnostics, sorryAx,
+strengthening dependency or excluded circular framework. All 1,052 source hashes
+stayed fixed. The chosen-chain original-probe root still excludes older
+nested-eta, frame-boundary and supply-boundary probe roots. Stock Lean/Lake ran
+only in scratch. No executable changes or PR extraction.
