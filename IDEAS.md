@@ -20210,3 +20210,28 @@ frontier and strengthening gap unchanged; this remains supporting work, not a
 sufficient smaller obligation. Validation: 1062 jobs, 99 recursive roots,
 maximum closure 11,976; only propext, Classical.choice and Quot.sound,
 all 1,037 source hashes fixed.
+
+
+## 2026-11-06 21:55:28 UTC — Consume the saturated chain's unused top binder with the actual argument
+
+**Idea.** After a saturated eta opening, descend the tracked component
+certificates below its top insertion before consuming the actual endpoint
+argument. The completed lower prefix cannot use that binder, so no equality
+between a chosen target image and the supplied argument is necessary.
+
+**Verified.** `saturated_chain_consumed_components` realizes the actual
+interpreted one-binder endpoint, retains both chosen lower assignments and
+the older insertion chain, and derives the exact full consumed raw vector and
+its outgoing image. Extra arguments retain their actual instantiations.
+`saturated_chain_application_progress` then keeps the selected actual
+application suffix, preserving its unrestricted minimum while decreasing
+primitive cost or removing one recorded continuation frame.
+
+**Verdict.** Actual consumption of a saturated unused top binder is connected
+to the paired history, including nonproof domains. The result requires the
+recorded component history and this particular top insertion. It does not
+establish agreement for a consumed binder used by the prefix, retained wrappers,
+or arbitrary annotation changes. Original-probe frontier and strengthening gap
+unchanged. Validation: 1063 jobs, 101 recursive roots, maximum closure
+11,976; only propext, Classical.choice and Quot.sound, all 1,038 source
+hashes fixed.

@@ -35107,3 +35107,43 @@ strengthening gap or excluded circular framework. All 1,037 source hashes
 remained fixed. Original-probe root independent of the old nested-eta frontier.
 Original weakN_iff sorry and executable unchanged; GOAL.md active;
 no PR extraction or Lean/Lake patch.
+
+
+## 2026-11-06 21:55:28 UTC — Actual saturated binder consumption preserves chosen history and suffix
+
+Added `ProofErasureEqChainConsumption.lean`, imported by the global module.
+`saturated_chain_consumed_components` starts with an older paired insertion
+chain, a complete chosen lower prefix, and an actual component computation
+under a newly inserted upper domain. It descends those components through
+the extended chain, keeping both original target assignments. The interpreted
+endpoint map supplies an actual argument at the original displayed domain,
+with erased agreement even when its proof-valued image has no literal raw
+representative. Instantiating the computed tracked components cancels the
+new top insertion exactly. The full endpoint keeps all computed extra
+arguments with their actual instantiation; its image under the old upper map
+has the exact outgoing tracked prefix and substituted extras.
+
+`saturated_chain_application_progress` connects this to the actual selected
+application continuation and preserves the full pending vector beyond the
+completed prefix. It derives the old and new frame minima from the supplied
+unrestricted competitor minimum, using exactly the selected next computation
+and suffix run. Primitive cost decreases if the preceding path has positive
+cost; otherwise the actual suffix has one fewer frame. It performs no generic
+refocusing. Both chosen lower assignments and the computed lower prefix
+remain in the conclusion. No proposition restriction or chosen target image
+is imposed on the consumed upper domain.
+
+This addresses only consumption of the recorded unused top insertion after
+its component history. Annotation changes, retained wrappers, and actual
+consumption of a binder used by the tracked prefix remain open. The
+original-probe frontier is unchanged; these results do not prove strengthening
+or establish a sufficient irreducible obligation strictly smaller than PropFront.
+
+Validation: 1063 build jobs including the global theorem and established
+regressions; 101 declarations recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening gap or excluded circular framework. All 1,038 source hashes
+remained fixed. Original-probe root independent of the old nested-eta frontier.
+Original weakN_iff sorry and executable unchanged; GOAL.md active;
+no PR extraction or Lean/Lake patch.
