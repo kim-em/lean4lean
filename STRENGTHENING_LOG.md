@@ -35294,3 +35294,51 @@ nested-eta, frame-boundary and supply-boundary probe theorems. Original-probe
 supply-boundary root remains independent of the old nested-eta frontier.
 Original weakN_iff sorry and executable unchanged; GOAL.md active;
 no PR extraction or Lean/Lake patch.
+
+
+## 2026-11-06 22:28:47 UTC — Used-binder consumption from shared actual supply through a full chain
+
+Added `ProofErasureEqChainSupply.lean`, imported by the global module.
+`EqInsertionPath.erased_inst` proves that instantiating the actual inserted
+argument commutes with the entire path: the body travels under the shifted
+blocks before consumption and under the original blocks afterward. It permits
+arbitrary counts/offsets and dependent, nonproof arguments.
+
+`chain_supplied_components` starts with a body whose chosen binder image is
+the actual original supplied argument's specialization. It descends the body
+and argument component certificates independently in their actual source
+scopes. Their semantic equalities derive the lower consumption frame's image
+agreement. Substitution into the computed lower body preserves its chosen
+assignment, type and nonproof status. The chain-instantiation identity then
+proves exact equality with the actual computed upper raw body instantiated
+by the actual raw argument. The argument's typed upper realization constructs
+that exact one-binder ContextSubstitution. The older paired frame and insertion
+chain remain unchanged, and the outgoing lower specialization has exactly the
+raw consumed endpoint's image under the old upper map.
+
+`eta_chain_compute_inst` derives the fresh body and chosen image from the whole
+actual spine `pre ++ x :: rest`, using the next actual argument rather than an
+assumed compatibility equality. It connects fresh eta, actual body computation,
+actual argument computation and used-binder consumption across all recorded
+insertions. The residual chosen pending vector is the original rest specialized
+by the same assignment followed by the old external pending vector.
+
+`chain_short_supply` identifies the exact scope of this result for a selected
+underfilled root. Either the omitted lower arguments have a first actual x,
+whose specialization is the next chosen image and whose erased insertion is
+the actual supplied suffix's head, or the root exhausts the current tracked
+spine, the upper extras are empty, and the actual suffix is empty. In the latter
+case the pending target vector is nonempty, but actual supply must come from
+the later continuation. Deriving that ancestry and covering full subsequent
+continuations remain open. The chosen-chain original-probe frontier is unchanged;
+this is not strengthening or a sufficient smaller PropFront obligation.
+
+Validation: 1068 build jobs including the global theorem and established
+regressions; 129 declarations recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening gap or excluded circular framework. All 1,043 source hashes
+remained fixed. Chosen-chain probe root separately excludes older nested-eta,
+frame-boundary and supply-boundary probe theorems. Original-probe supply-boundary
+root remains independent of the old nested-eta frontier. Original weakN_iff
+sorry and executable unchanged; GOAL.md active; no PR extraction or Lean/Lake patch.

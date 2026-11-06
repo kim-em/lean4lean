@@ -12,6 +12,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainConsumption
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainAnnotations
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainRetained
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainFrontier
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainSupply
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -196,6 +197,14 @@ actual application. No later-root completion or frame compatibility is assumed.
 The frontier does not identify its stored frame with an arbitrary next
 consumption map; full continuation coverage and used-binder agreement remain
 open. This is a necessary frontier, not a sufficient PropFront reduction.
+`eta_chain_compute_inst` now handles a used binder when its argument comes
+from the selected whole supplied spine: actual body and argument certificates
+descend through the chain before consumption, deriving target-image agreement
+and the exact upper endpoint map. The older paired frame and chain survive.
+`chain_short_supply` separates this concrete supplied-argument case from a
+short root that exhausts its current spine and has an empty actual suffix.
+Supply for the latter must come from later continuation ancestry; the pending
+target image alone does not justify consumption agreement.
 `minimum_frontier` iterates this decrease
 by strong induction and reaches a component-only current path with completion
 at both endpoints. The conclusion retains this actual

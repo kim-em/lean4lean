@@ -20313,3 +20313,28 @@ PropFront obligation. Validation: 1067 jobs, 125 recursive roots, maximum
 closure 11,976; only propext, Classical.choice and Quot.sound, all 1,042
 source hashes fixed. New probe frontier independently excludes older probe
 frontier dependencies.
+
+
+## 2026-11-06 22:28:47 UTC — Derive used-binder consumption from the actual supplied argument
+
+**Idea.** The pending target image is sufficient only when linked to the
+actual supplied argument. Descend that argument's native component path and
+the body's path through the same insertion chain, then consume below the
+chain and restore the exact instantiated upper endpoint.
+
+**Verified.** `EqInsertionPath.erased_inst` gives the shifted-body/old-argument
+commutation through every ordered block. `chain_supplied_components` derives
+an agreeing lower consumption frame and the exact actual upper one-binder map,
+keeping the chosen lower assignment, old paired frame and chain after
+consumption. `eta_chain_compute_inst` derives its chosen image from the actual
+whole supplied spine. `chain_short_supply` proves that an underfilled selected
+root either omits such an actual lower argument or exhausts its current spine
+and has no actual suffix at all.
+
+**Verdict.** Used-binder consumption is established for the recorded shared
+supplied-argument history, without an added target-image equality or proof-domain
+restriction. The empty-suffix branch needs argument ancestry from the later
+continuation; a pending target image alone does not provide it. Global coverage
+and strengthening remain open. Validation: 1068 jobs, 129 recursive roots,
+maximum closure 11,976; only propext, Classical.choice and Quot.sound,
+all 1,043 source hashes fixed.
