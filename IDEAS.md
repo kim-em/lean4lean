@@ -19803,3 +19803,30 @@ identity-or-one-insertion representation may need generalization to compose
 reverse maps. No sufficiency or strict reduction from PropFront is claimed.
 Validation: 1041 build jobs, 19 roots, maximum closure 11,976,
 1,016 unchanged frozen source hashes.
+
+
+## 2026-11-06 19:49:17 UTC — Compose reverse maps and consume further proof binders
+
+**Idea:** remove the identity-or-one-insertion limit from the reverse map.
+Variable renaming cannot introduce a constant or lambda, nor turn an older
+variable into the fresh bound variable of an identity wrapper. Readout should
+therefore survive arbitrary exact reverse renamings and their compositions.
+
+**Verdict:** proved. `WrappedConstHead.of_variable_rename` reflects the head
+even for noninjective variable maps. `EqTargetPrefixRetraction` now admits
+any exact context renaming; existing head-loss, positive-guard, history and
+strict-minimum proofs rebuild with the generalized invariant. `pullback`
+composes reverse maps. The erased consume/reinsert round trip is exact for
+a typed proof binder, yielding `consume_proof_binder` after earlier retractions.
+The actual base endpoint classifier leaves only its consumed domain lacking
+a Prop witness. `EqRepeatedProofHistory` proves closure and readout for any
+finite interleaving of these consumptions with existing component/eta histories.
+
+Remaining: changing retained annotations above a later consumed binder needs
+transport through the existing reverse map. Arbitrary variable maps can
+identify source variables; annotation transport may require retaining the
+stronger insertion/embedding structure of the maps actually constructed.
+No general annotation-transport claim is made. Non-proof argument agreement
+and well-founded scope progress also remain open. The GOAL.md objective is
+not complete. Validation: 1043 jobs, 36 roots including the unchanged
+strict-minimum API, maximum closure 11,976, 1,018 frozen source hashes.

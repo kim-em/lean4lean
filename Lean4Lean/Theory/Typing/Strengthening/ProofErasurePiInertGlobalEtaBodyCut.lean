@@ -3,7 +3,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaFrameOri
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqDelayedSupply
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetractionMinimum
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetractionComposition
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
 
 /-! # Eq exposure reaches a non-level root inside a minimum eta body
@@ -160,6 +160,15 @@ ordinary frontier through its actual next scope move and applies that descent:
 it yields target equality, a later retraction component frontier, or the
 particular consumed base binder without a Prop-domain witness. Propagation
 through the later frontier's next scope map and equal-cost progress remain open.
+The reverse map now permits any exact context renaming: variable renaming
+reflects wrapped constant heads, including identity wrappers, so readout needs
+no single-insertion restriction. `EqTargetPrefixRetraction.pullback` composes
+these maps. `consume_proof_binder` and `EqRepeatedProofHistory.retraction`
+preserve the witness through arbitrarily many further topmost proof-binder
+consumptions, interleaved with component and eta histories. The actual base
+endpoint classifier retains only its consumed domain without a Prop witness.
+Changing retained annotations above a later consumption still requires
+transport; this finite-history closure does not assert arbitrary coverage.
 Component-only
 transitions through enclosing wrappers still need target agreement from their
 actual histories; coverage of arbitrary wrapped-body histories remains open. `read_full_eta_loss_in_minimum` reads a head-losing root

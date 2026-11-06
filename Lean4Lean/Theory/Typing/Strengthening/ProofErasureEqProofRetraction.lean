@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureWrappedRenamingReflection
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqUnusedConsumption
 
 /-! # Lift head loss back across a consumed proof binder
@@ -84,13 +85,12 @@ theorem WrappedConstHead.of_liftN_one
   have HH := H.subst ((ProofShape.Subst.one .proof).liftN depth)
   simpa only [ProofShape.consume_unused_lift] using HH
 
-/-- Bounded completion after an exact reverse renaming that is identity or
-one binder insertion. This is a readout witness, not a claim of completion in
-the current context. Closure through arbitrary later scope moves is open. -/
+/-- Bounded completion after any exact reverse variable renaming. Arbitrary
+finite compositions are permitted. This is a readout witness, not a claim of
+completion in the current context; arbitrary scope transport remains open. -/
 def EqTargetPrefixRetraction (Δ : List VExpr) (v w : VLevel) (original : List VExpr)
     (Ξ : List ProofShape) (source : ProofShape) : Prop :=
   ∃ Θ κ, ContextRenaming Ξ Θ κ ∧
-    (κ = ProofShape.Subst.id ∨ ∃ depth, κ = fun i => .bvar (liftVar 1 i depth)) ∧
     EqTargetPrefixCompletion Δ v w original Θ (source.subst κ)
 
 /-- The bounded prefix obtains a reverse-renaming completion after every
@@ -109,7 +109,7 @@ theorem EqTargetPrefixCompletion.proof_endpoint_retraction
       ProofShape.mkApps (.const ``Eq.rec ls) (args.take original.length) := by
     rw [← Ef, ProofShape.subst_subst]
     exact proofErase_subst_retained hΓ hf HK
-  refine ⟨Θ, κ, WK, EK, ls, (args.map (·.subst τ)).map (·.subst κ), ?_, ?_⟩
+  refine ⟨Θ, κ, WK, ls, (args.map (·.subst τ)).map (·.subst κ), ?_, ?_⟩
   · simp only [ProofShape.subst_mkApps, ProofShape.subst]
   · have HH := HP.context_history heq hs hΔ HH
     rw [← ES] at HH
@@ -133,7 +133,7 @@ theorem EqTargetPrefixRetraction.read_loss
       (ProofShape.mkApps (.const ``Eq.rec ls) args) target) :
     env.IsDefEq univs Δ a b α := by
   have hlen := (typed_nonstructural_eq_head_loss_singleton heq hreg hoff hD HT HR HN Hstruct).1
-  obtain ⟨Θ, κ, WK, EK, HP⟩ := HP
+  obtain ⟨Θ, κ, WK, HP⟩ := HP
   simp only [ProofShape.subst_mkApps, ProofShape.subst] at HP
   have hlen' : (args.map (·.subst κ)).length ≤ [α,a,M,minor,b].length := by
     simpa only [List.length_map, List.length_cons, List.length_nil] using hlen
@@ -144,9 +144,9 @@ theorem EqTargetPrefixRetraction.read_loss
   simp only [ProofShape.subst_mkApps, ProofShape.subst] at HR'
   apply HC.read_loss heq hs hreg hoff hD hΔ ht HR'
   intro Hhead
-  rcases EK with rfl | ⟨depth, rfl⟩
-  · exact HN (by simpa only [ProofShape.subst_id] using Hhead)
-  · exact HN (WrappedConstHead.of_liftN_one (by simpa only [subst_bvar_liftN] using Hhead))
+  exact HN (Hhead.of_variable_rename (fun i => by
+    obtain ⟨j, Ej, _⟩ := WK.lookup i
+    exact ⟨j, Ej⟩))
 
 /-- A primitive head loss after proof-valued endpoint consumption reads the
 same target equation, even when completion contains arbitrary unused ambient

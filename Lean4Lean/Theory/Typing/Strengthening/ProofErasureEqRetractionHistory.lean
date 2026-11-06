@@ -26,12 +26,12 @@ theorem EqTargetPrefixRetraction.compute_components
     (HA : List.Forall₂ (ScopedCompute (PiInertStage D n) Ξ) args args') (arity : Nat) :
     EqTargetPrefixRetraction Δ v w original Ξ
       (ProofShape.mkApps (.const ``Eq.rec ls') (args'.take arity)) := by
-  obtain ⟨Θ, κ, WK, EK, HP⟩ := H
+  obtain ⟨Θ, κ, WK, HP⟩ := H
   simp only [ProofShape.subst_mkApps, ProofShape.subst] at HP
   have HA' : List.Forall₂ (ScopedCompute (PiInertStage D n) Θ)
       (args.map (·.subst κ)) (args'.map (·.subst κ)) :=
     List.forall₂_map_both (fun _ _ H => H.rename (pi_inert_stage_rename heq hs n) WK) HA
-  refine ⟨Θ, κ, WK, EK, ?_⟩
+  refine ⟨Θ, κ, WK, ?_⟩
   simpa only [ProofShape.subst_mkApps, ProofShape.subst, List.map_take] using
     HP.compute_components heq hs hΔ HL HW HA' arity
 
@@ -48,19 +48,13 @@ theorem EqTargetPrefixRetraction.eta
     (SD : DomainSort Ξ A u) :
     EqTargetPrefixRetraction Δ v w original (A :: Ξ)
       (.app ((ProofShape.mkApps (.const ``Eq.rec ls) args).liftN 1) (etaArgument u)) := by
-  obtain ⟨Θ, κ, WK, EK, HP⟩ := H
+  obtain ⟨Θ, κ, WK, HP⟩ := H
   have RN' := RN.rename (erased_static_structure_eta_expansion_stage_rename heq hs guardStage) WK
   have SD' := ContextSubstitution.sort WK.interpretation SD
   simp only [ProofShape.subst_mkApps, ProofShape.subst] at HP RN'
-  refine ⟨A.subst κ :: Θ, κ.lift, WK.cons, ?_, ?_⟩
-  · rcases EK with rfl | ⟨depth, rfl⟩
-    · exact .inl ProofShape.Subst.id_lift
-    · refine .inr ⟨depth+1, ?_⟩
-      funext i
-      cases i <;> simp [ProofShape.Subst.lift, ProofShape.liftN, liftVar, Nat.add_comm]
-      split <;> omega
-  · simpa only [ProofShape.subst, ProofShape.lift_subst_lift, etaArgument_subst,
-      ProofShape.subst_mkApps] using HP.eta heq hs hΔ ht RN' SD'
+  refine ⟨A.subst κ :: Θ, κ.lift, WK.cons, ?_⟩
+  simpa only [ProofShape.subst, ProofShape.lift_subst_lift, etaArgument_subst,
+    ProofShape.subst_mkApps] using HP.eta heq hs hΔ ht RN' SD'
 
 /-- The actual supplied eta argument and remaining tail preserve the reverse
 renaming through consumption, including beyond the target prefix. Body and
@@ -83,7 +77,7 @@ theorem EqTargetPrefixRetraction.consume_eta_components
     (RXS : List.Forall₂ (ScopedCompute (PiInertStage D argStage) Ξ) rest rawRest) :
     EqTargetPrefixRetraction Δ v w original Ξ
       (ProofShape.mkApps (.const ``Eq.rec bodyLs) (rawBody.map (·.inst rawX) ++ rawRest)) := by
-  obtain ⟨Θ, κ, WK, EK, HP⟩ := H
+  obtain ⟨Θ, κ, WK, HP⟩ := H
   have RN' := RN.rename (erased_static_structure_eta_expansion_stage_rename heq hs guardStage) WK
   have SD' := ContextSubstitution.sort WK.interpretation SD
   have HAmap : List.Forall₂ (ScopedCompute (PiInertStage D bodyStage) (A.subst κ :: Θ))
@@ -101,7 +95,7 @@ theorem EqTargetPrefixRetraction.consume_eta_components
     List.forall₂_map_both (fun _ _ H => H.rename (pi_inert_stage_rename heq hs argStage) WK) RXS
   simp only [ProofShape.subst_mkApps, ProofShape.subst, List.map_append,
     List.map_cons] at HP RN' HT'
-  refine ⟨Θ, κ, WK, EK, ?_⟩
+  refine ⟨Θ, κ, WK, ?_⟩
   simpa only [ProofShape.subst_mkApps, ProofShape.subst, List.map_append,
     List.map_map, Function.comp_def, ProofShape.subst_inst] using
     HP.consume_eta_components heq hs hΔ ht RN' SD' HL HA' HT' RX' RXS'
@@ -181,7 +175,7 @@ theorem EqTargetPrefixRetraction.take_prefix {D : Definitions}
     EqTargetPrefixRetraction Γ v w original Δ (ProofShape.mkApps (.const ``Eq.rec ls) pre) := by
   have HH := HP.compute_components heq hs hΓ (.rfl (fun _ _ => by rfl))
     (by
-      obtain ⟨Θ, κ, _, _, HP⟩ := HP
+      obtain ⟨Θ, κ, _, HP⟩ := HP
       simp only [ProofShape.subst_mkApps, ProofShape.subst] at HP
       exact typed_const_levels_wf HP.prefix.typed)
     (show List.Forall₂ (ScopedCompute (PiInertStage D 0) Δ) (pre ++ pending) (pre ++ pending) from
@@ -255,7 +249,7 @@ theorem EqTargetPrefixRetraction.read_guard
         (ProofShape.mkApps (.const ``Eq.rec ls) args) target ∨
       ComputedJointPrefixPrimitive Step Ξ (ProofShape.mkApps (.const ``Eq.rec ls) args) target) :
     env.IsDefEq univs Δ a b α := by
-  obtain ⟨Θ, κ, WK, _, HP⟩ := HP
+  obtain ⟨Θ, κ, WK, HP⟩ := HP
   simp only [ProofShape.subst_mkApps, ProofShape.subst] at HP
   have HG' : CarrierRecoveredSingletonPrimitive Step Θ
       ((ProofShape.mkApps (.const ``Eq.rec ls) args).subst κ) (target.subst κ) ∨

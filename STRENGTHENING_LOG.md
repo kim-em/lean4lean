@@ -34357,3 +34357,41 @@ consider composing reverse renamings beyond the current single-insertion
 representation, and replaying retained annotations. Non-proof agreement and
 well-founded scope progress remain open. GOAL.md is incomplete and
 `weakN_iff` still has its original gap. No executable changes or PR extraction.
+
+
+## 2026-11-06 19:49:17 UTC — General reverse-renaming composition and repeated proof consumption
+
+Added `ProofErasureWrappedRenamingReflection.lean`. Structural reflection
+handles all wrapped-head constructors; the identity case proves that lifted
+variable renaming cannot create the fresh variable from an older variable.
+No injectivity or typing premise is required for this syntactic theorem.
+
+Generalized `EqTargetPrefixRetraction` by removing its identity-or-one-insertion
+restriction. Its exact context interpretation and oracle equations remain
+required. Head-loss readout now uses general wrapped-head reflection. Existing
+component, eta, singleton guard and strict-minimum results rebuild against the
+generalized invariant; no target conclusion or required history was weakened.
+
+Added `ProofErasureEqRetractionComposition.lean`: ordinary completion embeds
+via identity, and pullback composes exact reverse maps. A proof-valued binder
+has no retained occurrence in a typed erasure, so consuming any raw argument
+and reinserting the binder restores the source literally. Realizing the
+current typed source at the domain-sort witness proves further topmost proof
+consumption preserves an already existing retraction. The actual base-map
+classifier retains its argument and interpretation when the domain has no
+Prop witness. Finite repeated proof histories interleave such consumptions
+with existing component/eta histories, preserving the witness and reading an
+actual nonstructural head loss without target inhabitants for unused binders.
+
+Validation: 1043 jobs including global and regression modules. All 36
+public roots, including the unchanged strict-minimum module, passed recursive
+type/value/constructor/recursor and axiom audits, maximum closure 11,976.
+Only propext, Classical.choice and Quot.sound occur; no owned diagnostics,
+sorryAx, strengthening dependency or excluded circular framework. All 1,018
+frozen source hashes remained unchanged.
+
+Remaining: transport changed retained annotations above later consumption,
+possibly retaining actual embedding structure for those reverse maps; derive
+non-proof image agreement and progress through equal-cost moves. No arbitrary
+wrapper coverage, sufficient smaller obligation, or strengthening proof is
+claimed. The original weakN_iff gap remains. No executable changes or PRs.
