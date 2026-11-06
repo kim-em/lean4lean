@@ -16494,3 +16494,45 @@ none of GOAL.md's final deliverables is established.
 Validation: 832 jobs, 7 audited roots, maximum closure 12,334;
 807 frozen source/import hashes. Only standard axioms; no forbidden dependency
 or owned-module warnings.
+
+
+### 2026-11-06 04:43:10 UTC — Eta consumers transport through core/cast exposure histories
+
+Previous goal turn: progress (ad99863c, exact exposed-lambda eta/annotation
+consumer equivalence). Revalidated HEAD and both independent untracked files.
+
+Idea: replace ordinary-core exposure of the source function by its retained
+ArgumentHistory at the assigned Pi carrier. Verdict: proved. A target eta
+comparison transports backward through the history by computation prefixes
+for the ordinary consumer and the eta-expanded consumer. Domain certificates
+remain explicit at the target lambda and feed the established reannotation
+result there. No domain certificate is reconstructed from semantic conversion.
+
+The needed composition theorem uses a typed template whose result type is
+independent of its input. An arbitrary outer consumer weakens over the input
+binder and is instantiated with that template; interpretation of the original
+history then produces the composed computation. Eta expansion has exactly this
+fixed-result typing. Both computation prefixes retain their stage and all
+future typed substitutions/full-core interpretation. This is not a claim of
+closure through arbitrary templates with genuinely dependent result types:
+the generic outer consumer would not have its required input type there.
+
+Concrete extension: a reflexively cast lambda has stage-one eta comparison in
+every typed consumer, constructed from reflexive type/domain certificates and
+one cast history. If the payload is not a proof, the cast's erased Eq recursor
+shape persists along every ordinary-core path. It therefore cannot expose any
+raw lambda by that core. cast_eta_beyond_core_exposure packages the positive
+consumer result and this negative exposure fact for the same actual function.
+Thus the history result handles sources outside the preceding exposure route.
+
+Limits: not every function has a certified history to a lambda, and arbitrary
+semantic domain conversions still lack retained certificates. The original
+proposition front and all final GOAL.md deliverables remain open. Next live
+direction: contextual comparison for neutral or recursive function sources
+without history exposure, or a derivation-level coverage argument that retains
+the necessary caller certificates. No finite-development normalization claim
+is used or made.
+
+Validation: 833 build jobs; 9 complete audit roots; maximum closure
+12,353; 808 frozen source/import hashes. Only standard axioms; no
+forbidden dependencies or owned-module warnings.

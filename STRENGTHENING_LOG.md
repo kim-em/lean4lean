@@ -30299,3 +30299,41 @@ certificate. It does not cover all function values or derive arbitrary domain
 certificates from semantic conversion. General coverage, the original sorry
 and every final GOAL.md deliverable remain open. Executable and independent
 files preserved; no coordination or PR extraction/creation.
+
+
+### 2026-11-06 04:43:10 UTC — Eta consumer comparison beyond ordinary-core lambda exposure
+
+Added ProofErasureEtaHistoryConsumer.lean. ArgumentHistory.consumer reads its
+interpretation at actual typed endpoints. consumer_compose constructs the
+composition of a fixed-result template and an arbitrary typed outer consumer
+by weakening and instantiation. eta_consumer specializes that construction to
+the eta template at the same assigned Pi carrier.
+
+eta_consumer_prefix combines the two retained computation prefixes with a
+comparison at the target function. eta_consumer_of_history_lambda applies the
+preceding exposed-lambda/reannotation theorem only at that target. The source
+may be connected by arbitrary composition of certified core and cast history
+steps; an ordinary-core exposure path is no longer required. Actual-environment
+wrappers discharge the primitive-core interfaces. Stage and comparison mode
+are preserved, as are future typed substitutions and full-core readout.
+
+hereditary_cast_function_eta_consumer constructs the stage-one history for a
+reflexively cast lambda from actual typings. reflexive_cast_no_core_lambda
+proves that every ordinary-core residual of a non-proof reflexive cast retains
+the blocked Eq-rec shape and hence cannot be a raw lambda. The combined
+cast_eta_beyond_core_exposure theorem supplies both facts for the same source,
+showing that the new sufficient case exceeds ordinary-core exposure.
+
+Validation: 833 jobs; 9 audited roots; maximum closure 12,353;
+808 frozen hashes. Complete traversal includes declaration types, opaque
+bodies, constructors and recursor RHSs. Only propext, Classical.choice and
+Quot.sound; no forbidden dependency or owned-module warnings. Prior feedback
+and finite-stage substitution-barrier clients rebuilt.
+
+Judgment: certified target-domain information now survives non-core exposure
+histories inside arbitrary eta consumers. Neither general history coverage nor
+arbitrary domain-certificate recovery is proved. The fixed-result condition in
+consumer composition is explicit and is satisfied by eta; genuinely dependent
+intermediate carriers remain outside that composition theorem. Strengthening
+and every final GOAL.md deliverable remain open. Original sorry, executable and
+independent files preserved; no coordination or PR extraction/creation.
