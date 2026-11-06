@@ -18473,3 +18473,47 @@ Validation: 996 build jobs, 10 complete dependency roots, maximum
 closure 11,643; 971 frozen source hashes. Only propext, Classical.choice
 and Quot.sound; no forbidden dependencies or warnings in the changed modules.
 Executable unchanged; no PR extraction or coordination.
+
+
+## 2026-11-06 13:34:25 UTC — General singleton readout across the fresh proof-major binder
+
+**Idea.** After the first binder descent, retain the component computation
+certificates as well as their semantic equalities and actual representatives.
+Those paths can then descend through the original ambient block, without a
+substitution interpreting either removed block in the target context.
+
+**Verdict: proved, including the registry-derived prefix bound.**
+`proofErase_scoped_spine_arguments_certificate_descend` preserves lower
+pointwise computations, semantic component equalities, exact lifted output,
+and whole-spine typing. `EqPrefixSpecialization.read_computed_singleton_two_blocks`
+uses it to lower the later binder block, lowers the selected singleton at the
+computed actual prefix, then uses the retained component paths for the earlier
+block and the original target-completion readout.
+
+`read_singleton_after_eta` applies this to the full five-argument prefix's
+fresh eta body. The existing canonical-Eq registry theorem
+`SingletonPrimitiveWith.eq_rec_arity_le` proves every valid general singleton
+has arity at most five. Thus the fresh proof-major slot is discarded before
+descent without assuming a bound or an actual lower proof. The initially
+considered extra prefix-bound hypothesis was unnecessary and is absent from
+the final theorem.
+
+`read_singletons_after_eta` combines this with specialized computed-guard
+readout, allowing independent finite body and root stages. Both singleton
+forms at this proof-major boundary now read the same original target equation.
+The API is available through the full exposure theorem's import chain; this
+commit does not yet thread its specialization witness through every nested cut.
+
+Remaining: the complete mixed-continuation induction, preserving source
+specializations and ambient insertion histories while classifying useful roots
+and bypassing administrative body histories. Repeated alternation between
+specialized fresh arguments and unused fresh binders may require a finite
+sequence of binder insertions rather than a single block; the new retained
+certificate descent is suitable for iteration. This route remains open.
+No strengthening, counterexample, or sufficient strictly smaller logical
+obligation than PropFront is claimed. GOAL.md remains active and unachieved.
+
+Validation: 997 build jobs, 9 complete dependency roots, maximum
+closure 11,643; 972 frozen source hashes. Only propext, Classical.choice
+and Quot.sound; no forbidden dependencies or warnings in the changed modules.
+Executable unchanged; no PR extraction or coordination.

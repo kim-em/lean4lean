@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertEqEtaComputed
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPrefixSpecialization
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSingletonBinderReadout
 
 /-! # Read an inner singleton through both Eq argument histories
 

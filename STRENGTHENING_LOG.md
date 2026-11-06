@@ -32434,3 +32434,49 @@ roots, maximum closure 11,643; 971 frozen source hashes. Only propext,
 Classical.choice and Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden
 closure/alignment assumptions or warnings in the changed modules. Executable
 unchanged; no PR extraction or coordination.
+
+
+## 2026-11-06 13:34:25 UTC — Retain component certificates for two-stage singleton descent
+
+Added `ProofErasureEqSingletonBinderReadout.lean`. The generic component
+certificate theorem follows the typed application spine, using certificate
+descent at each actual argument. It returns the lower pointwise computations
+alongside the semantic equalities, exact lifted erasures, and original whole
+assignment. Keeping only semantic equalities would not justify the next
+ambient descent.
+
+`EqPrefixSpecialization.read_computed_singleton_two_blocks` weakens the actual
+source prefix through the earlier block, reifies the body components below
+the later block while retaining their computation paths, and types the newly
+computed source prefix. The singleton primitive descends below that later
+block at the selected actual prefix. Its retained lower component paths then
+feed the existing readout through the earlier block and into the fixed target
+completion. Both insertions may have arbitrary depths; neither is interpreted
+by a target substitution. No guarded computation is substituted.
+
+`read_singleton_after_eta` recovers an actual lower Pi domain and realizes the
+raw fresh annotation exactly. It takes the first five component histories.
+The prefix bound follows from valid singleton generation under canonical Eq,
+via the existing `eq_rec_arity_le`; it is not a new hypothesis. Consequently
+the fresh proof-major argument need not have an actual target representative.
+The two-block theorem reads the original target equation. A combined
+`read_singletons_after_eta` handles either general singleton or specialized
+computed Eq guard, with independent body and root stages.
+
+The inner Eq singleton module now imports this API, so the full exposure and
+nested-eta modules are built with it. Their main statements and assumptions
+remain unchanged. Threading the source specialization through all deeper cuts
+and mixed continuation frames is still required; the new readout is not a
+completed induction or eta-elimination theorem. Next-root classification and
+administrative bypasses remain open. Arbitrarily interleaved ambient blocks
+can be approached by iterating the retained certificate descent, but that
+iteration and its connection to the full induction are not claimed here.
+GOAL.md remains unachieved, including the strictly smaller sufficient-obligation
+alternative.
+
+Validation: 997 build jobs including full exposure, nested eta, contextual
+cast and core-family substitution regressions; 9 complete dependency
+roots, maximum closure 11,643; 972 frozen source hashes. Only propext,
+Classical.choice and Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden
+closure/alignment assumptions or warnings in the changed modules. Executable
+unchanged; no PR extraction or coordination.
