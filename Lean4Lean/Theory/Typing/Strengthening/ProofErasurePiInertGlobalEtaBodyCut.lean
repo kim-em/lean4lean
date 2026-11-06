@@ -1,5 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqTargetPrefixExecution
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertConstantFrames
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqTargetPrefixMinimum
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSpecializationFrames
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -58,9 +57,16 @@ excluded by `pi_inert_frames_minimum_no_constant`, using actual source typing
 to recover the lower payload before unused-binder certificate descent. Its
 competitor keeps the same continuation predicate through every mixed frame.
 Thus both administrative expansion cases are excluded at tracked roots of
-typed minima. Component-only transitions through enclosing wrappers still
-need target agreement from their actual histories; coverage of arbitrary
-wrapped-body histories remains open. `read_full_eta_loss_in_minimum` reads a head-losing root
+typed minima. `TargetPrefixEqSpineCut.eq_or_smaller` now combines both
+exclusions with direct positive singleton readout and structure/core exclusion:
+every completed non-level cut reads the original equation or yields a strictly
+smaller completed eta-body minimum. `minimum_frontier` iterates this decrease
+by strong induction and reaches a component-only current path with completion
+at both endpoints. The conclusion retains this actual
+`EqTargetPrefixComponentMinimum` within the smaller budget, including its
+original typed continuation and unrestricted competitor minimum. Component-only
+transitions through enclosing wrappers still need target agreement from their
+actual histories; coverage of arbitrary wrapped-body histories remains open. `read_full_eta_loss_in_minimum` reads a head-losing root
 in the full-prefix body component history through any iterated insertions.
 In the proof-major case, a head-losing primitive
 reached through its body component history either reads the original equation
@@ -132,7 +138,8 @@ and semantic agreement of the target assignments. Its witnesses compose, lift
 under retained binders and arise from context conversion or computed argument
 supply (`eta_supply_frame`). `eq_or_eta_after_frame` reads the later cut after
 such a composed frame. Deriving agreeing frames throughout the actual arbitrary
-mixed continuation, and closing the remaining eta recursion, are still open. -/
+mixed continuation remains open at the component-only frontier. The completed
+non-level cuts are handled by the strict minimum descent above. -/
 theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hreg : recursorData ``Eq.rec = some data) (hoff : data.majorOffset = 5)
@@ -177,6 +184,7 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
             (ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre)) ∧
         EqTargetPrefixCompletion Γ v w [α,a,M,m,b] (innerA :: A :: proofEraseCtx Γ')
           (.app ((ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre).liftN 1) (etaArgument innerU)) ∧
+        EqTargetPrefixComponentMinimum D Γ v w [α,a,M,m,b] (proofEraseCtx Γ') out smaller ∧
         ∃ innerStage innerB,
           ScopedTypeRecovery (ErasedStaticStructureEtaExpansionStage D innerStage) (A :: proofEraseCtx Γ')
             (ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre) (.forallE innerA innerB) ∧
@@ -305,9 +313,16 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
             · rcases (Hfailure.singleton heq hreg hoff hRec).eq_or_iterated_ambient_failure
                   heq hs hreg hoff hRec hΓ ht with Hlower | Hfailure'
               · exact .inl Hlower
-              · exact .inr ⟨stage, cost, ls, pre, pending, _, _, _, k, cp, ct,
-                RC, hminAll, hcostExact, HL, hshort, HA, RP, HTpre, hk, RN, SD, RT, HBcompleted,
-                innerA, innerU, bodyLs, bodyPre, smaller, HM.eq_positive heq Hhead HE, hsmall, HM, Hfailure', HPnested, HPuniform, innerStage, innerB, RNinner, SDinner,
-                  fun _ hr => HM.no_rigid_tail heq hs HCout hr⟩
+              · have ES : .app ((ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre).liftN 1) (etaArgument innerU) =
+                    ProofShape.mkApps (.const ``Eq.rec bodyLs) (bodyPre.map (·.liftN 1) ++ [etaArgument innerU]) := by
+                  simp only [ProofShape.liftN_mkApps, ProofShape.liftN, ProofShape.mkApps_append, ProofShape.mkApps]
+                rcases (ES ▸ HPuniform).minimum_frontier heq hs hreg hoff hRec hΓ ht (ES ▸ HM) HE HCout with
+                  Hlower | Hfront
+                · exact .inl Hlower
+                · exact .inr ⟨stage, cost, ls, pre, pending, _, _, _, k, cp, ct,
+                    RC, hminAll, hcostExact, HL, hshort, HA, RP, HTpre, hk, RN, SD, RT, HBcompleted,
+                    innerA, innerU, bodyLs, bodyPre, smaller, HM.eq_positive heq Hhead HE, hsmall, HM,
+                    Hfailure', HPnested, HPuniform, Hfront, innerStage, innerB, RNinner, SDinner,
+                    fun _ hr => HM.no_rigid_tail heq hs HCout hr⟩
 
 end Lean4Lean.VEnv.Strengthening

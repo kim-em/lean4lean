@@ -19405,3 +19405,33 @@ close the eta recursion or prove strengthening. `weakN_iff` remains open;
 no sufficient obligation strictly smaller than PropFront is claimed.
 Validation: 1028 jobs, 13 audited roots, maximum closure 11,813,
 1,003 frozen source hashes. No executable changes, PR extraction or coordination.
+
+
+## 2026-11-06 17:52:23 UTC — Reduce completed minima to an actual component frontier
+
+Verdict: verified progress. `ProofErasureEqTargetPrefixMinimum.lean` combines
+the two administrative exclusions with positive singleton readout, ordinary
+core exclusion, rigid-tail structure exclusion and the existing strict eta
+minimum decrease. Every prefix-completed non-level cut in an actual typed
+mixed minimum now either proves the original equation or gives a strictly
+smaller prefix-completed minimum. Strong induction reaches a component-only
+frontier, retained explicitly in the global theorem within its smaller budget.
+
+Positive guard readout is needed here: singleton output can retain an Eq head,
+so head-loss readout alone does not classify every actual non-level root.
+The new single-block, iterated-insertion and bounded-prefix `read_guard`
+theorems descend the same singleton family and read its semantic guard without
+requiring any output-head exclusion. The guard's own code supplies its arity
+bound, turning bounded completion into full completion at that root.
+
+`EqTargetPrefixComponentMinimum` retains the actual source and endpoint spines,
+component and level ancestry, bounded completion at both endpoints, the counted
+path, actual typed mixed continuation, and its original unrestricted minimum.
+The remaining obligation is target agreement when this completed endpoint
+enters enclosing frames. Arbitrary typed substitutions do not provide that
+agreement; it must be derived from the actual eta origins and supplied argument
+histories. The new frontier does not assert universal agreement or impossibility.
+
+Strengthening and sufficient strict reduction below PropFront remain unproved.
+Validation: 1029 jobs, 8 audited roots, maximum closure 11,902,
+1,004 frozen source hashes. No executable changes, PR extraction or coordination.

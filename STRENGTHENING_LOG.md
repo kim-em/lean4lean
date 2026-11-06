@@ -33729,3 +33729,56 @@ dependencies. No owned diagnostics; all 1,003 frozen source hashes stayed
 unchanged across the build and audit. Strengthening and a sufficient strictly
 smaller irreducible obligation remain open. No executable changes, PR extraction
 or coordination.
+
+
+## 2026-11-06 17:52:23 UTC — Strong induction reaches a completed component minimum
+
+Added `ProofErasureEqTargetPrefixMinimum.lean`. `EqHeadCompletion.read_guard`
+reads either recovered singleton or computed joint prefix directly from its
+positive guard. `IteratedAmbientEqCompletion.read_guard` descends the same
+singleton family through every actual unused insertion using primitive-rule
+descent, then performs semantic specialization at the base completion.
+`EqTargetPrefixCompletion.read_guard` derives the root's at-most-five arity
+from the positive singleton, so its bounded completion is the full root.
+None of these results needs the output to lose its tracked Eq head.
+
+`TargetPrefixEqSpineCut.eq_or_smaller` uses the exact recorded cut and its
+actual typed continuation. Ordinary core roots are impossible at typed Eq
+heads; level roots were excluded by the cut. A structure root would give a
+rigid-tail assignment surviving the pending arguments, root/suffix computation
+and all enclosing typed frames to the sort-typed final output. The identity
+and constant deletion theorems contradict the original minimum at the tracked
+pending-argument hole. Either positive singleton reads the target directly.
+The sole remaining family is native function eta; `eta_typed_minimum` supplies
+a strictly smaller actual mixed minimum with bounded completion at its fresh
+Eq-spine source, with no arity restriction.
+
+`EqTargetPrefixCompletion.minimum_frontier` applies strong induction on the
+whole minimum count. Each non-level case reads the equation or recurses at the
+strictly smaller eta minimum. A component-only branch records the actual
+current counted path, its level/component ancestry, prefix completion at both
+ends, full-source typing, actual typed continuation and the same unrestricted
+minimum in `EqTargetPrefixComponentMinimum`. Budget monotonicity preserves
+that exact witness when returning through earlier eta cuts.
+
+The global exposure theorem now invokes this induction on the already-derived
+uniform completion and smaller nested-eta minimum. Its successful branch reads
+the original equation; its residual branch additionally contains an actual
+`EqTargetPrefixComponentMinimum` within that smaller budget. Previous failure,
+completion, native recovery and nonrigidity data remain retained.
+
+Validation: 1029 jobs including GlobalEtaBodyCut and the established
+ContextualCastFeedback/CoreFamilySubstitutionBarrier regressions. All seven
+new public declarations and the strengthened global theorem passed recursive
+dependency and axiom audit, maximum closure 11,902. Only propext,
+Classical.choice and Quot.sound occur; no weakN_iff, weakN_inv, sorryAx or
+excluded framework dependencies. No owned diagnostics; all 1,004 frozen source
+hashes remained unchanged across the final build and audit.
+
+Remaining: completion at the current endpoint does not prove agreement with
+an arbitrary continuation substitution. The actual recorded eta origins and
+argument histories must supply that agreement when the component frontier
+advances through its enclosing frames. The frontier is a proved necessary
+residual of this exposure argument, not a proved impossible case or a sufficient
+irreducible obligation strictly smaller than PropFront. `weakN_iff` remains
+open. No executable changes, PR extraction or coordination.
