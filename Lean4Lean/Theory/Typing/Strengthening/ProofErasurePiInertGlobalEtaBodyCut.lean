@@ -10,6 +10,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqInsertionChain
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSaturatedChain
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainConsumption
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainAnnotations
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqChainRetained
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -174,10 +175,15 @@ suffix with a smaller primitive cost or one fewer recorded continuation frame.
 finite recorded annotation histories, keeping the same outgoing contexts and
 maps. `chain_context_history` preserves both chosen assignments and the exact
 erased prefix; `chain_context_components` resumes actual computation in the
-changed source scope with exact outgoing endpoint agreement. Matching the
-whole actual continuation through retained wrappers and consuming binders used
-by the tracked prefix still need integration; the original-probe frontier
-below is unchanged.
+changed source scope with exact outgoing endpoint agreement.
+`retained_chain_endpoint` now matches a recorded retained-binder endpoint,
+including its changed outgoing annotation, while preserving both chosen images
+and the shifted insertion chain. `retained_unused_endpoint` covers the other
+case: an unused binder with an arbitrary upper domain and no chosen image.
+Both construct the exact `PiInertEndpointContext.binder` target, rather than
+transporting a guarded path through substitution. Covering the whole selected
+continuation recursively and consuming binders used by the tracked prefix
+still need integration; the original-probe frontier below is unchanged.
 `minimum_frontier` iterates this decrease
 by strong induction and reaches a component-only current path with completion
 at both endpoints. The conclusion retains this actual

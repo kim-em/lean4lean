@@ -35192,3 +35192,50 @@ strengthening gap or excluded circular framework. All 1,039 source hashes
 remained fixed. Original-probe root independent of the old nested-eta frontier.
 Original weakN_iff sorry and executable unchanged; GOAL.md active;
 no PR extraction or Lean/Lake patch.
+
+
+## 2026-11-06 22:09:47 UTC — Matched retained endpoints preserve the paired chain and chosen images
+
+Added `ProofErasureEqChainRetained.lean`, imported by the global module.
+`EqSpecializationFrame.target_convert` converts outgoing contexts while keeping
+both chosen substitutions, literal actual/raw maps and their agreement.
+`EqFrameInsertionChain.weak_eq` weakens actual annotation equality through the
+same source chain. `EqFrameInsertion.under_binder_converted` and the chain
+version retain the original source domain but use the new domain's actual
+image on the outgoing side. The existing insertion counts/offsets shift under
+the binder; typing and erasure convert at the outgoing context while both
+syntactic commuting equations stay fixed.
+
+`retained_endpoint` descends a recorded native annotation computation through
+the chain, retains its lower certificate and semantic domain equality, and
+constructs the exact outgoing context of `PiInertEndpointContext.binder`.
+It derives the equality between the new outgoing domain's erasure and the
+recorded raw annotation result substituted by the old upper map. No guarded
+path is substituted. The original source domain and chosen image on each
+side remain unchanged. `retained_chain_endpoint` applies this construction to
+a chosen Eq body specialization, preserving its outgoing assigned type and
+exact equality between its outgoing erased components and the source components
+under the actual lifted map.
+
+`insert_converted_domain` handles a retained binder unused by the chosen lower
+prefix: append a top insertion with the original actual upper source domain
+and the new outgoing image. `retained_unused_endpoint` realizes annotation
+computation directly in that actual upper scope, so the domain may depend on
+older inserted declarations and need not be a proposition. It constructs the
+same exact recorded retained endpoint without requiring a target inhabitant.
+
+These constructions close the local changed-annotation mismatch for represented
+and unused retained domains. They do not prove that every selected continuation
+can already be decomposed and traversed with this paired invariant. That global
+coverage and consumption of binders used by the tracked prefix remain open.
+The original-probe frontier is unchanged; this is not strengthening or a
+sufficient irreducible obligation strictly smaller than PropFront.
+
+Validation: 1065 build jobs including the global theorem and established
+regressions; 115 declarations recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening gap or excluded circular framework. All 1,040 source hashes
+remained fixed. Original-probe root independent of the old nested-eta frontier.
+Original weakN_iff sorry and executable unchanged; GOAL.md active;
+no PR extraction or Lean/Lake patch.

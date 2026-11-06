@@ -20260,3 +20260,28 @@ consumption of used binders still requires integration. This is not a sufficient
 smaller obligation or full strengthening. Validation: 1064 jobs, 107
 recursive roots, maximum closure 11,976; only propext, Classical.choice
 and Quot.sound, all 1,039 source hashes fixed.
+
+
+## 2026-11-06 22:09:47 UTC — Match the actual changed outgoing annotation of a retained binder
+
+**Idea.** Keep the source binder fixed while converting the outgoing binder
+to the actual computed domain's substituted image. Rebuild the paired chain
+with those two different, definitionally equal domains; do not ask for a
+substituted guarded computation certificate.
+
+**Verified.** `target_convert` preserves both chosen images and maps.
+`under_binder_converted` lifts an insertion and then a whole chain with the
+old source domain and new outgoing domain. `retained_endpoint` descends the
+actual annotation path, constructs exactly its recorded substituted outgoing
+domain, and retains the corresponding `PiInertEndpointContext.binder`.
+`retained_chain_endpoint` carries the chosen Eq prefix and exact raw component
+agreement through this matched endpoint. `retained_unused_endpoint` treats
+an arbitrary upper domain without a chosen target image, appending a converted
+unused insertion instead.
+
+**Verdict.** The local retained-binder annotation mismatch is resolved in both
+represented and unused-domain cases. Whole-continuation coverage and consumption
+of binders used by the tracked prefix still require integration; original-probe
+frontier and strengthening gap unchanged. Validation: 1065 jobs, 115
+recursive roots, maximum closure 11,976; only propext, Classical.choice
+and Quot.sound, all 1,040 source hashes fixed.
