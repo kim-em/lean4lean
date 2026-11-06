@@ -19,7 +19,8 @@ inductive CoreFamilyKind where
 
 /-- A finite recursive grammar alternating full-core stable computations and
 comparisons. Every new cast consumes a smaller comparison child; joins consume
-smaller computation children. No constructor assumes stability as an oracle. -/
+smaller computation children. Annotation domains have a shared actual sort, so
+either checking mode is accepted. No constructor assumes stability as an oracle. -/
 inductive CoreFamilyCast (D : Definitions) :
     Nat → CoreFamilyKind → List ProofShape → ProofShape → ProofShape → Prop where
   | prior : ContextualCastGuard D n mode Δ a b → CoreFamilyCast D n (.compare mode) Δ a b
@@ -40,7 +41,7 @@ inductive CoreFamilyCast (D : Definitions) :
   | annotation (hΓ : OnCtx Γ (env.IsType univs))
       (hA : env.HasType univs Γ A (.sort u)) (hC : env.HasType univs Γ C (.sort u))
       (hb : env.HasType univs (A :: Γ) b B) (ht : env.HasType univs (.forallE A B :: Γ) t T)
-      (H : CoreFamilyCast D n (.compare false) (proofEraseCtx Γ) (proofErase Γ A) (proofErase Γ C)) :
+      (H : CoreFamilyCast D n (.compare domainMode) (proofEraseCtx Γ) (proofErase Γ A) (proofErase Γ C)) :
       CoreFamilyCast D n (.compare mode) (proofEraseCtx Γ)
         (proofErase Γ (t.inst (.lam A b))) (proofErase Γ (t.inst (.lam C b)))
   | prefixes : CoreFamilyCast D n .compute Δ a a' → CoreFamilyCast D n .compute Δ b b' →

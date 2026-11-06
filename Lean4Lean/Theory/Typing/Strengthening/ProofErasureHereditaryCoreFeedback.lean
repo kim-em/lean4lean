@@ -166,4 +166,70 @@ theorem EnvironmentCore.hereditary_cast_guard_beyond_core
     (hereditary_reflexive_cast henv U heq (by exact hu) hΓ hS hq hpi),
     (cast_annotation_guard_beyond_core henv U heq hu hΓ hpi hq).2⟩
 
+/-- Common-mode domain histories suffice for an annotation consumer whose
+result is a type. Its resulting family comparison constructs the next equality
+major and an arbitrary cast-consumer history, retaining all future substitutions.
+The domain history can also be inferred, but no inferred premise is required. -/
+theorem CoreFamilyCast.Hereditary.annotation_cast
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs) (hl : D.LevelCompatible univs)
+    (hcon : ∀ {p r}, Pat p r → ConcretePattern env p r)
+    (hc : TypedCoreConfluence (ErasedLevelCore D))
+    (hreg : recursorData ``Eq.rec = some data) (hoff : data.majorOffset = 5)
+    (hD : ∀ levels rhs, ¬ D.unfolds ``Eq.rec levels rhs)
+    (hw : w.WF univs) (hΓ : OnCtx Γ (env.IsType univs))
+    (hA : env.HasType univs Γ A (.sort u)) (hC : env.HasType univs Γ C (.sort u))
+    (hb : env.HasType univs (A :: Γ) b B)
+    (ht : env.HasType univs (.forallE A B :: Γ) t (.sort w))
+    (hx : env.HasType univs Γ x (t.inst (.lam A b)))
+    (hk : env.HasType univs (t.inst (.lam A b) :: Γ) k K)
+    (H : CoreFamilyCast.Hereditary D n (.compare domainMode) (proofEraseCtx Γ)
+      (proofErase Γ A) (proofErase Γ C)) :
+    ∃ q, env.HasType univs Γ q
+        (eqApp (.succ w) (.sort w) (t.inst (.lam A b)) (t.inst (.lam C b))) ∧
+      CoreFamilyCast.Hereditary D (n+1) .compute (proofEraseCtx Γ)
+        (proofErase Γ (k.inst (typeCast w (t.inst (.lam A b)) (t.inst (.lam C b)) q x)))
+        (proofErase Γ (k.inst x)) := by
+  obtain ⟨v, hS⟩ := hA.isType henv hΓ
+  have HAC := ((proofErase_computed_joint_compare_reflect
+    (erased_static_structure_eta_expansion_stage_descent heq hs n) hΓ hA hC
+    (H.base.forward heq hs hl hcon hc hreg hoff hD .refl .refl)).1 ⟨_, hS⟩).of_l henv hΓ hA
+  have HL := IsDefEq.lamDF HAC hb
+  have hX : env.HasType univs Γ (t.inst (.lam A b)) (.sort w) :=
+    ht.instN henv Ctx.InstN.zero HL.hasType.1
+  have hY : env.HasType univs Γ (t.inst (.lam C b)) (.sort w) :=
+    ht.instN henv Ctx.InstN.zero HL.hasType.2
+  have HA : CoreFamilyCast.Hereditary D n (.compare true) (proofEraseCtx Γ)
+      (proofErase Γ (t.inst (.lam A b))) (proofErase Γ (t.inst (.lam C b))) :=
+    H.annotation heq hs hl hcon hc hreg hoff hD hΓ hA hC hb ht
+  have HXY := proofErase_computed_joint_carrier_reflect
+    (erased_static_structure_eta_expansion_stage_descent heq hs n) hΓ hX hY
+    (.carrierChecked (HA.base.forward heq hs hl hcon hc hreg hoff hD .refl .refl))
+  have hq := (IsDefEq.eqApp_r heq (by exact hw) (HasType.sort hw) hX HXY).defeq
+    (HasType.eqReflApp heq (by exact hw) (HasType.sort hw) hX)
+  exact ⟨_, hq, HA.castConsumer heq hs hl hcon hc hreg hoff hD hw hΓ hX hY hq hx hk⟩
+
+omit [Params] in
+/-- The complete annotation-to-cast feedback step in an actual canonical-Eq
+environment consumes only a hereditary common-mode domain comparison. The new
+cast can occur in any typed consumer and retains arbitrary typed substitution. -/
+theorem EnvironmentCore.hereditary_common_annotation_cast {env : VEnv} (henv : env.WF) (U : Nat) :
+    letI := henv.params U
+    ∀ {n Γ u w A C b B t x k K}, env.HasCanonicalEq → w.WF U → OnCtx Γ (env.IsType U) →
+      env.HasType U Γ A (.sort u) → env.HasType U Γ C (.sort u) →
+      env.HasType U (A :: Γ) b B → env.HasType U (.forallE A B :: Γ) t (.sort w) →
+      env.HasType U Γ x (t.inst (.lam A b)) → env.HasType U (t.inst (.lam A b) :: Γ) k K →
+      CoreFamilyCast.Hereditary definitions n (.compare true) (proofEraseCtx Γ)
+        (proofErase Γ A) (proofErase Γ C) →
+      ∃ q, env.HasType U Γ q
+          (eqApp (.succ w) (.sort w) (t.inst (.lam A b)) (t.inst (.lam C b))) ∧
+        CoreFamilyCast.Hereditary definitions (n+1) .compute (proofEraseCtx Γ)
+          (proofErase Γ (k.inst (typeCast w (t.inst (.lam A b)) (t.inst (.lam C b)) q x)))
+          (proofErase Γ (k.inst x)) := by
+  letI := henv.params U
+  intro n Γ u w A C b B t x k K heq hw hΓ hA hC hb ht hx hk H
+  obtain ⟨data, hlookup, hr, hn, _⟩ := heq.recursorRegistration henv
+  exact H.annotation_cast heq sound (levelCompatible (fun H => H)) (fun H => H)
+    (typed_level_core_confluence (fun H => H)) hlookup (hr.eqRec_target heq hn).2.1
+    (no_eqRec heq) hw hΓ hA hC hb ht hx hk
+
 end Lean4Lean.VEnv.Strengthening

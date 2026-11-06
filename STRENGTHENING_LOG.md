@@ -30098,3 +30098,46 @@ The earlier inferred-substitution barrier remains valid. Next investigate
 sort-aware common-mode annotation readout and the remaining application/domain
 coverage case. No final GOAL.md deliverable is established. Original sorry,
 executable and independent files preserved; no coordination or PR extraction.
+
+
+### 2026-11-06 04:00:57 UTC — Common-mode annotation histories justify later casts
+
+Generalized ProofErasureStagedAnnotationChecking with
+annotation_variant_domain_computed_check. Each marked guard can supply either
+an inferred check or a common-mode check and two DomainSort witnesses at the
+same universe. Both sorts and the check rename to the actual local context;
+the new branch uses ComputedJointCheck.lamSorted. The original inferred-only
+annotation_variant_computed_check remains a wrapper with its old interface.
+
+Generalized ProofErasureContextualAnnotationCore's residual and consumer
+proofs to either domain mode. The residual proof replays each ordinary-core
+path to retain the domains' original sort. Symmetric residual pairs reverse
+both sort witnesses with the comparison. The actual typed lambda construction
+uses the existing common-type reflection clause, valid in either mode.
+
+CoreFamilyCast.annotation now accepts a comparison child in either mode; its
+full-core interpretation is unchanged except for this weaker input. The
+hereditary annotation theorem reconstructs either child under substitution,
+retaining the same stage. No unrestricted inferred substitution closure or
+conversion from arbitrary common checks to inferred checks was introduced.
+
+Added CoreFamilyCast.Hereditary.annotation_cast: a type-valued annotation
+consumer builds a common-mode family comparison, generates the canonical Eq
+major, and retains a later arbitrary cast consumer under all substitutions.
+EnvironmentCore.hereditary_common_annotation_cast specializes the complete
+construction to actual environments with a common-mode-only input.
+
+Validation: 827 jobs, 57 complete dependency roots, maximum closure
+12,707, 802 frozen source/import hashes. Both the previous contextual
+cast feedback and finite-stage inferred substitution barrier rebuilt. Audit
+includes declaration types, opaque bodies, enlarged grammar constructors and
+recursor RHSs, and hereditary record fields. Only propext, Classical.choice
+and Quot.sound; no forbidden dependencies or owned-module warnings.
+
+Judgment: annotation consumers no longer require an inferred domain premise
+when the actual domains share a sort. This removes that local obstacle from
+the common-mode hereditary route, without proving general semantic coverage.
+Next investigate body comparisons under changing binders and the application
+histories needed for coverage. All GOAL.md final deliverables remain open;
+original sorry, executable and independent untracked files preserved. No
+coordination, PR extraction or PR creation.

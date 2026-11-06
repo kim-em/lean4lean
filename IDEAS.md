@@ -16284,3 +16284,44 @@ Validation: 825 jobs, 26 audited roots including the new record's
 constructor, fields and recursors, maximum closure 12,707; 800 frozen
 hashes. Standard axioms only, no forbidden dependencies or own-module warnings.
 Original sorry and executable unchanged; no coordination or PR extraction.
+
+
+### 2026-11-06 04:00:57 UTC — Shared domain sorts remove inferred annotation premises
+
+Previous turn: progress (1cb3281f, constructive hereditary full-core histories).
+Revalidated the commit and both independent untracked experiments.
+
+Idea: annotation domains already have typings at one actual sort, so retain
+those witnesses through residual computation instead of requiring inferred
+checks of every residual domain pair. Verdict: proved. A marked annotation
+variant can use either an inferred domain check or a common-mode check with
+shared sort witnesses. Exact context renaming transports the witnesses under
+the consumer's binders; lamSorted reads out the marked lambda.
+
+The contextual full-core consumer theorem now accepts either domain mode.
+Actual core replay preserves the original domain sort on every independent
+residual, including the reversed residual pair used by simulation. This
+generalizes the existing CoreFamilyCast annotation constructor and hereditary
+annotation theorem without changing their output stage or removing support
+for earlier inferred inputs. No arbitrary common-to-inferred conversion law
+is assumed or proved.
+
+A new hereditary annotation-to-cast theorem builds a type-valued annotation
+comparison, constructs its canonical equality major and produces a later cast
+inside an arbitrary typed consumer. Its actual-environment specialization
+requires only a common-mode hereditary domain comparison. Thus both cast and
+annotation operations can use the common-mode sort-typed endpoint route; the
+earlier inferred-substitution barrier is no longer an extra premise of this
+annotation branch. The barrier theorem itself still rebuilds for the enlarged
+grammar, and arbitrary prior leaves still lack hereditary coverage.
+
+Next live direction: retain sort-aware body comparisons beneath changing
+binders and determine what additional application history is needed to cover
+semantic equalities. The same-body annotation consumer is now handled; a
+coverage theorem for arbitrary bodies/arguments remains essential. No strictly
+smaller sufficient obligation or other final GOAL.md deliverable is claimed.
+
+Validation: 827 build jobs, 57 audited roots including the enlarged
+grammar's constructors/recursors and the hereditary record, maximum closure
+12,707; 802 frozen hashes. Standard axioms only, no forbidden dependencies
+or owned-module warnings. Original sorry and executable unchanged.

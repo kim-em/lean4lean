@@ -28,7 +28,8 @@ private theorem residual_check
     (hc : TypedCoreConfluence (ErasedLevelCore D))
     (HG : ∀ {a c}, ProofShape.Compute (ErasedLevelCore D) A a →
       ProofShape.Compute (ErasedLevelCore D) C c →
-      ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D stage) (proofEraseCtx Γ) false a c)
+      ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D stage) (proofEraseCtx Γ) domainMode a c)
+    (SA : DomainSort (proofEraseCtx Γ) A u) (SC : DomainSort (proofEraseCtx Γ) C u)
     (hΓ : OnCtx Γ (env.IsType univs)) (ht : env.HasType univs Γ e T)
     (V : AnnotationVariant (ResidualPair D A C) 0 a (proofErase Γ e))
     (RA : ProofShape.Compute (ErasedLevelCore D) a p)
@@ -41,14 +42,34 @@ private theorem residual_check
     (Guard := ResidualPair D A C) (fun H R => H.left R) RB₁'
   obtain ⟨e', HE, EE⟩ := proofErase_scoped_compute_realize (erased_level_core_descent hs)
     hΓ ht rfl rfl ((RB.trans RQ).scoped (fun H => .base H))
+  have sorted {a c} (RA : ProofShape.Compute (ErasedLevelCore D) A a)
+      (RC : ProofShape.Compute (ErasedLevelCore D) C c) :
+      DomainSort (proofEraseCtx Γ) a u ∧ DomainSort (proofEraseCtx Γ) c u := by
+    have replay {x y} (S : DomainSort (proofEraseCtx Γ) x u)
+        (R : ProofShape.Compute (ErasedLevelCore D) x y) : DomainSort (proofEraseCtx Γ) y u := by
+      obtain ⟨Γ₀, X, hΓ₀, EΓ₀, hX, EX⟩ := S
+      obtain ⟨Y, HY, EY⟩ := proofErase_scoped_compute_realize (erased_level_core_descent hs)
+        hΓ₀ hX EΓ₀ EX (R.scoped (fun H => .base H))
+      exact ⟨Γ₀, Y, hΓ₀, EΓ₀, HY.hasType.2, EY⟩
+    exact ⟨replay SA RA, replay SC RC⟩
   have hguard {a c} (H : ResidualPair D A C a c) :
-      ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D stage) (proofEraseCtx Γ) false a c := by
-    rcases H with ⟨RA, RC⟩ | ⟨RA, RC⟩
-    · exact HG RA RC
-    · exact .symm (HG RA RC)
+      ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D stage) (proofEraseCtx Γ) false a c ∨
+      ∃ u, DomainSort (proofEraseCtx Γ) a u ∧ DomainSort (proofEraseCtx Γ) c u ∧
+        ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D stage) (proofEraseCtx Γ) true a c := by
+    cases domainMode with
+    | false =>
+      apply Or.inl
+      rcases H with ⟨RA, RC⟩ | ⟨RA, RC⟩
+      · exact HG RA RC
+      · exact .symm (HG RA RC)
+    | true =>
+      apply Or.inr
+      rcases H with ⟨RA, RC⟩ | ⟨RA, RC⟩
+      · exact ⟨u, (sorted RA RC).1, (sorted RA RC).2, HG RA RC⟩
+      · exact ⟨u, (sorted RA RC).2, (sorted RA RC).1, .symm (HG RA RC)⟩
   have W : ContextRenaming (proofEraseCtx Γ) (proofEraseCtx Γ) (fun i => .bvar (i + 0)) :=
     ContextRenaming.identity
-  have H := annotation_variant_computed_check (mode := mode)
+  have H := annotation_variant_domain_computed_check (mode := mode)
     (erased_static_structure_eta_expansion_stage_rename heq hs stage)
     (fun H => hguard H) V₂ hΓ HE.hasType.2 EE W
   exact .compute RP.in_static_stage RQ.in_static_stage (.symm H)
@@ -60,11 +81,11 @@ private theorem lambda_variant
     (hb : env.HasType univs (A :: Γ) b B)
     (HG : ∀ {a c}, ProofShape.Compute (ErasedLevelCore D) (proofErase Γ A) a →
       ProofShape.Compute (ErasedLevelCore D) (proofErase Γ C) c →
-      ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D stage) (proofEraseCtx Γ) false a c) :
+      ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D stage) (proofEraseCtx Γ) domainMode a c) :
     env.HasType univs Γ (.lam C b) (.forallE A B) ∧
       AnnotationVariant (ResidualPair D (proofErase Γ A) (proofErase Γ C)) 0
         (proofErase Γ (.lam A b)) (proofErase Γ (.lam C b)) := by
-  have HC : ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D stage) (proofEraseCtx Γ) false
+  have HC : ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D stage) (proofEraseCtx Γ) domainMode
       (proofErase Γ A) (proofErase Γ C) := HG .refl .refl
   obtain ⟨v, hS⟩ := hA.isType henv hΓ
   have HAC := ((proofErase_computed_joint_compare_reflect
@@ -85,8 +106,9 @@ private theorem lambda_variant
     (AnnotationVariant.marked (n := 0) (b := proofErase (A :: Γ) b) (.inl ⟨.refl, .refl⟩) .refl)
 
 /-- A contextual full-core comparison of the marked domains suffices for
-arbitrary typed consumers of the paired lambdas. This is an induction interface:
-the recursive grammar below supplies the domain premise from a smaller child. -/
+arbitrary typed consumers of the paired lambdas. Either domain-checking mode
+suffices because the actual shared sort survives every core residual. The
+recursive grammar supplies this premise from a smaller child. -/
 theorem contextual_annotation_consumer_core
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hc : TypedCoreConfluence (ErasedLevelCore D))
@@ -96,7 +118,7 @@ theorem contextual_annotation_consumer_core
     (ht : env.HasType univs (.forallE A B :: Γ) t T)
     (HG : ∀ {a c}, ProofShape.Compute (ErasedLevelCore D) (proofErase Γ A) a →
       ProofShape.Compute (ErasedLevelCore D) (proofErase Γ C) c →
-      ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D stage) (proofEraseCtx Γ) false a c)
+      ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D stage) (proofEraseCtx Γ) domainMode a c)
     (RL : ProofShape.Compute (ErasedLevelCore D) (proofErase Γ (t.inst (.lam A b))) left)
     (RR : ProofShape.Compute (ErasedLevelCore D) (proofErase Γ (t.inst (.lam C b))) right) :
     ComputedJointCompare (ErasedStaticStructureEtaExpansionStage D stage) (proofEraseCtx Γ) mode left right := by
@@ -112,7 +134,8 @@ theorem contextual_annotation_consumer_core
     cases i with
     | zero => exact V
     | succ i => exact .refl
-  exact residual_check heq hs hc (fun RA RB => HG RA RB) hΓ
+  exact residual_check heq hs hc (fun RA RB => HG RA RB)
+    ⟨Γ, A, hΓ, rfl, hA, rfl⟩ ⟨Γ, C, hΓ, rfl, hC, rfl⟩ hΓ
     (ht.instN henv Ctx.InstN.zero hC') VT RL RR
 
 end Lean4Lean.VEnv.Strengthening

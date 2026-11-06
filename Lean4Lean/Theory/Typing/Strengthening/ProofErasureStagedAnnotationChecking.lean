@@ -34,13 +34,14 @@ private theorem ambient_cons
   simpa only [ProofShape.Subst.comp, ProofShape.subst, liftVar, Nat.not_lt_zero, ↓reduceIte,
     Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using H
 
-/-- Ambient inferred checks preserved by exact renaming read out a paired
-annotation variant at any typed left source. No arbitrary substitution closure
-of the domain guard is assumed. -/
-theorem annotation_variant_computed_check
+/-- Ambient domain checks read out a paired annotation variant. A marked pair
+may use an inferred check, or a common-mode check with witnesses of a shared
+sort. Exact renaming transports both the check and its sort witnesses. -/
+theorem annotation_variant_domain_computed_check
     (hrename : ∀ {Δ Δ' a b τ}, Step Δ a b → ContextRenaming Δ Δ' τ →
       Step Δ' (a.subst τ) (b.subst τ))
-    (hguard : ∀ {A C}, Guard A C → ComputedJointCompare Step Δ false A C)
+    (hguard : ∀ {A C}, Guard A C → ComputedJointCompare Step Δ false A C ∨
+      ∃ u, DomainSort Δ A u ∧ DomainSort Δ C u ∧ ComputedJointCompare Step Δ true A C)
     (V : AnnotationVariant Guard n a b)
     (hΓ : OnCtx Γ (env.IsType univs)) (ht : env.HasType univs Γ e T)
     (Ee : proofErase Γ e = a)
@@ -71,11 +72,32 @@ theorem annotation_variant_computed_check
   | marked HG VB ihB =>
     obtain ⟨A, body, rfl, _, EA, EB⟩ := erase_lam_inv Ee
     obtain ⟨⟨u, hA⟩, _, hb⟩ := ht.lam_inv henv hΓ
-    have HG' := (hguard HG).rename hrename W
-    simp only [JointCheckKind.subst, subst_shift] at HG'
-    apply ComputedJointCheck.lam HG'
     have hΓA : OnCtx (A :: Γ) (env.IsType univs) := ⟨hΓ, u, hA⟩
-    simpa only [proofEraseCtx, EA] using ihB hΓA hb EB (ambient_cons W hΓ hA)
+    have HB := ihB (mode := mode) hΓA hb EB (ambient_cons W hΓ hA)
+    simp only [proofEraseCtx, EA] at HB
+    rcases hguard HG with HG | ⟨v, SA, SC, HG⟩
+    · have HG' := HG.rename hrename W
+      simp only [JointCheckKind.subst, subst_shift] at HG'
+      exact .lam HG' HB
+    · have HG' := HG.rename hrename W
+      have SA' := ContextSubstitution.sort W.interpretation SA
+      have SC' := ContextSubstitution.sort W.interpretation SC
+      simp only [JointCheckKind.subst, subst_shift] at HG' SA' SC'
+      exact .lamSorted SA' SC' HG' HB
+
+/-- Ambient inferred checks preserved by exact renaming read out a paired
+annotation variant at any typed left source. No arbitrary substitution closure
+of the domain guard is assumed. -/
+theorem annotation_variant_computed_check
+    (hrename : ∀ {Δ Δ' a b τ}, Step Δ a b → ContextRenaming Δ Δ' τ →
+      Step Δ' (a.subst τ) (b.subst τ))
+    (hguard : ∀ {A C}, Guard A C → ComputedJointCompare Step Δ false A C)
+    (V : AnnotationVariant Guard n a b)
+    (hΓ : OnCtx Γ (env.IsType univs)) (ht : env.HasType univs Γ e T)
+    (Ee : proofErase Γ e = a)
+    (W : ContextRenaming Δ (proofEraseCtx Γ) (fun i => .bvar (i + n))) :
+    ComputedJointCompare Step (proofEraseCtx Γ) mode a b :=
+  annotation_variant_domain_computed_check hrename (fun H => .inl (hguard H)) V hΓ ht Ee W
 
 /-- Earlier-stage casts may occur inside the marked domains of arbitrary
 annotation variants. Independent full-core paths preserve inferred comparison

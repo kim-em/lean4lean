@@ -150,9 +150,9 @@ theorem CoreFamilyCast.Hereditary.castConsumer
   exact .castConsumer hu hΓ₀ hX' hY' (by simpa only [VExpr.eqApp_subst, VExpr.subst] using hq')
     hx' ht' H'
 
-/-- Annotation consumers preserve substitution histories when their inferred
-domain comparison already retains them. This does not promote a common lambda
-check into an inferred domain comparison. -/
+/-- Annotation consumers preserve substitution histories with either mode of
+domain comparison. The actual shared sort is retained through each residual;
+no conversion of arbitrary common checks into inferred checks is assumed. -/
 theorem CoreFamilyCast.Hereditary.annotation
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs) (hl : D.LevelCompatible univs)
     (hcon : ∀ {p r}, Pat p r → ConcretePattern env p r)
@@ -162,7 +162,7 @@ theorem CoreFamilyCast.Hereditary.annotation
     (hΓ : OnCtx Γ (env.IsType univs))
     (hA : env.HasType univs Γ A (.sort u)) (hC : env.HasType univs Γ C (.sort u))
     (hb : env.HasType univs (A :: Γ) b B) (ht : env.HasType univs (.forallE A B :: Γ) t T)
-    (H : CoreFamilyCast.Hereditary D n (.compare false) (proofEraseCtx Γ)
+    (H : CoreFamilyCast.Hereditary D n (.compare domainMode) (proofEraseCtx Γ)
       (proofErase Γ A) (proofErase Γ C)) :
     CoreFamilyCast.Hereditary D n (.compare mode) (proofEraseCtx Γ)
       (proofErase Γ (t.inst (.lam A b))) (proofErase Γ (t.inst (.lam C b))) := by
