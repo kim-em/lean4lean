@@ -29671,3 +29671,40 @@ Judgment: a concrete annotation-alignment rule for recursively joined domains,
 reusable in arbitrary consumers and inferred beta-residual checking. General
 semantic annotation conversion and nonjoining body coverage are still open.
 None of GOAL.md's three deliverables is yet achieved; goal remains active.
+
+
+## 2026-11-06 01:58:38 UTC — Mutually recursive comparison and cast computation
+
+Added ProofErasureRecursiveFamilyCast.lean. RecursiveFamilyCast uses a Boolean
+index for computation versus future common comparison (distinct from the joint
+comparison relation's inferred/common mode). Its structural interpretation
+constructs certified computations and beta/substitution-stable comparisons.
+Cast nodes consume smaller comparison nodes; comparison joins and prefixes
+consume smaller computation nodes. Typed eta and structural comparison supply
+nonjoining cases without a future-certificate premise.
+
+Added ProofErasureRecursiveFamilyCastBoundary.lean. A retained lambda inhabits a
+function type whose domain is an equality proposition about a variable function.
+Eta changes that proposition and supplies the second function type. Explicit
+canonical equality evidence and a recursive comparison justify cast removal,
+while normal-form readout proves there is no full-joint-union endpoint join.
+The payload is proved not to erase as a proof. This separates the endpoint
+criterion from the preceding join requirement, not the whole computation theory.
+
+Added ProofErasureRecursiveFamilyConsumer.lean. Arbitrary typed consumers retain
+computation derivations; independent beta residuals retain comparison derivations.
+Both kinds have finite-stage readouts. The actual environment wrapper discharges
+the abstract soundness and registry hypotheses. Development fixes concern Lean
+elaboration and rewriting only; no intermediate proof gaps remain in these files.
+
+Validation: 769 build jobs, 33 audited roots, maximum closure
+11,794, 744 unchanged source/import hashes pinned to the previous HEAD.
+Audit traverses types, opaque values, constructors and recursor RHSs. Standard
+axioms only, no forbidden strengthening/transport/coverage dependencies or new
+module warnings. Independent files preserved; executable unchanged; no PRs.
+
+Judgment: extends the constructive cast fragment past the nonjoining eta boundary
+and keeps its results composable. General domain-comparison coverage remains
+unproved; beta/substitution future stability does not establish arbitrary full-core
+stability. The strengthening theorem, a canonical-Eq counterexample, and a strictly
+smaller sufficient obligation all remain open. GOAL.md stays active.

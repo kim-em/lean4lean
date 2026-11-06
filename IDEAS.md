@@ -15894,3 +15894,39 @@ Validation: 759 jobs; 9 full dependency roots; maximum closure
 Classical.choice, Quot.sound; no forbidden dependencies or own-module warnings.
 Original sorry remains, executable unchanged, GOAL.md active. No coordination
 or PR extraction.
+
+
+## 2026-11-06 01:58:38 UTC — Recursive cast certificates beyond endpoint computation joins
+
+Previous goal work: progress (three new modules constructed, with interpretation
+and consumer theorems compiled; the nonjoining-endpoint example was unfinished).
+The intervening clarification made no implementation changes. Revalidated HEAD
+857af1fe and the terminated failed build; fixed its two remaining rewrite errors.
+The two independent untracked modules remain untouched.
+
+Idea: alternate finite computation and comparison derivations, so a cast can use
+a smaller eta/structural comparison instead of requiring its endpoint types to
+compute to a common output. Verdict: checked by one structural induction, with
+an explicit nonjoining-endpoint example. No constructor takes a future-stability
+oracle. Computation joins and prefixes, eta, Eq families, sorted Pi comparison,
+common lambdas, beta residuals, substitution and joined instantiation participate
+in the same recursive grammar. Both readouts have actual finite joint stages.
+
+The example puts eta-related equality propositions in function domains and casts
+a retained, nonproof lambda between those inhabited function types. The two type
+erasures are distinct normal forms even in the full joint union, so their new
+comparison certificate cannot be replaced by an endpoint computation join.
+This is a strict improvement in admitted endpoint certificates; it does not claim
+strictness of the entire computation relation or a strengthening counterexample.
+
+Arbitrary typed consumers retain these cast computations, and independent beta
+residuals retain recursive comparisons usable by subsequent cast constructors.
+Actual-environment interpretation discharges soundness and registry agreement.
+General semantic equality coverage and full-core residual stability remain open;
+this grammar is a constructive fragment, not a new sufficient obligation claimed
+strictly smaller than PropFront. None of GOAL.md's three deliverables is complete.
+
+Validation: 769 jobs, 33 full dependency roots including every new
+constructor and recursor, maximum closure 11,794; 744 unchanged pinned
+source/import hashes. Only standard axioms, no forbidden dependencies or new
+module warnings. Original sorry remains; executable unchanged; no PR extraction.
