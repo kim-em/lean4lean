@@ -18878,3 +18878,24 @@ hypotheses. Tracking the fixed Eq completion and its pending arguments through
 this execution, and forcing/eliminating the next useful root in every mixed
 frame case, remain open. This is a strengthened global decomposition, not a
 proof of strengthening or a sufficient smaller irreducible obligation.
+
+
+## 2026-11-06 15:13:06 UTC — Traverse retained frames and exclude zero-cost Eq exposure
+
+**Idea.** Use the actual typed continuation execution to pass through any
+finite prefix of retained lambdas and expose its next application frame.
+Keep pointwise equivalence of the continuation predicate, so changing a body
+endpoint remains a valid joint-minimum competitor in the new scope. Separately
+prove that beta-only computation through all frames cannot expose an Eq head.
+
+**Verdict: proved; positive-cost recursion remains open.** The next-application
+traversal derives source typing, actual paths and remaining typed execution.
+It transfers both fixed-source and joint minima without substituting a guarded
+path. A syntactic retained-constant invariant survives arbitrary endpoint
+substitution, beta, application and retained lambdas. Consequently a typed
+Eq continuation ending at a carrier cannot have total primitive count zero.
+The global Eq result now returns a positive, strictly smaller nested minimum.
+This supplies an actual continuation traversal and the zero-count base case,
+but does not yet force/read the right root in every positive-count mixed-frame
+case or preserve the original target completion throughout that traversal.
+The strengthening objective is still incomplete.

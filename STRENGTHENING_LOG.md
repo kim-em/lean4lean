@@ -32911,3 +32911,52 @@ closure 11,688; 983 frozen source hashes. Changed modules are warning
 free. Audits traverse types, values, opaque bodies, constructors and recursor
 RHSs; only propext, Classical.choice and Quot.sound occur, with no forbidden
 strengthening or replacement obligations.
+
+
+## 2026-11-06 15:13:06 UTC — Next-application traversal and the zero-count continuation base case
+
+The previous goal turn made verified progress in `345b5727`; the worktree was
+clean and pushed at the start of this turn.
+
+Added `ProofErasurePiInertNextApplication.lean`. `PiInertRetainedPrefix`
+records the exact syntactic wrapping performed by a finite retained-lambda
+prefix, including annotations, arguments and binder context interpretations.
+`PiInertNextApplication` records the next actual application frame with its
+typed full source, chosen counted path, remaining typed execution and exact
+cost. Its pointwise equivalence with the original continuation holds for
+all competitor endpoints and costs, not just the selected endpoint.
+
+`PiInertTypedContinuationRun.next_application` follows the actual finite run.
+An exposed final output and a non-exposed current endpoint exclude the
+terminal case; any retained frame produces a lambda-headed spine, also
+non-exposed. Thus the traversal reaches an application without assuming that
+its intermediate output is exposed. `minimum` transfers fixed-endpoint
+continuation minimality to a full computation minimum in the next scope.
+`joint_minimum` also permits changing the preceding body endpoint while
+retaining the exact wrapping prefix and endpoint substitution. `advance`
+packages these operations for the typed minimum returned by the global
+result, preserving its original minimum as well. Its count decreases when
+the preceding body path has positive cost; no false strict-decrease claim
+is made for a zero-cost move.
+
+`RetainedConstHead` tracks a fixed constant beneath applications and retained
+lambdas. It is stable under arbitrary raw endpoint substitution and beta
+reduction; this is a syntactic invariant, not guarded transport. The zero-cost
+run theorem propagates it through every application and retained frame.
+Canonical Eq excludes a carrier with that head, so `eq_positive` proves that
+an Eq-source typed continuation minimum ending at an exposed carrier has
+positive total primitive count. This covers arbitrary mixed frames and
+provides the zero-count base case for the intended count induction.
+
+The global Eq-exposure theorem now strengthens its actual conclusion with
+`0 < smaller` for the already returned nested typed minimum, without adding
+hypotheses. The positive-cost case still requires forcing/bypassing useful
+roots and carrying fixed-target Eq specialization and pending arguments
+through the traversal. The goal remains incomplete. Executable unchanged;
+no PR extraction or coordination.
+
+Validation: 1009 build jobs, 15 public/full-result audit roots, maximum
+closure 11,708; 984 frozen source hashes. Changed modules are warning
+free. Audits traverse types, values, opaque bodies, constructors and recursor
+RHSs; only propext, Classical.choice and Quot.sound occur. Forbidden
+strengthening and replacement obligations are absent.

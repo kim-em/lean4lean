@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertTypedContinuation
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertNextApplication
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaSingleton
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSpecializationFrames
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -26,12 +26,17 @@ The body and its application continuation are jointly minimal with variable
 body endpoint; identity and constant expansion are excluded at the selected
 inner root, with its typing and the actual argument's context substitution retained.
 Both singleton forms read the original lower equation. The remaining inner
-root is native function eta. The conclusion also retains a strictly smaller
+root is native function eta. The conclusion also retains a positive, strictly smaller
 `PiInertTypedContinuationMinimum` under both eta binders, derived by
 `CountedEtaBodySpineCut.nested_eta_typed_frames` from the selected inner eta.
 It records actual typing at every application source in its continuation;
 `pi_inert_eta_typed_continuation_frames` preserves that execution through
-further consumed or retained eta cuts. Eliminating this nested eta through the retained
+further consumed or retained eta cuts. `PiInertTypedContinuationMinimum.advance`
+follows its actual execution through any finite retained-lambda prefix to the
+next application unless its current endpoint already exposes a carrier. The
+next application inherits full minimality and the prefix preserves joint
+competitors (`PiInertNextApplication.joint_minimum`). Its count is positive:
+`eq_positive` excludes zero-cost Eq exposure through arbitrary mixed frames. Eliminating this nested eta through the retained
 application continuation remains open. `CountedEtaBodySpineCut.nested_eta_cut`
 supplies a smaller body/continuation minimum in both the consumed and retained
 lambda cases. `CountedEtaBodySpineCut.nested_eta_frames` retains concrete typed
@@ -94,7 +99,7 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
           (etaArgument u))) pending) out ∧
       CountedEtaBodySpineCut D stage (proofEraseCtx Γ') ``Eq.rec ls pre A u pending out ct
         (EqEtaRemainingRoot D) ∧
-      ∃ innerA innerU bodyLs bodyPre smaller, smaller < cost ∧
+      ∃ innerA innerU bodyLs bodyPre smaller, 0 < smaller ∧ smaller < cost ∧
         PiInertTypedContinuationMinimum D (proofEraseCtx Γ') out (innerA :: A :: proofEraseCtx Γ')
           (.app ((ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre).liftN 1) (etaArgument innerU)) smaller) := by
   classical
@@ -188,10 +193,17 @@ theorem pi_inert_eq_exposure_eq_or_global_eta_spine_cut
               (by simpa only [Eargs] using HA) hshort HTpre RN SD
               (HB.eq_guarded heq hs hreg hoff hRec hshort) with Hlower | HB'
           · exact .inl Hlower
-          · exact .inr ⟨stage, cost, ls, pre, pending, _, _, _, k, cp, ct,
-              RC, hminAll, hcostExact, HL, hshort, HA, RP, HTpre, hk, RN, SD, RT, HB',
+          · obtain ⟨innerA, innerU, bodyLs, bodyPre, smaller, hsmall, HM⟩ :=
               HB'.nested_eta_typed_frames heq hs
                 (erased_static_structure_eta_expansion_stage_descent heq hs k) HTwhole RN SD H
-                (cp := cp) (by omega)⟩
+                (cp := cp) (cost := cost) (by omega)
+            have Hhead : RetainedConstHead ``Eq.rec
+                (.app ((ProofShape.mkApps (.const ``Eq.rec bodyLs) bodyPre).liftN 1) (etaArgument innerU)) := by
+              apply RetainedConstHead.app
+              simpa only [ProofShape.liftN_mkApps, ProofShape.liftN] using
+                (RetainedConstHead.const (ls := bodyLs)).mkApps (bodyPre.map (·.liftN 1))
+            exact .inr ⟨stage, cost, ls, pre, pending, _, _, _, k, cp, ct,
+              RC, hminAll, hcostExact, HL, hshort, HA, RP, HTpre, hk, RN, SD, RT, HB',
+              innerA, innerU, bodyLs, bodyPre, smaller, HM.eq_positive heq Hhead HE, hsmall, HM⟩
 
 end Lean4Lean.VEnv.Strengthening
