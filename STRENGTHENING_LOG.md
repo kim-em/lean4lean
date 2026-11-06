@@ -31056,3 +31056,57 @@ maximum dependency closure 11,667; 876 frozen hashes. Only propext,
 Classical.choice and Quot.sound; no forbidden dependencies or owned warnings.
 Executable unchanged, independent experiments preserved, no coordination or PR
 extraction.
+
+
+## 2026-11-06 08:00:03 UTC — Checked transitivity obstruction and carrier-to-types bridge
+
+Revalidated e4fcb72a and classified the previous implementation turn as progress.
+Investigated its proposed next step, equality transitivity with actual middle
+typing. Existing unit-composition boundaries suggested a failure of the new
+Pi-inert predicate itself; tested that exact predicate rather than importing
+an older beta-only or untyped counterexample as if it applied unchanged.
+
+ProofErasurePiInertCompositionBoundary proves bare-variable injectivity for
+ComputedJointCompare at every PiInertStage (including its extra sort roots).
+It constructs an empty-structure constructor bridge in PiInertEvidence, retaining
+every typed substitution and all independent full-core reductions. The rigid
+constructor's universe arguments may change during those paths. Two actual
+unit variables share the constructor's type and are strongly equal, yet no
+finite Pi-inert stage compares them in either mode. A closed positive nullary
+structure supplies an explicit two-variable context. Native structure expansion
+in the full ambient stage supplies the composite at stage one. Hence raising
+the Pi-inert bound cannot repair this case; its restriction excludes the needed
+variable-root computation. This does not refute the ambient stage or strengthening.
+
+ProofErasurePiInertCarrierEvidence keeps the actual raw carrier along with the
+two endpoints. Its interpretation covers independent ordinary-core reductions;
+its future field substitutes the carrier and both endpoints using actual typed
+context substitutions. Common comparison embeds, substitution composes, symmetry
+is retained, and empty-structure checking constructs evidence at stage zero.
+The actual typed unit-variable separation is proved: carrier evidence exists
+while ordinary evidence fails at every Pi-inert stage.
+
+PiInertCarrierInterpret.types_checked replays both core residuals with their
+independent sort typings and preserves the left endpoint's carrier typing.
+The existing carrier-at-types theorem then returns ordinary common comparison
+with the identical primitive relation. PiInertCarrierEvidence.types_checked
+reconstructs this argument under every future typed substitution, including
+the substituted carrier. pi_inert_carrier_types_iff proves exact equivalence
+with the prior hereditary common predicate at sort-typed endpoints. The domain
+projection and eta-to-cast results therefore remain available to a carrier-based
+induction; no universal promotion from carrier checking to comparison is used.
+
+This corrects the previous prospective general-comparison synthesis plan:
+ordinary PiInertEvidence cannot cover all IsDefEqStrong derivations. The
+carrier-based alternative handles this concrete obstruction and preserves the
+type evidence needed downstream, but still requires general composition and
+conversion proofs. Neither these closure lemmas nor the negative result meet
+any final GOAL.md deliverable. weakN_iff remains open, and no strict-smallness
+claim is made. Next pursue carrier composition with actual middle/carrier
+typing and conversion evidence retained.
+
+Validation: 905 jobs including existing feedback and substitution-barrier
+regressions; 24 complete type/value/constructor/recursor dependency roots;
+maximum closure 10,980; 880 frozen hashes. Only propext, Classical.choice
+and Quot.sound, with no forbidden dependencies or owned diagnostics. Executable
+unchanged, independent experiments preserved, no coordination or PR extraction.

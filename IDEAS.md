@@ -17410,3 +17410,48 @@ Validation: 901 jobs; 24 complete dependency-audit roots including the
 new structure's constructor, recursors and projections; maximum closure
 11,667; 876 frozen source/import hashes. Standard axioms only, no forbidden
 dependencies or owned diagnostics. Executable unchanged; no PR extraction.
+
+
+## 2026-11-06 08:00:03 UTC — Strong common-comparison coverage is refuted; retain carriers
+
+Previous goal turn: progress, verified at e4fcb72a (hereditary interpreted eta
+and subsequent casts). Revalidated the committed sources and preserved both
+independent untracked experiments before investigating equality transitivity.
+
+Idea tested: PiInertEvidence common comparison might be a complete strong
+induction predicate once actual middle typing is retained. Verdict: refuted in
+environments with a registered closed positive nullary empty structure. The
+new unit constructor bridge retains every interpreted typed substitution and
+independent full-core residual, including universe conversion. Both links are
+at zero and all three original terms share their actual structure type. The
+outer variables are IsDefEqStrong-equal. Nevertheless no Pi-inert stage or
+checking mode compares them: every Pi-inert computation fixes bare variables.
+The ambient static-structure stage compares the same variables at stage one
+using native expansion. This is an obstruction to the restricted predicate,
+not a counterexample to strengthening and not evidence against the larger stage.
+It sharpens the older beta-future-family unit boundary to the new full-core,
+typed-substitution evidence and rules out simply proving its general trans rule.
+
+Repair tested: retain the assigned carrier for arbitrary terms, then recover
+ordinary comparison only for types. Verdict: constructive local repair proved.
+PiInertCarrierEvidence retains full-core endpoint residuals and all future typed
+substitutions of both endpoints and carrier. Empty-structure carrier evidence
+already exists at zero for arbitrary endpoints. For independently sort-typed
+endpoints (with actual carrier typing of the left endpoint), it is equivalent
+to PiInertEvidence common comparison at exactly the same stage. Core replay
+and substituted actual typings prove the complete residual/future bridge.
+Thus whole-Pi domain extraction and converted-lambda eta remain usable in a
+carrier-based strong induction. The unit case needs no primitive extension.
+
+Limits/next action: general carrier composition, carrier conversion and strong
+coverage are not proved. The unit counterexample concerns arbitrary carriers;
+it does not refute type-only common-comparison coverage. Next investigate the
+carrier-transitivity case with the actual common carrier and its conversion
+children retained, rather than retrying the refuted ordinary-comparison rule.
+GOAL.md remains open: no proof or canonical-Eq counterexample of weakN_iff, and
+no proved strictly smaller sufficient irreducible obligation.
+
+Validation: 905 jobs, 24 complete dependency-audit roots including the
+new structure's constructor/recursors/projections, maximum closure 10,980,
+880 frozen source/import hashes. Standard axioms only; no forbidden dependencies
+or owned warnings. Executable unchanged; no coordination or PR extraction.
