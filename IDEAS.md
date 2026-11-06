@@ -18113,3 +18113,39 @@ Validation: 980 build jobs; 6 complete dependency roots; maximum
 closure 11,569; 955 frozen source hashes. Standard axioms only; no
 forbidden dependency or owned diagnostic. Executable unchanged; no coordination
 or PR extraction. GOAL.md remains active.
+
+
+## 2026-11-06 12:03:45 UTC — Minimize across stages and force a body-spine root
+
+- Compare a transported bypass only at the original guard stage: invalid,
+  because changing-annotation readout may raise that stage. Minimize outer
+  primitive count over all finite stages instead: proved by well-ordering of
+  natural counts, with no normalization or bound on guard proof sizes.
+- Preserve the costs in the constant-spine survival alternative: proved.
+  Head-level and pointwise argument paths retain counts summing exactly to the
+  body count. The escaping-root branch still retains its whole counted prefix,
+  selected root, argument ancestry and exact tail.
+- Bypass eta when the body preserves its constant spine: proved. The final
+  fresh argument remains its original variable/proof marker. The rest of the
+  body is a computation of the lifted original function, so counted descent
+  lowers it exactly. Reapply the original computed arguments and exact suffix
+  at the maximum of the body and outer stages. This discards the outer eta and
+  annotation work without assuming arbitrary guard substitution.
+- A globally minimum eta on a constant prefix must therefore cross a non-level
+  root on its original body spine: proved. The root occurs before the first
+  consuming beta, with explicit counts for the body prefix/root/tail and all
+  original lambda, argument and final-suffix histories retained.
+- Integrate this into the full typed-lower Eq exposure theorem: proved. Either
+  the lower equation holds, or an original-prefix eta of arity at most four
+  contains the new witnessed body-spine cut. The whole source path and its
+  minimum-count certificate across every finite stage are returned.
+- Remaining route: classify this inner root using the fresh-eta singleton
+  readouts and handle the administrative/nested-eta cases with their exact
+  continuations. The result locates a genuine spine root instead of merely
+  arbitrary non-beta body work. It is not yet a strengthening proof or a
+  strictly smaller sufficient PropFront obligation.
+
+Validation: 984 build jobs; 9 complete dependency roots; maximum
+closure 11,561; 959 frozen source hashes. Standard axioms only; no
+forbidden dependency or owned diagnostic. Executable unchanged; no coordination
+or PR extraction. GOAL.md remains active.

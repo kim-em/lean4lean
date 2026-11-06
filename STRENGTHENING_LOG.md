@@ -32015,3 +32015,48 @@ substitution regressions; 6 complete dependency roots, maximum closure
 Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
 assumptions or owned warnings. Executable unchanged; no coordination or PR
 extraction. GOAL.md remains unachieved.
+
+
+## 2026-11-06 12:03:45 UTC — Global count minimum forces a non-level eta-body spine cut
+
+Added `ProofErasureCountedSpineComponents.lean`. Its refined constant-spine
+alternative retains separate counted head-level and argument paths whose costs
+sum exactly to the input cost. Its other alternative retains the original
+counted spine cut. Argument-vector forgetting, stage raising and final-slot
+splitting support the bookkeeping. The generic finite-stage minimization lemma
+selects a path with minimum outer primitive count among all stages, allowing
+later comparisons with paths whose guard stage grew during context transport.
+
+Added `ProofErasurePiInertEtaSpineBypass.lean`. If eta-body computation only
+changes the lifted function and retains the fresh slot, that function path
+descends below the eta binder with its exact count. Actual typing aligns the
+computed pending argument with the recovered eta domain, so instantiating the
+unchanged slot gives the short application literally. Reapplying all original
+argument computations and the exact final suffix at a common finite stage
+retains their counts. No arbitrary raw guard substitution is used.
+
+Added `ProofErasurePiInertMinimalEtaSpineCut.lean`. Combine whole-lambda counted
+readout, the refined body-spine decomposition and the bypass. The surviving
+spine case contradicts minimum count across stages: the shorter path reaches
+the same output while saving the eta root. Consequently a non-level primitive
+must occur on the original constant-headed body spine. `CountedEtaBodySpineCut`
+is the proved decomposition witness, retaining the first consuming beta,
+annotation/body accounting, argument origins, counted body prefix and tail,
+and the exact outer post-beta suffix. It is not an assumed closure law.
+
+Added `ProofErasurePiInertGlobalEtaBodyCut.lean`. Starting from the original
+probe exposure, choose the minimum path over all stages, discharge the outer
+specialized/general singleton cases and administrative expansions, and exclude
+proof-argument eta. The resulting original-prefix eta has at most four supplied
+arguments and contains the new body-spine cut. The public result returns the
+selected whole path and its global minimum certificate as well as all original
+prefix data. The inner root still needs classification and elimination,
+including nested eta. Strengthening and GOAL.md remain unachieved; no sufficient
+strictly smaller obligation is claimed.
+
+Validation: 984 build jobs including contextual-cast and core-family
+substitution regressions; 9 complete dependency roots, maximum closure
+11,561; 959 frozen source hashes. Only propext, Classical.choice and
+Quot.sound; no weakN_iff, weakN_inv, sorryAx, forbidden closure/alignment
+assumptions or owned warnings. Executable unchanged; no coordination or PR
+extraction.
