@@ -38637,3 +38637,43 @@ Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
 /dev/shm/guarded-bodies-*. All Lean/Lake commands used stock v4.33.0-rc2 in
 /dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
 PR extraction remains deferred and GOAL.md remains active.
+
+
+## 2026-11-07 11:32:14 UTC — Retained dependent orientations and eta action
+
+GuardedPair keeps forward and reverse TreeValue evidence at separate selected
+carriers, annotation maps and interface trees. Reversal exchanges components;
+application returns the forward result indexed by the left argument and the
+reverse result indexed by the right argument. No equality between those
+dependent interfaces is inferred. Movement and selected-type prefix operations
+act on both components with their own explicit assignments and paths.
+
+GuardedPairImages projects to forward and reverse old image environments.
+Every proved one-sided body interpreter yields a paired interpreter by running
+it in both environment orders. The more general paired interpreter permits
+distinct original endpoints, carriers and profiles. Its reversal swaps the
+environments; its application instantiates the two result profiles separately.
+This is a retained-evidence representation, not unrestricted symmetry of the
+old one-sided semantics or complete strong-derivation coverage.
+
+The eta constructor proves actual raw eta-lambda assignment, then beta-reduces
+each future application to the retained self action. The typed eta-argument
+instantiation theorem covers proof-marker arguments for proposition domains.
+call_application_prefixes constructs new recursive action and obtains ground
+history by fresh testing, so a ground eta comparison is not assumed. Applying
+this construction on either side yields both full eta orientations.
+
+General carrier composition and dependent interface reindexing remain open.
+Paired body interpretation also does not yet supply a general paired lambda
+constructor, since the underlying call accepts a one-sided input. These are
+coverage gaps, not resolved by retaining both directions. The original
+weakN_iff sorry is unchanged; no canonical-Eq counterexample or strictly smaller
+sufficient obligation is claimed. The next research step must address those
+coverage gaps rather than infer transitivity from the new symmetry wrapper.
+
+Integration passed 1187 jobs. Recursive audit covered 18 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
+/dev/shm/guarded-pairs-*. All Lean/Lake commands used stock v4.33.0-rc2 in
+/dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
+PR extraction remains deferred and GOAL.md remains active.

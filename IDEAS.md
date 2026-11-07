@@ -22924,3 +22924,47 @@ recursive dependency closure 11,976; only propext, Classical.choice and
 Quot.sound. Frozen sources and owned diagnostics checked. Stock v4.33.0-rc2
 Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work. Executable
 and UniqueTyping.lean unchanged; GOAL.md remains active.
+
+
+## 2026-11-07 11:32:14 UTC — Separate dependent orientations and constructed eta pairs
+
+Idea: reversing a guarded call cannot silently identify its output interface
+at the left argument with the output interface at the right argument. Retain
+the two orientations at their respective annotation maps, carriers and trees;
+then test whether actual eta action can be constructed in both directions.
+
+Implemented ProofErasurePiInertGuardedPairs.lean. GuardedPair explicitly
+retains two guarded values. Its symmetry swaps retained evidence, and its
+application theorem preserves the separately instantiated dependent result
+interfaces. Both components move through core worlds and survive explicit
+selected-type prefixes. Paired variable-image environments project to the old
+one-sided environments. Running a proved body interpreter twice constructs a
+paired interpreter. Paired interpretations support reversal and application
+with distinct original endpoints and distinct result profiles.
+
+The substantive constructor is pi_inert_guarded_eta_pair. From retained self
+action and input supply, it constructs both eta orientations, including their
+ground histories. call_application_prefixes rebuilds a whole call tree from
+typed application-level core prefixes, using fresh testing for its ground
+history. TypedAt.eta_expansion derives actual raw lambda assignment; the typed
+eta-argument lemma handles proposition domains through the proof marker.
+Future eta applications reduce by beta to the original action. Neither eta
+comparison nor a ground eta history is assumed as an extra premise.
+
+Verdict: two dependent orientations can be preserved explicitly, and eta can
+be constructed for recursive guarded calls. This does not prove symmetry of
+an arbitrary one-sided guarded value: the reverse component is additional
+retained evidence. Nor does paired interpretation alone close general lambda
+congruence: its body expects paired inputs, while the original one-sided call
+action accepts one-sided inputs. General composition, dependent interface
+reindexing, exposure production and original strong-derivation coverage remain
+open. Eta was already known not to be the fundamental strengthening obstacle;
+this result supplies its constructor in the current recursive semantics. No
+strengthening proof, canonical-Eq counterexample, or sufficient obligation
+strictly smaller than PropFront is claimed. PR extraction remains deferred.
+
+Validation: 1187 integration jobs; 18 public/probe roots; maximum
+recursive dependency closure 11,976; only propext, Classical.choice and
+Quot.sound. Frozen sources and owned diagnostics checked. Stock v4.33.0-rc2
+Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work. Executable
+and UniqueTyping.lean unchanged; GOAL.md remains active.
