@@ -40238,3 +40238,61 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution in
 Quot.sound; no forbidden strengthening or circular-frontier dependencies.
 All 1,230 frozen sources verified. Artifacts: /dev/shm/pi-inert-spine-type-exposure-*.
 Executable and UniqueTyping.lean unchanged; goal active; PR extraction deferred.
+
+
+## 2026-11-07 17:06:48 UTC — Discharge stage-zero dependent-pair type-field selection
+
+Added ProofErasurePiInertProjectionOrigin.lean,
+ProofErasurePiInertProjectionContraction.lean, and
+ProofErasurePiInertPairSelection.lean, with an aggregator import and an updated
+description of the remaining general-stage selection obligation. The preceding
+research turn made progress by implementing these proofs; the intervening
+clarification changed no authoritative state. This continuation revalidated
+the missing process handle against its failed build log and corrected a
+namespace resolution error in the EnvironmentCore specialization before
+rerunning validation.
+
+pi_inert_zero_selected_projection_origin classifies arbitrary stage-zero
+computations from a typed immediately selectable projection. A minimum-count
+certificate either retains the projection and a major path, contracts to a
+continuation of the original field, or retains a whole constant wrapper with
+a lower-payload history and a Sort 1 control argument. Core projection roots
+use the proved constructor-selection residual square. Consumed constant roots
+contradict minimality by counted lower-body bypass. No normalization premise
+is used.
+
+pi_inert_zero_computed_pair_projection_contract contracts a displayed first
+type projection through an arbitrary source computation and full comparison
+against an arbitrary independently sort-typed target. The proof uses numeric
+checker-depth induction, with an inner induction for unchanged-depth compute
+and symmetry. Retained projections invoke inferred stable-spine type-field
+exposure. Already selected fields pull back the supplied comparison. Whole
+constant wrappers invoke the bounded terminal application consumer and recurse
+at the function child's smaller depth. Ordinary, native-carrier and
+computed-carrier applications are covered, as are both comparison modes.
+pi_inert_zero_pair_type_projection_contract is its direct specialization.
+
+proofErase_pi_inert_zero_pair_type_field_selection first obtains comparison
+of the actual pair's type projections from the full recursive carrier guard.
+Actual projection typings justify the contraction theorem. The primitive
+selection shape identifies each selected constructor; contracting left, and
+then right when needed, covers independent keep/select outcomes. This proves
+pi_inert_zero_pair_type_field_selection, with pair registration metadata,
+soundness and constructor stability as premises. The EnvironmentCore theorem
+supplies the last two from the actual environment.
+
+PiInertCarrierResidual.zero_dependent_type_field and
+PiInertWorldHistory.zero_dependent_type_field instantiate the existing
+selection consumers with the newly proved law. They include independent
+field computation histories and the already specified allowed worlds; callers
+no longer provide K at stage zero. The positive-stage obligation remains
+open. In particular, ambient guards of positive-stage identity/eta roots must
+not be silently treated as Pi-inert certificates. No strengthening theorem,
+canonical-Eq counterexample or strictly smaller sufficient frontier is claimed.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution in
+/dev/shm/native-level-coherence-work. Integration 1258 jobs; recursive audit
+23 roots, maximum closure 11,976; only propext/Classical.choice/
+Quot.sound; no forbidden strengthening or circular-frontier dependencies.
+All 1,233 frozen sources verified. Artifacts: /dev/shm/pi-inert-pair-selection-*.
+Executable and UniqueTyping.lean unchanged; goal active; PR extraction deferred.

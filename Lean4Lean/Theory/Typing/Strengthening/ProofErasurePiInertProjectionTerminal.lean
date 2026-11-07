@@ -143,9 +143,10 @@ theorem pi_inert_projection_interpret_iff_terminal :
 /-- Missing one-step readout for the registered pair's type field. The left
 projection contracts exactly once; the right either remains a projection or
 contracts once. Majors retain actual family typings and the full computed
-guard. Constructing this certificate from that guard remains open. This is a
-local sufficient requirement for projection histories, not a claimed smaller
-sufficient frontier for strengthening. -/
+guard. The general-stage obligation remains open; stage zero is proved for
+constructor-stable definition tables in ProofErasurePiInertPairSelection. This
+is a local sufficient requirement for projection histories, not a claimed
+smaller sufficient frontier for strengthening. -/
 def PiInertPairTypeFieldSelection (D : Definitions) (n : Nat) (family : Name) : Prop :=
   ∀ {Γ x y left right}, OnCtx Γ (env.IsType univs) →
     env.HasType univs Γ x (.const family []) → env.HasType univs Γ y (.const family []) →

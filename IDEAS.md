@@ -24365,3 +24365,40 @@ Validation: 1255 integration jobs; 8 recursively audited roots;
 maximum closure 11,976; all 1,230 frozen sources unchanged. Stock Lean
 v4.33.0-rc2 in /dev/shm/native-level-coherence-work only; standard axioms only,
 no forbidden strengthening/circular dependencies. PR extraction deferred.
+
+
+## 2026-11-07 17:06:48 UTC — Close stage-zero pair type-field selection
+
+Verdict: proved PiInertPairTypeFieldSelection D 0 family for the registered
+closed dependent pair, assuming sound definitions and no unfolding of its
+constructor. EnvironmentCore supplies both definition-table premises. This
+discharges the local obligation left by the previous stable-spine readout;
+it does not establish positive-stage selection or strengthening.
+
+A minimum-count projection computation has three possible origins: the
+projection remains with a computed major, the originally selected field
+computes to the endpoint, or a whole constant control wrapper survives with
+a universe-typed argument. Consumed wrappers admit a cheaper bypass. Full
+projection contraction then follows by strong induction on structural checker
+depth: retained projections use inferred constructor type-field exposure,
+selected fields pull back directly, and surviving wrappers consume the smaller
+function comparison through the depth-preserving terminal application theorem.
+Both comparison modes and arbitrary computation prefixes are covered.
+
+The full carrier checker already supplies comparison of the two type
+projections. Contracting whichever projections select their fields proves
+the selection law, including independent keep/select outcomes. The existing
+carrier-residual and world-history consumers now have stage-zero theorems
+without an additional selection-law premise. No generic forward beta closure
+or transitivity of the finite checker is claimed.
+
+Next unresolved issue: positive stages introduce guarded identity and eta
+roots, whose guards belong to the ambient hierarchy. The stage-zero proof
+does not yet supply a stage induction for those roots. The final GOAL.md
+deliverable remains unmet; this is not asserted to be a sufficient frontier
+strictly smaller than PropFront.
+
+Validation: 1258 integration jobs; 23 recursively audited roots;
+maximum closure 11,976; all 1,233 frozen sources unchanged. Stock Lean
+v4.33.0-rc2 in /dev/shm/native-level-coherence-work only; standard axioms only,
+no forbidden strengthening/circular dependencies. PR extraction deferred.
