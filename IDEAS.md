@@ -24325,3 +24325,43 @@ Validation: 1253 integration jobs; 20 recursively audited roots;
 maximum closure 11,976; all 1,228 frozen sources unchanged. Stock Lean
 v4.33.0-rc2 in /dev/shm/native-level-coherence-work only; standard axioms only,
 no forbidden strengthening/circular dependencies. PR extraction deferred.
+
+
+## 2026-11-07 16:54:34 UTC — Complete inferred constructor-field readout through stage-zero frames
+
+Verdict: proved. A typed history from an empty-universe core-stable constant
+spine may end behind arbitrary surviving constant frames, including frames at
+proper prefixes. Inferred comparison of that endpoint with an arbitrary typed
+term exposes the opposite term at the same constructor and arity and preserves
+common comparison of the original first type argument. The remaining arguments
+are unrestricted values. This closes the inferred constructor-field induction
+that previously stalled on dependent target bodies and rebuilt certificates.
+
+The path decomposition chooses a minimum outer primitive count. A consumed
+constant expansion would yield a strictly cheaper path, so the first surviving
+expansion either lies below an original final argument or wraps the whole
+spine. The first case retains separate original function/argument paths. The
+second returns a constant lambda with a universe-typed discarded argument and
+a path from the whole original spine to its lower payload. No frame grammar
+or unproved normalization principle is imposed on computation endpoints.
+
+The comparison proof uses strong induction on structural checker depth, with
+an inner induction for computation and symmetry at unchanged depth. Original
+arguments follow the inferred function child. Whole wrappers use the previous
+depth-preserving terminal application readout and recurse strictly below the
+parent application. Native and computed argument guards are read at actual
+universe typings when the selected first argument is reached. Other value
+arguments are ignored. This handles arbitrary arity, not only pairs.
+
+For an actual closed dependent pair, the result compares the selected source
+type field with the original opposite major's type projection. The outstanding
+step is full common-mode projection contraction through arbitrary computed
+projection histories, followed by the carrier-field consumer. That step must
+handle both retained projections and already selected fields; it is not proved
+merely by the inferred major theorem. PiInertPairTypeFieldSelection and the
+original strengthening goal remain open.
+
+Validation: 1255 integration jobs; 8 recursively audited roots;
+maximum closure 11,976; all 1,230 frozen sources unchanged. Stock Lean
+v4.33.0-rc2 in /dev/shm/native-level-coherence-work only; standard axioms only,
+no forbidden strengthening/circular dependencies. PR extraction deferred.

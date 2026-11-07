@@ -40167,3 +40167,74 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution in
 Quot.sound; no forbidden strengthening or circular-frontier dependencies.
 All 1,228 frozen sources verified. Artifacts: /dev/shm/pi-inert-terminal-depth-*.
 Executable and UniqueTyping.lean unchanged; goal active; PR extraction deferred.
+
+
+## 2026-11-07 16:54:34 UTC — Use checker depth to complete stable-spine type-field exposure
+
+Added ProofErasurePiInertSpineApplicationOrigin.lean and
+ProofErasurePiInertSpineTypeExposure.lean, plus the aggregator import. The
+preceding goal turn made verified progress in 791f6e3a and 39f56c5f; this turn
+revalidated their clean committed state and used their bounded application
+consumer in a full constructor-field readout induction.
+
+pi_inert_zero_spine_application_origin starts with a typed core-stable
+empty-level constant spine and a stage-zero path to an application. It chooses
+a minimum primitive-count certificate and cuts its first non-core spine root.
+At stage zero this root is constant expansion. If its wrapper is consumed,
+counted constant-lambda readout and the retained argument paths bypass the root
+with strictly fewer primitives, contradicting minimality. If it survives,
+there are two alternatives. A nonempty pending suffix supplies an original
+last argument, a separate original-prefix path to the final function, and an
+argument path. An empty pending suffix gives a whole-spine constant wrapper,
+a lower-payload path from the original spine, and ControlTyping of the computed
+discarded argument at Sort 1. This uses finite path minimality, not term
+normalization. pi_inert_zero_spine_head_shape rules out all non-application
+endpoint heads except the exact original empty constant spine.
+
+SpineFirstType requires an actual universe assignment only for a nonempty
+vector's first argument. SpineFirstCompare records its common comparison while
+leaving later values unconstrained. The private application_readout consumes
+the path decomposition. Original final arguments recurse on the function
+child; when this is the first argument, ordinary/native/computed guards are
+read as common comparison using actual sort typings. Whole-spine wrappers
+invoke pi_inert_zero_constant_control_application_depth and recurse at the
+function child's depth. Their payload history remains a path from the same
+original constructor spine, so no newly generated history is assumed.
+
+The outer depth_origin_readout proof uses strong induction on the numeric
+depth, with an inner full-checker induction for zero-cost compute and symmetry
+prefixes. It proves both orientations simultaneously. Reflexivity uses the
+existing administrative endpoint deletion and retained argument paths. Bare
+constant and impossible-head cases use the new head-shape theorem. Every
+application constructor is covered, including native and computed carrier
+guards. The output is a full target computation to the original constructor
+head and arity plus comparison of the original first type argument.
+
+pi_inert_zero_computed_spine_type_exposure forgets the bound only after this
+induction, using the theorem that every original checker has some finite bound.
+It permits an arbitrary source computation history before the supplied inferred
+comparison. pi_inert_zero_binary_type_exposure specializes to the two-field
+constructor. proofErase_pi_inert_zero_pair_selected_type_projection then uses
+actual dependent-pair typings and primitive projection selection to compare
+the source type field with the original opposite major's type projection.
+Neither target constructor shape nor an independent field-comparison premise
+is supplied by the caller.
+
+Remaining: full common-mode projection contraction and the carrier selection
+law. A concrete next route is a minimum-count projection-path decomposition:
+projection retained with a major path, original selected field already computing
+to the endpoint, or a whole constant wrapper with its universe control argument.
+The core-root branch uses existing constructor-selection residual readout;
+a consumed constant root is excluded by cheaper bypass. Then combine structural
+checker depth with the new inferred constructor exposure at the proj branch,
+use the smaller terminal application readout at wrapper app branches, and pull
+back directly when selection has already happened. ComputedJointCompare.common
+can promote a returned inferred certificate without claiming transitivity.
+No such full projection contraction is asserted by this commit.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution in
+/dev/shm/native-level-coherence-work. Integration 1255 jobs; recursive audit
+8 roots, maximum closure 11,976; only propext/Classical.choice/
+Quot.sound; no forbidden strengthening or circular-frontier dependencies.
+All 1,230 frozen sources verified. Artifacts: /dev/shm/pi-inert-spine-type-exposure-*.
+Executable and UniqueTyping.lean unchanged; goal active; PR extraction deferred.

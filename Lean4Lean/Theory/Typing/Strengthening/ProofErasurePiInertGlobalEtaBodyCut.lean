@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertSpineTypeExposure
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertTerminalDepth
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertComparedControlApplication
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertTerminalSubstitution
