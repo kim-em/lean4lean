@@ -21054,3 +21054,22 @@ analysis must keep actual endpoint typings and address the retained body
 contexts/argument carriers. No new unproved closure law was substituted.
 Validation: 1104 jobs, 323 audited roots, maximum closure 12,048;
 only propext, Classical.choice and Quot.sound. GOAL.md remains active.
+
+
+### 2026-11-07 03:10:41 UTC — Typed eta terminal preserves body frames: proved
+
+The raw identity-body counterexample does not block the actual rigid-sort
+frame case. Proved two-way eta transport for actual sort-typed bodies in
+their own annotation contexts. Weakening inserts the long endpoint's binder
+below the short lambda's binder. Conversely the fresh variable, typed using
+the actual domain equality, consumes the inner lambda; context conversion
+returns the frame data to the short body's original context. Both variable
+and proof-marker eta are covered, including proposition-valued domains.
+The inferred domain-comparison child supplies the required domain equality.
+
+Verdict: closes the typed eta terminal for this source invariant. No guarded
+path substitution/context conversion is used, and no arbitrary common-mode
+body extraction is claimed. Ordinary/sorted lambda body comparison and carrier
+argument handling remain open on the route to general unit conversion.
+Validation: 1105 jobs, 329 audited roots, maximum closure 12,048;
+only propext, Classical.choice and Quot.sound. GOAL.md remains active.

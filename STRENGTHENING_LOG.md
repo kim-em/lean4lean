@@ -36803,3 +36803,52 @@ constructors and recursors contain no sorryAx, weakN_iff or excluded circular
 framework dependency. All 1,079 frozen source hashes remained unchanged, with
 no owned diagnostics. Stock Lean/Lake ran only in scratch. No executable
 changes or PR extraction.
+
+
+### 2026-11-07 03:10:41 UTC — Close the typed eta terminal for rigid-sort frames
+
+Revalidated clean pushed HEAD 03c76ec3. Previous goal turn was progress.
+Continued at the explicit eta terminal of inferred lambda comparison, retaining
+actual body typings and each endpoint's original domain context. The raw
+proof-marker counterexample is not a justification for dropping proof-domain
+eta: the typed proof below handles both forms.
+
+Added ProofErasurePiInertTypedEtaFrames.lean and imported it from the global
+module. Six public theorems are proved:
+
+- RigidSortFrames.typed_substitute reconstructs the erasure of an actually
+  substituted original from ordinary typed context substitution.
+- RigidSortFrames.weakN inserts arbitrary well-formed binder blocks, including
+  insertion below the lambda's own binder, while retaining the frame tree.
+- RigidSortFrames.lambda_app_inv exposes the constant-body or identity-argument
+  child of a framed application without strengthening its raw grammar.
+- RigidSortFrames.typed_eta_iff transports frames both ways between actual
+  sort-typed lambda bodies at equal domains. The forward expansion weakens
+  the short body under the long binder and constructs a constant frame. For
+  contraction, the actual fresh variable consumes the inner lambda through
+  typed substitution. The original lifted-body identity then recovers the
+  short body; ordinary context conversion restores its own annotation scope.
+  The alternative identity-frame case would require a rigid-sort frame at a
+  bare variable or proof marker and is eliminated structurally.
+- RigidSortFrames.typed_eta_pair_iff handles either orientation of the stored
+  eta witness. The first five results use no canonical-Eq or guarded soundness
+  hypothesis beyond ordinary Params.
+- RigidSortFrames.inferred_eta_pair_iff reflects the actual inferred domain
+  comparison to supply the domain equality. It needs canonical Eq and sound
+  definitions for that reflection, but no carrier-conversion or substitution
+  completeness premise.
+
+This closes the typed eta branch for rigid-sort frame preservation. It does
+not close the ordinary/sorted body-comparison cases, arbitrary argument
+carrier checking, general type conversion, or strengthening. In particular,
+no guarded computation path is moved across semantically equal annotations;
+only proved frame data is transported. The original weakN_iff sorry and the
+full GOAL.md objective remain open, with no strict-smallness claim.
+
+Validation: 1105 successful build jobs, 329 recursively audited roots,
+maximum closure 12,048; only propext, Classical.choice and Quot.sound.
+Every new theorem is an audit root. Recursive types, values, constructors and
+recursors contain no sorryAx, weakN_iff or excluded circular framework
+dependency. All 1,080 frozen source hashes remained unchanged; no owned
+diagnostics. Stock Lean/Lake ran only in scratch. No executable changes or
+PR extraction.
