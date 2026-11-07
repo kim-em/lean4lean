@@ -22582,3 +22582,53 @@ recursive dependency closure 11,976; only propext, Classical.choice and
 Quot.sound. Frozen sources and owned diagnostics checked. Stock v4.33.0-rc2
 Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work. Executable
 and UniqueTyping.lean unchanged; no PR extraction. GOAL.md remains active.
+
+
+## 2026-11-07 10:22:54 UTC — Finite-tree conversion through certified outer core aliases
+
+Previous goal turn: progress, committed as 2f0380d5. Rechecked the earlier
+LiteralPiDomain counterexample before extending selected-carrier exposure.
+A non-Pi carrier cannot be treated as vacuous merely because its outer syntax
+is not a function type. Existing demand values test all typed ordinary-core
+Pi joins, and that action must be preserved through the selected alias.
+
+TypedSource.assigned retains an actual raw assignment for a source witness.
+TypedAt.core_join then transports an assigned carrier through a typed
+ordinary-core join in either direction. It realizes both paths in a common
+actual context, reflects equality of their common erasures with a sort-typed
+left endpoint, and converts the original operand to the target actual type.
+The target only needs a source witness initially; its role as an assigned
+type is proved. No strengthening or guarded-stage confluence is used.
+
+PiInertCoreTypeCarrier records source typing and a typed core join to a
+finite selected Pi tree. It is constructed from literal trees or supplied
+joins, preserved by every interpreted typed substitution, and transported
+through further core joins using typed confluence at the middle carrier.
+PiInertTypeInterface.convert_core_exposed moves both assigned typings and
+the full source demand to the exposed types, invokes the checked tree
+conversion, and returns the result to the selected target alias. It requires
+no core join between the old and new selected carriers. The original
+StrongBounded bridge consumes the original rank-k children plus explicit
+exposure certificates and reference typing.
+
+identity_alias constructs its certificate from an actual typed identity-beta
+expansion and proves its erasure has application syntax, hence is not any
+literal Pi. convert_identity_aliases uses two such expansions and constructs
+both exposure certificates internally, transporting a demand retained at the
+source alias to the target alias. Thus this is an exercised non-Pi selected
+carrier case, not merely a renamed literal exposure hypothesis.
+
+Verdict: the literal-Pi selected-carrier restriction is removed for certified
+ordinary-core aliases throughout the finite reference-tree conversion rule.
+The general production of exposure from ordinary semantic equality remains
+open, as do general data/variable reference leaves, structure/projection rules
+and full strong demand coverage. This certificate is not claimed to be a new
+irreducible sufficient obligation strictly smaller than PropFront. The main
+strengthening theorem remains unproved and no canonical-Eq counterexample
+has been obtained.
+
+Validation: 1180 integration jobs; 12 public/probe roots; maximum
+recursive dependency closure 11,976; only propext, Classical.choice and
+Quot.sound. Frozen sources and owned diagnostics checked. All Lean/Lake used
+stock v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
+UniqueTyping.lean unchanged; no PR extraction. GOAL.md remains active.

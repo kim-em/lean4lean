@@ -38355,3 +38355,38 @@ Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
 /dev/shm/demand-tree-conversion-*. All Lean/Lake used stock v4.33.0-rc2 in
 /dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
 PR extraction remains deferred and GOAL.md remains active.
+
+
+## 2026-11-07 10:22:54 UTC — Assigned typings and demands survive certified core type exposure
+
+Added ProofErasurePiInertDemandCoreExposure.lean and its aggregator import.
+TypedAt.core_join transports actual raw assignments through typed ordinary-
+core joins by realizing and reflecting the two common reducts. This supplies
+the assigned typings needed to use the previous finite-tree conversion rule
+at exposed representatives of non-Pi selected carriers.
+
+PiInertCoreTypeCarrier retains source typing and a typed core join exposing
+the required finite Pi tree. It is preserved under arbitrary interpreted
+typed substitution and further typed core joins. convert_core_exposed moves
+assigned endpoints and the source demand to their exposed types, converts
+there, and returns the full demand to the original selected target. Its
+StrongBounded bridge uses the original rank-k children, reference typing and
+explicit exposure certificates.
+
+identity_alias constructs exposure for actual typed identity-beta wrappers
+and proves their erasures are non-Pi applications. convert_identity_aliases
+constructs both certificates and handles a demand at the wrapped source and
+target. No core join between the underlying source and target annotations is
+assumed. The earlier literal-Pi vacuity obstruction was rechecked and is not
+bypassed: all alias action is retained via the original demand core joins.
+
+Unconditional exposure from ordinary semantic equality, general reference
+leaves and full strong coverage remain open. No strengthening proof or
+smaller-than-PropFront sufficient obligation is claimed.
+
+Integration passed 1180 jobs. Recursive audit covered 12 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
+/dev/shm/demand-core-exposure-*. All Lean/Lake commands used stock v4.33.0-rc2
+exclusively in /dev/shm/native-level-coherence-work. Executable and
+UniqueTyping.lean unchanged; no PR extraction. GOAL.md remains active.
