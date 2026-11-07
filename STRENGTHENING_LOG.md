@@ -42450,3 +42450,70 @@ Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,320 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-retained-head-commutation-*.
+
+
+## 2026-11-07 23:06:37 UTC — Cost/frame induction for the marked full-pair subproblem
+
+Added ProofErasurePiInertFreshPairRootProgress.lean and
+ProofErasurePiInertFreshPairCutElimination.lean, imported by the global eta-body
+aggregate. The previous turn's f9427799 was verified clean before this work.
+
+PiInertFreshFieldMinimum.pair_root_progress analyzes the actual counted body
+path, retaining its original continuation and all-stage/raw minimum. In the
+component case, argument ancestry fixes the first fresh variable and preserves
+the two-field vector. Zero-cost constructor-head commutation and the next
+actual application give either activation or a fresh-pair minimum with fewer
+frames. Typed saturation excludes additional pending arguments. At a native
+function root, an empty prefix uses the retained-wrapper theorem of f9427799;
+a one-field prefix descends through eta to another full pair below one more
+binder, strictly reducing primitive cost. A saturated function prefix is
+impossible because native Pi recovery would assign a function type to the
+closed record. A native structure root has no pending arguments, and the
+fresh variable remains its first field.
+
+PiInertFreshPairStructureMinimum records that selected saturated structure
+root, its original stage and earlier native guard, typed full-pair source,
+actual tail computation and marked continuation, and the unrestricted minimum
+including the root charge. Its minimum theorem reconstructs the ordinary
+marked source minimum. Its projected_field_minimum theorem identifies the
+native target's first field as the exact sort-typed projection of the original
+fresh pair. One primitive iota selects the fresh variable, and the target has
+a marked minimum of cost exactly one less. No replay of that selection through
+arbitrary later computations is assumed.
+
+PiInertFreshFieldMinimum.pair_function_eta_eliminate performs nested strong
+induction on cost and then frames. It repeatedly consumes every component,
+empty-prefix eta, and one-field eta branch until activation or a selected
+structure root. The original observer-scope constructor recovery, distinguished
+binder A, and supplying x remain fixed, while temporary controls and the value
+field may change. The output cost is bounded by the original minimum. This
+is a proved terminating reduction of the marked full-pair subproblem, without
+a caller-supplied recursive readout hypothesis.
+
+CountedEtaBodySpineCut.empty_pair_prefix_marked_minimum derives the starting
+full-pair minimum directly from the actual global empty-prefix cut. It retains
+the value-eta body at C::A::Delta, both actual continuation frames, and the
+original outer argument history that supplies x. The original field charge
+plus this minimum is strictly below the same original budget. The theorem
+empty_pair_prefix_function_eta_eliminate then applies the cost/frame induction
+to this actual witness. Its outputs are an activated full pair under a retained
+telescope or a selected full fresh-pair structure expansion, each preserving
+that joint strict budget. This improves the previous activation-or-unresolved-
+function-root reduction rather than assuming a new unrelated minimum.
+
+Judgment: repeated function-eta transitions in the marked full-pair phase are
+now handled by a closed well-founded induction. The remaining work is not
+merely constructing a decreasing measure: the activated pair must be read
+under its retained telescope, and the structure target's projected first field
+must be read through the arbitrary marked continuation. Subsequent computations
+inside those residual cases may still contain function eta. These two readout
+obligations are not yet a sufficient global replacement for PropFront.
+Original weakN_iff sorry and executable unchanged. Goal active; PR extraction
+deferred.
+
+Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1347 jobs; recursive audit
+8 public roots, maximum closure 12,041; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,322 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-fresh-pair-root-progress-*.

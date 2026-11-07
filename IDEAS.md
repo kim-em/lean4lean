@@ -25577,3 +25577,32 @@ proof of weakN_iff, canonical-Eq counterexample, or sufficient smaller global
 obligation established. Goal active; PR extraction deferred. Validation:
 1345 jobs, 11 public roots, maximum audit closure 11,981,
 1,320 frozen source hashes; stock Lean in /dev/shm.
+
+
+## 2026-11-07 23:06:37 UTC — Terminate repeated function eta before supply or structure
+
+Idea: combine the empty-prefix frame decrease with the one-field-prefix
+primitive-cost decrease, and recurse on (cost, frames) rather than seeking
+a strict eta-charge saving in every branch. Verdict: checked. Full-pair
+component paths advance an application, empty-prefix eta uses retained-head
+commutation, and eta after the fresh first field opens another full pair
+with smaller cost. Saturated function eta contradicts the closed record type.
+The resulting well-founded reduction has only two outcomes: the supplied
+field in a full pair under a retained telescope, or an actual saturated
+structure expansion of a full fresh pair. Both keep the same future x and
+cost no more than the input minimum.
+
+Connected this reduction to the actual global empty-prefix pair cut, retaining
+the two-binder full-pair minimum before selecting another native body root.
+The original field charge plus the resulting minimum remains strictly below
+the original budget. The structure outcome exposes a strictly cheaper marked
+pair minimum whose first field is the exact sort-typed projection of its
+original fresh pair; one iota selects the original fresh variable.
+
+Remaining: read that projected field through its arbitrary remaining marked
+continuation, and read activated pair minima under retained telescopes. The
+reduction stops at those actual cases; it does not eliminate all function eta
+inside their later computations. No strengthening proof, canonical-Eq
+counterexample, or sufficient smaller global obligation established. Goal
+active; PR extraction deferred. Validation: 1347 jobs, 8 public roots,
+maximum closure 12,041, 1,322 frozen source hashes; stock Lean in /dev/shm.
