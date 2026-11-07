@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertFreshFieldNativePrefix
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertFreshFieldRetainedProgress
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertFreshFieldRootDescent
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertFreshFieldCutActivation
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertFreshFieldEtaCut

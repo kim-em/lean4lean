@@ -42197,3 +42197,64 @@ Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,312 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-fresh-field-native-prefix-*.
+
+
+## 2026-11-07 22:31:10 UTC — Execute the retained empty-prefix branch with its lowered function charge
+
+The previous goal turn made checked progress in 8aca83d7 and d1e19ee8.
+Revalidated the clean worktree at d1e19ee8, then continued the retained
+alternative left by the arbitrary-depth native fresh-field bypass. Added
+ProofErasurePiInertFreshFieldRetainedDescent.lean and
+ProofErasurePiInertFreshFieldRetainedProgress.lean to the global aggregate.
+
+pi_inert_telescope_component_count_descend reconstructs the actual lower
+context from a well-formed upper context and its literal erased suffix. It
+realizes an independently typed lower source there, then applies counted
+Pi-inert descent across the entire temporary telescope. The stage and
+primitive count are unchanged, and the exact upper endpoint is the lift of
+the lower endpoint. pi_inert_fresh_field_endpoint_minimum fixes an actual
+complete prefix to obtain an unrestricted marked suffix minimum.
+
+pi_inert_fresh_field_empty_eta_retained_descent analyzes the actual selected
+empty-constructor eta computation. Native recovery at the tracked fresh
+field excludes its consumed branch by the counted bypass. In the retained
+branch, the function path includes the original eta root and descends to
+the observer scope. Its lifted endpoint is the retained lambda, with the
+same fresh field still first in the pending vector. The argument computation
+is preserved. All-raw minimality upgrades the component decomposition's
+cost inequality to exact function-plus-argument equality. The remaining
+continuation is a marked minimum at the exact endpoint, with the same future
+x and a strictly smaller unreserved primitive count. The function charge
+is explicitly reserved, not erased by this strict comparison.
+
+PiInertEndpointMap.pending_head_transport preserves every observer-scope
+function as its exact lift across applications above the distinguished
+binder, including below retained telescopes.
+PiInertFreshFieldRun.pending_field_next_minimum generalizes constructor-head
+application progress to this arbitrary lower function. The actual next
+application either activates x or keeps the same fresh variable and future
+supply. Both strictly reduce frames and do not increase remaining cost.
+The old guarded function path is never transported through the substitution.
+
+pi_inert_fresh_field_empty_eta_next_application connects both results to the
+same actual charged root, prefix and continuation. Its lower function history
+remains counted in the observer scope, and the reserved function/argument
+charges plus the next minimum remain within the original budget. This
+advances a previously isolated retained endpoint through an actual frame;
+it does not assume its later body path stays component-only.
+
+Judgment: the retained empty-prefix branch no longer loses the provenance or
+cost of its computed constructor function while the fresh field advances.
+The next obligation is to recombine the reserved lower history with an
+activated field observation and handle further actual body computations;
+structure-eta projection readout remains open as well. No full recursive
+field-readout invariant or sufficient irreducible global replacement for
+PropFront is established. Original weakN_iff sorry and executable unchanged.
+Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1339 jobs; recursive audit
+7 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,314 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-fresh-field-retained-descent-*.

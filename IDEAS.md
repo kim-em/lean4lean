@@ -25466,3 +25466,29 @@ No proof of weakN_iff, canonical-Eq counterexample, or sufficient smaller
 global obligation established. Goal active; PR extraction deferred.
 Validation: 1337 jobs, 5 audited roots, maximum closure 11,981,
 1,312 frozen source hashes; stock Lean v4.33.0-rc2 in /dev/shm.
+
+
+## 2026-11-07 22:31:10 UTC — Lower retained function history and advance its pending field
+
+Idea: a retained empty-prefix eta endpoint has a function path from the
+closed constructor. Descend that entire path below every temporary binder,
+reserving its exact count, and execute the pending field's next application
+with this same lower function. Verdict: checked. Counted source-typed descent
+produces a literal lifted endpoint at identical stage and cost. Minimality
+makes the retained function and argument costs sum to the charged root/tail
+cost, rather than merely bounding the decomposition from above.
+
+The actual charged cut now gives a strictly smaller continuation minimum
+whose pending field follows the same lower function. Its next actual
+application either preserves the fresh field and future x, or activates x
+below the exact retained telescope. Both decrease frames. Reserved function
+and argument charges plus the resulting minimum fit the original budget.
+The function computation remains in the observer scope; it is not substituted
+through arbitrary consuming frames.
+
+Remaining: recombine the reserved lower constructor-function history with
+the activated field observation, and close readout for further body paths
+and structure targets. No sufficient smaller global obligation, proof of
+weakN_iff, or canonical-Eq counterexample established. Goal active; PR
+extraction deferred. Validation: 1339 jobs, 7 public roots, maximum
+audit closure 11,981, 1,314 frozen source hashes; stock Lean in /dev/shm.
