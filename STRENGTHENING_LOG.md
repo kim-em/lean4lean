@@ -40110,3 +40110,60 @@ Quot.sound; no forbidden strengthening or circular-frontier dependencies.
 All 1,226 frozen sources verified. Artifacts:
 /dev/shm/pi-inert-compared-control-application-*.
 Executable and UniqueTyping.lean unchanged; goal active; PR extraction deferred.
+
+
+## 2026-11-07 16:38:42 UTC — Structural-depth preservation and decreasing application readout
+
+Added ProofErasureComputedJointDepth.lean and ProofErasurePiInertTerminalDepth.lean,
+with the aggregator import. This follows committed 791f6e3a in the same goal
+continuation and addresses its explicit concern that the application consumer
+returns a rebuilt certificate rather than an original induction child.
+
+ComputedJointCheckDepth has every constructor of ComputedJointCheck. Structural
+rules share a predecessor bound among their recursive premises and return its
+successor. Leaves and subsingleton carriers fit any bound. Compute, symmetry,
+carrier symmetry, carrier compute and carrier reduce preserve the bound.
+ComputedJointCheckDepth.forget returns the original relation. Its weaken theorem
+permits any larger bound. ComputedJointCheck.depth constructs a finite bound
+for every original certificate; a finite-family maximum argument handles all
+three structure-field rules, including proof-field exclusions.
+
+The typed transport induction is adapted from ComputedJointCheck.transport_application
+with depth on every recursive comparison/carrier premise and result. Reflection
+uses only the forgotten original child; output reconstruction keeps its bound.
+The application callback must return exactly one layer above its transported
+children. Native recovery and computed-domain recovery meet that interface
+without adding structural layers. Proof-valued carrier-function fallback also
+fits its original layer. Terminal-image transport instantiates this theorem
+using the existing Pi-inert stage-zero recovery and selected-domain proofs.
+Single terminal substitution preserves both checking mode and depth.
+
+InferredLambdaDepthBody records equal bodies, a body child in either written
+annotation context, or typed eta. The bounded lambda cut follows the original
+checker induction, retaining computation paths without charging them depth.
+Body instantiation uses the depth-preserving terminal substitution theorem;
+reflexivity and typed eta yield a leaf with computation prefixes. Thus the
+terminal-lambda application result preserves the original function bound.
+The constant-function and source-type-argument specializations retain it too.
+
+pi_inert_zero_constant_control_application_depth reconstructs the actual
+constant lambda from the raw application node and returns its lower payload
+against the arbitrary target application at the function child's bound.
+The three application constructors all add one layer, so this is strictly
+below the enclosing application's bound. It requires no argument guard,
+independently typed lower payload, native target argument, or target-body
+independence premise. This provides the local decrease previously missing
+for recursing on the rebuilt comparison.
+
+The complete constructor-field induction still needs its frame and pending-
+argument invariant and preservation of selected-field histories. The measured
+consumer is not that completed induction, nor arbitrary forward beta closure.
+PiInertPairTypeFieldSelection, higher-stage extension, and weakN_iff remain open.
+No claim that the final GOAL.md deliverable is met is made.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution in
+/dev/shm/native-level-coherence-work. Integration 1253 jobs; recursive audit
+20 roots, maximum closure 11,976; only propext/Classical.choice/
+Quot.sound; no forbidden strengthening or circular-frontier dependencies.
+All 1,228 frozen sources verified. Artifacts: /dev/shm/pi-inert-terminal-depth-*.
+Executable and UniqueTyping.lean unchanged; goal active; PR extraction deferred.

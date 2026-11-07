@@ -24287,3 +24287,41 @@ maximum closure 11,976; all 1,226 frozen sources unchanged. Stock Lean
 v4.33.0-rc2 in /dev/shm/native-level-coherence-work only; standard axioms only,
 no forbidden strengthening or circular-frontier dependencies. PR extraction
 deferred.
+
+
+## 2026-11-07 16:38:42 UTC — Bound rebuilt comparisons by structural checker depth
+
+Verdict: the previously missing local recursion decrease is now proved for
+stage-zero constant control applications. Define a depth-bounded copy of the
+entire recursive checker, counting structural layers while giving computation,
+symmetry and carrier computation/reduction zero additional cost. Every original
+certificate has a finite bound, including finite structure-field families;
+forgetting the bound recovers exactly the original checker. This is a measure
+on certificates, not term normalization or a restriction to a smaller grammar.
+
+Typed transport preserves the bound when native recovery is repaired by a
+computed application domain: both application rules consume the same layer.
+Terminal-image substitution satisfies this repair at Pi-inert stage zero.
+A bounded inferred lambda cut retains either a body comparison at the original
+bound, reflexivity, or typed eta. Instantiating the cut and pulling back along
+computation prefixes therefore preserves the function child's depth.
+
+The raw constant-control application consumer returns the lower payload versus
+the arbitrary target application at that function-child depth. Every enclosing
+application constructor has one more layer. Thus recursion on this rebuilt
+comparison has a strict numerical decrease even if substitution inserts large
+computation witnesses or changes native application into computed application.
+The target body may depend on its argument. Actual source application typing
+derives lower payload typing and nonproof status; no extra payload premise is
+introduced.
+
+This removes the local measure objection recorded in the preceding entry.
+The full constructor-field proof must still organize arbitrary surviving head
+frames, pending arguments, and selected-field histories around the measure.
+The original strengthening goal and PiInertPairTypeFieldSelection remain open;
+no sufficient smaller frontier or general forward beta closure is asserted.
+
+Validation: 1253 integration jobs; 20 recursively audited roots;
+maximum closure 11,976; all 1,228 frozen sources unchanged. Stock Lean
+v4.33.0-rc2 in /dev/shm/native-level-coherence-work only; standard axioms only,
+no forbidden strengthening/circular dependencies. PR extraction deferred.

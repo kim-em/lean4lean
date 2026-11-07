@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertTerminalDepth
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertComparedControlApplication
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertTerminalSubstitution
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertUnusedBodyComparison
