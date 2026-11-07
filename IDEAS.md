@@ -21140,3 +21140,28 @@ still not certified, and arbitrary function heads, unsaturated Eq prefixes and
 ordinary/sorted body comparison remain live. No strict-smallness claim.
 Validation: 1109 jobs, 344 audited roots, maximum closure 12,048;
 only propext, Classical.choice and Quot.sound. GOAL.md remains active.
+
+
+### 2026-11-07 03:53:14 UTC — Source typing makes unsaturated Eq prefixes opaque: proved
+
+The old untyped pattern argument excludes a marked source from every Eq
+prefix of length at most five by its six-argument shape. It cannot make that
+same exclusion for a marked five-argument prefix. Instead retain an actual
+source typing throughout core simulation. The existing typed Eq-root exclusion
+then rules out the complete Eq pattern: its major must erase to proof. Other
+registered pattern heads cannot inspect an Eq-headed mark, regardless of arity.
+
+Implemented typed opaque core simulation with source realizations for every
+recursive component and replayed intermediate. A spine-cut proof also shows
+that any typed Eq-headed source keeps that head through ordinary level-core
+computation, with no arity or major-ancestry premise. These proofs extend
+consumer/application closure to unsaturated and oversaturated Eq sources at the
+same stage, retaining all future substitutions and core residuals. The earlier
+level-compatibility and concrete-pattern assumptions are no longer needed.
+
+Verdict: closes the saturation restriction on the certified-prefix result,
+including the five-argument prefix relevant to lambda cuts. Existing evidence
+is still required; raw-path certification, ordinary/sorted body comparison,
+and arbitrary non-Eq function heads remain open. No strict-smallness claim.
+Validation: 1111 jobs, 352 audited roots, maximum closure 12,048;
+only propext, Classical.choice and Quot.sound. GOAL.md remains active.

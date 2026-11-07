@@ -36999,3 +36999,60 @@ constructors and recursors contain no sorryAx, weakN_iff or excluded circular
 framework dependency. All 1,084 frozen source hashes remained unchanged;
 no owned diagnostics. Stock Lean/Lake ran only in scratch. No executable
 changes or PR extraction. GOAL.md remains active.
+
+
+### 2026-11-07 03:53:14 UTC — Typed opaque simulation covers all Eq-prefix arities
+
+Revalidated clean pushed HEAD 3d840d83. Previous goal turn was progress.
+Continued the unsaturated-prefix case left open by the saturated opaque theorem.
+The old raw pattern simulation cannot use a six-versus-five arity exclusion
+when the protected occurrence itself is a five-argument prefix. Source typing
+gives a different, already established exclusion for complete Eq patterns.
+
+Added ProofErasureTypedEqOpaqueCore.lean with four public theorems:
+
+- const_head_subst preserves any existing constant head under substitution.
+- Compute.typed_eq_head preserves an actual Eq head through arbitrary ordinary
+  level-core computation. The constant-spine cut passes universe roots and
+  realizes its selected prefix; typed_eq_no_core_root excludes any remaining
+  root. Unsaturated and oversaturated inputs are both covered.
+- typed_eq_opaque_level_core_root simulates a typed core root with arbitrary
+  Eq-headed protected occurrences. Private pattern lemmas handle all non-Eq
+  heads. An Eq-headed visible pattern is ruled out using the actual source
+  typing and canonical major position, not the protected occurrence's arity.
+- OpaqueVariant.typed_eq_core_left carries the result through a complete core
+  path. Recursive application/projection/binder components obtain their typed
+  source from the exact ScopedHole; transitivity replays source typing at the
+  intermediate. Beta uses the existing protected paired substitution theorem.
+
+Added ProofErasurePiInertEqHeadConsumer.lean and imported it from the global
+module. Four public theorems apply the typed simulation:
+
+- PiInertInterpret.eq_head_consumer repairs arbitrary core residuals of an
+  actual typed consumer from existing computation evidence at any Eq-headed
+  source. The target retains an ordinary core tail.
+- PiInertEvidence.eq_head_consumer reconstructs every future typed instance
+  using constant-head substitution and the old future interpretation.
+- PiInertEvidence.eq_head_application specializes this to actual application,
+  including dependent assigned Pi types and newly created beta redexes.
+- pi_inert_eq_head_unit_application_history precedes the complete unit-lambda
+  history with that certified application prefix. It recovers the original
+  function's required Pi typing from the evidence and retains arbitrary raw
+  carrier endpoints at the input stage.
+
+These results remove both the saturation requirement and the earlier explicit
+D.LevelCompatible/concrete-pattern assumptions. They still use an existing
+PiInert computation certificate; they do not manufacture hereditary evidence
+from arbitrary raw paths, extract it from ordinary/sorted body comparisons,
+or prove consumer closure for arbitrary non-Eq function heads. The original
+weakN_iff sorry and full GOAL.md objective remain open, without a counterexample
+or strict-smallness claim.
+
+Validation: 1111 successful integration-build jobs, 352 recursively
+audited roots, maximum closure 12,048; only propext, Classical.choice
+and Quot.sound. All eight new public theorems are audit roots, with their private
+helper proofs traversed recursively. Types, values, constructors and recursors
+contain no sorryAx, weakN_iff or excluded circular-framework dependency.
+All 1,086 frozen source hashes remained unchanged; no owned diagnostics.
+Stock Lean/Lake ran only in scratch. No executable changes or PR extraction.
+GOAL.md remains active.
