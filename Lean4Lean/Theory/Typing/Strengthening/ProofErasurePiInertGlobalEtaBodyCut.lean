@@ -24,6 +24,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqReturningSupplyHistor
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRecognizedSupplyReturn
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPendingSupplyHistory
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPendingSupplyRestore
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPendingCountedReadout
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -94,6 +95,15 @@ substituting native computations. Source argument equalities restore the whole
 application typing; pending supplies survive the reattachment and older-history
 join. Constructing these returned histories at every recursive cut, with the
 selected minimum and termination argument, remains open.
+
+`counted_lambda_readout` now reads an actual chosen retained lambda suffix
+without a minimum premise. It preserves the body scope and bounds the sum of
+annotation, body, argument and beta-suffix primitive costs. Local consumption
+splits the pending vector without requiring the enclosing tail to be empty.
+`outermost` exposes the source frame and exact inner depth; outer annotation
+alignment returns an identity square preserving the chosen spine and raw
+wrapper. These support a direct endpoint-recognition induction, but its recursive
+recognition theorem and output-depth bound remain unproved.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation

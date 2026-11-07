@@ -36079,3 +36079,89 @@ strengthening dependency or excluded circular framework. The original
 chosen-chain probe still excludes the older nested-eta/frame/supply probes.
 All 1,056 import source hashes stayed fixed. Stock Lean/Lake ran only in scratch.
 No executable changes or PR extraction.
+
+
+## 2026-11-07 00:47:22 UTC — Actual counted retained readout for a direct recursive invariant
+
+Added `ProofErasureEqPendingCountedReadout.lean` and imported/documented it from
+the global eta body-cut module. This develops the previous direct-recognition
+candidate without asserting that its mutual recursion or termination is proved.
+
+`EqRetainedArgumentSupply.nonempty_head` removes the earlier empty-enclosing-
+pending restriction. If the local lower vector were empty, its chosen vector
+would be empty. A nonempty raw vector would then come from upper extras, which
+force the enclosing pending vector to be empty; that contradicts the equation
+that the combined chosen vector starts with the retained binder's image. Thus
+an actual nonempty raw vector has a typed lower head agreeing with that image.
+Its remaining chosen vector is explicitly split into local supplied images
+followed by the old enclosing pending vector. `compute_consume` derives this
+split and the literal chosen supply square from further actual argument paths.
+
+`counted_lambda_readout` starts from a typed retained lambda spine and its
+actual counted computation. It uses the existing lambda-spine-or-beta split and
+original-context typed lambda readout, without a continuation minimum premise.
+The retained alternative preserves the computed argument record, exact endpoint,
+annotation path and body path. The consumed alternative retains the actual raw
+head/tail and beta suffix, derives its concrete supply square, and keeps source
+head typing, local supply images and upper extras. The body stays in its original
+actual context even if its finite stage increases. Annotation and body counts
+sum to the chosen function count; adding arguments and the beta suffix gives a
+sum bounded by the original path count.
+
+`pending_history_readout_decreases` checks the lexicographic arithmetic for two
+recursive calls. The body count is no larger than the parent count and its
+incoming history has one fewer wrapper. If the suffix count equals the parent
+count, the body count is zero; a returned-depth bound then makes that suffix's
+incoming depth smaller too. The returned-depth bound is explicitly a premise,
+not a theorem about the still-unimplemented recognizer.
+
+`EqPendingSupplyHistory.outermost` splits the actual outer source frame from
+the inner history. It preserves the initial domain typing and native annotation
+path, chosen argument record, wrapper equality for every body, and exact chosen
+and retained counts. In the unused case the base pending vector is empty. This
+split allows the structural second component of the proposed induction to be
+read from an actual history rather than an arbitrary continuation witness.
+
+`EqSupplyInsertionSquare.source_identity` packages the source half of the
+existing paired chain. `align_chosen_outer` realizes the outer annotation and
+uses its resulting identity conversion to realize the whole inner history.
+The outer argument record is converted to the displayed source domain, and
+its chosen image retains the appropriate typing. `align_unused_outer` performs
+the corresponding upper-only conversion without assigning a new target image.
+Both return concrete new current contexts and an identity square, unchanged
+wrapper syntax and unchanged binder counts. The private identity-lift lemmas
+make the lifted maps explicit. `identity_prefix` transports the same chosen Eq
+prefix through this square, retaining its type, nonproofness and exact inserted
+raw vector. Thus a later native body path uses the aligned raw context directly;
+no native guarded computation is substituted or assumed conversion-invariant.
+
+Remaining: define and prove mutual endpoint recognition for chosen Eq spines
+and retained-history suffixes, including the output-depth bound. The recursive
+state also needs original source application/path witnesses: the pending history
+stores each local head's domain typing and individually typed waiting terms,
+but does not on its own establish every whole application typing needed by
+`restore_consumed_rejoin`. Actual eta-origin source equalities provide that
+information and must remain attached through recursion. Unused-frame consumption
+also remains part of the required closure; `ContextSubstitution.realize_one`
+is already used by saturated-chain consumption to realize its upper argument
+without a chosen image. No strengthening proof, counterexample, or sufficient
+smaller PropFront obligation is claimed. The original weakN_iff sorry is unchanged.
+
+A more concrete source-anchor candidate is available for the consumed return:
+realize the whole original body path with `compute_certificate`, instantiate
+its lower source equality at the recorded typed argument, and apply the waiting
+arguments' source equalities. This should produce a typed lower returned function
+whose inserted erasure is the exact instantiated raw body. Then the native path
+required by `append_outer_supply` can be reflexive at that realized function.
+The needed input is the original instantiated-body application typing, rather
+than a guessed typing for an arbitrary returned history. This construction and
+its threading through recursive calls have not been implemented here.
+
+Validation: 1082 successful build jobs including the global module and
+regression targets; 233 recursively audited roots through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening dependency or excluded circular framework. The original
+chosen-chain probe still excludes the older nested-eta/frame/supply probes.
+All 1,057 import source hashes stayed fixed. Stock Lean/Lake ran only in scratch.
+No executable changes or PR extraction; GOAL.md remains active.

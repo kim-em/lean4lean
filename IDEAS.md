@@ -20704,3 +20704,64 @@ Validation: 1081 build jobs, 224 recursively audited roots, maximum closure
 11,976; only propext, Classical.choice and Quot.sound. All 1,056 import
 source hashes stayed fixed. Stock Lean/Lake ran only in scratch. No executable
 changes or PR extraction.
+
+
+## 2026-11-07 00:47:22 UTC — Direct counted readout with pending-tail separation
+
+**Idea:** Preserve the actual endpoint and read retained-history suffixes directly,
+using primitive count and incoming retained depth instead of first extracting
+an existential continuation frontier. Keep the exact body/suffix budgets and
+the argument metadata needed by recursive return.
+
+**Verdict:** The local readout and alignment steps are implemented and checked
+in `ProofErasureEqPendingCountedReadout`. A nonempty chosen retained vector has
+an actual lower head even when enclosing arguments remain pending. The pending
+equation and upper-extra restriction rule out an untracked head in that case.
+`compute_consume` splits remaining local images from the enclosing pending tail
+and derives the actual chosen consumption square after argument computation.
+
+`counted_lambda_readout` decomposes the original typed lambda-spine path without
+a minimum premise. It retains the initial body scope, actual annotation and
+argument computations, and the original beta suffix. Annotation plus body count
+is the original function count; the whole selected sum is bounded by the input
+count. The retained branch preserves its argument record, and the consumed
+branch derives the matching square and exact waiting vector.
+
+`outermost` exposes the first source frame and its actual inner pending history,
+including exact chosen/total binder counts. `align_chosen_outer` and
+`align_unused_outer` realize computed outer annotations before later body
+readout. Their identity squares preserve the wrapper while returning concrete
+converted source contexts. `identity_prefix` preserves the current chosen Eq
+spine, its type and nonproofness, and the exact inserted raw vector in those
+same contexts. Native paths are not moved by an unsupported substitution.
+
+The arithmetic for the proposed lexicographic calls is now checked: the body
+call loses an incoming wrapper, and an equal-cost suffix call also loses one
+if the recursive body result has depth at most incoming-inner-depth plus spent
+body count. **That output-depth bound remains a premise.** No general recursive
+recognition theorem or sufficient smaller PropFront obligation is proved.
+
+Next: formulate the mutual endpoint-preserving recognizer with its depth bound
+and source application/path witnesses. The pending history stores head-domain
+typing and individually typed tail terms; it does not itself store whole source
+application typing for every future reattachment. `restore_consumed_rejoin`
+derives that typing from the original eta source and source argument equalities,
+so the recursive invariant must retain those witnesses rather than replacing
+them with an arbitrary existential history. Unused outer consumption must also
+be included; existing `ContextSubstitution.realize_one` realizes its actual upper
+argument without a chosen image. GOAL.md and weakN_iff remain open.
+
+A more concrete source-anchor candidate is available for the consumed return:
+realize the whole original body path with `compute_certificate`, instantiate
+its lower source equality at the recorded typed argument, and apply the waiting
+arguments' source equalities. This should produce a typed lower returned function
+whose inserted erasure is the exact instantiated raw body. Then the native path
+required by `append_outer_supply` can be reflexive at that realized function.
+The needed input is the original instantiated-body application typing, rather
+than a guessed typing for an arbitrary returned history. This construction and
+its threading through recursive calls have not been implemented here.
+
+Validation: 1082 build jobs, 233 recursively audited roots, maximum closure
+11,976; only propext, Classical.choice and Quot.sound. All 1,057 import
+source hashes stayed fixed. Stock Lean/Lake ran only in scratch. No executable
+changes or PR extraction.
