@@ -22829,3 +22829,51 @@ recursive dependency closure 12,718; only propext, Classical.choice and
 Quot.sound. Frozen sources and owned diagnostics checked. Stock v4.33.0-rc2
 Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work. Executable
 and UniqueTyping.lean unchanged; GOAL.md remains active.
+
+
+## 2026-11-07 11:03:02 UTC — Recursive guarded trees and nested evaluator consumption
+
+Idea: recursively retain the explicit interfaces consumed by higher-order
+arguments, rather than allowing only one guarded layer around ordinary finite
+demands. Keep interface annotations under an explicit substitution so dependent
+result interfaces can be instantiated without assuming arbitrary action
+transport along type equality.
+
+Implemented PiInertGuardedTree in ProofErasurePiInertGuardedTrees.lean. Plain
+leaves retain ordinary finite demands; call nodes retain their exposed Pi,
+recursive input tree, and dependent output tree; both nodes retain multiple
+uses. Every value carries actual endpoint assignments and ground history.
+World movement, annotation substitution, application, and typed core prefixes
+preserve the complete tree.
+
+PiInertGuardedTreeSupply is type-only evidence: chosen Pi exposures and future
+dependent result supplies. It contains no operand comparison or function
+action. Native neutral values and proof markers construct recursive values
+from supplies. Fresh variables therefore construct every supplied tree, and
+actual typed calls construct their own function ground history by fresh
+testing. The evaluator theorem consumes and returns trees of arbitrary finite
+depth, including paired captured arguments, without a supplied function ground
+equality. Selected-type prefixes preserve call trees, with a bridge from the
+original strong conversion children and an explicit guarded path.
+
+The actual nested-evaluator theorem passes an evaluator as the argument to
+another evaluator, with a native function as captured input. It constructs
+both evaluator trees, the native recursive input, and the final application
+source from actual typings. Both selected domains can be aliases with the
+supplied type equalities and guarded exposures. The final result is sorted;
+this example does not claim arbitrary dependent-output strong coverage.
+
+Verdict: recursive guarded consumption is now supported by a checked finite
+semantics and a constructed nested lambda use. This removes the previous
+single-guarded-layer restriction. General lambda/body interpretation, inference
+of sufficient finite trees, and production of type-only supplies/guarded paths
+from arbitrary original strong derivations are still open. The conversion
+bridge does not infer its path from ordinary equality. No strengthening proof,
+canonical-Eq counterexample, or strictly smaller-than-PropFront sufficient
+obligation is claimed. PR extraction remains deferred.
+
+Validation: 1185 integration jobs; 27 public/probe roots; maximum
+recursive dependency closure 11,976; only propext, Classical.choice and
+Quot.sound. Frozen sources and owned diagnostics checked. Stock v4.33.0-rc2
+Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work. Executable
+and UniqueTyping.lean unchanged; GOAL.md remains active.

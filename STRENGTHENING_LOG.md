@@ -38537,3 +38537,54 @@ Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
 /dev/shm/guarded-input-action-*. All Lean/Lake commands used stock v4.33.0-rc2
 in /dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
 PR extraction remains deferred and GOAL.md remains active.
+
+
+## 2026-11-07 11:03:02 UTC — Recursive guarded interfaces for higher-order calls
+
+The previous guarded-input action consumed a retained ordinary interface
+demand. This step makes that consumption recursive: call nodes retain their
+own Pi exposure and demand a tree of guarded input calls, returning a dependent
+tree of guarded output calls. Plain leaves retain existing ordinary finite
+demands, and intersections retain multiple uses. Annotation environments and
+binder-respecting tree substitution keep result dependencies explicit.
+
+The new module proves full tree movement, syntax/environment substitution
+equivalence, local application, and typed core-prefix closure. Assignments
+remain tied to the selected carrier. Application-result assignment on the
+right is derived at the left dependent carrier from argument ground history.
+
+Type-only TreeSupply contains chosen type computations and future result
+supplies, never function equality or action. WorldValue.guarded_tree constructs
+all recursive action from these supplies. Proof markers and fresh variables
+have corresponding constructions. The typed/raw fresh-call principles and
+TreeValue.of_calls construct function ground history from recursive calls,
+without a supplied equality of the functions.
+
+The general evaluator theorem consumes a recursive function tree and applies
+it to paired captured tree values. Beta replay and recursive prefixes retain
+the entire result tree. call_prefix keeps this action through an additional
+selected-type exposure; StrongBounded.guarded_tree_call_convert derives the
+new assignments from original strong children but still explicitly requires
+the guarded path. actual_type_eq transports assignments only.
+
+The actual nested example builds two evaluators, passes one to the other, and
+constructs the final application's source from actual typing. Native recursive
+function action and captured ground demand are constructed. Selected alias
+type equalities and their guarded exposures are premises, not silently inferred
+from one another. Its final result is a universe-assigned term. The general
+evaluator construction retains arbitrary dependent output trees.
+
+General paired-body/lambda interpretation and strong derivation coverage remain
+open, including constructing sufficient demand trees and type-only supplies.
+The original weakN_iff sorry is unchanged. No canonical-Eq strengthening
+counterexample or strictly smaller sufficient obligation is claimed. The next
+step must connect recursive trees to general body interpretation and original
+strong rules rather than merely increasing finite ordinary profiles at opaque
+types.
+
+Integration passed 1185 jobs. Recursive audit covered 27 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
+/dev/shm/guarded-trees-*. All Lean/Lake commands used stock v4.33.0-rc2 in
+/dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
+PR extraction remains deferred and GOAL.md remains active.
