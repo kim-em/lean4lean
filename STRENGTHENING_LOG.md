@@ -37975,3 +37975,42 @@ Quot.sound. The prior audit of unchanged declarations remains recorded; frozen
 hash checks cover all imported local sources. /dev/shm/world-values-* artifacts
 also verify owned diagnostics and reject sorryAx, weakN_iff, weakN_inv and known
 circular frameworks. Executable unchanged, no PR extraction, GOAL.md active.
+
+
+## 2026-11-07 08:26:39 UTC — Carrier-only function values through typed core conversion
+
+Added ProofErasurePiInertCarrierValues.lean and wired its import through
+ProofErasurePiInertGlobalEtaBodyCut.lean. PiInertCarrierValue has neutral and
+structural-subsingleton leaves, both with actual endpoint source typing,
+and an explicit typed ordinary-core type-prefix constructor. The type is an
+index, allowing the recursive prefix to retain evidence at its reduct.
+
+Checked sources, move, raise, history, endpoint prefixes/reducts, forward
+ordinary-core type reduction, and bidirectional typed core-join transport.
+Typed core confluence joins a requested type reduction with a retained type
+prefix. There is no positive-stage confluence assumption and no assertion
+that general definitional equality supplies retained type computation.
+
+Application retains the exact dependent result, including carrier-only
+function cases and core type aliases. It explicitly takes typing of both
+whole applications and the selected result type. The actual non-proof
+application bridge derives these from actual function/argument equalities
+and codomain formation. PiInertTypedCarrierAction retains the mixed values
+through variable worlds; identity and the dependent higher-order evaluator
+have checked action, including carrier-only subsingleton function inputs.
+
+The actual separation theorem supplies strongly equal distinct variables
+at S -> S for a closed positive zero-field structure S. Their mixed values
+exist at zero, while every old neutral-returning value stage is excluded by
+bvar injectivity. This is a checked limitation of the previous candidate
+interpretation, not a canonical-Eq strengthening counterexample.
+
+All Lean/Lake commands ran in /dev/shm/native-level-coherence-work on stock
+leanprover/lean4:v4.33.0-rc2. Integration passed 1169 jobs; recursive audit
+covered 20 new-public/probe roots, maximum closure 11,976, using
+only propext, Classical.choice and Quot.sound. /dev/shm/carrier-values-*
+artifacts retain the frozen import closure, diagnostics and dependency
+checks. Previously audited unchanged roots were not redundantly rerun.
+UniqueTyping.lean and its weakN_iff sorry are unchanged. General lambda
+coverage and dependent type transport remain open; original GOAL.md active.
+No executable changes or PR extraction.

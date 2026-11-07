@@ -22007,3 +22007,56 @@ only propext, Classical.choice and Quot.sound. Already audited unchanged roots
 were not redundantly rerun; all imported source hashes were frozen and checked.
 Stock Lean scratch execution, executable unchanged, PR extraction deferred,
 GOAL.md active.
+
+
+## 2026-11-07 08:26:39 UTC — Carrier-only function values and typed core type conversion
+
+The previous neutral-returning value class cannot represent distinct bare
+variables, even when they are genuinely equal functions. The new
+pi_inert_carrier_value_function_separation theorem gives an actual example:
+for a closed positive zero-field structure S, the two variables in context
+[S -> S, S -> S] are strongly definitionally equal, have carrier values at
+stage zero, and have no old WorldValue at any stage. This refutes using the
+old value class as complete strong-function coverage; it does not refute
+strengthening.
+
+PiInertCarrierValue retains the old neutral values and adds structural
+subsingleton carriers with actual endpoint source typing. A recursive typed
+ordinary-core type-prefix constructor handles beta wrappers of selected
+types. This extra constructor was necessary: literal structural subsingleton
+shape alone is not preserved by inverse beta conversion. Typed core
+confluence proves forward type reduction and a bidirectional core-join
+transport theorem. No guarded-stage confluence or arbitrary actual type
+equality is converted into a computation certificate.
+
+The mixed class retains variable-world futures, stages, endpoint core
+prefixes and reducts, and carrier histories. Literal-Pi application preserves
+the complete mixed value at the exact left dependent result. With a type
+prefix, core Pi inversion supplies the domain/codomain paths: the argument
+history consumes its domain prefix, and the result keeps its codomain prefix.
+Typing of the selected result is an explicit premise; the actual non-proof
+application theorem derives it from codomain formation and actual argument
+typing. Raw endpoint typing alone is not claimed to type an arbitrary
+selected dependent result.
+
+TypedCarrierAction accepts and returns this richer value class. Identity
+retains either leaf through beta. The dependent evaluator fun h => h x now
+accepts carrier-only subsingleton functions as well as neutral-returning
+functions, including typed ordinary-core aliases, and retains evidence for
+further application. It uses the captured argument history and derives body
+application typing by replaying the typed beta prefixes.
+
+Verdict: a concrete missing function case is repaired with full application
+and ordinary-core conversion closure. This is not a complete interpretation
+of strong equality. Arbitrary lambdas as higher-order arguments, proof-valued
+cases and general dependent definitional conversion remain open. The next
+coverage step must construct the needed payload from the original smaller
+strong children, without universal promotion of carrier history to action
+(which the earlier boundary reduces to PropFront). GOAL.md remains active.
+
+Validation: 1169 integration jobs; 20 audited roots (all new public
+declarations and the integration probe), maximum closure 11,976; only
+propext, Classical.choice and Quot.sound. Frozen source hashes include every
+local import; the audit rejects sorryAx, weakN_iff, weakN_inv and known
+circular frameworks. Stock Lean scratch execution; executable unchanged;
+PR extraction deferred.
