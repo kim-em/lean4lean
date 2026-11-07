@@ -23339,3 +23339,39 @@ recursive dependency closure 11,976; only propext, Classical.choice and
 Quot.sound. All 1,170 frozen sources and owned diagnostics checked. Stock
 v4.33.0-rc2 Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work.
 Executable and UniqueTyping.lean unchanged; GOAL.md remains active.
+
+
+## 2026-11-07 12:52:29 UTC — Native unit origins retain strictly smaller conversion edges
+
+Question: can original derivation provenance bypass the failed composition of
+bare term histories for the hidden-unit endpoint case? The existing
+StrongBounded.variable_assignment_trace already extracts a native-to-selected
+type path, each edge strictly below the parent. Reuse that trace with the
+current paired/world interpretation rather than introduce a new measure.
+
+Implemented ProofErasurePiInertRankedUnitOrigin.lean. The ground-tree fold
+interprets each original type edge and uses ordinary trace equality solely
+to supply intermediate endpoint assignments. It never sends a newly composed
+strong equality to the recursive handler. Native unit interpretation then
+transfers along the folded path. Either endpoint may be the native unit
+variable; its partner and the selected carrier are unrestricted. This covers
+the original trans constructor for this endpoint class without any input
+term interpreters or a term-history composition law. Its empty-requirement
+paired result also supplies finite index history for the existing Eq consumer.
+
+Verdict: a checked conditional induction case, not general coverage. The
+lower-rank type handler is explicit and remains unconstructed in general.
+The earlier original-conversion lower bound still applies; no sufficient
+obligation strictly smaller than PropFront has been obtained. The trace
+extraction itself is prior work, now connected to the current semantics.
+General type-child interpretation and term transitivity remain the next
+substantive obligations. A preliminary pattern-check-list direction was
+discarded because WF.pats_true already makes the realized checks empty;
+this fact was already recorded and is not a new discovery.
+
+Validation: 1196 integration jobs; 6 public/probe roots; maximum
+recursive dependency closure 11,976; only propext, Classical.choice
+and Quot.sound. All 1,171 frozen sources and owned diagnostics checked.
+Stock v4.33.0-rc2 Lean/Lake ran exclusively in
+/dev/shm/native-level-coherence-work. UniqueTyping.lean and executable
+unchanged; PR extraction deferred; GOAL.md remains active.

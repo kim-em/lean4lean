@@ -39068,3 +39068,37 @@ Quot.sound. All 1,170 frozen sources and owned diagnostics checked; artifacts
 under /dev/shm/finite-index-evidence-*. All Lean/Lake commands used stock
 v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
 UniqueTyping.lean unchanged; PR extraction remains deferred and GOAL.md active.
+
+
+## 2026-11-07 12:52:29 UTC — Interpret the original native-unit endpoint case
+
+BoundedTypeTrace.ground_tree_transport folds original strictly lower-rank
+type edges into directed ground-tree transport. trans_typed receives the
+ordinary equality of each prefix, which supplies intermediate assignments
+without requesting interpretation of a synthesized strong derivation.
+
+BoundedTypeTrace.unit_ground_interpretation constructs the native unit
+paired interpreter from actual endpoint typings transported back along
+trace equality, then converts both carriers through that fold.
+StrongBounded.native_unit_ground_of_lower extracts the necessary original
+trace from either variable endpoint and lookup uniqueness. The explicit
+transitivity instance uses the original two children only to recover the
+endpoint origin; it does not compose their erased histories.
+StrongBounded.native_unit_finite_history_of_lower obtains finite histories
+under every typed substitution, retaining core-world futures at the chosen
+stage. These fit the existing finite Eq-consumer interface.
+
+The lower type-edge handler is a genuine premise, not a proved global
+coverage theorem. This result closes only the native-unit endpoint induction
+case conditional on that handler. General transitivity, general type-child
+coverage, and the original strengthening theorem remain open. Neither a
+counterexample nor a strictly smaller sufficient frontier is claimed.
+
+Integration passed 1196 jobs. Recursive audit covered 6 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. It rejects the existing strengthening gap and circular join
+interfaces throughout the dependency closure. All 1,171 frozen sources
+and owned diagnostics checked; artifacts under /dev/shm/ranked-unit-origin-*.
+All Lean/Lake commands used stock v4.33.0-rc2 in
+/dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean
+unchanged; PR extraction remains deferred and GOAL.md active.
