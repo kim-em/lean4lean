@@ -23426,3 +23426,50 @@ and rejects strengthening/circular-join dependencies. All 1,172 frozen
 sources and owned diagnostics checked. Stock v4.33.0-rc2 Lean/Lake ran only
 in /dev/shm/native-level-coherence-work. UniqueTyping.lean and executable
 unchanged; PR extraction deferred; GOAL.md remains active.
+
+
+## 2026-11-07 13:12:52 UTC — Ground transport cannot supply the changed-binder core world
+
+The preceding goal turn made verified progress in 5037f11d: it completed the
+sorted rank induction outside four named principal cases. Tested forallEDF
+by attempting to move a retained function-body history from its original
+domain binder to the converted binder using the existing core-world relation.
+
+ProofErasurePiInertBinderTransportBoundary.lean proves the exact requirement.
+Interpreted stage-zero computation gives an ordinary level-core join to its
+specified target, including its output core tail. Every core-world lookup
+therefore yields an ordinary-core join of the two native annotations. For
+actual equal binder types, an identity core world exists if and only if the
+two domain erasures have an ordinary-core join. The reverse direction builds
+every lookup certificate; the forward direction instantiates the lifted
+fresh-variable annotation join back to the original domain shapes.
+
+A unit and its Eq-rec probe separate this requirement from the transport
+certificate currently supplied by the type induction. Given finite index
+histories, the pair has full ground type transport and an actual typed
+identity context conversion, but has no identity core world. The actual-core
+specialization uses P=P and an explicit Eq.refl major, constructs the finite
+index histories, and supplies an actual bounded strong domain equality.
+The obstruction persists with all index evidence retained; it does not
+reuse the old mistake of discarding that evidence.
+
+Verdict: constructing the changed-binder core world from ordinary type
+equality plus current ground transport is refuted by this concrete family.
+This rules out that step in the proposed forallEDF proof, not forallEDF
+transport itself or canonical-Eq strengthening. A positive companion lemma
+shows that a complete finite history quantified over typed substitutions
+can be reinterpreted after actual context conversion. Its stage is selected
+again in the new instance. It does not upgrade a local WorldHistory.
+
+Next preserve the body interpreter/full substitution certificate or consume
+retained function action when rebuilding the target function interface.
+The earlier recursive call conversion has such extra action; arbitrary
+ground histories do not automatically supply it. The four principal cases
+remain open; no smaller sufficient obligation or goal completion is claimed.
+
+Validation: 1198 integration jobs; 7 public/probe roots; maximum
+recursive dependency closure 12,279; only propext, Classical.choice
+and Quot.sound. All 1,173 frozen sources and owned diagnostics checked.
+The recursive audit rejects strengthening and circular join dependencies.
+Stock v4.33.0-rc2 Lean/Lake ran only in /dev/shm/native-level-coherence-work.
+UniqueTyping.lean and executable unchanged; PR extraction deferred; goal active.

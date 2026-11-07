@@ -39150,3 +39150,44 @@ Quot.sound. All 1,172 frozen sources and owned diagnostics checked; artifacts
 under /dev/shm/sorted-transport-induction-*. All Lean/Lake commands used
 stock v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable
 unchanged; PR extraction remains deferred; GOAL.md active.
+
+
+## 2026-11-07 13:12:52 UTC — Exact binder-world requirement and certified counterexample
+
+PiInertInterpret.zero_core_join reconstructs the ordinary-core join from
+a stage-zero interpreted computation and its retained output tail.
+PiInertCoreWorld.lookup_core_join reads that consequence at each native
+variable assignment. defeq_binder_iff_join proves the full equivalence
+between an identity core world for actual equal binder types and an ordinary
+level-core join of their erased annotations. The typing component comes
+from actual context conversion; the stage-zero computation component is
+strictly additional.
+
+PiInertFiniteHistory.unit_probe_not_core_binder constructs ground type
+equivalence and typed identity context conversion for the unit/probe pair.
+Assuming a core world yields a core join, contradicted by the existing
+proof-major Eq-rec carrier-exposure barrier. Finite index histories are
+retained throughout. EnvironmentCore.reflexive_probe_binder_boundary
+constructs those histories for reflexive proposition indices and an explicit
+Eq.refl major, and supplies the bounded strong domain equality. Only ordinary
+unit and proposition typings are inputs to this actual-core specialization.
+
+The positive defeq_context lemma reinterprets full PiInertFiniteHistory
+under typed context conversion. It composes the new target substitution
+with the old context interpretation before selecting a stage. No world
+movement or arbitrary substitution of a local fixed-stage history is used.
+
+This is a checked refutation of one proposed step in forallEDF coverage.
+It does not refute ground transport or strengthening, and does not close
+any of the four principal cases yet. Existing recursive call conversion
+can use retained action, whereas a bare ground source has not been shown
+to retain enough body evidence for the new binder. Future work must preserve
+that evidence in the induction or find another construction, rather than
+infer a core world from the current type certificate.
+
+Integration passed 1198 jobs. Recursive audit covered 7 public/probe
+roots, maximum closure 12,279, only propext, Classical.choice and
+Quot.sound. All 1,173 frozen sources and owned diagnostics checked; artifacts
+under /dev/shm/binder-transport-boundary-*. All Lean/Lake commands used
+stock v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
+UniqueTyping.lean unchanged; PR extraction deferred; GOAL.md remains active.
