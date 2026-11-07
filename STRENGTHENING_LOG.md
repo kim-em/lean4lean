@@ -37542,3 +37542,61 @@ the existing circular frameworks. All 1,099 frozen source hashes unchanged;
 no owned diagnostics. Lean/Lake ran only in the stock scratch checkout.
 Original weakN_iff and the executable remain unchanged. No PR extraction.
 GOAL.md remains active; no completion or strict-smallness claim.
+
+
+### 2026-11-07 06:09:14 UTC — Interpret native domains by computational exposure rather than literal shape
+
+Previous goal turn classified as progress: cc3899c8 proved two strict levels
+of neutral-application children and refuted the literal-Pi-only transport
+candidate. This turn supplied and checked a computational replacement.
+
+Added ProofErasurePiInertDomainExposure.lean and its global integration import.
+PiInertDomainExposure stores PiInertEvidence.compute toward a typed Pi and a
+PiInertCarrierHistory at that Pi's domain. The output is a computational witness,
+not an arbitrary semantically equal Pi obtained through head injectivity.
+Non-Pi inputs are not vacuous cases.
+
+PiInertInterpret.domain_history consumes arbitrary independent core residuals
+of the literal source domain and of both arguments. The source residual is
+embedded in a Pi path and fed to the stored computation square. The target's
+core path preserves Pi syntax and exposes its domain residual. The Pi-inert
+source path has no Pi-root primitive, so its domain projection reaches that
+same residual. carrierCompute and the retained target history give the guard
+at the original source-domain residual. PiInertEvidence.domain_history repeats
+this after every typed substitution; it does not assume guarded confluence.
+
+Source-core-reduct evidence prefixes only the already quantified core residual
+and retains the fixed typed output. PiInertDomainExposure provides substitution,
+literal introduction, literal readout, certified-prefix closure, source-core
+reduction, stage raising, and equivalence across typed ordinary-core joins.
+Literal introduction uses existing typed core confluence, and literal_iff shows
+that the new predicate is exactly the full domain history on typed literal Pis.
+The identity-beta wrapper obstruction is therefore handled by the join law,
+without introducing a vacuous non-Pi branch.
+
+neutral_application turns the readout into a real ComputedJointCompare at the
+original context oracle. eq_rec_consumer and eq_prefix_consumer retain the
+returned exposure through arbitrary actual type-valued consumers; the output
+stage is max (n+1) k for index-history stage n and returned-exposure stage k.
+The index history and returned exposure are explicit evidence inputs. These
+rules neither restrict the domain to a unit nor construct arbitrary index
+histories from semantic equality.
+
+StrongBounded.neutral_domain_history connects the new interpretation to the
+actual original derivation. The assigned branch uses the smaller strong domain
+and codomain formations to realize its literal Pi, then stores the supplied
+argument history. The lower-rank edge handler moves this exposure back along
+the extracted native-type trace. Readout returns a complete native-domain
+history. The edge and argument handlers are explicit unproved induction cases.
+The theorem does not silently turn all semantic type equality into computation
+or assert that a transformed strong derivation decreases in rank.
+
+Sixteen public declarations added. Validation: 1125 successful integration
+jobs; 443 audited roots; maximum closure 12,394; only propext,
+Classical.choice and Quot.sound. Audit traverses types, values, inductive
+constructors and recursor branches and excludes sorryAx, weakN_iff, weakN_inv
+and the existing circular frameworks. All 1,100 frozen source hashes unchanged;
+no owned diagnostics. Stock Lean/Lake ran only in scratch. Original weakN_iff
+and the executable are unchanged; no PR extraction. General strong carrier/
+exposure coverage, including appDF and carrier composition, remains open.
+GOAL.md remains active; no completion or strict-smallness claim.

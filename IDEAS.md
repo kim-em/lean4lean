@@ -21523,3 +21523,52 @@ is claimed; the original goal remains active.
 Validation: 1124 integration jobs, 427 audited roots, maximum closure
 12,394; only propext, Classical.choice and Quot.sound. Executable unchanged;
 no PR extraction.
+
+
+### 2026-11-07 06:09:14 UTC — Computational Pi exposure retains a hereditary native-domain guard: proved
+
+Replaced the refuted LiteralPiDomain candidate with PiInertDomainExposure. A
+witness consists of interpreted computation toward an actually typed Pi output
+and a complete carrier history at that output's domain. The input may have
+arbitrary non-Pi syntax, but must supply the computational evidence. Both
+components retain every typed substitution future; carrier history also retains
+independent ordinary-core residuals of the domain and both arguments.
+
+PiInertInterpret.domain_history projects the computation square at a literal
+input Pi. An independently reduced source domain gives a Pi-inert path to the
+same Pi as the ordinary-core target tail. Projection supplies a path from the
+source domain residual to a target domain residual; the stored carrier history
+then gives the original source-domain guard. This proves complete future
+readout without confluence of guarded stages. On typed literal Pis, the new
+predicate is equivalent to the exact domain-history predicate, so it recovers
+the intended guard and cannot exploit the earlier vacuity.
+
+The new exposure is closed under typed substitution, stage raising, certified
+computation prefixes, ordinary-core source reduction, and typed ordinary-core
+joins in both directions. Thus identity-beta expansion is handled positively.
+At the context oracle's native Pi, readout constructs an actual neutral
+application comparison. The Eq-rec and unsaturated-prefix consumer rules
+transport returned exposure at stage k through a rank-n index history at stage
+max (n+1) k, retaining all futures and residuals. No unit-only restriction is
+imposed on the index or returned domain.
+
+StrongBounded.neutral_domain_history instantiates the previous two-level rank
+extraction with this computational predicate. It constructs the assigned-Pi
+witness from the original smaller formation children and the supplied argument
+history; the recorded conversion edges then return the witness to the native
+Pi for readout. The argument-history and conversion-transport handlers remain
+explicit lower-rank hypotheses. This is a checked connection to the intended
+semantic interpretation, not merely a raw syntax invariant.
+
+Verdict: a nonvacuous computational motive now works through beta/core joins
+and guarded Eq consumers, with concrete native-domain readout. General strong
+coverage remains open, especially application/conversion interaction and
+composition of carrier histories. The positive guarded rules require actual
+index histories; their existence is not inferred from semantic equality.
+No strictly smaller sufficient obligation or proof of weakN_iff is claimed.
+Next test the simultaneous carrier/exposure induction at appDF and forallEDF,
+using the preserved original children rather than reconstructed strong cuts.
+
+Validation: 1125 integration jobs, 443 audited roots, maximum closure
+12,394; only propext, Classical.choice and Quot.sound. Executable unchanged;
+no PR extraction. GOAL.md remains active.
