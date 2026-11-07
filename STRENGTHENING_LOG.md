@@ -41355,3 +41355,72 @@ Validation: stock Lean v4.33.0-rc2, with all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,286 frozen source hashes verified before
 and after. Artifacts: /dev/shm/pi-inert-administrative-projection-relay-*.
+
+
+## 2026-11-07 19:55:09 UTC — Later projected constructor roots are genuine eta
+
+The previous goal turn made checked progress in 106120e6. This turn verified the
+clean worktree and examined the remaining whole-tail root alternative. The
+existing constant/identity simulators followed tracked heads through body and
+application paths, but did not yet pass the final projection observer when its
+major changed.
+
+Added ProofErasurePiInertProjectedDeletion.lean.
+AdministrativeHeadDeletion.mkApps preserves finite deletion traces under pending
+applications. projection_readout uses the counted sorted-projection terminal
+factorization. A final output that is neither lambda-headed nor the same
+projection cannot use the retained-projection branch, so a computed constructor
+and one ordinary terminal selection remain. Deletion simulation along that
+major path gives a possibly cheaper lower-major path. At the selected
+constructor, the surviving deletion trace is equality, so the terminal
+selection and exact output are reused unchanged.
+
+pi_inert_projected_application_deletion simulates a raw substituted deletion
+through the actual later application path and then through its sorted observer.
+The combined count does not increase. pi_inert_projected_frame_minimum_no_administrative
+first simulates the actual body tail after deleting the root wrapper and then
+uses that application/observer result. Reusing the original prefix saves the
+charged root occurrence, contradicting the global body/continuation minimum.
+This handles administrative roots at proper constructor prefixes, with all
+pending arguments and actual suffixes retained.
+
+proofErase_closed_pair_frame_observer derives the required final sort assignment
+from an actual closed-pair computation and an ordinary interpreted endpoint map.
+It realizes the body endpoint at the same closed family, substitutes only its
+actual typing, uses full-application typing to force pending = [], and realizes
+the actual suffix at that closed family. Dependent pair projection typing then
+supplies the observer's exact sort. No caller supplies a constructor-shaped
+body endpoint or native certificates for substitution images.
+
+pi_inert_projected_frame_constructor_root classifies the same selected
+non-level constructor root. Ordinary core/singleton/Eq alternatives are excluded
+by rigidity and the level case by the cut; constant and identity roots are
+excluded by the new complete observer bypass. Only function eta or structure
+eta with an earlier ambient native guard remain.
+
+pi_inert_native_structure_tail_smaller_failure_or_eta strengthens the actual
+whole-tail theorem from the preceding turn. The component branch is unchanged:
+it yields the strictly smaller pair readout failure without restricting the
+field endpoint. The later-root branch keeps all counted ancestry and the exact
+root/suffix, adds ConstructorEtaBodyRoot, and retains both its target minimum
+and PiInertObservedBodyRoot at that same root. The observed-root budget includes
+the root, complete suffix and observer and is strictly below the enclosing
+structure execution. Its minimum is obtained by prefixing competitors with the
+actual initial structure root and component prefix. Existing eta_descent or
+structure_minimum can therefore recurse on this very execution rather than
+selecting an unrelated path. The integration module imports the new results.
+
+Judgment: arbitrary administrative later roots are eliminated from the local
+projected frame minimum. The remaining recursive cases are genuine function or
+structure eta, with exact counted provenance and observed minima. Their field
+readout and the extra-binder continuation invariant remain open. Executable and
+UniqueTyping.lean unchanged; no strengthening proof, canonical-Eq counterexample,
+or sufficient irreducible global obligation smaller than PropFront claimed.
+Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2, with all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1312 jobs; recursive audit
+8 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,287 frozen source hashes verified before
+and after. Artifacts: /dev/shm/pi-inert-projected-deletion-*.

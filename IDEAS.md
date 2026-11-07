@@ -24923,3 +24923,43 @@ Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work;
 only propext/Classical.choice/Quot.sound, no forbidden dependencies. All 1,286
 frozen source hashes checked before/after. Artifacts:
 /dev/shm/pi-inert-administrative-projection-relay-*.
+
+
+## 2026-11-07 19:55:09 UTC — Delete administrative majors through the final projection
+
+**Idea.** The previous whole-tail reduction retained a later arbitrary
+non-level constructor root. Constant and identity wrappers can already be
+deleted through body computations and raw endpoint maps, but the projection
+observer also has to tolerate changing its major. Factor that sorted observer
+into a computed constructor and one terminal selection, then simulate the
+tracked deletion only along the constructor-producing major path.
+
+**Checked verdict.** At a constructor endpoint, AdministrativeHeadDeletion is
+equality, so the terminal projection and its exact output remain unchanged.
+Thus tracked administrative major deletion preserves exposed sorted-projection
+readout at no greater primitive cost. Combining body simulation, raw endpoint
+substitution, later application simulation and this observer bypass strictly
+improves any minimum containing a charged administrative root. No guarded path
+or native recovery is transported across substitution.
+
+The final observer's sort is derived from the actual closed-pair path and
+ordinary endpoint map; its body endpoint need not have constructor syntax.
+Actual source typing also forces pending applications to be empty. Constructor
+rigidity then leaves only function eta or structure eta at the later non-level
+root. The strengthened native-structure whole-tail theorem keeps the same
+counted component prefix, root and suffix, adds its earlier native eta guard,
+and attaches an observed-root minimum with a strictly smaller full budget.
+The existing eta-descent theorem can use that exact execution.
+
+**Remaining gap.** Nested function/structure eta and additional binder frames
+still need an original-field invariant sufficient for readout. Eliminating the
+administrative cases does not close the recursive eta cases. The original
+strengthening theorem is unchanged; no canonical-Eq counterexample or sufficient
+smaller irreducible global obligation has been established. Goal active; PR
+extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work;
+1312 integration jobs, 8 audited roots, maximum closure 11,981;
+only propext/Classical.choice/Quot.sound, no forbidden dependencies. All 1,287
+frozen source hashes checked before/after. Artifacts:
+/dev/shm/pi-inert-projected-deletion-*.
