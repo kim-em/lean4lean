@@ -24645,3 +24645,34 @@ ancestry, and retained continuation frames remain open. This is a discharged
 root case, not a sufficient smaller global frontier or a strengthening proof.
 Validation: 1271 integration jobs, 8 recursive audit roots, maximum
 closure 11,978; standard axioms only, 1,246 frozen sources verified.
+
+## 2026-11-07 18:27:50 UTC — a registered projection root defeats blanket ordinary replay
+
+Verdict: unrestricted ordinary substitution of Pi-inert guarded roots is
+refuted in the displayed actual registered setting, even with unbounded replay
+cost and arbitrary finite ambient stages. This is not a strengthening
+counterexample. The previous positive constructor-head theorem remains valid.
+
+Take p,q in a positive unit and the registered positive fieldless Tag family
+retaining its unit parameter. A fresh r : Box (Tag q) has a projection which
+natively recovers Tag q at stage zero. Its structure expansion is a valid
+Pi-inert stage-one root with a projection head, ending in the Tag constructor
+at q. Substitute the literal box containing Tag p and its constructor at p.
+Ordinary unit equality gives the required Box (Tag q) assignment, hence an
+actual typed one-binder ContextSubstitution. The image projection was typed
+before q was inserted, so descent forbids every computation to the constructor
+retaining q. Enlarging the count or changing to another descending language
+cannot repair this directed endpoint replay.
+
+The box is installed through WF.inductProjections in an actual well-formed
+extension preserving canonical Eq, old unit and phantom-family registrations.
+Unit and phantom-family data are explicit base hypotheses, as in the preceding
+registered constructor boundary; the box metadata is constructed here.
+
+Next: test whether the failure configuration can occur on the particular
+minimum consumed-structure continuation with original selected-field ancestry.
+Either that provenance must exclude it, or readout must bypass the failed root
+at the whole continuation. Do not pursue a universal no-replay-failure lemma.
+No sufficient smaller global obligation or proof of weakN_iff is claimed.
+Validation: 1303 jobs, 12 recursive audit roots, maximum closure
+11,978, standard axioms only; 1,278 frozen source hashes verified.

@@ -40817,3 +40817,71 @@ Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
 Quot.sound, no sorryAx or forbidden strengthening/circular-frontier dependencies.
 All 1,246 frozen source hashes verified before/after. Artifacts:
 /dev/shm/pi-inert-constructor-replay-*.
+
+## 2026-11-07 18:27:50 UTC — registered projection-root nontransport at every budget
+
+Previous turn classified as progress: 2e12a364 closed structure replay for
+registered constructor images at closed parameterless families. Revalidated
+that clean committed state. Investigated the remaining nonconstructor image
+case rather than assuming semantic typing supplies exact native recovery.
+The decisive example uses a projection head, which is permitted by PiInertStage.
+It therefore avoids the variable-head exclusion that prevented the preceding
+retained-parameter example from directly testing Pi-inert root transport.
+
+Added ProofErasurePiInertProjectionReplayBoundary.lean.
+pi_inert_box_projection_structure_root constructs a typed source proj Box 0 r
+under a fresh r : Box A, using the actual registered box telescope and its
+field recipe. If erasure of A is Tag q, the projection recovers Tag q lifted
+under r at ambient stage zero. Native masked structure expansion for the
+fieldless Tag supplies a Pi-inert stage-one root to ctorTag q.lift. Ordinary
+typing of a box image at Box A supplies ContextSubstitution for consuming r.
+No native recovery of that image is assumed.
+
+pi_inert_projection_structure_substitution_failure constructs the actual
+context [q : Unit, p : Unit]. The old box is ctorBox (Tag p) (ctorTag p), typed
+before q is inserted. Unit equality converts its assignment to Box (Tag q).
+The helper constructs the guarded projection root and this typed substitution.
+Its source after substitution is the erasure of the old projected box lifted
+under q; its target is ctorTag q. computed_source_no_inserted_argument excludes
+that computation for every relation with ErasedScopedPrimitiveDescent.
+Consequently the supplied one-primitive counted root has a
+PiInertCountedReplayFailure witness. The negative statement excludes replay
+at every primitive count and every finite Pi-inert stage, and also in the full
+ambient union under canonical Eq and sound definitions. This is a directed
+computational obstruction, not just a failure to recover an exact native type.
+
+Added ProofErasureParameterBoxRegistration.lean. It defines the single
+nonrecursive Box : Type -> Type and constructor (A : Type) -> A -> Box A,
+proves raw constructor shape, constructs typed family/constructor constants,
+and applies WF.inductProjections with SourceParameterWF and actual addition
+judgments. exists_constants uses fresh names; exists_extension returns a
+well-formed extension preserving the old environment with actual projection
+metadata and the family lookup. No free-standing metadata assumption remains
+for Box in the final extension theorem.
+
+exists_registered_pi_inert_projection_replay_failure installs this box above
+any well-formed canonical-Eq base with the displayed positive unit and
+unit-parameter phantom Tag. It transports those existing declarations,
+retains canonical Eq, and specializes the failure to EnvironmentCore.definitions
+with EnvironmentCore.sound. The result includes the actual typed source,
+ordinary one-binder map, stage-one root, counted failure and no-replay statement
+for every descending language. The unit and Tag remain explicit base data;
+the theorem does not claim a counterexample to declarative strengthening.
+
+Integrated the boundary module in the aggregator. The unrestricted strategy
+of eliminating all local guarded replay failures is now ruled out in this
+registered setting. The remaining work must use the provenance of the actual
+minimum constructor continuation, or bypass the failing root as part of a
+whole-continuation readout. The counterexample has not been embedded into the
+specific globally minimal consumed-structure configuration; it does not refute
+that narrower readout statement. Original selected-field ancestry, additional
+retained frames, positive-stage pair selection and weakN_iff remain open.
+No sufficient irreducible obligation strictly smaller than PropFront is proved.
+Goal active; PR extraction deferred; executable and UniqueTyping.lean unchanged.
+
+Validation: stock Lean v4.33.0-rc2; Lean/Lake exclusively in
+/dev/shm/native-level-coherence-work. Integration 1303 jobs; recursive audit
+12 roots, maximum closure 11,978; only propext/Classical.choice/
+Quot.sound, no sorryAx or forbidden strengthening/circular-frontier dependencies.
+All 1,278 frozen source hashes verified before/after. Artifacts:
+/dev/shm/pi-inert-projection-replay-boundary-*.
