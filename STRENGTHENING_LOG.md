@@ -38285,3 +38285,38 @@ Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
 v4.33.0-rc2 in /dev/shm/native-level-coherence-work. No executable or
 UniqueTyping.lean changes and no PR extraction. The original strengthening
 sorry remains open; GOAL.md remains active.
+
+
+## 2026-11-07 10:09:54 UTC — Demand conversion for arbitrary finite predicate-tower depth
+
+Added ProofErasurePiInertDemandHigherConversion.lean and its aggregator import.
+Actual raw assignments now align at fixed non-proof representatives. The
+universe-interface conversion rule can therefore run directly on arguments
+inside a higher-order call. The predicate rule exposes assignments at all
+three input interfaces, enabling contravariant recursive conversion.
+
+higher_predicate_convert handles predicates over universe-to-universe
+functions with arbitrary inner arrow profiles. The general tower theorem
+then removes any fixed bound on repeated predicate input nesting. Its
+reference syntax has universe leaves and repeatedly takes the previous
+interface as a domain, returning a universe. Selected carriers expose the
+corresponding Pis while retaining arbitrary leaf and codomain annotations.
+The demand profile recurses on inputs and retains ground result evidence.
+
+convert_subst strengthens the induction over reference substitutions, so
+recursive input conversion remains valid after moving to a future world.
+The actual StrongBounded bridge consumes the original rank-k children and
+reference typing. not_subsingleton formally separates the reference tower
+class from structural empty-structure carriers.
+
+The source demand and selected Pi exposure remain required. Function-valued
+output interfaces, arbitrary outer aliases, and full strong demand coverage
+are still open. This is progress on a conversion component, not completion
+of strengthening or a smaller-than-PropFront sufficient obligation.
+
+Integration passed 1178 jobs. Recursive audit covered 17 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
+/dev/shm/demand-higher-conversion-*. All Lean/Lake commands used stock
+v4.33.0-rc2 exclusively in /dev/shm/native-level-coherence-work. Executable
+and UniqueTyping.lean unchanged; no PR extraction. GOAL.md remains active.

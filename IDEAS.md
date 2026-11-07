@@ -22469,3 +22469,60 @@ recursive dependency closure 11,976; only propext, Classical.choice and
 Quot.sound. Frozen sources and owned diagnostics checked. Stock v4.33.0-rc2
 Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work. Executable
 and UniqueTyping.lean unchanged; PR extraction remains deferred.
+
+
+## 2026-11-07 10:09:54 UTC — Recursive conversion through finite predicate towers
+
+Previous goal turn: progress, committed as 7869034e. This turn continues the
+input-transport gap rather than extracting PRs or changing the main objective.
+
+TypedAt.realize_term aligns a non-proof raw endpoint assignment with a fixed
+actual representative in a common actual context. function_to_sort_ne_proof
+supplies this side condition for an interface returning a universe. The raw
+assigned_universe_interface_convert theorem then makes the earlier actual
+universe-interface theorem usable on function-valued arguments in future
+worlds. Separate actual representatives of the selected types are aligned by
+typed erasure reflection, not by asserting an ordinary-core join.
+
+predicate_interface_convert_assigned exposes both arguments' assignments at
+the old, target and reference domains. assigned_predicate_interface_convert
+provides the same interface directly at erased assignments. This is the
+needed recursion boundary: the inner input conversion runs in the opposite
+direction while sorted application results discharge output transport.
+higher_predicate_convert constructs both components for predicates over
+universe-to-universe functions, with arbitrary inner arrow profiles and
+arbitrary annotations in the two selected literal Pi domains. Its original
+StrongBounded conversion bridge is proved as well.
+
+Generalized that construction by structural induction rather than adding a
+fixed list of higher-order levels. PiInertPredicateTower has a universe at
+level zero and Pi of the previous level into a universe at each successor.
+PiInertPredicateCarrier requires matching selected Pi exposure, but permits
+arbitrary leaf carriers and arbitrary selected result annotations.
+PiInertDemand.predicateTower selects ground at zero and an arrow from the
+previous demand to ground at each successor. convert_subst proves transport
+uniformly through substitutions of the reference interface, so its recursive
+call remains available in every future world. convert and the original
+StrongBounded bridge instantiate this at the actual interface. No transformed
+strong derivation, depth bound, component oracle or core join is assumed.
+
+PiInertPredicateTower.not_subsingleton proves that every reference interface
+lies outside the structural-subsingleton carrier grammar. This is a syntactic
+separation from the previous input case, not a semantic claim about distinct
+inhabitants of every possible environment.
+
+Verdict: finite higher-order input conversion now has a recursive proved
+hierarchy rather than only the universe and subsingleton cases. This hierarchy
+still assumes actual reference typing, selected Pi exposure, and retained
+source demand. Function-valued output interfaces, arbitrary outer aliases,
+structure/projection cases and full strong demand coverage remain open. A
+possible next extension is to retain common assigned dependent result types
+and recurse on function-valued outputs; it has not been proved or refuted.
+No strengthening proof, canonical-Eq counterexample, or sufficient irreducible
+obligation proved strictly smaller than PropFront is claimed.
+
+Validation: 1178 integration jobs; 17 public/probe roots; maximum
+recursive dependency closure 11,976; only propext, Classical.choice and
+Quot.sound. Frozen sources and owned diagnostics checked. All Lean/Lake ran
+with stock v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
+UniqueTyping.lean unchanged; no PR extraction. GOAL.md remains active.
