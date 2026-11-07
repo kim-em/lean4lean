@@ -24189,3 +24189,35 @@ Validation: 1235 integration jobs; 9 recursively audited roots;
 maximum closure 11,976; 1,210 frozen sources unchanged. Stock Lean
 v4.33.0-rc2 in /dev/shm/native-level-coherence-work only. Standard axioms only,
 no forbidden strengthening or circular dependencies. PR extraction deferred.
+
+
+## 2026-11-07 16:10:09 UTC — Delete unused binders while retaining inferred payload comparison
+
+Verdict: proved for the full computed checker at every finite Pi-inert stage.
+Two constant functions may compute independently and change their written
+annotations. The inferred lambda cut returns an actual terminal rule; each
+function path still has a lifted lower payload by constant-lambda readout.
+Certificate descent removes whichever actual annotation scopes the body
+child. Reflexivity and eta have direct lower readouts. Pulling back along the
+two lower payload paths gives an inferred comparison of the original payloads.
+The payloads need only be independently typed nonproof terms, not sorts.
+
+For sort-valued bodies whose erasures omit the binder, this proves paired
+head beta from the inferred function child. The arguments may be unrelated,
+with no native-image or carrier premise. This handles the application branch
+when both compared functions retain unused bodies, including nontrivial
+internal function computations; it does not infer those shapes for an
+arbitrary target function or contract a whole comparison after only one
+wrapper has already been consumed.
+
+The remaining structural-major task still requires the dependent target-body
+and mixed consumed/retained cases. Existing ambient-stage control-frame
+substitution handles fixed universe arguments, but its output is not by itself
+a Pi-inert certificate. Do not silently identify those relations or assume
+that this new paired result provides arbitrary forward beta closure.
+Original strengthening and PiInertPairTypeFieldSelection remain open.
+
+Validation: 1237 integration jobs, 5 recursively audited roots,
+maximum closure 11,976; all 1,212 frozen sources unchanged. Stock Lean
+v4.33.0-rc2 in /dev/shm/native-level-coherence-work only; standard axioms and
+no forbidden strengthening/circular dependencies. PR extraction deferred.

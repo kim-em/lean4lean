@@ -39953,3 +39953,54 @@ Validation: stock Lean v4.33.0-rc2, every Lean/Lake command in
 Quot.sound and no forbidden strengthening or circular-frontier dependencies.
 All 1,210 frozen sources verified. Artifacts: /dev/shm/pi-inert-constructor-frames-*.
 Executable and UniqueTyping.lean unchanged.
+
+
+## 2026-11-07 16:10:09 UTC — Same-stage inferred comparison below unused lambda binders
+
+Added ProofErasurePiInertUnusedBodyComparison.lean and its aggregator import.
+The previous goal turn is progress: 922633ed committed the stage-zero
+constructor frames and projection square. The current turn started from that
+clean committed state and examined the structural application case.
+
+InferredLambdaTerminal.pi_inert_unused_payload reads a terminal lambda
+certificate whose two bodies are lifts of independently typed lower nonproof
+terms. It descends an ordinary or sorted-domain body child in its own recorded
+left or right annotation context. Reflexivity uses lift injectivity; eta uses
+the previously proved raw beta readout for unused bodies. This retains an
+actual inferred checker certificate, rather than only ordinary equality.
+
+pi_inert_inferred_constant_lambda_payload handles the complete inferred
+checker, including computation and symmetry, by cutting at the terminal lambda
+rule. Existing constant-lambda readout reconstructs both changed annotations
+and lower payload paths at the original stage. The terminal theorem returns
+the residual payload comparison, and those paths pull it back to the original
+payloads. No equality between the separately supplied payload types is needed.
+pi_inert_computed_constant_functions_payload includes arbitrary independent
+function prefixes before the given inferred comparison.
+
+proofErase_pi_inert_unused_sort_head_beta applies the result to actual bodies
+typed at independently supplied universes under their written domains. The
+erased bodies omit the binder, so actual instantiation recovers typed lower
+payloads with exactly those erasures. The inferred function child therefore
+supplies common comparison of the two beta reducts. Arguments need only have
+their respective actual domain types; they may be unrelated and need no raw
+native or carrier certificate. This theorem holds at every finite Pi-inert
+stage, not only stage zero.
+
+This closes the paired-unused-function subcase, not arbitrary structural
+comparison of stage-zero constructor wrappers. An arbitrary target lambda
+body may retain its binder, and one enclosing wrapper may be consumed before
+the next structural rule. Neither case follows from the new theorem. Existing
+ambient control-frame substitution is relevant to fixed universe arguments,
+but a separate argument is required to retain Pi-inert output certificates.
+No checker-size decrease for a rebuilt child is asserted. The original
+weakN_iff sorry, full selection condition and sufficient frontier remain open.
+
+The module explicitly imports the old JointUnusedBodyBeta proof for its small
+raw eta lemma; that file adds one committed source to the previous closure.
+Validation used stock Lean v4.33.0-rc2, exclusively in
+/dev/shm/native-level-coherence-work. Integration 1237 jobs; recursive audit
+5 roots, maximum closure 11,976; only propext/Classical.choice/
+Quot.sound, no forbidden strengthening or circular-frontier dependencies.
+All 1,212 frozen sources verified. Artifacts: /dev/shm/pi-inert-unused-body-comparison-*.
+Executable and UniqueTyping.lean unchanged; goal active; PR extraction deferred.
