@@ -36165,3 +36165,65 @@ strengthening dependency or excluded circular framework. The original
 chosen-chain probe still excludes the older nested-eta/frame/supply probes.
 All 1,057 import source hashes stayed fixed. Stock Lean/Lake ran only in scratch.
 No executable changes or PR extraction; GOAL.md remains active.
+
+
+### 2026-11-07 01:02:45 UTC — Recover source application typing at consumed body returns
+
+Added `ProofErasureEqPendingSourceReturn.lean` and imported it at the global
+eta-body frontier. Five public theorems implement the source-anchor candidate
+from the preceding log entry.
+
+`compute_source_return` runs certificate realization on the original body
+computation using the source half of its agreeing insertion square. It maps
+only the resulting source equality and erasure through the actual lower and
+upper return maps. The returned function retains the mapped original head type
+and exactly erases to the substituted raw endpoint. The native path remains in
+its original scope.
+
+`compute_waiting_application` combines that head equality with the actual
+waiting arguments' source equalities and the original instantiated-body whole
+application typing. This preserves the whole result type, whole nonproofness
+and head nonproofness. In particular, individual argument typings and chosen
+images are not used to infer dependent application typing.
+
+`compute_consumed_application` discharges the instantiated-body application
+premise for an actual consumed lambda: congruence replaces its argument by the
+computed value, beta exposes the original body instantiated at that value, and
+the realized body equality plus waiting source equalities restores the whole
+original application at its original result type. It accepts the concrete
+one-argument consumption square and leaves the body path beneath the original
+domain.
+
+`EqArgumentSupplyAt.compute_consumed_source` derives that concrete square and
+all argument equalities from the actual argument paths. It preserves the actual
+computed head, the same chosen waiting images, pointwise source equalities,
+the exact raw tail including upper extras, and the extras' native paths. Its
+returned function has both the instantiated original body type and a typed,
+nonproof whole application to the returned actual waiting vector. This makes
+the local source-typing obligation derivable from the original lambda
+application rather than an independent return assumption.
+
+`EqPendingSupplyHistory.realized_source_rejoin` restores a positive returned
+history using the source-return function. Its exact erasure supplies a reflexive
+native path in stage zero, so domain alignment needs no separately postulated
+native return path. The original pending vector, every retained argument record,
+older ancestry and additive chosen/depth counts survive the join. The theorem
+still takes the recursively returned history and exact endpoint equation.
+
+Remaining: mutual endpoint recognition for chosen Eq spines and retained-history
+suffixes, including the output-depth bound and unused-frame consumption. The
+recursive state must retain original whole source application witnesses alongside
+pending supplies; the old history does not imply them. Actual annotation
+alignment must also preserve these anchors before processing a body in its
+new displayed scope. The present local theorems do not construct the recursive
+histories and do not establish a sufficient smaller PropFront obligation.
+The original `weakN_iff` sorry is unchanged; GOAL.md remains active.
+
+Validation: 1083 successful build jobs including the global module and
+regression targets; 238 roots recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening dependency or excluded circular framework. The original
+chosen-chain probe still excludes the older nested-eta/frame/supply probes.
+All 1,058 import source hashes stayed fixed. Stock Lean/Lake ran only in scratch.
+No executable changes or PR extraction.

@@ -20765,3 +20765,40 @@ Validation: 1082 build jobs, 233 recursively audited roots, maximum closure
 11,976; only propext, Classical.choice and Quot.sound. All 1,057 import
 source hashes stayed fixed. Stock Lean/Lake ran only in scratch. No executable
 changes or PR extraction.
+
+
+### 2026-11-07 01:02:45 UTC — Realized source functions retain whole waiting applications
+
+**Implemented local return; recursive closure remains open.**
+`EqSupplyInsertionSquare.compute_source_return` realizes the original body path
+before mapping its semantic equality through the actual return square. Its
+returned lower function has the exact substituted raw endpoint; it does not
+assert substitution closure of native guarded computation.
+`compute_waiting_application` retains whole dependent application typing and
+nonproofness using source argument equalities. More concretely,
+`compute_consumed_application` derives that typing from the original typed
+lambda application by beta at the actual computed argument.
+`EqArgumentSupplyAt.compute_consumed_source` derives the argument equality,
+chosen supply square, waiting supply and exact raw tail from the actual argument
+paths, then combines them with the original body path. Upper extras keep their
+own actual paths. `EqPendingSupplyHistory.realized_source_rejoin` uses a
+reflexive path at the realized function to restore a positive returned history
+and rejoin older ancestry.
+
+The candidate use of `TypedApplicationSpine` was inspected but not adopted:
+its residual types are syntactically indexed after each application, whereas
+arbitrary whole application typing permits conversions between these stages.
+The source whole-application witness suffices for the local return and avoids
+assuming an unproved conversion-free decomposition.
+
+Next: carry those original source whole-application witnesses through the actual
+recursive recognizer. Each pending history alone still carries only local head
+and individual argument typings. The returned history and endpoint equation
+remain inputs to the rejoin theorem; constructing them and proving the output
+depth bound are not established here. This is neither a strengthening proof nor
+a sufficient smaller PropFront obligation.
+
+Validation: 1083 successful build jobs, 238 recursively audited roots,
+maximum dependency closure 11,976; only propext, Classical.choice and
+Quot.sound, no sorryAx or forbidden strengthening/circular dependencies.
+All 1,058 import source hashes fixed; Lean/Lake only in stock-release scratch.

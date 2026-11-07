@@ -25,6 +25,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRecognizedSupplyRetur
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPendingSupplyHistory
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPendingSupplyRestore
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPendingCountedReadout
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPendingSourceReturn
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -104,6 +105,15 @@ splits the pending vector without requiring the enclosing tail to be empty.
 alignment returns an identity square preserving the chosen spine and raw
 wrapper. These support a direct endpoint-recognition induction, but its recursive
 recognition theorem and output-depth bound remain unproved.
+
+`compute_consumed_source` derives a typed lower returned function and its whole
+waiting application from the original typed lambda application and actual body
+and argument computations. It preserves the chosen supply and the exact raw
+endpoint. `realized_source_rejoin` restores a returned positive history using a
+reflexive native path at that realized function. Recursive state must still
+retain the original whole application witnesses; individually typed supplies do
+not provide them. Constructing the returned history and proving its depth bound
+remain open.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation
