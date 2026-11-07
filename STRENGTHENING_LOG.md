@@ -36751,3 +36751,55 @@ checking types, values, constructors and recursors for sorryAx, weakN_iff and
 the excluded circular frameworks. All 1,078 frozen source hashes remained
 unchanged, with no owned diagnostics. Stock Lean/Lake ran only in scratch.
 No executable changes or PR extraction.
+
+
+### 2026-11-07 03:00:17 UTC — Terminal inferred lambda cuts and directed variable exposure
+
+Revalidated clean pushed HEAD ba0d5075. Previous goal turn was progress.
+Continued from the new rigid-sort source frames into the actual comparison
+grammar. Inferred mode excludes common-only lambda, eta-body, and structure
+constructors, but retains lamSorted and etaLams as distinct terminal rules.
+
+Added ProofErasurePiInertInferredHeadCut.lean, imported it from the global
+module, and exposed RigidSortFrames.lambda_compute in the existing frame file.
+The lambda computation theorem retains the frame body in the final annotation
+context without moving guarded paths across semantically equal annotations.
+
+InferredLambdaTerminal stores reflexivity, ordinary lambda domain/body children,
+sorted-domain witnesses and children, or the actual eta witness. Its symmetry
+constructor preserves which displayed annotation scopes each body child.
+Its compare theorem reconstructs the original checker rule. A direct induction
+on ComputedJointCheck proves a terminal lambda cut whenever either endpoint
+is a displayed lambda. Computation paths compose on both sides; Pi-inert lambda
+root preservation supplies the recursive shape premise. Specialization gives
+pi_inert_lambda_cut. RigidSortFrames.inferred_lambda_cut additionally retains
+the source body's frame tree at the actual computed annotation.
+
+A separate comparison induction proves pi_inert_bvar_exposure: in inferred
+mode, a comparison with a bare variable yields an actual directed computation
+from the other endpoint to that same variable. Actual sort-typed endpoints
+allow the existing types-inferred theorem to extend this readout to either
+comparison mode. No general common-to-inferred promotion is asserted.
+
+The attempted untyped body-extraction shortcut has a concrete checked
+counterexample, pi_inert_raw_identity_body_counterexample. The identity lambda
+and its proof-marker eta expansion compare in inferred mode at the same
+annotation. The expansion's body beta-reduces to proof. Identity-wrapper
+elimination plus proof fixedness shows it has no path to the identity body's
+bound variable at any Pi-inert stage, so inferred body comparison is impossible.
+This refutes only that raw shortcut. It does not supply typed endpoints and
+is not a counterexample under the requirements of GOAL.md.
+
+The cut is proved, not a new assumed frontier, but comparison-to-unit exposure
+remains incomplete: actual typings must handle eta and the opposite-side body
+computations still need their correct binder/argument interpretation. General
+carrier conversion, function application, and strengthening remain open.
+The original weakN_iff sorry is unchanged; no strict-smallness claim is made.
+
+Validation: 1104 successful build jobs, 323 recursively audited roots,
+maximum closure 12,048; only propext, Classical.choice and Quot.sound.
+All public new results and the new inductive are roots; recursive types, values,
+constructors and recursors contain no sorryAx, weakN_iff or excluded circular
+framework dependency. All 1,079 frozen source hashes remained unchanged, with
+no owned diagnostics. Stock Lean/Lake ran only in scratch. No executable
+changes or PR extraction.

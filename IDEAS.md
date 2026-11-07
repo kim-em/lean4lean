@@ -21032,3 +21032,25 @@ lambda's annotation context. Neither arbitrary argument substitution nor
 transport of those computation paths is supplied by this frame theorem.
 Validation: 1103 jobs, 315 audited roots, maximum closure 12,048;
 only propext, Classical.choice and Quot.sound. GOAL.md remains active.
+
+
+### 2026-11-07 03:00:17 UTC — Inferred lambda cuts retain body contexts; raw body extraction refuted
+
+Proved an exact inferred-lambda cut for Pi-inert comparison: both endpoints
+compute to displayed lambdas whose terminal rule is reflexivity, ordinary
+lambda comparison, sorted lambda comparison, or lambda eta, up to symmetry.
+The cut retains each domain child, body child, sort witness, and the annotation
+that scopes the body. RigidSortFrames survives the source function computation
+in its final written annotation context. Separately, inferred comparison to a
+variable yields a same-stage path from the opposite endpoint to that variable;
+actual sort typings extend this to common-mode type comparison.
+
+A checked raw counterexample rules out collapsing the lambda cut to inferred
+body comparison even at identical annotations: eta may apply the identity to
+a proof marker. That body beta-returns to proof and cannot reach the bound
+variable at any Pi-inert stage. This is an untyped shortcut obstruction only,
+not a counterexample to canonical-Eq strengthening. The remaining comparison
+analysis must keep actual endpoint typings and address the retained body
+contexts/argument carriers. No new unproved closure law was substituted.
+Validation: 1104 jobs, 323 audited roots, maximum closure 12,048;
+only propext, Classical.choice and Quot.sound. GOAL.md remains active.

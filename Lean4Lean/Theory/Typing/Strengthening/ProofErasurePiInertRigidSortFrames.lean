@@ -189,6 +189,30 @@ theorem RigidSortFrames.compute
       · intro A b E; cases E
   exact (main R).1 H
 
+/-- A lambda whose body has live rigid-sort frames retains those frames in
+the final written annotation context. This exposes the auxiliary lambda fact
+needed when an inferred comparison computes its function position. -/
+theorem RigidSortFrames.lambda_compute
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hc : env.Rigid c) (hD : ∀ levels rhs, ¬ D.unfolds c levels rhs)
+    (H : RigidSortFrames c (A :: Δ) b)
+    (R : ScopedCompute (PiInertStage D n) Δ (.lam A b) out) :
+    ∃ A' b', out = .lam A' b' ∧ RigidSortFrames c (A' :: Δ) b' := by
+  have hd : ErasedScopedPrimitiveDescent (PiInertStage D n) :=
+    fun hΓ hΓ' W ht HR => erased_static_structure_eta_expansion_stage_descent heq hs n
+      hΓ hΓ' W ht HR.1
+  generalize E : ProofShape.lam A b = source at R
+  induction R using ScopedCompute.rootBeta_induction generalizing A b with
+  | refl => exact ⟨A, b, E.symm, H⟩
+  | base HR => exact (pi_inert_stage_no_lam (E ▸ HR)).elim
+  | trans R₁ R₂ ih₁ ih₂ =>
+    obtain ⟨A', b', E', HB⟩ := ih₁ H E
+    exact ih₂ HB E'.symm
+  | lam RA RB =>
+    cases E
+    exact ⟨_, _, rfl, frame_binder_change hd (H.compute heq hs hc hD RB) RA⟩
+  | beta | app | proj | forallE => cases E
+
 /-- Every Pi-inert continuation of an actual rigid sort-valued constant has
 only constant/identity administrative frames at its live head. The theorem
 retains a syntactic tree, rather than only existence of a beta return. -/
