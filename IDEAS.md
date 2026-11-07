@@ -20651,3 +20651,56 @@ Validation: 1080 build jobs, 215 recursively audited roots, maximum closure
 11,976; only propext, Classical.choice and Quot.sound. All 1,055 import
 source hashes stayed fixed. Lean/Lake ran only in scratch. No executable changes
 or PR extraction; no sufficient smaller PropFront obligation is claimed.
+
+
+## 2026-11-07 00:34:19 UTC — Recover source-domain typing and restore pending tails
+
+**Idea:** A waiting head's target-image agreement does not establish its source
+typing at a retained lambda's domain. Use the actual whole native return path,
+realize its lambda endpoint below the insertion chain, and align its domain
+with the separately computed retained annotation by erasure reflection.
+
+**Verdict:** Implemented and checked in `ProofErasureEqPendingSupplyRestore`.
+`compute_lambda_domain` realizes both paths and compares their lower domains.
+`returned_lambda_argument` combines that alignment with the original source
+application typing. No recognition assumption on the lambda body is needed.
+
+`append_supply` restores one frame's pending vector, keeping tracked arguments
+before untracked upper extras. `append_outer_supply` extends the result through
+an arbitrary positive pending history: only an originally argument-free outer
+chosen lambda needs the recovered head typing. All inner records, chosen images,
+annotations, scopes and binder counts remain fixed. `restore_rejoin` then joins
+the older history with the exact restored base pending vector.
+
+`restore_consumed_rejoin` derives the needed native return path and source whole
+application typing from the actual eta/body paths and source argument equalities.
+The path is built by lambda congruence and beta contraction in the original
+outer scope, not by substituting native steps. It returns the typed supplied
+application equality, the native return path, the restored history and the
+joined older history together. The given returned history and endpoint equation
+still need to come from recursive body processing. This local rule does not
+construct that processing or prove its termination.
+
+Next: thread the strengthened history and exact source-return equation through
+actual selected body cuts, connecting each return to the frame-refined minimum.
+The reconstructed path in this commit establishes source typing; it is not a
+claim that a new computation lowers the selected minimum. Global recursive
+closure, weakN_iff and GOAL.md remain open. No sufficient smaller PropFront
+obligation is claimed.
+
+Source inspection also confirms that `pi_inert_lambda_count_readout` handles an
+arbitrary typed lambda path, preserves the exact sum of annotation/body counts,
+and returns the body path in its original context at a possibly later stage.
+Its primitive-root case is excluded by `pi_inert_stage_no_lam`. A concrete next
+route is therefore mutual recognition of Eq spines and retained-history suffixes
+by the lexicographic pair (primitive count, incoming retained depth), preserving
+the actual endpoint instead of extracting an existential continuation frontier.
+Such a proof also needs an output-depth bound (at most incoming depth plus spent
+primitive count): when a zero-cost body returns before an equal-cost suffix,
+that bound makes the removed outer wrapper a strict depth decrease. This is an
+unproved candidate, not an established termination result.
+
+Validation: 1081 build jobs, 224 recursively audited roots, maximum closure
+11,976; only propext, Classical.choice and Quot.sound. All 1,056 import
+source hashes stayed fixed. Stock Lean/Lake ran only in scratch. No executable
+changes or PR extraction.

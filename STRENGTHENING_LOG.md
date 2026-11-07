@@ -35998,3 +35998,84 @@ strengthening dependency or excluded circular framework. The original
 chosen-chain probe still excludes the older nested-eta/frame/supply probes.
 All 1,055 import source hashes stayed fixed. Stock Lean/Lake ran only in scratch.
 No executable changes or PR extraction.
+
+
+## 2026-11-07 00:34:19 UTC — Source-domain alignment restores the actual waiting tail
+
+Added `ProofErasureEqPendingSupplyRestore.lean`, imported and documented from
+the global eta body-cut module. This proves the previously recorded candidate
+for the source-domain typing missing from raw wrapper concatenation.
+
+`EqInsertionPath.lam_inv` recovers a lower lambda shape through any ordered
+insertion path; its body follows the shifted path. `erased_app` records the
+corresponding application identity. `compute_lambda_domain` realizes the whole
+native path from a typed lower function to a raw lambda and separately realizes
+the retained annotation's native path. Lambda erasure inversion yields a typed
+lower domain. Cancelling the insertion path makes its erasure equal to that of
+the computed annotation. Nonproof erasure reflection then aligns the domains,
+and the original annotation equality returns to the retained source domain.
+The lambda body may be arbitrary and need not be a recognized chosen Eq spine.
+
+`returned_lambda_argument` uses the source typing of the actual application,
+replaces its function by the realized lambda via source equality, and applies
+`HasType.app_lam_arg`. The recovered domain alignment gives the waiting head's
+typing at the original retained domain. This uses source evidence, not merely
+the chosen target-image agreement.
+
+`EqRetainedArgumentSupply.append_supply` appends actual waiting arguments while
+restoring the enclosing pending vector. If a local lower head already exists,
+its stored typing is reused. If it does not and a new head is attached, the
+old upper extras must be empty by the pending constraint, and the new head
+uses the recovered source typing. That same constraint keeps all lower tracked
+arguments before upper extras in the exact concatenated raw vector.
+
+`EqPendingSupplyHistory.append_outer_supply` proves restoration through any
+positive retained history. It examines the outermost frame: a chosen frame uses
+the whole source return path when its original argument vector was empty; an
+unused outer frame already has an empty base pending vector. Deeper frames keep
+all their original supplies and domains. The resulting history has the restored
+base pending vector and the same current pending vector, chosen images, scopes,
+annotations and binder counts. Its wrapper equation holds for every raw body.
+`restore_rejoin` rebases the outgoing placeholders and joins the older history,
+retaining the shared pending vector required by the stronger append theorem.
+
+`ScopedCompute.lambda_return` reconstructs a native outer-scope computation by
+lambda congruence followed by beta contraction. Its body computation stays in
+its original annotation context. `restore_consumed_rejoin` uses the actual eta
+step and body path at their common maximum stage to derive such a return path.
+Source equalities for the consumed argument and waiting arguments recover whole
+application typing and nonproofness, so the head erasure is the exact inserted
+application. The given endpoint equation connects that native return to the
+returned history. The theorem restores the pending supply, rejoins the older
+history, and returns the source application equality and native path alongside
+both histories and their exact wrapper equation. It does not substitute a native
+body computation into a new context.
+
+Remaining: recursive body processing must produce the returned pending history
+and exact endpoint equation at each actual cut. The strict/lexicographic minimum
+argument must be connected to those same returned witnesses. The reconstructed
+path here discharges source typing, not a primitive-cost reduction claim. No
+strengthening proof, canonical-Eq counterexample or sufficient smaller PropFront
+obligation is claimed. The original weakN_iff sorry remains unchanged; GOAL.md
+remains active.
+
+Source inspection also confirms that `pi_inert_lambda_count_readout` handles an
+arbitrary typed lambda path, preserves the exact sum of annotation/body counts,
+and returns the body path in its original context at a possibly later stage.
+Its primitive-root case is excluded by `pi_inert_stage_no_lam`. A concrete next
+route is therefore mutual recognition of Eq spines and retained-history suffixes
+by the lexicographic pair (primitive count, incoming retained depth), preserving
+the actual endpoint instead of extracting an existential continuation frontier.
+Such a proof also needs an output-depth bound (at most incoming depth plus spent
+primitive count): when a zero-cost body returns before an equal-cost suffix,
+that bound makes the removed outer wrapper a strict depth decrease. This is an
+unproved candidate, not an established termination result.
+
+Validation: 1081 successful build jobs including the global module and
+regression targets; 224 recursively audited roots through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening dependency or excluded circular framework. The original
+chosen-chain probe still excludes the older nested-eta/frame/supply probes.
+All 1,056 import source hashes stayed fixed. Stock Lean/Lake ran only in scratch.
+No executable changes or PR extraction.

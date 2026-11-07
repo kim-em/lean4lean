@@ -23,6 +23,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSaturatedEmptySupplyH
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqReturningSupplyHistory
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRecognizedSupplyReturn
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPendingSupplyHistory
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPendingSupplyRestore
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -83,6 +84,16 @@ subsequent argument computation derives the chosen consumption square and
 rebuilds all surviving inner supplies. The returned waiting tail remains typed
 and separate; restoring it to a recursively returned whole body is still open.
 Raw wrapper concatenation alone does not prove that stronger invariant.
+
+`restore_consumed_rejoin` now restores that waiting tail when recursive body
+processing supplies a positive returned history and its exact endpoint equation.
+Whole-path realization and annotation reflection recover the source-domain
+alignment needed by an initially argument-free retained lambda. The actual eta
+step and body path reconstruct the required native return path by beta, without
+substituting native computations. Source argument equalities restore the whole
+application typing; pending supplies survive the reattachment and older-history
+join. Constructing these returned histories at every recursive cut, with the
+selected minimum and termination argument, remains open.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation
