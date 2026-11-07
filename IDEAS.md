@@ -21165,3 +21165,28 @@ is still required; raw-path certification, ordinary/sorted body comparison,
 and arbitrary non-Eq function heads remain open. No strict-smallness claim.
 Validation: 1111 jobs, 352 audited roots, maximum closure 12,048;
 only propext, Classical.choice and Quot.sound. GOAL.md remains active.
+
+
+### 2026-11-07 04:04:47 UTC — Certify the five-argument Eq prefix before application: proved
+
+The saturated recursor certificate discards its proof argument and ends at the
+minor. It did not supply the unsaturated lambda certificate needed before a
+consumer applies or duplicates the prefix. Construct that certificate from the
+full index carrier history. Ordinary core cannot contract any prefix before the
+registered major; its five arguments therefore compute independently. Universe
+factorization returns an arbitrary level-core residual to such an ordinary
+spine. The carrier history supplies the computed guard; the displayed lambda
+retains an ordinary-core tail in its annotation and lifted minor.
+
+The construction covers proof-valued prefixes and all future typed
+substitutions. The recent typed Eq-headed consumer theorem then gives complete
+computation evidence inside arbitrary actual consumers at the same successor
+stage, including consumers under binders and applications. No core-confluence
+hypothesis is needed for this composition.
+
+Verdict: closes unsaturated-prefix certification given complete index histories,
+and connects it to consumer closure. It does not turn arbitrary raw guards or
+ordinary/sorted body comparisons into those histories. General function
+application closure remains open; no counterexample or strict-smallness claim.
+Validation: 1112 jobs, 357 audited roots, maximum closure 12,048;
+only propext, Classical.choice and Quot.sound. GOAL.md remains active.

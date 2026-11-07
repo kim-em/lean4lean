@@ -37056,3 +37056,41 @@ contain no sorryAx, weakN_iff or excluded circular-framework dependency.
 All 1,086 frozen source hashes remained unchanged; no owned diagnostics.
 Stock Lean/Lake ran only in scratch. No executable changes or PR extraction.
 GOAL.md remains active.
+
+
+### 2026-11-07 04:04:47 UTC — Hereditary computation of an unsaturated Eq prefix
+
+Added ProofErasurePiInertPrefixEvidence.lean and imported it from the global
+module. Five public theorems complete the missing prefix-certificate branch:
+
+- Compute.eqRec_prefix_core_inv preserves the five-argument Eq spine under
+  arbitrary ordinary-core computation, with independent paths for all five
+  arguments. The registered major offset excludes every possible root.
+- PiInertInterpret.eq_prefix uses the index carrier residual to repair every
+  level-core source reduct. Universe factorization supplies an ordinary spine;
+  the stage-successor prefix rule supplies its displayed lambda; the target
+  lambda keeps an ordinary-core tail in its domain and lifted minor.
+- eqRecBeforeMajor_subst records the actual syntax's substitution identity.
+- PiInertCarrierHistory.eq_prefix reconstructs the complete certificate after
+  each future typed substitution. Actual endpoint reflection supplies the
+  target lambda typing needed for erasure reconstruction.
+- PiInertCarrierHistory.eq_prefix_consumer composes the certificate with the
+  typed Eq-headed consumer theorem. It covers arbitrary actual consumers,
+  proof-valued prefixes, duplication, binders and application at stage n+1.
+  The proof-valued case has equal erasures and uses direct reflexive evidence;
+  no extra ordinary or guarded confluence assumption is introduced.
+
+The input remains a full index carrier history. Raw prefix guards alone do not
+supply its independent residuals or future substitutions. The next unresolved
+step is still history synthesis for the actual ordinary/sorted lambda-body
+comparison (or a certification theorem with a justified decreasing measure).
+The new constructor is available when that recursive child is supplied; it
+neither proves general function application closure nor finishes weakN_iff.
+
+Validation: 1112 successful integration-build jobs, 357 recursively
+audited roots, maximum closure 12,048; only propext, Classical.choice
+and Quot.sound. All five new public theorems are audit roots. The recursive
+check traverses types, values, constructors and recursors, rejecting sorryAx,
+weakN_iff and excluded circular-framework dependencies. All 1,087 frozen
+source hashes remained unchanged; no owned diagnostics. Stock Lean/Lake ran
+only in scratch. No executable changes or PR extraction. GOAL.md remains active.
