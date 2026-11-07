@@ -25731,3 +25731,34 @@ smaller global obligation, weakN_iff, or a canonical-Eq counterexample. Goal
 active; PR extraction deferred. Validation: 1352 jobs, 8 public roots,
 maximum recursive closure 12,190, 1,327 frozen source hashes; stock
 Lean in /dev/shm, no sorryAx or forbidden dependencies.
+
+
+## 2026-11-07 23:46:20 UTC — Eliminate retained activated function eta by head replay
+
+Idea: replay the independently descended constructor head inside the actual
+retained wrapper and next application, then refocus at the restored full pair.
+Verdict: checked, including purely retained terminals. The endpoint map fixes
+the observer suffix, so the lower head's image is a literal lift. Its guarded
+computation is renamed into the realized target context; no arbitrary guarded
+substitution is used. Ordinary equality restores source typing inside the
+application/binder hole and also underneath the terminal projection.
+
+An explicit application strictly reduces continuation frames. A purely
+retained terminal either gives direct observer-scope pair readout (impossible
+below the least failure budget) or refocuses to an application-bearing minimum
+at unchanged frames. Thus 2*frames + (if application then 0 else 1) decreases.
+The head charge stays inside the remaining minimum; the independently lowered
+first-field argument charge is reserved in its original history.
+
+Combined retained progress with component, supplied-prefix, and consumed
+empty-prefix eta progress. The actual global empty-prefix pair cut now
+reaches only structure eta, after activation or before an intermediate supply.
+All function-eta transitions in this pair-cut induction have been eliminated.
+This does not establish normalization of arbitrary paths or solve the global
+strengthening theorem. Remaining: structure-target first-field readout in
+both phases; the projected first field cannot simply be treated as the
+original field across arbitrary guarded continuation paths. No sufficient
+smaller global replacement for PropFront yet. Goal active; PR extraction
+deferred. Validation: 1353 jobs, 11 public roots, maximum closure
+12,225, 1,328 frozen source hashes; stock Lean in /dev/shm, no sorryAx
+or forbidden dependencies.

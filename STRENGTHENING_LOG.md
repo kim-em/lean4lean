@@ -42795,3 +42795,78 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,327 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-consumed-constructor-cut-*.
+
+
+## 2026-11-07 23:46:20 UTC — All function eta eliminated from the weighted pair-cut induction
+
+Started from clean pushed 00ccc433; previous turn was verified progress.
+Completed the retained constructor-head replay needed by the remaining
+activated function case, including its purely retained terminal.
+
+New ProofErasurePiInertActivatedHeadReplay:
+
+SpineBinderHole.pi_inert_projected_preimage restores projection typing around
+the actual computed major. Invert its erasure and actual projection typing,
+use the tracked-hole ordinary equality backwards at the original major type,
+and rebuild the projected expression by SimAt.proj. Nonproof erasure is
+preserved by ordinary equality. pi_inert_lift_head_projected adds the exact
+telescope renaming needed for an independently scoped constructor history.
+No native guard is reversed or substituted.
+
+PiInertRetainedPrefixCount.observer_head_replay recovers the observer suffix
+on both sides of the actual endpoint map and the exact retained-hole depth.
+The mapped lower head is literally a lift into the target hole's telescope.
+Replay its original count by renaming there, restore the constructor source's
+typing, and retain the same computation inside all wrappers. The result also
+restores any projection typing around that source, which is needed at the
+terminal observer.
+
+pi_inert_activated_head_application_progress replays that head into the actual
+next suffix, then uses full-pair application focusing. The first field remains
+the same lower field lifted under the new telescope. The new minimum includes
+head plus suffix cost; competitors replay only the fixed old constructor
+prefix. PiInertProjectionApplicationRun.activated_head_next_minimum therefore
+strictly decreases frames.
+
+PiInertProjectionRunFrames.activated_head_next_minimum also handles a purely
+retained terminal. Replay the head under identity at the observer, including
+the projection's restored typing. At zero retained depth this is a direct
+pair observation. At positive depth use terminal application focusing to
+return a full-pair minimum with an actual application witness, at the SAME
+frame count. This makes the secondary mode bit strictly decrease and prevents
+an unchanged-frame refocusing loop.
+
+PiInertActivatedPairRetainedBoundaryMinimum.head_replay_progress derives the
+lower constructor typing from the original failed pair, descends the retained
+function history, and separately descends the first argument history. The
+head includes the eta charge and remains in the remaining budget; only the
+first-field charge is appended to the original field history. Direct
+observer-scope readout contradicts the least failure budget. All other
+retained branches strictly lower the frame/application rank without increasing
+remaining primitive cost. A structure branch is retained unchanged.
+
+PiInertActivatedPairStructureMinimum is the selected saturated structure
+root with its actual suffix, continuation, unrestricted minimum, and optional
+application witness. PiInertActivatedPairMinimum.function_eta_eliminate_all
+combines all proved transitions by primitive cost then frame/application
+rank: component, supplied-prefix eta, consumed empty-prefix eta at any
+endpoint, and retained empty-prefix head replay. Every result is structure
+eta after activation or before a possibly intermediate supply, with the SAME
+original observer-scope field history and strict joint failure budget.
+empty_pair_prefix_weighted_structure_boundary connects this induction to the
+actual global empty-prefix cut.
+
+Judgment: function eta is no longer a residual in this weighted pair-cut
+argument. Structure eta remains in both phases: its target's first field is
+a projection of the original pair, and commuting that field selection through
+the actual continuation needs its own proof. The present induction does not
+assume such commutation and does not prove normalization. Original weakN_iff
+sorry and executable unchanged. No sufficient global replacement for PropFront
+yet established. Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1353 jobs; recursive audit
+11 public roots, maximum closure 12,225; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,328 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-activated-head-replay-*.
