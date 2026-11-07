@@ -36397,3 +36397,101 @@ strengthening dependency or excluded circular framework. The original
 chosen-chain probe still excludes the older nested-eta/frame/supply probes.
 All 1,060 import source hashes stayed fixed. Stock Lean/Lake ran only in scratch.
 No executable changes or PR extraction.
+
+
+### 2026-11-07 01:45:19 UTC — State the recognizer and prove its base and retained cases
+
+Added `ProofErasureEqAnchoredRecognitionState.lean`, imported at the global
+eta-body frontier. Twenty-one public definitions/theorems give an exact state
+for the pending recursive argument and connect it conditionally to the original
+lifted Eq probe.
+
+`EqRetainedSourceAnchor.compute_arguments` uses the actual argument paths and
+source equalities to preserve whole application typing and nonproofness for the
+same chosen supply. Its body path remains unchanged. Together with the existing
+body update this supplies the stronger anchor needed by a retained readout.
+`EqAnchoredPendingHistory.source_identity` derives the current source frame and
+insertion chain from the actual base frame and chosen/unused constructors.
+
+`EqAnchoredEndpoint` fixes base lower/upper scopes, chosen substitution,
+insertion path, enclosing pending vector and exact raw endpoint. It existentially
+records a current typed nonproof chosen Eq prefix, allowed upper extras, and a
+normalized anchored history whose wrapper applied to that prefix is precisely
+the endpoint. Its depth is explicit. `of_spine` initializes depth zero;
+`of_history` realizes a history through the base identity square to normalize
+annotations without changing its raw endpoint or depth.
+
+`retained_head` and `not_exposed` prove the closing syntactic contradiction:
+recognized endpoints preserve the Eq head through retained lambda/application
+wrappers and cannot be exposed carriers. `anchored_spine_or_cut` implements the
+component branch of recognition and otherwise keeps the actual counted
+non-level cut. `zero_cost_anchored_endpoint` rules out that cut at zero primitive
+cost. `zero_depth` and `zero_depth_spine` expose the exact base spine;
+`zero_cost_zero_depth` proves the `(primitive cost, incoming depth) = (0,0)` case.
+A separate depth equation avoids Lean dependent elimination through computed
+annotation-context equalities.
+
+`realize` preserves a complete recognized state through an arbitrary actual
+agreeing base square. The base endpoint follows the upper substitution exactly,
+the current prefix follows the lower substitution, and depth stays fixed.
+Neither native paths nor continuation minima are transported.
+`retain_chosen` and `retain_unused` wrap an exact recursively recognized body,
+rebase and append its anchors, then normalize the resulting state. Their output
+depth is exactly the body depth plus one. `retained_recognition` updates a chosen
+frame's source anchor along the actual body and argument paths and proves the
+required output-depth inequality from the recursive body depth bound and the
+actual annotation/body/argument budget.
+
+`base_context_eq` reads base context agreement from agreement at the final
+history context by taking tails. `EqAnchoredEndpoint.outermost` uses this to
+expose a positive state with the displayed lambda annotation equal to its actual
+source domain. Its chosen alternative retains the source application anchor;
+both alternatives return the exact recognized inner state and depth one less.
+This supplies the source scope needed by an actual lambda suffix readout, with
+no assumption that native computation respects arbitrary context conversion.
+
+`EqAnchoredRecognition` is the explicit unproved global obligation. It accepts
+a recognized source state, actual counted path, typed continuation to an exposed
+carrier, terminal carrier typing, and unrestricted all-stage minimum. It must
+read the original target Eq or return a recognized endpoint with depth at most
+incoming depth plus primitive cost. The Eq metadata and non-unfolding premises
+required by the existing root classifier are explicit. Its recursive consumed
+cases, initialization at eta cuts, and global depth-bounded induction are not
+proved in this module.
+
+`EqAnchoredRecognition.eq_of_exposed` proves conditional sufficiency: minimize
+the actual path across finite stages, use the terminal typed continuation, and
+rule out a recognized exposed endpoint. `lifted_probe` constructs the original
+chosen prefix and actual paired insertion chain from the lower Eq probe typing
+and lift. It then applies that conditional result. The recognizer is an explicit
+hypothesis of both theorems; it is not hidden in a frontier, axiom or instance.
+This is not claimed as an irreducible or strictly smaller PropFront obligation.
+
+Next implementation steps: add state-level consumption and waiting-supply
+restoration (positive returned histories and depth-zero recognized spines),
+then derive body/suffix typed continuation minima for an existing lambda suffix.
+For a retained suffix, the body continuation wraps its endpoint in the displayed
+lambda and actual computed arguments. For a consumed suffix, it is the concrete
+one-argument application continuation followed by the original suffix. Competing
+body/suffix paths must be reconstructed in their original scopes and compared
+against the parent's all-stage minimum; source endpoint realization alone does
+not transfer minimality.
+
+The global proof can fix target context, original Eq data and exposed terminal
+result, then induct on primitive cost and incoming depth while generalizing all
+base/current scopes, stages and continuation predicates. A fresh Eq eta cut
+costs one primitive. An existing history body call loses its outer frame; at
+equal suffix cost the body cost is zero and the returned-depth bound makes that
+suffix's incoming depth smaller. This induction remains to be implemented.
+The original `weakN_iff` sorry is unchanged; GOAL.md remains active.
+
+Validation: 1086 successful build jobs including the global module and
+regression targets; 282 roots recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening dependency or excluded circular framework. The original
+chosen-chain probe still excludes the older nested-eta/frame/supply probes.
+All 1,061 import source hashes stayed fixed. The audit checks the new conditional
+theorems with their explicit recognizer hypothesis; it does not prove that
+hypothesis. Stock Lean/Lake ran only in scratch. No executable changes or PR
+extraction.

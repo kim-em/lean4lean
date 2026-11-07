@@ -28,6 +28,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPendingCountedReadout
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPendingSourceReturn
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqAnchoredPendingHistory
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqUnusedAnchoredConsumption
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqAnchoredRecognitionState
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -133,6 +134,15 @@ no wrappers survive. These local cases preserve lower chosen assignments and
 need no target image for an unused upper argument. Their integration into the
 recursive recognizer, with continuation minimality and the depth bound, remains
 open.
+
+`EqAnchoredEndpoint` now states the exact normalized output invariant, and
+`EqAnchoredRecognition` names the outstanding global theorem with its typed
+continuation, all-stage minimum and depth bound. The component branch, zero-cost
+zero-depth base case, endpoint realization and retained-frame reconstruction are
+proved. The conditional theorem `EqAnchoredRecognition.lifted_probe` shows that
+the recognizer would close the original lifted Eq probe; it takes the unproved
+recognizer explicitly. Consumed-case integration and the global induction remain
+open, and no strict comparison with PropFront is claimed.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation

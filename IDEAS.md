@@ -20885,3 +20885,42 @@ Validation: 1085 successful build jobs and 261 recursive audit roots,
 maximum closure 11,976; only propext, Classical.choice and Quot.sound.
 No sorryAx, original strengthening dependency or excluded circular framework;
 all 1,060 import source hashes fixed. Lean/Lake only in stock-release scratch.
+
+
+### 2026-11-07 01:45:19 UTC — Exact recognition state, proved base cases, conditional probe closure
+
+**Formalized the global obligation; did not prove it.** `EqAnchoredEndpoint`
+records a normalized anchored history at fixed base scopes and pending vector,
+ending in a typed nonproof chosen Eq prefix. Depth is an explicit index.
+`EqAnchoredRecognition` now states the intended global theorem with its actual
+typed continuation, exposed terminal carrier, all-stage minimum and bound
+`returnedDepth ≤ incomingDepth + primitiveCost`. The definition is an unproved
+proposition, not an additional axiom or a discharged theorem.
+
+Proved normalization and arbitrary agreeing endpoint realization, source-frame
+recovery, component-spine recognition, the `(cost, depth) = (0,0)` case,
+retained chosen/unused reconstruction, and the retained chosen case's depth
+arithmetic from the body induction hypothesis. Actual argument computation now
+preserves the full source anchor. Positive-depth state decomposition derives
+that the displayed outer annotation is the actual source domain from normalized
+context agreement, avoiding native context-conversion assumptions.
+
+Recognized endpoints retain an Eq head and cannot be exposed carriers.
+`EqAnchoredRecognition.eq_of_exposed` minimizes the actual path and supplies a
+terminal typed continuation; `lifted_probe` constructs the initial chosen state
+and paired lift chain for the original Eq probe. Both conclusions explicitly
+require the unproved recognizer. These make its role sufficient for probe
+closure, without claiming irreducibility or a strict reduction from PropFront.
+
+Next: integrate consumed states (including positive and zero returned depth),
+derive the actual body and suffix continuation minima from counted lambda
+readouts, and perform the induction on primitive cost then incoming depth.
+Fresh eta cuts decrease primitive count; existing history frames decrease
+incoming depth on the body call, and the returned-depth bound handles equal-cost
+suffix calls. The global induction and `weakN_iff` remain open.
+
+Validation: 1086 successful build jobs and 282 recursive audit roots,
+maximum closure 11,976; only propext, Classical.choice and Quot.sound.
+No sorryAx or forbidden strengthening/circular dependencies; 1,061 fixed import
+source hashes. The audit checks the conditional theorems as stated and does not
+supply their missing `EqAnchoredRecognition` premise. Lean/Lake only in scratch.
