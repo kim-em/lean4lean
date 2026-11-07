@@ -36664,3 +36664,42 @@ All 1,064 import source hashes stayed fixed. The new conditional front theorems
 retain the application/readout premise explicitly; the audit does not prove
 that premise. Stock Lean/Lake ran only in scratch. No executable changes or
 PR extraction.
+
+
+### 2026-11-07 02:35:50 UTC — Full guarded computation preserves nullary unit carrier histories
+
+Revalidated clean HEAD 5a6493a6 before resuming. The preceding conversational
+turn made no technical progress. Inspected the ordinary-core carrier conversion
+rules and the existing rigid-family observation machinery. Atomic unit return
+tracks unit inhabitants and unit-indexed types; the applicable theorem here is
+RigidDemandProfile.static_structure_rigid_telescope_head_readout, which returns
+a beta-exposed rigid family after full-union computation of the family type.
+
+Added ProofErasurePiInertUnitCarrierConversion.lean and imported it from the
+global proof module. Its four proved theorems establish:
+
+- A typed raw carrier beta-returning to a nullary empty family has a complete
+  PiInertCarrierHistory at any requested stage, for arbitrary endpoints.
+- Any full expanded-union computation of a typed nullary empty family yields
+  such a history. The output is realized as an actual typed term, rigid head
+  readout supplies the beta return, and PiInertEvidence.core retains all future
+  substitutions and independent core residuals.
+- The same conclusion holds for a Pi-inert path, with no relation required
+  between the path stage and the output history stage.
+- A full-union path from the unit type to a shared output and a certified
+  computation from a target carrier to that output construct the target's
+  complete history. The old-to-shared path is now genuinely guarded rather
+  than required to be ordinary core.
+
+The result requires sound definitions, typed ordinary-core confluence, family
+non-unfolding, and canonical Eq for full-union readout. It does not assume a
+new closure law. It does not establish arbitrary comparison-based conversion,
+function-body readout, semantic coverage, a counterexample, or a strictly
+smaller replacement for PropFront. GOAL.md remains active; weakN_iff is unchanged.
+
+Validation: 1102 successful build jobs and 306 recursively audited roots,
+maximum closure 12,048. Types, values, constructors and recursors were
+checked; no sorryAx, weakN_iff, or excluded circular framework dependency. Only
+propext, Classical.choice and Quot.sound occur. All 1,077 frozen import hashes
+stayed fixed. No owned diagnostics. Stock Lean/Lake ran only in scratch. No
+executable changes or PR extraction.

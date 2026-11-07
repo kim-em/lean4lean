@@ -20993,3 +20993,22 @@ expansions, so the expanded comparison case needs actual path/continuation
 reasoning rather than that premise. Validation: 1089 build jobs, 302
 recursive audit roots, maximum closure 12,048, only propext,
 Classical.choice and Quot.sound.
+
+
+### 2026-11-07 02:35:50 UTC — Unit histories after guarded computation: constructed
+
+The missing general forward transport of carrier histories cannot be obtained
+from their ordinary-core residual fields. For a typed nullary empty structure
+family, however, existing rigid-family observation already proves beta return
+after arbitrary full-union computation. Combining that return with typed
+ordinary-core confluence constructs a complete carrier history at any requested
+stage, including zero. Future typed substitutions use the beta return, without
+requiring transport of the original guarded path. A certified target-to-shared
+path then gives conversion across a genuinely guarded join. Implemented and
+checked in ProofErasurePiInertUnitCarrierConversion.lean.
+
+This is a constructive unit case, not a general conversion or shared-application
+law. In particular, arbitrary common comparison is not a directed join and has
+not been promoted to one. The original strengthening obligation remains open.
+Validation: 1102 build jobs, 306 recursive audit roots, maximum closure
+12,048; only propext, Classical.choice and Quot.sound.
