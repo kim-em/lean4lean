@@ -24573,3 +24573,26 @@ Positive-cost body tails and further retained frames remain unresolved.
 This is not a general pair-selection proof or sufficient smaller strengthening
 frontier. Validation: 1266 build jobs, 6 audited roots, maximum closure
 11,978; standard axioms only, 1,241 frozen sources verified.
+
+## 2026-11-07 17:55:19 UTC — retain counts across positive-cost structure-body tails
+
+Verdict: checked extension of the consumed structure case beyond beta-only
+tails. Stage-zero Pi-inert computation transports under every ordinary
+interpreted substitution with exactly the original primitive count, including
+core rules and constant wrappers under compatible nodes. No native image
+assumption is needed. An arbitrary finite-stage tail likewise preserves its
+count when the actual consumed argument recovers the exact eta domain; the
+existing native transport raises only the finite stage. Constructed the
+single-binder native image substitution from that recovery and the already
+available ordinary endpoint interpretation.
+
+The consumed structure projection minimum now accepts a counted replay of
+its body tail at any finite stage. Both concrete transport results discharge
+that replay; the former beta-only theorem keeps its original interface as a
+specialization. The original guarded prefix still runs under the lambda,
+so only the tail is transported. General guarded tails through an argument
+without exact native recovery and additional retained frames remain open.
+This is no claim that exact native recovery is necessary for all solutions,
+or that a sufficient smaller strengthening frontier has been obtained.
+Validation: 1268 jobs, 12 audited roots, maximum closure 11,978;
+standard axioms only; 1,243 frozen sources verified.

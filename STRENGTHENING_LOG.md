@@ -40631,3 +40631,65 @@ Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
 Quot.sound, no sorryAx or forbidden strengthening/circular-frontier dependencies.
 All 1,241 frozen source hashes verified before/after. Artifacts:
 /dev/shm/pi-inert-structure-projection-substitution-*.
+
+## 2026-11-07 17:55:19 UTC — positive-cost replay in consumed structure minima
+
+Previous goal turn classified as progress: 89e9c6f9 proved structure selection
+across interpreted endpoint substitution and its consumed beta-tail case.
+Revalidated clean committed state and inspected actual PiInertStage,
+counted native transport, ordinary substitution and native image definitions.
+The distinction is substantive: a typed endpoint map alone supplies no exact
+native recovery of the argument at the original eta domain.
+
+Added ProofErasurePiInertCountedSubstitution.lean.
+pi_inert_zero_compute_count_substitution proves primitive-for-primitive typed
+transport at stage zero with only an ordinary ContextSubstitution. Core roots
+use raw substitution, constant expansions use their typed substitution law,
+and the primitive/sort head restriction is preserved. Compatible paths retain
+exact counts using existing counted typed transport, including intermediate
+actual realizations and binder extensions.
+pi_inert_native_inst_image_substitution constructs the all-realizations image
+condition for a single consumed binder from its existing ordinary map and an
+explicit exact ScopedTypeRecovery of the raw argument. The zero variable uses
+that recovery; successor variables retain their oracle recovery. Thus the
+caller need not construct a stronger map separately.
+pi_inert_compute_count_native_inst applies the existing full-stage native
+transport: endpoints instantiate exactly, primitive count is unchanged, and
+the finite guard bound is the sum of body and image stages.
+
+Generalized the consumed structure proof in
+ProofErasurePiInertStructureProjectionSubstitution.lean to
+pi_inert_consumed_structure_projection_minimum_function_eta_of_tail. It accepts
+a counted path between the instantiated tail endpoints, accounts for its cost,
+and raises the tail and later suffix to a common finite stage. The short-record
+prefix is still reconstructed by lambda-body replacement, so its guarded
+computation is not substituted. Actual typing still proves the pending
+arguments after consumption are empty. The original beta-only theorem retains
+its exact public signature and delegates with a zero-count substituted beta
+path.
+
+Added ProofErasurePiInertStructureTailTransport.lean and integrated it in the
+aggregator. pi_inert_consumed_structure_zero_tail_minimum_function_eta supplies
+the replay for arbitrary stage-zero body tails of any cost, while the outer
+eta, prefix and later suffix retain arbitrary finite stages. The expanded
+body's actual typing is obtained from native structure descent, and the
+argument map comes from eta-body interpretation. No new recovery premise.
+pi_inert_consumed_structure_native_tail_minimum_function_eta supplies the same
+replay for arbitrary finite-stage guarded tails when the actual computed
+argument recovers the exact eta domain. This added premise is explicit, and
+only the stage, not the primitive count, increases.
+
+Remaining: arbitrary guarded body tails through arguments whose exact domain
+recovery is unavailable, plus additional retained frames and original-field
+ancestry for the full induction. Native recovery is a sufficient condition
+for this transport route, not a claimed necessary condition for readout.
+General positive-stage pair selection and weakN_iff remain open; no sufficient
+strictly smaller obligation than PropFront has been established. Goal active,
+PR extraction deferred, executable and UniqueTyping.lean unchanged.
+
+Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1268 jobs; recursive audit
+12 roots, maximum closure 11,978; only propext/Classical.choice/
+Quot.sound, no sorryAx or forbidden strengthening/circular-frontier dependencies.
+All 1,243 frozen source hashes verified before/after. Artifacts:
+/dev/shm/pi-inert-structure-tail-transport-*.

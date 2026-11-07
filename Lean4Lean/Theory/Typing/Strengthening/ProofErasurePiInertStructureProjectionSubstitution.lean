@@ -141,13 +141,87 @@ theorem pi_inert_substituted_structure_projection_minimum_function_eta
     omega
   · exact HF
 
+/-- A counted replay of the body tail after consumption suffices to relay
+structure eta to function eta in the outer scope. Its exact cost is included
+in the full projection minimum, and its finite stage may differ from every
+other stage. The original guarded body prefix is replayed under the lambda;
+no substitution closure of that prefix is required. This interface does not
+assert that an arbitrary body tail has the required replay. -/
+theorem pi_inert_consumed_structure_projection_minimum_function_eta_of_tail
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hguard : ErasedScopedPrimitiveDescent Guard)
+    (hstep : ErasedScopedPrimitiveDescent Step)
+    (hi : env.projections family info) (hp : info.nparams = 0) (hf : info.numFields = 2)
+    (hz : info.nindices = 0) (hadm : (info.resultLevel.inst []).IsNeverZero)
+    (hshape : info.ctorType.instL [] = .forallE (.sort (.succ .zero))
+      (.forallE (.bvar 0) (.const family [])))
+    (hD : ∀ levels rhs, ¬ D.unfolds info.ctorName levels rhs)
+    (HT : TypedSource Δ (ProofShape.mkApps f args))
+    (RN : ScopedTypeRecovery Guard Δ f (.forallE A B)) (SD : DomainSort Δ A u)
+    (RP : ScopedComputeCount (PiInertStage D n) cp Δ original (ProofShape.mkApps f args))
+    (HR : PiInertStage D n Δ f (.lam A (.app (f.liftN 1) (etaArgument u))))
+    (RD : ScopedComputeCount (PiInertStage D n) cd Δ A A')
+    (hΓ : OnCtx Γ (env.IsType univs)) (EΓ : proofEraseCtx Γ = A :: Δ)
+    (hm : env.HasType univs Γ m (.const family []))
+    (RB : ScopedComputeCount (PiInertStage D bodyStage) pb (A :: Δ)
+      (.app (f.liftN 1) (etaArgument u)) (proofErase Γ m))
+    (H : NativeMaskedStructureExpansion Step (proofEraseCtx Γ) (proofErase Γ m) target)
+    {body' : ProofShape}
+    (RTail : ScopedComputeCount (PiInertStage D tailStage) tailCost Δ
+      (target.inst x') (body'.inst x'))
+    (RX : ScopedArgumentsCount (PiInertStage D n) Δ ca args (x' :: xs'))
+    (RS : ScopedComputeCount (PiInertStage D n) cs Δ (ProofShape.mkApps (body'.inst x') xs') major)
+    (RF : ScopedComputeCount (PiInertStage D n) cf Δ (.proj family 0 major) out)
+    (hout : ∀ A b rest, out ≠ ProofShape.mkApps (.lam A b) rest)
+    (hproj : ∀ major, out ≠ .proj family 0 major)
+    (hcost : cp + 1 + cd + pb + 1 + tailCost + ca + cs + cf ≤ cost)
+    (hmin : ∀ later j, ScopedComputeCount (PiInertStage D later) j Δ
+      (.proj family 0 original) out → cost ≤ j) :
+    ∃ Γ₀, OnCtx Γ₀ (env.IsType univs) ∧ proofEraseCtx Γ₀ = Δ ∧
+      GlobalPairFunctionEtaProjection D Γ₀ family info (target.inst x') out := by
+  obtain ⟨_, WI⟩ := pi_inert_eta_body_interpretation heq hs hguard HT RN SD RX
+  have WP : ContextSubstitution (proofEraseCtx Γ) Δ (ProofShape.Subst.one x') := EΓ ▸ WI
+  have ht := (dependent_pair_projections_typed hi hp hf hz hadm hshape hΓ hm).1
+  obtain ⟨Γ₀, short, expanded, hΓ₀, EΓ₀, hshort, _, Eshort, _, _⟩ :=
+    proofErase_closed_structure_projection_substitution (D := D) hstep hi (by omega)
+      hΓ hm ht H WP
+  have Rlocal := pi_inert_counted_lambda_body_replace
+    (ScopedComputeCount.beta (Step := PiInertStage D n) (Δ := Δ)
+      (BetaRed.refl (e := ProofShape.mkApps f args))) HR RD RB RX
+    (ScopedComputeCount.beta (Step := PiInertStage D n)
+      (BetaRed.refl (e := ProofShape.mkApps ((proofErase Γ m).inst x') xs')))
+  have HTshort := HT.pi_inert_compute heq hs Rlocal.forget
+  have HTshort' : TypedSource Δ (ProofShape.mkApps (proofErase Γ₀ short) xs') := by
+    simpa only [Eshort, ProofShape.mkApps, ProofShape.inst_eq_subst,
+      ProofShape.Subst.liftN] using HTshort
+  have EX := TypedSource.closed_record_pending_nil hi hΓ₀ EΓ₀ hshort HTshort'
+  subst xs'
+  simp only [ProofShape.mkApps] at RS
+  have Rshort := pi_inert_counted_lambda_body_replace RP HR RD RB RX
+    (ScopedComputeCount.beta (Step := PiInertStage D n)
+      (BetaRed.refl (e := (proofErase Γ m).inst x')))
+  have Rshort' : ScopedComputeCount (PiInertStage D (max bodyStage n)) (cp+1+cd+pb+ca) Δ
+      original ((proofErase Γ m).subst (ProofShape.Subst.one x')) := by
+    simpa only [Nat.add_zero, ProofShape.mkApps, ProofShape.inst_eq_subst,
+      ProofShape.Subst.liftN] using Rshort
+  have Rtail : ScopedComputeCount (PiInertStage D (max tailStage n)) (tailCost+cs+cf) Δ
+      (.proj family 0 (target.subst (ProofShape.Subst.one x'))) out := by
+    have RR := ((RTail.mono (pi_inert_stage_mono (Nat.le_max_left tailStage n))).trans
+      (RS.mono (pi_inert_stage_mono (Nat.le_max_right tailStage n)))).proj.trans
+      (RF.mono (pi_inert_stage_mono (Nat.le_max_right tailStage n)))
+    simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using RR
+  have HH := pi_inert_substituted_structure_projection_minimum_function_eta
+    heq hs hstep hi hp hf hz hadm hshape hD hΓ hm H WP hout hproj Rshort' Rtail
+    (cost := cost) (by omega) hmin
+  simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using HH
+
 /-- A structure root followed only by beta in a consumed eta body can be
 relayed to function eta in the outer scope. The prefix to the short record is
 constructed by replacing the lambda body before consumption, so its guarded
 computation is never substituted. The actual argument supplies the endpoint
-interpretation. Typing forces the pending spine after consumption to be empty; this is not
-assumed of the argument computation. Positive-cost body tails and additional
-retained frames remain open. -/
+interpretation. Typing forces the pending spine after consumption to be empty;
+this is not assumed of the argument computation. This beta-only interface is
+preserved as a specialization of the counted tail-replay theorem. -/
 theorem pi_inert_consumed_structure_projection_minimum_function_eta
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hguard : ErasedScopedPrimitiveDescent Guard)
@@ -178,42 +252,11 @@ theorem pi_inert_consumed_structure_projection_minimum_function_eta
       (.proj family 0 original) out → cost ≤ j) :
     ∃ Γ₀, OnCtx Γ₀ (env.IsType univs) ∧ proofEraseCtx Γ₀ = Δ ∧
       GlobalPairFunctionEtaProjection D Γ₀ family info (target.inst x') out := by
-  obtain ⟨_, WI⟩ := pi_inert_eta_body_interpretation heq hs hguard HT RN SD RX
-  have WP : ContextSubstitution (proofEraseCtx Γ) Δ (ProofShape.Subst.one x') := EΓ ▸ WI
-  have ht := (dependent_pair_projections_typed hi hp hf hz hadm hshape hΓ hm).1
-  obtain ⟨Γ₀, short, expanded, hΓ₀, EΓ₀, hshort, _, Eshort, _, _⟩ :=
-    proofErase_closed_structure_projection_substitution (D := D) hstep hi (by omega)
-      hΓ hm ht H WP
-  have Rlocal := pi_inert_counted_lambda_body_replace
-    (ScopedComputeCount.beta (Step := PiInertStage D n) (Δ := Δ)
-      (BetaRed.refl (e := ProofShape.mkApps f args))) HR RD RB RX
-    (ScopedComputeCount.beta (Step := PiInertStage D n)
-      (BetaRed.refl (e := ProofShape.mkApps ((proofErase Γ m).inst x') xs')))
-  have HTshort := HT.pi_inert_compute heq hs Rlocal.forget
-  have HTshort' : TypedSource Δ (ProofShape.mkApps (proofErase Γ₀ short) xs') := by
-    simpa only [Eshort, ProofShape.mkApps, ProofShape.inst_eq_subst,
-      ProofShape.Subst.liftN] using HTshort
-  have EX := TypedSource.closed_record_pending_nil hi hΓ₀ EΓ₀ hshort HTshort'
-  subst xs'
-  simp only [ProofShape.mkApps] at RS
-  have Rshort := pi_inert_counted_lambda_body_replace RP HR RD RB RX
-    (ScopedComputeCount.beta (Step := PiInertStage D n)
-      (BetaRed.refl (e := (proofErase Γ m).inst x')))
-  have Rshort' : ScopedComputeCount (PiInertStage D (max bodyStage n)) (cp+1+cd+pb+ca) Δ
-      original ((proofErase Γ m).subst (ProofShape.Subst.one x')) := by
-    simpa only [Nat.add_zero, ProofShape.mkApps, ProofShape.inst_eq_subst,
-      ProofShape.Subst.liftN] using Rshort
-  have Rbeta' : ScopedComputeCount (PiInertStage D n) 0 Δ
-      (target.subst (ProofShape.Subst.one x')) (body'.inst x') := by
-    simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using
-      (ScopedComputeCount.beta (Δ := Δ) (Step := PiInertStage D n)
-        (RBeta.subst (σ := ProofShape.Subst.one x')))
-  have Rtail : ScopedComputeCount (PiInertStage D n) (cs+cf) Δ
-      (.proj family 0 (target.subst (ProofShape.Subst.one x'))) out := by
-    simpa only [Nat.zero_add] using (Rbeta'.trans RS).proj.trans RF
-  have HH := pi_inert_substituted_structure_projection_minimum_function_eta
-    heq hs hstep hi hp hf hz hadm hshape hD hΓ hm H WP hout hproj Rshort' Rtail
-    (cost := cost) (by omega) hmin
-  simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using HH
+  apply pi_inert_consumed_structure_projection_minimum_function_eta_of_tail
+    heq hs hguard hstep hi hp hf hz hadm hshape hD HT RN SD RP HR RD hΓ EΓ hm RB H
+    (tailStage := n) (tailCost := 0) ?_ RX RS RF hout hproj (by omega) hmin
+  simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using
+    (ScopedComputeCount.beta (Δ := Δ) (Step := PiInertStage D n)
+      (RBeta.subst (σ := ProofShape.Subst.one x')))
 
 end Lean4Lean.VEnv.Strengthening
