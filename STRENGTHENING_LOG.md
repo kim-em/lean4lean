@@ -36544,3 +36544,64 @@ All 1,062 import source hashes stayed fixed. The earlier conditional sufficiency
 results still explicitly assume the unproved recognizer; their audit does not
 prove that premise. Stock Lean/Lake ran only in scratch. No executable changes
 or PR extraction. GOAL.md remains active.
+
+
+### 2026-11-07 02:13:00 UTC — Full anchored recognizer and unconditional lifted probe readout
+
+Added `ProofErasureEqAnchoredRecognition.lean`. This closes the exact
+`EqAnchoredRecognition` obligation introduced at 6766fda1, rather than adding
+another assumed frontier. Its specification still retains actual typed source,
+counted path, typed continuation to an exposed carrier, carrier typing and an
+unrestricted all-stage minimum. The output is the original target Eq or an
+exact normalized endpoint with depth bounded by incoming depth plus primitive
+cost, in the same base scopes and with the same pending vector.
+
+`EqAnchoredRecognitionAt` indexes precisely that specification by primitive
+cost and incoming depth. `positive` proves all four existing-frame cases:
+chosen/unused and retained/consumed. Body calls use the actual source binder and
+its derived minimum. Consumed suffix calls use the exact realized return state
+and suffix minimum. At equal primitive cost, the incoming depth decreases;
+output depth bounds and the target Eq alternative propagate through both calls.
+
+`chosen_eta_anchored` initializes a depth-one chosen frame from recovered lower
+Pi typing, the original whole application typing, and the actual waiting supply.
+Its source anchor starts with the reflexive actual eta-body path. The pending
+chosen head is typed by the fresh specialization. `saturated_eta_anchored`
+initializes an unused upper frame at the actual recovered domain, preserving
+the completed lower prefix and raw waiting extras.
+
+`ChosenEqChainSpineCut.eq_or_anchored_step` uses the actual first-cut classifier.
+It either reads the target equality or retains the exact prefix path, root and
+whole suffix with a recognized depth-one source. Constant/identity/structure
+cases are excluded by the existing typed terminal continuation and all-stage
+minimum, not by assuming they are absent. Short roots split the actual lower
+supply; saturated roots preserve the raw upper suffix.
+
+`eq_anchored_zero_recognition_step` handles components directly and invokes
+strictly smaller-cost recognition on the entire fresh eta suffix. The parent's
+minimum gives the suffix minimum by reconstructing competitors at a common
+finite stage. `EqAnchoredRecognition.of_zero_step` performs nested strong
+induction, and `eq_anchored_recognition` discharges its zero-step premise.
+`pi_inert_lifted_eq_probe_descend` applies the resulting recognizer to the
+original lifted probe. It has no recognizer, frontier, or agreeing-return
+premise. The prior conditional sufficiency theorems are now instantiated by
+an actual proof.
+
+Remaining GOAL.md work: the original `weakN_iff` sorry is unchanged. Recognition
+reads actual Pi-inert exposure paths; it does not manufacture such paths for
+arbitrary declarative equalities or establish general function-body/shared-
+application coverage. Inspect those coverage obligations and their established
+unit-conversion consequences before choosing the next proof step. Do not treat
+this recognizer as a proof of strengthening or as an irreducible obligation
+strictly smaller than PropFront. No canonical-Eq counterexample is established.
+
+Validation: 1088 successful build jobs including the global module and
+regression targets; 298 roots recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening dependency or excluded circular framework. The original
+chosen-chain probe still excludes the older nested-eta/frame/supply probes.
+All 1,063 import source hashes stayed fixed. The new recognizer and lifted
+probe theorem are themselves audit roots, not merely the old conditional
+sufficiency statements. Stock Lean/Lake ran only in scratch. No executable
+changes or PR extraction. GOAL.md remains active.

@@ -30,6 +30,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqAnchoredPendingHistor
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqUnusedAnchoredConsumption
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqAnchoredRecognitionState
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqAnchoredConsumedState
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqAnchoredRecognition
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -155,6 +156,17 @@ lexicographic decreases from the body induction bound.
 `pi_inert_lambda_recognition_readout` supplies the corresponding typed body
 continuations and unrestricted body/suffix minima for an existing lambda.
 Fresh eta initialization and the global depth-bounded induction remain open.
+
+`eq_anchored_recognition` now proves the full exact recognizer by nested strong
+induction on primitive cost and incoming depth. All four existing-lambda cases
+use the derived original-scope body/suffix minima. Each fresh eta initializes a
+depth-one state immediately, so its entire actual suffix has strictly smaller
+primitive cost. `pi_inert_lifted_eq_probe_descend` therefore reads the original
+lower Eq indices from any actual lifted Pi-inert carrier exposure, with no
+recognizer or frontier premise. This closes the recognition obligation described
+above; general semantic path coverage and the original strengthening theorem
+remain separate and are not claimed here.
+
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation

@@ -20946,3 +20946,24 @@ initialization and the global induction remain unproved; no strict reduction
 below PropFront is claimed. Validation: 1087 build jobs, 288 recursively
 audited roots, maximum closure 11,976, only propext/Classical.choice/
 Quot.sound, fixed import source hashes, stock Lean in scratch.
+
+
+### 2026-11-07 02:13:00 UTC — Close anchored recognition by initializing eta before its suffix
+
+Verdict: the full exact anchored recognizer is proved. Existing positive-depth
+states use the original-scope body minima and exact consumed-state returns.
+At a fresh eta cut, initialize the chosen or unused depth-one state immediately
+and apply the cost induction to its entire actual suffix. The root itself
+spends one primitive, so no special recursive fresh-body minimum is needed.
+This removes the last assumed recognition premise from lifted Eq-probe descent.
+
+`eq_anchored_recognition` supplies the previous global specification outright;
+`pi_inert_lifted_eq_probe_descend` reads the original lower Eq indices whenever
+the actual lifted probe reaches a carrier in a finite Pi-inert stage. The full
+strengthening goal remains open: existence of the required computation/exposure
+paths from general semantic equality is not proved by recognition. Existing
+function-readout/shared-application coverage frontiers must be assessed with
+this new readout result, without silently assuming PropositionFront. No strict
+smallness claim is made. Validation: 1088 build jobs, 298 recursively
+audited roots, maximum closure 11,976; only propext/Classical.choice/
+Quot.sound, no strengthening or excluded circular dependencies.

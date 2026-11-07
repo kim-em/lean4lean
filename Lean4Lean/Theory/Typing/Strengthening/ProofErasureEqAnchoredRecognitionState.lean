@@ -423,14 +423,15 @@ theorem EqAnchoredEndpoint.outermost
     · simpa only [EA] using EW (ProofShape.mkApps (.const ``Eq.rec [v',w'])
         (((pre.map (proofErase Γ)).map blocks.erased) ++ extra))
 
-/-- The outstanding global recognition obligation. It must preserve the exact
-base scopes and pending vector, return a normalized anchored endpoint with depth
-at most incoming depth plus primitive cost, or read the original target Eq.
+/-- The global recognition specification, proved by `eq_anchored_recognition`
+in `ProofErasureEqAnchoredRecognition`. It preserves the exact
+base scopes and pending vector, returning a normalized anchored endpoint with
+depth at most incoming depth plus primitive cost, or reading the original target Eq.
 The selected typed continuation, exposed terminal carrier and all-stage minimum
 are retained: root classification cannot currently discard these hypotheses.
-Component recognition, normalization and local return lemmas do not prove this
-obligation. In particular its recursive retained/consumed cases and depth bound
-remain missing; no irreducibility or strict comparison with PropFront is claimed. -/
+This module establishes local cases and conditional sufficiency. The later
+module supplies fresh-eta initialization and the complete cost/depth induction;
+no irreducibility or strict comparison with PropFront is claimed. -/
 def EqAnchoredRecognition (D : Definitions) : Prop :=
   ∀ {Δ Γ₀ Λ₀ : List VExpr} {σ₀ : VExpr.Subst} {blocks₀ : EqInsertionPath}
     {pending₀ : List VExpr} {v w : VLevel} {α a M minor b T : VExpr}
@@ -456,7 +457,7 @@ def EqAnchoredRecognition (D : Definitions) : Prop :=
 
 /-- The stated recognition obligation suffices to read the original target
 Eq when an anchored source reaches an exposed carrier. This theorem is
-conditional on `EqAnchoredRecognition`; that obligation is not proved here. -/
+conditional on `EqAnchoredRecognition`, proved in the later recognition module. -/
 theorem EqAnchoredRecognition.eq_of_exposed
     (recognize : EqAnchoredRecognition D)
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
@@ -487,7 +488,8 @@ theorem EqAnchoredRecognition.eq_of_exposed
 /-- Conditional closure of the original lifted Eq probe from the exact
 anchored-recognition obligation. The initial state and insertion chain are
 constructed from the original lower typing and actual lift. No frontier or
-scope-agreement hypothesis is substituted for the missing recognizer. -/
+scope-agreement hypothesis is substituted for the recognizer; its unconditional
+instance is `pi_inert_lifted_eq_probe_descend` in the later recognition module. -/
 theorem EqAnchoredRecognition.lifted_probe
     (recognize : EqAnchoredRecognition D)
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
