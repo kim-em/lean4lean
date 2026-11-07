@@ -37726,3 +37726,38 @@ no owned diagnostics. Stock Lean/Lake ran only in scratch. The executable and
 original weakN_iff are unchanged; no PR extraction. Universal action, paired-body
 coverage, hereditary carrier conversion and composition remain open. GOAL.md
 remains active; no completion or strict-smallness claim.
+
+
+## 2026-11-07 06:43:32 UTC — Calibrate the variable-action seed, including its nested futures
+
+Added `ProofErasurePiInertVariableActionBoundary.lean` and imported it through
+`ProofErasurePiInertGlobalEtaBodyCut.lean`. The new module has 12 public roots:
+a typed single-binder instantiation rule for completed carrier histories;
+three explicit missing action laws; two exact equivalences (fresh native
+variable action and its local variant, each equivalent to universal reflexive
+function action); the component implications; evaluation-lambda reduction to
+shared application; and the conditional full proposition-front consequence.
+
+The central additional finding is that dropping the outer future quantifier
+does not remove arbitrary function images. The returned carrier history still
+accepts all later actual typed substitutions. Weakening the arguments under a
+fresh function binder and then instantiating that binder recovers arbitrary
+function action from the local variable law. Thus the next interpretation
+cannot repair this problem merely by restricting its outer substitutions;
+it must track admissible futures inside result histories as well.
+
+The evaluation lambda `fun h => h x` uses the given history of f and g as its
+argument history, so reflexive function action already gives shared
+application. Endpoint beta reductions preserve the exact dependent carrier.
+The existing canonical-Eq recognizer then yields PropositionFront with the
+same closed positive empty-structure and recursor assumptions as the earlier
+application lower bound. No closure law has been proved, and no strict
+smallness or strengthening counterexample is claimed.
+
+All Lean/Lake commands ran in `/dev/shm/native-level-coherence-work` with stock
+`leanprover/lean4:v4.33.0-rc2`. The integration build passed 1128 jobs; the
+recursive audit covered 481 roots, maximum closure 12,394, with only
+propext, Classical.choice and Quot.sound. Frozen source hashes, owned-module
+diagnostics, and exclusion of sorryAx / weakN_iff / weakN_inv / circular
+frameworks are checked by `/dev/shm/variable-action-*` artifacts. Executable
+unchanged and PR extraction remains deferred. GOAL.md remains active.

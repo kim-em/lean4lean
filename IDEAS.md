@@ -21679,3 +21679,54 @@ goal remains open and no strictly smaller sufficient obligation is claimed.
 Validation: 1127 integration jobs, 469 audited roots, maximum closure
 12,394; only propext, Classical.choice and Quot.sound. Executable unchanged;
 no PR extraction. GOAL.md remains active.
+
+
+## 2026-11-07 06:43:32 UTC — Local function-variable action retains the full application problem
+
+Tested whether retained function action can initialize its variable case from
+ordinary typed substitution images, and whether restricting only its outer
+future quantifier avoids the problem. Added
+`ProofErasurePiInertVariableActionBoundary.lean` with an exact calibration.
+
+FinitePiInertFreshVariableAction asks only for bvar 0 at its native Pi in a
+freshly extended context. It is equivalent to FinitePiInertReflexiveAction,
+which asks for action of every actual typed function against itself. In one
+direction each future is extended by the actual function image; the native
+Pi's lifted domain and dependent codomain substitute to the original assigned
+Pi exactly. The other direction uses the ordinary native variable typing.
+
+More strongly, FinitePiInertLocalFreshVariableAction has no outer future
+quantifier and is still equivalent to universal reflexive action. Given a
+function and a carrier-related argument pair, weaken the argument history
+under a new function binder, apply the local variable law, then instantiate
+the completed result history by that function. The result history's own
+future clause admits this image without requiring retained image action.
+The general instantiate_typed lemma allows the two endpoints' actual types
+to differ, so this argument preserves the left dependent output carrier.
+
+Universal reflexive action implies FinitePiInertSharedApplication: use the
+typed evaluation lambda `fun h => h x`, feed it the supplied completed history
+of f and g, and reduce the two result endpoints by beta. The completed Eq
+recognizer therefore proves PropositionFront from even the local variable
+law under the existing canonical-Eq, sound-definition, Eq.rec registration /
+non-unfolding, and closed positive empty-structure hypotheses. No confluence
+or universal history-to-action hypothesis is added by this reduction.
+
+Verdict: this is a checked lower bound, not a refutation of function action or
+of strengthening. The variable seed is not a strictly smaller obligation.
+The preceding proposal to restrict only outer substitution images is
+insufficient: any revised interpretation must also address unrestricted
+futures inside the returned histories. Next investigate a simultaneous
+interpretation whose future relation retains image evidence throughout,
+including nested result histories, or prove the full variable law directly;
+do not initialize it from ordinary image typing alone.
+
+Also considered a uniform-stage diagonal counterexample using arbitrarily
+nested reflexive Eq probes. No strict hierarchy has been proved: compatible
+computation may reduce inner probes before checking an outer guard, so the
+existing zero/one boundary does not justify a general unbounded-stage claim.
+This remains an unverified angle, not a rejected route or a counterexample.
+
+Validation: 1128 integration jobs, 481 audited roots, maximum dependency
+closure 12,394; only propext, Classical.choice and Quot.sound. Executable
+unchanged; no PR extraction. The original GOAL.md deliverable remains open.
