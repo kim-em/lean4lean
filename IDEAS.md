@@ -22060,3 +22060,59 @@ propext, Classical.choice and Quot.sound. Frozen source hashes include every
 local import; the audit rejects sorryAx, weakN_iff, weakN_inv and known
 circular frameworks. Stock Lean scratch execution; executable unchanged;
 PR extraction deferred.
+
+
+## 2026-11-07 08:39:37 UTC — Lambda arguments with finite higher-order demands
+
+The carrier-value sum repaired subsingleton functions but still could not
+represent a general identity lambda as a value passed to another function.
+An external TypedCarrierAction was not enough: its arguments and results
+were restricted to the old carrier-value class. The new PiInertDemandValue
+relation separates the evidence needed by an argument use from the evidence
+retained for a result use. PiInertDemand is a finite ground/arrow tree;
+ground stores actual endpoint/carrier sources and a finite-stage core-world
+history. Arrow p q additionally consumes p and returns q in every core world,
+at every typed ordinary-core Pi join of the selected carrier.
+
+The index is not a reduction budget, checker-stage bound or normalization
+hypothesis. Every ground payload still includes arbitrary independent core
+residuals. Output stages are existential per use, not uniform over arguments
+or worlds. This construction therefore does not claim that bounding call
+depth handles all recursive computations. Completeness for demanded uses
+has not been proved.
+
+Testing ordinary-core Pi joins, rather than only a single displayed Pi,
+makes type conversion preserve the action clause directly: compose the
+supplied type join with the future's Pi join at an actually typed middle.
+All finite demands move through variable worlds, retain typed ordinary-core
+carrier joins and typed endpoint core prefixes. Prefix closure recurses on
+the result demand, deriving reduced application typing by actual core replay.
+The previous carrier values embed at every finite demand, including their
+subsingleton and core-type-prefix cases.
+
+Identity now has demand arrow p p, as a value itself. The dependent evaluator
+fun h => h x has demand arrow (arrow p q) q when its captured argument has p.
+Both retain typed Pi aliases and beta prefixes. The actual non-proof
+application bridge returns q at erasure of the exact dependent type B.inst x.
+A further actual theorem builds identity from any A : Sort (succ u), and
+pi_inert_actual_identity_as_argument proves that identity at A -> A accepts
+identity at A and returns the entire arrow p p demand. This is a typed
+higher-order lambda argument, not only an external action on neutral values.
+
+Verdict: the candidate can now carry useful lambda values through a genuine
+higher-order call without normalizing terms or allowing arbitrary function
+images into history futures. This is not universal demand coverage or a new
+irreducible obligation smaller than PropFront. In particular, identity's
+proved input and result demand match: requesting function evidence from a
+bare ground input is not justified by this result. The next general step
+must derive compatible demands for paired bodies from the original smaller
+strong children, and handle general dependent definitional conversion.
+Proof-valued application and unrestricted lambda coverage remain open.
+
+Validation: 1170 integration jobs; 20 audited new-public/probe roots,
+maximum dependency closure 11,976; only propext, Classical.choice and
+Quot.sound. Frozen local-import hashes and owned diagnostics checked; sorryAx,
+weakN_iff, weakN_inv and known circular frameworks excluded. All Lean/Lake
+execution used stock v4.33.0-rc2 in the established scratch directory.
+Executable and UniqueTyping.lean unchanged; PR extraction deferred;
+GOAL.md remains active.

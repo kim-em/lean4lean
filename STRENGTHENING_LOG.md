@@ -38014,3 +38014,43 @@ checks. Previously audited unchanged roots were not redundantly rerun.
 UniqueTyping.lean and its weakN_iff sorry are unchanged. General lambda
 coverage and dependent type transport remain open; original GOAL.md active.
 No executable changes or PR extraction.
+
+
+## 2026-11-07 08:39:37 UTC — Finite higher-order demands retain lambda arguments
+
+Added ProofErasurePiInertDemandValues.lean and its aggregator import.
+PiInertDemandValue ground retains actual source typings and an existential
+finite-stage PiInertWorldHistory. An arrow p q retains that same payload
+and action consuming p and returning q, with only core-world futures and
+typed ordinary-core Pi joins. It neither imposes normalization nor truncates
+independent core reductions. It does not assert coverage of all strong
+proofs or all demand trees.
+
+Checked core-world movement, ordinary-core carrier-join transport and typed
+endpoint-prefix closure. PiInertCarrierValue.demand embeds all previous
+neutral/subsingleton/core-type-prefix values at every finite demand. The
+local application rule retains the complete specified result demand; its
+actual non-proof bridge reconstructs the exact erased dependent result type
+from actual function/argument equalities and codomain typing.
+
+Identity is a value at arrow p p; the dependent evaluator is a value at
+arrow (arrow p q) q when its captured argument has p. Their proofs invert
+ordinary-core Pi joins, transport the input/result carriers, and retain
+whole demand evidence through typed beta. Actual identity witnesses are
+constructed for any positive type A. The actual higher-order application
+of identity at A -> A to identity at A retains arrow p p in the result.
+
+The remaining coverage gap is explicit: compatible demands for general
+paired lambda bodies must come from the original smaller strong children.
+No history-to-action promotion, arbitrary higher-order substitution closure,
+or computation certificate for general type equality is assumed. Ordinary
+core type transport does not solve general dependent conversion; the
+original strengthening deliverable remains unproved.
+
+All Lean/Lake work ran in /dev/shm/native-level-coherence-work on stock
+leanprover/lean4:v4.33.0-rc2. Integration passed 1170 jobs; the recursive
+new-root/probe audit covered 20 roots, maximum closure 11,976,
+with only propext, Classical.choice and Quot.sound. /dev/shm/demand-values-*
+artifacts retain frozen source hashes and dependency/diagnostic checks.
+UniqueTyping.lean and the executable remain unchanged. No PR extraction.
+GOAL.md remains active.
