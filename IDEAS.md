@@ -20967,3 +20967,29 @@ this new readout result, without silently assuming PropositionFront. No strict
 smallness claim is made. Validation: 1088 build jobs, 298 recursively
 audited roots, maximum closure 11,976; only propext/Classical.choice/
 Quot.sound, no strengthening or excluded circular dependencies.
+
+
+### 2026-11-07 02:24:14 UTC — Finite Pi-inert application has the full proposition-front consequence
+
+Verdict: proved the previously missing consequence for the expanded Pi-inert
+relation. The completed recognizer specializes to actual lifted type-valued
+Eq probes. Existing stage-zero converted-unit selectors plus arbitrary finite
+shared application expose such a probe. With a closed positive empty structure,
+this yields PropositionFront; hereditary fresh-body readout has the same
+consequence. No fixed output-stage bound, unproved recognizer, generic semantic
+coverage, or type-conversion-join premise is used in this implication.
+
+This does not refute shared application or prove a converse, and does not
+establish a strictly smaller irreducible obligation. Its missing input remains
+actual application/readout closure. A proposed general finite common-comparison
+descent lemma was checked against the code and found already proved by
+`proofErase_computed_joint_compare_descend`; it was not duplicated.
+
+Next live direction: carrier conversion driven by an explicit type-comparison
+child, retaining the actual assigned/native carrier relationship through
+application. The existing ordinary-core join and non-expanding compared-unit
+cases are proved. Literal family-root preservation is false for Pi-inert
+expansions, so the expanded comparison case needs actual path/continuation
+reasoning rather than that premise. Validation: 1089 build jobs, 302
+recursive audit roots, maximum closure 12,048, only propext,
+Classical.choice and Quot.sound.

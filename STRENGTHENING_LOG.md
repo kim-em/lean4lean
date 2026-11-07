@@ -36605,3 +36605,62 @@ All 1,063 import source hashes stayed fixed. The new recognizer and lifted
 probe theorem are themselves audit roots, not merely the old conditional
 sufficiency statements. Stock Lean/Lake ran only in scratch. No executable
 changes or PR extraction. GOAL.md remains active.
+
+
+### 2026-11-07 02:24:14 UTC — Apply completed recognition to the finite application frontier
+
+Verified f3a9730c and the clean worktree before continuing. Inspected the precise
+`PiInertCarrierHistory` definition: it retains all future typed substitutions and
+independent ordinary-core residuals of carrier and endpoints. Those fields do
+not contain native-type agreement or general type-conversion evidence.
+`FinitePiInertFunctionBodyReadout` and `FinitePiInertSharedApplication` were
+already proved equivalent, but their PropositionFront consequence for arbitrary
+finite Pi-inert outputs had remained beyond the previous unit-conversion
+exposure boundary. The completed recognizer supplies that readout now.
+
+Added `ProofErasurePiInertApplicationFront.lean` with four theorems:
+
+- `pi_inert_type_probe_descend` specializes the unconditional lifted Eq-probe
+  theorem to an actual type-valued probe, with an equality major supplied only
+  above the inserted block. It explicitly identifies the motive and argument
+  erasures under lifting, supplies the lower nonproof prefix and actual upper
+  control typing, and reads the lower proposition equality from carrier exposure.
+- `FinitePiInertSharedApplication.unit_probe_descend` uses the existing converted
+  unit selector to obtain an exposure at some finite stage, then applies that
+  readout. The source history is stage zero and the target stage is unrestricted.
+- `FinitePiInertSharedApplication.propositionFront_of_closed_unit` builds the
+  actual upper context with two distinct unit variables and an Eq-proof binder.
+  It weakens the given upper proposition equality into that context and reads
+  back the lower equation. It requires a closed positive nullary empty structure
+  and non-unfolding of its family, canonical Eq, sound definitions, and the
+  recorded Eq-rec metadata/non-unfolding premises.
+- `FinitePiInertFunctionBodyReadout.propositionFront_of_closed_unit` uses the
+  already proved implication from fresh-body extraction to shared application.
+
+The result is conditional on the existing missing application/readout law, but
+not on recognition or exposure readout. It neither proves the closure law nor
+refutes it, proves a converse, or establishes strict smallness. In particular,
+no conclusion for all canonical-Eq environments is obtained merely by assuming
+a closed positive unit. The original strengthening sorry is unchanged and the
+full GOAL.md objective remains active.
+
+A possible common-comparison descent lemma was found already implemented in
+`ProofErasureComputedJointDescent`; no redundant theorem was added. The next
+constructive issue is retaining actual type-conversion information in function
+application. Existing `carrier_history_core_join_iff` handles ordinary-core
+common reducts, and `proofErase_level_compared_unit_carrier` handles explicit
+non-expanding comparisons. For expanded Pi-inert comparisons, literal rigid
+root preservation is already refuted by `pi_inert_not_spine_root_levels`.
+Any extension must reason about actual expanded comparison paths, not assume
+that rejected preservation property or arbitrary semantic coverage.
+
+Validation: 1089 successful build jobs including the global module and
+regression targets; 302 roots recursively audited through types, values,
+constructors and recursors, maximum closure 12,048. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening dependency or excluded circular framework. The original
+chosen-chain probe still excludes the older nested-eta/frame/supply probes.
+All 1,064 import source hashes stayed fixed. The new conditional front theorems
+retain the application/readout premise explicitly; the audit does not prove
+that premise. Stock Lean/Lake ran only in scratch. No executable changes or
+PR extraction.

@@ -31,6 +31,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqUnusedAnchoredConsump
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqAnchoredRecognitionState
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqAnchoredConsumedState
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqAnchoredRecognition
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertApplicationFront
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -166,6 +167,15 @@ lower Eq indices from any actual lifted Pi-inert carrier exposure, with no
 recognizer or frontier premise. This closes the recognition obligation described
 above; general semantic path coverage and the original strengthening theorem
 remain separate and are not claimed here.
+
+
+`pi_inert_type_probe_descend` now specializes that readout to an actual lifted
+type-valued probe. Combined with the existing stage-zero converted-unit selector,
+finite Pi-inert shared application implies `PropositionFront` in environments
+with a closed positive empty structure; fresh-body extraction has the same
+consequence. The output stage is arbitrary. This implication assumes the
+application/readout law, not the recognizer, which is proved. It establishes
+neither coverage nor a strictly smaller remaining obligation.
 
 -/
 namespace Lean4Lean.VEnv.Strengthening
