@@ -22298,3 +22298,66 @@ only propext, Classical.choice and Quot.sound. Frozen imports, owned diagnostics
 and forbidden dependencies checked. Stock Lean v4.33.0-rc2 ran exclusively in
 /dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged.
 No PR extraction; GOAL.md remains active.
+
+
+## 2026-11-07 09:35:55 UTC — Function conversion through argument/result demands; universe case
+
+Investigation: a same-sort domain history supplies ordinary binder typing
+conversion, but it does not make a general actual type equality into an
+ordinary-core join. Existing RankedDomainTransport and carrier conversion
+results keep that distinction. For a function demand, changing the selected
+Pi also changes the input demand's carrier and the dependent result carrier.
+Trying to reuse core_join would leave precisely those changes unjustified.
+
+Added TypedAt, which retains one actual typing relating a raw endpoint and
+its selected carrier. Separate TypedSource witnesses are insufficient for
+that relation. TypedAt realizes in any actual context with the same erasure
+and survives typed substitutions. app_result combines a typed whole raw
+application with its function's assigned Pi: actual erasure reflection aligns
+the function representatives, ordinary Pi injectivity types the argument at
+the selected domain, and typed instantiation supplies the exact raw result
+source. No computational native/assigned domain equality is inferred.
+
+The function_convert theorem takes a supported arrow p q at one literal Pi
+and actual typings at a target literal Pi. It constructs arrow r s at the
+target from two explicit components: argument transport from target r to
+source p, and instantiated-result transport from source q to target s, each
+in every target core world. The ground comparison is constructed, not assumed:
+test the old action at the target binder's fresh argument, use the two
+components, and apply retained function extensionality. TypedSource.fresh_inst
+handles the proof-erased fresh binder using the earlier shared-realization
+substitution equality. Actual proof-valued functions use the proved proof-
+marker demand rule. Full application action handles all ordinary-core aliases
+of the target Pi via its domain/codomain joins and the same two components.
+
+A concrete base case is now proved for sorted endpoints. DomainSort.realize_type
+upgrades any typed realization to the independently witnessed sort, and
+not_app_source excludes an actually typed raw application of such an endpoint.
+Thus a ground payload on a sorted endpoint supplies every finite demand.
+CarrierResidual.sorted_checked uses actual assigned typing to read ordinary
+comparison from the carrier history. WorldHistory.sorted_reindex retains the
+same stage and only core-world futures; DemandValue.sorted_reindex changes
+the selected carrier and requested profile without a core join or directed
+guarded computation between carriers.
+
+The strong-rule bridges use the original two children at rank k.
+StrongBounded.demand_convert_to_sort closes the conversion case whose target
+is a universe: the type child supplies sorted endpoints and the retained term
+demand supplies the history. StrongBounded.demand_convert_function reduces
+conversion between two literal actual Pis to the argument/result components.
+It does not recursively invoke a newly substituted strong proof.
+
+Verdict: universe conversion is constructed for finite demands; the parent
+function conversion, including ground comparison and typed source plumbing,
+is reduced to its two components. General construction of those components
+is still open. Arbitrary old type aliases, structure/projection cases and
+full strong profile coverage are not covered by the function theorem. Its
+component hypotheses quantify demand values explicitly; they are not proved
+strictly smaller than PropFront. This is not the final sufficient irreducible
+obligation requested by GOAL.md, and the original strengthening remains open.
+
+Validation: 1175 integration jobs; 17 public/probe roots; maximum
+recursive closure 11,976; only propext, Classical.choice and Quot.sound.
+Frozen import hashes, owned diagnostics and forbidden-dependency checks passed.
+All Lean/Lake commands used stock v4.33.0-rc2 in the established /dev/shm scratch
+worktree. No executable or UniqueTyping.lean changes, and no PR extraction.

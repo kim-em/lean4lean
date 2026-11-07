@@ -38179,3 +38179,42 @@ Quot.sound. Frozen hashes and owned diagnostics passed; artifacts are under
 /dev/shm/demand-derivations-*. All Lean/Lake commands used stock v4.33.0-rc2 in
 /dev/shm/native-level-coherence-work. No executable or UniqueTyping.lean changes,
 no PR extraction. The original strengthening sorry and GOAL.md remain open.
+
+
+## 2026-11-07 09:35:55 UTC — Typed finite-demand conversion at universes and function interfaces
+
+Added ProofErasurePiInertDemandConversion.lean and its aggregator import.
+TypedAt records actual assigned typing jointly with the endpoint/carrier
+erasures. Its realization and substitution rules retain that relationship.
+app_result derives a selected dependent-result source from a typed whole
+application and the function's assigned Pi, using actual erasure reflection
+and Pi injectivity rather than an assumed core join of domains.
+
+function_convert constructs target arrow r s from source arrow p q and two
+explicit argument/result transports. It first builds the target's ground
+history by testing the original action at a fresh argument in the target
+binder. The fresh-body substitution equation includes proof binders. It then
+preserves full action at all core aliases of the target Pi. Input transport
+is contravariant; dependent result transport is covariant. Actual endpoint
+typings supply the two Pis; no core join between them is required.
+
+Sorted endpoints supply a proved conversion base. DomainSort determines the
+sort of any actual realization and excludes raw application sources. A ground
+payload therefore supplies every finite demand. Sorted carrier residuals give
+ordinary comparison using the retained assigned typing; their histories can
+be reindexed at the same stage with core-world futures. Demand reindexing
+requires a typed target carrier but no core or guarded path from the old one.
+
+StrongBounded.demand_convert_to_sort handles the original conversion rule
+when its target is a universe. StrongBounded.demand_convert_function handles
+the parent between two literal Pis once the argument/result transports are
+provided. Both use the original rank-k children. The two transports, general
+function aliases, structure cases and full strong coverage remain unproved;
+no strictly smaller sufficient irreducible obligation is claimed.
+
+Integration passed 1175 jobs. Recursive audit covered 17 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
+/dev/shm/demand-conversion-*. Lean/Lake used stock v4.33.0-rc2 exclusively in
+/dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
+no PR extraction. The strengthening sorry remains and GOAL.md stays active.
