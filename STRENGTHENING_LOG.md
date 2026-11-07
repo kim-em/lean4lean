@@ -41227,3 +41227,66 @@ Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,283 frozen source hashes verified before
 and after. Artifacts: /dev/shm/pi-inert-constructor-frame-transfer-*.
+
+
+## 2026-11-07 19:43:32 UTC — Computed projection fields yield smaller pair readout failures
+
+The immediately preceding exchange clarified scope without technical progress.
+This continuation revalidated the worktree and unfinished work: the residual
+projection build was terminal and successful, and two new files were uncommitted.
+No live process was restarted. Work continued from those checked results.
+
+Added ProofErasurePiInertProjectionResidualCount.lean. The generic counted
+selected_argument theorem moves a selected field's computation inside its
+constructor, preserving its exact count. pi_inert_sorted_projection_count_keep_or_select
+uses the first projection-root decomposition, actual sorted typing and the
+existing constant/identity wrapper bypass. Strong induction on the primitive
+count yields a retained major path or a selection followed by a field tail.
+The endpoint may itself be a projection. Moving that tail into the selected
+constructor argument gives pi_inert_sorted_projection_count_terminal: a major
+path followed by a zero/one terminal action within the original count.
+
+Added ProofErasurePiInertRetainedProjectionRelay.lean. Its
+PiInertPairProjectionBudgetFailure records an actual typed raw pair projection
+path with budget b and absence of a selected-field path costing at most b at
+any finite stage. It records a hypothetical obstruction, not its existence.
+At an exposed output, function_eta realizes the closed pair and uses the
+existing global counted readout theorem to obtain the remaining actual
+constructor-function-eta case.
+
+pi_inert_terminal_projection_frame_smaller_failure starts from a body path to
+a computed major, its terminal field result, the later pair endpoint, an
+ordinary interpreted endpoint substitution, and the actual subsequent major
+and projection computations. Closed constructor image typing forces pending
+arguments to be empty. The actual later computations give a pair projection
+path of cost cs+ck. Any field readout within that budget would combine with the
+original-scope major path and its zero/one substituted ordinary projection
+primitive to violate the supplied global body/continuation minimum. Thus the
+later pair has a strictly smaller budget failure. The original field path and
+all native guards stay in their original scope.
+
+pi_inert_sorted_projection_frame_smaller_failure obtains that terminal evidence
+from an arbitrary sorted projection field path with non-lambda endpoint.
+proofErase_native_pair_structure_field derives the written first field, its
+sort typing and the target pair typing from actual native structure recovery.
+pi_inert_native_structure_components_smaller_failure connects a native structure
+root followed by a counted constructor-component tail to the reduction above;
+it assumes neither the written-field formula nor target typing independently.
+The global Eq-exposure integration module imports the new results.
+
+Judgment: the structure-written field need not remain literally a projection
+or be a syntactic lift for this local reduction. Selection and all its remaining
+field computation are covered when the endpoint is non-lambda-headed. The next
+unresolved cases are lambda-headed field endpoints (including unconsumed
+administrative wrappers), later constructor roots, and continuation runs with
+additional binder frames. This is a decreasing local reduction, not a completed
+global induction or a new sufficient obligation strictly smaller than PropFront.
+The original weakN_iff sorry and executable are unchanged. Goal active;
+PR extraction remains deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1310 jobs; recursive audit
+10 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,285 frozen local source hashes verified
+before and after. Artifacts: /dev/shm/pi-inert-retained-projection-relay-*.

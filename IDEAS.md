@@ -24841,3 +24841,43 @@ Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work;
 1308 integration jobs, 12 audited roots, maximum closure 11,981;
 only propext/Classical.choice/Quot.sound, no forbidden dependencies. Frozen
 sources checked before/after. Artifacts: /dev/shm/pi-inert-constructor-frame-transfer-*.
+
+
+## 2026-11-07 19:43:32 UTC — Relay computed structure fields through a terminal projection
+
+**Idea.** Structure eta writes proj0 of the old record into the new type field.
+Instead of replaying that field's guarded computation through substitution,
+compute its major in the original scope and defer only the terminal projection.
+A selected-field tail can run inside its constructor argument at the same cost.
+
+**Checked verdict.** For a sorted projection with a non-lambda-headed endpoint,
+administrative wrappers can be removed within budget. The exact endpoint is
+therefore either a retained projection of a computed major or the result of one
+ordinary projection primitive on that major. Its major cost plus zero/one
+terminal cost is bounded by the original field computation. The endpoint is
+allowed to remain a projection; the older non-projection exposure premise is
+unnecessary here.
+
+For a minimum body/application/projection execution, saturated closed-pair
+typing forces the pending arguments to be empty. If the later selected field
+could reach the output within the later projection budget, the terminal-major
+path would replace the expanded body and contradict minimum cost. Consequently
+the actual later pair supplies a strictly smaller counted readout failure.
+Only the terminal ordinary projection primitive is substituted; no native guard
+or guarded field path is transported. A native-structure/component theorem
+derives the required written field and typing from actual recovery evidence.
+
+**Remaining gap.** The reduction covers a constructor-component tail whose
+first-field endpoint is not lambda-headed, followed by one endpoint map and a
+projection execution in the observer scope. It does not handle lambda-headed
+field endpoints, later constructor roots, or arbitrary remaining binder frames.
+The smaller failure reconnects to the existing global constructor-function-eta
+case at exposed outputs, but this does not close that case or provide a complete
+global decreasing induction. Goal active; no strengthening proof/counterexample
+or sufficient smaller irreducible global obligation claimed. PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work;
+1310 integration jobs, 10 audited roots, maximum closure 11,981;
+only propext/Classical.choice/Quot.sound, no forbidden dependencies. All 1,285
+frozen local source hashes checked before/after. Artifacts:
+/dev/shm/pi-inert-retained-projection-relay-*.
