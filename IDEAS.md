@@ -23169,3 +23169,62 @@ recursive dependency closure 11,976; only propext, Classical.choice and
 Quot.sound. All 1,167 frozen sources and owned diagnostics checked. Stock
 v4.33.0-rc2 Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work.
 Executable and UniqueTyping.lean unchanged; GOAL.md remains active.
+
+
+## 2026-11-07 12:24:55 UTC — Recursive interface transport closes dependent Pi conversion
+
+Idea: preserve complete guarded trees during conversion, contravariantly for
+arguments and covariantly for results. Keep the result certificate under the
+old binder, instantiate it with an actually assigned old-domain argument, and
+use fresh testing to construct the new ground history. This should remove the
+ordinary-tree restriction from the preceding conversion mechanism without
+assuming arbitrary context conversion of histories.
+
+Implemented ProofErasurePiInertRecursiveInterfaceConversion.lean. TreeTransport
+is directed conversion of the whole recursive profile at every typed
+substitution, conditional on actual new endpoint assignments. TreeSupply is
+separate type-only exposure supply at every typed substitution. Ground carrier
+transport and universe aliases construct leaf transports; intersections and
+annotation substitution are preserved. Supply is constructed for ordinary
+trees and recursively for calls from retained computation, with literal Pi
+exposures supplied by actual source typing.
+
+The call constructor transports target arguments back to the old input tree,
+runs the old retained action, and transports its dependent result forward.
+Whole-application typing supplies the old argument assignments. The old
+codomain certificate is instantiated with those assignments; it is never
+moved to a different binder context. Fresh testing reconstructs the whole
+target call, including ground history. Nested calls are allowed in both input
+and output trees. The old selected carrier is arbitrary, and a retained target
+alias prefix preserves the resulting recursive call.
+
+Original Pi-congruence children now connect to this constructor: ordinary
+context conversion identifies the target codomain's erasure across the two
+binders, while its history transport remains under the old binder. Original
+strong term conversion consumes the resulting full recursive transports in
+both paired environments. A higher-order operator example constructs the
+function-valued argument transport, and a curried operator example constructs
+the function-valued result transport, using universe-alias leaves rather than
+assuming function transport certificates.
+
+Type transports also compose using the original first type equality to
+construct intermediate actual assignments under every typed substitution.
+The raw target endpoints need not be substitution images. This is composition
+of conversion functions, not the previously obstructed transitivity of bare
+term comparisons. The actual equality is needed for intermediate assignments;
+unconditional composition of this conditional transport contract is not claimed.
+
+Verdict: recursive dependent function-interface conversion is constructed
+from its component certificates, and both higher-order directions have checked
+constructors. The next coverage problem is constructing suitable component
+profiles, transports and supply from every original strong type child while
+retaining the provenance needed by term composition. Generic term composition
+still meets the checked PropFront boundary. This is neither full strong
+coverage nor a strictly smaller sufficient obligation; weakN_iff remains open.
+PR extraction remains deferred.
+
+Validation: 1193 integration jobs; 22 public/probe roots; maximum
+recursive dependency closure 11,976; only propext, Classical.choice and
+Quot.sound. All 1,168 frozen sources and owned diagnostics checked. Stock
+v4.33.0-rc2 Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work.
+Executable and UniqueTyping.lean unchanged; GOAL.md remains active.

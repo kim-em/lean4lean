@@ -38874,3 +38874,71 @@ Quot.sound. All 1,167 frozen sources and owned diagnostics checked; artifacts
 under /dev/shm/type-operator-*. All Lean/Lake commands used stock v4.33.0-rc2 in
 /dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
 PR extraction remains deferred and GOAL.md remains active.
+
+
+## 2026-11-07 12:24:55 UTC — Recursive Pi transport with the original dependent binder
+
+PiInertTreeTransport retains full recursive profile conversion under every
+typed substitution. Actual new endpoint assignments are explicit, so the
+certificate alone does not assert type equality. PiInertTreeSupply retains
+type-only exposure supply independently of comparisons or image requirements.
+Its separate role prevents a vacuous input action from being used to justify
+fresh testing. Supply.subst_iff reifies dependent annotation environments.
+
+Ground transport consumes CarrierTransport. Universe transport constructs any
+ordinary target tree from any source tree, with actual target assignments;
+the source alias supplies sortedness and history reindexing. Target
+intersections and arbitrary typed substitution preserve TreeTransport.
+Supply.call uses full computation evidence and result supply under the old
+binder; literal_call constructs the exposure from source typing alone.
+
+interface_convert and TreeTransport.call implement the recursive function
+case. The old call may select any carrier, since it retains its own exposure.
+In each future world, whole-application typing derives both old argument
+assignments. The contravariant input certificate produces the old complete
+input tree. Applying the old action produces its complete result tree. The
+output certificate is instantiated under the old binder using the typed left
+argument, and actual new application assignments discharge its target typing
+premises. Fresh testing constructs the new ground history as well as the
+recursive action. target_call_prefix then handles nonliteral target carriers
+with a retained full computation to the converted carrier.
+
+Paired convert_trees constructs cross assignments from the old assigned
+comparison and consumes the two transport directions under their respective
+typed substitutions. StrongBounded.paired_convert_interfaces obtains original
+target assignments from the ordinary conversion children. The term child is
+not reduced to a ground-only interpreter.
+
+StrongBounded.forall_interface_transport connects the original domain and
+old-binder codomain children to recursive Pi conversion. proofErase_defeqCtx
+identifies the target codomain's raw erasure in the old and new actual binder
+contexts. This changes the annotation equation only: the semantic result
+transport is never assumed to move across changed contexts. Input transport,
+old-binder output transport and target-input supply remain the expected
+component certificates. General construction of these components is open.
+
+higher_order_type_operator constructs the reversed inner function conversion
+needed by an outer function-valued argument, and builds its fresh exposure
+supply. curried_type_operator constructs a nested function-valued result,
+retaining two dependent binders. Both use universe-alias leaves and have no
+function transport hypothesis. These check the recursive constructor beyond
+the previous ordinary argument/result restriction.
+
+actual_type_eq_substituted derives intermediate assignments for arbitrary raw
+target endpoints, rather than only substituted source terms. trans_typed uses
+it to compose the complete transport functions. The original first type
+equality is sufficient; no comparison transitivity is assumed. This does not
+repair unrestricted term-history or paired-interpreter composition, which
+already reaches the known PropFront obstruction.
+
+The remaining task is full strong coverage with adequate profiles, supplies
+and retained conversion provenance, including term composition. No proof,
+canonical-Eq counterexample or strictly smaller sufficient frontier is claimed.
+The original weakN_iff sorry is unchanged.
+
+Integration passed 1193 jobs. Recursive audit covered 22 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. All 1,168 frozen sources and owned diagnostics checked; artifacts
+under /dev/shm/recursive-interface-*. All Lean/Lake commands used stock
+v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
+UniqueTyping.lean unchanged; PR extraction remains deferred and GOAL.md active.
