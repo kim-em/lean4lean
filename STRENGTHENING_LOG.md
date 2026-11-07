@@ -36317,3 +36317,83 @@ strengthening dependency or excluded circular framework. The original
 chosen-chain probe still excludes the older nested-eta/frame/supply probes.
 All 1,059 import source hashes stayed fixed. Stock Lean/Lake ran only in scratch.
 No executable changes or PR extraction.
+
+
+### 2026-11-07 01:28:29 UTC — Consume unused upper binders through anchored histories
+
+Added `ProofErasureEqUnusedAnchoredConsumption.lean` and imported it at the
+global eta-body frontier. Eight public theorems implement the unused counterpart
+of chosen argument consumption, including return with and without surviving
+inner wrappers.
+
+`EqSupplyInsertionSquare.unused_argument` realizes the actual upper argument
+from `ContextSubstitution.realize_one` at the displayed upper domain. The source
+chain has one additional unused upper insertion; the target drops exactly that
+insertion. The lower substitution and chosen assignment remain identity, while
+the upper substitution is the concrete one-argument map. The actual typed map
+and erased substitution agreement are retained. Exact proof-argument erasure
+is not assumed, and no target inhabitant is invented for an unused binder.
+
+`unused_counted_lambda_readout` starts with the actual typed lambda spine and
+its counted native computation. It splits retained versus consumed paths,
+recovers the body path in the original displayed source domain, and bounds the
+sum of annotation, body, argument and suffix counts by the original cost. In
+the consumed case the actual argument path yields the context substitution and
+therefore the unused supply square. It preserves the typed post-beta source
+and actual suffix path. This local readout requires no minimum; the global
+root classifier still requires continuation evidence and minimality.
+
+`EqRetainedSourceAnchor.append_extra` and the history-level
+`append_outer_extra` restore arbitrary raw upper arguments once the enclosing
+chosen pending vector is empty. They preserve the original lower application,
+its nonproofness, chosen supply and original body path. This avoids postulating
+a lower function whose erasure includes untracked upper extras.
+
+`lower_identity_prefix` generalizes the earlier identity-square preservation
+case to an arbitrary upper map. The lower chosen prefix, type and nonproofness
+remain syntactically unchanged; its inserted raw vector follows the actual
+upper map exactly. This covers unused-binder consumption even when further
+retained domains are realized along the return.
+
+`EqAnchoredPendingHistory.consume_unused` rebases the recursively supplied
+inner history to the actual one-argument map and realizes every source anchor.
+It returns the concrete upper argument, source/target square at the current
+leaf, normalized outgoing history, unchanged chosen/depth counts, and exact
+instantiated wrapper equation. `consume_unused_rejoin` restores the actual raw
+waiting tail to a positive returned history and rejoins older ancestry. The
+older anchors must already describe the actual post-beta endpoint; the actual
+native node path and `EqAnchoredPendingHistory.compute_body` are the mechanism
+for updating them. No native guarded path is substituted.
+
+`unused_recognized_return` handles a completed recognized prefix with no inner
+wrappers. Its tracked lower components ignore the unused binder; only raw upper
+extras are instantiated, and the raw waiting tail follows them. The exact
+returned Eq spine has target completion in the original upper base context.
+Recognition of that body remains an input.
+
+Remaining: the mutual endpoint recognizer and its depth bound. A concrete
+organization is an Eq-spine case plus an anchored-history suffix case. The
+latter splits the outermost frame, recursively recognizes the actual body,
+restores actual waiting arguments, and recursively handles the beta suffix.
+Its base lower/upper scope and enclosing pending vector remain fixed across a
+return; the current leaf scopes may be realized. Returned depth must be at
+most incoming depth plus body primitive cost, which makes equal-cost suffix
+calls decrease in depth. The existing lexicographic arithmetic covers that
+comparison once the output-depth bound is proved.
+
+The recognizer must retain the actual typed continuation to its exposed
+terminal result and the all-stage minimum required to exclude administrative
+root alternatives. Retained argument recomputation also needs a full-anchor
+preservation lemma using the source argument equalities, in addition to the
+already proved body update. These are requirements of the global construction,
+not hypotheses silently discharged by the new local consumption lemmas.
+The original `weakN_iff` sorry is unchanged; GOAL.md remains active.
+
+Validation: 1085 successful build jobs including the global module and
+regression targets; 261 roots recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening dependency or excluded circular framework. The original
+chosen-chain probe still excludes the older nested-eta/frame/supply probes.
+All 1,060 import source hashes stayed fixed. Stock Lean/Lake ran only in scratch.
+No executable changes or PR extraction.

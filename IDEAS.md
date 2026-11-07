@@ -20850,3 +20850,38 @@ Validation: 1084 successful build jobs and 253 recursive audit roots,
 maximum closure 11,976, only propext/Classical.choice/Quot.sound. No
 sorryAx, original strengthening dependency, or excluded circular framework;
 1,059 fixed import source hashes. Stock Lean/Lake ran only in scratch.
+
+
+### 2026-11-07 01:28:29 UTC — Actual unused-binder consumption with source anchors
+
+**Implemented the local unused consumption cases; global recognition remains
+open.** `EqSupplyInsertionSquare.unused_argument` realizes the actual interpreted
+upper argument at its displayed domain. Its lower maps are identity and its
+upper map consumes exactly the unused binder. It requires no chosen target
+inhabitant and retains erased substitution agreement rather than asserting an
+unnecessary exact erasure equation for proof arguments.
+
+`unused_counted_lambda_readout` derives this square from the actual argument
+path of a typed retained lambda. Both alternatives keep original body scope,
+annotation/body/argument counts and, on consumption, the actual beta suffix.
+`consume_unused` realizes all anchored inner frames. `append_outer_extra`
+restores raw waiting upper arguments without inventing lower representatives.
+`consume_unused_rejoin` preserves older source anchors at the exact post-beta
+endpoint. If no wrappers survive, `unused_recognized_return` restores a
+recognized completed prefix directly, instantiating only its upper extras.
+`lower_identity_prefix` preserves the same lower chosen prefix through these
+upper-only squares.
+
+Next: integrate these cases into the mutual recognizer with the actual typed
+continuation and all-stage minimum needed by root classification. The history
+case should split its outermost frame, recurse on the body, restore the actual
+waiting vector, and recurse on the suffix. The output depth must be bounded by
+incoming depth plus primitive cost. Retained-frame argument computation must
+also preserve the full source anchor, not merely its forgotten supply record.
+No strengthening proof, counterexample or sufficient smaller PropFront
+obligation is claimed.
+
+Validation: 1085 successful build jobs and 261 recursive audit roots,
+maximum closure 11,976; only propext, Classical.choice and Quot.sound.
+No sorryAx, original strengthening dependency or excluded circular framework;
+all 1,060 import source hashes fixed. Lean/Lake only in stock-release scratch.

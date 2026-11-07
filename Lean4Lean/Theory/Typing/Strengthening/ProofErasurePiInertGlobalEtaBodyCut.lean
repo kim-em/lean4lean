@@ -27,6 +27,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPendingSupplyRestore
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPendingCountedReadout
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPendingSourceReturn
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqAnchoredPendingHistory
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqUnusedAnchoredConsumption
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -123,6 +124,15 @@ in realized contexts, outer supply restoration and joining at a matching
 intermediate endpoint. `outermost` exposes the source anchor together with the
 inner history. Constructing this invariant through arbitrary recursive cuts,
 unused-frame consumption and the output-depth bound remain open.
+
+`unused_counted_lambda_readout` now derives the actual unused-binder square from
+the computed upper argument. `consume_unused_rejoin` realizes every surviving
+anchored frame, restores raw waiting extras and rejoins older anchors at the
+actual post-beta endpoint. A recognized completed prefix returns directly when
+no wrappers survive. These local cases preserve lower chosen assignments and
+need no target image for an unused upper argument. Their integration into the
+recursive recognizer, with continuation minimality and the depth bound, remains
+open.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation
