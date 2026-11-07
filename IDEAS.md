@@ -23886,3 +23886,45 @@ PR extraction deferred.
 Validation: 1226 integration jobs, 9 audited roots, maximum closure
 11,976, only propext/Classical.choice/Quot.sound; 1,201 frozen sources.
 Artifacts: /dev/shm/projection-root-*.
+
+
+## 2026-11-07 14:57:35 UTC — Variable readout and complete histories for common stage-zero majors
+
+**Idea.** Test the proposed selection condition at a variable type field, where
+computation cannot change the left endpoint. Then settle arbitrary common
+stage-zero computation at the record majors using typed core confluence.
+**Verdict: an exact operational test and a complete computation case proved.**
+For independently sort-typed endpoints at any Pi-inert stage and either mode,
+comparison with a literal type variable is equivalent to exact computation of
+the other endpoint to that variable at the same stage. The proof follows the
+full recursive computed checker: sort typing excludes constructor/function eta,
+while source replay retains both sort typings through computation prefixes.
+PiInertPairTypeFieldSelection therefore forces actual same-stage variable
+readout from the opposite projection, beyond ordinary equality reflection.
+
+Two majors with a common stage-zero computation have a core join, even with
+arbitrary interleaving of beta, universe conversion, stored equations and
+constant expansion. Independent terminal projection results then core-join at
+the original typed projections. This proves the selection conclusion for the
+whole computation-to-reflexivity case, for arbitrary type fields. More strongly,
+their type fields have a complete PiInertCarrierHistory at any requested stage,
+including all residuals and arbitrary future typed substitutions. An
+EnvironmentCore instance supplies soundness and confluence for actual canonical
+Eq environments; this positive case needs no new frontier assumption.
+
+An attempted obstruction used a sound constructor equation directed toward an
+alias absent from the unfolding collection. Definitions.Sound permits derived
+equations, but that does not establish core confluence or prove the opposite
+projection cannot compute to the variable. This is an unverified candidate,
+not a counterexample. The new common-computation theorem rules out its proposed
+failure whenever typed core confluence holds. Do not weaken the actual core's
+confluence premise to soundness alone.
+
+Next handle genuinely structural record comparison certificates and higher-stage
+guarded computation. These are not covered by common stage-zero computation;
+PiInertPairTypeFieldSelection and weakN_iff remain open. No smaller sufficient
+frontier is claimed; PR extraction remains deferred.
+
+Validation: 1227 integration jobs, 9 recursively audited roots, maximum
+closure 11,976, only propext/Classical.choice/Quot.sound; 1,202 frozen
+sources. Artifacts: /dev/shm/variable-readout-*.

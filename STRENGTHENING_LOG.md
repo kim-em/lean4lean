@@ -39606,3 +39606,41 @@ and global audit roots, maximum recursive declaration closure 11,976;
 only propext/Classical.choice/Quot.sound and no forbidden strengthening or
 circular frontier dependencies. Frozen closure contains 1,201 sources.
 Artifacts: /dev/shm/projection-root-*.
+
+
+## 2026-11-07 14:57:35 UTC — Type-field histories for common stage-zero computation
+
+Added ProofErasurePiInertVariableReadout.lean and its aggregator import.
+A simultaneous left/right induction on the full ComputedJointCheck grammar
+proves that sorted comparison with an erased variable forces exact computation
+of the other endpoint to that variable. Both modes and arbitrary finite stages
+are covered. The converse is a direct computation-to-reflexivity certificate,
+so the result is an equivalence. The named selection condition has a checked
+consumer yielding this exact readout from any selected variable type field.
+No normality or confluence premise is needed for the variable equivalence.
+
+For the positive computation case, core-joined actual majors have core-joined
+independent terminal type projections. Confluence is invoked at the two
+original typed projections. Arbitrary stage-zero computations to a shared raw
+major give such a join: existing zero-core joins are composed only after that
+raw middle is realized at an original major type. This supplies the full
+selection conclusion at any output stage, for both keep/select combinations
+and arbitrary selected type syntax. The stronger history theorem retains all
+independent field/carrier residuals and all future typed substitutions. Its
+actual-environment instance discharges core soundness and confluence.
+
+The reverse-constructor-alias idea is not a checked counterexample: sound
+chosen equations alone need not provide the typed confluence used by the
+actual core. Under that confluence, the newly proved common-computation case
+prevents the proposed failure. General structural checker certificates and
+positive-stage guarded paths are still not covered. The complete selection
+condition and original strengthening theorem remain open; no goal completion
+or strictly smaller sufficient obligation is claimed.
+
+Validation: stock Lean v4.33.0-rc2, all Lean/Lake commands in
+/dev/shm/native-level-coherence-work. Integration 1227 jobs; recursive audit
+9 public/probe roots, maximum closure 11,976, only
+propext/Classical.choice/Quot.sound, no forbidden strengthening or circular
+frontier dependency; 1,202 frozen sources verified. Artifacts:
+/dev/shm/variable-readout-*. Executable and UniqueTyping.lean unchanged.
+PR extraction deferred; goal active.
