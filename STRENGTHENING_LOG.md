@@ -41667,3 +41667,60 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,294 source hashes verified before and
 after. Artifacts: /dev/shm/pi-inert-pair-observer-sort-*.
+
+
+## 2026-11-07 20:51:34 UTC — Normalize retained pair exits to actual consumption
+
+Added ProofErasurePiInertSameScopeArguments.lean and
+ProofErasurePiInertRetainedPairConsumption.lean; imported them through the
+existing global eta-body aggregate.
+
+The first module establishes backward actual application typing along a typed
+function computation. The application supplies a non-proof function witness,
+so independent realizing terms align by erasure reflection and ordinary type
+conversion. Induction handles any pending vector. In a same-scope projection
+run, scope length excludes consumption/retained frames, leaving identity
+applications. All their arguments concatenate. Their counted major paths
+compose underneath the later arguments, and backward application typing gives
+the combined source's actual typing. The original continuation predicate is
+exactly projected computation of the combined application for all raw
+competitors and budgets, in both directions.
+
+The second module uses that flattening on the retained alternative of
+PiInertBinderExitMinimum. Its final projection's recovered sort yields counted
+constructor selection. The combined lambda-major path therefore has a consuming
+beta. Existing counted lambda readout supplies the chosen later body computation
+under the retained annotation; a new raw-context form of counted backwards
+annotation transport moves it to the original context with exact primitive
+count. The two ordinary context interpretations compose to the actual consuming
+argument map. Actual post-beta typing and the final projection run are retained.
+
+Minimality is proved by executing every competing body computation in the
+ORIGINAL scope before rebuilding the retained lambda. The later lambda-domain
+and argument computations are replayed with a reflexive body, followed by the
+competing suffix and projection. Predicate equivalence inserts this path into
+the original continuation. Thus competitors need neither typing nor forward
+guarded annotation transport. The already-paid original annotation computation
+does not enter the new count. The consuming minimum has cost <= the retained
+body/observer minimum; normalization alone asserts no strict saving.
+
+`PiInertBinderExitMinimum.pair_consumed` handles both actual exits, and
+`PiInertPairProjectionBudgetFailure.lifted_pair_minimum_weighted_root` combines
+this normalization with the previous component-branch contradiction. A smaller
+weighted lifted-pair minimum under ONE extra binder now reaches a native eta
+root with its original field/budget; there is no residual retained-lambda
+alternative. Recursive native eta itself remains open, including function eta
+that adds further binders and structure eta's projected new field.
+
+Judgment: a concrete retained-frame obstruction in the one-binder readout
+configuration is closed. This is not full recursive readout or strengthening.
+Executable and UniqueTyping.lean unchanged; original sorry still present.
+No canonical-Eq counterexample or sufficient irreducible global obligation
+smaller than PropFront established. Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1321 jobs; recursive audit
+9 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,296 source hashes verified before and
+after. Artifacts: /dev/shm/pi-inert-retained-pair-consumption-*.

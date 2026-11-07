@@ -25127,3 +25127,52 @@ Validation: stock Lean v4.33.0-rc2, exclusively in
 roots, maximum closure 11,981; only propext/Classical.choice/Quot.sound,
 no forbidden dependencies. All 1,294 source hashes verified before/after.
 Artifacts: /dev/shm/pi-inert-pair-observer-sort-*.
+
+
+## 2026-11-07 20:51:34 UTC — Eliminate the retained exit for a pair under one extra binder
+
+**Idea.** Once the retained lambda is back in the observer's scope, all further
+frames are identity applications. Flatten their argument vectors and computations,
+then use the exposed final projection to force the lambda's consuming beta.
+Keep the body in its original binder context without moving arbitrary guarded
+competitors forward across a computed annotation.
+
+**Checked verdict.** Actual application typing moves backwards along a typed
+function computation by non-proof erasure reflection; induction extends this
+to a whole argument vector. Same-scope observer frames therefore flatten to
+one typed combined application, its counted major path, and final projection.
+Their predicate agrees at EVERY raw candidate and count with projection after
+the combined application. This allows future arguments as well as already
+pending arguments; it does not assume an immediate consuming beta.
+
+The final pair projection's recovered sort supplies a counted constructor
+selection. The combined major path must consume the lambda before that
+constructor. Counted lambda readout gives the actual body path under the
+retained annotation; the original annotation computation supplies a backwards
+native identity image, moving that actual path to the original binder without
+changing its count. The actual consuming argument's ordinary context map
+composes with the retained frame's original identity map.
+
+For competitors, execute the entire alternative body path BEFORE rebuilding
+the retained lambda. Only its later domain and argument computations are
+replayed inside the lambda/application path. This proves a genuine consuming
+body/application minimum with no greater count. The original, already-paid
+annotation computation is not charged again.
+
+Consequently the least-failure theorem for a smaller weighted lifted-pair
+minimum now has only a native eta root; its former retained-lambda alternative
+is removed. This result is for one extra binder above the projection observer.
+
+**Remaining gap.** Recursive native function eta may introduce further binders,
+and native structure eta changes the field into a projection of the old record.
+The weighted readout invariant still has to close across those recursive cases.
+The new normalization is non-increasing, not a strict-decrease proof by itself.
+No strengthening proof, canonical-Eq counterexample, or sufficient irreducible
+global obligation smaller than PropFront claimed. Goal active; PR extraction
+deferred.
+
+Validation: stock Lean v4.33.0-rc2, exclusively in
+/dev/shm/native-level-coherence-work; 1321 integration jobs, 9 audited
+roots, maximum closure 11,981; only propext/Classical.choice/Quot.sound,
+no forbidden dependencies. All 1,296 source hashes verified before/after.
+Artifacts: /dev/shm/pi-inert-retained-pair-consumption-*.
