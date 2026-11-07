@@ -12,7 +12,8 @@ open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation
 variable [Params] {D : Definitions}
 
 /-- A reachable constructor function-eta case with a major computation that
-is minimum over every finite stage. The source and field histories retain
+is minimum over every finite stage. Its counted field tail also retains the
+minimum of the full projection, allowing competing majors to change. The source and field histories retain
 their own finite stages. The function-eta continuation is still unresolved;
 this minimum permits body replay at a larger stage without losing the measure. -/
 def GlobalPairFunctionEtaProjection (D : Definitions) (Γ : List VExpr)
@@ -27,8 +28,11 @@ def GlobalPairFunctionEtaProjection (D : Definitions) (Γ : List VExpr)
           (ProofShape.mkApps (.const info.ctorName levels) pre) target ∧
         pre.length < 2 ∧ pending ≠ [] ∧ ∀ rest, pending ≠ .proof :: rest) ∧
     (∃ cost, ScopedComputeCount (PiInertStage D stage) cost (proofEraseCtx Γ) (proofErase Γ m) major ∧
-      ∀ later j, ScopedComputeCount (PiInertStage D later) j (proofEraseCtx Γ)
+      (∀ later j, ScopedComputeCount (PiInertStage D later) j (proofEraseCtx Γ)
         (proofErase Γ m) major → cost ≤ j) ∧
+      ∃ tailCost, ScopedComputeCount (PiInertStage D stage) tailCost (proofEraseCtx Γ) result out ∧
+        ∀ later j, ScopedComputeCount (PiInertStage D later) j (proofEraseCtx Γ)
+          (.proj family 0 (proofErase Γ m)) out → cost + 1 + tailCost ≤ j) ∧
     Primitive D (.proj family 0 major) result ∧
     ∃ tailStage, ScopedCompute (PiInertStage D tailStage) (proofEraseCtx Γ) result out
 
@@ -119,7 +123,9 @@ theorem proofErase_pi_inert_pair_projection_global_count_readout_or_function_eta
           ⟨mc, levels, pre, pending, target, before, after,
             RMC, HMmin, HB, HL, HA, RP, HP, HR, RT, k, hk, HE,
             by simpa using hlen, hne, hproof⟩,
-          ⟨cp, RM, HmajorMin⟩, RS, ⟨stage, RF.forget⟩⟩
+          ⟨cp, RM, HmajorMin, ct, RF, fun later j RJ => by
+            have HH := Hmin later j RJ
+            omega⟩, RS, ⟨stage, RF.forget⟩⟩
       · subst pending
         simp only [List.append_nil, ProofShape.mkApps] at RP RT
         have RPactual : ScopedComputeCount (PiInertStage D stage) before (proofEraseCtx Γ)

@@ -24531,3 +24531,24 @@ Validation: 1263 integration jobs; 23 recursively audited roots;
 maximum closure 11,978; 1,238 frozen source files. Stock Lean v4.33.0-rc2
 in /dev/shm/native-level-coherence-work only; standard axioms only and no
 forbidden strengthening/circular dependencies. PR extraction deferred.
+
+## 2026-11-07 17:43:20 UTC — retain the projection in the eta continuation
+
+Verdict: checked progress, not a sufficient strengthening frontier. A minimum
+ending at a fixed constructor major cannot justify competitors that change
+that major while preserving its selected output. Retain the original full
+projection minimum and its counted field tail instead. The new concrete typed
+continuation terminates in a projection computation at any finite stage;
+application/one-binder substitution and retained-lambda frames preserve it.
+Actual eta descent strictly reduces the combined body/continuation count,
+including the projection. Every exposed pair type-projection path now either
+reads its original field or constructs this smaller observed body minimum.
+No new readout or closure assumption is required for that construction.
+
+Remaining: prove field-origin readout across these frames, including nested
+structure eta. The minimum carries the projection but does not by itself
+relate each recursive field to the original selected field. General positive-
+stage pair selection and weakN_iff remain open. No claim that this is a
+strictly smaller sufficient obligation than PropFront. Validation: 1265 build
+jobs, 20 recursively audited roots, maximum dependency closure
+11,978; standard axioms only; 1,240 frozen source files verified.

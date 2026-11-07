@@ -83,7 +83,7 @@ theorem GlobalPairFunctionEtaProjection.body_cut
     (hΓ : OnCtx Γ (env.IsType univs))
     (H : GlobalPairFunctionEtaProjection D Γ family info source out) :
     PairFunctionEtaBodyMinimum D Γ family info source out := by
-  obtain ⟨m, field, value, major, result, stage, hm, Rreach, EM, HC, ⟨globalCost, RG, HG⟩, RI, Rtail⟩ := H
+  obtain ⟨m, field, value, major, result, stage, hm, Rreach, EM, HC, ⟨globalCost, RG, HG, _⟩, RI, Rtail⟩ := H
   obtain ⟨cost, levels, pre, pending, target, before, after,
     RC, Hmin, HB, HL, HA, RP, HP, HR, RT, k, hk, HE, hpre, hne, hproof⟩ := HC
   cases HL

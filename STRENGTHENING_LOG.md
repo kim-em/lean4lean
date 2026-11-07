@@ -40518,3 +40518,57 @@ Quot.sound; no forbidden strengthening or circular-frontier dependencies.
 All 1,238 frozen sources verified. Artifacts:
 /dev/shm/pi-inert-constructor-eta-body-*. Executable and UniqueTyping.lean
 unchanged; goal active; PR extraction deferred.
+
+## 2026-11-07 17:43:20 UTC — projection observers survive typed eta descent
+
+No-progress revalidation: the intervening clarification changed no repository
+state. Revalidated clean HEAD 2ff67742, the complete GOAL.md objective, and the
+existing continuation/body definitions before proceeding. PR extraction stays
+deferred; the strengthening research remains active.
+
+Strengthened GlobalPairFunctionEtaProjection with its already-available counted
+field tail and global minimum for the complete projection. The minimum covers
+all finite stages and every competing major leading to the same final output.
+The global projection readout induction supplies this evidence from its
+selected whole-path minimum. Source prefixing preserves it unchanged. Updated
+the existing body-cut consumer to accept the stronger witness.
+
+Added ProofErasurePiInertProjectionContinuation.lean. The terminal predicate is
+an arbitrary-stage counted computation from the projection of the incoming
+major to the fixed output. Its actual typed execution records the major and
+projection typings, application sources, identity or one-binder endpoint maps,
+and retained lambda annotations. Competitors remain raw paths without typing
+restrictions. CountedEtaContinuationCut.projection_frames proves that both
+consumed and retained eta branches preserve this finite execution and strictly
+decrease the combined count. pi_inert_eta_projected_minimum seeds the invariant
+from an actual global projected-path minimum: any changed major competitor is
+projected and composed with its new observer path at a common finite stage.
+No guarded computation is transported through an endpoint substitution.
+
+Added ProofErasurePiInertConstructorProjectionContinuation.lean and integrated
+it in the aggregator. GlobalPairFunctionEtaProjection.observed_body_minimum
+retains the reachable actual pair, original two field origins, proper-prefix
+argument histories, nonproof pending argument, actual native recovery and
+binder sort, and a full counted projection attaining its global minimum.
+Its eta body has a strictly smaller minimum whose continuation still ends at
+the original projected output. The actual projection typing comes from the
+pair metadata and is transported along the selected computation.
+proofErase_pi_inert_pair_projection_readout_or_observed_eta_minimum constructs
+the complete alternative from any finite exposed projection path, without a
+new global-minimum, endpoint-typing, or body-readout premise.
+
+Remaining work is field-origin readout through the resulting frames, especially
+nested structure eta after endpoint substitution and pending applications.
+The observed minimum alone is not a field-origin invariant, nor a sufficient
+strictly smaller frontier for strengthening. General positive-stage pair
+selection and the original weakN_iff sorry remain open. This change resolves
+the lost-observer issue; it does not assert normalization or arbitrary
+substitution closure.
+
+Validation used stock Lean v4.33.0-rc2 exclusively in
+/dev/shm/native-level-coherence-work. Integration build: 1265 jobs. Recursive
+audit: 20 roots, maximum closure 11,978, only propext,
+Classical.choice and Quot.sound; no sorryAx or forbidden strengthening/circular
+frontier dependencies. All 1,240 frozen sources verified before and after.
+Artifacts: /dev/shm/pi-inert-projection-continuation-*.
+Executable and UniqueTyping.lean unchanged; goal active.
