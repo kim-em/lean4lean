@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLeastFailureConsumedRoot
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLeastFailureBodyRoot
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertPairFailureMinimum
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertSortedProjectionFrames

@@ -212,7 +212,8 @@ theorem CountedEtaBodySpineCut.projected_pair_field_root
 
 
 /-- The exact original pair's globally minimum function-eta path reaches a
-first body root with the joint field/observer budget. No reachable replacement
+first body root with the joint field/observer budget. The original binder's
+domain sort is retained for later field descent. No reachable replacement
 pair or uncounted field ancestry is introduced before selecting this cut. -/
 theorem PiInertDirectPairFunctionEtaMinimum.weighted_body_cut
     (H : PiInertDirectPairFunctionEtaMinimum D Δ family info field value out budget)
@@ -222,7 +223,7 @@ theorem PiInertDirectPairFunctionEtaMinimum.weighted_body_cut
     (hshape : info.ctorType.instL [] = .forallE (.sort (.succ .zero))
       (.forallE (.bvar 0) (.const family [])))
     (hD : ∀ levels rhs, ¬ D.unfolds info.ctorName levels rhs) :
-    ∃ stage pre pending A u major after,
+    ∃ stage pre pending A u major after, DomainSort Δ A u ∧
       CountedEtaBodySpineCut D stage Δ info.ctorName [] pre A u pending major after
         (PiInertPairWeightedBodyRoot D Δ family info field u out budget) := by
   obtain ⟨HTsource, stage, majorCost, tailCost, major, result, hbudget, RM, HM, HC, RI, RF, Hfull⟩ := H
@@ -270,7 +271,7 @@ theorem PiInertDirectPairFunctionEtaMinimum.weighted_body_cut
       hpre HP HA hca HTwhole HTproj RN SD
       (by simpa only [ProofShape.mkApps_append] using RP) HR RObserve
       (cost := budget) (by omega) Hfull
-    exact ⟨stage, pre, pending, A, u, major, after, HWeighted⟩
+    exact ⟨stage, pre, pending, A, u, major, after, SD, HWeighted⟩
 
 /-- Consequently every least failed pair budget at an exposed output has
 this actual weighted first-body cut. This is a necessary configuration of a
@@ -287,7 +288,7 @@ theorem PiInertPairProjectionBudgetFailure.weighted_body_cut
     (hD : ∀ levels rhs, ¬ D.unfolds info.ctorName levels rhs)
     (hout : ∀ A b args, out ≠ ProofShape.mkApps (.lam A b) args)
     (hproj : ∀ major, out ≠ .proj family 0 major) :
-    ∃ stage pre pending A u major after,
+    ∃ stage pre pending A u major after, DomainSort Δ A u ∧
       CountedEtaBodySpineCut D stage Δ info.ctorName [] pre A u pending major after
         (PiInertPairWeightedBodyRoot D Δ family info field u out budget) :=
   (H.direct_function_eta HLeast heq hs hi hp hf hz hadm hshape hD hout hproj).weighted_body_cut

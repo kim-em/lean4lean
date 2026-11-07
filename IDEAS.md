@@ -25081,3 +25081,49 @@ Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work;
 only propext/Classical.choice/Quot.sound, no forbidden dependencies. All 1,291
 frozen source hashes checked before/after. Artifacts:
 /dev/shm/pi-inert-least-failure-body-root-*.
+
+
+## 2026-11-07 20:39:02 UTC — Focus the binder exit and rule out component-only consumption
+
+**Idea.** Use the shared field/observer budget at a smaller lifted-field pair
+minimum to contradict leastness when its body retains constructor components.
+The actual continuation must supply the needed consuming frame; it cannot be
+assumed to have that form. Also recover the final observer's sort from its
+registered projection type, instead of carrying a separate sorted invariant
+through every earlier theorem.
+
+**Checked verdict.** A typed constructor with empty universe arguments forces
+info.uvars = 0. Every typed first projection of that parameterless dependent
+pair has sort 1, using its own projection typing for the elimination guard.
+Every ordinary observer run/minimum therefore upgrades to the sorted version
+with the same raw competitors, endpoint, stages and count. This works through
+all existing identity, consuming and retained frames.
+
+At a closed pair under one extra binder, identity frames have no pending
+arguments. Their actual computations fold into the body path with exact count;
+arbitrary competitors re-enter through a zero-cost body prefix. The first
+binder exit is an actual consuming frame or an actual retained lambda frame.
+The weighted structure-root theorem supplies this decomposition together with
+its original field charge. Its source's domain-sort witness is now also retained
+by the original least-failure body-cut result.
+
+In a consuming exit, a component-only body returns the computed original field
+to a strictly smaller same-scope pair minimum, contradicting leastness. The
+remaining first root is native function/structure eta, and its actual observed
+minimum retains the joint original-field budget. Applying this to an actual
+smaller pair minimum leaves native eta or an explicit retained-frame minimum;
+no extra caller-supplied frame decomposition or observer sort is required.
+
+**Remaining gap / live next step.** This does not exclude the native eta root
+itself. The retained alternative still needs its later consuming beta to be
+focused; counted lambda-body frame focusing already exists for another observer
+representation and is a concrete route to test here. Recursive native-eta
+readout with the weighted field invariant remains open. No strengthening proof,
+canonical-Eq counterexample, or sufficient irreducible obligation smaller than
+PropFront is claimed. PR extraction deferred; goal active.
+
+Validation: stock Lean v4.33.0-rc2, exclusively in
+/dev/shm/native-level-coherence-work; 1319 integration jobs, 19 audited
+roots, maximum closure 11,981; only propext/Classical.choice/Quot.sound,
+no forbidden dependencies. All 1,294 source hashes verified before/after.
+Artifacts: /dev/shm/pi-inert-pair-observer-sort-*.

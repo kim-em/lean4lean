@@ -41615,3 +41615,55 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,291 frozen source hashes verified before
 and after. Artifacts: /dev/shm/pi-inert-least-failure-body-root-*.
+
+
+## 2026-11-07 20:39:02 UTC — Actual binder exits and the least failure's consuming branch
+
+Added three modules, imported through ProofErasurePiInertGlobalEtaBodyCut:
+
+- ProofErasurePiInertPairObserverSort derives zero universe arity from an actual
+  empty-level constructor, then recovers sort 1 for every typed first projection
+  from the registered constructor type. The projection's existing typing supplies
+  its elimination guard. Ordinary projection runs/minima become sorted without
+  changing their chosen execution or any raw competitor predicate.
+- ProofErasurePiInertBinderExitMinimum folds arbitrary preceding identity frames
+  into a closed pair's body computation. Closed-record typing forces their
+  argument vectors empty; competitors enter the original identity frame after
+  a zero-cost body path. Counts and minimum inequalities remain exact. Under one
+  extra binder the remaining frame is consumed or retained. The weighted first
+  structure-root minimum supplies this exit with charge + remaining < budget.
+- ProofErasurePiInertLeastFailureConsumedRoot excludes the component-only body
+  in a consuming exit under the shared budget. Its field path composes with the
+  original charge, giving a smaller same-scope pair minimum and contradicting
+  leastness. The remaining constructor root is classified using recovered sorted
+  observation. A structure root still has the lifted original field and unchanged
+  eta slot; the combined field charge is reserved in its actual observed minimum.
+  The actual-minimum wrapper derives the frame split rather than assuming it,
+  and exposes the exact retained lambda/annotation/body witnesses in the other
+  branch.
+
+Strengthened both weighted_body_cut results in
+ProofErasurePiInertLeastFailureBodyRoot to retain DomainSort for the original
+eta binder. The proofs already had it, but the old output discarded the witness
+required by subsequent lifted-field descent. This is a stronger output with
+unchanged hypotheses and the same selected cut.
+
+Judgment: a smaller weighted lifted-pair minimum cannot return through an
+entirely component-only consuming body; it reaches native eta or a retained
+lambda frame, with actual counts and typings. This does not prove recursive
+readout or rule out the remaining eta roots. Next concrete route: focus a
+retained lambda's later consuming beta using counted lambda-body readout and
+frame-count progress (existing ProofErasureEqRetainedFrameProgress machinery),
+adapted to the projection observer. Do not infer strict cost decrease from
+merely refocusing the same root.
+
+Executable and UniqueTyping.lean unchanged. Original strengthening sorry still
+open; no canonical-Eq counterexample or sufficient irreducible global obligation
+smaller than PropFront established. Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1319 jobs; recursive audit
+19 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,294 source hashes verified before and
+after. Artifacts: /dev/shm/pi-inert-pair-observer-sort-*.
