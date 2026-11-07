@@ -21892,3 +21892,58 @@ Validation: 1131 integration jobs, 545 audited roots, maximum dependency
 closure 12,394; only propext, Classical.choice and Quot.sound. All Lean
 work ran in the stock-toolchain scratch checkout. Executable unchanged; PR
 extraction remains deferred. GOAL.md stays active.
+
+
+## 2026-11-07 07:53:53 UTC — Neutral application returns recovery and further action
+
+The preceding core-world turn was verified progress: it constructed function
+histories through computed binder annotations and native variable application.
+Its application result was still only a carrier history, which cannot in
+general supply the action needed when that result is itself applied.
+
+Existing neutral-family unit examples already prohibit treating arbitrary
+actual type equality as a computational join. The current variable-spine
+inversion likewise preserves a variable head and computes its arguments only.
+Do not try to discharge general type transport by universally promoting type
+equality to PiInertWorldComputation. Instead retain the stronger information
+that is constructively available for neutral application chains.
+
+Added ProofErasurePiInertWorldSpines.lean. PiInertRecoveryResidual recovers a
+type at every ordinary-core residual of its source, retaining a core path from
+the original selected type to the recovered output. PiInertWorldRecovery keeps
+this property in every certified variable world. A supplied retained type
+computation composes with that output path. PiInertWorldComparison separately
+retains inferred comparisons and their independent endpoint residuals.
+
+The substantive application step preserves both components. Existing neutral
+spine inversion separates the head and last-argument residuals. The recovered
+Pi supplies the precise computed domain consumed by the argument carrier
+history. For the result recovery, both the codomain path B -> B' and the argument
+path x -> x' contribute to B.inst x -> B'.inst x'. No common reduct of the two
+arguments is required, and raw argument recovery is not assumed.
+
+PiInertWorldNeutral packages variable heads, left selected-type recovery and
+inferred pair comparison. A native variable constructs this package at stage
+zero, including native-oracle conversion in all futures. Application returns
+the whole package at the left dependent result type. The package constructs
+WorldAction and WorldImageAction, so function-valued neutral results retain
+further action instead of losing it after their first application.
+PiInertWorldArguments.run proves this for arbitrary finite dependent argument
+sequences with supplied computational Pi exposures and domain histories.
+apply_actual_nonproof reconstructs erasure at the exact actual B.inst x and
+uses the original actual function/argument equalities for common typing.
+Proof-valued results erase to proof and are not claimed to remain neutral.
+
+Verdict: the returned-function-action gap is closed for variable-headed
+application chains, with arbitrary argument core reductions and dependent
+codomains. This is not general application or lambda coverage. General native
+to assigned type transport, non-neutral returned functions, paired higher-order
+argument interpretation, and transitivity remain open. No strictly smaller
+sufficient obligation, proof of strengthening, or canonical-Eq counterexample
+has been obtained. Next connect demanded function action to the original
+smaller strong children without universally synthesizing computation from
+definitional type equality or action from carrier-only evidence.
+
+Validation: 1133 integration jobs, 572 audited roots, maximum dependency
+closure 12,394; only propext, Classical.choice and Quot.sound. Stock Lean
+in the scratch checkout, executable unchanged, PR extraction deferred, goal active.

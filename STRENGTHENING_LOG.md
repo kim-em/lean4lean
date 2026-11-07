@@ -37887,3 +37887,43 @@ Classical.choice and Quot.sound; it excludes sorryAx, weakN_iff, weakN_inv and
 known circular frameworks. Artifacts /dev/shm/core-worlds-* retain source
 hashes and owned-diagnostic checks. No executable changes or PR extraction.
 The original GOAL.md deliverable remains open.
+
+
+## 2026-11-07 07:53:53 UTC — Dependent neutral recovery preserves returned function action
+
+Added the 27 public roots of ProofErasurePiInertWorldSpines.lean and wired the
+module through ProofErasurePiInertGlobalEtaBodyCut.lean. Reused AnchoredCarrier
+for variable heads and the existing full-core spine inversion. No new axiom,
+normalization assumption, or arbitrary function-history-to-action rule enters.
+
+PiInertRecoveryResidual and PiInertWorldRecovery retain native recovery at all
+source core residuals, together with the selected type's ordinary output tail.
+They move through core worlds, raise stages, and convert along a supplied
+WorldComputation. Neutral application retains the exact dependent selected
+type B.inst x through both codomain and argument reduction. Inferred comparison
+is retained separately in PiInertWorldComparison and extends by an argument
+using the domain residual selected by that same recovery certificate.
+
+PiInertWorldNeutral combines the two neutral shapes, left recovery and inferred
+comparison. A native-variable seed is constructive at stage zero. app returns
+all components, action reads a carrier history from the constructed comparison,
+and image_action composes retained recovery with each supplied future Pi
+exposure. Finite dependent argument sequences preserve the whole package by
+PiInertWorldArguments.run. The two argument lists can differ; no common argument
+reduct is required. The output therefore retains action for further application.
+
+apply_actual_nonproof connects the raw construction to actual typed terms,
+using the actual function/argument equality premises and erasure of B.inst x.
+It supplies a whole neutral result, not only a raw application comparison.
+The non-proof premise is explicit: proof-valued applications erase to proof.
+There is no assertion that arbitrary actual type equality supplies a retained
+computation, nor that every strong function child has neutral shape.
+General dependent type transport and non-neutral function coverage remain open.
+
+All Lean/Lake commands ran in /dev/shm/native-level-coherence-work on stock
+leanprover/lean4:v4.33.0-rc2. Integration passed 1133 jobs; the recursive audit
+covered 572 roots, maximum closure 12,394, with only propext,
+Classical.choice and Quot.sound. /dev/shm/world-spines-* artifacts retain source
+hashes and diagnostics, and exclude sorryAx, weakN_iff, weakN_inv and known
+circular frameworks. UniqueTyping.lean and its open strengthening proof remain
+unchanged. No executable changes or PR extraction. GOAL.md remains active.
