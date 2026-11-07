@@ -41494,3 +41494,78 @@ Validation: stock Lean v4.33.0-rc2, with all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,288 frozen source hashes verified before
 and after. Artifacts: /dev/shm/pi-inert-sorted-projection-frames-*.
+
+
+## 2026-11-07 20:12:28 UTC — Least failures retain their exact original pair and prefix charge
+
+The previous goal turn made checked progress in c3e68b0f. This turn revalidated
+the clean worktree and examined field transfer through the remaining observer
+frames. The existing same-scope theorem flattened the actual run but did not
+explicitly reconstruct arbitrary raw competitors in its original predicate.
+
+Added ProofErasurePiInertObserverPredicate.lean.
+PiInertProjectionContinuationRun.closed_record_same_scope_predicate proves an
+iff for every raw endpoint and budget. Scope length excludes consuming and
+retained frames once the closed record is in the observer's own scope. Its
+actual closed assignment excludes pending arguments in identity frames.
+Forward competitors concatenate their projected paths; reverse competitors
+use zero-cost reflexive application paths. Actual closed typing is propagated
+only along the selected execution. closed_record_global_minimum then recovers
+both the exact projected path and global minimum comparisons over every finite
+stage, by inserting competing projection paths at zero body cost.
+
+pi_inert_projection_frame_run_smaller_failure extends the computed-field relay
+to an arbitrary actual remaining run in the observer's scope. It realizes the
+substituted pair and actual later major at the closed family, obtains the exact
+projection path and the raw-predicate iff, and converts every alternative
+projection continuation back into the original K before invoking its minimum.
+Thus the minimum is preserved rather than replaced by an unrelated one.
+
+Added ProofErasurePiInertPairFailureMinimum.lean.
+PiInertPairFailureBudgetMinimum compares hypothetical pair readout failures for
+a fixed family and raw output while allowing their scope and fields to vary.
+The least theorem uses strong induction on the supplied failure's natural
+budget and retains an actual least failure bounded by it. This is conditional
+on a failure, not its construction. global_projection_minimum shows that the
+least failure's projection path is itself globally minimal: a cheaper path
+would inherit the same no-field-readout clause and produce a smaller failure.
+transfer and transfer_minimum propagate a failure along an actual old-scope
+field path whose cost plus the later pair budget stays within the original
+budget. no_smaller_transfer excludes a strict saving at a least failure.
+
+PiInertDirectPairFunctionEtaMinimum retains a function-eta cut on the exact
+original typed pair, its globally minimal major path, final field tail, and
+majorCost + 1 + tailCost = budget. direct_function_eta derives it from a least
+failure at an exposed output. The counted projection factorization and global
+minimum fix that exact sum. Stable constructor components contradict the
+original no-field-readout clause. At a whole-record structure root, native
+recovery identifies the new first field as the previous major's projection.
+The actual remaining projection path gives a smaller pair budget; a field
+readout within that budget would contradict the original projected minimum
+when prefixed by its counted major history. Leastness therefore excludes the
+structure branch. Function eta remains directly at the original pair, without
+an uncounted reachable-pair source history.
+
+sorted_body_minimum enters this exact pair's eta body while retaining the
+original argument-vector count and the prefix cost before. It transfers the
+full projected minimum to the prefix endpoint with bound budget-before and
+applies sorted eta descent there. The resulting inequality is
+before + smaller < budget; the counted original [field,value] vector costs
+at most before. Its final sorted observer remains available through arbitrary
+later frames. The integration module imports both new modules.
+
+Judgment: the least-failure route now avoids loss of the original pair/field
+and preserves the prefix charge required by later bounded field transfer.
+The same-scope predicate gap is closed for all raw competitors. The remaining
+work is recursive field readout through the smaller native eta minima; the
+measure and typed observer alone do not close it. Executable and
+UniqueTyping.lean unchanged. No strengthening proof, canonical-Eq strengthening
+counterexample, or sufficient irreducible global obligation smaller than
+PropFront established. Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2, with all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1315 jobs; recursive audit
+13 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,290 frozen source hashes verified before
+and after. Artifacts: /dev/shm/pi-inert-observer-predicate-*.

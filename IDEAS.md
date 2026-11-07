@@ -25001,3 +25001,46 @@ Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work;
 only propext/Classical.choice/Quot.sound, no forbidden dependencies. All 1,288
 frozen source hashes checked before/after. Artifacts:
 /dev/shm/pi-inert-sorted-projection-frames-*.
+
+
+## 2026-11-07 20:12:28 UTC — Exact observer predicates and least failures with original field budgets
+
+**Idea.** Same-scope flattening previously described only the chosen typed
+execution. Prove its reverse correspondence for ALL raw competitors, then
+minimize hypothetical pair-readout failures themselves. A least failure should
+enter function eta on its original pair, avoiding an uncounted reachable-pair
+prefix that loses the original field and its budget.
+
+**Checked verdict.** A closed record in the observer's scope has exactly the
+ordinary projection continuation predicate at every raw candidate and budget.
+Actual typing identifies the remaining identity/no-argument frames; competing
+endpoints need no typing. Thus the chosen frame minimum is an ordinary global
+projection minimum, and the computed-field relay accepts an arbitrary remaining
+same-scope run while preserving its original competitor predicate.
+
+Any hypothetical pair-budget failure has a least budget among all typed scopes
+and pairs with the same output. Bounded original-field paths transfer failures
+to later same-scope pairs; a strict saving contradicts leastness. The least
+failure's actual projection path is globally minimal across all stages.
+At an exposed output its constructor cut is directly function eta on the
+ORIGINAL pair: stable components read the original field, while a whole-record
+structure root supplies a strictly smaller pair failure. The selected major,
+final field tail and their exact sum retain the original failed budget.
+
+The resulting sorted eta-body minimum additionally retains its prefix charge:
+before + smaller < budget, and the original counted argument vector costs at
+most before. This is derived by minimizing the projected continuation after
+the fixed prefix against budget-before, not by discarding the prefix cost.
+
+**Remaining gap.** The bounded original-field invariant must still close
+recursively through the smaller native eta minima and their consuming/retained
+frames. Leastness and strict measures alone do not supply that readout theorem.
+Strengthening remains unproved; no canonical-Eq counterexample or sufficient
+irreducible global obligation smaller than PropFront claimed. Goal active;
+PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work;
+1315 integration jobs, 13 audited roots, maximum closure 11,981;
+only propext/Classical.choice/Quot.sound, no forbidden dependencies. All 1,290
+frozen source hashes checked before/after. Artifacts:
+/dev/shm/pi-inert-observer-predicate-*.
