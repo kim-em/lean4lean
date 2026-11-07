@@ -39438,3 +39438,47 @@ Quot.sound. All 1,180 frozen sources and owned diagnostics checked; artifacts
 under /dev/shm/application-rule-*. All Lean/Lake commands used stock
 v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
 UniqueTyping.lean unchanged; PR extraction deferred; goal active.
+
+
+## 2026-11-07 14:13:31 UTC — Dependent fields of computed guards, including carrier aliases
+
+Added ProofErasureComputedProjectionReadout.lean and integrated its import.
+proofErase_computed_joint_project_typed and its one-projection-typing wrapper
+cover the entire ComputedJointCheck comparison grammar, including appComputed.
+The structure branch selects its actual smaller field certificate; computation
+replays at the original major type and preserves projection typings. Proof
+projection erasures are included.
+
+ComputedDependentPairFieldCheck records a common comparison of the type fields
+and a value guard at either the left or right type field. It is closed under
+symmetry and major computation, and packs into a computed dependent-pair guard.
+For the registered closed two-field pair `(A : Type) -> A -> Pack`,
+proofErase_computed_dependent_pair_fields_iff proves exact typed equivalence.
+proofErase_computed_dependent_pair_alias_fields additionally reads a guard at
+any actual carrier equal to that record type.
+
+The carrier induction retains that actual equality, realizes arbitrary sound
+carrier computations, excludes function/subsingleton branches by rigid-head
+inversion, and identifies exposed record spines exactly. Typed sort-endpoint
+readout handles the nested type-field guard. Thus neither inert-family nor
+primitive-head assumptions are needed. A direct port of the old field readout
+would retain both assumptions and fail to cover current stages, which admit
+universe conversions and native identity expansions; that restricted port was
+replaced before committing.
+
+PiInertWorldHistory.dependent_pair_fields consumes the actual current history
+and works at its unchanged stage after any allowed core world and independent
+ordinary-core major reductions. Substitution and reduction are realized at the
+original actual family type. The field carrier alternative is chosen only then.
+This is not yet a field world history: independent reductions of the projection
+results and one consistent dependent carrier are still missing. Next investigate
+whether field residual readout plus lower-ranked original type-child transport
+can supply those requirements, without changing the recorded source major in
+fieldType. General records, comparison transitivity and the four principal
+sorted transport cases remain open; GOAL.md is unmet.
+
+Integration passed 1222 jobs. Recursive audit covered 11 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. All 1,197 frozen sources and owned diagnostics checked. All Lean/Lake
+commands used stock v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable
+and UniqueTyping.lean unchanged. PR extraction deferred; goal active.

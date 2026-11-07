@@ -23760,3 +23760,31 @@ recursive dependency closure 11,976; only propext, Classical.choice
 and Quot.sound. All 1,180 frozen sources and owned diagnostics checked.
 Stock v4.33.0-rc2 Lean/Lake ran only in /dev/shm/native-level-coherence-work.
 Executable and UniqueTyping.lean unchanged; PR extraction deferred; goal active.
+
+
+## 2026-11-07 14:13:31 UTC — Computed dependent-pair readout through carrier aliases
+
+**Idea.** Obtain projection evidence from the full computed carrier grammar
+used by current Pi-inert world histories, preserving dependent field types.
+**Verdict: checked partial progress.** Computed comparison now projects from
+actual major/field typings, including appComputed, structure fields, symmetry
+and computation. For a registered closed pair `(A : Type) -> A -> Pack`, its
+typed carrier guard is equivalent to type-field comparison plus value checking
+at either major's type field. An arbitrary actually equal carrier alias also
+yields that readout. The induction tracks actual carrier equality and replays
+carrier computation, removing the older readout's primitive-head and inert
+family assumptions. Those assumptions would not cover current stages: universe
+conversion and identity expansion are permitted there. No such assumptions
+remain in the new readout.
+
+Current world histories supply these field checks at the same stage after each
+allowed core world and independent core reductions of the majors. This retains
+the left/right alternative after those choices; it neither fixes the value
+carrier nor gives arbitrary independent field residuals. General dependent
+projection action, recursive profile coverage, type transport and comparison
+transitivity are still open. No smaller sufficient obligation or completion
+of GOAL.md is claimed. PR extraction remains deferred.
+
+Validation: 1222 integration jobs, 11 recursively audited roots, maximum
+closure 11,976; only propext, Classical.choice and Quot.sound. All 1,197
+frozen sources checked. Artifacts: /dev/shm/computed-projection-*.
