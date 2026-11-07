@@ -21093,3 +21093,25 @@ comparison, guarded context transport and argument substitution remain open.
 No new closure law, canonical-Eq counterexample or strict-smallness claim.
 Validation: 1106 jobs, 334 audited roots, maximum closure 12,048;
 only propext, Classical.choice and Quot.sound. GOAL.md remains active.
+
+
+### 2026-11-07 03:29:46 UTC — Consume a body history in its recorded domain: proved
+
+The remaining lambda body comparison need not move to the target annotation
+before a hereditary result can be used. Its actual domain equality retypes
+the target's supplied argument at the recorded domain. Typed substitution then
+consumes the complete body history there, and an ordinary beta prefix gives
+the target lambda application as carrier. Arbitrary raw endpoints are lifted
+under the binder and return unchanged after substitution. Proof arguments and
+all future residuals are covered at the same stage.
+
+RigidSortFrames over a nullary empty family supplies that complete history
+from its beta return. Thus reflexivity and typed eta at the lambda terminal
+now finish the full application-carrier branch, for arbitrary actual arguments,
+at any requested stage including zero. Ordinary/sorted children retain actual
+sort typings for both bodies and source frames in the exact comparison scope.
+Verdict: removes the annotation mismatch from consumption of a completed body
+history. It does not promote the remaining raw body comparison to a history,
+or certify the original target function's guarded computation prefix.
+Validation: 1107 jobs, 339 audited roots, maximum closure 12,048;
+only propext, Classical.choice and Quot.sound. GOAL.md remains active.

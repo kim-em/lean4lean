@@ -36898,3 +36898,53 @@ constructors and recursors contain no sorryAx, weakN_iff or excluded circular
 framework dependency. All 1,081 frozen source hashes remained unchanged;
 no owned diagnostics. Stock Lean/Lake ran only in scratch. No executable
 changes or PR extraction.
+
+
+### 2026-11-07 03:29:46 UTC — Unit lambda terminals produce complete application histories
+
+Revalidated clean pushed HEAD c2b4e198. Previous goal turn was progress.
+Continued the ordinary/sorted lambda terminal analysis with its recorded
+context, and checked how a recursive history could actually be consumed.
+
+Added ProofErasurePiInertUnitLambdaTerminal.lean and imported it from the
+global module. Five public theorems are proved:
+
+- RigidSortFrames.unit_history combines the exact frame's beta return and
+  actual sort typing with the existing unit-carrier theorem. This produces a
+  complete history for arbitrary raw endpoints at any requested stage.
+- PiInertCarrierHistory.type_body_application consumes a body-carrier history
+  recorded under A even when the target lambda is annotated C. Actual A=C
+  retypes the supplied argument y:C at A and types the target body there.
+  ContextSubstitution then directly instantiates this history. Lifted raw
+  endpoints return unchanged; the actual beta reduction of (lambda C d) y
+  supplies a certified ordinary-core prefix. No guarded path is substituted
+  or moved between annotation contexts, and the stage is unchanged.
+- RigidSortFrames.unit_application_history discharges the history premise
+  outright for a unit-framed body. Every actual argument is allowed, including
+  proof arguments. It needs only ordinary core soundness/confluence and the
+  empty-family metadata, with no canonical-Eq or argument-comparison premise.
+- InferredLambdaTerminal.typed_frame_or_scoped_body leaves target frames or
+  the exact ordinary/sorted body child with both actual sort typings and the
+  source frame in its own recorded context. It preserves whether this is the
+  left or right annotation. Only ordinary typing, erasure identities and frame
+  data are converted; the raw comparison itself stays in place.
+- InferredLambdaTerminal.unit_application_or_body replaces the target-frame
+  alternative by a complete history at the target lambda application. This
+  closes reflexivity/typed eta at the terminal all the way to the supplied
+  carrier, including future substitutions and independent core residuals.
+
+The recursive body comparison still needs a complete history result before
+this consumption theorem applies. The original function-to-lambda computation
+also remains a raw guarded path; it cannot automatically prefix a full carrier
+history. Thus no general raw-comparison closure, guarded substitution law or
+function application theorem has been assumed or claimed. The original
+weakN_iff sorry and full GOAL.md objective remain open, with no counterexample
+or strict-smallness claim.
+
+Validation: 1107 successful integration-build jobs, 339 recursively
+audited roots, maximum closure 12,048; only propext, Classical.choice
+and Quot.sound. All five new theorems are audit roots. Recursive types, values,
+constructors and recursors contain no sorryAx, weakN_iff or excluded circular
+framework dependency. All 1,082 frozen source hashes remained unchanged;
+no owned diagnostics. Stock Lean/Lake ran only in scratch. No executable
+changes or PR extraction.
