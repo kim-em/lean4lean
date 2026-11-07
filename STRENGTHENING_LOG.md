@@ -38588,3 +38588,52 @@ Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
 /dev/shm/guarded-trees-*. All Lean/Lake commands used stock v4.33.0-rc2 in
 /dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
 PR extraction remains deferred and GOAL.md remains active.
+
+
+## 2026-11-07 11:18:11 UTC — Lambda closure under paired guarded-image interpretation
+
+The new GuardedInterpretation records one original assigned term and runs
+under two actual typed substitutions satisfying finite recursive-tree image
+requirements. This does not add arbitrary-substitution futures to value
+histories. The GuardedSupplyInterpretation separately constructs type-only
+supplies in those environments.
+
+bindUses explicitly lifts every interface tree under the new binder and adds
+the lifted fresh requirement. cons_pair handles actual arguments; binder
+constructs fresh recursive values from supply and moves old images through
+weakening. The term weakening theorem restricts arbitrary paired substitutions
+to old variables by composing with the original typed weakening. Variables,
+closed ground terms, applications, and shared-use applications have proved
+interpretation constructors.
+
+The lambda constructor consumes domain interpretation, input supply, body
+interpretation at bindUses, and original assigned lambda typing. Its ground
+history is constructed from the proof-aware fresh body test. lam_body derives
+actual lambda assignment from its interpreted body. pi_domain reflects the
+domain history to ordinary equality and aligns the right lambda's Pi domain,
+without claiming a core join or transport of recursive action. Future calls
+interpret the body at paired arguments and use recursive typed beta prefixes.
+Neither ground lambda equality nor lambda call action is a premise.
+
+Plain supplies are trivial; call_plain supplies guarded calls with ordinary
+output leaves from full typed-substitution computation evidence. The
+computed_closed_type constructor derives domain interpretation from two paths
+to one invariant output. The actual positive identity interpreter constructs
+its fresh-variable body and typings, retaining arbitrary recursive input trees.
+The computed-identity corollary constructs its domain and supply interpreters
+from an explicit computation to a closed Pi, with no function-action premise.
+
+This closes a body-interpretation constructor, not full strong-derivation
+coverage. The lifted-annotation shape of bindUses is explicit; this is not a
+proof that arbitrary fresh-dependent requirements can be lowered. Remaining
+work includes demand inference, original strong-rule coverage and dependent
+interface reindexing, especially for symmetry/transitivity/conversion. The
+original weakN_iff sorry is unchanged. No canonical-Eq counterexample or
+strictly smaller sufficient obligation is claimed.
+
+Integration passed 1186 jobs. Recursive audit covered 23 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
+/dev/shm/guarded-bodies-*. All Lean/Lake commands used stock v4.33.0-rc2 in
+/dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
+PR extraction remains deferred and GOAL.md remains active.

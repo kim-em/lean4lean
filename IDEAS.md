@@ -22877,3 +22877,50 @@ recursive dependency closure 11,976; only propext, Classical.choice and
 Quot.sound. Frozen sources and owned diagnostics checked. Stock v4.33.0-rc2
 Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work. Executable
 and UniqueTyping.lean unchanged; GOAL.md remains active.
+
+
+## 2026-11-07 11:18:11 UTC — Paired lambda-body interpretation for guarded trees
+
+Idea: connect recursive guarded values to finite body requirements under two
+actual typed substitutions. A lambda's ground history should follow from a
+fresh interpreted body, and its full call action should follow by interpreting
+the body at the supplied recursive argument, without assuming lambda action.
+
+Implemented ProofErasurePiInertGuardedBodies.lean. GuardedImages retains finite
+variable requirements with the left annotation map and assigned right images.
+bindUses lifts old tree annotations and the fresh input tree explicitly. Image
+movement, paired cons, fresh binder construction, and interpretation weakening
+are proved. Interpreters compose through variables, closed ground terms,
+application, shared requirements, and lambda abstraction.
+
+The lambda proof constructs its ground history by a proof-aware fresh body
+test. TypedAt.lam_body recovers lambda typing from an assigned body;
+TypedAt.pi_domain aligns the right domain by its same-sort history. This
+constructs the right lambda's actual assignment at the left result type rather
+than assuming assignment follows from an untyped carrier history. Future call
+action interprets the body under the two argument substitutions and uses typed
+core prefixes to retain the full recursive result tree.
+
+Type-only supply remains separate. Plain leaves need none; call_plain derives
+a call supply from retained full typed-substitution computation. A type with a
+computation to a substitution-invariant output obtains a paired ground domain
+interpretation. The actual positive identity example constructs its variable
+body and raw lambda typings, preserving any supplied recursive input tree.
+The computed-identity corollary constructs both domain interpretation and call
+supply from an explicit computation to a closed Pi interface, including an
+alias without ordinary-core Pi exposure. Empty requirements give value readout.
+
+Verdict: lambda abstraction now closes this paired recursive-tree body
+interpretation. It does not yet infer suitable trees for every original strong
+derivation. Binder requirements explicitly have lifted annotations; no general
+elimination of fresh-dependent requirements is claimed. General exposure
+production, dependent interface reindexing, and coverage of the original strong
+symmetry/transitivity/conversion rules remain open. No strengthening proof,
+canonical-Eq counterexample, or sufficient obligation strictly smaller than
+PropFront is claimed. PR extraction remains deferred.
+
+Validation: 1186 integration jobs; 23 public/probe roots; maximum
+recursive dependency closure 11,976; only propext, Classical.choice and
+Quot.sound. Frozen sources and owned diagnostics checked. Stock v4.33.0-rc2
+Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work. Executable
+and UniqueTyping.lean unchanged; GOAL.md remains active.
