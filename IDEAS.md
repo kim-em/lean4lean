@@ -24004,3 +24004,46 @@ PR extraction remains deferred.
 Validation: 1229 integration jobs, 11 recursively audited roots,
 maximum closure 11,976; only propext/Classical.choice/Quot.sound;
 1,204 frozen sources. Artifacts: /dev/shm/projection-frames-*.
+
+
+## 2026-11-07 15:27:42 UTC — Stable constructor residuals and the opaque-alias test
+
+**Idea.** Check whether arbitrary sound definition tables support the proposed
+selection law before attempting its full structural-checker induction. Use
+counted wrapper bypass to test the previously unverified opaque-alias candidate.
+**Verdict: checked positive residual theorem and conditional obstruction.**
+A typed stage-zero computation with a core-stable constant head and a final
+non-lambda-headed output retains that head, the equivalent universe vector,
+and every argument computation. Minimal primitive count removes constant
+expansions even at proper prefixes; no confluence or normalization is needed.
+Absence of selected delta equations and registered pattern heads suffices to
+check the core-stability premise without assuming semantic rigidity of an alias.
+
+For a registered constructor with no selected unfolding, an arbitrary such
+major path commutes with field selection: the residual major is another
+saturated constructor, and its selected field is reached from the original
+field at the same stage. This is a concrete positive step toward structural
+comparison readout. It covers stage zero and non-lambda-headed major outputs;
+it does not remove wrappers from comparison certificates or cover higher-stage
+native guards.
+
+A sorted projection of a differently headed opaque major cannot reach a type
+variable at stage zero. Hence a typed path from a variable-selecting record
+to that opaque major contradicts PiInertPairTypeFieldSelection. A supplied
+single constructor-to-alias equation constructs that path explicitly. The same
+configuration contradicts typed core confluence, so it is excluded for the
+actual EnvironmentCore. This turns the earlier candidate into a checked
+obstruction schema, but no concrete well-formed environment instantiating its
+alias premises has been built. Do not describe it as a canonical-Eq
+counterexample or as an unconditional refutation of the selection law.
+
+Next use the constructor residual theorem under the actual core's no-constructor-
+unfolding and confluence guarantees in the structural checker induction.
+Arbitrary structural certificates, carrierChecked/carrierNested, higher-stage
+major paths and surviving comparison wrappers remain open. weakN_iff is still
+unproved; no strictly smaller sufficient frontier is claimed. PR extraction
+remains deferred.
+
+Validation: 1230 integration jobs, 9 recursively audited roots,
+maximum closure 11,976; only propext/Classical.choice/Quot.sound;
+1,205 frozen sources. Artifacts: /dev/shm/projection-opacity-*.

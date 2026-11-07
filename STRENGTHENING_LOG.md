@@ -39722,3 +39722,46 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution in
 Quot.sound, no forbidden strengthening or circular-frontier dependencies.
 All 1,204 frozen sources verified. Artifacts: /dev/shm/projection-frames-*.
 Executable and UniqueTyping.lean unchanged; goal active.
+
+
+## 2026-11-07 15:27:42 UTC — Constructor residuals and a checked opaque-major obstruction schema
+
+Added ProofErasurePiInertProjectionOpacity.lean and its aggregator import.
+erased_level_core_spine_stable_of_no_rules checks spine stability from absence
+of selected delta equations and pattern heads, without semantic rigidity.
+The prefix wrapper bypass accepts arbitrary non-lambda-headed outputs and
+retains all pending arguments. A minimal-count argument then proves exact
+stage-zero stable-spine readout, including every component argument path.
+
+pi_inert_zero_constructor_selection_residual uses the registered constructor's
+rigidity and the table's no-unfolding premise to commute a field selection
+with an arbitrary stage-zero major path whose output has no lambda head.
+The resulting saturated constructor selects a same-stage residual of the
+original field. This result has no confluence hypothesis, no assumed checker
+transport and no normalization premise.
+
+pi_inert_zero_projection_variable_head combines the earlier full-stage
+projection selection factorization with stable-spine readout. If a sorted
+projection reaches a variable, the purportedly opaque major head must be the
+registered constructor. pi_inert_pair_selection_opaque_obstruction applies
+that exact test to the open selection law's variable readout. The companion
+no-core-confluence theorem joins the two original typed projections and uses
+variable fixedness to derive the same contradiction. The alias-equation
+variant constructs the obstructing major path using one supplied delta rule
+and its unchanged arguments, yielding both negative conclusions.
+
+Scope: the alias equality, actual source/target record typings, alias erasure
+and root exclusion remain explicit hypotheses. No concrete environment
+instantiating them has been constructed, so this is a proved conditional
+obstruction, not an unconditional counterexample. Actual EnvironmentCore
+confluence excludes the configuration. The selection theorem for that core
+remains live, as do its structural and higher-stage cases. GOAL.md remains
+unmet, no smaller sufficient obligation is claimed, and PR extraction is
+deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution in
+/dev/shm/native-level-coherence-work. Integration 1230 jobs; recursive audit
+9 roots, maximum closure 11,976; only propext/Classical.choice/
+Quot.sound, no forbidden strengthening or circular-frontier dependencies.
+All 1,205 frozen sources verified. Artifacts: /dev/shm/projection-opacity-*.
+Executable and UniqueTyping.lean unchanged; goal active.
