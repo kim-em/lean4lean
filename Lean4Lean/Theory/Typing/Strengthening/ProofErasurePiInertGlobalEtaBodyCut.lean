@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertConstructorFrameTransfer
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertObservedBodyRoot
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertConstructorFieldAncestry
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertProjectionReplayBoundary

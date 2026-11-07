@@ -41155,3 +41155,75 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 Quot.sound, no sorryAx or forbidden strengthening/circular-frontier dependencies.
 All 1,282 frozen source hashes verified before/after. Artifacts:
 /dev/shm/pi-inert-observed-body-root-*.
+
+
+## 2026-11-07 19:23:52 UTC — Stable constructor frame transfer and same-scope collapse
+
+The previous goal turn made checked progress in f596a760. This turn rechecked
+the clean worktree and the actual frame, closed-record and ancestry APIs. The
+selected observed root already retained a typed continuation; the next question
+was what saturated constructor typing forces on its application frames.
+
+Added ProofErasurePiInertConstructorFrameTransfer.lean.
+TypedSource.closed_constructor_realize inverts a raw constructor erasure and
+uses structure_constructor_family to assign its own closed parameterless,
+unindexed family. closed_constructor_image_pending_nil realizes the actual
+ordinary context substitution, transfers this closed assignment, and applies
+the existing closed-record pending-argument exclusion to the selected full
+application source. No native image or guarded computation transport appears.
+
+pi_inert_projection_application_tail_minimum fixes the incoming endpoint and
+reuses its actual body computation in every competitor. The application suffix
+and remaining projection continuation inherit the exact cs + ck minimum.
+pi_inert_pair_components_consumed_field descends the counted lifted first-field
+component before instantiation. Its raw image is exactly the old-scope short
+field, while the second component may compute arbitrarily. Combining these
+facts gives pi_inert_consumed_pair_component_minimum: pending is empty, the
+field path starts at the original old-scope field, and its cost plus the next
+minimum does not exceed the original body/continuation budget.
+
+pi_inert_consumed_pair_minimum_transfer_or_root removes the component-only
+premise by applying the counted spine decomposition to the actual body path.
+The stable branch produces the transfer above. The non-level-root branch
+retains its counted argument vector, prefix, root and actual suffix; its target
+spine has a typed projection-continuation minimum of cost ct + cs + ck,
+strictly smaller than cb + cs + ck. This does not yet read that root target's
+field or classify away all its possible root forms.
+
+The stronger simplification is scope-based. PiInertProjectionContinuationRun.
+scope_length_le proves that every frame preserves or decreases context length.
+closed_record_same_scope then flattens a run whose incoming closed record is
+already in the observer's scope. A consuming or retained-lambda frame would
+force a strictly shorter scope before returning to the observer and contradict
+the length invariant. An identity frame's pending arguments are empty by
+closed-record typing. Its actual computation preserves the record assignment,
+so induction on the remaining execution concatenates projected paths at a
+common finite stage with exactly the original primitive count.
+
+PiInertProjectionContinuationMinimum.closed_record_same_scope prefixes that
+flattened run by its selected body computation. pair_readout_or_eta realizes a
+raw full pair at its closed family and invokes the existing counted global pair
+projection theorem on the resulting ordinary computation. It yields a field
+path costing strictly less than the framed minimum or an actual global
+constructor function-eta case. pi_inert_transferred_pair_readout_or_eta prefixes
+an original-field computation and retains a strict saving from the combined
+budget. The global Eq-exposure integration module imports these results.
+
+Judgment: stable constructor consumption no longer requires guarded replay,
+and same-scope closed-record continuation frames are fully reduced to ordinary
+projection computation. This still leaves the pair function-eta alternative,
+non-level body roots, and readout while extra binders remain. In the structure
+case, its newly written type field can be proj0 of the old full constructor;
+it is not itself a syntactic old-scope lift, even though selecting that
+constructor returns the lifted field. Preserving this selected-field origin
+through its remaining computation is a concrete next issue. No strengthening
+proof, canonical-Eq strengthening counterexample, or sufficient irreducible
+global obligation smaller than PropFront has been established. Executable and
+UniqueTyping.lean unchanged. Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1308 jobs; recursive audit
+12 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,283 frozen source hashes verified before
+and after. Artifacts: /dev/shm/pi-inert-constructor-frame-transfer-*.

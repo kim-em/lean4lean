@@ -24801,3 +24801,43 @@ Validation: stock Lean v4.33.0-rc2, exclusively /dev/shm/native-level-coherence-
 1307 integration jobs, 9 audited roots, maximum closure 11,981.
 Only propext/Classical.choice/Quot.sound; no forbidden dependencies. All frozen
 source hashes checked before/after; artifacts /dev/shm/pi-inert-observed-body-root-*.
+
+
+## 2026-11-07 19:23:52 UTC — Consume stable constructor frames and flatten same-scope observers
+
+**Idea.** Exploit saturation and actual frame typing before attempting any
+transport of guarded computations. A full closed constructor cannot acquire
+pending applications after an interpreted endpoint map. A stable lifted field
+can descend before that map. Once the record reaches the observer's own scope,
+no binder-removing frame can remain.
+
+**Checked verdict.** A raw typed saturated constructor is realized at its own
+closed family, and ordinary typed substitution preserves that assignment.
+Actual application-source typing forces pending = []. A counted component
+path through one consuming frame gives the original field's exact old-scope
+image and a remaining projection-continuation minimum within the original
+budget. A theorem derives the component/non-level-root split from the actual
+body computation; the root branch retains its counted prefix and has a strictly
+smaller minimum at the root target.
+
+Projection continuation runs now have a proved nonincreasing context-length
+invariant. For a closed record in the observer's own scope, consumption and
+retained-lambda frames are impossible, and identity application frames have no
+pending arguments. The whole remaining run therefore flattens to ordinary
+projection computation with EXACTLY the same count. The existing pair readout
+then supplies a strict field saving or an actual constructor function-eta case.
+Composing a transferred field path preserves that strict combined-budget saving.
+
+**Remaining gap.** This closes the stable consuming-frame transfer and the
+same-scope frame machinery, not all guarded pair readout. Non-level body roots
+and computations while extra binders remain are still open. In particular,
+structure eta can make the selected field a projection of the old full source;
+that new field is not syntactically an old-scope lift, so the component descent
+lemma alone does not handle it. No blanket replay premise was used. Goal active;
+no sufficient smaller global obligation or strengthening result claimed; no PR
+extraction.
+
+Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work;
+1308 integration jobs, 12 audited roots, maximum closure 11,981;
+only propext/Classical.choice/Quot.sound, no forbidden dependencies. Frozen
+sources checked before/after. Artifacts: /dev/shm/pi-inert-constructor-frame-transfer-*.
