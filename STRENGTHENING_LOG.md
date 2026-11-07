@@ -39901,3 +39901,55 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution in
 Quot.sound, no forbidden strengthening or circular-frontier dependencies.
 All 1,209 frozen sources verified. Artifacts: /dev/shm/core-projection-contraction-*.
 Executable and UniqueTyping.lean unchanged.
+
+
+## 2026-11-07 16:03:18 UTC — Stage-zero constructor frames and selected-projection squares
+
+Added ProofErasurePiInertConstructorFrames.lean and its aggregator import.
+Previous goal turn classified as progress: f2986750 committed and pushed the
+full ordinary-core field-selection theorem. The worktree was clean when this
+extension began.
+
+pi_inert_expansion_prefix_count_bypass_frames handles a constant or identity
+expansion with pending arguments and arbitrary output. Its finite endpoint
+deletion preserves a path with no greater primitive count. The private
+stable_spine_frames_count applies this at the first non-core spine root in
+stage zero: the prefix plus bypassed tail has strictly smaller count because
+the removed expansion contributes one. Repeating the argument terminates by
+natural-number induction, without normalizing any constructor argument.
+pi_inert_zero_stable_spine_frames exposes the result as a same-head spine
+modulo administrative deletion, with original component paths retained.
+
+pi_inert_zero_constructor_selection_frames specializes to registered
+constructors and preserves the selected argument index along any major path.
+pi_inert_zero_selected_projection_square combines this with the existing
+sorted-projection factorization. Its output is a shared selected residual:
+the original field reaches it at stage zero, while the original computation
+endpoint reaches it by finite beta followed by zero or one projection iota.
+The retained-projection case deletes wrappers inside the major before iota;
+the already-selected case uses deterministic selection and outer deletion.
+
+pi_inert_zero_selected_projection_residual_compare consumes both paths to
+build a checker comparison in either mode. It does not transport an existing
+comparison forward. pi_inert_zero_projection_results_of_major_path proves
+all independent keep/select terminal combinations along a directed stage-zero
+major path, using only the source projection's sort typing and constructor
+opacity. This removes the typed-core-confluence assumption for that directed
+case; the earlier result for arbitrary common-major forks is not replaced.
+The variable_path_iff and variable_compare_iff theorems additionally prove
+exact readout and full checker equivalence at a literal sort-typed variable.
+
+The full PiInertPairTypeFieldSelection condition remains open. Arbitrary
+structural checker certificates still need an induction through surviving
+function wrappers, preserving the inferred body child and type-field check.
+The new square cannot justify generic forward beta closure. Positive-stage
+constructor expansions also remain outside this stage-zero result. The
+original weakN_iff sorry is unchanged; no sufficient smaller frontier or
+canonical-Eq counterexample is claimed. Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2, every Lean/Lake command in
+/dev/shm/native-level-coherence-work. Integration 1235 jobs; recursive audit
+9 roots, maximum closure 11,976; only propext/Classical.choice/
+Quot.sound and no forbidden strengthening or circular-frontier dependencies.
+All 1,210 frozen sources verified. Artifacts: /dev/shm/pi-inert-constructor-frames-*.
+Executable and UniqueTyping.lean unchanged.

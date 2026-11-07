@@ -24158,3 +24158,34 @@ Validation: 1234 integration jobs; 7 recursively audited roots;
 maximum closure 11,976; 1,209 frozen sources unchanged. Stock Lean
 v4.33.0-rc2 in /dev/shm/native-level-coherence-work only. Only standard axioms,
 no strengthening or forbidden circular dependencies. Executable unchanged.
+
+
+## 2026-11-07 16:03:18 UTC — Preserve selected fields through surviving stage-zero wrappers
+
+Verdict: proved a computation square and its directed-path checker consumer.
+The ordinary-core proof cannot be copied directly because a stage-zero path
+can leave a lambda-headed constant wrapper at its endpoint. Instead, remove
+the selected expansion at any spine prefix, track its surviving endpoint
+deletion and induct on the strictly reduced primitive count. Every path from
+a core-stable constructor then exposes that same constructor modulo finite
+administrative head deletions, preserving all argument paths and indices.
+
+For a sorted projection with an immediate iota, its selected field and any
+stage-zero residual meet by a stage-zero field path and an endpoint beta path
+followed by at most one iota. This proves comparison with that residual, and
+all terminal-selection combinations along a directed major path, without
+typed core confluence or normality of the field. Comparison with a literal
+sort-typed variable is additionally preserved and reflected by selection in
+both checker modes. These results allow arbitrary surviving wrappers.
+
+The arbitrary structural-major comparison is still open: the computation
+square alone does not transport a supplied comparison forward through its
+endpoint beta tail. A comparison induction retaining the live wrapper and
+its inferred body child is still needed. Do not assume generic beta closure
+or replace that induction with the stronger ordinary-equality conclusion.
+Original strengthening remains open; no smaller sufficient frontier claimed.
+
+Validation: 1235 integration jobs; 9 recursively audited roots;
+maximum closure 11,976; 1,210 frozen sources unchanged. Stock Lean
+v4.33.0-rc2 in /dev/shm/native-level-coherence-work only. Standard axioms only,
+no forbidden strengthening or circular dependencies. PR extraction deferred.
