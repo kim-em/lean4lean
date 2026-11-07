@@ -22,6 +22,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqInterleavedSupplyHist
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSaturatedEmptySupplyHistory
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqReturningSupplyHistory
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRecognizedSupplyReturn
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPendingSupplyHistory
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -73,6 +74,15 @@ recovers source equality by certificate descent and erasure reflection, restores
 the whole supplied spine and derives a strict smaller suffix minimum. Producing
 the recognized endpoint with the original pending images through all nested
 cuts remains open; the new theorem does not establish recursive closure.
+
+`EqPendingSupplyHistory` strengthens the wrapper history with each retained
+frame's actual typed argument supply and exact pending-vector transition.
+Realization preserves these records, and the actual supplied eta-origin split
+constructs them in its retained branch. With an empty enclosing pending vector,
+subsequent argument computation derives the chosen consumption square and
+rebuilds all surviving inner supplies. The returned waiting tail remains typed
+and separate; restoring it to a recursively returned whole body is still open.
+Raw wrapper concatenation alone does not prove that stronger invariant.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation

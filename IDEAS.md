@@ -20610,3 +20610,44 @@ Validation: 1079 build jobs, 198 recursively audited roots, maximum closure
 11,976; only propext, Classical.choice and Quot.sound. All 1,054 import
 source hashes stayed fixed. Lean/Lake ran only in the scratch worktree. No
 executable changes or PR extraction.
+
+
+## 2026-11-07 00:23:13 UTC — Tie retained wrappers to actual pending supplies
+
+**Idea:** `EqInterleavedSupplyHistory` carries chosen binder images and lambda
+wrappers but does not relate their raw waiting vectors to those images. Add the
+actual typed supply and its pending-vector equation to every retained frame;
+preserve that information through the same realization used for nested returns.
+
+**Verdict:** Implemented and checked in `ProofErasureEqPendingSupplyHistory`.
+`EqRetainedArgumentSupply` records local chosen images, actual lower terms,
+head-domain typing, exact raw extras and supplied++pending=y::remaining.
+`EqPendingSupplyHistory` threads pending vectors through chosen and unused
+frames. Its realization retains each supply's images and head typing at the
+computed outgoing domain. The actual supplied eta-origin split constructs the
+record in its retained branch. Further argument computation derives the exact
+chosen consumption square and rebuilds the surviving inner pending histories.
+The returned waiting tail remains typed in the restored base scope and has
+exactly the outgoing history's base pending images.
+
+**Constraint discovered:** The old `append_outer_arguments` theorem preserves
+raw wrappers but is not by itself a preservation theorem for this stronger
+record. Adding an actual waiting vector changes the base pending vector; when
+the outer retained frame originally had no arguments, the new head also needs
+typing at that frame's domain. Chosen target-image agreement does not supply
+that source typing. Do not forget the argument metadata and claim recursive
+closure after a raw wrapper join.
+
+Next candidate: realize the original whole native head-to-lambda path through
+its insertion chain; invert the realized lambda erasure, and use actual source
+application typing to type its waiting head at the recovered lambda domain.
+The recorded annotation path and nonproof erasure reflection can then align
+that recovered domain with the stored frame domain. Source inspection confirms
+`erase_lam_inv`, `ProofShape.liftN_lam_inv`, and `HasType.app_lam_arg` already
+exist. This domain-alignment route is not implemented in this commit. Complete
+recursive source-return/pending-tail restoration and GOAL.md remain open.
+
+Validation: 1080 build jobs, 215 recursively audited roots, maximum closure
+11,976; only propext, Classical.choice and Quot.sound. All 1,055 import
+source hashes stayed fixed. Lean/Lake ran only in scratch. No executable changes
+or PR extraction; no sufficient smaller PropFront obligation is claimed.

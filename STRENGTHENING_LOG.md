@@ -35931,3 +35931,70 @@ sorryAx, strengthening dependency or excluded circular framework; the original
 chosen-chain probe still excludes older nested-eta/frame/supply probe roots.
 All 1,054 import source hashes stayed fixed. Stock Lean/Lake ran only in scratch.
 No executable changes or PR extraction.
+
+
+## 2026-11-07 00:23:13 UTC — Pending argument metadata preserved across retained realization
+
+Added `ProofErasureEqPendingSupplyHistory.lean` and imported/documented it from
+the global eta body-cut module. The older history records scopes, chosen binder
+images, annotation paths and wrappers, but does not associate each wrapper's
+actual argument vector with its chosen image. The new record supplies that
+missing local association.
+
+`EqRetainedArgumentSupply` stores an `EqArgumentSupplyAt`, typing of a nonempty
+actual head at the retained domain, the equation supplied++pending=y::remaining,
+and the exact inserted erased vector plus upper extras. Extras require the
+enclosing pending vector to be empty. Its empty constructor handles an
+argument-free lambda whose image comes from enclosing pending arguments;
+`of_computed` derives the head typing from the source equalities retained by an
+actual eta origin. `frame` preserves this metadata under an agreeing supply
+square and annotation conversion. No native guarded path is substituted.
+
+`EqPendingSupplyHistory` threads pending vectors through the actual retained
+and unused frames. Unused insertion requires completed pending arguments.
+`forget` recovers the prior history without changing any source witness.
+Rebasing outgoing placeholders preserves all source supplies. Appending two
+histories requires their shared pending vector as well as their shared source
+scope. `realize_returning` rebuilds each outgoing annotation with a reflexive
+path and transports its actual argument supply with the same concrete lower
+and upper maps. Head arguments are converted to computed annotation domains;
+chosen images, pending vectors and binder counts are unchanged.
+
+`complete_head` proves that a retained chosen frame with empty enclosing pending
+vector has an actual lower head argument, typed at its domain and agreeing with
+its chosen image. `of_chosen_argument` builds the corresponding insertion square
+without requiring that image to be syntactically an original substituted term.
+`chain_compute` preserves the entire supply under actual argument paths, and
+`compute_consume_complete` reads the literal computed raw head/tail into the
+matching square and remaining typed supply. `EqPendingSupplyHistory.consume_complete`
+uses that derived square to realize all surviving inner records. Its wrapper
+equation keeps the exact waiting tail outside the returned body; the tail's
+chosen vector is the outgoing history's base pending vector.
+
+`EqSuppliedEtaContinuation.pending_history_or_consumed` connects the stronger
+history to the actual eta-origin split. The retained branch constructs the new
+frame from the computed vector, its original source equalities and native
+annotation path, preserving the actual body path, endpoint, continuation run
+and unrestricted strict minimum. The consumed branch retains its original
+complete witnesses unchanged. Empty local supply is supported by the new
+record's empty constructor; completed unused insertion is its unused constructor.
+
+Remaining gap: whole recursive return and reattachment of pending tails. Raw
+`append_outer_arguments` does not establish the new pending invariant. In the
+case where the outer retained frame initially had no arguments, a newly
+attached waiting head needs source-domain typing. Its target-image agreement
+alone cannot provide that typing. The next candidate is to recover it from the
+whole native head-to-lambda path: certificate realization, lambda erasure
+inversion, source application typing (`HasType.app_lam_arg`), and reflection
+against the separately computed annotation. This candidate is not proved here.
+The original weakN_iff sorry is unchanged. No strengthening proof, canonical-Eq
+counterexample or sufficient smaller PropFront obligation is claimed.
+
+Validation: 1080 successful build jobs including the global module and
+regression targets; 215 roots recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur, with no owned diagnostics, sorryAx,
+strengthening dependency or excluded circular framework. The original
+chosen-chain probe still excludes the older nested-eta/frame/supply probes.
+All 1,055 import source hashes stayed fixed. Stock Lean/Lake ran only in scratch.
+No executable changes or PR extraction.
