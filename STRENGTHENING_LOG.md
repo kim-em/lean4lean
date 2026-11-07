@@ -36703,3 +36703,51 @@ checked; no sorryAx, weakN_iff, or excluded circular framework dependency. Only
 propext, Classical.choice and Quot.sound occur. All 1,077 frozen import hashes
 stayed fixed. No owned diagnostics. Stock Lean/Lake ran only in scratch. No
 executable changes or PR extraction.
+
+
+### 2026-11-07 02:49:04 UTC — Exact live frames for rigid sort-valued computation
+
+Revalidated clean pushed HEAD 3a962e74. The previous goal turn was progress.
+Inspected the complete ComputedJointCheck grammar and the existing dependent
+rigid-demand observations. Full-union beta return is insufficient to identify
+the compared lambda at an application node. Inferred comparison excludes the
+common-only eta/body and structure constructors, but its application rules still
+recurse through carrier argument checks. Generic observation transfer across
+those checks is not already supplied by the existing computation readout.
+
+Added ProofErasurePiInertRigidSortFrames.lean and imported it from the global
+module. RigidSortFrames records a literal designated constant, a constant
+lambda application with a recursively framed body, or an identity application
+with a recursively framed argument. Every live payload has an actual sort
+assignment in its own raw context. Discarded arguments and annotations are
+unrestricted; the constant-body constructor does not assert syntactic absence
+of its binder. Proved typing, typed substitution, identity context transport,
+weakening, and beta return for the entire tree.
+
+The root classifier proves that a primitive on a rigid sort-valued constant
+can only change universes or add a constant/identity wrapper. Ordinary rigid
+root exclusion handles core and singleton rules; the bare constant cannot
+match an Eq prefix, and actual sort typing excludes function/structure eta.
+The main computation proof simultaneously retains value frames and frames in
+lambda bodies. Lambda annotation changes transport the already constructed
+frame data through actual typed context conversion. They do not require a
+context-transport theorem for guarded paths. Head beta consumes a constant
+frame using its actual argument context interpretation, or an identity frame
+by selecting its retained argument. The final theorem initializes the invariant
+from any actual rigid constant assigned a sort, not only empty structures.
+
+This is an unconditional source-recognition theorem under the stated ordinary
+canonical-Eq/soundness/rigidity hypotheses. It does not prove transfer across
+arbitrary computed comparison. The next comparison step must account for
+carrier arguments and opposite-side body computations under the comparison's
+left annotation. No general substitution or comparison-conversion law has
+been assumed. Strengthening, the original sorry, and the full GOAL.md objective
+remain open. No strict-smallness claim is made.
+
+Validation: 1103 successful build jobs, 315 recursively audited roots,
+maximum closure 12,048; only propext, Classical.choice and Quot.sound.
+The audit includes the new inductive and all public theorems, recursively
+checking types, values, constructors and recursors for sorryAx, weakN_iff and
+the excluded circular frameworks. All 1,078 frozen source hashes remained
+unchanged, with no owned diagnostics. Stock Lean/Lake ran only in scratch.
+No executable changes or PR extraction.

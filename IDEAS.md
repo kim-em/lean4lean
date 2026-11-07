@@ -21012,3 +21012,23 @@ law. In particular, arbitrary common comparison is not a directed join and has
 not been promoted to one. The original strengthening obligation remains open.
 Validation: 1102 build jobs, 306 recursive audit roots, maximum closure
 12,048; only propext, Classical.choice and Quot.sound.
+
+
+### 2026-11-07 02:49:04 UTC — Retain rigid-sort administrative frames for comparison: proved source invariant
+
+The guarded unit-return result loses the lambda/argument structure encountered
+by recursive comparison. A rigid constant assigned a sort has a sharper
+Pi-inert invariant: every live head remains that constant behind constant or
+identity beta wrappers. Implemented RigidSortFrames with actual sort typing
+at each live payload and proved closure under arbitrary Pi-inert computation.
+Constant bodies may use their binder in discarded arguments or annotations;
+no false syntactic unused-binder condition is imposed. The invariant retains
+its exact tree under future typed substitutions and interpreted context changes.
+
+Verdict: constructive progress toward the expanded comparison case. The
+comparison-to-exposure theorem remains open. A comparison may recursively
+compare arguments through a carrier or compute the opposite body in the left
+lambda's annotation context. Neither arbitrary argument substitution nor
+transport of those computation paths is supplied by this frame theorem.
+Validation: 1103 jobs, 315 audited roots, maximum closure 12,048;
+only propext, Classical.choice and Quot.sound. GOAL.md remains active.
