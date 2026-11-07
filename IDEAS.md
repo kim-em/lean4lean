@@ -23969,3 +23969,38 @@ frontier claimed. PR extraction remains deferred.
 Validation: 1228 integration jobs, 9 audited roots, maximum recursive
 closure 11,976; only propext/Classical.choice/Quot.sound; 1,203 frozen
 sources. Artifacts: /dev/shm/projection-exposure-*.
+
+
+## 2026-11-07 15:15:12 UTC — Surviving projection wrappers and synchronized terminal results
+
+**Idea.** Keep explicit endpoint deletion traces instead of requiring a
+non-lambda-headed output when bypassing administrative root expansions.
+**Verdict: checked unrestricted projection factorization.** Constant and
+identity head deletion already simulate counted Pi-inert paths. Recording
+their finite composition makes the earlier primitive-count induction work
+for every output shape. The major prefix retains its scope and finite stage;
+the resulting output is reached by explicitly tracked beta deletions. There
+is no assumption that arbitrary fields or recursive definitions normalize.
+
+A second checked result synchronizes two such factorizations when the input
+sorted projections reach the same raw output. Raw beta confluence joins the
+two endpoint deletion traces. Moving those beta tails into the selected
+constructor arguments (or the retained projection majors) yields a common
+terminal result. The paths may use different finite stages. Consequently,
+existence of a common projected computation is equivalent to existence of
+same-stage major computations with a shared ProjectionResult, with no output
+shape restriction and no core-confluence premise.
+
+This settles surviving output wrappers for the projection computation and
+computation-to-reflexivity factorization. It does not transport an arbitrary
+ComputedJointCompare certificate through beta or iota, and does not prove
+PiInertPairTypeFieldSelection. The next issue is structural comparison of
+the terminal results, particularly the carrierChecked/carrierNested cases;
+the synchronized common-result theorem supplies the reflexivity case, not
+all comparison constructors. weakN_iff and the principal strong transport
+cases remain open; no strictly smaller sufficient frontier is claimed.
+PR extraction remains deferred.
+
+Validation: 1229 integration jobs, 11 recursively audited roots,
+maximum closure 11,976; only propext/Classical.choice/Quot.sound;
+1,204 frozen sources. Artifacts: /dev/shm/projection-frames-*.

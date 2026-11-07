@@ -39682,3 +39682,43 @@ Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution in
 Quot.sound and no forbidden strengthening or circular-frontier dependencies;
 1,203 frozen sources verified. Artifacts: /dev/shm/projection-exposure-*.
 Executable and UniqueTyping.lean unchanged; goal active.
+
+
+## 2026-11-07 15:15:12 UTC — Factor projection paths through surviving administrative frames
+
+Added ProofErasurePiInertProjectionFrames.lean and its aggregator import.
+IdentityHeadDeletion.reduce supplies the exact compatible beta path for a
+tracked identity deletion. AdministrativeHeadDeletion records finite chains
+of constant and identity head deletions, proves their beta realization, and
+proves endpoint equality when the original output has no lambda head.
+
+pi_inert_expansion_count_bypass_frames simulates an administrative expansion's
+tail without an output-shape premise, with a non-increasing primitive count
+and a recorded output deletion. Source typing of the expanded target comes
+from typed replay of the actual root primitive. Strong induction on the
+outer primitive count then yields pi_inert_sorted_projection_frames_count:
+a retained projection or a selected field, modulo a finite deletion trace.
+Moving the full selected-field tail into its constructor argument gives
+pi_inert_sorted_projection_terminal_frames. No normalization or generic
+forward comparison closure is used.
+
+ProjectionResult.beta_tail moves endpoint beta computation into the major.
+Raw beta confluence synchronizes two independently obtained deletion traces
+from a common projection output. pi_inert_sorted_projection_common_terminal
+retains both original finite stages and a beta path from that original common
+output. Its iff characterizes common projection computations by major paths
+and a shared terminal result. This is an unconditional result about finite
+sorted projection computation, not a new assumed frontier.
+
+Remaining: general structural comparison certificates at the terminal
+results, the open field-selection condition, and the original strengthening
+goal. The result does not justify forward beta/iota closure of the checker;
+the proposition-only beta boundary remains applicable. No strictly smaller
+sufficient obligation is claimed. PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution in
+/dev/shm/native-level-coherence-work. Integration 1229 jobs, recursive audit
+11 roots with maximum closure 11,976; only propext/Classical.choice/
+Quot.sound, no forbidden strengthening or circular-frontier dependencies.
+All 1,204 frozen sources verified. Artifacts: /dev/shm/projection-frames-*.
+Executable and UniqueTyping.lean unchanged; goal active.
