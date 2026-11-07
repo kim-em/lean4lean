@@ -40951,3 +40951,69 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 Quot.sound, no sorryAx or forbidden strengthening/circular-frontier dependencies.
 All 1,280 frozen source hashes verified before/after. Artifacts:
 /dev/shm/pi-inert-replay-minimum-*.
+
+
+## 2026-11-07 18:50:11 UTC — Retain original type-field ancestry in the pair body frontier
+
+The previous response only corrected a conversation misunderstanding and made
+no research progress. This turn rechecked GOAL.md, the clean worktree and HEAD
+b6a4d1ef, then pursued the original-field restriction left by the registered
+minimum replay counterexample. Work remained local theory research; no PR was
+extracted.
+
+Added ProofErasurePiInertConstructorFieldAncestry.lean. The general theorem
+TypedSource.structure_constructor_saturated replays a native structure guard
+to an actual family assignment, inverts the source/type erasures, and applies
+projection_major_family. It obtains exact constructor arity without assuming
+the guard's family equals the constructor's registered family. Consequently
+CountedEtaBodySpineCut.unsaturated_function_root excludes structure eta when
+the original prefix plus the fresh argument is shorter than that arity. It
+retains all witnesses of the selected cut, including its two minima, exact
+counts, typed root and interpreted consuming argument.
+
+pi_inert_lifted_component_count_descend realizes the eta domain in an actual
+context and applies primitive-count descent through the one-binder weakening.
+Its endpoint is the lift of a typed original-scope term, with the same finite
+stage and primitive count. Instantiation at every raw argument returns that
+same endpoint; neither the raw argument nor its type needs a native certificate.
+pi_inert_single_field_eta_body_ancestry applies this to the supplied field and
+uses Pi-inert proof/bvar rigidity for the eta slot. The first-root component
+vector is exactly [lift short, etaArgument u].
+
+CountedEtaBodySpineCut.single_field_structure_ancestry shows that a structure
+root at this vector has no pending body arguments: constructor saturation
+forces it to be the full pair. ConstructorEtaFieldRoot combines the two
+positions. The function-eta branch retains its earlier native guard. The
+structure branch records a singleton original prefix, a typed original-scope
+field computation, the exact lifted-field/fresh-slot source, and its actual
+earlier native structure guard. CountedEtaBodySpineCut.pair_field_ancestry
+constructs this refinement from the typed prefix and its arity bound.
+
+PairFunctionEtaBodyMinimum now accepts an optional root refinement, defaulting
+to its previous ConstructorEtaBodyRoot. Its existing construction and clients
+retain their original interface. PairFunctionEtaBodyMinimum.field_ancestry
+extracts the needed prefix/field typing from the actual reachable pair and
+prefix computation; it does not ask callers for that typing. The final theorem
+proofErase_pi_inert_pair_projection_readout_or_field_ancestry derives the
+refined minimum directly from the existing exposed projection computation.
+The global Eq-exposure integration module imports the new results.
+
+Judgment: the earlier arbitrary projection/Box replay counterexample does not
+by itself address this constructor ancestry restriction. The checked result
+rules out structure eta at the first empty-prefix body cut and confines the
+single-field structure case to a full pair with its original type-field origin.
+It does not prove that every later nested frame preserves this origin, nor
+that a guarded suffix substitutes, nor that the entire positive-stage pair
+readout holds. The exact per-component descent theorem also does not yet bound
+the count of the uncounted HA component path by the selected prefix budget.
+A counted first-root component decomposition and recursive continuation
+ancestry remain concrete next steps. weakN_iff and the full goal remain open;
+no strengthening counterexample or sufficient smaller global frontier claimed.
+Executable and UniqueTyping.lean unchanged.
+
+Validation: all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work with stock Lean v4.33.0-rc2. Integration
+1306 jobs; recursive inductive-body audit 15 roots, maximum closure
+11,978; only propext/Classical.choice/Quot.sound, no sorryAx or forbidden
+strengthening/circular-frontier dependencies. All 1,281 frozen source hashes
+verified before/after. Artifacts: /dev/shm/pi-inert-field-ancestry-*.

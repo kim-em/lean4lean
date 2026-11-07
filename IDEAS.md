@@ -24704,3 +24704,36 @@ field through the constructor's first-parameter versus value-parameter eta
 cases, rather than trying another unrestricted minimum replay lemma.
 Validation: 1305 jobs, 6 recursive audit roots, maximum closure
 11,978; standard axioms only; 1,280 frozen source hashes verified.
+
+
+## 2026-11-07 18:50:11 UTC — Original type-field ancestry restricts constructor eta
+
+**Idea.** Distinguish eta before the pair's type argument from eta after it,
+instead of attempting blanket guarded substitution replay, which the previous
+registered counterexample refutes even under a global typed minimum.
+
+**Checked verdict.** A typed registered constructor with a native structure
+expansion guard is saturated, even when the guard names an initially unrelated
+family. Therefore the body of eta at the empty constructor prefix cannot have
+a structure root: only nested function eta remains. With a single original
+field supplied, every Pi-inert computation of its lift descends to the original
+scope at the exact same stage and primitive count; the fresh eta slot is fixed.
+A structure root on this body must consume the full two-argument spine and
+retain a lifted old-scope field. These facts refine the actual globally selected
+pair body minimum and the pair-projection readout theorem, preserving the
+selected cut and continuation. No independent field-typing premise is needed
+by the final readout theorem.
+
+**Remaining gap.** This does not transport the guarded root or its arbitrary
+suffix through beta. Recursive nested eta and the subsequent projection
+continuation still need an ancestry invariant. Exact count descent is proved
+for individual component paths, but the existing first-root cut's component
+relation is uncounted; charging original-field progress against that cut's
+prefix budget is a separate next step. This local refinement is not yet a
+sufficient irreducible global obligation smaller than PropFront. Goal active;
+PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work;
+1306 integration jobs, 15 audited roots, maximum closure 11,978.
+Only propext/Classical.choice/Quot.sound; no forbidden dependencies. Frozen
+source closure verified before/after; artifacts /dev/shm/pi-inert-field-ancestry-*.

@@ -46,7 +46,9 @@ a strictly smaller minimum body/continuation cut. The body can end at arbitrary
 syntax; its guarded root is nested function or structure eta. Handling those
 roots across the retained endpoint substitution remains open. -/
 def PairFunctionEtaBodyMinimum (D : Definitions) (Γ : List VExpr)
-    (family : Name) (info : VProjectionInfo) (source out : ProofShape) : Prop :=
+    (family : Name) (info : VProjectionInfo) (source out : ProofShape)
+    (Root : List ProofShape → List ProofShape → VLevel → Nat → List ProofShape →
+      ProofShape → ProofShape → Prop := fun _ _ _ => ConstructorEtaBodyRoot D) : Prop :=
   ∃ m field value major result stage cost pre pending A B u k before after,
     env.HasType univs Γ m (.const family []) ∧
     (∃ reachStage, ScopedCompute (PiInertStage D reachStage) (proofEraseCtx Γ) source (proofErase Γ m)) ∧
@@ -69,7 +71,7 @@ def PairFunctionEtaBodyMinimum (D : Definitions) (Γ : List VExpr)
       (ProofShape.mkApps (.lam A (.app ((ProofShape.mkApps (.const info.ctorName []) pre).liftN 1)
         (etaArgument u))) pending) major ∧
     CountedEtaBodySpineCut D stage (proofEraseCtx Γ) info.ctorName [] pre A u pending major after
-      (ConstructorEtaBodyRoot D) ∧
+      (Root (proofEraseCtx Γ) pre u) ∧
     Primitive D (.proj family 0 major) result ∧
     ∃ tailStage, ScopedCompute (PiInertStage D tailStage) (proofEraseCtx Γ) result out
 
