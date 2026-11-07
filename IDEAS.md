@@ -25353,3 +25353,37 @@ PR extraction remains deferred. Validation: 1330 integration jobs, 6
 public audit roots, maximum dependency closure 11,981; stock Lean
 v4.33.0-rc2 in /dev/shm/native-level-coherence-work, 1,305 frozen source hashes,
 no sorryAx or forbidden strengthening/circular-frontier dependencies.
+
+
+## 2026-11-07 21:55:52 UTC — Track the supplied field through its actual consuming frame
+
+Idea: the fresh type field is not yet an ambient field, but its exact image
+under the recorded consuming substitution is known. Verdict: checked and
+connected to the actual empty-prefix CountedEtaBodySpineCut. Under a retained
+telescope of depth d, bvar d maps to x.liftN d when the outer type binder is
+consumed by x. Focusing that actual suffix preserves the retained depth,
+removes its application frame, and never substitutes the earlier guarded path.
+
+The nested root from b6e47494 has already supplied the fresh type field and
+has no pending arguments. Its value eta consequently remains a lambda.
+Reading its actual body in the original value-binder context yields a full
+pair with type field bvar 1. If its body endpoint retains constructor
+components, the consuming outer frame activates the exact supplied type x
+and produces a smaller pair minimum under one binder. If there is a first
+non-level root instead, sorted-observer deletion leaves native function or
+structure eta with its actual smaller observed execution.
+
+The global cut adapter derives original-field -> x and its primitive charge
+from the outer component and argument paths. That charge remains reserved
+in either branch. The new PiInertFreshFieldObservedRoot records the exact
+future argument x, retained value-domain path, actual suffix and all-raw
+minimum; forgetting x would lose the link needed by recursive field ancestry.
+Its forget theorem recovers the existing ordinary observed root.
+
+Remaining: recursive native-root readout below the two temporary binders,
+including deeper retained prefixes, plus the other original-field/structure
+cases. The component branch now joins the existing one-binder ambient-field
+problem. No sufficient irreducible global replacement for PropFront or proof
+of weakN_iff is established. Goal active, PR extraction deferred. Validation:
+1332 integration jobs, 6 audited public roots, maximum closure
+11,981, 1,307 frozen source hashes; stock Lean v4.33.0-rc2 in /dev/shm.

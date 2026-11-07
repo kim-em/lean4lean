@@ -41964,3 +41964,72 @@ Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,305 source hashes checked before and
 after validation. Artifacts: /dev/shm/pi-inert-fresh-field-eta-component-*.
+
+
+## 2026-11-07 21:55:52 UTC — Activate the original field at the supplied fresh-field cut
+
+The previous goal turn made checked progress in b6e47494. Added
+ProofErasurePiInertFreshFieldActivation.lean and
+ProofErasurePiInertFreshFieldCutActivation.lean, imported by the global
+eta-body aggregate. This turn followed the now-supplied fresh type field
+through the enclosing binder's actual consuming application.
+
+The fresh_field_application_progress theorem specializes the existing
+retained-prefix focus to the exact substitution (one x).liftN depth. A first
+field bvar depth becomes x.liftN depth. The target telescope has the same
+length, the application frame disappears, and the actual suffix's primitive
+cost does not increase. There is no requirement that the fresh field was
+already an ambient lift and no transport of the preceding guarded path.
+
+The retained value-body analysis starts at constructor [bvar 1, etaArgument v]
+below the type and value binders. Its actual continuation retains the value
+lambda, then consumes the type binder with x. Constructor component readout
+fixes bvar 1, so the next actual suffix yields a smaller pair minimum at
+constructor [x.liftN 1, value'] under one binder above the observer. In the
+non-component branch, the actual sorted observer through both frames excludes
+constant and identity expansion, leaving native function/structure eta. Its
+component prefix, native root, selected endpoint and observed budget are kept.
+
+PiInertFreshFieldObservedRoot strengthens this remaining witness by recording
+its precise future x, original/computed value domain, retained lambda, typed
+consuming map, suffix computation, tail frames, and unrestricted competitor
+minimum. The ordinary observed-root witness alone would hide the connection
+between the temporary field and x; the new witness retains that connection.
+Its forget theorem reconstructs the existing projection continuation from
+the recorded domain path and actual retained/application frames.
+
+CountedEtaBodySpineCut.empty_pair_prefix_activation_or_root connects the new
+analysis to the SAME global cut. The previous supplied-field theorem fixes
+the nested source to constructor applied to the fresh slot. Component length
+then forces the pending vector to be empty. The inner eta cannot consume an
+argument in this scope, so its selected path retains a lambda. Native lambda
+readout gives its exact original-scope body path and domain cost. The actual
+outer beta supplies the typed application of that lambda after substituting x.
+
+The adapter composes the two recorded argument vectors to derive a counted
+path from the original type field to x; its charge is bounded by the outer
+component budget plus the argument budget. An arbitrary competing inner body
+and later suffix are replayed inside both original eta wrappers, including
+their original prefix and annotations. Global minimum therefore supplies
+the inner body's unrestricted minimum. The original field charge plus the
+remaining component minimum is strictly below the original budget; in the
+native-root branch that same charge is reserved in budget-charge, with x
+explicitly retained in the root's future continuation. No native certificate
+for x at an arbitrary recovered domain is introduced.
+
+Judgment: the component branch of the fresh-type-field case now transfers into
+the existing one-binder ambient-field minimum with bounded original-field
+history. The other branch has a smaller native-root execution below both
+binders and an explicit future supplying argument. Recursive readout through
+that root, deeper retained prefixes, and the other field/structure cases are
+still open. Executable and UniqueTyping.lean unchanged; original sorry remains.
+No canonical-Eq counterexample or sufficient irreducible global obligation
+strictly smaller than PropFront has been established. Goal remains active;
+PR extraction remains deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1332 jobs; recursive audit
+6 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,307 source hashes verified before and
+after final validation. Artifacts: /dev/shm/pi-inert-fresh-field-activation-*.
