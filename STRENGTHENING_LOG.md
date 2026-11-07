@@ -38424,3 +38424,39 @@ Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
 /dev/shm/demand-exposure-boundary-*. Stock v4.33.0-rc2 Lean/Lake ran only in
 /dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
 PR extraction remains deferred.
+
+
+## 2026-11-07 10:33:52 UTC — Guarded demand interfaces and native cast action
+
+Added ProofErasurePiInertDemandGuardedExposure.lean and its aggregator import.
+TypedAt.world_computation transports assigned operands to a guarded output
+interface by typed realization of the computation square. PiInertGuardedDemand
+retains selected assignments, guarded exposure and full finite interface action.
+It moves through core worlds, reads out selected ground history, composes
+guarded prefixes and changes interfaces through certified core joins.
+
+Application uses the retained interface and constructs its dependent result
+source. app_guarded additionally aligns the right result's assignment with
+the left dependent carrier, returning a guarded value for further calls.
+Finite reference-tree conversion can change the interface when both exposures
+are retained; the StrongBounded selected-type bridge uses the original children
+and an explicit guarded prefix rather than manufacturing one from equality.
+
+Native recovery constructs action after composition with guarded type
+computation. The actual-environment cast theorem constructs every finite
+interface demand for a non-proof native function declared at the obstructing
+free-major reflexive Pi cast, while excluding all ordinary-core arrow
+exposures for that selected carrier. The stage-one path is constructed from
+reflexive comparison, and no demand for the native function is assumed.
+
+General guarded exposure/action coverage for arbitrary strong derivations
+remains open. The new retained representation is not asserted equivalent to
+a bare demand at the selected alias. The original strengthening sorry remains;
+no smaller-than-PropFront sufficient obligation is claimed.
+
+Integration passed 1182 jobs. Recursive audit covered 15 public/probe
+roots, maximum closure 12,648, only propext, Classical.choice and
+Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
+/dev/shm/demand-guarded-exposure-*. All Lean/Lake commands used stock v4.33.0-rc2
+in /dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
+PR extraction remains deferred and GOAL.md remains active.

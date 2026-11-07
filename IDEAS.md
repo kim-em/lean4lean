@@ -22683,3 +22683,58 @@ recursive dependency closure 12,557; only propext, Classical.choice and
 Quot.sound. Frozen sources and owned diagnostics checked. All Lean/Lake used
 stock v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
 UniqueTyping.lean unchanged; no PR extraction. The goal remains active.
+
+
+## 2026-11-07 10:33:52 UTC — Guarded selected carriers retain explicit finite-demand action
+
+Previous goal turn: progress, committed as ccb6eac0. Ordinary-core exposure
+completeness is refuted, so this turn retains guarded exposure together with
+the action needed at its actual output interface. It does not silently extend
+the old demand's core-alias tests to arbitrary guarded paths.
+
+TypedAt.world_computation constructs actual assignments at a retained guarded
+output. The computation square gives a guarded source path and ordinary-core
+output tail. Typed realization and reflection at their common erasure align
+actual carriers, without asserting an ordinary-core join of their inputs.
+
+PiInertGuardedDemand retains actual assignments at the selected carrier, an
+existential finite-stage core-world computation to an explicit interface, and
+the full finite demand at that interface. of_value embeds ordinary assigned
+demands. move retains all three pieces in future core worlds; base returns
+complete ground history at the selected carrier by guarded carrier-prefix
+composition. interface_assignments recovers the actual interface assignments.
+prefix preserves the interface and action through another guarded selected-
+type prefix. interface_core_join changes the interface by a proved core join.
+
+The app rule consumes the interface's argument demand despite non-Pi selected
+syntax and constructs the dependent result typing from actual assignments.
+app_guarded also assigns the right result at the left dependent carrier using
+retained argument equality, returning a new guarded value for further
+higher-order calls. convert_interface integrates finite reference-tree
+conversion with independently retained old/new guarded exposures. The original
+StrongBounded conversion bridge retains the original children and a separately
+supplied guarded path from the new selected carrier to the old one.
+
+The native construction is substantive: it does not assume that a bare source
+demand at an opaque alias supplies action. It starts from native recovery,
+composes that recovery with the guarded computation, and only then builds all
+finite demands at the exposed interface. EnvironmentCore.native_cast_guarded_demand
+constructs this for a non-proof native function declared at a free-major
+reflexive Pi cast. The stage-one path is built from reflexive type comparison;
+no function demand or exposure certificate is assumed. The same theorem proves
+ordinary-core arrow exposure impossible for the selected cast carrier.
+
+Verdict: guarded exposure now retains usable higher-order action and assigned
+application results, with a checked repair of the previously obstructing
+native cast case. Ground projection alone is not claimed to recover arbitrary
+interface action. General construction/composition of guarded exposure and
+action for arbitrary strong derivations remains open, as do unrestricted
+reference types and full demand-profile coverage. No strengthening proof,
+canonical-Eq counterexample, or sufficient irreducible obligation proved
+strictly smaller than PropFront is claimed.
+
+Validation: 1182 integration jobs; 15 public/probe roots; maximum
+recursive dependency closure 12,648; only propext, Classical.choice and
+Quot.sound. Frozen sources and owned diagnostics checked. All Lean/Lake used
+stock v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
+UniqueTyping.lean unchanged; no PR extraction. GOAL.md remains active.
