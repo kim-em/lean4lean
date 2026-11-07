@@ -24047,3 +24047,42 @@ remains deferred.
 Validation: 1230 integration jobs, 9 recursively audited roots,
 maximum closure 11,976; only propext/Classical.choice/Quot.sound;
 1,205 frozen sources. Artifacts: /dev/shm/projection-opacity-*.
+
+
+## 2026-11-07 15:37:52 UTC — Retain type arguments in inferred constructor comparisons
+
+**Idea.** Strengthen stable-head exposure from head/arity information to the
+actual type-argument comparison needed after contracting pair projections.
+**Verdict: checked structural readout for the full inferred core checker.**
+A unary constant spine with a head-stable descending primitive relation
+retains common comparison of its independently sort-typed arguments. Ordinary
+application supplies it directly. A recovered-domain application reconstructs
+the selected actual domain and checks the left argument at that domain;
+carrier checking of sort-typed endpoints then gives ordinary comparison.
+A computed-lambda application at the constant itself is impossible by head
+stability. Arbitrary computation prefixes retain their component argument
+paths, and recursive comparison at the residual arguments pulls back along
+those paths. Symmetry is included.
+
+The result extends to binary spines: comparison of the function prefixes
+recovers the first type argument, independently of the second value argument
+and its carrier guard. The proof allows all three application rules, nested
+carrier evidence and arbitrary compatible computations. For actual closed
+dependent-pair constructors, the registered projection typing supplies the
+first argument's sort, and constructor rigidity plus no selected constructor
+unfolding discharges head stability. Thus inferred core comparison yields
+comparison of both already-selected type fields, not just comparison of their
+uncontracted projections. No forward beta/iota checker closure is assumed.
+
+This settles an actual structural subtree: the inferred major comparison
+used by a projection-comparison rule, with both majors displayed as pair
+constructors. It does not handle common-mode structFields at the outer record,
+carrierIntro/carrierNested field certificates, or administrative expansion
+primitives that fail literal head stability. Those are the next cases for the
+mutual comparison/selection induction. The open selection law and weakN_iff
+remain unproved; no strictly smaller sufficient frontier is claimed.
+PR extraction remains deferred.
+
+Validation: 1231 integration jobs, 5 recursively audited roots,
+maximum closure 11,976; only propext/Classical.choice/Quot.sound;
+1,206 frozen sources. Artifacts: /dev/shm/constructor-type-readout-*.

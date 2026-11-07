@@ -39765,3 +39765,47 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution in
 Quot.sound, no forbidden strengthening or circular-frontier dependencies.
 All 1,205 frozen sources verified. Artifacts: /dev/shm/projection-opacity-*.
 Executable and UniqueTyping.lean unchanged; goal active.
+
+
+## 2026-11-07 15:37:52 UTC — Read type fields through inferred constructor-prefix checking
+
+Added ProofErasureConstructorTypeReadout.lean and its aggregator import.
+recovered_application_type_arguments_checked reconstructs a recovered actual
+Pi domain from a typed left application. A sort-typed representative of its
+argument is aligned by nonproof erasure reflection; the actual carrier typing
+then converts the recursive carrier guard to ordinary common comparison.
+The right endpoint only needs its independent sort-typing witness. The
+primitive relation remains unchanged.
+
+computed_stable_unary_type_argument follows the full computed checker at
+inferred mode. Root application and recovered-domain application retain type
+argument comparison. Head stability excludes a computed lambda at the bare
+constant. Compatible computation of both unary spines preserves their empty
+universe lists and yields separate argument paths; actual source typing and
+sort typing replay along these paths, so the inductive result pulls back to
+the original type arguments. Common-mode-only constructors are excluded by
+the kind index, not silently omitted.
+
+computed_stable_binary_type_argument retains that readout beneath a second
+application, including all three application rules and arbitrary computation
+prefixes. proofErase_core_pair_constructor_type_fields specializes it to
+actual dependent-pair constructors. It derives both selected type-field
+witnesses using the registered projection typings and actual iota steps, and
+checks the stable-head premise using constructor rigidity and absence of
+selected constructor unfoldings. The final endpoints are the selected fields
+with both projection redexes removed.
+
+Scope: the input is inferred comparison in the ordinary level core. This is
+a proved structural case relevant to the proj rule; it is not the general
+common-mode carrier selection law. Outer structFields, recursive projected
+carrier certificates and expansion-stage computations still need the mutual
+selection argument. No generic forward comparison closure, new frontier
+assumption, or strengthening theorem is used. GOAL.md remains unmet and PR
+extraction remains deferred.
+
+Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution in
+/dev/shm/native-level-coherence-work. Integration 1231 jobs; recursive audit
+5 roots, maximum closure 11,976; only propext/Classical.choice/
+Quot.sound, no forbidden strengthening or circular-frontier dependencies.
+All 1,206 frozen sources verified. Artifacts: /dev/shm/constructor-type-readout-*.
+Executable and UniqueTyping.lean unchanged; goal active.
