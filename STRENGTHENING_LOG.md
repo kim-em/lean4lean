@@ -37221,3 +37221,56 @@ constructors and recursors are traversed. No sorryAx, weakN_iff or excluded
 circular-framework dependency. All 1,090 frozen source hashes remained unchanged;
 no owned diagnostics. Stock Lean/Lake ran only in scratch. No executable changes
 or PR extraction. GOAL.md remains active.
+
+
+### 2026-11-07 04:53:51 UTC — Complete structural frame readout at stage zero
+
+Added ProofErasurePiInertZeroFrameReadout.lean and imported it from the global
+module. Its private readout theorem is one induction over the original full
+ComputedJointCheck grammar. The motive retains both directions of TypeCase,
+FunctionCase and CarrierCase. These clauses have actual endpoint typings,
+exact erasure/context identities and the relevant source frames; the result is
+a complete target carrier history for arbitrary raw endpoints.
+
+Application handling uses the function IH for a constant frame and the argument
+IH for an identity frame. ArgumentRecovery supports both native Pi recovery and
+raw lambda computation. Actual application typing recovers an argument at that
+carrier. The reverse application case retains recovery on the opposite endpoint,
+which is why CarrierCase permits either actual carrier typing. All three
+application constructors are covered.
+
+Lambda and sorted-lambda rules use the body IH directly in the rule's recorded
+context, with ordinary typing/frame transport across equal domains. Typed eta
+preserves the target body frames. Computation replays both actual endpoints,
+retains source frames, invokes the corresponding IH and prefixes its target
+history with a stage-zero computation certificate. CarrierChecked invokes the
+comparison IH; carrierCompute/carrierReduce retain their actual typings through
+replay. Structure/function carrier cases contradict the supplied sort typings.
+Symmetry exchanges the simultaneous orientations.
+
+Four public results expose the completed proof:
+
+- RigidSortFrames.zero_compared_history constructs the complete history of an
+  actual type compared with a unit-framed source in either checking mode.
+- zero_compared_function_application_history constructs the history of the
+  original actual application of a function compared with a framed lambda.
+- zero_carrier_compared_history covers carrier checking at independently
+  sort-typed endpoints with either endpoint's actual carrier assignment.
+- pi_inert_zero_compared_unit_carrier_history specializes to a literal nullary
+  empty structure type, allowing arbitrary administrative frames in the check.
+
+No missing body history is assumed. The proof uses the original structural
+induction hypotheses, not a claim that the previously extracted existential cut
+is smaller. Every result retains future typed substitutions and independent
+carrier/endpoint reductions at any requested finite output stage. Input checking
+is stage zero. Positive-stage guard histories and arbitrary carrier conversion
+are not supplied by this theorem; the original weakN_iff sorry remains open.
+
+Validation: 1116 successful integration-build jobs, 376 recursively
+audited roots, maximum closure 12,048; only propext, Classical.choice
+and Quot.sound. All four public results are audit roots, with the complete
+private simultaneous induction, helper definitions, types, values, constructors
+and recursors traversed. No sorryAx, weakN_iff or excluded circular-framework
+dependency. All 1,091 frozen source hashes remained unchanged; no owned
+diagnostics. Stock Lean/Lake ran only in scratch. No executable changes or
+PR extraction. GOAL.md remains active.

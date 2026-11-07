@@ -21275,3 +21275,36 @@ identity readout. Computation uses raw stage-zero certificates. Lambda rules use
 the body IH in their recorded domain, transporting only typing/frame data.
 Validation: 1115 jobs, 372 audited roots, maximum closure 12,048;
 only propext, Classical.choice and Quot.sound. GOAL.md remains active.
+
+
+### 2026-11-07 04:53:51 UTC — Simultaneous stage-zero comparison-to-history induction: proved
+
+Implemented the planned structural induction on ComputedJointCheck, with both
+orientations of three simultaneous clauses: sort-framed type comparison,
+inferred function comparison with a framed lambda body, and carrier checking
+at independently sort-typed endpoints with either actual carrier typing.
+The function clause makes constant applications use their function IH; identity
+applications use their argument IH and the typed identity readout. Native and
+computed domains supply the actual carrier assignment needed by the argument
+IH, including the opposite orientation of application. Carrier checking is
+handled directly in the same induction, not by a transformed recursive call.
+
+All constructors are discharged. Lambda rules consume their actual body IH in
+the recorded domain; typed eta preserves frames. Computation uses stage-zero
+core-join certificates and frame preservation. Sort-typed endpoints exclude
+structure/function carriers. No existential-cut descent, pre-existing target
+history, universal application closure, or recursive body-coverage assumption
+is used.
+
+Verdict: the stage-zero raw comparison-to-history problem for unit-framed
+sources is closed. In either checking mode, a compared actual type receives a
+complete carrier history at any requested output stage. The simultaneous
+function result covers its original actual target application, and the carrier
+result covers all argument-checking constructors. Comparison with a literal
+nullary empty structure is a public special case. This does not prove arbitrary
+carrier-history synthesis or positive-stage raw-path certification; those need
+additional information about guarded roots and assigned carriers. The known
+unrestricted application/PropFront lower bound remains relevant. No completion
+or strict-smallness claim for GOAL.md.
+Validation: 1116 jobs, 376 audited roots, maximum closure 12,048;
+only propext, Classical.choice and Quot.sound. GOAL.md remains active.
