@@ -21340,3 +21340,35 @@ non-unit index evidence rather than assume arbitrary carrier conversion.
 Validation: 1119 successful integration jobs, 380 audited roots, maximum
 closure 12,394; only propext, Classical.choice and Quot.sound. No executable
 changes or PR extraction; GOAL.md remains active.
+
+
+### 2026-11-07 05:14:49 UTC — Proposition-only beta repair still contains PropFront: proved lower bound
+
+Tested the next proposed generalization of stage-zero frame readout: retain only
+actual sort typing, then reconstruct raw comparisons after beta reduction at an
+arbitrary finite output stage. Restricted even further to propositions, the
+resulting obligation FinitePiInertPropositionBeta already implies PropositionFront
+in a canonical-Eq environment with a closed positive empty structure. No future
+substitution or fixed output stage is required in this missing law.
+
+The current ComputedJointCheck grammar has a new exact neutral readout: comparing
+f x and f y, when f is a variable with native Pi domain B, supplies a carrier guard
+at B. Computed-lambda application cannot evade this because Pi-inert computation
+fixes a bare variable; sort-root primitives cause no exception. A displayed eta
+wrapper with assigned domain A uses appComputed and an A guard at stage zero.
+One beta step exposes the native B guard. Taking A to be a unit and B to be the
+lifted Eq type probe forces structural exposure and hence the lower proposition
+equation, by the completed recognizer. All observer and proof binders are
+constructed in the closed-unit theorem; none is removed by strengthening.
+
+Verdict: restricting inputs to actual propositions is not a strict-smallness
+argument for generic beta repair in the current checker. This is a conditional
+lower bound, not a counterexample or proof that the law is false. It sharpens the
+scope of the new positive frame theorem: its explicit source frames matter,
+whereas arbitrary sort typing still allows hidden assigned-domain conversion.
+The next structural-induction attempt will retain the actual domain-conversion
+child at a beta application; semantic typing alone still contains the full goal.
+
+Validation: 1120 integration jobs, 387 audited roots, maximum closure
+12,394; only propext, Classical.choice and Quot.sound. Original weakN_iff
+unchanged. GOAL.md remains active; no completion or strict-smallness claim.

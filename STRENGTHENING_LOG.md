@@ -37311,3 +37311,43 @@ frameworks. All 1,094 frozen source hashes unchanged; no owned diagnostics.
 Lean/Lake used stock v4.33.0-rc2 only in the scratch checkout. Executable unchanged;
 PR extraction remains deferred. Previous goal turn classified as progress
 (validated and pushed the simultaneous stage-zero proof). GOAL.md stays active.
+
+
+### 2026-11-07 05:14:49 UTC — Check the proposed sort-only extension against a native-domain observer
+
+Added ProofErasurePiInertSortBetaBoundary.lean. First proved Pi-inert neutral
+unary-application inversion by root/beta induction, allowing sort-root primitives.
+Then proved pi_inert_bvar_app_carrier over every ComputedJointCheck constructor.
+Native recovery retains its domain path; appComputed is impossible at a variable;
+computation prefixes retain endpoint paths; symmetry swaps the guard orientation.
+This is the current checker, not the older JointCompare grammar.
+
+FinitePiInertPropositionBeta names exactly the missing proposed law: a stage-zero
+raw common comparison of two actual propositions survives independent beta
+reduction at some finite stage. It assumes neither hereditary inputs nor future
+output stability and does not fix the output stage. Its native_domain_guard
+consequence uses one displayed eta wrapper, typed at its assigned domain, and
+the stage-zero appComputed rule. Beta contraction forces checking at the variable
+predicate's native domain instead.
+
+native_probe_descend uses the Eq type probe as that domain. unit_probe_descend
+constructs the observer binder from the actual probe/unit semantic conversion;
+only ordinary weakening and exact syntax identities transport the probe and its
+proof through this new binder. propositionFront_of_closed_unit constructs the
+two unit variables and Eq-proof binder and concludes the full proposition front.
+No generic substitution law, guarded confluence, frame history, or native recovery
+of the converted domain is silently assumed. The only unproved closure input is
+the explicitly named beta obligation.
+
+This establishes a lower bound on a tempting generalization, not that beta repair
+is false. It does not finish the original strengthening goal or produce a strictly
+smaller obligation. The previous goal turn was progress: recursive unit synthesis
+was proved, audited, committed and pushed. The next structural-induction attempt will retain conversion subderivations at
+beta nodes; actual sort typing alone does not make the obligation smaller.
+
+Validation: 1120 successful integration-build jobs, 387 audited roots,
+maximum closure 12,394. Types, values, inductive constructors and recursor
+branches traversed; only propext, Classical.choice and Quot.sound. No sorryAx,
+weakN_iff, weakN_inv or excluded circular-framework dependency. All 1,095 frozen
+source hashes unchanged; no owned diagnostics. Stock Lean/Lake ran only in scratch.
+Executable unchanged; PR extraction remains deferred. GOAL.md remains active.
