@@ -41842,3 +41842,63 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,300 source hashes verified before and
 after. Artifacts: /dev/shm/pi-inert-retained-terminal-consumption-*.
+
+
+## 2026-11-07 21:31:52 UTC — A consumed nested function eta is bypassed at a native fresh field
+
+Added ProofErasurePiInertConstructorSortDomain.lean and
+ProofErasurePiInertFreshFieldEtaBypass.lean, imported by the existing global
+eta-body aggregate. This turn pursued the native function-eta branch before
+the original type field has entered the constructor prefix.
+
+The first module derives domain history directly from each empty-prefix
+constructor recovery. ScopedTypeRecovery.const_compute starts at the declared
+telescope; closed erasure and exact full-stage Pi-component readout give a
+computation from the declared first universe to the selected eta domain.
+The constructor shape premise only fixes that first domain; its codomain is
+arbitrary. Nothing infers a native certificate from arbitrary ordinary typing.
+
+For two such recoveries, the original computed universe returns to the
+literal universe at stage zero. Weakening that return below the original
+binder lets its fresh variable recover the literal universe. The nested
+constructor-domain history converts this exact certificate to the nested eta
+domain. Finite-stage collection yields the native image required by counted
+single-instantiation transport. A separate actual-sort-uniqueness argument
+proves etaArgument u is literally bvar 0 for this original domain.
+
+The second module first gives a generic consuming-eta bypass under an exact
+native argument certificate. Counted lambda readout keeps its body in the
+original annotation context. Actual argument interpretation supplies the
+ordinary consuming map; native instantiation transports the full body with
+the same primitive count. Its pending arguments and post-beta suffix compose,
+and the existing short-application replay removes the eta wrapper. The
+result costs at most the lambda/domain/argument/suffix total, without the
+charged eta root. Internal native roots are replayed wholesale, not assumed
+absent or recursively discharged. Only the finite guard stage increases.
+
+Specializing to a nested empty-prefix eta supplied with the original eta slot
+derives the needed native certificate from the two recoveries. That variable
+is fixed by Pi-inert argument computation. The selected lambda-spine split
+therefore either admits the strict root-charge bypass or retains a lambda
+still applied to that identical fresh variable. Global minimum plus the exact
+selected continuation excludes the bypass branch. Thus
+pi_inert_pair_fresh_field_eta_minimum_retained forces the remaining endpoint
+to have the explicit retained beta-redex form; the non-lambda corollary is a
+contradiction with no readout assumption.
+
+Judgment: the consumed nested empty-prefix function-eta case has a genuine
+cost-saving replay, with its native premise derived in the temporary scope.
+The remaining case is a retained lambda applied to the same fresh field.
+Its behavior after the enclosing binder receives the original arbitrary type
+field still needs proof; the fresh-variable certificate must not be assumed
+to survive that substitution. Other native eta/structure ancestry cases remain.
+Executable and UniqueTyping.lean unchanged; the original sorry remains.
+No canonical-Eq counterexample or sufficient irreducible global obligation
+smaller than PropFront established. Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1328 jobs; recursive audit
+10 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,303 source hashes verified before and
+after final validation. Artifacts: /dev/shm/pi-inert-fresh-field-eta-bypass-*.

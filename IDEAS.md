@@ -25274,3 +25274,51 @@ Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work only;
 11,981; only propext/Classical.choice/Quot.sound, no sorryAx or forbidden
 strengthening/circular-frontier dependencies. All 1,300 source hashes unchanged
 across validation. Artifacts: /dev/shm/pi-inert-retained-terminal-consumption-*.
+
+
+## 2026-11-07 21:31:52 UTC — Native fresh-field substitution bypasses consumed nested eta
+
+**Idea.** After empty-prefix eta creates the pair's first type-field slot,
+another eta before that slot is supplied receives the same fresh variable.
+Derive its exact native type from the constructor declaration, then substitute
+the entire inner body with its count unchanged. This may bypass nested roots
+without recursively analyzing every root in that body.
+
+**Checked verdict.** Native recovery of the empty constructor computes from
+its stored declaration type. Exact Pi-component readout derives a directed
+history from its literal first universe to the selected eta domain. This is
+stronger evidence than mere ordinary equality with that universe. Sort return
+at stage zero, weakened below the first computed domain, gives the fresh
+variable exact recovery of the declared universe. Conversion along the second
+constructor-domain history then gives exact recovery of the nested eta domain.
+Actual sort uniqueness also proves that the original eta slot is the literal
+fresh variable, not the proof marker.
+
+For an actual consuming eta beta with this certificate, counted native
+instantiation replays the ENTIRE body, including all nested native eta or
+structure roots, with exactly its original body cost. Argument and post-beta
+paths remain; the annotation cost can be discarded and the eta root is absent.
+The guard stage may increase, but global minima quantify over every stage.
+
+`pi_inert_pair_fresh_field_eta_minimum_retained` applies this bypass to the
+actual original eta slot. A globally minimal nested empty-prefix eta must
+therefore survive as a lambda spine STILL APPLIED TO THAT SAME FRESH VARIABLE
+at the selected endpoint. Any non-lambda selected endpoint contradicts the
+minimum by saving at least the eta charge, with its exact continuation intact.
+The remaining lambda alternative is not excluded. No exact native recovery
+is assumed for the arbitrary original outer type-field argument.
+
+**Remaining gap.** Follow this retained beta redex when the enclosing binder
+is later consumed or retained. Substituting the original type field for its
+fresh variable may lose the native certificate just derived in the temporary
+scope, so the current bypass cannot simply be transported across that step.
+Native eta after a supplied field and structure-field recursion also remain.
+No strengthening proof, canonical-Eq counterexample, or sufficient irreducible
+global obligation strictly smaller than PropFront is claimed. Goal active;
+PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work only;
+1328 integration jobs, 10 recursive audit roots, maximum closure
+11,981; only propext/Classical.choice/Quot.sound, no sorryAx or forbidden
+strengthening/circular-frontier dependencies. All 1,303 source hashes unchanged
+across final validation. Artifacts: /dev/shm/pi-inert-fresh-field-eta-bypass-*.
