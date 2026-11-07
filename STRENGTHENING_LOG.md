@@ -38677,3 +38677,51 @@ Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
 /dev/shm/guarded-pairs-*. All Lean/Lake commands used stock v4.33.0-rc2 in
 /dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
 PR extraction remains deferred and GOAL.md remains active.
+
+
+## 2026-11-07 11:40:27 UTC — A lower bound on composition of the current paired interpreters
+
+The previous turn's two-orientation representation is now tested against the
+actual hidden-unit composition configuration. The new theorem does not rely
+on transferring an older grammar's future-carrier obstruction to PiInertStage.
+It constructs inputs directly in GuardedPairInterpretation and uses the
+current Pi-inert carrier-exposure readout.
+
+eq_head_ordinary_pairs packages a common checked comparison, actual endpoint
+assignments and the Eq-headed carrier into both orientations of any ordinary
+finite demands. unit_constructor strengthens this to an interpreter under all
+paired typed substitutions with no image requirements. Its two selected types
+may differ after substitution. The invariant constructor realizes both, and
+ordinary type uniqueness transfers the variable image's assignment. Ground
+histories are constructed from the stage-zero constructor comparison; no
+interpretation of the proposition-index equality is assumed.
+
+FinitePiInertOrdinaryPairComposition asks for only a finite base output guard
+from two such interpreter families and actual common typing. At the lifted
+Eq type probe, the actual proposition equation converts both variables and
+the unit constructor to the selected probe type. Both input interpreter
+families are constructed. The composite of the two distinct variables cannot
+be an ordinary checked comparison, so it must expose the carrier. The proved
+probe recognizer descends the lower proposition equality. Adding the usual
+two unit variables and equality-proof binder yields PropositionFront from
+this composition law, conditional on a closed positive empty structure.
+The full EnvironmentCore corollary leaves no bespoke core assumptions.
+
+The tree boundary is also checked: every guarded value for a positive
+structure inhabitant has an Ordinary tree (ordinary leaves/intersections,
+no explicit call node). Any call exposure would give a Pi assignment to the
+same actual structure inhabitant, contradicting rigid head inversion.
+
+This rules out treating composition of the current interpreted pairs as a
+smaller remaining task. It does not refute composition or complete the goal.
+Further work must handle the selected type's conversion provenance, including
+non-function structure carriers, and construct that information from strong
+derivation children. General dependent reindexing and strong coverage remain
+open. The original weakN_iff sorry is unchanged.
+
+Integration passed 1188 jobs. Recursive audit covered 9 public/probe
+roots, maximum closure 12,461, only propext, Classical.choice and
+Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
+/dev/shm/paired-composition-*. All Lean/Lake commands used stock v4.33.0-rc2 in
+/dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
+PR extraction remains deferred and GOAL.md remains active.

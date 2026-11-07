@@ -22968,3 +22968,55 @@ recursive dependency closure 11,976; only propext, Classical.choice and
 Quot.sound. Frozen sources and owned diagnostics checked. Stock v4.33.0-rc2
 Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work. Executable
 and UniqueTyping.lean unchanged; GOAL.md remains active.
+
+
+## 2026-11-07 11:40:27 UTC — Paired interpreter composition still contains PropositionFront
+
+Idea tested: perhaps retaining both orientations, all finite ordinary demands,
+and arbitrary paired-substitution interpretation makes the remaining
+composition law a smaller semantic lemma. Test the actual current predicate
+with the hidden-unit Eq probe rather than importing a boundary from an older
+certificate grammar.
+
+Implemented ProofErasurePiInertPairedCompositionFront.lean. A common checked
+comparison at an Eq.rec-headed assigned carrier constructs both orientations
+of every ordinary finite demand. More strongly, the nullary empty-structure
+constructor constructs paired interpreters with empty image requirements for
+every such profile. The interpreter runs at arbitrary paired typed
+substitutions. The invariant constructor has both substituted assignments;
+TypedAt.transfer aligns the other endpoint's assignment by ordinary type
+uniqueness. This transports actual typing, not a history of the hidden type
+conversion. Constructor comparisons supply all histories separately.
+
+FinitePiInertOrdinaryPairComposition names the missing law precisely: two
+actually commonly typed links, each carrying every ordinary-profile paired
+interpreter with empty requirements, should return only one finite base
+carrier guard. Its output stage is unrestricted, and no output futures or
+function action are requested. The two unit-constructor links are constructed
+at the Eq type probe. A composite between distinct variables must expose its
+carrier; the existing Pi-inert Eq recognizer then descends the original
+propositions. Consequently this composition law implies full PropositionFront
+when a closed positive empty structure is present. The EnvironmentCore
+corollary discharges the technical core and non-unfolding premises.
+
+GuardedTreeValue.ordinary_of_structure checks an additional limitation:
+a positive structure inhabitant can have only trees made from ordinary leaves
+and intersections. An explicit guarded call would assign that same actual
+inhabitant a Pi type, contradicting rigid head inversion. Extra guarded
+function profiles therefore do not repair the hidden-unit bridge.
+
+Verdict: retaining reverse evidence and paired interpretations does not turn
+unrestricted ground composition into a strictly smaller obligation. This is
+a checked conditional lower bound, not a proof that composition is false or
+that the research route cannot succeed. A useful next invariant must retain
+selected-type conversion/exposure provenance, including structure carriers;
+merely adding ordinary demands or call profiles leaves this configuration
+unchanged. Such provenance still needs construction from original strong
+children. No strengthening proof, canonical-Eq counterexample, or strictly
+smaller sufficient obligation is claimed; PR extraction remains deferred.
+
+Validation: 1188 integration jobs; 9 public/probe roots; maximum
+recursive dependency closure 12,461; only propext, Classical.choice and
+Quot.sound. Frozen sources and owned diagnostics checked. Stock v4.33.0-rc2
+Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work. Executable
+and UniqueTyping.lean unchanged; GOAL.md remains active.
