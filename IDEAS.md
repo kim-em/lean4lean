@@ -25387,3 +25387,36 @@ problem. No sufficient irreducible global replacement for PropFront or proof
 of weakN_iff is established. Goal active, PR extraction deferred. Validation:
 1332 integration jobs, 6 audited public roots, maximum closure
 11,981, 1,307 frozen source hashes; stock Lean v4.33.0-rc2 in /dev/shm.
+
+
+## 2026-11-07 22:05:11 UTC — Preserve the supplying argument through further eta frames
+
+Idea: distinguish the actual future type-binder consumption inside the
+projection continuation, instead of constructing a new fixed-depth witness
+for each extra eta binder. Verdict: checked. PiInertFreshFieldRun records the
+same future argument x through arbitrary retained or consuming frames above
+the distinguished binder A. Its ordinary projection run, exact frame count,
+and all-raw competitor predicate are preserved by forgetting the mark.
+An application above A preserves the fresh-field variable exactly by the
+existing observer-suffix argument.
+
+Both branches of CountedEtaFrameOrigin give a smaller marked body minimum
+with the same x and one additional temporary binder/frame. The actual
+PiInertFreshFieldObservedRoot embeds in these minima. Its function-eta branch
+descends again while preserving x; its structure branch gives a smaller
+full-source marked minimum without discarding the structure root charge.
+Saturation and recorded component paths identify that full source as the
+fresh type/value pair. The global empty-prefix cut now returns either the
+activated old-field case or one of these two smaller marked minima, reserving
+the same original-field charge. Function sources retain literal prefix
+ancestry in [bvar 1, etaArgument v].
+
+Remaining: operational focusing of marked continuations through their next
+application, activation at the distinguished supply, and recursive field
+readout for the resulting constructor/function/structure minima. The structure
+case does not itself save its own root charge; its strict bound here is the
+original enclosing cut's budget, so no general structure-count induction is
+claimed. No proof, canonical-Eq counterexample, or sufficient irreducible global
+replacement for PropFront. Goal active; PR extraction deferred. Validation:
+1334 integration jobs, 13 public roots, maximum audited closure
+11,981, 1,309 frozen source hashes, stock Lean v4.33.0-rc2 in /dev/shm.

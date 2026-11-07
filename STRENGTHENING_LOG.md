@@ -42033,3 +42033,68 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,307 source hashes verified before and
 after final validation. Artifacts: /dev/shm/pi-inert-fresh-field-activation-*.
+
+
+## 2026-11-07 22:05:11 UTC — Mark the same future field supply through both eta branches
+
+The previous goal turn made checked progress in 84cbb990. Added
+ProofErasurePiInertFreshFieldFrames.lean and
+ProofErasurePiInertFreshFieldRootDescent.lean, imported by the global eta-body
+aggregate. This turn continued the native-root alternative while preserving
+the original field's exact eventual supplying argument.
+
+PiInertFreshFieldRun has a distinguished supply constructor for the actual
+consumption of A by x above the observer context Δ. Application and retained
+constructors describe arbitrary preceding frames in contexts controls ++ A :: Δ.
+They may consume other temporary binders, but the same A and x remain fixed.
+The forget theorem yields the existing counted projection run at precisely
+that source context, cost and frame count. Competitor predicates are unchanged.
+PiInertEndpointMap.fresh_field proves that applications above the distinguished
+binder preserve its variable bvar controls.length at the corresponding target
+index, deriving this from the actual context suffix and endpoint-map shape.
+
+PiInertFreshFieldMinimum retains that run in an unrestricted all-stage/raw
+minimum. CountedEtaFrameOrigin.fresh_field_minimum handles both of the existing
+actual eta branches. The retained branch adds a retained domain/body frame;
+the consumed branch adds the actual argument's application and suffix above
+A. Both keep the same future x, produce a strictly smaller primitive minimum,
+and add exactly one frame and one temporary source binder. The generic
+pi_inert_eta_fresh_field_descent derives this directly from an actual native
+eta cut, rather than requiring a hypothetical future argument certificate.
+
+The previous two-binder PiInertFreshFieldObservedRoot embeds in a marked
+minimum with controls [C], keeping its eta/structure root charge. Its function
+eta case now descends to controls [B,C] with the same x through either lambda
+branch. Its native structure case has no pending applications and yields a
+smaller marked minimum on the full source. With the actual recorded fresh-pair
+components, saturation fixes that source to constructor [bvar 1, etaArgument v].
+The structure root is included in its minimum, not bypassed or assumed free.
+
+CountedEtaBodySpineCut.empty_pair_prefix_marked_descent applies this directly
+to the SAME actual global cut from the previous turn. The result retains the
+original-field -> x counted history and its charge. Either the ordinary
+one-binder ambient-field minimum is already available, or a smaller marked
+minimum remains. The function branch retains a literal prefix of the fixed
+fresh type/value vector; the structure branch retains the whole fresh pair.
+Every resulting minimum plus the original field charge is strictly below the
+original enclosing budget. The marked alternatives explicitly preserve x.
+
+Judgment: loss of the recorded supplying argument is no longer an obstacle
+to further native function-eta descent, regardless of retained/consumed branch
+or added temporary depth. Field readout for arbitrary marked minima remains
+open. The next step is to focus their actual next application while preserving
+the mark until supply, then use exact field activation at that supply. Native
+structure readout also remains; the current structure result does not give a
+strict reduction relative to its own already-selected root minimum, only the
+original enclosing budget. This distinction is necessary for the eventual
+well-founded recursion. Executable and UniqueTyping.lean unchanged; original
+sorry remains. No sufficient irreducible global obligation smaller than
+PropFront or canonical-Eq counterexample established. Goal active; PR extraction
+deferred.
+
+Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1334 jobs; recursive audit
+13 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,309 source hashes verified before and
+after final validation. Artifacts: /dev/shm/pi-inert-fresh-field-frames-*.
