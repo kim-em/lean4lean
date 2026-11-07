@@ -25420,3 +25420,25 @@ claimed. No proof, canonical-Eq counterexample, or sufficient irreducible global
 replacement for PropFront. Goal active; PR extraction deferred. Validation:
 1334 integration jobs, 13 public roots, maximum audited closure
 11,981, 1,309 frozen source hashes, stock Lean v4.33.0-rc2 in /dev/shm.
+
+
+## 2026-11-07 22:16:54 UTC — Execute marked fresh-field continuations
+
+Idea: preserve the distinguished future supply while focusing actual lambda
+bodies and retained telescopes, then advance a constructor endpoint through
+its next application. Verdict: checked for both supply and earlier applications,
+including zero retained depth. Supply produces the recorded x lifted beneath
+the exact retained telescope; an earlier application preserves the fresh
+variable and the same future x. Both decrease frames without increasing cost.
+
+The marked constructor minimum now inspects its actual body computation.
+Component endpoints use that application progress. A first native eta root
+instead gives a strictly smaller marked minimum at its actual target, with
+its original argument ancestry retained. This removes the assumption that
+the body computation ends at a constructor. Lambda readout preserves the mark
+and permits further focusing, but readout through native function/structure
+targets is still open; count/frame progress alone does not close the invariant.
+No proof of weakN_iff, canonical-Eq counterexample, or sufficient smaller
+global obligation established. Goal active, PR extraction deferred.
+Validation: 1336 jobs, 9 audited roots, maximum closure 11,981,
+1,311 frozen source hashes; stock Lean v4.33.0-rc2 in /dev/shm.

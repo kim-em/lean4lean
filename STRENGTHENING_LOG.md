@@ -42098,3 +42098,53 @@ Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,309 source hashes verified before and
 after final validation. Artifacts: /dev/shm/pi-inert-fresh-field-frames-*.
+
+
+## 2026-11-07 22:16:54 UTC — Advance marked minima through actual applications and native roots
+
+The previous research turn made progress in 48601f1e; the intervening
+clarification turn made no research progress. Revalidated the completed
+validation process and its outputs before committing the pending proof work.
+Added ProofErasurePiInertFreshFieldFocus.lean and
+ProofErasurePiInertFreshFieldProgress.lean, imported by the global aggregate.
+
+Marked lambda-body readout handles both retained and consumed branches of
+the actual computation. It preserves the future supplying argument x and
+adds one temporary binder/frame without increasing primitive cost. Iteration
+through a nonempty retained prefix focuses only the actual interpreted suffix,
+with the exact lifted substitution and telescope length. The guarded old
+body path is not transported to a new scope.
+
+PiInertFreshFieldRun.next_application locates either the distinguished supply
+or an application above it. There is no terminal retained-only branch because
+the supply remains recorded. fresh_field_transport preserves the fresh
+variable beneath arbitrary retained depth and shows temporary depth cannot
+increase at the application. field_next_minimum combines these facts with
+actual all-raw minima: supply activates x under precisely the retained
+telescope; an earlier application leaves a marked fresh-field minimum with
+the same x. Both strictly decrease frames, including at zero depth, and
+use no more than the previous continuation cost.
+
+PiInertFreshFieldMinimum.constructor_progress removes the assumption of a
+constructor endpoint. Actual component computation fixes the fresh field and
+uses the application step. Otherwise, the selected first non-level root is
+native function/structure eta. Its exact target has a strictly smaller
+marked minimum, with the root charge left in the fixed prefix. The result
+retains the counted argument path, actual root and original prefix. All
+competitors are arbitrary raw terms at arbitrary stages.
+
+Judgment: actual execution now provides strict count or frame progress while
+preserving the future supply. Field readout through native targets remains
+open. Function eta can put the tracked field in pending arguments instead of
+its body; structure eta introduces first-field projections. Neither issue is
+solved by the decrease alone, and no blanket structure bypass is claimed.
+The original weakN_iff sorry and executable are unchanged. No sufficient
+irreducible global replacement for PropFront is established. Goal active;
+PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1336 jobs; recursive audit
+9 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,311 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-fresh-field-progress-*.
