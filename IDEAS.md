@@ -23473,3 +23473,58 @@ and Quot.sound. All 1,173 frozen sources and owned diagnostics checked.
 The recursive audit rejects strengthening and circular join dependencies.
 Stock v4.33.0-rc2 Lean/Lake ran only in /dev/shm/native-level-coherence-work.
 UniqueTyping.lean and executable unchanged; PR extraction deferred; goal active.
+
+
+## 2026-11-07 13:23:19 UTC — Independent body directions construct recursive paired lambda action
+
+The preceding goal turn was verified progress: fa19c8d9 proved that ordinary
+type equality and full ground transport do not supply the changed-binder
+core world, even for a reflexive Eq probe. Retaining interpretation over typed
+substitutions was the positive alternative. Tested that alternative against
+the outstanding paired-lambda input mismatch. A one-sided recursive argument
+value does not automatically supply the two orientations demanded by the old
+paired body's image environment.
+
+Implemented ProofErasurePiInertDirectedBodies.lean. A directed pair
+interpretation compares two potentially different terms under arbitrary
+paired typed substitutions but consumes only forward image requirements.
+Two independently proved directed interpretations produce the existing
+paired interpreter, each using its own image orientation and finite list.
+This strengthens the body induction hypothesis; it does not derive separate
+directions from an arbitrary old paired interpreter with nonempty uses.
+Existing self interpretation embeds, and empty-requirement paired
+interpretation supplies a directed comparison outright.
+
+Directed application consumes complete recursive input evidence. Directed
+conversion transports the entire result profile, deriving the cross actual
+assignment from the old comparison and the new left assignment. Lambda
+congruence compares two different bodies at the same written domain. Its
+ground history comes from fresh body interpretation and beta testing; its
+action reruns the body at the two actual argument substitutions. No local
+history crosses a non-core binder world. No input value is symmetrized.
+Both input and output profiles may contain arbitrary recursive guarded calls.
+
+The two lambda directions combine with independently chosen input/output
+profiles and requirements. StrongBounded.paired_lam_same_domain connects
+this construction to the original rank-k domain, body-formation and body
+comparison children. Its proof branch handles erased proof markers directly:
+a literal Pi supplies the root exposure, and a typed application with a proof
+marker head is impossible. No body action or recursive output supply is
+needed in that branch.
+
+Verdict: a checked lambda constructor for a stronger simultaneous motive,
+including the original same-domain lamDF case. It removes the one-sided-input
+mismatch for these directional body hypotheses. It does not prove that all
+strong children have those hypotheses, identify the directions of arbitrary
+old paired values, or solve different written domains, comparison
+transitivity, or the four principal type-transport cases. Domain self
+interpretation and type-only input supplies remain explicit. Next extend the
+directed construction to different written lambda domains using the original
+domain child and both original body contexts, preserving ranks and actual
+assignments. No strictly smaller sufficient frontier or completion claim.
+
+Validation: 1199 integration jobs; 11 public/probe roots; maximum
+recursive dependency closure 11,976; only propext, Classical.choice
+and Quot.sound. All 1,174 frozen sources and owned diagnostics checked.
+Stock v4.33.0-rc2 Lean/Lake ran only in /dev/shm/native-level-coherence-work.
+Executable and UniqueTyping.lean unchanged; PR extraction deferred; goal active.

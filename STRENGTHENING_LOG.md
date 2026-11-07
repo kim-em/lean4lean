@@ -39191,3 +39191,49 @@ Quot.sound. All 1,173 frozen sources and owned diagnostics checked; artifacts
 under /dev/shm/binder-transport-boundary-*. All Lean/Lake commands used
 stock v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
 UniqueTyping.lean unchanged; PR extraction deferred; GOAL.md remains active.
+
+
+## 2026-11-07 13:23:19 UTC — Reinterpret each body direction at its own paired arguments
+
+PiInertDirectedPairInterpretation keeps original left/right assignments and
+a run method over paired typed substitutions using one-sided GuardedImages.
+The run returns a full recursive TreeValue at the left selected carrier.
+It is stronger than merely projecting a paired interpreter with nonempty
+image requirements. Self interpretation embeds directly; an empty-requirement
+paired interpreter also embeds without manufacturing image evidence.
+
+The paired constructor combines two separate runs at opposite environments
+and unions their finite requirements. Directed app preserves the dependent
+result profile instantiated at the left argument. Directed convert consumes
+the full recursive type transport, using assigned-base transfer for the
+right image at the new left carrier. Neither rule requires reverse input
+image evidence.
+
+Directed lam extends the old self-body lambda construction to different
+bodies. Fresh interpretation builds the ground history, with each lambda's
+own typed beta test. Future action reinterprets the body at the paired actual
+argument substitutions and prefixes their beta computations. The right
+assignment at the left domain/codomain comes from actual typing reflection
+and context interpretation; no semantic history moves across a changed
+non-core binder. The input may be an arbitrary recursive tree.
+
+pi_inert_paired_lambdas_of_directed_bodies constructs both complete calls
+with independently chosen profiles and requirement lists. The original
+StrongBounded.paired_lam_same_domain consumes rank-k original children and
+the two directional body hypotheses. The proof-marker branch is handled
+by proof_call with vacuous typed application tests; the nonproof branch
+uses the raw lambda construction. There is no recursive invocation on a
+fresh strong symmetry derivation.
+
+Limits: different written domains remain open in this construction, as do
+general directional-body coverage, input-supply construction and term
+transitivity. The four-case sorted transport induction is not discharged.
+This adds a proved induction case rather than a strengthening proof,
+counterexample under canonical Eq, or strictly smaller sufficient obligation.
+
+Integration passed 1199 jobs. Recursive audit covered 11 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. All 1,174 frozen sources and owned diagnostics checked; artifacts
+under /dev/shm/directed-bodies-*. All Lean/Lake commands used stock
+v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
+UniqueTyping.lean unchanged; PR extraction deferred; GOAL.md remains active.
