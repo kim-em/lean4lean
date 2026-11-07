@@ -25442,3 +25442,27 @@ No proof of weakN_iff, canonical-Eq counterexample, or sufficient smaller
 global obligation established. Goal active, PR extraction deferred.
 Validation: 1336 jobs, 9 audited roots, maximum closure 11,981,
 1,311 frozen source hashes; stock Lean v4.33.0-rc2 in /dev/shm.
+
+
+## 2026-11-07 22:21:28 UTC — Fresh-field native recovery at arbitrary temporary depth
+
+Idea: return the distinguished computed-universe annotation to its original
+literal universe, then weaken its native variable certificate through the
+actual well-formed temporary prefix. Verdict: checked, at stage zero for the
+universe certificate. Actual later empty-constructor recovery computes its
+selected domain from that same universe, giving exact native recovery of the
+tracked fresh field at the selected domain, regardless of temporary depth.
+
+This extends the counted consumed-eta bypass beyond the previous fixed-depth
+case. A charged empty-prefix root in an actual global minimum must leave a
+lambda spine still applied to the same tracked fresh field. The alternative
+consumed branch replays the entire body at no greater suffix cost and saves
+the root charge, contradicting the same all-raw minimum after the fixed
+prefix. No native certificate for the eventual supplied x is required.
+
+Remaining: execution/readout of retained lambda endpoints and structure
+expansions, followed by closure of the original field-readout invariant.
+No proof of weakN_iff, canonical-Eq counterexample, or sufficient smaller
+global obligation established. Goal active; PR extraction deferred.
+Validation: 1337 jobs, 5 audited roots, maximum closure 11,981,
+1,312 frozen source hashes; stock Lean v4.33.0-rc2 in /dev/shm.

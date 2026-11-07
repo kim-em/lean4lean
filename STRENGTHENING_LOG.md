@@ -42148,3 +42148,52 @@ Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,311 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-fresh-field-progress-*.
+
+
+## 2026-11-07 22:21:28 UTC — Exclude consumed empty-prefix eta below every temporary telescope
+
+Continued from the checked operational progress committed as 8aca83d7.
+Added ProofErasurePiInertFreshFieldNativePrefix.lean and imported it through
+the global eta-body aggregate. This addresses a concrete native-root branch
+of the marked fresh-field recursion rather than assuming general native
+coverage for arbitrary supplied arguments.
+
+pi_inert_computed_sort_prefix_native starts with the actual directed history
+from a literal universe to the distinguished annotation A. At zero temporary
+depth, sort return and the context lookup give exact stage-zero recovery of
+the fresh variable at the original universe. Induction through the actual
+well-formed context weakens this certificate across every temporary binder.
+The resulting variable is exactly bvar controls.length.
+
+pi_inert_pair_fresh_field_prefix_native derives the initial annotation history
+from the original native constructor recovery, and the later domain history
+from the actual empty-constructor recovery in controls ++ A :: Δ. Their
+composition gives a finite native certificate for the tracked fresh field
+at the later selected eta domain. The larger context is supplied by an
+actual TypedSource witness; neither a hypothetical context embedding nor
+native coverage of the future supplied argument x is assumed.
+
+pi_inert_pair_fresh_field_prefix_eta_bypass_or_retained then analyzes the
+entire actual lambda-spine computation. The retained branch preserves the
+fresh field as its first pending argument. In the consumed branch that
+argument's own path fixes it literally, so counted native instantiation
+replays the full body, including nested native roots, and saves the eta charge.
+pi_inert_pair_fresh_field_prefix_eta_cut_retained connects this to an actual
+fixed prefix and arbitrary continuation minimum: the cheap branch contradicts
+minimality, forcing the retained endpoint at any temporary depth.
+
+Judgment: empty-prefix native eta cannot consume the marked field before the
+distinguished supply in a minimum that charges the root. This is stronger
+than merely obtaining a smaller target minimum, but it does not eliminate
+the retained-lambda branch. That branch can survive until later application
+frames, and structure targets still require first-field projection readout.
+Original weakN_iff sorry and executable unchanged. No sufficient irreducible
+global replacement for PropFront established. Goal active; PR extraction
+deferred.
+
+Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1337 jobs; recursive audit
+5 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,312 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-fresh-field-native-prefix-*.
