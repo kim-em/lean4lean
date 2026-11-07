@@ -23228,3 +23228,59 @@ recursive dependency closure 11,976; only propext, Classical.choice and
 Quot.sound. All 1,168 frozen sources and owned diagnostics checked. Stock
 v4.33.0-rc2 Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work.
 Executable and UniqueTyping.lean unchanged; GOAL.md remains active.
+
+
+## 2026-11-07 12:32:23 UTC — Original ground conversion coverage already reaches PropFront
+
+Idea: test whether the remaining construction of carrier/tree transport from
+original strong type children is a smaller obligation after recursive Pi
+conversion has been proved. Use the actual new TreeTransport contract and an
+original conversion rule, rather than relying on an older substitution or
+composition barrier with a different hypothesis.
+
+Implemented ProofErasurePiInertConversionCoverageFront.lean. The weakest tested
+law, FinitePiInertOriginalGroundConversion, takes an original bounded type
+child and term child with the same finite bound, plus a source ground paired
+interpreter under arbitrary paired typed substitutions with empty image
+requirements. It asks only for one finite base carrier guard at the new type,
+not a full interpreter, history, recursive action or uniform stage bound.
+
+For a type-valued Eq probe hiding a closed positive nullary empty structure,
+the original lifted proposition equality supplies ordinary actual conversion
+from that structure to the probe. A native unit equality between two distinct
+variables supplies the term child. Both are translated to original bounded
+strong derivations and raised to a common bound. The source paired interpreter
+is independently constructed by unit_ground, with no semantic index evidence.
+The requested converted guard either directly compares distinct variables,
+which is impossible, or exposes the probe, which the checked recognizer uses
+to descend the original proposition equation. No term-composition law is used.
+
+The standard fresh-major context construction therefore proves the whole
+PropositionFront from this single-rule coverage law, conditional on a closed
+positive empty structure. StrongGroundTreeCoverage implies the weak law by
+the actual recursive conversion consumer and identity readout. The earlier
+StrongCarrierCoverage implies ground-tree coverage. EnvironmentCore corollaries
+show both lower bounds hold for the full actual environment core.
+
+Verdict: neither generic ground-tree coverage nor generic carrier-transport
+coverage can be claimed strictly smaller than PropFront in this setting. The
+remaining difficulty is already present in one original ground conversion,
+before term composition and without recursive interfaces. This is a checked
+lower bound, not a counterexample, converse, impossibility result, or rejection
+of induction on strong derivations. Recursive conversion remains useful, but
+its component coverage needs a proof of the hard index case rather than a new
+name for it.
+
+The positive repair already proved in unit_probe_transport and
+unit_probe_ground_interpretation retains explicit proposition-index evidence
+and handles this same hidden carrier. The next useful work is constructing or
+preserving that evidence from original type-child derivations with the needed
+rank invariant. Merely completing more function-interface plumbing does not
+remove this obligation. No goal-completion or strict-smallness claim is made;
+PR extraction remains deferred.
+
+Validation: 1194 integration jobs; 10 public/probe roots; maximum
+recursive dependency closure 12,966; only propext, Classical.choice and
+Quot.sound. All 1,169 frozen sources and owned diagnostics checked. Stock
+v4.33.0-rc2 Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work.
+Executable and UniqueTyping.lean unchanged; GOAL.md remains active.

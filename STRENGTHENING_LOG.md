@@ -38942,3 +38942,65 @@ Quot.sound. All 1,168 frozen sources and owned diagnostics checked; artifacts
 under /dev/shm/recursive-interface-*. All Lean/Lake commands used stock
 v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
 UniqueTyping.lean unchanged; PR extraction remains deferred and GOAL.md active.
+
+
+## 2026-11-07 12:32:23 UTC — Lower bound for the current original conversion consumer
+
+ProofErasurePiInertConversionCoverageFront.lean tests the exact recently added
+transport contracts. FinitePiInertOriginalGroundConversion records the weakest
+single original conversion consumer needed by the example: bounded strong
+type and term children at a shared finite rank, a source ground paired
+interpreter with empty variable requirements, and one finite base guard at
+the target type. No retained target history, future action, tree, fixed stage
+or term-composition law is requested.
+
+PiInertStrongGroundTreeCoverage quantifies the actual TreeTransport ground
+contract over all original strong type children. Its original_conversion
+theorem applies paired_convert_interfaces, then reads the output at the
+identity environment. PiInertStrongCarrierCoverage constructs these ground
+transports through TreeTransport.ground. Thus the tested coverage promises
+really imply the weak original-rule consumer; no older invariant is silently
+substituted for either contract.
+
+unit_probe_descend builds the original strong conversion from a native unit
+type to its type-valued Eq probe. The ordinary probe equality follows from
+the lifted proposition equality being tested. The term child is the original
+unitLike equality of two distinct variables. strong_has_bound supplies finite
+bounds for both original derivations, and monotonicity raises them to one
+shared bound. The source interpreter is constructed by unit_ground under all
+paired typed substitutions; it does not assume the hidden index comparison.
+
+The converted base guard has two cases. checked_or_exposed either gives a
+common comparison of distinct raw variables, contradicting bvar injectivity,
+or gives a finite carrier exposure of the probe. pi_inert_type_probe_descend
+then yields the lower-context proposition equality. Positive typing justifies
+the raw variable erasures. No unit-constructor bridge or comparison composition
+is used in this proof.
+
+The fresh context adds two unit variables and a free proof of the proposition
+equality. This establishes propositionFront_of_closed_unit for the original
+conversion consumer. The EnvironmentCore corollaries instantiate the core
+assumptions and propagate the lower bound to ground-tree and carrier coverage.
+The closed positive unit assumption is explicit; no unconditional equivalence
+for arbitrary canonical-Eq environments is claimed.
+
+Judgment: the current generic conversion coverage obligation is already at
+least PropositionFront in these environments, even restricted to a base-only
+output for one original ground conversion. This does not refute the intended
+rank induction or the checked recursive transport constructors. It prevents
+mistaking their remaining coverage premise for a smaller sufficient frontier.
+The earlier unit-probe construction identifies the missing positive input:
+explicit comparison evidence for the proposition indices. Work should now
+target its production/preservation inside original type derivations, with a
+rank invariant, rather than treating conversion as routine after the Pi case.
+
+The original weakN_iff sorry remains unchanged. No strengthening proof,
+canonical-Eq counterexample or strictly smaller sufficient obligation is
+claimed. PR extraction remains deferred.
+
+Integration passed 1194 jobs. Recursive audit covered 10 public/probe
+roots, maximum closure 12,966, only propext, Classical.choice and
+Quot.sound. All 1,169 frozen sources and owned diagnostics checked; artifacts
+under /dev/shm/conversion-coverage-front-*. All Lean/Lake commands used stock
+v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
+UniqueTyping.lean unchanged; GOAL.md remains active.
