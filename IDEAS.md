@@ -21783,3 +21783,55 @@ obligation and does not finish strengthening.
 Validation: 1129 integration jobs, 499 audited roots, maximum dependency
 closure 12,394; only propext, Classical.choice and Quot.sound. Executable
 unchanged; no PR extraction. GOAL.md remains active.
+
+
+## 2026-11-07 07:15:42 UTC — Paired images close the dependent evaluator test
+
+Added `ProofErasurePiInertPairedAction.lean`. The new relational environment
+retains carrier histories and cross application action, rather than relying
+on independent reflexive actions for its two images. PiInertPairedImageAction
+requests action for the actual pair at every computed Pi exposure of a chosen
+native type in every exact-renaming world. PiInertImagePair retains histories
+at both native carriers and action in both orientations. The finite history
+stages and the two native types may differ.
+
+PiInertPairedSubstitution carries two ordinary typed context interpretations
+into the same target plus the full pair evidence for each raw image. Identity
+is constructive: native variables have stage-zero renaming histories at any
+carrier, and their already proved native actions supply the paired diagonal.
+Target renaming, swapping the pair and extending by supplied binder images
+are proved. The binder rule explicitly requires both ordinary interpretations
+and the whole argument pair; it does not manufacture cross action from carrier
+histories. Reverse components are retained instead of invoking a newly
+constructed higher-rank symmetry derivation.
+
+The actual dependent evaluation lambda `fun h => h x` now has its paired
+application result from supplied cross image action for f and g. apply_actual
+uses the actual assigned Pi and a reflexive history for the typed shared x.
+For nonproof results, the Pi and instantiated codomain erasure equations
+recover precisely B.inst x. For proof-valued results, common typing makes
+both endpoints erase to proof. Ordinary beta prefixes then supply the
+original evaluator applications, retaining all renaming futures and all
+three independent core residuals. This is a general dependent result, not
+just a sort-valued or constant-codomain evaluator. Its output is a carrier
+history; further function action of a function-valued result is not inferred.
+
+The final readout remains aligned with GOAL.md: a renaming history for distinct
+variables at the lifted Eq type probe forces carrier exposure, and the existing
+canonical-Eq recognizer descends the original propositions. It needs only the
+new history's base clause, with no promotion to unrestricted future history.
+
+Verdict: the paired-variable/environment cases and the evaluator consuming
+explicit pair action are checked. This is not generic lambda coverage: plain
+carrier-related higher-order arguments still do not supply cross action.
+Next formulate the finite higher-order demands or guarded body interface that
+supplies the required action for argument pairs and retains action of returned
+functions when demanded. Then interpret original smaller strong children under
+those environments; do not rebuild instantiated strong proofs and recurse on
+their increased ranks. Type transport, transitivity and arbitrary paired
+substitution composition remain open. No strictly smaller sufficient obligation
+or strengthening theorem has been established.
+
+Validation: 1130 integration jobs, 517 audited roots, maximum dependency
+closure 12,394; only propext, Classical.choice and Quot.sound. Executable
+unchanged; no PR extraction. GOAL.md remains active.

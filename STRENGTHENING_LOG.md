@@ -37801,3 +37801,42 @@ recursive dependency audit covered 499 roots, maximum closure
 artifacts are `/dev/shm/renaming-action-*`; source hashes and owned diagnostics
 are checked, with sorryAx / weakN_iff / weakN_inv and circular frameworks
 excluded. Executable unchanged, PR extraction deferred, GOAL.md active.
+
+
+## 2026-11-07 07:15:42 UTC — Retain paired image action through dependent evaluation
+
+Added the 18 public roots of `ProofErasurePiInertPairedAction.lean` and wired
+it through `ProofErasurePiInertGlobalEtaBodyCut.lean`. Renaming histories gain
+symmetry and certified endpoint prefixes. A direct neutral-core argument
+constructs a stage-zero reflexive variable history, including exact-renaming
+futures, without assumptions about arbitrary substitution images.
+
+PiInertPairedImageAction generalizes the single-image action to a pair.
+PiInertImagePair retains histories at each native type and actions in both
+orientations. PiInertPairedSubstitution has two ordinary context interpretations
+and the whole relation for each raw image. Identity, swap, target renaming and
+supplied-image binder extension are checked. No generic composition or
+strong-body coverage theorem is asserted.
+
+apply_actual applies supplied cross image action to a genuinely typed shared
+argument. It reconstructs the exact dependent result carrier using actual Pi
+formation and proofErase_instN, and separately handles proof-valued results.
+pi_inert_evaluation_of_paired_action prefixes the two typed beta computations
+for `fun h => h x`. The result keeps every renaming future and independent core
+residual. It supplies no unrequested action component for a function-valued
+result and does not promote whole-function carrier histories to cross action.
+
+PiInertRenamingHistory.type_probe_descend connects this weaker future
+predicate to the original strengthening readout: distinct variables force
+carrier exposure at the lifted Eq probe, whose recognizer yields the lower
+proposition equation. Coverage of the relevant strong derivation is still
+missing. Higher-order argument demand selection, general lambda coverage,
+dependent type transport, transitivity and paired composition remain open.
+
+All Lean/Lake commands ran in `/dev/shm/native-level-coherence-work` on stock
+`leanprover/lean4:v4.33.0-rc2`. The integration build passed 1130 jobs; the
+recursive audit covered 517 roots, maximum closure 12,394, using
+only propext, Classical.choice and Quot.sound. `/dev/shm/paired-action-*`
+artifacts check frozen source hashes, owned diagnostics and exclusion of
+sorryAx / weakN_iff / weakN_inv / circular frameworks. Executable unchanged;
+no PR extraction. GOAL.md remains active.
