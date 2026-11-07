@@ -29,6 +29,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPendingSourceReturn
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqAnchoredPendingHistory
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqUnusedAnchoredConsumption
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqAnchoredRecognitionState
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqAnchoredConsumedState
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -143,6 +144,17 @@ proved. The conditional theorem `EqAnchoredRecognition.lifted_probe` shows that
 the recognizer would close the original lifted Eq probe; it takes the unproved
 recognizer explicitly. Consumed-case integration and the global induction remain
 open, and no strict comparison with PropFront is claimed.
+
+`EqRetainedSourceAnchor.consume_recognized` now restores the exact recognition
+state after chosen-binder consumption at every returned depth. The original
+whole source application supplies dependent typing; the stored body computation
+and actual square supply exact post-beta erasure. Unused-binder consumption and
+raw or chosen waiting tails also preserve the state. `consumed_recognition`
+connects actual argument/body computations to the suffix input and proves the
+lexicographic decreases from the body induction bound.
+`pi_inert_lambda_recognition_readout` supplies the corresponding typed body
+continuations and unrestricted body/suffix minima for an existing lambda.
+Fresh eta initialization and the global depth-bounded induction remain open.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation

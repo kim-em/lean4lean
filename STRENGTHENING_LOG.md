@@ -36495,3 +36495,52 @@ All 1,061 import source hashes stayed fixed. The audit checks the new conditiona
 theorems with their explicit recognizer hypothesis; it does not prove that
 hypothesis. Stock Lean/Lake ran only in scratch. No executable changes or PR
 extraction.
+
+
+### 2026-11-07 01:58:40 UTC — Consume recognized anchored bodies and derive recursive minima
+
+Added `ProofErasureEqAnchoredConsumedState.lean`. The six proved interfaces are:
+
+- `EqAnchoredEndpoint.append_extra`: restore raw waiting arguments to a
+  completed state at zero or positive depth, preserving its exact endpoint.
+- `EqAnchoredEndpoint.append_supply`: restore an actual typed chosen supply.
+  At depth zero, source equality with the recognized Eq spine transfers whole
+  application typing; at positive depth, outer restoration preserves anchors.
+- `EqAnchoredEndpoint.consume_unused`: derive the actual upper consumption
+  square, realize the recognized body, and restore raw extras at unchanged depth.
+- `EqRetainedSourceAnchor.consume_recognized`: unpack the source application,
+  derive the chosen head square, realize its actual body path, and restore the
+  remaining chosen vector at every returned depth. The source application gives
+  dependent typing and nonproofness of the waiting application. No substituted
+  native body path or extra whole-application typing is assumed.
+- `EqRetainedSourceAnchor.consumed_recognition`: update the anchor along actual
+  argument/body computations and return the recognized post-beta suffix input.
+  The body induction bound supplies both lexicographic recursive decreases.
+- `pi_inert_lambda_recognition_readout`: read the actual existing-lambda path
+  with exact annotation/body/argument/suffix cost accounting. Return typed body
+  continuations and unrestricted all-stage body minima in both branches, plus
+  the actual argument interpretation, suffix source typing and suffix minimum
+  in the consumed branch. Competitors are rebuilt in original scopes at a
+  common finite stage. The suffix minimum follows by fixing the actual body
+  path in the body-plus-continuation minimum.
+
+This connects local returns to the exact `EqAnchoredEndpoint` invariant and
+provides the minimum premises for the existing-history recursive calls. It
+still assumes a recognized body result; it does not prove the global
+`EqAnchoredRecognition` obligation. Next: integrate the existing-history cases
+using cost/depth induction, and initialize the strengthened source anchors and
+recognized state at each fresh chosen/unused eta cut. The original target Eq
+alternative must propagate through body and suffix calls. No proof, canonical-Eq
+counterexample, or irreducible obligation strictly smaller than PropFront has
+yet been established. The original `weakN_iff` sorry remains unchanged.
+
+Validation: 1087 successful build jobs including the global module and
+regression targets; 288 roots recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening dependency or excluded circular framework. The original
+chosen-chain probe still excludes the older nested-eta/frame/supply probes.
+All 1,062 import source hashes stayed fixed. The earlier conditional sufficiency
+results still explicitly assume the unproved recognizer; their audit does not
+prove that premise. Stock Lean/Lake ran only in scratch. No executable changes
+or PR extraction. GOAL.md remains active.

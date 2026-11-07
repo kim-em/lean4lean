@@ -20924,3 +20924,25 @@ maximum closure 11,976; only propext, Classical.choice and Quot.sound.
 No sorryAx or forbidden strengthening/circular dependencies; 1,061 fixed import
 source hashes. The audit checks the conditional theorems as stated and does not
 supply their missing `EqAnchoredRecognition` premise. Lean/Lake only in scratch.
+
+
+### 2026-11-07 01:58:40 UTC — Exact consumed recognition state and existing-lambda minima
+
+Verdict: checked local recursion interfaces, not global recognition. A chosen
+source anchor contains enough whole-application typing to consume its computed
+head, realize the recognized body through the actual square, and restore the
+waiting supply at any returned depth. This removes a separate application-typing
+premise from the consumed return. Empty returned histories are handled by the
+recognized chosen spine; positive histories retain their source anchors. The
+unused case needs only the actual upper argument interpretation and raw extras.
+
+For an existing lambda, reconstruct competing body paths beneath its original
+annotation and fixed actual argument computation. The parent's unrestricted
+all-stage minimum then gives the retained or consumed body's minimum and the
+consumed suffix minimum. Body/suffix primitive costs may equal the parent cost;
+the previously proved incoming-depth decrease handles those cases. No native
+path is transported by substitution or context conversion. Fresh eta state
+initialization and the global induction remain unproved; no strict reduction
+below PropFront is claimed. Validation: 1087 build jobs, 288 recursively
+audited roots, maximum closure 11,976, only propext/Classical.choice/
+Quot.sound, fixed import source hashes, stock Lean in scratch.
