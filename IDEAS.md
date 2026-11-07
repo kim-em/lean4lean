@@ -23121,3 +23121,51 @@ recursive dependency closure 11,976; only propext, Classical.choice and
 Quot.sound. Frozen sources and owned diagnostics checked. Stock v4.33.0-rc2
 Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work. Executable
 and UniqueTyping.lean unchanged; GOAL.md remains active.
+
+
+## 2026-11-07 12:14:49 UTC — Construct type-operator interface conversion from universe aliases
+
+Idea: use the universe-alias transport result on a guarded function's actual
+arguments and dependent results, then reconstruct its new ground history by
+fresh testing. Keep the old dependent codomain in its written binder until an
+actually assigned argument instantiates it; moving histories across unequal
+binder contexts is not justified.
+
+Implemented ProofErasurePiInertTypeOperatorConversion.lean. An assigned operand
+at a universe alias is sorted. An assigned argument constructs a typed
+substitution out of its binder, including proof arguments; composing this with
+an arbitrary typed substitution supplies the old dependent codomain's alias
+after application. Ordinary trees construct their own exposure supply.
+
+The main conversion consumes a retained guarded call, actual new function
+assignments, a new-domain universe alias and an old-codomain universe alias.
+The old selected carrier is unrestricted. Whole-application typing recovers
+each argument's assignment at the old domain. The new domain alias reindexes
+the argument history, sortedness constructs the old ordinary input tree, and
+the retained action supplies the old result. Its codomain alias reindexes the
+result history to the new dependent result carrier. Fresh testing then builds
+the entire new call, including its ground history. No argument/result history
+transport or target ground comparison is supplied as an extra premise.
+
+Substituted annotation maps and paired interpreters are covered. Each
+orientation interprets its codomain in its own source environment. Original
+StrongBounded conversion is connected both for literal Sort-to-Sort operators
+and for source domains/codomains equal to universes by ordinary actual
+equality. Domain injectivity of the original type child transfers the domain
+alias to the target interface. These rule cases need their term interpreter,
+but no additional semantic type-child certificate.
+
+Verdict: a function-interface conversion case is now constructed, extending
+the previous universe-valued carrier conversion. The old input tree and new
+input/output trees must be ordinary; explicit nested call requirements are
+not silently inferred or discarded. Arbitrary function/structure conversion,
+term composition and full strong coverage remain open. In particular, this
+does not eliminate the previously checked PropFront obstruction for generic
+paired composition. No strengthening proof, counterexample or strictly
+smaller sufficient frontier is claimed. PR extraction remains deferred.
+
+Validation: 1192 integration jobs; 11 public/probe roots; maximum
+recursive dependency closure 11,976; only propext, Classical.choice and
+Quot.sound. All 1,167 frozen sources and owned diagnostics checked. Stock
+v4.33.0-rc2 Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work.
+Executable and UniqueTyping.lean unchanged; GOAL.md remains active.

@@ -38819,3 +38819,58 @@ Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
 /dev/shm/universe-transport-*. All Lean/Lake commands used stock v4.33.0-rc2 in
 /dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
 PR extraction remains deferred and GOAL.md remains active.
+
+
+## 2026-11-07 12:14:49 UTC — Guarded function conversion for type operators
+
+ProofErasurePiInertTypeOperatorConversion.lean constructs a full guarded call
+at a new literal Pi interface from an old retained call at any selected
+carrier. The new domain is an actual universe alias, and the old dependent
+codomain is a universe alias in the old written binder. The source input and
+target input/output trees are ordinary; the source output tree is arbitrary.
+
+UniverseAlias.assigned_sorted realizes an operand at the alias's actual type
+and converts that assignment to the universe. TypedAt.argument_substitution
+and ContextSubstitution.cons_assigned construct the binder instantiation from
+actual typing. This handles proof arguments without treating the erased proof
+marker as a polymorphic term. Ordinary.subst and Supply.of_ordinary provide
+annotation and supply bookkeeping without an extra exposure assumption.
+
+type_operator_convert uses the old retained exposure to assign both functions
+their old interface. In every future world, actual whole-application sources
+recover old and new argument assignments. The new-domain alias reindexes the
+input history; sortedness upgrades it to the old ordinary input tree. The old
+action produces the dependent result. Instantiating the old codomain alias
+with the old-domain assignment makes this result sorted and reindexes its
+history to the new result carrier. Actual new application assignments supply
+the remaining output obligations. of_calls constructs the new ground history
+by fresh testing as well as the recursive action.
+
+The substituted-map theorem reifies the annotations before conversion, then
+restores the original map. Paired conversion uses assigned-base reflection to
+obtain cross assignments and applies this construction independently under
+the two typed substitutions. No history moves across unequal binder contexts.
+
+StrongBounded.paired_convert_type_operator closes the original conversion case
+for a source Pi from one literal universe to another. The aliases variant
+accepts nonliteral source domain/codomain equalities to universes, including a
+dependent codomain equality in its actual source binder. Domain injectivity
+of the original type child constructs the new-domain alias. Both versions
+construct semantic argument/result transport and the target ground history;
+the expected recursive term-child interpreter remains a premise.
+
+This is a proved conversion-rule family, not full interpretation coverage.
+The ordinary input restriction prevents reliance on a vacuous source action
+at an impossible explicit-call input. General recursive interfaces, arbitrary
+structure/function conversion and term composition remain open. Retaining
+the conversion provenance needed for a full strong induction is still the
+next central issue; plain paired-comparison composition already reaches the
+known PropFront boundary. The original weakN_iff sorry is unchanged, and no
+goal-completion or strict-smallness claim is made.
+
+Integration passed 1192 jobs. Recursive audit covered 11 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. All 1,167 frozen sources and owned diagnostics checked; artifacts
+under /dev/shm/type-operator-*. All Lean/Lake commands used stock v4.33.0-rc2 in
+/dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
+PR extraction remains deferred and GOAL.md remains active.
