@@ -39569,3 +39569,40 @@ roots, maximum closure 11,976, only propext, Classical.choice and
 Quot.sound. All 1,199 frozen sources and owned diagnostics checked. All Lean/Lake
 commands used stock v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable
 and UniqueTyping.lean unchanged; PR extraction deferred; goal active.
+
+
+## 2026-11-07 14:45:39 UTC — Exact triangles for sorted projection root and major expansions
+
+Added ProofErasurePiInertProjectionRoot.lean and its aggregator import.
+Projection iota is deterministic at a fixed raw projection, using registration
+uniqueness and constructor-spine injectivity. Full ambient-stage root
+classification at an actually sorted projection retains selection or a
+removable constant/identity beta wrapper, including the exact preceding stage
+of identity recovery. Native function/structure eta are impossible there.
+Every root competitor of a selected projection computes to that same field in
+the ordinary level core. Independent full-union root competitors hence have
+Pi-inert comparisons at any stage and either mode.
+
+Native masked structure expansion of a closed record major now has an exact
+projection return theorem for type-valued fields. Ordinary native replay and
+rigid type uniqueness identify its selected family, universes and parameters;
+actual typing excludes the proof mask. A second projection iota returns the
+original selected payload. Constant and identity expansion at the major also
+return by beta, and function eta is ruled out by the assigned record family.
+These theorems need neither native evidence at the selected payload nor a
+no-unfolding premise, normalization, comparison transitivity or expanded
+confluence.
+
+Limit: this settles immediate primitive and administrative expansion peaks,
+not an arbitrary path after an expansion. PiInertPairTypeFieldSelection is
+still unproved, in particular its recursive checked/nested comparison cases.
+The original weakN_iff sorry and all GOAL.md deliverable requirements remain
+open. Continue with compatible computation and checker forward readout rather
+than adding another conditional frontier. PR extraction remains deferred.
+
+Validation: stock Lean 4.33.0-rc2, all Lean/Lake execution in
+/dev/shm/native-level-coherence-work; 1226 integration jobs, 9 public
+and global audit roots, maximum recursive declaration closure 11,976;
+only propext/Classical.choice/Quot.sound and no forbidden strengthening or
+circular frontier dependencies. Frozen closure contains 1,201 sources.
+Artifacts: /dev/shm/projection-root-*.

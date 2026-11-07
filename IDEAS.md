@@ -23851,3 +23851,38 @@ unmet. PR extraction remains deferred.
 Validation: 1224 integration jobs, 15 audited roots, maximum closure
 11,976, only propext/Classical.choice/Quot.sound; 1,199 frozen sources checked.
 Artifacts: /dev/shm/projection-terminal-*.
+
+
+## 2026-11-07 14:45:39 UTC — Sorted projection root competitors return to the selected field
+
+**Idea.** Test whether the missing type-field selection condition fails at a
+native expansion competing with projection iota. Use actual universe typing
+to classify the full ambient stage, rather than assume generic forward closure
+of the comparison checker.
+**Verdict: root peaks proved; the full selection condition remains open.**
+Every ambient-stage primitive at a sorted projection is projection iota,
+constant beta expansion, or native identity expansion. The two eta expansion
+kinds are excluded by type uniqueness. Any such root competitor reduces in the
+ordinary level core to the exact selected field. Two independently chosen root
+competitors therefore compare at every Pi-inert stage, without transitivity.
+
+For a closed record major, arbitrary native structure expansion also returns
+each type-valued projection to its original projection. Native recovery may
+select any convertible carrier: rigid head inversion fixes the family and its
+empty parameter/universe spine, while actual sort typing excludes a proof mask.
+Thus all four administrative expansion alternatives at the major either return
+to the same selected field or are impossible (function eta).
+
+The older unit-family and typed carrier-composition examples do not directly
+refute PiInertPairTypeFieldSelection: their failing endpoints are values, or
+their premises are two comparison links rather than a selected record guard.
+The current proof removes immediate root expansion competitors as an obstacle;
+it does not commute arbitrary subsequent computations or transport a comparison
+forward through iota. Next address compatible computation and recursive
+carrierChecked/carrierNested comparison certificates with these exact triangles.
+No strictly smaller sufficient frontier is claimed. GOAL.md remains unmet and
+PR extraction deferred.
+
+Validation: 1226 integration jobs, 9 audited roots, maximum closure
+11,976, only propext/Classical.choice/Quot.sound; 1,201 frozen sources.
+Artifacts: /dev/shm/projection-root-*.
