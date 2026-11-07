@@ -23073,3 +23073,51 @@ recursive dependency closure 12,011; only propext, Classical.choice and
 Quot.sound. Frozen sources and owned diagnostics checked. Stock v4.33.0-rc2
 Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work. Executable
 and UniqueTyping.lean unchanged; GOAL.md remains active.
+
+
+## 2026-11-07 12:02:25 UTC — Universe aliases construct carrier transport outright
+
+Idea: test whether the new transport certificate can actually be constructed
+from original type children. A universe alias cannot expose a structure or
+function carrier, so every carrier guard there should already be an ordinary
+comparison. Prove this for arbitrary raw endpoints, as required by transport,
+rather than relying on the older independently sorted-endpoint lemma.
+
+Implemented ProofErasurePiInertUniverseTransport.lean. UniverseAlias records
+ordinary actual equality to a universe in a context realizing the raw context.
+It substitutes by ordinary forward typing. Any finite Pi-inert carrier exposure
+would realize an actual type equal to that universe but headed by a Pi or
+registered structure; head inversion excludes both. checked_or_exposed then
+extracts ordinary comparison from every carrier guard at the alias, with no
+endpoint typings. Whole world histories reindex to any carrier at the same
+stage, retaining independent endpoint residuals and all core-world futures.
+
+Two universe aliases therefore construct CarrierTransport directly, under
+every typed substitution. No exposure path, interpreted equality certificate
+or supplied history transformer is needed. Different universe levels also
+have this history-transport property; it is not a claim of actual type equality.
+Conversion consumers continue to require their actual endpoint assignments.
+
+Original strong conversion to a literal universe now constructs its type
+child's transport. The nonliteral target version uses ordinary equality
+showing the target is a universe alias. Both convert paired interpreters from
+any source profiles to every ordinary target tree, including finite
+intersections and arbitrary ordinary arrow demands inside leaves. A separate
+proof excludes explicit guarded-call nodes at a universe alias, so these are
+all realizable target tree shapes. Ground extraction and sorted-tree
+construction supply the interpretation glue. The EnvironmentCore corollary
+applies the transport result to the actual full core.
+
+Verdict: the universe-alias conversion case no longer has an extra semantic
+type-child premise. This is a proved rule case in the current interpretation,
+not general strong coverage or a smaller-than-PropFront frontier. Function
+and structure carriers still need their retained conversion/action evidence;
+general term transitivity and dependent interface reindexing remain open.
+No strengthening proof or canonical-Eq counterexample is claimed. PR extraction
+remains deferred.
+
+Validation: 1191 integration jobs; 18 public/probe roots; maximum
+recursive dependency closure 11,976; only propext, Classical.choice and
+Quot.sound. Frozen sources and owned diagnostics checked. Stock v4.33.0-rc2
+Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work. Executable
+and UniqueTyping.lean unchanged; GOAL.md remains active.

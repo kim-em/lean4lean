@@ -38775,3 +38775,47 @@ Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
 /dev/shm/carrier-transport-*. All Lean/Lake commands used stock v4.33.0-rc2 in
 /dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
 PR extraction remains deferred and GOAL.md remains active.
+
+
+## 2026-11-07 12:02:25 UTC — Original strong conversion at universe aliases
+
+UniverseAlias retains actual equality to a sort, without asserting computation
+to that sort. Its forward substitution theorem uses only ordinary typed
+substitution and erasure reconstruction. no_carrier_exposure realizes an
+arbitrary Pi-inert path and excludes both structural target cases by actual
+head inversion. This proof does not assume typings for the compared endpoints.
+
+carrier_checked uses checked_or_exposed to read an ordinary common comparison
+from a carrier guard at the alias. universe_alias_reindex applies that readout
+to every pair of core residuals and every core-world future, yielding history
+at any new carrier with the same stage. The old carrier's residual clause can
+be used at reflexivity; new carrier residuals need not be related to old ones.
+
+CarrierTransport.universe_aliases applies this result after arbitrary typed
+substitution. This constructs both directions of transport for arbitrary raw
+endpoints, filling the stronger requirement of the preceding module. It does
+not rely on a guarded exposure or on independently sorted endpoint typings.
+The certificate still concerns histories rather than actual type equality.
+
+StrongBounded.universe_transport and universe_alias_transport derive the
+certificate from original strong type children, with ordinary target-universe
+equality for the nonliteral case. Ground conversion consumes it without an
+extra semantic type premise. sorted_tree and sorted_trees then construct all
+ordinary finite target trees. ordinary_of_universe_alias excludes any explicit
+call node: the retained call exposure meets an ordinary-core Pi residual and
+would violate no_carrier_exposure. Thus the syntactic target condition covers
+every realizable tree in this case. Source profiles are unrestricted.
+
+This closes the universe-alias case of the interpretation's original strong
+conversion rule, conditional on its term-child interpreter as expected for
+induction. It does not construct all term-child interpreters. Function and
+structure conversion, general term composition, dependent interface transport
+and full strong coverage remain open. The original weakN_iff sorry is unchanged.
+No goal-completion or strict-smallness claim is made.
+
+Integration passed 1191 jobs. Recursive audit covered 18 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
+/dev/shm/universe-transport-*. All Lean/Lake commands used stock v4.33.0-rc2 in
+/dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
+PR extraction remains deferred and GOAL.md remains active.
