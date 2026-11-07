@@ -24552,3 +24552,24 @@ stage pair selection and weakN_iff remain open. No claim that this is a
 strictly smaller sufficient obligation than PropFront. Validation: 1265 build
 jobs, 20 recursively audited roots, maximum dependency closure
 11,978; standard axioms only; 1,240 frozen source files verified.
+
+## 2026-11-07 17:50:51 UTC — move structure selection, not its guarded computation
+
+Verdict: checked local reduction across actual endpoint substitution.
+Native structure eta at a closed pair has a raw one-step field equation:
+selecting its type field returns the original projection. Ordinary typed
+substitution retains the short/expanded record typings, and raw Primitive.subst
+retains this equation without substituting the native guard. The later
+projection computation therefore either reads the short image's projection
+with a strict primitive saving or supplies the established function-eta
+alternative in its own scope. Global projected-path minimality excludes the
+saving branch when a charged prefix reaches the short image.
+
+For a consumed outer eta whose inner structure root has a beta-only body tail,
+construct that prefix with counted lambda-body replacement. Actual typing
+forces all arguments after the consumed binder to be absent; emptiness is
+proved, not assumed. Only the beta tail crosses the endpoint substitution.
+Positive-cost body tails and further retained frames remain unresolved.
+This is not a general pair-selection proof or sufficient smaller strengthening
+frontier. Validation: 1266 build jobs, 6 audited roots, maximum closure
+11,978; standard axioms only, 1,241 frozen sources verified.

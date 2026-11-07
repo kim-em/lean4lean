@@ -40572,3 +40572,62 @@ Classical.choice and Quot.sound; no sorryAx or forbidden strengthening/circular
 frontier dependencies. All 1,240 frozen sources verified before and after.
 Artifacts: /dev/shm/pi-inert-projection-continuation-*.
 Executable and UniqueTyping.lean unchanged; goal active.
+
+## 2026-11-07 17:50:51 UTC — structure selection across endpoint substitution
+
+Previous goal turn classified as progress: committed/pushed a1dccd65 retained
+projection observers in typed eta minima. Revalidated that clean HEAD and its
+actual definitions before this turn. Added
+ProofErasurePiInertStructureProjectionSubstitution.lean and imported it in the
+aggregator; existing statements otherwise unchanged.
+
+TypedSource.closed_record_pending_nil proves that a raw term with an actual
+closed rigid record assignment cannot have any typed pending application.
+Context conversion and nonproof erasure reflection transfer the exact closed
+assignment to the function representative exposed by the application typing;
+rigid/Pi head separation then contradicts any pending argument. No assumption
+about source syntax or primitive computation is used in this exclusion.
+
+proofErase_closed_structure_projection_substitution realizes both sides of a
+native structure expansion at the original closed family, then transports
+those actual terms by the interpreted endpoint substitution. The already
+proved one-step type-field selection equation substitutes as a raw primitive.
+The result retains actual short and expanded images in a common target context
+and exactly one selection primitive returning the short image's projection.
+This does not claim the native recovery itself survives substitution.
+
+pi_inert_substituted_structure_projection_count_readout_or_function_eta applies
+the existing counted global pair readout theorem to the expanded image's
+actual later projection path. It yields either a strictly cheaper path from
+the short image's projection, or a reachable pair function-eta witness in a
+realization of the target raw context. Guards stay in their original scope;
+the later computation has its own arbitrary finite stage. The corresponding
+minimum theorem rules out the first branch by projecting a supplied counted
+prefix to the short image, combining stages, and contradicting full projected-
+path minimality. It does not infer raw reachability from semantic equality.
+
+pi_inert_consumed_structure_projection_minimum_function_eta constructs this
+prefix for an actual outer eta, original-scope body prefix, nested structure
+expansion, and beta-only remaining body path. The outer argument computation
+may initially have arbitrary remaining arguments. Eta-body interpretation
+supplies the actual endpoint map. Counted lambda-body replacement stops at the
+short body record before the structure root, then consumes the outer lambda;
+thus the guarded body prefix never crosses substitution. Ordinary typing of
+that replacement and the substituted record forces the remaining arguments
+to be empty. Only the raw beta tail is substituted, and it composes with the
+unchanged later major and field paths. Exact count accounting then invokes the
+minimum theorem, leaving actual function eta in the outer scope.
+
+Limit: this handles the beta-only tail following the selected body structure
+root. Positive primitive work in that body tail and additional retained frames
+remain open. No general guarded substitution, field-origin invariant, positive-
+stage pair selection, or strictly smaller sufficient strengthening frontier
+has been established. The original weakN_iff sorry is unchanged; goal active;
+PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1266 jobs; recursive audit
+6 roots, maximum closure 11,978; only propext/Classical.choice/
+Quot.sound, no sorryAx or forbidden strengthening/circular-frontier dependencies.
+All 1,241 frozen source hashes verified before/after. Artifacts:
+/dev/shm/pi-inert-structure-projection-substitution-*.
