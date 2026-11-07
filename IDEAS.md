@@ -25550,3 +25550,30 @@ counterexample, or sufficient smaller global obligation established. Goal
 active; PR extraction deferred. Validation: 1343 jobs, 6 public roots,
 maximum audit closure 11,981, 1,318 frozen source hashes; stock Lean
 in /dev/shm.
+
+
+## 2026-11-07 22:58:13 UTC — Restore constructor minima across arbitrary retained wrappers
+
+Idea: commute the lower constructor-function history inside the exact-depth
+hole of the next actual application, then focus the whole restored minimum.
+Verdict: checked for both an intervening application above the distinguished
+field binder and the distinguished supply under a retained telescope.
+Ordinary equality restores source typing backwards through appFn/lamBody;
+exact variable renaming moves the guarded history forward with unchanged
+stage and cost. Comparing all raw candidates against the original fixed
+prefix and argument path proves minimality without circularly assuming it.
+
+The actual empty-prefix eta branch now returns a constructor-source minimum
+with nonincreasing primitive cost and strictly fewer continuation frames.
+For a full two-field constructor it returns a full pair: the first field is
+the same fresh variable or the lifted distinguished supply x, and typing
+rules out additional arguments. The eta/function charge remains in the new
+body path. Thus retained wrappers no longer leave an arbitrary computed head
+as the source of the next recursive problem.
+
+Remaining: structure-eta root readout and the complete recursive field-readout
+invariant, including activated pair minima under retained telescopes. No
+proof of weakN_iff, canonical-Eq counterexample, or sufficient smaller global
+obligation established. Goal active; PR extraction deferred. Validation:
+1345 jobs, 11 public roots, maximum audit closure 11,981,
+1,320 frozen source hashes; stock Lean in /dev/shm.

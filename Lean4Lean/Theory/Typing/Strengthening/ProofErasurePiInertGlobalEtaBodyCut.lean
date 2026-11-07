@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertRetainedConstructorProgress
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertFreshFieldApplicationCommutation
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertFreshFieldRootDescent
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertFreshFieldCutActivation

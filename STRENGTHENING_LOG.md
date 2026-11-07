@@ -42389,3 +42389,64 @@ Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,318 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-counted-head-commutation-*.
+
+
+## 2026-11-07 22:58:13 UTC — Counted constructor commutation through retained prefixes
+
+Added ProofErasurePiInertRetainedHeadCommutation.lean and
+ProofErasurePiInertRetainedConstructorProgress.lean, imported by the existing
+global eta-body aggregate.
+
+SpineBinderHole.pi_inert_preimage reverses ordinary equality through exactly
+the application/function and lambda/body hole grammar. It reconstructs an
+actual original representative at the endpoint's exact type and erasure,
+keeping each actual lambda annotation and context. The typed wrapper supplies
+TypedSource for the restored whole term. Counted retained-prefix substitution
+and application holes retain a telescope of exactly the recorded depth and
+the literal binder-lifted outer map. SpineBinderHole.pi_inert_lift_head uses
+the actual target's context realization to weaken the lower native function
+history into that telescope, then lifts it through the hole at the same
+native stage and primitive count. No guarded arbitrary substitution is used.
+
+The application and supply commutation theorems rebuild whole-source minima
+at the original constructor in the interpreted retained wrappers. Their
+selected body includes the lower function charge and actual later suffix.
+Every competing target path is inserted into the original raw continuation,
+fixing only the original prefix and argument computation. This proves the
+new minimum directly from the old one; prepending a path to an unrelated
+minimum is never used as a minimality rule.
+
+PiInertFreshFieldRun.constructor_head_next_minimum locates the actual next
+application, applies the corresponding commutation, and focuses retained
+wrappers. It returns either an ordinary activated constructor minimum under
+a telescope of the original temporary depth, or a marked constructor minimum
+with no greater temporary depth and the SAME future x. Both alternatives
+have strictly fewer frames; smaller <= cg+ck and cp+ca+smaller <= cost retain
+the exact reserved-cost accounting. Their argument tails cannot shrink below
+the original retained vector length. The actual empty-prefix eta theorem
+obtains that vector and the lower function history from retained descent.
+
+pi_inert_fresh_pair_empty_eta_constructor_progress specializes the transition
+to the full two-field constructor. The restored typed constructor has at
+least two fields; typing its saturated prefix at the closed record family
+forbids any further pending applications. The output is therefore a full
+pair with exactly the fresh field or lifted supplying x, nonincreasing cost,
+and strictly fewer continuation frames. This closes the retained-wrapper
+transition left open by 683ab4dd, including supply below a retained telescope.
+
+Judgment: the empty-prefix retained eta branch now preserves the constructor
+pair invariant needed for recursion across its next application. The next
+work is to combine this transition with the other constructor-root branches
+and establish a closed recursive field-readout invariant. Structure-eta
+roots and readout of activated minima below retained telescopes remain;
+this commit does not claim that frame progress alone closes those cases.
+Original weakN_iff sorry and executable unchanged. No sufficient irreducible
+global replacement for PropFront established. Goal active; PR extraction
+deferred.
+
+Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1345 jobs; recursive audit
+11 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,320 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-retained-head-commutation-*.
