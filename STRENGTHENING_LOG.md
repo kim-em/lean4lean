@@ -37134,3 +37134,47 @@ constructors and recursors traversed. No sorryAx, weakN_iff or excluded circular
 framework dependency; all 1,088 frozen source hashes remained unchanged and
 there were no owned diagnostics. Stock Lean/Lake ran only in scratch.
 No executable changes or PR extraction. GOAL.md remains active.
+
+
+### 2026-11-07 04:26:25 UTC — Application readout for typed identity-function comparisons
+
+Added ProofErasurePiInertIdentityReadout.lean and imported it from the global
+module. Six public theorems address the identity branch of the body-comparison
+induction rather than postulating another universal closure law:
+
+- InferredLambdaTerminal.identity_body_return returns a directed body path to
+  the bound variable in one of the recorded annotation contexts. This works at
+  every finite stage. The eta proof-marker branch contradicts sort control
+  typing after beta; ordinary/sorted terminals use inferred variable exposure.
+- identity_body_core_return converts that path at stage zero to an ordinary
+  core return, using explicit source witnesses in the two possible scopes.
+- pi_inert_zero_identity_lambda_cut realizes both computed lambdas, recovers
+  their domains and sort-typed bodies at actual assigned types, and returns the
+  target body's core return. Only typing crosses the equal-domain boundary.
+- pi_inert_zero_identity_application_core_join types the actual argument at
+  the target annotation, combines the target function join with application,
+  and beta-contracts the returned body to the argument. Original target-function
+  typing is unrestricted; its required Pi type is recovered from comparison.
+- pi_inert_zero_identity_application_evidence retains the resulting join
+  through every future typed substitution and independent source residual.
+- RigidSortFrames.compared_identity_application_history obtains the identity
+  body's sort assignment from the framed source argument and ordinary type
+  uniqueness. It consumes the completed target-argument carrier history at the
+  same stage, without an additional body child or argument equality premise.
+
+The construction is for type-valued identity functions, as required by a
+sort-framed identity application. It does not assert the false untyped eta
+shortcut, unrestricted function application closure, or general raw-comparison
+history synthesis. Constant-frame applications still require their recursive
+body histories, and the simultaneous comparison induction is not assembled.
+Positive-stage raw computation certification also remains open. The original
+weakN_iff sorry is unchanged.
+
+Validation: 1114 successful integration-build jobs, 369 recursively
+audited roots, maximum closure 12,048; only propext, Classical.choice
+and Quot.sound. All six public theorems are audit roots; the private lambda
+sort-typing proof is traversed with their types, values, constructors and
+recursors. No sorryAx, weakN_iff or excluded circular-framework dependency.
+All 1,089 frozen source hashes remained unchanged; no owned diagnostics.
+Stock Lean/Lake ran only in scratch. No executable changes or PR extraction.
+GOAL.md remains active.

@@ -21217,3 +21217,30 @@ computation clauses; application and common-mode argument clauses still require
 that induction. No counterexample or strict-smallness claim.
 Validation: 1113 jobs, 363 audited roots, maximum closure 12,048;
 only propext, Classical.choice and Quot.sound. GOAL.md remains active.
+
+
+### 2026-11-07 04:26:25 UTC — Typed identity comparison closes its application branch: proved
+
+The simultaneous frame argument needs an identity-function case as well as a
+constant-function case. The old raw eta counterexample does not survive the
+actual sort typing of the identity body: its proof-marker branch beta-returns
+to proof, contradicting the target body's retained control typing. Proved that
+an inferred identity terminal instead exposes the bound variable in one of its
+two recorded domains, at every Pi-inert stage.
+
+At stage zero, the new raw-path join theorem turns that exposure into an
+ordinary-core body return. Realizing both sides of the lambda cut recovers the
+actual domains and body sorts, and ordinary context conversion supplies the
+needed typing in the recorded scope. The resulting target function application
+joins its actual argument in ordinary core. Complete computation evidence then
+retains all future substitutions and residuals at any requested output stage.
+
+For the identity-frame application case, the framed source argument itself
+supplies the identity body's sort assignment. A completed target-argument
+carrier history transfers to the target application with no new body-history
+premise. Verdict: discharges this function-comparison branch of the pending
+induction, conditional only on the recursive argument result. The constant-body
+branch, assembly of the mutual comparison induction and positive-stage path
+certification remain open. No strengthening proof or strict-smallness claim.
+Validation: 1114 jobs, 369 audited roots, maximum closure 12,048;
+only propext, Classical.choice and Quot.sound. GOAL.md remains active.
