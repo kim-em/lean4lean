@@ -41086,3 +41086,72 @@ Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,281 frozen source hashes verified before
 and after. Artifacts: /dev/shm/pi-inert-field-budget-*.
+
+
+## 2026-11-07 19:12:00 UTC — The original-field cut retains its actual projection observer
+
+The previous goal turn made checked progress in adc46a21. This turn rechecked
+the clean worktree and the authoritative projection-continuation and pair-cut
+sources. The existing quantitative field cut and observed eta minimum were
+separate interfaces: the former fixed the final major, while the latter allowed
+it to change but did not retain that selected body root and its field ancestry.
+
+Added ProofErasurePiInertObservedBodyRoot.lean. PiInertObservedBodyRoot stores
+pending arguments, the actual first Pi-inert root, its counted suffix, the typed
+projection-continuation execution, and a minimum over all raw competing paths
+from the root spine. The minimum includes root + suffix + continuation costs
+and is strictly smaller than the enclosing projected computation. Retaining
+the distinguished root matters: an arbitrary minimum at the same source would
+not justify descent through that specific native eta.
+
+CountedEtaBodySpineCut.projected_root preserves every witness of the existing
+cut, including both component budgets, domain cost, argument computations,
+root and suffixes. Its actual continuation is the supplied one-binder endpoint
+map/application suffix followed by the final typed projection. The application
+source typing is derived from the original eta, lambda computation, computed
+arguments and zero-cost beta; the final projection typing is transported along
+the reconstructed whole major path.
+
+For minimality, a competitor can use an arbitrary body endpoint and a different
+major, with independent finite stages for the body, application suffix and
+projection tail. Prefix it by the selected body prefix, then use
+pi_inert_counted_lambda_body_replace to rebuild the original lambda/application
+path without substituting any guarded computation. Append the competitor's
+projection observation. The outer global minimum and exact count decomposition
+then imply the remaining root-spine minimum by cancellation. No native image
+certificate or blanket replay premise is introduced.
+
+PiInertObservedBodyRoot.minimum forgets only the distinguished first root.
+eta_descent applies the existing typed projection-frame eta theorem to that
+actual root/suffix/execution and obtains a further strictly smaller body minimum
+under the new binder. structure_minimum uses the actual typed root spine and
+native structure guard to prove pending = []; its smaller minimum therefore
+starts at the full source. PairEtaOriginalFieldRoot.observed_descent combines
+these facts with the bounded original-field path: either another eta body has
+a smaller observed minimum, or the full pair source has one and its type field
+is still the lift of a counted old-scope computation.
+
+GlobalPairFunctionEtaProjection.observed_field_root constructs the selected
+body cut from the actual global major/projection minimum, refines its root to
+original-field ancestry, and attaches the observed execution to that SAME cut.
+The observer count is globalMajorCost + 1 + fieldTailCost. The public theorem
+proofErase_pi_inert_pair_projection_readout_or_observed_field_root derives this
+joint witness directly from an exposed pair type-projection path. The global
+Eq-exposure integration module imports it.
+
+Judgment: the selected root now has enough projection minimality to permit
+changing intermediate majors, and the nested-function eta case has a checked
+strict decrease retaining the observer. This does not show that the resulting
+minimum reads the original field through its application/retained-lambda frames.
+The structure branch's saturated constructor and lifted old field give a
+specific next restriction to exploit; generic guarded replay remains refuted
+by the earlier registered counterexample. No strengthening proof, canonical-Eq
+strengthening counterexample, or sufficient smaller global frontier claimed.
+Executable and UniqueTyping.lean unchanged. Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1307 jobs; recursive audit
+9 roots, maximum closure 11,981; only propext/Classical.choice/
+Quot.sound, no sorryAx or forbidden strengthening/circular-frontier dependencies.
+All 1,282 frozen source hashes verified before/after. Artifacts:
+/dev/shm/pi-inert-observed-body-root-*.

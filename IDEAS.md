@@ -24769,3 +24769,35 @@ Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work;
 1306 integration jobs, 61 audited roots, maximum closure 11,981;
 only propext/Classical.choice/Quot.sound, no forbidden dependencies. All frozen
 source hashes checked before/after. Artifacts: /dev/shm/pi-inert-field-budget-*.
+
+
+## 2026-11-07 19:12:00 UTC — Keep field ancestry and projection minimality at one body root
+
+**Idea.** The bounded original-field cut fixes a final major, while the existing
+projection-continuation minimum allows that major to change. Attach the latter
+property to the actual former cut, retaining the selected first root and its
+execution, so nested eta can descend without discarding the observer.
+
+**Checked verdict.** CountedEtaBodySpineCut.projected_root reconstructs each
+competing body/application/projection path under the original outer lambda.
+It yields a smaller root-spine minimum against all stages, endpoints and majors
+that reach the same observed output. PiInertObservedBodyRoot stores the actual
+root, suffix and typed continuation, not just existence of an unrelated minimum.
+Its eta_descent gives another smaller body minimum with the same observer;
+its structure_minimum uses typing to eliminate all pending applications.
+The global pair construction and exposed pair-projection readout now retain
+this observed root jointly with the bounded original-field ancestry on the
+same selected cut.
+
+**Remaining gap.** This provides a valid next recursive step, not closure of
+the recursion. Readout through the retained application/lambda frames is still
+open. The structure case now starts at the full pair with the short lifted
+original field; the next useful restriction is how such a saturated constructor
+passes through the actual endpoint maps and pending applications. No general
+guarded substitution replay is asserted. This is not a sufficient global
+irreducible obligation smaller than PropFront. Goal active; no PR extraction.
+
+Validation: stock Lean v4.33.0-rc2, exclusively /dev/shm/native-level-coherence-work;
+1307 integration jobs, 9 audited roots, maximum closure 11,981.
+Only propext/Classical.choice/Quot.sound; no forbidden dependencies. All frozen
+source hashes checked before/after; artifacts /dev/shm/pi-inert-observed-body-root-*.
