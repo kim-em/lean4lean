@@ -36227,3 +36227,93 @@ strengthening dependency or excluded circular framework. The original
 chosen-chain probe still excludes the older nested-eta/frame/supply probes.
 All 1,058 import source hashes stayed fixed. Stock Lean/Lake ran only in scratch.
 No executable changes or PR extraction.
+
+
+### 2026-11-07 01:17:35 UTC — Source application witnesses through the pending history
+
+Added `ProofErasureEqAnchoredPendingHistory.lean`, imported at the global eta-body
+frontier. Fifteen public definitions/theorems implement a history invariant
+stronger than the individually typed pending argument records.
+
+`EqRetainedSourceAnchor` records a lower body, its type and original native path
+to this frame's actual current body, plus a whole typed nonproof lambda
+application using the same actual supply as its chosen-image and raw-vector
+metadata. The raw body includes the entire nested child wrapper. `forget`
+derives the previous head-domain typing from whole application inversion;
+`of_eta` initializes the anchor by eta equality from the original typed function
+application and actual fresh-body path.
+
+`frame` realizes the original body path through the actual square below the
+binder. Its domain equality aligns the old lambda with the realized body, so
+whole application typing and nonproofness survive with the mapped actual
+arguments and unchanged chosen images. The outgoing native path is reflexive
+at the realized body's exact erasure. `compute_body` extends a local anchor's
+actual body path at the maximum finite stage while keeping its original source
+application and waiting vector.
+
+`EqAnchoredPendingHistory` retains such an anchor at each chosen frame and
+indexes the whole history by its actual current body. Parent anchors refer to
+the complete child wrapper at that body. `forget` produces the original pending
+history with identical scopes, maps, pending images, wrapper and counts.
+`realize_returning` now realizes all anchors by induction through the whole
+history, including unused insertions, while preserving the actual substituted
+endpoint and the wrapper equation for every body. Both chosen and retained
+counts are unchanged.
+
+`endpoint_map_eq_id` propagates identity outgoing placeholders through all
+binders. Together with final outgoing-context agreement, it identifies every
+displayed domain with its actual source annotation. The history-level
+`compute_body` therefore wraps a real current-body computation outward and
+updates every enclosing anchor. It preserves the history scopes and counts.
+This operation needs the displayed/actual context agreement explicitly; it does
+not silently assume native computation respects arbitrary context conversion.
+
+The local `append_supply` handles the stronger application obligation when
+reattaching waiting arguments. If the old local extra is empty, annotation and
+body paths reconstruct computation of the entire original local lambda
+application to the same endpoint reached by the returned function. A private
+common-endpoint lemma uses certificate realization and nonproof erasure
+reflection to recover source equality, which transfers whole application typing
+to the enlarged actual vector. If an old local extra is nonempty, the pending
+equation forces the waiting tracked vector to be empty. Source body paths,
+chosen images, upper extras and nonproofness all remain attached.
+`append_outer_supply` carries this operation through the actual outer frame of
+a positive history without forgetting the inner anchors.
+
+`rebase_endpoint` preserves all source witnesses when outgoing placeholders are
+changed. `append` requires the older anchor endpoint to be the complete younger
+wrapper applied to its actual body; it preserves additive binder counts.
+`outermost` exposes the actual source domain, annotation path, body anchor,
+anchored inner history and exact counts. In particular, the source anchor's
+endpoint is the exposed inner wrapper applied to the current leaf, not an
+unrelated existential raw term.
+
+Remaining: define and prove the mutual endpoint recognizer over chosen Eq
+spines and anchored retained-history suffixes. Its retained/consumed cases must
+construct these histories, update older anchors along the actual native path,
+restore waiting arguments and rejoin at matching endpoints. Unused-frame
+consumption and the output-depth bound remain required. The existing counted
+lambda readout and lexicographic arithmetic are available, but the global
+induction has not been proved. None of these preservation results is claimed
+as a sufficient smaller PropFront obligation; `weakN_iff` is unchanged and
+GOAL.md remains active.
+
+Root-classification constraint checked before starting the global induction:
+`EqTargetPrefixEmbedding.hole_cut_eq_or_smaller` still uses the exposed terminal
+carrier, typed continuation and global minimum to exclude constant/identity
+expansions; its structure-expansion exclusion also uses the terminal typing.
+The minimum-free counted lambda readout does not remove these hypotheses from
+root classification. The next recognizer must retain this actual continuation
+evidence and its all-stage minimality, or explicitly cover the additional root
+alternatives. An unrestricted two-alternative endpoint theorem is not established
+by the existing classifier. This is a constraint on the proposed induction, not
+a refutation of the anchored-history preservation results.
+
+Validation: 1084 successful build jobs including the global module and
+regression targets; 253 roots recursively audited through types, values,
+constructors and recursors, maximum closure 11,976. Only propext,
+Classical.choice and Quot.sound occur. No owned diagnostics, sorryAx,
+strengthening dependency or excluded circular framework. The original
+chosen-chain probe still excludes the older nested-eta/frame/supply probes.
+All 1,059 import source hashes stayed fixed. Stock Lean/Lake ran only in scratch.
+No executable changes or PR extraction.

@@ -20802,3 +20802,51 @@ Validation: 1083 successful build jobs, 238 recursively audited roots,
 maximum dependency closure 11,976; only propext, Classical.choice and
 Quot.sound, no sorryAx or forbidden strengthening/circular dependencies.
 All 1,058 import source hashes fixed; Lean/Lake only in stock-release scratch.
+
+
+### 2026-11-07 01:17:35 UTC — Keep source applications throughout actual pending histories
+
+**Implemented preservation through the whole history; recursive recognition is
+still open.** `EqRetainedSourceAnchor` records an original typed body and its
+native path to the actual current body, together with whole nonproof application
+typing for the same chosen waiting supply. `of_eta` initializes this record from
+a typed function application and its actual eta-body path. Forgetting the record
+derives the old local head-domain typing rather than assuming it separately.
+
+`EqAnchoredPendingHistory` makes the endpoint explicit: each parent's anchor
+refers to its complete child wrapper at that endpoint. Full agreeing realization
+preserves these anchors, rebuilding body paths reflexively at realized lower
+functions. Actual current-body computation updates all ancestors once outgoing
+identity placeholders agree with the actual context. This agreement recovers
+the displayed source domain at each frame, so wrapping a path needs neither
+native substitution closure nor native context-conversion invariance.
+
+Restoring a waiting supply also preserves whole source application typing.
+When tracked waiting arguments exist, the local source lambda application and
+the returned function compute to the same endpoint; certificate realization and
+nonproof erasure reflection transfer typing to the enlarged application. If an
+old untracked extra exists, the pending-vector equation forces the new tracked
+waiting vector to be empty. Joining requires the older anchor to refer to the
+complete younger endpoint. Outermost decomposition retains the actual source
+anchor and anchored inner history.
+
+Next: construct this invariant in the mutual endpoint recognizer, including
+actual retained/consumed eta cases, unused-binder consumption, and the output
+depth bound needed for lexicographic recursion. No strengthening proof,
+counterexample, or sufficient smaller PropFront obligation is established.
+
+Root-classification constraint checked before starting the global induction:
+`EqTargetPrefixEmbedding.hole_cut_eq_or_smaller` still uses the exposed terminal
+carrier, typed continuation and global minimum to exclude constant/identity
+expansions; its structure-expansion exclusion also uses the terminal typing.
+The minimum-free counted lambda readout does not remove these hypotheses from
+root classification. The next recognizer must retain this actual continuation
+evidence and its all-stage minimality, or explicitly cover the additional root
+alternatives. An unrestricted two-alternative endpoint theorem is not established
+by the existing classifier. This is a constraint on the proposed induction, not
+a refutation of the anchored-history preservation results.
+
+Validation: 1084 successful build jobs and 253 recursive audit roots,
+maximum closure 11,976, only propext/Classical.choice/Quot.sound. No
+sorryAx, original strengthening dependency, or excluded circular framework;
+1,059 fixed import source hashes. Stock Lean/Lake ran only in scratch.

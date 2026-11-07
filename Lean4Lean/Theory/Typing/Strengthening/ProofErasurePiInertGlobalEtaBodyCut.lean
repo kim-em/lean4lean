@@ -26,6 +26,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPendingSupplyHistory
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPendingSupplyRestore
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPendingCountedReadout
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqPendingSourceReturn
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqAnchoredPendingHistory
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -114,6 +115,14 @@ reflexive native path at that realized function. Recursive state must still
 retain the original whole application witnesses; individually typed supplies do
 not provide them. Constructing the returned history and proving its depth bound
 remain open.
+
+`EqAnchoredPendingHistory` now retains the original source body computation and
+whole application witness at every chosen frame, indexed by its actual current
+endpoint. These witnesses survive full history realization, body computation
+in realized contexts, outer supply restoration and joining at a matching
+intermediate endpoint. `outermost` exposes the source anchor together with the
+inner history. Constructing this invariant through arbitrary recursive cuts,
+unused-frame consumption and the output-depth bound remain open.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation
