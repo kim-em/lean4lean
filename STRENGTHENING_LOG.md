@@ -38390,3 +38390,37 @@ Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
 /dev/shm/demand-core-exposure-*. All Lean/Lake commands used stock v4.33.0-rc2
 exclusively in /dev/shm/native-level-coherence-work. Executable and
 UniqueTyping.lean unchanged; no PR extraction. GOAL.md remains active.
+
+
+## 2026-11-07 10:27:14 UTC — Strong core-exposure completeness refuted; stage-one repair retained
+
+Added ProofErasurePiInertDemandExposureBoundary.lean and its aggregator import.
+Every PiInertCoreTypeCarrier with an outer arrow forces a directed ordinary-
+level-core Pi exposure. The existing free-major reflexive cast boundary
+therefore excludes every arrow-profile certificate for that cast, including
+with the full actual environment core.
+
+The new actual-environment theorem constructs an original finite StrongBounded
+conversion edge from the cast to a closed positive Pi, gives the target's
+exposure certificate, and excludes every source arrow certificate. It also
+constructs stage-one interpreted computation for that very cast using the
+existing guarded cast consumer, retaining all typed-substitution futures.
+No recursive definition, special structure or incomplete core is required.
+
+A final theorem refutes general exposure transport along original strong
+type-equality edges. Thus the preceding entry's general exposure-production
+step is now classified as false for the ordinary-core certificate. Its
+restricted positive conversion results remain valid. Future coverage needs
+richer guarded exposure plus retained application action; no guarded path is
+being treated as a core join. General guarded composition remains open.
+
+This is an obstruction to certificate completeness, not to strengthening.
+The original sorry remains and no smaller-than-PropFront sufficient obligation
+is claimed. GOAL.md remains active.
+
+Integration passed 1181 jobs. Recursive audit covered 5 public/probe
+roots, maximum closure 12,557, only propext, Classical.choice and
+Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
+/dev/shm/demand-exposure-boundary-*. Stock v4.33.0-rc2 Lean/Lake ran only in
+/dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
+PR extraction remains deferred.

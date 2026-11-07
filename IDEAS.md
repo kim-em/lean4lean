@@ -22632,3 +22632,54 @@ recursive dependency closure 11,976; only propext, Classical.choice and
 Quot.sound. Frozen sources and owned diagnostics checked. All Lean/Lake used
 stock v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
 UniqueTyping.lean unchanged; no PR extraction. GOAL.md remains active.
+
+
+## 2026-11-07 10:27:14 UTC — Core demand exposure cannot cover original strong conversion
+
+Previous goal turn: progress, committed as f2889147. Tested the next intended
+step: derive PiInertCoreTypeCarrier exposure from the original strong type
+child. Rechecked the existing canonical-Eq cast boundary rather than treating
+semantic Pi equality as computational exposure.
+
+PiInertCoreTypeCarrier.arrow_exposes proves a necessary directed ordinary-
+level-core computation to a literal Pi for every outer-arrow demand. Its
+exposed Pi has a common reduct with the selected carrier, and Pi-root
+preservation turns that common reduct into a Pi. Neither the existential join
+nor arbitrarily deep finite interface trees weaken this head requirement.
+
+EnvironmentCore.reflexive_cast_no_core_type_carrier applies the existing
+full-level-core free-major cast obstruction to the new demand certificate.
+The result holds for every arrow profile in the actual environment core,
+including stored definitions, registered patterns and available quotient
+rules. It is not an artifact of an incomplete choice of Definitions.
+
+EnvironmentCore.strong_core_exposure_boundary constructs the test in every
+well-formed canonical-Eq environment: a single free reflexive equality proof
+permits a cast of a closed positive-universe Pi. The cast equality is converted
+to an original StrongBounded derivation at a finite bound. The target Pi has
+an exposure certificate, while the cast has none for any outer arrow. The
+same theorem constructs a stage-one PiInertEvidence computation from the cast
+to the Pi, including all interpreted typed-substitution futures. The proof
+uses the existing guarded cast-consumer rule on reflexive type evidence.
+
+EnvironmentCore.not_strong_core_exposure_transport formally refutes general
+backwards exposure transport along the original strong type-equality edges.
+This sharpens the preceding log's open general exposure-production question:
+for the ordinary-core certificate just defined, that proposed completeness
+step is false. Increasing the finite strong bound does not repair it.
+
+Verdict: keep the proved finite-tree and certified-core-alias conversion
+lemmas as restricted results, but do not pursue universal core exposure as
+the way to close their strong-coverage gap. The richer stage-one computation
+already handles this witness; a live continuation must retain guarded carrier
+exposure and its application action, not silently replace a guarded path by
+an ordinary-core join. General guarded exposure/action composition remains
+unproved. This is a certificate-completeness counterexample, not a
+canonical-Eq counterexample to strengthening and not a sufficient obligation
+proved strictly smaller than PropFront. GOAL.md remains unchanged.
+
+Validation: 1181 integration jobs; 5 public/probe roots; maximum
+recursive dependency closure 12,557; only propext, Classical.choice and
+Quot.sound. Frozen sources and owned diagnostics checked. All Lean/Lake used
+stock v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
+UniqueTyping.lean unchanged; no PR extraction. The goal remains active.
