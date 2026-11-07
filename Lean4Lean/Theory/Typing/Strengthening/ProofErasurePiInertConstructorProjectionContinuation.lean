@@ -57,7 +57,7 @@ theorem GlobalPairFunctionEtaProjection.observed_body_minimum
   obtain ⟨m, field, value, major, result, stage, hm, Rreach, EM, HC,
     ⟨globalCost, RG, _, tailCost, RF, Hfull⟩, RI, _⟩ := H
   obtain ⟨cost, levels, pre, pending, target, before, after,
-    _, Hmin, HB, HL, HA, RP, _, HR, RT, k, hk, HE, hpre, hne, hproof⟩ := HC
+    _, Hmin, HB, HL, ⟨HA, _⟩, RP, _, HR, RT, k, hk, HE, hpre, hne, hproof⟩ := HC
   cases HL
   have hcost := Hmin _ (EM ▸ RG)
   have HT : TypedSource (proofEraseCtx Γ)

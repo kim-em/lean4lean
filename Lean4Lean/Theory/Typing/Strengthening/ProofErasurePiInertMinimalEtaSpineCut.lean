@@ -23,6 +23,7 @@ private theorem eta_argument_fixed
 /-- The counted first non-level root on a constant-headed eta body. It
 retains the consuming beta, domain cost, component ancestry, and both suffixes.
 Both decompositions have exact counts, and the body path is globally minimal.
+The component paths before the selected root cost at most its prefix budget.
 The body together with its application continuation is also minimal when both
 paths and their common endpoint vary. Identity and constant expansion are excluded
 at the typed root; the actual argument interprets the endpoint substitution.
@@ -41,8 +42,10 @@ def CountedEtaBodySpineCut (D : Definitions) (n : Nat) (Δ : List ProofShape)
       ScopedComputeCount (PiInertStage D n) cs Δ (ProofShape.mkApps (body'.inst x') xs') out ∧
       ScopedComputeCount (PiInertStage D n) cd Δ A A' ∧
       List.Forall₂ (· ≈ ·) ls ls' ∧
-      List.Forall₂ (ScopedCompute (PiInertStage D m) (A :: Δ))
+      (List.Forall₂ (ScopedCompute (PiInertStage D m) (A :: Δ))
         (pre.map (·.liftN 1) ++ [etaArgument u]) (bodyPre ++ bodyPending) ∧
+       ∃ pa, pa ≤ pb ∧ ScopedArgumentsCount (PiInertStage D m) (A :: Δ) pa
+         (pre.map (·.liftN 1) ++ [etaArgument u]) (bodyPre ++ bodyPending)) ∧
       ScopedComputeCount (PiInertStage D m) pb (A :: Δ)
         (.app ((ProofShape.mkApps (.const c ls) pre).liftN 1) (etaArgument u))
         (ProofShape.mkApps (.const c ls') (bodyPre ++ bodyPending)) ∧
@@ -118,9 +121,9 @@ theorem globally_minimal_pi_inert_eta_body_spine_cut_nonlambda
     obtain ⟨_, hminContinuation⟩ := pi_inert_counted_lambda_continuation_minimal
       RP HR RD RB RX RS (by omega) hmin
     have hcExact : cf+ca+cs = ct := by omega
-    rcases RBspine.const_spine_components_or_cut (U := univs) with
+    rcases RBspine.const_spine_components_or_cut_counted (U := univs) with
       ⟨ls', rawArgs, ch, cc, hcomponents, EO, _, RH, RA⟩ |
-      ⟨ls', bodyPre, bodyPending, target, pb, tb, hcut, HL, HA, RPB, HR, HN, RTB⟩
+      ⟨ls', bodyPre, bodyPending, target, pb, tb, pa, hcut, hpa, HL, HA, RPB, HR, HN, RTB⟩
     · obtain ⟨pre', slot', cp', cx', rfl, hargs, Rpre, Rslot⟩ := RA.snoc_inv
       obtain rfl := eta_argument_fixed Rslot.forget
       have RG : ScopedComputeCount (PiInertStage D m) (ch+cp') (A :: Δ)
@@ -147,7 +150,8 @@ theorem globally_minimal_pi_inert_eta_body_spine_cut_nonlambda
       have HTroot := RPB'.forget.spine_cut_source_typed
         (ErasedScopedPrimitiveCertificateDescent.descent (pi_inert_stage_certificate_descent heq hs m)) HTbody
       refine ⟨A', body', x', xs', cf, ca, cs, cd, cb, m, ls', bodyPre, bodyPending,
-        target, pb, tb, hcExact, hsplit, hcutExact, RF, RX, RS, RD, HL, HA, RPB', HR, HN, RTB,
+        target, pb, tb, hcExact, hsplit, hcutExact, RF, RX, RS, RD, HL,
+        ⟨HA.forget, pa, hpa, HA⟩, RPB', HR, HN, RTB,
         hminBody, hminContinuation, ?_, HTroot, WI, ?_, trivial⟩
       · apply pi_inert_continuation_minimum_no_identity_nonlambda
           (by simpa only [ProofShape.mkApps_append] using RPB') RTB

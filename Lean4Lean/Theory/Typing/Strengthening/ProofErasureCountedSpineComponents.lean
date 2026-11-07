@@ -44,16 +44,16 @@ theorem ScopedArgumentsCount.snoc_inv
 
 /-- Either head-level and argument paths retain the exact total cost, or a
 non-level root acts on the original spine with its counted prefix and tail.
-The surviving-spine branch does not discard the cost of its arguments. -/
-theorem ScopedComputeCount.const_spine_components_or_cut
+In the cut branch, all argument paths together cost at most the prefix. -/
+theorem ScopedComputeCount.const_spine_components_or_cut_counted
     (R : ScopedComputeCount Step cost Δ (ProofShape.mkApps (.const c ls) args) out) :
     (∃ ls' args' ch ca, ch+ca = cost ∧ out = ProofShape.mkApps (.const c ls') args' ∧
       List.Forall₂ (· ≈ ·) ls ls' ∧
       ScopedComputeCount Step ch Δ (.const c ls) (.const c ls') ∧
       ScopedArgumentsCount Step Δ ca args args') ∨
-    (∃ ls' pre pending target cp ct, cp+1+ct ≤ cost ∧
+    (∃ ls' pre pending target cp ct ca, cp+1+ct ≤ cost ∧ ca ≤ cp ∧
       List.Forall₂ (· ≈ ·) ls ls' ∧
-      List.Forall₂ (ScopedCompute Step Δ) args (pre ++ pending) ∧
+      ScopedArgumentsCount Step Δ ca args (pre ++ pending) ∧
       ScopedComputeCount Step cp Δ (ProofShape.mkApps (.const c ls) args)
         (ProofShape.mkApps (.const c ls') (pre ++ pending)) ∧
       Step Δ (ProofShape.mkApps (.const c ls') pre) target ∧
@@ -74,9 +74,10 @@ theorem ScopedComputeCount.const_spine_components_or_cut
       | const HL _ =>
         obtain ⟨rfl, rfl, rfl⟩ := const_spine_const ES
         exact .inl ⟨_, [], 1, 0, rfl, rfl, HL, .base H, .nil⟩
-    · refine .inr ⟨ls, args, [], _, 0, 0, by omega, .rfl (fun _ _ => by rfl), ?_, ?_, H, HG, .beta .refl⟩
+    · refine .inr ⟨ls, args, [], _, 0, 0, 0, by omega, by omega,
+        .rfl (fun _ _ => by rfl), ?_, ?_, H, HG, .beta .refl⟩
       · simpa only [List.append_nil] using
-          (show List.Forall₂ (ScopedCompute Step Δ₀) args args from .rfl (fun _ _ => .refl))
+          (ScopedArgumentsCount.refl (Step := Step) (Δ := Δ₀) (args := args))
       · simp only [List.append_nil]; exact .beta .refl
   | beta H =>
     cases E
@@ -84,22 +85,23 @@ theorem ScopedComputeCount.const_spine_components_or_cut
     exact .inl ⟨ls, args', 0, 0, rfl, EO, .rfl (fun _ _ => by rfl), .beta .refl, .beta HA⟩
   | trans R₁ R₂ ih₁ ih₂ =>
     rcases ih₁ E with ⟨ls₁, args₁, ch₁, ca₁, hc₁, rfl, HL₁, RH₁, HA₁⟩ |
-      ⟨ls', pre, pending, target, cp, ct, hc, HL, HA, RP, H, HN, RT⟩
+      ⟨ls', pre, pending, target, cp, ct, ca, hc, hca, HL, HA, RP, H, HN, RT⟩
     · rcases ih₂ rfl with ⟨ls₂, args₂, ch₂, ca₂, hc₂, EO, HL₂, RH₂, HA₂⟩ |
-        ⟨ls', pre, pending, target, cp, ct, hc, HL, HA, RP, H, HN, RT⟩
+        ⟨ls', pre, pending, target, cp, ct, ca, hc, hca, HL, HA, RP, H, HN, RT⟩
       · exact .inl ⟨ls₂, args₂, ch₁+ch₂, ca₁+ca₂, by omega, EO,
           HL₁.trans (fun _ _ _ H K => H.trans K) HL₂, RH₁.trans RH₂, HA₁.trans HA₂⟩
-      · exact .inr ⟨ls', pre, pending, target, _, ct, by omega,
+      · exact .inr ⟨ls', pre, pending, target, _, ct, ca₁+ca, by omega, by omega,
           HL₁.trans (fun _ _ _ H K => H.trans K) HL,
-          HA₁.forget.trans (fun _ _ _ H K => H.trans K) HA, R₁.trans RP, H, HN, RT⟩
-    · exact .inr ⟨ls', pre, pending, target, cp, _, by omega, HL, HA, RP, H, HN, RT.trans R₂⟩
+          HA₁.trans HA, R₁.trans RP, H, HN, RT⟩
+    · exact .inr ⟨ls', pre, pending, target, cp, _, ca, by omega, hca, HL, HA, RP, H, HN, RT.trans R₂⟩
   | @app c₁ Δ f f' c₂ x x' RF RX ihf _ =>
     obtain ⟨args₀, rfl, rfl⟩ := const_spine_app E
     rcases ihf rfl with ⟨ls', args', ch, ca, hc, rfl, HL, RH, HA⟩ |
-      ⟨ls', pre, pending, target, cp, ct, hc, HL, HA, RP, H, HN, RT⟩
+      ⟨ls', pre, pending, target, cp, ct, ca, hc, hca, HL, HA, RP, H, HN, RT⟩
     · exact .inl ⟨ls', args' ++ [x'], ch, ca+c₂, by omega, mkApps_snoc.symm, HL, RH, HA.append (.cons RX .nil)⟩
-    · refine .inr ⟨ls', pre, pending ++ [x], target, cp, ct+c₂, by omega, HL, ?_, ?_, H, HN, ?_⟩
-      · simpa only [List.append_assoc] using HA.append' (.cons (ScopedCompute.refl (e := x)) .nil)
+    · refine .inr ⟨ls', pre, pending ++ [x], target, cp, ct+c₂, ca, by omega, hca, HL, ?_, ?_, H, HN, ?_⟩
+      · simpa only [List.append_assoc, Nat.add_zero] using
+          HA.append (.cons (ScopedComputeCount.beta (BetaRed.refl (e := x))) .nil)
       · simpa only [← List.append_assoc, mkApps_snoc, Nat.add_zero] using
           ScopedComputeCount.app RP (ScopedComputeCount.beta (BetaRed.refl (e := x)))
       · simpa only [mkApps_snoc] using ScopedComputeCount.app RT RX
@@ -108,6 +110,26 @@ theorem ScopedComputeCount.const_spine_components_or_cut
     simp only [constHead_mkApps, constHead] at H
     cases H
 
+/-- Forget the cut's argument count, retaining the original component-cut
+interface for clients that do not use quantitative field ancestry. -/
+theorem ScopedComputeCount.const_spine_components_or_cut
+    (R : ScopedComputeCount Step cost Δ (ProofShape.mkApps (.const c ls) args) out) :
+    (∃ ls' args' ch ca, ch+ca = cost ∧ out = ProofShape.mkApps (.const c ls') args' ∧
+      List.Forall₂ (· ≈ ·) ls ls' ∧
+      ScopedComputeCount Step ch Δ (.const c ls) (.const c ls') ∧
+      ScopedArgumentsCount Step Δ ca args args') ∨
+    (∃ ls' pre pending target cp ct, cp+1+ct ≤ cost ∧
+      List.Forall₂ (· ≈ ·) ls ls' ∧
+      List.Forall₂ (ScopedCompute Step Δ) args (pre ++ pending) ∧
+      ScopedComputeCount Step cp Δ (ProofShape.mkApps (.const c ls) args)
+        (ProofShape.mkApps (.const c ls') (pre ++ pending)) ∧
+      Step Δ (ProofShape.mkApps (.const c ls') pre) target ∧
+      ¬ LevelPrimitive U (ProofShape.mkApps (.const c ls') pre) target ∧
+      ScopedComputeCount Step ct Δ (ProofShape.mkApps target pending) out) := by
+  rcases R.const_spine_components_or_cut_counted (U := U) with H |
+    ⟨ls', pre, pending, target, cp, ct, _, hc, _, HL, HA, RP, HR, HN, RT⟩
+  · exact .inl H
+  · exact .inr ⟨ls', pre, pending, target, cp, ct, hc, HL, HA.forget, RP, HR, HN, RT⟩
 
 /-- Minimize outer primitive count over all finite stages. A competitor may
 use a larger guard stage, so stage growth alone cannot invalidate a bypass. -/

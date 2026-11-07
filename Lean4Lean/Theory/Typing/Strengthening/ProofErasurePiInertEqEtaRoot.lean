@@ -124,11 +124,11 @@ theorem CountedEtaBodySpineCut.eq_guarded
     (H : CountedEtaBodySpineCut D n Δ ``Eq.rec ls pre A u args out ct) :
     CountedEtaBodySpineCut D n Δ ``Eq.rec ls pre A u args out ct (EqEtaGuardedRoot D) := by
   obtain ⟨A', body', x', xs', cf, ca, cs, cd, cb, m, ls', bodyPre, bodyPending, target, pb, tb,
-    hc, hf, hcut, RF, RX, RS, RD, HL, HA, RP, HR, HN, RT, HM, HMC, HI, HT, WI, HC, _⟩ := H
+    hc, hf, hcut, RF, RX, RS, RD, HL, ⟨HA, HAc⟩, RP, HR, HN, RT, HM, HMC, HI, HT, WI, HC, _⟩ := H
   have hlen := HA.length_eq
   simp only [List.length_append, List.length_map, List.length_cons, List.length_nil] at hlen
   refine ⟨A', body', x', xs', cf, ca, cs, cd, cb, m, ls', bodyPre, bodyPending, target, pb, tb,
-    hc, hf, hcut, RF, RX, RS, RD, HL, HA, RP, HR, HN, RT, HM, HMC, HI, HT, WI, HC, ?_⟩
+    hc, hf, hcut, RF, RX, RS, RD, HL, ⟨HA, HAc⟩, RP, HR, HN, RT, HM, HMC, HI, HT, WI, HC, ?_⟩
   exact pi_inert_eq_short_guarded_root heq hs hreg hoff hRec HT (by omega) HR HN HC HI
 
 end Lean4Lean.VEnv.Strengthening

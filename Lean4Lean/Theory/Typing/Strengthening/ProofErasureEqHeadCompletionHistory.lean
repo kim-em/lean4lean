@@ -150,14 +150,14 @@ theorem CountedEtaBodySpineCut.complete_root
     CountedEtaBodySpineCut D n Δ ``Eq.rec ls pre A u args out ct
       (fun m Ξ source target => Root m Ξ source target ∧ EqHeadCompletion Γ v w original Ξ source) := by
   obtain ⟨A', body', x', xs', cf, ca, cs, cd, cb, m, ls', bodyPre, bodyPending, target, pb, tb,
-    hc, hf, hcut, RF, RX, RS, RD, HLbody, HAbody, RP, HR, HN, RT, HM, HMC, HI, HTR, WI, HC, HG⟩ := H
+    hc, hf, hcut, RF, RX, RS, RD, HLbody, ⟨HAbody, HAc⟩, RP, HR, HN, RT, HM, HMC, HI, HTR, WI, HC, HG⟩ := H
   have HP' : EqHeadCompletion Γ v w original (A :: Δ)
       (ProofShape.mkApps (.const ``Eq.rec ls) (pre.map (·.liftN 1) ++ [etaArgument u])) := by
     simpa only [ProofShape.mkApps_append, ProofShape.mkApps, List.foldl_cons, List.foldl_nil,
       ProofShape.liftN_mkApps, ProofShape.liftN] using HP
   have Hcompletion := HP'.compute_components heq hs hΓ HLbody (typed_const_levels_wf HTR) HAbody bodyPre.length
   refine ⟨A', body', x', xs', cf, ca, cs, cd, cb, m, ls', bodyPre, bodyPending, target, pb, tb,
-    hc, hf, hcut, RF, RX, RS, RD, HLbody, HAbody, RP, HR, HN, RT, HM, HMC, HI, HTR, WI, HC, HG, ?_⟩
+    hc, hf, hcut, RF, RX, RS, RD, HLbody, ⟨HAbody, HAc⟩, RP, HR, HN, RT, HM, HMC, HI, HTR, WI, HC, HG, ?_⟩
   simpa only [List.take_left] using Hcompletion
 
 /-- Forget only the added root completion, recovering the original cut with
@@ -168,9 +168,9 @@ theorem CountedEtaBodySpineCut.forget_completion
       (fun m Ξ source target => Root m Ξ source target ∧ EqHeadCompletion Γ v w original Ξ source)) :
     CountedEtaBodySpineCut D n Δ c ls pre A u args out ct Root := by
   obtain ⟨A', body', x', xs', cf, ca, cs, cd, cb, m, ls', bodyPre, bodyPending, target, pb, tb,
-    hc, hf, hcut, RF, RX, RS, RD, HLbody, HAbody, RP, HR, HN, RT, HM, HMC, HI, HTR, WI, HC, HG, _⟩ := H
+    hc, hf, hcut, RF, RX, RS, RD, HLbody, ⟨HAbody, HAc⟩, RP, HR, HN, RT, HM, HMC, HI, HTR, WI, HC, HG, _⟩ := H
   exact ⟨A', body', x', xs', cf, ca, cs, cd, cb, m, ls', bodyPre, bodyPending, target, pb, tb,
-    hc, hf, hcut, RF, RX, RS, RD, HLbody, HAbody, RP, HR, HN, RT, HM, HMC, HI, HTR, WI, HC, HG⟩
+    hc, hf, hcut, RF, RX, RS, RD, HLbody, ⟨HAbody, HAc⟩, RP, HR, HN, RT, HM, HMC, HI, HTR, WI, HC, HG⟩
 
 /-- At a completed five-argument Eq prefix, the recovered eta domain is a
 proposition. Its fresh argument is therefore literally the erased proof

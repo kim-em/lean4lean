@@ -41017,3 +41017,72 @@ Validation: all Lean/Lake execution exclusively in
 11,978; only propext/Classical.choice/Quot.sound, no sorryAx or forbidden
 strengthening/circular-frontier dependencies. All 1,281 frozen source hashes
 verified before/after. Artifacts: /dev/shm/pi-inert-field-ancestry-*.
+
+
+## 2026-11-07 18:58:51 UTC — Quantitative ancestry from the original pair field
+
+The previous goal turn made checked progress in 639c2970. This turn rechecked
+the clean worktree, GOAL.md, the actual body-cut construction and all clients.
+The next missing fact was quantitative: HA retained component histories but
+forgot their costs. Inspection also found the same loss in the outer rigid
+constructor cut, before eta introduces the new binder.
+
+Strengthened the generic decomposition in ProofErasureCountedSpineComponents
+with const_spine_components_or_cut_counted. Its stable branch retains exact
+head and argument costs as before; its non-level-root branch now carries a
+ScopedArgumentsCount witness with ca <= cp. In the trans case, earlier stable
+argument costs add to the selected prefix. In the application case with a root
+in the function, the still-pending argument is reflexive in the prefix and its
+actual computation remains in the suffix. No primitive relation assumptions
+are needed. The old const_spine_components_or_cut interface is a forgetful
+corollary, so clients that do not use argument costs retain their interface.
+
+CountedEtaBodySpineCut now stores the budgeted argument history beside HA.
+Its globally minimal constructor uses the new decomposition. Constructor-root,
+Eq-root, singleton, head-completion and iterated-completion refinements all
+retain this extra witness. No minimum or root is reselected by these refinements.
+RigidSpineEtaCut similarly stores the original argument vector's cost bounded
+by before. Both rigid-spine readout constructors now use the counted component
+cut; a hypothetical non-level core root is excluded directly by constructor
+rigidity and the absence of an unfolding. Closed-record refinement retains the
+budget. PairFunctionEtaBodyMinimum retains both outer and inner bounds, and
+its optional root predicate can refer to the original field and outer budgets.
+The projection-continuation client forgets only the added component count.
+
+Added pi_inert_single_field_eta_body_count_ancestry. It descends the actual
+counted field component with the exact same primitive count and stage and
+keeps the fresh eta slot fixed. ConstructorEtaFieldRoot now records a counted
+field path of cost strictly less than the outer eta continuation. The inequality
+comes from componentCost <= bodyPrefix and bodyPrefix + 1 + tail = bodyCost,
+together with the retained lambda/argument/continuation count decomposition.
+
+Added PairEtaOriginalFieldRoot and
+CountedEtaBodySpineCut.original_pair_field_budget. In the structure branch,
+the singleton prefix identifies the first component of the original pair's
+counted argument history. Composing that path with the descended body-field
+path at max(stage, bodyStage) gives a count j < before + after from the ORIGINAL
+pair field to short, with structure-root source exactly ctor [lift short,
+etaArgument u]. This is below the enclosing major minimum because
+before + 1 + after <= cost. TypedSource for short and the actual earlier native
+structure guard remain present. The alternative is the original nested-function
+eta guard. PairFunctionEtaBodyMinimum.original_field_budget constructs this
+refinement without any new caller premise, and the final
+proofErase_pi_inert_pair_projection_readout_or_field_ancestry exports it.
+
+Outcome: both previously uncounted prefix histories now have checked budgets,
+and the field reduction starts at the original reachable pair's field rather
+than only the field at the eta boundary. This is a stronger intermediate result,
+not complete field readout. The computed short field still precedes the body
+root; arbitrary subsequent body/consumption/projection continuations and nested
+eta have not been eliminated. The generic substitution obstruction remains
+relevant, so the next argument must retain the specific field ancestry through
+those continuations. No strengthening proof, canonical-Eq strengthening
+counterexample, or sufficient irreducible smaller global frontier claimed.
+Executable and UniqueTyping.lean unchanged. Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1306 jobs; recursive audit
+61 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,281 frozen source hashes verified before
+and after. Artifacts: /dev/shm/pi-inert-field-budget-*.

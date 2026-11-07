@@ -24737,3 +24737,35 @@ Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work;
 1306 integration jobs, 15 audited roots, maximum closure 11,978.
 Only propext/Classical.choice/Quot.sound; no forbidden dependencies. Frozen
 source closure verified before/after; artifacts /dev/shm/pi-inert-field-ancestry-*.
+
+
+## 2026-11-07 18:58:51 UTC — Charge both field histories to the selected eta cut
+
+**Idea.** Preserve argument counts in the first non-level spine-root cut and
+compose the old-scope type-field path before outer eta with its descended body
+component. This should make the ancestry refinement quantitative without
+assuming arbitrary guarded substitution replay.
+
+**Checked verdict.** const_spine_components_or_cut_counted now bounds the
+cut's total argument cost by its prefix cost. The bound is retained in both
+CountedEtaBodySpineCut and RigidSpineEtaCut, including their actual constructors
+and root refinements. The pair body minimum therefore retains both component
+budgets, before the outer eta and before the selected body root. A counted
+single-field descent and composition at a common finite stage produce the
+original pair field's path to the short field inside the structure-root source.
+Its count is strictly below before + after, hence below the recorded outer
+major minimum. The pair-projection readout theorem exports that stronger
+original-field result with the same selected body cut and continuation.
+
+**Remaining gap.** The lower count reaches the field in the structure root's
+source, not the ultimate projection output. Subsequent guarded body computation,
+its consuming beta and nested eta still need a continuation-sensitive readout
+argument. These results do not supply blanket substitution closure or a
+sufficient global obligation smaller than PropFront. The existing per-cut
+prefix/component budgets can now support that argument; their previous count
+loss is closed. Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work;
+1306 integration jobs, 61 audited roots, maximum closure 11,981;
+only propext/Classical.choice/Quot.sound, no forbidden dependencies. All frozen
+source hashes checked before/after. Artifacts: /dev/shm/pi-inert-field-budget-*.

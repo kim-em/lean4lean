@@ -69,7 +69,8 @@ def RigidSpineEtaCut (D : Definitions) (n : Nat) (Δ : List ProofShape)
       (ProofShape.mkApps (.const c ls) args) out → cost ≤ j) ∧
     before + 1 + after ≤ cost ∧
     List.Forall₂ (· ≈ ·) ls levels ∧
-    List.Forall₂ (ScopedCompute (PiInertStage D n) Δ) args (pre ++ pending) ∧
+    (List.Forall₂ (ScopedCompute (PiInertStage D n) Δ) args (pre ++ pending) ∧
+     ∃ ca, ca ≤ before ∧ ScopedArgumentsCount (PiInertStage D n) Δ ca args (pre ++ pending)) ∧
     ScopedComputeCount (PiInertStage D n) before Δ (ProofShape.mkApps (.const c ls) args)
       (ProofShape.mkApps (.const c levels) (pre ++ pending)) ∧
     TypedSource Δ (ProofShape.mkApps (.const c levels) pre) ∧
@@ -90,13 +91,11 @@ theorem pi_inert_rigid_spine_readout_or_eta_cut
       List.Forall₂ (· ≈ ·) ls levels ∧
       List.Forall₂ (ScopedCompute (PiInertStage D n) Δ) args args') ∨
     RigidSpineEtaCut D n Δ c ls args out := by
-  have hroot : SpineRootLevels (fun _ => ErasedLevelCore D) c := by
-    intro Ω levels params target H
-    exact erased_level_recovered_stage_spine_levels heq hc hD 0 (Δ := Ω) H
   obtain ⟨cost, RC, Hmin⟩ := R.minimal_count
-  rcases RC.const_spine_or_cut @hroot with H |
-      ⟨levels, pre, pending, target, before, after, HB, HL, HA, RP, HR, HN, RT⟩
-  · exact .inl H
+  rcases RC.const_spine_components_or_cut_counted (U := univs) with
+      ⟨levels, args', _, _, _, EO, HL, _, HA⟩ |
+      ⟨levels, pre, pending, target, before, after, ca, HB, hca, HL, HA, RP, HR, HN, RT⟩
+  · exact .inl ⟨levels, args', EO, HL, HA.forget⟩
   have hd : ErasedScopedPrimitiveDescent (PiInertStage D n) :=
     ErasedScopedPrimitiveCertificateDescent.descent (pi_inert_stage_certificate_descent heq hs n)
   have HP := RP.forget.spine_cut_source_typed @hd HT
@@ -110,13 +109,15 @@ theorem pi_inert_rigid_spine_readout_or_eta_cut
     omega
   rcases static_structure_rigid_expansion_root heq hc HR.1 (ProofShape.constHead_mkApps _ _) with
     H | H | ⟨k, hk, H | H | H⟩
-  · exact (HN H).elim
+  · rcases H with H | H
+    · exact (erased_iota_primitive_no_rigid hc hD H (ProofShape.constHead_mkApps _ _)).elim
+    · exact (HN H).elim
   · exact (hwrap (Recovery := PiInertStage D n) (.inl H)).elim
   · exact (hwrap (.inr H)).elim
   · exact .inr ⟨cost, levels, pre, pending, target, before, after,
-      RC, Hmin, HB, HL, HA, RP, HP, HR, RT, k, hk, .inl H⟩
+      RC, Hmin, HB, HL, ⟨HA.forget, ca, hca, HA⟩, RP, HP, HR, RT, k, hk, .inl H⟩
   · exact .inr ⟨cost, levels, pre, pending, target, before, after,
-      RC, Hmin, HB, HL, HA, RP, HP, HR, RT, k, hk, .inr H⟩
+      RC, Hmin, HB, HL, ⟨HA.forget, ca, hca, HA⟩, RP, HP, HR, RT, k, hk, .inr H⟩
 
 /-- Structure eta can only act on the whole typed spine, because a prefix
 with an argument pending has a Pi assignment. This holds for arbitrary guards. -/
@@ -168,7 +169,7 @@ theorem RigidSpineEtaCut.closed_record
     (H : RigidSpineEtaCut D n (proofEraseCtx Γ) info.ctorName ls args out) :
     ClosedRecordEtaCut D n (proofEraseCtx Γ) info.ctorName ls args out := by
   obtain ⟨cost, levels, pre, pending, target, before, after,
-    RC, Hmin, HB, HL, HA, RP, HP, HR, RT, k, hk, HE⟩ := H
+    RC, Hmin, HB, HL, ⟨HA, HAc⟩, RP, HP, HR, RT, k, hk, HE⟩ := H
   have hd : ErasedScopedPrimitiveDescent (PiInertStage D n) :=
     ErasedScopedPrimitiveCertificateDescent.descent (pi_inert_stage_certificate_descent heq hs n)
   have hguard : ErasedScopedPrimitiveDescent (ErasedStaticStructureEtaExpansionStage D k) :=
@@ -179,7 +180,7 @@ theorem RigidSpineEtaCut.closed_record
       (ProofShape.mkApps (ProofShape.mkApps (.const info.ctorName levels) pre) pending) := by
     simpa only [ProofShape.mkApps_append] using HT.pi_inert_compute heq hs RP.forget
   refine ⟨cost, levels, pre, pending, target, before, after,
-    RC, Hmin, HB, HL, HA, RP, HP, HR, RT, k, hk, ?_⟩
+    RC, Hmin, HB, HL, ⟨HA, HAc⟩, RP, HP, HR, RT, k, hk, ?_⟩
   have hlength := HA.length_eq
   rw [List.length_append] at hlength
   rcases HE with HE | HE

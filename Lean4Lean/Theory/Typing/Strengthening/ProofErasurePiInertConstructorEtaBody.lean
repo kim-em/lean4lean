@@ -28,9 +28,9 @@ theorem CountedEtaBodySpineCut.constructor_roots
     (H : CountedEtaBodySpineCut D n Δ c ls pre A u args out ct) :
     CountedEtaBodySpineCut D n Δ c ls pre A u args out ct (ConstructorEtaBodyRoot D) := by
   obtain ⟨A', body', x', xs', cf, ca, cs, cd, cb, m, ls', bodyPre, bodyPending, target, pb, tb,
-    hcost, hfun, hbody, RF, RX, RS, RD, HL, HA, RP, HR, HN, RT, HM, HMC, HI, HT, WI, HC, _⟩ := H
+    hcost, hfun, hbody, RF, RX, RS, RD, HL, ⟨HA, HAc⟩, RP, HR, HN, RT, HM, HMC, HI, HT, WI, HC, _⟩ := H
   refine ⟨A', body', x', xs', cf, ca, cs, cd, cb, m, ls', bodyPre, bodyPending, target, pb, tb,
-    hcost, hfun, hbody, RF, RX, RS, RD, HL, HA, RP, HR, HN, RT, HM, HMC, HI, HT, WI, HC, ?_⟩
+    hcost, hfun, hbody, RF, RX, RS, RD, HL, ⟨HA, HAc⟩, RP, HR, HN, RT, HM, HMC, HI, HT, WI, HC, ?_⟩
   rcases static_structure_rigid_expansion_root heq hc HR.1 (ProofShape.constHead_mkApps _ _) with
     H | H | ⟨k, hk, H | H | H⟩
   · rcases H with H | H
@@ -47,8 +47,8 @@ syntax; its guarded root is nested function or structure eta. Handling those
 roots across the retained endpoint substitution remains open. -/
 def PairFunctionEtaBodyMinimum (D : Definitions) (Γ : List VExpr)
     (family : Name) (info : VProjectionInfo) (source out : ProofShape)
-    (Root : List ProofShape → List ProofShape → VLevel → Nat → List ProofShape →
-      ProofShape → ProofShape → Prop := fun _ _ _ => ConstructorEtaBodyRoot D) : Prop :=
+    (Root : List ProofShape → ProofShape → List ProofShape → VLevel → Nat → Nat → Nat →
+      List ProofShape → ProofShape → ProofShape → Prop := fun _ _ _ _ _ _ => ConstructorEtaBodyRoot D) : Prop :=
   ∃ m field value major result stage cost pre pending A B u k before after,
     env.HasType univs Γ m (.const family []) ∧
     (∃ reachStage, ScopedCompute (PiInertStage D reachStage) (proofEraseCtx Γ) source (proofErase Γ m)) ∧
@@ -59,7 +59,9 @@ def PairFunctionEtaBodyMinimum (D : Definitions) (Γ : List VExpr)
       (ProofShape.mkApps (.const info.ctorName []) [field, value]) major → cost ≤ j) ∧
     before + 1 + after ≤ cost ∧ pre.length < 2 ∧ pending ≠ [] ∧
     (∀ rest, pending ≠ .proof :: rest) ∧
-    List.Forall₂ (ScopedCompute (PiInertStage D stage) (proofEraseCtx Γ)) [field, value] (pre ++ pending) ∧
+    (List.Forall₂ (ScopedCompute (PiInertStage D stage) (proofEraseCtx Γ)) [field, value] (pre ++ pending) ∧
+     ∃ ca, ca ≤ before ∧ ScopedArgumentsCount (PiInertStage D stage) (proofEraseCtx Γ) ca
+       [field, value] (pre ++ pending)) ∧
     ScopedComputeCount (PiInertStage D stage) before (proofEraseCtx Γ)
       (ProofShape.mkApps (.const info.ctorName []) [field, value])
       (ProofShape.mkApps (.const info.ctorName []) (pre ++ pending)) ∧
@@ -71,7 +73,7 @@ def PairFunctionEtaBodyMinimum (D : Definitions) (Γ : List VExpr)
       (ProofShape.mkApps (.lam A (.app ((ProofShape.mkApps (.const info.ctorName []) pre).liftN 1)
         (etaArgument u))) pending) major ∧
     CountedEtaBodySpineCut D stage (proofEraseCtx Γ) info.ctorName [] pre A u pending major after
-      (Root (proofEraseCtx Γ) pre u) ∧
+      (Root (proofEraseCtx Γ) field pre u before after) ∧
     Primitive D (.proj family 0 major) result ∧
     ∃ tailStage, ScopedCompute (PiInertStage D tailStage) (proofEraseCtx Γ) result out
 

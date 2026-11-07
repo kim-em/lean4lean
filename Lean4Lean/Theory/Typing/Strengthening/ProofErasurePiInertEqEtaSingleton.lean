@@ -164,13 +164,13 @@ theorem CountedEtaBodySpineCut.read_singleton
       CountedEtaBodySpineCut D n (proofEraseCtx Γ') ``Eq.rec ls pre A u pending out ct
         (EqEtaRemainingRoot D) := by
   obtain ⟨A', body', x', xs', cf, ca, cs, cd, cb, m, ls', bodyPre, bodyPending, target, pb, tb,
-    hc, hf, hcut, RF, RX, RS, RD, HLbody, HAbody, RP, HR, HN, RT, HM, HMC, HI, HTR, WI, HC, HG⟩ := H
+    hc, hf, hcut, RF, RX, RS, RD, HLbody, ⟨HAbody, HAc⟩, RP, HR, HN, RT, HM, HMC, HI, HTR, WI, HC, HG⟩ := H
   have finish (HG' : EqEtaRemainingRoot D m (A :: proofEraseCtx Γ')
       (ProofShape.mkApps (.const ``Eq.rec ls') bodyPre) target) :
       CountedEtaBodySpineCut D n (proofEraseCtx Γ') ``Eq.rec ls pre A u pending out ct
         (EqEtaRemainingRoot D) :=
     ⟨A', body', x', xs', cf, ca, cs, cd, cb, m, ls', bodyPre, bodyPending, target, pb, tb,
-      hc, hf, hcut, RF, RX, RS, RD, HLbody, HAbody, RP, HR, HN, RT, HM, HMC, HI, HTR, WI, HC, HG'⟩
+      hc, hf, hcut, RF, RX, RS, RD, HLbody, ⟨HAbody, HAc⟩, RP, HR, HN, RT, HM, HMC, HI, HTR, WI, HC, HG'⟩
   rcases HG with HQ | ⟨k, hk, HG | HE⟩
   · exact .inl (pi_inert_eq_eta_inner_singleton_readout heq hs hΓ hΓ' W ht hn HL HA
       hshort HT RN SD HLbody HAbody HTR (.inr HQ))

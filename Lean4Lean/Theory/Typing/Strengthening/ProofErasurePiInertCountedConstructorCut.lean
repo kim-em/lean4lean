@@ -86,13 +86,11 @@ theorem pi_inert_counted_rigid_spine_readout_or_eta_cut
       List.Forall₂ (· ≈ ·) ls levels ∧
       ScopedArgumentsCount (PiInertStage D n) Δ ca args args') ∨
     RigidSpineEtaCut D n Δ c ls args out := by
-  have hroot : SpineRootLevels (fun _ => ErasedLevelCore D) c := by
-    intro Ω levels params target H
-    exact erased_level_recovered_stage_spine_levels heq hc hD 0 (Δ := Ω) H
   obtain ⟨cost, RC, Hmin⟩ := R.forget.minimal_count
   have hcost := Hmin _ R
-  rcases RC.const_spine_or_cut_budget @hroot with ⟨levels, args', ca, hca, HE, HL, HA⟩ |
-      ⟨levels, pre, pending, target, before, after, HB, HL, HA, RP, HR, HN, RT⟩
+  rcases RC.const_spine_components_or_cut_counted (U := univs) with
+      ⟨levels, args', ch, ca, hca, HE, HL, _, HA⟩ |
+      ⟨levels, pre, pending, target, before, after, ca, HB, hca, HL, HA, RP, HR, HN, RT⟩
   · exact .inl ⟨levels, args', ca, by omega, HE, HL, HA⟩
   have hd : ErasedScopedPrimitiveDescent (PiInertStage D n) :=
     ErasedScopedPrimitiveCertificateDescent.descent (pi_inert_stage_certificate_descent heq hs n)
@@ -107,12 +105,14 @@ theorem pi_inert_counted_rigid_spine_readout_or_eta_cut
     omega
   rcases static_structure_rigid_expansion_root heq hc HR.1 (ProofShape.constHead_mkApps _ _) with
     H | H | ⟨k, hk, H | H | H⟩
-  · exact (HN H).elim
+  · rcases H with H | H
+    · exact (erased_iota_primitive_no_rigid hc hD H (ProofShape.constHead_mkApps _ _)).elim
+    · exact (HN H).elim
   · exact (hwrap (Recovery := PiInertStage D n) (.inl H)).elim
   · exact (hwrap (.inr H)).elim
   · exact .inr ⟨cost, levels, pre, pending, target, before, after,
-      RC, Hmin, HB, HL, HA, RP, HP, HR, RT, k, hk, .inl H⟩
+      RC, Hmin, HB, HL, ⟨HA.forget, ca, hca, HA⟩, RP, HP, HR, RT, k, hk, .inl H⟩
   · exact .inr ⟨cost, levels, pre, pending, target, before, after,
-      RC, Hmin, HB, HL, HA, RP, HP, HR, RT, k, hk, .inr H⟩
+      RC, Hmin, HB, HL, ⟨HA.forget, ca, hca, HA⟩, RP, HP, HR, RT, k, hk, .inr H⟩
 
 end Lean4Lean.VEnv.Strengthening
