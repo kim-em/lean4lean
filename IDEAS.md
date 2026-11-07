@@ -21410,3 +21410,33 @@ that new substitution/composition cuts already decrease.
 
 Validation: 1121 integration jobs, 393 audited roots, maximum closure
 12,394; only propext, Classical.choice and Quot.sound. GOAL.md remains open.
+
+
+### 2026-11-07 05:38:26 UTC — Finite strong ranks and strictly smaller native conversion edges: proved
+
+Implemented StrongBounded, retaining every IsDefEqStrong rule with all recursive
+premises at rank n and the conclusion at n+1. Its additional rank-raising rule
+requires a strict inequality, so it cannot create an equal-rank recursive edge.
+Proved monotonicity, forgetting to the original strong judgment, and completeness
+of finite bounds for every original strong derivation. The realized pattern
+checks receive a common finite bound by induction on their actual finite list.
+No normalization or computable height of a Prop proof is assumed.
+
+BoundedTypeTrace stores each strong conversion at its own rank k and a proof
+k < parent. Simultaneous extraction for both variable endpoints preserves these
+strict bounds through all strong constructors, including transitivity, symmetry,
+patterns and rank raising. A specified native lookup fixes the trace origin.
+The original strong judgment therefore admits both a finite ranked realization
+and a native assignment trace strictly below that same bound.
+
+The pullback interface now consumes only type-conversion hypotheses at ranks
+strictly below the parent, not a blanket unranked conversion law. Exact ordinary
+weakening preserves both StrongBounded ranks and every trace-edge rank, allowing
+use under fresh binders with a context-generalized numeric induction hypothesis.
+Verdict: closes the local parent/edge rank gap identified in the previous turn.
+It does not prove computational interpretation of type conversions or a decreasing
+bound for newly constructed substitution/composition cuts. Those remain the next
+coverage test; no complete strengthening or strict-smallness claim is made.
+
+Validation: 1122 integration jobs, 408 recursively audited roots, maximum
+closure 12,394; only propext, Classical.choice and Quot.sound. GOAL.md active.

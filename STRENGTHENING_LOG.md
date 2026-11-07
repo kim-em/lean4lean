@@ -37394,3 +37394,49 @@ traversed. No sorryAx, weakN_iff, weakN_inv or excluded circular frameworks.
 All 1,096 frozen source hashes remained unchanged; no owned diagnostics. Stock
 Lean/Lake ran only in scratch. Executable unchanged; PR extraction deferred.
 GOAL.md remains active.
+
+
+### 2026-11-07 05:38:26 UTC — Rank the full strong grammar and preserve strict native-trace bounds
+
+Added ProofErasureStrongBounded.lean and integrated its global import. The ranked
+grammar contains every original strong rule and a strictly increasing raise
+constructor. All original premises, including type formation, reduct typing,
+closed declaration typing and realized pattern-check premises, remain present.
+StrongBounded.strong and strong_iff_bounded verify that finite-rank existence is
+exactly the original strong judgment, rather than a more convenient fragment.
+
+strong_has_bound is a structural induction on IsDefEqStrong. It combines finitely
+many premise bounds before applying a constructor; finite_checks handles the
+list-indexed family in pat. Monotonicity uses equality of ranks or strict raise.
+These proofs avoid eliminating a Prop witness into a numerical height function.
+StrongBounded.weakN ports ordinary weakening at the exact same rank, including
+projection-field transport and all pattern checks.
+
+BoundedTypeTrace records each strong type-conversion edge at rank k together
+with k < n for one parent bound n. bounded_variable_assignment simultaneously
+extracts traces for both endpoints of every ranked rule. defeqDF appends its
+actual rank-n type child below the rank-(n+1) parent; other rules use their own
+strictly smaller endpoint-typing children. Rank raising only increases the
+parent bound, leaving edge ranks unchanged. Lookup uniqueness fixes the native
+start without making a new type-equality proof.
+
+strong_variable_has_bounded_trace supplies the ranked derivation and trace at
+one shared bound for an original strong judgment. BoundedTypeTrace.pullback and
+StrongBounded.variable_native_pullback expose only lower-rank type-conversion
+handlers, exactly the form available to numeric strong induction. Trace weakening
+preserves every strict edge bound; forgetting gives the prior StrongTypeTrace.
+The handler's interpretation remains open, as do bounds for new substitution or
+composition cuts. A finite derivation bound is not a normalization theorem and
+not a proof that those cuts decrease. Original weakN_iff remains unchanged.
+
+Previous goal turn classified as progress: unconditional conversion trace
+extraction was proved and its missing numeric bound identified. This turn closes
+that specific rank gap without narrowing the original strong calculus.
+
+Validation: 1122 successful integration jobs, 408 audited roots, maximum
+closure 12,394; only propext, Classical.choice and Quot.sound. Full types,
+values, inductive constructors and recursor branches traversed. No sorryAx,
+weakN_iff, weakN_inv or excluded circular frameworks. All 1,097 frozen source
+hashes unchanged; no owned diagnostics. Audit root enumeration was corrected to
+track sections separately from namespaces before the audit ran. Stock Lean/Lake
+ran only in scratch; executable unchanged; no PR extraction. GOAL.md stays active.
