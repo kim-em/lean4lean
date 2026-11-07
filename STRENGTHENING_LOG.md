@@ -39278,3 +39278,44 @@ Quot.sound. All 1,175 frozen sources and owned diagnostics checked; artifacts
 under /dev/shm/assigned-bodies-*. All Lean/Lake commands used stock
 v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
 UniqueTyping.lean unchanged; PR extraction deferred; GOAL.md remains active.
+
+## 2026-11-07 13:40:12 UTC — Interpret original unit-constructor transitivity from type provenance
+
+Added ProofErasurePiInertConstantOrigins.lean. The comparison-composition
+lower bound remains applicable: even paired ordinary-demand interpreters do
+not by themselves supply a smaller composition theorem. The new proof uses
+the original strong children rather than composing their erased histories.
+
+BoundedTypePath permits forward and backward edges carrying the same
+original lower-rank StrongBounded type child. constant_assignment_path
+recovers a declared constant carrier at either endpoint through every rule.
+The constDF right endpoint uses the backwards original type-instance child;
+no newly symmetrized strong proof is sent to a semantic handler. Ordinary
+path equality supplies intermediate assignments, and ground_type_equiv folds
+both transport directions from the original type hypotheses.
+
+unit_constructor_origin derives the nullary empty constructor's literal
+native family using the actual declaration's existing telescope-walk theorem.
+It retains the path from that native type to the arbitrary selected carrier.
+unit_constructor_assigned_pair applies the resulting transport to a native
+unit comparison for any two terms actually assigned the selected carrier.
+Thus trans_unit_constructor_ground_of_lower covers an original transitivity
+node with the constructor as middle term, even when neither outer endpoint
+is a variable. Its handler uses j<k below one original rank-k child, stronger
+than the parent induction's j<k+1 allowance. The paired ground interpretation
+has no image requirements and supplies finite histories after arbitrary typed
+substitutions, without a uniform stage or diagonal-image premise.
+
+Limits: lower type-transport coverage remains open, as do arbitrary transitivity
+pivots and complete recursive interfaces. This is not a general term-history
+composition law and does not contradict its proposition-front lower bound.
+Application/projection pivot extraction is the next concrete provenance case;
+result-type comparisons must keep original arguments, orientations and ranks.
+The four principal sorted transport cases and GOAL.md deliverable remain open.
+
+Integration passed 1202 jobs. Recursive audit covered 11 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. All 1,177 frozen sources and owned diagnostics checked; artifacts
+under /dev/shm/constant-origins-*. All Lean/Lake commands used stock
+v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
+UniqueTyping.lean unchanged; PR extraction deferred; goal active.

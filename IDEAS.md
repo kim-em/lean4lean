@@ -23574,3 +23574,50 @@ recursive dependency closure 11,976; only propext, Classical.choice
 and Quot.sound. All 1,175 frozen sources and owned diagnostics checked.
 Stock v4.33.0-rc2 Lean/Lake ran only in /dev/shm/native-level-coherence-work.
 Executable and UniqueTyping.lean unchanged; PR extraction deferred; goal active.
+
+## 2026-11-07 13:40:12 UTC — Recover a constructor pivot's original type path
+
+Question: after extending lambda action, can the original strong derivation
+supply the provenance missing from erased-history composition? Rechecked the
+paired-composition lower bound: unrestricted composition still implies the
+proposition front. Therefore do not treat it as a smaller generic lemma.
+Instead handle its unit-constructor bridge using original type children.
+
+Implemented ProofErasurePiInertConstantOrigins.lean. BoundedTypePath records
+both orientations of original strictly lower-rank type children. This is
+necessary at a constDF right endpoint: its declared native type uses the
+right universe instance, while the rule assigns the left instance. A backward
+edge stores the original child, without increasing its rank by constructing
+strong symmetry. Constant endpoint extraction covers every StrongBounded
+constructor, including transitivity, conversion, beta/eta reducts, pattern
+checks and rank raising. Ground type equivalences fold the path using the
+retained semantic direction and ordinary intermediate assignments.
+
+A typed registered nullary empty constructor has its literal family as its
+native declared carrier. The existing actual constructor telescope walk
+proves that fact, so the new origin theorem adds no native-shape assumption.
+Its path to the selected carrier then interprets any two actual terms at that
+carrier. In particular trans_unit_constructor_ground_of_lower handles the
+original transitivity rule through that constructor, with arbitrary outer
+endpoints and arbitrary selected type. Every semantic type-handler call has
+rank j<k below a rank-k child, hence also below the rank-(k+1) parent. No erased
+term histories are composed. The result is a paired ground interpreter with
+empty image requirements and also yields substitution-indexed finite histories
+for later Eq-rec consumers.
+
+Verdict: the original constructor-pivot transitivity case is now proved from
+strictly smaller type transports. Together with the earlier native-variable
+case, this explains how original provenance addresses the checked unit bridge
+without assuming generic comparison composition. It does not prove those type
+transports, cover arbitrary pivots or recursive function interfaces, or solve
+the four principal sorted transport cases. Next inspect application and
+projection pivots: their native result types depend on actual arguments or
+majors, so original result-type comparison children and their orientations
+must survive extraction. Do not replace these by an unranked uniqueness proof
+submitted to the semantic induction. No smaller sufficient frontier claimed.
+
+Validation: 1202 integration jobs; 11 public/probe roots; maximum
+recursive dependency closure 11,976; only propext, Classical.choice
+and Quot.sound. All 1,177 frozen sources and owned diagnostics checked.
+Stock v4.33.0-rc2 Lean/Lake ran only in /dev/shm/native-level-coherence-work.
+Executable and UniqueTyping.lean unchanged; PR extraction deferred; goal active.
