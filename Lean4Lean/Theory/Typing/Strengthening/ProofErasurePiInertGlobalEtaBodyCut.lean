@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertFreshFieldEtaCut
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertFreshFieldEtaBypass
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertRetainedTerminalConsumption
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertProjectionRetainedFocus

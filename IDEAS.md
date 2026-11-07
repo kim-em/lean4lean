@@ -25322,3 +25322,34 @@ Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work only;
 11,981; only propext/Classical.choice/Quot.sound, no sorryAx or forbidden
 strengthening/circular-frontier dependencies. All 1,303 source hashes unchanged
 across final validation. Artifacts: /dev/shm/pi-inert-fresh-field-eta-bypass-*.
+
+
+## 2026-11-07 21:42:04 UTC — A retained nested fresh-field eta is an outer function component
+
+Idea: move the retained nested lambda back below the original eta binder,
+keeping its count, then use the enclosing consuming beta to save the outer
+eta. Verdict: checked, and connected to the existing counted body cut. No new
+native-certificate descent machinery is needed: the inner eta primitive plus
+its retained lambda computation is already a counted function-component path
+from the constructor. The existing exact counted descent and outer-component
+bypass apply directly. If the inner lambda is consumed instead, the previous
+fresh-variable native replay saves the inner eta charge while retaining the
+outer binder. Thus either branch saves one of the two charged eta roots.
+
+The new empty_pair_prefix_supplies_fresh_field theorem refines the SAME
+CountedEtaBodySpineCut: with empty original constructor prefix and pair arity,
+the selected nested native function-eta root must contain the fresh type field.
+The empty-prefix nested root is excluded even when its lambda survives until
+the enclosing beta. Singleton component ancestry fixes the pending vector;
+unsaturation rules out structure eta. A separate minimum lemma lowers the
+retained endpoint to a counted short-function path and typed eta origin at
+the computed outer domain, ready for the existing later-frame machinery.
+
+Remaining: read out the original field through the now-supplied fresh-field
+root and its later binder consumptions; cover the other field/structure and
+retained-continuation cases. This is a narrowing of a witnessed cut, not a
+sufficient irreducible global replacement for PropFront. Goal remains unmet;
+PR extraction remains deferred. Validation: 1330 integration jobs, 6
+public audit roots, maximum dependency closure 11,981; stock Lean
+v4.33.0-rc2 in /dev/shm/native-level-coherence-work, 1,305 frozen source hashes,
+no sorryAx or forbidden strengthening/circular-frontier dependencies.

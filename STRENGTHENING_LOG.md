@@ -41902,3 +41902,65 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,303 source hashes verified before and
 after final validation. Artifacts: /dev/shm/pi-inert-fresh-field-eta-bypass-*.
+
+
+## 2026-11-07 21:42:04 UTC — Exclude the empty nested prefix in the actual pair eta-body cut
+
+Added ProofErasurePiInertFreshFieldEtaComponent.lean and
+ProofErasurePiInertFreshFieldEtaCut.lean, imported by the global eta-body
+aggregate. The last research goal turn was checked progress in aab5ca67;
+the intervening instruction clarification changed no authoritative state.
+This turn continued the retained nested-lambda case left by that commit.
+
+For a nested empty-prefix eta applied to the original singleton fresh field,
+the actual lambda-spine split has two useful outputs. If the lambda survives,
+its root followed by its function computation is a counted component path
+from the constructor, costing at most one plus the nested suffix. The sole
+argument remains the original fresh variable. If the lambda is consumed, the
+previous derived native certificate gives a replay costing at most the suffix,
+with the inner eta charge removed. Both alternatives preserve the exact body
+endpoint, without instantiating an arbitrary native guard by the eventual
+outer argument.
+
+When the enclosing eta is consumed, the retained-inner branch uses the
+existing outer-component bypass: exact descent lowers the whole function
+path and the actual outer argument typing interprets its unchanged fresh
+slot. The consumed-inner branch rebuilds the original outer lambda around
+the cheaper body, keeping the original domain and argument computations,
+then the same beta and suffix. Therefore the replacement costs at most
+1+cd+ct+ca+cs where the original charged both eta roots, 2+cd+ct+ca+cs.
+The not-minimal corollary retains an arbitrary prefix, exact output, and
+arbitrary remaining continuation, with minimum taken over all finite stages.
+
+The cut module applies this result to CountedEtaBodySpineCut itself. Starting
+with empty original prefix, its selected component vector has exactly the
+fresh slot and no universe arguments. The existing unsaturation theorem
+excludes structure eta at that cut. A nested function root at an empty
+constructor prefix would have that singleton as its pending vector, so the
+two-eta replay contradicts the original global minimum; any pre-root loop
+cost only strengthens the inequality. The remaining root is therefore on
+constructor applied to the fresh slot. The SAME cut, its counts, endpoint,
+recovery stage, and consuming continuation are returned with that stronger
+root predicate. This is not a replacement by an unrelated local minimum.
+
+The additional minimum_lower_origin theorem returns a lower-scope counted
+short function and TypedEtaOrigin at the computed outer annotation. Its raw
+body endpoint is exactly app (short.liftN 1) (etaArgument u). This permits the
+existing ordinary endpoint-substitution and later-frame machinery; it does
+not assert that subsequent body computations stay in component form.
+
+Judgment: the previously retained nested empty-prefix branch is now excluded
+at the actual enclosing consuming cut. The next relevant case has already
+supplied the fresh type field; its later substitution and field ancestry
+remain to be established. Other field/structure and retained-continuation
+cases also remain. Executable and UniqueTyping.lean unchanged; original
+sorry remains. No canonical-Eq counterexample or sufficient irreducible global
+obligation smaller than PropFront established. Goal active; PR extraction
+deferred.
+
+Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1330 jobs, recursive audit
+6 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,305 source hashes checked before and
+after validation. Artifacts: /dev/shm/pi-inert-fresh-field-eta-component-*.
