@@ -24131,3 +24131,30 @@ frontier is claimed. PR extraction remains deferred.
 Validation: 1233 integration jobs, 6 recursively audited roots,
 maximum closure 11,976; only propext/Classical.choice/Quot.sound;
 1,208 frozen sources. Artifacts: /dev/shm/constructor-type-exposure-*.
+
+
+## 2026-11-07 15:57:03 UTC — Contract displayed pair type projections in the full core checker
+
+Verdict: proved for the ordinary level core, including the full common-mode
+checker and arbitrary carrier certificates. A counted path from a displayed
+projection either retains the projection with a computed first field or is
+already reachable from that field. The proj rule exposes the opposite
+constructor while retaining its type-argument comparison. A simultaneous
+two-orientation induction handles symmetry and computation. Existing typed
+dependent-pair field readout then covers structure eta, carrierChecked and
+nested carrier guards. Both terminal projections may independently remain or
+select their fields; EnvironmentCore supplies soundness and constructor
+opacity automatically. No generic forward beta closure or core confluence
+is assumed.
+
+The expansion-stage selection condition remains open: PiInertStage 0 already
+has constant expansions, so this result cannot be substituted for that
+condition. Next investigate how administrative wrapper elimination preserves
+the constructor exposure and selected-field comparison needed by the same
+induction. The original strengthening sorry and PropFront remain unresolved;
+no smaller sufficient frontier is claimed. PR extraction remains deferred.
+
+Validation: 1234 integration jobs; 7 recursively audited roots;
+maximum closure 11,976; 1,209 frozen sources unchanged. Stock Lean
+v4.33.0-rc2 in /dev/shm/native-level-coherence-work only. Only standard axioms,
+no strengthening or forbidden circular dependencies. Executable unchanged.

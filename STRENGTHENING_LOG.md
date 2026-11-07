@@ -39856,3 +39856,48 @@ Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution in
 Quot.sound, no forbidden strengthening or circular-frontier dependencies.
 All 1,208 frozen sources verified. Artifacts: /dev/shm/constructor-type-exposure-*.
 Executable and UniqueTyping.lean unchanged; goal active.
+
+
+## 2026-11-07 15:57:03 UTC — Full ordinary-core dependent-pair type-field selection
+
+Added ProofErasureCoreProjectionContraction.lean and its aggregator import.
+The preceding goal work made progress by supplying constructor exposure with
+retained type-field comparison. On resumption no corresponding Lean or audit
+process was live. The pending module was synchronized against committed
+dependencies and its final two theorems were compiled successfully.
+
+core_pair_projection_path_cases separates a path from a displayed pair's
+first projection into a retained projection with a field path, or a path
+already starting at the selected field. It uses counted first-root exposure,
+constructor stability and deterministic projection iota, without confluence.
+core_pair_type_projection_contract proves one-sided contraction inside every
+common-mode comparison of independently sort-typed endpoints. Its proj case
+uses one-sided inferred constructor exposure; computation replays typing and
+splits the selected endpoint's path. Simultaneous orientations handle symmetry.
+Typing excludes lambda and structure-constructor endpoints at sort type.
+
+proofErase_closed_pair_selection_shape recovers the exact two-argument,
+empty-universe constructor shape from an actual closed pair and its supplied
+primitive projection selection. proofErase_core_pair_type_field_selection
+combines ordinary dependent-pair field readout with contraction, so the input
+may use all carrier-checker constructors, including structure eta,
+carrierChecked and carrierNested. proofErase_core_pair_terminal_type_fields
+allows both sides independently to retain or select their projection.
+EnvironmentCore.pair_terminal_type_fields supplies the soundness and
+no-constructor-unfolding premises from the actual environment core.
+
+This completes the ordinary-core case of the previously recorded selection
+task. It does not prove PiInertPairTypeFieldSelection: even stage zero adds
+constant expansions, and higher stages add further guarded expansions. The
+next extension must account for these wrappers in both computation and
+inferred-major exposure, retaining the field comparison. General beta closure
+is neither used nor newly claimed. The original weakN_iff sorry remains; no
+canonical-Eq counterexample or smaller sufficient frontier is claimed. The
+goal stays active and PR extraction stays deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution in
+/dev/shm/native-level-coherence-work. Integration 1234 jobs; recursive audit
+7 roots, maximum closure 11,976; only propext/Classical.choice/
+Quot.sound, no forbidden strengthening or circular-frontier dependencies.
+All 1,209 frozen sources verified. Artifacts: /dev/shm/core-projection-contraction-*.
+Executable and UniqueTyping.lean unchanged.
