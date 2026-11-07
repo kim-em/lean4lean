@@ -37351,3 +37351,46 @@ branches traversed; only propext, Classical.choice and Quot.sound. No sorryAx,
 weakN_iff, weakN_inv or excluded circular-framework dependency. All 1,095 frozen
 source hashes unchanged; no owned diagnostics. Stock Lean/Lake ran only in scratch.
 Executable unchanged; PR extraction remains deferred. GOAL.md remains active.
+
+
+### 2026-11-07 05:26:32 UTC — Retain strong conversion edges before computational interpretation
+
+Added ProofErasureStrongVariableTrace.lean and integrated its global import.
+StrongTypeTrace has reflexivity and append-one-conversion constructors; each
+edge stores an actual IsDefEqStrong equality of types at a recorded universe.
+Different edges may use different universes. The trace has no computation,
+carrier-history, pattern-coverage or substitution-closure premise.
+
+The private variable_assignment theorem returns both endpoint properties in one
+induction on IsDefEqStrong. The bvar rule starts at its literal Lookup type.
+defeqDF appends exactly its type child. Transitivity keeps the first left and
+second right traces; symmetry swaps them. The remaining potentially variable
+endpoints have explicit smaller typing premises in the original Strong grammar,
+including the reduct typing of pat and beta. Those are consumed directly.
+No new strong equality is manufactured by type uniqueness or by retranslation.
+
+strong_variable_assignment_trace exposes either endpoint, while
+strong_variable_native_trace fixes the starting type using lookup uniqueness.
+StrongTypeTrace.trans concatenates edges; StrongTypeTrace.defeq forgets the
+trace to ordinary universe-polymorphic equality. StrongTypeTrace.pullback gives
+the exact backwards fold for a supplied per-edge property handler. It does not
+prove that handler, restrict its semantic burden, or supply a global recursion
+rank. The extraction is unconditional, but interpretation of arbitrary type
+conversion remains open, especially through intermediate non-Pi carriers. The
+Prop-valued extraction carries no numeric edge/parent rank. The next concrete
+step is a Nat-indexed strong grammar with strictly lower-rank premises and a
+finite-bound translation from the original grammar, then bounded variable-trace
+extraction. No such rank or decreasing cut theorem is claimed in this commit.
+
+Previous goal turn classified as progress: the proposition-only Pi-inert beta
+lower bound was proved, audited and pushed. This turn adds actual conversion
+provenance rather than another assumed blanket closure law. No strengthening
+proof, canonical-Eq counterexample or strict-smallness result is claimed.
+
+Validation: 1121 successful integration-build jobs, 393 audited roots,
+maximum closure 12,394; only propext, Classical.choice and Quot.sound.
+The new inductive constructors, recursive proof and every public root were
+traversed. No sorryAx, weakN_iff, weakN_inv or excluded circular frameworks.
+All 1,096 frozen source hashes remained unchanged; no owned diagnostics. Stock
+Lean/Lake ran only in scratch. Executable unchanged; PR extraction deferred.
+GOAL.md remains active.

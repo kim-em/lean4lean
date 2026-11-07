@@ -21372,3 +21372,41 @@ child at a beta application; semantic typing alone still contains the full goal.
 Validation: 1120 integration jobs, 387 audited roots, maximum closure
 12,394; only propext, Classical.choice and Quot.sound. Original weakN_iff
 unchanged. GOAL.md remains active; no completion or strict-smallness claim.
+
+
+### 2026-11-07 05:26:32 UTC — Extract native assignment conversions from the original strong tree: proved
+
+The proposition-beta lower bound identifies a missing conversion between a
+variable's native lookup type and its assigned function type. Existing HasTypeC
+inversion retained computational conversions only after the stronger global
+translation and its pattern-coverage assumptions. Added a prior extraction that
+requires none of those assumptions: either variable endpoint of any actual
+IsDefEqStrong derivation has a finite StrongTypeTrace from its literal lookup
+type to its assigned carrier.
+
+The proof is a simultaneous structural induction over both endpoints of the
+original strong derivation. Conversion nodes append their actual strong
+type-equality child. Symmetry swaps endpoints; transitivity selects the outer
+endpoint results. Pattern, beta, eta, proof-irrelevance, extra, projection and
+structure rules use the endpoint typing children already supplied by Strong.
+Syntactically non-variable endpoints contribute no case. No uniqueness-derived
+conversion or ordinary-to-strong reconstruction is inserted into the trace.
+
+Verdict: the native-variable conversion information needed by the observer is
+available directly, without computational pattern coverage, canonical Eq, or
+strengthening. Concatenation and a forgetful ordinary-equality interpretation
+are proved. A pullback theorem isolates a handler for interpreting each recorded
+strong type equality backwards. That handler is still required: extracting a
+finite path is not a proof of hereditary carrier conversion, a complete coverage
+induction, or a strictly smaller sufficient obligation. A path may pass through
+non-Pi types, so projecting domains is not automatically a stepwise operation.
+The extracted Prop witness also retains no numeric parent/child bound. Its
+existence alone cannot expose the original induction hypotheses. Next build a
+Nat-indexed copy of the strong rules: every premise at rank n, conclusion at
+n+1, and monotonicity for finite maxima (including realized pattern checks).
+Then extract variable traces whose conversion edges have rank strictly below
+the original bound. This would justify local recursive calls without claiming
+that new substitution/composition cuts already decrease.
+
+Validation: 1121 integration jobs, 393 audited roots, maximum closure
+12,394; only propext, Classical.choice and Quot.sound. GOAL.md remains open.
