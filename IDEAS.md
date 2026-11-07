@@ -25044,3 +25044,40 @@ Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work;
 only propext/Classical.choice/Quot.sound, no forbidden dependencies. All 1,290
 frozen source hashes checked before/after. Artifacts:
 /dev/shm/pi-inert-observer-predicate-*.
+
+
+## 2026-11-07 20:26:25 UTC — Joint field and observer budgets at the least failure's first body root
+
+**Idea.** The previous first-root result separately bounded original-field
+ancestry and the remaining observed computation. Those separate inequalities
+do not bound their SUM, so they cannot justify a recursive bounded readout.
+Charge field ancestry only to the actual outer/body component prefixes, then
+reserve that charge when attaching the original projection observer.
+
+**Checked verdict.** Structure saturation forces one pre-eta field and no
+pending body arguments. Its original-scope field path costs at most the outer
+argument prefix plus the body argument prefix. Reconstructing every raw
+competing body/application/projection path proves minimality of the selected
+root's actual continuation. Its bound is budget minus that field charge.
+Thus structure descent gives charge + remaining minimum < original budget;
+function eta retains a strictly smaller body minimum. Both statements use the
+same selected counted cut, with no fresh unrelated minimum.
+
+The exact direct-pair function-eta theorem now supplies this weighted cut,
+and every least failed pair budget at an exposed output supplies that direct
+pair theorem. Leastness also directly gives bounded field readout for every
+smaller typed pair projection in any scope, and for smaller same-scope actual
+pair continuation minima. No extra readout hypothesis is used there.
+
+**Remaining gap.** Recursively obtaining the bounded field readout through
+nested function/structure eta and their retained/consuming continuations is
+still open. The weighted first-root theorem is a necessary configuration of
+a hypothetical failed pair budget, not a proof that the configuration is
+impossible or a sufficient global obligation smaller than PropFront.
+Strengthening and the original sorry remain open; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work;
+1316 integration jobs, 9 audited roots, maximum closure 11,981;
+only propext/Classical.choice/Quot.sound, no forbidden dependencies. All 1,291
+frozen source hashes checked before/after. Artifacts:
+/dev/shm/pi-inert-least-failure-body-root-*.

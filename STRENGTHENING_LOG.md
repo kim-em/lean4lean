@@ -41569,3 +41569,49 @@ Validation: stock Lean v4.33.0-rc2, with all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,290 frozen source hashes verified before
 and after. Artifacts: /dev/shm/pi-inert-observer-predicate-*.
+
+
+## 2026-11-07 20:26:25 UTC — Preserve the sum at the least failed budget's actual first body root
+
+Added ProofErasurePiInertLeastFailureBodyRoot.lean and imported it through the
+existing global eta-body aggregate. The previous field-ancestry bound charged
+the entire eta tail, which cannot also be spent on the remaining observer.
+The new prefix lemma charges only actual component prefixes:
+fieldCharge <= outerArgumentCost + bodyArgumentCost <= outerBefore + bodyBefore.
+The actual remaining root run costs 1 + bodyAfter + suffix + observer; its sum
+with fieldCharge is strictly below the original budget because the enclosing
+function eta still costs one primitive.
+
+`CountedEtaBodySpineCut.projected_pair_field_root` retains the same selected
+cut and constructs its typed application/projection run. It proves minimality
+against arbitrary raw competing body endpoints, suffixes, projection majors
+and stages by replaying the enclosing lambda with each competitor. The native
+structure alternative carries `PiInertObservedBodyRoot (budget-fieldCharge)`;
+function eta carries the ordinary bound. No guarded substitution theorem or
+typing premise on competing endpoints is used.
+
+`PiInertDirectPairFunctionEtaMinimum.weighted_body_cut` connects this result
+to the original pair, preserving its failed budget and field. The failure
+wrapper derives it from leastness and the actual exposed-output path.
+`PiInertPairWeightedBodyRoot.observed_descent` makes the downstream sum explicit:
+structure descent gives fieldCharge + smaller < budget, alongside the original
+field computation and actual remaining minimum; function descent enters a
+strictly smaller observed eta body.
+
+`PiInertPairFailureBudgetMinimum.readout_below` and `readout_minimum_below`
+derive the smaller-pair bounded readout guarantee directly from leastness.
+They do not supply readout through a continuation ending in another scope.
+
+Judgment: the first-root accounting gap is closed and linked to the least
+failure on its exact original pair. Recursive field readout through later eta
+and retained/consuming frames remains unproved. No proof of strengthening,
+canonical-Eq counterexample, or sufficient irreducible global obligation
+smaller than PropFront is claimed. Executable and UniqueTyping.lean unchanged.
+Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1316 jobs; recursive audit
+9 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,291 frozen source hashes verified before
+and after. Artifacts: /dev/shm/pi-inert-least-failure-body-root-*.
