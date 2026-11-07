@@ -39398,3 +39398,43 @@ Quot.sound. All 1,179 frozen sources and owned diagnostics checked; artifacts
 under /dev/shm/core-endpoints-*. All Lean/Lake commands used stock
 v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
 UniqueTyping.lean unchanged; PR extraction deferred; goal active.
+
+## 2026-11-07 13:59:56 UTC — Original appDF includes whole-proof erasure and selected results
+
+Added ProofErasurePiInertApplicationRule.lean. A typed proof marker carries a
+complete recursive tree exactly when its visible call exposures are supplied.
+PiInertGuardedRootSupply follows intersections and stops at calls, requiring
+no later input/output supplies. The equivalence proof uses impossible typed
+proof-marker application tests. Root supply interpretation keeps the same
+paired typed environments and one-sided image requirements; existing full
+supply embeds and ordinary leaves have trivial requirements.
+
+StrongBounded.paired_app_native handles the complete original term appDF
+constructor at native result carriers B[x] and B[y]. Its nonproof branch uses
+full recursive function and argument pair action. Its proof branch constructs
+both output directions from root supplies at their own types. The original
+result child establishes the actual common equation and proof classification;
+erasure/substitution compatibility preserves each dependent result instance.
+Both output profiles and all finite requirements are retained.
+
+paired_app_ground_of_lower converts the right native result B[y] to the
+rule's selected B[x] using the reverse semantic transport of the original
+rank-k result child. No reconstructed strong symmetry reaches the handler.
+Ground outputs need no root exposures, so the result uses exactly the function
+and argument requirements. All whole-proof cases are included. The native
+construction needs no soundness assumption beyond its stated actual/core
+premises; selected conversion uses the existing sound type-transport rule.
+
+Limits: semantic function/input coverage and arbitrary recursive result
+conversion remain open. This does not discharge the sorted type-transport
+appDF principal case. The four type cases and generic comparison transitivity
+remain unresolved. Next investigate dependent projection action from the
+recorded source-major children and current semantic evidence. GOAL.md remains
+unmet; no strictly smaller sufficient frontier is claimed.
+
+Integration passed 1205 jobs. Recursive audit covered 11 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. All 1,180 frozen sources and owned diagnostics checked; artifacts
+under /dev/shm/application-rule-*. All Lean/Lake commands used stock
+v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
+UniqueTyping.lean unchanged; PR extraction deferred; goal active.

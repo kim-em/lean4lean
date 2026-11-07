@@ -23714,3 +23714,49 @@ recursive dependency closure 11,976; only propext, Classical.choice
 and Quot.sound. All 1,179 frozen sources and owned diagnostics checked.
 Stock v4.33.0-rc2 Lean/Lake ran only in /dev/shm/native-level-coherence-work.
 Executable and UniqueTyping.lean unchanged; PR extraction deferred; goal active.
+
+## 2026-11-07 13:59:56 UTC — Interpret original applications through proof erasure
+
+Idea: connect raw recursive application action to the original appDF rule,
+including whole applications erased to proof. Verdict: proved with an exact
+visible-exposure condition for recursive proof outputs; ground selected outputs
+need no added exposure requirement.
+
+ProofErasurePiInertApplicationRule.lean defines PiInertGuardedRootSupply,
+which follows intersections but stops at each visible call. At a call it asks
+only for the selected carrier's computation to that Pi, not input or output
+supplies. For a typed proof marker, pi_inert_proof_guarded_tree_iff_root proves
+this condition equivalent to the entire recursive value: typed application
+tests at a proof-marker head are impossible. Existing full type-only supply
+implies this weaker condition. Its paired-environment interpretation supplies
+directed proof comparison without additional semantic term evidence.
+
+StrongBounded.paired_app_native connects all original rank-k appDF children
+to the existing recursive function/argument pair interpreters. Nonproof
+applications run the raw application action. Proof applications use only the
+visible output exposures. Both native results B[x] and B[y], separately
+instantiated output profiles and finite image requirements are retained.
+There is no nonproof premise or assumption that a proof-marker application
+has a raw app-shaped typing witness.
+
+StrongBounded.paired_app_ground_of_lower returns both sides at appDF's actual
+selected B[x]. It consumes reverse ground transport from the original rank-k
+result child B[x]=B[y], strictly below the rank-(k+1) parent. Ground output
+profiles have trivial root supplies, so no new image requirements or exposure
+hypotheses remain. Function and argument interpretations are still required
+from the simultaneous induction, and arbitrary recursive result conversion
+still needs the full corresponding tree transport.
+
+Limits: this is the original term-application constructor conditional on its
+semantic child hypotheses, not the sorted type-transport appDF case or general
+strong coverage. The four principal sorted transport cases and arbitrary term
+transitivity remain open. Next examine the projection origin's source-major
+comparisons: determine whether the current carrier/profile evidence can return
+the dependent field comparisons, retaining the recorded source major rather
+than replacing it by an endpoint. No smaller sufficient frontier claimed.
+
+Validation: 1205 integration jobs; 11 public/probe roots; maximum
+recursive dependency closure 11,976; only propext, Classical.choice
+and Quot.sound. All 1,180 frozen sources and owned diagnostics checked.
+Stock v4.33.0-rc2 Lean/Lake ran only in /dev/shm/native-level-coherence-work.
+Executable and UniqueTyping.lean unchanged; PR extraction deferred; goal active.
