@@ -24256,3 +24256,34 @@ Validation: 1250 integration jobs; 24 recursively audited roots;
 maximum closure 11,976; all 1,225 frozen sources unchanged. Stock Lean
 v4.33.0-rc2 in /dev/shm/native-level-coherence-work only. Standard axioms only,
 no forbidden strengthening/circular dependencies. PR extraction deferred.
+
+
+## 2026-11-07 16:30:30 UTC — Derive terminal control arguments at original application nodes
+
+Verdict: proved stage-zero one-sided constant application readout from the
+inferred function child and actual application typings. A sort assignment for
+the discarded source argument forces the target argument to have the same
+universe type, by function reflection and domain uniqueness. Terminal-image
+substitution therefore applies without a separately supplied target argument
+certificate. Independent computed function prefixes are included.
+
+The raw checker consumer needs only two typed source applications, the source
+argument's control sort, and their inferred function comparison. It reconstructs
+a constant actual lambda with the same erasure; the original actual body need
+only erase to a lift. Beta realization of the source application derives both
+lower payload typing and nonproof status, eliminating separate lower-payload
+premises. The opposite body may depend on its argument.
+
+This discharges a local application-node obligation. It does not justify
+recursing on the rebuilt comparison: the global constructor-field induction
+still needs a measure or a simultaneous original-child invariant. A next
+candidate is comparison depth excluding computation and symmetry prefixes;
+terminal substitution appears to preserve the branching skeleton while an
+application/lambda elimination consumes structural nodes. No such bound is
+yet proved. PiInertPairTypeFieldSelection and strengthening remain open.
+
+Validation: 1251 integration jobs; 4 recursively audited roots;
+maximum closure 11,976; all 1,226 frozen sources unchanged. Stock Lean
+v4.33.0-rc2 in /dev/shm/native-level-coherence-work only; standard axioms only,
+no forbidden strengthening or circular-frontier dependencies. PR extraction
+deferred.

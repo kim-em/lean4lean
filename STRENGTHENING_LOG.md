@@ -40067,3 +40067,46 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake commands in
 Quot.sound, no forbidden strengthening or circular-frontier dependencies.
 All 1,225 frozen sources verified. Artifacts: /dev/shm/pi-inert-terminal-substitution-*.
 Executable and UniqueTyping.lean unchanged; goal active; PR extraction deferred.
+
+
+## 2026-11-07 16:30:30 UTC — Constant application readout from original checker-node evidence
+
+Added ProofErasurePiInertComparedControlApplication.lean and its aggregator
+import. The preceding research turn made verified progress in 18d12934; the
+intervening status clarification performed no goal work. This continuation
+revalidated the existing source edits and extended them with a raw checker
+consumer before committing.
+
+proofErase_pi_inert_zero_constant_application_of_type_argument obtains the
+target function's common Pi type from inferred checking, retypes its actual
+argument at the written source domain, and uses uniqueness against the
+source argument's universe assignment. The resulting terminal image supplies
+the previous one-sided constant-function application theorem.
+proofErase_pi_inert_zero_computed_constant_application includes independently
+computed function prefixes.
+
+pi_inert_zero_constant_control_application consumes TypedSource witnesses for
+both original applications, a ControlTyping universe witness for the discarded
+source argument, and the inferred function child. It realizes source beta to
+obtain a lower payload at the original application type, preserving nonproof
+status by actual definitional equality. The original actual lambda body may
+erase to a lift without itself being a syntactic lift. A newly constructed
+constant actual lambda has exactly the original function erasure, so the
+previous application readout applies. There is no separate payload typing,
+nonproof premise, target argument guard, target native recovery, or target-body
+independence premise.
+
+The output comparison is a new certificate, not an original inductive child.
+The constructor-field induction must still justify a recursive use of it.
+A structural checker-depth measure excluding compute/symmetry prefixes is
+under consideration; it is not assumed by this commit. No generic forward
+beta closure, sufficient smaller frontier, or completion of weakN_iff is
+claimed.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution in
+/dev/shm/native-level-coherence-work. Integration 1251 jobs; recursive audit
+4 roots, maximum closure 11,976; only propext/Classical.choice/
+Quot.sound; no forbidden strengthening or circular-frontier dependencies.
+All 1,226 frozen sources verified. Artifacts:
+/dev/shm/pi-inert-compared-control-application-*.
+Executable and UniqueTyping.lean unchanged; goal active; PR extraction deferred.
