@@ -20540,3 +20540,40 @@ smaller PropFront obligation is claimed.
 Validation: 1077 build jobs, 187 recursively audited declarations, maximum
 closure 11,976; only the three permitted Lean axioms. All 1,052 source
 hashes fixed, scratch-only stock Lean/Lake, no executable changes or PR extraction.
+
+
+## 2026-11-07 00:06:59 UTC — Rebuild outgoing source history and rejoin older ancestry
+
+**Idea:** Returning through a consumed nested binder must preserve the older
+ancestry, not merely produce another existential chosen-chain minimum. The
+outgoing retained annotations have already been computed by realization. Record
+reflexive paths at those computed substituted domains, prove the exact wrapper
+equation, and attach the rebuilt history to the older one.
+
+**Verdict:** Implemented and checked for positive surviving inner depth.
+`realize_returning` derives the outgoing source history with the same chosen and
+actual binder counts. It does not substitute native annotation computations.
+`consume_rejoin` attaches the actual waiting arguments to the outermost surviving
+lambda and composes that history with the older ancestry. Its wrapper equality
+holds for every raw body, using the literal computed consumed argument.
+
+`returning_supply_selected_return` connects the construction to the recorded
+parent body path, application predicate, actual suffix and outer run. It returns
+the joined history together with the chosen prefix, type, nonproof status, exact
+outgoing component vector, retained upper extras and decreased minimum in the
+same concrete context. Its argument input is the computed equality and erasure
+already kept by `EqSuppliedEtaContinuation`; it does not require replaying the
+original argument path.
+
+Remaining: the depth-zero return needs whole-spine waiting-argument restoration;
+the direct component case exists, but full recursive descent/return closure is
+not yet proved. Next candidate (not yet tested): use full-path realization and
+the existing nonproof `proofErase_reflect` theorem at a recognized chosen
+endpoint to recover the source equality needed by depth-zero restoration. The
+result here still assumes the recorded interleaved inner
+history and does not by itself close every nested cut. GOAL.md and strengthening
+remain open; no sufficient smaller PropFront obligation is claimed.
+
+Validation: 1078 build jobs, 194 recursively audited roots, maximum closure
+11,976; only the three permitted Lean axioms. All 1,053 source hashes stayed
+fixed. Stock Lean/Lake ran only in scratch. No executable changes or PR extraction.

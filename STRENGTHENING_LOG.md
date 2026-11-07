@@ -35799,3 +35799,77 @@ strengthening dependency or excluded circular framework. All 1,052 source hashes
 stayed fixed. The chosen-chain original-probe root still excludes older
 nested-eta, frame-boundary and supply-boundary probe roots. Stock Lean/Lake ran
 only in scratch. No executable changes or PR extraction.
+
+
+## 2026-11-07 00:06:59 UTC — Return from nested supplied consumption with older ancestry intact
+
+Added `ProofErasureEqReturningSupplyHistory.lean`, imported and described from
+the global eta body-cut module. This strengthens the earlier consumed return,
+which produced a chosen-chain minimum but did not return a source history that
+could be reattached to the enclosing ancestry.
+
+`EqInterleavedSupplyHistory.append` composes actual histories at a shared lower
+and upper source scope, with literal wrapper composition and additive chosen/
+retained counts. `append_rebased` first fills the inner history's outgoing
+placeholders from the older history. Both preserve the native source paths.
+
+`realize_returning` strengthens history realization by constructing an outgoing
+source history alongside the same typed supply square. Each outgoing retained
+annotation is the computed source annotation under the appropriate actual map.
+The new history uses a zero-cost reflexive path at that annotation. It does not
+transport the previous guarded computation under substitution. Chosen images
+remain the same and their outgoing typings follow from the realized frame;
+unused domains remain upper-only and require no chosen inhabitant. The result
+proves, for every raw body, that substituting the original whole wrapper equals
+the rebuilt wrapper applied to the exactly substituted inner body. All old
+upper argument vectors are included in that equation.
+
+`append_outer_arguments` incorporates the actual waiting arguments into the
+outermost surviving lambda wrapper without changing any annotation, source
+scope, chosen image or binder count. Positive retained depth is required so
+that such a wrapper exists. `of_supplied_argument` constructs the initial typed
+square directly from the original-to-computed argument equality and its exact
+inserted erasure. These are already explicit fields of the consumed eta history;
+no native argument path needs to be reconstructed or postulated again.
+
+`consume_rejoin` realizes the actual supplied consumption, rebuilds the surviving
+inner source history, attaches its waiting arguments and rejoins the older
+ancestry. The lower substitution is the literal computed argument lifted beneath
+chosen binders; the upper map is its inserted image lifted beneath all retained
+binders. The post-beta whole wrapper, including the waiting vector, is identified
+for every raw body. The combined history keeps both binder counts and the older
+base source, assignment, insertion path and wrapper.
+
+`returning_supply_selected_return` connects this construction to the actual
+selected body/application minimum. Every competing whole suffix is prefixed by
+the recorded body path, deriving the suffix minimum from the original parent
+predicate. The outgoing source history then reads that whole suffix back to its
+inner body. Component descent through the original incoming chain and the same
+supply square produces the outgoing chosen prefix, type and nonproof witness.
+The returned prefix, exact erased component vector, rebuilt inner history,
+joined older history and frame-refined minimum all use the same concrete lower
+and upper contexts. Untracked upper extras retain their literal substituted
+syntax. Cost is at most cs+ck; at equal parent cost the recorded older application
+frame is removed, leaving exactly frames+depth tail frames.
+
+Remaining gap: construct the complete recursive descent/return invariant across
+all nested cuts. In particular the depth-zero return has no surviving wrapper
+in which to absorb waiting arguments and instead needs whole-spine supply
+restoration. The direct component restoration theorem already exists, but the
+arbitrary nested closure has not been established. Source inspection found the
+existing nonproof mode of `proofErase_reflect`; the next candidate is to combine
+full-path certificate realization with insertion-path injectivity and that
+reflection theorem to recover source equality at a recognized chosen endpoint,
+without requiring the whole body path to be component-only. This candidate is
+not implemented or validated in this commit. This local positive-depth
+return is not a sufficient smaller PropFront obligation. GOAL.md remains active;
+the original weakN_iff sorry remains unchanged.
+
+Validation: 1078 jobs including the global module and established regressions;
+194 roots recursively audited through types, values, constructors and
+recursors, maximum closure 11,976. Only propext, Classical.choice and
+Quot.sound occur; no owned diagnostics, sorryAx, strengthening dependency or
+excluded circular framework. All 1,053 source hashes stayed fixed. The
+chosen-chain original-probe root still excludes older nested-eta, frame-boundary
+and supply-boundary probe roots. Stock Lean/Lake ran only in scratch. No
+executable change or PR extraction.

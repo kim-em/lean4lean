@@ -20,6 +20,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSuppliedSpineReturn
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedTelescopeSupply
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqInterleavedSupplyHistory
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSaturatedEmptySupplyHistory
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqReturningSupplyHistory
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -55,6 +56,14 @@ among the upper extras. The actual argument-free eta suffix must retain its
 lambda, so both cases keep the original annotation/body paths, strict child
 minimum and extended history alongside the body component-or-cut readout.
 Nested supplied consumption and global continuation closure remain open.
+
+`returning_supply_selected_return` now preserves older ancestry when consuming
+a nested supplied binder beneath a positive surviving inner prefix. Outgoing
+annotations receive reflexive paths at their computed values; no native guard
+path is substituted. The rebuilt wrapper includes the actual waiting arguments
+and rejoins the older history, while the same concrete context carries the
+chosen prefix, exact upper extras and decreased selected minimum. Full nested
+descent/return closure and the depth-zero restoration case remain open.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation
