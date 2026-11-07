@@ -42258,3 +42258,66 @@ Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,314 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-fresh-field-retained-descent-*.
+
+
+## 2026-11-07 22:40:30 UTC — Close the retained empty-prefix case at direct type-field supply
+
+The previous goal turn made checked progress in e65f72d4. Revalidated that
+clean worktree, then continued the same-scope recombination problem with
+ProofErasurePiInertComputedHeadReplay.lean and
+ProofErasurePiInertComputedPairObservation.lean, imported by the global
+eta-body aggregate.
+
+pi_inert_computed_head_spine_preimage realizes the original typed head in
+the endpoint's actual context and replays its directed computation there.
+Erasure reflection compares the resulting representative with the head of
+the actual endpoint spine. Ordinary definitional equality then restores the
+original head with exactly the same erased argument vector and result type.
+TypedSource.pi_inert_head_preimage packages this as source typing. Only
+ordinary equality is reversed; the native guarded path stays directed.
+
+pi_inert_computed_pair_head_observation applies this to a computed constructor
+function and a full pair in the observer scope. It derives original pair
+typing, rules out extra pending arguments by the closed record assignment,
+and prepends the actual counted function history. Replay preserves the
+closed record type at the observed major, allowing all remaining frames to
+flatten. The resulting original-pair projection has exactly cg+cb+ck cost.
+The frame-minimum wrapper gives cost cg+cost. Least-failure bounded readout
+and no_smaller_computed_head include that full reserved function charge and
+the separate original-field history; they do not assume native recovery of
+the supplied field.
+
+pi_inert_fresh_field_empty_eta_direct_supply_not_failure connects this to the
+actual charged empty-prefix native eta, its original all-raw minimum, and
+the distinguished consuming frame. The earlier retained-descent theorem
+excludes consumption before supply, lowers the function history with its
+eta charge intact, and retains exact argument ancestry. Since the actual
+source was a full fresh pair, the retained vector still has two arguments.
+At supply its first field is exactly x and its lower function is unchanged.
+The actual post-supply path and projection run then give the original pair's
+counted observation, strictly below the least failed budget. The original
+field -> x charge plus that observation also fits the original budget, so
+bounded failure transfer contradicts leastness. No independent minimum for
+the recombined constructor source is introduced or assumed.
+
+Judgment: the retained empty-prefix eta case is closed when the full fresh
+pair is followed directly by its distinguished supply, with no other frame
+before that supply. Intervening consuming or retained frames remain, as do
+structure targets. For the former, the next concrete route is to commute
+the lower constructor-function history into the next actual application
+suffix, restoring a constructor-source minimum at fewer frames. That needs
+an all-raw competitor replay using the original fixed argument path; simply
+prepending the function path to a computed-head minimum is insufficient.
+Exact-count renaming can supply the lower history in each well-formed target
+context, without substituting its guards by arbitrary arguments.
+
+Original weakN_iff sorry and executable unchanged. No full recursive
+field-readout invariant or sufficient irreducible global replacement for
+PropFront established. Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1341 jobs; recursive audit
+8 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,316 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-computed-head-replay-*.

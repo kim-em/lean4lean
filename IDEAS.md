@@ -25492,3 +25492,31 @@ and structure targets. No sufficient smaller global obligation, proof of
 weakN_iff, or canonical-Eq counterexample established. Goal active; PR
 extraction deferred. Validation: 1339 jobs, 7 public roots, maximum
 audit closure 11,981, 1,314 frozen source hashes; stock Lean in /dev/shm.
+
+
+## 2026-11-07 22:40:30 UTC — Recombine the lowered constructor history at the actual field supply
+
+Idea: recover typing of the original head applied to the computed endpoint's
+exact arguments using ordinary equality, then prepend the unchanged counted
+function path to the actual same-scope observation. Verdict: checked. This
+requires neither native coverage of those arguments nor substitution of the
+old guarded function computation. Saturated pair typing rules out any extra
+pending arguments, and all remaining same-scope frames flatten exactly.
+
+The original constructor pair's projection costs function + body + remaining
+continuation. The least-failure readout and transfer therefore include the
+reserved function charge. Connected this to an actual empty-prefix eta cut
+on a full fresh pair followed directly by the distinguished supply: the
+retained function descends, the first field becomes x, and recombination
+contradicts the same least failed budget. This closes that direct-supply
+case rather than merely producing another smaller minimum.
+
+Remaining: intervening application/retained frames and structure-eta readout.
+Promising next step: move the lower constructor-function computation into
+the actual later suffix and recover a constructor-source minimum with fewer
+frames. Its all-raw minimality must be replayed from the original charged cut;
+prepending a path to an existing minimum alone does not preserve minimality.
+No full strengthening proof, canonical-Eq counterexample, or sufficient smaller
+global obligation established. Goal active; PR extraction deferred.
+Validation: 1341 jobs, 8 public roots, maximum audit closure
+11,981, 1,316 frozen source hashes; stock Lean in /dev/shm.
