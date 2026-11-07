@@ -21308,3 +21308,35 @@ unrestricted application/PropFront lower bound remains relevant. No completion
 or strict-smallness claim for GOAL.md.
 Validation: 1116 jobs, 376 audited roots, maximum closure 12,048;
 only propext, Classical.choice and Quot.sound. GOAL.md remains active.
+
+
+### 2026-11-07 05:02:44 UTC — Recursive unit-carrier synthesis through Eq consumers: proved, coverage open
+
+The stage-zero frame theorem now supplies leaves of a finite actual-term
+certificate language, UnitCarrierSynthesis. A leaf retains an original raw
+comparison against a unit-framed type; it assumes no hereditary history. A raw
+stage-zero prefix can precede a certified carrier. Saturated Eq recursor and
+unsaturated Eq-prefix nodes each retain an arbitrary actual type-valued consumer
+and two recursive children: the index carrier and the returned carrier. The
+consumer may duplicate or apply its input and use it under binders.
+
+Structural induction constructs complete carrier histories, including arbitrary
+future typed substitutions and all three independent core residuals. A node
+with index depth n and returned-carrier depth k needs max (n+1) k, rather than
+adding a stage on both branches. Thus positive guarded computations can nest
+without an assumed history at any node. The stage-zero comparison theorem is
+actually consumed at the leaves, not merely restated.
+
+The limit is verified as well. Every synthesized carrier has a finite Pi-inert
+exposure: interpret its history at distinct raw variables and eliminate common
+comparison by bvar injectivity. Applied to the existing lifted Eq type probe,
+this exposure descends the proposition equation. Verdict: sound recursive
+synthesis for a concrete guarded fragment, not arbitrary conversion coverage
+and not a strictly smaller replacement for PropFront. The original probe has
+Prop's universe as index carrier; unit-carrier recursion alone does not supply
+its general proposition comparison. Extending synthesis must retain explicit
+non-unit index evidence rather than assume arbitrary carrier conversion.
+
+Validation: 1119 successful integration jobs, 380 audited roots, maximum
+closure 12,394; only propext, Classical.choice and Quot.sound. No executable
+changes or PR extraction; GOAL.md remains active.

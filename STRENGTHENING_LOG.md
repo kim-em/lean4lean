@@ -37274,3 +37274,40 @@ and recursors traversed. No sorryAx, weakN_iff or excluded circular-framework
 dependency. All 1,091 frozen source hashes remained unchanged; no owned
 diagnostics. Stock Lean/Lake ran only in scratch. No executable changes or
 PR extraction. GOAL.md remains active.
+
+
+### 2026-11-07 05:02:44 UTC — Compile finite unit provenance into complete carrier histories
+
+Added ProofErasurePiInertUnitSynthesis.lean and integrated its import into the
+global module. UnitCarrierSynthesis is indexed by an explicit finite stage and
+actual context/type. Its four constructors are compared, zeroPrefix, eqRec and
+eqPrefix. No constructor contains PiInertCarrierHistory or a universal closure
+premise. The comparison leaf uses the full stage-zero checker with independently
+sort-typed endpoints and source RigidSortFrames. Eq nodes retain actual recursor
+and consumer typing, and recursive provenance at both the index and returned
+types. Unsaturated prefixes return the displayed proof-argument lambda.
+
+UnitCarrierSynthesis.history is a structural induction. It consumes the new
+zero_compared_history theorem at leaves, certifies zeroPrefix with stage_zero,
+then uses eq_rec_consumer or eq_prefix_consumer with the synthesized index
+history. Carrier-prefix composition consumes the independently synthesized
+output history. Raising stages to max (n+1) k preserves every future substitution
+and residual; no guarded confluence or raw-check substitution law is presumed.
+
+UnitCarrierSynthesis.exposure obtains an actual path to CarrierExposure from
+arbitrary raw endpoints bvar 0 and bvar 1. Their comparison alternative is
+impossible. No actual pair of unit inhabitants is required for this readout.
+UnitCarrierSynthesis.type_probe_descend then applies the completed Eq recognizer:
+provenance for the lifted probe implies the original proposition equation below
+the inserted binders. This checks the scope of the result against the original
+obstruction, rather than silently treating synthesis completeness as routine.
+General coverage and weakN_iff remain open; no strict-smallness claim is made.
+
+Validation: 1119 successful integration-build jobs, 380 audited roots,
+maximum closure 12,394. All new declarations, including the inductive
+constructors and recursor dependencies, were traversed. Only propext,
+Classical.choice and Quot.sound; no sorryAx, weakN_iff or excluded circular
+frameworks. All 1,094 frozen source hashes unchanged; no owned diagnostics.
+Lean/Lake used stock v4.33.0-rc2 only in the scratch checkout. Executable unchanged;
+PR extraction remains deferred. Previous goal turn classified as progress
+(validated and pushed the simultaneous stage-zero proof). GOAL.md stays active.
