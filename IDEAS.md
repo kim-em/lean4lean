@@ -21478,3 +21478,48 @@ restarting recursion on the larger reconstructed equality.
 Validation: 1123 integration jobs, 414 audited roots, maximum closure
 12,394; only propext, Classical.choice and Quot.sound. Executable unchanged;
 no PR extraction; GOAL.md remains active.
+
+
+### 2026-11-07 06:00:29 UTC — Neutral applications expose two strict rank levels; literal-Pi transport fails
+
+Tested the next induction step after additive substitution bounds. Applying
+StrongBounded.hasType before inversion adds two ranks and can destroy the
+available child inequality. BoundedEndpoint instead retains a selected side
+of the original strong equality without reconstructing reflexive typing.
+
+BoundedNeutralFrame retains actual function and argument endpoint evidence,
+plus domain and codomain formation, all at one k below the parent n. A complete
+simultaneous induction over StrongBounded extracts this frame for either
+variable-headed application endpoint. In the beta case the lambda-headed source
+is impossible and the reduct is handled by its existing smaller typing child.
+All other rules retain the original endpoint children or actual appDF premises.
+
+The function endpoint's native lookup trace has edges j<k, hence j<k<n. The
+native_trace theorem exposes both strict levels, and neutral_native_pullback
+consumes handlers only below the original parent. This is a concrete neutral
+application case of the proposed recursive interface, not a blanket conversion
+assumption or general interpretation theorem. The assigned-function and
+conversion-edge handlers remain explicit hypotheses.
+
+Tested a tempting concrete property for those handlers: R of the domain if the
+type is syntactically a Pi, and vacuous truth otherwise. LiteralPiDomain records
+that candidate. literal_pi_transport_forces_domain proves it cannot provide
+nontrivial general conversion transport: an identity-beta expansion of any
+typed Pi is non-Pi syntax, and reversing its beta equality forces R for the
+original domain. The construction gives beta rank n+3, reverse rank n+4 and
+handler bound n+5. no_false_literal_pi_transport instantiates R=False and
+formally refutes the candidate. No environment assumptions or canonical Eq
+are needed for this local obstruction, so neither can rescue it.
+
+Verdict: the neutral application's required lower-rank evidence is now present;
+raw-shape-only type interpretation is ruled out. The next motive must retain
+computational evidence through non-Pi intermediates. Existing PiCoreDomainReadout
+handles core-observed endpoints for certified comparisons, but does not supply
+general strong coverage or a one-sided computational witness at an intermediate
+type. Do not replace the missing handler by that theorem without proving this
+bridge. No proof/counterexample for weakN_iff or smaller sufficient obligation
+is claimed; the original goal remains active.
+
+Validation: 1124 integration jobs, 427 audited roots, maximum closure
+12,394; only propext, Classical.choice and Quot.sound. Executable unchanged;
+no PR extraction.

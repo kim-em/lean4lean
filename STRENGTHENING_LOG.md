@@ -37489,3 +37489,56 @@ types, values, inductive constructors and recursor branches and excludes sorryAx
 weakN_iff, weakN_inv and the existing circular frameworks. All 1,098 frozen local
 source hashes unchanged. No owned diagnostics. Lean/Lake ran only in the stock
 scratch checkout. No executable changes or PR extraction; GOAL.md stays active.
+
+
+### 2026-11-07 06:00:29 UTC — Preserve original ranks in neutral application inversion and test the domain motive
+
+Previous goal turn classified as progress: additive same-term substitution and
+binder-conversion bounds were committed and pushed, with trace gaps preserved
+under a common shift. This turn tested the next required application inversion
+instead of treating those upper bounds as a completed termination argument.
+
+Added ProofErasureStrongNeutralFrames.lean and its global integration import.
+BoundedEndpoint holds one side of an actual ranked strong equality. Its left
+and right constructors preserve the equality's rank; variable_trace extracts
+the original lower-rank conversion path without an intervening hasType call.
+BoundedNeutralFrame retains original domain and codomain formation and the
+function/argument endpoint evidence at k<n. Its outer-bound monotonicity changes
+no child rank.
+
+bounded_neutral_assignment is a simultaneous endpoint induction across the
+entire strong grammar. appDF supplies its original four children. Symmetry,
+transitivity and type conversion select the appropriate existing endpoint.
+Beta cannot have a variable-headed application as its lambda-headed source;
+its reduct-typing child covers the target. Eta, proof irrelevance, extra,
+patterns, projection reduction, structure eta and unitLike all use the actual
+endpoint-typing children already supplied by the grammar. Strict rank raising
+changes only the outer bound. No new type equality is inferred by uniqueness.
+
+StrongBounded.neutral_frame and BoundedEndpoint.neutral_frame expose that result.
+BoundedNeutralFrame.native_trace fixes the function's literal lookup type and
+returns its path to the assigned Pi at bound k<n. Every path edge lies below k.
+StrongBounded.neutral_native_pullback folds that path using only handlers below
+n, together with an assigned-function handler supplied the original smaller
+argument evidence and formation premises. The handlers are hypotheses; their
+computational interpretation is not silently assumed.
+
+The remaining handler cannot simply ignore non-Pi intermediates. The checked
+LiteralPiDomain experiment builds the typed identity-beta wrapper around an
+arbitrary rank-n Pi type. Its beta proof has rank n+3; the reverse proof has
+rank n+4. A literal-Pi handler below n+5, applied to the vacuous property of the
+application-shaped wrapper, would force R of the original domain. With R=False
+this is impossible. This refutes exactly the raw-syntax candidate, not the main
+strengthening theorem or computationally saturated interpretations. A useful
+motive must carry a computational observation through non-Pi syntax. Existing
+core-exposed Pi readout for certified comparisons does not itself construct
+that observation for arbitrary strong conversion edges.
+
+Thirteen public declarations added. Validation: 1124 successful integration
+jobs; 427 audited roots; maximum closure 12,394; only propext,
+Classical.choice and Quot.sound. Audit traverses types, values, inductive
+constructors and recursor branches, excluding sorryAx, weakN_iff, weakN_inv and
+the existing circular frameworks. All 1,099 frozen source hashes unchanged;
+no owned diagnostics. Lean/Lake ran only in the stock scratch checkout.
+Original weakN_iff and the executable remain unchanged. No PR extraction.
+GOAL.md remains active; no completion or strict-smallness claim.
