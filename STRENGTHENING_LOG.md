@@ -38096,3 +38096,47 @@ covered 37 public/probe roots from both changed modules, maximum closure
 owned diagnostics and forbidden-dependency checks are retained under
 /dev/shm/demand-bodies-*. UniqueTyping.lean and its strengthening sorry remain
 unchanged. No executable changes or PR extraction. GOAL.md remains active.
+
+
+## 2026-11-07 09:14:41 UTC — Paired binder and full lambda-demand interpretation
+
+Added ProofErasurePiInertDemandBinders.lean and its aggregator import.
+The new binder_context rule reflects a retained domain history to ordinary
+typed context conversion. paired_lift uses it to interpret both source bodies
+in the left substituted binder, without claiming a core domain join or a
+core world for the conversion.
+
+Fresh arguments satisfy every finite demand, including proof markers at Prop
+domains. The proof case uses the impossibility of an actually sourced erased
+application with a proof head. etaLift, its erased-substitution agreement,
+and TypedSource.subst_etaLift connect these fresh images to ordinary lambda
+syntax using the same actual typed substitution witness. Old demands weaken
+through the exact target core world.
+
+Application-body requirements now run under paired related domains in both
+proof-aware and ordinary lifted syntax. raw_lambda_test and retained function
+extensionality close the ground comparison. An independent actual_lambda rule
+also constructs core-world history for different actual lambda bodies at a
+common assigned Pi from their supplied body history.
+
+paired_lambda_value goes beyond ground comparison: for each requested result
+demand it constructs finite requirements on old images and a finite sufficient
+new-argument demand. It combines the ground binder result with paired body
+interpretation at each future application. cons_pair accepts arbitrary old
+image demands, move transports them through the target core world, and typed
+whole applications supply the two actual binder instantiations. Ordinary-core
+Pi aliases and typed beta prefixes preserve the exact dependent result and
+its full higher demand.
+
+The source grammar is still the existing application tree; internal call
+demands are explicit. General nested-lambda coverage and strong type conversion
+remain unresolved. This is progress toward those cases, not a proof of
+strengthening or a smaller irreducible obligation. UniqueTyping.lean's original
+sorry remains unchanged. No executable changes or PR extraction.
+
+Integration passed 1173 jobs. Recursive audit covered 27 public/probe
+roots, maximum closure 11,976, with only propext, Classical.choice and
+Quot.sound; frozen source hashes and diagnostics checked. Artifacts are under
+/dev/shm/demand-binders-*. All Lean/Lake commands ran in the established
+/dev/shm scratch worktree with stock leanprover/lean4:v4.33.0-rc2. GOAL.md
+remains active.

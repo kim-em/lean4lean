@@ -22175,3 +22175,65 @@ diagnostics checked. Audit excludes sorryAx, weakN_iff, weakN_inv and known
 circular frameworks. Lean/Lake ran only in the established scratch directory
 on stock v4.33.0-rc2. Executable and UniqueTyping.lean unchanged; PR extraction
 deferred; GOAL.md remains active.
+
+
+## 2026-11-07 09:14:41 UTC — Paired finite-demand lambda interpretation under related binders
+
+Idea: separate ordinary typed binder conversion from the restricted worlds
+used by retained histories. A supplied same-sort domain history reflects to
+actual domain equality, hence an identity ContextSubstitution between the two
+binder contexts. It need not be an ordinary-core join or a CoreWorld. This
+lets the right interpretation enter the left substituted binder without
+asserting the refuted general domain-computation property.
+
+Fresh image demands now handle both sort cases. At a positive domain the
+native variable supplies every finite demand. At a Prop domain the fresh
+image is the proof marker. TypedSource.not_proof_app proves that an erased
+non-proof application cannot have a proof head, so proof-marker arrow demands
+have no typed application test. This is not an assertion of computational
+behavior for erased proofs. Old arbitrary image values move only through
+the exact target weakening core world.
+
+etaLift gives the fresh variable or proof marker, with ordinary weakening
+for old images. ErasedSubstAgreement.eta_lift shows that one actual typed
+substitution realizes both etaLift and the ordinary lift. TypedSource's
+subst_etaLift proves their results equal on actual source terms; it does
+not assert that equality for arbitrary raw syntax. This closes the proof-
+binder syntax gap for body and selected carrier alike.
+
+requirements_under_binder and requirements_under_lift interpret application
+tree bodies under two substitutions with related domain images. The old
+finite image requirements are tailUses of the body's use list. A supplied
+ground domain demand suffices for ordinary binder conversion. raw_lambda_test
+provides the actual typed beta computation under that binder. Combining the
+two substituted tests and function extensionality gives paired_lambda_ground.
+
+The stronger paired_lambda_value also constructs full arrow demands. For
+each requested result demand it infers a finite old-image use list and a
+finite new-argument demand. Its ground part uses the binder interpretation.
+Its application part moves old demands through the target core world, uses
+typed whole applications to instantiate each source binder independently,
+and interprets the body at the collected fresh-argument demands. Only the
+left selected Pi's ordinary-core alias is used for input/result conversion;
+no core equality between left and right domains is assumed. Typed beta
+prefixes retain the full result demand. The two old substitutions can have
+arbitrary function images satisfying those uses, not just variable images.
+
+Verdict: constructive paired lambda interpretation now extends beyond the
+previous same-lambda/core-world handler. It handles related domain images,
+Prop binders, arbitrary old demand images, and higher result demands. The
+source body remains a PiInertDemandTree of variables, applications and
+ordinary-core carrier conversions, with supplied internal call demands.
+This does not yet cover arbitrary nested lambda nodes, general strong type
+conversion, constants/projections, or arbitrary differing source bodies.
+A nested-lambda grammar must account for the inferred input profile (the
+new theorem gives an existential input demand for each output), rather than
+silently claiming every lambda has every arrow demand. No new irreducible
+obligation strictly smaller than PropFront has been established. The original
+strengthening theorem and full GOAL.md deliverable remain open.
+
+Validation: 1173 integration jobs; 27 public/probe audit roots;
+maximum recursive closure 11,976; only propext, Classical.choice and
+Quot.sound. Source hashes, owned diagnostics and forbidden dependencies
+checked. Lean/Lake ran only in /dev/shm/native-level-coherence-work on stock
+v4.33.0-rc2. Executable and UniqueTyping.lean unchanged; no PR extraction.
