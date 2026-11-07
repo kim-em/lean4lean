@@ -22237,3 +22237,64 @@ maximum recursive closure 11,976; only propext, Classical.choice and
 Quot.sound. Source hashes, owned diagnostics and forbidden dependencies
 checked. Lean/Lake ran only in /dev/shm/native-level-coherence-work on stock
 v4.33.0-rc2. Executable and UniqueTyping.lean unchanged; no PR extraction.
+
+
+## 2026-11-07 09:22:26 UTC — Recursive finite-demand derivations through nested lambdas
+
+Idea: replace the previous application-tree requirement that every requested
+output demand be supported with an explicit judgment recording each supported
+demand. A lambda's input demand must be inferred from its body's uses; simply
+adding a lambda constructor to the old every-demand theorem would assert
+more than the existing lambda proof supplies.
+
+Added PiInertDemandInterpretation, retaining actual term/type sources and
+interpretation under paired typed substitutions satisfying a finite use list.
+Its generic lam theorem takes a domain interpretation at ground demand and a
+body interpretation at one supported result demand. The body can already
+contain nested lambdas. Ground comparison uses the body interpretation under
+the two lifted substitutions in the common left binder, with fresh proof or
+variable demand images. Full application action uses typed whole applications
+to instantiate both binders. Old arbitrary image demands move only through
+the target core world. Domain uses and old body uses concatenate; the finite
+intersection of fresh body uses is the supported lambda input demand.
+
+PiInertDemandDerivation makes this construction recursively compositional.
+Its constructors are native variables, substitution-invariant terms at ground
+demand, proof markers at any demand, matching function/argument application,
+lambda abstraction, ground projection, finite demand intersection, and
+ordinary-core carrier conversion. The context is an index, so abstraction
+recurses into a larger context. The interpret theorem is structural induction
+on this derivation, not on a newly substituted strong proof. Domain comparisons
+are constructed from domain subderivations instead of assumed separately at
+every lambda. No arbitrary typed-substitution futures are added to histories.
+
+The earlier PiInertDemandTree fragment embeds at every requested demand by
+PiInertDemandTree.derivation. Actual variable, application and lambda bridges
+preserve the exact erased dependent carriers. actual_closed_type handles
+substitution-invariant domain annotations at their actual sort. empty_value
+runs any derivation whose free image requirement list is empty.
+
+The checked higher-order example is (fun f => fun x => f x) (fun y => y),
+where x and y have type Prop -> Prop. It builds two recursive lambda nodes,
+a matching lambda argument, and an application node, then uses empty_value.
+For every result demand q, its supported input demand is all [all [q]]. The
+function result can therefore retain further function action. The example
+uses the recursive theorem, not a separate normalization or special-case
+semantic proof.
+
+Verdict: nested lambdas in function and argument positions now have a checked
+recursive interpretation when their explicit supported demand profiles match.
+This closes the previous grammar restriction, not full strong completeness.
+There is no theorem that every typed term has every demand, or that every
+strong derivation constructs a sufficient matching profile. General strong
+type conversion, arbitrary distinct source-body equalities, and recursive
+constant/projection action remain open. The current type conversion rule
+still requires an ordinary-core join. No irreducible obligation strictly
+smaller than PropFront has been established; strengthening remains open.
+
+Validation: 1174 integration jobs; 13 public/probe roots, including
+recursive constructor/recursor dependencies; maximum closure 11,976;
+only propext, Classical.choice and Quot.sound. Frozen imports, owned diagnostics
+and forbidden dependencies checked. Stock Lean v4.33.0-rc2 ran exclusively in
+/dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged.
+No PR extraction; GOAL.md remains active.

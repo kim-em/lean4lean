@@ -38140,3 +38140,42 @@ Quot.sound; frozen source hashes and diagnostics checked. Artifacts are under
 /dev/shm/demand-binders-*. All Lean/Lake commands ran in the established
 /dev/shm scratch worktree with stock leanprover/lean4:v4.33.0-rc2. GOAL.md
 remains active.
+
+
+## 2026-11-07 09:22:26 UTC — Nested lambda demand derivations and paired interpretation
+
+Added ProofErasurePiInertDemandDerivations.lean and its aggregator import.
+PiInertDemandInterpretation.lam abstracts over the body interpreter, replacing
+the earlier application-tree-only argument. It constructs both ground history
+and full application action from supported domain/body interpretations. Its
+finite old-use list is the domain uses plus the body's tail uses; its input
+demand collects fresh body uses. Domain equality comes from the interpreted
+domain child, and ordinary typed binder conversion is kept separate from the
+core worlds used to move old values.
+
+PiInertDemandDerivation indexes context, uses, term, selected type and demand.
+The grammar supports nested lambda/application nodes, native variables,
+substitution-invariant ground terms, proof markers, ground projection,
+finite intersections and explicit ordinary-core carrier conversion. Structural
+interpretation retains paired typed substitutions and all demanded result
+action. The old application-tree fragment embeds at each requested demand.
+
+Actual variable/application/lambda bridges and closed-domain construction
+connect the grammar to original typed terms with exact erasure carriers.
+A derivation with no image requirements yields its supported demand by identity
+interpretation. The concrete closed example (fun f => fun x => f x) (fun y => y)
+uses nested lambdas and a lambda argument, with x/y : Prop -> Prop. For each
+result q, it derives a function demand with input all [all [q]], retaining
+higher result action without normalization.
+
+The supported-profile judgment does not prove full strong-derivation coverage.
+General type conversion, distinct strong source-body pairs, and recursive
+constant/projection action remain unresolved. It is not a proof of weakN_iff
+or a sufficient irreducible obligation proved smaller than PropFront.
+
+Integration passed 1174 jobs. Recursive audit covered 13 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. Frozen hashes and owned diagnostics passed; artifacts are under
+/dev/shm/demand-derivations-*. All Lean/Lake commands used stock v4.33.0-rc2 in
+/dev/shm/native-level-coherence-work. No executable or UniqueTyping.lean changes,
+no PR extraction. The original strengthening sorry and GOAL.md remain open.
