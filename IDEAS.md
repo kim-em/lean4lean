@@ -22423,3 +22423,49 @@ recursive closure 11,976; only propext, Classical.choice and Quot.sound.
 Frozen sources, owned diagnostics and forbidden dependencies checked. Stock
 v4.33.0-rc2 Lean/Lake commands ran only in /dev/shm/native-level-coherence-work.
 No executable or UniqueTyping.lean changes and no PR extraction.
+
+
+## 2026-11-07 10:01:34 UTC — Predicate result transport and higher-order subsingleton inputs
+
+The universe-interface proof separates into two components. Only the result
+component needs a type-valued function; its input domain may be arbitrary.
+Implemented predicate_interface_convert using actual selected Pi assignments
+and an additional ordinary typing at Pi K (sort u). Typed whole applications
+supply sorted result endpoints at this interface. The existing sorted
+reindexing theorem then constructs dependent-result transport. Input transport
+remains explicit, restricted to actual target-domain assignments.
+
+For structural subsingleton source domains, subsingleton_predicate_convert
+constructs the input component using the subsingleton carrier interpretation
+in every core world. These domains include iterated functions into empty
+structures. There is no supplied argument/result transport or carrier join.
+The source arrow demand and actual type-valued interface remain premises.
+StrongBounded.demand_convert_subsingleton_predicate consumes the original
+rank-k children without recursive calls on newly substituted derivations.
+
+The checked example pi_inert_function_input_predicate_conversion constructs
+its own native source demand for a fresh predicate over S -> S, with S a closed
+positive empty structure. It supports conversion to arbitrary actual literal
+Pis. Type uniqueness and sort/Pi disjointness also prove that this predicate
+has no universe-to-universe typing: this is a genuine extension beyond the
+preceding theorem's interface assumption, not a renamed instance of it.
+
+Rechecked the potential carrier-readout shortcut. The available rigid-family
+head readout starts with a directed full-union computation from the rigid
+family. Unit-carrier guarded-join transport also requires a certified path
+from the target carrier to the shared result. Neither theorem takes a bare
+ordinary type equality as that path. No new construction of such a path was
+established; this remains an open route rather than a refutation.
+
+Verdict: result transport is constructed for arbitrary type-valued function
+interfaces, and both components are constructed for higher-order structural
+subsingleton source inputs. General input conversion, non-type-valued result
+transport, arbitrary outer carrier aliases, and full strong demand coverage
+remain open. No strengthening proof, canonical-Eq counterexample, or sufficient
+irreducible obligation proved strictly smaller than PropFront is claimed.
+
+Validation: 1177 integration jobs; 5 public/probe roots; maximum
+recursive dependency closure 11,976; only propext, Classical.choice and
+Quot.sound. Frozen sources and owned diagnostics checked. Stock v4.33.0-rc2
+Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work. Executable
+and UniqueTyping.lean unchanged; PR extraction remains deferred.

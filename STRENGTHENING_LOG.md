@@ -38254,3 +38254,34 @@ Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
 in /dev/shm/native-level-coherence-work. No executable or UniqueTyping.lean
 changes, no PR extraction. The original strengthening sorry remains open and
 GOAL.md remains active.
+
+
+## 2026-11-07 10:01:34 UTC — Predicate conversion with higher-order subsingleton inputs
+
+Added ProofErasurePiInertDemandPredicateConversion.lean and its aggregator
+import. predicate_interface_convert constructs dependent-result transport from
+an ordinary type-valued interface with arbitrary input type. Its input
+transport premise is restricted to actual target-domain assignments.
+subsingleton_predicate_convert constructs that input transport when the old
+selected domain is structurally subsingleton, including function domains
+returning empty structures. Its StrongBounded bridge uses the original two
+rank-k children and retained source demand; no transformed strong recursion.
+
+The fresh-predicate example over S -> S constructs its source arrow demand
+and transports to arbitrary actual literal Pi assignments. The same theorem
+proves this predicate has no universe-to-universe typing. Thus the new case
+strictly extends the previous interface assumption. This does not establish
+an obligation smaller than PropFront or solve the main strengthening theorem.
+
+General input transport, arbitrary outer aliases and full strong demand
+coverage remain open. Existing rigid-family readout and guarded unit-carrier
+transport still require computation certificates; ordinary type equality
+has not been promoted to such a certificate.
+
+Integration passed 1177 jobs. Recursive audit covered 5 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
+/dev/shm/demand-predicate-conversion-*. All Lean/Lake commands used stock
+v4.33.0-rc2 in /dev/shm/native-level-coherence-work. No executable or
+UniqueTyping.lean changes and no PR extraction. The original strengthening
+sorry remains open; GOAL.md remains active.
