@@ -23819,3 +23819,35 @@ This is not a smaller sufficient frontier or completion of GOAL.md.
 Validation: 1223 integration jobs, 19 recursively audited roots, maximum
 closure 11,976, only propext/Classical.choice/Quot.sound, 1,198 frozen sources.
 Artifacts: /dev/shm/projection-residuals-*. PR extraction deferred.
+
+
+## 2026-11-07 14:33:29 UTC — Absorb field tails before the final projection iota
+
+**Idea.** Commute the entire post-iota field computation into the selected
+constructor argument, using compatible computation of the constructor spine.
+**Verdict: checked exact factorization.** Every full level-core path from a
+projection factors as a major path followed by zero or one projection iota,
+with exactly the original output. The updated constructor retains every other
+argument. No normalization, confluence or constructor-rigidity hypothesis is
+needed. Actual replay realizes the terminal major at the original major type
+and preserves the original dependent field assignment.
+
+Full projection comparison interpretation is equivalent to comparison of all
+terminal results at independently computed majors. For the registered closed
+dependent pair, existing readout handles the keep/keep case. Symmetry reduces
+all remaining cases to one-step selection on the left, while the right either
+stays projected or also selects. PiInertPairTypeFieldSelection names this still
+unproved local condition; checked consumers show it would yield the complete
+type-field world history, including constructor-exposing majors and all future
+worlds. This is a conditional integration theorem, not proof of the condition.
+
+Next attempt the one-step readout itself, especially computed carrierChecked
+and carrierNested cases: they expose checked projection certificates whose
+forward iota contraction has not been proved. Do not replace this missing
+implication with ordinary equality reflection or generic forward-check closure.
+No strictly smaller sufficient strengthening frontier is claimed; GOAL.md is
+unmet. PR extraction remains deferred.
+
+Validation: 1224 integration jobs, 15 audited roots, maximum closure
+11,976, only propext/Classical.choice/Quot.sound; 1,199 frozen sources checked.
+Artifacts: /dev/shm/projection-terminal-*.

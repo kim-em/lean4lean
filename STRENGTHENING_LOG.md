@@ -39526,3 +39526,46 @@ roots, maximum closure 11,976, only propext, Classical.choice and
 Quot.sound. All 1,198 frozen sources and owned diagnostics checked. All Lean/Lake
 commands used stock v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable
 and UniqueTyping.lean unchanged; PR extraction deferred; goal active.
+
+
+## 2026-11-07 14:33:29 UTC — Exact terminal projection factorization and its history consumer
+
+Added ProofErasurePiInertProjectionTerminal.lean. Compute.selected_argument
+moves an arbitrary selected-field computation into one constructor argument
+while retaining all other arguments. Compute.projection_terminal strengthens
+the preceding first-root decomposition: absorb its complete post-iota tail
+inside that argument, so the major computes to a final constructor whose field
+is exactly the desired output. ProjectionResult records either the retained
+projection or one saturated registered selection. Its computation and raw
+substitution laws are checked. projection_terminal_iff proves both directions.
+
+proofErase_projection_terminal_major realizes the resulting major at the
+original actual major type and retains actual equality of both projections at
+the original field type. It does not synthesize a smaller strong derivation.
+pi_inert_projection_interpret_iff_terminal characterizes all independent field
+residual comparisons exactly by terminal selection tests on major residuals.
+There is no remaining field computation tail in those tests.
+
+PiInertPairTypeFieldSelection is the explicitly unproved local readout condition
+for the registered closed pair's first field: actual family-typed majors, their
+full computed carrier guard, a single left projection primitive and a terminal
+right projection result must yield checked comparison of the outputs. Existing
+field readout discharges keep/keep; symmetry supplies right-only selection from
+this one-sided condition. dependent_type_field_of_selection constructs both
+the full carrier-residual interpretation and full core-world history from it,
+with independent field/carrier paths and no no-contraction assumptions.
+
+Limits: the new condition is not proved. It is not advertised as an irreducible
+or strictly smaller sufficient frontier for strengthening. The remaining work
+is now the one-step readout, rather than arbitrary post-iota tails. In particular
+carrierChecked and carrierNested still need a justified forward contraction of
+sorted field comparison; actual equality alone does not construct that raw
+certificate. Dependent value orientation, general projection interpretation,
+comparison transitivity and the principal sorted transport cases remain open.
+GOAL.md remains unmet; focus next on proving or refuting the selection condition.
+
+Integration passed 1224 jobs. Recursive audit covered 15 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. All 1,199 frozen sources and owned diagnostics checked. All Lean/Lake
+commands used stock v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable
+and UniqueTyping.lean unchanged; PR extraction deferred; goal active.
