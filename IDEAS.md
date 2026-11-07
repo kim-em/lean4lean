@@ -25224,3 +25224,53 @@ Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work only;
 11,981; only propext/Classical.choice/Quot.sound, no sorryAx or forbidden
 strengthening/circular-frontier dependencies. All 1,298 source hashes unchanged
 across validation. Artifacts: /dev/shm/pi-inert-projection-frame-progress-*.
+
+
+## 2026-11-07 21:18:01 UTC — Preserve the consuming application through terminal refocusing
+
+**Idea.** Constructor selection at an exposed pair projection forces the
+outermost retained lambda to consume an argument. Keep occurrence of that
+actual application while refocusing inner retained binders, rather than
+normalizing and forgetting how consumption was reached.
+
+**Checked verdict.** An application-bearing counted run has two constructors:
+an actual application with its original counted tail, or a retained wrapper
+around such a run. It exposes the next application without a terminal
+alternative. The corresponding minimum still admits all raw competitors at
+all finite stages. Lambda-body readout preserves the witness from its tail,
+or creates it when a non-lambda major endpoint forces the consuming branch.
+Retained-prefix focusing preserves it at the exact previous frame count plus
+the retained depth, with the literal lifted substitution and target suffix.
+
+A nonempty purely retained terminal splits at its outermost wrapper. The
+pair's actual first projection recovers a sort; counted projection selection
+provides a constructor major and rules out a surviving outer lambda. Readout
+therefore gives an application-bearing body minimum under its displayed
+computed annotation. Focus the remaining inner retained prefix through the
+outer frame's ordinary identity interpretation. The result has the IDENTICAL
+raw original body, a context of the same temporary depth over the observer,
+an ordinary identity context map, no greater primitive cost, and an actual
+application witness. No backwards transport of a previously substituted body
+computation is required. The frame count stays equal to the retained depth;
+this normalization alone does not claim a strict numerical saving.
+
+The combined pair-field theorem now returns direct same-scope observation,
+a strict application-frame decrease, or this application-bearing minimum at
+the same endpoint. The application-bearing field theorem has no retained-only
+terminal alternative and yields the previous strict decrease once the selected
+body endpoint has ambient field ancestry. Thus re-analyzing the refocused body
+cannot silently return to the same purely retained administrative case.
+
+**Remaining gap.** The newly selected body computation must still be analyzed
+for component ancestry or a native eta root. Native function eta can alter the
+constructor prefix and introduce a fresh field variable; the full recursive
+field/continuation invariant has not been proved. These results are not a
+strengthening proof, canonical-Eq counterexample, or sufficient irreducible
+global obligation strictly smaller than PropFront. Goal active; extraction
+deferred.
+
+Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work only;
+1325 integration jobs, 13 recursive audit roots, maximum closure
+11,981; only propext/Classical.choice/Quot.sound, no sorryAx or forbidden
+strengthening/circular-frontier dependencies. All 1,300 source hashes unchanged
+across validation. Artifacts: /dev/shm/pi-inert-retained-terminal-consumption-*.

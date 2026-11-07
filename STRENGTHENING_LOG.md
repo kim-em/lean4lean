@@ -41781,3 +41781,64 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,298 source hashes verified before and
 after. Artifacts: /dev/shm/pi-inert-projection-frame-progress-*.
+
+
+## 2026-11-07 21:18:01 UTC — Retained terminals refocus with an actual application witness
+
+Added ProofErasurePiInertProjectionApplicationWitness.lean and
+ProofErasurePiInertRetainedTerminalConsumption.lean, imported by the existing
+global eta-body aggregate.
+
+PiInertProjectionApplicationRun refines a counted projection run by preserving
+an actual application after a possibly empty retained prefix. Its first
+application decomposition has no terminal-projection alternative and retains
+the actual typed map, selected suffix, exact frame equation, and pointwise raw
+competitor predicate. PiInertProjectionApplicationMinimum keeps this selected
+witness without restricting the global competitors.
+
+The lambda-spine body theorem either preserves a tail's application witness
+or creates one because a non-lambda selected endpoint rules out a surviving
+lambda. It uses the same typed lambda/domain/argument readout as the earlier
+frame theorem, with precisely one additional frame. Focusing any nonempty
+retained prefix then preserves the witness, its exact lifted substitution,
+and explicit target telescope. The application-bearing version of
+field_next_minimum yields a strictly smaller frame count, the same ambient
+field, non-increased temporary depth and primitive cost, and the old charge
+inside the original budget; there is no retained-only output branch.
+
+For a terminal retained prefix, outermost separates the wrapper in the
+observer's scope from its original inner prefix. Actual typed pair projection
+sorting yields a counted constructor selection. The major cannot be a lambda
+spine, so the outermost wrapper has a consuming beta and its body minimum has
+an application witness. The inner prefix focuses through the original outer
+frame's ordinary identity interpretation, into the computed annotation's
+context. The final body is literally unchanged (identity lifted below any
+finite prefix is identity). The target has exactly the original retained
+depth over the observer and an ordinary identity map from the original context.
+Primitive cost does not increase; the frame count equals that retained depth.
+No prior guarded computation is transported through arbitrary substitution,
+and no strict saving is claimed from this normalization alone.
+
+PiInertProjectionRunFrames.pair_field_next_minimum combines the new terminal
+normalization with the preceding application's strict decrease. At an actual
+constructor-field endpoint there is now either direct same-scope observation,
+a smaller-frame field minimum, or an application-bearing minimum at the exact
+same endpoint and temporary depth. On analyzing the new body computation,
+its preserved continuation must expose an application; it cannot take the
+same retained-only terminal branch again. Native eta roots on that computation
+still need recursive readout and their original field lineage.
+
+Judgment: the retained-terminal administrative branch now carries the witness
+needed for the next decrease at arbitrary depth. The full recursive invariant
+is still unproved, including native function eta before an original field is
+installed in the constructor prefix and structure eta's projected field.
+Executable and UniqueTyping.lean unchanged; the original sorry remains.
+No canonical-Eq counterexample or sufficient irreducible global obligation
+smaller than PropFront established. Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1325 jobs; recursive audit
+13 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,300 source hashes verified before and
+after. Artifacts: /dev/shm/pi-inert-retained-terminal-consumption-*.
