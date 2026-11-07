@@ -21115,3 +21115,28 @@ history. It does not promote the remaining raw body comparison to a history,
 or certify the original target function's guarded computation prefix.
 Validation: 1107 jobs, 339 audited roots, maximum closure 12,048;
 only propext, Classical.choice and Quot.sound. GOAL.md remains active.
+
+
+### 2026-11-07 03:41:23 UTC — Certified opaque prefixes through arbitrary typed consumers: proved
+
+Whole-function computation evidence does not by itself give an obvious repair
+when a core beta step consumes the function. General application closure remains
+unproved; this observation is not a counterexample to it. The protected Eq case
+has a concrete additional invariant: a saturated proof-major source retains its
+EqCastShape through ordinary core reduction, and visible patterns cannot inspect
+its marked occurrence. Use that invariant rather than assume generic closure.
+
+Proved consumer closure directly for arbitrary existing PiInert computation
+evidence with such a source. Every residual marked occurrence is repaired by
+the old evidence; OpaqueVariant simulation handles duplication and beta, and the
+output retains an ordinary-core tail. Substitution preserves the saturated
+shape, giving full future evidence at the same stage. No new confluence premise
+or fresh index history is required. Shared application and a unit-framed target
+lambda now give a complete history for the original function application; its
+needed Pi typing is recovered from the certificate.
+
+Verdict: closes the certified saturated-Eq prefix branch. Raw target paths are
+still not certified, and arbitrary function heads, unsaturated Eq prefixes and
+ordinary/sorted body comparison remain live. No strict-smallness claim.
+Validation: 1109 jobs, 344 audited roots, maximum closure 12,048;
+only propext, Classical.choice and Quot.sound. GOAL.md remains active.

@@ -36948,3 +36948,54 @@ constructors and recursors contain no sorryAx, weakN_iff or excluded circular
 framework dependency. All 1,082 frozen source hashes remained unchanged;
 no owned diagnostics. Stock Lean/Lake ran only in scratch. No executable
 changes or PR extraction.
+
+
+### 2026-11-07 03:41:23 UTC — Carry certified opaque computation through application
+
+Revalidated clean pushed HEAD 79461e61. Previous goal turn was progress.
+Investigated the function prefix before the completed lambda terminal. A bare
+appeal to whole-function future evidence does not handle a core beta step that
+has already consumed the function; general application closure is left open.
+The existing protected-occurrence theory gives a closed proof for saturated
+proof-major Eq sources, without a new recursive closure assumption.
+
+Added ProofErasurePiInertOpaqueConsumer.lean and imported it from the global
+module. Five public results are proved:
+
+- EqCastShape.subst preserves the saturated recursor shape and proof marker.
+- PiInertInterpret.opaque_consumer propagates an existing computation
+  interpretation through any actual typed consumer. Its Guard records a core
+  residual of the original source and the fixed target. Ordinary core shape
+  preservation keeps each source occurrence opaque. OpaqueVariant simulation
+  handles the complete source-consumer core path, including duplication and
+  newly created beta steps; each surviving mark uses the old interpretation.
+  The resulting target path remains ordinary core. No extra core-confluence
+  or guarded-confluence hypothesis is needed.
+- PiInertEvidence.opaque_consumer reconstructs the consumer and source shape
+  after every typed substitution, consuming the old future interpretation.
+  The complete evidence stays at its input stage.
+- PiInertEvidence.opaque_application specializes the consumer to applying
+  the function to one actual argument. The assigned Pi can be dependent, and
+  both target function and argument are unrestricted.
+- pi_inert_opaque_unit_application_history combines this certified application
+  prefix with the preceding unit-lambda terminal theorem. The original function
+  needs only an arbitrary typing. The certificate supplies a common comparison
+  with the target lambda, recovering its needed Pi assignment by reflection;
+  source nonproof status follows from the saturated Eq shape. The result is a
+  full history at the original function application, at the same stage, for
+  arbitrary raw carrier endpoints.
+
+This is a prefix theorem for already retained computation evidence. It does
+not manufacture that evidence from a raw path, prove application closure for
+all PiInertEvidence, or cover unsaturated Eq prefixes. The raw ordinary/sorted
+body children and general raw-prefix certification remain open. No new
+unproved frontier has replaced the strengthening objective; weakN_iff is
+unchanged, and no canonical-Eq counterexample or strict-smallness claim is made.
+
+Validation: 1109 successful integration-build jobs, 344 recursively
+audited roots, maximum closure 12,048; only propext, Classical.choice
+and Quot.sound. All five new theorems are audit roots. Recursive types, values,
+constructors and recursors contain no sorryAx, weakN_iff or excluded circular
+framework dependency. All 1,084 frozen source hashes remained unchanged;
+no owned diagnostics. Stock Lean/Lake ran only in scratch. No executable
+changes or PR extraction. GOAL.md remains active.
