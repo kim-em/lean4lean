@@ -41724,3 +41724,60 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,296 source hashes verified before and
 after. Artifacts: /dev/shm/pi-inert-retained-pair-consumption-*.
+
+
+## 2026-11-07 21:08:26 UTC — Strict frame decrease with ambient field preserved
+
+Added ProofErasurePiInertProjectionFrameProgress.lean and
+ProofErasurePiInertProjectionRetainedFocus.lean, imported by the existing global
+eta-body aggregate. The former refines the actual projection continuation with
+its application/retained frame count and carries the existing typed lambda
+readout over to that observer. The unrestricted minimum remains unrestricted
+in both stage and raw endpoint; selected execution typings do not restrict
+competitors.
+
+The latter derives an exact retained-prefix execution theorem. For depth d
+and next map tau, the result is the body substituted by tau.liftN d, in an
+explicit d-element telescope over the next map's target. Each retained
+annotation identity interpretation composes with the lifted ordinary map.
+The body cost is no greater, and precisely d frames are built over the actual
+selected tail. Therefore the intervening application frame is removed.
+
+The first-application decomposition also keeps the terminal-projection case:
+a typed projection can have an applied lambda major. It is not sound to copy
+the Eq-carrier route's syntactic exclusion of that case. The exact same raw
+competitor predicate is retained in both alternatives.
+
+The endpoint map preserves the observer's literal context suffix. Its target
+cannot be shorter than the observer, by the selected projection run, so a
+single consuming map removes only a temporary binder. Its lift beneath d
+retained binders sends every term lifted from the observer context to exactly
+that same term lifted to the new temporary depth. This uses raw substitution
+identities; it asserts no transport of arbitrary guarded computations.
+
+The combined `PiInertProjectionRunFrames.field_next_minimum` takes the actual
+preceding computation, selected run, full minimum, and a constructor endpoint
+with an ambient first field. It returns either only retained frames before the
+projection, or a new constructor-field minimum with strictly fewer frames,
+non-increased primitive cost and temporary context length, the same ambient
+field, and the same ancestry charge inside the original budget. Empty-prefix
+applications retain their pending arguments after the constructor fields;
+nonempty prefixes use the exact body focus. Thus all next-application cases
+at such an endpoint have a proved decrease at arbitrary retained depth.
+
+Judgment: the multiple-binder administrative application case advances; it is
+not a proof of the remaining recursive invariant. The terminal retained
+projection branch and native eta cases remain. A next candidate is counted
+constructor selection forcing an outer consuming beta in the terminal branch,
+with occurrence of that actual application preserved through inner focusing;
+normalization without a strict measure will not suffice. Executable and
+UniqueTyping.lean unchanged; the original sorry remains. No canonical-Eq
+counterexample or sufficient irreducible global obligation smaller than
+PropFront established. Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1323 jobs; recursive audit
+17 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,298 source hashes verified before and
+after. Artifacts: /dev/shm/pi-inert-projection-frame-progress-*.

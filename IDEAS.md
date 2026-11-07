@@ -25176,3 +25176,51 @@ Validation: stock Lean v4.33.0-rc2, exclusively in
 roots, maximum closure 11,981; only propext/Classical.choice/Quot.sound,
 no forbidden dependencies. All 1,296 source hashes verified before/after.
 Artifacts: /dev/shm/pi-inert-retained-pair-consumption-*.
+
+
+## 2026-11-07 21:08:26 UTC — Cross retained projection prefixes with exact field ancestry
+
+**Idea.** For several extra binders, keep the actual substituted endpoint and
+its selected application suffix. Rebuild one body frame per retained binder,
+but omit the intervening application frame. Track the observer context as a
+literal suffix so the original field survives the exact lifted map.
+
+**Checked verdict.** Projection runs now have an exact frame count. Lambda
+spine execution yields a body minimum with one frame over the actual tail and
+no greater primitive count. A nonempty retained prefix focuses to the literal
+body image under the next substitution lifted by its depth. The target is an
+explicit telescope of that length over the actual target context; ordinary
+context interpretations compose through each retained annotation change.
+No previous guarded body path is substituted or pulled back.
+
+Every selected run decomposes into retained frames ending directly at the
+projection, or a retained prefix followed by its actual first application.
+For the application alternative, fixing the preceding path gives an
+unrestricted minimum at the actual next source. Focusing its retained prefix
+removes exactly one frame. For an empty prefix, keep the whole next application
+and append its pending arguments after the constructor's existing fields.
+
+`PiInertProjectionRunFrames.field_next_minimum` combines these cases. If the
+selected endpoint is a constructor spine whose first field comes from the
+observer context, either the terminal retained alternative remains, or the
+new minimum has strictly fewer frames, no greater primitive cost, no greater
+temporary context depth, and the exact same old field lifted to that new depth.
+The old field's ancestry charge stays within the original failure budget.
+This is an actual decrease at arbitrary retained depth, not generic refocusing.
+
+**Remaining gap.** A terminal projection may observe an applied lambda; it
+cannot be excluded syntactically. The new theorem retains that alternative.
+A possible next step is to force outer lambda consumption from counted pair
+projection selection, then preserve evidence that an application occurs in
+the refocused run. Bare refocusing keeps the frame count and is not itself
+progress. Recursive native eta roots and field ancestry before the selected
+constructor endpoint still need to be incorporated into a complete invariant.
+No proof/counterexample of strengthening or sufficient irreducible global
+obligation strictly smaller than PropFront is claimed. Goal active; extraction
+deferred.
+
+Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work only;
+1323 integration jobs, 17 recursive audit roots, maximum closure
+11,981; only propext/Classical.choice/Quot.sound, no sorryAx or forbidden
+strengthening/circular-frontier dependencies. All 1,298 source hashes unchanged
+across validation. Artifacts: /dev/shm/pi-inert-projection-frame-progress-*.
