@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertIdentityReadout
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertConstantReadout
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertUnitCarrierConversion
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqTargetPrefixMinimum
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaFrameOrigin

@@ -21244,3 +21244,34 @@ branch, assembly of the mutual comparison induction and positive-stage path
 certification remain open. No strengthening proof or strict-smallness claim.
 Validation: 1114 jobs, 369 audited roots, maximum closure 12,048;
 only propext, Classical.choice and Quot.sound. GOAL.md remains active.
+
+
+### 2026-11-07 04:37:22 UTC — Return a completed body history to the original application: proved
+
+The typed lambda cut had retained the body child, and body-history consumption
+already reached the displayed lambda application. Added the missing return to
+the original target application: arbitrary raw stage-zero function paths survive
+actual application, then carrier-prefix composition retains the child's history
+at its own stage. The target application's original typing recovers its argument
+at the cut lambda's domain; no new argument-alignment hypothesis is imposed.
+
+The framed function cut now either supplies the whole original application
+history or retains an actual sort-typed inferred body comparison, its source
+frames, and a proved continuation consuming that body's complete history in its
+recorded domain. Reflexivity and typed eta finish immediately. Ordinary/sorted
+children remain explicit. Verdict: completes consumption of the constant-body
+child, but does not construct that child's history or prove a decreasing measure
+for repeatedly using the cut. No strict-smallness claim or strengthening proof.
+
+Next implement the simultaneous fold directly over ComputedJointCheck, rather
+than treating this existential cut as a decreasing induction. The motive must
+include both orientations of (1) sort-framed comparison, (2) inferred comparison
+of a lambda with a framed body, and (3) carrier comparison at independently
+sort-typed endpoints with an actual carrier typing. The carrier view is needed
+for appCarrier/appComputed arguments; carrierChecked uses the comparison IH,
+while structure/function carriers contradict sort typing. Application's constant
+case uses the function IH; its identity case uses the argument IH and the proved
+identity readout. Computation uses raw stage-zero certificates. Lambda rules use
+the body IH in their recorded domain, transporting only typing/frame data.
+Validation: 1115 jobs, 372 audited roots, maximum closure 12,048;
+only propext, Classical.choice and Quot.sound. GOAL.md remains active.

@@ -37178,3 +37178,46 @@ recursors. No sorryAx, weakN_iff or excluded circular-framework dependency.
 All 1,089 frozen source hashes remained unchanged; no owned diagnostics.
 Stock Lean/Lake ran only in scratch. No executable changes or PR extraction.
 GOAL.md remains active.
+
+
+### 2026-11-07 04:37:22 UTC — Constant-body continuation reaches the original application
+
+Added ProofErasurePiInertConstantReadout.lean and imported it from the global
+module. Three public theorems supply the application continuation:
+
+- pi_inert_zero_application_evidence lifts an arbitrary raw stage-zero function
+  path through actual application, using the typed consumer theorem. Assigned
+  Pi types may be dependent; proof erasure is handled by the consumer result.
+- PiInertCarrierHistory.zero_function_body_application consumes a complete body
+  history in either equal annotation context and precedes it with the certified
+  original-function application path. The history's stage need not be zero.
+- pi_inert_zero_constant_application_cut applies the typed lambda frame cut to
+  a function comparison and an actual target application. Original application
+  typing supplies the argument at the recovered domain. Target frames finish
+  via the unit history. Otherwise an existential returns the actual recorded
+  context, sort typings for both bodies, source frames, the inferred body child,
+  and a proved implication from its history to the original target application.
+  No raw guarded path or comparison is moved across equal annotations.
+
+This is a completed continuation, not construction of the recursive body child.
+The cut does not certify strict descent of that child. The next proof must use
+one simultaneous induction on the original ComputedJointCheck grammar, with
+forward and reverse obligations for sort frames, framed lambda functions, and
+sort-typed carrier endpoints. The carrier case is necessary for application
+rules whose arguments use carrier checking; the existing carrier-types-checked
+analysis shows which constructors are impossible, but an externally transformed
+certificate alone would not justify a recursive call. Lambda-body IHs and
+carrierChecked must be consumed directly in that induction. This avoids an
+unproved well-foundedness claim for repeatedly extracted existential cuts.
+
+The original weakN_iff sorry, global comparison coverage and positive-stage raw
+path certification remain open. No canonical-Eq counterexample or strictly
+smaller irreducible obligation is claimed.
+
+Validation: 1115 successful integration-build jobs, 372 recursively
+audited roots, maximum closure 12,048; only propext, Classical.choice
+and Quot.sound. All three public theorems are audit roots; types, values,
+constructors and recursors are traversed. No sorryAx, weakN_iff or excluded
+circular-framework dependency. All 1,090 frozen source hashes remained unchanged;
+no owned diagnostics. Stock Lean/Lake ran only in scratch. No executable changes
+or PR extraction. GOAL.md remains active.
