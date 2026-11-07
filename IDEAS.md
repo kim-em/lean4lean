@@ -21440,3 +21440,41 @@ coverage test; no complete strengthening or strict-smallness claim is made.
 
 Validation: 1122 integration jobs, 408 recursively audited roots, maximum
 closure 12,394; only propext, Classical.choice and Quot.sound. GOAL.md active.
+
+
+### 2026-11-07 05:48:10 UTC — Additive substitution and binder-conversion costs: proved
+
+Tested whether the new finite strong ranks survive the cuts needed by the
+native-variable conversion route. Rebuilding target context formation, as in
+the older strong instN proof, appears to introduce uncontrolled endpoint-typing
+costs. That reconstruction is unnecessary: the actual bvar constructor already
+retains its type-formation child. Substituting that child supplies the precise
+native type for a surviving variable. If the variable is replaced, use the
+replacement derivation weakened into the target scope.
+
+StrongBounded.instN now proves the uniform bound m+n for a rank-n derivation
+and a rank-m replacement, at an arbitrary context offset. Every constructor is
+handled, including both lambda-domain contexts, double-binder eta, projections,
+closed environment premises and realized pattern checks. No separate source or
+target context-formation premise is needed. Forgetting ranks proves the same
+context-free substitution theorem for the original full strong judgment.
+
+Endpoint typings cost n+2. Using those typings, StrongBounded.defeqDF_l changes
+a binder along a rank-n domain equality at cost n+4 added to the body's rank.
+BoundedTypeTrace.instN and .defeqDF_l shift each edge and its parent by the same
+cost, preserving strict inequalities. This is stronger than merely obtaining a
+new existential rank after a cut, and it does not assume a source-only bound.
+
+Verdict: single-term substitution and binder conversion have explicit uniform
+costs; the trace's strict relative ranks survive both. They can still exceed the
+original untransformed parent's rank. These are upper bounds, not a termination
+argument for arbitrary newly constructed cuts. Related but distinct substitutions
+in two endpoints, general carrier interpretation, and the complete decreasing
+recursive motive remain unproved. No smaller sufficient replacement for PropFront
+or solution of weakN_iff is claimed. Next test a hereditary motive that invokes
+its original type-child hypothesis before applying the common cut, rather than
+restarting recursion on the larger reconstructed equality.
+
+Validation: 1123 integration jobs, 414 audited roots, maximum closure
+12,394; only propext, Classical.choice and Quot.sound. Executable unchanged;
+no PR extraction; GOAL.md remains active.

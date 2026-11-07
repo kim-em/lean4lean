@@ -37440,3 +37440,52 @@ weakN_iff, weakN_inv or excluded circular frameworks. All 1,097 frozen source
 hashes unchanged; no owned diagnostics. Audit root enumeration was corrected to
 track sections separately from namespaces before the audit ran. Stock Lean/Lake
 ran only in scratch; executable unchanged; no PR extraction. GOAL.md stays active.
+
+
+### 2026-11-07 05:48:10 UTC — Preserve strict native trace bounds through additive strong cuts
+
+Previous goal turn classified as progress: the full ranked grammar and strictly
+smaller native-variable conversion traces were proved. This turn first confirmed
+its pending audit had completed successfully, then committed and pushed 82de6cbd.
+It then addressed substitution, a stated missing operation in that result.
+
+Added ProofErasureStrongBoundedInstantiation.lean and the global integration
+import. Private inst_lookup follows Ctx.InstN and the original lookup: the image
+is either a surviving native lookup at the substituted type, or the replacement
+derivation at its unchanged rank, weakened across intervening binders. The
+variable case of StrongBounded.instN uses the original formation child's IH for
+the surviving lookup. Unlike the original IsDefEqStrong.instN implementation,
+it neither discards that child nor rebuilds target context formation.
+
+The complete constructor induction proves output rank m+n, where m bounds the
+replacement and n bounds the source derivation. Both lambda-domain contexts and
+the double-binder eta premises substitute directly. Closed constant/extra
+premises retain their original proof and raise their bound. Realized pattern
+checks keep the common bound. Rank raising respects addition. No rules or
+premises were removed from StrongBounded, and no ordinary-to-strong proof is
+reconstructed inside this induction.
+
+BoundedTypeTrace.instN maps an edge k<n to m+k<m+n. The unranked corollary
+strong_instN_without_contexts follows from finite-bound completeness and
+forgetting. StrongBounded.hasType records the two-rank cost of symm/trans.
+StrongBounded.defeqDF_l constructs the converted replacement variable at rank
+n+4, then applies the new instN proof to the weakened body. Universe validity
+is explicit. BoundedTypeTrace.defeqDF_l preserves all strict edge bounds with
+the corresponding common shift. Six public declarations are new.
+
+Limits: same-term substitution is covered, not arbitrary paired substitution
+by related but distinct arguments. Uniform additive costs preserve a gap only
+when the parent receives that same cost. They do not imply that reconstructed
+cuts lie below their original parent or that the overall proof terminates.
+The interpretation of strong type-conversion edges as hereditary carrier
+transport is still open; intermediate types may be non-Pi. The next candidate
+motive should quantify over common future cuts and use the original smaller
+child before transformation. This remains a candidate, not an assumed law or
+a strict-smallness result. Original weakN_iff remains unchanged and open.
+
+Validation: 1123 successful integration jobs; 414 audited roots; maximum
+closure 12,394; only propext, Classical.choice and Quot.sound. Audit traverses
+types, values, inductive constructors and recursor branches and excludes sorryAx,
+weakN_iff, weakN_inv and the existing circular frameworks. All 1,098 frozen local
+source hashes unchanged. No owned diagnostics. Lean/Lake ran only in the stock
+scratch checkout. No executable changes or PR extraction; GOAL.md stays active.

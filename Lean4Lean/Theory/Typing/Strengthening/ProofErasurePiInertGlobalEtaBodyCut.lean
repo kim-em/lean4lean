@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStrongBounded
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureStrongBoundedInstantiation
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertUnitCarrierConversion
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqTargetPrefixMinimum
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaFrameOrigin
