@@ -24086,3 +24086,48 @@ PR extraction remains deferred.
 Validation: 1231 integration jobs, 5 recursively audited roots,
 maximum closure 11,976; only propext/Classical.choice/Quot.sound;
 1,206 frozen sources. Artifacts: /dev/shm/constructor-type-readout-*.
+
+
+## 2026-11-07 15:48:11 UTC — Expose the opposite constructor without losing its type field
+
+**Idea.** The projected structural case has only one displayed constructor;
+head/arity exposure discards the field comparison required to contract that
+projection. Extend inferred readout to retain this comparison while exposing
+the initially arbitrary other major.
+**Verdict: checked one-sided constructor and selected-field readout.**
+Inferred equality of actually applied functions transfers a sort assignment
+between their arguments by ordinary typing uniqueness. Native and computed
+lambda domain selection can then turn the recursive carrier guard into
+ordinary comparison of those arguments. No guard is transported along the
+function's later exposure path. This also handles the orientation in which
+the recovered or computed domain belongs to the initially undisplayed head.
+
+A simultaneous two-orientation induction on the full inferred checker now
+exposes unary stable constant spines and retains the type-argument comparison.
+Compatible computation preserves the displayed source head and supplies its
+argument path; the opposite endpoint's path is extended, while the field
+comparison is pulled back to the original source argument. Extending through
+a second application exposes full pair constructors without requiring the
+other source to have constructor syntax or a supplied field typing.
+
+For actual dependent pairs in the level core, a displayed left constructor
+therefore yields comparison of its selected type field with the original
+right type projection. The proof exposes the right major and contracts its
+projection inside the retained computation. Both source majors retain their
+actual family typings. This settles the inferred-major premise of the proj
+case with an arbitrary right major; no core confluence is used.
+
+Next prove one-sided contraction of a displayed type-field projection in a
+sort-typed core comparison. A core path from that projection either retains
+it with component field computation, or selects it and gives a field path to
+the endpoint. The new inferred exposure handles the proj constructor of that
+comparison induction; sort typing excludes lambda/structure eta at type
+endpoints. Applying the resulting contraction to the existing pair-field
+readout should address common-mode structFields and carrier cases. This
+contraction theorem is not proved yet. Expanded stages still need separate
+wrapper/guard treatment; weakN_iff remains open and no smaller sufficient
+frontier is claimed. PR extraction remains deferred.
+
+Validation: 1233 integration jobs, 6 recursively audited roots,
+maximum closure 11,976; only propext/Classical.choice/Quot.sound;
+1,208 frozen sources. Artifacts: /dev/shm/constructor-type-exposure-*.

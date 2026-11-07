@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureConstructorTypeExposure
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureConstructorTypeReadout
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertProjectionOpacity
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertProjectionFrames

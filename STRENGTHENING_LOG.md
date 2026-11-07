@@ -39809,3 +39809,50 @@ Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution in
 Quot.sound, no forbidden strengthening or circular-frontier dependencies.
 All 1,206 frozen sources verified. Artifacts: /dev/shm/constructor-type-readout-*.
 Executable and UniqueTyping.lean unchanged; goal active.
+
+
+## 2026-11-07 15:48:11 UTC — One-sided inferred constructor exposure with type-field evidence
+
+Added ProofErasureConstructorTypeExposure.lean and its aggregator import.
+The module imports the existing computed constant-spine exposure explicitly;
+that file was not in the previous frozen import closure.
+
+inferred_application_argument_sort realizes two applications in a common
+actual context, reflects their inferred function comparison, aligns the
+ordinary Pi domains, and transfers the first argument's sort assignment to
+the second. computed_application_type_arguments_checked reifies a function
+computation to a lambda and recovers its actual displayed domain. Together
+with the previous native-domain checker lemma, these handle all three
+application rules without transporting raw recovery across computation.
+
+computed_stable_unary_type_exposure follows both orientations of inferred
+checking. It returns a path exposing the other unary constant spine and a
+common comparison of the original source type argument with the exposed
+argument. The source may itself compute during checking; its component path
+pulls back the comparison. computed_stable_binary_type_exposure extends this
+through the value argument and exposes a full pair-shaped spine. The opposite
+source has only a typed realization, not an assumed constructor shape.
+
+proofErase_core_pair_selected_type_projection specializes this to actual
+closed dependent pairs with no selected constructor unfolding. Registered
+projection typing supplies the left field's sort. The new exposure supplies
+the right constructor and field comparison; projecting its retained major
+path and taking one final iota gives comparison with the original right type
+projection. This contracts the left projection in the inferred-major case
+without generic forward checker closure, normalization, or core confluence.
+
+The common-mode structure-eta task is not finished. Its needed next step is
+one-sided iota contraction in a comparison of sort-typed terms: split a core
+path from the displayed projection into retained-projection and selected-field
+cases; use the new arbitrary-major exposure for the proj checker rule; keep
+the two orientations together for symmetry. Existing dependent-pair field
+readout can then consume that contraction if proved. Administrative expansion
+stages and the original strengthening theorem remain open. No new sufficient
+frontier is claimed; PR extraction remains deferred.
+
+Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution in
+/dev/shm/native-level-coherence-work. Integration 1233 jobs; recursive audit
+6 roots, maximum closure 11,976; only propext/Classical.choice/
+Quot.sound, no forbidden strengthening or circular-frontier dependencies.
+All 1,208 frozen sources verified. Artifacts: /dev/shm/constructor-type-exposure-*.
+Executable and UniqueTyping.lean unchanged; goal active.
