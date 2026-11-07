@@ -23020,3 +23020,56 @@ recursive dependency closure 12,461; only propext, Classical.choice and
 Quot.sound. Frozen sources and owned diagnostics checked. Stock v4.33.0-rc2
 Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work. Executable
 and UniqueTyping.lean unchanged; GOAL.md remains active.
+
+
+## 2026-11-07 11:53:40 UTC — Retained carrier transport for type conversion
+
+Idea: after the paired-composition lower bound, keep type conversion as an
+explicit operation on carrier histories. Compose those operations along type
+symmetry/transitivity, and consume them at the actual strong conversion rule.
+Do not add transitivity to bare term histories or infer exposures from actual
+typings. Existing unit-path and unit-synthesis theorems already handle explicit
+provenance; the task is to preserve that information in the current semantics.
+
+Implemented ProofErasurePiInertCarrierTransport.lean. CarrierTransport relates
+two types by bidirectional transport of finite world histories after every
+typed substitution. Endpoints in the target context are arbitrary, and output
+stages need not be uniform. Reflexivity, symmetry, transitivity and typed
+substitution are proved. Typed core joins construct certificates. Two retained
+computations to a nullary empty family also construct one, using each alias's
+own exposure rather than composing endpoint comparisons.
+
+AssignedBase.proof_iff and transfer derive cross-endpoint assignments from an
+assigned ground comparison. The non-proof case uses type uniqueness; the
+proof-marker case follows from original-context soundness. These typing facts
+are separate from history transport. Paired ground interpreters now convert
+both selected types, applying the respective transport certificates at the
+left and right typed environments. StrongBounded.paired_ground_convert uses
+the original type/term children for actual assignments and an explicit
+transport certificate for their semantic conversion.
+
+The unit-probe constructor builds transport from an explicit interpreted
+proposition-index child. Its next-stage Eq computation exposes the unit minor.
+A literal-unit ground interpreter is constructed, then converted to the
+hidden carrier, retaining arbitrary paired substitutions and empty image
+requirements. The full EnvironmentCore reflexive-index example constructs
+the index child too and permits any actual equality major, including a free
+proof variable. No paired output history or constructor-bridge composition is
+assumed in that example.
+
+Verdict: type transport now has a compositional certificate and a checked
+consumer in original strong conversion. This is not yet its construction for
+arbitrary strong type children. The certificate concerns histories and does
+not itself imply actual type equality or guarded interface transport. The
+consumer is for ground profiles; general recursive profiles and term
+transitivity remain open. Returning a converted ground interpreter also does
+not by itself retain all provenance needed by later term composition. The next
+invariant must account for that information and cover original type-rule
+constructors. No strengthening proof, counterexample, or strictly smaller
+sufficient obligation is claimed. PR extraction remains deferred.
+
+Validation: 1190 integration jobs; 16 public/probe roots; maximum
+recursive dependency closure 12,011; only propext, Classical.choice and
+Quot.sound. Frozen sources and owned diagnostics checked. Stock v4.33.0-rc2
+Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work. Executable
+and UniqueTyping.lean unchanged; GOAL.md remains active.

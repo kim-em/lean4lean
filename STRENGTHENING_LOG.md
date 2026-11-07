@@ -38725,3 +38725,53 @@ Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
 /dev/shm/paired-composition-*. All Lean/Lake commands used stock v4.33.0-rc2 in
 /dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
 PR extraction remains deferred and GOAL.md remains active.
+
+
+## 2026-11-07 11:53:40 UTC — Type-history transport consumed by paired ground conversion
+
+CarrierTransport quantifies over every actual typed substitution and arbitrary
+raw endpoints in its target context. It equates existence of finite world
+histories at the two substituted carriers. Output stages may depend on the
+input. Its symmetry and transitivity compose proved transport functions; they
+are not symmetry or transitivity rules for arbitrary term histories.
+
+Core joins construct transport using actual carrier sources and substituted
+joins. unit_aliases constructs it from two full interpreted computations to
+the same nullary empty family: each target history follows its own selected
+carrier exposure. No core join between aliases or composite comparison is
+manufactured. The type-probe constructor obtains the target computation from
+its explicit proposition-index child at the next stage.
+
+AssignedBase.proof_iff realizes the old common assignments and reflects its
+ground guard in the original context. transfer then proves the second
+operand's new assignment, handling proof markers explicitly and using type
+uniqueness otherwise. convert_ground applies the two carrier certificates in
+their respective paired environments and constructs all four new assignments.
+StrongBounded.paired_ground_convert connects this semantic consumer to the
+original strong type and term children. Arbitrary type-child coverage is still
+an explicit premise, not silently derived from ordinary equality.
+
+Literal units provide empty-requirement paired ground interpreters for any
+assigned operands. unit_probe_ground_interpretation converts that constructed
+interpreter using the retained index child, deriving the actual probe typings
+by reflection of the child. The EnvironmentCore reflexive-index corollary
+constructs the index comparison, core assumptions, transport and output
+interpreter from actual declarations and typings. It accepts an arbitrary
+actual equality major, including a free proof variable; no output history is
+assumed.
+
+This closes a ground-conversion consumer and a concrete provenance-producing
+case. CarrierTransport alone is not a claim of actual type equality, guarded
+interface transport or general strong type coverage. Generic recursive-demand
+conversion and term composition remain open. In particular, the resulting
+ground interpreter can still forget provenance needed at a later composition;
+a complete induction predicate must retain the appropriate additional data.
+The original weakN_iff sorry remains unchanged. No goal-completion or strict
+smallness claim is made.
+
+Integration passed 1190 jobs. Recursive audit covered 16 public/probe
+roots, maximum closure 12,011, only propext, Classical.choice and
+Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
+/dev/shm/carrier-transport-*. All Lean/Lake commands used stock v4.33.0-rc2 in
+/dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
+PR extraction remains deferred and GOAL.md remains active.
