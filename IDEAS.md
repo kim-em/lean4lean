@@ -21190,3 +21190,30 @@ ordinary/sorted body comparisons into those histories. General function
 application closure remains open; no counterexample or strict-smallness claim.
 Validation: 1112 jobs, 357 audited roots, maximum closure 12,048;
 only propext, Classical.choice and Quot.sound. GOAL.md remains active.
+
+
+### 2026-11-07 04:14:23 UTC — Raw stage-zero paths supply their own future certificates: proved
+
+The remaining body-comparison induction contains raw computation prefixes as
+well as recursive comparison children. At stage zero these paths use ordinary
+level-core computation and constant beta expansions. Their roots join in the
+ordinary level core; typed confluence lifts the joins through the full path.
+A retained core join reconstructs all source residuals and every future typed
+substitution directly, including a raw target with no chosen representative.
+
+Implemented complete evidence from core joins and raw stage-zero paths. Core
+joins also instantiate arbitrary typed consumers, so no Eq-head invariant or
+previously supplied computation certificate is needed for this base case. A raw
+stage-zero function prefix ending at a unit-framed lambda now supplies the whole
+application-carrier history for every actual argument; its required Pi typing
+is recovered from the path and target typing, starting from any source type.
+
+Verdict: eliminates raw-path certification at stage zero, including its use in
+the unit-lambda terminal. Positive-stage Eq guards and native eta recovery still
+need their own recursive histories. Ordinary/sorted comparison itself is not
+promoted to a history. A next concrete route is simultaneous induction for
+sort-framed bodies, constant lambdas and identity lambdas, using this result for
+computation clauses; application and common-mode argument clauses still require
+that induction. No counterexample or strict-smallness claim.
+Validation: 1113 jobs, 363 audited roots, maximum closure 12,048;
+only propext, Classical.choice and Quot.sound. GOAL.md remains active.

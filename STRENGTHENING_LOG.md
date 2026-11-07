@@ -37094,3 +37094,43 @@ check traverses types, values, constructors and recursors, rejecting sorryAx,
 weakN_iff and excluded circular-framework dependencies. All 1,087 frozen
 source hashes remained unchanged; no owned diagnostics. Stock Lean/Lake ran
 only in scratch. No executable changes or PR extraction. GOAL.md remains active.
+
+
+### 2026-11-07 04:14:23 UTC — Reconstruct hereditary evidence from raw stage-zero paths
+
+Added ProofErasurePiInertZeroEvidence.lean and imported it from the global
+module. Six public theorems complete the base computation case:
+
+- PiInertInterpret.of_core_join uses typed core confluence at the retained
+  source to repair every fresh residual, with an ordinary-core target tail.
+- PiInertEvidence.of_core_join substitutes both core paths and typed-source
+  witnesses, retaining every future interpretation at any requested stage.
+- ScopedCompute.pi_inert_zero_core_join joins arbitrary raw stage-zero paths
+  from typed sources. Ordinary roots compute forwards; constant expansions
+  return by beta. The proof uses level-core confluence directly, without
+  extra pattern or universe-factorization assumptions.
+- PiInertEvidence.stage_zero realizes the raw target and constructs its
+  complete certificate. Source and target need not have an Eq head.
+- pi_inert_zero_consumer_evidence substitutes the shared raw argument into
+  an arbitrary actual typed consumer, then retains complete future evidence.
+- pi_inert_zero_unit_application_history accepts a raw stage-zero path from
+  a function with any assigned type to an actual unit-framed type-valued lambda.
+  Proof-marker invariance and typed inferred reflection recover its required
+  Pi type. The core join survives application, and the completed unit-lambda
+  history supplies arbitrary raw carrier endpoints at any chosen stage.
+
+This is a base case for the pending body-comparison induction, not a proof that
+arbitrary comparisons or positive-stage computations have histories. The next
+induction must cover sort frames, constant lambdas and identity lambdas together:
+application compares functions while its argument may use common mode or an
+explicit carrier; lambda rules recurse in their recorded domain. Positive-stage
+native eta additionally carries recovery evidence that is not automatically
+stable under substitution. The original weakN_iff sorry is unchanged.
+
+Validation: 1113 successful integration-build jobs, 363 recursively
+audited roots, maximum closure 12,048; only propext, Classical.choice
+and Quot.sound. All six public theorems are audit roots, with types, values,
+constructors and recursors traversed. No sorryAx, weakN_iff or excluded circular
+framework dependency; all 1,088 frozen source hashes remained unchanged and
+there were no owned diagnostics. Stock Lean/Lake ran only in scratch.
+No executable changes or PR extraction. GOAL.md remains active.
