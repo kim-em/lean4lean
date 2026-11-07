@@ -42517,3 +42517,78 @@ Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,322 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-fresh-pair-root-progress-*.
+
+
+## 2026-11-07 23:16:43 UTC — Activated pair component descent and native-root termination
+
+Added ProofErasurePiInertActivatedPairProgress.lean and
+ProofErasurePiInertActivatedPairRoot.lean, imported by the global eta-body
+aggregate. The previous turn's 5216e544 was verified clean before this work.
+
+pi_inert_activated_pair_application_progress specializes actual retained-prefix
+application focusing to a full pair with an observer-scope first field. It
+preserves the literal lifted field, interprets the value by the actual lifted
+map, and uses typed saturation to exclude pending arguments at depth zero.
+At positive depth, retained focusing keeps the exact two-field vector. Its
+new minimum has the selected tail's frame count plus retained depth, removing
+precisely the application frame. No lower-scope value realization is needed.
+
+The application-bearing run wrapper therefore gives strict frame progress.
+The ordinary run wrapper also handles a purely retained terminal. At depth
+zero it returns an actual same-scope pair projection path. At positive depth,
+projection selection forces a consuming application in the retained lambda;
+existing terminal focusing returns an application-bearing minimum at the same
+full pair, with unchanged frame count and nonincreasing cost. The new pair
+wrappers retain saturation rather than forgetting the value-vector length.
+
+pi_inert_activated_pair_component_descent lowers the exact first-field component
+history through its actual telescope, preserving stage and primitive count.
+Its value component remains in the original upper scope. The two component
+charges sum to the argument-vector charge. Thus each next state can reserve
+the first-field charge without charging the discarded value computation.
+
+PiInertActivatedPairMinimum records the unrestricted minimum together with
+an optional actual application witness. PiInertActivatedPairRootMinimum
+records a selected first native root, its exact constructor prefix/pending
+vector, actual suffix and continuation, and the all-stage/raw minimum at the
+full activated-pair source including the root charge. Both modes retain the
+same competitor condition; the witness constrains only the selected execution.
+
+root_or_progress analyzes the actual selected body path. A component path
+lowers its first field and adds exactly that count to the original field's
+reserved history. Reaching the observer would give readout below the least
+failed budget; composing with that history contradicts the original failure.
+The other component branches strictly decrease
+2*frames + (if application then 0 else 1). A native-root branch fixes the actual
+old prefix when comparing competitors, giving a genuine minimum at the
+reachable full pair; sorted observation excludes the administrative roots.
+The native_root theorem uses strong induction on that rank, eliminating every
+component-only transition and retained-terminal refocusing at arbitrary depth.
+Its output field charge plus remaining root minimum stays strictly below the
+same original failed budget.
+
+CountedEtaBodySpineCut.empty_pair_prefix_weighted_native_root connects this
+induction to the previous fresh-pair function-eta elimination. The actual global
+empty-prefix cut now reaches either a selected native function/structure root
+after activation, or a selected full fresh-pair structure expansion before the
+distinguished supply. Both outcomes retain the original field history and joint
+strict budget. This is necessary native-root data for a hypothetical failure;
+it neither asserts that a failure exists nor proves strengthening.
+
+Judgment: component-only activated tails under retained telescopes are no
+longer an unresolved termination case. Native-root readout remains in both
+phases. In particular, function eta after activation introduces its marked
+supply at an intermediate context above the final observer; the existing
+fresh-field datatype marks supply directly into the observer scope. Generalizing
+that distinction, or another proved way to carry the same field through the
+intermediate native root, is the next concrete task. Structure targets still
+introduce a projected first field requiring its own readout. Original weakN_iff
+sorry and executable unchanged; no sufficient global replacement for PropFront
+established. Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1349 jobs; recursive audit
+12 public roots, maximum closure 12,143; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,324 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-activated-pair-progress-*.

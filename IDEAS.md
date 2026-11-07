@@ -25606,3 +25606,35 @@ inside their later computations. No strengthening proof, canonical-Eq
 counterexample, or sufficient smaller global obligation established. Goal
 active; PR extraction deferred. Validation: 1347 jobs, 8 public roots,
 maximum closure 12,041, 1,322 frozen source hashes; stock Lean in /dev/shm.
+
+
+## 2026-11-07 23:16:43 UTC — Eliminate component-only activated tails by frame/application rank
+
+Idea: lower only the independently typed first field of an activated pair,
+reserving its exact component cost, while keeping the value in its actual
+upper scope. Use an application witness as a second rank bit to prevent
+purely retained terminal refocusing from looping. Verdict: checked. The rank
+2*frames + (if application then 0 else 1) strictly decreases at every
+component-only transition: actual applications remove a frame, and retained
+terminal refocusing changes the plain mode to application mode at the same
+frame count. The full two-field pair invariant is preserved in both cases.
+
+Under a least failed budget, a component endpoint in the observer scope gives
+a smaller pair readout and contradicts the original failure. Hence activated
+minima under arbitrary retained telescopes reach a selected native function
+or structure root. The lower field history and root minimum still fit strictly
+inside the SAME original budget. Combined this with the previous fresh-pair
+cost/frame induction on the actual global empty-prefix cut. Its residuals are
+now native roots in either phase, rather than an unresolved component-only
+activated tail.
+
+Remaining: read the activated function/structure roots and the pre-supply
+fresh structure root. A likely required extension is a marked supplying frame
+whose base context can itself sit above the final observer: activated function
+eta opens a binder at that intermediate scope, whereas the current fresh-field
+run marks a supply directly into the observer scope. This is an identified
+invariant mismatch, not a verified impossibility or a solved global frontier.
+No proof of weakN_iff, canonical-Eq counterexample, or sufficient smaller global
+obligation established. Goal active; PR extraction deferred. Validation:
+1349 jobs, 12 public roots, maximum closure 12,143,
+1,324 frozen source hashes; stock Lean in /dev/shm.
