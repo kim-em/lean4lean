@@ -24963,3 +24963,41 @@ Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work;
 only propext/Classical.choice/Quot.sound, no forbidden dependencies. All 1,287
 frozen source hashes checked before/after. Artifacts:
 /dev/shm/pi-inert-projected-deletion-*.
+
+
+## 2026-11-07 20:01:03 UTC — Preserve the sorted observer through every eta frame
+
+**Idea.** Administrative-root exclusion previously covered one endpoint map and
+its final projection. Retain the actual terminal projection's sort assignment
+while eta descent adds arbitrary consuming or retained-binder frames. Each
+frame can simulate a raw administrative deletion in its own scope; the final
+sorted observer supplies exact exposed readout.
+
+**Checked verdict.** PiInertSortedProjectionContinuationRun uses the existing
+actual frames and the SAME raw competitor predicates, but retains ControlTyping
+at the final observer. Its forget theorem recovers the original run. Finite
+administrative deletion traces now simulate the whole run through arbitrarily
+many application and retained-binder frames without increasing count. This
+excludes charged constant/identity roots at arbitrary frame depth; constructor
+rigidity leaves only function or structure eta.
+
+The invariant is preserved by both branches of the actual counted eta cut.
+The resulting sorted body minimum is strictly smaller, and source typings are
+derived from the same cut. Function eta at a later constructor root descends
+again with this invariant; structure eta has no pending arguments and supplies
+a strictly smaller sorted minimum at its target. The actual global pair cut
+and the original exposed pair-projection problem both supply the enriched
+invariant, so it is not an assumed caller-side closure condition.
+
+**Remaining gap.** This closes administrative simulation and preservation of the
+observer's sort through extra binder frames. It does not prove selected-field
+readout through their smaller native eta minima. That needs the bounded field
+origin/transfer invariant to close recursively. Strengthening remains unproved;
+no canonical-Eq counterexample or sufficient irreducible global obligation
+smaller than PropFront is claimed. Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work;
+1313 integration jobs, 18 audited roots, maximum closure 11,981;
+only propext/Classical.choice/Quot.sound, no forbidden dependencies. All 1,288
+frozen source hashes checked before/after. Artifacts:
+/dev/shm/pi-inert-sorted-projection-frames-*.

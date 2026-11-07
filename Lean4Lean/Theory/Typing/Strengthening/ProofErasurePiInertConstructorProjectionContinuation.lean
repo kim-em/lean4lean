@@ -15,9 +15,13 @@ variable [Params] {D : Definitions}
 /-- A reachable pair and its actual constructor-prefix eta body, with a smaller
 minimum including the final projection observer. The original two argument
 origins and native type recovery are retained. Readout through arbitrary
-application/retained frames, including nested structure eta, remains open. -/
+application/retained frames, including nested structure eta, remains open.
+The minimum predicate can retain extra observer data; its default is the
+original typed projection-continuation minimum. -/
 def PairProjectionEtaMinimum (D : Definitions) (Γ : List VExpr)
-    (family : Name) (info : VProjectionInfo) (source out : ProofShape) : Prop :=
+    (family : Name) (info : VProjectionInfo) (source out : ProofShape)
+    (Minimum : List ProofShape → ProofShape → Nat → Prop :=
+      PiInertProjectionContinuationMinimum D (proofEraseCtx Γ) family 0 out) : Prop :=
   ∃ m field value pre pending A B u stage before cost smaller,
     env.HasType univs Γ m (.const family []) ∧
     (∃ reachStage, ScopedCompute (PiInertStage D reachStage) (proofEraseCtx Γ) source (proofErase Γ m)) ∧
@@ -36,8 +40,7 @@ def PairProjectionEtaMinimum (D : Definitions) (Γ : List VExpr)
     (∀ later j, ScopedComputeCount (PiInertStage D later) j (proofEraseCtx Γ)
       (.proj family 0 (proofErase Γ m)) out → cost ≤ j) ∧
     smaller < cost ∧
-    PiInertProjectionContinuationMinimum D (proofEraseCtx Γ) family 0 out
-      (A :: proofEraseCtx Γ)
+    Minimum (A :: proofEraseCtx Γ)
       (.app ((ProofShape.mkApps (.const info.ctorName []) pre).liftN 1) (etaArgument u)) smaller
 
 /-- Transfer the full projection minimum through the exact selected constructor

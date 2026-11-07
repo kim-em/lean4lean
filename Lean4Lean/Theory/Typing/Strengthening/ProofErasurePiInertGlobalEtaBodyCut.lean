@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertSortedProjectionFrames
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertProjectedDeletion
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertAdministrativeProjectionRelay
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertRetainedProjectionRelay

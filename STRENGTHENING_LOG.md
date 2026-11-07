@@ -41424,3 +41424,73 @@ Validation: stock Lean v4.33.0-rc2, with all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,287 frozen source hashes verified before
 and after. Artifacts: /dev/shm/pi-inert-projected-deletion-*.
+
+
+## 2026-11-07 20:01:03 UTC — Sorted observers survive arbitrary consuming and retained frames
+
+The previous goal turn made checked progress in c0c2a4c9. This turn revalidated
+the clean worktree and investigated the one-frame restriction on projected
+administrative deletion. The terminal sort certificate was available at the
+original pair projection, but the generic projection-run invariant retained
+only existential terminal typing.
+
+Added ProofErasurePiInertSortedProjectionFrames.lean.
+PiInertSortedProjectionContinuationRun enriches the selected terminal execution
+with its ControlTyping sort assignment and otherwise uses the same application
+and retained-binder frames. Its forget theorem recovers the previous projection
+run with exactly the same source, count and raw continuation predicate.
+PiInertSortedProjectionContinuationMinimum similarly enriches the actual run,
+retains minimum quantification over all raw endpoints and finite stages, and
+forgets to the existing projection minimum.
+
+AdministrativeHeadDeletion.lam preserves deletion traces under a retained body.
+PiInertSortedProjectionContinuationRun.administrative_deletion inducts over the
+actual finite frame execution. In an application frame it substitutes only the
+raw deletion, simulates the actual typed application source in that scope, and
+recurses on the resulting endpoint trace. In a retained frame it preserves the
+trace under the actual lambda and pending arguments. At the terminal observer,
+the preceding projected-deletion theorem keeps exact exposed output. Counts
+never increase and competitors do not acquire typing restrictions.
+
+pi_inert_sorted_frames_minimum_no_administrative therefore excludes a charged
+administrative root regardless of remaining frame depth. The actual body tail
+is simulated before its continuation, retaining the original prefix and saving
+the root's unit cost. pi_inert_sorted_frames_constructor_root combines this
+with rigidity to leave only native function or structure eta at a non-level
+constructor root.
+
+CountedEtaContinuationCut.sorted_projection_frames handles both retained and
+consuming eta branches and supplies a strictly smaller sorted observed body
+minimum. pi_inert_eta_sorted_projection_continuation_frames retains that final
+sort through the actual native eta step. pi_inert_eta_sorted_projected_minimum
+seeds it from a sorted global projection minimum: actual control typing is
+computed along the projected prefix and eta tail. The later constructor_descent
+theorem uses the same execution at arbitrary frame depth. Function eta enters
+its actual body with a smaller sorted minimum; structure eta forces pending
+arguments empty and gives a smaller sorted target minimum by removing the
+charged root. Neither branch substitutes guarded computations.
+
+PairProjectionEtaMinimum now accepts an optional minimum predicate, defaulting
+to its original projection minimum; existing uses and proofs remain unchanged.
+This permits GlobalPairFunctionEtaProjection.sorted_observed_body_minimum to
+retain all original pair/constructor-prefix witnesses while supplying the new
+sorted minimum. Its sort comes from actual dependent-pair projection typing.
+proofErase_pi_inert_pair_projection_readout_or_sorted_eta_minimum connects the
+original exposed pair-projection path directly to readout or this stronger
+body invariant. The integration module imports the new results.
+
+Judgment: administrative deletion and sort-certificate preservation no longer
+stop at one consuming frame. They work through arbitrary actual retained and
+consuming frames and are seeded from the existing global problem. What remains
+is the selected-field origin/transfer invariant needed to read through the
+smaller native eta minima. The new recursive minima alone do not prove field
+readout or strengthening. Executable and UniqueTyping.lean unchanged; no
+canonical-Eq strengthening counterexample or sufficient irreducible global
+obligation smaller than PropFront established. Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2, with all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1313 jobs; recursive audit
+18 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,288 frozen source hashes verified before
+and after. Artifacts: /dev/shm/pi-inert-sorted-projection-frames-*.
