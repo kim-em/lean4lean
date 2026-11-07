@@ -39644,3 +39644,41 @@ propext/Classical.choice/Quot.sound, no forbidden strengthening or circular
 frontier dependency; 1,202 frozen sources verified. Artifacts:
 /dev/shm/variable-readout-*. Executable and UniqueTyping.lean unchanged.
 PR extraction deferred; goal active.
+
+
+## 2026-11-07 15:08:29 UTC — Expose selected constructors through full-stage projection paths
+
+Added ProofErasurePiInertProjectionExposure.lean and its aggregator import.
+ScopedComputeCount.projection_first_root retains the exact primitive count
+of the major prefix, first root and tail. The administrative prefix bypass
+now accepts any output without a lambda head, covering variables and sorts as
+well as exposed carriers. Actual source typing replays constant-wrapper
+elimination; native identity elimination is exact at its original stage.
+
+Strong induction on the primitive count gives a genuine projection-selection
+factorization for arbitrary finite Pi-inert stages at sorted projection
+sources. Every skipped wrapper consumes one primitive, while guard subproof
+sizes and beta length need no bound. Scoped computation of the selected field
+can then occur inside its constructor argument, giving a terminal iota with
+the exact original output. The resulting iff needs no confluence,
+normalization, no-unfolding premise, or generalized comparison transport.
+Its output conditions exclude a matching projection root and lambda-headed
+spines; this restriction has not been promoted to a normalizing assumption.
+
+PiInertPairTypeFieldSelection.variable_constructor combines the previous
+variable-readout equivalence with this factorization. It retains an actual
+right-major residual, equality at the original closed record type, exact
+same-stage major computation and projection iota selecting the original type
+variable. This provides a sharper necessary test for the still-open condition.
+It does not construct that condition from a general record guard.
+
+Remaining: structurally generated comparisons, surviving output wrappers and
+the full selection proof. The original strengthening goal is not achieved,
+and no smaller sufficient frontier is claimed. PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution in
+/dev/shm/native-level-coherence-work. Integration 1228 jobs; recursive audit
+9 roots, maximum closure 11,976, only propext/Classical.choice/
+Quot.sound and no forbidden strengthening or circular-frontier dependencies;
+1,203 frozen sources verified. Artifacts: /dev/shm/projection-exposure-*.
+Executable and UniqueTyping.lean unchanged; goal active.

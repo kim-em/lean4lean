@@ -23928,3 +23928,44 @@ frontier is claimed; PR extraction remains deferred.
 Validation: 1227 integration jobs, 9 recursively audited roots, maximum
 closure 11,976, only propext/Classical.choice/Quot.sound; 1,202 frozen
 sources. Artifacts: /dev/shm/variable-readout-*.
+
+
+## 2026-11-07 15:08:29 UTC — Full-stage projection exposure by a decreasing primitive count
+
+**Idea.** Follow a typed sorted projection through arbitrary compatible
+computation, bypassing administrative root wrappers with a decreasing outer
+primitive count rather than assuming forward comparison closure.
+**Verdict: checked full-stage exposed-output factorization.** A counted path
+has either a retained projection or a first root primitive with exact accounting
+of its major prefix and complete tail. At that sorted root, the previous
+classification leaves selection, constant expansion or native identity
+expansion. The two wrapper cases can be bypassed without increasing the tail
+count; including their removed root gives the strict decrease needed for
+strong induction. Guard derivation sizes are irrelevant.
+
+For any output with neither a matching projection root nor a lambda at the
+head of its application spine, the computation has a same-stage major path,
+a genuine registered selection, and the complete field tail. Moving that tail
+into the selected constructor argument gives an exact terminal-selection
+factorization and its converse. This covers arbitrary finite stages, native
+guards, recursive definitions and computation under binders. No core
+confluence or normalization is assumed. Variables, sorts, Pis and ordinary
+constant-headed outputs satisfy the output conditions.
+
+Combined with exact variable readout, PiInertPairTypeFieldSelection now forces
+an actual residual of the opposite record major whose constructor selects the
+same type variable. The residual keeps its original actual record assignment,
+and both its major computation and terminal selection are retained. This is a
+necessary operational consequence of the open condition, not its proof or a
+counterexample.
+
+Next use the selected-constructor history while analyzing structural checker
+certificates. Surviving lambda-headed output frames and arbitrary field
+comparisons still require treatment; do not assume all type fields normalize
+or replace this gap with ordinary equality reflection. The general selection
+condition and weakN_iff remain open, with no strictly smaller sufficient
+frontier claimed. PR extraction remains deferred.
+
+Validation: 1228 integration jobs, 9 audited roots, maximum recursive
+closure 11,976; only propext/Classical.choice/Quot.sound; 1,203 frozen
+sources. Artifacts: /dev/shm/projection-exposure-*.
