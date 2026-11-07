@@ -23528,3 +23528,49 @@ recursive dependency closure 11,976; only propext, Classical.choice
 and Quot.sound. All 1,174 frozen sources and owned diagnostics checked.
 Stock v4.33.0-rc2 Lean/Lake ran only in /dev/shm/native-level-coherence-work.
 Executable and UniqueTyping.lean unchanged; PR extraction deferred; goal active.
+
+## 2026-11-07 13:32:32 UTC — Use the assigned binder for mixed lambda annotations
+
+Idea: remove the same-written-domain restriction from directed lambda action
+by retaining actual assigned Pi typing, rather than trying to move a local
+history through a binder conversion. Verdict: proved, including the original
+mixed-domain StrongBounded.lamDF constructor and its erased proof branch.
+
+ProofErasurePiInertAssignedBodies.lean proves TypedAt.lam_body_at: a raw
+lambda with written C and assigned Pi A B0 can be retyped at Pi A B when
+its raw body is assigned B under A. Actual Pi injectivity supplies C=A;
+ordinary context conversion identifies body erasure and realizes the new
+body carrier. raw_lambda_assigned_test then supplies the fresh beta test
+under A, independent of the written annotation.
+
+DirectedPairInterpretation.lam_assigned constructs the full recursive call
+profile for two arbitrary written annotations at a common assigned Pi.
+Fresh interpretation establishes the ground history. Future application
+obtains argument assignments from each actual assigned Pi, extends the two
+typed substitutions, reruns the body, and prefixes beta. It never uses the
+written domain to type an argument belonging to the assigned binder.
+
+StrongBounded.paired_lam_assigned consumes the original rank-k domain child,
+both body-formation children, and both body-comparison children. Forward
+and reverse body interpretations stay under A and C respectively; ordinary
+context conversion identifies their erasures without moving semantic
+histories. The result retains native Pi A B and Pi C B, independently chosen
+recursive profiles and finite image requirements. The proof branch supplies
+both calls directly. No reconstructed higher-rank strong symmetry is used
+as an induction-hypothesis input.
+
+This closes the mixed-written-domain lambda construction, conditional on
+domain self interpretations, input supplies and directed body hypotheses.
+It does not construct those hypotheses for all strong derivations, settle
+comparison transitivity, or discharge the four principal sorted transport
+cases. The next task is to make these constructors part of one sufficient
+simultaneous induction motive, with particular attention to the middle
+interface and image evidence required by transitivity. An ordinary type
+equality still does not authorize transporting a local semantic history
+through a non-core binder. No strictly smaller sufficient frontier is claimed.
+
+Validation: 1200 integration jobs; 6 public/probe roots; maximum
+recursive dependency closure 11,976; only propext, Classical.choice
+and Quot.sound. All 1,175 frozen sources and owned diagnostics checked.
+Stock v4.33.0-rc2 Lean/Lake ran only in /dev/shm/native-level-coherence-work.
+Executable and UniqueTyping.lean unchanged; PR extraction deferred; goal active.

@@ -39237,3 +39237,44 @@ Quot.sound. All 1,174 frozen sources and owned diagnostics checked; artifacts
 under /dev/shm/directed-bodies-*. All Lean/Lake commands used stock
 v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
 UniqueTyping.lean unchanged; PR extraction deferred; GOAL.md remains active.
+
+## 2026-11-07 13:32:32 UTC — Mixed lambda domains preserve original body contexts
+
+Added ProofErasurePiInertAssignedBodies.lean and imported it from the
+integration aggregator. TypedAt.lam_body_at uses actual Pi injectivity,
+context conversion and erasure reflection to retype a lambda at the carrier
+assigned to its body under the assigned domain. raw_lambda_assigned_test
+extends fresh beta testing to a written domain different from that domain.
+
+DirectedPairInterpretation.lam_assigned removes both endpoint annotation
+restrictions from the recursive lambda constructor. The fresh body run
+builds its function history in the assigned binder. Future runs obtain
+actual argument typings from assigned function types before extending the
+substitutions. The right endpoint retains its own assigned Pi to type its
+argument; cross typing at the left Pi supplies the application result.
+Only actual typing is converted across binders, never a local core-world
+history. right_assignment records that the separately retained right source
+assignment can change while the same run still supplies the cross assignment.
+
+StrongBounded.paired_lam_assigned covers the original mixed-domain lamDF
+constructor. Both body directions use original rank-k children in their own
+contexts, and the resulting pair retains both native Pi interfaces. The
+proof-marker branch constructs each call directly; the nonproof branch
+identifies erased bodies by ordinary context conversion and uses the new
+raw constructor twice. Arbitrary recursive input/output profiles and
+independent requirement lists are retained.
+
+Limits: domain self interpretation, type-only input supplies and directional
+body interpretation remain explicit. General strong coverage, comparison
+transitivity and the four principal sorted transport cases remain open.
+The next investigation should unify the induction motive and resolve the
+middle-interface/image requirements for composition. This commit is a
+proved mixed-domain lambda case, not a strengthening proof, canonical-Eq
+counterexample, or strictly smaller sufficient obligation.
+
+Integration passed 1200 jobs. Recursive audit covered 6 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. All 1,175 frozen sources and owned diagnostics checked; artifacts
+under /dev/shm/assigned-bodies-*. All Lean/Lake commands used stock
+v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
+UniqueTyping.lean unchanged; PR extraction deferred; GOAL.md remains active.
