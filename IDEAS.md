@@ -21835,3 +21835,60 @@ or strengthening theorem has been established.
 Validation: 1130 integration jobs, 517 audited roots, maximum dependency
 closure 12,394; only propext, Classical.choice and Quot.sound. Executable
 unchanged; no PR extraction. GOAL.md remains active.
+
+
+## 2026-11-07 07:37:33 UTC — Variable worlds survive computed binder annotations
+
+Exact-renaming histories missed the context change required by their own
+function-carrier residuals: reducing a Pi domain A to A' changes the native
+oracle in A::Delta, although every variable image remains a variable. The
+existing full-history function rule handled this with unrestricted interpreted
+substitution; importing that clause into the restricted result history would
+undo the earlier variable-action boundary analysis.
+
+Added ProofErasurePiInertCoreWorlds.lean. PiInertCoreWorld retains an ordinary
+context interpretation, variable-only term images, and bidirectional stage-zero
+computation evidence between each substituted native oracle and its target
+oracle. Exact renamings of actual contexts construct these worlds. They compose,
+extend under sorted binders, and are constructed for ordinary core reduction
+of the newest binder annotation. Total oracle entries are handled honestly:
+valid entries use declaration typing, while default proof entries have a typed
+representative from canonical Eq reflexivity, not an invented declaration or
+an inhabitant of an arbitrary binder.
+
+PiInertWorldHistory and PiInertWorldComputation restrict every future clause
+to these variable worlds. Function extensionality now constructs a whole
+history: its base clause consumes independent carrier/domain reduction through
+the certified core-binder world; its future clause first extends the world
+under the sorted binder. This discharges the concrete function-introduction
+problem exposed by the previous exact-renaming formulation.
+
+Native application also constructs a whole history. The computation from the
+native oracle to a Pi must retain its ordinary-core commutation tail. After a
+world move, the reverse native-oracle certificate composes with this computation;
+its output Pi residual supplies the exact domain path consumed by the argument
+history. A bare ScopedCompute path was not used as if it supplied this stronger
+commutation property. Variable action and native image action are constructed
+with the new computation premise, including their nested result futures.
+
+Verdict: both function-history introduction and native application now work
+under the same restricted future relation. This is a checked repair of a
+necessary compatibility case, not arbitrary strong-derivation coverage. The
+image-action premise changed from raw Pi paths to retained computations;
+coverage must supply these computations explicitly. Arbitrary equal-domain
+binder conversion, higher-order argument action, action of returned functions,
+and transitivity remain open. Raw argument histories do not acquire actual
+typing or cross action by definition. The adapter to actual-context renaming
+histories preserves the existing Eq-probe descent readout. No proof,
+counterexample, or strictly smaller sufficient obligation has been obtained.
+
+Next use the original smaller strong children to supply dependent type
+transport and the demanded image action, with actual argument typing retained.
+Keep the distinction between ordinary core binder conversion (proved here)
+and arbitrary definitional conversion (still open); do not smuggle the latter
+into a zero-stage world certificate.
+
+Validation: 1131 integration jobs, 545 audited roots, maximum dependency
+closure 12,394; only propext, Classical.choice and Quot.sound. All Lean
+work ran in the stock-toolchain scratch checkout. Executable unchanged; PR
+extraction remains deferred. GOAL.md stays active.

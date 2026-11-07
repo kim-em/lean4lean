@@ -37840,3 +37840,50 @@ only propext, Classical.choice and Quot.sound. `/dev/shm/paired-action-*`
 artifacts check frozen source hashes, owned diagnostics and exclusion of
 sorryAx / weakN_iff / weakN_inv / circular frameworks. Executable unchanged;
 no PR extraction. GOAL.md remains active.
+
+
+## 2026-11-07 07:37:33 UTC — Function histories under certified variable-world conversion
+
+Added the 28 public roots of ProofErasurePiInertCoreWorlds.lean and imported
+it through ProofErasurePiInertGlobalEtaBodyCut.lean. The resumed unfinished
+module compiled, and this turn extended it with checked function-history and
+native-application constructors; this is progress, not a terminal wait or a
+restatement of the open goal.
+
+The new worlds keep variables as variables while relating their native types
+by bidirectional stage-zero computation evidence. They have exact-renaming,
+composition, sorted-binder extension and ordinary-core binder-conversion
+constructors. Canonical Eq reflexivity supplies typed representatives for
+out-of-range proof-marker oracle entries. No lookup at an invalid index is
+used as a typing derivation.
+
+PiInertWorldHistory retains independent carrier and endpoint residuals in all
+such worlds. PiInertWorldComputation retains a typed output and an ordinary-core
+output tail. Both move through composed worlds and raise stages; computations
+compose, and histories admit carrier and endpoint prefixes. Full hereditary
+evidence restricts to these predicates. On actual contexts, world histories
+restrict to the earlier renaming histories and therefore support their Eq-probe
+readout.
+
+function_residual and function move body histories through core_binder and
+world.cons, respectively. The independent Pi-domain reduction is covered
+without permitting arbitrary function images in future histories. Native
+application composes the reverse oracle certificate with the supplied retained
+Pi computation, projects its ordinary output Pi path, and consumes the exact
+domain residual in the argument history. Native variable action and image
+action retain this same future restriction in their returned histories.
+
+These are constructive closure results, not coverage of all strong rules.
+Arbitrary definitional type transport and general paired higher-order body
+coverage remain unproved. In particular the new computational-exposure premise
+is stronger than a raw path and must be constructed by a future interpretation;
+it is not silently inherited from the previous raw-path image interface.
+UniqueTyping.lean and its remaining weakN_iff sorry are unchanged.
+
+All Lean/Lake commands ran in /dev/shm/native-level-coherence-work on stock
+leanprover/lean4:v4.33.0-rc2. Integration passed 1131 jobs. The recursive audit
+covered 545 roots, maximum closure 12,394, using only propext,
+Classical.choice and Quot.sound; it excludes sorryAx, weakN_iff, weakN_inv and
+known circular frameworks. Artifacts /dev/shm/core-worlds-* retain source
+hashes and owned-diagnostic checks. No executable changes or PR extraction.
+The original GOAL.md deliverable remains open.
