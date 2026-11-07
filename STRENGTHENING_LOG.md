@@ -38460,3 +38460,35 @@ Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
 /dev/shm/demand-guarded-exposure-*. All Lean/Lake commands used stock v4.33.0-rc2
 in /dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
 PR extraction remains deferred and GOAL.md remains active.
+
+
+## 2026-11-07 10:38:42 UTC — Opaque-domain profile collapse and guarded argument consumption
+
+Added ProofErasurePiInertDemandOpaqueArguments.lean and its aggregator import.
+Typed Eq-headed carriers cannot ordinary-core-join any Pi, and this remains
+true after all future core-world substitutions. The ordinary finite-demand
+hierarchy is therefore equivalent to ground payload at these carriers.
+Arrow tests are absent; finite intersections do not add action evidence.
+
+A guarded value can forget to any ordinary demand at such a selected carrier.
+app_eq_head_argument supplies this to an already-proved consumer action and
+returns another assigned guarded value. The original guarded argument retains
+its extra interface action separately. This is not lambda-action completeness
+and does not derive exposed action from a ground payload.
+
+The actual reflexive-cast head theorem applies with arbitrary equality proof
+majors. In the full environment core, every operand assigned such a cast has
+all ordinary finite self-demands by ground reflexivity alone. This formally
+identifies why larger ordinary profiles at an opaque selected domain do not
+solve the missing higher-order guarded-action obligation.
+
+General recursive consumption of guarded interfaces, arbitrary strong
+coverage and the original strengthening theorem remain open. No strengthening
+counterexample or smaller-than-PropFront sufficient obligation is claimed.
+
+Integration passed 1183 jobs. Recursive audit covered 8 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
+/dev/shm/demand-opaque-arguments-*. All Lean/Lake commands used stock v4.33.0-rc2
+in /dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
+PR extraction remains deferred and GOAL.md remains active.

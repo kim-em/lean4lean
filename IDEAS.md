@@ -22738,3 +22738,53 @@ recursive dependency closure 12,648; only propext, Classical.choice and
 Quot.sound. Frozen sources and owned diagnostics checked. All Lean/Lake used
 stock v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
 UniqueTyping.lean unchanged; no PR extraction. GOAL.md remains active.
+
+
+## 2026-11-07 10:38:42 UTC — Ordinary finite demands collapse at opaque Eq-headed arguments
+
+Previous goal turn: progress, committed as baf65405. Checked how the retained
+guarded value can serve as a higher-order argument: the existing function
+action expects an ordinary demand at its selected domain, while a guarded
+argument stores action at a separate exposed interface.
+
+TypedSource.eq_head_no_pi_join proves that a typed Eq.rec-headed selected
+carrier has no ordinary-level-core join with any Pi. The existing typed Eq
+head theorem preserves its constant head along the carrier path, whereas the
+other join branch preserves the Pi root. Source typing and constant-head
+substitution make the same exclusion valid in every future core world.
+
+PiInertDemandBase.eq_head_demand and pi_inert_eq_head_demand_iff show that
+all finite ordinary profiles at such a carrier are equivalent to the same
+ground payload. Arrow clauses have no admissible core-Pi tests, and finite
+intersections add no evidence. This is more precise than saying that an
+opaque carrier merely lacks a chosen exposure certificate: the whole existing
+ordinary demand hierarchy collapses there, including all future tests.
+
+PiInertGuardedDemand.eq_head_forget supplies any ordinary input profile from
+a guarded argument's selected ground history. app_eq_head_argument uses that
+fact with a consumer's already-proved ordinary interface action and returns
+an assigned guarded result. It does not construct arbitrary lambda action at
+an opaque domain, nor reconstruct the argument's exposed action from ground.
+
+proofErase_reflexive_type_cast_head proves the head condition for actual
+reflexive type casts, with any equality proof as major. The actual-environment
+reflexive_cast_self_all_demands theorem constructs every ordinary finite
+self-demand for any operand typed at such a cast, using only ground
+reflexivity. It assumes no interface exposure or interface action. The core
+is the full environment core, not an incomplete definition set.
+
+Verdict: opaque guarded arguments can enter existing ordinary-demand consumers
+with a proved rule, but increasing finite ordinary profiles at the opaque
+selected type cannot add interface-action information. General higher-order
+coverage must retain and consume that extra guarded action explicitly; this
+result alone does not prove a counterexample to arbitrary action transport or
+show that the guarded relation is strictly stronger in every model. General
+strong coverage and strengthening remain open. No canonical-Eq counterexample
+to strengthening or sufficient obligation strictly smaller than PropFront is
+claimed.
+
+Validation: 1183 integration jobs; 8 public/probe roots; maximum
+recursive dependency closure 11,976; only propext, Classical.choice and
+Quot.sound. Frozen sources and owned diagnostics checked. Stock v4.33.0-rc2
+Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work. Executable
+and UniqueTyping.lean unchanged; no PR extraction. GOAL.md remains active.

@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertDemandGuardedExposure
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertDemandOpaqueArguments
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertUnitCarrierConversion
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqTargetPrefixMinimum
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertLaterEtaFrameOrigin
