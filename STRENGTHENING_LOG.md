@@ -38492,3 +38492,48 @@ Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
 /dev/shm/demand-opaque-arguments-*. All Lean/Lake commands used stock v4.33.0-rc2
 in /dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
 PR extraction remains deferred and GOAL.md remains active.
+
+
+## 2026-11-07 10:49:32 UTC — Guarded-input evaluator action and fresh ground readout
+
+The previous ordinary-demand collapse rules out obtaining additional exposed
+interface-action information merely by increasing the finite profile at an
+Eq-headed selected domain. This step constructs a consumer of the retained
+guarded action instead.
+
+PiInertGuardedDemand.fresh constructs a fresh argument at its selected sorted
+domain with every finite demand at a guarded exposed interface. Non-proof
+variables use native neutral recovery composed with the weakened exposure;
+proof arguments use the typed proof-marker demand. No fresh interface demand
+is a premise.
+
+PiInertGuardedInputAction retains calls in all future core worlds with guarded
+inputs and ordinary finite-demand outputs. typed_base constructs ground
+function history by fresh testing and function extensionality; base recovers
+common actual representatives from raw assignments. Both require an explicit
+guarded domain exposure, and neither assumes equality of the functions.
+
+pi_inert_guarded_evaluator_action constructs these calls for a lambda which
+applies its guarded function argument to a captured argument. Paired captures
+may differ. The full dependent result demand survives beta prefixes.
+pi_inert_guarded_evaluator_value pairs the constructed action with its derived
+ground history. TypedAt.evaluator_to_sort constructs actual evaluator typings
+and erasure equations. EnvironmentCore.cast_evaluator_guarded_action then
+instantiates this with a free-major reflexive cast in the full actual core,
+constructing stage-one exposure and captured ground demand while ruling out
+ordinary-core arrow exposure for the selected domain.
+
+This is a proved higher-order consumer case, not closure of arbitrary strong
+derivations. Recursive guarded inputs inside exposed interfaces and general
+strong conversion/action production remain open. The original weakN_iff sorry
+is unchanged. No strengthening counterexample or smaller sufficient obligation
+is claimed. Next work must address recursive guarded-interface consumption
+and strong-rule coverage, not replace missing action with ordinary demands at
+an opaque selected type.
+
+Integration passed 1184 jobs. Recursive audit covered 9 public/probe
+roots, maximum closure 12,718, only propext, Classical.choice and
+Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
+/dev/shm/guarded-input-action-*. All Lean/Lake commands used stock v4.33.0-rc2
+in /dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
+PR extraction remains deferred and GOAL.md remains active.

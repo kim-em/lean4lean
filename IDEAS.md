@@ -22788,3 +22788,44 @@ recursive dependency closure 11,976; only propext, Classical.choice and
 Quot.sound. Frozen sources and owned diagnostics checked. Stock v4.33.0-rc2
 Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work. Executable
 and UniqueTyping.lean unchanged; no PR extraction. GOAL.md remains active.
+
+
+## 2026-11-07 10:49:32 UTC — Evaluators consume retained guarded inputs
+
+Idea: after ordinary finite demands at Eq-headed selected carriers collapse to
+ground payload, make a function consumer explicitly require the argument's
+retained guarded interface action. Test the consumer on a fresh guarded
+argument to recover its own ground history rather than assuming that history.
+
+Implemented in ProofErasurePiInertGuardedInputAction.lean. GuardedDemand.fresh
+constructs every finite interface demand from a sorted fresh argument and an
+explicit guarded domain exposure, including the proof-marker case. The new
+GuardedInputAction records future core-world calls with that guarded input.
+Its typed_base and base theorems construct ground function history from those
+calls, actual assignments, and the domain exposure. No function equality or
+ground history is supplied to this construction.
+
+The evaluator lambda consumes a guarded function and applies it to paired
+captured arguments. Beta replay supplies body sources and core prefixes
+preserve the full dependent result demand. evaluator_value retains this
+constructed action together with its derived ground history. The actual
+full-environment cast_evaluator_guarded_action constructs a typed evaluator
+at a free-major reflexive cast domain, its captured ground demand, and the
+stage-one exposure. It also proves that the same selected domain has no
+ordinary-core arrow certificate. Raw evaluator sources or action are not
+hypotheses of that actual example.
+
+Verdict: positive construction for a lambda that consumes the retained guarded
+action itself, beyond forgetting guarded arguments to ordinary demands. The
+fresh-test principle is nonvacuous under its actual typing and exposure
+premises. It is not general recursive guarded-action coverage: inputs still
+retain ordinary finite demands at their exposed interfaces, and arbitrary
+strong conversions do not yet construct all required exposures and actions.
+No strengthening proof, canonical-Eq counterexample, or sufficient obligation
+strictly smaller than PropFront is claimed. PR extraction remains deferred.
+
+Validation: 1184 integration jobs; 9 public/probe roots; maximum
+recursive dependency closure 12,718; only propext, Classical.choice and
+Quot.sound. Frozen sources and owned diagnostics checked. Stock v4.33.0-rc2
+Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work. Executable
+and UniqueTyping.lean unchanged; GOAL.md remains active.
