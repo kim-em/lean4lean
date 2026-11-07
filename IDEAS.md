@@ -24444,3 +24444,44 @@ Validation: 1259 integration jobs; 11 recursively audited roots;
 maximum closure 11,977; 1,234 frozen source files. Stock Lean v4.33.0-rc2
 in /dev/shm/native-level-coherence-work only; standard axioms only and no
 forbidden strengthening/circular dependencies. PR extraction deferred.
+
+
+## 2026-11-07 17:25:05 UTC — Eliminate the whole-record eta case by counted projection readout
+
+Verdict: the proposed structure-eta bypass works for exposed type-projection
+computation. The full-stage result now returns either a directed path from the
+original selected field, or a function-eta cut on an actually typed reachable
+pair. Structure eta is no longer a terminal alternative. The function witness
+retains a proper constructor prefix of length zero or one, a nonproof next
+argument, its original earlier ambient guard, and the complete continuation.
+
+The critical invariant is quantitative: successful field readout uses strictly
+fewer primitives than the supplied projection path. Stable constructor readout
+therefore has to retain the sum of its argument-path costs, not merely their
+existence. ScopedComputeCount.const_spine_or_cut_budget and
+pi_inert_counted_rigid_spine_readout_or_eta_cut establish that missing bound.
+
+At a whole-record eta cut, the new first field is literally the projection of
+the pre-expansion major. Recursing on the shorter projection continuation
+either reads that field with a strict saving, contradicting minimality of the
+original projection path, or finds a function-eta witness. In the latter case
+the original major's prefix and expansion lead to the witness source. The
+arbitrary suffix remains at the original stage; the induction uses its actual
+outer primitive budget, not the smaller guard index and not normalization.
+
+The result also consumes the full checker against a sort-typed variable:
+typed variable exposure gives a projection path, then the new theorem returns
+comparison of the selected field or the concrete function-eta witness. Both
+checker modes and recursive carrier arguments are covered by that input.
+
+Next: discharge nonproof function eta at the remaining partial constructors,
+including computation under the retained binder before its argument is consumed.
+Then extend contraction to arbitrary opposite comparison endpoints. Neither
+task is supplied by this result. Positive-stage pair selection, weakN_iff and
+the GOAL.md deliverable remain open; no strictly smaller sufficient frontier
+for strengthening is claimed.
+
+Validation: 1261 integration jobs; 9 recursively audited roots;
+maximum closure 11,977; 1,236 frozen source files. Stock Lean v4.33.0-rc2
+in /dev/shm/native-level-coherence-work only; standard axioms only and no
+forbidden strengthening/circular dependencies. PR extraction deferred.

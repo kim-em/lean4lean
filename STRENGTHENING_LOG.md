@@ -40367,3 +40367,78 @@ Quot.sound; no forbidden strengthening or circular-frontier dependencies.
 All 1,234 frozen sources verified. Artifacts:
 /dev/shm/pi-inert-constructor-eta-cut-*. Executable and UniqueTyping.lean
 unchanged; goal active; PR extraction deferred.
+
+
+## 2026-11-07 17:25:05 UTC — Eliminate structure eta from exposed pair projection readout
+
+The previous goal turn made verified progress in 4e98c18a, retaining function
+and structure eta as the two positive-stage constructor cases. This turn
+revalidated the clean committed state and proved that whole-record structure
+eta can be removed as a terminal case for exposed type-projection computation.
+Added ProofErasurePiInertCountedConstructorCut.lean and
+ProofErasurePiInertStructureEtaBypass.lean, plus the aggregator import.
+
+ScopedComputeCount.const_spine_or_cut_budget strengthens the stable branch of
+the existing counted spine cut: the total pointwise argument cost is bounded
+by the original path cost. The cut branch retains the original counted prefix,
+root and suffix together with uncounted argument ancestry. Transitivity adds
+argument budgets; application adds the final argument budget; beta contributes
+zero and a good root contributes no argument work. The full-stage rigid
+consumer then uses the same minimum-count wrapper exclusion as before, but
+keeps the stable-branch cost bound.
+
+proofErase_closed_structure_type_projection_primitive identifies one actual
+projection iota after native structure eta, rather than only a core triangle.
+Actual uniqueness aligns the recovered family, empty universe/parameter spine
+and registration. Sort typing excludes the proof-field mask. The resulting
+primitive returns precisely the original type projection, costing one step.
+
+PairFunctionEtaProjection records an actually typed pair reachable from the
+original major, its literal two-argument constructor erasure, a minimum-count
+function-eta cut, the final major selection and its field continuation. Its
+root guard remains in the earlier ambient stage. The proper-prefix and nonproof
+next-argument restrictions are retained. Prefixing the source path preserves
+the whole witness; no guard transport is involved.
+
+proofErase_pi_inert_pair_projection_count_readout_or_function_eta uses strong
+induction on the supplied outer primitive count. It first chooses a minimum
+projection path, then obtains the counted major/selection/field-tail split.
+Stable constructor readout gives a path of the original selected field; its
+argument budget plus the field tail is strictly below the original count.
+An eta cut is refined using the actual closed record typing. Function eta
+returns its full concrete witness immediately.
+
+For structure eta, let before and after be the cut prefix and suffix costs,
+and ct the field-tail cost. Actual replay gives representatives of the major
+before and after expansion at the same closed family. The new first field is
+the old major's projection. The suffix followed by selection and field work
+forms a new projection path of cost after + 1 + ct, strictly smaller than the
+original bound. The induction hypothesis either gives that first field a path
+of cost j < after + 1 + ct, or returns a function-eta witness. In the first case,
+prefixing the old projection by the before-cost major path gives an original
+projection path of cost before + j below its chosen minimum: contradiction.
+In the second case, the original major's prefix plus structure expansion
+reaches the new witness source. Arbitrarily many whole-record eta cuts are
+handled by the same strictly decreasing induction.
+
+proofErase_pi_inert_pair_projection_readout_or_function_eta forgets counts only
+after this argument. Its endpoints may be variables, sorts or other exposed
+non-projection syntax. The full-checker consumer
+proofErase_pi_inert_pair_projection_variable_compare_or_function_eta uses
+actual type-variable exposure and this theorem to return selected-field
+comparison or a function-eta witness. It preserves the input comparison mode.
+
+Remaining: function eta with a nonproof argument at constructor prefix zero
+or one, including arbitrary guarded body computation before argument
+consumption. Full comparison against arbitrary opposite endpoints also remains.
+The theorem does not assert general substitution/beta closure or confluence of
+the expanded hierarchy, and does not close general-stage pair selection or
+canonical-Eq strengthening. It is not claimed as a sufficient smaller frontier.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution in
+/dev/shm/native-level-coherence-work. Integration 1261 jobs; recursive audit
+9 roots, maximum closure 11,977; only propext/Classical.choice/
+Quot.sound; no forbidden strengthening or circular-frontier dependencies.
+All 1,236 frozen sources verified. Artifacts:
+/dev/shm/pi-inert-structure-eta-bypass-*. Executable and UniqueTyping.lean
+unchanged; goal active; PR extraction deferred.
