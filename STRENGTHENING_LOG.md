@@ -42321,3 +42321,71 @@ Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,316 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-computed-head-replay-*.
+
+
+## 2026-11-07 22:46:51 UTC — Restore a constructor minimum after an immediate intervening application
+
+The previous goal turn made checked progress in 6764af43. Revalidated that
+clean worktree and continued the missing minimum-preserving commutation.
+Added ProofErasurePiInertCountedHeadCommutation.lean and
+ProofErasurePiInertFreshFieldApplicationCommutation.lean, imported by the
+global eta-body aggregate.
+
+ScopedComputeCount.rename preserves the exact outer primitive count under
+interpreted variable renaming, including below lambda and Pi binders.
+TypedSource.telescope_renaming reconstructs weakening from the actual upper
+well-formed context and its literal erased suffix.
+pi_inert_lift_count_to_typed_context then replays the lower function history
+beneath the actual target prefix, preserving both its stage and count. It
+uses only native renaming, not arbitrary expression substitution.
+
+pi_inert_fresh_field_commute_head_application takes the actual old prefix,
+argument computation, lower constructor-function history, and next consuming
+or identity application. The observer-scope function's interpreted endpoint
+is its same literal lift in the target scope. Its renamed path supplies a
+counted target computation from the constructor, and computed-head preimage
+recovers typing of that constructor with the actual target arguments. The
+new minimum starts there, costs cg+cs+ck, and retains the exact marked tail.
+For every raw competing target suffix, the proof fixes only the old prefix
+and argument computation, inserts that candidate into the original application
+predicate, and invokes the original minimum. The function computation is
+absent from that fixed old body prefix and is charged in the new selected
+suffix. Thus minimum preservation is proved directly, not inferred from
+prepending a path to another minimum.
+
+pi_inert_fresh_field_empty_eta_application_progress connects this to the
+actual charged empty-prefix native eta on a full fresh pair. Retained descent
+excludes the consuming eta branch, lowers the retained function history, and
+keeps the argument vector's exact cost and length. Commutation moves the
+function history through the immediate intervening application. The tracked
+first variable maps to the new temporary-depth index. Restored saturated
+pair typing rules out pending arguments, leaving a full constructor pair
+with the same fresh field and future supply x. Its primitive cost is at most
+the old cost and its frame count is the tail's count, one less than the
+original application run. The retained function's eta charge stays included.
+
+Judgment: immediate intervening applications no longer leave an arbitrary
+computed-head source in this empty-prefix branch; they restore the constructor
+invariant needed for recursion. Retained wrappers before that application
+remain. The existing PiInertRetainedPrefix.application_hole and
+SpineBinderHole.counted suggest an explicit route: strengthen the counted
+prefix decomposition to retain its exact depth and target telescope, prove
+ordinary typed preimage through appFn/lamBody holes, and rebuild the lower
+function path by native renaming inside that hole. Comparing whole target
+suffix competitors via the original fixed argument path should give a
+constructor-source minimum, which the existing marked focus then reduces
+to the inner constructor with strictly fewer frames. Supply under retained
+wrappers should similarly yield an activated constructor minimum, rather
+than a computed-head minimum. This extension is not yet proved. Structure
+roots and the full recursive field-readout invariant also remain open.
+
+Original weakN_iff sorry and executable unchanged. No sufficient irreducible
+global replacement for PropFront established. Goal active; PR extraction
+deferred.
+
+Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1343 jobs; recursive audit
+6 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,318 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-counted-head-commutation-*.

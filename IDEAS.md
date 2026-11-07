@@ -25520,3 +25520,33 @@ No full strengthening proof, canonical-Eq counterexample, or sufficient smaller
 global obligation established. Goal active; PR extraction deferred.
 Validation: 1341 jobs, 8 public roots, maximum audit closure
 11,981, 1,316 frozen source hashes; stock Lean in /dev/shm.
+
+
+## 2026-11-07 22:46:51 UTC — Commute the retained function into an intervening application
+
+Idea: rename the observer-scope constructor-function path into the actual
+application target, while leaving the earlier argument path in its original
+scope. Replay all candidate suffixes from the constructor itself through the
+original application predicate. Verdict: checked. This restores a genuine
+constructor-source minimum, not merely a budgeted path before an unrelated
+computed-head minimum. The native function history is weakened by variables;
+its guards are never substituted by arbitrary consumed arguments.
+
+For the actual empty-prefix eta on a full fresh pair, retained descent supplies
+that lower function history and the exact counted argument vector. An immediate
+application above the distinguished binder now yields a full constructor pair
+in its target scope, preserving the fresh field and the SAME future x. Typing
+excludes extra pending arguments. Primitive cost does not increase, and the
+application frame is removed. This is a strict frame step even when the
+function's eta charge must remain in the new body computation.
+
+Remaining: retained wrappers before the next application, the corresponding
+supply under a retained telescope, and structure-eta readout. A concrete
+extension is to represent the interpreted retained prefix as an exact-depth
+SpineBinderHole, lift the lower function path inside that hole, restore typing
+backwards through the hole, and replay the original competitors before focusing
+the resulting constructor-source minimum. No proof of weakN_iff, canonical-Eq
+counterexample, or sufficient smaller global obligation established. Goal
+active; PR extraction deferred. Validation: 1343 jobs, 6 public roots,
+maximum audit closure 11,981, 1,318 frozen source hashes; stock Lean
+in /dev/shm.
