@@ -24596,3 +24596,27 @@ This is no claim that exact native recovery is necessary for all solutions,
 or that a sufficient smaller strengthening frontier has been obtained.
 Validation: 1268 jobs, 12 audited roots, maximum closure 11,978;
 standard axioms only; 1,243 frozen sources verified.
+
+## 2026-11-07 18:04:02 UTC — demand replay only at actual primitive occurrences
+
+Verdict: checked decomposition without a blanket native-image premise.
+The older higher-order exact-recovery counterexample concerns the old level
+union; it does not by itself refute recovery in the current ambient system.
+Instead inspect finite counted body computations. Every primitive may replay
+at any finite target stage for cost at most one, including a zero-cost beta
+replay. If all occurrences replay, compatible composition gives a whole replay
+with no greater count. Otherwise retain a compatible failure occurrence, its
+actual source typing, interpreted endpoint map, and binder lifts. Stage-zero
+roots are impossible failures; the root is one of the five positive-stage
+guarded additions, with an earlier ambient guard stage.
+
+The consumed structure theorem now accepts an arbitrary finite-stage body tail
+without assuming native recovery of the argument. It either relays to the
+existing outer function-eta case or records a local guarded replay failure for
+that tail and its actual consumed argument. Exact native images exclude this
+failure, but absence of those images is not asserted to cause one. Failure of
+local one-primitive replay also does not imply failure of a different whole
+path or of field readout. Original-field ancestry, further retained frames and
+the guarded-root case remain open; no sufficient smaller strengthening
+frontier is claimed. Validation: 1270 jobs, 9 audit roots, maximum
+closure 11,978; standard axioms only; 1,245 frozen sources verified.

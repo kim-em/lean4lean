@@ -40693,3 +40693,68 @@ Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
 Quot.sound, no sorryAx or forbidden strengthening/circular-frontier dependencies.
 All 1,243 frozen source hashes verified before/after. Artifacts:
 /dev/shm/pi-inert-structure-tail-transport-*.
+
+## 2026-11-07 18:04:02 UTC — local guarded failures replace the blanket image premise
+
+Previous goal turn classified as progress: d1b7bbe7 proved counted stage-zero
+substitution and conditional native-image replay of arbitrary guarded tails.
+Revalidated clean committed state. Inspected NativeImageTransport and the
+older higher-order exact-recovery obstruction; that obstruction is proved for
+the old level union, so it is not evidence of impossibility in the current
+full ambient stage. No such impossibility is assumed here.
+
+Added ProofErasurePiInertReplayFailure.lean.
+PiInertCountedReplayFailure records a compatible occurrence at the counted
+path's endpoints and budget. Its root retains actual source typing, ordinary
+ContextSubstitution and the failure of every finite-stage replay between the
+substituted endpoints with count at most one. Compatible constructors retain
+function/argument positions, transitive components, projection, annotations,
+and binder bodies. Binder bodies use precisely the lifted original endpoint
+map and substituted original domain. Lean proof indices do not distinguish
+proof-irrelevant derivations: the predicate witnesses an occurrence in a
+counted derivation with these endpoints and count, not identity of a particular
+proof object. The documentation states this limitation explicitly.
+
+pi_inert_counted_substitution_or_failure performs induction on a finite counted
+computation. A root either supplies a replay costing at most one at some stage,
+or supplies a failure. Beta always replays at cost zero. Compatible successful
+children combine at their maximum finite stage with additive counts bounded
+by the originals. Transitive children retain their actual intermediate source
+typings through Pi-inert replay; binder children use ordinary extended context
+interpretations. The theorem does not require exact native images or assert
+that every local replay succeeds.
+
+PiInertCountedReplayFailure.positive proves a failed occurrence needs a positive
+primitive count. Its root theorem extracts the actual typed root, both scopes,
+and the endpoint map lifted through exactly the recorded binder depth. The
+guarded_root theorem excludes any stage-zero justification of those root
+endpoints, using the prior primitive-count-preserving stage-zero substitution
+result. Thus both the path count and presented stage are positive.
+PiInertStage.guarded_of_not_zero classifies such a root as an actual recovered
+singleton, Eq prefix, native identity, function eta or masked structure eta at
+a strictly earlier ambient guard stage. no_native_images proves that exact
+native images exclude every compatible failure, including under binders.
+This is a sufficient condition only, not a converse.
+
+Added ProofErasurePiInertStructureReplayCut.lean and integrated it in the
+aggregator. pi_inert_consumed_structure_minimum_function_eta_or_replay_failure
+handles an arbitrary finite-stage body tail in the existing consumed structure
+configuration. It derives the actual tail typing from structure descent and
+the one-binder endpoint map from eta-body interpretation. Successful replay
+may cost less than the original tail, so the existing counted minimum theorem
+still applies and returns outer function eta. Otherwise the actual tail/map
+supplies the local failure alternative. There is no native-recovery premise.
+
+Remaining: close or bypass the classified guarded replay roots, retain original
+selected-field ancestry, and handle additional retained frames. A local root
+that has no replay within one primitive may still admit a useful different
+whole-tail computation. This is neither a counterexample to readout nor a
+sufficient strictly smaller strengthening frontier. General pair selection and
+weakN_iff remain open. Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2, Lean/Lake exclusively in
+/dev/shm/native-level-coherence-work. Integration 1270 jobs; recursive audit
+9 roots, maximum closure 11,978; only propext/Classical.choice/
+Quot.sound, no sorryAx or forbidden strengthening/circular-frontier dependencies.
+All 1,245 frozen source hashes verified before/after. Artifacts:
+/dev/shm/pi-inert-replay-failure-*. Executable and UniqueTyping.lean unchanged.
