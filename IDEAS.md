@@ -21572,3 +21572,57 @@ using the preserved original children rather than reconstructed strong cuts.
 Validation: 1125 integration jobs, 443 audited roots, maximum closure
 12,394; only propext, Classical.choice and Quot.sound. Executable unchanged;
 no PR extraction. GOAL.md remains active.
+
+
+### 2026-11-07 06:19:04 UTC — Finite-stage simultaneous transport and neutral appDF: checked cases
+
+Tested the new computational-domain interpretation at actual strong application
+and function-type congruence rules. Stage-preserving closure is too restrictive:
+the existing reflexive-probe application example needs stage one despite stage
+zero input histories. FiniteCarrierTransport and FiniteDomainTransport now name
+the two unproved simultaneous induction components with existential finite
+output stages. Both directions are retained at the original equality rank;
+symmetry must not invoke an IH on a newly symmetrized higher-rank derivation.
+
+BoundedTypeTrace.finite_domain_pullback folds the existing strict-rank trace
+with the finite-stage predicate. Each edge can choose its own larger stage;
+no uniform numeric bound is assumed. Original edge ranks remain strictly below
+the original parent. Domain transport symmetry/transitivity are direct logical
+composition, and typed ordinary-core joins prove both orientations.
+
+finite_domain_transport_forall_iff shows exactly that transport between typed
+literal Pis is carrier transport between their domains. strong_forall_domain_
+transport_of_lower discharges the forallEDF domain component using the original
+rank-k domain equality at the rank-(k+1) parent, together with both codomain
+contexts already present in the rule. This proves a real simultaneous-induction
+case but does not weaken or solve the carrier component by renaming it.
+
+PiInertDomainExposure.recovered_application removes the earlier literal-native-
+Pi restriction: any recovered type may compute to the retained Pi. The target's
+ordinary-core tail changes its domain, and the complete domain history supplies
+the guard at exactly that resulting domain. An existing inferred function
+comparison then constructs the application comparison.
+
+strong_neutral_app_of_lower uses the original function and argument equality
+children, with no endpoint-typing reconstruction before recursion. The argument
+child supplies a finite carrier history at its assigned domain. The function
+child supplies the lower-rank native-type trace. Finite domain transport moves
+the exposure back to the arbitrary native lookup type, from which recovery
+computes the required Pi. The proposition-valued corollary derives all erasure
+shape facts from actual typing: no native Pi syntax or domain agreement is
+assumed. All semantic IH uses have j<k+1; path edges satisfy j<k.
+
+Verdict: forallEDF's domain component and the base neutral predicate appDF
+comparison are checked at genuinely smaller original children with arbitrary
+finite stage growth. The neutral result is a raw comparison, not a hereditary
+application history: future substitution may replace its variable head by an
+arbitrary function. Such function action, carrier composition and the remaining
+bidirectional transport cases are still open. A directed PiInert computation
+only provides backward exposure via prefix; reverse transport must not be
+silently inferred. No solution of weakN_iff or strictly smaller sufficient
+obligation is claimed. Next retain function-action evidence in the simultaneous
+motive and test its lambda and conversion cases against this exact neutral case.
+
+Validation: 1126 integration jobs, 455 audited roots, maximum closure
+12,394; only propext, Classical.choice and Quot.sound. Executable unchanged;
+no PR extraction. GOAL.md remains active.

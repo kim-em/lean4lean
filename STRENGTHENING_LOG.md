@@ -37600,3 +37600,68 @@ no owned diagnostics. Stock Lean/Lake ran only in scratch. Original weakN_iff
 and the executable are unchanged; no PR extraction. General strong carrier/
 exposure coverage, including appDF and carrier composition, remains open.
 GOAL.md remains active; no completion or strict-smallness claim.
+
+
+### 2026-11-07 06:19:04 UTC — Separate finite interpretation stages from strict strong ranks
+
+Previous goal turn classified as progress: 6d32f6d6 introduced computational
+domain exposure and proved its core/Eq transport and literal readout. This turn
+tested original strong application and forallEDF premises with that predicate.
+
+Added ProofErasureRankedDomainTransport.lean and its global integration import.
+FiniteCarrierTransport and FiniteDomainTransport are named missing simultaneous
+induction components. They equate existence of finite-stage histories/exposures
+for all raw endpoint pairs, rather than preserving a prescribed input stage.
+Their docstrings state that general strong coverage is unproved. Both directions
+are part of one original-rank hypothesis. FiniteDomainTransport.symm and .trans
+compose these promises without manufacturing strong symmetry/transitivity
+proofs. finite_domain_transport_of_core_join proves the actual core-join case.
+
+BoundedTypeTrace.finite_domain_pullback chooses the property 'there exists a
+finite exposure stage' in the existing lower-rank fold. Every conversion edge
+can return a different finite stage; each still comes from rank j below the
+trace's parent. This avoids imposing a uniform stage-growth function or confusing
+interpretation stage with derivation height.
+
+finite_domain_transport_forall_iff gives an exact calibration on typed literal
+Pis: finite exposure transport is equivalent to finite carrier transport of the
+domains, independently of the codomains. It uses literal exposure/readout in
+both directions. strong_forall_domain_transport specializes this to the strong
+forallEDF children. Its of_lower form consumes the rank-k domain equality via
+an IH below k+1. Both original codomain-context children supply the actual Pi
+typings; no rank-increasing reconstructed equality is recursively interpreted.
+The reverse direction uses the same domain child and the retained reverse IH.
+
+PiInertDomainExposure.recovered_application works at an arbitrary recovered raw
+type T. The exposure's source computation reaches a Pi shared with an ordinary-
+core reduct of its retained output Pi. The target domain's history follows that
+core residual, so recovery.convert and appCarrier use exactly the same domain.
+This requires no literal native type, semantic type-uniqueness conversion, or
+unguarded computation completeness.
+
+strong_neutral_app_of_lower interprets the actual same-variable-headed appDF
+premises. The original argument equality at k supplies the assigned history;
+the function equality at k supplies its native trace with edge ranks below k.
+After finite-stage pullback, the original lookup gives a native recovery, and
+recovered_application completes the raw comparison. strong_neutral_predicate_
+app_of_lower removes the supplied erasure equations for proposition-valued
+applications using ordinary typings derived from the existing strong children.
+These ordinary typings are used for erasure facts, not recursive semantic calls.
+The native lookup type is unrestricted.
+
+Limits are explicit. The neutral conclusion is a raw comparison, not complete
+future/residual evidence for arbitrary applications. Future substitutions may
+change the head into a nonvariable, requiring a retained function-action
+component rather than assuming raw recovery substitutes. General carrier
+transport, carrier composition, and bidirectional exposure transport across
+non-core equalities remain open. A directed computation prefix proves only one
+transport direction; the reverse is not treated as automatic. The original
+weakN_iff and executable remain unchanged; no strict-smallness claim is made.
+
+Twelve public declarations added. Validation: 1126 successful integration
+jobs; 455 audited roots; maximum closure 12,394; only propext,
+Classical.choice and Quot.sound. Audit traverses types, values, inductive
+constructors and recursor branches and excludes sorryAx, weakN_iff, weakN_inv
+and existing circular frameworks. All 1,101 frozen source hashes unchanged;
+no owned diagnostics. Stock Lean/Lake ran only in scratch. No PR extraction.
+GOAL.md remains active.
