@@ -40004,3 +40004,66 @@ Validation used stock Lean v4.33.0-rc2, exclusively in
 Quot.sound, no forbidden strengthening or circular-frontier dependencies.
 All 1,212 frozen sources verified. Artifacts: /dev/shm/pi-inert-unused-body-comparison-*.
 Executable and UniqueTyping.lean unchanged; goal active; PR extraction deferred.
+
+
+## 2026-11-07 16:20:09 UTC — Dependent terminal-body substitution and one-sided frame contraction
+
+Added ProofErasurePiInertTerminalSubstitution.lean and its aggregator import.
+The previous goal turn made verified progress in eec11b03; this turn began
+from its clean worktree. The intended extension was the dependent target-body
+case, keeping the Pi-inert output relation rather than embedding into ambient
+expansion checking and silently treating that output as restricted checking.
+
+pi_inert_zero_primitive_substitution retains the substituted primitive-head
+or sort-head evidence. Direct Pi and lambda component theorems use stage-zero
+context independence and the absence of roots at those heads. Pi readout also
+recovers actual component representatives, preserving the codomain path in
+its initial annotation context.
+
+PiInertZeroTerminalPath adapts the existing ambient terminal-path proof with
+Pi-inert conversion certificates throughout. Its rank counts recovery nodes,
+not computation lengths. Substitution retains the rank. Exposure either stays
+terminal or beta-exposes a lambda with a smaller body path and the exact
+selected Pi type. Selected-domain exposure uses the new Pi component paths.
+PiInertZeroTerminalImages and PiInertZeroTerminalSubstitution retain exact
+native recovery or actual terminality at each image. Their full checker
+transport discharges native applications by exact recovery or the proved
+lambda exposure, while computed applications and all carrier constructors
+recurse in the same checker. Single terminal substitution and conversion of
+terminal-valued binder contexts both preserve stage zero and checking mode.
+
+InferredLambdaTerminal.pi_inert_zero_inst_terminal consumes either recorded
+body context with actual common Pi typings, including eta terminals. The
+terminal_body_inst helper uses ordinary context alignment only for actual
+typings and erasure identities; the checker body is instantiated in the
+context where it was originally certified. No guarded path is moved through
+an unproved substitution principle.
+
+proofErase_pi_inert_zero_terminal_lambda_application handles an arbitrary
+inferred comparison from one displayed lambda to a typed function. It cuts
+at the terminal lambdas, instantiates their child, and pulls back along the
+source body's substituted component path and target function application.
+proofErase_pi_inert_zero_constant_function_application specializes the left
+body to a lift of any independently typed nonproof payload. It infers the
+target's common Pi type from the supplied function comparison, proves that
+the target application is nonproof, and returns an inferred comparison of
+the lower payload with that actual application. The target body can depend
+on the terminal argument. No target shape, unused-body premise, argument
+comparison, native-image certificate or annotation computation is supplied.
+
+The new module explicitly adapts the prior ambient terminal-image machinery;
+its computation and checker statements use PiInertStage D 0 throughout. The
+imports add twelve pre-existing committed sources beyond the previous
+closure. Terminal arguments include types, rigid data without projections,
+fieldless structures and proof-field-only structures as previously defined;
+this is not arbitrary value substitution or general forward beta closure.
+The complete constructor-field structural induction, especially mixed
+consumed/retained frames and its well-founded measure, remains open. Higher
+stages, PiInertPairTypeFieldSelection and weakN_iff are not declared solved.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake commands in
+/dev/shm/native-level-coherence-work. Integration 1250 jobs; recursive audit
+24 roots, maximum closure 11,976; only propext/Classical.choice/
+Quot.sound, no forbidden strengthening or circular-frontier dependencies.
+All 1,225 frozen sources verified. Artifacts: /dev/shm/pi-inert-terminal-substitution-*.
+Executable and UniqueTyping.lean unchanged; goal active; PR extraction deferred.
