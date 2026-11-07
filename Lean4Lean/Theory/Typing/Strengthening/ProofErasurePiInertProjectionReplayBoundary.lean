@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertReplayMinimum
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureParameterBoxRegistration
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertReplayFailure
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureBoxFieldReadout
@@ -90,7 +91,9 @@ ordinary parameter box, one projection-headed structure root has no replay
 after an actual typed binder consumption. The failure holds at every count
 and for every descending computation language, including the full ambient
 union under canonical Eq. This refutes blanket local transport under these
-explicit registration hypotheses, not strengthening or whole-tail readout. -/
+explicit registration hypotheses, not strengthening or whole-tail readout.
+The actual typed consumption continuation and enclosing lambda application
+both have global minimum count one across all finite stages. -/
 theorem pi_inert_projection_structure_substitution_failure
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hi : env.projections box bi) (hp : bi.nparams = 1) (hf : bi.numFields = 1)
@@ -108,6 +111,11 @@ theorem pi_inert_projection_structure_substitution_failure
       ContextSubstitution (A :: Δ) Δ (ProofShape.Subst.one x) ∧
       ∃ HR : PiInertStage D 1 (A :: Δ) source target,
         PiInertCountedReplayFailure D 1 (.base HR) Δ (ProofShape.Subst.one x) ∧
+        PiInertTypedContinuationMinimum D Δ (target.inst x) (A :: Δ) source 1 ∧
+        TypedSource Δ (.app (.lam A source) x) ∧
+        ScopedComputeCount (PiInertStage D 1) 1 Δ (.app (.lam A source) x) (target.inst x) ∧
+        (∀ later j, ScopedComputeCount (PiInertStage D later) j Δ
+          (.app (.lam A source) x) (target.inst x) → 1 ≤ j) ∧
         ∀ Step, ErasedScopedPrimitiveDescent Step →
           ¬ ScopedCompute Step Δ (source.inst x) (target.inst x) := by
   let S := VExpr.const unit []
@@ -169,7 +177,39 @@ theorem pi_inert_projection_structure_substitution_failure
       simpa [ProofShape.inst, ProofShape.liftN, liftVar, ProofShape.liftN_zero] using RC
     exact computed_source_no_inserted_argument hstep hΓ₀ hΓ Ctx.LiftN.one hProj
       (j := 0) (by omega) (by omega) R
-  refine ⟨_, _, _, _, _, HS, W, HR, .base HR HS W ?_, Hno⟩
+  have HNP (later : Nat) := Hno (PiInertStage D later)
+    (ErasedScopedPrimitiveCertificateDescent.descent (pi_inert_stage_certificate_descent heq hs later))
+  have Hminimum := (pi_inert_nonreplay_typed_continuation_minimum heq hs HS HR W HNP).2
+  have hout : ∀ B b y,
+      ((ProofShape.app (.const ctor []) ((ProofShape.bvar 0).liftN 1)).inst
+        (proofErase Γ oldBox.lift)) ≠ .app (.lam B b) y := by
+    intro B b y HE
+    simp [ProofShape.inst, ProofShape.liftN, liftVar] at HE
+  have Happlication := pi_inert_nonreplay_lambda_application_minimum HR HNP hout
+  let B := VExpr.app (.const box []) (.app (.const tag []) (.bvar 0))
+  have hB : env.HasType univs Γ B (.sort (.succ .zero)) :=
+    .app (BoxCarrierAlignment.family_typed hc) hTQ
+  have hΓB : OnCtx (B :: Γ) (env.IsType univs) := ⟨hΓ, _, hB⟩
+  have hv : env.HasType univs (B :: Γ) (.bvar 0) B.lift := .bvar .zero
+  have hb : env.HasType univs (B :: Γ) (.proj box 0 (.bvar 0))
+      ((VExpr.app (.const tag []) (.bvar 0)).lift) :=
+    box_projection_typed hi hp hf hz hadm hshape hΓB hv
+  have hL := HasType.lam hB hb
+  have hApp : env.HasType univs Γ (.app (.lam B (.proj box 0 (.bvar 0))) oldBox.lift)
+      (.app (.const tag []) (.bvar 0)) := by
+    simpa only [VExpr.inst_lift] using HasType.app hL hx
+  have hnApp := not_proof_at_positive_type hΓ hTQ hApp
+  have hnL := not_isProof_fn hΓ hL hx hnApp
+  have hnb := not_proof_at_positive_type hΓB (hTQ.weak henv) hb
+  have hnv := not_proof_at_positive_type hΓB (hB.weak henv) hv
+  have EApp : proofErase Γ (.app (.lam B (.proj box 0 (.bvar 0))) oldBox.lift) =
+      .app (.lam (proofErase Γ B) (.proj box 0 (.bvar 0))) (proofErase Γ oldBox.lift) := by
+    rw [show proofErase Γ (.app (.lam B (.proj box 0 (.bvar 0))) oldBox.lift) = .app _ _ from if_neg hnApp,
+      show proofErase Γ (.lam B (.proj box 0 (.bvar 0))) = .lam _ _ from if_neg hnL,
+      show proofErase (B :: Γ) (.proj box 0 (.bvar 0)) = .proj box 0 _ from if_neg hnb,
+      show proofErase (B :: Γ) (.bvar 0) = .bvar 0 from if_neg hnv]
+  refine ⟨_, _, _, _, _, HS, W, HR, .base HR HS W ?_, Hminimum,
+    ⟨Γ, _, _, hΓ, rfl, hApp, EApp⟩, Happlication.1, Happlication.2, Hno⟩
   intro later j _ RJ
   apply Hno (PiInertStage D later)
     (ErasedScopedPrimitiveCertificateDescent.descent (pi_inert_stage_certificate_descent heq hs later))
@@ -180,7 +220,9 @@ omit [Params] in
 a registered positive unit and the registered unit-parameter phantom family.
 The resulting environment-core stage-one projection root has an interpreted
 one-binder substitution and a certified local replay failure. In fact no
-descending language can replay its substituted endpoints at any cost. -/
+descending language can replay its substituted endpoints at any cost. Both
+the typed consumption continuation and its typed enclosing lambda application
+retain global minimum count one. Thus minimum count alone does not repair it. -/
 theorem exists_registered_pi_inert_projection_replay_failure
     {base : VEnv} (hbase : base.WF) (heq : base.HasCanonicalEq)
     (hiU : base.projections unit ui) (hpU : ui.nparams = 0)
@@ -197,6 +239,12 @@ theorem exists_registered_pi_inert_projection_replay_failure
          ContextSubstitution (A :: Δ) Δ (ProofShape.Subst.one x) ∧
          ∃ HR : PiInertStage EnvironmentCore.definitions 1 (A :: Δ) source target,
            PiInertCountedReplayFailure EnvironmentCore.definitions 1 (.base HR) Δ (ProofShape.Subst.one x) ∧
+           PiInertTypedContinuationMinimum EnvironmentCore.definitions Δ (target.inst x) (A :: Δ) source 1 ∧
+           TypedSource Δ (.app (.lam A source) x) ∧
+           ScopedComputeCount (PiInertStage EnvironmentCore.definitions 1) 1 Δ
+             (.app (.lam A source) x) (target.inst x) ∧
+           (∀ later j, ScopedComputeCount (PiInertStage EnvironmentCore.definitions later) j Δ
+             (.app (.lam A source) x) (target.inst x) → 1 ≤ j) ∧
            ∀ Step, ErasedScopedPrimitiveDescent Step →
              ¬ ScopedCompute Step Δ (source.inst x) (target.inst x)) := by
   obtain ⟨E, hE, hle, hi, hc⟩ := ParameterBoxRegistration.exists_extension hbase hbox hbc hne

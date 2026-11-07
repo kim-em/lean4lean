@@ -24676,3 +24676,31 @@ at the whole continuation. Do not pursue a universal no-replay-failure lemma.
 No sufficient smaller global obligation or proof of weakN_iff is claimed.
 Validation: 1303 jobs, 12 recursive audit roots, maximum closure
 11,978, standard axioms only; 1,278 frozen source hashes verified.
+
+## 2026-11-07 18:39:36 UTC — global count minimality does not restore local replay
+
+Verdict: refuted for the actual typed consumption-continuation class, including
+minimum count over all body endpoints and finite stages. The registered
+projection-root counterexample now carries a PiInertTypedContinuationMinimum
+of total cost one. More strongly, every competitor satisfying its concrete
+consumption continuation has positive body cost even when its suffix budget
+is unrestricted. Otherwise its beta-only body would substitute and compose
+with the actual suffix into the previously forbidden image computation.
+
+The enclosing lambda application is actually typed and has a counted path of
+cost one to the long image, again globally minimal over all finite stages.
+Any zero-cost path can be decomposed at its first head beta; beta transport of
+the changed body and argument would give the forbidden short-image path.
+Thus contracting beta first destroys reachability of the selected output,
+although doing the guarded root in the body first attains that output with
+minimum count. This concerns the directed erased computation languages;
+it is not a counterexample to ordinary equality or strengthening.
+
+This rules out repairing blanket replay merely by imposing count minimality
+and actual typed single-consumption frames. It does not refute the stronger
+minimum with the particular type-projection observer and original selected-field
+ancestry. Those extra conditions must do substantive work: track the original
+field through the constructor's first-parameter versus value-parameter eta
+cases, rather than trying another unrestricted minimum replay lemma.
+Validation: 1305 jobs, 6 recursive audit roots, maximum closure
+11,978; standard axioms only; 1,280 frozen source hashes verified.

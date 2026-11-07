@@ -40885,3 +40885,69 @@ Validation: stock Lean v4.33.0-rc2; Lean/Lake exclusively in
 Quot.sound, no sorryAx or forbidden strengthening/circular-frontier dependencies.
 All 1,278 frozen source hashes verified before/after. Artifacts:
 /dev/shm/pi-inert-projection-replay-boundary-*.
+
+## 2026-11-07 18:39:36 UTC — replay failure survives globally minimal typed consumption
+
+Previous goal turn classified as progress: 60640659 proved the registered
+projection-root ordinary-substitution failure and installed its actual box.
+Revalidated the clean commit, then tested whether global primitive-count
+minimality could exclude that failure before pursuing further replay laws.
+
+Added ProofErasurePiInertReplayMinimum.lean.
+pi_inert_nonreplay_typed_continuation_minimum takes a typed body source, one
+Pi-inert root, an ordinary interpreted one-binder map, and nonreachability of
+the instantiated target from the instantiated source at every finite stage.
+It constructs the actual typed application frame with no pending arguments,
+a zero-cost suffix and the terminal long image. This yields
+PiInertTypedContinuationMinimum with total count one. Its competitor minimum
+ranges over all endpoints, stages and raw continuation witnesses, not only
+chosen typed runs. The theorem also proves the stronger property that every
+successful competitor has body count at least one, irrespective of suffix
+cost. If body count were zero, zero_beta and raw beta substitution would
+compose with that competitor's suffix and contradict nonreachability.
+
+pi_inert_nonreplay_lambda_application_minimum constructs the explicit counted
+path: apply the root under the original lambda, then contract beta. The count
+is one. If the target image is not a lambda-headed application, every path from
+that lambda application to the same image at any finite stage costs at least
+one. The proof decomposes an assumed beta-only competitor at its first head
+beta. Lambda-body beta and argument beta substitute compatibly, producing the
+forbidden path from the original short instantiated body. No primitive
+substitution closure, beta confluence, normalization, or native image premise
+is used in this minimum argument.
+
+Strengthened pi_inert_projection_structure_substitution_failure in
+ProofErasurePiInertProjectionReplayBoundary.lean. Its existing concrete context,
+box image, stage-one structure root and all-descending-languages nonreachability
+now also supply the typed continuation minimum and the enclosing lambda
+application's cost-one path and global minimum. The application has an explicit
+actual typing: its lambda projects the fresh Box (Tag q) variable, and its
+argument is the box written at Tag p but assigned Box (Tag q) by unit equality.
+The exact lambda/application erasure is proved, so TypedSource for the entire
+application is included rather than inferred from arbitrary raw frame data.
+
+Strengthened exists_registered_pi_inert_projection_replay_failure to retain
+these witnesses in the actual well-formed environment extension with canonical
+Eq and EnvironmentCore.definitions. The prior counted failure and the stronger
+no-replay result for every descending language are unchanged. The global minima
+therefore do not depend on unregistered metadata, untyped outer applications,
+a fixed competitor endpoint, or a fixed competitor stage.
+
+Outcome: count minimality together with an actual typed consumption frame is
+insufficient to repair blanket guarded replay. Beta-first execution can lose
+the selected output even though body-first execution is globally minimal.
+This does not yet instantiate the specific type-projection continuation and
+original selected-field ancestry from the main pair-readout problem. The next
+useful step is to exploit those additional constraints, distinguishing the
+constructor's first type argument from its value argument. General positive-
+stage pair selection, retained-frame ancestry and weakN_iff remain open.
+No proof, canonical-Eq strengthening counterexample, or sufficient strictly
+smaller global frontier has been established. Goal active; PR extraction
+deferred; executable and UniqueTyping.lean unchanged.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1305 jobs; recursive audit
+6 roots, maximum closure 11,978; only propext/Classical.choice/
+Quot.sound, no sorryAx or forbidden strengthening/circular-frontier dependencies.
+All 1,280 frozen source hashes verified before/after. Artifacts:
+/dev/shm/pi-inert-replay-minimum-*.
