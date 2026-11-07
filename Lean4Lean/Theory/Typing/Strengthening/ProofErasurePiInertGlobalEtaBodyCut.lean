@@ -21,6 +21,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedTelescopeSupp
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqInterleavedSupplyHistory
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqSaturatedEmptySupplyHistory
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqReturningSupplyHistory
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRecognizedSupplyReturn
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqConsumedArgument
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameFrontier
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertMinimalEtaBodyCut
@@ -63,7 +64,15 @@ annotations receive reflexive paths at their computed values; no native guard
 path is substituted. The rebuilt wrapper includes the actual waiting arguments
 and rejoins the older history, while the same concrete context carries the
 chosen prefix, exact upper extras and decreased selected minimum. Full nested
-descent/return closure and the depth-zero restoration case remain open.
+descent/return closure remains open.
+
+`recognized_body_return_minimum` covers the return without surviving inner
+wrappers once the body endpoint has been recognized as a typed nonproof chosen
+spine in the original fresh scope. It accepts arbitrary native body computation,
+recovers source equality by certificate descent and erasure reflection, restores
+the whole supplied spine and derives a strict smaller suffix minimum. Producing
+the recognized endpoint with the original pending images through all nested
+cuts remains open; the new theorem does not establish recursive closure.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation

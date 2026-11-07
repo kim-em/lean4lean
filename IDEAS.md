@@ -20577,3 +20577,36 @@ remain open; no sufficient smaller PropFront obligation is claimed.
 Validation: 1078 build jobs, 194 recursively audited roots, maximum closure
 11,976; only the three permitted Lean axioms. All 1,053 source hashes stayed
 fixed. Stock Lean/Lake ran only in scratch. No executable changes or PR extraction.
+
+
+## 2026-11-07 00:11:47 UTC — Restore a supplied spine after arbitrary recognized body computation
+
+**Idea:** The source equality needed when returning without surviving inner
+wrappers need not come from component-only computation. Realize the whole
+native body path through its insertion chain, cancel the chain on erased syntax,
+and use nonproof erasure reflection against the recognized typed endpoint.
+
+**Verdict:** Implemented and checked. `compute_recognized_endpoint` recovers
+source equality at the original source type even if the recognized endpoint
+was initially typed at a different type. `recognized_body_spine_return` then
+instantiates the exact computed argument and restores the waiting arguments,
+chosen pending vector, source type, nonproof status and literal raw extras.
+`recognized_body_return_minimum` uses the actual counted body path and the
+unrestricted application minimum to derive a strictly smaller whole-spine
+minimum. Native stage certificate descent follows from canonical Eq and sound
+rules; no separate descent assumption is added to that minimum theorem.
+
+This removes the component-only body-path restriction from this return case.
+It does not manufacture the recognized endpoint, its chosen assignment, or its
+pending-image agreement. The existing `component_frontier` cannot simply fill
+that premise: its recursive cut descent can change the lower source context and
+assignment, and its component endpoint is not asserted to be the endpoint of
+the original body's path in its original fresh scope. The next task is a
+recursive return invariant that preserves that connection through the actual
+supplied/retained histories. No sufficient smaller PropFront obligation is
+claimed; weakN_iff and GOAL.md remain open.
+
+Validation: 1079 build jobs, 198 recursively audited roots, maximum closure
+11,976; only propext, Classical.choice and Quot.sound. All 1,054 import
+source hashes stayed fixed. Lean/Lake ran only in the scratch worktree. No
+executable changes or PR extraction.

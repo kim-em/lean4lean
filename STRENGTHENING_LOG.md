@@ -35873,3 +35873,61 @@ excluded circular framework. All 1,053 source hashes stayed fixed. The
 chosen-chain original-probe root still excludes older nested-eta, frame-boundary
 and supply-boundary probe roots. Stock Lean/Lake ran only in scratch. No
 executable change or PR extraction.
+
+
+## 2026-11-07 00:11:47 UTC — Full-path recognized-body return without a surviving inner wrapper
+
+Added `ProofErasureEqRecognizedSupplyReturn.lean` and imported it from the
+global eta body-cut module. This implements the previously recorded candidate
+using whole-path certificate realization and the existing nonproof mode of
+`proofErase_reflect`.
+
+`EqInsertionPath.erased_injective` proves injectivity by induction over the
+ordered insertion blocks. `EqFrameInsertionChain.compute_recognized_endpoint`
+realizes an arbitrary native computation from an inserted lower source to an
+inserted recognized lower endpoint. It cancels the insertion path on their
+erasures, reflects from the typed nonproof recognized endpoint, and composes
+the resulting equality with the certificate realization. The endpoint's initial
+type need not equal the original type: the result is typed at the source type.
+The helper assumes primitive certificate descent, as does the existing
+whole-path realization theorem; it uses no strengthening.
+
+`EqPrefixSpecializationAt.recognized_body_spine_return` accepts a recognized
+chosen endpoint in the original fresh context, under the original chosen
+substitution extended by the omitted argument's image. Its pending vector is
+exactly the computed waiting supply's original image vector followed by the
+old external pending vector. The whole fresh body path may contain non-level
+cuts. Reflection supplies the source equality previously obtained only from
+component computation. Instantiating the recorded computed argument then
+recovers the consumed head equality, while the waiting arguments' source
+equalities and chosen-image agreements restore the whole prefix independently.
+The theorem returns the original source type, nonproof status, pending vector,
+exact raw extras and specialization through the original outgoing frame.
+
+`recognized_body_return_minimum` connects that return to an actual counted
+native body path, actual post-beta suffix and outer continuation. It obtains
+certificate descent from canonical Eq and sound definitions. Prefixing each
+competing suffix with the recorded body path derives the suffix minimum from
+the original unrestricted application predicate. The result is a whole-spine
+chosen-chain minimum with cost cs+ck, strictly below the parent eta budget.
+The original lower and upper contexts, insertion chain and chosen assignment
+are restored, allowing an enclosing history at that scope to remain applicable.
+
+Remaining gap: the full recursive algorithm must produce this recognized
+endpoint in the original fresh scope, together with the original chosen-image
+and pending-vector invariant. `component_frontier` is not such an algorithm:
+its smaller-cut branch may descend into another context, and its existential
+component frontier does not provide a return path to the original body endpoint.
+The positive-depth rebuilt-history return and this no-wrapper return are local
+rules for a still-unproved recursive invariant. This commit does not prove
+strengthening, a counterexample, or a sufficient smaller PropFront obligation.
+The original weakN_iff sorry remains unchanged and GOAL.md remains active.
+
+Validation: 1079 successful build jobs, including the global module and
+established regression targets; 198 roots recursively audited through
+types, values, constructors and recursors, maximum closure 11,976.
+Only propext, Classical.choice and Quot.sound occur. No owned diagnostics,
+sorryAx, strengthening dependency or excluded circular framework; the original
+chosen-chain probe still excludes older nested-eta/frame/supply probe roots.
+All 1,054 import source hashes stayed fixed. Stock Lean/Lake ran only in scratch.
+No executable changes or PR extraction.
