@@ -24620,3 +24620,28 @@ path or of field readout. Original-field ancestry, further retained frames and
 the guarded-root case remain open; no sufficient smaller strengthening
 frontier is claimed. Validation: 1270 jobs, 9 audit roots, maximum
 closure 11,978; standard axioms only; 1,245 frozen sources verified.
+
+## 2026-11-07 18:15:00 UTC — recover the closed structure guard from the constructor image
+
+Verdict: proved for constructor images at closed parameterless families;
+parameterized header equality and neutral images remain separate issues.
+A saturated constructor recovers its own literal family without native field
+certificates. Exact agreement of its retained parameter header with the
+substituted selected header therefore replays the full masked expansion at
+stage one with one primitive. At an actual closed family assignment, ordinary
+head inversion fixes the guard's family, empty universe instance and empty
+parameters. Actual image typing identifies any registered constructor head,
+derives saturation and its universe instance, and supplies the native guard.
+Thus every closed-family structure root already headed by a registered
+constructor transports under ordinary ContextSubstitution, with no native
+image premise and no increase in primitive count. A failed closed-family
+structure root cannot have any registered constructor head in its image.
+
+The old retained-parameter no-exact-pivot example does not by itself refute
+Pi-inert root transport: a literal variable root is excluded by PrimitiveHead.
+No impossibility claim for the current ambient language was inferred from an
+older restricted language. General guarded tail replay, original selected-field
+ancestry, and retained continuation frames remain open. This is a discharged
+root case, not a sufficient smaller global frontier or a strengthening proof.
+Validation: 1271 integration jobs, 8 recursive audit roots, maximum
+closure 11,978; standard axioms only, 1,246 frozen sources verified.

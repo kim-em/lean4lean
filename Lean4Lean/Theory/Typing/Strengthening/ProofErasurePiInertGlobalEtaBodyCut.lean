@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertConstructorReplay
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertStructureReplayCut
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertSpineTypeExposure
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertTerminalDepth

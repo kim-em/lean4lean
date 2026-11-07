@@ -40758,3 +40758,62 @@ Validation: stock Lean v4.33.0-rc2, Lean/Lake exclusively in
 Quot.sound, no sorryAx or forbidden strengthening/circular-frontier dependencies.
 All 1,245 frozen source hashes verified before/after. Artifacts:
 /dev/shm/pi-inert-replay-failure-*. Executable and UniqueTyping.lean unchanged.
+
+## 2026-11-07 18:15:00 UTC — closed constructor structure roots replay without native images
+
+The preceding clarification exchange made no research progress. Revalidated
+clean f72191572bdec2235596b6068e3d669ef8116182 and GOAL.md, then resumed the
+classified guarded-root investigation. No PR extraction was performed.
+
+Added ProofErasurePiInertConstructorReplay.lean and its aggregator import.
+TypedSource.structure_constructor_native reconstructs a saturated constructor's
+literal family and parameters in an arbitrary recovery language. It requires
+no recovery of any field and no prior recovery of the whole constructor.
+pi_inert_structure_constructor_image_replay uses that guard at stage zero to
+replay an expansion at PiInertStage 1 with exactly one primitive, whenever
+the constructor image's literal parameter header equals the substituted
+selected header. That equality is explicit syntactic evidence; it is not
+inferred from equality of parameterized family assignments.
+
+proofErase_closed_constructor_shape derives saturation and the empty universe
+instance from actual typing at a closed parameterless family. It uses ordinary
+registered-constructor family inversion and type uniqueness. The caller need
+not assume either saturation or the constructor's universe instance.
+pi_inert_closed_structure_constructor_image_replay first aligns the original
+native structure guard with the actual closed family. Ordinary interpreted
+substitution then realizes the image at the same family. Constructor typing
+supplies the shape facts and its own native guard; the whole expansion replays
+in exactly one primitive at stage one, independently of the source guard's
+stage and of all field native recovery.
+
+pi_inert_closed_structure_registered_image_replay further admits any registered
+constructor head in the image: actual typing identifies its registered family
+with the selected family. pi_inert_closed_structure_constructor_substitution
+applies this when the original source already has a registered constructor
+head, which raw substitution preserves. Finally,
+pi_inert_closed_structure_replay_failure_not_constructor excludes every
+registered constructor head from the image of a failed closed-family
+structure root. Its failed-root premise is precisely the local all-stages,
+at-most-one-primitive replay exclusion extracted by the previous turn.
+It does not assert that compatible failure elsewhere in the same path is
+impossible or that arbitrary whole-tail substitution is now available.
+
+Investigated the existing retained-parameter no-exact-pivot example as a
+potential negative test. It is not by itself a Pi-inert primitive counterexample:
+a literal variable root is excluded by PrimitiveHead. No stronger counterexample
+was established. The positive constructor result instead removes that concrete
+root case, without inferring general recovery from ordinary semantic typing.
+
+Remaining: neutral structure images, parameterized selected-header transport,
+the other guarded root classes, original selected-field ancestry and retained
+continuation frames. General positive-stage pair selection and weakN_iff remain
+open. No sufficient irreducible obligation strictly smaller than PropFront has
+been established. Goal active; PR extraction deferred; executable and
+UniqueTyping.lean unchanged.
+
+Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1271 jobs; recursive audit
+8 roots, maximum closure 11,978; only propext/Classical.choice/
+Quot.sound, no sorryAx or forbidden strengthening/circular-frontier dependencies.
+All 1,246 frozen source hashes verified before/after. Artifacts:
+/dev/shm/pi-inert-constructor-replay-*.
