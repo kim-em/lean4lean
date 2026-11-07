@@ -39004,3 +39004,67 @@ Quot.sound. All 1,169 frozen sources and owned diagnostics checked; artifacts
 under /dev/shm/conversion-coverage-front-*. All Lean/Lake commands used stock
 v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
 UniqueTyping.lean unchanged; GOAL.md remains active.
+
+
+## 2026-11-07 12:40:59 UTC — Per-substitution stages bridge paired indices to Eq consumers
+
+The paired-interpreter run method returns existential finite world histories
+after each typed substitution. PiInertEvidence fixes the stage before its full
+typed-substitution quantifier. The latter is a valid sufficient premise in the
+older consumers, but was not automatically supplied by the former. The new
+module preserves the weaker available quantifier order throughout the bridge.
+
+PiInertFiniteHistory and PiInertFiniteComputation quantify over typed
+substitutions first. Their resulting WorldHistory/WorldComputation still uses
+one fixed stage for all core-world futures of that instance. This retains the
+variable-only future discipline and ordinary-core output tail; it does not
+assert arbitrary substitution of a selected world certificate.
+
+PairInterpretation.finite_history consumes explicit diagonal image realizations.
+The empty-requirement variant constructs them, and allows arbitrary recursive
+source profiles before ground extraction. FiniteHistory.refl separately works
+for any typed open term under the same substitution on both endpoints, with
+no paired environment assumptions. This distinction matters for open terms
+whose two unrelated substitution images cannot be compared unconditionally.
+
+WorldHistory.eq_rec_consumer uses the existing local arbitrary-consumer proof
+at the selected stage plus one. In future core worlds it reconstructs actual
+typing and erasures, then applies the local proof to the moved index history.
+FiniteHistory.eq_rec_consumer performs that reconstruction once per arbitrary
+typed substitution and selects its finite stage there. actual_defeq obtains
+the original minor's actual typing; no semantic future evidence is inferred
+from the reflected equality. type_probe specializes the consumer to bvar 0.
+
+Finite histories support substitution, independent endpoint computation
+prefixes and carrier prefixes. Finite computations support substitution and
+sequential composition. Maxima are chosen after each typed substitution,
+where only finitely many stages are involved. None of these constructions
+adds general transitivity of endpoint comparisons.
+
+CarrierTransport.finite_unit_aliases constructs a world history for each
+target carrier using its own finite computation to the unit family. Endpoint
+shapes and incoming histories remain unrestricted. TreeSupply.finite_call
+and TreeTransport.finite_target_call_prefix retain complete recursive call
+interfaces with this same weaker computation premise.
+
+FiniteHistory.unit_probe_transport connects the probe consumer to the unit
+carrier certificate. PairInterpretation.unit_probe_from_indices then starts
+with the interpreted proposition comparison, derives its finite diagonal
+histories, constructs the probe transport, and converts the independently
+constructed native unit interpreter. The actual target assignments follow
+from reflected index equality. No uniform index stage, target history, or
+semantic probe exposure is assumed.
+
+The result removes a mismatch in the proposed induction interface, not the
+hard coverage obligation. Producing finite histories from all original strong
+comparisons, satisfying nonempty recursive diagonal image requirements and
+closing term transitivity remain open. The previous single-rule conversion
+lower bound is unchanged. No strengthening proof, counterexample or strictly
+smaller sufficient obligation is claimed; weakN_iff is unchanged.
+
+Integration passed 1195 jobs. Recursive audit covered 22 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. All 1,170 frozen sources and owned diagnostics checked; artifacts
+under /dev/shm/finite-index-evidence-*. All Lean/Lake commands used stock
+v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
+UniqueTyping.lean unchanged; PR extraction remains deferred and GOAL.md active.

@@ -23284,3 +23284,58 @@ recursive dependency closure 12,966; only propext, Classical.choice and
 Quot.sound. All 1,169 frozen sources and owned diagnostics checked. Stock
 v4.33.0-rc2 Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work.
 Executable and UniqueTyping.lean unchanged; GOAL.md remains active.
+
+
+## 2026-11-07 12:40:59 UTC — Consume index interpreters without a uniform substitution stage
+
+Idea: inspect the actual evidence available from paired interpretation before
+trying to recover an Eq-index certificate from ordinary equality. Its run
+method produces a finite world history for each substituted instance. The
+existing Eq-consumer input PiInertEvidence instead fixes one stage before
+quantifying over every typed substitution. No theorem supplied that stronger
+uniform bound. Preserve the interpreter's quantifier order and adapt the
+consumer to it.
+
+Implemented ProofErasurePiInertFiniteIndexEvidence.lean. FiniteHistory and
+FiniteComputation choose a stage after each typed substitution, retaining that
+stage throughout the chosen instance's core-world futures. Paired interpretation
+constructs diagonal finite history when its diagonal image requirements are
+provided; empty requirements construct those environments outright. Arbitrary
+recursive image requirements are not silently discarded. Independently, typed
+open terms construct reflexive finite history with no paired image hypotheses.
+
+WorldHistory.eq_rec_consumer adapts arbitrary typed Eq consumers to core-world
+futures at the selected stage plus one. FiniteHistory.eq_rec_consumer invokes
+that construction independently after each typed substitution. Actual equality
+reflection supplies required minor typing only; it does not promote histories
+to arbitrary-substitution evidence at a uniform stage. The existing opaque
+consumer argument handles beta duplication and dependent motives unchanged.
+
+Finite histories substitute and survive independently retained endpoint and
+carrier computations. Finite computations compose by taking a maximum only
+after the substitution is fixed. No transitivity rule for term histories is
+introduced. Type probes are identity-consumer instances of the general result.
+
+The resulting finite probe computations construct complete unit-alias carrier
+transport, recursive call supply and target-alias call conversion. These
+consumers only need a finite stage per substituted instance. Finally,
+unit_probe_from_indices constructs the entire converted unit paired interpreter
+from an interpreted proposition-index child, replacing the earlier extra
+uniform PiInertEvidence premise. Arbitrary source index profiles are allowed;
+empty image requirements are explicit in this convenience theorem.
+
+Verdict: the intended index interpreter now feeds the actual Eq-consumer and
+conversion machinery without an unjustified quantifier exchange. This closes
+an evidence-interface gap, not the original strengthening problem. General
+index-interpreter construction, diagonal realizations of nonempty recursive
+image requirements and comparison transitivity remain open. The previous
+coverage lower bound still applies. Future work must prove the necessary
+finite histories from original derivations while retaining their relevant
+children, rather than demand a stronger uniform stage without justification.
+No goal-completion or strict-smallness claim is made; PR extraction is deferred.
+
+Validation: 1195 integration jobs; 22 public/probe roots; maximum
+recursive dependency closure 11,976; only propext, Classical.choice and
+Quot.sound. All 1,170 frozen sources and owned diagnostics checked. Stock
+v4.33.0-rc2 Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work.
+Executable and UniqueTyping.lean unchanged; GOAL.md remains active.
