@@ -24881,3 +24881,45 @@ Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work;
 only propext/Classical.choice/Quot.sound, no forbidden dependencies. All 1,285
 frozen local source hashes checked before/after. Artifacts:
 /dev/shm/pi-inert-retained-projection-relay-*.
+
+
+## 2026-11-07 19:48:52 UTC — Carry surviving administrative deletions into field readout
+
+**Idea.** The preceding relay excluded lambda-headed field endpoints. Existing
+projection factorization already records their surviving constant/identity
+wrappers as AdministrativeHeadDeletion traces. Carry that trace through raw
+endpoint substitution, then simulate the hypothetical later selected-field
+readout; it is unnecessary to eliminate the wrappers before the endpoint map.
+
+**Checked verdict.** Finite administrative deletion traces preserve raw
+substitution and simulate actual typed Pi-inert computations at the same stage
+and scope with nonincreasing primitive count. Intermediate lower sources obtain
+typing from the trace's finite beta path. At a non-lambda final output, all
+remaining deletions are consumed and the output is exact.
+
+The existing projection factorization now has a counted terminal form modulo
+these traces. Combining it with later field-readout simulation removes ALL
+field-endpoint shape restrictions from the smaller pair-budget-failure relay.
+Only the final observed output is required to be non-lambda-headed. Native
+structure recovery supplies the field's original projection and typing, and
+actual image-pair typing supplies the selected image field's typing. No guarded
+computation or native certificate is substituted.
+
+The new whole-tail theorem derives the component/non-level-root split from the
+actual post-structure computation. A component tail gives the smaller readout
+failure without any endpoint-shape condition. A later constructor root retains
+its counted components, prefix, root, complete suffix, and a strictly smaller
+typed projection-continuation minimum at its target.
+
+**Remaining gap.** Later constructor roots and additional consuming/retained
+binder frames still require readout. The decreasing root alternative does not
+itself preserve a sufficient original-field invariant to finish global
+induction. Strengthening remains open; no canonical-Eq counterexample or
+sufficient irreducible global obligation smaller than PropFront is claimed.
+PR extraction deferred; goal active.
+
+Validation: stock Lean v4.33.0-rc2 in /dev/shm/native-level-coherence-work;
+1311 integration jobs, 8 audited roots, maximum closure 11,981;
+only propext/Classical.choice/Quot.sound, no forbidden dependencies. All 1,286
+frozen source hashes checked before/after. Artifacts:
+/dev/shm/pi-inert-administrative-projection-relay-*.

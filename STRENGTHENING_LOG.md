@@ -41290,3 +41290,68 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,285 frozen local source hashes verified
 before and after. Artifacts: /dev/shm/pi-inert-retained-projection-relay-*.
+
+
+## 2026-11-07 19:48:52 UTC — Remove lambda endpoint restriction from structure-field relay
+
+The previous goal turn made checked progress in 3617c71f. This turn revalidated
+the clean worktree and inspected the wrapper eliminators and projection-frame
+factorization. AdministrativeHeadDeletion and its uncounted terminal projection
+factorization already existed; the missing connection was counted simulation
+of those endpoint deletion traces after substitution.
+
+Added ProofErasurePiInertAdministrativeProjectionRelay.lean.
+AdministrativeHeadDeletion.subst combines the existing raw substitution laws
+for constant and identity deletion. compute inducts over the finite deletion
+trace, uses each existing counted simulator, and obtains intermediate lower
+source typing by the trace's finite beta reduction. It returns a same-stage,
+same-scope computation of no greater count together with the remaining output
+deletion trace. readout consumes that trace at a non-lambda final output, keeping
+the output exact. These are local simulations, not arbitrary beta normalization
+or guarded-substitution replay.
+
+pi_inert_sorted_projection_terminal_frames_count upgrades the existing counted
+keep/selection factorization modulo administrative deletions. Moving a selected
+field's tail into the corresponding constructor argument preserves its exact
+count. Thus every sorted projection endpoint has a computed major and zero/one
+terminal projection action within budget, with a deletion trace from the actual
+endpoint to the terminal result; the endpoint can retain lambda wrappers.
+
+pi_inert_projection_frames_smaller_failure uses the same globally minimum
+body/application/projection execution as the preceding relay. Actual saturated
+pair typing forces pending arguments to be empty and types the substituted
+first field. Assuming a selected-field readout within the later projection
+budget, the substituted deletion trace simulates that actual path without
+increasing count. The original-scope major path plus its substituted ordinary
+terminal projection then violates the global minimum. Consequently the later
+pair has a strictly smaller projection budget failure. No field-endpoint shape
+premise remains: only the final observed output must be non-lambda-headed.
+
+pi_inert_native_structure_components_frames_smaller_failure connects this
+reduction to actual native structure recovery and a counted constructor-component
+tail. pi_inert_native_structure_tail_smaller_failure_or_root removes the caller's
+component-only premise. It decomposes the actual full post-structure path. In
+the component case, the new unrestricted-endpoint relay applies. Otherwise,
+the first non-level constructor root retains the initial projected-field vector,
+counted component prefix, actual root and suffix. Prefixing competitors by both
+the initial structure root and this later root yields a strictly smaller typed
+projection-continuation minimum at the later root's target. Its endpoint map is
+an actual identity/one-binder consumption frame; the observer path retains its
+source typing. The global Eq-exposure integration module imports these results.
+
+Judgment: lambda-headed type-field endpoints are no longer a gap in the local
+structure/component relay. Surviving administrative wrappers are handled by
+existing computation simulation in the later scope, without replaying earlier
+guards. Later constructor roots and additional binder frames remain unresolved;
+a smaller arbitrary root-target minimum is not by itself a sufficient field
+invariant for global induction. The original weakN_iff sorry and executable
+remain unchanged. No strengthening proof, canonical-Eq counterexample, or new
+sufficient irreducible obligation strictly smaller than PropFront is established.
+Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2, with all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1311 jobs; recursive audit
+8 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,286 frozen source hashes verified before
+and after. Artifacts: /dev/shm/pi-inert-administrative-projection-relay-*.
