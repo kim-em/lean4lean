@@ -42592,3 +42592,62 @@ Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,324 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-activated-pair-progress-*.
+
+
+## 2026-11-07 23:24:08 UTC — Cost/frame induction removes activated supplied-prefix function eta
+
+The outstanding development build was terminal and successful when checked.
+Extended its one-step result with a complete induction and the actual global
+cut connection. No PR was extracted.
+
+ProofErasurePiInertActivatedPairRoot.root_or_progress now records that the
+remaining primitive cost is nonincreasing in both the selected-root and
+component-progress branches. The public native_root result is unchanged.
+This extra bound is needed to combine its frame/application induction with a
+strict primitive-cost decrease at eta.
+
+New module ProofErasurePiInertActivatedEtaElimination:
+
+- CountedEtaFrameOrigin.projection_frame_minimum preserves the actual final
+  observer at arbitrary current context. Both retained and consumed branches
+  produce a strictly smaller minimum at the eta body and add exactly one frame.
+- PiInertActivatedPairBoundaryMinimum retains a selected actual native path,
+  actual continuation, all-stage/raw competitor minimum, and optional actual
+  application witness. Its function branch requires an empty constructor
+  prefix; its structure branch requires no pending arguments.
+- PiInertActivatedPairRootMinimum.supplied_eta_progress analyzes the two-field
+  prefix. Empty-prefix function eta is a remaining boundary. A one-field
+  prefix opens to another activated full pair, with the SAME lower field
+  lifted through the added binder, and strictly lower primitive cost. Function
+  eta at the saturated pair is excluded by closed-constructor typing. The
+  structure branch is saturated by typed structure-eta pending elimination.
+- PiInertActivatedPairMinimum.function_eta_eliminate uses strong induction on
+  primitive cost, then on 2*frames + (if application then 0 else 1). Native
+  supplied-prefix eta strictly lowers the first measure; component transitions
+  either lower cost or preserve it and lower the second measure. Original
+  field history, its independent typing, and the joint strict failure budget
+  persist throughout. No normalization or termination of arbitrary paths is
+  assumed.
+- CountedEtaBodySpineCut.empty_pair_prefix_weighted_eta_boundary connects this
+  induction to the existing pre-supply fresh-pair function elimination. The
+  actual global cut reaches an activated empty-prefix function/structure
+  boundary or the existing pre-supply fresh structure boundary. Both retain
+  the original field charge plus remaining minimum below the original budget.
+
+Judgment: repeated activated function eta after the first field is no longer
+open. The earlier broad suggestion that activated function eta requires an
+intermediate supplying frame was too broad: only empty-prefix function eta
+requires that extension. Existing FreshFieldRun fixes supply base and final
+observer to the same context; inspection confirms the mismatch for this
+remaining case. Structure eta still introduces a projected first field, whose
+readout across the continuation remains unproved. These are necessary
+residuals of a hypothetical failure, not a sufficient global replacement for
+PropFront. Original weakN_iff sorry and executable unchanged. Goal active;
+PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1350 jobs; recursive audit
+13 public roots, maximum closure 12,158; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,325 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-activated-eta-elimination-*.

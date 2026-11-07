@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertActivatedEtaElimination
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertActivatedPairRoot
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertFreshPairCutElimination
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertRetainedConstructorProgress

@@ -82,11 +82,11 @@ theorem PiInertActivatedPairMinimum.root_or_progress
     (H : PiInertActivatedPairMinimum D Ω family info out field controls value cost frames application)
     (hbudget : charge+cost < budget) :
     (∃ short slot later charge' smaller, TypedSource Ω short ∧
-      ScopedComputeCount (PiInertStage D later) charge' Ω original short ∧ charge'+smaller < budget ∧
+      ScopedComputeCount (PiInertStage D later) charge' Ω original short ∧ charge'+smaller < budget ∧ smaller ≤ cost ∧
       PiInertActivatedPairRootMinimum D Ω family info out short controls slot smaller frames application) ∨
     (∃ short nextControls slot later charge' smaller nextFrames nextApplication,
       TypedSource Ω short ∧ ScopedComputeCount (PiInertStage D later) charge' Ω original short ∧
-      charge'+smaller < budget ∧
+      charge'+smaller < budget ∧ smaller ≤ cost ∧
       2*nextFrames + (if nextApplication then 0 else 1) < 2*frames + (if application then 0 else 1) ∧
       PiInertActivatedPairMinimum D Ω family info out short nextControls slot smaller nextFrames nextApplication) := by
   obtain ⟨K, n, cb, ck, endpoint, HT, RB, HK, hc, HM, HApp⟩ := H
@@ -105,7 +105,7 @@ theorem PiInertActivatedPairMinimum.root_or_progress
       obtain ⟨nextControls, nextValue, smaller, nextFrames, hlen, hsmall, hframes, HNext⟩ :=
         (HApp rfl).activated_pair_next_minimum heq hs hi hp hf hz RB (by simpa only [hc] using HM)
       exact .inr ⟨short, nextControls, nextValue, _, charge+cf, smaller, nextFrames, false,
-        HTshort, RShort, by omega, by simp only [Bool.false_eq_true, ↓reduceIte]; omega, .of_frame HNext⟩
+        HTshort, RShort, by omega, by omega, by simp only [Bool.false_eq_true, ↓reduceIte]; omega, .of_frame HNext⟩
     | false =>
       rcases HK.activated_pair_next_minimum heq hs hi hu hp hf hz hshape hout hproj RB
         (by simpa only [hc] using HM) with
@@ -119,9 +119,9 @@ theorem PiInertActivatedPairMinimum.root_or_progress
           (RJ.mono (pi_inert_stage_mono (Nat.le_max_right (max fieldStage n) last)))
         exact (HFail.2.2 _ _ (by omega) RAll).elim
       · exact .inr ⟨short, nextControls, nextValue, _, charge+cf, smaller, nextFrames, false,
-          HTshort, RShort, by omega, by simp only [Bool.false_eq_true, ↓reduceIte]; omega, .of_frame HNext⟩
+          HTshort, RShort, by omega, by omega, by simp only [Bool.false_eq_true, ↓reduceIte]; omega, .of_frame HNext⟩
       · exact .inr ⟨short, nextControls, slot, _, charge+cf, smaller, frames, true,
-          HTshort, RShort, by omega, by simp, .of_application HNext⟩
+          HTshort, RShort, by omega, by omega, by simp, .of_application HNext⟩
   · cases HL
     obtain ⟨short, slot, cf, cv, hsplit, HTshort, RS, EArgs⟩ :=
       pi_inert_activated_pair_component_descent heq hs HTfield HT HA
@@ -132,7 +132,7 @@ theorem PiInertActivatedPairMinimum.root_or_progress
       hD HT RP HR HN RT HSorted hout hproj (cost := cost) (by omega) HM
     have HTroot := HT.pi_inert_compute heq hs RP.forget
     rw [EArgs] at HTroot
-    refine .inl ⟨short, slot, _, charge+cf, 1+ct+ck, HTshort, RShort, by omega,
+    refine .inl ⟨short, slot, _, charge+cf, 1+ct+ck, HTshort, RShort, by omega, by omega,
       n, pre, pending, target, endpoint, ct, ck, K, EArgs, HTroot, HR, HRoot, RT, HK, rfl, ?_, HApp⟩
     intro later j tail k RJ RK
     have RJ' : ScopedComputeCount (PiInertStage D later) j (controls ++ Ω)
@@ -171,9 +171,9 @@ theorem PiInertActivatedPairMinimum.native_root
   induction rank using Nat.strongRecOn generalizing field controls value cost frames application fieldStage charge with
   | ind rank ih =>
     rcases H.root_or_progress HFail HLeast heq hs hi hu hp hf hz hshape hD hout hproj HTfield RField hbudget with
-      ⟨short, slot, later, charge', smaller, HTshort, RShort, hsmall, HRoot⟩ |
+      ⟨short, slot, later, charge', smaller, HTshort, RShort, hsmall, hcost, HRoot⟩ |
       ⟨short, nextControls, slot, later, charge', smaller, nextFrames, nextApplication,
-        HTshort, RShort, hsmall, hnext, HNext⟩
+        HTshort, RShort, hsmall, hcost, hnext, HNext⟩
     · exact ⟨short, controls, slot, later, charge', smaller, frames, application, HTshort, RShort, hsmall, HRoot⟩
     · exact ih _ (by omega) HTshort RShort HNext hsmall rfl
 

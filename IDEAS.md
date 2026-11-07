@@ -25638,3 +25638,31 @@ No proof of weakN_iff, canonical-Eq counterexample, or sufficient smaller global
 obligation established. Goal active; PR extraction deferred. Validation:
 1349 jobs, 12 public roots, maximum closure 12,143,
 1,324 frozen source hashes; stock Lean in /dev/shm.
+
+
+## 2026-11-07 23:24:08 UTC — Eliminate supplied-prefix eta after activation
+
+Idea: distinguish empty-prefix function eta from function eta after the first
+field of an activated full pair. The latter opens a value binder, so its body
+is again a full pair with the SAME lower-scope first field lifted through one
+more binder. Verdict: checked. An actual counted eta origin supplies a smaller
+ordinary projection minimum with one additional frame; this works with the
+final observer independent of the current context. Thus this case needs no
+new distinguished-supply datatype. Full-prefix function eta is impossible by
+closed pair typing. Structure eta is saturated.
+
+Combined strict primitive-cost decrease at supplied-prefix eta with the
+existing frame/application rank for component transitions. The resulting
+induction preserves the accumulated original-field history and its joint
+strict failure budget. Connected it to the actual global empty-prefix cut,
+whose activated outcome now selects only empty-prefix function eta or full
+structure eta; the pre-supply fresh structure alternative remains.
+
+Remaining: empty-prefix eta at an intermediate context above the final
+observer, and structure-target first-field readout in both phases. Only the
+empty-prefix function case still needs the proposed intermediate supplying
+frame generalization (or another proved construction). No proof of weakN_iff,
+canonical-Eq counterexample, or sufficient smaller global obligation yet.
+Goal active; PR extraction deferred. Validation: 1350 jobs, 13 public
+roots, maximum recursive closure 12,158, 1,325 frozen source hashes;
+stock Lean in /dev/shm, no sorryAx or forbidden dependencies.
