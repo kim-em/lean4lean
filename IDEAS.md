@@ -25701,3 +25701,33 @@ that case. No proof of weakN_iff or canonical-Eq counterexample. Goal active;
 PR extraction deferred. Validation: 1351 jobs, 72 public roots, maximum
 recursive closure 12,201, 1,326 frozen source hashes; stock Lean in
 /dev/shm, no sorryAx or forbidden dependencies.
+
+
+## 2026-11-07 23:39:06 UTC — Separate retained eta from consumed paths ending at lambdas
+
+Idea: the local endpoint being a lambda spine is too coarse a residual. The
+selected eta may have been consumed before a later lambda was produced. Use
+the final sorted projection observer, rather than a non-lambda local endpoint,
+to exclude administrative body roots. Verdict: checked. The actual consumed
+branch yields the existing counted native body cut with exact counts and
+argument origins. Administrative deletion is replayed through the actual
+application suffix and full sorted tail, with unrestricted raw competitors.
+No guarded body path is substituted.
+
+Combined that split with intermediate-supply progress and primitive-cost/frame
+induction. The actual global empty-prefix cut now reaches only retained
+empty-prefix function eta or structure eta in either phase. A retained result
+records exact function and argument histories, not just endpoint syntax.
+Its constructor head history also descends independently to the observer scope
+with exact count, including the eta root charge.
+
+Remaining: replay that lower constructor-head history through the retained
+wrappers and next actual application while preserving the original field's
+reserved budget, and handle structure-target readout. Existing retained-hole
+head commutation and terminal/application frame progress are concrete tools
+for this next step; it is not yet proved for the new activated retained case.
+This narrows the necessary failure residual but does not establish a sufficient
+smaller global obligation, weakN_iff, or a canonical-Eq counterexample. Goal
+active; PR extraction deferred. Validation: 1352 jobs, 8 public roots,
+maximum recursive closure 12,190, 1,327 frozen source hashes; stock
+Lean in /dev/shm, no sorryAx or forbidden dependencies.

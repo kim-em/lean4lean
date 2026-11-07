@@ -42725,3 +42725,73 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,326 source hashes checked before and
 after validation. Artifacts: /dev/shm/pi-inert-intermediate-supply-*.
+
+
+## 2026-11-07 23:39:06 UTC — Consumed constructor eta through the full sorted continuation
+
+Started from clean pushed 4bbf9baf; previous turn was verified progress.
+Examined the residual lambda-spine endpoint and the exact lambda-spine/beta
+decomposition. Consumed eta can end at a later lambda, so endpoint shape
+alone was retaining an avoidable native case.
+
+New module ProofErasurePiInertConsumedConstructorCut:
+
+pi_inert_constructor_eta_body_cut_or_retained works at any rigid constructor
+prefix with an actual sorted projection continuation. The retained branch
+records the exact lambda function path and argument-vector path, with their
+counts summing to the actual suffix count. The consumed branch reads the eta
+body in its original binder context. The fixed actual tail gives a minimum
+at the selected endpoint, hence exact body decomposition counts. The stronger
+raw body-plus-continuation minimum is retained separately. Component-only
+body histories admit the existing eta bypass and contradict minimality.
+
+At the selected non-level body root, the actual consuming substitution and
+suffix are prepended to the sorted projection tail. Administrative deletion
+simulates the whole resulting execution. This rules out identity and constant
+roots even when the current endpoint is a lambda spine. The resulting
+CountedEtaBodySpineCut has all existing fields, including unrestricted body
+and continuation minima, actual argument origin, context interpretation,
+and native constructor-root classification. No local non-lambda hypothesis
+is needed. All computations remain in their original scopes.
+
+PiInertRetainedLambdaSpine names the exact unconsumed lambda-spine
+decomposition. Its lower_constructor_head theorem composes the native root
+with its retained function path and descends just that independently scoped
+constructor history. It preserves the same finite stage and primitive count.
+The endpoint head is literally the lift of the resulting lower function;
+the upper argument history and count are untouched, and function plus
+argument charges equal one plus the original suffix count. This is data for
+future commutation, not a claim that the future application is solved.
+
+PiInertActivatedPairRetainedBoundaryMinimum strengthens the selected function
+boundary from a lambda endpoint to that retained decomposition. The structure
+branch remains saturated. consumption_progress derives the consumed body cut
+from the actual root and then uses empty_pair_prefix_intermediate_progress.
+Thus every consumed empty-prefix case gives a strict cost decrease or a
+pre-supply structure root, with the same lower-field charge.
+
+PiInertActivatedPairMinimum.consumed_eta_eliminate combines this progress
+with supplied-prefix eta and component progress by primitive cost followed
+by the frame/application rank. The original observer-scope field history and
+strict joint failure budget persist. The theorem
+empty_pair_prefix_weighted_retained_boundary connects the stronger result to
+the actual global empty-prefix cut. Its native outcomes are retained
+empty-prefix eta/structure after activation or structure before a possibly
+intermediate supply. Competing paths remain unrestricted throughout.
+
+Judgment: consumed eta ending at a later lambda is eliminated from the
+recursive residual. The retained function boundary now supplies precise
+independent lower-head history, which can be tested against existing
+SpineBinderHole head commutation and next-application progress. The needed
+replay across retained terminals and applications must still preserve the
+reserved first-field charge; this turn does not assume it. Structure-target
+first-field readout also remains open. Original weakN_iff sorry and executable
+unchanged. No sufficient smaller global replacement for PropFront proved.
+Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1352 jobs; recursive audit
+8 public roots, maximum closure 12,190; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,327 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-consumed-constructor-cut-*.
