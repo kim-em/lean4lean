@@ -39319,3 +39319,44 @@ Quot.sound. All 1,177 frozen sources and owned diagnostics checked; artifacts
 under /dev/shm/constant-origins-*. All Lean/Lake commands used stock
 v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
 UniqueTyping.lean unchanged; PR extraction deferred; goal active.
+
+## 2026-11-07 13:47:53 UTC — Recover original application and projection formation carriers
+
+Added ProofErasurePiInertEliminationOrigins.lean. BoundedApplicationOrigin
+records the original function source, argument endpoint, domain/codomain
+formation, own result formation and path to the selected carrier. Every
+premise remains at k below the enclosing bound. Right appDF endpoints keep
+B[x'] and reverse the original B[x]=B[x'] type child. BoundedApplicationFunction
+distinguishes an original function endpoint from beta's literal lambda,
+whose actual typing uses its original body child without inventing a smaller
+strong function derivation.
+
+BoundedProjectionOrigin keeps fieldType at its original source major and
+the original comparison to the endpoint major. Both projDF endpoints use
+the same recorded field type but their own comparison child. projIota uses
+its original source-typing and field-typing children. Complete endpoint
+extraction covers every StrongBounded constructor; outer conversions append
+original type edges and all other structural traversal preserves premise
+ranks. No blanket selected-type uniqueness proof replaces those paths.
+
+result_transport for each origin folds its BoundedTypePath through current
+PiInertGroundTypeEquiv lower handlers and returns actual result typing with
+transport to the selected carrier. Application retains actual function and
+argument assignments at the exposed original Pi. Projection builds ordinary
+projection typing from the recorded source-major equality. Neither ordinary
+typing construction is submitted to a semantic induction hypothesis.
+
+Limits: these theorems recover provenance and selected-type transport; they
+do not supply the remaining function/input action, projection comparison,
+or arbitrary transitivity. All four principal sorted transport cases remain
+open. Next connect frame interpretation to original endpoint hypotheses,
+using beta's original reduct child and core-prefix closure where possible,
+while retaining recursive call profiles and projection source-major data.
+GOAL.md remains unmet; no completion or smaller-frontier claim.
+
+Integration passed 1203 jobs. Recursive audit covered 16 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. All 1,178 frozen sources and owned diagnostics checked; artifacts
+under /dev/shm/elimination-origins-*. All Lean/Lake commands used stock
+v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
+UniqueTyping.lean unchanged; PR extraction deferred; goal active.

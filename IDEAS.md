@@ -23621,3 +23621,51 @@ recursive dependency closure 11,976; only propext, Classical.choice
 and Quot.sound. All 1,177 frozen sources and owned diagnostics checked.
 Stock v4.33.0-rc2 Lean/Lake ran only in /dev/shm/native-level-coherence-work.
 Executable and UniqueTyping.lean unchanged; PR extraction deferred; goal active.
+
+## 2026-11-07 13:47:53 UTC — Preserve formation results at elimination endpoints
+
+Idea: extend original-rank provenance beyond constants, without identifying
+dependent result instances by an unranked uniqueness argument. Verdict:
+proved complete extraction and lower-type transport for application and
+projection endpoints; interpretation of the principal term actions remains
+open.
+
+ProofErasurePiInertEliminationOrigins.lean records application function,
+argument, domain, codomain and result-formation premises at their original
+rank k below the enclosing bound. The right appDF endpoint starts at its own
+B[x'] and uses the original B[x]=B[x'] child backwards in BoundedTypePath.
+Beta's source has no original smaller function-typing child: the frame marks
+its function as a literal lambda and retains beta's original body child,
+rather than pretending that reconstructed lambda typing has a smaller rank.
+Both source and reduct branches are included in extraction through all
+StrongBounded constructors.
+
+Projection origins retain the original fieldType source major, field type,
+formation child, and comparison from source major to the endpoint major.
+Replacing that source by the endpoint inside the dependent field type would
+require additional semantic work; the extraction does not make that change.
+Projection-iota follows its original source-typing and field-typing children.
+Outer conversion appends its original type child, while symmetry,
+transitivity and rank raising preserve the recorded ranks and paths.
+
+Both origin frames now recover actual formation-result typing and a
+PiInertGroundTypeEquiv to the selected carrier from original lower type
+handlers. The application result is the endpoint's own B[x]; the projection
+result is the original recorded field type. This handles selected-carrier
+provenance even for endpoints beneath arbitrary outer rules. The function,
+argument or source-major semantic actions are not inferred from ordinary
+typing.
+
+Next interpret these original frames using the simultaneous endpoint and
+type hypotheses. For beta, the original reduct-typing child and ordinary
+core prefixes offer a direct route that should not require interpreting a
+new lambda derivation. For appDF retain the full recursive function/input
+profiles; for projDF retain the source-major comparison and dependent field
+assignments. General transitivity and the four principal sorted transport
+cases are still open. No strictly smaller sufficient frontier is claimed.
+
+Validation: 1203 integration jobs; 16 public/probe roots; maximum
+recursive dependency closure 11,976; only propext, Classical.choice
+and Quot.sound. All 1,178 frozen sources and owned diagnostics checked.
+Stock v4.33.0-rc2 Lean/Lake ran only in /dev/shm/native-level-coherence-work.
+Executable and UniqueTyping.lean unchanged; PR extraction deferred; goal active.
