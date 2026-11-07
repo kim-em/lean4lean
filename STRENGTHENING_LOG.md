@@ -37761,3 +37761,43 @@ propext, Classical.choice and Quot.sound. Frozen source hashes, owned-module
 diagnostics, and exclusion of sorryAx / weakN_iff / weakN_inv / circular
 frameworks are checked by `/dev/shm/variable-action-*` artifacts. Executable
 unchanged and PR extraction remains deferred. GOAL.md remains active.
+
+
+## 2026-11-07 07:00:30 UTC — Native-variable action and environments with explicit image action
+
+Added the 18 public roots in `ProofErasurePiInertRenamingAction.lean` and
+imported the module through `ProofErasurePiInertGlobalEtaBodyCut.lean`.
+PiInertRenamingHistory changes the future relation at the result level as
+well as the outer action level. Its adapter from completed histories is
+one-way. Renaming composition and stage raising retain the exact restriction.
+
+The native application proof consumes independent endpoint core paths using
+level_core_bvar_app_inv, then applies the recovered function to the supplied
+domain guard. It works for arbitrary recovered Pi types and independent
+carrier residuals. Renaming transports recovery via pi_inert_stage_rename.
+A native variable consequently constructs PiInertRenamingAction, combining
+recovery and argument stages by max, without arbitrary image action premises.
+
+PiInertImageAction quantifies computed Pi exposures in every later renaming
+world. Its native-variable theorem handles arbitrary native type syntax.
+PiInertActionSubstitution retains this evidence for each raw substitution
+image together with its ordinary typed context interpretation. Identity,
+target renaming, supplied-image extension and actual binder lifting are
+proved. The last uses domain-sort evidence to construct an actual fresh
+context renaming and initializes the fresh image by the native-variable rule.
+
+Limits: these are constructed neutral-variable/environment cases, not a
+fundamental theorem or a proof of arbitrary substitution closure. A single
+image's reflexive action is not a binary relation between two lambda
+arguments; the current general action also accepts argument carrier histories
+which by themselves need not retain higher-order action. The evaluation
+lambda is the next diagnostic for the richer argument interface. No
+strengthening result or strictly smaller sufficient obligation is claimed.
+
+All Lean/Lake commands ran in `/dev/shm/native-level-coherence-work` with stock
+`leanprover/lean4:v4.33.0-rc2`. The integration build passed 1129 jobs; the
+recursive dependency audit covered 499 roots, maximum closure
+12,394, using only propext, Classical.choice and Quot.sound. Validation
+artifacts are `/dev/shm/renaming-action-*`; source hashes and owned diagnostics
+are checked, with sorryAx / weakN_iff / weakN_inv and circular frameworks
+excluded. Executable unchanged, PR extraction deferred, GOAL.md active.

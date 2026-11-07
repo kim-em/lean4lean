@@ -21730,3 +21730,56 @@ This remains an unverified angle, not a rejected route or a counterexample.
 Validation: 1128 integration jobs, 481 audited roots, maximum dependency
 closure 12,394; only propext, Classical.choice and Quot.sound. Executable
 unchanged; no PR extraction. The original GOAL.md deliverable remains open.
+
+
+## 2026-11-07 07:00:30 UTC — Construct native action with renaming futures throughout
+
+Implemented `ProofErasurePiInertRenamingAction.lean` after the preceding
+variable-action lower bound. PiInertRenamingHistory retains all three
+independent ordinary-core residuals and exact context-renaming futures only.
+The same restriction appears in PiInertRenamingAction's argument histories,
+result histories and outer worlds. The old completed history embeds into the
+new predicate, but no converse or arbitrary-substitution rule is assumed.
+
+The neutral application case is now constructed, not left as an action
+premise. Full-core paths preserve a variable head and expose independent
+argument paths. The supplied domain residual handles those paths and
+appCarrier constructs the result comparison; carrierChecked retains any
+result carrier, including the exact left dependent one. Exact renaming
+transports the recovery certificate and argument residual. Native variable
+action therefore holds at max(recovery stage, argument stage), with all
+renaming futures and all independent residuals.
+
+PiInertImageAction retains action for every Pi actually reached by finite
+computation from the native type in any later exact renaming world. This
+avoids the already refuted vacuous literal-Pi motive: a native beta wrapper,
+alias or later Pi exposure must supply its real computation. A native variable
+constructs this whole obligation from its oracle and the supplied computation.
+PiInertActionSubstitution packages ordinary contextual substitution with this
+explicit action for each raw image at its substituted native type.
+
+Identity and target renaming are proved. Adding a supplied image requires its
+ordinary typed binder interpretation AND its action; neither is inferred from
+the other. Actual binder lifting is constructive: transport the old images
+through the fresh-variable renaming supplied by domain-sort evidence, then
+add the new native variable. The ordinary substitution uses its existing
+binder rule. No universal function theorem or completed-history-to-action
+rule enters these constructions.
+
+Verdict: the native-variable and identity/binder-lifting cases of this revised
+interface are checked without the previous hidden arbitrary-future closure.
+This is not yet a simultaneous interpretation of strong derivations. The
+image package currently carries reflexive action for each single image, while
+lambda application at distinct arguments needs a binary relation on images.
+Moreover, plain carrier-related function arguments do not supply their cross
+application action: test the evaluation lambda `fun h => h x` before extending
+the body theorem. The next construction must retain the action demanded of
+higher-order argument pairs (for example through finite elimination demands),
+not silently promote their renaming carrier histories to action. Arbitrary
+image composition, lambda coverage, dependent semantic conversion and history
+composition remain open. This result is not a strictly smaller sufficient
+obligation and does not finish strengthening.
+
+Validation: 1129 integration jobs, 499 audited roots, maximum dependency
+closure 12,394; only propext, Classical.choice and Quot.sound. Executable
+unchanged; no PR extraction. GOAL.md remains active.
