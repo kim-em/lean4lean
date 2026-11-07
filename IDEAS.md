@@ -22526,3 +22526,59 @@ recursive dependency closure 11,976; only propext, Classical.choice and
 Quot.sound. Frozen sources and owned diagnostics checked. All Lean/Lake ran
 with stock v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
 UniqueTyping.lean unchanged; no PR extraction. GOAL.md remains active.
+
+
+## 2026-11-07 10:17:51 UTC — Recursive conversion on both sides of finite universe/Pi trees
+
+Previous goal turn: progress, committed as 7de02734. This turn addresses the
+function-valued output gap left by predicate towers.
+
+The obstacle in dependent output recursion was an assignment mismatch. The
+right application comes with its own carrier B[y], while the demand relation
+selects B[x]. Separate source typings do not repair this. Implemented
+TypedAt.realize_carrier to realize an operand at a fixed actual type with the
+same erasure, including proof operands. PiInertDemandBase.actual_defeq reads
+original-context equality from a retained carrier history at supplied common
+typings. TypedAt.app_result_left combines these with typed instantiation of
+the codomain to assign the right application at B[x]. No equality of raw
+instances, computation certificate, or ordinary-core join is postulated.
+
+TypedAt.transfer aligns assignments through a common non-proof endpoint.
+function_of_assigned_calls lifts the earlier fresh-test construction directly
+to raw assigned functions without a non-proof premise. The general
+function_convert_assigned rule exposes argument assignments at old, target
+and reference interfaces. Its output callback receives both endpoints at the
+left target result carrier. The remaining input/output callbacks are then
+implemented recursively in the finite-tree theorem.
+
+PiInertTypeInterface describes all finite universe/Pi syntax trees, indexed
+by the corresponding finite demand. PiInertTypeCarrier describes the selected
+Pi exposure tree, allowing arbitrary actual aliases at its leaves. Reference
+trees are closed under term substitution. Actual erasure shape inversion
+supplies a universe-ending telescope, proving reference-assigned operands
+are non-proofs. PiInertTypeInterface.convert uses structural recursion on
+both input and output trees, reversing input conversion and preserving output
+conversion. Target argument history supplies the common dependent result
+assignment. The original StrongBounded conversion bridge is proved without
+recursing on any transformed or substituted strong derivation.
+
+pi_inert_native_type_tree_conversion constructs its own source demand from
+a native variable for every reference tree before conversion. The checked
+function-result separation theorem gives an interface with demand
+arrow ground (arrow ground ground) and proves it belongs to no level of the
+previous predicate-tower hierarchy. This is a strict extension of that
+interface class, not a statement that the main obligation is smaller.
+
+Verdict: function-valued result transport is constructed throughout the finite
+universe/Pi reference fragment. Selected carriers still need matching Pi
+exposure, and general functions still need a supported source demand. Arbitrary
+outer aliases, interfaces with general data or variable leaves, structure and
+projection rules, and full strong demand coverage remain open. No proof of
+strengthening, canonical-Eq counterexample, or sufficient irreducible
+obligation proved strictly smaller than PropFront is claimed.
+
+Validation: 1179 integration jobs; 19 public/probe roots; maximum
+recursive dependency closure 11,976; only propext, Classical.choice and
+Quot.sound. Frozen sources and owned diagnostics checked. Stock v4.33.0-rc2
+Lean/Lake ran exclusively in /dev/shm/native-level-coherence-work. Executable
+and UniqueTyping.lean unchanged; no PR extraction. GOAL.md remains active.

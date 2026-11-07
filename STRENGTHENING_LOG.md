@@ -38320,3 +38320,38 @@ Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
 /dev/shm/demand-higher-conversion-*. All Lean/Lake commands used stock
 v4.33.0-rc2 exclusively in /dev/shm/native-level-coherence-work. Executable
 and UniqueTyping.lean unchanged; no PR extraction. GOAL.md remains active.
+
+
+## 2026-11-07 10:17:51 UTC — Finite universe/Pi tree conversion with dependent result alignment
+
+Added ProofErasurePiInertDemandTreeConversion.lean and its aggregator import.
+TypedAt.realize_carrier aligns operands at fixed actual carrier representatives.
+PiInertDemandBase.actual_defeq reflects retained carrier history at supplied
+common typings. TypedAt.app_result_left then assigns a right application at
+the left argument's dependent result using the retained argument equality.
+This constructs the assignment needed for recursive function-valued outputs.
+
+The assigned function rule exposes old/target/reference argument assignments
+and common target result assignments. PiInertTypeInterface.convert constructs
+its callbacks by induction on both branches of arbitrary finite universe/Pi
+reference trees. Selected carriers must expose the same Pi tree, while their
+leaf annotations may be arbitrary dependent aliases. Reference closure under
+substitution identifies the two reference result instances; no equality of
+the selected raw instances or core join is assumed.
+
+The original StrongBounded bridge uses the original rank-k children and an
+ordinary reference typing. The native-variable theorem constructs its source
+demand for every reference tree. A checked function-output interface is
+proved absent from every level of the earlier predicate-tower hierarchy.
+
+The result extends the proved conversion fragment to function-valued outputs.
+Arbitrary outer aliases, general data/variable reference leaves and full
+strong demand coverage remain open. The original strengthening sorry remains;
+no sufficient irreducible obligation smaller than PropFront is claimed.
+
+Integration passed 1179 jobs. Recursive audit covered 19 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
+/dev/shm/demand-tree-conversion-*. All Lean/Lake used stock v4.33.0-rc2 in
+/dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
+PR extraction remains deferred and GOAL.md remains active.
