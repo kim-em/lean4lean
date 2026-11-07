@@ -21073,3 +21073,23 @@ body extraction is claimed. Ordinary/sorted lambda body comparison and carrier
 argument handling remain open on the route to general unit conversion.
 Validation: 1105 jobs, 329 audited roots, maximum closure 12,048;
 only propext, Classical.choice and Quot.sound. GOAL.md remains active.
+
+
+### 2026-11-07 03:20:58 UTC — Recover actual body typings at inferred lambda cuts: proved
+
+A framed source body supplies a sort assignment for its actual typed original
+by erasure reflection. The inferred function comparison then supplies a common
+function type; Pi inversion recovers equal written domains and a common sort
+for both actual bodies in their own annotation contexts. The target function
+need only have an arbitrary original typing: directed lambda exposure proves
+its nonproof status. No extra target-body typing assumption remains.
+
+The complete actual lambda cut retains both same-stage computation paths,
+actual endpoint equalities, source frames, and either target frames or the
+original inferred body child under one of the two recorded annotations.
+Reflexivity and typed eta discharge the frame alternative. Verdict: genuine
+premise discharge for the pending comparison argument; ordinary/sorted body
+comparison, guarded context transport and argument substitution remain open.
+No new closure law, canonical-Eq counterexample or strict-smallness claim.
+Validation: 1106 jobs, 334 audited roots, maximum closure 12,048;
+only propext, Classical.choice and Quot.sound. GOAL.md remains active.

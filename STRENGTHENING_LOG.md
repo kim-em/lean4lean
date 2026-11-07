@@ -36852,3 +36852,49 @@ recursors contain no sorryAx, weakN_iff or excluded circular framework
 dependency. All 1,080 frozen source hashes remained unchanged; no owned
 diagnostics. Stock Lean/Lake ran only in scratch. No executable changes or
 PR extraction.
+
+
+### 2026-11-07 03:20:58 UTC — Actual typed lambda cut with recovered body sorts
+
+Revalidated HEAD 6dc55622 and its pending two-file change before continuing.
+The intervening explanatory exchange was no technical progress. The pending
+proof compiled without edits and was then subjected to the integration build
+and recursive dependency audit.
+
+Added ProofErasurePiInertTypedLambdaCut.lean and imported it from the global
+module. Five public results are proved:
+
+- RigidSortFrames.original_sort reflects the frame's sort-typed representative
+  onto any actual typed original with the same erasure, using context conversion
+  and the proved erasure reflection theorem.
+- pi_inert_compared_lambda_body_typing derives equality of the actual written
+  domains and a common body sort from inferred comparison of actual typed
+  lambdas with one framed body. Directed lambda exposure excludes target proof
+  erasure; comparison reflection supplies a common function type, whose Pi
+  inversion supplies the target body assignment in its own context.
+- InferredLambdaTerminal.body_cases removes terminal symmetry while retaining
+  whether the stored body child is scoped by the left or right annotation.
+- InferredLambdaTerminal.typed_frame_or_body discharges reflexivity and typed
+  eta using the actual domain equality and body typings; the remaining case
+  is an existing inferred body comparison at its original recorded context.
+- pi_inert_typed_lambda_frame_cut realizes both computed lambda endpoints as
+  actual typed terms. It keeps their actual equalities, both exact same-stage
+  computation paths, recovered domain equality and common body sort, source
+  frames, and the target-frame-or-body-child conclusion. The original target
+  function need not be syntactically a lambda.
+
+The remaining body child is not a directed common reduct, nor is it silently
+moved to another annotation context. Ordinary typing and erased endpoint
+identities can be aligned across equal domains, but guarded path context
+transport and arbitrary argument substitution remain separate unproved steps.
+The original weakN_iff sorry and full GOAL.md objective remain open. These
+results neither assert nor establish an obligation strictly smaller than
+PropFront.
+
+Validation: 1106 successful integration-build jobs, 334 recursively
+audited roots, maximum closure 12,048; only propext, Classical.choice
+and Quot.sound. All five new theorems are audit roots. Recursive types, values,
+constructors and recursors contain no sorryAx, weakN_iff or excluded circular
+framework dependency. All 1,081 frozen source hashes remained unchanged;
+no owned diagnostics. Stock Lean/Lake ran only in scratch. No executable
+changes or PR extraction.
