@@ -37665,3 +37665,64 @@ constructors and recursor branches and excludes sorryAx, weakN_iff, weakN_inv
 and existing circular frameworks. All 1,101 frozen source hashes unchanged;
 no owned diagnostics. Stock Lean/Lake ran only in scratch. No PR extraction.
 GOAL.md remains active.
+
+
+### 2026-11-07 06:30:27 UTC — Preserve action through lambda beta and dependent function-type conversion
+
+Previous goal turn classified as progress: 857a73e4 checked the finite-stage
+neutral appDF and forallEDF domain components. This turn investigated the
+missing response when a substituted variable head becomes an arbitrary function.
+Existing paired-instantiation and shared-application obstructions were read;
+no universal extraction of function action from completed histories is used.
+
+Added ProofErasurePiInertFunctionAction.lean and its global integration import.
+HereditaryFiniteCarrierTransport names the missing carrier component at every
+actual typed future. instantiate builds Ctx.SubstEq.cons with the supplied left
+argument and uses inst_lift_cons, so the original codomain hypothesis is consumed
+directly. No strong equality of substituted types is reconstructed for recursion.
+
+FinitePiInertFunctionAction retains complete result carrier histories for
+arbitrary actual typed future substitutions and carrier-related argument pairs.
+The result carrier is exactly the left instance of the dependent codomain.
+FinitePiInertPairedBody retains the exact paired body instances under those
+same conditions. lambda_action and lambda_body prove their equivalence at
+actual displayed lambdas using typed beta prefixes and endpoint residuals.
+Both written domains may differ from the assigned domain and one another.
+The general paired-body component remains unproved; the equivalence is an exact
+lambda case, not a completeness assumption for the carrier language.
+
+FunctionAction.convert changes both the domain and dependent codomain. The
+actual domain equality substitutes to retype the arguments. Hereditary domain
+transport returns their history to the old domain at a finite stage. The old
+action supplies the applications' history, and hereditary codomain transport
+instantiated at the actual left argument changes its carrier. The right-context
+codomain hypothesis is retained explicitly. strong_forall_function_action_of_
+lower consumes rank-k domain and codomain children below k+1 before any future
+substitution. strong_lambda_action_of_lower similarly consumes its actual
+rank-k body equality. These cases avoid treating additive reconstructed ranks
+as smaller than their original parent.
+
+FunctionAction.fresh_body takes the concrete weakening future into A::Γ and
+the reflexive fresh-variable argument history. Its output carrier reduces to B
+by inst_lift_cons and the identity-substitution equation. FunctionAction.history
+then returns a completed function carrier history: proof-valued functions erase
+to proof, and nonproof functions use the existing carrier function constructor
+on that fresh-body history. Thus action is a real strengthening of the old
+component, not a replacement based solely on possibly empty valuations.
+No converse extraction theorem is asserted.
+
+The identity body's paired evidence is unconditional: after any typed future,
+its two instances are exactly the two supplied arguments, at their original
+carrier and stage. finite_pi_inert_identity_action uses the lambda theorem to
+construct action for identity at every typed domain. It accepts carrier-related
+arguments that need not admit a common computational reduct.
+
+Fourteen public declarations added. Validation: 1127 successful integration
+jobs; 469 audited roots; maximum closure 12,394; only propext,
+Classical.choice and Quot.sound. Audit traverses types, values, inductive
+constructors and recursor branches and excludes sorryAx, weakN_iff, weakN_inv
+and existing circular frameworks. All 1,102 frozen source hashes unchanged;
+no owned diagnostics. Stock Lean/Lake ran only in scratch. The executable and
+original weakN_iff are unchanged; no PR extraction. Universal action, paired-body
+coverage, hereditary carrier conversion and composition remain open. GOAL.md
+remains active; no completion or strict-smallness claim.

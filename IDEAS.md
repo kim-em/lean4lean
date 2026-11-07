@@ -21626,3 +21626,56 @@ motive and test its lambda and conversion cases against this exact neutral case.
 Validation: 1126 integration jobs, 455 audited roots, maximum closure
 12,394; only propext, Classical.choice and Quot.sound. Executable unchanged;
 no PR extraction. GOAL.md remains active.
+
+
+### 2026-11-07 06:30:27 UTC — Retain function action and use type children before substitution: checked cases
+
+The finite neutral application result cannot simply be made hereditary by
+substituting its recovered variable head: that head can become an arbitrary
+function. Tested an explicit additional function-action component instead of
+assuming extraction from completed histories. FinitePiInertFunctionAction asks
+for complete result histories after every actual typed future and every actual
+carrier-related argument pair, at the left dependent result carrier. Each
+application may choose a finite output stage; no common argument reduct or
+uniform stage over all future substitutions is requested.
+
+FinitePiInertPairedBody states the corresponding exact paired body instances.
+For actual displayed lambdas it is equivalent to function action. Forward beta
+prefixes construct action from the body evidence, and endpoint beta reductions
+recover the body evidence from action. Both written domains may differ from
+the assigned domain. The new property is not inferred from an existing whole-
+function history; arbitrary paired body coverage remains an explicit gap.
+
+HereditaryFiniteCarrierTransport quantifies the previous carrier-transport
+component over actual typed futures. Its instantiate theorem extends the
+original substitution by the actual left argument. FunctionAction.convert uses
+the original domain equality to retype the new arguments, its hereditary
+transport to move their history to the old domain, the retained old action to
+apply the functions, then the codomain transport at the left argument to move
+the result history. The codomain IH is invoked before substitution; no larger
+instantiated strong equality is built for recursion. The rank-k domain and
+right-context codomain children therefore suffice at a rank-(k+1) forallEDF
+parent. The lambda action case likewise uses its original rank-k body child.
+
+Action implies the earlier completed function history. A genuine weakening
+future supplies a fresh variable with its reflexive argument history, producing
+the required fresh-body history; the existing function rule handles nonproof
+functions and proof erasure handles proof-valued functions. The converse is
+not asserted. This fresh-context construction also prevents the extra action
+component from becoming vacuous merely because no argument exists in the
+original context. Identity has unconditional paired-body evidence and action,
+consuming an arbitrary input carrier history at its original stage.
+
+Verdict: lambda action, dependent type conversion, the history projection and
+identity are checked with exact dependent carriers and original smaller type
+children. This realizes the proposed 'interpret the child before applying the
+cut' strategy for these cases. It does not prove universal action, paired-body
+substitution, hereditary carrier transport or term-history composition. Next
+test a joint interpreted-substitution invariant whose function-valued images
+retain action; construct the variable and binder-extension cases rather than
+promoting arbitrary completed histories to action. The original strengthening
+goal remains open and no strictly smaller sufficient obligation is claimed.
+
+Validation: 1127 integration jobs, 469 audited roots, maximum closure
+12,394; only propext, Classical.choice and Quot.sound. Executable unchanged;
+no PR extraction. GOAL.md remains active.
