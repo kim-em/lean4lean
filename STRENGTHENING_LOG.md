@@ -42870,3 +42870,76 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,328 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-activated-head-replay-*.
+
+
+## 2026-11-07 23:51:58 UTC — Structure residuals must remain above the final observer
+
+Started from clean pushed 413c0f36; previous turn was verified progress.
+Examined the structure targets left after full function-eta elimination. The
+activated first field is a projection of the original pair, so blindly
+replacing it by the old field throughout an arbitrary guarded path would
+assume the missing readout. Instead eliminated cases where the actual
+observer supplies bounded readout and preserved the exact residual.
+
+New ProofErasurePiInertStructureObserverBoundary:
+
+PiInertProjectionRunFrames.scope_length_bound proves current context length
+is at most observer length plus actual frame count. Retained frames and
+single-binder endpoint maps discharge at most one binder each; identity
+application frames only enlarge the bound.
+
+PiInertActivatedPairStructureMinimum.minimum forgets the root selection
+without changing the full-pair minimum. projected_field_minimum realizes the
+closed pair and its native structure target, giving exact source projection
+as the new first field, its sort typing and primitive iota selection, and a
+remaining minimum whose cost plus one equals the original cost. The actual
+application witness, when present, is also preserved. All competing raw paths
+and finite stages remain unrestricted.
+
+not_same_scope excludes a selected structure root in the observer context
+when its cost is at most a least failed budget. Apply bounded readout to the
+strictly smaller expanded-pair minimum. This produces a path from the
+projection of the original pair to the same final out, at strictly smaller
+cost. The original full-pair continuation minimum yields global projection
+minimality by closed_record_global_minimum, including arbitrary identity
+frames; hence contradiction. No independently typed original field or field
+history is needed for this local contradiction, and no second readout is
+needed. nonempty_scope then proves any surviving activated structure context
+is nonempty, its length is bounded by frames, and frames is positive.
+
+pi_inert_structure_last_application_native_root handles the actual native
+structure target followed by a direct endpoint map/application into the final
+observer, with any same-scope projection tail. Decompose the actual body
+computation into components or a non-level constructor root. In the component
+case its first-field path starts at the projection of the original pair.
+pi_inert_projection_frame_run_smaller_failure gives a smaller pair failure
+after the application; leastness contradicts it. Thus a further native root
+must occur in the body. Sorted full-continuation classification excludes the
+administrative roots. The result retains exact component ancestry, prefix,
+root and suffix paths, and the strictly smaller root-target minimum with
+exactly tail frames plus the actual application. Readout across that selected
+root is still required.
+
+empty_pair_prefix_structure_above_observer strengthens the actual global
+weighted empty-prefix cut: the activated structure result has a nonempty
+telescope; the fresh structure result keeps its distinguished type binder
+above its possibly intermediate supply base. Both context depths have exact
+frame bounds. The original observer-scope field history and joint strict
+failure budget are unchanged.
+
+Judgment: structure eta at the final observer and component-only tails before
+a direct final supply are eliminated. The remaining obstruction involves a
+projected first field encountering a native root above the final observer,
+possibly through further retained/application frames. The fixed-output least
+failure hypothesis cannot simply be applied to every intermediate field
+endpoint. A relation preserving projected-field ancestry through these roots
+or a proved counted simulation is the next task. No global sufficiency claim
+is made. Original weakN_iff sorry and executable unchanged. Goal active;
+PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1354 jobs; recursive audit
+8 public roots, maximum closure 12,269; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,329 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-structure-observer-boundary-*.

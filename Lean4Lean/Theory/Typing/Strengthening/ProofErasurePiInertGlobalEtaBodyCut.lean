@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertStructureObserverBoundary
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertActivatedHeadReplay
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertConsumedConstructorCut
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertIntermediateSupplyBoundary

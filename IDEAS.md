@@ -25762,3 +25762,36 @@ smaller global replacement for PropFront yet. Goal active; PR extraction
 deferred. Validation: 1353 jobs, 11 public roots, maximum closure
 12,225, 1,328 frozen source hashes; stock Lean in /dev/shm, no sorryAx
 or forbidden dependencies.
+
+
+## 2026-11-07 23:51:58 UTC — Exclude structure eta at the observer and component-only final supply
+
+Idea: at the final observer, read the smaller expanded pair's first field.
+That field is already the original pair's projection, so it is a cheaper
+competing observation of the original source. Verdict: checked with all
+identity continuation frames retained. Only one least-budget readout is
+needed; a second readout down to the original field is unnecessary.
+
+Derived the activated structure target's exact projected-field minimum,
+including its optional application witness and one-unit cost saving. The
+same-scope contradiction proves all surviving activated structure roots have
+nonempty temporary context. Counted continuation frames bound that context's
+depth. Connected these facts to the actual global empty-prefix cut, retaining
+its original-field history and strict joint failure budget.
+
+Also checked: a structure target followed by a direct application into the
+observer cannot have a component-only body tail. The existing computed-field
+relay produces a strictly smaller pair failure, contradicting leastness.
+Thus the actual body must select another native constructor root; its exact
+projected-field ancestry and strictly smaller framed minimum are preserved.
+The observer tail may contain arbitrary same-scope identity frames.
+
+Remaining: read the projected first field through native roots above the
+observer and the remaining retained/consuming frames. Do not generalize the
+bounded readout to arbitrary intermediate outputs without proving it: an
+intermediate output may still be a projection, while the fixed-output least
+failure hypothesis only supplies readout to the final out. No sufficient
+smaller global replacement for PropFront, weakN_iff proof, or canonical-Eq
+counterexample established. Goal active; PR extraction deferred. Validation:
+1354 jobs, 8 public roots, maximum closure 12,269, 1,329 frozen
+source hashes; stock Lean in /dev/shm, no sorryAx or forbidden dependencies.
