@@ -42651,3 +42651,77 @@ Validation: stock Lean v4.33.0-rc2, all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,325 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-activated-eta-elimination-*.
+
+
+## 2026-11-07 23:32:23 UTC — Intermediate supplying frames and activated non-lambda endpoint elimination
+
+Started from clean pushed 799b85bb. The previous turn was verified progress.
+Generalized the existing marked supplying continuation through its clients,
+then connected that generalization to the actual activated empty-prefix case.
+No independent PR was extracted.
+
+PiInertFreshFieldRun, PiInertFreshFieldMinimum, and
+PiInertFreshPairStructureMinimum now take Ω (final observer) and Δ (supply
+base) separately. The distinguished application still consumes A by the
+exact argument x in Δ. Prior temporary frames remain above A :: Δ, while
+the ordinary tail after supply observes in Ω. Updated forget/body descent,
+next-application decomposition, retained focusing, field transport, counted
+head commutation, and full-pair function-eta progress/induction. These proofs
+needed only the separate observer parameter; their actual computation and
+all-stage/raw competitor conditions were preserved. Existing same-scope
+root and observation clients explicitly use Ω = Δ.
+
+Generalized CountedEtaBodySpineCut.empty_pair_prefix_marked_minimum and
+empty_pair_prefix_function_eta_eliminate accordingly. Added
+empty_pair_prefix_intermediate_progress: starting at controls ++ Ω, weaken
+only the independently typed first field into that realized context, apply
+the generalized marked induction, then descend its supplied-field history
+back to Ω with the same count. Combine the resulting retained telescope
+with controls when supply activates. The other outcome is a full fresh-pair
+structure root whose base is controls ++ Ω and whose supplied image is the
+literal lift of the new observer-scope field. Both reserve its exact history
+charge inside the same strict budget.
+
+pi_inert_activated_empty_eta_nonlambda_progress derives the required body cut
+from an actual activated full-pair minimum when its selected endpoint is not
+a lambda spine. The fixed actual continuation converts the joint minimum
+into the needed endpoint minimum. Constructor-root classification then feeds
+the generalized intermediate-supply theorem. This eliminates a native case
+rather than merely moving it into an extra hypothesis.
+
+New ProofErasurePiInertIntermediateSupplyBoundary:
+
+- PiInertActivatedPairLambdaBoundaryMinimum retains the actual path and
+  unrestricted full-pair minimum. Its function alternative requires an empty
+  prefix AND an actual lambda-spine endpoint; its structure alternative is
+  saturated. Optional selected application witnesses remain intact.
+- intermediate_supply_progress gives that refined boundary or strict cost
+  progress, with a separately lowered first-field history. Its structure
+  alternative explicitly retains the intermediate base and exact supply.
+- PiInertActivatedPairMinimum.intermediate_supply_eliminate uses primitive
+  cost then frame/application rank. It combines intermediate-supply progress,
+  supplied-prefix eta progress, and component progress. Additional lower-field
+  paths compose at a common finite stage. Every result retains the SAME
+  original field history plus remaining minimum below the original failed
+  budget. The residual structure base may be any telescope above the observer.
+- empty_pair_prefix_weighted_intermediate_boundary connects the stronger
+  induction to the actual global empty-prefix cut. The pre-supply structure
+  outcome at the observer is the empty-base-telescope specialization.
+
+Judgment: the observer/base invariant mismatch is repaired and consumed in a
+proved elimination step. Repeated activated function eta with non-lambda
+endpoints is no longer open. Lambda-spine endpoints and structure readout
+remain. Inspected forward realization: it preserves the original actual type,
+but a lambda SPINE with pending arguments can still have the closed record
+type, so this alone cannot exclude the residual. Next work must use its actual
+continuation or a proved bypass; no arbitrary guarded-path substitution is
+authorized by the present results. The original weakN_iff sorry and executable
+are unchanged. No sufficient smaller global replacement for PropFront yet;
+goal active and PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1351 jobs; recursive audit
+72 public roots, maximum closure 12,201; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,326 source hashes checked before and
+after validation. Artifacts: /dev/shm/pi-inert-intermediate-supply-*.

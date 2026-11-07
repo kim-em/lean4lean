@@ -219,7 +219,7 @@ theorem CountedEtaBodySpineCut.empty_pair_prefix_weighted_native_root
     (∃ x charge controls nextValue smaller nextFrames,
       TypedSource Δ x ∧ ScopedComputeCount (PiInertStage D n) charge Δ field x ∧
       charge+smaller < budget ∧
-      PiInertFreshPairStructureMinimum D Δ family info out A x controls nextValue smaller nextFrames) := by
+      PiInertFreshPairStructureMinimum D Δ Δ family info out A x controls nextValue smaller nextFrames) := by
   obtain ⟨x, charge, HTx, RField, HNext⟩ := H.empty_pair_prefix_function_eta_eliminate
     heq hs hi hu hp hf hz hshape hD hout hproj SD RN HTfield HT ROuter houter RP REta HK hcost HM
   rcases HNext with ⟨telescope, nextValue, smaller, nextFrames, hsmall, HNext⟩ |

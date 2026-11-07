@@ -160,12 +160,12 @@ theorem pi_inert_fresh_field_commute_retained_head_application
       ((plug (ProofShape.mkApps (short.liftN (controls.length+1)) fields)).subst τ) pending))
     (RNext : ScopedComputeCount (PiInertStage D suffixStage) cs (nextControls ++ A :: Δ)
       (ProofShape.mkApps ((plug (ProofShape.mkApps (short.liftN (controls.length+1)) fields)).subst τ) pending) endpoint)
-    (HK : PiInertFreshFieldRun D Δ family out A x nextControls K endpoint ck frames)
+    (HK : PiInertFreshFieldRun D Ω Δ family out A x nextControls K endpoint ck frames)
     (hcost : cp+ca+cg+cs+ck ≤ cost)
     (HM : ∀ later j tail k, ScopedComputeCount (PiInertStage D later) j (controls ++ A :: Δ)
       source tail → PiInertApplicationContinuation D (nextControls ++ A :: Δ) τ pending K (plug tail) k →
       cost ≤ j+k) :
-    PiInertFreshFieldMinimum D Δ family out A x nextControls
+    PiInertFreshFieldMinimum D Ω Δ family out A x nextControls
       (ProofShape.mkApps ((plug (ProofShape.mkApps (.const ctor levels) fields)).subst τ) pending)
       (cg+cs+ck) frames := by
   obtain ⟨telescope, hlen, C, HC, WS, EC⟩ := HP.application_hole W.interpretation pending
@@ -201,7 +201,7 @@ theorem pi_inert_fresh_field_commute_retained_head_application
   omega
 
 /-- Commute the lower constructor history through retained wrappers at the
-distinguished supply itself. Its target is the observer scope, and the restored
+distinguished supply itself. Its target is the supply base, and the restored
 whole-source minimum is an ordinary projection minimum. The function charge
 is preserved, while all competing paths are tested against the original source. -/
 theorem pi_inert_commute_retained_head_supply
@@ -219,12 +219,12 @@ theorem pi_inert_commute_retained_head_supply
       ((plug (ProofShape.mkApps (short.liftN (controls.length+1)) fields)).subst (ProofShape.Subst.one x)) pending))
     (RNext : ScopedComputeCount (PiInertStage D suffixStage) cs Δ
       (ProofShape.mkApps ((plug (ProofShape.mkApps (short.liftN (controls.length+1)) fields)).subst (ProofShape.Subst.one x)) pending) endpoint)
-    (HK : PiInertProjectionRunFrames D Δ family 0 out Δ K endpoint ck frames)
+    (HK : PiInertProjectionRunFrames D Ω family 0 out Δ K endpoint ck frames)
     (hcost : cp+ca+cg+cs+ck ≤ cost)
     (HM : ∀ later j tail k, ScopedComputeCount (PiInertStage D later) j (controls ++ A :: Δ)
       source tail → PiInertApplicationContinuation D Δ (ProofShape.Subst.one x) pending K (plug tail) k →
       cost ≤ j+k) :
-    PiInertProjectionFrameMinimum D Δ family 0 out Δ
+    PiInertProjectionFrameMinimum D Ω family 0 out Δ
       (ProofShape.mkApps ((plug (ProofShape.mkApps (.const ctor levels) fields)).subst (ProofShape.Subst.one x)) pending)
       (cg+cs+ck) frames := by
   obtain ⟨telescope, hlen, C, HC, WS, EC⟩ := HP.application_hole W pending

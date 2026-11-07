@@ -74,12 +74,12 @@ theorem pi_inert_fresh_field_commute_head_application
       ((ProofShape.mkApps (short.liftN (controls.length+1)) fields).subst τ) pending))
     (RNext : ScopedComputeCount (PiInertStage D suffixStage) cs (nextControls ++ A :: Δ)
       (ProofShape.mkApps ((ProofShape.mkApps (short.liftN (controls.length+1)) fields).subst τ) pending) endpoint)
-    (HK : PiInertFreshFieldRun D Δ family out A x nextControls K endpoint ck frames)
+    (HK : PiInertFreshFieldRun D Ω Δ family out A x nextControls K endpoint ck frames)
     (hcost : cp+ca+cg+cs+ck ≤ cost)
     (HM : ∀ later j tail k, ScopedComputeCount (PiInertStage D later) j (controls ++ A :: Δ)
       source tail → PiInertApplicationContinuation D (nextControls ++ A :: Δ) τ pending K tail k →
       cost ≤ j+k) :
-    PiInertFreshFieldMinimum D Δ family out A x nextControls
+    PiInertFreshFieldMinimum D Ω Δ family out A x nextControls
       (ProofShape.mkApps (.const ctor levels) (fields.map (·.subst τ) ++ pending)) (cg+cs+ck) frames := by
   have EH := W.pending_head_transport (f := short) 0
   simp only [Nat.zero_add, ProofShape.Subst.liftN] at EH

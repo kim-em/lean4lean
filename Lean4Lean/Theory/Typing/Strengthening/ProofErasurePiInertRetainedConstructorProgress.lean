@@ -2,7 +2,7 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertRetainedHeadComm
 
 /-! # Constructor minima after a retained function crosses the next application
 
-Move the observer-scope function history through the actual retained prefix,
+Move the supply-base function history through the actual retained prefix,
 then focus the restored constructor minimum. The same pending fresh field is
 preserved or supplied, and the continuation has strictly fewer frames.
 -/
@@ -25,7 +25,7 @@ theorem PiInertFreshFieldRun.constructor_head_next_minimum
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (HTlower : TypedSource Δ (.const ctor levels))
     (RF : ScopedComputeCount (PiInertStage D functionStage) cg Δ (.const ctor levels) short)
-    (HK : PiInertFreshFieldRun D Δ family out A x controls K e ck frames)
+    (HK : PiInertFreshFieldRun D Ω Δ family out A x controls K e ck frames)
     (he : e = ProofShape.mkApps (short.liftN (controls.length+1)) (.bvar controls.length :: fields))
     (RP : ScopedComputeCount (PiInertStage D n) cp (controls ++ A :: Δ) source
       (ProofShape.mkApps (.const ctor levels) args))
@@ -38,13 +38,13 @@ theorem PiInertFreshFieldRun.constructor_head_next_minimum
       ContextSubstitution (controls ++ A :: Δ) (telescope ++ Δ) σ ∧
       (ProofShape.bvar controls.length).subst σ = x.liftN telescope.length ∧
       fields.length ≤ nextFields.length ∧ smaller ≤ cg+ck ∧ cp+ca+smaller ≤ cost ∧ nextFrames < frames ∧
-      PiInertProjectionFrameMinimum D Δ family 0 out (telescope ++ Δ)
+      PiInertProjectionFrameMinimum D Ω family 0 out (telescope ++ Δ)
         (ProofShape.mkApps (.const ctor levels) (x.liftN telescope.length :: nextFields)) smaller nextFrames) ∨
     (∃ nextControls σ nextFields smaller nextFrames, nextControls.length ≤ controls.length ∧
       ContextSubstitution (controls ++ A :: Δ) (nextControls ++ A :: Δ) σ ∧
       (ProofShape.bvar controls.length).subst σ = .bvar nextControls.length ∧
       fields.length ≤ nextFields.length ∧ smaller ≤ cg+ck ∧ cp+ca+smaller ≤ cost ∧ nextFrames < frames ∧
-      PiInertFreshFieldMinimum D Δ family out A x nextControls
+      PiInertFreshFieldMinimum D Ω Δ family out A x nextControls
         (ProofShape.mkApps (.const ctor levels) (.bvar nextControls.length :: nextFields)) smaller nextFrames) := by
   subst e
   rcases HK.next_application with
@@ -132,7 +132,7 @@ theorem pi_inert_fresh_field_empty_eta_constructor_progress
     (RT : ScopedComputeCount (PiInertStage D n) ct (controls ++ A :: Δ)
       (ProofShape.mkApps (.lam A' (.app (.const info.ctorName []) (etaArgument v)))
         (.bvar controls.length :: args)) endpoint)
-    (HK : PiInertFreshFieldRun D Δ family out A x controls K endpoint ck frames)
+    (HK : PiInertFreshFieldRun D Ω Δ family out A x controls K endpoint ck frames)
     (hcost : cp+1+ct+ck ≤ cost)
     (HM : ∀ later j tail k, ScopedComputeCount (PiInertStage D later) j (controls ++ A :: Δ)
       original tail → K tail k → cost ≤ j+k) :
@@ -141,12 +141,12 @@ theorem pi_inert_fresh_field_empty_eta_constructor_progress
       cg+ca = 1+ct ∧
       ((∃ telescope fields smaller nextFrames, telescope.length = controls.length ∧
         args.length ≤ fields.length ∧ smaller ≤ cg+ck ∧ cp+ca+smaller ≤ cost ∧ nextFrames < frames ∧
-        PiInertProjectionFrameMinimum D Δ family 0 out (telescope ++ Δ)
+        PiInertProjectionFrameMinimum D Ω family 0 out (telescope ++ Δ)
           (ProofShape.mkApps (.const info.ctorName []) (x.liftN telescope.length :: fields))
           smaller nextFrames) ∨
        (∃ nextControls fields smaller nextFrames, nextControls.length ≤ controls.length ∧
         args.length ≤ fields.length ∧ smaller ≤ cg+ck ∧ cp+ca+smaller ≤ cost ∧ nextFrames < frames ∧
-        PiInertFreshFieldMinimum D Δ family out A x nextControls
+        PiInertFreshFieldMinimum D Ω Δ family out A x nextControls
           (ProofShape.mkApps (.const info.ctorName []) (.bvar nextControls.length :: fields))
           smaller nextFrames)) := by
   obtain ⟨short, domain, body, rest, cg, ca, HTshort, RShort, EL, E,
@@ -211,17 +211,17 @@ theorem pi_inert_fresh_pair_empty_eta_constructor_progress
     (RT : ScopedComputeCount (PiInertStage D n) ct (controls ++ A :: Δ)
       (ProofShape.mkApps (.lam A' (.app (.const info.ctorName []) (etaArgument v)))
         [.bvar controls.length, value]) endpoint)
-    (HK : PiInertFreshFieldRun D Δ family out A x controls K endpoint ck frames)
+    (HK : PiInertFreshFieldRun D Ω Δ family out A x controls K endpoint ck frames)
     (hcost : cp+1+ct+ck ≤ cost)
     (HM : ∀ later j tail k, ScopedComputeCount (PiInertStage D later) j (controls ++ A :: Δ)
       original tail → K tail k → cost ≤ j+k) :
     (∃ telescope nextValue smaller nextFrames, telescope.length = controls.length ∧
       smaller ≤ cost ∧ nextFrames < frames ∧
-      PiInertProjectionFrameMinimum D Δ family 0 out (telescope ++ Δ)
+      PiInertProjectionFrameMinimum D Ω family 0 out (telescope ++ Δ)
         (ProofShape.mkApps (.const info.ctorName []) [x.liftN telescope.length, nextValue]) smaller nextFrames) ∨
     (∃ nextControls nextValue smaller nextFrames, nextControls.length ≤ controls.length ∧
       smaller ≤ cost ∧ nextFrames < frames ∧
-      PiInertFreshFieldMinimum D Δ family out A x nextControls
+      PiInertFreshFieldMinimum D Ω Δ family out A x nextControls
         (ProofShape.mkApps (.const info.ctorName []) [.bvar nextControls.length, nextValue]) smaller nextFrames) := by
   obtain ⟨short, cg, ca, HTshort, RShort, hsplit, HNext⟩ :=
     pi_inert_fresh_field_empty_eta_constructor_progress heq hs hi hu hshape SD RN RN' SD'

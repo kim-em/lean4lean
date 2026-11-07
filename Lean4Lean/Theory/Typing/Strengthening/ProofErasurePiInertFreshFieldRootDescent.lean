@@ -20,7 +20,7 @@ theorem PiInertFreshFieldObservedRoot.marked_minimum
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (H : PiInertFreshFieldObservedRoot D Δ family out bound A C v x stage source target) :
     ∃ pending smaller frames, smaller < bound ∧
-      PiInertFreshFieldMinimum D Δ family out A x [C]
+      PiInertFreshFieldMinimum D Δ Δ family out A x [C]
         (ProofShape.mkApps source pending) smaller frames := by
   obtain ⟨pending, tailCost, e, C', domainStage, cd, suffixArgs, suffixStage, cs, endpoint,
     ck, K, frames, hsmall, HT, HR, RT, SD, RD, HTlam, W, HTnext, RNext, HK, HM⟩ := H
@@ -28,7 +28,7 @@ theorem PiInertFreshFieldObservedRoot.marked_minimum
   have HTe := HT.pi_inert_compute heq hs RRoot.forget
   let KP : ProofShape → Nat → Prop := fun body k =>
     PiInertApplicationContinuation D Δ (ProofShape.Subst.one x) suffixArgs K (.lam C' body) k
-  have HRun : PiInertFreshFieldRun D Δ family out A x [C] KP e (cs+ck) (frames+2) :=
+  have HRun : PiInertFreshFieldRun D Δ Δ family out A x [C] KP e (cs+ck) (frames+2) :=
     .retained (args := []) HTe SD RD (pi_inert_retained_frame_interpretation heq hs SD RD)
       (.supply HTlam W HTnext RNext HK)
   refine ⟨pending, 1+tailCost+cs+ck, frames+2, hsmall, KP, stage, 1+tailCost, cs+ck,
@@ -47,7 +47,7 @@ theorem PiInertFreshFieldObservedRoot.eta_descent
     (H : PiInertFreshFieldObservedRoot D Δ family out bound A C v x stage source
       (.lam B (.app (source.liftN 1) (etaArgument w)))) :
     ∃ smaller frames, smaller < bound ∧
-      PiInertFreshFieldMinimum D Δ family out A x [B, C]
+      PiInertFreshFieldMinimum D Δ Δ family out A x [B, C]
         (.app (source.liftN 1) (etaArgument w)) smaller frames := by
   obtain ⟨pending, tailCost, e, C', domainStage, cd, suffixArgs, suffixStage, cs, endpoint,
     ck, K, frames, hsmall, HT, HR, RT, SD, RD, HTlam, W, HTnext, RNext, HK, HM⟩ := H
@@ -55,7 +55,7 @@ theorem PiInertFreshFieldObservedRoot.eta_descent
   have HTe := HT.pi_inert_compute heq hs RRoot.forget
   let KP : ProofShape → Nat → Prop := fun body k =>
     PiInertApplicationContinuation D Δ (ProofShape.Subst.one x) suffixArgs K (.lam C' body) k
-  have HRun : PiInertFreshFieldRun D Δ family out A x [C] KP e (cs+ck) (frames+2) :=
+  have HRun : PiInertFreshFieldRun D Δ Δ family out A x [C] KP e (cs+ck) (frames+2) :=
     .retained (args := []) HTe SD RD (pi_inert_retained_frame_interpretation heq hs SD RD)
       (.supply HTlam W HTnext RNext HK)
   obtain ⟨smaller, hless, HMin⟩ := pi_inert_eta_fresh_field_descent heq hs hguard HT RN SDinner
@@ -72,7 +72,7 @@ theorem PiInertFreshFieldObservedRoot.structure_minimum
     (HE : NativeMaskedStructureExpansion Guard (C :: A :: Δ) source target)
     (H : PiInertFreshFieldObservedRoot D Δ family out bound A C v x stage source target) :
     ∃ smaller frames, smaller < bound ∧
-      PiInertFreshFieldMinimum D Δ family out A x [C] source smaller frames := by
+      PiInertFreshFieldMinimum D Δ Δ family out A x [C] source smaller frames := by
   obtain ⟨pending, smaller, frames, hsmall, HMin⟩ := H.marked_minimum heq hs
   have HT : TypedSource (C :: A :: Δ) (ProofShape.mkApps source pending) := by
     obtain ⟨_, _, _, _, _, HT, _⟩ := HMin
@@ -107,10 +107,10 @@ theorem PiInertFreshFieldObservedRoot.constructor_descent
     (H : PiInertFreshFieldObservedRoot D Δ family out bound A C v x stage
       (ProofShape.mkApps (.const info.ctorName []) pre) target) :
     (∃ B w smaller frames, smaller < bound ∧
-      PiInertFreshFieldMinimum D Δ family out A x [B, C]
+      PiInertFreshFieldMinimum D Δ Δ family out A x [B, C]
         (.app ((ProofShape.mkApps (.const info.ctorName []) pre).liftN 1) (etaArgument w)) smaller frames) ∨
     (∃ smaller frames, smaller < bound ∧
-      PiInertFreshFieldMinimum D Δ family out A x [C]
+      PiInertFreshFieldMinimum D Δ Δ family out A x [C]
         (ProofShape.mkApps (.const info.ctorName []) [.bvar 1, etaArgument v]) smaller frames) := by
   obtain ⟨k, _, HE | HE⟩ := HR
   · cases HE with
@@ -173,10 +173,10 @@ theorem CountedEtaBodySpineCut.empty_pair_prefix_marked_descent
           (ProofShape.mkApps (.const info.ctorName []) [x.liftN 1, value']) smaller (frames+1)) ∨
        (∃ C v, DomainSort (A :: Δ) C v ∧
         ((∃ B w pre smaller nextFrames, List.IsPrefix pre [.bvar 1, etaArgument v] ∧
-          charge+smaller < budget ∧ PiInertFreshFieldMinimum D Δ family out A x [B, C]
+          charge+smaller < budget ∧ PiInertFreshFieldMinimum D Δ Δ family out A x [B, C]
             (.app ((ProofShape.mkApps (.const info.ctorName []) pre).liftN 1) (etaArgument w)) smaller nextFrames) ∨
          (∃ smaller nextFrames, charge+smaller < budget ∧
-          PiInertFreshFieldMinimum D Δ family out A x [C]
+          PiInertFreshFieldMinimum D Δ Δ family out A x [C]
             (ProofShape.mkApps (.const info.ctorName []) [.bvar 1, etaArgument v]) smaller nextFrames)))) := by
   obtain ⟨x, charge, HTx, RField, HNext | HRoot⟩ :=
     H.empty_pair_prefix_activation_or_root heq hs hi hu hp harity hshape hD hout hproj

@@ -11,6 +11,7 @@ namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation
 open private closed_pair_no_function_eta
   from Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertFreshPairRootProgress
+open private subst_bvar_liftN from Lean4Lean.Theory.Typing.Strengthening.ProofErasureJointRenaming
 variable [Params] {D : Definitions} {field : ProofShape}
 
 /-- An actual eta origin supplies a smaller projection minimum with exactly
@@ -210,7 +211,7 @@ theorem CountedEtaBodySpineCut.empty_pair_prefix_weighted_eta_boundary
     (∃ x charge controls nextValue smaller nextFrames,
       TypedSource Δ x ∧ ScopedComputeCount (PiInertStage D n) charge Δ field x ∧
       charge+smaller < budget ∧
-      PiInertFreshPairStructureMinimum D Δ family info out A x controls nextValue smaller nextFrames) := by
+      PiInertFreshPairStructureMinimum D Δ Δ family info out A x controls nextValue smaller nextFrames) := by
   obtain ⟨x, charge, HTx, RField, HNext⟩ := H.empty_pair_prefix_function_eta_eliminate
     heq hs hi hu hp hf hz hshape hD hout hproj SD RN HTfield HT ROuter houter RP REta HK hcost HM
   rcases HNext with ⟨telescope, nextValue, smaller, nextFrames, hsmall, HNext⟩ |
@@ -220,5 +221,104 @@ theorem CountedEtaBodySpineCut.empty_pair_prefix_weighted_eta_boundary
     exact .inl (HActivated.function_eta_eliminate HFail HLeast heq hs hi hu hp hf hz hshape hD hout hproj HTx RField hsmall)
   · exact .inr ⟨x, charge, controls, nextValue, smaller, nextFrames, HTx, RField, hsmall, HNext⟩
 
+
+/-- An empty-prefix cut above the final observer lowers only its original
+first-field history. Generalized marked-supply induction then gives a strictly
+cheaper activated full pair, or a structure root before the intermediate
+supply. The supplied image is exactly the lift of the resulting observer-scope
+field, and both outcomes reserve that same history's count. -/
+theorem CountedEtaBodySpineCut.empty_pair_prefix_intermediate_progress
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hi : env.projections family info) (hu : info.uvars = 0) (hp : info.nparams = 0)
+    (hf : info.numFields = 2) (hz : info.nindices = 0)
+    (hshape : info.ctorType.instL [] = .forallE (.sort (.succ .zero))
+      (.forallE (.bvar 0) (.const family [])))
+    (hD : ∀ levels rhs, ¬ D.unfolds info.ctorName levels rhs)
+    (hout : ∀ C b rest, out ≠ ProofShape.mkApps (.lam C b) rest)
+    (hproj : ∀ major, out ≠ .proj family 0 major)
+    (SD : DomainSort (controls ++ Ω) A u)
+    (RN : ScopedTypeRecovery (ErasedStaticStructureEtaExpansionStage D outerStage) (controls ++ Ω)
+      (.const info.ctorName []) (.forallE A B))
+    (HTfield : TypedSource Ω field)
+    (HT : TypedSource (controls ++ Ω) (ProofShape.mkApps (.const info.ctorName []) args))
+    (ROuter : ScopedArgumentsCount (PiInertStage D n) (controls ++ Ω) outerCost [field.liftN controls.length, value] args)
+    (houter : outerCost ≤ cp)
+    (RP : ScopedComputeCount (PiInertStage D n) cp (controls ++ Ω) original
+      (ProofShape.mkApps (.const info.ctorName []) args))
+    (REta : PiInertStage D n (controls ++ Ω) (.const info.ctorName [])
+      (.lam A (.app (.const info.ctorName []) (etaArgument u))))
+    (H : CountedEtaBodySpineCut D n (controls ++ Ω) info.ctorName [] [] A u args major ct
+      (ConstructorEtaBodyRoot D))
+    (HK : PiInertProjectionRunFrames D Ω family 0 out (controls ++ Ω) K major ck frames)
+    (hcost : cp+1+ct+ck ≤ budget)
+    (HM : ∀ later j endpoint k, ScopedComputeCount (PiInertStage D later) j (controls ++ Ω) original endpoint →
+      K endpoint k → budget ≤ j+k) :
+    ∃ short charge, TypedSource Ω short ∧
+      ScopedComputeCount (PiInertStage D n) charge Ω field short ∧
+      ((∃ nextControls nextValue smaller nextFrames, charge+smaller < budget ∧
+        PiInertActivatedPairMinimum D Ω family info out short nextControls nextValue smaller nextFrames false) ∨
+       (∃ Acontrols nextValue smaller nextFrames, charge+smaller < budget ∧
+        PiInertFreshPairStructureMinimum D Ω (controls ++ Ω) family info out A
+          (short.liftN controls.length) Acontrols nextValue smaller nextFrames)) := by
+  have HTupper : TypedSource (controls ++ Ω) (field.liftN controls.length) := by
+    simpa only [subst_bvar_liftN] using HTfield.subst (TypedSource.telescope_renaming HT).interpretation
+  obtain ⟨x, charge, HTx, RField, HNext⟩ := H.empty_pair_prefix_function_eta_eliminate
+    heq hs hi hu hp hf hz hshape hD hout hproj SD RN HTupper HT ROuter houter RP REta HK hcost HM
+  obtain ⟨short, HTshort, RShort, EX⟩ :=
+    pi_inert_telescope_component_count_descend heq hs HTfield HT RField
+  subst x
+  refine ⟨short, charge, HTshort, RShort, ?_⟩
+  rcases HNext with ⟨telescope, nextValue, smaller, nextFrames, hsmall, HNext⟩ |
+    ⟨Acontrols, nextValue, smaller, nextFrames, hsmall, HNext⟩
+  · refine .inl ⟨telescope ++ controls, nextValue, smaller, nextFrames, hsmall, .of_frame ?_⟩
+    simpa only [List.append_assoc, List.length_append, ProofShape.liftN_add, Nat.add_comm] using HNext
+  · exact .inr ⟨Acontrols, nextValue, smaller, nextFrames, hsmall, HNext⟩
+
+/-- An activated empty-prefix eta whose selected endpoint is not a lambda
+spine reaches a smaller full pair or an intermediate pre-supply structure
+root. The body cut is derived from the actual minimum, rather than assumed.
+Retained lambda endpoints are deliberately left for continuation progress. -/
+theorem pi_inert_activated_empty_eta_nonlambda_progress
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hi : env.projections family info) (hu : info.uvars = 0) (hp : info.nparams = 0)
+    (hf : info.numFields = 2) (hz : info.nindices = 0)
+    (hshape : info.ctorType.instL [] = .forallE (.sort (.succ .zero))
+      (.forallE (.bvar 0) (.const family [])))
+    (hD : ∀ levels rhs, ¬ D.unfolds info.ctorName levels rhs)
+    (hout : ∀ C b rest, out ≠ ProofShape.mkApps (.lam C b) rest)
+    (hproj : ∀ major, out ≠ .proj family 0 major)
+    (SD : DomainSort (controls ++ Ω) A u)
+    (RN : ScopedTypeRecovery (ErasedStaticStructureEtaExpansionStage D outerStage) (controls ++ Ω)
+      (.const info.ctorName []) (.forallE A B))
+    (HTfield : TypedSource Ω field)
+    (HT : TypedSource (controls ++ Ω) (ProofShape.mkApps (.const info.ctorName []) [field.liftN controls.length, value]))
+    (REta : PiInertStage D n (controls ++ Ω) (.const info.ctorName [])
+      (.lam A (.app (.const info.ctorName []) (etaArgument u))))
+    (RT : ScopedComputeCount (PiInertStage D n) ct (controls ++ Ω)
+      (ProofShape.mkApps (.lam A (.app (.const info.ctorName []) (etaArgument u)))
+        [field.liftN controls.length, value]) major)
+    (HK : PiInertProjectionRunFrames D Ω family 0 out (controls ++ Ω) K major ck frames)
+    (hcost : 1+ct+ck ≤ budget)
+    (hmajor : ∀ C b rest, major ≠ ProofShape.mkApps (.lam C b) rest)
+    (HM : ∀ later j endpoint k, ScopedComputeCount (PiInertStage D later) j (controls ++ Ω) (ProofShape.mkApps (.const info.ctorName []) [field.liftN controls.length, value]) endpoint →
+      K endpoint k → budget ≤ j+k) :
+    ∃ short charge, TypedSource Ω short ∧
+      ScopedComputeCount (PiInertStage D n) charge Ω field short ∧
+      ((∃ nextControls nextValue smaller nextFrames, charge+smaller < budget ∧
+        PiInertActivatedPairMinimum D Ω family info out short nextControls nextValue smaller nextFrames false) ∨
+       (∃ Acontrols nextValue smaller nextFrames, charge+smaller < budget ∧
+        PiInertFreshPairStructureMinimum D Ω (controls ++ Ω) family info out A
+          (short.liftN controls.length) Acontrols nextValue smaller nextFrames)) := by
+  have RP : ScopedComputeCount (PiInertStage D n) 0 (controls ++ Ω)
+      (ProofShape.mkApps (.const info.ctorName []) [field.liftN controls.length, value])
+      (ProofShape.mkApps (.const info.ctorName []) [field.liftN controls.length, value]) :=
+    .beta BetaRed.refl
+  have HBody := globally_minimal_pi_inert_eta_body_spine_cut_nonlambda heq hs
+    (erased_static_structure_eta_expansion_stage_descent heq hs outerStage)
+    (pre := []) HT RN SD RP REta RT (cost := 1+ct) (by omega)
+    (fun later j RJ => by have HH := HM later j major ck RJ HK.forget.holds; omega) hmajor
+  have HCut := HBody.constructor_roots heq (henv.projectionCtorRigid hi) hD
+  exact HCut.empty_pair_prefix_intermediate_progress heq hs hi hu hp hf hz hshape hD hout hproj
+    SD RN HTfield HT ScopedArgumentsCount.refl (by omega) RP REta HK (by omega) HM
 
 end Lean4Lean.VEnv.Strengthening

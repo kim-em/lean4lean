@@ -16,7 +16,7 @@ variable [Params] {D : Definitions}
 /-- An actual first structure expansion of a full fresh pair, followed by its
 selected marked continuation. The root charge is included in the unrestricted
 minimum. Reading this expansion through subsequent computations remains open. -/
-def PiInertFreshPairStructureMinimum (D : Definitions) (Δ : List ProofShape)
+def PiInertFreshPairStructureMinimum (D : Definitions) (Ω Δ : List ProofShape)
     (family : Name) (info : VProjectionInfo) (out A x : ProofShape)
     (controls : List ProofShape) (value : ProofShape) (cost frames : Nat) : Prop :=
   ∃ stage guardStage target endpoint ct ck K, guardStage < stage ∧
@@ -28,7 +28,7 @@ def PiInertFreshPairStructureMinimum (D : Definitions) (Δ : List ProofShape)
       (controls ++ A :: Δ)
       (ProofShape.mkApps (.const info.ctorName []) [.bvar controls.length, value]) target ∧
     ScopedComputeCount (PiInertStage D stage) ct (controls ++ A :: Δ) target endpoint ∧
-    PiInertFreshFieldRun D Δ family out A x controls K endpoint ck frames ∧ 1+ct+ck = cost ∧
+    PiInertFreshFieldRun D Ω Δ family out A x controls K endpoint ck frames ∧ 1+ct+ck = cost ∧
     ∀ later j tail k, ScopedComputeCount (PiInertStage D later) j (controls ++ A :: Δ)
       (ProofShape.mkApps (.const info.ctorName []) [.bvar controls.length, value]) tail →
       K tail k → cost ≤ j+k
@@ -36,8 +36,8 @@ def PiInertFreshPairStructureMinimum (D : Definitions) (Δ : List ProofShape)
 /-- Forgetting the selected structure root retains a genuine marked minimum
 at its full-pair source, with the root charge still included. -/
 theorem PiInertFreshPairStructureMinimum.minimum
-    (H : PiInertFreshPairStructureMinimum D Δ family info out A x controls value cost frames) :
-    PiInertFreshFieldMinimum D Δ family out A x controls
+    (H : PiInertFreshPairStructureMinimum D Ω Δ family info out A x controls value cost frames) :
+    PiInertFreshFieldMinimum D Ω Δ family out A x controls
       (ProofShape.mkApps (.const info.ctorName []) [.bvar controls.length, value]) cost frames := by
   obtain ⟨stage, guardStage, target, endpoint, ct, ck, K, hg, HT, HR, HE, RT, HK, hc, HM⟩ := H
   exact ⟨K, stage, 1+ct, ck, endpoint, HT, (ScopedComputeCount.base HR).trans RT, HK, hc, HM⟩
@@ -48,7 +48,7 @@ The projection is sort-typed, and one ordinary iota selects the same fresh
 variable. Replaying that selection through the remaining minimum is the
 specific missing readout step; it is not assumed here. -/
 theorem PiInertFreshPairStructureMinimum.projected_field_minimum
-    (H : PiInertFreshPairStructureMinimum D Δ family info out A x controls value cost frames)
+    (H : PiInertFreshPairStructureMinimum D Ω Δ family info out A x controls value cost frames)
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hi : env.projections family info) (hp : info.nparams = 0) (hf : info.numFields = 2)
     (hz : info.nindices = 0) (hadm : (info.resultLevel.inst []).IsNeverZero)
@@ -58,7 +58,7 @@ theorem PiInertFreshPairStructureMinimum.projected_field_minimum
     ControlTyping (controls ++ A :: Δ) (.proj family 0 pair) (.sort (.succ .zero)) ∧
     Primitive D (.proj family 0 pair) (.bvar controls.length) ∧
     ∃ nextValue smaller, smaller+1 = cost ∧ smaller < cost ∧
-      PiInertFreshFieldMinimum D Δ family out A x controls
+      PiInertFreshFieldMinimum D Ω Δ family out A x controls
         (ProofShape.mkApps (.const info.ctorName []) [.proj family 0 pair, nextValue]) smaller frames := by
   obtain ⟨stage, guardStage, target, endpoint, ct, ck, K, hg, HT, HR, HE, RT, HK, hc, HM⟩ := H
   obtain ⟨Γ, m, hΓ, EΓ, hm, Em⟩ := TypedSource.closed_constructor_realize hi hp hz (by simp [hf]) HT
@@ -70,7 +70,7 @@ theorem PiInertFreshPairStructureMinimum.projected_field_minimum
   simp only [EΓ, Em] at HSort HTtarget ETarget
   refine ⟨HSort, .projIota hi (by simp [hp, hf]) (by simp [hp]), nextValue, ct+ck,
     by omega, by omega, ?_⟩
-  have HTarget : PiInertFreshFieldMinimum D Δ family out A x controls target (ct+ck) frames := by
+  have HTarget : PiInertFreshFieldMinimum D Ω Δ family out A x controls target (ct+ck) frames := by
     refine ⟨K, stage, ct, ck, endpoint, HTtarget, RT, HK, rfl, ?_⟩
     intro later j tail k RJ RK
     have RAlt := (ScopedComputeCount.base
@@ -109,7 +109,7 @@ private theorem closed_pair_no_function_eta
 progresses to another full fresh pair by a strict cost/frame decrease, or
 reaches an actual saturated structure root. Both function-eta prefixes are
 handled, including arbitrary retained wrappers before the next application.
-The original observer-scope constructor recovery is kept fixed. -/
+The original supply-base constructor recovery is kept fixed. -/
 theorem PiInertFreshFieldMinimum.pair_root_progress
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hi : env.projections family info) (hu : info.uvars = 0) (hp : info.nparams = 0)
@@ -123,17 +123,17 @@ theorem PiInertFreshFieldMinimum.pair_root_progress
     (RN : ScopedTypeRecovery (ErasedStaticStructureEtaExpansionStage D outerStage) Δ
       (.const info.ctorName []) (.forallE A B))
     (HTlower : TypedSource Δ (.const info.ctorName []))
-    (H : PiInertFreshFieldMinimum D Δ family out A x controls
+    (H : PiInertFreshFieldMinimum D Ω Δ family out A x controls
       (ProofShape.mkApps (.const info.ctorName []) [.bvar controls.length, value]) cost frames) :
     (∃ telescope nextValue smaller nextFrames, smaller ≤ cost ∧
-      PiInertProjectionFrameMinimum D Δ family 0 out (telescope ++ Δ)
+      PiInertProjectionFrameMinimum D Ω family 0 out (telescope ++ Δ)
         (ProofShape.mkApps (.const info.ctorName []) [x.liftN telescope.length, nextValue]) smaller nextFrames) ∨
     (∃ nextControls nextValue smaller nextFrames,
       (smaller < cost ∨ smaller ≤ cost ∧ nextFrames < frames) ∧
-      PiInertFreshFieldMinimum D Δ family out A x nextControls
+      PiInertFreshFieldMinimum D Ω Δ family out A x nextControls
         (ProofShape.mkApps (.const info.ctorName []) [.bvar nextControls.length, nextValue]) smaller nextFrames) ∨
     (∃ nextValue smaller, smaller ≤ cost ∧
-      PiInertFreshPairStructureMinimum D Δ family info out A x controls nextValue smaller frames) := by
+      PiInertFreshPairStructureMinimum D Ω Δ family info out A x controls nextValue smaller frames) := by
   obtain ⟨K, n, cb, ck, endpoint, HT, RB, HK, hc, HM⟩ := H
   rcases RB.const_spine_components_or_cut_counted (U := univs) with
     ⟨levels, values, ch, ca, hcounts, rfl, HL, _, HA⟩ |
@@ -239,13 +239,13 @@ theorem PiInertFreshFieldMinimum.pair_function_eta_eliminate
     (RN : ScopedTypeRecovery (ErasedStaticStructureEtaExpansionStage D outerStage) Δ
       (.const info.ctorName []) (.forallE A B))
     (HTlower : TypedSource Δ (.const info.ctorName []))
-    (H : PiInertFreshFieldMinimum D Δ family out A x controls
+    (H : PiInertFreshFieldMinimum D Ω Δ family out A x controls
       (ProofShape.mkApps (.const info.ctorName []) [.bvar controls.length, value]) cost frames) :
     (∃ telescope nextValue smaller nextFrames, smaller ≤ cost ∧
-      PiInertProjectionFrameMinimum D Δ family 0 out (telescope ++ Δ)
+      PiInertProjectionFrameMinimum D Ω family 0 out (telescope ++ Δ)
         (ProofShape.mkApps (.const info.ctorName []) [x.liftN telescope.length, nextValue]) smaller nextFrames) ∨
     (∃ nextControls nextValue smaller nextFrames, smaller ≤ cost ∧
-      PiInertFreshPairStructureMinimum D Δ family info out A x nextControls nextValue smaller nextFrames) := by
+      PiInertFreshPairStructureMinimum D Ω Δ family info out A x nextControls nextValue smaller nextFrames) := by
   induction cost using Nat.strongRecOn generalizing controls value frames with
   | ind cost ihCost =>
     induction frames using Nat.strongRecOn generalizing controls value with
@@ -257,10 +257,10 @@ theorem PiInertFreshFieldMinimum.pair_function_eta_eliminate
       · have hle : smaller ≤ cost := by rcases hprogress with h | ⟨h, _⟩ <;> omega
         have HNext' :
             (∃ telescope value' last lastFrames, last ≤ smaller ∧
-              PiInertProjectionFrameMinimum D Δ family 0 out (telescope ++ Δ)
+              PiInertProjectionFrameMinimum D Ω family 0 out (telescope ++ Δ)
                 (ProofShape.mkApps (.const info.ctorName []) [x.liftN telescope.length, value']) last lastFrames) ∨
             (∃ controls' value' last lastFrames, last ≤ smaller ∧
-              PiInertFreshPairStructureMinimum D Δ family info out A x controls' value' last lastFrames) := by
+              PiInertFreshPairStructureMinimum D Ω Δ family info out A x controls' value' last lastFrames) := by
           by_cases hsmall : smaller < cost
           · exact ihCost smaller hsmall HNext
           · have E : smaller = cost := by omega

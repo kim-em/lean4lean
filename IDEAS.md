@@ -25666,3 +25666,38 @@ canonical-Eq counterexample, or sufficient smaller global obligation yet.
 Goal active; PR extraction deferred. Validation: 1350 jobs, 13 public
 roots, maximum recursive closure 12,158, 1,325 frozen source hashes;
 stock Lean in /dev/shm, no sorryAx or forbidden dependencies.
+
+
+## 2026-11-07 23:32:23 UTC — Separate supply base from observer and eliminate non-lambda activated eta endpoints
+
+Idea: generalize the existing marked supplying continuation instead of
+copying its development theory. Verdict: checked. PiInertFreshFieldRun and
+its minima now take final observer Ω independently from supply base Δ.
+The same frame/body focusing, constructor-history commutation, and full-pair
+cost/frame induction all generalize. Existing equal-scope clients specialize
+Ω = Δ. The selected continuation and unrestricted competitor predicates are
+unchanged; no new guard-substitution hypothesis was introduced.
+
+Applied the generalized induction to an actual empty-prefix cut at
+controls ++ Ω. Its supplied first-field path descends to Ω with exactly the
+same primitive count. The result either returns a full activated pair under
+a combined telescope or a structure root before that intermediate supply.
+In both cases the original field charge plus remaining cost is strictly
+smaller. When an activated empty-prefix eta ends at a non-lambda spine, its
+body cut is derived from the actual minimum, so no body-cut premise remains.
+
+Nested primitive-cost/frame induction removes these new transitions together
+with all previously handled supplied-prefix eta and component transitions.
+The actual global empty-prefix cut now reaches only an activated lambda-spine
+endpoint/structure boundary or a structure root before an intermediate supply.
+The original observer-scope field history and joint strict failure budget are
+preserved. This is a real narrowing of the necessary residual, not a proof
+that the residual is impossible or sufficient to replace PropFront globally.
+
+Remaining: read empty-prefix function eta at lambda-spine endpoints through
+their actual continuation, and read structure targets in both phases. A lambda
+spine may have pending arguments; closed-record typing alone does not exclude
+that case. No proof of weakN_iff or canonical-Eq counterexample. Goal active;
+PR extraction deferred. Validation: 1351 jobs, 72 public roots, maximum
+recursive closure 12,201, 1,326 frozen source hashes; stock Lean in
+/dev/shm, no sorryAx or forbidden dependencies.

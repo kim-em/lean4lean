@@ -24,7 +24,7 @@ There is no purely retained terminal alternative, because the supplying
 application is still recorded in the marked run. Both cases preserve the
 predicate on every raw competitor and the exact remaining frame count. -/
 theorem PiInertFreshFieldRun.next_application
-    (H : PiInertFreshFieldRun D Δ family out A x controls K e ck frames) :
+    (H : PiInertFreshFieldRun D Ω Δ family out A x controls K e ck frames) :
     (∃ plug depth n cs endpoint ck' K' remaining pending,
       PiInertRetainedPrefixCount D (controls ++ A :: Δ) (A :: Δ) plug depth ∧
       ContextSubstitution (A :: Δ) Δ (ProofShape.Subst.one x) ∧
@@ -32,7 +32,7 @@ theorem PiInertFreshFieldRun.next_application
       TypedSource Δ (ProofShape.mkApps ((plug e).subst (ProofShape.Subst.one x)) pending) ∧
       ScopedComputeCount (PiInertStage D n) cs Δ
         (ProofShape.mkApps ((plug e).subst (ProofShape.Subst.one x)) pending) endpoint ∧
-      PiInertProjectionRunFrames D Δ family 0 out Δ K' endpoint ck' remaining ∧
+      PiInertProjectionRunFrames D Ω family 0 out Δ K' endpoint ck' remaining ∧
       ck = cs+ck' ∧ frames = remaining+depth+1 ∧ depth = controls.length ∧
       ∀ body k, K body k ↔
         PiInertApplicationContinuation D Δ (ProofShape.Subst.one x) pending K' (plug body) k) ∨
@@ -43,7 +43,7 @@ theorem PiInertFreshFieldRun.next_application
       TypedSource (nextControls ++ A :: Δ) (ProofShape.mkApps ((plug e).subst τ) pending) ∧
       ScopedComputeCount (PiInertStage D n) cs (nextControls ++ A :: Δ)
         (ProofShape.mkApps ((plug e).subst τ) pending) endpoint ∧
-      PiInertFreshFieldRun D Δ family out A x nextControls K' endpoint ck' remaining ∧
+      PiInertFreshFieldRun D Ω Δ family out A x nextControls K' endpoint ck' remaining ∧
       ck = cs+ck' ∧ frames = remaining+depth+1 ∧ depth+beforeControls.length = controls.length ∧
       ∀ body k, K body k ↔
         PiInertApplicationContinuation D (nextControls ++ A :: Δ) τ pending K' (plug body) k) := by
@@ -92,7 +92,7 @@ zero-depth prefixes. No old guarded body path is substituted or replayed in
 a new scope. Native roots on the new body path still require field readout. -/
 theorem PiInertFreshFieldRun.field_next_minimum
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
-    (HK : PiInertFreshFieldRun D Δ family out A x controls K e ck frames)
+    (HK : PiInertFreshFieldRun D Ω Δ family out A x controls K e ck frames)
     (he : e = ProofShape.mkApps (.const ctor levels) (.bvar controls.length :: fields))
     (RP : ScopedComputeCount (PiInertStage D n) cb (controls ++ A :: Δ) source e)
     (HM : ∀ later j body k, ScopedComputeCount (PiInertStage D later) j (controls ++ A :: Δ)
@@ -101,13 +101,13 @@ theorem PiInertFreshFieldRun.field_next_minimum
       ContextSubstitution (controls ++ A :: Δ) (telescope ++ Δ) σ ∧
       (ProofShape.bvar controls.length).subst σ = x.liftN telescope.length ∧
       smaller ≤ ck ∧ nextFrames < frames ∧
-      PiInertProjectionFrameMinimum D Δ family 0 out (telescope ++ Δ)
+      PiInertProjectionFrameMinimum D Ω family 0 out (telescope ++ Δ)
         (ProofShape.mkApps (.const ctor levels) (x.liftN telescope.length :: nextFields)) smaller nextFrames) ∨
     (∃ nextControls σ nextFields smaller nextFrames, nextControls.length ≤ controls.length ∧
       ContextSubstitution (controls ++ A :: Δ) (nextControls ++ A :: Δ) σ ∧
       (ProofShape.bvar controls.length).subst σ = .bvar nextControls.length ∧
       smaller ≤ ck ∧ nextFrames < frames ∧
-      PiInertFreshFieldMinimum D Δ family out A x nextControls
+      PiInertFreshFieldMinimum D Ω Δ family out A x nextControls
         (ProofShape.mkApps (.const ctor levels) (.bvar nextControls.length :: nextFields)) smaller nextFrames) := by
   rcases HK.next_application with
     ⟨plug, depth, m, cs, endpoint, ck', K', remaining, pending,
@@ -185,15 +185,15 @@ theorem PiInertFreshFieldMinimum.constructor_progress
     (hD : ∀ levels rhs, ¬ D.unfolds info.ctorName levels rhs)
     (hout : ∀ C b rest, out ≠ ProofShape.mkApps (.lam C b) rest)
     (hproj : ∀ major, out ≠ .proj family 0 major)
-    (H : PiInertFreshFieldMinimum D Δ family out A x controls
+    (H : PiInertFreshFieldMinimum D Ω Δ family out A x controls
       (ProofShape.mkApps (.const info.ctorName []) (.bvar controls.length :: fields)) cost frames) :
     (∃ telescope nextFields smaller nextFrames, telescope.length = controls.length ∧
       smaller ≤ cost ∧ nextFrames < frames ∧
-      PiInertProjectionFrameMinimum D Δ family 0 out (telescope ++ Δ)
+      PiInertProjectionFrameMinimum D Ω family 0 out (telescope ++ Δ)
         (ProofShape.mkApps (.const info.ctorName []) (x.liftN telescope.length :: nextFields)) smaller nextFrames) ∨
     (∃ nextControls nextFields smaller nextFrames, nextControls.length ≤ controls.length ∧
       smaller ≤ cost ∧ nextFrames < frames ∧
-      PiInertFreshFieldMinimum D Δ family out A x nextControls
+      PiInertFreshFieldMinimum D Ω Δ family out A x nextControls
         (ProofShape.mkApps (.const info.ctorName []) (.bvar nextControls.length :: nextFields)) smaller nextFrames) ∨
     (∃ stage pre pending target cp ca smaller, ca ≤ cp ∧ cp+1+smaller ≤ cost ∧ smaller < cost ∧
       ScopedArgumentsCount (PiInertStage D stage) (controls ++ A :: Δ) ca
@@ -203,7 +203,7 @@ theorem PiInertFreshFieldMinimum.constructor_progress
         (ProofShape.mkApps (.const info.ctorName []) (pre ++ pending)) ∧
       PiInertStage D stage (controls ++ A :: Δ) (ProofShape.mkApps (.const info.ctorName []) pre) target ∧
       ConstructorEtaBodyRoot D stage (controls ++ A :: Δ) (ProofShape.mkApps (.const info.ctorName []) pre) target ∧
-      PiInertFreshFieldMinimum D Δ family out A x controls
+      PiInertFreshFieldMinimum D Ω Δ family out A x controls
         (ProofShape.mkApps target pending) smaller frames) := by
   obtain ⟨K, n, cb, ck, endpoint, HT, RB, HK, hc, HM⟩ := H
   rcases RB.const_spine_components_or_cut_counted (U := univs) with

@@ -46,18 +46,18 @@ theorem pi_inert_fresh_field_empty_eta_application_progress
     (HNext : TypedSource (nextControls ++ A :: Δ) (ProofShape.mkApps (endpoint.subst τ) pending))
     (RNext : ScopedComputeCount (PiInertStage D suffixStage) cs (nextControls ++ A :: Δ)
       (ProofShape.mkApps (endpoint.subst τ) pending) major)
-    (HK : PiInertFreshFieldRun D Δ family out A x nextControls K major ck frames)
+    (HK : PiInertFreshFieldRun D Ω Δ family out A x nextControls K major ck frames)
     (hcost : cp+1+ct+cs+ck ≤ cost)
     (HM : ∀ later j tail k, ScopedComputeCount (PiInertStage D later) j (controls ++ A :: Δ) source tail →
       PiInertApplicationContinuation D (nextControls ++ A :: Δ) τ pending K tail k → cost ≤ j+k) :
     pending = [] ∧ nextControls.length ≤ controls.length ∧
       ∃ nextValue smaller, smaller ≤ cost ∧
-        PiInertFreshFieldMinimum D Δ family out A x nextControls
+        PiInertFreshFieldMinimum D Ω Δ family out A x nextControls
           (ProofShape.mkApps (.const info.ctorName []) [.bvar nextControls.length, nextValue]) smaller frames := by
   have RBody := ((ScopedComputeCount.base HR).mkApps
     (ScopedArgumentsCount.refl (args := [.bvar controls.length, value]))).trans RT
   have HEndpoint := HT.pi_inert_compute heq hs RBody.forget
-  have HFresh : PiInertFreshFieldRun D Δ family out A x controls
+  have HFresh : PiInertFreshFieldRun D Ω Δ family out A x controls
       (PiInertApplicationContinuation D (nextControls ++ A :: Δ) τ pending K)
       endpoint (cs+ck) (frames+1) := .application HEndpoint W HNext RNext HK
   obtain ⟨short, domain, body, rest, cg, ca, HTshort, RShort, EL, E,

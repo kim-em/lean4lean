@@ -38,14 +38,14 @@ theorem CountedEtaBodySpineCut.empty_pair_prefix_marked_minimum
       (.lam A (.app (.const info.ctorName []) (etaArgument u))))
     (H : CountedEtaBodySpineCut D n Δ info.ctorName [] [] A u args major ct
       (ConstructorEtaBodyRoot D))
-    (HK : PiInertProjectionRunFrames D Δ family 0 out Δ K major ck frames)
+    (HK : PiInertProjectionRunFrames D Ω family 0 out Δ K major ck frames)
     (hcost : cp+1+ct+ck ≤ budget)
     (HM : ∀ later j endpoint k, ScopedComputeCount (PiInertStage D later) j Δ original endpoint →
       K endpoint k → budget ≤ j+k) :
     ∃ x charge C v smaller nextFrames, TypedSource Δ x ∧
       ScopedComputeCount (PiInertStage D n) charge Δ field x ∧
       DomainSort (A :: Δ) C v ∧ charge+smaller < budget ∧
-      PiInertFreshFieldMinimum D Δ family out A x [C]
+      PiInertFreshFieldMinimum D Ω Δ family out A x [C]
         (ProofShape.mkApps (.const info.ctorName []) [.bvar 1, etaArgument v]) smaller nextFrames := by
   have HS := H.empty_pair_prefix_supplies_fresh_field heq hs hi hu harity hshape SD RN HT RP
     HK.forget.holds hcost HM
@@ -136,7 +136,7 @@ theorem CountedEtaBodySpineCut.empty_pair_prefix_marked_minimum
           (RX.mono liftOuter) RK'
         have HH := HM _ _ endpoint tailCount RAlt HK'
         omega
-      have HRun : PiInertFreshFieldRun D Δ family out A x [C]
+      have HRun : PiInertFreshFieldRun D Ω Δ family out A x [C]
           (fun body k => PiInertApplicationContinuation D Δ (ProofShape.Subst.one x) xs K (.lam C' body) k)
           e (cs+ck) (frames+2) :=
         .retained (args := []) (HTvalue.pi_inert_compute heq hs RValue'.forget) SDinner RDomain
@@ -175,17 +175,17 @@ theorem CountedEtaBodySpineCut.empty_pair_prefix_function_eta_eliminate
       (.lam A (.app (.const info.ctorName []) (etaArgument u))))
     (H : CountedEtaBodySpineCut D n Δ info.ctorName [] [] A u args major ct
       (ConstructorEtaBodyRoot D))
-    (HK : PiInertProjectionRunFrames D Δ family 0 out Δ K major ck frames)
+    (HK : PiInertProjectionRunFrames D Ω family 0 out Δ K major ck frames)
     (hcost : cp+1+ct+ck ≤ budget)
     (HM : ∀ later j endpoint k, ScopedComputeCount (PiInertStage D later) j Δ original endpoint →
       K endpoint k → budget ≤ j+k) :
     ∃ x charge, TypedSource Δ x ∧
       ScopedComputeCount (PiInertStage D n) charge Δ field x ∧
       ((∃ telescope nextValue smaller nextFrames, charge+smaller < budget ∧
-        PiInertProjectionFrameMinimum D Δ family 0 out (telescope ++ Δ)
+        PiInertProjectionFrameMinimum D Ω family 0 out (telescope ++ Δ)
           (ProofShape.mkApps (.const info.ctorName []) [x.liftN telescope.length, nextValue]) smaller nextFrames) ∨
        (∃ controls nextValue smaller nextFrames, charge+smaller < budget ∧
-        PiInertFreshPairStructureMinimum D Δ family info out A x controls nextValue smaller nextFrames)) := by
+        PiInertFreshPairStructureMinimum D Ω Δ family info out A x controls nextValue smaller nextFrames)) := by
   obtain ⟨x, charge, C, v, smaller, nextFrames, HTx, RField, SDC, hsmall, HMin⟩ :=
     H.empty_pair_prefix_marked_minimum heq hs hi hu (by omega) hshape SD RN HTfield HT
       ROuter houter RP REta HK hcost HM

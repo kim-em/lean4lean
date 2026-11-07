@@ -57,11 +57,11 @@ theorem pi_inert_fresh_field_endpoint_minimum
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (HT : TypedSource (controls ++ A :: Δ) source)
     (RP : ScopedComputeCount (PiInertStage D n) cb (controls ++ A :: Δ) source endpoint)
-    (HK : PiInertFreshFieldRun D Δ family out A x controls K endpoint ck frames)
+    (HK : PiInertFreshFieldRun D Ω Δ family out A x controls K endpoint ck frames)
     (hcost : cb+ck ≤ cost)
     (HM : ∀ later j tail k, ScopedComputeCount (PiInertStage D later) j (controls ++ A :: Δ)
       source tail → K tail k → cost ≤ j+k) :
-    PiInertFreshFieldMinimum D Δ family out A x controls endpoint ck frames := by
+    PiInertFreshFieldMinimum D Ω Δ family out A x controls endpoint ck frames := by
   refine ⟨K, n, 0, ck, endpoint, HT.pi_inert_compute heq hs RP.forget,
     ScopedComputeCount.beta BetaRed.refl, HK, by omega, ?_⟩
   intro later j tail k RJ RK
@@ -71,7 +71,7 @@ theorem pi_inert_fresh_field_endpoint_minimum
   omega
 
 /-- The retained alternative of an actual charged empty-prefix eta cut has
-a function computed in the observer scope. Its exact function count includes
+a function computed in the supply base. Its exact function count includes
 the eta root; its lifted endpoint is the retained lambda. The fresh field is
 still the first pending argument, and the remaining marked minimum keeps the
 same future supply. Function, argument and continuation charges fit together
@@ -97,7 +97,7 @@ theorem pi_inert_fresh_field_empty_eta_retained_descent
     (RT : ScopedComputeCount (PiInertStage D n) ct (controls ++ A :: Δ)
       (ProofShape.mkApps (.lam A' (.app (.const info.ctorName []) (etaArgument v)))
         (.bvar controls.length :: args)) endpoint)
-    (HK : PiInertFreshFieldRun D Δ family out A x controls K endpoint ck frames)
+    (HK : PiInertFreshFieldRun D Ω Δ family out A x controls K endpoint ck frames)
     (hcost : cp+1+ct+ck ≤ cost)
     (HM : ∀ later j tail k, ScopedComputeCount (PiInertStage D later) j (controls ++ A :: Δ)
       original tail → K tail k → cost ≤ j+k) :
@@ -109,7 +109,7 @@ theorem pi_inert_fresh_field_empty_eta_retained_descent
       ScopedArgumentsCount (PiInertStage D n) (controls ++ A :: Δ) ca
         (.bvar controls.length :: args) (.bvar controls.length :: rest) ∧
       cg+ca = 1+ct ∧ cp+cg+ca+ck ≤ cost ∧ ck < cost ∧
-      PiInertFreshFieldMinimum D Δ family out A x controls endpoint ck frames := by
+      PiInertFreshFieldMinimum D Ω Δ family out A x controls endpoint ck frames := by
   obtain ⟨k, RArg⟩ := pi_inert_pair_fresh_field_prefix_native heq hs hi hu hshape SD RN HT RN'
   rcases RT.pi_inert_lambda_spine_or_beta with
     ⟨domain, body, rest, cf, ca, hc, E, RF, RX⟩ |

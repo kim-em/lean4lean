@@ -154,7 +154,7 @@ theorem pi_inert_fresh_field_empty_eta_direct_supply_not_failure
   have RBody := ((ScopedComputeCount.base HR).mkApps
     (ScopedArgumentsCount.refl (args := [.bvar 0, value]))).trans RT
   have HEndpoint := HT.pi_inert_compute heq hs RBody.forget
-  have HFresh : PiInertFreshFieldRun D Δ family out A x []
+  have HFresh : PiInertFreshFieldRun D Δ Δ family out A x []
       (PiInertApplicationContinuation D Δ (ProofShape.Subst.one x) pending K)
       endpoint (cs+ck) (frames+1) := .supply HEndpoint W HNext RNext HK
   obtain ⟨short, domain, body, rest, cg, ca, HTshort, RShort, EL, E,

@@ -23,10 +23,10 @@ theorem pi_inert_lambda_spine_body_fresh_field_minimum
     (HT : TypedSource (controls ++ A :: Δ) (ProofShape.mkApps (.lam C body) args))
     (R : ScopedComputeCount (PiInertStage D n) ct (controls ++ A :: Δ)
       (ProofShape.mkApps (.lam C body) args) endpoint)
-    (HK : PiInertFreshFieldRun D Δ family out A x controls K endpoint ck frames)
+    (HK : PiInertFreshFieldRun D Ω Δ family out A x controls K endpoint ck frames)
     (HM : ∀ later j tail k, ScopedComputeCount (PiInertStage D later) j (controls ++ A :: Δ)
       (ProofShape.mkApps (.lam C body) args) tail → K tail k → ct+ck ≤ j+k) :
-    ∃ smaller, smaller ≤ ct+ck ∧ PiInertFreshFieldMinimum D Δ family out A x (C :: controls)
+    ∃ smaller, smaller ≤ ct+ck ∧ PiInertFreshFieldMinimum D Ω Δ family out A x (C :: controls)
       body smaller (frames+1) := by
   have HTlam : TypedSource (controls ++ A :: Δ) (.lam C body) := typed_spine_head HT
   have HTbody := (ScopedHole.lamBody C .hole).typed HTlam
@@ -81,9 +81,9 @@ theorem pi_inert_lambda_spine_body_fresh_field_minimum
 supplying argument and adds exactly one temporary binder and frame. -/
 theorem PiInertFreshFieldMinimum.lambda_body
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
-    (H : PiInertFreshFieldMinimum D Δ family out A x controls
+    (H : PiInertFreshFieldMinimum D Ω Δ family out A x controls
       (ProofShape.mkApps (.lam C body) args) cost frames) :
-    ∃ smaller, smaller ≤ cost ∧ PiInertFreshFieldMinimum D Δ family out A x (C :: controls)
+    ∃ smaller, smaller ≤ cost ∧ PiInertFreshFieldMinimum D Ω Δ family out A x (C :: controls)
       body smaller (frames+1) := by
   obtain ⟨K, n, cb, ck, endpoint, HT, R, HK, hc, HM⟩ := H
   obtain ⟨smaller, hsmall, Hbody⟩ := pi_inert_lambda_spine_body_fresh_field_minimum heq hs HT R HK
@@ -100,11 +100,11 @@ theorem PiInertRetainedPrefixCount.focus_fresh_field_nonempty
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (H : PiInertRetainedPrefixCount D Ξ Θ plug depth) (hd : 0 < depth)
     (W : ContextSubstitution Θ (controls ++ A :: Δ) τ)
-    (HM : PiInertFreshFieldMinimum D Δ family out A x controls
+    (HM : PiInertFreshFieldMinimum D Ω Δ family out A x controls
       (ProofShape.mkApps ((plug e).subst τ) pending) cost frames) :
     ∃ telescope smaller, telescope.length = depth ∧
       ContextSubstitution Ξ ((telescope ++ controls) ++ A :: Δ) (τ.liftN depth) ∧
-      smaller ≤ cost ∧ PiInertFreshFieldMinimum D Δ family out A x (telescope ++ controls)
+      smaller ≤ cost ∧ PiInertFreshFieldMinimum D Ω Δ family out A x (telescope ++ controls)
         (e.subst (τ.liftN depth)) smaller (frames+depth) := by
   induction H generalizing e controls τ pending cost frames with
   | refl => omega
@@ -140,12 +140,12 @@ theorem pi_inert_fresh_field_application_minimum
     (HT : TypedSource (controls ++ A :: Δ) (ProofShape.mkApps ((plug e).subst τ) pending))
     (RT : ScopedComputeCount (PiInertStage D m) cs (controls ++ A :: Δ)
       (ProofShape.mkApps ((plug e).subst τ) pending) endpoint)
-    (HK : PiInertFreshFieldRun D Δ family out A x controls K' endpoint ck frames)
+    (HK : PiInertFreshFieldRun D Ω Δ family out A x controls K' endpoint ck frames)
     (EK : ∀ body k, K body k ↔
       PiInertApplicationContinuation D (controls ++ A :: Δ) τ pending K' (plug body) k)
     (HM : ∀ later j body k, ScopedComputeCount (PiInertStage D later) j Ξ source body →
       K body k → cb+(cs+ck) ≤ j+k) :
-    PiInertFreshFieldMinimum D Δ family out A x controls
+    PiInertFreshFieldMinimum D Ω Δ family out A x controls
       (ProofShape.mkApps ((plug e).subst τ) pending) (cs+ck) frames := by
   refine ⟨K', m, cs, ck, endpoint, HT, RT, HK, rfl, ?_⟩
   intro later j tail k RJ HL
