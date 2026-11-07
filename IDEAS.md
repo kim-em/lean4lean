@@ -24402,3 +24402,45 @@ Validation: 1258 integration jobs; 23 recursively audited roots;
 maximum closure 11,976; all 1,233 frozen sources unchanged. Stock Lean
 v4.33.0-rc2 in /dev/shm/native-level-coherence-work only; standard axioms only,
 no forbidden strengthening/circular dependencies. PR extraction deferred.
+
+
+## 2026-11-07 17:15:43 UTC — Locate the positive-stage constructor eta residue
+
+Verdict: proved a full-stage computation dichotomy for the selected type field
+of a closed dependent pair. The original field either computes to the exposed
+projection result, or the major has a concrete minimum-count eta cut. Function
+eta is confined to an original constructor prefix of length zero or one and
+must have a nonproof next argument. Structure eta is confined to the complete
+two-argument major. Both alternatives retain their actual ambient guard at a
+strictly smaller stage, the original argument origins, and the full counted
+continuation. These are not assumed Pi-inert guard certificates.
+
+The first attempted extension was to reuse stage-zero stable-spine readout
+unchanged. Its root classification fails at native function/structure eta:
+function eta introduces a binder at a partial constructor, while structure eta
+replaces the fields by projections of the original major. Core stability does
+not exclude either root. The checked replacement is
+pi_inert_rigid_spine_readout_or_eta_cut, followed by the actual closed-record
+typing refinement and proof-argument eta elimination. Minimality excludes
+constant and identity expansions; rigidity excludes singleton and Eq roots
+at the chosen constructor prefix. This isolates eta without assuming general
+normalization, beta closure of the checker, or confluence of the expanded stage.
+
+The consumer proofErase_pi_inert_pair_projection_readout_or_eta_cut starts with
+an arbitrary full-stage projection path to a nonprojection, non-lambda-headed
+output. Terminal projection factorization exposes a major selecting that exact
+output. The new constructor dichotomy either supplies the original field path
+or records a closed-record eta cut on that major. This applies to variable and
+sort outputs as well as other exposed syntax, not only carrier exposure.
+
+Next: handle the retained nonproof function-eta continuations and the whole
+structure-eta continuation. The output guard index decreases, but its tail is
+still at the original stage and may use eta again. Therefore a naive induction
+on the guard index is not yet justified. The full positive-stage selection law
+and GOAL.md deliverable remain open; no strictly smaller sufficient frontier
+for strengthening is claimed.
+
+Validation: 1259 integration jobs; 11 recursively audited roots;
+maximum closure 11,977; 1,234 frozen source files. Stock Lean v4.33.0-rc2
+in /dev/shm/native-level-coherence-work only; standard axioms only and no
+forbidden strengthening/circular dependencies. PR extraction deferred.

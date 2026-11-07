@@ -15,14 +15,14 @@ variable [Params]
 /-- Native eta immediately applied to a proof marker can be removed through
 arbitrary subsequent computation. The exact exposed output is retained and
 the count does not increase; no substitution closure of guards is assumed. -/
-theorem pi_inert_proof_eta_spine_count_eliminate
+theorem pi_inert_proof_eta_spine_count_eliminate_nonlambda
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hguard : ErasedScopedPrimitiveDescent Guard)
     (HT : TypedSource Δ (ProofShape.mkApps f (.proof :: pending)))
     (H : NativeEtaExpansion Guard Δ f target)
     (RT : ScopedComputeCount (PiInertStage D n) cost Δ
       (ProofShape.mkApps target (.proof :: pending)) out)
-    (HE : CarrierExposure out) :
+    (hout : ∀ A b rest, out ≠ ProofShape.mkApps (.lam A b) rest) :
     ∃ k, k ≤ cost ∧ ScopedComputeCount (PiInertStage D n) k Δ
       (ProofShape.mkApps f (.proof :: pending)) out := by
   have HTapp : TypedSource Δ (.app f .proof) := typed_spine_head HT
@@ -52,7 +52,21 @@ theorem pi_inert_proof_eta_spine_count_eliminate
           ((proofErase Γ (.app f₀ x₀)).liftN 1)) .proof) pending) out := by
       simpa only [ProofShape.mkApps, ← EA, ProofShape.liftN_zero, ← EB] using RT
     obtain ⟨k, hk, R⟩ := pi_inert_constant_spine_count_eliminate heq hs hΓ hA ht
-      HE.not_lambda_spine RT'
+      hout RT'
     exact ⟨k, hk, by simpa only [Ee, ProofShape.mkApps] using R⟩
+
+/-- The carrier-exposure instance of proof-argument eta elimination. The more
+general result also applies to constructor values and other exposed outputs. -/
+theorem pi_inert_proof_eta_spine_count_eliminate
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hguard : ErasedScopedPrimitiveDescent Guard)
+    (HT : TypedSource Δ (ProofShape.mkApps f (.proof :: pending)))
+    (H : NativeEtaExpansion Guard Δ f target)
+    (RT : ScopedComputeCount (PiInertStage D n) cost Δ
+      (ProofShape.mkApps target (.proof :: pending)) out)
+    (HE : CarrierExposure out) :
+    ∃ k, k ≤ cost ∧ ScopedComputeCount (PiInertStage D n) k Δ
+      (ProofShape.mkApps f (.proof :: pending)) out :=
+  pi_inert_proof_eta_spine_count_eliminate_nonlambda heq hs hguard HT H RT HE.not_lambda_spine
 
 end Lean4Lean.VEnv.Strengthening

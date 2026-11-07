@@ -40296,3 +40296,74 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution in
 Quot.sound; no forbidden strengthening or circular-frontier dependencies.
 All 1,233 frozen sources verified. Artifacts: /dev/shm/pi-inert-pair-selection-*.
 Executable and UniqueTyping.lean unchanged; goal active; PR extraction deferred.
+
+
+## 2026-11-07 17:15:43 UTC — Isolate positive-stage constructor eta in projection readout
+
+The previous goal turn made verified progress in ce2d0f02, proving the stage-zero
+pair selection law. This turn revalidated the clean committed state and moved
+to the positive-stage computation case. Added
+ProofErasurePiInertConstructorEtaCut.lean, generalized proof-argument eta
+elimination while preserving its existing public carrier-exposure wrapper,
+and imported the new module through the global aggregator.
+
+static_structure_rigid_expansion_root classifies ambient finite-stage roots
+at a rigid head as core, constant expansion, or lower-stage guarded identity,
+function eta or structure eta. Singleton roots contradict rigidity; the
+canonical Eq prefix likewise contradicts the rigid pattern-head exclusion.
+No restriction of ambient guard subderivations to PiInertStage is made.
+
+RigidSpineEtaCut retains a minimum outer primitive count, the full counted
+source computation, the original universe and argument ancestry, a counted
+prefix and suffix whose costs plus the chosen root fit the original budget,
+prefix typing, the exact Pi-inert root, and a strictly earlier ambient eta
+guard. Its optional root predicate allows refinements of the same witness.
+pi_inert_rigid_spine_readout_or_eta_cut chooses a minimum and applies the
+counted stable-spine cut. Core roots are excluded by the cut. Existing counted
+administrative bypass removes either constant or identity expansion even at a
+proper prefix; prefix plus bypass has strictly smaller cost, contradicting
+minimality. The remaining branch retains function or structure eta.
+
+TypedSource.structure_eta_pending_nil proves that a native structure expansion
+cannot have an argument pending: the application typing gives a Pi while the
+recovered family is rigid. RigidSpineEtaCut.closed_record proves the converse
+position restriction for function eta: a complete major remains typed at the
+original closed record family along its prefix path, excluding a recovered Pi.
+The same witness thus has function eta at a proper prefix or structure eta at
+the whole major. Original argument ancestry supplies the corresponding length
+inequalities without a new path selection.
+
+pi_inert_proof_eta_spine_count_eliminate_nonlambda generalizes the existing
+proof-argument elimination proof to every non-lambda-headed endpoint. The old
+carrier-exposure theorem delegates to it and retains its exact signature.
+The generalized result excludes a proof marker as the next pending argument
+of the minimum's function-eta cut. The closed record cut stores that exclusion
+alongside the exact original guard and continuation.
+
+proofErase_pi_inert_pair_selection_residual_or_eta_cut specializes to an actual
+closed pair with an immediately selectable first field. A retained constructor
+spine gives a primitive residual selection and directed computation of the
+original field. Otherwise its two original arguments locate function eta at
+prefix length zero or one and structure eta at length two.
+proofErase_pi_inert_pair_projection_readout_or_eta_cut consumes an entire sorted
+projection computation. Existing terminal selection moves the post-selection
+field work into the major. If the new constructor readout succeeds, primitive
+determinism identifies its selected field with the exact final output. Otherwise
+the output retains the actual major path, its final primitive selection, and
+the refined eta cut. Variables and sorts are permitted final outputs.
+
+Unresolved: these proofs classify actual eta continuations; they do not yet
+read their type fields. In particular, a smaller guard stage is not a smaller
+stage for the retained arbitrary suffix. Function eta with a nonproof argument
+and whole-major structure eta still require a continuation invariant or a
+justified combined induction. General-stage PiInertPairTypeFieldSelection and
+the original weakN_iff remain open. This is no claim of a sufficient obligation
+strictly smaller than PropFront.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution in
+/dev/shm/native-level-coherence-work. Integration 1259 jobs; recursive audit
+11 roots, maximum closure 11,977; only propext/Classical.choice/
+Quot.sound; no forbidden strengthening or circular-frontier dependencies.
+All 1,234 frozen sources verified. Artifacts:
+/dev/shm/pi-inert-constructor-eta-cut-*. Executable and UniqueTyping.lean
+unchanged; goal active; PR extraction deferred.
