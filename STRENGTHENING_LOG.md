@@ -39360,3 +39360,41 @@ Quot.sound. All 1,178 frozen sources and owned diagnostics checked; artifacts
 under /dev/shm/elimination-origins-*. All Lean/Lake commands used stock
 v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
 UniqueTyping.lean unchanged; PR extraction deferred; goal active.
+
+## 2026-11-07 13:54:01 UTC — Full recursive interpretation survives core endpoint prefixes
+
+Added ProofErasurePiInertCoreEndpointInterpretation.lean. TypedAt.core_reduct
+and core_predecessor preserve the assigned carrier through ordinary core
+computation. The backwards proof realizes the actual reduct and handles its
+proof-marker case before using erasure reflection. Source typing is retained;
+unrelated raw typing witnesses do not establish the required assignment.
+
+DirectedPairInterpretation.prefixes and GuardedPairInterpretation.prefixes
+run the original interpreter at the two typed substitutions, derive cross
+assignments for predecessor images, and apply local recursive-tree prefix
+closure. They retain all profiles, carriers and finite image requirements.
+GuardedInterpretation.prefix gives self interpretation of a core predecessor.
+These are endpoint-prefix laws, not composition of arbitrary carrier histories.
+
+StrongBounded.paired_beta now uses only the interpretation attached to its
+original rank-k reduct-typing child. paired_projIota uses the original field
+child and actual source inversion to establish constructor saturation.
+paired_extra_stored uses its original RHS typing child and the stored delta
+instance, keeping the built-in quotient equation separate. Parent rules are
+reconstructed only for ordinary typing, never as semantic IH inputs. Complete
+recursive profiles, nonempty requirement lists and erased-proof branches are
+preserved in all three cases.
+
+Limits: general reduct interpretation, type-transport coverage, comparison
+transitivity and the four principal sorted transport cases remain open.
+The next original-rule connection is appDF, paying particular attention to
+proof-erased whole applications: their recursive output profile may need
+explicit type-only supply because raw application tests cannot be invoked.
+GOAL.md is not achieved, and no smaller sufficient frontier is claimed.
+
+Integration passed 1204 jobs. Recursive audit covered 9 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. All 1,179 frozen sources and owned diagnostics checked; artifacts
+under /dev/shm/core-endpoints-*. All Lean/Lake commands used stock
+v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable and
+UniqueTyping.lean unchanged; PR extraction deferred; goal active.

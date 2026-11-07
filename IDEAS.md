@@ -23669,3 +23669,48 @@ recursive dependency closure 11,976; only propext, Classical.choice
 and Quot.sound. All 1,178 frozen sources and owned diagnostics checked.
 Stock v4.33.0-rc2 Lean/Lake ran only in /dev/shm/native-level-coherence-work.
 Executable and UniqueTyping.lean unchanged; PR extraction deferred; goal active.
+
+## 2026-11-07 13:54:01 UTC — Interpret core redexes from original reduct children
+
+Idea: beta's original reduct-typing child can supply its complete paired
+interpretation directly, avoiding a new lambda derivation at an unsuitable
+rank. Verdict: proved for beta, projection-iota, and the stored-definition
+branch of extra, with unrestricted recursive profiles and image requirements.
+
+ProofErasurePiInertCoreEndpointInterpretation.lean first proves exact raw
+assignment preservation under ordinary core reduction and backwards expansion.
+For a predecessor, actual source descent realizes the reduct. If that reduct
+erases to proof, actual equality forces the source to be the same marker;
+otherwise erasure reflection realizes the reduct's assigned carrier on that
+exact actual term and equality transfers it back to the source. No arbitrary
+assignment is inferred merely from separate raw source witnesses.
+
+Directed and paired interpreters now preserve independent core prefixes.
+Under paired substitutions, the interpreted reduct supplies each predecessor's
+cross assignment at the appropriate left carrier. The existing local tree
+prefix theorem then preserves the full recursive profile. Both directions,
+original carriers, annotation maps and the finite requirement list remain
+unchanged. Self interpretation has the corresponding one-prefix theorem.
+
+StrongBounded.paired_beta consumes its original rank-k reduct interpreter;
+paired_projIota consumes its original field interpreter and derives constructor
+saturation from actual projection typing. paired_extra_stored consumes the
+original right-hand-side interpreter and obtains the exact delta instance
+from Definitions.ofEnv inclusion. The separate quotient equation is not
+misclassified as a stored unfolding. Proof-marker erasure is included without
+a nonproof premise. No reconstructed strong derivation is submitted to the IH.
+
+Limits: these constructors require the original reduct interpretations; they
+do not prove general endpoint coverage, arbitrary history composition, or
+transport through non-core computations. The four principal sorted transport
+cases remain open. Next connect the original appDF rule to recursive paired
+action, including the branch where the whole application erases to proof:
+a raw application test is unavailable there, so its output profile's type-only
+supply must be tracked rather than silently inferred from vacuous action.
+No strictly smaller sufficient frontier or completion claim.
+
+Validation: 1204 integration jobs; 9 public/probe roots; maximum
+recursive dependency closure 11,976; only propext, Classical.choice
+and Quot.sound. All 1,179 frozen sources and owned diagnostics checked.
+Stock v4.33.0-rc2 Lean/Lake ran only in /dev/shm/native-level-coherence-work.
+Executable and UniqueTyping.lean unchanged; PR extraction deferred; goal active.
