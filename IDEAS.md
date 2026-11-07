@@ -22116,3 +22116,62 @@ weakN_iff, weakN_inv and known circular frameworks excluded. All Lean/Lake
 execution used stock v4.33.0-rc2 in the established scratch directory.
 Executable and UniqueTyping.lean unchanged; PR extraction deferred;
 GOAL.md remains active.
+
+
+## 2026-11-07 08:54:44 UTC — Finite demand inference for native application bodies
+
+The next obstacle was repeated uses of a function argument with different
+input/result requirements. Added the both constructor to PiInertDemand and
+extended every existing movement, ordinary-core conversion, endpoint-prefix
+and carrier-value embedding proof. A finite all collection retains every
+member without requiring one uniform checker stage. Existing identity and
+evaluator results remain valid for these richer demands.
+
+PiInertDemandTree describes the native variable/application fragment with
+actual raw source and carrier witnesses. An application node records its
+chosen argument demand; ordinary-core type joins are allowed as explicit
+conversion nodes. For any desired result demand, requirements proves that
+a finite list of variable demands suffices to interpret the whole body under
+two actual typed substitutions. This is a structural induction over the
+whole tree, including repeated and nested applications, rather than another
+single displayed lambda. It does not infer the internal application demand
+annotations from arbitrary strong derivations.
+
+The typed substitution issue in the lambda case is resolved explicitly.
+TypedSource.lambda_argument uses actual application/lambda inversion and
+HasType.app_lam_arg to type the argument at the written binder annotation.
+ContextSubstitution.lambda_argument composes that single-binder substitution
+with the given surrounding interpretation. Carrier history or disconnected
+endpoint witnesses alone are not used to justify the binder image.
+
+For lambda_value, collect all demands on the newest variable into the finite
+input demand. In each core world, the supplied argument pair meets this
+collection after ordinary-core Pi-domain transport. Old variable images
+remain native neutrals; the core world's reverse native-type certificate
+supplies their selected carriers, and the old carrier-value embedding supplies
+every required demand. The body interpreter then produces the full result
+demand; its carrier follows the Pi codomain join and typed beta prefixes.
+The conclusion is: for every requested output demand, this application-tree
+lambda has some finite sufficient input demand.
+
+Actual variable, application and lambda bridges connect the tree to original
+typed terms. The actual example fun f => f (f x), with x : Prop -> Prop,
+allows distinct argument demands at the two calls and returns a function
+with the requested result evidence. The generic lambda proof applies to all
+finite trees in the stated grammar, not just identity and evaluation.
+
+Verdict: constructive demand inference and a lambda handler now cover this
+native application fragment without normalizing computations or recursively
+using a larger substituted strong proof. This is not full strong-body coverage,
+a general paired-lambda equality theorem, or an irreducible obligation proved
+strictly smaller than PropFront. General definitional type conversion, nested
+lambdas, constants/projections, proof-erased leaves, and arbitrary differing
+body pairs are not included in the tree. The full goal remains unchanged.
+
+Validation: 1171 integration jobs; 37 audited public/probe roots from
+both changed modules, maximum closure 11,976; only propext,
+Classical.choice and Quot.sound. All imported source hashes and owned
+diagnostics checked. Audit excludes sorryAx, weakN_iff, weakN_inv and known
+circular frameworks. Lean/Lake ran only in the established scratch directory
+on stock v4.33.0-rc2. Executable and UniqueTyping.lean unchanged; PR extraction
+deferred; GOAL.md remains active.

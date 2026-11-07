@@ -7,6 +7,7 @@ It is independent of checker stages and does not bound core reduction length.
 Every value retains a complete carrier history with variable-world futures.
 Function demands additionally retain action on the specified argument demand,
 returning the specified result demand at the exact dependent carrier.
+Finite intersections retain several uses of one argument simultaneously.
 
 No theorem here asserts that every strong derivation satisfies every demand.
 That coverage question includes paired body substitution and general type
@@ -18,11 +19,13 @@ open private not_proof_at_positive_type from Lean4Lean.Theory.Typing.Strengtheni
 open private value_inst_lift from Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertWorldValues
 variable [Params] {D : Definitions}
 
-/-- A finite description of the evidence consumed and returned by a function
-use. This is neither a normalization bound nor a bound on checker stages. -/
+/-- A finite description of the evidence consumed and returned by function
+uses, including simultaneous requirements. This is neither a normalization
+bound nor a bound on checker stages. -/
 inductive PiInertDemand where
   | ground
   | arrow (argument result : PiInertDemand)
+  | both (left right : PiInertDemand)
 
 /-- The common payload at every demand: actual source typing for both terms
 and their selected carrier, plus a finite-stage history at that carrier. -/
@@ -47,13 +50,16 @@ def PiInertDemandValue : PiInertDemand → Definitions → List ProofShape →
         TypedSource Δ' (.app (a.subst τ) x) →
         TypedSource Δ' (.app (b.subst τ) y) → TypedSource Δ' (B.inst x) →
         PiInertDemandValue q D Δ' (.app (a.subst τ) x) (.app (b.subst τ) y) (B.inst x)
+  | .both p q, D, Δ, a, b, T =>
+      PiInertDemandValue p D Δ a b T ∧ PiInertDemandValue q D Δ a b T
 
 /-- Every demand retains the same typed carrier-history payload. -/
 theorem PiInertDemandValue.base (H : PiInertDemandValue p D Δ a b T) :
     PiInertDemandBase D Δ a b T := by
-  cases p with
+  induction p with
   | ground => exact H
   | arrow => exact H.1
+  | both p q ih _ => exact ih H.1
 
 /-- Typed core joins compose at a middle raw shape with an actual source
 witness; no global or guarded-stage confluence is used. -/
@@ -82,8 +88,9 @@ theorem PiInertDemandValue.move (H : PiInertDemandValue p D Δ a b T)
     obtain ⟨n, HN⟩ := H.base.history
     exact ⟨H.base.leftSource.subst W.typed, H.base.rightSource.subst W.typed,
       H.base.typeSource.subst W.typed, n, HN.move W⟩
-  cases p with
+  induction p generalizing Δ Δ' τ a b T with
   | ground => exact base
+  | both p q ihp ihq => exact ⟨ihp H.1 W base, ihq H.2 W base⟩
   | arrow p q =>
     refine ⟨base, ?_⟩
     intro Δ'' υ A B x y V HT J HX HA HB HR
@@ -100,8 +107,9 @@ theorem PiInertDemandValue.core_join
   have base : PiInertDemandBase D Δ a b U := by
     obtain ⟨n, HN⟩ := H.base.history
     exact ⟨H.base.leftSource, H.base.rightSource, HU, n, HN.core_join hs hc HU J⟩
-  cases p with
+  induction p generalizing a b T U with
   | ground => exact base
+  | both p q ihp ihq => exact ⟨ihp H.1 HU J base, ihq H.2 HU J base⟩
   | arrow p q =>
     refine ⟨base, ?_⟩
     intro Δ' τ A B x y W HT K HX HA HB HR
@@ -118,6 +126,7 @@ theorem PiInertDemandValue.prefixes
     (RA : Compute (ErasedLevelCore D) a a') (RB : Compute (ErasedLevelCore D) b b') :
     PiInertDemandValue p D Δ a b T := by
   induction p generalizing Δ a b a' b' T with
+  | both p q ihp ihq => exact ⟨ihp H.1 HA HB RA RB, ihq H.2 HA HB RA RB⟩
   | ground =>
     obtain ⟨n, HN⟩ := H.history
     exact ⟨HA, HB, H.typeSource, n, HN.prefixes
@@ -149,6 +158,7 @@ theorem PiInertCarrierValue.demand
     (H : PiInertCarrierValue D n Δ a b T) (HT : TypedSource Δ T) :
     PiInertDemandValue p D Δ a b T := by
   induction p generalizing n Δ a b T with
+  | both p q ihp ihq => exact ⟨ihp H HT, ihq H HT⟩
   | ground => exact ⟨H.sources.1, H.sources.2, HT, n, H.history heq hs hc hRigid⟩
   | arrow p q _ ih =>
     refine ⟨⟨H.sources.1, H.sources.2, HT, n, H.history heq hs hc hRigid⟩, ?_⟩

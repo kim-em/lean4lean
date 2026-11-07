@@ -38054,3 +38054,45 @@ with only propext, Classical.choice and Quot.sound. /dev/shm/demand-values-*
 artifacts retain frozen source hashes and dependency/diagnostic checks.
 UniqueTyping.lean and the executable remain unchanged. No PR extraction.
 GOAL.md remains active.
+
+
+## 2026-11-07 08:54:44 UTC — Finite variable demands and native application-body lambdas
+
+Extended PiInertDemand with finite intersection and preserved all previous
+DemandValues declarations. Added ProofErasurePiInertDemandBodies.lean and
+its aggregator import. The new tree grammar contains native variables,
+applications with explicit argument-demand annotations, and supplied
+ordinary-core selected-type joins. Every node retains actual source typing.
+
+PiInertDemandTree.requirements constructs a finite variable-use list for
+any requested result demand and proves paired-substitution interpretation.
+It retains each occurrence's variable/carrier source witnesses. Repeated
+uses concatenate their requirements rather than assuming one function
+profile is sufficient for every use.
+
+TypedSource.lambda_argument derives a genuine written-binder interpretation
+from typing of a whole raw lambda application, using actual app_lam_arg.
+The surrounding interpretation composes with it by the proved raw cons
+substitution identity. This resolves the typing needed by body interpretation
+without enlarging history futures to arbitrary function images.
+
+cons_world satisfies all body uses from the collected head demands plus
+retained native neutral evidence for the old core-world variables. The
+lambda_value theorem therefore constructs, for each output demand, a finite
+sufficient input demand for every tree body. It preserves ordinary-core
+Pi aliases and the exact dependent result through typed beta prefixes.
+
+Actual variable/application/lambda bridges are checked. The actual repeated
+higher-order example fun f => f (f x), with x itself of type Prop -> Prop,
+uses two independently chosen call demands and retains a function result.
+The theorem does not claim unrestricted strong-body coverage or a relation
+between arbitrary different lambda bodies. Nested lambdas and general
+dependent type conversion remain open, among the tree's documented limits.
+
+All Lean/Lake commands ran in /dev/shm/native-level-coherence-work using stock
+leanprover/lean4:v4.33.0-rc2. Integration passed 1171 jobs. Recursive audit
+covered 37 public/probe roots from both changed modules, maximum closure
+11,976, only propext, Classical.choice and Quot.sound. Frozen imports,
+owned diagnostics and forbidden-dependency checks are retained under
+/dev/shm/demand-bodies-*. UniqueTyping.lean and its strengthening sorry remain
+unchanged. No executable changes or PR extraction. GOAL.md remains active.
