@@ -37927,3 +37927,51 @@ Classical.choice and Quot.sound. /dev/shm/world-spines-* artifacts retain source
 hashes and diagnostics, and exclude sorryAx, weakN_iff, weakN_inv and known
 circular frameworks. UniqueTyping.lean and its open strengthening proof remain
 unchanged. No executable changes or PR extraction. GOAL.md remains active.
+
+
+## 2026-11-07 08:09:47 UTC — Typed value evidence through beta and higher-order evaluation
+
+Added the 26 public roots of ProofErasurePiInertWorldValues.lean and imported it
+through ProofErasurePiInertGlobalEtaBodyCut.lean. Reused the existing
+TypedSource.mkApps_head theorem from ScopedValueChain for actual typing of
+intermediate applications; no value-chain transport principle is assumed.
+
+WorldNeutral, WorldRecovery and WorldComparison retain independent core
+reducts. WorldComparison also accepts retained computation prefixes.
+PiInertWorldValue stores actual typed sources, concrete ordinary-core paths,
+and a neutral result package. Its move, raise, supplied-type-computation,
+prefix, comparison, history and reduct rules are checked. Typed ordinary-core
+confluence handles arbitrary source residuals without requiring normalization.
+The bvar_injective theorem records that this value class cannot cover distinct
+bare variables, even where a carrier-only relation can express their equality.
+
+WorldValue.app returns the complete dependent value and explicitly requests
+typing of both whole source applications. Finite argument sequences use the
+same rule, deriving intermediate typing from the complete spines. The actual
+non-proof application bridge reconstructs erasure at B.inst x. Paired actual
+lambda applications and their body instances preserve the value package in
+both beta directions, with their actual typings and body-value premise explicit.
+
+PiInertTypedValueAction consumes values rather than arbitrary carrier-related
+raw arguments, and returns values rather than just histories. It moves through
+core worlds. Values at a selected Pi construct this action. The displayed
+identity lambda and the dependent evaluator fun h => h x also construct it
+directly; the latter retains the captured argument's history and derives body
+application typing by replaying its actual typed beta prefixes. Neither theorem
+asserts that arbitrary lambda bodies have the required paired interpretation.
+
+The checked limitation matters for the goal: a neutral-returning value class
+is not a complete replacement for carrier evidence. Subsingleton/function
+carrier equalities and general higher-order argument demands still need a
+suitable payload, and general native-to-assigned type transport remains open.
+UniqueTyping.lean and the weakN_iff sorry are unchanged.
+
+All Lean/Lake work ran in /dev/shm/native-level-coherence-work on stock
+leanprover/lean4:v4.33.0-rc2. The integration build passed 1168 jobs. The audit
+covered 27 roots comprising every new public declaration and the integration
+probe, recursively traversing all dependencies and inductive constructors and
+recursors; maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. The prior audit of unchanged declarations remains recorded; frozen
+hash checks cover all imported local sources. /dev/shm/world-values-* artifacts
+also verify owned diagnostics and reject sorryAx, weakN_iff, weakN_inv and known
+circular frameworks. Executable unchanged, no PR extraction, GOAL.md active.

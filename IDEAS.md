@@ -21947,3 +21947,63 @@ definitional type equality or action from carrier-only evidence.
 Validation: 1133 integration jobs, 572 audited roots, maximum dependency
 closure 12,394; only propext, Classical.choice and Quot.sound. Stock Lean
 in the scratch checkout, executable unchanged, PR extraction deferred, goal active.
+
+
+## 2026-11-07 08:09:47 UTC — Typed beta predecessors preserve returned value evidence
+
+The preceding neutral-spine turn was verified progress, but its invariant
+required variable-headed sources. A displayed lambda application can reduce
+to a neutral value without satisfying that source invariant. Retaining only
+its resulting carrier history would again discard further application data.
+
+Added ProofErasurePiInertWorldValues.lean. PiInertWorldValue stores actual typed
+source witnesses and concrete ordinary-core paths to a PiInertWorldNeutral
+pair. It does not claim that every term reduces to a neutral pair. The neutral
+package, inferred comparison and recovery survive their own core reducts.
+Typed core confluence then proves that the whole value package survives every
+independent source core reduction. Typed core predecessors also preserve it.
+Core paths substitute directly, so both constructions retain core-world futures.
+
+This distinction makes the application rule honest about typing. WorldValue.app
+requires TypedSource witnesses for both whole source applications, rather than
+assuming that arbitrary raw arguments with a carrier history are well typed.
+Its core prefixes extend by application and its neutral outputs use the previous
+spine theorem. The result keeps the exact left dependent selected type and the
+complete value package. run_values handles every finite argument sequence from
+typing of its two complete application spines. apply_actual_nonproof connects
+the construction to actual equal functions and arguments and the erasure of
+B.inst x. lambda_apply and lambda_body retain values across actual paired beta
+applications in both directions; construction of arbitrary body instances is
+still a separate obligation.
+
+PiInertTypedValueAction separates a lambda's application behavior from being a
+neutral-returning value itself. It consumes whole argument values, requires
+actual whole-application typing, and returns whole values. Identity constructs
+this action directly at the input stage. The higher-order evaluator fun h => h x
+constructs it from the captured argument's carrier history: the supplied
+function value applies to x, and the typed beta prefixes preserve the resulting
+dependent value, including evidence for later application. Thus displayed
+lambdas can have this action without being classified as neutral-returning values.
+
+The boundary is checked explicitly by WorldValue.bvar_injective: a value pair
+of bare variables forces their indices equal. The pre-existing unit-carrier
+separation shows why this class cannot replace all carrier histories. In
+particular, these results do not provide a complete semantic relation for all
+strong equalities or all function arguments. A richer or demand-specific
+payload still has to retain subsingleton and other carrier-only equalities,
+as well as the action needed at higher-order uses. General dependent type
+transport remains open. No normalization hypothesis, general carrier-to-action
+promotion, or computation certificate for arbitrary type equality is added.
+
+Verdict: typed beta closure now preserves returned application evidence, and
+identity plus a dependent higher-order evaluator have checked value action.
+The original strengthening deliverable remains unproved. Next address the
+missing payload classes and the original smaller strong children, rather than
+claiming completeness for this explicitly limited value class.
+
+Validation: 1168 integration jobs; 27 audited roots (all new public
+roots and the integration probe), maximum transitive closure 11,976;
+only propext, Classical.choice and Quot.sound. Already audited unchanged roots
+were not redundantly rerun; all imported source hashes were frozen and checked.
+Stock Lean scratch execution, executable unchanged, PR extraction deferred,
+GOAL.md active.
