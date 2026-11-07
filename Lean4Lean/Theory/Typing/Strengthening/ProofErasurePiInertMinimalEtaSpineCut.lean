@@ -89,7 +89,7 @@ This locates the body root; classification of that root, including nested eta,
 remains a separate obligation. Combined body/continuation minimality rules out
 identity and constant expansion even if they survive until after the enclosing
 beta; the actual argument supplies the required typed context interpretation. -/
-theorem globally_minimal_pi_inert_eta_body_spine_cut
+theorem globally_minimal_pi_inert_eta_body_spine_cut_nonlambda
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hguard : ErasedScopedPrimitiveDescent Guard)
     (HT : TypedSource Δ (ProofShape.mkApps (ProofShape.mkApps (.const c ls) pre) args))
@@ -103,11 +103,11 @@ theorem globally_minimal_pi_inert_eta_body_spine_cut
       (ProofShape.mkApps (.lam A (.app ((ProofShape.mkApps (.const c ls) pre).liftN 1) (etaArgument u))) args) out)
     (hcost : cp+1+ct ≤ cost)
     (hmin : ∀ later k, ScopedComputeCount (PiInertStage D later) k Δ original out → cost ≤ k)
-    (HE : CarrierExposure out) :
+    (hout : ∀ A b rest, out ≠ ProofShape.mkApps (.lam A b) rest) :
     CountedEtaBodySpineCut D n Δ c ls pre A u args out ct := by
   rcases RT.pi_inert_lambda_spine_or_beta with ⟨A', b', args', cf, ca, _, EO, _, _⟩ |
       ⟨A', body', x', xs', cf, ca, cs, hc, RF, RX, RS⟩
-  · exact (HE.not_lambda_spine A' b' args' EO).elim
+  · exact (hout A' b' args' EO).elim
   · obtain ⟨cd, cb, m, hsplit, RD, RB⟩ := pi_inert_native_eta_count_body_readout
       heq hs hguard (typed_spine_head HT) (.intro RN SD) RF
     have RBspine : ScopedComputeCount (PiInertStage D m) cb (A :: Δ)
@@ -149,13 +149,32 @@ theorem globally_minimal_pi_inert_eta_body_spine_cut
       refine ⟨A', body', x', xs', cf, ca, cs, cd, cb, m, ls', bodyPre, bodyPending,
         target, pb, tb, hcExact, hsplit, hcutExact, RF, RX, RS, RD, HL, HA, RPB', HR, HN, RTB,
         hminBody, hminContinuation, ?_, HTroot, WI, ?_, trivial⟩
-      · apply pi_inert_continuation_minimum_no_identity
+      · apply pi_inert_continuation_minimum_no_identity_nonlambda
           (by simpa only [ProofShape.mkApps_append] using RPB') RTB
           (by simpa only [ProofShape.inst_eq_subst] using RS) hcutExact
-          (by simpa only [ProofShape.inst_eq_subst] using hminContinuation) HE
-      · apply pi_inert_continuation_minimum_no_constant heq hs HTroot WI
+          (by simpa only [ProofShape.inst_eq_subst] using hminContinuation) hout
+      · apply pi_inert_continuation_minimum_no_constant_nonlambda heq hs HTroot WI
           (by simpa only [ProofShape.mkApps_append] using RPB') RTB
           (by simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using RS) hcutExact
-          (by simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using hminContinuation) HE
+          (by simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using hminContinuation) hout
+
+/-- The carrier-exposure specialization, retaining the existing interface. -/
+theorem globally_minimal_pi_inert_eta_body_spine_cut
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hguard : ErasedScopedPrimitiveDescent Guard)
+    (HT : TypedSource Δ (ProofShape.mkApps (ProofShape.mkApps (.const c ls) pre) args))
+    (RN : ScopedTypeRecovery Guard Δ (ProofShape.mkApps (.const c ls) pre) (.forallE A B))
+    (SD : DomainSort Δ A u)
+    (RP : ScopedComputeCount (PiInertStage D n) cp Δ original
+      (ProofShape.mkApps (ProofShape.mkApps (.const c ls) pre) args))
+    (HR : PiInertStage D n Δ (ProofShape.mkApps (.const c ls) pre)
+      (.lam A (.app ((ProofShape.mkApps (.const c ls) pre).liftN 1) (etaArgument u))))
+    (RT : ScopedComputeCount (PiInertStage D n) ct Δ
+      (ProofShape.mkApps (.lam A (.app ((ProofShape.mkApps (.const c ls) pre).liftN 1) (etaArgument u))) args) out)
+    (hcost : cp+1+ct ≤ cost)
+    (hmin : ∀ later k, ScopedComputeCount (PiInertStage D later) k Δ original out → cost ≤ k)
+    (HE : CarrierExposure out) :
+    CountedEtaBodySpineCut D n Δ c ls pre A u args out ct :=
+  globally_minimal_pi_inert_eta_body_spine_cut_nonlambda heq hs hguard HT RN SD RP HR RT hcost hmin HE.not_lambda_spine
 
 end Lean4Lean.VEnv.Strengthening

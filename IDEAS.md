@@ -24485,3 +24485,49 @@ Validation: 1261 integration jobs; 9 recursively audited roots;
 maximum closure 11,977; 1,236 frozen source files. Stock Lean v4.33.0-rc2
 in /dev/shm/native-level-coherence-work only; standard axioms only and no
 forbidden strengthening/circular dependencies. PR extraction deferred.
+
+
+## 2026-11-07 17:35:28 UTC — Carry the remaining constructor eta into a smaller global body minimum
+
+Verdict: projection readout and whole-record eta elimination now retain minima
+over all finite stages, and the remaining function-eta case supplies a strictly
+smaller original-scope body minimum. Annotation transport may increase the guard
+stage without invalidating its primitive-count comparison. The selected body
+root at the original constructor head can only be nested function or structure
+eta; its actual ambient guard and complete endpoint substitution/continuation
+are retained.
+
+The fixed-stage minimum from the preceding turn was insufficient for this next
+step: pi_inert_lambda_count_readout can raise the stage while keeping the exact
+body count. The replacement minimizes the projection path across stages and
+proves that its major segment is likewise globally minimal. A competing major
+path is prefixed by projection and followed by the same final selection/tail
+at a common finite bound. The earlier structure-eta bypass then works with
+global competitors too; a successful field readout may use a different stage.
+
+The existing eta-body machinery required carrier-exposure endpoints. A selected
+constructor value need not be such a carrier. Generalizing the administrative
+continuation bypasses and the body-cut theorem to any non-lambda-headed output
+closes that mismatch; the old carrier-exposure interfaces remain wrappers.
+
+The checked top-level consumer constructs all the minima from an arbitrary
+finite exposed pair type-projection computation. It either returns readout of
+the original field at some finite stage or PairFunctionEtaBodyMinimum. The
+latter includes the original pair ancestry and a CountedEtaBodySpineCut with
+global body and combined body/continuation minimality. Rigidity removes core,
+singleton and Eq roots; stored continuation minimality removes administrative
+roots. This is an actual smaller body computation, not merely a smaller index
+on an ambient guard.
+
+Next: handle nested function/structure eta inside that body with its retained
+substitution and application continuation. The body endpoint can be arbitrary
+syntax, so the exposed-projection theorem cannot simply be applied recursively
+to it. A continuation invariant must retain the final projection observer.
+No coverage or termination of this larger invariant is yet proved. Full pair
+selection, weakN_iff and the GOAL.md deliverable remain open; this is not claimed
+as a sufficient frontier strictly smaller than PropFront.
+
+Validation: 1263 integration jobs; 23 recursively audited roots;
+maximum closure 11,978; 1,238 frozen source files. Stock Lean v4.33.0-rc2
+in /dev/shm/native-level-coherence-work only; standard axioms only and no
+forbidden strengthening/circular dependencies. PR extraction deferred.

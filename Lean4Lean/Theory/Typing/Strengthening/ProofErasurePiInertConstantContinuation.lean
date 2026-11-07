@@ -13,7 +13,7 @@ variable [Params]
 /-- Remove a constant wrapper before or after a typed endpoint substitution,
 preserving the exact final output and not increasing the combined body/suffix
 count. No substitution law for guarded computation is assumed or used. -/
-theorem pi_inert_constant_spine_continuation_bypass
+theorem pi_inert_constant_spine_continuation_bypass_nonlambda
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (hΓ : OnCtx Γ (env.IsType univs)) (hA : env.HasType univs Γ A (.sort u))
     (ht : env.HasType univs Γ e T)
@@ -22,7 +22,7 @@ theorem pi_inert_constant_spine_continuation_bypass
       (ProofShape.mkApps (.app (.lam (proofErase Γ A) ((proofErase Γ e).liftN 1)) x) args) body')
     (S : ScopedComputeCount (PiInertStage D n) cs Ω
       (ProofShape.mkApps (body'.subst τ) pending) out)
-    (HE : CarrierExposure out) :
+    (hout : ∀ A b rest, out ≠ ProofShape.mkApps (.lam A b) rest) :
     ∃ endpoint j k, j+k ≤ cb+cs ∧
       ScopedComputeCount (PiInertStage D m) j (proofEraseCtx Γ)
         (ProofShape.mkApps (proofErase Γ e) args) endpoint ∧
@@ -50,7 +50,7 @@ theorem pi_inert_constant_spine_continuation_bypass
         simpa only [EO, EΓ₀, EA, Ee, ProofShape.subst_mkApps, ProofShape.subst,
           ProofShape.lift_subst_lift, List.map_cons, ProofShape.mkApps, ← ProofShape.mkApps_append] using S
       obtain ⟨k, hk, SK⟩ := pi_inert_constant_spine_count_eliminate
-        heq hs hΓ₀ hA' he' HE.not_lambda_spine S'
+        heq hs hΓ₀ hA' he' hout S'
       refine ⟨_, _, k, by omega, RE.mkApps RX, ?_⟩
       simpa only [EΓ₀, Ee, ProofShape.subst_mkApps, ProofShape.mkApps_append] using SK
   · obtain ⟨A', e', ce, hce, _, _, EF, RE⟩ :=
@@ -65,14 +65,14 @@ theorem pi_inert_constant_spine_continuation_bypass
 /-- The standard constant-expansion primitive can be bypassed through a
 typed continuation. Typing is needed only for its source and the endpoint
 substitution, not as a native-recovery certificate for the substitution images. -/
-theorem pi_inert_constant_expansion_continuation_bypass
+theorem pi_inert_constant_expansion_continuation_bypass_nonlambda
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (HT : TypedSource Δ source) (W : ContextSubstitution Δ Ω τ)
     (H : ConstantExpansion source target)
     (R : ScopedComputeCount (PiInertStage D m) cb Δ (ProofShape.mkApps target args) body')
     (S : ScopedComputeCount (PiInertStage D n) cs Ω
       (ProofShape.mkApps (body'.subst τ) pending) out)
-    (HE : CarrierExposure out) :
+    (hout : ∀ A b rest, out ≠ ProofShape.mkApps (.lam A b) rest) :
     ∃ endpoint j k, j+k ≤ cb+cs ∧
       ScopedComputeCount (PiInertStage D m) j Δ (ProofShape.mkApps source args) endpoint ∧
       ScopedComputeCount (PiInertStage D n) k Ω
@@ -84,12 +84,65 @@ theorem pi_inert_constant_expansion_continuation_bypass
       .sort (by trivial)
     have EA : proofErase Γ (.sort (.succ .zero)) = .sort (.succ .zero) :=
       if_neg (not_isProof_of_sort hΓ hA)
-    exact pi_inert_constant_spine_continuation_bypass heq hs hΓ hA ht W
-      (by simpa only [EA, ProofShape.constantExpansion] using R) S HE
+    exact pi_inert_constant_spine_continuation_bypass_nonlambda heq hs hΓ hA ht W
+      (by simpa only [EA, ProofShape.constantExpansion] using R) S hout
 
 /-- Constant expansion cannot be the selected body-spine root of a minimum
 combined body/continuation path with a typed source and endpoint substitution.
 Its removal saves the root occurrence even if the wrapper survives the body. -/
+theorem pi_inert_continuation_minimum_no_constant_nonlambda
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (HT : TypedSource Δ source) (W : ContextSubstitution Δ Ω τ)
+    (RP : ScopedComputeCount (PiInertStage D m) cp Δ original (ProofShape.mkApps source args))
+    (RT : ScopedComputeCount (PiInertStage D m) ct Δ (ProofShape.mkApps target args) body')
+    (RS : ScopedComputeCount (PiInertStage D n) cs Ω
+      (ProofShape.mkApps (body'.subst τ) pending) out)
+    (hcost : cp+1+ct = cb)
+    (hmin : ∀ later suffixStage j k endpoint,
+      ScopedComputeCount (PiInertStage D later) j Δ original endpoint →
+      ScopedComputeCount (PiInertStage D suffixStage) k Ω
+        (ProofShape.mkApps (endpoint.subst τ) pending) out → cb+cs ≤ j+k)
+    (hout : ∀ A b rest, out ≠ ProofShape.mkApps (.lam A b) rest) : ¬ ConstantExpansion source target := by
+  intro H
+  obtain ⟨endpoint, j, k, hjk, RJ, RK⟩ :=
+    pi_inert_constant_expansion_continuation_bypass_nonlambda heq hs HT W H RT RS hout
+  have HM := hmin m n (cp+j) k endpoint (RP.trans RJ) RK
+  omega
+
+/-- The carrier-exposure specialization, retaining the existing interface. -/
+theorem pi_inert_constant_spine_continuation_bypass
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hΓ : OnCtx Γ (env.IsType univs)) (hA : env.HasType univs Γ A (.sort u))
+    (ht : env.HasType univs Γ e T)
+    (W : ContextSubstitution (proofEraseCtx Γ) Ω τ)
+    (R : ScopedComputeCount (PiInertStage D m) cb (proofEraseCtx Γ)
+      (ProofShape.mkApps (.app (.lam (proofErase Γ A) ((proofErase Γ e).liftN 1)) x) args) body')
+    (S : ScopedComputeCount (PiInertStage D n) cs Ω
+      (ProofShape.mkApps (body'.subst τ) pending) out)
+    (HE : CarrierExposure out) :
+    ∃ endpoint j k, j+k ≤ cb+cs ∧
+      ScopedComputeCount (PiInertStage D m) j (proofEraseCtx Γ)
+        (ProofShape.mkApps (proofErase Γ e) args) endpoint ∧
+      ScopedComputeCount (PiInertStage D n) k Ω
+        (ProofShape.mkApps (endpoint.subst τ) pending) out :=
+  pi_inert_constant_spine_continuation_bypass_nonlambda heq hs hΓ hA ht W R S HE.not_lambda_spine
+
+/-- The carrier-exposure specialization, retaining the existing interface. -/
+theorem pi_inert_constant_expansion_continuation_bypass
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (HT : TypedSource Δ source) (W : ContextSubstitution Δ Ω τ)
+    (H : ConstantExpansion source target)
+    (R : ScopedComputeCount (PiInertStage D m) cb Δ (ProofShape.mkApps target args) body')
+    (S : ScopedComputeCount (PiInertStage D n) cs Ω
+      (ProofShape.mkApps (body'.subst τ) pending) out)
+    (HE : CarrierExposure out) :
+    ∃ endpoint j k, j+k ≤ cb+cs ∧
+      ScopedComputeCount (PiInertStage D m) j Δ (ProofShape.mkApps source args) endpoint ∧
+      ScopedComputeCount (PiInertStage D n) k Ω
+        (ProofShape.mkApps (endpoint.subst τ) pending) out :=
+  pi_inert_constant_expansion_continuation_bypass_nonlambda heq hs HT W H R S HE.not_lambda_spine
+
+/-- The carrier-exposure specialization, retaining the existing interface. -/
 theorem pi_inert_continuation_minimum_no_constant
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
     (HT : TypedSource Δ source) (W : ContextSubstitution Δ Ω τ)
@@ -102,11 +155,7 @@ theorem pi_inert_continuation_minimum_no_constant
       ScopedComputeCount (PiInertStage D later) j Δ original endpoint →
       ScopedComputeCount (PiInertStage D suffixStage) k Ω
         (ProofShape.mkApps (endpoint.subst τ) pending) out → cb+cs ≤ j+k)
-    (HE : CarrierExposure out) : ¬ ConstantExpansion source target := by
-  intro H
-  obtain ⟨endpoint, j, k, hjk, RJ, RK⟩ :=
-    pi_inert_constant_expansion_continuation_bypass heq hs HT W H RT RS HE
-  have HM := hmin m n (cp+j) k endpoint (RP.trans RJ) RK
-  omega
+    (HE : CarrierExposure out) : ¬ ConstantExpansion source target :=
+  pi_inert_continuation_minimum_no_constant_nonlambda heq hs HT W RP RT RS hcost hmin HE.not_lambda_spine
 
 end Lean4Lean.VEnv.Strengthening

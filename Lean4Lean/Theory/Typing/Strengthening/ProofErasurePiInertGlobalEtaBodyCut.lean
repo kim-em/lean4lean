@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertStructureEtaBypass
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertConstructorEtaBody
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertSpineTypeExposure
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertTerminalDepth
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertComparedControlApplication

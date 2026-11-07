@@ -40442,3 +40442,79 @@ Quot.sound; no forbidden strengthening or circular-frontier dependencies.
 All 1,236 frozen sources verified. Artifacts:
 /dev/shm/pi-inert-structure-eta-bypass-*. Executable and UniqueTyping.lean
 unchanged; goal active; PR extraction deferred.
+
+
+## 2026-11-07 17:35:28 UTC — Retain global body minima in constructor eta readout
+
+The previous goal turn made verified progress in 60a848e8 by eliminating
+whole-record structure eta from exposed pair type-projection readout. This turn
+revalidated the clean committed state and addressed the stage increase caused
+by replaying changing-annotation lambda bodies in their original context.
+Added ProofErasurePiInertGlobalProjectionMinimum.lean and
+ProofErasurePiInertConstructorEtaBody.lean; generalized three continuation/body
+modules without changing their existing public interfaces; updated the aggregator.
+
+GlobalPairFunctionEtaProjection separates the finite stage of the original
+major's reachability history, the stage of its minimum constructor cut, and
+the stage of its final field tail. It retains a major computation minimal over
+all finite stages. Source prefixing raises only the reachability paths to a
+common finite bound and leaves the cut and its minimum intact.
+
+proofErase_pi_inert_pair_projection_global_count_readout_or_function_eta takes
+an arbitrary counted projection path. At each induction step it chooses a
+globally minimum path, then obtains the major/selection/field-tail split. Its
+major segment is globally minimum: any competitor at any stage can be projected
+and followed by the original selection and field tail, contradicting whole-path
+minimality if it is cheaper. Stable constructor readout retains the strict field
+budget saving. Whole-record structure eta recurses on the shorter projected
+suffix as before, but the recursive field result may use a different stage.
+Raising it and the prefix to their maximum stage preserves both counts and
+still contradicts the chosen global minimum. The remaining function witness
+retains global major minimality as well as the earlier exact root data.
+
+Added nonlambda versions of identity and constant continuation bypass,
+their minimum-root exclusions, and globally_minimal_pi_inert_eta_body_spine_cut.
+Their proofs used carrier exposure only to exclude a lambda-headed final
+endpoint, so that exact weaker condition now admits selected constructor values.
+Each old theorem remains with its original signature, delegating through
+CarrierExposure.not_lambda_spine. Existing clients continue to compile.
+
+CountedEtaBodySpineCut.constructor_roots refines the same selected body root
+without choosing another decomposition. Its source is a spine of the original
+rigid constructor. Ordinary core contradicts constructor stability; level roots
+contradict the stored cut; singleton and Eq roots contradict rigidity; identity
+and constant roots contradict the stored combined continuation minimum. Only
+actual nested function or structure eta at an earlier ambient guard stage
+remains.
+
+GlobalPairFunctionEtaProjection.body_cut transfers the global major minimum
+to the exact minimum retained by its RigidSpineEtaCut. Native function eta
+supplies the original binder and eta body. The generalized body-cut theorem
+retains the first consuming beta, annotation and argument computations, the
+body path in its initial scope, and both complete suffixes. Its exact counts
+and global body/continuation minima make the body strictly cheaper than the
+enclosing major path even when its stage increases. PairFunctionEtaBodyMinimum
+stores this cut together with the original reachable pair, its two argument
+origins, nonproof pending argument, guard recovery and final field selection.
+
+proofErase_pi_inert_pair_projection_readout_or_eta_body supplies the whole
+construction directly from any finite exposed projection computation. The
+caller supplies neither a global minimum nor a body readout hypothesis. Its
+success branch returns the original field path at some finite stage; its other
+branch returns the concrete smaller body minimum described above.
+
+Remaining: nested eta in a body whose endpoint is arbitrary syntax, followed
+by a typed endpoint substitution and an application continuation ending at the
+selected major. The existing exposed projection theorem does not cover that
+configuration just because its body count decreases. A suitable invariant must
+retain the final projection observer across those frames. No general beta or
+substitution closure, normalization, or strictly smaller sufficient frontier
+for strengthening is asserted. General pair selection and weakN_iff remain open.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution in
+/dev/shm/native-level-coherence-work. Integration 1263 jobs; recursive audit
+23 roots, maximum closure 11,978; only propext/Classical.choice/
+Quot.sound; no forbidden strengthening or circular-frontier dependencies.
+All 1,238 frozen sources verified. Artifacts:
+/dev/shm/pi-inert-constructor-eta-body-*. Executable and UniqueTyping.lean
+unchanged; goal active; PR extraction deferred.
