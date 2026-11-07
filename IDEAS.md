@@ -23788,3 +23788,34 @@ of GOAL.md is claimed. PR extraction remains deferred.
 Validation: 1222 integration jobs, 11 recursively audited roots, maximum
 closure 11,976; only propext, Classical.choice and Quot.sound. All 1,197
 frozen sources checked. Artifacts: /dev/shm/computed-projection-*.
+
+
+## 2026-11-07 14:23:50 UTC — First projection iota and full type-field histories before it
+
+**Idea.** Turn computed dependent-field readout into evidence retaining all
+ordinary-core field residuals; distinguish major computation from a consumed
+projection constructor rather than extending beta projection inversion blindly.
+**Verdict: checked progress, constructor branch still open.** A general path
+decomposition retains either the computed major or the first root primitive
+and its complete tail. For the full level core, that root is exactly saturated
+projection iota, with registration, constructor arguments, selected field and
+remaining computation retained. For majors that cannot enable it, the type
+field of the registered closed dependent pair now has a full PiInertWorldHistory
+at the original stage. Variable-headed application spines satisfy that premise,
+with no restriction on argument computation.
+
+The no-contraction premise is needed only before future worlds: exact
+level-core reflection through variable-only images propagates it. A broader
+atomic-image reflection attempt was rejected because atomic images may be
+sorts and can create universe-conversion steps at old variables; core worlds
+already have the required variable-only property. No such restriction on the
+record's type computation or its comparison grammar was added.
+
+Next address selected-field comparison after the explicitly retained first
+projection iota. Uniform dependent value carriers and the general projection
+interpreter remain open, as do type-transport coverage and transitivity.
+This is not a smaller sufficient frontier or completion of GOAL.md.
+
+Validation: 1223 integration jobs, 19 recursively audited roots, maximum
+closure 11,976, only propext/Classical.choice/Quot.sound, 1,198 frozen sources.
+Artifacts: /dev/shm/projection-residuals-*. PR extraction deferred.

@@ -39482,3 +39482,47 @@ roots, maximum closure 11,976, only propext, Classical.choice and
 Quot.sound. All 1,197 frozen sources and owned diagnostics checked. All Lean/Lake
 commands used stock v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable
 and UniqueTyping.lean unchanged. PR extraction deferred; goal active.
+
+
+## 2026-11-07 14:23:50 UTC — Complete type-field residual histories without projection contraction
+
+Added ProofErasurePiInertProjectionResiduals.lean and integrated its import.
+Compute.projection_first_root decomposes every compatible finite computation
+from a projection, keeping either its major path or the first projection-root
+primitive and all remaining computation. erased_level_core_projection_root
+excludes delta, universe, capture and template roots there, identifying exactly
+projection iota. Compute.projection_core_cases retains registration, saturation,
+field selection, constructor-exposing major prefix and selected-field tail.
+It uses no normalization, confluence or typing premise.
+
+VariableImages records variable-only substitutions, allowing identifications.
+Primitive and full computation reflection cover the entire ErasedLevelCore,
+including universe steps and binders. Core worlds supply this property directly
+from their lookup component. The initially attempted atomic generalization was
+too strong: its sort images can create universe roots. It was replaced with the
+precise variable-only theorem before validation.
+
+ProjectionCoreStuck names absence of an enabled projection primitive along
+major computation. It gives exact projection/major path inversion and survives
+all variable-only substitutions. Its variable_spine constructor covers arbitrary
+arguments, including nonterminating computation. PiInertCarrierResidual.
+dependent_type_field then reads common comparisons at every pair of independent
+field residuals. PiInertWorldHistory.dependent_type_field builds the full history
+of the pair's first field at Type, including independent carrier residuals and
+all core-world futures, at the same stage. Future worlds need no separate
+no-contraction assumption: reflection derives it from the original majors.
+
+Limits: constructor-exposing majors still need selected-field readout after
+iota, now represented by the complete second branch of projection_core_cases.
+The dependent value-field orientation is not resolved. General projection,
+arbitrary paired-substitution interpretation, comparison transitivity and the
+four principal sorted transport cases remain open. Next use the constructor
+branch and original field-typing children to investigate residual field checks;
+do not assume a checked projection certificate automatically contracts forward.
+GOAL.md remains unmet; no strictly smaller sufficient obligation is claimed.
+
+Integration passed 1223 jobs. Recursive audit covered 19 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. All 1,198 frozen sources and owned diagnostics checked. All Lean/Lake
+commands used stock v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable
+and UniqueTyping.lean unchanged; PR extraction deferred; goal active.
