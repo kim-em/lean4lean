@@ -23375,3 +23375,54 @@ and Quot.sound. All 1,171 frozen sources and owned diagnostics checked.
 Stock v4.33.0-rc2 Lean/Lake ran exclusively in
 /dev/shm/native-level-coherence-work. UniqueTyping.lean and executable
 unchanged; PR extraction deferred; GOAL.md remains active.
+
+
+## 2026-11-07 13:05:23 UTC — Complete the sorted transport induction outside four principal cases
+
+The previous goal turn made verified progress: 1c2f5bb1 connected original
+native unit traces to current ground transport. Testing its missing type
+handler exposed an induction-interface issue: a literal-sort assigned parent
+can have a conversion child at a nonliteral universe alias. Reassigning that
+child via a freshly strengthened derivation would not preserve its rank.
+Keep the endpoints' ordinary sort typing separate from the selected carrier.
+
+ProofErasurePiInertSortedTransportInduction.lean implements this motive and
+a full strong induction on the original numeric bound. PiInertGroundTypeEquiv
+retains both typed directions of the current ground-tree transport. Symmetry
+swaps them; transitivity composes them using ordinary type equality solely
+for intermediate endpoint assignments. defeqDF reuses its original term
+child unchanged at its original carrier and rank. No bound on reconstructed
+universe reassignment or substitution is needed inside the induction.
+
+The exhaustive proof handles bvar and rank raising directly; sorts and
+constant universe changes by level-core joins; beta by erased beta; stored
+definitions by delta; and constructor projections by recovering saturation
+from actual source typing. Proof irrelevance contradicts sorted endpoints.
+Lambdas, eta and the closed quotient equation contradict universe/Pi head
+separation; structure eta and unitLike contradict universe/rigid separation.
+These exclusions concern the sorted root, not arbitrary subterms.
+
+Four explicitly tagged original constructors remain: appDF, projDF,
+forallEDF and pat. The principal handler receives their original premises
+and a lower-rank sorted-transport hypothesis in every well-formed context.
+Actual pat is deliberately retained: coverage of enabled core patterns does
+not silently cover every original recursor pattern after proof erasure.
+
+Verdict: the surrounding rank induction is now a theorem rather than an
+unexecuted plan. Its residual contract is proved equivalent to the existing
+global ground-transport coverage contract, assuming sound confluent core
+computation containing stored definitions. A separate checked actual-core
+lower bound still derives PropositionFront when a closed positive unit exists.
+Thus four constructor names do not establish strict logical smallness, and
+this is not GOAL.md completion. The sorted-only IH does not supply arbitrary
+term argument interpreters, paired lambda action, or erased-major index
+histories. The next substantive task is to construct those witnesses within
+the principal cases, potentially strengthening the simultaneous motive.
+
+Validation: 1197 integration jobs; 14 public/probe roots; maximum
+recursive dependency closure 13,007; only propext, Classical.choice
+and Quot.sound. Audit includes inductive constructors and recursor rules
+and rejects strengthening/circular-join dependencies. All 1,172 frozen
+sources and owned diagnostics checked. Stock v4.33.0-rc2 Lean/Lake ran only
+in /dev/shm/native-level-coherence-work. UniqueTyping.lean and executable
+unchanged; PR extraction deferred; GOAL.md remains active.

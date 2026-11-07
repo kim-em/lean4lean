@@ -39102,3 +39102,51 @@ and owned diagnostics checked; artifacts under /dev/shm/ranked-unit-origin-*.
 All Lean/Lake commands used stock v4.33.0-rc2 in
 /dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean
 unchanged; PR extraction remains deferred and GOAL.md active.
+
+
+## 2026-11-07 13:05:23 UTC — Exhaustive rank induction for sorted carrier transport
+
+The new PiInertGroundTypeEquiv retains forward and backward TreeTransport
+at ground profiles, including actual new endpoint assignments. Its trans
+lemma uses actual type equalities to supply intermediate assignments in
+both directions. Carrier certificates and typed ordinary-core joins supply
+these equivalences without semantic comparison transitivity.
+
+StrongBounded.sorted_ground_transport proves the full rank induction from
+PiInertSortedTransportCases. The motive permits any original selected
+carrier and separately assumes ordinary sorting of the left endpoint;
+ordinary equality supplies sorting of the right endpoint and transitivity
+intermediates. Conversion invokes the IH on its original term child, without
+retyping it strongly at a universe or increasing its bound. Symmetry and
+transitivity likewise use the original smaller children.
+
+The proof handles every constructor except appDF, projDF, forallEDF and pat.
+Universe steps, beta, stored delta and projection iota construct actual core
+joins. Projection source typing supplies the constructor's exact arity.
+The environment's equation-origin theorem splits extra into stored delta
+and the closed quotient equation; the latter has a lambda endpoint and
+cannot be this sorted root. The remaining impossible root cases follow
+from proof-status or universe/Pi/rigid head separation.
+
+TypeTransportPrincipal records the four remaining rule forms and their
+original premises. The handler receives the smaller-rank sorted transport
+IH in arbitrary well-formed contexts. ground_coverage connects the completed
+induction to the previous current conversion contract. Conversely, global
+coverage supplies independently sorted comparisons by reconstructing a
+strong reassignment and symmetry at some finite rank. That reconstruction
+is used only for global equivalence calibration, never recursively.
+pi_inert_sorted_transport_cases_iff checks both directions.
+
+EnvironmentCore.sorted_transport_cases_propositionFront verifies the
+previous lower bound for the new interface. The new residual is not claimed
+strictly smaller, irreducible, or solved. Type-only IH does not manufacture
+term argument histories or full paired lambda action. Original recursor
+pattern reduction still needs treatment of erased majors and indices.
+The original weakN_iff remains open and unchanged.
+
+Integration passed 1197 jobs. Recursive audit covered 14 public/probe
+roots, maximum closure 13,007, only propext, Classical.choice and
+Quot.sound. All 1,172 frozen sources and owned diagnostics checked; artifacts
+under /dev/shm/sorted-transport-induction-*. All Lean/Lake commands used
+stock v4.33.0-rc2 in /dev/shm/native-level-coherence-work. Executable
+unchanged; PR extraction remains deferred; GOAL.md active.
