@@ -22361,3 +22361,65 @@ recursive closure 11,976; only propext, Classical.choice and Quot.sound.
 Frozen import hashes, owned diagnostics and forbidden-dependency checks passed.
 All Lean/Lake commands used stock v4.33.0-rc2 in the established /dev/shm scratch
 worktree. No executable or UniqueTyping.lean changes, and no PR extraction.
+
+
+## 2026-11-07 09:47:05 UTC — Constructing transport at actual calls through a universe interface
+
+Investigation: the previous function conversion theorem quantifies its
+argument/result transport premises over demand values without tying all
+operands to their actual assigned carriers. DemandBase retains independent
+source witnesses, not those assignments. The universe reindexing base cannot
+be used on such arbitrary raw operands. Actual calls supply the missing
+assignments, so the component interface can be weakened rather than assuming
+an unnecessarily broad transport property.
+
+Added TypedAt.app_parts. From a typed whole raw application and the function's
+selected Pi it constructs both the argument's assigned domain and the whole
+application's assigned dependent result. It uses actual erasure reflection,
+ordinary Pi injectivity and typed instantiation; it does not claim a core join
+between native and assigned types. TypedAt.sort_domain converts an assigned
+literal raw universe into endpoint sortedness, and assigned_sort_transfer
+then constructs arbitrary target demand profiles from the sorted base.
+
+function_of_typed_calls factors the ground-comparison argument: typed action
+at the selected literal Pi yields a finite arrow demand, including its ground
+history and all core aliases. The ground part is proved by a fresh argument
+and retained function extensionality. Proof-valued functions use proof-marker
+demands. No ground equality between the two functions is supplied as a premise.
+
+function_convert_typed now needs component transports only on actually assigned
+arguments and results. The right result has its own dependent carrier at the
+right argument; raw result-type equality is not assumed. Whole application
+typing constructs each assignment before invoking a component. This is a
+weaker sufficient interface than the preceding unrestricted raw components.
+It is not claimed strictly smaller than PropFront.
+
+type_function_convert constructs both components when the old Pi returns a
+universe and the new Pi accepts one. Its alternate old domain/new codomain
+annotations are arbitrary actual assignments. The more general
+universe_interface_convert permits arbitrary annotations in both selected
+literal Pis, provided the left function also has an actual universe-to-
+universe typing. Ordinary type uniqueness gives the same interface for the
+right function. At each actual call that interface proves both arguments
+and both application results are sorted. The retained argument ground history
+therefore reindexes to the old domain, and the old application demand reindexes
+to the new dependent result. No core join or supplied component-transport
+oracle remains in either theorem. Source arrow evidence is still required.
+
+StrongBounded bridges use the original rank-k type and term children and,
+for the general annotated-interface theorem, the stated ordinary interface
+typing. They do not recursively invoke a substituted strong derivation.
+
+Verdict: a concrete function conversion case now constructs the previously
+missing argument and result components. General term/function-valued inputs
+and outputs, arbitrary outer type aliases, structures/projections and full
+strong demand-profile coverage remain open. The universe-interface assumption
+is a real restriction; not every function has it. No strengthening proof,
+counterexample, or new sufficient irreducible obligation proved strictly
+smaller than PropFront has been obtained. GOAL.md remains unchanged.
+
+Validation: 1176 integration jobs; 10 public/probe roots; maximum
+recursive closure 11,976; only propext, Classical.choice and Quot.sound.
+Frozen sources, owned diagnostics and forbidden dependencies checked. Stock
+v4.33.0-rc2 Lean/Lake commands ran only in /dev/shm/native-level-coherence-work.
+No executable or UniqueTyping.lean changes and no PR extraction.

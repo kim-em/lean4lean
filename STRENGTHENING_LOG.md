@@ -38218,3 +38218,39 @@ Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
 /dev/shm/demand-conversion-*. Lean/Lake used stock v4.33.0-rc2 exclusively in
 /dev/shm/native-level-coherence-work. Executable and UniqueTyping.lean unchanged;
 no PR extraction. The strengthening sorry remains and GOAL.md stays active.
+
+
+## 2026-11-07 09:47:05 UTC — Typed-call transport and universe-interface function conversion
+
+Added ProofErasurePiInertDemandTypedConversion.lean and its aggregator import.
+TypedAt.app_parts retains both the actual argument/domain assignment and the
+application/result assignment. TypedAt.sort_domain and assigned_sort_transfer
+make the prior sorted conversion base available at those actual assignments.
+
+function_of_typed_calls constructs ground history from a fresh application
+test and retains full action at every core alias of the selected Pi. It has
+no supplied ground-comparison premise. function_convert_typed uses that rule
+with component transports restricted to actually assigned arguments/results.
+The dependent right result is assigned at the right argument separately;
+there is no raw equality assumption on the two result carriers.
+
+type_function_convert constructs both transports for a source Pi returning
+a universe and a target Pi accepting one. universe_interface_convert allows
+arbitrary annotations in both selected literal Pis, given an additional
+actual universe-to-universe typing. At every call, typing at that interface
+supplies sorted arguments and sorted results. Their histories reindex without
+core joins, giving both component transports and the full requested target
+arrow demand. The source arrow demand remains an explicit payload.
+
+Both cases have StrongBounded bridges consuming the original rank-k children.
+General higher-order argument/result transport and full profile coverage remain
+open; the common universe interface is an explicit restriction. This is not a
+proof of strengthening or a sufficient obligation proved smaller than PropFront.
+
+Integration passed 1176 jobs. Recursive audit covered 10 public/probe
+roots, maximum closure 11,976, only propext, Classical.choice and
+Quot.sound. Frozen hashes and owned diagnostics checked; artifacts under
+/dev/shm/demand-typed-conversion-*. All Lean/Lake commands used stock v4.33.0-rc2
+in /dev/shm/native-level-coherence-work. No executable or UniqueTyping.lean
+changes, no PR extraction. The original strengthening sorry remains open and
+GOAL.md remains active.
