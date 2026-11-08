@@ -42943,3 +42943,63 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,329 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-structure-observer-boundary-*.
+
+
+## 2026-11-08 00:05:07 UTC — Counted projection ancestry across component-supply chains
+
+Previous exchange was conversational scope clarification, not technical
+progress. Revalidated clean pushed c285cc7f and the existing structure boundary.
+Rejected the unsupported shortcut from sort typing to arbitrary guarded
+substitution. Used sorted projection factorization, ordinary terminal-action
+substitution, and administrative deletion simulation instead.
+
+New ProofErasurePiInertProjectionSupplyRelay:
+
+PiInertPairComponentSupplyRun records actual typed pair applications whose
+computations change the two components. Every map is an actual endpoint map;
+the final observer-scope run is unrestricted. Its forget theorem recovers the
+ordinary framed run with exact contexts, raw continuation predicate, cost and
+frame count. Restricting the selected execution does not restrict competitors.
+
+projected_field_competitor is the main induction. The input is a sorted
+projection path to a lower field together with administrative deletion of the
+actual field to that lower endpoint. At the observer, closed-record predicate
+correspondence and least-budget readout give the competitor. At an application,
+factor the ancestry path into its actual major computation and a zero/one
+terminal projection action, composing endpoint deletions. Substitute only the
+terminal action and deletion syntax. Simulate the actual next field component
+path against the substituted deletion. This supplies the next ancestry path
+and endpoint deletion for the recursive call. The old major path stays before
+its original map; the new major path stays after it. The reconstructed raw
+competitor has body-plus-continuation cost at most ancestry cost plus actual
+remaining cost. Every finite stage remains available.
+
+not_projected_field_minimum contradicts any global minimum with a strict
+ancestry-plus-tail gap. pi_inert_native_structure_no_component_supplies derives
+the sorted projection ancestry from actual native recovery, splits the real
+two-component body computation, and applies that contradiction. It imposes no
+independent observer-scope typing or lift shape on either original pair field.
+
+ActivatedPairStructureMinimum.component_supply_separation and
+FreshPairStructureMinimum.component_supply_separation connect the result to
+both structure boundaries reached by the existing weighted elimination. They
+retain the selected native target's typed path, its actual continuation and
+frames, and its unrestricted minimum at cost minus one. For the same raw
+continuation predicate every component-supply execution costs at least the
+original cost. Competing component stages, tail costs and frame counts are
+arbitrary. The fresh case preserves its marked execution and independently
+scoped intermediate supply base.
+
+Judgment: an arbitrarily long component-only supply chain is now excluded
+after the selected structure root. The unresolved ancestry must be handled
+through constructor-root computation or retained frames above the observer;
+this theorem does not itself classify or eliminate those transitions. No
+claim of global sufficiency. Original weakN_iff sorry and executable unchanged.
+Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1355 jobs; recursive audit
+8 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,330 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-projection-supply-relay-*.

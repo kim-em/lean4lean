@@ -25795,3 +25795,34 @@ smaller global replacement for PropFront, weakN_iff proof, or canonical-Eq
 counterexample established. Goal active; PR extraction deferred. Validation:
 1354 jobs, 8 public roots, maximum closure 12,269, 1,329 frozen
 source hashes; stock Lean in /dev/shm, no sorryAx or forbidden dependencies.
+
+
+## 2026-11-08 00:05:07 UTC — Relay projected fields through successive component supplies
+
+Idea: factor the projected field before each endpoint map, retain the major
+computation in that scope, and transport only its ordinary zero/one terminal
+projection action and administrative deletion syntax. Verdict: checked for
+arbitrarily many component-only application frames, followed by an unrestricted
+same-scope observer execution. Intermediate field endpoints may retain lambda
+wrappers. Sort typing alone does not justify transporting arbitrary guarded
+paths; this construction does not require that transport.
+
+The recursive competitor carries administrative deletion of the actual field.
+After each map, simulate its actual component computation on the deleted
+endpoint; obtain the next ancestry path from the substituted terminal action
+and this new computation. Major costs are charged before their original maps,
+and the zero/one terminal cost stays within the original field budget. Only at
+the final observer is leastness applied to the fixed output. No readout for
+arbitrary intermediate outputs is assumed.
+
+Both activated and fresh structure minima now retain an actual target
+execution at cost minus one while every component-supply execution with that
+same raw continuation predicate has cost at least the original cost. This
+excludes the whole finite component-supply class, including intermediate
+supply bases, rather than only one application directly into the observer.
+Remaining: projected-field ancestry through constructor roots and retained
+binder frames above the observer. No sufficient global replacement for
+PropFront, proof of weakN_iff, or canonical-Eq counterexample yet. Goal active;
+PR extraction deferred. Validation: 1355 jobs, 8 public audit roots,
+maximum recursive closure 11,981, 1,330 frozen source hashes; stock Lean
+in /dev/shm, no sorryAx or forbidden dependencies.
