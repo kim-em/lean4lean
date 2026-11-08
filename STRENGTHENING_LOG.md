@@ -43127,3 +43127,65 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,330 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-retained-substitution-relay-*.
+
+
+## 2026-11-08 00:24:48 UTC — Carry projected ancestry through surviving retained lambdas
+
+Previous turn classified as progress: 62411d8b removed the outer-identity
+restriction from retained consumption and audited the resulting relay.
+Revalidated that clean pushed HEAD. The remaining immediate-consumption
+restriction was unnecessary when the next application has a surviving lambda
+with a component-computed pair body.
+
+Added PiInertPairComponentSupplyRun.delayed in the existing file. It records
+the actual original retained frame, outer endpoint map, typed new full
+application, new-context domain/body-component/argument computations, and the
+actual outer run from the surviving lambda. Its recursive supply certificate
+is at the computed pair body under the original new-context annotation, with
+predicate K applied to the actual updated lambda annotation and arguments.
+The child has outer-tail frames plus one; the parent has outer-tail frames
+plus two. Primitive count is domain-plus-body-plus-arguments-plus-tail, with
+no requirement that any of these charges be positive.
+
+The forget proof rebuilds the actual retained and application frames from the
+surviving lambda computation and the selected outer run. The delayed case of
+projected_field_competitor uses the two-context ancestry factorization. Its
+terminal projection action stays in the new body context; no beta substitution
+is performed prematurely. Recurse with the exact updated wrapper predicate,
+compose the returned body major path with the factored target major path,
+and rebuild the actual domain and argument computations around it. The old
+major path stays before the original retained frame. Combined primitive cost
+remains bounded by incoming ancestry plus the actual remaining execution.
+
+pi_inert_retained_survival_body_frames derives the actual recursive body run
+from typed surviving-lambda data. It derives a domain-sort witness from the
+typed lambda, derives the computed annotation's identity interpretation, and
+retains exactly one frame above the actual outer tail. This theorem does not
+assume a successful field readout or a recursive supply certificate.
+
+pi_inert_retained_survival_body_minimum transfers an actual whole-lambda
+minimum to that original body at exactly body-plus-tail cost. Every competing
+raw body path is rebuilt with the fixed actual domain and argument paths;
+comparison with the original unrestricted minimum cancels those fixed costs.
+The exact frame count is one lower than the original retained/application
+pair, including zero-primitive computations. No guarded body transport is used.
+
+The existing projected-field contradiction, native structure exclusion and
+both activated/fresh structure separation theorems were rechecked with the
+new constructor. The excluded finite certificate class now permits repeated
+survival interleaved with consumption and ordinary supplies. It still must
+be constructed from actual runs; there is no claim that arbitrary runs are
+all in this class.
+
+Judgment: delayed beta in the certified surviving-lambda case is handled.
+Constructor roots, multiple retained binders before the next application,
+and direct terminal observation of retained lambdas remain unresolved. No
+global sufficiency claim. Original weakN_iff sorry and executable unchanged.
+Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1355 jobs; recursive audit
+12 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,330 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-delayed-retained-relay-*.

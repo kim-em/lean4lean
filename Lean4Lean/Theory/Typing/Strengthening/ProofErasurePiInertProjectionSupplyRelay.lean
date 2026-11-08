@@ -5,20 +5,21 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertStructureObserve
 Before each endpoint map, factor the projected field into a major computation
 and a zero/one terminal action, modulo administrative deletion. Only the
 terminal action crosses that map. The major computation stays in its original
-scope. For retained lambdas consumed by the next application, factor ancestry
-again in the body context after the actual outer substitution. Rebuild that
-second major computation inside the consuming shell, leaving the first major
-computation before the retained frame. Repeating these constructions excludes
-arbitrarily many such frames after a structure root.
+scope. For retained lambdas, factor ancestry again in the body context after
+the actual outer substitution. Rebuild the second major computation inside
+the actual shell, leaving the first before the retained frame. If the lambda
+survives, recurse at its computed body with the new wrapper predicate and one
+fewer frame. If it is consumed, recurse after beta. Arbitrary finite alternation
+of these cases is excluded after a structure root.
 
-Constructor roots and other retained binder executions above the observer
-are not covered by this relay; they remain the next readout obligation.
+Constructor roots, nested retained prefixes before an application, and direct
+terminal observation of retained lambdas are not covered by this relay.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation
 open private ProofShape.const_spine_inj
   from Lean4Lean.Theory.Typing.Strengthening.ProofErasureJointRecordAlignment
-open private typed_lambda_argument_map
+open private typed_lambda_argument_map typed_lambda_readout
   from Lean4Lean.Theory.Typing.Strengthening.ProofErasureEqRetainedFrameProgress
 open private typed_spine_head
   from Lean4Lean.Theory.Typing.Strengthening.ProofErasureScopedSpineCut
@@ -103,10 +104,11 @@ theorem pi_inert_projection_ancestry_substitution_count
   exact ⟨before, after, terminal, cBefore, cAfter, terminalCost, RBefore, RAfter, HS, HDlast, hc, HF⟩
 
 /-- An actual pair continuation whose application computations before reaching
-the observer change only the two components, including retained lambdas consumed
-in the next application with component body computation after its outer map.
-Once in the observer's scope, the remaining execution is unrestricted. Its
-predicate is the original raw predicate, not a restriction on competitors. -/
+the observer change only the two components. Retained lambdas can be consumed
+or survive the next application; in the latter case their computed body is
+relayed under the new wrapper predicate with one fewer frame. Once in the
+observer's scope, the remaining execution is unrestricted. The raw competitor
+predicate is unchanged in every case. -/
 inductive PiInertPairComponentSupplyRun (D : Definitions) (Ω : List ProofShape)
     (family : Name) (info : VProjectionInfo) (out : ProofShape) :
     List ProofShape → (ProofShape → Nat → Prop) → ProofShape → ProofShape → Nat → Nat → Prop where
@@ -135,6 +137,27 @@ inductive PiInertPairComponentSupplyRun (D : Definitions) (Ω : List ProofShape)
         [field.subst τ.lift, value.subst τ.lift] [nextField, nextValue] →
       ScopedArgumentsCount (PiInertStage D n) Θ ca (args.map (·.subst τ) ++ pending) [x] →
       PiInertPairComponentSupplyRun D Ω family info out Θ K (nextField.inst x) (nextValue.inst x) ck frames →
+      PiInertPairComponentSupplyRun D Ω family info out (A :: Δ)
+        (fun body k => PiInertApplicationContinuation D Θ τ pending K
+          (ProofShape.mkApps (.lam A' body) args) k)
+        field value (cd+cb+ca+ck) (frames+2)
+  | delayed : TypedSource (A :: Δ) (ProofShape.mkApps (.const info.ctorName []) [field, value]) →
+      DomainSort Δ A u → ScopedComputeCount (PiInertStage D domainStage) oldDomainCost Δ A A' →
+      ContextSubstitution (A :: Δ) (A' :: Δ) ProofShape.Subst.id →
+      TypedSource Δ (ProofShape.mkApps
+        (.lam A' (ProofShape.mkApps (.const info.ctorName []) [field, value])) args) →
+      PiInertEndpointMap Δ Θ τ →
+      TypedSource Θ (ProofShape.mkApps
+        (.lam (A'.subst τ) (ProofShape.mkApps (.const info.ctorName []) [field.subst τ.lift, value.subst τ.lift]))
+        (args.map (·.subst τ) ++ pending)) →
+      ScopedComputeCount (PiInertStage D n) cd Θ (A'.subst τ) C →
+      ScopedArgumentsCount (PiInertStage D n) (A'.subst τ :: Θ) cb
+        [field.subst τ.lift, value.subst τ.lift] [nextField, nextValue] →
+      ScopedArgumentsCount (PiInertStage D n) Θ ca (args.map (·.subst τ) ++ pending) nextArgs →
+      PiInertProjectionRunFrames D Ω family 0 out Θ K
+        (ProofShape.mkApps (.lam C (ProofShape.mkApps (.const info.ctorName []) [nextField, nextValue])) nextArgs) ck frames →
+      PiInertPairComponentSupplyRun D Ω family info out (A'.subst τ :: Θ)
+        (fun body k => K (ProofShape.mkApps (.lam C body) nextArgs) k) nextField nextValue ck (frames+1) →
       PiInertPairComponentSupplyRun D Ω family info out (A :: Δ)
         (fun body k => PiInertApplicationContinuation D Θ τ pending K
           (ProofShape.mkApps (.lam A' body) args) k)
@@ -175,6 +198,74 @@ theorem PiInertPairComponentSupplyRun.forget
         ProofShape.mkApps_append] using HFull
     have HApp := PiInertProjectionRunFrames.application HWrapped W HNext RAll' ih
     simpa only [Nat.add_assoc] using PiInertProjectionRunFrames.retained HT SD RD WI HApp
+  | @delayed A Δ field value u domainStage oldDomainCost A' args Θ τ pending n cd C cb nextField nextValue ca nextArgs K ck frames
+      HT SD RD WI HWrapped W HFull RDomain RA RX HK _ _ =>
+    have RB : ScopedComputeCount (PiInertStage D n) cb (A'.subst τ :: Θ)
+        (ProofShape.mkApps (.const info.ctorName []) [field.subst τ.lift, value.subst τ.lift])
+        (ProofShape.mkApps (.const info.ctorName []) [nextField, nextValue]) := by
+      simpa only [Nat.zero_add] using (ScopedComputeCount.beta BetaRed.refl).mkApps RA
+    have RAll := (ScopedComputeCount.lam RDomain RB).mkApps RX
+    have RAll' : ScopedComputeCount (PiInertStage D n) (cd+cb+ca) Θ
+        (ProofShape.mkApps
+          ((ProofShape.mkApps (.lam A' (ProofShape.mkApps (.const info.ctorName []) [field, value])) args).subst τ) pending)
+        (ProofShape.mkApps (.lam C (ProofShape.mkApps (.const info.ctorName []) [nextField, nextValue])) nextArgs) := by
+      simpa only [ProofShape.subst_mkApps, ProofShape.subst, List.map_cons,
+        List.map_nil, ProofShape.mkApps_append] using RAll
+    have HNext : TypedSource Θ (ProofShape.mkApps
+        ((ProofShape.mkApps (.lam A' (ProofShape.mkApps (.const info.ctorName []) [field, value])) args).subst τ) pending) := by
+      simpa only [ProofShape.subst_mkApps, ProofShape.subst, List.map_cons, List.map_nil,
+        ProofShape.mkApps_append] using HFull
+    have HApp := PiInertProjectionRunFrames.application HWrapped W HNext RAll' HK
+    simpa only [Nat.add_assoc] using PiInertProjectionRunFrames.retained HT SD RD WI HApp
+
+/-- A surviving lambda supplies the actual body continuation used by delayed
+relay. Typing derives its domain sort and the computed annotation's identity
+interpretation. The body stays under the original annotation, its raw
+continuation wraps every candidate with the actual new annotation and arguments,
+and precisely one retained frame is added to the selected outer tail. -/
+theorem pi_inert_retained_survival_body_frames
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (HT : TypedSource Δ (ProofShape.mkApps (.lam A body) args))
+    (RD : ScopedComputeCount (PiInertStage D n) cd Δ A C)
+    (RB : ScopedComputeCount (PiInertStage D n) cb (A :: Δ) body nextBody)
+    (HK : PiInertProjectionRunFrames D Ω family index out Δ K
+      (ProofShape.mkApps (.lam C nextBody) nextArgs) ck frames) :
+    PiInertProjectionRunFrames D Ω family index out (A :: Δ)
+      (fun e k => K (ProofShape.mkApps (.lam C e) nextArgs) k) nextBody ck (frames+1) := by
+  have HTlam := typed_spine_head HT
+  have HTbody := (ScopedHole.lamBody A .hole).typed HTlam
+  obtain ⟨u, _, _, _, SD, _, _, _⟩ := typed_lambda_readout heq hs HTlam
+    (ScopedComputeCount.beta (Step := PiInertStage D n) (Δ := Δ)
+      (BetaRed.refl (e := .lam A body)))
+  exact .retained (HTbody.pi_inert_compute heq hs RB.forget) SD RD
+    (pi_inert_retained_frame_interpretation heq hs SD RD) HK
+
+/-- Refocus an actual surviving-lambda minimum at its original body with exact
+unspent body-plus-tail cost. The domain and argument paths are fixed only when
+reconstructing competitors, so all raw body paths and finite stages remain
+available. In a retained-frame/application pair the new frame count is one
+smaller, even when all primitive counts are zero. -/
+theorem pi_inert_retained_survival_body_minimum
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (HT : TypedSource Δ (ProofShape.mkApps (.lam A body) args))
+    (RD : ScopedComputeCount (PiInertStage D n) cd Δ A C)
+    (RB : ScopedComputeCount (PiInertStage D n) cb (A :: Δ) body nextBody)
+    (RX : ScopedArgumentsCount (PiInertStage D n) Δ ca args nextArgs)
+    (HK : PiInertProjectionRunFrames D Ω family index out Δ K
+      (ProofShape.mkApps (.lam C nextBody) nextArgs) ck frames)
+    (HM : ∀ later j endpoint k, ScopedComputeCount (PiInertStage D later) j Δ
+      (ProofShape.mkApps (.lam A body) args) endpoint → K endpoint k → cd+cb+ca+ck ≤ j+k) :
+    PiInertProjectionFrameMinimum D Ω family index out (A :: Δ) body (cb+ck) (frames+1) := by
+  have HTbody := (ScopedHole.lamBody A .hole).typed (typed_spine_head HT)
+  refine ⟨(fun e k => K (ProofShape.mkApps (.lam C e) nextArgs) k), n, cb, ck, nextBody,
+    HTbody, RB, pi_inert_retained_survival_body_frames heq hs HT RD RB HK, rfl, ?_⟩
+  intro later j endpoint k RJ RK
+  have RAlt := (ScopedComputeCount.lam
+    (RD.mono (pi_inert_stage_mono (Nat.le_max_left n later)))
+    (RJ.mono (pi_inert_stage_mono (Nat.le_max_right n later)))).mkApps
+    (RX.mono (pi_inert_stage_mono (Nat.le_max_left n later)))
+  have HH := HM (max n later) (cd+j+ca) (ProofShape.mkApps (.lam C endpoint) nextArgs) k RAlt RK
+  omega
 
 /-- An actual consuming retained application enters the relay. Its arguments
 may be split between the retained frame and the next application, whose outer
@@ -236,10 +327,11 @@ chain. Administrative wrappers may survive at every intermediate field.
 Leastness is used only for the final observer-scope pair and the fixed output.
 Each guarded major path remains before the endpoint map where it was obtained;
 only ordinary terminal selection and deletion syntax cross the map. Retained
-consumption factors ancestry before the outer map and again in its target
-body context. The second major computation rebuilds the consuming shell while
-the first stays before the retained frame. Domain, body and argument costs
-remain within their combined original budget. -/
+execution factors ancestry before the outer map and again in its target body
+context. The second major computation rebuilds the actual shell while the
+first stays before the retained frame. A surviving lambda recurses before
+beta with its exact updated wrapper predicate. Domain, body and argument
+costs remain within their combined original budget. -/
 theorem PiInertPairComponentSupplyRun.projected_field_competitor
     (H : PiInertPairComponentSupplyRun D Ω family info out Δ K field value ck frames)
     (HLeast : PiInertPairFailureBudgetMinimum D family info out budget)
@@ -350,6 +442,40 @@ theorem PiInertPairComponentSupplyRun.projected_field_competitor
           max n later, cd+cAfter+ca+j, endpoint, k, rfl, ?_, RK⟩
         simpa only [ProofShape.subst_mkApps, ProofShape.subst, ProofShape.mkApps_append] using RAlt
 
+  | @delayed A Δ field value binderU domainStage oldDomainCost A' args Θ τ pending n cd C cb nextField nextValue ca nextArgs K ck frames
+      HT SD RD WI HWrapped W HFull RDomain RA RX HK HBody ih =>
+    have HTbody := (ScopedHole.lamBody (A'.subst τ) .hole).typed (typed_spine_head HFull)
+    have HTfield : TypedSource (A'.subst τ :: Θ) (field.subst τ.lift) :=
+      (ScopedHole.appFn (.appArg (.const info.ctorName []) .hole) (value.subst τ.lift)).typed HTbody
+    have WBody : ContextSubstitution (A :: Δ) (A'.subst τ :: Θ) τ.lift := by
+      intro Γ₀ hΓ₀ EΓ₀
+      simpa only [ProofShape.Subst.comp, ProofShape.Subst.id, ProofShape.subst] using
+        ContextSubstitution.comp WI (ContextSubstitution.cons W.interpretation) hΓ₀ EΓ₀
+    let bodyCost := cb
+    have hbodyCost : cb = bodyCost := rfl
+    cases RA with
+    | cons RField rest =>
+      cases rest with
+      | cons RValue last =>
+        cases last
+        obtain ⟨before, after, terminal, cBefore, cAfter, terminalCost,
+          RBefore, RAfter, HSortAfter, HDafter, hancestry, HF⟩ :=
+          pi_inert_projection_ancestry_substitution_count heq hs HSort HD RF WBody HTfield RField
+        have RTerm : ScopedComputeCount (PiInertStage D n) terminalCost (A'.subst τ :: Θ)
+            (.proj family 0 after) terminal := by
+          rcases HF with ⟨rfl, rfl⟩ | ⟨rfl, RI⟩
+          · exact .beta .refl
+          · exact .base (pi_inert_stage_core (.inl (.inl (.inl RI))))
+        obtain ⟨later, j, endpoint, k, hcost, RJ, RK⟩ := ih (by omega) HSortAfter HDafter RTerm
+        have RBodyAlt := (RAfter.mono (pi_inert_stage_mono (Nat.le_max_left n later))).trans
+          (RJ.mono (pi_inert_stage_mono (Nat.le_max_right n later)))
+        have RWrap := (ScopedComputeCount.lam
+          (RDomain.mono (pi_inert_stage_mono (Nat.le_max_left n later))) RBodyAlt).mkApps
+          (RX.mono (pi_inert_stage_mono (Nat.le_max_left n later)))
+        refine ⟨fieldStage, cBefore, before, cd+(cAfter+j)+ca+k, by omega, RBefore,
+          max n later, cd+(cAfter+j)+ca, ProofShape.mkApps (.lam C endpoint) nextArgs, k, rfl, ?_, RK⟩
+        simpa only [ProofShape.subst_mkApps, ProofShape.subst, ProofShape.mkApps_append] using RWrap
+
 /-- A projected field cannot feed a component-supply chain in a global minimum
 when its ancestry plus the remaining run is strictly cheaper. This comparison
 retains every raw competitor and every finite stage of the original minimum. -/
@@ -379,7 +505,8 @@ observer, below a least failed budget. The source pair may be in any temporary
 scope and its fields need not descend independently to the observer. Native
 recovery supplies the sorted projection ancestry; the minimum supplies the
 strict charge for the original structure root. A later constructor root or a
-retained execution outside the certified consuming case remains to be handled. -/
+retained execution outside the certified consuming/surviving cases remains
+to be handled. -/
 theorem pi_inert_native_structure_no_component_supplies
     (HLeast : PiInertPairFailureBudgetMinimum D family info out budget)
     (heq : env.HasCanonicalEq) (hs : D.Sound env univs)

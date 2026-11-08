@@ -25891,3 +25891,36 @@ canonical-Eq counterexample yet. Goal active; PR extraction deferred.
 Validation: 1355 jobs, 10 public audit roots, maximum recursive closure
 11,981, 1,330 frozen source hashes; stock Lean in /dev/shm,
 no sorryAx or forbidden dependencies.
+
+
+## 2026-11-08 00:24:48 UTC — Relay surviving retained lambdas without immediate beta
+
+Idea: when the next application leaves a retained lambda in place, recurse on
+its computed pair body under the updated lambda/argument predicate. Keep the
+actual outer run as the execution witness. Verdict: checked. The recursive
+body continuation has tail frames plus one, versus tail frames plus two for
+the original retained-frame/application pair. Thus repeated survival does not
+require a primitive-cost decrease or an immediate-consuming hypothesis.
+
+Extended the existing supply certificate with a delayed case. The ancestry
+factorization across the actual outer substitution is reused. The recursive
+competitor starts before beta in the new body context; its result is rebuilt
+under the actual new annotation and argument spine. Major paths remain in
+their original contexts and combined cost is still bounded. Both structure
+separation theorems now exclude any finite alternation of ordinary supplies,
+consumed retained lambdas, and these surviving retained lambdas.
+
+Derived the actual body continuation directly from a surviving-lambda run,
+including its domain sort and interpreted annotation change. Also proved
+exact minimum transfer: body-plus-tail cost, with all raw competitors and
+finite stages retained. This makes the recursive state available from actual
+minimum data rather than assuming eventual beta consumption.
+
+Remaining: constructor roots, nested retained prefixes before the next
+application, and terminal projection observation of a retained lambda. The
+certificate still does not classify all arbitrary executions. No sufficient
+smaller global replacement for PropFront, weakN_iff proof, or canonical-Eq
+counterexample yet. Goal active; PR extraction deferred. Validation: 1355
+jobs, 12 public audit roots, maximum recursive closure 11,981,
+1,330 frozen source hashes; stock Lean in /dev/shm, no sorryAx or forbidden
+dependencies.
