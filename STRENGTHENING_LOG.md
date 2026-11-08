@@ -43244,3 +43244,71 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,330 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-terminal-retained-relay-*.
+
+
+## 2026-11-08 00:37:29 UTC — Arbitrary retained terminals yield relay or native root
+
+Previous turn classified as progress: e68cd018 made actual component-body
+terminal consumption enter the supply relay by raw predicate equivalence.
+Revalidated that clean pushed HEAD. The current step removes the component
+premise from the selected terminal path itself.
+
+New ProofErasurePiInertTerminalSupplyCut, imported by the aggregate:
+
+A private rebuild_terminal_body lemma inserts every raw body competitor into
+the actual domain and argument computations, performs consuming beta, and
+composes its arbitrary application/projection continuation. It preserves the
+exact total fixed-domain-plus-body-plus-fixed-arguments-plus-tail count; only
+finite stages are raised. No competitor typing or guarded substitution is
+required.
+
+PiInertPairTerminalNativeCut records the actual native constructor boundary
+in its computed annotation context. It retains counted component ancestry
+from the incoming two fields, the whole prefix, selected root, suffix and
+actual one-frame consuming tail. Its root-target minimum is unrestricted and
+strictly cheaper than the original terminal cost. Reading through that native
+root remains an open obligation, not a premise hidden in the record.
+
+pi_inert_retained_terminal_supply_or_native_root starts from the arbitrary
+sorted exposed terminal projection and its global projection minimum. Sorted
+selection exposes a constructor major; therefore the retained lambda's major
+path must have a consuming beta. Typed lambda readout separates its actual
+domain and body computations, retaining exact counts. Rebuilding competitors
+transfers global minimality to the body/application/projection execution.
+Then const_spine_components_or_cut_counted splits the actual body path.
+
+In the component case, closed-pair typing derives empty residual arguments.
+Combine the actual post-beta major suffix with the final projection selection
+and tail. The previous retained_terminal theorem supplies a certificate with
+at most the original terminal's primitive cost and its original raw predicate.
+Head-level work may be discarded, with the inequality retained.
+
+In the root case, the actual sorted consuming continuation and unrestricted
+body minimum exclude administrative constructor roots. The selected root is
+native function or structure eta. Fixing its actual prefix and root leaves a
+strictly smaller target minimum, with exact one-frame tail. The component
+ancestry, prefix and suffix remain in the computed annotation context; they
+are not transported back across the retained annotation change.
+
+pi_inert_structure_retained_terminal_native_root connects this split to a
+least failed readout. It starts with an actual native structure expansion,
+its component body tail, and one retained terminal whose projection path is
+arbitrary. Fixing the structure root and that component prefix derives the
+terminal's global projection minimum. The component certificate alternative
+contradicts the already checked native structure supply exclusion, including
+its count bound. Hence the terminal must encounter the further native root
+with the smaller target minimum recorded above.
+
+Judgment: a single retained terminal is no longer a separate unexplained
+case in this structure/component configuration. Its remaining case is an
+actual native constructor root with retained ancestry and count data. Reading
+through those roots and handling nested retained prefixes still need proof.
+No global sufficiency claim. Original weakN_iff sorry and executable unchanged.
+Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1356 jobs; recursive audit
+4 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,331 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-terminal-supply-cut-*.

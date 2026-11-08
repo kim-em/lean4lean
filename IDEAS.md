@@ -25952,3 +25952,28 @@ weakN_iff proof, or canonical-Eq counterexample yet. Goal active; PR extraction
 deferred. Validation: 1355 jobs, 15 public audit roots, maximum recursive
 closure 11,981, 1,330 frozen source hashes; stock Lean in /dev/shm,
 no sorryAx or forbidden dependencies.
+
+
+## 2026-11-08 00:37:29 UTC — Classify arbitrary single-retained projection terminals
+
+Idea: use the sorted exposed terminal projection to force an actual consuming
+lambda computation, then split its body into component computation or a
+constructor root. Verdict: checked for the arbitrary chosen terminal path,
+without a component-only premise on that path. Global terminal minimality
+transfers to the consuming body while fixing only domain and argument work.
+This excludes administrative roots and yields native function/structure eta.
+
+The component branch builds the terminal supply certificate at no greater
+primitive cost. The native branch retains the body component ancestry, whole
+prefix, root, suffix, exact consuming tail, and a strictly smaller root-target
+minimum in the computed annotation context. A new least-failure client starts
+at an actual native structure expansion followed by its component tail and
+one retained terminal. The existing supply exclusion rules out the component
+branch, forcing the actual further native root.
+
+Remaining: read projected-field ancestry through those native roots and handle
+nested retained prefixes. No sufficient smaller global replacement for
+PropFront, weakN_iff proof, or canonical-Eq counterexample yet. Goal active;
+PR extraction deferred. Validation: 1356 jobs, 4 public audit roots,
+maximum recursive closure 11,981, 1,331 frozen source hashes; stock Lean
+in /dev/shm, no sorryAx or forbidden dependencies.
