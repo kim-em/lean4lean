@@ -43062,3 +43062,68 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,330 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-retained-supply-relay-*.
+
+
+## 2026-11-08 00:19:35 UTC — Projected ancestry on both sides of a retained outer map
+
+Previous turn classified as progress: 82d5a8aa checked the retained identity
+application case and connected it to both structure minima. Revalidated that
+clean pushed HEAD. The next outer-substitution case cannot reuse arbitrary
+guarded body computation in the original context, so replaced that local
+backward-annotation strategy with a two-context factorization.
+
+New pi_inert_projection_ancestry_substitution_count in the existing supply
+relay file accepts sorted projection ancestry, deletion of the actual field
+to its endpoint, an ordinary ContextSubstitution, and the actual computation
+of the substituted field. First factor the source ancestry into its major
+path and terminal action. Substitute only that ordinary action and deletion
+syntax; simulate the actual target field computation against the deletion.
+Factor the resulting target projection history a second time. The result
+contains both actual major paths in their respective scopes, a sorted final
+projection, deletion of the new field to its terminal endpoint, and the final
+zero/one selection. Their combined count is bounded by the input ancestry
+plus the actual target field count. This is not arbitrary guarded transport.
+
+Generalized PiInertPairComponentSupplyRun.retained in place. The certificate
+now retains the actual outer PiInertEndpointMap, typing of the old wrapped
+source and its new full application, the actual new-context domain and body
+component computations, and argument computation after mapping old arguments
+and appending the pending ones. The original predicate still applies that
+outer map to the retained wrapper. The forget theorem rebuilds those exact
+retained and application frames at domain-plus-body-plus-argument-plus-tail
+cost, with exactly two frames over its recursive tail.
+
+Generalized retained_application to the same outer map and argument split.
+It derives that post-beta residual arguments are empty by typing the computed
+closed pair, rather than assuming an argument-count shortcut. The original
+raw predicate is retained without restriction to typed competitors.
+
+Replaced the retained case of projected_field_competitor. Compose the actual
+annotation interpretation with the outer map lifted under the binder, giving
+ordinary interpretation of the original body in the new body context. Apply
+the new ancestry lemma to the actual first-field computation there. The first
+major path remains before the retained frame. Use the second major path as
+the body of the actual consuming lambda computation, along with its unchanged
+domain and argument paths. Transport only the final terminal action across
+beta, recurse, and compose the resulting suffix. The combined count inequality
+pays for both major paths and the complete consuming shell. The identity case
+is covered by this general construction, without backward guarded replay.
+
+Both not_projected_field_minimum and native structure exclusion, and the
+activated/fresh component_supply_separation theorems, were rechecked against
+the enlarged certificate. The exclusion permits arbitrary finite alternation
+of ordinary supplies and retained lambdas consumed in the next application
+with its actual outer substitution. The selected cheaper target execution and
+its unrestricted minimum remain intact in both structure branches.
+
+Judgment: removed the outer-identity restriction, not all retained cases.
+Constructor roots and retained prefixes whose body is not consumed in the
+next application remain unresolved. No global sufficiency claim. Original
+weakN_iff sorry and executable unchanged. Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1355 jobs; recursive audit
+10 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,330 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-retained-substitution-relay-*.

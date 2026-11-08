@@ -25859,3 +25859,35 @@ weakN_iff proof, or canonical-Eq counterexample. Goal active; PR extraction
 deferred. Validation: 1355 jobs, 9 public audit roots, maximum recursive
 closure 11,981, 1,330 frozen source hashes; stock Lean in /dev/shm,
 no sorryAx or forbidden dependencies.
+
+
+## 2026-11-08 00:19:35 UTC — Factor projected ancestry across retained outer substitution
+
+Idea: factor the incoming projection history before a retained frame's outer
+map, then factor again after simulating the actual field computation in the
+new body context. Rebuild the second major path inside the consuming lambda;
+leave the first major path before the original retained frame. Verdict:
+checked, generalizing the identity-only retained consumption of 82d5a8aa to
+any actual outer endpoint map and the original split of supplied arguments.
+
+The new ancestry lemma accepts any ordinary interpreted substitution. Its
+output is a major path in the old context, a major path in the new context,
+a sorted final projection, the actual endpoint's administrative deletion,
+and a zero/one terminal selection. The sum of both major counts and terminal
+cost is at most incoming ancestry plus actual target field computation.
+No guarded path is transported across the outer substitution.
+
+Generalized the existing retained constructor and both of its induction cases
+in place. Its entry theorem still derives empty post-beta residual arguments
+from closed-pair typing. Both activated and fresh structure separation results
+now exclude arbitrary finite alternations of ordinary supplies and retained
+lambdas consumed in the next actual application, even when that application
+substitutes an outer binder before computing the retained body.
+
+Remaining: constructor roots and retained executions not consumed in that
+next application, including nested retained prefixes and delayed consumption.
+No sufficient smaller global replacement for PropFront, weakN_iff proof, or
+canonical-Eq counterexample yet. Goal active; PR extraction deferred.
+Validation: 1355 jobs, 10 public audit roots, maximum recursive closure
+11,981, 1,330 frozen source hashes; stock Lean in /dev/shm,
+no sorryAx or forbidden dependencies.

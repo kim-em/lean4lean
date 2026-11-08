@@ -5,10 +5,11 @@ import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertStructureObserve
 Before each endpoint map, factor the projected field into a major computation
 and a zero/one terminal action, modulo administrative deletion. Only the
 terminal action crosses that map. The major computation stays in its original
-scope. Retained lambdas consumed by the next identity application pull their
-component body computations back across the actual annotation change, then
-rebuild the consuming shell around each raw competitor. Repeating these
-constructions excludes arbitrarily many such frames after a structure root.
+scope. For retained lambdas consumed by the next application, factor ancestry
+again in the body context after the actual outer substitution. Rebuild that
+second major computation inside the consuming shell, leaving the first major
+computation before the retained frame. Repeating these constructions excludes
+arbitrarily many such frames after a structure root.
 
 Constructor roots and other retained binder executions above the observer
 are not covered by this relay; they remain the next readout obligation.
@@ -33,11 +34,79 @@ private theorem retained_consumption_count
     (ScopedComputeCount.beta (BetaRed.beta (A := C) (b := body') (a := x)))
   simpa only [ProofShape.mkApps, Nat.add_zero] using R
 
+/-- Factor projected-field ancestry on both sides of an ordinary substitution.
+The old major path stays in the source context and the new major path stays in
+the target context. Their combined count, plus the final zero/one projection
+action, is bounded by the original ancestry and actual target field path.
+This transports endpoint syntax and ordinary terminal selection, never a
+guarded major computation through the substitution. -/
+theorem pi_inert_projection_ancestry_substitution_count
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (HSort : ControlTyping Δ (.proj family index source) (.sort u))
+    (HD : AdministrativeHeadDeletion field lower)
+    (RF : ScopedComputeCount (PiInertStage D fieldStage) fieldCost Δ
+      (.proj family index source) lower)
+    (W : ContextSubstitution Δ Θ τ)
+    (HT : TypedSource Θ (field.subst τ))
+    (RT : ScopedComputeCount (PiInertStage D targetStage) targetCost Θ (field.subst τ) nextField) :
+    ∃ before after terminal cBefore cAfter terminalCost,
+      ScopedComputeCount (PiInertStage D fieldStage) cBefore Δ source before ∧
+      ScopedComputeCount (PiInertStage D targetStage) cAfter Θ (before.subst τ) after ∧
+      ControlTyping Θ (.proj family index after) (.sort u) ∧
+      AdministrativeHeadDeletion nextField terminal ∧
+      cBefore+cAfter+terminalCost ≤ fieldCost+targetCost ∧
+      ((terminalCost = 0 ∧ terminal = .proj family index after) ∨
+        (terminalCost = 1 ∧ Primitive D (.proj family index after) terminal)) := by
+  obtain ⟨before, firstTerminal, cBefore, HDfirst, RBefore, HF⟩ :=
+    pi_inert_sorted_projection_terminal_frames_count heq hs HSort RF
+  obtain ⟨nextLower, cNext, hcNext, RNext, HDnext⟩ :=
+    ((HD.trans HDfirst).subst τ).compute heq hs HT RT
+  have HSortBefore := HSort.compute
+    (ErasedScopedPrimitiveCertificateDescent.descent
+      (pi_inert_stage_certificate_descent heq hs fieldStage)) RBefore.proj.forget
+  have HSortImage : ControlTyping Θ (.proj family index (before.subst τ)) (.sort u) := by
+    simpa only [ProofShape.subst] using HSortBefore.subst W
+  have finish (firstCost : Nat) (hfirst : cBefore+firstCost ≤ fieldCost)
+      (RFirst : ScopedComputeCount (PiInertStage D targetStage) firstCost Θ
+        (.proj family index (before.subst τ)) (firstTerminal.subst τ)) :
+      ∃ after terminal cAfter terminalCost,
+        ScopedComputeCount (PiInertStage D targetStage) cAfter Θ (before.subst τ) after ∧
+        ControlTyping Θ (.proj family index after) (.sort u) ∧
+        AdministrativeHeadDeletion nextField terminal ∧
+        cBefore+cAfter+terminalCost ≤ fieldCost+targetCost ∧
+        ((terminalCost = 0 ∧ terminal = .proj family index after) ∨
+          (terminalCost = 1 ∧ Primitive D (.proj family index after) terminal)) := by
+    obtain ⟨after, terminal, cAfter, HDlast, RAfter, HL⟩ :=
+      pi_inert_sorted_projection_terminal_frames_count heq hs HSortImage (RFirst.trans RNext)
+    have HSortAfter := HSortImage.compute
+      (ErasedScopedPrimitiveCertificateDescent.descent
+        (pi_inert_stage_certificate_descent heq hs targetStage)) RAfter.proj.forget
+    rcases HL with ⟨ET, hc⟩ | ⟨RI, hc⟩
+    · exact ⟨after, terminal, cAfter, 0, RAfter, HSortAfter, HDnext.trans HDlast,
+        by omega, .inl ⟨rfl, ET⟩⟩
+    · exact ⟨after, terminal, cAfter, 1, RAfter, HSortAfter, HDnext.trans HDlast,
+        by omega, .inr ⟨rfl, RI⟩⟩
+  have HX : ∃ after terminal cAfter terminalCost,
+      ScopedComputeCount (PiInertStage D targetStage) cAfter Θ (before.subst τ) after ∧
+      ControlTyping Θ (.proj family index after) (.sort u) ∧
+      AdministrativeHeadDeletion nextField terminal ∧
+      cBefore+cAfter+terminalCost ≤ fieldCost+targetCost ∧
+      ((terminalCost = 0 ∧ terminal = .proj family index after) ∨
+        (terminalCost = 1 ∧ Primitive D (.proj family index after) terminal)) := by
+    rcases HF with ⟨ET, hc⟩ | ⟨RI, hc⟩
+    · apply finish 0 (by omega)
+      simpa only [ET, ProofShape.subst] using
+        (ScopedComputeCount.beta (Step := PiInertStage D targetStage) (Δ := Θ)
+          (BetaRed.refl (e := .proj family index (before.subst τ))))
+    · exact finish 1 hc (.base (pi_inert_stage_core (.inl (.inl (.inl RI.subst)))))
+  obtain ⟨after, terminal, cAfter, terminalCost, RAfter, HS, HDlast, hc, HF⟩ := HX
+  exact ⟨before, after, terminal, cBefore, cAfter, terminalCost, RBefore, RAfter, HS, HDlast, hc, HF⟩
+
 /-- An actual pair continuation whose application computations before reaching
 the observer change only the two components, including retained lambdas consumed
-in the next identity application with component body computation. Once in the
-observer's scope, the remaining execution is unrestricted. Its predicate is the
-original raw continuation predicate, not a restriction on competitors. -/
+in the next application with component body computation after its outer map.
+Once in the observer's scope, the remaining execution is unrestricted. Its
+predicate is the original raw predicate, not a restriction on competitors. -/
 inductive PiInertPairComponentSupplyRun (D : Definitions) (Ω : List ProofShape)
     (family : Name) (info : VProjectionInfo) (out : ProofShape) :
     List ProofShape → (ProofShape → Nat → Prop) → ProofShape → ProofShape → Nat → Nat → Prop where
@@ -57,12 +126,17 @@ inductive PiInertPairComponentSupplyRun (D : Definitions) (Ω : List ProofShape)
       ContextSubstitution (A :: Δ) (A' :: Δ) ProofShape.Subst.id →
       TypedSource Δ (ProofShape.mkApps
         (.lam A' (ProofShape.mkApps (.const info.ctorName []) [field, value])) args) →
-      ScopedComputeCount (PiInertStage D n) cd Δ A' C →
-      ScopedArgumentsCount (PiInertStage D n) (A' :: Δ) cb [field, value] [nextField, nextValue] →
-      ScopedArgumentsCount (PiInertStage D n) Δ ca args [x] →
-      PiInertPairComponentSupplyRun D Ω family info out Δ K (nextField.inst x) (nextValue.inst x) ck frames →
+      PiInertEndpointMap Δ Θ τ →
+      TypedSource Θ (ProofShape.mkApps
+        (.lam (A'.subst τ) (ProofShape.mkApps (.const info.ctorName []) [field.subst τ.lift, value.subst τ.lift]))
+        (args.map (·.subst τ) ++ pending)) →
+      ScopedComputeCount (PiInertStage D n) cd Θ (A'.subst τ) C →
+      ScopedArgumentsCount (PiInertStage D n) (A'.subst τ :: Θ) cb
+        [field.subst τ.lift, value.subst τ.lift] [nextField, nextValue] →
+      ScopedArgumentsCount (PiInertStage D n) Θ ca (args.map (·.subst τ) ++ pending) [x] →
+      PiInertPairComponentSupplyRun D Ω family info out Θ K (nextField.inst x) (nextValue.inst x) ck frames →
       PiInertPairComponentSupplyRun D Ω family info out (A :: Δ)
-        (fun body k => PiInertApplicationContinuation D Δ ProofShape.Subst.id [] K
+        (fun body k => PiInertApplicationContinuation D Θ τ pending K
           (ProofShape.mkApps (.lam A' body) args) k)
         field value (cd+cb+ca+ck) (frames+2)
 
@@ -82,27 +156,29 @@ theorem PiInertPairComponentSupplyRun.forget
         List.map_nil, Nat.zero_add, ProofShape.mkApps] using
         (ScopedComputeCount.beta (BetaRed.refl (e := .const info.ctorName []))).mkApps RA
     · exact ih
-  | @retained A Δ field value u domainStage oldDomainCost A' args n cd C cb nextField nextValue ca x K ck frames
-      HT SD RD WI HFull RDomain RA RX _ ih =>
-    have RB : ScopedComputeCount (PiInertStage D n) cb (A' :: Δ)
-        (ProofShape.mkApps (.const info.ctorName []) [field, value])
+  | @retained A Δ field value u domainStage oldDomainCost A' args Θ τ pending n cd C cb nextField nextValue ca x K ck frames
+      HT SD RD WI HWrapped W HFull RDomain RA RX _ ih =>
+    have RB : ScopedComputeCount (PiInertStage D n) cb (A'.subst τ :: Θ)
+        (ProofShape.mkApps (.const info.ctorName []) [field.subst τ.lift, value.subst τ.lift])
         (ProofShape.mkApps (.const info.ctorName []) [nextField, nextValue]) := by
       simpa only [Nat.zero_add] using (ScopedComputeCount.beta BetaRed.refl).mkApps RA
     have RAll := retained_consumption_count RDomain RB RX
-    have RAll' : ScopedComputeCount (PiInertStage D n) (cd+cb+ca) Δ
+    have RAll' : ScopedComputeCount (PiInertStage D n) (cd+cb+ca) Θ
         (ProofShape.mkApps
-          ((ProofShape.mkApps (.lam A' (ProofShape.mkApps (.const info.ctorName []) [field, value])) args).subst
-            ProofShape.Subst.id) [])
+          ((ProofShape.mkApps (.lam A' (ProofShape.mkApps (.const info.ctorName []) [field, value])) args).subst τ) pending)
         (ProofShape.mkApps (.const info.ctorName []) [nextField.inst x, nextValue.inst x]) := by
-      simpa only [ProofShape.subst_id, ProofShape.inst_eq_subst, ProofShape.subst_mkApps,
-        ProofShape.subst, List.map_cons, List.map_nil, ProofShape.mkApps] using RAll
-    have HNext := HFull
-    have HApp := PiInertProjectionRunFrames.application HFull (.identity ContextRenaming.identity.interpretation)
-      (by simpa only [ProofShape.subst_id, ProofShape.mkApps] using HNext) RAll' ih
+      simpa only [ProofShape.inst_eq_subst, ProofShape.subst_mkApps, ProofShape.subst,
+        List.map_cons, List.map_nil, ProofShape.mkApps_append, ProofShape.mkApps] using RAll
+    have HNext : TypedSource Θ (ProofShape.mkApps
+        ((ProofShape.mkApps (.lam A' (ProofShape.mkApps (.const info.ctorName []) [field, value])) args).subst τ) pending) := by
+      simpa only [ProofShape.subst_mkApps, ProofShape.subst, List.map_cons, List.map_nil,
+        ProofShape.mkApps_append] using HFull
+    have HApp := PiInertProjectionRunFrames.application HWrapped W HNext RAll' ih
     simpa only [Nat.add_assoc] using PiInertProjectionRunFrames.retained HT SD RD WI HApp
 
 /-- An actual consuming retained application enters the relay. Its arguments
-may be split between the retained frame and the next identity application.
+may be split between the retained frame and the next application, whose outer
+endpoint map is retained, including its action underneath the lambda binder.
 Typing the computed full pair forces the post-beta residual arguments to be
 empty. The original raw predicate, including that split, is preserved exactly.
 The premise on the actual body is component computation; constructor roots
@@ -115,27 +191,32 @@ theorem PiInertPairComponentSupplyRun.retained_application
     (SD : DomainSort Δ A u)
     (RD : ScopedComputeCount (PiInertStage D domainStage) oldDomainCost Δ A A')
     (WI : ContextSubstitution (A :: Δ) (A' :: Δ) ProofShape.Subst.id)
-    (HFull : TypedSource Δ (ProofShape.mkApps
-      (.lam A' (ProofShape.mkApps (.const info.ctorName []) [field, value])) (args ++ pending)))
-    (RDomain : ScopedComputeCount (PiInertStage D n) cd Δ A' C)
-    (RA : ScopedArgumentsCount (PiInertStage D n) (A' :: Δ) cb [field, value] [nextField, nextValue])
-    (RX : ScopedArgumentsCount (PiInertStage D n) Δ ca (args ++ pending) (x :: rest))
-    (HK : PiInertPairComponentSupplyRun D Ω family info out Δ K
+    (HWrapped : TypedSource Δ (ProofShape.mkApps
+      (.lam A' (ProofShape.mkApps (.const info.ctorName []) [field, value])) args))
+    (W : PiInertEndpointMap Δ Θ τ)
+    (HFull : TypedSource Θ (ProofShape.mkApps
+      (.lam (A'.subst τ) (ProofShape.mkApps (.const info.ctorName []) [field.subst τ.lift, value.subst τ.lift]))
+      (args.map (·.subst τ) ++ pending)))
+    (RDomain : ScopedComputeCount (PiInertStage D n) cd Θ (A'.subst τ) C)
+    (RA : ScopedArgumentsCount (PiInertStage D n) (A'.subst τ :: Θ) cb
+      [field.subst τ.lift, value.subst τ.lift] [nextField, nextValue])
+    (RX : ScopedArgumentsCount (PiInertStage D n) Θ ca (args.map (·.subst τ) ++ pending) (x :: rest))
+    (HK : PiInertPairComponentSupplyRun D Ω family info out Θ K
       (nextField.inst x) (nextValue.inst x) ck frames) :
     rest = [] ∧ PiInertPairComponentSupplyRun D Ω family info out (A :: Δ)
-      (fun body k => PiInertApplicationContinuation D Δ ProofShape.Subst.id pending K
+      (fun body k => PiInertApplicationContinuation D Θ τ pending K
         (ProofShape.mkApps (.lam A' body) args) k)
       field value (cd+cb+ca+ck) (frames+2) := by
-  have RB : ScopedComputeCount (PiInertStage D n) cb (A' :: Δ)
-      (ProofShape.mkApps (.const info.ctorName []) [field, value])
+  have RB : ScopedComputeCount (PiInertStage D n) cb (A'.subst τ :: Θ)
+      (ProofShape.mkApps (.const info.ctorName []) [field.subst τ.lift, value.subst τ.lift])
       (ProofShape.mkApps (.const info.ctorName []) [nextField, nextValue]) := by
     simpa only [Nat.zero_add] using (ScopedComputeCount.beta BetaRed.refl).mkApps RA
-  have HTbody := (ScopedHole.lamBody A' .hole).typed (typed_spine_head HFull)
+  have HTbody := (ScopedHole.lamBody (A'.subst τ) .hole).typed (typed_spine_head HFull)
   have HTend := HTbody.pi_inert_compute heq hs RB.forget
-  have WX : ContextSubstitution (A' :: Δ) Δ (ProofShape.Subst.one x) :=
+  have WX : ContextSubstitution (A'.subst τ :: Θ) Θ (ProofShape.Subst.one x) :=
     typed_lambda_argument_map heq hs HFull RX
   have RLambda := (ScopedComputeCount.lam RDomain RB).mkApps RX
-  have RBeta : ScopedComputeCount (PiInertStage D n) 0 Δ
+  have RBeta : ScopedComputeCount (PiInertStage D n) 0 Θ
       (ProofShape.mkApps (.lam C (ProofShape.mkApps (.const info.ctorName []) [nextField, nextValue])) (x :: rest))
       (ProofShape.mkApps ((ProofShape.mkApps (.const info.ctorName []) [nextField, nextValue]).inst x) rest) := by
     simpa only [ProofShape.mkApps, Nat.zero_add] using
@@ -143,24 +224,22 @@ theorem PiInertPairComponentSupplyRun.retained_application
         (BetaRed.beta (A := C) (b := ProofShape.mkApps (.const info.ctorName []) [nextField, nextValue]) (a := x))).mkApps
         (ScopedArgumentsCount.refl (args := rest))
   have HNext := HFull.pi_inert_compute heq hs (RLambda.trans RBeta).forget
-  have HNext' : TypedSource Δ (ProofShape.mkApps
+  have HNext' : TypedSource Θ (ProofShape.mkApps
       ((ProofShape.mkApps (.const info.ctorName []) [nextField, nextValue]).subst (ProofShape.Subst.one x)) rest) := by
     simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using HNext
   have ERest := TypedSource.closed_constructor_image_pending_nil hi hp hz (by simp [hf]) HTend WX HNext'
   subst rest
-  refine ⟨rfl, ?_⟩
-  have HRun := PiInertPairComponentSupplyRun.retained HT SD RD WI HFull RDomain RA RX HK
-  simpa only [PiInertApplicationContinuation, ProofShape.subst_id,
-    ProofShape.mkApps_append, ProofShape.mkApps] using HRun
+  exact ⟨rfl, .retained HT SD RD WI HWrapped W HFull RDomain RA RX HK⟩
 
 /-- Relay a computed projection field through any finite component-supply
 chain. Administrative wrappers may survive at every intermediate field.
 Leastness is used only for the final observer-scope pair and the fixed output.
 Each guarded major path remains before the endpoint map where it was obtained;
 only ordinary terminal selection and deletion syntax cross the map. Retained
-consumption first pulls the actual field computation back across its earlier
-annotation change, then rebuilds the raw consuming shell without that body
-computation. Its domain and argument costs are charged exactly once. -/
+consumption factors ancestry before the outer map and again in its target
+body context. The second major computation rebuilds the consuming shell while
+the first stays before the retained frame. Domain, body and argument costs
+remain within their combined original budget. -/
 theorem PiInertPairComponentSupplyRun.projected_field_competitor
     (H : PiInertPairComponentSupplyRun D Ω family info out Δ K field value ck frames)
     (HLeast : PiInertPairFailureBudgetMinimum D family info out budget)
@@ -227,20 +306,17 @@ theorem PiInertPairComponentSupplyRun.projected_field_competitor
           exact ⟨fieldStage, cm, major, j+k, by omega, RM,
             later, j, endpoint, k, rfl, RJ, RK⟩
 
-  | @retained A Δ field value binderU domainStage oldDomainCost A' args n cd C cb nextField nextValue ca x K ck frames
-      HT SD RD WI HFull RDomain RA RX HK ih =>
-    have HTlam := typed_spine_head HFull
-    have HTbody := (ScopedHole.lamBody A' .hole).typed HTlam
-    have HTfield : TypedSource (A :: Δ) field :=
-      (ScopedHole.appFn (.appArg (.const info.ctorName []) .hole) value).typed HT
-    have HTfield' : TypedSource (A' :: Δ) field :=
-      (ScopedHole.appFn (.appArg (.const info.ctorName []) .hole) value).typed HTbody
-    have WX : ContextSubstitution (A' :: Δ) Δ (ProofShape.Subst.one x) :=
-      typed_lambda_argument_map heq hs HFull RX
-    have W : ContextSubstitution (A :: Δ) Δ (ProofShape.Subst.one x) := by
+  | @retained A Δ field value binderU domainStage oldDomainCost A' args Θ τ pending n cd C cb nextField nextValue ca x K ck frames
+      HT SD RD WI HWrapped W HFull RDomain RA RX HK ih =>
+    have HTbody := (ScopedHole.lamBody (A'.subst τ) .hole).typed (typed_spine_head HFull)
+    have HTfield : TypedSource (A'.subst τ :: Θ) (field.subst τ.lift) :=
+      (ScopedHole.appFn (.appArg (.const info.ctorName []) .hole) (value.subst τ.lift)).typed HTbody
+    have WBody : ContextSubstitution (A :: Δ) (A'.subst τ :: Θ) τ.lift := by
       intro Γ₀ hΓ₀ EΓ₀
       simpa only [ProofShape.Subst.comp, ProofShape.Subst.id, ProofShape.subst] using
-        ContextSubstitution.comp WI WX hΓ₀ EΓ₀
+        ContextSubstitution.comp WI (ContextSubstitution.cons W.interpretation) hΓ₀ EΓ₀
+    have WX : ContextSubstitution (A'.subst τ :: Θ) Θ (ProofShape.Subst.one x) :=
+      typed_lambda_argument_map heq hs HFull RX
     let bodyCost := cb
     have hbodyCost : cb = bodyCost := rfl
     cases RA with
@@ -248,44 +324,31 @@ theorem PiInertPairComponentSupplyRun.projected_field_competitor
       cases rest with
       | cons RValue last =>
         cases last
-        have RBack := pi_inert_count_body_backward_annotation heq hs SD RD HTfield' RField
-        obtain ⟨nextLower, cnext, hcnext, RNext, HDnext⟩ := HD.compute heq hs HTfield RBack
-        have RAncestry := (RF.mono (pi_inert_stage_mono
-          (Nat.le_max_left fieldStage (n+domainStage)))).trans
-          (RNext.mono (pi_inert_stage_mono (Nat.le_max_right fieldStage (n+domainStage))))
-        obtain ⟨major, terminal, cm, HDterminal, RM, HF⟩ :=
-          pi_inert_sorted_projection_terminal_frames_count heq hs HSort RAncestry
-        have HSortMajor := HSort.compute
-          (ErasedScopedPrimitiveCertificateDescent.descent
-            (pi_inert_stage_certificate_descent heq hs (max fieldStage (n+domainStage)))) RM.proj.forget
-        have HSortNext : ControlTyping Δ (.proj family 0 (major.subst (ProofShape.Subst.one x))) (.sort u) := by
-          simpa only [ProofShape.subst] using HSortMajor.subst W
+        obtain ⟨before, after, terminal, cBefore, cAfter, terminalCost,
+          RBefore, RAfter, HSortAfter, HDafter, hancestry, HF⟩ :=
+          pi_inert_projection_ancestry_substitution_count heq hs HSort HD RF WBody HTfield RField
+        have HSortNext : ControlTyping Θ (.proj family 0 (after.subst (ProofShape.Subst.one x))) (.sort u) := by
+          simpa only [ProofShape.subst] using HSortAfter.subst WX
         have HDimage : AdministrativeHeadDeletion (nextField.inst x) (terminal.subst (ProofShape.Subst.one x)) := by
-          simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using (HDnext.trans HDterminal).subst (ProofShape.Subst.one x)
-        have finish (terminalCost : Nat) (hterminal : cm+terminalCost ≤ fieldCost+cnext)
-            (RTerm : ScopedComputeCount (PiInertStage D n) terminalCost Δ
-              (.proj family 0 (major.subst (ProofShape.Subst.one x))) (terminal.subst (ProofShape.Subst.one x))) :
-            ∃ later j major' k, j+k ≤ fieldCost+(cd+bodyCost+ca+ck) ∧
-              ScopedComputeCount (PiInertStage D later) j (A :: Δ) source major' ∧
-              PiInertApplicationContinuation D Δ ProofShape.Subst.id [] K
-                (ProofShape.mkApps (.lam A' major') args) k := by
-          obtain ⟨later, j, endpoint, k, hcost, RJ, RK⟩ := ih (by omega) HSortNext HDimage RTerm
-          have RWrap : ScopedComputeCount (PiInertStage D n) (cd+ca) Δ
-              (ProofShape.mkApps (.lam A' major) args) (major.subst (ProofShape.Subst.one x)) := by
-            simpa only [Nat.add_zero, ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using
-              retained_consumption_count RDomain (ScopedComputeCount.beta (BetaRed.refl (e := major))) RX
-          have RAlt := (RWrap.mono (pi_inert_stage_mono (Nat.le_max_left n later))).trans
-            (RJ.mono (pi_inert_stage_mono (Nat.le_max_right n later)))
-          refine ⟨max fieldStage (n+domainStage), cm, major, cd+ca+j+k, by omega, RM,
-            max n later, cd+ca+j, endpoint, k, rfl, ?_, RK⟩
-          simpa only [ProofShape.subst_id, ProofShape.mkApps] using RAlt
-        rcases HF with ⟨ET, hcm⟩ | ⟨RI, hcm⟩
-        · apply finish 0 (by omega)
-          simpa only [ET, ProofShape.subst] using
-            (ScopedComputeCount.beta (Step := PiInertStage D n) (Δ := Δ)
-              (BetaRed.refl (e := .proj family 0 (major.subst (ProofShape.Subst.one x)))))
-        · apply finish 1 hcm
-          exact .base (pi_inert_stage_core (.inl (.inl (.inl RI.subst))))
+          simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using HDafter.subst (ProofShape.Subst.one x)
+        have RTerm : ScopedComputeCount (PiInertStage D n) terminalCost Θ
+            (.proj family 0 (after.subst (ProofShape.Subst.one x))) (terminal.subst (ProofShape.Subst.one x)) := by
+          rcases HF with ⟨rfl, ET⟩ | ⟨rfl, RI⟩
+          · simpa only [ET, ProofShape.subst] using
+              (ScopedComputeCount.beta (Step := PiInertStage D n) (Δ := Θ)
+                (BetaRed.refl (e := .proj family 0 (after.subst (ProofShape.Subst.one x)))))
+          · exact .base (pi_inert_stage_core (.inl (.inl (.inl RI.subst))))
+        obtain ⟨later, j, endpoint, k, hcost, RJ, RK⟩ := ih (by omega) HSortNext HDimage RTerm
+        have RWrap : ScopedComputeCount (PiInertStage D n) (cd+cAfter+ca) Θ
+            (ProofShape.mkApps (.lam (A'.subst τ) (before.subst τ.lift)) (args.map (·.subst τ) ++ pending))
+            (after.subst (ProofShape.Subst.one x)) := by
+          simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using
+            retained_consumption_count RDomain RAfter RX
+        have RAlt := (RWrap.mono (pi_inert_stage_mono (Nat.le_max_left n later))).trans
+          (RJ.mono (pi_inert_stage_mono (Nat.le_max_right n later)))
+        refine ⟨fieldStage, cBefore, before, cd+cAfter+ca+j+k, by omega, RBefore,
+          max n later, cd+cAfter+ca+j, endpoint, k, rfl, ?_, RK⟩
+        simpa only [ProofShape.subst_mkApps, ProofShape.subst, ProofShape.mkApps_append] using RAlt
 
 /-- A projected field cannot feed a component-supply chain in a global minimum
 when its ancestry plus the remaining run is strictly cheaper. This comparison
