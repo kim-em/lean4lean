@@ -25826,3 +25826,36 @@ PropFront, proof of weakN_iff, or canonical-Eq counterexample yet. Goal active;
 PR extraction deferred. Validation: 1355 jobs, 8 public audit roots,
 maximum recursive closure 11,981, 1,330 frozen source hashes; stock Lean
 in /dev/shm, no sorryAx or forbidden dependencies.
+
+
+## 2026-11-08 00:14:15 UTC — Relay retained lambdas through their actual consuming shell
+
+Idea: extend projected-field ancestry across a retained binder by pulling its
+later component computation backwards across the earlier annotation change.
+Factor that enlarged ancestry in the original binder context, then rebuild
+the actual domain computation, argument computation and beta around each raw
+major competitor. Verdict: checked for retained lambdas consumed in the next
+identity application, with arbitrary component computation in their bodies.
+The already-paid annotation change changes only the finite replay stage; its
+primitive cost is not charged again.
+
+Extended PiInertPairComponentSupplyRun in place. Its recursive relay now permits
+arbitrary alternation of ordinary component supplies and this retained
+consumption. Both activated and fresh structure separation theorems therefore
+exclude the enlarged class. The actual execution still has its exact count,
+frame count and raw continuation predicate; competitors remain unrestricted.
+
+An entry theorem accepts arguments split between the retained frame and its
+next identity application. Typing the computed closed pair derives that no
+residual arguments remain after beta. Raw predicate equality preserves that
+original split, and the remaining supply chain may end in an independently
+scoped observer. No blanket transport of guarded paths across substitution is
+assumed.
+
+Remaining: constructor roots, and retained executions not covered by this
+actual consuming shell, including other outer substitutions and delayed
+consumption. Still no sufficient smaller global replacement for PropFront,
+weakN_iff proof, or canonical-Eq counterexample. Goal active; PR extraction
+deferred. Validation: 1355 jobs, 9 public audit roots, maximum recursive
+closure 11,981, 1,330 frozen source hashes; stock Lean in /dev/shm,
+no sorryAx or forbidden dependencies.

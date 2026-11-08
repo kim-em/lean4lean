@@ -43003,3 +43003,62 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,330 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-projection-supply-relay-*.
+
+
+## 2026-11-08 00:14:15 UTC — Extend the supply relay to retained binder consumption
+
+Previous turn classified as progress: c0ea7376 added and audited the projected
+field relay through component-only application chains. Revalidated that clean
+pushed HEAD before extending the remaining retained-frame case.
+
+Changed ProofErasurePiInertProjectionSupplyRelay in place. Added the retained
+constructor to PiInertPairComponentSupplyRun. It records original body typing,
+the earlier annotation computation and its ordinary identity interpretation,
+the typed retained application, its later domain computation, actual pair
+component body computation, argument computation and recursive supplied tail.
+The full chosen computation has domain-plus-body-plus-argument-plus-tail cost
+and exactly two frames over the tail. The forget theorem reconstructs the
+retained frame and following identity application with this exact cost and
+frame count. A private counted beta-shell lemma is valid for every raw body,
+so it can also rebuild unrestricted competitors.
+
+The main projected_field_competitor induction now handles this constructor.
+The chosen later field computation is in the computed annotation context.
+pi_inert_count_body_backward_annotation transports it backwards to the
+original binder context using the actual earlier annotation computation's
+native identity certificate. Primitive count is unchanged. Administrative
+deletion simulation composes this path with the incoming projection ancestry.
+Factor the result before the consuming substitution. Only its ordinary
+terminal projection action and deletion syntax cross the map. The recursive
+competitor is wrapped with the actual domain and argument paths and consuming
+beta, with no guarded competitor body path replayed under the new annotation.
+Those major computations instead stay before the original retained wrapper.
+The domain and argument costs are charged once; discarded value computation
+provides nonnegative slack. The same global budget inequality is preserved.
+
+retained_application supplies an entry theorem for actual argument splitting
+between the retained frame and its next identity application. Given the real
+domain, body-component and argument computations, it types the post-beta
+application and derives that residual arguments are empty from closed-pair
+typing. It then reconstructs the enlarged relay with precisely the original
+raw continuation predicate, not merely a predicate on typed competitors.
+
+Existing not_projected_field_minimum, native structure exclusion, and both
+activated/fresh component_supply_separation theorems were rechecked against
+the enlarged inductive certificate. Thus the excluded class now allows any
+finite alternation of ordinary component supplies and the certified retained
+consumption. Both structure boundaries still keep their exact cheaper target
+execution and unrestricted global minimum.
+
+Judgment: progress through a concrete retained-frame class, not elimination
+of arbitrary retained execution. Constructor roots, other outer substitutions
+under retained binders, and delayed consumption still require treatment. No
+global sufficiency claim; original weakN_iff sorry and executable unchanged.
+Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1355 jobs; recursive audit
+9 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,330 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-retained-supply-relay-*.
