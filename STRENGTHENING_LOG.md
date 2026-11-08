@@ -43486,3 +43486,70 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,335 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-application-readout-induction-*.
+
+## 2026-11-08 01:06:22 UTC — Arbitrary retained terminals preserve a decreasing application rank
+
+Added ProofErasurePiInertTerminalReadoutInduction to the global aggregate.
+PiInertPairAncestryApplicationReadout is the fixed-cost, fixed-frame ancestry
+target with an actual PiInertProjectionApplicationRun. Unrestricted exact-frame
+readout includes it. At equal cost the intended rank is 2*frames for this
+application-witness target and 2*frames+1 for unrestricted executions. This is
+an induction invariant, not an established global readout theorem.
+
+pi_inert_ancestry_readout_zero_frames derives the zero-frame case directly
+below a least failed projection budget. A zero-frame actual continuation is
+a projection in the final observer's scope, so the previously checked observer
+readout applies even when its initial pair computation is arbitrary.
+
+PiInertProjectionApplicationRun.replay_competitor and replay_from_source
+preserve the actual application witness through ordinary typed equality and
+raw competitor replay. The application constructor replays its unrestricted
+tail; retained constructors recurse preserving the eventual application.
+minimize_competitor selects among all raw competitors using the earlier
+minimum theorem, then replays the selected result with its application witness.
+The same K, exact frame count, and unrestricted minimum survive. The packaged
+competitor_minimum supplies the existing application-minimum interface.
+
+pi_inert_substitution_application_ancestry_readout factors incoming ancestry
+before an interpreted context map and uses an application-witness readout
+hypothesis for the actual target pair computation. Only administrative
+deletion and the zero/one ordinary terminal selection cross the map.
+
+pi_inert_retained_terminal_ancestry_readout begins with an arbitrary actual
+terminal projection of a retained pair lambda and an exposed final output.
+Sorted projection selection supplies a constructor major, forcing lambda
+consumption. Typed lambda readout separates its domain and arbitrary body
+computations; the selected beta argument gives the ordinary body context map.
+The body's actual continuation is an application followed by the selected
+projection and its tail. Its cost is at most the original terminal's cost and
+it has exactly one frame with an application witness.
+
+Apply the lower application-rank readout hypothesis after interpreting the
+original annotation context. Rebuild the actual domain and argument paths,
+consuming beta and the raw competitor suffix around the resulting body path.
+The original terminal predicate and ancestry budget are recovered. No global
+minimum, component-only body path, independent field descent, or native-root
+restriction is assumed. components_retained_terminal_ancestry_readout includes
+an initial component prefix, charging first-field work in the original scope.
+
+pi_inert_components_one_frame_ancestry_readout classifies every actual
+one-frame continuation after a component pair path. An application branch has
+a zero-frame tail and closes using the least failed budget. A retained branch
+has a terminal projection and uses the lower application rank above. This is
+coverage of the actual indexed run, not an independently assumed supply
+certificate.
+
+Judgment: the single retained terminal now has checked rank progress for an
+arbitrary body computation. Replay and minimization cannot lose that rank.
+Remaining work is generalized function-root progress and arbitrary nested
+retained prefixes, followed by closing the full induction. No complete
+ancestry readout, global sufficiency, canonical-Eq counterexample, or weakN_iff
+proof is claimed. Original sorry and executable unchanged; goal active; PR
+extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1361 jobs; recursive audit
+12 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,336 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-terminal-readout-induction-*.

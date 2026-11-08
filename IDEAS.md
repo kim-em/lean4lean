@@ -26066,3 +26066,31 @@ that terminal case. Original weakN_iff sorry and executable unchanged; no new
 global sufficiency claim. Goal active; PR extraction deferred. Validation:
 1360 jobs, 9 public roots, maximum closure 11,981, 1,335 frozen
 source hashes; stock Lean, all execution in /dev/shm.
+
+## 2026-11-08 01:06:22 UTC — Retained terminal progress by application rank
+
+Verdict: checked induction case. An exposed sorted projection must consume
+its retained lambda. The unrestricted actual body computation therefore has
+an application-witness continuation at no greater primitive cost. Its frame
+count can remain one, but application rank 2 precedes unrestricted rank 3.
+Readout at that application rank reconstructs a raw competitor for the
+original retained terminal. The original annotation interpretation is kept;
+no guarded path is substituted or assumed component-only. Initial component
+computation is also included in the ancestry budget.
+
+Typed replay and unrestricted minimum selection now preserve the selected
+application witness as well as cost, frame count and exact raw K. This is
+needed so minimization cannot lose the secondary-rank decrease. Zero-frame
+ancestry readout is proved directly below the least failed budget. Every
+actual one-frame continuation after a component pair path is classified:
+the direct application case uses zero-frame readout, and the retained case
+uses the consuming terminal's lower application rank.
+
+Remaining: generalized function-root progress and arbitrary nested retained
+prefixes. The full cost/application-rank induction is not yet closed. The
+single retained terminal no longer needs component-only body coverage or
+separate native-root classification, provided its lower-rank hypothesis is
+available. Original weakN_iff sorry and executable unchanged; no sufficient
+smaller global frontier claimed. Goal active; PR extraction deferred.
+Validation: 1361 jobs, 12 public roots, maximum closure 11,981,
+1,336 frozen source hashes; stock Lean, all execution in /dev/shm.
