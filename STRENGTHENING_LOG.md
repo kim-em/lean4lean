@@ -43422,3 +43422,67 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,333 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-structure-readout-induction-*.
+
+## 2026-11-08 01:00:44 UTC — Frame-count progress through arbitrary application computations
+
+Added ProofErasurePiInertApplicationReadoutInduction and
+ProofErasurePiInertRetainedApplicationReadout to the global aggregate.
+
+PiInertPairAncestryReadoutFrames refines the existing cost-only target by an
+exact continuation frame count. The cost-only property specializes to every
+frame count; conversely, proving all frame counts gives the original target.
+This supplies the secondary induction needed for application steps whose
+primitive cost is zero. The full induction remains open.
+
+pi_inert_substitution_ancestry_readout factors the incoming projection path
+into a major computation in the source context and an ordinary zero/one
+terminal selection. Administrative deletion and only that terminal selection
+cross the interpreted context map. An exact-frame readout hypothesis applies
+to the arbitrary target pair computation and its actual continuation. Its raw
+competitor is returned as a target-major path separately from the original
+source-major path, with one combined cost bound. No guarded source path is
+substituted, and the target path is not assumed component-only.
+
+pi_inert_application_ancestry_readout derives empty pending arguments from
+typing of the actual saturated-pair image. It applies the substitution kernel
+to the unrestricted target computation and tail, then rebuilds the original
+raw application predicate. The recursive target has the same primitive cost
+and one fewer frame. components_application_ancestry_readout charges an
+arbitrary preceding component path to first-field ancestry in its original
+scope, before performing the same application step.
+
+pi_inert_retained_application_ancestry_readout handles a retained lambda
+followed immediately by an application. The old annotation interpretation
+composes with the lifted actual outer endpoint map. Typed lambda readout
+splits the actual function computation into domain and body computations.
+In the surviving branch, the actual body continuation is a retained frame
+over the existing outer tail. In the consuming branch, the actual body
+continuation is an application of the selected beta argument and residual
+spine followed by the existing tail. Both body executions have one fewer
+frame than the original retained-plus-application pair and at most its cost.
+
+Apply the substitution ancestry kernel to that arbitrary body computation.
+Rebuild the actual domain and argument computations around the raw competitor;
+for consumption, append beta and the competitor's own raw suffix. All cost
+bounds are checked, including zero-cost cases and arbitrary residual arguments.
+The final predicate is exactly the original application around the retained
+lambda/spine. No component-only body assumption, independently lowered field,
+or transported native guard is required. The component-prefix client also
+handles first-field computation before the original retained frame.
+
+Judgment: direct application and immediate retained/application cases now
+support the generalized ancestry induction, including native roots inside
+the actual application/body computations. Remaining cases are arbitrary
+function roots, nested retained prefixes, and retained terminal refocusing.
+The latter can preserve frame count after identity promotion, so it needs
+an additional progress argument and is not covered by these strict frame
+decreases. No complete ancestry induction or global sufficiency is claimed.
+Original weakN_iff sorry and executable unchanged; goal active; PR extraction
+deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1360 jobs; recursive audit
+9 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,335 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-application-readout-induction-*.

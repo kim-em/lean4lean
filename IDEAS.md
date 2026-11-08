@@ -26034,3 +26034,35 @@ ancestry. No global sufficiency or strengthening claim. Original sorry and
 executable unchanged; goal active, PR extraction deferred. Validation: 1358
 jobs, 9 public audit roots, maximum closure 11,981, 1,333 frozen
 source hashes; stock Lean, all execution in /dev/shm.
+
+## 2026-11-08 01:00:44 UTC — Arbitrary application and retained/application ancestry progress
+
+Verdict: checked. Refine ancestry readout by the exact continuation frame
+count. Ordinary application progress preserves primitive cost and removes
+one frame, so zero-cost steps are covered by a secondary induction. The
+cost-only target is equivalent to solving this target for every frame count.
+
+Factor incoming projected ancestry before the endpoint map and transport only
+its ordinary terminal selection. The target pair computation is unrestricted;
+it may contain native roots or end under retained binders. Saturated-pair
+typing forces empty pending arguments for a direct application frame. Initial
+component computation is charged to the incoming first-field ancestry.
+
+A retained lambda immediately followed by an application also progresses with
+an UNRESTRICTED body computation. In either the surviving or consuming case,
+typed lambda readout gives an actual body execution with one fewer total
+frame, at no greater primitive cost. Recurse there and rebuild the actual
+domain and argument computations around its raw competitor. Both the outer
+endpoint map and the original annotation interpretation are retained. An
+initial component prefix is handled in the original body scope. This removes
+the component-only body restriction of the earlier retained supply relay for
+this immediate retained/application configuration.
+
+Remaining: function-root progress for arbitrary ancestry, nested retained
+prefixes, and retained terminal refocusing with a terminating rank. A retained
+terminal promoted to an identity application can return the same frame count,
+so the checked immediate application decrease must not be claimed to solve
+that terminal case. Original weakN_iff sorry and executable unchanged; no new
+global sufficiency claim. Goal active; PR extraction deferred. Validation:
+1360 jobs, 9 public roots, maximum closure 11,981, 1,335 frozen
+source hashes; stock Lean, all execution in /dev/shm.
