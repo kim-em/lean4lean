@@ -25924,3 +25924,31 @@ counterexample yet. Goal active; PR extraction deferred. Validation: 1355
 jobs, 12 public audit roots, maximum recursive closure 11,981,
 1,330 frozen source hashes; stock Lean in /dev/shm, no sorryAx or forbidden
 dependencies.
+
+
+## 2026-11-08 00:30:58 UTC — Enter direct retained projection terminals through an identity frame
+
+Idea: a retained lambda consumed inside the terminal projection can use the
+existing consuming relay by inserting a zero-cost identity application.
+Verdict: checked for actual component body computation, with unrestricted
+post-beta observer-scope projection computation. The artificial application
+predicate is equivalent to the original projection predicate for every raw
+candidate and exact count, not only for the selected typed execution.
+
+Proved raw identity-application/projection equivalence by counted projection
+congruence in one direction and a zero-cost reflexive body in the other.
+Added predicate relabelling for the existing supply certificate, then built
+a terminal entry certificate from the actual retained annotation, domain,
+component-body and argument computations. Closed-pair typing derives empty
+post-beta residual arguments. The certificate has two frames instead of the
+original terminal's one, at unchanged primitive cost; both structure
+separation theorems already quantify over arbitrary competing frame counts.
+
+No new readout hypothesis or guarded substitution was added. Remaining:
+classify arbitrary terminal projection paths to reach this component case or
+a constructor root, handle constructor-root ancestry, and handle nested
+retained prefixes. No sufficient smaller global replacement for PropFront,
+weakN_iff proof, or canonical-Eq counterexample yet. Goal active; PR extraction
+deferred. Validation: 1355 jobs, 15 public audit roots, maximum recursive
+closure 11,981, 1,330 frozen source hashes; stock Lean in /dev/shm,
+no sorryAx or forbidden dependencies.

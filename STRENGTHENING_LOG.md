@@ -43189,3 +43189,58 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,330 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-delayed-retained-relay-*.
+
+
+## 2026-11-08 00:30:58 UTC — Direct terminal consumption enters the same supply relay
+
+Previous turn classified as progress: 75fea4de added surviving-lambda relay
+and exact body minimum transfer. Revalidated that clean pushed HEAD. Examined
+the direct terminal projection case, which has no explicit application frame
+at the retained body's raw continuation predicate.
+
+pi_inert_projection_identity_application_iff proves pointwise equivalence
+between a projection continuation and an identity/empty-argument application
+followed by that projection continuation. Forward: lift the competing major
+path by projection congruence and compose with its remaining observation,
+raising only finite stage. Reverse: use the original projection path as the
+whole suffix after a zero-cost reflexive major. All raw sources, stages and
+exact counts are covered; no typing premise restricts competitors.
+
+PiInertPairComponentSupplyRun.congr_predicate transports a certificate through
+such a pointwise equivalence while preserving primitive cost and certificate
+frame count. This uses function extensionality and propositional extensionality;
+it does not add another inductive execution case or assume field readout.
+
+PiInertPairComponentSupplyRun.retained_terminal builds the certificate for a
+retained lambda consumed inside the observer's projection. Premises retain
+original body typing and annotation interpretation, typing of both the full
+retained application and its projection, actual domain computation, component
+body computation, argument computation to a consuming argument plus possible
+residual arguments, and the unrestricted projection suffix from the supplied
+pair. First type the actual post-beta application and use closed-pair typing
+to derive that residual arguments are empty. Reconstruct the consuming path
+and use it to type the supplied pair and its projection. That pair supplies
+the existing observer certificate. Enter the existing retained constructor
+with an identity application, then relabel its raw predicate by the proved
+equivalence to obtain exactly the original terminal predicate.
+
+The resulting certificate has two frames instead of the terminal's original
+one, with unchanged domain-plus-body-plus-argument-plus-observer primitive
+cost. This is compatible with both activated and fresh structure separation,
+which quantify over arbitrary competing certificate frame counts. It is not
+claimed to be a frame-decreasing conversion for an arbitrary-run induction.
+The main projected ancestry relay and structure exclusion are reused intact.
+
+Judgment: the direct terminal consuming case with actual component body
+computation now enters the established exclusion. Decomposing an arbitrary
+terminal projection into this case or a constructor-root case still needs
+integration. Constructor-root ancestry and nested retained prefixes remain
+open. No global sufficiency claim; original weakN_iff sorry and executable
+unchanged. Goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1355 jobs; recursive audit
+15 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,330 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-terminal-retained-relay-*.

@@ -12,8 +12,10 @@ survives, recurse at its computed body with the new wrapper predicate and one
 fewer frame. If it is consumed, recurse after beta. Arbitrary finite alternation
 of these cases is excluded after a structure root.
 
-Constructor roots, nested retained prefixes before an application, and direct
-terminal observation of retained lambdas are not covered by this relay.
+Direct terminal consumption with component body computation also enters the
+relay through a zero-cost identity frame and raw predicate equivalence.
+Constructor roots, nested retained prefixes, and classification of arbitrary
+terminal projection paths still require treatment.
 -/
 namespace Lean4Lean.VEnv.Strengthening
 open _root_.Lean4Lean _root_.Lean4Lean.VExpr Params ProofShape PureObservation
@@ -24,6 +26,26 @@ open private typed_lambda_argument_map typed_lambda_readout
 open private typed_spine_head
   from Lean4Lean.Theory.Typing.Strengthening.ProofErasureScopedSpineCut
 variable [Params] {D : Definitions}
+
+/-- Inserting an identity application before a final projection does not change
+its predicate at any raw source or count. This includes competitors with no
+typing witness: forward composition uses projection congruence, and the reverse
+direction takes a zero-cost reflexive body path. -/
+theorem pi_inert_projection_identity_application_iff :
+    PiInertApplicationContinuation D Ω ProofShape.Subst.id []
+      (PiInertProjectionContinuation D Ω family index out) source cost ↔
+    PiInertProjectionContinuation D Ω family index out source cost := by
+  constructor
+  · rintro ⟨n, j, endpoint, k, hc, RJ, later, RK⟩
+    have RJ' : ScopedComputeCount (PiInertStage D n) j Ω source endpoint := by
+      simpa only [ProofShape.subst_id, ProofShape.mkApps] using RJ
+    exact ⟨max n later, hc ▸
+      (RJ'.mono (pi_inert_stage_mono (Nat.le_max_left n later))).proj.trans
+        (RK.mono (pi_inert_stage_mono (Nat.le_max_right n later)))⟩
+  · rintro ⟨n, R⟩
+    refine ⟨n, 0, source, cost, by omega, ?_, n, R⟩
+    simpa only [ProofShape.subst_id, ProofShape.mkApps] using
+      (ScopedComputeCount.beta (Step := PiInertStage D n) (Δ := Ω) (BetaRed.refl (e := source)))
 
 private theorem retained_consumption_count
     (RD : ScopedComputeCount (PiInertStage D n) cd Δ A C)
@@ -162,6 +184,18 @@ inductive PiInertPairComponentSupplyRun (D : Definitions) (Ω : List ProofShape)
         (fun body k => PiInertApplicationContinuation D Θ τ pending K
           (ProofShape.mkApps (.lam A' body) args) k)
         field value (cd+cb+ca+ck) (frames+2)
+
+/-- Relabel a supply certificate by a pointwise equivalent raw predicate.
+The equivalence covers every candidate and count; it is not restricted to the
+selected typed execution. Primitive cost and certificate frames are unchanged. -/
+theorem PiInertPairComponentSupplyRun.congr_predicate
+    (H : PiInertPairComponentSupplyRun D Ω family info out Δ K field value ck frames)
+    (HE : ∀ e k, K e k ↔ L e k) :
+    PiInertPairComponentSupplyRun D Ω family info out Δ L field value ck frames := by
+  have E : K = L := by
+    funext e k
+    exact propext (HE e k)
+  exact E ▸ H
 
 /-- Forget the component restriction on the chosen execution. No change is
 made to the contexts, actual endpoint maps, cost, frames or raw competitors. -/
@@ -321,6 +355,80 @@ theorem PiInertPairComponentSupplyRun.retained_application
   have ERest := TypedSource.closed_constructor_image_pending_nil hi hp hz (by simp [hf]) HTend WX HNext'
   subst rest
   exact ⟨rfl, .retained HT SD RD WI HWrapped W HFull RDomain RA RX HK⟩
+
+/-- A retained lambda consumed inside the terminal projection enters the same
+supply relay when its body computation changes only the pair components. Its
+remaining observer-scope projection path is unrestricted. An identity frame
+is inserted at zero primitive cost and then its predicate is relabelled by
+the raw equivalence, so the resulting certificate has two frames rather than
+the original terminal's one. Structure separation allows arbitrary competing
+frame counts, and its primitive-cost comparison is unchanged. Closed-pair
+typing derives the absence of residual arguments after the actual beta. -/
+theorem PiInertPairComponentSupplyRun.retained_terminal
+    (heq : env.HasCanonicalEq) (hs : D.Sound env univs)
+    (hi : env.projections family info) (hp : info.nparams = 0) (hf : info.numFields = 2)
+    (hz : info.nindices = 0)
+    (HT : TypedSource (A :: Ω) (ProofShape.mkApps (.const info.ctorName []) [field, value]))
+    (SD : DomainSort Ω A u)
+    (RD : ScopedComputeCount (PiInertStage D domainStage) oldDomainCost Ω A A')
+    (WI : ContextSubstitution (A :: Ω) (A' :: Ω) ProofShape.Subst.id)
+    (HFull : TypedSource Ω (ProofShape.mkApps
+      (.lam A' (ProofShape.mkApps (.const info.ctorName []) [field, value])) args))
+    (HProj : TypedSource Ω (.proj family 0 (ProofShape.mkApps
+      (.lam A' (ProofShape.mkApps (.const info.ctorName []) [field, value])) args)))
+    (RDomain : ScopedComputeCount (PiInertStage D n) cd Ω A' C)
+    (RA : ScopedArgumentsCount (PiInertStage D n) (A' :: Ω) cb [field, value] [nextField, nextValue])
+    (RX : ScopedArgumentsCount (PiInertStage D n) Ω ca args (x :: rest))
+    (RObserve : ScopedComputeCount (PiInertStage D observerStage) ck Ω
+      (.proj family 0 (ProofShape.mkApps (.const info.ctorName []) [nextField.inst x, nextValue.inst x])) out) :
+    rest = [] ∧ PiInertPairComponentSupplyRun D Ω family info out (A :: Ω)
+      (fun body k => PiInertProjectionContinuation D Ω family 0 out
+        (ProofShape.mkApps (.lam A' body) args) k)
+      field value (cd+cb+ca+ck) 2 := by
+  have RB : ScopedComputeCount (PiInertStage D n) cb (A' :: Ω)
+      (ProofShape.mkApps (.const info.ctorName []) [field, value])
+      (ProofShape.mkApps (.const info.ctorName []) [nextField, nextValue]) := by
+    simpa only [Nat.zero_add] using (ScopedComputeCount.beta BetaRed.refl).mkApps RA
+  have HTbody := (ScopedHole.lamBody A' .hole).typed (typed_spine_head HFull)
+  have HTend := HTbody.pi_inert_compute heq hs RB.forget
+  have WX : ContextSubstitution (A' :: Ω) Ω (ProofShape.Subst.one x) :=
+    typed_lambda_argument_map heq hs HFull RX
+  have RLambda := (ScopedComputeCount.lam RDomain RB).mkApps RX
+  have RBeta : ScopedComputeCount (PiInertStage D n) 0 Ω
+      (ProofShape.mkApps (.lam C (ProofShape.mkApps (.const info.ctorName []) [nextField, nextValue])) (x :: rest))
+      (ProofShape.mkApps ((ProofShape.mkApps (.const info.ctorName []) [nextField, nextValue]).inst x) rest) := by
+    simpa only [ProofShape.mkApps, Nat.zero_add] using
+      (ScopedComputeCount.beta (Step := PiInertStage D n)
+        (BetaRed.beta (A := C) (b := ProofShape.mkApps (.const info.ctorName []) [nextField, nextValue]) (a := x))).mkApps
+        (ScopedArgumentsCount.refl (args := rest))
+  have HNext := HFull.pi_inert_compute heq hs (RLambda.trans RBeta).forget
+  have HNext' : TypedSource Ω (ProofShape.mkApps
+      ((ProofShape.mkApps (.const info.ctorName []) [nextField, nextValue]).subst (ProofShape.Subst.one x)) rest) := by
+    simpa only [ProofShape.inst_eq_subst, ProofShape.Subst.liftN] using HNext
+  have ERest := TypedSource.closed_constructor_image_pending_nil hi hp hz (by simp [hf]) HTend WX HNext'
+  subst rest
+  have RAll : ScopedComputeCount (PiInertStage D n) (cd+cb+ca) Ω
+      (ProofShape.mkApps (.lam A' (ProofShape.mkApps (.const info.ctorName []) [field, value])) args)
+      (ProofShape.mkApps (.const info.ctorName []) [nextField.inst x, nextValue.inst x]) := by
+    simpa only [ProofShape.inst_eq_subst, ProofShape.subst_mkApps, ProofShape.subst,
+      List.map_cons, List.map_nil, ProofShape.mkApps] using retained_consumption_count RDomain RB RX
+  have HTimage := HFull.pi_inert_compute heq hs RAll.forget
+  have HPimage := HProj.pi_inert_compute heq hs RAll.proj.forget
+  have HK : PiInertPairComponentSupplyRun D Ω family info out Ω
+      (PiInertProjectionContinuation D Ω family 0 out) (nextField.inst x) (nextValue.inst x) ck 0 :=
+    .observer (.projection HTimage HPimage RObserve)
+  have H : PiInertPairComponentSupplyRun D Ω family info out (A :: Ω)
+      (fun body k => PiInertApplicationContinuation D Ω ProofShape.Subst.id []
+        (PiInertProjectionContinuation D Ω family 0 out) (ProofShape.mkApps (.lam A' body) args) k)
+      field value (cd+cb+ca+ck) 2 := by
+    apply PiInertPairComponentSupplyRun.retained HT SD RD WI HFull
+      (.identity ContextRenaming.identity.interpretation)
+    · simpa only [ProofShape.Subst.id_lift, ProofShape.subst_id, List.map_id_fun', List.append_nil, id_eq] using HFull
+    · simpa only [ProofShape.subst_id] using RDomain
+    · simpa only [ProofShape.Subst.id_lift, ProofShape.subst_id] using RA
+    · simpa only [ProofShape.subst_id, List.map_id_fun', List.append_nil, id_eq] using RX
+    · exact HK
+  exact ⟨rfl, H.congr_predicate fun _ _ => pi_inert_projection_identity_application_iff⟩
 
 /-- Relay a computed projection field through any finite component-supply
 chain. Administrative wrappers may survive at every intermediate field.
