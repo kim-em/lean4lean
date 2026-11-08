@@ -26002,3 +26002,35 @@ research step. Original weakN_iff sorry unchanged; no completed canonical-Eq
 proof, counterexample, or sufficient smaller global obligation. PR extraction
 deferred. Validation: 1357 jobs, 18 public audit roots, maximum closure
 11,981, 1,332 frozen source hashes; stock Lean in /dev/shm only.
+
+## 2026-11-08 00:53:18 UTC — Structure roots close under smaller-cost ancestry induction
+
+Verdict: checked induction case, not a completed induction. Defined the
+projected-field ancestry readout target for arbitrary actual pair executions
+at a fixed primitive cost, arbitrary temporary scopes and fields, arbitrary
+retained/application frames, and the same raw continuation predicate. Its
+intended range is below the least failed projection budget for an exposed
+output. It is not asserted universally or claimed sufficient by itself.
+
+A native structure expansion exposes the exact projection of its source pair
+as its first field. Apply smaller-cost ancestry readout to its actual target
+suffix with reflexive projected ancestry. This gives a cheaper raw execution
+of the original pair. The previous typed replay theorem makes that execution
+actual, keeping its cost and frame count. A second smaller-cost call then
+reads the original incoming ancestry. Component computation before the root
+is included, with administrative deletion and first-field costs tracked.
+
+The resulting strict root bypass also excludes both existing activated and
+fresh-field structure boundaries under smaller-cost ancestry readout. It
+handles their arbitrary continuations, including nested retained frames.
+The observer-scope case is proved directly below the least failed budget,
+without an inductive readout premise, by absorbing the source path into an
+identity frame and composing that frame back out of the raw competitor.
+
+Remaining: close function-root and arbitrary frame-progress cases for this
+more general ancestry induction. The old function-eta elimination assumes
+independently lowered fields and cannot simply be reused for arbitrary field
+ancestry. No global sufficiency or strengthening claim. Original sorry and
+executable unchanged; goal active, PR extraction deferred. Validation: 1358
+jobs, 9 public audit roots, maximum closure 11,981, 1,333 frozen
+source hashes; stock Lean, all execution in /dev/shm.

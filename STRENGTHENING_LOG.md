@@ -43363,3 +43363,62 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,332 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-competitor-replay-*.
+
+## 2026-11-08 00:53:18 UTC — Structure-root and observer cases for ancestry readout
+
+Added ProofErasurePiInertStructureReadoutInduction to the global aggregate.
+PiInertPairAncestryReadout states the intended fixed-cost induction target:
+a typed arbitrary pair computes to an endpoint with an actual continuation;
+its first field carries incoming projected ancestry modulo administrative
+deletion. Produce a raw competitor from the incoming projection's major,
+with total cost bounded by ancestry plus the actual execution. Scopes, fields,
+continuations and frame counts are arbitrary. The intended induction runs
+below a least failed projection budget for an exposed output. The property
+itself is explicitly unproved; it is not a new claimed sufficient frontier.
+
+pi_inert_structure_smaller_execution uses only readout at the structure
+target's actual suffix cost. Native structure recovery gives sorted projection
+typing and identifies the target pair's first field as the projection of the
+original pair. Reflexive projected ancestry lets the smaller readout produce
+a raw execution of that original pair at no greater cost than the target
+suffix. replay_from_source recovers the actual typed execution, exact raw K,
+and original frame count. The charged structure root is omitted.
+
+pi_inert_structure_ancestry_readout applies the strong-induction hypothesis a
+second time to the recovered cheaper original-pair execution. This transports
+the ORIGINAL incoming first-field ancestry, without assuming that field is
+typed in or descends independently to the final observer. The resulting cost
+bound omits the root's unit charge. components_structure_ancestry_readout
+extends this through arbitrary preceding component computation: simulate
+administrative deletion along the first-field path, compose ancestry in the
+same context, and account for its cost within the component budget.
+
+pi_inert_minimum_no_structure_of_ancestry_readout prepends any actual prefix
+to the root bypass and contradicts unrestricted original-source minimality.
+ActivatedPairStructureMinimum.not_of_ancestry_readout and the corresponding
+FreshPairStructureMinimum theorem instantiate it on both existing structure
+boundaries. These clients use the actual unrestricted continuations; they do
+not require component-supply coverage, observer-scope roots, or one retained
+terminal. The marked client only forgets its mark for the contradiction.
+
+pi_inert_observer_ancestry_readout proves the observer-scope case directly
+below the least failed budget. An identity application frame absorbs the
+arbitrary source computation before its actual continuation. The existing
+observer relay produces a raw competitor; unpacking and composing that raw
+identity frame returns a competitor for the ORIGINAL K at the required cost.
+No smaller-cost readout premise is used for this case.
+
+Judgment: structure roots now have a checked smaller-cost induction argument,
+and the observer case has a checked base argument. Remaining work is to close
+function-root and arbitrary frame-progress cases with the generalized ancestry
+invariant. Older independently-lowered-field function elimination is not yet
+that argument. No proof of weakN_iff, canonical-Eq counterexample, or sufficient
+strictly smaller global obligation is claimed. Original sorry and executable
+unchanged; goal active; PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1358 jobs; recursive audit
+9 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,333 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-structure-readout-induction-*.

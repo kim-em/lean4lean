@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertStructureReadoutInduction
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertCompetitorReplay
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertTerminalSupplyCut
 import Lean4Lean.Theory.Typing.Strengthening.ProofErasurePiInertProjectionSupplyRelay
