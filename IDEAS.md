@@ -25977,3 +25977,28 @@ PropFront, weakN_iff proof, or canonical-Eq counterexample yet. Goal active;
 PR extraction deferred. Validation: 1356 jobs, 4 public audit roots,
 maximum recursive closure 11,981, 1,331 frozen source hashes; stock Lean
 in /dev/shm, no sorryAx or forbidden dependencies.
+
+## 2026-11-08 00:47:38 UTC — Replay raw competitors through ordinary equality
+
+Verdict: checked. A raw competitor from the same actual typed source can
+become an actual projection continuation execution, preserving its exact
+primitive cost and the selected frame count. Ordinary erased equality is
+realized at an arbitrary actual source representative's exact type, including
+the proof-marker case. This equality substitutes along ordinary interpreted
+context maps; guarded computation is never substituted.
+
+Projection, application, and retained-binder frames all replay. For application
+frames, realize the competitor's computation at its own stage and compare
+its endpoint with the selected endpoint by ordinary equality. Retained frames
+transport that equality through the annotation interpretation and rebuild the
+actual lambda/spine. Minimum selection over all raw competitors now supplies
+an actual unrestricted minimum with the same continuation predicate and frame
+count, at no greater cost than any supplied competitor.
+
+This removes the typing-reconstruction gap in the proposed native-root cost
+induction. It does not yet read projected-field ancestry through native roots
+or prove the arbitrary continuation competitor theorem. Those remain the next
+research step. Original weakN_iff sorry unchanged; no completed canonical-Eq
+proof, counterexample, or sufficient smaller global obligation. PR extraction
+deferred. Validation: 1357 jobs, 18 public audit roots, maximum closure
+11,981, 1,332 frozen source hashes; stock Lean in /dev/shm only.

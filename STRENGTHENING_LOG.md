@@ -43312,3 +43312,54 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,331 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-terminal-supply-cut-*.
+
+## 2026-11-08 00:47:38 UTC — Typed replay and minimization of raw continuation competitors
+
+Added ProofErasurePiInertCompetitorReplay and imported it into the global
+eta-body aggregate. The remaining native-root approach needs to reuse cheaper
+raw competitors as actual executions in a cost induction. Previously the raw
+continuation predicate supplied no typing certificate at its intermediate
+endpoints. This change reconstructs those certificates without assuming that
+native guarded reductions commute with ordinary substitutions.
+
+ErasedTypedEquality stores ordinary definitional equality between actual
+representatives in a well-formed realization of the erased context. Its
+realize theorem works at any actual source representative and its exact type.
+Equal erased contexts give context conversion. For a nonproof source, erasure
+reflection aligns representatives; for a proof marker, both endpoints erase
+to proof and the given source proof itself realizes the target. Symmetry,
+transitivity, typed-source reflexivity, source/target typing, forward native
+computation, and ordinary interpreted substitution are checked. Application,
+lambda-body, spine and projection congruences recover target typing from the
+actual typed enclosing expression.
+
+PiInertProjectionRunFrames.replay_competitor handles every frame constructor.
+The projection case recovers projection typing. The application case carries
+ordinary equality through the exact endpoint substitution and pending spine,
+realizes both actual and competitor computations, then aligns their endpoints
+for the recursive tail. The retained case carries equality through the actual
+annotation interpretation and enclosing lambda/spine. Exact raw competitor
+cost and original frame count are preserved throughout. replay_from_source
+derives the required equality from two computations with a shared typed
+source, allowing arbitrary stages and primitive counts on those computations.
+
+minimize_competitor selects a minimum over ALL raw source-path/continuation
+pairs, bounded by the supplied competitor. Replay supplies an actual typed
+execution at the selected minimum. The result preserves the exact original K,
+frame count and unrestricted minimality. competitor_minimum packages this in
+the existing PiInertProjectionFrameMinimum interface.
+
+Judgment: typed reconstruction of cheaper raw executions is now available for
+the proposed native-root cost induction, including arbitrary nested retained
+frames. This does not establish the generic projected-field competitor
+property, nor coverage by the restricted component-supply certificate. Reading
+through function/structure native roots with their ancestry remains open.
+Original weakN_iff sorry and executable unchanged. Goal active; PR extraction
+deferred.
+
+Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
+/dev/shm/native-level-coherence-work. Integration 1357 jobs; recursive audit
+18 public roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,332 source hashes verified before and
+after validation. Artifacts: /dev/shm/pi-inert-competitor-replay-*.
