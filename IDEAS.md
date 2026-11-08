@@ -26094,3 +26094,18 @@ available. Original weakN_iff sorry and executable unchanged; no sufficient
 smaller global frontier claimed. Goal active; PR extraction deferred.
 Validation: 1361 jobs, 12 public roots, maximum closure 11,981,
 1,336 frozen source hashes; stock Lean, all execution in /dev/shm.
+
+## 2026-11-08 01:23:22 UTC — Nested execution focus; limited wrap-up
+
+Verdict: checked. Completed the previously unfinished focus proof by explicitly
+reassociating its reconstruction cost using the inner competitor's cost equality.
+The focus records an actual body execution, exact retained depth and lifted
+context map, plus a fixed overhead for reconstructing every raw competitor.
+Both lambda survival and consumption are included, and reconstruction composes
+through any nonempty retained prefix.
+
+This does not yet connect the focused execution to the full ancestry induction.
+No additional research undertaken after the user's request to fix just this
+proof and wrap up. Original weakN_iff sorry and executable unchanged. Goal
+paused; PR extraction deferred. Validation: 1362 jobs, 4 public roots,
+maximum closure 11,981, 1,337 frozen source hashes; stock Lean in /dev/shm.

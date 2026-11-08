@@ -43553,3 +43553,31 @@ Validation: stock Lean v4.33.0-rc2; all Lean/Lake execution exclusively in
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,336 source hashes verified before and
 after validation. Artifacts: /dev/shm/pi-inert-terminal-readout-induction-*.
+
+## 2026-11-08 01:23:22 UTC — Finish preserved execution-focus proof and stop
+
+Completed the preserved ProofErasurePiInertExecutionFocus draft and its existing
+aggregate import. The final nested-prefix proof had only a cost-association
+mismatch: the outer reconstruction used overhead+a+b, while the goal used
+overhead+extra+j+k. The inner reconstruction supplies a+b=extra+j+k; an
+explicit equality proved by omega now transports the result to the goal.
+
+PiInertProjectionExecutionFocus records a typed actual body computation and
+continuation, a fixed reconstruction overhead, and reconstruction of every raw
+body competitor in the original outer predicate. pi_inert_lambda_execution_focus
+handles surviving and consumed lambdas. focus_execution_nonempty composes that
+property through any nonempty retained prefix, retaining its exact depth,
+lifted ordinary context map, body frame count and total cost bound. Guarded
+computations stay in their original scopes.
+
+The requested limited fix is complete. No further ancestry client, application
+witness extension, function-root work or global sufficiency claim was added.
+The main strengthening theorem remains open. Goal paused at the user's request;
+PR extraction deferred.
+
+Validation: stock Lean v4.33.0-rc2, exclusively in
+/dev/shm/native-level-coherence-work; 1362 integration jobs, 4 public
+recursive audit roots, maximum closure 11,981; only
+propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
+circular-frontier dependencies. All 1,337 source hashes unchanged through
+validation. Artifacts: /dev/shm/pi-inert-execution-focus-*.
