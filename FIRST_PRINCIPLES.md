@@ -22,6 +22,13 @@ only thing the variable can contribute to a derivation is intermediate terms con
 that do not exist below. The ledger has a related "fresh equality-proof binder" step; I did not
 find this exact reduction stated.
 
+This reduction is in Lean: `Lean4Lean/Theory/Typing/Strengthening/ProofBinderReduction.lean`
+defines `UniversalBinderStrengthening` (the one-binder statement for a binder of type
+`∀ p : Prop, p`) and proves `strengthening_of_universalBinder`: it implies the one-binder
+statement for every binder. One binder is the only case `IsDefEqU.weak'_iff` uses. The new
+obligation is a special case of the old one, so it is strictly narrower; my judgment is that it
+is true and open.
+
 ## 2. Why descending a confluence join cannot work as a method
 
 Write `Ψ(R)` for: "the two terms reduce to normally equal terms, where every side condition
@@ -85,6 +92,42 @@ why its joins do not descend.
 
 I did not find a way to obtain step 2 from the existing theorems used as black boxes; §2 is
 the reason to expect there is none.
+
+Which conditions need a certificate. `DomainNormal.descend` (already on the branch) lowers a
+final comparison using only typings below, so proof types and lambda domains in positions with
+a known common type need nothing. Going through the step kinds of `FullStep` the same way, the
+typing premises of function eta and structure eta are recoverable below wherever they are
+needed (common-type positions, projection majors, partial applications of a recursor, whose
+type is syntactically a Π). What is left is exactly:
+
+1. the index guard of a singleton unfolding (`UnfoldingCheck.major_prop`/`recursor_lhs`): an
+   equation between an index argument and the constructor's index pattern, both lifted;
+2. the domains of two lambdas at the heads of matched beta redexes, when contracting the
+   redexes does not terminate. For `(fun w : A₁ => w w) (fun w : A₁ => w w)` against the same
+   term with `A₂`, the two are convertible below exactly when `A₁ ≡ A₂` is, so no rearrangement
+   of the join avoids the domain equation.
+
+`domain_join_complete` does not give (2): its domain certificates are `refl` after a typed
+reannotation step, which moves the same equation into the typing premise of that step.
+
+Two other proof shapes, and where each stops:
+
+* Induction on the size of the derivation above. Composing the conversions inside the premises
+  of one rule gives a smaller derivation, which handles proof irrelevance against the new
+  variable. It stops at application: the premises type the function at a Π type that may
+  mention the variable, and recovering a Π type below needs Π-injectivity with a bound on the
+  size of the component derivations, which the confluence-based proof of injectivity does not
+  give.
+* Induction on the derivation above, relating each term to terms typed below with the same
+  proof erasure (erasure is injective up to conversion on non-proof terms typed below). It
+  stops at intermediate terms with no such counterpart, for example a beta expansion whose
+  argument is a proof of a proposition unprovable below. Reducing above first restores
+  existence, but then an iota step above at a constructor built from the new proof must be
+  mirrored below by a singleton unfolding, and its guard (1) has no sub-derivation, because the
+  typing of a reduct is not part of the derivation being inducted on.
+
+Both stop at the same place the join route does: a condition on a reduct whose justification
+is not a sub-object of anything the induction controls. That is the content of step 2.
 
 ## 4. Things that do not help
 

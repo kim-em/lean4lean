@@ -43581,3 +43581,50 @@ recursive audit roots, maximum closure 11,981; only
 propext/Classical.choice/Quot.sound, no sorryAx or forbidden strengthening/
 circular-frontier dependencies. All 1,337 source hashes unchanged through
 validation. Artifacts: /dev/shm/pi-inert-execution-focus-*.
+
+## 2026-11-10 UTC: first-principles pass; reduction to one closed proof binder
+
+Independent pass, not a continuation of the retained-terminal induction above. Full account
+in `FIRST_PRINCIPLES.md`; verdict table appended to `IDEAS.md` under the same date.
+
+Result: no proof, no counterexample. Original `weakN_iff` `sorry` and executable unchanged.
+
+New Lean file `Lean4Lean/Theory/Typing/Strengthening/ProofBinderReduction.lean`, importing only
+`Theory/Typing/EqTyping.lean`:
+
+* `UniversalBinderStrengthening env`: strengthening of `IsDefEqU` for one inserted binder of
+  type `∀ p : Prop, p`. This is the named open obligation. It is a special case of
+  `IsDefEqU.weakN_iff`. Judgment: true, open. Missing: a proof that a derivation in the larger
+  context, whose intermediate terms may contain proofs built from the new variable, can be
+  replaced by one that does not use it.
+* `strengthening_of_universalBinder`: with canonical `Eq`, it implies the one-binder statement
+  for every binder (`Ctx.LiftN 1 k`), which is the only case `IsDefEqU.weak'_iff` uses. The
+  proof inserts the proof binder below the old one and instantiates the old variable with
+  `typeCast u (A → A) A (x₀ ((A → A) = A)) (fun a => a)`; lifted terms are fixed.
+
+Analysis recorded (paper only):
+
+* Join descent with recursion on side conditions cannot succeed as a method: equality above
+  and below are fixed points of one operator that has other fixed points when `mutualDef`
+  loops (`a := Eq.rec 0 (H a)`, `H n := H n`).
+* Derivation-size induction stops at application (Π-injectivity has no size bound).
+* Erasure-realizer induction stops at intermediate terms without a counterpart below, and
+  after reducing them, at a singleton-unfolding guard on a reduct.
+* The conditions that need provenance are two: index guards of singleton unfolding, and
+  lambda domains at heads of matched beta redexes that cannot be contracted away. Everything
+  else is recoverable from typings below, as `DomainNormal.descend` already does for the final
+  comparison.
+
+Route left open, with a concrete shape: make the guard relation of prefix unfolding and the
+lambda-domain comparison at beta heads a parameter of the confluence development, indexed by
+stage (stage `n + 1` conditions are stage `n` joins), and prove confluence by induction on the
+stage. The existing development never reduces inside a proof major (`Params.Pat` excludes the
+`Prop`-source instances), so every guard originates at a `pat` or `proofIrrel` rule instance
+whose typing premises are sub-derivations. Descent of a staged join between lifted terms is
+then by induction on the stage. This touches `ChurchRosser.lean`, `FullReduction.lean`,
+`LevelledReduction.lean`, `PrefixUnfolding/` and `Confluence/`; not attempted here.
+
+Validation: `lake build Lean4Lean.Theory.Typing.EqTyping` (161 jobs), then
+`lake env lean Lean4Lean/Theory/Typing/Strengthening/ProofBinderReduction.lean` with no
+diagnostics; `#print axioms strengthening_of_universalBinder` reports `propext`,
+`Classical.choice`, `Quot.sound`. The file is not imported by any audit root.
