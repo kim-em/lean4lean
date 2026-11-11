@@ -43975,3 +43975,13 @@ Remaining `sorry`s, all in `Fundamental.lean`: `KlopInventory.sem_const`,
 
 Remaining `sorry`s (six, all in `Fundamental.lean`): `constOK_Eq`, `constOK_EqRefl`,
 `constOK_EqRec`, `constOK_H`, `KlopInventory.sem_extra`, `KlopInventory.sem_pat`.
+
+## 2026-11-11 UTC: `Eq.refl` and `H`; four obligations remain
+
+`EqConsts.lean` (checked, no `sorry`): `den_eqApp` (an equation `@Eq α a b` denotes the
+proposition of `eqCand α a b` when the arguments are in the right sets), `constOK_of_cand`,
+`eqCand_mem_of_toR`, `eqCand_mem_of_toBot`, `constOK_H` (value `bot`), `constOK_EqRefl`
+(value `λλ. r`, which applied to two values reduces to `r`).
+
+Remaining `sorry`s (four, all in `Fundamental.lean`): `constOK_Eq`, `constOK_EqRec`,
+`KlopInventory.sem_extra`, `KlopInventory.sem_pat`.

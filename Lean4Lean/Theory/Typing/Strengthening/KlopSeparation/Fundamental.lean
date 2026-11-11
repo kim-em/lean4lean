@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Consts
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.EqConsts
 
 /-! # The fundamental theorem of the Klop model
 
@@ -10,8 +10,8 @@ cases proved in `Sound.lean`, `SoundLam.lean`, `SoundBeta.lean`, `SoundEta.lean`
 
 **Open obligations** (named theorems with `sorry`, each with a docstring):
 
-* `constOK_Eq`, `constOK_EqRefl`, `constOK_EqRec`, `constOK_H`: four constants are elements
-  of their declared types (the other five are proved in `Consts.lean`);
+* `constOK_Eq`, `constOK_EqRec`: two constants are elements of their declared types (the
+  other seven are proved in `Consts.lean` and `EqConsts.lean`);
 * `KlopInventory.sem_extra`: the two definitional equations (`extra`);
 * `KlopInventory.sem_pat`: the ι rule of `Eq.rec` (`pat`).
 
@@ -43,15 +43,6 @@ theorem constOK_Eq (𝕋 : UniverseTower) (ls : List VLevel) :
     𝕋.ConstOK ``Eq ls (canonicalEqType.instL ls) := by
   sorry
 
-/-- **Open obligation: `Eq.refl`.** `•` is an element of `⟦∀ α a, @Eq α a a⟧` and `λλ. r`
-realizes it.
-
-Missing: the denotation of the type is a Π-proposition whose fibres `eqCand α a a` are
-`rOrBot`; the value `λλ. r` applied to two values reduces to `r`. -/
-theorem constOK_EqRefl (𝕋 : UniverseTower) (ls : List VLevel) :
-    𝕋.ConstOK ``Eq.refl ls (canonicalEqReflType.instL ls) := by
-  sorry
-
 /-- **Open obligation: `Eq.rec`.** `⟦Eq.rec.{v, u}⟧` is an element of the denotation of its
 declared type, and `recVal` realizes it when the motive universe is `0`.
 
@@ -64,18 +55,8 @@ theorem constOK_EqRec (𝕋 : UniverseTower) (ls : List VLevel) :
     𝕋.ConstOK ``Eq.rec ls (canonicalEqRecType.instL ls) := by
   sorry
 
-/-- **Open obligation: `H`.** `•` is an element of `⟦∀ x y : T, x = y⟧` and `bot` realizes
-it.
-
-Missing: the fibres `eqCand T x y` are inhabited for all `x`, `y` (the coarse relation of `T`
-is total) and contain every value reducing to `bot`. -/
-theorem constOK_H (𝕋 : UniverseTower) (ls : List VLevel) :
-    𝕋.ConstOK `Klop.H ls
-      (.forallE klopT (.forallE klopT (VExpr.eqApp (.succ .zero) klopT (.bvar 1) (.bvar 0)))) := by
-  sorry
-
 /-- The constant rule: every constant of the environment satisfies the semantic judgment.
-Depends on `constOK_Eq`, `constOK_EqRefl`, `constOK_EqRec`, `constOK_H`. -/
+Depends on `constOK_Eq`, `constOK_EqRec`. -/
 theorem KlopInventory.sem_const (𝕋 : UniverseTower) (heq : env.HasCanonicalEq)
     (K : KlopInventory env)
     {Γ : List VExpr} {c : Name} {ci : VConstant} {ls ls' : List VLevel}
@@ -86,13 +67,13 @@ theorem KlopInventory.sem_const (𝕋 : UniverseTower) (heq : env.HasCanonicalEq
   refine UniverseTower.sem_const_of ?_ (UniverseTower.constDen_congr hls) HT
   rcases K.constants_only c ci h with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
   · cases Option.some.inj (heq.1.symm.trans h); exact constOK_Eq 𝕋 ls
-  · cases Option.some.inj (heq.2.1.symm.trans h); exact constOK_EqRefl 𝕋 ls
+  · cases Option.some.inj (heq.2.1.symm.trans h); exact UniverseTower.constOK_EqRefl ls
   · cases Option.some.inj (heq.2.2.1.symm.trans h); exact constOK_EqRec 𝕋 ls
   · cases Option.some.inj (K.T.symm.trans h); exact UniverseTower.constOK_T ls
   · cases Option.some.inj (K.E.symm.trans h); exact UniverseTower.constOK_E ls
   · cases Option.some.inj (K.P.symm.trans h); exact UniverseTower.constOK_P ls
   · cases Option.some.inj (K.H.symm.trans h)
-    have := constOK_H 𝕋 ls
+    have := UniverseTower.constOK_H (𝕋 := 𝕋) ls
     simpa [VExpr.instL, VExpr.eqApp, VLevel.inst] using this
   · cases Option.some.inj (K.C.symm.trans h); exact UniverseTower.constOK_C ls
   · cases Option.some.inj (K.Fix.symm.trans h); exact UniverseTower.constOK_Fix ls
