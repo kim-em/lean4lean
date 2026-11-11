@@ -43919,3 +43919,21 @@ Rule cases proved: `bvar`, `symm`, `trans`, `defeqDF`, `sortDF`, `appDF`, `foral
 `lamDF`, `beta`, `eta`, `proofIrrel`. Remaining: `constDF`, `extra` (the equations of `C`
 and `Fix`), `pat` (`Eq.rec`, needs the head invariant in `Sem`), and the four projection
 rules (vacuous by the inventory).
+
+## 2026-11-11 UTC: the head invariant
+
+`Spine.lean` (checked, no `sorry` of its own): `IsSpine`, `Chain` (the semantic type tracked
+along a constant-headed application spine from the constant's declared type, through
+non-collapsed Π-types, recording that each argument is in the domain or that its value
+realizes the proposition domain), `SpineOK`, and its cases `spineOK_const`, `SpineOK.defeq`,
+`SpineOK.app`.
+
+Design decision: only constant heads are tracked. The strong β rule carries the typing of
+its contractum as a premise, so the invariant for a contractum comes from an induction
+hypothesis and no substitution lemma or variable-headed chain is needed. In every other rule
+each side is a side of a premise at the same type or is not a spine.
+
+Remaining for `KlopInventory.sound`: assemble `Sem` with `SpineOK` over all rules; the
+constants (`constDF`), in particular `Eq.rec` as an element of its declared type; the two
+`extra` equations; `pat`, by inverting the chain of the redex; the projection rules
+(no side of a derivable judgment is a `.proj`, and `structEta`/`unitLike` need zero indices).
