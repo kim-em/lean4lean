@@ -183,6 +183,76 @@ theorem ValidAny.tyRel_same {n : Nat} {A : 𝕋.S} (hA : 𝕋.ValidAny (𝕋.uni
       simp only [ap, snd_pair]
       exact (𝕋.mem_pi.1 hf').2 _ (𝕋.mem_one.2 rfl)
 
+/-! ### The coarse relation is a partial equivalence -/
+
+theorem ap_mem_of_mem_tPi {D f d : 𝕋.S} {F : 𝕋.S → 𝕋.S} (hf : f ∈ₛ 𝕋.El (𝕋.tPi D F))
+    (hd : d ∈ₛ 𝕋.El D) : 𝕋.ap f d ∈ₛ 𝕋.El (F d) := by
+  obtain ⟨f', rfl, hf', -⟩ := mem_El_tPi.1 hf
+  simp only [ap, snd_pair]
+  exact (𝕋.mem_pi.1 hf').2 d hd
+
+theorem ap_mem_of_mem_tPiP {c : Candidate} {B f : 𝕋.S} (hf : f ∈ₛ 𝕋.El (𝕋.tPiP c B)) :
+    𝕋.ap f 𝕋.star ∈ₛ 𝕋.El B := by
+  obtain ⟨f', rfl, hf'⟩ := mem_El_tPiP.1 hf
+  simp only [ap, snd_pair]
+  exact (𝕋.mem_pi.1 hf').2 _ (𝕋.mem_one.2 rfl)
+
+/-- The coarse relation of a type is reflexive, symmetric and transitive on its elements. -/
+structure IsPER (𝕋 : UniverseTower) (A : 𝕋.S) : Prop where
+  refl : ∀ x, 𝕋.mem x (𝕋.El A) → 𝕋.Rel A x x
+  mem : ∀ x y, 𝕋.mem x (𝕋.El A) → 𝕋.Rel A x y → 𝕋.mem y (𝕋.El A)
+  symm : ∀ x y, 𝕋.mem x (𝕋.El A) → 𝕋.Rel A x y → 𝕋.Rel A y x
+  trans : ∀ x y z, 𝕋.mem x (𝕋.El A) → 𝕋.Rel A x y → 𝕋.Rel A y z → 𝕋.Rel A x z
+
+/-- **The coarse relation of a valid type is a partial equivalence.** -/
+theorem ValidAny.isPER {n : Nat} {A : 𝕋.S} (hA : 𝕋.ValidAny (𝕋.univList n) A) : 𝕋.IsPER A := by
+  induction hA with
+  | prop =>
+    exact ⟨fun x hx => (rel_cand hx).2 hx, fun x y hx h => (rel_cand hx).1 h,
+      fun x y hx h => (rel_cand ((rel_cand hx).1 h)).2 hx,
+      fun x y z hx h1 h2 => (rel_cand hx).2 ((rel_cand ((rel_cand hx).1 h1)).1 h2)⟩
+  | tT =>
+    exact ⟨fun x hx => (rel_tT_iff hx).2 hx, fun x y hx h => (rel_tT_iff hx).1 h,
+      fun x y hx h => (rel_tT_iff ((rel_tT_iff hx).1 h)).2 hx,
+      fun x y z hx h1 h2 => (rel_tT_iff hx).2 ((rel_tT_iff ((rel_tT_iff hx).1 h1)).1 h2)⟩
+  | tProp =>
+    refine ⟨fun x hx => (rel_tProp_iff hx).2 ⟨hx, rfl⟩, fun x y hx h => ((rel_tProp_iff hx).1 h).1,
+      fun x y hx h => ?_, fun x y z hx h1 h2 => ?_⟩
+    · obtain ⟨hy, e⟩ := (rel_tProp_iff hx).1 h
+      exact (rel_tProp_iff hy).2 ⟨hx, e.symm⟩
+    · obtain ⟨hy, e⟩ := (rel_tProp_iff hx).1 h1
+      obtain ⟨hz, e'⟩ := (rel_tProp_iff hy).1 h2
+      exact (rel_tProp_iff hx).2 ⟨hz, e.trans e'⟩
+  | univ hu =>
+    obtain ⟨m, -, rfl⟩ := mem_univList hu
+    refine ⟨fun x hx => (rel_univ_iff hx).2 ⟨hx, rfl⟩, fun x y hx h => ((rel_univ_iff hx).1 h).1,
+      fun x y hx h => ?_, fun x y z hx h1 h2 => ?_⟩
+    · obtain ⟨hy, e⟩ := (rel_univ_iff hx).1 h
+      exact (rel_univ_iff hy).2 ⟨hx, e.symm⟩
+    · obtain ⟨hy, e⟩ := (rel_univ_iff hx).1 h1
+      obtain ⟨hz, e'⟩ := (rel_univ_iff hy).1 h2
+      exact (rel_univ_iff hx).2 ⟨hz, e.trans e'⟩
+  | @pi D F hD hDc hF hfull hFrel hmix ihD ihF =>
+    refine ⟨fun f hf => ?_, fun f g hf h => ((rel_tPi_iff hf).1 h).1, fun f g hf h => ?_,
+      fun f g k hf h1 h2 => ?_⟩
+    · exact (rel_tPi_iff hf).2 ⟨hf, fun d hd => (ihF d hd).refl _ (ap_mem_of_mem_tPi hf hd)⟩
+    · obtain ⟨hg, e⟩ := (rel_tPi_iff hf).1 h
+      exact (rel_tPi_iff hg).2 ⟨hf, fun d hd =>
+        (ihF d hd).symm _ _ (ap_mem_of_mem_tPi hf hd) (e d hd)⟩
+    · obtain ⟨hg, e⟩ := (rel_tPi_iff hf).1 h1
+      obtain ⟨hk, e'⟩ := (rel_tPi_iff hg).1 h2
+      exact (rel_tPi_iff hf).2 ⟨hk, fun d hd =>
+        (ihF d hd).trans _ _ _ (ap_mem_of_mem_tPi hf hd) (e d hd) (e' d hd)⟩
+  | @piP c B hc hne hB hBc ih =>
+    refine ⟨fun f hf => ?_, fun f g hf h => ((rel_tPiP_iff hf).1 h).1, fun f g hf h => ?_,
+      fun f g k hf h1 h2 => ?_⟩
+    · exact (rel_tPiP_iff hf).2 ⟨hf, ih.refl _ (ap_mem_of_mem_tPiP hf)⟩
+    · obtain ⟨hg, e⟩ := (rel_tPiP_iff hf).1 h
+      exact (rel_tPiP_iff hg).2 ⟨hf, ih.symm _ _ (ap_mem_of_mem_tPiP hf) e⟩
+    · obtain ⟨hg, e⟩ := (rel_tPiP_iff hf).1 h1
+      obtain ⟨hk, e'⟩ := (rel_tPiP_iff hg).1 h2
+      exact (rel_tPiP_iff hf).2 ⟨hk, ih.trans _ _ _ (ap_mem_of_mem_tPiP hf) e e'⟩
+
 end UniverseTower
 end VEnv.Strengthening
 end Lean4Lean
