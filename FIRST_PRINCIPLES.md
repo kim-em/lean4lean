@@ -319,83 +319,92 @@ proof has to use that `P` has no closed proof, which is a semantic fact. So it i
 
 ### 8.1 The model
 
+A first version of this section interpreted every inhabited proposition by the same one-point
+set. That is not enough: the ι rule of `Eq.rec` fires on a redex whose major premise is
+syntactically `Eq.refl`, and with one-point propositions the model cannot tell that the two
+endpoints of such a redex are identical, only that they are related. The model below records
+this in the proof itself.
+
 Work in ZFC with countably many inaccessible cardinals `κ₀ < κ₁ < …`, as in Carneiro's model.
-A *semantic type* is a pair `(X, ≈)` of a set and a partial equivalence relation on it; its
-*elements* are the `x ∈ X` with `x ≈ x`. Write `|X|` for the set of elements.
 
-* `⟦Prop⟧` is the set `{∅, {•}}` of the two subsingleton types, with the discrete relation
-  (a type is related only to itself). `⟦Sort (n+1)⟧` is the set of semantic types in `V_κₙ`,
-  with the discrete relation. A semantic type viewed as an element of a universe is related
-  only to itself.
-* `⟦∀ x : A, B⟧` at a valuation `ρ`: the set of functions `f` on `|⟦A⟧ρ|` with
-  `f a ∈ |⟦B⟧ρ[a]|` and `a ≈ a' ⟹ f a ≈ f a'`, related pointwise. This is well defined
-  because `⟦B⟧ρ[a] = ⟦B⟧ρ[a']` when `a ≈ a'` (types are related only to themselves, and
-  denotations respect relations, 8.2). When the result is in `Prop` it is replaced by `{•}` if
-  inhabited and `∅` otherwise, as usual for proof irrelevance.
-* `⟦fun x : A => b⟧ρ` is the function `a ↦ ⟦b⟧ρ[a]` on `|⟦A⟧ρ|`; application is function
-  application.
-* `⟦@Eq α a b⟧` is `{•}` if `a ≈_α b` and `∅` otherwise. `⟦Eq.refl⟧` is `•`.
-* `⟦@Eq.rec α a M m b h⟧`, defined when `a ≈_α b` (which holds whenever `h` has a
-  denotation): if `a = b` it is `m`; otherwise it is `a + 1` if `α = ⟦T⟧` and `M b • = ⟦T⟧`,
-  and `m` in every other case.
-* `⟦T⟧ = (ℤ/3, total relation)`, `⟦E⟧ = 0`, `⟦P⟧ = ∅`, `⟦H⟧ = (x, y) ↦ •`,
-  `⟦C⟧ = x ↦ x + 1`, `⟦Fix⟧ =` the empty function.
+*Values.* Data values are ordinary sets. *Proof values* are tokens `refl c` (one for each
+data value `c`), `junk`, `⋆`, and functions all of whose values are proof values. Proof
+values are disjoint from data values (by tagging).
 
-A valuation of a context assigns to each variable an element of the denotation of its type;
-two valuations are related if they are related pointwise.
+*Semantic types.* A *proposition* is a set with at most one element, which is a proof value.
+A *data type* is a pair `(X, ≈)` of a set of data values and a partial equivalence relation;
+its elements are the `x` with `x ≈ x`. Two propositions are related when both or neither is
+inhabited; a data type is related only to itself.
+
+* `⟦Prop⟧` is the set of propositions; `⟦Sort (n+1)⟧` is the set of data types in `V_κₙ`,
+  together with the one-point set `{⋆}`.
+* `⟦∀ x : A, B⟧ρ`, by cases on `𝔸 = ⟦A⟧ρ`:
+  * `𝔸` an empty proposition: `{⋆}`;
+  * `𝔸` an inhabited proposition with element `t`: `⟦B⟧ρ[x ↦ t]`. A function out of a
+    proposition is identified with its value;
+  * `𝔸` a data type and all `⟦B⟧ρ[a]` propositions: the set containing the function
+    `a ↦` (the element of `⟦B⟧ρ[a]`) if every `⟦B⟧ρ[a]` is inhabited, and `∅` otherwise;
+  * `𝔸` a data type and the `⟦B⟧ρ[a]` data types: the functions `f` on the elements of `𝔸`
+    with `f a` an element of `⟦B⟧ρ[a]` and `a ≈ a' ⟹ f a ≈ f a'`, related pointwise.
+* `⟦fun x : A => b⟧ρ` is `⋆`, `⟦b⟧ρ[x ↦ t]`, or the function `a ↦ ⟦b⟧ρ[a]`, by the same cases.
+  `⟦f a⟧ρ` is `⟦f⟧ρ` when `⟦a⟧ρ` is a proof value and `⟦f⟧ρ (⟦a⟧ρ)` otherwise.
+* `⟦@Eq α a b⟧` is `{refl a}` if `a = b`, `{junk}` if `a ≈_α b` and `a ≠ b`, and `∅`
+  otherwise. `⟦@Eq.refl α a⟧ = refl a`.
+* `⟦@Eq.rec α a M m b h⟧`: if the result type is a proposition, its element. Otherwise, `m`
+  if `h` is a `refl` token; if `h = junk`, it is `a + 1` when `α = ⟦T⟧` and the fibre is
+  `⟦T⟧`, and `m` in every other case.
+* `⟦T⟧ = (ℤ/3, total relation)`, `⟦E⟧ = 0`, `⟦P⟧ = ∅`, `⟦H⟧ x y =` the element of
+  `⟦@Eq T x y⟧`, `⟦C⟧ = x ↦ x + 1`, `⟦Fix⟧ = ⋆`.
+
+A valuation assigns to each variable an element of the denotation of its type. Two valuations
+are related when their data components are related; proof components are unconstrained.
 
 ### 8.2 Soundness
 
-Statement, by induction on derivations, for every context `Γ`:
+Statement, by induction on derivations: if `Γ ⊢ a ≡ b : A` then for all related valuations
+`ρ`, `ρ'` of `Γ`:
 
-1. if `Γ ⊢ a ≡ b : A` then for all related valuations `ρ ≈ ρ'` of `Γ`: `⟦A⟧ρ` is a semantic
-   type, `⟦A⟧ρ = ⟦A⟧ρ'`, `⟦a⟧ρ` and `⟦b⟧ρ` are elements of it, `⟦a⟧ρ = ⟦b⟧ρ`, and
-   `⟦a⟧ρ ≈ ⟦a⟧ρ'`.
+1. `⟦A⟧ρ` is a semantic type and `⟦A⟧ρ`, `⟦A⟧ρ'` are related (equal, for data types);
+2. `⟦a⟧ρ` and `⟦b⟧ρ` are elements of `⟦A⟧ρ` and `⟦a⟧ρ = ⟦b⟧ρ`;
+3. if `⟦A⟧ρ` is a data type, `⟦a⟧ρ ≈ ⟦a⟧ρ'`.
 
-The last clause (denotations respect the relation) is what makes type families over `T`
-constant: a family `B : T → Sort u` has `⟦B⟧ x ≈ ⟦B⟧ y` in a universe for all `x, y`, and the
-relation on a universe is equality.
+Clause 1 makes data-type families over `T` constant, and makes a data type independent of
+which proof inhabits a proposition it mentions.
 
 Rule by rule.
 
-* `bvar`, `sortDF`, `constDF`, `symm`, `trans`, `defeqDF`: immediate. For `defeqDF` the
-  hypothesis gives `⟦A⟧ρ = ⟦B⟧ρ` as semantic types.
-* `lamDF`, `forallEDF`, `appDF`: the induction hypothesis for the body, at valuations
-  `ρ[a] ≈ ρ'[a']`, gives that the function respects the relation, so it is an element of the
-  Π-type. Equal premises give equal functions.
-* `beta`: `⟦(fun x => e) e'⟧ρ = ⟦e⟧ρ[⟦e'⟧ρ] = ⟦e.inst e'⟧ρ` by the substitution lemma, which
-  holds as in any set model.
-* `eta`: `⟦fun x => e x⟧ρ` and `⟦e⟧ρ` are functions on the same domain with the same values.
-* `proofIrrel`: a proposition denotes `∅` or `{•}`.
-* `extra` for `C`: the right-hand side denotes `x ↦ ⟦Eq.rec T x M E (C x) (H x (C x))⟧`, with
-  endpoints `x` and `x + 1`, which differ, `α = ⟦T⟧` and fibre `⟦T⟧`; so the value is `x + 1`,
-  which is `⟦C⟧ x`.
-* `extra` for `Fix`: both sides are functions on `|⟦P⟧| = ∅`.
-* `pat` (the ι rule of `Eq.rec`): the redex `Eq.rec α a M m b (Eq.refl α' a')` is typed, so
-  `Eq.refl α' a'` has the type `@Eq α a b` up to conversion, and by the induction hypothesis
-  for that typing the two `Eq` types have equal denotations at every valuation. The clause for
-  `Eq.rec` is applied only where `a ≈ b` holds, and here moreover `⟦a⟧ρ = ⟦a'⟧ρ = ⟦b⟧ρ`:
-  this is the one point that needs an inversion, namely that `⟦@Eq α a b⟧ = ⟦@Eq α' a' a'⟧` as
-  the *typing* of the redex forces `a ≡ a'` and `b ≡ a'` declaratively (head injectivity for the
-  rigid constant `Eq`, which holds in every well-formed environment), and then the induction
-  hypothesis for those equalities gives identity of denotations. So the value is `m`.
-* `Eq.rec` respects the relation and is type correct. Let `a ≈ b`. `M` is an element of its
-  Π-type, so `M a • ≈ M b •` in a universe, hence `M a • = M b •`; `m` is an element of it.
-  The value is `m` or `a + 1`, the latter only when the fibre is `⟦T⟧`, whose relation is
-  total. In every case the value is an element of the fibre related to `m`, so related inputs
-  give related outputs.
+* `bvar`, `sortDF`, `constDF`, `symm`, `trans`: immediate. `defeqDF`: the hypothesis gives
+  `⟦A⟧ρ = ⟦B⟧ρ`.
+* `lamDF`, `forallEDF`, `appDF`: by the cases of the definition, using clause 3 for the body
+  to see that the function respects the relation and clause 1 to see that the codomain does
+  not depend on the choice of proof or of related argument.
+* `beta`, `eta`: by the substitution lemma. For a proposition domain, the argument denotes the
+  element of the proposition, which is what the abstraction was evaluated at.
+* `proofIrrel`: a proposition has at most one element.
+* `extra` for `C`: the right-hand side denotes `x ↦ ⟦Eq.rec T x M E (C x) (H x (C x))⟧`. The
+  endpoints `x` and `x + 1` differ, so `H x (C x)` denotes `junk`, `α = ⟦T⟧` and the fibre is
+  `⟦T⟧`: the value is `x + 1 = ⟦C⟧ x`.
+* `extra` for `Fix`: both sides denote `⋆`, because `⟦P⟧` is empty.
+* `pat` (the ι rule of `Eq.rec`): the major premise denotes a `refl` token, so the redex
+  denotes `m`. No inversion of the typing is needed.
+* The derived K instances are sound because they are derived: if `a ≡ b` then `⟦a⟧ = ⟦b⟧`,
+  so `⟦@Eq α a b⟧ = {refl a}` and every proof of it denotes `refl a`.
+* `Eq.rec` is type correct and respects relations. Let `h` be an element of `⟦@Eq α a b⟧`, so
+  `a ≈ b`. For a data motive, `M a` and `M b` are related data types, hence equal, and `m` is
+  an element. The value is `m` or `a + 1`, the latter only in the fibre `⟦T⟧`, whose relation
+  is total; so it is an element related to `m`, and related inputs give related outputs.
 * `projDF`, `projIota`, `structEta`, `unitLike`: no instance, the environment has no
   projection entry.
-* Constants are elements of their types: `C` and `H` respect the total relation on `ℤ/3`
-  trivially; `Fix` is the element of a Π-type over the empty set.
+* Constants are elements of their types: `C` respects the total relation on `ℤ/3`; `H` is the
+  unique element of a proposition; `Fix` is `⋆`, the element of `⟦P → T⟧ = {⋆}`.
 
 ### 8.3 Conclusion
 
 At the empty valuation `⟦C E⟧ = 1` and `⟦E⟧ = 0`, so `[] ⊢ C E ≡ E` is not derivable. The
 context `[P]` has no valuation, so the derivation of §7 is vacuously sound, as it must be.
 
-Points a formalisation would have to make precise: the universe hierarchy (the only use of
-inaccessibles is closure of universes under Π), the substitution and weakening lemmas for the
-interpretation, and the inversion used in the `pat` case, which should be replaced by the
-generic statement that the registered ι pattern of `Eq.rec` is sound whenever the redex is
-typed. None of these is specific to the example.
+Points a formalisation would have to make precise: the universe hierarchy (inaccessibles are
+used only for closure of universes under Π), the substitution and weakening lemmas, and the
+bookkeeping of the two kinds of value. None is specific to the example. This model has not
+been machine-checked, and its first version had a gap (above); treat the separation as
+argued, not proved.
