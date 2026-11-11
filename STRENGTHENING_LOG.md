@@ -43688,3 +43688,17 @@ coarse relations (`KlopModel.interp_functional`), soundness of every `IsDefEq` r
   declarations, with inventory) and `KlopInventory.separated` (the model in the tower).
 
 Order of work: obligation 1 first (it fixes the semantic target), then the model.
+
+## 2026-11-11 UTC: the minimal Klop environment is constructed (obligation 1 closed)
+
+All checked, no `sorry`, axioms `propext`, `Classical.choice`, `Quot.sound`:
+
+* `KlopSeparation/EqDecl.lean`: `Eq` as an `InductiveSignature`; the generator's output is
+  the canonical type of `Eq`, `Eq.refl`, `Eq.rec` and the canonical rule, by `rfl`.
+* `KlopSeparation/EqDeclWF.lean`: `eqDecl_WF : eqDecl.WF .empty` (source, formation,
+  compilation, recursor typing, typed ι rule), `eqInstalls`, `eqEnv_wf`,
+  `eqEnv_hasCanonicalEq`. This is the first well-formed environment with canonical `Eq`
+  in the repository that does not go through the checker verification.
+* `KlopSeparation/MinimalEnv.lean`: `KlopInventory`, `exists_minimalKlopEnv`.
+* `KlopSeparation/Statement.lean`: `not_weakN_iff_of_tower` now depends on one `sorry`,
+  `KlopInventory.separated` (the model in the tower).

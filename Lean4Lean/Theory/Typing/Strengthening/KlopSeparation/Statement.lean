@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.KlopCounterexample
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.MinimalEnv
 
 /-! # Given a universe tower, strengthening of definitional equality is false
 
@@ -8,12 +8,11 @@ extensional membership structure with separation and replacement for arbitrary L
 predicates and functions, and a Grothendieck universe for every natural number).
 
 The proof is assembled here from the machine-checked half of the Klop example
-(`KlopEnv.above`, `KlopEnv.not_strengthening`) and two obligations that are **not yet
-proved**; each is a named theorem with `sorry`:
+(`KlopEnv.above`, `KlopEnv.not_strengthening`), the minimal environment
+(`exists_minimalKlopEnv`, proved in `MinimalEnv.lean`: canonical `Eq` installed as a
+hand-built inductive declaration, then the six declarations, with an exact inventory), and
+one obligation that is **not yet proved**, a named theorem with `sorry`:
 
-* `exists_minimalKlopEnv`: the minimal environment exists (canonical `Eq` installed as an
-  inductive declaration, then the six declarations), is well formed, and has the stated
-  inventory;
 * `KlopInventory.separated`: in an environment with that inventory, `[] ⊢ C E ≡ E` is not
   derivable, by the model of `FIRST_PRINCIPLES.md` §22 to §27 built in the tower.
 
@@ -59,36 +58,7 @@ structure UniverseTower where
   omega_mem_U : mem omega (U 0)
   U_mem_U : ∀ n, mem (U n) (U (n + 1))
 
-/-- The inventory of the minimal Klop environment: besides the declarations of `KlopEnv`,
-its constants are exactly `Eq`, `Eq.refl`, `Eq.rec` and the six Klop constants, its
-definitional equations are exactly those of `C` and `Fix`, its only registered pattern is
-the ι rule of `Eq.rec`, and its only projection metadata is that of `Eq` (one index, no
-field). -/
-structure KlopInventory (env : VEnv) : Prop extends KlopEnv env where
-  constants_only : ∀ n ci, env.constants n = some ci →
-    n = ``Eq ∨ n = ``Eq.refl ∨ n = ``Eq.rec ∨ n = `Klop.T ∨ n = `Klop.E ∨ n = `Klop.P ∨
-    n = `Klop.H ∨ n = `Klop.C ∨ n = `Klop.Fix
-  defeqs_only : ∀ df, env.defeqs df →
-    df = ⟨0, klopC, klopCBody, .forallE klopT klopT⟩ ∨
-    df = ⟨0, klopFix, klopFixBody, .forallE klopP klopT⟩
-  pats_only : ∀ p r, env.pats p r → p = canonicalEqRecPattern
-  projections_only : ∀ n info, env.projections n info →
-    n = ``Eq ∧ info.nindices = 1 ∧ info.numFields = 0
-
-/-- **Open obligation 1.** The minimal Klop environment exists.
-
-Missing: a hand construction of the inductive declaration of `Eq` satisfying
-`VInductDecl.WF` in the empty environment (the pattern of `Tests/InductiveTheory.lean`, for
-a family with two parameters, one index and large elimination), its installation by
-`VEnv.addInduct`, the read-off of `HasCanonicalEq` and of the inventory, and then the six
-declarations as in `exists_klopEnv`. The repository's existing route to canonical `Eq` goes
-through the checker verification, which depends on `IsDefEqU.weakN_iff`, and cannot be used
-here. -/
-theorem exists_minimalKlopEnv :
-    ∃ env : VEnv, env.WF ∧ env.HasCanonicalEq ∧ KlopInventory env := by
-  sorry
-
-/-- **Open obligation 2.** In an environment with the Klop inventory, `C E ≡ E` is not
+/-- **Open obligation.** In an environment with the Klop inventory, `C E ≡ E` is not
 derivable in the empty context, given a universe tower.
 
 Missing: the model of `FIRST_PRINCIPLES.md` §22 to §27 built in the tower (data
@@ -102,7 +72,7 @@ theorem KlopInventory.separated (tower : UniverseTower) {env : VEnv}
   sorry
 
 /-- **Given a universe tower, the statement of `IsDefEqU.weakN_iff` is false.**
-Depends on the two open obligations above. -/
+Depends on the open obligation `KlopInventory.separated`. -/
 theorem not_weakN_iff_of_tower (tower : UniverseTower) :
     ¬ ∀ {env : VEnv} {U n k : Nat} {Γ Γ' : List VExpr} {e1 e2 : VExpr},
       env.WF → OnCtx Γ' (env.IsType U) → Ctx.LiftN n k Γ Γ' →
