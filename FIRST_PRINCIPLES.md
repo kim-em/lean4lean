@@ -807,3 +807,69 @@ universes and dependent types, extended by the colour component; it is a substan
 even on paper.
 
 Status unchanged: `[] ⊬ C E ≡ E` is a conjecture.
+
+## 16. Candidates with colours, written out (2026-11-11)
+
+Not reviewed when written. It refines §13 (with the repairs F1, F3 of §14) at the one place
+§14 and §15 left open. Size check first: a colour for a Π-proposition that determined its
+fibre colours at all candidates would have to be a function on candidates, and colours would
+contain their own function space. So Π-types get **no colour**. Colours are abstract tokens
+attached only to *variables*.
+
+**Layer one** (as §15 item 1): for each declaratively typed closed type term, its members,
+with propositions interpreted by truth only; every declaratively typed closed term is a
+member of its type, and those of type `T` have a value. Call such terms *valid*.
+
+**Configurations.** A configuration is an open type or term together with a valuation `ρ`
+assigning to each variable a valid closed term of the instantiated type and, if the variable's
+type is a sort or a function type ending in a sort, a *colour* from a fixed infinite set
+(for function kinds, a function from valid arguments to colours). Write `A[ρ]` for the closed
+instance.
+
+**Fine type equality `R`** between configurations of types, as a greatest fixed point; both
+sides are first brought to weak head normal form by β, and by `Eq.rec … m … ⇝ m` at type
+level:
+
+* a coloured variable applied to arguments, on both sides: related when the colours at those
+  arguments agree;
+* `T`, `T`; `P`, `P`; `Sort ℓ`, `Sort ℓ'` with `ℓ ≈ ℓ'`;
+* `@Eq α a b`, `@Eq α' a' b'`: `α R α'`, and if `α` is `T` then equal values of the instances
+  of `a`, `a'` and of `b`, `b'`;
+* `∀ x : A, B`, `∀ x : A', B'`: `A R A'`, and the bodies are related at every extension of the
+  two valuations by a pair related at `A`: for a sort or sort-ended kind, any two valid terms
+  with the same fresh colour; for `T`, valid terms of equal value; for a proposition, any two
+  valid terms; for a data Π-type, valid terms related pointwise in the same sense;
+* a type that is one side's variable and the other side's proper type is never related.
+
+Every occurrence of `R` in these clauses is positive: relatedness of sort-typed instances is
+equality of colours, not `R`.
+
+**Abstraction lemma (the substitution lemma).** If two configurations are related at every
+common colour of a variable `X`, and `Q R Q'` are valid closed types with the layer-one data
+of the candidates, then the configurations with `Q`, `Q'` substituted for `X` are related.
+Intended proof: coinduction, using that `R` is an equivalence and that a coloured variable
+is compared only with a variable of the same colour.
+
+**Fundamental theorem.** If `Γ ⊢ a ≡ b : A` and `ρ`, `ρ'` are valuations related pointwise
+(same colours; equal values at `T`; pointwise at data Π-types), then the type configurations
+are `R`-related and the term instances are related at the type, with hereditary typing as in
+§13/§14-F3 using `R`.
+
+* `bvar` at a sort-typed variable: same colour.
+* `forallEDF`, `lamDF`: the bound variable ranges over related pairs, including all coloured
+  pairs at sort domains, so no instance needs to be related to itself.
+* `appDF` at a sort domain, argument types `Q`, `Q'`: the induction hypothesis gives `Q R Q'`;
+  the function's hypothesis gives relatedness at every colour; the abstraction lemma gives
+  relatedness of the instances.
+* `pat` over `T`: hereditary typing gives `@Eq α a b R @Eq α' a' a'` at the valuation, hence
+  equal values of `a` and `b`.
+* constants: `C`, `Eq`, `Eq.refl`, `Eq.rec`, `H`, `E`, `T`, `P`, `Fix` are related to
+  themselves at related arguments by their value clauses.
+
+At the empty valuation: `Val (C E) = 1`, `Val E = 0`.
+
+**Points I know are unverified:** the abstraction lemma (in particular for variables of
+function kind, and when the substituted type is itself a Π over a sort); that `R` is
+transitive; whether a coloured variable used as the *domain* of a Π or as the `α` of an `Eq`
+needs more than layer-one data; and whether hereditary typing interacts correctly with
+colours when a proposition is passed through a variable (the term of §12-F3).
