@@ -150,3 +150,65 @@ be stated for environments whose safe part has no such block, the obstruction of
 a different witness, and the "holds in every normalising fragment" result may apply to more
 than it currently does. I have not checked what the safe fragment needs (proof-level
 non-normalisation remains), so this is a question, not a claim.
+
+## 6. Second pass (2026-11-11): what the branch already has, and the exact missing theorem
+
+Reading `GuardedSingletonPrefixDescent.lean` and `Confluence/JoinableTyping.lean` changes the
+picture of §3 in two ways.
+
+**The descent half exists.** `prefix_descend` lowers a singleton prefix step whose single
+family guard is certified by any comparison `Cmp` with `EndpointDescent Cmp`;
+`DomainNormal.descend` lowers the final comparison. What is open on the branch is
+`FamilyCertificateCoverage Cmp` for a `Cmp` that descends, that is, a finite certificate for
+every guard that holds. This is the hereditary-join completeness of §3, restricted to the one
+condition that matters most.
+
+**Why no black-box use of confluence can give coverage.** A term can contain a singleton
+redex whose guard happens to hold for reasons unrelated to how the term arose (the guard is not
+required by typing). `FullReduction.church_rosser` is free to contract such a redex while
+closing a peak, and then nothing certifies its guard. Coverage therefore needs a confluence
+proof in which the steps that close a peak are known to descend from the steps of the peak.
+I tried five ways of avoiding this (a semantic permission predicate closed under all
+transports; forward-only certificates; erasure realizers; derivation size; minimal failing
+pair by term size or join length). Each fails at the same point: the certificate of a
+mirrored or residual step is produced by an opaque lemma and is not a sub-object of the
+certificate being inducted on.
+
+**A design that does give provenance, using what is there.** The existing confluence proof is
+already an induction on strong derivations (`IsDefEqStrong.church_rosserJ_of`) whose
+transitivity case goes through the abstract criterion of `LevelledConfluence.lean`. That
+criterion's `claim` counts steps: when one branch of a peak has no step of the top level, the
+other branch closes using lower steps only. This is the provenance statement, for whatever is
+placed at the top level. So:
+
+1. Add a permission predicate on prefix-unfold instances to `DeltaPar.delta` and
+   `FullStep.delta` (a `Params` field with the closure properties the peak lemmas use: argument
+   development at each level, mirror through `NormalEq₀`, weakening, instantiation, context
+   conversion). `PrefixUnfolding/` is untouched: its transport lemmas are used as they are.
+2. Take the permission to be the closure under exactly those transports of *seeds*, a seed
+   being an instance whose family guard has a join by reductions permitted at a lower stage.
+   Closure holds by construction. Stage `s` permissions are cumulative.
+3. Prove the two-predicate form of the three delta peak lemmas (`DeltaPar.peak`,
+   `DeltaPar.parRed_peak`, `EtaPar.deltaPar_peak`): against a step permitted at a lower stage,
+   the higher side closes by lower-stage steps. The proofs are the existing ones with the
+   predicate threaded through.
+4. Coverage (`Confluence/SingletonPatCoverage` and the quotient analogue) produces seeds: it
+   already builds the unfolding check from joins of `HasTypeJ`, which are the induction
+   hypothesis.
+5. Descent, by induction on the stage: an instance permitted at stage `s`, any substitution
+   instance of it, any reduct, any term of the smaller context normally equal to that reduct,
+   is valid below. The seed case closes the peak between the seed's join (stage below `s`) and
+   the given reduction; by 3 the steps on the given side are of lower stage, so their mirrors
+   below are valid by the induction hypothesis.
+
+Open points in this design, which I have not resolved: eta steps sit above delta in the
+existing level order while a seed's join may use eta, so the counting in 3 has to be stated for
+delta stages in the presence of eta steps on both branches; the typing premises of eta and
+structure-eta steps and of reannotation need either the same treatment or the recovery
+argument of §3; and step 5 needs the mirror lemmas to relate a term of the smaller context to
+a reduct that may contain proofs with no counterpart below.
+
+Size: `LevelledReduction.lean` (4241 lines), the delta parts of `FullReduction.lean` and
+`ChurchRosser.lean`, the coverage files, and a new descent file. This is a multi-week
+formalisation at the rate this branch has moved, with the open points above as real risk. It
+was not started.
