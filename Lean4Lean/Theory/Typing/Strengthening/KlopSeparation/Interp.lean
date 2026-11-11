@@ -31,6 +31,7 @@ inductive ValidAny (lower : List 𝕋.S) : 𝕋.S → Prop where
   | univ {u : 𝕋.S} : u ∈ lower → ValidAny lower u
   | pi {D : 𝕋.S} {F : 𝕋.S → 𝕋.S} : ValidAny lower D → ¬ 𝕋.IsCand D →
       (∀ d, 𝕋.mem d (𝕋.El D) → ValidAny lower (F d)) →
+      (∀ d, 𝕋.mem d (𝕋.El D) → 𝕋.IsCand (F d) → F d = 𝕋.cand Candidate.full) →
       (∀ d d', 𝕋.mem d (𝕋.El D) → 𝕋.Rel D d d' → 𝕋.TyRel (F d) (F d')) →
       (¬ ∀ d, 𝕋.mem d (𝕋.El D) → 𝕋.IsCand (F d)) →
       ValidAny lower (𝕋.tPi D F)

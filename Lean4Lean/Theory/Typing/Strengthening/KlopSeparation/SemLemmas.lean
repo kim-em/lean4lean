@@ -263,6 +263,71 @@ theorem mkLam_mem_mkPi {n : Nat} {D : 𝕋.S} {F f : 𝕋.S → 𝕋.S}
       rw [hl]
       exact fn_mem_tPi hf hD hr
 
+/-! ### Applications -/
+
+/-- **Application.** An element of `mkPi D F` applied, by `mkApp`, to an element `x` of `D`
+is an element of the fibre `F x`. -/
+theorem mkApp_mem {D g x : 𝕋.S} {F : 𝕋.S → 𝕋.S}
+    (hg : g ∈ₛ 𝕋.El (𝕋.mkPi D F)) (hx : x ∈ₛ 𝕋.El D) : 𝕋.mkApp g x ∈ₛ 𝕋.El (F x) := by
+  unfold mkPi at hg
+  split at hg
+  · rename_i hDc
+    have hDeq := isCand_eq hDc
+    have hxs : x = 𝕋.star := by rw [hDeq] at hx; exact (𝕋.mem_El_cand.1 hx).1
+    have hne : ∃ v, (𝕋.candOf D).mem v := by rw [hDeq] at hx; exact (𝕋.mem_El_cand.1 hx).2
+    rw [if_pos hne] at hg
+    subst hxs
+    split at hg
+    · rename_i hFc
+      obtain ⟨rfl, v, hv⟩ := 𝕋.mem_El_cand.1 hg
+      obtain ⟨u, hu⟩ := hne
+      rw [mkApp, if_pos rfl, isCand_eq hFc]
+      exact star_mem_cand ⟨_, hv u hu⟩
+    · obtain ⟨f, rfl, hf⟩ := mem_El_tPiP.1 hg
+      have hns : 𝕋.pair (𝕋.tagN 104) f ≠ 𝕋.star :=
+        ne_star_of_kind (k := 104) (by simp [UniverseTower.kind]) (by decide)
+      rw [mkApp, if_neg hns]
+      simp only [ap, snd_pair]
+      exact (𝕋.mem_pi.1 hf).2 _ (𝕋.mem_one.2 rfl)
+  · split at hg
+    · rename_i hall
+      obtain ⟨rfl, v, hv⟩ := 𝕋.mem_El_cand.1 hg
+      rw [mkApp, if_pos rfl, isCand_eq (hall x hx)]
+      exact star_mem_cand ⟨_, hv x hx .bot⟩
+    · obtain ⟨f, rfl, hf, -⟩ := mem_El_tPi.1 hg
+      have hns : 𝕋.pair (𝕋.tagN 104) f ≠ 𝕋.star :=
+        ne_star_of_kind (k := 104) (by simp [UniverseTower.kind]) (by decide)
+      rw [mkApp, if_neg hns]
+      simp only [ap, snd_pair]
+      exact (𝕋.mem_pi.1 hf).2 _ hx
+
+/-- **Application, values.** If the fibre at the argument is a proposition, the value of
+the application realizes it: the value of the function realizes the Π-proposition, or the
+fibre is the full candidate. -/
+theorem app_val_mem {D x : 𝕋.S} {F : 𝕋.S → 𝕋.S} {vf va : PVal}
+    (hx : x ∈ₛ 𝕋.El D)
+    (hvf : 𝕋.IsCand (𝕋.mkPi D F) → (𝕋.candOf (𝕋.mkPi D F)).mem vf)
+    (hva : 𝕋.IsCand D → (𝕋.candOf D).mem va)
+    (hmix : (¬ ∀ d, d ∈ₛ 𝕋.El D → 𝕋.IsCand (F d)) →
+      ∀ d, d ∈ₛ 𝕋.El D → 𝕋.IsCand (F d) → F d = 𝕋.cand Candidate.full)
+    (hFx : 𝕋.IsCand (F x)) : (𝕋.candOf (F x)).mem (.app vf va) := by
+  unfold mkPi at hvf
+  split at hvf
+  · rename_i hDc
+    have hDeq := isCand_eq hDc
+    have hxs : x = 𝕋.star := by rw [hDeq] at hx; exact (𝕋.mem_El_cand.1 hx).1
+    have hne : ∃ v, (𝕋.candOf D).mem v := by rw [hDeq] at hx; exact (𝕋.mem_El_cand.1 hx).2
+    rw [if_pos hne] at hvf
+    subst hxs
+    rw [if_pos hFx, 𝕋.candOf_cand] at hvf
+    exact hvf ⟨_, rfl⟩ va (hva hDc)
+  · split at hvf
+    · rw [𝕋.candOf_cand] at hvf
+      exact hvf ⟨_, rfl⟩ x hx va
+    · rename_i hDc hall
+      rw [hmix hall x hx hFx, 𝕋.candOf_cand]
+      trivial
+
 end UniverseTower
 end VEnv.Strengthening
 end Lean4Lean
