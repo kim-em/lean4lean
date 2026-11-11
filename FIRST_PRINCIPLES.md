@@ -1038,3 +1038,88 @@ missing, and proposed it: a default realizer.
 What is not done is the bulk: the definition of realizability structures for universes
 (coded, as in Λ-set or ω-set models), the interpretation of kinds, and the fundamental
 theorem. After five failed reviews I state this model as a proposal, not as a proof.
+
+## 20. The sixth model written out (2026-11-11)
+
+Not reviewed when written. Three interpretations of raw terms at a valuation, and one theorem.
+
+### 20.1 Semantic objects
+
+* **Data.** As in §18: `⟦Prop⟧ = {0, 1}` (tagged, so it is recognisable); data types are sets
+  with a partial equivalence relation, `⟦T⟧ = ℤ/3` total, universes of data types discrete,
+  Π pointwise; a Π over a proposition domain is its codomain when the domain is `1` and a
+  point when `0`; a Π whose fibres are all truth values is the truth value of the
+  conjunction.
+* **Values.** An applicative structure `𝕍`: untyped λ-terms over the tokens `r`, `⊥`, with
+  abstraction over data arguments represented by set-indexed families, modulo β;
+  `⊥` applied to anything is `⊥`. Proofs denote values. Values are not elements of any
+  semantic type.
+* **Candidates.** `Cand(0) = {∅}`; `Cand(1)` is the collection of β-closed sets of values
+  containing `⊥`. The *shape* of a semantic type: `Sh(Prop)(t) = Cand(t)`;
+  `Sh(Π(𝔻, 𝔹))(f)` is the dependent functions sending `(d, c)` with `c ∈ Sh(𝔻)(d)` to
+  `Sh(𝔹 d)(f d)`, with proposition domains skipped; every other shape is a point.
+
+### 20.2 Valuations and interpretations
+
+A valuation gives each variable `x : A` an element `d ∈ ⟦A⟧`, a shape component
+`c ∈ Sh(⟦A⟧)(d)`, and, if `⟦A⟧` is a truth value, a value `w ∈ ⟪A⟫`.
+
+* `⟦e⟧` (data): as §18, with these clauses for `Eq`: `⟦@Eq α a b⟧ = 1` iff `⟦a⟧`, `⟦b⟧` are
+  related; `⟦@Eq.rec α a M m b h⟧` with data fibre is `⟦a⟧ + 1` if `⟦α⟧ = ⟦T⟧`, the fibre is
+  `⟦T⟧`, `⟦a⟧ ≠ ⟦b⟧` and the value of `h` is not `r`; and `⟦m⟧` in every other case.
+  `⟦fun h : Q => b⟧` over a true proposition is `⟦b⟧` at any `w ∈ ⟪Q⟫`.
+* `⟪e⟫` (shape component), compositional: the component for a variable; functions and
+  application for `λ` and application, skipping proof arguments; `⟪@Eq α a b⟫` is `{r, ⊥}`
+  if `(⟦a⟧, ⟪a⟫) = (⟦b⟧, ⟪b⟫)`, `{⊥}` if merely related, `∅` if unrelated;
+  `⟪∀ x : A, B⟫` for a proposition is the set of values `v` such that for every `(d, c)`
+  (and every `w ∈ ⟪A⟫` when `A` is a proposition) `v` applied to the argument is in
+  `⟪B⟫`; `⟪P⟫ = ∅`; a type-level `Eq.rec` has the shape component of its minor premise.
+* Values of proofs, compositional and untyped: variables, `λ`, application;
+  `Eq.refl α a ↦ r`; `H x y ↦ ⊥`; an `Eq.rec` with proposition fibre has the value of its
+  minor premise if its major has value `r`, and `⊥` otherwise.
+
+### 20.3 Theorem
+
+If `Γ ⊢ a ≡ b : A`, then at every valuation `ρ` of `Γ`:
+
+1. `⟦A⟧ρ` is a semantic type, `⟦a⟧ρ = ⟦b⟧ρ ∈ ⟦A⟧ρ` and `⟪a⟫ρ = ⟪b⟫ρ ∈ Sh(⟦A⟧ρ)(⟦a⟧ρ)`;
+2. if `⟦A⟧ρ = 1`, the values of `a` and of `b` are in `⟪A⟫ρ`;
+3. `⟦a⟧`, `⟪a⟫` do not change when the values `w` of proof variables are changed within
+   their candidates, and are related (coarsely) at coarsely related valuations.
+
+Key cases.
+
+* **`pat`.** The major is a literal `Eq.refl`, value `r`, so both the data clause and the
+  proposition-fibre clause return the minor premise. Nothing about the endpoints is needed.
+* **Certificate.** By 2, a proof of `@Eq α a b` has value in `{r, ⊥}` only if the endpoints
+  are identical in denotation and shape component, and in `{⊥}` otherwise. So in the data
+  clause "value of `h` is `r`" implies identical endpoints, and the data of an `Eq.rec`
+  over `T` is a function of its endpoints whenever `h` is typed: clause 3.
+* **`Eq.rec` with proposition fibre.** Major `r`: endpoints identical in both components, so
+  the fibres over `(a, refl)` and `(b, h)` have the same `⟪·⟫`, and the minor's value is in
+  it. Otherwise `⊥`, which is in `⟪·⟫` of every true proposition; the fibre is true because
+  families respect the coarse relation.
+* **`proofIrrel`.** No equation between values of proofs is claimed; data and shape
+  components do not see proof arguments (clause 3, proposition domains skipped).
+* **`extra` for `C`.** Major `H x (C x)` has value `⊥`, endpoints `x`, `x + 1` differ:
+  `x + 1`. For `Fix`: both sides are the point of `⟦P → T⟧`.
+* **`forallEDF` for a Π-proposition over `Prop` or a kind:** candidates are arbitrary, and the
+  substitution lemma `⟪B[Q]⟫ρ = ⟪B⟫ρ[X ↦ (⟦Q⟧, ⟪Q⟫)]` is the usual one, valid because
+  `⟪Q⟫ρ` is a candidate (β-closed, contains `⊥` when `Q` is true: every clause of `⟪·⟫`
+  produces such a set).
+* Checks: the term `D` of §19 has `cast ↦ ⊥` (its major `e0` is `⊥`), so `⟦D⟧ = 1 = ⟦C E⟧`.
+  `(fun x => E = x)` and `(fun x => E = E)` have different `⟪·⟫`, as do `∀ a, a = a` and
+  `∀ x, x = E`; both extension tests are rejected by clause 1.
+
+At the empty valuation `⟦C E⟧ = 1` and `⟦E⟧ = 0`.
+
+### 20.4 Known soft spots
+
+Whether "the fibre is a truth value / the domain is a proposition" is always decidable from
+the semantic objects (tagging of `{0,1}` and of points); the precise definition of `𝕍` and
+of application of a value to a data argument; `⊥ ∈ ⟪Q⟫` for every true `Q` including `Eq`
+at types whose elements have non-trivial shape components; clause 3 through `λ` over a
+proposition whose realizers reach a data `Eq.rec` by proof-level computation; the coarse
+relation on shape components; universe sizes for shapes (shapes are not elements of
+universes, but `⟦·⟧` must not depend on them: it does not, except through the test
+`⟪a⟫ = ⟪b⟫`, which occurs only inside `⟪·⟫`).
