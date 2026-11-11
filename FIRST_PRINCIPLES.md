@@ -1335,3 +1335,49 @@ arguments and `⊥` at others. A term needing that would be a proof of `∀ x y 
 built by cases on `x`, `y`; `T` is an axiom with no eliminator, so no such term exists, but
 an environment with an inductive `T` would need unerased data arguments (set-indexed
 abstraction), as §20 had.
+
+## 25. Ninth review, and the model as it now stands (2026-11-11)
+
+**Review of §24: no refutation; one structural defect with a repair the reviewer worked
+through in part, two routine ones.**
+
+* *Structural.* "Proof or data" was not determined by the construction. With `tOne` distinct
+  from the truth value `1`, the collapse rule is not a function of semantic input (`P → T`
+  against `P → P`). With them identified, erasing data arguments breaks `lamDF`: in
+  `fun (q : Prop) (g : q → T) => Eq.refl T E` the variable `g` is data at `q = 1` and a proof
+  at `q = 0`, so the erased `λ q` has no single value.
+  **Repair:** identify `tOne` with `1` and do not erase. The value of a term is a purely
+  syntactic translation (variables, `λ`, application; sorts and Π to `⊥`;
+  `Eq.refl ↦ λ α a. r`; `Eq.rec ↦ λ α a M m b h. case h m ⊥`; `H ↦ ⊥`), data variables take
+  arbitrary values, and a Π-proposition over a data domain is realized by the `v` with
+  `v u ∈ ⟪B⟫` for every `(d, c)` and every value `u`, the same formula as for a proposition
+  domain at the full candidate.
+* *Routine.* The shape of a proof is `{•}` (needed so that `@Eq Q h h'` is realized by `r`);
+  `Cand(0) = {∅}` is the exception to "contains `⊥`".
+
+Checked by the reviewer under the repair: closure of levels, relations, well-foundedness of
+`Sh` and `Code`, compositionality of codes and the substitution lemma for types, the
+constant `Eq.rec` in the candidate of its declared type, impredicative Π, β, η, confluence of
+the value calculus, both extension equations, the certificate in the `T`/`T` case, and a
+further round of attacks (Leibniz-style hypotheses, `congrArg`, equations under
+`fun p : P`, type-level `Eq.rec` under `p`, partial spines through β), all failing.
+Not re-checked by this reviewer: the head invariant beyond `appDF`, `defeqDF`, `trans` and
+`beta`.
+
+**The model as it now stands** is §22 with the amendments of §23, the construction of §24,
+and the repair above. In one paragraph: a set model in which `Prop` is `{0, 1}`, `T` is
+`ℤ/3` with all elements related, `C` is the successor and `Eq.rec` is a function of its
+endpoints that returns `endpoint + 1` exactly at `T` with fibre `T` and distinct endpoints;
+every term also has an untyped value in a λ-calculus with tokens `r`, `⊥`; every proposition
+has a set of realizing values, containing `⊥` when true and containing `r` for an equation
+exactly when its endpoints are identical; every data type has a code recording those sets;
+and the soundness theorem carries a head invariant from which a redex
+`Eq.rec T a M m b (Eq.refl …)` with fibre `T` has identical endpoints. Then
+`⟦C E⟧ = 1 ≠ 0 = ⟦E⟧`.
+
+**Review history.** Nine independent reviews. Models 1 to 5 were each refuted. Reviews 6 to 9
+of the sixth model found no derivable equation with two values and no typed proof outside
+its realizer set, across some dozens of attack terms; each found definitional gaps, each with
+a repair, the last one "structural" in the sense that a construction had to be changed, not
+that an idea was missing. Unwritten: the full induction for the head invariant, level
+valuations, and the minimal environment. Nothing is machine-checked.

@@ -26233,3 +26233,8 @@ delta.
 | Consolidated model (§22) with repairs A, B, C, F worked through by the reviewer | **No refutation; each repair holds with a stated amendment** (full candidate for truth values inside data universes; closing clause in the head invariant; shape of the minor at every data fibre). Five new attack terms failed. |
 | Remaining for the paper argument | **Open:** the construction of shapes and codes over denotations (structural, unverified sketch); routine lemmas. |
 | Remaining for a machine-checked refutation | **Open:** all of the above in Lean, plus a concrete well-formed environment containing exactly `Eq` and the six declarations, with its inventory. |
+
+| Ninth review (2026-11-11) | Verdict |
+| --- | --- |
+| Construction of tagged denotations, codes, shapes, value structure (§24) | **No refutation; repaired.** Erasing data arguments from proof values fails where a variable is data at one valuation and a proof at another; values are now a syntactic translation without erasure, and the collapsed one-point type is the truth value `1`. |
+| Paper argument for `[] ⊬ C E ≡ E` (§22 to §25) | **Unbroken in four successive reviews; not complete; not machine-checked.** Unwritten: full head-invariant induction, level valuations, minimal environment. |
