@@ -44014,3 +44014,22 @@ Plan for `constOK_EqRec` (`FIRST_PRINCIPLES.md` §28, §29; not yet done):
    endpoints; the successor only in the fibre `T`) and respects the coarse relations;
 4. six uses of `SemD.lam`;
 5. the value `recVal` at motive universe `0`.
+
+## 2026-11-11 UTC: the body of `Eq.rec` is type-correct and relation-respecting
+
+`RecBody.lean` (checked, no `sorry`): `fibTy`, `Fib`, `sortDen_valid`, `fibTy_valid`,
+`fibTy_tyRel`, `motiveTy_valid`, `fib_rel` (fibres of coarsely related motives over coarsely
+related endpoints are coarsely related elements of `⟦Sort v⟧`), `eq_tT_of_tyRel`, the
+hypothesis bundle `RecArgs`, and
+
+* `RecArgs.recBody_mem`: `recBody α a M m b ∈ Fib M b` (proposition fibre: `•`; fibre `T`
+  with distinct endpoints over `T`: the successor; otherwise the minor premise, which lies in
+  the fibre over `b` because the fibres over `a` and `b` are coarsely related and so have the
+  same elements);
+* `recBody_rel`: `recBody` respects the coarse relations in all arguments (when the fibre is
+  `T` every two elements are related; when it is another data type both sides are the minor
+  premises).
+
+This is the semantic core of `constOK_EqRec` (step 3 of the plan). Still to do for it: the
+`Sem` of the six binder types, the identification of `recDen` with the six-fold abstraction,
+the assembly with `SemD.lam`, and the value at motive universe `0`.
