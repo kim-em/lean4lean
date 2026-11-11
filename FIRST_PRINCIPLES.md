@@ -756,3 +756,54 @@ and I have not checked that this closes without assuming the theorem being prove
 
 Status: `[] ⊬ C E ≡ E` remains a conjecture; three reviews found nothing against it and
 located the gap in its proof at F2.
+
+## 15. Working out the two-layer candidate of §14 (2026-11-11)
+
+Paper analysis, not reviewed. The two-layer candidate does not close; the reason identifies
+what the definition has to be.
+
+Write FT for the fundamental theorem: if `Γ ⊢ a ≡ b : A` then related closing substitutions
+give finely related instances (at `T`: equal values; at `Prop` and `Sort n`: the fine type
+equality `R`).
+
+1. *Layer one is fine.* A unary predicate (every declaratively well-typed closed term is a
+   member of its type; closed terms of type `T` have a value), with propositions interpreted
+   only by their truth in the standard model where `T` is a point and `P` is empty, is
+   definable by recursion on levels, because propositions contribute nothing structural. It
+   needs no equation between values, so the ι rule is not an issue there.
+2. *`R` as a greatest fixed point with the Π clause at one argument on both sides* is a
+   positive definition. But to prove a `forallEDF` conclusion one needs the body at the
+   substitution extended by the same argument `d` on both sides, hence `d` related to itself,
+   which is FT for the typing derivation of `d`. That is not an induction hypothesis.
+3. *Quantifying over declaratively equal arguments instead* removes the need for
+   reflexivity, but then a constant such as `C` or `Eq.rec` is self-related only if
+   declaratively equal closed terms of type `T` have equal values, which is FT at `T` for an
+   arbitrary derivation.
+4. *Mixing* (related pairs at data domains, declaratively equal pairs at sort domains) fails
+   at the variable rule: a type variable instantiated by two declaratively equal types must
+   give `R`-related types, which is FT for types, and proving that by coinduction from the
+   injectivity theorems of the calculus lands on equal values for declaratively equal
+   endpoints of an equation over `T`, again FT at `T`.
+
+Every variant needs FT for a derivation that is not a sub-derivation, and always at the same
+place: the instance of a variable of type `Prop` or `Sort n` (or a higher kind over them).
+This is the impredicativity circle, and its known resolution is Girard's: let such variables
+range over arbitrary *candidates*, independent of any actual type, and prove a substitution
+lemma identifying the interpretation at an actual type with the interpretation at that
+type's own candidate.
+
+What a candidate has to be here: for `X : Prop`, a truth value together with an abstract
+colour, two occurrences being `R`-related when their colours agree; for `X : Sort (n+1)`, a
+set of closed terms with a fine and a coarse relation, and a colour; for higher kinds,
+functions on candidates. The term model is countable, so countably many colours suffice to
+name every `R`-class, which is why the size obstruction of §8 and §11 does not return.
+`@Eq T a b` gets the colour determined by the two values, a Π-proposition the colour of its
+family of fibre colours over candidates of the domain.
+
+Not done: the definition written out, the substitution lemma, and the check that Π over a
+sort domain is sound when the candidate is not the candidate of any type. This is the
+reducibility-candidates method for a calculus with impredicative `Prop`, predicative
+universes and dependent types, extended by the colour component; it is a substantial proof
+even on paper.
+
+Status unchanged: `[] ⊬ C E ≡ E` is a conjecture.

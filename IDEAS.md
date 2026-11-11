@@ -26205,3 +26205,9 @@ delta.
 | --- | --- |
 | Proof-insensitive term model of §13 | **Not a proof; gap located.** Values and all rule cases checked by the reviewer pass, two defects have local repairs, and one is open: a fine equality of propositions that is definable under impredicative quantification (`FIRST_PRINCIPLES.md` §14, F2). |
 | Two-layer definition: truth and membership from a truth-only model, fine equality by positive recursion at declaratively typed closed instances | **Open, not validated.** Risk: the proof that conversion respects it may need the theorem itself for the instances. |
+
+| Two-layer candidate worked out (2026-11-11) | Verdict |
+| --- | --- |
+| Truth-only first layer, fine type equality as a positive greatest fixed point at equal arguments | **Refuted.** Proving the Π case needs the argument related to itself, which is the fundamental theorem for a derivation that is not a sub-derivation. |
+| Same with declaratively equal arguments, or mixed by domain | **Refuted.** Constants (`C`, `Eq.rec`) or the variable rule then need "declaratively equal closed terms of type `T` have equal values" for an arbitrary derivation. |
+| Reducibility candidates with a colour component for variables of type `Prop`, `Sort n` and higher kinds | **Open; the indicated method.** Countably many colours suffice in a term model. Definition and substitution lemma not written. |
