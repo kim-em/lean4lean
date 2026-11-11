@@ -43740,3 +43740,23 @@ by level and the universes' element sets; the lemmas (PER, same elements under `
 elements, universe membership); the interpretation of terms; its substitution and weakening
 lemmas; the soundness induction with the head invariant; vacuity of the projection rules.
 `KlopInventory.separated` remains a `sorry`.
+
+## 2026-11-11 UTC: interpretation defined; the open obligation is now soundness
+
+Checked, no `sorry` except the one named obligation:
+
+* `KlopSeparation/SemType.lean` rewritten: every object of the model is a pair headed by a
+  numeric tag, so `•`, elements of `T`, functions and types are provably distinct; uniform
+  formation `mkPi` (full candidate over an empty proposition, Π-propositions, data Π),
+  `mkLam` (a function constantly `•` is `•`), `mkApp`, and `mkApp_mkLam` (semantic β).
+  `UniverseTower` gained replacement (`image`).
+* `KlopSeparation/Interp.lean`: valid semantic types by level (`ValidAny`, `ValidTy`), the
+  universes `univ n`, `sortDen`, `eqCand`, the denotations of `Eq`, `Eq.rec` (a function of
+  the endpoints), `T`, `E`, `P`, `C`, and `den : (Nat → S) → VExpr → S`.
+  `den_CE_ne_E`: `⟦C E⟧ ≠ ⟦E⟧`.
+* `KlopSeparation/Statement.lean`: `KlopInventory.separated` is now proved from
+  `den_CE_ne_E` and the single remaining `sorry`, `KlopInventory.den_sound` (definitionally
+  equal closed terms have equal denotations).
+
+Remaining: `den_sound`, i.e. the lemmas on semantic types, substitution and weakening for
+`den`, and the soundness induction with the head invariant.
