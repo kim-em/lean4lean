@@ -44061,3 +44061,15 @@ i.e. at motive universe `0`).
 
 Remaining `sorry`s (three, all in `Fundamental.lean`): `recVal_realizes`,
 `KlopInventory.sem_extra`, `KlopInventory.sem_pat`.
+
+## 2026-11-11 UTC: the definitional equations of `C` and `Fix`; two obligations remain
+
+`Extra.lean` (checked, no `sorry`): `recDen_app` (`⟦Eq.rec⟧` applied to six arguments in the
+right sets is `recBody`), `den_klopFixBody` (`•`), `constMotive` with `fib_constMotive` and
+`constMotive_mem`, `recBody_C` (`recBody T x (fun _ _ => T) 0 (x + 1) = x + 1`, the junk
+branch), and `den_klopCBody` (the body of `C` denotes the successor function).
+
+`Fundamental.lean`: `Sem.of_den_eq`; `KlopInventory.sem_extra` is proved.
+
+Remaining `sorry`s (two, both in `Fundamental.lean`): `recVal_realizes` and
+`KlopInventory.sem_pat`.

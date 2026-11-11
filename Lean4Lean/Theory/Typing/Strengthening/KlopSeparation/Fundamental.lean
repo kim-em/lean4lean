@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.EqRecConst
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Extra
 
 /-! # The fundamental theorem of the Klop model
 
@@ -12,7 +12,6 @@ cases proved in `Sound.lean`, `SoundLam.lean`, `SoundBeta.lean`, `SoundEta.lean`
 
 * `recVal_realizes`: the value of `Eq.rec` realizes its declared type at motive universe `0`
   (membership of `⟦Eq.rec⟧` in its declared type is `recDen_mem`, `EqRecConst.lean`);
-* `KlopInventory.sem_extra`: the two definitional equations (`extra`);
 * `KlopInventory.sem_pat`: the ι rule of `Eq.rec` (`pat`).
 
 The four projection rules have no instance: `no_projDF`, `no_proj`/`no_projIota`, and the
@@ -82,20 +81,41 @@ theorem KlopInventory.sem_const (𝕋 : UniverseTower) (heq : env.HasCanonicalEq
   · cases Option.some.inj (K.C.symm.trans h); exact UniverseTower.constOK_C ls
   · cases Option.some.inj (K.Fix.symm.trans h); exact UniverseTower.constOK_Fix ls
 
-/-- **Open obligation: the definitional equations of `C` and `Fix`.**
+/-- Two terms with the semantic judgment at the same type and equal denotations are
+semantically equal. -/
+theorem UniverseTower.Sem.of_den_eq {𝕋 : UniverseTower} {Γ : List VExpr} {a b A : VExpr}
+    (Ha : 𝕋.Sem Γ a a A) (Hb : 𝕋.Sem Γ b b A) (h : ∀ ρ, 𝕋.den ρ a = 𝕋.den ρ b) :
+    𝕋.Sem Γ a b A := by
+  intro ρ w hρ
+  obtain ⟨hty, -, hm, hv, hr⟩ := Ha ρ w hρ
+  obtain ⟨-, -, -, hv', -⟩ := Hb ρ w hρ
+  exact ⟨hty, h ρ, hm, fun hc => ⟨(hv hc).1, (hv' hc).1⟩, hr⟩
 
-Missing: `den ρ klopC = den ρ klopCBody` (the body is an `Eq.rec` over `T` with endpoints `x`
-and `x + 1`, which differ, so `recBody` returns `x + 1`; the arguments have to be shown to
-lie in the successive domains so that the six `mkApp (mkLam …)` reduce), and
-`den ρ klopFix = den ρ klopFixBody` (both are `•`: the body is an abstraction over the empty
-proposition). -/
+/-- The definitional equations of `C` and `Fix` hold in the model (`den_klopCBody`,
+`den_klopFixBody`). -/
 theorem KlopInventory.sem_extra (𝕋 : UniverseTower) (K : KlopInventory env)
     {Γ : List VExpr} {df : VDefEq} {ls : List VLevel} (h : env.defeqs df)
     (hl : ls.length = df.uvars)
     (Hl : 𝕋.SemS env Γ (df.lhs.instL ls) (df.lhs.instL ls) (df.type.instL ls))
     (Hr : 𝕋.SemS env Γ (df.rhs.instL ls) (df.rhs.instL ls) (df.type.instL ls)) :
     𝕋.Sem Γ (df.lhs.instL ls) (df.rhs.instL ls) (df.type.instL ls) := by
-  sorry
+  refine UniverseTower.Sem.of_den_eq Hl.1 Hr.1 fun ρ => ?_
+  rcases K.defeqs_only df h with rfl | rfl
+  · have hls : ls = [] := List.length_eq_zero_iff.1 hl
+    subst hls
+    have e1 : klopC.instL [] = klopC := rfl
+    have e2 : klopCBody.instL [] = klopCBody := by
+      simp [klopCBody, klopD, klopMotive, VExpr.eqRecApp, VExpr.eqApp, VExpr.instL, VLevel.inst,
+        VExpr.lift, VExpr.liftN]
+    show 𝕋.den ρ (klopC.instL []) = 𝕋.den ρ (klopCBody.instL [])
+    rw [e1, e2, UniverseTower.den_klopC, UniverseTower.den_klopCBody]
+  · have hls : ls = [] := List.length_eq_zero_iff.1 hl
+    subst hls
+    have e1 : klopFix.instL [] = klopFix := rfl
+    have e2 : klopFixBody.instL [] = klopFixBody := by
+      simp [klopFixBody, VExpr.instL]
+    show 𝕋.den ρ (klopFix.instL []) = 𝕋.den ρ (klopFixBody.instL [])
+    rw [e1, e2, UniverseTower.den_klopFix, UniverseTower.den_klopFixBody]
 
 /-- **Open obligation: the ι rule of `Eq.rec`.**
 
