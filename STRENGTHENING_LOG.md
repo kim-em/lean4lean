@@ -43770,3 +43770,18 @@ contractum when the argument denotes an element of the domain).
 Next for `KlopInventory.den_sound`: simultaneous substitution on proof values (for clause 2
 under a valuation), valuations of a context, the lemmas on semantic types, then the rule
 cases.
+
+## 2026-11-11 UTC: soundness statement, first rule cases, lemmas on semantic types
+
+Checked; the only `sorry` is `KlopInventory.sound`.
+
+* `KlopSeparation/Sound.lean`: `PVal.subst`, `IsSemTy`, `ValOK`, `CoRel`, the semantic
+  judgment `Sem`, and the cases `sem_bvar`, `Sem.symm`, `Sem.trans`, `Sem.defeq`.
+  `den_sound` is derived from `KlopInventory.sound`.
+* `KlopSeparation/SemLemmas.lean`: kinds of objects; `mem_univList`; elements of `tPi`,
+  `tPiP`, `tProp`, `univ`; `ValidAny.star_not_mem` (`•` is not an element of a data type);
+  `ValidAny.good`; and `mkLam_mem_mkPi` (an abstraction whose body lands in the valid fibres
+  and respects the coarse relations denotes an element of the Π-type), in all five cases of
+  `mkPi`.
+
+Open in `Sem`/`sound`: the head invariant has to be added to `Sem`; remaining rule cases.
