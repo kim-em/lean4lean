@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.DenSubst
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Univ
 import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.MinimalEnv
 
 /-! # Soundness of the Klop model: statement
@@ -96,6 +97,18 @@ theorem Sem.trans {Γ : List VExpr} {a b c A : VExpr} (H1 : 𝕋.Sem Γ a b A)
   obtain ⟨hty, heq, hmem, hval, hrel⟩ := H1 ρ w hρ
   obtain ⟨-, heq2, -, hval2, -⟩ := H2 ρ w hρ
   exact ⟨hty, heq.trans heq2, hmem, fun hc => ⟨(hval hc).1, (hval2 hc).2⟩, hrel⟩
+
+/-- `𝒰ₙ` is a semantic type. -/
+theorem isSemTy_univ (n : Nat) : 𝕋.IsSemTy (𝕋.univ n) :=
+  ⟨n + 1, .univ (univ_mem_univList n)⟩
+
+/-- The sort rule. -/
+theorem sem_sort {Γ : List VExpr} {l l' : VLevel} (h : l ≈ l') :
+    𝕋.Sem Γ (.sort l) (.sort l') (.sort (.succ l)) := by
+  intro ρ w _
+  have hm : 𝕋.mem (𝕋.sortDen l) (𝕋.El (𝕋.univ (l.eval []))) := sortDen_mem l
+  refine ⟨isSemTy_univ _, sortDen_congr h, hm,
+    fun hc => (not_isCand_univ _ hc).elim, fun ρ' w' _ _ => ⟨rfl, rel_univ_refl hm⟩⟩
 
 /-- Conversion: the stated type may be replaced by a type with the same denotation. -/
 theorem Sem.defeq {Γ : List VExpr} {a b A B S : VExpr} (HT : 𝕋.Sem Γ A B S)

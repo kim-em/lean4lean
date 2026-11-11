@@ -43785,3 +43785,17 @@ Checked; the only `sorry` is `KlopInventory.sound`.
   `mkPi`.
 
 Open in `Sem`/`sound`: the head invariant has to be added to `Sem`; remaining rule cases.
+
+## 2026-11-11 UTC: application lemmas, strong judgment, universes, sort rule
+
+Checked; the only `sorry` is `KlopInventory.sound`.
+
+* `SemLemmas.lean`: `mkApp_mem`, `app_val_mem`. `ValidAny.pi` now requires proposition
+  fibres of a data Π to be the full candidate.
+* `Sound.lean`: `KlopInventory.sound` is stated over `IsDefEqStrong` (its `appDF`, `beta`,
+  `eta` carry the typing premises the semantic argument needs); `den_sound` uses
+  `IsDefEq.strong`. New case `sem_sort`.
+* `Univ.lean`: membership of the model's objects in the tower's universes; `Prop ∈ 𝒰₀`,
+  `𝒰ₙ ∈ 𝒰ₙ₊₁`; `sortDen_congr`, `sortDen_mem`; `rel_univ_refl`.
+
+Rule cases proved: `bvar`, `symm`, `trans`, `defeqDF`, `sortDF`.
