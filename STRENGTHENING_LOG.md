@@ -43718,3 +43718,25 @@ Remaining for `KlopInventory.separated`: the value translation of `VExpr` and it
 substitution lemma; the set toolkit on `UniverseTower`; tagged semantic types and universes;
 denotations with substitution and weakening; the soundness induction with the head invariant;
 the no-`.proj` lemma and the vacuity of the projection rules from the inventory.
+
+## 2026-11-11 UTC: model layers two and three (definitions)
+
+Checked, no `sorry`:
+
+* `KlopSeparation/Translate.lean`: `pval : VExpr → PVal` (`Eq.refl ↦ λλ.r`,
+  `Eq.rec ↦ λ⁶. case h m bot`, other constants, sorts, Π and projections `↦ bot`);
+  `pval_liftN`, `pval_inst` (substitution on the nose), `pval_instL`, `pval_refl_toR`,
+  `pval_rec_steps`.
+* `KlopSeparation/Tower.lean`: `UniverseTower` restated as an applicative set theory
+  (`lam`, `app`, `pi`, `sep`, `pair`, an embedding of small Lean types, universes closed under
+  these). This replaces the raw membership axioms as the hypothesis of
+  `not_weakN_iff_of_tower`.
+* `KlopSeparation/SemType.lean`: semantic types as records carrying their elements, coarse
+  relation and skeleton; constructors `cand`, `tT`, `tProp`, `tPi`, `tPiP`, `tU`; `Rel`,
+  `TyRel`; first lemmas (`cand_inj`, `mem_El_cand`, `mem_El_tT`, `rel_tT`).
+
+Not yet written: the uniform Π formation with its collapse rule; validity of semantic types
+by level and the universes' element sets; the lemmas (PER, same elements under `~`, default
+elements, universe membership); the interpretation of terms; its substitution and weakening
+lemmas; the soundness induction with the head invariant; vacuity of the projection rules.
+`KlopInventory.separated` remains a `sorry`.
