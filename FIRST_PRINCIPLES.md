@@ -1,8 +1,11 @@
 # Strengthening under canonical `Eq`: a first-principles assessment (2026-11-10)
 
-Outcome: **not solved.** No proof and no counterexample. What follows is paper analysis; nothing
-here is checked in Lean. It was written without relying on the branch's ledger, and the ledger
-was consulted afterwards only to see which points are already there.
+Outcome (updated 2026-11-11): **a counterexample**, in §7. `IsDefEqU.weakN_iff` fails for a
+well-formed environment with canonical `Eq` and two looping `mutualDef`s. The environment and
+the derivation in the larger context are checked in Lean; non-derivability in the smaller
+context is argued by a model and is not formalised. Sections 1 to 6 record the analysis that
+led there; where they say the statement is probably true, §7 supersedes them. The reduction
+of §1 is checked and stands.
 
 ## 1. A normal form of the problem (needs canonical `Eq`)
 
