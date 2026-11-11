@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.EqRecVal
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.PatRule
 
 /-! # The fundamental theorem of the Klop model
 
@@ -8,9 +8,7 @@ invariant `SpineOK` on both sides (`SemS`). The induction is assembled here from
 cases proved in `Sound.lean`, `SoundLam.lean`, `SoundBeta.lean`, `SoundEta.lean` and
 `Spine.lean`.
 
-**Open obligations** (named theorems with `sorry`, each with a docstring):
-
-* `KlopInventory.sem_pat`: the ι rule of `Eq.rec` (`pat`).
+There is no open obligation.
 
 The four projection rules have no instance: `no_projDF`, `no_proj`/`no_projIota`, and the
 index count of `eqProjInfo` for `structEta` and `unitLike`.
@@ -31,17 +29,6 @@ end UniverseTower
 
 variable {env : VEnv}
 
-/-- `Eq.rec` is an element of its declared type, with a realizing value (`recDen_mem`,
-`recVal_realizes`). -/
-theorem constOK_EqRec (𝕋 : UniverseTower) (ls : List VLevel) :
-    𝕋.ConstOK ``Eq.rec ls (canonicalEqRecType.instL ls) := by
-  intro ρ
-  have hc : 𝕋.constDen ``Eq.rec ls = 𝕋.recDen (ls.getD 0 .zero) (ls.getD 1 .zero) := by
-    simp [UniverseTower.constDen]
-  have hv : constVal ``Eq.rec = recVal := by simp [constVal]
-  rw [UniverseTower.recTy_eq, hc, hv]
-  exact ⟨UniverseTower.recDen_mem ρ, UniverseTower.recVal_realizes _ _ ρ⟩
-
 /-- The constant rule: every constant of the environment satisfies the semantic judgment.
 -/
 theorem KlopInventory.sem_const (𝕋 : UniverseTower) (heq : env.HasCanonicalEq)
@@ -55,7 +42,7 @@ theorem KlopInventory.sem_const (𝕋 : UniverseTower) (heq : env.HasCanonicalEq
   rcases K.constants_only c ci h with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
   · cases Option.some.inj (heq.1.symm.trans h); exact UniverseTower.constOK_Eq ls
   · cases Option.some.inj (heq.2.1.symm.trans h); exact UniverseTower.constOK_EqRefl ls
-  · cases Option.some.inj (heq.2.2.1.symm.trans h); exact constOK_EqRec 𝕋 ls
+  · cases Option.some.inj (heq.2.2.1.symm.trans h); exact UniverseTower.constOK_EqRec ls
   · cases Option.some.inj (K.T.symm.trans h); exact UniverseTower.constOK_T ls
   · cases Option.some.inj (K.E.symm.trans h); exact UniverseTower.constOK_E ls
   · cases Option.some.inj (K.P.symm.trans h); exact UniverseTower.constOK_P ls
@@ -101,20 +88,15 @@ theorem KlopInventory.sem_extra (𝕋 : UniverseTower) (K : KlopInventory env)
     show 𝕋.den ρ (klopFix.instL []) = 𝕋.den ρ (klopFixBody.instL [])
     rw [e1, e2, UniverseTower.den_klopFix, UniverseTower.den_klopFixBody]
 
-/-- **Open obligation: the ι rule of `Eq.rec`.**
-
-Missing: from the head invariant of the redex `Eq.rec α a M m b (Eq.refl α' a')` (the chain
-of its six arguments through the declared type of `Eq.rec`), when `⟦α⟧ = T` and the fibre is
-`T` all six prefixes are non-collapsed, so the value `r` of the major premise realizes
-`⟦@Eq α a b⟧`, hence the endpoints are identical and `recBody` returns the minor premise; in
-every other case `recBody` returns the minor premise or `•` by definition. The reduct is a
-β-chain selecting the minor premise. -/
-theorem KlopInventory.sem_pat (𝕋 : UniverseTower) (K : KlopInventory env)
+/-- **The ι rule of `Eq.rec`** (`pat`): `KlopInventory.sem_pat_core`, with the head invariant
+of the redex taken from the induction hypothesis. -/
+theorem KlopInventory.sem_pat (𝕋 : UniverseTower) (heq : env.HasCanonicalEq)
+    (K : KlopInventory env)
     {Γ : List VExpr} {p : Pattern} {r : p.RHS × p.Check} {e A : VExpr} {m1 m2}
     (hp : env.pats p r) (hm : p.Matches e m1 m2)
     (He : 𝕋.SemS env Γ e e A) (Hr : 𝕋.SemS env Γ (r.1.apply m1 m2) (r.1.apply m1 m2) A) :
-    𝕋.Sem Γ e (r.1.apply m1 m2) A := by
-  sorry
+    𝕋.Sem Γ e (r.1.apply m1 m2) A :=
+  K.sem_pat_core 𝕋 heq hp hm He.1 (fun ρ w hρ => (He.2 ρ w hρ).1) Hr.1
 
 /-- `projDF` has no instance: the projection entry of `Eq` has no field, so `fieldType` is
 `none`. After instantiating the two parameters the constructor type is an application of
@@ -240,7 +222,7 @@ theorem KlopInventory.sound (𝕋 : UniverseTower) (heq : env.HasCanonicalEq)
   | extra h _ hl _ _ _ _ _ _ _ _ _ ihl ihr =>
     exact ⟨K.sem_extra 𝕋 h hl ihl ihr, fun ρ w hρ => ⟨(ihl.2 ρ w hρ).1, (ihr.2 ρ w hρ).1⟩⟩
   | pat hp hm _ _ _ _ ihe ihr _ =>
-    exact ⟨K.sem_pat 𝕋 hp hm ihe ihr, fun ρ w hρ => ⟨(ihe.2 ρ w hρ).1, (ihr.2 ρ w hρ).1⟩⟩
+    exact ⟨K.sem_pat 𝕋 heq hp hm ihe ihr, fun ρ w hρ => ⟨(ihe.2 ρ w hρ).1, (ihr.2 ρ w hρ).1⟩⟩
   | projIota _ hs _ _ _ _ => exact (K.no_projIota hs).elim
   | structEta hinfo _ hi _ _ _ _ =>
     have := (K.projections_only _ _ hinfo).2

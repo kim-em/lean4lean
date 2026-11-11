@@ -13,11 +13,12 @@ The proof is assembled here from the machine-checked half of the Klop example
 (`exists_minimalKlopEnv`, proved in `MinimalEnv.lean`: canonical `Eq` installed as a
 hand-built inductive declaration, then the six declarations, with an exact inventory), and
 the interpretation of terms in the tower (`Interp.lean`, where `⟦C E⟧ = 1` and `⟦E⟧ = 0` is
-proved), and one obligation that is **not yet proved**, a named theorem with `sorry`:
+proved), and the fundamental theorem of the model (`KlopInventory.sound`, in
+`Fundamental.lean`): in an environment with that inventory, every derivable judgment
+satisfies the semantic judgment `Sem` and the head invariant.
 
-* `KlopInventory.sound` (`Sound.lean`): in an environment with that inventory, every
-  derivable judgment satisfies the semantic judgment `Sem` (the fundamental theorem of the
-  model of `FIRST_PRINCIPLES.md` §28, §29).
+No file of this directory uses `sorry`; `not_weakN_iff_of_tower` depends on the axioms
+`propext`, `Classical.choice` and `Quot.sound`.
 
 Nothing outside this directory depends on these files.
 -/
@@ -26,16 +27,14 @@ namespace Lean4Lean
 namespace VEnv.Strengthening
 
 /-- In an environment with the Klop inventory, `C E ≡ E` is not derivable in the empty
-context, given a universe tower: the two terms denote `1` and `0`. Depends on
-`KlopInventory.sound`. -/
+context, given a universe tower: the two terms denote `1` and `0`. -/
 theorem KlopInventory.separated (tower : UniverseTower) {env : VEnv}
     (henv : env.WF) (heq : env.HasCanonicalEq) (K : KlopInventory env) :
     K.toKlopEnv.Separated 0 := by
   rintro ⟨A, H⟩
   exact tower.den_CE_ne_E (fun _ => tower.star) (K.den_sound tower henv heq H _)
 
-/-- **Given a universe tower, the statement of `IsDefEqU.weakN_iff` is false.**
-Depends on the open obligation `KlopInventory.sound`. -/
+/-- **Given a universe tower, the statement of `IsDefEqU.weakN_iff` is false.** -/
 theorem not_weakN_iff_of_tower (tower : UniverseTower) :
     ¬ ∀ {env : VEnv} {U n k : Nat} {Γ Γ' : List VExpr} {e1 e2 : VExpr},
       env.WF → OnCtx Γ' (env.IsType U) → Ctx.LiftN n k Γ Γ' →

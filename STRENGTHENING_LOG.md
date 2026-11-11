@@ -44084,3 +44084,21 @@ minor's value realizes the fibre; otherwise `bot` realizes the inhabited fibre),
 
 Remaining `sorry` (one, in `Fundamental.lean`): `KlopInventory.sem_pat`, the ι rule of
 `Eq.rec`.
+
+## 2026-11-11 UTC: the ι rule; `not_weakN_iff_of_tower` has no `sorry`
+
+`PatRule.lean` (checked, no `sorry`): `UniverseTower.constOK_EqRec` and
+`KlopInventory.constOK` (every constant of the inventory is an element of its declared type
+with a realizing value), `eq_of_eqCand_toR`, `Sem.of_den_eq'`, `pat_core` (a redex
+`Eq.rec α a M m b (Eq.refl α' a')` with the semantic judgment and the head invariant denotes
+the same as `(fun α a M m => m) α a M m`: at a proposition both are `•`; otherwise the chain
+of the redex through the six binders of `Eq.rec` gives the arguments' memberships and that
+the value of the major premise, which reduces to `r`, realizes `eqCand α a b`, so the
+endpoints are identical and `recBody` returns the minor premise), `eqRecRule_rhs_instL`, and
+`KlopInventory.sem_pat_core` (from `pats_only` and `SimplePattern.iotaRHS_apply_of_matches`).
+
+`Fundamental.lean`: `KlopInventory.sem_pat` is proved; `KlopInventory.sound` has no open case.
+
+`#print axioms not_weakN_iff_of_tower`: `propext`, `Classical.choice`, `Quot.sound`.
+The statement proved is: for every `UniverseTower`, the statement of `IsDefEqU.weakN_iff` is
+false. `IsDefEqU.weakN_iff` in `UniqueTyping.lean` is unchanged and still `sorry`.

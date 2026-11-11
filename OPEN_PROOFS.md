@@ -60,22 +60,25 @@ confluence theorem. The obligation holds in every normalising fragment; no count
 canonical `Eq` is known, and a counterexample would itself be a pair of propositions typed and
 inhabited below whose lifts are convertible above but not below.
 
-**Counterexample candidate (2026-11-11), not established.** The statement may be false even with
-canonical `Eq`, for environments with a looping `mutualDef`. `Eq.rec` at a constant motive is a
-non-left-linear rule (`@Eq.rec T a (fun _ _ => T) E b h ≡ E` exactly when `a ≡ b`), so Klop's
-non-confluence example applies: with axioms `T : Type`, `E : T`, `P : Prop`,
+**Counterexample (2026-11-11), machine-checked given a universe tower.** The statement is false
+even with canonical `Eq`, for environments with a looping `mutualDef`. `Eq.rec` at a constant
+motive is a non-left-linear rule (`@Eq.rec T a (fun _ _ => T) E b h ≡ E` exactly when `a ≡ b`),
+so Klop's non-confluence example applies: with axioms `T : Type`, `E : T`, `P : Prop`,
 `H : ∀ x y : T, x = y` and looping definitions `C x := Eq.rec E (H x (C x))` (endpoints `x` and
 `C x`) and `Fix p := C (Fix p)`, a hypothesis `z : P` gives the fixed point `Fix z`, hence
-`Fix z ≡ E` and `C E ≡ E`, while in the empty context `C E ≡ E` supports itself and nothing
-grounds it. `Theory/Typing/Strengthening/KlopCounterexample.lean` checks that such a
-well-formed environment with canonical `Eq` exists (`exists_klopEnv`), that `[P] ⊢ C E ≡ E`
-(`KlopEnv.above`), and that the statement fails given non-derivability in the empty context
-(`KlopEnv.not_strengthening`). Non-derivability in the empty context has a paper argument
-(`FIRST_PRINCIPLES.md` §20 to §23: a set model with truth-valued `Prop`, proof values and
-realizer sets) reached after five refuted models; three independent reviews did not break it,
-one construction in it is unwritten, and none of it is machine-checked. So the statement is
-probably false as it stands, and not established to be. The example needs a looping definition; a
-statement restricted to environments without `mutualDef` is not refuted by it.
+`Fix z ≡ E` and `C E ≡ E`, while `C E ≡ E` is not derivable in the empty context.
+`Theory/Typing/Strengthening/KlopCounterexample.lean` checks the derivation above the binder
+(`KlopEnv.above`) and that the statement fails given non-derivability below
+(`KlopEnv.not_strengthening`). `Theory/Typing/Strengthening/KlopSeparation/` builds a minimal
+well-formed environment with canonical `Eq` and exactly these declarations
+(`exists_minimalKlopEnv`), a model of it in a `UniverseTower` (an applicative set theory with
+a Π-closed universe per level), and the fundamental theorem `KlopInventory.sound`; the model
+gives `C E` and `E` different denotations. The result is `not_weakN_iff_of_tower`: for every
+`UniverseTower`, the statement of `IsDefEqU.weakN_iff` is false. It has no `sorry` and uses
+the axioms `propext`, `Classical.choice`, `Quot.sound`. No `UniverseTower` is constructed in
+Lean; its existence is the set-theoretic assumption (one inaccessible cardinal per level).
+The example needs a looping definition; a statement restricted to environments without
+`mutualDef` is not refuted by it.
 
 **Fresh replay.** The executable keeps its caches across binders unconditionally, as the C++
 kernel does, so every binder exit of the checker moves cache facts with this theorem, whichever

@@ -26258,3 +26258,11 @@ delta.
 | Assemblies with modest sets for small types | **Does not help.** Modest sets are closed under products over arbitrary assemblies, but the non-modest types of each level (the previous universe and function types over it) still need a Π-closed set of assemblies. |
 | Countable model with types as terms | **Open; unchanged.** Impredicative `Prop` then needs semantic valuations for proposition variables while data variables are closed terms; I have not found a formulation that keeps the checks of §22 to §26. |
 | Conclusion | Every formalisable version found so far needs one new lemma of logical-relations size (tameness of definable families, or the countable model's fundamental theorem) before the model of §22 can even be stated in Lean. |
+
+## 2026-11-11 UTC: the separation is machine-checked given a tower
+
+| Idea | Outcome |
+|---|---|
+| Set model in a `UniverseTower` with truth-valued `Prop`, untyped proof values, realizer candidates, and a head invariant on constant-headed spines | **Checked in Lean** (`Strengthening/KlopSeparation/`). `KlopInventory.sound` covers every rule of `IsDefEqStrong`; the ι rule (`pat_core`) uses the head invariant to get that the value `r` of the major premise realizes the equation of the redex's endpoints. |
+| `weakN_iff` under canonical `Eq` | **Refuted given a `UniverseTower`**: `not_weakN_iff_of_tower`, no `sorry`, axioms `propext`, `Classical.choice`, `Quot.sound`. |
+| Construct a `UniverseTower` in Lean | **Not done.** Needs a set theory with a Π-closed universe per level; Lean's own universes are the natural source, but the tower's objects live in one type. |
