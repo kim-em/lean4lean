@@ -43834,3 +43834,14 @@ Checked, no `sorry` besides `KlopInventory.sound`.
 
 Next: `mkPi` respects `~`; `mkApp` and `mkLam` respect the relations; then the rule cases
 for Π, λ and application.
+
+## 2026-11-11 UTC: Π formation and application respect the coarse relations
+
+`PiLemmas.lean` (checked, no `sorry`): `ValidAny.isCand_iff`, `ValidAny.isCand_congr`,
+`nonempty_congr`, `mkPi_tyRel` (Π formation maps coarsely related domains and fibres to
+coarsely related types, in all cases of `mkPi`), and `mkApp_rel` (coarsely related elements
+of a Π-type applied to coarsely related arguments give coarsely related results).
+
+Lemmas still to do before the Π/λ/application rule cases: `mkLam` respects the relations;
+membership of `mkPi` in the right universe (`U`-closure of `tPi`, `tPiP`); proof values under
+substitution.

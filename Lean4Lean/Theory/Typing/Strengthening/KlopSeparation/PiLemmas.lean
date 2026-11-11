@@ -175,6 +175,62 @@ theorem mkPi_tyRel {n : Nat} {D D' : 𝕋.S} {F F' : 𝕋.S → 𝕋.S}
       rw [if_neg hall, if_neg hall', TyRel, skel_tPi, skel_tPi, ← hEl, hDD',
         𝕋.lam_ext fun d hd => hFF' d hd]
 
+/-! ### Application respects the coarse relations -/
+
+/-- **Application respects the coarse relations.** Coarsely related elements of a Π-type
+applied to coarsely related arguments give coarsely related results. -/
+theorem mkApp_rel {n : Nat} {D g g' x x' : 𝕋.S} {F : 𝕋.S → 𝕋.S}
+    (hF : ∀ d, d ∈ₛ 𝕋.El D → 𝕋.ValidAny (𝕋.univList n) (F d))
+    (hg : g ∈ₛ 𝕋.El (𝕋.mkPi D F)) (hgg' : 𝕋.Rel (𝕋.mkPi D F) g g')
+    (hx : x ∈ₛ 𝕋.El D) (hxx' : 𝕋.Rel D x x') :
+    𝕋.Rel (F x) (𝕋.mkApp g x) (𝕋.mkApp g' x') := by
+  have hres := mkApp_mem hg hx
+  have hper := (hF x hx).isPER
+  unfold mkPi at hg hgg'
+  split at hg
+  · rename_i hDc
+    have hDeq := isCand_eq hDc
+    have hxs : x = 𝕋.star := by rw [hDeq] at hx; exact (𝕋.mem_El_cand.1 hx).1
+    have hne : ∃ v, (𝕋.candOf D).mem v := by rw [hDeq] at hx; exact (𝕋.mem_El_cand.1 hx).2
+    have hxs' : x' = 𝕋.star := by
+      rw [hDeq] at hxx' hx
+      exact (𝕋.mem_El_cand.1 ((rel_cand hx).1 hxx')).1
+    rw [if_pos hDc, if_pos hne] at hgg'
+    rw [if_pos hne] at hg
+    subst hxs hxs'
+    split at hg
+    · rename_i hFc
+      rw [if_pos hFc] at hgg'
+      have hg's := (𝕋.mem_El_cand.1 ((rel_cand hg).1 hgg')).1
+      have hgs := (𝕋.mem_El_cand.1 hg).1
+      subst hg's hgs
+      exact hper.refl _ hres
+    · rename_i hFc
+      rw [if_neg hFc] at hgg'
+      obtain ⟨hg', hr⟩ := (rel_tPiP_iff hg).1 hgg'
+      rw [mkApp, if_neg (ne_star_of_mem_tPiP hg), mkApp, if_neg (ne_star_of_mem_tPiP hg')]
+      exact hr
+  · rename_i hDc
+    rw [if_neg hDc] at hgg'
+    split at hg
+    · rename_i hall
+      rw [if_pos hall] at hgg'
+      have hg's := (𝕋.mem_El_cand.1 ((rel_cand hg).1 hgg')).1
+      have hgs := (𝕋.mem_El_cand.1 hg).1
+      subst hg's hgs
+      have : 𝕋.mkApp 𝕋.star x' = 𝕋.mkApp 𝕋.star x := by simp [mkApp]
+      rw [this]
+      exact hper.refl _ hres
+    · rename_i hall
+      rw [if_neg hall] at hgg'
+      obtain ⟨hg', hr⟩ := (rel_tPi_iff hg).1 hgg'
+      rw [mkApp, if_neg (ne_star_of_mem_tPi hg), mkApp, if_neg (ne_star_of_mem_tPi hg')]
+      obtain ⟨f', rfl, -, hresp⟩ := mem_El_tPi.1 hg'
+      have h2 : 𝕋.Rel (F x) (𝕋.ap (𝕋.pair (𝕋.tagN 104) f') x) (𝕋.ap (𝕋.pair (𝕋.tagN 104) f') x') := by
+        simp only [ap, snd_pair]
+        exact hresp x x' hx hxx'
+      exact hper.trans _ _ _ (ap_mem_of_mem_tPi hg hx) (hr x hx) h2
+
 end UniverseTower
 end VEnv.Strengthening
 end Lean4Lean
