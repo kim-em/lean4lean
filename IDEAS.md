@@ -26170,3 +26170,15 @@ delta.
 | Hereditary certificates, staged permissions, `FamilyCertificateCoverage` | **Refuted.** With a closed fixed point `A := C A` in the environment, `C E ≡ E` is derivable through `A` in a single context and has no well-founded join: the guard of the only available singleton step is the equation itself. |
 | "A self-supporting cycle cannot be grounded above only" (first pass, §2) | **Wrong.** Transitivity through a middle term that exists only above grounds it. |
 | Restrict the statement to environments without `mutualDef` | **Open, not refuted.** The counterexample needs a definitional fixed point. |
+
+## 2026-11-11 UTC: routes to a machine-checked separation (`KlopEnv.Separated`)
+
+| Route | Verdict |
+| --- | --- |
+| Existing confluence, rigidity, head-injectivity or uniqueness theorems | **Cannot work.** Each holds in every context, and `C E ≡ E` is derivable in `[P]`. A proof must use that `P` has no closed proof. |
+| Existing observation model (`HeadInjectivity/Model`) | **Cannot work.** Its classes are declarative equivalence classes in the target context, so whether the proof major of the `Eq.rec` is in the class of a constructor is the question itself. Same finding as route B. |
+| Confluence join plus a syntactic value function on closed terms of type `T` | **Circular.** The guard of the only singleton step out of `C E` is `E ≡ C E`. |
+| `Interpretation` into an environment where `T` has three constructors and `C` is the successor | **Refuted.** The interpreting term for the recursor must be uniform in the motive, so its off-diagonal value cannot be `a + 1` at `T` and a transport elsewhere; with a uniform value `C` gets a fixed point. |
+| Erase to an untyped calculus and separate there | **Refuted.** The untyped calculus has a fixed-point combinator, so `C E = E` holds there. |
+| Set model of §8 in Lean | **Obstructed by universe size.** Full function spaces force each universe above the first to be closed like an inaccessible. Lean provides `n` of these only for external `n`, and a derivation may mention any level. A rank bound for definable families might repair it; not worked out. |
+| Term model: types as pairs of partial equivalence relations on closed terms (identity and propositional), defined as one inductive predicate over all levels, with an evaluation relation in which a stuck `Eq.rec` at `T` with distinct endpoints evaluates to the successor | **Feasible in principle, large.** No size problem, since functions are terms. Needs: a concrete well-formed base environment containing exactly `Eq` (the repository obtains `HasCanonicalEq` only through the checker verification, which depends on the open `sorry`); the evaluation relation; the type system and its functionality; soundness of every `IsDefEq` rule. Comparable in size to the existing observation model. Not started. |
