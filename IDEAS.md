@@ -26200,3 +26200,8 @@ delta.
 | Code model of §11 (all proofs `⋆`, four proposition codes, hereditary `Sem`) | **Refuted as a proof.** `Sem` is not functional once Π-propositions collapse; adding the equation `(∀ a : T, a = a) ≡ (∀ x : T, x = E)` is validated by the model and makes `pat` unsound, so no model with a small `Prop` can prove the separation. |
 | Separation `[] ⊬ C E ≡ E` | **Open conjecture.** Needs a realizability or syntactic argument that knows a proof built from `Eq.refl` has identical endpoints and still validates proof irrelevance (the transport witness of §10). None found. |
 | `weakN_iff` under canonical `Eq` | **Neither proved nor refuted.** Earlier ledger entries that say "refuted, subject to the paper separation" should be read with this. |
+
+| Third review (2026-11-11) | Verdict |
+| --- | --- |
+| Proof-insensitive term model of §13 | **Not a proof; gap located.** Values and all rule cases checked by the reviewer pass, two defects have local repairs, and one is open: a fine equality of propositions that is definable under impredicative quantification (`FIRST_PRINCIPLES.md` §14, F2). |
+| Two-layer definition: truth and membership from a truth-only model, fine equality by positive recursion at declaratively typed closed instances | **Open, not validated.** Risk: the proof that conversion respects it may need the theorem itself for the instances. |

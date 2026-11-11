@@ -717,3 +717,42 @@ type level, η); whether "behaves as its minor premise" for `α ≠ T` is compat
 relatedness when the endpoints are coarsely but not finely related; the treatment of
 partially applied `Eq`, `Eq.refl`, `Eq.rec` and of η; whether `Sem` is stable under the
 substitution used in the `beta` case.
+
+## 14. Third review: where the proof of the separation is missing (2026-11-11)
+
+The review of §13 found no derivable equation contradicting `Val (C E) = 1`, `Val E = 0`, and
+no extension equation of the §12 kind that the non-`pat` clauses accept. Probes on `Eq.rec`
+away from `T`, on non-`T` fibres, the §10 witness, η, `extra`, `proofIrrel` and partial
+applications pass. Three defects:
+
+* **F1, repairable.** `Val` tests "`α` head-reduces to `T`" by β only, while the types
+  identify an `Eq.rec` used as a type with its minor premise. With
+  `α₁ := @Eq.rec T (C E) (fun _ _ => Type) T E (H (C E) E)` the generic
+  `fun X a b h m => @Eq.rec X a (fun _ _ => T) m b h` is not finely self-related. Repair: the
+  head reduction of types used by `Val` includes `Eq.rec … m … args ⇝ m args`.
+* **F3, repairable.** `Sem` is not a recursion on closed terms (the abstraction clause is
+  not structurally smaller and is negative in `Sem`). Repair: define it on open terms with a
+  valuation assigning each variable a closed term and a closed type, binders quantifying over
+  members; it must also record membership of each argument.
+* **F2, open.** The type interpretation is not an inductive definition. Fine type equality
+  cannot be structural (`(∀ z : P, C E = E) ≡ (∀ z : P, C E = C E)` is derivable, so fibres
+  are compared only over members), and with that clause the equality of `∀ X : Prop, B` and
+  `∀ X : Prop, B'` quantifies negatively over the relation being defined. Levels do not
+  stratify it: `∀ X : Type, (X → T) → E = E` is at level 0 and quantifies over level 1, which
+  contains `(∀ X : Prop, X) → T`.
+
+So the missing piece of the separation is one definition: **a fine equality of propositions,
+strong enough that `@Eq T a b` and `@Eq T a' b'` are equal only when the values agree and that
+Π-propositions determine their fibres, sound for conversion, and definable in the presence of
+impredicative quantification.** Truth of propositions is not the problem (it can be taken
+from the standard proof-irrelevant set model in which `T` is a point and `P` is empty).
+
+A candidate, not validated: take membership and the coarse data from a first model in which
+propositions are compared by truth only, and define the fine equality afterwards by a
+positive recursion whose Π clause compares fibres at the same closed, declaratively
+well-typed argument on both sides. The proof that conversion respects it then needs every
+valuation to consist of declaratively well-typed closed terms and to be related to itself,
+and I have not checked that this closes without assuming the theorem being proved.
+
+Status: `[] ⊬ C E ≡ E` remains a conjecture; three reviews found nothing against it and
+located the gap in its proof at F2.
