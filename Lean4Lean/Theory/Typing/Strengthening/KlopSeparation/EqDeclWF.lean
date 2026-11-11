@@ -118,5 +118,52 @@ theorem eqDecl_source : eqDecl.SourceWF .empty := by
     subst ctor
     exact eqCtorTyping
 
+/-- The common parameter telescope `(α : Sort u) (a : α)`. -/
+def eqParams : List VExpr := [.sort (.param 0), .bvar 0]
+
+/-- `@Eq α a a` under the parameters. -/
+def eqReflResult : VExpr :=
+  .app (.app (.app (.const ``Eq [.param 0]) (.bvar 1)) (.bvar 0)) (.bvar 0)
+
+theorem eqParamsDefEq {env : VEnv} : eqDecl.ParamsDefEq env eqParams eqParams := by
+  have hp : (VLevel.param 0).WF 1 := by decide
+  exact .succ (.succ .zero (.sortDF hp hp rfl)) (.bvar .zero)
+
+theorem eqReflResultTyping :
+    eqTypesEnv.HasType 1 [.bvar 0, .sort (.param 0)] eqReflResult (.sort .zero) :=
+  eqAppTyping (by simp [eqTypesEnv]) (by decide) (.bvar (.succ .zero)) (.bvar .zero)
+    (.bvar .zero)
+
+theorem eqReflResult_valid : eqDecl.ValidIndAppAt (some ``Eq) 0 eqReflResult := by
+  simp [VInductDecl.ValidIndAppAt, VExpr.getAppFnArgs, eqDecl, eqType, eqReflResult,
+    VExpr.getAppFnArgs.go, VInductDecl.paramVars]
+  exact ⟨by decide, .bvar 0⟩
+
+theorem eqFormation : VInductDecl.OrdinaryFormationWF .empty eqDecl := by
+  have hp : (VLevel.param 0).WF 1 := by decide
+  refine ⟨eqParams, .zero, eqTypesEnv, addEqTypes, ?_, ?_, ?_⟩
+  · intro type hmem
+    simp [eqDecl] at hmem
+    subst type
+    refine ⟨rfl, canonicalEqType, eqParams, .forallE (.bvar 1) (.sort .zero), [.bvar 1],
+      .sort .zero, _, eqTypeTyping (by decide) [], rfl, rfl, eqParamsDefEq, ?_⟩
+    exact .sortDF trivial trivial rfl
+  · intro type htype ctor hctor
+    simp [eqDecl] at htype
+    subst type
+    simp [eqType] at hctor
+    subst ctor
+    refine ⟨⟨eqParams, eqReflResult, rfl, eqParamsDefEq⟩, ?_⟩
+    refine ⟨canonicalEqReflType, eqParams, eqReflResult, _, eqParams.reverse,
+      eqCtorTyping.choose_spec, rfl, eqParamsDefEq, eqParamsDefEq, ?_⟩
+    exact .result eqReflResult_valid eqReflResultTyping
+  · intro type htype ctor hctor
+    simp [eqDecl] at htype
+    subst type
+    simp [eqType] at hctor
+    subst ctor
+    refine ⟨eqParams, eqReflResult, rfl, by simp [eqDecl, eqParams], ?_, rfl⟩
+    exact eqReflResult_valid.raw
+
 end VEnv.Strengthening
 end Lean4Lean
