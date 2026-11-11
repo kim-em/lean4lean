@@ -492,5 +492,91 @@ theorem eqCompiles : eqDecl.CompilesTo .empty eqBlock :=
         VInductDecl.typeConstants, VInductDecl.constructorConstants,
         InductiveSignature.Instance.recursor, eqInstance])
 
+/-! ### The full judgment -/
+
+theorem eqRecsOf : eqDecl.RecsOf eqBlock where
+  recursors := rfl
+  rules := by
+    intro r hr ru hru
+    simp only [eqDecl, List.mem_singleton] at hr
+    subst r
+    simp only [eqVRec, List.mem_singleton] at hru
+    subst ru
+    exact ⟨eqRule, List.mem_singleton_self _, rfl, rfl, rfl, _, rfl, rfl, rfl⟩
+  rules_total := by
+    intro df hdf
+    simp only [eqBlock, List.mem_singleton] at hdf
+    subst df
+    exact ⟨eqVRec, List.mem_singleton_self _, eqRecRule, List.mem_singleton_self _,
+      rfl, rfl, rfl, _, rfl, rfl, rfl⟩
+
+theorem addEqTypesCtors : eqDecl.addTypesCtors .empty = some eqCtorsEnv := by
+  simp only [VInductDecl.addTypesCtors, VInductDecl.addTypes_eq_addConstVals, addEqTypes,
+    Option.bind_eq_bind, Option.bind_some, VInductDecl.addCtors_eq_addConstVals,
+    addEqConstructors]
+
+theorem addEqTypesCtorsProjs : eqDecl.addTypesCtorsProjs .empty = some eqProjEnv := by
+  simp only [VInductDecl.addTypesCtorsProjs, addEqTypesCtors, Option.map_some]
+  rfl
+
+theorem addEqTypesCtorsProjsRecs : eqDecl.addTypesCtorsProjsRecs .empty = some eqRecsEnv := by
+  simp only [VInductDecl.addTypesCtorsProjsRecs, addEqTypesCtorsProjs, Option.bind_eq_bind,
+    Option.bind_some]
+  simpa [VInductDecl.addRecs, eqDecl, eqBlock, VEnv.addConstVals, eqVRec] using
+    addEqRecursor
+
+/-- The rule of `Eq.rec` is a typed ι rule of the recursor-stage environment. -/
+theorem eqRulePatTyped (hc : eqRecRule.rhs.Closed) :
+    eqRecsEnv.PatTyped
+      (SimplePattern.iota ``Eq.rec (2 + 1 + 1 + 1) ``Eq.refl (2 + 0)).toPattern
+      (SimplePattern.iotaRHS' ``Eq.rec ``Eq.refl 4 1 2 0 eqRecRule.rhs hc, .true) := by
+  have h0 : (VLevel.param 0).WF 2 := by decide
+  have h1' : (VLevel.param 1).WF 2 := by decide
+  let recArgs : List VExpr := [.bvar 3, .bvar 2, .bvar 1, .bvar 0, .bvar 2]
+  let ctorArgs : List VExpr := [.bvar 3, .bvar 2]
+  have h1 : recArgs.length = 4 + 1 := rfl
+  have h2 : ctorArgs.length = 2 + 0 := rfl
+  obtain ⟨g1, hm1, hg1⟩ := Pattern.matches_varN_const (c := ``Eq.rec)
+    (ls := [.param 0, .param 1]) _ _ h1
+  obtain ⟨g2, hm2, hg2⟩ := Pattern.matches_varN_const (c := ``Eq.refl) (ls := [.param 1]) _ _ h2
+  have hpaths := SimplePattern.iotaPaths_map (m2 := Sum.elim g1 g2) h1 h2 hg1 hg2
+  have happ := SimplePattern.iotaRHS'_apply ``Eq.rec ``Eq.refl 4 1 2 0 eqRecRule.rhs hc
+    (VLevel.params 2)
+    (Sum.elim g1 g2) h1 h2 hg1 hg2
+  refine ⟨2, eqRuleCtx [], _, Sum.elim g1 g2,
+    .app (.app (.bvar 1) (.bvar 2))
+      (.app (.app (.const ``Eq.refl [.param 1]) (.bvar 3)) (.bvar 2)),
+    .app hm1 hm2, ?_, ?_, ?_⟩
+  · exact Pattern.RHS.generic_foldl_var (hpaths.trans rfl)
+  · exact eqRecRedexTyping (Γ := []) eqRecsEnv_refl eqRecsEnv_rec h0 h1'
+  · dsimp only
+    rw [happ]
+    have hlam : eqRecsEnv.HasType 2 (eqRuleCtx []) eqRecRule.rhs eqRule.type :=
+      .lamDF (.sortDF h1' h1' rfl) (.lamDF (.bvar .zero)
+        (.lamDF (eqRecMotiveTyping eqRecsEnv_Eq h0 h1') (.lamDF (eqRecMinorTyping eqRecsEnv_refl h1')
+          eqRuleMinorVar)))
+    have hα : eqRecsEnv.HasType 2 (eqRuleCtx []) (.bvar 3) (.sort (.param 1)) :=
+      .bvar (.succ (.succ (.succ .zero)))
+    have ha : eqRecsEnv.HasType 2 (eqRuleCtx []) (.bvar 2) (.bvar 3) :=
+      .bvar (.succ (.succ .zero))
+    have hM : eqRecsEnv.HasType 2 (eqRuleCtx []) (.bvar 1)
+        (.forallE (.bvar 3) (.forallE
+          (.app (.app (.app (.const ``Eq [.param 1]) (.bvar 4)) (.bvar 3)) (.bvar 0))
+          (.sort (.param 0)))) := by
+      have := HasType.bvar (env := eqRecsEnv) (U := 2)
+        (Lookup.succ (A := canonicalEqRecMinor)
+          (Lookup.zero (ty := canonicalEqRecMotive) (Γ := [.bvar 0, .sort (.param 1)])))
+      simpa [eqRuleCtx, canonicalEqRecMotive, VExpr.lift, VExpr.liftN, liftVar] using this
+    have s1 := HasType.app_dom' (A := .sort (.param 1))
+      (by simpa [eqRule_eq, canonicalEqRecRule] using hlam) rfl hα
+    simp only [VExpr.inst, VExpr.instVar, canonicalEqRecMotive, canonicalEqRecMinor] at s1
+    have s2 := HasType.app_dom' (A := .bvar 3) (by simpa using s1) rfl ha
+    simp only [VExpr.inst, VExpr.instVar, VExpr.liftN, liftVar] at s2
+    have s3 := HasType.app_dom' (by simpa using s2) rfl hM
+    simp only [VExpr.inst, VExpr.instVar, VExpr.liftN, liftVar] at s3
+    have s4 := HasType.app_dom' (by simpa using s3) rfl (eqRuleMinorVar (Γ := []))
+    simp only [VExpr.inst, VExpr.instVar, VExpr.liftN, liftVar] at s4
+    exact s4
+
 end VEnv.Strengthening
 end Lean4Lean
