@@ -341,6 +341,69 @@ theorem mkPi_mem_sortDen {u v : VLevel} {D : 𝕋.S} {F : 𝕋.S → 𝕋.S}
     rw [hv] at this
     exact (mem_El_univ.1 this).2.2 hdc
 
+/-- The fibres of a binder, from the semantic judgment of its body: they are elements of the
+sort, agree on both sides, and respect the coarse relation. -/
+theorem Sem.fibres {Γ : List VExpr} {A B B' : VExpr} {v : VLevel}
+    (HB : 𝕋.Sem (A :: Γ) B B' (.sort v)) {ρ : Nat → 𝕋.S} {w : Nat → PVal}
+    (hρ : 𝕋.ValOK Γ ρ w) (hAty : 𝕋.IsSemTy (𝕋.den ρ A)) :
+    (∀ d, 𝕋.mem d (𝕋.El (𝕋.den ρ A)) →
+      𝕋.mem (𝕋.den (𝕋.cons d ρ) B) (𝕋.El (𝕋.sortDen v)) ∧
+      𝕋.den (𝕋.cons d ρ) B = 𝕋.den (𝕋.cons d ρ) B') ∧
+    ∀ d d', 𝕋.mem d (𝕋.El (𝕋.den ρ A)) → 𝕋.Rel (𝕋.den ρ A) d d' →
+      𝕋.TyRel (𝕋.den (𝕋.cons d ρ) B) (𝕋.den (𝕋.cons d' ρ) B) := by
+  obtain ⟨n, hAv⟩ := hAty
+  refine ⟨fun d hd => ?_, fun d d' hd hdd' => ?_⟩
+  · obtain ⟨u', hu'⟩ := exists_valOK_cons hρ ⟨n, hAv⟩ hd
+    obtain ⟨-, heq, hm, -⟩ := HB _ _ hu'
+    exact ⟨hm, heq⟩
+  · have hd' := hAv.isPER.mem _ _ hd hdd'
+    obtain ⟨u₁, h₁⟩ := exists_valOK_cons hρ ⟨n, hAv⟩ hd
+    obtain ⟨u₂, h₂⟩ := exists_valOK_cons hρ ⟨n, hAv⟩ hd'
+    obtain ⟨-, -, hm, -, hrel⟩ := HB _ _ h₁
+    have := (hrel _ _ h₂ (coRel_cons (coRel_refl hρ) rfl hdd')).2
+    exact (tyRel_of_rel_sortDen hm this).2
+
+/-- The Π rule (`IsDefEqStrong.forallEDF`). -/
+theorem Sem.forallE {Γ : List VExpr} {A A' B B' : VExpr} {u v : VLevel}
+    (HA : 𝕋.Sem Γ A A' (.sort u)) (HB : 𝕋.Sem (A :: Γ) B B' (.sort v)) :
+    𝕋.Sem Γ (.forallE A B) (.forallE A' B') (.sort (.imax u v)) := by
+  have key : ∀ ρ w, 𝕋.ValOK Γ ρ w →
+      𝕋.mem (𝕋.den ρ (.forallE A B)) (𝕋.El (𝕋.sortDen (.imax u v))) := by
+    intro ρ w hρ
+    obtain ⟨-, -, hAm, -, -⟩ := HA ρ w hρ
+    obtain ⟨hfib, hrel⟩ := HB.fibres hρ (isSemTy_of_mem_sortDen hAm)
+    exact mkPi_mem_sortDen hAm (fun d hd => (hfib d hd).1) hrel
+  intro ρ w hρ
+  obtain ⟨-, hAA', hAm, -, hAr⟩ := HA ρ w hρ
+  have hAty : 𝕋.IsSemTy (𝕋.den ρ A) := isSemTy_of_mem_sortDen hAm
+  obtain ⟨hfib, hrel⟩ := HB.fibres hρ hAty
+  refine ⟨isSemTy_sortDen _, ?_, key ρ w hρ, fun hc => (not_isCand_sortDen _ hc).elim, ?_⟩
+  · show 𝕋.mkPi _ _ = 𝕋.mkPi _ _
+    rw [← hAA']
+    exact mkPi_congr fun d hd => (hfib d hd).2
+  · intro ρ' w' hρ' hr
+    refine ⟨rfl, rel_sortDen_of_tyRel (key ρ w hρ) (key ρ' w' hρ') ?_⟩
+    obtain ⟨-, -, hAm', -, -⟩ := HA ρ' w' hρ'
+    have hAty' : 𝕋.IsSemTy (𝕋.den ρ' A) := isSemTy_of_mem_sortDen hAm'
+    obtain ⟨hfib', -⟩ := HB.fibres hρ' hAty'
+    have hTA : 𝕋.TyRel (𝕋.den ρ A) (𝕋.den ρ' A) :=
+      (tyRel_of_rel_sortDen hAm (hAr ρ' w' hρ' hr).2).2
+    let N := max (sortLv u) (sortLv v)
+    have hDv : 𝕋.ValidAny (𝕋.univList N) (𝕋.den ρ A) :=
+      (mem_sortDen hAm).1.mono (Nat.le_max_left ..)
+    have hDv' : 𝕋.ValidAny (𝕋.univList N) (𝕋.den ρ' A) :=
+      (mem_sortDen hAm').1.mono (Nat.le_max_left ..)
+    have hsame := hDv.tyRel_same hDv' hTA
+    refine mkPi_tyRel hDv hDv' hTA
+      (fun d hd => (mem_sortDen (hfib d hd).1).1.mono (Nat.le_max_right ..))
+      (fun d hd => (mem_sortDen (hfib' d hd).1).1.mono (Nat.le_max_right ..)) fun d hd => ?_
+    have hd' : 𝕋.mem d (𝕋.El (𝕋.den ρ' A)) := hsame.1 ▸ hd
+    obtain ⟨u₁, h₁⟩ := exists_valOK_cons hρ hAty hd
+    obtain ⟨u₂, h₂⟩ := exists_valOK_cons hρ' hAty' hd'
+    obtain ⟨-, -, hm, -, hrelB⟩ := HB _ _ h₁
+    have := (hrelB _ _ h₂ (coRel_cons hr hTA (hDv.isPER.refl _ hd))).2
+    exact (tyRel_of_rel_sortDen hm this).2
+
 end UniverseTower
 
 /-- **Open obligation: the fundamental theorem of the model.** In an environment with the

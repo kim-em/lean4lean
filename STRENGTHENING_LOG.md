@@ -43873,3 +43873,13 @@ fibres are propositions is a proposition), `mkPi_full` (a Π-proposition whose p
 fibres are full is the full candidate).
 
 These are the last lemmas needed before the Π rule case (`forallEDF`).
+
+## 2026-11-11 UTC: the Π rule case
+
+`Sound.lean` (checked; only `KlopInventory.sound` is a `sorry`): `isSemTy_sortDen`,
+`not_isCand_sortDen`, `rel_sortDen_of_tyRel`, `coRel_cons`, `coRel_refl`, `mkPi_of_empty`,
+`full_mem_sortDen`, `mkPi_mem_sortDen` (a Π over a domain in `⟦Sort u⟧` with fibres in
+`⟦Sort v⟧` respecting `~` is an element of `⟦Sort (imax u v)⟧`), `Sem.fibres`, and
+`Sem.forallE`, the `forallEDF` case.
+
+Rule cases proved: `bvar`, `symm`, `trans`, `defeqDF`, `sortDF`, `appDF`, `forallEDF`.
