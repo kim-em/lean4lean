@@ -26182,3 +26182,14 @@ delta.
 | Erase to an untyped calculus and separate there | **Refuted.** The untyped calculus has a fixed-point combinator, so `C E = E` holds there. |
 | Set model of §8 in Lean | **Obstructed by universe size.** Full function spaces force each universe above the first to be closed like an inaccessible. Lean provides `n` of these only for external `n`, and a derivation may mention any level. A rank bound for definable families might repair it; not worked out. |
 | Term model: types as pairs of partial equivalence relations on closed terms (identity and propositional), defined as one inductive predicate over all levels, with an evaluation relation in which a stuck `Eq.rec` at `T` with distinct endpoints evaluates to the successor | **Feasible in principle, large.** No size problem, since functions are terms. Needs: a concrete well-formed base environment containing exactly `Eq` (the repository obtains `HasCanonicalEq` only through the checker verification, which depends on the open `sorry`); the evaluation relation; the type system and its functionality; soundness of every `IsDefEq` rule. Comparable in size to the existing observation model. Not started. |
+
+## 2026-11-11 UTC: state of every route after the counterexample
+
+| Route | Verdict |
+| --- | --- |
+| Prove `weakN_iff` under canonical `Eq` for all well-formed environments | **Refuted**, subject to the paper separation of `FIRST_PRINCIPLES.md` §8 (Klop environment). |
+| Stage-indexed confluence, hereditary certificates, `FamilyCertificateCoverage` | **Refuted** by the same environment with a closed fixed point. Not open. |
+| Term model on raw terms (`KlopModel/Red.lean`, `Val.lean`) for the separation | **Refuted** by the transport witness of §10: proof irrelevance changes the raw major premise. |
+| Type-directed relational semantics over closure values for the separation | **Open, no validated design.** Whether a binder's domain is a proposition is a semantic fact, so the interpretation of terms and types must be defined together. |
+| Independent review of the set model | **In progress** (a separate reviewer agent, adversarial brief). |
+| Statement restricted to environments without `mutualDef` | **Open.** The Klop example needs a definitional fixed point at a data type. Known non-termination without recursive definitions (Abel and Coquand, impredicative `Prop` with proof-irrelevant casts) loops inside proofs only, which definitional equality already ignores; I do not see how to obtain a data-level fixed point from it, and have no proof that none exists. |
