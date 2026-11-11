@@ -1,12 +1,12 @@
 # Strengthening under canonical `Eq`: a first-principles assessment (2026-11-10)
 
-Outcome (updated 2026-11-11): **a candidate counterexample**, in §7. In a well-formed
-environment with canonical `Eq` and two looping `mutualDef`s, `C E ≡ E` is derivable under a
-hypothesis `z : P` (machine-checked). That it is not derivable without the hypothesis is
-argued by a model. The model of §8 was found ill-defined by an independent review; §11 gives
-a repaired model that has not been reviewed. Sections 1 to 6 record the analysis that led
-there; where they say the statement is probably true, §7 supersedes them. The reduction of §1
-is checked and stands.
+Outcome (updated 2026-11-11): **neither proved nor refuted.** There is a candidate
+counterexample (§7): in a well-formed environment with canonical `Eq` and two looping
+`mutualDef`s, `C E ≡ E` is derivable under a hypothesis `z : P` (machine-checked). That it is
+not derivable without the hypothesis is a conjecture: two models offered as proofs (§8, §11)
+were each found defective by independent review (§11, §12), the second for a structural
+reason. Sections 1 to 6 record the earlier analysis. The reduction of §1 is checked and
+stands.
 
 ## 1. A normal form of the problem (needs canonical `Eq`)
 
@@ -616,3 +616,40 @@ fibres are propositions at some arguments and data at others. It needs its own r
 it is relied on. Until then the counterexample is: larger-context half machine-checked,
 smaller-context half supported by a model that has been repaired twice and is not yet
 independently checked.
+
+## 12. Second review: the repaired model does not prove the separation (2026-11-11)
+
+A second independent review of §11 found the denotations consistent (no derivable equation
+with two values; `⟦C E⟧ = 1`, `⟦E⟧ = 0`) but the proof of soundness broken at the `pat` case,
+with no local repair.
+
+* **`Sem` is not functional over collapsed codes.** The type of `Eq.refl` and
+  `∀ a : T, a = a` both collapse to `⊤`, so `Sem(Eq.refl T (C E), R)` and
+  `Sem(Eq.refl T (C E), J)` both hold, and the code equality used in the `pat` case does not
+  follow.
+* **No completion over a small `Prop` can work.** Add to the environment the definitional
+  equation `(∀ a : T, a = a) ≡ (∀ x : T, x = E)`. Both sides denote `⊤`, and every clause of
+  the soundness proof other than `pat` still passes. But then `Eq.refl T (C E) : C E = E`, and
+  `pat` gives `@Eq.rec T (C E) (fun _ _ => T) E E (Eq.refl T (C E)) ≡ E`, where the model says
+  `2`. A correct soundness proof must fail on that extension, so the model has to separate two
+  propositions that are the same element of its `Prop`.
+* **Uncollapsed formal types are not invariant under conversion**: a proposition passed
+  through a variable of type `Prop` loses its formal type, e.g. in
+  `(fun (F : Prop → Prop) (k : F (∀ a : T, a = a)) => k) (fun X => X) (Eq.refl T) (C E)`.
+* Π-proposition codes that remember their fibres are well-founded over domains built from `T`
+  and propositions, but not for `∀ α : Sort u, …` or `∀ X : Prop, …`: the foundation problem of
+  §8 again.
+
+So the obstruction is structural. To validate ι at a syntactic `Eq.refl` the model must know
+that a proof of `a = b` built from `Eq.refl` has identical endpoints; proof irrelevance and
+impredicativity force propositions to be small, and small propositions cannot carry that
+information. A set model with small propositions cannot prove the separation; what remains is
+a realizability or syntactic argument that also handles the transport witness of §10, and I
+have no such argument.
+
+**Status of the counterexample.** `[P] ⊢ C E ≡ E` is machine-checked. `[] ⊬ C E ≡ E` is a
+conjecture. The evidence for it: no derivation is visible (the only rule that makes the
+`Eq.rec` in `C E` compute needs `E ≡ C E` or a fixed point of `C`, and the only fixed points
+are `Fix p` for a proof `p` of the axiom `P`); two reviews found no equation refuting the
+intended denotations. That is not a proof. `weakN_iff` is therefore neither proved nor
+refuted.

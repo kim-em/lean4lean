@@ -26193,3 +26193,10 @@ delta.
 | Type-directed relational semantics over closure values for the separation | **Open, no validated design.** Whether a binder's domain is a proposition is a semantic fact, so the interpretation of terms and types must be defined together. |
 | Independent review of the set model | **In progress** (a separate reviewer agent, adversarial brief). |
 | Statement restricted to environments without `mutualDef` | **Open.** The Klop example needs a definitional fixed point at a data type. Known non-termination without recursive definitions (Abel and Coquand, impredicative `Prop` with proof-irrelevant casts) loops inside proofs only, which definitional equality already ignores; I do not see how to obtain a data-level fixed point from it, and have no proof that none exists. |
+
+| Review outcomes (2026-11-11) | Verdict |
+| --- | --- |
+| Set model of §8 (proof tokens `refl c`, function-valued proofs) | **Refuted as a proof.** `⟦Prop⟧` is a proper class and ill-founded. |
+| Code model of §11 (all proofs `⋆`, four proposition codes, hereditary `Sem`) | **Refuted as a proof.** `Sem` is not functional once Π-propositions collapse; adding the equation `(∀ a : T, a = a) ≡ (∀ x : T, x = E)` is validated by the model and makes `pat` unsound, so no model with a small `Prop` can prove the separation. |
+| Separation `[] ⊬ C E ≡ E` | **Open conjecture.** Needs a realizability or syntactic argument that knows a proof built from `Eq.refl` has identical endpoints and still validates proof irrelevance (the transport witness of §10). None found. |
+| `weakN_iff` under canonical `Eq` | **Neither proved nor refuted.** Earlier ledger entries that say "refuted, subject to the paper separation" should be read with this. |

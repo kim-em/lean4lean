@@ -60,7 +60,7 @@ confluence theorem. The obligation holds in every normalising fragment; no count
 canonical `Eq` is known, and a counterexample would itself be a pair of propositions typed and
 inhabited below whose lifts are convertible above but not below.
 
-**Counterexample candidate (2026-11-11).** The statement appears to be false even with
+**Counterexample candidate (2026-11-11), not established.** The statement may be false even with
 canonical `Eq`, for environments with a looping `mutualDef`. `Eq.rec` at a constant motive is a
 non-left-linear rule (`@Eq.rec T a (fun _ _ => T) E b h ≡ E` exactly when `a ≡ b`), so Klop's
 non-confluence example applies: with axioms `T : Type`, `E : T`, `P : Prop`,
@@ -70,9 +70,9 @@ non-confluence example applies: with axioms `T : Type`, `E : T`, `P : Prop`,
 grounds it. `Theory/Typing/Strengthening/KlopCounterexample.lean` checks that such a
 well-formed environment with canonical `Eq` exists (`exists_klopEnv`), that `[P] ⊢ C E ≡ E`
 (`KlopEnv.above`), and that the statement fails given non-derivability in the empty context
-(`KlopEnv.not_strengthening`). Non-derivability is argued on paper by a model and is not
-formalised: the first model (`FIRST_PRINCIPLES.md` §8) was found ill-defined by an independent
-review, and the repaired model (§11) has not been reviewed, so this half is not established. The example needs a looping definition; a
+(`KlopEnv.not_strengthening`). Non-derivability in the empty context is a conjecture: two models
+offered as proofs were each found defective by independent review (`FIRST_PRINCIPLES.md` §11,
+§12), so the statement is neither proved nor refuted. The example needs a looping definition; a
 statement restricted to environments without `mutualDef` is not refuted by it.
 
 **Fresh replay.** The executable keeps its caches across binders unconditionally, as the C++
