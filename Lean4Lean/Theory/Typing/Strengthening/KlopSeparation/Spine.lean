@@ -42,7 +42,7 @@ inductive Chain (𝕋 : UniverseTower) (env : VEnv) (ρ : Nat → 𝕋.S) (w : N
       𝕋.mem (𝕋.den ρ x) (𝕋.El D) → Chain 𝕋 env ρ w (.app f x) (some (F (𝕋.den ρ x)))
   | appPiP {f x : VExpr} {c : Candidate} {B : 𝕋.S} :
       Chain 𝕋 env ρ w f (some (𝕋.tPiP c B)) → c.mem ((pval x).subst w) →
-      Chain 𝕋 env ρ w (.app f x) (some B)
+      𝕋.den ρ x = 𝕋.star → Chain 𝕋 env ρ w (.app f x) (some B)
   | appStop {f x : VExpr} {R : 𝕋.S} : Chain 𝕋 env ρ w f (some R) → 𝕋.IsCand R →
       Chain 𝕋 env ρ w (.app f x) none
   | appNone {f x : VExpr} : Chain 𝕋 env ρ w f none → Chain 𝕋 env ρ w (.app f x) none
@@ -95,7 +95,7 @@ theorem SpineOK.app {f a A B : VExpr} (Hf : 𝕋.SpineOK env ρ w f (.forallE A 
       · rw [if_pos hFc] at hc
         exact ⟨none, .appStop hc ⟨_, rfl⟩, fun R hR => nomatch hR⟩
       · rw [if_neg hFc] at hc
-        refine ⟨_, .appPiP hc (hav hDc), fun R hR => ?_⟩
+        refine ⟨_, .appPiP hc (hav hDc) hxs, fun R hR => ?_⟩
         rw [← Option.some.inj hR, hinst, hxs]
     · rw [if_neg hDc] at hc
       by_cases hall : ∀ d, d ∈ₛ 𝕋.El (𝕋.den ρ A) → 𝕋.IsCand (𝕋.den (𝕋.cons d ρ) B)
