@@ -43628,3 +43628,34 @@ Validation: `lake build Lean4Lean.Theory.Typing.EqTyping` (161 jobs), then
 `lake env lean Lean4Lean/Theory/Typing/Strengthening/ProofBinderReduction.lean` with no
 diagnostics; `#print axioms strengthening_of_universalBinder` reports `propext`,
 `Classical.choice`, `Quot.sound`. The file is not imported by any audit root.
+
+## 2026-11-11 UTC: counterexample under canonical Eq (Klop)
+
+Result: a counterexample to `IsDefEqU.weakN_iff` for well-formed environments with canonical
+`Eq` and a looping `mutualDef`, with the larger-context half and the existence of the
+environment checked in Lean and the smaller-context half argued on paper.
+Details: `FIRST_PRINCIPLES.md` §7; `OPEN_PROOFS.md` has a paragraph. Original `weakN_iff`
+`sorry` and executable unchanged; `heq` was not added to the statement because the statement
+is false with it.
+
+New file `Lean4Lean/Theory/Typing/Strengthening/KlopCounterexample.lean` (imports
+`EqTyping`, `EnvLemmas`; not imported by an audit root):
+
+* `KlopSig`, `KlopEnv`: the declarations `T`, `E`, `P`, `H`, `C`, `Fix` and the two defining
+  equations.
+* `KlopEnv.D_eq`: `@Eq.rec T a (fun _ _ => T) E b h ≡ E` from `a ≡ b`.
+* `KlopEnv.fixed_point_eq`: `A ≡ C A` implies `A ≡ E`.
+* `KlopEnv.above`: `[P] ⊢ C E ≡ E`.
+* `exists_klopEnv`: the environment exists over any well-formed base with canonical `Eq` and
+  fresh names (`exists_axiom`, `exists_mutualDef`).
+* `KlopEnv.Separated` (definition, the unproved half) and `KlopEnv.not_strengthening`.
+
+Missing for a fully formal counterexample: `KlopEnv.Separated` for the environment built over
+a base containing `Eq` alone. Needed: soundness of `IsDefEq` for the model of §7, or a
+syntactic proof (collapse binders of type `P`, then index the unfoldings of `C` by depth; each
+finite approximation is separated by the existing confluence theorem).
+
+Validation: `lake env lean` on the file with no errors; `#print axioms` for `KlopEnv.above`,
+`KlopEnv.not_strengthening`, `exists_klopEnv` reports `propext`, `Classical.choice`,
+`Quot.sound`. A real-Lean transcription with `unsafe def` was tried: the kernel reports deep
+recursion on `Fix z = E`, so the executable does not find this derivation.

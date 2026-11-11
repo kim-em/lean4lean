@@ -212,3 +212,94 @@ Size: `LevelledReduction.lean` (4241 lines), the delta parts of `FullReduction.l
 `ChurchRosser.lean`, the coverage files, and a new descent file. This is a multi-week
 formalisation at the rate this branch has moved, with the open points above as real risk. It
 was not started.
+
+## 7. A counterexample (2026-11-11): Klop's example lives in this calculus
+
+Thinking about the gap of §6 shows it cannot be closed, because the thing it asks for is false.
+Hereditary certificates do not exist in general, and strengthening itself fails, for
+well-formed environments with canonical `Eq` that contain a looping `mutualDef`.
+
+**The mechanism.** Klop (1980) showed that the λ-calculus with a non-left-linear rule
+`D x x → E` is not confluent: with `C x → D x (C x)` and a fixed point `A → C A`, one gets
+`A →* E` and `A →* C E`, and `C E` reaches `E` only if `C E` and `E` are already convertible.
+In this calculus `Eq.rec` at a constant motive is such a rule,
+`@Eq.rec T a (fun _ _ => T) E b h ≡ E` exactly when `a ≡ b` (proof irrelevance turns `h` into
+`Eq.refl a`, then ι), and `mutualDef` supplies `C`. Declarative equality is transitive by fiat,
+so `C E ≡ E` is derivable whenever a fixed point of `C` is available as a middle term, and is
+self-supporting otherwise. A fixed point that needs a hypothesis is available above a binder
+and not below it.
+
+**The environment.** Canonical `Eq`, four axioms and two looping definitions:
+
+```text
+T   : Type
+E   : T
+P   : Prop
+H   : ∀ x y : T, x = y
+C   : T → T := fun x => @Eq.rec T x (fun _ _ => T) E (C x) (H x (C x))
+Fix : P → T := fun p => C (Fix p)
+```
+
+**Above** (`z : P`): `Fix z ≡ C (Fix z)` by unfolding, so the `Eq.rec` in `C (Fix z)` has
+definitionally equal endpoints and computes to `E`; hence `Fix z ≡ E`, and
+`C E ≡ C (Fix z) ≡ Fix z ≡ E`. The terms `C E` and `E` are closed.
+
+**Below** (empty context): `C E` unfolds to an `Eq.rec` with endpoints `E` and `C E`. It
+computes only if `C E ≡ E` already holds, and `Fix` cannot be applied without a proof of `P`.
+
+**What is checked in Lean** (`Strengthening/KlopCounterexample.lean`, no `sorry`, axioms
+`propext`, `Classical.choice`, `Quot.sound`):
+
+* `exists_klopEnv`: every well-formed environment with canonical `Eq` in which the six names
+  are fresh extends to a well-formed environment with canonical `Eq` containing these
+  declarations (`KlopEnv`).
+* `KlopEnv.above`: in such an environment, `[P] ⊢ C E ≡ E`.
+* `KlopEnv.not_strengthening`: if `C E ≡ E` is not derivable in the empty context
+  (`KlopEnv.Separated`), then the statement of `IsDefEqU.weakN_iff` is false for it.
+
+**What is not checked: the separation below.** Argument, on paper. Take the base environment
+to consist of `Eq` alone and interpret the calculus in sets equipped with a partial
+equivalence relation, definitional equality being identity of elements and `Eq a b` being
+"`a` and `b` are related":
+
+* universes and `Prop` carry the discrete relation, Π-types the pointwise one, and the elements
+  of a Π-type are the relation-respecting functions. Consequently every family of types over a
+  type with the total relation is constant;
+* `T` is `ℤ/3` with the total relation, `E` is `0`, `P` is empty, `H` is the trivial proof;
+* `Eq.rec α a M m b h` is `m` when `a = b`; otherwise it is `a + 1` when `α` and the fibre
+  are both `T`, and `m` in every other case. The fibres at `a` and `b` are the same set, the
+  result is related to `m`, and the ι rule and its proof-irrelevant instances hold because
+  definitionally equal endpoints are identical;
+* `C` is `x ↦ x + 1`. It satisfies its defining equation: `x ≠ x + 1`, so the right-hand side is
+  the junk value `x + 1`;
+* `Fix` is the unique function on the empty set, and its defining equation holds between
+  functions on the empty set.
+
+Every rule of `IsDefEq` is sound for this interpretation (β, η, proof irrelevance, the two
+`extra` equations, the ι rule of `Eq.rec`; the environment has no structures or quotients),
+and `C E` is `1` while `E` is `0`. The context `[P]` has no valuation, which is why the
+equation above is not contradicted. This is a setoid-style model in which `T` is propositionally
+a subsingleton and definitionally has three elements. It is not formalised; a formal proof
+needs either this model in Lean or a syntactic argument (collapse of binders of type `P`, then
+stratification of the unfoldings of `C`).
+
+**Consequences.**
+
+* `IsDefEqU.weakN_iff` is false for well-formed environments with canonical `Eq`, as the
+  theory stands, subject to the separation above. Adding `HasCanonicalEq` to the hypotheses
+  does not rescue it; canonical `Eq` is what makes the example work.
+* Hereditary certificates (§3, §6) do not exist even in one context: in an environment with a
+  closed fixed point `A := C A`, the equation `C E ≡ E` is derivable through `A` and has no
+  well-founded join. This is why `FamilyCertificateCoverage` resisted proof.
+* The fixed-point test of §2 was the right diagnosis and the wrong conclusion. I argued there
+  that a self-supporting cycle cannot be grounded above only. It can: transitivity through a
+  term that exists only above grounds it.
+* Every ingredient is needed: a non-left-linear computation rule (`Eq.rec`, or any singleton
+  with a repeated index), proof irrelevance, and a definitional fixed point guarded by an
+  uninhabited type. In an environment whose definitions terminate there is no `C` and no
+  `Fix`. The executable sends looping blocks to the kernel only for unsafe declarations, so a
+  statement restricted to environments without `mutualDef` is not refuted by this example;
+  whether it is true is open, and the earlier "holds in every normalising fragment" result
+  points that way.
+* The real kernel does not find the derivation above (it overflows on `Fix z ≡ E`), so this is
+  a statement about the declarative theory, not a demonstrated unsoundness of the caches.

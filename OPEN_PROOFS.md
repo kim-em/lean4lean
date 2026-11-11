@@ -60,6 +60,20 @@ confluence theorem. The obligation holds in every normalising fragment; no count
 canonical `Eq` is known, and a counterexample would itself be a pair of propositions typed and
 inhabited below whose lifts are convertible above but not below.
 
+**Counterexample candidate (2026-11-11).** The statement appears to be false even with
+canonical `Eq`, for environments with a looping `mutualDef`. `Eq.rec` at a constant motive is a
+non-left-linear rule (`@Eq.rec T a (fun _ _ => T) E b h ≡ E` exactly when `a ≡ b`), so Klop's
+non-confluence example applies: with axioms `T : Type`, `E : T`, `P : Prop`,
+`H : ∀ x y : T, x = y` and looping definitions `C x := Eq.rec E (H x (C x))` (endpoints `x` and
+`C x`) and `Fix p := C (Fix p)`, a hypothesis `z : P` gives the fixed point `Fix z`, hence
+`Fix z ≡ E` and `C E ≡ E`, while in the empty context `C E ≡ E` supports itself and nothing
+grounds it. `Theory/Typing/Strengthening/KlopCounterexample.lean` checks that such a
+well-formed environment with canonical `Eq` exists (`exists_klopEnv`), that `[P] ⊢ C E ≡ E`
+(`KlopEnv.above`), and that the statement fails given non-derivability in the empty context
+(`KlopEnv.not_strengthening`). Non-derivability is argued on paper by a model
+(`FIRST_PRINCIPLES.md` §7) and is not formalised. The example needs a looping definition; a
+statement restricted to environments without `mutualDef` is not refuted by it.
+
 **Fresh replay.** The executable keeps its caches across binders unconditionally, as the C++
 kernel does, so every binder exit of the checker moves cache facts with this theorem, whichever
 declaration is being checked. The prelude's declarations before `Eq` (`id`, `PUnit`, `True`,
