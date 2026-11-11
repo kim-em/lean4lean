@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.MinimalEnv
-import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Interp
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Sound
 
 /-! # Given a universe tower, strengthening of definitional equality is false
 
@@ -15,8 +15,9 @@ hand-built inductive declaration, then the six declarations, with an exact inven
 the interpretation of terms in the tower (`Interp.lean`, where `⟦C E⟧ = 1` and `⟦E⟧ = 0` is
 proved), and one obligation that is **not yet proved**, a named theorem with `sorry`:
 
-* `KlopInventory.den_sound`: in an environment with that inventory, definitionally equal
-  closed terms have equal denotations (the model of `FIRST_PRINCIPLES.md` §28, §29).
+* `KlopInventory.sound` (`Sound.lean`): in an environment with that inventory, every
+  derivable judgment satisfies the semantic judgment `Sem` (the fundamental theorem of the
+  model of `FIRST_PRINCIPLES.md` §28, §29).
 
 Nothing outside this directory depends on these files.
 -/
@@ -24,26 +25,9 @@ Nothing outside this directory depends on these files.
 namespace Lean4Lean
 namespace VEnv.Strengthening
 
-/-- **Open obligation: soundness of the model.** In an environment with the Klop inventory,
-definitionally equal closed terms have the same denotation in the model built in a universe
-tower (`UniverseTower.den`, `Interp.lean`).
-
-Missing: the lemmas about semantic types (the coarse relation is a partial equivalence,
-coarsely related types have the same elements, data types are inhabited, universe
-membership); substitution and weakening for `den`; and the induction over every rule of
-`IsDefEq` for the full statement of `FIRST_PRINCIPLES.md` §28, §29 (denotations are equal
-elements of the denotation of the type, values of proofs realize their propositions,
-coarse relatedness, and the head invariant on application spines), with the projection rules
-vacuous by the inventory. -/
-theorem KlopInventory.den_sound (𝕋 : UniverseTower) {env : VEnv}
-    (henv : env.WF) (heq : env.HasCanonicalEq) (K : KlopInventory env)
-    {a b A : VExpr} (H : env.IsDefEq 0 [] a b A) (ρ : Nat → 𝕋.S) :
-    𝕋.den ρ a = 𝕋.den ρ b := by
-  sorry
-
 /-- In an environment with the Klop inventory, `C E ≡ E` is not derivable in the empty
 context, given a universe tower: the two terms denote `1` and `0`. Depends on
-`KlopInventory.den_sound`. -/
+`KlopInventory.sound`. -/
 theorem KlopInventory.separated (tower : UniverseTower) {env : VEnv}
     (henv : env.WF) (heq : env.HasCanonicalEq) (K : KlopInventory env) :
     K.toKlopEnv.Separated 0 := by
@@ -51,7 +35,7 @@ theorem KlopInventory.separated (tower : UniverseTower) {env : VEnv}
   exact tower.den_CE_ne_E (fun _ => tower.star) (K.den_sound tower henv heq H _)
 
 /-- **Given a universe tower, the statement of `IsDefEqU.weakN_iff` is false.**
-Depends on the open obligation `KlopInventory.den_sound`. -/
+Depends on the open obligation `KlopInventory.sound`. -/
 theorem not_weakN_iff_of_tower (tower : UniverseTower) :
     ¬ ∀ {env : VEnv} {U n k : Nat} {Γ Γ' : List VExpr} {e1 e2 : VExpr},
       env.WF → OnCtx Γ' (env.IsType U) → Ctx.LiftN n k Γ Γ' →
