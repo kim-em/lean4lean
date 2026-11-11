@@ -43659,3 +43659,18 @@ Validation: `lake env lean` on the file with no errors; `#print axioms` for `Klo
 `KlopEnv.not_strengthening`, `exists_klopEnv` reports `propext`, `Classical.choice`,
 `Quot.sound`. A real-Lean transcription with `unsafe def` was tried: the kernel reports deep
 recursion on `Fix z = E`, so the executable does not find this derivation.
+
+## 2026-11-11 UTC: term model for the separation, first two files
+
+Plan: `FIRST_PRINCIPLES.md` §9. Checked, no `sorry`:
+
+* `Strengthening/KlopModel/Red.lean`: weak head reduction `Red` (β, unfolding of `Fix`, ι of
+  `Eq.rec` at a syntactic `Eq.refl`), `Red.deterministic`.
+* `Strengthening/KlopModel/Val.lean`: `Val t i` (values in ℤ/3 of terms of type `T`),
+  `Val.red_inv` (preserved by reduction), `Val.functional` (unique), `val_CE_ne_E`
+  (`C E` and `E` have different values).
+
+Remaining for `KlopEnv.Separated`, none of it started: the semantic type system with fine and
+coarse relations (`KlopModel.interp_functional`), soundness of every `IsDefEq` rule
+(`KlopModel.sound`), and a concrete well-formed environment with the inventory
+(`exists_eqEnv`). These are the bulk of the work.
