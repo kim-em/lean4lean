@@ -136,7 +136,7 @@ theorem KlopInventory.den_sound (𝕋 : UniverseTower) {env : VEnv}
     (henv : env.WF) (heq : env.HasCanonicalEq) (K : KlopInventory env)
     {a b A : VExpr} (H : env.IsDefEq 0 [] a b A) (ρ : Nat → 𝕋.S) :
     𝕋.den ρ a = 𝕋.den ρ b :=
-  (K.sound 𝕋 henv heq (H.strong henv.orderedStrong trivial) ρ (fun _ => .bot)
+  (K.sound 𝕋 henv heq (H.strong henv.orderedStrong (Γ := []) trivial) ρ (fun _ => .bot)
     (𝕋.valOK_nil ρ _)).2.1
 
 end VEnv.Strengthening
