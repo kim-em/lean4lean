@@ -43674,3 +43674,17 @@ Remaining for `KlopEnv.Separated`, none of it started: the semantic type system 
 coarse relations (`KlopModel.interp_functional`), soundness of every `IsDefEq` rule
 (`KlopModel.sound`), and a concrete well-formed environment with the inventory
 (`exists_eqEnv`). These are the bulk of the work.
+
+## 2026-11-11 UTC: target "given a universe tower, weakN_iff is false"
+
+`Strengthening/KlopSeparation/Statement.lean` (checked; two named `sorry`s):
+
+* `UniverseTower`: second-order set theory with a Grothendieck universe per natural number.
+* `KlopInventory env`: `KlopEnv` plus the exact constants, equations, pattern and projection
+  metadata of the minimal environment.
+* `not_weakN_iff_of_tower`: negation of the statement of `IsDefEqU.weakN_iff`, proved from
+  `KlopEnv.not_strengthening` and the two open obligations
+  `exists_minimalKlopEnv` (construct `Eq` as a well-formed inductive by hand, then the six
+  declarations, with inventory) and `KlopInventory.separated` (the model in the tower).
+
+Order of work: obligation 1 first (it fixes the semantic target), then the model.
