@@ -1561,3 +1561,31 @@ records the candidate in its denotation; a type family into `Prop` is a function
 candidates); type equality is equality of denotations, which now includes realizer sets, so
 the two extension equations of §12 and §19 are rejected by clause 1; impredicative Π over
 `Prop` quantifies over the set of all candidates.
+
+## 29. Review of §28 and amendments (2026-11-11)
+
+Review verdict: §28 as written is refuted in two places and the inventory is too weak; with
+the amendments below no flaw was found, and `⟦C E⟧ = 1 ≠ 0 = ⟦E⟧` survived every attack.
+
+* **Candidates must contain `⊥` when non-empty** (lost from §24). Otherwise the cast
+  `fun (X Y : Prop) (e : X = Y) (x : X) => Eq.rec x e` at `X ↦ cl{r}`, `Y ↦ cl{λz.z}` has value
+  `⊥ ∉ Y`. So `𝒞 = {∅} ∪ {S closed, ⊥ ∈ S}`.
+* **A Π over the empty candidate is the full candidate `Val`**, with the body not inspected
+  (its induction hypothesis is vacuous, and `(∀ p : P, E = C E → T) ≡ (∀ p : P, E = E → T)` is
+  derivable). `Val` is a member of `𝒞` and of every `𝒰ₙ`; its element is `•`; a λ over an
+  empty candidate is `•`. One uniform Π clause: empty candidate domain gives `Val`; all
+  fibres candidates gives the candidate formula (argument values range over the domain if it
+  is a candidate, over all values otherwise); otherwise a tagged data Π whose fibres respect
+  `~`.
+* **`Eq.rec` is `•` at coarsely unrelated endpoints** (its type is then a Π over the empty
+  candidate).
+* **Inventory** (`KlopInventory`): `pats_only` must pin the reduct and check, not only the
+  pattern, and `projections_only` must pin `info` to `Eq`'s actual entry (`numFields = 0` does
+  not by itself give `fieldType = none`). Both facts are available in `eqEnv`.
+* Lemmas to state: coarsely related types have the same elements and relation; `~` is a
+  partial equivalence; every data type has a default element; no side of a derivable
+  judgment is a `.proj` (needed for `projIota`).
+* The head-invariant chain stops at any candidate, including `Val`; in the `T`/`T` case all
+  six prefixes are data.
+
+The model to formalise is §28 with these amendments.
