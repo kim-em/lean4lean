@@ -44033,3 +44033,16 @@ hypothesis bundle `RecArgs`, and
 This is the semantic core of `constOK_EqRec` (step 3 of the plan). Still to do for it: the
 `Sem` of the six binder types, the identification of `recDen` with the six-fold abstraction,
 the assembly with `SemD.lam`, and the value at motive universe `0`.
+
+## 2026-11-11 UTC: derived rules for the type of `Eq.rec`
+
+`EqRecRules.lean` (checked, no `sorry`): `eqS`, `reflS`, `motiveOf`; `den_motiveOf` (the
+syntactic motive type denotes `motiveTy`), `den_reflS`, `Sem.reflApp`
+(`Eq.refl A x : @Eq A x x`, with value reducing to `r`), `Sem.fibApp` (a motive applied to an
+endpoint and a proof of the equation is a type, coarsely related at related valuations, by
+`fib_rel`).
+
+Remaining for `constOK_EqRec`: `Sem` of the six binder types in their contexts (now direct
+from these rules, `sem_sort`, `sem_bvar`, `Sem.forallE`, `Sem.eqApp`); `SemD` of `recBody`
+in the six-binder context from `RecArgs.recBody_mem` and `recBody_rel`; six `SemD.lam`;
+`recDen` equals the resulting abstraction; the value at motive universe `0`.
