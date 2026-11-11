@@ -43954,3 +43954,13 @@ and a docstring:
 
 `structEta` and `unitLike` are excluded in the induction by the index count of `eqProjInfo`.
 `den_sound`, `separated` and `not_weakN_iff_of_tower` follow from `KlopInventory.sound`.
+
+## 2026-11-11 UTC: the projection rules are vacuous; three obligations remain
+
+`Fundamental.lean` (checked): `KlopInventory.no_projDF` (the field type of `eqProjInfo` is
+`none`: after instantiating the two parameters the constructor type is an application of
+`Eq`), `notProj_inst`, `KlopInventory.no_proj` (no side of a strong derivation is a `.proj`,
+by induction over `IsDefEqStrong`), `KlopInventory.no_projIota`.
+
+Remaining `sorry`s, all in `Fundamental.lean`: `KlopInventory.sem_const`,
+`KlopInventory.sem_extra`, `KlopInventory.sem_pat`.

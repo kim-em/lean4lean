@@ -12,9 +12,10 @@ cases proved in `Sound.lean`, `SoundLam.lean`, `SoundBeta.lean`, `SoundEta.lean`
 
 * `KlopInventory.sem_const`: the constants of the environment (`constDF`);
 * `KlopInventory.sem_extra`: the two definitional equations (`extra`);
-* `KlopInventory.sem_pat`: the ι rule of `Eq.rec` (`pat`);
-* `KlopInventory.no_projDF`, `KlopInventory.no_projIota`: the two projection rules that are
-  not excluded by the index count have no instance.
+* `KlopInventory.sem_pat`: the ι rule of `Eq.rec` (`pat`).
+
+The four projection rules have no instance: `no_projDF`, `no_proj`/`no_projIota`, and the
+index count of `eqProjInfo` for `structEta` and `unitLike`.
 -/
 
 namespace Lean4Lean
@@ -79,26 +80,81 @@ theorem KlopInventory.sem_pat (𝕋 : UniverseTower) (K : KlopInventory env)
     𝕋.Sem Γ e (r.1.apply m1 m2) A := by
   sorry
 
-/-- **Open obligation: `projDF` has no instance.** The projection entry of `Eq` has no field,
-so `fieldType` is `none`.
-
-Missing: the computation of `VProjectionInfo.fieldType` for `eqProjInfo`. -/
+/-- `projDF` has no instance: the projection entry of `Eq` has no field, so `fieldType` is
+`none`. After instantiating the two parameters the constructor type is an application of
+`Eq`, which is not a Π-type. -/
 theorem KlopInventory.no_projDF (K : KlopInventory env) {typeName : Name}
     {info : VProjectionInfo} (h : env.projections typeName info) {levels : List VLevel}
     {params : List VExpr} {index : Nat} {sourceMajor fieldType : VExpr}
     (hlv : levels.length = info.uvars) (hpar : params.length = info.nparams) :
     info.fieldType typeName levels params index sourceMajor ≠ some fieldType := by
-  sorry
+  have := (K.projections_only _ _ h).2
+  subst this
+  match params, hpar with
+  | [p0, p1], _ =>
+    simp [VProjectionInfo.fieldType, eqProjInfo, canonicalEqReflType, hlv,
+      VProjectionInfo.instantiateProjectionParameters,
+      VProjectionInfo.instantiateProjectionFields, VExpr.instL, VExpr.inst]
 
-/-- **Open obligation: no side of a strong derivation is a projection.** Hence `projIota`
-has no instance.
+/-- A term is not a projection. -/
+def NotProj (e : VExpr) : Prop := ∀ n i x, e ≠ .proj n i x
 
-Missing: an induction over `IsDefEqStrong` (a `.proj` side can only be introduced by
-`projDF`, excluded by `no_projDF`; every other rule takes a `.proj` side from a premise). -/
+theorem notProj_inst {e e' : VExpr} (he : NotProj e) (he' : NotProj e') :
+    NotProj (e.inst e') := by
+  intro n i x h
+  cases e with
+  | bvar j =>
+    simp only [VExpr.inst, VExpr.instVar] at h
+    split at h
+    · cases h
+    · split at h
+      · rw [VExpr.liftN_zero] at h; exact he' _ _ _ h
+      · cases h
+  | proj n' i' x' => exact he _ _ _ rfl
+  | sort => cases h
+  | const => cases h
+  | app => cases h
+  | lam => cases h
+  | forallE => cases h
+
+/-- **No side of a strong derivation is a projection.** A `.proj` side can only be introduced
+by `projDF`, which has no instance; every other rule takes its sides from premises or builds
+them with another constructor. -/
+theorem KlopInventory.no_proj (K : KlopInventory env) {Γ : List VExpr} {a b A : VExpr}
+    (H : env.IsDefEqStrong 0 Γ a b A) : NotProj a ∧ NotProj b := by
+  induction H with
+  | bvar => exact ⟨fun _ _ _ h => (nomatch h), fun _ _ _ h => nomatch h⟩
+  | symm _ ih => exact ⟨ih.2, ih.1⟩
+  | trans _ _ ih1 ih2 => exact ⟨ih1.1, ih2.2⟩
+  | sortDF => exact ⟨fun _ _ _ h => (nomatch h), fun _ _ _ h => nomatch h⟩
+  | constDF => exact ⟨fun _ _ _ h => (nomatch h), fun _ _ _ h => nomatch h⟩
+  | appDF => exact ⟨fun _ _ _ h => (nomatch h), fun _ _ _ h => nomatch h⟩
+  | projDF hinfo _ hlv hpar _ hft _ _ _ _ _ _ _ _ _ =>
+    exact absurd hft (K.no_projDF hinfo hlv hpar)
+  | lamDF => exact ⟨fun _ _ _ h => (nomatch h), fun _ _ _ h => nomatch h⟩
+  | forallEDF => exact ⟨fun _ _ _ h => (nomatch h), fun _ _ _ h => nomatch h⟩
+  | defeqDF _ _ _ _ ih => exact ih
+  | beta _ _ _ _ _ _ _ _ _ _ ihe ihe' _ _ =>
+    exact ⟨fun _ _ _ h => (nomatch h), notProj_inst ihe.1 ihe'.1⟩
+  | eta _ _ _ _ _ _ _ _ _ _ _ ihe _ _ => exact ⟨fun _ _ _ h => (nomatch h), ihe.1⟩
+  | proofIrrel _ _ _ _ ihh ihh' => exact ⟨ihh.1, ihh'.1⟩
+  | extra h _ _ _ _ _ _ _ _ _ _ _ ihl ihr => exact ⟨ihl.1, ihr.1⟩
+  | pat _ _ _ _ _ _ ihe ihr _ => exact ⟨ihe.1, ihr.1⟩
+  | projIota _ _ _ _ ihs _ => exact (ihs.1 _ _ _ rfl).elim
+  | structEta hinfo _ hi _ _ _ _ =>
+    have := (K.projections_only _ _ hinfo).2
+    subst this
+    exact absurd hi (by decide)
+  | unitLike hinfo _ hi _ _ _ _ _ =>
+    have := (K.projections_only _ _ hinfo).2
+    subst this
+    exact absurd hi (by decide)
+
+/-- `projIota` has no instance. -/
 theorem KlopInventory.no_projIota (K : KlopInventory env) {Γ : List VExpr}
     {typeName : Name} {index : Nat} {x b A : VExpr}
-    (H : env.IsDefEqStrong 0 Γ (.proj typeName index x) b A) : False := by
-  sorry
+    (H : env.IsDefEqStrong 0 Γ (.proj typeName index x) b A) : False :=
+  (K.no_proj H).1 _ _ _ rfl
 
 /-- **The fundamental theorem of the model**, modulo the open obligations above. -/
 theorem KlopInventory.sound (𝕋 : UniverseTower) (K : KlopInventory env)
