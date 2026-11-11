@@ -43814,3 +43814,10 @@ Checked; the only `sorry` is `KlopInventory.sound`.
 Next: by induction on validity, the coarse relation is a partial equivalence and coarsely
 related valid types have the same elements and relation; then `mkPi` is valid and respects
 `~`, and `mkApp`/`mkLam` respect the relations.
+
+## 2026-11-11 UTC: coarsely related types have the same elements
+
+`TyRelLemmas.lean` (checked, no `sorry`): `ValidAny.skel_tag`, `ValidAny.kind_eq_of_tyRel`,
+`pi_congr`, and `ValidAny.tyRel_same`: two valid semantic types with equal skeletons have
+the same set of elements and the same coarse relation, by induction on the validity of the
+first with a case split on the second.
