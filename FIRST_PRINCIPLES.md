@@ -873,3 +873,44 @@ function kind, and when the substituted type is itself a Π over a sort); that `
 transitive; whether a coloured variable used as the *domain* of a Π or as the `α` of an `Eq`
 needs more than layer-one data; and whether hereditary typing interacts correctly with
 colours when a proposition is passed through a variable (the term of §12-F3).
+
+## 17. Fourth review: §16 does not close the gap (2026-11-11)
+
+Verdict of the review: not a complete definition, the abstraction lemma false as stated, `R`
+not transitive. Local repairs exist for each defect but the repaired system was not shown to
+close. Confirmed:
+
+* **A. Function-kind colours.** "A function from valid arguments to colours" is either
+  unsound (arbitrary function: `F ((fun Y => Y) X) ≡ F X` fails), circular (respecting `R`),
+  or refutes the abstraction lemma (constant). Repair: an atomic colour for `F`, neutral
+  applications compared argumentwise.
+* **B. `Eq` at a variable type.** `@Eq X x y` ignores endpoints when `X` is not literally `T`,
+  so substituting `X := T` breaks the abstraction lemma, and `fun X a b => @Eq X a b` is
+  related to `fun X a b => @Eq X a a`. Repair: compare endpoints in the element relation at
+  `α` for every `α`.
+* **C. Elements of a type variable.** With only layer-one data, no choice of element
+  relation at `X` works: total fails on
+  `fun X x y h => @Eq.rec X x (fun _ _ => T) E y h`; an arbitrary candidate relation must be
+  contained in `R`, which is the negative occurrence again. The surviving option is the
+  structural relation of the actual closed instances, defined by recursion on levels, which
+  is no longer abstraction in Girard's sense. Not verified.
+* **D. Transitivity.** Colours not tied to truth make `R` non-transitive. Repair: a colour
+  carries its layer-one class.
+
+Also unproved: that `R`-related types have the same element relation (needed for `defeqDF`),
+the abstraction lemma after the repairs (it needs coinduction up to substitution), and
+existence of weak head normal forms of types under `Eq.rec … m … ⇝ m`.
+
+Assessment after four reviews. The intended values have survived every probe, and the gap
+has narrowed from "a model" to four named lemmas about one relation. But each written
+definition has failed review, the last on four counts, and the remaining case (variables of
+data-type kind) is exactly where the predicative and impredicative parts of the calculus
+meet. I do not have a definition that I expect to survive a fifth review, and continuing to
+iterate sketches at this rate is not converging fast enough to call the separation
+established.
+
+**Result of this effort.** `IsDefEqU.weakN_iff` under canonical `Eq`: open. Reduced, with a
+machine-checked implication, to the non-derivability of the single closed equation
+`[] ⊢ C E ≡ E` in one explicit environment (`KlopEnv.not_strengthening`); if that equation is
+derivable the example proves nothing, and if it is not, the theorem is false as stated. The
+equation is conjectured underivable.

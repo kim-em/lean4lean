@@ -26211,3 +26211,8 @@ delta.
 | Truth-only first layer, fine type equality as a positive greatest fixed point at equal arguments | **Refuted.** Proving the Π case needs the argument related to itself, which is the fundamental theorem for a derivation that is not a sub-derivation. |
 | Same with declaratively equal arguments, or mixed by domain | **Refuted.** Constants (`C`, `Eq.rec`) or the variable rule then need "declaratively equal closed terms of type `T` have equal values" for an arbitrary derivation. |
 | Reducibility candidates with a colour component for variables of type `Prop`, `Sort n` and higher kinds | **Open; the indicated method.** Countably many colours suffice in a term model. Definition and substitution lemma not written. |
+
+| Fourth review (2026-11-11) | Verdict |
+| --- | --- |
+| Candidates with colours as written in §16 | **Refuted as written** (function-kind colours ill-defined; `Eq` at a variable type loses endpoints; no workable element relation at a type variable; `R` not transitive). |
+| Repaired version: atomic colours for all sort-ended variables carrying their layer-one class, endpoints compared at every `α`, element relation at a type variable taken from the actual instances by level recursion | **Open.** Needs: `R`-related types have the same element relation; the abstraction lemma by coinduction up to substitution; weak head normal forms of types. None proved. |
