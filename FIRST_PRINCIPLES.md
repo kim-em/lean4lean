@@ -1700,3 +1700,33 @@ provides it outright.
 * Every constant (`Eq`, `Eq.refl`, `Eq.rec`, `C`, `H`, `Fix`) must be shown shape-respecting.
 
 Status: design only. Nothing in Lean yet.
+
+### 30.5 Review of §30.3: refuted as written
+
+An independent reading of §30.3 against `SemType.lean` and `Interp.lean` found:
+
+* **The empty-proposition collapse refutes the design.** `∀ q : Prop, Sort 5 → (q → T)` has
+  fibre `cand (piCand 𝒰₄ _)` (shape `∅`) at empty `q` and `tPi 𝒰₄ (fun _ => tPiP q T)` (shape
+  with a `(U, 4)` node) otherwise, while both `q` have element shape `∅`. So a closed
+  well-typed type is an invalid family. The same occurs for `X : Sort 1` ranging over
+  `cand full` and `T`, and for `∀ q : Prop, (q → T) → Sort 3`, where the domain changes
+  between `cand full` and `tPiP q T` and the two Π records have different formats.
+* **λ and `recDen` leave the restricted function space** for the same reason:
+  `fun (q : Prop) (h : q) => Sort 1` is `•` at empty `q` and a function with a `(U, 0)` shape
+  otherwise.
+* **(L3) is false at level 0**: every member of `𝒰₀` is small, so `T` and `T → T` have equal
+  shape and different depth. Level 0 needs its own argument (finitely many coarse classes,
+  and equal skeletons have equal depth). §30.2 is also wrong that `Prop → Prop` has
+  infinitely many coarse classes; it has four.
+* **Unstated lemma in the Π case of the new clause**: equal `shp n D` must give equal sets of
+  element shapes of `D`.
+* (L1) holds; the definitional order is sound; away from the collapse no counterexample was
+  found for application or for constant fibre shape (Church iteration over `Sort v` lives one
+  level up).
+* Neither repair of §30.4 works as stated: "keep the codomain" needs the shape of a body at
+  an empty domain, where no valuation exists and `⟦Fix p⟧` and `⟦C (Fix p)⟧` already differ;
+  "compare up to collapse" is not transitive.
+
+Directions left open: let shapes record whether a proposition is empty, and weaken (L1), (L2)
+from "one shape" to "finitely many shapes" (which still bounds depth); unify the formats of
+`tPi` and `tPiP`; remove `cand full` from the data universes.
