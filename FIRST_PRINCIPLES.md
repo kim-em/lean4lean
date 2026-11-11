@@ -306,3 +306,96 @@ stratification of the unfoldings of `C`).
   points that way.
 * The real kernel does not find the derivation above (it overflows on `Fix z ≡ E`), so this is
   a statement about the declarative theory, not a demonstrated unsoundness of the caches.
+
+## 8. The separation below, in detail (paper proof)
+
+Claim. Let `env` be the environment of §7 built over a base containing only the inductive
+declaration of `Eq` (constants `Eq`, `Eq.refl`, `Eq.rec`, the ι rule of `Eq.rec`, no
+projections, no other definitional equation). Then `[] ⊢ C E ≡ E` is not derivable.
+
+No argument that uses only the existing confluence, uniqueness and rigidity theorems can prove
+this: those hold in every context, and the equation is derivable in the context `[P]`. The
+proof has to use that `P` has no closed proof, which is a semantic fact. So it is a model.
+
+### 8.1 The model
+
+Work in ZFC with countably many inaccessible cardinals `κ₀ < κ₁ < …`, as in Carneiro's model.
+A *semantic type* is a pair `(X, ≈)` of a set and a partial equivalence relation on it; its
+*elements* are the `x ∈ X` with `x ≈ x`. Write `|X|` for the set of elements.
+
+* `⟦Prop⟧` is the set `{∅, {•}}` of the two subsingleton types, with the discrete relation
+  (a type is related only to itself). `⟦Sort (n+1)⟧` is the set of semantic types in `V_κₙ`,
+  with the discrete relation. A semantic type viewed as an element of a universe is related
+  only to itself.
+* `⟦∀ x : A, B⟧` at a valuation `ρ`: the set of functions `f` on `|⟦A⟧ρ|` with
+  `f a ∈ |⟦B⟧ρ[a]|` and `a ≈ a' ⟹ f a ≈ f a'`, related pointwise. This is well defined
+  because `⟦B⟧ρ[a] = ⟦B⟧ρ[a']` when `a ≈ a'` (types are related only to themselves, and
+  denotations respect relations, 8.2). When the result is in `Prop` it is replaced by `{•}` if
+  inhabited and `∅` otherwise, as usual for proof irrelevance.
+* `⟦fun x : A => b⟧ρ` is the function `a ↦ ⟦b⟧ρ[a]` on `|⟦A⟧ρ|`; application is function
+  application.
+* `⟦@Eq α a b⟧` is `{•}` if `a ≈_α b` and `∅` otherwise. `⟦Eq.refl⟧` is `•`.
+* `⟦@Eq.rec α a M m b h⟧`, defined when `a ≈_α b` (which holds whenever `h` has a
+  denotation): if `a = b` it is `m`; otherwise it is `a + 1` if `α = ⟦T⟧` and `M b • = ⟦T⟧`,
+  and `m` in every other case.
+* `⟦T⟧ = (ℤ/3, total relation)`, `⟦E⟧ = 0`, `⟦P⟧ = ∅`, `⟦H⟧ = (x, y) ↦ •`,
+  `⟦C⟧ = x ↦ x + 1`, `⟦Fix⟧ =` the empty function.
+
+A valuation of a context assigns to each variable an element of the denotation of its type;
+two valuations are related if they are related pointwise.
+
+### 8.2 Soundness
+
+Statement, by induction on derivations, for every context `Γ`:
+
+1. if `Γ ⊢ a ≡ b : A` then for all related valuations `ρ ≈ ρ'` of `Γ`: `⟦A⟧ρ` is a semantic
+   type, `⟦A⟧ρ = ⟦A⟧ρ'`, `⟦a⟧ρ` and `⟦b⟧ρ` are elements of it, `⟦a⟧ρ = ⟦b⟧ρ`, and
+   `⟦a⟧ρ ≈ ⟦a⟧ρ'`.
+
+The last clause (denotations respect the relation) is what makes type families over `T`
+constant: a family `B : T → Sort u` has `⟦B⟧ x ≈ ⟦B⟧ y` in a universe for all `x, y`, and the
+relation on a universe is equality.
+
+Rule by rule.
+
+* `bvar`, `sortDF`, `constDF`, `symm`, `trans`, `defeqDF`: immediate. For `defeqDF` the
+  hypothesis gives `⟦A⟧ρ = ⟦B⟧ρ` as semantic types.
+* `lamDF`, `forallEDF`, `appDF`: the induction hypothesis for the body, at valuations
+  `ρ[a] ≈ ρ'[a']`, gives that the function respects the relation, so it is an element of the
+  Π-type. Equal premises give equal functions.
+* `beta`: `⟦(fun x => e) e'⟧ρ = ⟦e⟧ρ[⟦e'⟧ρ] = ⟦e.inst e'⟧ρ` by the substitution lemma, which
+  holds as in any set model.
+* `eta`: `⟦fun x => e x⟧ρ` and `⟦e⟧ρ` are functions on the same domain with the same values.
+* `proofIrrel`: a proposition denotes `∅` or `{•}`.
+* `extra` for `C`: the right-hand side denotes `x ↦ ⟦Eq.rec T x M E (C x) (H x (C x))⟧`, with
+  endpoints `x` and `x + 1`, which differ, `α = ⟦T⟧` and fibre `⟦T⟧`; so the value is `x + 1`,
+  which is `⟦C⟧ x`.
+* `extra` for `Fix`: both sides are functions on `|⟦P⟧| = ∅`.
+* `pat` (the ι rule of `Eq.rec`): the redex `Eq.rec α a M m b (Eq.refl α' a')` is typed, so
+  `Eq.refl α' a'` has the type `@Eq α a b` up to conversion, and by the induction hypothesis
+  for that typing the two `Eq` types have equal denotations at every valuation. The clause for
+  `Eq.rec` is applied only where `a ≈ b` holds, and here moreover `⟦a⟧ρ = ⟦a'⟧ρ = ⟦b⟧ρ`:
+  this is the one point that needs an inversion, namely that `⟦@Eq α a b⟧ = ⟦@Eq α' a' a'⟧` as
+  the *typing* of the redex forces `a ≡ a'` and `b ≡ a'` declaratively (head injectivity for the
+  rigid constant `Eq`, which holds in every well-formed environment), and then the induction
+  hypothesis for those equalities gives identity of denotations. So the value is `m`.
+* `Eq.rec` respects the relation and is type correct. Let `a ≈ b`. `M` is an element of its
+  Π-type, so `M a • ≈ M b •` in a universe, hence `M a • = M b •`; `m` is an element of it.
+  The value is `m` or `a + 1`, the latter only when the fibre is `⟦T⟧`, whose relation is
+  total. In every case the value is an element of the fibre related to `m`, so related inputs
+  give related outputs.
+* `projDF`, `projIota`, `structEta`, `unitLike`: no instance, the environment has no
+  projection entry.
+* Constants are elements of their types: `C` and `H` respect the total relation on `ℤ/3`
+  trivially; `Fix` is the element of a Π-type over the empty set.
+
+### 8.3 Conclusion
+
+At the empty valuation `⟦C E⟧ = 1` and `⟦E⟧ = 0`, so `[] ⊢ C E ≡ E` is not derivable. The
+context `[P]` has no valuation, so the derivation of §7 is vacuously sound, as it must be.
+
+Points a formalisation would have to make precise: the universe hierarchy (the only use of
+inaccessibles is closure of universes under Π), the substitution and weakening lemmas for the
+interpretation, and the inversion used in the `pat` case, which should be replaced by the
+generic statement that the registered ι pattern of `Eq.rec` is sound whenever the redex is
+typed. None of these is specific to the example.
