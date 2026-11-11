@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.EqConsts
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.EqConst
 
 /-! # The fundamental theorem of the Klop model
 
@@ -10,8 +10,8 @@ cases proved in `Sound.lean`, `SoundLam.lean`, `SoundBeta.lean`, `SoundEta.lean`
 
 **Open obligations** (named theorems with `sorry`, each with a docstring):
 
-* `constOK_Eq`, `constOK_EqRec`: two constants are elements of their declared types (the
-  other seven are proved in `Consts.lean` and `EqConsts.lean`);
+* `constOK_EqRec`: `Eq.rec` is an element of its declared type (the other eight constants
+  are proved in `Consts.lean`, `EqConsts.lean` and `EqConst.lean`);
 * `KlopInventory.sem_extra`: the two definitional equations (`extra`);
 * `KlopInventory.sem_pat`: the ι rule of `Eq.rec` (`pat`).
 
@@ -34,15 +34,6 @@ end UniverseTower
 
 variable {env : VEnv}
 
-/-- **Open obligation: `Eq`.** `⟦Eq.{u}⟧` is an element of `⟦∀ α : Sort u, α → α → Prop⟧`.
-
-Missing: three nested uses of `mkLam_mem_mkPi`; the relation-respect conditions say that
-`eqCand α a b` is inhabited exactly when `a`, `b` are coarsely related, which is stable under
-coarse relatedness of `b` (`IsPER`) and of `α` (`ValidAny.tyRel_same`). -/
-theorem constOK_Eq (𝕋 : UniverseTower) (ls : List VLevel) :
-    𝕋.ConstOK ``Eq ls (canonicalEqType.instL ls) := by
-  sorry
-
 /-- **Open obligation: `Eq.rec`.** `⟦Eq.rec.{v, u}⟧` is an element of the denotation of its
 declared type, and `recVal` realizes it when the motive universe is `0`.
 
@@ -56,7 +47,7 @@ theorem constOK_EqRec (𝕋 : UniverseTower) (ls : List VLevel) :
   sorry
 
 /-- The constant rule: every constant of the environment satisfies the semantic judgment.
-Depends on `constOK_Eq`, `constOK_EqRec`. -/
+Depends on `constOK_EqRec`. -/
 theorem KlopInventory.sem_const (𝕋 : UniverseTower) (heq : env.HasCanonicalEq)
     (K : KlopInventory env)
     {Γ : List VExpr} {c : Name} {ci : VConstant} {ls ls' : List VLevel}
@@ -66,7 +57,7 @@ theorem KlopInventory.sem_const (𝕋 : UniverseTower) (heq : env.HasCanonicalEq
     𝕋.Sem Γ (.const c ls) (.const c ls') (ci.type.instL ls) := by
   refine UniverseTower.sem_const_of ?_ (UniverseTower.constDen_congr hls) HT
   rcases K.constants_only c ci h with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
-  · cases Option.some.inj (heq.1.symm.trans h); exact constOK_Eq 𝕋 ls
+  · cases Option.some.inj (heq.1.symm.trans h); exact UniverseTower.constOK_Eq ls
   · cases Option.some.inj (heq.2.1.symm.trans h); exact UniverseTower.constOK_EqRefl ls
   · cases Option.some.inj (heq.2.2.1.symm.trans h); exact constOK_EqRec 𝕋 ls
   · cases Option.some.inj (K.T.symm.trans h); exact UniverseTower.constOK_T ls

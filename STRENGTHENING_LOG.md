@@ -43985,3 +43985,13 @@ proposition of `eqCand α a b` when the arguments are in the right sets), `const
 
 Remaining `sorry`s (four, all in `Fundamental.lean`): `constOK_Eq`, `constOK_EqRec`,
 `KlopInventory.sem_extra`, `KlopInventory.sem_pat`.
+
+## 2026-11-11 UTC: the constant `Eq`; three obligations remain
+
+`EqConst.lean` (checked, no `sorry`): `good_eqCand`, `eqCand_nonempty_iff` (an equation is
+inhabited exactly when its endpoints are coarsely related), `rel_tProp_eqCand`,
+`not_isCand_mkPi`, `predTy`, `relTy` with validity and `~`-congruence, `eqG`, `eqH` with
+membership and relatedness (`eqG_mem`, `eqG_rel`, `eqH_mem`, `eqH_rel`), and `constOK_Eq`.
+
+Remaining `sorry`s (three, all in `Fundamental.lean`): `constOK_EqRec`,
+`KlopInventory.sem_extra`, `KlopInventory.sem_pat`.
