@@ -1,12 +1,13 @@
 # Strengthening under canonical `Eq`: a first-principles assessment (2026-11-10)
 
-Outcome (updated 2026-11-11): **neither proved nor refuted.** There is a candidate
+Outcome (updated 2026-11-11): **not settled; probably false.** There is a candidate
 counterexample (§7): in a well-formed environment with canonical `Eq` and two looping
-`mutualDef`s, `C E ≡ E` is derivable under a hypothesis `z : P` (machine-checked). That it is
-not derivable without the hypothesis is a conjecture: two models offered as proofs (§8, §11)
-were each found defective by independent review (§11, §12), the second for a structural
-reason. Sections 1 to 6 record the earlier analysis. The reduction of §1 is checked and
-stands.
+`mutualDef`s, `C E ≡ E` is derivable under a hypothesis `z : P` (machine-checked), and
+`weakN_iff` fails there if it is not derivable without the hypothesis (machine-checked
+implication). Non-derivability has a paper argument (§20 to §23) reached after five refuted
+models; the last three independent reviews did not break it, one construction in it is
+unwritten, and none of it is machine-checked. Sections 1 to 6 record the earlier analysis.
+The reduction of §1 is checked and stands.
 
 ## 1. A normal form of the problem (needs canonical `Eq`)
 
@@ -1223,3 +1224,46 @@ two values and no typed proof outside its realizer set, and each named gaps with
 the consolidation above has not itself been reviewed, and the reviewer of §21 declined to
 call the sketch acceptable until A, B, C and F are written out and checked. It is a paper
 argument whose earlier versions were wrong five times.
+
+## 23. Eighth review of the consolidated model (2026-11-11)
+
+The reviewer worked repairs A, B, C and F through independently. Verdict: no refutation;
+each holds with a stated amendment; one construction is still unwritten.
+
+* **A (`Eq.rec` by endpoints): holds.** Membership in the declared type, coarse relation in
+  every argument, the equation of `C`, congruence and the K-instance, and `pat` in its three
+  situations. Amendments: the shape component is that of the minor for every data fibre; in
+  the non-`T` cases the reduct denotes the minor through its typing premise.
+* **B (values of constants): holds with a repair of a real failure.** Under the collapse
+  convention a truth value can be an element of `Sort (n+1)` (`⟦P → T⟧ = 1`), and a type
+  variable valued there with candidate `{⊥}` breaks clause 2 for
+  `f : ∀ X : Type, X → X ⊢ f X x : X`. Repair: a truth value inside `Sort (n+1)` is always
+  `1` and carries only the full candidate. `Eq.rec` is the case construct at all levels.
+* **C (head invariant): holds once restated** with the closing clause "if the chain of
+  Π-codes never breaks, the last one is the pair of the stated type". Walked through every
+  rule, including the `beta` case that broke §21 (the two chains concatenate) and `defeqDF`.
+  For the redex over `T` with fibre `T` all six prefixes of the declared type of `Eq.rec` are
+  Π-codes, so `r ∈ ⟪@Eq α a b⟫` at the actual arguments.
+* **F (collapse): holds as one rule**: a Π is a truth value exactly when all its fibres are
+  (vacuously over an empty domain); a function constantly `•` is `•`. Checked on `P → T`,
+  `P → P`, `∀ x : T, P → T`, `∀ p : Prop, p → T`, `fun X : Prop => X → T`,
+  `(∀ α : Type, α) → T`, `∀ X : Type, X → X`, `T → Prop`, with η.
+* All earlier killer terms pass; five new attacks by the reviewer failed.
+
+**Still open.**
+
+* *Structural:* the definition of shapes and of "a code over a denotation" (a recursion on
+  codes or an inductively generated universe with unique decomposition of non-collapsed
+  Π-sets, the codes over a set forming a set). The reviewer sketched but did not verify one.
+* *Routine:* the applicative structure, substitution and weakening lemmas, level valuations.
+* *Environment:* the argument is for the environment with exactly `Eq`, the four axioms and
+  the two definitions. `KlopEnv` in the Lean file is a hypothesis on any extension, so a
+  formal statement also needs that minimal environment constructed, with its inventory.
+
+**Where the question stands.** The non-derivability of `[] ⊢ C E ≡ E` has a paper argument
+that three successive independent reviews failed to break, with every amendment they asked
+for either checked by a reviewer or listed above as open. Its earlier versions were wrong
+five times, one construction is unwritten, and nothing of it is machine-checked. I regard
+the statement as very likely true and `IsDefEqU.weakN_iff` as very likely false for
+well-formed environments with canonical `Eq` and looping definitions, and I do not regard
+either as established.

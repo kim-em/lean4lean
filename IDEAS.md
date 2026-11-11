@@ -26227,3 +26227,9 @@ delta.
 | Model with data, proof values (`r`, `⊥`) and shape components (§20) | **No flaw found; incomplete.** Every earlier killer term passes. Gap: the certificate step. |
 | Type codes and spine lemma (§21) | **No refutation; not closed as written.** Fails at variable-headed spines under β, at Π-propositions, and at empty domains. Reviewer's repairs A to F. |
 | Consolidated model (§22): `Eq.rec` data by endpoints only, compositional values of constants, head invariant for constant- and variable-headed spines, collapse convention | **Open, unreviewed.** Paper argument; a machine-checked version would additionally need a concrete base environment containing only `Eq`. |
+
+| Eighth review (2026-11-11) | Verdict |
+| --- | --- |
+| Consolidated model (§22) with repairs A, B, C, F worked through by the reviewer | **No refutation; each repair holds with a stated amendment** (full candidate for truth values inside data universes; closing clause in the head invariant; shape of the minor at every data fibre). Five new attack terms failed. |
+| Remaining for the paper argument | **Open:** the construction of shapes and codes over denotations (structural, unverified sketch); routine lemmas. |
+| Remaining for a machine-checked refutation | **Open:** all of the above in Lean, plus a concrete well-formed environment containing exactly `Eq` and the six declarations, with its inventory. |
