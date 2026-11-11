@@ -96,6 +96,85 @@ theorem mkPi_valid {n : Nat} {D : 𝕋.S} {F : 𝕋.S → 𝕋.S}
       · exact h
       · exact (hall h).elim
 
+/-! ### Π formation respects the coarse relation -/
+
+/-- A valid type is a proposition exactly when its tag is `0`. -/
+theorem ValidAny.isCand_iff {n : Nat} {x : 𝕋.S} (H : 𝕋.ValidAny (𝕋.univList n) x) :
+    𝕋.IsCand x ↔ 𝕋.kind x = 𝕋.tagN 0 := by
+  constructor
+  · rintro ⟨c, rfl⟩; exact kind_cand c
+  · intro hk
+    cases H with
+    | prop => exact ⟨_, rfl⟩
+    | tT => rw [kind_tT] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
+    | tProp => rw [kind_tProp] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
+    | univ hu =>
+      obtain ⟨m, -, rfl⟩ := mem_univList hu
+      rw [UniverseTower.univ, kind_tU] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
+    | pi => rw [kind_tPi] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
+    | piP => rw [kind_tPiP] at hk; exact absurd (𝕋.tagN_inj hk) (by decide)
+
+/-- Coarsely related valid types are both propositions or both data types. -/
+theorem ValidAny.isCand_congr {n : Nat} {A B : 𝕋.S} (hA : 𝕋.ValidAny (𝕋.univList n) A)
+    (hB : 𝕋.ValidAny (𝕋.univList n) B) (h : 𝕋.TyRel A B) : 𝕋.IsCand A ↔ 𝕋.IsCand B := by
+  rw [hA.isCand_iff, hB.isCand_iff, hA.kind_eq_of_tyRel hB h]
+
+/-- Coarsely related propositions are both inhabited or both empty. -/
+theorem nonempty_congr {A B : 𝕋.S} (hA : 𝕋.IsCand A) (hB : 𝕋.IsCand B) (h : 𝕋.TyRel A B) :
+    (∃ v, (𝕋.candOf A).mem v) ↔ ∃ v, (𝕋.candOf B).mem v := by
+  rw [isCand_eq hA, isCand_eq hB] at h
+  exact tyRel_cand.1 h
+
+/-- **Π formation respects the coarse relation.** -/
+theorem mkPi_tyRel {n : Nat} {D D' : 𝕋.S} {F F' : 𝕋.S → 𝕋.S}
+    (hD : 𝕋.ValidAny (𝕋.univList n) D) (hD' : 𝕋.ValidAny (𝕋.univList n) D')
+    (hDD' : 𝕋.TyRel D D')
+    (hF : ∀ d, d ∈ₛ 𝕋.El D → 𝕋.ValidAny (𝕋.univList n) (F d))
+    (hF' : ∀ d, d ∈ₛ 𝕋.El D' → 𝕋.ValidAny (𝕋.univList n) (F' d))
+    (hFF' : ∀ d, d ∈ₛ 𝕋.El D → 𝕋.TyRel (F d) (F' d)) :
+    𝕋.TyRel (𝕋.mkPi D F) (𝕋.mkPi D' F') := by
+  have hEl : 𝕋.El D = 𝕋.El D' := (hD.tyRel_same hD' hDD').1
+  have hcD := hD.isCand_congr hD' hDD'
+  have hcF : ∀ d, d ∈ₛ 𝕋.El D → (𝕋.IsCand (F d) ↔ 𝕋.IsCand (F' d)) := fun d hd =>
+    (hF d hd).isCand_congr (hF' d (hEl ▸ hd)) (hFF' d hd)
+  have hgF : ∀ d, d ∈ₛ 𝕋.El D → 𝕋.IsCand (F d) → (𝕋.candOf (F d)).Good := fun d hd hc => by
+    have := hF d hd; rw [isCand_eq hc] at this; exact this.good
+  have hgF' : ∀ d, d ∈ₛ 𝕋.El D → 𝕋.IsCand (F' d) → (𝕋.candOf (F' d)).Good := fun d hd hc => by
+    have := hF' d (hEl ▸ hd); rw [isCand_eq hc] at this; exact this.good
+  unfold mkPi
+  by_cases hDc : 𝕋.IsCand D
+  · have hDc' := hcD.1 hDc
+    rw [if_pos hDc, if_pos hDc']
+    have hne := nonempty_congr hDc hDc' hDD'
+    by_cases hn : ∃ v, (𝕋.candOf D).mem v
+    · rw [if_pos hn, if_pos (hne.1 hn)]
+      have hs : 𝕋.star ∈ₛ 𝕋.El D := by rw [isCand_eq hDc]; exact star_mem_cand hn
+      by_cases hFc : 𝕋.IsCand (F 𝕋.star)
+      · have hFc' := (hcF _ hs).1 hFc
+        rw [if_pos hFc, if_pos hFc']
+        refine tyRel_cand.2 ?_
+        rw [arrow_nonempty_iff (hgF _ hs hFc), arrow_nonempty_iff (hgF' _ hs hFc'), hne,
+          nonempty_congr hFc hFc' (hFF' _ hs)]
+      · have hFc' : ¬ 𝕋.IsCand (F' 𝕋.star) := fun h => hFc ((hcF _ hs).2 h)
+        rw [if_neg hFc, if_neg hFc', TyRel, skel_tPiP, skel_tPiP, hFF' _ hs]
+    · rw [if_neg hn, if_neg (fun h => hn (hne.2 h))]
+      exact rfl
+  · have hDc' : ¬ 𝕋.IsCand D' := fun h => hDc (hcD.2 h)
+    rw [if_neg hDc, if_neg hDc']
+    by_cases hall : ∀ d, d ∈ₛ 𝕋.El D → 𝕋.IsCand (F d)
+    · have hall' : ∀ d, d ∈ₛ 𝕋.El D' → 𝕋.IsCand (F' d) := fun d hd =>
+        (hcF d (hEl ▸ hd)).1 (hall d (hEl ▸ hd))
+      rw [if_pos hall, if_pos hall']
+      refine tyRel_cand.2 ?_
+      rw [piCand_nonempty_iff fun d hd => hgF d hd (hall d hd),
+        piCand_nonempty_iff fun d hd => hgF' d (hEl ▸ hd) (hall' d hd), ← hEl]
+      exact forall_congr' fun d => imp_congr_right fun hd =>
+        nonempty_congr (hall d hd) (hall' d (hEl ▸ hd)) (hFF' d hd)
+    · have hall' : ¬ ∀ d, d ∈ₛ 𝕋.El D' → 𝕋.IsCand (F' d) := fun h =>
+        hall fun d hd => (hcF d hd).2 (h d (hEl ▸ hd))
+      rw [if_neg hall, if_neg hall', TyRel, skel_tPi, skel_tPi, ← hEl, hDD',
+        𝕋.lam_ext fun d hd => hFF' d hd]
+
 end UniverseTower
 end VEnv.Strengthening
 end Lean4Lean
