@@ -9,9 +9,19 @@ and `i + 1` when `i ≠ j` and its major premise does not reduce to an `Eq.refl`
 distinct endpoints whose major premise reduces to `Eq.refl` has no value.
 
 Values are unique (`Val.functional`) and `C E`, `E` have the distinct values `1`, `0`
-(`val_CE`, `val_E`). What is still missing for `KlopEnv.Separated` is the semantic type
-system and its soundness (`FIRST_PRINCIPLES.md` §9): that definitionally equal closed terms of
-type `T` have the same value.
+(`val_CE`, `val_E`).
+
+**This relation is not sound for definitional equality, so it cannot be the basis of the
+separation proof.** It reads the major premise of an `Eq.rec` off the raw term, and proof
+irrelevance lets a derivation replace that term. With
+`m := fun h' : C E = E => @Eq.rec T (C E) (fun _ _ => T) E E h'`, the motive
+`M := fun y _ => y = E → T` and `t := @Eq.rec T (C E) M m E (H (C E) E) : E = E → T`, the terms
+`t (Eq.refl E)` and `t (H E E)` are definitionally equal by proof irrelevance, but under any
+rule that lets `t` behave as `m` the first reduces by ι to `E` (value `0`) and the second has
+value `C E + 1` (value `2`). The set model of `FIRST_PRINCIPLES.md` §8 avoids this because a
+function out of a proposition is identified with its value at the unique proof, and an
+operational semantics on raw terms has no counterpart of that identification. The file is kept
+as a record; see `FIRST_PRINCIPLES.md` §10.
 -/
 
 namespace Lean4Lean

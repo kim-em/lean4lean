@@ -475,3 +475,42 @@ predicate (positivity holds, functionality has to be proved for all levels at on
 proofs whose weak head reduction does not terminate (item 3 treats them as not reducing to
 `Eq.refl`, which is sound as far as I can see). The size is that of the existing observation
 model, several thousand lines.
+
+## 10. The term-model plan of §9 is unsound as written (2026-11-11)
+
+§9 item 3 reads the major premise of an `Eq.rec` off the raw term (does it reduce to
+`Eq.refl`?). That is incompatible with proof irrelevance. Witness, all typed in the
+environment of §7:
+
+```text
+m  := fun h' : C E = E => @Eq.rec T (C E) (fun _ _ => T) E E h'     : C E = E → T
+M  := fun (y : T) (_ : C E = y) => y = E → T
+t  := @Eq.rec T (C E) M m E (H (C E) E)                              : E = E → T
+```
+
+`t (Eq.refl E)` and `t (H E E)` are definitionally equal by proof irrelevance and congruence.
+`t` is a transport of `m` along a proof of a false-in-the-model equation, so in any semantics
+where it behaves as `m`, the first becomes an ι redex with value `⟦E⟧ = 0` and the second a
+stuck `Eq.rec` with distinct endpoints, value `⟦C E⟧ + 1 = 2`. `KlopModel/Val.lean` has
+exactly this defect and is marked accordingly; `Red.lean` and `Val.lean` are not on the path
+to the separation.
+
+The set model of §8 is not affected: there a function out of a proposition is identified with
+its value at the unique proof, so `⟦t⟧ = ⟦m⟧ = 2` and applying it to any proof returns `2`.
+What this shows about a formalisation:
+
+* the interpretation has to be type-directed at binders and applications over propositions
+  (whether a domain is a proposition is a semantic fact; it is not computable from the raw
+  term, because a type can be a transport of `Prop`);
+* proofs of an equation over `T` must denote a token determined by the proposition, and
+  everything else about proofs must be invisible to data.
+
+An operational semantics on raw terms provides neither. A relational, type-directed
+semantics over closure values might, with the interpretation of terms and of types defined
+together; I have not found a formulation I trust, having now made three design errors on this
+model (one-point propositions in §8's first version, the raw-term major here, and the
+untyped classification of proofs considered and rejected while writing this).
+
+Status of the separation: paper proof by the set model of §8, checked only by me, with the
+history above as a reason for caution. A machine-checked version is a research-scale
+formalisation and I do not have a validated design for it.
