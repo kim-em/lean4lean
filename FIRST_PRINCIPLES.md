@@ -653,3 +653,67 @@ conjecture. The evidence for it: no derivation is visible (the only rule that ma
 are `Fix p` for a proof `p` of the axiom `P`); two reviews found no equation refuting the
 intended denotations. That is not a proof. `weakN_iff` is therefore neither proved nor
 refuted.
+
+## 13. Third attempt at the separation: a proof-insensitive term model (2026-11-11)
+
+Not reviewed. It is built to avoid each defect found so far:
+
+* §8, §11 (sets): propositions that carry endpoint information are too large, small ones
+  cannot make ι sound. Here types are closed *terms*, so a proposition `∀ a : T, a = a` is
+  compared structurally with `∀ x : T, x = E` and they differ, with no size cost.
+* §10 (raw-term values): data must not depend on which proof is supplied. Here no data
+  computation ever inspects a proof.
+
+**Values.** `Val t i` for closed terms: `E ↦ 0`; `C t ↦ i + 1` if `t ↦ i`; closed under weak
+head β-expansion; `Eq.rec α a M m b h` with `α` head-reducing to `T`, `a ↦ i`, `b ↦ j`: the
+value of `m` if `i = j` and `i + 1` if `i ≠ j`. For any other `α`, and for an `Eq.rec` applied
+to further arguments, the term behaves as its minor premise (applied to those arguments).
+There is no ι rule on proofs and `h` is never examined. `Fix` is not unfolded.
+
+**Types.** One inductive definition over all levels assigns to a closed type term a set of
+closed terms with a fine and a coarse partial equivalence relation, together with a fine and
+a coarse equality of type terms:
+
+* `T`: members are the terms with a value; fine is equality of values, coarse is total.
+* `@Eq α a b`: all closed terms if `a`, `b` are coarsely related in `α`, empty otherwise.
+  Two such types are finely equal when their components are finely equal, coarsely equal when
+  coarsely equal. `P` is empty. A Π-proposition has all closed terms or none.
+* `∀ x : A, B`: terms `f` sending fine (coarse) related arguments to fine (coarse) related
+  results; type equality componentwise.
+* `Sort n`: type terms interpreted at level `n`, with fine and coarse type equality.
+* an `Eq.rec` used as a type is its minor premise.
+
+Coarsely equal types have the same members and relations up to the coarse/fine distinction
+needed to place a transported term: `Eq.rec α a M m b h` lies in the fibre over `b` because
+that fibre is coarsely equal to the one over `a`.
+
+**Hereditary typing.** `Sem(e, A)` for closed `e` and closed type term `A`, by recursion on
+`e`: for `f x` there are `D`, `B` with `Sem(f, ∀ D, B)`, `Sem(x, D)` and `A` finely equal to
+`B[x]`; constants at the instance of their declared type; abstractions and Π-types
+structurally. `Sem(e, A)` and `Sem(e, A')` give `A`, `A'` finely equal.
+
+**Soundness.** If `Γ ⊢ a ≡ b : A` and `σ`, `σ'` are closing substitutions, finely related
+pointwise and satisfying `Sem` at the context types, then `Aσ`, `Aσ'` are finely equal types,
+`aσ`, `bσ'` are finely related members, and `Sem(aσ, Aσ)`, `Sem(bσ, Aσ)`; with coarsely
+related substitutions, the coarse versions.
+
+* `pat`: from `Sem` of the redex `Eq.rec α a M m b (Eq.refl α' a')`, the type of the major is
+  finely equal both to `@Eq α a b` and to `@Eq α' a' a'`. If `α` is `T`, fine equality of
+  these types gives equal values of `a` and `b`, so the redex has the value of `m`.
+* The extension `(∀ a : T, a = a) ≡ (∀ x : T, x = E)` of §12 is not validated: the fibres
+  `a = a` and `x = E` are not finely equal types.
+* `proofIrrel`: all terms of a proposition are related. The witness of §10: no computation
+  looks at the proofs.
+* `extra` for `C`: values `v + 1` on both sides, since `v ≠ v + 1`. For `Fix`: the type
+  `P → T` has every term as a member, vacuously.
+* Under finely related substitutions the endpoints of an `Eq.rec` over `T` have equal values
+  on both sides, so the same branch is taken.
+
+`Val (C E) 1` and `Val E 0`, and values are unique, so `[] ⊢ C E ≡ E` would give `1 = 0`.
+
+**Unchecked points.** Functionality of the type interpretation with impredicative Π;
+whether fine type equality is preserved by every conversion rule under substitution (β at
+type level, η); whether "behaves as its minor premise" for `α ≠ T` is compatible with fine
+relatedness when the endpoints are coarsely but not finely related; the treatment of
+partially applied `Eq`, `Eq.refl`, `Eq.rec` and of η; whether `Sem` is stable under the
+substitution used in the `beta` case.
