@@ -61,11 +61,12 @@ structure UniverseTower where
 /-- **Open obligation.** In an environment with the Klop inventory, `C E ≡ E` is not
 derivable in the empty context, given a universe tower.
 
-Missing: the model of `FIRST_PRINCIPLES.md` §22 to §27 built in the tower (data
-denotations with `Prop = {0, 1}`, `T = ℤ/3` with the total relation, `C = (+1)`; untyped
-proof values with tokens `r`, `⊥`; realizer sets and codes), its substitution lemmas, and
-the soundness induction over every rule of `IsDefEq` with the head invariant. Then
-`⟦C E⟧ = 1 ≠ 0 = ⟦E⟧`. -/
+Missing: the model of `FIRST_PRINCIPLES.md` §28 with the amendments of §29, built in the
+tower: untyped proof values with tokens `r`, `⊥` and candidates (sets of values closed under
+weak head reduction and expansion, containing `⊥` when non-empty); a proposition denotes its
+candidate; `T = ℤ/3` with the total coarse relation, `C = (+1)`, `P = ∅`; `Eq.rec` a function
+of its endpoints; the substitution and weakening lemmas; and the soundness induction over
+every rule of `IsDefEq` with the head invariant. Then `⟦C E⟧ = 1 ≠ 0 = ⟦E⟧`. -/
 theorem KlopInventory.separated (tower : UniverseTower) {env : VEnv}
     (henv : env.WF) (heq : env.HasCanonicalEq) (K : KlopInventory env) :
     K.toKlopEnv.Separated 0 := by

@@ -14,11 +14,22 @@ open VExpr
 
 namespace VEnv.Strengthening
 
+/-- The registered reduct and (trivial) side condition of the ι rule of `Eq.rec`: the
+λ-template over `α`, `a`, the motive and the minor premise, with the canonical binder
+domains, returning the minor premise. -/
+def eqPatRHS : canonicalEqRecPattern.RHS × canonicalEqRecPattern.Check :=
+  (SimplePattern.iotaRHS ``Eq.rec ``Eq.refl 2 1 1 1 2 0 eqRecRule.rhs eqRecRule_closed, .true)
+
+/-- The projection metadata of `Eq`: two parameters, one index, constructor `Eq.refl`. -/
+def eqProjInfo : VProjectionInfo :=
+  { uvars := 1, nparams := 2, nindices := 1, resultLevel := .zero, ctorName := ``Eq.refl,
+    ctorType := canonicalEqReflType }
+
 /-- The inventory of the minimal Klop environment: besides the declarations of `KlopEnv`,
 its constants are exactly `Eq`, `Eq.refl`, `Eq.rec` and the six Klop constants, its
 definitional equations are exactly those of `C` and `Fix`, its only registered pattern is
-the ι rule of `Eq.rec`, and its only projection metadata is that of `Eq` (one index, no
-field). -/
+the ι rule of `Eq.rec` with its registered reduct (`eqPatRHS`), and its only projection
+metadata is the entry of `Eq` (`eqProjInfo`: one index, no field). -/
 structure KlopInventory (env : VEnv) : Prop extends KlopEnv env where
   constants_only : ∀ n ci, env.constants n = some ci →
     n = ``Eq ∨ n = ``Eq.refl ∨ n = ``Eq.rec ∨ n = `Klop.T ∨ n = `Klop.E ∨ n = `Klop.P ∨
@@ -26,9 +37,8 @@ structure KlopInventory (env : VEnv) : Prop extends KlopEnv env where
   defeqs_only : ∀ df, env.defeqs df →
     df = ⟨0, klopC, klopCBody, .forallE klopT klopT⟩ ∨
     df = ⟨0, klopFix, klopFixBody, .forallE klopP klopT⟩
-  pats_only : ∀ p r, env.pats p r → p = canonicalEqRecPattern
-  projections_only : ∀ n info, env.projections n info →
-    n = ``Eq ∧ info.nindices = 1 ∧ info.numFields = 0
+  pats_only : ∀ p r, env.pats p r → ∃ h : p = canonicalEqRecPattern, h ▸ r = eqPatRHS
+  projections_only : ∀ n info, env.projections n info → n = ``Eq ∧ info = eqProjInfo
 
 theorem addConst_rest {env env' : VEnv} {n ci} (h : env.addConst n ci = some env') :
     env'.defeqs = env.defeqs ∧ env'.pats = env.pats ∧ env'.projections = env.projections := by
@@ -82,13 +92,13 @@ theorem eqEnv_defeqs (df : VDefEq) : ¬ eqEnv.defeqs df := by
   simp [eqEnv, VEnv.addPat, eqRecsEnv, eqProjEnv, eqCtorsEnv]
 
 theorem eqEnv_pats (p : Pattern) (r : p.RHS × p.Check) (h : eqEnv.pats p r) :
-    p = canonicalEqRecPattern := by
-  rcases h with ⟨rfl, -⟩ | h
-  · rfl
+    ∃ h : p = canonicalEqRecPattern, h ▸ r = eqPatRHS := by
+  rcases h with h | h
+  · exact h
   · simp [eqRecsEnv, eqProjEnv, eqCtorsEnv] at h
 
 theorem eqEnv_projections (n : Name) (info : VProjectionInfo) (h : eqEnv.projections n info) :
-    n = ``Eq ∧ info.nindices = 1 ∧ info.numFields = 0 := by
+    n = ``Eq ∧ info = eqProjInfo := by
   have h' : (eqCtorsEnv.addProjections eqBlock.projections).projections n info := h
   rw [VEnv.addProjections_iff] at h'
   rcases h' with ⟨entry, hmem, rfl, rfl⟩ | h'
@@ -96,7 +106,7 @@ theorem eqEnv_projections (n : Name) (info : VProjectionInfo) (h : eqEnv.project
     simp only [VInductDecl.projectionEntries, eqDecl, eqType, List.filterMap_cons,
       List.filterMap_nil, List.mem_singleton] at hm
     subst entry
-    exact ⟨rfl, rfl, by decide⟩
+    exact ⟨rfl, rfl⟩
   · exact (h' : False).elim
 
 theorem eqEnv_fresh {n : Name} (h1 : ``Eq.rec ≠ n) (h2 : ``Eq.refl ≠ n) (h3 : ``Eq ≠ n) :
