@@ -1123,3 +1123,53 @@ proposition whose realizers reach a data `Eq.rec` by proof-level computation; th
 relation on shape components; universe sizes for shapes (shapes are not elements of
 universes, but `⟦·⟧` must not depend on them: it does not, except through the test
 `⟪a⟫ = ⟪b⟫`, which occurs only inside `⟪·⟫`).
+
+## 21. Sixth review, and the repair of its main gap (2026-11-11)
+
+**Review of §20: no flaw found, incomplete in named places.** The reviewer could not produce
+a derivable equation with two values or a typed proof whose value falls outside its realizer
+set, and every earlier killer term passes (§19's `D`, the transport `Sub`, the §10 witness,
+both extension equations, `Eq.rec` at a type variable, `Q h` versus `Q h'`). `C³ E = E` is
+validated, harmlessly. Defects of the write-up:
+
+1. **Certificate step (structural).** The `appDF` case for `Eq.rec T a M m b h` must show
+   that the value of `h` lies in `⟪@Eq T a b⟫`, but its premises type `h` at some `A'` and
+   the function at `∀ _ : A', B`, and nothing in §20 links `⟪A'⟫` to `⟪@Eq T a b⟫`: the shape
+   of a data type was a point, so the candidate of `A'` was discarded.
+2. The coarse clause for `⟪·⟫` in §20.3(3) is false and unused: delete it.
+3. Whether an argument is a proof cannot be read from a raw term, and identifying
+   `⟦Q → B⟧` with `⟦B⟧` makes `⟦E = E → T⟧` literally `⟦T⟧`.
+
+**Repairs.**
+
+* (3) Proofs denote a tagged point `•` in `⟦·⟧`; a Π over a proposition is the functions on
+  `{•}` or on `∅`. Then `⟦f a⟧` is plain application, and `(E = E) → T` is not `⟦T⟧`.
+* (2) Deleted.
+* (1) *Types get codes.* The shape component of a data type is no longer a point but a code:
+  `⟪T⟫` a tag; `⟪Sort ℓ⟫` a tag; `⟪∀ x : A, B⟫` for a data Π the pair of `⟪A⟫` and the
+  function `(d, c) ↦ ⟪B⟫`; for a proposition, its candidate as before. A variable
+  `X : Sort (n+1)` carries an arbitrary code over its denotation. Codes are not elements of
+  universes, so there is no size constraint, and they are compared by set equality, so there
+  is no fixed point to define. In `⟪@Eq α a b⟫`, "identical" compares `⟪a⟫`, `⟪b⟫`, which now
+  includes codes when `α` is a universe. Clause 1 of the theorem already states
+  `⟪A⟫ = ⟪B⟫` for convertible types.
+
+  *Spine lemma*, proved in the same induction: if either side of `Γ ⊢ e ≡ e' : A` is a
+  constant applied to `k` arguments, then `(⟦A⟧, ⟪A⟫)` equals that of the constant's declared
+  type instantiated at those arguments. Cases: `constDF` at `k = 0`; `appDF` from the lemma
+  for the function, since equal codes of Π-types have equal domain codes and equal fibre
+  functions, together with the substitution lemma; `defeqDF` by clause 1; `beta` because an
+  instance is a constant spine only if the body or the argument was; `pat`, `eta`,
+  `proofIrrel` from their typing premises; `extra` by inspection of the four sides.
+
+  *Certificate*: at `appDF` for `Eq.rec α a M m b h`, the spine lemma at `k = 5` gives
+  `⟪A'⟫ = ⟪@Eq α a b⟫`, and clause 2 for the premise `h : A'` puts the value of `h` there.
+  So a value `r` implies identical endpoints, which is what the data clause, clause 3 and
+  the well-definedness of `⟦fun h : Q => b⟧` need.
+
+  A redex `Eq.rec α a M m b (Eq.refl α' a')` needs nothing: its major has value `r`.
+
+With these repairs I know of no gap that is more than the routine part of a soundness proof
+(the definition of the applicative structure with a case construct on `r`/`⊥`, the
+substitution lemmas for the three interpretations, universe levels). That is my assessment
+and not a reviewer's; the repaired certificate step has not been reviewed.
