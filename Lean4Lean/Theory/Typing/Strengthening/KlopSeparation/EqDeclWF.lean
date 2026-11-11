@@ -165,5 +165,85 @@ theorem eqFormation : VInductDecl.OrdinaryFormationWF .empty eqDecl := by
     refine ⟨eqParams, eqReflResult, rfl, by simp [eqDecl, eqParams], ?_, rfl⟩
     exact eqReflResult_valid.raw
 
+def eqBlock : VInductBlock where
+  types := eqDecl.typeConstants
+  ctors := eqDecl.constructorConstants
+  recursors := [eqRecursor]
+  rules := [eqRule]
+  projections := eqDecl.projectionEntries
+
+/-- The constructor-stage environment with the projection metadata of `Eq`. -/
+def eqProjEnv : VEnv := eqCtorsEnv.addProjections eqBlock.projections
+
+theorem eqProjEnv_Eq : eqProjEnv.constants ``Eq = some eqType.toVConstant := by
+  simp [eqProjEnv, eqCtorsEnv, eqTypesEnv, VEnv.addProjections_constants]
+
+theorem eqProjEnv_refl : eqProjEnv.constants ``Eq.refl = some eqCtor.toVConstant := by
+  simp [eqProjEnv, eqCtorsEnv, VEnv.addProjections_constants]
+
+theorem eqCanonicalCompilation : InductiveSignature.Compiles .empty eqDecl eqBlock := by
+  have hp : (VLevel.param 0).WF 1 := by decide
+  refine ⟨eqSignature, eqInstance, eqTypesEnv, ?_, addEqTypes, ?_, ?_, ?_, rfl, rfl⟩
+  · refine ⟨rfl, rfl, rfl, ?_, ?_, Or.inr ?_, ?_⟩
+    · change List.Forall₂ _ [eqType] [eqType]
+      exact .cons ⟨rfl, rfl, rfl, (by rfl), rfl⟩ .nil
+    · refine ⟨eqTypesEnv, addEqTypes, ?_⟩
+      change List.Forall₂ _ [eqCtor] [eqCtor]
+      exact .cons ⟨rfl, rfl, _, eqCtorTyping.choose_spec⟩ .nil
+    · refine ⟨eqTypesEnv, addEqTypes, ?_⟩
+      intro ctor hctor i hi
+      have hctor := List.mem_singleton.mp hctor
+      subst ctor
+      exact (Nat.not_lt_zero i hi).elim
+    · intro ctor hctor
+      have hctor := List.mem_singleton.mp hctor
+      subst ctor
+      rfl
+  · refine ⟨rfl, ?_, ?_, Or.inr (Or.inr ⟨⟨rfl, by decide, ?_⟩, 0, rfl, ?_⟩)⟩
+    · intro level hl
+      have := List.mem_singleton.mp hl
+      subst level
+      decide
+    · decide
+    · intro ctor hctor i hi
+      have hctor := List.mem_singleton.mp hctor
+      subst ctor
+      exact (Nat.not_lt_zero i hi).elim
+    · intro l hl ls u
+      have := List.mem_singleton.mp hl
+      subst l
+      cases ls with
+      | nil => rfl
+      | cons a as => rfl
+  · refine ⟨eqCtorsEnv, addEqConstructors, ?_, ?_⟩
+    · intro index j hj
+      rcases index with ⟨_ | k, hk⟩
+      · have h0 : (InductiveSignature.Instance.recursiveFields
+            eqSignature.constructors[(⟨0, hk⟩ : Fin eqSignature.constructors.size)]).length = 0 :=
+          rfl
+        omega
+      · simp [eqSignature] at hk
+    · intro owner
+      have h : owner = (⟨0, by decide⟩ : Fin eqSignature.families.size) := by
+        apply Fin.ext
+        have hi : owner.val < 1 := owner.isLt
+        change owner.val = 0
+        omega
+      subst owner
+      have hΓ : OnCtx [VExpr.bvar 1, .bvar 0, .sort (.param 0)]
+          ((eqCtorsEnv.addProjections eqDecl.projectionEntries).IsType 1) :=
+        ⟨⟨⟨trivial, _, .sortDF hp hp rfl⟩, _, .bvar .zero⟩, _, .bvar (.succ .zero)⟩
+      refine ⟨hΓ, ?_⟩
+      exact eqAppTyping (env := eqCtorsEnv.addProjections eqDecl.projectionEntries)
+        eqProjEnv_Eq hp (.bvar (.succ (.succ .zero))) (.bvar (.succ .zero)) (.bvar .zero)
+  · intro owner
+    have h : owner = (⟨0, by decide⟩ : Fin eqSignature.families.size) := by
+      apply Fin.ext
+      have hi : owner.val < 1 := owner.isLt
+      change owner.val = 0
+      omega
+    subst owner
+    rfl
+
 end VEnv.Strengthening
 end Lean4Lean
