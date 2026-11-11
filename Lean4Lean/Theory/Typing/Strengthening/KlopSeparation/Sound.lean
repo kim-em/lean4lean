@@ -39,16 +39,18 @@ variable (𝕋 : UniverseTower)
 /-- A semantic type of some level: a good candidate or a valid data type. -/
 def IsSemTy (x : 𝕋.S) : Prop := ∃ n, 𝕋.ValidAny (𝕋.univList n) x
 
-/-- A valuation of a context: every variable denotes an element of the denotation of its
-type, and its value realizes that type when it is a proposition. -/
+/-- A valuation of a context: the type of every variable denotes a semantic type, the
+variable denotes an element of it, and its value realizes it when it is a proposition. -/
 def ValOK (Γ : List VExpr) (ρ : Nat → 𝕋.S) (w : Nat → PVal) : Prop :=
   ∀ i A, Lookup Γ i A →
+    𝕋.IsSemTy (𝕋.den ρ A) ∧
     𝕋.mem (ρ i) (𝕋.El (𝕋.den ρ A)) ∧
     (𝕋.IsCand (𝕋.den ρ A) → (𝕋.candOf (𝕋.den ρ A)).mem (w i))
 
 /-- Two valuations of a context are coarsely related pointwise. -/
 def CoRel (Γ : List VExpr) (ρ ρ' : Nat → 𝕋.S) : Prop :=
-  ∀ i A, Lookup Γ i A → 𝕋.Rel (𝕋.den ρ A) (ρ i) (ρ' i)
+  ∀ i A, Lookup Γ i A →
+    𝕋.TyRel (𝕋.den ρ A) (𝕋.den ρ' A) ∧ 𝕋.Rel (𝕋.den ρ A) (ρ i) (ρ' i)
 
 /-- **The semantic judgment.** At every valuation of the context: the type denotes a
 semantic type; the two sides have the same denotation, an element of it; if the type is a
@@ -68,6 +70,45 @@ def Sem (Γ : List VExpr) (a b A : VExpr) : Prop :=
 theorem valOK_nil (ρ : Nat → 𝕋.S) (w : Nat → PVal) : 𝕋.ValOK [] ρ w := by
   intro i A h
   cases h
+
+variable {𝕋}
+
+/-- The variable rule. -/
+theorem sem_bvar {Γ : List VExpr} {i : Nat} {A : VExpr} (h : Lookup Γ i A) :
+    𝕋.Sem Γ (.bvar i) (.bvar i) A := by
+  intro ρ w hρ
+  obtain ⟨hty, hmem, hval⟩ := hρ i A h
+  exact ⟨hty, rfl, hmem, fun hc => ⟨hval hc, hval hc⟩, fun ρ' w' _ hrel => hrel i A h⟩
+
+/-- Symmetry. -/
+theorem Sem.symm {Γ : List VExpr} {a b A : VExpr} (H : 𝕋.Sem Γ a b A) : 𝕋.Sem Γ b a A := by
+  intro ρ w hρ
+  obtain ⟨hty, heq, hmem, hval, hrel⟩ := H ρ w hρ
+  refine ⟨hty, heq.symm, heq ▸ hmem, fun hc => ⟨(hval hc).2, (hval hc).1⟩, fun ρ' w' hρ' hr => ?_⟩
+  obtain ⟨-, heq', -⟩ := H ρ' w' hρ'
+  obtain ⟨h1, h2⟩ := hrel ρ' w' hρ' hr
+  exact ⟨h1, heq ▸ heq' ▸ h2⟩
+
+/-- Transitivity. -/
+theorem Sem.trans {Γ : List VExpr} {a b c A : VExpr} (H1 : 𝕋.Sem Γ a b A)
+    (H2 : 𝕋.Sem Γ b c A) : 𝕋.Sem Γ a c A := by
+  intro ρ w hρ
+  obtain ⟨hty, heq, hmem, hval, hrel⟩ := H1 ρ w hρ
+  obtain ⟨-, heq2, -, hval2, -⟩ := H2 ρ w hρ
+  exact ⟨hty, heq.trans heq2, hmem, fun hc => ⟨(hval hc).1, (hval2 hc).2⟩, hrel⟩
+
+/-- Conversion: the stated type may be replaced by a type with the same denotation. -/
+theorem Sem.defeq {Γ : List VExpr} {a b A B S : VExpr} (HT : 𝕋.Sem Γ A B S)
+    (H : 𝕋.Sem Γ a b A) : 𝕋.Sem Γ a b B := by
+  intro ρ w hρ
+  obtain ⟨-, hAB, -⟩ := HT ρ w hρ
+  have h := H ρ w hρ
+  rw [hAB] at h
+  obtain ⟨hty, heq, hmem, hval, hrel⟩ := h
+  refine ⟨hty, heq, hmem, hval, fun ρ' w' hρ' hr => ?_⟩
+  obtain ⟨-, hAB', -⟩ := HT ρ' w' hρ'
+  have := hrel ρ' w' hρ' hr
+  rwa [hAB'] at this
 
 end UniverseTower
 
