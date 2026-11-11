@@ -1462,3 +1462,35 @@ premise and compositionality).
 Two places where this write-up leans on something not spelled out: the substitution and
 weakening lemmas for the three interpretations, and "none collapses at these arguments",
 which the eighth reviewer checked for the six prefixes.
+
+## 27. External second opinion on the write-up (2026-11-11)
+
+An independent assessment (Astra, read-only in this worktree) of the public write-up and of
+§20 to §26. Its verdict: the positive half is solid (it re-ran the Lean file and
+`#print axioms`); it found no derivation of `[] ⊢ C E ≡ E` after trying abstraction over
+`P`, transport of reflexivity along `H`, impredicative and type-valued motives, and
+higher-order fixed points; it found no term violating the model of §25/§26; and it rates the
+failure of `weakN_iff` as probable, not established. Corrections it made, all accepted:
+
+* **`Eq` has projection metadata.** `VInductDecl.projectionEntries` registers an entry for
+  every single-constructor family, so "the environment has no projection entry" (§8, §26) is
+  wrong. The four projection rules are still without instances, for a different reason:
+  `structEta` and `unitLike` need zero indices and `Eq` has one; `projDF` needs a field type
+  and `Eq.refl` has no fields; `projIota` needs a typed projection. The inventory of the
+  minimal environment has to prove this.
+* **"The only fixed points of `C` are `Fix p`" is not proved** and is not what the argument
+  uses; the model is.
+* **"Cannot be stated as a single Lean theorem" was wrong.** The separation can be stated and
+  proved conditionally on a set-theoretic universe tower (or an explicit model interface).
+  What Lean cannot do is supply that tower unconditionally for all levels.
+* **"No well-founded confluence join" needed a definition.** The confluence theorem does give
+  `C E ≡ E` a join in the presence of a closed fixed point; what fails is justification of its
+  side conditions by joins recursively.
+* The supporting lemmas (substitution for the three interpretations, semantic typing of the
+  partially applied `Eq.rec`, compatibility of collapse with codes and impredicative Π, the
+  rank construction of universes, shapes and codes) are not routine and are not written.
+
+Its suggested order of work: construct the minimal environment with its inventory;
+consolidate §20 to §26 into one definition; prove soundness against an explicit model
+interface, with the interface's existence as a visible hypothesis; then either realise the
+interface in encoded sets or replace it by a syntactic logical relation.
