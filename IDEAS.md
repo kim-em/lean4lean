@@ -26150,3 +26150,9 @@ levelled criterion; descent by induction on the stage using the step count of
 State: no complete paper proof of coverage exists. The staged design is the only route not
 refuted; its seed case has the gap above and its scope includes all typed steps, not only
 delta.
+
+| Further point tested (2026-11-11) | Verdict |
+| --- | --- |
+| Close the gap of the staged design by a weight on certificates (a step on the side below is justified by a zigzag made of sub-reductions of the current one plus its seed join, which should weigh less) | **Open, obstructed.** It needs the confluence lemmas to report, for each closing step, its certificate as a transport of a peak step, and a weight that does not grow when beta duplicates an argument containing permitted instances. The lemmas are existential in `Prop` and parallel reduction duplicates, so this is a new confluence proof with a multiset measure, not a refactor. |
+| Induction on the number of leaves that type the new variable, removing one leaf at a time | **Open, no transformation found.** A derivation with no such leaf mentions the variable nowhere and is a derivation below, and a leaf at a proposition provable below can be replaced by the lifted proof at no cost in leaves. For a proposition unprovable below, every occurrence is discarded before reaching the endpoints, but the discarding steps are spread through the derivation and I found no local rewrite that removes a leaf. |
+| Confluence with a bound: each condition of the join has a derivation smaller than the input derivation | **Refuted as stated.** A residual guard's derivation is the original guard's derivation conjugated by the reductions of the other branch, whose length is not bounded by the size of the input. A rank that ignores those reductions would have to be invariant under them, which is the certificate notion again. |
