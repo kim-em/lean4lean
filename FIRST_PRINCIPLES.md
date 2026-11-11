@@ -1494,3 +1494,16 @@ Its suggested order of work: construct the minimal environment with its inventor
 consolidate §20 to §26 into one definition; prove soundness against an explicit model
 interface, with the interface's existence as a visible hypothesis; then either realise the
 interface in encoded sets or replace it by a syntactic logical relation.
+
+**Second external run, briefed to refute (2026-11-11).** It did not refute the example. It
+re-checked the Lean file and axioms, confirmed that `not_strengthening` instantiates
+`weakN_iff` correctly (`Ctx.LiftN 1 0 [] [P]`, closed terms unchanged by the lift, the
+well-formed larger context) and that `mutualDef` admits the two definitions and registers
+the equations used. Attacks tried and failed: exporting the fixed point through abstraction
+over `P`; the two-stage transport of §19; the proof-irrelevance witness of §10; impredicativity
+and the collapse convention (`P → T`, `∀ X : Type, X → X`, `∀ q : Prop, (q → T) → E = E`);
+the partial-spine case `(fun R => R b h) (@Eq.rec T a M m)` against the head invariant.
+Residual doubt it names: the model needs one complete definition with a simultaneous
+soundness proof; the exact environment and its inventory (including `Eq`'s projection
+metadata) are not constructed; `exists_klopEnv` is an extension theorem over a given base and
+not the existence of the minimal environment.
