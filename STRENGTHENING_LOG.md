@@ -43864,3 +43864,12 @@ or the full candidate, is an element of `𝒰ₙ`).
 
 For the Π rule case still needed: `mkPi` depends only on the fibres over the domain's
 elements; a Π with all fibres full is the full candidate; assembly.
+
+## 2026-11-11 UTC: Π formation depends only on the fibres over the domain
+
+`PiCongr.lean` (checked, no `sorry`): `Candidate.ext'`, `sep_congr`, `relFn_congr`,
+`piCand_congr`, `tPi_congr`, `mkPi_congr`, `mkLam_congr`, `mkPi_isCand` (a Π all of whose
+fibres are propositions is a proposition), `mkPi_full` (a Π-proposition whose proposition
+fibres are full is the full candidate).
+
+These are the last lemmas needed before the Π rule case (`forallEDF`).
