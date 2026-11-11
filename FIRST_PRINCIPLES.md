@@ -1381,3 +1381,84 @@ its realizer set, across some dozens of attack terms; each found definitional ga
 a repair, the last one "structural" in the sense that a construction had to be changed, not
 that an idea was missing. Unwritten: the full induction for the head invariant, level
 valuations, and the minimal environment. Nothing is machine-checked.
+
+## 26. The head-invariant induction, written out (2026-11-11)
+
+This is the item §25 lists as unwritten. It follows the walk of the eighth reviewer (§23 C)
+and adds the cases they did not need. Notation: for a term `s = h e₁ … e_k` with `h` a
+constant or a variable, and a valuation `ρ`, let `R₀` be the pair (denotation, shape
+component) of the type of `h` (the declared type of a constant at its levels; the pair
+carried by `ρ` for a variable).
+
+**Inv(s, A, ρ).** There are pairs `R₀, …, R_j`, `j ≤ k`, such that for `i < j` the pair
+`R_i` is a non-collapsed Π (a `tPi` or `tPiP` with its code), the triple (denotation, shape,
+value) of `e_{i+1}` at `ρ` lies in its domain (for `tPiP`: the value lies in the domain's
+candidate), and `R_{i+1}` is its fibre there; and either `j = k` and `R_k` is the pair of
+`A` at `ρ`, or `j < k` and `R_j` is a truth value with a candidate (the chain has entered a
+proposition, where nothing more is claimed).
+
+**Claim.** If `Γ ⊢ a ≡ b : A`, then for every valuation `ρ` of `Γ`, `Inv(a, A, ρ)` when `a`
+has a constant or variable head, and likewise for `b`; together with clauses (1), (2) of
+§22.
+
+Rules of `IsDefEq` (`Basic.lean`):
+
+* `bvar`. `k = 0`, `R₀` is the pair of the variable's type, which is the pair of `A` by the
+  definition of a valuation of `Γ` and the weakening lemma.
+* `symm`, `trans`. Each side of the conclusion is a side of a premise at the same `A`.
+* `sortDF`, `lamDF`, `forallEDF`. Neither side has a constant or variable head.
+* `constDF`. `k = 0`; `R₀` is the pair of the declared type at `ls`, and at `ls'` for the
+  other side; these agree because the levels are equivalent and the interpretation depends
+  on levels through their values. `A` is the declared type at `ls`.
+* `appDF`, conclusion `f a ≡ f' a' : B[a]` from `f ≡ f' : ∀ x : A, B` and `a ≡ a' : A`.
+  Suppose `f = h e₁ … e_{k-1}`. By induction `Inv(f, ∀ x : A, B, ρ)`. If its chain ends at
+  `j < k - 1` in a truth value, the same chain serves for `f a`. Otherwise
+  `R_{k-1}` is the pair of `∀ x : A, B`. If that pair is a truth value (the Π collapsed),
+  the chain for `f a` stops there. If not, it is a non-collapsed Π whose domain is the pair
+  of `A` and whose fibre function is `d, c ↦` the pair of `B` (definition of the
+  interpretation of `∀`); clauses (1), (2) for the premise `a ≡ a' : A` put the triple of
+  `a` in the domain; the fibre there is the pair of `B` at `ρ[x ↦ a]`, which is the pair of
+  `B[a]` by the substitution lemma. Same for `f' a'`, using `⟦a⟧ = ⟦a'⟧`, `⟪a⟫ = ⟪a'⟫` to
+  identify the stated type's pair; the value of `a'` lies in the domain by clause (2) for
+  the right-hand side.
+* `defeqDF`. Clause (1) for `A ≡ B` gives equal pairs for the two stated types; the chain
+  is unchanged.
+* `beta`, conclusion `(fun x : A => e) e' ≡ e[e'] : B[e']` from `A :: Γ ⊢ e : B` and
+  `Γ ⊢ e' : A`. The left side is λ-headed. For the right side, at `ρ`, use the induction
+  hypothesis for `e` at `ρ' = ρ[x ↦ triple of e']`, a valuation of `A :: Γ` by clauses (1),
+  (2) for `e'`.
+  - If `e = h e₁ … e_k` with `h` a constant or a variable other than `x`: `e[e']` has the
+    same head, its arguments are the instances, and `Inv(e, B, ρ')` transfers by the
+    substitution lemma for all three interpretations.
+  - If `e = x e₁ … e_k` and `e' = h' d₁ … d_m` has a constant or variable head: `Inv(e', A, ρ)`
+    gives a chain `R'₀, …, R'_{j'}`. If `j' = m`, `R'_m` is the pair of `A`, which is `R₀` of
+    the chain of `e` at `ρ'`; concatenate. If `j' < m`, the chain of `e'` already ended in a
+    truth value and serves for `e[e']`.
+  - If `e = x e₁ … e_k` and `e'` is a λ, or `e` is not of spine form: `e[e']` is λ-headed or
+    its head is determined as above.
+* `eta`, conclusion `(fun x : A => e↑ x) ≡ e : ∀ x : A, B`. The left side is λ-headed; the
+  right side is the subject of the premise at the same type.
+* `proofIrrel`, conclusion `h ≡ h' : p`. Both sides are subjects of premises at `p`.
+* `extra`. The two equations are `C ≡ fun x => …` and `Fix ≡ fun p => …`: left sides are
+  bare constants at their declared types (`k = 0`), right sides are λ-headed. Clauses (1),
+  (2) for the right sides are the direct computations of §22.
+* `pat`, conclusion `e ≡ r.apply … : A` with premises `Γ ⊢ e : A` and the typing of the
+  reduct. The left side is the subject of the first premise. The reduct is a λ-template
+  applied to arguments, hence λ-headed.
+* `projDF`, `projIota`, `structEta`, `unitLike`. No instance: the environment has no
+  projection entry.
+
+**Use.** In the `pat` case let `e = Eq.rec α a M m b (Eq.refl α' a')` with `⟦α⟧ρ = tT` and
+fibre `⟦M b h⟧ρ = tT`. `Inv(e, A, ρ)` holds by the first premise. The declared type of
+`Eq.rec` at these levels (motive universe at least 1) is a chain of six Πs; none collapses at
+these arguments, because each has the non-truth-valued fibre obtained from the constant
+motive, and the last, `(a = b) → T`, is a `tPiP` since its domain is true (it has the member
+supplied by the major by clause (2), or else `Inv` would have stopped). So `j = 6` and the
+value of the major, `r`, lies in the candidate of `@Eq α a b` at `ρ`, which contains `r`
+only if the pairs of `a` and `b` are identical. Hence `⟦a⟧ρ = ⟦b⟧ρ` and `⟦e⟧ρ = ⟦m⟧ρ`, which
+is the denotation of the reduct (a β-chain selecting the minor, by clause (1) for the second
+premise and compositionality).
+
+Two places where this write-up leans on something not spelled out: the substitution and
+weakening lemmas for the three interpretations, and "none collapses at these arguments",
+which the eighth reviewer checked for the six prefixes.
