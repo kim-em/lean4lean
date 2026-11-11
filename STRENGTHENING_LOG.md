@@ -43845,3 +43845,12 @@ of a Π-type applied to coarsely related arguments give coarsely related results
 Lemmas still to do before the Π/λ/application rule cases: `mkLam` respects the relations;
 membership of `mkPi` in the right universe (`U`-closure of `tPi`, `tPiP`); proof values under
 substitution.
+
+## 2026-11-11 UTC: the application rule case
+
+`Sound.lean` (checked; only `KlopInventory.sound` is a `sorry`): `mem_sortDen`,
+`isSemTy_of_mem_sortDen`, `tyRel_of_rel_sortDen`, `consV`, `valOK_cons`,
+`exists_valOK_cons`, and `Sem.app`, the `appDF` case over the strong judgment, using
+`mkApp_mem`, `app_val_mem`, `mkApp_rel` and `den_inst0`.
+
+Rule cases proved: `bvar`, `symm`, `trans`, `defeqDF`, `sortDF`, `appDF`.

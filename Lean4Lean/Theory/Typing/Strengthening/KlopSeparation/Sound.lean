@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.DenSubst
-import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Univ
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.PiLemmas
 import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.MinimalEnv
 
 /-! # Soundness of the Klop model: statement
@@ -122,6 +122,112 @@ theorem Sem.defeq {Γ : List VExpr} {a b A B S : VExpr} (HT : 𝕋.Sem Γ A B S)
   obtain ⟨-, hAB', -⟩ := HT ρ' w' hρ'
   have := hrel ρ' w' hρ' hr
   rwa [hAB'] at this
+
+/-! ### Elements of sorts -/
+
+/-- The level at which the elements of `⟦Sort ℓ⟧` are valid. -/
+def sortLv (l : VLevel) : Nat := l.eval [] - 1
+
+/-- The elements of `⟦Sort ℓ⟧` are valid semantic types at level `sortLv ℓ`; they are all
+propositions (`ℓ = 0`) or propositions among them are the full candidate. -/
+theorem mem_sortDen {l : VLevel} {x : 𝕋.S} (hx : 𝕋.mem x (𝕋.El (𝕋.sortDen l))) :
+    𝕋.ValidAny (𝕋.univList (sortLv l)) x ∧
+    ((∀ y, 𝕋.mem y (𝕋.El (𝕋.sortDen l)) → 𝕋.IsCand y) ∨
+      ∀ y, 𝕋.mem y (𝕋.El (𝕋.sortDen l)) → 𝕋.IsCand y → y = 𝕋.cand Candidate.full) := by
+  unfold sortDen at hx ⊢
+  unfold sortLv
+  cases h : l.eval [] with
+  | zero =>
+    rw [h] at hx
+    obtain ⟨c, hc, rfl⟩ := mem_El_tProp.1 hx
+    exact ⟨.prop hc, .inl fun y hy => let ⟨d, _, e⟩ := mem_El_tProp.1 hy; ⟨d, e⟩⟩
+  | succ m =>
+    rw [h] at hx
+    exact ⟨(mem_El_univ.1 hx).2.1, .inr fun y hy => (mem_El_univ.1 hy).2.2⟩
+
+theorem isSemTy_of_mem_sortDen {l : VLevel} {x : 𝕋.S}
+    (hx : 𝕋.mem x (𝕋.El (𝕋.sortDen l))) : 𝕋.IsSemTy x := ⟨_, (mem_sortDen hx).1⟩
+
+/-- Coarsely related elements of a sort are coarsely related types. -/
+theorem tyRel_of_rel_sortDen {l : VLevel} {x y : 𝕋.S}
+    (hx : 𝕋.mem x (𝕋.El (𝕋.sortDen l))) (h : 𝕋.Rel (𝕋.sortDen l) x y) :
+    𝕋.mem y (𝕋.El (𝕋.sortDen l)) ∧ 𝕋.TyRel x y := by
+  unfold sortDen at hx h ⊢
+  cases hl : l.eval [] with
+  | zero => rw [hl] at hx h; exact (rel_tProp_iff hx).1 h
+  | succ m => rw [hl] at hx h; exact (rel_univ_iff hx).1 h
+
+/-! ### Extending a valuation -/
+
+/-- Extend a value assignment. -/
+def consV (u : PVal) (w : Nat → PVal) : Nat → PVal
+  | 0 => u
+  | i + 1 => w i
+
+theorem valOK_cons {Γ : List VExpr} {ρ : Nat → 𝕋.S} {w : Nat → PVal} {A : VExpr} {d : 𝕋.S}
+    {u : PVal} (hρ : 𝕋.ValOK Γ ρ w) (hA : 𝕋.IsSemTy (𝕋.den ρ A))
+    (hd : 𝕋.mem d (𝕋.El (𝕋.den ρ A)))
+    (hu : 𝕋.IsCand (𝕋.den ρ A) → (𝕋.candOf (𝕋.den ρ A)).mem u) :
+    𝕋.ValOK (A :: Γ) (𝕋.cons d ρ) (consV u w) := by
+  intro i B h
+  cases h with
+  | zero => rw [den_lift]; exact ⟨hA, hd, hu⟩
+  | succ h => rw [den_lift]; exact hρ _ _ h
+
+/-- Every element of a semantic type extends a valuation, with some value. -/
+theorem exists_valOK_cons {Γ : List VExpr} {ρ : Nat → 𝕋.S} {w : Nat → PVal} {A : VExpr}
+    {d : 𝕋.S} (hρ : 𝕋.ValOK Γ ρ w) (hA : 𝕋.IsSemTy (𝕋.den ρ A))
+    (hd : 𝕋.mem d (𝕋.El (𝕋.den ρ A))) : ∃ u, 𝕋.ValOK (A :: Γ) (𝕋.cons d ρ) (consV u w) := by
+  by_cases hc : 𝕋.IsCand (𝕋.den ρ A)
+  · have hd' := hd
+    rw [isCand_eq hc] at hd'
+    obtain ⟨u, hu⟩ := (𝕋.mem_El_cand.1 hd').2
+    exact ⟨u, valOK_cons hρ hA hd fun _ => hu⟩
+  · exact ⟨.bot, valOK_cons hρ hA hd fun h => (hc h).elim⟩
+
+/-! ### Application -/
+
+/-- The application rule (`IsDefEqStrong.appDF`). -/
+theorem Sem.app {Γ : List VExpr} {A B f f' a a' : VExpr} {u v : VLevel}
+    (HA : 𝕋.Sem Γ A A (.sort u)) (HB : 𝕋.Sem (A :: Γ) B B (.sort v))
+    (Hf : 𝕋.Sem Γ f f' (.forallE A B)) (Ha : 𝕋.Sem Γ a a' A)
+    (HBa : 𝕋.Sem Γ (B.inst a) (B.inst a') (.sort v)) :
+    𝕋.Sem Γ (.app f a) (.app f' a') (B.inst a) := by
+  intro ρ w hρ
+  obtain ⟨-, -, hAm, -, -⟩ := HA ρ w hρ
+  have hAty : 𝕋.IsSemTy (𝕋.den ρ A) := isSemTy_of_mem_sortDen hAm
+  obtain ⟨-, hff', hfm, hfv, hfr⟩ := Hf ρ w hρ
+  obtain ⟨-, haa', ham, hav, har⟩ := Ha ρ w hρ
+  obtain ⟨-, -, hBam, -, hBar⟩ := HBa ρ w hρ
+  -- the fibres
+  have hfib : ∀ d, 𝕋.mem d (𝕋.El (𝕋.den ρ A)) →
+      𝕋.mem (𝕋.den (𝕋.cons d ρ) B) (𝕋.El (𝕋.sortDen v)) := fun d hd => by
+    obtain ⟨u', hu'⟩ := exists_valOK_cons hρ hAty hd
+    exact (HB _ _ hu').2.2.1
+  have hinst : 𝕋.den ρ (B.inst a) = 𝕋.den (𝕋.cons (𝕋.den ρ a) ρ) B := 𝕋.den_inst0 ..
+  have hfm' : 𝕋.mem (𝕋.den ρ f)
+      (𝕋.El (𝕋.mkPi (𝕋.den ρ A) fun d => 𝕋.den (𝕋.cons d ρ) B)) := hfm
+  refine ⟨isSemTy_of_mem_sortDen hBam, ?_, ?_, ?_, ?_⟩
+  · show 𝕋.mkApp _ _ = 𝕋.mkApp _ _
+    rw [hff', haa']
+  · rw [hinst]; exact mkApp_mem hfm' ham
+  · intro hc
+    rw [hinst] at hc ⊢
+    have hmix : (¬ ∀ d, 𝕋.mem d (𝕋.El (𝕋.den ρ A)) → 𝕋.IsCand (𝕋.den (𝕋.cons d ρ) B)) →
+        ∀ d, 𝕋.mem d (𝕋.El (𝕋.den ρ A)) → 𝕋.IsCand (𝕋.den (𝕋.cons d ρ) B) →
+          𝕋.den (𝕋.cons d ρ) B = 𝕋.cand Candidate.full := by
+      intro hn d hd hdc
+      rcases (mem_sortDen (hfib d hd)).2 with h | h
+      · exact (hn fun d hd => h _ (hfib d hd)).elim
+      · exact h _ (hfib d hd) hdc
+    exact ⟨app_val_mem ham (fun h => (hfv h).1) (fun h => (hav h).1) hmix hc,
+      app_val_mem ham (fun h => (hfv h).2) (fun h => (hav h).2) hmix hc⟩
+  · intro ρ' w' hρ' hr
+    obtain ⟨hty, hrel⟩ := hBar ρ' w' hρ' hr
+    refine ⟨(tyRel_of_rel_sortDen hBam hrel).2, ?_⟩
+    rw [hinst]
+    exact mkApp_rel (n := sortLv v) (fun d hd => (mem_sortDen (hfib d hd)).1) hfm'
+      (hfr ρ' w' hρ' hr).2 ham (har ρ' w' hρ' hr).2
 
 end UniverseTower
 
