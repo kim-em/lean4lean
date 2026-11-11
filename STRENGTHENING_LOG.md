@@ -43854,3 +43854,13 @@ substitution.
 `mkApp_mem`, `app_val_mem`, `mkApp_rel` and `den_inst0`.
 
 Rule cases proved: `bvar`, `symm`, `trans`, `defeqDF`, `sortDF`, `appDF`.
+
+## 2026-11-11 UTC: valid types lie in the tower's universes
+
+`ValidU.lean` (checked, no `sorry`): `ValidAny.mono` (validity is monotone in the level),
+`ValidAny.inU` (a valid type of level `n`, its element set and its skeleton are members of
+`U (n + 1)`, by induction on validity), `ValidAny.mem_univ` (a valid data type of level `n`,
+or the full candidate, is an element of `𝒰ₙ`).
+
+For the Π rule case still needed: `mkPi` depends only on the fibres over the domain's
+elements; a Π with all fibres full is the full candidate; assembly.
