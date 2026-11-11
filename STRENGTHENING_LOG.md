@@ -43821,3 +43821,16 @@ related valid types have the same elements and relation; then `mkPi` is valid an
 `pi_congr`, and `ValidAny.tyRel_same`: two valid semantic types with equal skeletons have
 the same set of elements and the same coarse relation, by induction on the validity of the
 first with a case split on the second.
+
+## 2026-11-11 UTC: partial equivalence; Π formation is valid
+
+Checked, no `sorry` besides `KlopInventory.sound`.
+
+* `TyRelLemmas.lean`: `IsPER`, `ValidAny.isPER` (the coarse relation of a valid type is
+  reflexive, symmetric and transitive on its elements).
+* `PiLemmas.lean`: `arrow_nonempty_iff`, `good_arrow`, `piCand_nonempty_iff`, `good_piCand`,
+  and `mkPi_valid` (Π formation from a valid domain and valid fibres respecting `~`, all
+  propositions or all members of a data universe, is valid).
+
+Next: `mkPi` respects `~`; `mkApp` and `mkLam` respect the relations; then the rule cases
+for Π, λ and application.
