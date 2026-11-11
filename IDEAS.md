@@ -26277,3 +26277,10 @@ delta.
 | A single universe that is an element of itself | **Refuted.** With full separation, `sep U (x ∉ x)` is Russell's set. |
 | Universes `V_λ` for limit `λ` (no regularity), which exist outright | **Open; needs tameness.** Closure under Π fails for a family over a small type that is unbounded in the universe, and such families are elements of the full function space. Function spaces must be cut down to families that are bounded on bounded sets, hereditarily in the codomain type, and every term must be shown to denote such a family: a logical-relations argument over the inductive structure of valid types. |
 | Countable realizability model: types as partial equivalence relations on untyped values, with `Prop`-valued relations so that the universes are defined by recursion on the level in one Lean type | **Open; a rewrite.** Would make the theorem unconditional. No reuse of the set model beyond the values and candidates. |
+
+## 2026-11-11 UTC: removing the tower
+
+| Idea | Outcome |
+|---|---|
+| Countable realizability: types as relations on untyped values, universes as type systems defined by recursion on the level | **Blocked** (`FIRST_PRINCIPLES.md` §30.1). Data types of low level depend on the truth of propositions, propositions quantify over types of every level, and types of high level contain the low ones as codes; no order of definition. Three cuts tried and refuted there. |
+| Shape-bounded set model: keep the model of §28, §29, restrict function spaces to functions respecting a level-indexed shape, build each universe by recursion on Π-depth | **Proposed** (§30.3), with unresolved points in §30.4. Needs no tower: plain set theory with an infinite set. Adds one clause to the fundamental theorem. |

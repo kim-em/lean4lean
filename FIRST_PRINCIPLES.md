@@ -1589,3 +1589,114 @@ the amendments below no flaw was found, and `⟦C E⟧ = 1 ≠ 0 = ⟦E⟧` surv
   six prefixes are data.
 
 The model to formalise is §28 with these amendments.
+
+## 30. Removing the universe tower: what blocks a term model, and a shape-bounded set model
+
+Goal: `not_weakN_iff` with no set-theoretic hypothesis. The model of §28, §29 uses the tower
+in exactly one place: `univ n` is `sep (U (n + 1)) (ValidTy (univList n))`, so that the valid
+types of level `n` form a set. Everything else is pairing, Π, separation and replacement.
+
+### 30.1 Why "types as terms" realizability does not close
+
+Take a countable applicative structure `D` of untyped values, types as partial equivalence
+relations on `D`, and universes as relations on type codes, defined by recursion on the level
+with one inductive predicate per level (Allen's type systems). Lean can define that hierarchy
+for all levels at once, because the relations are `Prop`-valued. Three things then pull
+against each other.
+
+1. A data type of level 1 can have a proposition as a domain, and its elements depend on
+   whether that proposition is inhabited: `Fix : P → T` must have an empty domain, and
+   `(∀ X : Sort 7, X) → T` is a singleton or a copy of `T`.
+2. A proposition can quantify over a type of any level, so its truth depends on the elements
+   of level 7.
+3. The elements of a type of level 7 include codes built from level 1 types, such as
+   `Sort 6 → ((∀ X : Sort 7, X) → T)`.
+
+So the level-indexed recursion has no order in which to proceed. The set model avoids this by
+letting `Prop` denote the set of all candidates, fixed before any code exists, and by letting
+a quantifier denote an intersection computed by the interpretation function. That needs the
+value of `fun x => ∀ X : Sort 7, …` to be an arbitrary function of the metatheory, which a
+term structure does not have: a reduction rule for the quantifier would have to consult the
+elements of its domain, and those are defined from reduction.
+
+Cuts tried, each failing:
+
+* every value is a proposition code, with a candidate assigned afterwards: point 1 still
+  needs the candidate while the type system is being defined;
+* functions out of propositions ignore emptiness: then `Fix` has an instance, and its
+  equation forces a fixed point of `C`, which is Klop's collapse;
+* universes delimited by syntactic derivability (`El (Sort n)` is the set of closed derivable
+  types): removes the size problem and makes Π formation free, but the fundamental theorem
+  at a type variable needs the theorem for an arbitrary closed derivable type, which is not a
+  subderivation.
+
+Conclusion: the countable route needs Girard-style candidates for propositions with data
+types as codes, and I have no formulation in which both are well defined. Not pursued.
+
+### 30.2 Why the valid types are not a set without the tower
+
+`ValidAny lower` is closed under `tPi D F` for every family `F` on `El D` whose fibres are
+valid and respect the coarse relation. A family over a domain with infinitely many coarse
+classes (`𝒰ₘ`, or `Prop → Prop`) can have fibres of unbounded Π-depth, so the class of valid
+types is closed under Π over unbounded families, and the least such class is a set only below
+a regular strong limit. The inaccessible is paying for families that no term denotes.
+
+### 30.3 Proposal: shapes
+
+Idea: give every semantic type, and every element of one, a level-`n` *shape* for each `n`,
+which forgets data, propositions, and all type structure below level `n`. Restrict function
+spaces to functions that send arguments of equal shape to results of equal shape. Then a
+family over a type of level at most `n` with values in `𝒰ₙ` has one shape, hence bounded
+depth, and `𝒰ₙ` can be built by recursion on depth inside plain set theory.
+
+Definitions (all structural, stored as two more record fields, so no recursion on membership
+is needed):
+
+* `small n X`: `X` is built from the universes `𝒰ₘ` with `m + 2 ≤ n` only (true for
+  propositions, `T`, `Prop`; componentwise for `tPi`, `tPiP`).
+* `shp n X`, for a type record `X`: `∅` if `small n X`; `(U, m)` for `𝒰ₘ` otherwise;
+  for `tPi D F`, the triple of a tag, `shp n D`, and the set of pairs
+  `(eshp D n d, shp n (F d))` for `d ∈ El D`; for `tPiP c B`, a tag and `shp n B`.
+* `eshp X n x`, for `x ∈ El X`: `∅` at propositions, `T`, `Prop`; `shp n x` at a universe;
+  at `tPi D F`, the set of pairs `(eshp D n d, eshp (F d) n (f d))`, replaced by `∅` when
+  every second component is `∅` (so that it agrees with the collapsed function `•`).
+* `El (tPi D F)`: the functions of §28 that also satisfy, for every `n`,
+  `eshp D n d = eshp D n d' → eshp (F d) n (f d) = eshp (F d') n (f d')`.
+* `tPi D F` is valid only if `F` satisfies the same condition with `shp n (F d)`.
+* `V n 0` is the base types, `𝒰ₘ` for `m < n`, and the members of `𝒰ₘ` for `m < n`;
+  `V n (k+1)` adds `tPi D F` and `tPiP c B` over `V n k`; `𝒰ₙ` has elements `⋃ₖ V n k`.
+
+Lemmas the construction rests on:
+
+* (L1) if `D ∈ 𝒰ₙ` then `eshp D n` is constant on `El D`;
+* (L2) hence a valid family `F` over `D ∈ 𝒰ₙ` with fibres in `𝒰ₙ` has constant `shp n (F d)`;
+* (L3) if `X ∈ V n k`, `Y ∈ 𝒰ₙ` and `shp n X = shp n Y` then `Y ∈ V n k` (induction on `n`,
+  then `k`; the case `shp = ∅` uses (L1) to (L3) one level down to put a small type of `𝒰ₙ`
+  into `𝒰ₙ₋₁`);
+* so Π formation lands in `𝒰ₙ`.
+
+New clause of the semantic judgment, proved with the others by induction on derivations: at
+valuations `ρ`, `ρ'` whose components have equal level-`n` shapes, `den ρ a` and `den ρ' a`
+have equal level-`n` shapes, and so do `den ρ A` and `den ρ' A`. It has the same form as the
+coarse-relation clause.
+
+The set theory needed is pairing, Π, separation, replacement and one infinite set. `ZFSet.{0}`
+provides it outright.
+
+### 30.4 Known trouble, not resolved
+
+* Π over an empty proposition is `cand full` in §28, so `p ↦ (p → Sort n)` has two shapes.
+  Either that case becomes a record that keeps the codomain, or shapes are compared only up
+  to it; the first changes `mkPi`, `PiLemmas` and `SoundLam`.
+* A data universe contains `cand full`; a family may be a proposition at one valuation and a
+  small data type at another. Both have shape `∅`, which is why `small` is used and not the
+  constructor.
+* `recBody` branches on whether the fibre is a proposition and on `α = T`; the results on the
+  different branches (`•`, `tsucc a`, the minor premise) must have equal shapes when the
+  inputs do. This holds when the fibres have equal shapes and the minor premise has shape
+  `∅` at a small fibre; to be checked for a fibre `𝒰ₘ`.
+* Shapes compare elements of different types (fibres over different arguments), which is why
+  they are untyped sets and not a relation indexed by one type.
+* Every constant (`Eq`, `Eq.refl`, `Eq.rec`, `C`, `H`, `Fix`) must be shown shape-respecting.
+
+Status: design only. Nothing in Lean yet.
