@@ -1,11 +1,12 @@
 # Strengthening under canonical `Eq`: a first-principles assessment (2026-11-10)
 
-Outcome (updated 2026-11-11): **a counterexample**, in §7. `IsDefEqU.weakN_iff` fails for a
-well-formed environment with canonical `Eq` and two looping `mutualDef`s. The environment and
-the derivation in the larger context are checked in Lean; non-derivability in the smaller
-context is argued by a model and is not formalised. Sections 1 to 6 record the analysis that
-led there; where they say the statement is probably true, §7 supersedes them. The reduction
-of §1 is checked and stands.
+Outcome (updated 2026-11-11): **a candidate counterexample**, in §7. In a well-formed
+environment with canonical `Eq` and two looping `mutualDef`s, `C E ≡ E` is derivable under a
+hypothesis `z : P` (machine-checked). That it is not derivable without the hypothesis is
+argued by a model. The model of §8 was found ill-defined by an independent review; §11 gives
+a repaired model that has not been reviewed. Sections 1 to 6 record the analysis that led
+there; where they say the statement is probably true, §7 supersedes them. The reduction of §1
+is checked and stands.
 
 ## 1. A normal form of the problem (needs canonical `Eq`)
 
@@ -514,3 +515,104 @@ untyped classification of proofs considered and rejected while writing this).
 Status of the separation: paper proof by the set model of §8, checked only by me, with the
 history above as a reason for caution. A machine-checked version is a research-scale
 formalisation and I do not have a validated design for it.
+
+## 11. Review of §8 and a repaired model (2026-11-11)
+
+An independent adversarial review of §8 found it **not well defined**. Confirmed flaw: with
+proof values `refl c` for every data value `c`, and function-valued proofs, `⟦Prop⟧` is not a
+set. `∀ p : Prop, p → p` denotes `{f}` with `dom f = ⟦Prop⟧ ∋ {f}`, contradicting foundation,
+and `@Eq (Type 1) Type Type` denotes a singleton of rank above the first universe. So §8.2's
+"`sortDF`: immediate" is wrong. The review also found the Π clause undefined for families
+with mixed proposition and data fibres (`∀ p : Prop, p → T`), ambiguity in what counts as a
+member of a universe, and a disagreement between §7 (discrete `Prop`) and §8. It found no
+equation with two different denotations, and confirmed the derivation in the larger context.
+**The separation is therefore unproved by §8.** What follows is a repair; it has not been
+reviewed.
+
+### 11.1 What the tokens were for, and how to do without them
+
+The tokens existed to make the ι rule sound without inverting the typing of the redex, and
+they are the source of every problem above. The repair removes them. All proofs denote one
+value `⋆`, `Eq.rec` decides by its endpoints, and the fact that a redex with major `Eq.refl`
+has identical endpoints is obtained from a semantic typing predicate that is hereditary in the
+term, so that it is available from the typing premise of the `pat` rule.
+
+### 11.2 Codes
+
+Semantic types are *codes*, compared by identity, each with a set of elements `El` and a
+partial equivalence relation on it.
+
+* Proposition codes: `⊥` with `El = ∅`; `⊤`, `R`, `J` with `El = {⋆}`. The set of these four
+  is `El(prop)`. `R` and `J` are the codes of true and of false-but-inhabited equations over
+  `T`; they differ only as codes.
+* `T`: `El = ℤ/3`, total relation.
+* `pi(𝔻, 𝔹)` for a code `𝔻` and a function `𝔹` from `El 𝔻` to codes: if every `𝔹 d` is a
+  proposition code, the code is `⊤` when all are inhabited and `⊥` otherwise (so the result
+  is one of the four proposition codes and proofs stay small). Otherwise it is the formal
+  pair, with `El` the functions `f` on `El 𝔻` with `f d ∈ El(𝔹 d)` that respect the
+  relations, related pointwise.
+* `univ n` for `n ≥ 1`: `El` is the set of codes in `V_κ(n-1)`; `univ 0 = prop`.
+* A relation `~` on codes: the least congruence with `⊤ ~ R ~ J`; `pi(𝔻, 𝔹) ~ pi(𝔻', 𝔹')` when
+  `𝔻 ~ 𝔻'` and `𝔹 d ~ 𝔹' d'` for related `d`, `d'`. Related codes have the same `El` and the
+  same relation. `~` is the relation of `univ n` and of `prop`.
+
+### 11.3 Interpretation of terms
+
+Compositional on raw terms, at a valuation:
+
+* `⟦Sort ℓ⟧ = univ ℓ`; `⟦∀ x : A, B⟧ = pi(⟦A⟧, d ↦ ⟦B⟧[d])`; `⟦fun x : A => b⟧` is the
+  function `d ↦ ⟦b⟧[d]` on `El ⟦A⟧`, or `⋆` if all its values are `⋆`; application is
+  function application, and `⋆` applied to anything is `⋆`.
+* `⟦@Eq α a b⟧`: if `⟦α⟧ = T`, then `R` when `⟦a⟧ = ⟦b⟧` and `J` otherwise; for any other
+  `⟦α⟧`, `⊤` when `⟦a⟧`, `⟦b⟧` are related and `⊥` otherwise. `⟦Eq.refl α a⟧ = ⋆`.
+* `⟦@Eq.rec α a M m b h⟧`: `⋆` if the fibre `⟦M b h⟧` is a proposition code; otherwise `⟦m⟧`
+  if `⟦a⟧ = ⟦b⟧`; otherwise `⟦a⟧ + 1` if `⟦α⟧ = T` and the fibre is the code `T`; otherwise
+  `⟦m⟧`. The proof `h` is not consulted.
+* `⟦T⟧ = T`, `⟦E⟧ = 0`, `⟦P⟧ = ⊥`, `⟦H⟧ = ⋆`, `⟦C⟧ = x ↦ x + 1`, `⟦Fix⟧ =` the empty function.
+
+### 11.4 Hereditary semantic typing
+
+`Sem(e, 𝔸)`, by recursion on the raw term `e`, at a valuation whose variables carry codes:
+
+* a variable: `𝔸` is its code; a constant: `𝔸` is the denotation of its type;
+* `f a`: there are `𝔻`, `𝔹` with `Sem(f, pi(𝔻, 𝔹))`, the pair not collapsed to a
+  proposition code or else recorded alongside it, `Sem(a, 𝔻)` and `𝔸 = 𝔹 ⟦a⟧`;
+* `fun x : A => b`: `Sem(A, univ n)` for some `n`, and `𝔸 = pi(⟦A⟧, 𝔹)` with
+  `Sem(b, 𝔹 d)` at every `d ∈ El ⟦A⟧`; similarly for `∀` and sorts.
+
+`Sem` determines `𝔸`. The one delicate point is the first bullet of `f a` for functions
+whose Π-type is a proposition: the collapse of `pi` to `⊤` forgets `𝔻`. `Sem` must therefore
+carry the uncollapsed domain and fibre for every application, which means defining it over
+uncollapsed formal types `Π(𝔻, 𝔹)` with a map to codes. I have not written this out.
+
+### 11.5 Soundness
+
+If `Γ ⊢ a ≡ b : A`, then at related valuations `ρ`, `ρ'` of `Γ`: `Sem(a, ⟦A⟧ρ)`,
+`Sem(b, ⟦A⟧ρ)`, `⟦a⟧ρ = ⟦b⟧ρ ∈ El ⟦A⟧ρ`, `⟦A⟧ρ ~ ⟦A⟧ρ'`, and `⟦a⟧ρ`, `⟦a⟧ρ'` are related.
+
+* `pat`: the premise gives `Sem` of the redex `Eq.rec α a M m b (Eq.refl α' a')`. Unfolding
+  it through the six applications, the domain at the last one is `⟦@Eq α a b⟧`, and `Sem` of
+  the major gives that this code is `⟦@Eq α' a' a'⟧`. If `⟦α⟧ = T` the latter is `R`, so
+  `⟦a⟧ = ⟦b⟧` and the redex denotes `⟦m⟧`. If `⟦α⟧ ≠ T` the redex denotes `⟦m⟧` or `⋆`
+  regardless.
+* `extra` for `C`: endpoints `x`, `x + 1` differ, `⟦α⟧ = T`, fibre `T`: value `x + 1`.
+  `extra` for `Fix`: both sides are the empty function. `Sem` of the four sides is checked
+  directly.
+* `proofIrrel`: both sides are `⋆`. `beta`, `eta`, congruences: compositionality and the
+  substitution lemma for `⟦·⟧` and `Sem`.
+* `Eq.rec` is type-correct: for related endpoints the fibres are `~`-related, hence have the
+  same elements; `⟦a⟧ + 1` is used only in the fibre `T`, whose relation is total.
+* The transport witness of §10: both `t (Eq.refl E)` and `t (H E E)` apply `⟦t⟧` to `⋆`.
+
+`⟦C E⟧ = 1` and `⟦E⟧ = 0` as before.
+
+### 11.6 Status
+
+This model answers the reviewer's confirmed flaw (no large proof values; `El(prop)` has four
+elements) and the gaps on mixed fibres and universe membership (codes; `pi` is uniform). It
+has two points I have not worked through: the uncollapsed types in `Sem` (11.4), and whether
+`⋆` as the value of every proof-valued function is compatible with data functions whose
+fibres are propositions at some arguments and data at others. It needs its own review before
+it is relied on. Until then the counterexample is: larger-context half machine-checked,
+smaller-context half supported by a model that has been repaired twice and is not yet
+independently checked.

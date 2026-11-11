@@ -70,8 +70,9 @@ non-confluence example applies: with axioms `T : Type`, `E : T`, `P : Prop`,
 grounds it. `Theory/Typing/Strengthening/KlopCounterexample.lean` checks that such a
 well-formed environment with canonical `Eq` exists (`exists_klopEnv`), that `[P] ⊢ C E ≡ E`
 (`KlopEnv.above`), and that the statement fails given non-derivability in the empty context
-(`KlopEnv.not_strengthening`). Non-derivability is argued on paper by a model
-(`FIRST_PRINCIPLES.md` §7) and is not formalised. The example needs a looping definition; a
+(`KlopEnv.not_strengthening`). Non-derivability is argued on paper by a model and is not
+formalised: the first model (`FIRST_PRINCIPLES.md` §8) was found ill-defined by an independent
+review, and the repaired model (§11) has not been reviewed, so this half is not established. The example needs a looping definition; a
 statement restricted to environments without `mutualDef` is not refuted by it.
 
 **Fresh replay.** The executable keeps its caches across binders unconditionally, as the C++
