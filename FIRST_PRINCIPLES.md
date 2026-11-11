@@ -1507,3 +1507,57 @@ Residual doubt it names: the model needs one complete definition with a simultan
 soundness proof; the exact environment and its inventory (including `Eq`'s projection
 metadata) are not constructed; `exists_klopEnv` is an extension theorem over a given base and
 not the existence of the minimal environment.
+
+## 28. The model in the form to be formalised (2026-11-11)
+
+Not reviewed when written. It is the model of §22 to §27 with one simplification that removes
+shapes and codes: **a proposition denotes its set of realizers.** This is possible because
+realizers are syntactic (closed terms of an untyped calculus, a countable set), so the set of
+all candidates is a small set and `Prop` can denote it.
+
+**Values.** `Val`: closed terms of the untyped λ-calculus with constants `r`, `⊥` and
+`case`. Weak head reduction is a deterministic function: β, `⊥ v ↦ ⊥`,
+`case r u v ↦ u`, `case ⊥ u v ↦ v`, and reduction of the scrutinee of `case` and of the
+head of an application. `v ⇓ r` means the reduction of `v` reaches `r`. A *candidate* is a
+set of values closed under weak head reduction and expansion. The value `|e|` of a term is a
+syntactic translation: variables, λ and application are translated homomorphically
+(binder domains dropped); sorts, Π-types and data constants go to `⊥`;
+`Eq.refl ↦ λλ. r`; `Eq.rec ↦ λ α a M m b h. case h m ⊥`; `H ↦ ⊥`; `Eq`, `T`, `E`, `P`, `C`,
+`Fix` go to `⊥`. It commutes with substitution on the nose.
+
+**Denotations**, in a universe tower. A semantic type is one of:
+
+* a candidate (tagged), the denotation of a proposition; its only element is `•`;
+* `T`: the three-element set, with the total coarse relation;
+* `𝒞`: the set of all candidates, the denotation of `Prop`; coarse relation: both empty or
+  both non-empty;
+* `𝒰ₙ`: the semantic types of level `n`; coarse relation `~`, the structural relation that
+  compares candidates by emptiness;
+* `Π(𝔻, 𝔹)` with not all fibres candidates: dependent functions respecting the coarse
+  relations, a function constantly `•` being `•`; if all fibres are candidates, the Π is the
+  candidate `{v | ∀ d ∈ 𝔻, ∀ u, v u ∈ 𝔹 d}`;
+* `Πₚ(Q, 𝔹)` for a candidate `Q` and a data fibre: functions on `{•}` if `Q` is non-empty,
+  the one-element type if it is empty; with candidate fibre it is the candidate
+  `{v | ∀ u ∈ Q, v u ∈ 𝔹}`.
+
+`⟦@Eq α a b⟧` is the candidate of values that, if they reduce to `r`, do so only when
+`⟦a⟧ = ⟦b⟧`: all values with `⊥`-or-`r` behaviour allowed are: the closure of `{r, ⊥}` when
+`⟦a⟧ = ⟦b⟧`, the closure of `{⊥}` when merely coarsely related, and the empty candidate
+otherwise. `⟦@Eq.rec α a M m b h⟧`: `•` if the fibre is a candidate; `⟦a⟧ + 1` if `⟦α⟧ = T`,
+the fibre is `T` and `⟦a⟧ ≠ ⟦b⟧`; otherwise `⟦m⟧`. `⟦E⟧ = 0`, `⟦C⟧ = (+1)`, `⟦P⟧ = ∅`,
+`⟦H⟧ = •`, `⟦Fix⟧` the element of `Πₚ(∅, T)`. Every data type is inhabited.
+
+**Theorem.** If `Γ ⊢ a ≡ b : A`, then at every valuation (each variable gets an element of
+the denotation of its type and, independently, a value which lies in that denotation when it
+is a candidate):
+
+1. `⟦A⟧` is a semantic type and `⟦a⟧ = ⟦b⟧` is an element of it;
+2. if `⟦A⟧` is a candidate, `|a|` and `|b|` at the valuation's values are in it;
+3. at coarsely related valuations, `⟦a⟧` and `⟦a⟧'` are coarsely related;
+4. the head invariant of §26, with "domain" now read off the tagged denotation.
+
+Differences from §22 to §27: no shape components and no codes (a Π over a proposition domain
+records the candidate in its denotation; a type family into `Prop` is a function into
+candidates); type equality is equality of denotations, which now includes realizer sets, so
+the two extension equations of §12 and §19 are rejected by clause 1; impredicative Π over
+`Prop` quantifies over the set of all candidates.
