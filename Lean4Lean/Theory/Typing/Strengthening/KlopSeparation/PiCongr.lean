@@ -129,6 +129,38 @@ theorem mkPi_full {D : 𝕋.S} {F : 𝕋.S → 𝕋.S} (hc : 𝕋.IsCand (𝕋.m
     · rw [if_neg hall] at hc
       exact absurd hc (not_isCand_of_kind (kind_tPi ..) (by decide))
 
+/-! ### Pointwise related elements of a Π-type are related -/
+
+theorem rel_mkPi_of_pointwise {D g g' : 𝕋.S} {F : 𝕋.S → 𝕋.S}
+    (hg : g ∈ₛ 𝕋.El (𝕋.mkPi D F)) (hg' : g' ∈ₛ 𝕋.El (𝕋.mkPi D F))
+    (h : ∀ d, d ∈ₛ 𝕋.El D → 𝕋.Rel (F d) (𝕋.mkApp g d) (𝕋.mkApp g' d)) :
+    𝕋.Rel (𝕋.mkPi D F) g g' := by
+  unfold mkPi at hg hg' ⊢
+  by_cases hDc : 𝕋.IsCand D
+  · rw [if_pos hDc] at hg hg' ⊢
+    by_cases hn : ∃ v, (𝕋.candOf D).mem v
+    · have hs : 𝕋.star ∈ₛ 𝕋.El D := by rw [isCand_eq hDc]; exact star_mem_cand hn
+      rw [if_pos hn] at hg hg' ⊢
+      by_cases hFc : 𝕋.IsCand (F 𝕋.star)
+      · rw [if_pos hFc] at hg hg' ⊢
+        exact (rel_cand hg).2 hg'
+      · rw [if_neg hFc] at hg hg' ⊢
+        refine (rel_tPiP_iff hg).2 ⟨hg', ?_⟩
+        have := h _ hs
+        rwa [mkApp, if_neg (ne_star_of_mem_tPiP hg), mkApp,
+          if_neg (ne_star_of_mem_tPiP hg')] at this
+    · rw [if_neg hn] at hg hg' ⊢
+      exact (rel_cand hg).2 hg'
+  · rw [if_neg hDc] at hg hg' ⊢
+    by_cases hall : ∀ d, d ∈ₛ 𝕋.El D → 𝕋.IsCand (F d)
+    · rw [if_pos hall] at hg hg' ⊢
+      exact (rel_cand hg).2 hg'
+    · rw [if_neg hall] at hg hg' ⊢
+      refine (rel_tPi_iff hg).2 ⟨hg', fun d hd => ?_⟩
+      have := h d hd
+      rwa [mkApp, if_neg (ne_star_of_mem_tPi hg), mkApp,
+        if_neg (ne_star_of_mem_tPi hg')] at this
+
 end UniverseTower
 end VEnv.Strengthening
 end Lean4Lean

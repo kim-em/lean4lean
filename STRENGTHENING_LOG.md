@@ -43891,3 +43891,15 @@ Rule cases proved: `bvar`, `symm`, `trans`, `defeqDF`, `sortDF`, `appDF`, `foral
 and `PVal.step_lam_app`: the value of an abstraction applied to a value β-reduces to the
 value of its body at the extended assignment. Needed for clause 2 of the abstraction and β
 rule cases.
+
+## 2026-11-11 UTC: the abstraction rule case
+
+* `PiCongr.lean`: `rel_mkPi_of_pointwise` (two elements of a Π-type that are pointwise
+  coarsely related are coarsely related).
+* `SoundLam.lean` (checked, no `sorry` of its own): `lam_val_mem` (a value realizes a
+  Π-proposition when its applications realize the fibres) and `Sem.lam`, the `lamDF` case:
+  membership via `mkLam_mem_mkPi`, values via `PVal.step_lam_app` and closure of candidates
+  under expansion, coarse relatedness via `rel_mkPi_of_pointwise`.
+
+Rule cases proved: `bvar`, `symm`, `trans`, `defeqDF`, `sortDF`, `appDF`, `forallEDF`,
+`lamDF`.
