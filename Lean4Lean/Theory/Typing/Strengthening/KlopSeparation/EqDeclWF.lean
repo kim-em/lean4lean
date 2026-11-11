@@ -578,5 +578,61 @@ theorem eqRulePatTyped (hc : eqRecRule.rhs.Closed) :
     simp only [VExpr.inst, VExpr.instVar, VExpr.liftN, liftVar] at s4
     exact s4
 
+/-- **The hand-built declaration of `Eq` is well formed in the empty environment.** -/
+theorem eqDecl_WF : eqDecl.WF .empty where
+  source := eqDecl_source
+  formation := .ordinary eqFormation
+  recsCompiled := ⟨eqBlock, eqCompiles, eqRecsOf, eqBlockWellFormed⟩
+  recs_wf := by
+    intro envP hP r hr
+    rw [addEqTypesCtorsProjs] at hP
+    cases hP
+    simp only [eqDecl, List.mem_singleton] at hr
+    subst r
+    exact eqRecursorTyping
+  rec_shape := by
+    intro r hr
+    simp only [eqDecl, List.mem_singleton] at hr
+    subst r
+    decide
+  rules_nodup := by
+    intro r hr
+    simp only [eqDecl, List.mem_singleton] at hr
+    subst r
+    decide
+  rules_ctor := by
+    intro envC hC r hr ru hru
+    rw [addEqTypesCtors] at hC
+    cases hC
+    simp only [eqDecl, List.mem_singleton] at hr
+    subst r
+    simp only [eqVRec, List.mem_singleton] at hru
+    subst ru
+    exact ⟨eqCtor.toVConstant, by simp [eqCtorsEnv, eqRecRule], by decide⟩
+  rules_ctorParams := by
+    intro r hr ru hru
+    simp only [eqDecl, List.mem_singleton] at hr
+    subst r
+    simp only [eqVRec, List.mem_singleton] at hru
+    subst ru
+    exact Or.inl ⟨eqCtor, by simp [eqDecl, eqType, VInductDecl.constructorConstants],
+      rfl, rfl⟩
+  rule_shape := by
+    intro r hr ru hru
+    simp only [eqDecl, List.mem_singleton] at hr
+    subst r
+    simp only [eqVRec, List.mem_singleton] at hru
+    subst ru
+    exact ⟨0, by decide, canonicalEqRecMinor, rfl, by decide, by decide, by decide⟩
+  rules_wf := by
+    intro envR hR r hr ru hru hc
+    rw [addEqTypesCtorsProjsRecs] at hR
+    cases hR
+    simp only [eqDecl, List.mem_singleton] at hr
+    subst r
+    simp only [eqVRec, List.mem_singleton] at hru
+    subst ru
+    exact eqRulePatTyped hc
+
 end VEnv.Strengthening
 end Lean4Lean
