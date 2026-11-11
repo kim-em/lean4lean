@@ -34,6 +34,9 @@ structure UniverseTower where
   /-- Separation. -/
   sep : S → (S → Prop) → S
   mem_sep : ∀ {A p x}, mem x (sep A p) ↔ mem x A ∧ p x
+  /-- Replacement: the image of a set under a function. -/
+  image : S → (S → S) → S
+  mem_image : ∀ {A f y}, mem y (image A f) ↔ ∃ x, mem x A ∧ y = f x
   /-- Ordered pairs. -/
   pair : S → S → S
   pair_inj : ∀ {a b a' b'}, pair a b = pair a' b' → a = a' ∧ b = b'
@@ -49,6 +52,8 @@ structure UniverseTower where
   U_trans : ∀ {n x y}, mem x (U n) → mem y x → mem y (U n)
   set_mem_U : ∀ (α : Type), mem (set α) (U 0)
   sep_mem_U : ∀ {n A p}, mem A (U n) → mem (sep A p) (U n)
+  image_mem_U : ∀ {n A f}, mem A (U n) → (∀ x, mem x A → mem (f x) (U n)) →
+    mem (image A f) (U n)
   pair_mem_U : ∀ {n a b}, mem a (U n) → mem b (U n) → mem (pair a b) (U n)
   lam_mem_U : ∀ {n A f}, mem A (U n) → (∀ x, mem x A → mem (f x) (U n)) → mem (lam A f) (U n)
   pi_mem_U : ∀ {n A B}, mem A (U n) → (∀ x, mem x A → mem (B x) (U n)) → mem (pi A B) (U n)
