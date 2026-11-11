@@ -408,7 +408,89 @@ theorem eqRecRedexTyping {Γ : List VExpr}
   have s6 := HasType.app_dom' (by simpa using s5) rfl hrefl
   simpa [VExpr.inst, VExpr.instVar, VExpr.liftN, liftVar] using s6
 
+/-- The minor premise variable in the rule context. -/
+theorem eqRuleMinorVar {Γ : List VExpr} :
+    env.HasType U (eqRuleCtx Γ) (.bvar 0)
+      (.app (.app (.bvar 1) (.bvar 2))
+        (.app (.app (.const ``Eq.refl [.param 1]) (.bvar 3)) (.bvar 2))) := by
+  have := HasType.bvar (env := env) (U := U)
+    (Lookup.zero (ty := canonicalEqRecMinor)
+      (Γ := canonicalEqRecMotive :: .bvar 0 :: .sort (.param 1) :: Γ))
+  simpa [eqRuleCtx, canonicalEqRecMinor, VExpr.lift, VExpr.liftN, liftVar] using this
+
+/-- Both sides of the generated equation of `Eq.rec` are typed at its type. -/
+theorem eqRuleTyping
+    (hE : env.constants ``Eq = some eqType.toVConstant)
+    (hR : env.constants ``Eq.refl = some eqCtor.toVConstant)
+    (hRec : env.constants ``Eq.rec = some eqRecursor.toVConstant) :
+    eqRule.WF env := by
+  have h0 : (VLevel.param 0).WF 2 := by decide
+  have h1 : (VLevel.param 1).WF 2 := by decide
+  constructor
+  · exact .lamDF (.sortDF h1 h1 rfl) (.lamDF (.bvar .zero)
+      (.lamDF (eqRecMotiveTyping hE h0 h1) (.lamDF (eqRecMinorTyping hR h1)
+        (eqRecRedexTyping (Γ := []) hR hRec h0 h1))))
+  · exact .lamDF (.sortDF h1 h1 rfl) (.lamDF (.bvar .zero)
+      (.lamDF (eqRecMotiveTyping hE h0 h1) (.lamDF (eqRecMinorTyping hR h1)
+        (eqRuleMinorVar (Γ := [])))))
+
 end RecTyping
+
+/-! ### The recursor stage and the block -/
+
+/-- The recursor-stage environment. -/
+def eqRecsEnv : VEnv where
+  constants := fun n => if ``Eq.rec = n then some eqRecursor.toVConstant
+    else eqProjEnv.constants n
+  defeqs := eqProjEnv.defeqs
+  pats := eqProjEnv.pats
+  projections := eqProjEnv.projections
+
+theorem addEqRecursor : eqProjEnv.addConstVals eqBlock.recursors = some eqRecsEnv := by
+  simp [eqBlock, VEnv.addConstVals, VEnv.addConst, eqRecursor,
+    InductiveSignature.Instance.recursor, eqInstance, eqRecsEnv,
+    eqProjEnv, eqCtorsEnv, eqTypesEnv]
+
+theorem eqRecsEnv_Eq : eqRecsEnv.constants ``Eq = some eqType.toVConstant := by
+  simp [eqRecsEnv, eqProjEnv_Eq]
+
+theorem eqRecsEnv_refl : eqRecsEnv.constants ``Eq.refl = some eqCtor.toVConstant := by
+  simp [eqRecsEnv, eqProjEnv_refl]
+
+theorem eqRecsEnv_rec : eqRecsEnv.constants ``Eq.rec = some eqRecursor.toVConstant := by
+  simp [eqRecsEnv]
+
+theorem eqRecursorTyping : eqRecursor.toVConstant.WF eqProjEnv :=
+  eqRecTypeTyping (U := 2) eqProjEnv_Eq eqProjEnv_refl (by decide) (by decide)
+
+theorem eqBlockWellFormed : eqBlock.WF .empty := by
+  refine ⟨eqTypesEnv, eqCtorsEnv, eqRecsEnv,
+    addEqTypes, addEqConstructors, addEqRecursor, ?_, ?_, ?_, ?_⟩
+  · intro ci hci
+    change ci ∈ [eqType.toVConstVal] at hci
+    have := List.mem_singleton.mp hci
+    subst ci
+    exact ⟨_, eqTypeTyping (by decide) []⟩
+  · intro ci hci
+    change ci ∈ [eqCtor] at hci
+    have := List.mem_singleton.mp hci
+    subst ci
+    exact eqCtorTyping
+  · intro ci hci
+    have := List.mem_singleton.mp hci
+    subst ci
+    exact eqRecursorTyping
+  · intro df hdf
+    have := List.mem_singleton.mp hdf
+    subst df
+    exact eqRuleTyping eqRecsEnv_Eq eqRecsEnv_refl eqRecsEnv_rec
+
+theorem eqCompiles : eqDecl.CompilesTo .empty eqBlock :=
+  CompiledInductive.ordinary eqDecl_source eqFormation
+    eqCanonicalCompilation eqBlockWellFormed rfl rfl rfl (by
+      simp [eqBlock, eqDecl, eqType, eqCtor, eqRecursor,
+        VInductDecl.typeConstants, VInductDecl.constructorConstants,
+        InductiveSignature.Instance.recursor, eqInstance])
 
 end VEnv.Strengthening
 end Lean4Lean
