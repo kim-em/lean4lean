@@ -43995,3 +43995,22 @@ membership and relatedness (`eqG_mem`, `eqG_rel`, `eqH_mem`, `eqH_rel`), and `co
 
 Remaining `sorry`s (three, all in `Fundamental.lean`): `constOK_EqRec`,
 `KlopInventory.sem_extra`, `KlopInventory.sem_pat`.
+
+## 2026-11-11 UTC: tools for `Eq.rec`
+
+`SemD.lean` (checked, no `sorry`): `SemD Γ d A` (a semantic term, a function of the
+valuation, is an element of the denotation of the syntactic type `A` and respects coarse
+relatedness), `SemD.lam` (abstraction of a semantic term, by the argument of `Sem.lam`), and
+`Sem.eqApp` (the derived rule `@Eq A x y : Prop`, with coarse relatedness of the two
+propositions at related valuations).
+
+Plan for `constOK_EqRec` (`FIRST_PRINCIPLES.md` §28, §29; not yet done):
+1. `Sem` of the six binder types of `Eq.rec` in their contexts, from `sem_sort`, `sem_bvar`,
+   `Sem.forallE`, `Sem.eqApp`, `Sem.app`;
+2. `recDen v u` equals the six-fold `mkLam` over the denotations of those syntactic types
+   (`mkLam_congr`, `den_eqApp`);
+3. `SemD` of the body `recBody` at the type `M b t` in the six-binder context: it is an
+   element of the fibre (`ValidAny.tyRel_same` on the motive's fibres at coarsely related
+   endpoints; the successor only in the fibre `T`) and respects the coarse relations;
+4. six uses of `SemD.lam`;
+5. the value `recVal` at motive universe `0`.
