@@ -245,5 +245,110 @@ theorem eqCanonicalCompilation : InductiveSignature.Compiles .empty eqDecl eqBlo
     subst owner
     rfl
 
+/-! ### Typing of the recursor -/
+
+section RecTyping
+variable {env : VEnv} {U : Nat}
+
+/-- `@Eq.refl.{u} α a : @Eq α a a`, from the lookups of `Eq.refl`. -/
+theorem eqReflAppTyping {Γ : List VExpr} {u : VLevel} {α a : VExpr}
+    (h : env.constants ``Eq.refl = some eqCtor.toVConstant) (hu : u.WF U)
+    (hα : env.HasType U Γ α (.sort u)) (ha : env.HasType U Γ a α) :
+    env.HasType U Γ (.app (.app (.const ``Eq.refl [u]) α) a)
+      (.app (.app (.app (.const ``Eq [u]) α) a) a) := by
+  have hc : env.HasType U Γ (.const ``Eq.refl [u])
+      (.forallE (.sort u) (.forallE (.bvar 0)
+        (.app (.app (.app (.const ``Eq [u]) (.bvar 1)) (.bvar 0)) (.bvar 0)))) := by
+    have := HasType.const (env := env) (U := U) (Γ := Γ) h (ls := [u]) (by simpa using hu) rfl
+    simpa [eqCtor, canonicalEqReflType, VExpr.instL, VLevel.inst] using this
+  have h1 := hc.app hα
+  simp only [VExpr.inst, VExpr.instVar] at h1
+  have h2 := HasType.app (by simpa using h1) ha
+  simpa [VExpr.inst, VExpr.instVar, VExpr.inst_lift] using h2
+
+/-- The motive type of `Eq.rec` is a type under `α`, `a`. -/
+theorem eqRecMotiveTyping {Γ : List VExpr}
+    (hE : env.constants ``Eq = some eqType.toVConstant) (h0 : (VLevel.param 0).WF U)
+    (h1 : (VLevel.param 1).WF U) :
+    env.HasType U (.bvar 0 :: .sort (.param 1) :: Γ) canonicalEqRecMotive
+      (.sort (.imax (.param 1) (.imax .zero (.succ (.param 0))))) := by
+  refine .forallEDF (.bvar (.succ .zero)) (.forallEDF ?_ (.sortDF h0 h0 rfl))
+  exact eqAppTyping hE h1 (.bvar (.succ (.succ .zero))) (.bvar (.succ .zero)) (.bvar .zero)
+
+/-- The minor premise type of `Eq.rec` is a type under `α`, `a`, the motive. -/
+theorem eqRecMinorTyping {Γ : List VExpr}
+    (hR : env.constants ``Eq.refl = some eqCtor.toVConstant) (h1 : (VLevel.param 1).WF U) :
+    env.HasType U (canonicalEqRecMotive :: .bvar 0 :: .sort (.param 1) :: Γ)
+      canonicalEqRecMinor (.sort (.param 0)) := by
+  have hm : env.HasType U (canonicalEqRecMotive :: .bvar 0 :: .sort (.param 1) :: Γ) (.bvar 0)
+      (.forallE (.bvar 2) (.forallE
+        (.app (.app (.app (.const ``Eq [.param 1]) (.bvar 3)) (.bvar 2)) (.bvar 0))
+        (.sort (.param 0)))) := by
+    have := HasType.bvar (env := env) (U := U)
+      (Lookup.zero (ty := canonicalEqRecMotive) (Γ := .bvar 0 :: .sort (.param 1) :: Γ))
+    simpa [canonicalEqRecMotive, VExpr.lift, VExpr.liftN, liftVar] using this
+  have ha : env.HasType U (canonicalEqRecMotive :: .bvar 0 :: .sort (.param 1) :: Γ) (.bvar 1)
+      (.bvar 2) := .bvar (.succ .zero)
+  have hα : env.HasType U (canonicalEqRecMotive :: .bvar 0 :: .sort (.param 1) :: Γ) (.bvar 2)
+      (.sort (.param 1)) := .bvar (.succ (.succ .zero))
+  have h2 := hm.app ha
+  simp only [VExpr.inst, VExpr.instVar] at h2
+  have h3 := HasType.app (by simpa using h2) (eqReflAppTyping hR h1 hα ha)
+  simpa [canonicalEqRecMinor, VExpr.inst] using h3
+
+/-- The type of the major premise of `Eq.rec`, under `α`, `a`, motive, minor, `b`. -/
+def eqRecMajorType : VExpr :=
+  .app (.app (.app (.const ``Eq [.param 1]) (.bvar 4)) (.bvar 3)) (.bvar 0)
+
+/-- The context of `Eq.rec` up to and including the major premise. -/
+def eqRecCtx (Γ : List VExpr) : List VExpr :=
+  eqRecMajorType :: .bvar 3 :: canonicalEqRecMinor :: canonicalEqRecMotive :: .bvar 0 ::
+    .sort (.param 1) :: Γ
+
+theorem eqRecMajorTyping {Γ : List VExpr}
+    (hE : env.constants ``Eq = some eqType.toVConstant) (h1 : (VLevel.param 1).WF U) :
+    env.HasType U (.bvar 3 :: canonicalEqRecMinor :: canonicalEqRecMotive :: .bvar 0 ::
+      .sort (.param 1) :: Γ) eqRecMajorType (.sort .zero) :=
+  eqAppTyping hE h1 (.bvar (.succ (.succ (.succ (.succ .zero)))))
+    (.bvar (.succ (.succ (.succ .zero)))) (.bvar .zero)
+
+/-- The result `motive b t` of `Eq.rec` in its full context. -/
+theorem eqRecResultTyping {Γ : List VExpr} :
+    env.HasType U (eqRecCtx Γ) (.app (.app (.bvar 3) (.bvar 1)) (.bvar 0))
+      (.sort (.param 0)) := by
+  have hm : env.HasType U (eqRecCtx Γ) (.bvar 3)
+      (.forallE (.bvar 5) (.forallE
+        (.app (.app (.app (.const ``Eq [.param 1]) (.bvar 6)) (.bvar 5)) (.bvar 0))
+        (.sort (.param 0)))) := by
+    have := HasType.bvar (env := env) (U := U)
+      (Lookup.succ (A := eqRecMajorType) (Lookup.succ (A := .bvar 3)
+        (Lookup.succ (A := canonicalEqRecMinor)
+          (Lookup.zero (ty := canonicalEqRecMotive) (Γ := .bvar 0 :: .sort (.param 1) :: Γ)))))
+    simpa [eqRecCtx, canonicalEqRecMotive, VExpr.lift, VExpr.liftN, liftVar] using this
+  have hb : env.HasType U (eqRecCtx Γ) (.bvar 1) (.bvar 5) := .bvar (.succ .zero)
+  have ht : env.HasType U (eqRecCtx Γ) (.bvar 0)
+      (.app (.app (.app (.const ``Eq [.param 1]) (.bvar 5)) (.bvar 4)) (.bvar 1)) := by
+    have := HasType.bvar (env := env) (U := U)
+      (Lookup.zero (ty := eqRecMajorType) (Γ := .bvar 3 :: canonicalEqRecMinor ::
+        canonicalEqRecMotive :: .bvar 0 :: .sort (.param 1) :: Γ))
+    simpa [eqRecCtx, eqRecMajorType, VExpr.lift, VExpr.liftN, liftVar] using this
+  have h2 := hm.app hb
+  simp only [VExpr.inst, VExpr.instVar] at h2
+  have h3 := HasType.app (by simpa using h2) ht
+  simpa [VExpr.inst] using h3
+
+/-- The type of `Eq.rec` is a type, given `Eq` and `Eq.refl`. -/
+theorem eqRecTypeTyping
+    (hE : env.constants ``Eq = some eqType.toVConstant)
+    (hR : env.constants ``Eq.refl = some eqCtor.toVConstant)
+    (h0 : (VLevel.param 0).WF U) (h1 : (VLevel.param 1).WF U) :
+    env.IsType U [] canonicalEqRecType :=
+  ⟨_, .forallEDF (.sortDF h1 h1 rfl) (.forallEDF (.bvar .zero)
+    (.forallEDF (eqRecMotiveTyping hE h0 h1) (.forallEDF (eqRecMinorTyping hR h1)
+      (.forallEDF (.bvar (.succ (.succ (.succ .zero))))
+        (.forallEDF (eqRecMajorTyping hE h1) eqRecResultTyping)))))⟩
+
+end RecTyping
+
 end VEnv.Strengthening
 end Lean4Lean
