@@ -44102,3 +44102,20 @@ endpoints are identical and `recBody` returns the minor premise), `eqRecRule_rhs
 `#print axioms not_weakN_iff_of_tower`: `propext`, `Classical.choice`, `Quot.sound`.
 The statement proved is: for every `UniverseTower`, the statement of `IsDefEqU.weakN_iff` is
 false. `IsDefEqU.weakN_iff` in `UniqueTyping.lean` is unchanged and still `sorry`.
+
+## 2026-11-11 UTC: the tower hypothesis weakened to `ω` inaccessible cardinals
+
+`Tower.lean`: `UniverseTower` is universe-polymorphic (`S : Type (u + 1)`), and only the types
+of cardinality at most the continuum (`ContinuumSized`: an injection into `Nat → Prop`) are
+required to be elements of `U 0`. `Small.lean`: the six types the model encodes (`Nat`,
+`Fin n`, `Bool`, `Unit`, `Empty`, `Candidate`) are `ContinuumSized`; for `Candidate` this uses
+an injection `PVal.code : PVal → Nat`. No other file changed beyond one instance argument.
+
+Previously the structure asked for every `α : Type` to be an element of `U 0` with
+`S : Type 1`, which no `ZFSet` satisfies and which amounts to one more inaccessible above the
+tower.
+
+In the model repository (branch `tower/universe-tower` of `kim-em/lean4lean-model`,
+`Lean4LeanModel/KlopTower.lean` and `Strengthening.lean`): a strictly increasing sequence of
+inaccessible cardinals gives a `UniverseTower` (`universeTower`: `ZFSet`, `U n = V_(κ n)`,
+functions as graphs), hence `not_weakN_iff : OmegaInaccessibles → ¬ (statement of weakN_iff)`.

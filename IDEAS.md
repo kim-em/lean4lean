@@ -26266,3 +26266,14 @@ delta.
 | Set model in a `UniverseTower` with truth-valued `Prop`, untyped proof values, realizer candidates, and a head invariant on constant-headed spines | **Checked in Lean** (`Strengthening/KlopSeparation/`). `KlopInventory.sound` covers every rule of `IsDefEqStrong`; the ι rule (`pat_core`) uses the head invariant to get that the value `r` of the major premise realizes the equation of the redex's endpoints. |
 | `weakN_iff` under canonical `Eq` | **Refuted given a `UniverseTower`**: `not_weakN_iff_of_tower`, no `sorry`, axioms `propext`, `Classical.choice`, `Quot.sound`. |
 | Construct a `UniverseTower` in Lean | **Not done.** Needs a set theory with a Π-closed universe per level; Lean's own universes are the natural source, but the tower's objects live in one type. |
+
+## 2026-11-11 UTC: weakening the set-theoretic hypothesis
+
+| Idea | Outcome |
+|---|---|
+| Restrict the encoded types to continuum size and make the tower universe-polymorphic | **Done.** `ContinuumSized`, `Small.lean`. |
+| Construct the tower from `ω` inaccessibles in `ZFSet` | **Done** in the model repository (`universeTower`, `not_weakN_iff`). |
+| Finite towers (Lean proves `n` inaccessibles for each numeral `n`) | **Does not give a Lean theorem.** A derivation may mention any sort, so each derivation needs a tower as high as its largest level, and a Lean proof cannot choose its universe from the derivation. A statement about derivations with levels below a fixed numeral would be provable outright, for a judgment that is not lean4lean's. |
+| A single universe that is an element of itself | **Refuted.** With full separation, `sep U (x ∉ x)` is Russell's set. |
+| Universes `V_λ` for limit `λ` (no regularity), which exist outright | **Open; needs tameness.** Closure under Π fails for a family over a small type that is unbounded in the universe, and such families are elements of the full function space. Function spaces must be cut down to families that are bounded on bounded sets, hereditarily in the codomain type, and every term must be shown to denote such a family: a logical-relations argument over the inductive structure of valid types. |
+| Countable realizability model: types as partial equivalence relations on untyped values, with `Prop`-valued relations so that the universes are defined by recursion on the level in one Lean type | **Open; a rewrite.** Would make the theorem unconditional. No reuse of the set model beyond the values and candidates. |

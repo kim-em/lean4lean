@@ -75,8 +75,9 @@ well-formed environment with canonical `Eq` and exactly these declarations
 a Π-closed universe per level), and the fundamental theorem `KlopInventory.sound`; the model
 gives `C E` and `E` different denotations. The result is `not_weakN_iff_of_tower`: for every
 `UniverseTower`, the statement of `IsDefEqU.weakN_iff` is false. It has no `sorry` and uses
-the axioms `propext`, `Classical.choice`, `Quot.sound`. No `UniverseTower` is constructed in
-Lean; its existence is the set-theoretic assumption (one inaccessible cardinal per level).
+the axioms `propext`, `Classical.choice`, `Quot.sound`. A `UniverseTower` is constructed from a strictly increasing sequence of inaccessible cardinals
+in the model repository (`kim-em/lean4lean-model`, branch `tower/universe-tower`), giving
+`not_weakN_iff : OmegaInaccessibles → ¬ (statement of weakN_iff)`.
 The example needs a looping definition; a statement restricted to environments without
 `mutualDef` is not refuted by it.
 
