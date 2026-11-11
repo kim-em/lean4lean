@@ -914,3 +914,78 @@ machine-checked implication, to the non-derivability of the single closed equati
 `[] ⊢ C E ≡ E` in one explicit environment (`KlopEnv.not_strengthening`); if that equation is
 derivable the example proves nothing, and if it is not, the theorem is false as stated. The
 equation is conjectured underivable.
+
+## 18. A fifth model: small `Prop`, proof values outside it (2026-11-11)
+
+Not reviewed when written. Diagnosis of the four failures: the ι rule needs a proof of
+`a = b` over `T` to *know* whether its endpoints are identical (§8's tokens), but making that
+knowledge part of the proposition makes `Prop` large (§8) or forces a fine equality of
+propositions (§11 to §16). The way out is the standard one for impredicative `Prop`: keep the
+denotation of a proposition a bare truth value, and give proofs values through a separate
+realizability interpretation with Girard candidates. The tokens then live in proof values,
+which are not elements of any universe, so no size constraint applies to them.
+
+**Denotations `⟦·⟧`** (sets, with inaccessibles for the data universes):
+
+* `⟦Prop⟧ = {0, 1}`. A data type is a set with a partial equivalence relation; `⟦T⟧` is `ℤ/3`
+  with the total relation, every other base relation is equality, Π-types are pointwise.
+  `⟦Sort (n+1)⟧` is the set of data types in `V_κₙ` with the discrete relation; on `{0,1}` the
+  relation is equality.
+* `⟦∀ x : A, B⟧`: if `B` is proposition-valued, the truth value of "for all elements"; if `A`
+  is a proposition, `⟦B⟧` at any realizer when `⟦A⟧ = 1` and the one-point type when
+  `⟦A⟧ = 0`; otherwise the dependent functions respecting the relations.
+* Functions out of a proposition are identified with their value; data never receives a
+  proof as an argument.
+* `⟦@Eq α a b⟧ = 1` iff `⟦a⟧`, `⟦b⟧` are related in `⟦α⟧`.
+* `⟦@Eq.rec α a M m b h⟧` for a data fibre: `⟦m⟧` if the proof value of `h` is the token
+  `r`, or if `⟦α⟧ ≠ ⟦T⟧`, or if the fibre is not `⟦T⟧`; otherwise `⟦a⟧ + 1`.
+* `⟦T⟧`, `⟦E⟧ = 0`, `⟦C⟧ = (+1)`, `⟦P⟧ = 0`, `⟦Fix⟧` the point of `⟦P → T⟧`.
+
+**Proof values and realizers `⟪·⟫`.** A valuation gives each proof variable an arbitrary set
+as value, and each variable `X : Prop` (or of a `Prop`-ended kind) a *candidate*: a set of
+values, non-empty exactly when `⟦X⟧ = 1` (for kinds, a function to candidates). For a
+proposition term `Q`, `⟪Q⟫` is a set of values:
+
+* `⟪X⟫` is the candidate; `⟪F a⟫` applies the candidate function;
+* `⟪@Eq α a b⟫`: if `⟦α⟧ = ⟦T⟧`, `{r}` when `⟦a⟧ = ⟦b⟧` and `{j}` otherwise; for other `α`,
+  `{⋆}` when related, `∅` otherwise;
+* `⟪∀ x : A, B⟫`: the functions `f` on the denotations of the arguments with
+  `f(d) ∈ ⟪B⟫[x ↦ d]`; when `A` is `Prop` or a `Prop`-ended kind, for every element `d` and
+  *every* candidate over it, with the same `f(d)`; when `A` is a proposition, functions from
+  `⟪A⟫` to `⟪B⟫`;
+* `⟪P⟫ = ∅`.
+
+Proof terms get values compositionally: `λ` is a function, application is application,
+`Eq.refl α a` is `r` if `⟦α⟧ = ⟦T⟧` and `⋆` otherwise, `H x y` is `r` if `x = y` and `j`
+otherwise, and an `Eq.rec` with proposition fibre is `⟦m⟧`'s value when the major is `r` or
+the endpoints are identical, and otherwise a chosen element of the realizer set of the fibre.
+
+**Soundness**, by induction on `IsDefEq`, at valuations related pointwise (identical data
+except coarsely related at... no: *identical* data and candidates; a second clause for
+coarsely related valuations as in §8):
+
+1. data: `⟦a⟧ = ⟦b⟧ ∈ ⟦A⟧`, and under coarsely related valuations the values are related;
+2. types: `⟦A⟧ = ⟦B⟧`, and for propositions also `⟪A⟫ = ⟪B⟫`;
+3. proofs: the values of `a` and `b` are in `⟪A⟫`. No equation between proof values is
+   claimed; data does not depend on which element of `⟪A⟫` is supplied, because the only
+   observation of a proof is the token test in `Eq.rec` over `T`, and `⟪@Eq T a b⟫` is a
+   singleton.
+
+Cases: `pat` holds by the definition of `Eq.rec` at the token `r`, since `Eq.refl T a'` has
+value `r`. `proofIrrel` needs nothing for proofs; where a proof feeds an `Eq.rec` over `T`,
+clause 3 for the two premises puts both values in the same singleton. `extra` for `C`: the
+major `H x (C x)` has value `j`, so the right-hand side is `x + 1`. The extension equation of
+§12 is rejected by clause 2: `⟪∀ a, a = a⟫` contains only the constant function `r`,
+`⟪∀ x, x = E⟫` only the function that is `j` off `0`. The witness of §10: `⟦t⟧ = ⟦m⟧` is the
+value of the body at the realizer `j`, namely `2`, and applying to a proof does nothing.
+Impredicative instantiation uses the usual substitution lemma: `⟪B[Q]⟫ = ⟪B⟫[X ↦ ⟪Q⟫]`.
+
+`⟦C E⟧ = 1`, `⟦E⟧ = 0`.
+
+**Unverified:** that data really is independent of the chosen realizer under binders over
+propositions (it should follow from clause 3 and singletons, but functions returning
+elements of `T` whose bodies test a proof of a *non*-`T` equation or of a Π-proposition
+applied to arguments need checking); the `Eq.rec` clause with proposition fibre and its
+"chosen element"; the substitution lemma at `Prop`-ended kinds; `⟪·⟫` under type-level
+`Eq.rec`; and whether clause 2 for propositions (`⟪A⟫ = ⟪B⟫` as sets) survives η and proof
+irrelevance *inside* propositions, e.g. `Q h` versus `Q h'` for `Q : (E = E) → Prop`.
