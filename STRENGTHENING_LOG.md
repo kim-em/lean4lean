@@ -43702,3 +43702,19 @@ All checked, no `sorry`, axioms `propext`, `Classical.choice`, `Quot.sound`:
 * `KlopSeparation/MinimalEnv.lean`: `KlopInventory`, `exists_minimalKlopEnv`.
 * `KlopSeparation/Statement.lean`: `not_weakN_iff_of_tower` now depends on one `sorry`,
   `KlopInventory.separated` (the model in the tower).
+
+## 2026-11-11 UTC: model for `KlopInventory.separated`, first layer
+
+Model to formalise: `FIRST_PRINCIPLES.md` §28 with the amendments of §29 (reviewed).
+`KlopInventory` now pins the registered reduct of `Eq.rec` (`eqPatRHS`) and the projection
+entry of `Eq` (`eqProjInfo`).
+
+`KlopSeparation/Values.lean` (checked, no `sorry`): proof values `PVal` (untyped λ-terms with
+tokens `r`, `bot` and `case`), deterministic weak head reduction, `not_toR_toBot`, candidates
+closed under reduction and expansion, the candidates `empty`, `full`, `botOnly`, `rOrBot`,
+`arrow`, `pi`, and `Candidate.Good` (empty or containing `bot`) with its closure under `pi`.
+
+Remaining for `KlopInventory.separated`: the value translation of `VExpr` and its
+substitution lemma; the set toolkit on `UniverseTower`; tagged semantic types and universes;
+denotations with substitution and weakening; the soundness induction with the head invariant;
+the no-`.proj` lemma and the vacuity of the projection rules from the inventory.
