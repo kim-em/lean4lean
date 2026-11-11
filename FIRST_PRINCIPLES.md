@@ -1267,3 +1267,71 @@ five times, one construction is unwritten, and nothing of it is machine-checked.
 the statement as very likely true and `IsDefEqU.weakN_iff` as very likely false for
 well-formed environments with canonical `Eq` and looping definitions, and I do not regard
 either as established.
+
+## 24. The construction of denotations, codes and shapes (2026-11-11)
+
+Not reviewed when written. This is the piece §23 lists as structural.
+
+**Denotations are tagged.** A semantic type is a tagged object, so that its outermost
+constructor and components can be read off it:
+
+* `tT` (with underlying set `ℤ/3`, total relation); `tProp` (underlying set `{0, 1}`);
+  `tOne` (the collapsed one-point type, underlying set `{•}`); `tU n` (underlying set: the
+  semantic types of level `n`, defined below);
+* `tPi(𝔻, 𝔹)` with `𝔻` a semantic type and `𝔹` a function from the underlying set of `𝔻`
+  to semantic types respecting the relation of `𝔻` (related arguments give equal types),
+  not all of whose values are `tOne` or truth values; underlying set: the dependent functions
+  respecting the relations; `tPiP(𝔹)` for a Π over a true proposition with data fibre `𝔹`
+  (underlying set: functions on `{•}`).
+
+Collapse rule (§23 F): the formation of a Π returns `tOne` when every fibre is `tOne`, the
+conjunction truth value when every fibre is a truth value, `tOne` over a false proposition
+or an empty domain with data fibres, and otherwise one of the two tagged forms. The semantic
+types of level `n` are those hereditarily built with `tU m`, `m < n`, inside `V_κₙ`;
+closure of each level under Π uses inaccessibility of `κₙ`. Because of the tags, a
+non-collapsed Π determines its domain and fibre function.
+
+**Shapes**, by recursion on the tagged denotation, for an element `d`:
+`Sh(tT)(d) = Sh(tOne)(d) = {•}`; `Sh(tProp)(t) = Cand(t)`;
+`Sh(tU n)(𝔻) = Code(𝔻)`, the codes over `𝔻` defined next;
+`Sh(tPi(𝔻, 𝔹))(f)` = the dependent functions sending `(d, c)`, `c ∈ Sh(𝔻)(d)`, to
+`Sh(𝔹 d)(f d)`; `Sh(tPiP(𝔹))(f) = Sh(𝔹)(f •)`.
+
+**Codes**, by recursion on the tagged denotation `𝔻`:
+`Code(tT)`, `Code(tProp)`, `Code(tU n)` are one-point sets (the tag);
+`Code(tOne)` is the one-point set containing the full candidate;
+`Code(tPi(𝔻, 𝔹))` = pairs of a code `κ ∈ Code(𝔻)` and a function sending `(d, c)` to a
+code in `Code(𝔹 d)`;
+`Code(tPiP(𝔹))` = pairs of a candidate (the realizers of the proposition domain) and a code
+in `Code(𝔹)`.
+A truth value has, as its shape component, a candidate. So the pair (denotation, shape
+component) of a type is: for a proposition, (truth value, candidate); for a data type,
+(tagged denotation, code).
+
+Both recursions are well founded (on the rank of the tagged object), `Sh` is a function of
+the denotation alone (repair E), and `Code(𝔻)` is a set: it is built from subsets of the
+value structure `𝕍` and functions on sets. `Code` and `Sh` are mutually recursive only
+through `Sh(tU n) = Code`, and `Code(𝔻)` for `𝔻` of level `n` refers to `Sh` at components
+of `𝔻`, which have smaller rank.
+
+**What the theorem needs from this.** (i) The interpretation `⟪A⟫` of a type term lands in
+`Code(⟦A⟧)` or `Cand(⟦A⟧)`: by the clauses of §22 item 3, compositionally. (ii) A variable
+`X : Sort (n+1)` ranges over all pairs `(𝔻, κ)` with `𝔻` of level `n` and `κ ∈ Code(𝔻)`, or
+`(1, full candidate)`: the substitution lemma holds because every `⟪A⟫` is such a pair.
+(iii) Equal Π-codes have equal components: pairing. (iv) The head invariant reads the domain
+of a Π-code and its fibre at an argument: defined.
+
+**Value structure.** `𝕍` is the set of closed terms of the untyped λ-calculus with constants
+`r`, `⊥` and a binary `case`, modulo β and the rules `⊥ v = ⊥`, `case r u v = u`,
+`case ⊥ u v = v`; data and type arguments are erased (a proof applied to a data argument is
+applied to `⊥`... no: applied to nothing, the abstraction over a data variable is erased).
+This calculus is confluent (orthogonal rules plus β), so `r ≠ ⊥`. A candidate is a set of
+values containing `⊥`. With data arguments erased, `H ↦ ⊥`, `Eq.refl ↦ r`, and a proof of
+`∀ x : T, x = E` such as `fun x => H x E` has value `⊥`, a realizer; `∀ a : T, a = a` is
+realized by `r`, and `∀ x : T, x = E` is not, because `r ∉ ⟪1 = 0⟫ = {⊥}`.
+
+One consequence to check: with data arguments erased, a proof cannot return `r` at some
+arguments and `⊥` at others. A term needing that would be a proof of `∀ x y : T, x = y`
+built by cases on `x`, `y`; `T` is an axiom with no eliminator, so no such term exists, but
+an environment with an inductive `T` would need unerased data arguments (set-indexed
+abstraction), as §20 had.
