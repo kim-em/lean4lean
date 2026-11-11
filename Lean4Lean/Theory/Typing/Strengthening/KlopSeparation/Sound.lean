@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.DenSubst
-import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.PiLemmas
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.PiCongr
 import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.MinimalEnv
 
 /-! # Soundness of the Klop model: statement
@@ -228,6 +228,118 @@ theorem Sem.app {Γ : List VExpr} {A B f f' a a' : VExpr} {u v : VLevel}
     rw [hinst]
     exact mkApp_rel (n := sortLv v) (fun d hd => (mem_sortDen (hfib d hd)).1) hfm'
       (hfr ρ' w' hρ' hr).2 ham (har ρ' w' hρ' hr).2
+
+/-! ### Function types -/
+
+theorem isSemTy_sortDen (l : VLevel) : 𝕋.IsSemTy (𝕋.sortDen l) := by
+  unfold sortDen
+  cases l.eval [] with
+  | zero => exact ⟨0, .tProp⟩
+  | succ m => exact isSemTy_univ m
+
+theorem not_isCand_sortDen (l : VLevel) : ¬ 𝕋.IsCand (𝕋.sortDen l) := by
+  unfold sortDen
+  cases l.eval [] with
+  | zero => exact not_isCand_tProp
+  | succ m => exact not_isCand_univ m
+
+theorem rel_sortDen_of_tyRel {l : VLevel} {x y : 𝕋.S}
+    (hx : 𝕋.mem x (𝕋.El (𝕋.sortDen l))) (hy : 𝕋.mem y (𝕋.El (𝕋.sortDen l)))
+    (h : 𝕋.TyRel x y) : 𝕋.Rel (𝕋.sortDen l) x y := by
+  unfold sortDen at hx hy ⊢
+  cases hl : l.eval [] with
+  | zero => rw [hl] at hx hy; exact (rel_tProp_iff hx).2 ⟨hy, h⟩
+  | succ m => rw [hl] at hx hy; exact (rel_univ_iff hx).2 ⟨hy, h⟩
+
+/-- Extending two coarsely related valuations by coarsely related elements. -/
+theorem coRel_cons {Γ : List VExpr} {ρ ρ' : Nat → 𝕋.S} {A : VExpr} {d d' : 𝕋.S}
+    (hr : 𝕋.CoRel Γ ρ ρ') (hT : 𝕋.TyRel (𝕋.den ρ A) (𝕋.den ρ' A))
+    (hd : 𝕋.Rel (𝕋.den ρ A) d d') : 𝕋.CoRel (A :: Γ) (𝕋.cons d ρ) (𝕋.cons d' ρ') := by
+  intro i B h
+  cases h with
+  | zero => rw [den_lift, den_lift]; exact ⟨hT, hd⟩
+  | succ h => rw [den_lift, den_lift]; exact hr _ _ h
+
+/-- A valuation is coarsely related to itself. -/
+theorem coRel_refl {Γ : List VExpr} {ρ : Nat → 𝕋.S} {w : Nat → PVal} (hρ : 𝕋.ValOK Γ ρ w) :
+    𝕋.CoRel Γ ρ ρ := by
+  intro i A h
+  obtain ⟨⟨n, hty⟩, hm, -⟩ := hρ i A h
+  exact ⟨rfl, hty.isPER.refl _ hm⟩
+
+/-- A Π over a type without elements is the full candidate. -/
+theorem mkPi_of_empty {D : 𝕋.S} {F : 𝕋.S → 𝕋.S} (h : ¬ ∃ d, 𝕋.mem d (𝕋.El D)) :
+    𝕋.mkPi D F = 𝕋.cand Candidate.full := by
+  unfold mkPi
+  by_cases hDc : 𝕋.IsCand D
+  · rw [if_pos hDc, if_neg]
+    intro hn
+    exact h ⟨𝕋.star, by rw [isCand_eq hDc]; exact star_mem_cand hn⟩
+  · rw [if_neg hDc, if_pos fun d hd => (h ⟨d, hd⟩).elim]
+    congr 1
+    exact Candidate.ext' fun v => ⟨fun _ => trivial, fun _ d hd => (h ⟨d, hd⟩).elim⟩
+
+/-- The full candidate is an element of every sort. -/
+theorem full_mem_sortDen (l : VLevel) :
+    𝕋.mem (𝕋.cand Candidate.full) (𝕋.El (𝕋.sortDen l)) := by
+  unfold sortDen
+  cases l.eval [] with
+  | zero => exact mem_El_tProp.2 ⟨_, Candidate.good_full, rfl⟩
+  | succ m => exact (ValidAny.prop Candidate.good_full).mem_univ fun _ => rfl
+
+/-- The membership part of the Π rule: a Π over a domain in `⟦Sort u⟧` with fibres in
+`⟦Sort v⟧` that respect `~` is an element of `⟦Sort (imax u v)⟧`. -/
+theorem mkPi_mem_sortDen {u v : VLevel} {D : 𝕋.S} {F : 𝕋.S → 𝕋.S}
+    (hD : 𝕋.mem D (𝕋.El (𝕋.sortDen u)))
+    (hF : ∀ d, 𝕋.mem d (𝕋.El D) → 𝕋.mem (F d) (𝕋.El (𝕋.sortDen v)))
+    (hFrel : ∀ d d', 𝕋.mem d (𝕋.El D) → 𝕋.Rel D d d' → 𝕋.TyRel (F d) (F d')) :
+    𝕋.mem (𝕋.mkPi D F) (𝕋.El (𝕋.sortDen (.imax u v))) := by
+  let N := max (sortLv u) (sortLv v)
+  have hDv : 𝕋.ValidAny (𝕋.univList N) D := (mem_sortDen hD).1.mono (Nat.le_max_left ..)
+  have hFv : ∀ d, 𝕋.mem d (𝕋.El D) → 𝕋.ValidAny (𝕋.univList N) (F d) := fun d hd =>
+    (mem_sortDen (hF d hd)).1.mono (Nat.le_max_right ..)
+  by_cases hDe : ∃ d, 𝕋.mem d (𝕋.El D)
+  case neg =>
+    -- no element: the Π is the full candidate
+    rw [mkPi_of_empty hDe]
+    exact full_mem_sortDen _
+  obtain ⟨d₀, hd₀⟩ := hDe
+  have hsort : (∀ d, 𝕋.mem d (𝕋.El D) → 𝕋.IsCand (F d) → F d = 𝕋.cand Candidate.full) ∨
+      ∀ d, 𝕋.mem d (𝕋.El D) → 𝕋.IsCand (F d) := by
+    rcases (mem_sortDen (hF d₀ hd₀)).2 with h | h
+    · exact .inr fun d hd => h _ (hF d hd)
+    · exact .inl fun d hd => h _ (hF d hd)
+  have hval := mkPi_valid hDv hFv hFrel hsort
+  unfold sortDen
+  have himax : (VLevel.imax u v).eval [] = Lean.Nat.imax (u.eval []) (v.eval []) := rfl
+  rw [himax]
+  cases hv : v.eval [] with
+  | zero =>
+    have hall : ∀ d, 𝕋.mem d (𝕋.El D) → 𝕋.IsCand (F d) := fun d hd => by
+      have := hF d hd
+      unfold sortDen at this
+      rw [hv] at this
+      obtain ⟨c, -, e⟩ := mem_El_tProp.1 this
+      exact ⟨c, e⟩
+    have hc := mkPi_isCand hall
+    simp only [Lean.Nat.imax]
+    rw [isCand_eq hc] at hval ⊢
+    exact mem_El_tProp.2 ⟨_, hval.good, rfl⟩
+  | succ k =>
+    have hmax : Lean.Nat.imax (u.eval []) (k + 1) = max (u.eval []) (k + 1) - 1 + 1 := by
+      simp only [Lean.Nat.imax, Nat.succ_ne_zero, if_false]
+      show Nat.max (u.eval []) (k + 1) = _
+      have : Nat.max (u.eval []) (k + 1) = max (u.eval []) (k + 1) := rfl
+      omega
+    rw [hmax]
+    have hle : N ≤ max (u.eval []) (k + 1) - 1 := by
+      show max (sortLv u) (sortLv v) ≤ _
+      unfold sortLv; rw [hv]; omega
+    refine (hval.mono hle).mem_univ fun hc => mkPi_full hc fun d hd hdc => ?_
+    have := hF d hd
+    unfold sortDen at this
+    rw [hv] at this
+    exact (mem_El_univ.1 this).2.2 hdc
 
 end UniverseTower
 
