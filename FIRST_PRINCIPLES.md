@@ -408,3 +408,70 @@ used only for closure of universes under Π), the substitution and weakening lem
 bookkeeping of the two kinds of value. None is specific to the example. This model has not
 been machine-checked, and its first version had a gap (above); treat the separation as
 argued, not proved.
+
+## 9. Plan for a machine-checked separation: a term model
+
+The set model of §8 needs universes closed like inaccessibles, which Lean supplies only for an
+externally fixed number of levels. The model below has the same content with closed terms in
+place of sets, so every semantic type is countable and no size question arises. Nothing in this
+section is implemented.
+
+**Why no cheaper route exists.** Any proof of the separation must use that `P` has no closed
+proof, so it proves a consistency statement for the environment and cannot come from the
+confluence, rigidity or injectivity theorems, which hold in every context (`IDEAS.md`,
+2026-11-11, lists the five shortcuts tried). Proof irrelevance cannot be modelled without
+types, which rules out untyped domain models; the uniformity of a recursor in its motive rules
+out a translation into an environment where `T` has constructors.
+
+**Ingredients.**
+
+1. *Inventory.* A predicate on environments saying that the constants are exactly `Eq`,
+   `Eq.refl`, `Eq.rec`, `T`, `E`, `P`, `H`, `C`, `Fix` with the stated types, the definitional
+   equations are exactly those of `C` and `Fix`, the only registered pattern is the ι rule of
+   `Eq.rec`, and there is no projection entry. The separation is proved for every environment
+   with this inventory; that a well-formed one exists is a separate obligation (the repository
+   obtains canonical `Eq` only through the checker verification, so it needs a direct
+   construction of the `Eq` declaration).
+2. *Weak head reduction* on closed terms: β, unfolding of `Fix`, and ι for `Eq.rec` at a
+   syntactic `Eq.refl`. `C` is not unfolded. This relation is defined before everything else,
+   so later definitions may use its negation.
+3. *Values.* `Val t i` for a closed term `t` and `i : ℤ/3`, inductively: `E ↦ 0`;
+   `C t ↦ i + 1` if `t ↦ i`; closure under weak head expansion; and for
+   `Eq.rec α a M m b h` with `α` reducing to `T`, `a ↦ i`, `b ↦ j`: the value of `m` if
+   `i = j`, and `i + 1` if `i ≠ j` and `h` does not reduce to an `Eq.refl`. A redex with
+   distinct endpoints whose proof reduces to `Eq.refl` has no value; this is what makes the ι
+   rule sound without inverting a typing.
+4. *Semantic types.* One inductive predicate over all universe levels relating a closed type
+   term to a pair of partial equivalence relations on closed terms, a fine one (definitional
+   equality) inside a coarse one (propositional equality):
+   * `T`: fine is equality of values, coarse relates all terms with a value;
+   * `Eq α a b`: inhabited when `a`, `b` are coarsely related; its members are the closed terms
+     `h` such that, if `h` reduces to an `Eq.refl`, then `a`, `b` are finely related; all members
+     are related;
+   * `P`: empty. Other propositions: empty or full, by the usual clauses;
+   * `∀ x : A, B`: functions taking finely related arguments to finely related results and
+     coarsely related arguments to coarsely related results, where the fibres over finely
+     (coarsely) related arguments are finely (coarsely) equal types;
+   * `Sort n`: type terms with an interpretation at level `n`, fine and coarse type equality;
+   * a stuck `Eq.rec` in a data type other than `T` behaves as its minor premise.
+5. *Soundness*, by induction on `IsDefEq`: under finely related closing substitutions the two
+   sides are finely related members of the interpretation of the type, and under coarsely
+   related ones coarsely related.
+
+**Obligations, in order.** Each is a statement about the definitions above and does not
+depend on the open `sorry`.
+
+* `KlopModel.red_deterministic`, `KlopModel.val_functional`.
+* `KlopModel.interp_functional`: a type term has at most one interpretation; symmetry and
+  transitivity of both relations; closure under weak head expansion.
+* `KlopModel.sound`: the statement of item 5, one case per rule of `IsDefEq`. The cases for
+  projections, structure eta and unit-like types are vacuous by the inventory.
+* `KlopModel.separated`: `Val (C E) 1`, `Val E 0`, hence `KlopEnv.Separated`.
+* `exists_eqEnv`: a well-formed environment with canonical `Eq` and the base inventory.
+
+Risks I can see: the interaction of the two relations at Π-types and universes (every lemma is
+proved twice), impredicative quantification over a larger universe inside the single inductive
+predicate (positivity holds, functionality has to be proved for all levels at once), and
+proofs whose weak head reduction does not terminate (item 3 treats them as not reducing to
+`Eq.refl`, which is sound as far as I can see). The size is that of the existing observation
+model, several thousand lines.
