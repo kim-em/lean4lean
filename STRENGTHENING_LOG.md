@@ -43937,3 +43937,20 @@ Remaining for `KlopInventory.sound`: assemble `Sem` with `SpineOK` over all rule
 constants (`constDF`), in particular `Eq.rec` as an element of its declared type; the two
 `extra` equations; `pat`, by inverting the chain of the redex; the projection rules
 (no side of a derivable judgment is a `.proj`, and `structEta`/`unitLike` need zero indices).
+
+## 2026-11-11 UTC: the fundamental theorem is assembled; five named obligations remain
+
+`Fundamental.lean` (checked): `SemS` (the semantic judgment with the head invariant on both
+sides) and `KlopInventory.sound`, proved by induction over `IsDefEqStrong` with every rule
+case filled in from the lemmas, except five named obligations, each a theorem with `sorry`
+and a docstring:
+
+* `KlopInventory.sem_const`: the nine constants are elements of their declared types
+  (the substantial one is `Eq.rec`);
+* `KlopInventory.sem_extra`: the definitional equations of `C` and `Fix`;
+* `KlopInventory.sem_pat`: the ι rule of `Eq.rec`, from the head invariant of the redex;
+* `KlopInventory.no_projDF`: `fieldType` of `eqProjInfo` is `none`;
+* `KlopInventory.no_projIota`: no side of a strong derivation is a `.proj`.
+
+`structEta` and `unitLike` are excluded in the induction by the index count of `eqProjInfo`.
+`den_sound`, `separated` and `not_weakN_iff_of_tower` follow from `KlopInventory.sound`.

@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.MinimalEnv
-import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Sound
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Fundamental
 
 /-! # Given a universe tower, strengthening of definitional equality is false
 

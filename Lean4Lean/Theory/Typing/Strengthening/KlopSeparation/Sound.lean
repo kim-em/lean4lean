@@ -5,12 +5,9 @@ import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.MinimalEnv
 /-! # Soundness of the Klop model: statement
 
 The semantic judgment `Sem` that every derivable judgment of an environment with the Klop
-inventory is to satisfy (`FIRST_PRINCIPLES.md` §28, §29), and the reduction of
-`KlopInventory.den_sound` to it. The fundamental theorem `KlopInventory.sound` is the one
-remaining open obligation of `not_weakN_iff_of_tower`.
-
-The head invariant on application spines (§26) is not yet part of `Sem`; it has to be added
-for the `pat` case, and is noted in the docstring of `KlopInventory.sound`.
+inventory is to satisfy (`FIRST_PRINCIPLES.md` §28, §29), with its first rule cases. The
+head invariant on application spines is in `Spine.lean`, and the fundamental theorem is
+assembled in `Fundamental.lean`.
 -/
 
 namespace Lean4Lean
@@ -405,33 +402,6 @@ theorem Sem.forallE {Γ : List VExpr} {A A' B B' : VExpr} {u v : VLevel}
     exact (tyRel_of_rel_sortDen hm this).2
 
 end UniverseTower
-
-/-- **Open obligation: the fundamental theorem of the model.** In an environment with the
-Klop inventory, every derivable judgment (at universe-parameter count `0`) satisfies the
-semantic judgment. The induction is over the strong judgment `IsDefEqStrong`, whose rules
-carry the typing premises the semantic argument needs (for instance the type of an
-application is a type), and every derivation has a strong form (`IsDefEq.strong`).
-
-Missing: the lemmas about semantic types (the coarse relation is a partial equivalence,
-coarsely related types have the same elements, data types are inhabited, universe
-membership, validity of `mkPi`); the commutation of `pval` and `PVal.subst` with
-instantiation; and the induction over the rules of `IsDefEq`. `Sem` has to be strengthened
-with the head invariant on application spines (`FIRST_PRINCIPLES.md` §26) for the `pat` case
-of `Eq.rec` over `T`, and the projection rules are to be shown vacuous from the inventory
-(`eqProjInfo` has one index and no field; no side of a derivable judgment is a `.proj`). -/
-theorem KlopInventory.sound (𝕋 : UniverseTower) {env : VEnv}
-    (henv : env.WF) (heq : env.HasCanonicalEq) (K : KlopInventory env)
-    {Γ : List VExpr} {a b A : VExpr} (H : env.IsDefEqStrong 0 Γ a b A) : 𝕋.Sem Γ a b A := by
-  sorry
-
-/-- Definitionally equal closed terms have equal denotations. Depends on
-`KlopInventory.sound`. -/
-theorem KlopInventory.den_sound (𝕋 : UniverseTower) {env : VEnv}
-    (henv : env.WF) (heq : env.HasCanonicalEq) (K : KlopInventory env)
-    {a b A : VExpr} (H : env.IsDefEq 0 [] a b A) (ρ : Nat → 𝕋.S) :
-    𝕋.den ρ a = 𝕋.den ρ b :=
-  (K.sound 𝕋 henv heq (H.strong henv.orderedStrong (Γ := []) trivial) ρ (fun _ => .bot)
-    (𝕋.valOK_nil ρ _)).2.1
 
 end VEnv.Strengthening
 end Lean4Lean
