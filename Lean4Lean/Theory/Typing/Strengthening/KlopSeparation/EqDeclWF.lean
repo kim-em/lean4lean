@@ -348,6 +348,66 @@ theorem eqRecTypeTyping
       (.forallEDF (.bvar (.succ (.succ (.succ .zero))))
         (.forallEDF (eqRecMajorTyping hE h1) eqRecResultTyping)))))⟩
 
+theorem HasType.app_dom' {Γ : List VExpr} {f a A A' B : VExpr}
+    (h1 : env.HasType U Γ f (.forallE A' B)) (hA : A' = A)
+    (h2 : env.HasType U Γ a A) : env.HasType U Γ (.app f a) (B.inst a) := by
+  subst hA; exact h1.app h2
+
+/-- The context of the ι rule of `Eq.rec`: `α`, `a`, motive, minor. -/
+def eqRuleCtx (Γ : List VExpr) : List VExpr :=
+  canonicalEqRecMinor :: canonicalEqRecMotive :: .bvar 0 :: .sort (.param 1) :: Γ
+
+/-- The generic redex `Eq.rec α a motive refl a (Eq.refl α a)` is typed at
+`motive a (Eq.refl α a)`. -/
+theorem eqRecRedexTyping {Γ : List VExpr}
+    (hR : env.constants ``Eq.refl = some eqCtor.toVConstant)
+    (hRec : env.constants ``Eq.rec = some eqRecursor.toVConstant)
+    (h0 : (VLevel.param 0).WF U) (h1 : (VLevel.param 1).WF U) :
+    env.HasType U (eqRuleCtx Γ)
+      (.app (.app (.app (.app (.app (.app (.const ``Eq.rec [.param 0, .param 1])
+        (.bvar 3)) (.bvar 2)) (.bvar 1)) (.bvar 0)) (.bvar 2))
+        (.app (.app (.const ``Eq.refl [.param 1]) (.bvar 3)) (.bvar 2)))
+      (.app (.app (.bvar 1) (.bvar 2))
+        (.app (.app (.const ``Eq.refl [.param 1]) (.bvar 3)) (.bvar 2))) := by
+  have hα : env.HasType U (eqRuleCtx Γ) (.bvar 3) (.sort (.param 1)) :=
+    .bvar (.succ (.succ (.succ .zero)))
+  have ha : env.HasType U (eqRuleCtx Γ) (.bvar 2) (.bvar 3) := .bvar (.succ (.succ .zero))
+  have hM : env.HasType U (eqRuleCtx Γ) (.bvar 1)
+      (.forallE (.bvar 3) (.forallE
+        (.app (.app (.app (.const ``Eq [.param 1]) (.bvar 4)) (.bvar 3)) (.bvar 0))
+        (.sort (.param 0)))) := by
+    have := HasType.bvar (env := env) (U := U)
+      (Lookup.succ (A := canonicalEqRecMinor)
+        (Lookup.zero (ty := canonicalEqRecMotive) (Γ := .bvar 0 :: .sort (.param 1) :: Γ)))
+    simpa [eqRuleCtx, canonicalEqRecMotive, VExpr.lift, VExpr.liftN, liftVar] using this
+  have hm : env.HasType U (eqRuleCtx Γ) (.bvar 0)
+      (.app (.app (.bvar 1) (.bvar 2))
+        (.app (.app (.const ``Eq.refl [.param 1]) (.bvar 3)) (.bvar 2))) := by
+    have := HasType.bvar (env := env) (U := U)
+      (Lookup.zero (ty := canonicalEqRecMinor)
+        (Γ := canonicalEqRecMotive :: .bvar 0 :: .sort (.param 1) :: Γ))
+    simpa [eqRuleCtx, canonicalEqRecMinor, VExpr.lift, VExpr.liftN, liftVar] using this
+  have hrefl := eqReflAppTyping hR h1 hα ha
+  have hc : env.HasType U (eqRuleCtx Γ) (.const ``Eq.rec [.param 0, .param 1])
+      canonicalEqRecType := by
+    have := HasType.const (env := env) (U := U) (Γ := eqRuleCtx Γ) hRec
+      (ls := [.param 0, .param 1]) (by simp; exact ⟨h0, h1⟩) rfl
+    simpa [eqRecursor_type, canonicalEqRecType, canonicalEqRecMotive, canonicalEqRecMinor,
+      VExpr.instL, VLevel.inst] using this
+  have s1 := HasType.app_dom' (A := .sort (.param 1)) (by simpa [canonicalEqRecType] using hc)
+    rfl hα
+  simp only [VExpr.inst, VExpr.instVar, canonicalEqRecMotive, canonicalEqRecMinor] at s1
+  have s2 := HasType.app_dom' (A := .bvar 3) (by simpa using s1) rfl ha
+  simp only [VExpr.inst, VExpr.instVar, VExpr.liftN, liftVar] at s2
+  have s3 := HasType.app_dom' (by simpa using s2) rfl hM
+  simp only [VExpr.inst, VExpr.instVar, VExpr.liftN, liftVar] at s3
+  have s4 := HasType.app_dom' (by simpa using s3) rfl hm
+  simp only [VExpr.inst, VExpr.instVar, VExpr.liftN, liftVar] at s4
+  have s5 := HasType.app_dom' (by simpa using s4) rfl ha
+  simp only [VExpr.inst, VExpr.instVar, VExpr.liftN, liftVar] at s5
+  have s6 := HasType.app_dom' (by simpa using s5) rfl hrefl
+  simpa [VExpr.inst, VExpr.instVar, VExpr.liftN, liftVar] using s6
+
 end RecTyping
 
 end VEnv.Strengthening
