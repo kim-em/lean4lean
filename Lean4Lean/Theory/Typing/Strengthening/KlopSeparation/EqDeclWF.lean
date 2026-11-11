@@ -634,5 +634,42 @@ theorem eqDecl_WF : eqDecl.WF .empty where
     subst ru
     exact eqRulePatTyped hc
 
+/-! ### Installation -/
+
+theorem eqRecRule_closed : eqRecRule.rhs.Closed := by decide
+
+/-- The environment containing exactly the inductive declaration of `Eq`. -/
+def eqEnv : VEnv :=
+  eqRecsEnv.addPat
+    (SimplePattern.iota ``Eq.rec (2 + 1 + 1 + 1) ``Eq.refl (2 + 0)).toPattern
+    (SimplePattern.iotaRHS ``Eq.rec ``Eq.refl 2 1 1 1 2 0 eqRecRule.rhs eqRecRule_closed, .true)
+
+theorem eqInstalls : VEnv.empty.addInduct eqDecl = some eqEnv := by
+  simp only [VEnv.addInduct, addEqTypesCtorsProjsRecs, Option.bind_eq_bind, Option.bind_some,
+    VInductDecl.addRules, eqDecl, eqVRec, List.foldlM_cons, List.foldlM_nil,
+    VEnv.addRecRule, dif_pos eqRecRule_closed]
+  rfl
+
+/-- **The `Eq`-only environment is well formed.** -/
+theorem eqEnv_wf : eqEnv.WF :=
+  ⟨_, .decl (.induct eqDecl_WF eqInstalls) .empty⟩
+
+theorem eqEnv_constants (n : Name) :
+    eqEnv.constants n =
+      if ``Eq.rec = n then some ⟨2, canonicalEqRecType⟩
+      else if ``Eq.refl = n then some ⟨1, canonicalEqReflType⟩
+      else if ``Eq = n then some ⟨1, canonicalEqType⟩ else none := by
+  simp only [eqEnv, VEnv.addPat_constants, eqRecsEnv, eqProjEnv, VEnv.addProjections_constants,
+    eqCtorsEnv, eqTypesEnv]
+  rfl
+
+/-- **The `Eq`-only environment has canonical `Eq`.** -/
+theorem eqEnv_hasCanonicalEq : eqEnv.HasCanonicalEq := by
+  refine ⟨by rw [eqEnv_constants]; rfl, by rw [eqEnv_constants]; rfl,
+    by rw [eqEnv_constants]; rfl,
+    [.sort (.param 1), .bvar 0, canonicalEqRecMotive, canonicalEqRecMinor], eqRecRule_closed,
+    rfl, ?_⟩
+  exact .inl ⟨rfl, rfl⟩
+
 end VEnv.Strengthening
 end Lean4Lean
