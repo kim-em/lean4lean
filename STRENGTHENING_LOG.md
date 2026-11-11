@@ -43883,3 +43883,11 @@ These are the last lemmas needed before the Π rule case (`forallEDF`).
 `Sem.forallE`, the `forallEDF` case.
 
 Rule cases proved: `bvar`, `symm`, `trans`, `defeqDF`, `sortDF`, `appDF`, `forallEDF`.
+
+## 2026-11-11 UTC: substitution on proof values
+
+`ValSubst.lean` (checked, no `sorry` of its own): `PVal.liftN_liftN`, `upN`, `up_upN`,
+`scons`, `subst_upN_inst`, `subst_up_inst` (`(t.subst (up σ)).inst u = t.subst (scons u σ)`),
+and `PVal.step_lam_app`: the value of an abstraction applied to a value β-reduces to the
+value of its body at the extended assignment. Needed for clause 2 of the abstraction and β
+rule cases.
