@@ -43760,3 +43760,13 @@ Checked, no `sorry` except the one named obligation:
 
 Remaining: `den_sound`, i.e. the lemmas on semantic types, substitution and weakening for
 `den`, and the soundness induction with the head invariant.
+
+## 2026-11-11 UTC: weakening and substitution for the interpretation
+
+`KlopSeparation/DenSubst.lean` (checked, no `sorry`): `den_liftN`, `den_lift`, `instVal`,
+`den_inst`, `den_inst0`, and `den_beta` (the denotation of a β-redex equals that of its
+contractum when the argument denotes an element of the domain).
+
+Next for `KlopInventory.den_sound`: simultaneous substitution on proof values (for clause 2
+under a valuation), valuations of a context, the lemmas on semantic types, then the rule
+cases.
