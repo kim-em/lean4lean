@@ -43799,3 +43799,18 @@ Checked; the only `sorry` is `KlopInventory.sound`.
   `𝒰ₙ ∈ 𝒰ₙ₊₁`; `sortDen_congr`, `sortDen_mem`; `rel_univ_refl`.
 
 Rule cases proved: `bvar`, `symm`, `trans`, `defeqDF`, `sortDF`.
+
+## 2026-11-11 UTC: coarse relations unfolded
+
+Checked; the only `sorry` is `KlopInventory.sound`.
+
+* `Tower.lean`: extensionality added (needed to identify the element sets of coarsely
+  related types).
+* `SemType.lean`: the skeletons of `T` and `Prop` are tagged pairs, so skeletons of
+  different constructors are provably distinct.
+* `SemLemmas.lean`: `rel_cand`, `rel_tT_iff`, `rel_tProp_iff`, `rel_univ_iff`, `rel_tPiP_iff`,
+  `rel_tPi_iff`; the skeleton of each constructor; `tyRel_cand`.
+
+Next: by induction on validity, the coarse relation is a partial equivalence and coarsely
+related valid types have the same elements and relation; then `mkPi` is valid and respects
+`~`, and `mkApp`/`mkLam` respect the relations.

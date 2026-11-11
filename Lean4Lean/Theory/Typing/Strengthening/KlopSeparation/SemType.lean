@@ -154,7 +154,7 @@ noncomputable def cand (c : Candidate) : 𝕋.S :=
 
 /-- The data type `T = ℤ/3`, with the total coarse relation. -/
 noncomputable def tT : 𝕋.S :=
-  𝕋.rec5 1 𝕋.star 𝕋.tSet (𝕋.relFn 𝕋.tSet fun _ _ => True) (𝕋.tagN 1)
+  𝕋.rec5 1 𝕋.star 𝕋.tSet (𝕋.relFn 𝕋.tSet fun _ _ => True) (𝕋.pair (𝕋.tagN 1) 𝕋.star)
 
 /-- The set of the propositions `cand c` for good candidates `c`. -/
 noncomputable def candSet : 𝕋.S :=
@@ -164,7 +164,8 @@ noncomputable def candSet : 𝕋.S :=
 /-- `Prop`: the type of the propositions of good candidates, coarsely related when both are
 empty or both non-empty. -/
 noncomputable def tProp : 𝕋.S :=
-  𝕋.rec5 2 𝕋.star 𝕋.candSet (𝕋.relFn 𝕋.candSet fun A B => 𝕋.TyRel A B) (𝕋.tagN 2)
+  𝕋.rec5 2 𝕋.star 𝕋.candSet (𝕋.relFn 𝕋.candSet fun A B => 𝕋.TyRel A B)
+    (𝕋.pair (𝕋.tagN 2) 𝕋.star)
 
 /-- The universe of level `n`, given the set `tys` of its semantic types, with coarse
 relation `~`. -/

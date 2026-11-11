@@ -59,7 +59,8 @@ theorem candSet_mem_U (n : Nat) : 𝕋.candSet ∈ₛ 𝕋.U n := by
     exact (hx (𝕋.mem_set.1 hs)).elim
 
 theorem tProp_mem_U (n : Nat) : 𝕋.tProp ∈ₛ 𝕋.U n :=
-  rec5_mem_U (star_mem_U n) (candSet_mem_U n) (relFn_mem_U (candSet_mem_U n)) (enc_mem_U _ n)
+  rec5_mem_U (star_mem_U n) (candSet_mem_U n) (relFn_mem_U (candSet_mem_U n))
+    (𝕋.pair_mem_U (enc_mem_U _ n) (star_mem_U n))
 
 theorem univ_mem_U (n : Nat) : 𝕋.univ n ∈ₛ 𝕋.U (n + 2) := by
   have ht : 𝕋.sep (𝕋.U (n + 1)) (𝕋.ValidTy (𝕋.univList n)) ∈ₛ 𝕋.U (n + 2) :=

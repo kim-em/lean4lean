@@ -328,6 +328,77 @@ theorem app_val_mem {D x : 𝕋.S} {F : 𝕋.S → 𝕋.S} {vf va : PVal}
       rw [hmix hall x hx hFx, 𝕋.candOf_cand]
       trivial
 
+/-! ### The coarse relations, unfolded -/
+
+theorem rel_iff_relFn {A x y elts : 𝕋.S} {R : 𝕋.S → 𝕋.S → Prop}
+    (hr : 𝕋.relOf A = 𝕋.relFn elts R) (hx : x ∈ₛ elts) :
+    𝕋.Rel A x y ↔ y ∈ₛ elts ∧ R x y := by
+  rw [Rel, hr]; exact 𝕋.mem_relFn hx
+
+theorem rel_cand {c : Candidate} {x y : 𝕋.S} (hx : x ∈ₛ 𝕋.El (𝕋.cand c)) :
+    𝕋.Rel (𝕋.cand c) x y ↔ y ∈ₛ 𝕋.El (𝕋.cand c) := by
+  have hx' := hx
+  simp only [cand, El_rec5] at hx' ⊢
+  rw [Rel]; simp only [cand, relOf_rec5]; rw [𝕋.mem_relFn hx']
+  simp
+
+theorem rel_tT_iff {x y : 𝕋.S} (hx : x ∈ₛ 𝕋.El 𝕋.tT) : 𝕋.Rel 𝕋.tT x y ↔ y ∈ₛ 𝕋.El 𝕋.tT := by
+  have hx' : x ∈ₛ 𝕋.tSet := by simpa [tT] using hx
+  rw [Rel]; simp only [tT, relOf_rec5]; rw [𝕋.mem_relFn hx']
+  simp [tT]
+
+theorem rel_tProp_iff {x y : 𝕋.S} (hx : x ∈ₛ 𝕋.El 𝕋.tProp) :
+    𝕋.Rel 𝕋.tProp x y ↔ y ∈ₛ 𝕋.El 𝕋.tProp ∧ 𝕋.TyRel x y := by
+  have hx' : x ∈ₛ 𝕋.candSet := by simpa [tProp] using hx
+  rw [Rel]; simp only [tProp, relOf_rec5]; rw [𝕋.mem_relFn hx']
+  simp [tProp]
+
+theorem rel_univ_iff {n : Nat} {x y : 𝕋.S} (hx : x ∈ₛ 𝕋.El (𝕋.univ n)) :
+    𝕋.Rel (𝕋.univ n) x y ↔ y ∈ₛ 𝕋.El (𝕋.univ n) ∧ 𝕋.TyRel x y := by
+  have hx' : x ∈ₛ 𝕋.sep (𝕋.U (n + 1)) (𝕋.ValidTy (𝕋.univList n)) := by
+    simpa [univ, tU] using hx
+  rw [Rel]; simp only [univ, tU, relOf_rec5]; rw [𝕋.mem_relFn hx']
+  simp [univ, tU]
+
+theorem rel_tPiP_iff {c : Candidate} {B f g : 𝕋.S} (hf : f ∈ₛ 𝕋.El (𝕋.tPiP c B)) :
+    𝕋.Rel (𝕋.tPiP c B) f g ↔
+      g ∈ₛ 𝕋.El (𝕋.tPiP c B) ∧ 𝕋.Rel B (𝕋.ap f 𝕋.star) (𝕋.ap g 𝕋.star) := by
+  have hf' := hf
+  simp only [tPiP, El_rec5] at hf' ⊢
+  rw [Rel]; simp only [tPiP, relOf_rec5]; rw [𝕋.mem_relFn hf']
+
+theorem rel_tPi_iff {D f g : 𝕋.S} {F : 𝕋.S → 𝕋.S} (hf : f ∈ₛ 𝕋.El (𝕋.tPi D F)) :
+    𝕋.Rel (𝕋.tPi D F) f g ↔
+      g ∈ₛ 𝕋.El (𝕋.tPi D F) ∧ ∀ d, d ∈ₛ 𝕋.El D → 𝕋.Rel (F d) (𝕋.ap f d) (𝕋.ap g d) := by
+  have hf' := hf
+  simp only [tPi, El_rec5] at hf' ⊢
+  rw [Rel]; simp only [tPi, relOf_rec5]; rw [𝕋.mem_relFn hf']
+
+/-- The skeleton of each constructor. -/
+theorem skel_cand (c : Candidate) :
+    𝕋.skel (𝕋.cand c) = 𝕋.pair (𝕋.tagN 0) (𝕋.enc (decide (∃ v, c.mem v))) := by simp [cand]
+theorem skel_tT : 𝕋.skel 𝕋.tT = 𝕋.pair (𝕋.tagN 1) 𝕋.star := by simp [tT]
+theorem skel_tProp : 𝕋.skel 𝕋.tProp = 𝕋.pair (𝕋.tagN 2) 𝕋.star := by simp [tProp]
+theorem skel_univ (n : Nat) : 𝕋.skel (𝕋.univ n) = 𝕋.pair (𝕋.tagN 3) (𝕋.enc n) := by
+  simp [univ, tU]
+theorem skel_tPi (D : 𝕋.S) (F : 𝕋.S → 𝕋.S) :
+    𝕋.skel (𝕋.tPi D F) =
+      𝕋.pair (𝕋.tagN 4) (𝕋.pair (𝕋.skel D) (𝕋.lam (𝕋.El D) fun d => 𝕋.skel (F d))) := by
+  simp [tPi]
+theorem skel_tPiP (c : Candidate) (B : 𝕋.S) :
+    𝕋.skel (𝕋.tPiP c B) = 𝕋.pair (𝕋.tagN 5) (𝕋.skel B) := by simp [tPiP]
+
+/-- Two propositions are coarsely related exactly when both or neither is inhabited. -/
+theorem tyRel_cand {c d : Candidate} :
+    𝕋.TyRel (𝕋.cand c) (𝕋.cand d) ↔ ((∃ v, c.mem v) ↔ ∃ v, d.mem v) := by
+  rw [TyRel, skel_cand, skel_cand]
+  constructor
+  · intro h
+    have := 𝕋.enc_inj (𝕋.pair_inj h).2
+    simpa using this
+  · intro h
+    simp [h]
+
 end UniverseTower
 end VEnv.Strengthening
 end Lean4Lean

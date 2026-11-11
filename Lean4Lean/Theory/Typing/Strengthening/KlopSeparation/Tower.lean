@@ -22,6 +22,8 @@ structure UniverseTower where
   /-- The sets. -/
   S : Type 1
   mem : S → S → Prop
+  /-- Extensionality. -/
+  ext : ∀ {x y}, (∀ z, mem z x ↔ mem z y) → x = y
   /-- `lam A f`: the function `f` restricted to the set `A`. -/
   lam : S → (S → S) → S
   /-- Application of a function to an argument. -/
