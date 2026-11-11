@@ -149,6 +149,68 @@ theorem recBody_semD : 𝕋.SemD (rΓ6 v u) 𝕋.recBodyD rR := by
   rw [hR]
   exact recBody_rel H H' r3 r2 r1
 
+/-! ### Six abstractions -/
+
+/-- The declared type of `Eq.rec.{v, u}` as a telescope over the binder types. -/
+def recTy (v u : VLevel) : VExpr :=
+  .forallE (rA1 u) (.forallE rA2 (.forallE (rA3 v u) (.forallE (rA4 u) (.forallE rA5
+    (.forallE (rA6 u) rR)))))
+
+/-- The six-fold abstraction of the body over the denotations of the binder types. -/
+noncomputable def recLamD (𝕋 : UniverseTower) (v u : VLevel) (ρ : Nat → 𝕋.S) : 𝕋.S :=
+  𝕋.mkLam (𝕋.den ρ (rA1 u)) fun x1 =>
+  𝕋.mkLam (𝕋.den (𝕋.cons x1 ρ) rA2) fun x2 =>
+  𝕋.mkLam (𝕋.den (𝕋.cons x2 (𝕋.cons x1 ρ)) (rA3 v u)) fun x3 =>
+  𝕋.mkLam (𝕋.den (𝕋.cons x3 (𝕋.cons x2 (𝕋.cons x1 ρ))) (rA4 u)) fun x4 =>
+  𝕋.mkLam (𝕋.den (𝕋.cons x4 (𝕋.cons x3 (𝕋.cons x2 (𝕋.cons x1 ρ)))) rA5) fun x5 =>
+  𝕋.mkLam (𝕋.den (𝕋.cons x5 (𝕋.cons x4 (𝕋.cons x3 (𝕋.cons x2 (𝕋.cons x1 ρ))))) (rA6 u))
+    fun x6 => 𝕋.recBodyD
+      (𝕋.cons x6 (𝕋.cons x5 (𝕋.cons x4 (𝕋.cons x3 (𝕋.cons x2 (𝕋.cons x1 ρ))))))
+
+/-- The six-fold abstraction is a semantic term of the declared type of `Eq.rec`. -/
+theorem recLam_semD : 𝕋.SemD [] (𝕋.recLamD v u) (recTy v u) := by
+  have t6 := Sem.forallE (𝕋 := 𝕋) (rS6 (v := v) (u := u)) rSR
+  have t5 := Sem.forallE (𝕋 := 𝕋) (rS5 (v := v) (u := u)) t6
+  have t4 := Sem.forallE (𝕋 := 𝕋) (rS4 (v := v) (u := u)) t5
+  have t3 := Sem.forallE (𝕋 := 𝕋) (rS3 (v := v) (u := u)) t4
+  have t2 := Sem.forallE (𝕋 := 𝕋) (rS2 (u := u)) t3
+  exact SemD.lam rS1 t2 (SemD.lam rS2 t3 (SemD.lam rS3 t4 (SemD.lam rS4 t5
+    (SemD.lam rS5 t6 (SemD.lam rS6 rSR recBody_semD)))))
+
+/-- **`⟦Eq.rec.{v, u}⟧` is the six-fold abstraction.** -/
+theorem recDen_eq (ρ : Nat → 𝕋.S) : 𝕋.recDen v u = 𝕋.recLamD v u ρ := by
+  unfold recDen recLamD
+  refine mkLam_congr fun α hα => ?_
+  refine mkLam_congr fun a ha => ?_
+  have h3 : 𝕋.den (𝕋.cons a (𝕋.cons α ρ)) (rA3 v u) = 𝕋.motiveTy v α a :=
+    den_motiveOf (ρ := 𝕋.cons a (𝕋.cons α ρ)) (α := .bvar 1) (a := .bvar 0) hα ha
+  rw [h3]
+  refine mkLam_congr fun M hM => ?_
+  have h4 : 𝕋.den (𝕋.cons M (𝕋.cons a (𝕋.cons α ρ))) (rA4 u) =
+      𝕋.mkApp (𝕋.mkApp M a) 𝕋.star := by
+    show 𝕋.mkApp (𝕋.mkApp M a) (𝕋.den _ (reflS u (.bvar 2) (.bvar 1))) = _
+    rw [den_reflS]
+  rw [h4]
+  refine mkLam_congr fun m hm => ?_
+  refine mkLam_congr fun b hb => ?_
+  have h6 : 𝕋.den (𝕋.cons b (𝕋.cons m (𝕋.cons M (𝕋.cons a (𝕋.cons α ρ))))) (rA6 u) =
+      𝕋.cand (𝕋.eqCand α a b) :=
+    den_eqApp (ρ := 𝕋.cons b (𝕋.cons m (𝕋.cons M (𝕋.cons a (𝕋.cons α ρ)))))
+      (A := .bvar 4) (x := .bvar 3) (y := .bvar 0) hα ha hb
+  rw [h6]
+  exact mkLam_congr fun t ht => rfl
+
+/-- `⟦Eq.rec.{v, u}⟧` is an element of the denotation of its declared type. -/
+theorem recDen_mem (ρ : Nat → 𝕋.S) : 𝕋.recDen v u ∈ₛ 𝕋.El (𝕋.den ρ (recTy v u)) := by
+  rw [recDen_eq ρ]
+  exact (recLam_semD ρ (fun _ => .bot) (𝕋.valOK_nil ρ _)).1
+
+theorem recTy_eq (ls : List VLevel) :
+    canonicalEqRecType.instL ls = recTy (ls.getD 0 .zero) (ls.getD 1 .zero) := by
+  simp [canonicalEqRecType, canonicalEqRecMotive, canonicalEqRecMinor, VExpr.instL, recTy,
+    rA1, rA2, rA3, rA4, rA5, rA6, rR, motiveOf, eqS, reflS, VExpr.lift, VExpr.liftN, liftVar,
+    VLevel.inst]
+
 end UniverseTower
 end VEnv.Strengthening
 end Lean4Lean

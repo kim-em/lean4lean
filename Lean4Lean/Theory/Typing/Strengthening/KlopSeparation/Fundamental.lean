@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.EqConst
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.EqRecConst
 
 /-! # The fundamental theorem of the Klop model
 
@@ -10,8 +10,8 @@ cases proved in `Sound.lean`, `SoundLam.lean`, `SoundBeta.lean`, `SoundEta.lean`
 
 **Open obligations** (named theorems with `sorry`, each with a docstring):
 
-* `constOK_EqRec`: `Eq.rec` is an element of its declared type (the other eight constants
-  are proved in `Consts.lean`, `EqConsts.lean` and `EqConst.lean`);
+* `recVal_realizes`: the value of `Eq.rec` realizes its declared type at motive universe `0`
+  (membership of `⟦Eq.rec⟧` in its declared type is `recDen_mem`, `EqRecConst.lean`);
 * `KlopInventory.sem_extra`: the two definitional equations (`extra`);
 * `KlopInventory.sem_pat`: the ι rule of `Eq.rec` (`pat`).
 
@@ -34,20 +34,33 @@ end UniverseTower
 
 variable {env : VEnv}
 
-/-- **Open obligation: `Eq.rec`.** `⟦Eq.rec.{v, u}⟧` is an element of the denotation of its
-declared type, and `recVal` realizes it when the motive universe is `0`.
+/-- **Open obligation: the value of `Eq.rec`.** When the declared type of `Eq.rec.{v, u}`
+denotes a proposition (motive universe `0`), `recVal = λ α a M m b h. case h m bot` realizes
+it.
 
-Missing: six nested abstractions; the body `recBody` is an element of the fibre `M b •`
-(the fibres of the motive over coarsely related endpoints have the same elements,
-`ValidAny.tyRel_same`; the successor is used only in the fibre `T`) and respects the coarse
-relations in every argument; `recVal` applied to six realizers reduces to the minor premise's
-value when the major is `r` (then the endpoints are identical) and to `bot` otherwise. -/
-theorem constOK_EqRec (𝕋 : UniverseTower) (ls : List VLevel) :
-    𝕋.ConstOK ``Eq.rec ls (canonicalEqRecType.instL ls) := by
+Missing: six uses of `lam_val_mem`; `recVal` applied to six values reduces to `case h m bot`
+(`pval_rec_steps` is the syntactic form); if the major `h` reduces to `r` it realizes
+`eqCand α a b` only when the endpoints are identical, so the fibres over `a` and `b` are the
+same proposition and the minor's value realizes it; otherwise the result is `bot`, which
+realizes the fibre because it is inhabited (`RecArgs.minor_mem`). -/
+theorem recVal_realizes (𝕋 : UniverseTower) (v u : VLevel) (ρ : Nat → 𝕋.S)
+    (hc : 𝕋.IsCand (𝕋.den ρ (UniverseTower.recTy v u))) :
+    (𝕋.candOf (𝕋.den ρ (UniverseTower.recTy v u))).mem recVal := by
   sorry
 
+/-- `Eq.rec` is an element of its declared type, with a realizing value. Depends on
+`recVal_realizes`. -/
+theorem constOK_EqRec (𝕋 : UniverseTower) (ls : List VLevel) :
+    𝕋.ConstOK ``Eq.rec ls (canonicalEqRecType.instL ls) := by
+  intro ρ
+  have hc : 𝕋.constDen ``Eq.rec ls = 𝕋.recDen (ls.getD 0 .zero) (ls.getD 1 .zero) := by
+    simp [UniverseTower.constDen]
+  have hv : constVal ``Eq.rec = recVal := by simp [constVal]
+  rw [UniverseTower.recTy_eq, hc, hv]
+  exact ⟨UniverseTower.recDen_mem ρ, recVal_realizes 𝕋 _ _ ρ⟩
+
 /-- The constant rule: every constant of the environment satisfies the semantic judgment.
-Depends on `constOK_EqRec`. -/
+Depends on `recVal_realizes`. -/
 theorem KlopInventory.sem_const (𝕋 : UniverseTower) (heq : env.HasCanonicalEq)
     (K : KlopInventory env)
     {Γ : List VExpr} {c : Name} {ci : VConstant} {ls ls' : List VLevel}

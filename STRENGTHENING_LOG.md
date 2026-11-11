@@ -44046,3 +44046,18 @@ Remaining for `constOK_EqRec`: `Sem` of the six binder types in their contexts (
 from these rules, `sem_sort`, `sem_bvar`, `Sem.forallE`, `Sem.eqApp`); `SemD` of `recBody`
 in the six-binder context from `RecArgs.recBody_mem` and `recBody_rel`; six `SemD.lam`;
 `recDen` equals the resulting abstraction; the value at motive universe `0`.
+
+## 2026-11-11 UTC: `Eq.rec` is an element of its declared type
+
+`EqRecConst.lean` (checked, no `sorry`): the binder types `rA1 … rA6`, result type `rR` and
+contexts `rΓ1 … rΓ6` of `Eq.rec.{v, u}`; `rS1 … rS6`, `rSR` (their semantic judgments);
+`recArgs_of_valOK`; `recBody_semD` (the body is a semantic term of the result type in the
+six-binder context); `recLam_semD` (six uses of `SemD.lam`); `recDen_eq` (`⟦Eq.rec⟧` is that
+six-fold abstraction); `recDen_mem`; `recTy_eq` (the declared type is the telescope).
+
+`Fundamental.lean`: `constOK_EqRec` is proved from `recDen_mem` and the new named obligation
+`recVal_realizes` (the value `recVal` realizes the declared type when it is a proposition,
+i.e. at motive universe `0`).
+
+Remaining `sorry`s (three, all in `Fundamental.lean`): `recVal_realizes`,
+`KlopInventory.sem_extra`, `KlopInventory.sem_pat`.
