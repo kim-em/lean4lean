@@ -26,23 +26,47 @@ inductive PVal where
 
 namespace PVal
 
-/-- Shift the variables `≥ k` by one. -/
-def lift : PVal → (k : Nat := 0) → PVal
-  | .var i, k => .var (if i < k then i else i + 1)
-  | .lam b, k => .lam (b.lift (k + 1))
-  | .app f a, k => .app (f.lift k) (a.lift k)
+/-- Shift the variables `≥ k` by `n` (mirrors `VExpr.liftN`). -/
+def liftN (n : Nat) : PVal → (k : Nat := 0) → PVal
+  | .var i, k => .var (liftVar n i k)
+  | .lam b, k => .lam (b.liftN n (k + 1))
+  | .app f a, k => .app (f.liftN n k) (a.liftN n k)
   | .r, _ => .r
   | .bot, _ => .bot
-  | .case s u v, k => .case (s.lift k) (u.lift k) (v.lift k)
+  | .case s u v, k => .case (s.liftN n k) (u.liftN n k) (v.liftN n k)
 
-/-- Substitute `e` for variable `k`. -/
+/-- Substitute `e` for variable `k` (mirrors `VExpr.inst`). -/
 def inst : PVal → PVal → (k : Nat := 0) → PVal
-  | .var i, e, k => if i < k then .var i else if i = k then e else .var (i - 1)
-  | .lam b, e, k => .lam (b.inst e.lift (k + 1))
+  | .var i, e, k => if i < k then .var i else if i = k then e.liftN k else .var (i - 1)
+  | .lam b, e, k => .lam (b.inst e (k + 1))
   | .app f a, e, k => .app (f.inst e k) (a.inst e k)
   | .r, _, _ => .r
   | .bot, _, _ => .bot
   | .case s u v, e, k => .case (s.inst e k) (u.inst e k) (v.inst e k)
+
+theorem liftN_zero (e : PVal) (k : Nat) : e.liftN 0 k = e := by
+  induction e generalizing k with
+  | var i => simp [liftN, liftVar]
+  | lam b ih => simp [liftN, ih]
+  | app f a ihf iha => simp [liftN, ihf, iha]
+  | r => rfl
+  | bot => rfl
+  | case s u v ihs ihu ihv => simp [liftN, ihs, ihu, ihv]
+
+/-- Instantiating a variable that a lift has skipped undoes one level of the lift. -/
+theorem inst_liftN (e a : PVal) (n j k : Nat) (hj : j ≤ k) (hk : k ≤ n + j) :
+    (e.liftN (n + 1) j).inst a k = e.liftN n j := by
+  induction e generalizing j k with
+  | var i =>
+    simp only [liftN, inst, liftVar]
+    split
+    · rw [if_pos (by omega)]
+    · rw [if_neg (by omega), if_neg (by omega)]; congr 1; omega
+  | lam b ih => simp [liftN, inst, ih (j + 1) (k + 1) (by omega) (by omega)]
+  | app f x ihf ihx => simp [liftN, inst, ihf j k hj hk, ihx j k hj hk]
+  | r => rfl
+  | bot => rfl
+  | case s u v ihs ihu ihv => simp [liftN, inst, ihs j k hj hk, ihu j k hj hk, ihv j k hj hk]
 
 /-- One step of weak head reduction. -/
 inductive Step : PVal → PVal → Prop where

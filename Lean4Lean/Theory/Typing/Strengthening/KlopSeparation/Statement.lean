@@ -1,11 +1,12 @@
 import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.MinimalEnv
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Tower
 
 /-! # Given a universe tower, strengthening of definitional equality is false
 
 Target of this directory: `not_weakN_iff_of_tower`, the negation of the statement of
-`IsDefEqU.weakN_iff` from a set-theoretic universe tower (`UniverseTower`: a well-founded
-extensional membership structure with separation and replacement for arbitrary Lean
-predicates and functions, and a Grothendieck universe for every natural number).
+`IsDefEqU.weakN_iff` from a set-theoretic universe tower (`UniverseTower`, in `Tower.lean`:
+an applicative set theory with dependent products, separation, pairing, an embedding of small
+Lean types, and a universe closed under these for every natural number).
 
 The proof is assembled here from the machine-checked half of the Klop example
 (`KlopEnv.above`, `KlopEnv.not_strengthening`), the minimal environment
@@ -21,42 +22,6 @@ Nothing outside this directory depends on these files.
 
 namespace Lean4Lean
 namespace VEnv.Strengthening
-
-/-- A set-theoretic universe tower: a model of second-order set theory (extensionality,
-foundation, pairing, union, power set, infinity, separation and replacement for arbitrary
-Lean predicates and functions) with a Grothendieck universe `U n` for every `n`, each a
-member of the next. Such a structure exists in ZFC with countably many inaccessible
-cardinals; Lean cannot construct one for all `n` at once, which is why it is a hypothesis. -/
-structure UniverseTower where
-  /-- The sets. -/
-  S : Type
-  mem : S → S → Prop
-  ext : ∀ x y, (∀ z, mem z x ↔ mem z y) → x = y
-  wf : WellFounded mem
-  empty : S
-  mem_empty : ∀ z, ¬ mem z empty
-  pair : S → S → S
-  mem_pair : ∀ x y z, mem z (pair x y) ↔ z = x ∨ z = y
-  sUnion : S → S
-  mem_sUnion : ∀ x z, mem z (sUnion x) ↔ ∃ y, mem y x ∧ mem z y
-  powerset : S → S
-  mem_powerset : ∀ x z, mem z (powerset x) ↔ ∀ w, mem w z → mem w x
-  sep : S → (S → Prop) → S
-  mem_sep : ∀ x p z, mem z (sep x p) ↔ mem z x ∧ p z
-  image : S → (S → S) → S
-  mem_image : ∀ x f z, mem z (image x f) ↔ ∃ w, mem w x ∧ z = f w
-  omega : S
-  empty_mem_omega : mem empty omega
-  succ_mem_omega : ∀ x, mem x omega → mem (sUnion (pair x (pair x x))) omega
-  /-- The universes. -/
-  U : Nat → S
-  U_trans : ∀ n x y, mem x (U n) → mem y x → mem y (U n)
-  U_pair : ∀ n x y, mem x (U n) → mem y (U n) → mem (pair x y) (U n)
-  U_sUnion : ∀ n x, mem x (U n) → mem (sUnion x) (U n)
-  U_powerset : ∀ n x, mem x (U n) → mem (powerset x) (U n)
-  U_image : ∀ n x f, mem x (U n) → (∀ w, mem w x → mem (f w) (U n)) → mem (image x f) (U n)
-  omega_mem_U : mem omega (U 0)
-  U_mem_U : ∀ n, mem (U n) (U (n + 1))
 
 /-- **Open obligation.** In an environment with the Klop inventory, `C E ≡ E` is not
 derivable in the empty context, given a universe tower.
