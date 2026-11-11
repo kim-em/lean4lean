@@ -1173,3 +1173,53 @@ With these repairs I know of no gap that is more than the routine part of a soun
 (the definition of the applicative structure with a case construct on `r`/`⊥`, the
 substitution lemmas for the three interpretations, universe levels). That is my assessment
 and not a reviewer's; the repaired certificate step has not been reviewed.
+
+## 22. Seventh review and the consolidated model (2026-11-11)
+
+**Review of §21: no refutation; the certificate step not closed as written.** Confirmed:
+the spine lemma's `beta` case fails when the body is a variable applied to arguments and the
+argument a partial spine (`(fun R => R b h) (@Eq.rec T a M m)`); the lemma is unproved at
+Π-propositions, whose shape component is a candidate and not injective; the `∀` clauses are
+ill defined at empty domains (`P → T` versus `P → P`); and the data clause read an untyped
+proof value while proofs denote a point. The reviewer gave local repairs A to F and checked
+the cases named below. The earlier killers all still pass.
+
+**Consolidated model (§20 with the repairs of §21 and A to F).**
+
+1. *Data `⟦·⟧`.* `⟦Prop⟧ = {0, 1}`; `⟦T⟧ = ℤ/3` with the total relation; other relations as
+   before and reflexive. Collapse convention (F): a Π all of whose fibres are truth values is
+   the truth value of their conjunction, a proof `λ` denotes `•`, and hereditarily
+   one-point Πs are identified with `1`. `⟦Eq.rec⟧` is a curried function of the **endpoints
+   only** (A): at `⟦α⟧ = ⟦T⟧`, fibre `⟦T⟧` and `⟦a⟧ ≠ ⟦b⟧` it is `⟦a⟧ + 1`, otherwise the
+   minor premise. No data clause reads a proof value. `⟦C⟧ = (+1)`, `⟦E⟧ = 0`, `⟦P⟧ = 0`.
+2. *Values.* An applicative structure with tokens `r`, `⊥` (absorbing) and a case construct.
+   Constants have compositional values (B): `Eq.refl ↦ λλ. r`,
+   `Eq.rec ↦ λ…m b h. case h of r ↦ m | _ ↦ ⊥` at proposition fibres, `H ↦ ⊥`.
+3. *Shape components `⟪·⟫`.* Propositions: candidates (β-closed sets of values, containing
+   `⊥` exactly when true). Data types: codes, a Π-code being the domain code with the function
+   sending an argument to the pair (denotation, code) of the fibre (D). The shape of an element
+   depends on the denotation of its type only (E). `⟪@Eq α a b⟫` is `{r, ⊥}` if the pairs
+   (denotation, shape) of `a` and `b` are identical, `{⊥}` if merely related, `∅` otherwise.
+4. *Theorem*, by induction on `IsDefEq`, at every valuation:
+   (1) `⟦a⟧ = ⟦b⟧ ∈ ⟦A⟧` and `⟪a⟫ = ⟪b⟫` of the shape of `⟦A⟧`, with coarse relatedness of
+   data at coarsely related valuations;
+   (2) if `A` is a proposition then `⟦A⟧ = 1` and the values of `a`, `b` are in `⟪A⟫`;
+   (3) *head invariant* (C), for each side whose head is a constant or a variable applied to
+   arguments: as long as the code of the head's type, instantiated at the arguments so far,
+   is a Π-code, the next argument's (denotation, shape, value) lies in its domain and the
+   remaining type is the fibre.
+5. *Where the certificate is used.* Only at `pat` with `⟦α⟧ = ⟦T⟧` and fibre `⟦T⟧`: the
+   redex's typing premise gives the head invariant for `Eq.rec α a M m b (Eq.refl α' a')`; all
+   Πs in that prefix of the declared type are data Πs with non-empty domains, so the major's
+   value `r` lies in `⟪@Eq α a b⟫`, the endpoints are identical, and the redex denotes its
+   minor premise. At proposition fibres `pat` holds because the value of the redex is the
+   case construct at `r`. Congruence in `h` and the K-instance are immediate because data
+   ignores `h`.
+
+`⟦C E⟧ = 1 ≠ 0 = ⟦E⟧`.
+
+**Status of this argument.** Seven reviews. The last two found no derivable equation with
+two values and no typed proof outside its realizer set, and each named gaps with repairs;
+the consolidation above has not itself been reviewed, and the reviewer of §21 declined to
+call the sketch acceptable until A, B, C and F are written out and checked. It is a paper
+argument whose earlier versions were wrong five times.

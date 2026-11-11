@@ -26221,3 +26221,9 @@ delta.
 | --- | --- |
 | Truth-valued `Prop` with separate realizers and candidates (§18) | **Refuted as written**: a cast between propositions of equal truth value produced the token `r` for `E = C E`, giving a derivable equation two values; no uniform realizer for transport along a false-in-identity equation; kinds omitted from the soundness clauses. |
 | Sixth model (§19): default realizer `⊥` in every true proposition, `r` only as a certificate of identical endpoints over `T`, types as realizability structures | **Open, not reviewed.** Passes the known failing terms by hand. The realizability structures for universes and kinds, and the fundamental theorem, are not written. |
+
+| Sixth and seventh reviews (2026-11-11) | Verdict |
+| --- | --- |
+| Model with data, proof values (`r`, `⊥`) and shape components (§20) | **No flaw found; incomplete.** Every earlier killer term passes. Gap: the certificate step. |
+| Type codes and spine lemma (§21) | **No refutation; not closed as written.** Fails at variable-headed spines under β, at Π-propositions, and at empty domains. Reviewer's repairs A to F. |
+| Consolidated model (§22): `Eq.rec` data by endpoints only, compositional values of constants, head invariant for constant- and variable-headed spines, collapse convention | **Open, unreviewed.** Paper argument; a machine-checked version would additionally need a concrete base environment containing only `Eq`. |
