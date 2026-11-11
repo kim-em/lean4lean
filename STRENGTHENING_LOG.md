@@ -43964,3 +43964,14 @@ by induction over `IsDefEqStrong`), `KlopInventory.no_projIota`.
 
 Remaining `sorry`s, all in `Fundamental.lean`: `KlopInventory.sem_const`,
 `KlopInventory.sem_extra`, `KlopInventory.sem_pat`.
+
+## 2026-11-11 UTC: constants `T`, `E`, `P`, `C`, `Fix`; the constant rule is dispatched
+
+* `Consts.lean` (checked, no `sorry`): `constVal_subst`, `ConstOK`, `sem_const_of` (the
+  constant rule from `ConstOK`), `constOK_T`, `constOK_E`, `constOK_P`, `constOK_C`,
+  `constOK_Fix`, and level congruence `constDen_congr`.
+* `Fundamental.lean`: `KlopInventory.sem_const` is proved by cases on the inventory from the
+  per-constant facts.
+
+Remaining `sorry`s (six, all in `Fundamental.lean`): `constOK_Eq`, `constOK_EqRefl`,
+`constOK_EqRec`, `constOK_H`, `KlopInventory.sem_extra`, `KlopInventory.sem_pat`.

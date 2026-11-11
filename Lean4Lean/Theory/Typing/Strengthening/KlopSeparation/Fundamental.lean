@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Spine
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Consts
 
 /-! # The fundamental theorem of the Klop model
 
@@ -10,7 +10,8 @@ cases proved in `Sound.lean`, `SoundLam.lean`, `SoundBeta.lean`, `SoundEta.lean`
 
 **Open obligations** (named theorems with `sorry`, each with a docstring):
 
-* `KlopInventory.sem_const`: the constants of the environment (`constDF`);
+* `constOK_Eq`, `constOK_EqRefl`, `constOK_EqRec`, `constOK_H`: four constants are elements
+  of their declared types (the other five are proved in `Consts.lean`);
 * `KlopInventory.sem_extra`: the two definitional equations (`extra`);
 * `KlopInventory.sem_pat`: the ι rule of `Eq.rec` (`pat`).
 
@@ -33,22 +34,68 @@ end UniverseTower
 
 variable {env : VEnv}
 
-/-- **Open obligation: constants.** Every constant of the environment denotes an element of
-the denotation of its declared type, its value realizes that type when it is a proposition,
-and it is coarsely related to itself; equivalent levels give the same denotation.
+/-- **Open obligation: `Eq`.** `⟦Eq.{u}⟧` is an element of `⟦∀ α : Sort u, α → α → Prop⟧`.
 
-Missing: for each of the nine constants, membership of `constDen c ls` in
-`den ρ (ci.type.instL ls)`. The substantial case is `Eq.rec`: `recBody` is type-correct
-(`ValidAny.tyRel_same` on the fibres of the motive at coarsely related endpoints) and
-respects the coarse relations, and `recVal` realizes the type of `Eq.rec` at motive universe
-`0`. -/
-theorem KlopInventory.sem_const (𝕋 : UniverseTower) (K : KlopInventory env)
+Missing: three nested uses of `mkLam_mem_mkPi`; the relation-respect conditions say that
+`eqCand α a b` is inhabited exactly when `a`, `b` are coarsely related, which is stable under
+coarse relatedness of `b` (`IsPER`) and of `α` (`ValidAny.tyRel_same`). -/
+theorem constOK_Eq (𝕋 : UniverseTower) (ls : List VLevel) :
+    𝕋.ConstOK ``Eq ls (canonicalEqType.instL ls) := by
+  sorry
+
+/-- **Open obligation: `Eq.refl`.** `•` is an element of `⟦∀ α a, @Eq α a a⟧` and `λλ. r`
+realizes it.
+
+Missing: the denotation of the type is a Π-proposition whose fibres `eqCand α a a` are
+`rOrBot`; the value `λλ. r` applied to two values reduces to `r`. -/
+theorem constOK_EqRefl (𝕋 : UniverseTower) (ls : List VLevel) :
+    𝕋.ConstOK ``Eq.refl ls (canonicalEqReflType.instL ls) := by
+  sorry
+
+/-- **Open obligation: `Eq.rec`.** `⟦Eq.rec.{v, u}⟧` is an element of the denotation of its
+declared type, and `recVal` realizes it when the motive universe is `0`.
+
+Missing: six nested abstractions; the body `recBody` is an element of the fibre `M b •`
+(the fibres of the motive over coarsely related endpoints have the same elements,
+`ValidAny.tyRel_same`; the successor is used only in the fibre `T`) and respects the coarse
+relations in every argument; `recVal` applied to six realizers reduces to the minor premise's
+value when the major is `r` (then the endpoints are identical) and to `bot` otherwise. -/
+theorem constOK_EqRec (𝕋 : UniverseTower) (ls : List VLevel) :
+    𝕋.ConstOK ``Eq.rec ls (canonicalEqRecType.instL ls) := by
+  sorry
+
+/-- **Open obligation: `H`.** `•` is an element of `⟦∀ x y : T, x = y⟧` and `bot` realizes
+it.
+
+Missing: the fibres `eqCand T x y` are inhabited for all `x`, `y` (the coarse relation of `T`
+is total) and contain every value reducing to `bot`. -/
+theorem constOK_H (𝕋 : UniverseTower) (ls : List VLevel) :
+    𝕋.ConstOK `Klop.H ls
+      (.forallE klopT (.forallE klopT (VExpr.eqApp (.succ .zero) klopT (.bvar 1) (.bvar 0)))) := by
+  sorry
+
+/-- The constant rule: every constant of the environment satisfies the semantic judgment.
+Depends on `constOK_Eq`, `constOK_EqRefl`, `constOK_EqRec`, `constOK_H`. -/
+theorem KlopInventory.sem_const (𝕋 : UniverseTower) (heq : env.HasCanonicalEq)
+    (K : KlopInventory env)
     {Γ : List VExpr} {c : Name} {ci : VConstant} {ls ls' : List VLevel}
     (h : env.constants c = some ci) (hl : ls.length = ci.uvars)
     (hls : List.Forall₂ (· ≈ ·) ls ls') {u : VLevel}
     (HT : 𝕋.Sem Γ (ci.type.instL ls) (ci.type.instL ls') (.sort u)) :
     𝕋.Sem Γ (.const c ls) (.const c ls') (ci.type.instL ls) := by
-  sorry
+  refine UniverseTower.sem_const_of ?_ (UniverseTower.constDen_congr hls) HT
+  rcases K.constants_only c ci h with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+  · cases Option.some.inj (heq.1.symm.trans h); exact constOK_Eq 𝕋 ls
+  · cases Option.some.inj (heq.2.1.symm.trans h); exact constOK_EqRefl 𝕋 ls
+  · cases Option.some.inj (heq.2.2.1.symm.trans h); exact constOK_EqRec 𝕋 ls
+  · cases Option.some.inj (K.T.symm.trans h); exact UniverseTower.constOK_T ls
+  · cases Option.some.inj (K.E.symm.trans h); exact UniverseTower.constOK_E ls
+  · cases Option.some.inj (K.P.symm.trans h); exact UniverseTower.constOK_P ls
+  · cases Option.some.inj (K.H.symm.trans h)
+    have := constOK_H 𝕋 ls
+    simpa [VExpr.instL, VExpr.eqApp, VLevel.inst] using this
+  · cases Option.some.inj (K.C.symm.trans h); exact UniverseTower.constOK_C ls
+  · cases Option.some.inj (K.Fix.symm.trans h); exact UniverseTower.constOK_Fix ls
 
 /-- **Open obligation: the definitional equations of `C` and `Fix`.**
 
@@ -157,7 +204,8 @@ theorem KlopInventory.no_projIota (K : KlopInventory env) {Γ : List VExpr}
   (K.no_proj H).1 _ _ _ rfl
 
 /-- **The fundamental theorem of the model**, modulo the open obligations above. -/
-theorem KlopInventory.sound (𝕋 : UniverseTower) (K : KlopInventory env)
+theorem KlopInventory.sound (𝕋 : UniverseTower) (heq : env.HasCanonicalEq)
+    (K : KlopInventory env)
     {Γ : List VExpr} {a b A : VExpr} (H : env.IsDefEqStrong 0 Γ a b A) :
     𝕋.SemS env Γ a b A := by
   induction H with
@@ -171,7 +219,7 @@ theorem KlopInventory.sound (𝕋 : UniverseTower) (K : KlopInventory env)
     exact ⟨UniverseTower.sem_sort h, fun ρ w _ =>
       ⟨UniverseTower.spineOK_of_not_spine (fun h => h), UniverseTower.spineOK_of_not_spine (fun h => h)⟩⟩
   | @constDF c ci ls ls' u Γ h _ _ hl hls _ _ _ _ ih =>
-    refine ⟨K.sem_const 𝕋 h hl hls ih.1, fun ρ w hρ => ⟨UniverseTower.spineOK_const h, ?_⟩⟩
+    refine ⟨K.sem_const 𝕋 heq h hl hls ih.1, fun ρ w hρ => ⟨UniverseTower.spineOK_const h, ?_⟩⟩
     exact (UniverseTower.spineOK_const (ls := ls') h).defeq (ih.1 ρ w hρ).2.1.symm
   | appDF _ _ _ _ _ _ _ ihA ihB ihf iha ihBa =>
     refine ⟨UniverseTower.Sem.app ihA.1 ihB.1 ihf.1 iha.1 ihBa.1, fun ρ w hρ => ?_⟩
@@ -220,7 +268,7 @@ theorem KlopInventory.den_sound (𝕋 : UniverseTower) {env : VEnv}
     (henv : env.WF) (heq : env.HasCanonicalEq) (K : KlopInventory env)
     {a b A : VExpr} (H : env.IsDefEq 0 [] a b A) (ρ : Nat → 𝕋.S) :
     𝕋.den ρ a = 𝕋.den ρ b :=
-  ((K.sound 𝕋 (H.strong henv.orderedStrong (Γ := []) trivial)).1 ρ (fun _ => .bot)
+  ((K.sound 𝕋 heq (H.strong henv.orderedStrong (Γ := []) trivial)).1 ρ (fun _ => .bot)
     (𝕋.valOK_nil ρ _)).2.1
 
 end VEnv.Strengthening
