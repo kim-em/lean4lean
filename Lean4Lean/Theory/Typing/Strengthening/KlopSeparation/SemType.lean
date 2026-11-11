@@ -1,5 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Tower
-import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Values
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Small
 
 /-! # Semantic types of the Klop model
 

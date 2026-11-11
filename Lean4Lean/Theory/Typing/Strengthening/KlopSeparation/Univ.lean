@@ -22,7 +22,7 @@ theorem mem_U_le {m n : Nat} {x : 𝕋.S} (h : m ≤ n) (hx : x ∈ₛ 𝕋.U m)
   | refl => exact hx
   | step _ ih => exact 𝕋.U_mono ih
 
-theorem enc_mem_U {α : Type} (a : α) (n : Nat) : 𝕋.enc a ∈ₛ 𝕋.U n :=
+theorem enc_mem_U {α : Type} [ContinuumSized α] (a : α) (n : Nat) : 𝕋.enc a ∈ₛ 𝕋.U n :=
   mem_U_le (Nat.zero_le n) (𝕋.U_trans (𝕋.set_mem_U α) (𝕋.mem_set.2 ⟨a, rfl⟩))
 
 theorem star_mem_U (n : Nat) : 𝕋.star ∈ₛ 𝕋.U n := 𝕋.pair_mem_U (enc_mem_U _ n) (enc_mem_U _ n)

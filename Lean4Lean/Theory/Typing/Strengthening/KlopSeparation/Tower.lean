@@ -5,22 +5,39 @@ function abstraction and application, dependent products, separation, pairing, a
 of every small Lean type, and a tower of universes `U 0 ∈ U 1 ∈ …`, each closed under these
 operations.
 
-Any model of ZFC with countably many inaccessible cardinals `κ₀ < κ₁ < …` above the size of
-Lean's `Type` gives one: `S` is the class of sets, `U n = V_κₙ`, `lam A f` is the graph of `f`
-on `A`, `app` is application of a graph (anything outside the domain), `pi A B` is the set of
-dependent functions, `enc` is any injection of the elements of a small type into sets. Lean
-cannot construct such a structure for all `n` at once, which is why it is a hypothesis.
+Any sequence of inaccessible cardinals `κ₀ < κ₁ < …` gives one: `S` is the type of sets,
+`U n = V_κₙ`, `lam A f` is the graph of `f` on `A`, `app` is application of a graph (anything
+outside the domain), `pi A B` is the set of dependent functions, `enc` is any injection of the
+elements of a small type into sets. Only the types of cardinality at most the continuum
+(`ContinuumSized`) are required to lie in `U 0`. Lean proves the existence of `n` inaccessible
+cardinals for every numeral `n` and not of a sequence of them, which is why the tower is a
+hypothesis.
 
 The interface is stated at the level the model uses (applicative set theory) and not as raw
-membership axioms; deriving it from the membership axioms is routine and not done here.
+membership axioms.
 -/
 
 namespace Lean4Lean
 namespace VEnv.Strengthening
 
+universe u
+
+/-- `α` has at most the cardinality of the continuum: it injects into the sets of natural
+numbers. -/
+class ContinuumSized (α : Type) : Prop where
+  out : ∃ f : α → Nat → Prop, ∀ a b, f a = f b → a = b
+
+theorem ContinuumSized.of_injective {α β : Type} [h : ContinuumSized β] (g : α → β)
+    (hg : ∀ a b, g a = g b → a = b) : ContinuumSized α := by
+  obtain ⟨f, hf⟩ := h.out
+  exact ⟨fun a => f (g a), fun a b e => hg _ _ (hf _ _ e)⟩
+
+instance : ContinuumSized Nat := ⟨fun n m => n = m, fun a b e => by
+  have := congrFun e a; simp at this; exact this.symm⟩
+
 structure UniverseTower where
   /-- The sets. -/
-  S : Type 1
+  S : Type (u + 1)
   mem : S → S → Prop
   /-- Extensionality. -/
   ext : ∀ {x y}, (∀ z, mem z x ↔ mem z y) → x = y
@@ -42,7 +59,7 @@ structure UniverseTower where
   /-- Ordered pairs. -/
   pair : S → S → S
   pair_inj : ∀ {a b a' b'}, pair a b = pair a' b' → a = a' ∧ b = b'
-  /-- Every small Lean type is a set. -/
+  /-- Every type of the lowest Lean universe is a set. -/
   enc : {α : Type} → α → S
   enc_inj : ∀ {α : Type} {a b : α}, enc a = enc b → a = b
   set : Type → S
@@ -52,7 +69,8 @@ structure UniverseTower where
   U_mem_U : ∀ n, mem (U n) (U (n + 1))
   U_mono : ∀ {n x}, mem x (U n) → mem x (U (n + 1))
   U_trans : ∀ {n x y}, mem x (U n) → mem y x → mem y (U n)
-  set_mem_U : ∀ (α : Type), mem (set α) (U 0)
+  /-- The types of cardinality at most the continuum are elements of the first universe. -/
+  set_mem_U : ∀ (α : Type) [ContinuumSized α], mem (set α) (U 0)
   sep_mem_U : ∀ {n A p}, mem A (U n) → mem (sep A p) (U n)
   image_mem_U : ∀ {n A f}, mem A (U n) → (∀ x, mem x A → mem (f x) (U n)) →
     mem (image A f) (U n)
