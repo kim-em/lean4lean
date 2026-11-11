@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.Extra
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.EqRecVal
 
 /-! # The fundamental theorem of the Klop model
 
@@ -10,8 +10,6 @@ cases proved in `Sound.lean`, `SoundLam.lean`, `SoundBeta.lean`, `SoundEta.lean`
 
 **Open obligations** (named theorems with `sorry`, each with a docstring):
 
-* `recVal_realizes`: the value of `Eq.rec` realizes its declared type at motive universe `0`
-  (membership of `⟦Eq.rec⟧` in its declared type is `recDen_mem`, `EqRecConst.lean`);
 * `KlopInventory.sem_pat`: the ι rule of `Eq.rec` (`pat`).
 
 The four projection rules have no instance: `no_projDF`, `no_proj`/`no_projIota`, and the
@@ -33,22 +31,8 @@ end UniverseTower
 
 variable {env : VEnv}
 
-/-- **Open obligation: the value of `Eq.rec`.** When the declared type of `Eq.rec.{v, u}`
-denotes a proposition (motive universe `0`), `recVal = λ α a M m b h. case h m bot` realizes
-it.
-
-Missing: six uses of `lam_val_mem`; `recVal` applied to six values reduces to `case h m bot`
-(`pval_rec_steps` is the syntactic form); if the major `h` reduces to `r` it realizes
-`eqCand α a b` only when the endpoints are identical, so the fibres over `a` and `b` are the
-same proposition and the minor's value realizes it; otherwise the result is `bot`, which
-realizes the fibre because it is inhabited (`RecArgs.minor_mem`). -/
-theorem recVal_realizes (𝕋 : UniverseTower) (v u : VLevel) (ρ : Nat → 𝕋.S)
-    (hc : 𝕋.IsCand (𝕋.den ρ (UniverseTower.recTy v u))) :
-    (𝕋.candOf (𝕋.den ρ (UniverseTower.recTy v u))).mem recVal := by
-  sorry
-
-/-- `Eq.rec` is an element of its declared type, with a realizing value. Depends on
-`recVal_realizes`. -/
+/-- `Eq.rec` is an element of its declared type, with a realizing value (`recDen_mem`,
+`recVal_realizes`). -/
 theorem constOK_EqRec (𝕋 : UniverseTower) (ls : List VLevel) :
     𝕋.ConstOK ``Eq.rec ls (canonicalEqRecType.instL ls) := by
   intro ρ
@@ -56,10 +40,10 @@ theorem constOK_EqRec (𝕋 : UniverseTower) (ls : List VLevel) :
     simp [UniverseTower.constDen]
   have hv : constVal ``Eq.rec = recVal := by simp [constVal]
   rw [UniverseTower.recTy_eq, hc, hv]
-  exact ⟨UniverseTower.recDen_mem ρ, recVal_realizes 𝕋 _ _ ρ⟩
+  exact ⟨UniverseTower.recDen_mem ρ, UniverseTower.recVal_realizes _ _ ρ⟩
 
 /-- The constant rule: every constant of the environment satisfies the semantic judgment.
-Depends on `recVal_realizes`. -/
+-/
 theorem KlopInventory.sem_const (𝕋 : UniverseTower) (heq : env.HasCanonicalEq)
     (K : KlopInventory env)
     {Γ : List VExpr} {c : Name} {ci : VConstant} {ls ls' : List VLevel}

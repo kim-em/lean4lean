@@ -44073,3 +44073,14 @@ branch), and `den_klopCBody` (the body of `C` denotes the successor function).
 
 Remaining `sorry`s (two, both in `Fundamental.lean`): `recVal_realizes` and
 `KlopInventory.sem_pat`.
+
+## 2026-11-11 UTC: the value of `Eq.rec`; one obligation remains
+
+`EqRecVal.lean` (checked, no `sorry`): `recVal_steps` (`recVal` applied to six values reduces
+to `case h m bot`), `case_realizes` (the case on the major realizes the fibre over `b`: if
+the major reduces to `r` it realizes `eqCand α a b` only at identical endpoints, and the
+minor's value realizes the fibre; otherwise `bot` realizes the inhabited fibre), and
+`recVal_realizes` (six uses of `lam_val_mem`).
+
+Remaining `sorry` (one, in `Fundamental.lean`): `KlopInventory.sem_pat`, the ι rule of
+`Eq.rec`.
