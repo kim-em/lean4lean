@@ -26216,3 +26216,8 @@ delta.
 | --- | --- |
 | Candidates with colours as written in §16 | **Refuted as written** (function-kind colours ill-defined; `Eq` at a variable type loses endpoints; no workable element relation at a type variable; `R` not transitive). |
 | Repaired version: atomic colours for all sort-ended variables carrying their layer-one class, endpoints compared at every `α`, element relation at a type variable taken from the actual instances by level recursion | **Open.** Needs: `R`-related types have the same element relation; the abstraction lemma by coinduction up to substitution; weak head normal forms of types. None proved. |
+
+| Fifth review (2026-11-11) | Verdict |
+| --- | --- |
+| Truth-valued `Prop` with separate realizers and candidates (§18) | **Refuted as written**: a cast between propositions of equal truth value produced the token `r` for `E = C E`, giving a derivable equation two values; no uniform realizer for transport along a false-in-identity equation; kinds omitted from the soundness clauses. |
+| Sixth model (§19): default realizer `⊥` in every true proposition, `r` only as a certificate of identical endpoints over `T`, types as realizability structures | **Open, not reviewed.** Passes the known failing terms by hand. The realizability structures for universes and kinds, and the fundamental theorem, are not written. |

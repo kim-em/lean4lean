@@ -989,3 +989,52 @@ applied to arguments need checking); the `Eq.rec` clause with proposition fibre 
 "chosen element"; the substitution lemma at `Prop`-ended kinds; `⟪·⟫` under type-level
 `Eq.rec`; and whether clause 2 for propositions (`⟪A⟫ = ⟪B⟫` as sets) survives η and proof
 irrelevance *inside* propositions, e.g. `Q h` versus `Q h'` for `Q : (E = E) → Prop`.
+
+## 19. Fifth review, and a sixth model (2026-11-11)
+
+**Review of §18: refuted as written.** A closed derivable equation gets two values. With
+
+```text
+e0   := @Eq.rec T E (fun y _ => @Eq Prop (E = E) (E = y)) (Eq.refl Prop (E = E)) (C E) (H E (C E))
+cast := @Eq.rec Prop (E = E) (fun Y _ => Y) (Eq.refl T E) (E = C E) e0     : E = C E
+D    := @Eq.rec T E (fun _ _ => T) E (C E) cast
+```
+
+`D ≡ C E` is derivable (proof irrelevance, then the equation of `C`), but the model gives
+`cast` the value `r` (a cast between propositions of equal truth value is "identical
+endpoints"), hence `⟦D⟧ = 0`. Further: no uniform realizer exists for transport along `j`
+(`fun M k => Eq.rec k (H E (C E)) : ∀ M : T → Prop, M E → M (C E)`); set-theoretic functions
+cannot realize `fun X x => x`; the soundness clauses omit function kinds, and the extension
+`(fun x : T => E = x) ≡ (fun x : T => E = E)` is accepted and breaks `pat`; "is a
+proposition" has to be semantic. The reviewer judged the diagnosis right and one idea
+missing, and proposed it: a default realizer.
+
+**Sixth model (incorporating that proposal; not reviewed).**
+
+* *Realizers.* An applicative structure of untyped values (λ-terms over tokens `r`, `⊥` and
+  data constants, modulo β), with `⊥` absorbing application. `r` is a certificate that the
+  two endpoints of an equation over `T` are identical, and nothing else.
+* *Types as realizability structures.* Every semantic type is a set with its relations as in
+  §18 and, in addition, a realizability relation between values and elements; a proposition
+  is a subset of a point, so its realizability relation is a set of values, which always
+  contains `⊥` when the proposition is true. Kinds are interpreted by functions between such
+  structures, so a type family carries its realizer sets, and equality of families includes
+  them. Type variables range over all such structures (candidates).
+* *Equality.* `@Eq T a b` is realized by `{r, ⊥}` if `⟦a⟧ = ⟦b⟧` and by `{⊥}` if merely
+  related. At any other `α`, by `{⊥}` when related. `Eq.refl T a` has value `r`; `H x y` has
+  value `⊥`; every `Eq.rec` with proposition fibre has the value of its minor premise only
+  when `⟦α⟧ = ⟦T⟧` and the major is `r`, and `⊥` otherwise.
+* *Data.* `Eq.rec` over `T` with fibre `⟦T⟧`: the minor premise if the major is `r` **or**
+  the endpoints are identical, and `⟦a⟧ + 1` otherwise. Data therefore depends on a proof
+  only through "is it `r`", and `r` can occur only where the endpoints are identical, so the
+  result is a function of the endpoints wherever the proof is a realizer of its type.
+* *Checks against the known failures.* `cast` above: `α = Prop`, so its value is `⊥`, and
+  `⟦D⟧ = ⟦E⟧ + 1 = 1 = ⟦C E⟧`. Transport along `j` is uniformly `⊥`, a realizer of every
+  true proposition. The ι rule holds by the first disjunct, with no inversion. The equation
+  of `C`: major `⊥`, endpoints distinct, value `x + 1`. `(∀ a : T, a = a)` is realized by
+  `λ_. r`, `(∀ x : T, x = E)` is not, and `fun x => E = x`, `fun x => E = E` differ as
+  families, so both extension tests are rejected. `⟦C E⟧ = 1`, `⟦E⟧ = 0`.
+
+What is not done is the bulk: the definition of realizability structures for universes
+(coded, as in Λ-set or ω-set models), the interpretation of kinds, and the fundamental
+theorem. After five failed reviews I state this model as a proposal, not as a proof.
