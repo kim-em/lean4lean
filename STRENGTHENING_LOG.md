@@ -43903,3 +43903,19 @@ rule cases.
 
 Rule cases proved: `bvar`, `symm`, `trans`, `defeqDF`, `sortDF`, `appDF`, `forallEDF`,
 `lamDF`.
+
+## 2026-11-11 UTC: β, proof irrelevance and η
+
+Checked, no `sorry` of their own.
+
+* `SoundBeta.lean`: `Sem.beta` (uses `den_beta` and, for the value of the redex,
+  `PVal.step_lam_app` with the body's judgment at the extended valuation) and
+  `Sem.proofIrrel` (both proofs denote `•`).
+* `SoundEta.lean`: `PVal.lift_subst_scons`, `mkLam_mkApp` (semantic η: an element of a
+  Π-type with valid fibres is the abstraction of its applications, in all cases of `mkPi`),
+  and `Sem.eta`.
+
+Rule cases proved: `bvar`, `symm`, `trans`, `defeqDF`, `sortDF`, `appDF`, `forallEDF`,
+`lamDF`, `beta`, `eta`, `proofIrrel`. Remaining: `constDF`, `extra` (the equations of `C`
+and `Fix`), `pat` (`Eq.rec`, needs the head invariant in `Sem`), and the four projection
+rules (vacuous by the inventory).
