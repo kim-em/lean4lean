@@ -23,7 +23,8 @@ namespace UniverseTower
 
 /-- The semantic judgment with the head invariant on both sides. -/
 def SemS (𝕋 : UniverseTower) (env : VEnv) (Γ : List VExpr) (a b A : VExpr) : Prop :=
-  𝕋.Sem Γ a b A ∧ ∀ ρ w, 𝕋.ValOK Γ ρ w → 𝕋.SpineOK env ρ w a A ∧ 𝕋.SpineOK env ρ w b A
+  𝕋.Sem Γ a b A ∧ 𝕋.SemU Γ a A ∧ 𝕋.SemU Γ b A ∧
+    ∀ ρ w, 𝕋.ValOK Γ ρ w → 𝕋.SpineOK env ρ w a A ∧ 𝕋.SpineOK env ρ w b A
 
 end UniverseTower
 
@@ -96,7 +97,7 @@ theorem KlopInventory.sem_pat (𝕋 : UniverseTower) (heq : env.HasCanonicalEq)
     (hp : env.pats p r) (hm : p.Matches e m1 m2)
     (He : 𝕋.SemS env Γ e e A) (Hr : 𝕋.SemS env Γ (r.1.apply m1 m2) (r.1.apply m1 m2) A) :
     𝕋.Sem Γ e (r.1.apply m1 m2) A :=
-  K.sem_pat_core 𝕋 heq hp hm He.1 (fun ρ w hρ => (He.2 ρ w hρ).1) Hr.1
+  K.sem_pat_core 𝕋 heq hp hm He.1 (fun ρ w hρ => (He.2.2.2 ρ w hρ).1) Hr.1
 
 /-- `projDF` has no instance: the projection entry of `Eq` has no field, so `fieldType` is
 `none`. After instantiating the two parameters the constructor type is an application of
@@ -175,54 +176,70 @@ theorem KlopInventory.no_projIota (K : KlopInventory env) {Γ : List VExpr}
   (K.no_proj H).1 _ _ _ rfl
 
 /-- **The fundamental theorem of the model**, modulo the open obligations above. -/
-theorem KlopInventory.sound (𝕋 : UniverseTower) (heq : env.HasCanonicalEq)
-    (K : KlopInventory env)
+theorem KlopInventory.sound (𝕋 : UniverseTower) (henv : env.Ordered)
+    (heq : env.HasCanonicalEq) (K : KlopInventory env)
     {Γ : List VExpr} {a b A : VExpr} (H : env.IsDefEqStrong 0 Γ a b A) :
     𝕋.SemS env Γ a b A := by
   induction H with
   | bvar h _ _ _ =>
-    exact ⟨UniverseTower.sem_bvar h, fun ρ w _ =>
+    exact ⟨UniverseTower.sem_bvar h, UniverseTower.semU_bvar h, UniverseTower.semU_bvar h,
+      fun ρ w _ =>
       ⟨UniverseTower.spineOK_of_not_spine (fun h => h), UniverseTower.spineOK_of_not_spine (fun h => h)⟩⟩
-  | symm _ ih => exact ⟨ih.1.symm, fun ρ w hρ => ⟨(ih.2 ρ w hρ).2, (ih.2 ρ w hρ).1⟩⟩
+  | symm _ ih => exact ⟨ih.1.symm, ih.2.2.1, ih.2.1, fun ρ w hρ => ⟨(ih.2.2.2 ρ w hρ).2, (ih.2.2.2 ρ w hρ).1⟩⟩
   | trans _ _ ih1 ih2 =>
-    exact ⟨ih1.1.trans ih2.1, fun ρ w hρ => ⟨(ih1.2 ρ w hρ).1, (ih2.2 ρ w hρ).2⟩⟩
+    exact ⟨ih1.1.trans ih2.1, ih1.2.1, ih2.2.2.1, fun ρ w hρ => ⟨(ih1.2.2.2 ρ w hρ).1, (ih2.2.2.2 ρ w hρ).2⟩⟩
   | sortDF _ _ h =>
-    exact ⟨UniverseTower.sem_sort h, fun ρ w _ =>
+    exact ⟨UniverseTower.sem_sort h, UniverseTower.semU_sort _,
+      (UniverseTower.semU_sort _).of_sem (UniverseTower.sem_sort h), fun ρ w _ =>
       ⟨UniverseTower.spineOK_of_not_spine (fun h => h), UniverseTower.spineOK_of_not_spine (fun h => h)⟩⟩
   | @constDF c ci ls ls' u Γ h _ _ hl hls _ _ _ _ ih =>
-    refine ⟨K.sem_const 𝕋 heq h hl hls ih.1, fun ρ w hρ => ⟨UniverseTower.spineOK_const h, ?_⟩⟩
+    have hS := K.sem_const 𝕋 heq h hl hls ih.1
+    have hU := UniverseTower.semU_const_of (henv.closedC h).instL (hS.trans hS.symm)
+    refine ⟨hS, hU, hU.of_sem hS, fun ρ w hρ => ⟨UniverseTower.spineOK_const h, ?_⟩⟩
     exact (UniverseTower.spineOK_const (ls := ls') h).defeq (ih.1 ρ w hρ).2.1.symm
   | appDF _ _ _ _ _ _ _ ihA ihB ihf iha ihBa =>
-    refine ⟨UniverseTower.Sem.app ihA.1 ihB.1 ihf.1 iha.1 ihBa.1, fun ρ w hρ => ?_⟩
+    have hS := UniverseTower.Sem.app ihA.1 ihB.1 ihf.1 iha.1 ihBa.1
+    have hU := UniverseTower.SemU.app (ihf.1.trans ihf.1.symm) (iha.1.trans iha.1.symm)
+      (ihBa.1.trans ihBa.1.symm) ihf.2.1 iha.2.1 ihBa.2.1
+    refine ⟨hS, hU, hU.of_sem hS, fun ρ w hρ => ?_⟩
     obtain ⟨-, haa', ham, hav, -⟩ := iha.1 ρ w hρ
-    refine ⟨(ihf.2 ρ w hρ).1.app ham fun h => (hav h).1, ?_⟩
-    have h2 := (ihf.2 ρ w hρ).2.app (haa' ▸ ham) fun h => (hav h).2
+    refine ⟨(ihf.2.2.2 ρ w hρ).1.app ham fun h => (hav h).1, ?_⟩
+    have h2 := (ihf.2.2.2 ρ w hρ).2.app (haa' ▸ ham) fun h => (hav h).2
     exact h2.defeq (ihBa.1 ρ w hρ).2.1.symm
   | projDF hinfo _ hlv hpar _ hft _ _ _ _ _ _ _ _ _ =>
     exact absurd hft (K.no_projDF hinfo hlv hpar)
   | lamDF _ _ _ _ _ _ _ ihA ihB _ ihb _ =>
-    exact ⟨UniverseTower.Sem.lam ihA.1 ihB.1 ihb.1, fun ρ w _ =>
+    have hS := UniverseTower.Sem.lam ihA.1 ihB.1 ihb.1 ihA.2.1 ihB.2.1 ihb.2.1
+    have hU := UniverseTower.SemU.lam (ihA.1.trans ihA.1.symm) ihB.1 (ihb.1.trans ihb.1.symm)
+      ihA.2.1 ihB.2.1 ihb.2.1
+    exact ⟨hS, hU, hU.of_sem hS, fun ρ w _ =>
       ⟨UniverseTower.spineOK_of_not_spine (fun h => h), UniverseTower.spineOK_of_not_spine (fun h => h)⟩⟩
   | forallEDF _ _ _ _ _ ihA ihB _ =>
-    exact ⟨UniverseTower.Sem.forallE ihA.1 ihB.1, fun ρ w _ =>
+    have hS := UniverseTower.Sem.forallE ihA.1 ihB.1 ihB.2.1
+    have hU := UniverseTower.SemU.forallE (ihA.1.trans ihA.1.symm) (ihB.1.trans ihB.1.symm)
+      ihA.2.1 ihB.2.1
+    exact ⟨hS, hU, hU.of_sem hS, fun ρ w _ =>
       ⟨UniverseTower.spineOK_of_not_spine (fun h => h), UniverseTower.spineOK_of_not_spine (fun h => h)⟩⟩
   | defeqDF _ _ _ ihT ih =>
-    refine ⟨ihT.1.defeq ih.1, fun ρ w hρ => ?_⟩
+    refine ⟨ihT.1.defeq ih.1, UniverseTower.SemU.defeq ihT.1 ih.2.1,
+      UniverseTower.SemU.defeq ihT.1 ih.2.2.1, fun ρ w hρ => ?_⟩
     have hAB := (ihT.1 ρ w hρ).2.1
-    exact ⟨(ih.2 ρ w hρ).1.defeq hAB, (ih.2 ρ w hρ).2.defeq hAB⟩
+    exact ⟨(ih.2.2.2 ρ w hρ).1.defeq hAB, (ih.2.2.2 ρ w hρ).2.defeq hAB⟩
   | beta _ _ _ _ _ _ _ _ ihA _ ihe ihe' _ ihr =>
-    exact ⟨UniverseTower.Sem.beta ihA.1 ihe.1 ihe'.1 ihr.1, fun ρ w hρ =>
-      ⟨UniverseTower.spineOK_of_not_spine (fun h => h), (ihr.2 ρ w hρ).1⟩⟩
+    have hS := UniverseTower.Sem.beta ihA.1 ihe.1 ihe'.1 ihr.1
+    exact ⟨hS, ihr.2.1.of_sem' hS, ihr.2.1, fun ρ w hρ =>
+      ⟨UniverseTower.spineOK_of_not_spine (fun h => h), (ihr.2.2.2 ρ w hρ).1⟩⟩
   | eta _ _ _ _ _ _ _ _ ihA ihB _ ihe _ _ =>
-    exact ⟨UniverseTower.Sem.eta ihA.1 ihB.1 ihe.1, fun ρ w hρ =>
-      ⟨UniverseTower.spineOK_of_not_spine (fun h => h), (ihe.2 ρ w hρ).1⟩⟩
+    have hS := UniverseTower.Sem.eta ihA.1 ihB.1 ihe.1
+    exact ⟨hS, ihe.2.1.of_sem' hS, ihe.2.1, fun ρ w hρ =>
+      ⟨UniverseTower.spineOK_of_not_spine (fun h => h), (ihe.2.2.2 ρ w hρ).1⟩⟩
   | proofIrrel _ _ _ ihp ihh ihh' =>
-    exact ⟨UniverseTower.Sem.proofIrrel ihp.1 ihh.1 ihh'.1, fun ρ w hρ =>
-      ⟨(ihh.2 ρ w hρ).1, (ihh'.2 ρ w hρ).1⟩⟩
+    exact ⟨UniverseTower.Sem.proofIrrel ihp.1 ihh.1 ihh'.1, ihh.2.1, ihh'.2.1, fun ρ w hρ =>
+      ⟨(ihh.2.2.2 ρ w hρ).1, (ihh'.2.2.2 ρ w hρ).1⟩⟩
   | extra h _ hl _ _ _ _ _ _ _ _ _ ihl ihr =>
-    exact ⟨K.sem_extra 𝕋 h hl ihl ihr, fun ρ w hρ => ⟨(ihl.2 ρ w hρ).1, (ihr.2 ρ w hρ).1⟩⟩
+    exact ⟨K.sem_extra 𝕋 h hl ihl ihr, ihl.2.1, ihr.2.1, fun ρ w hρ => ⟨(ihl.2.2.2 ρ w hρ).1, (ihr.2.2.2 ρ w hρ).1⟩⟩
   | pat hp hm _ _ _ _ ihe ihr _ =>
-    exact ⟨K.sem_pat 𝕋 heq hp hm ihe ihr, fun ρ w hρ => ⟨(ihe.2 ρ w hρ).1, (ihr.2 ρ w hρ).1⟩⟩
+    exact ⟨K.sem_pat 𝕋 heq hp hm ihe ihr, ihe.2.1, ihr.2.1, fun ρ w hρ => ⟨(ihe.2.2.2 ρ w hρ).1, (ihr.2.2.2 ρ w hρ).1⟩⟩
   | projIota _ hs _ _ _ _ => exact (K.no_projIota hs).elim
   | structEta hinfo _ hi _ _ _ _ =>
     have := (K.projections_only _ _ hinfo).2
@@ -239,7 +256,7 @@ theorem KlopInventory.den_sound (𝕋 : UniverseTower) {env : VEnv}
     (henv : env.WF) (heq : env.HasCanonicalEq) (K : KlopInventory env)
     {a b A : VExpr} (H : env.IsDefEq 0 [] a b A) (ρ : Nat → 𝕋.S) :
     𝕋.den ρ a = 𝕋.den ρ b :=
-  ((K.sound 𝕋 heq (H.strong henv.orderedStrong (Γ := []) trivial)).1 ρ (fun _ => .bot)
+  ((K.sound 𝕋 henv.ordered heq (H.strong henv.orderedStrong (Γ := []) trivial)).1 ρ (fun _ => .bot)
     (𝕋.valOK_nil ρ _)).2.1
 
 end VEnv.Strengthening

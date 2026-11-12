@@ -67,6 +67,10 @@ theorem SemDU.defeq {Γ : List VExpr} {d : (Nat → 𝕋.S) → 𝕋.S} {A B S :
     funext fun i => (HT _ _ (hρ i)).2.1.symm
   rw [e]; exact H n I ρ w hρ hctx
 
+theorem SemU.defeq {Γ : List VExpr} {a A B S : VExpr} (HT : 𝕋.Sem Γ A B S)
+    (H : 𝕋.SemU Γ a A) : 𝕋.SemU Γ a B :=
+  SemDU.defeq (d := fun ρ => 𝕋.den ρ a) HT H
+
 /-- A term whose type is a proposition, `T` or `Prop` at every valuation satisfies the
 clause. -/
 theorem semDU_of_base {Γ : List VExpr} {d : (Nat → 𝕋.S) → 𝕋.S} {A : VExpr}
@@ -147,7 +151,7 @@ theorem SemU.lam {Γ : List VExpr} {A B b : VExpr} {u v : VLevel}
   SemDU.lam HA HB (fun ρ w hρ => (Hb ρ w hρ).2.2.1) HAU HBU HbU
 
 /-- The application rule. -/
-theorem SemU.app {Γ : List VExpr} {A B f a : VExpr} {u v : VLevel}
+theorem SemU.app {Γ : List VExpr} {A B f a : VExpr} {v : VLevel}
     (Hf : 𝕋.Sem Γ f f (.forallE A B)) (Ha : 𝕋.Sem Γ a a A)
     (HBa : 𝕋.Sem Γ (B.inst a) (B.inst a) (.sort v))
     (HfU : 𝕋.SemU Γ f (.forallE A B)) (HaU : 𝕋.SemU Γ a A)
@@ -188,6 +192,57 @@ theorem SemDU.piUnif {Γ : List VExpr} {A B : VExpr} {d : (Nat → 𝕋.S) → �
     rw [mkPi, if_neg hDc, if_neg hall]
   rw [e1, mkLam_eq_fn (F := fun x => 𝕋.den (𝕋.cons x ρ) B) hx₀ (hFv _ hx₀) hc₀ (hf _ hx₀)] at h
   exact piUnif_of_unif h
+
+/-- The denotation of a term depends only on the variables that occur in it. -/
+theorem den_congr_closed (e : VExpr) : ∀ (k : Nat) (ρ ρ' : Nat → 𝕋.S), e.ClosedN k →
+    (∀ i, i < k → ρ i = ρ' i) → 𝕋.den ρ e = 𝕋.den ρ' e := by
+  induction e with
+  | bvar i => exact fun k ρ ρ' hc h => h i hc
+  | sort => exact fun _ _ _ _ _ => rfl
+  | const => exact fun _ _ _ _ _ => rfl
+  | proj => exact fun _ _ _ _ _ => rfl
+  | app f a ihf iha =>
+    intro k ρ ρ' hc h
+    show 𝕋.mkApp _ _ = 𝕋.mkApp _ _
+    rw [ihf k ρ ρ' hc.1 h, iha k ρ ρ' hc.2 h]
+  | lam A b ihA ihb =>
+    intro k ρ ρ' hc h
+    show 𝕋.mkLam _ _ = 𝕋.mkLam _ _
+    rw [ihA k ρ ρ' hc.1 h]
+    congr 1
+    funext d
+    refine ihb (k + 1) _ _ hc.2 fun i hi => ?_
+    cases i with
+    | zero => rfl
+    | succ i => exact h i (Nat.lt_of_succ_lt_succ hi)
+  | forallE A B ihA ihB =>
+    intro k ρ ρ' hc h
+    show 𝕋.mkPi _ _ = 𝕋.mkPi _ _
+    rw [ihA k ρ ρ' hc.1 h]
+    congr 1
+    funext d
+    refine ihB (k + 1) _ _ hc.2 fun i hi => ?_
+    cases i with
+    | zero => rfl
+    | succ i => exact h i (Nat.lt_of_succ_lt_succ hi)
+
+theorem unif_of_isEmpty {m : Nat} {I : World} (hI : I → False) (H s : I → 𝕋.S) :
+    𝕋.Unif m I H s := fun _ _ => ⟨(0, 0), Lf_of_isEmpty _ _ hI _ _⟩
+
+/-- **The constant rule**: a constant with a closed type is an element of the denotation of
+that type, which does not depend on the valuation, and elements are uniform. -/
+theorem semU_const_of {Γ : List VExpr} {c : Name} {ls : List VLevel} {ty : VExpr}
+    (hcl : ty.ClosedN 0) (H : 𝕋.Sem Γ (.const c ls) (.const c ls) ty) :
+    𝕋.SemU Γ (.const c ls) ty := by
+  intro n I ρ w hρ _
+  by_cases hI : Nonempty I
+  · obtain ⟨i₀⟩ := hI
+    have e : (fun i => 𝕋.den (ρ i) ty) = fun _ => 𝕋.den (ρ i₀) ty :=
+      funext fun i => den_congr_closed ty 0 _ _ hcl fun _ h => (Nat.not_lt_zero _ h).elim
+    obtain ⟨⟨k, hv⟩, -, hm, -⟩ := H _ _ (hρ i₀)
+    rw [e]
+    exact (hv.unif_const I hm).mono (Nat.zero_le n)
+  · exact unif_of_isEmpty (fun i => hI ⟨i⟩) _ _
 
 end UniverseTower
 end VEnv.Strengthening
