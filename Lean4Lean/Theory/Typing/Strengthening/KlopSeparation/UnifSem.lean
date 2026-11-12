@@ -223,6 +223,93 @@ theorem unif_mkLam {m : Nat} {I : World.{u}} {D : I → 𝕋.S} {F f : I → �
       (unif_of_small (fun i' => .inl (isBase_of_isCand (e1 i').2.1)) _) hTr
     exact h''.fuel hFr
 
+/-! ### Application -/
+
+/-- **Applying a uniform family of functions to a uniform family of arguments gives a uniform
+family**, when the family of result types is tame. -/
+theorem unif_mkApp {m : Nat} {I : World.{u}} {D : I → 𝕋.S} {F : I → 𝕋.S → 𝕋.S} {g a : I → 𝕋.S}
+    (hg : 𝕋.Unif m I (fun i => 𝕋.mkPi (D i) (F i)) g)
+    (hgm : ∀ i, g i ∈ₛ 𝕋.El (𝕋.mkPi (D i) (F i)))
+    (ha : ∀ i, a i ∈ₛ 𝕋.El (D i)) (hau : 𝕋.Unif m I D a)
+    (hT : 𝕋.Tame m (fun i => F i (a i))) :
+    𝕋.Unif m I (fun i => F i (a i)) (fun i => 𝕋.mkApp (g i) (a i)) := by
+  intro m' hm
+  obtain ⟨b, hb⟩ := hg m' hm
+  have hT' := hT.mono hm
+  obtain ⟨br, hbr⟩ := exists_famLe_of_tame hT'
+  refine ⟨br, Lf.cover br m' I _ _
+    (fun i => 𝕋.kind (𝕋.mkPi (D i) (F i)) = 𝕋.tagN 4 ∧ ¬ 𝕋.Small m' (𝕋.mkPi (D i) (F i))) ?_ ?_⟩
+  · -- Π records that are not small
+    have key : ∀ (J : World.{u}) (ψ : J → I),
+        (∀ j, 𝕋.kind (𝕋.mkPi (D (ψ j)) (F (ψ j))) = 𝕋.tagN 4 ∧
+          ¬ 𝕋.Small m' (𝕋.mkPi (D (ψ j)) (F (ψ j)))) →
+        𝕋.Lf br m' J (fun j => F (ψ j) (a (ψ j))) (fun j => 𝕋.mkApp (g (ψ j)) (a (ψ j))) := by
+      intro J ψ hk
+      have e1 := fun j => mkPi_of_kind4 (hk j).1
+      have eD : (fun j => 𝕋.dom (𝕋.mkPi (D (ψ j)) (F (ψ j)))) = fun j => D (ψ j) :=
+        funext fun j => by rw [(e1 j).1, dom_tPi]
+      have eF : (fun j => 𝕋.fib (𝕋.mkPi (D (ψ j)) (F (ψ j))) (a (ψ j))) =
+          fun j => F (ψ j) (a (ψ j)) := funext fun j => by rw [(e1 j).1, fib_tPi (ha _)]
+      have eS : (fun j => 𝕋.ap (g (ψ j)) (a (ψ j))) = fun j => 𝕋.mkApp (g (ψ j)) (a (ψ j)) :=
+        funext fun j => by
+          have := hgm (ψ j); rw [(e1 j).1] at this
+          rw [mkApp, if_neg (ne_star_of_mem_tPi this)]
+      obtain ⟨b', h'⟩ := Lf.ap_pi (hb.comp ψ) hk
+        (fun j => by rw [(e1 j).1, dom_tPi]; exact ha _)
+        (by rw [eD]; exact (hau.mono hm).comp ψ) (by rw [eF]; exact hT'.comp ψ)
+      rw [eF, eS] at h'
+      exact h'.fuel (hbr.comp ψ)
+    exact key _ Subtype.val Subtype.property
+  · refine Lf.cover br m' _ _ _ (fun i => 𝕋.kind (𝕋.mkPi (D i.1) (F i.1)) = 𝕋.tagN 5 ∧
+      ¬ 𝕋.Small m' (𝕋.mkPi (D i.1) (F i.1))) ?_ ?_
+    · -- function types out of a proposition that are not small
+      have key : ∀ (J : World.{u}) (ψ : J → I),
+          (∀ j, 𝕋.kind (𝕋.mkPi (D (ψ j)) (F (ψ j))) = 𝕋.tagN 5 ∧
+            ¬ 𝕋.Small m' (𝕋.mkPi (D (ψ j)) (F (ψ j)))) →
+          𝕋.Lf br m' J (fun j => F (ψ j) (a (ψ j))) (fun j => 𝕋.mkApp (g (ψ j)) (a (ψ j))) := by
+        intro J ψ hk
+        have e1 := fun j => mkPi_of_kind5 (hk j).1
+        have eA : ∀ j, a (ψ j) = 𝕋.star := fun j => by
+          have := ha (ψ j)
+          rw [El_of_isCand_nonempty (e1 j).2.1 (e1 j).2.2.1] at this
+          exact 𝕋.mem_one.1 this
+        have eF : (fun j => 𝕋.cod (𝕋.mkPi (D (ψ j)) (F (ψ j)))) =
+            fun j => F (ψ j) (a (ψ j)) := funext fun j => by rw [(e1 j).1, cod_tPiP, eA j]
+        have eS : (fun j => 𝕋.ap (g (ψ j)) 𝕋.star) =
+            fun j => 𝕋.mkApp (g (ψ j)) (a (ψ j)) := funext fun j => by
+          have := hgm (ψ j); rw [(e1 j).1] at this
+          rw [mkApp, if_neg (ne_star_of_mem_tPiP this), eA j]
+        obtain ⟨b', h'⟩ := Lf.ap_piP (hb.comp ψ) hk (by rw [eF]; exact hT'.comp ψ)
+        rw [eF, eS] at h'
+        exact h'.fuel (hbr.comp ψ)
+      exact key _ (fun i => (Subtype.val (Subtype.val i))) Subtype.property
+    · -- everything else has a small result type
+      refine Lf_of_small _ (fun i => ?_) _
+      obtain ⟨⟨i, h4⟩, h5⟩ := i
+      show 𝕋.Small m' (F i (a i))
+      rcases mkPi_cases (D i) (F i) with ⟨-, hall⟩ | ⟨e, hDc, hne, -⟩ | ⟨e, -, -⟩
+      · exact .inl (isBase_of_isCand (hall _ (ha i)))
+      · have hs : 𝕋.Small m' (𝕋.mkPi (D i) (F i)) :=
+          Classical.byContradiction fun hn => h5 ⟨by rw [e, kind_tPiP], hn⟩
+        have eA : a i = 𝕋.star := by
+          have := ha i
+          rw [El_of_isCand_nonempty hDc hne] at this
+          exact 𝕋.mem_one.1 this
+        rw [e] at hs
+        have := hs.child (.inr ⟨kind_tPiP .., rfl⟩)
+        rwa [cod_tPiP, ← eA] at this
+      · have hs : 𝕋.Small m' (𝕋.mkPi (D i) (F i)) :=
+          Classical.byContradiction fun hn => h4 ⟨by rw [e, kind_tPi], hn⟩
+        rw [e] at hs
+        have := hs.child (.inl ⟨kind_tPi .., .inr ⟨a i, by rw [dom_tPi]; exact ha i, rfl⟩⟩)
+        rwa [fib_tPi (ha i)] at this
+
+/-- Uniformity of a function object at one valuation, in the form the element set of a Π
+record asks for. -/
+theorem piUnif_of_unif {D : 𝕋.S} {F : 𝕋.S → 𝕋.S} {g : 𝕋.S}
+    (h : 𝕋.Unif 0 PUnit (fun _ => 𝕋.tPi D F) (fun _ => g)) : 𝕋.PiUnif D F g :=
+  Unif.congr (fun _ => (sameArgs_prePi D F).symm) h
+
 end UniverseTower
 end VEnv.Strengthening
 end Lean4Lean
