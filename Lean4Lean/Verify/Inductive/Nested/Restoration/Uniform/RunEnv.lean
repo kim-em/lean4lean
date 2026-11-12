@@ -211,7 +211,7 @@ parameters.
 
 The constants the checker builds on its own are not heads: the reserved ones
 (`checkerPrimNames`) because every head was installed by a `checkName` without
-primitive permission (`LoweredRun.nonprimitive_familyNames`);
+primitive permission (`NestedRun.loweredNonprimitive`);
 the other string-literal constants (`strLitNames`) because, once the
 environment declares `Char.ofNat` and `String.ofList`, these two are base
 constants (they are reserved, so the run did not install them), and then

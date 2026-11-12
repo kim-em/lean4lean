@@ -10,7 +10,7 @@ import Lean4Lean.Verify.Inductive.Nested.Safety
 The expanded declaration is the lowered declaration `E.lowered.loweredDecl`,
 the signature and instance are those of its recursor construction
 (`LoweredRun.signature`, `LoweredRun.generatedInstance`), and the block is the
-`restoredBlock` of a `RestoredBlockDerivation`. Every field is proved here except the restoration
+`restoredBlock` of the run's restored recursors and rules. Every field is proved here except the restoration
 correspondence of the constructor types (and of the auxiliary family headers)
 and the restored recursor and equation lists, collected in
 `NestedCompilationRestorationFacts`.

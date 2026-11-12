@@ -362,8 +362,8 @@ theorem ParamOpening.root_mkLambda_tail
     exact ⟨d, hfind d hd⟩
   · exact hnodup
 
-/-- Full-scoping twin of `forall_closing_data`: the same closing fold also preserves
-level metavariable freedom recorded by `FVarsIn`.  `P` describes the free variables allowed before the
+/-- The closing fold of a parameter opening preserves the scoping recorded by `FVarsIn`
+(free variables and level metavariable freedom).  `P` describes the free variables allowed before the
 opening; the root specialization uses `P := False`. -/
 theorem ParamOpening.forall_closing_data_fvarsIn
     (Hopen : ParamOpening lctx As e n outLctx outAs tail)

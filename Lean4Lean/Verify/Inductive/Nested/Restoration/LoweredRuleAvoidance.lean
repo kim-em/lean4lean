@@ -3,13 +3,11 @@ import Lean4Lean.Verify.Inductive.Nested.Safety
 
 /-! # Input-side avoidance of the auxiliary constructor names by the lowered rules
 
-The restored-equation lemma modulo the renamed auxiliary recursor names
-(`restoredEquations_of_trModulo`, `Nested/Restoration/RecursorRenaming.lean`) needs the
-premise `NestedRun.LoweredRulesAvoid heads X`: in the lowered
-rule right-hand sides, the trailing arguments of the head occurrences, the literals and the
-parameter domains avoid `X`. Only the restorable names of `X` matter
-(`TrRestoredRulesModulo.filter_restorable`), and those are auxiliary
-constructor names (`restorableRenamed_auxCtorNames`: lowered auxiliary recursor
+The assembly of the restored recursors (`Nested/Restoration/AssemblyRecursors.lean`) needs the
+premise `NestedRun.LoweredRulesAvoid heads X` (`Nested/Restoration/RecursorRenaming.lean`): in
+the lowered rule right-hand sides, the trailing arguments of the head occurrences, the literals
+and the parameter domains avoid `X`. Only the restorable names of `X` matter, and those are
+auxiliary constructor names (`restorableRenamed_auxCtorNames`: lowered auxiliary recursor
 names are never renamed, and auxiliary family names are numeric `_nested.i`
 while renamed names are string extensions `Main.rec_k`).
 

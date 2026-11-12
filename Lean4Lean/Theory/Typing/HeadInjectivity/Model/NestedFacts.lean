@@ -7,7 +7,7 @@ The facts the validity of a nested block's rules reads off the block's container
 container's compilation (`containers_mem`), the rigidity of a container family (through the
 provenance of pattern constructors, `patCtor_resultRigid`, the model's copy of the confluence
 engine's `WF.patCtor_resultRigid`, which the model cannot import), the projection facts
-(`projMajor_installed`) and the semantic sort (`famSort_container`) of a container family. -/
+(`projMajor_installed`) and the semantic sort (`famSort_installed`) of a container family. -/
 
 namespace Lean4Lean
 namespace VEnv

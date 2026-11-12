@@ -4,18 +4,12 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.HeaderRenaming
 import Lean4Lean.Verify.Inductive.Nested.Restoration.FreshRecursorSteps
 import Lean4Lean.Verify.Inductive.Nested.Safety
 
-/-! Recursor alignment of a validated nested run: every recursor of the output is
-aligned with its abstract translation (`NewRecursorsAligned`).
+/-! Lookups of a validated nested run in its lowered and output environments.
 
-`NestedRun.recursorsAligned_of` discharges the `Hprovenance`
-hypothesis of `NestedRun.assemblyOfRun_of_run`.
-
-The hypothesis quantifies over an arbitrary specialization list carrying
-`RestorationTablesAgree`. The restoration `compilationRestoration decl auxiliaries`
-is determined by the table data (`RestorationTablesAgree.expr_eq`,
-`Nested/Restoration/HeaderRenaming.lean`), so the specialization list of
-`restorationTablesRestoringAll`, for which all the formation facts are
-available, may be used instead. -/
+`NestedRun.loweredSourceKeyed`: a source family's header in the lowered environment carries
+its name. `NestedRun.restoredMajorFound`: the major inductive of a restored recursor is an
+inductive type of the output environment, either a restored source family header or the
+container family of the nested occurrence recorded by lowering. -/
 
 namespace Lean4Lean
 

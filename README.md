@@ -160,10 +160,11 @@ took lean4lean over a second, the slowest `PresheafOfModules.freeObj._proof_2` (
     * `Axioms.lean`: theorems about upstream opaques that shouldn't be opaque
     * `Expr.lean`: correctness of basics on `Expr`
     * `Level.lean`: correctness of basics on `Level`
-    * `Level/Std.lean`: soundness of the standard-library level operations
+    * `LevelStd.lean`: soundness of the standard-library level operations
     * `VLCtx.lean`: a "translation context" suitable for translating expressions
     * `LocalContext.lean`: properties of lean's `LocalContext` type
     * `NameGenerator.lean`: properties of the fresh name generator
+    * `EquivManager.lean`: invariants for the union-find defeq cache
     * `Typing`
       * `Expr.lean`: translating expressions (`TrExpr` is here)
       * `Lemmas.lean`: properties of `TrExpr`
@@ -173,7 +174,6 @@ took lean4lean over a second, the slowest `PresheafOfModules.freeObj._proof_2` (
       * `Lemmas.lean`: properties of `TrEnv`
     * `TypeChecker`
       * `Basic.lean`: typechecker invariants
-      * `EquivManager.lean`: invariants for the union-find defeq cache
       * `InferType.lean`: correctness of `inferType`
       * `WHNF.lean`: correctness of `whnf`
       * `IsDefEq.lean`: correctness of `isDefEq`

@@ -16,9 +16,7 @@ import Lean4Lean.Verify.Inductive.Install.Ordinary
 `NestedLoweringOutputClosed`) maps each source family to its lowered family, and the
 restoration folds are interpreted as the source family translations
 (`SourceFamilyTranslations`) of the submitted declaration, with headers, constructors and
-source recursors. The file ends with `Environment.addInductive.checkedLoweringClosedWF`,
-which runs the source checks and lowering of `Environment.addInductive` before
-dispatch. -/
+source recursors. -/
 
 namespace Lean4Lean
 

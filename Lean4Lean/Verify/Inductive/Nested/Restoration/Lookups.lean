@@ -13,7 +13,7 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 /-! Facts about the recursor check of a declaration whose headers and
-constructors went through the ordinary pipeline (`OrdinaryConstructorCheck`).
+constructors went through the ordinary pipeline (`ConstructorCheck`).
 The recursor check itself is `RecursorInstallation R`; the lemmas
 here only add what is visible through the header and constructor environments
 (source lookups for nested restoration). -/

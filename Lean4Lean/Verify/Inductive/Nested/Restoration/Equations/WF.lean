@@ -13,8 +13,8 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.ContainerSpecializations
 import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceConstructorTypes
 import Lean4Lean.Verify.Inductive.Nested.Safety
 
-/-! The restored-equation well-formedness hypothesis `HrestoredWF` of
-`NestedRun.hruleShape_of_base` (`Nested/Restoration/Equations/RestoredRulesBase.lean`).
+/-! Well-formedness of the restored generated equations
+(`NestedRun.restoredEquationsWF_of_substitutionPremises`).
 
 Route. Every generated equation of the lowered run is well formed in
 the lowered recursor environment (`loweredEquationWF`, from
@@ -24,8 +24,7 @@ is a restoration substitution from that environment into the recursor environmen
 `B.recursorVEnv` of a restored block base; it transports the typing of both sides to the
 restored equation (`Restoration.equation_wf`), using beta subject reduction of that well-formed
 environment. Its clauses are proved for the context invariant `VEnv.TypedCtx`: the projection
-rules of auxiliary structure-like families and the rules of the restored eliminator
-(`VEnv.RestoredEliminator.clause`) are transported up to beta, which needs a well-formed
+rules of auxiliary structure-like families are transported up to beta, which needs a well-formed
 context; the equations are stated in the empty context, so every transported derivation starts
 in a well-formed context. The interpretation replaces each restoration head (auxiliary family or
 constructor) by its restoration lambda `λ params, target levels args`
@@ -38,8 +37,7 @@ projection position to their containers). Its soundness is built in stages:
 * `constructorInterpretationSound`: the lowered constructors (source
   constructors kept under their own name with the source constructor type,
   which is definitionally equal to the interpreted lowered type by restoration
-  at the header stage; auxiliary constructors replaced), the lowered eliminator and the
-  lowered projections;
+  at the header stage; auxiliary constructors replaced) and the lowered projections;
 * `Restoration.interpretation_ofAddConstants_recursors`: the lowered recursors,
   kept under their restored names with the restored recursor types, which are
   definitionally equal to the interpreted lowered types by restoration at the
@@ -48,10 +46,11 @@ projection position to their containers). Its soundness is built in stages:
 `RestorationSubstitutionPremises` collects the facts the substitution is built
 from, proved for the run in later modules (`Nested/Restoration/Equations/ProjNames.lean`,
 `Nested/Restoration/Equations/AuxiliaryConstructors.lean`,
-`Nested/Restoration/AuxiliaryProjections.lean`, where
+`Nested/Restoration/AuxiliaryProjections.lean`;
 `NestedRun.restoredEquationGaps` and the hypothesis-free
-`NestedRun.hrestoredWF_of` are assembled): projection-name
-avoidance of the base eliminator schemas, of the lowered
+`NestedRun.hrestoredWF_of` are assembled in
+`Nested/Restoration/Equations/RestoredWF.lean`): projection-name
+avoidance of the lowered
 constructor types, of the generated recursor types and of the generated
 equations (restoration keeps projection type names, so a projection of an
 auxiliary family in a generated equation would make the restored equation
@@ -102,10 +101,10 @@ variable
     {loweredEnv₀ : Environment} {L : LoweredRun Hc₀ nparams result.types.toArray loweredEnv₀}
 
 /-- **The constructor stage**: the restoration interpretation is sound, in well-formed
-contexts, from the lowered constructor environment with its eliminator and projections into the
+contexts, from the lowered constructor environment with its projections into the
 recursor environment of the restored block base, modulo the typing of the restoration lambdas of
-the auxiliary constructors (`HauxCtor`), the transport of the lowered projections (`Hproj`), the
-restored eliminators (`Hes`), and projection-name avoidance (`HprojNamesCtor`, `Helim`). -/
+the auxiliary constructors (`HauxCtor`), the transport of the lowered projections (`Hproj`) and
+projection-name avoidance (`HprojNamesCtor`). -/
 theorem NestedRun.constructorInterpretationSound
     (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (safetyOf isUnsafe)) sourceDecl lparams
@@ -478,12 +477,12 @@ theorem NestedRun.restoredEquationSubstitution
     E.lowered.recursors.installed S₁ hrecs
   exact ⟨S₂, Restoration.interpretation_agrees hnp⟩
 
-/-- **`HrestoredWF` of `NestedRun.hruleShape_of_base`**: every
+/-- **Well-formedness of the restored equations**: every
 restored generated equation is well formed in the recursor environment
 of a restored block base in which the stripped output environment is valid,
 modulo `RestorationSubstitutionPremises` (the hypothesis-free form is
 `NestedRun.hrestoredWF_of`,
-`Nested/Restoration/AuxiliaryProjections.lean`).
+`Nested/Restoration/Equations/RestoredWF.lean`).
 
 The generated equation is well formed in the lowered recursor environment
 (`loweredEquationWF`); the restoration substitution

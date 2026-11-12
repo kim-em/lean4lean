@@ -26,9 +26,10 @@ the specialization table (`Tables`, `TableAgreement`, `ContainerSpecializations`
 recursors (`Recursors`, `RecursorTypes`, `RecursorRenaming`, `RecursorShape`,
 `RecursorAlignment`, `TrRestoredRecursorVal`, `LoweredRuleAvoidance`,
 `Nonprimitive`), the compilation data (`CompilationData`, `CompilationDataConstructors`,
-`ConstructorTelescopes`, `ConstructorTranslations`, `FreshExtensions`, `ExprReplace`,
-`ParameterOpening`), and `Install/{Permutation,RecursorTranslations,DependencyOrder,
-ConstructorCoherence}.lean` for the kernel order and the recursor translations. -/
+`ConstructorTranslations`, `FreshExtensions`, `Lowering/Restore/ExprReplace.lean`,
+`Lowering/Restore/ParameterOpening.lean`), and `Install/Permutation.lean`,
+`Install/DependencyOrder.lean`, `RecursorTranslations.lean` and `ConstructorCoherence.lean`
+for the kernel order and the recursor translations. -/
 
 namespace Lean4Lean
 

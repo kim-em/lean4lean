@@ -41,8 +41,7 @@ open Kernel
 
 namespace VExpr
 
-/-! `VExpr.ProjNamesOK` itself is defined in `Theory/Inductive/CaseFormation.lean`,
-where registration of case schemas uses it. -/
+/-! `VExpr.ProjNamesOK` itself is defined in `Nested/Restoration/ProjNamesOK.lean`. -/
 
 end VExpr
 

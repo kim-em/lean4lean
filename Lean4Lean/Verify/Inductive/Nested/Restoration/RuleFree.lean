@@ -16,8 +16,9 @@ restored declaration with every recursor's rules removed (`RuleFreeStage`,
 `Validation/Stripped.lean`), stated over a step witness `AddInduct` whose output map is an
 `insertConsts`. The stripped environment re-inserts each recursor, so its constant map is not
 structurally an `insertConsts` of the block's constants. This file builds the rule-free stage
-over `S0`, the source environment extended by the stripped block (`ruleFreeEnv`), shows that
-the stripped environment has the same lookups (`stripRecursorRules_find?`, `ruleFreeEnv_find?`),
+over `S0`, the source environment extended by the stripped block (`addConstsEnv`), shows that
+the stripped environment has the same lookups (`stripRecursorRules_find?`,
+`stripRecursorRules_find?_eq_strip`),
 and transfers the checking invariant along that extensional equality
 (`CheckingEnv.Valid.mapExt`). -/
 

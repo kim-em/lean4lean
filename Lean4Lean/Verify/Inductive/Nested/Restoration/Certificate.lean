@@ -24,8 +24,8 @@ produced in `Nested/Restoration/Restore.lean`, its rule typing is added in
   the stages of `VEnv.addInduct`), the kernel insertion order and the output constant map
   (`order`, `map_eq`, `fresh`, `newUnsafe`);
 * the **shape clauses** of `VInductDecl.WF` for the restored recursors (`recs_wf`, `rec_shape`,
-  `rules_nodup`, `rules_ctor` on the container's or the block's constructors, `rule_shape`,
-  `rules_closed`) and the facts recursor reduction reads of the new recursors in the output
+  `rules_nodup`, `rules_ctor` on the container's or the block's constructors, `rule_shape`)
+  and the facts recursor reduction reads of the new recursors in the output
   model (`recShapes`, `recK`), auxiliary recursors included.
 
 What is *not* here is the typing of the restored rules (`VInductDecl.WF.rules_wf`,
@@ -157,7 +157,7 @@ theorem stC (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
     B.decl.addCtors B.envTypes = some B.envCtors := by
   rw [VInductDecl.addCtors_eq_addConstVals]; exact B.source.ctorsAdded
 
-/-- PR #43's step witness, assembled from the stages. -/
+/-- The step witness `AddInduct`, assembled from the stages. -/
 def addInduct (B : RestoredBlock L sourceTypes isUnsafe outEnv) :
     AddInduct c.safety c.env.constants Hc.venv B.decl outEnv.constants B.outVEnv where
   ivals := B.ivals

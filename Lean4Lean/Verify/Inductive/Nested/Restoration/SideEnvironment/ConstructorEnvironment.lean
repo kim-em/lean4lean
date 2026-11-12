@@ -601,8 +601,7 @@ theorem InductInfosFromDecl.restrict
 
 /-- The constructor validation environment satisfies the complete checking
 invariant against the source recursor-checking environment (the source
-constructor environment with the case eliminators `es` and the projection
-entries). Owners and registry alignment
+constructor environment with the projection entries). Owners and registry alignment
 are transported from the environment after the source-family restoration
 fold, whose lookups include those of the validation environment. -/
 theorem ValidationEnvironment.validProjected

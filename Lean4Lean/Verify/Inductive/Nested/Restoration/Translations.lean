@@ -5,10 +5,7 @@ import Lean4Lean.Verify.Inductive.Recursor.Entries.Metadata
 
 /-! Translations of the executable nested restoration folds: the source family
 translations (`SourceFamilyTranslations`: header, constructors and source recursor of
-each source family) and the auxiliary recursor fold (`AuxiliaryRecursorRuleBatches`),
-the restored block `restoredBlock`, and the auxiliary-constructor freshness
-consequence of installation. Shared lookup and mutual-header effects live in
-`Install/Metadata.lean`. -/
+each source family) and the restored block `restoredBlock`. -/
 
 namespace Lean4Lean
 

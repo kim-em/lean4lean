@@ -21,7 +21,7 @@ open Lean hiding Environment Exception
 open Kernel
 namespace InductiveSignature
 
-/-- (From the source's `EnvTables/Views.lean`.) -/
+/-- In a list with distinct keys, looking up the key of a member finds that member. -/
 theorem find?_name_of_mem' {α : Type _} {x : α} {l : List α} {f : α → Name}
     (hnd : (l.map f).Nodup) (hx : x ∈ l) :
     l.find? (fun y => f y == f x) = some x := by

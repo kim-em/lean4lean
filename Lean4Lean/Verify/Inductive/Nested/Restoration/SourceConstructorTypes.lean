@@ -19,7 +19,7 @@ source constructor type (`VExpr.NestedExprExpansion.restore`), given that
 
 The second fact is a premise here; it is discharged by
 `NestedRun.loweredConstructorLevels_heads` (in
-`Nested/Lowering/Levels.lean`): the executable lowering emits each auxiliary
+`Nested/Restoration/Levels.lean`): the executable lowering emits each auxiliary
 occurrence at `state.lvls`, which is initialised to the declaration's level
 parameters and never modified, as recorded by the relations describing the lowering run
 (`NestedAuxLE`, `ConstructorLowering.Resolved.lvls`, `NestedLowering.lvls`).

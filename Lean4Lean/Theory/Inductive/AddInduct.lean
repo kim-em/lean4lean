@@ -29,7 +29,7 @@ def VEnv.addRecRule (env : VEnv) (r : VRecursor) (ru : VRecRule) : Option VEnv :
 /-! ### The stages of `addInduct`
 
 The kernel (`Inductive/Add.lean`, `run`) declares all type formers, then all constructors
-(in block order), then each recursor *together with its rules* (`mkRecRules` inside the
+(in block order), then each recursor *together with its rules* (`mkRecRulesFromTemplates` inside the
 per-recursor loop, installed in one `recInfo`); for a nested block `Environment.addInductive`
 inserts type by type (`Verify/Environment/Basic.lean`, `AddInduct.consts`). The model
 re-groups this into five stages — all type formers, all constructors, the projection entries

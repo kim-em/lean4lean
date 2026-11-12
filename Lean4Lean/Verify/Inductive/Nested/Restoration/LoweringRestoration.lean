@@ -8,7 +8,7 @@ import Lean4Lean.Verify.Inductive.Nested.Lowering.OccurrenceTyping
 
 The lowering theorems that read the restoration steps
 (`ConstructorLowering.Resolved.constructorRestoration_inverse`, `restoredType_translation`,
-`LoweredRestoredConstructors`, `NestedLowering.restoreAuxConstructorsFreshOfInstallation`); the
+`LoweredRestoredConstructors`, `RecursorInstallation.restoreAuxConstructorsFreshOfInstalled`); the
 rest of the lowering verification is under `Nested/Lowering/`. -/
 
 namespace Lean4Lean

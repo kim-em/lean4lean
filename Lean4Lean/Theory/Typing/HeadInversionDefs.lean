@@ -85,7 +85,8 @@ structure HeadInversion (env : VEnv) : Prop where
 
 /-- The separation half of `HeadInversion`: chains cannot connect types with different head
 classes, and equal rigid heads have equivalent universe levels. It is proved from a sound
-denotational model of the calculus (`Theory/Typing/EnvTables/`), with no adequacy theorem. -/
+denotational model of the calculus (`Theory/Typing/HeadInjectivity/Model/`), with no adequacy
+theorem. -/
 structure HeadSeparation (env : VEnv) : Prop where
   sort_sort : ∀ {U Γ u v}, OnCtx Γ (env.IsType U) →
     env.TypeChain U Γ (.sort u) (.sort v) → u ≈ v

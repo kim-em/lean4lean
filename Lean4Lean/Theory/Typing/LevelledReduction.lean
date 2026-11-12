@@ -56,9 +56,9 @@ or projection step at a lower level.
 
 The prefix computation lemmas use the `Params` fields `pat_const_not_unfolding`,
 `recursorData_quot`, `pat_ctor_rigid`, `projection_ctor_rigid`,
-`pat_struct_major`, `pat_iota_params` and `schema_struct_major`. They state that
+`pat_struct_major` and `pat_iota_params`. They state that
 registered definition patterns do not overlap singleton and quotient prefix
-unfolding, that constructors are rigid, and that recursor iota and case rules at
+unfolding, that constructors are rigid, and that recursor iota rules at
 a structure constructor read its fields and not its parameters. Without them, a
 pattern could overlap a singleton unfolding at the same head, and a structure eta
 expansion of a major could not be undone by projection.

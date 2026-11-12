@@ -11,7 +11,7 @@ import Lean4Lean.Verify.Inductive.Nested.Safety
 The recursor entries of `restoredBlock` are the translations of the
 restored recursors of the executable restoration folds: the source recursors
 selected by the source family translations (`SourceFamilyTranslations`), then the
-auxiliary recursors selected by the auxiliary fold (`AuxiliaryRecursorRuleBatches`).
+auxiliary recursors selected by the auxiliary fold (`AuxiliaryRecursorTranslations`).
 Each of these is the abstract restoration
 (`Restoration.recursor`) of the generated recursor of the same owner, so the
 `recursors` field of `NestedCompilationRestorationFacts` holds. -/

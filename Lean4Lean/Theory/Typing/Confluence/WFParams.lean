@@ -169,7 +169,7 @@ namespace Lean4Lean.VEnv
 terms equal up to universe levels, proof irrelevance and eta.
 
 Canonical `Eq` types the singleton prefix unfolding at a universe specialization whose source
-is `Prop` (`WF.singletonPatCoverage`): the proof fields of the reconstructed constructor are
+is `Prop` (`WF.singletonPatCoverageJ`): the proof fields of the reconstructed constructor are
 extracted by the recursor itself into `Prop`, with the earlier data fields cast along `Eq`. -/
 theorem WF.church_rosser {env : VEnv} (henv : env.WF) (heq : env.HasCanonicalEq)
     (hΓ : OnCtx Γ (env.IsType U)) (H : env.IsDefEq U Γ e₁ e₂ A) :

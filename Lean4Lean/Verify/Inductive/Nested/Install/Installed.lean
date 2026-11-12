@@ -9,7 +9,7 @@ of the output environment beyond the restored block's own data: the checking inv
 output over the output model, closure, constructor owners, the origin of every new header
 (`InductInfosFromDecl`), the cover of the declaration's families, the majors of the new
 recursors and the constructor parameter alignment. `RestoredBlock.installedFacts` produces it;
-`RestoredBlock.blockCertificate` assembles PR #43's `BlockCertificate` from it, the restored
+`RestoredBlock.blockCertificate` assembles the `BlockCertificate` from it, the restored
 block and the typing of the restored rules (`Nested/Equations/`), after which the ordinary
 path's `BlockCertificate.extendSafeExact`/`extendUnsafeExact` install the block. -/
 

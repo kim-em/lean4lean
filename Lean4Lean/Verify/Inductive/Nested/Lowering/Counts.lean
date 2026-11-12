@@ -4,7 +4,7 @@ import Lean4Lean.Verify.Inductive.Nested.Lowering.AuxiliaryFamilyPositions
 
 Every auxiliary generation step pushes one family onto the queue and one entry onto the cache,
 and nothing else changes either array's size, so the queue is the source block followed by one
-family per cache entry (`NestedLowering.resultTypes_length`). -/
+family per cache entry (`LoweringQueue.sizeBalanced`, `nestedAuxFold_size`). -/
 
 namespace Lean4Lean
 

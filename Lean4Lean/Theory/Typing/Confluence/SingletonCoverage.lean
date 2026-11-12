@@ -76,7 +76,7 @@ prefix unfolding at the recursor's prefix (all arguments before the
 constructor major), a beta step with the constructor major, and proof
 irrelevance for the reconstructed proof fields. The replay of the singleton
 program at this literal instance is typed by the `Eq`-cast extraction
-(`SingletonExtraction.lean`), which needs canonical `Eq`. -/
+(`SingletonExtraction/Basic.lean`), which needs canonical `Eq`. -/
 
 namespace Lean4Lean.InductiveSignature
 open VExpr VEnv RecursorData RecursorSchema

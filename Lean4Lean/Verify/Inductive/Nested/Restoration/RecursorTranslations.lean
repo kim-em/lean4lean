@@ -6,14 +6,9 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.Stripped
 import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 import Lean4Lean.Verify.Inductive.Nested.Safety
 
-/-! Restored block certificate of a validated nested run: the pieces.
+/-! Restored block of a validated nested run: the pieces.
 
-`NestedRun.assemblyOfRun` asks for a
-`RestoredBlockCertificate` whose lowered run is the run's.
-`NestedRun.assemblyOfRun_of_run` (`Nested/Install/CertificateOfRun.lean`)
-assembles one from the run, given the rule hypothesis `Hrules` and the recursor
-alignment hypothesis `Hprovenance`. This file derives everything else from the run:
-the `CompilationData` and the certified specializations
+This file derives from the run the `CompilationData` and the certified specializations
 (`compilationData_of_tables`, given the restored equation list) and the
 translation of every concrete restored recursor entry, including its
 specialization, rules (`trRestoredRules`) and major inductive
@@ -257,8 +252,8 @@ variable
 /-- `compilationData_of_specializations` at a given specialization list of
 `restorationTablesRestoringAll` (rather than at an existentially chosen one):
 the restored recursors and equations of the restored block of a derivation
-whose rule lists are the restored generated equations (`hequations`; see
-`restoredEquations_of_trModulo`) form a `CompilationData`, and the
+whose rule lists are the restored generated equations (`hequations`) form a
+`CompilationData`, and the
 specializations are certified. -/
 theorem NestedRun.compilationData_of_tables
     (E : NestedRun result sourceProdEnv sourceTypes

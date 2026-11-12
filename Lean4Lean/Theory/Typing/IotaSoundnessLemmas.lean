@@ -32,8 +32,7 @@ import Lean4Lean.Theory.VLevel
 Syntactic facts about the generator's variable spines, constructor field insertion, forall
 telescopes, container specializations, block installation and restoration (restorable names,
 restored heads, restored recursor majors and recursor types), used by both the specification
-(`Theory/Inductive/RestorationProjNames.lean`) and the verification of nested inductive
-declarations. -/
+and the verification of nested inductive declarations. -/
 
 namespace Lean4Lean
 namespace InductiveSignature

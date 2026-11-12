@@ -200,7 +200,7 @@ theorem LoweredRun.fresh_familyNames (hwf : P.c.env.constants.WF)
       cases hfreshH
 
 /-- The family and constructor names of the lowered declaration are not checker primitives:
-they passed `checkName` without primitive permission (`NestedRun.context_allowPrimitive`).
+they passed `checkName` without primitive permission (`NestedRun.loweredNonprimitive`).
 A premise of the instances below (`NestedRun.envParamUniform`), produced by the nested run. -/
 def LoweredRun.Nonprimitive : Prop :=
   ∀ n ∈ InductiveSignature.familyNames P.loweredDecl.types,
