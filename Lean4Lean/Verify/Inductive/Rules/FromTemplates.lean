@@ -189,7 +189,6 @@ theorem RuleTemplateMatchesMinor.boundGeneratedRule
     (indTypes : Array InductiveType) (motives minors : Array Expr)
     (lvls : List Level) (minorIdx : Nat)
     {fieldRoot outerRoot : AddInductive.Context}
-    (HfieldWF : BindingContextWF fieldRoot)
     (HouterWF : BindingContextWF outerRoot)
     (HfieldSource : BindingContextLE fieldRoot S.sourceFullContext)
     (HfieldOuter : BindingContextLE fieldRoot outerRoot)
@@ -202,7 +201,6 @@ theorem RuleTemplateMatchesMinor.boundGeneratedRule
     (HfieldsNodup : Hfields.fvars.Nodup)
     (Hrecursive : FVarArrayIn fieldRoot S.recursiveFields)
     (hrecursive : S.recursiveFields.toList.Sublist S.fields.toList)
-    (HrecursiveNodup : Hrecursive.fvars.Nodup)
     (hfieldsFresh : ∀ fv ∈ Hfields.fvars,
       fv ∉ (Hparams.fvars ++ Hmotives.fvars) ++ Hminors.fvars)
     (hminor : minorIdx < minors.size)
@@ -434,33 +432,18 @@ theorem RuleTemplateMatchesMinor.boundGeneratedRuleOfSource
   rcases FVarArrayIn.ofSublist
       HS.fieldsRecent.toFVarArrayAfter.toFVarArrayIn hselected with
     ⟨Hrecursive⟩
-  have HrecursiveNodup : Hrecursive.fvars.Nodup := by
-    have hallExpr : S.fields.toList.Nodup := by
-      rw [HS.fieldsRecent.toFVarArrayAfter.toFVarArrayIn.expressions]
-      exact List.Pairwise.map Expr.fvar
-        (fun _ _ hne heq => hne (Expr.fvar.inj heq))
-        HS.fieldsRecent.toFVarArrayAfter.nodup
-    have hselectedExpr : S.recursiveFields.toList.Nodup :=
-      hallExpr.sublist hselected
-    rw [Hrecursive.expressions] at hselectedExpr
-    change List.Pairwise (fun a b : Expr => a ≠ b)
-      (Hrecursive.fvars.map Expr.fvar) at hselectedExpr
-    rw [List.pairwise_map] at hselectedExpr
-    change List.Pairwise (fun a b : FVarId => a ≠ b) Hrecursive.fvars
-    exact hselectedExpr.imp fun hneq heq =>
-      hneq (congrArg Expr.fvar heq)
   rcases RuleTemplateMatchesMinor.boundGeneratedRule
     (Horigin := ⟨hctor, hfields, hlctx, hminorTemplate,
       HS.traversal, origins, HS.traversal_eq, horigins,
       htargetOwner, htargetIndices, HcallOrigins⟩)
     indTypes (recInfos.map (·.motive)) (recInfos.flatMap (·.minors)) lvls
-    minorIdx HS.terminalWF.toBindingContextWF Router.toBindingContextWF
+    minorIdx Router.toBindingContextWF
     HS.hypothesesRecent.contextLE
     (HS.hypothesesRecent.contextLE.trans HS.extension.contextLE)
     Hparams Hbindings.motives Hbindings.flatMinors HouterNodup
     HS.fieldsRecent.toFVarArrayAfter.toFVarArrayIn
     HS.fieldsRecent.toFVarArrayAfter.nodup Hrecursive hselected
-    HrecursiveNodup hfieldsFresh hminor hminorEq HcallsRaw with
+    hfieldsFresh hminor hminorEq HcallsRaw with
       ⟨T, hT, ⟨Hretained⟩⟩
   have hTeq : T = HS.traversal := Option.some.inj
     (hT.symm.trans HS.traversal_eq)
