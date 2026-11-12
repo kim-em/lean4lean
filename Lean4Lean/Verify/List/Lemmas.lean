@@ -139,14 +139,6 @@ theorem List.takeWhile_fvarId_prefix (fv : FVarId) :
         List.length_cons, List.take_succ_cons, List.getElem?_cons_succ]
       exact ⟨congrArg _ h1, h2⟩
 
-end VerifyInductive
-
-end Lean4Lean
-
-namespace Lean4Lean.VerifyInductive
-open Lean hiding Environment Exception
-open Kernel
-
 theorem _root_.List.Forall₂.drop_both {α β : Type} {R : α → β → Prop} :
     ∀ {l : List α} {l' : List β}, List.Forall₂ R l l' → ∀ n : Nat,
       List.Forall₂ R (l.drop n) (l'.drop n)
@@ -219,14 +211,6 @@ theorem List.filterMap_find?_zipIdx {β γ : Type _} :
         · have := hgt q hq
           simp at hq' ⊢
           omega)
-
-end Lean4Lean.VerifyInductive
-
-namespace Lean4Lean
-open Lean hiding Environment Exception
-open Kernel
-
-namespace VerifyInductive
 
 theorem List.Forall₂.leftPair
     (H : List.Forall₂ R [a₁, a₂] bs) :

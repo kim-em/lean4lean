@@ -57,6 +57,16 @@ theorem _root_.Lean4Lean.VLCtx.IsDefEq.consAligned
 
 end ScopeAlignment
 
+end VerifyInductive
+
+end Lean4Lean
+
+namespace Lean4Lean
+open Lean hiding Environment Exception
+open Kernel
+
+namespace VerifyInductive
+
 /-- The checker-context normal form of an opened body, read back in a scope
 aligned with the checker context: the scope translation of the source body
 is definitionally equal to it. -/
@@ -94,29 +104,14 @@ theorem _root_.Lean4Lean.VLCtx.IsDefEq.openedNormalForm {env : VEnv} {Us : List 
   exact ⟨normalizedNarrow, hnormalizedNarrow,
     hbodyU.trans henv hΓ' (hnormC.symm.trans henv hΓ' h1.symm)⟩
 
-end VerifyInductive
-
-end Lean4Lean
-
-namespace Lean4Lean.VerifyInductive
-open Lean hiding Environment Exception
-open Kernel
-
 theorem VLCtx.instL_abstractForallContext_nil (domains : List VExpr) (levels : List VLevel) :
     (abstractForallContext domains []).instL levels =
       abstractForallContext (domains.map (VExpr.instL levels)) [] := by
   rw [VLCtx.instL_abstractForallContext]
   rfl
 
-end Lean4Lean.VerifyInductive
-
-namespace Lean4Lean
-open Lean hiding Environment Exception
-open Kernel
 open scoped _root_.List
 open private Lean.Kernel.Environment.add from Lean.Environment
-
-namespace VerifyInductive
 
 /-- Two lambda contexts with the same binder keys and definitionally equal
 domains are aligned. -/

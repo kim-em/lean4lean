@@ -70,16 +70,6 @@ theorem Expr.getAppArgsList_mkAppN (fn : Expr) (args : Array Expr) :
     simp only [List.foldl_cons, Lean.mkApp]
     exact ih (.app fn arg)
 
-end VerifyInductive
-
-end Lean4Lean
-
-namespace Lean4Lean
-open Lean hiding Environment Exception
-open Kernel
-
-namespace VerifyInductive
-
 theorem Expr.consumeTypeAnnotationsVerified_eq_self {dom : Expr}
     (hopt : dom.isOptParam = false) (hauto : dom.isAutoParam = false)
     (hout : dom.isOutParam = false) (hsemi : dom.isSemiOutParam = false) :
@@ -165,18 +155,6 @@ theorem Expr.ForallSpine.of_instantiate1'_fvar
     rcases Expr.instantiate1'_fvar_forallE_inv he with ⟨dom', body', rfl, _, hb⟩
     exact .step (ih hb.symm)
 
-end VerifyInductive
-
-end Lean4Lean
-
-namespace Lean4Lean
-open Lean hiding Environment Exception
-open Kernel
-open scoped _root_.List
-open private Lean.Kernel.Environment.add from Lean.Environment
-
-namespace VerifyInductive
-
 /-- Replacing universe parameters by universe expressions without metavariables
 does not introduce a universe metavariable. -/
 theorem _root_.Lean.Level.substParams'_hasMVar_false
@@ -214,6 +192,14 @@ theorem _root_.Lean4Lean.Expr.eqv_fvar_eq
   rfl
 
 end VerifyInductive
+
+end Lean4Lean
+
+namespace Lean4Lean
+open Lean hiding Environment Exception
+open Kernel
+open scoped _root_.List
+open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 attribute [local simp] Lean.Expr.abstractList_const Lean.Expr.abstractList_app Lean.Expr.abstractList_lam
@@ -1163,6 +1149,12 @@ def Expr.consumeForallTypes (ok : Name → Bool) : Expr → Expr
     .forallE name (domain.consumeTypeAnnotationsVerified ok) (Expr.consumeForallTypes ok body) bi
   | source => source
 
+end Lean4Lean
+
+namespace Lean4Lean
+open Lean hiding Environment Exception
+open Kernel
+
 namespace VerifyInductive
 
 theorem Expr.getAppArgs_slice_toList (e : Expr) (n : Nat) :
@@ -1183,16 +1175,7 @@ theorem Expr.getAppArgs_slice_toList (e : Expr) (n : Nat) :
       apply List.take_of_length_le
       simp
 
-end VerifyInductive
-
-end Lean4Lean
-
-namespace Lean4Lean
-open Lean hiding Environment Exception
-open Kernel
 open scoped _root_.List
-
-namespace VerifyInductive
 
 theorem Expr.ForallTelescope.inferImplicit
     (H : Expr.ForallTelescope e arity residual)
@@ -1231,14 +1214,6 @@ theorem Expr.ForallTelescope.inferImplicit_sameResidual
     | cons Htail =>
       simp only [Expr.inferImplicit]
       exact Expr.ForallTelescope.cons (ih Htail Hresidual)
-
-end VerifyInductive
-
-end Lean4Lean
-
-namespace Lean4Lean.VerifyInductive
-open Lean hiding Environment Exception
-open Kernel
 
 theorem Expr.consumeTypeAnnotationsVerified_eq_of_head {ok : Name → Bool} {e : Expr}
     (hhead : e.getAppFn = .const name levels) (hok : ok name = false) :
@@ -1306,7 +1281,9 @@ theorem Expr.forallDomainsOnly_abstractN (n : Nat) (source : Expr) (xs : List FV
     cases source <;> simp [Expr.forallDomainsOnly, Expr.abstractN, ih]
     all_goals split <;> rfl
 
-end Lean4Lean.VerifyInductive
+end VerifyInductive
+
+end Lean4Lean
 
 namespace Lean4Lean
 
@@ -1538,15 +1515,8 @@ theorem Expr.forallDomainList_levelParamsIn {Us : List Name} :
       · exact Expr.forallDomainList_levelParamsIn n h.2 d hd
     | _ => simp [Expr.forallDomainList]
 
-end Lean4Lean.VerifyInductive
-
-namespace Lean4Lean
-open Lean hiding Environment Exception
-open Kernel
 open scoped _root_.List
 open private Lean.Kernel.Environment.add from Lean.Environment
-
-namespace VerifyInductive
 
 /-- Instantiating an abstracted free variable with itself restores the
 expression. -/
@@ -1592,9 +1562,7 @@ theorem Expr.closed_mkAppList_fvars {f : Expr} (hf : Closed f) :
     simp only [List.map_cons, Expr.mkAppList]
     exact Expr.closed_mkAppList_fvars (f := .app f (.fvar fv)) ⟨hf, trivial⟩ fvs
 
-end VerifyInductive
-
-end Lean4Lean
+end Lean4Lean.VerifyInductive
 
 namespace Lean4Lean
 open Lean hiding Environment Exception

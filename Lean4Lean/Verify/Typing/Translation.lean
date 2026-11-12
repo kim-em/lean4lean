@@ -161,6 +161,16 @@ theorem TrExpr.typeShapeOfDefEqCtx
     hheader, hparamsTake, hindicesTake, hparams,
     by simpa [huvars] using hresult'⟩
 
+end VerifyInductive
+
+end Lean4Lean
+
+namespace Lean4Lean
+open Lean hiding Environment Exception
+open Kernel
+
+namespace VerifyInductive
+
 section ScopeAlignment
 variable {env : VEnv} {Us : List Name} {scope chk : VLCtx}
 
@@ -192,6 +202,16 @@ theorem _root_.Lean4Lean.TrExprS.alignTo (henv : env.WF)
   exact ⟨b, hb, hs.uniq henv h hb⟩
 
 end ScopeAlignment
+
+end VerifyInductive
+
+end Lean4Lean
+
+namespace Lean4Lean
+open Lean hiding Environment Exception
+open Kernel
+
+namespace VerifyInductive
 
 /-- Inverse of `TrExprS.abstract`: a bound variable standing for an abstracted
 free variable may be instantiated back with that free variable. -/
@@ -482,14 +502,6 @@ theorem Expr.ForallTelescopeTypeTranslation.applyTranslatedArguments
         simpa [Expr.instantiateForallBody, VExpr.applyForallType,
           VExpr.mkApps] using Hresult
 
-end VerifyInductive
-
-end Lean4Lean
-
-namespace Lean4Lean.VerifyInductive
-open Lean hiding Environment Exception
-open Kernel
-
 /-- The domain of binder `i` of a telescope translating to `wrapForalls domains result`
 translates to `domains[i]` over the context extended by the first `i` domains. -/
 theorem Expr.ForallBinderAt.translation
@@ -753,13 +765,7 @@ theorem TrExprS.shiftedBvarSpine_eq
     have heq := TrExprS.bvar_eq_of_abstractForallContext h (by omega)
     simpa [InductiveSignature.vars, List.getElem_reverse] using heq
 
-end Lean4Lean.VerifyInductive
-
-namespace Lean4Lean
-open Lean hiding Environment Exception
 open TypeChecker
-
-namespace VerifyInductive
 
 /-- Two telescopes of abstract domains translating the same source domains,
 each in the context of the earlier ones, coincide. -/
@@ -789,14 +795,6 @@ theorem TrExprS.telescope_unique {env : VEnv} {Us : List Name} (Δ : VLCtx) :
         List.getElem?_eq_getElem (h := by omega), heq]
   have := key sources.length (Nat.le_refl _)
   rwa [List.take_of_length_le (by omega), List.take_of_length_le (by omega)] at this
-
-end VerifyInductive
-
-end Lean4Lean
-
-namespace Lean4Lean.VerifyInductive
-open Lean hiding Environment Exception
-open Kernel
 
 /-- Translations of a telescope and of its unannotated form, in contexts that differ only in
 binder types, have syntactically equal bodies once the same number of binders is opened,
@@ -944,14 +942,6 @@ theorem TrExprS.prependLevelParam_of_fresh
   | proj _ hproj ih =>
     exact .proj ih (VLCtx.instL_toCtx _ ▸ hproj.instL hshift)
 
-end Lean4Lean.VerifyInductive
-
-namespace Lean4Lean
-
-namespace VerifyInductive
-open Lean hiding Environment Exception
-open Kernel
-
 /-- The executable arity counts every binder of a concrete forall telescope. -/
 theorem Expr.ForallTelescope.constructorArity
     (H : Expr.ForallTelescope source n result) :
@@ -960,17 +950,8 @@ theorem Expr.ForallTelescope.constructorArity
   | nil => simp
   | cons _ ih => simp [AddInductive.constructorArity, ih]; omega
 
-end VerifyInductive
-
-end Lean4Lean
-
-namespace Lean4Lean
-open Lean hiding Environment Exception
-open Kernel
 open scoped _root_.List
 open private Lean.Kernel.Environment.add from Lean.Environment
-
-namespace VerifyInductive
 
 /-- The annotation-only `inferImplicit` pass can be erased from the concrete
 side of a forall telescope translation. -/

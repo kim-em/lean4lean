@@ -262,17 +262,8 @@ theorem LocalContext.levelParamsIn_mkForall_foldN_types
       simpa [LocalDecl.type] using h.1
     · exact ih (fun o ho => hdecl o (by simp [ho])) h.2 other hother decl hdecl'
 
-end VerifyInductive
-
-end Lean4Lean
-
-namespace Lean4Lean
-open Lean hiding Environment Exception
-open Kernel
 open scoped _root_.List
 open private Lean.Kernel.Environment.add from Lean.Environment
-
-namespace VerifyInductive
 
 /-- The binder domain selected by `LocalContext.mkForall` is the exact local
 declaration type, simultaneously closed over the strictly earlier selected
@@ -376,14 +367,6 @@ theorem LocalContext.mkForall_fvars_forallBinderAtList
   exact LocalContext.mkForall_fvars_forallBinderAt hdecl hnodup i hi index name
     type bi kind hselected
 
-end VerifyInductive
-
-end Lean4Lean
-
-namespace Lean4Lean.VerifyInductive
-open Lean hiding Environment Exception
-open Kernel
-
 theorem LocalContext.forallDomainsOnly_foldN
     {lctx : LocalContext} {fvars : List FVarId}
     (hdecl : ∀ fv ∈ fvars, ∃ index name type bi kind,
@@ -424,16 +407,6 @@ theorem LocalContext.forallDomainsOnly_foldN_add
     simpa only [LocalContext.mkBindingList1N, Bool.false_eq_true, ↓reduceIte] using
       congrArg (fun e => Expr.forallE name (type.abstractN []) (e.abstractN [fv]) bi)
         (ih (fun other hother => hdecl other (by simp [hother])))
-
-end Lean4Lean.VerifyInductive
-
-namespace Lean4Lean
-open Lean hiding Environment Exception
-open Kernel
-open scoped _root_.List
-open private Lean.Kernel.Environment.add from Lean.Environment
-
-namespace VerifyInductive
 
 /-- Peel the outermost binder of a local-context forall. -/
 theorem LocalContext.mkForall_cons_cdecl {lctx : LocalContext}

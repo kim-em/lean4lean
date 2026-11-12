@@ -38,17 +38,8 @@ theorem VExpr.piArity_wrapForalls_mkApps_const (doms args : List VExpr) (n : Nam
   | nil => exact VExpr.piArity_mkApps_const n ls args _ (.inl rfl)
   | cons d ds ih => simp [VExpr.wrapForalls, VExpr.piArity] at ih ⊢; exact ih
 
-end VerifyInductive
-
-end Lean4Lean
-
-namespace Lean4Lean
-open Lean hiding Environment Exception
-open Kernel
 open scoped _root_.List
 open private Lean.Kernel.Environment.add from Lean.Environment
-
-namespace VerifyInductive
 
 /-- Rebuilding an expression from its application head and left-to-right
 argument list is exact. -/
@@ -84,28 +75,9 @@ theorem VExpr.takeForalls_rebuild
         exact ⟨by simp [VExpr.wrapForalls, hrebuild], by simp [hlength]⟩
     | _ => simp [VExpr.takeForalls] at H
 
-end VerifyInductive
-
-end Lean4Lean
-
-namespace Lean4Lean
-open Lean hiding Environment Exception
-open Kernel
-open private Lean.Kernel.Environment.add from Lean.Environment
-
-namespace VerifyInductive
-
 theorem VExpr.piArity_eq_forallArity : ∀ e : VExpr, e.piArity = e.forallArity
   | .forallE _ b => by simp [VExpr.piArity, VExpr.forallArity, VExpr.piArity_eq_forallArity b]
   | .bvar _ | .sort _ | .const _ _ | .app _ _ | .lam _ _ | .proj _ _ _ => rfl
-
-end VerifyInductive
-
-end Lean4Lean
-
-namespace Lean4Lean.VerifyInductive
-open Lean hiding Environment Exception
-open Kernel
 
 /-- Changing only the domains of a closed telescope along a context
 conversion preserves the telescope up to definitional equality. -/
@@ -196,16 +168,6 @@ theorem VExpr.mkApps_inj {f g : VExpr} {l₁ l₂ : List VExpr} (hlen : l₁.len
 
 theorem VExpr.forallArity_app (f a : VExpr) : (VExpr.app f a).forallArity = 0 := rfl
 
-end Lean4Lean.VerifyInductive
-
-namespace Lean4Lean
-open Lean hiding Environment Exception
-open Kernel
-open scoped _root_.List
-open private Lean.Kernel.Environment.add from Lean.Environment
-
-namespace VerifyInductive
-
 /-- Applying a complete telescope to as many arguments as it has domains
 undoes a weakening of the residual by those binders.  The domain values may
 be dependent; they disappear from the conclusion because the weakened
@@ -237,16 +199,6 @@ theorem VExpr.applyForallType_wrapForalls_liftN
           simpa only [VExpr.instForallDomains_length] using
             ih (VExpr.instForallDomains domains arg 0) result (by
               simpa using htail)
-
-end VerifyInductive
-
-end Lean4Lean
-
-namespace Lean4Lean
-open Lean hiding Environment Exception
-open Kernel
-
-namespace VerifyInductive
 
 /-- A type definitionally equal to a sort has no outer forall binders: if
 `type.takeForalls n` succeeds then `n = 0`. -/
