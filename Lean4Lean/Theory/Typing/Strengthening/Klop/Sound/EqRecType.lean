@@ -1,0 +1,176 @@
+import Lean4Lean.Theory.Typing.Strengthening.Klop.Sound.RecBody
+
+/-! # Derived rules for the type of `Eq.rec`
+
+The syntactic motive type `motiveOf v u α a := ∀ b : α, @Eq α a b → Sort v` denotes
+`motiveTy v ⟦α⟧ ⟦a⟧` (`den_motiveOf`); `Eq.refl α x : @Eq α x x` (`Sem.reflApp`); and a
+motive applied to an endpoint and a proof of the equation is a type (`Sem.fibApp`).
+-/
+
+namespace Lean4Lean
+namespace VEnv.Strengthening
+
+open Classical
+
+/-- `@Eq.{u} A x y`. -/
+def eqS (u : VLevel) (A x y : VExpr) : VExpr := .app (.app (.app (.const ``Eq [u]) A) x) y
+
+/-- `@Eq.refl.{u} A x`. -/
+def reflS (u : VLevel) (A x : VExpr) : VExpr := .app (.app (.const ``Eq.refl [u]) A) x
+
+/-- `∀ b : α, @Eq α a b → Sort v`. -/
+def motiveOf (v u : VLevel) (α a : VExpr) : VExpr :=
+  .forallE α (.forallE (eqS u α.lift a.lift (.bvar 0)) (.sort v))
+
+namespace SetModel
+variable {𝕊 : SetModel}
+
+local infix:50 " ∈ₛ " => 𝕊.mem
+
+/-- The denotation of the syntactic motive type. -/
+theorem den_motiveOf {ρ : Nat → 𝕊.S} {v u : VLevel} {α a : VExpr}
+    (hα : 𝕊.den ρ α ∈ₛ 𝕊.El (𝕊.sortDen u)) (ha : 𝕊.den ρ a ∈ₛ 𝕊.El (𝕊.den ρ α)) :
+    𝕊.den ρ (motiveOf v u α a) = 𝕊.motiveTy v (𝕊.den ρ α) (𝕊.den ρ a) := by
+  show 𝕊.mkPi _ _ = 𝕊.mkPi _ _
+  refine mkPi_congr fun b hb => ?_
+  show 𝕊.mkPi _ _ = 𝕊.mkPi _ _
+  have h : 𝕊.den (𝕊.cons b ρ) (eqS u α.lift a.lift (.bvar 0)) =
+      𝕊.cand (𝕊.eqCand (𝕊.den ρ α) (𝕊.den ρ a) b) := by
+    have := den_eqApp (𝕊 := 𝕊) (ρ := 𝕊.cons b ρ) (l := u) (A := α.lift) (x := a.lift)
+      (y := .bvar 0) (by rw [𝕊.den_lift]; exact hα) (by rw [𝕊.den_lift, 𝕊.den_lift]; exact ha)
+      (by rw [𝕊.den_lift]; exact hb)
+    rw [𝕊.den_lift, 𝕊.den_lift] at this
+    exact this
+  rw [h]
+  rfl
+
+/-- The denotation of a reflexivity proof is `•`. -/
+theorem den_reflS (ρ : Nat → 𝕊.S) (u : VLevel) (A x : VExpr) :
+    𝕊.den ρ (reflS u A x) = 𝕊.star := by
+  have hc : 𝕊.den ρ (.const ``Eq.refl [u]) = 𝕊.star := by simp [den, constDen]
+  show 𝕊.mkApp (𝕊.mkApp (𝕊.den ρ (.const ``Eq.refl [u])) _) _ = _
+  rw [hc]; simp [mkApp]
+
+/-- `Eq.refl A x : @Eq A x x`. -/
+theorem Sem.reflApp {Γ : List VExpr} {A x : VExpr} {u : VLevel}
+    (HA : 𝕊.Sem Γ A A (.sort u)) (Hx : 𝕊.Sem Γ x x A) :
+    𝕊.Sem Γ (reflS u A x) (reflS u A x) (eqS u A x x) := by
+  have HE := Sem.eqApp HA Hx Hx
+  intro ρ w hρ
+  obtain ⟨-, -, hEm, -, hEr⟩ := HE ρ w hρ
+  obtain ⟨-, -, hAm, -, -⟩ := HA ρ w hρ
+  obtain ⟨-, -, hxm, -, -⟩ := Hx ρ w hρ
+  have hden : 𝕊.den ρ (eqS u A x x) = 𝕊.cand (𝕊.eqCand (𝕊.den ρ A) (𝕊.den ρ x) (𝕊.den ρ x)) :=
+    den_eqApp hAm hxm hxm
+  have hval : PVal.ToR ((pval (reflS u A x)).subst w) := by
+    show PVal.ToR (.app (.app ((constVal ``Eq.refl).subst w) _) _)
+    rw [constVal_subst]
+    have : constVal ``Eq.refl = reflVal := by simp [constVal]
+    rw [this]
+    exact .head (.appL .beta) (.head .beta .rfl)
+  have hmem : 𝕊.mem (𝕊.den ρ (reflS u A x)) (𝕊.El (𝕊.den ρ (eqS u A x x))) := by
+    rw [den_reflS, hden]
+    exact star_mem_cand ⟨_, eqCand_mem_of_toR hxm hval⟩
+  refine ⟨isSemTy_of_mem_sortDen hEm, rfl, hmem, fun _ => ?_, fun ρ' w' hρ' hr => ?_⟩
+  · rw [hden, 𝕊.candOf_cand]
+    exact ⟨eqCand_mem_of_toR hxm hval, eqCand_mem_of_toR hxm hval⟩
+  · refine ⟨(tyRel_of_rel_sortDen hEm (hEr ρ' w' hρ' hr).2).2, ?_⟩
+    rw [den_reflS, den_reflS]
+    rw [den_reflS] at hmem
+    rw [hden] at hmem ⊢
+    exact (rel_cand hmem).2 hmem
+
+/-- A motive applied to an endpoint and a proof of the equation is a type. -/
+theorem Sem.fibApp {Γ : List VExpr} {α a M b t : VExpr} {u v : VLevel}
+    (Hα : 𝕊.Sem Γ α α (.sort u)) (Ha : 𝕊.Sem Γ a a α)
+    (HM : 𝕊.Sem Γ M M (motiveOf v u α a)) (Hb : 𝕊.Sem Γ b b α)
+    (Ht : 𝕊.Sem Γ t t (eqS u α a b)) :
+    𝕊.Sem Γ (.app (.app M b) t) (.app (.app M b) t) (.sort v) := by
+  have facts : ∀ ρ w, 𝕊.ValOK Γ ρ w →
+      𝕊.den ρ (.app (.app M b) t) = 𝕊.Fib (𝕊.den ρ M) (𝕊.den ρ b) ∧
+      𝕊.ValidAny (𝕊.univList (recLv u v)) (𝕊.den ρ α) ∧
+      𝕊.mem (𝕊.den ρ a) (𝕊.El (𝕊.den ρ α)) ∧
+      𝕊.mem (𝕊.den ρ M) (𝕊.El (𝕊.motiveTy v (𝕊.den ρ α) (𝕊.den ρ a))) ∧
+      𝕊.mem (𝕊.den ρ b) (𝕊.El (𝕊.den ρ α)) ∧
+      𝕊.Rel (𝕊.den ρ α) (𝕊.den ρ a) (𝕊.den ρ b) := by
+    intro ρ w hρ
+    obtain ⟨-, -, hαm, -, -⟩ := Hα ρ w hρ
+    obtain ⟨-, -, ham, -, -⟩ := Ha ρ w hρ
+    obtain ⟨-, -, hMm, -, -⟩ := HM ρ w hρ
+    obtain ⟨-, -, hbm, -, -⟩ := Hb ρ w hρ
+    obtain ⟨-, -, htm, -, -⟩ := Ht ρ w hρ
+    have hαv : 𝕊.ValidAny (𝕊.univList (recLv u v)) (𝕊.den ρ α) :=
+      (mem_sortDen hαm).1.mono (Nat.le_max_left ..)
+    rw [den_motiveOf hαm ham] at hMm
+    have hE : 𝕊.den ρ (eqS u α a b) =
+        𝕊.cand (𝕊.eqCand (𝕊.den ρ α) (𝕊.den ρ a) (𝕊.den ρ b)) := den_eqApp hαm ham hbm
+    rw [hE] at htm
+    obtain ⟨hts, hne⟩ := 𝕊.mem_El_cand.1 htm
+    refine ⟨?_, hαv, ham, hMm, hbm, ((eqCand_nonempty_iff hαv.isPER).1 hne).2⟩
+    show 𝕊.mkApp (𝕊.mkApp _ _) (𝕊.den ρ t) = _
+    rw [hts]; rfl
+  intro ρ w hρ
+  obtain ⟨hden, hαv, ham, hMm, hbm, hab⟩ := facts ρ w hρ
+  have hrefl : 𝕊.Rel (𝕊.motiveTy v (𝕊.den ρ α) (𝕊.den ρ a)) (𝕊.den ρ M) (𝕊.den ρ M) :=
+    (motiveTy_valid (Nat.le_max_right ..) hαv _).isPER.refl _ hMm
+  have hm := (fib_rel (Nat.le_max_right ..) hαv ham hMm hrefl hbm hab
+    (hαv.isPER.refl _ hbm)).1
+  refine ⟨isSemTy_sortDen _, rfl, by rw [hden]; exact hm,
+    fun hc => (not_isCand_sortDen _ hc).elim, fun ρ' w' hρ' hr => ⟨rfl, ?_⟩⟩
+  obtain ⟨hden', -⟩ := facts ρ' w' hρ'
+  obtain ⟨-, -, hαm, -, -⟩ := Hα ρ w hρ
+  have hMM' := ((HM ρ w hρ).2.2.2.2 ρ' w' hρ' hr).2
+  rw [den_motiveOf hαm ham] at hMM'
+  have hbb' := ((Hb ρ w hρ).2.2.2.2 ρ' w' hρ' hr).2
+  show 𝕊.Rel (𝕊.sortDen v) _ _
+  rw [hden, hden']
+  exact (fib_rel (Nat.le_max_right ..) hαv ham hMm hMM' hbm hab hbb').2
+
+/-- The uniformity clause for the fibre of a motive. -/
+theorem SemU.fibApp {Γ : List VExpr} {α a M b t : VExpr} {u v : VLevel}
+    (Hα : 𝕊.Sem Γ α α (.sort u)) (Ha : 𝕊.Sem Γ a a α)
+    (HM : 𝕊.Sem Γ M M (motiveOf v u α a)) (Hb : 𝕊.Sem Γ b b α)
+    (Ht : 𝕊.Sem Γ t t (eqS u α a b))
+    (HMU : 𝕊.SemU Γ M (motiveOf v u α a)) (HbU : 𝕊.SemU Γ b α) :
+    𝕊.SemU Γ (.app (.app M b) t) (.sort v) := by
+  have facts : ∀ ρ w, 𝕊.ValOK Γ ρ w →
+      𝕊.den ρ (.app (.app M b) t) = 𝕊.Fib (𝕊.den ρ M) (𝕊.den ρ b) ∧
+      𝕊.ValidAny (𝕊.univList (recLv u v)) (𝕊.den ρ α) ∧
+      𝕊.mem (𝕊.den ρ a) (𝕊.El (𝕊.den ρ α)) ∧
+      𝕊.mem (𝕊.den ρ M) (𝕊.El (𝕊.motiveTy v (𝕊.den ρ α) (𝕊.den ρ a))) ∧
+      𝕊.mem (𝕊.den ρ b) (𝕊.El (𝕊.den ρ α)) ∧
+      𝕊.Rel (𝕊.den ρ α) (𝕊.den ρ a) (𝕊.den ρ b) ∧
+      𝕊.den ρ (motiveOf v u α a) = 𝕊.motiveTy v (𝕊.den ρ α) (𝕊.den ρ a) := by
+    intro ρ w hρ
+    obtain ⟨-, -, hαm, -, -⟩ := Hα ρ w hρ
+    obtain ⟨-, -, ham, -, -⟩ := Ha ρ w hρ
+    obtain ⟨-, -, hMm, -, -⟩ := HM ρ w hρ
+    obtain ⟨-, -, hbm, -, -⟩ := Hb ρ w hρ
+    obtain ⟨-, -, htm, -, -⟩ := Ht ρ w hρ
+    have hαv : 𝕊.ValidAny (𝕊.univList (recLv u v)) (𝕊.den ρ α) :=
+      (mem_sortDen hαm).1.mono (Nat.le_max_left ..)
+    have hmo := den_motiveOf (v := v) hαm ham
+    rw [hmo] at hMm
+    have hE : 𝕊.den ρ (eqS u α a b) =
+        𝕊.cand (𝕊.eqCand (𝕊.den ρ α) (𝕊.den ρ a) (𝕊.den ρ b)) := den_eqApp hαm ham hbm
+    rw [hE] at htm
+    obtain ⟨hts, hne⟩ := 𝕊.mem_El_cand.1 htm
+    refine ⟨?_, hαv, ham, hMm, hbm, ((eqCand_nonempty_iff hαv.isPER).1 hne).2, hmo⟩
+    show 𝕊.mkApp (𝕊.mkApp _ _) (𝕊.den ρ t) = _
+    rw [hts]; rfl
+  intro n I ρ w hρ hctx
+  have f := fun i => facts _ _ (hρ i)
+  have e1 : (fun i => 𝕊.den (ρ i) (.app (.app M b) t)) =
+      fun i => 𝕊.Fib (𝕊.den (ρ i) M) (𝕊.den (ρ i) b) := funext fun i => (f i).1
+  have hMu := HMU n I ρ w hρ hctx
+  have e2 : (fun i => 𝕊.den (ρ i) (motiveOf v u α a)) =
+      fun i => 𝕊.motiveTy v (𝕊.den (ρ i) α) (𝕊.den (ρ i) a) :=
+    funext fun i => (f i).2.2.2.2.2.2
+  rw [e2] at hMu
+  rw [e1]
+  exact unif_fib (u := u) (fun i => (f i).2.1) (fun i => (f i).2.2.1) (fun i => (f i).2.2.2.1)
+    (fun i => (f i).2.2.2.2.1) (fun i => (f i).2.2.2.2.2.1) hMu (HbU n I ρ w hρ hctx)
+
+end SetModel
+end VEnv.Strengthening
+end Lean4Lean

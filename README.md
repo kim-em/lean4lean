@@ -57,7 +57,9 @@ environment with the prelude's `Eq`, two definitionally equal terms reduce to te
 equal up to universe levels, proof irrelevance and eta.
 
 These theorems are conditional on one open proof, listed with its status in
-[OPEN_PROOFS.md](OPEN_PROOFS.md). The trusted base is the three standard axioms, the
+[OPEN_PROOFS.md](OPEN_PROOFS.md). The statement of that open proof, context strengthening
+for definitional equality, is false as it stands: `not_weakN_iff_of_setModel`
+(`Lean4Lean/Theory/Typing/Strengthening/Klop.lean`) refutes it with a looping definition. The trusted base is the three standard axioms, the
 implementation axioms of `Lean4Lean/Verify/Axioms.lean` and that open proof; the exact
 list is `scripts/inductive-audit-inventory.json`. The changes to the executable are audited in
 [divergences.md](divergences.md).
@@ -78,7 +80,8 @@ scripts/differential-replay.sh                          # lean4lean against the 
 The audit walks the dependency closure of the top-level theorems, including opaque bodies and
 types. It fails on an axiom not listed in `scripts/inductive-audit-inventory.json`, on a `sorry`
 that is not one of the listed open proofs, on any `sorry` under a strict root (the generator
-definitions and the confluence theorem with its coverage lemmas) that the inventory does not
+definitions, the confluence theorem with its coverage lemmas, and the refutation of
+strengthening) that the inventory does not
 accept for that root, and, with `--require-complete`, on a listed open proof that is no longer
 reached. The differential replay sends every declaration of `Init` and of the test modules to
 both lean4lean and the C++ kernel and compares the decisions and the generated constructors and
@@ -155,6 +158,7 @@ took lean4lean over a second, the slowest `PresheafOfModules.freeObj._proof_2` (
       * `Meta.lean`: tactic for proving typing judgments
       * `Strong.lean`: proof that you can have all the inductive hypotheses
       * `UniqueTyping.lean`: uniqueness of types, and context strengthening
+      * `Strengthening/Klop.lean`: context strengthening for definitional equality is false
       * `Env.lean`: typing for environments
   * `Verify`: relation between the metatheory and the kernel
     * `Axioms.lean`: theorems about upstream opaques that shouldn't be opaque
