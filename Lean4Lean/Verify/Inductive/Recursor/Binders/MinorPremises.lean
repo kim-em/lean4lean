@@ -634,7 +634,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
               (result.1.consumeTypeAnnotationsVerified next.env.isTypeAnnotationWrapper) viTarget ∧
             Rnext.venv.IsType recLparams.length
               Rnext.mlctx.vlctx.toCtx viTarget ∧
-            ∃ O : InductionHypothesisTypeAt
+            ∃ O : InductionHypothesisType
                 stats recInfos next u[j]! result.1,
               result.2 = {
                 major := u[j]!
@@ -797,7 +797,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
           TrExprS R.venv recLparams R.mlctx.vlctx
             (result.1.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) viTarget ∧
           R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx viTarget ∧
-          ∃ O : InductionHypothesisTypeAt
+          ∃ O : InductionHypothesisType
               stats recInfos c (.fvar fv) result.1,
             result.2 = {
               major := .fvar fv
@@ -842,7 +842,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
       TrExprS R.venv recLparams R.mlctx.vlctx
         (result.1.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) viTarget ∧
       R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx viTarget ∧
-      ∃ O : InductionHypothesisTypeAt
+      ∃ O : InductionHypothesisType
           stats recInfos c (.fvar fv) result.1,
         O.ownerIdx = target ∧
         result.2 = {
@@ -910,7 +910,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
           (mkAppN (.bvar args.size) targetIndices).app
             (mkAppN (.fvar fv) args) } :
           AddInductive.RecCallTemplate))).WF _
-    let O : InductionHypothesisTypeAt stats recInfos c
+    let O : InductionHypothesisType stats recInfos c
         (.fvar fv) (current.lctx.mkForall args motiveApp) := {
         current := current
         current_wf := Rcurrent.toBindingContextWF
@@ -1112,7 +1112,7 @@ theorem inductionHypothesisTypeOrigin
           TrExprS R.venv recLparams R.mlctx.vlctx
             (result.1.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) viTarget ∧
           R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx viTarget ∧
-          ∃ O : InductionHypothesisTypeAt
+          ∃ O : InductionHypothesisType
               stats recInfos c (.fvar fv) result.1,
             result.2 = {
               major := .fvar fv
@@ -3145,7 +3145,7 @@ theorem constructorMinorClosureTyping {alpha : Type} {Q : alpha → Prop}
       intro j hj
       rcases HhypothesisOrigins.entry j hj with
         ⟨originRoot, sourceType, HoriginRoot, ⟨O⟩, D, htype⟩
-      exact ⟨originRoot, sourceType, HoriginRoot, ⟨O.toMinor⟩, D, htype⟩ }
+      exact ⟨originRoot, sourceType, HoriginRoot, ⟨O⟩, D, htype⟩ }
   have HcompletedCalls :
       CallTemplatesMatch HcompletedOrigins allFields calls :=
     CallTemplatesMatch.ofHypothesisCalls

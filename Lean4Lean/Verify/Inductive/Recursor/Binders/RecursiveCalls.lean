@@ -2071,55 +2071,6 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
             t₀, htr, htrTy, hcl⟩))
   exact Hloop.mono fun out hout => ⟨inferredTarget, hfieldTyping, hout⟩
 
-/-- Source-level construction of one induction-hypothesis type.
-It records the terminal family application and the higher-order telescope
-selected by `loopUArgs`, before the resulting type is installed as a local
-declaration by `loopU`. -/
-structure InductionHypothesisTypeAt
-    (stats : AddInductive.InductiveStats)
-    (recInfos : Array AddInductive.RecInfo)
-    (root : AddInductive.Context) (field type : Expr) where
-  current : AddInductive.Context
-  current_wf : BindingContextWF current
-  current_extends : BindingContextLE root current
-  exposedType : Expr
-  args : Array Expr
-  arguments_bound : FVarArrayAfter root current args
-  loopInput : LoopUArgsInput root field
-  loopTrace : LoopUArgsRun root
-    (loopUArgsCheckLCtx root loopInput.prior) loopInput.normalizedType current
-    exposedType args
-  field_fvar : ∃ fv, field = .fvar fv ∧ fv ∈ root.lctx.fvars
-  ownerIdx : Nat
-  owner_valid : AddInductive.isValidIndApp? stats exposedType = some ownerIdx
-  motive_is_fvar : ∃ fv,
-    recInfos[ownerIdx]!.motive = .fvar fv ∧ fv ∈ root.lctx.fvars
-  type_eq :
-    let itIndices := exposedType.getAppArgs[stats.params.size:]
-    let motiveApp := Expr.app
-      (mkAppN recInfos[ownerIdx]!.motive itIndices)
-      (mkAppN field args)
-    type = current.lctx.mkForall args motiveApp
-
-/-- Forget that the construction was recorded by the in-progress hypothesis loop;
-`InductionHypothesisType` for the finished minor has the same data. -/
-def InductionHypothesisTypeAt.toMinor
-    (O : InductionHypothesisTypeAt stats recInfos root field type) :
-    InductionHypothesisType stats recInfos root field type := {
-  current := O.current
-  current_wf := O.current_wf
-  current_extends := O.current_extends
-  exposedType := O.exposedType
-  args := O.args
-  arguments_bound := O.arguments_bound
-  loopInput := O.loopInput
-  loopTrace := O.loopTrace
-  field_fvar := O.field_fvar
-  ownerIdx := O.ownerIdx
-  owner_valid := O.owner_valid
-  motive_is_fvar := O.motive_is_fvar
-  type_eq := O.type_eq }
-
 /-- Pointwise source constructions for the prefix of recursive fields already
 processed by `loopU`.  Each declared hypothesis is tied to the type (before
 annotation stripping) returned by the corresponding `loopUArgs` run. -/
@@ -2132,7 +2083,7 @@ structure InductionHypothesisTypesPrefix
   entry : ∀ j (_hj : j < hypotheses.size),
     ∃ root sourceType,
       BindingContextLE fieldRoot root ∧
-      Nonempty (InductionHypothesisTypeAt
+      Nonempty (InductionHypothesisType
         stats recInfos root fields[j]! sourceType) ∧
       ∃ D : FVarDeclAt c hypotheses j,
         D.type = (sourceType.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
@@ -2152,7 +2103,7 @@ theorem InductionHypothesisTypesPrefix.pushCurrent
     (name : Name) (sourceType : Expr) (bi : BinderInfo)
     (hnext : hypotheses.size < fields.size)
     (Hroot : BindingContextLE fieldRoot root)
-    (Horigin : Nonempty (InductionHypothesisTypeAt stats recInfos root
+    (Horigin : Nonempty (InductionHypothesisType stats recInfos root
       fields[hypotheses.size]! sourceType)) :
     InductionHypothesisTypesPrefix stats recInfos fieldRoot
       { c with
@@ -2264,7 +2215,7 @@ theorem CallTemplatesMatchPrefix.pushCurrent
     (Hroot : BindingContextLE fieldRoot root)
     {recLparams : List Name} (Rroot : RecursorContextWF root recLparams)
     (hup : IsFVarUpSet rootScope Rroot.mlctx.vlctx)
-    (O : InductionHypothesisTypeAt stats recInfos root
+    (O : InductionHypothesisType stats recInfos root
       fields[hypotheses.size]! sourceType)
     (call : AddInductive.RecCallTemplate)
     (hcall : call = {
@@ -2319,9 +2270,8 @@ theorem CallTemplatesMatchPrefix.pushCurrent
   · intro j hj
     by_cases hilast : j = hypotheses.size
     · subst j
-      refine ⟨root, sourceType, O.toMinor, D, Hroot, rfl, ?_⟩
+      refine ⟨root, sourceType, O, D, Hroot, rfl, ?_⟩
       rw [hlast, hcall]
-      rfl
     · have hjOld : j < hypotheses.size := by
         have : j < hypotheses.size + 1 := by simpa using hj
         omega
@@ -2335,10 +2285,9 @@ theorem CallTemplatesMatchPrefix.pushCurrent
   · intro j hj
     by_cases hilast : j = hypotheses.size
     · subst j
-      refine ⟨root, sourceType, recLparams, Rroot, O.toMinor, D, Hroot, hup,
+      refine ⟨root, sourceType, recLparams, Rroot, O, D, Hroot, hup,
         rfl, ?_⟩
       rw [hlast, hcall]
-      rfl
     · have hjOld : j < hypotheses.size := by
         have : j < hypotheses.size + 1 := by simpa using hj
         omega

@@ -23,14 +23,6 @@ def primitiveAddInductiveContext (env : Environment) (lparams : List Name)
     safety := if isUnsafe then .unsafe else .safe,
     allowPrimitive := true, fuel := fuel }
 
-/-- Complete primitive run-with-stats result: the same shape as `OrdinaryInstallation`. -/
-abbrev PrimitiveInstallation
-    (c : AddInductive.Context) (stats : AddInductive.InductiveStats)
-    (nparams depth : Nat) (sourceEnv : VEnv)
-    (indTypes : Array InductiveType) (isUnsafe : Bool)
-    (outEnv : Environment) : Prop :=
-  OrdinaryInstallation c stats nparams depth indTypes isUnsafe sourceEnv outEnv
-
 /-- The constructor phase of a primitive declaration: the primitive names are installed with
 their canonical types (`VEnv.HasPrimitives` is preserved by the resulting checking context). -/
 theorem AddInductive.constructorPhase.primitiveWF
@@ -171,8 +163,8 @@ def PrimitiveRunResult
   ∃ c' stats, ∃ Hc' : ContextWF c',
     ∃ P : HeaderPhase Hsource nparams types.toArray c' Hc' stats,
       PrimitiveInductiveShape c'.lparams nparams types.toArray.toList (source.safety != .safe) ∧
-      PrimitiveInstallation c' stats nparams P.depth Hc'.venv types.toArray
-        (source.safety != .safe) outEnv
+      OrdinaryInstallation c' stats nparams P.depth types.toArray
+        (source.safety != .safe) Hc'.venv outEnv
 
 /-- The complete executable primitive checker. -/
 theorem AddInductive.run.primitiveSourceAlignedWF

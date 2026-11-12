@@ -20,9 +20,16 @@ def headerSkeleton (target : VConstVal) : VInductiveTypeSkeleton where
   toVConstVal := target
   ctors := []
 
-/-- One source-aligned semantic header payload.  Its constructor list is
-deliberately empty; `retarget` attaches the same proof to the final
-constructor-bearing skeleton. -/
+end checkInductiveTypes.loopType
+
+section
+open checkInductiveTypes.loopType
+
+/-- One checked header: the translation of the source family type, its recovered index count
+and result level (equivalent to `commonLevel`), and the loop's per-family certificate
+(`Header/Telescope.lean`): the normalized source telescope of the family together with its
+semantic shape at the common parameter telescope `params`. The constructor list of its
+skeleton is empty. -/
 structure CheckedHeader
     (env : VEnv) (Us : List Name) (nparams : Nat)
     (params : List VExpr) (commonLevel : VLevel)
@@ -35,7 +42,7 @@ structure CheckedHeader
     (headerSkeleton target) numIndices resultLevel
   commonLevel : resultLevel ≈ commonLevel
 
-/-- Ordered semantic outputs of the skeleton-free mutual-header traversal. -/
+/-- Ordered semantic outputs of the mutual-header traversal, one per source family. -/
 structure CheckedHeaders
     (env : VEnv) (Us : List Name) (nparams : Nat)
     (params : List VExpr) (commonLevel : VLevel)
@@ -123,11 +130,21 @@ def headers
       orderedSources (H.payloads.map fun payload => payload.2.target))
     H.sourceOrder) (go H.payloads)
 
+/-- The recovered `(numIndices, resultLevel)` of every family, in order. -/
 def metadata
     (H : CheckedHeaders env Us nparams params
       commonLevel sources) : List (Nat × VLevel) :=
   H.payloads.map fun payload =>
     (payload.2.numIndices, payload.2.resultLevel)
+
+/-- The abstract type formers, in order. -/
+def targets (H : CheckedHeaders env Us nparams params commonLevel sources) : List VConstVal :=
+  H.payloads.map fun p => p.2.target
+
+theorem payloads_length (H : CheckedHeaders env Us nparams params commonLevel sources) :
+    H.payloads.length = sources.length := by
+  have := congrArg List.length H.sourceOrder
+  simpa using this
 
 @[simp] theorem metadata_reindexSources
     (H : CheckedHeaders env Us nparams params
@@ -154,7 +171,7 @@ def metadata
 
 end CheckedHeaders
 
-end checkInductiveTypes.loopType
+end
 end VerifyInductive
 end Lean4Lean
 
@@ -203,8 +220,5 @@ def HeaderStatsWF.retargetScope
 
 end checkInductiveTypes.loopInd
 
-namespace checkInductiveTypes.loopType
-
-end checkInductiveTypes.loopType
 end VerifyInductive
 end Lean4Lean

@@ -14,6 +14,10 @@ open scoped _root_.List
 open private Lean.Kernel.Environment.add from Lean.Environment
 namespace VerifyInductive
 
+/-- Source-level construction of one induction-hypothesis type.
+It records the terminal family application and the higher-order telescope
+selected by `loopUArgs`, before the resulting type is installed as a local
+declaration by `loopU`. -/
 structure InductionHypothesisType
     (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo)

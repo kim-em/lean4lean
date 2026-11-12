@@ -10,11 +10,10 @@ local context holds the parameters as free variables. `HeaderPhase` is what that
 may assume; `AddInductive.checkInductiveTypes.WF` is the boundary theorem.
 
 The structures are the interface. The traversal itself is verified in `Header/Loop.lean`
-(`checkInductiveTypes.accumulatesHeadersSourceAligned`) against the loop's own accumulator
-`checkInductiveTypes.loopType.CheckedHeaders`; `HeaderPhase` retains that accumulator and the
-parameter-scope invariants of the loop (`loopHeaders`, `cache`, `suffix`, `ambientParams`) for
-the constructor phase, and `CheckedHeaders.ofLoop` reads the interface's `CheckedHeaders` off
-it. -/
+(`checkInductiveTypes.accumulatesHeadersSourceAligned`), which accumulates the `CheckedHeaders`
+of `Header/CheckedHeaders.lean`; `HeaderPhase` retains that accumulator and the
+parameter-scope invariants of the loop (`cache`, `suffix`, `ambientParams`) for the
+constructor phase. -/
 
 namespace Lean4Lean
 
@@ -32,69 +31,15 @@ def headerType (target : VConstVal) (numIndices : Nat) (resultLevel : VLevel) :
   resultLevel := resultLevel
   ctors := []
 
-/-- One checked header: the translation of the source family type and its shape as a family of
-any declaration with these universe and parameter counts (`VInductDecl.TypeShape`), at the
-common parameter telescope `params` and with a result level equivalent to `commonLevel`. -/
-structure CheckedHeader (env : VEnv) (Us : List Name) (nparams : Nat)
-    (params : List VExpr) (commonLevel : VLevel) (source : InductiveType) where
-  target : VConstVal
-  numIndices : Nat
-  resultLevel : VLevel
-  translation : TrSourceConst env Us source.name source.type target
-  typeShape : ∀ decl : VInductDecl, decl.uvars = Us.length → decl.nparams = nparams →
-    decl.TypeShape env params (headerType target numIndices resultLevel)
-  commonLevel : resultLevel ≈ commonLevel
-  /-- The loop's per-family certificate (`Header/Telescope.lean`): the normalized source
-  telescope of the family together with its semantic shape. -/
-  formation : checkInductiveTypes.loopType.HeaderFormation env Us Us.length nparams params
-    (checkInductiveTypes.loopType.headerSkeleton target) numIndices resultLevel
-
-/-- Ordered semantic outputs of the mutual-header traversal, one per source family. -/
-structure CheckedHeaders (env : VEnv) (Us : List Name) (nparams : Nat)
-    (params : List VExpr) (commonLevel : VLevel) (sources : List InductiveType) where
-  payloads : List (Sigma fun source => CheckedHeader env Us nparams params commonLevel source)
-  sourceOrder : payloads.map Sigma.fst = sources
+/-- The shape of a checked header as a family of any declaration with these universe and
+parameter counts (`VInductDecl.TypeShape`), at the common parameter telescope. -/
+theorem CheckedHeader.typeShape {commonLevel : VLevel}
+    (H : CheckedHeader env Us nparams params commonLevel source) :
+    ∀ decl : VInductDecl, decl.uvars = Us.length → decl.nparams = nparams →
+      decl.TypeShape env params (headerType H.target H.numIndices H.resultLevel) :=
+  fun decl huvars hnparams => H.formation.typeShape decl huvars hnparams
 
 namespace CheckedHeaders
-
-/-- The recovered `(numIndices, resultLevel)` of every family, in order. -/
-def metadata (H : CheckedHeaders env Us nparams params commonLevel sources) :
-    List (Nat × VLevel) :=
-  H.payloads.map fun p => (p.2.numIndices, p.2.resultLevel)
-
-/-- The abstract type formers, in order. -/
-def targets (H : CheckedHeaders env Us nparams params commonLevel sources) : List VConstVal :=
-  H.payloads.map fun p => p.2.target
-
-theorem payloads_length (H : CheckedHeaders env Us nparams params commonLevel sources) :
-    H.payloads.length = sources.length := by
-  have := congrArg List.length H.sourceOrder
-  simpa using this
-
-/-- The interface payload of one of the loop's checked headers. -/
-def _root_.Lean4Lean.VerifyInductive.CheckedHeader.ofLoop
-    (H : checkInductiveTypes.loopType.CheckedHeader env Us nparams params commonLevel source) :
-    CheckedHeader env Us nparams params commonLevel source where
-  target := H.target
-  numIndices := H.numIndices
-  resultLevel := H.resultLevel
-  translation := H.translation
-  typeShape decl huvars hnparams := H.formation.typeShape decl huvars hnparams
-  commonLevel := H.commonLevel
-  formation := H.formation
-
-/-- The interface headers of the loop's accumulator. -/
-def ofLoop
-    (H : checkInductiveTypes.loopType.CheckedHeaders env Us nparams params commonLevel sources) :
-    CheckedHeaders env Us nparams params commonLevel sources where
-  payloads := H.payloads.map fun p => ⟨p.1, CheckedHeader.ofLoop p.2⟩
-  sourceOrder := by simpa [List.map_map, Function.comp_def] using H.sourceOrder
-
-@[simp] theorem ofLoop_metadata
-    (H : checkInductiveTypes.loopType.CheckedHeaders env Us nparams params commonLevel sources) :
-    (ofLoop H).metadata = H.metadata := by
-  simp [ofLoop, metadata, checkInductiveTypes.loopType.CheckedHeaders.metadata,
-    CheckedHeader.ofLoop]
 
 /-- A declaration whose headers are these: same universe and parameter counts, families with
 the checked constants, index counts and result levels, and the source constructor names. The
@@ -211,10 +156,6 @@ structure HeaderPhase {c : AddInductive.Context} (Hc : ContextWF c) (nparams : N
   parameters : HeaderParameterContext Hc' stats commonParams depth
   commonLevel_eq : VLevel.ofLevel c'.lparams stats.resultLevel = some commonLevel
   isNotZero : stats.isNotZero = stats.resultLevel.isNeverZero
-  /-- The loop's own accumulator, from which `headers` is read (`headers_eq`). -/
-  loopHeaders : checkInductiveTypes.loopType.CheckedHeaders Hc'.venv c'.lparams nparams
-    commonParams commonLevel indTypes.toList
-  headers_eq : headers = CheckedHeaders.ofLoop loopHeaders
   /-- The loop's parameter cache: the cached parameters translate to the parameter variables
   beneath the `depth` ambient declarations. -/
   cache : checkInductiveTypes.loopType.ParameterCachePrefix Hc'.venv c'.lparams
@@ -248,18 +189,16 @@ theorem AddInductive.checkInductiveTypes.WF
     depth := depth
     commonParams := commonParams
     commonLevel := commonLevel
-    headers := CheckedHeaders.ofLoop Hloop
+    headers := Hloop
     levels := hlevels
     nindices_size := hnindicesSize
-    nindices := by rw [CheckedHeaders.ofLoop_metadata]; exact hnindices
+    nindices := hnindices
     indConsts := hconsts
     params_size := hparams
     commonParams_length := hcommonParams
     parameters := .ofLoop Hcache Hsuffix Hambient hparams
     commonLevel_eq := hcommon
     isNotZero := hnotzero
-    loopHeaders := Hloop
-    headers_eq := rfl
     cache := Hcache
     suffix := Hsuffix
     ambientParams := Hambient }
