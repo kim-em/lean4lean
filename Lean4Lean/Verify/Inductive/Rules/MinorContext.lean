@@ -17,6 +17,16 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
+variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+  {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+  {sourceEnv : VEnv} {indTypes : Array InductiveType}
+  {ctorEnv outEnv : Environment}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth
+    sourceEnv indTypes ctorEnv}
+  {H : RecursorInstallation R outEnv}
+  {owner : Nat} {howner : owner < H.entries.length}
+  {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+
 open checkInductiveTypes.loopType
 
 /-- Instantiating an abstracted free variable with itself restores the
@@ -262,12 +272,6 @@ five-group executable telescope to the permutation-free semantic telescope;
 subsequent index alignment can therefore work under either parameter list
 without reusing an executable `isDefEq` success as an assumption. -/
 theorem RecursorInstallation.installedPairedParameterAlignmentAt
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -301,12 +305,6 @@ the remaining comparison with `C.motiveType` is a context-transport problem,
 not another inversion of the executable telescope. -/
 theorem
     RecursorInstallation.installedOwnerMotiveFrameAt
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -400,12 +398,6 @@ over the source binders corresponding to the target context on the right.
 This is the form needed for the comparison with `C.motiveType`. -/
 theorem
     RecursorInstallation.installedOwnerMotiveDomainTranslationAt
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -444,15 +436,6 @@ translated recursor is exactly the declaration type recorded by the second
 `mkRecInfos` pass, closed over parameters, motives, and earlier minors. -/
 theorem
     RecursorInstallation.RuleAlignment.installedSelectedMinorDomain
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let minorIdx := recursorMinorOffset indTypes owner + i
@@ -1313,15 +1296,6 @@ This is the binder-by-binder comparison input missing from the earlier
 whole-domain closing theorem. -/
 theorem
     RecursorInstallation.RuleAlignment.installedSelectedMinorExactPrefixSource
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let minorIdx := recursorMinorOffset indTypes owner + i
@@ -1400,14 +1374,6 @@ local declaration on both sides, rather than appealing to whole-expression
 equality. -/
 theorem
     RecursorInstallation.RuleAlignment.installedMinorPrefixBinderEq
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
     (minorLimit : Nat)
     (hminorLimit : minorLimit ≤ H.bindings.flatMinors.fvars.length) :
     let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
@@ -1637,15 +1603,6 @@ executable recursor have the same domain at every retained parameter,
 motive, and earlier-minor slot. -/
 theorem
     RecursorInstallation.RuleAlignment.installedSelectedMinorPrefixBinderEq
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor) :
     let minorIdx := recursorMinorOffset indTypes owner + i
     let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
@@ -1671,15 +1628,6 @@ minor prefix.  This closes the dependent outer-context conversion needed to
 type the canonical rule right-hand side. -/
 theorem
     RecursorInstallation.RuleAlignment.installedSelectedMinorPrefixDefEqCtx
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let minorIdx := recursorMinorOffset indTypes owner + i

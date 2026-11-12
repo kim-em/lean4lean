@@ -99,6 +99,16 @@ end InductiveSignature
 
 namespace VerifyInductive
 
+variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+  {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+  {sourceEnv : VEnv} {indTypes : Array InductiveType}
+  {ctorEnv outEnv : Environment}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth
+    sourceEnv indTypes ctorEnv}
+  {H : RecursorInstallation R outEnv}
+  {owner : Nat} {howner : owner < H.entries.length}
+  {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+
 /-! ### Generic transport of wrapped equations -/
 
 /-- A closed wrapped equation remains well formed when its domains are
@@ -170,15 +180,6 @@ recursor telescope `telescope` and the field frame `frame`; the selected minor
 domain splits into `fieldDomains ++ hypothesisDomains`, and the frame's fields are definitionally
 equal to the minor's fields re-weakened beneath the later minors. -/
 structure RecursorInstallation.RuleAlignment.EquationFrame
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor) where
   frame : A.FieldFrame
   telescope : RecursorTypeTelescope H.outVEnv
@@ -246,15 +247,6 @@ structure RecursorInstallation.RuleAlignment.EquationFrame
 /-- Positive-arity case of `equationFrame`. -/
 theorem
     RecursorInstallation.RuleAlignment.positiveEquationFrame
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
     (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
     Nonempty A.EquationFrame := by
@@ -573,15 +565,6 @@ theorem
 /-- Zero-arity case of `equationFrame`. -/
 theorem
     RecursorInstallation.RuleAlignment.zeroEquationFrame
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
     (hzero : A.rule.allArgs.size + A.rule.recursiveArgs.size = 0) :
     Nonempty A.EquationFrame := by
@@ -813,15 +796,6 @@ theorem
 /-- Every generated rule has an equation frame. -/
 theorem
     RecursorInstallation.RuleAlignment.equationFrame
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor) :
     Nonempty A.EquationFrame := by
   by_cases hzero : A.rule.allArgs.size + A.rule.recursiveArgs.size = 0

@@ -16,15 +16,20 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
+variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+  {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+  {sourceEnv : VEnv} {indTypes : Array InductiveType}
+  {ctorEnv outEnv : Environment}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth
+    sourceEnv indTypes ctorEnv}
+  {H : RecursorInstallation R outEnv}
+  {owner : Nat} {howner : owner < H.entries.length}
+  {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+  {A : H.RuleAlignment owner howner i hctor}
+
 open checkInductiveTypes.loopType
 
 theorem RecursorInstallation.constructorVEnv_le
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
     (H : RecursorInstallation R outEnv) :
     R.context.venv ≤ H.outVEnv :=
   H.installed.le
@@ -35,16 +40,6 @@ that root strictly larger than the common field context, so consumers must
 use the retained extension rather than identify the two contexts. -/
 theorem
     RecursorInstallation.RuleAlignment.RecursiveCallFrame.field_mem_originRoot
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
     {fv : FVarId} (hfv : fv ∈ A.rule.all_args_bound.fvars) :
@@ -61,16 +56,6 @@ theorem
 actual declaration of the context in which the call was checked. -/
 theorem
     RecursorInstallation.RuleAlignment.RecursiveCallFrame.rootScope_mem_originContext
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
     {fv : FVarId} (hfv : F.semantic.rootScope fv) :
@@ -115,15 +100,6 @@ retain one value of this structure and replay every call-local suffix above
 its exact `fieldDomains`. -/
 structure
     RecursorInstallation.RuleAlignment.FieldFrame
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor) where
   fieldScope : VLCtx
   runtime : checkInductiveTypes.loopType.FrontScopeEmbedding
@@ -151,16 +127,6 @@ the context hidden behind `FrontScopeEmbedding` in the form used by the
 selected-minor translation. -/
 theorem
     RecursorInstallation.RuleAlignment.FieldFrame.fieldScope_eq
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.RuleAlignment owner howner i hctor}
     (B : A.FieldFrame) :
     B.fieldScope.toCtx =
       (abstractForallContext B.fieldDomains
@@ -173,16 +139,6 @@ literally the generated rule's constructor-field identifiers, in source
 binder order. -/
 theorem
     RecursorInstallation.RuleAlignment.FieldFrame.frontFVars
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.RuleAlignment owner howner i hctor}
     (B : A.FieldFrame) :
     (VLCtx.fvars
       (B.fieldScope.take B.runtime.frontSourceDomains.length)).reverse =
@@ -222,16 +178,6 @@ private theorem cachedParameterCoreDeclarations
 The resulting dependency-selection core retains its exact cached parameter
 and field targets, which are the targets used by equation assembly. -/
 def RecursorInstallation.RuleAlignment.FieldFrame.core
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.RuleAlignment owner howner i hctor}
     (B : A.FieldFrame) :
     checkInductiveTypes.loopType.FVarCheckingScopeCore H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -278,16 +224,6 @@ target telescope is definitionally based on `B.fieldScope`; non-contiguity
 is represented solely by the core weakening. -/
 theorem
     RecursorInstallation.RuleAlignment.RecursiveCallFrame.currentCachedScopedCore
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
     (B : A.FieldFrame) :
@@ -467,16 +403,6 @@ target core.  This is the list-level equation certificate: all indices share
 one non-contiguous weakening and one cached parameter/field/local context. -/
 theorem
     RecursorInstallation.RuleAlignment.RecursiveCallFrame.cachedCoreIndices
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
     (B : A.FieldFrame) :
@@ -662,16 +588,6 @@ call.  Locals and fields are closed from a single dependency-selected core;
 the cached parameter suffix remains literal. -/
 theorem
     RecursorInstallation.RuleAlignment.RecursiveCallFrame.cachedCoreCallArgumentFrame
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj)
     (B : A.FieldFrame) :
@@ -1260,16 +1176,6 @@ theorem
 recursor environment, over the exact cached parameter suffix. -/
 theorem
     RecursorInstallation.RuleAlignment.FieldFrame.fieldContextWF
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.RuleAlignment owner howner i hctor}
     (B : A.FieldFrame) :
     OnCtx
       (abstractForallContext B.fieldDomains
@@ -1302,15 +1208,6 @@ generated scope that starts with the parameters; the generated binders above
 them form a contiguous free-variable weakening. -/
 theorem
     RecursorInstallation.RuleAlignment.installedPrefixParameterBase
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (_A : H.RuleAlignment owner howner i hctor)
     (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -1433,15 +1330,6 @@ checker's field declarations, and the checker's closure of the constructor
 tail agrees with the parameter-scope translation. -/
 theorem
     RecursorInstallation.RuleAlignment.installedInstalledCheckedFieldLink
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
     (T : RecursorTypeTelescope H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -1698,15 +1586,6 @@ cached parameter scope.  This is the exact field-domain equality required
 before the installed minor can be applied to canonical recursive results. -/
 theorem
     RecursorInstallation.RuleAlignment.installedSelectedMinorScopedFieldAlignment
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
     (B : A.FieldFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -1791,15 +1670,6 @@ come from its retained constructor tail, while `installedSelectedMinorSharedFiel
 connects that tail to the constructor checker. -/
 theorem
     RecursorInstallation.RuleAlignment.installedCheckedScopedFieldAlignment
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
     (B : A.FieldFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -1865,15 +1735,6 @@ cached parameter suffix.  The right side is exactly the fixed equation
 context used by `RecursiveResult`. -/
 theorem
     RecursorInstallation.RuleAlignment.installedCheckedScopedEquationContextAlignment
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
     (B : A.FieldFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -1983,15 +1844,6 @@ this specialization transports the equation-context conversion to that exact
 witness instead of forcing a second existential choice. -/
 theorem
     RecursorInstallation.RuleAlignment.installedCheckedScopedEquationContextAlignmentFor
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
     (B : A.FieldFrame)
     (T : RecursorTypeTelescope H.outVEnv
@@ -2030,15 +1882,6 @@ field translation already compared with another independently reconstructed
 telescope. -/
 theorem
     RecursorInstallation.RuleAlignment.installedCheckedScopedEquationContextAlignmentFromFrameFor
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
     (B : A.FieldFrame)
     (T : RecursorTypeTelescope H.outVEnv
@@ -2150,15 +1993,6 @@ context: subsequent applications can transport typed terms without silently
 changing their constructor-field telescope. -/
 theorem
     RecursorInstallation.RuleAlignment.installedScopedSelectedMinorFrame
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
     (B : A.FieldFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -2260,15 +2094,6 @@ the rule-wide field-frame fields, while the displayed minor type begins with the
 installed `fieldDomains`. -/
 theorem
     RecursorInstallation.RuleAlignment.installedScopedSelectedMinorTypeFrame
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
     (B : A.FieldFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -2317,15 +2142,6 @@ theorem
 
 theorem
     RecursorInstallation.RuleAlignment.fieldFrame
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor) :
     Nonempty A.FieldFrame := by
   rcases A.scopedFieldRuntimeScope with
@@ -2351,16 +2167,6 @@ only the common inductive parameters; in particular they avoid every motive
 and minor variable that will later be inserted into the equation context. -/
 theorem
     RecursorInstallation.RuleAlignment.RecursiveCallFrame.fieldAbstractedIndexSourcesScoped
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj) :
     let sourceIndices :=
@@ -2406,16 +2212,6 @@ In particular it is independent of every generated induction-hypothesis
 identifier from the first pass. -/
 theorem
     RecursorInstallation.RuleAlignment.RecursiveCallFrame.fieldAbstractedNormalizedMotiveSourceScope
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj) :
     (F.semantic.generated.outerAbstractedMotiveApp
@@ -2512,16 +2308,6 @@ theorem
 motive application is exactly the one-shot full rule abstraction. -/
 theorem
     RecursorInstallation.RuleAlignment.RecursiveCallFrame.outerAbstractedNormalizedMotiveSource
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : ConstructorCheck c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : RecursorInstallation R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
     (F : A.RecursiveCallFrame j hj) :
     let outer := (A.rule.params_bound.fvars ++
