@@ -6,7 +6,7 @@ import Lean4Lean.Verify.Inductive.Install.RecursorShapes
 /-! # The block certificate and its installation into the environment model
 
 `BlockCertificate` is what a complete run of the ordinary pipeline certifies at the checked
-safety level: the installed declaration is well formed (`VInductDecl.WF`), PR #43's `AddInduct`
+safety level: the installed declaration is well formed (`VInductDecl.WF`), `AddInduct`
 relates the source and output environments (so `TrEnv'.induct` applies), and the facts
 `InstalledBlocks.addInduct` reads of the output. `RecursorCheck.blockCertificate`
 assembles it from the recursor and rule phases; `BlockCertificate.extendSafeExact` and

@@ -9,7 +9,7 @@ recursor infos (`mkRecInfos`: motives, minors, rule templates), checks the recur
 declares the recursors (`declareRecursors`, which type-checks every generated recursor type and
 instantiates the rule templates). `RecursorCheck` is the interface of the resulting
 environment: the kernel recursors `rvals`, the model recursors `recs` they translate to
-(PR #43's `TrRecursor`, with the rules' reducts translated in the recursor-stage environment),
+(`TrRecursor`, with the rules' reducts translated in the recursor-stage environment),
 the recursor-stage environment `outVEnv`, the shape clauses of `VInductDecl.WF`, and the
 signature generator (`signature`, `generation`) whose recursors the `recs` are. The rules'
 typing and their identification with the generated equations are the rule phase's

@@ -8,7 +8,7 @@ import Lean4Lean.Verify.Inductive.HeaderData
 phases: the header data, the translated declaration (`TrInductDeclCore`), the formation
 certificate, the checked constructor tails with the executable's field classification, the
 kernel constructors installed over the header environment (`ivals`, `map_eq`, `fresh`) and
-translating to the abstract ones (`trTypes`, PR #43's `TrIndType`), and a valid checking context
+translating to the abstract ones (`trTypes`, by `TrIndType`), and a valid checking context
 over the constructor environment with the declaration's projection entries registered
 (`context`, `contextVEnv`), in which the recursors are checked.
 

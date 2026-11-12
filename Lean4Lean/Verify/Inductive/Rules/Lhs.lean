@@ -1084,13 +1084,13 @@ theorem
   have HtypeEq : H.outVEnv.IsDefEqU Us.length equationDomains.reverse
       typeBody cachedType := by
     simpa [abstractForallContext_toCtx, VLCtx.toCtx] using HtypeEq₀
-  have HlhsTypingOld : H.outVEnv.HasType Us.length equationDomains.reverse
+  have HlhsTypingAtCachedType : H.outVEnv.HasType Us.length equationDomains.reverse
       lhsBody cachedType :=
     VEnv.HasType.defeqU_l H.outVEnvWF HfixedCtx HlhsEq.symm
       HlhsTypingFixed
   have HlhsTyping' : H.outVEnv.HasType Us.length equationDomains.reverse
       lhsBody typeBody :=
-    HlhsTypingOld.defeqU_r H.outVEnvWF HfixedCtx HtypeEq.symm
+    HlhsTypingAtCachedType.defeqU_r H.outVEnvWF HfixedCtx HtypeEq.symm
   have HtypeBody : H.outVEnv.IsType Us.length equationDomains.reverse
       typeBody :=
     VEnv.IsType.defeqU_l H.outVEnvWF HfixedCtx HtypeEq.symm

@@ -1626,8 +1626,8 @@ theorem
 
 /-- Identify the source side of the selected recursive-hypothesis translation
 with the exact declaration type introduced by `mkRecInfos.loopUTemplates`.  Thus the
-pointwise target-domain certificate is no longer mediated by an arbitrary
-existential source expression. -/
+pointwise target-domain certificate is stated for that declaration type rather than
+for an arbitrary existential source expression. -/
 theorem
     RecursorInstallation.RuleAlignment.installedSelectedMinorHypothesisDeclarationDomainAt
     (A : H.RuleAlignment owner howner i hctor)

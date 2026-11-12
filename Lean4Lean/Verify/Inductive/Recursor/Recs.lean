@@ -6,7 +6,7 @@ import Lean4Lean.Verify.Inductive.Constructor.Install
 /-! # The model recursors of a recursor installation
 
 The kernel recursors of an installation (`rvals`, read off the generated entries) and the model
-recursors (`recs`, PR #43's `VRecursor`) they translate to: the generated recursor constant of
+recursors (`recs`, of type `VRecursor`) they translate to: the generated recursor constant of
 each owner with the kernel's telescope split and K flag, and one `VRecRule` per kernel rule,
 firing on its constructor with the declaration's parameter count and reducing to the generated
 equation's right-hand side. -/
@@ -170,7 +170,7 @@ theorem outFind (H : RecursorInstallation R outEnv) {n : Name} {ci : ConstantInf
   have hout := H.installed.preservesSourceFind hctorWF (by rw [H.localExtends.env_eq]; exact h)
   rwa [Lean.Kernel.Environment.find?, (H.installed.targetMapWF hctorWF).find?'_eq_find?] at hout
 
-/-- Each kernel recursor translates to its model recursor (PR #43's `TrRecursor`), the type
+/-- Each kernel recursor translates to its model recursor (`TrRecursor`), the type
 in the projection stage. -/
 theorem trRecursor (H : RecursorInstallation R outEnv)
     (owner : Fin H.generationSignature.families.size) :

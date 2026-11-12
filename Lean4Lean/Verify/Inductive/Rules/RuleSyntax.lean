@@ -299,7 +299,7 @@ structure TypedRecursiveCall.MotiveApplication
     S.current_context.mlctx.vlctx.toCtx target
 
 /-- Typed recursive calls with the exact earlier-hypothesis suffix
-retained at every call's context.  Unlike the compatibility staging above, this
+retained at every call's context.  Unlike `TypedRecursiveCallsAbove`, this
 is populated only by `loopUTemplates`, whose accumulator supplies the
 literal recent suffix and its position in the call row. -/
 structure TypedRecursiveCallsAfterHypotheses

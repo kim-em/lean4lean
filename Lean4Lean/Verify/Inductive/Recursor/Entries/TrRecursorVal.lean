@@ -10,7 +10,7 @@ a signature instance, and the model's recursors (`VRecursor`, `VRecRule`):
 * `TrRecursorRule`: a kernel rule is the generated equation of its constructor;
 * `RecursorMetadata`, `TrRecursorVal`: a kernel recursor's metadata and rules are the
   generator's;
-* the link to PR #43's `TrRecursor` (the `recs` field of `AddInduct`) and to
+* the link to `TrRecursor` (the `recs` field of `AddInduct`) and to
   `VRecRule.OfEquation` (the `rules` field of `VInductDecl.RecsOf`), which is how the
   recursor and rule phases discharge `VInductDecl.RecsCompiled`.
 
@@ -74,7 +74,7 @@ def TrRecursorEntry {s : InductiveSignature} (g : Instance s)
 
 /-! ### The model's recursors
 
-A kernel recursor `rval` translating to the model's `r : VRecursor` (PR #43's `TrRecursor`,
+A kernel recursor `rval` translating to the model's `r : VRecursor` (`TrRecursor`,
 `Verify/Environment/Basic.lean`) and to the generator's recursor (`TrRecursorVal`) makes `r`'s
 rules the generated equations, reduct for reduct (`VRecRule.OfEquation`): `TrExprS` is
 functional, so the two translations of a rule's reduct agree. This is the bridge from the
