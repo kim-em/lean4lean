@@ -84,7 +84,7 @@ theorem mkLam_mkApp {n : Nat} {D g : 𝕋.S} {F : 𝕋.S → 𝕋.S}
         Classical.byContradiction fun hc =>
           (hF d hd).star_not_mem hc (by have := hres d hd; rwa [h d hd] at this)
       rw [mkLam, if_neg hne]
-      obtain ⟨f', rfl, hf', -⟩ := mem_El_tPi.1 hg
+      obtain ⟨f', rfl, hf', -, -⟩ := mem_El_tPi.1 hg
       rw [fn]
       congr 1
       rw [(𝕋.mem_pi.1 hf').1]

@@ -64,7 +64,8 @@ theorem mkPi_valid {n : Nat} {D : 𝕋.S} {F : 𝕋.S → 𝕋.S}
     (hF : ∀ d, d ∈ₛ 𝕋.El D → 𝕋.ValidAny (𝕋.univList n) (F d))
     (hFrel : ∀ d d', d ∈ₛ 𝕋.El D → 𝕋.Rel D d d' → 𝕋.TyRel (F d) (F d'))
     (hsort : (∀ d, d ∈ₛ 𝕋.El D → 𝕋.IsCand (F d) → F d = 𝕋.cand Candidate.full) ∨
-      ∀ d, d ∈ₛ 𝕋.El D → 𝕋.IsCand (F d)) :
+      ∀ d, d ∈ₛ 𝕋.El D → 𝕋.IsCand (F d))
+    (hfam : ¬ 𝕋.IsCand D → 𝕋.FamUnif D F) :
     𝕋.ValidAny (𝕋.univList n) (𝕋.mkPi D F) := by
   unfold mkPi
   split
@@ -91,7 +92,7 @@ theorem mkPi_valid {n : Nat} {D : 𝕋.S} {F : 𝕋.S → 𝕋.S}
       rw [isCand_eq (hall d hd)] at this
       exact this.good
     · rename_i hall
-      refine .pi hD hDc hF ?_ hFrel hall
+      refine .pi hD hDc hF ?_ hFrel hall (hfam hDc)
       rcases hsort with h | h
       · exact h
       · exact (hall h).elim
@@ -225,7 +226,7 @@ theorem mkApp_rel {n : Nat} {D g g' x x' : 𝕋.S} {F : 𝕋.S → 𝕋.S}
       rw [if_neg hall] at hgg'
       obtain ⟨hg', hr⟩ := (rel_tPi_iff hg).1 hgg'
       rw [mkApp, if_neg (ne_star_of_mem_tPi hg), mkApp, if_neg (ne_star_of_mem_tPi hg')]
-      obtain ⟨f', rfl, -, hresp⟩ := mem_El_tPi.1 hg'
+      obtain ⟨f', rfl, -, hresp, -⟩ := mem_El_tPi.1 hg'
       have h2 : 𝕋.Rel (F x) (𝕋.ap (𝕋.pair (𝕋.tagN 104) f') x) (𝕋.ap (𝕋.pair (𝕋.tagN 104) f') x') := by
         simp only [ap, snd_pair]
         exact hresp x x' hx hxx'

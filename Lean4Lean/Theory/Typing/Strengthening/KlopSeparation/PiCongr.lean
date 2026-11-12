@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.ValidU
+import Lean4Lean.Theory.Typing.Strengthening.KlopSeparation.PiLemmas
 
 /-! # Π formation depends only on the fibres over the domain
 
@@ -44,14 +44,18 @@ theorem tPi_congr {D : 𝕋.S} {F F' : 𝕋.S → 𝕋.S} (h : ∀ d, d ∈ₛ �
     𝕋.tPi D F = 𝕋.tPi D F' := by
   have hpi : (𝕋.pi (𝕋.El D) fun d => 𝕋.El (F d)) = 𝕋.pi (𝕋.El D) fun d => 𝕋.El (F' d) :=
     pi_congr fun d hd => by rw [h d hd]
-  have hsep : (𝕋.sep (𝕋.pi (𝕋.El D) fun d => 𝕋.El (F d)) fun f =>
-        ∀ d d', d ∈ₛ 𝕋.El D → 𝕋.Rel D d d' → 𝕋.Rel (F d) (𝕋.app f d) (𝕋.app f d')) =
-      𝕋.sep (𝕋.pi (𝕋.El D) fun d => 𝕋.El (F' d)) fun f =>
-        ∀ d d', d ∈ₛ 𝕋.El D → 𝕋.Rel D d d' → 𝕋.Rel (F' d) (𝕋.app f d) (𝕋.app f d') := by
-    rw [hpi]
-    exact sep_congr fun f _ => forall_congr' fun d => forall_congr' fun d' =>
-      imp_congr_right fun hd => by rw [h d hd]
   have hlam : 𝕋.lam (𝕋.El D) F = 𝕋.lam (𝕋.El D) F' := 𝕋.lam_ext h
+  have hun : 𝕋.PiUnif D F = 𝕋.PiUnif D F' := by
+    funext g; simp only [PiUnif, prePi, hlam]
+  have hsep : (𝕋.sep (𝕋.pi (𝕋.El D) fun d => 𝕋.El (F d)) fun f =>
+        (∀ d d', d ∈ₛ 𝕋.El D → 𝕋.Rel D d d' → 𝕋.Rel (F d) (𝕋.app f d) (𝕋.app f d')) ∧
+        𝕋.PiUnif D F (𝕋.pair (𝕋.tagN 104) f)) =
+      𝕋.sep (𝕋.pi (𝕋.El D) fun d => 𝕋.El (F' d)) fun f =>
+        (∀ d d', d ∈ₛ 𝕋.El D → 𝕋.Rel D d d' → 𝕋.Rel (F' d) (𝕋.app f d) (𝕋.app f d')) ∧
+        𝕋.PiUnif D F' (𝕋.pair (𝕋.tagN 104) f) := by
+    rw [hpi, hun]
+    exact sep_congr fun f _ => and_congr_left fun _ => forall_congr' fun d =>
+      forall_congr' fun d' => imp_congr_right fun hd => by rw [h d hd]
   have hskel : (𝕋.lam (𝕋.El D) fun d => 𝕋.skel (F d)) = 𝕋.lam (𝕋.El D) fun d => 𝕋.skel (F' d) :=
     𝕋.lam_ext fun d hd => by rw [h d hd]
   simp only [tPi]
